@@ -1,0 +1,22 @@
+{
+  "name": "krasterisk-v4",
+  "version": "4.0.0",
+  "description": "IP PBX Krasterisk — Modern Web Interface",
+  "private": true,
+  "workspaces": [
+    "packages/shared",
+    "packages/backend",
+    "packages/frontend"
+  ],
+  "scripts": {
+    "dev:backend": "npm run start:dev -w @krasterisk/backend",
+    "dev:frontend": "npm run dev -w @krasterisk/frontend",
+    "build": "npm run build -w @krasterisk/shared && npm run build -w @krasterisk/backend && npm run build -w @krasterisk/frontend",
+    "lint": "npm run lint -w @krasterisk/backend"
+  },
+  "author": "Krasterisk LTD",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
