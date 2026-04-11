@@ -6,10 +6,17 @@ import { AuthController } from './auth.controller';
 import { JwtStrategy } from './jwt.strategy';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { UsersModule } from '../users/users.module';
+import { LoggerModule } from '../logger/logger.module';
+import { MailerModule } from '../mailer/mailer.module';
+import { SequelizeModule } from '@nestjs/sequelize';
+import { UserSession } from './user-session.model';
 
 @Module({
   imports: [
+    SequelizeModule.forFeature([UserSession]),
     UsersModule,
+    LoggerModule,
+    MailerModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: (config: ConfigService) => ({

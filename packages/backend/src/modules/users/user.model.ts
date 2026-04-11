@@ -57,5 +57,15 @@ export class User extends Model {
   declare inactive_time: number;
 
   @Column({ type: DataType.INTEGER, defaultValue: 0 })
-  declare user_uid: number;
+  declare vpbx_user_uid: number;
+
+  @Column({ type: DataType.STRING, allowNull: true })
+  declare activationCode: string | null;
+
+  @Column({ type: DataType.BIGINT, allowNull: true })
+  declare activationExpires: number | null;
+
+  @Column({ type: DataType.BOOLEAN, defaultValue: false })
+  declare isActivated: boolean;
 }
+

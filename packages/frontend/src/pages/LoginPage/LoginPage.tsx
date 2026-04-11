@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'motion/react';
 import { Phone, Lock, User, ArrowRight, Loader2, Languages } from 'lucide-react';
-import { Button, Input } from '@/shared/ui';
+import { Button, Input, VStack, HStack, Flex } from '@/shared/ui';
 import { useAppDispatch, useAppSelector } from '@/shared/hooks/useAppStore';
 import { login, clearError } from '@/features/auth/model/authSlice';
 
@@ -37,14 +37,14 @@ export const LoginPage = () => {
   };
 
   return (
-    <div className="flex flex-col min-h-screen p-6 relative overflow-hidden bg-[#0c1214]">
+    <VStack className="min-h-screen p-6 relative overflow-hidden bg-[#0c1214]" justify="between">
       {/* Background decoration — radial glow (aiPBX pattern) */}
       <div className="absolute -top-[10%] -right-[10%] w-[50%] h-[50%] bg-[radial-gradient(circle,rgba(99,102,241,0.12)_0%,transparent_70%)] blur-[80px] z-[1] pointer-events-none" />
       <div className="absolute -bottom-[20%] -left-[15%] w-[40%] h-[40%] bg-[radial-gradient(circle,rgba(168,85,247,0.08)_0%,transparent_70%)] blur-[80px] z-[1] pointer-events-none" />
 
       {/* Header — lang switcher */}
-      <header className="relative z-10">
-        <div className="flex justify-between items-center">
+      <header className="relative z-10 w-full">
+        <HStack max justify="end">
           <button
             id="login-lang-toggle"
             onClick={toggleLanguage}
@@ -53,11 +53,11 @@ export const LoginPage = () => {
             <Languages className="w-4 h-4" />
             {i18n.language.toUpperCase()}
           </button>
-        </div>
+        </HStack>
       </header>
 
       {/* Form wrapper — center */}
-      <div className="flex-1 flex items-center justify-center relative z-[5]">
+      <Flex className="flex-1 w-full relative z-[5]" align="center" justify="center">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -66,7 +66,7 @@ export const LoginPage = () => {
         >
           {/* Glass card (aiPBX pattern) */}
           <div className="relative rounded-2xl p-8 bg-[rgba(21,28,31,0.6)] backdrop-blur-[24px] border border-white/[0.15] shadow-[0_8px_32px_rgba(0,0,0,0.3),inset_0_0_0_1px_rgba(255,255,255,0.08)] transition-all duration-300 hover:border-white/[0.25] hover:shadow-[0_12px_40px_rgba(0,0,0,0.35),inset_0_0_0_1px_rgba(255,255,255,0.1)]">
-            <div className="flex flex-col items-center gap-6">
+            <VStack gap="24" align="center">
               {/* Logo wrapper — floating animation (aiPBX pattern) */}
               <motion.div
                 animate={{ y: [0, -8, 0] }}
@@ -157,18 +157,28 @@ export const LoginPage = () => {
                     </>
                   )}
                 </Button>
+                
+                <VStack max align="center" className="mt-4">
+                  <button 
+                    type="button" 
+                    onClick={() => navigate('/register')} 
+                    className="text-sm text-primary hover:text-primary/80 transition-colors"
+                  >
+                    {t('auth.noAccount')}
+                  </button>
+                </VStack>
               </form>
-            </div>
+            </VStack>
           </div>
         </motion.div>
-      </div>
+      </Flex>
 
       {/* Footer (aiPBX pattern) */}
-      <footer className="relative z-10 text-center opacity-60 mt-6">
-        <p className="text-sm text-[#a1a1aa]">
+      <footer className="relative z-10 w-full text-center opacity-60">
+        <p className="text-sm text-[#a1a1aa] pb-4">
           © {new Date().getFullYear()} Krasterisk. All rights reserved.
         </p>
       </footer>
-    </div>
+    </VStack>
   );
 };

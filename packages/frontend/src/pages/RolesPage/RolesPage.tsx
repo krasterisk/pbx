@@ -11,7 +11,8 @@ import {
   type SortingState,
 } from '@tanstack/react-table';
 import { Shield, Plus, Pencil, Trash2, Loader2, Search } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent, Button, Input } from '@/shared/ui';
+import { Button, Card, CardHeader, CardContent, Input } from '@/shared/ui';
+import { VStack, HStack } from '@/shared/ui/Stack';
 import { useGetRolesQuery, useDeleteRoleMutation } from '@/shared/api/api';
 
 export const RolesPage = () => {
@@ -36,7 +37,7 @@ export const RolesPage = () => {
       id: 'actions',
       header: t('common.actions'),
       cell: (info) => (
-        <div className="flex items-center gap-1">
+        <HStack gap="8" justify="end">
           <button
             className="p-1.5 rounded-md hover:bg-white/5 text-muted-foreground hover:text-white transition-colors"
             title={t('common.edit')}
@@ -54,7 +55,7 @@ export const RolesPage = () => {
           >
             <Trash2 className="w-4 h-4" />
           </button>
-        </div>
+        </HStack>
       ),
     },
   ], [t, deleteRole]);
@@ -71,22 +72,19 @@ export const RolesPage = () => {
   });
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-3">
-            <Shield className="w-7 h-7 text-primary" />
+    <VStack gap="24" max>
+      <HStack justify="between" align="center" className="flex-col sm:flex-row gap-4" max>
+        <HStack gap="12" align="center">
+          <Shield className="w-7 h-7 text-primary" />
+          <h1 className="text-2xl font-bold">
             {(t('nav.roles' as any) || 'Интерфейсы')}
           </h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            Настройка видимости модулей и прав доступа к интерфейсу
-          </p>
-        </div>
+        </HStack>
         <Button className="gap-2">
           <Plus className="w-4 h-4" />
           {t('common.add')}
         </Button>
-      </div>
+      </HStack>
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -95,12 +93,14 @@ export const RolesPage = () => {
       >
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
+            <HStack justify="between" align="center" className="flex-col sm:flex-row gap-4" max>
+              <HStack gap="8" align="center">
                 <Shield className="w-5 h-5 text-primary" />
-                {roles.length} {(t('nav.roles' as any) || 'Интерфейсы').toLowerCase()}
-              </CardTitle>
-              <div className="relative w-64">
+                <span className="font-semibold text-lg">
+                  {roles.length} {(t('nav.roles' as any) || 'Интерфейсы').toLowerCase()}
+                </span>
+              </HStack>
+              <div className="relative w-full sm:w-64">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   placeholder={t('common.search')}
@@ -109,7 +109,7 @@ export const RolesPage = () => {
                   className="pl-10 h-9"
                 />
               </div>
-            </div>
+            </HStack>
           </CardHeader>
           <CardContent className="p-0">
             {isLoading ? (
@@ -163,6 +163,6 @@ export const RolesPage = () => {
           </CardContent>
         </Card>
       </motion.div>
-    </div>
+    </VStack>
   );
 };

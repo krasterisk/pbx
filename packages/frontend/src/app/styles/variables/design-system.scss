@@ -1,0 +1,49 @@
+/**
+ * Design System Variables for Krasterisk v4
+ * Adapting aiPBX patterns for Indigo/Dark theme
+ */
+
+:root {
+    // ========================================
+    // COLORS (Tailwind + SCSS)
+    // ========================================
+    --primary: #6366f1;
+    --primary-hover: #4f46e5;
+    
+    --bg-main: #09090b;
+    --bg-card: rgba(255, 255, 255, 0.03);
+    
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+    
+    --border-color: rgba(255, 255, 255, 0.1);
+
+    // ========================================
+    // GLASSMORPHISM EFFECTS
+    // ========================================
+    --glass-bg-primary: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.01) 100%);
+    --glass-bg-secondary: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(99, 102, 241, 0.05) 100%);
+    
+    --glass-border-primary: 1px solid rgba(255, 255, 255, 0.1);
+    --glass-border-accent: 1px solid rgba(99, 102, 241, 0.3);
+
+    // ========================================
+    // SHADOWS & GLOW
+    // ========================================
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.2);
+    --shadow-md: 0 4px 24px -1px rgba(0, 0, 0, 0.3);
+    --glow-primary: 0 0 15px rgba(99, 102, 241, 0.3);
+
+    // ========================================
+    // ANIMATIONS (from aiPBX)
+    // ========================================
+    --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+    --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+    
+    --duration-fast: 0.15s;
+    --duration-normal: 0.2s;
+    --duration-medium: 0.3s;
+    
+    --transition-fast: all var(--duration-fast) var(--ease-out);
+    --transition-normal: all var(--duration-normal) var(--ease-in-out);
+}

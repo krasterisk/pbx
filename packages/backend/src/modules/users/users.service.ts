@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { User } from './user.model';
-import * as bcrypt from 'bcryptjs';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class UsersService {
@@ -13,14 +13,20 @@ export class UsersService {
     return this.userModel.findOne({ where: { login } });
   }
 
-  async findById(id: number): Promise<User | null> {
-    return this.userModel.findByPk(id, {
+  async findById(id: number, vpbxUserUid?: number): Promise<User | null> {
+    const whereClause: any = { uniqueid: id };
+    if (vpbxUserUid) {
+      whereClause.vpbx_user_uid = vpbxUserUid;
+    }
+    return this.userModel.findOne({
+      where: whereClause,
       attributes: { exclude: ['passwd'] },
     });
   }
 
-  async findAll(): Promise<User[]> {
+  async findAll(vpbxUserUid: number): Promise<User[]> {
     return this.userModel.findAll({
+      where: { vpbx_user_uid: vpbxUserUid },
       attributes: { exclude: ['passwd'] },
       order: [['name', 'ASC']],
     });
@@ -29,13 +35,16 @@ export class UsersService {
   async create(data: {
     login: string;
     name: string;
-    password: string;
+    password?: string;
+    passwd?: string;
     email?: string;
     level?: number;
     role?: number;
     exten?: string;
+    vpbx_user_uid?: number;
   }): Promise<User> {
-    const hashedPassword = await bcrypt.hash(data.password, 10);
+    const newPassword = data.password || data.passwd;
+    const hashedPassword = newPassword ? crypto.createHash('md5').update(newPassword).digest('hex') : '';
     return this.userModel.create({
       login: data.login,
       name: data.name,
@@ -44,13 +53,15 @@ export class UsersService {
       level: data.level || 2,
       role: data.role || 0,
       exten: data.exten || '',
+      vpbx_user_uid: data.vpbx_user_uid || 0,
     });
   }
 
-  async update(id: number, data: Partial<{
+  async update(id: number, vpbxUserUid: number, data: Partial<{
     login: string;
     name: string;
-    password: string;
+    password?: string;
+    passwd?: string;
     email: string;
     level: number;
     role: number;
@@ -62,17 +73,27 @@ export class UsersService {
     outbound_posttime: number;
     suspension_time: number;
     inactive_time: number;
+    vpbx_user_uid: number;
   }>): Promise<User | null> {
     const updateData: any = { ...data };
-    if (data.password) {
-      updateData.passwd = await bcrypt.hash(data.password, 10);
+    
+    // Front-end could send 'password' or 'passwd'
+    const newPassword = data.password || data.passwd;
+    
+    if (newPassword) {
+      updateData.passwd = crypto.createHash('md5').update(newPassword).digest('hex');
+      delete updateData.password;
+    } else {
+      // If empty string is passed to passwd, delete it so we don't override with empty
+      delete updateData.passwd;
       delete updateData.password;
     }
-    await this.userModel.update(updateData, { where: { uniqueid: id } });
+    
+    await this.userModel.update(updateData, { where: { uniqueid: id, vpbx_user_uid: vpbxUserUid } });
     return this.findById(id);
   }
 
-  async delete(id: number): Promise<void> {
-    await this.userModel.destroy({ where: { uniqueid: id } });
+  async delete(id: number, vpbxUserUid: number): Promise<void> {
+    await this.userModel.destroy({ where: { uniqueid: id, vpbx_user_uid: vpbxUserUid } });
   }
 }

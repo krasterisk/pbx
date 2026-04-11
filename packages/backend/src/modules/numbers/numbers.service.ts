@@ -8,30 +8,30 @@ export class NumbersService {
     @InjectModel(NumberList) private readonly numberListModel: typeof NumberList,
   ) {}
 
-  async findAll(): Promise<NumberList[]> {
-    return this.numberListModel.findAll();
+  async findAll(vpbxUserUid: number): Promise<NumberList[]> {
+    return this.numberListModel.findAll({ where: { vpbx_user_uid: vpbxUserUid }});
   }
 
-  async findById(id: number): Promise<NumberList | null> {
-    return this.numberListModel.findByPk(id);
+  async findById(id: number, vpbxUserUid: number): Promise<NumberList | null> {
+    return this.numberListModel.findOne({ where: { id, vpbx_user_uid: vpbxUserUid } });
   }
 
   async create(data: Partial<NumberList>): Promise<NumberList> {
     return this.numberListModel.create(data as any);
   }
 
-  async update(id: number, data: Partial<NumberList>): Promise<NumberList | null> {
-    const item = await this.numberListModel.findByPk(id);
+  async update(id: number, vpbxUserUid: number, data: Partial<NumberList>): Promise<NumberList | null> {
+    const item = await this.numberListModel.findOne({ where: { id, vpbx_user_uid: vpbxUserUid } });
     if (!item) return null;
     return item.update(data);
   }
 
-  async delete(id: number): Promise<boolean> {
-    const deleted = await this.numberListModel.destroy({ where: { id } });
+  async delete(id: number, vpbxUserUid: number): Promise<boolean> {
+    const deleted = await this.numberListModel.destroy({ where: { id, vpbx_user_uid: vpbxUserUid } });
     return deleted > 0;
   }
 
-  async bulkDelete(ids: number[]): Promise<number> {
-    return this.numberListModel.destroy({ where: { id: ids } });
+  async bulkDelete(ids: number[], vpbxUserUid: number): Promise<number> {
+    return this.numberListModel.destroy({ where: { id: ids, vpbx_user_uid: vpbxUserUid } });
   }
 }

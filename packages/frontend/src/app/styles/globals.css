@@ -49,6 +49,14 @@
   --radius-lg: 0.75rem;
   --radius-xl: 1rem;
 
+  /* Z-Index Layers */
+  --z-index-dropdown: 20;
+  --z-index-header: 30;
+  --z-index-backdrop: 35;
+  --z-index-sidebar: 40;
+  --z-index-modal: 50;
+  --z-index-toast: 100;
+
   /* Fonts */
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
 }
@@ -56,6 +64,13 @@
 /* ========================================
    GLOBAL STYLES
    ======================================== */
+
+.layer-dropdown { z-index: var(--z-index-dropdown); }
+.layer-header   { z-index: var(--z-index-header); }
+.layer-backdrop { z-index: var(--z-index-backdrop); }
+.layer-sidebar  { z-index: var(--z-index-sidebar); }
+.layer-modal    { z-index: var(--z-index-modal); }
+.layer-toast    { z-index: var(--z-index-toast); }
 
 * {
   border-color: var(--color-border);

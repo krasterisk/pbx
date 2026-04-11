@@ -1,11 +1,14 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { AppLayout } from '@/app/layouts/AppLayout';
 import { LoginPage } from '@/pages/LoginPage/LoginPage';
+import { RegisterPage } from '@/pages/RegisterPage/RegisterPage';
+import { ActivationPage } from '@/pages/ActivationPage/ActivationPage';
 import { DashboardPage } from '@/pages/DashboardPage/DashboardPage';
 import { UsersPage } from '@/pages/UsersPage/UsersPage';
 
 import { RolesPage } from '@/pages/RolesPage/RolesPage';
 import { NumbersPage } from '@/pages/NumbersPage/NumbersPage';
+import { EndpointsPage } from '@/pages/EndpointsPage/EndpointsPage';
 
 export const router = createBrowserRouter([
   {
@@ -13,12 +16,20 @@ export const router = createBrowserRouter([
     element: <LoginPage />,
   },
   {
+    path: '/register',
+    element: <RegisterPage />,
+  },
+  {
+    path: '/activate',
+    element: <ActivationPage />,
+  },
+  {
     path: '/',
     element: <AppLayout />,
     children: [
       { index: true, element: <DashboardPage /> },
       { path: 'users', element: <UsersPage /> },
-      { path: 'peers', element: <PlaceholderPage title="Абоненты" /> },
+      { path: 'endpoints', element: <EndpointsPage /> },
       { path: 'trunks', element: <PlaceholderPage title="Транки" /> },
       { path: 'routes', element: <PlaceholderPage title="Маршруты" /> },
       { path: 'queues', element: <PlaceholderPage title="Очереди" /> },

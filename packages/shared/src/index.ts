@@ -1,5 +1,14 @@
 // Enums
-export * from './enums';
+export {
+  UserLevel,
+  AgentStatus,
+  PeerStatus,
+  CallDisposition,
+  PeerType,
+  RouteDirection,
+  TrunkType,
+  AmiEventType
+} from './enums';
 
 // Types
 export * from './types/user.types';

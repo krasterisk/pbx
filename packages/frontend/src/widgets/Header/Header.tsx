@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { Bell, Moon, Sun, LogOut, Search, Languages } from 'lucide-react';
+import { Bell, Moon, Sun, LogOut, Search, Languages, Menu } from 'lucide-react';
 import { Button } from '@/shared/ui';
 import { useAppDispatch, useAppSelector } from '@/shared/hooks/useAppStore';
 import { logout } from '@/features/auth/model/authSlice';
@@ -8,14 +8,18 @@ import { useState } from 'react';
 
 interface HeaderProps {
   sidebarWidth: number;
+  onMenuToggle?: () => void;
+  isMobile?: boolean;
 }
 
-export const Header = ({ sidebarWidth }: HeaderProps) => {
+export const Header = ({ sidebarWidth, onMenuToggle, isMobile }: HeaderProps) => {
   const { t, i18n } = useTranslation();
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const user = useAppSelector((s) => s.auth.user);
-  const [isDark, setIsDark] = useState(true);
+  const [isDark, setIsDark] = useState(() => {
+    return localStorage.getItem('theme') !== 'light';
+  });
 
   const handleLogout = () => {
     dispatch(logout());
@@ -27,9 +31,11 @@ export const Header = ({ sidebarWidth }: HeaderProps) => {
     if (isDark) {
       html.classList.remove('dark');
       html.classList.add('light');
+      localStorage.setItem('theme', 'light');
     } else {
       html.classList.remove('light');
       html.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
     }
     setIsDark(!isDark);
   };
@@ -41,11 +47,16 @@ export const Header = ({ sidebarWidth }: HeaderProps) => {
 
   return (
     <header
-      className="fixed top-0 right-0 h-16 z-30 flex items-center justify-between px-6 border-b border-border bg-background/80 backdrop-blur-md"
+      className="fixed top-0 right-0 h-16 flex items-center justify-between px-6 border-b border-border bg-background/80 backdrop-blur-md layer-header"
       style={{ left: sidebarWidth }}
     >
-      {/* Search */}
+      {/* Search and Menu Toggle */}
       <div className="flex items-center gap-3 flex-1 max-w-md">
+        {isMobile && (
+          <Button variant="ghost" size="icon" onClick={onMenuToggle} className="flex-shrink-0">
+            <Menu className="w-5 h-5" />
+          </Button>
+        )}
         <div className="relative w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input

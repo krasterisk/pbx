@@ -10,8 +10,9 @@ import {
   type ColumnDef,
   type SortingState,
 } from '@tanstack/react-table';
-import { List, Plus, Pencil, Trash2, Loader2, Search } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent, Button, Input } from '@/shared/ui';
+import { List, Plus, Pencil, Trash2, Loader2, Search, Hash } from 'lucide-react';
+import { Card, CardHeader, CardContent, Button, Input } from '@/shared/ui';
+import { VStack, HStack } from '@/shared/ui/Stack';
 import { useGetNumbersQuery, useDeleteNumberMutation } from '@/shared/api/api';
 
 export const NumbersPage = () => {
@@ -36,7 +37,7 @@ export const NumbersPage = () => {
       id: 'actions',
       header: t('common.actions'),
       cell: (info) => (
-        <div className="flex items-center gap-1">
+        <HStack gap="4">
           <button
             className="p-1.5 rounded-md hover:bg-white/5 text-muted-foreground hover:text-white transition-colors"
             title={t('common.edit')}
@@ -54,7 +55,7 @@ export const NumbersPage = () => {
           >
             <Trash2 className="w-4 h-4" />
           </button>
-        </div>
+        </HStack>
       ),
     },
   ], [t, deleteNumber]);
@@ -71,22 +72,24 @@ export const NumbersPage = () => {
   });
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-3">
+    <VStack gap="24" max>
+      <HStack justify="between" align="center" className="flex-col sm:flex-row gap-4" max>
+        <VStack gap="4">
+          <HStack gap="12" align="center">
             <List className="w-7 h-7 text-primary" />
-            {(t('nav.numbers' as any) || 'Списки доступа')}
-          </h1>
-          <p className="text-muted-foreground text-sm mt-1">
+            <h1 className="text-2xl font-bold">
+              {(t('nav.numbers' as any) || 'Списки доступа')}
+            </h1>
+          </HStack>
+          <p className="text-muted-foreground text-sm">
             Настройка списков видимости очередей, абонентов и маршрутов
           </p>
-        </div>
+        </VStack>
         <Button className="gap-2">
           <Plus className="w-4 h-4" />
           {t('common.add')}
         </Button>
-      </div>
+      </HStack>
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -95,12 +98,14 @@ export const NumbersPage = () => {
       >
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
-                <List className="w-5 h-5 text-primary" />
-                {numbers.length} {(t('nav.numbers' as any) || 'Списки доступа').toLowerCase()}
-              </CardTitle>
-              <div className="relative w-64">
+            <HStack justify="between" align="center" className="flex-col sm:flex-row gap-4" max>
+              <HStack gap="8" align="center">
+                <Hash className="w-5 h-5 text-primary" />
+                <span className="font-semibold text-lg">
+                  {numbers.length} {t('nav.numbers')}
+                </span>
+              </HStack>
+              <div className="relative w-full sm:w-64">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   placeholder={t('common.search')}
@@ -109,7 +114,7 @@ export const NumbersPage = () => {
                   className="pl-10 h-9"
                 />
               </div>
-            </div>
+            </HStack>
           </CardHeader>
           <CardContent className="p-0">
             {isLoading ? (
@@ -128,11 +133,11 @@ export const NumbersPage = () => {
                             onClick={header.column.getToggleSortingHandler()}
                             className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground cursor-pointer hover:text-foreground select-none"
                           >
-                            <div className="flex items-center gap-1">
+                            <HStack gap="4" align="center">
                               {flexRender(header.column.columnDef.header, header.getContext())}
                               {header.column.getIsSorted() === 'asc' && ' ↑'}
                               {header.column.getIsSorted() === 'desc' && ' ↓'}
-                            </div>
+                            </HStack>
                           </th>
                         ))}
                       </tr>
@@ -163,6 +168,6 @@ export const NumbersPage = () => {
           </CardContent>
         </Card>
       </motion.div>
-    </div>
+    </VStack>
   );
 };
