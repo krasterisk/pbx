@@ -1,0 +1,1 @@
+export { IvrsPage } from './IvrsPage';

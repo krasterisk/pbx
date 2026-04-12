@@ -13,15 +13,20 @@ export class ProvisionController {
     @InjectModel(PsAuth) private readonly authModel: typeof PsAuth,
   ) {}
 
-  @Get(':mac.cfg')
+  @Get(':filename')
   async getProvisioningFile(
-    @Param('mac') macAddress: string,
+    @Param('filename') filename: string,
     @Request() req: any,
     @Res() res: Response
   ) {
-    if (!macAddress) throw new NotFoundException('MAC address missing');
+    if (!filename) throw new NotFoundException('Filename missing');
 
-    const cleanMac = macAddress.toLowerCase().replace(/[^a-f0-9]/g, '');
+    // Extract exact 12 hexadecimal characters from the filename to strip vendor prefixes like 'SEP' or 'cfg'
+    const macMatch = filename.replace(/[:-]/g, '').match(/[0-9a-f]{12}/i);
+    if (!macMatch) {
+      throw new NotFoundException('MAC address format not recognized in filename');
+    }
+    const cleanMac = macMatch[0].toLowerCase();
 
     // Find endpoint by MAC
     const endpoint = await this.endpointModel.findOne({
@@ -73,8 +78,14 @@ export class ProvisionController {
       renderedContent = renderedContent.replace(new RegExp(escapedKey, 'g'), val);
     }
 
-    // Return as plain-text to the hardware phone
-    res.setHeader('Content-Type', 'text/plain');
+    // Return appropriate content type based on extension
+    const ext = filename.split('.').pop()?.toLowerCase();
+    if (ext === 'xml') {
+      res.setHeader('Content-Type', 'application/xml');
+    } else {
+      res.setHeader('Content-Type', 'text/plain');
+    }
+
     res.status(200).send(renderedContent);
   }
 }

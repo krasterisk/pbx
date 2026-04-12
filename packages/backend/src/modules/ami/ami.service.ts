@@ -202,4 +202,81 @@ export class AmiService implements OnModuleInit, OnModuleDestroy {
   async command(cmd: string): Promise<any> {
     return this.action({ action: 'Command', command: cmd });
   }
+
+  // --- Trunk Management (PJSIP Registration) ---
+
+  /** Register a specific outbound registration by name */
+  async pjsipRegister(registrationName: string): Promise<any> {
+    return this.action({ action: 'PJSIPRegister', registration: registrationName });
+  }
+
+  /** Unregister a specific outbound registration by name */
+  async pjsipUnregister(registrationName: string): Promise<any> {
+    return this.action({ action: 'PJSIPUnregister', registration: registrationName });
+  }
+
+  /**
+   * List all outbound PJSIP registrations and their statuses.
+   * PJSIPShowRegistrationsOutbound is an event-list command:
+   * it returns Success immediately, then sends individual
+   * OutboundRegistrationDetail events, ending with
+   * OutboundRegistrationDetailComplete.
+   */
+  async pjsipShowRegistrations(): Promise<{ events: any[] }> {
+    return new Promise((resolve, reject) => {
+      if (!this.connected) {
+        reject(new Error('AMI not connected'));
+        return;
+      }
+
+      const events: any[] = [];
+      const actionId = String(Date.now()) + String(Math.random()).slice(2, 6);
+      let settled = false;
+
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        this.ami.removeListener('rawevent', handler);
+        resolve({ events });
+      };
+
+      const handler = (evt: any) => {
+        if (evt.actionid !== actionId) return;
+        if (evt.event === 'OutboundRegistrationDetail') {
+          events.push(evt);
+        }
+        if (evt.event === 'OutboundRegistrationDetailComplete') {
+          finish();
+        }
+      };
+
+      this.ami.on('rawevent', handler);
+
+      // Timeout safety — if Complete event never arrives
+      const timer = setTimeout(finish, 5000);
+
+      this.ami.action(
+        { action: 'PJSIPShowRegistrationsOutbound', actionid: actionId },
+        (err: any, _res: any) => {
+          if (err) {
+            clearTimeout(timer);
+            settled = true;
+            this.ami.removeListener('rawevent', handler);
+            reject(err);
+          }
+        },
+      );
+
+      // Clear timeout when finished cleanly
+      const origFinish = finish;
+      const wrappedFinish = () => { clearTimeout(timer); origFinish(); };
+      // Override finish reference for the handler's Complete event
+      Object.defineProperty(handler, '_finish', { value: wrappedFinish });
+    });
+  }
+
+  /** Reload a specific Asterisk module (e.g. res_pjsip_endpoint_identifier_ip.so) */
+  async moduleReload(moduleName: string): Promise<any> {
+    return this.action({ action: 'ModuleLoad', module: moduleName, loadtype: 'reload' });
+  }
 }

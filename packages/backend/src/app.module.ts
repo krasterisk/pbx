@@ -8,6 +8,9 @@ import { ContextsModule } from './modules/contexts/contexts.module';
 import { RolesModule } from './modules/roles/roles.module';
 import { NumbersModule } from './modules/numbers/numbers.module';
 import { AmiModule } from './modules/ami/ami.module';
+import { TrunksModule } from './modules/trunks/trunks.module';
+import { RoutesModule } from './modules/routes/routes.module';
+import { IvrsModule } from './modules/ivrs/ivrs.module';
 import { User } from './modules/users/user.model';
 import { PsEndpoint } from './modules/endpoints/ps-endpoint.model';
 import { PsAuth } from './modules/endpoints/ps-auth.model';
@@ -23,6 +26,11 @@ import { TelegramModule } from './modules/telegram/telegram.module';
 import { UserSession } from './modules/auth/user-session.model';
 import { PickupGroup } from './modules/endpoints/pickup-group.model';
 import { ProvisionTemplate } from './modules/endpoints/provision-template.model';
+import { PsRegistration } from './modules/trunks/ps-registration.model';
+import { PsEndpointIdIp } from './modules/trunks/ps-endpoint-id-ip.model';
+import { Route } from './modules/routes/route.model';
+import { ContextInclude } from './modules/routes/context-include.model';
+import { Ivr } from './modules/ivrs/ivr.model';
 import * as path from 'path';
 
 @Module({
@@ -42,6 +50,8 @@ import * as path from 'path';
         User, Role, NumberList, ActionLog, UserSession, Context,
         PsEndpoint, PsAuth, PsAor, PsContact,
         PickupGroup, ProvisionTemplate,
+        PsRegistration, PsEndpointIdIp,
+        Route, ContextInclude, Ivr,
       ],
       autoLoadModels: false,
       synchronize: false, // IMPORTANT: never auto-sync with existing DB
@@ -58,6 +68,9 @@ import * as path from 'path';
     RolesModule,
     NumbersModule,
     AmiModule,
+    TrunksModule,
+    RoutesModule,
+    IvrsModule,
     LoggerModule,
     MailerModule,
     TelegramModule,

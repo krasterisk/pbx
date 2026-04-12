@@ -140,6 +140,11 @@ const endpointApi = rtkApi.injectEndpoints({
       query: (sipId) => ({ url: `/endpoints/${sipId}`, method: 'DELETE' }),
       invalidatesTags: [{ type: 'Endpoints', id: 'LIST' }],
     }),
+
+    bulkDeleteEndpoints: builder.mutation<{ deleted: number; ids: string[] }, string[]>({
+      query: (sipIds) => ({ url: '/endpoints/bulk/delete', method: 'POST', body: { sipIds } }),
+      invalidatesTags: [{ type: 'Endpoints', id: 'LIST' }],
+    }),
   }),
 });
 
@@ -152,6 +157,7 @@ export const {
   useBulkCreateEndpointsMutation,
   useUpdateEndpointMutation,
   useDeleteEndpointMutation,
+  useBulkDeleteEndpointsMutation,
   useGetBulkJobStatusQuery,
   useGetActiveBulkJobQuery,
 } = endpointApi;

@@ -44,6 +44,11 @@ export class EndpointsController {
     return this.endpointsService.getBulkJobStatus(jobId);
   }
 
+  @Post('bulk/delete')
+  bulkDelete(@Body() body: { sipIds: string[] }, @Req() req: Request & { user: any }) {
+    return this.endpointsService.bulkRemove(body.sipIds, req.user.vpbx_user_uid, req.user.uid);
+  }
+
   @Get(':sipId')
   findOne(@Param('sipId') sipId: string, @Req() req: Request & { user: any }) {
     return this.endpointsService.findOne(sipId, req.user.vpbx_user_uid);

@@ -1,0 +1,58 @@
+.priority {
+  color: var(--color-muted-foreground, hsl(240 5% 64.9%));
+  font-weight: 600;
+  font-size: 0.75rem;
+}
+
+.badgeActive {
+  color: hsl(142 71% 45%);
+  font-size: 1rem;
+}
+
+.badgeInactive {
+  color: var(--color-muted-foreground, hsl(240 5% 64.9%));
+  font-size: 1rem;
+}
+
+.extChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.extChip {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  background: rgba(99, 102, 241, 0.15);
+  color: var(--color-primary, hsl(239 84% 67%));
+  border: 1px solid rgba(99, 102, 241, 0.2);
+}
+
+.count {
+  color: var(--color-muted-foreground, hsl(240 5% 64.9%));
+  font-size: 0.8125rem;
+}
+
+.actionBtn {
+  background: none;
+  border: none;
+  color: var(--color-muted-foreground, hsl(240 5% 64.9%));
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: color 0.15s;
+
+  &:hover {
+    color: var(--color-foreground, hsl(0 0% 98%));
+  }
+}
+
+.actionBtnDanger {
+  composes: actionBtn;
+
+  &:hover {
+    color: hsl(0 62% 55%);
+  }
+}

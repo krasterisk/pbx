@@ -27,7 +27,7 @@ export const BulkCreateModal = () => {
   // Check for an active job seamlessly to resume state upon reloading/re-opening modal
   const { data: activeJobData } = useGetActiveBulkJobQuery(undefined, { skip: !isOpen });
 
-  const [extensionsPattern, setExtensionsPattern] = useState('101,106,110-120');
+  const [extensionsPattern, setExtensionsPattern] = useState('');
   const [passwordPattern, setPasswordPattern] = useState('auto');
   const [department, setDepartment] = useState('');
   const [context, setContext] = useState('');
@@ -35,6 +35,8 @@ export const BulkCreateModal = () => {
   const [codecs] = useState('ulaw,alaw,g722');
   const [result, setResult] = useState<{ created?: string[]; skipped?: string[]; total: number } | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     // If we just loaded the modal and discovered an active job, snap to it.
@@ -52,6 +54,8 @@ export const BulkCreateModal = () => {
     dispatch(endpointsPageActions.closeBulkModal());
     setResult(null);
     setJobId(null);
+    setError(null);
+    setIsSubmitting(false);
   }, [dispatch]);
 
   useEffect(() => {
@@ -71,6 +75,8 @@ export const BulkCreateModal = () => {
   }, [jobStatus]);
 
   const handleSubmit = async () => {
+    setError(null);
+    setIsSubmitting(true);
     try {
       const res = await bulkCreate({
         extensionsPattern,
@@ -86,8 +92,11 @@ export const BulkCreateModal = () => {
       } else {
         setResult(res);
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error('Bulk create failed:', e);
+      setError(e?.data?.message || e?.message || 'Ошибка создания абонентов');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -142,7 +151,7 @@ export const BulkCreateModal = () => {
           {jobStatus && (jobStatus.status === 'pending' || jobStatus.status === 'processing') ? (
             <VStack gap="16" className="py-8">
               <HStack justify="center" align="center" className="mb-2">
-                <p className="text-base font-semibold text-primary">Выполняется автонастройка абонентов...</p>
+                <p className="text-base font-semibold text-primary">Создание абонентов...</p>
               </HStack>
               <div className="w-full bg-accent rounded-full h-6 overflow-hidden relative border border-border shadow-inner">
                 <div 
@@ -155,7 +164,7 @@ export const BulkCreateModal = () => {
                   {Math.round((jobStatus.processed / jobStatus.total) * 100)}% ({jobStatus.processed} / {jobStatus.total})
                 </span>
               </div>
-              <p className="text-xs text-center text-muted-foreground mt-2">Пожалуйста, не закрывайте это окно</p>
+              <p className="text-xs text-center text-muted-foreground mt-2">Процесс продолжится в фоне, даже если закрыть окно</p>
             </VStack>
           ) : result ? (
             <VStack gap="16">
@@ -235,7 +244,7 @@ export const BulkCreateModal = () => {
                   id="bulk-ctx"
                   value={context}
                   onChange={(e) => setContext(e.target.value)}
-                  className="flex h-9 w-full rounded-md border border-input bg-background/50 px-3 py-1 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                  className="flex h-9 w-full rounded-md border border-input bg-background/50 px-3 py-1 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary focus:border-transparent"
                 >
                   <option value="">— Default —</option>
                   {contexts.map((c) => (
@@ -267,13 +276,24 @@ export const BulkCreateModal = () => {
                 </HStack>
               </VStack>
 
+              {/* Error */}
+              {error && (
+                <div className="bg-destructive/10 border border-destructive/30 rounded-xl p-3">
+                  <p className="text-sm text-destructive">{error}</p>
+                </div>
+              )}
+
               {/* Actions */}
               <HStack gap="8" justify="end" className="mt-4">
-                <Button variant="outline" onClick={handleClose} disabled={isLoading}>
+                <Button variant="outline" onClick={handleClose} disabled={isSubmitting}>
                   {t('common.cancel')}
                 </Button>
-                <Button onClick={handleSubmit} disabled={isLoading || isNaN(range) || range <= 0 || !context}>
-                  {isLoading ? t('common.loading') : `${t('common.add')} (${range})`}
+                <Button onClick={handleSubmit} disabled={isSubmitting || isLoading || isNaN(range) || range <= 0 || !context}>
+                  {isSubmitting ? (
+                    <><span className="animate-spin mr-2">⏳</span> Отправка...</>
+                  ) : (
+                    `${t('common.add')} (${range})`
+                  )}
                 </Button>
               </HStack>
             </VStack>

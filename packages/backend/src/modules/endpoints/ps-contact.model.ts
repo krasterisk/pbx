@@ -49,4 +49,7 @@ export class PsContact extends Model {
 
   @Column({ type: DataType.STRING(40), allowNull: true })
   declare qualify_2xx_only: string;
+
+  @Column({ type: DataType.DATE, allowNull: true })
+  declare updatedAt: Date;
 }

@@ -229,7 +229,7 @@ export const UserFormModal = () => {
                 <VStack gap="8" className="flex-1" max>
                   <label className="text-sm font-medium text-muted-foreground">{t('users.level')}</label>
                   <select
-                    className="flex h-9 w-full rounded-md border border-input bg-background/50 px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    className="flex h-9 w-full rounded-md border border-input bg-background/50 px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring focus-visible:border-transparent"
                     value={formData.level}
                     onChange={(e) => setFormData({ ...formData, level: Number(e.target.value) })}
                   >
@@ -244,7 +244,7 @@ export const UserFormModal = () => {
                 <VStack gap="8" className="flex-1" max>
                   <label className="text-sm font-medium text-muted-foreground">{t('users.role')}</label>
                   <select
-                    className="flex h-9 w-full rounded-md border border-input bg-background/50 px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    className="flex h-9 w-full rounded-md border border-input bg-background/50 px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring focus-visible:border-transparent"
                     value={formData.role}
                     onChange={(e) => setFormData({ ...formData, role: e.target.value })}
                   >

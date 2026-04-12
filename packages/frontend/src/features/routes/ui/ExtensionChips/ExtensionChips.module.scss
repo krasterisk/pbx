@@ -1,0 +1,143 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-foreground, hsl(0 0% 98%));
+}
+
+.helpBtn {
+  background: none;
+  border: none;
+  color: var(--color-muted-foreground, hsl(240 5% 64.9%));
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 4px;
+  transition: color 0.15s;
+
+  &:hover {
+    color: var(--color-primary, hsl(239 84% 67%));
+  }
+}
+
+.helpPanel {
+  background: var(--color-card, hsl(240 10% 3.9%));
+  border: 1px solid var(--color-border, hsl(240 3.7% 15.9%));
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 4px;
+  animation: fadeIn 0.15s ease;
+}
+
+.helpTable {
+  width: 100%;
+  font-size: 0.75rem;
+  line-height: 1.6;
+
+  td {
+    padding: 1px 8px 1px 0;
+  }
+}
+
+.helpPattern {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  color: var(--color-primary, hsl(239 84% 67%));
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.helpDesc {
+  color: var(--color-muted-foreground, hsl(240 5% 64.9%));
+}
+
+.chipsContainer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 10px;
+  min-height: 42px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border, hsl(240 3.7% 15.9%));
+  background: var(--color-input, hsl(240 3.7% 15.9%));
+  cursor: text;
+  transition: border-color 0.2s;
+
+  &:focus-within {
+    border-color: var(--color-primary, hsl(239 84% 67%));
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15);
+  }
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 0.8125rem;
+  background: var(--color-primary, hsl(239 84% 67%));
+  color: white;
+  font-weight: 500;
+  animation: chipIn 0.15s ease;
+
+  code {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 0.8125rem;
+  }
+}
+
+.chipRemove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  padding: 0;
+  border-radius: 3px;
+  transition: color 0.15s;
+
+  &:hover {
+    color: white;
+  }
+}
+
+.input {
+  flex: 1;
+  min-width: 120px;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--color-foreground, hsl(0 0% 98%));
+  font-size: 0.875rem;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+
+  &::placeholder {
+    color: var(--color-muted-foreground, hsl(240 5% 64.9%));
+    opacity: 0.6;
+  }
+}
+
+.hint {
+  font-size: 0.75rem;
+  color: var(--color-muted-foreground, hsl(240 5% 64.9%));
+  margin: 0;
+}
+
+@keyframes chipIn {
+  from { opacity: 0; transform: scale(0.8); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}

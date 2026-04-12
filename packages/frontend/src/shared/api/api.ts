@@ -66,3 +66,45 @@ export {
 } from './endpoints/contextApi';
 
 export type { IContext } from './endpoints/contextApi';
+
+// Provision Templates
+export {
+  useGetProvisionTemplatesQuery,
+  useCreateProvisionTemplateMutation,
+  useUpdateProvisionTemplateMutation,
+  useDeleteProvisionTemplateMutation,
+} from './endpoints/provisionTemplateApi';
+
+export type { IProvisionTemplate } from './endpoints/provisionTemplateApi';
+
+// Routes
+export {
+  useGetRoutesByContextQuery,
+  useGetRouteByIdQuery,
+  useCreateRouteMutation,
+  useUpdateRouteMutation,
+  useDeleteRouteMutation,
+  useDuplicateRouteMutation,
+  useReorderRoutesMutation,
+  useLazyPreviewDialplanQuery,
+  useApplyDialplanMutation,
+} from './endpoints/routeApi';
+
+export type {
+  IRoute,
+  IRouteAction,
+  IRouteOptions,
+  IRouteWebhooks,
+  ICreateRoute,
+  IUpdateRoute,
+  ActionType,
+} from './endpoints/routeApi';
+
+// Context Includes
+export {
+  useGetContextIncludesQuery,
+  useAddContextIncludeMutation,
+  useRemoveContextIncludeMutation,
+} from './endpoints/contextIncludeApi';
+
+export type { IContextInclude } from './endpoints/contextIncludeApi';

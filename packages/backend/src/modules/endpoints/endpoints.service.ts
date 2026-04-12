@@ -75,6 +75,17 @@ export class EndpointsService {
     return `ctx-${vpbxUserUid}`;
   }
 
+  /**
+   * Build context with tenant ID suffix.
+   * e.g. context='sip-out', tenantId=0 → 'sip-out0'
+   */
+  private buildContext(context: string, vpbxUserUid: number): string {
+    const suffix = String(vpbxUserUid);
+    // If context already ends with the tenant ID, don't duplicate
+    if (context.endsWith(suffix)) return context;
+    return `${context}${suffix}`;
+  }
+
   /** Generate a cryptographically secure random password */
   private generatePassword(length = 16): string {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%';
@@ -87,6 +98,19 @@ export class EndpointsService {
     // e100_42 → "100"
     const match = sipId.match(/^e(.+)_\d+$/);
     return match ? match[1] : sipId;
+  }
+
+  /**
+   * Strip tenant ID suffix from context for display.
+   * e.g. 'sip-out0' with tenantId=0 → 'sip-out'
+   */
+  private stripContext(context: string | null, vpbxUserUid: number): string {
+    if (!context) return '';
+    const suffix = String(vpbxUserUid);
+    if (context.endsWith(suffix)) {
+      return context.slice(0, -suffix.length);
+    }
+    return context;
   }
 
   /**
@@ -119,16 +143,39 @@ export class EndpointsService {
         })
       : [];
 
+    // Get AOR data for default_expiration
+    const aors = sipIds.length
+      ? await this.aorModel.findAll({
+          where: { id: { [Op.in]: sipIds } },
+          attributes: ['id', 'default_expiration', 'qualify_frequency'],
+        })
+      : [];
+
     const authMap = new Map<string, any>();
     auths.forEach((a) => authMap.set(a.id, a));
+    const aorMap = new Map<string, any>();
+    aors.forEach((a) => aorMap.set(a.id, a));
 
     return endpoints.map((ep) => {
       const contact = contactMap.get(ep.id);
       const auth = authMap.get(ep.id);
+      const aor = aorMap.get(ep.id);
       const now = Math.floor(Date.now() / 1000);
+      const epJson = ep.toJSON();
+
+      let lastRegistered: number | null = null;
+      if (contact?.updatedAt) {
+        // Convert JS Date to Unix timestamp (seconds) to match existing logic
+        lastRegistered = Math.floor(new Date(contact.updatedAt).getTime() / 1000);
+      } else if (contact?.expiration_time) {
+        // Fallback for older records before the column was populated
+        const regInterval = aor?.default_expiration || 3600;
+        lastRegistered = contact.expiration_time - regInterval;
+      }
 
       return {
-        ...ep.toJSON(),
+        ...epJson,
+        context: this.stripContext(epJson.context, vpbxUserUid),
         extension: this.extractExtension(ep.id),
         sipUsername: ep.id,
         authType: auth?.auth_type || 'userpass',
@@ -136,7 +183,7 @@ export class EndpointsService {
         userAgent: contact?.user_agent || null,
         clientIp: contact?.via_addr || null,
         contactUri: contact?.uri || null,
-        registeredAt: contact?.expiration_time || null,
+        lastRegistered,
       };
     });
   }
@@ -156,8 +203,19 @@ export class EndpointsService {
 
     const now = Math.floor(Date.now() / 1000);
 
+    // Calculate last registration time
+    let lastRegistered: number | null = null;
+    if (contact?.updatedAt) {
+      lastRegistered = Math.floor(new Date(contact.updatedAt).getTime() / 1000);
+    } else if (contact?.expiration_time) {
+      const regInterval = aor?.default_expiration || 3600;
+      lastRegistered = contact.expiration_time - regInterval;
+    }
+
+    const epJson = endpoint.toJSON();
+
     return {
-      endpoint: endpoint.toJSON(),
+      endpoint: { ...epJson, context: this.stripContext(epJson.context, vpbxUserUid) },
       auth: auth ? { ...auth.toJSON(), password: '********' } : null,
       aor: aor?.toJSON() || null,
       extension: this.extractExtension(sipId),
@@ -166,6 +224,7 @@ export class EndpointsService {
       userAgent: contact?.user_agent || null,
       clientIp: contact?.via_addr || null,
       contactUri: contact?.uri || null,
+      lastRegistered,
     };
   }
 
@@ -199,7 +258,7 @@ export class EndpointsService {
     const exists = await this.endpointModel.findByPk(sipId);
     if (exists) throw new ConflictException(`Extension ${dto.extension} already exists`);
 
-    const context = dto.context;
+    const context = this.buildContext(dto.context, vpbxUserUid);
     const natSettings = dto.natProfile ? (NAT_PROFILES[dto.natProfile] || {}) : NAT_PROFILES.nat;
     const callerid = dto.displayName
       ? `"${dto.displayName}" <${dto.extension}>`
@@ -290,7 +349,7 @@ export class EndpointsService {
         const [startStr, endStr] = part.split('-');
         const start = parseInt(startStr, 10);
         const end = parseInt(endStr, 10);
-        if (!isNaN(start) && !isNaN(end) && start <= end && end - start <= 500) {
+        if (!isNaN(start) && !isNaN(end) && start <= end && end - start <= 5000) {
           for (let i = start; i <= end; i++) {
             parsedExtensions.add(i);
           }
@@ -410,7 +469,7 @@ export class EndpointsService {
   }
 
   private async processBulkChunk(chunk: number[], dto: BulkCreateEndpointDto, vpbxUserUid: number, createdDest: string[], skippedDest: string[]) {
-    const context = dto.context;
+    const context = this.buildContext(dto.context, vpbxUserUid);
     const natSettings = dto.natProfile ? (NAT_PROFILES[dto.natProfile] || {}) : NAT_PROFILES.nat;
 
     await this.sequelize.transaction(async (t) => {
@@ -486,6 +545,10 @@ export class EndpointsService {
 
     await this.sequelize.transaction(async (t) => {
       if (data.endpoint) {
+        // Ensure context always has tenant ID suffix
+        if (data.endpoint.context) {
+          data.endpoint.context = this.buildContext(data.endpoint.context, vpbxUserUid);
+        }
         await this.endpointModel.update(data.endpoint as any, {
           where: { id: sipId },
           transaction: t,
@@ -545,5 +608,39 @@ export class EndpointsService {
         `Deleted endpoint ${this.extractExtension(sipId)} (${sipId})`,
       );
     }
+  }
+
+  /**
+   * Bulk-delete multiple endpoints atomically
+   */
+  async bulkRemove(sipIds: string[], vpbxUserUid: number, userId?: number) {
+    // Verify all belong to this tenant
+    const endpoints = await this.endpointModel.findAll({
+      where: { id: { [Op.in]: sipIds }, tenantid: String(vpbxUserUid) },
+    });
+
+    const validIds = endpoints.map((e) => e.id);
+    if (validIds.length === 0) throw new NotFoundException('No matching endpoints found');
+
+    await this.sequelize.transaction(async (t) => {
+      await this.contactModel.destroy({ where: { endpoint: { [Op.in]: validIds } }, transaction: t });
+      await this.endpointModel.destroy({ where: { id: { [Op.in]: validIds } }, transaction: t });
+      await this.authModel.destroy({ where: { id: { [Op.in]: validIds } }, transaction: t });
+      await this.aorModel.destroy({ where: { id: { [Op.in]: validIds } }, transaction: t });
+    });
+
+    if (userId) {
+      const extensions = validIds.map((id) => this.extractExtension(id)).join(', ');
+      await this.loggerService.logAction(
+        userId,
+        'bulk_delete',
+        'endpoint',
+        null,
+        vpbxUserUid,
+        `Bulk deleted ${validIds.length} endpoints: ${extensions}`,
+      );
+    }
+
+    return { deleted: validIds.length, ids: validIds };
   }
 }

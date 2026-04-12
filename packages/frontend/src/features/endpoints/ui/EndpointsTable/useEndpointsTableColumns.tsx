@@ -55,6 +55,7 @@ export const useEndpointsTableColumns = () => {
         header: () => t('endpoints.status'),
         cell: (info) => {
           const isOnline = info.getValue() === 'online';
+          const lastReg = info.row.original.lastRegistered;
           return (
             <HStack gap="4" align="center">
               <span
@@ -63,9 +64,9 @@ export const useEndpointsTableColumns = () => {
               <span className={`text-xs ${isOnline ? 'text-emerald-400' : 'text-zinc-500'}`}>
                 {isOnline ? t('endpoints.statusOnline') : t('endpoints.statusOffline')}
               </span>
-              {isOnline && info.row.original.registeredAt && (
+              {lastReg && (
                 <span className="text-[10px] text-zinc-500 hidden sm:inline">
-                  (до {new Date(info.row.original.registeredAt * 1000).toLocaleTimeString()})
+                  {new Date(lastReg * 1000).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
                 </span>
               )}
             </HStack>
@@ -103,7 +104,8 @@ export const useEndpointsTableColumns = () => {
                 onClick={() => dispatch(endpointsPageActions.openCredentialsModal(ep.id))}
               >
                 <Key className="w-3 h-3" />
-                Подключение
+                <span className="hidden sm:inline">{t('endpoints.btnSip', 'SIP')}</span>
+                <span className="sm:hidden">SIP</span>
               </Button>
               <Button
                 variant="ghost"

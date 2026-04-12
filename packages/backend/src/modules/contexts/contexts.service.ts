@@ -50,8 +50,8 @@ export class ContextsService {
     if (existing > 0) return;
 
     const defaults = [
-      { name: `ctx-${vpbxUserUid}`, description: 'Внутренний контекст', context_type: 'internal' },
-      { name: `ctx-${vpbxUserUid}-ext`, description: 'Внешний контекст', context_type: 'external' },
+      { name: `ctx-${vpbxUserUid}`, comment: 'Внутренний контекст' },
+      { name: `ctx-${vpbxUserUid}-ext`, comment: 'Внешний контекст' },
     ];
 
     await this.contextModel.bulkCreate(

@@ -14,6 +14,9 @@ import {
   Waypoints,
   Shield,
   List,
+  FileCode,
+  Network,
+  AppWindow,
 } from 'lucide-react';
 import { classNames } from '@/shared/lib/classNames/classNames';
 import { VStack, Flex } from '@/shared/ui/Stack';
@@ -35,8 +38,11 @@ export const Sidebar = ({ collapsed, onToggle, isMobile }: SidebarProps) => {
     { name: t('nav.dashboard'), path: '/', icon: LayoutDashboard },
     { type: 'divider' as const, label: t('nav.pbx') },
     { name: t('endpoints.title'), path: '/endpoints', icon: Phone },
+    { name: t('contexts.title', 'Контексты'), path: '/contexts', icon: Network },
     { name: t('nav.trunks'), path: '/trunks', icon: Waypoints },
     { name: t('nav.routes'), path: '/routes', icon: Route },
+    { type: 'divider' as const, label: t('nav.apps', 'Приложения') },
+    { name: t('nav.ivrs', 'IVR'), path: '/ivrs', icon: AppWindow },
     { name: t('nav.queues'), path: '/queues', icon: ListOrdered },
     { type: 'divider' as const, label: t('nav.callcenter') },
     { name: t('nav.operator'), path: '/operator', icon: Headphones },
@@ -46,6 +52,7 @@ export const Sidebar = ({ collapsed, onToggle, isMobile }: SidebarProps) => {
     { name: t('nav.users'), path: '/users', icon: Users },
     { name: t('nav.roles' as any) || 'Интерфейсы', path: '/roles', icon: Shield },
     { name: t('nav.numbers' as any) || 'Списки доступа', path: '/numbers', icon: List },
+    { name: t('provisionTemplates.title', 'Шаблоны автонастройки'), path: '/provision-templates', icon: FileCode },
     { name: t('nav.settings'), path: '/settings', icon: Settings },
   ] as const;
 

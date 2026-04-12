@@ -33,7 +33,8 @@ export class PickupGroupsService {
   }
 
   async create(name: string, userUid: number) {
-    const slug = this.generateSlug(name) || `group_${Date.now()}`;
+    const rawSlug = this.generateSlug(name) || `group_${Date.now()}`;
+    const slug = `t${userUid}_${rawSlug}`;
     
     // Check if exists
     const exists = await this.pickupGroupModel.findOne({

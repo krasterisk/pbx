@@ -1,0 +1,75 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.title {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-foreground, hsl(0 0% 98%));
+}
+
+.hint {
+  font-size: 0.75rem;
+  color: var(--color-muted-foreground, hsl(240 5% 64.9%));
+}
+
+.editorWrap {
+  display: flex;
+  border-radius: 8px;
+  border: 1px solid var(--color-border, hsl(240 3.7% 15.9%));
+  background: hsl(240 10% 5%);
+  overflow: hidden;
+  min-height: 300px;
+  max-height: 500px;
+}
+
+.lineNumbers {
+  display: flex;
+  flex-direction: column;
+  padding: 12px 8px 12px 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border-right: 1px solid var(--color-border, hsl(240 3.7% 15.9%));
+  user-select: none;
+  min-width: 36px;
+  text-align: right;
+
+  span {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 0.75rem;
+    line-height: 1.65;
+    color: var(--color-muted-foreground, hsl(240 5% 64.9%));
+    opacity: 0.5;
+  }
+}
+
+.editor {
+  flex: 1;
+  padding: 12px;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: hsl(120 40% 75%); // green-ish like terminal
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 0.8125rem;
+  line-height: 1.65;
+  resize: none;
+  overflow-y: auto;
+  tab-size: 2;
+
+  &::placeholder {
+    color: var(--color-muted-foreground, hsl(240 5% 64.9%));
+    opacity: 0.4;
+  }
+
+  &:read-only {
+    cursor: default;
+  }
+}
