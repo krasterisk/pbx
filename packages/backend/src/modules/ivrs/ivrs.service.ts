@@ -100,4 +100,10 @@ export class IvrsService {
     return lines.join('\n');
   }
 
+  async bulkRemove(uids: number[], vpbxUserUid: number): Promise<{ deleted: number }> {
+    const deleted = await this.ivrModel.destroy({
+      where: { uid: uids, user_uid: vpbxUserUid },
+    });
+    return { deleted };
+  }
 }

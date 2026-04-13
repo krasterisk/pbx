@@ -1,17 +1,9 @@
 import { memo, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  useReactTable,
-  getCoreRowModel,
-  getFilteredRowModel,
-  getSortedRowModel,
-  flexRender,
-  type SortingState,
-} from '@tanstack/react-table';
-import { Shield, Search, Loader2 } from 'lucide-react';
-import { Card, CardHeader, CardContent, Input } from '@/shared/ui';
-import { HStack } from '@/shared/ui/Stack';
-import { useGetUsersQuery, useGetRolesQuery } from '@/shared/api/api';
+import { Shield, Search, Loader2, Trash2 } from 'lucide-react';
+import { Card, CardHeader, CardContent, Input, Button, DataTable } from '@/shared/ui';
+import { HStack, Flex } from '@/shared/ui/Stack';
+import { useGetUsersQuery, useGetRolesQuery, useBulkDeleteUsersMutation } from '@/shared/api/api';
 import type { IUser } from '@/entities/User';
 import { useUsersTableColumns } from './useUsersTableColumns';
 
@@ -19,9 +11,10 @@ export const UsersTable = memo(() => {
   const { t } = useTranslation();
   const { data: users = [], isLoading } = useGetUsersQuery();
   const { data: roles = [] } = useGetRolesQuery();
+  const [bulkDelete, { isLoading: isDeleting }] = useBulkDeleteUsersMutation();
 
-  const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState('');
+  const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
 
   const rolesMap = useMemo(() => {
     const map: Record<number, string> = {};
@@ -31,16 +24,17 @@ export const UsersTable = memo(() => {
 
   const columns = useUsersTableColumns({ rolesMap });
 
-  const table = useReactTable({
-    data: users as IUser[],
-    columns,
-    state: { sorting, globalFilter },
-    onSortingChange: setSorting,
-    onGlobalFilterChange: setGlobalFilter,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-  });
+  const selectedCount = Object.keys(rowSelection).length;
+
+  const handleBulkDelete = async () => {
+    const ids = Object.keys(rowSelection).map(Number);
+    if (!ids.length) return;
+    
+    if (window.confirm(t('common.confirmDelete', 'Вы уверены, что хотите удалить?'))) {
+      await bulkDelete(ids).unwrap();
+      setRowSelection({});
+    }
+  };
 
   return (
     <Card>
@@ -52,69 +46,52 @@ export const UsersTable = memo(() => {
               {t('users.count', { count: users.length })}
             </span>
           </HStack>
-          <div className="relative w-full sm:w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              id="users-search"
-              placeholder={t('common.search')}
-              value={globalFilter}
-              onChange={(e) => setGlobalFilter(e.target.value)}
-              className="pl-10 h-9"
-            />
-          </div>
+          <HStack gap="12" align="center" className="w-full sm:w-auto">
+            {selectedCount > 0 && (
+              <Button
+                variant="destructive"
+                disabled={isDeleting}
+                onClick={handleBulkDelete}
+              >
+                {isDeleting ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Trash2 className="w-4 h-4 mr-2" />
+                )}
+                {t('common.deleteSelected', 'Удалить выбранные')} ({selectedCount})
+              </Button>
+            )}
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                id="users-search"
+                placeholder={t('common.search')}
+                value={globalFilter}
+                onChange={(e) => setGlobalFilter(e.target.value)}
+                className="pl-10 h-9"
+              />
+            </div>
+          </HStack>
         </HStack>
       </CardHeader>
       <CardContent className="p-0">
         {isLoading ? (
-          <div className="flex items-center justify-center h-48">
+          <Flex align="center" justify="center" className="h-48">
             <Loader2 className="w-6 h-6 animate-spin text-primary" />
-          </div>
+          </Flex>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                {table.getHeaderGroups().map((hg) => (
-                  <tr key={hg.id} className="border-b border-border">
-                    {hg.headers.map((header) => (
-                      <th
-                        key={header.id}
-                        onClick={header.column.getToggleSortingHandler()}
-                        className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground cursor-pointer hover:text-foreground select-none transition-colors"
-                      >
-                        <HStack gap="4" align="center">
-                          {flexRender(header.column.columnDef.header, header.getContext())}
-                          {header.column.getIsSorted() === 'asc' && ' ↑'}
-                          {header.column.getIsSorted() === 'desc' && ' ↓'}
-                        </HStack>
-                      </th>
-                    ))}
-                  </tr>
-                ))}
-              </thead>
-              <tbody>
-                {table.getRowModel().rows.length === 0 ? (
-                  <tr>
-                    <td colSpan={columns.length} className="text-center py-12 text-muted-foreground">
-                      {t('common.noData')}
-                    </td>
-                  </tr>
-                ) : (
-                  table.getRowModel().rows.map((row) => (
-                    <tr
-                      key={row.id}
-                      className="border-b border-border/50 hover:bg-white/[0.02] transition-colors"
-                    >
-                      {row.getVisibleCells().map((cell) => (
-                        <td key={cell.id} className="px-4 py-3 text-sm">
-                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                        </td>
-                      ))}
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+          <DataTable
+            data={users as IUser[]}
+            columns={columns}
+            getRowId={(row) => String(row.uniqueid)}
+            globalFilter={globalFilter}
+            selectable={true}
+            rowSelection={rowSelection}
+            onRowSelectionChange={setRowSelection}
+            pageSize={50}
+            emptyText={t('common.noData')}
+            exportFilename="users_export"
+          />
         )}
       </CardContent>
     </Card>
@@ -122,3 +99,4 @@ export const UsersTable = memo(() => {
 });
 
 UsersTable.displayName = 'UsersTable';
+

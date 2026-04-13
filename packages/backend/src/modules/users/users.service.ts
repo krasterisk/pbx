@@ -96,4 +96,11 @@ export class UsersService {
   async delete(id: number, vpbxUserUid: number): Promise<void> {
     await this.userModel.destroy({ where: { uniqueid: id, vpbx_user_uid: vpbxUserUid } });
   }
+
+  async bulkRemove(ids: number[], vpbxUserUid: number): Promise<{ deleted: number }> {
+    const deleted = await this.userModel.destroy({
+      where: { uniqueid: ids, vpbx_user_uid: vpbxUserUid },
+    });
+    return { deleted };
+  }
 }

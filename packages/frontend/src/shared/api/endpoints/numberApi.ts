@@ -42,6 +42,15 @@ const numberApi = rtkApi.injectEndpoints({
       query: (id) => ({ url: `/numbers/${id}`, method: 'DELETE' }),
       invalidatesTags: [{ type: 'Numbers', id: 'LIST' }],
     }),
+
+    bulkDeleteNumbers: builder.mutation<{ deleted: number }, number[]>({
+      query: (ids) => ({
+        url: '/numbers/bulk/delete',
+        method: 'POST',
+        body: { ids },
+      }),
+      invalidatesTags: [{ type: 'Numbers', id: 'LIST' }],
+    }),
   }),
 });
 
@@ -51,4 +60,6 @@ export const {
   useCreateNumberMutation,
   useUpdateNumberMutation,
   useDeleteNumberMutation,
+  useBulkDeleteNumbersMutation,
 } = numberApi;
+

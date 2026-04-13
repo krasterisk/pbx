@@ -27,4 +27,9 @@ export class ProvisionTemplatesController {
   remove(@Param('id') id: string, @Req() req: Request & { user: any }) {
     return this.templatesService.remove(parseInt(id, 10), req.user.vpbx_user_uid);
   }
+
+  @Post('bulk/delete')
+  bulkDelete(@Body() body: { ids: number[] }, @Req() req: Request & { user: any }) {
+    return this.templatesService.bulkRemove(body.ids, req.user.vpbx_user_uid);
+  }
 }

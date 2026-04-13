@@ -1,24 +1,6 @@
 import { rtkApi } from '../rtkApi';
 
-/** Action types available in the route dialplan builder */
-export type ActionType =
-  | 'totrunk' | 'toexten' | 'toqueue' | 'togroup' | 'tolist'
-  | 'toivr' | 'toroute' | 'playprompt' | 'playback'
-  | 'setclid_custom' | 'setclid_list'
-  | 'sendmail' | 'sendmailpeer' | 'telegram'
-  | 'voicemail' | 'text2speech' | 'asr' | 'keywords'
-  | 'webhook' | 'confbridge' | 'cmd' | 'tofax'
-  | 'label' | 'busy' | 'hangup';
-
-export interface IRouteAction {
-  id: string;
-  type: ActionType;
-  params: Record<string, any>;
-  condition: {
-    dialstatus: string;
-    calendar: string;
-  };
-}
+import { ActionType, IRouteAction } from '@krasterisk/shared';
 
 export interface IRouteOptions {
   record?: boolean;
@@ -110,6 +92,15 @@ const routeApi = rtkApi.injectEndpoints({
       invalidatesTags: [{ type: 'Routes', id: 'LIST' }],
     }),
 
+    bulkDeleteRoutes: builder.mutation<{ deleted: number }, number[]>({
+      query: (ids) => ({
+        url: '/routes/bulk/delete',
+        method: 'POST',
+        body: { ids },
+      }),
+      invalidatesTags: [{ type: 'Routes', id: 'LIST' }],
+    }),
+
     duplicateRoute: builder.mutation<IRoute, number>({
       query: (uid) => ({ url: `/routes/${uid}/duplicate`, method: 'POST' }),
       invalidatesTags: [{ type: 'Routes', id: 'LIST' }],
@@ -136,8 +127,10 @@ export const {
   useCreateRouteMutation,
   useUpdateRouteMutation,
   useDeleteRouteMutation,
+  useBulkDeleteRoutesMutation,
   useDuplicateRouteMutation,
   useReorderRoutesMutation,
   useLazyPreviewDialplanQuery,
   useApplyDialplanMutation,
 } = routeApi;
+

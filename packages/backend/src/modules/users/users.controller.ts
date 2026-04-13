@@ -44,4 +44,11 @@ export class UsersController {
     await this.usersService.delete(id, req.user.vpbx_user_uid);
     await this.loggerService.logAction(req.user.sub, 'delete', 'user', id, req.user.vpbx_user_uid);
   }
+
+  @Post('bulk/delete')
+  async bulkDelete(@Body() body: { ids: number[] }, @Req() req: any) {
+    const result = await this.usersService.bulkRemove(body.ids, req.user.vpbx_user_uid);
+    await this.loggerService.logAction(req.user.sub, 'bulk_delete', 'user', null, req.user.vpbx_user_uid, `Bulk deleted ${result.deleted} users`);
+    return result;
+  }
 }

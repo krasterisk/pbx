@@ -36,6 +36,15 @@ const userApi = rtkApi.injectEndpoints({
       query: (id) => ({ url: `/users/${id}`, method: 'DELETE' }),
       invalidatesTags: [{ type: 'Users', id: 'LIST' }],
     }),
+
+    bulkDeleteUsers: builder.mutation<{ deleted: number }, number[]>({
+      query: (ids) => ({
+        url: '/users/bulk/delete',
+        method: 'POST',
+        body: { ids },
+      }),
+      invalidatesTags: [{ type: 'Users', id: 'LIST' }],
+    }),
   }),
 });
 
@@ -45,4 +54,6 @@ export const {
   useCreateUserMutation,
   useUpdateUserMutation,
   useDeleteUserMutation,
+  useBulkDeleteUsersMutation,
 } = userApi;
+

@@ -59,4 +59,13 @@ export class ContextsService {
       { ignoreDuplicates: true },
     );
   }
+  async bulkRemove(uids: number[], vpbxUserUid: number): Promise<{ deleted: number }> {
+    const deleted = await this.contextModel.destroy({
+      where: {
+        uid: uids,
+        user_uid: vpbxUserUid,
+      },
+    });
+    return { deleted };
+  }
 }

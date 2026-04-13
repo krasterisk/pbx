@@ -526,6 +526,25 @@ export class TrunksService {
     }
   }
 
+  /**
+   * Delete multiple trunks.
+   */
+  async bulkRemove(trunkIds: string[], vpbxUserUid: number, userId?: number) {
+    const results = await Promise.allSettled(
+      trunkIds.map((id) => this.remove(id, vpbxUserUid, userId))
+    );
+    
+    const failed = results.filter((r) => r.status === 'rejected');
+    if (failed.length > 0) {
+      this.logger.error(`Failed to delete some trunks: ${failed.length} failed out of ${trunkIds.length}`);
+      // Throw error if all failed or handle partial success
+      if (failed.length === trunkIds.length) {
+        throw new Error('Failed to delete any of the selected trunks');
+      }
+    }
+    return { success: true, deleted: trunkIds.length - failed.length, failed: failed.length };
+  }
+
   /** Extract display name from trunk ID (e.g. t_provider44_0 → provider44) */
   private extractTrunkName(trunkId: string, vpbxUserUid: number): string {
     const suffix = `_${vpbxUserUid}`;

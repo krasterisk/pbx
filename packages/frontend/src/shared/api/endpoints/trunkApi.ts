@@ -96,6 +96,15 @@ const trunkApi = rtkApi.injectEndpoints({
       query: (trunkId) => ({ url: `/trunks/${trunkId}`, method: 'DELETE' }),
       invalidatesTags: [{ type: 'Trunks', id: 'LIST' }],
     }),
+
+    bulkDeleteTrunks: builder.mutation<{ deleted: number }, string[]>({
+      query: (ids) => ({
+        url: '/trunks/bulk/delete',
+        method: 'POST',
+        body: { ids },
+      }),
+      invalidatesTags: [{ type: 'Trunks', id: 'LIST' }],
+    }),
   }),
 });
 
@@ -105,4 +114,6 @@ export const {
   useCreateTrunkMutation,
   useUpdateTrunkMutation,
   useDeleteTrunkMutation,
+  useBulkDeleteTrunksMutation,
 } = trunkApi;
+

@@ -2,7 +2,7 @@ import { memo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button, Input, VStack, HStack } from '@/shared/ui';
-import { ActionsTableEditor } from '@/features/routes/ui/ActionsTableEditor/ActionsTableEditor';
+import { DialplanAppsEditor } from '@/features/dialplan-apps';
 import { IIvrMenuItem } from '@/entities/ivr';
 import { useState } from 'react';
 
@@ -50,9 +50,9 @@ export const IvrMenuItemsEditor = memo(({ menuItems, onChange }: IvrMenuItemsEdi
   };
 
   return (
-    <VStack gap={4} className="w-full">
+    <VStack gap="16" className="w-full">
       <div className="flex justify-between items-center w-full">
-        <Typography variant="h6" className="text-sm font-medium text-slate-300">
+        <Typography variant="h6" className="text-sm font-medium text-muted-foreground">
           {t('ivrs.menuItems.title', 'Пункты меню (DTMF Возможные сочетания)')}
         </Typography>
         <Button onClick={handleAdd} size="sm" variant="outline">
@@ -61,29 +61,29 @@ export const IvrMenuItemsEditor = memo(({ menuItems, onChange }: IvrMenuItemsEdi
         </Button>
       </div>
 
-      <VStack gap={2} className="w-full">
+      <VStack gap="8" className="w-full">
         {menuItems.map((item, idx) => {
           const isExpanded = expandedIndex === idx;
 
           return (
-            <div key={idx} className="w-full border border-[#27272a] rounded overflow-hidden">
-              <HStack gap={4} className="bg-[#18181b] p-3 items-center justify-between w-full">
-                <HStack gap={4} className="flex-1 items-center">
-                  <span className="text-slate-400 font-medium w-32 text-sm">
+            <div key={idx} className="w-full border border-border rounded overflow-hidden">
+              <HStack gap="16" className="bg-muted/50 p-3 items-center justify-between w-full">
+                <HStack gap="16" className="flex-1 items-center">
+                  <span className="text-muted-foreground font-medium w-32 text-sm">
                     {t('ivrs.menuItems.digitLabel', 'Нажатие / Паттерн:')}
                   </span>
                   <Input
-                    className="w-40 bg-[#09090b]"
+                    className="w-40 bg-background"
                     placeholder="Например: 1, 2, t, i"
                     value={item.digit}
                     onChange={(e) => updateDigit(idx, e.target.value)}
                   />
-                  <span className="text-slate-500 text-xs ml-2">
+                  <span className="text-muted-foreground text-xs ml-2">
                     {item.actions.length} {t('ivrs.menuItems.actionsCount', 'действий')}
                   </span>
                 </HStack>
 
-                <HStack gap={2} className="items-center">
+                <HStack gap="8" className="items-center">
                   <Button variant="ghost" size="icon" onClick={() => toggleExpand(idx)}>
                     {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                   </Button>
@@ -94,8 +94,8 @@ export const IvrMenuItemsEditor = memo(({ menuItems, onChange }: IvrMenuItemsEdi
               </HStack>
 
               {isExpanded && (
-                <div className="p-4 bg-[#0c1214] border-t border-[#27272a]">
-                  <ActionsTableEditor
+                <div className="p-4 bg-background border-t border-border">
+                  <DialplanAppsEditor
                     actions={item.actions}
                     onChange={(newActions) => updateActions(idx, newActions)}
                   />
@@ -105,7 +105,7 @@ export const IvrMenuItemsEditor = memo(({ menuItems, onChange }: IvrMenuItemsEdi
           );
         })}
         {menuItems.length === 0 && (
-          <div className="text-center py-6 text-slate-500 text-sm">
+          <div className="text-center py-6 text-muted-foreground text-sm">
             {t('ivrs.menuItems.empty', 'Нет пунктов меню. Нажмите "Добавить пункт" чтобы создать маршрут.')}
           </div>
         )}

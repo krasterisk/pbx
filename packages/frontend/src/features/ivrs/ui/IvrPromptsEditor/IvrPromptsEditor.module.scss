@@ -1,0 +1,145 @@
+.promptsEditor {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.promptItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--background);
+  transition: border-color 0.15s;
+
+  &:hover {
+    border-color: var(--primary);
+  }
+}
+
+.promptIndex {
+  font-size: 11px;
+  color: var(--muted-foreground);
+  font-weight: 600;
+  min-width: 20px;
+  text-align: center;
+}
+
+.promptName {
+  flex: 1;
+  font-size: 13px;
+  color: var(--foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.moveButtons {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.moveBtn {
+  background: none;
+  border: none;
+  padding: 2px;
+  cursor: pointer;
+  color: var(--muted-foreground);
+  border-radius: 4px;
+  line-height: 0;
+  transition: color 0.15s, background 0.15s;
+
+  &:hover {
+    color: var(--foreground);
+    background: var(--accent);
+  }
+
+  &:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+}
+
+.removeBtn {
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  color: var(--muted-foreground);
+  border-radius: 4px;
+  line-height: 0;
+  transition: color 0.15s;
+
+  &:hover {
+    color: hsl(0 84% 60%);
+  }
+}
+
+.addSection {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.selectWrapper {
+  flex: 1;
+}
+
+.selectInput {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--background);
+  color: var(--foreground);
+  font-size: 13px;
+  cursor: pointer;
+  appearance: auto;
+
+  &:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px hsl(var(--primary) / 0.15);
+  }
+}
+
+.addBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  background: none;
+  color: var(--muted-foreground);
+  font-size: 13px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+
+  &:hover {
+    color: var(--primary);
+    border-color: var(--primary);
+  }
+}
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  color: var(--muted-foreground);
+  font-size: 13px;
+  text-align: center;
+  gap: 8px;
+}
+
+.emptyIcon {
+  opacity: 0.4;
+}

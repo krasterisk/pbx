@@ -46,4 +46,9 @@ export class TrunksController {
   remove(@Param('trunkId') trunkId: string, @Req() req: Request & { user: any }) {
     return this.trunksService.remove(trunkId, req.user.vpbx_user_uid, req.user.uid);
   }
+
+  @Post('bulk/delete')
+  bulkDelete(@Body() body: { ids: string[] }, @Req() req: Request & { user: any }) {
+    return this.trunksService.bulkRemove(body.ids, req.user.vpbx_user_uid, req.user.uid);
+  }
 }

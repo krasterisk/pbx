@@ -159,4 +159,12 @@ export class RoutesController {
   ) {
     return this.routesService.remove(+id, req.user.vpbx_user_uid);
   }
+
+  @Post('bulk/delete')
+  bulkDelete(
+    @Body() body: { ids: number[] },
+    @Req() req: Request & { user: any },
+  ) {
+    return this.routesService.bulkRemove(body.ids, req.user.vpbx_user_uid);
+  }
 }

@@ -16,6 +16,7 @@ export {
   useCreateUserMutation,
   useUpdateUserMutation,
   useDeleteUserMutation,
+  useBulkDeleteUsersMutation,
 } from './endpoints/userApi';
 
 export {
@@ -24,6 +25,7 @@ export {
   useCreateRoleMutation,
   useUpdateRoleMutation,
   useDeleteRoleMutation,
+  useBulkDeleteRolesMutation,
 } from './endpoints/roleApi';
 
 export type { IRole } from './endpoints/roleApi';
@@ -34,6 +36,7 @@ export {
   useCreateNumberMutation,
   useUpdateNumberMutation,
   useDeleteNumberMutation,
+  useBulkDeleteNumbersMutation,
 } from './endpoints/numberApi';
 
 export type { INumberList } from './endpoints/numberApi';
@@ -47,6 +50,9 @@ export {
   useBulkCreateEndpointsMutation,
   useUpdateEndpointMutation,
   useDeleteEndpointMutation,
+  useBulkDeleteEndpointsMutation,
+  useGetBulkJobStatusQuery,
+  useGetActiveBulkJobQuery,
 } from './endpoints/endpointApi';
 
 export type {
@@ -55,6 +61,8 @@ export type {
   IEndpointCredentials,
   ICreateEndpoint,
   IBulkCreateEndpoint,
+  IBulkJobStatus,
+  IBulkCreateResult,
 } from './endpoints/endpointApi';
 
 // Contexts
@@ -63,6 +71,7 @@ export {
   useCreateContextMutation,
   useUpdateContextMutation,
   useDeleteContextMutation,
+  useBulkDeleteContextsMutation,
 } from './endpoints/contextApi';
 
 export type { IContext } from './endpoints/contextApi';
@@ -73,6 +82,7 @@ export {
   useCreateProvisionTemplateMutation,
   useUpdateProvisionTemplateMutation,
   useDeleteProvisionTemplateMutation,
+  useBulkDeleteProvisionTemplatesMutation,
 } from './endpoints/provisionTemplateApi';
 
 export type { IProvisionTemplate } from './endpoints/provisionTemplateApi';
@@ -84,6 +94,7 @@ export {
   useCreateRouteMutation,
   useUpdateRouteMutation,
   useDeleteRouteMutation,
+  useBulkDeleteRoutesMutation,
   useDuplicateRouteMutation,
   useReorderRoutesMutation,
   useLazyPreviewDialplanQuery,
@@ -92,12 +103,10 @@ export {
 
 export type {
   IRoute,
-  IRouteAction,
   IRouteOptions,
   IRouteWebhooks,
   ICreateRoute,
   IUpdateRoute,
-  ActionType,
 } from './endpoints/routeApi';
 
 // Context Includes

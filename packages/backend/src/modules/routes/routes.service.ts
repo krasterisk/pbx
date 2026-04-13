@@ -160,4 +160,12 @@ export class RoutesService {
 
     return lines.join('\n');
   }
+
+  /** Bulk delete routes */
+  async bulkRemove(uids: number[], vpbxUserUid: number): Promise<{ deleted: number }> {
+    const deleted = await this.routeModel.destroy({
+      where: { uid: uids, user_uid: vpbxUserUid },
+    });
+    return { deleted };
+  }
 }

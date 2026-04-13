@@ -1,0 +1,1 @@
+export { IvrPromptsEditor } from './IvrPromptsEditor';

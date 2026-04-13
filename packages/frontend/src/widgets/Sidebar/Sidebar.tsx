@@ -17,6 +17,11 @@ import {
   FileCode,
   Network,
   AppWindow,
+  Mic,
+  Music,
+  Volume2,
+  AudioLines,
+  Bot,
 } from 'lucide-react';
 import { classNames } from '@/shared/lib/classNames/classNames';
 import { VStack, Flex } from '@/shared/ui/Stack';
@@ -42,8 +47,11 @@ export const Sidebar = ({ collapsed, onToggle, isMobile }: SidebarProps) => {
     { name: t('nav.trunks'), path: '/trunks', icon: Waypoints },
     { name: t('nav.routes'), path: '/routes', icon: Route },
     { type: 'divider' as const, label: t('nav.apps', 'Приложения') },
+    { name: t('nav.voiceRobots', 'Голосовые роботы'), path: '/voice-robots', icon: Bot },
     { name: t('nav.ivrs', 'IVR'), path: '/ivrs', icon: AppWindow },
     { name: t('nav.queues'), path: '/queues', icon: ListOrdered },
+    { name: t('promptsPage.title', 'Записи'), path: '/prompts', icon: Mic },
+    { name: t('moh.title', 'Музыка на удержании'), path: '/moh', icon: Music },
     { type: 'divider' as const, label: t('nav.callcenter') },
     { name: t('nav.operator'), path: '/operator', icon: Headphones },
     { type: 'divider' as const, label: t('nav.analytics') },
@@ -53,6 +61,8 @@ export const Sidebar = ({ collapsed, onToggle, isMobile }: SidebarProps) => {
     { name: t('nav.roles' as any) || 'Интерфейсы', path: '/roles', icon: Shield },
     { name: t('nav.numbers' as any) || 'Списки доступа', path: '/numbers', icon: List },
     { name: t('provisionTemplates.title', 'Шаблоны автонастройки'), path: '/provision-templates', icon: FileCode },
+    { name: t('ttsEngines.title', 'Синтез речи (TTS)'), path: '/settings/tts-engines', icon: Volume2 },
+    { name: t('sttEngines.title', 'Распознавание речи (STT)'), path: '/settings/stt-engines', icon: AudioLines },
     { name: t('nav.settings'), path: '/settings', icon: Settings },
   ] as const;
 

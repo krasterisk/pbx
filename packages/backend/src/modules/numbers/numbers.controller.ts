@@ -44,4 +44,11 @@ export class NumbersController {
     await this.loggerService.logAction(req.user.sub, 'delete', 'number', id, req.user.vpbx_user_uid);
     return res;
   }
+
+  @Post('bulk/delete')
+  async bulkDelete(@Body() body: { ids: number[] }, @Req() req: any) {
+    const deletedCount = await this.numbersService.bulkDelete(body.ids, req.user.vpbx_user_uid);
+    await this.loggerService.logAction(req.user.sub, 'bulk_delete', 'number', null, req.user.vpbx_user_uid, `Bulk deleted ${deletedCount} numbers`);
+    return { deleted: deletedCount };
+  }
 }

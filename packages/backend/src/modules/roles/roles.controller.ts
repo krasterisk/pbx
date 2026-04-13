@@ -44,4 +44,11 @@ export class RolesController {
     await this.loggerService.logAction(req.user.sub, 'delete', 'role', id, req.user.vpbx_user_uid);
     return res;
   }
+
+  @Post('bulk/delete')
+  async bulkDelete(@Body() body: { ids: number[] }, @Req() req: any) {
+    const deletedCount = await this.rolesService.bulkDelete(body.ids, req.user.vpbx_user_uid);
+    await this.loggerService.logAction(req.user.sub, 'bulk_delete', 'role', null, req.user.vpbx_user_uid, `Bulk deleted ${deletedCount} roles`);
+    return { deleted: deletedCount };
+  }
 }

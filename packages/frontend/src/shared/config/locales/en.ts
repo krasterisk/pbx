@@ -67,6 +67,8 @@ export const en = {
     roles: 'Roles',
     numbers: 'Access Lists',
     backups: 'Backups',
+    apps: 'Applications',
+    ivrs: 'IVR',
   },
 
   // Dashboard
@@ -327,6 +329,37 @@ export const en = {
     waiting: 'Waiting',
     completed: 'Completed',
     abandoned: 'Abandoned',
+  },
+
+  // MOH
+  moh: {
+    title: 'Music On Hold',
+    subtitle: 'Manage Music On Hold classes',
+    add: 'Create Class',
+    edit: 'Edit Class',
+    table: {
+      name: 'Name',
+      tracks: 'Tracks',
+      sort: 'Sort',
+    },
+    fields: {
+      displayName: 'Class Name',
+      sort: 'Playback Order',
+    },
+    sort: {
+      random: 'Random',
+      alpha: 'Alphabetical',
+    },
+    playlist: {
+      title: 'Playlist',
+      empty: 'Add audio files from the prompts directory',
+      add: 'Add Track',
+      selectPrompt: '— Select prompt —',
+    },
+    placeholders: {
+      displayName: 'Example: Sales Hold',
+    },
+    confirmDelete: 'Delete class "{{name}}"?',
   },
 
   // Reports

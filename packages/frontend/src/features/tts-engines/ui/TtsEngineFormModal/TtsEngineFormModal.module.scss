@@ -1,0 +1,118 @@
+.headersEditor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.headerRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.headerInput {
+  flex: 1;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--background);
+  color: var(--foreground);
+  font-size: 13px;
+  font-family: monospace;
+
+  &:focus {
+    outline: none;
+    border-color: var(--primary);
+  }
+}
+
+.removeHeaderBtn {
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  color: var(--muted-foreground);
+  border-radius: 4px;
+  line-height: 0;
+  transition: color 0.15s;
+
+  &:hover {
+    color: hsl(0 84% 60%);
+  }
+}
+
+.addHeaderBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  background: none;
+  color: var(--muted-foreground);
+  font-size: 13px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  width: fit-content;
+
+  &:hover {
+    color: var(--primary);
+    border-color: var(--primary);
+  }
+}
+
+.typeSelector {
+  display: flex;
+  gap: 8px;
+}
+
+.typeOption {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--background);
+  color: var(--muted-foreground);
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 500;
+
+  &:hover {
+    border-color: var(--primary);
+    color: var(--foreground);
+  }
+
+  &.selected {
+    border-color: var(--primary);
+    background: hsl(var(--primary) / 0.1);
+    color: var(--primary);
+  }
+}
+
+.authSelector {
+  display: flex;
+  gap: 6px;
+}
+
+.authOption {
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--background);
+  color: var(--muted-foreground);
+  cursor: pointer;
+  transition: all 0.15s;
+  font-size: 12px;
+
+  &:hover {
+    border-color: var(--primary);
+  }
+
+  &.selected {
+    border-color: var(--primary);
+    background: hsl(var(--primary) / 0.1);
+    color: var(--primary);
+  }
+}

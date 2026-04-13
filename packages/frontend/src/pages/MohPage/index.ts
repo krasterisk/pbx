@@ -1,0 +1,1 @@
+export { MohPage } from './MohPage';

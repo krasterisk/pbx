@@ -67,6 +67,8 @@ export const ru = {
     roles: 'Интерфейсы',
     numbers: 'Списки доступа',
     backups: 'Бэкапы',
+    apps: 'Приложения',
+    ivrs: 'IVR',
   },
 
   // Dashboard
@@ -320,6 +322,187 @@ export const ru = {
       hangup: 'Сброс',
     },
   },
+  // IVRs
+  ivrs: {
+    title: 'Голосовые меню (IVR)',
+    add: 'Добавить IVR',
+    table: {
+      exten: 'Номер',
+      name: 'Наименование',
+      timeout: 'Таймаут',
+      maxCount: 'Ограничение переходов',
+    },
+    modal: {
+      edit: 'Редактировать IVR',
+      create: 'Создать IVR',
+    },
+    tabs: {
+      main: 'Основные',
+      sounds_prompts: 'Записи',
+      routes: 'Вложенные маршруты',
+    },
+    fields: {
+      name: 'Системное имя',
+      exten: 'Внутренний номер меню (Exten)',
+      active: 'Активно',
+      directDial: 'Прямой донабор',
+      timeout: 'Таймаут ожидания ввода (сек)',
+      maxCount: 'Ограничение переходов (0 - без предела)',
+    },
+    placeholders: {
+      name: 'Например: Основное меню',
+    },
+    tooltips: {
+      exten: 'Внутренний номер, по которому будет доступно голосовое меню. Абоненты, набравшие этот номер, попадут в IVR',
+      active: 'Включает/отключает обработку вызовов в данном IVR. Отключённое меню будет пропускать вызовы',
+      directDial: 'Позволяет абоненту набрать внутренний номер напрямую, не дожидаясь окончания голосового приветствия',
+      timeout: 'Время ожидания (в секундах) после воспроизведения приветствия, в течение которого система ожидает DTMF-ввода от абонента',
+      maxCount: 'Максимальное количество ошибочных попыток ввода, после которого вызов будет обработан по маршруту ошибки. 0 — без ограничений',
+    },
+    prompts: {
+      empty: 'Нет записей. Добавьте аудио-файлы для воспроизведения в IVR.',
+      selectPrompt: '— Выберите запись —',
+      add: 'Добавить',
+    },
+    menuItems: {
+      title: 'Пункты меню (DTMF Возможные сочетания)',
+      add: 'Добавить пункт',
+      digitLabel: 'Нажатие / Паттерн:',
+      actionsCount: 'действий',
+      empty: 'Нет пунктов меню. Нажмите «Добавить пункт» чтобы создать маршрут.',
+    },
+  },
+
+  // MOH
+  moh: {
+    title: 'Музыка на удержании',
+    subtitle: 'Управление классами Music On Hold',
+    add: 'Создать класс',
+    edit: 'Редактировать класс',
+    table: {
+      name: 'Название',
+      tracks: 'Треков',
+      sort: 'Сортировка',
+    },
+    fields: {
+      displayName: 'Название класса',
+      sort: 'Порядок воспроизведения',
+    },
+    sort: {
+      random: 'Случайно',
+      alpha: 'По порядку',
+    },
+    playlist: {
+      title: 'Плейлист',
+      empty: 'Добавьте аудио-файлы из справочника записей',
+      add: 'Добавить трек',
+      selectPrompt: '— Выберите запись —',
+    },
+    placeholders: {
+      displayName: 'Например: Ожидание продаж',
+    },
+    confirmDelete: 'Удалить класс «{{name}}»?',
+  },
+
+  // Prompts (Recordings dictionary)
+  promptsPage: {
+    title: 'Записи',
+    subtitle: 'Управление звуковыми файлами и записями',
+    addBtn: 'Загрузить файл',
+    recordBtn: 'Записать по телефону',
+    synthesizeBtn: 'Синтезировать речь',
+    filename: 'Имя файла',
+    comment: 'Название',
+    moh: 'MOH-класс',
+    confirmDelete: 'Удалить запись «{{name}}»?',
+    count: 'Записей: {{count}}',
+    upload: {
+      title: 'Загрузка аудио-записи',
+      dropzone: 'Перетяните файл сюда или нажмите для выбора',
+      formatHint: 'WAV или MP3. Будет автоматически сконвертирован в формат PBX (mono, 8000Hz, 16-bit). Макс. размер: 10 МБ',
+      commentLabel: 'Название записи',
+      commentPlaceholder: 'Например: Приветствие основное',
+      mohLabel: 'MOH-класс (необязательно)',
+      mohNone: 'Не использовать',
+      fileTooLarge: 'Файл превышает максимальный размер 10 МБ',
+      invalidFormat: 'Допускаются только аудио-файлы (WAV, MP3)',
+    },
+    record: {
+      title: 'Запись по телефону',
+      extenLabel: 'Внутренний номер для записи',
+      extenHint: 'На указанный номер поступит вызов. При ответе будет предложено произнести фразу.',
+      commentLabel: 'Название записи',
+      startRecord: 'Начать запись',
+      recording: 'Запись инициирована...',
+    },
+    synthesize: {
+      title: 'Синтез речи',
+      engineLabel: 'TTS-движок',
+      engineSelect: '— Выберите движок —',
+      textLabel: 'Текст для синтеза',
+      textPlaceholder: 'Добро пожаловать в компанию...',
+      commentLabel: 'Название записи',
+      preview: 'Прослушать',
+      save: 'Сохранить как запись',
+    },
+    play: 'Прослушать',
+    download: 'Скачать',
+  },
+
+  // TTS Engines
+  ttsEngines: {
+    title: 'Синтез речи (TTS)',
+    subtitle: 'Настройка движков синтеза речи',
+    add: 'Добавить движок',
+    edit: 'Редактировать движок',
+    name: 'Название',
+    type: 'Тип',
+    typeGoogle: 'Google Cloud TTS',
+    typeYandex: 'Yandex SpeechKit',
+    typeCustom: 'Custom API',
+    token: 'API Key / Token',
+    test: 'Тест',
+    testText: 'Это тестовое сообщение для проверки синтеза речи.',
+    confirmDelete: 'Удалить движок «{{name}}»?',
+    google: {
+      languageCode: 'Язык',
+      voiceName: 'Голос',
+      speakingRate: 'Скорость речи',
+    },
+    yandex: {
+      folderId: 'Folder ID',
+      voice: 'Голос',
+      emotion: 'Эмоция',
+      speed: 'Скорость',
+      voiceAlena: 'Алёна',
+      voiceFilipp: 'Филипп',
+      voiceErmil: 'Ермил',
+      voiceJane: 'Джейн',
+      emotionNeutral: 'Нейтральная',
+      emotionGood: 'Доброжелательная',
+      emotionEvil: 'Раздражённая',
+    },
+    custom: {
+      url: 'URL эндпоинта',
+      authMode: 'Авторизация',
+      authNone: 'Нет',
+      authBearer: 'Bearer Token',
+      authCustom: 'Пользовательские заголовки',
+      headers: 'Заголовки',
+    },
+  },
+
+  // STT Engines
+  sttEngines: {
+    title: 'Распознавание речи (STT)',
+    subtitle: 'Настройка движков распознавания речи',
+    add: 'Добавить движок',
+    edit: 'Редактировать движок',
+    name: 'Название',
+    type: 'Тип',
+    confirmDelete: 'Удалить движок «{{name}}»?',
+  },
+
   queues: {
     title: 'Очереди',
     addQueue: 'Добавить очередь',

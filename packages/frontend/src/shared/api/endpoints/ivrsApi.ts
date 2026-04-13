@@ -39,6 +39,15 @@ const ivrsApi = rtkApi.injectEndpoints({
       query: (uid) => ({ url: `/ivrs/${uid}`, method: 'DELETE' }),
       invalidatesTags: [{ type: 'Ivrs', id: 'LIST' }],
     }),
+
+    bulkDeleteIvrs: builder.mutation<{ deleted: number }, number[]>({
+      query: (ids) => ({
+        url: '/ivrs/bulk/delete',
+        method: 'POST',
+        body: { ids },
+      }),
+      invalidatesTags: [{ type: 'Ivrs', id: 'LIST' }],
+    }),
   }),
 });
 
@@ -48,4 +57,6 @@ export const {
   useCreateIvrMutation,
   useUpdateIvrMutation,
   useDeleteIvrMutation,
+  useBulkDeleteIvrsMutation,
 } = ivrsApi;
+

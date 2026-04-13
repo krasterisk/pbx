@@ -1,19 +1,27 @@
 import { memo, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FileEdit, Trash2, Plus } from 'lucide-react';
+import { FileEdit, Trash2, Loader2, GitMerge } from 'lucide-react';
 import { DataTable } from '@/shared/ui/DataTable/DataTable';
-import { Button } from '@/shared/ui';
-import { useGetIvrsQuery, useDeleteIvrMutation } from '@/shared/api/endpoints/ivrsApi';
+import { Button, Card, CardHeader, CardContent } from '@/shared/ui';
+import { HStack } from '@/shared/ui/Stack';
+import { useGetIvrsQuery, useDeleteIvrMutation, useBulkDeleteIvrsMutation } from '@/shared/api/endpoints/ivrsApi';
 import { IvrFormModal } from '../IvrFormModal/IvrFormModal';
 import { IIvr } from '@/entities/ivr';
+import { useAppDispatch, useAppSelector } from '@/shared/hooks/useAppStore';
+import { ivrsActions } from '../../model/slice/ivrsSlice';
+import { getIvrsIsModalOpen, getIvrsSelectedIvr } from '../../model/selectors/ivrsSelectors';
 
 export const IvrsTable = memo(() => {
   const { t } = useTranslation();
+  const dispatch = useAppDispatch();
   const { data: ivrs = [], isLoading } = useGetIvrsQuery();
   const [deleteIvr] = useDeleteIvrMutation();
+  const [bulkDelete, { isLoading: isDeleting }] = useBulkDeleteIvrsMutation();
 
-  const [editIvr, setEditIvr] = useState<IIvr | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const isModalOpen = useAppSelector(getIvrsIsModalOpen);
+  const editIvr = useAppSelector(getIvrsSelectedIvr);
+  
+  const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
 
   const columns = useMemo(
     () => [
@@ -44,10 +52,10 @@ export const IvrsTable = memo(() => {
               <Button
                 variant="ghost"
                 size="icon"
+                title={t('common.edit', 'Редактировать')}
                 onClick={(e) => {
                   e.stopPropagation();
-                  setEditIvr(ivr);
-                  setIsModalOpen(true);
+                  dispatch(ivrsActions.openEditModal(ivr));
                 }}
               >
                 <FileEdit className="w-4 h-4 text-indigo-400" />
@@ -55,9 +63,10 @@ export const IvrsTable = memo(() => {
               <Button
                 variant="ghost"
                 size="icon"
+                title={t('common.delete', 'Удалить')}
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (confirm(t('common.confirmDelete', 'Удалить это меню?'))) {
+                  if (window.confirm(t('common.confirmDelete', 'Удалить это меню?'))) {
                     deleteIvr(ivr.uid);
                   }
                 }}
@@ -69,37 +78,74 @@ export const IvrsTable = memo(() => {
         },
       },
     ],
-    [t, deleteIvr]
+    [t, deleteIvr, dispatch]
   );
 
-  return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h2 className="text-xl font-semibold">{t('ivrs.title', 'Голосовые меню (IVR)')}</h2>
-        <Button
-          onClick={() => {
-            setEditIvr(null);
-            setIsModalOpen(true);
-          }}
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          {t('ivrs.add', 'Добавить IVR')}
-        </Button>
-      </div>
+  const selectedCount = Object.keys(rowSelection).length;
 
-      <div className="bg-[#09090b] rounded-lg border border-[#27272a] overflow-hidden">
-        <DataTable columns={columns} data={ivrs} loading={isLoading} />
-      </div>
+  const handleBulkDelete = async () => {
+    const ids = Object.keys(rowSelection).map(Number);
+    if (!ids.length) return;
+    
+    if (window.confirm(t('common.confirmDelete', 'Вы уверены, что хотите удалить?'))) {
+      await bulkDelete(ids).unwrap();
+      setRowSelection({});
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <HStack justify="between" align="center" className="flex-col sm:flex-row gap-4" max>
+          <HStack gap="8" align="center">
+            <GitMerge className="w-5 h-5 text-primary" />
+            <span className="font-semibold text-lg">
+              {t('ivrs.count', { count: ivrs.length, defaultValue: `Всего: ${ivrs.length}` })}
+            </span>
+          </HStack>
+          <HStack gap="12" align="center" className="w-full sm:w-auto">
+            {selectedCount > 0 && (
+              <Button
+                variant="destructive"
+                disabled={isDeleting}
+                onClick={handleBulkDelete}
+              >
+                {isDeleting ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Trash2 className="w-4 h-4 mr-2" />
+                )}
+                {t('common.deleteSelected', 'Удалить выбранные')} ({selectedCount})
+              </Button>
+            )}
+          </HStack>
+        </HStack>
+      </CardHeader>
+      
+      <CardContent className="p-0">
+        <DataTable 
+          columns={columns as any} 
+          data={ivrs} 
+          getRowId={(row: any) => String(row.uid)}
+          selectable={true}
+          rowSelection={rowSelection}
+          onRowSelectionChange={setRowSelection}
+          emptyText={t('common.noData')}
+          exportFilename="ivrs_export"
+        />
+      </CardContent>
 
       {isModalOpen && (
         <IvrFormModal
           isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
+          onClose={() => dispatch(ivrsActions.closeModal())}
           ivr={editIvr}
         />
       )}
-    </div>
+    </Card>
   );
 });
 
 IvrsTable.displayName = 'IvrsTable';
+
+

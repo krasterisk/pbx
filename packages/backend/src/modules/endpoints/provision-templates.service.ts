@@ -34,4 +34,11 @@ export class ProvisionTemplatesService {
       where: { uid, user_uid: userUid }
     });
   }
+
+  async bulkRemove(uids: number[], userUid: number): Promise<{ deleted: number }> {
+    const deleted = await this.templateModel.destroy({
+      where: { uid: uids, user_uid: userUid },
+    });
+    return { deleted };
+  }
 }

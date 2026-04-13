@@ -32,4 +32,8 @@ export class ContextsController {
   remove(@Param('id') id: string, @Req() req: Request & { user: any }) {
     return this.contextsService.remove(+id, req.user.vpbx_user_uid);
   }
+  @Post('bulk/delete')
+  bulkDelete(@Body() body: { ids: number[] }, @Req() req: Request & { user: any }) {
+    return this.contextsService.bulkRemove(body.ids, req.user.vpbx_user_uid);
+  }
 }

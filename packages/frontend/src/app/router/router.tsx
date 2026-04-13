@@ -14,6 +14,11 @@ import ProvisionTemplatesPage from '@/pages/ProvisionTemplatesPage';
 import { TrunksPage } from '@/features/trunks/ui/TrunksPage/TrunksPage';
 import { RoutesPage } from '@/features/routes';
 import { IvrsPage } from '@/pages/IvrsPage';
+import { PromptsPage } from '@/pages/PromptsPage';
+import { MohPage } from '@/pages/MohPage';
+import { TtsEnginesPage } from '@/pages/TtsEnginesPage';
+import { SttEnginesPage } from '@/pages/SttEnginesPage';
+import { VoiceRobotsPage } from '@/pages/VoiceRobotsPage';
 
 export const router = createBrowserRouter([
   {
@@ -39,6 +44,9 @@ export const router = createBrowserRouter([
       { path: 'contexts', element: <ContextsPage /> },
       { path: 'routes', element: <RoutesPage /> },
       { path: 'ivrs', element: <IvrsPage /> },
+      { path: 'prompts', element: <PromptsPage /> },
+      { path: 'voice-robots', element: <VoiceRobotsPage /> },
+      { path: 'moh', element: <MohPage /> },
       { path: 'queues', element: <PlaceholderPage title="Очереди" /> },
       { path: 'roles', element: <RolesPage /> },
       { path: 'numbers', element: <NumbersPage /> },
@@ -46,6 +54,8 @@ export const router = createBrowserRouter([
       { path: 'operator', element: <PlaceholderPage title="Панель оператора" /> },
       { path: 'reports', element: <PlaceholderPage title="Отчёты" /> },
       { path: 'settings', element: <PlaceholderPage title="Настройки" /> },
+      { path: 'settings/tts-engines', element: <TtsEnginesPage /> },
+      { path: 'settings/stt-engines', element: <SttEnginesPage /> },
     ],
   },
   {

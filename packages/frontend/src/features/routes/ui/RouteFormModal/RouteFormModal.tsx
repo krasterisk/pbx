@@ -15,7 +15,7 @@ import {
 import { useAppSelector, useAppDispatch } from '@/shared/hooks/useAppStore';
 import { routesActions } from '../../model/slice/routesSlice';
 import { ExtensionChips } from '../ExtensionChips/ExtensionChips';
-import { ActionsTableEditor } from '../ActionsTableEditor/ActionsTableEditor';
+import { DialplanAppsEditor } from '@/features/dialplan-apps';
 import { RawDialplanEditor } from '../RawDialplanEditor/RawDialplanEditor';
 import styles from './RouteFormModal.module.scss';
 
@@ -259,7 +259,7 @@ export const RouteFormModal = memo(() => {
               </HStack>
 
               {editorMode === 'table' && (
-                <ActionsTableEditor actions={actions} onChange={setActions} />
+                <DialplanAppsEditor actions={actions} onChange={setActions} />
               )}
               {editorMode === 'raw' && (
                 <RawDialplanEditor value={rawDialplan} onChange={setRawDialplan} />

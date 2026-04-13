@@ -42,6 +42,15 @@ const roleApi = rtkApi.injectEndpoints({
       query: (id) => ({ url: `/roles/${id}`, method: 'DELETE' }),
       invalidatesTags: [{ type: 'Roles', id: 'LIST' }],
     }),
+
+    bulkDeleteRoles: builder.mutation<{ deleted: number }, number[]>({
+      query: (ids) => ({
+        url: '/roles/bulk/delete',
+        method: 'POST',
+        body: { ids },
+      }),
+      invalidatesTags: [{ type: 'Roles', id: 'LIST' }],
+    }),
   }),
 });
 
@@ -51,4 +60,6 @@ export const {
   useCreateRoleMutation,
   useUpdateRoleMutation,
   useDeleteRoleMutation,
+  useBulkDeleteRolesMutation,
 } = roleApi;
+

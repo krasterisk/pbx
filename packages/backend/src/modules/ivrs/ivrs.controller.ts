@@ -32,4 +32,9 @@ export class IvrsController {
   async remove(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
     return this.ivrsService.remove(id, req.user.vpbx_user_uid);
   }
+
+  @Post('bulk/delete')
+  async bulkDelete(@Body() body: { ids: number[] }, @Req() req: any) {
+    return this.ivrsService.bulkRemove(body.ids, req.user.vpbx_user_uid);
+  }
 }

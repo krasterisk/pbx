@@ -34,6 +34,15 @@ const contextApi = rtkApi.injectEndpoints({
       query: (uid) => ({ url: `/contexts/${uid}`, method: 'DELETE' }),
       invalidatesTags: [{ type: 'Contexts', id: 'LIST' }],
     }),
+
+    bulkDeleteContexts: builder.mutation<{ deleted: number }, number[]>({
+      query: (ids) => ({
+        url: '/contexts/bulk/delete',
+        method: 'POST',
+        body: { ids },
+      }),
+      invalidatesTags: [{ type: 'Contexts', id: 'LIST' }],
+    }),
   }),
 });
 
@@ -42,4 +51,6 @@ export const {
   useCreateContextMutation,
   useUpdateContextMutation,
   useDeleteContextMutation,
+  useBulkDeleteContextsMutation,
 } = contextApi;
+

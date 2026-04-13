@@ -1,0 +1,40 @@
+import { Table, Column, Model, DataType, PrimaryKey, AutoIncrement, Default, ForeignKey, BelongsTo } from 'sequelize-typescript';
+import { VoiceRobotKeywordGroup } from './keyword-group.model';
+
+@Table({ tableName: 'voice_robot_keywords', timestamps: false, freezeTableName: true })
+export class VoiceRobotKeyword extends Model {
+  @PrimaryKey
+  @AutoIncrement
+  @Column({ type: DataType.INTEGER })
+  declare uid: number;
+
+  @ForeignKey(() => VoiceRobotKeywordGroup)
+  @Column({ type: DataType.INTEGER, allowNull: false })
+  declare group_id: number;
+
+  @BelongsTo(() => VoiceRobotKeywordGroup, { onDelete: 'CASCADE' })
+  declare group: VoiceRobotKeywordGroup;
+
+  @Column({ type: DataType.TEXT, allowNull: false })
+  declare keywords: string;
+
+  @Column({ type: DataType.JSON, allowNull: true })
+  declare negative_keywords: any | null;
+
+  @Column({ type: DataType.JSON, allowNull: true })
+  declare synonyms: any | null;
+
+  @Column({ type: DataType.JSON, allowNull: true })
+  declare actions: any | null;
+
+  @Default(0)
+  @Column({ type: DataType.INTEGER, allowNull: false })
+  declare priority: number;
+
+  @Column({ type: DataType.STRING(512), allowNull: true })
+  declare comment: string | null;
+
+  @Default(0)
+  @Column({ type: DataType.INTEGER, allowNull: false })
+  declare user_uid: number;
+}

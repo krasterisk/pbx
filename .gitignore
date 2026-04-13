@@ -4,5 +4,6 @@ build/
 .env
 *.log
 .idea/
+.docs/
 .DS_Store
 coverage/

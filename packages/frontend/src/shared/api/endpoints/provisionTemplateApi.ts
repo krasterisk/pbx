@@ -35,6 +35,15 @@ const provisionTemplateApi = rtkApi.injectEndpoints({
       query: (id) => ({ url: `/provision-templates/${id}`, method: 'DELETE' }),
       invalidatesTags: [{ type: 'ProvisionTemplates', id: 'LIST' }],
     }),
+
+    bulkDeleteProvisionTemplates: builder.mutation<{ deleted: number }, number[]>({
+      query: (ids) => ({
+        url: '/provision-templates/bulk/delete',
+        method: 'POST',
+        body: { ids },
+      }),
+      invalidatesTags: [{ type: 'ProvisionTemplates', id: 'LIST' }],
+    }),
   }),
 });
 
@@ -43,4 +52,6 @@ export const {
   useCreateProvisionTemplateMutation,
   useUpdateProvisionTemplateMutation,
   useDeleteProvisionTemplateMutation,
+  useBulkDeleteProvisionTemplatesMutation,
 } = provisionTemplateApi;
+

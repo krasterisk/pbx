@@ -440,26 +440,28 @@ export const EndpointFormModal = () => {
 
             {activeTab === 'calls' && (
               <VStack gap="16">
-                <PickupGroupSelect 
-                  label={
-                    <HStack gap="2" align="center">
-                      <span>{t('endpoints.namedCallGroup')}</span>
-                      <InfoTooltip text={t('endpoints.namedCallGroupDesc', 'В какие группы звонит этот телефон.')} />
-                    </HStack>
-                  }
-                  selectedSlugs={namedCallGroup}
-                  onChange={setNamedCallGroup}
-                />
-                <PickupGroupSelect 
-                  label={
-                    <HStack gap="2" align="center">
-                      <span>{t('endpoints.namedPickupGroup')}</span>
-                      <InfoTooltip text={t('endpoints.namedPickupGroupDesc', 'Звонки каких групп этот телефон может перехватывать (обычно по комбинации *8).')} />
-                    </HStack>
-                  }
-                  selectedSlugs={namedPickupGroup}
-                  onChange={setNamedPickupGroup}
-                />
+                <VStack gap="4">
+                  <HStack gap="4" align="center">
+                    <span className="text-sm font-medium text-muted-foreground">{t('endpoints.namedCallGroup')}</span>
+                    <InfoTooltip text={t('endpoints.namedCallGroupDesc', 'В какие группы звонит этот телефон.')} />
+                  </HStack>
+                  <PickupGroupSelect 
+                    label=""
+                    selectedSlugs={namedCallGroup}
+                    onChange={setNamedCallGroup}
+                  />
+                </VStack>
+                <VStack gap="4">
+                  <HStack gap="4" align="center">
+                    <span className="text-sm font-medium text-muted-foreground">{t('endpoints.namedPickupGroup')}</span>
+                    <InfoTooltip text={t('endpoints.namedPickupGroupDesc', 'Звонки каких групп этот телефон может перехватывать (обычно по комбинации *8).')} />
+                  </HStack>
+                  <PickupGroupSelect 
+                    label=""
+                    selectedSlugs={namedPickupGroup}
+                    onChange={setNamedPickupGroup}
+                  />
+                </VStack>
               </VStack>
             )}
 
