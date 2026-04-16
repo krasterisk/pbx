@@ -27,6 +27,9 @@ export class VoiceRobotKeyword extends Model {
   @Column({ type: DataType.JSON, allowNull: true })
   declare actions: any | null;
 
+  @Column({ type: DataType.JSON, allowNull: true })
+  declare bot_action: any | null;
+
   @Default(0)
   @Column({ type: DataType.INTEGER, allowNull: false })
   declare priority: number;

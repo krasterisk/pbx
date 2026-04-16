@@ -3,12 +3,12 @@ import { useTranslation } from 'react-i18next';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter
 } from '@/shared/ui/Dialog';
-import { Button, Input, VStack, HStack } from '@/shared/ui';
-import { InfoTooltip } from '@/shared/ui/Tooltip/Tooltip';
+import { Button, VStack, HStack } from '@/shared/ui';
 import { IIvr, IIvrMenuItem } from '@/entities/ivr';
 import { useCreateIvrMutation, useUpdateIvrMutation } from '@/shared/api/endpoints/ivrsApi';
 import { IvrMenuItemsEditor } from '../IvrMenuItemsEditor/IvrMenuItemsEditor';
 import { IvrPromptsEditor } from '../IvrPromptsEditor/IvrPromptsEditor';
+import { IvrMainTab } from '../IvrMainTab';
 
 interface IvrFormModalProps {
   isOpen: boolean;
@@ -28,7 +28,7 @@ export function IvrFormModal({ isOpen, onClose, ivr }: IvrFormModalProps) {
   const [maxCount, setMaxCount] = useState<number>(0);
   const [active, setActive] = useState(true);
   const [directDial, setDirectDial] = useState(true);
-  
+
   const [menuItems, setMenuItems] = useState<IIvrMenuItem[]>([]);
   const [prompts, setPrompts] = useState<string[]>([]);
 
@@ -56,7 +56,7 @@ export function IvrFormModal({ isOpen, onClose, ivr }: IvrFormModalProps) {
 
   const onSubmit = async () => {
     if (!name.trim()) return;
-    
+
     const payload = {
       name,
       exten,
@@ -88,7 +88,7 @@ export function IvrFormModal({ isOpen, onClose, ivr }: IvrFormModalProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto w-full flex flex-col p-6">
+      <DialogContent size="large">
         <DialogHeader className="mb-4 shrink-0">
           <DialogTitle className="text-xl font-bold">
             {ivr ? t('ivrs.modal.edit', 'Редактировать IVR') : t('ivrs.modal.create', 'Создать IVR')}
@@ -96,112 +96,58 @@ export function IvrFormModal({ isOpen, onClose, ivr }: IvrFormModalProps) {
         </DialogHeader>
 
         <HStack gap="4" className="border-b border-border mb-6 shrink-0 overflow-x-auto flex-nowrap pb-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-            {tabs.map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`py-2 px-1 text-sm font-medium border-b-2 transition-colors whitespace-nowrap shrink-0 ${
-                  activeTab === tab.id
-                    ? 'border-primary text-primary'
-                    : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
+          {tabs.map(tab => (
+            <Button
+              key={tab.id}
+              variant="ghost"
+              onClick={() => setActiveTab(tab.id)}
+              className={`py-2 px-1 rounded-none text-sm font-medium border-b-2 transition-colors whitespace-nowrap shrink-0 ${activeTab === tab.id
+                  ? 'border-primary text-primary bg-transparent hover:bg-transparent hover:text-primary'
+                  : 'border-transparent text-muted-foreground bg-transparent hover:text-foreground hover:border-border hover:bg-transparent'
                 }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </HStack>
+            >
+              {tab.label}
+            </Button>
+          ))}
+        </HStack>
 
-          <div className="flex-1 overflow-y-auto pr-1">
-            {activeTab === 'main' && (
-              <VStack gap="16">
-                {/* Name — without tooltip per requirement */}
-                <VStack gap="4">
-                  <label className="text-sm font-medium text-muted-foreground">{t('ivrs.fields.name', 'Системное имя')}</label>
-                  <Input placeholder={t('ivrs.placeholders.name', 'Например: Основное меню')} value={name} onChange={e => setName(e.target.value)} />
-                </VStack>
+        <VStack className="flex-1 overflow-y-auto pr-1">
+          {activeTab === 'main' && (
+            <IvrMainTab
+              name={name}
+              onNameChange={setName}
+              exten={exten}
+              onExtenChange={setExten}
+              timeoutMs={timeoutMs}
+              onTimeoutMsChange={setTimeoutMs}
+              maxCount={maxCount}
+              onMaxCountChange={setMaxCount}
+              active={active}
+              onActiveChange={setActive}
+              directDial={directDial}
+              onDirectDialChange={setDirectDial}
+            />
+          )}
 
-                {/* Exten — with tooltip */}
-                <VStack gap="4">
-                  <HStack align="center" gap="4">
-                    <label className="text-sm font-medium text-muted-foreground">{t('ivrs.fields.exten', 'Внутренний номер меню (Exten)')}</label>
-                    <InfoTooltip text={t('ivrs.tooltips.exten', 'Внутренний номер, по которому будет доступно голосовое меню. Абоненты, набравшие этот номер, попадут в IVR')} />
-                  </HStack>
-                  <Input placeholder="5000" value={exten} onChange={e => setExten(e.target.value)} />
-                </VStack>
+          {activeTab === 'sounds_prompts' && (
+            <IvrPromptsEditor
+              value={prompts}
+              onChange={setPrompts}
+            />
+          )}
 
-                {/* Timeout — merged from timers tab */}
-                <VStack gap="4">
-                  <HStack align="center" gap="4">
-                    <label className="text-sm font-medium text-muted-foreground">{t('ivrs.fields.timeout', 'Таймаут ожидания ввода (сек)')}</label>
-                    <InfoTooltip text={t('ivrs.tooltips.timeout', 'Время ожидания (в секундах) после воспроизведения приветствия, в течение которого система ожидает DTMF-ввода от абонента')} />
-                  </HStack>
-                  <Input placeholder="10" value={timeoutMs} onChange={e => setTimeoutMs(e.target.value)} />
-                </VStack>
+          {activeTab === 'routes' && (
+            <IvrMenuItemsEditor
+              menuItems={menuItems}
+              onChange={setMenuItems}
+            />
+          )}
+        </VStack>
 
-                {/* Max Count — merged from timers tab */}
-                <VStack gap="4">
-                  <HStack align="center" gap="4">
-                    <label className="text-sm font-medium text-muted-foreground">{t('ivrs.fields.maxCount', 'Ограничение переходов (0 - без предела)')}</label>
-                    <InfoTooltip text={t('ivrs.tooltips.maxCount', 'Максимальное количество ошибочных попыток ввода, после которого вызов будет обработан по маршруту ошибки. 0 — без ограничений')} />
-                  </HStack>
-                  <Input type="number" placeholder="3" value={maxCount} onChange={e => setMaxCount(parseInt(e.target.value, 10) || 0)} />
-                </VStack>
-
-                {/* Active — with tooltip */}
-                <HStack align="center" justify="between" className="border border-border p-3 rounded bg-background">
-                  <HStack align="center" gap="4">
-                    <label className="text-sm font-medium text-muted-foreground select-none cursor-pointer" htmlFor="ivr-active">
-                      {t('ivrs.fields.active', 'Активно')}
-                    </label>
-                    <InfoTooltip text={t('ivrs.tooltips.active', 'Включает/отключает обработку вызовов в данном IVR. Отключённое меню будет пропускать вызовы')} />
-                  </HStack>
-                  <input 
-                    id="ivr-active"
-                    type="checkbox" 
-                    className="w-4 h-4 accent-primary cursor-pointer"
-                    checked={active}
-                    onChange={e => setActive(e.target.checked)} 
-                  />
-                </HStack>
-
-                {/* Direct Dial — with tooltip */}
-                <HStack align="center" justify="between" className="border border-border p-3 rounded bg-background">
-                  <HStack align="center" gap="4">
-                    <label className="text-sm font-medium text-muted-foreground select-none cursor-pointer" htmlFor="ivr-direct-dial">
-                      {t('ivrs.fields.directDial', 'Прямой донабор')}
-                    </label>
-                    <InfoTooltip text={t('ivrs.tooltips.directDial', 'Позволяет абоненту набрать внутренний номер напрямую, не дожидаясь окончания голосового приветствия')} />
-                  </HStack>
-                  <input 
-                    id="ivr-direct-dial"
-                    type="checkbox" 
-                    className="w-4 h-4 accent-primary cursor-pointer"
-                    checked={directDial}
-                    onChange={e => setDirectDial(e.target.checked)} 
-                  />
-                </HStack>
-              </VStack>
-            )}
-
-            {activeTab === 'sounds_prompts' && (
-              <IvrPromptsEditor
-                value={prompts}
-                onChange={setPrompts}
-              />
-            )}
-
-            {activeTab === 'routes' && (
-              <IvrMenuItemsEditor
-                menuItems={menuItems}
-                onChange={setMenuItems}
-              />
-            )}
-          </div>
-
-          <DialogFooter className="mt-6 pt-4 border-t border-border shrink-0">
-            <Button variant="outline" onClick={onClose}>{t('common.cancel', 'Отмена')}</Button>
-            <Button onClick={onSubmit}>{t('common.save', 'Сохранить')}</Button>
-          </DialogFooter>
+        <DialogFooter className="mt-6 pt-4 border-t border-border shrink-0">
+          <Button variant="outline" onClick={onClose}>{t('common.cancel', 'Отмена')}</Button>
+          <Button onClick={onSubmit}>{t('common.save', 'Сохранить')}</Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

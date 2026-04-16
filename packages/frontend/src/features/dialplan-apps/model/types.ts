@@ -1,4 +1,4 @@
-import { type ActionType, type IRouteAction } from '@krasterisk/shared';
+import { type ActionType, type ActionCategory, type IRouteAction } from '@krasterisk/shared';
 
 /**
  * Common properties passed to every Dialplan Application UI component.
@@ -16,7 +16,7 @@ export interface IDialplanAppConfig {
   /** Custom UI Component for this app */
   component: React.FC<IDialplanAppProps>;
   /** Category for optgroup grouping */
-  category: string;
+  category: ActionCategory;
   /** Default params when this action is created */
   defaultParams?: Record<string, any>;
   /** Optional icon or description if needed in the future */

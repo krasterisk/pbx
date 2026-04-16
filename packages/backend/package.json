@@ -1,6 +1,6 @@
 {
   "name": "@krasterisk/backend",
-  "version": "4.0.0",
+  "version": "4.0.7",
   "description": "Krasterisk v4 Backend",
   "private": true,
   "scripts": {
@@ -17,6 +17,9 @@
     "test:cov": "jest --coverage"
   },
   "dependencies": {
+    "@grpc/grpc-js": "^1.14.3",
+    "@grpc/proto-loader": "^0.8.0",
+    "@huggingface/transformers": "^4.1.0",
     "@krasterisk/shared": "*",
     "@nestjs/common": "^11.0.10",
     "@nestjs/config": "^4.0.0",

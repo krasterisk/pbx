@@ -1,0 +1,1 @@
+export { IvrMainTab } from './IvrMainTab';

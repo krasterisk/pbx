@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ColumnDef } from '@tanstack/react-table';
 import { Pencil, Trash2, Loader2, AudioLines } from 'lucide-react';
-import { Button, DataTable, Card, CardHeader, CardContent, HStack } from '@/shared/ui';
+import { Button, DataTable, Card, CardHeader, CardContent, HStack, Text } from '@/shared/ui';
 import { ITtsEngine } from '@/entities/engines';
 import { useGetTtsEnginesQuery, useDeleteTtsEngineMutation, useBulkDeleteTtsEnginesMutation } from '@/shared/api/endpoints/ttsEnginesApi';
 import { TtsEngineFormModal } from '../TtsEngineFormModal/TtsEngineFormModal';
@@ -41,7 +41,7 @@ export function TtsEnginesTable() {
   const columns: ColumnDef<ITtsEngine>[] = [
     {
       accessorKey: 'uid',
-      header: '№',
+      header: t('common.id', '№'),
       size: 60,
     },
     {
@@ -60,22 +60,24 @@ export function TtsEnginesTable() {
       size: 100,
       cell: ({ row }) => (
         <HStack gap="4" align="center">
-          <button
-            type="button"
-            className="p-1 text-muted-foreground hover:text-foreground transition-colors"
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-muted-foreground hover:text-foreground"
             onClick={() => handleEdit(row.original)}
             title={t('common.edit', 'Редактировать')}
           >
-            <Pencil size={16} />
-          </button>
-          <button
-            type="button"
-            className="p-1 text-muted-foreground hover:text-destructive transition-colors"
+            <Pencil className="w-4 h-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
             onClick={() => handleDelete(row.original)}
             title={t('common.delete', 'Удалить')}
           >
-            <Trash2 size={16} />
-          </button>
+            <Trash2 className="w-4 h-4" />
+          </Button>
         </HStack>
       ),
     },
@@ -99,9 +101,9 @@ export function TtsEnginesTable() {
         <HStack justify="between" align="center" className="flex-col sm:flex-row gap-4" max>
           <HStack gap="8" align="center">
             <AudioLines className="w-5 h-5 text-primary" />
-            <span className="font-semibold text-lg">
+            <Text variant="large" className="font-semibold">
               {t('ttsEngines.count', { count: engines.length, defaultValue: `Всего: ${engines.length}` })}
-            </span>
+            </Text>
           </HStack>
           <HStack gap="12" align="center" className="w-full sm:w-auto">
             {selectedCount > 0 && (

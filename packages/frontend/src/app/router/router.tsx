@@ -19,6 +19,8 @@ import { MohPage } from '@/pages/MohPage';
 import { TtsEnginesPage } from '@/pages/TtsEnginesPage';
 import { SttEnginesPage } from '@/pages/SttEnginesPage';
 import { VoiceRobotsPage } from '@/pages/VoiceRobotsPage';
+import { VoiceRobotEditPage } from '@/pages/VoiceRobotEditPage';
+import { QueuesPage } from '@/features/queues';
 
 export const router = createBrowserRouter([
   {
@@ -46,8 +48,9 @@ export const router = createBrowserRouter([
       { path: 'ivrs', element: <IvrsPage /> },
       { path: 'prompts', element: <PromptsPage /> },
       { path: 'voice-robots', element: <VoiceRobotsPage /> },
+      { path: 'voice-robots/:id', element: <VoiceRobotEditPage /> },
       { path: 'moh', element: <MohPage /> },
-      { path: 'queues', element: <PlaceholderPage title="Очереди" /> },
+      { path: 'queues', element: <QueuesPage /> },
       { path: 'roles', element: <RolesPage /> },
       { path: 'numbers', element: <NumbersPage /> },
       { path: 'provision-templates', element: <ProvisionTemplatesPage /> },

@@ -40,11 +40,21 @@ export class VoiceRobot extends Model {
   declare fallback_action: any | null;
 
   @Column({ type: DataType.JSON, allowNull: true })
+  declare fallback_bot_action: any | null;
+
+  @Column({ type: DataType.JSON, allowNull: true })
   declare max_retries_action: any | null;
+
+  @Column({ type: DataType.JSON, allowNull: true })
+  declare max_retries_bot_action: any | null;
 
   @Default(0)
   @Column({ type: DataType.INTEGER, allowNull: false })
   declare max_conversation_steps: number;
+
+  @Default(15)
+  @Column({ type: DataType.INTEGER, allowNull: false })
+  declare silence_timeout_seconds: number;
 
   @Column({ type: DataType.STRING(512), allowNull: true })
   declare webhook_url: string | null;
@@ -61,6 +71,18 @@ export class VoiceRobot extends Model {
 
   @Column({ type: DataType.STRING(255), allowNull: true })
   declare external_host: string | null;
+
+  @Default('batch')
+  @Column({ type: DataType.STRING(20), allowNull: false })
+  declare tts_mode: 'streaming' | 'batch';
+
+  @Default(0)
+  @Column({ type: DataType.INTEGER, allowNull: false })
+  declare tts_cache_max_age_days: number;
+
+  @Default('hybrid')
+  @Column({ type: DataType.STRING(20), allowNull: false })
+  declare stt_mode: 'hybrid' | 'full_stream';
 
   @Default(0)
   @Column({ type: DataType.INTEGER, allowNull: false })

@@ -9,9 +9,15 @@ export interface AdvancedSettingsBuilderProps {
   value: Record<string, any>;
   onChange: (value: Record<string, any>) => void;
   excludeFields?: string[];
+  /** Optional custom field list. Defaults to ADVANCED_PJSIP_FIELDS if not provided. */
+  fields?: string[];
+  /** Override the header title */
+  title?: string;
+  /** Override the header description */
+  description?: string;
 }
 
-export const AdvancedSettingsBuilder = memo(({ value, onChange, excludeFields }: AdvancedSettingsBuilderProps) => {
+export const AdvancedSettingsBuilder = memo(({ value, onChange, excludeFields, fields, title, description }: AdvancedSettingsBuilderProps) => {
   const { t } = useTranslation();
 
   // Internal state as Array to allow easy key editing and ordering
@@ -62,16 +68,17 @@ export const AdvancedSettingsBuilder = memo(({ value, onChange, excludeFields }:
 
   // Get options sorted and filter out already selected keys
   const selectedKeys = items.map((i) => i.key).filter(Boolean);
-  const availableOptions = ADVANCED_PJSIP_FIELDS.filter((k) => !selectedKeys.includes(k) && (!excludeFields || !excludeFields.includes(k))).sort();
+  const fieldList = fields || ADVANCED_PJSIP_FIELDS;
+  const availableOptions = fieldList.filter((k) => !selectedKeys.includes(k) && (!excludeFields || !excludeFields.includes(k))).sort();
 
   return (
     <VStack gap="16">
       <div className="bg-primary/10 border border-primary/20 rounded-xl p-4 mb-2">
         <h4 className="text-sm font-semibold text-primary mb-1">
-          {t('endpoints.advancedBuilderTitle')}
+          {title || t('endpoints.advancedBuilderTitle')}
         </h4>
         <p className="text-xs text-muted-foreground leading-relaxed">
-          {t('endpoints.advancedBuilderDesc')}
+          {description || t('endpoints.advancedBuilderDesc')}
         </p>
       </div>
 

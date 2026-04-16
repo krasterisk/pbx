@@ -38,10 +38,10 @@
   --color-input: #27272a;
   --color-ring: #6366f1;
   
-  --color-sidebar: #0a0a0f;
+  --color-sidebar: #121218;
   --color-sidebar-foreground: #a1a1aa;
   --color-sidebar-accent: #18181b;
-  --color-sidebar-border: #1e1e2e;
+  --color-sidebar-border: #27272a;
   
   /* Radius */
   --radius-sm: 0.375rem;
@@ -55,6 +55,7 @@
   --z-index-backdrop: 35;
   --z-index-sidebar: 40;
   --z-index-modal: 50;
+  --z-index-popover: 60;
   --z-index-toast: 100;
 
   /* Fonts */
@@ -70,6 +71,7 @@
 .layer-backdrop { z-index: var(--z-index-backdrop); }
 .layer-sidebar  { z-index: var(--z-index-sidebar); }
 .layer-modal    { z-index: var(--z-index-modal); }
+.layer-popover  { z-index: var(--z-index-popover); }
 .layer-toast    { z-index: var(--z-index-toast); }
 
 * {

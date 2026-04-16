@@ -3,6 +3,7 @@ import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { X } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { cva, type VariantProps } from 'class-variance-authority';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -28,18 +29,37 @@ const DialogOverlay = React.forwardRef<
 ));
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
+const dialogContentVariants = cva(
+  'fixed left-[50%] top-[50%] layer-modal w-full translate-x-[-50%] translate-y-[-50%] gap-4 border border-border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg',
+  {
+    variants: {
+      size: {
+        default: 'grid max-w-lg',
+        xl: 'grid max-w-xl max-h-[90vh] overflow-y-auto',
+        '2xl': 'grid max-w-2xl max-h-[90vh] overflow-y-auto',
+        '3xl': 'grid max-w-3xl max-h-[90vh] overflow-y-auto',
+        large: 'flex flex-col max-w-4xl h-[85vh] min-h-[600px] overflow-hidden',
+      },
+    },
+    defaultVariants: {
+      size: 'default',
+    },
+  }
+);
+
+interface DialogContentProps
+  extends React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>,
+    VariantProps<typeof dialogContentVariants> {}
+
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, ...props }, ref) => (
+  DialogContentProps
+>(({ className, size, children, ...props }, ref) => (
   <DialogPortal>
     <DialogOverlay />
     <DialogPrimitive.Content
       ref={ref}
-      className={cn(
-        'fixed left-[50%] top-[50%] layer-modal grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border border-border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg',
-        className
-      )}
+      className={cn(dialogContentVariants({ size }), className)}
       {...props}
     >
       {children}

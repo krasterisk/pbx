@@ -7,6 +7,10 @@ export const voiceRobotsApi = rtkApi.injectEndpoints({
       query: () => '/voice-robots',
       providesTags: ['VoiceRobots'],
     }),
+    getVoiceRobot: build.query<IVoiceRobot, number>({
+      query: (uid) => `/voice-robots/${uid}`,
+      providesTags: (result, error, uid) => [{ type: 'VoiceRobots', id: uid }],
+    }),
     createVoiceRobot: build.mutation<IVoiceRobot, Partial<IVoiceRobot>>({
       query: (data) => ({
         url: '/voice-robots',
@@ -38,6 +42,14 @@ export const voiceRobotsApi = rtkApi.injectEndpoints({
       query: ({ robotId, data }) => ({
         url: `/voice-robots/${robotId}/keyword-groups`,
         method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: ['VoiceRobotsGroups'],
+    }),
+    updateVoiceRobotKeywordGroup: build.mutation<IVoiceRobotKeywordGroup, { id: number; data: Partial<IVoiceRobotKeywordGroup> }>({
+      query: ({ id, data }) => ({
+        url: `/voice-robots/keyword-groups/${id}`,
+        method: 'PUT',
         body: data,
       }),
       invalidatesTags: ['VoiceRobotsGroups'],
@@ -80,20 +92,46 @@ export const voiceRobotsApi = rtkApi.injectEndpoints({
       query: (robotId) => `/voice-robots/${robotId}/logs`,
       providesTags: ['VoiceRobotsLogs'],
     }),
+    testMatchVoiceRobot: build.mutation<
+      {
+        input_text: string;
+        match: {
+          keyword_uid: number;
+          keyword_text: string;
+          matched_phrase: string;
+          confidence: number;
+          method: 'levenshtein' | 'semantic';
+          matched_word_count: number;
+          bot_action: any | null;
+        } | null;
+        total_keywords: number;
+        elapsed_ms: number;
+      },
+      { robotId: number; text: string }
+    >({
+      query: ({ robotId, text }) => ({
+        url: `/voice-robots/${robotId}/test-match`,
+        method: 'POST',
+        body: { text },
+      }),
+    }),
   }),
 });
 
 export const {
   useGetVoiceRobotsQuery,
+  useGetVoiceRobotQuery,
   useCreateVoiceRobotMutation,
   useUpdateVoiceRobotMutation,
   useDeleteVoiceRobotMutation,
   useGetVoiceRobotKeywordGroupsQuery,
   useCreateVoiceRobotKeywordGroupMutation,
+  useUpdateVoiceRobotKeywordGroupMutation,
   useDeleteVoiceRobotKeywordGroupMutation,
   useGetVoiceRobotKeywordsQuery,
   useCreateVoiceRobotKeywordMutation,
   useUpdateVoiceRobotKeywordMutation,
   useDeleteVoiceRobotKeywordMutation,
   useGetVoiceRobotLogsQuery,
+  useTestMatchVoiceRobotMutation,
 } = voiceRobotsApi;

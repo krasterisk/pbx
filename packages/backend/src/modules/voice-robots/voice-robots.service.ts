@@ -6,14 +6,19 @@ import { VoiceRobot } from './voice-robot.model';
 import { VoiceRobotKeywordGroup } from './keyword-group.model';
 import { VoiceRobotKeyword } from './keyword.model';
 import { VoiceRobotLog } from './voice-robot-log.model';
+import { SttEngine } from '../stt-engines/stt-engine.model';
+import { TtsEngine } from '../tts-engines/tts-engine.model';
 import { AriHttpClientService } from '../ari/ari-http-client.service';
 import { RtpUdpServerService } from './services/rtp-udp-server.service';
 import { SileroVadProvider } from './services/silero-vad.provider';
 import { StreamingSttService } from './services/streaming-stt.service';
 import { KeywordMatcherService } from './services/keyword-matcher.service';
+import { SlotExtractorService } from './services/slot-extractor.service';
 import { StreamAudioService } from './services/stream-audio.service';
 import { AudioService } from './services/audio.service';
+import { TtsCacheService } from './services/tts-cache.service';
 import { VoiceRobotSession } from './services/voice-robot-session';
+import { SttProviderFactory, TtsProviderFactory } from './providers/provider-factory';
 import { AsteriskDialplanUtils } from '../../shared/utils/dialplan.util';
 
 @Injectable()
@@ -27,6 +32,8 @@ export class VoiceRobotsService implements OnApplicationShutdown {
     @InjectModel(VoiceRobotKeywordGroup) private groupModel: typeof VoiceRobotKeywordGroup,
     @InjectModel(VoiceRobotKeyword) private keywordModel: typeof VoiceRobotKeyword,
     @InjectModel(VoiceRobotLog) private logModel: typeof VoiceRobotLog,
+    @InjectModel(SttEngine) private sttEngineModel: typeof SttEngine,
+    @InjectModel(TtsEngine) private ttsEngineModel: typeof TtsEngine,
     private readonly ariClient: AriHttpClientService,
     private readonly udpServer: RtpUdpServerService,
     private readonly vadProvider: SileroVadProvider,
@@ -35,6 +42,10 @@ export class VoiceRobotsService implements OnApplicationShutdown {
     private readonly streamAudioService: StreamAudioService,
     private readonly audioService: AudioService,
     private readonly configService: ConfigService,
+    private readonly sttProviderFactory: SttProviderFactory,
+    private readonly ttsProviderFactory: TtsProviderFactory,
+    private readonly slotExtractorService: SlotExtractorService,
+    private readonly ttsCacheService: TtsCacheService,
   ) {
     // Default: 127.0.0.1 (assumes Asterisk and Node.js are on the same host).
     // If Asterisk is on a remote server, set `external_host` per-robot
@@ -46,6 +57,14 @@ export class VoiceRobotsService implements OnApplicationShutdown {
 
   async findAll(userUid: number): Promise<VoiceRobot[]> {
     return this.voiceRobotModel.findAll({ where: { user_uid: userUid } });
+  }
+
+  async findOne(userUid: number, uid: number): Promise<VoiceRobot> {
+    const robot = await this.voiceRobotModel.findOne({
+      where: { uid, user_uid: userUid },
+    });
+    if (!robot) throw new NotFoundException(`Robot ${uid} not found`);
+    return robot;
   }
 
   async createRobot(userUid: number, data: Partial<VoiceRobot>): Promise<VoiceRobot> {
@@ -91,6 +110,7 @@ export class VoiceRobotsService implements OnApplicationShutdown {
     await this.assertRobotOwnership(robotId, userUid);
     return this.groupModel.create({
       ...data,
+      active: data.active === undefined ? 1 : (data.active ? 1 : 0),
       robot_id: robotId,
       user_uid: userUid,
     });
@@ -206,7 +226,7 @@ export class VoiceRobotsService implements OnApplicationShutdown {
       lines.push(`same => n(max_retries),NoOp(Max retries for ${robot.name})`);
       if (robot.max_retries_action && Array.isArray(robot.max_retries_action)) {
         for (const action of robot.max_retries_action) {
-          const dp = AsteriskDialplanUtils.actionToDialplan(action, vpbxUserUid);
+          const dp = AsteriskDialplanUtils.actionToDialplan(action, vpbxUserUid, false);
           if (dp) lines.push(`same => n,${dp}`);
         }
       }
@@ -218,7 +238,7 @@ export class VoiceRobotsService implements OnApplicationShutdown {
       lines.push(`exten => s,1,NoOp(Fallback for Robot: ${robot.name})`);
       if (robot.fallback_action && Array.isArray(robot.fallback_action)) {
         for (const action of robot.fallback_action) {
-          const dp = AsteriskDialplanUtils.actionToDialplan(action, vpbxUserUid);
+          const dp = AsteriskDialplanUtils.actionToDialplan(action, vpbxUserUid, false);
           if (dp) lines.push(`same => n,${dp}`);
         }
       }
@@ -241,7 +261,7 @@ export class VoiceRobotsService implements OnApplicationShutdown {
           lines.push(`exten => s,1,NoOp(Robot Keyword Match: ${keyword.keywords})`);
           if (keyword.actions && Array.isArray(keyword.actions)) {
             for (const action of keyword.actions) {
-              const dp = AsteriskDialplanUtils.actionToDialplan(action, vpbxUserUid);
+              const dp = AsteriskDialplanUtils.actionToDialplan(action, vpbxUserUid, false);
               if (dp) lines.push(`same => n,${dp}`);
             }
           }
@@ -294,15 +314,20 @@ export class VoiceRobotsService implements OnApplicationShutdown {
 
       // 🔐 TENANT ISOLATION: Verify the robot belongs to the calling tenant.
       // The channel variable VPBX_USER_UID is set by the dialplan before Stasis().
-      // If not set, we still allow (for backwards compatibility) but log a warning.
-      // In strict mode, uncomment the hangup below.
-      // const channelData = await this.ariClient.getChannel(channelId);
-      // const callerUserUid = channelData?.channelvars?.VPBX_USER_UID;
-      // if (callerUserUid && Number(callerUserUid) !== robot.user_uid) {
-      //   this.logger.error(`SECURITY: Tenant mismatch! Channel user ${callerUserUid} ≠ robot owner ${robot.user_uid}`);
-      //   await this.ariClient.hangupChannel(channelId);
-      //   return;
-      // }
+      try {
+        const channelData = await this.ariClient.getChannel(channelId);
+        const callerUserUid = channelData?.channelvars?.VPBX_USER_UID;
+        if (callerUserUid && Number(callerUserUid) !== robot.user_uid) {
+          this.logger.error(`SECURITY: Tenant mismatch! Channel user ${callerUserUid} ≠ robot owner ${robot.user_uid}`);
+          await this.ariClient.hangupChannel(channelId);
+          return;
+        }
+        if (!callerUserUid) {
+          this.logger.warn(`SECURITY: VPBX_USER_UID not set on channel ${channelId}. Allowing for backwards compatibility.`);
+        }
+      } catch (e: any) {
+        this.logger.warn(`Could not verify tenant isolation for ${channelId}: ${e.message}`);
+      }
 
       // Pre-fetch all active keywords for this robot
       const keywordGroups = await this.groupModel.findAll({
@@ -316,14 +341,43 @@ export class VoiceRobotsService implements OnApplicationShutdown {
       // Per-robot external host, fallback to ARI_HOST
       const externalHost = robot.external_host || this.defaultExternalHost;
 
+      // Resolve TTS engine (if configured)
+      let ttsEngine: TtsEngine | null = null;
+      if (robot.tts_engine_id) {
+        ttsEngine = await this.ttsEngineModel.findByPk(robot.tts_engine_id);
+        if (!ttsEngine) {
+          this.logger.warn(`TTS engine ${robot.tts_engine_id} not found for robot ${robot.name}`);
+        }
+      }
+
+      // Run cache eviction for this robot's settings
+      if (robot.tts_cache_max_age_days > 0) {
+        this.ttsCacheService.evict(robot.tts_cache_max_age_days);
+      }
+
+      // Resolve STT engine (if configured)
+      let sttEngine: SttEngine | null = null;
+      if (robot.stt_engine_id) {
+        sttEngine = await this.sttEngineModel.findByPk(robot.stt_engine_id);
+        if (!sttEngine) {
+          this.logger.warn(`STT engine ${robot.stt_engine_id} not found for robot ${robot.name}`);
+        }
+      }
+
       const session = new VoiceRobotSession(
         this.ariClient,
         this.udpServer,
         this.vadProvider,
         this.sttService,
         this.matcherService,
+        this.slotExtractorService,
         this.streamAudioService,
         this.audioService,
+        this.ttsProviderFactory,
+        this.ttsCacheService,
+        ttsEngine,
+        this.sttProviderFactory,
+        sttEngine,
         channelId,
         robot,
         keywords,
@@ -395,5 +449,51 @@ export class VoiceRobotsService implements OnApplicationShutdown {
       session.cleanup();
     }
     this.activeSessions.clear();
+  }
+
+  // ─── Test Match (Debugging) ────────────────────────────
+
+  /**
+   * Test keyword matching against a robot's keywords without making a real call.
+   * Used by the frontend test panel.
+   */
+  async testMatch(userUid: number, robotId: number, text: string) {
+    await this.assertRobotOwnership(robotId, userUid);
+
+    // Load all keyword groups → keywords for this robot
+    const groups = await this.groupModel.findAll({
+      where: { robot_id: robotId, user_uid: userUid, active: true },
+    });
+
+    const allKeywords: VoiceRobotKeyword[] = [];
+    for (const group of groups) {
+      const keywords = await this.keywordModel.findAll({
+        where: { group_id: group.uid, user_uid: userUid },
+      });
+      allKeywords.push(...keywords);
+    }
+
+    // Pre-cache embeddings for semantic matching
+    await this.matcherService.preloadEmbeddings(allKeywords);
+
+    // Run the hybrid matcher
+    const startTime = Date.now();
+    const match = await this.matcherService.match(text, allKeywords);
+    const elapsedMs = Date.now() - startTime;
+
+    return {
+      input_text: text,
+      match: match ? {
+        keyword_uid: match.keyword.uid,
+        keyword_text: match.keyword.keywords,
+        matched_phrase: match.matchedPhrase,
+        confidence: Number(match.confidence.toFixed(4)),
+        method: match.method,
+        matched_word_count: match.matchedWordCount,
+        bot_action: match.keyword.bot_action || null,
+      } : null,
+      total_keywords: allKeywords.length,
+      elapsed_ms: elapsedMs,
+    };
   }
 }

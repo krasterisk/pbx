@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { NavLink } from 'react-router-dom';
 import { AnimatePresence, motion } from 'motion/react';
 import { LucideIcon } from 'lucide-react';
@@ -20,10 +21,11 @@ interface SidebarItemProps {
 }
 
 export const SidebarItem = memo(({ item, isActive, isVisuallyExpanded, collapsed }: SidebarItemProps) => {
+  const { t } = useTranslation();
   const { path, icon: Icon, name } = item;
 
   return (
-    <NavLink to={path} className={cls.linkWrapper}>
+    <NavLink to={path} className={cls.linkWrapper} title={!isVisuallyExpanded ? t(name, name) : undefined}>
       <HStack
         gap="12"
         justify={!isVisuallyExpanded ? 'center' : 'start'}
@@ -43,7 +45,7 @@ export const SidebarItem = memo(({ item, isActive, isVisuallyExpanded, collapsed
               exit={{ opacity: 0, width: 0 }}
               className={cls.text}
             >
-              {name}
+              {t(name, name)}
             </motion.span>
           )}
         </AnimatePresence>

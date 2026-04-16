@@ -33,12 +33,20 @@ export class VoiceRobotsController {
 
   @Get()
   async findAll(@Request() req: any) {
-    return this.voiceRobotsService.findAll(req.user.user_uid);
+    return this.voiceRobotsService.findAll(req.user.vpbx_user_uid);
+  }
+
+  @Get(':uid')
+  async findOne(
+    @Request() req: any,
+    @Param('uid', ParseIntPipe) uid: number,
+  ) {
+    return this.voiceRobotsService.findOne(req.user.vpbx_user_uid, uid);
   }
 
   @Post()
   async create(@Request() req: any, @Body() body: any) {
-    return this.voiceRobotsService.createRobot(req.user.user_uid, body);
+    return this.voiceRobotsService.createRobot(req.user.vpbx_user_uid, body);
   }
 
   @Put(':uid')
@@ -47,7 +55,7 @@ export class VoiceRobotsController {
     @Param('uid', ParseIntPipe) uid: number,
     @Body() body: any,
   ) {
-    return this.voiceRobotsService.updateRobot(req.user.user_uid, uid, body);
+    return this.voiceRobotsService.updateRobot(req.user.vpbx_user_uid, uid, body);
   }
 
   @Delete(':uid')
@@ -56,7 +64,7 @@ export class VoiceRobotsController {
     @Request() req: any,
     @Param('uid', ParseIntPipe) uid: number,
   ) {
-    await this.voiceRobotsService.deleteRobot(req.user.user_uid, uid);
+    await this.voiceRobotsService.deleteRobot(req.user.vpbx_user_uid, uid);
   }
 
   // ─── Keyword Groups CRUD ──────────────────────────────
@@ -66,7 +74,7 @@ export class VoiceRobotsController {
     @Request() req: any,
     @Param('id', ParseIntPipe) robotId: number,
   ) {
-    return this.voiceRobotsService.getKeywordGroups(req.user.user_uid, robotId);
+    return this.voiceRobotsService.getKeywordGroups(req.user.vpbx_user_uid, robotId);
   }
 
   @Post(':id/keyword-groups')
@@ -75,7 +83,7 @@ export class VoiceRobotsController {
     @Param('id', ParseIntPipe) robotId: number,
     @Body() body: any,
   ) {
-    return this.voiceRobotsService.createKeywordGroup(req.user.user_uid, robotId, body);
+    return this.voiceRobotsService.createKeywordGroup(req.user.vpbx_user_uid, robotId, body);
   }
 
   @Put('keyword-groups/:id')
@@ -84,7 +92,7 @@ export class VoiceRobotsController {
     @Param('id', ParseIntPipe) id: number,
     @Body() body: any,
   ) {
-    return this.voiceRobotsService.updateKeywordGroup(req.user.user_uid, id, body);
+    return this.voiceRobotsService.updateKeywordGroup(req.user.vpbx_user_uid, id, body);
   }
 
   @Delete('keyword-groups/:id')
@@ -93,7 +101,7 @@ export class VoiceRobotsController {
     @Request() req: any,
     @Param('id', ParseIntPipe) id: number,
   ) {
-    await this.voiceRobotsService.deleteKeywordGroup(req.user.user_uid, id);
+    await this.voiceRobotsService.deleteKeywordGroup(req.user.vpbx_user_uid, id);
   }
 
   // ─── Keywords CRUD ────────────────────────────────────
@@ -103,7 +111,7 @@ export class VoiceRobotsController {
     @Request() req: any,
     @Param('id', ParseIntPipe) groupId: number,
   ) {
-    return this.voiceRobotsService.getKeywords(req.user.user_uid, groupId);
+    return this.voiceRobotsService.getKeywords(req.user.vpbx_user_uid, groupId);
   }
 
   @Post('keyword-groups/:id/keywords')
@@ -112,7 +120,7 @@ export class VoiceRobotsController {
     @Param('id', ParseIntPipe) groupId: number,
     @Body() body: any,
   ) {
-    return this.voiceRobotsService.createKeyword(req.user.user_uid, groupId, body);
+    return this.voiceRobotsService.createKeyword(req.user.vpbx_user_uid, groupId, body);
   }
 
   @Put('keywords/:uid')
@@ -121,7 +129,7 @@ export class VoiceRobotsController {
     @Param('uid', ParseIntPipe) uid: number,
     @Body() body: any,
   ) {
-    return this.voiceRobotsService.updateKeyword(req.user.user_uid, uid, body);
+    return this.voiceRobotsService.updateKeyword(req.user.vpbx_user_uid, uid, body);
   }
 
   @Delete('keywords/:uid')
@@ -130,7 +138,7 @@ export class VoiceRobotsController {
     @Request() req: any,
     @Param('uid', ParseIntPipe) uid: number,
   ) {
-    await this.voiceRobotsService.deleteKeyword(req.user.user_uid, uid);
+    await this.voiceRobotsService.deleteKeyword(req.user.vpbx_user_uid, uid);
   }
 
   // ─── Logs ─────────────────────────────────────────────
@@ -140,6 +148,30 @@ export class VoiceRobotsController {
     @Request() req: any,
     @Param('id', ParseIntPipe) robotId: number,
   ) {
-    return this.voiceRobotsService.getLogs(req.user.user_uid, robotId);
+    return this.voiceRobotsService.getLogs(req.user.vpbx_user_uid, robotId);
+  }
+
+  // ─── Test Match (debugging) ────────────────────────────
+
+  /**
+   * POST /voice-robots/:id/test-match
+   *
+   * Test keyword matching against a robot's keywords without making a real call.
+   * Useful for debugging and testing from the UI.
+   *
+   * Body: { text: string }
+   * Returns: { match: MatchResult | null, allKeywords: number, elapsed_ms: number }
+   */
+  @Post(':id/test-match')
+  async testMatch(
+    @Request() req: any,
+    @Param('id', ParseIntPipe) robotId: number,
+    @Body() body: { text: string },
+  ) {
+    return this.voiceRobotsService.testMatch(
+      req.user.vpbx_user_uid,
+      robotId,
+      body.text,
+    );
   }
 }

@@ -4,32 +4,36 @@ import { VStack, HStack } from '@/shared/ui/Stack';
 import { Select } from '@/shared/ui/Select/Select';
 import { Text } from '@/shared/ui/Text/Text';
 import { Input } from '@/shared/ui/Input/Input';
-import { IDialplanAppProps } from '../../model/types';
+import { IDialplanAppProps } from '../../../model/types';
 import { useGetTrunksQuery } from '@/shared/api/endpoints/trunkApi';
 
 export const TrunkApp: React.FC<IDialplanAppProps> = ({ action, onUpdate }) => {
   const { t } = useTranslation();
-  const { data: trunks = [], isLoading } = useGetTrunksQuery();
+  const { data: trunks = [], isLoading, isError } = useGetTrunksQuery();
 
   return (
     <VStack gap="2" className="w-full">
       <HStack gap="2" className="w-full">
-        <VStack gap="1" className="flex-1">
-          <Text variant="small" className="text-muted-foreground">{t('routes.apps.trunk.select', 'Select Trunk')}</Text>
-          <Select
-            value={action.params?.trunk || ''}
-            onChange={(e) => onUpdate(action.id, 'params.trunk', e.target.value)}
-            disabled={isLoading}
-          >
-            <option value="" disabled>---</option>
-            {trunks.map(trunk => (
-              <option key={trunk.id} value={trunk.id}>{trunk.name || trunk.id}</option>
-            ))}
-          </Select>
+        <VStack gap="2" className="flex-1">
+          <Text variant="small" className="text-muted-foreground">{t('routes.apps.trunk.select', 'Транк')}</Text>
+          {isError ? (
+            <Text variant="small" className="text-destructive">{t('common.loadError', 'Ошибка загрузки')}</Text>
+          ) : (
+            <Select
+              value={action.params?.trunk || ''}
+              onChange={(e) => onUpdate(action.id, 'params.trunk', e.target.value)}
+              disabled={isLoading}
+            >
+              <option value="" disabled>---</option>
+              {trunks.map(trunk => (
+                <option key={trunk.id} value={trunk.name}>{trunk.name}</option>
+              ))}
+            </Select>
+          )}
         </VStack>
 
-        <VStack gap="1" className="flex-1">
-          <Text variant="small" className="text-muted-foreground">{t('routes.apps.trunk.dest', 'Destination (Optional)')}</Text>
+        <VStack gap="2" className="flex-1">
+          <Text variant="small" className="text-muted-foreground">{t('routes.apps.trunk.dest', 'Назначение')}</Text>
           <Input
             placeholder="${EXTEN}"
             value={action.params?.dest || ''}
@@ -39,8 +43,8 @@ export const TrunkApp: React.FC<IDialplanAppProps> = ({ action, onUpdate }) => {
       </HStack>
 
       <HStack gap="2" className="w-full">
-        <VStack gap="1" className="w-24">
-          <Text variant="small" className="text-muted-foreground">{t('routes.apps.trunk.timeout', 'Timeout')}</Text>
+        <VStack gap="2" className="w-24">
+          <Text variant="small" className="text-muted-foreground">{t('routes.apps.trunk.timeout', 'Таймаут')}</Text>
           <Input
             placeholder="60"
             type="number"
@@ -49,8 +53,8 @@ export const TrunkApp: React.FC<IDialplanAppProps> = ({ action, onUpdate }) => {
           />
         </VStack>
 
-        <VStack gap="1" className="flex-1">
-          <Text variant="small" className="text-muted-foreground">{t('routes.apps.trunk.options', 'Dial Options')}</Text>
+        <VStack gap="2" className="flex-1">
+          <Text variant="small" className="text-muted-foreground">{t('routes.apps.trunk.options', 'Опции Dial')}</Text>
           <Input
             placeholder="tT"
             value={action.params?.options || ''}

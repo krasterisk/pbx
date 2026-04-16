@@ -1,0 +1,174 @@
+.container {
+  position: relative;
+  width: 100%;
+}
+
+/* Trigger / tags area */
+.trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-height: 2.25rem;
+  width: 100%;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(128, 128, 128, 0.3);
+  background: var(--color-background);
+  padding: 0.25rem 0.5rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+  &:hover {
+    border-color: var(--color-primary);
+  }
+
+  &.triggerOpen {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15); /* primary with opacity */
+  }
+}
+
+.tagsArea {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  flex: 1;
+  min-width: 0;
+  padding: 0.0625rem 0;
+}
+
+.placeholder {
+  color: var(--color-muted-foreground);
+  font-size: 0.875rem;
+  padding: 0.125rem 0.25rem;
+}
+
+/* Tags */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.125rem 0.5rem;
+  border-radius: 0.375rem;
+  background: rgba(99, 102, 241, 0.12); /* primary with opacity */
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  color: var(--color-primary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.tagRemove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  color: var(--color-primary);
+  cursor: pointer;
+  padding: 0;
+  border-radius: 9999px;
+  transition: color 0.1s, background 0.1s;
+
+  &:hover {
+    color: var(--color-destructive);
+    background: rgba(239, 68, 68, 0.1); /* destructive with opacity */
+  }
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.clearBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  color: var(--color-muted-foreground);
+  cursor: pointer;
+  padding: 0.125rem;
+  border-radius: 9999px;
+
+  &:hover {
+    color: var(--color-foreground);
+  }
+}
+
+/* Dropdown — rendered via portal, positioned with inline styles */
+.dropdown {
+  z-index: var(--z-index-popover);
+  max-height: 16rem;
+  overflow-y: auto;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(128, 128, 128, 0.3);
+  background: var(--color-card);
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.12),
+    0 1px 4px rgba(0, 0, 0, 0.08);
+  padding: 0.25rem;
+}
+
+/* Option row */
+.option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.5rem 0.5rem;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  transition: background 0.1s ease;
+
+  &:hover {
+    background: var(--color-accent);
+  }
+
+  &.optionChecked {
+    background: rgba(99, 102, 241, 0.06); /* primary outline bg */
+  }
+}
+
+/* Checkbox */
+.checkbox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.125rem;
+  height: 1.125rem;
+  flex-shrink: 0;
+  margin-top: 0.0625rem;
+  border-radius: 0.25rem;
+  border: 1.5px solid rgba(128, 128, 128, 0.4);
+  background: transparent;
+  transition: all 0.15s ease;
+
+  &.checkboxChecked {
+    border-color: var(--color-primary);
+    background: var(--color-primary);
+    color: var(--color-primary-foreground);
+  }
+}
+
+.optionContent {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.optionLabel {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-foreground);
+}
+
+.optionDesc {
+  font-size: 0.6875rem;
+  color: var(--color-muted-foreground);
+  line-height: 1.3;
+}

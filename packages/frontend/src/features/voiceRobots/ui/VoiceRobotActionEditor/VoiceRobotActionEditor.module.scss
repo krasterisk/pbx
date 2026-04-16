@@ -1,0 +1,75 @@
+.actionEditor {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.section {
+  padding: 16px;
+  border-radius: var(--radius-lg, 12px);
+  border: 1px solid var(--border);
+  background: var(--muted);
+}
+
+.sectionTitle {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--muted-foreground);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sectionIcon {
+  width: 16px;
+  height: 16px;
+  color: var(--primary);
+}
+
+.slotCard {
+  padding: 12px;
+  border-radius: var(--radius-md, 8px);
+  border: 1px solid var(--border);
+  background: var(--background);
+  position: relative;
+}
+
+.slotHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.slotIndex {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--primary);
+  background: hsl(var(--primary) / 0.1);
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.removeSlotBtn {
+  opacity: 0.5;
+  transition: opacity 150ms;
+
+  &:hover {
+    opacity: 1;
+    color: var(--destructive);
+  }
+}
+
+.addSlotBtn {
+  border-style: dashed;
+}
+
+.webhookSection {
+  padding: 12px;
+  border-radius: var(--radius-md, 8px);
+  border: 1px dashed var(--border);
+  background: hsl(var(--primary) / 0.03);
+}

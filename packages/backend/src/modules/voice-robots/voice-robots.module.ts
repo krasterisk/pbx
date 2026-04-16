@@ -13,7 +13,18 @@ import { KeywordMatcherService } from './services/keyword-matcher.service';
 import { RtpUdpServerService } from './services/rtp-udp-server.service';
 import { StreamAudioService } from './services/stream-audio.service';
 import { AudioService } from './services/audio.service';
+import { SemanticRouterService } from './services/semantic-router.service';
+import { SlotExtractorService } from './services/slot-extractor.service';
+import { TtsCacheService } from './services/tts-cache.service';
 import { AriModule } from '../ari/ari.module';
+// STT/TTS Providers (Phase 1)
+import { YandexStreamingSttProvider } from './providers/yandex-streaming-stt.provider';
+import { YandexStreamingTtsProvider } from './providers/yandex-streaming-tts.provider';
+import { CustomHttpSttProvider } from './providers/custom-http-stt.provider';
+import { SttProviderFactory, TtsProviderFactory } from './providers/provider-factory';
+// STT/TTS Engine models (for provider factory to resolve engine config)
+import { SttEngine } from '../stt-engines/stt-engine.model';
+import { TtsEngine } from '../tts-engines/tts-engine.model';
 
 @Module({
   imports: [
@@ -23,18 +34,33 @@ import { AriModule } from '../ari/ari.module';
       VoiceRobotKeywordGroup,
       VoiceRobotKeyword,
       VoiceRobotLog,
+      SttEngine,
+      TtsEngine,
     ]),
     AriModule,
   ],
   controllers: [VoiceRobotsController],
   providers: [
     VoiceRobotsService,
+    // Audio pipeline
     SileroVadProvider,
-    StreamingSttService,
-    KeywordMatcherService,
     RtpUdpServerService,
     StreamAudioService,
     AudioService,
+    // Legacy STT (fallback stub — will be replaced by provider factory)
+    StreamingSttService,
+    // Keyword matching
+    KeywordMatcherService,
+    SemanticRouterService,
+    SlotExtractorService,
+    // STT Providers
+    YandexStreamingSttProvider,
+    CustomHttpSttProvider,
+    SttProviderFactory,
+    // TTS Providers
+    YandexStreamingTtsProvider,
+    TtsProviderFactory,
+    TtsCacheService,
   ],
   exports: [VoiceRobotsService],
 })

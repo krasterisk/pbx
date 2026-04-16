@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ColumnDef } from '@tanstack/react-table';
 import { Pencil, Trash2, Loader2, Mic } from 'lucide-react';
-import { Button, DataTable, Card, CardHeader, CardContent, HStack } from '@/shared/ui';
+import { Button, DataTable, Card, CardHeader, CardContent, HStack, Text } from '@/shared/ui';
 import { ISttEngine } from '@/entities/engines';
 import { useGetSttEnginesQuery, useDeleteSttEngineMutation, useBulkDeleteSttEnginesMutation } from '@/shared/api/endpoints/sttEnginesApi';
 import { SttEngineFormModal } from '../SttEngineFormModal/SttEngineFormModal';
@@ -30,13 +30,13 @@ export function SttEnginesTable() {
   }, [deleteEngine, t]);
 
   const typeLabels: Record<string, string> = {
-    google: 'Google Speech-to-Text',
-    yandex: 'Yandex SpeechKit',
-    custom: 'Custom API',
+    google: t('sttEngines.typeGoogle', 'Google Speech-to-Text'),
+    yandex: t('sttEngines.typeYandex', 'Yandex SpeechKit'),
+    custom: t('sttEngines.typeCustom', 'Custom API'),
   };
 
   const columns: ColumnDef<ISttEngine>[] = [
-    { accessorKey: 'uid', header: '№', size: 60 },
+    { accessorKey: 'uid', header: t('common.id', '№'), size: 60 },
     { accessorKey: 'name', header: t('sttEngines.name', 'Название') },
     {
       accessorKey: 'type', header: t('sttEngines.type', 'Тип'), size: 180,
@@ -46,14 +46,14 @@ export function SttEnginesTable() {
       id: 'actions', header: t('common.actions', 'Действия'), size: 100,
       cell: ({ row }) => (
         <HStack gap="4" align="center">
-          <button type="button" className="p-1 text-muted-foreground hover:text-foreground transition-colors"
-            onClick={() => handleEdit(row.original)} title={t('common.edit')}>
-            <Pencil size={16} />
-          </button>
-          <button type="button" className="p-1 text-muted-foreground hover:text-destructive transition-colors"
-            onClick={() => handleDelete(row.original)} title={t('common.delete')}>
-            <Trash2 size={16} />
-          </button>
+          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground"
+            onClick={() => handleEdit(row.original)} title={t('common.edit', 'Редактировать')}>
+            <Pencil className="w-4 h-4" />
+          </Button>
+          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+            onClick={() => handleDelete(row.original)} title={t('common.delete', 'Удалить')}>
+            <Trash2 className="w-4 h-4" />
+          </Button>
         </HStack>
       ),
     },
@@ -77,9 +77,9 @@ export function SttEnginesTable() {
         <HStack justify="between" align="center" className="flex-col sm:flex-row gap-4" max>
           <HStack gap="8" align="center">
             <Mic className="w-5 h-5 text-primary" />
-            <span className="font-semibold text-lg">
+            <Text variant="large" className="font-semibold">
               {t('sttEngines.count', { count: engines.length, defaultValue: `Всего: ${engines.length}` })}
-            </span>
+            </Text>
           </HStack>
           <HStack gap="12" align="center" className="w-full sm:w-auto">
             {selectedCount > 0 && (

@@ -7,3 +7,5 @@ build/
 .docs/
 .DS_Store
 coverage/
+# Yandex Cloud proto files (cloned from github.com/yandex-cloud/cloudapi)
+**/proto/cloudapi/

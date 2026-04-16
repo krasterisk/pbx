@@ -2,11 +2,11 @@ import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Input } from '@/shared/ui';
 import { HStack } from '@/shared/ui/Stack';
-import { IDialplanAppProps } from '../../model/types';
+import { IDialplanAppProps } from '../../../model/types';
 import { Text } from '@/shared/ui/Text/Text';
+
 /**
- * Fallback app that renders generic inputs based on the ActionType, 
- * reusing the logic from the old RouteActionsEditor.
+ * Fallback app that renders generic inputs based on the ActionType.
  * As the project scales, each of these switch cases should become a dedicated App component.
  */
 export const GenericApp = memo(({ action, onUpdate }: IDialplanAppProps) => {
@@ -20,64 +20,64 @@ export const GenericApp = memo(({ action, onUpdate }: IDialplanAppProps) => {
 
   switch (action.type) {
     case 'togroup':
-      return <Input className="w-full" value={p.group || ''} onChange={(e) => handleUpdate('group', e.target.value)} placeholder="Номер группы" />;
+      return <Input className="w-full" value={p.group || ''} onChange={(e) => handleUpdate('group', e.target.value)} placeholder={t('routes.apps.group.number', 'Номер группы')} />;
     case 'tolist':
       return (
         <HStack gap="8" className="w-full">
-          <Input className="flex-1" value={p.numbers || ''} onChange={(e) => handleUpdate('numbers', e.target.value)} placeholder="100,101,102" />
-          <Input className="w-[60px]" value={p.timeout || ''} onChange={(e) => handleUpdate('timeout', e.target.value)} placeholder="сек" />
+          <Input className="flex-1" value={p.numbers || ''} onChange={(e) => handleUpdate('numbers', e.target.value)} placeholder={t('routes.apps.list.numbers', '100,101,102')} />
+          <Input className="w-[60px]" value={p.timeout || ''} onChange={(e) => handleUpdate('timeout', e.target.value)} placeholder={t('routes.apps.common.sec', 'сек')} />
         </HStack>
       );
     case 'toroute':
       return (
         <HStack gap="8" className="w-full">
-          <Input className="w-[120px]" value={p.context || ''} onChange={(e) => handleUpdate('context', e.target.value)} placeholder="Контекст" />
-          <Input className="flex-1" value={p.extension || ''} onChange={(e) => handleUpdate('extension', e.target.value)} placeholder="Правило" />
+          <Input className="w-[120px]" value={p.context || ''} onChange={(e) => handleUpdate('context', e.target.value)} placeholder={t('routes.apps.route.context', 'Контекст')} />
+          <Input className="flex-1" value={p.extension || ''} onChange={(e) => handleUpdate('extension', e.target.value)} placeholder={t('routes.apps.route.extension', 'Правило')} />
         </HStack>
       );
     case 'setclid_custom':
-      return <Input className="w-full" value={p.callerid || ''} onChange={(e) => handleUpdate('callerid', e.target.value)} placeholder="CallerID" />;
+      return <Input className="w-full" value={p.callerid || ''} onChange={(e) => handleUpdate('callerid', e.target.value)} placeholder={t('routes.apps.clid.callerid', 'CallerID')} />;
     case 'setclid_list':
-      return <Input className="w-full" value={p.list_uid || ''} onChange={(e) => handleUpdate('list_uid', e.target.value)} placeholder="ID списка" />;
+      return <Input className="w-full" value={p.list_uid || ''} onChange={(e) => handleUpdate('list_uid', e.target.value)} placeholder={t('routes.apps.clid.listId', 'ID списка')} />;
     case 'sendmail':
       return (
         <HStack gap="8" className="w-full">
-          <Input className="w-[180px]" value={p.email || ''} onChange={(e) => handleUpdate('email', e.target.value)} placeholder="email@example.com" />
-          <Input className="flex-1" value={p.text || ''} onChange={(e) => handleUpdate('text', e.target.value)} placeholder="Текст..." />
+          <Input className="w-[180px]" value={p.email || ''} onChange={(e) => handleUpdate('email', e.target.value)} placeholder={t('routes.apps.mail.email', 'email@example.com')} />
+          <Input className="flex-1" value={p.text || ''} onChange={(e) => handleUpdate('text', e.target.value)} placeholder={t('routes.apps.common.text', 'Текст...')} />
         </HStack>
       );
     case 'telegram':
       return (
         <HStack gap="8" className="w-full">
-          <Input className="w-[150px]" value={p.chat_id || ''} onChange={(e) => handleUpdate('chat_id', e.target.value)} placeholder="Chat ID" />
-          <Input className="flex-1" value={p.text || ''} onChange={(e) => handleUpdate('text', e.target.value)} placeholder="Текст..." />
+          <Input className="w-[150px]" value={p.chat_id || ''} onChange={(e) => handleUpdate('chat_id', e.target.value)} placeholder={t('routes.apps.telegram.chatId', 'Chat ID')} />
+          <Input className="flex-1" value={p.text || ''} onChange={(e) => handleUpdate('text', e.target.value)} placeholder={t('routes.apps.common.text', 'Текст...')} />
         </HStack>
       );
     case 'voicemail':
     case 'sendmailpeer':
-      return <Input className="w-full" value={p.exten || ''} onChange={(e) => handleUpdate('exten', e.target.value)} placeholder="Номер абонента" />;
+      return <Input className="w-full" value={p.exten || ''} onChange={(e) => handleUpdate('exten', e.target.value)} placeholder={t('routes.apps.common.exten', 'Номер абонента')} />;
     case 'text2speech':
-      return <Input className="w-full" value={p.text || ''} onChange={(e) => handleUpdate('text', e.target.value)} placeholder="Текст для синтеза..." />;
+      return <Input className="w-full" value={p.text || ''} onChange={(e) => handleUpdate('text', e.target.value)} placeholder={t('routes.apps.tts.text', 'Текст для синтеза...')} />;
     case 'asr':
     case 'keywords':
       return (
         <HStack gap="8" className="w-full">
-          <Input className="w-[80px]" value={p.silence_timeout || ''} onChange={(e) => handleUpdate('silence_timeout', e.target.value)} placeholder="Тишина (сек)" />
-          <Input className="w-[80px]" value={p.max_timer || ''} onChange={(e) => handleUpdate('max_timer', e.target.value)} placeholder="Длина (сек)" />
+          <Input className="w-[80px]" value={p.silence_timeout || ''} onChange={(e) => handleUpdate('silence_timeout', e.target.value)} placeholder={t('routes.apps.asr.silence', 'Тишина')} />
+          <Input className="w-[80px]" value={p.max_timer || ''} onChange={(e) => handleUpdate('max_timer', e.target.value)} placeholder={t('routes.apps.asr.maxTimer', 'Длина')} />
         </HStack>
       );
     case 'webhook':
-      return <Input className="w-full" value={p.url || ''} onChange={(e) => handleUpdate('url', e.target.value)} placeholder="https://..." />;
+      return <Input className="w-full" value={p.url || ''} onChange={(e) => handleUpdate('url', e.target.value)} placeholder={t('routes.apps.webhook.url', 'https://...')} />;
     case 'confbridge':
-      return <Input className="w-full" value={p.room || ''} onChange={(e) => handleUpdate('room', e.target.value)} placeholder="Комната" />;
+      return <Input className="w-full" value={p.room || ''} onChange={(e) => handleUpdate('room', e.target.value)} placeholder={t('routes.apps.confbridge.room', 'Комната')} />;
     case 'cmd':
-      return <Input className="w-full" value={p.command || ''} onChange={(e) => handleUpdate('command', e.target.value)} placeholder="Команда dialplan..." />;
+      return <Input className="w-full" value={p.command || ''} onChange={(e) => handleUpdate('command', e.target.value)} placeholder={t('routes.apps.cmd.command', 'Команда dialplan...')} />;
     case 'tofax':
-      return <Input className="w-full" value={p.email || ''} onChange={(e) => handleUpdate('email', e.target.value)} placeholder="Email доставки" />;
+      return <Input className="w-full" value={p.email || ''} onChange={(e) => handleUpdate('email', e.target.value)} placeholder={t('routes.apps.fax.email', 'Email доставки')} />;
     case 'label':
-      return <Input className="w-full" value={p.label_name || ''} onChange={(e) => handleUpdate('label_name', e.target.value)} placeholder="Имя метки" />;
+      return <Input className="w-full" value={p.label_name || ''} onChange={(e) => handleUpdate('label_name', e.target.value)} placeholder={t('routes.apps.label.name', 'Имя метки')} />;
     case 'busy':
-      return <Input className="w-[80px]" value={p.timeout || ''} onChange={(e) => handleUpdate('timeout', e.target.value)} placeholder="сек" />;
+      return <Input className="w-[80px]" value={p.timeout || ''} onChange={(e) => handleUpdate('timeout', e.target.value)} placeholder={t('routes.apps.common.sec', 'сек')} />;
     case 'hangup':
     default:
       return <Text variant="small" className="text-muted-foreground">—</Text>;

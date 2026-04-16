@@ -4,36 +4,40 @@ import { VStack, HStack } from '@/shared/ui/Stack';
 import { Select } from '@/shared/ui/Select/Select';
 import { Text } from '@/shared/ui/Text/Text';
 import { Input } from '@/shared/ui/Input/Input';
-import { IDialplanAppProps } from '../../model/types';
+import { IDialplanAppProps } from '../../../model/types';
 import { useGetEndpointsQuery } from '@/shared/api/endpoints/endpointApi';
 
 export const ExtenApp: React.FC<IDialplanAppProps> = ({ action, onUpdate }) => {
   const { t } = useTranslation();
-  const { data: endpoints = [], isLoading } = useGetEndpointsQuery();
+  const { data: endpoints = [], isLoading, isError } = useGetEndpointsQuery();
 
   return (
     <VStack gap="2" className="w-full">
       <HStack gap="2" className="w-full">
-        <VStack gap="1" className="flex-1">
-          <Text variant="small" className="text-muted-foreground">{t('routes.apps.exten.select', 'Select Extension')}</Text>
-          <Select
-            value={action.params?.exten || ''}
-            onChange={(e) => onUpdate(action.id, 'params.exten', e.target.value)}
-            disabled={isLoading}
-          >
-            <option value="" disabled>---</option>
-            {endpoints.map(ep => (
-              <option key={ep.id} value={ep.extension}>
-                {ep.extension} {ep.callerid ? `(${ep.callerid})` : ''}
-              </option>
-            ))}
-          </Select>
+        <VStack gap="2" className="flex-1">
+          <Text variant="small" className="text-muted-foreground">{t('routes.apps.exten.select', 'Абонент')}</Text>
+          {isError ? (
+            <Text variant="small" className="text-destructive">{t('common.loadError', 'Ошибка загрузки')}</Text>
+          ) : (
+            <Select
+              value={action.params?.exten || ''}
+              onChange={(e) => onUpdate(action.id, 'params.exten', e.target.value)}
+              disabled={isLoading}
+            >
+              <option value="" disabled>---</option>
+              {endpoints.map(ep => (
+                <option key={ep.id} value={ep.extension}>
+                  {ep.extension} {ep.callerid ? `(${ep.callerid})` : ''}
+                </option>
+              ))}
+            </Select>
+          )}
         </VStack>
       </HStack>
 
       <HStack gap="2" className="w-full">
-        <VStack gap="1" className="w-24">
-          <Text variant="small" className="text-muted-foreground">{t('routes.apps.exten.timeout', 'Timeout')}</Text>
+        <VStack gap="2" className="w-24">
+          <Text variant="small" className="text-muted-foreground">{t('routes.apps.exten.timeout', 'Таймаут')}</Text>
           <Input
             placeholder="30"
             type="number"
@@ -42,8 +46,8 @@ export const ExtenApp: React.FC<IDialplanAppProps> = ({ action, onUpdate }) => {
           />
         </VStack>
 
-        <VStack gap="1" className="flex-1">
-          <Text variant="small" className="text-muted-foreground">{t('routes.apps.exten.options', 'Dial Options')}</Text>
+        <VStack gap="2" className="flex-1">
+          <Text variant="small" className="text-muted-foreground">{t('routes.apps.exten.options', 'Опции Dial')}</Text>
           <Input
             placeholder="tThH"
             value={action.params?.options || ''}

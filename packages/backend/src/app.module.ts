@@ -19,6 +19,9 @@ import { MohModule } from './modules/moh/moh.module';
 import { SystemSettingsModule } from './modules/system-settings/system-settings.module';
 import { VoiceRobotsModule } from './modules/voice-robots/voice-robots.module';
 import { AriModule } from './modules/ari/ari.module';
+import { QueuesModule } from './modules/queues/queues.module';
+import { Queue } from './modules/queues/queue.model';
+import { QueueMember } from './modules/queues/queue-member.model';
 import { Prompt } from './modules/prompts/prompt.model';
 import { TtsEngine } from './modules/tts-engines/tts-engine.model';
 import { SttEngine } from './modules/stt-engines/stt-engine.model';
@@ -72,6 +75,7 @@ import * as path from 'path';
         Route, ContextInclude, Ivr, Prompt, TtsEngine, SttEngine,
         MohClass, MohEntry,
         SystemSetting, VoiceRobot, VoiceRobotKeywordGroup, VoiceRobotKeyword, VoiceRobotLog,
+        Queue, QueueMember,
       ],
       autoLoadModels: false,
       synchronize: false, // IMPORTANT: never auto-sync with existing DB
@@ -101,6 +105,7 @@ import * as path from 'path';
     SystemSettingsModule,
     VoiceRobotsModule,
     AriModule,
+    QueuesModule,
     LoggerModule,
     MailerModule,
     TelegramModule,

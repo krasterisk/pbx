@@ -1,6 +1,7 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pencil, Trash2, Webhook, Speech, Phone } from 'lucide-react';
-import { Button, DataTable, HStack, Tooltip, VStack, Text, Flex } from '@/shared/ui';
+import { Pencil, Trash2 } from 'lucide-react';
+import { Button, DataTable, HStack, Tooltip, VStack, Text, Input } from '@/shared/ui';
 import { IVoiceRobot } from '@/entities/voiceRobot';
 
 interface VoiceRobotsTableProps {
@@ -12,11 +13,12 @@ interface VoiceRobotsTableProps {
 
 export function VoiceRobotsTable({ data, isLoading, onEdit, onDelete }: VoiceRobotsTableProps) {
   const { t } = useTranslation();
+  const [search, setSearch] = useState('');
 
   const columns = [
     {
       accessorKey: 'uid',
-      header: 'ID',
+      header: t('common.id', 'ID'),
     },
     {
       accessorKey: 'name',
@@ -64,13 +66,27 @@ export function VoiceRobotsTable({ data, isLoading, onEdit, onDelete }: VoiceRob
     },
   ];
 
+  if (isLoading) {
+    return (
+      <VStack align="center" className="py-16">
+        <Text variant="muted">{t('common.loading', 'Загрузка...')}</Text>
+      </VStack>
+    );
+  }
+
   return (
     <DataTable
       columns={columns}
       data={data}
-      isLoading={isLoading}
-      searchField="name"
-      searchPlaceholder={t('voiceRobots.search', 'Поиск по названию...')}
+      globalFilter={search}
+      renderHeader={() => (
+        <Input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder={t('voiceRobots.search', 'Поиск по названию...')}
+          className="max-w-sm"
+        />
+      )}
     />
   );
 }

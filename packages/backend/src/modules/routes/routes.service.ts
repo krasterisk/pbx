@@ -81,7 +81,7 @@ export class RoutesService {
    * Generate raw dialplan text from JSON actions for a single route.
    * This produces Asterisk-compatible dialplan configuration.
    */
-  generateRouteDialplan(route: Route, vpbxUserUid: number): string {
+  generateRouteDialplan(route: Route, vpbxUserUid: number, isAdmin: boolean = false): string {
     const lines: string[] = [];
     const extensions = route.extensions || [];
     const actions = route.actions || [];
@@ -125,7 +125,7 @@ export class RoutesService {
 
       // Actions
       for (const action of actions) {
-        const dp = AsteriskDialplanUtils.actionToDialplan(action, vpbxUserUid);
+        const dp = AsteriskDialplanUtils.actionToDialplan(action, vpbxUserUid, isAdmin);
         if (dp) lines.push(`same => n,${dp}`);
       }
 
@@ -135,18 +135,25 @@ export class RoutesService {
     return lines.join('\n');
   }
 
+  private buildContextName(contextName: string, vpbxUserUid: number): string {
+    const suffix = String(vpbxUserUid);
+    return contextName.endsWith(suffix) ? contextName : `${contextName}${suffix}`;
+  }
+
   /**
    * Generate the full dialplan for a context (all routes + includes).
    */
-  async generateContextDialplan(contextUid: number, vpbxUserUid: number, contextName: string, includes: string[]): Promise<string> {
+  async generateContextDialplan(contextUid: number, vpbxUserUid: number, contextName: string, includes: string[], isAdmin: boolean = false): Promise<string> {
     const routes = await this.findAllByContext(contextUid, vpbxUserUid);
     const lines: string[] = [];
 
-    lines.push(`[${contextName}]`);
+    const tenantedContextName = this.buildContextName(contextName, vpbxUserUid);
+
+    lines.push(`[${tenantedContextName}]`);
 
     // Includes
     for (const inc of includes) {
-      lines.push(`include => ${inc}`);
+      lines.push(`include => ${this.buildContextName(inc, vpbxUserUid)}`);
     }
 
     if (includes.length > 0) lines.push('');
@@ -155,7 +162,7 @@ export class RoutesService {
     for (const route of routes) {
       if (!route.active) continue;
       lines.push(`; --- ${route.name} ---`);
-      lines.push(this.generateRouteDialplan(route, vpbxUserUid));
+      lines.push(this.generateRouteDialplan(route, vpbxUserUid, isAdmin));
     }
 
     return lines.join('\n');

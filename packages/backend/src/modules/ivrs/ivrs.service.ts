@@ -47,7 +47,7 @@ export class IvrsService {
   /**
    * Generates the dialplan configuration for a specific IVR.
    */
-  generateIvrDialplan(ivr: Ivr, vpbxUserUid: number): string {
+  generateIvrDialplan(ivr: Ivr, vpbxUserUid: number, isAdmin: boolean = false): string {
     const lines: string[] = [];
     lines.push(`[ivr_${ivr.uid}]`);
     lines.push(`exten => start,1,NoOp(IVR: ${ivr.name})`);
@@ -91,7 +91,7 @@ export class IvrsService {
       lines.push(`exten => ${exten},1,NoOp(IVR choice: ${exten})`);
       
       for (const action of actions) {
-        const dp = AsteriskDialplanUtils.actionToDialplan(action, vpbxUserUid);
+        const dp = AsteriskDialplanUtils.actionToDialplan(action, vpbxUserUid, isAdmin);
         if (dp) lines.push(`same => n,${dp}`);
       }
       lines.push('');

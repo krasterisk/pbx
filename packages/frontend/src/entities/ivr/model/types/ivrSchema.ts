@@ -1,4 +1,4 @@
-import { IRouteAction } from '@/shared/api/api';
+import { IRouteAction } from '@krasterisk/shared';
 
 export interface IIvrMenuItem {
   digit: string;

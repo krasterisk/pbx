@@ -1,40 +1,8 @@
 import { rtkApi } from '../rtkApi';
+import { IRoute, IRouteAction, IRouteOptions, IRouteWebhooks } from '@krasterisk/shared';
 
-import { ActionType, IRouteAction } from '@krasterisk/shared';
-
-export interface IRouteOptions {
-  record?: boolean;
-  record_all?: boolean;
-  check_blacklist?: boolean;
-  check_whitelist?: number;
-  check_listbook?: boolean;
-  check_dialto?: boolean;
-  pre_command?: string;
-  route_type?: number; // outbound type (1-5)
-}
-
-export interface IRouteWebhooks {
-  before_dial?: string;
-  on_answer?: string;
-  on_hangup?: string;
-  custom?: string;
-}
-
-export interface IRoute {
-  uid: number;
-  context_uid: number;
-  name: string;
-  extensions: string[];
-  priority: number;
-  active: number;
-  options: IRouteOptions | null;
-  webhooks: IRouteWebhooks | null;
-  actions: IRouteAction[];
-  raw_dialplan: string | null;
-  user_uid: number;
-  created_at: string;
-  updated_at: string;
-}
+// Re-export shared types for convenience
+export type { IRoute, IRouteOptions, IRouteWebhooks };
 
 export interface ICreateRoute {
   context_uid: number;
@@ -133,4 +101,3 @@ export const {
   useLazyPreviewDialplanQuery,
   useApplyDialplanMutation,
 } = routeApi;
-

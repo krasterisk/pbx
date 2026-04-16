@@ -1,11 +1,11 @@
 {
   "name": "@krasterisk/frontend",
-  "version": "4.0.2",
+  "version": "4.0.7",
   "description": "Krasterisk v4 Frontend",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite --port 3010",
+    "dev": "vite --port 3010 --host",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "lint": "eslint .",

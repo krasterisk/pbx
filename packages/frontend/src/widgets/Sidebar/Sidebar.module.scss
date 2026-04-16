@@ -4,8 +4,9 @@
   top: 0;
   bottom: 0;
   z-index: var(--z-index-sidebar);
-  background-color: var(--color-sidebar);
+  background-color: var(--color-sidebar, #121218);
   border-right: 1px solid var(--color-sidebar-border);
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.4);
 }
 
 .header {

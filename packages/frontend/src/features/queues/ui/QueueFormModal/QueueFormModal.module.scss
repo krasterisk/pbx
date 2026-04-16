@@ -1,0 +1,193 @@
+.strategyRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.strategyChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.625rem;
+  border-radius: 0.5rem;
+  border: 1px solid hsl(var(--border));
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+
+  &:hover {
+    border-color: hsl(var(--primary) / 0.4);
+    color: hsl(var(--foreground));
+  }
+
+  &.active {
+    border-color: hsl(var(--primary));
+    background: hsl(var(--primary) / 0.1);
+    color: hsl(var(--primary));
+  }
+}
+
+.flagGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.flagChip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.625rem;
+  border-radius: 9999px;
+  border: 1px solid hsl(var(--border));
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover {
+    border-color: hsl(var(--primary) / 0.3);
+    color: hsl(var(--foreground));
+  }
+
+  &.flagActive {
+    border-color: hsl(var(--primary));
+    background: hsl(var(--primary) / 0.1);
+    color: hsl(var(--primary));
+  }
+}
+
+.memberRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.5rem;
+  background: hsl(var(--background) / 0.5);
+  transition: background 0.15s ease;
+
+  &:hover {
+    background: hsl(var(--accent) / 0.5);
+  }
+}
+
+.memberIcon {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: hsl(var(--primary));
+  flex-shrink: 0;
+}
+
+.memberInfo {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.875rem;
+}
+
+.penaltyInput {
+  width: 3.5rem;
+  text-align: center;
+}
+
+.livePreview {
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
+  font-family: monospace;
+  padding: 0.25rem 0;
+}
+
+.segmentedToggle {
+  display: inline-flex;
+  border-radius: 0.5rem;
+  border: 1px solid hsl(var(--border));
+  overflow: hidden;
+}
+
+.segmentBtn {
+  padding: 0.375rem 1rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &.active {
+    background: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
+  }
+}
+
+.announcementSection {
+  padding: 0.75rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.75rem;
+  background: hsl(var(--background) / 0.3);
+}
+
+.announcementTitle {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.toggleField {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.5rem;
+  background: hsl(var(--background) / 0.5);
+  cursor: pointer;
+  transition: background 0.15s ease;
+
+  &:hover {
+    background: hsl(var(--accent) / 0.3);
+  }
+}
+
+.promptChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.375rem;
+  border: 1px solid hsl(var(--primary) / 0.3);
+  background: hsl(var(--primary) / 0.08);
+  color: hsl(var(--primary));
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.promptChipRemove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  padding: 0.125rem;
+  border-radius: 9999px;
+  transition: color 0.15s, background 0.15s;
+
+  &:hover {
+    color: hsl(var(--destructive));
+    background: hsl(var(--destructive) / 0.1);
+  }
+}

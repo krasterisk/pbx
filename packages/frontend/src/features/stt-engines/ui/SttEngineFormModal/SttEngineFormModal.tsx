@@ -1,10 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Trash2 } from 'lucide-react';
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-} from '@/shared/ui/Dialog';
-import { Button, Input, VStack, HStack, WebhookAuthConfig, type AuthMode } from '@/shared/ui';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/shared/ui/Dialog';
+import { Button, Input, VStack, HStack, WebhookAuthConfig, type AuthMode, Label, Select } from '@/shared/ui';
 import { ISttEngine } from '@/entities/engines';
 import {
   useCreateSttEngineMutation, useUpdateSttEngineMutation,
@@ -20,8 +17,8 @@ type EngineType = 'google' | 'yandex' | 'custom';
 
 export function SttEngineFormModal({ isOpen, onClose, engine }: SttEngineFormModalProps) {
   const { t } = useTranslation();
-  const [createEngine] = useCreateSttEngineMutation();
-  const [updateEngine] = useUpdateSttEngineMutation();
+  const [createEngine, { isLoading: isCreating }] = useCreateSttEngineMutation();
+  const [updateEngine, { isLoading: isUpdating }] = useUpdateSttEngineMutation();
 
   const [name, setName] = useState('');
   const [type, setType] = useState<EngineType>('google');
@@ -33,25 +30,29 @@ export function SttEngineFormModal({ isOpen, onClose, engine }: SttEngineFormMod
   // Google/Yandex settings
   const [languageCode, setLanguageCode] = useState('ru-RU');
   const [model, setModel] = useState('general');
+  // Yandex-specific settings
   const [folderId, setFolderId] = useState('');
+  const [eouSensitivity, setEouSensitivity] = useState('DEFAULT');
 
   useEffect(() => {
     if (engine) {
       setName(engine.name || '');
-      setType(engine.type || 'google');
+      setType((engine.type as EngineType) || 'google');
       setToken(engine.token || '');
       setCustomUrl(engine.custom_url || '');
-      setAuthMode(engine.auth_mode || 'none');
+      setAuthMode((engine.auth_mode as AuthMode) || 'none');
       const s = engine.settings || {};
       setLanguageCode(s.language_code || 'ru-RU');
       setModel(s.model || 'general');
       setFolderId(s.folder_id || '');
+      setEouSensitivity(s.eou_sensitivity || 'DEFAULT');
       const hdrs = engine.custom_headers || {};
-      setCustomHeaders(Object.entries(hdrs).map(([key, value]) => ({ key, value })));
+      setCustomHeaders(Object.entries(hdrs).map(([key, value]) => ({ key, value: String(value) })));
     } else {
       setName(''); setType('google'); setToken(''); setCustomUrl('');
       setAuthMode('none'); setLanguageCode('ru-RU'); setModel('general');
-      setFolderId(''); setCustomHeaders([]);
+      setFolderId(''); setEouSensitivity('DEFAULT');
+      setCustomHeaders([]);
     }
   }, [engine, isOpen]);
 
@@ -59,7 +60,12 @@ export function SttEngineFormModal({ isOpen, onClose, engine }: SttEngineFormMod
     if (!name.trim()) return;
     const settings: Record<string, any> = {};
     if (type === 'google') { settings.language_code = languageCode; settings.model = model; }
-    if (type === 'yandex') { settings.language_code = languageCode; settings.folder_id = folderId; settings.model = model; }
+    if (type === 'yandex') {
+      settings.language_code = languageCode;
+      settings.model = model;
+      settings.folder_id = folderId;
+      settings.eou_sensitivity = eouSensitivity;
+    }
 
     const hdrs: Record<string, string> = {};
     customHeaders.forEach(h => { if (h.key.trim()) hdrs[h.key.trim()] = h.value; });
@@ -73,61 +79,62 @@ export function SttEngineFormModal({ isOpen, onClose, engine }: SttEngineFormMod
 
     try {
       if (engine) { await updateEngine({ uid: engine.uid, data: payload }).unwrap(); }
-      else { await createEngine(payload).unwrap(); }
+      else { await createEngine(payload as any).unwrap(); }
       onClose();
     } catch (err) { console.error('Failed to save STT engine', err); }
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
+      <DialogContent size="large">
         <DialogHeader>
           <DialogTitle>
             {engine ? t('sttEngines.edit', 'Редактировать движок') : t('sttEngines.add', 'Добавить движок')}
           </DialogTitle>
         </DialogHeader>
 
-        <VStack gap="16">
+        <VStack gap="16" className="py-4">
           <VStack gap="4">
-            <label className="text-sm font-medium text-muted-foreground">{t('sttEngines.name', 'Название')}</label>
-            <Input placeholder="Google ASR" value={name} onChange={e => setName(e.target.value)} />
+            <Label>{t('sttEngines.name', 'Название')}</Label>
+            <Input placeholder={t('sttEngines.namePlaceholder', 'Google ASR')} value={name} onChange={e => setName(e.target.value)} />
           </VStack>
 
           {/* Type selector */}
           <VStack gap="4">
-            <label className="text-sm font-medium text-muted-foreground">{t('sttEngines.type', 'Тип')}</label>
-            <HStack gap="8">
-              {(['google', 'yandex', 'custom'] as EngineType[]).map(tp => (
-                <button key={tp} type="button"
-                  className={`flex-1 py-2 px-3 border rounded-lg text-sm font-medium transition-all ${type === tp ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:border-primary'}`}
-                  onClick={() => setType(tp)}>
-                  {tp === 'google' ? 'Google' : tp === 'yandex' ? 'Yandex' : 'Custom'}
-                </button>
-              ))}
-            </HStack>
+            <Label>{t('sttEngines.type', 'Тип')}</Label>
+            <Select value={type} onChange={(e) => setType(e.target.value as EngineType)}>
+              <option value="google">{t('sttEngines.typeGoogle', 'Google Speech-to-Text')}</option>
+              <option value="yandex">{t('sttEngines.typeYandex', 'Yandex SpeechKit')}</option>
+              <option value="custom">{t('sttEngines.typeCustom', 'Custom API')}</option>
+            </Select>
           </VStack>
 
           {type !== 'custom' && (
             <VStack gap="4">
-              <label className="text-sm font-medium text-muted-foreground">{t('ttsEngines.token', 'API Key / Token')}</label>
+              <Label>{t('sttEngines.token', 'API Key / Token')}</Label>
               <Input type="password" value={token} onChange={e => setToken(e.target.value)} placeholder="AIza..." />
             </VStack>
           )}
 
           {type === 'google' && (
             <HStack gap="8">
-              <VStack gap="4" style={{ flex: 1 }}>
-                <label className="text-sm font-medium text-muted-foreground">Language</label>
-                <Input value={languageCode} onChange={e => setLanguageCode(e.target.value)} placeholder="ru-RU" />
+              <VStack gap="4" className="flex-1">
+                <Label>{t('sttEngines.google.languageCode', 'Язык')}</Label>
+                <Select value={languageCode} onChange={e => setLanguageCode(e.target.value)}>
+                  <option value="ru-RU">Русский (ru-RU)</option>
+                  <option value="en-US">English (en-US)</option>
+                  <option value="es-ES">Español (es-ES)</option>
+                  <option value="fr-FR">Français (fr-FR)</option>
+                  <option value="de-DE">Deutsch (de-DE)</option>
+                </Select>
               </VStack>
-              <VStack gap="4" style={{ flex: 1 }}>
-                <label className="text-sm font-medium text-muted-foreground">Model</label>
-                <select className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground text-sm"
-                  value={model} onChange={e => setModel(e.target.value)}>
+              <VStack gap="4" className="flex-1">
+                <Label>{t('sttEngines.google.model', 'Модель')}</Label>
+                <Select value={model} onChange={e => setModel(e.target.value)}>
                   <option value="general">General</option>
                   <option value="phone_call">Phone Call</option>
                   <option value="command_and_search">Command & Search</option>
-                </select>
+                </Select>
               </VStack>
             </HStack>
           )}
@@ -135,30 +142,58 @@ export function SttEngineFormModal({ isOpen, onClose, engine }: SttEngineFormMod
           {type === 'yandex' && (
             <>
               <VStack gap="4">
-                <label className="text-sm font-medium text-muted-foreground">{t('ttsEngines.yandex.folderId', 'Folder ID')}</label>
-                <Input value={folderId} onChange={e => setFolderId(e.target.value)} placeholder="b1g..." />
+                <Label>{t('sttEngines.yandex.folderId', 'Folder ID')}</Label>
+                <Input
+                  placeholder="b1g..."
+                  value={folderId}
+                  onChange={e => setFolderId(e.target.value)}
+                />
               </VStack>
               <HStack gap="8">
-                <VStack gap="4" style={{ flex: 1 }}>
-                  <label className="text-sm font-medium text-muted-foreground">Language</label>
-                  <Input value={languageCode} onChange={e => setLanguageCode(e.target.value)} placeholder="ru-RU" />
+                <VStack gap="4" className="flex-1">
+                  <Label>{t('sttEngines.yandex.languageCode', 'Язык')}</Label>
+                  <Select value={languageCode} onChange={e => setLanguageCode(e.target.value)}>
+                    <option value="auto">Автоопределение (auto)</option>
+                    <option value="ru-RU">Русский (ru-RU)</option>
+                    <option value="en-US">English (en-US)</option>
+                    <option value="kk-KZ">Казахский (kk-KZ)</option>
+                    <option value="uz-UZ">Узбекский (uz-UZ)</option>
+                    <option value="de-DE">Немецкий (de-DE)</option>
+                    <option value="es-ES">Испанский (es-ES)</option>
+                    <option value="fi-FI">Финский (fi-FI)</option>
+                    <option value="fr-FR">Французский (fr-FR)</option>
+                    <option value="he-IL">Иврит (he-IL)</option>
+                    <option value="it-IT">Итальянский (it-IT)</option>
+                    <option value="nl-NL">Нидерландский (nl-NL)</option>
+                    <option value="pl-PL">Польский (pl-PL)</option>
+                    <option value="pt-PT">Португальский (pt-PT)</option>
+                    <option value="pt-BR">Португальский (Бразилия) (pt-BR)</option>
+                    <option value="sv-SE">Шведский (sv-SE)</option>
+                    <option value="tr-TR">Турецкий (tr-TR)</option>
+                  </Select>
                 </VStack>
-                <VStack gap="4" style={{ flex: 1 }}>
-                  <label className="text-sm font-medium text-muted-foreground">Model</label>
-                  <select className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground text-sm"
-                    value={model} onChange={e => setModel(e.target.value)}>
-                    <option value="general">General</option>
-                    <option value="general:rc">General RC</option>
-                  </select>
+                <VStack gap="4" className="flex-1">
+                  <Label>{t('sttEngines.yandex.model', 'Модель')}</Label>
+                  <Select value={model} onChange={e => setModel(e.target.value)}>
+                    <option value="general">{t('sttEngines.yandex.modelGeneral', 'General (Основная)')}</option>
+                    <option value="general:rc">{t('sttEngines.yandex.modelGeneralRc', 'General RC')}</option>
+                  </Select>
                 </VStack>
               </HStack>
+              <VStack gap="4">
+                <Label>{t('sttEngines.yandex.eouSensitivity', 'EOU Чувствительность')}</Label>
+                <Select value={eouSensitivity} onChange={e => setEouSensitivity(e.target.value)}>
+                  <option value="DEFAULT">{t('sttEngines.yandex.eouDefault', 'Стандартная')}</option>
+                  <option value="HIGH">{t('sttEngines.yandex.eouHigh', 'Высокая (быстрая)')}</option>
+                </Select>
+              </VStack>
             </>
           )}
 
           {type === 'custom' && (
             <>
               <VStack gap="4">
-                <label className="text-sm font-medium text-muted-foreground">URL</label>
+                <Label>{t('sttEngines.custom.url', 'URL')}</Label>
                 <Input placeholder="https://api.example.com/asr" value={customUrl} onChange={e => setCustomUrl(e.target.value)} />
               </VStack>
               <WebhookAuthConfig
@@ -173,11 +208,13 @@ export function SttEngineFormModal({ isOpen, onClose, engine }: SttEngineFormMod
           )}
         </VStack>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button>
-          <Button onClick={handleSubmit} disabled={!name.trim()}>{t('common.save')}</Button>
+        <DialogFooter className="mt-6 pt-4 border-t border-border">
+          <Button variant="outline" onClick={onClose}>{t('common.cancel', 'Отмена')}</Button>
+          <Button onClick={handleSubmit} disabled={isCreating || isUpdating || !name.trim()}>{t('common.save', 'Сохранить')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
+
+SttEngineFormModal.displayName = 'SttEngineFormModal';

@@ -2,8 +2,8 @@ import { memo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Bot, Plus } from 'lucide-react';
 import { Button, Card, CardContent, CardHeader, CardTitle, Flex, VStack, Text } from '@/shared/ui';
+import { useNavigate } from 'react-router-dom';
 import { VoiceRobotsTable } from '@/features/voiceRobots/ui/VoiceRobotsTable/VoiceRobotsTable';
-import { VoiceRobotFormModal } from '@/features/voiceRobots/ui/VoiceRobotFormModal/VoiceRobotFormModal';
 import { useGetVoiceRobotsQuery, useDeleteVoiceRobotMutation } from '@/shared/api/endpoints/voiceRobotsApi';
 import { useAppDispatch } from '@/shared/hooks/useAppStore';
 import { voiceRobotsActions } from '@/features/voiceRobots';
@@ -11,17 +11,17 @@ import { IVoiceRobot } from '@/entities/voiceRobot';
 
 const VoiceRobotsPage = memo(() => {
   const { t } = useTranslation();
-  const dispatch = useAppDispatch();
+  const navigate = useNavigate();
   const { data: robots = [], isLoading } = useGetVoiceRobotsQuery();
   const [deleteRobot] = useDeleteVoiceRobotMutation();
 
   const handleEdit = useCallback((robot: IVoiceRobot) => {
-    dispatch(voiceRobotsActions.openModal(robot));
-  }, [dispatch]);
+    navigate(`/voice-robots/${robot.uid}`);
+  }, [navigate]);
 
   const handleCreate = useCallback(() => {
-    dispatch(voiceRobotsActions.openModal(null));
-  }, [dispatch]);
+    navigate('/voice-robots/create');
+  }, [navigate]);
 
   const handleDelete = useCallback((robot: IVoiceRobot) => {
     if (confirm(t('common.confirmDelete', 'Вы уверены, что хотите удалить этот элемент?'))) {
@@ -66,8 +66,6 @@ const VoiceRobotsPage = memo(() => {
           />
         </CardContent>
       </Card>
-
-      <VoiceRobotFormModal />
     </VStack>
   );
 });

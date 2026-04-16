@@ -1,29 +1,36 @@
-import { memo } from 'react';
+import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Select } from '@/shared/ui';
-import { IDialplanAppProps } from '../../model/types';
+import { VStack, HStack } from '@/shared/ui/Stack';
+import { Select } from '@/shared/ui/Select/Select';
+import { Text } from '@/shared/ui/Text/Text';
+import { IDialplanAppProps } from '../../../model/types';
 import { useGetVoiceRobotsQuery } from '@/shared/api/endpoints/voiceRobotsApi';
 
-export const VoiceRobotApp = memo(({ action, onUpdate }: IDialplanAppProps) => {
+export const VoiceRobotApp: React.FC<IDialplanAppProps> = ({ action, onUpdate }) => {
   const { t } = useTranslation();
-  const { data: voiceRobots, isLoading } = useGetVoiceRobotsQuery();
-  const p = action.params;
+  const { data: voiceRobots = [], isLoading, isError } = useGetVoiceRobotsQuery();
 
   return (
-    <Select
-      value={p.robot_uid?.toString() || ''}
-      onChange={(val) => onUpdate(action.id, 'params.robot_uid', Number(val))}
-      options={[
-        { value: '', label: t('routes.voicerobot.select', '-- Выберите робота --') },
-        ...(voiceRobots?.map(r => ({
-          value: r.uid.toString(),
-          label: `${r.name} (ID: ${r.uid})`
-        })) || [])
-      ]}
-      disabled={isLoading}
-      className="w-full"
-    />
+    <VStack gap="2" className="w-full">
+      <HStack gap="2" className="w-full">
+        <VStack gap="2" className="flex-1">
+          <Text variant="small" className="text-muted-foreground">{t('routes.apps.voicerobot.select', 'Голосовой робот')}</Text>
+          {isError ? (
+            <Text variant="small" className="text-destructive">{t('common.loadError', 'Ошибка загрузки')}</Text>
+          ) : (
+            <Select
+              value={action.params?.robot_uid?.toString() || ''}
+              onChange={(e) => onUpdate(action.id, 'params.robot_uid', Number(e.target.value))}
+              disabled={isLoading}
+            >
+              <option value="" disabled>---</option>
+              {voiceRobots.map(r => (
+                <option key={r.uid} value={r.uid}>{r.name} (ID: {r.uid})</option>
+              ))}
+            </Select>
+          )}
+        </VStack>
+      </HStack>
+    </VStack>
   );
-});
-
-VoiceRobotApp.displayName = 'VoiceRobotApp';
+};

@@ -1,34 +1,29 @@
 import { memo, useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Table2, Code2 } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, Button, Input } from '@/shared/ui';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, Button } from '@/shared/ui';
 import { VStack, HStack } from '@/shared/ui/Stack';
 import {
   useCreateRouteMutation,
   useUpdateRouteMutation,
-  useLazyPreviewDialplanQuery,
-  type IRoute,
-  type IRouteAction,
   type IRouteOptions,
-  type IRouteWebhooks,
 } from '@/shared/api/api';
+import { type IRouteAction } from '@krasterisk/shared';
 import { useAppSelector, useAppDispatch } from '@/shared/hooks/useAppStore';
 import { routesActions } from '../../model/slice/routesSlice';
-import { ExtensionChips } from '../ExtensionChips/ExtensionChips';
-import { DialplanAppsEditor } from '@/features/dialplan-apps';
-import { RawDialplanEditor } from '../RawDialplanEditor/RawDialplanEditor';
-import styles from './RouteFormModal.module.scss';
 
-const TABS = ['general', 'webhooks', 'actions'] as const;
+import { RouteGeneralTab } from './RouteGeneralTab';
+import { RouteWebhooksTab, WebhookItem } from './RouteWebhooksTab';
+import { RouteActionsTab } from './RouteActionsTab';
+
+const TABS = ['general', 'actions', 'webhooks'] as const;
 
 export const RouteFormModal = memo(() => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
-  const { isModalOpen, selectedRoute, selectedContextUid, editorMode } = useAppSelector((s) => s.routes);
+  const { isModalOpen, selectedRoute, selectedContextUid } = useAppSelector((s) => s.routes);
 
   const [createRoute, { isLoading: isCreating }] = useCreateRouteMutation();
   const [updateRoute, { isLoading: isUpdating }] = useUpdateRouteMutation();
-  const [triggerPreview] = useLazyPreviewDialplanQuery();
 
   const [activeTab, setActiveTab] = useState<typeof TABS[number]>('general');
   const [name, setName] = useState('');
@@ -46,10 +41,7 @@ export const RouteFormModal = memo(() => {
   const [routeType, setRouteType] = useState(0);
 
   // Webhooks
-  const [whBefore, setWhBefore] = useState('');
-  const [whAnswer, setWhAnswer] = useState('');
-  const [whHangup, setWhHangup] = useState('');
-  const [whCustom, setWhCustom] = useState('');
+  const [webhooksList, setWebhooksList] = useState<WebhookItem[]>([]);
 
   // Initialize form when editing
   useEffect(() => {
@@ -67,10 +59,19 @@ export const RouteFormModal = memo(() => {
       setPreCommand(opts.pre_command || '');
       setRouteType(opts.route_type || 0);
       const wh = selectedRoute.webhooks || {};
-      setWhBefore(wh.before_dial || '');
-      setWhAnswer(wh.on_answer || '');
-      setWhHangup(wh.on_hangup || '');
-      setWhCustom(wh.custom || '');
+      const list: WebhookItem[] = [];
+      const addToList = (evnt: string, value: any) => {
+        if (Array.isArray(value)) {
+          value.forEach((url: string) => list.push({ id: Math.random().toString(), event: evnt, url }));
+        } else if (typeof value === 'string' && value) {
+          list.push({ id: Math.random().toString(), event: evnt, url: value });
+        }
+      };
+      addToList('before_dial', wh.before_dial);
+      addToList('on_answer', wh.on_answer);
+      addToList('on_hangup', wh.on_hangup);
+      addToList('custom', wh.custom);
+      setWebhooksList(list);
     } else {
       resetForm();
     }
@@ -88,10 +89,7 @@ export const RouteFormModal = memo(() => {
     setCheckListbook(false);
     setPreCommand('');
     setRouteType(0);
-    setWhBefore('');
-    setWhAnswer('');
-    setWhHangup('');
-    setWhCustom('');
+    setWebhooksList([]);
     setActiveTab('general');
   };
 
@@ -109,14 +107,18 @@ export const RouteFormModal = memo(() => {
       route_type: routeType || undefined,
     };
 
-    const webhooks: IRouteWebhooks = {
-      before_dial: whBefore || undefined, on_answer: whAnswer || undefined,
-      on_hangup: whHangup || undefined, custom: whCustom || undefined,
-    };
+    const webhooksPayload: any = {};
+    webhooksList.forEach(w => {
+      const u = w.url.trim();
+      if (u) {
+        if (!webhooksPayload[w.event]) webhooksPayload[w.event] = [];
+        webhooksPayload[w.event].push(u);
+      }
+    });
 
     const data = {
       name, extensions, active: active ? 1 : 0,
-      options, webhooks, actions,
+      options, webhooks: webhooksPayload, actions,
       raw_dialplan: rawDialplan || undefined,
       context_uid: selectedContextUid,
     };
@@ -135,140 +137,65 @@ export const RouteFormModal = memo(() => {
 
   return (
     <Dialog open={isModalOpen} onOpenChange={(open) => !open && handleClose()}>
-      <DialogContent className={styles.modal}>
-        <DialogHeader>
-          <DialogTitle>
+      <DialogContent size="large">
+        <DialogHeader className="mb-4 shrink-0">
+          <DialogTitle className="text-xl font-bold">
             {selectedRoute ? t('routes.editRoute', 'Редактировать маршрут') : t('routes.addRoute', 'Новый маршрут')}
           </DialogTitle>
         </DialogHeader>
 
         {/* Tabs */}
-        <div className={styles.tabs}>
-          {TABS.map((tab) => (
-            <button
-              key={tab}
-              type="button"
-              className={`${styles.tab} ${activeTab === tab ? styles.tabActive : ''}`}
-              onClick={() => setActiveTab(tab)}
-            >
-              {t(`routes.tab.${tab}`, tab)}
-            </button>
-          ))}
-        </div>
+        <VStack className="border-b border-border/50 mb-6 shrink-0" max>
+          <HStack gap="8" className="-mb-[1px] flex overflow-x-auto flex-nowrap [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+            {TABS.map((tab) => (
+              <Button
+                key={tab}
+                variant="ghost"
+                onClick={() => setActiveTab(tab)}
+                className={`relative py-3 px-1 rounded-none text-sm font-medium transition-colors whitespace-nowrap shrink-0 outline-none ${
+                    activeTab === tab ? 'text-primary bg-transparent hover:bg-transparent hover:text-primary' : 'text-muted-foreground bg-transparent hover:text-foreground hover:bg-transparent'
+                }`}
+              >
+                {t(`routes.tab.${tab}`, tab)}
+                {activeTab === tab && (
+                  <VStack className="absolute left-0 right-0 bottom-0 h-[2px] bg-primary rounded-t-[1px]">{''}</VStack>
+                )}
+              </Button>
+            ))}
+          </HStack>
+        </VStack>
 
-        <div className={styles.body}>
-          {/* General Tab */}
+        <VStack className="flex-1 overflow-y-auto pr-1">
           {activeTab === 'general' && (
-            <VStack gap="16">
-              <HStack gap="12" align="center">
-                <label className={styles.check}>
-                  <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} />
-                  {t('common.active', 'Активен')}
-                </label>
-              </HStack>
-
-              <VStack gap="4">
-                <label className={styles.label}>{t('routes.name', 'Наименование маршрута')}</label>
-                <Input id="route-name" value={name} onChange={(e) => setName(e.target.value)} placeholder={t('routes.namePlaceholder', 'Входящий городской')} />
-              </VStack>
-
-              <ExtensionChips value={extensions} onChange={setExtensions} />
-
-              <VStack gap="4">
-                <label className={styles.label}>{t('routes.routeType', 'Тип маршрута (права доступа)')}</label>
-                <select className={styles.selectFull} value={routeType} onChange={(e) => setRouteType(Number(e.target.value))}>
-                  <option value={0}>Не использовать</option>
-                  <option value={1}>Локальные вызовы</option>
-                  <option value={2}>Местные вызовы</option>
-                  <option value={3}>Мобильные вызовы</option>
-                  <option value={4}>Междугородние вызовы</option>
-                  <option value={5}>Международные вызовы</option>
-                </select>
-              </VStack>
-
-              <div className={styles.optionsGrid}>
-                <label className={styles.check}>
-                  <input type="checkbox" checked={record} onChange={(e) => setRecord(e.target.checked)} />
-                  {t('routes.record', 'Записывать разговоры')}
-                </label>
-                <label className={styles.check}>
-                  <input type="checkbox" checked={recordAll} onChange={(e) => setRecordAll(e.target.checked)} />
-                  {t('routes.recordAll', 'Запись без соединения')}
-                </label>
-                <label className={styles.check}>
-                  <input type="checkbox" checked={checkBlacklist} onChange={(e) => setCheckBlacklist(e.target.checked)} />
-                  {t('routes.checkBlacklist', 'Проверять Blacklist')}
-                </label>
-                <label className={styles.check}>
-                  <input type="checkbox" checked={checkListbook} onChange={(e) => setCheckListbook(e.target.checked)} />
-                  {t('routes.checkListbook', 'Имя из справочника')}
-                </label>
-              </div>
-
-              <VStack gap="4">
-                <label className={styles.label}>{t('routes.preCommand', 'Предварительная команда')}</label>
-                <Input id="route-precmd" value={preCommand} onChange={(e) => setPreCommand(e.target.value)} 
-                  placeholder="Set(CALLERID(num)=8${CALLERID(num)})" className={styles.mono} />
-              </VStack>
-            </VStack>
+            <RouteGeneralTab
+              name={name} setName={setName}
+              extensions={extensions} setExtensions={setExtensions}
+              active={active} setActive={setActive}
+              routeType={routeType} setRouteType={setRouteType}
+              record={record} setRecord={setRecord}
+              recordAll={recordAll} setRecordAll={setRecordAll}
+              checkBlacklist={checkBlacklist} setCheckBlacklist={setCheckBlacklist}
+              checkListbook={checkListbook} setCheckListbook={setCheckListbook}
+              preCommand={preCommand} setPreCommand={setPreCommand}
+            />
           )}
 
-          {/* Webhooks Tab */}
-          {activeTab === 'webhooks' && (
-            <VStack gap="12">
-              <VStack gap="4">
-                <label className={styles.label}>{t('routes.whBefore', 'Перед вызовом')}</label>
-                <Input id="wh-before" value={whBefore} onChange={(e) => setWhBefore(e.target.value)} placeholder="https://..." />
-              </VStack>
-              <VStack gap="4">
-                <label className={styles.label}>{t('routes.whAnswer', 'При ответе')}</label>
-                <Input id="wh-answer" value={whAnswer} onChange={(e) => setWhAnswer(e.target.value)} placeholder="https://..." />
-              </VStack>
-              <VStack gap="4">
-                <label className={styles.label}>{t('routes.whHangup', 'При завершении')}</label>
-                <Input id="wh-hangup" value={whHangup} onChange={(e) => setWhHangup(e.target.value)} placeholder="https://..." />
-              </VStack>
-              <VStack gap="4">
-                <label className={styles.label}>{t('routes.whCustom', 'Запрос номера ответственного')}</label>
-                <Input id="wh-custom" value={whCustom} onChange={(e) => setWhCustom(e.target.value)} placeholder="https://..." />
-              </VStack>
-            </VStack>
-          )}
-
-          {/* Actions Tab */}
           {activeTab === 'actions' && (
-            <VStack gap="12">
-              {/* Editor mode switcher */}
-              <HStack gap="8">
-                <button
-                  type="button"
-                  className={`${styles.modeBtn} ${editorMode === 'table' ? styles.modeBtnActive : ''}`}
-                  onClick={() => dispatch(routesActions.setEditorMode('table'))}
-                >
-                  <Table2 className="w-4 h-4" />
-                  {t('routes.modeTable', 'Таблица')}
-                </button>
-                <button
-                  type="button"
-                  className={`${styles.modeBtn} ${editorMode === 'raw' ? styles.modeBtnActive : ''}`}
-                  onClick={() => dispatch(routesActions.setEditorMode('raw'))}
-                >
-                  <Code2 className="w-4 h-4" />
-                  {t('routes.modeRaw', 'Dialplan')}
-                </button>
-              </HStack>
-
-              {editorMode === 'table' && (
-                <DialplanAppsEditor actions={actions} onChange={setActions} />
-              )}
-              {editorMode === 'raw' && (
-                <RawDialplanEditor value={rawDialplan} onChange={setRawDialplan} />
-              )}
-            </VStack>
+            <RouteActionsTab
+              actions={actions} setActions={setActions}
+              rawDialplan={rawDialplan} setRawDialplan={setRawDialplan}
+            />
           )}
-        </div>
 
-        <DialogFooter>
+          {activeTab === 'webhooks' && (
+            <RouteWebhooksTab
+              webhooksList={webhooksList}
+              setWebhooksList={setWebhooksList}
+            />
+          )}
+        </VStack>
+
+        <DialogFooter className="mt-6 pt-4 border-t border-border shrink-0">
           <Button variant="outline" onClick={handleClose}>
             {t('common.cancel', 'Отмена')}
           </Button>

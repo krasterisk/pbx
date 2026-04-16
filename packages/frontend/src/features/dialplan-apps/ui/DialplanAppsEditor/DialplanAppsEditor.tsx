@@ -1,4 +1,4 @@
-import React, { memo, useCallback, useMemo } from 'react';
+import React, { memo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, GripVertical, Trash2 } from 'lucide-react';
 import {
@@ -19,24 +19,47 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-import { Button, Select, Text } from '@/shared/ui';
-import { VStack, HStack } from '@/shared/ui/Stack';
+import { Button, Text } from '@/shared/ui';
+import { Select } from '@/shared/ui/Select/Select';
+import { VStack, HStack, Flex } from '@/shared/ui/Stack';
 import { type IRouteAction, type ActionType } from '@krasterisk/shared';
 import { dialplanAppsRegistry, ACTION_TYPES_LIST } from '../../model/registry';
+import { IDialplanAppConfig } from '../../model/types';
 
 const DIALSTATUS_OPTIONS = [
-  { value: '', label: 'routes.dialstatus.any' },
-  { value: 'CHANUNAVAIL', label: 'routes.dialstatus.chanunavail' },
-  { value: 'BUSY', label: 'routes.dialstatus.busy' },
-  { value: 'NOANSWER', label: 'routes.dialstatus.noanswer' },
+  { value: '', labelKey: 'routes.dialstatus.any' },
+  { value: 'CHANUNAVAIL', labelKey: 'routes.dialstatus.chanunavail' },
+  { value: 'BUSY', labelKey: 'routes.dialstatus.busy' },
+  { value: 'NOANSWER', labelKey: 'routes.dialstatus.noanswer' },
 ];
 
 /**
- * Sortable Item Helper Component
+ * Pre-computed grouped categories for <optgroup> in the Action Type selector.
+ * Computed once at module level since ACTION_TYPES_LIST is static.
+ */
+const groupedCategories: Record<string, IDialplanAppConfig[]> = (() => {
+  const groups: Record<string, IDialplanAppConfig[]> = {};
+  ACTION_TYPES_LIST.forEach((item) => {
+    const cat = item.category || 'other';
+    if (!groups[cat]) groups[cat] = [];
+    groups[cat].push(item);
+  });
+  return groups;
+})();
+
+/**
+ * Sortable Item
  */
 const SortableActionItem = memo(({
-  action, idx, updateAction, removeAction, t, AppConfig
-}: { action: IRouteAction, idx: number, updateAction: any, removeAction: any, t: any, AppConfig: any }) => {
+  action, idx, updateAction, removeAction, t, AppConfig,
+}: {
+  action: IRouteAction;
+  idx: number;
+  updateAction: (id: string, field: string, value: any) => void;
+  removeAction: (id: string) => void;
+  t: ReturnType<typeof useTranslation>['t'];
+  AppConfig: IDialplanAppConfig;
+}) => {
   const {
     attributes,
     listeners,
@@ -55,82 +78,67 @@ const SortableActionItem = memo(({
 
   const AppComponent = AppConfig.component;
 
-  // Memoize grouped options to avoid recalculation
-  const groupedCategories = useMemo(() => {
-    const groups: Record<string, typeof ACTION_TYPES_LIST> = {};
-    ACTION_TYPES_LIST.forEach((item) => {
-      const cat = item.category || 'other';
-      if (!groups[cat]) groups[cat] = [];
-      groups[cat].push(item);
-    });
-    return groups;
-  }, []);
-
   return (
-    <div ref={setNodeRef} style={style}>
-      <HStack
-        gap="12"
-        align="center"
-        className={`w-full p-4 bg-black/20 border ${isDragging ? 'border-primary' : 'border-white/10'} rounded-xl backdrop-blur-md transition-colors`}
-      >
-        {/* Grab Controls */}
-        <VStack gap="2" align="center" className="w-[30px] opacity-70">
-          <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-white/40 hover:text-white transition-colors p-1">
-            <GripVertical className="w-5 h-5" />
-          </div>
-          <Text size="sm" variant="muted">{idx + 1}</Text>
-        </VStack>
+    <Flex ref={setNodeRef} style={style} direction="row" align="start" gap="12"
+      className={`w-full p-4 bg-black/20 border ${isDragging ? 'border-primary' : 'border-white/10'} rounded-xl backdrop-blur-md transition-colors`}
+    >
+      {/* Grab Handle */}
+      <VStack gap="2" align="center" className="w-[30px] opacity-70">
+        <Flex {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-white/40 hover:text-white transition-colors p-1">
+          <GripVertical className="w-5 h-5" />
+        </Flex>
+        <Text variant="muted">{idx + 1}</Text>
+      </VStack>
 
-        {/* Type Selector */}
-        <div className="w-[200px] shrink-0">
-          <Text size="sm" variant="muted" className="mb-1 block">{t('routes.actionType', 'Действие')}</Text>
-          <Select
-            value={action.type}
-            onChange={(e) => updateAction(action.id, 'type', e.target.value)}
-            className="w-full"
-          >
-            {Object.entries(groupedCategories).map(([category, items]) => (
-              <optgroup key={category} label={t(`routes.categories.${category}`, category.toUpperCase())}>
-                {items.map(at => (
-                  <option key={at.type} value={at.type}>{t(at.labelKey, at.type)}</option>
-                ))}
-              </optgroup>
-            ))}
-          </Select>
-        </div>
-
-        {/* App Payload Selector */}
-        <div className="flex-1">
-          <Text size="sm" variant="muted" className="mb-1 block">{t('routes.actionParams', 'Параметры')}</Text>
-          <AppComponent action={action} onUpdate={updateAction} />
-        </div>
-
-        {/* Condition Filters */}
-        <div className="w-[150px] shrink-0">
-          <Text size="sm" variant="muted" className="mb-1 block">{t('routes.condition', 'Условие')}</Text>
-          <Select
-            value={action.condition?.dialstatus || ''}
-            onChange={(e) => updateAction(action.id, 'condition.dialstatus', e.target.value)}
-            className="w-full"
-          >
-            {DIALSTATUS_OPTIONS.map(opt => (
-              <option key={opt.value} value={opt.value}>{t(opt.label, opt.value || 'Любой')}</option>
-            ))}
-          </Select>
-        </div>
-
-        {/* Remove Action */}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="mt-6 text-destructive hover:text-destructive/80 hover:bg-destructive/10 shrink-0"
-          onClick={() => removeAction(action.id)}
-          title={t('common.delete', 'Удалить')}
+      {/* Type Selector */}
+      <VStack gap="2" className="w-[200px] shrink-0">
+        <Text variant="muted">{t('routes.actionType', 'Действие')}</Text>
+        <Select
+          value={action.type}
+          onChange={(e) => updateAction(action.id, 'type', e.target.value)}
+          className="w-full"
         >
-          <Trash2 className="w-4 h-4" />
-        </Button>
-      </HStack>
-    </div>
+          {Object.entries(groupedCategories).map(([category, items]) => (
+            <optgroup key={category} label={t(`routes.categories.${category}`, category.toUpperCase())}>
+              {items.map(at => (
+                <option key={at.type} value={at.type}>{t(at.labelKey, at.type)}</option>
+              ))}
+            </optgroup>
+          ))}
+        </Select>
+      </VStack>
+
+      {/* App Payload */}
+      <VStack gap="2" className="flex-1">
+        <Text variant="muted">{t('routes.actionParams', 'Параметры')}</Text>
+        <AppComponent action={action} onUpdate={updateAction} />
+      </VStack>
+
+      {/* Condition Filters */}
+      <VStack gap="2" className="w-[150px] shrink-0">
+        <Text variant="muted">{t('routes.condition', 'Условие')}</Text>
+        <Select
+          value={action.condition?.dialstatus || ''}
+          onChange={(e) => updateAction(action.id, 'condition.dialstatus', e.target.value)}
+          className="w-full"
+        >
+          {DIALSTATUS_OPTIONS.map(opt => (
+            <option key={opt.value} value={opt.value}>{t(opt.labelKey, opt.value || 'Любой')}</option>
+          ))}
+        </Select>
+      </VStack>
+
+      {/* Remove Action */}
+      <Button
+        variant="ghost"
+        size="icon"
+        className="mt-6 text-destructive hover:text-destructive/80 hover:bg-destructive/10 shrink-0"
+        onClick={() => removeAction(action.id)}
+        title={t('common.delete', 'Удалить')}
+      >
+        <Trash2 className="w-4 h-4" />
+      </Button>
+    </Flex>
   );
 });
 SortableActionItem.displayName = 'SortableActionItem';

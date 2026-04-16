@@ -15,6 +15,7 @@ import { mohReducer } from '@/features/moh/model/slice/mohSlice';
 import { ttsEnginesReducer } from '@/features/tts-engines/model/slice/ttsEnginesSlice';
 import { sttEnginesReducer } from '@/features/stt-engines/model/slice/sttEnginesSlice';
 import { voiceRobotsReducer } from '@/features/voiceRobots/model/slice/voiceRobotsSlice';
+import { queuesPageReducer } from '@/features/queues/model/slice/queuesPageSlice';
 
 export const store = configureStore({
   reducer: {
@@ -33,6 +34,7 @@ export const store = configureStore({
     ttsEngines: ttsEnginesReducer,
     sttEngines: sttEnginesReducer,
     voiceRobots: voiceRobotsReducer,
+    queuesPage: queuesPageReducer,
     [rtkApi.reducerPath]: rtkApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>

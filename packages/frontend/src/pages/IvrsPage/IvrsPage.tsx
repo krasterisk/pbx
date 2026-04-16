@@ -2,7 +2,7 @@ import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'motion/react';
 import { GitMerge, Plus } from 'lucide-react';
-import { Button } from '@/shared/ui';
+import { Button, Text } from '@/shared/ui';
 import { VStack, HStack } from '@/shared/ui/Stack';
 import { useAppDispatch } from '@/shared/hooks/useAppStore';
 import { IvrsTable, ivrsActions } from '@/features/ivrs';
@@ -18,11 +18,13 @@ export const IvrsPage = memo(() => {
         <VStack gap="4">
           <HStack gap="12" align="center">
             <GitMerge className="w-7 h-7 text-primary" />
-            <h1 className="text-2xl font-bold">{t('ivrs.title', 'Голосовые меню (IVR)')}</h1>
+            <Text variant="h2" as="h1">
+              {t('ivrs.title', 'Голосовые меню (IVR)')}
+            </Text>
           </HStack>
-          <p className="text-muted-foreground text-sm">
+          <Text variant="muted">
             {t('ivrs.subtitle', 'Настройка интерактивных голосовых меню')}
-          </p>
+          </Text>
         </VStack>
         <Button onClick={() => dispatch(ivrsActions.openCreateModal())}>
           <Plus className="w-4 h-4 mr-2" />
@@ -34,6 +36,7 @@ export const IvrsPage = memo(() => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
+        style={{ width: '100%' }}
       >
         <IvrsTable />
       </motion.div>

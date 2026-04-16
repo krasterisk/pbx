@@ -1,4 +1,5 @@
-import { IRouteAction } from '@/shared/api/api';
+import { IRouteAction } from '@krasterisk/shared';
+import { IVoiceRobotBotAction, ISlotChoice } from './botAction';
 
 export interface IVoiceRobotVadConfig {
   silence_timeout_ms: number;
@@ -18,9 +19,15 @@ export interface IVoiceRobot {
   greeting_prompts: any | null;
   greeting_tts_text: string | null;
   vad_config: IVoiceRobotVadConfig;
-  fallback_action: IRouteAction[];
-  max_retries_action: IRouteAction[];
+  fallback_action: IRouteAction[];        // legacy — kept for backwards compat
+  fallback_bot_action: IVoiceRobotBotAction | null;  // new format
+  max_retries_action: IRouteAction[];      // legacy — kept for backwards compat
+  max_retries_bot_action: IVoiceRobotBotAction | null; // new format
   max_conversation_steps: number;
+  silence_timeout_seconds: number;
+  tts_mode: 'streaming' | 'batch';
+  tts_cache_max_age_days: number;
+  stt_mode: 'hybrid' | 'full_stream';
   user_uid: number;
   created_at: string;
   updated_at: string;
@@ -42,7 +49,8 @@ export interface IVoiceRobotKeyword {
   keywords: string;
   negative_keywords: string[];
   synonyms: string[];
-  actions: IRouteAction[];
+  actions: IRouteAction[];               // legacy — kept for backwards compat
+  bot_action: IVoiceRobotBotAction | null; // new — used by runtime engine
   priority: number;
   comment: string | null;
   user_uid: number;

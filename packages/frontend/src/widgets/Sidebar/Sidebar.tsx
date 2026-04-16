@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
@@ -60,16 +61,36 @@ export const Sidebar = ({ collapsed, onToggle, isMobile }: SidebarProps) => {
     { name: t('nav.users'), path: '/users', icon: Users },
     { name: t('nav.roles' as any) || 'Интерфейсы', path: '/roles', icon: Shield },
     { name: t('nav.numbers' as any) || 'Списки доступа', path: '/numbers', icon: List },
-    { name: t('provisionTemplates.title', 'Шаблоны автонастройки'), path: '/provision-templates', icon: FileCode },
-    { name: t('ttsEngines.title', 'Синтез речи (TTS)'), path: '/settings/tts-engines', icon: Volume2 },
-    { name: t('sttEngines.title', 'Распознавание речи (STT)'), path: '/settings/stt-engines', icon: AudioLines },
+    { name: t('nav.provisionTemplates', 'Шаблоны автонастройки'), path: '/provision-templates', icon: FileCode },
+    { name: t('nav.ttsEngines', 'Синтез речи (TTS)'), path: '/settings/tts-engines', icon: Volume2 },
+    { name: t('nav.sttEngines', 'Распознавание речи (STT)'), path: '/settings/stt-engines', icon: AudioLines },
     { name: t('nav.settings'), path: '/settings', icon: Settings },
   ] as const;
 
   const isVisuallyExpanded = isMobile ? true : !collapsed;
 
+  const touchStartX = useRef<number | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current === null) return;
+    const touchEndX = e.changedTouches[0].clientX;
+    const diff = touchStartX.current - touchEndX;
+
+    // Close on swipe left > 40px
+    if (diff > 40 && isMobile && !collapsed) {
+      onToggle();
+    }
+    touchStartX.current = null;
+  };
+
   return (
     <motion.aside
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
       initial={false}
       animate={
         isMobile

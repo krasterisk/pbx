@@ -1,0 +1,40 @@
+.dialogContent {
+  max-height: 85vh;
+}
+
+.sectionDivider {
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+  margin-top: 4px;
+}
+
+.sectionLabel {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--muted-foreground);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sectionIcon {
+  width: 16px;
+  height: 16px;
+  color: hsl(var(--primary));
+}
+
+.previewToggle {
+  font-size: 12px;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: color 150ms;
+
+  &:hover {
+    color: var(--foreground);
+  }
+}

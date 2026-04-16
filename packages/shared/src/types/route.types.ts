@@ -7,10 +7,19 @@ export type ActionType =
   | 'webhook' | 'confbridge' | 'cmd' | 'tofax'
   | 'label' | 'busy' | 'hangup';
 
+/** Asterisk DIALSTATUS values — used as condition whitelist */
+export type DialStatus =
+  | 'CHANUNAVAIL' | 'CONGESTION' | 'BUSY' | 'NOANSWER' | 'ANSWER'
+  | 'CANCEL' | 'DONTCALL' | 'TORTURE' | 'INVALIDARGS';
+
+/** Action category for UI grouping in <optgroup> */
+export type ActionCategory = 'telephony' | 'media' | 'notification' | 'system';
+
 export interface IRouteActionCondition {
-  dialstatus?: string;
+  dialstatus?: DialStatus | '';
   calendar?: string;
 }
+
 
 interface BaseRouteAction {
   id: string;
@@ -172,10 +181,10 @@ export interface IRouteOptions {
 }
 
 export interface IRouteWebhooks {
-  before_dial?: string;
-  on_answer?: string;
-  on_hangup?: string;
-  custom?: string;
+  before_dial?: string[];
+  on_answer?: string[];
+  on_hangup?: string[];
+  custom?: string[];
 }
 
 export interface IRoute {
@@ -187,7 +196,7 @@ export interface IRoute {
   active: number;
   options: IRouteOptions | null;
   webhooks: IRouteWebhooks | null;
-  actions: DialplanAction[];
+  actions: IRouteAction[];
   raw_dialplan: string | null;
   user_uid: number;
   created_at: string;

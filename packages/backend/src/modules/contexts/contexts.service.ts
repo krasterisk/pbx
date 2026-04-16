@@ -1,12 +1,19 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Inject, forwardRef } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Context } from './context.model';
+import { AmiService } from '../ami/ami.service';
 
 @Injectable()
 export class ContextsService {
   constructor(
     @InjectModel(Context) private contextModel: typeof Context,
+    @Inject(forwardRef(() => AmiService)) private amiService: AmiService,
   ) {}
+
+  private buildContextName(contextName: string, vpbxUserUid: number): string {
+    const suffix = String(vpbxUserUid);
+    return contextName.endsWith(suffix) ? contextName : `${contextName}${suffix}`;
+  }
 
   async findAll(vpbxUserUid: number): Promise<Context[]> {
     return this.contextModel.findAll({
@@ -24,14 +31,16 @@ export class ContextsService {
   }
 
   async create(data: Partial<Context>, vpbxUserUid: number): Promise<Context> {
-    return this.contextModel.create({
+    const ctx = await this.contextModel.create({
       ...data,
       user_uid: vpbxUserUid,
     } as any);
+    return ctx;
   }
 
   async update(uid: number, data: Partial<Context>, vpbxUserUid: number): Promise<Context> {
     const context = await this.findOne(uid, vpbxUserUid);
+    const oldName = context.name;
     await context.update(data);
     return context;
   }
