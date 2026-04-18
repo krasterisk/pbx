@@ -16,7 +16,7 @@ export interface MatchResult {
   /** Number of words matched */
   matchedWordCount: number;
   /** Matching method used */
-  method: 'levenshtein' | 'semantic';
+  method: 'levenshtein' | 'semantic' | 'fallback';
 }
 
 /**

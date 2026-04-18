@@ -34,6 +34,13 @@ export class VoiceRobotKeyword extends Model {
   @Column({ type: DataType.INTEGER, allowNull: false })
   declare priority: number;
 
+  @Default(0)
+  @Column({ type: DataType.INTEGER, allowNull: false })
+  declare max_repeats: number;
+
+  @Column({ type: DataType.JSON, allowNull: true })
+  declare escalation_action: any | null;
+
   @Column({ type: DataType.STRING(512), allowNull: true })
   declare comment: string | null;
 

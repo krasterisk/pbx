@@ -47,7 +47,7 @@ export class YandexStreamingTtsProvider implements ITtsStreamingProvider {
     }
 
     const packageDefinition = protoLoader.loadSync(ttsServiceProto, {
-      includeDirs: [protoDir],
+      includeDirs: [protoDir, path.join(protoDir, 'third_party', 'googleapis')],
       keepCase: true,
       longs: String,
       enums: String,

@@ -30,6 +30,10 @@ export class VoiceRobotKeywordGroup extends Model {
   declare active: number;
 
   @Default(0)
+  @Column({ type: DataType.TINYINT, allowNull: false })
+  declare is_global: number;
+
+  @Default(0)
   @Column({ type: DataType.INTEGER, allowNull: false })
   declare user_uid: number;
 }

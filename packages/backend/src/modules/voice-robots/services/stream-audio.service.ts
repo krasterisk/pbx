@@ -100,9 +100,22 @@ export class StreamAudioService {
 
     if (!state.isProcessing) {
       state.isProcessing = true;
-      this.processQueue(sessionId, state).catch((err) =>
-        this.logger.error(`Processing error for ${sessionId}: ${err}`),
-      );
+      // Await actual playback completion so callers (speakBatch) can
+      // correctly track when audio finishes playing over RTP.
+      await this.processQueue(sessionId, state);
+    } else {
+      // Another processQueue loop is already running.
+      // Return a promise that resolves when the queue drains.
+      return new Promise<void>((resolve) => {
+        const check = () => {
+          if (!state.isProcessing || state.abortController.signal.aborted) {
+            resolve();
+          } else {
+            setTimeout(check, 50);
+          }
+        };
+        setTimeout(check, 50);
+      });
     }
   }
 

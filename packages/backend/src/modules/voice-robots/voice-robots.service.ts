@@ -50,7 +50,7 @@ export class VoiceRobotsService implements OnApplicationShutdown {
     // Default: 127.0.0.1 (assumes Asterisk and Node.js are on the same host).
     // If Asterisk is on a remote server, set `external_host` per-robot
     // to the public IP of this Node.js server.
-    this.defaultExternalHost = '127.0.0.1';
+    this.defaultExternalHost = this.configService.get<string>('EXTERNAL_RTP_HOST', '127.0.0.1');
   }
 
   // ─── Robot CRUD ────────────────────────────────────────
@@ -381,6 +381,7 @@ export class VoiceRobotsService implements OnApplicationShutdown {
         channelId,
         robot,
         keywords,
+        keywordGroups,
         externalHost,
         this.logModel,
       );

@@ -5,6 +5,7 @@ import { VStack, HStack, Flex, Input, Label, Text, Select, Checkbox, Textarea, B
 import { InfoTooltip } from '@/shared/ui/Tooltip/Tooltip';
 import { IVoiceRobotBotAction } from '@/entities/voiceRobot';
 import { VoiceRobotActionEditor } from '../VoiceRobotActionEditor/VoiceRobotActionEditor';
+import { useGetVoiceRobotKeywordGroupsQuery } from '@/shared/api/endpoints/voiceRobotsApi';
 
 const DEFAULT_FALLBACK_ACTION: IVoiceRobotBotAction = {
   response: { type: 'tts', value: '' },
@@ -26,12 +27,17 @@ interface VoiceRobotGeneralTabProps {
   setLanguage: (v: string) => void;
   greetingText: string;
   setGreetingText: (v: string) => void;
+  initialGroupId: number | null;
+  setInitialGroupId: (v: number | null) => void;
+  robotId: number | null;
   maxSteps: number;
   setMaxSteps: (v: number) => void;
   silenceTimeoutSeconds: number;
   setSilenceTimeoutSeconds: (v: number) => void;
   fallbackBotAction: IVoiceRobotBotAction;
   setFallbackBotAction: (v: IVoiceRobotBotAction) => void;
+  maxInactivityRepeats: number;
+  setMaxInactivityRepeats: (v: number) => void;
   maxRetriesBotAction: IVoiceRobotBotAction;
   setMaxRetriesBotAction: (v: IVoiceRobotBotAction) => void;
   ttsEngines?: any[];
@@ -52,15 +58,23 @@ export const VoiceRobotGeneralTab = memo(({
   ttsId, setTtsId, sttId, setSttId,
   language, setLanguage,
   greetingText, setGreetingText,
+  initialGroupId, setInitialGroupId,
+  robotId,
   maxSteps, setMaxSteps,
   silenceTimeoutSeconds, setSilenceTimeoutSeconds,
   fallbackBotAction, setFallbackBotAction,
+  maxInactivityRepeats, setMaxInactivityRepeats,
   maxRetriesBotAction, setMaxRetriesBotAction,
   ttsEngines, sttEngines,
 }: VoiceRobotGeneralTabProps) => {
   const { t } = useTranslation();
   const [showFallback, setShowFallback] = useState(false);
   const [showMaxRetries, setShowMaxRetries] = useState(false);
+
+  const { data: keywordGroups = [] } = useGetVoiceRobotKeywordGroupsQuery(
+    robotId ?? 0,
+    { skip: !robotId },
+  );
 
   return (
     <VStack gap="16">
@@ -142,6 +156,27 @@ export const VoiceRobotGeneralTab = memo(({
         />
       </VStack>
 
+      {/* Initial Group */}
+      {robotId && keywordGroups.length > 0 && (
+        <VStack gap="4">
+          <HStack align="center" gap="4">
+            <Label>{t('voiceRobots.initialGroup', 'Стартовая группа сценариев')}</Label>
+            <InfoTooltip text={t('voiceRobots.initialGroupHint', 'Группа ключевых слов, с которой робот начнёт диалог после приветствия. Остальные группы доступны через действие «Переключить сценарий».')} />
+          </HStack>
+          <Select
+            value={initialGroupId ?? ''}
+            onChange={(e) => setInitialGroupId(e.target.value ? Number(e.target.value) : null)}
+          >
+            <option value="">{t('voiceRobots.autoDetectGroup', '-- Автоматически (первая группа) --')}</option>
+            {keywordGroups
+              .filter((g: any) => !g.is_global)
+              .map((g: any) => (
+                <option key={g.uid} value={g.uid}>{g.name} (ID: {g.uid})</option>
+              ))}
+          </Select>
+        </VStack>
+      )}
+
       {/* ═══ Error Handling Section ═══ */}
       <VStack gap="12" className="p-4 border border-border rounded-lg bg-card">
         <HStack gap="8" align="center">
@@ -151,7 +186,7 @@ export const VoiceRobotGeneralTab = memo(({
           </Text>
         </HStack>
 
-        <Flex className="grid grid-cols-2 gap-6">
+        <Flex className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <VStack gap="4">
             <HStack align="center" gap="4">
               <Label>{t('voiceRobots.maxSteps', 'Максимум шагов диалога')}</Label>
@@ -164,10 +199,19 @@ export const VoiceRobotGeneralTab = memo(({
           <VStack gap="4">
             <HStack align="center" gap="4">
               <Label>{t('voiceRobots.silenceTimeout', 'Таймаут молчания (сек)')}</Label>
-              <InfoTooltip text={t('voiceRobots.silenceTimeoutHint', 'Если клиент не отвечает на уточняющий вопрос в течение N секунд — применяется fallback.')} />
+              <InfoTooltip text={t('voiceRobots.silenceTimeoutHint', 'Если клиент молчит, через это время робот повторит вопрос.')} />
             </HStack>
             <Input type="number" min={5} max={120} value={silenceTimeoutSeconds}
               onChange={e => setSilenceTimeoutSeconds(Number(e.target.value))} />
+          </VStack>
+
+          <VStack gap="4">
+            <HStack align="center" gap="4">
+              <Label>{t('voiceRobots.maxInactivityRepeats', 'Макс. повторов при молчании')}</Label>
+              <InfoTooltip text={t('voiceRobots.maxInactivityRepeatsHint', 'Сколько раз робот повторит последнюю фразу, если клиент молчит. После этого сработает fallback.')} />
+            </HStack>
+            <Input type="number" min={0} max={10} value={maxInactivityRepeats}
+              onChange={e => setMaxInactivityRepeats(Number(e.target.value))} />
           </VStack>
         </Flex>
 

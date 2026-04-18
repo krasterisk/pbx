@@ -58,7 +58,9 @@ export const VoiceRobotForm = memo(({ initialRobot }: VoiceRobotFormProps) => {
   // Flow FSM
   const [maxSteps, setMaxSteps] = useState(10);
   const [greetingText, setGreetingText] = useState('');
+  const [initialGroupId, setInitialGroupId] = useState<number | null>(null);
   const [silenceTimeoutSeconds, setSilenceTimeoutSeconds] = useState(15);
+  const [maxInactivityRepeats, setMaxInactivityRepeats] = useState(3);
 
   // TTS Mode & Cache
   const [ttsMode, setTtsMode] = useState<'streaming' | 'batch'>('batch');
@@ -66,6 +68,7 @@ export const VoiceRobotForm = memo(({ initialRobot }: VoiceRobotFormProps) => {
 
   // STT Mode
   const [sttMode, setSttMode] = useState<'hybrid' | 'full_stream'>('hybrid');
+  const [externalHost, setExternalHost] = useState('');
 
   // Fallback / Max Retries actions
   const [fallbackBotAction, setFallbackBotAction] = useState<IVoiceRobotBotAction>({ ...DEFAULT_FALLBACK_ACTION });
@@ -83,10 +86,13 @@ export const VoiceRobotForm = memo(({ initialRobot }: VoiceRobotFormProps) => {
       setVadConfig(initialRobot.vad_config || { silence_timeout_ms: 2000, max_duration_seconds: 15, barge_in: true, min_speech_duration_ms: 300 });
       setMaxSteps(initialRobot.max_conversation_steps || 10);
       setGreetingText(initialRobot.greeting_tts_text || '');
+      setInitialGroupId(initialRobot.initial_group_id ?? null);
       setSilenceTimeoutSeconds((initialRobot as any).silence_timeout_seconds ?? 15);
+      setMaxInactivityRepeats((initialRobot as any).max_inactivity_repeats ?? 3);
       setTtsMode(initialRobot.tts_mode || 'batch');
       setTtsCacheMaxAgeDays(initialRobot.tts_cache_max_age_days ?? 0);
       setSttMode(initialRobot.stt_mode || 'hybrid');
+      setExternalHost(initialRobot.external_host || '');
       setFallbackBotAction((initialRobot as any).fallback_bot_action || { ...DEFAULT_FALLBACK_ACTION });
       setMaxRetriesBotAction((initialRobot as any).max_retries_bot_action || { ...DEFAULT_FALLBACK_ACTION });
     }
@@ -105,10 +111,13 @@ export const VoiceRobotForm = memo(({ initialRobot }: VoiceRobotFormProps) => {
       vad_config: vadConfig,
       max_conversation_steps: maxSteps,
       greeting_tts_text: greetingText || null,
+      initial_group_id: initialGroupId,
       tts_mode: ttsMode,
       tts_cache_max_age_days: ttsCacheMaxAgeDays,
       stt_mode: sttMode,
+      external_host: externalHost || null,
       silence_timeout_seconds: silenceTimeoutSeconds,
+      max_inactivity_repeats: maxInactivityRepeats,
       fallback_bot_action: fallbackBotAction,
       max_retries_bot_action: maxRetriesBotAction,
     };
@@ -162,8 +171,11 @@ export const VoiceRobotForm = memo(({ initialRobot }: VoiceRobotFormProps) => {
               sttId={sttId} setSttId={setSttId}
               language={language} setLanguage={setLanguage}
               greetingText={greetingText} setGreetingText={setGreetingText}
+              initialGroupId={initialGroupId} setInitialGroupId={setInitialGroupId}
+              robotId={initialRobot?.uid ?? null}
               maxSteps={maxSteps} setMaxSteps={setMaxSteps}
               silenceTimeoutSeconds={silenceTimeoutSeconds} setSilenceTimeoutSeconds={setSilenceTimeoutSeconds}
+              maxInactivityRepeats={maxInactivityRepeats} setMaxInactivityRepeats={setMaxInactivityRepeats}
               fallbackBotAction={fallbackBotAction} setFallbackBotAction={setFallbackBotAction}
               maxRetriesBotAction={maxRetriesBotAction} setMaxRetriesBotAction={setMaxRetriesBotAction}
               ttsEngines={ttsEngines} sttEngines={sttEngines}
@@ -180,6 +192,7 @@ export const VoiceRobotForm = memo(({ initialRobot }: VoiceRobotFormProps) => {
               ttsMode={ttsMode} setTtsMode={setTtsMode}
               ttsCacheMaxAgeDays={ttsCacheMaxAgeDays} setTtsCacheMaxAgeDays={setTtsCacheMaxAgeDays}
               sttMode={sttMode} setSttMode={setSttMode}
+              externalHost={externalHost} setExternalHost={setExternalHost}
             />
           )}
 

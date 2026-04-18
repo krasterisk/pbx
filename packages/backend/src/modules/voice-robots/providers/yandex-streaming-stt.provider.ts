@@ -49,7 +49,7 @@ export class YandexStreamingSttProvider implements ISttStreamingProvider {
     }
 
     const packageDefinition = protoLoader.loadSync(sttServiceProto, {
-      includeDirs: [protoDir],
+      includeDirs: [protoDir, path.join(protoDir, 'third_party', 'googleapis')],
       keepCase: true,
       longs: String,
       enums: String,

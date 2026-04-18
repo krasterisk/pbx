@@ -1,13 +1,14 @@
-import { memo, useState, useCallback } from 'react';
+import { memo, useState, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Pencil, Trash2, Plus, ChevronRight, ChevronDown, Bot, FileText,
-  MessageSquare, ArrowRight, GripVertical, Eye,
+  MessageSquare, ArrowRight, GripVertical, Eye, Copy, Check, GitBranchPlus, Globe, Play,
 } from 'lucide-react';
-import { VStack, HStack, Text, Button, Input, Label, Checkbox, Dialog, DialogContent, DialogHeader, DialogTitle } from '@/shared/ui';
+import { VStack, HStack, Text, Button, Input, Label, Checkbox, Dialog, DialogContent, DialogHeader, DialogTitle, SkeletonCard, PageLoader } from '@/shared/ui';
 import { IVoiceRobot, IVoiceRobotKeywordGroup, IVoiceRobotKeyword, IVoiceRobotBotAction } from '@/entities/voiceRobot';
 import { KeywordEditDialog } from '../KeywordEditDialog/KeywordEditDialog';
-import { ConversationPreview } from '../ConversationPreview/ConversationPreview';
+import { ConversationPreview } from '../ConversationPreview';
+import { ScenarioTreePreview } from '../ScenarioTreePreview';
 import {
   useGetVoiceRobotKeywordGroupsQuery,
   useCreateVoiceRobotKeywordGroupMutation,
@@ -213,7 +214,12 @@ const KeywordsList = memo(({ groupId, robotId }: KeywordsListProps) => {
   }, [deleteKeyword]);
 
   if (isLoading) {
-    return <Text variant="xs" className="text-muted-foreground p-2">{t('common.loading', 'Загрузка...')}</Text>;
+    return (
+      <VStack gap="8" className="p-2">
+        <SkeletonCard />
+        <SkeletonCard />
+      </VStack>
+    );
   }
 
   return (
@@ -263,7 +269,9 @@ const KeywordsList = memo(({ groupId, robotId }: KeywordsListProps) => {
             {previewKeyword && (
               <ConversationPreview 
                 keyword={previewKeyword.keywords} 
-                action={previewKeyword.bot_action || { response: { type: 'none' }, nextState: { type: 'listen' } }} 
+                action={previewKeyword.bot_action || { response: { type: 'none' }, nextState: { type: 'listen' } }}
+                maxRepeats={previewKeyword.max_repeats}
+                escalationAction={previewKeyword.escalation_action}
               />
             )}
           </div>
@@ -281,7 +289,7 @@ KeywordsList.displayName = 'KeywordsList';
 interface KeywordGroupPanelProps {
   group: IVoiceRobotKeywordGroup;
   onDelete: (uid: number) => void;
-  onUpdate: (uid: number, data: Partial<IVoiceRobotKeywordGroup>) => void;
+  onUpdate: (uid: number, data: Partial<IVoiceRobotKeywordGroup>) => Promise<void>;
   robotId: number;
 }
 
@@ -290,6 +298,34 @@ const KeywordGroupPanel = memo(({ group, onDelete, onUpdate, robotId }: KeywordG
   const [isExpanded, setIsExpanded] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const [editName, setEditName] = useState(group.name);
+  const [isCopied, setIsCopied] = useState(false);
+
+  // Optimistic local state for toggles
+  const [optimisticActive, setOptimisticActive] = useState(group.active);
+  const [optimisticGlobal, setOptimisticGlobal] = useState(group.is_global);
+
+  // Sync with server data when props change
+  useEffect(() => { setOptimisticActive(group.active); }, [group.active]);
+  useEffect(() => { setOptimisticGlobal(group.is_global); }, [group.is_global]);
+
+  const handleToggleActive = useCallback(() => {
+    const next = !optimisticActive;
+    setOptimisticActive(next);
+    onUpdate(group.uid, { active: next }).catch(() => setOptimisticActive(optimisticActive));
+  }, [optimisticActive, onUpdate, group.uid]);
+
+  const handleToggleGlobal = useCallback(() => {
+    const next = !optimisticGlobal;
+    setOptimisticGlobal(next);
+    onUpdate(group.uid, { is_global: next }).catch(() => setOptimisticGlobal(optimisticGlobal));
+  }, [optimisticGlobal, onUpdate, group.uid]);
+
+  const handleCopyId = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(String(group.uid));
+    setIsCopied(true);
+    setTimeout(() => setIsCopied(false), 2000);
+  }, [group.uid]);
 
   const handleSaveName = () => {
     if (editName.trim() && editName !== group.name) {
@@ -324,19 +360,61 @@ const KeywordGroupPanel = memo(({ group, onDelete, onUpdate, robotId }: KeywordG
             />
           ) : (
             <VStack gap="0" className="min-w-0">
-              <Text variant="small" className="font-semibold truncate">{group.name}</Text>
+              <Text variant="small" className="font-semibold truncate flex items-center">
+                {group.name} 
+                <span className="text-muted-foreground font-normal ml-3 text-xs flex items-center gap-1.5 bg-muted-foreground/10 px-1.5 py-0.5 rounded">
+                  ID: {group.uid}
+                  <button 
+                    onClick={handleCopyId}
+                    className="hover:text-primary transition-colors flex items-center justify-center"
+                    title={t('common.copy', 'Скопировать')}
+                  >
+                    {isCopied ? <Check size={12} className="text-green-500" /> : <Copy size={12} />}
+                  </button>
+                </span>
+              </Text>
               <Text variant="xs" className="text-muted-foreground">
                 {t('voiceRobots.groupDescription', 'Группа сценариев. Робот реагирует на эти фразы в данной стадии диалога.')}
               </Text>
             </VStack>
           )}
 
-          <HStack gap="4" className="shrink-0 ml-2">
-            <Checkbox
-              checked={group.active}
-              onChange={(e) => { e.stopPropagation(); onUpdate(group.uid, { active: e.target.checked }); }}
-              title={t('common.active', 'Активна')}
-            />
+          <HStack gap="6" className="shrink-0 ml-2" onClick={(e) => e.stopPropagation()}>
+            {/* Active toggle pill */}
+            <button
+              onClick={handleToggleActive}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all border cursor-pointer ${
+                optimisticActive
+                  ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
+                  : 'bg-red-500/10 text-red-500/70 border-red-500/20 line-through'
+              }`}
+              title={optimisticActive
+                ? t('voiceRobots.groupActive', 'Группа активна — нажмите чтобы отключить')
+                : t('voiceRobots.groupInactive', 'Группа отключена — нажмите чтобы включить')}
+            >
+              <span className={`w-2 h-2 rounded-full ${optimisticActive ? 'bg-emerald-500' : 'bg-red-400/60'}`} />
+              {optimisticActive
+                ? t('common.active', 'Активна')
+                : t('common.inactive', 'Выкл')}
+            </button>
+
+            {/* Global toggle pill */}
+            <button
+              onClick={handleToggleGlobal}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all border cursor-pointer ${
+                optimisticGlobal
+                  ? 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30'
+                  : 'bg-muted/50 text-muted-foreground/50 border-border/50 hover:text-muted-foreground hover:border-border'
+              }`}
+              title={optimisticGlobal
+                ? t('voiceRobots.globalGroupActive', 'Глобальная — ключевые слова доступны на всех стадиях диалога. Нажмите чтобы отключить.')
+                : t('voiceRobots.globalGroupInactive', 'Сделать глобальной — ключевые слова будут доступны на всех стадиях диалога.')}
+            >
+              <Globe className="w-3 h-3" />
+              {optimisticGlobal
+                ? t('voiceRobots.global', 'Глобальная')
+                : t('voiceRobots.notGlobal', 'Локальная')}
+            </button>
           </HStack>
         </HStack>
 
@@ -394,6 +472,7 @@ export const VoiceRobotDialogueTab = memo(({ selectedRobot }: VoiceRobotDialogue
 
   const [isAddingGroup, setIsAddingGroup] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
+  const [showTree, setShowTree] = useState(false);
 
   const handleAddGroup = useCallback(async () => {
     if (!newGroupName.trim() || !selectedRobot) return;
@@ -444,8 +523,10 @@ export const VoiceRobotDialogueTab = memo(({ selectedRobot }: VoiceRobotDialogue
 
   if (isLoading) {
     return (
-      <VStack align="center" className="py-16">
-        <Text variant="muted">{t('common.loading', 'Загрузка...')}</Text>
+      <VStack gap="12">
+        <SkeletonCard />
+        <SkeletonCard />
+        <SkeletonCard />
       </VStack>
     );
   }
@@ -462,18 +543,42 @@ export const VoiceRobotDialogueTab = memo(({ selectedRobot }: VoiceRobotDialogue
             {t('voiceRobots.dialogueScenariosDescription', 'Группа определяет «стадию» разговора. Ключевые слова внутри — это варианты фраз клиента, на которые реагирует робот на этой стадии.')}
           </Text>
         </VStack>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setShowTree(true)}
+          disabled={groups.length === 0}
+        >
+          <GitBranchPlus className="w-4 h-4 mr-2" />
+          {t('voiceRobots.preview.treeButton', 'Дерево сценариев')}
+        </Button>
       </HStack>
 
+      {/* Tree Preview Dialog */}
+      <Dialog open={showTree} onOpenChange={(open) => !open && setShowTree(false)}>
+        <DialogContent size="large">
+          <DialogHeader>
+            <DialogTitle>{t('voiceRobots.preview.treeTitle', 'Дерево сценариев')}</DialogTitle>
+          </DialogHeader>
+          <ScenarioTreePreview
+            robotId={selectedRobot.uid}
+            greetingText={selectedRobot.greeting_tts_text || undefined}
+          />
+        </DialogContent>
+      </Dialog>
+
       {/* Groups */}
-      {groups.map((group) => (
-        <KeywordGroupPanel
-          key={group.uid}
-          group={group}
-          onDelete={handleDeleteGroup}
-          onUpdate={handleUpdateGroup}
-          robotId={selectedRobot.uid}
-        />
-      ))}
+      {[...groups]
+        .sort((a, b) => a.priority - b.priority)
+        .map((group) => (
+          <KeywordGroupPanel
+            key={group.uid}
+            group={group}
+            onDelete={handleDeleteGroup}
+            onUpdate={handleUpdateGroup}
+            robotId={selectedRobot.uid}
+          />
+        ))}
 
       {/* Empty state */}
       {groups.length === 0 && !isAddingGroup && (

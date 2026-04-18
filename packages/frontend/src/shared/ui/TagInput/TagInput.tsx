@@ -22,10 +22,21 @@ export const TagInput = memo(({ value, onChange, placeholder, disabled }: TagInp
   const inputRef = useRef<HTMLInputElement>(null);
 
   const addTag = useCallback((raw: string) => {
-    const tag = raw.trim();
-    if (!tag) return;
-    if (value.includes(tag)) return; // no duplicates
-    onChange([...value, tag]);
+    if (!raw.trim()) {
+      setInputValue('');
+      return;
+    }
+    
+    const parts = raw.split(',').map(p => p.trim()).filter(Boolean);
+    if (!parts.length) {
+      setInputValue('');
+      return;
+    }
+
+    const newTags = parts.filter(tag => !value.includes(tag));
+    if (newTags.length > 0) {
+      onChange([...value, ...newTags]);
+    }
     setInputValue('');
   }, [value, onChange]);
 
@@ -80,7 +91,14 @@ export const TagInput = memo(({ value, onChange, placeholder, disabled }: TagInp
         ref={inputRef}
         className="flex-1 min-w-[120px] bg-transparent border-none outline-none focus:outline-none focus:ring-0 text-sm text-foreground placeholder:text-muted-foreground placeholder:text-xs py-0.5 px-0"
         value={inputValue}
-        onChange={(e) => setInputValue(e.target.value)}
+        onChange={(e) => {
+          const val = e.target.value;
+          if (val.includes(',')) {
+            addTag(val);
+          } else {
+            setInputValue(val);
+          }
+        }}
         onKeyDown={handleKeyDown}
         onBlur={() => addTag(inputValue)}
         placeholder={value.length === 0 ? placeholder : ''}

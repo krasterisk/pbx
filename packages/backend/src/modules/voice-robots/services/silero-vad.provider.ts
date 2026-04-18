@@ -12,8 +12,7 @@ import { IVadProvider, VadConfig, VadResult } from '../interfaces/vad-provider.i
  */
 export class VadSessionInstance {
   private _sr: any;
-  private _h: any;
-  private _c: any;
+  private _state: any;
   private frameAccumulator = new Float32Array(0);
   private destroyed = false;
 
@@ -73,15 +72,13 @@ export class VadSessionInstance {
     const feeds = {
       input: inputTensor,
       sr: this._sr,
-      h: this._h,
-      c: this._c,
+      state: this._state,
     };
 
     const result = await this.onnxSession.run(feeds);
 
-    // Update LSTM hidden/cell state for next frame (isolated per session)
-    this._h = result.hn;
-    this._c = result.cn;
+    // Update state for next frame (isolated per session)
+    this._state = result.stateN;
 
     return result.output.data[0] as number;
   }
@@ -94,8 +91,7 @@ export class VadSessionInstance {
     const Tensor = this.ort.Tensor;
 
     this._sr = new Tensor('int64', BigInt64Array.from([BigInt(8000)]), []);
-    this._h = new Tensor('float32', new Float32Array(2 * 64).fill(0), [2, 1, 64]);
-    this._c = new Tensor('float32', new Float32Array(2 * 64).fill(0), [2, 1, 64]);
+    this._state = new Tensor('float32', new Float32Array(2 * 1 * 128).fill(0), [2, 1, 128]);
   }
 
   /**
@@ -103,8 +99,7 @@ export class VadSessionInstance {
    */
   destroy(): void {
     this.destroyed = true;
-    this._h = null;
-    this._c = null;
+    this._state = null;
     this._sr = null;
     this.frameAccumulator = new Float32Array(0);
   }

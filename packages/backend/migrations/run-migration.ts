@@ -30,10 +30,11 @@ async function main() {
 
   console.log('Connected to MySQL');
 
-  const sqlFile = path.resolve(__dirname, '001_create_routes_tables.sql');
+  const targetFile = process.argv[2] || '001_create_routes_tables.sql';
+  const sqlFile = path.resolve(__dirname, targetFile);
   const sql = fs.readFileSync(sqlFile, 'utf8');
 
-  console.log('Running migration: 001_create_routes_tables.sql');
+  console.log(`Running migration: ${targetFile}`);
   await connection.query(sql);
   console.log('✅ Migration applied successfully!');
 

@@ -33,6 +33,9 @@ export class VoiceRobot extends Model {
   @Column({ type: DataType.TEXT, allowNull: true })
   declare greeting_tts_text: string | null;
 
+  @Column({ type: DataType.INTEGER, allowNull: true })
+  declare initial_group_id: number | null;
+
   @Column({ type: DataType.JSON, allowNull: true })
   declare vad_config: any | null;
 
@@ -55,6 +58,10 @@ export class VoiceRobot extends Model {
   @Default(15)
   @Column({ type: DataType.INTEGER, allowNull: false })
   declare silence_timeout_seconds: number;
+
+  @Default(3)
+  @Column({ type: DataType.INTEGER, allowNull: false })
+  declare max_inactivity_repeats: number;
 
   @Column({ type: DataType.STRING(512), allowNull: true })
   declare webhook_url: string | null;

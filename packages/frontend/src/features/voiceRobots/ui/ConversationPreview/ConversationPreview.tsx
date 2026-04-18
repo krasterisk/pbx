@@ -1,109 +1,230 @@
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Eye, Bot, User, Clock, ArrowRight, Globe, PhoneForwarded, Users as UsersIcon, PhoneOff } from 'lucide-react';
-import { VStack, Text } from '@/shared/ui';
+import {
+  Bot, User, ArrowRight, Globe, PhoneForwarded, Users as UsersIcon,
+  PhoneOff, Repeat, ShieldAlert, MessageSquare, Clock, SlidersHorizontal, Volume2,
+} from 'lucide-react';
+import { VStack, HStack, Text } from '@/shared/ui';
 import { IVoiceRobotBotAction } from '@/entities/voiceRobot';
-import cls from './ConversationPreview.module.scss';
 
 interface ConversationPreviewProps {
   keyword: string;
   action: IVoiceRobotBotAction;
   greetingText?: string;
+  maxRepeats?: number;
+  escalationAction?: IVoiceRobotBotAction | null;
 }
 
+/* ──────────── Helpers ──────────── */
+
+const Bubble = ({ variant, icon: Icon, children }: {
+  variant: 'bot' | 'user' | 'system' | 'escalation';
+  icon: typeof Bot;
+  children: React.ReactNode;
+}) => {
+  const styles: Record<string, string> = {
+    bot: 'bg-primary/8 border-l-[3px] border-primary/40 text-foreground',
+    user: 'bg-emerald-500/8 border-l-[3px] border-emerald-500/40 text-foreground',
+    system: 'bg-amber-500/8 border-l-[3px] border-amber-500/40 text-muted-foreground',
+    escalation: 'bg-rose-500/8 border-l-[3px] border-rose-500/40 text-foreground',
+  };
+  const iconStyles: Record<string, string> = {
+    bot: 'text-primary',
+    user: 'text-emerald-500',
+    system: 'text-amber-500',
+    escalation: 'text-rose-500',
+  };
+  return (
+    <HStack align="start" gap="4" className={`px-3 py-2.5 rounded-lg ${styles[variant]} transition-all`}>
+      <Icon className={`w-4 h-4 shrink-0 mt-0.5 ${iconStyles[variant]}`} />
+      <div className="text-[13px] leading-relaxed flex-1">{children}</div>
+    </HStack>
+  );
+};
+
+const Connector = ({ label }: { label?: string }) => (
+  <HStack align="center" gap="2" className="pl-5">
+    <div className="w-px h-4 bg-border" />
+    {label && (
+      <Text as="span" className="text-[10px] uppercase tracking-wider font-medium text-muted-foreground/60">{label}</Text>
+    )}
+  </HStack>
+);
+
+/* Helper to render an action flow (reused for primary + escalation) */
+const ActionFlow = memo(({ action, t, variant = 'bot' }: {
+  action: IVoiceRobotBotAction;
+  t: any;
+  variant?: 'bot' | 'escalation';
+}) => {
+  const nextStateIcons: Record<string, typeof Bot> = {
+    listen: Bot,
+    switch_group: ArrowRight,
+    transfer_queue: UsersIcon,
+    transfer_exten: PhoneForwarded,
+    webhook: Globe,
+    hangup: PhoneOff,
+  };
+
+  const nextStateLabels: Record<string, string> = {
+    listen: t('voiceRobots.nextStateDescriptions.listen', 'Робот ждёт следующую фразу клиента'),
+    switch_group: t('voiceRobots.nextStateDescriptions.switch_group', 'Робот перейдёт к другому набору сценариев'),
+    transfer_queue: t('voiceRobots.nextStateDescriptions.transfer_queue', 'Звонок попадёт в очередь ожидания'),
+    transfer_exten: t('voiceRobots.nextStateDescriptions.transfer_exten', 'Звонок переведётся на указанный номер'),
+    webhook: t('voiceRobots.nextStateDescriptions.webhook', 'Робот отправит данные на сервер'),
+    hangup: t('voiceRobots.nextStateDescriptions.hangup', 'Звонок будет завершён'),
+  };
+
+  const NextIcon = nextStateIcons[action.nextState.type] || ArrowRight;
+  const nextLabel = nextStateLabels[action.nextState.type] || action.nextState.type;
+
+  return (
+    <>
+      {/* Response */}
+      {action.response.type === 'tts' && action.response.value && (
+        <>
+          <Bubble variant={variant} icon={variant === 'bot' ? Bot : ShieldAlert}>
+            <Text as="span" className="font-medium">«{action.response.value}»</Text>
+          </Bubble>
+          <Connector />
+        </>
+      )}
+      {action.response.type === 'prompt' && action.response.value && (
+        <>
+          <Bubble variant={variant} icon={variant === 'bot' ? MessageSquare : ShieldAlert}>
+            <HStack align="center" gap="2" className="inline-flex">
+              <Volume2 className="w-4 h-4 text-amber-500" />
+              <Text as="span">{t('voiceRobots.response.prompt', 'Аудио-промпт')}: {action.response.value}</Text>
+            </HStack>
+          </Bubble>
+          <Connector />
+        </>
+      )}
+
+      {/* Slot collection */}
+      {(action.slots || []).length > 0 && (
+        <>
+          <Bubble variant="system" icon={SlidersHorizontal}>
+            <VStack gap="2">
+              <Text as="span" className="font-medium text-xs uppercase tracking-wider">
+                {t('voiceRobots.action.slotsTitle', 'Сбор данных')}
+              </Text>
+              {action.slots!.map((slot, i) => (
+                <Text as="span" key={i} className="text-xs">
+                  • <strong>{slot.name}</strong> ({slot.type})
+                  {slot.prompt?.value ? ` — «${slot.prompt.value}»` : ''}
+                  {slot.maxRetries ? ` [${slot.maxRetries} ${t('voiceRobots.escalation.maxRepeats', 'попыток').toLowerCase()}]` : ''}
+                </Text>
+              ))}
+            </VStack>
+          </Bubble>
+          <Connector />
+        </>
+      )}
+
+      {/* Webhook URL */}
+      {action.nextState.type === 'webhook' && action.nextState.target && (
+        <>
+          <Bubble variant="system" icon={Globe}>
+            <Text as="span">POST → <code className="text-xs bg-muted px-1 py-0.5 rounded">{String(action.nextState.target)}</code></Text>
+            {action.webhookResponseTemplate && (
+              <Text className="mt-1 text-xs opacity-70">
+                {t('voiceRobots.action.webhookResponseTemplate', 'Шаблон ответа')}: «{action.webhookResponseTemplate}»
+              </Text>
+            )}
+          </Bubble>
+          <Connector />
+        </>
+      )}
+
+      {/* Final state */}
+      <Bubble
+        variant={action.nextState.type === 'hangup' ? 'escalation' : variant}
+        icon={NextIcon}
+      >
+        <Text as="span" className="font-medium">{nextLabel}</Text>
+        {action.nextState.target && action.nextState.type !== 'webhook' && (
+          <Text as="span" className="ml-1 text-xs opacity-70">→ {String(action.nextState.target)}</Text>
+        )}
+      </Bubble>
+    </>
+  );
+});
+ActionFlow.displayName = 'ActionFlow';
+
+/* ──────────── Main Component ──────────── */
+
 /**
- * ConversationPreview — readonly visualization of a dialogue scenario.
+ * ConversationPreview — chat-style visualization of a keyword scenario.
  *
- * Generates a step-by-step conversation preview from the keyword + bot action config.
- * Shows: greeting → keyword match → response → slot collection → next state.
+ * Shows the full dialogue flow including greeting, keyword match,
+ * bot response, slot collection, next state, and escalation path.
  *
  * FSD layer: features/voiceRobots/ui
  */
-export const ConversationPreview = memo(({ keyword, action, greetingText }: ConversationPreviewProps) => {
+export const ConversationPreview = memo(({
+  keyword, action, greetingText, maxRepeats, escalationAction,
+}: ConversationPreviewProps) => {
   const { t } = useTranslation();
 
-  const nextStateLabels: Record<string, { label: string; Icon: typeof Bot }> = {
-    listen: { label: t('voiceRobots.nextStateDescriptions.listen', 'Робот ждёт следующую фразу клиента'), Icon: Bot },
-    switch_group: { label: t('voiceRobots.nextStateDescriptions.switch_group', 'Робот перейдёт к другому набору сценариев'), Icon: ArrowRight },
-    transfer_queue: { label: t('voiceRobots.nextStateDescriptions.transfer_queue', 'Звонок попадёт в очередь ожидания'), Icon: UsersIcon },
-    transfer_exten: { label: t('voiceRobots.nextStateDescriptions.transfer_exten', 'Звонок переведётся на указанный номер'), Icon: PhoneForwarded },
-    webhook: { label: t('voiceRobots.nextStateDescriptions.webhook', 'Робот отправит данные на сервер'), Icon: Globe },
-    hangup: { label: t('voiceRobots.nextStateDescriptions.hangup', 'Звонок будет завершён'), Icon: PhoneOff },
-  };
-
-  const slotTypeLabels: Record<string, string> = {
-    digits: t('voiceRobots.slot.digits', 'Цифры'),
-    phone: t('voiceRobots.slot.phone', 'Телефон'),
-    yes_no: t('voiceRobots.slot.yesNo', 'Да/Нет'),
-    date: t('voiceRobots.slot.date', 'Дата'),
-    choice: t('voiceRobots.slot.choice', 'Выбор из списка'),
-    freetext: t('voiceRobots.slot.freetext', 'Свободный текст'),
-  };
-
-  const nextInfo = nextStateLabels[action.nextState.type] || { label: action.nextState.type, Icon: ArrowRight };
+  const hasEscalation = (maxRepeats || 0) > 0 && escalationAction;
 
   return (
-    <VStack gap="8" className={cls.previewCard}>
-      <VStack className={cls.title}>
-        <Eye className={cls.titleIcon} />
-        <Text>{t('voiceRobots.conversationPreview.title', 'Предпросмотр сценария')}</Text>
-      </VStack>
+    <VStack gap="0" className="p-4 rounded-xl border border-border bg-muted/30">
+      {/* ─── Greeting ─── */}
+      {greetingText && (
+        <>
+          <Bubble variant="bot" icon={Bot}>
+            <span className="font-medium">«{greetingText}»</span>
+          </Bubble>
+          <Connector />
+        </>
+      )}
 
-      <VStack className={cls.stepList}>
-        {/* Step 1: Greeting (if configured) */}
-        {greetingText && (
-          <VStack className={`${cls.step} ${cls.stepBot}`}>
-            <Bot className={cls.stepIcon} />
-            <Text className={cls.stepText}>{greetingText}</Text>
-          </VStack>
-        )}
+      {/* ─── Client says keyword ─── */}
+      <Bubble variant="user" icon={User}>
+        <Text as="span" className="italic">
+          {t('voiceRobots.conversationPreview.clientSays', 'Клиент говорит')}:
+        </Text>
+        <Text as="span" className="ml-1.5 font-semibold">«{keyword}»</Text>
+      </Bubble>
+      <Connector label={hasEscalation
+        ? t('voiceRobots.preview.primaryPath', 'Основной сценарий ({{count}}×)', { count: maxRepeats })
+        : undefined
+      } />
 
-        {/* Step 2: Client speaks keyword */}
-        <VStack className={`${cls.step} ${cls.stepUser}`}>
-          <User className={cls.stepIcon} />
-          <Text className={cls.stepMuted}>
-            {t('voiceRobots.conversationPreview.clientSays', 'Клиент говорит')}: &laquo;{keyword}&raquo;
-          </Text>
-        </VStack>
+      {/* ─── Primary action flow ─── */}
+      <ActionFlow action={action} t={t} variant="bot" />
 
-        {/* Step 3: Bot response */}
-        {action.response.type === 'tts' && action.response.value && (
-          <VStack className={`${cls.step} ${cls.stepBot}`}>
-            <Bot className={cls.stepIcon} />
-            <Text className={cls.stepText}>{action.response.value}</Text>
-          </VStack>
-        )}
+      {/* ─── Escalation path ─── */}
+      {hasEscalation && (
+        <>
+          <HStack align="center" gap="4" className="my-3">
+            <div className="flex-1 h-px bg-rose-500/20" />
+            <HStack gap="4" align="center">
+              <Repeat className="w-3.5 h-3.5 text-rose-500" />
+              <Text as="span" className="text-[11px] font-semibold uppercase tracking-wider text-rose-500">
+                {t('voiceRobots.preview.escalationPath', 'Повтор ({{count}}+ раз)', { count: (maxRepeats || 0) + 1 })}
+              </Text>
+            </HStack>
+            <div className="flex-1 h-px bg-rose-500/20" />
+          </HStack>
 
-        {/* Step 4: Slot collection */}
-        {(action.slots || []).map((slot, idx) => (
-          <VStack key={idx} className={`${cls.step} ${cls.stepUser}`}>
-            <Clock className={cls.stepIcon} />
-            <Text className={cls.stepMuted}>
-              {t('voiceRobots.conversationPreview.waitingFor', 'Ожидание ответа')}: {slot.name} ({slotTypeLabels[slot.type] || slot.type})
-              {slot.prompt?.value ? ` — "${slot.prompt.value}"` : ''}
+          {/* Client repeats */}
+          <Bubble variant="user" icon={User}>
+            <Text as="span" className="italic">
+              {t('voiceRobots.conversationPreview.clientSays', 'Клиент говорит')}:
             </Text>
-          </VStack>
-        ))}
-
-        {/* Step 5: Webhook URL (if webhook) */}
-        {action.nextState.type === 'webhook' && action.nextState.target && (
-          <VStack className={`${cls.step} ${cls.stepAction}`}>
-            <Globe className={cls.stepIcon} />
-            <Text className={cls.stepMuted}>
-              {t('voiceRobots.conversationPreview.sendsTo', 'Отправка данных на')}: {String(action.nextState.target)}
+            <Text as="span" className="ml-1.5 font-semibold">«{keyword}»</Text>
+            <Text as="span" className="ml-1.5 text-xs text-rose-500 font-medium">
+              ({t('voiceRobots.preview.repeatedAgain', 'повторно')})
             </Text>
-          </VStack>
-        )}
+          </Bubble>
+          <Connector />
 
-        {/* Step 6: Final action */}
-        <VStack className={`${cls.step} ${cls.stepAction}`}>
-          <nextInfo.Icon className={cls.stepIcon} />
-          <Text className={cls.stepMuted}>
-            {t('voiceRobots.conversationPreview.then', 'Далее')}: {nextInfo.label}
-            {action.nextState.target && action.nextState.type !== 'webhook' ? ` → ${action.nextState.target}` : ''}
-          </Text>
-        </VStack>
-      </VStack>
+          <ActionFlow action={escalationAction!} t={t} variant="escalation" />
+        </>
+      )}
     </VStack>
   );
 });

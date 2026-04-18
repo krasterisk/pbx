@@ -1,0 +1,1 @@
+ALTER TABLE voice_robots ADD COLUMN max_inactivity_repeats INT DEFAULT 3;

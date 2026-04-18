@@ -1,6 +1,6 @@
 import { Column, DataType, Model, Table } from 'sequelize-typescript';
 
-@Table({ tableName: 'queue_member_table', timestamps: false })
+@Table({ tableName: 'queue_members_table', timestamps: false })
 export class QueueMember extends Model {
   @Column({
     primaryKey: true,
@@ -23,6 +23,9 @@ export class QueueMember extends Model {
 
   @Column({ type: DataType.INTEGER, allowNull: true, defaultValue: 0 })
   paused: number;
+
+  @Column({ type: DataType.STRING(128), allowNull: true })
+  reason_paused: string;
 
   @Column({ type: DataType.INTEGER, allowNull: true })
   wrapuptime: number;

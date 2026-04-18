@@ -15,6 +15,7 @@ import { SttEngine } from '../../stt-engines/stt-engine.model';
 import { SttStream } from '../interfaces/stt-provider.interface';
 import { VoiceRobot } from '../voice-robot.model';
 import { VoiceRobotKeyword } from '../keyword.model';
+import { VoiceRobotKeywordGroup } from '../keyword-group.model';
 import { VoiceRobotLog } from '../voice-robot-log.model';
 import { IVoiceRobotBotAction, ISlotDefinition } from '../interfaces/bot-action.types';
 
@@ -68,6 +69,11 @@ export class VoiceRobotSession {
   private pipelineAbort: AbortController | null = null;
   private isBotSpeaking = false;
 
+  // Inactivity detection — repeat question if user is silent
+  private inactivityTimer: NodeJS.Timeout | null = null;
+  private inactivityRepeatCount = 0;
+  private lastBotResponse: { type: string; value?: string } | null = null;
+
   // RTP params (filled asynchronously by ChannelVarset events)
   private rtpAddress: string | null = null;
   private rtpPort: number | null = null;
@@ -78,6 +84,9 @@ export class VoiceRobotSession {
   // Active keyword set (can change via switch_group)
   private activeKeywords: VoiceRobotKeyword[];
 
+  // Global keywords (always active regardless of current group)
+  private readonly globalKeywords: VoiceRobotKeyword[];
+
   // Dialogue context — persistent session memory, sent to every webhook
   private dialogueContext: Record<string, any> = {};
 
@@ -87,6 +96,10 @@ export class VoiceRobotSession {
   // Streaming STT session (null = batch mode)
   private sttStream: SttStream | null = null;
   private sttStreamFinalText = '';
+  private sttStreamPartialText = '';
+
+  // Keyword repetition counter for escalation
+  private keywordHitCounts: Record<number, number> = {};
 
   // Slot filling state
   private slotFillingState: {
@@ -115,13 +128,36 @@ export class VoiceRobotSession {
     private readonly channelId: string,
     private readonly robotConfig: VoiceRobot,
     private readonly keywordsDb: VoiceRobotKeyword[],
+    private readonly keywordGroupsDb: VoiceRobotKeywordGroup[],
     private readonly externalHost: string,
     private readonly logModel: typeof VoiceRobotLog,
   ) {
     const config = this.robotConfig.vad_config || {};
     this.PRE_SPEECH_FRAMES = Math.ceil((config.prefix_padding_ms || 300) / 32);
     this.maxSteps = this.robotConfig.max_conversation_steps || 10;
-    this.activeKeywords = [...this.keywordsDb];
+
+    // ─── FSM Initialization: activate only initial group + globals ───
+    // Global keywords are always active in every dialogue state
+    const globalGroupIds = this.keywordGroupsDb
+      .filter(g => g.is_global === 1)
+      .map(g => g.uid);
+    this.globalKeywords = this.keywordsDb.filter(k => globalGroupIds.includes(k.group_id));
+
+    // Initial group = explicitly set via initial_group_id, fallback to first non-global
+    const initialGroupId = this.robotConfig.initial_group_id;
+    const initialGroup = initialGroupId
+      ? this.keywordGroupsDb.find(g => g.uid === initialGroupId)
+      : this.keywordGroupsDb.filter(g => g.is_global !== 1)[0];
+
+    if (initialGroup) {
+      const initialKeywords = this.keywordsDb.filter(k => k.group_id === initialGroup.uid);
+      this.activeKeywords = [...initialKeywords, ...this.globalKeywords];
+      this.logger.log(`[FSM] Initial group: "${initialGroup.name}" (id=${initialGroup.uid}, ${initialKeywords.length} keywords + ${this.globalKeywords.length} global)`);
+    } else {
+      // Fallback: all keywords (backwards compat if no groups configured properly)
+      this.activeKeywords = [...this.keywordsDb];
+      this.logger.warn(`[FSM] No initial group found, activating all ${this.keywordsDb.length} keywords`);
+    }
   }
 
   /**
@@ -178,18 +214,11 @@ export class VoiceRobotSession {
         this.streamAudio.addStream(this.channelId, this.rtpAddress, this.rtpPort);
       }
 
-      // 9. Play greeting
-      await this.playGreeting();
-
-      // 10. Hook VAD audio processing
+      // 9. Hook VAD audio processing FIRST — so we can hear during greeting
       this.setupAudioPipeline();
 
-      // 11. Start max duration watchdog
-      const maxDurationSec = this.robotConfig.vad_config?.max_duration_seconds || 60;
-      this.maxDurationTimer = setTimeout(() => {
-        this.logger.warn(`[Session] Max duration ${maxDurationSec}s reached for ${this.channelId}`);
-        this.exitToFallback('MAX_DURATION');
-      }, maxDurationSec * 1000);
+      // 10. Play greeting (VAD is already attached and will gate via isBotSpeaking)
+      await this.playGreeting();
 
       this.logger.log(`Session ${this.channelId} fully initialized`);
 
@@ -281,8 +310,9 @@ export class VoiceRobotSession {
       // No audio-float32 handler — VAD completely bypassed
     } else {
       // ═══ Hybrid Mode (default) ═══
-      // VAD gates audio to stream. Cost-efficient.
-      this.logger.log('[Pipeline] Hybrid STT mode: VAD → gated gRPC stream');
+      // Audio ALWAYS flows to STT stream ("always listening").
+      // VAD is used only for speech start/end detection and barge-in.
+      this.logger.log('[Pipeline] Hybrid STT mode: always-on stream + VAD silence detection');
 
       // VAD processing on Float32 frames (per-session instance)
       this.rtpSession.eventEmitter.on('audio-float32', async (frame: Float32Array) => {
@@ -296,16 +326,17 @@ export class VoiceRobotSession {
         }
       });
 
-      // Accumulate PCM16 for STT — only during speech
+      // Always pipe PCM16 to STT stream — no deaf gaps
       this.rtpSession.eventEmitter.on('audio-pcm16', (pcm: Buffer) => {
+        // Always pipe to gRPC stream (keeps it alive, captures all speech)
+        if (this.sttStream) {
+          this.sttStream.write(pcm);
+        }
+
         if (this.isSpeaking) {
           this.sttBuffer.push(pcm);
-          // In streaming mode — also pipe to gRPC stream
-          if (this.sttStream) {
-            this.sttStream.write(pcm);
-          }
         } else {
-          // Pre-speech ring buffer: keep last N frames
+          // Pre-speech ring buffer (for batch fallback)
           this.preSpeechRingBuffer.push(pcm);
           if (this.preSpeechRingBuffer.length > this.PRE_SPEECH_FRAMES) {
             this.preSpeechRingBuffer.shift();
@@ -334,36 +365,53 @@ export class VoiceRobotSession {
         this.robotConfig.language || 'ru-RU',
       );
 
-      this.sttStreamFinalText = '';
+      const currentStream = this.sttStream;
 
-      this.sttStream.events.on('partial', (text: string) => {
+      this.sttStreamFinalText = '';
+      this.sttStreamPartialText = '';
+
+      currentStream.events.on('partial', (text: string) => {
+        if (this.sttStream !== currentStream) return;
         this.logger.debug(`[STT/stream] Partial: "${text}"`);
+        this.sttStreamPartialText = text;
       });
 
-      this.sttStream.events.on('final', (text: string) => {
+      currentStream.events.on('final', (text: string) => {
+        if (this.sttStream !== currentStream) return;
         this.logger.log(`[STT/stream] Final: "${text}"`);
         this.sttStreamFinalText = text;
       });
 
-      this.sttStream.events.on('eou', () => {
+      currentStream.events.on('eou', () => {
+        if (this.sttStream !== currentStream) return;
         // End of utterance detected by the provider's EOU classifier
-        if (this.sttStreamFinalText) {
-          this.logger.log(`[STT/stream] EOU → processing: "${this.sttStreamFinalText}"`);
-          const text = this.sttStreamFinalText;
+        if (this.sttStreamFinalText || this.sttStreamPartialText) {
+          const text = this.sttStreamFinalText || this.sttStreamPartialText;
+          this.logger.log(`[STT/stream] EOU → processing: "${text}"`);
           this.sttStreamFinalText = '';
+          this.sttStreamPartialText = '';
           this.handleStreamingSttResult(text);
         }
       });
 
-      this.sttStream.events.on('error', (err: Error) => {
+      currentStream.events.on('error', (err: Error) => {
+        if (this.sttStream !== currentStream) return;
         this.logger.error(`[STT/stream] Error: ${err.message}`);
         this.sttStream = null;
-        // Degrade gracefully to batch mode
+        // Auto-recreate after error (keep always-on)
+        if (!this.cleanedUp) {
+          setTimeout(() => this.initStreamingStt(), 200);
+        }
       });
 
-      this.sttStream.events.on('end', () => {
-        this.logger.debug('[STT/stream] Stream ended');
+      currentStream.events.on('end', () => {
+        if (this.sttStream !== currentStream) return;
+        this.logger.debug('[STT/stream] Stream ended — recreating');
         this.sttStream = null;
+        // Auto-recreate so we're always listening
+        if (!this.cleanedUp) {
+          setTimeout(() => this.initStreamingStt(), 50);
+        }
       });
 
       this.logger.log(`[STT/stream] Streaming STT initialized (engine: ${this.sttEngine.type})`);
@@ -399,24 +447,50 @@ export class VoiceRobotSession {
     const silenceThreshold = config.silence_threshold || 0.3;
     const silenceTimeoutMs = config.silence_timeout_ms || 2000;
 
+    // While bot is speaking, only handle barge-in (speech detection that
+    // interrupts the bot). Skip all other VAD state transitions to avoid
+    // the bot's own RTP echo from triggering phantom STT sessions.
+    if (this.isBotSpeaking) {
+      if (prob >= speechThreshold && !this.isSpeaking && (config.barge_in !== false)) {
+        this.logger.log(`[VAD] Barge-in — interrupting bot speech`);
+        this.abortPipeline();
+        this.streamAudio.interruptStream(this.channelId);
+      }
+      return;
+    }
+
     if (prob >= speechThreshold && !this.isSpeaking) {
       // ─── SPEECH START ───
       this.logger.log(`[VAD] Speech started (prob: ${prob.toFixed(2)})`);
       this.isSpeaking = true;
+
+      // Ensure STT stream exists (recreate if Yandex closed it)
+      if (!this.sttStream) {
+        this.initStreamingStt();
+      }
+
+      // Cancel inactivity timer — user is responding
+      this.clearInactivityTimer();
 
       if (this.silenceTimer) {
         clearTimeout(this.silenceTimer);
         this.silenceTimer = null;
       }
 
-      // Barge-in: interrupt bot speech
-      if (this.isBotSpeaking && (config.barge_in !== false)) {
-        this.logger.log(`[VAD] Barge-in — interrupting bot speech`);
-        this.abortPipeline();
-        this.streamAudio.interruptStream(this.channelId);
+      // Start max duration watchdog for this speech segment
+      if (this.maxDurationTimer) {
+        clearTimeout(this.maxDurationTimer);
       }
+      const maxDurationSec = config.max_duration_seconds || 15;
+      this.maxDurationTimer = setTimeout(() => {
+        this.logger.warn(`[VAD] Max duration ${maxDurationSec}s reached — forcefully cutting off speaker`);
+        this.isSpeaking = false;
+        this.maxDurationTimer = null;
+        this.processSttBuffer();
+      }, maxDurationSec * 1000);
 
-      // Restore pre-speech frames
+
+      // Restore pre-speech frames into STT buffer for batch fallback
       this.sttBuffer = [...this.preSpeechRingBuffer];
       this.preSpeechRingBuffer.length = 0;
 
@@ -426,6 +500,12 @@ export class VoiceRobotSession {
         this.silenceTimer = setTimeout(() => {
           this.logger.log(`[VAD] Speech ended (silence timeout ${silenceTimeoutMs}ms)`);
           this.isSpeaking = false;
+          
+          if (this.maxDurationTimer) {
+            clearTimeout(this.maxDurationTimer);
+            this.maxDurationTimer = null;
+          }
+          
           this.processSttBuffer();
         }, silenceTimeoutMs);
       }
@@ -444,26 +524,38 @@ export class VoiceRobotSession {
    */
   private async processSttBuffer(): Promise<void> {
     // ─── Streaming Mode ───
-    // If streaming STT is active and we got a final via EOU, it was already handled.
-    // If we reach here in streaming mode, it means VAD silence triggered before EOU.
-    // Wait briefly for a final event, then use whatever we have.
     if (this.sttStream) {
+      let textToProcess = '';
       if (this.sttStreamFinalText) {
-        const text = this.sttStreamFinalText;
-        this.sttStreamFinalText = '';
+        textToProcess = this.sttStreamFinalText;
+      } else if (this.sttStreamPartialText) {
+        textToProcess = this.sttStreamPartialText;
+      }
+
+      this.sttStreamFinalText = '';
+      this.sttStreamPartialText = '';
+
+      if (textToProcess) {
         this.sttBuffer = [];
         this.stepCount++;
-        this.logger.log(`[STT/stream] Silence-triggered: "${text}"`);
-        await this.handleRecognizedText(text, { text, rawJson: { streaming: true } }, 0);
+        this.logger.log(`[STT/stream] Silence-triggered: "${textToProcess}"`);
+        
+        // Close current stream — auto-recreate handler will open a new one
+        try { this.sttStream.end(); } catch {}
+        this.sttStream = null;
+        // Immediately recreate so we're listening during handleRecognizedText/TTS
+        this.initStreamingStt();
+
+        await this.handleRecognizedText(textToProcess, { text: textToProcess, rawJson: { streaming: true } }, 0);
         if (this.stepCount >= this.maxSteps) {
           this.exitToFallback('MAX_RETRIES');
         }
         return;
       }
-      // No final text available — the stream may still be processing.
-      // Clear buffer and wait for next speech segment.
+
+      // No text available
       this.sttBuffer = [];
-      this.logger.debug('[STT/stream] No final text at silence — waiting for next utterance');
+      this.logger.debug('[STT/stream] No final or partial text at silence — waiting for next utterance');
       return;
     }
 
@@ -513,6 +605,9 @@ export class VoiceRobotSession {
     sttResult: any,
     sttDurationMs: number,
   ): Promise<void> {
+    // Reset inactivity timer repeats since user responded
+    this.inactivityRepeatCount = 0;
+
     // ─── If we're in slot filling mode, handle slot extraction ───
     if (this.slotFillingState) {
       await this.handleSlotInput(text, sttResult, sttDurationMs);
@@ -538,8 +633,17 @@ export class VoiceRobotSession {
 
       await this.writeLog(text, sttResult, sttDurationMs, matchResult.keyword.uid, matchResult.confidence);
 
-      // ─── New: Use bot_action if available ───
-      const botAction: IVoiceRobotBotAction | null = matchResult.keyword.bot_action;
+      // ─── Keyword Escalation (Repeat limit) ───
+      const kwUid = matchResult.keyword.uid;
+      this.keywordHitCounts[kwUid] = (this.keywordHitCounts[kwUid] || 0) + 1;
+
+      let botAction: IVoiceRobotBotAction | null = matchResult.keyword.bot_action;
+      const maxRepeats = matchResult.keyword.max_repeats || 0;
+
+      if (maxRepeats > 0 && this.keywordHitCounts[kwUid] > maxRepeats) {
+        this.logger.warn(`[Escalation] Keyword ${kwUid} repeated ${this.keywordHitCounts[kwUid]} times (limit ${maxRepeats}). Executing escalation_action.`);
+        botAction = matchResult.keyword.escalation_action || botAction;
+      }
 
       if (botAction) {
         await this.executeBotAction(botAction, matchResult);
@@ -556,6 +660,21 @@ export class VoiceRobotSession {
     } else {
       this.logger.log(`[Matcher] ❌ No match for "${text}"`);
       await this.writeLog(text, sttResult, sttDurationMs, null, 0);
+
+      const fallbackAction = this.robotConfig.fallback_bot_action;
+      if (fallbackAction) {
+        this.logger.log(`[Action] Executing fallback_bot_action`);
+        await this.executeBotAction(fallbackAction, {
+          keyword: { uid: -1, keywords: '' } as any,
+          confidence: 0,
+          matchedPhrase: '',
+          matchedWordCount: 0,
+          method: 'fallback'
+        });
+      } else {
+        this.logger.log(`[Action] No fallback_bot_action defined, exiting to fallback dialplan`);
+        await this.exitToFallback('NO_MATCH');
+      }
     }
   }
 
@@ -683,18 +802,18 @@ export class VoiceRobotSession {
         break;
 
       case 'switch_group': {
-        // In-session group switch: filter keywords by group_id
+        // In-session group switch: filter keywords by group_id + always include globals
         const groupId = Number(target);
         if (groupId) {
           const groupKeywords = this.keywordsDb.filter(k => k.group_id === groupId);
           if (groupKeywords.length > 0) {
             // Push current group to stack for potential "go back"
-            const currentGroupId = this.activeKeywords[0]?.group_id;
+            const currentGroupId = this.activeKeywords.find(k => !this.globalKeywords.some(g => g.uid === k.uid))?.group_id;
             if (currentGroupId) this.groupStack.push(currentGroupId);
-            this.activeKeywords = groupKeywords;
-            this.logger.log(`[Action] Switched to keyword group ${groupId} (${groupKeywords.length} keywords, stack depth: ${this.groupStack.length})`);
+            this.activeKeywords = [...groupKeywords, ...this.globalKeywords];
+            this.logger.log(`[FSM] Switched to group ${groupId} (${groupKeywords.length} keywords + ${this.globalKeywords.length} global, stack depth: ${this.groupStack.length})`);
           } else {
-            this.logger.warn(`[Action] Group ${groupId} has no keywords, keeping current set`);
+            this.logger.warn(`[FSM] Group ${groupId} has no keywords, keeping current set`);
           }
         }
         break;
@@ -939,6 +1058,8 @@ export class VoiceRobotSession {
       } finally {
         this.isBotSpeaking = false;
         this.pipelineAbort = null;
+        // Start inactivity timer after bot finishes speaking
+        this.startInactivityTimer();
       }
     } else if (response.type === 'prompt' && response.value) {
       try {
@@ -946,7 +1067,12 @@ export class VoiceRobotSession {
       } catch (e: any) {
         this.logger.warn(`[Prompt] Failed to play "${response.value}": ${e.message}`);
       }
+      // Start inactivity timer after prompt finishes
+      this.startInactivityTimer();
     }
+
+    // Remember last bot response for inactivity repeats
+    this.lastBotResponse = response;
   }
 
   /**
@@ -1082,6 +1208,75 @@ export class VoiceRobotSession {
     }
   }
 
+  // ─── Inactivity Timer ──────────────────────────────────────
+
+  /**
+   * Start inactivity timer after bot finishes speaking.
+   * If user doesn't respond within silence_timeout_seconds,
+   * repeat the last question. After MAX_INACTIVITY_REPEATS,
+   * execute fallback action.
+   */
+  private startInactivityTimer(): void {
+    this.clearInactivityTimer();
+
+    const timeoutSec = this.robotConfig.silence_timeout_seconds || 15;
+    const maxRepeats = this.robotConfig.max_inactivity_repeats ?? 3;
+    this.logger.debug(`[Inactivity] Timer started: ${timeoutSec}s (repeat ${this.inactivityRepeatCount}/${maxRepeats})`);
+
+    this.inactivityTimer = setTimeout(() => {
+      this.handleInactivityTimeout();
+    }, timeoutSec * 1000);
+  }
+
+  /**
+   * Clear the inactivity timer (called when user starts speaking).
+   */
+  private clearInactivityTimer(): void {
+    if (this.inactivityTimer) {
+      clearTimeout(this.inactivityTimer);
+      this.inactivityTimer = null;
+    }
+  }
+
+  /**
+   * Handle inactivity timeout:
+   * 1. If repeats < MAX → repeat last bot response
+   * 2. If repeats >= MAX → execute fallback action or exit
+   */
+  private async handleInactivityTimeout(): Promise<void> {
+    this.inactivityRepeatCount++;
+    const maxRepeats = this.robotConfig.max_inactivity_repeats ?? 3;
+
+    if (this.inactivityRepeatCount > maxRepeats) {
+      this.logger.warn(`[Inactivity] Max repeats (${maxRepeats}) exceeded — executing fallback`);
+      this.inactivityRepeatCount = 0;
+
+      const fallbackAction = this.robotConfig.fallback_bot_action;
+      if (fallbackAction) {
+        await this.executeBotAction(fallbackAction, {
+          keyword: { uid: -1, keywords: '' } as any,
+          confidence: 0,
+          matchedPhrase: '',
+          matchedWordCount: 0,
+          method: 'fallback',
+        });
+      } else {
+        await this.exitToFallback('INACTIVITY_TIMEOUT');
+      }
+      return;
+    }
+
+    this.logger.log(`[Inactivity] No response — repeating last question (${this.inactivityRepeatCount}/${maxRepeats})`);
+
+    // Repeat last bot response
+    if (this.lastBotResponse && this.lastBotResponse.value) {
+      await this.speakResponse(this.lastBotResponse);
+    } else {
+      // No last response to repeat → start timer again anyway
+      this.startInactivityTimer();
+    }
+  }
+
   /**
    * Full cleanup — idempotent, call on StasisEnd or error.
    */
@@ -1094,6 +1289,7 @@ export class VoiceRobotSession {
     // Cancel timers
     if (this.silenceTimer) clearTimeout(this.silenceTimer);
     if (this.maxDurationTimer) clearTimeout(this.maxDurationTimer);
+    this.clearInactivityTimer();
 
     // Abort any TTS pipeline
     this.abortPipeline();

@@ -1,4 +1,5 @@
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import * as dgram from 'dgram';
 import { EventEmitter } from 'events';
 import { AudioService } from './audio.service';
@@ -79,8 +80,42 @@ export class RtpSession {
 export class RtpUdpServerService implements OnModuleDestroy {
   private readonly logger = new Logger(RtpUdpServerService.name);
   private readonly activeSessions = new Map<number, RtpSession>();
+  
+  private readonly minPort: number;
+  private readonly maxPort: number;
+  private currentPort: number;
 
-  constructor(private readonly audioService: AudioService) {}
+  constructor(
+    private readonly audioService: AudioService,
+    private readonly configService: ConfigService,
+  ) {
+    const minStr = this.configService.get<string>('RTP_MIN_PORT');
+    const maxStr = this.configService.get<string>('RTP_MAX_PORT');
+    this.minPort = minStr ? parseInt(minStr, 10) : 0;
+    this.maxPort = maxStr ? parseInt(maxStr, 10) : 0;
+    this.currentPort = this.minPort;
+  }
+
+  private getNextPort(): number {
+    if (this.minPort === 0 || this.maxPort === 0 || this.minPort > this.maxPort) {
+      return 0; // OS assigns an ephemeral port
+    }
+
+    // Try finding an available port in the range
+    for (let i = 0; i <= (this.maxPort - this.minPort); i++) {
+      const port = this.currentPort;
+      this.currentPort++;
+      if (this.currentPort > this.maxPort) {
+        this.currentPort = this.minPort;
+      }
+      
+      if (!this.activeSessions.has(port)) {
+        return port;
+      }
+    }
+    
+    throw new Error('No available RTP ports in configured range');
+  }
 
   /**
    * Create a new RTP session with an ephemeral UDP port.
@@ -92,23 +127,48 @@ export class RtpUdpServerService implements OnModuleDestroy {
       const socket = dgram.createSocket('udp4');
 
       socket.on('listening', () => {
+        socket.removeAllListeners('error'); // remove setup error handler
+        
+        // Add permanent runtime error handler
+        socket.on('error', (err) => {
+          this.logger.error(`UDP socket runtime error: ${err.message}`);
+        });
+
         const addr = socket.address();
         const port = addr.port;
 
         const session = new RtpSession(this.audioService, socket, port);
         this.activeSessions.set(port, session);
 
-        this.logger.log(`RTP session created on ephemeral port ${port}`);
+        this.logger.log(`RTP session created on port ${port}`);
         resolve(session);
       });
 
-      socket.on('error', (err) => {
-        this.logger.error(`Failed to bind UDP socket: ${err.message}`);
-        reject(err);
-      });
+      const attemptBind = (attempts: number) => {
+        if (attempts > 50) {
+          return reject(new Error('Failed to bind UDP socket after 50 attempts'));
+        }
 
-      // Bind to port 0 = OS assigns an ephemeral port
-      socket.bind(0);
+        try {
+          const portToBind = this.getNextPort();
+          
+          socket.once('error', (err: any) => {
+            if (err.code === 'EADDRINUSE' && portToBind !== 0) {
+              this.logger.warn(`Port ${portToBind} in use, trying next...`);
+              attemptBind(attempts + 1);
+            } else {
+              this.logger.error(`Failed to bind UDP socket: ${err.message}`);
+              reject(err);
+            }
+          });
+
+          socket.bind(portToBind);
+        } catch (e) {
+          reject(e);
+        }
+      };
+
+      attemptBind(0);
     });
   }
 
@@ -138,3 +198,4 @@ export class RtpUdpServerService implements OnModuleDestroy {
     this.activeSessions.clear();
   }
 }
+

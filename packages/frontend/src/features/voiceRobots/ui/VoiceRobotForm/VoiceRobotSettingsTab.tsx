@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { MicVocal, Volume2, Ear } from 'lucide-react';
+import { MicVocal, Volume2, Ear, Network } from 'lucide-react';
 import { VStack, HStack, Flex, Input, Label, Text, Select, Checkbox } from '@/shared/ui';
 import { InfoTooltip } from '@/shared/ui/Tooltip/Tooltip';
 import { IVoiceRobotVadConfig } from '@/entities/voiceRobot';
@@ -20,6 +20,9 @@ interface VoiceRobotSettingsTabProps {
   // STT
   sttMode: 'hybrid' | 'full_stream';
   setSttMode: (v: 'hybrid' | 'full_stream') => void;
+  // Network
+  externalHost: string;
+  setExternalHost: (v: string) => void;
 }
 
 /**
@@ -35,6 +38,7 @@ export const VoiceRobotSettingsTab = memo(({
   ttsMode, setTtsMode,
   ttsCacheMaxAgeDays, setTtsCacheMaxAgeDays,
   sttMode, setSttMode,
+  externalHost, setExternalHost,
 }: VoiceRobotSettingsTabProps) => {
   const { t } = useTranslation();
 
@@ -174,6 +178,32 @@ export const VoiceRobotSettingsTab = memo(({
           </Label>
           <InfoTooltip text={t('voiceRobots.bargeInHint', 'Позволяет абоненту перебивать синтезированную речь робота.')} />
         </HStack>
+      </VStack>
+
+      {/* ─── Network Settings ─── */}
+      <VStack gap="12" className="p-4 border border-border rounded-lg bg-card">
+        <HStack gap="8" align="center">
+          <Network className="w-5 h-5 text-primary" />
+          <Text className="text-sm font-semibold text-foreground">
+            {t('voiceRobots.network.title', 'Сетевые настройки (RTP)')}
+          </Text>
+        </HStack>
+
+        <VStack gap="4">
+          <HStack align="center" gap="4">
+            <Label>{t('voiceRobots.network.externalHost', 'Внешний IP-адрес (External Host)')}</Label>
+            <InfoTooltip text={t('voiceRobots.network.externalHostHint', 'Оставьте пустым для использования глобального адреса (из .env). Укажите публичный IP, если Астериск находится на удалённом сервере, чтобы он знал куда слать RTP трафик.')} />
+          </HStack>
+          <Input 
+            type="text" 
+            placeholder="Например: 109.226.233.92" 
+            value={externalHost}
+            onChange={e => setExternalHost(e.target.value)} 
+          />
+          <Text variant="xs" className="text-muted-foreground">
+            {t('voiceRobots.network.externalHostDesc', 'Если бэкенд и Астериск на одном сервере, оставьте пустым.')}
+          </Text>
+        </VStack>
       </VStack>
     </VStack>
   );

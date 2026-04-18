@@ -99,7 +99,7 @@ export class AsteriskDialplanUtils {
       case 'voicerobot': {
         const robotUid = parseInt(params.robot_uid, 10);
         dp = robotUid
-          ? `${wrapper}Gosub(voicerobot_${robotUid},s,1)${closing}`
+          ? `${wrapper}Stasis(krasterisk_voicerobots,${robotUid})${closing}`
           : `${wrapper}NoOp(Missing Robot UID)${closing}`;
         break;
       }
