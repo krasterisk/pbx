@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  Bot, User, ArrowRight, Globe, PhoneForwarded, Users as UsersIcon,
+  Bot, User, ArrowRight, Globe, PhoneForwarded,
   PhoneOff, Repeat, ShieldAlert, MessageSquare, Clock, SlidersHorizontal, Volume2,
 } from 'lucide-react';
 import { VStack, HStack, Text } from '@/shared/ui';
@@ -60,7 +60,6 @@ const ActionFlow = memo(({ action, t, variant = 'bot' }: {
   const nextStateIcons: Record<string, typeof Bot> = {
     listen: Bot,
     switch_group: ArrowRight,
-    transfer_queue: UsersIcon,
     transfer_exten: PhoneForwarded,
     webhook: Globe,
     hangup: PhoneOff,
@@ -69,7 +68,6 @@ const ActionFlow = memo(({ action, t, variant = 'bot' }: {
   const nextStateLabels: Record<string, string> = {
     listen: t('voiceRobots.nextStateDescriptions.listen', 'Робот ждёт следующую фразу клиента'),
     switch_group: t('voiceRobots.nextStateDescriptions.switch_group', 'Робот перейдёт к другому набору сценариев'),
-    transfer_queue: t('voiceRobots.nextStateDescriptions.transfer_queue', 'Звонок попадёт в очередь ожидания'),
     transfer_exten: t('voiceRobots.nextStateDescriptions.transfer_exten', 'Звонок переведётся на указанный номер'),
     webhook: t('voiceRobots.nextStateDescriptions.webhook', 'Робот отправит данные на сервер'),
     hangup: t('voiceRobots.nextStateDescriptions.hangup', 'Звонок будет завершён'),

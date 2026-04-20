@@ -199,7 +199,7 @@ export const VoiceRobotGeneralTab = memo(({
           <VStack gap="4">
             <HStack align="center" gap="4">
               <Label>{t('voiceRobots.silenceTimeout', 'Таймаут молчания (сек)')}</Label>
-              <InfoTooltip text={t('voiceRobots.silenceTimeoutHint', 'Если клиент молчит, через это время робот повторит вопрос.')} />
+              <InfoTooltip text={t('voiceRobots.inactivityTimeoutHint', 'Если клиент молчит, через это время робот повторит вопрос.')} />
             </HStack>
             <Input type="number" min={5} max={120} value={silenceTimeoutSeconds}
               onChange={e => setSilenceTimeoutSeconds(Number(e.target.value))} />

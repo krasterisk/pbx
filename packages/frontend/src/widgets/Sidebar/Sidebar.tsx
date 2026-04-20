@@ -23,6 +23,8 @@ import {
   Volume2,
   AudioLines,
   Bot,
+  Activity,
+  ClipboardList,
 } from 'lucide-react';
 import { classNames } from '@/shared/lib/classNames/classNames';
 import { VStack, Flex } from '@/shared/ui/Stack';
@@ -54,9 +56,11 @@ export const Sidebar = ({ collapsed, onToggle, isMobile }: SidebarProps) => {
     { name: t('promptsPage.title', 'Записи'), path: '/prompts', icon: Mic },
     { name: t('moh.title', 'Музыка на удержании'), path: '/moh', icon: Music },
     { type: 'divider' as const, label: t('nav.callcenter') },
+    { name: t('nav.serviceRequests', 'Заявки клиентов'), path: '/service-requests', icon: ClipboardList },
     { name: t('nav.operator'), path: '/operator', icon: Headphones },
     { type: 'divider' as const, label: t('nav.analytics') },
     { name: t('nav.reports'), path: '/reports', icon: BarChart3 },
+    { name: t('nav.voiceRobotCdr', 'Журнал роботов (CDR)'), path: '/reports/voice-robot-cdr', icon: Activity },
     { type: 'divider' as const, label: t('nav.system') },
     { name: t('nav.users'), path: '/users', icon: Users },
     { name: t('nav.roles' as any) || 'Интерфейсы', path: '/roles', icon: Shield },

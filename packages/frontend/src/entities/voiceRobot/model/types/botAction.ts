@@ -19,7 +19,6 @@ export interface IBotResponse {
 export type BotNextStateType =
   | 'listen'
   | 'switch_group'
-  | 'transfer_queue'
   | 'transfer_exten'
   | 'webhook'
   | 'hangup';
@@ -71,7 +70,6 @@ export interface IVoiceRobotBotAction {
 export const NEXT_STATE_OPTIONS: { value: BotNextStateType; labelKey: string; fallback: string }[] = [
   { value: 'listen', labelKey: 'voiceRobots.action.listen', fallback: 'Продолжить слушать' },
   { value: 'switch_group', labelKey: 'voiceRobots.action.switchGroup', fallback: 'Переключить группу' },
-  { value: 'transfer_queue', labelKey: 'voiceRobots.action.transferQueue', fallback: 'Перевод на очередь' },
   { value: 'transfer_exten', labelKey: 'voiceRobots.action.transferExten', fallback: 'Перевод на номер' },
   { value: 'webhook', labelKey: 'voiceRobots.action.webhook', fallback: 'Webhook запрос' },
   { value: 'hangup', labelKey: 'voiceRobots.action.hangup', fallback: 'Завершить звонок' },

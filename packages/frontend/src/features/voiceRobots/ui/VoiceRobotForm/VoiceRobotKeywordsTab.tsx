@@ -44,7 +44,6 @@ const BotActionSummary = memo(({ action }: { action: IVoiceRobotBotAction | null
   const nextStateLabels: Record<string, string> = {
     listen: t('voiceRobots.action.listen', 'Продолжить слушать'),
     switch_group: t('voiceRobots.action.switchGroup', 'Переключить сценарий'),
-    transfer_queue: t('voiceRobots.action.transferQueue', 'Перевод на очередь'),
     transfer_exten: t('voiceRobots.action.transferExten', 'Перевод на номер'),
     webhook: t('voiceRobots.action.webhook', 'Webhook'),
     hangup: t('voiceRobots.action.hangup', 'Завершить'),

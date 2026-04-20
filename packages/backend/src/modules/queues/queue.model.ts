@@ -3,120 +3,120 @@ import { Column, DataType, Model, Table } from 'sequelize-typescript';
 @Table({ tableName: 'queue_table', timestamps: false })
 export class Queue extends Model {
   @Column({ primaryKey: true, type: DataType.STRING(128) })
-  name: string;
+  declare name: string;
 
   @Column({ type: DataType.STRING(128), allowNull: true })
-  musiconhold: string;
+  declare musiconhold: string;
 
   @Column({ type: DataType.STRING(128), allowNull: true })
-  announce: string;
+  declare announce: string;
 
   @Column({ type: DataType.STRING(128), allowNull: true })
-  context: string;
+  declare context: string;
 
   @Column({ type: DataType.INTEGER, allowNull: true })
-  timeout: number;
+  declare timeout: number;
 
   @Column({ type: DataType.STRING(128), allowNull: true })
-  strategy: string;
+  declare strategy: string;
 
   @Column({ type: DataType.INTEGER, allowNull: true })
-  retry: number;
+  declare retry: number;
 
   @Column({ type: DataType.INTEGER, allowNull: true })
-  wrapuptime: number;
+  declare wrapuptime: number;
 
   @Column({ type: DataType.INTEGER, allowNull: true })
-  maxlen: number;
+  declare maxlen: number;
 
   @Column({ type: DataType.INTEGER, allowNull: true })
-  servicelevel: number;
+  declare servicelevel: number;
 
   @Column({ type: DataType.INTEGER, allowNull: true })
-  weight: number;
+  declare weight: number;
 
   @Column({ type: DataType.STRING(128), allowNull: true })
-  joinempty: string;
+  declare joinempty: string;
 
   @Column({ type: DataType.STRING(128), allowNull: true })
-  leavewhenempty: string;
+  declare leavewhenempty: string;
 
   @Column({ type: DataType.BOOLEAN, allowNull: true })
-  ringinuse: boolean;
+  declare ringinuse: boolean;
 
   // Announcement fields
   @Column({ type: DataType.INTEGER, allowNull: true })
-  announce_frequency: number;
+  declare announce_frequency: number;
 
   @Column({ type: DataType.STRING(128), allowNull: true })
-  announce_holdtime: string;
+  declare announce_holdtime: string;
 
   @Column({ type: DataType.INTEGER, allowNull: true })
-  announce_round_seconds: number;
+  declare announce_round_seconds: number;
 
   @Column({ type: DataType.STRING(50), allowNull: true })
-  periodic_announce: string;
+  declare periodic_announce: string;
 
   @Column({ type: DataType.INTEGER, allowNull: true })
-  periodic_announce_frequency: number;
+  declare periodic_announce_frequency: number;
 
   @Column({ type: DataType.STRING(128), allowNull: true })
-  queue_youarenext: string;
+  declare queue_youarenext: string;
 
   @Column({ type: DataType.STRING(128), allowNull: true })
-  queue_thereare: string;
+  declare queue_thereare: string;
 
   @Column({ type: DataType.STRING(128), allowNull: true })
-  queue_callswaiting: string;
+  declare queue_callswaiting: string;
 
   @Column({ type: DataType.STRING(128), allowNull: true })
-  queue_holdtime: string;
+  declare queue_holdtime: string;
 
   @Column({ type: DataType.STRING(128), allowNull: true })
-  queue_minutes: string;
+  declare queue_minutes: string;
 
   @Column({ type: DataType.STRING(128), allowNull: true })
-  queue_seconds: string;
+  declare queue_seconds: string;
 
   @Column({ type: DataType.STRING(128), allowNull: true })
-  queue_lessthan: string;
+  declare queue_lessthan: string;
 
   @Column({ type: DataType.STRING(128), allowNull: true })
-  queue_thankyou: string;
+  declare queue_thankyou: string;
 
   @Column({ type: DataType.STRING(128), allowNull: true })
-  queue_reporthold: string;
+  declare queue_reporthold: string;
 
   // Advanced fields
   @Column({ type: DataType.STRING(128), allowNull: true })
-  monitor_format: string;
+  declare monitor_format: string;
 
   @Column({ type: DataType.BOOLEAN, allowNull: true })
-  monitor_join: boolean;
+  declare monitor_join: boolean;
 
   @Column({ type: DataType.INTEGER, allowNull: true })
-  memberdelay: number;
+  declare memberdelay: number;
 
   @Column({ type: DataType.BOOLEAN, allowNull: true })
-  timeoutrestart: boolean;
+  declare timeoutrestart: boolean;
 
   @Column({ type: DataType.BOOLEAN, allowNull: true })
-  reportholdtime: boolean;
+  declare reportholdtime: boolean;
 
   @Column({ type: DataType.BOOLEAN, allowNull: true })
-  eventmemberstatus: boolean;
+  declare eventmemberstatus: boolean;
 
   @Column({ type: DataType.BOOLEAN, allowNull: true })
-  eventwhencalled: boolean;
+  declare eventwhencalled: boolean;
 
   @Column({ type: DataType.BOOLEAN, allowNull: true })
-  setinterfacevar: boolean;
+  declare setinterfacevar: boolean;
 
   // Display name (ignored by Asterisk, used by our UI)
   @Column({ type: DataType.STRING(255), allowNull: true })
-  display_name: string;
+  declare display_name: string;
 
   // Tenant isolation
   @Column({ type: DataType.INTEGER, allowNull: false, defaultValue: 0 })
-  vpbx_user_uid: number;
+  declare vpbx_user_uid: number;
 }

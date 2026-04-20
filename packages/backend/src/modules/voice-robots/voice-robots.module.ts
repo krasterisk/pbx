@@ -5,6 +5,7 @@ import { VoiceRobot } from './voice-robot.model';
 import { VoiceRobotKeywordGroup } from './keyword-group.model';
 import { VoiceRobotKeyword } from './keyword.model';
 import { VoiceRobotLog } from './voice-robot-log.model';
+import { VoiceRobotCdr } from './voice-robot-cdr.model';
 import { VoiceRobotsController } from './voice-robots.controller';
 import { VoiceRobotsService } from './voice-robots.service';
 import { SileroVadProvider } from './services/silero-vad.provider';
@@ -34,6 +35,7 @@ import { TtsEngine } from '../tts-engines/tts-engine.model';
       VoiceRobotKeywordGroup,
       VoiceRobotKeyword,
       VoiceRobotLog,
+      VoiceRobotCdr,
       SttEngine,
       TtsEngine,
     ]),

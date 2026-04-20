@@ -1,6 +1,6 @@
 import {
   Controller, Get, Post, Put, Delete,
-  Body, Param, Request, UseGuards,
+  Body, Param, Query, Request, UseGuards,
   ParseIntPipe, HttpCode,
 } from '@nestjs/common';
 import { VoiceRobotsService } from './voice-robots.service';
@@ -35,6 +35,66 @@ export class VoiceRobotsController {
   async findAll(@Request() req: any) {
     return this.voiceRobotsService.findAll(req.user.vpbx_user_uid);
   }
+
+  // ─── CDR (Call Detail Records) ────────────────────────
+  // IMPORTANT: CDR routes MUST be declared before :uid to avoid param collision
+
+  /** GET /voice-robots/cdr — список CDR с пагинацией и фильтрами */
+  @Get('cdr')
+  async findAllCdr(
+    @Request() req: any,
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
+    @Query('robotId') robotId?: string,
+    @Query('disposition') disposition?: string,
+    @Query('callerId') callerId?: string,
+    @Query('dateFrom') dateFrom?: string,
+    @Query('dateTo') dateTo?: string,
+    @Query('search') search?: string,
+  ) {
+    return this.voiceRobotsService.findAllCdr(req.user.vpbx_user_uid, {
+      limit: limit ? parseInt(limit, 10) : undefined,
+      offset: offset ? parseInt(offset, 10) : undefined,
+      robotId: robotId ? parseInt(robotId, 10) : undefined,
+      disposition,
+      callerId,
+      dateFrom,
+      dateTo,
+      search,
+    });
+  }
+
+  /** GET /voice-robots/cdr/stats — статистика CDR */
+  @Get('cdr/stats')
+  async getCdrStats(
+    @Request() req: any,
+    @Query('robotId') robotId?: string,
+  ) {
+    return this.voiceRobotsService.getCdrStats(
+      req.user.vpbx_user_uid,
+      robotId ? parseInt(robotId, 10) : undefined,
+    );
+  }
+
+  /** GET /voice-robots/cdr/:id — одна CDR запись */
+  @Get('cdr/:id')
+  async findOneCdr(
+    @Request() req: any,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.voiceRobotsService.findOneCdr(req.user.vpbx_user_uid, id);
+  }
+
+  /** GET /voice-robots/cdr/:id/detail — CDR + пошаговые логи */
+  @Get('cdr/:id/detail')
+  async getCdrDetail(
+    @Request() req: any,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.voiceRobotsService.getCdrWithLogs(req.user.vpbx_user_uid, id);
+  }
+
+  // ─── Robot by ID ───────────────────────────────────────
 
   @Get(':uid')
   async findOne(

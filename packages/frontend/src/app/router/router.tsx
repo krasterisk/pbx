@@ -1,5 +1,6 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { AppLayout } from '@/app/layouts/AppLayout';
+import { StandaloneLayout } from '@/app/layouts/StandaloneLayout';
 import { LoginPage } from '@/pages/LoginPage/LoginPage';
 import { RegisterPage } from '@/pages/RegisterPage/RegisterPage';
 import { ActivationPage } from '@/pages/ActivationPage/ActivationPage';
@@ -20,7 +21,9 @@ import { TtsEnginesPage } from '@/pages/TtsEnginesPage';
 import { SttEnginesPage } from '@/pages/SttEnginesPage';
 import { VoiceRobotsPage } from '@/pages/VoiceRobotsPage';
 import { VoiceRobotEditPage } from '@/pages/VoiceRobotEditPage';
+import { VoiceRobotCdrPage } from '@/pages/VoiceRobotCdrPage';
 import { QueuesPage } from '@/features/queues';
+import { ServiceRequestsPage } from '@/pages/ServiceRequestsPage';
 
 export const router = createBrowserRouter([
   {
@@ -55,10 +58,21 @@ export const router = createBrowserRouter([
       { path: 'numbers', element: <NumbersPage /> },
       { path: 'provision-templates', element: <ProvisionTemplatesPage /> },
       { path: 'operator', element: <PlaceholderPage title="Панель оператора" /> },
+      { path: 'service-requests', element: <ServiceRequestsPage /> },
       { path: 'reports', element: <PlaceholderPage title="Отчёты" /> },
+      { path: 'reports/voice-robot-cdr', element: <VoiceRobotCdrPage /> },
       { path: 'settings', element: <PlaceholderPage title="Настройки" /> },
       { path: 'settings/tts-engines', element: <TtsEnginesPage /> },
       { path: 'settings/stt-engines', element: <SttEnginesPage /> },
+    ],
+  },
+  {
+    path: '/standalone',
+    element: <StandaloneLayout />,
+    children: [
+      { path: 'voice-robots', element: <VoiceRobotsPage /> },
+      { path: 'voice-robots/edit/:id', element: <VoiceRobotEditPage /> },
+      { path: 'voice-robots/cdr', element: <VoiceRobotCdrPage /> },
     ],
   },
   {

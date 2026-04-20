@@ -17,7 +17,16 @@ import { VoiceRobot } from '../voice-robot.model';
 import { VoiceRobotKeyword } from '../keyword.model';
 import { VoiceRobotKeywordGroup } from '../keyword-group.model';
 import { VoiceRobotLog } from '../voice-robot-log.model';
+import { VoiceRobotCdr } from '../voice-robot-cdr.model';
 import { IVoiceRobotBotAction, ISlotDefinition } from '../interfaces/bot-action.types';
+import { randomUUID } from 'crypto';
+
+/** Caller info passed from StasisStart event */
+export interface CallerInfo {
+  callerId: string | null;
+  callerName: string | null;
+  callUniqueId: string | null;
+}
 
 /**
  * Per-call Voice Robot session.
@@ -81,6 +90,17 @@ export class VoiceRobotSession {
   // Cleanup guard
   private cleanedUp = false;
 
+  // ─── CDR tracking ─────────────────────────────────────
+  private readonly sessionId = randomUUID();
+  private readonly startedAt = new Date();
+  private readonly transcript: string[] = [];
+  private noMatchCount = 0;
+  private totalConfidence = 0;
+  private totalMatches = 0;
+  private cdrDisposition: 'completed' | 'caller_hangup' | 'fallback' | 'max_steps' | 'error' | 'timeout' = 'completed';
+  private lastActionType: string | null = null;
+  private lastTransferTarget: string | null = null;
+
   // Active keyword set (can change via switch_group)
   private activeKeywords: VoiceRobotKeyword[];
 
@@ -111,6 +131,23 @@ export class VoiceRobotSession {
     retryCount: number;
   } | null = null;
 
+  /** Tenant ID (vpbx_user_uid) for context/queue name resolution */
+  private readonly tenantId: number;
+
+  /**
+   * Resolve a tenant-aware Asterisk context.
+   * Convention from dialplan.util.ts: `${contextBase}${vpbxUserUid}`
+   * Examples: "sip-out" → "sip-out1", "ctx-" → "ctx-1"
+   * If no context provided, uses the internal context "ctx-{tenantId}".
+   */
+  private resolveContext(context?: string): string {
+    if (!context) return `ctx-${this.tenantId}`;
+    // If context already ends with tenantId, don't double-add
+    const suffix = String(this.tenantId);
+    if (context.endsWith(suffix)) return context;
+    return `${context}${this.tenantId}`;
+  }
+
   constructor(
     private readonly ariClient: AriHttpClientService,
     private readonly udpServer: RtpUdpServerService,
@@ -131,10 +168,13 @@ export class VoiceRobotSession {
     private readonly keywordGroupsDb: VoiceRobotKeywordGroup[],
     private readonly externalHost: string,
     private readonly logModel: typeof VoiceRobotLog,
+    private readonly cdrModel: typeof VoiceRobotCdr,
+    private readonly callerInfo: CallerInfo,
   ) {
     const config = this.robotConfig.vad_config || {};
     this.PRE_SPEECH_FRAMES = Math.ceil((config.prefix_padding_ms || 300) / 32);
     this.maxSteps = this.robotConfig.max_conversation_steps || 10;
+    this.tenantId = this.robotConfig.user_uid;
 
     // ─── FSM Initialization: activate only initial group + globals ───
     // Global keywords are always active in every dialogue state
@@ -631,7 +671,7 @@ export class VoiceRobotSession {
         `(confidence: ${matchResult.confidence.toFixed(2)}, method: ${matchResult.method})`,
       );
 
-      await this.writeLog(text, sttResult, sttDurationMs, matchResult.keyword.uid, matchResult.confidence);
+      await this.writeLog(text, sttResult, sttDurationMs, matchResult.keyword.uid, matchResult.confidence, matchResult.keyword.group_id);
 
       // ─── Keyword Escalation (Repeat limit) ───
       const kwUid = matchResult.keyword.uid;
@@ -796,55 +836,65 @@ export class VoiceRobotSession {
 
     this.logger.log(`[Action] Executing nextState: ${nextState.type} → ${target || '(none)'}`);
 
-    switch (nextState.type) {
-      case 'listen':
-        // Stay in session, listen for next utterance
-        break;
+    try {
+      switch (nextState.type) {
+        case 'listen':
+          // Stay in session, listen for next utterance
+          break;
 
-      case 'switch_group': {
-        // In-session group switch: filter keywords by group_id + always include globals
-        const groupId = Number(target);
-        if (groupId) {
-          const groupKeywords = this.keywordsDb.filter(k => k.group_id === groupId);
-          if (groupKeywords.length > 0) {
-            // Push current group to stack for potential "go back"
-            const currentGroupId = this.activeKeywords.find(k => !this.globalKeywords.some(g => g.uid === k.uid))?.group_id;
-            if (currentGroupId) this.groupStack.push(currentGroupId);
-            this.activeKeywords = [...groupKeywords, ...this.globalKeywords];
-            this.logger.log(`[FSM] Switched to group ${groupId} (${groupKeywords.length} keywords + ${this.globalKeywords.length} global, stack depth: ${this.groupStack.length})`);
-          } else {
-            this.logger.warn(`[FSM] Group ${groupId} has no keywords, keeping current set`);
+        case 'switch_group': {
+          // In-session group switch: filter keywords by group_id + always include globals
+          const groupId = Number(target);
+          if (groupId) {
+            const groupKeywords = this.keywordsDb.filter(k => k.group_id === groupId);
+            if (groupKeywords.length > 0) {
+              // Push current group to stack for potential "go back"
+              const currentGroupId = this.activeKeywords.find(k => !this.globalKeywords.some(g => g.uid === k.uid))?.group_id;
+              if (currentGroupId) this.groupStack.push(currentGroupId);
+              this.activeKeywords = [...groupKeywords, ...this.globalKeywords];
+              this.logger.log(`[FSM] Switched to group ${groupId} (${groupKeywords.length} keywords + ${this.globalKeywords.length} global, stack depth: ${this.groupStack.length})`);
+            } else {
+              this.logger.warn(`[FSM] Group ${groupId} has no keywords, keeping current set`);
+            }
           }
+          break;
         }
-        break;
+
+        case 'transfer_exten': {
+          // Transfer call to extension in the tenant dialplan.
+          // Format: "700" or "700@sip-out" — context always gets tenantId appended.
+          const [exten, rawContext] = target.includes('@')
+            ? target.split('@')
+            : [target, undefined];
+          const resolvedContext = this.resolveContext(rawContext);
+          this.lastActionType = 'transfer_exten';
+          this.lastTransferTarget = `${exten}@${resolvedContext}`;
+          this.cdrDisposition = 'completed';
+          await this.ariClient.setChannelVar(this.channelId, 'ROBOT_STATUS', 'TRANSFER_EXTEN');
+          this.logger.log(`[Action] Transfer to ${exten}@${resolvedContext}`);
+          await this.ariClient.continueInDialplan(this.channelId, resolvedContext, exten, 1);
+          break;
+        }
+
+        case 'webhook':
+          await this.executeWebhook(action, filledSlots);
+          break;
+
+        case 'hangup':
+          this.lastActionType = 'hangup';
+          this.cdrDisposition = 'completed';
+          await this.ariClient.setChannelVar(this.channelId, 'ROBOT_STATUS', 'HANGUP');
+          await this.ariClient.hangupChannel(this.channelId).catch(() => {});
+          break;
+
+        default:
+          this.logger.warn(`[Action] Unknown nextState type: ${nextState.type}`);
       }
-
-      case 'transfer_queue':
-        await this.ariClient.setChannelVar(this.channelId, 'ROBOT_STATUS', 'TRANSFER_QUEUE');
-        await this.ariClient.setChannelVar(this.channelId, 'ROBOT_QUEUE', target);
-        await this.ariClient.continueInDialplan(this.channelId);
-        break;
-
-      case 'transfer_exten': {
-        const [exten, context] = target.includes('@')
-          ? target.split('@')
-          : [target, 'from-internal'];
-        await this.ariClient.setChannelVar(this.channelId, 'ROBOT_STATUS', 'TRANSFER_EXTEN');
-        await this.ariClient.continueInDialplan(this.channelId, context, exten, 1);
-        break;
-      }
-
-      case 'webhook':
-        await this.executeWebhook(action, filledSlots);
-        break;
-
-      case 'hangup':
-        await this.ariClient.setChannelVar(this.channelId, 'ROBOT_STATUS', 'HANGUP');
-        await this.ariClient.hangupChannel(this.channelId).catch(() => {});
-        break;
-
-      default:
-        this.logger.warn(`[Action] Unknown nextState type: ${nextState.type}`);
+    } catch (e: any) {
+      this.logger.error(`[Action] executeNextState(${nextState.type}) failed: ${e.message}`);
+      this.cdrDisposition = 'error';
+      // Attempt graceful cleanup — don't crash the process
+      this.cleanup();
     }
   }
 
@@ -922,23 +972,15 @@ export class VoiceRobotSession {
 
       // ─── 3. Dynamic Routing via Webhook Response ───
 
-      // 3a. Terminal: transfer to extension
-      if (data.action === 'transfer_exten' && data.target) {
-        this.logger.log(`[Webhook] Dynamic transfer_exten to ${data.target}`);
-        const [exten, context] = String(data.target).includes('@')
+      // 3a. Terminal: transfer to extension (also handles legacy transfer_queue)
+      if ((data.action === 'transfer_exten' || data.action === 'transfer_queue') && data.target) {
+        const [whExten, whRawCtx] = String(data.target).includes('@')
           ? String(data.target).split('@')
-          : [String(data.target), 'from-internal'];
+          : [String(data.target), undefined];
+        const whCtx = this.resolveContext(whRawCtx);
+        this.logger.log(`[Webhook] Dynamic transfer to ${whExten}@${whCtx}`);
         await this.ariClient.setChannelVar(this.channelId, 'ROBOT_STATUS', 'TRANSFER_EXTEN');
-        await this.ariClient.continueInDialplan(this.channelId, context, exten, 1);
-        return;
-      }
-
-      // 3b. Terminal: transfer to queue
-      if (data.action === 'transfer_queue' && data.target) {
-        this.logger.log(`[Webhook] Dynamic transfer_queue to ${data.target}`);
-        await this.ariClient.setChannelVar(this.channelId, 'ROBOT_STATUS', 'TRANSFER_QUEUE');
-        await this.ariClient.setChannelVar(this.channelId, 'ROBOT_QUEUE', String(data.target));
-        await this.ariClient.continueInDialplan(this.channelId);
+        await this.ariClient.continueInDialplan(this.channelId, whCtx, whExten, 1);
         return;
       }
 
@@ -1188,23 +1230,89 @@ export class VoiceRobotSession {
     sttDurationMs: number,
     matchedKeywordId: number | null,
     confidence: number,
+    matchedGroupId?: number | null,
+    botResponse?: string | null,
+    flowAction?: any | null,
   ): Promise<void> {
     try {
+      // Track transcript for CDR
+      if (recognizedText) {
+        this.transcript.push(`[Клиент] ${recognizedText}`);
+      }
+      if (botResponse) {
+        this.transcript.push(`[Робот] ${botResponse}`);
+      }
+
+      // Track CDR stats
+      if (matchedKeywordId) {
+        this.totalMatches++;
+        this.totalConfidence += confidence;
+      } else {
+        this.noMatchCount++;
+      }
+
+      const actionTaken = matchedKeywordId ? `voicerobot_keyword_${matchedKeywordId}` : 'no_match';
+
       await this.logModel.create({
         robot_id: this.robotConfig.uid,
-        call_uniqueid: this.channelId,
-        caller_id: null, // Filled if available from channel data
+        call_uniqueid: this.callerInfo.callUniqueId || this.channelId,
+        session_id: this.sessionId,
+        channel_id: this.channelId,
+        caller_id: this.callerInfo.callerId,
         step_number: this.stepCount,
+        matched_group_id: matchedGroupId || null,
         recognized_text: recognizedText,
-        raw_stt_json: sttResult?.rawJson || null,
+        raw_stt_json: sttResult?.rawJson || { streaming: true },
         matched_keyword_id: matchedKeywordId,
         match_confidence: confidence,
-        action_taken: matchedKeywordId ? `voicerobot_keyword_${matchedKeywordId}` : 'no_match',
+        action_taken: actionTaken,
         stt_duration_ms: sttDurationMs,
+        matching_score: sttResult?.matchingScore || null,
+        ai_response: botResponse || null,
+        flow_action: flowAction || null,
         user_uid: this.robotConfig.user_uid,
       });
     } catch (e: any) {
       this.logger.error(`Failed to write log: ${e.message}`);
+    }
+  }
+
+  /**
+   * Write CDR record (1 per call) — called from cleanup().
+   */
+  private async writeCdr(): Promise<void> {
+    try {
+      const endedAt = new Date();
+      const durationSeconds = Math.round((endedAt.getTime() - this.startedAt.getTime()) / 1000);
+
+      await this.cdrModel.create({
+        robot_id: this.robotConfig.uid,
+        robot_name: this.robotConfig.name,
+        call_uniqueid: this.callerInfo.callUniqueId || this.channelId,
+        channel_id: this.channelId,
+        session_id: this.sessionId,
+        caller_id: this.callerInfo.callerId,
+        caller_name: this.callerInfo.callerName,
+        started_at: this.startedAt,
+        ended_at: endedAt,
+        duration_seconds: durationSeconds,
+        disposition: this.cdrDisposition,
+        last_action: this.lastActionType,
+        transfer_target: this.lastTransferTarget,
+        total_steps: this.stepCount,
+        matched_keywords_count: this.totalMatches,
+        no_match_count: this.noMatchCount,
+        avg_confidence: this.totalMatches > 0
+          ? Math.round((this.totalConfidence / this.totalMatches) * 100) / 100
+          : null,
+        collected_slots: this.slotFillingState?.filledSlots || null,
+        transcript: this.transcript.join('\n') || null,
+        user_uid: this.robotConfig.user_uid,
+      });
+
+      this.logger.log(`CDR written: ${this.sessionId} (${this.cdrDisposition}, ${durationSeconds}s, ${this.stepCount} steps)`);
+    } catch (e: any) {
+      this.logger.error(`Failed to write CDR: ${e.message}`);
     }
   }
 
@@ -1286,6 +1394,9 @@ export class VoiceRobotSession {
 
     this.logger.log(`Cleaning up session for ${this.channelId}`);
 
+    // Write CDR record (async, fire-and-forget)
+    this.writeCdr().catch((e) => this.logger.error(`CDR write failed: ${e.message}`));
+
     // Cancel timers
     if (this.silenceTimer) clearTimeout(this.silenceTimer);
     if (this.maxDurationTimer) clearTimeout(this.maxDurationTimer);
@@ -1327,5 +1438,10 @@ export class VoiceRobotSession {
     // Reset VAD state
     this.sttBuffer = [];
     this.preSpeechRingBuffer.length = 0;
+  }
+
+  /** Set CDR disposition (called before cleanup for specific exit reasons) */
+  setDisposition(disposition: typeof this.cdrDisposition): void {
+    this.cdrDisposition = disposition;
   }
 }

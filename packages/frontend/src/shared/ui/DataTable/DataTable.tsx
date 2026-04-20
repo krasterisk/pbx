@@ -14,6 +14,7 @@ import {
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Download } from 'lucide-react';
 import { Button } from '@/shared/ui/Button';
 import { HStack } from '@/shared/ui/Stack';
+import { Table as UITable, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/shared/ui';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -228,78 +229,76 @@ function DataTableInner<TData>(
       )}
 
       {/* Table */}
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead>
-            {table.getHeaderGroups().map((hg) => (
-              <tr key={hg.id} className="border-b border-border">
+      <UITable>
+        <TableHeader>
+          {table.getHeaderGroups().map((hg) => (
+            <TableRow key={hg.id} className="border-border">
+              {selectable && (
+                <TableHead className="px-4 py-3 w-10">
+                  <input
+                    type="checkbox"
+                    checked={table.getIsAllPageRowsSelected()}
+                    onChange={table.getToggleAllPageRowsSelectedHandler()}
+                    className="w-4 h-4 rounded border-border bg-background accent-primary cursor-pointer"
+                  />
+                </TableHead>
+              )}
+              {hg.headers.map((header) => (
+                <TableHead
+                  key={header.id}
+                  onClick={header.column.getToggleSortingHandler()}
+                  className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground cursor-pointer hover:text-foreground select-none transition-colors"
+                >
+                  <HStack gap="4" align="center">
+                    {flexRender(header.column.columnDef.header, header.getContext())}
+                    {header.column.getIsSorted() === 'asc' && ' ↑'}
+                    {header.column.getIsSorted() === 'desc' && ' ↓'}
+                  </HStack>
+                </TableHead>
+              ))}
+            </TableRow>
+          ))}
+        </TableHeader>
+        <TableBody>
+          {table.getRowModel().rows.length === 0 ? (
+            <TableRow>
+              <TableCell
+                colSpan={columns.length + (selectable ? 1 : 0)}
+                className="text-center py-12 text-muted-foreground"
+              >
+                {emptyText}
+              </TableCell>
+            </TableRow>
+          ) : (
+            table.getRowModel().rows.map((row) => (
+              <TableRow
+                key={row.id}
+                className={`border-border/50 transition-colors ${
+                  row.getIsSelected()
+                    ? 'bg-primary/5 hover:bg-primary/10'
+                    : 'hover:bg-white/[0.02]'
+                }`}
+              >
                 {selectable && (
-                  <th className="px-4 py-3 w-10">
+                  <TableCell className="px-4 py-3 w-10">
                     <input
                       type="checkbox"
-                      checked={table.getIsAllPageRowsSelected()}
-                      onChange={table.getToggleAllPageRowsSelectedHandler()}
+                      checked={row.getIsSelected()}
+                      onChange={row.getToggleSelectedHandler()}
                       className="w-4 h-4 rounded border-border bg-background accent-primary cursor-pointer"
                     />
-                  </th>
+                  </TableCell>
                 )}
-                {hg.headers.map((header) => (
-                  <th
-                    key={header.id}
-                    onClick={header.column.getToggleSortingHandler()}
-                    className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground cursor-pointer hover:text-foreground select-none transition-colors"
-                  >
-                    <HStack gap="4" align="center">
-                      {flexRender(header.column.columnDef.header, header.getContext())}
-                      {header.column.getIsSorted() === 'asc' && ' ↑'}
-                      {header.column.getIsSorted() === 'desc' && ' ↓'}
-                    </HStack>
-                  </th>
+                {row.getVisibleCells().map((cell) => (
+                  <TableCell key={cell.id} className="px-4 py-3 text-sm">
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </TableCell>
                 ))}
-              </tr>
-            ))}
-          </thead>
-          <tbody>
-            {table.getRowModel().rows.length === 0 ? (
-              <tr>
-                <td
-                  colSpan={columns.length + (selectable ? 1 : 0)}
-                  className="text-center py-12 text-muted-foreground"
-                >
-                  {emptyText}
-                </td>
-              </tr>
-            ) : (
-              table.getRowModel().rows.map((row) => (
-                <tr
-                  key={row.id}
-                  className={`border-b border-border/50 transition-colors ${
-                    row.getIsSelected()
-                      ? 'bg-primary/5 hover:bg-primary/10'
-                      : 'hover:bg-white/[0.02]'
-                  }`}
-                >
-                  {selectable && (
-                    <td className="px-4 py-3 w-10">
-                      <input
-                        type="checkbox"
-                        checked={row.getIsSelected()}
-                        onChange={row.getToggleSelectedHandler()}
-                        className="w-4 h-4 rounded border-border bg-background accent-primary cursor-pointer"
-                      />
-                    </td>
-                  )}
-                  {row.getVisibleCells().map((cell) => (
-                    <td key={cell.id} className="px-4 py-3 text-sm">
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </td>
-                  ))}
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+              </TableRow>
+            ))
+          )}
+        </TableBody>
+      </UITable>
 
       {/* Pagination */}
       <PaginationControls table={table} />

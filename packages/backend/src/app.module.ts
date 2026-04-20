@@ -20,6 +20,8 @@ import { SystemSettingsModule } from './modules/system-settings/system-settings.
 import { VoiceRobotsModule } from './modules/voice-robots/voice-robots.module';
 import { AriModule } from './modules/ari/ari.module';
 import { QueuesModule } from './modules/queues/queues.module';
+import { ServiceRequestsModule } from './modules/service-requests/service-requests.module';
+import { SmsModule } from './modules/sms/sms.module';
 import { Queue } from './modules/queues/queue.model';
 import { QueueMember } from './modules/queues/queue-member.model';
 import { Prompt } from './modules/prompts/prompt.model';
@@ -52,6 +54,8 @@ import { VoiceRobot } from './modules/voice-robots/voice-robot.model';
 import { VoiceRobotKeywordGroup } from './modules/voice-robots/keyword-group.model';
 import { VoiceRobotKeyword } from './modules/voice-robots/keyword.model';
 import { VoiceRobotLog } from './modules/voice-robots/voice-robot-log.model';
+import { VoiceRobotCdr } from './modules/voice-robots/voice-robot-cdr.model';
+import { ServiceRequest } from './modules/service-requests/service-request.model';
 import * as path from 'path';
 
 @Module({
@@ -74,8 +78,9 @@ import * as path from 'path';
         PsRegistration, PsEndpointIdIp,
         Route, ContextInclude, Ivr, Prompt, TtsEngine, SttEngine,
         MohClass, MohEntry,
-        SystemSetting, VoiceRobot, VoiceRobotKeywordGroup, VoiceRobotKeyword, VoiceRobotLog,
+        SystemSetting, VoiceRobot, VoiceRobotKeywordGroup, VoiceRobotKeyword, VoiceRobotLog, VoiceRobotCdr,
         Queue, QueueMember,
+        ServiceRequest,
       ],
       autoLoadModels: false,
       synchronize: false, // IMPORTANT: never auto-sync with existing DB
@@ -106,6 +111,8 @@ import * as path from 'path';
     VoiceRobotsModule,
     AriModule,
     QueuesModule,
+    ServiceRequestsModule,
+    SmsModule,
     LoggerModule,
     MailerModule,
     TelegramModule,

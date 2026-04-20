@@ -7,33 +7,33 @@ export class QueueMember extends Model {
     autoIncrement: true,
     type: DataType.INTEGER.UNSIGNED,
   })
-  uniqueid: number;
+  declare uniqueid: number;
 
   @Column({ type: DataType.STRING(40), allowNull: true })
-  membername: string;
+  declare membername: string;
 
   @Column({ type: DataType.STRING(128), allowNull: false })
-  queue_name: string;
+  declare queue_name: string;
 
   @Column({ type: DataType.STRING(128), allowNull: false })
-  interface: string;
+  declare interface: string;
 
   @Column({ type: DataType.INTEGER, allowNull: true, defaultValue: 0 })
-  penalty: number;
+  declare penalty: number;
 
   @Column({ type: DataType.INTEGER, allowNull: true, defaultValue: 0 })
-  paused: number;
+  declare paused: number;
 
   @Column({ type: DataType.STRING(128), allowNull: true })
-  reason_paused: string;
+  declare reason_paused: string;
 
   @Column({ type: DataType.INTEGER, allowNull: true })
-  wrapuptime: number;
+  declare wrapuptime: number;
 
   @Column({ type: DataType.STRING(128), allowNull: true })
-  state_interface: string;
+  declare state_interface: string;
 
   // Tenant isolation
   @Column({ type: DataType.INTEGER, allowNull: false, defaultValue: 0 })
-  vpbx_user_uid: number;
+  declare vpbx_user_uid: number;
 }

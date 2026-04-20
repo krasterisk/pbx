@@ -1,6 +1,24 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import axios, { AxiosInstance } from 'axios';
+import axios, { AxiosInstance, AxiosError } from 'axios';
+
+/**
+ * Compact error thrown by ARI HTTP requests.
+ * Strips Axios internals (TLS sockets, buffers) to keep logs readable.
+ */
+export class AriRequestError extends Error {
+  constructor(
+    public readonly method: string,
+    public readonly url: string,
+    public readonly status: number | null,
+    public readonly responseBody: any,
+    public readonly originalMessage: string,
+  ) {
+    const statusStr = status ? ` ${status}` : '';
+    super(`ARI ${method.toUpperCase()}${statusStr} ${url}: ${originalMessage}`);
+    this.name = 'AriRequestError';
+  }
+}
 
 export interface AriEvent {
   type: string;
@@ -72,6 +90,21 @@ export class AriHttpClientService implements OnModuleInit {
       timeout: 10000,
     });
 
+    // ─── Compact error interceptor ───
+    // Strips Axios internals (TLS sockets, Buffers, circular refs)
+    // so error logs stay readable instead of dumping megabytes.
+    this.client.interceptors.response.use(
+      (response) => response,
+      (error: AxiosError) => {
+        const method = error.config?.method || 'UNKNOWN';
+        const url = error.config?.url || 'unknown';
+        const status = error.response?.status ?? null;
+        const body = error.response?.data;
+        const msg = error.message || 'Unknown error';
+        return Promise.reject(new AriRequestError(method, url, status, body, msg));
+      },
+    );
+
     this.logger.log(`Initialized ARI HTTP Client (baseURL: ${this.baseURL}, app: ${this.appName})`);
   }
 
@@ -80,24 +113,28 @@ export class AriHttpClientService implements OnModuleInit {
     try {
       const response = await this.client.get('/asterisk/info');
       return response.status === 200;
-    } catch (error) {
-      this.logger.error('ARI connection test failed', error);
+    } catch (error: any) {
+      this.logger.error(`ARI connection test failed: ${error.message}`);
       return false;
     }
   }
 
   // ==================== Bridge Operations ====================
   async createBridge(type: string = 'mixing'): Promise<Bridge> {
-    const response = await this.client.post('/bridges', { type });
+    const response = await this.client.post('/bridges', undefined, { params: { type } });
     return response.data;
   }
 
   async addChannelToBridge(bridgeId: string, channelId: string): Promise<void> {
-    await this.client.post(`/bridges/${bridgeId}/addChannel`, { channel: channelId });
+    await this.client.post(`/bridges/${bridgeId}/addChannel`, undefined, {
+      params: { channel: channelId },
+    });
   }
 
   async removeChannelFromBridge(bridgeId: string, channelId: string): Promise<void> {
-    await this.client.post(`/bridges/${bridgeId}/removeChannel`, { channel: channelId });
+    await this.client.post(`/bridges/${bridgeId}/removeChannel`, undefined, {
+      params: { channel: channelId },
+    });
   }
 
   async destroyBridge(bridgeId: string): Promise<void> {
@@ -116,18 +153,17 @@ export class AriHttpClientService implements OnModuleInit {
     spy: 'none' | 'in' | 'out' | 'both' = 'none',
     whisper: 'none' | 'in' | 'out' | 'both' = 'out',
   ): Promise<Channel> {
-    const response = await this.client.post(`/channels/${channelId}/snoop`, { app, appArgs, spy, whisper });
+    const response = await this.client.post(`/channels/${channelId}/snoop`, undefined, {
+      params: { app, appArgs, spy, whisper },
+    });
     return response.data;
   }
 
   // ==================== Channel Operations ====================
   async createChannel(endpoint: string, app: string, appArgs?: string): Promise<Channel> {
-    const params: any = {
-      endpoint,
-      app,
-      appArgs: appArgs || '',
-    };
-    const response = await this.client.post('/channels/create', params);
+    const response = await this.client.post('/channels/create', undefined, {
+      params: { endpoint, app, appArgs: appArgs || '' },
+    });
     return response.data;
   }
 
@@ -140,11 +176,22 @@ export class AriHttpClientService implements OnModuleInit {
     if (context) params.context = context;
     if (extension) params.extension = extension;
     if (priority) params.priority = priority;
-    await this.client.post(`/channels/${channelId}/continue`, null, { params });
+
+    const target = context ? `${extension}@${context}:${priority}` : '(default dialplan)';
+    this.logger.debug(`[ARI] continueInDialplan channel=${channelId} → ${target}`);
+
+    try {
+      await this.client.post(`/channels/${channelId}/continue`, undefined, { params });
+    } catch (e: any) {
+      this.logger.error(`[ARI] continueInDialplan FAILED: ${e.message}`);
+      throw e;
+    }
   }
 
   async setChannelVar(channelId: string, variable: string, value: string): Promise<void> {
-    await this.client.post(`/channels/${channelId}/variable`, { variable, value });
+    await this.client.post(`/channels/${channelId}/variable`, undefined, {
+      params: { variable, value },
+    });
   }
 
   async answerChannel(channelId: string): Promise<void> {
@@ -161,11 +208,15 @@ export class AriHttpClientService implements OnModuleInit {
   }
 
   async redirectChannel(channelId: string, context: string, extension: string, priority: number = 1): Promise<void> {
-    await this.client.post(`/channels/${channelId}/redirect`, { context, extension, priority });
+    await this.client.post(`/channels/${channelId}/redirect`, undefined, {
+      params: { context, extension, priority },
+    });
   }
 
   async playMedia(channelId: string, media: string, lang: string = 'ru'): Promise<string> {
-    const response = await this.client.post(`/channels/${channelId}/play`, { media: `sound:${media}`, lang });
+    const response = await this.client.post(`/channels/${channelId}/play`, undefined, {
+      params: { media: `sound:${media}`, lang },
+    });
     return response.data.id;
   }
 
@@ -198,7 +249,7 @@ export class AriHttpClientService implements OnModuleInit {
     if (channelId) params.channelId = channelId;
     if (data) params.data = data;
 
-    const response = await this.client.post(`/channels/externalMedia`, params);
+    const response = await this.client.post(`/channels/externalMedia`, undefined, { params });
     return response.data;
   }
 

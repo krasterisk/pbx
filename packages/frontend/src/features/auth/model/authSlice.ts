@@ -77,6 +77,11 @@ const authSlice = createSlice({
       localStorage.removeItem('refreshToken');
       localStorage.removeItem('user');
     },
+    setToken(state, action: PayloadAction<string>) {
+      state.accessToken = action.payload;
+      state.isAuthenticated = true;
+      localStorage.setItem('accessToken', action.payload);
+    },
     clearError(state) {
       state.error = null;
     },
@@ -111,5 +116,5 @@ const authSlice = createSlice({
   },
 });
 
-export const { logout, clearError } = authSlice.actions;
+export const { logout, clearError, setToken } = authSlice.actions;
 export const authReducer = authSlice.reducer;

@@ -2,7 +2,7 @@ import { memo, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   MessageSquare, ArrowRight, SlidersHorizontal, Plus, Trash2, Globe,
-  Headphones, GitBranch, Users, PhoneForwarded, PhoneOff,
+  Headphones, GitBranch, PhoneForwarded, PhoneOff,
 } from 'lucide-react';
 import { VStack, HStack, Input, Select, Label, Button, Text, Textarea, RadioCards } from '@/shared/ui';
 import { InfoTooltip, Tooltip } from '@/shared/ui/Tooltip/Tooltip';
@@ -69,15 +69,9 @@ export const VoiceRobotActionEditor = memo(({ action, onChange, robotId, compact
       icon: GitBranch,
     },
     {
-      value: 'transfer_queue',
-      label: t('voiceRobots.action.transferQueue', 'Перевод в очередь'),
-      description: t('voiceRobots.nextStateDescriptions.transfer_queue', 'Звонок попадёт в очередь ожидания'),
-      icon: Users,
-    },
-    {
       value: 'transfer_exten',
-      label: t('voiceRobots.action.transferExten', 'Перевод на номер'),
-      description: t('voiceRobots.nextStateDescriptions.transfer_exten', 'Звонок переведётся на указанный номер'),
+      label: t('voiceRobots.action.transferExten', 'Перевод на номер или очередь'),
+      description: t('voiceRobots.nextStateDescriptions.transfer_exten', 'Звонок переведётся на указанный номер (или очередь)'),
       icon: PhoneForwarded,
     },
     {
@@ -316,23 +310,6 @@ export const VoiceRobotActionEditor = memo(({ action, onChange, robotId, compact
           </VStack>
         )}
 
-        {action.nextState.type === 'transfer_queue' && (
-          <VStack gap="4">
-            <Label>{t('voiceRobots.action.targetQueue', 'Очередь')}</Label>
-            <Select
-              value={String(action.nextState.target || '')}
-              onChange={e => updateNextState({ target: e.target.value })}
-            >
-              <option value="">{t('voiceRobots.action.selectQueue', '— Выберите очередь —')}</option>
-              {queues.map(q => (
-                <option key={q.name} value={q.exten || q.name}>
-                  {q.exten || q.name} {q.display_name ? `(${q.display_name})` : ''}
-                </option>
-              ))}
-            </Select>
-          </VStack>
-        )}
-
         {action.nextState.type === 'transfer_exten' && (
           <HStack gap="8">
             <VStack gap="4" className="flex-1">
@@ -377,7 +354,7 @@ export const VoiceRobotActionEditor = memo(({ action, onChange, robotId, compact
                     {t('voiceRobots.action.webhookSpecDesc', 'Робот отправит POST-запрос с собранными параметрами slots и текущим контекстом звонка.')}<br/><br/>
                     <strong>{t('voiceRobots.action.webhookExpectTitle', 'Ожидаемый JSON-ответ:')}</strong><br/>
                     • <code>{`{"action": "continue_dialogue", "say_text": "...", "next_state": "listen"}`}</code> — {t('voiceRobots.action.webhookContinue', 'продолжить опрос')}<br/>
-                    • <code>{`{"action": "transfer", "target": "100"}`}</code> — {t('voiceRobots.action.webhookTransfer', 'перевести звонок')}<br/>
+                    • <code>{`{"action": "transfer_exten", "target": "100"}`}</code> — {t('voiceRobots.action.webhookTransfer', 'перевести звонок')}<br/>
                     • <code>{`{"action": "hangup"}`}</code> — {t('voiceRobots.action.webhookHangup', 'завершить звонок')}<br/><br/>
                     <em>{t('voiceRobots.action.webhookVariables', 'Любые другие ключи можно подставить в Шаблон ответа через {{key}}.', { key: '{{key}}' })}</em>
                   </div>

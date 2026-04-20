@@ -55,15 +55,13 @@ export interface IBotNextState {
    * Navigation action after response:
    * - listen:          Stay in current group, listen for next utterance
    * - switch_group:    Switch to another keyword group (in-session, no Stasis exit)
-   * - transfer_queue:  Exit to Asterisk Queue (terminal)
-   * - transfer_exten:  Exit to Asterisk Extension (terminal)
+   * - transfer_exten:  Exit to Asterisk Extension/Queue via dialplan (terminal)
    * - webhook:         HTTP POST with collected slots, then TTS response (terminal)
    * - hangup:          Hang up the call (terminal)
    */
   type:
     | 'listen'
     | 'switch_group'
-    | 'transfer_queue'
     | 'transfer_exten'
     | 'webhook'
     | 'hangup';
@@ -71,8 +69,7 @@ export interface IBotNextState {
   /**
    * Target identifier:
    * - switch_group:    keyword group UID
-   * - transfer_queue:  queue name/extension
-   * - transfer_exten:  extension@context
+   * - transfer_exten:  extension or extension@context
    * - webhook:         URL
    */
   target?: string | number;

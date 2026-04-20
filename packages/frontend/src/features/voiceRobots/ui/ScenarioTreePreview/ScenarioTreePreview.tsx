@@ -1,7 +1,7 @@
 import { memo, useMemo, useRef, useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  Bot, User, ArrowRight, Globe, PhoneForwarded, Users as UsersIcon,
+  Bot, User, ArrowRight, Globe, PhoneForwarded,
   PhoneOff, Repeat, MessageSquare, Mic, FolderOpen, ShieldAlert, FileDown,
   Volume2, MinusCircle,
 } from 'lucide-react';
@@ -153,7 +153,6 @@ const ActionSummaryNode = memo(({ action, t, indent, isEscalation = false }: {
   const stateIcons: Record<string, typeof Bot> = {
     listen: Mic,
     switch_group: ArrowRight,
-    transfer_queue: UsersIcon,
     transfer_exten: PhoneForwarded,
     webhook: Globe,
     hangup: PhoneOff,
@@ -161,13 +160,12 @@ const ActionSummaryNode = memo(({ action, t, indent, isEscalation = false }: {
   const stateLabels: Record<string, string> = {
     listen: t('voiceRobots.action.listen', 'Продолжить слушать'),
     switch_group: t('voiceRobots.action.switchGroup', 'Переключить группу'),
-    transfer_queue: t('voiceRobots.action.transferQueue', 'Перевод на очередь'),
     transfer_exten: t('voiceRobots.action.transferExten', 'Перевод на номер'),
     webhook: t('voiceRobots.action.webhook', 'Webhook'),
     hangup: t('voiceRobots.action.hangup', 'Завершить звонок'),
   };
 
-  const isTerminal = ['transfer_queue', 'transfer_exten', 'hangup'].includes(action.nextState.type);
+  const isTerminal = ['transfer_exten', 'hangup'].includes(action.nextState.type);
   const Icon = stateIcons[action.nextState.type] || ArrowRight;
   const label = stateLabels[action.nextState.type] || action.nextState.type;
 

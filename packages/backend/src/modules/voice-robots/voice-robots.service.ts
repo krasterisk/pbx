@@ -2,10 +2,12 @@ import { Injectable, Logger, NotFoundException, ForbiddenException, OnApplicatio
 import { InjectModel } from '@nestjs/sequelize';
 import { ConfigService } from '@nestjs/config';
 import { OnEvent } from '@nestjs/event-emitter';
+import { Op } from 'sequelize';
 import { VoiceRobot } from './voice-robot.model';
 import { VoiceRobotKeywordGroup } from './keyword-group.model';
 import { VoiceRobotKeyword } from './keyword.model';
 import { VoiceRobotLog } from './voice-robot-log.model';
+import { VoiceRobotCdr } from './voice-robot-cdr.model';
 import { SttEngine } from '../stt-engines/stt-engine.model';
 import { TtsEngine } from '../tts-engines/tts-engine.model';
 import { AriHttpClientService } from '../ari/ari-http-client.service';
@@ -17,7 +19,7 @@ import { SlotExtractorService } from './services/slot-extractor.service';
 import { StreamAudioService } from './services/stream-audio.service';
 import { AudioService } from './services/audio.service';
 import { TtsCacheService } from './services/tts-cache.service';
-import { VoiceRobotSession } from './services/voice-robot-session';
+import { VoiceRobotSession, CallerInfo } from './services/voice-robot-session';
 import { SttProviderFactory, TtsProviderFactory } from './providers/provider-factory';
 import { AsteriskDialplanUtils } from '../../shared/utils/dialplan.util';
 
@@ -32,6 +34,7 @@ export class VoiceRobotsService implements OnApplicationShutdown {
     @InjectModel(VoiceRobotKeywordGroup) private groupModel: typeof VoiceRobotKeywordGroup,
     @InjectModel(VoiceRobotKeyword) private keywordModel: typeof VoiceRobotKeyword,
     @InjectModel(VoiceRobotLog) private logModel: typeof VoiceRobotLog,
+    @InjectModel(VoiceRobotCdr) private cdrModel: typeof VoiceRobotCdr,
     @InjectModel(SttEngine) private sttEngineModel: typeof SttEngine,
     @InjectModel(TtsEngine) private ttsEngineModel: typeof TtsEngine,
     private readonly ariClient: AriHttpClientService,
@@ -193,7 +196,156 @@ export class VoiceRobotsService implements OnApplicationShutdown {
     });
   }
 
-  // ─── Dialplan Generation ──────────────────────────────
+  // ─── CDR (Call Detail Records) ─────────────────────────
+
+  /** List CDR records with pagination and filters */
+  async findAllCdr(
+    userUid: number,
+    options?: {
+      limit?: number;
+      offset?: number;
+      robotId?: number;
+      disposition?: string;
+      callerId?: string;
+      dateFrom?: string;
+      dateTo?: string;
+      search?: string;
+    },
+  ): Promise<{ rows: VoiceRobotCdr[]; count: number }> {
+    const where: any = { user_uid: userUid };
+
+    if (options?.robotId) where.robot_id = options.robotId;
+    if (options?.disposition) where.disposition = options.disposition;
+    if (options?.callerId) where.caller_id = { [Op.like]: `%${options.callerId}%` };
+
+    // Date range filter
+    if (options?.dateFrom || options?.dateTo) {
+      where.started_at = {};
+      if (options?.dateFrom) where.started_at[Op.gte] = new Date(options.dateFrom);
+      if (options?.dateTo) where.started_at[Op.lte] = new Date(options.dateTo);
+    }
+
+    // Full-text search across multiple fields
+    if (options?.search) {
+      where[Op.or] = [
+        { caller_id: { [Op.like]: `%${options.search}%` } },
+        { caller_name: { [Op.like]: `%${options.search}%` } },
+        { call_uniqueid: { [Op.like]: `%${options.search}%` } },
+        { robot_name: { [Op.like]: `%${options.search}%` } },
+        { transcript: { [Op.like]: `%${options.search}%` } },
+        { transfer_target: { [Op.like]: `%${options.search}%` } },
+      ];
+    }
+
+    return this.cdrModel.findAndCountAll({
+      where,
+      order: [['started_at', 'DESC']],
+      limit: options?.limit || 50,
+      offset: options?.offset || 0,
+    });
+  }
+
+  /** Get single CDR record */
+  async findOneCdr(userUid: number, uid: number): Promise<VoiceRobotCdr | null> {
+    return this.cdrModel.findOne({ where: { uid, user_uid: userUid } });
+  }
+
+  /** Get CDR with linked step logs (detail view) */
+  async getCdrWithLogs(userUid: number, uid: number): Promise<{
+    cdr: VoiceRobotCdr;
+    logs: VoiceRobotLog[];
+  } | null> {
+    const cdr = await this.cdrModel.findOne({ where: { uid, user_uid: userUid } });
+    if (!cdr) return null;
+
+    // Find all step logs for this call by session_id (most reliable) or call_uniqueid
+    const logWhere: any = { user_uid: userUid };
+    if (cdr.session_id) {
+      logWhere.session_id = cdr.session_id;
+    } else if (cdr.call_uniqueid) {
+      logWhere.call_uniqueid = cdr.call_uniqueid;
+    } else {
+      return { cdr, logs: [] };
+    }
+
+    const logs = await this.logModel.findAll({
+      where: logWhere,
+      order: [['step_number', 'ASC']],
+      raw: true,
+    });
+
+    // Resolve group and keyword names
+    const mappedLogs = await Promise.all(logs.map(async (log: any) => {
+      let groupName = null;
+      let keywordName = null;
+
+      if (log.matched_group_id) {
+        const group = await this.groupModel.findByPk(log.matched_group_id, { attributes: ['name'] });
+        if (group) groupName = group.name;
+      }
+
+      if (log.matched_keyword_id) {
+        const keyword = await this.keywordModel.findByPk(log.matched_keyword_id, { attributes: ['keywords', 'comment'] });
+        if (keyword) keywordName = keyword.comment || keyword.keywords;
+      }
+
+      return {
+        ...log,
+        matched_group_name: groupName,
+        matched_keyword_name: keywordName,
+      };
+    }));
+
+    return { cdr, logs: mappedLogs as any };
+  }
+
+  /** CDR statistics (disposition breakdown + totals) */
+  async getCdrStats(userUid: number, robotId?: number): Promise<{
+    byDisposition: Record<string, number>;
+    totalCalls: number;
+    avgDuration: number;
+    avgSteps: number;
+  }> {
+    const where: any = { user_uid: userUid };
+    if (robotId) where.robot_id = robotId;
+
+    // Disposition counts
+    const dispositionRows = await this.cdrModel.findAll({
+      where,
+      attributes: [
+        'disposition',
+        [this.cdrModel.sequelize!.fn('COUNT', '*'), 'count'],
+      ],
+      group: ['disposition'],
+      raw: true,
+    }) as any[];
+
+    const byDisposition: Record<string, number> = {};
+    let totalCalls = 0;
+    for (const row of dispositionRows) {
+      const count = parseInt(row.count, 10);
+      byDisposition[row.disposition] = count;
+      totalCalls += count;
+    }
+
+    // Averages
+    const avgResult = await this.cdrModel.findOne({
+      where,
+      attributes: [
+        [this.cdrModel.sequelize!.fn('AVG', this.cdrModel.sequelize!.col('duration_seconds')), 'avgDuration'],
+        [this.cdrModel.sequelize!.fn('AVG', this.cdrModel.sequelize!.col('total_steps')), 'avgSteps'],
+      ],
+      raw: true,
+    }) as any;
+
+    return {
+      byDisposition,
+      totalCalls,
+      avgDuration: Math.round(avgResult?.avgDuration || 0),
+      avgSteps: Math.round((avgResult?.avgSteps || 0) * 10) / 10,
+    };
+  }
+
 
   /**
    * Generate Asterisk dialplan contexts for all voice robots of a tenant.
@@ -364,6 +516,14 @@ export class VoiceRobotsService implements OnApplicationShutdown {
         }
       }
 
+      // Extract caller info from ARI channel event
+      const callerInfo: CallerInfo = {
+        callerId: event.channel?.caller?.number || null,
+        callerName: event.channel?.caller?.name || null,
+        callUniqueId: event.channel?.accountcode || event.channel?.id || null,
+      };
+      this.logger.log(`Caller: ${callerInfo.callerId || 'unknown'} (${callerInfo.callerName || ''})`);
+
       const session = new VoiceRobotSession(
         this.ariClient,
         this.udpServer,
@@ -384,6 +544,8 @@ export class VoiceRobotsService implements OnApplicationShutdown {
         keywordGroups,
         externalHost,
         this.logModel,
+        this.cdrModel,
+        callerInfo,
       );
 
       this.activeSessions.set(channelId, session);
@@ -419,6 +581,9 @@ export class VoiceRobotsService implements OnApplicationShutdown {
 
     const session = this.activeSessions.get(channelId);
     if (session) {
+      // If cleanup hasn't been triggered by a robot action (transfer/hangup),
+      // then StasisEnd means the caller hung up
+      session.setDisposition('caller_hangup');
       session.cleanup();
       this.activeSessions.delete(channelId);
       this.logger.log(`Session cleaned up for channel ${channelId}`);
