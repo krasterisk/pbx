@@ -37,6 +37,36 @@ export interface IVoiceRobotBotAction {
 
   /** 7. Delay before executing action (ms) */
   delayMs?: number;
+
+  /** 8. Data list search configuration (used when nextState.type === 'search_data_list') */
+  dataListSearch?: IDataListSearchConfig;
+}
+
+// ─── Data List Search Config ─────────────────────────────
+
+export interface IDataListSearchConfig {
+  /** Which data list to search (uid) */
+  listId: number;
+  /** Where to get search query from */
+  querySource: 'last_utterance' | 'slot';
+  /** Slot name to use as query (when querySource === 'slot') */
+  querySlotName?: string;
+  /** Which column to return from matched row (e.g. "phone") */
+  returnField: string;
+  /** Variable name to store result in dialogueContext (e.g. "manager_phone") */
+  resultVariable: string;
+  /** What to say if nothing found */
+  notFoundResponse?: IBotResponse;
+  /** What to say when found (before executing onFoundNextState, supports {{variable}} interpolation) */
+  onFoundResponse?: IBotResponse;
+  /** What to do after successful search */
+  onFoundNextState?: IBotNextState;
+  /** What to do after all not-found retries exhausted */
+  notFoundNextState?: IBotNextState;
+  /** How many not-found attempts before executing notFoundNextState (default: 1) */
+  maxNotFoundRetries?: number;
+  /** When multiple rows match: 'best' = highest confidence (default), 'random' = pick randomly */
+  multiMatchStrategy?: 'best' | 'random';
 }
 
 // ─── Response ────────────────────────────────────────────
@@ -53,17 +83,19 @@ export interface IBotResponse {
 export interface IBotNextState {
   /**
    * Navigation action after response:
-   * - listen:          Stay in current group, listen for next utterance
-   * - switch_group:    Switch to another keyword group (in-session, no Stasis exit)
-   * - transfer_exten:  Exit to Asterisk Extension/Queue via dialplan (terminal)
-   * - webhook:         HTTP POST with collected slots, then TTS response (terminal)
-   * - hangup:          Hang up the call (terminal)
+   * - listen:            Stay in current group, listen for next utterance
+   * - switch_group:      Switch to another keyword group (in-session, no Stasis exit)
+   * - transfer_exten:    Exit to Asterisk Extension/Queue via dialplan (terminal)
+   * - webhook:           HTTP POST with collected slots, then TTS response (terminal)
+   * - search_data_list:  Search a structured data list and store result in dialogueContext
+   * - hangup:            Hang up the call (terminal)
    */
   type:
     | 'listen'
     | 'switch_group'
     | 'transfer_exten'
     | 'webhook'
+    | 'search_data_list'
     | 'hangup';
 
   /**

@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { Button, Text, Card, CardContent, CardFooter } from '@/shared/ui';
 import { VStack, HStack } from '@/shared/ui/Stack';
-import { Bot, Save, ArrowLeft } from 'lucide-react';
+import { Bot, Save, ArrowLeft, Database } from 'lucide-react';
 import { IVoiceRobot, IVoiceRobotVadConfig, IVoiceRobotBotAction } from '@/entities/voiceRobot';
 import { useGetSttEnginesQuery } from '@/shared/api/endpoints/sttEnginesApi';
 import { useGetTtsEnginesQuery } from '@/shared/api/endpoints/ttsEnginesApi';
@@ -13,9 +13,10 @@ import { VoiceRobotGeneralTab } from './VoiceRobotGeneralTab';
 import { VoiceRobotDialogueTab } from './VoiceRobotKeywordsTab';
 import { VoiceRobotSettingsTab } from './VoiceRobotSettingsTab';
 import { TestMatchPanel } from '../TestMatchPanel/TestMatchPanel';
+import { DataListEditor } from '../DataListEditor';
 
-/** 4 tabs: Основные / Диалог / Настройки / Тест */
-const TABS = ['general', 'dialogue', 'settings', 'test'] as const;
+/** 5 tabs: Основные / Диалог / Справочники / Настройки / Тест */
+const TABS = ['general', 'dialogue', 'data_lists', 'settings', 'test'] as const;
 
 const DEFAULT_FALLBACK_ACTION: IVoiceRobotBotAction = {
   response: { type: 'tts', value: '' },
@@ -194,6 +195,20 @@ export const VoiceRobotForm = memo(({ initialRobot }: VoiceRobotFormProps) => {
               sttMode={sttMode} setSttMode={setSttMode}
               externalHost={externalHost} setExternalHost={setExternalHost}
             />
+          )}
+
+          {activeTab === 'data_lists' && (
+            initialRobot ? (
+              <DataListEditor robotId={initialRobot.uid} />
+            ) : (
+              <VStack align="center" justify="center" gap="8" className="py-16 border border-dashed border-border/50 rounded-lg bg-background/30 mt-4">
+                <Database className="w-12 h-12 text-muted-foreground/50" />
+                <Text variant="h3" className="text-muted-foreground">{t('voiceRobots.dataLists.title', 'Справочники данных')}</Text>
+                <Text variant="muted" className="text-center max-w-md">
+                  {t('voiceRobots.saveRobotFirst', 'Сначала сохраните базовые настройки робота.')}
+                </Text>
+              </VStack>
+            )
           )}
 
           {activeTab === 'test' && (

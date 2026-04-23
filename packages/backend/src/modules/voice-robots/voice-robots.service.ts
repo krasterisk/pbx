@@ -8,6 +8,8 @@ import { VoiceRobotKeywordGroup } from './keyword-group.model';
 import { VoiceRobotKeyword } from './keyword.model';
 import { VoiceRobotLog } from './voice-robot-log.model';
 import { VoiceRobotCdr } from './voice-robot-cdr.model';
+import { VoiceRobotDataList } from './data-list.model';
+import { DataListSearchService } from './services/data-list-search.service';
 import { SttEngine } from '../stt-engines/stt-engine.model';
 import { TtsEngine } from '../tts-engines/tts-engine.model';
 import { AriHttpClientService } from '../ari/ari-http-client.service';
@@ -35,6 +37,7 @@ export class VoiceRobotsService implements OnApplicationShutdown {
     @InjectModel(VoiceRobotKeyword) private keywordModel: typeof VoiceRobotKeyword,
     @InjectModel(VoiceRobotLog) private logModel: typeof VoiceRobotLog,
     @InjectModel(VoiceRobotCdr) private cdrModel: typeof VoiceRobotCdr,
+    @InjectModel(VoiceRobotDataList) private dataListModel: typeof VoiceRobotDataList,
     @InjectModel(SttEngine) private sttEngineModel: typeof SttEngine,
     @InjectModel(TtsEngine) private ttsEngineModel: typeof TtsEngine,
     private readonly ariClient: AriHttpClientService,
@@ -49,6 +52,7 @@ export class VoiceRobotsService implements OnApplicationShutdown {
     private readonly ttsProviderFactory: TtsProviderFactory,
     private readonly slotExtractorService: SlotExtractorService,
     private readonly ttsCacheService: TtsCacheService,
+    private readonly dataListSearchService: DataListSearchService,
   ) {
     // Default: 127.0.0.1 (assumes Asterisk and Node.js are on the same host).
     // If Asterisk is on a remote server, set `external_host` per-robot
@@ -524,6 +528,11 @@ export class VoiceRobotsService implements OnApplicationShutdown {
       };
       this.logger.log(`Caller: ${callerInfo.callerId || 'unknown'} (${callerInfo.callerName || ''})`);
 
+      // Pre-fetch data lists for this robot (used by search_data_list action)
+      const dataLists = await this.dataListModel.findAll({
+        where: { robot_id: robotUid, user_uid: robot.user_uid },
+      });
+
       const session = new VoiceRobotSession(
         this.ariClient,
         this.udpServer,
@@ -546,6 +555,8 @@ export class VoiceRobotsService implements OnApplicationShutdown {
         this.logModel,
         this.cdrModel,
         callerInfo,
+        this.dataListSearchService,
+        dataLists,
       );
 
       this.activeSessions.set(channelId, session);
@@ -615,6 +626,93 @@ export class VoiceRobotsService implements OnApplicationShutdown {
       session.cleanup();
     }
     this.activeSessions.clear();
+  }
+
+  // ─── Data Lists CRUD ───────────────────────────────────
+
+  async getDataLists(userUid: number, robotId: number): Promise<VoiceRobotDataList[]> {
+    await this.assertRobotOwnership(robotId, userUid);
+    return this.dataListModel.findAll({
+      where: { robot_id: robotId, user_uid: userUid },
+      order: [['created_at', 'ASC']],
+    });
+  }
+
+  async getDataList(userUid: number, uid: number): Promise<VoiceRobotDataList> {
+    const list = await this.dataListModel.findOne({
+      where: { uid, user_uid: userUid },
+    });
+    if (!list) throw new NotFoundException(`Data list ${uid} not found`);
+    return list;
+  }
+
+  async createDataList(
+    userUid: number,
+    robotId: number,
+    data: Partial<VoiceRobotDataList>,
+  ): Promise<VoiceRobotDataList> {
+    await this.assertRobotOwnership(robotId, userUid);
+    return this.dataListModel.create({
+      ...data,
+      robot_id: robotId,
+      user_uid: userUid,
+    });
+  }
+
+  async updateDataList(
+    userUid: number,
+    uid: number,
+    data: Partial<VoiceRobotDataList>,
+  ): Promise<VoiceRobotDataList> {
+    const list = await this.dataListModel.findOne({
+      where: { uid, user_uid: userUid },
+    });
+    if (!list) throw new NotFoundException(`Data list ${uid} not found`);
+    delete data.user_uid;
+    await list.update(data);
+    // Invalidate embedding cache for this list
+    this.dataListSearchService.clearListCache(uid);
+    return list;
+  }
+
+  async deleteDataList(userUid: number, uid: number): Promise<void> {
+    const list = await this.dataListModel.findOne({
+      where: { uid, user_uid: userUid },
+    });
+    if (!list) throw new NotFoundException(`Data list ${uid} not found`);
+    this.dataListSearchService.clearListCache(uid);
+    await list.destroy();
+  }
+
+  /**
+   * Test search against a data list (for frontend debugging).
+   */
+  async testDataListSearch(
+    userUid: number,
+    listId: number,
+    query: string,
+    returnField: string,
+  ) {
+    const list = await this.getDataList(userUid, listId);
+    await this.dataListSearchService.preloadList(list);
+
+    const startTime = Date.now();
+    const result = await this.dataListSearchService.search(query, list, returnField);
+    const elapsedMs = Date.now() - startTime;
+
+    return {
+      input_query: query,
+      return_field: returnField,
+      result: result ? {
+        value: result.value,
+        row: result.row,
+        rowIndex: result.rowIndex,
+        confidence: Number(result.confidence.toFixed(4)),
+        method: result.method,
+      } : null,
+      total_rows: list.rows?.length || 0,
+      elapsed_ms: elapsedMs,
+    };
   }
 
   // ─── Test Match (Debugging) ────────────────────────────

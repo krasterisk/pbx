@@ -45,6 +45,22 @@ export interface DataTableProps<TData> {
   exportFilename?: string;
   /** Render slot above the table (header area) — receives the table instance */
   renderHeader?: (table: Table<TData>) => React.ReactNode;
+  /** Custom row className based on row data */
+  getRowClassName?: (row: TData) => string;
+
+  // ─── Server-side pagination ────────────────────────────────
+  /**
+   * Pagination mode:
+   * - 'client' (default): TanStack handles pagination internally
+   * - 'server': parent controls page state, DataTable shows all provided rows as-is
+   */
+  paginationMode?: 'client' | 'server';
+  /** Total row count from server (required for server mode) */
+  totalRows?: number;
+  /** Current page index, 0-based (required for server mode) */
+  currentPage?: number;
+  /** Callback when user changes page (required for server mode) */
+  onPageChange?: (page: number) => void;
 }
 
 export interface DataTableRef {
@@ -52,10 +68,10 @@ export interface DataTableRef {
 }
 
 // ---------------------------------------------------------------------------
-// Pagination Controls
+// Pagination Controls — Client-side
 // ---------------------------------------------------------------------------
 
-function PaginationControls<TData>({ table }: { table: Table<TData> }) {
+function ClientPaginationControls<TData>({ table }: { table: Table<TData> }) {
   const pageIndex = table.getState().pagination.pageIndex;
   const pageCount = table.getPageCount();
   const totalRows = table.getFilteredRowModel().rows.length;
@@ -114,6 +130,50 @@ function PaginationControls<TData>({ table }: { table: Table<TData> }) {
 }
 
 // ---------------------------------------------------------------------------
+// Pagination Controls — Server-side
+// ---------------------------------------------------------------------------
+
+interface ServerPaginationProps {
+  currentPage: number;
+  pageSize: number;
+  totalRows: number;
+  onPageChange: (page: number) => void;
+}
+
+function ServerPaginationControls({ currentPage, pageSize, totalRows, onPageChange }: ServerPaginationProps) {
+  const pageCount = Math.ceil(totalRows / pageSize);
+  if (pageCount <= 1) return null;
+
+  const canPrev = currentPage > 0;
+  const canNext = currentPage < pageCount - 1;
+
+  return (
+    <HStack justify="between" align="center" className="px-4 py-3 border-t border-border">
+      <span className="text-xs text-muted-foreground">
+        {currentPage * pageSize + 1}–{Math.min((currentPage + 1) * pageSize, totalRows)} из {totalRows}
+      </span>
+      <HStack gap="4" align="center">
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onPageChange(0)} disabled={!canPrev}>
+          <ChevronsLeft className="w-4 h-4" />
+        </Button>
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onPageChange(currentPage - 1)} disabled={!canPrev}>
+          <ChevronLeft className="w-4 h-4" />
+        </Button>
+        <span className="text-sm text-foreground font-medium min-w-[60px] text-center">
+          {currentPage + 1} / {pageCount}
+        </span>
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onPageChange(currentPage + 1)} disabled={!canNext}>
+          <ChevronRight className="w-4 h-4" />
+        </Button>
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onPageChange(pageCount - 1)} disabled={!canNext}>
+          <ChevronsRight className="w-4 h-4" />
+        </Button>
+      </HStack>
+    </HStack>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // DataTable Component
 // ---------------------------------------------------------------------------
 
@@ -131,9 +191,16 @@ function DataTableInner<TData>(
     className,
     exportFilename = 'export',
     renderHeader,
+    getRowClassName,
+    paginationMode = 'client',
+    totalRows: serverTotalRows,
+    currentPage: serverCurrentPage,
+    onPageChange: serverOnPageChange,
   }: DataTableProps<TData>,
   ref: React.Ref<DataTableRef>
 ) {
+  const isServerMode = paginationMode === 'server';
+
   const [internalSorting, setSorting] = useState<SortingState>([]);
   const [internalRowSelection, setInternalRowSelection] = useState<RowSelectionState>({});
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize });
@@ -164,18 +231,23 @@ function DataTableInner<TData>(
       sorting: internalSorting,
       globalFilter: controlledGlobalFilter ?? '',
       rowSelection,
-      pagination,
+      // In server mode, show all rows on the page (no client-side pagination)
+      ...(isServerMode ? {} : { pagination }),
     },
     onSortingChange: setSorting,
-    onPaginationChange: setPagination,
+    onPaginationChange: isServerMode ? undefined : setPagination,
     onRowSelectionChange: handleRowSelectionChange as any,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
+    // Only use client pagination model when in client mode
+    ...(isServerMode ? {} : { getPaginationRowModel: getPaginationRowModel() }),
     enableRowSelection: selectable,
     getRowId: getRowId as any,
     autoResetPageIndex: false,
+    // Tell TanStack the total row count for server mode (informational)
+    ...(isServerMode && serverTotalRows ? { rowCount: serverTotalRows } : {}),
+    manualPagination: isServerMode,
   });
 
   const exportToCsv = useCallback(() => {
@@ -277,7 +349,7 @@ function DataTableInner<TData>(
                   row.getIsSelected()
                     ? 'bg-primary/5 hover:bg-primary/10'
                     : 'hover:bg-white/[0.02]'
-                }`}
+                } ${getRowClassName ? getRowClassName(row.original) : ''}`}
               >
                 {selectable && (
                   <TableCell className="px-4 py-3 w-10">
@@ -301,7 +373,16 @@ function DataTableInner<TData>(
       </UITable>
 
       {/* Pagination */}
-      <PaginationControls table={table} />
+      {isServerMode && serverTotalRows != null && serverCurrentPage != null && serverOnPageChange ? (
+        <ServerPaginationControls
+          currentPage={serverCurrentPage}
+          pageSize={pageSize}
+          totalRows={serverTotalRows}
+          onPageChange={serverOnPageChange}
+        />
+      ) : (
+        !isServerMode && <ClientPaginationControls table={table} />
+      )}
     </div>
   );
 }

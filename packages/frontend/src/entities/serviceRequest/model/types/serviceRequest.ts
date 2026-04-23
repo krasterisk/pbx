@@ -11,6 +11,7 @@ export interface IServiceRequest {
 
   // Оператор и звонок
   operator_id: number | null;
+  operator_name: string | null;
   call_received_at: string;
   call_uniqueid: string | null;
   request_number: string | null;

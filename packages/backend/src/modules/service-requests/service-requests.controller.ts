@@ -1,6 +1,9 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, Request, UseGuards } from '@nestjs/common';
 import { ServiceRequestsService } from './service-requests.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { InjectModel } from '@nestjs/sequelize';
+import { CcSubject } from './cc-subject.model';
+import { CcDistrict } from './cc-district.model';
 
 /**
  * ServiceRequestsController — REST API для обращений клиентов.
@@ -10,7 +13,33 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 @Controller('service-requests')
 @UseGuards(JwtAuthGuard)
 export class ServiceRequestsController {
-  constructor(private readonly service: ServiceRequestsService) {}
+  constructor(
+    private readonly service: ServiceRequestsService,
+    @InjectModel(CcSubject) private readonly ccSubjectModel: typeof CcSubject,
+    @InjectModel(CcDistrict) private readonly ccDistrictModel: typeof CcDistrict,
+  ) {}
+
+  // ─── Справочники ───────────────────────────────────────────
+
+  /** GET /service-requests/dictionaries/subjects — темы обращений */
+  @Get('dictionaries/subjects')
+  async getSubjects() {
+    return this.ccSubjectModel.findAll({
+      where: { is_active: true },
+      order: [['sort_order', 'ASC']],
+    });
+  }
+
+  /** GET /service-requests/dictionaries/districts — территориальные зоны и районы */
+  @Get('dictionaries/districts')
+  async getDistricts() {
+    return this.ccDistrictModel.findAll({
+      where: { is_active: true },
+      order: [['sort_order', 'ASC']],
+    });
+  }
+
+  // ─── CRUD заявок ───────────────────────────────────────────
 
   /** GET /service-requests — список обращений (с фильтрами и пагинацией) */
   @Get()
@@ -48,6 +77,9 @@ export class ServiceRequestsController {
   /** POST /service-requests — создать обращение */
   @Post()
   async create(@Request() req: any, @Body() body: any) {
+    // Автоматически заполняем оператора из JWT
+    body.operator_id = req.user.uid || req.user.id;
+    body.operator_name = req.user.name || req.user.username || '';
     return this.service.create(req.user.vpbx_user_uid, body);
   }
 

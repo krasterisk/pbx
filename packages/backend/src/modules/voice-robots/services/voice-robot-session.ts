@@ -18,7 +18,9 @@ import { VoiceRobotKeyword } from '../keyword.model';
 import { VoiceRobotKeywordGroup } from '../keyword-group.model';
 import { VoiceRobotLog } from '../voice-robot-log.model';
 import { VoiceRobotCdr } from '../voice-robot-cdr.model';
+import { VoiceRobotDataList } from '../data-list.model';
 import { IVoiceRobotBotAction, ISlotDefinition } from '../interfaces/bot-action.types';
+import { DataListSearchService } from './data-list-search.service';
 import { randomUUID } from 'crypto';
 
 /** Caller info passed from StasisStart event */
@@ -81,6 +83,8 @@ export class VoiceRobotSession {
   // Inactivity detection — repeat question if user is silent
   private inactivityTimer: NodeJS.Timeout | null = null;
   private inactivityRepeatCount = 0;
+  private inactivityFallbackCycles = 0; // Global counter: how many times inactivity triggered fallback
+  private static readonly MAX_INACTIVITY_FALLBACK_CYCLES = 3;
   private lastBotResponse: { type: string; value?: string } | null = null;
 
   // RTP params (filled asynchronously by ChannelVarset events)
@@ -113,6 +117,9 @@ export class VoiceRobotSession {
   // Group navigation stack (for "go back" support in switch_group)
   private groupStack: number[] = [];
 
+  // Tags: names of keyword groups visited during the session
+  private visitedTags: string[] = [];
+
   // Streaming STT session (null = batch mode)
   private sttStream: SttStream | null = null;
   private sttStreamFinalText = '';
@@ -120,6 +127,9 @@ export class VoiceRobotSession {
 
   // Keyword repetition counter for escalation
   private keywordHitCounts: Record<number, number> = {};
+
+  // Data list search not-found retry counter (keyed by listId)
+  private dataListNotFoundCounts: Record<number, number> = {};
 
   // Slot filling state
   private slotFillingState: {
@@ -129,6 +139,12 @@ export class VoiceRobotSession {
     filledSlots: Record<string, string | boolean>;
     currentSlotIndex: number;
     retryCount: number;
+  } | null = null;
+
+  // Data list search state — when set, the next utterance is used as search query
+  private pendingDataListSearch: {
+    action: IVoiceRobotBotAction;
+    filledSlots: Record<string, string | boolean>;
   } | null = null;
 
   /** Tenant ID (vpbx_user_uid) for context/queue name resolution */
@@ -142,7 +158,7 @@ export class VoiceRobotSession {
    */
   private resolveContext(context?: string): string {
     if (!context) return `ctx-${this.tenantId}`;
-    // If context already ends with tenantId, don't double-add
+    // If context already ends with tenantId string, don't double-add
     const suffix = String(this.tenantId);
     if (context.endsWith(suffix)) return context;
     return `${context}${this.tenantId}`;
@@ -170,6 +186,8 @@ export class VoiceRobotSession {
     private readonly logModel: typeof VoiceRobotLog,
     private readonly cdrModel: typeof VoiceRobotCdr,
     private readonly callerInfo: CallerInfo,
+    private readonly dataListSearchService: DataListSearchService | null,
+    private readonly dataListsDb: VoiceRobotDataList[],
   ) {
     const config = this.robotConfig.vad_config || {};
     this.PRE_SPEECH_FRAMES = Math.ceil((config.prefix_padding_ms || 300) / 32);
@@ -193,6 +211,7 @@ export class VoiceRobotSession {
       const initialKeywords = this.keywordsDb.filter(k => k.group_id === initialGroup.uid);
       this.activeKeywords = [...initialKeywords, ...this.globalKeywords];
       this.logger.log(`[FSM] Initial group: "${initialGroup.name}" (id=${initialGroup.uid}, ${initialKeywords.length} keywords + ${this.globalKeywords.length} global)`);
+      this.visitedTags.push(initialGroup.name);
     } else {
       // Fallback: all keywords (backwards compat if no groups configured properly)
       this.activeKeywords = [...this.keywordsDb];
@@ -647,6 +666,16 @@ export class VoiceRobotSession {
   ): Promise<void> {
     // Reset inactivity timer repeats since user responded
     this.inactivityRepeatCount = 0;
+    this.inactivityFallbackCycles = 0;
+
+    // ─── If we're waiting for a search query, use this utterance directly ───
+    if (this.pendingDataListSearch) {
+      const { action, filledSlots } = this.pendingDataListSearch;
+      this.pendingDataListSearch = null;
+      this.logger.log(`[DataListSearch] Got search utterance: "${text}"`);
+      await this.executeDataListSearch(action, filledSlots, text);
+      return;
+    }
 
     // ─── If we're in slot filling mode, handle slot extraction ───
     if (this.slotFillingState) {
@@ -853,6 +882,11 @@ export class VoiceRobotSession {
               if (currentGroupId) this.groupStack.push(currentGroupId);
               this.activeKeywords = [...groupKeywords, ...this.globalKeywords];
               this.logger.log(`[FSM] Switched to group ${groupId} (${groupKeywords.length} keywords + ${this.globalKeywords.length} global, stack depth: ${this.groupStack.length})`);
+              // Track group name as tag
+              const groupMeta = this.keywordGroupsDb.find(g => g.uid === groupId);
+              if (groupMeta?.name && !this.visitedTags.includes(groupMeta.name)) {
+                this.visitedTags.push(groupMeta.name);
+              }
             } else {
               this.logger.warn(`[FSM] Group ${groupId} has no keywords, keeping current set`);
             }
@@ -862,10 +896,19 @@ export class VoiceRobotSession {
 
         case 'transfer_exten': {
           // Transfer call to extension in the tenant dialplan.
-          // Format: "700" or "700@sip-out" — context always gets tenantId appended.
+          // Format: "700" or "700@sip-out1" — context tenantId appended if missing.
           const [exten, rawContext] = target.includes('@')
             ? target.split('@')
             : [target, undefined];
+
+          if (!exten) {
+            this.logger.error(
+              `[Action] transfer_exten: extension is empty (target="${target}"). ` +
+              `Check onFoundNextState config — extension field must not be blank.`,
+            );
+            break;
+          }
+
           const resolvedContext = this.resolveContext(rawContext);
           this.lastActionType = 'transfer_exten';
           this.lastTransferTarget = `${exten}@${resolvedContext}`;
@@ -885,6 +928,14 @@ export class VoiceRobotSession {
           this.cdrDisposition = 'completed';
           await this.ariClient.setChannelVar(this.channelId, 'ROBOT_STATUS', 'HANGUP');
           await this.ariClient.hangupChannel(this.channelId).catch(() => {});
+          break;
+
+        case 'search_data_list':
+          // Don't search immediately — wait for the NEXT utterance from the user.
+          // The response (Шаг 1) has already been spoken; now enter listen mode
+          // and mark pendingDataListSearch so the next STT result triggers the search.
+          this.pendingDataListSearch = { action, filledSlots };
+          this.logger.log('[DataListSearch] Waiting for next utterance to use as search query...');
           break;
 
         default:
@@ -939,6 +990,8 @@ export class VoiceRobotSession {
         body: JSON.stringify({
           robot_id: this.robotConfig.uid,
           channel_id: this.channelId,
+          caller_id: this.callerInfo.callerId || null,
+          caller_name: this.callerInfo.callerName || null,
           slots: payload,
           context: this.dialogueContext,
           timestamp: new Date().toISOString(),
@@ -956,7 +1009,9 @@ export class VoiceRobotSession {
       }
 
       // ─── 2. Speak say_text if webhook provides it (dynamic TTS) ───
+      let webhookBotResponse: string | null = null;
       if (data.say_text) {
+        webhookBotResponse = data.say_text;
         await this.speakResponse({ type: 'tts', value: data.say_text });
       } else if (action.webhookResponseTemplate) {
         // Fallback: use configured response template
@@ -964,7 +1019,35 @@ export class VoiceRobotSession {
           action.webhookResponseTemplate,
           { ...filledSlots, ...data },
         );
+        webhookBotResponse = responseText;
         await this.speakResponse({ type: 'tts', value: responseText });
+      }
+
+      // ─── 2b. Log webhook interaction in transcript & voice_robot_logs ───
+      {
+        const slotSummary = Object.entries(filledSlots)
+          .map(([k, v]) => `${k}=${v}`)
+          .join(', ');
+        const kwUid = this.slotFillingState?.keyword?.uid ?? null;
+        const groupId = this.slotFillingState?.keyword?.group_id ?? null;
+        this.transcript.push(`[Webhook] POST ${url} (${slotSummary})`);
+        if (webhookBotResponse) {
+          this.transcript.push(`[Робот] ${webhookBotResponse}`);
+        }
+        if (data.found !== undefined) {
+          this.transcript.push(`[Webhook] found=${data.found}, action=${data.action || 'none'}`);
+        }
+        // Write log entry for webhook step
+        await this.writeLog(
+          slotSummary || null,    // recognizedText — slot values sent
+          null,                    // sttResult
+          0,                       // sttDurationMs
+          kwUid,                   // matchedKeywordId
+          data.confidence || data.fio_score || 0, // confidence
+          groupId,                 // matchedGroupId
+          webhookBotResponse,      // botResponse
+          { type: 'webhook', url, response: { action: data.action, found: data.found, verified: data.verified } },
+        );
       }
 
       await this.ariClient.setChannelVar(this.channelId, 'ROBOT_STATUS', 'WEBHOOK_OK');
@@ -1025,18 +1108,27 @@ export class VoiceRobotSession {
             webhookResponseTemplate: data.response_template,
           };
 
+          // Preserve original keyword/group info for CDR logging
+          const originalKeyword = this.slotFillingState?.keyword || { uid: -1, group_id: null } as any;
           this.slotFillingState = {
             action: continuationAction,
-            keyword: { uid: -1 } as any,
+            keyword: originalKeyword,
             slots: dynamicSlots,
             filledSlots: {},
             currentSlotIndex: 0,
             retryCount: 0,
           };
 
+          // Reset inactivity timer — new conversation step, fresh timer
+          this.inactivityRepeatCount = 0;
+          this.clearInactivityTimer();
+
           // Ask for first slot if it has a prompt
           if (dynamicSlots[0].prompt?.type !== 'none' && dynamicSlots[0].prompt?.value) {
             await this.askForSlot(dynamicSlots[0]);
+          } else {
+            // No prompt — just start listening with fresh inactivity timer
+            this.startInactivityTimer();
           }
           return;
         }
@@ -1058,12 +1150,205 @@ export class VoiceRobotSession {
 
         // Option C: no slots, no switch → just return to listening with current keywords
         this.logger.log(`[Webhook] continue_dialogue — returning to listening mode`);
+        this.inactivityRepeatCount = 0;
+        this.startInactivityTimer();
         return;
       }
+
+      // ─── 3e. No recognized action — terminal response ───
+      // Webhook returned data without action → response already spoken, slot flow complete
+      this.logger.log(`[Webhook] Terminal response (no action) — clearing slot state, returning to listening`);
+      this.slotFillingState = null;
+      this.inactivityRepeatCount = 0;
+      this.startInactivityTimer();
 
     } catch (e: any) {
       this.logger.error(`[Webhook] Failed: ${e.message}`);
       await this.ariClient.setChannelVar(this.channelId, 'ROBOT_STATUS', 'WEBHOOK_ERROR');
+    }
+  }
+
+  // ─── Data List Search ─────────────────────────────────────
+
+  /**
+   * Execute a data list search: find a row by query, extract a field,
+   * store in dialogueContext, then execute onFoundNextState.
+   */
+  private async executeDataListSearch(
+    action: IVoiceRobotBotAction,
+    filledSlots: Record<string, string | boolean>,
+    forcedQuery?: string,  // when provided, overrides querySource (used from pending search)
+  ): Promise<void> {
+    const config = action.dataListSearch;
+    if (!config) {
+      this.logger.warn('[DataListSearch] No dataListSearch config on action');
+      return;
+    }
+
+    if (!this.dataListSearchService) {
+      this.logger.warn('[DataListSearch] DataListSearchService not available');
+      return;
+    }
+
+    // Find the data list by ID
+    const list = this.dataListsDb.find(dl => dl.uid === config.listId);
+    if (!list) {
+      this.logger.warn(`[DataListSearch] Data list ${config.listId} not found in session`);
+      return;
+    }
+
+    // Determine query text
+    let query = '';
+    if (forcedQuery !== undefined) {
+      // Called from pending search — use the utterance that was just spoken
+      query = forcedQuery;
+    } else if (config.querySource === 'slot' && config.querySlotName) {
+      const slotValue = filledSlots[config.querySlotName] ?? this.dialogueContext[config.querySlotName];
+      query = String(slotValue || '');
+    } else {
+      // last_utterance: use the last recognized text from transcript
+      query = this.transcript.length > 0 ? this.transcript[this.transcript.length - 1] : '';
+    }
+
+    if (!query.trim()) {
+      this.logger.warn('[DataListSearch] Empty query, nothing to search');
+      if (config.notFoundResponse && config.notFoundResponse.type !== 'none') {
+        await this.speakResponse(config.notFoundResponse);
+      }
+      return;
+    }
+
+    this.logger.log(`[DataListSearch] Searching list "${list.name}" for "${query}", return field="${config.returnField}"`);
+
+    // Preload embeddings for this list (cached, fast if already loaded)
+    await this.dataListSearchService.preloadList(list);
+
+    // Perform hybrid search (strategy-aware)
+    let result;
+    if (config.multiMatchStrategy === 'random') {
+      const allMatches = await this.dataListSearchService.searchAll(query, list, config.returnField);
+      if (allMatches.length > 0) {
+        const randomIndex = Math.floor(Math.random() * allMatches.length);
+        result = allMatches[randomIndex];
+        this.logger.log(
+          `[DataListSearch] Random pick: ${randomIndex + 1}/${allMatches.length} matches`,
+        );
+      } else {
+        result = null;
+      }
+    } else {
+      result = await this.dataListSearchService.search(query, list, config.returnField);
+    }
+
+    if (result) {
+      this.logger.log(
+        `[DataListSearch] ✅ Found: ${config.resultVariable}="${result.value}" ` +
+        `(confidence: ${result.confidence.toFixed(3)}, method: ${result.method})`,
+      );
+
+      // Reset not-found counter on success
+      this.dataListNotFoundCounts[config.listId] = 0;
+
+      // Store result in dialogueContext for use in TTS templates and subsequent actions
+      this.dialogueContext[config.resultVariable] = result.value;
+
+      // Store full row as well for multi-field access
+      for (const [key, val] of Object.entries(result.row)) {
+        this.dialogueContext[`${config.resultVariable}_${key}`] = val;
+      }
+
+      // Set channel variable for dialplan access
+      await this.ariClient.setChannelVar(this.channelId, 'DATA_LIST_RESULT', result.value).catch(() => {});
+
+      // Speak onFoundResponse if configured (supports {{variable}} interpolation)
+      if (config.onFoundResponse && config.onFoundResponse.type !== 'none' && config.onFoundResponse.value) {
+        const interpolatedText = this.interpolateTemplateString(
+          config.onFoundResponse.value,
+          this.dialogueContext,
+        );
+        await this.speakResponse({ type: config.onFoundResponse.type, value: interpolatedText });
+      }
+
+      // Execute onFoundNextState if configured
+      if (config.onFoundNextState) {
+        // Resolve target: interpolate {{variables}}, or fall back to resultVariable if ext part empty
+        let rawTarget = config.onFoundNextState.target
+          ? String(config.onFoundNextState.target)
+          : '';
+
+        // Handle case where user set context but left extension blank (e.g. '@sip-out')
+        if (config.onFoundNextState.type === 'transfer_exten') {
+          const atIdx = rawTarget.indexOf('@');
+          const extPart = atIdx >= 0 ? rawTarget.slice(0, atIdx) : rawTarget;
+          const ctxPart = atIdx >= 0 ? rawTarget.slice(atIdx + 1) : '';
+
+          if (!extPart && config.resultVariable) {
+            // Auto-use result variable as extension
+            rawTarget = `{{${config.resultVariable}}}${ctxPart ? '@' + ctxPart : ''}`;
+            this.logger.log(
+              `[DataListSearch] Auto-filled empty extension with {{${config.resultVariable}}}`,
+            );
+          }
+        }
+
+        const interpolatedTarget = this.interpolateTemplateString(rawTarget, this.dialogueContext);
+
+        this.logger.log(
+          `[DataListSearch] onFoundNextState: type=${config.onFoundNextState.type}, ` +
+          `rawTarget="${rawTarget}" → resolved="${interpolatedTarget}"`,
+        );
+
+        const syntheticAction: IVoiceRobotBotAction = {
+          response: { type: 'none' },
+          nextState: {
+            type: config.onFoundNextState.type,
+            target: interpolatedTarget,
+          },
+        };
+
+        await this.executeNextState(syntheticAction, filledSlots);
+      }
+    } else {
+      // ─── Not found logic with retries ───
+      const notFoundCount = (this.dataListNotFoundCounts[config.listId] || 0) + 1;
+      this.dataListNotFoundCounts[config.listId] = notFoundCount;
+      const maxRetries = config.maxNotFoundRetries ?? 1;
+
+      this.logger.log(
+        `[DataListSearch] ❌ No match for "${query}" in list "${list.name}" ` +
+        `(attempt ${notFoundCount}/${maxRetries})`,
+      );
+
+      if (notFoundCount >= maxRetries && config.notFoundNextState) {
+        // Max retries exhausted → execute notFoundNextState
+        this.logger.log(
+          `[DataListSearch] Max not-found retries reached → executing notFoundNextState: ${config.notFoundNextState.type}`,
+        );
+
+        // Speak not-found response before executing the action
+        if (config.notFoundResponse && config.notFoundResponse.type !== 'none') {
+          await this.speakResponse(config.notFoundResponse);
+        }
+
+        // Reset counter
+        this.dataListNotFoundCounts[config.listId] = 0;
+
+        const syntheticAction: IVoiceRobotBotAction = {
+          response: { type: 'none' },
+          nextState: {
+            type: config.notFoundNextState.type,
+            target: config.notFoundNextState.target,
+          },
+        };
+
+        await this.executeNextState(syntheticAction, filledSlots);
+      } else {
+        // Still have retries left → speak not-found response and return to listening
+        if (config.notFoundResponse && config.notFoundResponse.type !== 'none') {
+          await this.speakResponse(config.notFoundResponse);
+        }
+        // Robot returns to listen mode automatically (no explicit action needed)
+      }
     }
   }
 
@@ -1193,7 +1478,7 @@ export class VoiceRobotSession {
     template: string,
     data: Record<string, any>,
   ): string {
-    return template.replace(/\{\{(\w+)\}\}/g, (_, key) => {
+    return template.replace(/\{\{([\p{L}\p{N}_]+)\}\}/gu, (_, key) => {
       return data[key] !== undefined ? String(data[key]) : `{{${key}}}`;
     });
   }
@@ -1305,8 +1590,12 @@ export class VoiceRobotSession {
         avg_confidence: this.totalMatches > 0
           ? Math.round((this.totalConfidence / this.totalMatches) * 100) / 100
           : null,
-        collected_slots: this.slotFillingState?.filledSlots || null,
+        collected_slots: {
+          ...(this.slotFillingState?.filledSlots || {}),
+          ...this.dialogueContext,
+        },
         transcript: this.transcript.join('\n') || null,
+        tags: this.visitedTags.length > 0 ? this.visitedTags : null,
         user_uid: this.robotConfig.user_uid,
       });
 
@@ -1356,8 +1645,20 @@ export class VoiceRobotSession {
     const maxRepeats = this.robotConfig.max_inactivity_repeats ?? 3;
 
     if (this.inactivityRepeatCount > maxRepeats) {
-      this.logger.warn(`[Inactivity] Max repeats (${maxRepeats}) exceeded — executing fallback`);
+      this.inactivityFallbackCycles++;
+      this.logger.warn(
+        `[Inactivity] Max repeats (${maxRepeats}) exceeded — fallback cycle ${this.inactivityFallbackCycles}/${VoiceRobotSession.MAX_INACTIVITY_FALLBACK_CYCLES}`,
+      );
       this.inactivityRepeatCount = 0;
+
+      // Safety net: if fallback keeps returning to 'listen', stop after N cycles
+      if (this.inactivityFallbackCycles >= VoiceRobotSession.MAX_INACTIVITY_FALLBACK_CYCLES) {
+        this.logger.warn(`[Inactivity] Max fallback cycles reached — hanging up`);
+        this.cdrDisposition = 'timeout';
+        await this.ariClient.setChannelVar(this.channelId, 'ROBOT_STATUS', 'INACTIVITY_HANGUP').catch(() => {});
+        await this.ariClient.hangupChannel(this.channelId).catch(() => {});
+        return;
+      }
 
       const fallbackAction = this.robotConfig.fallback_bot_action;
       if (fallbackAction) {

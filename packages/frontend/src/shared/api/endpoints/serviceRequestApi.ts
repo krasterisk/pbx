@@ -10,6 +10,21 @@ interface ServiceRequestQueryParams {
   search?: string;
 }
 
+export interface ICcSubject {
+  uid: number;
+  name: string;
+  sort_order: number;
+  is_active: boolean;
+}
+
+export interface ICcDistrict {
+  uid: number;
+  territorial_zone: string;
+  district: string;
+  sort_order: number;
+  is_active: boolean;
+}
+
 const serviceRequestApi = rtkApi.injectEndpoints({
   endpoints: (build) => ({
     /** GET /service-requests — список с фильтрами и пагинацией */
@@ -61,6 +76,18 @@ const serviceRequestApi = rtkApi.injectEndpoints({
       }),
       invalidatesTags: ['ServiceRequests'],
     }),
+
+    // ─── Справочники ───────────────────────────────────────
+
+    /** GET /service-requests/dictionaries/subjects — темы обращений */
+    getCcSubjects: build.query<ICcSubject[], void>({
+      query: () => '/service-requests/dictionaries/subjects',
+    }),
+
+    /** GET /service-requests/dictionaries/districts — зоны и районы */
+    getCcDistricts: build.query<ICcDistrict[], void>({
+      query: () => '/service-requests/dictionaries/districts',
+    }),
   }),
 });
 
@@ -71,4 +98,6 @@ export const {
   useCreateServiceRequestMutation,
   useUpdateServiceRequestMutation,
   useDeleteServiceRequestMutation,
+  useGetCcSubjectsQuery,
+  useGetCcDistrictsQuery,
 } = serviceRequestApi;

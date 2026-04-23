@@ -23,6 +23,11 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
  *   PUT    /voice-robots/keywords/:uid             — Update keyword
  *   DELETE /voice-robots/keywords/:uid             — Delete keyword
  *   GET    /voice-robots/:id/logs                  — Get logs for a robot
+ *   GET    /voice-robots/:id/data-lists            — Get data lists for a robot
+ *   POST   /voice-robots/:id/data-lists            — Create data list
+ *   PUT    /voice-robots/data-lists/:id            — Update data list
+ *   DELETE /voice-robots/data-lists/:id            — Delete data list
+ *   POST   /voice-robots/data-lists/:id/test-search — Test search against a data list
  */
 @Controller('voice-robots')
 @UseGuards(JwtAuthGuard)
@@ -209,6 +214,58 @@ export class VoiceRobotsController {
     @Param('id', ParseIntPipe) robotId: number,
   ) {
     return this.voiceRobotsService.getLogs(req.user.vpbx_user_uid, robotId);
+  }
+
+  // ─── Data Lists CRUD ──────────────────────────────────
+
+  @Get(':id/data-lists')
+  async getDataLists(
+    @Request() req: any,
+    @Param('id', ParseIntPipe) robotId: number,
+  ) {
+    return this.voiceRobotsService.getDataLists(req.user.vpbx_user_uid, robotId);
+  }
+
+  @Post(':id/data-lists')
+  async createDataList(
+    @Request() req: any,
+    @Param('id', ParseIntPipe) robotId: number,
+    @Body() body: any,
+  ) {
+    return this.voiceRobotsService.createDataList(req.user.vpbx_user_uid, robotId, body);
+  }
+
+  @Put('data-lists/:id')
+  async updateDataList(
+    @Request() req: any,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: any,
+  ) {
+    return this.voiceRobotsService.updateDataList(req.user.vpbx_user_uid, id, body);
+  }
+
+  @Delete('data-lists/:id')
+  @HttpCode(204)
+  async deleteDataList(
+    @Request() req: any,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    await this.voiceRobotsService.deleteDataList(req.user.vpbx_user_uid, id);
+  }
+
+  /** POST /voice-robots/data-lists/:id/test-search */
+  @Post('data-lists/:id/test-search')
+  async testDataListSearch(
+    @Request() req: any,
+    @Param('id', ParseIntPipe) listId: number,
+    @Body() body: { query: string; returnField: string },
+  ) {
+    return this.voiceRobotsService.testDataListSearch(
+      req.user.vpbx_user_uid,
+      listId,
+      body.query,
+      body.returnField,
+    );
   }
 
   // ─── Test Match (debugging) ────────────────────────────

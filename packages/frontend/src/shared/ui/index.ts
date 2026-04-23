@@ -10,7 +10,7 @@ export { Checkbox } from './Checkbox/Checkbox';
 export * from './Dialog';
 export * from './Stack';
 export { DataTable } from './DataTable';
-export type { DataTableProps } from './DataTable';
+export type { DataTableProps, DataTableRef } from './DataTable';
 export * from './Tooltip/Tooltip';
 export * from './WebhookAuthConfig/WebhookAuthConfig';
 export { MultiSelect } from './MultiSelect/MultiSelect';

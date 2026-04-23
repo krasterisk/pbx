@@ -55,7 +55,10 @@ import { VoiceRobotKeywordGroup } from './modules/voice-robots/keyword-group.mod
 import { VoiceRobotKeyword } from './modules/voice-robots/keyword.model';
 import { VoiceRobotLog } from './modules/voice-robots/voice-robot-log.model';
 import { VoiceRobotCdr } from './modules/voice-robots/voice-robot-cdr.model';
+import { VoiceRobotDataList } from './modules/voice-robots/data-list.model';
 import { ServiceRequest } from './modules/service-requests/service-request.model';
+import { CcSubject } from './modules/service-requests/cc-subject.model';
+import { CcDistrict } from './modules/service-requests/cc-district.model';
 import * as path from 'path';
 
 @Module({
@@ -78,9 +81,9 @@ import * as path from 'path';
         PsRegistration, PsEndpointIdIp,
         Route, ContextInclude, Ivr, Prompt, TtsEngine, SttEngine,
         MohClass, MohEntry,
-        SystemSetting, VoiceRobot, VoiceRobotKeywordGroup, VoiceRobotKeyword, VoiceRobotLog, VoiceRobotCdr,
+        SystemSetting, VoiceRobot, VoiceRobotKeywordGroup, VoiceRobotKeyword, VoiceRobotLog, VoiceRobotCdr, VoiceRobotDataList,
         Queue, QueueMember,
-        ServiceRequest,
+        ServiceRequest, CcSubject, CcDistrict,
       ],
       autoLoadModels: false,
       synchronize: false, // IMPORTANT: never auto-sync with existing DB

@@ -21,6 +21,7 @@ export type BotNextStateType =
   | 'switch_group'
   | 'transfer_exten'
   | 'webhook'
+  | 'search_data_list'
   | 'hangup';
 
 export interface IBotNextState {
@@ -63,6 +64,49 @@ export interface IVoiceRobotBotAction {
   };
   dtmfAlternative?: string;
   delayMs?: number;
+  dataListSearch?: IDataListSearchConfig;
+}
+
+// ─── Data List Search Config ─────────────────────────────
+
+export interface IDataListSearchConfig {
+  listId: number;
+  querySource: 'last_utterance' | 'slot';
+  querySlotName?: string;
+  returnField: string;
+  resultVariable: string;
+  notFoundResponse?: IBotResponse;
+  /** TTS before executing onFoundNextState (supports {{variable}} interpolation) */
+  onFoundResponse?: IBotResponse;
+  onFoundNextState?: IBotNextState;
+  /** What to do after all not-found retries exhausted */
+  notFoundNextState?: IBotNextState;
+  /** How many not-found attempts before executing notFoundNextState (default: 1) */
+  maxNotFoundRetries?: number;
+  /** When multiple rows match: 'best' or 'random' */
+  multiMatchStrategy?: 'best' | 'random';
+}
+
+// ─── Data List Column ────────────────────────────────────
+
+export interface IDataListColumn {
+  key: string;
+  label: string;
+  searchable: boolean;
+}
+
+// ─── Data List ───────────────────────────────────────────
+
+export interface IVoiceRobotDataList {
+  uid: number;
+  robot_id: number;
+  name: string;
+  description: string | null;
+  columns: IDataListColumn[];
+  rows: Record<string, string>[];
+  user_uid: number;
+  created_at: string;
+  updated_at: string;
 }
 
 // ─── Constants ───────────────────────────────────────────
@@ -72,6 +116,7 @@ export const NEXT_STATE_OPTIONS: { value: BotNextStateType; labelKey: string; fa
   { value: 'switch_group', labelKey: 'voiceRobots.action.switchGroup', fallback: 'Переключить группу' },
   { value: 'transfer_exten', labelKey: 'voiceRobots.action.transferExten', fallback: 'Перевод на номер' },
   { value: 'webhook', labelKey: 'voiceRobots.action.webhook', fallback: 'Webhook запрос' },
+  { value: 'search_data_list', labelKey: 'voiceRobots.action.searchDataList', fallback: 'Поиск по справочнику' },
   { value: 'hangup', labelKey: 'voiceRobots.action.hangup', fallback: 'Завершить звонок' },
 ];
 

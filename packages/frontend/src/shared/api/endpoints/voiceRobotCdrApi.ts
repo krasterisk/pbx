@@ -25,6 +25,7 @@ export interface IVoiceRobotCdr {
   avg_confidence: number | null;
   collected_slots: Record<string, any> | null;
   transcript: string | null;
+  tags: string[] | null;
   user_uid: number;
 }
 

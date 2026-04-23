@@ -2,7 +2,7 @@ import { memo, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   MessageSquare, ArrowRight, SlidersHorizontal, Plus, Trash2, Globe,
-  Headphones, GitBranch, PhoneForwarded, PhoneOff,
+  Headphones, GitBranch, PhoneForwarded, PhoneOff, Database,
 } from 'lucide-react';
 import { VStack, HStack, Input, Select, Label, Button, Text, Textarea, RadioCards } from '@/shared/ui';
 import { InfoTooltip, Tooltip } from '@/shared/ui/Tooltip/Tooltip';
@@ -11,6 +11,7 @@ import {
   IBotResponse,
   IBotNextState,
   ISlotDefinition,
+  IDataListSearchConfig,
   RESPONSE_TYPE_OPTIONS,
   SLOT_TYPE_OPTIONS,
   BotResponseType,
@@ -22,6 +23,7 @@ import { useGetQueuesQuery } from '@/shared/api/endpoints/queueApi';
 import { useGetContextsQuery } from '@/shared/api/endpoints/contextApi';
 import { useGetPromptsQuery } from '@/shared/api/endpoints/promptsApi';
 import { WebhookAuthConfig, AuthMode } from '@/shared/ui/WebhookAuthConfig/WebhookAuthConfig';
+import { useGetVoiceRobotDataListsQuery } from '@/shared/api/endpoints/voiceRobotDataListsApi';
 import { SlotChoiceEditor } from '../SlotChoiceEditor/SlotChoiceEditor';
 import cls from './VoiceRobotActionEditor.module.scss';
 
@@ -51,6 +53,7 @@ export const VoiceRobotActionEditor = memo(({ action, onChange, robotId, compact
   const { data: queues = [] } = useGetQueuesQuery();
   const { data: contexts = [] } = useGetContextsQuery();
   const { data: prompts = [] } = useGetPromptsQuery();
+  const { data: dataLists = [] } = useGetVoiceRobotDataListsQuery(robotId ?? 0, { skip: !robotId });
 
   const [tExt = '', tCtx = ''] = String(action.nextState.target || '').split('@');
 
@@ -85,6 +88,12 @@ export const VoiceRobotActionEditor = memo(({ action, onChange, robotId, compact
       label: t('voiceRobots.action.hangup', 'Завершить звонок'),
       description: t('voiceRobots.nextStateDescriptions.hangup', 'Звонок будет завершён'),
       icon: PhoneOff,
+    },
+    {
+      value: 'search_data_list',
+      label: t('voiceRobots.action.searchDataList', 'Поиск по справочнику'),
+      description: t('voiceRobots.nextStateDescriptions.search_data_list', 'Робот найдёт информацию в справочнике данных'),
+      icon: Database,
     },
   ], [t]);
 
@@ -121,8 +130,27 @@ export const VoiceRobotActionEditor = memo(({ action, onChange, robotId, compact
     onChange({ ...action, slots });
   }, [action, onChange]);
 
-  // ─── Webhook ────────────────────────────────────
   const showWebhook = action.nextState.type === 'webhook';
+  const showDataListSearch = action.nextState.type === 'search_data_list';
+
+  // ─── Data List Search helpers ────────────────────────
+  const dlsConfig = action.dataListSearch || {
+    listId: 0,
+    querySource: 'last_utterance' as const,
+    returnField: '',
+    resultVariable: '',
+  };
+
+  const updateDataListSearch = useCallback((partial: Partial<IDataListSearchConfig>) => {
+    onChange({
+      ...action,
+      dataListSearch: { ...dlsConfig, ...partial },
+    });
+  }, [action, onChange, dlsConfig]);
+
+  // Get columns for the selected data list
+  const selectedList = dataLists.find(dl => dl.uid === dlsConfig.listId);
+  const listColumns = selectedList?.columns || [];
 
   return (
     <VStack gap="16" className={cls.actionEditor}>
@@ -321,20 +349,348 @@ export const VoiceRobotActionEditor = memo(({ action, onChange, robotId, compact
               />
             </VStack>
             <VStack gap="4" className="flex-1">
-              <Label>{t('voiceRobots.action.targetExtenCtx', 'Контекст')}</Label>
+              <Label>
+                {t('voiceRobots.action.targetExtenCtx', 'Контекст')}
+                <span className="text-destructive ml-1">*</span>
+              </Label>
               <Select
                 value={tCtx}
                 onChange={e => updateNextState({ target: `${tExt}@${e.target.value}` })}
+                className={!tCtx ? 'border-destructive ring-destructive/20' : ''}
               >
                 <option value="">{t('voiceRobots.action.selectContext', '— Выберите контекст —')}</option>
                 {contexts.map(c => (
                   <option key={c.name} value={c.name}>{c.name}</option>
                 ))}
               </Select>
+              {!tCtx && (
+                <Text variant="xs" className="text-destructive">
+                  {t('voiceRobots.action.contextRequired', 'Контекст обязателен для перевода')}
+                </Text>
+              )}
             </VStack>
           </HStack>
         )}
       </VStack>
+
+      {/* ═══ Section 3.5: Data List Search Config ═══ */}
+      {showDataListSearch && robotId && (
+        <VStack gap="8" className={cls.section}>
+          <HStack gap="4" className={cls.sectionTitle}>
+            <Database className={cls.sectionIcon} />
+            <Text className="font-bold text-foreground">{t('voiceRobots.action.dataListTitle', 'Настройки поиска по справочнику')}</Text>
+          </HStack>
+
+          <HStack gap="8">
+            <VStack gap="4" className="flex-[2]">
+              <Label>{t('voiceRobots.action.dataListSelect', 'Справочник')}</Label>
+              <Select
+                value={String(dlsConfig.listId || '')}
+                onChange={e => updateDataListSearch({ listId: parseInt(e.target.value, 10) || 0 })}
+              >
+                <option value="">{t('voiceRobots.action.selectDataList', '— Выберите справочник —')}</option>
+                {dataLists.map(dl => (
+                  <option key={dl.uid} value={dl.uid}>
+                    {dl.name} ({dl.rows?.length || 0} {t('voiceRobots.action.dataListRecords', 'записей')})
+                  </option>
+                ))}
+              </Select>
+            </VStack>
+            <VStack gap="4" className="flex-1">
+              <Label>{t('voiceRobots.action.querySource', 'Источник запроса')}</Label>
+              <Select
+                value={dlsConfig.querySource}
+                onChange={e => updateDataListSearch({ querySource: e.target.value as 'last_utterance' | 'slot' })}
+              >
+                <option value="last_utterance">{t('voiceRobots.action.queryLastUtterance', 'Последняя фраза')}</option>
+                <option value="slot">{t('voiceRobots.action.querySlot', 'Из параметра (слота)')}</option>
+              </Select>
+            </VStack>
+          </HStack>
+
+          {dlsConfig.querySource === 'slot' && (
+            <VStack gap="4">
+              <Label>{t('voiceRobots.action.querySlotName', 'Имя слота')}</Label>
+              <Input
+                value={dlsConfig.querySlotName || ''}
+                onChange={e => updateDataListSearch({ querySlotName: e.target.value })}
+                placeholder="full_name"
+              />
+            </VStack>
+          )}
+
+          <HStack gap="8">
+            <VStack gap="4" className="flex-1">
+              <Label>{t('voiceRobots.action.returnField', 'Возвращаемое поле')}</Label>
+              {listColumns.length > 0 ? (
+                <Select
+                  value={dlsConfig.returnField}
+                  onChange={e => updateDataListSearch({ returnField: e.target.value })}
+                >
+                  <option value="">{t('voiceRobots.action.selectField', '— Выберите поле —')}</option>
+                  {listColumns.map(col => (
+                    <option key={col.key} value={col.key}>{col.label} ({col.key})</option>
+                  ))}
+                </Select>
+              ) : (
+                <Input
+                  value={dlsConfig.returnField}
+                  onChange={e => updateDataListSearch({ returnField: e.target.value })}
+                  placeholder="phone"
+                />
+              )}
+            </VStack>
+            <VStack gap="4" className="flex-1">
+              <HStack align="center" gap="4">
+                <Label>{t('voiceRobots.action.resultVariable', 'Префикс переменных строки')}</Label>
+                <InfoTooltip text={t('voiceRobots.action.resultVariableHint',
+                  'Задаёт имя-префикс для всех полей найденной строки.\n\nПример: префикс «manager» → {{manager}} (значение поля «Возврат»), {{manager_фио}}, {{manager_район}}, {{manager_телефон}} и т.д.\n\nЕсли оставить «result» → {{result}}, {{result_фио}} и т.д.'
+                )} />
+              </HStack>
+              <Input
+                value={dlsConfig.resultVariable}
+                onChange={e => updateDataListSearch({ resultVariable: e.target.value })}
+                placeholder="result"
+              />
+            </VStack>
+          </HStack>
+
+          <HStack gap="8">
+            <VStack gap="4" className="flex-1">
+              <Label>{t('voiceRobots.action.multiMatchStrategy', 'При нескольких совпадениях')}</Label>
+              <Select
+                value={dlsConfig.multiMatchStrategy || 'best'}
+                onChange={e => updateDataListSearch({
+                  multiMatchStrategy: e.target.value as 'best' | 'random',
+                })}
+              >
+                <option value="best">{t('voiceRobots.action.strategyBest', 'Первое совпадение')}</option>
+                <option value="random">{t('voiceRobots.action.strategyRandom', 'Случайный выбор')}</option>
+              </Select>
+              <Text variant="xs" className="text-muted-foreground">
+                {dlsConfig.multiMatchStrategy === 'random'
+                  ? t('voiceRobots.action.strategyRandomHint', 'Робот случайно выберет одну из подходящих строк — для распределения нагрузки')
+                  : t('voiceRobots.action.strategyBestHint', 'Робот вернёт первую подходящую строку из справочника')
+                }
+              </Text>
+            </VStack>
+          </HStack>
+
+          <VStack gap="4">
+            <Label>{t('voiceRobots.action.notFoundText', 'Ответ если не найдено (TTS)')}</Label>
+            <Textarea
+              value={dlsConfig.notFoundResponse?.value || ''}
+              onChange={e => updateDataListSearch({
+                notFoundResponse: { type: 'tts', value: e.target.value },
+              })}
+              placeholder={t('voiceRobots.action.notFoundPlaceholder', 'Информация не найдена. Попробуйте ещё раз.')}
+              rows={2}
+            />
+          </VStack>
+
+          <VStack gap="4">
+            <Label>{t('voiceRobots.action.notFoundAction', 'Действие если не найдено')}</Label>
+            <HStack gap="8">
+              <VStack gap="4" className="flex-1">
+                <Label className="text-xs text-muted-foreground">
+                  {t('voiceRobots.action.notFoundRetries', 'Кол-во попыток до действия')}
+                </Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={10}
+                  value={dlsConfig.maxNotFoundRetries ?? 1}
+                  onChange={e => updateDataListSearch({
+                    maxNotFoundRetries: parseInt(e.target.value, 10) || 1,
+                  })}
+                />
+              </VStack>
+              <VStack gap="4" className="flex-[2]">
+                <Label className="text-xs text-muted-foreground">
+                  {t('voiceRobots.action.notFoundNextStateType', 'Действие')}
+                </Label>
+                <Select
+                  value={dlsConfig.notFoundNextState?.type || 'transfer_exten'}
+                  onChange={e => updateDataListSearch({
+                    notFoundNextState: {
+                      type: e.target.value as BotNextStateType,
+                      target: dlsConfig.notFoundNextState?.target || '',
+                    },
+                  })}
+                >
+                  <option value="transfer_exten">{t('voiceRobots.action.transferExten', 'Перевод на номер или очередь')}</option>
+                  <option value="listen">{t('voiceRobots.action.listen', 'Продолжить слушать')}</option>
+                  <option value="switch_group">{t('voiceRobots.action.switchGroup', 'Переключить сценарий')}</option>
+                  <option value="hangup">{t('voiceRobots.action.hangup', 'Завершить звонок')}</option>
+                </Select>
+              </VStack>
+              {(dlsConfig.notFoundNextState?.type === 'transfer_exten' || !dlsConfig.notFoundNextState?.type) && (() => {
+                const [nfExt = '', nfCtx = ''] = String(dlsConfig.notFoundNextState?.target || '').split('@');
+                return (
+                  <>
+                    <VStack gap="4" className="flex-[2]">
+                      <Label className="text-xs text-muted-foreground">
+                        {t('voiceRobots.action.notFoundTarget', 'Номер/очередь')}
+                      </Label>
+                      <Input
+                        value={nfExt}
+                        onChange={e => updateDataListSearch({
+                          notFoundNextState: {
+                            type: dlsConfig.notFoundNextState?.type || 'transfer_exten',
+                            target: `${e.target.value}@${nfCtx}`,
+                          },
+                        })}
+                        placeholder="100"
+                      />
+                    </VStack>
+                    <VStack gap="4" className="flex-[2]">
+                      <Label className="text-xs text-muted-foreground">
+                        {t('voiceRobots.action.targetExtenCtx', 'Контекст')}
+                        <span className="text-destructive ml-1">*</span>
+                      </Label>
+                      <Select
+                        value={nfCtx}
+                        onChange={e => updateDataListSearch({
+                          notFoundNextState: {
+                            type: dlsConfig.notFoundNextState?.type || 'transfer_exten',
+                            target: `${nfExt}@${e.target.value}`,
+                          },
+                        })}
+                        className={!nfCtx ? 'border-destructive ring-destructive/20' : ''}
+                      >
+                        <option value="">{t('voiceRobots.action.selectContext', '— Выберите контекст —')}</option>
+                        {contexts.map(c => (
+                          <option key={c.name} value={c.name}>{c.name}</option>
+                        ))}
+                      </Select>
+                      {!nfCtx && (
+                        <Text variant="xs" className="text-destructive">
+                          {t('voiceRobots.action.contextRequired', 'Контекст обязателен для перевода')}
+                        </Text>
+                      )}
+                    </VStack>
+                  </>
+                );
+              })()}
+            </HStack>
+            <Text variant="xs" className="text-muted-foreground">
+              {t('voiceRobots.action.notFoundRetriesHint',
+                'Робот озвучит «Ответ если не найдено» и вернётся к прослушиванию. После {{count}} неудачных попыток выполнит указанное действие.',
+                { count: dlsConfig.maxNotFoundRetries ?? 1 }
+              )}
+            </Text>
+          </VStack>
+
+          <VStack gap="4">
+            <Label>{t('voiceRobots.action.onFoundText', 'Ответ если найдено (TTS)')}</Label>
+            <Textarea
+              value={dlsConfig.onFoundResponse?.value || ''}
+              onChange={e => updateDataListSearch({
+                onFoundResponse: { type: 'tts', value: e.target.value },
+              })}
+              placeholder={t('voiceRobots.action.onFoundPlaceholder', 'Нашёл! Соединяю вас с {{result}}...')}
+              rows={2}
+            />
+            <Text variant="xs" className="text-muted-foreground space-y-1">
+              {(() => {
+                const rv = dlsConfig.resultVariable || 'result';
+                const cols = listColumns.slice(0, 4);
+                return (
+                  <>
+                    <span className="block">
+                      <strong>{'{{' + rv + '}}'}</strong> — значение поля «{dlsConfig.returnField || 'returnField'}» из найденной строки
+                    </span>
+                    {cols.length > 0 && (
+                      <span className="block">
+                        Другие поля строки: {cols.map(c =>
+                          <code key={c.key} className="bg-muted px-1 rounded text-[10px] mr-1">{'{{'}{ `${rv}_${c.key}` }{'}}'}</code>
+                        )}
+                        {listColumns.length > 4 && <span className="text-muted-foreground/60">...ещё {listColumns.length - 4}</span>}
+                      </span>
+                    )}
+                    {cols.length === 0 && (
+                      <span className="block text-muted-foreground/70">
+                        Формат: <code className="bg-muted px-1 rounded text-[10px]">{'{{'}{'переменная_колонка'}{'}}'}</code> — например <code className="bg-muted px-1 rounded text-[10px]">{'{{'}{ `${rv}_имя` }{'}}'}</code>
+                      </span>
+                    )}
+                  </>
+                );
+              })()}
+            </Text>
+          </VStack>
+
+          <VStack gap="4">
+            <Label>{t('voiceRobots.action.onFoundAction', 'Действие при успешном поиске')}</Label>
+            <HStack gap="8">
+              <Select
+                value={dlsConfig.onFoundNextState?.type || 'transfer_exten'}
+                onChange={e => updateDataListSearch({
+                  onFoundNextState: {
+                    type: e.target.value as BotNextStateType,
+                    target: dlsConfig.onFoundNextState?.target || '',
+                  },
+                })}
+              >
+                <option value="transfer_exten">{t('voiceRobots.action.transferExten', 'Перевод на номер или очередь')}</option>
+                <option value="listen">{t('voiceRobots.action.listen', 'Продолжить слушать')}</option>
+                <option value="switch_group">{t('voiceRobots.action.switchGroup', 'Переключить сценарий')}</option>
+                <option value="hangup">{t('voiceRobots.action.hangup', 'Завершить звонок')}</option>
+              </Select>
+              {(dlsConfig.onFoundNextState?.type === 'transfer_exten' || !dlsConfig.onFoundNextState?.type) && (() => {
+                const [ofExt = '', ofCtx = ''] = String(dlsConfig.onFoundNextState?.target || '').split('@');
+                return (
+                  <>
+                    <Input
+                      value={ofExt}
+                      onChange={e => updateDataListSearch({
+                        onFoundNextState: {
+                          type: dlsConfig.onFoundNextState?.type || 'transfer_exten',
+                          target: `${e.target.value}@${ofCtx}`,
+                        },
+                      })}
+                      placeholder={dlsConfig.resultVariable
+                        ? `авто: {{${dlsConfig.resultVariable}}}`
+                        : '{{result}}'
+                      }
+                    />
+                    <Select
+                      value={ofCtx}
+                      onChange={e => updateDataListSearch({
+                        onFoundNextState: {
+                          type: dlsConfig.onFoundNextState?.type || 'transfer_exten',
+                          target: `${ofExt}@${e.target.value}`,
+                        },
+                      })}
+                      className={!ofCtx ? 'border-destructive ring-destructive/20' : ''}
+                    >
+                      <option value="">{t('voiceRobots.action.selectContext', '— Выберите контекст —')}</option>
+                      {contexts.map(c => (
+                        <option key={c.name} value={c.name}>{c.name}</option>
+                      ))}
+                    </Select>
+                    {!ofCtx && (
+                      <Text variant="xs" className="text-destructive">
+                        {t('voiceRobots.action.contextRequired', 'Контекст обязателен для перевода')}
+                      </Text>
+                    )}
+                  </>
+                );
+              })()}
+            </HStack>
+            <Text variant="xs" className="text-muted-foreground">
+              {(() => {
+                const rv = dlsConfig.resultVariable || 'result';
+                return (
+                  <>
+                    Номер можно не вводить — если пусто, используется <code className="bg-muted px-1 rounded text-[10px]">{'{{'}{ rv }{'}}'}</code> автоматически.
+                    {' '}Можно явно указать другое поле: <code className="bg-muted px-1 rounded text-[10px]">{'{{'}{ `${rv}_телефон` }{'}}'}</code>
+                  </>
+                );
+              })()}
+            </Text>
+          </VStack>
+        </VStack>
+      )}
 
       {/* ═══ Section 2.5: Webhook Config (conditional) ═══ */}
       {showWebhook && (

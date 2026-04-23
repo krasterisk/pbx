@@ -6,6 +6,7 @@ import { VoiceRobotKeywordGroup } from './keyword-group.model';
 import { VoiceRobotKeyword } from './keyword.model';
 import { VoiceRobotLog } from './voice-robot-log.model';
 import { VoiceRobotCdr } from './voice-robot-cdr.model';
+import { VoiceRobotDataList } from './data-list.model';
 import { VoiceRobotsController } from './voice-robots.controller';
 import { VoiceRobotsService } from './voice-robots.service';
 import { SileroVadProvider } from './services/silero-vad.provider';
@@ -16,6 +17,7 @@ import { StreamAudioService } from './services/stream-audio.service';
 import { AudioService } from './services/audio.service';
 import { SemanticRouterService } from './services/semantic-router.service';
 import { SlotExtractorService } from './services/slot-extractor.service';
+import { DataListSearchService } from './services/data-list-search.service';
 import { TtsCacheService } from './services/tts-cache.service';
 import { AriModule } from '../ari/ari.module';
 // STT/TTS Providers (Phase 1)
@@ -36,6 +38,7 @@ import { TtsEngine } from '../tts-engines/tts-engine.model';
       VoiceRobotKeyword,
       VoiceRobotLog,
       VoiceRobotCdr,
+      VoiceRobotDataList,
       SttEngine,
       TtsEngine,
     ]),
@@ -55,6 +58,7 @@ import { TtsEngine } from '../tts-engines/tts-engine.model';
     KeywordMatcherService,
     SemanticRouterService,
     SlotExtractorService,
+    DataListSearchService,
     // STT Providers
     YandexStreamingSttProvider,
     CustomHttpSttProvider,

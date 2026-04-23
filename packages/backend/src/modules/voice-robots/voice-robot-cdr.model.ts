@@ -115,6 +115,10 @@ export class VoiceRobotCdr extends Model {
   @Column({ type: DataType.TEXT, allowNull: true })
   declare transcript: string | null;
 
+  /** Теги (JSON-массив) — имена групп ключевых слов, через которые прошёл диалог */
+  @Column({ type: DataType.JSON, allowNull: true })
+  declare tags: string[] | null;
+
   // ─── Мультитенантность ────────────────────────────────
 
   /** Tenant ID (vpbx_user_uid) */

@@ -22,6 +22,10 @@ export class ServiceRequest extends Model {
   @Column({ type: DataType.INTEGER, allowNull: true })
   declare operator_id: number | null;
 
+  /** ФИО оператора (денормализовано для быстрого отображения) */
+  @Column({ type: DataType.STRING(255), allowNull: true })
+  declare operator_name: string | null;
+
   /** Дата/время поступления звонка */
   @Column({ type: DataType.DATE, allowNull: false })
   declare call_received_at: Date;

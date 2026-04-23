@@ -1,0 +1,220 @@
+.dataListEditor {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.listCard {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.25rem;
+  border-radius: 0.75rem;
+  border: 1px solid hsl(var(--border) / 0.5);
+  background: hsl(var(--background) / 0.5);
+  backdrop-filter: blur(12px);
+  transition: border-color 0.2s ease;
+
+  &:hover {
+    border-color: hsl(var(--border) / 0.8);
+  }
+}
+
+.listCardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.listMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.listActions {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.columnsBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.columnChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.125rem 0.5rem;
+  font-size: 0.7rem;
+  border-radius: 999px;
+  border: 1px solid hsl(var(--border) / 0.5);
+  background: hsl(var(--muted) / 0.3);
+  color: hsl(var(--muted-foreground));
+
+  &.searchable {
+    border-color: hsl(var(--primary) / 0.4);
+    background: hsl(var(--primary) / 0.08);
+    color: hsl(var(--primary));
+  }
+}
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 3rem 1rem;
+  border-radius: 0.75rem;
+  border: 1px dashed hsl(var(--border) / 0.5);
+  background: hsl(var(--background) / 0.3);
+}
+
+.csvError {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid hsl(0 84% 60% / 0.3);
+  background: hsl(0 84% 60% / 0.06);
+}
+
+/* ─── Dialog Form ─── */
+
+.formFields {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.columnsSection {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.columnRow {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr auto auto;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.rowsSection {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.tableWrapper {
+  overflow-x: auto;
+  border-radius: 0.5rem;
+  border: 1px solid hsl(var(--border) / 0.5);
+}
+
+.dataTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+
+  th {
+    padding: 0.5rem 0.625rem;
+    text-align: left;
+    font-weight: 600;
+    font-size: 0.75rem;
+    color: hsl(var(--muted-foreground));
+    background: hsl(var(--muted) / 0.3);
+    border-bottom: 1px solid hsl(var(--border) / 0.5);
+    white-space: nowrap;
+  }
+
+  td {
+    padding: 0.25rem 0.375rem;
+    border-bottom: 1px solid hsl(var(--border) / 0.25);
+    vertical-align: middle;
+  }
+
+  tr:last-child td {
+    border-bottom: none;
+  }
+
+  input {
+    width: 100%;
+    padding: 0.375rem 0.5rem;
+    font-size: 0.8125rem;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 0.375rem;
+    color: hsl(var(--foreground));
+    outline: none;
+    transition: border-color 0.15s ease;
+
+    &:focus {
+      border-color: hsl(var(--primary) / 0.5);
+      background: hsl(var(--background) / 0.5);
+    }
+  }
+}
+
+.addRowBtn {
+  align-self: flex-start;
+}
+
+/* ─── Test Search ─── */
+
+.testSection {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid hsl(var(--border) / 0.3);
+}
+
+.testRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 0.5rem;
+  align-items: end;
+}
+
+.testResult {
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  font-size: 0.8125rem;
+  background: hsl(var(--muted) / 0.2);
+  border: 1px solid hsl(var(--border) / 0.3);
+
+  &.found {
+    border-color: hsl(142 76% 36% / 0.4);
+    background: hsl(142 76% 36% / 0.08);
+  }
+
+  &.notFound {
+    border-color: hsl(0 84% 60% / 0.3);
+    background: hsl(0 84% 60% / 0.06);
+  }
+}

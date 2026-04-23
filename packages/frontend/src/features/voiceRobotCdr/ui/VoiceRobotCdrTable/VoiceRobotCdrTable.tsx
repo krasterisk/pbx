@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Skeleton, Flex, Text } from '@/shared/ui';
 import { IVoiceRobotCdr } from '@/shared/api/endpoints/voiceRobotCdrApi';
 import { VoiceRobotCdrBadge } from '@/entities/voiceRobotCdr';
-import { PhoneForwarded, AlertCircle, PhoneIncoming } from 'lucide-react';
+import { PhoneForwarded, AlertCircle, PhoneIncoming, Tag } from 'lucide-react';
 
 interface VoiceRobotCdrTableProps {
   data: IVoiceRobotCdr[];
@@ -29,6 +29,7 @@ export const VoiceRobotCdrTable = memo(({ data, isLoading, onRowClick }: VoiceRo
             <TableHead>{t('voiceRobots.cdr.table.robot')}</TableHead>
             <TableHead>{t('voiceRobots.cdr.table.caller')}</TableHead>
             <TableHead>{t('voiceRobots.cdr.table.disposition')}</TableHead>
+            <TableHead>{t('voiceRobots.cdr.table.tag', 'Тег')}</TableHead>
             <TableHead>{t('voiceRobots.cdr.table.duration')}</TableHead>
             <TableHead>{t('voiceRobots.cdr.table.steps')}</TableHead>
           </TableRow>
@@ -40,6 +41,7 @@ export const VoiceRobotCdrTable = memo(({ data, isLoading, onRowClick }: VoiceRo
               <TableCell><Skeleton className="h-4 w-24" /></TableCell>
               <TableCell><Skeleton className="h-4 w-32" /></TableCell>
               <TableCell><Skeleton className="h-6 w-24 rounded-full" /></TableCell>
+              <TableCell><Skeleton className="h-5 w-28 rounded-full" /></TableCell>
               <TableCell><Skeleton className="h-4 w-16" /></TableCell>
               <TableCell><Skeleton className="h-4 w-12" /></TableCell>
             </TableRow>
@@ -66,6 +68,7 @@ export const VoiceRobotCdrTable = memo(({ data, isLoading, onRowClick }: VoiceRo
             <TableHead>{t('voiceRobots.cdr.table.robot')}</TableHead>
             <TableHead>{t('voiceRobots.cdr.table.caller')}</TableHead>
             <TableHead>{t('voiceRobots.cdr.table.disposition')}</TableHead>
+            <TableHead>{t('voiceRobots.cdr.table.tag', 'Тег')}</TableHead>
             <TableHead>{t('voiceRobots.cdr.table.duration')}</TableHead>
             <TableHead>{t('voiceRobots.cdr.result')}</TableHead>
           </TableRow>
@@ -95,6 +98,16 @@ export const VoiceRobotCdrTable = memo(({ data, isLoading, onRowClick }: VoiceRo
               </TableCell>
               <TableCell>
                 <VoiceRobotCdrBadge disposition={row.disposition} />
+              </TableCell>
+              <TableCell>
+                {row.tags && row.tags.length > 0 ? (
+                  <Flex align="center" gap="4">
+                    <Tag className="w-3 h-3 text-muted-foreground" />
+                    <span className="text-sm">{row.tags[row.tags.length - 1]}</span>
+                  </Flex>
+                ) : (
+                  <span className="text-xs text-muted-foreground">—</span>
+                )}
               </TableCell>
               <TableCell>
                 {formatDuration(row.duration_seconds)}

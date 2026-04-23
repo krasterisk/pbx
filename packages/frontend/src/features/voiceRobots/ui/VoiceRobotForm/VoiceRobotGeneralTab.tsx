@@ -104,8 +104,8 @@ export const VoiceRobotGeneralTab = memo(({
         />
       </VStack>
 
-      {/* TTS/STT Engines */}
-      <Flex className="grid grid-cols-2 gap-4">
+      {/* TTS / STT Engines + Language — responsive 3-column row */}
+      <Flex className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <VStack gap="4">
           <HStack align="center" gap="4">
             <Label>{t('voiceRobots.ttsEngine', 'TTS Engine (Синтез)')}</Label>
@@ -127,20 +127,19 @@ export const VoiceRobotGeneralTab = memo(({
             {sttEngines?.map(e => <option key={e.uid} value={e.uid}>{e.name}</option>)}
           </Select>
         </VStack>
-      </Flex>
 
-      {/* Language */}
-      <VStack gap="4">
-        <HStack align="center" gap="4">
-          <Label>{t('voiceRobots.languageField', 'Язык распознавания')}</Label>
-          <InfoTooltip text={t('voiceRobots.languageHint', 'Основной язык речи клиентов для STT распознавания.')} />
-        </HStack>
-        <Select value={language} onChange={(e) => setLanguage(e.target.value)}>
-          <option value="ru-RU">Русский (ru-RU)</option>
-          <option value="en-US">English (en-US)</option>
-          <option value="kk-KZ">Қазақша (kk-KZ)</option>
-        </Select>
-      </VStack>
+        <VStack gap="4">
+          <HStack align="center" gap="4">
+            <Label>{t('voiceRobots.languageField', 'Язык распознавания')}</Label>
+            <InfoTooltip text={t('voiceRobots.languageHint', 'Основной язык речи клиентов для STT распознавания.')} />
+          </HStack>
+          <Select value={language} onChange={(e) => setLanguage(e.target.value)}>
+            <option value="ru-RU">Русский (ru-RU)</option>
+            <option value="en-US">English (en-US)</option>
+            <option value="kk-KZ">Қазақша (kk-KZ)</option>
+          </Select>
+        </VStack>
+      </Flex>
 
       {/* Greeting */}
       <VStack gap="4">
