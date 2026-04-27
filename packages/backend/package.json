@@ -1,11 +1,12 @@
 {
   "name": "@krasterisk/backend",
-  "version": "4.0.7",
+  "version": "4.1.2",
   "description": "Krasterisk v4 Backend",
   "private": true,
   "scripts": {
     "prebuild": "rimraf dist",
     "build": "nest build",
+    "postbuild": "node -e \"const fs=require('fs');const p=require('path');const s=p.join('src','modules','voice-robots','proto');const d=p.join('dist','modules','voice-robots','proto');if(fs.existsSync(s)){fs.cpSync(s,d,{recursive:true});console.log('Proto files copied to dist')}else{console.warn('Proto dir not found in src — run git clone for cloudapi')}\"",
     "format": "prettier --write \"src/**/*.ts\"",
     "start": "cross-env NODE_ENV=production nest start",
     "start:dev": "cross-env NODE_ENV=development nest start --watch",
