@@ -1,6 +1,6 @@
 {
   "name": "@krasterisk/frontend",
-  "version": "4.0.7",
+  "version": "4.1.1",
   "description": "Krasterisk v4 Frontend",
   "private": true,
   "type": "module",

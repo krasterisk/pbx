@@ -5,7 +5,6 @@ import { Shield, Pencil, Trash2, Loader2, Search } from 'lucide-react';
 import { Card, CardHeader, CardContent, Input, DataTable, Button } from '@/shared/ui';
 import { HStack, Flex } from '@/shared/ui/Stack';
 import { useGetRolesQuery, useDeleteRoleMutation, useBulkDeleteRolesMutation } from '@/shared/api/api';
-import { bulkDeleteRoles } from '../../model/services/rolesBulkActions';
 import { useAppDispatch, useAppSelector } from '@/shared/hooks/useAppStore';
 import { rolesPageActions } from '../../model/slice/rolesPageSlice';
 

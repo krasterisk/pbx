@@ -16,6 +16,6 @@ export function Badge({ className, variant = "default", ...props }: BadgeProps) 
   }
 
   return (
-    <div className={classNames(baseClasses, variantClasses[variant], [className || ""])} {...props} />
+    <div className={classNames(baseClasses, {}, [variantClasses[variant], className || ""])} {...props} />
   )
 }

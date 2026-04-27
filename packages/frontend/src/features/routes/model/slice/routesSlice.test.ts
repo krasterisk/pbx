@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { routesReducer, routesActions } from './routesSlice';
 import type { RoutesSchema } from '../types/routesSchema';
 
-const mockRoute = { uid: 1, context_id: 1, exten: '100', priority: 1, app: 'Dial', target: 'PJSIP/100' };
+const mockRoute = { uid: 1, context_id: 1, exten: '100', priority: 1, app: 'Dial', target: 'PJSIP/100' } as any;
 
 describe('routesSlice', () => {
   const initialState: RoutesSchema = {

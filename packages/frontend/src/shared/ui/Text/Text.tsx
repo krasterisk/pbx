@@ -36,7 +36,8 @@ export interface TextProps extends VariantProps<typeof textVariants> {
 }
 
 export const Text = ({ className, variant, align, as: Component, children, ...props }: TextProps) => {
-  const Comp = Component || (variant?.startsWith('h') ? variant : 'p');
+  const tag = variant?.startsWith('h') ? variant : 'p';
+  const Comp: ElementType = Component || (tag as ElementType);
   return (
     <Comp className={classNames(textVariants({ variant, align }), {}, [className || ''])} {...props}>
       {children}

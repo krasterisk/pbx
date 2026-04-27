@@ -3,10 +3,10 @@ import { classNames, Mods } from '@/shared/lib/classNames/classNames';
 import cls from './Flex.module.scss';
 
 export type FlexJustify = 'start' | 'center' | 'end' | 'between';
-export type FlexAlign = 'start' | 'center' | 'end' | 'stretch';
+export type FlexAlign = 'start' | 'center' | 'end' | 'stretch' | 'baseline';
 export type FlexDirection = 'row' | 'column';
 export type FlexWrap = 'nowrap' | 'wrap';
-export type FlexGap = '0' | '2' | '4' | '8' | '12' | '16' | '24' | '32';
+export type FlexGap = '0' | '2' | '4' | '6' | '8' | '12' | '16' | '24' | '32';
 
 const justifyClasses: Record<FlexJustify, string> = {
   start: cls.justifyStart,
@@ -20,6 +20,7 @@ const alignClasses: Record<FlexAlign, string> = {
   center: cls.alignCenter,
   end: cls.alignEnd,
   stretch: cls.alignStretch,
+  baseline: cls.alignBaseline,
 };
 
 const directionClasses: Record<FlexDirection, string> = {
@@ -31,6 +32,7 @@ const gapClasses: Record<FlexGap, string> = {
   '0': cls.gap0,
   '2': cls.gap2,
   '4': cls.gap4,
+  '6': cls.gap6,
   '8': cls.gap8,
   '12': cls.gap12,
   '16': cls.gap16,

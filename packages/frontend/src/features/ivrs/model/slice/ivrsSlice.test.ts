@@ -10,7 +10,7 @@ const mockIvr = {
   timeout: 10,
   max_count: 3,
   description: 'Main auto attendant',
-} as IIvr;
+} as any;
 
 describe('ivrsSlice', () => {
   const initialState: IvrsSchema = {

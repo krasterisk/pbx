@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { provisionTemplatesReducer, provisionTemplatesActions } from './provisionTemplatesSlice';
 import type { ProvisionTemplatesSchema } from '../types/provisionTemplatesSchema';
 
-const mockTemplate = { uid: 1, name: 'T21', code: 'test code', tenant_id: 1 };
+const mockTemplate = { uid: 1, name: 'T21', code: 'test code', tenant_id: 1 } as any;
 
 describe('provisionTemplatesSlice', () => {
   const initialState: ProvisionTemplatesSchema = {

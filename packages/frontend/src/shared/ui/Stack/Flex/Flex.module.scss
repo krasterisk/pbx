@@ -11,6 +11,7 @@
 .alignCenter { align-items: center; }
 .alignEnd { align-items: flex-end; }
 .alignStretch { align-items: stretch; }
+.alignBaseline { align-items: baseline; }
 
 .directionRow { flex-direction: row; }
 .directionColumn { flex-direction: column; }
@@ -18,6 +19,7 @@
 .gap0 { gap: 0; }
 .gap2 { gap: 2px; }
 .gap4 { gap: 4px; }
+.gap6 { gap: 6px; }
 .gap8 { gap: 8px; }
 .gap12 { gap: 12px; }
 .gap16 { gap: 16px; }

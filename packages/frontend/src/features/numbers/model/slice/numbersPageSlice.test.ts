@@ -3,11 +3,10 @@ import { numbersPageReducer, numbersPageActions } from './numbersPageSlice';
 import type { NumbersPageSchema } from '../types/numbersPageSchema';
 import type { INumberList } from '@/shared/api/api';
 
-const mockNumber: INumberList = {
+const mockNumber = {
   id: 1,
   name: 'List A',
-  comment: 'Support list',
-};
+} as INumberList;
 
 describe('numbersPageSlice', () => {
   const initialState: NumbersPageSchema = {

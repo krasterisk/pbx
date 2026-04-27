@@ -9,7 +9,7 @@ const mockPrompt = {
   description: 'Welcome message',
   filepath: '/var/lib/asterisk/sounds/welcome.wav',
   format: 'wav',
-} as IPrompt;
+} as any;
 
 describe('promptsSlice', () => {
   const initialState: PromptsSchema = {

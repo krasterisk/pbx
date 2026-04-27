@@ -3,7 +3,7 @@ import { contextsReducer, contextsActions } from './contextsSlice';
 import type { ContextsSchema } from '../types/contextsSchema';
 import type { IContext } from '@/shared/api/api';
 
-const mockContext: IContext = { uid: 1, name: 'default' };
+const mockContext = { uid: 1, name: 'default' } as IContext;
 
 describe('contextsSlice', () => {
   const initialState: ContextsSchema = {

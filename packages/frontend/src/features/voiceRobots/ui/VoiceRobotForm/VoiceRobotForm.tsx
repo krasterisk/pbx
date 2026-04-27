@@ -201,7 +201,7 @@ export const VoiceRobotForm = memo(({ initialRobot }: VoiceRobotFormProps) => {
           )}
 
           {activeTab === 'dialogue' && (
-            <VoiceRobotDialogueTab selectedRobot={initialRobot} />
+            <VoiceRobotDialogueTab selectedRobot={initialRobot ?? null} />
           )}
 
           {activeTab === 'settings' && (

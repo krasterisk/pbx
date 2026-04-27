@@ -3,11 +3,10 @@ import { rolesPageReducer, rolesPageActions } from './rolesPageSlice';
 import type { RolesPageSchema } from '../types/rolesPageSchema';
 import type { IRole } from '@/shared/api/api';
 
-const mockRole: IRole = {
+const mockRole = {
   id: 1,
   name: 'Admin',
-  comment: 'Admin role',
-};
+} as IRole;
 
 describe('rolesPageSlice', () => {
   const initialState: RolesPageSchema = {
