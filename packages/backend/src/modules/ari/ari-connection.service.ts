@@ -165,8 +165,20 @@ export class AriConnectionService implements OnApplicationBootstrap, OnApplicati
 
   // ─── Event Handling ────────────────────────────────────
 
+  /** Events to ignore — noisy on production PBX with many SIP peers */
+  private static readonly IGNORED_EVENTS = new Set([
+    'PeerStatusChange',
+    'DeviceStateChanged',
+    'ContactStatusChange',
+  ]);
+
   private handleEvent(event: any) {
     try {
+      // Skip noisy events that are irrelevant to voice robot functionality
+      if (AriConnectionService.IGNORED_EVENTS.has(event.type)) {
+        return;
+      }
+
       switch (event.type) {
         case 'StasisStart':
           this.handleStasisStart(event);
