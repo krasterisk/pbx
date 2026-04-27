@@ -3,14 +3,14 @@
  *
  * This module is loaded by standalone.html and uses HashRouter
  * so that v3's PHP can embed it via iframe with hash-based routing:
- *   /voice-robot-app/standalone.html#/voice-robots
- *   /voice-robot-app/standalone.html#/voice-robots/cdr
- *   /voice-robot-app/standalone.html#/service-requests
+ *   /voice-robots/standalone.html#/voice-robots
+ *   /voice-robots/standalone.html#/voice-robots/cdr
+ *   /voice-robots/standalone.html#/service-requests
  *
  * API calls go to /api/public/* (no JWT required).
  */
 import { createRoot } from 'react-dom/client';
-import { createHashRouter, RouterProvider } from 'react-router-dom';
+import { createHashRouter, RouterProvider, Navigate } from 'react-router-dom';
 import { Provider } from 'react-redux';
 import { store } from '@/app/store/store';
 import { StandaloneLayout } from '@/app/layouts/StandaloneLayout';
@@ -27,9 +27,10 @@ const standaloneRouter = createHashRouter([
     path: '/',
     element: <StandaloneLayout />,
     children: [
+      { index: true, element: <Navigate to="/voice-robots" replace /> },
       { path: 'voice-robots', element: <VoiceRobotsPage /> },
-      { path: 'voice-robots/:id', element: <VoiceRobotEditPage /> },
       { path: 'voice-robots/cdr', element: <VoiceRobotCdrPage /> },
+      { path: 'voice-robots/:id', element: <VoiceRobotEditPage /> },
       { path: 'service-requests', element: <ServiceRequestsPage /> },
     ],
   },
