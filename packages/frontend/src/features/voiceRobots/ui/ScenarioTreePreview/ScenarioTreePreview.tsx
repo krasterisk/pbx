@@ -11,6 +11,7 @@ import {
   useGetVoiceRobotKeywordGroupsQuery,
   useGetVoiceRobotKeywordsQuery,
 } from '@/shared/api/endpoints/voiceRobotsApi';
+import { useGetVoiceRobotDataListsQuery } from '@/shared/api/endpoints/voiceRobotDataListsApi';
 import { useReactToPrint } from 'react-to-print';
 
 interface ScenarioTreePreviewProps {
@@ -19,9 +20,10 @@ interface ScenarioTreePreviewProps {
 }
 
 /** Wrapper that fetches keywords for a single group and renders its tree nodes */
-const GroupKeywordsRenderer = memo(({ group, t }: {
+const GroupKeywordsRenderer = memo(({ group, t, robotId }: {
   group: IVoiceRobotKeywordGroup;
   t: any;
+  robotId: number;
 }) => {
   const { data: keywords = [] } = useGetVoiceRobotKeywordsQuery(group.uid);
 
@@ -76,9 +78,9 @@ const GroupKeywordsRenderer = memo(({ group, t }: {
                 </HStack>
               ) : undefined}
             />
-            <ActionSummaryNode action={action} t={t} indent={2} />
+            <ActionSummaryNode action={action} t={t} indent={2} robotId={robotId} />
             {hasEscalation && (
-              <ActionSummaryNode action={kw.escalation_action!} t={t} indent={2} isEscalation />
+              <ActionSummaryNode action={kw.escalation_action!} t={t} indent={2} isEscalation robotId={robotId} />
             )}
           </VStack>
         );
@@ -144,12 +146,14 @@ const TreeNode = ({ color, iconColor, icon: Icon, label, sublabel, indent = 0, c
   </VStack>
 );
 
-const ActionSummaryNode = memo(({ action, t, indent, isEscalation = false }: {
+const ActionSummaryNode = memo(({ action, t, indent, isEscalation = false, robotId }: {
   action: IVoiceRobotBotAction;
   t: any;
   indent: number;
   isEscalation?: boolean;
+  robotId?: number;
 }) => {
+  const { data: dataLists = [] } = useGetVoiceRobotDataListsQuery(robotId ?? 0, { skip: !robotId });
   const stateIcons: Record<string, typeof Bot> = {
     listen: Mic,
     switch_group: ArrowRight,
@@ -163,11 +167,21 @@ const ActionSummaryNode = memo(({ action, t, indent, isEscalation = false }: {
     transfer_exten: t('voiceRobots.action.transferExten', 'Перевод на номер'),
     webhook: t('voiceRobots.action.webhook', 'Webhook'),
     hangup: t('voiceRobots.action.hangup', 'Завершить звонок'),
+    search_data_list: t('voiceRobots.action.searchDataList', 'Поиск по справочнику'),
   };
 
   const isTerminal = ['transfer_exten', 'hangup'].includes(action.nextState.type);
   const Icon = stateIcons[action.nextState.type] || ArrowRight;
-  const label = stateLabels[action.nextState.type] || action.nextState.type;
+  let label = stateLabels[action.nextState.type] || action.nextState.type;
+
+  // Append data list name for search_data_list
+  if (action.nextState.type === 'search_data_list') {
+    const listId = action.dataListSearch?.listId;
+    if (listId) {
+      const listName = dataLists.find(dl => dl.uid === listId)?.name;
+      label += listName ? ` «${listName}»` : ` (ID: ${listId})`;
+    }
+  }
 
   const responsePart = action.response.type === 'tts' && action.response.value
     ? `«${action.response.value.substring(0, 50)}${action.response.value.length > 50 ? '…' : ''}»`
@@ -205,7 +219,7 @@ const ActionSummaryNode = memo(({ action, t, indent, isEscalation = false }: {
       label={
         <HStack gap="4" align="center">
           {isEscalation && <Text as="span" className="text-[10px] px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-500 font-semibold uppercase">ESC</Text>}
-          <Text as="span">{label}{action.nextState.target ? ` → ${action.nextState.target}` : ''}</Text>
+          <Text as="span">{label}{['webhook', 'transfer_exten', 'switch_group'].includes(action.nextState.type) && action.nextState.target ? ` → ${action.nextState.target}` : ''}</Text>
         </HStack>
       }
       sublabel={sublabel || undefined}
@@ -293,7 +307,7 @@ export const ScenarioTreePreview = memo(({
 
       {/* Groups — each one self-loads its keywords */}
       {activeGroups.map((group) => (
-        <GroupKeywordsRenderer key={group.uid} group={group} t={t} />
+        <GroupKeywordsRenderer key={group.uid} group={group} t={t} robotId={robotId} />
       ))}
 
       {activeGroups.length === 0 && (

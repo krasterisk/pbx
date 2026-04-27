@@ -1,6 +1,6 @@
 import { memo, useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { MessageSquare, Type, Eye, ChevronDown, ChevronUp, Repeat, ShieldAlert } from 'lucide-react';
+import { MessageSquare, Type, Eye, ChevronDown, ChevronUp, Repeat, ShieldAlert, Tag } from 'lucide-react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
   VStack, HStack, Input, Label, Text, Button, TagInput,
@@ -47,6 +47,7 @@ export const KeywordEditDialog = memo(({
   const [escalationAction, setEscalationAction] = useState<IVoiceRobotBotAction>(DEFAULT_BOT_ACTION);
   const [showEscalation, setShowEscalation] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [tag, setTag] = useState('');
 
   useEffect(() => {
     if (keyword) {
@@ -58,6 +59,7 @@ export const KeywordEditDialog = memo(({
       setMaxRepeats(keyword.max_repeats || 0);
       setEscalationAction(keyword.escalation_action || { ...DEFAULT_BOT_ACTION });
       setShowEscalation((keyword.max_repeats || 0) > 0);
+      setTag(keyword.tag || '');
     } else {
       setKeywords('');
       setSynonyms([]);
@@ -67,9 +69,34 @@ export const KeywordEditDialog = memo(({
       setMaxRepeats(0);
       setEscalationAction({ ...DEFAULT_BOT_ACTION });
       setShowEscalation(false);
+      setTag('');
     }
     setShowPreview(false);
   }, [keyword, isOpen]);
+
+  /** Strip fields irrelevant to the selected nextState type */
+  const sanitizeBotAction = useCallback((a: IVoiceRobotBotAction): IVoiceRobotBotAction => {
+    const clean = { ...a };
+    const type = clean.nextState?.type;
+
+    // Clear webhook-specific fields if not webhook
+    if (type !== 'webhook') {
+      delete clean.webhookAuth;
+      delete clean.webhookResponseTemplate;
+    }
+
+    // Clear data list search config if not search_data_list
+    if (type !== 'search_data_list') {
+      delete clean.dataListSearch;
+    }
+
+    // Clear target for types that don't use it
+    if (type === 'listen' || type === 'hangup') {
+      clean.nextState = { ...clean.nextState, target: '' };
+    }
+
+    return clean;
+  }, []);
 
   const handleSave = useCallback(() => {
     if (!keywords.trim()) return;
@@ -78,12 +105,13 @@ export const KeywordEditDialog = memo(({
       synonyms,
       negative_keywords: negativeKeywords,
       comment: comment.trim() || null,
-      bot_action: botAction,
+      tag: tag.trim() || null,
+      bot_action: sanitizeBotAction(botAction),
       max_repeats: maxRepeats,
-      escalation_action: maxRepeats > 0 ? escalationAction : null,
+      escalation_action: maxRepeats > 0 ? sanitizeBotAction(escalationAction) : null,
     });
     onClose();
-  }, [keywords, synonyms, negativeKeywords, comment, botAction, maxRepeats, escalationAction, onSave, onClose]);
+  }, [keywords, synonyms, negativeKeywords, comment, tag, botAction, maxRepeats, escalationAction, onSave, onClose, sanitizeBotAction]);
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -166,6 +194,22 @@ export const KeywordEditDialog = memo(({
               onChange={(e) => setComment(e.target.value)}
               placeholder={t('voiceRobots.commentPlaceholder', 'Заметка для администратора...')}
             />
+          </VStack>
+
+          {/* ═══ Custom Tag ═══ */}
+          <VStack gap="4">
+            <HStack gap="4" align="center">
+              <Tag className={cls.sectionIcon} />
+              <Label>{t('voiceRobots.customTag', 'Кастомный тег')}</Label>
+            </HStack>
+            <Input
+              value={tag}
+              onChange={(e) => setTag(e.target.value)}
+              placeholder={t('voiceRobots.customTagPlaceholder', 'Лицевой счёт, Тариф, Оплата...')}
+            />
+            <Text variant="xs" className="text-muted-foreground">
+              {t('voiceRobots.customTagHint', 'Если указан, используется вместо имени группы в CDR-тегах. Позволяет отслеживать тему разговора.')}
+            </Text>
           </VStack>
 
           {/* ═══ Bot Action ═══ */}

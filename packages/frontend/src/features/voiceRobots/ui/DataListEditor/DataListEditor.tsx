@@ -52,52 +52,86 @@ function readFileAutoEncoding(file: File): Promise<string> {
 /**
  * Parses a CSV string into columns and rows.
  * Auto-detects delimiter (semicolon or comma) based on first line.
- * Handles quoted fields (RFC 4180).
+ * Handles quoted fields with embedded newlines, commas, and escaped quotes (RFC 4180).
  */
 function parseCsv(text: string): { columns: IDataListColumn[]; rows: Record<string, string>[] } {
-  const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n').filter(l => l.trim());
-  if (lines.length === 0) return { columns: [], rows: [] };
+  // Normalize line endings
+  const input = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  if (!input.trim()) return { columns: [], rows: [] };
 
-  // Auto-detect delimiter: count semicolons vs commas in header line
-  const headerLine = lines[0];
-  const semicolons = (headerLine.match(/;/g) || []).length;
-  const commas = (headerLine.match(/,/g) || []).length;
-  const delimiter = semicolons >= commas ? ';' : ',';
+  // --- Step 1: Split into logical records (respecting quoted newlines) ---
+  const records: string[][] = [];
+  let field = '';
+  let inQuotes = false;
+  let currentRecord: string[] = [];
+  let delimiter: string | null = null; // auto-detect on first line
 
-  // Parse a single CSV line handling quoted fields
-  const parseLine = (line: string): string[] => {
-    const result: string[] = [];
-    let current = '';
-    let inQuotes = false;
+  for (let i = 0; i < input.length; i++) {
+    const ch = input[i];
 
-    for (let i = 0; i < line.length; i++) {
-      const ch = line[i];
-      if (inQuotes) {
-        if (ch === '"' && line[i + 1] === '"') {
-          current += '"';
-          i++; // skip escaped quote
-        } else if (ch === '"') {
-          inQuotes = false;
+    if (inQuotes) {
+      if (ch === '"') {
+        if (input[i + 1] === '"') {
+          // Escaped quote ""
+          field += '"';
+          i++;
         } else {
-          current += ch;
+          // End of quoted field
+          inQuotes = false;
         }
       } else {
-        if (ch === '"') {
-          inQuotes = true;
-        } else if (ch === delimiter) {
-          result.push(current.trim());
-          current = '';
+        // Any char inside quotes (including \n) is part of the field
+        field += ch;
+      }
+    } else {
+      if (ch === '"') {
+        inQuotes = true;
+      } else if (delimiter && ch === delimiter) {
+        currentRecord.push(field.trim());
+        field = '';
+      } else if (!delimiter && (ch === ';' || ch === ',')) {
+        // First delimiter encountered — auto-detect
+        // Look at the rest of the first line to confirm
+        const firstNewline = input.indexOf('\n');
+        const headerPart = firstNewline > 0 ? input.substring(0, firstNewline) : input;
+        const semicolons = (headerPart.match(/;/g) || []).length;
+        const commas = (headerPart.match(/,/g) || []).length;
+        delimiter = semicolons >= commas ? ';' : ',';
+        // Now process current char with detected delimiter
+        if (ch === delimiter) {
+          currentRecord.push(field.trim());
+          field = '';
         } else {
-          current += ch;
+          field += ch;
         }
+      } else if (ch === '\n') {
+        // End of record
+        currentRecord.push(field.trim());
+        field = '';
+        // Skip empty records (blank lines)
+        if (currentRecord.some(f => f !== '')) {
+          records.push(currentRecord);
+        }
+        currentRecord = [];
+      } else {
+        field += ch;
       }
     }
-    result.push(current.trim());
-    return result;
-  };
+  }
 
-  // Parse header → columns
-  const headers = parseLine(lines[0]);
+  // Flush last record
+  currentRecord.push(field.trim());
+  if (currentRecord.some(f => f !== '')) {
+    records.push(currentRecord);
+  }
+
+  if (records.length === 0) return { columns: [], rows: [] };
+
+  // If delimiter was never detected (single-column CSV), set it
+  if (!delimiter) delimiter = ';';
+
+  // --- Step 2: Build columns from header row ---
+  const headers = records[0];
   const columns: IDataListColumn[] = headers.map((label) => ({
     key: label.trim().toLowerCase().replace(/\s+/g, '_').replace(/[^\p{L}\p{N}_]/gu, '') || 'col',
     label: label.trim(),
@@ -115,10 +149,10 @@ function parseCsv(text: string): { columns: IDataListColumn[]; rows: Record<stri
     }
   });
 
-  // Parse data rows
+  // --- Step 3: Build data rows ---
   const rows: Record<string, string>[] = [];
-  for (let i = 1; i < lines.length; i++) {
-    const values = parseLine(lines[i]);
+  for (let i = 1; i < records.length; i++) {
+    const values = records[i];
     const row: Record<string, string> = {};
     columns.forEach((col, idx) => {
       row[col.key] = values[idx] || '';
@@ -153,6 +187,10 @@ export const DataListEditor = memo(({ robotId }: DataListEditorProps) => {
   const csvAppendRef = useRef<HTMLInputElement>(null);
   const [csvError, setCsvError] = useState<string | null>(null);
   const [appendTargetId, setAppendTargetId] = useState<number | null>(null);
+
+  // ─── Delete Confirmation ───
+  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // ─── Dialog State ───
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -312,10 +350,14 @@ export const DataListEditor = memo(({ robotId }: DataListEditorProps) => {
   }, [editingList, formName, formDescription, formColumns, formRows, robotId, createList, updateList]);
 
   const handleDelete = useCallback(async (uid: number) => {
+    setIsDeleting(true);
     try {
       await deleteList(uid).unwrap();
     } catch (err) {
       console.error('Failed to delete data list:', err);
+    } finally {
+      setIsDeleting(false);
+      setDeleteConfirmId(null);
     }
   }, [deleteList]);
 
@@ -450,7 +492,7 @@ export const DataListEditor = memo(({ robotId }: DataListEditorProps) => {
         </VStack>
       ) : (
         lists.map((list) => (
-          <VStack key={list.uid} className={cls.listCard}>
+          <div key={list.uid} className={cls.listCard}>
             <HStack className={cls.listCardHeader}>
               <VStack className={cls.listMeta}>
                 <Text variant="h4">{list.name}</Text>
@@ -480,16 +522,24 @@ export const DataListEditor = memo(({ robotId }: DataListEditorProps) => {
                   variant="ghost"
                   size="icon"
                   onClick={() => {
-                    setTestListId(list.uid);
-                    setTestField(list.columns?.find(c => !c.searchable)?.key || list.columns?.[0]?.key || '');
+                    const next = testListId === list.uid ? null : list.uid;
+                    setTestListId(next);
+                    if (next) {
+                      setTestField(list.columns?.find(c => !c.searchable)?.key || list.columns?.[0]?.key || '');
+                      // Scroll test panel into view after render
+                      setTimeout(() => {
+                        document.getElementById(`test-panel-${list.uid}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                      }, 50);
+                    }
                   }}
+                  className={testListId === list.uid ? 'bg-primary/10 text-primary' : ''}
                 >
                   <Search className="w-4 h-4" />
                 </Button>
                 <Button variant="ghost" size="icon" onClick={() => openEdit(list)}>
                   <Pencil className="w-4 h-4" />
                 </Button>
-                <Button variant="ghost" size="icon" onClick={() => handleDelete(list.uid)}>
+                <Button variant="ghost" size="icon" onClick={() => setDeleteConfirmId(list.uid)}>
                   <Trash2 className="w-4 h-4 text-destructive" />
                 </Button>
               </HStack>
@@ -512,7 +562,7 @@ export const DataListEditor = memo(({ robotId }: DataListEditorProps) => {
 
             {/* Inline test search */}
             {testListId === list.uid && (
-              <VStack className={cls.testSection}>
+              <VStack className={cls.testSection} id={`test-panel-${list.uid}`}>
                 <Text variant="h4">{t('voiceRobots.dataLists.testSearch', 'Тест поиска')}</Text>
                 <HStack className={cls.testRow}>
                   <VStack>
@@ -554,9 +604,34 @@ export const DataListEditor = memo(({ robotId }: DataListEditorProps) => {
                 )}
               </VStack>
             )}
-          </VStack>
+          </div>
         ))
       )}
+
+      {/* ─── Delete Confirmation Dialog ─── */}
+      <Dialog open={deleteConfirmId !== null} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t('voiceRobots.dataLists.deleteTitle', 'Удалить справочник?')}</DialogTitle>
+          </DialogHeader>
+          <Text variant="muted">
+            {t('voiceRobots.dataLists.deleteConfirm', 'Справочник и все его данные будут удалены без возможности восстановления.')}
+          </Text>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteConfirmId(null)}>
+              {t('common.cancel', 'Отмена')}
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => deleteConfirmId && handleDelete(deleteConfirmId)}
+              disabled={isDeleting}
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              {t('common.delete', 'Удалить')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ─── Create/Edit Dialog ─── */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

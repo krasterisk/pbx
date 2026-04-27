@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { VStack, HStack, Text } from '@/shared/ui';
 import { IVoiceRobotBotAction } from '@/entities/voiceRobot';
+import { useGetVoiceRobotDataListsQuery } from '@/shared/api/endpoints/voiceRobotDataListsApi';
 
 interface ConversationPreviewProps {
   keyword: string;
@@ -13,6 +14,7 @@ interface ConversationPreviewProps {
   greetingText?: string;
   maxRepeats?: number;
   escalationAction?: IVoiceRobotBotAction | null;
+  robotId?: number;
 }
 
 /* ──────────── Helpers ──────────── */
@@ -52,11 +54,14 @@ const Connector = ({ label }: { label?: string }) => (
 );
 
 /* Helper to render an action flow (reused for primary + escalation) */
-const ActionFlow = memo(({ action, t, variant = 'bot' }: {
+const ActionFlow = memo(({ action, t, variant = 'bot', robotId }: {
   action: IVoiceRobotBotAction;
   t: any;
   variant?: 'bot' | 'escalation';
+  robotId?: number;
 }) => {
+  const { data: dataLists = [] } = useGetVoiceRobotDataListsQuery(robotId ?? 0, { skip: !robotId });
+
   const nextStateIcons: Record<string, typeof Bot> = {
     listen: Bot,
     switch_group: ArrowRight,
@@ -71,10 +76,20 @@ const ActionFlow = memo(({ action, t, variant = 'bot' }: {
     transfer_exten: t('voiceRobots.nextStateDescriptions.transfer_exten', 'Звонок переведётся на указанный номер'),
     webhook: t('voiceRobots.nextStateDescriptions.webhook', 'Робот отправит данные на сервер'),
     hangup: t('voiceRobots.nextStateDescriptions.hangup', 'Звонок будет завершён'),
+    search_data_list: t('voiceRobots.nextStateDescriptions.search_data_list', 'Робот найдёт информацию в справочнике'),
   };
 
   const NextIcon = nextStateIcons[action.nextState.type] || ArrowRight;
-  const nextLabel = nextStateLabels[action.nextState.type] || action.nextState.type;
+  let nextLabel = nextStateLabels[action.nextState.type] || action.nextState.type;
+
+  // Append data list name
+  if (action.nextState.type === 'search_data_list') {
+    const listId = action.dataListSearch?.listId;
+    if (listId) {
+      const listName = dataLists.find(dl => dl.uid === listId)?.name;
+      nextLabel += listName ? ` «${listName}»` : ` (ID: ${listId})`;
+    }
+  }
 
   return (
     <>
@@ -141,7 +156,7 @@ const ActionFlow = memo(({ action, t, variant = 'bot' }: {
         icon={NextIcon}
       >
         <Text as="span" className="font-medium">{nextLabel}</Text>
-        {action.nextState.target && action.nextState.type !== 'webhook' && (
+        {action.nextState.target && ['webhook', 'transfer_exten', 'switch_group'].includes(action.nextState.type) && (
           <Text as="span" className="ml-1 text-xs opacity-70">→ {String(action.nextState.target)}</Text>
         )}
       </Bubble>
@@ -161,7 +176,7 @@ ActionFlow.displayName = 'ActionFlow';
  * FSD layer: features/voiceRobots/ui
  */
 export const ConversationPreview = memo(({
-  keyword, action, greetingText, maxRepeats, escalationAction,
+  keyword, action, greetingText, maxRepeats, escalationAction, robotId,
 }: ConversationPreviewProps) => {
   const { t } = useTranslation();
 
@@ -192,7 +207,7 @@ export const ConversationPreview = memo(({
       } />
 
       {/* ─── Primary action flow ─── */}
-      <ActionFlow action={action} t={t} variant="bot" />
+      <ActionFlow action={action} t={t} variant="bot" robotId={robotId} />
 
       {/* ─── Escalation path ─── */}
       {hasEscalation && (
@@ -220,7 +235,7 @@ export const ConversationPreview = memo(({
           </Bubble>
           <Connector />
 
-          <ActionFlow action={escalationAction!} t={t} variant="escalation" />
+          <ActionFlow action={escalationAction!} t={t} variant="escalation" robotId={robotId} />
         </>
       )}
     </VStack>

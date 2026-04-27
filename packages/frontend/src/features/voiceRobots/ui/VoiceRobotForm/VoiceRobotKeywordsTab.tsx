@@ -4,7 +4,7 @@ import {
   Pencil, Trash2, Plus, ChevronRight, ChevronDown, Bot, FileText,
   MessageSquare, ArrowRight, GripVertical, Eye, Copy, Check, GitBranchPlus, Globe, Play,
 } from 'lucide-react';
-import { VStack, HStack, Text, Button, Input, Label, Checkbox, Dialog, DialogContent, DialogHeader, DialogTitle, SkeletonCard, PageLoader } from '@/shared/ui';
+import { VStack, HStack, Text, Button, Input, Label, Checkbox, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, SkeletonCard, PageLoader } from '@/shared/ui';
 import { IVoiceRobot, IVoiceRobotKeywordGroup, IVoiceRobotKeyword, IVoiceRobotBotAction } from '@/entities/voiceRobot';
 import { KeywordEditDialog } from '../KeywordEditDialog/KeywordEditDialog';
 import { ConversationPreview } from '../ConversationPreview';
@@ -19,13 +19,15 @@ import {
   useUpdateVoiceRobotKeywordMutation,
   useDeleteVoiceRobotKeywordMutation,
 } from '@/shared/api/endpoints/voiceRobotsApi';
+import { useGetVoiceRobotDataListsQuery } from '@/shared/api/endpoints/voiceRobotDataListsApi';
 
 /* ────────────────────────────────────────────────────────────── */
 /*  Bot Action Summary — compact display of action config        */
 /* ────────────────────────────────────────────────────────────── */
 
-const BotActionSummary = memo(({ action }: { action: IVoiceRobotBotAction | null }) => {
+const BotActionSummary = memo(({ action, robotId }: { action: IVoiceRobotBotAction | null; robotId?: number }) => {
   const { t } = useTranslation();
+  const { data: dataLists = [] } = useGetVoiceRobotDataListsQuery(robotId ?? 0, { skip: !robotId });
 
   if (!action) {
     return (
@@ -47,9 +49,20 @@ const BotActionSummary = memo(({ action }: { action: IVoiceRobotBotAction | null
     transfer_exten: t('voiceRobots.action.transferExten', 'Перевод на номер'),
     webhook: t('voiceRobots.action.webhook', 'Webhook'),
     hangup: t('voiceRobots.action.hangup', 'Завершить'),
+    search_data_list: t('voiceRobots.action.searchDataList', 'Поиск по справочнику'),
   };
 
-  const nextLabel = nextStateLabels[action.nextState.type] || action.nextState.type;
+  let nextLabel = nextStateLabels[action.nextState.type] || action.nextState.type;
+
+  // For search_data_list, append the list name
+  if (action.nextState.type === 'search_data_list' && action.dataListSearch?.listId) {
+    const listName = dataLists.find(dl => dl.uid === action.dataListSearch!.listId)?.name;
+    if (listName) nextLabel += ` «${listName}»`;
+  }
+
+  // Only show target for types that actually use it (webhook URL, transfer number, group ID)
+  const showTarget = ['webhook', 'transfer_exten', 'switch_group'].includes(action.nextState.type)
+    && action.nextState.target;
   const slotsCount = action.slots?.length || 0;
 
   return (
@@ -62,7 +75,7 @@ const BotActionSummary = memo(({ action }: { action: IVoiceRobotBotAction | null
       )}
       <HStack gap="4" className="text-xs text-muted-foreground bg-muted/30 px-2 py-0.5 rounded-md">
         <ArrowRight className="w-3 h-3" />
-        <Text variant="xs">{nextLabel}{action.nextState.target ? ` → ${action.nextState.target}` : ''}</Text>
+        <Text variant="xs">{nextLabel}{showTarget ? ` → ${action.nextState.target}` : ''}</Text>
       </HStack>
       {slotsCount > 0 && (
         <Text variant="xs" className="text-muted-foreground bg-muted/30 px-2 py-0.5 rounded-md">
@@ -83,9 +96,11 @@ interface KeywordCardProps {
   onEdit: (keyword: IVoiceRobotKeyword) => void;
   onDelete: (uid: number) => void;
   onPreview: (keyword: IVoiceRobotKeyword) => void;
+  onRequestDelete: (keyword: IVoiceRobotKeyword) => void;
+  robotId?: number;
 }
 
-const KeywordCard = memo(({ keyword, onEdit, onDelete, onPreview }: KeywordCardProps) => {
+const KeywordCard = memo(({ keyword, onEdit, onDelete, onPreview, onRequestDelete, robotId }: KeywordCardProps) => {
   const { t } = useTranslation();
 
   return (
@@ -110,7 +125,14 @@ const KeywordCard = memo(({ keyword, onEdit, onDelete, onPreview }: KeywordCardP
         {keyword.comment && (
           <Text variant="xs" className="text-muted-foreground/70 italic truncate">{keyword.comment}</Text>
         )}
-        <BotActionSummary action={keyword.bot_action} />
+        {keyword.tag && (
+          <HStack gap="4" align="center">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-primary/10 text-primary border border-primary/20">
+              🏷 {keyword.tag}
+            </span>
+          </HStack>
+        )}
+        <BotActionSummary action={keyword.bot_action} robotId={robotId} />
       </VStack>
       <HStack gap="4" className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-2">
         <Button
@@ -131,7 +153,7 @@ const KeywordCard = memo(({ keyword, onEdit, onDelete, onPreview }: KeywordCardP
         </Button>
         <Button
           variant="ghost"
-          onClick={(e) => { e.stopPropagation(); onDelete(keyword.uid); }}
+          onClick={(e) => { e.stopPropagation(); onRequestDelete(keyword); }}
           className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
           title={t('common.delete', 'Удалить')}
         >
@@ -166,6 +188,9 @@ const KeywordsList = memo(({ groupId, robotId }: KeywordsListProps) => {
   // Preview
   const [previewKeyword, setPreviewKeyword] = useState<IVoiceRobotKeyword | null>(null);
 
+  // Delete confirmation
+  const [deleteTarget, setDeleteTarget] = useState<IVoiceRobotKeyword | null>(null);
+
   const handleEdit = useCallback((kw: IVoiceRobotKeyword) => {
     setEditingKeyword(kw);
     setIsDialogOpen(true);
@@ -194,6 +219,7 @@ const KeywordsList = memo(({ groupId, robotId }: KeywordsListProps) => {
             synonyms: data.synonyms || [],
             negative_keywords: data.negative_keywords || [],
             comment: data.comment || null,
+            tag: data.tag || null,
             bot_action: data.bot_action || null,
             priority: keywords.length,
           },
@@ -236,6 +262,8 @@ const KeywordsList = memo(({ groupId, robotId }: KeywordsListProps) => {
           onEdit={handleEdit}
           onDelete={handleDelete}
           onPreview={handlePreview}
+          onRequestDelete={setDeleteTarget}
+          robotId={robotId}
         />
       ))}
 
@@ -271,9 +299,34 @@ const KeywordsList = memo(({ groupId, robotId }: KeywordsListProps) => {
                 action={previewKeyword.bot_action || { response: { type: 'none' }, nextState: { type: 'listen' } }}
                 maxRepeats={previewKeyword.max_repeats}
                 escalationAction={previewKeyword.escalation_action}
+                robotId={robotId}
               />
             )}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t('voiceRobots.deleteKeywordTitle', 'Удалить сценарий?')}</DialogTitle>
+          </DialogHeader>
+          <Text variant="muted">
+            {t('voiceRobots.deleteKeywordConfirm', 'Сценарий «{{name}}» будет удалён без возможности восстановления.', { name: deleteTarget?.keywords || '' })}
+          </Text>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>
+              {t('common.cancel', 'Отмена')}
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => { if (deleteTarget) { handleDelete(deleteTarget.uid); setDeleteTarget(null); } }}
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              {t('common.delete', 'Удалить')}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </VStack>
@@ -298,6 +351,7 @@ const KeywordGroupPanel = memo(({ group, onDelete, onUpdate, robotId }: KeywordG
   const [isEditingName, setIsEditingName] = useState(false);
   const [editName, setEditName] = useState(group.name);
   const [isCopied, setIsCopied] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Optimistic local state for toggles
   const [optimisticActive, setOptimisticActive] = useState(group.active);
@@ -428,7 +482,7 @@ const KeywordGroupPanel = memo(({ group, onDelete, onUpdate, robotId }: KeywordG
           </Button>
           <Button
             variant="ghost"
-            onClick={() => onDelete(group.uid)}
+            onClick={() => setShowDeleteConfirm(true)}
             className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
             title={t('common.delete', 'Удалить')}
           >
@@ -436,6 +490,30 @@ const KeywordGroupPanel = memo(({ group, onDelete, onUpdate, robotId }: KeywordG
           </Button>
         </HStack>
       </HStack>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t('voiceRobots.deleteGroupTitle', 'Удалить группу?')}</DialogTitle>
+          </DialogHeader>
+          <Text variant="muted">
+            {t('voiceRobots.deleteGroupConfirm', 'Группа «{{name}}» и все её ключевые слова будут удалены без возможности восстановления.', { name: group.name })}
+          </Text>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDeleteConfirm(false)}>
+              {t('common.cancel', 'Отмена')}
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => { onDelete(group.uid); setShowDeleteConfirm(false); }}
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              {t('common.delete', 'Удалить')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Expanded Contents */}
       {isExpanded && (

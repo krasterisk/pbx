@@ -1,8 +1,8 @@
-import { Injectable, Logger, NotFoundException, ForbiddenException, OnApplicationShutdown } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, ForbiddenException, OnApplicationShutdown, OnModuleInit } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { ConfigService } from '@nestjs/config';
 import { OnEvent } from '@nestjs/event-emitter';
-import { Op } from 'sequelize';
+import { Op, literal, fn, col } from 'sequelize';
 import { VoiceRobot } from './voice-robot.model';
 import { VoiceRobotKeywordGroup } from './keyword-group.model';
 import { VoiceRobotKeyword } from './keyword.model';
@@ -26,7 +26,7 @@ import { SttProviderFactory, TtsProviderFactory } from './providers/provider-fac
 import { AsteriskDialplanUtils } from '../../shared/utils/dialplan.util';
 
 @Injectable()
-export class VoiceRobotsService implements OnApplicationShutdown {
+export class VoiceRobotsService implements OnApplicationShutdown, OnModuleInit {
   private readonly logger = new Logger(VoiceRobotsService.name);
   private readonly activeSessions = new Map<string, VoiceRobotSession>();
   private readonly defaultExternalHost: string;
@@ -58,6 +58,39 @@ export class VoiceRobotsService implements OnApplicationShutdown {
     // If Asterisk is on a remote server, set `external_host` per-robot
     // to the public IP of this Node.js server.
     this.defaultExternalHost = this.configService.get<string>('EXTERNAL_RTP_HOST', '127.0.0.1');
+  }
+
+  /**
+   * Preload all data list embeddings at service startup.
+   * Runs in background — doesn't block app initialization.
+   */
+  async onModuleInit(): Promise<void> {
+    // Run in background to not delay server start
+    this.preloadAllDataListEmbeddings().catch(e =>
+      this.logger.warn(`[DataListSearch] Startup preload failed: ${e.message}`),
+    );
+  }
+
+  /**
+   * Preload embeddings for ALL data lists across all robots.
+   * Called once at startup. Cache is invalidated on update/delete.
+   */
+  private async preloadAllDataListEmbeddings(): Promise<void> {
+    const lists = await this.dataListModel.findAll();
+    if (lists.length === 0) return;
+
+    const startTime = Date.now();
+    let preloaded = 0;
+    for (const list of lists) {
+      if (list.rows && list.rows.length > 0) {
+        await this.dataListSearchService.preloadList(list);
+        preloaded++;
+      }
+    }
+    const elapsed = Date.now() - startTime;
+    this.logger.log(
+      `[DataListSearch] Startup preload complete: ${preloaded} lists (${lists.reduce((s, l) => s + (l.rows?.length || 0), 0)} total rows) in ${elapsed}ms`,
+    );
   }
 
   // ─── Robot CRUD ────────────────────────────────────────
@@ -214,6 +247,7 @@ export class VoiceRobotsService implements OnApplicationShutdown {
       dateFrom?: string;
       dateTo?: string;
       search?: string;
+      tag?: string;
     },
   ): Promise<{ rows: VoiceRobotCdr[]; count: number }> {
     const where: any = { user_uid: userUid };
@@ -229,15 +263,27 @@ export class VoiceRobotsService implements OnApplicationShutdown {
       if (options?.dateTo) where.started_at[Op.lte] = new Date(options.dateTo);
     }
 
-    // Full-text search across multiple fields
+    // Tag filter — match only the LAST tag (consistent with UI display)
+    if (options?.tag) {
+      const escaped = options.tag.replace(/'/g, "''").replace(/\\/g, '\\\\');
+      where[Op.and] = [
+        ...(where[Op.and] || []),
+        literal(`JSON_UNQUOTE(JSON_EXTRACT(\`tags\`, CONCAT('$[', JSON_LENGTH(\`tags\`) - 1, ']'))) = '${escaped}'`),
+      ];
+    }
+
+    // Full-text search across multiple fields (search in last tag only)
     if (options?.search) {
+      const searchTerm = `%${options.search}%`;
+      const escapedSearch = this.cdrModel.sequelize!.escape(searchTerm);
       where[Op.or] = [
-        { caller_id: { [Op.like]: `%${options.search}%` } },
-        { caller_name: { [Op.like]: `%${options.search}%` } },
-        { call_uniqueid: { [Op.like]: `%${options.search}%` } },
-        { robot_name: { [Op.like]: `%${options.search}%` } },
-        { transcript: { [Op.like]: `%${options.search}%` } },
-        { transfer_target: { [Op.like]: `%${options.search}%` } },
+        { caller_id: { [Op.like]: searchTerm } },
+        { caller_name: { [Op.like]: searchTerm } },
+        { call_uniqueid: { [Op.like]: searchTerm } },
+        { robot_name: { [Op.like]: searchTerm } },
+        { transcript: { [Op.like]: searchTerm } },
+        { transfer_target: { [Op.like]: searchTerm } },
+        literal(`JSON_UNQUOTE(JSON_EXTRACT(\`tags\`, CONCAT('$[', JSON_LENGTH(\`tags\`) - 1, ']'))) LIKE ${escapedSearch}`),
       ];
     }
 
@@ -247,6 +293,19 @@ export class VoiceRobotsService implements OnApplicationShutdown {
       limit: options?.limit || 50,
       offset: options?.offset || 0,
     });
+  }
+
+  /** Get distinct LAST tags from all CDR records for a tenant (for filter dropdown) */
+  async getDistinctTags(userUid: number): Promise<string[]> {
+    // Extract the LAST element of each tags JSON array (consistent with UI display)
+    const [results]: any = await this.cdrModel.sequelize!.query(
+      `SELECT DISTINCT JSON_UNQUOTE(JSON_EXTRACT(tags, CONCAT('$[', JSON_LENGTH(tags) - 1, ']'))) AS tag_value
+       FROM voice_robot_cdr
+       WHERE user_uid = ? AND tags IS NOT NULL AND JSON_LENGTH(tags) > 0
+       ORDER BY tag_value`,
+      { replacements: [userUid] },
+    );
+    return results.map((r: any) => r.tag_value).filter(Boolean);
   }
 
   /** Get single CDR record */
@@ -592,9 +651,10 @@ export class VoiceRobotsService implements OnApplicationShutdown {
 
     const session = this.activeSessions.get(channelId);
     if (session) {
-      // If cleanup hasn't been triggered by a robot action (transfer/hangup),
-      // then StasisEnd means the caller hung up
-      session.setDisposition('caller_hangup');
+      // Don't blindly override disposition — resolveDisposition() will determine
+      // the true outcome based on session data (lastActionType, dialogueContext, etc.).
+      // setDisposition() is only for explicit statuses set DURING the session
+      // (error, timeout, max_steps), not at cleanup time.
       session.cleanup();
       this.activeSessions.delete(channelId);
       this.logger.log(`Session cleaned up for channel ${channelId}`);
@@ -670,8 +730,11 @@ export class VoiceRobotsService implements OnApplicationShutdown {
     if (!list) throw new NotFoundException(`Data list ${uid} not found`);
     delete data.user_uid;
     await list.update(data);
-    // Invalidate embedding cache for this list
+    // Invalidate embedding cache and re-preload in background
     this.dataListSearchService.clearListCache(uid);
+    this.dataListSearchService.preloadList(list).catch(e =>
+      this.logger.warn(`[DataListSearch] Re-preload after update failed: ${e.message}`),
+    );
     return list;
   }
 

@@ -25,8 +25,8 @@ export class SemanticRouterService implements OnModuleInit {
   private pipeline: any = null;
   private initialized = false;
 
-  /** Embedding dimension (Matryoshka truncation) */
-  private static readonly EMBED_DIM = 128;
+  /** Embedding dimension (Matryoshka truncation — 256 dims balances quality vs memory) */
+  private static readonly EMBED_DIM = 256;
 
   /** Model name */
   private static readonly MODEL = 'nomic-ai/nomic-embed-text-v1.5';

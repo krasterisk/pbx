@@ -1,11 +1,20 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import type { BaseQueryFn, FetchArgs, FetchBaseQueryError } from '@reduxjs/toolkit/query/react';
 
-const API_BASE = import.meta.env.VITE_API_URL || '/api';
+/**
+ * Detect standalone mode (HashRouter, embedded in v3 iframe).
+ * In standalone mode, API calls go to /api/public/* (no JWT required).
+ */
+const isStandalone = typeof window !== 'undefined' && window.location.hash.startsWith('#/');
+const API_BASE = isStandalone
+  ? (import.meta.env.VITE_API_URL || '/api') + '/public'
+  : (import.meta.env.VITE_API_URL || '/api');
 
 const baseQuery = fetchBaseQuery({
   baseUrl: API_BASE,
   prepareHeaders: (headers) => {
+    // In standalone mode, no auth token is needed
+    if (isStandalone) return headers;
     const token = localStorage.getItem('accessToken');
     if (token) {
       headers.set('Authorization', `Bearer ${token}`);
@@ -22,6 +31,9 @@ const baseQueryWithReauth: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQue
   let result = await baseQuery(args, api, extraOptions);
 
   if (result.error && result.error.status === 401) {
+    // In standalone mode, don't try to refresh or redirect to login
+    if (isStandalone) return result;
+
     const refreshToken = localStorage.getItem('refreshToken');
     if (refreshToken) {
       // Try to get a new token
@@ -73,3 +85,4 @@ export const rtkApi = createApi({
   tagTypes: ['Endpoints', 'Contexts', 'Peers', 'Trunks', 'Queues', 'Routes', 'Users', 'Roles', 'Numbers', 'CDR', 'PickupGroups', 'ProvisionTemplates', 'Ivrs', 'Prompts', 'TtsEngines', 'SttEngines', 'Moh', 'VoiceRobots', 'VoiceRobotsGroups', 'VoiceRobotsKeywords', 'VoiceRobotsLogs', 'VoiceRobotsCdr', 'VoiceRobotsDataLists', 'ServiceRequests'],
   endpoints: () => ({}),
 });
+

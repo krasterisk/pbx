@@ -79,6 +79,7 @@ interface CdrQueryParams {
   dateFrom?: string;
   dateTo?: string;
   search?: string;
+  tag?: string;
 }
 
 // ─── API Endpoints ───────────────────────────────────────
@@ -114,6 +115,18 @@ const voiceRobotCdrApi = rtkApi.injectEndpoints({
       query: (id) => `/voice-robots/cdr/${id}/detail`,
       providesTags: (_r, _e, id) => [{ type: 'VoiceRobotsCdr', id }],
     }),
+    /** GET /voice-robots/cdr/tags — unique tags for filter */
+    getCdrTags: build.query<string[], void>({
+      query: () => '/voice-robots/cdr/tags',
+      providesTags: ['VoiceRobotsCdr'],
+    }),
+    /** GET /voice-robots/cdr/export — all matching records for CSV export */
+    exportCdr: build.query<IVoiceRobotCdrListResponse, Omit<CdrQueryParams, 'limit' | 'offset'>>({
+      query: (params) => ({
+        url: '/voice-robots/cdr/export',
+        params: params || {},
+      }),
+    }),
   }),
 });
 
@@ -122,15 +135,17 @@ export const {
   useGetVoiceRobotCdrStatsQuery,
   useGetVoiceRobotCdrQuery,
   useGetVoiceRobotCdrDetailQuery,
+  useGetCdrTagsQuery,
+  useLazyExportCdrQuery,
 } = voiceRobotCdrApi;
 
 // ─── Constants for UI ────────────────────────────────────
 
 export const CDR_DISPOSITION_OPTIONS: { value: CdrDisposition; labelKey: string; fallback: string; color: string }[] = [
-  { value: 'completed', labelKey: 'voiceRobots.cdr.completed', fallback: 'Завершён', color: 'green' },
-  { value: 'caller_hangup', labelKey: 'voiceRobots.cdr.callerHangup', fallback: 'Клиент повесил трубку', color: 'amber' },
+  { value: 'completed', labelKey: 'voiceRobots.cdr.completed', fallback: 'Успешный', color: 'green' },
+  { value: 'caller_hangup', labelKey: 'voiceRobots.cdr.callerHangup', fallback: 'Сброс', color: 'amber' },
   { value: 'fallback', labelKey: 'voiceRobots.cdr.fallback', fallback: 'Fallback', color: 'orange' },
-  { value: 'max_steps', labelKey: 'voiceRobots.cdr.maxSteps', fallback: 'Превышен лимит шагов', color: 'red' },
+  { value: 'max_steps', labelKey: 'voiceRobots.cdr.maxSteps', fallback: 'Превышен лимит', color: 'red' },
   { value: 'error', labelKey: 'voiceRobots.cdr.error', fallback: 'Ошибка', color: 'red' },
   { value: 'timeout', labelKey: 'voiceRobots.cdr.timeout', fallback: 'Таймаут', color: 'gray' },
 ];

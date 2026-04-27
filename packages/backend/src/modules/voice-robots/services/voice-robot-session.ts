@@ -99,11 +99,13 @@ export class VoiceRobotSession {
   private readonly startedAt = new Date();
   private readonly transcript: string[] = [];
   private noMatchCount = 0;
+  private consecutiveNoMatchCount = 0;  // Resets on successful match
   private totalConfidence = 0;
   private totalMatches = 0;
   private cdrDisposition: 'completed' | 'caller_hangup' | 'fallback' | 'max_steps' | 'error' | 'timeout' = 'completed';
   private lastActionType: string | null = null;
   private lastTransferTarget: string | null = null;
+  private informationDelivered = false;  // Set when caller receives data (data list found, webhook success)
 
   // Active keyword set (can change via switch_group)
   private activeKeywords: VoiceRobotKeyword[];
@@ -670,15 +672,71 @@ export class VoiceRobotSession {
 
     // ─── If we're waiting for a search query, use this utterance directly ───
     if (this.pendingDataListSearch) {
+      // Filter out noise/phatic utterances — not real search queries
+      const noiseWords = new Set([
+        'алло', 'да', 'нет', 'ага', 'угу', 'ну', 'ой', 'ало', 'слушаю',
+        'что', 'а', 'эй', 'хм', 'ммм', 'так', 'ладно', 'хорошо', 'ок',
+      ]);
+      const normalized = text.toLowerCase().replace(/[^а-яёa-z\s]/g, '').trim();
+      const words = normalized.split(/\s+/).filter(w => w.length > 0);
+      const isNoise = words.length <= 2 && words.every(w => noiseWords.has(w));
+
+      if (isNoise) {
+        this.logger.log(`[DataListSearch] Ignoring noise utterance: "${text}" — waiting for real query`);
+        // Re-speak the last prompt so the user knows to answer
+        if (this.lastBotResponse) {
+          await this.speakResponse(this.lastBotResponse);
+        }
+        return; // Keep pendingDataListSearch active
+      }
+
       const { action, filledSlots } = this.pendingDataListSearch;
       this.pendingDataListSearch = null;
       this.logger.log(`[DataListSearch] Got search utterance: "${text}"`);
+      // Clear inactivity timer — search can take seconds (embedding cache, semantic search)
+      this.clearInactivityTimer();
       await this.executeDataListSearch(action, filledSlots, text);
       return;
     }
 
-    // ─── If we're in slot filling mode, handle slot extraction ───
+    // ─── If we're in slot filling mode, check global keywords first ───
     if (this.slotFillingState) {
+      const currentSlot = this.slotFillingState.slots[this.slotFillingState.currentSlotIndex];
+
+      // For freetext slots, check if the user is saying a global keyword
+      // (e.g. "соедини с оператором" while we're waiting for an address)
+      if (currentSlot?.type === 'freetext' && this.globalKeywords.length > 0) {
+        const globalMatch = await this.matcherService.match(
+          text,
+          this.globalKeywords,
+          [],
+        );
+        if (globalMatch && globalMatch.confidence >= 0.7) {
+          this.logger.log(
+            `[Slot] Global keyword intercepted during slot filling: ` +
+            `"${text}" → keyword ${globalMatch.keyword.uid} (confidence: ${globalMatch.confidence.toFixed(2)})`,
+          );
+          // Clear slot state — global keyword takes priority
+          this.slotFillingState = null;
+          this.consecutiveNoMatchCount = 0;
+
+          await this.writeLog(text, sttResult, sttDurationMs, globalMatch.keyword.uid, globalMatch.confidence, globalMatch.keyword.group_id);
+
+          // Track tag
+          const customTag = globalMatch.keyword.tag;
+          if (customTag && !this.visitedTags.includes(customTag)) {
+            this.visitedTags.push(customTag);
+          }
+
+          // Execute bot action
+          const botAction = globalMatch.keyword.bot_action;
+          if (botAction) {
+            await this.executeBotAction(botAction, globalMatch);
+          }
+          return;
+        }
+      }
+
       await this.handleSlotInput(text, sttResult, sttDurationMs);
       return;
     }
@@ -701,6 +759,21 @@ export class VoiceRobotSession {
       );
 
       await this.writeLog(text, sttResult, sttDurationMs, matchResult.keyword.uid, matchResult.confidence, matchResult.keyword.group_id);
+
+      // Reset consecutive no-match counter on successful match
+      this.consecutiveNoMatchCount = 0;
+
+      // Track custom keyword tag (if set) or group name
+      const customTag = matchResult.keyword.tag;
+      if (customTag && !this.visitedTags.includes(customTag)) {
+        this.visitedTags.push(customTag);
+      } else if (!customTag) {
+        // Fallback: use group name (only if no custom tag)
+        const groupMeta = this.keywordGroupsDb.find(g => g.uid === matchResult.keyword.group_id);
+        if (groupMeta?.name && !this.visitedTags.includes(groupMeta.name)) {
+          this.visitedTags.push(groupMeta.name);
+        }
+      }
 
       // ─── Keyword Escalation (Repeat limit) ───
       const kwUid = matchResult.keyword.uid;
@@ -730,9 +803,12 @@ export class VoiceRobotSession {
       this.logger.log(`[Matcher] ❌ No match for "${text}"`);
       await this.writeLog(text, sttResult, sttDurationMs, null, 0);
 
+      this.consecutiveNoMatchCount++;
+      const maxFallbackRetries = this.robotConfig.max_inactivity_repeats ?? 3;
+
       const fallbackAction = this.robotConfig.fallback_bot_action;
-      if (fallbackAction) {
-        this.logger.log(`[Action] Executing fallback_bot_action`);
+      if (fallbackAction && this.consecutiveNoMatchCount < maxFallbackRetries) {
+        this.logger.log(`[Action] Executing fallback_bot_action (attempt ${this.consecutiveNoMatchCount}/${maxFallbackRetries})`);
         await this.executeBotAction(fallbackAction, {
           keyword: { uid: -1, keywords: '' } as any,
           confidence: 0,
@@ -741,8 +817,24 @@ export class VoiceRobotSession {
           method: 'fallback'
         });
       } else {
-        this.logger.log(`[Action] No fallback_bot_action defined, exiting to fallback dialplan`);
-        await this.exitToFallback('NO_MATCH');
+        if (this.consecutiveNoMatchCount >= maxFallbackRetries) {
+          this.logger.warn(`[Action] Max consecutive no-match retries (${maxFallbackRetries}) reached. Executing max_retries_bot_action or exiting.`);
+          const maxRetriesAction = this.robotConfig.max_retries_bot_action;
+          if (maxRetriesAction) {
+            await this.executeBotAction(maxRetriesAction, {
+              keyword: { uid: -1, keywords: '' } as any,
+              confidence: 0,
+              matchedPhrase: '',
+              matchedWordCount: 0,
+              method: 'max_retries'
+            });
+          } else {
+            await this.exitToFallback('MAX_RETRIES');
+          }
+        } else {
+          this.logger.log(`[Action] No fallback_bot_action defined, exiting to fallback dialplan`);
+          await this.exitToFallback('NO_MATCH');
+        }
       }
     }
   }
@@ -756,9 +848,18 @@ export class VoiceRobotSession {
     action: IVoiceRobotBotAction,
     matchResult: MatchResult,
   ): Promise<void> {
-    // 1. Play response (TTS or prompt)
+    // 1. Play response (TTS or prompt) — interpolate {{variables}} from dialogueContext
     if (action.response && action.response.type !== 'none') {
-      await this.speakResponse(action.response);
+      const interpolatedResponse = action.response.value
+        ? { ...action.response, value: this.interpolateTemplateString(action.response.value, this.dialogueContext) }
+        : action.response;
+      await this.speakResponse(interpolatedResponse);
+
+      // Mark information as delivered if this is a successful keyword match
+      // (not a fallback or max_retries action)
+      if (matchResult.keyword?.uid > 0 && matchResult.confidence > 0) {
+        this.informationDelivered = true;
+      }
     }
 
     // 2. If slots are defined, enter slot filling mode
@@ -860,6 +961,8 @@ export class VoiceRobotSession {
     action: IVoiceRobotBotAction,
     filledSlots: Record<string, string | boolean>,
   ): Promise<void> {
+    // Guard: don't execute actions after session cleanup
+    if (this.cleanedUp) return;
     const { nextState } = action;
     const target = String(nextState.target || '');
 
@@ -989,6 +1092,8 @@ export class VoiceRobotSession {
         headers,
         body: JSON.stringify({
           robot_id: this.robotConfig.uid,
+          robot_name: this.robotConfig.name || null,
+          user_uid: this.robotConfig.user_uid || 0,
           channel_id: this.channelId,
           caller_id: this.callerInfo.callerId || null,
           caller_name: this.callerInfo.callerName || null,
@@ -1002,17 +1107,84 @@ export class VoiceRobotSession {
       const data = (await response.json().catch(() => ({}))) as Record<string, any>;
       this.logger.log(`[Webhook] Response: ${response.status}, action: ${data.action || 'none'}`);
 
+      // Log PHP exceptions / errors from webhook
+      if (data.error) {
+        this.logger.error(`[Webhook] Error from webhook: ${data.error}`);
+      }
+
+      // ─── Handle non-200 responses (403, 500, etc.) → treat as fallback ───
+      if (!response.ok) {
+        this.logger.warn(`[Webhook] Non-OK status ${response.status} — treating as fallback`);
+        this.consecutiveNoMatchCount++;
+
+        const maxRetries = this.robotConfig.max_inactivity_repeats ?? 3;
+        if (this.consecutiveNoMatchCount >= maxRetries) {
+          this.logger.warn(`[Webhook] Max retries (${maxRetries}) reached after webhook errors`);
+          const maxRetriesAction = this.robotConfig.max_retries_bot_action;
+          if (maxRetriesAction?.response?.value || maxRetriesAction?.nextState?.type) {
+            if (maxRetriesAction.response?.type !== 'none' && maxRetriesAction.response?.value) {
+              await this.speakResponse(maxRetriesAction.response);
+            }
+            if (maxRetriesAction.nextState) {
+              await this.executeNextState(maxRetriesAction.nextState, {});
+            }
+          } else {
+            this.exitToFallback('MAX_RETRIES');
+          }
+          return;
+        }
+
+        // Execute fallback_bot_action
+        const fallbackAction = this.robotConfig.fallback_bot_action;
+        if (fallbackAction?.response?.value) {
+          this.logger.log(`[Action] Executing fallback_bot_action after webhook error (attempt ${this.consecutiveNoMatchCount}/${maxRetries})`);
+          await this.speakResponse(fallbackAction.response);
+        }
+        this.startInactivityTimer();
+        return;
+      }
+
       // ─── 1. Merge context_update from webhook into session memory ───
       if (data.context_update && typeof data.context_update === 'object') {
         Object.assign(this.dialogueContext, data.context_update);
         this.logger.log(`[Webhook] Context updated: ${Object.keys(data.context_update).join(', ')}`);
+
+        // Log webhook DB errors for diagnostics
+        if (data.context_update.db_error) {
+          this.logger.error(`[Webhook] DB error from webhook: ${data.context_update.db_error}`);
+        }
+        if (data.context_update.request_created !== undefined) {
+          this.logger.log(`[Webhook] Service request created: ${data.context_update.request_created}, id: ${data.context_update.request_id ?? 'null'}`);
+        }
+      }
+
+      // Log search debug data from webhook (address lookup diagnostics)
+      if (data._search_debug) {
+        const sd = data._search_debug;
+        this.logger.debug(`[Webhook] Search: query=${JSON.stringify(sd.query_parsed)}, strategy=${sd.strategy}, candidates=${sd.candidates}, scored=${sd.scored}`);
+        if (sd.top5?.length) {
+          for (const t of sd.top5.slice(0, 3)) {
+            this.logger.debug(`[Webhook] Top: "${t.address}" score=${t.total} (street=${t.street_sc}, house=${t.house_sc}, apt=${t.apt_sc})`);
+          }
+        }
       }
 
       // ─── 2. Speak say_text if webhook provides it (dynamic TTS) ───
+      // Clear inactivity timer first — webhook TTS can take seconds to play,
+      // and we don't want the old timer to repeat the greeting during playback
+      this.clearInactivityTimer();
+
       let webhookBotResponse: string | null = null;
       if (data.say_text) {
-        webhookBotResponse = data.say_text;
-        await this.speakResponse({ type: 'tts', value: data.say_text });
+        // Interpolate {{variables}} in say_text with dialogue context + webhook response data
+        const interpolatedSayText = this.interpolateTemplateString(
+          data.say_text,
+          { ...this.dialogueContext, ...data },
+        );
+        webhookBotResponse = interpolatedSayText;
+        await this.speakResponse({ type: 'tts', value: interpolatedSayText });
+        // Mark information as delivered for CDR disposition
+        this.informationDelivered = true;
       } else if (action.webhookResponseTemplate) {
         // Fallback: use configured response template
         const responseText = this.interpolateTemplateString(
@@ -1021,6 +1193,8 @@ export class VoiceRobotSession {
         );
         webhookBotResponse = responseText;
         await this.speakResponse({ type: 'tts', value: responseText });
+        // Mark information as delivered for CDR disposition
+        this.informationDelivered = true;
       }
 
       // ─── 2b. Log webhook interaction in transcript & voice_robot_logs ───
@@ -1050,8 +1224,10 @@ export class VoiceRobotSession {
         );
       }
 
-      await this.ariClient.setChannelVar(this.channelId, 'ROBOT_STATUS', 'WEBHOOK_OK');
-      await this.ariClient.setChannelVar(this.channelId, 'WEBHOOK_DATA', JSON.stringify(data));
+      await this.ariClient.setChannelVar(this.channelId, 'ROBOT_STATUS', 'WEBHOOK_OK').catch(() => {});
+      await this.ariClient.setChannelVar(this.channelId, 'WEBHOOK_DATA', JSON.stringify(data)).catch((e: any) => {
+        this.logger.warn(`[Webhook] Failed to set WEBHOOK_DATA channel var: ${e.message}`);
+      });
 
       // ─── 3. Dynamic Routing via Webhook Response ───
 
@@ -1074,8 +1250,18 @@ export class VoiceRobotSession {
         await this.ariClient.hangupChannel(this.channelId).catch(() => {});
         return;
       }
+      // 3d. Terminal: exit to fallback dialplan (configured by PBX admin)
+      if (data.action === 'fallback') {
+        this.logger.log(`[Webhook] Fallback requested — exiting to fallback dialplan`);
+        if (data.say_text) {
+          const interpolated = this.interpolateTemplateString(data.say_text, { ...this.dialogueContext, ...data });
+          await this.speakResponse({ type: 'tts', value: interpolated });
+        }
+        await this.exitToFallback('WEBHOOK_FALLBACK');
+        return;
+      }
 
-      // 3d. Non-terminal: continue_dialogue — webhook returns control to the robot
+      // 3e. Non-terminal: continue_dialogue — webhook returns control to the robot
       //     with optional new slots to collect or a group to switch to
       if (data.action === 'continue_dialogue') {
         this.logger.log(`[Webhook] continue_dialogue — extending conversation`);
@@ -1084,7 +1270,17 @@ export class VoiceRobotSession {
         // Check step limit to prevent infinite loops
         if (this.stepCount >= this.maxSteps) {
           this.logger.warn(`[Webhook] Max steps (${this.maxSteps}) reached during continue_dialogue`);
-          this.exitToFallback('MAX_STEPS');
+          const maxRetriesAction = this.robotConfig.max_retries_bot_action;
+          if (maxRetriesAction?.response?.value || maxRetriesAction?.nextState?.type) {
+            if (maxRetriesAction.response?.type !== 'none' && maxRetriesAction.response?.value) {
+              await this.speakResponse(maxRetriesAction.response);
+            }
+            if (maxRetriesAction.nextState) {
+              await this.executeNextState(maxRetriesAction.nextState, {});
+            }
+          } else {
+            this.exitToFallback('MAX_STEPS');
+          }
           return;
         }
 
@@ -1164,7 +1360,7 @@ export class VoiceRobotSession {
 
     } catch (e: any) {
       this.logger.error(`[Webhook] Failed: ${e.message}`);
-      await this.ariClient.setChannelVar(this.channelId, 'ROBOT_STATUS', 'WEBHOOK_ERROR');
+      await this.ariClient.setChannelVar(this.channelId, 'ROBOT_STATUS', 'WEBHOOK_ERROR').catch(() => {});
     }
   }
 
@@ -1183,6 +1379,11 @@ export class VoiceRobotSession {
     if (!config) {
       this.logger.warn('[DataListSearch] No dataListSearch config on action');
       return;
+    }
+
+    // Default resultVariable to 'result' if not set
+    if (!config.resultVariable) {
+      config.resultVariable = 'result';
     }
 
     if (!this.dataListSearchService) {
@@ -1249,6 +1450,12 @@ export class VoiceRobotSession {
       // Reset not-found counter on success
       this.dataListNotFoundCounts[config.listId] = 0;
 
+      // Reset no-match counter — successful search = valid interaction
+      this.consecutiveNoMatchCount = 0;
+
+      // Mark information as delivered for CDR disposition
+      this.informationDelivered = true;
+
       // Store result in dialogueContext for use in TTS templates and subsequent actions
       this.dialogueContext[config.resultVariable] = result.value;
 
@@ -1262,11 +1469,19 @@ export class VoiceRobotSession {
 
       // Speak onFoundResponse if configured (supports {{variable}} interpolation)
       if (config.onFoundResponse && config.onFoundResponse.type !== 'none' && config.onFoundResponse.value) {
+        // Clear inactivity timer before speaking — response can be long
+        this.clearInactivityTimer();
         const interpolatedText = this.interpolateTemplateString(
           config.onFoundResponse.value,
           this.dialogueContext,
         );
+        this.logger.log(`[DataListSearch] Speaking onFoundResponse: "${interpolatedText.substring(0, 80)}${interpolatedText.length > 80 ? '...' : ''}"`);
         await this.speakResponse({ type: config.onFoundResponse.type, value: interpolatedText });
+      } else {
+        // Auto-speak result value if no explicit onFoundResponse configured
+        this.clearInactivityTimer();
+        this.logger.log(`[DataListSearch] No onFoundResponse configured — auto-speaking result`);
+        await this.speakResponse({ type: 'tts', value: result.value });
       }
 
       // Execute onFoundNextState if configured
@@ -1361,6 +1576,8 @@ export class VoiceRobotSession {
     response: { type: string; value?: string },
   ): Promise<void> {
     if (!response.value) return;
+    // Guard: don't speak after session cleanup (prevents zombie timers)
+    if (this.cleanedUp) return;
 
     if (response.type === 'tts') {
       this.isBotSpeaking = true;
@@ -1426,33 +1643,89 @@ export class VoiceRobotSession {
    * Best for: greetings, FAQ responses, static prompts.
    */
   private async speakBatch(text: string): Promise<void> {
-    const settings = this.ttsEngine!.settings || {};
-    const cacheKey = this.ttsCache.getCacheKey(
-      text,
-      settings.voice || 'default',
-      settings.speed || 1.0,
-      this.ttsEngine!.type,
-    );
+    // Yandex SpeechKit v3 limit is ~250 chars; split long texts into chunks
+    const MAX_CHUNK_LEN = 230;
+    const chunks = text.length > MAX_CHUNK_LEN
+      ? this.splitTextIntoChunks(text, MAX_CHUNK_LEN)
+      : [text];
 
-    let alawBuffer: Buffer;
-
-    if (this.ttsCache.has(cacheKey)) {
-      // Cache HIT — zero latency, no external API call
-      alawBuffer = this.ttsCache.get(cacheKey);
-      this.logger.debug(`[TTS] Cache HIT: ${cacheKey.substring(0, 8)}... (${alawBuffer.length} bytes)`);
-    } else {
-      // Cache MISS — synthesize, convert, and store
-      const pcm16 = await this.ttsFactory.synthesizeBatch(this.ttsEngine!, text);
-      alawBuffer = this.audioService.encodePcm16ToAlaw(pcm16);
-      this.ttsCache.put(cacheKey, alawBuffer);
-      this.logger.log(
-        `[TTS] Cache MISS → saved: ${cacheKey.substring(0, 8)}... (${alawBuffer.length} bytes, ` +
-        `~${(alawBuffer.length / 8000).toFixed(1)}s audio)`,
-      );
+    if (chunks.length > 1) {
+      this.logger.log(`[TTS] Long text (${text.length} chars) → split into ${chunks.length} chunks`);
     }
 
-    // Stream from in-memory buffer → RTP → Asterisk → caller
-    await this.streamAudio.streamAudio(this.channelId, alawBuffer);
+    for (const chunk of chunks) {
+      if (this.pipelineAbort?.signal.aborted) return;
+
+      const settings = this.ttsEngine!.settings || {};
+      const cacheKey = this.ttsCache.getCacheKey(
+        chunk,
+        settings.voice || 'default',
+        settings.speed || 1.0,
+        this.ttsEngine!.type,
+      );
+
+      let alawBuffer: Buffer;
+
+      if (this.ttsCache.has(cacheKey)) {
+        alawBuffer = this.ttsCache.get(cacheKey);
+        this.logger.debug(`[TTS] Cache HIT: ${cacheKey.substring(0, 8)}... (${alawBuffer.length} bytes)`);
+      } else {
+        const pcm16 = await this.ttsFactory.synthesizeBatch(this.ttsEngine!, chunk);
+        alawBuffer = this.audioService.encodePcm16ToAlaw(pcm16);
+        this.ttsCache.put(cacheKey, alawBuffer);
+        this.logger.log(
+          `[TTS] Cache MISS → saved: ${cacheKey.substring(0, 8)}... (${alawBuffer.length} bytes, ` +
+          `~${(alawBuffer.length / 8000).toFixed(1)}s audio)`,
+        );
+      }
+
+      await this.streamAudio.streamAudio(this.channelId, alawBuffer);
+    }
+  }
+
+  /**
+   * Split text into chunks that don't exceed maxLen.
+   * Tries to split by sentence boundaries first, then by commas/semicolons.
+   */
+  private splitTextIntoChunks(text: string, maxLen: number): string[] {
+    const chunks: string[] = [];
+    let remaining = text.trim();
+
+    while (remaining.length > maxLen) {
+      // Try to split at sentence boundary (. ! ?)
+      let splitIdx = -1;
+      for (let i = maxLen - 1; i >= maxLen * 0.4; i--) {
+        if ('.!?\n'.includes(remaining[i])) {
+          splitIdx = i + 1;
+          break;
+        }
+      }
+
+      // Fallback: split at comma, semicolon, or closing paren
+      if (splitIdx === -1) {
+        for (let i = maxLen - 1; i >= maxLen * 0.4; i--) {
+          if (',;)'.includes(remaining[i])) {
+            splitIdx = i + 1;
+            break;
+          }
+        }
+      }
+
+      // Last resort: split at last space
+      if (splitIdx === -1) {
+        splitIdx = remaining.lastIndexOf(' ', maxLen - 1);
+        if (splitIdx <= 0) splitIdx = maxLen; // no space found — hard cut
+      }
+
+      chunks.push(remaining.substring(0, splitIdx).trim());
+      remaining = remaining.substring(splitIdx).trim();
+    }
+
+    if (remaining.length > 0) {
+      chunks.push(remaining);
+    }
+
+    return chunks;
   }
 
   // ─── Template Interpolation ─────────────────────────────
@@ -1570,6 +1843,9 @@ export class VoiceRobotSession {
       const endedAt = new Date();
       const durationSeconds = Math.round((endedAt.getTime() - this.startedAt.getTime()) / 1000);
 
+      // Smart disposition: determine actual call outcome from collected data
+      const effectiveDisposition = this.resolveDisposition();
+
       await this.cdrModel.create({
         robot_id: this.robotConfig.uid,
         robot_name: this.robotConfig.name,
@@ -1581,7 +1857,7 @@ export class VoiceRobotSession {
         started_at: this.startedAt,
         ended_at: endedAt,
         duration_seconds: durationSeconds,
-        disposition: this.cdrDisposition,
+        disposition: effectiveDisposition,
         last_action: this.lastActionType,
         transfer_target: this.lastTransferTarget,
         total_steps: this.stepCount,
@@ -1599,10 +1875,84 @@ export class VoiceRobotSession {
         user_uid: this.robotConfig.user_uid,
       });
 
-      this.logger.log(`CDR written: ${this.sessionId} (${this.cdrDisposition}, ${durationSeconds}s, ${this.stepCount} steps)`);
+      this.logger.log(
+        `CDR written: ${this.sessionId} (${effectiveDisposition}, ${durationSeconds}s, ${this.stepCount} steps, ` +
+        `action=${this.lastActionType || 'none'}, infoDelivered=${this.informationDelivered})`,
+      );
     } catch (e: any) {
       this.logger.error(`Failed to write CDR: ${e.message}`);
     }
+  }
+
+  /**
+   * Resolve final CDR disposition based on explicit status + collected data.
+   *
+   * Priority:
+   *  1. Explicitly set dispositions (error, timeout, max_steps) — always respected
+   *  2. Bot executed a terminal action (transfer_exten, hangup) — 'completed'
+   *  3. Caller received information (data list found, webhook data) — 'completed'
+   *     even if the caller hung up (they got the info they needed)
+   *  4. Some meaningful interaction but no data delivered — 'caller_hangup'
+   *  5. No interaction at all — 'caller_hangup'
+   */
+  private resolveDisposition(): string {
+    // 1. Explicit error/timeout/max_steps — always take priority
+    if (['error', 'timeout', 'max_steps'].includes(this.cdrDisposition)) {
+      return this.cdrDisposition;
+    }
+
+    // 2. Bot executed a terminal action (transfer or hangup by scenario) — success
+    if (this.lastActionType === 'transfer_exten' || this.lastActionType === 'hangup') {
+      return 'completed';
+    }
+
+    // 3. Transfer happened — success
+    if (this.lastTransferTarget) {
+      return 'completed';
+    }
+
+    // 4. Check if caller received meaningful information during the session
+    if (this.callerReceivedInformation()) {
+      return 'completed';
+    }
+
+    // 5. Some interaction happened but no data found — caller left mid-flow
+    if (this.totalMatches > 0 && this.stepCount >= 2) {
+      return 'caller_hangup';
+    }
+
+    // 6. Very short call, no interaction
+    if (this.stepCount === 0 || this.totalMatches === 0) {
+      return 'caller_hangup';
+    }
+
+    return this.cdrDisposition;
+  }
+
+  /**
+   * Determine if the caller received meaningful information during the session.
+   *
+   * Checks multiple signals:
+   * - Explicit informationDelivered flag (set by data list search / webhook)
+   * - dialogueContext has any non-empty data values
+   *   (webhook/data-list results are stored here)
+   */
+  private callerReceivedInformation(): boolean {
+    // Explicit flag set by data list search or webhook success
+    if (this.informationDelivered) {
+      return true;
+    }
+
+    // Check dialogueContext for any data that was delivered to the caller
+    const ctx = this.dialogueContext;
+    const dataKeys = Object.keys(ctx).filter(k =>
+      !k.startsWith('_') && ctx[k] !== undefined && ctx[k] !== null && ctx[k] !== '',
+    );
+    if (dataKeys.length > 0) {
+      return true;
+    }
+
+    return false;
   }
 
   // ─── Inactivity Timer ──────────────────────────────────────
@@ -1614,6 +1964,8 @@ export class VoiceRobotSession {
    * execute fallback action.
    */
   private startInactivityTimer(): void {
+    // Guard: don't start timers after session cleanup
+    if (this.cleanedUp) return;
     this.clearInactivityTimer();
 
     const timeoutSec = this.robotConfig.silence_timeout_seconds || 15;
@@ -1641,6 +1993,8 @@ export class VoiceRobotSession {
    * 2. If repeats >= MAX → execute fallback action or exit
    */
   private async handleInactivityTimeout(): Promise<void> {
+    // Guard: don't process timeout after session cleanup
+    if (this.cleanedUp) return;
     this.inactivityRepeatCount++;
     const maxRepeats = this.robotConfig.max_inactivity_repeats ?? 3;
 

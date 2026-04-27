@@ -206,8 +206,8 @@ export const VoiceRobotGeneralTab = memo(({
 
           <VStack gap="4">
             <HStack align="center" gap="4">
-              <Label>{t('voiceRobots.maxInactivityRepeats', 'Макс. повторов при молчании')}</Label>
-              <InfoTooltip text={t('voiceRobots.maxInactivityRepeatsHint', 'Сколько раз робот повторит последнюю фразу, если клиент молчит. После этого сработает fallback.')} />
+              <Label>{t('voiceRobots.maxInactivityRepeats', 'Макс. повторов без ответа')}</Label>
+              <InfoTooltip text={t('voiceRobots.maxInactivityRepeatsHint', 'Сколько раз робот повторит вопрос, если клиент молчит или ответ не распознан. После исчерпания лимита сработает действие ниже.')} />
             </HStack>
             <Input type="number" min={0} max={10} value={maxInactivityRepeats}
               onChange={e => setMaxInactivityRepeats(Number(e.target.value))} />

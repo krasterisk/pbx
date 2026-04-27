@@ -1,4 +1,4 @@
-import { memo, useCallback, useState, useEffect } from 'react';
+import { memo, useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { Activity } from 'lucide-react';
@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, Flex, VStack, Text, Paginatio
 import { 
   useGetVoiceRobotCdrsQuery, 
   useGetVoiceRobotCdrStatsQuery,
+  useLazyExportCdrQuery,
   IVoiceRobotCdr
 } from '@/shared/api/endpoints/voiceRobotCdrApi';
 import { 
@@ -16,6 +17,48 @@ import {
 } from '@/features/voiceRobotCdr';
 
 const PAGE_SIZE = 50;
+
+/** Export all matching CDR records as CSV */
+function exportCdrToCsv(data: IVoiceRobotCdr[], t: (key: string, defaultValue?: string) => string) {
+  const headers = [
+    t('voiceRobots.cdr.table.date'),
+    t('voiceRobots.cdr.table.robot'),
+    t('voiceRobots.cdr.table.caller'),
+    'CallerID Name',
+    t('voiceRobots.cdr.table.disposition'),
+    t('voiceRobots.cdr.table.tag', 'Тег'),
+    t('voiceRobots.cdr.table.duration'),
+    t('voiceRobots.cdr.table.steps'),
+    'Transfer',
+  ].map((h) => `"${h}"`).join(',');
+
+  const rows = data.map((row) => {
+    return [
+      row.started_at,
+      row.robot_name || `ID: ${row.robot_id}`,
+      row.caller_id || '',
+      row.caller_name || '',
+      row.disposition,
+      row.tags?.length ? row.tags[row.tags.length - 1] : '',
+      row.duration_seconds,
+      row.total_steps,
+      row.transfer_target || '',
+    ].map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',');
+  });
+
+  const csvContent = [headers, ...rows].join('\n');
+  const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `krasterisk_cdr_export_${new Date().toISOString().slice(0, 10)}.csv`;
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
 
 const VoiceRobotCdrPage = memo(() => {
   const { t } = useTranslation();
@@ -29,8 +72,9 @@ const VoiceRobotCdrPage = memo(() => {
   const disposition = searchParams.get('disposition') || undefined;
   const dateFrom = searchParams.get('dateFrom') || undefined;
   const dateTo = searchParams.get('dateTo') || undefined;
+  const tag = searchParams.get('tag') || undefined;
 
-  const filters = { search, disposition, dateFrom, dateTo };
+  const filters = { search, disposition, dateFrom, dateTo, tag };
 
   const queryParams = {
     ...filters,
@@ -40,6 +84,7 @@ const VoiceRobotCdrPage = memo(() => {
 
   const { data: cdrData, isLoading: isLoadingCdr, isFetching } = useGetVoiceRobotCdrsQuery(queryParams);
   const { data: statsData, isLoading: isLoadingStats } = useGetVoiceRobotCdrStatsQuery();
+  const [triggerExport, { isFetching: isExporting }] = useLazyExportCdrQuery();
 
   const handleFilterChange = useCallback((newFilters: Partial<typeof filters>) => {
     const newParams = new URLSearchParams(searchParams);
@@ -61,6 +106,17 @@ const VoiceRobotCdrPage = memo(() => {
     newParams.set('page', newPage.toString());
     setSearchParams(newParams);
   }, [searchParams, setSearchParams]);
+
+  const handleExportCsv = useCallback(async () => {
+    try {
+      const result = await triggerExport(filters).unwrap();
+      if (result?.rows) {
+        exportCdrToCsv(result.rows, t as any);
+      }
+    } catch (e) {
+      console.error('CSV export failed:', e);
+    }
+  }, [triggerExport, filters, t]);
 
   const totalPages = cdrData ? Math.ceil(cdrData.count / PAGE_SIZE) : 0;
 
@@ -86,12 +142,19 @@ const VoiceRobotCdrPage = memo(() => {
       <VoiceRobotCdrStats stats={statsData} isLoading={isLoadingStats} />
 
       <Card className="border-muted/50 shadow-sm backdrop-blur-xl bg-background/50 flex flex-col min-h-[500px]">
-        <CardHeader className="border-b border-border/50 bg-muted/20 pb-4 flex flex-row items-center justify-between">
-          <CardTitle className="text-base font-medium">
-            {t('voiceRobots.cdr.title')}
-            {cdrData && <span className="ml-2 text-sm text-muted-foreground font-normal">({cdrData.count})</span>}
-          </CardTitle>
-          <VoiceRobotCdrFilter filters={filters} onChange={handleFilterChange} />
+        <CardHeader className="border-b border-border/50 bg-muted/20 pb-4">
+          <Flex justify="between" align="start" className="mb-3">
+            <CardTitle className="text-base font-medium">
+              {t('voiceRobots.cdr.title')}
+              {cdrData && <span className="ml-2 text-sm text-muted-foreground font-normal">({cdrData.count})</span>}
+            </CardTitle>
+          </Flex>
+          <VoiceRobotCdrFilter
+            filters={filters}
+            onChange={handleFilterChange}
+            onExportCsv={handleExportCsv}
+            isExporting={isExporting}
+          />
         </CardHeader>
         <CardContent className="p-0 flex-1 relative">
           <VoiceRobotCdrTable 

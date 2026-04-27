@@ -56,6 +56,7 @@ export class VoiceRobotsController {
     @Query('dateFrom') dateFrom?: string,
     @Query('dateTo') dateTo?: string,
     @Query('search') search?: string,
+    @Query('tag') tag?: string,
   ) {
     return this.voiceRobotsService.findAllCdr(req.user.vpbx_user_uid, {
       limit: limit ? parseInt(limit, 10) : undefined,
@@ -66,6 +67,7 @@ export class VoiceRobotsController {
       dateFrom,
       dateTo,
       search,
+      tag,
     });
   }
 
@@ -79,6 +81,33 @@ export class VoiceRobotsController {
       req.user.vpbx_user_uid,
       robotId ? parseInt(robotId, 10) : undefined,
     );
+  }
+
+  /** GET /voice-robots/cdr/tags — unique tags for filter dropdown */
+  @Get('cdr/tags')
+  async getCdrTags(@Request() req: any) {
+    return this.voiceRobotsService.getDistinctTags(req.user.vpbx_user_uid);
+  }
+
+  /** GET /voice-robots/cdr/export — all matching CDR records for CSV export (no pagination) */
+  @Get('cdr/export')
+  async exportCdr(
+    @Request() req: any,
+    @Query('disposition') disposition?: string,
+    @Query('dateFrom') dateFrom?: string,
+    @Query('dateTo') dateTo?: string,
+    @Query('search') search?: string,
+    @Query('tag') tag?: string,
+  ) {
+    return this.voiceRobotsService.findAllCdr(req.user.vpbx_user_uid, {
+      limit: 10000, // safety cap
+      offset: 0,
+      disposition,
+      dateFrom,
+      dateTo,
+      search,
+      tag,
+    });
   }
 
   /** GET /voice-robots/cdr/:id — одна CDR запись */

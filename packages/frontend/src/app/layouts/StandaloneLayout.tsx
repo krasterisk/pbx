@@ -1,25 +1,14 @@
-import { useEffect } from 'react';
-import { useSearchParams, Outlet } from 'react-router-dom';
-import { useAppDispatch } from '@/shared/hooks/useAppStore';
-import { setToken } from '@/features/auth/model/authSlice';
+import { Outlet } from 'react-router-dom';
 
+/**
+ * Standalone layout for v3 integration.
+ *
+ * Simplified: no token parsing, no auth logic.
+ * In standalone mode, API calls go to public endpoints (no JWT required).
+ * The layout just renders the child route with minimal padding and transparent background
+ * so it integrates seamlessly inside the v3 iframe.
+ */
 export const StandaloneLayout = () => {
-  const [searchParams] = useSearchParams();
-  const token = searchParams.get('token');
-  const dispatch = useAppDispatch();
-
-  useEffect(() => {
-    if (token) {
-      dispatch(setToken(token));
-    }
-  }, [token, dispatch]);
-
-  // If there is a token in the URL but we haven't stored it yet, wait.
-  // We can just rely on the fact that useEffect will run, but to avoid early API calls:
-  if (token && localStorage.getItem('accessToken') !== token) {
-    return null;
-  }
-
   return (
     <div className="p-4 bg-transparent min-h-screen">
       <Outlet />

@@ -103,6 +103,23 @@ export const VoiceRobotForm = memo(({ initialRobot }: VoiceRobotFormProps) => {
     navigate('/voice-robots');
   }, [navigate]);
 
+  /** Strip fields irrelevant to the selected nextState type */
+  const sanitizeBotAction = (a: IVoiceRobotBotAction): IVoiceRobotBotAction => {
+    const clean = { ...a };
+    const type = clean.nextState?.type;
+    if (type !== 'webhook') {
+      delete clean.webhookAuth;
+      delete clean.webhookResponseTemplate;
+    }
+    if (type !== 'search_data_list') {
+      delete clean.dataListSearch;
+    }
+    if (type === 'listen' || type === 'hangup') {
+      clean.nextState = { ...clean.nextState, target: '' };
+    }
+    return clean;
+  };
+
   const handleSave = async () => {
     const data = {
       name, active, description: description || null,
@@ -119,8 +136,8 @@ export const VoiceRobotForm = memo(({ initialRobot }: VoiceRobotFormProps) => {
       external_host: externalHost || null,
       silence_timeout_seconds: silenceTimeoutSeconds,
       max_inactivity_repeats: maxInactivityRepeats,
-      fallback_bot_action: fallbackBotAction,
-      max_retries_bot_action: maxRetriesBotAction,
+      fallback_bot_action: sanitizeBotAction(fallbackBotAction),
+      max_retries_bot_action: sanitizeBotAction(maxRetriesBotAction),
     };
 
     try {

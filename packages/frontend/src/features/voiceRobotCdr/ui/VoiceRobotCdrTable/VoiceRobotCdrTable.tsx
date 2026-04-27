@@ -93,7 +93,7 @@ export const VoiceRobotCdrTable = memo(({ data, isLoading, onRowClick }: VoiceRo
                 <Flex align="center" gap="8">
                   <PhoneIncoming className="w-3 h-3 text-muted-foreground" />
                   <div className="font-medium">{row.caller_id || 'Скрыт'}</div>
-                  {row.caller_name && <div className="text-xs text-muted-foreground ml-1">({row.caller_name})</div>}
+                  {row.caller_name && row.caller_name !== row.caller_id && <div className="text-xs text-muted-foreground ml-1">({row.caller_name})</div>}
                 </Flex>
               </TableCell>
               <TableCell>

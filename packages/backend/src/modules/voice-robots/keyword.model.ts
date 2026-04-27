@@ -44,6 +44,10 @@ export class VoiceRobotKeyword extends Model {
   @Column({ type: DataType.STRING(512), allowNull: true })
   declare comment: string | null;
 
+  /** Custom tag — if set, used in visitedTags instead of group name */
+  @Column({ type: DataType.STRING(255), allowNull: true })
+  declare tag: string | null;
+
   @Default(0)
   @Column({ type: DataType.INTEGER, allowNull: false })
   declare user_uid: number;

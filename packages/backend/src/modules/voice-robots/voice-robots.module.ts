@@ -8,6 +8,7 @@ import { VoiceRobotLog } from './voice-robot-log.model';
 import { VoiceRobotCdr } from './voice-robot-cdr.model';
 import { VoiceRobotDataList } from './data-list.model';
 import { VoiceRobotsController } from './voice-robots.controller';
+import { VoiceRobotsPublicController } from './voice-robots-public.controller';
 import { VoiceRobotsService } from './voice-robots.service';
 import { SileroVadProvider } from './services/silero-vad.provider';
 import { StreamingSttService } from './services/streaming-stt.service';
@@ -44,7 +45,7 @@ import { TtsEngine } from '../tts-engines/tts-engine.model';
     ]),
     AriModule,
   ],
-  controllers: [VoiceRobotsController],
+  controllers: [VoiceRobotsController, VoiceRobotsPublicController],
   providers: [
     VoiceRobotsService,
     // Audio pipeline

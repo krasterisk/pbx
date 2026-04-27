@@ -309,7 +309,21 @@ export const VoiceRobotActionEditor = memo(({ action, onChange, robotId, compact
         <VStack gap="4">
           <Select
             value={action.nextState.type}
-            onChange={(e) => updateNextState({ type: e.target.value as BotNextStateType })}
+            onChange={(e) => {
+              const newType = e.target.value as BotNextStateType;
+              // Clear stale fields from other action types
+              const cleaned: Partial<IVoiceRobotBotAction> = {
+                nextState: { type: newType, target: '' },
+              };
+              if (newType !== 'webhook') {
+                cleaned.webhookAuth = undefined;
+                cleaned.webhookResponseTemplate = undefined;
+              }
+              if (newType !== 'search_data_list') {
+                cleaned.dataListSearch = undefined;
+              }
+              onChange({ ...action, ...cleaned });
+            }}
           >
             {nextStateOptions.map(opt => (
               <option key={opt.value} value={opt.value}>
@@ -572,6 +586,22 @@ export const VoiceRobotActionEditor = memo(({ action, onChange, robotId, compact
                   </>
                 );
               })()}
+              {dlsConfig.notFoundNextState?.type === 'switch_group' && (
+                <Select
+                  value={String(dlsConfig.notFoundNextState?.target || '')}
+                  onChange={e => updateDataListSearch({
+                    notFoundNextState: {
+                      type: 'switch_group',
+                      target: e.target.value,
+                    },
+                  })}
+                >
+                  <option value="">{t('voiceRobots.action.selectGroup', '— Выберите группу —')}</option>
+                  {groups.map(g => (
+                    <option key={g.uid} value={g.uid}>{g.name}</option>
+                  ))}
+                </Select>
+              )}
             </HStack>
             <Text variant="xs" className="text-muted-foreground">
               {t('voiceRobots.action.notFoundRetriesHint',
@@ -676,6 +706,22 @@ export const VoiceRobotActionEditor = memo(({ action, onChange, robotId, compact
                   </>
                 );
               })()}
+              {dlsConfig.onFoundNextState?.type === 'switch_group' && (
+                <Select
+                  value={String(dlsConfig.onFoundNextState?.target || '')}
+                  onChange={e => updateDataListSearch({
+                    onFoundNextState: {
+                      type: 'switch_group',
+                      target: e.target.value,
+                    },
+                  })}
+                >
+                  <option value="">{t('voiceRobots.action.selectGroup', '— Выберите группу —')}</option>
+                  {groups.map(g => (
+                    <option key={g.uid} value={g.uid}>{g.name}</option>
+                  ))}
+                </Select>
+              )}
             </HStack>
             <Text variant="xs" className="text-muted-foreground">
               {(() => {

@@ -59,6 +59,7 @@ export interface IVoiceRobotKeyword {
   escalation_action: IVoiceRobotBotAction | null; // alternative action after max_repeats exceeded
   priority: number;
   comment: string | null;
+  tag: string | null;                     // custom tag for visitedTags (overrides group name)
   user_uid: number;
 }
 
