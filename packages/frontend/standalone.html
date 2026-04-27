@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ru" class="dark">
+<html lang="ru" class="light">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -12,12 +12,9 @@
     <script>
       try {
         const theme = localStorage.getItem('theme');
-        if (theme === 'light') {
-          document.documentElement.classList.remove('dark');
-          document.documentElement.classList.add('light');
-        } else {
-          document.documentElement.classList.add('dark');
+        if (theme === 'dark') {
           document.documentElement.classList.remove('light');
+          document.documentElement.classList.add('dark');
         }
       } catch (_) {}
     </script>
