@@ -12,4 +12,8 @@ coverage/
 
 # Yandex Cloud proto files (cloned from github.com/yandex-cloud/cloudapi)
 **/proto/cloudapi/
+
+# TTS synthesis cache (binary alaw files)
+**/data/tts-cache/
+
 ecosystem.config.js
