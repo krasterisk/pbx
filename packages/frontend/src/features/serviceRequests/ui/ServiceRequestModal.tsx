@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useIsMobile } from '@/shared/hooks/useIsMobile';
 import { useTranslation } from 'react-i18next';
 import {
   Dialog,
@@ -80,11 +81,13 @@ function RequiredLabel({ children }: { children: React.ReactNode }) {
 
 /** Responsive field wrapper: 3 → 2 → 1 columns */
 const FIELD_CLASS = 'min-w-[200px] flex-1 basis-[calc(33.333%-1rem)]';
+const FIELD_CLASS_MOBILE = 'w-full';
 
 type TabKey = 'request' | 'production';
 
 export function ServiceRequestModal({ isOpen, onClose, record }: ServiceRequestModalProps) {
   const { t } = useTranslation();
+  const isMobile = useIsMobile();
   const [createReq, { isLoading: isCreating }] = useCreateServiceRequestMutation();
   const [updateReq, { isLoading: isUpdating }] = useUpdateServiceRequestMutation();
 
@@ -93,6 +96,7 @@ export function ServiceRequestModal({ isOpen, onClose, record }: ServiceRequestM
 
   const isEdit = !!record;
   const isLoading = isCreating || isUpdating;
+  const fieldClass = isMobile ? FIELD_CLASS_MOBILE : FIELD_CLASS;
 
   // ─── Form state ──────────────────────────────────────────
   const [counterpartyType, setCounterpartyType] = useState<string>('individual');
@@ -182,7 +186,7 @@ export function ServiceRequestModal({ isOpen, onClose, record }: ServiceRequestM
   // ─── Save ────────────────────────────────────────────────
   const handleSave = async () => {
     if (!isValid) {
-      toast.warning('Заполните все обязательные поля');
+      toast.warning(t('serviceRequests.modal.fillRequired', 'Заполните все обязательные поля'));
       setActiveTab('request');
       return;
     }
@@ -232,20 +236,20 @@ export function ServiceRequestModal({ isOpen, onClose, record }: ServiceRequestM
 
   // ─── Tab definitions ─────────────────────────────────────
   const tabs: { key: TabKey; label: string; icon: any }[] = [
-    { key: 'request', label: 'Заявка', icon: ClipboardList },
-    { key: 'production', label: 'Комментарии производства', icon: Factory },
+    { key: 'request', label: t('serviceRequests.modal.tabRequest', 'Заявка'), icon: ClipboardList },
+    { key: 'production', label: t('serviceRequests.modal.tabProduction', 'Комментарии производства'), icon: Factory },
   ];
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent size="large" className="max-h-[90vh] flex flex-col" aria-describedby={undefined}>
+      <DialogContent size="large" className={`max-h-[90vh] flex flex-col ${isMobile ? 'h-[100dvh] max-h-[100dvh] min-h-0 rounded-none p-4' : ''}`} aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="w-5 h-5 text-primary" />
             <Text>
               {isEdit
-                ? `Редактировать заявку ${record?.request_number || ''}`
-                : 'Новая заявка'}
+                ? t('serviceRequests.modal.editTitle', { number: record?.request_number || '', defaultValue: 'Редактировать заявку {{number}}' })
+                : t('serviceRequests.modal.createTitle', 'Новая заявка')}
             </Text>
           </DialogTitle>
         </DialogHeader>
@@ -276,9 +280,9 @@ export function ServiceRequestModal({ isOpen, onClose, record }: ServiceRequestM
 
             {/* Контрагент — 3 per row responsive */}
             <VStack gap="8">
-              <SectionHeader icon={User} title="Контрагент" />
+              <SectionHeader icon={User} title={t('serviceRequests.section.counterparty', 'Контрагент')} />
               <HStack gap="12" className="flex-wrap">
-                <VStack gap="4" className={FIELD_CLASS}>
+                <VStack gap="4" className={fieldClass}>
                   <Label className="text-xs">{t('serviceRequests.counterpartyType', 'Тип контрагента')}</Label>
                   <Select value={counterpartyType} onChange={(e) => setCounterpartyType(e.target.value)}>
                     {COUNTERPARTY_TYPE_OPTIONS.map((opt) => (
@@ -286,21 +290,21 @@ export function ServiceRequestModal({ isOpen, onClose, record }: ServiceRequestM
                     ))}
                   </Select>
                 </VStack>
-                <VStack gap="4" className={FIELD_CLASS}>
-                  <RequiredLabel>{counterpartyType === 'individual' ? 'ФИО' : 'Наименование'}</RequiredLabel>
+                <VStack gap="4" className={fieldClass}>
+                  <RequiredLabel>{counterpartyType === 'individual' ? t('serviceRequests.fullName', 'ФИО') : t('serviceRequests.companyName', 'Наименование')}</RequiredLabel>
                   <Input
                     value={counterpartyName}
                     onChange={(e) => setCounterpartyName(e.target.value)}
-                    placeholder={counterpartyType === 'individual' ? 'Иванов Иван Иванович' : 'ООО «Компания»'}
+                    placeholder={counterpartyType === 'individual' ? t('serviceRequests.placeholder.fullName', 'Иванов Иван Иванович') : t('serviceRequests.placeholder.companyName', 'ООО «Компания»')}
                   />
                 </VStack>
-                <VStack gap="4" className={FIELD_CLASS}>
-                  <Label className="text-xs">{counterpartyType === 'individual' ? 'Лицевой счёт' : 'ИНН'}</Label>
+                <VStack gap="4" className={fieldClass}>
+                  <Label className="text-xs">{counterpartyType === 'individual' ? t('serviceRequests.personalAccount', 'Лицевой счёт') : t('serviceRequests.inn', 'ИНН')}</Label>
                   <Input value={accountOrInn} onChange={(e) => setAccountOrInn(e.target.value)} />
                 </VStack>
               </HStack>
               <HStack gap="12" className="flex-wrap">
-                <VStack gap="4" className={FIELD_CLASS}>
+                <VStack gap="4" className={fieldClass}>
                   <RequiredLabel>{t('serviceRequests.phone', 'Телефон')}</RequiredLabel>
                   <HStack className="relative">
                     <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -313,10 +317,10 @@ export function ServiceRequestModal({ isOpen, onClose, record }: ServiceRequestM
                     />
                   </HStack>
                 </VStack>
-                <VStack gap="4" className={FIELD_CLASS}>
+                <VStack gap="4" className={fieldClass}>
                   <RequiredLabel>{t('serviceRequests.topic', 'Тема обращения')}</RequiredLabel>
                   <Select value={topic} onChange={(e) => setTopic(e.target.value)}>
-                    <option value="">— Выберите тему —</option>
+                    <option value="">{t('serviceRequests.placeholder.selectTopic', '— Выберите тему —')}</option>
                     {subjects.map((s) => (
                       <option key={s.uid} value={s.name}>{s.name}</option>
                     ))}
@@ -327,49 +331,49 @@ export function ServiceRequestModal({ isOpen, onClose, record }: ServiceRequestM
 
             {/* Территория — 3 per row responsive */}
             <VStack gap="8">
-              <SectionHeader icon={MapPin} title="Территория" />
+              <SectionHeader icon={MapPin} title={t('serviceRequests.section.territory', 'Территория')} />
               <HStack gap="12" className="flex-wrap">
-                <VStack gap="4" className={FIELD_CLASS}>
+                <VStack gap="4" className={fieldClass}>
                   <RequiredLabel>{t('serviceRequests.territorialZone', 'Территориальная зона')}</RequiredLabel>
                   <Select value={territorialZone} onChange={(e) => setTerritorialZone(e.target.value)}>
-                    <option value="">— Выберите зону —</option>
+                    <option value="">{t('serviceRequests.placeholder.selectZone', '— Выберите зону —')}</option>
                     {territorialZones.map((z) => (
                       <option key={z} value={z}>{z}</option>
                     ))}
                   </Select>
                 </VStack>
-                <VStack gap="4" className={FIELD_CLASS}>
+                <VStack gap="4" className={fieldClass}>
                   <RequiredLabel>{t('serviceRequests.district', 'Район')}</RequiredLabel>
                   <Select value={district} onChange={(e) => setDistrict(e.target.value)} disabled={!territorialZone}>
-                    <option value="">{territorialZone ? '— Выберите район —' : '← Сначала выберите зону'}</option>
+                    <option value="">{territorialZone ? t('serviceRequests.placeholder.selectDistrict', '— Выберите район —') : t('serviceRequests.placeholder.selectZoneFirst', '← Сначала выберите зону')}</option>
                     {filteredDistricts.map((d) => (
                       <option key={d.uid} value={d.district}>{d.district}</option>
                     ))}
                   </Select>
                 </VStack>
-                <VStack gap="4" className={FIELD_CLASS}>
+                <VStack gap="4" className={fieldClass}>
                   <Label className="text-xs">{t('serviceRequests.locality', 'Населённый пункт')}</Label>
-                  <Input value={locality} onChange={(e) => setLocality(e.target.value)} placeholder="Красноярск" />
+                  <Input value={locality} onChange={(e) => setLocality(e.target.value)} placeholder={t('serviceRequests.placeholder.locality', 'Красноярск')} />
                 </VStack>
               </HStack>
               <HStack gap="12" className="flex-wrap">
                 <VStack gap="4" className="flex-1 min-w-[200px]">
                   <RequiredLabel>{t('serviceRequests.address', 'Адрес')}</RequiredLabel>
-                  <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="ул. Ленина, д. 1, кв. 10" />
+                  <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder={t('serviceRequests.placeholder.address', 'ул. Ленина, д. 1, кв. 10')} />
                 </VStack>
               </HStack>
             </VStack>
 
             {/* Суть обращения — full width */}
             <VStack gap="8">
-              <SectionHeader icon={MessageSquare} title="Суть обращения" />
+              <SectionHeader icon={MessageSquare} title={t('serviceRequests.section.requestDetails', 'Суть обращения')} />
               <VStack gap="4">
                 <Label className="text-xs">{t('serviceRequests.comment', 'Комментарий к заявке')}</Label>
                 <Textarea
                   value={comment}
                   onChange={(e) => setComment(e.target.value)}
                   className="h-20 resize-none"
-                  placeholder="Опишите суть обращения..."
+                  placeholder={t('serviceRequests.placeholder.comment', 'Опишите суть обращения...')}
                 />
               </VStack>
             </VStack>
@@ -384,7 +388,7 @@ export function ServiceRequestModal({ isOpen, onClose, record }: ServiceRequestM
             <HStack gap="12" align="end" className="flex-wrap">
               {isEdit && record?.request_number && (
                 <HStack gap="8" align="center" className="bg-muted/30 p-3 rounded-lg border border-border flex-1 min-w-[200px]">
-                  <Text variant="small" className="text-muted-foreground">Заявка:</Text>
+                  <Text variant="small" className="text-muted-foreground">{t('serviceRequests.modal.requestLabel', 'Заявка:')}</Text>
                   <Text className="font-semibold text-primary">{record.request_number}</Text>
                 </HStack>
               )}
@@ -399,27 +403,27 @@ export function ServiceRequestModal({ isOpen, onClose, record }: ServiceRequestM
             </HStack>
 
             <VStack gap="8">
-              <SectionHeader icon={Factory} title="Производство" />
+              <SectionHeader icon={Factory} title={t('serviceRequests.section.production', 'Производство')} />
               <VStack gap="4">
-                <Label className="text-xs">Комментарий производства</Label>
+                <Label className="text-xs">{t('serviceRequests.productionComment', 'Комментарий производства')}</Label>
                 <Textarea
                   value={productionComment}
                   onChange={(e) => setProductionComment(e.target.value)}
                   className="h-24 resize-none"
-                  placeholder="Заметки для производства..."
+                  placeholder={t('serviceRequests.placeholder.productionComment', 'Заметки для производства...')}
                 />
               </VStack>
             </VStack>
 
             <VStack gap="8">
-              <SectionHeader icon={MessageSquare} title="Ответ клиенту" />
+              <SectionHeader icon={MessageSquare} title={t('serviceRequests.section.clientResponse', 'Ответ клиенту')} />
               <VStack gap="4">
-                <Label className="text-xs">Ответ по срокам</Label>
+                <Label className="text-xs">{t('serviceRequests.scheduleComment', 'Ответ по срокам')}</Label>
                 <Textarea
                   value={scheduleComment}
                   onChange={(e) => setScheduleComment(e.target.value)}
                   className="h-16 resize-none"
-                  placeholder="Напр.: вывоз запланирован на 25.04.2026"
+                  placeholder={t('serviceRequests.placeholder.scheduleComment', 'Напр.: вывоз запланирован на 25.04.2026')}
                 />
               </VStack>
             </VStack>
@@ -433,11 +437,11 @@ export function ServiceRequestModal({ isOpen, onClose, record }: ServiceRequestM
                     onChange={(e) => setSendSms(e.target.checked)}
                     disabled={!scheduleComment.trim()}
                   />
-                  <Text variant="small">Отправить СМС клиенту</Text>
+                  <Text variant="small">{t('serviceRequests.sms.sendToClient', 'Отправить СМС клиенту')}</Text>
                 </Label>
                 {isEdit && smsStatusBadge && (
                   <HStack gap="4" align="center">
-                    <Text variant="small" className="text-muted-foreground">Статус СМС:</Text>
+                    <Text variant="small" className="text-muted-foreground">{t('serviceRequests.sms.statusLabel', 'Статус СМС:')}</Text>
                     {smsStatusBadge}
                   </HStack>
                 )}
@@ -445,13 +449,13 @@ export function ServiceRequestModal({ isOpen, onClose, record }: ServiceRequestM
 
               {sendSms && scheduleComment.trim() && (
                 <VStack gap="4" className="p-3 bg-background border border-border rounded-md animate-in fade-in slide-in-from-top-2">
-                  <Text variant="small" className="font-semibold text-foreground">Предпросмотр:</Text>
+                  <Text variant="small" className="font-semibold text-foreground">{t('serviceRequests.sms.preview', 'Предпросмотр:')}</Text>
                   <Text variant="small" className="text-muted-foreground italic leading-relaxed">
-                    По вашему обращению № {record?.request_number || 'КЦ-...'}, сообщаем: {scheduleComment}
+                    {t('serviceRequests.sms.previewText', { number: record?.request_number || 'КЦ-...', comment: scheduleComment, defaultValue: 'По вашему обращению № {{number}}, сообщаем: {{comment}}' })}
                   </Text>
                   <VStack className="border-t border-border pt-2 mt-1">
                     <Text variant="small" className="text-muted-foreground">
-                      Номер: <Text variant="small" className="font-medium text-foreground inline">{phone || '(не указан)'}</Text>
+                      {t('serviceRequests.sms.phoneLabel', 'Номер:')} <Text variant="small" className="font-medium text-foreground inline">{phone || t('serviceRequests.sms.phoneNotSet', '(не указан)')}</Text>
                     </Text>
                   </VStack>
                 </VStack>
@@ -460,11 +464,11 @@ export function ServiceRequestModal({ isOpen, onClose, record }: ServiceRequestM
           </VStack>
         )}
 
-        <DialogFooter className="mt-4 shrink-0 pt-3 border-t border-border">
-          <Button variant="outline" onClick={onClose} disabled={isLoading}>
+        <DialogFooter className={`mt-4 shrink-0 pt-3 border-t border-border ${isMobile ? 'gap-2' : ''}`}>
+          <Button variant="outline" onClick={onClose} disabled={isLoading} className={isMobile ? 'w-full' : ''}>
             {t('common.cancel', 'Отмена')}
           </Button>
-          <Button onClick={handleSave} disabled={isLoading || !isValid}>
+          <Button onClick={handleSave} disabled={isLoading || !isValid} className={isMobile ? 'w-full' : ''}>
             {isLoading ? t('common.saving', 'Сохранение...') : t('common.save', 'Сохранить')}
           </Button>
         </DialogFooter>

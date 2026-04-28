@@ -1006,4 +1006,118 @@ export const en = {
     type: 'Type',
     confirmDelete: 'Delete engine "{{name}}"?',
   },
+
+  // Service Requests (Client Requests)
+  serviceRequests: {
+    // Page
+    title: 'Service Requests',
+    subtitle: 'Managing client requests',
+    searchPlaceholder: 'Search...',
+
+    // Modal
+    modal: {
+      editTitle: 'Edit request {{number}}',
+      createTitle: 'New Request',
+      tabRequest: 'Request',
+      tabProduction: 'Production Comments',
+      fillRequired: 'Please fill in all required fields',
+      requestLabel: 'Request:',
+    },
+
+    // Sections
+    section: {
+      counterparty: 'Counterparty',
+      territory: 'Territory',
+      requestDetails: 'Request Details',
+      production: 'Production',
+      clientResponse: 'Client Response',
+    },
+
+    // Fields
+    counterpartyType: 'Counterparty Type',
+    counterparty: {
+      individual: 'Individual',
+      legal: 'Legal Entity',
+    },
+    fullName: 'Full Name',
+    companyName: 'Company Name',
+    personalAccount: 'Account Number',
+    inn: 'Tax ID',
+    phone: 'Phone',
+    topic: 'Topic',
+    territorialZone: 'Territorial Zone',
+    district: 'District',
+    locality: 'Locality',
+    address: 'Address',
+    comment: 'Request Comment',
+
+    // Placeholders
+    placeholder: {
+      fullName: 'John Doe',
+      companyName: 'ACME Corp.',
+      selectTopic: '— Select topic —',
+      selectZone: '— Select zone —',
+      selectDistrict: '— Select district —',
+      selectZoneFirst: '← Select zone first',
+      locality: 'City name',
+      address: '123 Main St, Apt 10',
+      comment: 'Describe the issue...',
+      productionComment: 'Notes for production...',
+      scheduleComment: 'E.g.: pickup scheduled for 04/25/2026',
+    },
+
+    // Status
+    status: {
+      label: 'Request Status',
+      new: 'New',
+      inProgress: 'In Progress',
+      completed: 'Completed',
+      postponed: 'Postponed',
+      impossible: 'Impossible',
+    },
+
+    // Production tab
+    productionComment: 'Production Comment',
+    scheduleComment: 'Schedule Response',
+
+    // SMS
+    sms: {
+      notSent: 'Not Sent',
+      sent: 'Sent',
+      delivered: 'Delivered',
+      failed: 'Failed',
+      sendToClient: 'Send SMS to client',
+      statusLabel: 'SMS Status:',
+      preview: 'Preview:',
+      previewText: 'Regarding your request #{{number}}, we inform you: {{comment}}',
+      phoneLabel: 'Phone:',
+      phoneNotSet: '(not provided)',
+    },
+
+    // Stats
+    stats: {
+      total: 'Total Requests',
+      other: 'Other',
+    },
+
+    // Table
+    table: {
+      title: 'Requests',
+      export: 'Export',
+      create: 'Create Request',
+      createShort: 'Create',
+    },
+
+    // Filter
+    filter: {
+      allStatuses: 'All Statuses',
+      allTopics: 'All Topics',
+      allZones: 'All Zones',
+      allDistricts: 'All Districts',
+      selectZone: '← Zone',
+      dateFrom: 'Date From',
+      dateTo: 'Date To',
+      clear: 'Clear',
+    },
+  },
 };

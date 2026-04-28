@@ -1123,4 +1123,118 @@ export const ru = {
       ms: 'мс',
     },
   },
+
+  // Service Requests (Client Requests)
+  serviceRequests: {
+    // Page
+    title: 'Заявки клиентов',
+    subtitle: 'Работа с обращениями клиентов',
+    searchPlaceholder: 'Поиск...',
+
+    // Modal
+    modal: {
+      editTitle: 'Редактировать заявку {{number}}',
+      createTitle: 'Новая заявка',
+      tabRequest: 'Заявка',
+      tabProduction: 'Комментарии производства',
+      fillRequired: 'Заполните все обязательные поля',
+      requestLabel: 'Заявка:',
+    },
+
+    // Sections
+    section: {
+      counterparty: 'Контрагент',
+      territory: 'Территория',
+      requestDetails: 'Суть обращения',
+      production: 'Производство',
+      clientResponse: 'Ответ клиенту',
+    },
+
+    // Fields
+    counterpartyType: 'Тип контрагента',
+    counterparty: {
+      individual: 'Физ. лицо',
+      legal: 'Юр. лицо',
+    },
+    fullName: 'ФИО',
+    companyName: 'Наименование',
+    personalAccount: 'Лицевой счёт',
+    inn: 'ИНН',
+    phone: 'Телефон',
+    topic: 'Тема обращения',
+    territorialZone: 'Территориальная зона',
+    district: 'Район',
+    locality: 'Населённый пункт',
+    address: 'Адрес',
+    comment: 'Комментарий к заявке',
+
+    // Placeholders
+    placeholder: {
+      fullName: 'Иванов Иван Иванович',
+      companyName: 'ООО «Компания»',
+      selectTopic: '— Выберите тему —',
+      selectZone: '— Выберите зону —',
+      selectDistrict: '— Выберите район —',
+      selectZoneFirst: '← Сначала выберите зону',
+      locality: 'Красноярск',
+      address: 'ул. Ленина, д. 1, кв. 10',
+      comment: 'Опишите суть обращения...',
+      productionComment: 'Заметки для производства...',
+      scheduleComment: 'Напр.: вывоз запланирован на 25.04.2026',
+    },
+
+    // Status
+    status: {
+      label: 'Статус заявки',
+      new: 'Новая',
+      inProgress: 'В работе',
+      completed: 'Выполнено',
+      postponed: 'Перенесено',
+      impossible: 'Невозможно выполнить',
+    },
+
+    // Production tab
+    productionComment: 'Комментарий производства',
+    scheduleComment: 'Ответ по срокам',
+
+    // SMS
+    sms: {
+      notSent: 'Не отправлено',
+      sent: 'Отправлено',
+      delivered: 'Доставлено',
+      failed: 'Ошибка',
+      sendToClient: 'Отправить СМС клиенту',
+      statusLabel: 'Статус СМС:',
+      preview: 'Предпросмотр:',
+      previewText: 'По вашему обращению № {{number}}, сообщаем: {{comment}}',
+      phoneLabel: 'Номер:',
+      phoneNotSet: '(не указан)',
+    },
+
+    // Stats
+    stats: {
+      total: 'Всего заявок',
+      other: 'Прочее',
+    },
+
+    // Table
+    table: {
+      title: 'Заявки',
+      export: 'Экспорт',
+      create: 'Создать заявку',
+      createShort: 'Создать',
+    },
+
+    // Filter
+    filter: {
+      allStatuses: 'Все статусы',
+      allTopics: 'Все темы',
+      allZones: 'Все зоны',
+      allDistricts: 'Все районы',
+      selectZone: '← Зона',
+      dateFrom: 'Дата от',
+      dateTo: 'Дата до',
+      clear: 'Сбросить',
+    },
+  },
 };

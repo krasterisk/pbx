@@ -23,16 +23,16 @@ export function ServiceRequestsPage() {
   return (
     <VStack gap="24" max className="flex-1">
       {/* Page header */}
-      <Flex justify="between" align="center" className="px-2">
+      <Flex justify="between" align="center" className="px-2 sm:px-2">
         <Flex align="center" gap="12">
-          <Flex align="center" justify="center" className="p-2.5 bg-indigo-500/10 rounded-xl">
-            <ClipboardList className="w-6 h-6 text-indigo-500" />
+          <Flex align="center" justify="center" className="p-2 sm:p-2.5 bg-indigo-500/10 rounded-xl">
+            <ClipboardList className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-500" />
           </Flex>
           <VStack>
-            <Text variant="h1" className="bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">
+            <Text variant="h1" className="text-lg sm:text-2xl bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">
               {t('serviceRequests.title', 'Заявки клиентов')}
             </Text>
-            <Text variant="muted" className="mt-1">
+            <Text variant="muted" className="mt-0.5 sm:mt-1 text-xs sm:text-sm">
               {t('serviceRequests.subtitle', 'Работа с обращениями клиентов')}
             </Text>
           </VStack>
@@ -43,8 +43,8 @@ export function ServiceRequestsPage() {
       <ServiceRequestsStats stats={statsData} isLoading={isLoadingStats} />
 
       {/* Main card with filters + table */}
-      <Card className="border-muted/50 shadow-sm backdrop-blur-xl bg-background/50 flex flex-col min-h-[500px]">
-        <CardHeader className="border-b border-border/50 bg-muted/20 pb-4">
+      <Card className="border-muted/50 shadow-sm backdrop-blur-xl bg-background/50 flex flex-col min-h-[400px] sm:min-h-[500px]">
+        <CardHeader className="border-b border-border/50 bg-muted/20 pb-4 px-3 sm:px-6">
           <ServiceRequestsFilter filters={filters} onChange={handleFilterChange} />
         </CardHeader>
         <CardContent className="p-0 flex-1 relative">

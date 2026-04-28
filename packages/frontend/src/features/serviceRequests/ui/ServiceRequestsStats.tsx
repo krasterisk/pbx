@@ -20,15 +20,15 @@ interface StatCardProps {
 
 function StatCard({ label, value, icon: Icon, iconColor, iconBg, valueColor }: StatCardProps) {
   return (
-    <Card className="bg-background/50 backdrop-blur border-muted/50">
-      <CardContent className="p-5">
+    <Card className="bg-background/50 backdrop-blur border-muted/50 flex-1 min-w-[calc(50%-0.5rem)] sm:min-w-[calc(33.333%-0.75rem)] md:min-w-0">
+      <CardContent className="p-3 sm:p-5">
         <Flex align="center" justify="between">
           <VStack>
-            <Text variant="muted" className="text-sm font-medium mb-1">{label}</Text>
-            <Text className={`text-2xl font-bold ${valueColor || ''}`}>{value}</Text>
+            <Text variant="muted" className="text-xs sm:text-sm font-medium mb-0.5 sm:mb-1">{label}</Text>
+            <Text className={`text-xl sm:text-2xl font-bold ${valueColor || ''}`}>{value}</Text>
           </VStack>
-          <Flex align="center" justify="center" className={`p-3 ${iconBg} rounded-full`}>
-            <Icon className={`w-5 h-5 ${iconColor}`} />
+          <Flex align="center" justify="center" className={`p-2 sm:p-3 ${iconBg} rounded-full`}>
+            <Icon className={`w-4 h-4 sm:w-5 sm:h-5 ${iconColor}`} />
           </Flex>
         </Flex>
       </CardContent>
@@ -48,9 +48,9 @@ export const ServiceRequestsStats = memo(({ stats, isLoading }: ServiceRequestsS
   const otherCount = (stats?.postponed || 0) + (stats?.impossible || 0);
 
   return (
-    <Flex gap="16" className="grid grid-cols-2 md:grid-cols-5">
+    <div className="flex flex-wrap gap-4 w-full">
       <StatCard
-        label="Всего заявок"
+        label={t('serviceRequests.stats.total', 'Всего заявок')}
         value={isLoading ? '—' : total}
         icon={ClipboardList}
         iconColor="text-indigo-500"
@@ -81,14 +81,14 @@ export const ServiceRequestsStats = memo(({ stats, isLoading }: ServiceRequestsS
         valueColor="text-green-500"
       />
       <StatCard
-        label="Прочее"
+        label={t('serviceRequests.stats.other', 'Прочее')}
         value={isLoading ? '—' : otherCount}
         icon={AlertTriangle}
         iconColor="text-orange-500"
         iconBg="bg-orange-500/10"
         valueColor="text-orange-500"
       />
-    </Flex>
+    </div>
   );
 });
 
