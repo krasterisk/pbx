@@ -54,7 +54,7 @@ export class AriConnectionService implements OnApplicationBootstrap, OnApplicati
     const password = this.configService.get<string>('ARI_PASSWORD', '');
     const appName = this.ariClient.getAppName();
 
-    const wsUrl = `${protocol}://${host}:${port}/ari/events?api_key=${username}:${password}&app=${appName}&subscribeAll=true`;
+    const wsUrl = `${protocol}://${host}:${port}/ari/events?api_key=${username}:${password}&app=${appName}`;
 
     this.logger.log(`Connecting to ARI WebSocket: ${wsUrl.replace(password, '***')}`);
 
@@ -165,16 +165,28 @@ export class AriConnectionService implements OnApplicationBootstrap, OnApplicati
 
   // ─── Event Handling ────────────────────────────────────
 
-  /** Events to ignore — noisy on production PBX with many SIP peers */
+  /** Events that are always relevant and should be processed/logged regardless of channel */
+  private static readonly STASIS_EVENTS = new Set([
+    'StasisStart',
+    'StasisEnd',
+  ]);
+
+  /** Events to always ignore — noisy on production PBX with many SIP peers */
   private static readonly IGNORED_EVENTS = new Set([
     'PeerStatusChange',
     'DeviceStateChanged',
     'ContactStatusChange',
   ]);
 
+  /**
+   * Channel IDs currently participating in a Stasis (voice robot) session.
+   * Only events for these channels (or events without a channel) are logged.
+   */
+  private readonly stasisChannels = new Set<string>();
+
   private handleEvent(event: any) {
     try {
-      // Skip noisy events that are irrelevant to voice robot functionality
+      // Skip always-noisy events
       if (AriConnectionService.IGNORED_EVENTS.has(event.type)) {
         return;
       }
@@ -182,11 +194,17 @@ export class AriConnectionService implements OnApplicationBootstrap, OnApplicati
       switch (event.type) {
         case 'StasisStart':
           this.handleStasisStart(event);
+          if (event.channel?.id) {
+            this.stasisChannels.add(event.channel.id);
+          }
           break;
 
         case 'StasisEnd':
           // Clean up external channel mapping
           this.cleanupExternalMapping(event.channel?.id);
+          if (event.channel?.id) {
+            this.stasisChannels.delete(event.channel.id);
+          }
           break;
 
         case 'ChannelVarset':
@@ -197,8 +215,17 @@ export class AriConnectionService implements OnApplicationBootstrap, OnApplicati
       // Broadcast all events to the NestJS EventEmitter system
       this.eventEmitter.emit(`ari.${event.type}`, event);
 
+      // Only log events for channels involved in active Stasis sessions
+      // Skip logging for ChannelVarset (already logged in handleChannelVarset if relevant)
       if (event.type !== 'ChannelVarset') {
-        this.logger.debug(`[ARI Event] ${event.type} on channel ${event.channel?.id}`);
+        const channelId = event.channel?.id;
+        const isStasisEvent = AriConnectionService.STASIS_EVENTS.has(event.type);
+        const isTrackedChannel = channelId && this.stasisChannels.has(channelId);
+
+        if (isStasisEvent || isTrackedChannel) {
+          this.logger.debug(`[ARI Event] ${event.type} on channel ${channelId}`);
+        }
+        // Non-Stasis channels → silent (no log)
       }
 
     } catch (err: any) {

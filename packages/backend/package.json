@@ -1,6 +1,6 @@
 {
   "name": "@krasterisk/backend",
-  "version": "4.1.2",
+  "version": "4.1.3",
   "description": "Krasterisk v4 Backend",
   "private": true,
   "scripts": {

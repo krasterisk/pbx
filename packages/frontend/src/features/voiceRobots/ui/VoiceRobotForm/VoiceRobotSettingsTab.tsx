@@ -196,7 +196,7 @@ export const VoiceRobotSettingsTab = memo(({
           </HStack>
           <Input 
             type="text" 
-            placeholder="Например: 109.226.233.92" 
+            placeholder="127.0.0.1" 
             value={externalHost}
             onChange={e => setExternalHost(e.target.value)} 
           />
