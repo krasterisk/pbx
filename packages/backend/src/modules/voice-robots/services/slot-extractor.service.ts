@@ -28,7 +28,7 @@ export class SlotExtractorService {
 
     switch (slot.type) {
       case 'digits':
-        return this.extractDigits(normalized);
+        return this.extractDigits(normalized, slot.name);
       case 'phone':
         return this.extractPhone(normalized);
       case 'yes_no':
@@ -99,9 +99,31 @@ export class SlotExtractorService {
    * "один два три" → "123"  (single digits concatenated)
    * "455" → "455" (passthrough numeric)
    */
-  private extractDigits(text: string): ISlotExtractionResult {
+  private extractDigits(text: string, slotName?: string): ISlotExtractionResult {
+    // Contextual pre-filtering: for named slots, extract text after relevant markers
+    // e.g. "красноярск строительная 18 квартира 8" → extract "8" for apartment slot
+    let effectiveText = text;
+    if (slotName) {
+      const markerMap: Record<string, RegExp> = {
+        'apartment': /(?:квартир[аы]|кв\.?\s*)\s*/gi,
+        'house':     /(?:дом|д\.?\s*)\s*/gi,
+      };
+      const marker = markerMap[slotName];
+      if (marker) {
+        // Find the LAST occurrence of the marker and take text after it
+        let lastIndex = -1;
+        let match: RegExpExecArray | null;
+        while ((match = marker.exec(text)) !== null) {
+          lastIndex = match.index + match[0].length;
+        }
+        if (lastIndex > 0 && lastIndex < text.length) {
+          effectiveText = text.substring(lastIndex).trim();
+        }
+      }
+    }
+
     // 1. Try direct numeric extraction (STT sometimes returns digits)
-    const directDigits = text.replace(/[^\d]/g, '');
+    const directDigits = effectiveText.replace(/[^\d]/g, '');
     if (directDigits.length > 0) {
       return {
         success: true,
@@ -112,7 +134,7 @@ export class SlotExtractorService {
     }
 
     // 2. Parse Russian verbal numbers
-    const words = text.split(/\s+/).filter(w => w.length > 0);
+    const words = effectiveText.split(/\s+/).filter(w => w.length > 0);
     const numbers: number[] = [];
     let accumulated = 0;
     let hasNumber = false;

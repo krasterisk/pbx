@@ -133,6 +133,9 @@ export class VoiceRobotSession {
   // Data list search not-found retry counter (keyed by listId)
   private dataListNotFoundCounts: Record<number, number> = {};
 
+  // Webhook continue_dialogue loop detector (keyed by URL)
+  private webhookContinueCounts: Record<string, number> = {};
+
   // Slot filling state
   private slotFillingState: {
     action: IVoiceRobotBotAction;
@@ -419,6 +422,8 @@ export class VoiceRobotSession {
    */
   private initStreamingStt(): void {
     if (!this.sttEngine) return;
+    // Guard: don't create a duplicate stream if one already exists
+    if (this.sttStream) return;
 
     try {
       this.sttStream = this.sttProviderFactory.createStream(
@@ -1166,7 +1171,7 @@ export class VoiceRobotSession {
               await this.speakResponse(maxRetriesAction.response);
             }
             if (maxRetriesAction.nextState) {
-              await this.executeNextState(maxRetriesAction.nextState, {});
+              await this.executeNextState({ response: { type: 'none' }, nextState: maxRetriesAction.nextState }, {});
             }
           } else {
             this.exitToFallback('MAX_RETRIES');
@@ -1310,6 +1315,38 @@ export class VoiceRobotSession {
         this.logger.log(`[Webhook] continue_dialogue — extending conversation`);
         this.stepCount++;
 
+        // ─── Safety: detect infinite webhook loops ───
+        // Track consecutive continue_dialogue calls to the same URL WITHOUT progress.
+        // Reset the counter when the webhook indicates forward progress (found=true,
+        // verified=true), so normal multi-step dialogues aren't interrupted.
+        // Only loops where the webhook keeps asking the same thing (e.g. apartment
+        // not found → ask again → not found) will trigger the limit.
+        if (data.found === true || data.verified === true) {
+          // Webhook made progress — reset loop counter
+          this.webhookContinueCounts[url] = 0;
+        } else {
+          this.webhookContinueCounts[url] = (this.webhookContinueCounts[url] || 0) + 1;
+        }
+
+        const webhookLoopLimit = (this.robotConfig.max_inactivity_repeats ?? 3) + 2; // generous limit
+        if (this.webhookContinueCounts[url] > webhookLoopLimit) {
+          this.logger.warn(
+            `[Webhook] Loop detected: ${url} returned continue_dialogue without progress ${this.webhookContinueCounts[url]} times (limit ${webhookLoopLimit}). Breaking loop.`,
+          );
+          const maxRetriesAction = this.robotConfig.max_retries_bot_action;
+          if (maxRetriesAction?.response?.value || maxRetriesAction?.nextState?.type) {
+            if (maxRetriesAction.response?.type !== 'none' && maxRetriesAction.response?.value) {
+              await this.speakResponse(maxRetriesAction.response);
+            }
+            if (maxRetriesAction.nextState) {
+              await this.executeNextState({ response: { type: 'none' }, nextState: maxRetriesAction.nextState }, {});
+            }
+          } else {
+            this.exitToFallback('WEBHOOK_LOOP');
+          }
+          return;
+        }
+
         // Check step limit to prevent infinite loops
         if (this.stepCount >= this.maxSteps) {
           this.logger.warn(`[Webhook] Max steps (${this.maxSteps}) reached during continue_dialogue`);
@@ -1319,7 +1356,7 @@ export class VoiceRobotSession {
               await this.speakResponse(maxRetriesAction.response);
             }
             if (maxRetriesAction.nextState) {
-              await this.executeNextState(maxRetriesAction.nextState, {});
+              await this.executeNextState({ response: { type: 'none' }, nextState: maxRetriesAction.nextState }, {});
             }
           } else {
             this.exitToFallback('MAX_STEPS');
@@ -1645,6 +1682,25 @@ export class VoiceRobotSession {
       } finally {
         this.isBotSpeaking = false;
         this.pipelineAbort = null;
+
+        // Clear STT buffers that captured bot's own voice echo during TTS playback.
+        // Without this, the next user utterance gets contaminated with bot echo
+        // (e.g. bot says "Уточните номер квартиры" → STT captures "уточните квартиру"
+        //  → client says "восемь" → STT partial = "уточните квартиру восемь")
+        this.sttStreamFinalText = '';
+        this.sttStreamPartialText = '';
+
+        // Close current STT stream to discard echo-contaminated recognition session.
+        // Recreate immediately with guard to avoid duplicates — audio is always piped
+        // to STT stream, so it must exist to capture the start of user's speech.
+        if (this.sttStream) {
+          try { this.sttStream.end(); } catch {}
+          this.sttStream = null;
+        }
+        if (!this.cleanedUp) {
+          this.initStreamingStt();
+        }
+
         // Start inactivity timer after bot finishes speaking
         this.startInactivityTimer();
       }
