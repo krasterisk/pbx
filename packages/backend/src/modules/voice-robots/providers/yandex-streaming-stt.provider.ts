@@ -140,6 +140,17 @@ export class YandexStreamingSttProvider implements ISttStreamingProvider {
           }
         }
 
+        // Normalized text (numbers as digits, dates formatted, etc.)
+        // Arrives after 'final' when text_normalization is enabled.
+        // Example: "двадцать шесть" → "26"
+        if (response.final_refinement) {
+          const normalized = response.final_refinement.normalized_text?.alternatives?.[0]?.text || '';
+          if (normalized) {
+            this.logger.debug(`[Yandex STT] Normalized: "${normalized}"`);
+            events.emit('normalized', normalized);
+          }
+        }
+
         if (response.eou_update) {
           this.logger.debug(`[Yandex STT] EOU at ${response.eou_update.time_ms}ms`);
           events.emit('eou');

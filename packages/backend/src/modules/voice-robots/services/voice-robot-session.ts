@@ -443,6 +443,14 @@ export class VoiceRobotSession {
         this.sttStreamFinalText = text;
       });
 
+      // Normalized text from final_refinement (numbers as digits, etc.)
+      // May arrive before or after EOU — we handle both cases
+      currentStream.events.on('normalized', (text: string) => {
+        if (this.sttStream !== currentStream) return;
+        this.logger.log(`[STT/stream] Normalized: "${text}"`);
+        this.sttStreamFinalText = text;
+      });
+
       currentStream.events.on('eou', () => {
         if (this.sttStream !== currentStream) return;
         // End of utterance detected by the provider's EOU classifier
@@ -516,6 +524,38 @@ export class VoiceRobotSession {
         this.logger.log(`[VAD] Barge-in — interrupting bot speech`);
         this.abortPipeline();
         this.streamAudio.interruptStream(this.channelId);
+
+        // Transition to "speech started" so the user's barge-in utterance
+        // gets captured by STT. Without this, VAD would return early and
+        // the user's speech would be lost (no partials, no silence timer).
+        this.isSpeaking = true;
+        this.clearInactivityTimer();
+
+        if (this.silenceTimer) {
+          clearTimeout(this.silenceTimer);
+          this.silenceTimer = null;
+        }
+
+        // Ensure STT stream exists
+        if (!this.sttStream) {
+          this.initStreamingStt();
+        }
+
+        // Restore pre-speech ring buffer for batch fallback
+        this.sttBuffer = [...this.preSpeechRingBuffer];
+        this.preSpeechRingBuffer.length = 0;
+
+        // Start max duration watchdog
+        if (this.maxDurationTimer) {
+          clearTimeout(this.maxDurationTimer);
+        }
+        const maxDurationSec = config.max_duration_seconds || 15;
+        this.maxDurationTimer = setTimeout(() => {
+          this.logger.warn(`[VAD] Max duration ${maxDurationSec}s reached — forcefully cutting off speaker`);
+          this.isSpeaking = false;
+          this.maxDurationTimer = null;
+          this.processSttBuffer();
+        }, maxDurationSec * 1000);
       }
       return;
     }
@@ -1169,6 +1209,12 @@ export class VoiceRobotSession {
         }
       }
 
+      // Log _debug data from webhook (address not-found diagnostics)
+      if (data._debug) {
+        const d = data._debug;
+        this.logger.debug(`[Webhook] Debug: input="${d.input}", normalized="${d.normalized}", parsed=${JSON.stringify(d.parsed)}, mode=${d.search_mode ?? 'local'}, retries=${d.address_retries ?? 0}`);
+      }
+
       // ─── 2. Speak say_text if webhook provides it (dynamic TTS) ───
       // Clear inactivity timer first — webhook TTS can take seconds to play,
       // and we don't want the old timer to repeat the greeting during playback
@@ -1253,10 +1299,7 @@ export class VoiceRobotSession {
       // 3d. Terminal: exit to fallback dialplan (configured by PBX admin)
       if (data.action === 'fallback') {
         this.logger.log(`[Webhook] Fallback requested — exiting to fallback dialplan`);
-        if (data.say_text) {
-          const interpolated = this.interpolateTemplateString(data.say_text, { ...this.dialogueContext, ...data });
-          await this.speakResponse({ type: 'tts', value: interpolated });
-        }
+        // NOTE: say_text is already spoken above (step 2), no need to speak again
         await this.exitToFallback('WEBHOOK_FALLBACK');
         return;
       }
