@@ -458,6 +458,13 @@ export class VoiceRobotSession {
 
       currentStream.events.on('eou', () => {
         if (this.sttStream !== currentStream) return;
+        // Discard EOU events while bot is speaking — text is echo from TTS playback
+        if (this.isBotSpeaking) {
+          this.logger.debug(`[STT/stream] EOU ignored — bot is speaking (echo)`);
+          this.sttStreamFinalText = '';
+          this.sttStreamPartialText = '';
+          return;
+        }
         // End of utterance detected by the provider's EOU classifier
         if (this.sttStreamFinalText || this.sttStreamPartialText) {
           const text = this.sttStreamFinalText || this.sttStreamPartialText;
@@ -500,6 +507,12 @@ export class VoiceRobotSession {
    * Same pipeline as batch mode: keyword match → bot action.
    */
   private async handleStreamingSttResult(text: string): Promise<void> {
+    // Guard: ignore STT results while bot is speaking — these are TTS echo
+    if (this.isBotSpeaking) {
+      this.logger.debug(`[STT/stream] Ignoring result during TTS playback (echo): "${text.substring(0, 40)}..."`);
+      return;
+    }
+
     this.stepCount++;
     this.logger.log(`[STT/stream] Step ${this.stepCount}/${this.maxSteps}`);
 
@@ -602,9 +615,17 @@ export class VoiceRobotSession {
 
     } else if (prob <= silenceThreshold && this.isSpeaking) {
       // ─── SILENCE DURING SPEECH ───
+      // Use longer silence timeout when collecting freetext slot input (address, locality).
+      // People naturally pause between address components (e.g., "квартира" → pause → "28")
+      // and the default 2000ms cuts them off mid-sentence.
+      const currentSlotType = this.slotFillingState?.slots[this.slotFillingState.currentSlotIndex]?.type;
+      const effectiveSilenceMs = currentSlotType === 'freetext'
+        ? Math.max(silenceTimeoutMs, config.slot_silence_timeout_ms || 3500)
+        : silenceTimeoutMs;
+
       if (!this.silenceTimer) {
         this.silenceTimer = setTimeout(() => {
-          this.logger.log(`[VAD] Speech ended (silence timeout ${silenceTimeoutMs}ms)`);
+          this.logger.log(`[VAD] Speech ended (silence timeout ${effectiveSilenceMs}ms${currentSlotType === 'freetext' ? ', freetext slot' : ''})`);
           this.isSpeaking = false;
           
           if (this.maxDurationTimer) {
@@ -613,7 +634,7 @@ export class VoiceRobotSession {
           }
           
           this.processSttBuffer();
-        }, silenceTimeoutMs);
+        }, effectiveSilenceMs);
       }
 
     } else if (prob >= speechThreshold && this.isSpeaking) {
@@ -631,6 +652,15 @@ export class VoiceRobotSession {
   private async processSttBuffer(): Promise<void> {
     // ─── Streaming Mode ───
     if (this.sttStream) {
+      // Guard: discard any buffered text during TTS playback (echo)
+      if (this.isBotSpeaking) {
+        this.logger.debug('[STT/stream] Discarding buffer — bot is speaking (echo)');
+        this.sttStreamFinalText = '';
+        this.sttStreamPartialText = '';
+        this.sttBuffer = [];
+        return;
+      }
+
       let textToProcess = '';
       if (this.sttStreamFinalText) {
         textToProcess = this.sttStreamFinalText;
