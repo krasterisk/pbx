@@ -9,6 +9,12 @@ export class AmiService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(AmiService.name);
   private ami: any;
   private connected = false;
+  private connecting = false;
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private reconnectDelay = 5000; // starts at 5s
+  private readonly MAX_RECONNECT_DELAY = 60000; // max 60s
+  private readonly BASE_RECONNECT_DELAY = 5000;
+  private destroyed = false;
 
   constructor(
     private readonly config: ConfigService,
@@ -20,10 +26,49 @@ export class AmiService implements OnModuleInit, OnModuleDestroy {
   }
 
   onModuleDestroy() {
+    this.destroyed = true;
+    this.cancelReconnect();
     this.disconnect();
   }
 
+  private cancelReconnect() {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+  }
+
+  private scheduleReconnect() {
+    if (this.destroyed) return;
+    this.cancelReconnect();
+
+    this.logger.warn(`AMI connection closed, reconnecting in ${this.reconnectDelay / 1000}s...`);
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null;
+      this.connect();
+    }, this.reconnectDelay);
+
+    // Exponential backoff: 5s → 10s → 20s → 40s → 60s (cap)
+    this.reconnectDelay = Math.min(this.reconnectDelay * 2, this.MAX_RECONNECT_DELAY);
+  }
+
+  private cleanupAmi() {
+    if (this.ami) {
+      try {
+        this.ami.removeAllListeners();
+        this.ami.disconnect();
+      } catch {
+        // ignore cleanup errors
+      }
+      this.ami = null;
+    }
+    this.connected = false;
+    this.connecting = false;
+  }
+
   private connect() {
+    if (this.destroyed || this.connecting) return;
+
     const host = this.config.get('AMI_HOST', '127.0.0.1');
     const port = Number(this.config.get('AMI_PORT', 5038));
     const login = this.config.get('AMI_LOGIN', 'krasterisk');
@@ -34,22 +79,33 @@ export class AmiService implements OnModuleInit, OnModuleDestroy {
       return;
     }
 
+    // Clean up any previous instance before creating a new one
+    this.cleanupAmi();
+    this.connecting = true;
+
     try {
       this.ami = new AsteriskManager(port, host, login, secret, true);
 
       this.ami.on('connect', () => {
         this.connected = true;
+        this.connecting = false;
+        this.reconnectDelay = this.BASE_RECONNECT_DELAY; // reset backoff on success
         this.logger.log(`✅ Connected to AMI at ${host}:${port}`);
       });
 
       this.ami.on('close', () => {
         this.connected = false;
-        this.logger.warn('AMI connection closed, reconnecting in 5s...');
-        setTimeout(() => this.connect(), 5000);
+        this.connecting = false;
+        // Don't call connect() directly — use scheduled reconnect with backoff.
+        // keepConnected() is NOT used because it creates its own uncontrolled retry loop.
+        if (!this.destroyed) {
+          this.scheduleReconnect();
+        }
       });
 
       this.ami.on('error', (err: any) => {
         this.logger.error(`AMI error: ${err.message}`);
+        // error alone doesn't trigger reconnect; the subsequent 'close' event will
       });
 
       // Real-time events → WebSocket
@@ -90,17 +146,18 @@ export class AmiService implements OnModuleInit, OnModuleDestroy {
         });
       });
 
-      this.ami.keepConnected();
+      // NOTE: keepConnected() removed — it caused uncontrolled reconnection storms.
+      // Reconnection is now managed manually via scheduleReconnect() with exponential backoff.
     } catch (error) {
+      this.connecting = false;
       this.logger.error(`Failed to connect to AMI: ${error}`);
+      this.scheduleReconnect();
     }
   }
 
   private disconnect() {
-    if (this.ami) {
-      this.ami.disconnect();
-      this.connected = false;
-    }
+    this.cancelReconnect();
+    this.cleanupAmi();
   }
 
   isConnected(): boolean {
