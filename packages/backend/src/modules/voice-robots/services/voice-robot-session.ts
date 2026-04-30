@@ -513,6 +513,10 @@ export class VoiceRobotSession {
       return;
     }
 
+    // User is actively providing input — cancel inactivity timer to prevent
+    // it firing while we wait for a slow webhook response.
+    this.clearInactivityTimer();
+
     this.stepCount++;
     this.logger.log(`[STT/stream] Step ${this.stepCount}/${this.maxSteps}`);
 
@@ -674,6 +678,7 @@ export class VoiceRobotSession {
       if (textToProcess) {
         this.sttBuffer = [];
         this.stepCount++;
+        this.clearInactivityTimer(); // User spoke — prevent timer during webhook
         this.logger.log(`[STT/stream] Silence-triggered: "${textToProcess}"`);
         
         // Close current stream — auto-recreate handler will open a new one
