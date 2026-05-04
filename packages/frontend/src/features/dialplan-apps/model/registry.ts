@@ -7,6 +7,8 @@ import { ExtenApp } from '../ui/apps/ExtenApp/ExtenApp';
 import { QueueApp } from '../ui/apps/QueueApp/QueueApp';
 import { IvrApp } from '../ui/apps/IvrApp/IvrApp';
 import { PromptApp } from '../ui/apps/PromptApp/PromptApp';
+import { ToRouteApp } from '../ui/apps/ToRouteApp/ToRouteApp';
+import { HangupApp } from '../ui/apps/HangupApp/HangupApp';
 
 export const dialplanAppsRegistry: Record<ActionType, IDialplanAppConfig> = {
   // --- TELEPHONY & MEDIA ---
@@ -16,7 +18,7 @@ export const dialplanAppsRegistry: Record<ActionType, IDialplanAppConfig> = {
   togroup: { type: 'togroup', labelKey: 'routes.action.togroup', component: GenericApp, category: 'telephony' },
   tolist: { type: 'tolist', labelKey: 'routes.action.tolist', component: GenericApp, category: 'telephony' },
   toivr: { type: 'toivr', labelKey: 'routes.action.toivr', component: IvrApp, category: 'telephony', defaultParams: { ivr_uid: '' } },
-  toroute: { type: 'toroute', labelKey: 'routes.action.toroute', component: GenericApp, category: 'telephony' },
+  toroute: { type: 'toroute', labelKey: 'routes.action.toroute', component: ToRouteApp, category: 'telephony', defaultParams: { context: '', extension: '' } },
   playprompt: { type: 'playprompt', labelKey: 'routes.action.playprompt', component: PromptApp, category: 'media', defaultParams: { file: '' } },
   playback: { type: 'playback', labelKey: 'routes.action.playback', component: PromptApp, category: 'media', defaultParams: { file: '' } },
   voicerobot: { type: 'voicerobot', labelKey: 'routes.action.voicerobot', component: VoiceRobotApp, category: 'media' },
@@ -37,7 +39,11 @@ export const dialplanAppsRegistry: Record<ActionType, IDialplanAppConfig> = {
   tofax: { type: 'tofax', labelKey: 'routes.action.tofax', component: GenericApp, category: 'media' },
   label: { type: 'label', labelKey: 'routes.action.label', component: GenericApp, category: 'system' },
   busy: { type: 'busy', labelKey: 'routes.action.busy', component: GenericApp, category: 'telephony' },
-  hangup: { type: 'hangup', labelKey: 'routes.action.hangup', component: GenericApp, category: 'telephony' },
+  hangup: { type: 'hangup', labelKey: 'routes.action.hangup', component: HangupApp, category: 'telephony', defaultParams: { causecode: '' } },
+
+  // --- PHONEBOOK ACTIONS (use PHONEBOOK_LABEL / PHONEBOOK_DIALTO variables) ---
+  set_callerid_name: { type: 'set_callerid_name', labelKey: 'routes.action.set_callerid_name', component: GenericApp, category: 'system' },
+  redirect_to_bound: { type: 'redirect_to_bound', labelKey: 'routes.action.redirect_to_bound', component: GenericApp, category: 'telephony' },
 };
 
 /** Ensure the runtime keys ordered logically for Select menus */

@@ -18,6 +18,8 @@ interface WebhookAuthConfigProps {
   onHeadersChange: (headers: WebhookHeader[]) => void;
 }
 
+const AUTH_MODES: AuthMode[] = ['none', 'bearer', 'custom'];
+
 export function WebhookAuthConfig({
   authMode,
   token,
@@ -38,14 +40,20 @@ export function WebhookAuthConfig({
     onHeadersChange(copy);
   };
 
+  const authModeLabels: Record<AuthMode, string> = {
+    none: t('webhookAuth.modeNone', 'Нет'),
+    bearer: 'Bearer',
+    custom: 'Headers',
+  };
+
   return (
     <>
       <VStack gap="4">
         <label className="text-sm font-medium text-muted-foreground">
-          {t('ttsEngines.custom.authMode', 'Авторизация')}
+          {t('webhookAuth.authMode', 'Авторизация')}
         </label>
         <HStack gap="8">
-          {(['none', 'bearer', 'custom'] as AuthMode[]).map((am) => (
+          {AUTH_MODES.map((am) => (
             <button
               key={am}
               type="button"
@@ -56,7 +64,7 @@ export function WebhookAuthConfig({
               }`}
               onClick={() => onAuthModeChange(am)}
             >
-              {am === 'none' ? 'Нет' : am === 'bearer' ? 'Bearer' : 'Headers'}
+              {authModeLabels[am]}
             </button>
           ))}
         </HStack>
@@ -64,18 +72,38 @@ export function WebhookAuthConfig({
 
       {authMode === 'bearer' && (
         <VStack gap="4">
-          <label className="text-sm font-medium text-muted-foreground">Bearer Token</label>
-          <Input type="password" value={token} onChange={(e) => onTokenChange(e.target.value)} />
+          <label className="text-sm font-medium text-muted-foreground">
+            {t('webhookAuth.bearerToken', 'Bearer Token')}
+          </label>
+          <Input
+            type="password"
+            autoComplete="new-password"
+            value={token}
+            onChange={(e) => onTokenChange(e.target.value)}
+            placeholder={t('webhookAuth.bearerPlaceholder', 'Вставьте токен авторизации...')}
+          />
         </VStack>
       )}
 
       {authMode === 'custom' && (
         <VStack gap="4">
-          <label className="text-sm font-medium text-muted-foreground">Headers</label>
+          <label className="text-sm font-medium text-muted-foreground">
+            {t('webhookAuth.customHeaders', 'Пользовательские заголовки')}
+          </label>
           {customHeaders.map((h, i) => (
             <HStack key={i} gap="4" align="center">
-              <Input placeholder="Key" value={h.key} onChange={(e) => updateHeader(i, 'key', e.target.value)} />
-              <Input placeholder="Value" value={h.value} onChange={(e) => updateHeader(i, 'value', e.target.value)} />
+              <Input
+                autoComplete="off"
+                placeholder={t('webhookAuth.headerKey', 'Ключ')}
+                value={h.key}
+                onChange={(e) => updateHeader(i, 'key', e.target.value)}
+              />
+              <Input
+                autoComplete="off"
+                placeholder={t('webhookAuth.headerValue', 'Значение')}
+                value={h.value}
+                onChange={(e) => updateHeader(i, 'value', e.target.value)}
+              />
               <button
                 type="button"
                 className="p-1 text-muted-foreground hover:text-destructive"
@@ -91,7 +119,7 @@ export function WebhookAuthConfig({
             onClick={addHeader}
           >
             <Plus size={14} />
-            {t('common.add')}
+            {t('webhookAuth.addHeader', 'Добавить заголовок')}
           </button>
         </VStack>
       )}

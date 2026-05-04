@@ -79,13 +79,7 @@ const routeApi = rtkApi.injectEndpoints({
       invalidatesTags: [{ type: 'Routes', id: 'LIST' }],
     }),
 
-    previewDialplan: builder.query<{ dialplan: string }, number>({
-      query: (contextUid) => `/routes/preview/${contextUid}`,
-    }),
 
-    applyDialplan: builder.mutation<{ success: boolean; filename: string; linesApplied: number }, number>({
-      query: (contextUid) => ({ url: `/routes/apply/${contextUid}`, method: 'POST' }),
-    }),
   }),
 });
 
@@ -98,6 +92,4 @@ export const {
   useBulkDeleteRoutesMutation,
   useDuplicateRouteMutation,
   useReorderRoutesMutation,
-  useLazyPreviewDialplanQuery,
-  useApplyDialplanMutation,
 } = routeApi;

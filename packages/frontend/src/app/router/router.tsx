@@ -13,8 +13,10 @@ import { EndpointsPage } from '@/pages/EndpointsPage';
 import ContextsPage from '@/pages/ContextsPage';
 import ProvisionTemplatesPage from '@/pages/ProvisionTemplatesPage';
 import { TrunksPage } from '@/features/trunks/ui/TrunksPage/TrunksPage';
-import { RoutesPage } from '@/features/routes';
+import { RoutesPage } from '@/pages/RoutesPage';
 import { IvrsPage } from '@/pages/IvrsPage';
+import { TimeGroupsPage } from '@/pages/TimeGroupsPage';
+import { PhonebooksPage } from '@/pages/PhonebooksPage';
 import { PromptsPage } from '@/pages/PromptsPage';
 import { MohPage } from '@/pages/MohPage';
 import { TtsEnginesPage } from '@/pages/TtsEnginesPage';
@@ -49,6 +51,8 @@ export const router = createBrowserRouter([
       { path: 'contexts', element: <ContextsPage /> },
       { path: 'routes', element: <RoutesPage /> },
       { path: 'ivrs', element: <IvrsPage /> },
+      { path: 'time-groups', element: <TimeGroupsPage /> },
+      { path: 'phonebooks', element: <PhonebooksPage /> },
       { path: 'prompts', element: <PromptsPage /> },
       { path: 'voice-robots', element: <VoiceRobotsPage /> },
       { path: 'voice-robots/:id', element: <VoiceRobotEditPage /> },

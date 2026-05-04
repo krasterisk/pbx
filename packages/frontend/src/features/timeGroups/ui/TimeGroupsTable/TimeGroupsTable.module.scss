@@ -1,0 +1,68 @@
+.timeGroupsTable {
+  width: 100%;
+}
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 3rem 2rem;
+}
+
+.emptyIcon {
+  width: 3rem;
+  height: 3rem;
+  color: var(--color-muted-foreground);
+  opacity: 0.5;
+}
+
+.bulkActions {
+  margin-bottom: 1rem;
+}
+
+.actionsCell {
+  text-align: right;
+}
+
+.actionBtn {
+  padding: 0.375rem;
+  border-radius: var(--radius);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+
+  &:hover {
+    background: var(--color-accent);
+  }
+}
+
+.actionBtnDelete {
+  composes: actionBtn;
+  color: var(--color-destructive);
+
+  &:hover {
+    background: hsl(var(--destructive) / 0.2);
+  }
+}
+
+.actionIcon {
+  width: 1rem;
+  height: 1rem;
+}
+
+.intervalChip {
+  font-size: 0.75rem;
+  color: var(--color-muted-foreground);
+}
+
+.noIntervals {
+  font-size: 0.75rem;
+  font-style: italic;
+  color: var(--color-muted-foreground);
+}
+
+.checkboxCell {
+  width: 2.5rem;
+}

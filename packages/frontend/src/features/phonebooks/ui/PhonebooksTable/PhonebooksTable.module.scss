@@ -1,0 +1,66 @@
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 3rem 2rem;
+}
+
+.emptyIcon {
+  width: 3rem;
+  height: 3rem;
+  color: var(--color-muted-foreground);
+  opacity: 0.5;
+}
+
+.bulkActions {
+  margin-bottom: 1rem;
+}
+
+.actionsCell {
+  text-align: right;
+}
+
+.actionBtnDelete {
+  color: var(--color-destructive);
+
+  &:hover {
+    background: hsl(var(--destructive) / 0.2);
+  }
+}
+
+.actionIcon {
+  width: 1rem;
+  height: 1rem;
+}
+
+.checkboxCell {
+  width: 2.5rem;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.badgeInvert {
+  composes: badge;
+  background: hsl(var(--destructive) / 0.15);
+  color: var(--color-destructive);
+}
+
+.badgeNormal {
+  composes: badge;
+  background: hsl(var(--primary) / 0.15);
+  color: hsl(var(--primary));
+}
+
+.entriesCount {
+  font-size: 0.75rem;
+  color: var(--color-muted-foreground);
+}

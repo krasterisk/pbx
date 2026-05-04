@@ -33,7 +33,7 @@ export class QueueMember extends Model {
   @Column({ type: DataType.STRING(128), allowNull: true })
   declare state_interface: string;
 
-  // Tenant isolation
-  @Column({ type: DataType.INTEGER, allowNull: false, defaultValue: 0 })
-  declare vpbx_user_uid: number;
+  // Tenant isolation (DB column: vpbx_user_uid — Asterisk Realtime table)
+  @Column({ type: DataType.INTEGER, allowNull: false, defaultValue: 0, field: 'vpbx_user_uid' })
+  declare user_uid: number;
 }

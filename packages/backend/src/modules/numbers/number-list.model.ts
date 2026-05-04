@@ -21,5 +21,5 @@ export class NumberList extends Model {
   declare numbers: any;
 
   @Column({ type: DataType.INTEGER, defaultValue: 0, field: 'vpbx_user_uid' })
-  declare vpbxUserUid: number;
+  declare user_uid: number;
 }

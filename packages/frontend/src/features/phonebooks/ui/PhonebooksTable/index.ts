@@ -1,0 +1,1 @@
+export { PhonebooksTable } from './PhonebooksTable';

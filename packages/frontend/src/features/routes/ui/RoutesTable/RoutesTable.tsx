@@ -8,7 +8,6 @@ import {
   useGetRoutesByContextQuery, 
   useDeleteRouteMutation, 
   useBulkDeleteRoutesMutation,
-  useDuplicateRouteMutation, 
   type IRoute 
 } from '@/shared/api/api';
 import { useAppSelector, useAppDispatch } from '@/shared/hooks/useAppStore';
@@ -27,7 +26,6 @@ export const RoutesTable = memo(() => {
   );
   const [deleteRoute] = useDeleteRouteMutation();
   const [bulkDelete, { isLoading: isDeleting }] = useBulkDeleteRoutesMutation();
-  const [duplicateRoute] = useDuplicateRouteMutation();
 
   const [globalFilter, setGlobalFilter] = useState('');
   const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
@@ -77,7 +75,7 @@ export const RoutesTable = memo(() => {
             <button className={styles.actionBtn} onClick={() => dispatch(routesActions.openEditModal(route))} title={t('common.edit')}>
               <Pencil className="w-4 h-4" />
             </button>
-            <button className={styles.actionBtn} onClick={() => duplicateRoute(route.uid)} title={t('routes.duplicate', 'Копировать')}>
+            <button className={styles.actionBtn} onClick={() => dispatch(routesActions.openCopyModal(route))} title={t('common.copy', 'Копировать')}>
               <Copy className="w-4 h-4" />
             </button>
             <button className={styles.actionBtnDanger} onClick={() => { if (window.confirm(t('routes.confirmDelete', `Удалить маршрут «${route.name}»?`))) deleteRoute(route.uid); }} title={t('common.delete')}>
@@ -87,7 +85,7 @@ export const RoutesTable = memo(() => {
         );
       },
     }),
-  ], [t, dispatch, deleteRoute, duplicateRoute]);
+  ], [t, dispatch, deleteRoute]);
 
   const selectedCount = Object.keys(rowSelection).length;
 

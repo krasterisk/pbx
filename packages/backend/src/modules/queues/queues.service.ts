@@ -78,7 +78,7 @@ export class QueuesService {
 
   async findAll(vpbxUserUid: number) {
     const queues = await this.queueModel.findAll({
-      where: { vpbx_user_uid: vpbxUserUid },
+      where: { user_uid: vpbxUserUid },
       order: [['name', 'ASC']],
     });
 
@@ -87,7 +87,7 @@ export class QueuesService {
     for (const q of queues) {
       const queueName = q.getDataValue('name');
       const memberCount = await this.memberModel.count({
-        where: { queue_name: queueName, vpbx_user_uid: vpbxUserUid },
+        where: { queue_name: queueName, user_uid: vpbxUserUid },
       });
       result.push({
         ...q.toJSON(),
@@ -100,12 +100,12 @@ export class QueuesService {
 
   async findOne(name: string, vpbxUserUid: number) {
     const queue = await this.queueModel.findOne({
-      where: { name, vpbx_user_uid: vpbxUserUid },
+      where: { name, user_uid: vpbxUserUid },
     });
     if (!queue) throw new NotFoundException(`Queue "${name}" not found`);
 
     const members = await this.memberModel.findAll({
-      where: { queue_name: name, vpbx_user_uid: vpbxUserUid },
+      where: { queue_name: name, user_uid: vpbxUserUid },
       order: [['penalty', 'ASC'], ['uniqueid', 'ASC']],
     });
 
@@ -121,7 +121,7 @@ export class QueuesService {
 
     // Check for duplicate name
     const existing = await this.queueModel.findOne({
-      where: { name: queueName, vpbx_user_uid: vpbxUserUid },
+      where: { name: queueName, user_uid: vpbxUserUid },
     });
     if (existing) throw new ConflictException(`Queue with extension "${dto.exten}" already exists`);
 
@@ -135,7 +135,7 @@ export class QueuesService {
         ...queueData,
         ...(advanced || {}),
         name: queueName,
-        vpbx_user_uid: vpbxUserUid,
+        user_uid: vpbxUserUid,
       };
 
       const queue = await this.queueModel.create(fullData, { transaction });
@@ -146,7 +146,7 @@ export class QueuesService {
           members.map(m => ({
             ...m,
             queue_name: queueName,
-            vpbx_user_uid: vpbxUserUid,
+            user_uid: vpbxUserUid,
           })),
           { transaction },
         );
@@ -164,7 +164,7 @@ export class QueuesService {
 
   async update(name: string, dto: UpdateQueueDto, vpbxUserUid: number) {
     const queue = await this.queueModel.findOne({
-      where: { name, vpbx_user_uid: vpbxUserUid },
+      where: { name, user_uid: vpbxUserUid },
     });
     if (!queue) throw new NotFoundException(`Queue "${name}" not found`);
 
@@ -177,7 +177,7 @@ export class QueuesService {
 
       if (isRenaming) {
         const existing = await this.queueModel.findOne({
-          where: { name: newQueueName, vpbx_user_uid: vpbxUserUid },
+          where: { name: newQueueName, user_uid: vpbxUserUid },
         });
         if (existing) {
           throw new ConflictException(`Queue with extension "${exten}" already exists`);
@@ -201,7 +201,7 @@ export class QueuesService {
       // Sync members if provided
       if (members !== undefined) {
         await this.memberModel.destroy({
-          where: { queue_name: name, vpbx_user_uid: vpbxUserUid },
+          where: { queue_name: name, user_uid: vpbxUserUid },
           transaction,
         });
         if (members.length) {
@@ -209,7 +209,7 @@ export class QueuesService {
             members.map(m => ({
               ...m,
               queue_name: newQueueName,
-              vpbx_user_uid: vpbxUserUid,
+              user_uid: vpbxUserUid,
             })),
             { transaction },
           );
@@ -218,7 +218,7 @@ export class QueuesService {
         // If members weren't passed but queue was renamed, we must manually update queue_name on existing members
         await this.memberModel.update(
           { queue_name: newQueueName },
-          { where: { queue_name: name, vpbx_user_uid: vpbxUserUid }, transaction }
+          { where: { queue_name: name, user_uid: vpbxUserUid }, transaction }
         );
       }
 
@@ -234,14 +234,14 @@ export class QueuesService {
 
   async remove(name: string, vpbxUserUid: number) {
     const queue = await this.queueModel.findOne({
-      where: { name, vpbx_user_uid: vpbxUserUid },
+      where: { name, user_uid: vpbxUserUid },
     });
     if (!queue) throw new NotFoundException(`Queue "${name}" not found`);
 
     const transaction = await this.sequelize.transaction();
     try {
       await this.memberModel.destroy({
-        where: { queue_name: name, vpbx_user_uid: vpbxUserUid },
+        where: { queue_name: name, user_uid: vpbxUserUid },
         transaction,
       });
       await queue.destroy({ transaction });

@@ -15,7 +15,6 @@ export const TrunkApp: React.FC<IDialplanAppProps> = ({ action, onUpdate }) => {
     <VStack gap="2" className="w-full">
       <HStack gap="2" className="w-full">
         <VStack gap="2" className="flex-1">
-          <Text variant="small" className="text-muted-foreground">{t('routes.apps.trunk.select', 'Транк')}</Text>
           {isError ? (
             <Text variant="small" className="text-destructive">{t('common.loadError', 'Ошибка загрузки')}</Text>
           ) : (
@@ -24,7 +23,7 @@ export const TrunkApp: React.FC<IDialplanAppProps> = ({ action, onUpdate }) => {
               onChange={(e) => onUpdate(action.id, 'params.trunk', e.target.value)}
               disabled={isLoading}
             >
-              <option value="" disabled>---</option>
+              <option value="" disabled>{t('routes.apps.trunk.select', 'Транк')}</option>
               {trunks.map(trunk => (
                 <option key={trunk.id} value={trunk.name}>{trunk.name}</option>
               ))}
@@ -33,9 +32,8 @@ export const TrunkApp: React.FC<IDialplanAppProps> = ({ action, onUpdate }) => {
         </VStack>
 
         <VStack gap="2" className="flex-1">
-          <Text variant="small" className="text-muted-foreground">{t('routes.apps.trunk.dest', 'Назначение')}</Text>
           <Input
-            placeholder="${EXTEN}"
+            placeholder={t('routes.apps.trunk.dest', 'Назначение')}
             value={action.params?.dest || ''}
             onChange={(e) => onUpdate(action.id, 'params.dest', e.target.value)}
           />
@@ -44,9 +42,8 @@ export const TrunkApp: React.FC<IDialplanAppProps> = ({ action, onUpdate }) => {
 
       <HStack gap="2" className="w-full">
         <VStack gap="2" className="w-24">
-          <Text variant="small" className="text-muted-foreground">{t('routes.apps.trunk.timeout', 'Таймаут')}</Text>
           <Input
-            placeholder="60"
+            placeholder={t('routes.apps.common.timeout', 'Таймаут, сек')}
             type="number"
             value={action.params?.timeout || ''}
             onChange={(e) => onUpdate(action.id, 'params.timeout', e.target.value)}
@@ -54,9 +51,8 @@ export const TrunkApp: React.FC<IDialplanAppProps> = ({ action, onUpdate }) => {
         </VStack>
 
         <VStack gap="2" className="flex-1">
-          <Text variant="small" className="text-muted-foreground">{t('routes.apps.trunk.options', 'Опции Dial')}</Text>
           <Input
-            placeholder="tT"
+            placeholder={t('routes.apps.common.options', 'Опции (tThH)')}
             value={action.params?.options || ''}
             onChange={(e) => onUpdate(action.id, 'params.options', e.target.value)}
           />

@@ -1,6 +1,6 @@
-import React, { memo, useCallback } from 'react';
+import { memo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, GripVertical, Trash2 } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -15,136 +15,25 @@ import {
   SortableContext,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
-  useSortable,
 } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
 
-import { Button, Text } from '@/shared/ui';
-import { Select } from '@/shared/ui/Select/Select';
-import { VStack, HStack, Flex } from '@/shared/ui/Stack';
+import { Button } from '@/shared/ui';
+import { VStack } from '@/shared/ui/Stack';
 import { type IRouteAction, type ActionType } from '@krasterisk/shared';
-import { dialplanAppsRegistry, ACTION_TYPES_LIST } from '../../model/registry';
-import { IDialplanAppConfig } from '../../model/types';
-
-const DIALSTATUS_OPTIONS = [
-  { value: '', labelKey: 'routes.dialstatus.any' },
-  { value: 'CHANUNAVAIL', labelKey: 'routes.dialstatus.chanunavail' },
-  { value: 'BUSY', labelKey: 'routes.dialstatus.busy' },
-  { value: 'NOANSWER', labelKey: 'routes.dialstatus.noanswer' },
-];
+import { dialplanAppsRegistry } from '../../model/registry';
+import { SortableActionItem } from '../SortableActionItem';
 
 /**
- * Pre-computed grouped categories for <optgroup> in the Action Type selector.
- * Computed once at module level since ACTION_TYPES_LIST is static.
- */
-const groupedCategories: Record<string, IDialplanAppConfig[]> = (() => {
-  const groups: Record<string, IDialplanAppConfig[]> = {};
-  ACTION_TYPES_LIST.forEach((item) => {
-    const cat = item.category || 'other';
-    if (!groups[cat]) groups[cat] = [];
-    groups[cat].push(item);
-  });
-  return groups;
-})();
-
-/**
- * Sortable Item
- */
-const SortableActionItem = memo(({
-  action, idx, updateAction, removeAction, t, AppConfig,
-}: {
-  action: IRouteAction;
-  idx: number;
-  updateAction: (id: string, field: string, value: any) => void;
-  removeAction: (id: string) => void;
-  t: ReturnType<typeof useTranslation>['t'];
-  AppConfig: IDialplanAppConfig;
-}) => {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: action.id });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    zIndex: isDragging ? 10 : 1,
-    opacity: isDragging ? 0.8 : 1,
-  };
-
-  const AppComponent = AppConfig.component;
-
-  return (
-    <Flex ref={setNodeRef} style={style} direction="row" align="start" gap="12"
-      className={`w-full p-4 bg-black/20 border ${isDragging ? 'border-primary' : 'border-white/10'} rounded-xl backdrop-blur-md transition-colors`}
-    >
-      {/* Grab Handle */}
-      <VStack gap="2" align="center" className="w-[30px] opacity-70">
-        <Flex {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-white/40 hover:text-white transition-colors p-1">
-          <GripVertical className="w-5 h-5" />
-        </Flex>
-        <Text variant="muted">{idx + 1}</Text>
-      </VStack>
-
-      {/* Type Selector */}
-      <VStack gap="2" className="w-[200px] shrink-0">
-        <Text variant="muted">{t('routes.actionType', 'Действие')}</Text>
-        <Select
-          value={action.type}
-          onChange={(e) => updateAction(action.id, 'type', e.target.value)}
-          className="w-full"
-        >
-          {Object.entries(groupedCategories).map(([category, items]) => (
-            <optgroup key={category} label={t(`routes.categories.${category}`, category.toUpperCase())}>
-              {items.map(at => (
-                <option key={at.type} value={at.type}>{t(at.labelKey, at.type)}</option>
-              ))}
-            </optgroup>
-          ))}
-        </Select>
-      </VStack>
-
-      {/* App Payload */}
-      <VStack gap="2" className="flex-1">
-        <Text variant="muted">{t('routes.actionParams', 'Параметры')}</Text>
-        <AppComponent action={action} onUpdate={updateAction} />
-      </VStack>
-
-      {/* Condition Filters */}
-      <VStack gap="2" className="w-[150px] shrink-0">
-        <Text variant="muted">{t('routes.condition', 'Условие')}</Text>
-        <Select
-          value={action.condition?.dialstatus || ''}
-          onChange={(e) => updateAction(action.id, 'condition.dialstatus', e.target.value)}
-          className="w-full"
-        >
-          {DIALSTATUS_OPTIONS.map(opt => (
-            <option key={opt.value} value={opt.value}>{t(opt.labelKey, opt.value || 'Любой')}</option>
-          ))}
-        </Select>
-      </VStack>
-
-      {/* Remove Action */}
-      <Button
-        variant="ghost"
-        size="icon"
-        className="mt-6 text-destructive hover:text-destructive/80 hover:bg-destructive/10 shrink-0"
-        onClick={() => removeAction(action.id)}
-        title={t('common.delete', 'Удалить')}
-      >
-        <Trash2 className="w-4 h-4" />
-      </Button>
-    </Flex>
-  );
-});
-SortableActionItem.displayName = 'SortableActionItem';
-
-/**
- * Main Editor
+ * Dialplan Actions Editor.
+ *
+ * Slim orchestrator that composes:
+ * - SortableActionItem (per action row)
+ * - DnD context for drag-and-drop reordering
+ *
+ * Business logic (add/remove/update/reorder) is handled here.
+ * All sub-components are extracted to individual FSD-compliant files.
+ *
+ * @layer features/dialplan-apps
  */
 interface DialplanAppsEditorProps {
   actions: IRouteAction[];
@@ -164,9 +53,9 @@ export const DialplanAppsEditor = memo(({ actions, onChange }: DialplanAppsEdito
   const addAction = useCallback(() => {
     const newAction: IRouteAction = {
       id: `a_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-      type: 'hangup',
+      type: '' as ActionType,
       params: {},
-      condition: { dialstatus: '', calendar: '' },
+      condition: { dialstatus: '' },
     };
     onChange([...actions, newAction]);
   }, [actions, onChange]);
@@ -204,14 +93,14 @@ export const DialplanAppsEditor = memo(({ actions, onChange }: DialplanAppsEdito
   };
 
   return (
-    <VStack gap="12" className="w-full">
+    <VStack gap="12" className="w-full min-w-0 overflow-x-auto">
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
         onDragEnd={handleDragEnd}
       >
         <SortableContext items={actions.map(a => a.id)} strategy={verticalListSortingStrategy}>
-          <VStack gap="12" className="w-full">
+          <VStack gap="12" className="w-full min-w-0">
             {actions.map((action, idx) => {
               const AppConfig = dialplanAppsRegistry[action.type] || dialplanAppsRegistry.hangup;
               return (
@@ -219,7 +108,6 @@ export const DialplanAppsEditor = memo(({ actions, onChange }: DialplanAppsEdito
                   key={action.id}
                   action={action}
                   idx={idx}
-                  t={t}
                   AppConfig={AppConfig}
                   updateAction={updateAction}
                   removeAction={removeAction}

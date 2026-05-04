@@ -30,7 +30,7 @@ const DialogOverlay = React.forwardRef<
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
 const dialogContentVariants = cva(
-  'fixed left-[50%] top-[50%] layer-modal w-full translate-x-[-50%] translate-y-[-50%] gap-4 border border-border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg',
+  'fixed left-[50%] top-[50%] layer-modal w-full translate-x-[-50%] translate-y-[-50%] gap-4 border border-border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg max-sm:max-h-[95dvh] max-sm:max-w-[calc(100vw-1rem)] max-sm:p-4 max-sm:rounded-lg',
   {
     variants: {
       size: {
@@ -38,7 +38,7 @@ const dialogContentVariants = cva(
         xl: 'grid max-w-xl max-h-[90vh] overflow-y-auto',
         '2xl': 'grid max-w-2xl max-h-[90vh] overflow-y-auto',
         '3xl': 'grid max-w-3xl max-h-[90vh] overflow-y-auto',
-        large: 'flex flex-col max-w-4xl h-[85vh] min-h-[600px] overflow-hidden',
+        large: 'flex flex-col max-w-4xl h-[85vh] min-h-0 overflow-hidden max-sm:h-[90dvh]',
       },
     },
     defaultVariants: {

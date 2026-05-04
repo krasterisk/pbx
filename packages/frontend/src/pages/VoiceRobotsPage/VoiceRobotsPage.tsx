@@ -29,6 +29,18 @@ const VoiceRobotsPage = memo(() => {
     }
   }, [deleteRobot, t]);
 
+  const handleCopy = useCallback((robot: IVoiceRobot) => {
+    navigate('/voice-robots/create', {
+      state: {
+        copyFrom: {
+          ...robot,
+          uid: undefined,
+          name: `${robot.name} (${t('common.copy', 'копия')})`,
+        },
+      },
+    });
+  }, [navigate, t]);
+
   return (
     <VStack gap="24" max className="flex-1">
       <Flex justify="between" align="center" className="px-2">
@@ -62,6 +74,7 @@ const VoiceRobotsPage = memo(() => {
             data={robots}
             isLoading={isLoading}
             onEdit={handleEdit}
+            onCopy={handleCopy}
             onDelete={handleDelete}
           />
         </CardContent>

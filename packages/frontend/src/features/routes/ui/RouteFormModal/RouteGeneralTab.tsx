@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Input, Select, Checkbox, Label, Text } from '@/shared/ui';
 import { VStack, HStack } from '@/shared/ui/Stack';
 import { ExtensionChips } from '../ExtensionChips/ExtensionChips';
+import { PhonebookSelect } from '@/features/phonebooks';
 import styles from './RouteFormModal.module.scss';
 
 export interface RouteGeneralTabProps {
@@ -18,10 +19,8 @@ export interface RouteGeneralTabProps {
   setRecord: (v: boolean) => void;
   recordAll: boolean;
   setRecordAll: (v: boolean) => void;
-  checkBlacklist: boolean;
-  setCheckBlacklist: (v: boolean) => void;
-  checkListbook: boolean;
-  setCheckListbook: (v: boolean) => void;
+  phonebookUids: number[];
+  setPhonebookUids: (v: number[]) => void;
   preCommand: string;
   setPreCommand: (v: string) => void;
 }
@@ -30,7 +29,7 @@ export const RouteGeneralTab = memo((props: RouteGeneralTabProps) => {
   const {
     name, setName, extensions, setExtensions, active, setActive,
     routeType, setRouteType, record, setRecord, recordAll, setRecordAll,
-    checkBlacklist, setCheckBlacklist, checkListbook, setCheckListbook,
+    phonebookUids, setPhonebookUids,
     preCommand, setPreCommand
   } = props;
   
@@ -89,17 +88,13 @@ export const RouteGeneralTab = memo((props: RouteGeneralTabProps) => {
           <Label className="cursor-pointer" htmlFor="route-recordAll">{t('routes.recordAll', 'Запись без соединения')}</Label>
           <Checkbox checked={recordAll} onChange={(e) => setRecordAll(e.target.checked)} id="route-recordAll" />
         </HStack>
-
-        <HStack align="center" justify="between" className="border border-border p-3 rounded bg-background w-full">
-          <Label className="cursor-pointer" htmlFor="route-checkBlacklist">{t('routes.checkBlacklist', 'Проверять Blacklist')}</Label>
-          <Checkbox checked={checkBlacklist} onChange={(e) => setCheckBlacklist(e.target.checked)} id="route-checkBlacklist" />
-        </HStack>
-
-        <HStack align="center" justify="between" className="border border-border p-3 rounded bg-background w-full">
-          <Label className="cursor-pointer" htmlFor="route-checkListbook">{t('routes.checkListbook', 'Имя из справочника')}</Label>
-          <Checkbox checked={checkListbook} onChange={(e) => setCheckListbook(e.target.checked)} id="route-checkListbook" />
-        </HStack>
       </VStack>
+
+      {/* Phonebook Select — replaces old checkBlacklist checkbox */}
+      <PhonebookSelect
+        value={phonebookUids}
+        onChange={setPhonebookUids}
+      />
 
       <VStack gap="4">
         <Label htmlFor="route-precmd">{t('routes.preCommand', 'Предварительная команда')}</Label>

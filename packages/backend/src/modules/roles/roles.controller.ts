@@ -25,7 +25,7 @@ export class RolesController {
 
   @Post()
   async create(@Body() data: any, @Req() req: any) {
-    data.vpbx_user_uid = req.user.vpbx_user_uid;
+    data.user_uid = req.user.vpbx_user_uid;
     const role = await this.rolesService.create(data);
     await this.loggerService.logAction(req.user.sub, 'create', 'role', role.id, req.user.vpbx_user_uid);
     return role;

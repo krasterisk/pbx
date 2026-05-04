@@ -7,6 +7,7 @@ const mockRoute = { uid: 1, context_id: 1, exten: '100', priority: 1, app: 'Dial
 describe('routesSlice', () => {
   const initialState: RoutesSchema = {
     isModalOpen: false,
+    modalMode: 'create',
     selectedRoute: null,
     selectedContextUid: null,
     editorMode: 'table',
@@ -26,5 +27,13 @@ describe('routesSlice', () => {
     const state = routesReducer(initialState, routesActions.openEditModal(mockRoute));
     expect(state.isModalOpen).toBe(true);
     expect(state.selectedRoute).toEqual(mockRoute);
+    expect(state.modalMode).toBe('edit');
+  });
+
+  it('should handle openCopyModal', () => {
+    const state = routesReducer(initialState, routesActions.openCopyModal(mockRoute));
+    expect(state.isModalOpen).toBe(true);
+    expect(state.selectedRoute).toEqual(mockRoute);
+    expect(state.modalMode).toBe('copy');
   });
 });

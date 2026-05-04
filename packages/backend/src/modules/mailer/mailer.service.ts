@@ -2,6 +2,12 @@ import { Injectable, Logger } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
 import { ConfigService } from '@nestjs/config';
 
+export interface SendNotificationDto {
+  to: string;
+  subject?: string;
+  text?: string;
+}
+
 @Injectable()
 export class MailerService {
   private transporter: nodemailer.Transporter;
@@ -38,4 +44,27 @@ export class MailerService {
       return { success: false, error: e };
     }
   }
+
+  /**
+   * Send a notification email triggered by Asterisk dialplan.
+   * Called via the internal dialplan webhook endpoint.
+   */
+  async sendNotification(dto: SendNotificationDto): Promise<{ success: boolean }> {
+    const { to, subject, text } = dto;
+
+    try {
+      await this.transporter.sendMail({
+        from: this.configService.get<string>('SMTP_USER'),
+        to,
+        subject: subject || 'Krasterisk — Уведомление о звонке',
+        text: text || '',
+      });
+      this.logger.log(`📧 Notification sent to ${to}`);
+      return { success: true };
+    } catch (e) {
+      this.logger.error(`Failed to send notification to ${to}`, e);
+      return { success: false };
+    }
+  }
 }
+

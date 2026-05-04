@@ -25,7 +25,7 @@ export class NumbersController {
 
   @Post()
   async create(@Body() data: any, @Req() req: any) {
-    data.vpbx_user_uid = req.user.vpbx_user_uid;
+    data.user_uid = req.user.vpbx_user_uid;
     const item = await this.numbersService.create(data);
     await this.loggerService.logAction(req.user.sub, 'create', 'number', item.id, req.user.vpbx_user_uid);
     return item;

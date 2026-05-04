@@ -21,6 +21,8 @@ import { VoiceRobotsModule } from './modules/voice-robots/voice-robots.module';
 import { AriModule } from './modules/ari/ari.module';
 import { QueuesModule } from './modules/queues/queues.module';
 import { ServiceRequestsModule } from './modules/service-requests/service-requests.module';
+import { TimeGroupsModule } from './modules/time-groups/time-groups.module';
+import { PhonebooksModule } from './modules/phonebooks/phonebooks.module';
 import { SmsModule } from './modules/sms/sms.module';
 import { Queue } from './modules/queues/queue.model';
 import { QueueMember } from './modules/queues/queue-member.model';
@@ -57,6 +59,9 @@ import { VoiceRobotLog } from './modules/voice-robots/voice-robot-log.model';
 import { VoiceRobotCdr } from './modules/voice-robots/voice-robot-cdr.model';
 import { VoiceRobotDataList } from './modules/voice-robots/data-list.model';
 import { ServiceRequest } from './modules/service-requests/service-request.model';
+import { TimeGroup } from './modules/time-groups/time-group.model';
+import { RoutePhonebook } from './modules/phonebooks/phonebook.model';
+import { PhonebookEntry } from './modules/phonebooks/phonebook-entry.model';
 import { CcSubject } from './modules/service-requests/cc-subject.model';
 import { CcDistrict } from './modules/service-requests/cc-district.model';
 import * as path from 'path';
@@ -84,6 +89,8 @@ import * as path from 'path';
         SystemSetting, VoiceRobot, VoiceRobotKeywordGroup, VoiceRobotKeyword, VoiceRobotLog, VoiceRobotCdr, VoiceRobotDataList,
         Queue, QueueMember,
         ServiceRequest, CcSubject, CcDistrict,
+        TimeGroup,
+        RoutePhonebook, PhonebookEntry,
       ],
       autoLoadModels: false,
       synchronize: false, // IMPORTANT: never auto-sync with existing DB
@@ -116,6 +123,8 @@ import * as path from 'path';
     QueuesModule,
     ServiceRequestsModule,
     SmsModule,
+    TimeGroupsModule,
+    PhonebooksModule,
     LoggerModule,
     MailerModule,
     TelegramModule,

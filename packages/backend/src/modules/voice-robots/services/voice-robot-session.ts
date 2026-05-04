@@ -1715,55 +1715,64 @@ export class VoiceRobotSession {
           this.logger.error(`[TTS] Error: ${e.message}`);
         }
       } finally {
+        const wasBargeIn = !this.pipelineAbort || this.pipelineAbort.signal.aborted;
         this.isBotSpeaking = false;
         this.pipelineAbort = null;
 
-        // Check if STT captured user speech during TTS (not just echo).
-        // Compare captured words against TTS text: if most words DON'T appear
-        // in the TTS, it's likely the user answering (e.g. "нет другой адрес"
-        // while bot says "Вы ранее обращались по адресу...").
-        const capturedText = (this.sttStreamPartialText || this.sttStreamFinalText).trim();
-        const ttsText = (response.value || '').toLowerCase();
-        let preservedUserSpeech = '';
+        if (wasBargeIn) {
+          // ─── BARGE-IN PATH ───
+          // User interrupted TTS — the OLD STT stream likely has the user's
+          // speech in its pipeline (e.g. Yandex Final "нет" pending delivery).
+          // DON'T close the old stream — let it deliver Final/EOU naturally.
+          // Since isBotSpeaking is now false, the EOU handler will process it.
+          this.logger.debug('[TTS] Barge-in — keeping STT stream for pending user speech');
+          // Only clear partial text to avoid echo, but preserve any Final
+          // that may have already arrived
+          this.sttStreamPartialText = '';
 
-        if (capturedText && capturedText.length > 1) {
-          const capturedWords = capturedText.toLowerCase().split(/\s+/).filter(w => w.length > 1);
-          const ttsWords = new Set(ttsText.split(/\s+/).filter(w => w.length > 1));
-          const matchCount = capturedWords.filter(w => ttsWords.has(w)).length;
-          const isLikelyEcho = capturedWords.length > 0 && matchCount > capturedWords.length * 0.5;
+        } else {
+          // ─── NORMAL TTS END PATH ───
+          // Check if STT captured user speech during TTS (not just echo).
+          const capturedText = (this.sttStreamPartialText || this.sttStreamFinalText).trim();
+          const ttsText = (response.value || '').toLowerCase();
+          let preservedUserSpeech = '';
 
-          if (!isLikelyEcho) {
-            preservedUserSpeech = capturedText;
-            this.logger.log(`[TTS] Detected user speech during TTS: "${capturedText}"`);
+          if (capturedText && capturedText.length > 1) {
+            const capturedWords = capturedText.toLowerCase().split(/\s+/).filter(w => w.length > 1);
+            const ttsWords = new Set(ttsText.split(/\s+/).filter(w => w.length > 1));
+            const matchCount = capturedWords.filter(w => ttsWords.has(w)).length;
+            const isLikelyEcho = capturedWords.length > 0 && matchCount > capturedWords.length * 0.5;
+
+            if (!isLikelyEcho) {
+              preservedUserSpeech = capturedText;
+              this.logger.log(`[TTS] Detected user speech during TTS: "${capturedText}"`);
+            }
           }
-        }
 
-        // Clear STT buffers (echo or already preserved above)
-        this.sttStreamFinalText = '';
-        this.sttStreamPartialText = '';
+          // Clear STT buffers (echo or already preserved above)
+          this.sttStreamFinalText = '';
+          this.sttStreamPartialText = '';
 
-        // Close current STT stream to discard echo-contaminated recognition session.
-        // Recreate immediately with guard to avoid duplicates.
-        if (this.sttStream) {
-          try { this.sttStream.end(); } catch {}
-          this.sttStream = null;
-        }
-        if (!this.cleanedUp) {
-          this.initStreamingStt();
-        }
+          // Close echo-contaminated stream, recreate fresh
+          if (this.sttStream) {
+            try { this.sttStream.end(); } catch {}
+            this.sttStream = null;
+          }
+          if (!this.cleanedUp) {
+            this.initStreamingStt();
+          }
 
-        // If we detected user speech during TTS, schedule processing after
-        // the current call stack completes (so continue_dialogue has time
-        // to set up slot filling state first).
-        if (preservedUserSpeech && !this.cleanedUp) {
-          const textToProcess = preservedUserSpeech;
-          setTimeout(() => {
-            if (this.cleanedUp) return;
-            this.logger.log(`[TTS] Processing preserved user speech: "${textToProcess}"`);
-            this.handleStreamingSttResult(textToProcess).catch((err) => {
-              this.logger.warn(`[TTS] Failed to process preserved speech: ${err.message}`);
-            });
-          }, 100);
+          // If we detected user speech during TTS, schedule processing
+          if (preservedUserSpeech && !this.cleanedUp) {
+            const textToProcess = preservedUserSpeech;
+            setTimeout(() => {
+              if (this.cleanedUp) return;
+              this.logger.log(`[TTS] Processing preserved user speech: "${textToProcess}"`);
+              this.handleStreamingSttResult(textToProcess).catch((err) => {
+                this.logger.warn(`[TTS] Failed to process preserved speech: ${err.message}`);
+              });
+            }, 100);
+          }
         }
 
         // Start inactivity timer after bot finishes speaking

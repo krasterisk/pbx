@@ -1,11 +1,11 @@
 export type ActionType =
   | 'totrunk' | 'toexten' | 'toqueue' | 'togroup' | 'tolist'
   | 'toivr' | 'toroute' | 'playprompt' | 'playback'
-  | 'setclid_custom' | 'setclid_list'
+  | 'setclid_custom' | 'setclid_list' | 'set_callerid_name'
   | 'sendmail' | 'sendmailpeer' | 'telegram'
   | 'voicemail' | 'text2speech' | 'voicerobot' | 'asr' | 'keywords'
   | 'webhook' | 'confbridge' | 'cmd' | 'tofax'
-  | 'label' | 'busy' | 'hangup';
+  | 'label' | 'busy' | 'hangup' | 'redirect_to_bound';
 
 /** Asterisk DIALSTATUS values — used as condition whitelist */
 export type DialStatus =
@@ -16,7 +16,10 @@ export type DialStatus =
 export type ActionCategory = 'telephony' | 'media' | 'notification' | 'system';
 
 export interface IRouteActionCondition {
-  dialstatus?: DialStatus | '';
+  /** Single status or array of statuses (OR logic). Empty/undefined = any status. */
+  dialstatus?: DialStatus | DialStatus[] | '';
+  time_group_uid?: number;
+  /** @deprecated Use time_group_uid instead */
   calendar?: string;
 }
 
@@ -172,12 +175,17 @@ export interface IRouteAction {
 export interface IRouteOptions {
   record?: boolean;
   record_all?: boolean;
+  /** @deprecated Use phonebook_uids instead. Will be auto-migrated. */
   check_blacklist?: boolean;
   check_whitelist?: number;
+  /** @deprecated Use phonebook action set_callerid_name instead */
   check_listbook?: boolean;
+  /** @deprecated Use phonebook action redirect_to_bound instead */
   check_dialto?: boolean;
   pre_command?: string;
   route_type?: number; // outbound type (1-5)
+  /** Array of phonebook UIDs to check CallerID against (cascading Gosub) */
+  phonebook_uids?: number[];
 }
 
 export interface IRouteWebhooks {

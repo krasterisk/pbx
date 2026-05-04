@@ -15,7 +15,6 @@ export const ExtenApp: React.FC<IDialplanAppProps> = ({ action, onUpdate }) => {
     <VStack gap="2" className="w-full">
       <HStack gap="2" className="w-full">
         <VStack gap="2" className="flex-1">
-          <Text variant="small" className="text-muted-foreground">{t('routes.apps.exten.select', 'Абонент')}</Text>
           {isError ? (
             <Text variant="small" className="text-destructive">{t('common.loadError', 'Ошибка загрузки')}</Text>
           ) : (
@@ -24,7 +23,7 @@ export const ExtenApp: React.FC<IDialplanAppProps> = ({ action, onUpdate }) => {
               onChange={(e) => onUpdate(action.id, 'params.exten', e.target.value)}
               disabled={isLoading}
             >
-              <option value="" disabled>---</option>
+              <option value="" disabled>{t('routes.apps.exten.select', 'Абонент')}</option>
               {endpoints.map(ep => (
                 <option key={ep.id} value={ep.extension}>
                   {ep.extension} {ep.callerid ? `(${ep.callerid})` : ''}
@@ -37,9 +36,8 @@ export const ExtenApp: React.FC<IDialplanAppProps> = ({ action, onUpdate }) => {
 
       <HStack gap="2" className="w-full">
         <VStack gap="2" className="w-24">
-          <Text variant="small" className="text-muted-foreground">{t('routes.apps.exten.timeout', 'Таймаут')}</Text>
           <Input
-            placeholder="30"
+            placeholder={t('routes.apps.common.timeout', 'Таймаут, сек')}
             type="number"
             value={action.params?.timeout || ''}
             onChange={(e) => onUpdate(action.id, 'params.timeout', e.target.value)}
@@ -47,9 +45,8 @@ export const ExtenApp: React.FC<IDialplanAppProps> = ({ action, onUpdate }) => {
         </VStack>
 
         <VStack gap="2" className="flex-1">
-          <Text variant="small" className="text-muted-foreground">{t('routes.apps.exten.options', 'Опции Dial')}</Text>
           <Input
-            placeholder="tThH"
+            placeholder={t('routes.apps.common.options', 'Опции (tThH)')}
             value={action.params?.options || ''}
             onChange={(e) => onUpdate(action.id, 'params.options', e.target.value)}
           />

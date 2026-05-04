@@ -50,7 +50,7 @@ export const QueueFormModal = () => {
   const mode = useAppSelector(selectQueuesModalMode);
   const selectedName = useAppSelector(selectQueuesSelectedName);
 
-  const { data: queueData, isFetching } = useGetQueueQuery(selectedName!, { skip: !selectedName || mode !== 'edit' });
+  const { data: queueData, isFetching } = useGetQueueQuery(selectedName!, { skip: !selectedName || mode === 'create' });
   const [createQueue, { isLoading: isCreating }] = useCreateQueueMutation();
   const [updateQueue, { isLoading: isUpdating }] = useUpdateQueueMutation();
   const { data: contexts = [] } = useGetContextsQuery();
@@ -132,12 +132,12 @@ export const QueueFormModal = () => {
 
   // Reset form
   useEffect(() => {
-    if (!isOpen) return;
+    if (mode === 'create') return;
     setActiveTab('general');
 
-    if (mode === 'edit' && queueData) {
-      setExten(queueData.exten || queueData.name || '');
-      setDisplayName(queueData.display_name || '');
+    if ((mode === 'edit' || mode === 'copy') && queueData) {
+      setExten(mode === 'copy' ? '' : (queueData.exten || queueData.name || ''));
+      setDisplayName(mode === 'copy' ? `${queueData.display_name || ''} (${t('common.copy', 'копия')})` : (queueData.display_name || ''));
       setStrategy(queueData.strategy || 'ringall');
       setTimeout(String(queueData.timeout ?? 30));
       setRetry(String(queueData.retry ?? 5));
@@ -294,8 +294,10 @@ export const QueueFormModal = () => {
       advanced: advancedState,
     };
 
+    const isCreateMode = mode === 'create' || mode === 'copy';
+
     try {
-      if (mode === 'create') await createQueue(dto).unwrap();
+      if (isCreateMode) await createQueue(dto).unwrap();
       else await updateQueue({ name: queueData?.name || '', data: dto }).unwrap();
       handleClose();
     } catch (e: any) {
@@ -391,7 +393,11 @@ export const QueueFormModal = () => {
         <Dialog.Content className="fixed top-[5%] left-1/2 -translate-x-1/2 w-full max-w-2xl bg-card text-card-foreground border border-border rounded-2xl p-6 z-50 shadow-2xl max-h-[90vh] overflow-y-auto flex flex-col">
           <HStack justify="between" align="center" className="mb-4 shrink-0">
             <Dialog.Title className="text-xl font-bold">
-              {mode === 'create' ? t('queues.createQueue') : t('queues.editQueue')}
+              {mode === 'edit'
+                ? t('queues.editQueue')
+                : mode === 'copy'
+                  ? t('queues.copyQueue', 'Копировать очередь')
+                  : t('queues.createQueue')}
             </Dialog.Title>
             <Dialog.Close asChild>
               <button className="text-muted-foreground hover:text-foreground transition-colors">

@@ -15,7 +15,7 @@ export const QueueApp: React.FC<IDialplanAppProps> = ({ action, onUpdate }) => {
     <VStack gap="2" className="w-full">
       <HStack gap="2" className="w-full">
         <VStack gap="2" className="flex-1">
-          <Text variant="small" className="text-muted-foreground">{t('routes.apps.queue.exten', 'Очередь')}</Text>
+
           <Select
             value={action.params?.queue || ''}
             onChange={(e) => onUpdate(action.id, 'params.queue', e.target.value)}
@@ -30,9 +30,9 @@ export const QueueApp: React.FC<IDialplanAppProps> = ({ action, onUpdate }) => {
         </VStack>
 
         <VStack gap="2" className="w-24">
-          <Text variant="small" className="text-muted-foreground">{t('routes.apps.queue.timeout', 'Таймаут')}</Text>
+
           <Input
-            placeholder=""
+            placeholder={t('routes.apps.common.timeout', 'Таймаут, сек')}
             type="number"
             value={action.params?.timeout || ''}
             onChange={(e) => onUpdate(action.id, 'params.timeout', e.target.value)}
@@ -42,9 +42,9 @@ export const QueueApp: React.FC<IDialplanAppProps> = ({ action, onUpdate }) => {
 
       <HStack gap="2" className="w-full">
         <VStack gap="2" className="flex-1">
-          <Text variant="small" className="text-muted-foreground">{t('routes.apps.queue.options', 'Опции Dial')}</Text>
+
           <Input
-            placeholder="thH"
+            placeholder={t('routes.apps.common.options', 'Опции (tThH)')}
             value={action.params?.options || ''}
             onChange={(e) => onUpdate(action.id, 'params.options', e.target.value)}
           />

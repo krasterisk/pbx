@@ -21,6 +21,11 @@ export const queuesPageSlice = createSlice({
       state.modalMode = 'edit';
       state.selectedQueueName = action.payload;
     },
+    openCopyModal(state, action: PayloadAction<string>) {
+      state.isModalOpen = true;
+      state.modalMode = 'copy';
+      state.selectedQueueName = action.payload;
+    },
     closeModal(state) {
       state.isModalOpen = false;
       state.selectedQueueName = null;

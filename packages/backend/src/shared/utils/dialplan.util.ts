@@ -9,6 +9,21 @@ const VALID_DIALSTATUSES = [
 
 export class AsteriskDialplanUtils {
   /**
+   * Base URL of the Krasterisk backend API **as seen from Asterisk**.
+   * Configured via DIALPLAN_BACKEND_URL env variable.
+   * Must be reachable from the Asterisk server (may differ from localhost).
+   *
+   * Examples:
+   *   - Same server:  http://127.0.0.1:5010/api
+   *   - Remote:       https://pbx-backend.example.com/api
+   */
+  static backendBaseUrl =
+    process.env.DIALPLAN_BACKEND_URL
+    || `http://127.0.0.1:${process.env.BACKEND_PORT || 5010}/api`;
+
+  /** API key for internal dialplan requests (matches DIALPLAN_API_KEY env) */
+  static dialplanApiKey = process.env.DIALPLAN_API_KEY || '';
+  /**
    * Sanitize input to prevent OS shell injection.
    * Strips: ; | & $ ` \ " ' \n \r
    * Use for params that end up inside System() / SHELL() calls.
@@ -39,6 +54,32 @@ export class AsteriskDialplanUtils {
       .replace(/\.\./g, '')    // remove directory traversal
       .replace(/[\/\\]/g, '')  // remove path separators
       .replace(/\0/g, '')      // remove null bytes
+      .trim();
+  }
+
+  /**
+   * Sanitize template text that may contain ${VAR} Asterisk channel variables.
+   * Used for sendmail subject/text where users can embed dialplan variables.
+   *
+   * Allows:  ${CALLERID(num)}, ${EXTEN}, ${STRFTIME(...)}, ${CDR(...)}, etc.
+   * Blocks:  ${SHELL(...)}, ${SYSTEM(...)}, ${AGI(...)}, TrySystem(...)
+   * Strips:  \n, \r (prevent dialplan line injection)
+   *          ;  (prevent dialplan comment injection)
+   *          \  (prevent escape sequences)
+   */
+  static sanitizeTemplate(input?: string): string {
+    if (!input) return '';
+    return input
+      // 1. Strip newlines — each Set() must be a single dialplan line
+      .replace(/[\n\r]/g, ' ')
+      // 2. Strip semicolons — prevent dialplan comments that truncate the line
+      .replace(/;/g, '')
+      // 3. Strip backslashes — prevent escape sequences
+      .replace(/\\/g, '')
+      // 4. Block dangerous Asterisk functions that execute OS commands
+      //    Matches ${SHELL(...)}, ${SYSTEM(...)}, ${AGI(...)}, ${TrySystem(...)}
+      //    Case-insensitive to catch ${ SHELL(...) } etc.
+      .replace(/\$\{\s*(SHELL|SYSTEM|AGI|TrySystem)\s*\(/gi, '${BLOCKED_')
       .trim();
   }
 
@@ -142,9 +183,31 @@ export class AsteriskDialplanUtils {
         dp = `${wrapper}ExecIf($["\${SHELL(/usr/scripts/exten_setclid.php "${listUid}" "\${CLIDNUM}")}" != ""]?Set(CALLERID(num)=\${SHELL(/usr/scripts/exten_setclid.php "${listUid}" "\${CLIDNUM}")}))${closing}`;
         break;
       }
-      case 'sendmail':
-        dp = `${wrapper}System(/usr/scripts/sendmail.php "${this.sanitizeShellInput(params.email)}" "${this.sanitizeShellInput(params.text)}" "\${CALLERID(num)}" "\${EXTEN}" "\${UNIQUEID}" "${vpbxUserUid}")${closing}`;
+      case 'sendmail': {
+        // Multi-line approach:
+        // 1) Set channel vars — Asterisk resolves ${CALLERID(num)}, ${EXTEN}, etc. at call time
+        // 2) CURL() with ${URIENCODE()} for runtime percent-encoding (handles Cyrillic)
+        //
+        // User can use any Asterisk channel variable in subject/text, e.g.:
+        //   "Звонок от ${CALLERID(num)} на ${EXTEN}"
+        //
+        // sanitizeTemplate() blocks dangerous functions (SHELL, SYSTEM, AGI)
+        // and strips newlines to prevent dialplan injection.
+        const email = this.sanitizeTemplate(params.email);
+        const subject = this.sanitizeTemplate(params.subject);
+        const text = this.sanitizeTemplate(params.text);
+        const url = `${this.backendBaseUrl}/internal/dialplan/sendmail`;
+        const keyParam = this.dialplanApiKey ? `&api_key=${encodeURIComponent(this.dialplanApiKey)}` : '';
+
+        const lines = [
+          `${wrapper}Set(__KMAIL_TO=${email})${closing}`,
+          `Set(__KMAIL_SUBJ=${subject})`,
+          `Set(__KMAIL_TEXT=${text})`,
+          `Set(MAIL_RESULT=\${CURL(${url},to=\${URIENCODE(\${KMAIL_TO})}&subject=\${URIENCODE(\${KMAIL_SUBJ})}&text=\${URIENCODE(\${KMAIL_TEXT})}${keyParam})})`,
+        ];
+        dp = lines.join('\nsame => n,');
         break;
+      }
       case 'sendmailpeer':
         dp = `${wrapper}System(/usr/scripts/sendmailpeer.php "${this.sanitizeShellInput(params.exten)}" "${this.sanitizeShellInput(params.text)}" "\${CALLERID(num)}" "\${EXTEN}" "\${UNIQUEID}" "${vpbxUserUid}")${closing}`;
         break;

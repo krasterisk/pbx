@@ -97,8 +97,6 @@ export {
   useBulkDeleteRoutesMutation,
   useDuplicateRouteMutation,
   useReorderRoutesMutation,
-  useLazyPreviewDialplanQuery,
-  useApplyDialplanMutation,
 } from './endpoints/routeApi';
 
 export type {

@@ -22,8 +22,8 @@ export class ActionLog extends Model {
   @Column({ type: DataType.TEXT, allowNull: true })
   declare details: string;
 
-  @Column({ type: DataType.INTEGER, allowNull: false })
-  declare vpbx_user_uid: number;
+  @Column({ type: DataType.INTEGER, allowNull: false, field: 'vpbx_user_uid' })
+  declare user_uid: number;
 
   @Column({ type: DataType.DATE, defaultValue: DataType.NOW })
   declare created_at: Date;

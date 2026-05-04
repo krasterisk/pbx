@@ -52,6 +52,6 @@ export interface IQueueFull extends IQueue {
 
 export interface QueuesPageSchema {
   isModalOpen: boolean;
-  modalMode: 'create' | 'edit';
+  modalMode: 'create' | 'edit' | 'copy';
   selectedQueueName: string | null;
 }

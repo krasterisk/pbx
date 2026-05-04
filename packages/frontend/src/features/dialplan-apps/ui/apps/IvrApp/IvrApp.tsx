@@ -14,7 +14,6 @@ export const IvrApp: React.FC<IDialplanAppProps> = ({ action, onUpdate }) => {
     <VStack gap="2" className="w-full">
       <HStack gap="2" className="w-full">
         <VStack gap="2" className="flex-1">
-          <Text variant="small" className="text-muted-foreground">{t('routes.apps.ivr.select', 'IVR меню')}</Text>
           {isError ? (
             <Text variant="small" className="text-destructive">{t('common.loadError', 'Ошибка загрузки')}</Text>
           ) : (
@@ -23,7 +22,7 @@ export const IvrApp: React.FC<IDialplanAppProps> = ({ action, onUpdate }) => {
               onChange={(e) => onUpdate(action.id, 'params.ivr_uid', Number(e.target.value))}
               disabled={isLoading}
             >
-              <option value="" disabled>---</option>
+              <option value="" disabled>{t('routes.apps.ivr.select', 'IVR меню')}</option>
               {ivrs.map(ivr => (
                 <option key={ivr.uid} value={ivr.uid}>{ivr.name}</option>
               ))}

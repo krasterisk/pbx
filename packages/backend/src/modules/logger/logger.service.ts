@@ -19,7 +19,7 @@ export class LoggerService {
         action,
         entity_type: entityType,
         entity_id: entityId,
-        vpbx_user_uid: vpbxUserUid,
+        user_uid: vpbxUserUid,
         details: details || null,
       });
 

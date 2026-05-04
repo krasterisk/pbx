@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ColumnDef } from '@tanstack/react-table';
-import { Pencil, Trash2 } from 'lucide-react';
+import { Pencil, Trash2, Copy } from 'lucide-react';
 import { DataTable, HStack, Button } from '@/shared/ui';
 import { useAppDispatch } from '@/shared/hooks/useAppStore';
 import { useGetQueuesQuery, useDeleteQueueMutation } from '@/shared/api/endpoints/queueApi';
@@ -33,6 +33,10 @@ export const QueuesTable = () => {
     if (!window.confirm(t('queues.confirmDelete', { name, defaultValue: `Удалить очередь "${name}"?` }))) return;
     await deleteQueue(name);
   }, [deleteQueue, t]);
+
+  const handleCopy = useCallback((name: string) => {
+    dispatch(queuesPageActions.openCopyModal(name));
+  }, [dispatch]);
 
   const columns: ColumnDef<IQueue>[] = [
     {
@@ -92,22 +96,31 @@ export const QueuesTable = () => {
       size: 80,
       cell: ({ row }) => (
         <HStack gap="4" align="center">
-          <button
-            type="button"
-            className="p-1.5 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => handleEdit(row.original.name)}
             title={t('common.edit')}
           >
             <Pencil className="w-4 h-4" />
-          </button>
-          <button
-            type="button"
-            className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => handleCopy(row.original.name)}
+            title={t('common.copy')}
+          >
+            <Copy className="w-4 h-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => handleDelete(row.original.name)}
             title={t('common.delete')}
+            className="hover:text-destructive"
           >
             <Trash2 className="w-4 h-4" />
-          </button>
+          </Button>
         </HStack>
       ),
     },

@@ -116,7 +116,7 @@ export class Queue extends Model {
   @Column({ type: DataType.STRING(255), allowNull: true })
   declare display_name: string;
 
-  // Tenant isolation
-  @Column({ type: DataType.INTEGER, allowNull: false, defaultValue: 0 })
-  declare vpbx_user_uid: number;
+  // Tenant isolation (DB column: vpbx_user_uid — Asterisk Realtime table)
+  @Column({ type: DataType.INTEGER, allowNull: false, defaultValue: 0, field: 'vpbx_user_uid' })
+  declare user_uid: number;
 }

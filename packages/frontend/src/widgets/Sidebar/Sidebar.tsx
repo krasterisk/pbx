@@ -25,6 +25,8 @@ import {
   Bot,
   Activity,
   ClipboardList,
+  Calendar,
+  BookOpen,
 } from 'lucide-react';
 import { classNames } from '@/shared/lib/classNames/classNames';
 import { VStack, Flex } from '@/shared/ui/Stack';
@@ -49,6 +51,8 @@ export const Sidebar = ({ collapsed, onToggle, isMobile }: SidebarProps) => {
     { name: t('contexts.title', 'Контексты'), path: '/contexts', icon: Network },
     { name: t('nav.trunks'), path: '/trunks', icon: Waypoints },
     { name: t('nav.routes'), path: '/routes', icon: Route },
+    { name: t('nav.timeGroups', 'Временные группы'), path: '/time-groups', icon: Calendar },
+    { name: t('nav.phonebooks', 'Справочники'), path: '/phonebooks', icon: BookOpen },
     { type: 'divider' as const, label: t('nav.apps', 'Приложения') },
     { name: t('nav.voiceRobots', 'Голосовые роботы'), path: '/voice-robots', icon: Bot },
     { name: t('nav.ivrs', 'IVR'), path: '/ivrs', icon: AppWindow },

@@ -1,7 +1,8 @@
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Input } from '@/shared/ui';
-import { HStack } from '@/shared/ui/Stack';
+import { HStack, VStack } from '@/shared/ui/Stack';
+import { InfoTooltip } from '@/shared/ui/Tooltip/Tooltip';
 import { IDialplanAppProps } from '../../../model/types';
 import { Text } from '@/shared/ui/Text/Text';
 
@@ -25,14 +26,7 @@ export const GenericApp = memo(({ action, onUpdate }: IDialplanAppProps) => {
       return (
         <HStack gap="8" className="w-full">
           <Input className="flex-1" value={p.numbers || ''} onChange={(e) => handleUpdate('numbers', e.target.value)} placeholder={t('routes.apps.list.numbers', '100,101,102')} />
-          <Input className="w-[60px]" value={p.timeout || ''} onChange={(e) => handleUpdate('timeout', e.target.value)} placeholder={t('routes.apps.common.sec', 'сек')} />
-        </HStack>
-      );
-    case 'toroute':
-      return (
-        <HStack gap="8" className="w-full">
-          <Input className="w-[120px]" value={p.context || ''} onChange={(e) => handleUpdate('context', e.target.value)} placeholder={t('routes.apps.route.context', 'Контекст')} />
-          <Input className="flex-1" value={p.extension || ''} onChange={(e) => handleUpdate('extension', e.target.value)} placeholder={t('routes.apps.route.extension', 'Правило')} />
+          <Input className="w-[60px]" value={p.timeout || ''} onChange={(e) => handleUpdate('timeout', e.target.value)} placeholder={t('routes.apps.common.timeout', 'Таймаут, сек')} />
         </HStack>
       );
     case 'setclid_custom':
@@ -41,10 +35,16 @@ export const GenericApp = memo(({ action, onUpdate }: IDialplanAppProps) => {
       return <Input className="w-full" value={p.list_uid || ''} onChange={(e) => handleUpdate('list_uid', e.target.value)} placeholder={t('routes.apps.clid.listId', 'ID списка')} />;
     case 'sendmail':
       return (
-        <HStack gap="8" className="w-full">
-          <Input className="w-[180px]" value={p.email || ''} onChange={(e) => handleUpdate('email', e.target.value)} placeholder={t('routes.apps.mail.email', 'email@example.com')} />
-          <Input className="flex-1" value={p.text || ''} onChange={(e) => handleUpdate('text', e.target.value)} placeholder={t('routes.apps.common.text', 'Текст...')} />
-        </HStack>
+        <VStack gap="4" className="w-full">
+          <HStack gap="8" className="w-full">
+            <Input className="w-[180px]" value={p.email || ''} onChange={(e) => handleUpdate('email', e.target.value)} placeholder={t('routes.apps.mail.email', 'email@example.com')} />
+            <Input className="flex-1" value={p.subject || ''} onChange={(e) => handleUpdate('subject', e.target.value)} placeholder={t('routes.apps.mail.subjectHint', 'Тема — ${CALLERID(num)}')} />
+            <InfoTooltip text={t('routes.apps.mail.variablesHint',
+              'Переменные Asterisk:\n${CALLERID(num)} — номер звонящего\n${CALLERID(name)} — имя звонящего\n${EXTEN} — набранный номер\n${UNIQUEID} — ID звонка\n${EPOCH} — время (unix)\n${STRFTIME(${EPOCH},,%d.%m.%Y %H:%M)} — дата/время\n${CDR(duration)} — длительность\n\nПример темы:\nЗвонок от ${CALLERID(num)} на ${EXTEN}'
+            )} />
+          </HStack>
+          <Input className="w-full" value={p.text || ''} onChange={(e) => handleUpdate('text', e.target.value)} placeholder={t('routes.apps.mail.textHint', 'Текст — Входящий вызов от ${CALLERID(num)} на ${EXTEN}')} />
+        </VStack>
       );
     case 'telegram':
       return (
@@ -77,8 +77,7 @@ export const GenericApp = memo(({ action, onUpdate }: IDialplanAppProps) => {
     case 'label':
       return <Input className="w-full" value={p.label_name || ''} onChange={(e) => handleUpdate('label_name', e.target.value)} placeholder={t('routes.apps.label.name', 'Имя метки')} />;
     case 'busy':
-      return <Input className="w-[80px]" value={p.timeout || ''} onChange={(e) => handleUpdate('timeout', e.target.value)} placeholder={t('routes.apps.common.sec', 'сек')} />;
-    case 'hangup':
+      return <Input type="number" min={0} step={1} className="w-[100px]" value={p.timeout || ''} onChange={(e) => handleUpdate('timeout', e.target.value)} placeholder={t('routes.apps.common.timeout', 'Сек')} />;
     default:
       return <Text variant="small" className="text-muted-foreground">—</Text>;
   }

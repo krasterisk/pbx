@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pencil, Trash2 } from 'lucide-react';
+import { Pencil, Trash2, Copy } from 'lucide-react';
 import { Button, DataTable, HStack, Tooltip, VStack, Text, Input } from '@/shared/ui';
 import { IVoiceRobot } from '@/entities/voiceRobot';
 
@@ -8,10 +8,11 @@ interface VoiceRobotsTableProps {
   data: IVoiceRobot[];
   isLoading: boolean;
   onEdit: (robot: IVoiceRobot) => void;
+  onCopy: (robot: IVoiceRobot) => void;
   onDelete: (robot: IVoiceRobot) => void;
 }
 
-export function VoiceRobotsTable({ data, isLoading, onEdit, onDelete }: VoiceRobotsTableProps) {
+export function VoiceRobotsTable({ data, isLoading, onEdit, onCopy, onDelete }: VoiceRobotsTableProps) {
   const { t } = useTranslation();
   const [search, setSearch] = useState('');
 
@@ -53,6 +54,11 @@ export function VoiceRobotsTable({ data, isLoading, onEdit, onDelete }: VoiceRob
             <Tooltip content={t('common.edit', 'Редактировать')}>
               <Button variant="ghost" size="icon" onClick={() => onEdit(item)}>
                 <Pencil className="w-4 h-4 text-blue-400" />
+              </Button>
+            </Tooltip>
+            <Tooltip content={t('common.copy', 'Копировать')}>
+              <Button variant="ghost" size="icon" onClick={() => onCopy(item)}>
+                <Copy className="w-4 h-4 text-muted-foreground" />
               </Button>
             </Tooltip>
             <Tooltip content={t('common.delete', 'Удалить')}>

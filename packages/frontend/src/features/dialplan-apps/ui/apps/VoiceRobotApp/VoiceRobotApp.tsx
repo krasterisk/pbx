@@ -14,7 +14,7 @@ export const VoiceRobotApp: React.FC<IDialplanAppProps> = ({ action, onUpdate })
     <VStack gap="2" className="w-full">
       <HStack gap="2" className="w-full">
         <VStack gap="2" className="flex-1">
-          <Text variant="small" className="text-muted-foreground">{t('routes.apps.voicerobot.select', 'Голосовой робот')}</Text>
+
           {isError ? (
             <Text variant="small" className="text-destructive">{t('common.loadError', 'Ошибка загрузки')}</Text>
           ) : (
@@ -23,7 +23,7 @@ export const VoiceRobotApp: React.FC<IDialplanAppProps> = ({ action, onUpdate })
               onChange={(e) => onUpdate(action.id, 'params.robot_uid', Number(e.target.value))}
               disabled={isLoading}
             >
-              <option value="" disabled>---</option>
+              <option value="" disabled>{t('routes.apps.voicerobot.select', 'Голосовой робот')}</option>
               {voiceRobots.map(r => (
                 <option key={r.uid} value={r.uid}>{r.name} (ID: {r.uid})</option>
               ))}

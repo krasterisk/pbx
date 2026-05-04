@@ -14,9 +14,10 @@ interface IvrFormModalProps {
   isOpen: boolean;
   onClose: () => void;
   ivr: IIvr | null;
+  mode?: 'create' | 'edit' | 'copy';
 }
 
-export function IvrFormModal({ isOpen, onClose, ivr }: IvrFormModalProps) {
+export function IvrFormModal({ isOpen, onClose, ivr, mode = ivr ? 'edit' : 'create' }: IvrFormModalProps) {
   const { t } = useTranslation();
   const [createIvr] = useCreateIvrMutation();
   const [updateIvr] = useUpdateIvrMutation();
@@ -33,9 +34,9 @@ export function IvrFormModal({ isOpen, onClose, ivr }: IvrFormModalProps) {
   const [prompts, setPrompts] = useState<string[]>([]);
 
   useEffect(() => {
-    if (ivr) {
-      setName(ivr.name || '');
-      setExten(ivr.exten || '');
+    if ((mode === 'edit' || mode === 'copy') && ivr) {
+      setName(mode === 'copy' ? '' : (ivr.name || ''));
+      setExten(mode === 'copy' ? '' : (ivr.exten || ''));
       setTimeoutMs(ivr.timeout ? String(ivr.timeout) : '10');
       setMaxCount(ivr.max_count || 0);
       setActive(ivr.active === 1);
@@ -52,7 +53,7 @@ export function IvrFormModal({ isOpen, onClose, ivr }: IvrFormModalProps) {
       setMenuItems([]);
       setPrompts([]);
     }
-  }, [ivr, isOpen]);
+  }, [ivr, isOpen, mode]);
 
   const onSubmit = async () => {
     if (!name.trim()) return;
@@ -68,8 +69,10 @@ export function IvrFormModal({ isOpen, onClose, ivr }: IvrFormModalProps) {
       menu_items: menuItems,
     };
 
+    const isCreateMode = mode === 'create' || mode === 'copy';
+
     try {
-      if (ivr) {
+      if (!isCreateMode && ivr) {
         await updateIvr({ uid: ivr.uid, data: payload }).unwrap();
       } else {
         await createIvr(payload).unwrap();
@@ -91,7 +94,11 @@ export function IvrFormModal({ isOpen, onClose, ivr }: IvrFormModalProps) {
       <DialogContent size="large">
         <DialogHeader className="mb-4 shrink-0">
           <DialogTitle className="text-xl font-bold">
-            {ivr ? t('ivrs.modal.edit', 'Редактировать IVR') : t('ivrs.modal.create', 'Создать IVR')}
+            {mode === 'edit'
+              ? t('ivrs.modal.edit', 'Редактировать IVR')
+              : mode === 'copy'
+                ? t('ivrs.modal.copy', 'Копировать IVR')
+                : t('ivrs.modal.create', 'Создать IVR')}
           </DialogTitle>
         </DialogHeader>
 

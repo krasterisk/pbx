@@ -19,5 +19,5 @@ export class Role extends Model {
   declare comment: string;
 
   @Column({ type: DataType.INTEGER, defaultValue: 0, field: 'vpbx_user_uid' })
-  declare vpbxUserUid: number;
+  declare user_uid: number;
 }

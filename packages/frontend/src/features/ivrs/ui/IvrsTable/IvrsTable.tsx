@@ -1,6 +1,6 @@
 import { memo, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FileEdit, Trash2, Loader2, GitMerge } from 'lucide-react';
+import { FileEdit, Trash2, Copy, Loader2, GitMerge } from 'lucide-react';
 import { DataTable } from '@/shared/ui/DataTable/DataTable';
 import { Button, Card, CardHeader, CardContent } from '@/shared/ui';
 import { HStack } from '@/shared/ui/Stack';
@@ -9,7 +9,7 @@ import { IvrFormModal } from '../IvrFormModal/IvrFormModal';
 import { IIvr } from '@/entities/ivr';
 import { useAppDispatch, useAppSelector } from '@/shared/hooks/useAppStore';
 import { ivrsActions } from '../../model/slice/ivrsSlice';
-import { getIvrsIsModalOpen, getIvrsSelectedIvr } from '../../model/selectors/ivrsSelectors';
+import { getIvrsIsModalOpen, getIvrsSelectedIvr, getIvrsModalMode } from '../../model/selectors/ivrsSelectors';
 
 export const IvrsTable = memo(() => {
   const { t } = useTranslation();
@@ -20,6 +20,7 @@ export const IvrsTable = memo(() => {
 
   const isModalOpen = useAppSelector(getIvrsIsModalOpen);
   const editIvr = useAppSelector(getIvrsSelectedIvr);
+  const modalMode = useAppSelector(getIvrsModalMode);
   
   const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
 
@@ -59,6 +60,17 @@ export const IvrsTable = memo(() => {
                 }}
               >
                 <FileEdit className="w-4 h-4 text-indigo-400" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                title={t('common.copy', 'Копировать')}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  dispatch(ivrsActions.openCopyModal(ivr));
+                }}
+              >
+                <Copy className="w-4 h-4 text-muted-foreground" />
               </Button>
               <Button
                 variant="ghost"
@@ -140,6 +152,7 @@ export const IvrsTable = memo(() => {
           isOpen={isModalOpen}
           onClose={() => dispatch(ivrsActions.closeModal())}
           ivr={editIvr}
+          mode={modalMode}
         />
       )}
     </Card>

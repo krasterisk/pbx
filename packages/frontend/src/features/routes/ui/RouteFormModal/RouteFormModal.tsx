@@ -20,7 +20,9 @@ const TABS = ['general', 'actions', 'webhooks'] as const;
 export const RouteFormModal = memo(() => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
-  const { isModalOpen, selectedRoute, selectedContextUid } = useAppSelector((s) => s.routes);
+  const { isModalOpen, selectedRoute, selectedContextUid, modalMode } = useAppSelector((s) => s.routes);
+
+  const isCreateMode = modalMode === 'create' || modalMode === 'copy';
 
   const [createRoute, { isLoading: isCreating }] = useCreateRouteMutation();
   const [updateRoute, { isLoading: isUpdating }] = useUpdateRouteMutation();
@@ -35,18 +37,17 @@ export const RouteFormModal = memo(() => {
   // Options
   const [record, setRecord] = useState(false);
   const [recordAll, setRecordAll] = useState(false);
-  const [checkBlacklist, setCheckBlacklist] = useState(false);
-  const [checkListbook, setCheckListbook] = useState(false);
+  const [phonebookUids, setPhonebookUids] = useState<number[]>([]);
   const [preCommand, setPreCommand] = useState('');
   const [routeType, setRouteType] = useState(0);
 
   // Webhooks
   const [webhooksList, setWebhooksList] = useState<WebhookItem[]>([]);
 
-  // Initialize form when editing
+  // Initialize form when editing/copying
   useEffect(() => {
     if (selectedRoute) {
-      setName(selectedRoute.name);
+      setName(modalMode === 'copy' ? '' : selectedRoute.name);
       setExtensions(selectedRoute.extensions || []);
       setActive(!!selectedRoute.active);
       setActions(selectedRoute.actions || []);
@@ -54,17 +55,38 @@ export const RouteFormModal = memo(() => {
       const opts = selectedRoute.options || {};
       setRecord(!!opts.record);
       setRecordAll(!!opts.record_all);
-      setCheckBlacklist(!!opts.check_blacklist);
-      setCheckListbook(!!opts.check_listbook);
+      setPhonebookUids(opts.phonebook_uids || []);
       setPreCommand(opts.pre_command || '');
       setRouteType(opts.route_type || 0);
       const wh = selectedRoute.webhooks || {};
       const list: WebhookItem[] = [];
       const addToList = (evnt: string, value: any) => {
         if (Array.isArray(value)) {
-          value.forEach((url: string) => list.push({ id: Math.random().toString(), event: evnt, url }));
+          value.forEach((item: any) => {
+            if (typeof item === 'string') {
+              list.push({ id: Math.random().toString(), event: evnt, url: item, authMode: 'none', token: '', customHeaders: [] });
+            } else if (item && typeof item === 'object') {
+              list.push({
+                id: Math.random().toString(),
+                event: evnt,
+                url: item.url || '',
+                authMode: item.authMode || 'none',
+                token: item.token || '',
+                customHeaders: item.customHeaders || [],
+              });
+            }
+          });
         } else if (typeof value === 'string' && value) {
-          list.push({ id: Math.random().toString(), event: evnt, url: value });
+          list.push({ id: Math.random().toString(), event: evnt, url: value, authMode: 'none', token: '', customHeaders: [] });
+        } else if (value && typeof value === 'object' && !Array.isArray(value)) {
+          list.push({
+            id: Math.random().toString(),
+            event: evnt,
+            url: value.url || '',
+            authMode: value.authMode || 'none',
+            token: value.token || '',
+            customHeaders: value.customHeaders || [],
+          });
         }
       };
       addToList('before_dial', wh.before_dial);
@@ -75,7 +97,7 @@ export const RouteFormModal = memo(() => {
     } else {
       resetForm();
     }
-  }, [selectedRoute]);
+  }, [selectedRoute, modalMode]);
 
   const resetForm = () => {
     setName('');
@@ -85,8 +107,7 @@ export const RouteFormModal = memo(() => {
     setRawDialplan('');
     setRecord(false);
     setRecordAll(false);
-    setCheckBlacklist(false);
-    setCheckListbook(false);
+    setPhonebookUids([]);
     setPreCommand('');
     setRouteType(0);
     setWebhooksList([]);
@@ -102,8 +123,9 @@ export const RouteFormModal = memo(() => {
     if (!selectedContextUid) return;
 
     const options: IRouteOptions = {
-      record, record_all: recordAll, check_blacklist: checkBlacklist,
-      check_listbook: checkListbook, pre_command: preCommand || undefined,
+      record, record_all: recordAll,
+      phonebook_uids: phonebookUids.length > 0 ? phonebookUids : undefined,
+      pre_command: preCommand || undefined,
       route_type: routeType || undefined,
     };
 
@@ -112,7 +134,18 @@ export const RouteFormModal = memo(() => {
       const u = w.url.trim();
       if (u) {
         if (!webhooksPayload[w.event]) webhooksPayload[w.event] = [];
-        webhooksPayload[w.event].push(u);
+        if (w.authMode === 'none') {
+          webhooksPayload[w.event].push(u);
+        } else {
+          webhooksPayload[w.event].push({
+            url: u,
+            authMode: w.authMode,
+            token: w.authMode === 'bearer' ? w.token : undefined,
+            customHeaders: w.authMode === 'custom' && w.customHeaders.length > 0
+              ? w.customHeaders.filter(h => h.key.trim())
+              : undefined,
+          });
+        }
       }
     });
 
@@ -124,10 +157,10 @@ export const RouteFormModal = memo(() => {
     };
 
     try {
-      if (selectedRoute) {
-        await updateRoute({ uid: selectedRoute.uid, data }).unwrap();
-      } else {
+      if (isCreateMode) {
         await createRoute(data as any).unwrap();
+      } else if (selectedRoute) {
+        await updateRoute({ uid: selectedRoute.uid, data }).unwrap();
       }
       handleClose();
     } catch (err) {
@@ -140,7 +173,11 @@ export const RouteFormModal = memo(() => {
       <DialogContent size="large">
         <DialogHeader className="mb-4 shrink-0">
           <DialogTitle className="text-xl font-bold">
-            {selectedRoute ? t('routes.editRoute', 'Редактировать маршрут') : t('routes.addRoute', 'Новый маршрут')}
+            {modalMode === 'edit'
+              ? t('routes.editRoute', 'Редактировать маршрут')
+              : modalMode === 'copy'
+                ? t('routes.copyRoute', 'Копировать маршрут')
+                : t('routes.addRoute', 'Новый маршрут')}
           </DialogTitle>
         </DialogHeader>
 
@@ -174,8 +211,7 @@ export const RouteFormModal = memo(() => {
               routeType={routeType} setRouteType={setRouteType}
               record={record} setRecord={setRecord}
               recordAll={recordAll} setRecordAll={setRecordAll}
-              checkBlacklist={checkBlacklist} setCheckBlacklist={setCheckBlacklist}
-              checkListbook={checkListbook} setCheckListbook={setCheckListbook}
+              phonebookUids={phonebookUids} setPhonebookUids={setPhonebookUids}
               preCommand={preCommand} setPreCommand={setPreCommand}
             />
           )}

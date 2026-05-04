@@ -4,6 +4,7 @@ import { IRoute } from '@/shared/api/api';
 
 const initialState: RoutesSchema = {
   isModalOpen: false,
+  modalMode: 'create',
   selectedRoute: null,
   selectedContextUid: null,
   editorMode: 'table',
@@ -18,10 +19,17 @@ export const routesSlice = createSlice({
     },
     openCreateModal: (state) => {
       state.selectedRoute = null;
+      state.modalMode = 'create';
       state.isModalOpen = true;
     },
     openEditModal: (state, action: PayloadAction<IRoute>) => {
       state.selectedRoute = action.payload;
+      state.modalMode = 'edit';
+      state.isModalOpen = true;
+    },
+    openCopyModal: (state, action: PayloadAction<IRoute>) => {
+      state.selectedRoute = action.payload;
+      state.modalMode = 'copy';
       state.isModalOpen = true;
     },
     closeModal: (state) => {

@@ -22,6 +22,11 @@ export const ivrsSlice = createSlice({
       state.selectedIvr = action.payload;
       state.modalMode = 'edit';
     },
+    openCopyModal: (state, action: PayloadAction<IIvr>) => {
+      state.isModalOpen = true;
+      state.selectedIvr = action.payload;
+      state.modalMode = 'copy';
+    },
     closeModal: (state) => {
       state.isModalOpen = false;
       state.selectedIvr = null;
