@@ -10,9 +10,11 @@ export interface ILoginResponse {
     uniqueid: number;
     login: string;
     name: string;
+    /** 0 = SuperAdmin, 1 = Tenant Admin, 2 = Operator, 3 = Supervisor, 5 = ReadOnly */
     level: number;
     role: number;
     exten: string;
+    vpbx_user_uid: number;
   };
 }
 

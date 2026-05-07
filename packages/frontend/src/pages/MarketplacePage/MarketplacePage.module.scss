@@ -1,0 +1,144 @@
+.wrapper {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* Hero */
+.hero {
+  background: linear-gradient(135deg, hsl(var(--primary) / 0.08), hsl(var(--primary) / 0.03));
+  border: 1px solid hsl(var(--primary) / 0.15);
+  border-radius: 16px;
+  padding: 24px 32px;
+}
+
+.heroIcon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: hsl(var(--primary) / 0.12);
+  color: hsl(var(--primary));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* Filter bar */
+.filterBar {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.filterBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--background));
+  color: hsl(var(--muted-foreground));
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.15s;
+
+  &:hover {
+    border-color: hsl(var(--primary) / 0.5);
+    color: hsl(var(--primary));
+  }
+}
+
+.filterActive {
+  background: hsl(var(--primary));
+  border-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+
+  &:hover {
+    color: hsl(var(--primary-foreground));
+  }
+}
+
+/* Grid */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.moduleCard {
+  transition: box-shadow 0.2s, border-color 0.2s;
+
+  &:hover {
+    border-color: hsl(var(--primary) / 0.3);
+    box-shadow: 0 4px 20px hsl(var(--primary) / 0.08);
+  }
+}
+
+.moduleIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: hsl(var(--muted));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: hsl(var(--foreground));
+  flex-shrink: 0;
+}
+
+.badges {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.coreBadge {
+  font-size: 0.65rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: hsl(var(--primary) / 0.1);
+  color: hsl(var(--primary));
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.cloudBadge {
+  font-size: 0.65rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: hsl(200 80% 50% / 0.1);
+  color: hsl(200 70% 45%);
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+/* Price */
+.price { display: flex; align-items: baseline; gap: 4px; }
+
+.priceAmount {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: hsl(var(--foreground));
+}
+
+.priceCurrency {
+  font-size: 0.8rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.priceFree {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: hsl(142 70% 40%);
+}
+
+/* Status */
+.activeStatus {
+  color: hsl(142 70% 40%);
+}
+
+.cloudStatus {
+  color: hsl(var(--muted-foreground));
+}

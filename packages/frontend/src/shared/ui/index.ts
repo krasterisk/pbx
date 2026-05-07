@@ -8,6 +8,7 @@ export { Text } from './Text/Text';
 export { Select } from './Select/Select';
 export { Checkbox } from './Checkbox/Checkbox';
 export * from './Dialog';
+export * from './DropdownMenu';
 export * from './Stack';
 export { DataTable } from './DataTable';
 export type { DataTableProps, DataTableRef } from './DataTable';

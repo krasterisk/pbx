@@ -1,0 +1,99 @@
+/* ─────────────────────────────────────────────────────
+   TenantsTable — таблица кабинетов (SuperAdmin)
+   Design tokens: var(--color-*) from globals.css @theme
+   ───────────────────────────────────────────────────── */
+
+/* 1. Layout */
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.filtersRow {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+/* 2. Stats grid */
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+
+  @media (max-width: 768px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  @media (max-width: 480px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 3. Stat card — кликабельный фильтр */
+.statCard {
+  all: unset;
+  display: block;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 16px 20px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: left;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+
+  &:hover {
+    border-color: color-mix(in srgb, var(--color-primary) 40%, transparent);
+    background: color-mix(in srgb, var(--color-primary) 4%, transparent);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+}
+
+.statCardActive {
+  border-color: var(--color-primary) !important;
+  background: color-mix(in srgb, var(--color-primary) 8%, transparent) !important;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 20%, transparent);
+}
+
+.statValue {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--color-foreground);
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.statLabel {
+  font-size: 0.75rem;
+  color: var(--color-muted-foreground);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* 4. Stat colour variants */
+.statActive .statValue    { color: var(--color-success); }
+.statTrial .statValue     { color: var(--color-warning); }
+.statSuspended .statValue { color: var(--color-destructive); }
+
+/* 5. Search */
+.searchWrapper {
+  position: relative;
+  width: 100%;
+  max-width: 280px;
+
+  @media (max-width: 640px) {
+    max-width: 100%;
+  }
+}
+
+.searchIcon {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-muted-foreground);
+  pointer-events: none;
+}

@@ -6,7 +6,7 @@ const initialState: RoutesSchema = {
   isModalOpen: false,
   modalMode: 'create',
   selectedRoute: null,
-  selectedContextUid: null,
+  selectedContextUids: [],
   editorMode: 'table',
 };
 
@@ -14,8 +14,8 @@ export const routesSlice = createSlice({
   name: 'routes',
   initialState,
   reducers: {
-    selectContext: (state, action: PayloadAction<number>) => {
-      state.selectedContextUid = action.payload;
+    setContextFilter: (state, action: PayloadAction<number[]>) => {
+      state.selectedContextUids = action.payload;
     },
     openCreateModal: (state) => {
       state.selectedRoute = null;
@@ -44,3 +44,4 @@ export const routesSlice = createSlice({
 
 export const { actions: routesActions } = routesSlice;
 export const { reducer: routesReducer } = routesSlice;
+

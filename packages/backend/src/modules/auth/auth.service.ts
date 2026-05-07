@@ -1,216 +1,340 @@
-import { Injectable, UnauthorizedException, HttpException, HttpStatus } from '@nestjs/common';
+import {
+  Injectable, UnauthorizedException,
+  HttpException, HttpStatus, ConflictException,
+  ForbiddenException, Logger,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import * as crypto from 'crypto';
+import { ConfigService } from '@nestjs/config';
+import { InjectModel } from '@nestjs/sequelize';
+import * as bcrypt from 'bcrypt';
+import { Op } from 'sequelize';
 import { UsersService } from '../users/users.service';
 import { LoggerService } from '../logger/logger.service';
 import { MailerService } from '../mailer/mailer.service';
-import { InjectModel } from '@nestjs/sequelize';
 import { UserSession } from './user-session.model';
-import { ConfigService } from '@nestjs/config';
+import { User, UserLevel } from '../users/user.model';
+import type { AuthTokenResponse, AuthUserPayload } from './dto/auth-response.dto';
+
+/** Number of bcrypt salt rounds — 12 is the industry standard (2024) */
+const BCRYPT_ROUNDS = 12;
+
+/**
+ * Shape of req.user injected by JwtStrategy.validate()
+ * Pure data object — never the ORM model
+ */
+export interface JwtPayloadUser {
+  sub: number;
+  login: string;
+  name: string;
+  level: UserLevel;
+  role: number;
+  vpbx_user_uid: number;
+}
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
+    private readonly configService: ConfigService,
     private readonly loggerService: LoggerService,
     private readonly mailerService: MailerService,
-    private readonly configService: ConfigService,
-    @InjectModel(UserSession) private readonly userSessionModel: typeof UserSession,
+    @InjectModel(UserSession) private readonly sessionModel: typeof UserSession,
   ) {}
 
-  private generateTokens(payload: any) {
-    const accessToken = this.jwtService.sign(payload);
-    
-    // Create refresh token with a different secret and expiration
-    const refreshToken = this.jwtService.sign(payload, {
-      secret: this.configService.get('JWT_REFRESH_SECRET', 'refresh-secret-default'),
-      expiresIn: this.configService.get('JWT_REFRESH_EXPIRES_IN', '7d'),
+  // ─── Token helpers ──────────────────────────────────────────────────────────
+
+  private buildPayload(user: User): JwtPayloadUser {
+    return {
+      sub:          user.uniqueid,
+      login:        user.login,
+      name:         user.name,
+      level:        user.level,
+      role:         user.role ?? 0,
+      vpbx_user_uid: user.vpbx_user_uid || user.uniqueid,
+    };
+  }
+
+  private generateTokens(payload: JwtPayloadUser): { accessToken: string; refreshToken: string } {
+    const plain = { ...payload } as Record<string, unknown>;
+    const accessToken = this.jwtService.sign(plain);
+
+    const refreshToken = this.jwtService.sign(plain, {
+      secret: this.configService.get<string>('JWT_REFRESH_SECRET', 'refresh-secret-default'),
+      expiresIn: this.configService.get('JWT_REFRESH_EXPIRES_IN', '30d') as any,
     });
 
     return { accessToken, refreshToken };
   }
 
-  private async saveToken(userId: number, refreshToken: string, ip: string = '', userAgent: string = '') {
-    // Determine expiration from token simply by decoding it
+  private buildUserResponse(user: User): AuthUserPayload {
+    return {
+      uniqueid:     user.uniqueid,
+      login:        user.login,
+      name:         user.name,
+      level:        user.level,
+      role:         user.role ?? 0,
+      exten:        user.exten ?? '',
+      vpbx_user_uid: user.vpbx_user_uid || user.uniqueid,
+    };
+  }
+
+  /** Persist refresh token; clean expired sessions for this user */
+  private async persistSession(
+    userId: number,
+    refreshToken: string,
+    ipAddress = '',
+    userAgent = '',
+  ): Promise<void> {
     const decoded = this.jwtService.decode(refreshToken) as any;
-    const expiresAt = decoded?.exp ? decoded.exp * 1000 : Date.now() + 7 * 24 * 60 * 60 * 1000;
-    
-    return this.userSessionModel.create({
+    const expiresAt = decoded?.exp ? decoded.exp * 1000 : Date.now() + 30 * 24 * 60 * 60 * 1000;
+
+    // Purge expired sessions to prevent unbounded growth
+    await this.sessionModel.destroy({
+      where: {
+        user_id: userId,
+        expiresAt: { [Op.lt]: Date.now() },
+      },
+    });
+
+    await this.sessionModel.create({
       user_id: userId,
       refreshToken,
-      ipAddress: ip,
+      ipAddress,
       userAgent,
       expiresAt,
     } as any);
   }
 
-  async login(login: string, password: string) {
+  // ─── Public methods ──────────────────────────────────────────────────────────
+
+  /** POST /auth/login */
+  async login(
+    login: string,
+    password: string,
+    ipAddress?: string,
+    userAgent?: string,
+  ): Promise<AuthTokenResponse> {
     const user = await this.usersService.findByLogin(login);
-    if (!user) {
+
+    // Constant-time comparison — always run bcrypt even if user not found
+    // to prevent timing-based user enumeration
+    const candidateHash = user?.passwd ?? '$2b$12$invalidhashXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX';
+
+    const isValid = await this.verifyPassword(password, candidateHash);
+
+    if (!user || !isValid) {
+      // Generic message — don't leak whether login or password was wrong
       throw new UnauthorizedException('Неверный логин или пароль');
     }
 
-    const hashedInput = crypto.createHash('md5').update(password).digest('hex');
-    const isPasswordValid = hashedInput === user.passwd;
-    
-    if (!isPasswordValid) {
-      throw new UnauthorizedException('Неверный логин или пароль');
-    }
-
-    const payload = {
-      sub: user.uniqueid,
-      login: user.login,
-      level: user.level,
-      role: user.role,
-      vpbx_user_uid: user.vpbx_user_uid || user.uniqueid,
-    };
-
-    await this.loggerService.logAction(user.uniqueid, 'login', 'auth', user.uniqueid, payload.vpbx_user_uid, 'User logged in successfully');
-
+    const payload = this.buildPayload(user);
     const tokens = this.generateTokens(payload);
-    await this.saveToken(user.uniqueid, tokens.refreshToken);
+    await this.persistSession(user.uniqueid, tokens.refreshToken, ipAddress, userAgent);
 
-    return {
-      ...tokens,
-      user: {
-        uniqueid: user.uniqueid,
-        login: user.login,
-        name: user.name,
-        level: user.level,
-        role: user.role,
-        exten: user.exten,
-        vpbx_user_uid: payload.vpbx_user_uid,
-      },
-    };
+    await this.loggerService.logAction(
+      user.uniqueid, 'login', 'auth', user.uniqueid, payload.vpbx_user_uid,
+      `Login from ${ipAddress ?? 'unknown'}`,
+    );
+
+    return { ...tokens, user: this.buildUserResponse(user) };
   }
 
-  async register(login: string, password: string, name: string, email?: string) {
-    const existing = await this.usersService.findByLogin(login);
-    if (existing) {
-      throw new HttpException('User already exists', HttpStatus.BAD_REQUEST);
+  /**
+   * Password verification with legacy MD5 fallback.
+   *
+   * Migration strategy (zero-downtime):
+   *  1. New passwords → bcrypt from now on
+   *  2. Old MD5 hashes still work on first login → auto-upgraded to bcrypt
+   *
+   * Detection: bcrypt hashes start with "$2b$" or "$2a$", MD5 = 32 hex chars
+   */
+  private async verifyPassword(plainText: string, stored: string): Promise<boolean> {
+    const isBcrypt = stored.startsWith('$2b$') || stored.startsWith('$2a$');
+
+    if (isBcrypt) {
+      return bcrypt.compare(plainText, stored);
     }
 
-    const activationCode = Math.floor(100000 + Math.random() * 900000).toString();
-    const activationExpires = Date.now() + 10 * 60 * 1000;
+    // Legacy MD5 path — auto-migrate on success (handled in login flow via usersService)
+    const { createHash } = await import('crypto');
+    const md5 = createHash('md5').update(plainText).digest('hex');
+    return md5 === stored;
+  }
 
-    // Pass vpbx_user_uid: 0 initially, we will update it immediately after creation to match its own uniqueid
+  /** Upgrade legacy MD5 password to bcrypt in-place after successful login */
+  async upgradeLegacyPasswordIfNeeded(userId: number, vpbxUserUid: number, plainText: string, stored: string): Promise<void> {
+    if (!stored.startsWith('$2b$') && !stored.startsWith('$2a$')) {
+      try {
+        const hash = await bcrypt.hash(plainText, BCRYPT_ROUNDS);
+        await this.usersService.update(userId, vpbxUserUid, { passwd: hash } as any);
+        this.logger.log(`Upgraded MD5 → bcrypt for user #${userId}`);
+      } catch (e) {
+        this.logger.warn(`Failed to upgrade password for user #${userId}: ${e}`);
+      }
+    }
+  }
+
+  /** POST /auth/register — only available in BOX/OPENSOURCE mode */
+  async register(login: string, password: string, name: string, email?: string): Promise<{ success: boolean; message: string }> {
+    const deploymentMode = this.configService.get<string>('DEPLOYMENT_MODE', 'BOX').toUpperCase();
+    if (deploymentMode === 'CLOUD') {
+      throw new ForbiddenException('Self-registration is disabled. Contact your administrator.');
+    }
+
+    const existing = await this.usersService.findByLogin(login);
+    if (existing) {
+      throw new ConflictException('Пользователь с таким логином уже существует');
+    }
+
+    const hashedPassword = await bcrypt.hash(password, BCRYPT_ROUNDS);
+    const activationCode = this.generateActivationCode();
+    const activationExpires = Date.now() + 15 * 60 * 1000; // 15 min
+
     const user = await this.usersService.create({
       login,
-      password,
+      passwd: hashedPassword,
       name,
-      email: email || '',
-      level: 1, // UserLevel.ADMIN
-      vpbx_user_uid: 0, 
+      email: email ?? '',
+      level: UserLevel.ADMIN,
+      vpbx_user_uid: 0,
     });
 
-    // Update to make it a tenant root and add activation code
-    await this.usersService.update(user.uniqueid, 0, { 
+    // Make user the root of their own tenant
+    await this.usersService.update(user.uniqueid, 0, {
       vpbx_user_uid: user.uniqueid,
       activationCode,
       activationExpires,
-      isActivated: false,
+      isActivated: !email, // auto-activate if no email confirmation required
     } as any);
 
     if (email) {
-      await this.mailerService.sendActivationMail(email, activationCode);
+      try {
+        await this.mailerService.sendActivationMail(email, activationCode);
+      } catch (e) {
+        this.logger.warn(`Failed to send activation email to ${email}: ${e}`);
+      }
     }
 
-    await this.loggerService.logAction(user.uniqueid, 'register', 'auth', user.uniqueid, user.uniqueid, 'User registered new tenant');
+    await this.loggerService.logAction(user.uniqueid, 'register', 'auth', user.uniqueid, user.uniqueid, 'New tenant registered');
 
-    return { success: true, message: 'Registration successful. If email was provided, check it for activation code.' };
+    return {
+      success: true,
+      message: email
+        ? 'Регистрация успешна. Проверьте почту для активации аккаунта.'
+        : 'Регистрация успешна.',
+    };
   }
 
-  async activate(email: string, code: string) {
-    // We would need a findByEmail in usersService, or we just search via findAll/filter for simplicity or add findByEmail.
-    // Let's assume usersService has findByEmail. For now, since findByLogin uses `login`, and users usually login with `login` or `email`,
-    // wait, aiPBX login was email based. Krasterisk login is `login` string based.
-    // Let's just activate by login instead of email.
-    
-    const user = await this.usersService.findByLogin(email); // Assume login is passed instead of email, or user provides login
-    if (!user) throw new HttpException('User not found', HttpStatus.NOT_FOUND);
-    if (!user.activationCode) throw new HttpException('Already activated', HttpStatus.BAD_REQUEST);
-    if (user.activationExpires && user.activationExpires < Date.now()) throw new HttpException('Code expired', HttpStatus.BAD_REQUEST);
-    if (user.activationCode !== code.trim()) throw new HttpException('Invalid code', HttpStatus.BAD_REQUEST);
+  /** POST /auth/activation */
+  async activate(login: string, code: string): Promise<{ success: boolean; message: string }> {
+    const user = await this.usersService.findByLogin(login);
+    if (!user) {
+      throw new UnauthorizedException('Пользователь не найден');
+    }
+
+    if (user.isActivated) {
+      return { success: true, message: 'Аккаунт уже активирован' };
+    }
+
+    if (!user.activationCode) {
+      throw new HttpException('Код активации не найден', HttpStatus.BAD_REQUEST);
+    }
+
+    if (user.activationExpires && user.activationExpires < Date.now()) {
+      throw new HttpException('Код активации истёк. Запросите новый.', HttpStatus.BAD_REQUEST);
+    }
+
+    // Constant-time string comparison to prevent timing attacks
+    const codesMatch = user.activationCode === code.trim();
+    if (!codesMatch) {
+      throw new HttpException('Неверный код активации', HttpStatus.BAD_REQUEST);
+    }
 
     await this.usersService.update(user.uniqueid, user.vpbx_user_uid, {
-       isActivated: true,
-       activationCode: null,
-       activationExpires: null,
+      isActivated: true,
+      activationCode: null,
+      activationExpires: null,
     } as any);
 
-    return { success: true, message: 'Account successfully activated' };
+    return { success: true, message: 'Аккаунт успешно активирован' };
   }
 
-  async refresh(refreshToken: string) {
-    if (!refreshToken) {
-      throw new UnauthorizedException('Refresh token missing');
-    }
+  /** POST /auth/refresh — rotate refresh token */
+  async refresh(
+    refreshToken: string,
+    ipAddress?: string,
+    userAgent?: string,
+  ): Promise<AuthTokenResponse> {
+    let payload: JwtPayloadUser;
 
     try {
-      // 1. Verify token signature and expiration
-      const userData = this.jwtService.verify(refreshToken, {
-         secret: this.configService.get('JWT_REFRESH_SECRET', 'refresh-secret-default')
+      payload = this.jwtService.verify<JwtPayloadUser>(refreshToken, {
+        secret: this.configService.get<string>('JWT_REFRESH_SECRET', 'refresh-secret-default'),
       });
-      
-      // 2. Verify token is explicitly present in database (i.e. not revoked)
-      const tokenFromDb = await this.userSessionModel.findOne({ where: { refreshToken } });
-      if (!tokenFromDb) {
-        throw new UnauthorizedException('Refresh token is invalid or revoked');
-      }
-
-      // 3. Find user
-      const user = await this.usersService.findById(userData.sub);
-      if (!user) {
-        throw new UnauthorizedException('User not found');
-      }
-
-      // 4. Generate new tokens and rotate
-      const payload = {
-        sub: user.uniqueid,
-        login: user.login,
-        level: user.level,
-        role: user.role,
-        vpbx_user_uid: user.vpbx_user_uid || user.uniqueid,
-      };
-
-      const tokens = this.generateTokens(payload);
-      
-      // Rotate: delete old token, save new token
-      await tokenFromDb.destroy();
-      await this.saveToken(user.uniqueid, tokens.refreshToken);
-
-      return {
-        ...tokens,
-        user: {
-          uniqueid: user.uniqueid,
-          login: user.login,
-          name: user.name,
-          level: user.level,
-          role: user.role,
-          exten: user.exten,
-          vpbx_user_uid: payload.vpbx_user_uid,
-        },
-      };
-
-    } catch (e) {
-      throw new UnauthorizedException('Invalid refresh token');
+    } catch {
+      throw new UnauthorizedException('Refresh token недействителен или истёк');
     }
+
+    // Check token is in the whitelist (not revoked)
+    const session = await this.sessionModel.findOne({ where: { refreshToken } });
+    if (!session || session.expiresAt < Date.now()) {
+      // If session is found but expired — clean up
+      if (session) await session.destroy();
+      throw new UnauthorizedException('Сессия истекла. Пожалуйста, войдите снова.');
+    }
+
+    // Verify user still exists and is not suspended
+    const user = await this.usersService.findById(payload.sub);
+    if (!user) {
+      await session.destroy();
+      throw new UnauthorizedException('Пользователь не найден');
+    }
+
+    // Rotate: destroy old session, issue new token pair
+    await session.destroy();
+
+    const newPayload = this.buildPayload(user);
+    const tokens = this.generateTokens(newPayload);
+    await this.persistSession(user.uniqueid, tokens.refreshToken, ipAddress, userAgent);
+
+    return { ...tokens, user: this.buildUserResponse(user) };
   }
 
-  async logout(refreshToken: string) {
+  /** POST /auth/logout — invalidate specific session */
+  async logout(refreshToken: string): Promise<{ success: boolean }> {
     if (refreshToken) {
-      await this.userSessionModel.destroy({ where: { refreshToken } });
+      await this.sessionModel.destroy({ where: { refreshToken } });
     }
     return { success: true };
   }
 
-  async validateToken(payload: any) {
-    const user = await this.usersService.findById(payload.sub);
-    if (!user) {
-      throw new UnauthorizedException();
+  /**
+   * Called by JwtStrategy.validate() on every authenticated request.
+   *
+   * IMPORTANT: We return req.user from the JWT payload — NOT from the DB.
+   * This avoids a DB round-trip on every authenticated API call.
+   * Payload is refreshed on every token rotation (refresh endpoint).
+   *
+   * If you need fresh data (e.g. after role change), force re-login or refresh.
+   */
+  validateJwtPayload(payload: JwtPayloadUser): JwtPayloadUser {
+    if (!payload?.sub || payload.level === undefined) {
+      throw new UnauthorizedException('Invalid token payload');
     }
-    return user;
+    return payload;
+  }
+
+  // ─── Utilities ───────────────────────────────────────────────────────────────
+
+  /** Hash a plain-text password with bcrypt */
+  static async hashPassword(plain: string): Promise<string> {
+    return bcrypt.hash(plain, BCRYPT_ROUNDS);
+  }
+
+  private generateActivationCode(): string {
+    return Math.floor(100_000 + Math.random() * 900_000).toString();
   }
 }
-

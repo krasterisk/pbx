@@ -20,10 +20,10 @@ export const QueueApp: React.FC<IDialplanAppProps> = ({ action, onUpdate }) => {
             value={action.params?.queue || ''}
             onChange={(e) => onUpdate(action.id, 'params.queue', e.target.value)}
           >
-            <option value="">{t('routes.apps.queue.selectQueue', '— Выберите очередь —')}</option>
+            <option value="">{t('routes.apps.queue.selectQueue', 'Выберите очередь')}</option>
             {queues.map((q) => (
               <option key={q.name} value={q.name}>
-                {q.exten || q.name}{q.display_name ? ` — ${q.display_name}` : ''}
+                {q.exten || q.name}{q.display_name ? ` - ${q.display_name}` : ''}
               </option>
             ))}
           </Select>

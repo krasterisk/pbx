@@ -287,50 +287,52 @@ export const TimeGroupFormModal = memo(() => {
           </DialogTitle>
         </DialogHeader>
 
-        <VStack gap="16">
-          {/* Name & Comment */}
-          <HStack className={cls.formGrid}>
-            <VStack>
-              <Label className={cls.fieldLabel}>
-                {t('timeGroups.name', 'Название')} *
-              </Label>
-              <Input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder={t('timeGroups.namePlaceholder', 'Рабочее время')}
-                autoFocus
-              />
-            </VStack>
-            <VStack>
-              <Label className={cls.fieldLabel}>
-                {t('timeGroups.comment', 'Описание')}
-              </Label>
-              <Input
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
-                placeholder={t('timeGroups.commentPlaceholder', 'Пн-Пт 9:00–18:00')}
-              />
-            </VStack>
-          </HStack>
+        <VStack className={cls.scrollBody}>
+          <VStack gap="16">
+            {/* Name & Comment */}
+            <HStack className={cls.formGrid}>
+              <VStack>
+                <Label className={cls.fieldLabel}>
+                  {t('timeGroups.name', 'Название')} *
+                </Label>
+                <Input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder={t('timeGroups.namePlaceholder', 'Рабочее время')}
+                  autoFocus
+                />
+              </VStack>
+              <VStack>
+                <Label className={cls.fieldLabel}>
+                  {t('timeGroups.comment', 'Описание')}
+                </Label>
+                <Input
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  placeholder={t('timeGroups.commentPlaceholder', 'Пн-Пт 9:00–18:00')}
+                />
+              </VStack>
+            </HStack>
 
-          {/* Intervals */}
-          <VStack gap="8">
-            <Text variant="muted" className={cls.intervalLabel}>
-              {t('timeGroups.intervalsLabel', 'Интервалы времени')}
-            </Text>
-            {intervals.map((interval, i) => (
-              <IntervalEditor
-                key={i}
-                interval={interval}
-                index={i}
-                onChange={handleIntervalChange}
-                onRemove={handleIntervalRemove}
-              />
-            ))}
-            <Button variant="outline" size="sm" onClick={handleAddInterval}>
-              <Plus className={cls.removeIntervalIcon} />
-              {t('timeGroups.addInterval', 'Добавить интервал')}
-            </Button>
+            {/* Intervals */}
+            <VStack gap="8">
+              <Text variant="muted" className={cls.intervalLabel}>
+                {t('timeGroups.intervalsLabel', 'Интервалы времени')}
+              </Text>
+              {intervals.map((interval, i) => (
+                <IntervalEditor
+                  key={i}
+                  interval={interval}
+                  index={i}
+                  onChange={handleIntervalChange}
+                  onRemove={handleIntervalRemove}
+                />
+              ))}
+              <Button variant="outline" size="sm" onClick={handleAddInterval}>
+                <Plus className={cls.removeIntervalIcon} />
+                {t('timeGroups.addInterval', 'Добавить интервал')}
+              </Button>
+            </VStack>
           </VStack>
         </VStack>
 

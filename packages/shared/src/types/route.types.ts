@@ -1,11 +1,11 @@
 export type ActionType =
   | 'totrunk' | 'toexten' | 'toqueue' | 'togroup' | 'tolist'
   | 'toivr' | 'toroute' | 'playprompt' | 'playback'
-  | 'setclid_custom' | 'setclid_list' | 'set_callerid_name'
+  | 'setclid_custom' | 'setclid_list'
   | 'sendmail' | 'sendmailpeer' | 'telegram'
   | 'voicemail' | 'text2speech' | 'voicerobot' | 'asr' | 'keywords'
   | 'webhook' | 'confbridge' | 'cmd' | 'tofax'
-  | 'label' | 'busy' | 'hangup' | 'redirect_to_bound';
+  | 'label' | 'busy' | 'hangup';
 
 /** Asterisk DIALSTATUS values — used as condition whitelist */
 export type DialStatus =
@@ -175,13 +175,6 @@ export interface IRouteAction {
 export interface IRouteOptions {
   record?: boolean;
   record_all?: boolean;
-  /** @deprecated Use phonebook_uids instead. Will be auto-migrated. */
-  check_blacklist?: boolean;
-  check_whitelist?: number;
-  /** @deprecated Use phonebook action set_callerid_name instead */
-  check_listbook?: boolean;
-  /** @deprecated Use phonebook action redirect_to_bound instead */
-  check_dialto?: boolean;
   pre_command?: string;
   route_type?: number; // outbound type (1-5)
   /** Array of phonebook UIDs to check CallerID against (cascading Gosub) */

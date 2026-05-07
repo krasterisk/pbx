@@ -26,6 +26,17 @@ export interface IUpdateRoute {
 
 const routeApi = rtkApi.injectEndpoints({
   endpoints: (builder) => ({
+    getAllRoutes: builder.query<IRoute[], void>({
+      query: () => '/routes',
+      providesTags: (result) =>
+        result
+          ? [
+              ...result.map((r) => ({ type: 'Routes' as const, id: r.uid })),
+              { type: 'Routes', id: 'LIST' },
+            ]
+          : [{ type: 'Routes', id: 'LIST' }],
+    }),
+
     getRoutesByContext: builder.query<IRoute[], number>({
       query: (contextUid) => `/routes?contextUid=${contextUid}`,
       providesTags: (result) =>
@@ -84,6 +95,7 @@ const routeApi = rtkApi.injectEndpoints({
 });
 
 export const {
+  useGetAllRoutesQuery,
   useGetRoutesByContextQuery,
   useGetRouteByIdQuery,
   useCreateRouteMutation,

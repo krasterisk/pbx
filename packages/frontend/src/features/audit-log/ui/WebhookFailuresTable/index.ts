@@ -1,0 +1,1 @@
+export { WebhookFailuresTable } from './WebhookFailuresTable';

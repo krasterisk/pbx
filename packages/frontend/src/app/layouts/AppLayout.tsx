@@ -4,6 +4,7 @@ import { Sidebar } from '@/widgets/Sidebar';
 import { Header } from '@/widgets/Header';
 import { useAppSelector } from '@/shared/hooks/useAppStore';
 import { useIsMobile } from '@/shared/hooks/useIsMobile';
+import { AiChatWidget } from '@/widgets/AiChatWidget';
 
 export const AppLayout = () => {
   const isAuthenticated = useAppSelector((s) => s.auth.isAuthenticated);
@@ -47,6 +48,8 @@ export const AppLayout = () => {
           <Outlet />
         </div>
       </main>
+
+      <AiChatWidget />
     </div>
   );
 };

@@ -89,6 +89,7 @@ export type { IProvisionTemplate } from './endpoints/provisionTemplateApi';
 
 // Routes
 export {
+  useGetAllRoutesQuery,
   useGetRoutesByContextQuery,
   useGetRouteByIdQuery,
   useCreateRouteMutation,

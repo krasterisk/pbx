@@ -1,0 +1,110 @@
+.card {
+  background: var(--color-surface, hsl(var(--card)));
+  border: 1px solid var(--color-border, hsl(var(--border)));
+  border-radius: 12px;
+  padding: 16px 24px;
+  width: 100%;
+  transition: box-shadow 0.2s ease;
+  min-height: 64px;
+
+  &:hover {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  }
+}
+
+.statusArea {
+  flex: 1;
+  min-width: 0;
+}
+
+.idle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.idleIcon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: hsl(var(--muted-foreground));
+}
+
+.resultOk,
+.resultErr {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.iconOk {
+  width: 18px;
+  height: 18px;
+  color: hsl(142 71% 45%);
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.iconErr {
+  width: 18px;
+  height: 18px;
+  color: hsl(0 84% 60%);
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.textOk {
+  color: hsl(142 71% 45%);
+  font-weight: 600;
+}
+
+.textErr {
+  color: hsl(0 84% 60%);
+  font-weight: 600;
+}
+
+.meta {
+  font-size: 0.8rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.metaIcon {
+  width: 12px;
+  height: 12px;
+  color: hsl(var(--muted-foreground));
+}
+
+.code {
+  font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+  font-size: 0.8em;
+  background: hsl(var(--muted));
+  color: hsl(var(--primary));
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.errorText {
+  font-size: 0.8rem;
+  color: hsl(0 84% 60% / 0.8);
+}
+
+.checkBtn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btnIcon {
+  width: 13px;
+  height: 13px;
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

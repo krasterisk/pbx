@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
-import { AuthService } from './auth.service';
+import { AuthService, JwtPayloadUser } from './auth.service';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -13,11 +13,18 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: configService.get('JWT_SECRET', 'krasterisk-v4-secret'),
+      secretOrKey: configService.get<string>('JWT_SECRET', 'krasterisk-v4-secret'),
     });
   }
 
-  async validate(payload: any) {
-    return this.authService.validateToken(payload);
+  /**
+   * Called after Passport verifies the JWT signature.
+   * Returns req.user — validated from the payload (no extra DB query).
+   *
+   * The payload already contains all fields we need: sub, level,
+   * vpbx_user_uid, etc. These are refreshed on every token rotation.
+   */
+  validate(payload: JwtPayloadUser): JwtPayloadUser {
+    return this.authService.validateJwtPayload(payload);
   }
 }

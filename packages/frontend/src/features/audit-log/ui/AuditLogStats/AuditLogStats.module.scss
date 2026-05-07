@@ -1,0 +1,61 @@
+/* ─────────────────────────────────────────────────────
+   AuditLogStats — KPI cards
+   Design tokens: var(--color-*) from globals.css @theme
+   ───────────────────────────────────────────────────── */
+
+.grid {
+  flex-wrap: wrap;
+
+  @media (max-width: 640px) {
+    flex-direction: column;
+  }
+}
+
+.card {
+  flex: 1;
+  min-width: 150px;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 16px 20px;
+  transition: box-shadow 0.2s ease;
+
+  &:hover {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  }
+
+  @media (max-width: 640px) {
+    min-width: 100%;
+  }
+}
+
+.icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: var(--color-muted-foreground);
+}
+
+.label {
+  font-size: 0.8125rem;
+  color: var(--color-muted-foreground);
+}
+
+.value {
+  display: block;
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  color: var(--color-foreground);
+}
+
+/* ── Color variants ──────────────────────────────── */
+
+.primary .icon  { color: var(--color-primary); }
+
+.info .icon     { color: var(--color-info); }
+.info .value    { color: var(--color-info); }
+
+.danger .icon   { color: var(--color-destructive); }
+.danger .value  { color: var(--color-destructive); }

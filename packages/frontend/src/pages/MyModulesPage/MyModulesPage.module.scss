@@ -1,0 +1,148 @@
+/* ─────────────────────────────────────────────────────
+   MyModulesPage.module.scss
+   Design tokens: var(--color-*) from globals.css @theme
+   ───────────────────────────────────────────────────── */
+
+/* 1. Layout */
+.wrapper {
+  padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.loaderWrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+}
+
+.sectionTitle {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.7rem !important;
+}
+
+.statsRow {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* 2. Stat chips */
+.statChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  background: var(--color-muted);
+  color: var(--color-muted-foreground);
+  font-size: 0.8125rem;
+}
+
+.statChipActive {
+  background: color-mix(in srgb, var(--color-success) 12%, transparent);
+  color: var(--color-success);
+}
+
+/* 3. Module grid */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 4. Card states */
+.moduleCard {
+  transition: box-shadow 0.15s ease;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+
+  &:hover {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  }
+}
+
+.moduleCardActive {
+  border-color: color-mix(in srgb, var(--color-success) 25%, transparent);
+}
+
+.moduleCardInactive {
+  opacity: 0.65;
+}
+
+/* 5. Icon wrap */
+.iconWrap {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  color: var(--color-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.iconWrapDim {
+  background: var(--color-muted);
+  color: var(--color-muted-foreground);
+}
+
+/* 6. Status badge */
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.status_active {
+  background: color-mix(in srgb, var(--color-success) 12%, transparent);
+  color: var(--color-success);
+}
+
+.status_trial {
+  background: color-mix(in srgb, var(--color-warning) 12%, transparent);
+  color: var(--color-warning);
+}
+
+.status_inactive {
+  background: var(--color-muted);
+  color: var(--color-muted-foreground);
+}
+
+/* 7. Price */
+.price {
+  margin-top: 12px;
+  font-size: 0.875rem;
+}
+
+.priceAmt {
+  font-weight: 700;
+  font-size: 1.125rem;
+  color: var(--color-foreground);
+}
+
+.priceCur {
+  color: var(--color-muted-foreground);
+  font-size: 0.8rem;
+}
+
+.priceFree {
+  color: var(--color-success);
+  font-weight: 500;
+}
+
+/* 8. Empty state */
+.empty {
+  padding: 60px 0;
+}

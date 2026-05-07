@@ -8,12 +8,14 @@ import { ServiceRequestsService } from './service-requests.service';
 import { ServiceRequestsController } from './service-requests.controller';
 import { ServiceRequestsPublicController } from './service-requests-public.controller';
 import { SmsModule } from '../sms/sms.module';
+import { CloudAdminModule } from '../cloud-admin/cloud-admin.module';
 
 @Module({
   imports: [
     ConfigModule,
     SequelizeModule.forFeature([ServiceRequest, CcSubject, CcDistrict]),
     SmsModule,
+    CloudAdminModule,
   ],
   controllers: [ServiceRequestsController, ServiceRequestsPublicController],
   providers: [ServiceRequestsService],

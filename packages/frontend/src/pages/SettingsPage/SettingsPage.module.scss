@@ -1,0 +1,47 @@
+.page {
+  padding: 0;
+}
+
+.pageIcon {
+  width: 30px;
+  height: 30px;
+  color: hsl(var(--primary));
+  flex-shrink: 0;
+}
+
+.pageTitle {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.pageSubtitle {
+  color: hsl(var(--muted-foreground));
+  margin: 0;
+}
+
+.section {
+  width: 100%;
+}
+
+.sectionHeader {
+  padding-bottom: 12px;
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.sectionIcon {
+  width: 18px;
+  height: 18px;
+  color: hsl(var(--primary));
+  flex-shrink: 0;
+}
+
+.sectionTitle {
+  font-weight: 600;
+  font-size: 0.9375rem;
+}
+
+.sectionDesc {
+  color: hsl(var(--muted-foreground));
+  margin: 0;
+}

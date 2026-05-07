@@ -7,11 +7,12 @@ import {
   useUpdateRouteMutation,
   type IRouteOptions,
 } from '@/shared/api/api';
+import { useGetContextsQuery } from '@/shared/api/endpoints/contextApi';
 import { type IRouteAction } from '@krasterisk/shared';
 import { useAppSelector, useAppDispatch } from '@/shared/hooks/useAppStore';
 import { routesActions } from '../../model/slice/routesSlice';
 
-import { RouteGeneralTab } from './RouteGeneralTab';
+import { RouteGeneralTab, decodeRecordMode } from './RouteGeneralTab';
 import { RouteWebhooksTab, WebhookItem } from './RouteWebhooksTab';
 import { RouteActionsTab } from './RouteActionsTab';
 
@@ -20,7 +21,7 @@ const TABS = ['general', 'actions', 'webhooks'] as const;
 export const RouteFormModal = memo(() => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
-  const { isModalOpen, selectedRoute, selectedContextUid, modalMode } = useAppSelector((s) => s.routes);
+  const { isModalOpen, selectedRoute, selectedContextUids, modalMode } = useAppSelector((s) => s.routes);
 
   const isCreateMode = modalMode === 'create' || modalMode === 'copy';
 
@@ -28,11 +29,14 @@ export const RouteFormModal = memo(() => {
   const [updateRoute, { isLoading: isUpdating }] = useUpdateRouteMutation();
 
   const [activeTab, setActiveTab] = useState<typeof TABS[number]>('general');
+  const [contextUid, setContextUid] = useState<number | null>(null);
   const [name, setName] = useState('');
   const [extensions, setExtensions] = useState<string[]>([]);
   const [active, setActive] = useState(true);
   const [actions, setActions] = useState<IRouteAction[]>([]);
   const [rawDialplan, setRawDialplan] = useState('');
+
+  const { data: contexts = [] } = useGetContextsQuery();
 
   // Options
   const [record, setRecord] = useState(false);
@@ -48,13 +52,15 @@ export const RouteFormModal = memo(() => {
   useEffect(() => {
     if (selectedRoute) {
       setName(modalMode === 'copy' ? '' : selectedRoute.name);
+      setContextUid(selectedRoute.context_uid);
       setExtensions(selectedRoute.extensions || []);
       setActive(!!selectedRoute.active);
       setActions(selectedRoute.actions || []);
       setRawDialplan(selectedRoute.raw_dialplan || '');
       const opts = selectedRoute.options || {};
-      setRecord(!!opts.record);
-      setRecordAll(!!opts.record_all);
+      const recMode = decodeRecordMode(opts);
+      setRecord(recMode !== 'off');
+      setRecordAll(recMode === 'all');
       setPhonebookUids(opts.phonebook_uids || []);
       setPreCommand(opts.pre_command || '');
       setRouteType(opts.route_type || 0);
@@ -101,6 +107,7 @@ export const RouteFormModal = memo(() => {
 
   const resetForm = () => {
     setName('');
+    setContextUid(selectedContextUids.length === 1 ? selectedContextUids[0] : null);
     setExtensions([]);
     setActive(true);
     setActions([]);
@@ -120,10 +127,12 @@ export const RouteFormModal = memo(() => {
   }, [dispatch]);
 
   const handleSave = async () => {
-    if (!selectedContextUid) return;
+    if (!contextUid) return;
 
     const options: IRouteOptions = {
-      record, record_all: recordAll,
+      record: record || undefined,
+      // Only persist record_all when recording is actually enabled — prevents record_all:true/record:false ghost state
+      record_all: record && recordAll ? true : undefined,
       phonebook_uids: phonebookUids.length > 0 ? phonebookUids : undefined,
       pre_command: preCommand || undefined,
       route_type: routeType || undefined,
@@ -153,7 +162,7 @@ export const RouteFormModal = memo(() => {
       name, extensions, active: active ? 1 : 0,
       options, webhooks: webhooksPayload, actions,
       raw_dialplan: rawDialplan || undefined,
-      context_uid: selectedContextUid,
+      context_uid: contextUid,
     };
 
     try {
@@ -212,7 +221,8 @@ export const RouteFormModal = memo(() => {
               record={record} setRecord={setRecord}
               recordAll={recordAll} setRecordAll={setRecordAll}
               phonebookUids={phonebookUids} setPhonebookUids={setPhonebookUids}
-              preCommand={preCommand} setPreCommand={setPreCommand}
+              contextUid={contextUid} setContextUid={setContextUid}
+              isCreateMode={isCreateMode} contexts={contexts}
             />
           )}
 
@@ -220,6 +230,7 @@ export const RouteFormModal = memo(() => {
             <RouteActionsTab
               actions={actions} setActions={setActions}
               rawDialplan={rawDialplan} setRawDialplan={setRawDialplan}
+              preCommand={preCommand} setPreCommand={setPreCommand}
             />
           )}
 
@@ -235,7 +246,7 @@ export const RouteFormModal = memo(() => {
           <Button variant="outline" onClick={handleClose}>
             {t('common.cancel', 'Отмена')}
           </Button>
-          <Button onClick={handleSave} disabled={isCreating || isUpdating || !name || extensions.length === 0}>
+          <Button onClick={handleSave} disabled={isCreating || isUpdating || !name || extensions.length === 0 || !contextUid}>
             {t('common.save', 'Сохранить')}
           </Button>
         </DialogFooter>

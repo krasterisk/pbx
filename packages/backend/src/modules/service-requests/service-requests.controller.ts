@@ -1,6 +1,8 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, Request, UseGuards } from '@nestjs/common';
 import { ServiceRequestsService } from './service-requests.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { ModuleAccessGuard } from '../cloud-admin/module-access.guard';
+import { RequiresModule } from '../cloud-admin/requires-module.decorator';
 import { InjectModel } from '@nestjs/sequelize';
 import { CcSubject } from './cc-subject.model';
 import { CcDistrict } from './cc-district.model';
@@ -11,7 +13,8 @@ import { CcDistrict } from './cc-district.model';
  * Все эндпоинты защищены JWT и фильтруются по tenant (user_uid из токена).
  */
 @Controller('service-requests')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, ModuleAccessGuard)
+@RequiresModule('service_requests')
 export class ServiceRequestsController {
   constructor(
     private readonly service: ServiceRequestsService,

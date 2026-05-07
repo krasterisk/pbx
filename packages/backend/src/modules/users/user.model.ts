@@ -1,7 +1,8 @@
 import { Table, Column, Model, DataType, PrimaryKey, AutoIncrement } from 'sequelize-typescript';
 
 export enum UserLevel {
-  ADMIN = 1,
+  SUPERADMIN = 0, // Platform-level administrator (manages tenants)
+  ADMIN = 1,      // Tenant administrator (manages own PBX)
   OPERATOR = 2,
   SUPERVISOR = 3,
   READONLY = 5,

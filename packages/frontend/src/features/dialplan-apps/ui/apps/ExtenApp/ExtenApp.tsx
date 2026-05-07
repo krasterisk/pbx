@@ -7,9 +7,21 @@ import { Input } from '@/shared/ui/Input/Input';
 import { IDialplanAppProps } from '../../../model/types';
 import { useGetEndpointsQuery } from '@/shared/api/endpoints/endpointApi';
 
+const EXTEN_PATTERN_VALUE = '__USE_EXTEN__';
+
 export const ExtenApp: React.FC<IDialplanAppProps> = ({ action, onUpdate }) => {
   const { t } = useTranslation();
   const { data: endpoints = [], isLoading, isError } = useGetEndpointsQuery();
+
+  const currentValue = action.params?.useExten ? EXTEN_PATTERN_VALUE : (action.params?.exten || '');
+
+  const handleChange = (value: string) => {
+    if (value === EXTEN_PATTERN_VALUE) {
+      onUpdate(action.id, 'params', { useExten: true, exten: '' });
+    } else {
+      onUpdate(action.id, 'params', { useExten: false, exten: value });
+    }
+  };
 
   return (
     <VStack gap="2" className="w-full">
@@ -19,11 +31,14 @@ export const ExtenApp: React.FC<IDialplanAppProps> = ({ action, onUpdate }) => {
             <Text variant="small" className="text-destructive">{t('common.loadError', 'Ошибка загрузки')}</Text>
           ) : (
             <Select
-              value={action.params?.exten || ''}
-              onChange={(e) => onUpdate(action.id, 'params.exten', e.target.value)}
+              value={currentValue}
+              onChange={(e) => handleChange(e.target.value)}
               disabled={isLoading}
             >
               <option value="" disabled>{t('routes.apps.exten.select', 'Абонент')}</option>
+              <option value={EXTEN_PATTERN_VALUE}>
+                {t('routes.apps.exten.modePattern', '${EXTEN} (по маске маршрута)')}
+              </option>
               {endpoints.map(ep => (
                 <option key={ep.id} value={ep.extension}>
                   {ep.extension} {ep.callerid ? `(${ep.callerid})` : ''}

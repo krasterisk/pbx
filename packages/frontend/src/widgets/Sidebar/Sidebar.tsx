@@ -25,6 +25,7 @@ import {
   Bot,
   Activity,
   ClipboardList,
+  ClipboardCheck,
   Calendar,
   BookOpen,
 } from 'lucide-react';
@@ -65,6 +66,7 @@ export const Sidebar = ({ collapsed, onToggle, isMobile }: SidebarProps) => {
     { type: 'divider' as const, label: t('nav.analytics') },
     { name: t('nav.reports'), path: '/reports', icon: BarChart3 },
     { name: t('nav.voiceRobotCdr', 'Журнал роботов (CDR)'), path: '/reports/voice-robot-cdr', icon: Activity },
+    { name: t('nav.auditLog', 'Журнал событий'), path: '/audit-log', icon: ClipboardCheck },
     { type: 'divider' as const, label: t('nav.system') },
     { name: t('nav.users'), path: '/users', icon: Users },
     { name: t('nav.roles' as any) || 'Интерфейсы', path: '/roles', icon: Shield },

@@ -38,12 +38,12 @@ export const GenericApp = memo(({ action, onUpdate }: IDialplanAppProps) => {
         <VStack gap="4" className="w-full">
           <HStack gap="8" className="w-full">
             <Input className="w-[180px]" value={p.email || ''} onChange={(e) => handleUpdate('email', e.target.value)} placeholder={t('routes.apps.mail.email', 'email@example.com')} />
-            <Input className="flex-1" value={p.subject || ''} onChange={(e) => handleUpdate('subject', e.target.value)} placeholder={t('routes.apps.mail.subjectHint', 'Тема — ${CALLERID(num)}')} />
+            <Input className="flex-1" value={p.subject || ''} onChange={(e) => handleUpdate('subject', e.target.value)} placeholder={t('routes.apps.mail.subjectHint', 'Тема - ${CALLERID(num)}')} />
             <InfoTooltip text={t('routes.apps.mail.variablesHint',
-              'Переменные Asterisk:\n${CALLERID(num)} — номер звонящего\n${CALLERID(name)} — имя звонящего\n${EXTEN} — набранный номер\n${UNIQUEID} — ID звонка\n${EPOCH} — время (unix)\n${STRFTIME(${EPOCH},,%d.%m.%Y %H:%M)} — дата/время\n${CDR(duration)} — длительность\n\nПример темы:\nЗвонок от ${CALLERID(num)} на ${EXTEN}'
+              'Переменные Asterisk:\n${CALLERID(num)} - номер звонящего\n${CALLERID(name)} - имя звонящего\n${EXTEN} - набранный номер\n${UNIQUEID} - ID звонка\n${EPOCH} - время (unix)\n${STRFTIME(${EPOCH},,%d.%m.%Y %H:%M)} - дата/время\n${CDR(duration)} - длительность\n\nПример темы:\nЗвонок от ${CALLERID(num)} на ${EXTEN}'
             )} />
           </HStack>
-          <Input className="w-full" value={p.text || ''} onChange={(e) => handleUpdate('text', e.target.value)} placeholder={t('routes.apps.mail.textHint', 'Текст — Входящий вызов от ${CALLERID(num)} на ${EXTEN}')} />
+          <Input className="w-full" value={p.text || ''} onChange={(e) => handleUpdate('text', e.target.value)} placeholder={t('routes.apps.mail.textHint', 'Текст - Входящий вызов от ${CALLERID(num)} на ${EXTEN}')} />
         </VStack>
       );
     case 'telegram':
@@ -79,7 +79,7 @@ export const GenericApp = memo(({ action, onUpdate }: IDialplanAppProps) => {
     case 'busy':
       return <Input type="number" min={0} step={1} className="w-[100px]" value={p.timeout || ''} onChange={(e) => handleUpdate('timeout', e.target.value)} placeholder={t('routes.apps.common.timeout', 'Сек')} />;
     default:
-      return <Text variant="small" className="text-muted-foreground">—</Text>;
+      return <Text variant="small" className="text-muted-foreground">-</Text>;
   }
 });
 

@@ -39,7 +39,7 @@ export const HangupApp = memo(({ action, onUpdate }: IDialplanAppProps) => {
     HANGUP_CAUSES.map(c => ({
       value: c.value,
       label: c.value
-        ? `${c.value} — ${t(c.labelKey)}`
+        ? `${c.value} - ${t(c.labelKey)}`
         : t(c.labelKey),
     })),
     [t],
@@ -57,7 +57,7 @@ export const HangupApp = memo(({ action, onUpdate }: IDialplanAppProps) => {
         ))}
       </Select>
       <InfoTooltip text={t('routes.apps.hangup.tooltip',
-        'Код причины завершения вызова (ISDN Cause Code).\nЕсли не указан — используется 16 (Normal Clearing).\nВлияет на SIP-ответ, отправляемый вызывающей стороне.'
+        'Код причины завершения вызова (ISDN Cause Code).\nЕсли не указан, используется 16 (Normal Clearing).\nВлияет на SIP-ответ, отправляемый вызывающей стороне.'
       )} />
     </HStack>
   );

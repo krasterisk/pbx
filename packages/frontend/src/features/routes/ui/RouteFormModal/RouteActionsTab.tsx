@@ -1,28 +1,45 @@
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Table2, Code2 } from 'lucide-react';
-import { Button } from '@/shared/ui';
+import { Button, Input, Label, InfoTooltip } from '@/shared/ui';
 import { VStack, HStack } from '@/shared/ui/Stack';
 import { useAppSelector, useAppDispatch } from '@/shared/hooks/useAppStore';
 import { routesActions } from '../../model/slice/routesSlice';
 import { DialplanAppsEditor } from '@/features/dialplan-apps';
 import { RawDialplanEditor } from '../RawDialplanEditor/RawDialplanEditor';
 import type { IRouteAction } from '@krasterisk/shared';
+import styles from './RouteFormModal.module.scss';
 
 export interface RouteActionsTabProps {
   actions: IRouteAction[];
   setActions: (actions: IRouteAction[]) => void;
   rawDialplan: string;
   setRawDialplan: (dp: string) => void;
+  preCommand: string;
+  setPreCommand: (v: string) => void;
 }
 
-export const RouteActionsTab = memo(({ actions, setActions, rawDialplan, setRawDialplan }: RouteActionsTabProps) => {
+export const RouteActionsTab = memo(({ actions, setActions, rawDialplan, setRawDialplan, preCommand, setPreCommand }: RouteActionsTabProps) => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const { editorMode } = useAppSelector((s) => s.routes);
 
   return (
     <VStack gap="12">
+      <VStack gap="4">
+        <HStack gap="4" align="center">
+          <Label htmlFor="route-precmd">{t('routes.preCommand', 'Предварительная команда')}</Label>
+          <InfoTooltip text={t('routes.preCommandTooltip', 'Asterisk-команда, выполняемая до начала обработки действий маршрута. Например, Set() для модификации CallerID или установки переменных канала.')} />
+        </HStack>
+        <Input
+          id="route-precmd"
+          value={preCommand}
+          onChange={(e) => setPreCommand(e.target.value)}
+          placeholder="Set(CALLERID(num)=8${CALLERID(num)})"
+          className={styles.mono}
+        />
+      </VStack>
+
       <HStack gap="8">
         <Button
           type="button"
@@ -55,3 +72,4 @@ export const RouteActionsTab = memo(({ actions, setActions, rawDialplan, setRawD
 });
 
 RouteActionsTab.displayName = 'RouteActionsTab';
+

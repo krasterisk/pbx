@@ -1,0 +1,59 @@
+/* ─────────────────────────────────────────────────────
+   ModuleLockedPage.module.scss
+   Design tokens: var(--color-*) from globals.css @theme
+   ───────────────────────────────────────────────────── */
+
+/* 1. Layout */
+.wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  padding: 2rem;
+}
+
+.content {
+  max-width: 480px;
+  text-align: center;
+}
+
+/* 2. Icon */
+.iconWrap {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--color-destructive) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-destructive) 20%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lockIcon {
+  width: 36px;
+  height: 36px;
+  color: var(--color-destructive);
+  opacity: 0.7;
+}
+
+/* 3. Typography */
+.title {
+  font-size: 1.375rem;
+}
+
+.subtitle {
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  max-width: 360px;
+}
+
+/* 4. Code badge */
+.codeBadge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 20px;
+  background: var(--color-muted);
+  color: var(--color-muted-foreground);
+  font-size: 0.75rem;
+  font-family: monospace;
+}

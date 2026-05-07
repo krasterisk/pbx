@@ -83,8 +83,19 @@ export class AsteriskDialplanUtils {
       .trim();
   }
 
-  /** Convert a single JSON action to dialplan text */
-  static actionToDialplan(action: any, vpbxUserUid: number, isAdmin: boolean = false): string {
+  /** Convert a single JSON action to dialplan text.
+   *
+   * @param action   - Action descriptor from route.actions JSON
+   * @param vpbxUserUid - Tenant ID
+   * @param isAdmin  - Allow admin-only actions (cmd)
+   * @param wh       - Route webhooks config (optional); used to inject U()/gosub for on_answer
+   */
+  static actionToDialplan(
+    action: any,
+    vpbxUserUid: number,
+    isAdmin: boolean = false,
+    wh: Record<string, any> = {},
+  ): string {
     const { type, params = {}, condition = {} } = action;
     let dp = '';
     let wrapper = '';
@@ -105,23 +116,57 @@ export class AsteriskDialplanUtils {
         const dest = this.sanitizeDialplanInput(params.dest) || '${EXTEN}';
         const trunk = this.sanitizeDialplanInput(params.trunk) || '';
         const timeout = parseInt(params.timeout, 10) || 60;
-        const options = this.sanitizeDialplanInput(params.options) || 'tT';
-        dp = `${wrapper}Dial(${trunk}/${dest},${timeout},${options})${closing}`;
+        // Inject U(krsk-on-answer) when on_answer webhook is configured
+        // 'dial' arg tells the subroutine which source triggered it
+        const dialOpts = this.buildDialOptions(params.options || 'tT', wh);
+        const dialLines: string[] = [];
+        // DIALTO: attempt responsible employee first (if custom webhook returned a number)
+        if (wh.custom?.url) {
+          dialLines.push(`${wrapper}ExecIf($["\${DIALTO}" != ""]?Dial(${trunk}/\${DIALTO},15,${dialOpts}))${closing}`);
+          dialLines.push(`ExecIf($["\${DIALSTATUS}" = "ANSWER"]?Return())`);
+        }
+        dialLines.push(`${wrapper}Dial(${trunk}/${dest},${timeout},${dialOpts})${closing}`);
+        dp = dialLines.join('\nsame => n,');
         break;
       }
       case 'toexten': {
-        // Backend adds PJSIP/ prefix — UI stores only the extension number
-        const rawExten = this.sanitizeDialplanInput(params.exten) || '${EXTEN}';
-        const exten = rawExten.includes('/') ? rawExten : `PJSIP/${rawExten}`;
+        // PJSIP endpoint IDs use format: e{extension}_{vpbxUserUid}
+        // Two modes:
+        //   1. Specific extension: params.exten = "101" → Dial(PJSIP/e101_0)
+        //   2. Pattern (use EXTEN): params.useExten = true → Dial(PJSIP/e${EXTEN}_0)
         const timeout = parseInt(params.timeout, 10) || 30;
-        const options = this.sanitizeDialplanInput(params.options) || 'tThH';
-        dp = `${wrapper}Dial(${exten},${timeout},${options})${closing}`;
+        // Inject U(krsk-on-answer) when on_answer webhook is configured
+        const dialOpts = this.buildDialOptions(params.options || 'tThH', wh);
+        let dialTarget: string;
+        if (params.useExten) {
+          dialTarget = `PJSIP/e\${EXTEN}_${vpbxUserUid}`;
+        } else {
+          const rawExten = this.sanitizeDialplanInput(params.exten) || '';
+          if (!rawExten) {
+            dp = ''; // No extension specified — skip
+            break;
+          }
+          dialTarget = rawExten.includes('/') ? rawExten : `PJSIP/e${rawExten}_${vpbxUserUid}`;
+        }
+        const dialLines: string[] = [];
+        // DIALTO: attempt responsible employee first (if custom webhook returned a number)
+        if (wh.custom?.url) {
+          dialLines.push(`${wrapper}ExecIf($["\${DIALTO}" != ""]?Dial(PJSIP/e\${DIALTO}_${vpbxUserUid},15,${dialOpts}))${closing}`);
+          dialLines.push(`ExecIf($["\${DIALSTATUS}" = "ANSWER"]?Return())`);
+        }
+        dialLines.push(`${wrapper}Dial(${dialTarget},${timeout},${dialOpts})${closing}`);
+        dp = dialLines.join('\nsame => n,');
         break;
       }
       case 'toqueue': {
         const queue = this.sanitizeDialplanInput(params.queue) || '${EXTEN}';
         const timeout = params.timeout ? parseInt(params.timeout, 10) : '';
         const options = this.sanitizeDialplanInput(params.options) || 'thH';
+        // Queue on_answer: Asterisk docs confirm gosub runs on the AGENT's channel, not caller's.
+        // Variable bridging from caller → agent channel is limited.
+        // on_answer for Queue is handled by AMI AgentConnect event in ami.service.ts.
+        // We still pass gosub param to capture MEMBERINTERFACE for the AMI handler to correlate.
+        // Queue(name,options,URL,announceoverride,timeout,AGI,gosub,...)
         dp = `${wrapper}Queue(${queue},${options},,,${timeout})${closing}`;
         break;
       }
@@ -151,9 +196,9 @@ export class AsteriskDialplanUtils {
           .map((n: string) => `LOCAL/${n}@ctx-${vpbxUserUid}`)
           .join('&');
         const timeout = parseInt(params.timeout, 10) || 30;
-        const options = this.sanitizeDialplanInput(params.options) || 'tT';
+        const dialOpts = this.buildDialOptions(params.options || 'tT', wh);
         dp = numbers
-          ? `${wrapper}Dial(${numbers},${timeout},${options})${closing}`
+          ? `${wrapper}Dial(${numbers},${timeout},${dialOpts})${closing}`
           : `${wrapper}NoOp(Empty dial list)${closing}`;
         break;
       }
@@ -265,5 +310,21 @@ export class AsteriskDialplanUtils {
     }
 
     return dp;
+  }
+
+  /**
+   * Build Dial() options string, injecting U(krsk-on-answer,s,1(dial)) when on_answer webhook is set.
+   *
+   * The subroutine runs on the CALLER channel immediately when the called party answers,
+   * giving access to all caller-side variables: CALLERID(num), UNIQUEID, __HH_ROUTE_UID, etc.
+   *
+   * @see https://docs.asterisk.org/Asterisk_22_Documentation/API_Documentation/Dialplan_Applications/Dial — U() option
+   */
+  private static buildDialOptions(baseOptions: string, wh: Record<string, any>): string {
+    const sanitized = this.sanitizeDialplanInput(baseOptions);
+    if (!wh.on_answer?.url) return sanitized;
+    // Strip any existing U() from user-supplied options to prevent duplicates
+    const stripped = sanitized.replace(/U\([^)]*\)/g, '');
+    return `${stripped}U(krsk-on-answer,s,1(dial))`;
   }
 }

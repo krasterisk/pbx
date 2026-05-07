@@ -1,6 +1,8 @@
 import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { ModuleRef } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import { AmiGateway } from './ami.gateway';
+
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const AsteriskManager = require('asterisk-manager');
 
@@ -19,7 +21,18 @@ export class AmiService implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly config: ConfigService,
     private readonly gateway: AmiGateway,
+    private readonly moduleRef: ModuleRef,
   ) {}
+
+  /** Lazily resolve DialplanWebhooksService to avoid circular module dependency. */
+  private getWebhooksService() {
+    try {
+      // strict: false searches all modules, not just AmiModule's own providers
+      return this.moduleRef.get('DialplanWebhooksService', { strict: false });
+    } catch {
+      return null;
+    }
+  }
 
   onModuleInit() {
     this.connect();
@@ -84,6 +97,10 @@ export class AmiService implements OnModuleInit, OnModuleDestroy {
     this.connecting = true;
 
     try {
+      // 5th arg = 'events' flag (AMI event filtering: true = receive all events).
+      // keepConnected() is a SEPARATE method — we do NOT call it because we already
+      // manage reconnection via scheduleReconnect() with exponential backoff.
+      // Calling keepConnected() would create a parallel double-reconnect loop.
       this.ami = new AsteriskManager(port, host, login, secret, true);
 
       this.ami.on('connect', () => {
@@ -146,7 +163,59 @@ export class AmiService implements OnModuleInit, OnModuleDestroy {
         });
       });
 
-      // NOTE: keepConnected() removed — it caused uncontrolled reconnection storms.
+      // AgentConnect: fires when a queue member answers a queued call.
+      // We use this for on_answer webhook with Queue() calls, because
+      // Queue's 'gosub' parameter runs on the AGENT channel (not caller),
+      // AgentConnect AMI event (Asterisk 22 docs):
+      //   Channel      — agent's channel (e.g. PJSIP/101-000001)
+      //   Uniqueid     — agent channel uniqueid
+      //   DestChannel  — caller's channel (the one waiting in queue)
+      //   DestUniqueid — caller channel uniqueid (used for CDR correlation)
+      //   Interface    — queue member interface (e.g. PJSIP/e101_42)
+      //   Queue        — queue name
+      //   HoldTime     — seconds caller waited in queue
+      //   MemberName   — queue member name
+      //
+      // ⚠️  NO BridgedChannel in this event (that was older AMI versions).
+      // We GetVar from DestChannel to read HH_ROUTE_UID set on the caller side.
+      this.ami.on('agentconnect', async (evt: any) => {
+        try {
+          const webhooksService = this.getWebhooksService();
+          if (!webhooksService) return;
+
+          // asterisk-manager lowercases all header names
+          const callerChannel = evt.destchannel;
+          const callerUniqueid = evt.destuniqueid || evt.uniqueid;
+          if (!callerChannel) {
+            this.logger.debug('AgentConnect: no DestChannel, skipping webhook');
+            return;
+          }
+
+          // Read dialplan vars set on the caller channel by routes.service.ts
+          const [routeVar, userVar] = await Promise.all([
+            this.getChannelVar(callerChannel, 'HH_ROUTE_UID').catch(() => ''),
+            this.getChannelVar(callerChannel, 'CDR(vpbx_user_uid)').catch(() => ''),
+          ]);
+
+          if (!routeVar || !userVar) {
+            this.logger.debug(`AgentConnect: missing HH_ROUTE_UID or vpbx_user_uid on ${callerChannel}`);
+            return;
+          }
+
+          await webhooksService.handleQueueAgentConnect({
+            route_uid: routeVar,
+            uniqueid: callerUniqueid,
+            clid: evt.calleridnum || evt.callerid || '',
+            member: evt.interface || evt.membername || '',
+            queue: evt.queue || '',
+            holdtime: evt.holdtime || '0',
+            user_uid: userVar,
+          });
+        } catch (err: any) {
+          this.logger.warn(`AgentConnect webhook error: ${err?.message}`);
+        }
+      });
+
       // Reconnection is now managed manually via scheduleReconnect() with exponential backoff.
     } catch (error) {
       this.connecting = false;
@@ -173,8 +242,17 @@ export class AmiService implements OnModuleInit, OnModuleDestroy {
         return;
       }
       this.ami.action(action, (err: any, res: any) => {
-        if (err) reject(err);
-        else resolve(res);
+        if (err) {
+          // asterisk-manager bug: some actions (e.g. UpdateConfig) pass
+          // the success response as err instead of res
+          if (err.response === 'Success') {
+            resolve(err);
+          } else {
+            reject(err);
+          }
+        } else {
+          resolve(res);
+        }
       });
     });
   }
@@ -335,5 +413,17 @@ export class AmiService implements OnModuleInit, OnModuleDestroy {
   /** Reload a specific Asterisk module (e.g. res_pjsip_endpoint_identifier_ip.so) */
   async moduleReload(moduleName: string): Promise<any> {
     return this.action({ action: 'ModuleLoad', module: moduleName, loadtype: 'reload' });
+  }
+
+  /**
+   * Get the value of a channel variable via AMI GetVar.
+   * Used internally to read caller-channel variables from agent-channel context (e.g. AgentConnect).
+   *
+   * @param channel  - Full channel name (e.g. "PJSIP/e101_42-00000001")
+   * @param variable - Variable name (e.g. "HH_ROUTE_UID" or "CDR(vpbx_user_uid)")
+   */
+  async getChannelVar(channel: string, variable: string): Promise<string> {
+    const res = await this.action({ action: 'GetVar', channel, variable });
+    return res?.value || '';
   }
 }

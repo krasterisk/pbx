@@ -2,18 +2,19 @@ import type { IRouteAction } from './route.types';
 
 /**
  * A single entry (phone number) within a route phonebook.
+ *
+ * `vars` contains arbitrary key-value pairs that become
+ * `PB_<key>` Asterisk channel variables when CallerID matches.
  */
 export interface IPhonebookEntry {
   uid: number;
   phonebook_uid: number;
   /** Phone number or pattern (e.g. "+79001234567", "8800*", "_X.") */
   number: string;
-  /** Optional human-readable label for this entry */
-  label?: string;
-  /** Optional: context uid for per-entry redirect */
-  dialto_context?: string;
-  /** Optional: extension to dial in the context */
-  dialto_exten?: string;
+  /** UI-only description (not passed to dialplan) */
+  comment?: string;
+  /** Arbitrary key-value pairs → PB_<key> channel variables */
+  vars?: Record<string, string>;
   created_at?: string;
 }
 
@@ -25,7 +26,8 @@ export interface IPhonebookEntry {
  *   Gosub(phonebook_check_${uid}_${vpbx},s,1)
  *
  * Inside the sub-context:
- *   - If CallerID matches an entry → execute actions[]
+ *   - CURL lookup checks if CallerID matches an entry
+ *   - If match → set PB_<key> vars from entry, then execute actions[]
  *   - If invert=true → execute actions[] on NON-match instead
  *   - Gosub always returns to the calling context via Return()
  *     unless an action explicitly does Hangup/Goto
@@ -58,7 +60,7 @@ export interface ICreatePhonebookDto {
   invert?: boolean;
   actions?: IRouteAction[];
   /** Entries to create along with the phonebook */
-  entries?: Array<{ number: string; label?: string; dialto_context?: string; dialto_exten?: string }>;
+  entries?: Array<{ number: string; comment?: string; vars?: Record<string, string> }>;
 }
 
 /**

@@ -5,6 +5,8 @@ import {
 } from '@nestjs/common';
 import { VoiceRobotsService } from './voice-robots.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { ModuleAccessGuard } from '../cloud-admin/module-access.guard';
+import { RequiresModule } from '../cloud-admin/requires-module.decorator';
 
 /**
  * Voice Robots CRUD Controller.
@@ -30,7 +32,8 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
  *   POST   /voice-robots/data-lists/:id/test-search — Test search against a data list
  */
 @Controller('voice-robots')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, ModuleAccessGuard)
+@RequiresModule('voice_robot')
 export class VoiceRobotsController {
   constructor(private readonly voiceRobotsService: VoiceRobotsService) {}
 

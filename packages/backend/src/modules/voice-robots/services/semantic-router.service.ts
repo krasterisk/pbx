@@ -34,7 +34,14 @@ export class SemanticRouterService implements OnModuleInit {
   /** Cache: keyword phrase text → normalized embedding vector */
   private readonly embeddingCache = new Map<string, Float32Array>();
 
-  async onModuleInit(): Promise<void> {
+  onModuleInit(): void {
+    // Load model in background — don't block NestJS bootstrap.
+    // @huggingface/transformers downloads ~150MB on first run which would
+    // hang the entire application startup if awaited here.
+    setTimeout(() => this.loadModel(), 0);
+  }
+
+  private async loadModel(): Promise<void> {
     try {
       // Dynamic import — @huggingface/transformers is ESM-only
       const { pipeline: createPipeline } = await import('@huggingface/transformers');

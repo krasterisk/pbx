@@ -26,6 +26,11 @@ import { VoiceRobotEditPage } from '@/pages/VoiceRobotEditPage';
 import { VoiceRobotCdrPage } from '@/pages/VoiceRobotCdrPage';
 import { QueuesPage } from '@/features/queues';
 import { ServiceRequestsPage } from '@/pages/ServiceRequestsPage';
+import { SettingsPage } from '@/pages/SettingsPage';
+import { AuditLogPage } from '@/pages/AuditLogPage';
+import { SuperAdminPage } from '@/pages/SuperAdminPage/SuperAdminPage';
+import { MarketplacePage } from '@/pages/MarketplacePage/MarketplacePage';
+import { MyModulesPage } from '@/pages/MyModulesPage/MyModulesPage';
 
 export const router = createBrowserRouter([
   {
@@ -65,9 +70,13 @@ export const router = createBrowserRouter([
       { path: 'service-requests', element: <ServiceRequestsPage /> },
       { path: 'reports', element: <PlaceholderPage title="Отчёты" /> },
       { path: 'reports/voice-robot-cdr', element: <VoiceRobotCdrPage /> },
-      { path: 'settings', element: <PlaceholderPage title="Настройки" /> },
+      { path: 'audit-log', element: <AuditLogPage /> },
+      { path: 'settings', element: <SettingsPage /> },
       { path: 'settings/tts-engines', element: <TtsEnginesPage /> },
       { path: 'settings/stt-engines', element: <SttEnginesPage /> },
+      { path: 'superadmin', element: <SuperAdminPage /> },
+      { path: 'marketplace', element: <MarketplacePage /> },
+      { path: 'my-modules', element: <MyModulesPage /> },
     ],
   },
   {

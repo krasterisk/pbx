@@ -1,6 +1,7 @@
 import { memo, useState, useCallback, KeyboardEvent, useRef } from 'react';
-import { X, Plus, HelpCircle } from 'lucide-react';
+import { X, HelpCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { Tooltip } from '@/shared/ui';
 import styles from './ExtensionChips.module.scss';
 
 interface ExtensionChipsProps {
@@ -9,20 +10,61 @@ interface ExtensionChipsProps {
   disabled?: boolean;
 }
 
+/**
+ * Asterisk pattern matching reference (per official docs).
+ * @see https://docs.asterisk.org/Configuration/Dialplan/Pattern-Matching/
+ */
 const PATTERN_HELP = [
-  { pattern: '_X', desc: 'Любая цифра 0-9' },
-  { pattern: '_Z', desc: 'Любая цифра 1-9' },
-  { pattern: '_N', desc: 'Любая цифра 2-9' },
-  { pattern: '_[15-9]', desc: 'Одна из: 1,5,6,7,8,9' },
-  { pattern: '_.', desc: 'Любое кол-во любых цифр' },
+  { pattern: '_', desc: 'Префикс шаблона (обязателен)' },
+  { pattern: 'X', desc: 'Любая цифра 0-9' },
+  { pattern: 'Z', desc: 'Любая цифра 1-9' },
+  { pattern: 'N', desc: 'Любая цифра 2-9' },
+  { pattern: '[15-9]', desc: 'Набор символов: 1, 5, 6, 7, 8, 9' },
+  { pattern: '.', desc: 'Один или более любых символов (в конце)' },
+];
+
+const PATTERN_EXAMPLES = [
   { pattern: '_XXXXXXX', desc: '7 любых цифр' },
   { pattern: '_8XXXXXXXXXX', desc: 'Россия: 8 + 10 цифр' },
+  { pattern: '_[2-9]NXXXXXXX', desc: 'NANP: 10 цифр без 0/1' },
 ];
+
+function PatternHelpContent() {
+  return (
+    <div className={styles.tooltipContent}>
+      <div className={styles.tooltipSection}>
+        <div className={styles.tooltipTitle}>Спецсимволы</div>
+        <table className={styles.helpTable}>
+          <tbody>
+            {PATTERN_HELP.map((h) => (
+              <tr key={h.pattern}>
+                <td className={styles.helpPattern}>{h.pattern}</td>
+                <td className={styles.helpDesc}>{h.desc}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className={styles.tooltipSection}>
+        <div className={styles.tooltipTitle}>Примеры</div>
+        <table className={styles.helpTable}>
+          <tbody>
+            {PATTERN_EXAMPLES.map((h) => (
+              <tr key={h.pattern}>
+                <td className={styles.helpPattern}>{h.pattern}</td>
+                <td className={styles.helpDesc}>{h.desc}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
 
 export const ExtensionChips = memo(({ value, onChange, disabled }: ExtensionChipsProps) => {
   const { t } = useTranslation();
   const [inputValue, setInputValue] = useState('');
-  const [showHelp, setShowHelp] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const addExtension = useCallback(() => {
@@ -51,30 +93,16 @@ export const ExtensionChips = memo(({ value, onChange, disabled }: ExtensionChip
     <div className={styles.wrapper}>
       <div className={styles.label}>
         <span>{t('routes.extensions', 'Правила набора (Extensions)')}</span>
-        <button
-          type="button"
-          className={styles.helpBtn}
-          onClick={() => setShowHelp(!showHelp)}
-          title={t('routes.extensionHelp', 'Справка по шаблонам')}
-        >
-          <HelpCircle className="w-4 h-4" />
-        </button>
+        <Tooltip content={<PatternHelpContent />} side="right" contentClassName="max-w-[360px]">
+          <button
+            type="button"
+            className={styles.helpBtn}
+            title={t('routes.extensionHelp', 'Справка по шаблонам')}
+          >
+            <HelpCircle className="w-4 h-4" />
+          </button>
+        </Tooltip>
       </div>
-
-      {showHelp && (
-        <div className={styles.helpPanel}>
-          <table className={styles.helpTable}>
-            <tbody>
-              {PATTERN_HELP.map((h) => (
-                <tr key={h.pattern}>
-                  <td className={styles.helpPattern}>{h.pattern}</td>
-                  <td className={styles.helpDesc}>{h.desc}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
 
       <div
         className={styles.chipsContainer}

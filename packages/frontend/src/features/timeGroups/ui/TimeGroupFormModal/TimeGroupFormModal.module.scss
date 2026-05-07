@@ -1,3 +1,14 @@
+.scrollBody {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+
+  > * {
+    flex-shrink: 0;
+  }
+}
+
 .formGrid {
   display: grid;
   grid-template-columns: 1fr 1fr;

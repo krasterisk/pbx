@@ -1,0 +1,44 @@
+/* ─────────────────────────────────────────────────────
+   AuditLogFilter — filter controls row
+   Design tokens: var(--color-*) from globals.css @theme
+   ───────────────────────────────────────────────────── */
+
+.wrap {
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+
+  @media (max-width: 640px) {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+.select {
+  width: 160px;
+  flex-shrink: 0;
+
+  @media (max-width: 640px) {
+    width: 100%;
+  }
+}
+
+.date {
+  width: 148px;
+  flex-shrink: 0;
+  font-size: 0.875rem;
+
+  @media (max-width: 640px) {
+    width: 100%;
+  }
+}
+
+.reset {
+  flex-shrink: 0;
+  padding: 0 8px;
+}
+
+.resetIcon {
+  width: 14px;
+  height: 14px;
+}

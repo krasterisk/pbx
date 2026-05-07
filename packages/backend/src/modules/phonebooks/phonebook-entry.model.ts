@@ -15,14 +15,11 @@ export class PhonebookEntry extends Model {
   @Column({ type: DataType.STRING(32), allowNull: false })
   declare number: string;
 
-  @Column({ type: DataType.STRING(100), defaultValue: '' })
-  declare label: string;
+  @Column({ type: DataType.STRING(255), defaultValue: '' })
+  declare comment: string;
 
-  @Column({ type: DataType.STRING(100), allowNull: true, defaultValue: null })
-  declare dialto_context: string | null;
-
-  @Column({ type: DataType.STRING(32), allowNull: true, defaultValue: null })
-  declare dialto_exten: string | null;
+  @Column({ type: DataType.JSON, allowNull: true, defaultValue: null })
+  declare vars: Record<string, string> | null;
 
   @Column({ type: DataType.DATE, field: 'created_at' })
   declare created_at: Date;

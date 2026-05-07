@@ -1,0 +1,221 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(2px);
+  z-index: 40;
+  animation: fadeIn 0.2s ease;
+}
+
+.drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 480px;
+  max-width: 100vw;
+  background: hsl(var(--background));
+  border-left: 1px solid hsl(var(--border));
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  animation: slideIn 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: -8px 0 32px rgba(0, 0, 0, 0.15);
+}
+
+.header {
+  padding: 20px 24px 0;
+  border-bottom: 1px solid hsl(var(--border));
+  flex-shrink: 0;
+}
+
+.impersonateBtn {
+  margin: 12px 0;
+  width: 100%;
+  justify-content: center;
+}
+
+.tabs {
+  display: flex;
+  gap: 0;
+  margin-top: 8px;
+}
+
+.tab {
+  flex: 1;
+  padding: 8px 12px;
+  font-size: 0.875rem;
+  color: hsl(var(--muted-foreground));
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s;
+  white-space: nowrap;
+
+  &:hover { color: hsl(var(--foreground)); }
+}
+
+.tabActive {
+  color: hsl(var(--primary));
+  border-bottom-color: hsl(var(--primary));
+  font-weight: 500;
+}
+
+.body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 24px;
+}
+
+/* ── Info ─────────────────────────────────────── */
+.infoGrid { display: flex; flex-direction: column; }
+
+.limitsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+/* ── Billing ─────────────────────────────────── */
+.balanceCard {
+  background: linear-gradient(135deg, hsl(var(--primary) / 0.1), hsl(var(--primary) / 0.05));
+  border: 1px solid hsl(var(--primary) / 0.2);
+  border-radius: 12px;
+  padding: 20px;
+  text-align: center;
+}
+
+.balanceBlocked {
+  background: linear-gradient(135deg, hsl(0 80% 50% / 0.1), hsl(0 80% 50% / 0.05));
+  border-color: hsl(0 80% 50% / 0.3);
+}
+
+.balanceAmount {
+  font-size: 2rem;
+  font-weight: 700;
+  color: hsl(var(--foreground));
+  letter-spacing: -0.025em;
+  margin: 4px 0;
+}
+
+.blockedBadge {
+  color: hsl(0 80% 55%);
+  justify-content: center;
+  font-size: 0.75rem;
+}
+
+.txList { display: flex; flex-direction: column; gap: 4px; }
+
+.txRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: hsl(var(--muted) / 0.4);
+  transition: background 0.1s;
+
+  &:hover { background: hsl(var(--muted) / 0.7); }
+}
+
+.txIcon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.txDeposit { background: hsl(142 70% 45% / 0.15); color: hsl(142 70% 40%); }
+.txCharge  { background: hsl(0 80% 50% / 0.12); color: hsl(0 80% 50%); }
+.txRefund  { background: hsl(200 80% 50% / 0.12); color: hsl(200 80% 50%); }
+.txCorrection { background: hsl(40 80% 50% / 0.12); color: hsl(40 80% 50%); }
+
+.amountPositive { color: hsl(142 70% 40%); }
+.amountNegative { color: hsl(0 80% 55%); }
+
+/* ── Modules ─────────────────────────────────── */
+.moduleRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--card));
+  transition: border-color 0.15s;
+
+  &:hover { border-color: hsl(var(--primary) / 0.4); }
+}
+
+.moduleStatus { flex-shrink: 0; }
+.moduleActive  { color: hsl(142 70% 40%); }
+.moduleInactive { color: hsl(var(--muted-foreground)); opacity: 0.4; }
+
+.coreBadge {
+  font-size: 0.65rem;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: hsl(var(--primary) / 0.1);
+  color: hsl(var(--primary));
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.paidBadge {
+  font-size: 0.65rem;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: hsl(40 80% 50% / 0.12);
+  color: hsl(40 60% 40%);
+  font-weight: 500;
+}
+
+/* ── Animations ──────────────────────────────── */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slideIn {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+
+/* SBIS document status badges */
+.sbisLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 7px;
+  border-radius: 10px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  background: color-mix(in srgb, var(--color-success) 12%, transparent);
+  color: var(--color-success);
+  text-decoration: none;
+  transition: opacity 0.15s;
+  &:hover { opacity: 0.8; }
+}
+
+.sbisPending {
+  display: inline-flex;
+  padding: 1px 7px;
+  border-radius: 10px;
+  font-size: 0.7rem;
+  background: color-mix(in srgb, var(--color-warning) 12%, transparent);
+  color: var(--color-warning);
+}
+
+.sbisFailed {
+  display: inline-flex;
+  padding: 1px 7px;
+  border-radius: 10px;
+  font-size: 0.7rem;
+  background: color-mix(in srgb, var(--color-destructive) 12%, transparent);
+  color: var(--color-destructive);
+}

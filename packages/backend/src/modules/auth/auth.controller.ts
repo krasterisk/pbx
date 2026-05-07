@@ -1,85 +1,82 @@
-import { Controller, Post, Body } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import {
+  Controller, Post, Body, Req, HttpCode, HttpStatus,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  ApiTags, ApiOperation, ApiResponse, ApiBadRequestResponse,
+  ApiUnauthorizedResponse, ApiForbiddenResponse, ApiConflictResponse,
+} from '@nestjs/swagger';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
-import { IsString, IsNotEmpty } from 'class-validator';
-
-class LoginDto {
-  @IsString()
-  @IsNotEmpty()
-  login!: string;
-
-  @IsString()
-  @IsNotEmpty()
-  password!: string;
-}
-
-export class RegisterDto {
-  @IsString()
-  @IsNotEmpty()
-  login!: string;
-
-  @IsString()
-  @IsNotEmpty()
-  password!: string;
-
-  @IsString()
-  @IsNotEmpty()
-  name!: string;
-
-  @IsString()
-  email?: string;
-}
-
-export class ActivationDto {
-  @IsString()
-  @IsNotEmpty()
-  login!: string;
-
-  @IsString()
-  @IsNotEmpty()
-  code!: string;
-}
-
-export class RefreshDto {
-  @IsString()
-  @IsNotEmpty()
-  refreshToken!: string;
-}
-
-export class LogoutDto {
-  @IsString()
-  @IsNotEmpty()
-  refreshToken!: string;
-}
+import { LoginDto, RegisterDto, ActivationDto, RefreshDto, LogoutDto } from './dto/auth.dto';
+import { AuthTokenResponse, MessageResponse } from './dto/auth-response.dto';
 
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  // ─── Login ──────────────────────────────────────────────────────────────────
   @Post('login')
-  async login(@Body() dto: LoginDto) {
-    return this.authService.login(dto.login, dto.password);
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } }) // 10 attempts per minute
+  @ApiOperation({ summary: 'Вход в систему', description: 'Возвращает пару JWT-токенов и данные пользователя' })
+  @ApiResponse({ status: 200, type: AuthTokenResponse })
+  @ApiUnauthorizedResponse({ description: 'Неверный логин или пароль' })
+  async login(@Body() dto: LoginDto, @Req() req: any): Promise<AuthTokenResponse> {
+    const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim()
+      ?? req.socket?.remoteAddress
+      ?? '';
+    const ua = req.headers['user-agent'] ?? '';
+    return this.authService.login(dto.login, dto.password, ip, ua);
   }
 
+  // ─── Register ────────────────────────────────────────────────────────────────
   @Post('register')
-  async register(@Body() dto: RegisterDto) {
+  @HttpCode(HttpStatus.CREATED)
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 5, ttl: 3_600_000 } }) // 5 registrations per hour
+  @ApiOperation({ summary: 'Регистрация (только BOX/OPENSOURCE режим)', description: 'В CLOUD-режиме заблокировано. Провизионирование через /cloud-admin/tenants.' })
+  @ApiResponse({ status: 201, type: MessageResponse })
+  @ApiConflictResponse({ description: 'Пользователь с таким логином уже существует' })
+  @ApiForbiddenResponse({ description: 'Регистрация отключена (CLOUD mode)' })
+  async register(@Body() dto: RegisterDto): Promise<MessageResponse> {
     return this.authService.register(dto.login, dto.password, dto.name, dto.email);
   }
 
+  // ─── Activation ──────────────────────────────────────────────────────────────
   @Post('activation')
-  async activation(@Body() dto: ActivationDto) {
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @ApiOperation({ summary: 'Активация аккаунта по коду из email' })
+  @ApiResponse({ status: 200, type: MessageResponse })
+  @ApiBadRequestResponse({ description: 'Неверный или истёкший код' })
+  async activate(@Body() dto: ActivationDto): Promise<MessageResponse> {
     return this.authService.activate(dto.login, dto.code);
   }
 
+  // ─── Refresh ─────────────────────────────────────────────────────────────────
   @Post('refresh')
-  async refresh(@Body() dto: RefreshDto) {
-    return this.authService.refresh(dto.refreshToken);
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Обновление access-токена через refresh-токен' })
+  @ApiResponse({ status: 200, type: AuthTokenResponse })
+  @ApiUnauthorizedResponse({ description: 'Refresh token недействителен или истёк' })
+  async refresh(@Body() dto: RefreshDto, @Req() req: any): Promise<AuthTokenResponse> {
+    const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim()
+      ?? req.socket?.remoteAddress
+      ?? '';
+    const ua = req.headers['user-agent'] ?? '';
+    return this.authService.refresh(dto.refreshToken, ip, ua);
   }
 
+  // ─── Logout ──────────────────────────────────────────────────────────────────
   @Post('logout')
-  async logout(@Body() dto: LogoutDto) {
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Выход — инвалидация сессии' })
+  @ApiResponse({ status: 200, description: '{ success: true }' })
+  async logout(@Body() dto: LogoutDto): Promise<{ success: boolean }> {
     return this.authService.logout(dto.refreshToken);
   }
 }
-

@@ -13,7 +13,7 @@ import { HangupApp } from '../ui/apps/HangupApp/HangupApp';
 export const dialplanAppsRegistry: Record<ActionType, IDialplanAppConfig> = {
   // --- TELEPHONY & MEDIA ---
   totrunk: { type: 'totrunk', labelKey: 'routes.action.totrunk', component: TrunkApp, category: 'telephony', defaultParams: { trunk: '', dest: '${EXTEN}', timeout: 60, options: 'tT' } },
-  toexten: { type: 'toexten', labelKey: 'routes.action.toexten', component: ExtenApp, category: 'telephony', defaultParams: { exten: '', timeout: 30, options: 'tThH' } },
+  toexten: { type: 'toexten', labelKey: 'routes.action.toexten', component: ExtenApp, category: 'telephony', defaultParams: { exten: '', timeout: 60, options: 'tThH' } },
   toqueue: { type: 'toqueue', labelKey: 'routes.action.toqueue', component: QueueApp, category: 'telephony', defaultParams: { queue: '', timeout: '', options: 'thH' } },
   togroup: { type: 'togroup', labelKey: 'routes.action.togroup', component: GenericApp, category: 'telephony' },
   tolist: { type: 'tolist', labelKey: 'routes.action.tolist', component: GenericApp, category: 'telephony' },
@@ -40,10 +40,6 @@ export const dialplanAppsRegistry: Record<ActionType, IDialplanAppConfig> = {
   label: { type: 'label', labelKey: 'routes.action.label', component: GenericApp, category: 'system' },
   busy: { type: 'busy', labelKey: 'routes.action.busy', component: GenericApp, category: 'telephony' },
   hangup: { type: 'hangup', labelKey: 'routes.action.hangup', component: HangupApp, category: 'telephony', defaultParams: { causecode: '' } },
-
-  // --- PHONEBOOK ACTIONS (use PHONEBOOK_LABEL / PHONEBOOK_DIALTO variables) ---
-  set_callerid_name: { type: 'set_callerid_name', labelKey: 'routes.action.set_callerid_name', component: GenericApp, category: 'system' },
-  redirect_to_bound: { type: 'redirect_to_bound', labelKey: 'routes.action.redirect_to_bound', component: GenericApp, category: 'telephony' },
 };
 
 /** Ensure the runtime keys ordered logically for Select menus */

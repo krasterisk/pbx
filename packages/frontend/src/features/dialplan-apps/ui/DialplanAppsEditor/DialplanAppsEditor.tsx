@@ -71,6 +71,9 @@ export const DialplanAppsEditor = memo(({ actions, onChange }: DialplanAppsEdito
         const config = dialplanAppsRegistry[value as ActionType];
         return { ...a, type: value as ActionType, params: config?.defaultParams || {} };
       }
+      if (field === 'params' && typeof value === 'object') {
+        return { ...a, params: { ...a.params, ...value } };
+      }
       if (field.startsWith('params.')) {
         const paramKey = field.slice(7);
         return { ...a, params: { ...a.params, [paramKey]: value } };

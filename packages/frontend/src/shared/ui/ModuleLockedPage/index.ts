@@ -1,0 +1,1 @@
+export { ModuleLockedPage } from './ModuleLockedPage';

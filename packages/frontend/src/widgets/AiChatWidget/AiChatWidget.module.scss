@@ -1,0 +1,280 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   AiChatWidget — AI assistant slide-over panel
+   Design tokens: var(--color-*) from globals.css @theme
+   ───────────────────────────────────────────────────────────────────────────── */
+
+/* 1. Layout */
+.overlay {
+    position: fixed;
+    inset: 0;
+    /* Only cover the area left of the panel */
+    right: 420px;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: var(--z-index-backdrop); /* 35 */
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+}
+
+.overlayVisible {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+@media (max-width: 640px) {
+    .overlay {
+        right: 0; /* On mobile panel is full width — overlay fills all but is behind panel */
+    }
+}
+
+.panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 420px;
+    max-width: 100vw;
+    display: flex;
+    flex-direction: column;
+    background: var(--color-card);
+    border-left: 1px solid var(--color-border);
+    z-index: var(--z-index-modal); /* 50, above backdrop */
+    transform: translateX(100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: -8px 0 32px rgba(0, 0, 0, 0.3);
+}
+
+.panelOpen {
+    transform: translateX(0);
+}
+
+/* Trigger button */
+.triggerBtn {
+    position: fixed;
+    bottom: 28px;
+    right: 28px;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--color-primary), color-mix(in srgb, var(--color-primary) 70%, #8b5cf6));
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: var(--z-index-popover); /* 60, above panel */
+    box-shadow: 0 8px 24px color-mix(in srgb, var(--color-primary) 50%, transparent);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    color: #fff;
+}
+
+.triggerBtn:hover {
+    transform: scale(1.08);
+    box-shadow: 0 12px 32px color-mix(in srgb, var(--color-primary) 60%, transparent);
+}
+
+.triggerPulse {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 12px;
+    height: 12px;
+    background: var(--color-success);
+    border-radius: 50%;
+    border: 2px solid var(--color-background);
+    animation: pulse 2.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-success) 50%, transparent); }
+    50% { box-shadow: 0 0 0 6px transparent; }
+}
+
+/* 2. Header */
+.header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--color-border);
+    flex-shrink: 0;
+}
+
+.avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-lg);
+    background: linear-gradient(135deg, var(--color-primary), color-mix(in srgb, var(--color-primary) 60%, #8b5cf6));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    flex-shrink: 0;
+}
+
+.headerInfo {
+    flex: 1;
+    min-width: 0;
+}
+
+.headerTitle {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-foreground);
+    line-height: 1.3;
+}
+
+.headerStatus {
+    font-size: 11px;
+    color: var(--color-success);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.headerStatus::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--color-success);
+    flex-shrink: 0;
+}
+
+/* 3. Suggestions */
+.suggestions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--color-border);
+    flex-shrink: 0;
+}
+
+.suggestionChip {
+    background: var(--color-muted);
+    border: 1px solid var(--color-border);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 11px;
+    color: var(--color-muted-foreground);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+    white-space: nowrap;
+    font-family: inherit;
+}
+
+.suggestionChip:hover {
+    background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+    color: var(--color-primary);
+    border-color: color-mix(in srgb, var(--color-primary) 40%, transparent);
+}
+
+/* 4. Messages area */
+.messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 0;
+}
+
+.messages::-webkit-scrollbar {
+    width: 4px;
+}
+
+.messages::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.messages::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: 4px;
+}
+
+/* 5. Input area */
+.inputArea {
+    padding: 12px 14px;
+    border-top: 1px solid var(--color-border);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.inputRow {
+    display: flex;
+    gap: 8px;
+    align-items: flex-end;
+}
+
+.disclaimer {
+    font-size: 10px;
+    color: var(--color-muted-foreground);
+    text-align: center;
+    opacity: 0.6;
+}
+
+/* 6. Responsive */
+@media (max-width: 640px) {
+    .panel {
+        width: 100vw;
+        border-left: none;
+    }
+
+    .triggerBtn {
+        bottom: 20px;
+        right: 16px;
+    }
+}
+
+/* Error banner + retry */
+.errorBanner {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    background: color-mix(in srgb, var(--color-error, #ef4444) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-error, #ef4444) 30%, transparent);
+    border-radius: var(--radius-md);
+    margin-bottom: 8px;
+    animation: fadeSlideUp 0.2s ease-out;
+}
+
+@keyframes fadeSlideUp {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.errorText {
+    flex: 1;
+    font-size: 11.5px;
+    color: var(--color-error, #ef4444);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.retryBtn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border: 1px solid color-mix(in srgb, var(--color-error, #ef4444) 40%, transparent);
+    border-radius: var(--radius-sm);
+    background: none;
+    color: var(--color-error, #ef4444);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s;
+    flex-shrink: 0;
+
+    &:hover {
+        background: color-mix(in srgb, var(--color-error, #ef4444) 12%, transparent);
+    }
+}
+

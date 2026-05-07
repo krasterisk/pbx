@@ -1,0 +1,117 @@
+/* ─────────────────────────────────────────────────────
+   WebhookFailuresTable
+   Design tokens: var(--color-*) from globals.css @theme
+   ───────────────────────────────────────────────────── */
+
+.wrap {
+  overflow-x: auto;
+}
+
+.toolbar {
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-muted) 30%, transparent);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.empty {
+  padding: 48px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.emptyIcon {
+  width: 32px;
+  height: 32px;
+  color: color-mix(in srgb, var(--color-destructive) 50%, transparent);
+}
+
+/* Retried rows are dimmed */
+.rowRetried {
+  opacity: 0.55;
+}
+
+/* ── Event badges ────────────────────────────────── */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  white-space: nowrap;
+  border: 1px solid transparent;
+  font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+}
+
+.badgeHangup {
+  background: color-mix(in srgb, var(--color-destructive) 12%, transparent);
+  color: var(--color-destructive);
+  border-color: color-mix(in srgb, var(--color-destructive) 25%, transparent);
+}
+
+.badgeAnswer {
+  background: color-mix(in srgb, var(--color-success) 12%, transparent);
+  color: var(--color-success);
+  border-color: color-mix(in srgb, var(--color-success) 25%, transparent);
+}
+
+.badgeDial {
+  background: color-mix(in srgb, var(--color-info) 12%, transparent);
+  color: var(--color-info);
+  border-color: color-mix(in srgb, var(--color-info) 25%, transparent);
+}
+
+.badgeCustom {
+  background: var(--color-muted);
+  color: var(--color-muted-foreground);
+}
+
+/* ── URL & error cells ───────────────────────────── */
+
+.urlCell {
+  max-width: 200px;
+}
+
+.url {
+  font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+  font-size: 0.8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-muted-foreground);
+}
+
+.errorCol {
+  max-width: 240px;
+}
+
+.error {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 0.8rem;
+  color: var(--color-muted-foreground);
+}
+
+/* ── Action buttons ──────────────────────────────── */
+
+.btnIcon {
+  width: 13px;
+  height: 13px;
+  margin-right: 4px;
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}

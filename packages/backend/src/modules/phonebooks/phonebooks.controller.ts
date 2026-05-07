@@ -1,7 +1,10 @@
 import {
   Controller, Get, Post, Put, Delete,
-  Param, Body, Req, ParseIntPipe, UseGuards,
+  Param, Body, Req, Query, Res,
+  ParseIntPipe, UseGuards, HttpCode, Header,
 } from '@nestjs/common';
+import { Response } from 'express';
+import { ConfigService } from '@nestjs/config';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PhonebooksService } from './phonebooks.service';
 
@@ -56,5 +59,21 @@ export class PhonebooksController {
     @Req() req: any,
   ) {
     return this.phonebooksService.importCsv(id, body.csv, req.user.vpbx_user_uid);
+  }
+
+  /**
+   * CSV export endpoint.
+   * Returns CSV text as downloadable file.
+   */
+  @Get(':id/export-csv')
+  async exportCsv(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: any,
+    @Res() res: Response,
+  ) {
+    const csv = await this.phonebooksService.exportCsv(id, req.user.vpbx_user_uid);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="phonebook_${id}.csv"`);
+    res.send(csv);
   }
 }

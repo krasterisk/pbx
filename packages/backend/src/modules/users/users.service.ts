@@ -35,7 +35,9 @@ export class UsersService {
   async create(data: {
     login: string;
     name: string;
+    /** Plain-text password — will be MD5-hashed (legacy path, prefer passwd) */
     password?: string;
+    /** Already-hashed password (bcrypt or MD5) — stored as-is */
     passwd?: string;
     email?: string;
     level?: number;
@@ -43,17 +45,27 @@ export class UsersService {
     exten?: string;
     vpbx_user_uid?: number;
   }): Promise<User> {
-    const newPassword = data.password || data.passwd;
-    const hashedPassword = newPassword ? crypto.createHash('md5').update(newPassword).digest('hex') : '';
+    let finalPasswd: string;
+
+    if (data.passwd) {
+      // Caller provides a pre-computed hash (bcrypt from AuthService)
+      finalPasswd = data.passwd;
+    } else if (data.password) {
+      // Legacy plain-text path — MD5 for backward compat with v3 users
+      finalPasswd = crypto.createHash('md5').update(data.password).digest('hex');
+    } else {
+      finalPasswd = '';
+    }
+
     return this.userModel.create({
       login: data.login,
       name: data.name,
-      passwd: hashedPassword,
+      passwd: finalPasswd,
       email: data.email || '',
-      level: data.level || 2,
-      role: data.role || 0,
+      level: data.level ?? 2,
+      role: data.role ?? 0,
       exten: data.exten || '',
-      vpbx_user_uid: data.vpbx_user_uid || 0,
+      vpbx_user_uid: data.vpbx_user_uid ?? 0,
     });
   }
 
@@ -81,7 +93,11 @@ export class UsersService {
     const newPassword = data.password || data.passwd;
     
     if (newPassword) {
-      updateData.passwd = crypto.createHash('md5').update(newPassword).digest('hex');
+      // If already a bcrypt hash (from AuthService) — store as-is
+      const isBcrypt = newPassword.startsWith('$2b$') || newPassword.startsWith('$2a$');
+      updateData.passwd = isBcrypt
+        ? newPassword
+        : crypto.createHash('md5').update(newPassword).digest('hex');
       delete updateData.password;
     } else {
       // If empty string is passed to passwd, delete it so we don't override with empty

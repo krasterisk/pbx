@@ -21,6 +21,7 @@ import { SlotExtractorService } from './services/slot-extractor.service';
 import { DataListSearchService } from './services/data-list-search.service';
 import { TtsCacheService } from './services/tts-cache.service';
 import { AriModule } from '../ari/ari.module';
+import { CloudAdminModule } from '../cloud-admin/cloud-admin.module';
 // STT/TTS Providers (Phase 1)
 import { YandexStreamingSttProvider } from './providers/yandex-streaming-stt.provider';
 import { YandexStreamingTtsProvider } from './providers/yandex-streaming-tts.provider';
@@ -44,6 +45,7 @@ import { TtsEngine } from '../tts-engines/tts-engine.model';
       TtsEngine,
     ]),
     AriModule,
+    CloudAdminModule,
   ],
   controllers: [VoiceRobotsController, VoiceRobotsPublicController],
   providers: [

@@ -69,6 +69,18 @@
   gap: 10px 24px;
 }
 
+.nameContextRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  width: 100%;
+}
+
+.nameContextField {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
 .check {
   display: flex;
   align-items: center;

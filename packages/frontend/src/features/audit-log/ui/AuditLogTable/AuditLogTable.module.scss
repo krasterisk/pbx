@@ -1,0 +1,32 @@
+/* ─────────────────────────────────────────────────────
+   AuditLogTable
+   Design tokens: var(--color-*) from globals.css @theme
+   ───────────────────────────────────────────────────── */
+
+.wrap {
+  overflow-x: auto;
+}
+
+.empty {
+  padding: 48px 0;
+  display: flex;
+  justify-content: center;
+}
+
+/* Error rows: left border accent + faint red tint */
+.rowError {
+  background: color-mix(in srgb, var(--color-destructive) 5%, transparent);
+  border-left: 2px solid color-mix(in srgb, var(--color-destructive) 40%, transparent);
+}
+
+.detailsCol {
+  max-width: 300px;
+}
+
+.details {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 0.8125rem;
+}

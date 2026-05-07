@@ -1,8 +1,7 @@
 import { memo, useState, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Trash2, Upload, ChevronDown, ChevronRight } from 'lucide-react';
-import { Button, Input, Text, Label, Checkbox, Select, InfoTooltip } from '@/shared/ui';
-import { useGetContextsQuery } from '@/shared/api/api';
+import { Plus, Trash2, Upload, ChevronDown, ChevronRight, Download } from 'lucide-react';
+import { Button, Input, Text, Label, Checkbox, InfoTooltip, Tooltip } from '@/shared/ui';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/shared/ui/Dialog';
@@ -24,9 +23,8 @@ import cls from './PhonebookFormModal.module.scss';
 
 interface PhonebookEntry {
   number: string;
-  label: string;
-  dialto_context?: string;
-  dialto_exten?: string;
+  comment: string;
+  vars: Record<string, string>;
 }
 
 const TABS = ['entries', 'actions'] as const;
@@ -47,13 +45,11 @@ export const PhonebookFormModal = memo(() => {
   const [entries, setEntries] = useState<PhonebookEntry[]>(
     (editingItem as any)?.entries?.map((e: any) => ({
       number: e.number,
-      label: e.label || '',
-      dialto_context: e.dialto_context || undefined,
-      dialto_exten: e.dialto_exten || undefined,
+      comment: e.comment || e.label || '',
+      vars: e.vars || {},
     })) || [],
   );
-  const [expandedDialto, setExpandedDialto] = useState<Set<number>>(new Set());
-  const { data: contexts = [] } = useGetContextsQuery();
+  const [expandedEntries, setExpandedEntries] = useState<Set<number>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [createPhonebook, { isLoading: isCreating }] = useCreatePhonebookMutation();
@@ -65,16 +61,14 @@ export const PhonebookFormModal = memo(() => {
   }, [dispatch]);
 
   const addEntry = useCallback(() => {
-    setEntries(prev => [...prev, { number: '', label: '' }]);
+    setEntries(prev => [...prev, { number: '', comment: '', vars: {} }]);
   }, []);
 
-  const toggleDialto = useCallback((index: number) => {
-    setExpandedDialto(prev => {
+  const toggleExpanded = useCallback((index: number) => {
+    setExpandedEntries(prev => {
       const next = new Set(prev);
       if (next.has(index)) {
         next.delete(index);
-        // Clear dialto fields when collapsing
-        setEntries(p => p.map((e, i) => i === index ? { ...e, dialto_context: undefined, dialto_exten: undefined } : e));
       } else {
         next.add(index);
       }
@@ -84,12 +78,56 @@ export const PhonebookFormModal = memo(() => {
 
   const removeEntry = useCallback((index: number) => {
     setEntries(prev => prev.filter((_, i) => i !== index));
+    setExpandedEntries(prev => {
+      const next = new Set(prev);
+      next.delete(index);
+      return next;
+    });
   }, []);
 
-  const updateEntry = useCallback((index: number, field: keyof PhonebookEntry, value: string) => {
-    setEntries(prev => prev.map((e, i) => i === index ? { ...e, [field]: value || undefined } : e));
+  const updateEntryField = useCallback((index: number, field: 'number' | 'comment', value: string) => {
+    setEntries(prev => prev.map((e, i) => i === index ? { ...e, [field]: value } : e));
   }, []);
 
+  // Vars management
+  const addVar = useCallback((index: number) => {
+    setEntries(prev => prev.map((e, i) => {
+      if (i !== index) return e;
+      // Generate unique key name
+      let n = Object.keys(e.vars).length + 1;
+      let newKey = `var_${n}`;
+      while (newKey in e.vars) { n++; newKey = `var_${n}`; }
+      return { ...e, vars: { ...e.vars, [newKey]: '' } };
+    }));
+  }, []);
+
+  const updateVarKey = useCallback((entryIndex: number, oldKey: string, newKey: string) => {
+    setEntries(prev => prev.map((e, i) => {
+      if (i !== entryIndex) return e;
+      const vars = { ...e.vars };
+      const value = vars[oldKey];
+      delete vars[oldKey];
+      vars[newKey] = value || '';
+      return { ...e, vars };
+    }));
+  }, []);
+
+  const updateVarValue = useCallback((entryIndex: number, key: string, value: string) => {
+    setEntries(prev => prev.map((e, i) =>
+      i === entryIndex ? { ...e, vars: { ...e.vars, [key]: value } } : e,
+    ));
+  }, []);
+
+  const removeVar = useCallback((entryIndex: number, key: string) => {
+    setEntries(prev => prev.map((e, i) => {
+      if (i !== entryIndex) return e;
+      const vars = { ...e.vars };
+      delete vars[key];
+      return { ...e, vars };
+    }));
+  }, []);
+
+  // CSV import — supports columnar and vertical formats
   const handleFileImport = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -103,37 +141,77 @@ export const PhonebookFormModal = memo(() => {
       if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
 
       const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-      if (lines.length === 0) return;
+      if (lines.length < 2) return; // Need at least header + 1 row
 
-      // Auto-detect delimiter: count semicolons vs commas in first data line
+      // Auto-detect delimiter
       const firstLine = lines[0];
       const semicolons = (firstLine.match(/;/g) || []).length;
       const commas = (firstLine.match(/,/g) || []).length;
       const delimiter = semicolons >= commas ? ';' : ',';
 
-      const newEntries: PhonebookEntry[] = [];
-      for (const line of lines) {
-        // Skip header rows
-        if (/^(number|номер|phone|телефон|#)/i.test(line)) continue;
+      // Parse header
+      const headers = lines[0].split(delimiter).map(h => h.trim().replace(/^["']|["']$/g, '').toLowerCase());
 
-        const parts = line.split(delimiter).map(p => p.trim().replace(/^["']|["']$/g, ''));
-        if (parts[0] && parts[0].length >= 3) {
+      // Detect format
+      const isVertical = headers.includes('var') && headers.includes('value');
+
+      if (isVertical) {
+        const numIdx = headers.indexOf('number');
+        const varIdx = headers.indexOf('var');
+        const valIdx = headers.indexOf('value');
+        const grouped = new Map<string, PhonebookEntry>();
+
+        for (let i = 1; i < lines.length; i++) {
+          const parts = lines[i].split(delimiter).map(p => p.trim().replace(/^["']|["']$/g, ''));
+          const num = parts[numIdx];
+          if (!num || num.length < 3) continue;
+
+          if (!grouped.has(num)) {
+            grouped.set(num, { number: num, comment: '', vars: {} });
+          }
+          const entry = grouped.get(num)!;
+          const varKey = parts[varIdx];
+          const varVal = parts[valIdx];
+          if (varKey === 'comment') {
+            entry.comment = varVal || '';
+          } else if (varKey && varVal) {
+            entry.vars[varKey] = varVal;
+          }
+        }
+
+        setEntries(prev => [...prev, ...Array.from(grouped.values())]);
+      } else {
+        // Columnar format: column headers = var keys
+        const numIdx = headers.findIndex(h => /^(number|номер|phone|телефон|#)$/i.test(h));
+        if (numIdx === -1) return;
+        const commentIdx = headers.indexOf('comment');
+        const varColumns = headers
+          .map((h, idx) => ({ header: h, index: idx }))
+          .filter(c => c.index !== numIdx && c.index !== commentIdx && c.header);
+
+        const newEntries: PhonebookEntry[] = [];
+        for (let i = 1; i < lines.length; i++) {
+          const parts = lines[i].split(delimiter).map(p => p.trim().replace(/^["']|["']$/g, ''));
+          const num = parts[numIdx];
+          if (!num || num.length < 3) continue;
+
+          const vars: Record<string, string> = {};
+          for (const col of varColumns) {
+            const val = parts[col.index];
+            if (val) vars[col.header] = val;
+          }
+
           newEntries.push({
-            number: parts[0],
-            label: parts[1] || '',
-            dialto_context: parts[2] || undefined,
-            dialto_exten: parts[3] || undefined,
+            number: num,
+            comment: commentIdx >= 0 ? (parts[commentIdx] || '') : '',
+            vars,
           });
         }
-      }
 
-      if (newEntries.length > 0) {
         setEntries(prev => [...prev, ...newEntries]);
       }
     };
     reader.readAsText(file, 'utf-8');
-
-    // Reset input so the same file can be re-imported
     e.target.value = '';
   }, []);
 
@@ -146,12 +224,17 @@ export const PhonebookFormModal = memo(() => {
       description: description.trim() || undefined,
       invert,
       actions,
-      entries: validEntries.map(e => ({
-        number: e.number.trim(),
-        label: e.label.trim(),
-        dialto_context: e.dialto_context || undefined,
-        dialto_exten: e.dialto_exten?.trim() || undefined,
-      })),
+      entries: validEntries.map(e => {
+        const cleanVars: Record<string, string> = {};
+        for (const [k, v] of Object.entries(e.vars)) {
+          if (k.trim() && v.trim()) cleanVars[k.trim()] = v.trim();
+        }
+        return {
+          number: e.number.trim(),
+          comment: e.comment.trim(),
+          vars: Object.keys(cleanVars).length > 0 ? cleanVars : undefined,
+        };
+      }),
     };
 
     try {
@@ -167,6 +250,9 @@ export const PhonebookFormModal = memo(() => {
   }, [name, description, invert, actions, entries, isCreateMode, editingItem, createPhonebook, updatePhonebook, handleClose]);
 
   const isSaving = isCreating || isUpdating;
+
+  // Collect all unique var keys from all entries (for hint in actions tab)
+  const allVarKeys = Array.from(new Set(entries.flatMap(e => Object.keys(e.vars)))).sort();
 
   return (
     <Dialog open onOpenChange={(open) => { if (!open) handleClose(); }}>
@@ -203,7 +289,7 @@ export const PhonebookFormModal = memo(() => {
           </HStack>
         </VStack>
 
-        <VStack className="flex-1 overflow-y-auto pr-1">
+        <VStack className={cls.scrollBody}>
           {/* General fields — always visible */}
           <VStack gap="16">
             <HStack className={cls.formGrid}>
@@ -261,18 +347,33 @@ export const PhonebookFormModal = memo(() => {
                     onChange={handleFileImport}
                     className="hidden"
                   />
-                  <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
-                    <Upload className={cls.removeEntryIcon} />
-                    {t('phonebooks.importCsv', 'Импорт CSV')}
-                  </Button>
+                  <Tooltip
+                    content={
+                      <div style={{ fontSize: '0.75rem', lineHeight: 1.5 }}>
+                        <div style={{ fontWeight: 600, marginBottom: 4 }}>Колоночный формат:</div>
+                        <pre style={{ margin: 0, fontFamily: 'monospace', fontSize: '0.7rem', background: 'rgba(0,0,0,0.15)', padding: '6px 8px', borderRadius: 4 }}>
+{`number;comment;name;clid
+79001234567;Иванов;Иванов И.И.;84951110000
+79002345678;Петров;Петров П.П.;84952220000`}
+                        </pre>
+                        <div style={{ marginTop: 6, color: 'hsl(var(--muted-foreground))' }}>
+                          Заголовки = ключи переменных PB_*
+                        </div>
+                      </div>
+                    }
+                    side="bottom"
+                    contentClassName="max-w-[400px]"
+                  >
+                    <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
+                      <Upload className={cls.removeEntryIcon} />
+                      {t('phonebooks.importCsv', 'Импорт CSV')}
+                    </Button>
+                  </Tooltip>
                   <Button variant="outline" size="sm" onClick={addEntry}>
                     <Plus className={cls.removeEntryIcon} />
                     {t('phonebooks.addEntry', 'Добавить номер')}
                   </Button>
                 </HStack>
-                <Text variant="muted" className="text-xs">
-                  {t('phonebooks.csvHint', 'CSV-файл: разделители «;» или «,». Формат: номер;описание')}
-                </Text>
               </VStack>
 
               {/* Entries list header */}
@@ -282,7 +383,7 @@ export const PhonebookFormModal = memo(() => {
                     {t('phonebooks.numberColumn', 'Номер')}
                   </Text>
                   <Text variant="muted" className={cls.fieldLabel}>
-                    {t('phonebooks.labelColumn', 'Метка')}
+                    {t('phonebooks.commentColumn', 'Описание')}
                   </Text>
                   <VStack>{''}</VStack>
                 </HStack>
@@ -290,31 +391,32 @@ export const PhonebookFormModal = memo(() => {
 
               {/* Entries list */}
               {entries.map((entry, i) => {
-                const hasDialto = expandedDialto.has(i) || !!entry.dialto_context || !!entry.dialto_exten;
-                const isOpen = expandedDialto.has(i) || !!entry.dialto_context;
+                const hasVars = Object.keys(entry.vars).length > 0;
+                const isOpen = expandedEntries.has(i);
 
                 return (
                   <VStack key={i} gap="0" className="border border-border rounded-md bg-background overflow-hidden">
                     <HStack className={cls.entryRow} style={{ padding: '0.5rem', borderBottom: isOpen ? '1px solid hsl(var(--border) / 0.5)' : 'none' }}>
                       <Input
                         value={entry.number}
-                        onChange={(e) => updateEntry(i, 'number', e.target.value)}
+                        onChange={(e) => updateEntryField(i, 'number', e.target.value)}
                         placeholder="+79001234567"
                       />
                       <Input
-                        value={entry.label}
-                        onChange={(e) => updateEntry(i, 'label', e.target.value)}
-                        placeholder={t('phonebooks.labelPlaceholder', 'Описание')}
+                        value={entry.comment}
+                        onChange={(e) => updateEntryField(i, 'comment', e.target.value)}
+                        placeholder={t('phonebooks.commentPlaceholder', 'Комментарий')}
                       />
                       <HStack gap="4" align="center" className="shrink-0">
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => toggleDialto(i)}
-                          className={`h-7 px-1.5 text-xs ${hasDialto ? 'text-primary' : 'text-muted-foreground'}`}
-                          title={t('phonebooks.dialtoToggle', 'Перенаправление')}
+                          onClick={() => toggleExpanded(i)}
+                          className={`h-7 px-1.5 text-xs ${hasVars ? 'text-primary' : 'text-muted-foreground'}`}
+                          title={t('phonebooks.varsLabel', 'Переменные (PB_*)')}
                         >
                           {isOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                          {hasVars && <span className="ml-0.5 text-[10px]">{Object.keys(entry.vars).length}</span>}
                         </Button>
                         <Button
                           variant="ghost"
@@ -327,31 +429,42 @@ export const PhonebookFormModal = memo(() => {
                       </HStack>
                     </HStack>
 
+                    {/* Vars editor */}
                     {isOpen && (
-                      <HStack gap="8" align="center" wrap="wrap" className="px-3 py-2 bg-muted/20">
-                        <VStack gap="2" className="flex-1 min-w-[140px]">
-                          <Text variant="muted" className="text-xs">{t('phonebooks.dialtoContext', 'Контекст')}</Text>
-                          <Select
-                            value={entry.dialto_context || ''}
-                            onChange={(e) => updateEntry(i, 'dialto_context', e.target.value)}
-                            className="text-sm"
-                          >
-                            <option value="">{t('phonebooks.selectContext', '— Контекст —')}</option>
-                            {contexts.map(c => (
-                              <option key={c.uid} value={c.name}>{c.name}{c.comment ? ` (${c.comment})` : ''}</option>
-                            ))}
-                          </Select>
-                        </VStack>
-                        <VStack gap="2" className="flex-1 min-w-[120px]">
-                          <Text variant="muted" className="text-xs">{t('phonebooks.dialtoExten', 'Номер')}</Text>
-                          <Input
-                            value={entry.dialto_exten || ''}
-                            onChange={(e) => updateEntry(i, 'dialto_exten', e.target.value)}
-                            placeholder="101"
-                            className="text-sm"
-                          />
-                        </VStack>
-                      </HStack>
+                      <VStack gap="6" className="px-3 py-2 bg-muted/20">
+                        <HStack align="center" gap="4">
+                          <Text variant="muted" className="text-xs font-medium">
+                            {t('phonebooks.varsLabel', 'Переменные (PB_*)')}
+                          </Text>
+                          <InfoTooltip text={t('phonebooks.varsHint', 'Каждая переменная становится ${PB_<ключ>} в dialplan при совпадении CallerID.')} />
+                        </HStack>
+
+                        {Object.entries(entry.vars).map(([key, value], varIdx) => (
+                          <HStack key={varIdx} gap="4" align="center">
+                            <Input
+                              value={key}
+                              onChange={(e) => updateVarKey(i, key, e.target.value)}
+                              placeholder={t('phonebooks.varsKeyPlaceholder', 'name')}
+                              className="text-sm flex-1 max-w-[140px]"
+                            />
+                            <Text variant="muted" className="text-xs">=</Text>
+                            <Input
+                              value={value}
+                              onChange={(e) => updateVarValue(i, key, e.target.value)}
+                              placeholder={t('phonebooks.varsValuePlaceholder', 'Иванов И.И.')}
+                              className="text-sm flex-1"
+                            />
+                            <Button variant="ghost" size="sm" onClick={() => removeVar(i, key)} className="h-7 px-1">
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </HStack>
+                        ))}
+
+                        <Button variant="outline" size="sm" onClick={() => addVar(i)} className="self-start text-xs h-7">
+                          <Plus className="w-3 h-3 mr-1" />
+                          {t('phonebooks.addVar', 'Добавить переменную')}
+                        </Button>
+                      </VStack>
                     )}
                   </VStack>
                 );
@@ -362,6 +475,12 @@ export const PhonebookFormModal = memo(() => {
                   {t('phonebooks.noEntries', 'Нет номеров. Добавьте вручную или импортируйте из CSV.')}
                 </Text>
               )}
+
+              {/* Bottom add button — always visible */}
+              <Button variant="outline" size="sm" onClick={addEntry} className="self-start">
+                <Plus className={cls.removeEntryIcon} />
+                {t('phonebooks.addEntry', 'Добавить номер')}
+              </Button>
             </VStack>
           )}
 
@@ -372,8 +491,23 @@ export const PhonebookFormModal = memo(() => {
                 <Text variant="muted" className={cls.fieldLabel}>
                   {t('phonebooks.actionsLabel', 'Действия при совпадении')}
                 </Text>
-                <InfoTooltip text={t('phonebooks.actionsTooltip', 'Действия Asterisk dialplan, которые выполнятся при совпадении CallerID с номером из справочника. Вызов уходит в Gosub и возвращается через Return().')} />
+                <InfoTooltip text={t('phonebooks.actionsTooltip', 'Произвольные действия dialplan при совпадении CallerID. В действиях доступны переменные ${PB_<ключ>} из записей справочника.')} />
               </VStack>
+
+              {/* PB_* variable hint */}
+              {allVarKeys.length > 0 && (
+                <VStack className="px-3 py-2 bg-muted/20 rounded-md border border-border/50 text-xs">
+                  <Text variant="muted" className="font-medium mb-1">
+                    ℹ️ Доступные переменные записей:
+                  </Text>
+                  {allVarKeys.map((key) => (
+                    <Text key={key} variant="muted" className="font-mono ml-2">
+                      {'${'}PB_{key}{'}'} 
+                    </Text>
+                  ))}
+                </VStack>
+              )}
+
               <DialplanAppsEditor actions={actions} onChange={setActions} />
             </VStack>
           )}

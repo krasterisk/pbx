@@ -45,7 +45,7 @@ export const ActionTypeSelect = memo(({ value, onChange, className }: ActionType
         className={`w-full ${isEmpty ? 'opacity-50' : ''}`}
       >
         <option value="" disabled>
-          {t('routes.selectAction', '— Выберите действие —')}
+          {t('routes.selectAction', 'Выберите действие')}
         </option>
         {Object.entries(groupedCategories).map(([category, items]) => (
           <optgroup key={category} label={t(`routes.categories.${category}`, category.toUpperCase())}>

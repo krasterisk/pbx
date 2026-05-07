@@ -126,14 +126,20 @@ export class SileroVadProvider implements OnModuleInit, OnModuleDestroy {
   private initialized = false;
   private config: VadConfig;
 
-  async onModuleInit(): Promise<void> {
+  onModuleInit(): void {
+    // Load ONNX model in background — don't block NestJS bootstrap.
+    // onnxruntime-node loads native binaries synchronously which can
+    // hang app startup on Windows if awaited during module initialization.
     this.config = {
       threshold: 0.5,
       silenceDurationMs: 2000,
       prefixPaddingMs: 300,
       minSpeechDurationMs: 300,
     };
+    setTimeout(() => this.loadModel(), 0);
+  }
 
+  private async loadModel(): Promise<void> {
     try {
       this.ort = require('onnxruntime-node');
 

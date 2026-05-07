@@ -18,6 +18,8 @@ import { voiceRobotsReducer } from '@/features/voiceRobots/model/slice/voiceRobo
 import { queuesPageReducer } from '@/features/queues/model/slice/queuesPageSlice';
 import { timeGroupsReducer } from '@/features/timeGroups';
 import { phonebooksReducer } from '@/features/phonebooks';
+import { tenantsPageReducer } from '@/features/cloud-admin';
+import { aiChatReducer } from '@/features/ai-chat/model/slice/aiChatSlice';
 
 export const store = configureStore({
   reducer: {
@@ -39,6 +41,8 @@ export const store = configureStore({
     queuesPage: queuesPageReducer,
     timeGroups: timeGroupsReducer,
     phonebooks: phonebooksReducer,
+    tenantsPage: tenantsPageReducer,
+    aiChat: aiChatReducer,
     [rtkApi.reducerPath]: rtkApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>

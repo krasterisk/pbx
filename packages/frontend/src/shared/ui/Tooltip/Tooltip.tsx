@@ -30,9 +30,10 @@ export interface TooltipProps extends React.ComponentPropsWithoutRef<typeof Tool
   content?: React.ReactNode;
   children: React.ReactNode;
   side?: React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Content>['side'];
+  contentClassName?: string;
 }
 
-export function Tooltip({ children, content, side = 'top', ...props }: TooltipProps) {
+export function Tooltip({ children, content, side = 'top', contentClassName, ...props }: TooltipProps) {
   if (!content) return <>{children}</>;
   return (
     <TooltipProvider delayDuration={200}>
@@ -40,7 +41,7 @@ export function Tooltip({ children, content, side = 'top', ...props }: TooltipPr
         <TooltipTrigger asChild>
           {children}
         </TooltipTrigger>
-        <TooltipContent side={side}>
+        <TooltipContent side={side} className={contentClassName}>
           {typeof content === 'string' ? (
             <p className="text-left leading-relaxed whitespace-pre-wrap">{content}</p>
           ) : (
