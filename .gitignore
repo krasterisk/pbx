@@ -17,3 +17,6 @@ coverage/
 **/data/tts-cache/
 
 ecosystem.config.js
+
+# DB migrations (env-specific, managed separately)
+**/migrations/
