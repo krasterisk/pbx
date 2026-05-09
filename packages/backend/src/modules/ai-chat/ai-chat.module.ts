@@ -5,6 +5,7 @@ import { SequelizeModule } from '@nestjs/sequelize';
 import { AiChatController } from './ai-chat.controller';
 import { AiChatService } from './ai-chat.service';
 import { PbxContextBuilderService } from './pbx-context-builder.service';
+import { KnowledgeBaseService } from './knowledge-base.service';
 import { AiWebhookController } from './ai-webhook.controller';
 import { JwtOrServiceTokenGuard } from '../auth/jwt-or-service-token.guard';
 import { ServiceTokenGuard } from '../auth/service-token.guard';
@@ -36,10 +37,11 @@ import { LoggerModule } from '../logger/logger.module';
     providers: [
         AiChatService,
         PbxContextBuilderService,
+        KnowledgeBaseService,
         JwtOrServiceTokenGuard,
         ServiceTokenGuard,
     ],
-    exports: [PbxContextBuilderService],
+    exports: [PbxContextBuilderService, KnowledgeBaseService],
 })
 export class AiChatModule {}
 

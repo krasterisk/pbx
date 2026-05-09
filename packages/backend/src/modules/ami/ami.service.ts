@@ -34,6 +34,15 @@ export class AmiService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  /** Lazily resolve CallCenterAmiService to avoid circular module dependency. */
+  private getCcAmiService() {
+    try {
+      return this.moduleRef.get('CallCenterAmiService', { strict: false });
+    } catch {
+      return null;
+    }
+  }
+
   onModuleInit() {
     this.connect();
   }
@@ -214,6 +223,59 @@ export class AmiService implements OnModuleInit, OnModuleDestroy {
         } catch (err: any) {
           this.logger.warn(`AgentConnect webhook error: ${err?.message}`);
         }
+      });
+
+      // ─── Call Center module event forwarding ───────────────
+      // Forward AMI events to CallCenterAmiService for real-time state tracking.
+      // Uses lazy ModuleRef resolution (same pattern as webhooks) to avoid circular deps.
+
+      // QueueMemberStatus — agent status changes in queue
+      this.ami.on('queuememberstatus', (evt: any) => {
+        this.getCcAmiService()?.handleAgentStatusEvent(evt);
+      });
+
+      // QueueMemberAdded — agent dynamically added to queue
+      this.ami.on('queuememberadded', (evt: any) => {
+        this.getCcAmiService()?.handleMemberAdded(evt);
+      });
+
+      // QueueMemberRemoved — agent removed from queue
+      this.ami.on('queuememberremoved', (evt: any) => {
+        this.getCcAmiService()?.handleMemberRemoved(evt);
+      });
+
+      // QueueMemberPause — agent pause/unpause
+      this.ami.on('queuememberpause', (evt: any) => {
+        this.getCcAmiService()?.handleAgentStatusEvent(evt);
+      });
+
+      // QueueCallerJoin — caller entered queue
+      this.ami.on('queuecallerjoin', (evt: any) => {
+        this.getCcAmiService()?.handleCallerJoin(evt);
+      });
+
+      // QueueCallerAbandon — caller abandoned queue
+      this.ami.on('queuecallerabandon', (evt: any) => {
+        this.getCcAmiService()?.handleCallerAbandon(evt);
+      });
+
+      // AgentConnect — agent answered a queued call (also used by webhooks above)
+      this.ami.on('agentconnect', (evt: any) => {
+        this.getCcAmiService()?.handleAgentConnect(evt);
+      });
+
+      // AgentComplete — call ended after agent answered
+      this.ami.on('agentcomplete', (evt: any) => {
+        this.getCcAmiService()?.handleAgentComplete(evt);
+      });
+
+      // Hold / Unhold — channel placed on/off hold
+      this.ami.on('hold', (evt: any) => {
+        this.getCcAmiService()?.handleHold(evt);
+      });
+
+      this.ami.on('unhold', (evt: any) => {
+        this.getCcAmiService()?.handleUnhold(evt);
       });
 
       // Reconnection is now managed manually via scheduleReconnect() with exponential backoff.

@@ -30,6 +30,11 @@ import { SmsModule } from './modules/sms/sms.module';
 import { CloudAdminModule } from './modules/cloud-admin/cloud-admin.module';
 import { AiChatModule } from './modules/ai-chat/ai-chat.module';
 import { McpModule } from './modules/mcp/mcp.module';
+import { CallCenterModule } from './modules/callcenter/callcenter.module';
+import { CcPauseReason } from './modules/callcenter/models/pause-reason.model';
+import { CcAgentSession } from './modules/callcenter/models/agent-session.model';
+import { CcAgentEvent } from './modules/callcenter/models/agent-event.model';
+import { CcAgentQueue } from './modules/callcenter/models/agent-queue.model';
 import { Tenant } from './modules/cloud-admin/tenant.model';
 import { ModuleRegistry } from './modules/cloud-admin/module-registry.model';
 import { TenantModule } from './modules/cloud-admin/tenant-module.model';
@@ -102,6 +107,7 @@ import * as path from 'path';
         SystemSetting, VoiceRobot, VoiceRobotKeywordGroup, VoiceRobotKeyword, VoiceRobotLog, VoiceRobotCdr, VoiceRobotDataList,
         Queue, QueueMember,
         ServiceRequest, CcSubject, CcDistrict,
+        CcPauseReason, CcAgentSession, CcAgentEvent, CcAgentQueue,
         TimeGroup,
         RoutePhonebook, PhonebookEntry,
         // Cloud-admin
@@ -153,6 +159,7 @@ import * as path from 'path';
     CloudAdminModule,
     AiChatModule,
     McpModule,
+    CallCenterModule,
   ],
   providers: [
     // Global rate limiting guard

@@ -1,0 +1,276 @@
+/* ─────────────────────────────────────────────────────
+   CallCenterSupervisorPage - Supervisor dashboard
+   Design tokens: var(--color-*) from globals.css @theme
+   ───────────────────────────────────────────────────── */
+
+/* 1. Layout */
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  flex: 1;
+  min-height: 0;
+}
+
+/* 2. KPI Strip */
+.kpiStrip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.kpiCard {
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  transition: border-color 0.2s ease;
+}
+
+.kpiLabel {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-muted-foreground);
+}
+
+.kpiValue {
+  font-size: 1.5rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-foreground);
+}
+
+.kpiDanger {
+  border-color: color-mix(in srgb, var(--color-destructive) 40%, transparent);
+  .kpiValue { color: var(--color-destructive); }
+}
+
+.kpiWarning {
+  border-color: color-mix(in srgb, var(--color-warning) 40%, transparent);
+  .kpiValue { color: var(--color-warning); }
+}
+
+.kpiSuccess {
+  .kpiValue { color: var(--color-success); }
+}
+
+/* 3. Tabs */
+.tabsRow {
+  display: flex;
+  gap: 2px;
+  background: color-mix(in srgb, var(--color-muted) 30%, transparent);
+  border-radius: var(--radius-lg);
+  padding: 3px;
+  border: 1px solid var(--color-border);
+}
+
+.tab {
+  padding: 8px 16px;
+  border-radius: var(--radius-md);
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--color-muted-foreground);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  background: transparent;
+  border: none;
+
+  &:hover {
+    color: var(--color-foreground);
+    background: color-mix(in srgb, var(--color-muted) 60%, transparent);
+  }
+}
+
+.tabActive {
+  background: var(--color-card);
+  color: var(--color-foreground);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* 4. Agent Grid */
+.agentGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.agentCard {
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  transition: all 0.2s ease;
+
+  &:hover {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    transform: translateY(-1px);
+  }
+}
+
+.agentCardHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.agentStatusDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.agentStatusReady { background: var(--color-success); }
+.agentStatusInCall { background: var(--color-destructive); animation: pulse 2s infinite; }
+.agentStatusPaused { background: var(--color-warning); }
+.agentStatusOffline { background: var(--color-muted-foreground); }
+.agentStatusWrapup { background: var(--color-info); }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.agentName {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--color-foreground);
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.agentStatus {
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.agentMeta {
+  font-size: 0.75rem;
+  color: var(--color-muted-foreground);
+}
+
+.agentActions {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+.agentActionBtn {
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 0.7rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-muted-foreground);
+  transition: all 0.15s ease;
+
+  &:hover {
+    background: color-mix(in srgb, var(--color-muted) 50%, transparent);
+    color: var(--color-foreground);
+  }
+}
+
+.agentActionSpy {
+  &:hover {
+    border-color: color-mix(in srgb, var(--color-info) 40%, transparent);
+    color: var(--color-info);
+  }
+}
+
+.agentActionPause {
+  &:hover {
+    border-color: color-mix(in srgb, var(--color-warning) 40%, transparent);
+    color: var(--color-warning);
+  }
+}
+
+.agentActionDanger {
+  &:hover {
+    border-color: color-mix(in srgb, var(--color-destructive) 40%, transparent);
+    color: var(--color-destructive);
+  }
+}
+
+/* 5. Live calls table */
+.liveCallsTable {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.liveCallsTable th {
+  text-align: left;
+  padding: 10px 14px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-muted-foreground);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: color-mix(in srgb, var(--color-muted) 30%, transparent);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.liveCallsTable td {
+  padding: 10px 14px;
+  font-size: 0.85rem;
+  color: var(--color-foreground);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 50%, transparent);
+}
+
+.liveCallsTable tr:last-child td {
+  border-bottom: none;
+}
+
+.callStatusBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.badgeWaiting {
+  background: color-mix(in srgb, var(--color-warning) 12%, transparent);
+  color: var(--color-warning);
+}
+
+.badgeTalking {
+  background: color-mix(in srgb, var(--color-success) 12%, transparent);
+  color: var(--color-success);
+}
+
+.badgeHold {
+  background: color-mix(in srgb, var(--color-info) 12%, transparent);
+  color: var(--color-info);
+}
+
+/* 6. Empty state */
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  color: var(--color-muted-foreground);
+  gap: 8px;
+}

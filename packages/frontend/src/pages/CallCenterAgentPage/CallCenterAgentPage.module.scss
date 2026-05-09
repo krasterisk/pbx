@@ -1,0 +1,395 @@
+/* ─────────────────────────────────────────────────────
+   CallCenterAgentPage - Operator workspace
+   Design tokens: var(--color-*) from globals.css @theme
+   ───────────────────────────────────────────────────── */
+
+/* 1. Layout */
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  flex: 1;
+  min-height: 0;
+}
+
+/* 2. Status Bar */
+.statusBar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 20px;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  flex-wrap: wrap;
+}
+
+.statusIndicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: var(--radius-lg);
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+
+  &:hover {
+    filter: brightness(1.1);
+  }
+}
+
+.statusDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.statusReady {
+  background: color-mix(in srgb, var(--color-success) 12%, transparent);
+  color: var(--color-success);
+  border-color: color-mix(in srgb, var(--color-success) 25%, transparent);
+
+  .statusDot { background: var(--color-success); }
+}
+
+.statusPaused {
+  background: color-mix(in srgb, var(--color-warning) 12%, transparent);
+  color: var(--color-warning);
+  border-color: color-mix(in srgb, var(--color-warning) 25%, transparent);
+
+  .statusDot { background: var(--color-warning); animation: none; }
+}
+
+.statusInCall {
+  background: color-mix(in srgb, var(--color-destructive) 12%, transparent);
+  color: var(--color-destructive);
+  border-color: color-mix(in srgb, var(--color-destructive) 25%, transparent);
+
+  .statusDot { background: var(--color-destructive); }
+}
+
+.statusWrapup {
+  background: color-mix(in srgb, var(--color-info) 12%, transparent);
+  color: var(--color-info);
+  border-color: color-mix(in srgb, var(--color-info) 25%, transparent);
+
+  .statusDot { background: var(--color-info); animation: none; }
+}
+
+.statusOffline {
+  background: color-mix(in srgb, var(--color-muted-foreground) 12%, transparent);
+  color: var(--color-muted-foreground);
+  border-color: color-mix(in srgb, var(--color-muted-foreground) 25%, transparent);
+
+  .statusDot { background: var(--color-muted-foreground); animation: none; }
+}
+
+.agentName {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--color-foreground);
+}
+
+.sessionTimer {
+  font-size: 0.8rem;
+  color: var(--color-muted-foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+.queueChips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.queueChip {
+  padding: 2px 10px;
+  border-radius: var(--radius-md);
+  font-size: 0.75rem;
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  color: var(--color-primary);
+  border: 1px solid color-mix(in srgb, var(--color-primary) 20%, transparent);
+}
+
+.statusBarRight {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* 3. Main Content */
+.mainContent {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 16px;
+  flex: 1;
+  min-height: 0;
+
+  @media (max-width: 1024px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 4. Active Call Panel */
+.callPanel {
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  min-height: 300px;
+}
+
+.callPanelActive {
+  border-color: color-mix(in srgb, var(--color-primary) 40%, transparent);
+  box-shadow: 0 0 20px color-mix(in srgb, var(--color-primary) 10%, transparent);
+}
+
+.callerInfo {
+  text-align: center;
+}
+
+.callerNumber {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--color-foreground);
+  letter-spacing: -0.02em;
+}
+
+.callerName {
+  font-size: 0.9rem;
+  color: var(--color-muted-foreground);
+  margin-top: 4px;
+}
+
+.callQueue {
+  font-size: 0.8rem;
+  padding: 4px 12px;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  color: var(--color-primary);
+}
+
+.callTimer {
+  font-size: 2rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-foreground);
+}
+
+.callActions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.idleState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  color: var(--color-muted-foreground);
+}
+
+.idleIcon {
+  width: 48px;
+  height: 48px;
+  opacity: 0.3;
+}
+
+/* 5. Quick Actions Sidebar */
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+
+  @media (max-width: 1024px) {
+    display: none;
+  }
+}
+
+.sidebarCard {
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: 16px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+.sidebarTitle {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-muted-foreground);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 12px;
+}
+
+.transferList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.transferItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background 0.15s ease;
+
+  &:hover {
+    background: color-mix(in srgb, var(--color-muted) 50%, transparent);
+  }
+}
+
+.transferItemOnline {
+  .transferDot { background: var(--color-success); }
+}
+
+.transferItemBusy {
+  .transferDot { background: var(--color-destructive); }
+}
+
+.transferItemOffline {
+  opacity: 0.5;
+  .transferDot { background: var(--color-muted-foreground); }
+}
+
+.transferDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.transferName {
+  font-size: 0.85rem;
+  color: var(--color-foreground);
+  flex: 1;
+}
+
+.transferExt {
+  font-size: 0.75rem;
+  color: var(--color-muted-foreground);
+}
+
+/* 6. Queue Monitor (bottom) */
+.queueMonitor {
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+}
+
+.queueMonitorHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: color-mix(in srgb, var(--color-muted) 30%, transparent);
+  border-bottom: 1px solid var(--color-border);
+  cursor: pointer;
+
+  &:hover {
+    background: color-mix(in srgb, var(--color-muted) 50%, transparent);
+  }
+}
+
+.queueStats {
+  display: flex;
+  gap: 20px;
+}
+
+.queueStat {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+}
+
+.queueStatValue {
+  font-weight: 700;
+  color: var(--color-foreground);
+}
+
+.queueStatLabel {
+  color: var(--color-muted-foreground);
+}
+
+.queueStatDanger {
+  .queueStatValue { color: var(--color-destructive); }
+}
+
+.queueTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.queueTable th {
+  text-align: left;
+  padding: 8px 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-muted-foreground);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.queueTable td {
+  padding: 8px 12px;
+  font-size: 0.85rem;
+  color: var(--color-foreground);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 50%, transparent);
+}
+
+.waitTime {
+  font-variant-numeric: tabular-nums;
+}
+
+.waitTimeDanger {
+  color: var(--color-destructive);
+  font-weight: 600;
+}
+
+.waitTimeWarning {
+  color: var(--color-warning);
+  font-weight: 600;
+}
+
+/* 7. Connection indicator */
+.connectionDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.connectionOnline {
+  background: var(--color-success);
+}
+
+.connectionOffline {
+  background: var(--color-destructive);
+  animation: pulse 1s infinite;
+}

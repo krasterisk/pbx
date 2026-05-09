@@ -71,19 +71,22 @@ export class EndpointsService {
   }
 
   /** Build default context name for a tenant */
-  private buildDefaultContext(vpbxUserUid: number): string {
-    return `ctx-${vpbxUserUid}`;
+  private buildDefaultContext(_vpbxUserUid: number): string {
+    return 'from-internal';
   }
+
 
   /**
    * Build context with tenant ID suffix.
    * e.g. context='sip-out', tenantId=0 → 'sip-out0'
+   * Falls back to default context if context is null/undefined.
    */
-  private buildContext(context: string, vpbxUserUid: number): string {
+  private buildContext(context: string | undefined | null, vpbxUserUid: number): string {
+    const base = context || this.buildDefaultContext(vpbxUserUid);
     const suffix = String(vpbxUserUid);
     // If context already ends with the tenant ID, don't duplicate
-    if (context.endsWith(suffix)) return context;
-    return `${context}${suffix}`;
+    if (base.endsWith(suffix)) return base;
+    return `${base}${suffix}`;
   }
 
   /** Generate a cryptographically secure random password */

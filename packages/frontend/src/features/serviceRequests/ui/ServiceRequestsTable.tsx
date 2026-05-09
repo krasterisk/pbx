@@ -320,6 +320,12 @@ export function ServiceRequestsTable({ filters }: ServiceRequestsTableProps) {
       cell: ({ row }) => <TruncatedCell text={row.original.district} maxLen={16} />,
     },
     {
+      accessorKey: 'address',
+      header: 'Адрес',
+      size: 160,
+      cell: ({ row }) => <TruncatedCell text={row.original.address} maxLen={22} />,
+    },
+    {
       accessorKey: 'comment',
       header: 'Обращение',
       size: 140,

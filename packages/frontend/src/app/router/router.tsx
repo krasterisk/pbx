@@ -31,6 +31,8 @@ import { AuditLogPage } from '@/pages/AuditLogPage';
 import { SuperAdminPage } from '@/pages/SuperAdminPage/SuperAdminPage';
 import { MarketplacePage } from '@/pages/MarketplacePage/MarketplacePage';
 import { MyModulesPage } from '@/pages/MyModulesPage/MyModulesPage';
+import { CallCenterAgentPage } from '@/pages/CallCenterAgentPage';
+import { CallCenterSupervisorPage } from '@/pages/CallCenterSupervisorPage';
 
 export const router = createBrowserRouter([
   {
@@ -66,9 +68,10 @@ export const router = createBrowserRouter([
       { path: 'roles', element: <RolesPage /> },
       { path: 'numbers', element: <NumbersPage /> },
       { path: 'provision-templates', element: <ProvisionTemplatesPage /> },
-      { path: 'operator', element: <PlaceholderPage title="Панель оператора" /> },
+      { path: 'operator', element: <CallCenterAgentPage /> },
+      { path: 'supervisor', element: <CallCenterSupervisorPage /> },
       { path: 'service-requests', element: <ServiceRequestsPage /> },
-      { path: 'reports', element: <PlaceholderPage title="Отчёты" /> },
+      { path: 'reports', element: <PlaceholderPage title="Reports" /> },
       { path: 'reports/voice-robot-cdr', element: <VoiceRobotCdrPage /> },
       { path: 'audit-log', element: <AuditLogPage /> },
       { path: 'settings', element: <SettingsPage /> },

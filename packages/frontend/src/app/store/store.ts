@@ -20,6 +20,7 @@ import { timeGroupsReducer } from '@/features/timeGroups';
 import { phonebooksReducer } from '@/features/phonebooks';
 import { tenantsPageReducer } from '@/features/cloud-admin';
 import { aiChatReducer } from '@/features/ai-chat/model/slice/aiChatSlice';
+import callCenterReducer from '@/features/callcenter/model/slice/callCenterSlice';
 
 export const store = configureStore({
   reducer: {
@@ -43,6 +44,7 @@ export const store = configureStore({
     phonebooks: phonebooksReducer,
     tenantsPage: tenantsPageReducer,
     aiChat: aiChatReducer,
+    callCenter: callCenterReducer,
     [rtkApi.reducerPath]: rtkApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>

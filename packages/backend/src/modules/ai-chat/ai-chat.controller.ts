@@ -12,6 +12,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { IsString, IsArray, IsOptional, ValidateNested, IsIn } from 'class-validator';
 import { Type } from 'class-transformer';
 import { Throttle, SkipThrottle } from '@nestjs/throttler';
+import { ConfigService } from '@nestjs/config';
 import { Response } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AiChatService, ChatMessage } from './ai-chat.service';
@@ -57,6 +58,7 @@ export class AiChatController {
         private readonly aiChatService: AiChatService,
         private readonly contextBuilder: PbxContextBuilderService,
         private readonly loggerService: LoggerService,
+        private readonly config: ConfigService,
     ) {}
 
     /**
@@ -118,6 +120,8 @@ export class AiChatController {
 
         const collectedToolCalls: string[] = [];
         let hasError = false;
+        // MCP health tracking — detect LLM hallucinating tool execution
+        const collectedToolResults: string[] = [];
 
         try {
             const stream = this.aiChatService.streamFromAiPbx(
@@ -131,14 +135,25 @@ export class AiChatController {
                 if (abortController.signal.aborted) break;
                 res.write(chunk);
 
-                // Collect tool_call events for audit log
+                // Collect tool_call events
                 if (chunk.includes('event: tool_call')) {
                     const match = chunk.match(/data: (.+)/);
                     if (match) {
                         try {
                             const data = JSON.parse(match[1]);
                             collectedToolCalls.push(data.name ?? 'unknown');
-                        } catch { /* ignore parse errors */ }
+                        } catch { /* ignore */ }
+                    }
+                }
+
+                // Collect tool_result events (actual execution confirmation)
+                if (chunk.includes('event: tool_result')) {
+                    const match = chunk.match(/data: (.+)/);
+                    if (match) {
+                        try {
+                            const data = JSON.parse(match[1]);
+                            collectedToolResults.push(data.name ?? 'unknown');
+                        } catch { /* ignore */ }
                     }
                 }
             }
@@ -151,11 +166,34 @@ export class AiChatController {
             res.end();
         }
 
-        // Audit log — асинхронно, не блокируем ответ
+        // ── Hallucination detection ───────────────────────────────────────────
+        // If LLM mentioned tool calls in text but no tool_result events arrived
+        // → MCP tools were disabled or call failed silently
+        const mcpEnabled = !!(
+            this.config.get('KRASTERISK_PUBLIC_URL') &&
+            this.config.get('KRASTERISK_SERVICE_TOKEN')
+        );
+
+        if (!mcpEnabled) {
+            this.logger.warn(
+                `[AI HALLUCINATION RISK] MCP disabled for tenant ${userUid}. ` +
+                `Message: "${dto.message.slice(0, 80)}". ` +
+                `LLM has no tools — responses about PBX changes are SIMULATED.`,
+            );
+        } else if (collectedToolCalls.length > 0 && collectedToolResults.length === 0) {
+            // LLM signalled tool calls but got no results back
+            this.logger.warn(
+                `[AI HALLUCINATION RISK] tenant=${userUid}: ` +
+                `tool_calls declared [${collectedToolCalls.join(', ')}] ` +
+                `but 0 tool_results received. MCP call may have failed silently.`,
+            );
+        }
+
+        // ── Audit log ─────────────────────────────────────────────────────────
         const durationMs = Date.now() - startedAt;
-        const summary = collectedToolCalls.length > 0
-            ? `tools: ${collectedToolCalls.join(', ')} | ${durationMs}ms`
-            : `${durationMs}ms`;
+        const toolSummary = collectedToolCalls.length > 0
+            ? `calls=[${collectedToolCalls.join(',')}] results=[${collectedToolResults.join(',')}]`
+            : 'no_tools';
 
         this.loggerService.logAction(
             userId,
@@ -163,7 +201,7 @@ export class AiChatController {
             'ai_dialog',
             null,
             userUid,
-            `"${dto.message.slice(0, 120)}" → ${summary}`,
+            `"${dto.message.slice(0, 100)}" → ${toolSummary} | ${durationMs}ms | mcp=${mcpEnabled ? 'on' : 'OFF'}`,
             hasError ? 'error' : 'success',
         ).catch(e => this.logger.warn(`Audit log failed: ${e.message}`));
     }

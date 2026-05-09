@@ -1,0 +1,1 @@
+export { CallCenterSupervisorPage } from './CallCenterSupervisorPage';
