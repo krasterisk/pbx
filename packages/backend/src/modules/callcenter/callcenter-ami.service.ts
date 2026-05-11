@@ -16,6 +16,9 @@ import { Queue } from '../queues/queue.model';
 export class CallCenterAmiService implements OnModuleInit {
   private readonly logger = new Logger(CallCenterAmiService.name);
 
+  /** Tracks pending wrapup auto-timeout timers. Key = `${userUid}:${agentInterface}` */
+  private readonly wrapupTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
   constructor(
     private readonly amiService: AmiService,
     private readonly stateService: CallCenterStateService,
@@ -40,7 +43,13 @@ export class CallCenterAmiService implements OnModuleInit {
 
   /**
    * Load current queue/agent state from Asterisk via QueueStatus AMI command.
-   * This populates the in-memory store on startup.
+   * QueueStatus triggers multiple response events:
+   *  - QueueParams  — one per queue (strategy, weight, calls, etc.)
+   *  - QueueMember  — one per member in each queue (interface, status, paused)
+   *  - QueueEntry   — one per waiting caller in each queue
+   *  - QueueStatusComplete — final "done" event
+   *
+   * We collect them all and populate the in-memory state store.
    */
   async loadInitialState(): Promise<void> {
     if (!this.amiService.isConnected()) {
@@ -48,7 +57,7 @@ export class CallCenterAmiService implements OnModuleInit {
       return;
     }
 
-    // Get all queues from DB to map queue names → tenants
+    // Build DB queue→tenant map
     const dbQueues = await this.queueModel.findAll({ attributes: ['name', 'user_uid', 'display_name'] });
     const queueTenantMap = new Map<string, { userUid: number; displayName: string }>();
     for (const q of dbQueues) {
@@ -58,15 +67,121 @@ export class CallCenterAmiService implements OnModuleInit {
       });
     }
 
-    // Request QueueStatus from Asterisk (returns current agents + callers)
-    try {
-      const result = await this.amiService.queueStatus();
-      this.logger.debug(`QueueStatus raw result keys: ${Object.keys(result || {}).join(', ')}`);
-    } catch (err: any) {
-      this.logger.warn(`QueueStatus failed: ${err.message}`);
+    if (queueTenantMap.size === 0) {
+      this.logger.debug('No queues in DB, nothing to preload');
+      return;
     }
 
-    this.logger.log(`Loaded ${queueTenantMap.size} queues from DB for tenant mapping`);
+    // Collect events from AMI via temporary listeners
+    const members: any[] = [];
+    const entries: any[] = [];
+    const queueParams: any[] = [];
+
+    const ami = (this.amiService as any).ami;
+    if (!ami) {
+      this.logger.warn('AMI instance not available for initial state load');
+      return;
+    }
+
+    // Set up temporary event collectors
+    const onQueueParams = (evt: any) => queueParams.push(evt);
+    const onQueueMember = (evt: any) => members.push(evt);
+    const onQueueEntry = (evt: any) => entries.push(evt);
+
+    ami.on('queueparams', onQueueParams);
+    ami.on('queuemember', onQueueMember);
+    ami.on('queueentry', onQueueEntry);
+
+    try {
+      // Fire QueueStatus AMI action — triggers the events above
+      await this.amiService.queueStatus();
+
+      // Wait briefly for async events to arrive
+      await new Promise(resolve => setTimeout(resolve, 1500));
+    } catch (err: any) {
+      this.logger.warn(`QueueStatus command failed: ${err.message}`);
+    } finally {
+      // Remove temporary listeners
+      ami.removeListener('queueparams', onQueueParams);
+      ami.removeListener('queuemember', onQueueMember);
+      ami.removeListener('queueentry', onQueueEntry);
+    }
+
+    // Process collected QueueParams → initialize queue stats
+    for (const qp of queueParams) {
+      const qName = qp.queue;
+      if (!qName) continue;
+      const tenant = queueTenantMap.get(qName);
+      if (!tenant) continue;
+
+      this.stateService.setQueue(tenant.userUid, qName, {
+        displayName: tenant.displayName,
+        strategy: qp.strategy || 'ringall',
+        waiting: parseInt(qp.calls, 10) || 0,
+        talking: 0,
+        agents: { total: 0, available: 0, paused: 0, busy: 0 },
+        sla: parseFloat(qp.servicelevel) || 0,
+        calls: {
+          answered: parseInt(qp.completed, 10) || 0,
+          abandoned: parseInt(qp.abandoned, 10) || 0,
+          total: (parseInt(qp.completed, 10) || 0) + (parseInt(qp.abandoned, 10) || 0),
+        },
+        avgWait: parseInt(qp.holdtime, 10) || 0,
+        avgTalk: parseInt(qp.talktime, 10) || 0,
+      });
+    }
+
+    // Process collected QueueMembers → initialize agent states
+    for (const m of members) {
+      const qName = m.queue;
+      const iface = m.interface || m.name;
+      if (!qName || !iface) continue;
+
+      const tenant = queueTenantMap.get(qName);
+      if (!tenant) continue;
+
+      const existingAgent = this.stateService.getAgent(tenant.userUid, iface);
+      const existingQueues = existingAgent?.queues || [];
+      if (!existingQueues.includes(qName)) existingQueues.push(qName);
+
+      this.stateService.setAgent(tenant.userUid, iface, {
+        queues: existingQueues,
+        name: m.name || m.membername || iface,
+        status: this.mapAsteriskStatus(m.status, m.paused),
+        pauseReason: m.paused === '1' ? (m.pausedreason || '') : undefined,
+        callsTaken: parseInt(m.callstaken, 10) || 0,
+        lastCallTime: m.lastcall && m.lastcall !== '0' ? new Date(parseInt(m.lastcall, 10) * 1000) : undefined,
+      });
+    }
+
+    // Process collected QueueEntries → initialize waiting calls
+    for (const e of entries) {
+      const qName = e.queue;
+      const uniqueid = e.uniqueid;
+      if (!qName || !uniqueid) continue;
+
+      const tenant = queueTenantMap.get(qName);
+      if (!tenant) continue;
+
+      this.stateService.setCall(uniqueid, {
+        callerIdNum: e.calleridnum || '',
+        callerIdName: e.calleridname || '',
+        queue: qName,
+        status: 'WAITING',
+        enterTime: new Date(Date.now() - (parseInt(e.wait, 10) || 0) * 1000),
+        position: parseInt(e.position, 10) || 0,
+        userUid: tenant.userUid,
+      });
+    }
+
+    // Recalculate queue stats with actual agent counts
+    for (const [qName, tenant] of queueTenantMap) {
+      this.recalcQueueStats(tenant.userUid, qName);
+    }
+
+    this.logger.log(
+      `✅ Initial state loaded: ${queueParams.length} queues, ${members.length} members, ${entries.length} waiting calls`,
+    );
   }
 
   // ─── AMI Event Handlers ──────────────────────────────────
@@ -197,6 +312,20 @@ export class CallCenterAmiService implements OnModuleInit {
           agent: agentInterface,
           timeout: wrapupTime,
         });
+
+        // Auto-timeout: transition to READY after wrapupTime seconds
+        const timerKey = `${userUid}:${agentInterface}`;
+        this.clearWrapupTimer(timerKey);
+        this.wrapupTimers.set(timerKey, setTimeout(() => {
+          this.wrapupTimers.delete(timerKey);
+          // Only transition if agent is still in WRAPUP
+          const currentAgent = this.stateService.getAgent(userUid, agentInterface);
+          if (currentAgent?.status === 'WRAPUP') {
+            this.stateService.setAgent(userUid, agentInterface, { status: 'READY' });
+            this.stateService.emitEvent('wrapupEnd', userUid, { agent: agentInterface });
+            this.logger.debug(`Wrapup auto-expired for ${agentInterface} after ${wrapupTime}s`);
+          }
+        }, wrapupTime * 1000));
       } else {
         this.stateService.setAgent(userUid, agentInterface, {
           status: 'READY',
@@ -208,6 +337,22 @@ export class CallCenterAmiService implements OnModuleInit {
     }
 
     this.recalcQueueStats(userUid, queueName);
+  }
+
+  /**
+   * Cancel a pending wrapup timer (e.g. agent manually ends wrapup).
+   * Called from callcenter.service.ts when agent clicks "Ready for next".
+   */
+  cancelWrapupTimer(userUid: number, agentInterface: string): void {
+    this.clearWrapupTimer(`${userUid}:${agentInterface}`);
+  }
+
+  private clearWrapupTimer(key: string): void {
+    const existing = this.wrapupTimers.get(key);
+    if (existing) {
+      clearTimeout(existing);
+      this.wrapupTimers.delete(key);
+    }
   }
 
   /**

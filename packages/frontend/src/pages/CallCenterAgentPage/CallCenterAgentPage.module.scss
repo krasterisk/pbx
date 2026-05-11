@@ -393,3 +393,245 @@
   background: var(--color-destructive);
   animation: pulse 1s infinite;
 }
+
+/* 8. Pause Reason Dropdown */
+.pauseDropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.pauseDropdownMenu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 50;
+  min-width: 220px;
+  margin-top: 4px;
+  padding: 6px;
+  background: var(--color-popover);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  animation: dropdownIn 0.15s ease;
+}
+
+@keyframes dropdownIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.pauseDropdownItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--color-foreground);
+  transition: background 0.12s ease;
+
+  &:hover {
+    background: var(--color-accent);
+  }
+}
+
+.pauseReasonDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.pauseReasonName {
+  flex: 1;
+}
+
+.pauseReasonDuration {
+  font-size: 0.75rem;
+  color: var(--color-muted-foreground);
+}
+
+/* 9. Transfer Modal */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.15s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.modalContent {
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: 24px;
+  width: 420px;
+  max-width: 90vw;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.2);
+  animation: modalIn 0.2s ease;
+}
+
+@keyframes modalIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.modalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.modalTitle {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--color-foreground);
+}
+
+.modalClose {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-muted-foreground);
+  padding: 4px;
+  border-radius: var(--radius-md);
+
+  &:hover {
+    background: var(--color-accent);
+    color: var(--color-foreground);
+  }
+}
+
+.transferInput {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-input);
+  color: var(--color-foreground);
+  font-size: 0.9rem;
+  margin-bottom: 16px;
+  outline: none;
+  transition: border-color 0.15s;
+
+  &:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 20%, transparent);
+  }
+}
+
+.transferTypeRow {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.transferTypeBtn {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-foreground);
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 500;
+  transition: all 0.15s;
+
+  &:hover {
+    background: var(--color-accent);
+  }
+}
+
+.transferTypeBtnActive {
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.transferAgentList {
+  max-height: 200px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 8px;
+}
+
+.transferAgentRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background 0.12s;
+
+  &:hover {
+    background: var(--color-accent);
+  }
+}
+
+/* 10. Mute indicator */
+.muteActive {
+  position: relative;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    width: 10px;
+    height: 10px;
+    background: var(--color-destructive);
+    border-radius: 50%;
+    border: 2px solid var(--color-card);
+  }
+}
+
+/* 11. DTMF Keypad */
+.dtmfGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  padding: 12px;
+}
+
+.dtmfKey {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-foreground);
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.1s;
+
+  &:active {
+    background: var(--color-primary);
+    color: white;
+    transform: scale(0.95);
+  }
+
+  &:hover {
+    background: var(--color-accent);
+  }
+}

@@ -387,6 +387,9 @@ export class CallCenterService {
     const agentInterface = await this.resolveAgentInterface(userUid, userId);
     if (!agentInterface) throw new NotFoundException('Agent not logged in');
 
+    // Cancel auto-timeout timer if pending
+    this.ccAmiService.cancelWrapupTimer(userUid, agentInterface);
+
     this.stateService.setAgent(userUid, agentInterface, {
       status: 'READY',
       currentCall: undefined,

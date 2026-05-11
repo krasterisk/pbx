@@ -200,13 +200,13 @@ export function CallCenterSupervisorPage() {
                 <div className={`${styles.agentStatusDot} ${agentStatusDot(agent.status)}`} />
                 <Text className={styles.agentName}>{agent.name}</Text>
               </div>
-              <Text className={styles.agentStatus} style={{
+              <span className={styles.agentStatus} style={{
                 color: agent.status === 'READY' ? 'var(--color-success)' :
                        agent.status === 'IN_CALL' || agent.status === 'RINGING' ? 'var(--color-destructive)' :
                        agent.status === 'PAUSED' ? 'var(--color-warning)' : 'var(--color-muted-foreground)'
               }}>
                 {agent.status}{agent.pauseReason ? ` (${agent.pauseReason})` : ''}
-              </Text>
+              </span>
               <Text className={styles.agentMeta}>
                 {t('callcenter.supervisor.callsTaken', 'Calls')}: {agent.callsTaken}
                 {agent.queues.length > 0 && ` | ${agent.queues.join(', ')}`}

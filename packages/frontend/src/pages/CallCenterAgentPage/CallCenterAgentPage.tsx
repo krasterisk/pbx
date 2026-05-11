@@ -1,10 +1,10 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useSelector } from 'react-redux';
 import { useTranslation } from 'react-i18next';
 import {
   Headphones, Phone, PhoneOff, Pause, Play,
   PhoneForwarded, Volume2, VolumeX, ChevronDown, ChevronUp,
-  Clock, Users, PhoneIncoming,
+  Clock, Users, PhoneIncoming, X, Keyboard, MicOff, Mic,
 } from 'lucide-react';
 import {
   VStack, HStack, Flex, Text, Button,
@@ -26,10 +26,14 @@ import {
   useAgentHangupMutation,
   useAgentHoldMutation,
   useAgentUnholdMutation,
+  useAgentTransferMutation,
   useAgentWrapupDoneMutation,
   useGetPauseReasonsQuery,
 } from '@/shared/api/endpoints/callCenterApi';
 import styles from './CallCenterAgentPage.module.scss';
+
+// ─── DTMF Keypad keys ───
+const DTMF_KEYS = ['1','2','3','4','5','6','7','8','9','*','0','#'];
 
 export function CallCenterAgentPage() {
   const { t } = useTranslation();
@@ -48,6 +52,14 @@ export function CallCenterAgentPage() {
   // Local state
   const [queueMonitorOpen, setQueueMonitorOpen] = useState(true);
   const [callTimer, setCallTimer] = useState(0);
+  const [pauseDropdownOpen, setPauseDropdownOpen] = useState(false);
+  const [transferModalOpen, setTransferModalOpen] = useState(false);
+  const [transferTarget, setTransferTarget] = useState('');
+  const [transferType, setTransferType] = useState<'blind' | 'attended'>('blind');
+  const [isMuted, setIsMuted] = useState(false);
+  const [dtmfOpen, setDtmfOpen] = useState(false);
+
+  const pauseDropdownRef = useRef<HTMLDivElement>(null);
 
   // RTK mutations
   const [agentLogin] = useAgentLoginMutation();
@@ -57,6 +69,7 @@ export function CallCenterAgentPage() {
   const [agentHangup] = useAgentHangupMutation();
   const [agentHold] = useAgentHoldMutation();
   const [agentUnhold] = useAgentUnholdMutation();
+  const [agentTransfer] = useAgentTransferMutation();
   const [agentWrapupDone] = useAgentWrapupDoneMutation();
   const { data: pauseReasons } = useGetPauseReasonsQuery();
 
@@ -70,11 +83,61 @@ export function CallCenterAgentPage() {
     }
   }, [myAgent?.status]);
 
+  // Close pause dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (pauseDropdownRef.current && !pauseDropdownRef.current.contains(e.target as Node)) {
+        setPauseDropdownOpen(false);
+      }
+    };
+    if (pauseDropdownOpen) {
+      document.addEventListener('mousedown', handler);
+      return () => document.removeEventListener('mousedown', handler);
+    }
+  }, [pauseDropdownOpen]);
+
   // Format seconds to mm:ss
   const formatTime = useCallback((seconds: number): string => {
     const m = Math.floor(seconds / 60);
     const s = seconds % 60;
     return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  }, []);
+
+  // Pause with reason
+  const handlePause = useCallback((reason: string) => {
+    agentPause({ reason });
+    setPauseDropdownOpen(false);
+  }, [agentPause]);
+
+  // Transfer call
+  const handleTransfer = useCallback(() => {
+    if (!activeCall || !transferTarget.trim()) return;
+    agentTransfer({
+      uniqueid: activeCall.uniqueid,
+      target: transferTarget.trim(),
+      type: transferType,
+    });
+    setTransferModalOpen(false);
+    setTransferTarget('');
+  }, [agentTransfer, transferTarget, transferType]);
+
+  // Transfer to colleague (quick action)
+  const handleTransferToAgent = useCallback((targetIface: string) => {
+    if (!activeCall) return;
+    // Extract extension from interface, e.g. PJSIP/e101_42 → e101_42
+    const target = targetIface.split('/').pop() || targetIface;
+    agentTransfer({
+      uniqueid: activeCall.uniqueid,
+      target,
+      type: 'blind',
+    });
+    setTransferModalOpen(false);
+  }, [agentTransfer]);
+
+  // Mute toggle (local state — actual mute via AMI MuteAudio would be backend)
+  const handleMuteToggle = useCallback(() => {
+    setIsMuted(prev => !prev);
+    // TODO: integrate with AMI MuteAudio or WebRTC local track
   }, []);
 
   // Status bar class
@@ -194,14 +257,52 @@ export function CallCenterAgentPage() {
           ) : (
             <HStack gap="8">
               {myAgent?.status === 'READY' && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => agentPause({ reason: 'Pause' })}
-                >
-                  <Pause className="w-4 h-4 mr-1" />
-                  {t('callcenter.agent.pause', 'Pause')}
-                </Button>
+                <div className={styles.pauseDropdown} ref={pauseDropdownRef}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPauseDropdownOpen(!pauseDropdownOpen)}
+                  >
+                    <Pause className="w-4 h-4 mr-1" />
+                    {t('callcenter.agent.pause', 'Pause')}
+                    <ChevronDown className="w-3 h-3 ml-1" />
+                  </Button>
+
+                  {pauseDropdownOpen && (
+                    <div className={styles.pauseDropdownMenu}>
+                      {/* Quick pause without reason */}
+                      <div
+                        className={styles.pauseDropdownItem}
+                        onClick={() => handlePause('Pause')}
+                      >
+                        <div className={styles.pauseReasonDot} style={{ background: '#888' }} />
+                        <span className={styles.pauseReasonName}>
+                          {t('callcenter.agent.quickPause', 'Quick Pause')}
+                        </span>
+                      </div>
+
+                      {/* Pause reasons from API */}
+                      {pauseReasons?.map(reason => (
+                        <div
+                          key={reason.uid}
+                          className={styles.pauseDropdownItem}
+                          onClick={() => handlePause(reason.name)}
+                        >
+                          <div
+                            className={styles.pauseReasonDot}
+                            style={{ background: reason.color || '#888' }}
+                          />
+                          <span className={styles.pauseReasonName}>{reason.name}</span>
+                          {reason.max_duration && (
+                            <span className={styles.pauseReasonDuration}>
+                              {reason.max_duration}{t('callcenter.agent.min', 'm')}
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               )}
               {myAgent?.status === 'PAUSED' && (
                 <Button
@@ -243,6 +344,20 @@ export function CallCenterAgentPage() {
               <Text className={styles.callTimer}>{formatTime(callTimer)}</Text>
 
               <div className={styles.callActions}>
+                {/* Mute */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleMuteToggle}
+                  className={isMuted ? styles.muteActive : ''}
+                >
+                  {isMuted
+                    ? <><MicOff className="w-4 h-4 mr-1" />{t('callcenter.agent.unmute', 'Unmute')}</>
+                    : <><Mic className="w-4 h-4 mr-1" />{t('callcenter.agent.mute', 'Mute')}</>
+                  }
+                </Button>
+
+                {/* Hold / Unhold */}
                 {activeCall.status === 'TALKING' && (
                   <Button variant="outline" size="sm" onClick={() => agentHold()}>
                     <Pause className="w-4 h-4 mr-1" />
@@ -255,10 +370,24 @@ export function CallCenterAgentPage() {
                     {t('callcenter.agent.unholdBtn', 'Unhold')}
                   </Button>
                 )}
-                <Button variant="outline" size="sm">
+
+                {/* DTMF */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setDtmfOpen(!dtmfOpen)}
+                >
+                  <Keyboard className="w-4 h-4 mr-1" />
+                  DTMF
+                </Button>
+
+                {/* Transfer */}
+                <Button variant="outline" size="sm" onClick={() => setTransferModalOpen(true)}>
                   <PhoneForwarded className="w-4 h-4 mr-1" />
                   {t('callcenter.agent.transfer', 'Transfer')}
                 </Button>
+
+                {/* Hangup */}
                 <Button
                   variant="destructive"
                   size="sm"
@@ -268,6 +397,25 @@ export function CallCenterAgentPage() {
                   {t('callcenter.agent.hangup', 'Hangup')}
                 </Button>
               </div>
+
+              {/* DTMF Keypad (inline) */}
+              {dtmfOpen && (
+                <div className={styles.sidebarCard} style={{ width: '200px' }}>
+                  <div className={styles.dtmfGrid}>
+                    {DTMF_KEYS.map(key => (
+                      <button
+                        key={key}
+                        className={styles.dtmfKey}
+                        onClick={() => {
+                          // TODO: send DTMF via AMI or WebRTC
+                        }}
+                      >
+                        {key}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </>
           ) : myAgent?.status === 'WRAPUP' ? (
             <div className={styles.idleState}>
@@ -308,6 +456,15 @@ export function CallCenterAgentPage() {
                     agent.status === 'OFFLINE' ? styles.transferItemOffline :
                     styles.transferItemBusy
                   }`}
+                  onClick={() => {
+                    if (activeCall && agent.status === 'READY') {
+                      handleTransferToAgent(agent.interface);
+                    }
+                  }}
+                  title={activeCall && agent.status === 'READY'
+                    ? t('callcenter.agent.clickToTransfer', 'Click to transfer')
+                    : undefined
+                  }
                 >
                   <div className={styles.transferDot} />
                   <Text className={styles.transferName}>{agent.name}</Text>
@@ -386,6 +543,76 @@ export function CallCenterAgentPage() {
           </Flex>
         )}
       </div>
+
+      {/* ─── Transfer Modal ─── */}
+      {transferModalOpen && (
+        <div className={styles.modalOverlay} onClick={() => setTransferModalOpen(false)}>
+          <div className={styles.modalContent} onClick={e => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <span className={styles.modalTitle}>
+                <PhoneForwarded className="w-5 h-5 inline mr-2" />
+                {t('callcenter.transfer.title', 'Transfer Call')}
+              </span>
+              <button className={styles.modalClose} onClick={() => setTransferModalOpen(false)}>
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Transfer type toggle */}
+            <div className={styles.transferTypeRow}>
+              <button
+                className={`${styles.transferTypeBtn} ${transferType === 'blind' ? styles.transferTypeBtnActive : ''}`}
+                onClick={() => setTransferType('blind')}
+              >
+                {t('callcenter.transfer.blind', 'Blind Transfer')}
+              </button>
+              <button
+                className={`${styles.transferTypeBtn} ${transferType === 'attended' ? styles.transferTypeBtnActive : ''}`}
+                onClick={() => setTransferType('attended')}
+              >
+                {t('callcenter.transfer.attended', 'Attended Transfer')}
+              </button>
+            </div>
+
+            {/* Target extension input */}
+            <input
+              className={styles.transferInput}
+              placeholder={t('callcenter.transfer.placeholder', 'Extension or phone number...')}
+              value={transferTarget}
+              onChange={e => setTransferTarget(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleTransfer()}
+              autoFocus
+            />
+
+            <Button size="sm" onClick={handleTransfer} disabled={!transferTarget.trim()}>
+              <PhoneForwarded className="w-4 h-4 mr-1" />
+              {t('callcenter.transfer.execute', 'Transfer')}
+            </Button>
+
+            {/* Quick transfer to online colleagues */}
+            {colleagues.filter(a => a.status === 'READY').length > 0 && (
+              <>
+                <Text variant="muted" className="text-xs mt-4 mb-2">
+                  {t('callcenter.transfer.quickTransfer', 'Quick transfer to available agent:')}
+                </Text>
+                <div className={styles.transferAgentList}>
+                  {colleagues.filter(a => a.status === 'READY').map(agent => (
+                    <div
+                      key={agent.interface}
+                      className={styles.transferAgentRow}
+                      onClick={() => handleTransferToAgent(agent.interface)}
+                    >
+                      <div className={styles.transferDot} style={{ background: 'var(--color-success)' }} />
+                      <Text className={styles.transferName}>{agent.name}</Text>
+                      <Text className={styles.transferExt}>{agent.interface.split('/').pop()}</Text>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </VStack>
   );
 }
