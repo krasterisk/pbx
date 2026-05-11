@@ -1,6 +1,49 @@
 import { rtkApi } from '../rtkApi';
 import type { IPauseReason, ICcSnapshot } from '@/features/callcenter/model/types/callCenterSchema';
 
+export interface IClientLookupContact {
+  phonebook_uid: number;
+  phonebook_name: string;
+  number: string;
+  comment: string;
+  vars: Record<string, string> | null;
+}
+
+export interface IClientLookupRequest {
+  uid: number;
+  request_number: string | null;
+  counterparty_name: string | null;
+  phone: string | null;
+  topic: string | null;
+  comment: string | null;
+  address: string | null;
+  request_status: string;
+  scheduled_date: string | null;
+  created_at: string;
+}
+
+export interface IClientLookupResult {
+  number: string;
+  matched: boolean;
+  contacts: IClientLookupContact[];
+  requests: IClientLookupRequest[];
+}
+
+export interface IMissedCall {
+  id: number;
+  call_uniqueid: string;
+  queue_name: string;
+  caller_id_num: string;
+  caller_id_name: string;
+  hold_time: number;
+  position: number;
+  called_back: boolean;
+  called_back_by: number | null;
+  called_back_at: string | null;
+  note: string;
+  created_at: string;
+}
+
 const callCenterApi = rtkApi.injectEndpoints({
   endpoints: (build) => ({
     // ─── State ────────────────────────────────────────────
@@ -36,6 +79,34 @@ const callCenterApi = rtkApi.injectEndpoints({
     }),
     agentWrapupDone: build.mutation<{ success: boolean }, void>({
       query: () => ({ url: '/callcenter/agent/wrapup-done', method: 'POST' }),
+    }),
+    agentPickCall: build.mutation<{ success: boolean }, { uniqueid: string }>({
+      query: (body) => ({ url: '/callcenter/agent/pick-call', method: 'POST', body }),
+    }),
+
+    // ─── Missed Calls (Callbacks) ─────────────────────────
+    getMissedCalls: build.query<IMissedCall[], { includeHandled?: boolean } | void>({
+      query: (params) => ({
+        url: '/callcenter/missed-calls',
+        params: params?.includeHandled ? { includeHandled: 'true' } : undefined,
+      }),
+      providesTags: ['MissedCalls'],
+    }),
+    markMissedCalledBack: build.mutation<{ success: boolean }, { id: number; note?: string }>({
+      query: ({ id, note }) => ({
+        url: `/callcenter/missed-calls/${id}/called-back`,
+        method: 'POST',
+        body: { note: note || '' },
+      }),
+      invalidatesTags: ['MissedCalls'],
+    }),
+
+    // ─── Client Card (Sidebar Lookup) ─────────────────────
+    clientLookup: build.query<IClientLookupResult, string>({
+      query: (number) => ({
+        url: '/callcenter/client-lookup',
+        params: { number },
+      }),
     }),
 
     // ─── Supervisor Actions ───────────────────────────────
@@ -86,6 +157,11 @@ export const {
   useAgentUnholdMutation,
   useAgentTransferMutation,
   useAgentWrapupDoneMutation,
+  useAgentPickCallMutation,
+  useGetMissedCallsQuery,
+  useMarkMissedCalledBackMutation,
+  useClientLookupQuery,
+  useLazyClientLookupQuery,
   useSupervisorSpyMutation,
   useSupervisorForcePauseMutation,
   useSupervisorForceUnpauseMutation,

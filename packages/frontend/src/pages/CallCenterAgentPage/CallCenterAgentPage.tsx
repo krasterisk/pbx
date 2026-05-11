@@ -3,13 +3,23 @@ import { useSelector } from 'react-redux';
 import { useTranslation } from 'react-i18next';
 import {
   Headphones, Phone, PhoneOff, Pause, Play,
-  PhoneForwarded, Volume2, VolumeX, ChevronDown, ChevronUp,
+  PhoneForwarded, ChevronDown, ChevronUp,
   Clock, Users, PhoneIncoming, X, Keyboard, MicOff, Mic,
+  Hand,
 } from 'lucide-react';
 import {
   VStack, HStack, Flex, Text, Button,
 } from '@/shared/ui';
 import { useCallCenterSSE } from '@/features/callcenter/lib/useCallCenterSSE';
+import { useCallNotifications } from '@/features/callcenter/lib/useCallNotifications';
+import { PauseReasonModal } from '@/features/callcenter/ui/PauseReasonModal/PauseReasonModal';
+import { ClientCard } from '@/features/callcenter/ui/ClientCard/ClientCard';
+import { MissedCallsPanel } from '@/features/callcenter/ui/MissedCallsPanel/MissedCallsPanel';
+import {
+  DragTransferProvider,
+  DraggableCall,
+  DroppableColleague,
+} from '@/features/callcenter/ui/DragTransfer/DragTransfer';
 import {
   selectMyAgent,
   selectCcCalls,
@@ -28,6 +38,7 @@ import {
   useAgentUnholdMutation,
   useAgentTransferMutation,
   useAgentWrapupDoneMutation,
+  useAgentPickCallMutation,
   useGetPauseReasonsQuery,
 } from '@/shared/api/endpoints/callCenterApi';
 import styles from './CallCenterAgentPage.module.scss';
@@ -38,8 +49,9 @@ const DTMF_KEYS = ['1','2','3','4','5','6','7','8','9','*','0','#'];
 export function CallCenterAgentPage() {
   const { t } = useTranslation();
 
-  // SSE connection
+  // SSE connection + notifications
   useCallCenterSSE(true);
+  useCallNotifications({ enabled: true, holdTimeoutSec: 60 });
 
   // Redux state
   const myAgent = useSelector(selectMyAgent);
@@ -52,14 +64,13 @@ export function CallCenterAgentPage() {
   // Local state
   const [queueMonitorOpen, setQueueMonitorOpen] = useState(true);
   const [callTimer, setCallTimer] = useState(0);
-  const [pauseDropdownOpen, setPauseDropdownOpen] = useState(false);
+  const [pauseModalOpen, setPauseModalOpen] = useState(false);
+  const [pausedAt, setPausedAt] = useState<{ name: string; startedAt: number; maxDurationMin: number } | null>(null);
   const [transferModalOpen, setTransferModalOpen] = useState(false);
   const [transferTarget, setTransferTarget] = useState('');
   const [transferType, setTransferType] = useState<'blind' | 'attended'>('blind');
   const [isMuted, setIsMuted] = useState(false);
   const [dtmfOpen, setDtmfOpen] = useState(false);
-
-  const pauseDropdownRef = useRef<HTMLDivElement>(null);
 
   // RTK mutations
   const [agentLogin] = useAgentLoginMutation();
@@ -71,7 +82,8 @@ export function CallCenterAgentPage() {
   const [agentUnhold] = useAgentUnholdMutation();
   const [agentTransfer] = useAgentTransferMutation();
   const [agentWrapupDone] = useAgentWrapupDoneMutation();
-  const { data: pauseReasons } = useGetPauseReasonsQuery();
+  const [agentPickCall] = useAgentPickCallMutation();
+  const { data: pauseReasons = [] } = useGetPauseReasonsQuery();
 
   // Timer for active call
   useEffect(() => {
@@ -83,18 +95,10 @@ export function CallCenterAgentPage() {
     }
   }, [myAgent?.status]);
 
-  // Close pause dropdown on outside click
+  // Clear pausedAt state when the agent comes off pause
   useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (pauseDropdownRef.current && !pauseDropdownRef.current.contains(e.target as Node)) {
-        setPauseDropdownOpen(false);
-      }
-    };
-    if (pauseDropdownOpen) {
-      document.addEventListener('mousedown', handler);
-      return () => document.removeEventListener('mousedown', handler);
-    }
-  }, [pauseDropdownOpen]);
+    if (myAgent?.status !== 'PAUSED') setPausedAt(null);
+  }, [myAgent?.status]);
 
   // Format seconds to mm:ss
   const formatTime = useCallback((seconds: number): string => {
@@ -103,11 +107,27 @@ export function CallCenterAgentPage() {
     return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
   }, []);
 
-  // Pause with reason
-  const handlePause = useCallback((reason: string) => {
+  // Pause with reason from PauseReasonModal
+  const handlePause = useCallback((reason: string, maxDurationMin: number) => {
     agentPause({ reason });
-    setPauseDropdownOpen(false);
+    setPausedAt({ name: reason, startedAt: Date.now(), maxDurationMin });
+    setPauseModalOpen(false);
   }, [agentPause]);
+
+  // Quick pick of a waiting call from the queue monitor
+  const handlePickCall = useCallback(async (uniqueid: string) => {
+    try {
+      await agentPickCall({ uniqueid }).unwrap();
+    } catch (err: any) {
+      // Silently fail — backend already validates state. Surface via a toast later.
+      console.warn('Pick call failed:', err?.data?.message || err?.message);
+    }
+  }, [agentPickCall]);
+
+  // Callback from MissedCallsPanel — dial the missed number through the OS
+  const handleMissedCallback = useCallback((number: string) => {
+    if (number) window.location.href = `tel:${number}`;
+  }, []);
 
   // Transfer call
   const handleTransfer = useCallback(() => {
@@ -205,14 +225,17 @@ export function CallCenterAgentPage() {
           </VStack>
         </Flex>
 
-        {/* Connection indicator */}
-        <Flex align="center" gap="8">
-          <Text variant="muted" className="text-xs">
-            {connected ? 'Online' : 'Connecting...'}
-          </Text>
-          <HStack align="center">
-            <div className={`${styles.connectionDot} ${connected ? styles.connectionOnline : styles.connectionOffline}`} />
-          </HStack>
+        {/* Connection indicator + missed calls badge */}
+        <Flex align="center" gap="12">
+          <MissedCallsPanel onCallback={handleMissedCallback} />
+          <Flex align="center" gap="8">
+            <Text variant="muted" className="text-xs">
+              {connected ? 'Online' : 'Connecting...'}
+            </Text>
+            <HStack align="center">
+              <div className={`${styles.connectionDot} ${connected ? styles.connectionOnline : styles.connectionOffline}`} />
+            </HStack>
+          </Flex>
         </Flex>
       </Flex>
 
@@ -256,53 +279,17 @@ export function CallCenterAgentPage() {
             </Button>
           ) : (
             <HStack gap="8">
-              {myAgent?.status === 'READY' && (
-                <div className={styles.pauseDropdown} ref={pauseDropdownRef}>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setPauseDropdownOpen(!pauseDropdownOpen)}
-                  >
-                    <Pause className="w-4 h-4 mr-1" />
-                    {t('callcenter.agent.pause', 'Pause')}
-                    <ChevronDown className="w-3 h-3 ml-1" />
-                  </Button>
-
-                  {pauseDropdownOpen && (
-                    <div className={styles.pauseDropdownMenu}>
-                      {/* Quick pause without reason */}
-                      <div
-                        className={styles.pauseDropdownItem}
-                        onClick={() => handlePause('Pause')}
-                      >
-                        <div className={styles.pauseReasonDot} style={{ background: '#888' }} />
-                        <span className={styles.pauseReasonName}>
-                          {t('callcenter.agent.quickPause', 'Quick Pause')}
-                        </span>
-                      </div>
-
-                      {/* Pause reasons from API */}
-                      {pauseReasons?.map(reason => (
-                        <div
-                          key={reason.uid}
-                          className={styles.pauseDropdownItem}
-                          onClick={() => handlePause(reason.name)}
-                        >
-                          <div
-                            className={styles.pauseReasonDot}
-                            style={{ background: reason.color || '#888' }}
-                          />
-                          <span className={styles.pauseReasonName}>{reason.name}</span>
-                          {reason.max_duration && (
-                            <span className={styles.pauseReasonDuration}>
-                              {reason.max_duration}{t('callcenter.agent.min', 'm')}
-                            </span>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+              {(myAgent?.status === 'READY' || myAgent?.status === 'PAUSED') && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPauseModalOpen(true)}
+                >
+                  <Pause className="w-4 h-4 mr-1" />
+                  {myAgent?.status === 'PAUSED'
+                    ? t('callcenter.agent.pauseChange', 'Change reason')
+                    : t('callcenter.agent.pause', 'Pause')}
+                </Button>
               )}
               {myAgent?.status === 'PAUSED' && (
                 <Button
@@ -326,10 +313,17 @@ export function CallCenterAgentPage() {
         </div>
       </div>
 
-      {/* Main Content: Call Panel + Sidebar */}
+      {/* Main Content: Call Panel + Sidebar (with DnD context) */}
+      <DragTransferProvider
+        activeCall={activeCall ? { uniqueid: activeCall.uniqueid, callerIdNum: activeCall.callerIdNum || '' } : null}
+        onTransfer={(targetIface) => handleTransferToAgent(targetIface)}
+      >
       <div className={styles.mainContent}>
-        {/* Active Call Panel */}
-        <div className={`${styles.callPanel} ${activeCall ? styles.callPanelActive : ''}`}>
+        {/* Active Call Panel — also the drag source */}
+        <DraggableCall
+          uniqueid={activeCall?.uniqueid || 'idle'}
+          className={`${styles.callPanel} ${activeCall ? styles.callPanelActive : ''}`}
+        >
           {activeCall ? (
             <>
               <div className={styles.callerInfo}>
@@ -437,39 +431,55 @@ export function CallCenterAgentPage() {
               </Text>
             </div>
           )}
-        </div>
+        </DraggableCall>
 
         {/* Quick Actions Sidebar */}
         <div className={styles.sidebar}>
-          {/* Colleagues */}
+          {/* Client Card — read-only context for the active caller */}
+          <ClientCard
+            callerIdNum={activeCall?.callerIdNum}
+            callerIdName={activeCall?.callerIdName}
+          />
+
+          {/* Colleagues — droppable for DnD transfer */}
           <div className={styles.sidebarCard}>
             <Text className={styles.sidebarTitle}>
               <Users className="w-3.5 h-3.5 inline mr-1" />
               {t('callcenter.agent.colleagues', 'Colleagues')}
+              {activeCall && (
+                <span className="text-xs opacity-60 ml-2 font-normal">
+                  · {t('callcenter.agent.dndHint', 'drag the call here to transfer')}
+                </span>
+              )}
             </Text>
             <div className={styles.transferList}>
               {colleagues.length > 0 ? colleagues.slice(0, 10).map(agent => (
-                <div
+                <DroppableColleague
                   key={agent.interface}
+                  agent={agent}
                   className={`${styles.transferItem} ${
                     agent.status === 'READY' ? styles.transferItemOnline :
                     agent.status === 'OFFLINE' ? styles.transferItemOffline :
                     styles.transferItemBusy
                   }`}
-                  onClick={() => {
-                    if (activeCall && agent.status === 'READY') {
-                      handleTransferToAgent(agent.interface);
-                    }
-                  }}
-                  title={activeCall && agent.status === 'READY'
-                    ? t('callcenter.agent.clickToTransfer', 'Click to transfer')
-                    : undefined
-                  }
                 >
-                  <div className={styles.transferDot} />
-                  <Text className={styles.transferName}>{agent.name}</Text>
-                  <Text className={styles.transferExt}>{agent.interface.split('/').pop()}</Text>
-                </div>
+                  <div
+                    onClick={() => {
+                      if (activeCall && agent.status === 'READY') {
+                        handleTransferToAgent(agent.interface);
+                      }
+                    }}
+                    title={activeCall && agent.status === 'READY'
+                      ? t('callcenter.agent.clickToTransfer', 'Click to transfer')
+                      : undefined
+                    }
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%' }}
+                  >
+                    <div className={styles.transferDot} />
+                    <Text className={styles.transferName}>{agent.name}</Text>
+                    <Text className={styles.transferExt}>{agent.interface.split('/').pop()}</Text>
+                  </div>
+                </DroppableColleague>
               )) : (
                 <Text variant="muted" className="text-xs">{t('callcenter.agent.noColleagues', 'No agents online')}</Text>
               )}
@@ -477,6 +487,7 @@ export function CallCenterAgentPage() {
           </div>
         </div>
       </div>
+      </DragTransferProvider>
 
       {/* Queue Monitor (bottom) */}
       <div className={styles.queueMonitor}>
@@ -512,11 +523,14 @@ export function CallCenterAgentPage() {
                 <th>{t('callcenter.agent.caller', 'Caller')}</th>
                 <th>{t('callcenter.agent.queue', 'Queue')}</th>
                 <th>{t('callcenter.agent.wait', 'Wait')}</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
               {waitingCalls.map((call, i) => {
                 const waitSec = Math.floor((Date.now() - new Date(call.enterTime).getTime()) / 1000);
+                const canPick = myAgent?.status === 'READY'
+                  && myAgent.queues.includes(call.queue);
                 return (
                   <tr key={call.uniqueid}>
                     <td>{i + 1}</td>
@@ -527,6 +541,20 @@ export function CallCenterAgentPage() {
                       waitSec > 30 ? styles.waitTimeWarning : ''
                     }`}>
                       {formatTime(waitSec)}
+                    </td>
+                    <td>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={!canPick}
+                        onClick={() => handlePickCall(call.uniqueid)}
+                        title={canPick
+                          ? t('callcenter.agent.pickCallHint', 'Take this call now')
+                          : t('callcenter.agent.pickCallBlocked', 'Pick is only available when you are READY in that queue')}
+                      >
+                        <Hand className="w-3.5 h-3.5 mr-1" />
+                        {t('callcenter.agent.pick', 'Pick')}
+                      </Button>
                     </td>
                   </tr>
                 );
@@ -612,6 +640,16 @@ export function CallCenterAgentPage() {
             )}
           </div>
         </div>
+      )}
+
+      {/* ─── Pause Reason Modal ─── */}
+      {pauseModalOpen && (
+        <PauseReasonModal
+          reasons={pauseReasons}
+          activeReason={pausedAt}
+          onClose={() => setPauseModalOpen(false)}
+          onSelect={handlePause}
+        />
       )}
     </VStack>
   );

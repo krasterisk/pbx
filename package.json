@@ -1,6 +1,6 @@
 {
   "name": "krasterisk-v4",
-  "version": "4.2.4",
+  "version": "4.2.5",
   "description": "IP PBX Krasterisk — Modern Web Interface",
   "private": true,
   "workspaces": [
@@ -12,7 +12,19 @@
     "dev:backend": "npm run start:dev -w @krasterisk/backend",
     "dev:frontend": "npm run dev -w @krasterisk/frontend",
     "build": "npm run build -w @krasterisk/shared && npm run build -w @krasterisk/backend && npm run build -w @krasterisk/frontend",
-    "lint": "npm run lint -w @krasterisk/backend"
+    "lint": "npm run lint -w @krasterisk/backend",
+    "test": "npm run test -w @krasterisk/backend && npm run test -w @krasterisk/frontend",
+    "test:backend": "npm run test -w @krasterisk/backend",
+    "test:frontend": "npm run test -w @krasterisk/frontend",
+    "test:cc": "npm run test:cc -w @krasterisk/backend && npm run test:cc -w @krasterisk/frontend",
+    "test:ai": "npm run test:ai -w @krasterisk/backend && npm run test:ai -w @krasterisk/frontend",
+    "test:cov": "npm run test:cov -w @krasterisk/backend && npm run test:cov -w @krasterisk/frontend",
+    "test:watch": "npm run test:watch -w @krasterisk/frontend",
+    "test:e2e": "npm --prefix e2e test",
+    "test:e2e:install": "npm --prefix e2e install && npm --prefix e2e exec playwright install --with-deps chromium",
+    "db:migrate": "npm run db:migrate -w @krasterisk/backend",
+    "db:migrate:list": "npm run db:migrate:list -w @krasterisk/backend",
+    "db:migrate:rollback": "npm run db:migrate:rollback -w @krasterisk/backend --"
   },
   "author": "Krasterisk LTD",
   "license": "MIT",

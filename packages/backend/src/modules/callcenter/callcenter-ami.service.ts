@@ -10,6 +10,7 @@ import { InjectModel } from '@nestjs/sequelize';
 import { AmiService } from '../ami/ami.service';
 import { CallCenterStateService, AgentStatus } from './callcenter-state.service';
 import { CcAgentEvent } from './models/agent-event.model';
+import { CcMissedCall } from './models/missed-call.model';
 import { Queue } from '../queues/queue.model';
 
 @Injectable()
@@ -23,6 +24,7 @@ export class CallCenterAmiService implements OnModuleInit {
     private readonly amiService: AmiService,
     private readonly stateService: CallCenterStateService,
     @InjectModel(CcAgentEvent) private readonly agentEventModel: typeof CcAgentEvent,
+    @InjectModel(CcMissedCall) private readonly missedCallModel: typeof CcMissedCall,
     @InjectModel(Queue) private readonly queueModel: typeof Queue,
   ) {}
 
@@ -224,6 +226,7 @@ export class CallCenterAmiService implements OnModuleInit {
     this.stateService.setCall(uniqueid, {
       callerIdNum: evt.calleridnum || '',
       callerIdName: evt.calleridname || '',
+      callerChannel: evt.channel || '',
       queue: queueName,
       status: 'WAITING',
       enterTime: new Date(),
@@ -357,6 +360,9 @@ export class CallCenterAmiService implements OnModuleInit {
 
   /**
    * Handle QueueCallerAbandon — caller gave up waiting.
+   *
+   * Persists a `cc_missed_calls` record so operators can call back later.
+   * Multi-tenant: only logged when the queue resolves to a known tenant.
    */
   handleCallerAbandon(evt: any): void {
     const queueName = evt.queue;
@@ -366,13 +372,44 @@ export class CallCenterAmiService implements OnModuleInit {
     const userUid = this.resolveQueueTenant(queueName);
     if (!userUid) return;
 
+    // Pull caller info from in-memory state before removing
+    const call = uniqueid ? this.stateService.getCall(uniqueid) : undefined;
+    const callerIdNum = evt.calleridnum || call?.callerIdNum || '';
+    const callerIdName = evt.calleridname || call?.callerIdName || '';
+    const holdTime = parseInt(evt.holdtime, 10) || 0;
+    const position = parseInt(evt.position, 10) || call?.position || 0;
+
     this.stateService.removeCall(uniqueid, 'abandoned');
     this.stateService.emitEvent('callAbandon', userUid, {
       uniqueid,
       queue: queueName,
-      callerIdNum: evt.calleridnum || '',
-      holdTime: evt.holdtime || '0',
+      callerIdNum,
+      holdTime,
     });
+
+    // Persist for missed-calls workflow (best-effort, doesn't block state)
+    if (uniqueid && callerIdNum) {
+      this.missedCallModel
+        .create({
+          call_uniqueid: uniqueid,
+          queue_name: queueName,
+          caller_id_num: callerIdNum,
+          caller_id_name: callerIdName,
+          hold_time: holdTime,
+          position,
+          called_back: false,
+          user_uid: userUid,
+        })
+        .then(() => {
+          this.stateService.emitEvent('missedCallNew', userUid, {
+            uniqueid,
+            queue: queueName,
+            callerIdNum,
+            holdTime,
+          });
+        })
+        .catch(err => this.logger.warn(`Persist missed call failed: ${err.message}`));
+    }
 
     this.recalcQueueStats(userUid, queueName);
   }

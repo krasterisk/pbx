@@ -43,6 +43,20 @@ export class AgentHangupDto {
   channel?: string;
 }
 
+export class PickCallDto {
+  /** uniqueid of the waiting call to pick up */
+  @IsString()
+  @MaxLength(64)
+  uniqueid: string;
+}
+
+export class MarkMissedCalledBackDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  note?: string;
+}
+
 export class TransferDto {
   /** Call uniqueid to transfer */
   @IsString()

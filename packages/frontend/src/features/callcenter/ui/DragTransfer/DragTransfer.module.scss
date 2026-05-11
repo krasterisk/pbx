@@ -1,0 +1,89 @@
+.draggable {
+  cursor: grab;
+  touch-action: none;
+
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+.dragging {
+  opacity: 0.4;
+}
+
+.dragGhost {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: var(--color-card);
+  border: 2px solid var(--color-primary, #6366f1);
+  border-radius: var(--radius-lg);
+  font-weight: 600;
+  color: var(--color-foreground);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+.dropOk {
+  background: color-mix(in srgb, var(--color-success) 15%, transparent) !important;
+  outline: 2px dashed var(--color-success);
+  outline-offset: -2px;
+}
+
+.dropBlocked {
+  background: color-mix(in srgb, var(--color-destructive) 12%, transparent) !important;
+  outline: 2px dashed var(--color-destructive);
+  outline-offset: -2px;
+  opacity: 0.7;
+}
+
+/* Modal */
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.15s ease;
+}
+
+.modal {
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: 24px;
+  width: 420px;
+  max-width: 90vw;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.25);
+  animation: modalIn 0.18s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.modalTitle {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--color-foreground);
+}
+
+.modalButtons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modalIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}

@@ -12,7 +12,7 @@
  */
 import {
   Controller, Get, Post, Put, Delete,
-  Body, Param, Req, UseGuards, ParseIntPipe,
+  Body, Param, Query, Req, UseGuards, ParseIntPipe,
   ForbiddenException,
 } from '@nestjs/common';
 import { Request } from 'express';
@@ -22,6 +22,7 @@ import {
   AgentLoginDto, AgentPauseDto, AgentUnpauseDto, AgentHangupDto,
   TransferDto, SupervisorSpyDto, SupervisorForceActionDto,
   SupervisorQueueActionDto, CreatePauseReasonDto, UpdatePauseReasonDto,
+  PickCallDto, MarkMissedCalledBackDto,
 } from './dto/callcenter.dto';
 
 // ─── Helpers ──────────────────────────────────────────────
@@ -92,6 +93,40 @@ export class CallCenterController {
   @Post('agent/wrapup-done')
   agentWrapupDone(@Req() req: Request & { user: any }) {
     return this.ccService.agentWrapupDone(req.user.vpbx_user_uid, req.user.id);
+  }
+
+  @Post('agent/pick-call')
+  agentPickCall(@Body() dto: PickCallDto, @Req() req: Request & { user: any }) {
+    return this.ccService.agentPickCall(dto.uniqueid, req.user.vpbx_user_uid, req.user.id);
+  }
+
+  // ─── Missed Calls ─────────────────────────────────────
+
+  @Get('missed-calls')
+  getMissedCalls(
+    @Query('includeHandled') includeHandled: string | undefined,
+    @Req() req: Request & { user: any },
+  ) {
+    return this.ccService.getMissedCalls(
+      req.user.vpbx_user_uid,
+      includeHandled === '1' || includeHandled === 'true',
+    );
+  }
+
+  @Post('missed-calls/:id/called-back')
+  markMissedCalledBack(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: MarkMissedCalledBackDto,
+    @Req() req: Request & { user: any },
+  ) {
+    return this.ccService.markMissedCalled(id, dto.note, req.user.vpbx_user_uid, req.user.id);
+  }
+
+  // ─── Client Card (sidebar lookup) ─────────────────────
+
+  @Get('client-lookup')
+  clientLookup(@Query('number') number: string, @Req() req: Request & { user: any }) {
+    return this.ccService.lookupClient(number || '', req.user.vpbx_user_uid);
   }
 
   // ─── Supervisor Actions (level >= 3) ───────────────────

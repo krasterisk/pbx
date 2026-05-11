@@ -1,0 +1,81 @@
+name: e2e
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+jobs:
+  playwright:
+    name: Playwright (Chromium)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: krasterisk
+          MYSQL_DATABASE: krasterisk
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -p$MYSQL_ROOT_PASSWORD"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install workspace deps
+        run: npm ci
+
+      - name: Build shared + backend
+        run: npm run build
+
+      - name: Start backend
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_USER: root
+          DB_PASS: krasterisk
+          DB_NAME: krasterisk
+          JWT_SECRET: ci-test-secret
+          CC_AI_KEY_SECRET: ci-test-ai-secret
+        run: |
+          npm run dev:backend &
+          npx wait-on -t 60000 http://localhost:5010/api/health
+
+      - name: Start frontend
+        run: |
+          npm run dev:frontend &
+          npx wait-on -t 60000 http://localhost:3010
+
+      - name: Install Playwright browsers
+        working-directory: e2e
+        run: |
+          npm install
+          npx playwright install --with-deps chromium
+
+      - name: Run Playwright
+        working-directory: e2e
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:3010
+          PW_USER: admin
+          PW_PASS: admin
+        run: npm test
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: e2e/playwright-report
+          retention-days: 14

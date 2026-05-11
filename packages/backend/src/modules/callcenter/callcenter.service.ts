@@ -11,8 +11,13 @@ import { CallCenterStateService } from './callcenter-state.service';
 import { CallCenterAmiService } from './callcenter-ami.service';
 import { CcPauseReason } from './models/pause-reason.model';
 import { CcAgentSession } from './models/agent-session.model';
+import { CcMissedCall } from './models/missed-call.model';
 import { TransferDto } from './dto/callcenter.dto';
 import { User } from '../users/user.model';
+import { PhonebookEntry } from '../phonebooks/phonebook-entry.model';
+import { RoutePhonebook } from '../phonebooks/phonebook.model';
+import { ServiceRequest } from '../service-requests/service-request.model';
+import { Op } from 'sequelize';
 
 @Injectable()
 export class CallCenterService {
@@ -27,7 +32,11 @@ export class CallCenterService {
     private readonly ccAmiService: CallCenterAmiService,
     @InjectModel(CcPauseReason) private readonly pauseReasonModel: typeof CcPauseReason,
     @InjectModel(CcAgentSession) private readonly sessionModel: typeof CcAgentSession,
+    @InjectModel(CcMissedCall) private readonly missedCallModel: typeof CcMissedCall,
     @InjectModel(User) private readonly userModel: typeof User,
+    @InjectModel(PhonebookEntry) private readonly phonebookEntryModel: typeof PhonebookEntry,
+    @InjectModel(RoutePhonebook) private readonly phonebookModel: typeof RoutePhonebook,
+    @InjectModel(ServiceRequest) private readonly serviceRequestModel: typeof ServiceRequest,
   ) {}
 
   // ─── Helpers ─────────────────────────────────────────────
@@ -528,5 +537,211 @@ export class CallCenterService {
     if (!reason) throw new NotFoundException('Pause reason not found');
     await reason.destroy();
     return { success: true };
+  }
+
+  // ─── Pick Call ──────────────────────────────────────────
+  //
+  // Pick Call: agent manually grabs a waiting caller from a queue.
+  // Implemented as AMI Redirect of the caller channel to the agent's
+  // extension via the `from-internal` context, bypassing queue strategy.
+  // The subsequent AgentConnect AMI event normally updates state, but we
+  // also pre-update state optimistically so the SSE event is instant.
+
+  async agentPickCall(uniqueid: string, userUid: number, userId: number) {
+    const agentInterface = await this.resolveAgentInterface(userUid, userId);
+    if (!agentInterface) throw new NotFoundException('Agent not logged in');
+
+    const agent = this.stateService.getAgent(userUid, agentInterface);
+    if (!agent) throw new NotFoundException('Agent state not found');
+    if (agent.status !== 'READY') {
+      throw new BadRequestException(`Agent must be READY to pick a call (current: ${agent.status})`);
+    }
+
+    const call = this.stateService.getCall(uniqueid);
+    if (!call) throw new NotFoundException('Call not found');
+    if (call.userUid !== userUid) {
+      throw new BadRequestException('Call belongs to another tenant');
+    }
+    if (call.status !== 'WAITING' && call.status !== 'RINGING') {
+      throw new BadRequestException(`Call is not pickable (status: ${call.status})`);
+    }
+
+    // The caller's actual channel might not be tracked yet (we only learn it on AgentConnect),
+    // so we redirect using the well-known QueueCallerJoin channel pattern.
+    // The "channel" recorded on a waiting call is the caller's channel from QueueCallerJoin
+    // (we store it as `callerChannel` once available; fall back to the call uniqueid + queue context).
+    const callerChannel = call.callerChannel;
+    if (!callerChannel) {
+      throw new BadRequestException(
+        'Caller channel not available yet — try again in a moment',
+      );
+    }
+
+    const agentExten = agentInterface.replace(/^PJSIP\//, '').replace(/^SIP\//, '');
+
+    try {
+      await this.amiService.action({
+        action: 'Redirect',
+        channel: callerChannel,
+        context: 'from-internal',
+        exten: agentExten,
+        priority: '1',
+      });
+    } catch (err: any) {
+      throw new BadRequestException(`Pick call failed: ${err.message}`);
+    }
+
+    this.logger.log(
+      `Agent ${agentInterface} picked call ${uniqueid} from queue ${call.queue}`,
+    );
+
+    return { success: true, uniqueid, target: agentExten };
+  }
+
+  // ─── Missed Calls ──────────────────────────────────────
+
+  async logMissedCall(params: {
+    uniqueid: string;
+    queueName: string;
+    callerIdNum: string;
+    callerIdName?: string;
+    holdTime?: number;
+    position?: number;
+    userUid: number;
+  }): Promise<void> {
+    try {
+      await this.missedCallModel.create({
+        call_uniqueid: params.uniqueid,
+        queue_name: params.queueName,
+        caller_id_num: params.callerIdNum || '',
+        caller_id_name: params.callerIdName || '',
+        hold_time: params.holdTime || 0,
+        position: params.position || 0,
+        called_back: false,
+        user_uid: params.userUid,
+      });
+
+      this.stateService.emitEvent('missedCallNew', params.userUid, {
+        uniqueid: params.uniqueid,
+        queue: params.queueName,
+        callerIdNum: params.callerIdNum,
+        holdTime: params.holdTime || 0,
+      });
+    } catch (err: any) {
+      this.logger.warn(`Failed to log missed call: ${err.message}`);
+    }
+  }
+
+  async getMissedCalls(userUid: number, includeHandled = false) {
+    const where: any = { user_uid: userUid };
+    if (!includeHandled) where.called_back = false;
+    return this.missedCallModel.findAll({
+      where,
+      order: [['created_at', 'DESC']],
+      limit: 200,
+    });
+  }
+
+  async markMissedCalled(id: number, note: string | undefined, userUid: number, userId: number) {
+    const missed = await this.missedCallModel.findOne({
+      where: { uid: id, user_uid: userUid },
+    });
+    if (!missed) throw new NotFoundException('Missed call not found');
+
+    await missed.update({
+      called_back: true,
+      called_back_by: userId,
+      called_back_at: new Date(),
+      note: note || '',
+    });
+
+    this.stateService.emitEvent('missedCallUpdate', userUid, {
+      id: missed.uid,
+      called_back: true,
+      called_back_by: userId,
+    });
+
+    return { success: true };
+  }
+
+  // ─── Client Card (lookup by callerIdNum) ──────────────────
+
+  /**
+   * Look up a caller across the tenant's phonebooks and pull the latest
+   * service-requests for that number. The result powers the operator's
+   * "Client Card" sidebar so they have context the moment the call lands.
+   *
+   * Matching strategy:
+   *   - Strip non-digits from the search number AND from each entry.
+   *   - Match on the suffix (last 10 digits) so +7/8/leading-zeroes
+   *     differences don't matter.
+   */
+  async lookupClient(rawNumber: string, userUid: number) {
+    const digits = (rawNumber || '').replace(/\D/g, '');
+    if (digits.length < 4) {
+      return { number: rawNumber, matched: false, contacts: [], requests: [] };
+    }
+    const suffix = digits.slice(-10);
+
+    // Tenant's phonebooks
+    const phonebooks = await this.phonebookModel.findAll({
+      where: { user_uid: userUid },
+      attributes: ['uid', 'name'],
+    });
+    const pbUids = phonebooks.map(p => p.uid);
+    const pbMap = new Map(phonebooks.map(p => [p.uid, p.name]));
+
+    let contacts: Array<{
+      phonebook_uid: number;
+      phonebook_name: string;
+      number: string;
+      comment: string;
+      vars: Record<string, string> | null;
+    }> = [];
+
+    if (pbUids.length > 0) {
+      // Sequelize cannot easily strip non-digits in SQL portably,
+      // so we LIKE %suffix% and then filter in JS.
+      const candidates = await this.phonebookEntryModel.findAll({
+        where: {
+          phonebook_uid: { [Op.in]: pbUids },
+          number: { [Op.like]: `%${suffix.slice(-7)}%` }, // last 7 digits for the LIKE filter
+        },
+        limit: 50,
+      });
+      contacts = candidates
+        .filter(e => e.number.replace(/\D/g, '').endsWith(suffix))
+        .map(e => ({
+          phonebook_uid: e.phonebook_uid,
+          phonebook_name: pbMap.get(e.phonebook_uid) || '',
+          number: e.number,
+          comment: e.comment || '',
+          vars: e.vars,
+        }));
+    }
+
+    // Recent service requests for this number
+    const requests = await this.serviceRequestModel.findAll({
+      where: {
+        user_uid: userUid,
+        phone: { [Op.like]: `%${suffix.slice(-7)}%` },
+      },
+      order: [['created_at', 'DESC']],
+      limit: 10,
+      attributes: [
+        'uid', 'request_number', 'counterparty_name', 'phone',
+        'topic', 'comment', 'address', 'request_status',
+        'scheduled_date', 'created_at',
+      ],
+    });
+
+    return {
+      number: rawNumber,
+      matched: contacts.length > 0 || requests.length > 0,
+      contacts,
+      requests: requests
+        .map(r => r.get({ plain: true }))
+        .filter((r: any) => (r.phone || '').replace(/\D/g, '').endsWith(suffix)),
+    };
   }
 }

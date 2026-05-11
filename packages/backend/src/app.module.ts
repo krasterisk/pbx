@@ -31,10 +31,19 @@ import { CloudAdminModule } from './modules/cloud-admin/cloud-admin.module';
 import { AiChatModule } from './modules/ai-chat/ai-chat.module';
 import { McpModule } from './modules/mcp/mcp.module';
 import { CallCenterModule } from './modules/callcenter/callcenter.module';
+import { AiAgentsModule } from './modules/ai-agents/ai-agents.module';
+import { CcAiAgent } from './modules/ai-agents/models/ai-agent.model';
+import { CcAiProvider } from './modules/ai-agents/models/ai-provider.model';
+import { CcAiToolset } from './modules/ai-agents/models/ai-toolset.model';
+import { CcAiCdr } from './modules/ai-agents/models/ai-cdr.model';
+import { CcAiBilling } from './modules/ai-agents/models/ai-billing.model';
+import { CcAiInvoice } from './modules/ai-agents/models/ai-invoice.model';
+import { CcAiAuditLog } from './modules/ai-agents/models/ai-audit-log.model';
 import { CcPauseReason } from './modules/callcenter/models/pause-reason.model';
 import { CcAgentSession } from './modules/callcenter/models/agent-session.model';
 import { CcAgentEvent } from './modules/callcenter/models/agent-event.model';
 import { CcAgentQueue } from './modules/callcenter/models/agent-queue.model';
+import { CcMissedCall } from './modules/callcenter/models/missed-call.model';
 import { Tenant } from './modules/cloud-admin/tenant.model';
 import { ModuleRegistry } from './modules/cloud-admin/module-registry.model';
 import { TenantModule } from './modules/cloud-admin/tenant-module.model';
@@ -107,7 +116,8 @@ import * as path from 'path';
         SystemSetting, VoiceRobot, VoiceRobotKeywordGroup, VoiceRobotKeyword, VoiceRobotLog, VoiceRobotCdr, VoiceRobotDataList,
         Queue, QueueMember,
         ServiceRequest, CcSubject, CcDistrict,
-        CcPauseReason, CcAgentSession, CcAgentEvent, CcAgentQueue,
+        CcPauseReason, CcAgentSession, CcAgentEvent, CcAgentQueue, CcMissedCall,
+        CcAiAgent, CcAiProvider, CcAiToolset, CcAiCdr, CcAiBilling, CcAiInvoice, CcAiAuditLog,
         TimeGroup,
         RoutePhonebook, PhonebookEntry,
         // Cloud-admin
@@ -160,6 +170,7 @@ import * as path from 'path';
     AiChatModule,
     McpModule,
     CallCenterModule,
+    AiAgentsModule,
   ],
   providers: [
     // Global rate limiting guard

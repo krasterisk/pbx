@@ -33,6 +33,7 @@ import { MarketplacePage } from '@/pages/MarketplacePage/MarketplacePage';
 import { MyModulesPage } from '@/pages/MyModulesPage/MyModulesPage';
 import { CallCenterAgentPage } from '@/pages/CallCenterAgentPage';
 import { CallCenterSupervisorPage } from '@/pages/CallCenterSupervisorPage';
+import { AiAgentsPage } from '@/pages/AiAgentsPage';
 
 export const router = createBrowserRouter([
   {
@@ -70,6 +71,7 @@ export const router = createBrowserRouter([
       { path: 'provision-templates', element: <ProvisionTemplatesPage /> },
       { path: 'operator', element: <CallCenterAgentPage /> },
       { path: 'supervisor', element: <CallCenterSupervisorPage /> },
+      { path: 'ai-agents', element: <AiAgentsPage /> },
       { path: 'service-requests', element: <ServiceRequestsPage /> },
       { path: 'reports', element: <PlaceholderPage title="Reports" /> },
       { path: 'reports/voice-robot-cdr', element: <VoiceRobotCdrPage /> },

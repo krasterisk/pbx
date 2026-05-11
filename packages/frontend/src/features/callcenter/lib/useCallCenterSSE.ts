@@ -138,6 +138,18 @@ export function useCallCenterSSE(enabled: boolean = true) {
       } catch { /* ignore */ }
     });
 
+    // Missed calls — broadcast on window so the MissedCallsPanel invalidates its cache
+    es.addEventListener('missedCallNew', (e: MessageEvent) => {
+      try {
+        window.dispatchEvent(new CustomEvent('cc:missed-call-new', { detail: JSON.parse(e.data) }));
+      } catch { /* ignore */ }
+    });
+    es.addEventListener('missedCallUpdate', (e: MessageEvent) => {
+      try {
+        window.dispatchEvent(new CustomEvent('cc:missed-call-update', { detail: JSON.parse(e.data) }));
+      } catch { /* ignore */ }
+    });
+
     // Heartbeat — no action needed, just keeps SSE alive
     es.addEventListener('heartbeat', () => {
       // noop — prevents proxy timeout

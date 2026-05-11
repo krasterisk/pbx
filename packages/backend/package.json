@@ -15,7 +15,14 @@
     "lint": "eslint \"{src,test}/**/*.ts\" --fix",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:cov": "jest --coverage"
+    "test:cov": "jest --coverage",
+    "test:cc": "jest --testPathPattern=\"modules/callcenter\" --no-coverage",
+    "test:cc:watch": "jest --testPathPattern=\"modules/callcenter\" --watch --no-coverage",
+    "test:ai": "jest --testPathPattern=\"modules/ai-agents\" --no-coverage",
+    "test:ai:watch": "jest --testPathPattern=\"modules/ai-agents\" --watch --no-coverage",
+    "db:migrate": "node migrations/run-migrations.js",
+    "db:migrate:list": "node migrations/run-migrations.js --list",
+    "db:migrate:rollback": "node migrations/run-migrations.js --rollback"
   },
   "dependencies": {
     "@grpc/grpc-js": "^1.14.3",

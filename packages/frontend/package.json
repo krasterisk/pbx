@@ -11,7 +11,12 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:cov": "vitest run --coverage",
+    "test:cc": "vitest run src/features/callcenter",
+    "test:cc:watch": "vitest src/features/callcenter",
+    "test:ai": "vitest run src/features/ai-agents src/pages/AiAgentsPage",
+    "test:ai:watch": "vitest src/features/ai-agents src/pages/AiAgentsPage"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
