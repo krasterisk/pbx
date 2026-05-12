@@ -32,10 +32,10 @@ export const ModuleLockedPage = memo(({
 
         {/* Text */}
         <VStack gap="12" align="center">
-          <Text size="xl" weight="bold" className={cls.title}>
+          <Text variant="h1" className={cls.title}>
             {moduleName} недоступен
           </Text>
-          <Text color="muted" className={cls.subtitle}>
+          <Text variant="muted" className={cls.subtitle}>
             {description ?? 'Для доступа к этому разделу необходимо подключить соответствующий модуль в Marketplace.'}
           </Text>
           {moduleCode && (

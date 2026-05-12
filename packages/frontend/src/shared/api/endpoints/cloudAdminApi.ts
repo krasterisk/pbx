@@ -159,5 +159,3 @@ export const {
   useUpdateSellerInfoMutation,
 } = cloudAdminApi;
 
-export type { ITenantModule };
-

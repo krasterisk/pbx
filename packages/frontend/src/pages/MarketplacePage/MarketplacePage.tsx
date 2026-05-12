@@ -41,7 +41,7 @@ export const MarketplacePage = memo(() => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-[60vh]">
-        <Loader size="lg" />
+        <Loader size={40} />
       </div>
     );
   }
@@ -54,8 +54,8 @@ export const MarketplacePage = memo(() => {
           <HStack gap="12" align="center">
             <div className={cls.heroIcon}><Package className="w-6 h-6" /></div>
             <VStack gap="4">
-              <Text size="xl" weight="bold">{t('marketplace.title', 'Marketplace')}</Text>
-              <Text color="muted">{t('marketplace.subtitle', 'Подключайте модули и расширяйте возможности вашей АТС')}</Text>
+              <Text variant="h1">{t('marketplace.title', 'Marketplace')}</Text>
+              <Text variant="muted">{t('marketplace.subtitle', 'Подключайте модули и расширяйте возможности вашей АТС')}</Text>
             </VStack>
           </HStack>
         </div>
@@ -91,8 +91,8 @@ export const MarketplacePage = memo(() => {
                       <Icon className="w-5 h-5" />
                     </div>
                     <VStack gap="4">
-                      <Text weight="semibold">{mod.name}</Text>
-                      <Text size="xs" color="muted">{mod.code}</Text>
+                      <Text variant="h4">{mod.name}</Text>
+                      <Text variant="xs">{mod.code}</Text>
                     </VStack>
                   </HStack>
                   <div className={cls.badges}>
@@ -108,7 +108,7 @@ export const MarketplacePage = memo(() => {
               <CardContent>
                 <VStack gap="16">
                   {mod.description && (
-                    <Text size="sm" color="muted">{mod.description}</Text>
+                    <Text variant="muted">{mod.description}</Text>
                   )}
 
                   <HStack justify="between" align="center">
@@ -122,12 +122,12 @@ export const MarketplacePage = memo(() => {
                     {mod.is_core ? (
                       <HStack gap="6" align="center" className={cls.activeStatus}>
                         <CheckCircle className="w-4 h-4" />
-                        <Text size="sm">{t('marketplace.included', 'Включён')}</Text>
+                        <Text variant="small">{t('marketplace.included', 'Включён')}</Text>
                       </HStack>
                     ) : mod.requires_cloud ? (
                       <HStack gap="6" align="center" className={cls.cloudStatus}>
                         <Lock className="w-4 h-4" />
-                        <Text size="sm">{t('marketplace.contactAdmin', 'Через администратора')}</Text>
+                        <Text variant="small">{t('marketplace.contactAdmin', 'Через администратора')}</Text>
                       </HStack>
                     ) : (
                       <Button size="sm" variant="outline" id={`marketplace-connect-${mod.code}`}>

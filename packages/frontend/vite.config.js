@@ -11,11 +11,19 @@ export default defineConfig({
             '@': path.resolve(__dirname, './src'),
         },
     },
+    define: {
+        // @react-pdf/renderer needs process.env
+        'process.env': {},
+        'process.browser': true,
+    },
+    optimizeDeps: {
+        // Pre-bundle react-pdf to avoid ESM/CJS issues in dev
+        include: ['@react-pdf/renderer'],
+    },
     build: {
         rollupOptions: {
             input: {
                 main: resolve(__dirname, 'index.html'),
-                standalone: resolve(__dirname, 'standalone.html'),
             },
         },
     },

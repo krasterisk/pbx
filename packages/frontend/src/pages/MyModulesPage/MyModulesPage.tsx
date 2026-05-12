@@ -29,7 +29,7 @@ export const MyModulesPage = memo(() => {
   if (isLoading) {
     return (
       <div className={cls.loaderWrap}>
-        <Loader size="lg" />
+        <Loader size={40} />
       </div>
     );
   }
@@ -42,8 +42,8 @@ export const MyModulesPage = memo(() => {
       {/* Header */}
       <HStack justify="between" align="center" max>
         <VStack gap="4">
-          <Text size="xl" weight="bold">{t('myModules.title', 'Мои модули')}</Text>
-          <Text color="muted">{t('myModules.subtitle', 'Подключённые и доступные расширения вашей АТС')}</Text>
+          <Text variant="h1">{t('myModules.title', 'Мои модули')}</Text>
+          <Text variant="muted">{t('myModules.subtitle', 'Подключённые и доступные расширения вашей АТС')}</Text>
         </VStack>
         <Button onClick={() => navigate('/marketplace')} id="my-modules-to-marketplace-btn">
           <Store className="w-4 h-4 mr-2" />
@@ -68,7 +68,7 @@ export const MyModulesPage = memo(() => {
       {/* Active modules */}
       {active.length > 0 && (
         <VStack gap="12">
-          <Text weight="semibold" color="muted" size="sm" className={cls.sectionTitle}>
+          <Text variant="muted" className={`${cls.sectionTitle} font-semibold uppercase`}>
             АКТИВНЫЕ МОДУЛИ
           </Text>
           <div className={cls.grid}>
@@ -84,8 +84,8 @@ export const MyModulesPage = memo(() => {
                           <Icon className="w-5 h-5" />
                         </div>
                         <VStack gap="2">
-                          <Text weight="semibold">{mod.name ?? mod.module_code}</Text>
-                          <Text size="xs" color="muted">{mod.module_code}</Text>
+                          <Text variant="h4">{mod.name ?? mod.module_code}</Text>
+                          <Text variant="xs">{mod.module_code}</Text>
                         </VStack>
                       </HStack>
                       <span className={`${cls.statusBadge} ${cls[`status_${cfg.cls}`]}`}>
@@ -95,7 +95,7 @@ export const MyModulesPage = memo(() => {
                     </HStack>
                   </CardHeader>
                   <CardContent>
-                    {mod.description && <Text size="sm" color="muted">{mod.description}</Text>}
+                    {mod.description && <Text variant="muted">{mod.description}</Text>}
                     <div className={cls.price}>
                       {mod.is_paid
                         ? <><span className={cls.priceAmt}>{mod.price_monthly}</span> <span className={cls.priceCur}>₽/мес</span></>
@@ -113,7 +113,7 @@ export const MyModulesPage = memo(() => {
       {/* Inactive modules */}
       {inactive.length > 0 && (
         <VStack gap="12">
-          <Text weight="semibold" color="muted" size="sm" className={cls.sectionTitle}>
+          <Text variant="muted" className={`${cls.sectionTitle} font-semibold uppercase`}>
             НЕАКТИВНЫЕ МОДУЛИ
           </Text>
           <div className={cls.grid}>
@@ -130,8 +130,8 @@ export const MyModulesPage = memo(() => {
                           <Icon className="w-5 h-5" />
                         </div>
                         <VStack gap="2">
-                          <Text weight="semibold">{mod.name ?? mod.module_code}</Text>
-                          <Text size="xs" color="muted">{mod.module_code}</Text>
+                          <Text variant="h4">{mod.name ?? mod.module_code}</Text>
+                          <Text variant="xs">{mod.module_code}</Text>
                         </VStack>
                       </HStack>
                       <span className={`${cls.statusBadge} ${cls[`status_${cfg.cls}`]}`}>
@@ -150,7 +150,7 @@ export const MyModulesPage = memo(() => {
       {modules.length === 0 && (
         <VStack gap="16" align="center" className={cls.empty}>
           <Package className="w-12 h-12 opacity-30" />
-          <Text color="muted">{t('myModules.empty', 'Нет подключённых модулей')}</Text>
+          <Text variant="muted">{t('myModules.empty', 'Нет подключённых модулей')}</Text>
           <Button onClick={() => navigate('/marketplace')} id="my-modules-empty-marketplace-btn">
             <Store className="w-4 h-4 mr-2" />
             Перейти в Marketplace

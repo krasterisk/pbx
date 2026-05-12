@@ -24,6 +24,10 @@ export const tenantsPageSlice = createSlice({
       state.modalMode = 'edit';
       state.selectedTenant = action.payload;
     },
+    openTenantDrawer(state, action: PayloadAction<ITenant>) {
+      state.isModalOpen = false;
+      state.selectedTenant = action.payload;
+    },
     closeModal(state) {
       state.isModalOpen = false;
       state.selectedTenant = null;

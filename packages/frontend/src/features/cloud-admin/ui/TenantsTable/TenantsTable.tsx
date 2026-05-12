@@ -29,7 +29,6 @@ export const TenantsTable = memo(() => {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
-  const [drawerTenant, setDrawerTenant] = useState<ITenant | null>(null);
 
   // Debounce search
   const handleSearchChange = (value: string) => {
@@ -58,9 +57,9 @@ export const TenantsTable = memo(() => {
       header: t('cloudAdmin.tenants.name', 'Название'),
       cell: ({ row }) => (
         <VStack gap="2">
-          <Text weight="semibold">{row.original.name}</Text>
+          <Text variant="h4">{row.original.name}</Text>
           {row.original.slug && (
-            <Text size="xs" color="muted">{row.original.slug}</Text>
+            <Text variant="xs">{row.original.slug}</Text>
           )}
         </VStack>
       ),
@@ -69,7 +68,7 @@ export const TenantsTable = memo(() => {
       accessorKey: 'email',
       header: t('cloudAdmin.tenants.email', 'Email'),
       cell: ({ getValue }) => (
-        <Text size="sm" color="muted">{String(getValue() ?? '-')}</Text>
+        <Text variant="muted">{String(getValue() ?? '-')}</Text>
       ),
     },
     {
@@ -83,7 +82,7 @@ export const TenantsTable = memo(() => {
       accessorKey: 'max_extensions',
       header: t('cloudAdmin.tenants.limits', 'Лимиты'),
       cell: ({ row }) => (
-        <Text size="sm" color="muted">
+        <Text variant="muted">
           {`${row.original.max_extensions} номеров / ${row.original.max_trunks} транков`}
         </Text>
       ),
@@ -92,7 +91,7 @@ export const TenantsTable = memo(() => {
       accessorKey: 'created_at',
       header: t('common.createdAt', 'Создан'),
       cell: ({ getValue }) => (
-        <Text size="sm" color="muted">
+        <Text variant="muted">
           {new Date(String(getValue())).toLocaleDateString('ru-RU')}
         </Text>
       ),
@@ -110,7 +109,7 @@ export const TenantsTable = memo(() => {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => setDrawerTenant(tenant)}>
+              <DropdownMenuItem onClick={() => dispatch(tenantsPageActions.openTenantDrawer(tenant))}>
                 <ExternalLink className="w-4 h-4 mr-2" />
                 {t('common.details', 'Детали')}
               </DropdownMenuItem>
@@ -141,7 +140,7 @@ export const TenantsTable = memo(() => {
   return (
     <VStack gap="16" className={cls.wrapper}>
       {/* TenantDrawer */}
-      <TenantDrawer tenant={drawerTenant} onClose={() => setDrawerTenant(null)} />
+      <TenantDrawer />
       {/* Stats */}
       {stats && (
         <div className={cls.statsGrid}>
@@ -169,7 +168,7 @@ export const TenantsTable = memo(() => {
           <HStack justify="between" align="center" className="flex-col sm:flex-row gap-4" max>
             <HStack gap="8" align="center">
               <Building2 className="w-5 h-5 text-primary" />
-              <Text weight="semibold" size="lg">
+              <Text variant="h4">
                 {t('cloudAdmin.tenants.title', 'Кабинеты')} ({data?.count ?? 0})
               </Text>
             </HStack>

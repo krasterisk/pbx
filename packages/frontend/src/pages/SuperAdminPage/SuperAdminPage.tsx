@@ -3,7 +3,6 @@ import { Users, Building2 } from 'lucide-react';
 import { TenantsTable, TenantFormModal } from '@/features/cloud-admin';
 import { SellerSettingsForm } from '@/features/cloud-admin/ui/SellerSettingsForm/SellerSettingsForm';
 import { VStack } from '@/shared/ui/Stack';
-import { Text } from '@/shared/ui/Text';
 import cls from './SuperAdminPage.module.scss';
 
 type AdminTab = 'tenants' | 'settings';

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="ru" class="light">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Krasterisk — Voice Robots Standalone" />
+    <title>Krasterisk — Голосовые роботы</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+      try {
+        const theme = localStorage.getItem('theme');
+        if (theme === 'dark') {
+          document.documentElement.classList.remove('light');
+          document.documentElement.classList.add('dark');
+        }
+      } catch (_) {}
+    </script>
+    <script type="module" crossorigin src="/voice-robots/assets/standalone-C-W9UpKc.js"></script>
+    <link rel="stylesheet" crossorigin href="/voice-robots/assets/standalone-_do7-wJM.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>

@@ -172,7 +172,7 @@ interface StatementProps {
 }
 
 const StatementDocument: React.FC<StatementProps> = ({
-  tenant, transactions, balance, dateFrom, dateTo, docNumber,
+  tenant, transactions, balance, dateFrom, dateTo, docNumber, seller,
 }) => {
   const generatedAt = new Date().toLocaleDateString('ru-RU', {
     day: '2-digit', month: 'long', year: 'numeric',

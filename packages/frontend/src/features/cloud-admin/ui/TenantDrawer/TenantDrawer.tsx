@@ -89,13 +89,13 @@ export const TenantDrawer = memo(() => {
 
         {/* ── Header ──────────────────────────────────── */}
         <div className={cls.header}>
-          <HStack justify="between" align="flex-start">
+          <HStack justify="between" align="start">
             <VStack gap="4">
-              <Text weight="semibold" size="lg">{selectedTenant.name}</Text>
+              <Text variant="h4">{selectedTenant.name}</Text>
               <HStack gap="8" align="center">
                 <TenantStatusBadge status={selectedTenant.status} />
                 {selectedTenant.slug && (
-                  <Text size="xs" color="muted">/{selectedTenant.slug}</Text>
+                  <Text variant="xs">/{selectedTenant.slug}</Text>
                 )}
               </HStack>
             </VStack>
@@ -157,7 +157,7 @@ export const TenantDrawer = memo(() => {
               </VStack>
 
               <VStack gap="8">
-                <Text size="xs" color="muted" weight="semibold">
+                <Text variant="xs" className="font-semibold uppercase">
                   {t('cloudAdmin.drawer.limits', 'ЛИМИТЫ').toUpperCase()}
                 </Text>
                 <div className={cls.limitsGrid}>
@@ -177,7 +177,7 @@ export const TenantDrawer = memo(() => {
                 <HStack justify="center"><Loader2 className="w-5 h-5 animate-spin text-primary" /></HStack>
               ) : balance && (
                 <div className={`${cls.balanceCard} ${balance.is_blocked ? cls.balanceBlocked : ''}`}>
-                  <Text size="xs" color="muted">{t('cloudAdmin.drawer.balance', 'Баланс')}</Text>
+                  <Text variant="xs">{t('cloudAdmin.drawer.balance', 'Баланс')}</Text>
                   <div className={cls.balanceAmount}>
                     {balance.balance_rub.toLocaleString('ru-RU', { style: 'currency', currency: 'RUB' })}
                   </div>
@@ -192,7 +192,7 @@ export const TenantDrawer = memo(() => {
 
               {/* Quick deposit */}
               <VStack gap="8">
-                <Text size="sm" weight="semibold">{t('cloudAdmin.drawer.deposit', 'Пополнить баланс')}</Text>
+                <Text variant="small" className="font-semibold">{t('cloudAdmin.drawer.deposit', 'Пополнить баланс')}</Text>
                 <HStack gap="8">
                   <input
                     type="number"
@@ -216,13 +216,13 @@ export const TenantDrawer = memo(() => {
 
               {/* Transactions */}
               <VStack gap="8">
-                <Text size="sm" weight="semibold">{t('cloudAdmin.drawer.history', 'История операций')}</Text>
+                <Text variant="small" className="font-semibold">{t('cloudAdmin.drawer.history', 'История операций')}</Text>
                 {txLoading ? (
                   <HStack justify="center"><Loader2 className="w-5 h-5 animate-spin text-primary" /></HStack>
                 ) : (
                   <div className={cls.txList}>
                     {(txData?.rows ?? []).length === 0 && (
-                      <Text size="sm" color="muted">{t('common.noData', 'Нет данных')}</Text>
+                      <Text variant="muted">{t('common.noData', 'Нет данных')}</Text>
                     )}
                     {(txData?.rows ?? []).map((tx) => {
                       const meta = TX_ICONS[tx.type] ?? TX_ICONS.correction;
@@ -234,15 +234,14 @@ export const TenantDrawer = memo(() => {
                             <Icon className="w-3.5 h-3.5" />
                           </div>
                           <VStack gap="2" className="flex-1 min-w-0">
-                            <Text size="xs" className="truncate">{tx.description ?? tx.type}</Text>
-                            <Text size="xs" color="muted">
+                            <Text variant="xs" className="truncate">{tx.description ?? tx.type}</Text>
+                            <Text variant="xs">
                               {new Date(tx.created_at).toLocaleDateString('ru-RU')}
                             </Text>
                           </VStack>
                           <Text
-                            size="sm"
-                            weight="semibold"
-                            className={isPositive ? cls.amountPositive : cls.amountNegative}
+                            variant="small"
+                            className={`font-semibold ${isPositive ? cls.amountPositive : cls.amountNegative}`}
                           >
                             {isPositive ? '+' : '−'}
                             {tx.amount_rub.toLocaleString('ru-RU', { style: 'currency', currency: 'RUB' })}
@@ -264,7 +263,7 @@ export const TenantDrawer = memo(() => {
               ) : (
                 <>
                   {(modules ?? []).length === 0 && (
-                    <Text size="sm" color="muted">{t('common.noData', 'Нет данных')}</Text>
+                    <Text variant="muted">{t('common.noData', 'Нет данных')}</Text>
                   )}
                   {(modules ?? []).map((mod) => {
                     const active = mod.status === 'active' || mod.status === 'trial';
@@ -278,12 +277,12 @@ export const TenantDrawer = memo(() => {
                         </div>
                         <VStack gap="2" className="flex-1 min-w-0">
                           <HStack gap="6" align="center">
-                            <Text size="sm" weight="semibold">{mod.name ?? mod.module_code}</Text>
+                            <Text variant="small" className="font-semibold">{mod.name ?? mod.module_code}</Text>
                             {mod.is_core && <span className={cls.coreBadge}>core</span>}
                             {mod.is_paid && !mod.is_core && <span className={cls.paidBadge}>paid</span>}
                           </HStack>
                           {mod.price_monthly != null && mod.price_monthly > 0 && (
-                            <Text size="xs" color="muted">
+                            <Text variant="xs">
                               {mod.price_monthly.toLocaleString('ru-RU', { style: 'currency', currency: 'RUB' })}/мес
                             </Text>
                           )}
@@ -309,9 +308,9 @@ TenantDrawer.displayName = 'TenantDrawer';
 // ── Helpers ────────────────────────────────────────────────────────────────
 function Row({ label, value }: { label: string; value: string }) {
   return (
-    <HStack justify="between" align="flex-start" className="py-2 border-b border-border/50 last:border-0">
-      <Text size="sm" color="muted">{label}</Text>
-      <Text size="sm" className="text-right max-w-[60%] break-words">{value}</Text>
+    <HStack justify="between" align="start" className="py-2 border-b border-border/50 last:border-0">
+      <Text variant="muted">{label}</Text>
+      <Text variant="small" className="text-right max-w-[60%] break-words">{value}</Text>
     </HStack>
   );
 }
@@ -319,8 +318,8 @@ function Row({ label, value }: { label: string; value: string }) {
 function LimitCard({ label, value }: { label: string; value: number }) {
   return (
     <VStack gap="2" align="center" className="bg-muted/40 rounded-lg p-3 text-center">
-      <Text size="lg" weight="semibold">{value}</Text>
-      <Text size="xs" color="muted">{label}</Text>
+      <Text variant="h3">{value}</Text>
+      <Text variant="xs">{label}</Text>
     </VStack>
   );
 }

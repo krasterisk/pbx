@@ -56,10 +56,10 @@ export const SellerSettingsForm = memo(() => {
               <Building2 className="w-5 h-5" />
             </div>
             <VStack gap="2">
-              <Text weight="semibold" size="lg">
+              <Text variant="h4">
                 {t('cloudAdmin.settings.seller.title', 'Реквизиты поставщика')}
               </Text>
-              <Text size="sm" color="muted">
+              <Text variant="muted">
                 {t('cloudAdmin.settings.seller.subtitle', 'Используются при формировании актов и счетов для клиентов')}
               </Text>
             </VStack>
@@ -71,7 +71,7 @@ export const SellerSettingsForm = memo(() => {
 
             {/* ── Организация ─────────────────────────── */}
             <VStack gap="12">
-              <Text className={cls.fieldFull} weight="semibold" size="sm" color="muted">
+              <Text className={cls.fieldFull} variant="muted">
                 {t('cloudAdmin.settings.seller.sectionOrg', 'ОРГАНИЗАЦИЯ').toUpperCase()}
               </Text>
               <div className={cls.grid}>
@@ -120,7 +120,7 @@ export const SellerSettingsForm = memo(() => {
 
             {/* ── Банковские реквизиты ─────────────────── */}
             <VStack gap="12">
-              <Text weight="semibold" size="sm" color="muted">
+              <Text variant="muted">
                 {t('cloudAdmin.settings.seller.sectionBank', 'БАНКОВСКИЕ РЕКВИЗИТЫ').toUpperCase()}
               </Text>
               <div className={cls.grid}>
@@ -165,7 +165,7 @@ export const SellerSettingsForm = memo(() => {
 
             {/* ── Услуга (для актов) ────────────────────── */}
             <VStack gap="12">
-              <Text weight="semibold" size="sm" color="muted">
+              <Text variant="muted">
                 {t('cloudAdmin.settings.seller.sectionService', 'ОПИСАНИЕ УСЛУГИ В АКТАХ').toUpperCase()}
               </Text>
               <div className={cls.grid}>
@@ -197,7 +197,7 @@ export const SellerSettingsForm = memo(() => {
               {saved && (
                 <HStack gap="6" align="center" className={cls.savedMsg}>
                   <CheckCircle2 className="w-4 h-4 text-green-500" />
-                  <Text size="sm" color="muted">
+                  <Text variant="muted">
                     {t('common.saved', 'Сохранено')}
                   </Text>
                 </HStack>
