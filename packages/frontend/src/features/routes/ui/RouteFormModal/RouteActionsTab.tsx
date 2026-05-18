@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Table2, Code2 } from 'lucide-react';
 import { Button, Input, Label, InfoTooltip } from '@/shared/ui';
@@ -7,6 +7,7 @@ import { useAppSelector, useAppDispatch } from '@/shared/hooks/useAppStore';
 import { routesActions } from '../../model/slice/routesSlice';
 import { DialplanAppsEditor } from '@/features/dialplan-apps';
 import { RawDialplanEditor } from '../RawDialplanEditor/RawDialplanEditor';
+import { ensureCdrVpbxUserUidInDialplan } from '@krasterisk/shared';
 import type { IRouteAction } from '@krasterisk/shared';
 import styles from './RouteFormModal.module.scss';
 
@@ -17,12 +18,20 @@ export interface RouteActionsTabProps {
   setRawDialplan: (dp: string) => void;
   preCommand: string;
   setPreCommand: (v: string) => void;
+  vpbxUserUid: number;
 }
 
-export const RouteActionsTab = memo(({ actions, setActions, rawDialplan, setRawDialplan, preCommand, setPreCommand }: RouteActionsTabProps) => {
+export const RouteActionsTab = memo(({ actions, setActions, rawDialplan, setRawDialplan, preCommand, setPreCommand, vpbxUserUid }: RouteActionsTabProps) => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const { editorMode } = useAppSelector((s) => s.routes);
+
+  const switchToRaw = useCallback(() => {
+    dispatch(routesActions.setEditorMode('raw'));
+    if (rawDialplan.trim()) {
+      setRawDialplan(ensureCdrVpbxUserUidInDialplan(rawDialplan, vpbxUserUid));
+    }
+  }, [dispatch, rawDialplan, setRawDialplan, vpbxUserUid]);
 
   return (
     <VStack gap="12">
@@ -54,7 +63,7 @@ export const RouteActionsTab = memo(({ actions, setActions, rawDialplan, setRawD
           type="button"
           size="sm"
           variant={editorMode === 'raw' ? 'default' : 'outline'}
-          onClick={() => dispatch(routesActions.setEditorMode('raw'))}
+          onClick={switchToRaw}
         >
           <Code2 className="w-4 h-4 mr-2" />
           {t('routes.modeRaw', 'Dialplan')}
@@ -65,7 +74,11 @@ export const RouteActionsTab = memo(({ actions, setActions, rawDialplan, setRawD
         <DialplanAppsEditor actions={actions} onChange={setActions} />
       )}
       {editorMode === 'raw' && (
-        <RawDialplanEditor value={rawDialplan} onChange={setRawDialplan} />
+        <RawDialplanEditor
+          value={rawDialplan}
+          onChange={setRawDialplan}
+          vpbxUserUid={vpbxUserUid}
+        />
       )}
     </VStack>
   );

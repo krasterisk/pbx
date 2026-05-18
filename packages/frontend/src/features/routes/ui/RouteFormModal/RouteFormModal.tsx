@@ -10,6 +10,8 @@ import {
 import { useGetContextsQuery } from '@/shared/api/endpoints/contextApi';
 import { type IRouteAction } from '@krasterisk/shared';
 import { useAppSelector, useAppDispatch } from '@/shared/hooks/useAppStore';
+import { selectCurrentUser } from '@/entities/User';
+import { ensureCdrVpbxUserUidInDialplan } from '@krasterisk/shared';
 import { routesActions } from '../../model/slice/routesSlice';
 
 import { RouteGeneralTab, decodeRecordMode } from './RouteGeneralTab';
@@ -21,7 +23,9 @@ const TABS = ['general', 'actions', 'webhooks'] as const;
 export const RouteFormModal = memo(() => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
-  const { isModalOpen, selectedRoute, selectedContextUids, modalMode } = useAppSelector((s) => s.routes);
+  const { isModalOpen, selectedRoute, selectedContextUids, modalMode, editorMode } = useAppSelector((s) => s.routes);
+  const currentUser = useAppSelector(selectCurrentUser);
+  const vpbxUserUid = currentUser?.vpbx_user_uid ?? 0;
 
   const isCreateMode = modalMode === 'create' || modalMode === 'copy';
 
@@ -56,7 +60,9 @@ export const RouteFormModal = memo(() => {
       setExtensions(selectedRoute.extensions || []);
       setActive(!!selectedRoute.active);
       setActions(selectedRoute.actions || []);
-      setRawDialplan(selectedRoute.raw_dialplan || '');
+      setRawDialplan(
+        ensureCdrVpbxUserUidInDialplan(selectedRoute.raw_dialplan || '', vpbxUserUid),
+      );
       const opts = selectedRoute.options || {};
       const recMode = decodeRecordMode(opts);
       setRecord(recMode !== 'off');
@@ -103,7 +109,7 @@ export const RouteFormModal = memo(() => {
     } else {
       resetForm();
     }
-  }, [selectedRoute, modalMode]);
+  }, [selectedRoute, modalMode, vpbxUserUid]);
 
   const resetForm = () => {
     setName('');
@@ -161,7 +167,9 @@ export const RouteFormModal = memo(() => {
     const data = {
       name, extensions, active: active ? 1 : 0,
       options, webhooks: webhooksPayload, actions,
-      raw_dialplan: rawDialplan || undefined,
+      raw_dialplan: editorMode === 'raw' && rawDialplan.trim()
+        ? ensureCdrVpbxUserUidInDialplan(rawDialplan, vpbxUserUid)
+        : rawDialplan || undefined,
       context_uid: contextUid,
     };
 
@@ -231,6 +239,7 @@ export const RouteFormModal = memo(() => {
               actions={actions} setActions={setActions}
               rawDialplan={rawDialplan} setRawDialplan={setRawDialplan}
               preCommand={preCommand} setPreCommand={setPreCommand}
+              vpbxUserUid={vpbxUserUid}
             />
           )}
 

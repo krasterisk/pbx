@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
+import { ensureCdrVpbxUserUidInDialplan } from '@krasterisk/shared';
 import { Route } from './route.model';
 import { AsteriskDialplanUtils } from '../../shared/utils/dialplan.util';
 
@@ -43,8 +44,13 @@ export class RoutesService {
       where: { context_uid: data.context_uid, user_uid: vpbxUserUid },
     }) as number | null;
 
+    const payload = { ...data } as Partial<Route>;
+    if (payload.raw_dialplan?.trim()) {
+      payload.raw_dialplan = ensureCdrVpbxUserUidInDialplan(payload.raw_dialplan, vpbxUserUid);
+    }
+
     return this.routeModel.create({
-      ...data,
+      ...payload,
       priority: (maxPriority || 0) + 1,
       user_uid: vpbxUserUid,
     } as any);
@@ -53,7 +59,11 @@ export class RoutesService {
   /** Update an existing route */
   async update(uid: number, data: Partial<Route>, vpbxUserUid: number): Promise<Route> {
     const route = await this.findOne(uid, vpbxUserUid);
-    await route.update(data);
+    const payload = { ...data } as Partial<Route>;
+    if (payload.raw_dialplan?.trim()) {
+      payload.raw_dialplan = ensureCdrVpbxUserUidInDialplan(payload.raw_dialplan, vpbxUserUid);
+    }
+    await route.update(payload);
     return route;
   }
 
@@ -90,6 +100,11 @@ export class RoutesService {
    * This produces Asterisk-compatible dialplan configuration.
    */
   generateRouteDialplan(route: Route, vpbxUserUid: number, isAdmin: boolean = false): string {
+    const raw = route.raw_dialplan?.trim();
+    if (raw) {
+      return ensureCdrVpbxUserUidInDialplan(raw, vpbxUserUid);
+    }
+
     const lines: string[] = [];
     const extensions = route.extensions || [];
     const actions = route.actions || [];

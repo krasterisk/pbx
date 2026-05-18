@@ -31,7 +31,8 @@ import {
   SMS_STATUS_OPTIONS,
 } from '@/entities/serviceRequest';
 import { toast } from 'react-toastify';
-import { Phone, MapPin, User, FileText, MessageSquare, Factory, ClipboardList } from 'lucide-react';
+import { Phone, MapPin, User, FileText, MessageSquare, Factory, ClipboardList, Headphones } from 'lucide-react';
+import { RecordingButton } from '@/shared/ui';
 
 interface ServiceRequestModalProps {
   isOpen: boolean;
@@ -277,6 +278,14 @@ export function ServiceRequestModal({ isOpen, onClose, record }: ServiceRequestM
         {/* ═══ TAB 1: Заявка ═══ */}
         {activeTab === 'request' && (
           <VStack className="flex-1 overflow-y-auto pr-1 pt-4 gap-5">
+
+            {isEdit && record?.call_uniqueid && (
+              <HStack gap="8" align="center" className="p-3 rounded-lg border border-border/50 bg-muted/20">
+                <Headphones className="w-4 h-4 text-primary shrink-0" />
+                <Text variant="small">{t('recording.play', 'Прослушать запись')}</Text>
+                <RecordingButton uniqueid={record.call_uniqueid} />
+              </HStack>
+            )}
 
             {/* Контрагент — 3 per row responsive */}
             <VStack gap="8">

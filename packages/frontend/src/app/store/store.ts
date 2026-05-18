@@ -21,6 +21,7 @@ import { phonebooksReducer } from '@/features/phonebooks';
 import { tenantsPageReducer } from '@/features/cloud-admin';
 import { aiChatReducer } from '@/features/ai-chat/model/slice/aiChatSlice';
 import callCenterReducer from '@/features/callcenter/model/slice/callCenterSlice';
+import '@/shared/api/endpoints/cdrApi';
 
 export const store = configureStore({
   reducer: {

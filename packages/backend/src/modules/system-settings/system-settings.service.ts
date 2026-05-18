@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { SystemSetting } from './system-setting.model';
 import { ConfigService } from '@nestjs/config';
@@ -26,13 +26,45 @@ export interface FfmpegStatus {
 
 @Injectable()
 export class SystemSettingsService {
+  private readonly logger = new Logger(SystemSettingsService.name);
+  private warnedMissingTable = false;
+
   constructor(
     @InjectModel(SystemSetting) private settingModel: typeof SystemSetting,
     private readonly config: ConfigService,
   ) {}
 
+  private isMissingTableError(err: unknown): boolean {
+    const parent = (err as { parent?: { code?: string; errno?: number } })?.parent;
+    return parent?.code === 'ER_NO_SUCH_TABLE' || parent?.errno === 1146;
+  }
+
+  /** DB overrides for managed keys; empty map if table is absent (falls back to .env). */
+  private async loadManagedSettingsMap(): Promise<Record<string, string>> {
+    try {
+      const rows = await this.settingModel.findAll({
+        where: { key: MANAGED_KEYS as any },
+      });
+      return Object.fromEntries(rows.map((r) => [r.key, r.value ?? '']));
+    } catch (err) {
+      if (!this.isMissingTableError(err)) throw err;
+      if (!this.warnedMissingTable) {
+        this.warnedMissingTable = true;
+        this.logger.warn(
+          'system_settings table not found — using .env defaults. Run: npx ts-node src/modules/system-settings/migrate-system-settings.ts',
+        );
+      }
+      return {};
+    }
+  }
+
   async findAll(): Promise<SystemSetting[]> {
-    return this.settingModel.findAll();
+    try {
+      return await this.settingModel.findAll();
+    } catch (err) {
+      if (this.isMissingTableError(err)) return [];
+      throw err;
+    }
   }
 
   /**
@@ -41,10 +73,7 @@ export class SystemSettingsService {
    * The table overrides allow UI-based config without server SSH access.
    */
   async getServerConfig(): Promise<ServerConfig> {
-    const rows = await this.settingModel.findAll({
-      where: { key: MANAGED_KEYS as any },
-    });
-    const map = Object.fromEntries(rows.map((r) => [r.key, r.value ?? '']));
+    const map = await this.loadManagedSettingsMap();
 
     return {
       records_base_path: map['records_base_path'] ?? this.config.get('RECORDS_BASE_PATH') ?? '/usr/records',
@@ -62,10 +91,7 @@ export class SystemSettingsService {
    * Get raw (unmasked) config values for internal use.
    */
   async getServerConfigRaw(): Promise<ServerConfig> {
-    const rows = await this.settingModel.findAll({
-      where: { key: MANAGED_KEYS as any },
-    });
-    const map = Object.fromEntries(rows.map((r) => [r.key, r.value ?? '']));
+    const map = await this.loadManagedSettingsMap();
 
     return {
       records_base_path: map['records_base_path'] ?? this.config.get('RECORDS_BASE_PATH') ?? '/usr/records',

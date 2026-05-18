@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, Flex, VStack, Text, Paginatio
 import { 
   useGetVoiceRobotCdrsQuery, 
   useGetVoiceRobotCdrStatsQuery,
-  useLazyExportCdrQuery,
+  useLazyExportVoiceRobotCdrQuery,
   IVoiceRobotCdr
 } from '@/shared/api/endpoints/voiceRobotCdrApi';
 import { 
@@ -17,9 +17,11 @@ import {
 } from '@/features/voiceRobotCdr';
 
 const PAGE_SIZE = 50;
+const CSV_DELIMITER = ';';
 
-/** Export all matching CDR records as CSV */
+/** Export all matching voice robot CDR records as CSV (semicolon for Excel RU) */
 function exportCdrToCsv(data: IVoiceRobotCdr[], t: (key: string, defaultValue?: string) => string) {
+  const esc = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
   const headers = [
     t('voiceRobots.cdr.table.date'),
     t('voiceRobots.cdr.table.robot'),
@@ -30,10 +32,10 @@ function exportCdrToCsv(data: IVoiceRobotCdr[], t: (key: string, defaultValue?: 
     t('voiceRobots.cdr.table.duration'),
     t('voiceRobots.cdr.table.steps'),
     'Transfer',
-  ].map((h) => `"${h}"`).join(',');
+  ].map(esc).join(CSV_DELIMITER);
 
-  const rows = data.map((row) => {
-    return [
+  const rows = data.map((row) =>
+    [
       row.started_at,
       row.robot_name || `ID: ${row.robot_id}`,
       row.caller_id || '',
@@ -43,8 +45,8 @@ function exportCdrToCsv(data: IVoiceRobotCdr[], t: (key: string, defaultValue?: 
       row.duration_seconds,
       row.total_steps,
       row.transfer_target || '',
-    ].map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',');
-  });
+    ].map(esc).join(CSV_DELIMITER),
+  );
 
   const csvContent = [headers, ...rows].join('\n');
   const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -84,7 +86,7 @@ const VoiceRobotCdrPage = memo(() => {
 
   const { data: cdrData, isLoading: isLoadingCdr, isFetching } = useGetVoiceRobotCdrsQuery(queryParams);
   const { data: statsData, isLoading: isLoadingStats } = useGetVoiceRobotCdrStatsQuery();
-  const [triggerExport, { isFetching: isExporting }] = useLazyExportCdrQuery();
+  const [triggerExport, { isFetching: isExporting }] = useLazyExportVoiceRobotCdrQuery();
 
   const handleFilterChange = useCallback((newFilters: Partial<typeof filters>) => {
     const newParams = new URLSearchParams(searchParams);

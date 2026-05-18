@@ -24,6 +24,7 @@ import { SttEnginesPage } from '@/pages/SttEnginesPage';
 import { VoiceRobotsPage } from '@/pages/VoiceRobotsPage';
 import { VoiceRobotEditPage } from '@/pages/VoiceRobotEditPage';
 import { VoiceRobotCdrPage } from '@/pages/VoiceRobotCdrPage';
+import { CdrReportPage } from '@/pages/CdrReportPage';
 import { QueuesPage } from '@/features/queues';
 import { ServiceRequestsPage } from '@/pages/ServiceRequestsPage';
 import { SettingsPage } from '@/pages/SettingsPage';
@@ -74,6 +75,7 @@ export const router = createBrowserRouter([
       { path: 'ai-agents', element: <AiAgentsPage /> },
       { path: 'service-requests', element: <ServiceRequestsPage /> },
       { path: 'reports', element: <PlaceholderPage title="Reports" /> },
+      { path: 'reports/cdr', element: <CdrReportPage /> },
       { path: 'reports/voice-robot-cdr', element: <VoiceRobotCdrPage /> },
       { path: 'audit-log', element: <AuditLogPage /> },
       { path: 'settings', element: <SettingsPage /> },

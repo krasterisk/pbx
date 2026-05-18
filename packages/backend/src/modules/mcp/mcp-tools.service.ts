@@ -11,6 +11,7 @@ import { AmiService } from '../ami/ami.service';
 import { PbxContextBuilderService } from '../ai-chat/pbx-context-builder.service';
 import { InjectModel } from '@nestjs/sequelize';
 import { Context } from '../contexts/context.model';
+import { CdrService } from '../reports/cdr/cdr.service';
 
 /**
  * McpToolsService — регистрирует все инструменты KrAsterisk в локальном реестре.
@@ -43,6 +44,7 @@ export class McpToolsService {
         private readonly amiService: AmiService,
         private readonly contextBuilder: PbxContextBuilderService,
         @InjectModel(Context) private readonly contextModel: typeof Context,
+        private readonly cdrService: CdrService,
     ) {}
 
     registerAll(_server: McpServer, vpbxUserUid: number): void {
@@ -63,6 +65,8 @@ export class McpToolsService {
         this.regDeleteRoute(vpbxUserUid);
         this.regApplyDialplan(vpbxUserUid);
         this.regListContexts(vpbxUserUid);
+        this.regGetCdrSummary(vpbxUserUid);
+        this.regFindCdrCalls(vpbxUserUid);
         this.logger.log(`Registered ${this.toolRegistry.size} MCP tools for tenant ${vpbxUserUid}`);
     }
 
@@ -370,6 +374,47 @@ export class McpToolsService {
             async () => {
                 const contexts = await this.contextsService.findAll(uid);
                 return [{ type: 'text', text: JSON.stringify(contexts, null, 2) }];
+            },
+        );
+    }
+
+    private regGetCdrSummary(uid: number) {
+        this.reg('get_cdr_summary',
+            'Сводка CDR за период: количество звонков, ASR, средняя длительность. Параметры dateFrom/dateTo в формате YYYY-MM-DD.',
+            {
+                dateFrom: { type: 'string', description: 'Начало периода YYYY-MM-DD' },
+                dateTo: { type: 'string', description: 'Конец периода YYYY-MM-DD' },
+            },
+            async (args) => {
+                const stats = await this.cdrService.getStats(uid, {
+                    dateFrom: args.dateFrom,
+                    dateTo: args.dateTo,
+                });
+                return [{ type: 'text', text: JSON.stringify(stats, null, 2) }];
+            },
+        );
+    }
+
+    private regFindCdrCalls(uid: number) {
+        this.reg('find_cdr_calls',
+            'Поиск звонков CDR (одна запись на звонок, GROUP BY linkedid). Лимит до 50.',
+            {
+                dateFrom: { type: 'string' },
+                dateTo: { type: 'string' },
+                search: { type: 'string', description: 'Поиск по номеру' },
+                direction: { type: 'string', enum: ['in', 'out', 'int', 'external'] },
+                limit: { type: 'number', default: 20 },
+            },
+            async (args) => {
+                const result = await this.cdrService.findCalls(uid, {
+                    dateFrom: args.dateFrom,
+                    dateTo: args.dateTo,
+                    search: args.search,
+                    direction: args.direction,
+                    limit: Math.min(args.limit || 20, 50),
+                    offset: 0,
+                });
+                return [{ type: 'text', text: JSON.stringify(result, null, 2) }];
             },
         );
     }

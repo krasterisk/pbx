@@ -29,6 +29,7 @@ import {
   ClipboardCheck,
   Calendar,
   BookOpen,
+  PhoneCall,
 } from 'lucide-react';
 import { classNames } from '@/shared/lib/classNames/classNames';
 import { VStack, Flex } from '@/shared/ui/Stack';
@@ -67,6 +68,7 @@ export const Sidebar = ({ collapsed, onToggle, isMobile }: SidebarProps) => {
     { name: t('nav.supervisor'), path: '/supervisor', icon: Monitor },
     { type: 'divider' as const, label: t('nav.analytics') },
     { name: t('nav.reports'), path: '/reports', icon: BarChart3 },
+    { name: t('nav.cdr', 'Журнал звонков (CDR)'), path: '/reports/cdr', icon: PhoneCall },
     { name: t('nav.voiceRobotCdr', 'Журнал роботов (CDR)'), path: '/reports/voice-robot-cdr', icon: Activity },
     { name: t('nav.auditLog', 'Журнал событий'), path: '/audit-log', icon: ClipboardCheck },
     { type: 'divider' as const, label: t('nav.system') },

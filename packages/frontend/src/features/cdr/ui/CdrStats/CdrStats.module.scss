@@ -1,0 +1,58 @@
+/* CdrStats */
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+
+  @media (max-width: 1024px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.card {
+  background: color-mix(in srgb, var(--color-card) 80%, transparent);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+.iconWrap {
+  padding: 0.75rem;
+  border-radius: 9999px;
+}
+
+.iconIndigo {
+  background: color-mix(in srgb, #6366f1 12%, transparent);
+  color: #6366f1;
+}
+
+.iconGreen {
+  background: color-mix(in srgb, #22c55e 12%, transparent);
+  color: #22c55e;
+}
+
+.iconBlue {
+  background: color-mix(in srgb, #3b82f6 12%, transparent);
+  color: #3b82f6;
+}
+
+.iconAmber {
+  background: color-mix(in srgb, #f59e0b 12%, transparent);
+  color: #f59e0b;
+}
+
+.value {
+  font-size: 1.75rem;
+  font-weight: 700;
+}
+
+.label {
+  color: var(--color-muted-foreground);
+  font-size: 0.875rem;
+}

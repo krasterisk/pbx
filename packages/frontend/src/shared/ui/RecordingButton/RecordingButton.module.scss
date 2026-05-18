@@ -1,0 +1,10 @@
+/* RecordingButton */
+
+.iconBtn {
+  color: var(--color-primary);
+}
+
+.iconBtn:hover {
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+}

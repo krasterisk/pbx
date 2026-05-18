@@ -78,6 +78,65 @@ export const en = {
     sttEngines: 'Speech Recognition (STT)',
     timeGroups: 'Time Groups',
     phonebooks: 'Phonebooks',
+    cdr: 'Call log (CDR)',
+    voiceRobotCdr: 'Voice robot log (CDR)',
+    serviceRequests: 'Service requests',
+  },
+
+  recording: {
+    play: 'Play recording',
+    notAvailable: 'Recording not available',
+    download: 'Download recording',
+  },
+
+  cdr: {
+    title: 'Call log (CDR)',
+    subtitle: 'PBX call detail records',
+    tabs: {
+      journal: 'Journal',
+      analytics: 'Analytics',
+    },
+    filter: {
+      search: 'Search by number, channel...',
+      directionAll: 'All directions',
+      directionIn: 'Inbound',
+      directionOut: 'Outbound',
+      directionInt: 'Internal',
+      directionExt: 'External',
+      dispositionAll: 'All statuses',
+      answered: 'Answered',
+      missed: 'Missed',
+    },
+    table: {
+      date: 'Date',
+      src: 'Caller',
+      dst: 'Destination',
+      line: 'Line',
+      status: 'Status',
+      duration: 'Duration',
+      recording: 'Recording',
+    },
+    stats: {
+      totalCalls: 'Total calls',
+      asr: 'ASR',
+      avgBillsec: 'Avg talk time',
+      avgPdd: 'Avg PDD',
+    },
+    charts: {
+      byHour: 'By hour',
+      byDay: 'By day',
+      byExtension: 'By extension',
+      byTrunk: 'By trunk',
+      disposition: 'Dispositions',
+      heatmap: 'Heatmap (day x hour)',
+    },
+    legs: {
+      title: 'Call legs',
+    },
+    drilldown: {
+      hour: 'Calls at {{hour}}:00',
+      day: 'Calls on {{day}}',
+    },
   },
 
   // Dashboard
@@ -707,6 +766,7 @@ export const en = {
         steps: 'Steps',
         disposition: 'Outcome',
         action: 'Event',
+        actions: 'Actions',
       },
       detail: {
         title: 'Call Details',

@@ -19,7 +19,9 @@ import { PromptsModule } from './modules/prompts/prompts.module';
 import { TtsEnginesModule } from './modules/tts-engines/tts-engines.module';
 import { SttEnginesModule } from './modules/stt-engines/stt-engines.module';
 import { MohModule } from './modules/moh/moh.module';
-// import { SystemSettingsModule } from './modules/system-settings/system-settings.module';
+import { SystemSettingsModule } from './modules/system-settings/system-settings.module';
+import { ReportsCdrModule } from './modules/reports/cdr/reports-cdr.module';
+import { Cdr } from './modules/reports/cdr/cdr.model';
 import { VoiceRobotsModule } from './modules/voice-robots/voice-robots.module';
 import { AriModule } from './modules/ari/ari.module';
 import { QueuesModule } from './modules/queues/queues.module';
@@ -113,7 +115,7 @@ import * as path from 'path';
         PsRegistration, PsEndpointIdIp,
         Route, ContextInclude, WebhookFailure, Ivr, Prompt, TtsEngine, SttEngine,
         MohClass, MohEntry,
-        SystemSetting, VoiceRobot, VoiceRobotKeywordGroup, VoiceRobotKeyword, VoiceRobotLog, VoiceRobotCdr, VoiceRobotDataList,
+        SystemSetting, Cdr, VoiceRobot, VoiceRobotKeywordGroup, VoiceRobotKeyword, VoiceRobotLog, VoiceRobotCdr, VoiceRobotDataList,
         Queue, QueueMember,
         ServiceRequest, CcSubject, CcDistrict,
         CcPauseReason, CcAgentSession, CcAgentEvent, CcAgentQueue, CcMissedCall,
@@ -155,8 +157,9 @@ import * as path from 'path';
     TtsEnginesModule,
     SttEnginesModule,
     MohModule,
-    // SystemSettingsModule, // TEMPORARILY DISABLED for debugging
+    SystemSettingsModule,
     VoiceRobotsModule,
+    ReportsCdrModule,
     AriModule,
     QueuesModule,
     ServiceRequestsModule,

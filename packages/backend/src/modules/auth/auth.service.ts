@@ -53,7 +53,7 @@ export class AuthService {
       name:         user.name,
       level:        user.level,
       role:         user.role ?? 0,
-      vpbx_user_uid: user.vpbx_user_uid || user.uniqueid,
+      vpbx_user_uid: user.vpbx_user_uid ?? user.uniqueid,
     };
   }
 
@@ -77,7 +77,7 @@ export class AuthService {
       level:        user.level,
       role:         user.role ?? 0,
       exten:        user.exten ?? '',
-      vpbx_user_uid: user.vpbx_user_uid || user.uniqueid,
+      vpbx_user_uid: user.vpbx_user_uid ?? user.uniqueid,
     };
   }
 

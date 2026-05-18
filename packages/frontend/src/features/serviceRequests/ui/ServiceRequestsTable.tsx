@@ -9,6 +9,7 @@ import { ServiceRequestModal } from './ServiceRequestModal';
 import type { ServiceRequestFilters } from './ServiceRequestsFilter';
 import { toast } from 'react-toastify';
 import { Edit, Trash2, Plus, Download, Phone, MapPin, Calendar, User, MessageSquare, ChevronRight } from 'lucide-react';
+import { RecordingButton } from '@/shared/ui';
 import type { ColumnDef } from '@tanstack/react-table';
 import { useIsMobile } from '@/shared/hooks/useIsMobile';
 
@@ -111,6 +112,17 @@ function MobileRequestCard({
             <Text variant="small" className="truncate">{record.counterparty_name}</Text>
           </Flex>
         )}
+        {record.account_or_inn && (
+          <Flex align="center" gap="6">
+            <Text variant="small" className="text-muted-foreground shrink-0 text-xs">
+              {record.counterparty_type === 'legal'
+                ? t('serviceRequests.inn', 'ИНН')
+                : t('serviceRequests.personalAccount', 'Лицевой счёт')}
+              :
+            </Text>
+            <Text variant="small" className="truncate">{record.account_or_inn}</Text>
+          </Flex>
+        )}
         {record.phone && (
           <Flex align="center" gap="6">
             <Phone className="w-3 h-3 text-muted-foreground shrink-0" />
@@ -154,6 +166,9 @@ function MobileRequestCard({
           <div />
         )}
         <HStack gap="4">
+          {record.call_uniqueid && (
+            <RecordingButton uniqueid={record.call_uniqueid} />
+          )}
           <Button
             variant="ghost"
             size="icon"
@@ -294,6 +309,16 @@ export function ServiceRequestsTable({ filters }: ServiceRequestsTableProps) {
       cell: ({ row }) => <TruncatedCell text={row.original.counterparty_name} maxLen={22} />,
     },
     {
+      accessorKey: 'account_or_inn',
+      header: 'Лицевой счёт',
+      size: 120,
+      cell: ({ row }) => (
+        <Text variant="small" className="whitespace-nowrap">
+          {row.original.account_or_inn || '—'}
+        </Text>
+      ),
+    },
+    {
       accessorKey: 'phone',
       header: 'Телефон',
       size: 130,
@@ -371,6 +396,9 @@ export function ServiceRequestsTable({ filters }: ServiceRequestsTableProps) {
       size: 80,
       cell: ({ row }) => (
         <HStack gap="4" className="justify-end">
+          {row.original.call_uniqueid && (
+            <RecordingButton uniqueid={row.original.call_uniqueid} />
+          )}
           <Button
             variant="ghost"
             size="icon"

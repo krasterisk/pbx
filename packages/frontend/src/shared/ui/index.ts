@@ -31,3 +31,7 @@ export type { ScrollAreaProps } from './ScrollArea/ScrollArea';
 export { Separator } from './Separator/Separator';
 export type { SeparatorProps } from './Separator/Separator';
 export * from './Table/Table';
+export { AudioPlayer } from './AudioPlayer';
+export type { AudioPlayerProps } from './AudioPlayer';
+export { RecordingButton } from './RecordingButton';
+export type { RecordingButtonProps } from './RecordingButton';

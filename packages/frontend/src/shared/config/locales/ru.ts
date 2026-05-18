@@ -78,6 +78,65 @@ export const ru = {
     sttEngines: 'Распознавание речи (STT)',
     timeGroups: 'Временные группы',
     phonebooks: 'Справочники',
+    cdr: 'Журнал звонков (CDR)',
+    voiceRobotCdr: 'Журнал роботов (CDR)',
+    serviceRequests: 'Заявки клиентов',
+  },
+
+  recording: {
+    play: 'Прослушать запись',
+    notAvailable: 'Запись недоступна',
+    download: 'Скачать запись',
+  },
+
+  cdr: {
+    title: 'Журнал звонков (CDR)',
+    subtitle: 'Детализация звонков АТС',
+    tabs: {
+      journal: 'Журнал',
+      analytics: 'Аналитика',
+    },
+    filter: {
+      search: 'Поиск по номеру, каналу...',
+      directionAll: 'Все направления',
+      directionIn: 'Входящие',
+      directionOut: 'Исходящие',
+      directionInt: 'Внутренние',
+      directionExt: 'Внешние',
+      dispositionAll: 'Все статусы',
+      answered: 'Отвеченные',
+      missed: 'Пропущенные',
+    },
+    table: {
+      date: 'Дата',
+      src: 'Кто звонил',
+      dst: 'Куда',
+      line: 'Линия',
+      status: 'Статус',
+      duration: 'Длительность',
+      recording: 'Запись',
+    },
+    stats: {
+      totalCalls: 'Всего звонков',
+      asr: 'ASR',
+      avgBillsec: 'Ср. разговор',
+      avgPdd: 'Ср. PDD',
+    },
+    charts: {
+      byHour: 'По часам',
+      byDay: 'По дням',
+      byExtension: 'По абонентам',
+      byTrunk: 'По транкам',
+      disposition: 'Статусы',
+      heatmap: 'Тепловая карта (день x час)',
+    },
+    legs: {
+      title: 'Ноги звонка',
+    },
+    drilldown: {
+      hour: 'Звонки в {{hour}}:00',
+      day: 'Звонки за {{day}}',
+    },
   },
 
   // Dashboard
@@ -873,6 +932,7 @@ export const ru = {
         steps: 'Шаги',
         disposition: 'Исход',
         action: 'Событие',
+        actions: 'Действия',
       },
       detail: {
         title: 'Детали звонка',

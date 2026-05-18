@@ -121,7 +121,7 @@ const voiceRobotCdrApi = rtkApi.injectEndpoints({
       providesTags: ['VoiceRobotsCdr'],
     }),
     /** GET /voice-robots/cdr/export — all matching records for CSV export */
-    exportCdr: build.query<IVoiceRobotCdrListResponse, Omit<CdrQueryParams, 'limit' | 'offset'>>({
+    exportVoiceRobotCdr: build.query<IVoiceRobotCdrListResponse, Omit<CdrQueryParams, 'limit' | 'offset'>>({
       query: (params) => ({
         url: '/voice-robots/cdr/export',
         params: params || {},
@@ -136,7 +136,7 @@ export const {
   useGetVoiceRobotCdrQuery,
   useGetVoiceRobotCdrDetailQuery,
   useGetCdrTagsQuery,
-  useLazyExportCdrQuery,
+  useLazyExportVoiceRobotCdrQuery,
 } = voiceRobotCdrApi;
 
 // ─── Constants for UI ────────────────────────────────────

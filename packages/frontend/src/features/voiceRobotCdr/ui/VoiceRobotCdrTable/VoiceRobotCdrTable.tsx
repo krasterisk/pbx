@@ -1,9 +1,21 @@
-import { memo, useMemo } from 'react';
+import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Skeleton, Flex, Text } from '@/shared/ui';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  Skeleton,
+  Flex,
+  Text,
+  RecordingButton,
+  Button,
+} from '@/shared/ui';
 import { IVoiceRobotCdr } from '@/shared/api/endpoints/voiceRobotCdrApi';
 import { VoiceRobotCdrBadge } from '@/entities/voiceRobotCdr';
-import { PhoneForwarded, AlertCircle, PhoneIncoming, Tag } from 'lucide-react';
+import { PhoneForwarded, AlertCircle, PhoneIncoming, Tag, ListTree } from 'lucide-react';
 
 interface VoiceRobotCdrTableProps {
   data: IVoiceRobotCdr[];
@@ -31,7 +43,8 @@ export const VoiceRobotCdrTable = memo(({ data, isLoading, onRowClick }: VoiceRo
             <TableHead>{t('voiceRobots.cdr.table.disposition')}</TableHead>
             <TableHead>{t('voiceRobots.cdr.table.tag', 'Тег')}</TableHead>
             <TableHead>{t('voiceRobots.cdr.table.duration')}</TableHead>
-            <TableHead>{t('voiceRobots.cdr.table.steps')}</TableHead>
+            <TableHead>{t('voiceRobots.cdr.result')}</TableHead>
+            <TableHead className="w-[88px]">{t('voiceRobots.cdr.table.actions', 'Действия')}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -43,7 +56,8 @@ export const VoiceRobotCdrTable = memo(({ data, isLoading, onRowClick }: VoiceRo
               <TableCell><Skeleton className="h-6 w-24 rounded-full" /></TableCell>
               <TableCell><Skeleton className="h-5 w-28 rounded-full" /></TableCell>
               <TableCell><Skeleton className="h-4 w-16" /></TableCell>
-              <TableCell><Skeleton className="h-4 w-12" /></TableCell>
+              <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+              <TableCell><Skeleton className="h-7 w-16" /></TableCell>
             </TableRow>
           ))}
         </TableBody>
@@ -71,14 +85,14 @@ export const VoiceRobotCdrTable = memo(({ data, isLoading, onRowClick }: VoiceRo
             <TableHead>{t('voiceRobots.cdr.table.tag', 'Тег')}</TableHead>
             <TableHead>{t('voiceRobots.cdr.table.duration')}</TableHead>
             <TableHead>{t('voiceRobots.cdr.result')}</TableHead>
+            <TableHead className="w-[88px]">{t('voiceRobots.cdr.table.actions', 'Действия')}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {data.map((row) => (
-            <TableRow 
-              key={row.uid} 
-              className={onRowClick ? "cursor-pointer hover:bg-muted/30 transition-colors" : ""}
-              onClick={() => onRowClick?.(row)}
+            <TableRow
+              key={row.uid}
+              className="hover:bg-muted/20 transition-colors"
             >
               <TableCell className="whitespace-nowrap">
                 {new Date(row.started_at).toLocaleString(t('common.locale', 'ru-RU'), {
@@ -113,19 +127,40 @@ export const VoiceRobotCdrTable = memo(({ data, isLoading, onRowClick }: VoiceRo
                 {formatDuration(row.duration_seconds)}
               </TableCell>
               <TableCell>
-                <Flex align="center" gap="8">
+                <Flex align="center" gap="8" className="min-w-0">
                   {row.disposition === 'completed' && row.last_action === 'transfer_exten' && (
-                    <Flex align="center" gap="4" className="text-sm text-muted-foreground">
+                    <Flex align="center" gap="4" className="text-sm text-muted-foreground shrink-0">
                       <PhoneForwarded className="w-3 h-3 text-indigo-500" />
                       <span>{row.transfer_target}</span>
                     </Flex>
                   )}
                   {row.disposition === 'error' && (
-                    <AlertCircle className="w-4 h-4 text-destructive" />
+                    <AlertCircle className="w-4 h-4 text-destructive shrink-0" />
                   )}
-                  <span className="text-xs text-muted-foreground">
-                    ({row.total_steps} шагов)
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">
+                    ({row.total_steps} {t('voiceRobots.cdr.table.steps', 'шагов')})
                   </span>
+                </Flex>
+              </TableCell>
+              <TableCell className="w-[88px]">
+                <Flex align="center" gap="4" className="shrink-0">
+                  {row.call_uniqueid ? (
+                    <RecordingButton uniqueid={row.call_uniqueid} />
+                  ) : (
+                    <span className="inline-flex h-7 w-7 items-center justify-center text-muted-foreground">—</span>
+                  )}
+                  {onRowClick && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      title={t('voiceRobots.cdr.detail.title', 'Детали звонка')}
+                      onClick={() => onRowClick(row)}
+                    >
+                      <ListTree className="w-3.5 h-3.5" />
+                    </Button>
+                  )}
                 </Flex>
               </TableCell>
             </TableRow>

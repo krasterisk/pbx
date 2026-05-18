@@ -14,6 +14,7 @@ import { ContextsModule } from '../contexts/contexts.module';
 import { RoutesModule } from '../routes/routes.module';
 import { AmiModule } from '../ami/ami.module';
 import { AiChatModule } from '../ai-chat/ai-chat.module';
+import { ReportsCdrModule } from '../reports/cdr/reports-cdr.module';
 import { Context } from '../contexts/context.model';
 
 /**
@@ -42,6 +43,7 @@ import { Context } from '../contexts/context.model';
         RoutesModule,
         AmiModule,
         AiChatModule,
+        ReportsCdrModule,
     ],
     controllers: [McpController],
     providers: [

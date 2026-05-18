@@ -43,6 +43,13 @@ export interface DataTableProps<TData> {
   className?: string;
   /** Filename for CSV export */
   exportFilename?: string;
+  /**
+   * CSV field separator. Default `;` for Excel RU/EU locale (comma is decimal separator).
+   * Use `,` only when exporting for US/UK Excel or external APIs that expect RFC 4180 comma CSV.
+   */
+  csvDelimiter?: string;
+  /** CSV field enclosure character (default `"`) */
+  csvEnclosure?: string;
   /** Render slot above the table (header area) — receives the table instance */
   renderHeader?: (table: Table<TData>) => React.ReactNode;
   /** Custom row className based on row data */
@@ -190,6 +197,8 @@ function DataTableInner<TData>(
     emptyText = 'Нет данных',
     className,
     exportFilename = 'export',
+    csvDelimiter = ';',
+    csvEnclosure = '"',
     renderHeader,
     getRowClassName,
     paginationMode = 'client',
@@ -251,13 +260,16 @@ function DataTableInner<TData>(
   });
 
   const exportToCsv = useCallback(() => {
+    const enc = csvEnclosure;
+    const esc = (s: string) => `${enc}${s.replace(/"/g, '""')}${enc}`;
+
     // Get visible columns except actions and checkboxes
     const visibleColumns = table.getVisibleLeafColumns().filter((c) => c.id !== 'actions' && c.id !== 'select');
     
     // Header row
     const headers = visibleColumns.map((c) => {
-      let headerStr = typeof c.columnDef.header === 'string' ? c.columnDef.header : c.id;
-      return `"${headerStr.replace(/"/g, '""')}"`;
+      const headerStr = typeof c.columnDef.header === 'string' ? c.columnDef.header : c.id;
+      return esc(headerStr);
     });
 
     // Data rows
@@ -266,13 +278,12 @@ function DataTableInner<TData>(
       return visibleColumns.map((col) => {
         let val = row.getValue(col.id);
         if (val === null || val === undefined) val = '';
-        const strVal = String(val).replace(/"/g, '""');
-        return `"${strVal}"`;
-      }).join(',');
+        return esc(String(val));
+      }).join(csvDelimiter);
     });
 
     // Combine and download (add BOM for Excel utf-8 recognition)
-    const csvContent = [headers.join(','), ...csvRows].join('\n');
+    const csvContent = [headers.join(csvDelimiter), ...csvRows].join('\n');
     const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     
@@ -284,7 +295,7 @@ function DataTableInner<TData>(
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-  }, [table, exportFilename]);
+  }, [table, exportFilename, csvDelimiter, csvEnclosure]);
 
   // Expose methods to parent
   React.useImperativeHandle(ref, () => ({
