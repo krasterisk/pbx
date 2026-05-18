@@ -229,10 +229,20 @@ export class CdrService {
     };
   }
 
+  /** Absolute stream URL (uniqueid often contains ".", so relative "play" breaks). */
+  recordingPlayStreamPath(uniqueid: string, variant: 'public' | 'auth'): string {
+    const id = encodeURIComponent(String(uniqueid));
+    const prefix =
+      variant === 'public' ? '/api/public/reports/cdr/recording' : '/api/reports/cdr/recording';
+    return `${prefix}/${id}/play`;
+  }
+
   /** Minimal HTML player (v3 play.php) — popup opens this page, not raw MP3. */
-  renderRecordingPlayerHtml(uniqueid: string, tokenQuery = ''): string {
-    const safeUid = String(uniqueid).replace(/[<>"']/g, '');
-    const qs = tokenQuery ? `?${tokenQuery.replace(/^\?/, '')}` : '';
+  renderRecordingPlayerHtml(streamSrc: string): string {
+    const src = streamSrc
+      .replace(/&/g, '&amp;')
+      .replace(/"/g, '&quot;')
+      .replace(/</g, '&lt;');
     return `<!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -247,7 +257,7 @@ export class CdrService {
 <body>
   <div>
     <p>Прослушивание записи</p>
-    <audio controls autoplay preload="metadata" src="play${qs}"></audio>
+    <audio controls autoplay preload="metadata" src="${src}"></audio>
   </div>
 </body>
 </html>`;

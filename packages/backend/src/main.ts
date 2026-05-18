@@ -79,12 +79,22 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.enableShutdownHooks();
 
+  // HTTP-only / self-hosted boxes: disable HSTS and CSP upgrade-insecure-requests
+  // (otherwise the browser rewrites http:// to https:// and playback fails without TLS).
   const strictSecurityHeaders = process.env.HELMET_HSTS === 'true';
   app.use(
     helmet({
       hsts: strictSecurityHeaders ? undefined : false,
       crossOriginOpenerPolicy: strictSecurityHeaders ? undefined : false,
       crossOriginEmbedderPolicy: strictSecurityHeaders ? undefined : false,
+      contentSecurityPolicy: strictSecurityHeaders
+        ? undefined
+        : {
+            directives: {
+              ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+              'upgrade-insecure-requests': null,
+            },
+          },
     }),
   );
   app.enableCors({

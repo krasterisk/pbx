@@ -21,7 +21,8 @@ export class CdrPublicController {
   @Get('recording/:uniqueid')
   @Header('Content-Type', 'text/html; charset=utf-8')
   playRecordingPage(@Param('uniqueid') uniqueid: string, @Res() res: Response) {
-    res.send(this.cdrService.renderRecordingPlayerHtml(uniqueid));
+    const streamSrc = this.cdrService.recordingPlayStreamPath(uniqueid, 'public');
+    res.send(this.cdrService.renderRecordingPlayerHtml(streamSrc));
   }
 
   @Get('recording/:uniqueid/play')

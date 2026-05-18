@@ -101,7 +101,7 @@ export class CdrController {
     return this.cdrService.findByUniqueid(req.user.vpbx_user_uid, uniqueid);
   }
 
-  /** HTML player popup (v3 play.php); audio loads from relative …/play. */
+  /** HTML player popup (v3 play.php); audio uses absolute …/:uniqueid/play URL. */
   @Get('recording/:uniqueid')
   @Header('Content-Type', 'text/html; charset=utf-8')
   playRecordingPage(
@@ -109,8 +109,11 @@ export class CdrController {
     @Query('token') token: string | undefined,
     @Res() res: Response,
   ) {
-    const tokenQuery = token ? `token=${encodeURIComponent(token)}` : '';
-    res.send(this.cdrService.renderRecordingPlayerHtml(uniqueid, tokenQuery));
+    let streamSrc = this.cdrService.recordingPlayStreamPath(uniqueid, 'auth');
+    if (token) {
+      streamSrc += `?token=${encodeURIComponent(token)}`;
+    }
+    res.send(this.cdrService.renderRecordingPlayerHtml(streamSrc));
   }
 
   /** Stream MP3 from records_base_path (same-origin, v3 play.php behaviour). */
