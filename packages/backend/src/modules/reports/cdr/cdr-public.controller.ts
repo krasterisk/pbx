@@ -1,6 +1,6 @@
-import { Controller, Get, Header, Param, Res } from '@nestjs/common';
+import { Controller, Get, Header, Param, Req, Res } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 import { CdrService } from './cdr.service';
 
 /**
@@ -26,7 +26,11 @@ export class CdrPublicController {
   }
 
   @Get('recording/:uniqueid/play')
-  playRecording(@Param('uniqueid') uniqueid: string, @Res() res: Response) {
-    return this.cdrService.streamRecording(this.vpbxUserUid, uniqueid, res);
+  playRecording(
+    @Param('uniqueid') uniqueid: string,
+    @Req() req: Request,
+    @Res() res: Response,
+  ) {
+    return this.cdrService.streamRecording(this.vpbxUserUid, uniqueid, res, req);
   }
 }

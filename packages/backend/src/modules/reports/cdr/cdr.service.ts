@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 import { InjectModel } from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { QueryTypes } from 'sequelize';
@@ -239,40 +239,146 @@ export class CdrService {
 
   /** Minimal HTML player (v3 play.php) — popup opens this page, not raw MP3. */
   renderRecordingPlayerHtml(streamSrc: string): string {
-    const src = streamSrc
-      .replace(/&/g, '&amp;')
-      .replace(/"/g, '&quot;')
-      .replace(/</g, '&lt;');
+    const escapeAttr = (value: string) =>
+      value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+    const src = escapeAttr(streamSrc);
+    const downloadHref = escapeAttr(
+      streamSrc.includes('?') ? `${streamSrc}&download=1` : `${streamSrc}?download=1`,
+    );
     return `<!DOCTYPE html>
 <html lang="ru">
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Запись звонка</title>
   <style>
-    body { margin: 0; font-family: system-ui, sans-serif; background: #111; color: #eee; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
-    audio { width: min(480px, 96vw); }
-    p { text-align: center; color: #aaa; font-size: 14px; }
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: #111;
+      color: #eee;
+      min-height: 100vh;
+      min-height: 100dvh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
+        max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+    }
+    .player {
+      width: 100%;
+      max-width: 520px;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 12px;
+    }
+    audio {
+      width: 100%;
+      min-height: 48px;
+    }
+    .download {
+      text-align: center;
+      font-size: clamp(13px, 3.5vw, 15px);
+    }
+    .download a {
+      color: #7eb8ff;
+      text-decoration: none;
+      padding: 8px 12px;
+      border-radius: 6px;
+      display: inline-block;
+    }
+    .download a:hover { text-decoration: underline; }
+    .download a:focus-visible {
+      outline: 2px solid #7eb8ff;
+      outline-offset: 2px;
+    }
+    @media (max-width: 480px) {
+      body { padding: 12px; }
+      .player { gap: 10px; }
+    }
   </style>
 </head>
 <body>
-  <div>
-    <p>Прослушивание записи</p>
+  <div class="player">
     <audio controls autoplay preload="metadata" src="${src}"></audio>
+    <p class="download"><a href="${downloadHref}">Скачать запись</a></p>
   </div>
 </body>
 </html>`;
   }
 
-  async streamRecording(vpbxUserUid: number, uniqueid: string, res: Response): Promise<void> {
+  async streamRecording(
+    vpbxUserUid: number,
+    uniqueid: string,
+    res: Response,
+    req?: Request,
+  ): Promise<void> {
     const { filePath } = await this.resolveRecordingFile(vpbxUserUid, uniqueid);
+    let fileSize: number;
+    try {
+      fileSize = (await fs.promises.stat(filePath)).size;
+    } catch {
+      throw new NotFoundException('Recording file not found');
+    }
+
+    const download = req?.query?.download === '1' || req?.query?.download === 'true';
+    const safeName = String(uniqueid).replace(/[^\w.-]+/g, '_');
+    const disposition = download
+      ? `attachment; filename="${safeName}.mp3"`
+      : 'inline';
+
     res.setHeader('Content-Type', 'audio/mpeg');
-    res.setHeader('Content-Disposition', 'inline');
+    res.setHeader('Content-Disposition', disposition);
     res.setHeader('Accept-Ranges', 'bytes');
+
+    const rangeHeader = req?.headers?.range;
+    if (rangeHeader) {
+      const match = /^bytes=(\d*)-(\d*)$/i.exec(rangeHeader.trim());
+      if (!match) {
+        res.status(416).setHeader('Content-Range', `bytes */${fileSize}`);
+        res.end();
+        return;
+      }
+
+      let start: number;
+      let end: number;
+
+      if (match[1] === '' && match[2]) {
+        const suffix = parseInt(match[2], 10);
+        start = Math.max(fileSize - suffix, 0);
+        end = fileSize - 1;
+      } else {
+        start = match[1] ? parseInt(match[1], 10) : 0;
+        end = match[2] ? parseInt(match[2], 10) : fileSize - 1;
+      }
+
+      if (Number.isNaN(start) || Number.isNaN(end) || start > end || start >= fileSize) {
+        res.status(416).setHeader('Content-Range', `bytes */${fileSize}`);
+        res.end();
+        return;
+      }
+
+      end = Math.min(end, fileSize - 1);
+      const chunkSize = end - start + 1;
+
+      res.status(206);
+      res.setHeader('Content-Range', `bytes ${start}-${end}/${fileSize}`);
+      res.setHeader('Content-Length', chunkSize);
+
+      const stream = fs.createReadStream(filePath, { start, end });
+      stream.on('error', () => {
+        if (!res.headersSent) res.status(404).end();
+      });
+      stream.pipe(res);
+      return;
+    }
+
+    res.setHeader('Content-Length', fileSize);
     const stream = fs.createReadStream(filePath);
     stream.on('error', () => {
-      if (!res.headersSent) {
-        res.status(404).end();
-      }
+      if (!res.headersSent) res.status(404).end();
     });
     stream.pipe(res);
   }

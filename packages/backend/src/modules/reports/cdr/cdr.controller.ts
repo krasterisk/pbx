@@ -123,7 +123,7 @@ export class CdrController {
     @Param('uniqueid') uniqueid: string,
     @Res() res: Response,
   ) {
-    return this.cdrService.streamRecording(req.user.vpbx_user_uid, uniqueid, res);
+    return this.cdrService.streamRecording(req.user.vpbx_user_uid, uniqueid, res, req);
   }
 
   @Get(':linkedid/legs')
