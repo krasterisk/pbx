@@ -1,26 +1,27 @@
-import { getAuthApiBase, isStandaloneApp } from '@/shared/api/apiBase';
+import { getAuthApiBase, getEffectiveApiBase, isStandaloneApp } from '@/shared/api/apiBase';
 
-export function cdrRecordingStreamPath(uniqueid: string, standalone = isStandaloneApp()): string {
-  const prefix = standalone ? '/public' : '';
-  return `${prefix}/reports/cdr/recording/${encodeURIComponent(uniqueid)}/play`;
+export function cdrRecordingStreamPath(uniqueid: string): string {
+  return `/reports/cdr/recording/${encodeURIComponent(uniqueid)}/play`;
 }
 
-/** Full URL for window.open / <audio> (aiPBX / v3 play.php pattern). */
+/** HTML player page (popup); stream is loaded from relative …/play inside the page. */
+export function cdrRecordingPlayerPath(uniqueid: string): string {
+  return `/reports/cdr/recording/${encodeURIComponent(uniqueid)}`;
+}
+
+/** Full URL for window.open (aiPBX / v3 play.php pattern). */
 export function buildRecordingPlayUrl(uniqueid: string): string | null {
   if (!uniqueid?.trim()) return null;
 
-  let raw = '';
-  const apiBase = isStandaloneApp()
-    ? `${getAuthApiBase()}/public`
-    : getAuthApiBase();
-  const path = cdrRecordingStreamPath(uniqueid, isStandaloneApp());
+  const apiBase = getEffectiveApiBase();
+  const path = cdrRecordingPlayerPath(uniqueid);
 
+  let raw = `${apiBase}${path}`;
   if (!isStandaloneApp()) {
     const token = localStorage.getItem('accessToken');
-    const q = token ? `?token=${encodeURIComponent(token)}` : '';
-    raw = `${apiBase}${path}${q}`;
-  } else {
-    raw = `${apiBase}${path}`;
+    if (token) {
+      raw += `?token=${encodeURIComponent(token)}`;
+    }
   }
 
   try {

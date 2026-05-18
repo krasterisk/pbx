@@ -11,3 +11,15 @@ export function getAuthApiBase(): string {
 export function isStandaloneApp(): boolean {
   return typeof window !== 'undefined' && window.location.pathname.includes('standalone');
 }
+
+/** Same base as rtkApi in standalone (single `/public`, never `/public/public`). */
+export function getEffectiveApiBase(): string {
+  const env = getApiBaseFromEnv();
+  if (!isStandaloneApp()) {
+    return getAuthApiBase();
+  }
+  if (env.endsWith('/public')) {
+    return env;
+  }
+  return `${env}/public`;
+}

@@ -229,6 +229,30 @@ export class CdrService {
     };
   }
 
+  /** Minimal HTML player (v3 play.php) — popup opens this page, not raw MP3. */
+  renderRecordingPlayerHtml(uniqueid: string, tokenQuery = ''): string {
+    const safeUid = String(uniqueid).replace(/[<>"']/g, '');
+    const qs = tokenQuery ? `?${tokenQuery.replace(/^\?/, '')}` : '';
+    return `<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <title>Запись звонка</title>
+  <style>
+    body { margin: 0; font-family: system-ui, sans-serif; background: #111; color: #eee; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+    audio { width: min(480px, 96vw); }
+    p { text-align: center; color: #aaa; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <div>
+    <p>Прослушивание записи</p>
+    <audio controls autoplay preload="metadata" src="play${qs}"></audio>
+  </div>
+</body>
+</html>`;
+  }
+
   async streamRecording(vpbxUserUid: number, uniqueid: string, res: Response): Promise<void> {
     const { filePath } = await this.resolveRecordingFile(vpbxUserUid, uniqueid);
     res.setHeader('Content-Type', 'audio/mpeg');

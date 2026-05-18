@@ -5,6 +5,7 @@ import {
   Query,
   Request,
   Res,
+  Header,
   UseGuards,
 } from '@nestjs/common';
 import type { Response } from 'express';
@@ -98,6 +99,18 @@ export class CdrController {
   @Get('by-uniqueid/:uniqueid')
   findByUniqueid(@Request() req: any, @Param('uniqueid') uniqueid: string) {
     return this.cdrService.findByUniqueid(req.user.vpbx_user_uid, uniqueid);
+  }
+
+  /** HTML player popup (v3 play.php); audio loads from relative …/play. */
+  @Get('recording/:uniqueid')
+  @Header('Content-Type', 'text/html; charset=utf-8')
+  playRecordingPage(
+    @Param('uniqueid') uniqueid: string,
+    @Query('token') token: string | undefined,
+    @Res() res: Response,
+  ) {
+    const tokenQuery = token ? `token=${encodeURIComponent(token)}` : '';
+    res.send(this.cdrService.renderRecordingPlayerHtml(uniqueid, tokenQuery));
   }
 
   /** Stream MP3 from records_base_path (same-origin, v3 play.php behaviour). */

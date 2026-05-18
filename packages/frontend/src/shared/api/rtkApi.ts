@@ -1,18 +1,10 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import type { BaseQueryFn, FetchArgs, FetchBaseQueryError } from '@reduxjs/toolkit/query/react';
 
-/**
- * Detect standalone mode (loaded from standalone.html, embedded in v3 iframe).
- * In standalone mode, API calls go to /api/public/* (no JWT required).
- *
- * We check the pathname for 'standalone' because the hash is empty
- * at module load time (before React Router's Navigate fires).
- */
-const isStandalone = typeof window !== 'undefined'
-  && window.location.pathname.includes('standalone');
-const API_BASE = isStandalone
-  ? (import.meta.env.VITE_API_URL || '/api') + '/public'
-  : (import.meta.env.VITE_API_URL || '/api');
+import { getEffectiveApiBase, isStandaloneApp } from './apiBase';
+
+const isStandalone = isStandaloneApp();
+const API_BASE = getEffectiveApiBase();
 
 const baseQuery = fetchBaseQuery({
   baseUrl: API_BASE,

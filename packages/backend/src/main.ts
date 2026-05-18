@@ -79,7 +79,14 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.enableShutdownHooks();
 
-  app.use(helmet());
+  const strictSecurityHeaders = process.env.HELMET_HSTS === 'true';
+  app.use(
+    helmet({
+      hsts: strictSecurityHeaders ? undefined : false,
+      crossOriginOpenerPolicy: strictSecurityHeaders ? undefined : false,
+      crossOriginEmbedderPolicy: strictSecurityHeaders ? undefined : false,
+    }),
+  );
   app.enableCors({
     origin: true,
     credentials: true,

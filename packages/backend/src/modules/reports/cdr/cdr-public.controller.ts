@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Res } from '@nestjs/common';
+import { Controller, Get, Header, Param, Res } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Response } from 'express';
 import { CdrService } from './cdr.service';
@@ -16,6 +16,12 @@ export class CdrPublicController {
     configService: ConfigService,
   ) {
     this.vpbxUserUid = Number(configService.get('DEFAULT_VPBX_USER_UID', '0'));
+  }
+
+  @Get('recording/:uniqueid')
+  @Header('Content-Type', 'text/html; charset=utf-8')
+  playRecordingPage(@Param('uniqueid') uniqueid: string, @Res() res: Response) {
+    res.send(this.cdrService.renderRecordingPlayerHtml(uniqueid));
   }
 
   @Get('recording/:uniqueid/play')
