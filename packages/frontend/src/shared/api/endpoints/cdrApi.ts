@@ -1,4 +1,17 @@
+import { fetchBaseQuery } from '@reduxjs/toolkit/query/react';
+import { getAuthApiBase } from '../apiBase';
 import { rtkApi } from '../rtkApi';
+
+const cdrAuthBaseQuery = fetchBaseQuery({
+  baseUrl: getAuthApiBase(),
+  prepareHeaders: (headers) => {
+    const token = localStorage.getItem('accessToken');
+    if (token) {
+      headers.set('Authorization', `Bearer ${token}`);
+    }
+    return headers;
+  },
+});
 
 export interface ICdrCall {
   linkedid: string;
@@ -92,7 +105,17 @@ const cdrApi = rtkApi.injectEndpoints({
       query: (linkedid) => `/reports/cdr/${encodeURIComponent(linkedid)}/legs`,
     }),
     getCdrRecording: build.query<ICdrRecordingInfo, string>({
-      query: (uniqueid) => `/reports/cdr/by-uniqueid/${encodeURIComponent(uniqueid)}`,
+      async queryFn(uniqueid, api, extraOptions) {
+        const result = await cdrAuthBaseQuery(
+          { url: `/reports/cdr/by-uniqueid/${encodeURIComponent(uniqueid)}` },
+          api,
+          extraOptions,
+        );
+        if (result.error) {
+          return { error: result.error };
+        }
+        return { data: result.data as ICdrRecordingInfo };
+      },
     }),
     exportCdr: build.query<Blob, CdrQueryParams | void>({
       query: (params) => ({

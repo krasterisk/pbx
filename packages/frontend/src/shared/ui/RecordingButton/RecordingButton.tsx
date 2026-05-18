@@ -1,10 +1,10 @@
-import { memo, useCallback, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Play, Loader2 } from 'lucide-react';
 import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, Text, Tooltip } from '@/shared/ui';
 import { AudioPlayer } from '@/shared/ui/AudioPlayer/AudioPlayer';
 import { useLazyGetCdrRecordingQuery } from '@/shared/api/endpoints/cdrApi';
-import { resolveCdrRecordingPlaybackUrl } from '@/shared/lib/cdrRecordingUrl';
+import { fetchCdrRecordingBlob } from '@/shared/lib/fetchCdrRecordingBlob';
 import cls from './RecordingButton.module.scss';
 
 export interface RecordingButtonProps {
@@ -24,32 +24,58 @@ export const RecordingButton = memo(({
 }: RecordingButtonProps) => {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
-  const [playbackUrl, setPlaybackUrl] = useState<string | null>(recordingUrlProp || null);
+  const [playbackUrl, setPlaybackUrl] = useState<string | null>(null);
+  const blobUrlRef = useRef<string | null>(null);
   const [triggerFetch, { isFetching }] = useLazyGetCdrRecordingQuery();
+
+  const revokeBlob = useCallback(() => {
+    if (blobUrlRef.current) {
+      URL.revokeObjectURL(blobUrlRef.current);
+      blobUrlRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => () => revokeBlob(), [revokeBlob]);
+
+  const loadPlayback = useCallback(async (uid: string) => {
+    revokeBlob();
+    setPlaybackUrl(null);
+
+    try {
+      const info = await triggerFetch(uid).unwrap();
+      if (!info.exists) {
+        return;
+      }
+    } catch {
+      return;
+    }
+
+    const blobUrl = await fetchCdrRecordingBlob(uid);
+    if (!blobUrl) {
+      return;
+    }
+    blobUrlRef.current = blobUrl;
+    setPlaybackUrl(blobUrl);
+  }, [revokeBlob, triggerFetch]);
 
   const handleOpen = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (recordingUrlProp) {
-      setPlaybackUrl(resolveCdrRecordingPlaybackUrl(recordingUrlProp, uniqueid));
-      setOpen(true);
-      return;
-    }
-    if (record && !uniqueid) {
-      setOpen(true);
-      return;
-    }
-    if (!uniqueid) return;
+    setOpen(true);
 
-    try {
-      const info = await triggerFetch(uniqueid).unwrap();
-      const url = resolveCdrRecordingPlaybackUrl(info.recordingUrl, info.uniqueid || uniqueid);
-      setPlaybackUrl(url);
-      setOpen(info.exists || Boolean(url));
-    } catch {
-      setPlaybackUrl(resolveCdrRecordingPlaybackUrl(null, uniqueid));
-      setOpen(true);
+    if (!uniqueid) {
+      return;
     }
-  }, [uniqueid, record, recordingUrlProp, triggerFetch]);
+
+    await loadPlayback(uniqueid);
+  }, [uniqueid, loadPlayback]);
+
+  const handleOpenChange = useCallback((next: boolean) => {
+    setOpen(next);
+    if (!next) {
+      revokeBlob();
+      setPlaybackUrl(null);
+    }
+  }, [revokeBlob]);
 
   if (!uniqueid && !record && !recordingUrlProp) {
     return null;
@@ -69,17 +95,24 @@ export const RecordingButton = memo(({
     </Button>
   );
 
+  const showPlayer = Boolean(playbackUrl);
+  const showLoading = isFetching && !playbackUrl;
+
   return (
     <>
       <Tooltip content={t('recording.play', 'Прослушать запись')}>{btn}</Tooltip>
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>{t('recording.play', 'Прослушать запись')}</DialogTitle>
           </DialogHeader>
-          {playbackUrl ? (
-            <AudioPlayer src={playbackUrl} />
-          ) : (
+          {showLoading && (
+            <div className="flex justify-center py-6">
+              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+            </div>
+          )}
+          {showPlayer && <AudioPlayer src={playbackUrl!} />}
+          {!showLoading && !showPlayer && (
             <Text variant="muted">{t('recording.notAvailable', 'Запись недоступна')}</Text>
           )}
         </DialogContent>
