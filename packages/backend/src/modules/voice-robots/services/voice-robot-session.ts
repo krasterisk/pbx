@@ -2249,9 +2249,10 @@ export class VoiceRobotSession {
       this.ariClient.hangupChannel(this.externalChannel.id).catch(() => {});
     }
 
-    // Close UDP socket
+    // Close UDP socket and remove from RtpUdpServerService registry (prevents activeSessions leak)
     if (this.rtpSession) {
-      this.rtpSession.close();
+      this.udpServer.closeSession(this.rtpSession.port);
+      this.rtpSession = null;
     }
 
     // Remove StreamAudio sender
