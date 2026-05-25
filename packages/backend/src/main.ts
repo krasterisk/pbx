@@ -33,6 +33,42 @@ function isPortInUse(port: number): Promise<boolean> {
  * Used during development to prevent EADDRINUSE when nest --watch
  * fails to cleanly terminate the previous instance.
  */
+/**
+ * Log process-level exit signals and fatal errors to backend-out.log.
+ * Helps distinguish PM2 restart (SIGTERM), crash (uncaughtException), and OOM (SIGKILL, no log).
+ */
+function registerProcessDiagnostics(): void {
+  const diag = (event: string, detail?: string) => {
+    const msg = detail
+      ? `[Process] ${event}: ${detail}`
+      : `[Process] ${event}`;
+    console.error(
+      `${msg} pid=${process.pid} uptime=${process.uptime().toFixed(1)}s rss=${Math.round(process.memoryUsage().rss / 1024 / 1024)}MiB`,
+    );
+  };
+
+  for (const signal of ['SIGTERM', 'SIGINT', 'SIGHUP'] as const) {
+    process.on(signal, () => diag(`received ${signal}`));
+  }
+
+  process.on('uncaughtException', (err) => {
+    diag('uncaughtException', err.message);
+    console.error(err.stack);
+  });
+
+  process.on('unhandledRejection', (reason) => {
+    const detail = reason instanceof Error ? reason.message : String(reason);
+    diag('unhandledRejection', detail);
+    if (reason instanceof Error && reason.stack) {
+      console.error(reason.stack);
+    }
+  });
+
+  process.on('exit', (code) => {
+    diag('exit', `code=${code}`);
+  });
+}
+
 async function killPortProcess(port: number): Promise<void> {
   if (process.platform !== 'win32') return;
 
@@ -68,6 +104,8 @@ async function killPortProcess(port: number): Promise<void> {
 }
 
 async function bootstrap() {
+  registerProcessDiagnostics();
+
   const port = Number(process.env.BACKEND_PORT) || 5010;
 
   // In development, auto-kill stale processes holding the port
@@ -122,7 +160,9 @@ async function bootstrap() {
   SwaggerModule.setup('api/docs', app, document);
 
   await app.listen(port);
-  console.log(`🚀 Krasterisk v4 Backend running on port ${port}`);
+  console.log(
+    `🚀 Krasterisk v4 Backend running on port ${port} (pid=${process.pid})`,
+  );
   console.log(`📚 Swagger: http://localhost:${port}/api/docs`);
 }
 

@@ -4,6 +4,12 @@ import * as protoLoader from '@grpc/proto-loader';
 import * as path from 'path';
 import * as fs from 'fs';
 import { ITtsStreamingProvider } from '../interfaces/tts-provider.interface';
+import {
+  isYandexSpeechVerbose,
+  logGrpcError,
+  logYandexEngineConfig,
+  summarizeTtsResponse,
+} from './yandex-grpc.util';
 
 /**
  * Yandex SpeechKit Streaming TTS Provider (gRPC API v3).
@@ -18,12 +24,15 @@ import { ITtsStreamingProvider } from '../interfaces/tts-provider.interface';
  * Proto source: github.com/yandex-cloud/cloudapi
  * Endpoint: tts.api.cloud.yandex.net:443
  *
+ * Verbose wire logging: DEBUG_YANDEX_SPEECHKIT=1 or DEBUG_YANDEX_TTS=1
+ *
  * @see https://yandex.cloud/docs/speechkit/tts/api/tts-v3
  */
 @Injectable()
 export class YandexStreamingTtsProvider implements ITtsStreamingProvider {
   readonly name = 'yandex-tts-streaming';
   private readonly logger = new Logger(YandexStreamingTtsProvider.name);
+  private readonly verbose = isYandexSpeechVerbose();
 
   private synthesizerClient: any = null;
   private protoLoaded = false;
@@ -62,7 +71,7 @@ export class YandexStreamingTtsProvider implements ITtsStreamingProvider {
     );
 
     this.protoLoaded = true;
-    this.logger.log('Yandex TTS gRPC client initialized');
+    this.logger.log(`Yandex TTS gRPC client initialized (endpoint: ${YandexStreamingTtsProvider.ENDPOINT})`);
   }
 
   /**
@@ -86,13 +95,23 @@ export class YandexStreamingTtsProvider implements ITtsStreamingProvider {
   ): Promise<void> {
     this.ensureClient();
 
+    if (!text?.trim()) {
+      this.logger.warn('[Yandex TTS] Empty text — skipping synthesis');
+      return;
+    }
+
+    logYandexEngineConfig(this.logger, 'TTS', token, settings, {
+      voice: settings.voice || 'default',
+      speed: settings.speed,
+      role: settings.role,
+    });
+
     const metadata = new grpc.Metadata();
     metadata.add('authorization', `Bearer ${token}`);
     if (settings.folder_id) {
       metadata.add('x-folder-id', settings.folder_id);
     }
 
-    // Build hints array from settings
     const hints: any[] = [];
     if (settings.voice) {
       hints.push({ voice: settings.voice });
@@ -120,21 +139,25 @@ export class YandexStreamingTtsProvider implements ITtsStreamingProvider {
       unsafe_mode: false,
     };
 
-    this.logger.log(`TTS synthesis: "${text.substring(0, 50)}${text.length > 50 ? '...' : ''}" (voice: ${settings.voice || 'default'})`);
+    this.logger.log(
+      `[Yandex TTS] Synthesis start: "${text.substring(0, 50)}${text.length > 50 ? '...' : ''}" ` +
+      `(voice: ${settings.voice || 'default'}, chars: ${text.length})`,
+    );
 
     return new Promise<void>((resolve, reject) => {
       const stream = this.synthesizerClient.UtteranceSynthesis(request, metadata);
 
       let totalBytes = 0;
+      let chunkCount = 0;
       let aborted = false;
+      let firstChunkLogged = false;
 
-      // Handle barge-in abort
       if (signal) {
         const onAbort = () => {
           if (!aborted) {
             aborted = true;
             stream.cancel();
-            this.logger.debug('TTS stream cancelled (barge-in)');
+            this.logger.debug('[Yandex TTS] Stream cancelled (barge-in)');
             resolve();
           }
         };
@@ -144,27 +167,51 @@ export class YandexStreamingTtsProvider implements ITtsStreamingProvider {
       stream.on('data', (response: any) => {
         if (aborted) return;
 
+        if (this.verbose) {
+          this.logger.debug(`[Yandex TTS] ← ${summarizeTtsResponse(response)}`);
+        }
+
         if (response.audio_chunk?.data) {
           const pcm16 = Buffer.from(response.audio_chunk.data);
           totalBytes += pcm16.length;
+          chunkCount++;
+          if (!firstChunkLogged) {
+            firstChunkLogged = true;
+            this.logger.debug(`[Yandex TTS] First audio chunk: ${pcm16.length} bytes`);
+          }
           onChunk(pcm16);
+        } else if (this.verbose) {
+          this.logger.debug('[Yandex TTS] Data message without audio_chunk');
         }
       });
 
       stream.on('end', () => {
-        if (!aborted) {
-          this.logger.debug(`TTS synthesis complete: ${totalBytes} bytes PCM16`);
-          resolve();
+        if (aborted) return;
+
+        if (totalBytes === 0) {
+          this.logger.error(
+            '[Yandex TTS] Synthesis finished with 0 bytes — check token, folder_id, voice, billing/quota. ' +
+            'No gRPC error was raised; response may be empty.',
+          );
+          reject(new Error('Yandex TTS returned no audio data'));
+          return;
         }
+
+        this.logger.debug(
+          `[Yandex TTS] Synthesis complete: ${totalBytes} bytes PCM16, ${chunkCount} chunk(s)`,
+        );
+        resolve();
       });
 
       stream.on('error', (err: any) => {
-        if (aborted || err.code === 1) {
-          // CANCELLED — expected on barge-in
+        if (aborted || err.code === grpc.status.CANCELLED) {
+          if (this.verbose) {
+            this.logger.debug('[Yandex TTS] Stream cancelled (local close)');
+          }
           resolve();
           return;
         }
-        this.logger.error(`TTS stream error: ${err.message} (code: ${err.code})`);
+        logGrpcError(this.logger, '[Yandex TTS] Stream error:', err);
         reject(err);
       });
     });
