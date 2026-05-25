@@ -222,16 +222,29 @@ export class DataListSearchService {
     const queryWords = this.tokenize(normalizedQuery);
     if (queryWords.length === 0) return [];
 
+    // Same stop-word filtering as search() — e.g. "город Канск" → "канск"
+    const listStopWords = this.getListStopWords(list);
+    const meaningfulWords = queryWords.filter(w =>
+      !DataListSearchService.UNIVERSAL_STOP_WORDS.has(w) && !listStopWords.has(w),
+    );
+    const searchWords = meaningfulWords.length > 0 ? meaningfulWords : queryWords;
+
     const results: DataListSearchResult[] = [];
-    const isShort = queryWords.length <= DataListSearchService.SHORT_QUERY_MAX_WORDS;
+    const SKIP_SEMANTIC_THRESHOLD = 0.85;
 
-    // Fuzzy search all
-    if (isShort || !this.semanticRouter.isAvailable) {
-      results.push(...this.fuzzySearchAll(queryWords, list, returnField, threshold));
-    }
+    // 1. Fuzzy search all (same filtered tokens as search())
+    const fuzzyResults = this.fuzzySearchAll(searchWords, list, returnField, threshold);
+    results.push(...fuzzyResults);
 
-    // Semantic search all (only if fuzzy found nothing)
-    if (results.length === 0 && this.semanticRouter.isAvailable) {
+    const bestFuzzyConfidence = fuzzyResults.length > 0
+      ? Math.max(...fuzzyResults.map(r => r.confidence))
+      : 0;
+
+    // 2. Semantic only if fuzzy has no strong match (same gate as search())
+    if (
+      this.semanticRouter.isAvailable &&
+      bestFuzzyConfidence < SKIP_SEMANTIC_THRESHOLD
+    ) {
       const semanticResults = await this.semanticSearchAll(normalizedQuery, list, returnField, threshold);
       results.push(...semanticResults);
     }
@@ -360,19 +373,29 @@ export class DataListSearchService {
       const row = list.rows[i];
       let rowBestConfidence = 0;
 
+      const queryJoined = queryWords.join(' ');
+
       for (const colKey of searchableKeys) {
         const cellValue = row[colKey];
         if (!cellValue) continue;
-        const cellWords = this.tokenize(this.normalize(cellValue));
+        const normalizedCell = this.normalize(cellValue);
+        const cellWords = this.tokenize(normalizedCell);
         if (cellWords.length === 0) continue;
-        const confidence = this.calculateFuzzyConfidence(queryWords, cellWords);
+        let confidence = this.calculateFuzzyConfidence(queryWords, cellWords);
+        if (normalizedCell.includes(queryJoined)) {
+          confidence = Math.max(confidence, 0.95);
+        }
         if (confidence > rowBestConfidence) rowBestConfidence = confidence;
       }
 
       const fullSearchText = this.buildSearchText(list.columns, row);
-      const fullWords = this.tokenize(this.normalize(fullSearchText));
+      const normalizedFull = this.normalize(fullSearchText);
+      const fullWords = this.tokenize(normalizedFull);
       if (fullWords.length > 0) {
-        const confidence = this.calculateFuzzyConfidence(queryWords, fullWords);
+        let confidence = this.calculateFuzzyConfidence(queryWords, fullWords);
+        if (normalizedFull.includes(queryJoined)) {
+          confidence = Math.max(confidence, 0.95);
+        }
         if (confidence > rowBestConfidence) rowBestConfidence = confidence;
       }
 
