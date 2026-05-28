@@ -1,8 +1,8 @@
-import React, { useState, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DataTable, Button, HStack, VStack, Badge, Tooltip, Text, Flex, Skeleton } from '@/shared/ui';
-import type { DataTableRef } from '@/shared/ui';
-import { useGetServiceRequestsQuery, useDeleteServiceRequestMutation } from '@/shared/api/endpoints/serviceRequestApi';
+import { useGetServiceRequestsQuery, useLazyGetServiceRequestsQuery, useDeleteServiceRequestMutation } from '@/shared/api/endpoints/serviceRequestApi';
+import type { ServiceRequestQueryParams } from '@/shared/api/endpoints/serviceRequestApi';
 import type { IServiceRequest } from '@/entities/serviceRequest';
 import { REQUEST_STATUS_OPTIONS, SMS_STATUS_OPTIONS } from '@/entities/serviceRequest';
 import { ServiceRequestModal } from './ServiceRequestModal';
@@ -60,6 +60,73 @@ function getRowClassName(row: IServiceRequest): string {
 }
 
 const PAGE_SIZE = 30;
+const CSV_DELIMITER = ';';
+
+function buildQueryParams(filters: ServiceRequestFilters, pagination?: { limit: number; offset: number }): ServiceRequestQueryParams {
+  return {
+    ...pagination,
+    status: filters.status,
+    district: filters.district,
+    topic: filters.topic,
+    search: filters.search,
+    territorial_zone: filters.territorialZone,
+    dateFrom: filters.dateFrom,
+    dateTo: filters.dateTo,
+  };
+}
+
+function exportServiceRequestsToCsv(
+  rows: IServiceRequest[],
+  t: (key: string, defaultValue?: string) => string,
+) {
+  const esc = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const statusLabel = (val: string) => {
+    const opt = REQUEST_STATUS_OPTIONS.find((o) => o.value === val);
+    return opt ? t(opt.labelKey, opt.fallback) : val;
+  };
+  const smsLabel = (val: string) => {
+    const opt = SMS_STATUS_OPTIONS.find((o) => o.value === val);
+    return opt ? t(opt.labelKey, opt.fallback) : val;
+  };
+
+  const headers = [
+    '№', 'Дата', 'Оператор', 'Клиент', 'Лицевой счёт', 'Телефон', 'Тема',
+    'Зона', 'Населённый пункт', 'Район', 'Адрес', 'Обращение', 'Ответ по срокам', 'Статус', 'СМС',
+  ].map(esc).join(CSV_DELIMITER);
+
+  const csvRows = rows.map((row) =>
+    [
+      row.request_number || `#${row.uid}`,
+      new Date(row.call_received_at).toLocaleDateString('ru-RU'),
+      row.operator_name,
+      row.counterparty_name,
+      row.account_or_inn,
+      row.phone,
+      row.topic,
+      row.territorial_zone,
+      row.locality,
+      row.district,
+      row.address,
+      row.comment,
+      row.schedule_comment,
+      statusLabel(row.request_status),
+      smsLabel(row.sms_status),
+    ].map(esc).join(CSV_DELIMITER),
+  );
+
+  const csvContent = [headers, ...csvRows].join('\n');
+  const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `service-requests_${new Date().toISOString().slice(0, 10)}.csv`;
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
 
 // ─── Mobile card for a single service request ─────────────────
 function MobileRequestCard({
@@ -139,11 +206,11 @@ function MobileRequestCard({
             <Text variant="small" className="truncate text-muted-foreground">{record.topic}</Text>
           </Flex>
         )}
-        {(record.territorial_zone || record.district) && (
+        {(record.territorial_zone || record.locality || record.district) && (
           <Flex align="center" gap="6">
             <MapPin className="w-3 h-3 text-muted-foreground shrink-0" />
             <Text variant="small" className="text-muted-foreground truncate">
-              {[record.territorial_zone, record.district].filter(Boolean).join(' / ')}
+              {[record.territorial_zone, record.locality, record.district].filter(Boolean).join(' / ')}
             </Text>
           </Flex>
         )}
@@ -224,37 +291,22 @@ function MobileCardSkeleton() {
 export function ServiceRequestsTable({ filters }: ServiceRequestsTableProps) {
   const { t } = useTranslation();
   const isMobile = useIsMobile();
-  const tableRef = useRef<DataTableRef>(null);
   const [currentPage, setCurrentPage] = useState(0);
+  const [isExporting, setIsExporting] = useState(false);
 
   // Reset page when filters change
   React.useEffect(() => { setCurrentPage(0); }, [filters]);
 
-  const { data, isLoading } = useGetServiceRequestsQuery({
-    limit: PAGE_SIZE,
-    offset: currentPage * PAGE_SIZE,
-    status: filters.status,
-    district: filters.district,
-    topic: filters.topic,
-    search: filters.search,
-  });
+  const queryParams = useMemo(
+    () => buildQueryParams(filters, { limit: PAGE_SIZE, offset: currentPage * PAGE_SIZE }),
+    [filters, currentPage],
+  );
 
-  // Client-side filtering for zone and date (not yet supported by backend)
-  const filteredRows = useMemo(() => {
-    let rows = data?.rows || [];
-    if (filters.territorialZone) {
-      rows = rows.filter((r) => r.territorial_zone === filters.territorialZone);
-    }
-    if (filters.dateFrom) {
-      const from = new Date(filters.dateFrom);
-      rows = rows.filter((r) => new Date(r.call_received_at) >= from);
-    }
-    if (filters.dateTo) {
-      const to = new Date(filters.dateTo + 'T23:59:59');
-      rows = rows.filter((r) => new Date(r.call_received_at) <= to);
-    }
-    return rows;
-  }, [data?.rows, filters.territorialZone, filters.dateFrom, filters.dateTo]);
+  const { data, isLoading } = useGetServiceRequestsQuery(queryParams);
+  const [triggerExport] = useLazyGetServiceRequestsQuery();
+
+  const rows = data?.rows ?? [];
+  const totalCount = data?.count ?? 0;
 
   const [deleteReq] = useDeleteServiceRequestMutation();
   const [modalOpen, setModalOpen] = useState(false);
@@ -271,9 +323,22 @@ export function ServiceRequestsTable({ filters }: ServiceRequestsTableProps) {
     }
   };
 
-  const handleExport = useCallback(() => {
-    tableRef.current?.exportCsv();
-  }, []);
+  const handleExport = useCallback(async () => {
+    if (totalCount === 0) {
+      toast.info(t('common.noData', 'Нет данных для экспорта'));
+      return;
+    }
+
+    setIsExporting(true);
+    try {
+      const result = await triggerExport(buildQueryParams(filters, { limit: totalCount, offset: 0 })).unwrap();
+      exportServiceRequestsToCsv(result.rows, t as any);
+    } catch (err: any) {
+      toast.error(err.data?.message || t('common.error', 'Ошибка экспорта'));
+    } finally {
+      setIsExporting(false);
+    }
+  }, [triggerExport, filters, totalCount, t]);
 
   const columns = useMemo<ColumnDef<IServiceRequest>[]>(() => [
     {
@@ -337,6 +402,12 @@ export function ServiceRequestsTable({ filters }: ServiceRequestsTableProps) {
       header: 'Зона',
       size: 110,
       cell: ({ row }) => <TruncatedCell text={row.original.territorial_zone} maxLen={16} />,
+    },
+    {
+      accessorKey: 'locality',
+      header: 'Населённый пункт',
+      size: 130,
+      cell: ({ row }) => <TruncatedCell text={row.original.locality} maxLen={16} />,
     },
     {
       accessorKey: 'district',
@@ -431,14 +502,14 @@ export function ServiceRequestsTable({ filters }: ServiceRequestsTableProps) {
         <Flex justify="between" align="center" className="px-3 py-2.5 border-b border-border/50 bg-muted/20 shrink-0">
           <Text className="text-sm font-medium">
             Заявки
-            {filteredRows.length > 0 && (
+            {!isLoading && (
               <span className="ml-1.5 text-xs text-muted-foreground font-normal">
-                ({filteredRows.length})
+                ({totalCount})
               </span>
             )}
           </Text>
           <HStack gap="4">
-            <Button variant="ghost" size="sm" onClick={handleExport} className="h-8 px-2">
+            <Button variant="ghost" size="sm" onClick={handleExport} disabled={isExporting} className="h-8 px-2">
               <Download className="w-4 h-4" />
             </Button>
             <Button
@@ -463,12 +534,12 @@ export function ServiceRequestsTable({ filters }: ServiceRequestsTableProps) {
                 <MobileCardSkeleton key={i} />
               ))}
             </>
-          ) : filteredRows.length === 0 ? (
+          ) : rows.length === 0 ? (
             <Flex justify="center" align="center" className="py-12">
               <Text variant="muted">Нет данных</Text>
             </Flex>
           ) : (
-            filteredRows.map((record) => (
+            rows.map((record) => (
               <MobileRequestCard
                 key={record.uid}
                 record={record}
@@ -484,7 +555,7 @@ export function ServiceRequestsTable({ filters }: ServiceRequestsTableProps) {
         </VStack>
 
         {/* Pagination for mobile */}
-        {data && data.count > PAGE_SIZE && (
+        {totalCount > PAGE_SIZE && (
           <Flex justify="center" align="center" gap="8" className="p-3 border-t border-border/50 bg-muted/10 shrink-0">
             <Button
               variant="outline"
@@ -496,12 +567,12 @@ export function ServiceRequestsTable({ filters }: ServiceRequestsTableProps) {
               ← Назад
             </Button>
             <Text variant="small" className="text-muted-foreground">
-              {currentPage + 1} / {Math.ceil(data.count / PAGE_SIZE)}
+              {currentPage + 1} / {Math.ceil(totalCount / PAGE_SIZE)}
             </Text>
             <Button
               variant="outline"
               size="sm"
-              disabled={(currentPage + 1) * PAGE_SIZE >= data.count}
+              disabled={(currentPage + 1) * PAGE_SIZE >= totalCount}
               onClick={() => setCurrentPage((p) => p + 1)}
               className="h-8 text-xs"
             >
@@ -526,14 +597,14 @@ export function ServiceRequestsTable({ filters }: ServiceRequestsTableProps) {
       <HStack justify="between" align="center" className="px-4 py-3 border-b border-border/50 bg-muted/20 shrink-0">
         <Text className="text-base font-medium">
           Заявки
-          {filteredRows.length > 0 && (
+          {!isLoading && (
             <span className="ml-2 text-sm text-muted-foreground font-normal">
-              ({filteredRows.length})
+              ({totalCount})
             </span>
           )}
         </Text>
         <HStack gap="8">
-          <Button variant="ghost" size="sm" onClick={handleExport}>
+          <Button variant="ghost" size="sm" onClick={handleExport} disabled={isExporting}>
             <Download className="w-4 h-4 mr-2" />
             <Text variant="small">Экспорт</Text>
           </Button>
@@ -553,14 +624,12 @@ export function ServiceRequestsTable({ filters }: ServiceRequestsTableProps) {
       {/* Table */}
       <VStack className="flex-1 overflow-auto">
         <DataTable
-          ref={tableRef}
           columns={columns}
-          data={filteredRows}
+          data={rows}
           pageSize={PAGE_SIZE}
-          exportFilename="service-requests"
           getRowClassName={getRowClassName}
           paginationMode="server"
-          totalRows={data?.count || 0}
+          totalRows={totalCount}
           currentPage={currentPage}
           onPageChange={setCurrentPage}
         />

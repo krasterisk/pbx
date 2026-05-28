@@ -28,6 +28,9 @@ export class ServiceRequestsService {
       district?: string;
       topic?: string;
       search?: string;
+      territorial_zone?: string;
+      dateFrom?: string;
+      dateTo?: string;
     },
   ): Promise<{ rows: ServiceRequest[]; count: number }> {
     const where: any = { user_uid: userUid };
@@ -35,6 +38,16 @@ export class ServiceRequestsService {
     if (options?.status) where.request_status = options.status;
     if (options?.district) where.district = options.district;
     if (options?.topic) where.topic = options.topic;
+    if (options?.territorial_zone) where.territorial_zone = options.territorial_zone;
+    if (options?.dateFrom || options?.dateTo) {
+      where.call_received_at = {};
+      if (options.dateFrom) {
+        where.call_received_at[Op.gte] = new Date(options.dateFrom);
+      }
+      if (options.dateTo) {
+        where.call_received_at[Op.lte] = new Date(`${options.dateTo}T23:59:59`);
+      }
+    }
     if (options?.search) {
       where[Op.or] = [
         { counterparty_name: { [Op.like]: `%${options.search}%` } },

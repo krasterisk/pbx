@@ -43,11 +43,17 @@ export class ServiceRequestsPublicController {
     @Query('district') district?: string,
     @Query('topic') topic?: string,
     @Query('search') search?: string,
+    @Query('territorial_zone') territorial_zone?: string,
+    @Query('dateFrom') dateFrom?: string,
+    @Query('dateTo') dateTo?: string,
   ) {
     return this.service.findAll(this.userUid, {
       limit: limit ? parseInt(limit, 10) : undefined,
       offset: offset ? parseInt(offset, 10) : undefined,
       status, district, topic, search,
+      territorial_zone,
+      dateFrom,
+      dateTo,
     });
   }
 

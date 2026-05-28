@@ -54,6 +54,9 @@ export class ServiceRequestsController {
     @Query('district') district?: string,
     @Query('topic') topic?: string,
     @Query('search') search?: string,
+    @Query('territorial_zone') territorial_zone?: string,
+    @Query('dateFrom') dateFrom?: string,
+    @Query('dateTo') dateTo?: string,
   ) {
     return this.service.findAll(req.user.vpbx_user_uid, {
       limit: limit ? parseInt(limit, 10) : undefined,
@@ -62,6 +65,9 @@ export class ServiceRequestsController {
       district,
       topic,
       search,
+      territorial_zone,
+      dateFrom,
+      dateTo,
     });
   }
 

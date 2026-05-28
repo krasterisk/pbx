@@ -9,6 +9,8 @@ export default defineConfig({
     resolve: {
         alias: {
             '@': path.resolve(__dirname, './src'),
+            // Backend uses shared/dist (CJS); Vite must use TS source for named ESM exports
+            '@krasterisk/shared': path.resolve(__dirname, '../shared/src'),
         },
     },
     define: {

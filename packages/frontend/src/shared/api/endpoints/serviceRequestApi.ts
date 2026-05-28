@@ -1,13 +1,16 @@
 import { rtkApi } from '../rtkApi';
 import type { IServiceRequest, IServiceRequestListResponse, IServiceRequestStats } from '@/entities/serviceRequest';
 
-interface ServiceRequestQueryParams {
+export interface ServiceRequestQueryParams {
   limit?: number;
   offset?: number;
   status?: string;
   district?: string;
   topic?: string;
   search?: string;
+  territorial_zone?: string;
+  dateFrom?: string;
+  dateTo?: string;
 }
 
 export interface ICcSubject {
@@ -93,6 +96,7 @@ const serviceRequestApi = rtkApi.injectEndpoints({
 
 export const {
   useGetServiceRequestsQuery,
+  useLazyGetServiceRequestsQuery,
   useGetServiceRequestStatsQuery,
   useGetServiceRequestQuery,
   useCreateServiceRequestMutation,
