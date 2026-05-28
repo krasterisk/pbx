@@ -4,6 +4,29 @@ import { ServiceRequest } from './service-request.model';
 import { Op } from 'sequelize';
 import { SmsService } from '../sms/sms.service';
 
+const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Normalize YYYY-MM-DD query param to MySQL DATETIME start/end of day. */
+export function buildCallReceivedAtRange(dateFrom?: string, dateTo?: string): Record<symbol, string> | null {
+  const range: Record<symbol, string> = {};
+
+  if (dateFrom) {
+    const from = dateFrom.slice(0, 10);
+    if (DATE_ONLY_RE.test(from)) {
+      range[Op.gte] = `${from} 00:00:00`;
+    }
+  }
+
+  if (dateTo) {
+    const to = dateTo.slice(0, 10);
+    if (DATE_ONLY_RE.test(to)) {
+      range[Op.lte] = `${to} 23:59:59`;
+    }
+  }
+
+  return Object.getOwnPropertySymbols(range).length > 0 ? range : null;
+}
+
 /**
  * ServiceRequestsService — CRUD-сервис для обращений клиентов.
  *
@@ -39,15 +62,12 @@ export class ServiceRequestsService {
     if (options?.district) where.district = options.district;
     if (options?.topic) where.topic = options.topic;
     if (options?.territorial_zone) where.territorial_zone = options.territorial_zone;
-    if (options?.dateFrom || options?.dateTo) {
-      where.call_received_at = {};
-      if (options.dateFrom) {
-        where.call_received_at[Op.gte] = new Date(options.dateFrom);
-      }
-      if (options.dateTo) {
-        where.call_received_at[Op.lte] = new Date(`${options.dateTo}T23:59:59`);
-      }
+
+    const callReceivedAtRange = buildCallReceivedAtRange(options?.dateFrom, options?.dateTo);
+    if (callReceivedAtRange) {
+      where.call_received_at = callReceivedAtRange;
     }
+
     if (options?.search) {
       where[Op.or] = [
         { counterparty_name: { [Op.like]: `%${options.search}%` } },
