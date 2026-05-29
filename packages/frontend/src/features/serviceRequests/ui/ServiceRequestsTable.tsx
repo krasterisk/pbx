@@ -8,14 +8,14 @@ import { REQUEST_STATUS_OPTIONS, SMS_STATUS_OPTIONS } from '@/entities/serviceRe
 import { ServiceRequestModal } from './ServiceRequestModal';
 import type { ServiceRequestFilters } from './ServiceRequestsFilter';
 import { toast } from 'react-toastify';
-import { Edit, Trash2, Plus, Download, Phone, MapPin, Calendar, User, MessageSquare, ChevronRight } from 'lucide-react';
+import { Edit, Trash2, Plus, Download, ChevronRight } from 'lucide-react';
 import { RecordingButton } from '@/shared/ui';
 import type { ColumnDef } from '@tanstack/react-table';
 import { useIsMobile } from '@/shared/hooks/useIsMobile';
 
 /** Truncated text cell with tooltip for long content */
 function TruncatedCell({ text, maxLen = 30 }: { text: string | null; maxLen?: number }) {
-  if (!text) return <Text variant="small" className="text-muted-foreground">—</Text>;
+  if (!text) return null;
   if (text.length <= maxLen) return <Text variant="small">{text}</Text>;
   return (
     <Tooltip content={text} side="top">
@@ -46,7 +46,13 @@ const STATUS_BADGE_VARIANT: Record<string, 'default' | 'outline' | 'secondary' |
   impossible: 'destructive',
 };
 
-// ─── Status left-border color for mobile cards ────────────────
+const SMS_BADGE_VARIANT: Record<string, 'default' | 'outline' | 'secondary'> = {
+  delivered: 'default',
+  not_sent: 'outline',
+  sent: 'secondary',
+  failed: 'secondary',
+};
+
 const STATUS_CARD_BORDER: Record<string, string> = {
   new: 'border-l-blue-500',
   in_progress: 'border-l-amber-500',
@@ -54,6 +60,24 @@ const STATUS_CARD_BORDER: Record<string, string> = {
   postponed: 'border-l-orange-500',
   impossible: 'border-l-red-500',
 };
+
+function MobileField({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="grid grid-cols-[minmax(7.5rem,auto)_1fr] gap-x-3 gap-y-0.5 items-start">
+      <Text variant="small" className="text-muted-foreground text-xs shrink-0 pt-0.5">{label}</Text>
+      <div className="min-w-0">{children}</div>
+    </div>
+  );
+}
+
+function MobileOptionalField({ label, text }: { label: string; text: string | null | undefined }) {
+  if (!text) return null;
+  return (
+    <MobileField label={label}>
+      <Text variant="small" className="break-words">{text}</Text>
+    </MobileField>
+  );
+}
 
 function getRowClassName(row: IServiceRequest): string {
   return STATUS_ROW_CLASSES[row.request_status] || '';
@@ -128,7 +152,6 @@ function exportServiceRequestsToCsv(
   URL.revokeObjectURL(url);
 }
 
-// ─── Mobile card for a single service request ─────────────────
 function MobileRequestCard({
   record,
   onEdit,
@@ -143,95 +166,47 @@ function MobileRequestCard({
   const statusOpt = REQUEST_STATUS_OPTIONS.find((o) => o.value === record.request_status);
   const smsOpt = SMS_STATUS_OPTIONS.find((o) => o.value === record.sms_status);
   const borderClass = STATUS_CARD_BORDER[record.request_status] || '';
-  const badgeVariant = STATUS_BADGE_VARIANT[record.request_status] || 'outline';
 
   return (
     <div
       className={`border rounded-lg p-3 bg-background/50 border-l-4 ${borderClass} active:bg-muted/30 transition-colors`}
       onClick={onEdit}
     >
-      {/* Row 1: Number + Status + Date */}
-      <Flex justify="between" align="start" className="mb-2">
-        <VStack gap="2">
-          <Text variant="small" className="font-semibold text-primary">
-            {record.request_number || `#${record.uid}`}
-          </Text>
-          <Flex align="center" gap="4">
-            <Calendar className="w-3 h-3 text-muted-foreground" />
-            <Text variant="small" className="text-muted-foreground text-xs">
-              {new Date(record.call_received_at).toLocaleDateString('ru-RU')}
-            </Text>
-          </Flex>
-        </VStack>
+      <Flex justify="between" align="start" className="mb-3">
+        <Text variant="small" className="font-semibold text-primary">
+          {record.request_number || `#${record.uid}`}
+        </Text>
         <Flex align="center" gap="4">
-          <Badge variant={badgeVariant} className="text-xs">
+          <Badge variant={STATUS_BADGE_VARIANT[record.request_status] || 'outline'} className="text-xs">
             {statusOpt ? t(statusOpt.labelKey, statusOpt.fallback) : record.request_status}
           </Badge>
-          <ChevronRight className="w-4 h-4 text-muted-foreground" />
+          <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
         </Flex>
       </Flex>
 
-      {/* Row 2: Client + Phone */}
-      <VStack gap="4" className="mb-2">
-        {record.counterparty_name && (
-          <Flex align="center" gap="6">
-            <User className="w-3 h-3 text-muted-foreground shrink-0" />
-            <Text variant="small" className="truncate">{record.counterparty_name}</Text>
-          </Flex>
-        )}
-        {record.account_or_inn && (
-          <Flex align="center" gap="6">
-            <Text variant="small" className="text-muted-foreground shrink-0 text-xs">
-              {record.counterparty_type === 'legal'
-                ? t('serviceRequests.inn', 'ИНН')
-                : t('serviceRequests.personalAccount', 'Лицевой счёт')}
-              :
-            </Text>
-            <Text variant="small" className="truncate">{record.account_or_inn}</Text>
-          </Flex>
-        )}
-        {record.phone && (
-          <Flex align="center" gap="6">
-            <Phone className="w-3 h-3 text-muted-foreground shrink-0" />
-            <Text variant="small" className="text-muted-foreground">{record.phone}</Text>
-          </Flex>
-        )}
-      </VStack>
-
-      {/* Row 3: Topic + Zone/District */}
-      <VStack gap="4" className="mb-2">
-        {record.topic && (
-          <Flex align="center" gap="6">
-            <MessageSquare className="w-3 h-3 text-muted-foreground shrink-0" />
-            <Text variant="small" className="truncate text-muted-foreground">{record.topic}</Text>
-          </Flex>
-        )}
-        {(record.territorial_zone || record.locality || record.district) && (
-          <Flex align="center" gap="6">
-            <MapPin className="w-3 h-3 text-muted-foreground shrink-0" />
-            <Text variant="small" className="text-muted-foreground truncate">
-              {[record.territorial_zone, record.locality, record.district].filter(Boolean).join(' / ')}
-            </Text>
-          </Flex>
-        )}
-      </VStack>
-
-      {/* Row 4: Comment preview */}
-      {record.comment && (
-        <Text variant="small" className="text-xs text-muted-foreground line-clamp-2 mb-2">
-          {record.comment}
-        </Text>
-      )}
-
-      {/* Row 5: SMS + Actions */}
-      <Flex justify="between" align="center" className="pt-2 border-t border-border/30">
-        {smsOpt ? (
-          <Badge variant={record.sms_status === 'delivered' ? 'default' : record.sms_status === 'not_sent' ? 'outline' : 'secondary'} className="text-xs">
-            СМС: {t(smsOpt.labelKey, smsOpt.fallback)}
+      <VStack gap="6" className="mb-3">
+        <MobileField label="Дата">
+          <Text variant="small">{new Date(record.call_received_at).toLocaleDateString('ru-RU')}</Text>
+        </MobileField>
+        <MobileOptionalField label="Оператор" text={record.operator_name} />
+        <MobileOptionalField label="Клиент" text={record.counterparty_name} />
+        <MobileOptionalField label="Лицевой счёт" text={record.account_or_inn} />
+        <MobileOptionalField label="Телефон" text={record.phone} />
+        <MobileOptionalField label="Тема" text={record.topic} />
+        <MobileOptionalField label="Зона" text={record.territorial_zone} />
+        <MobileOptionalField label="Населённый пункт" text={record.locality} />
+        <MobileOptionalField label="Район" text={record.district} />
+        <MobileOptionalField label="Адрес" text={record.address} />
+        <MobileOptionalField label="Обращение" text={record.comment} />
+        <MobileOptionalField label="Ответ по срокам" text={record.schedule_comment} />
+        <MobileField label="СМС">
+          <Badge variant={SMS_BADGE_VARIANT[record.sms_status] || 'secondary'} className="text-xs">
+            {smsOpt ? t(smsOpt.labelKey, smsOpt.fallback) : record.sms_status}
           </Badge>
-        ) : (
-          <div />
-        )}
+        </MobileField>
+      </VStack>
+
+      <Flex justify="end" align="center" className="pt-2 border-t border-border/30">
         <HStack gap="4">
           {record.call_uniqueid && (
             <RecordingButton uniqueid={record.call_uniqueid} />
@@ -264,25 +239,20 @@ function MobileRequestCard({
   );
 }
 
-// ─── Mobile skeleton ──────────────────────────────────────────
 function MobileCardSkeleton() {
   return (
     <div className="border rounded-lg p-3 bg-background/50 border-l-4 border-l-muted">
-      <Flex justify="between" align="start" className="mb-2">
-        <VStack gap="4">
-          <Skeleton className="h-4 w-20" />
-          <Skeleton className="h-3 w-24" />
-        </VStack>
+      <Flex justify="between" align="start" className="mb-3">
+        <Skeleton className="h-4 w-24" />
         <Skeleton className="h-5 w-16 rounded-full" />
       </Flex>
-      <VStack gap="4" className="mb-2">
-        <Skeleton className="h-3 w-40" />
-        <Skeleton className="h-3 w-32" />
+      <VStack gap="6" className="mb-3">
+        {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+          <Skeleton key={i} className="h-3 w-full" />
+        ))}
       </VStack>
-      <Skeleton className="h-3 w-full mb-2" />
-      <Flex justify="between" align="center" className="pt-2 border-t border-border/30">
-        <Skeleton className="h-4 w-20 rounded-full" />
-        <Skeleton className="h-6 w-16" />
+      <Flex justify="end" className="pt-2 border-t border-border/30">
+        <Skeleton className="h-7 w-20" />
       </Flex>
     </div>
   );
@@ -312,7 +282,7 @@ export function ServiceRequestsTable({ filters }: ServiceRequestsTableProps) {
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<IServiceRequest | undefined>(undefined);
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = useCallback(async (id: number) => {
     if (confirm(t('common.confirmDelete', 'Удалить эту запись?'))) {
       try {
         await deleteReq(id).unwrap();
@@ -321,7 +291,7 @@ export function ServiceRequestsTable({ filters }: ServiceRequestsTableProps) {
         toast.error(err.data?.message || t('common.error', 'Ошибка удаления'));
       }
     }
-  };
+  }, [deleteReq, t]);
 
   const handleExport = useCallback(async () => {
     if (totalCount === 0) {
@@ -378,9 +348,9 @@ export function ServiceRequestsTable({ filters }: ServiceRequestsTableProps) {
       header: 'Лицевой счёт',
       size: 120,
       cell: ({ row }) => (
-        <Text variant="small" className="whitespace-nowrap">
-          {row.original.account_or_inn || '—'}
-        </Text>
+        row.original.account_or_inn ? (
+          <Text variant="small" className="whitespace-nowrap">{row.original.account_or_inn}</Text>
+        ) : null
       ),
     },
     {
@@ -388,7 +358,9 @@ export function ServiceRequestsTable({ filters }: ServiceRequestsTableProps) {
       header: 'Телефон',
       size: 130,
       cell: ({ row }) => (
-        <Text variant="small" className="whitespace-nowrap">{row.original.phone || '—'}</Text>
+        row.original.phone ? (
+          <Text variant="small" className="whitespace-nowrap">{row.original.phone}</Text>
+        ) : null
       ),
     },
     {
@@ -441,7 +413,7 @@ export function ServiceRequestsTable({ filters }: ServiceRequestsTableProps) {
         const val = row.original.request_status;
         const opt = REQUEST_STATUS_OPTIONS.find((o) => o.value === val);
         return (
-          <Badge variant={val === 'new' ? 'outline' : val === 'completed' ? 'default' : 'secondary'}>
+          <Badge variant={STATUS_BADGE_VARIANT[val] || 'outline'}>
             {opt ? t(opt.labelKey, opt.fallback) : val}
           </Badge>
         );
@@ -455,7 +427,7 @@ export function ServiceRequestsTable({ filters }: ServiceRequestsTableProps) {
         const val = row.original.sms_status;
         const opt = SMS_STATUS_OPTIONS.find((o) => o.value === val);
         return (
-          <Badge variant={val === 'delivered' ? 'default' : val === 'not_sent' ? 'outline' : 'secondary'}>
+          <Badge variant={SMS_BADGE_VARIANT[val] || 'secondary'}>
             {opt ? t(opt.labelKey, opt.fallback) : val}
           </Badge>
         );
@@ -492,13 +464,11 @@ export function ServiceRequestsTable({ filters }: ServiceRequestsTableProps) {
         </HStack>
       ),
     },
-  ], [t]);
+  ], [t, handleDelete]);
 
-  // ─── Mobile layout ──────────────────────────────────────
   if (isMobile) {
     return (
       <VStack gap="0" className="h-full">
-        {/* Header */}
         <Flex justify="between" align="center" className="px-3 py-2.5 border-b border-border/50 bg-muted/20 shrink-0">
           <Text className="text-sm font-medium">
             Заявки
@@ -526,14 +496,9 @@ export function ServiceRequestsTable({ filters }: ServiceRequestsTableProps) {
           </HStack>
         </Flex>
 
-        {/* Card list */}
         <VStack className="flex-1 overflow-auto p-3 gap-2">
           {isLoading ? (
-            <>
-              {[1, 2, 3, 4, 5].map((i) => (
-                <MobileCardSkeleton key={i} />
-              ))}
-            </>
+            [1, 2, 3, 4, 5].map((i) => <MobileCardSkeleton key={i} />)
           ) : rows.length === 0 ? (
             <Flex justify="center" align="center" className="py-12">
               <Text variant="muted">Нет данных</Text>
@@ -554,7 +519,6 @@ export function ServiceRequestsTable({ filters }: ServiceRequestsTableProps) {
           )}
         </VStack>
 
-        {/* Pagination for mobile */}
         {totalCount > PAGE_SIZE && (
           <Flex justify="center" align="center" gap="8" className="p-3 border-t border-border/50 bg-muted/10 shrink-0">
             <Button
@@ -590,10 +554,8 @@ export function ServiceRequestsTable({ filters }: ServiceRequestsTableProps) {
     );
   }
 
-  // ─── Desktop layout ─────────────────────────────────────
   return (
     <VStack gap="0" className="h-full">
-      {/* Header */}
       <HStack justify="between" align="center" className="px-4 py-3 border-b border-border/50 bg-muted/20 shrink-0">
         <Text className="text-base font-medium">
           Заявки
@@ -621,7 +583,6 @@ export function ServiceRequestsTable({ filters }: ServiceRequestsTableProps) {
         </HStack>
       </HStack>
 
-      {/* Table */}
       <VStack className="flex-1 overflow-auto">
         <DataTable
           columns={columns}

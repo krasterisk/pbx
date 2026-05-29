@@ -136,6 +136,9 @@ export class VoiceRobotSession {
   // Webhook continue_dialogue loop detector (keyed by URL)
   private webhookContinueCounts: Record<string, number> = {};
 
+  /** Last STT text — sent to webhooks as `utterance` and used to prefill silent freetext slots */
+  private lastRecognizedText: string | null = null;
+
   // Slot filling state
   private slotFillingState: {
     action: IVoiceRobotBotAction;
@@ -749,6 +752,7 @@ export class VoiceRobotSession {
     // Reset inactivity timer repeats since user responded
     this.inactivityRepeatCount = 0;
     this.inactivityFallbackCycles = 0;
+    this.lastRecognizedText = text;
 
     // ─── If we're waiting for a search query, use this utterance directly ───
     if (this.pendingDataListSearch) {
@@ -811,7 +815,7 @@ export class VoiceRobotSession {
           // Execute bot action
           const botAction = globalMatch.keyword.bot_action;
           if (botAction) {
-            await this.executeBotAction(botAction, globalMatch);
+            await this.executeBotAction(botAction, globalMatch, text);
           }
           return;
         }
@@ -868,7 +872,7 @@ export class VoiceRobotSession {
       }
 
       if (botAction) {
-        await this.executeBotAction(botAction, matchResult);
+        await this.executeBotAction(botAction, matchResult, text);
       } else {
         // ─── Legacy: exit to dialplan ───
         await this.ariClient.setChannelVar(this.channelId, 'ROBOT_STATUS', 'SUCCESS');
@@ -895,7 +899,7 @@ export class VoiceRobotSession {
           matchedPhrase: '',
           matchedWordCount: 0,
           method: 'fallback'
-        });
+        }, text);
       } else {
         if (this.consecutiveNoMatchCount >= maxFallbackRetries) {
           this.logger.warn(`[Action] Max consecutive no-match retries (${maxFallbackRetries}) reached. Executing max_retries_bot_action or exiting.`);
@@ -927,6 +931,7 @@ export class VoiceRobotSession {
   private async executeBotAction(
     action: IVoiceRobotBotAction,
     matchResult: MatchResult,
+    triggeringUtterance?: string,
   ): Promise<void> {
     // 1. Play response (TTS or prompt) — interpolate {{variables}} from dialogueContext
     if (action.response && action.response.type !== 'none') {
@@ -952,8 +957,18 @@ export class VoiceRobotSession {
         currentSlotIndex: 0,
         retryCount: 0,
       };
-      // Ask for first slot
-      await this.askForSlot(action.slots[0]);
+      const firstSlot = action.slots[0];
+      const utterance = triggeringUtterance?.trim();
+      if (
+        utterance &&
+        firstSlot.type === 'freetext' &&
+        firstSlot.prompt?.type === 'none'
+      ) {
+        this.logger.log(`[Slot] Prefilling "${firstSlot.name}" from triggering utterance`);
+        await this.handleSlotInput(utterance, null, 0);
+        return;
+      }
+      await this.askForSlot(firstSlot);
       return;
     }
 
@@ -1179,6 +1194,7 @@ export class VoiceRobotSession {
           caller_name: this.callerInfo.callerName || null,
           slots: payload,
           context: this.dialogueContext,
+          utterance: this.lastRecognizedText,
           timestamp: new Date().toISOString(),
         }),
         signal: AbortSignal.timeout(10000),
