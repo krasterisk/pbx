@@ -84,6 +84,14 @@ function RequiredLabel({ children }: { children: React.ReactNode }) {
 const FIELD_CLASS = 'min-w-[200px] flex-1 basis-[calc(33.333%-1rem)]';
 const FIELD_CLASS_MOBILE = 'w-full';
 
+const SCHEDULE_COMMENT_PRESETS = [
+  'отгрузка произведена',
+  'отгрузка будет произведена в ближайшие сутки',
+  'техника прибудет в течении пяти дней',
+  'техника прибудет в течении семи дней',
+  'отгрузка невозможна, по независящим от Регионального Оператора обстоятельствам',
+] as const;
+
 type TabKey = 'request' | 'production';
 
 export function ServiceRequestModal({ isOpen, onClose, record }: ServiceRequestModalProps) {
@@ -183,6 +191,11 @@ export function ServiceRequestModal({ isOpen, onClose, record }: ServiceRequestM
       address.trim() !== ''
     );
   }, [counterpartyName, phone, topic, territorialZone, district, address]);
+
+  const scheduleCommentPreset = useMemo(
+    () => (SCHEDULE_COMMENT_PRESETS as readonly string[]).includes(scheduleComment) ? scheduleComment : '',
+    [scheduleComment],
+  );
 
   // ─── Save ────────────────────────────────────────────────
   const handleSave = async () => {
@@ -427,6 +440,18 @@ export function ServiceRequestModal({ isOpen, onClose, record }: ServiceRequestM
             <VStack gap="8">
               <SectionHeader icon={MessageSquare} title={t('serviceRequests.section.clientResponse', 'Ответ клиенту')} />
               <VStack gap="4">
+                <Label className="text-xs">{t('serviceRequests.scheduleCommentPreset', 'Готовый ответ')}</Label>
+                <Select
+                  value={scheduleCommentPreset}
+                  onChange={(e) => {
+                    if (e.target.value) setScheduleComment(e.target.value);
+                  }}
+                >
+                  <option value="">{t('serviceRequests.placeholder.scheduleCommentPreset', '— Выберите вариант —')}</option>
+                  {SCHEDULE_COMMENT_PRESETS.map((preset) => (
+                    <option key={preset} value={preset}>{preset}</option>
+                  ))}
+                </Select>
                 <Label className="text-xs">{t('serviceRequests.scheduleComment', 'Ответ по срокам')}</Label>
                 <Textarea
                   value={scheduleComment}
