@@ -64,6 +64,7 @@
 ## Phase 3 — IVR page & form modal UI alignment
 
 **Canonical refs (фаза):**
+
 - `packages/frontend/.idea/ARCHITECTURE.md` — **MUST READ** (FSD, SCSS modules, Stack, `shared/ui`, design tokens `var(--color-*)`)
 - `packages/frontend/src/pages/IvrsPage/IvrsPage.tsx` — page shell (привести к паттерну MohPage / VoiceRobots)
 - `packages/frontend/src/features/ivrs/ui/IvrFormModal/IvrFormModal.tsx` — табы модалки, layout
@@ -71,12 +72,13 @@
 - `packages/frontend/src/features/routes/ui/RouteFormModal/` — **эталон** табов и body (`.module.scss`, одна полоса под табами)
 - `packages/frontend/src/features/ivrs/ui/IvrsTable/` — при необходимости wrapper/states на странице
 
-**Status:** Planned (03-UI-SPEC, 03-RESEARCH, 03-01/03-02 plans)  
+**Status:** Executed (03-01/03-02 SUMMARY; verify pending)  
 **Depends on:** — (независима от MOH verify; brownfield FE-only)
 
 **Goal:** Рефакторинг `IvrsPage` и `IvrFormModal` под архитектуру проекта: SCSS-модули + токены, без «сливающихся» секций; таб-бар модалки и вкладка «Записи» визуально как `RouteFormModal`.
 
 **Scope (in):**
+
 - `IvrsPage`: header, CTA, карточка/контейнер таблицы по паттерну Phase 2 (MohPage), SCSS-модуль страницы
 - `IvrFormModal`: табы через SCSS как `RouteFormModal` (без дублирующей `border-b` + underline на кнопках)
 - `IvrPromptsEditor` (+ связанные tab-компоненты при необходимости): `var(--color-*)`, читаемый фон секции «Записи»
@@ -84,6 +86,7 @@
 - Регрессия: сохранение create/edit/copy IVR, prompts, menu items
 
 **Scope (out):**
+
 - Backend, `ivrsApi`, бизнес-логика IVR
 - Полный редизайн `IvrMenuItemsEditor` / dialplan — только если мешает контрасту на той же вкладке
 - Sketch из 3 вариантов (не требуется — эталон RouteFormModal + MohPage)
@@ -102,5 +105,58 @@
 | 6 | `/gsd-verify-work 3` → `/gsd-ship 3` |
 
 **Verification:**
+
 - Automated: `npm run lint`, `npm run test:frontend` (в т.ч. `IvrsTable.test.tsx` если затронуто)
 - Manual: `/ivrs` — страница в одном стиле с MOH/VoiceRobots; модалка → вкладка «Записи» — секция не сливается с фоном; **одна** линия под табами (как RouteFormModal)
+
+---
+
+## Phase 4 — IVR «Фразы»: TTS-текст с движком и голосом на фразу
+
+**Canonical refs (фаза):**
+
+- `packages/frontend/.idea/ARCHITECTURE.md`, `packages/backend/.idea/ARCHITECTURE.md`
+- `packages/frontend/src/features/ivrs/ui/IvrPromptsEditor/` — вкладка «Фразы»
+- `packages/frontend/src/pages/TtsEnginesPage/`, `packages/frontend/src/features/tts-engines/` — справочник движков
+- `packages/backend/src/modules/tts-engines/` — CRUD движков (`tts_engines`)
+- `packages/backend/src/modules/voice-robots/providers/` — `TtsProviderFactory`, Yandex/Google (переиспользовать)
+- `packages/backend/src/modules/ivrs/ivrs.service.ts` — генерация dialplan (`prompts`, legacy `tts:`)
+- `packages/backend/src/modules/prompts/prompts.controller.ts` — `POST /prompts/synthesize` (заглушка — кандидат на реализацию)
+- `.planning/phases/04-ivr-phrases-tab-tts-text-phrases-with-per-phrase-engine-voic/PHASE.md` — модель данных и стратегия синтеза
+
+**Status:** Not planned  
+**Depends on:** Phase 3 (UI вкладки «Фразы»)
+
+**Goal:** На вкладке «Фразы» в IVR добавлять не только аудиозаписи из справочника, но и **текстовые фразы**, озвучиваемые через выбранный **TTS-движок** из `TtsEnginesPage`; для каждой TTS-фразы — свой **движок** и **переопределяемые параметры голоса** (voice, speed, role и т.д.), не только глобальные `settings` движка.
+
+**Scope (in):**
+
+- Модель `prompts`: **JSON-only** `IIvrPhrase[]` (`audio` | `tts`); legacy `string[]` / `tts:` **убрать** (миграция в плане)
+- UI `IvrPromptsEditor`: «Запись» / «TTS»; движок на фразу; voice/speed overrides как в `TtsEngineFormModal`; **Preview**
+- Backend: **runtime TTS в dialplan** (AGI/мост), merge `engine.settings` + per-phrase overrides; **без WAV** в sounds
+- TTS: **yandex + google + custom** (расширить `TtsProviderFactory` или `IvrTtsService`)
+- Preview API для прослушивания в UI
+- i18n `ru` + `en`, типы `@krasterisk/shared`, тесты
+
+**Scope (out):**
+
+- Редизайн `TtsEnginesPage` / CRUD движков (только consume)
+- Materialize TTS → WAV / запись в справочник Prompts
+- Streaming low-latency как у voice-robots (достаточно batch/AGI для приветствия IVR)
+
+**Requirements:** REQ-301 … REQ-310
+
+**GSD workflow:**
+
+| Шаг | Команда |
+|-----|---------|
+| 1 | `/gsd-discuss-phase 4` — materialize vs runtime AGI, формат JSON, preview |
+| 2 | `/gsd-ui-phase 4` |
+| 3 | `/gsd-plan-phase 4` |
+| 4 | `/gsd-execute-phase 4` |
+| 5 | `/gsd-verify-work 4` |
+
+**Verification:**
+
+- Manual: `/ivrs` → «Фразы» → добавить TTS с движком и другим голосом → сохранить → звонок/диалплан воспроизводит обе фразы в порядке
+- Automated: `npm run test:backend` (ivrs + synthesis), `npm run test:frontend` (IvrPromptsEditor)

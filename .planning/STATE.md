@@ -2,26 +2,31 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: planning
-last_updated: "2026-06-04T15:00:00.000Z"
+status: executing
+last_updated: "2026-06-04T19:00:00.000Z"
 progress:
-  total_phases: 3
+  total_phases: 4
   completed_phases: 0
-  total_plans: 2
-  completed_plans: 0
-  percent: 0
+  total_plans: 5
+  completed_plans: 2
+  percent: 40
 ---
 
 # State
 
 ## Current position
 
-Phase 3 — IVR UI: **planned** (`03-UI-SPEC.md`, `03-RESEARCH.md`, `03-01-PLAN.md`, `03-02-PLAN.md`).  
-Next: `/gsd-execute-phase 3`.
+Phase 4 — IVR TTS phrases: **context gathered** (`04-CONTEXT.md` — runtime TTS, JSON-only, preview, all engines).  
+Next: `/gsd-plan-phase 4`.
 
-Phase 2 — MohPage: executed; optional verify.  
+Phase 3 — IVR UI: **executed** (verify pending).  
+Phase 2 — MohPage: executed.  
 Phase 1 — MOH: pending verify.
+
+## Roadmap Evolution
+
+- Phase 4 added: IVR «Фразы» — TTS-текст с движком и per-phrase voice/settings (TtsEngines).
 
 ## Next GSD command
 
-`/gsd-execute-phase 3`
+`/gsd-plan-phase 4`
