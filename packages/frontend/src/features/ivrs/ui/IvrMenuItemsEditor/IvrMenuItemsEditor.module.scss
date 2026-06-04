@@ -1,0 +1,73 @@
+/* IvrMenuItemsEditor — вкладка «Пункты» */
+
+.sectionPanel {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-muted) 40%, transparent);
+  padding: 0.75rem;
+  min-height: 120px;
+}
+
+.headerRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.sectionTitle {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-muted-foreground);
+}
+
+.itemCard {
+  width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--color-background);
+}
+
+.itemHeader {
+  padding: 0.75rem;
+  background: color-mix(in srgb, var(--color-muted) 35%, transparent);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.digitLabel {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-muted-foreground);
+  min-width: 8rem;
+}
+
+.digitInput {
+  width: 10rem;
+  max-width: 100%;
+}
+
+.actionsHint {
+  font-size: 0.75rem;
+  color: var(--color-muted-foreground);
+}
+
+.itemBody {
+  padding: 1rem;
+  background: var(--color-background);
+  border-top: 1px solid var(--color-border);
+}
+
+.emptyState {
+  text-align: center;
+  padding: 1.5rem 1rem;
+  font-size: 0.8125rem;
+  color: var(--color-muted-foreground);
+}
+
+.deleteIcon {
+  color: var(--color-destructive);
+}

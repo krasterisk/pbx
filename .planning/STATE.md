@@ -8,16 +8,16 @@ progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 8
-  completed_plans: 2
-  percent: 25
+  completed_plans: 5
+  percent: 63
 ---
 
 # State
 
 ## Current position
 
-Phase 4 — IVR TTS phrases: **planned** (`04-01`…`04-03`, `04-RESEARCH.md`, `04-PLAN-CHECK.md` PASS).  
-Next: `/gsd-execute-phase 4` (or `04-01` first).
+Phase 4 — IVR TTS phrases: **executed** (verify pending).  
+Next: `/gsd-verify-work 4`.
 
 Phase 3 — IVR UI: **executed** (verify pending).  
 Phase 2 — MohPage: executed.  

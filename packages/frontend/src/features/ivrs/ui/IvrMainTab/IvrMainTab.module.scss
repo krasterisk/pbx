@@ -1,0 +1,53 @@
+/* IvrMainTab — основные поля IVR */
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
+}
+
+.activePanel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid color-mix(in srgb, var(--color-primary) 35%, var(--color-border));
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+}
+
+.activeLabel {
+  font-weight: 600;
+  color: var(--color-foreground);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  width: 100%;
+}
+
+.labelRow {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.toggleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-background);
+}
+
+.toggleLabel {
+  font-weight: 500;
+  color: var(--color-foreground);
+}

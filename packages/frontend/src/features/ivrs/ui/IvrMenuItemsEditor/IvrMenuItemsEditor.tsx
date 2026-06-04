@@ -1,10 +1,11 @@
-import { memo, useCallback } from 'react';
+import { memo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
-import { Button, Input, VStack, HStack } from '@/shared/ui';
+import { Button, Input, Text } from '@/shared/ui';
+import { VStack, HStack, Flex } from '@/shared/ui/Stack';
 import { DialplanAppsEditor } from '@/features/dialplan-apps';
 import { IIvrMenuItem } from '@/entities/ivr';
-import { useState } from 'react';
+import cls from './IvrMenuItemsEditor.module.scss';
 
 interface IvrMenuItemsEditorProps {
   menuItems: IIvrMenuItem[];
@@ -39,7 +40,7 @@ export const IvrMenuItemsEditor = memo(({ menuItems, onChange }: IvrMenuItemsEdi
     onChange(updated);
   };
 
-  const updateActions = (index: number, actions: any[]) => {
+  const updateActions = (index: number, actions: IIvrMenuItem['actions']) => {
     const updated = [...menuItems];
     updated[index] = { ...updated[index], actions };
     onChange(updated);
@@ -50,51 +51,51 @@ export const IvrMenuItemsEditor = memo(({ menuItems, onChange }: IvrMenuItemsEdi
   };
 
   return (
-    <VStack gap="16" className="w-full">
-      <div className="flex justify-between items-center w-full">
-        <Typography variant="h6" className="text-sm font-medium text-muted-foreground">
+    <div className={cls.sectionPanel}>
+      <Flex justify="between" align="center" className={cls.headerRow}>
+        <Text variant="small" className={cls.sectionTitle}>
           {t('ivrs.menuItems.title', 'Пункты меню (DTMF Возможные сочетания)')}
-        </Typography>
+        </Text>
         <Button onClick={handleAdd} size="sm" variant="outline">
-          <Plus className="w-4 h-4 mr-1" />
+          <Plus size={16} />
           {t('ivrs.menuItems.add', 'Добавить пункт')}
         </Button>
-      </div>
+      </Flex>
 
-      <VStack gap="8" className="w-full">
+      <VStack gap="8" max>
         {menuItems.map((item, idx) => {
           const isExpanded = expandedIndex === idx;
 
           return (
-            <div key={idx} className="w-full border border-border rounded overflow-hidden">
-              <HStack gap="16" className="bg-muted/50 p-3 items-center justify-between w-full">
-                <HStack gap="16" className="flex-1 items-center">
-                  <span className="text-muted-foreground font-medium w-32 text-sm">
+            <div key={idx} className={cls.itemCard}>
+              <HStack justify="between" align="center" className={cls.itemHeader} max>
+                <HStack gap="16" align="center" max>
+                  <Text as="span" className={cls.digitLabel}>
                     {t('ivrs.menuItems.digitLabel', 'Нажатие / Паттерн:')}
-                  </span>
+                  </Text>
                   <Input
-                    className="w-40 bg-background"
+                    className={cls.digitInput}
                     placeholder="Например: 1, 2, t, i"
                     value={item.digit}
                     onChange={(e) => updateDigit(idx, e.target.value)}
                   />
-                  <span className="text-muted-foreground text-xs ml-2">
+                  <Text as="span" variant="xs" className={cls.actionsHint}>
                     {item.actions.length} {t('ivrs.menuItems.actionsCount', 'действий')}
-                  </span>
+                  </Text>
                 </HStack>
 
-                <HStack gap="8" className="items-center">
+                <HStack gap="4">
                   <Button variant="ghost" size="icon" onClick={() => toggleExpand(idx)}>
-                    {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                    {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                   </Button>
                   <Button variant="ghost" size="icon" onClick={() => handleRemove(idx)}>
-                    <Trash2 className="w-4 h-4 text-red-500" />
+                    <Trash2 size={16} className={cls.deleteIcon} />
                   </Button>
                 </HStack>
               </HStack>
 
               {isExpanded && (
-                <div className="p-4 bg-background border-t border-border">
+                <div className={cls.itemBody}>
                   <DialplanAppsEditor
                     actions={item.actions}
                     onChange={(newActions) => updateActions(idx, newActions)}
@@ -104,19 +105,18 @@ export const IvrMenuItemsEditor = memo(({ menuItems, onChange }: IvrMenuItemsEdi
             </div>
           );
         })}
+
         {menuItems.length === 0 && (
-          <div className="text-center py-6 text-muted-foreground text-sm">
-            {t('ivrs.menuItems.empty', 'Нет пунктов меню. Нажмите "Добавить пункт" чтобы создать маршрут.')}
-          </div>
+          <Text variant="small" className={cls.emptyState}>
+            {t(
+              'ivrs.menuItems.empty',
+              'Нет пунктов меню. Нажмите «Добавить пункт», чтобы создать маршрут.',
+            )}
+          </Text>
         )}
       </VStack>
-    </VStack>
+    </div>
   );
 });
 
 IvrMenuItemsEditor.displayName = 'IvrMenuItemsEditor';
-
-// Mock Typography since it might be missing in some imports
-function Typography({ children, className }: any) {
-  return <div className={className}>{children}</div>;
-}

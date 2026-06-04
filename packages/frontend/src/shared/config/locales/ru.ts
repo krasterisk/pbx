@@ -504,7 +504,13 @@ export const ru = {
   // IVRs
   ivrs: {
     title: 'Голосовые меню (IVR)',
+    subtitle: 'Настройка интерактивных голосовых меню',
+    listTitle: 'Список IVR',
     add: 'Добавить IVR',
+    empty: {
+      title: 'Нет голосовых меню',
+      hint: 'Нажмите «Добавить IVR», чтобы создать первое меню',
+    },
     table: {
       exten: 'Номер',
       name: 'Наименование',
@@ -514,11 +520,12 @@ export const ru = {
     modal: {
       edit: 'Редактировать IVR',
       create: 'Создать IVR',
+      copy: 'Копировать IVR',
     },
     tabs: {
       main: 'Основные',
-      sounds_prompts: 'Записи',
-      routes: 'Вложенные маршруты',
+      sounds_prompts: 'Фразы',
+      routes: 'Пункты',
     },
     fields: {
       name: 'Системное имя',
@@ -540,8 +547,24 @@ export const ru = {
     },
     prompts: {
       empty: 'Нет записей. Добавьте аудио-файлы для воспроизведения в IVR.',
-      selectPrompt: '— Выберите запись —',
+      emptyMixed: 'Нет фраз. Добавьте аудиозапись или TTS-текст для воспроизведения в IVR.',
+      selectPrompt: 'Выберите запись',
       add: 'Добавить',
+      modeAudio: 'Запись',
+      modeTts: 'TTS',
+      badgeAudio: 'Аудио',
+      badgeTts: 'TTS',
+      addTts: 'Добавить TTS',
+      preview: 'Прослушать',
+      previewError: 'Не удалось синтезировать фразу',
+      engine: 'TTS-движок',
+      selectEngine: 'Выберите движок',
+      textPlaceholder: 'Текст фразы для синтеза',
+      ttsRequired: 'Укажите текст и TTS-движок',
+      useEngineDefault: 'По умолчанию движка',
+      engineDefaults: 'настройки движка',
+      customOverrides: 'Доп. параметры',
+      customSpeedPlaceholder: 'speed',
     },
     menuItems: {
       title: 'Пункты меню (DTMF Возможные сочетания)',
@@ -556,8 +579,13 @@ export const ru = {
   moh: {
     title: 'Музыка на удержании',
     subtitle: 'Управление классами Music On Hold',
+    listTitle: 'Список классов MOH',
     add: 'Создать класс',
     edit: 'Редактировать класс',
+    empty: {
+      title: 'Нет классов Music On Hold',
+      hint: 'Нажмите «Создать класс», чтобы добавить первый плейлист',
+    },
     table: {
       name: 'Название',
       tracks: 'Треков',

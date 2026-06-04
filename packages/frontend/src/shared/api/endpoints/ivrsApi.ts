@@ -1,5 +1,12 @@
+import type { IIvrPhraseTtsSettings } from '@krasterisk/shared';
 import { rtkApi } from '../rtkApi';
 import { IIvr } from '../../../entities/ivr';
+
+export interface IvrTtsPreviewRequest {
+  text: string;
+  engine_uid: number;
+  settings?: IIvrPhraseTtsSettings;
+}
 
 export interface ICreateIvr extends Omit<IIvr, 'uid' | 'created_at' | 'updated_at' | 'user_uid'> {}
 export interface IUpdateIvr extends Partial<ICreateIvr> {}
@@ -40,6 +47,15 @@ const ivrsApi = rtkApi.injectEndpoints({
       invalidatesTags: [{ type: 'Ivrs', id: 'LIST' }],
     }),
 
+    previewIvrTts: builder.mutation<Blob, IvrTtsPreviewRequest>({
+      query: (body) => ({
+        url: '/ivrs/tts-preview',
+        method: 'POST',
+        body,
+        responseHandler: (response) => response.blob(),
+      }),
+    }),
+
     bulkDeleteIvrs: builder.mutation<{ deleted: number }, number[]>({
       query: (ids) => ({
         url: '/ivrs/bulk/delete',
@@ -58,5 +74,6 @@ export const {
   useUpdateIvrMutation,
   useDeleteIvrMutation,
   useBulkDeleteIvrsMutation,
+  usePreviewIvrTtsMutation,
 } = ivrsApi;
 

@@ -21,4 +21,11 @@ export * from './types/api.types';
 export * from './types/route.types';
 export * from './types/timeGroup.types';
 export * from './types/phonebook.types';
+export * from './types/ivr-phrase.types';
+export {
+  normalizeIvrPrompts,
+  assertIvrPromptsForSave,
+  isValidIvrPhrase,
+  IvrPromptsValidationError,
+} from './utils/ivr-prompts';
 export { ensureCdrVpbxUserUidInDialplan } from './utils/dialplan-vpbx';

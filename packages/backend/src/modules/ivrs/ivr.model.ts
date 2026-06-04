@@ -25,8 +25,9 @@ export class Ivr extends Model {
   @Column({ type: DataType.TINYINT, allowNull: false, defaultValue: 1 })
   declare direct_dial: number;
 
+  /** JSON array of IIvrPhrase ({ kind: 'audio' | 'tts', ... }) */
   @Column({ type: DataType.JSON, defaultValue: [] })
-  declare prompts: string[];
+  declare prompts: any[];
 
   // This will store an array of { digit: string, actions: any[] }
   @Column({ type: DataType.JSON, defaultValue: [] })

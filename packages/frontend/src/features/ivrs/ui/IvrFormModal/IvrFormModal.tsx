@@ -1,14 +1,22 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter
-} from '@/shared/ui/Dialog';
-import { Button, VStack, HStack } from '@/shared/ui';
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  Button,
+} from '@/shared/ui';
+import { VStack } from '@/shared/ui/Stack';
+import { normalizeIvrPrompts, type IIvrPhrase } from '@krasterisk/shared';
 import { IIvr, IIvrMenuItem } from '@/entities/ivr';
+import { toast } from 'react-toastify';
 import { useCreateIvrMutation, useUpdateIvrMutation } from '@/shared/api/endpoints/ivrsApi';
 import { IvrMenuItemsEditor } from '../IvrMenuItemsEditor/IvrMenuItemsEditor';
 import { IvrPromptsEditor } from '../IvrPromptsEditor/IvrPromptsEditor';
 import { IvrMainTab } from '../IvrMainTab';
+import cls from './IvrFormModal.module.scss';
 
 interface IvrFormModalProps {
   isOpen: boolean;
@@ -31,7 +39,7 @@ export function IvrFormModal({ isOpen, onClose, ivr, mode = ivr ? 'edit' : 'crea
   const [directDial, setDirectDial] = useState(true);
 
   const [menuItems, setMenuItems] = useState<IIvrMenuItem[]>([]);
-  const [prompts, setPrompts] = useState<string[]>([]);
+  const [prompts, setPrompts] = useState<IIvrPhrase[]>([]);
 
   useEffect(() => {
     if ((mode === 'edit' || mode === 'copy') && ivr) {
@@ -42,7 +50,7 @@ export function IvrFormModal({ isOpen, onClose, ivr, mode = ivr ? 'edit' : 'crea
       setActive(ivr.active === 1);
       setDirectDial(ivr.direct_dial === 1);
       setMenuItems(ivr.menu_items || []);
-      setPrompts(ivr.prompts || []);
+      setPrompts(normalizeIvrPrompts(ivr.prompts || []));
     } else {
       setName('');
       setExten('');
@@ -78,47 +86,49 @@ export function IvrFormModal({ isOpen, onClose, ivr, mode = ivr ? 'edit' : 'crea
         await createIvr(payload).unwrap();
       }
       onClose();
-    } catch (err) {
-      console.error('Failed to save IVR', err);
+    } catch (err: any) {
+      toast.error(err?.data?.message || t('common.error', 'Ошибка сохранения'));
     }
   };
 
   const tabs = [
     { id: 'main', label: t('ivrs.tabs.main', 'Основные') },
-    { id: 'sounds_prompts', label: t('ivrs.tabs.sounds_prompts', 'Записи') },
-    { id: 'routes', label: t('ivrs.tabs.routes', 'Вложенные маршруты') },
+    { id: 'sounds_prompts', label: t('ivrs.tabs.sounds_prompts', 'Фразы') },
+    { id: 'routes', label: t('ivrs.tabs.routes', 'Пункты') },
   ];
 
+  const title =
+    mode === 'edit'
+      ? t('ivrs.modal.edit', 'Редактировать IVR')
+      : mode === 'copy'
+        ? t('ivrs.modal.copy', 'Копировать IVR')
+        : t('ivrs.modal.create', 'Создать IVR');
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent size="large">
-        <DialogHeader className="mb-4 shrink-0">
-          <DialogTitle className="text-xl font-bold">
-            {mode === 'edit'
-              ? t('ivrs.modal.edit', 'Редактировать IVR')
-              : mode === 'copy'
-                ? t('ivrs.modal.copy', 'Копировать IVR')
-                : t('ivrs.modal.create', 'Создать IVR')}
-          </DialogTitle>
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
 
-        <HStack gap="4" className="border-b border-border mb-6 shrink-0 overflow-x-auto flex-nowrap pb-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-          {tabs.map(tab => (
-            <Button
-              key={tab.id}
-              variant="ghost"
-              onClick={() => setActiveTab(tab.id)}
-              className={`py-2 px-1 rounded-none text-sm font-medium border-b-2 transition-colors whitespace-nowrap shrink-0 ${activeTab === tab.id
-                  ? 'border-primary text-primary bg-transparent hover:bg-transparent hover:text-primary'
-                  : 'border-transparent text-muted-foreground bg-transparent hover:text-foreground hover:border-border hover:bg-transparent'
-                }`}
-            >
-              {tab.label}
-            </Button>
-          ))}
-        </HStack>
+        <div className={cls.tabsWrap}>
+          <div className={cls.tabsRow} role="tablist">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={activeTab === tab.id}
+                className={[cls.tab, activeTab === tab.id && cls.tabActive].filter(Boolean).join(' ')}
+                onClick={() => setActiveTab(tab.id)}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
 
-        <VStack className="flex-1 overflow-y-auto pr-1">
+        <VStack max className={cls.body}>
           {activeTab === 'main' && (
             <IvrMainTab
               name={name}
@@ -137,22 +147,18 @@ export function IvrFormModal({ isOpen, onClose, ivr, mode = ivr ? 'edit' : 'crea
           )}
 
           {activeTab === 'sounds_prompts' && (
-            <IvrPromptsEditor
-              value={prompts}
-              onChange={setPrompts}
-            />
+            <IvrPromptsEditor value={prompts} onChange={setPrompts} />
           )}
 
           {activeTab === 'routes' && (
-            <IvrMenuItemsEditor
-              menuItems={menuItems}
-              onChange={setMenuItems}
-            />
+            <IvrMenuItemsEditor menuItems={menuItems} onChange={setMenuItems} />
           )}
         </VStack>
 
-        <DialogFooter className="mt-6 pt-4 border-t border-border shrink-0">
-          <Button variant="outline" onClick={onClose}>{t('common.cancel', 'Отмена')}</Button>
+        <DialogFooter className={cls.footer}>
+          <Button variant="outline" onClick={onClose}>
+            {t('common.cancel', 'Отмена')}
+          </Button>
           <Button onClick={onSubmit}>{t('common.save', 'Сохранить')}</Button>
         </DialogFooter>
       </DialogContent>

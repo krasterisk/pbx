@@ -1,4 +1,4 @@
-import { IRouteAction } from '@krasterisk/shared';
+import { IRouteAction, IIvrPhrase } from '@krasterisk/shared';
 
 export interface IIvrMenuItem {
   digit: string;
@@ -13,7 +13,7 @@ export interface IIvr {
   max_count: number;
   active: number;
   direct_dial: number;
-  prompts: string[];
+  prompts: IIvrPhrase[];
   menu_items: IIvrMenuItem[];
   user_uid: number;
   created_at?: string;

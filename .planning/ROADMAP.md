@@ -125,8 +125,8 @@
 - `.planning/phases/04-ivr-phrases-tab-tts-text-phrases-with-per-phrase-engine-voic/04-CONTEXT.md` — решения (runtime, JSON-only, preview)
 - `.planning/phases/04-ivr-phrases-tab-tts-text-phrases-with-per-phrase-engine-voic/04-RESEARCH.md` — CURL play-phrase, IvrTtsService
 
-**Status:** Planned (3 plans)  
-**Plans:** `04-01` shared + IvrTtsService · `04-02` dialplan + internal + preview · `04-03` IvrPromptsEditor UI  
+**Status:** Executed (verify pending)  
+**Plans:** `04-01` ✓ · `04-02` ✓ · `04-03` ✓  
 **Depends on:** Phase 3 (UI вкладки «Фразы»)
 
 **Goal:** На вкладке «Фразы» в IVR добавлять не только аудиозаписи из справочника, но и **текстовые фразы**, озвучиваемые через выбранный **TTS-движок** из `TtsEnginesPage`; для каждой TTS-фразы — свой **движок** и **переопределяемые параметры голоса** (voice, speed, role и т.д.), не только глобальные `settings` движка.
