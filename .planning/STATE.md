@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: unknown
-last_updated: "2026-06-04T09:18:05.029Z"
+status: planning
+last_updated: "2026-06-04T14:00:00.000Z"
 progress:
-  total_phases: 2
+  total_phases: 3
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -16,16 +16,23 @@ progress:
 
 ## Current position
 
-Phase 1 — MOH playlist migration: code complete, run verification.  
-Phase 2 — MohPage redesign: **planned** (02-01, 02-02); next `/gsd-execute-phase 2`.
+Phase 3 — IVR page & form modal UI alignment: **context gathered** (`03-CONTEXT.md`).  
+Next: `/gsd-ui-phase 3` → `/gsd-plan-phase 3`.
+
+Phase 2 — MohPage: executed; optional `/gsd-ui-review 2` → `/gsd-verify-work 2`.  
+Phase 1 — MOH playlist: pending verify.
+
+## Accumulated Context
+
+### Roadmap Evolution
+
+- Phase 3 added: IVR IvrsPage + IvrFormModal architecture alignment.
+- Phase 3 discuss completed 2026-06-04.
 
 ## Decisions
 
-- Class name format: keep `moh_{user_uid}_{slug}` (existing).
-- Entry path: `{ASTERISK_SOUNDS_PATH}/{filename}`.
-- Phone record → Prompts only, then MOH playlist picker.
+- Phase 3: tab labels «Фразы» / «Пункты»; Active checkbox top of Main tab; MohPage parity; RouteFormModal tab bar pattern.
 
 ## Next GSD command
 
-- Phase 1: `/gsd-verify-work 1` (если ещё не закрыта)
-- Phase 2: `/gsd-execute-phase 2`
+`/gsd-ui-phase 3`
