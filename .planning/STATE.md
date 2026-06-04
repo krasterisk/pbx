@@ -17,7 +17,7 @@ progress:
 ## Current position
 
 Phase 1 — MOH playlist migration: code complete, run verification.  
-Phase 2 — MohPage redesign: **sketch winner A** (glass card); next wrap-up → ui-phase → plan.
+Phase 2 — MohPage redesign: **sketch wrapped** (skill `sketch-findings-krasterisk-v4`); next ui-phase → plan → execute.
 
 ## Decisions
 
