@@ -17,7 +17,7 @@ progress:
 ## Current position
 
 Phase 1 — MOH playlist migration: code complete, run verification.  
-Phase 2 — MohPage redesign: **UI-SPEC approved** (`02-UI-SPEC.md`); next `/gsd-plan-phase 2`.
+Phase 2 — MohPage redesign: **planned** (02-01, 02-02); next `/gsd-execute-phase 2`.
 
 ## Decisions
 
@@ -28,4 +28,4 @@ Phase 2 — MohPage redesign: **UI-SPEC approved** (`02-UI-SPEC.md`); next `/gsd
 ## Next GSD command
 
 - Phase 1: `/gsd-verify-work 1` (если ещё не закрыта)
-- Phase 2: `/gsd-plan-phase 2` → `/gsd-execute-phase 2`
+- Phase 2: `/gsd-execute-phase 2`

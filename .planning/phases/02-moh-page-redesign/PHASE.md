@@ -21,8 +21,6 @@
 /gsd-discuss-phase 2
 /gsd-sketch MohPage redesign: header with icon, title, subtitle, primary CTA, MohTable card. Follow @packages/frontend/.idea/ARCHITECTURE.md. Three distinct visual variants.
 /gsd-sketch --wrap-up
-/gsd-ui-phase 2
-/gsd-plan-phase 2
 /gsd-execute-phase 2
 /gsd-ui-review 2
 /gsd-verify-work 2
