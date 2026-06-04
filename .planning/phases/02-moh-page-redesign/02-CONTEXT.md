@@ -107,7 +107,7 @@
 
 - Sketch: 1 safe (VoiceRobots-like) + 2 experimental layouts/skins
 - Indigo icon badge for MOH page identity
-- Compare CTA styles across sketches before lock-in
+- **Sketch winner (001):** Variant **A** — glass Card + CardHeader, primary shadow CTA, indigo badge (VoiceRobots-like)
 - Modal: improve playlist control buttons in this phase; full modal UX later
 
 </specifics>
