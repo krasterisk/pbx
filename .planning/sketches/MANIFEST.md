@@ -14,4 +14,4 @@ Phase 2 MohPage: professional admin UI aligned with Krasterisk dark theme. **Ind
 
 | # | Name | Design Question | Winner | Tags |
 |---|------|-----------------|--------|------|
-| 001 | moh-page-redesign | Which MohPage layout + CTA for Phase 2? | null | moh, phase-2, layout |
+| 001 | moh-page-redesign | Which MohPage layout + CTA for Phase 2? | **A** — Safe glass card | moh, phase-2, layout |

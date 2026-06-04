@@ -2,7 +2,7 @@
 sketch: 001
 name: moh-page-redesign
 question: "Which MohPage layout and CTA treatment should we ship for Phase 2?"
-winner: null
+winner: A
 tags: [moh, page, table, phase-2]
 phase: 02
 ---
@@ -34,6 +34,10 @@ Or from repo root: `.planning/sketches/001-moh-page-redesign/index.html`
 - Card vs full-bleed: where `MohTable` shell should live in React
 - Fit with existing table badges (`tracks`, `sort_random` / `sort_alpha`)
 - MOH identity without cloning VoiceRobots 1:1
+
+## Winner (2026-06-04)
+
+**Variant A — Safe glass card.** VoiceRobots-like layout: indigo badge, gradient title, primary shadow CTA, `Card` + section header «Список классов MOH», table inside card. `MohTable` keeps or receives card shell per planner; page owns header.
 
 ## Mapping to React (post-winner)
 
