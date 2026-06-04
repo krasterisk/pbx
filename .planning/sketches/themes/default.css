@@ -1,0 +1,43 @@
+/* Krasterisk v4 — dark UI tokens (approx. shadcn dark) */
+:root {
+  --color-bg: hsl(240, 10%, 3.9%);
+  --color-surface: hsl(240, 10%, 7%);
+  --color-surface-elevated: hsl(240, 10%, 9%);
+  --color-border: hsl(240, 3.7%, 15.9%);
+  --color-border-muted: hsl(240, 3.7%, 20%);
+  --color-text: hsl(0, 0%, 98%);
+  --color-text-muted: hsl(240, 5%, 64.9%);
+  --color-primary: hsl(239, 84%, 67%);
+  --color-indigo: #6366f1;
+  --color-indigo-muted: rgba(99, 102, 241, 0.12);
+  --color-danger: #ef4444;
+  --color-success: #22c55e;
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.25);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.45);
+  --shadow-primary: 0 8px 24px rgba(99, 102, 241, 0.25);
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background: var(--color-bg);
+  color: var(--color-text);
+  line-height: 1.5;
+}
