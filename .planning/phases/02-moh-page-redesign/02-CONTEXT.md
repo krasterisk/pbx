@@ -19,11 +19,11 @@
 ### Sketch strategy (3 variants)
 - **D-01:** Три варианта: **1 безопасный** (близко к паттерну VoiceRobots) + **2 смелее** по компоновке/визуалу.
 - **D-02:** Свой **MOH-стиль** в рамках `packages/frontend/.idea/ARCHITECTURE.md` — не копия 1:1 другой страницы.
-- **D-03:** Primary CTA «Создать класс» — **разный в каждом sketch**; финальный выбор при `sketch --wrap-up` / UI-SPEC.
+- **D-03:** Primary CTA «Создать класс» — **primary + `shadow-lg shadow-primary/20`** (sketch winner A, wrap-up 2026-06-04).
 - **D-04:** Акцент header-иконки: **indigo** badge (`bg-indigo-500/10`, иконка `text-indigo-500`) — как VoiceRobots / ServiceRequests.
 
 ### Page layout & table shell
-- **D-05:** Размещение `Card` (page vs `MohTable`) — **может отличаться между sketch-вариантами**; граница page/table фиксируется **победившим** вариантом.
+- **D-05:** **`Card` на уровне `MohPage`** (glass + header + `CardContent p-0`); `MohTable` — таблица/states без дублирующего outer Card (sketch A).
 - **D-06:** **CardHeader** с заголовком секции над таблицей — **да** (эталон: VoiceRobots `CardTitle`).
 - **D-07:** Объём рефакторинга `MohTable` (убрать outer Card или только classNames) — **planner по winner sketch**.
 - **D-08:** Поиск/фильтр в таблице — **не в phase 2** (backlog).
