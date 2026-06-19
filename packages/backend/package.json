@@ -22,8 +22,7 @@
     "test:ai:watch": "jest --testPathPattern=\"modules/ai-agents\" --watch --no-coverage",
     "db:migrate": "node migrations/run-migrations.js",
     "db:migrate:list": "node migrations/run-migrations.js --list",
-    "db:migrate:rollback": "node migrations/run-migrations.js --rollback",
-    "db:migrate:service-requests": "ts-node src/modules/service-requests/migrate-production-comment.ts"
+    "db:migrate:rollback": "node migrations/run-migrations.js --rollback"
   },
   "dependencies": {
     "@grpc/grpc-js": "^1.14.3",

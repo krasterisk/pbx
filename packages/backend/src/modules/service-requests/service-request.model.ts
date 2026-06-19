@@ -85,10 +85,7 @@ export class ServiceRequest extends Model {
   @Column({ type: DataType.TEXT, allowNull: true })
   declare comment: string | null;
 
-  /**
-   * Комментарий производства (внутренние заметки для производства).
-   * ALTER TABLE service_requests ADD COLUMN production_comment TEXT NULL AFTER comment;
-   */
+  /** Комментарий производства (внутренние заметки для производства). */
   @Column({ type: DataType.TEXT, allowNull: true })
   declare production_comment: string | null;
 
