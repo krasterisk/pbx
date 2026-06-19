@@ -526,14 +526,14 @@ export const QueueFormModal = () => {
                     <label className="text-sm font-medium text-muted-foreground">{t('queues.joinempty')}</label>
                     <InfoTooltip text={t('queues.joinemptyDesc')} />
                   </HStack>
-                  <MultiSelect value={joinempty} onChange={setJoinempty} options={emptyFlagOptions} placeholder={t('common.select')} />
+                  <MultiSelect value={joinempty ? joinempty.split(',').filter(Boolean) : []} onChange={(values) => setJoinempty(values.join(','))} options={emptyFlagOptions} placeholder={t('common.select')} />
                 </VStack>
                 <VStack gap="4">
                   <HStack gap="4" align="center">
                     <label className="text-sm font-medium text-muted-foreground">{t('queues.leavewhenempty')}</label>
                     <InfoTooltip text={t('queues.leavewhenemptyDesc')} />
                   </HStack>
-                  <MultiSelect value={leavewhenempty} onChange={setLeavewhenempty} options={emptyFlagOptions} placeholder={t('common.select')} />
+                  <MultiSelect value={leavewhenempty ? leavewhenempty.split(',').filter(Boolean) : []} onChange={(values) => setLeavewhenempty(values.join(','))} options={emptyFlagOptions} placeholder={t('common.select')} />
                 </VStack>
 
                 {/* MOH & Context */}

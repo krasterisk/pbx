@@ -17,10 +17,10 @@ export interface MultiSelectOption {
 }
 
 export interface MultiSelectProps {
-  /** Currently selected values (comma-separated string or array) */
-  value: string | string[];
-  /** Called with comma-separated string of selected values */
-  onChange: (value: string) => void;
+  /** Currently selected option values */
+  value: string[];
+  /** Called with the updated selection */
+  onChange: (value: string[]) => void;
   /** Available options */
   options: MultiSelectOption[];
   /** Placeholder text */
@@ -42,9 +42,7 @@ export const MultiSelect = memo(({ value, onChange, options, placeholder, classN
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
 
-  const selected: string[] = Array.isArray(value)
-    ? value
-    : value ? value.split(',').map(s => s.trim()).filter(Boolean) : [];
+  const selected = value;
 
   const updateDropdownPosition = useCallback(() => {
     if (isOpen && triggerRef.current) {
@@ -118,14 +116,14 @@ export const MultiSelect = memo(({ value, onChange, options, placeholder, classN
     const next = selected.includes(val)
       ? selected.filter(s => s !== val)
       : [...selected, val];
-    onChange(next.join(','));
+    onChange(next);
   }, [selected, onChange]);
 
   const remove = useCallback((val: string) => {
-    onChange(selected.filter(s => s !== val).join(','));
+    onChange(selected.filter(s => s !== val));
   }, [selected, onChange]);
 
-  const clearAll = useCallback(() => onChange(''), [onChange]);
+  const clearAll = useCallback(() => onChange([]), [onChange]);
 
   const getLabel = (val: string) => {
     const opt = options.find(o => o.value === val);

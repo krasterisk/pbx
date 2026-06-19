@@ -1,5 +1,10 @@
 import { Op } from 'sequelize';
-import { buildCallReceivedAtRange, parseCsvFilter, ServiceRequestsService } from './service-requests.service';
+import {
+  buildCallReceivedAtRange,
+  normalizeQueryFilterValues,
+  parseCsvFilter,
+  ServiceRequestsService,
+} from './service-requests.service';
 
 describe('buildCallReceivedAtRange', () => {
   it('builds inclusive datetime boundaries for YYYY-MM-DD params', () => {
@@ -20,6 +25,30 @@ describe('buildCallReceivedAtRange', () => {
     expect(range).not.toBeNull();
     expect(range![Op.lte]).toBe('2026-05-26 23:59:59');
     expect(range![Op.gte]).toBeUndefined();
+  });
+});
+
+describe('normalizeQueryFilterValues', () => {
+  it('keeps values with commas intact', () => {
+    expect(normalizeQueryFilterValues(['Запрос (Акт сверки, Счета)'])).toEqual([
+      'Запрос (Акт сверки, Счета)',
+    ]);
+  });
+
+  it('normalizes repeated query params', () => {
+    expect(normalizeQueryFilterValues(['КГО', 'РСО'])).toEqual(['КГО', 'РСО']);
+  });
+
+  it('treats a single string as one value', () => {
+    expect(normalizeQueryFilterValues('Запрос (Акт сверки, Счета)')).toEqual([
+      'Запрос (Акт сверки, Счета)',
+    ]);
+  });
+
+  it('returns undefined for empty values', () => {
+    expect(normalizeQueryFilterValues(undefined)).toBeUndefined();
+    expect(normalizeQueryFilterValues([])).toBeUndefined();
+    expect(normalizeQueryFilterValues(['', '  '])).toBeUndefined();
   });
 });
 
@@ -73,14 +102,21 @@ describe('ServiceRequestsService.findAll', () => {
   });
 
   it('applies Op.in for multi-value topic filter', async () => {
-    await service.findAll(1, { topic: 'КГО,РСО' });
+    await service.findAll(1, { topic: ['КГО', 'РСО'] });
 
     const where = findAndCountAll.mock.calls[0][0].where;
     expect(where.topic[Op.in]).toEqual(['КГО', 'РСО']);
   });
 
+  it('keeps topic values with commas as a single filter value', async () => {
+    await service.findAll(1, { topic: ['Запрос (Акт сверки, Счета)'] });
+
+    const where = findAndCountAll.mock.calls[0][0].where;
+    expect(where.topic).toBe('Запрос (Акт сверки, Счета)');
+  });
+
   it('applies Op.in for multi-value status filter', async () => {
-    await service.findAll(1, { status: 'new,in_progress' });
+    await service.findAll(1, { status: ['new', 'in_progress'] });
 
     const where = findAndCountAll.mock.calls[0][0].where;
     expect(where.request_status[Op.in]).toEqual(['new', 'in_progress']);

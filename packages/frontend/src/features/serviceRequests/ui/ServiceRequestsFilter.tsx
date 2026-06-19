@@ -24,8 +24,8 @@ interface ServiceRequestsFilterProps {
   onChange: (filters: Partial<ServiceRequestFilters>) => void;
 }
 
-function csvToArray(csv: string): string[] | undefined {
-  const items = csv.split(',').map((s) => s.trim()).filter(Boolean);
+function normalizeMultiSelectValues(values: string[]): string[] | undefined {
+  const items = values.map((s) => s.trim()).filter(Boolean);
   return items.length > 0 ? items : undefined;
 }
 
@@ -77,16 +77,16 @@ export const ServiceRequestsFilter = memo(({ filters, onChange }: ServiceRequest
     onChange({ search: e.target.value });
   }, [onChange]);
 
-  const handleStatusesChange = useCallback((csv: string) => {
-    onChange({ statuses: csvToArray(csv) });
+  const handleStatusesChange = useCallback((values: string[]) => {
+    onChange({ statuses: normalizeMultiSelectValues(values) });
   }, [onChange]);
 
-  const handleTopicsChange = useCallback((csv: string) => {
-    onChange({ topics: csvToArray(csv) });
+  const handleTopicsChange = useCallback((values: string[]) => {
+    onChange({ topics: normalizeMultiSelectValues(values) });
   }, [onChange]);
 
-  const handleZonesChange = useCallback((csv: string) => {
-    const nextZones = csvToArray(csv) || [];
+  const handleZonesChange = useCallback((values: string[]) => {
+    const nextZones = normalizeMultiSelectValues(values) || [];
     const nextDistricts = (filters.districts || []).filter((district) =>
       nextZones.length === 0 ||
       allDistricts.some((d) => d.district === district && nextZones.includes(d.territorial_zone)),
@@ -98,8 +98,8 @@ export const ServiceRequestsFilter = memo(({ filters, onChange }: ServiceRequest
     });
   }, [onChange, filters.districts, allDistricts]);
 
-  const handleDistrictsChange = useCallback((csv: string) => {
-    onChange({ districts: csvToArray(csv) });
+  const handleDistrictsChange = useCallback((values: string[]) => {
+    onChange({ districts: normalizeMultiSelectValues(values) });
   }, [onChange]);
 
   const clearFilters = useCallback(() => {

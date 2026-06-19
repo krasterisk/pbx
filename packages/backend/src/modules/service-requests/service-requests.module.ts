@@ -7,6 +7,7 @@ import { CcDistrict } from './cc-district.model';
 import { ServiceRequestsService } from './service-requests.service';
 import { ServiceRequestsController } from './service-requests.controller';
 import { ServiceRequestsPublicController } from './service-requests-public.controller';
+import { ServiceRequestsSchemaService } from './service-requests-schema.service';
 import { SmsModule } from '../sms/sms.module';
 import { CloudAdminModule } from '../cloud-admin/cloud-admin.module';
 
@@ -18,7 +19,7 @@ import { CloudAdminModule } from '../cloud-admin/cloud-admin.module';
     CloudAdminModule,
   ],
   controllers: [ServiceRequestsController, ServiceRequestsPublicController],
-  providers: [ServiceRequestsService],
+  providers: [ServiceRequestsService, ServiceRequestsSchemaService],
   exports: [ServiceRequestsService],
 })
 export class ServiceRequestsModule {}

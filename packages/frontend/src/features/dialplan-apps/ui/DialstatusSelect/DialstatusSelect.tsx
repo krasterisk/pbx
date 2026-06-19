@@ -48,9 +48,8 @@ export const DialstatusSelect = memo(({ selected, onChange, className }: Dialsta
 
   const normalizedValue = normalizeDialstatus(selected);
 
-  const handleChange = (csv: string) => {
-    const arr = csv ? csv.split(',').filter(Boolean) as DialStatus[] : [];
-    onChange(arr);
+  const handleChange = (values: string[]) => {
+    onChange(values as DialStatus[]);
   };
 
   return (

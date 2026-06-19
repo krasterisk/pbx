@@ -4,11 +4,11 @@ import type { IServiceRequest, IServiceRequestListResponse, IServiceRequestStats
 export interface ServiceRequestQueryParams {
   limit?: number;
   offset?: number;
-  status?: string;
-  district?: string;
-  topic?: string;
+  status?: string | string[];
+  district?: string | string[];
+  topic?: string | string[];
   search?: string;
-  territorial_zone?: string;
+  territorial_zone?: string | string[];
   dateFrom?: string;
   dateTo?: string;
 }

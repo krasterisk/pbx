@@ -27,7 +27,16 @@ export function buildCallReceivedAtRange(dateFrom?: string, dateTo?: string): Re
   return Object.getOwnPropertySymbols(range).length > 0 ? range : null;
 }
 
-/** Parse comma-separated query filter values (e.g. topic=a,b). */
+/** Parse repeated or single query filter values (values may contain commas). */
+export function normalizeQueryFilterValues(value?: string | string[]): string[] | undefined {
+  if (value == null) return undefined;
+  const items = (Array.isArray(value) ? value : [value])
+    .map((s) => String(s).trim())
+    .filter(Boolean);
+  return items.length > 0 ? items : undefined;
+}
+
+/** @deprecated Use repeated query params via normalizeQueryFilterValues */
 export function parseCsvFilter(value?: string): string[] | undefined {
   if (!value?.trim()) return undefined;
   const items = value.split(',').map((s) => s.trim()).filter(Boolean);
@@ -59,21 +68,21 @@ export class ServiceRequestsService {
     options?: {
       limit?: number;
       offset?: number;
-      status?: string;
-      district?: string;
-      topic?: string;
+      status?: string | string[];
+      district?: string | string[];
+      topic?: string | string[];
       search?: string;
-      territorial_zone?: string;
+      territorial_zone?: string | string[];
       dateFrom?: string;
       dateTo?: string;
     },
   ): Promise<{ rows: ServiceRequest[]; count: number }> {
     const where: any = { user_uid: userUid };
 
-    applyInFilter(where, 'request_status', parseCsvFilter(options?.status));
-    applyInFilter(where, 'district', parseCsvFilter(options?.district));
-    applyInFilter(where, 'topic', parseCsvFilter(options?.topic));
-    applyInFilter(where, 'territorial_zone', parseCsvFilter(options?.territorial_zone));
+    applyInFilter(where, 'request_status', normalizeQueryFilterValues(options?.status));
+    applyInFilter(where, 'district', normalizeQueryFilterValues(options?.district));
+    applyInFilter(where, 'topic', normalizeQueryFilterValues(options?.topic));
+    applyInFilter(where, 'territorial_zone', normalizeQueryFilterValues(options?.territorial_zone));
 
     const callReceivedAtRange = buildCallReceivedAtRange(options?.dateFrom, options?.dateTo);
     if (callReceivedAtRange) {
@@ -145,6 +154,7 @@ export class ServiceRequestsService {
     delete data.send_sms;
 
     await record.update(data);
+    await record.reload();
 
     // Отправка СМС если чекбокс активен и есть ответ по срокам
     if (sendSms && record.schedule_comment) {

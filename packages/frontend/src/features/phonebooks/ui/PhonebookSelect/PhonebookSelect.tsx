@@ -35,9 +35,8 @@ export const PhonebookSelect = memo(({ value, onChange, className }: PhonebookSe
     [phonebooks, t],
   );
 
-  const handleChange = (csv: string) => {
-    const uids = csv ? csv.split(',').filter(Boolean).map(Number) : [];
-    onChange(uids);
+  const handleChange = (values: string[]) => {
+    onChange(values.map(Number).filter(Boolean));
   };
 
   return (

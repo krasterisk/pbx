@@ -31,8 +31,8 @@ export const RoutesPage = () => {
     [contexts],
   );
 
-  const handleContextFilterChange = useCallback((csv: string) => {
-    const uids = csv ? csv.split(',').map(Number).filter(Boolean) : [];
+  const handleContextFilterChange = useCallback((values: string[]) => {
+    const uids = values.map(Number).filter(Boolean);
     dispatch(routesActions.setContextFilter(uids));
   }, [dispatch]);
 
