@@ -3,9 +3,10 @@ import { useTranslation } from 'react-i18next';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/shared/ui/Dialog';
-import { Button, Input, VStack, HStack } from '@/shared/ui';
+import { Button, Input, Textarea, VStack, HStack, Select, Text } from '@/shared/ui';
 import { InfoTooltip } from '@/shared/ui/Tooltip/Tooltip';
 import { useRecordPromptMutation } from '@/shared/api/endpoints/promptsApi';
+import { useGetEndpointsQuery } from '@/shared/api/endpoints/endpointApi';
 
 interface PromptRecordModalProps {
   isOpen: boolean;
@@ -15,16 +16,23 @@ interface PromptRecordModalProps {
 export function PromptRecordModal({ isOpen, onClose }: PromptRecordModalProps) {
   const { t } = useTranslation();
   const [recordPrompt, { isLoading }] = useRecordPromptMutation();
+  const { data: endpoints = [], isLoading: endpointsLoading, isError: endpointsError } =
+    useGetEndpointsQuery(undefined, { skip: !isOpen });
 
   const [exten, setExten] = useState('');
   const [comment, setComment] = useState('');
+  const [description, setDescription] = useState('');
   const [initiated, setInitiated] = useState(false);
 
   const handleRecord = async () => {
     if (!exten.trim() || !comment.trim()) return;
 
     try {
-      await recordPrompt({ exten: exten.trim(), comment: comment.trim() }).unwrap();
+      await recordPrompt({
+        exten: exten.trim(),
+        comment: comment.trim(),
+        description: description.trim() || undefined,
+      }).unwrap();
       setInitiated(true);
     } catch (err) {
       console.error('Record failed', err);
@@ -34,6 +42,7 @@ export function PromptRecordModal({ isOpen, onClose }: PromptRecordModalProps) {
   const handleClose = () => {
     setExten('');
     setComment('');
+    setDescription('');
     setInitiated(false);
     onClose();
   };
@@ -53,23 +62,55 @@ export function PromptRecordModal({ isOpen, onClose }: PromptRecordModalProps) {
               </label>
               <InfoTooltip text={t('promptsPage.record.extenHint', 'На указанный номер поступит вызов. При ответе будет предложено произнести фразу.')} />
             </HStack>
+            {endpointsError ? (
+              <Text variant="small" className="text-destructive">
+                {t('common.loadError', 'Ошибка загрузки')}
+              </Text>
+            ) : (
+              <Select
+                value={exten}
+                onChange={(e) => setExten(e.target.value)}
+                disabled={initiated || endpointsLoading}
+              >
+                <option value="" disabled>
+                  {endpointsLoading
+                    ? t('common.loading', 'Загрузка...')
+                    : t('promptsPage.record.extenSelect', 'Выберите абонента')}
+                </option>
+                {endpoints
+                  .filter((ep) => ep.extension?.trim())
+                  .map((ep) => (
+                    <option key={ep.id} value={ep.extension}>
+                      {ep.extension}
+                      {ep.callerid ? ` (${ep.callerid})` : ''}
+                    </option>
+                  ))}
+              </Select>
+            )}
+          </VStack>
+
+          <VStack gap="4">
+            <label className="text-sm font-medium text-muted-foreground">
+              {t('promptsPage.record.nameLabel', 'Название записи')} *
+            </label>
             <Input
-              placeholder="101"
-              value={exten}
-              onChange={e => setExten(e.target.value)}
+              placeholder={t('promptsPage.upload.namePlaceholder', 'Приветствие основное')}
+              value={comment}
+              onChange={e => setComment(e.target.value)}
               disabled={initiated}
             />
           </VStack>
 
           <VStack gap="4">
             <label className="text-sm font-medium text-muted-foreground">
-              {t('promptsPage.record.commentLabel', 'Название записи')} *
+              {t('promptsPage.record.descriptionLabel', 'Комментарий')}
             </label>
-            <Input
-              placeholder={t('promptsPage.upload.commentPlaceholder', 'Приветствие основное')}
-              value={comment}
-              onChange={e => setComment(e.target.value)}
+            <Textarea
+              placeholder={t('promptsPage.upload.descriptionPlaceholder', 'Комментарий')}
+              value={description}
+              onChange={e => setDescription(e.target.value)}
               disabled={initiated}
+              rows={2}
             />
           </VStack>
 

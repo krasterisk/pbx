@@ -10,11 +10,13 @@ export class Prompt extends Model {
   @Column({ type: DataType.STRING(50), allowNull: false })
   declare filename: string;
 
-  @Column({ type: DataType.STRING(128), allowNull: false, defaultValue: '' })
-  declare moh: string;
-
+  /** Название записи (отображаемое имя) */
   @Column({ type: DataType.STRING(128), allowNull: false, defaultValue: '' })
   declare comment: string;
+
+  /** Произвольный комментарий (колонка `moh` в legacy-схеме БД) */
+  @Column({ type: DataType.STRING(128), field: 'moh', allowNull: false, defaultValue: '' })
+  declare description: string;
 
   @Column({ type: DataType.INTEGER, allowNull: false, defaultValue: 0 })
   declare user_uid: number;

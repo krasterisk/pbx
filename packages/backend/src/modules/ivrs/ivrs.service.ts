@@ -1,7 +1,8 @@
 import { Injectable, NotFoundException, Logger, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import type { IIvrPhrase } from '@krasterisk/shared';
+import type { IIvrPhrase, IvrPromptsValidationEngine } from '@krasterisk/shared';
 import { Ivr } from './ivr.model';
+import { TtsEnginesService } from '../tts-engines/tts-engines.service';
 import { AsteriskDialplanUtils } from '../../shared/utils/dialplan.util';
 import {
   normalizeIvrPrompts,
@@ -15,12 +16,35 @@ export class IvrsService {
 
   constructor(
     @InjectModel(Ivr) private ivrModel: typeof Ivr,
+    private readonly ttsEnginesService: TtsEnginesService,
   ) {}
 
-  private normalizeAndValidatePrompts(raw: unknown): IIvrPhrase[] {
+  private async loadEnginesForPrompts(
+    prompts: IIvrPhrase[],
+    vpbxUserUid: number,
+  ): Promise<IvrPromptsValidationEngine[]> {
+    const engines: IvrPromptsValidationEngine[] = [];
+    for (const p of prompts) {
+      if (p.kind !== 'tts' || !p.engine_uid || p.engine_uid <= 0) continue;
+      if (engines.some((e) => e.uid === p.engine_uid)) continue;
+      const engine = await this.ttsEnginesService.findOne(p.engine_uid, vpbxUserUid);
+      engines.push({
+        uid: engine.uid,
+        type: engine.type,
+        settings: engine.settings,
+      });
+    }
+    return engines;
+  }
+
+  private async normalizeAndValidatePrompts(
+    raw: unknown,
+    vpbxUserUid: number,
+  ): Promise<IIvrPhrase[]> {
     const prompts = normalizeIvrPrompts(raw);
+    const engines = await this.loadEnginesForPrompts(prompts, vpbxUserUid);
     try {
-      assertIvrPromptsForSave(prompts);
+      assertIvrPromptsForSave(prompts, { engines });
     } catch (e) {
       if (e instanceof IvrPromptsValidationError) {
         throw new BadRequestException(e.message);
@@ -54,7 +78,7 @@ export class IvrsService {
 
   async create(data: Partial<Ivr>, vpbxUserUid: number): Promise<Ivr> {
     const prompts = data.prompts !== undefined
-      ? this.normalizeAndValidatePrompts(data.prompts)
+      ? await this.normalizeAndValidatePrompts(data.prompts, vpbxUserUid)
       : [];
 
     const created = await this.ivrModel.create({
@@ -73,7 +97,7 @@ export class IvrsService {
 
     const patch = { ...data } as Partial<Ivr>;
     if (data.prompts !== undefined) {
-      patch.prompts = this.normalizeAndValidatePrompts(data.prompts) as any;
+      patch.prompts = await this.normalizeAndValidatePrompts(data.prompts, vpbxUserUid) as any;
     }
 
     await ivr.update(patch);

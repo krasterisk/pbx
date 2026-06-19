@@ -89,4 +89,8 @@ export class BulkCreateEndpointDto {
   @IsOptional()
   @IsString()
   natProfile?: string;
+
+  @IsOptional()
+  @IsString()
+  department?: string;
 }

@@ -14,43 +14,8 @@
   gap: 0.75rem;
 }
 
-.promptItem {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-background);
-  transition: border-color 0.15s ease;
-
-  &:hover {
-    border-color: color-mix(in srgb, var(--color-primary) 50%, var(--color-border));
-  }
-}
-
-.promptIndex {
-  font-size: 0.7rem;
-  color: var(--color-muted-foreground);
-  font-weight: 600;
-  min-width: 20px;
-  text-align: center;
-}
-
-.promptName {
-  flex: 1;
-  font-size: 0.8125rem;
-  color: var(--color-foreground);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.trackActions {
-  display: flex;
-  align-items: center;
-  gap: 0.125rem;
-  flex-shrink: 0;
+.phraseList {
+  width: 100%;
 }
 
 .emptyState {
@@ -95,29 +60,6 @@
 
 .addBtn {
   flex-shrink: 0;
-}
-
-.deleteBtn:hover {
-  color: var(--color-destructive);
-}
-
-.badgeAudio,
-.badgeTts {
-  font-size: 0.65rem;
-  font-weight: 600;
-  padding: 0.125rem 0.375rem;
-  border-radius: var(--radius-sm);
-  flex-shrink: 0;
-}
-
-.badgeAudio {
-  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
-  color: var(--color-primary);
-}
-
-.badgeTts {
-  background: color-mix(in srgb, var(--color-chart-2, #8b5cf6) 15%, transparent);
-  color: var(--color-foreground);
 }
 
 .modeToggle {

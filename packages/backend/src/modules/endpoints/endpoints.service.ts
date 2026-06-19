@@ -1,4 +1,4 @@
-import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
+import { Injectable, ConflictException, NotFoundException, Inject } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { Op } from 'sequelize';
@@ -10,6 +10,7 @@ import { PsContact } from './ps-contact.model';
 import { ContextsService } from '../contexts/contexts.service';
 import { CreateEndpointDto, BulkCreateEndpointDto } from './dto/create-endpoint.dto';
 import { LoggerService } from '../logger/logger.service';
+import { REDIS_CLIENT } from '../redis/redis.module';
 
 /** NAT profile presets that auto-configure multiple PJSIP parameters */
 const NAT_PROFILES: Record<string, Partial<PsEndpoint>> = {
@@ -52,6 +53,10 @@ export interface BulkJob {
   error?: string;
 }
 
+const BULK_JOB_REDIS_PREFIX = 'endpoint-bulk-job:';
+const BULK_JOB_REDIS_TTL_SEC = 86400;
+const BULK_SYNC_THRESHOLD = 500;
+
 @Injectable()
 export class EndpointsService {
   private activeJobs = new Map<string, BulkJob>();
@@ -63,6 +68,7 @@ export class EndpointsService {
     private sequelize: Sequelize,
     private contextsService: ContextsService,
     private loggerService: LoggerService,
+    @Inject(REDIS_CLIENT) private readonly redis: any,
   ) {}
 
   /** Build globally unique SIP ID: e{extension}_{vpbxUserUid} */
@@ -103,6 +109,16 @@ export class EndpointsService {
     return match ? match[1] : sipId;
   }
 
+  /** Numeric-aware extension sort: 114 < 1139 < 1140 */
+  private compareExtensions(a: string, b: string): number {
+    const numA = parseInt(a, 10);
+    const numB = parseInt(b, 10);
+    const aIsNum = !isNaN(numA) && String(numA) === a;
+    const bIsNum = !isNaN(numB) && String(numB) === b;
+    if (aIsNum && bIsNum) return numA - numB;
+    return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+  }
+
   /**
    * Strip tenant ID suffix from context for display.
    * e.g. 'sip-out0' with tenantId=0 → 'sip-out'
@@ -116,13 +132,38 @@ export class EndpointsService {
     return context;
   }
 
+  private async persistJob(job: BulkJob): Promise<void> {
+    this.activeJobs.set(job.id, job);
+    await this.redis.set(
+      `${BULK_JOB_REDIS_PREFIX}${job.id}`,
+      JSON.stringify(job),
+      'EX',
+      BULK_JOB_REDIS_TTL_SEC,
+    );
+  }
+
+  private async resolveJob(jobId: string): Promise<BulkJob | undefined> {
+    const cached = this.activeJobs.get(jobId);
+    if (cached) return cached;
+
+    const raw = await this.redis.get(`${BULK_JOB_REDIS_PREFIX}${jobId}`);
+    if (!raw) return undefined;
+
+    try {
+      const job = JSON.parse(raw) as BulkJob;
+      this.activeJobs.set(jobId, job);
+      return job;
+    } catch {
+      return undefined;
+    }
+  }
+
   /**
    * Get all endpoints for a tenant, enriched with registration status
    */
   async findAll(vpbxUserUid: number) {
     const endpoints = await this.endpointModel.findAll({
       where: { tenantid: String(vpbxUserUid) },
-      order: [['id', 'ASC']],
     });
 
     // Get active contacts (registration status) for all endpoints
@@ -159,7 +200,8 @@ export class EndpointsService {
     const aorMap = new Map<string, any>();
     aors.forEach((a) => aorMap.set(a.id, a));
 
-    return endpoints.map((ep) => {
+    return endpoints
+      .map((ep) => {
       const contact = contactMap.get(ep.id);
       const auth = authMap.get(ep.id);
       const aor = aorMap.get(ep.id);
@@ -188,7 +230,8 @@ export class EndpointsService {
         contactUri: contact?.uri || null,
         lastRegistered,
       };
-    });
+    })
+      .sort((a, b) => this.compareExtensions(a.extension, b.extension));
   }
 
   /**
@@ -373,7 +416,7 @@ export class EndpointsService {
 
     await this.contextsService.ensureDefaults(vpbxUserUid);
 
-    if (extensionsArray.length <= 200) {
+    if (extensionsArray.length <= BULK_SYNC_THRESHOLD) {
       // Sync processing with internal chunking to avoid transaction timeouts
       const created: string[] = [];
       const skipped: string[] = [];
@@ -407,7 +450,7 @@ export class EndpointsService {
         skipped: [],
         status: 'pending',
       };
-      this.activeJobs.set(jobId, job);
+      await this.persistJob(job);
       
       // Kick off background job without awaiting
       setImmediate(() => this.runBackgroundBulkJob(jobId, extensionsArray, dto, vpbxUserUid, userId));
@@ -416,8 +459,8 @@ export class EndpointsService {
     }
   }
 
-  getBulkJobStatus(jobId: string): BulkJob {
-    const job = this.activeJobs.get(jobId);
+  async getBulkJobStatus(jobId: string): Promise<BulkJob> {
+    const job = await this.resolveJob(jobId);
     if (!job) throw new NotFoundException('Job not found');
     return job;
   }
@@ -437,6 +480,7 @@ export class EndpointsService {
     if (!job) return;
 
     job.status = 'processing';
+    await this.persistJob(job);
     const chunkSize = 50;
 
     try {
@@ -445,9 +489,11 @@ export class EndpointsService {
         
         await this.processBulkChunk(chunk, dto, vpbxUserUid, job.created, job.skipped);
         job.processed += chunk.length;
+        await this.persistJob(job);
       }
       
       job.status = 'completed';
+      await this.persistJob(job);
       
       if (userId) {
         await this.loggerService.logAction(
@@ -463,8 +509,9 @@ export class EndpointsService {
       this.loggerService.logAction(userId || 0, 'bulk_create_error', 'endpoint', null, vpbxUserUid, `Async Bulk failed: ${error.message}`);
       job.status = 'error';
       job.error = error.message;
+      await this.persistJob(job);
     } finally {
-      // Garbage collect after 1 hour
+      // Drop from in-memory cache after 1 hour; Redis keeps status for 24h
       setTimeout(() => {
         this.activeJobs.delete(jobId);
       }, 3600_000);
@@ -518,6 +565,7 @@ export class EndpointsService {
             transport: dto.transport || null,
             dtmf_mode: 'auto',
             language: 'ru',
+            department: dto.department || '',
             ...(natSettings as any),
           },
           { transaction: t },

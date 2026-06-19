@@ -23,6 +23,21 @@
   }
 }
 
+.editBtn {
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  color: var(--muted-foreground);
+  border-radius: 4px;
+  line-height: 0;
+  transition: color 0.15s;
+
+  &:hover {
+    color: var(--primary);
+  }
+}
+
 .deleteBtn {
   background: none;
   border: none;

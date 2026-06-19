@@ -153,7 +153,7 @@ export function ServiceRequestModal({ isOpen, onClose, record }: ServiceRequestM
         setComment(record.comment || '');
         setRequestStatus(record.request_status || 'new');
         setScheduleComment(record.schedule_comment || '');
-        setProductionComment('');
+        setProductionComment(record.production_comment || '');
       } else {
         setCounterpartyType('individual');
         setCounterpartyName('');
@@ -217,6 +217,7 @@ export function ServiceRequestModal({ isOpen, onClose, record }: ServiceRequestM
         topic,
         comment,
         request_status: requestStatus as any,
+        production_comment: productionComment,
         schedule_comment: scheduleComment,
       };
 

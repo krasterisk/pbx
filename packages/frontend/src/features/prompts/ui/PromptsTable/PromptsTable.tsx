@@ -1,12 +1,15 @@
 import { useState, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'react-toastify';
 import { ColumnDef } from '@tanstack/react-table';
-import { Upload, Phone, Volume2, Play, Square, Trash2, Loader2 } from 'lucide-react';
+import { Volume2, Play, Square, Trash2, Loader2, Pencil } from 'lucide-react';
 import { Button, DataTable, Card, CardHeader, CardContent, HStack } from '@/shared/ui';
 import { IPrompt } from '@/entities/prompt';
 import { useGetPromptsQuery, useDeletePromptMutation, useBulkDeletePromptsMutation } from '@/shared/api/endpoints/promptsApi';
 import { PromptUploadModal } from '../PromptUploadModal/PromptUploadModal';
 import { PromptRecordModal } from '../PromptRecordModal/PromptRecordModal';
+import { PromptEditModal } from '../PromptEditModal/PromptEditModal';
+import { PromptSynthesizeModal } from '../PromptSynthesizeModal/PromptSynthesizeModal';
 import cls from './PromptsTable.module.scss';
 import { useAppDispatch, useAppSelector } from '@/shared/hooks/useAppStore';
 import { promptsActions } from '../../model/slice/promptsSlice';
@@ -39,12 +42,23 @@ export function PromptsTable() {
     }
 
     const audio = new Audio(`/api/prompts/${prompt.uid}/stream`);
-    audio.onended = () => setPlayingId(null);
-    audio.onerror = () => setPlayingId(null);
-    audio.play().catch(() => setPlayingId(null));
+    audio.onended = () => {
+      setPlayingId(null);
+      audioRef.current = null;
+    };
+    audio.onerror = () => {
+      setPlayingId(null);
+      audioRef.current = null;
+      toast.error(t('promptsPage.playError', 'Не удалось воспроизвести запись'));
+    };
     audioRef.current = audio;
     setPlayingId(prompt.uid);
-  }, [playingId]);
+    audio.play().catch(() => {
+      setPlayingId(null);
+      audioRef.current = null;
+      toast.error(t('promptsPage.playError', 'Не удалось воспроизвести запись'));
+    });
+  }, [playingId, t]);
 
   const handleDelete = useCallback(async (prompt: IPrompt) => {
     if (!window.confirm(t('promptsPage.confirmDelete', { name: prompt.comment || prompt.filename }))) return;
@@ -53,25 +67,34 @@ export function PromptsTable() {
 
   const columns: ColumnDef<IPrompt>[] = [
     {
-      accessorKey: 'uid',
+      id: 'rowNumber',
       header: '№',
-      size: 60,
+      size: 56,
+      cell: ({ row }) => row.index + 1,
     },
     {
       accessorKey: 'comment',
-      header: t('promptsPage.comment', 'Название'),
+      header: t('promptsPage.name', 'Название'),
       cell: ({ row }) => row.original.comment || row.original.filename,
     },
     {
-      accessorKey: 'moh',
-      header: t('promptsPage.moh', 'MOH'),
-      size: 120,
-      cell: ({ row }) => row.original.moh || '—',
+      id: 'source_type',
+      header: t('promptsPage.type.column', 'Тип'),
+      size: 110,
+      cell: ({ row }) =>
+        row.original.source_type === 'tts'
+          ? t('promptsPage.type.tts', 'Синтез речи')
+          : t('promptsPage.type.file', 'Аудиофайл'),
+    },
+    {
+      accessorKey: 'description',
+      header: t('promptsPage.description', 'Комментарий'),
+      cell: ({ row }) => row.original.description?.trim() || '',
     },
     {
       id: 'actions',
       header: t('common.actions', 'Действия'),
-      size: 100,
+      size: 120,
       cell: ({ row }) => {
         const prompt = row.original;
         const isPlaying = playingId === prompt.uid;
@@ -84,6 +107,14 @@ export function PromptsTable() {
               title={t('promptsPage.play', 'Прослушать')}
             >
               {isPlaying ? <Square size={16} /> : <Play size={16} />}
+            </button>
+            <button
+              type="button"
+              className={cls.editBtn}
+              onClick={() => dispatch(promptsActions.openEditModal(prompt))}
+              title={t('common.edit', 'Редактировать')}
+            >
+              <Pencil size={16} />
             </button>
             <button
               type="button"
@@ -118,7 +149,7 @@ export function PromptsTable() {
           <HStack gap="8" align="center">
             <Volume2 className="w-5 h-5 text-primary" />
             <span className="font-semibold text-lg">
-              {t('prompts.count', { count: prompts.length, defaultValue: `Всего: ${prompts.length}` })}
+              {t('promptsPage.count', { count: prompts.length, defaultValue: `Записей: ${prompts.length}` })}
             </span>
           </HStack>
           <HStack gap="12" align="center" className="w-full sm:w-auto">
@@ -154,8 +185,18 @@ export function PromptsTable() {
       />
       </CardContent>
 
-      <PromptUploadModal isOpen={isModalOpen && modalMode === 'upload'} onClose={() => dispatch(promptsActions.closeModal())} />
-      <PromptRecordModal isOpen={isModalOpen && modalMode === 'record'} onClose={() => dispatch(promptsActions.closeModal())} />
+      {isModalOpen && modalMode === 'upload' && (
+        <PromptUploadModal isOpen onClose={() => dispatch(promptsActions.closeModal())} />
+      )}
+      {isModalOpen && modalMode === 'record' && (
+        <PromptRecordModal isOpen onClose={() => dispatch(promptsActions.closeModal())} />
+      )}
+      {isModalOpen && modalMode === 'edit' && (
+        <PromptEditModal isOpen onClose={() => dispatch(promptsActions.closeModal())} />
+      )}
+      {isModalOpen && modalMode === 'synthesize' && (
+        <PromptSynthesizeModal isOpen onClose={() => dispatch(promptsActions.closeModal())} />
+      )}
     </Card>
   );
 }

@@ -1,12 +1,10 @@
-export interface IPrompt {
-  uid: number;
-  filename: string;
-  moh: string;
-  comment: string;
-  user_uid: number;
-}
+export type {
+  IPrompt,
+  IPromptTtsMeta,
+  PromptSourceType,
+} from '@krasterisk/shared';
 
 export interface IPromptCreate {
   comment: string;
-  moh?: string;
+  description?: string;
 }

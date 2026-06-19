@@ -144,18 +144,21 @@ export const MultiSelect = memo(({ value, onChange, options, placeholder, classN
           {selected.length === 0 && (
             <span className={cls.placeholder}>{placeholder || 'Select...'}</span>
           )}
-          {selected.map(val => (
-            <span key={val} className={cls.tag}>
-              {getLabel(val)}
-              <button
-                type="button"
-                className={cls.tagRemove}
-                onClick={e => { e.stopPropagation(); remove(val); }}
-              >
-                <X className="w-3 h-3" />
-              </button>
-            </span>
-          ))}
+          {selected.map(val => {
+            const label = getLabel(val);
+            return (
+              <span key={val} className={cls.tag}>
+                <span className={cls.tagLabel} title={label}>{label}</span>
+                <button
+                  type="button"
+                  className={cls.tagRemove}
+                  onClick={e => { e.stopPropagation(); remove(val); }}
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            );
+          })}
         </div>
         <div className={cls.actions}>
           {selected.length > 0 && (

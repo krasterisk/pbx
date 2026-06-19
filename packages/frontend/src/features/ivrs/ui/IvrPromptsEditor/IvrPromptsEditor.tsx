@@ -1,24 +1,50 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
-import { ChevronUp, ChevronDown, Trash2, Plus, Music, Volume2, Mic } from 'lucide-react';
-import type { IIvrPhrase, IIvrPhraseTtsSettings } from '@krasterisk/shared';
+import { Plus, Music, Volume2, Mic } from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { getIvrPromptsValidationIssues, type IIvrPhrase, type IIvrPhraseTtsSettings } from '@krasterisk/shared';
+import { getPhraseValidationMessage } from '../../lib/ivrPromptsValidation';
 import { useGetPromptsQuery } from '@/shared/api/endpoints/promptsApi';
 import { useGetTtsEnginesQuery } from '@/shared/api/endpoints/ttsEnginesApi';
 import { usePreviewIvrTtsMutation } from '@/shared/api/endpoints/ivrsApi';
 import { Button, Select, Text, Textarea } from '@/shared/ui';
 import { VStack, Flex, HStack } from '@/shared/ui/Stack';
 import { IvrPhraseTtsFields } from '../IvrPhraseTtsFields/IvrPhraseTtsFields';
+import { SortableIvrPhraseItem } from '../SortableIvrPhraseItem/SortableIvrPhraseItem';
 import cls from './IvrPromptsEditor.module.scss';
 
 type AddMode = 'audio' | 'tts';
 
+function newPhraseId(): string {
+  return `ivr-ph-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
 interface IvrPromptsEditorProps {
   value: IIvrPhrase[];
   onChange: (prompts: IIvrPhrase[]) => void;
+  invalidPhraseIndexes?: number[];
 }
 
-export function IvrPromptsEditor({ value, onChange }: IvrPromptsEditorProps) {
+export function IvrPromptsEditor({
+  value,
+  onChange,
+  invalidPhraseIndexes = [],
+}: IvrPromptsEditorProps) {
   const { t } = useTranslation();
   const { data: allPrompts = [] } = useGetPromptsQuery();
   const { data: engines = [] } = useGetTtsEnginesQuery();
@@ -29,50 +55,81 @@ export function IvrPromptsEditor({ value, onChange }: IvrPromptsEditorProps) {
   const [ttsText, setTtsText] = useState('');
   const [ttsEngineUid, setTtsEngineUid] = useState('');
   const [ttsSettings, setTtsSettings] = useState<IIvrPhraseTtsSettings>({});
+  const [phraseIds, setPhraseIds] = useState<string[]>([]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const selectedEngine = engines.find((e) => String(e.uid) === ttsEngineUid) ?? null;
+
+  useEffect(() => {
+    setPhraseIds((prev) => {
+      if (value.length === 0) return [];
+      if (prev.length === value.length) return prev;
+      return value.map((_, i) => prev[i] ?? newPhraseId());
+    });
+  }, [value.length]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
 
   const getPromptLabel = (filename: string): string => {
     const found = allPrompts.find((p) => p.filename === filename);
     return found?.comment || filename;
   };
 
-  const getEngineName = (uid: number): string => {
-    return engines.find((e) => e.uid === uid)?.name || `#${uid}`;
-  };
-
-  const summarizeTts = (phrase: Extract<IIvrPhrase, { kind: 'tts' }>): string => {
-    const parts: string[] = [];
-    if (phrase.settings?.voice) parts.push(phrase.settings.voice);
-    if (phrase.settings?.speed) parts.push(`${phrase.settings.speed}`);
-    if (phrase.settings?.speaking_rate) parts.push(`${phrase.settings.speaking_rate}`);
-    return parts.length ? parts.join(', ') : t('ivrs.prompts.engineDefaults', 'настройки движка');
-  };
+  const updatePhrase = useCallback(
+    (index: number, phrase: IIvrPhrase) => {
+      const copy = [...value];
+      copy[index] = phrase;
+      onChange(copy);
+    },
+    [value, onChange],
+  );
 
   const handleAddAudio = () => {
     if (!selectedPrompt) return;
     onChange([...value, { kind: 'audio', filename: selectedPrompt }]);
+    setPhraseIds((ids) => [...ids, newPhraseId()]);
     setSelectedPrompt('');
   };
 
+  const engineOptions = engines.map((e) => ({
+    uid: e.uid,
+    type: e.type,
+    settings: e.settings,
+  }));
+
   const handleAddTts = () => {
     const engineUid = parseInt(ttsEngineUid, 10);
-    if (!ttsText.trim() || !engineUid) {
-      toast.warning(t('ivrs.prompts.ttsRequired', 'Укажите текст и TTS-движок'));
+    const settings = Object.keys(ttsSettings).length ? ttsSettings : undefined;
+    const draft: IIvrPhrase = {
+      kind: 'tts',
+      text: ttsText.trim(),
+      engine_uid: engineUid || 0,
+      settings,
+    };
+    const issues = getIvrPromptsValidationIssues([draft], { engines: engineOptions });
+    if (issues.length > 0) {
+      toast.error(getPhraseValidationMessage(issues[0], t));
       return;
     }
-    const settings = Object.keys(ttsSettings).length ? ttsSettings : undefined;
-    onChange([
-      ...value,
-      { kind: 'tts', text: ttsText.trim(), engine_uid: engineUid, settings },
-    ]);
+    onChange([...value, draft]);
+    setPhraseIds((ids) => [...ids, newPhraseId()]);
     setTtsText('');
     setTtsEngineUid('');
     setTtsSettings({});
   };
 
-  const handlePreview = async () => {
+  const playPreviewBlob = async (blob: Blob) => {
+    const url = URL.createObjectURL(blob);
+    if (audioRef.current) {
+      audioRef.current.src = url;
+      await audioRef.current.play();
+    }
+  };
+
+  const handlePreviewNew = async () => {
     const engineUid = parseInt(ttsEngineUid, 10);
     if (!ttsText.trim() || !engineUid) {
       toast.warning(t('ivrs.prompts.ttsRequired', 'Укажите текст и TTS-движок'));
@@ -84,11 +141,30 @@ export function IvrPromptsEditor({ value, onChange }: IvrPromptsEditorProps) {
         engine_uid: engineUid,
         settings: Object.keys(ttsSettings).length ? ttsSettings : undefined,
       }).unwrap();
-      const url = URL.createObjectURL(blob);
-      if (audioRef.current) {
-        audioRef.current.src = url;
-        await audioRef.current.play();
-      }
+      await playPreviewBlob(blob);
+    } catch (err: any) {
+      toast.error(
+        err?.data?.message || t('ivrs.prompts.previewError', 'Не удалось синтезировать фразу'),
+      );
+    }
+  };
+
+  const handlePreviewRow = async (
+    text: string,
+    engineUid: number,
+    settings?: IIvrPhraseTtsSettings,
+  ) => {
+    if (!text.trim() || !engineUid) {
+      toast.warning(t('ivrs.prompts.ttsRequired', 'Укажите текст и TTS-движок'));
+      return;
+    }
+    try {
+      const blob = await previewTts({
+        text: text.trim(),
+        engine_uid: engineUid,
+        settings,
+      }).unwrap();
+      await playPreviewBlob(blob);
     } catch (err: any) {
       toast.error(
         err?.data?.message || t('ivrs.prompts.previewError', 'Не удалось синтезировать фразу'),
@@ -98,26 +174,29 @@ export function IvrPromptsEditor({ value, onChange }: IvrPromptsEditorProps) {
 
   const handleRemove = (index: number) => {
     onChange(value.filter((_, i) => i !== index));
+    setPhraseIds((ids) => ids.filter((_, i) => i !== index));
   };
 
-  const handleMoveUp = (index: number) => {
-    if (index === 0) return;
-    const copy = [...value];
-    [copy[index - 1], copy[index]] = [copy[index], copy[index - 1]];
-    onChange(copy);
-  };
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
 
-  const handleMoveDown = (index: number) => {
-    if (index >= value.length - 1) return;
-    const copy = [...value];
-    [copy[index], copy[index + 1]] = [copy[index + 1], copy[index]];
-    onChange(copy);
+    const oldIndex = phraseIds.indexOf(String(active.id));
+    const newIndex = phraseIds.indexOf(String(over.id));
+    if (oldIndex < 0 || newIndex < 0) return;
+
+    onChange(arrayMove(value, oldIndex, newIndex));
+    setPhraseIds((ids) => arrayMove(ids, oldIndex, newIndex));
   };
 
   const usedAudioFilenames = new Set(
     value.filter((p): p is Extract<IIvrPhrase, { kind: 'audio' }> => p.kind === 'audio').map((p) => p.filename),
   );
   const availablePrompts = allPrompts.filter((p) => !usedAudioFilenames.has(p.filename));
+
+  const sortableIds = phraseIds.length === value.length
+    ? phraseIds
+    : value.map((_, i) => phraseIds[i] ?? newPhraseId());
 
   return (
     <div className={cls.sectionPanel}>
@@ -135,59 +214,34 @@ export function IvrPromptsEditor({ value, onChange }: IvrPromptsEditorProps) {
           </VStack>
         )}
 
-        {value.map((phrase, index) => (
-          <Flex key={`${phrase.kind}-${index}`} align="center" className={cls.promptItem}>
-            <Text as="span" className={cls.promptIndex}>
-              {index + 1}
-            </Text>
-            <span
-              className={
-                phrase.kind === 'tts' ? cls.badgeTts : cls.badgeAudio
-              }
-            >
-              {phrase.kind === 'tts'
-                ? t('ivrs.prompts.badgeTts', 'TTS')
-                : t('ivrs.prompts.badgeAudio', 'Аудио')}
-            </span>
-            <Text as="span" className={cls.promptName}>
-              {phrase.kind === 'audio'
-                ? getPromptLabel(phrase.filename)
-                : `${phrase.text.slice(0, 80)}${phrase.text.length > 80 ? '…' : ''} · ${getEngineName(phrase.engine_uid)} · ${summarizeTts(phrase)}`}
-            </Text>
-            <HStack gap="0" className={cls.trackActions}>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={() => handleMoveUp(index)}
-                disabled={index === 0}
-                title={t('common.moveUp', 'Вверх')}
-              >
-                <ChevronUp size={14} />
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={() => handleMoveDown(index)}
-                disabled={index >= value.length - 1}
-                title={t('common.moveDown', 'Вниз')}
-              >
-                <ChevronDown size={14} />
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className={cls.deleteBtn}
-                onClick={() => handleRemove(index)}
-                title={t('common.delete', 'Удалить')}
-              >
-                <Trash2 size={14} />
-              </Button>
-            </HStack>
-          </Flex>
-        ))}
+        {value.length > 0 && (
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
+              <VStack gap="8" className={cls.phraseList}>
+                {value.map((phrase, index) => (
+                  <SortableIvrPhraseItem
+                    key={sortableIds[index]}
+                    id={sortableIds[index]}
+                    index={index}
+                    phrase={phrase}
+                    engines={engines}
+                    engineOptions={engineOptions}
+                    getPromptLabel={getPromptLabel}
+                    onUpdate={updatePhrase}
+                    onRemove={handleRemove}
+                    onPreviewTts={handlePreviewRow}
+                    isPreviewLoading={isPreviewLoading}
+                    hasError={invalidPhraseIndexes.includes(index)}
+                  />
+                ))}
+              </VStack>
+            </SortableContext>
+          </DndContext>
+        )}
 
         <div className={cls.addSection}>
           <HStack gap="8" className={cls.modeToggle}>
@@ -258,7 +312,7 @@ export function IvrPromptsEditor({ value, onChange }: IvrPromptsEditorProps) {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={handlePreview}
+                  onClick={handlePreviewNew}
                   disabled={isPreviewLoading || !ttsText.trim() || !ttsEngineUid}
                 >
                   {t('ivrs.prompts.preview', 'Прослушать')}

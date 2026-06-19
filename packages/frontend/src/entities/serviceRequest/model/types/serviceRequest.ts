@@ -31,6 +31,7 @@ export interface IServiceRequest {
   // Суть обращения
   topic: string | null;
   comment: string | null;
+  production_comment: string | null;
 
   // Исполнение
   schedule_comment: string | null;

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Dialog,
@@ -9,10 +9,12 @@ import {
   Button,
 } from '@/shared/ui';
 import { VStack } from '@/shared/ui/Stack';
-import { normalizeIvrPrompts, type IIvrPhrase } from '@krasterisk/shared';
+import { getIvrPromptsValidationIssues, normalizeIvrPrompts, type IIvrPhrase } from '@krasterisk/shared';
 import { IIvr, IIvrMenuItem } from '@/entities/ivr';
 import { toast } from 'react-toastify';
 import { useCreateIvrMutation, useUpdateIvrMutation } from '@/shared/api/endpoints/ivrsApi';
+import { useGetTtsEnginesQuery } from '@/shared/api/endpoints/ttsEnginesApi';
+import { getPhraseValidationMessage } from '../../lib/ivrPromptsValidation';
 import { IvrMenuItemsEditor } from '../IvrMenuItemsEditor/IvrMenuItemsEditor';
 import { IvrPromptsEditor } from '../IvrPromptsEditor/IvrPromptsEditor';
 import { IvrMainTab } from '../IvrMainTab';
@@ -40,6 +42,21 @@ export function IvrFormModal({ isOpen, onClose, ivr, mode = ivr ? 'edit' : 'crea
 
   const [menuItems, setMenuItems] = useState<IIvrMenuItem[]>([]);
   const [prompts, setPrompts] = useState<IIvrPhrase[]>([]);
+  const [invalidPhraseIndexes, setInvalidPhraseIndexes] = useState<number[]>([]);
+  const { data: ttsEngines = [] } = useGetTtsEnginesQuery();
+
+  const phraseValidationIssues = useMemo(
+    () => getIvrPromptsValidationIssues(prompts, {
+      engines: ttsEngines.map((e) => ({
+        uid: e.uid,
+        type: e.type,
+        settings: e.settings,
+      })),
+    }),
+    [prompts, ttsEngines],
+  );
+
+  const canSave = Boolean(name.trim()) && phraseValidationIssues.length === 0;
 
   useEffect(() => {
     if ((mode === 'edit' || mode === 'copy') && ivr) {
@@ -64,7 +81,20 @@ export function IvrFormModal({ isOpen, onClose, ivr, mode = ivr ? 'edit' : 'crea
   }, [ivr, isOpen, mode]);
 
   const onSubmit = async () => {
-    if (!name.trim()) return;
+    if (!name.trim()) {
+      toast.warning(t('ivrs.validation.nameRequired', 'Укажите название IVR'));
+      setActiveTab('main');
+      return;
+    }
+
+    if (phraseValidationIssues.length > 0) {
+      setInvalidPhraseIndexes(phraseValidationIssues.map((i) => i.index));
+      toast.error(getPhraseValidationMessage(phraseValidationIssues[0], t));
+      setActiveTab('sounds_prompts');
+      return;
+    }
+
+    setInvalidPhraseIndexes([]);
 
     const payload = {
       name,
@@ -147,7 +177,15 @@ export function IvrFormModal({ isOpen, onClose, ivr, mode = ivr ? 'edit' : 'crea
           )}
 
           {activeTab === 'sounds_prompts' && (
-            <IvrPromptsEditor value={prompts} onChange={setPrompts} />
+            <IvrPromptsEditor
+              key={ivr?.uid ?? `new-${mode}`}
+              value={prompts}
+              onChange={(next) => {
+                setPrompts(next);
+                setInvalidPhraseIndexes([]);
+              }}
+              invalidPhraseIndexes={invalidPhraseIndexes}
+            />
           )}
 
           {activeTab === 'routes' && (
@@ -159,7 +197,9 @@ export function IvrFormModal({ isOpen, onClose, ivr, mode = ivr ? 'edit' : 'crea
           <Button variant="outline" onClick={onClose}>
             {t('common.cancel', 'Отмена')}
           </Button>
-          <Button onClick={onSubmit}>{t('common.save', 'Сохранить')}</Button>
+          <Button onClick={onSubmit} disabled={!canSave}>
+            {t('common.save', 'Сохранить')}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

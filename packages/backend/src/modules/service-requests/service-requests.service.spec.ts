@@ -1,5 +1,5 @@
 import { Op } from 'sequelize';
-import { buildCallReceivedAtRange, ServiceRequestsService } from './service-requests.service';
+import { buildCallReceivedAtRange, parseCsvFilter, ServiceRequestsService } from './service-requests.service';
 
 describe('buildCallReceivedAtRange', () => {
   it('builds inclusive datetime boundaries for YYYY-MM-DD params', () => {
@@ -20,6 +20,18 @@ describe('buildCallReceivedAtRange', () => {
     expect(range).not.toBeNull();
     expect(range![Op.lte]).toBe('2026-05-26 23:59:59');
     expect(range![Op.gte]).toBeUndefined();
+  });
+});
+
+describe('parseCsvFilter', () => {
+  it('splits comma-separated values and trims whitespace', () => {
+    expect(parseCsvFilter('КГО, РСО')).toEqual(['КГО', 'РСО']);
+  });
+
+  it('returns undefined for empty or missing values', () => {
+    expect(parseCsvFilter(undefined)).toBeUndefined();
+    expect(parseCsvFilter('')).toBeUndefined();
+    expect(parseCsvFilter(' , ')).toBeUndefined();
   });
 });
 
@@ -58,5 +70,19 @@ describe('ServiceRequestsService.findAll', () => {
     const where = findAndCountAll.mock.calls[0][0].where;
     expect(where.call_received_at).toBeDefined();
     expect(where[Op.or]).toBeDefined();
+  });
+
+  it('applies Op.in for multi-value topic filter', async () => {
+    await service.findAll(1, { topic: 'КГО,РСО' });
+
+    const where = findAndCountAll.mock.calls[0][0].where;
+    expect(where.topic[Op.in]).toEqual(['КГО', 'РСО']);
+  });
+
+  it('applies Op.in for multi-value status filter', async () => {
+    await service.findAll(1, { status: 'new,in_progress' });
+
+    const where = findAndCountAll.mock.calls[0][0].where;
+    expect(where.request_status[Op.in]).toEqual(['new', 'in_progress']);
   });
 });

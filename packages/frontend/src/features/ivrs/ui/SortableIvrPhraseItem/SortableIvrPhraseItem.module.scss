@@ -1,0 +1,135 @@
+.promptItem {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-background);
+  transition: border-color 0.15s ease;
+
+  &:hover {
+    border-color: color-mix(in srgb, var(--color-primary) 50%, var(--color-border));
+  }
+}
+
+.promptItemDragging {
+  border-color: var(--color-primary);
+}
+
+.promptItemInvalid {
+  border-color: var(--color-destructive);
+
+  &:hover {
+    border-color: var(--color-destructive);
+  }
+}
+
+.promptItemTts {
+  padding: 0.5rem 0.75rem;
+}
+
+.promptItemTtsExpanded {
+  padding-bottom: 0.625rem;
+}
+
+.promptRow {
+  width: 100%;
+  min-width: 0;
+}
+
+.dragHandle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 0.25rem;
+  margin: 0;
+  border: none;
+  background: transparent;
+  color: var(--color-muted-foreground);
+  cursor: grab;
+  border-radius: var(--radius-sm);
+
+  &:hover {
+    color: var(--color-foreground);
+    background: color-mix(in srgb, var(--color-muted) 60%, transparent);
+  }
+
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+.promptIndex {
+  font-size: 0.7rem;
+  color: var(--color-muted-foreground);
+  font-weight: 600;
+  min-width: 20px;
+  text-align: center;
+  flex-shrink: 0;
+  padding-top: 0.35rem;
+}
+
+.promptName {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.8125rem;
+  color: var(--color-foreground);
+  padding-top: 0.35rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.badgeAudio,
+.badgeTts {
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 0.125rem 0.375rem;
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+  margin-top: 0.35rem;
+}
+
+.badgeAudio {
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+  color: var(--color-primary);
+}
+
+.badgeTts {
+  background: color-mix(in srgb, var(--color-chart-2, #8b5cf6) 15%, transparent);
+  color: var(--color-foreground);
+}
+
+.ttsBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.ttsSummary {
+  display: block;
+  font-size: 0.8125rem;
+  color: var(--color-foreground);
+  line-height: 1.4;
+  padding-top: 0.2rem;
+}
+
+.ttsEdit {
+  width: 100%;
+}
+
+.rowActions {
+  flex-shrink: 0;
+  align-items: center;
+  padding-top: 0.125rem;
+}
+
+.ttsTextarea {
+  width: 100%;
+  font-size: 0.8125rem;
+}
+
+.deleteBtn {
+  flex-shrink: 0;
+
+  &:hover {
+    color: var(--color-destructive);
+  }
+}

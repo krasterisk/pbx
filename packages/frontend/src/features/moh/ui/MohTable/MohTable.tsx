@@ -1,4 +1,4 @@
-import { memo, useMemo, useState } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   useReactTable,
@@ -10,7 +10,17 @@ import {
   type SortingState,
 } from '@tanstack/react-table';
 import { Pencil, Trash2, Music } from 'lucide-react';
-import { Card } from '@/shared/ui';
+import {
+  Button,
+  Skeleton,
+  Text,
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '@/shared/ui';
 import { HStack, VStack } from '@/shared/ui/Stack';
 import { useAppDispatch } from '@/shared/hooks/useAppStore';
 import { useGetMohClassesQuery, useDeleteMohClassMutation } from '@/shared/api/endpoints/mohApi';
@@ -20,6 +30,7 @@ import type { IMohClass } from '@/entities/moh';
 import cls from './MohTable.module.scss';
 
 const columnHelper = createColumnHelper<IMohClass>();
+const SKELETON_ROWS = [1, 2, 3, 4, 5];
 
 export const MohTable = memo(() => {
   const { t } = useTranslation();
@@ -29,19 +40,33 @@ export const MohTable = memo(() => {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState('');
 
+  const handleDelete = useCallback(
+    (moh: IMohClass) => {
+      const confirmed = window.confirm(
+        t('moh.confirmDelete', 'Удалить класс «{{name}}»?').replace('{{name}}', moh.displayName),
+      );
+      if (confirmed) {
+        deleteMoh(moh.name);
+      }
+    },
+    [t, deleteMoh],
+  );
+
   const columns = useMemo(() => [
     columnHelper.display({
       id: 'index',
       header: '№',
       size: 50,
-      cell: (info) => info.row.index + 1,
+      cell: (info) => (
+        <Text variant="small">{info.row.index + 1}</Text>
+      ),
     }),
     columnHelper.accessor('displayName', {
       header: t('moh.table.name', 'Название'),
       cell: (info) => (
         <HStack gap="8" align="center">
           <Music size={16} className={cls.musicIcon} />
-          <span className={cls.className}>{info.getValue()}</span>
+          <Text className={cls.className}>{info.getValue()}</Text>
         </HStack>
       ),
     }),
@@ -50,7 +75,9 @@ export const MohTable = memo(() => {
       header: t('moh.table.tracks', 'Треков'),
       size: 100,
       cell: (info) => (
-        <span className={cls.tracksBadge}>{info.getValue()}</span>
+        <Text as="span" variant="small" className={cls.tracksBadge}>
+          {info.getValue()}
+        </Text>
       ),
     }),
     columnHelper.accessor('sort', {
@@ -58,14 +85,15 @@ export const MohTable = memo(() => {
       size: 140,
       cell: (info) => {
         const val = info.getValue();
+        const sortClass = val === 'random' ? cls.sort_random : val === 'alpha' ? cls.sort_alpha : '';
         return (
-          <span className={`${cls.sortBadge} ${cls[`sort_${val}`] || ''}`}>
+          <Text as="span" variant="small" className={`${cls.sortBadge} ${sortClass}`}>
             {val === 'random'
               ? t('moh.sort.random', 'Случайно')
               : val === 'alpha'
                 ? t('moh.sort.alpha', 'По порядку')
                 : val}
-          </span>
+          </Text>
         );
       },
     }),
@@ -75,24 +103,29 @@ export const MohTable = memo(() => {
       size: 100,
       cell: (info) => (
         <HStack gap="4">
-          <button
-            className={cls.actionBtn}
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
             onClick={() => dispatch(mohActions.openEditModal(info.row.original))}
             title={t('common.edit', 'Редактировать')}
           >
-            <Pencil size={15} />
-          </button>
-          <button
-            className={`${cls.actionBtn} ${cls.deleteBtn}`}
+            <Pencil className={cls.actionIcon} />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className={cls.actionBtnDelete}
             onClick={() => handleDelete(info.row.original)}
             title={t('common.delete', 'Удалить')}
           >
-            <Trash2 size={15} />
-          </button>
+            <Trash2 className={cls.actionIcon} />
+          </Button>
         </HStack>
       ),
     }),
-  ], [t, dispatch]);
+  ], [t, dispatch, handleDelete]);
 
   const table = useReactTable({
     data: mohClasses,
@@ -105,71 +138,96 @@ export const MohTable = memo(() => {
     getFilteredRowModel: getFilteredRowModel(),
   });
 
-  const handleDelete = (moh: IMohClass) => {
-    const confirmed = window.confirm(
-      t('moh.confirmDelete', 'Удалить класс «{{name}}»?').replace('{{name}}', moh.displayName),
-    );
-    if (confirmed) {
-      deleteMoh(moh.name);
-    }
-  };
+  const renderHeader = () => (
+    <TableHeader>
+      {table.getHeaderGroups().map((headerGroup) => (
+        <TableRow key={headerGroup.id} className={cls.tableHeadRow}>
+          {headerGroup.headers.map((header) => (
+            <TableHead
+              key={header.id}
+              style={{ width: header.getSize() }}
+              className={cls.headCell}
+              onClick={header.column.getToggleSortingHandler()}
+            >
+              {header.isPlaceholder
+                ? null
+                : flexRender(header.column.columnDef.header, header.getContext())}
+            </TableHead>
+          ))}
+        </TableRow>
+      ))}
+    </TableHeader>
+  );
 
   if (isLoading) {
     return (
-      <Card>
-        <div className={cls.loading}>{t('common.loading', 'Загрузка...')}</div>
-      </Card>
+      <>
+        <div className={cls.tableWrap}>
+          <Table className={cls.table}>
+            <TableHeader>
+              <TableRow className={cls.tableHeadRow}>
+                <TableHead className={cls.headCell}>№</TableHead>
+                <TableHead className={cls.headCell}>{t('moh.table.name', 'Название')}</TableHead>
+                <TableHead className={cls.headCell}>{t('moh.table.tracks', 'Треков')}</TableHead>
+                <TableHead className={cls.headCell}>{t('moh.table.sort', 'Сортировка')}</TableHead>
+                <TableHead className={cls.headCell}>{t('common.actions', 'Действия')}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {SKELETON_ROWS.map((i) => (
+                <TableRow key={i} className={cls.bodyRow}>
+                  <TableCell><Skeleton className={cls.skeletonSm} /></TableCell>
+                  <TableCell><Skeleton className={cls.skeletonMd} /></TableCell>
+                  <TableCell><Skeleton className={cls.skeletonBadge} /></TableCell>
+                  <TableCell><Skeleton className={cls.skeletonChip} /></TableCell>
+                  <TableCell><Skeleton className={cls.skeletonActions} /></TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+        <MohFormModal />
+      </>
     );
   }
 
   return (
     <>
-      <Card>
-        <div className={cls.tableWrapper}>
-          <table className={cls.table}>
-            <thead>
-              {table.getHeaderGroups().map((headerGroup) => (
-                <tr key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => (
-                    <th
-                      key={header.id}
-                      style={{ width: header.getSize() }}
-                      className={cls.th}
-                      onClick={header.column.getToggleSortingHandler()}
-                    >
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(header.column.columnDef.header, header.getContext())}
-                    </th>
+      <div className={cls.tableWrap}>
+        <Table className={cls.table}>
+          {renderHeader()}
+          <TableBody>
+            {table.getRowModel().rows.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={columns.length} className={cls.emptyCell}>
+                  <VStack align="center" gap="8">
+                    <Music size={36} className={cls.emptyIcon} />
+                    <Text className={cls.emptyTitle}>
+                      {t('moh.empty.title', 'Нет классов Music On Hold')}
+                    </Text>
+                    <Text variant="muted" className={cls.emptyHint}>
+                      {t(
+                        'moh.empty.hint',
+                        'Нажмите «Создать класс», чтобы добавить первый плейлист',
+                      )}
+                    </Text>
+                  </VStack>
+                </TableCell>
+              </TableRow>
+            ) : (
+              table.getRowModel().rows.map((row) => (
+                <TableRow key={row.id} className={cls.bodyRow}>
+                  {row.getVisibleCells().map((cell) => (
+                    <TableCell key={cell.id}>
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </TableCell>
                   ))}
-                </tr>
-              ))}
-            </thead>
-            <tbody>
-              {table.getRowModel().rows.length === 0 ? (
-                <tr>
-                  <td colSpan={columns.length} className={cls.emptyRow}>
-                    <VStack align="center" gap="8">
-                      <Music size={36} className={cls.emptyIcon} />
-                      <span>{t('common.noData', 'Нет данных')}</span>
-                    </VStack>
-                  </td>
-                </tr>
-              ) : (
-                table.getRowModel().rows.map((row) => (
-                  <tr key={row.id} className={cls.row}>
-                    {row.getVisibleCells().map((cell) => (
-                      <td key={cell.id} className={cls.td}>
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </td>
-                    ))}
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </Card>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
 
       <MohFormModal />
     </>

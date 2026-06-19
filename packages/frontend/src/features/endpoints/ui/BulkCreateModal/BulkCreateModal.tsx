@@ -45,9 +45,9 @@ export const BulkCreateModal = () => {
     }
   }, [activeJobData, jobId, result]);
 
-  const { data: jobStatus } = useGetBulkJobStatusQuery(jobId || '', {
+  const { data: jobStatus, isError: isJobStatusError, error: jobStatusError } = useGetBulkJobStatusQuery(jobId || '', {
     skip: !jobId,
-    pollingInterval: 1000,
+    pollingInterval: jobId ? 3000 : 0,
   });
 
   const handleClose = useCallback(() => {
@@ -73,6 +73,16 @@ export const BulkCreateModal = () => {
       }
     }
   }, [jobStatus]);
+
+  useEffect(() => {
+    if (!isJobStatusError || !jobId) return;
+
+    const status = (jobStatusError as { status?: number })?.status;
+    if (status === 404) {
+      setJobId(null);
+      setError('Задание не найдено. Возможно, сервер перезапускался. Проверьте список абонентов — они могли быть созданы.');
+    }
+  }, [isJobStatusError, jobStatusError, jobId]);
 
   const handleSubmit = async () => {
     setError(null);
@@ -203,7 +213,7 @@ export const BulkCreateModal = () => {
                   <p className="text-xs text-muted-foreground">
                     Будет создано: <span className="text-primary font-semibold">{range}</span> абонентов
                   </p>
-                  {range > 200 && (
+                  {range > 500 && (
                     <p className="text-xs text-blue-400">
                       Большой объем данных. Операция будет выполнена в фоновом режиме (асинхронно).
                     </p>

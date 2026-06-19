@@ -1,5 +1,5 @@
 import { rtkApi } from '../rtkApi';
-import { IPrompt } from '@/entities/prompt';
+import type { IIvrPhraseTtsSettings, IPrompt, IPromptTtsMeta } from '@krasterisk/shared';
 
 const promptsApi = rtkApi.injectEndpoints({
   endpoints: (builder) => ({
@@ -28,7 +28,10 @@ const promptsApi = rtkApi.injectEndpoints({
       invalidatesTags: [{ type: 'Prompts', id: 'LIST' }],
     }),
 
-    recordPrompt: builder.mutation<{ message: string }, { exten: string; comment: string }>({
+    recordPrompt: builder.mutation<
+      { message: string },
+      { exten: string; comment: string; description?: string }
+    >({
       query: (data) => ({
         url: '/prompts/record',
         method: 'POST',
@@ -37,13 +40,49 @@ const promptsApi = rtkApi.injectEndpoints({
       invalidatesTags: [{ type: 'Prompts', id: 'LIST' }],
     }),
 
-    synthesizePrompt: builder.mutation<IPrompt, { text: string; engineId: number; comment: string }>({
+    previewPromptTts: builder.mutation<
+      Blob,
+      { text: string; engine_uid: number; settings?: IIvrPhraseTtsSettings }
+    >({
+      query: (body) => ({
+        url: '/prompts/tts-preview',
+        method: 'POST',
+        body,
+        responseHandler: (response) => response.blob(),
+      }),
+    }),
+
+    synthesizePrompt: builder.mutation<
+      IPrompt,
+      {
+        text: string;
+        engine_uid: number;
+        comment: string;
+        description?: string;
+        settings?: IIvrPhraseTtsSettings;
+      }
+    >({
       query: (data) => ({
         url: '/prompts/synthesize',
         method: 'POST',
         body: data,
       }),
       invalidatesTags: [{ type: 'Prompts', id: 'LIST' }],
+    }),
+
+    updatePrompt: builder.mutation<
+      IPrompt,
+      { uid: number; comment: string; description?: string; tts?: IPromptTtsMeta }
+    >({
+      query: ({ uid, ...body }) => ({
+        url: `/prompts/${uid}`,
+        method: 'PUT',
+        body,
+      }),
+      invalidatesTags: (_r, _e, { uid }) => [
+        { type: 'Prompts', id: uid },
+        { type: 'Prompts', id: 'LIST' },
+      ],
     }),
 
     deletePrompt: builder.mutation<void, number>({
@@ -67,7 +106,9 @@ export const {
   useGetPromptByIdQuery,
   useUploadPromptMutation,
   useRecordPromptMutation,
+  usePreviewPromptTtsMutation,
   useSynthesizePromptMutation,
+  useUpdatePromptMutation,
   useDeletePromptMutation,
   useBulkDeletePromptsMutation,
 } = promptsApi;

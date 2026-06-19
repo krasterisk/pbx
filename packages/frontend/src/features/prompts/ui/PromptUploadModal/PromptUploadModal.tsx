@@ -4,11 +4,17 @@ import { Upload, FileAudio, X } from 'lucide-react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/shared/ui/Dialog';
-import { Button, Input, VStack } from '@/shared/ui';
+import { Button, Input, Textarea, VStack } from '@/shared/ui';
 import { useUploadPromptMutation } from '@/shared/api/endpoints/promptsApi';
 import cls from './PromptUploadModal.module.scss';
 
 const MAX_SIZE = 10 * 1024 * 1024; // 10 MB
+
+/** Имя файла без расширения для поля «Название записи». */
+function titleFromFileName(fileName: string): string {
+  const withoutExt = fileName.replace(/\.[^/.]+$/, '');
+  return withoutExt.trim() || fileName;
+}
 
 interface PromptUploadModalProps {
   isOpen: boolean;
@@ -21,7 +27,7 @@ export function PromptUploadModal({ isOpen, onClose }: PromptUploadModalProps) {
 
   const [file, setFile] = useState<File | null>(null);
   const [comment, setComment] = useState('');
-  const [moh, setMoh] = useState('');
+  const [description, setDescription] = useState('');
   const [error, setError] = useState('');
   const [dragOver, setDragOver] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -42,6 +48,7 @@ export function PromptUploadModal({ isOpen, onClose }: PromptUploadModalProps) {
   const handleFileSelect = (f: File) => {
     if (validateFile(f)) {
       setFile(f);
+      setComment(titleFromFileName(f.name));
     }
   };
 
@@ -65,15 +72,15 @@ export function PromptUploadModal({ isOpen, onClose }: PromptUploadModalProps) {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('comment', comment.trim());
-    if (moh.trim()) {
-      formData.append('moh', moh.trim());
+    if (description.trim()) {
+      formData.append('description', description.trim());
     }
 
     try {
       await uploadPrompt(formData).unwrap();
       setFile(null);
       setComment('');
-      setMoh('');
+      setDescription('');
       setError('');
       onClose();
     } catch (err) {
@@ -141,10 +148,10 @@ export function PromptUploadModal({ isOpen, onClose }: PromptUploadModalProps) {
 
           <VStack gap="4">
             <label className="text-sm font-medium text-muted-foreground">
-              {t('promptsPage.upload.commentLabel', 'Название записи')} *
+              {t('promptsPage.upload.nameLabel', 'Название записи')} *
             </label>
             <Input
-              placeholder={t('promptsPage.upload.commentPlaceholder', 'Например: Приветствие основное')}
+              placeholder={t('promptsPage.upload.namePlaceholder', 'Например: Приветствие основное')}
               value={comment}
               onChange={e => setComment(e.target.value)}
             />
@@ -152,16 +159,14 @@ export function PromptUploadModal({ isOpen, onClose }: PromptUploadModalProps) {
 
           <VStack gap="4">
             <label className="text-sm font-medium text-muted-foreground">
-              {t('promptsPage.upload.mohLabel', 'MOH-класс (необязательно)')}
+              {t('promptsPage.upload.descriptionLabel', 'Комментарий')}
             </label>
-            <Input
-              placeholder="default"
-              value={moh}
-              onChange={e => setMoh(e.target.value)}
+            <Textarea
+              placeholder={t('promptsPage.upload.descriptionPlaceholder', 'Комментарий')}
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              rows={2}
             />
-            <span className="text-xs text-muted-foreground">
-              Если указано, аудио-файл будет скопирован в директорию этого класса Music on Hold.
-            </span>
           </VStack>
         </VStack>
 

@@ -1,43 +1,58 @@
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { motion } from 'motion/react';
 import { Music, Plus } from 'lucide-react';
-import { Button } from '@/shared/ui';
-import { VStack, HStack } from '@/shared/ui/Stack';
+import {
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Text,
+} from '@/shared/ui';
+import { VStack, HStack, Flex } from '@/shared/ui/Stack';
 import { useAppDispatch } from '@/shared/hooks/useAppStore';
 import { MohTable, mohActions } from '@/features/moh';
+import cls from './MohPage.module.scss';
 
 export const MohPage = memo(() => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
-  
-  return (
-    <VStack gap="24" max>
-      {/* Header */}
-      <HStack justify="between" align="center" className="flex-col sm:flex-row gap-4" max>
-        <VStack gap="4">
-          <HStack gap="12" align="center">
-            <Music className="w-7 h-7 text-primary" />
-            <h1 className="text-2xl font-bold">{t('moh.title', 'Музыка на удержании (MOH)')}</h1>
-          </HStack>
-          <p className="text-muted-foreground text-sm">
-            {t('moh.subtitle', 'Настройка классов и плейлистов Music On Hold')}
-          </p>
-        </VStack>
-        <Button onClick={() => dispatch(mohActions.openCreateModal())}>
-          <Plus className="w-4 h-4 mr-2" />
-          {t('moh.add', 'Создать класс')}
-        </Button>
-      </HStack>
 
-      {/* Table */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-      >
-        <MohTable />
-      </motion.div>
+  return (
+    <VStack gap="24" max className={cls.page}>
+      <Flex justify="between" align="center" className={cls.header} max>
+        <HStack gap="12" align="center">
+          <Flex align="center" justify="center" className={cls.iconBadge}>
+            <Music size={24} />
+          </Flex>
+          <VStack gap="4">
+            <Text variant="h1" as="h1" className={cls.title}>
+              {t('moh.title', 'Музыка на удержании')}
+            </Text>
+            <Text variant="muted">
+              {t('moh.subtitle', 'Управление классами Music On Hold')}
+            </Text>
+          </VStack>
+        </HStack>
+        <Button
+          className={cls.createBtn}
+          onClick={() => dispatch(mohActions.openCreateModal())}
+        >
+          <Plus size={16} className={cls.createBtnIcon} />
+          <Text as="span">{t('moh.add', 'Создать класс')}</Text>
+        </Button>
+      </Flex>
+
+      <Card className={cls.card}>
+        <CardHeader className={cls.cardHeader}>
+          <CardTitle className={cls.cardTitle}>
+            {t('moh.listTitle', 'Список классов MOH')}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className={cls.cardContent}>
+          <MohTable />
+        </CardContent>
+      </Card>
     </VStack>
   );
 });

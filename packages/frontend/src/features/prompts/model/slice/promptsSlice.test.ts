@@ -36,6 +36,29 @@ describe('promptsSlice', () => {
     expect(state.modalMode).toBe('record');
   });
 
+  it('should handle openSynthesizeModal', () => {
+    const state = promptsReducer(initialState, promptsActions.openSynthesizeModal());
+    expect(state.isModalOpen).toBe(true);
+    expect(state.selectedPrompt).toBeNull();
+    expect(state.modalMode).toBe('synthesize');
+  });
+
+  it('should handle openEditModal', () => {
+    const prompt = {
+      uid: 5,
+      filename: 'prompt_1_1',
+      comment: 'Test',
+      description: '',
+      user_uid: 1,
+      source_type: 'tts' as const,
+      tts: { text: 'Hi', engine_uid: 2 },
+    };
+    const state = promptsReducer(initialState, promptsActions.openEditModal(prompt));
+    expect(state.isModalOpen).toBe(true);
+    expect(state.selectedPrompt).toEqual(prompt);
+    expect(state.modalMode).toBe('edit');
+  });
+
   it('should handle closeModal', () => {
     const openState: PromptsSchema = {
       isModalOpen: true,

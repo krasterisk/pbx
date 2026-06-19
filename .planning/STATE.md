@@ -5,7 +5,7 @@ milestone_name: milestone
 status: executing
 last_updated: "2026-06-04T20:30:00.000Z"
 progress:
-  total_phases: 4
+  total_phases: 5
   completed_phases: 0
   total_plans: 8
   completed_plans: 5
@@ -25,8 +25,9 @@ Phase 1 — MOH: pending verify.
 
 ## Roadmap Evolution
 
+- Phase 5 added: Phonebooks AI — универсальные механизмы справочников, MCP tools и настройка через AI Chat module.
 - Phase 4 added: IVR «Фразы» — TTS-текст с движком и per-phrase voice/settings (TtsEngines).
 
 ## Next GSD command
 
-`/gsd-execute-phase 4`
+`/gsd-verify-work 4`

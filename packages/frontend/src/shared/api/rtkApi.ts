@@ -3,72 +3,69 @@ import type { BaseQueryFn, FetchArgs, FetchBaseQueryError } from '@reduxjs/toolk
 
 import { getEffectiveApiBase, isStandaloneApp } from './apiBase';
 
-const isStandalone = isStandaloneApp();
-const API_BASE = getEffectiveApiBase();
+type AuthSliceState = { auth?: { accessToken?: string | null } };
 
-const baseQuery = fetchBaseQuery({
-  baseUrl: API_BASE,
-  prepareHeaders: (headers) => {
-    // In standalone mode, no auth token is needed
-    if (isStandalone) return headers;
-    const token = localStorage.getItem('accessToken');
-    if (token) {
-      headers.set('Authorization', `Bearer ${token}`);
-    }
-    return headers;
-  },
-});
+function resolveAccessToken(getState: () => unknown): string | null {
+  const fromStore = (getState() as AuthSliceState).auth?.accessToken;
+  return fromStore ?? localStorage.getItem('accessToken');
+}
+
+function createBaseQuery(baseUrl: string) {
+  return fetchBaseQuery({
+    baseUrl,
+    prepareHeaders: (headers, { getState }) => {
+      if (isStandaloneApp()) return headers;
+      const token = resolveAccessToken(getState);
+      if (token) {
+        headers.set('Authorization', `Bearer ${token}`);
+      }
+      return headers;
+    },
+  });
+}
 
 const baseQueryWithReauth: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQueryError> = async (
   args,
   api,
-  extraOptions
+  extraOptions,
 ) => {
+  const baseQuery = createBaseQuery(getEffectiveApiBase());
   let result = await baseQuery(args, api, extraOptions);
 
   if (result.error && result.error.status === 401) {
-    // In standalone mode, don't try to refresh or redirect to login
-    if (isStandalone) return result;
+    if (isStandaloneApp()) return result;
 
     const refreshToken = localStorage.getItem('refreshToken');
     if (refreshToken) {
-      // Try to get a new token
-      const refreshResult = await baseQuery(
+      const refreshResult = await createBaseQuery(getEffectiveApiBase())(
         {
           url: '/auth/refresh',
           method: 'POST',
           body: { refreshToken },
         },
         api,
-        extraOptions
+        extraOptions,
       );
 
       if (refreshResult.data) {
-        // Type assertion for the success response
-        const data = refreshResult.data as { accessToken: string; refreshToken: string; user: any };
-        
-        // Store the new token
+        const data = refreshResult.data as { accessToken: string; refreshToken: string; user: unknown };
+
         localStorage.setItem('accessToken', data.accessToken);
         localStorage.setItem('refreshToken', data.refreshToken);
         localStorage.setItem('user', JSON.stringify(data.user));
 
-        // Retry the original query with new access token
-        result = await baseQuery(args, api, extraOptions);
+        result = await createBaseQuery(getEffectiveApiBase())(args, api, extraOptions);
       } else {
-        // Refresh failed, clear state 
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
         localStorage.removeItem('user');
-        
-        // We could dispatch an action to clear auth state here:
-        // api.dispatch(logout()); 
+
         window.location.href = '/login';
       }
     } else {
-       // Token expired and no refresh token
-       localStorage.removeItem('accessToken');
-       localStorage.removeItem('user');
-       window.location.href = '/login';
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('user');
+      window.location.href = '/login';
     }
   }
 
@@ -81,4 +78,3 @@ export const rtkApi = createApi({
   tagTypes: ['Endpoints', 'Contexts', 'Peers', 'Trunks', 'Queues', 'Routes', 'Users', 'Roles', 'Numbers', 'CDR', 'PickupGroups', 'ProvisionTemplates', 'Ivrs', 'Prompts', 'TtsEngines', 'SttEngines', 'Moh', 'VoiceRobots', 'VoiceRobotsGroups', 'VoiceRobotsKeywords', 'VoiceRobotsLogs', 'VoiceRobotsCdr', 'VoiceRobotsDataLists', 'ServiceRequests', 'TimeGroups', 'Phonebooks', 'ServerConfig', 'AuditLog', 'WebhookFailure', 'Tenants', 'CallCenter', 'PauseReasons', 'MissedCalls', 'AiAgents', 'AiProviders', 'AiToolsets'],
   endpoints: () => ({}),
 });
-

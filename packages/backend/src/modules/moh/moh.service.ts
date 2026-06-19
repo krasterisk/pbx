@@ -119,19 +119,22 @@ export class MohService {
       throw new BadRequestException(`MOH class "${data.displayName}" already exists`);
     }
 
-    const directory = `${this.soundsBasePath}/${userUid}/`;
+    const entryRows = data.entries || [];
+    if (entryRows.length === 0) {
+      throw new BadRequestException('At least one playlist entry is required');
+    }
 
-    // Create the MOH class
+    // Create the MOH class (playlist mode — entries drive playback, not directory)
     const cls = await this.mohClassModel.create({
       name: className,
-      mode: 'files',
-      directory,
+      mode: 'playlist',
+      directory: null,
       sort: data.sort || 'random',
       user_uid: userUid,
     } as any);
 
     // Create entries
-    const entries = (data.entries || []).map((e) => ({
+    const entries = entryRows.map((e) => ({
       name: className,
       position: e.position,
       entry: `${this.soundsBasePath}/${e.filename}`,
@@ -166,6 +169,10 @@ export class MohService {
 
     // Atomically replace entries: delete all old → insert new
     if (data.entries !== undefined) {
+      if (data.entries.length === 0) {
+        throw new BadRequestException('At least one playlist entry is required');
+      }
+
       await this.mohEntryModel.destroy({ where: { name } });
 
       const entries = data.entries.map((e) => ({
@@ -174,8 +181,10 @@ export class MohService {
         entry: `${this.soundsBasePath}/${e.filename}`,
       }));
 
-      if (entries.length > 0) {
-        await this.mohEntryModel.bulkCreate(entries as any[]);
+      await this.mohEntryModel.bulkCreate(entries as any[]);
+
+      if (cls.mode !== 'playlist') {
+        await cls.update({ mode: 'playlist', directory: null });
       }
     }
 

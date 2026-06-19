@@ -2,7 +2,7 @@ import { Table, Column, Model, DataType, PrimaryKey } from 'sequelize-typescript
 
 /**
  * Sequelize model for the Asterisk Realtime `musiconhold` table.
- * Uses mode=files with entries read from `musiconhold_entry`.
+ * Uses mode=playlist with entries in `musiconhold_entry` (ARA).
  * Column `user_uid` is custom (Asterisk ignores unknown columns).
  */
 @Table({ tableName: 'musiconhold', timestamps: false, freezeTableName: true })
@@ -14,7 +14,7 @@ export class MohClass extends Model {
   @Column({
     type: DataType.ENUM('custom', 'files', 'mp3nb', 'quietmp3nb', 'quietmp3', 'playlist'),
     allowNull: true,
-    defaultValue: 'files',
+    defaultValue: 'playlist',
   })
   declare mode: string;
 

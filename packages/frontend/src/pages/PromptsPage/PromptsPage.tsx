@@ -33,10 +33,10 @@ export function PromptsPage() {
             <Phone className="w-4 h-4 mr-2" />
             {t('promptsPage.recordBtn', 'Записать по телефону')}
           </Button>
-          <Button variant="outline" disabled>
-             <Volume2 className="w-4 h-4 mr-2" />
-             {t('promptsPage.synthesizeBtn', 'Синтезировать речь')}
-           </Button>
+          <Button variant="outline" onClick={() => dispatch(promptsActions.openSynthesizeModal())}>
+            <Volume2 className="w-4 h-4 mr-2" />
+            {t('promptsPage.synthesizeBtn', 'Синтезировать речь')}
+          </Button>
         </HStack>
       </HStack>
 

@@ -22,6 +22,16 @@ export const promptsSlice = createSlice({
       state.selectedPrompt = null;
       state.modalMode = 'record';
     },
+    openEditModal: (state, action: PayloadAction<IPrompt>) => {
+      state.isModalOpen = true;
+      state.selectedPrompt = action.payload;
+      state.modalMode = 'edit';
+    },
+    openSynthesizeModal: (state) => {
+      state.isModalOpen = true;
+      state.selectedPrompt = null;
+      state.modalMode = 'synthesize';
+    },
     closeModal: (state) => {
       state.isModalOpen = false;
       state.selectedPrompt = null;

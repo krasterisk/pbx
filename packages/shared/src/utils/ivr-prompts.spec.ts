@@ -1,6 +1,7 @@
 import {
   normalizeIvrPrompts,
   assertIvrPromptsForSave,
+  getIvrPromptsValidationIssues,
   IvrPromptsValidationError,
 } from './ivr-prompts';
 
@@ -26,5 +27,21 @@ describe('assertIvrPromptsForSave', () => {
     expect(() =>
       assertIvrPromptsForSave([{ kind: 'tts', text: 'x', engine_uid: 0 }]),
     ).toThrow(IvrPromptsValidationError);
+  });
+
+  it('requires voice when engine settings lack defaults', () => {
+    const issues = getIvrPromptsValidationIssues(
+      [{ kind: 'tts', text: 'hi', engine_uid: 1 }],
+      { engines: [{ uid: 1, type: 'yandex', settings: {} }] },
+    );
+    expect(issues.some((i) => i.code === 'tts_params_missing')).toBe(true);
+  });
+
+  it('passes when engine has default voice', () => {
+    const issues = getIvrPromptsValidationIssues(
+      [{ kind: 'tts', text: 'hi', engine_uid: 1 }],
+      { engines: [{ uid: 1, type: 'yandex', settings: { voice: 'alena' } }] },
+    );
+    expect(issues).toHaveLength(0);
   });
 });

@@ -89,11 +89,11 @@ const CSV_DELIMITER = ';';
 function buildQueryParams(filters: ServiceRequestFilters, pagination?: { limit: number; offset: number }): ServiceRequestQueryParams {
   return {
     ...pagination,
-    status: filters.status,
-    district: filters.district,
-    topic: filters.topic,
+    status: filters.statuses?.length ? filters.statuses.join(',') : undefined,
+    district: filters.districts?.length ? filters.districts.join(',') : undefined,
+    topic: filters.topics?.length ? filters.topics.join(',') : undefined,
     search: filters.search,
-    territorial_zone: filters.territorialZone,
+    territorial_zone: filters.territorialZones?.length ? filters.territorialZones.join(',') : undefined,
     dateFrom: filters.dateFrom,
     dateTo: filters.dateTo,
   };

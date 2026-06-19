@@ -1,4 +1,4 @@
-import type { IIvrPhrase } from '../types/ivr-phrase.types';
+import type { IIvrPhrase, IIvrPhraseTtsSettings } from '../types/ivr-phrase.types';
 
 export function isValidIvrPhrase(p: unknown): p is IIvrPhrase {
   if (!p || typeof p !== 'object') return false;
@@ -53,6 +53,90 @@ export function normalizeIvrPrompts(input: unknown): IIvrPhrase[] {
   return result;
 }
 
+export type IvrPhraseValidationCode =
+  | 'audio_filename_missing'
+  | 'tts_text_missing'
+  | 'tts_engine_missing'
+  | 'tts_engine_not_found'
+  | 'tts_params_missing';
+
+export interface IvrPhraseValidationIssue {
+  index: number;
+  code: IvrPhraseValidationCode;
+}
+
+export interface IvrPromptsValidationEngine {
+  uid: number;
+  type: 'google' | 'yandex' | 'custom' | string;
+  settings?: Record<string, unknown>;
+}
+
+export interface ValidateIvrPromptsOptions {
+  engines?: IvrPromptsValidationEngine[];
+}
+
+function phraseHasRequiredTtsParams(
+  engine: IvrPromptsValidationEngine,
+  phraseSettings?: IIvrPhraseTtsSettings,
+): boolean {
+  const s = engine.settings || {};
+  const p = phraseSettings || {};
+  if (engine.type === 'google') {
+    return Boolean(String(p.voice ?? s.voice_name ?? '').trim());
+  }
+  if (engine.type === 'yandex') {
+    return Boolean(String(p.voice ?? s.voice ?? '').trim());
+  }
+  return true;
+}
+
+export function getIvrPromptsValidationIssues(
+  prompts: IIvrPhrase[],
+  options?: ValidateIvrPromptsOptions,
+): IvrPhraseValidationIssue[] {
+  const issues: IvrPhraseValidationIssue[] = [];
+  const engines = options?.engines;
+
+  for (let i = 0; i < prompts.length; i++) {
+    const p = prompts[i];
+    if (p.kind === 'audio') {
+      if (!p.filename?.trim()) {
+        issues.push({ index: i, code: 'audio_filename_missing' });
+      }
+      continue;
+    }
+
+    if (!p.text?.trim()) {
+      issues.push({ index: i, code: 'tts_text_missing' });
+    }
+    if (!p.engine_uid || p.engine_uid <= 0) {
+      issues.push({ index: i, code: 'tts_engine_missing' });
+      continue;
+    }
+
+    if (!engines) continue;
+
+    const engine = engines.find((e) => e.uid === p.engine_uid);
+    if (!engine) {
+      issues.push({ index: i, code: 'tts_engine_not_found' });
+      continue;
+    }
+    if (!phraseHasRequiredTtsParams(engine, p.settings)) {
+      issues.push({ index: i, code: 'tts_params_missing' });
+    }
+  }
+
+  return issues;
+}
+
+const VALIDATION_MESSAGES: Record<IvrPhraseValidationCode, string> = {
+  audio_filename_missing: 'Phrase {n}: audio filename is required',
+  tts_text_missing: 'Phrase {n}: TTS text is required',
+  tts_engine_missing: 'Phrase {n}: TTS engine is required',
+  tts_engine_not_found: 'Phrase {n}: TTS engine not found',
+  tts_params_missing: 'Phrase {n}: TTS voice/parameters are required',
+};
+
 export class IvrPromptsValidationError extends Error {
   constructor(message: string) {
     super(message);
@@ -60,20 +144,16 @@ export class IvrPromptsValidationError extends Error {
   }
 }
 
-export function assertIvrPromptsForSave(prompts: IIvrPhrase[]): void {
-  for (let i = 0; i < prompts.length; i++) {
-    const p = prompts[i];
-    if (p.kind === 'audio') {
-      if (!p.filename?.trim()) {
-        throw new IvrPromptsValidationError(`Phrase ${i + 1}: audio filename is required`);
-      }
-      continue;
-    }
-    if (!p.text?.trim()) {
-      throw new IvrPromptsValidationError(`Phrase ${i + 1}: TTS text is required`);
-    }
-    if (!p.engine_uid || p.engine_uid <= 0) {
-      throw new IvrPromptsValidationError(`Phrase ${i + 1}: TTS engine is required`);
-    }
+export function assertIvrPromptsForSave(
+  prompts: IIvrPhrase[],
+  options?: ValidateIvrPromptsOptions,
+): void {
+  const issues = getIvrPromptsValidationIssues(prompts, options);
+  if (issues.length > 0) {
+    const first = issues[0];
+    const template = VALIDATION_MESSAGES[first.code];
+    throw new IvrPromptsValidationError(
+      template.replace('{n}', String(first.index + 1)),
+    );
   }
 }

@@ -1,0 +1,74 @@
+/* MohPage — заголовок и карточка списка MOH */
+
+.page {
+  flex: 1;
+}
+
+.header {
+  padding: 0 0.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+
+  @media (max-width: 640px) {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+.iconBadge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.625rem;
+  border-radius: var(--radius-xl);
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.title {
+  background: linear-gradient(
+    135deg,
+    var(--color-foreground),
+    color-mix(in srgb, var(--color-foreground) 70%, transparent)
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.createBtn {
+  box-shadow: 0 10px 15px color-mix(in srgb, var(--color-primary) 20%, transparent);
+
+  @media (max-width: 640px) {
+    width: 100%;
+  }
+}
+
+.createBtnIcon {
+  margin-right: 0.5rem;
+}
+
+.card {
+  border: 1px solid color-mix(in srgb, var(--color-border) 50%, transparent);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-background) 50%, transparent);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  backdrop-filter: blur(24px);
+}
+
+.cardHeader {
+  padding-bottom: 1rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 50%, transparent);
+  background: color-mix(in srgb, var(--color-muted) 20%, transparent);
+}
+
+.cardTitle {
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--color-foreground);
+}
+
+.cardContent {
+  padding: 0;
+}

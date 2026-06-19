@@ -1,6 +1,6 @@
-import { memo, useCallback, useState } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Input, Select, Button, Flex, Text } from '@/shared/ui';
+import { Input, Button, Flex, Text, MultiSelect, type MultiSelectOption } from '@/shared/ui';
 import { Search, X, SlidersHorizontal, Calendar } from 'lucide-react';
 import { REQUEST_STATUS_OPTIONS } from '@/entities/serviceRequest';
 import {
@@ -11,10 +11,10 @@ import { useIsMobile } from '@/shared/hooks/useIsMobile';
 
 export interface ServiceRequestFilters {
   search?: string;
-  status?: string;
-  topic?: string;
-  territorialZone?: string;
-  district?: string;
+  statuses?: string[];
+  topics?: string[];
+  territorialZones?: string[];
+  districts?: string[];
   dateFrom?: string;
   dateTo?: string;
 }
@@ -22,6 +22,11 @@ export interface ServiceRequestFilters {
 interface ServiceRequestsFilterProps {
   filters: ServiceRequestFilters;
   onChange: (filters: Partial<ServiceRequestFilters>) => void;
+}
+
+function csvToArray(csv: string): string[] | undefined {
+  const items = csv.split(',').map((s) => s.trim()).filter(Boolean);
+  return items.length > 0 ? items : undefined;
 }
 
 export const ServiceRequestsFilter = memo(({ filters, onChange }: ServiceRequestsFilterProps) => {
@@ -32,49 +37,96 @@ export const ServiceRequestsFilter = memo(({ filters, onChange }: ServiceRequest
   const { data: subjects = [] } = useGetCcSubjectsQuery();
   const { data: allDistricts = [] } = useGetCcDistrictsQuery();
 
-  const zones = [...new Set(allDistricts.map((d) => d.territorial_zone))];
-  const filteredDistricts = filters.territorialZone
-    ? allDistricts.filter((d) => d.territorial_zone === filters.territorialZone)
-    : [];
+  const zones = useMemo(
+    () => [...new Set(allDistricts.map((d) => d.territorial_zone))],
+    [allDistricts],
+  );
+
+  const topicOptions = useMemo<MultiSelectOption[]>(
+    () => subjects.map((s) => ({ value: s.name, label: s.name })),
+    [subjects],
+  );
+
+  const statusOptions = useMemo<MultiSelectOption[]>(
+    () => REQUEST_STATUS_OPTIONS.map((opt) => ({
+      value: opt.value,
+      label: t(opt.labelKey, opt.fallback),
+    })),
+    [t],
+  );
+
+  const zoneOptions = useMemo<MultiSelectOption[]>(
+    () => zones.map((z) => ({ value: z, label: z })),
+    [zones],
+  );
+
+  const districtOptions = useMemo<MultiSelectOption[]>(() => {
+    const selectedZones = filters.territorialZones || [];
+    const pool = selectedZones.length
+      ? allDistricts.filter((d) => selectedZones.includes(d.territorial_zone))
+      : allDistricts;
+
+    return pool.map((d) => ({
+      value: d.district,
+      label: d.district,
+      description: selectedZones.length !== 1 ? d.territorial_zone : undefined,
+    }));
+  }, [allDistricts, filters.territorialZones]);
 
   const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     onChange({ search: e.target.value });
   }, [onChange]);
 
-  const handleStatusChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
-    onChange({ status: e.target.value === 'all' ? undefined : e.target.value });
+  const handleStatusesChange = useCallback((csv: string) => {
+    onChange({ statuses: csvToArray(csv) });
   }, [onChange]);
 
-  const handleTopicChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
-    onChange({ topic: e.target.value === 'all' ? undefined : e.target.value });
+  const handleTopicsChange = useCallback((csv: string) => {
+    onChange({ topics: csvToArray(csv) });
   }, [onChange]);
 
-  const handleZoneChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
-    const val = e.target.value === 'all' ? undefined : e.target.value;
-    onChange({ territorialZone: val, district: undefined });
-  }, [onChange]);
+  const handleZonesChange = useCallback((csv: string) => {
+    const nextZones = csvToArray(csv) || [];
+    const nextDistricts = (filters.districts || []).filter((district) =>
+      nextZones.length === 0 ||
+      allDistricts.some((d) => d.district === district && nextZones.includes(d.territorial_zone)),
+    );
 
-  const handleDistrictChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
-    onChange({ district: e.target.value === 'all' ? undefined : e.target.value });
+    onChange({
+      territorialZones: nextZones.length ? nextZones : undefined,
+      districts: nextDistricts.length ? nextDistricts : undefined,
+    });
+  }, [onChange, filters.districts, allDistricts]);
+
+  const handleDistrictsChange = useCallback((csv: string) => {
+    onChange({ districts: csvToArray(csv) });
   }, [onChange]);
 
   const clearFilters = useCallback(() => {
     onChange({
-      search: '', status: undefined, topic: undefined,
-      territorialZone: undefined, district: undefined,
-      dateFrom: undefined, dateTo: undefined,
+      search: '',
+      statuses: undefined,
+      topics: undefined,
+      territorialZones: undefined,
+      districts: undefined,
+      dateFrom: undefined,
+      dateTo: undefined,
     });
   }, [onChange]);
 
   const hasFilters = Boolean(
-    filters.search || filters.status || filters.topic ||
-    filters.territorialZone || filters.district ||
-    filters.dateFrom || filters.dateTo
+    filters.search || filters.statuses?.length ||
+    filters.topics?.length || filters.territorialZones?.length || filters.districts?.length ||
+    filters.dateFrom || filters.dateTo,
   );
 
   const activeFilterCount = [
-    filters.status, filters.topic, filters.territorialZone,
-    filters.district, filters.dateFrom, filters.dateTo,
+    filters.statuses?.length,
+    filters.topics?.length,
+    filters.territorialZones?.length,
+    filters.districts?.length,
+    filters.dateFrom,
+    filters.dateTo,
   ].filter(Boolean).length;
 
   // ─── Labeled date input ─────────────────────────────────
@@ -91,6 +143,46 @@ export const ServiceRequestsFilter = memo(({ filters, onChange }: ServiceRequest
         className="w-full text-sm"
       />
     </div>
+  );
+
+  const statusFilter = (
+    <MultiSelect
+      value={filters.statuses || []}
+      onChange={handleStatusesChange}
+      options={statusOptions}
+      placeholder={t('serviceRequests.filter.allStatuses', 'Все статусы')}
+      className="w-full"
+    />
+  );
+
+  const topicFilter = (
+    <MultiSelect
+      value={filters.topics || []}
+      onChange={handleTopicsChange}
+      options={topicOptions}
+      placeholder={t('serviceRequests.filter.allTopics', 'Все темы')}
+      className="w-full"
+    />
+  );
+
+  const zoneFilter = (
+    <MultiSelect
+      value={filters.territorialZones || []}
+      onChange={handleZonesChange}
+      options={zoneOptions}
+      placeholder={t('serviceRequests.filter.allZones', 'Все зоны')}
+      className="w-full"
+    />
+  );
+
+  const districtFilter = (
+    <MultiSelect
+      value={filters.districts || []}
+      onChange={handleDistrictsChange}
+      options={districtOptions}
+      placeholder={t('serviceRequests.filter.allDistricts', 'Все районы')}
+      className="w-full"
+    />
   );
 
   // ─── Mobile layout ──────────────────────────────────────
@@ -131,44 +223,11 @@ export const ServiceRequestsFilter = memo(({ filters, onChange }: ServiceRequest
         {/* Expandable filters */}
         {filtersExpanded && (
           <Flex gap="8" direction="column" className="animate-in slide-in-from-top-2 fade-in duration-200">
-            {/* Status */}
-            <Select value={filters.status || 'all'} onChange={handleStatusChange} className="w-full">
-              <option value="all">{t('serviceRequests.filter.allStatuses', 'Все статусы')}</option>
-              {REQUEST_STATUS_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>{t(opt.labelKey, opt.fallback)}</option>
-              ))}
-            </Select>
+            {statusFilter}
+            {topicFilter}
+            {zoneFilter}
+            {districtFilter}
 
-            {/* Topic */}
-            <Select value={filters.topic || 'all'} onChange={handleTopicChange} className="w-full">
-              <option value="all">{t('serviceRequests.filter.allTopics', 'Все темы')}</option>
-              {subjects.map((s) => (
-                <option key={s.uid} value={s.name}>{s.name}</option>
-              ))}
-            </Select>
-
-            {/* Zone */}
-            <Select value={filters.territorialZone || 'all'} onChange={handleZoneChange} className="w-full">
-              <option value="all">{t('serviceRequests.filter.allZones', 'Все зоны')}</option>
-              {zones.map((z) => (
-                <option key={z} value={z}>{z}</option>
-              ))}
-            </Select>
-
-            {/* District */}
-            <Select
-              value={filters.district || 'all'}
-              onChange={handleDistrictChange}
-              disabled={!filters.territorialZone}
-              className="w-full"
-            >
-              <option value="all">{filters.territorialZone ? t('serviceRequests.filter.allDistricts', 'Все районы') : t('serviceRequests.filter.selectZone', '← Зона')}</option>
-              {filteredDistricts.map((d) => (
-                <option key={d.uid} value={d.district}>{d.district}</option>
-              ))}
-            </Select>
-
-            {/* Date range with labels */}
             <Flex align="end" gap="8" className="w-full">
               <DateField
                 label={t('serviceRequests.filter.dateFrom', 'Дата от')}
@@ -190,7 +249,6 @@ export const ServiceRequestsFilter = memo(({ filters, onChange }: ServiceRequest
   // ─── Desktop layout ─────────────────────────────────────
   return (
     <div className="flex flex-wrap gap-2 items-end w-full">
-      {/* Search */}
       <div className="relative flex-1 min-w-[160px] basis-[calc(20%-0.5rem)]">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground z-10" />
         <Input
@@ -201,52 +259,22 @@ export const ServiceRequestsFilter = memo(({ filters, onChange }: ServiceRequest
         />
       </div>
 
-      {/* Status */}
-      <div className="flex-1 min-w-[120px] basis-[calc(14%-0.5rem)]">
-        <Select value={filters.status || 'all'} onChange={handleStatusChange} className="w-full">
-          <option value="all">{t('serviceRequests.filter.allStatuses', 'Все статусы')}</option>
-          {REQUEST_STATUS_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>{t(opt.labelKey, opt.fallback)}</option>
-          ))}
-        </Select>
+      <div className="flex-1 min-w-[140px] basis-[calc(14%-0.5rem)]">
+        {statusFilter}
       </div>
 
-      {/* Topic */}
-      <div className="flex-1 min-w-[120px] basis-[calc(14%-0.5rem)]">
-        <Select value={filters.topic || 'all'} onChange={handleTopicChange} className="w-full">
-          <option value="all">{t('serviceRequests.filter.allTopics', 'Все темы')}</option>
-          {subjects.map((s) => (
-            <option key={s.uid} value={s.name}>{s.name}</option>
-          ))}
-        </Select>
+      <div className="flex-1 min-w-[140px] basis-[calc(14%-0.5rem)]">
+        {topicFilter}
       </div>
 
-      {/* Zone */}
-      <div className="flex-1 min-w-[120px] basis-[calc(14%-0.5rem)]">
-        <Select value={filters.territorialZone || 'all'} onChange={handleZoneChange} className="w-full">
-          <option value="all">{t('serviceRequests.filter.allZones', 'Все зоны')}</option>
-          {zones.map((z) => (
-            <option key={z} value={z}>{z}</option>
-          ))}
-        </Select>
+      <div className="flex-1 min-w-[140px] basis-[calc(14%-0.5rem)]">
+        {zoneFilter}
       </div>
 
-      {/* District */}
-      <div className="flex-1 min-w-[120px] basis-[calc(14%-0.5rem)]">
-        <Select
-          value={filters.district || 'all'}
-          onChange={handleDistrictChange}
-          disabled={!filters.territorialZone}
-          className="w-full"
-        >
-          <option value="all">{filters.territorialZone ? t('serviceRequests.filter.allDistricts', 'Все районы') : t('serviceRequests.filter.selectZone', '← Зона')}</option>
-          {filteredDistricts.map((d) => (
-            <option key={d.uid} value={d.district}>{d.district}</option>
-          ))}
-        </Select>
+      <div className="flex-1 min-w-[140px] basis-[calc(14%-0.5rem)]">
+        {districtFilter}
       </div>
 
-      {/* Date range with labels */}
       <div className="flex items-end gap-2 flex-1 min-w-[200px] basis-[calc(24%-0.5rem)]">
         <DateField
           label={t('serviceRequests.filter.dateFrom', 'Дата от')}
@@ -260,7 +288,6 @@ export const ServiceRequestsFilter = memo(({ filters, onChange }: ServiceRequest
         />
       </div>
 
-      {/* Clear */}
       {hasFilters && (
         <Button variant="ghost" size="sm" onClick={clearFilters} className="text-muted-foreground hover:text-foreground shrink-0 self-end">
           <X className="w-4 h-4 mr-1" />

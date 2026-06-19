@@ -20,6 +20,16 @@ export const useEndpointsTableColumns = () => {
     () => [
       columnHelper.accessor('extension', {
         header: () => t('endpoints.extension'),
+        sortingFn: (rowA, rowB, columnId) => {
+          const a = String(rowA.getValue(columnId));
+          const b = String(rowB.getValue(columnId));
+          const numA = parseInt(a, 10);
+          const numB = parseInt(b, 10);
+          if (!isNaN(numA) && !isNaN(numB) && String(numA) === a && String(numB) === b) {
+            return numA - numB;
+          }
+          return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+        },
         cell: (info) => (
           <span className="font-mono font-semibold text-primary">{info.getValue()}</span>
         ),

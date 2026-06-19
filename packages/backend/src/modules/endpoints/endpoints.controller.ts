@@ -9,6 +9,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import { Request } from 'express';
 import { EndpointsService } from './endpoints.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -34,11 +35,13 @@ export class EndpointsController {
     return this.endpointsService.bulkCreate(dto, req.user.vpbx_user_uid, req.user.uid);
   }
 
+  @SkipThrottle()
   @Get('bulk/active')
   getActiveBulkJob(@Req() req: Request & { user: any }) {
     return this.endpointsService.getActiveBulkJob(req.user.vpbx_user_uid);
   }
 
+  @SkipThrottle()
   @Get('bulk/status/:jobId')
   getBulkJobStatus(@Param('jobId') jobId: string) {
     return this.endpointsService.getBulkJobStatus(jobId);

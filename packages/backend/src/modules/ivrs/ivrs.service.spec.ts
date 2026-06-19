@@ -2,7 +2,7 @@ import { IvrsService } from './ivrs.service';
 import { Ivr } from './ivr.model';
 
 describe('IvrsService.generateIvrDialplan', () => {
-  const service = new IvrsService(null as any);
+  const service = new IvrsService(null as any, null as any);
 
   const baseIvr = {
     uid: 5,

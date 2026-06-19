@@ -1,10 +1,12 @@
 import {
   Controller, Get, Post, Put, Delete,
-  Param, Body, Req, ParseIntPipe,
+  Param, Body, Req, ParseIntPipe, UseGuards,
 } from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { SttEnginesService } from './stt-engines.service';
 
 @Controller('stt-engines')
+@UseGuards(JwtAuthGuard)
 export class SttEnginesController {
   constructor(private readonly sttEnginesService: SttEnginesService) {}
 

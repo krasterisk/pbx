@@ -63,7 +63,7 @@ export const TenantDrawer = memo(() => {
   const handleImpersonate = async () => {
     try {
       const { accessToken } = await impersonate(tenantId).unwrap();
-      // Store impersonation token and reload
+      localStorage.setItem('accessToken', accessToken);
       localStorage.setItem('impersonation_token', accessToken);
       window.location.href = '/';
     } catch (e) {

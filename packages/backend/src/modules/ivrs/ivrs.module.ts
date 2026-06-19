@@ -28,6 +28,6 @@ import { YandexStreamingTtsProvider } from '../voice-robots/providers/yandex-str
     IvrTtsCacheService,
     YandexStreamingTtsProvider,
   ],
-  exports: [IvrsService],
+  exports: [IvrsService, IvrTtsService],
 })
 export class IvrsModule {}

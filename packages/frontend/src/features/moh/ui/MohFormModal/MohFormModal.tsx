@@ -2,8 +2,19 @@ import { memo, useEffect, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useForm, Controller } from 'react-hook-form';
 import { ChevronUp, ChevronDown, Trash2, Plus, Music } from 'lucide-react';
-import { Button, Input, Label } from '@/shared/ui';
-import { VStack, HStack } from '@/shared/ui/Stack';
+import {
+  Button,
+  Input,
+  Label,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  Select,
+  Text,
+} from '@/shared/ui';
+import { VStack, HStack, Flex } from '@/shared/ui/Stack';
 import { useAppSelector, useAppDispatch } from '@/shared/hooks/useAppStore';
 import { mohActions } from '../../model/slice/mohSlice';
 import {
@@ -45,12 +56,10 @@ export const MohFormModal = memo(() => {
           displayName: selectedMoh.displayName || '',
           sort: selectedMoh.sort || 'random',
         });
-        // Restore playlist from entries
-        const entries = (selectedMoh.entries || [])
+        const entries = [...(selectedMoh.entries || [])]
           .sort((a, b) => a.position - b.position)
           .map((e) => {
             const prompt = allPrompts.find((p) => {
-              // entry contains absolute path, filename is the basename
               return e.entry?.endsWith(p.filename) || e.filename === p.filename;
             });
             return {
@@ -80,7 +89,6 @@ export const MohFormModal = memo(() => {
     [allPrompts],
   );
 
-  // Playlist management
   const handleAddTrack = () => {
     if (!selectedPrompt) return;
     setPlaylist((prev) => [
@@ -112,12 +120,15 @@ export const MohFormModal = memo(() => {
     });
   };
 
-  // Filter out already-selected prompts from dropdown
   const availablePrompts = allPrompts.filter(
     (p) => !playlist.some((entry) => entry.filename === p.filename),
   );
 
   const onSubmit = async (formData: MohFormData) => {
+    if (playlist.length === 0) {
+      return;
+    }
+
     const entries = playlist.map((entry, index) => ({
       filename: entry.filename,
       position: index + 1,
@@ -142,23 +153,28 @@ export const MohFormModal = memo(() => {
     }
   };
 
-  if (!isModalOpen) return null;
+  const handleOpenChange = (open: boolean) => {
+    if (!open) {
+      dispatch(mohActions.closeModal());
+    }
+  };
 
   const isSubmitting = isCreating || isUpdating;
 
   return (
-    <div className={cls.overlay} onClick={() => dispatch(mohActions.closeModal())}>
-      <div className={cls.modal} onClick={(e) => e.stopPropagation()}>
-        <h2 className={cls.title}>
-          {modalMode === 'edit'
-            ? t('moh.edit', 'Редактировать класс')
-            : t('moh.add', 'Создать класс')}
-        </h2>
+    <Dialog open={isModalOpen} onOpenChange={handleOpenChange}>
+      <DialogContent size="xl" className={cls.dialogContent}>
+        <DialogHeader>
+          <DialogTitle>
+            {modalMode === 'edit'
+              ? t('moh.edit', 'Редактировать класс')
+              : t('moh.add', 'Создать класс')}
+          </DialogTitle>
+        </DialogHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)}>
+        <form className={cls.form} onSubmit={handleSubmit(onSubmit)}>
           <VStack gap="16" max>
-            {/* Display Name */}
-            <VStack gap="4" max>
+            <VStack gap="4" max className={cls.field}>
               <Label htmlFor="moh-displayName">
                 {t('moh.fields.displayName', 'Название класса')} *
               </Label>
@@ -171,19 +187,20 @@ export const MohFormModal = memo(() => {
                 })}
               />
               {errors.displayName && (
-                <span className={cls.error}>{t('common.error', 'Обязательное поле')}</span>
+                <Text variant="small" className={cls.errorText}>
+                  {t('common.error', 'Обязательное поле')}
+                </Text>
               )}
             </VStack>
 
-            {/* Sort */}
-            <VStack gap="4" max>
+            <VStack gap="4" max className={cls.field}>
               <Label>{t('moh.fields.sort', 'Порядок воспроизведения')}</Label>
               <Controller
                 name="sort"
                 control={control}
                 render={({ field }) => (
-                  <HStack gap="16">
-                    <label className={cls.radioLabel}>
+                  <HStack gap="16" className={cls.radioGroup}>
+                    <label className={cls.radioOption}>
                       <input
                         type="radio"
                         value="random"
@@ -191,11 +208,11 @@ export const MohFormModal = memo(() => {
                         onChange={() => field.onChange('random')}
                         className={cls.radioInput}
                       />
-                      <span className={cls.radioText}>
+                      <Text as="span" variant="small" className={cls.radioLabel}>
                         {t('moh.sort.random', 'Случайно')}
-                      </span>
+                      </Text>
                     </label>
-                    <label className={cls.radioLabel}>
+                    <label className={cls.radioOption}>
                       <input
                         type="radio"
                         value="alpha"
@@ -203,102 +220,107 @@ export const MohFormModal = memo(() => {
                         onChange={() => field.onChange('alpha')}
                         className={cls.radioInput}
                       />
-                      <span className={cls.radioText}>
+                      <Text as="span" variant="small" className={cls.radioLabel}>
                         {t('moh.sort.alpha', 'По порядку')}
-                      </span>
+                      </Text>
                     </label>
                   </HStack>
                 )}
               />
             </VStack>
 
-            {/* Playlist Editor */}
-            <VStack gap="8" max>
+            <VStack gap="8" max className={cls.field}>
               <Label>{t('moh.playlist.title', 'Плейлист')}</Label>
 
-              <div className={cls.playlistContainer}>
+              <VStack gap="8" max className={cls.playlistBox}>
                 {playlist.length === 0 ? (
-                  <div className={cls.emptyPlaylist}>
-                    <Music size={28} className={cls.emptyIcon} />
-                    <span>
+                  <VStack align="center" gap="8" className={cls.playlistEmpty}>
+                    <Music size={28} className={cls.playlistEmptyIcon} />
+                    <Text variant="small" className={cls.playlistEmptyText}>
                       {t(
                         'moh.playlist.empty',
                         'Добавьте аудио-файлы из справочника записей',
                       )}
-                    </span>
-                  </div>
+                    </Text>
+                  </VStack>
                 ) : (
                   <VStack gap="4" max>
                     {playlist.map((entry, index) => (
-                      <div key={`${entry.filename}-${index}`} className={cls.playlistItem}>
-                        <span className={cls.trackIndex}>{index + 1}</span>
+                      <Flex key={`${entry.filename}-${index}`} align="center" className={cls.playlistItem}>
+                        <Text as="span" className={cls.trackIndex}>
+                          {index + 1}
+                        </Text>
                         <Music size={14} className={cls.trackIcon} />
-                        <span className={cls.trackName}>{entry.label}</span>
+                        <Text as="span" className={cls.trackLabel}>
+                          {entry.label}
+                        </Text>
 
-                        <div className={cls.trackActions}>
-                          <button
+                        <HStack gap="0" className={cls.trackActions}>
+                          <Button
                             type="button"
-                            className={cls.moveBtn}
+                            variant="ghost"
+                            size="icon"
                             onClick={() => handleMoveUp(index)}
                             disabled={index === 0}
                             title={t('common.moveUp', 'Вверх')}
                           >
                             <ChevronUp size={14} />
-                          </button>
-                          <button
+                          </Button>
+                          <Button
                             type="button"
-                            className={cls.moveBtn}
+                            variant="ghost"
+                            size="icon"
                             onClick={() => handleMoveDown(index)}
                             disabled={index >= playlist.length - 1}
                             title={t('common.moveDown', 'Вниз')}
                           >
                             <ChevronDown size={14} />
-                          </button>
-                          <button
+                          </Button>
+                          <Button
                             type="button"
-                            className={cls.removeBtn}
+                            variant="ghost"
+                            size="icon"
+                            className={cls.deleteTrackBtn}
                             onClick={() => handleRemoveTrack(index)}
                             title={t('common.delete', 'Удалить')}
                           >
                             <Trash2 size={14} />
-                          </button>
-                        </div>
-                      </div>
+                          </Button>
+                        </HStack>
+                      </Flex>
                     ))}
                   </VStack>
                 )}
 
-                {/* Add track section */}
-                <div className={cls.addSection}>
-                  <select
-                    className={cls.selectInput}
+                <Flex align="center" className={cls.playlistAddRow}>
+                  <Select
+                    className={cls.promptSelect}
                     value={selectedPrompt}
                     onChange={(e) => setSelectedPrompt(e.target.value)}
                   >
                     <option value="">
-                      {t('moh.playlist.selectPrompt', '— Выберите запись —')}
+                      {t('moh.playlist.selectPrompt', 'Выберите запись')}
                     </option>
                     {availablePrompts.map((p) => (
                       <option key={p.uid} value={p.filename}>
                         {p.comment || p.filename}
                       </option>
                     ))}
-                  </select>
-                  <button
+                  </Select>
+                  <Button
                     type="button"
-                    className={cls.addBtn}
                     onClick={handleAddTrack}
                     disabled={!selectedPrompt}
+                    className={cls.addTrackBtn}
                   >
                     <Plus size={16} />
                     {t('moh.playlist.add', 'Добавить трек')}
-                  </button>
-                </div>
-              </div>
+                  </Button>
+                </Flex>
+              </VStack>
             </VStack>
 
-            {/* Form buttons */}
-            <HStack gap="8" justify="end" max className={cls.formButtons}>
+            <DialogFooter className={cls.footer}>
               <Button
                 type="button"
                 variant="outline"
@@ -306,16 +328,16 @@ export const MohFormModal = memo(() => {
               >
                 {t('common.cancel', 'Отмена')}
               </Button>
-              <Button type="submit" disabled={isSubmitting}>
+              <Button type="submit" disabled={isSubmitting || playlist.length === 0}>
                 {isSubmitting
                   ? t('common.loading', 'Загрузка...')
                   : t('common.save', 'Сохранить')}
               </Button>
-            </HStack>
+            </DialogFooter>
           </VStack>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 });
 

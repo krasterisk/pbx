@@ -1,10 +1,12 @@
 import {
   Controller, Get, Post, Put, Delete,
-  Param, Body, Req, ParseIntPipe,
+  Param, Body, Req, ParseIntPipe, UseGuards,
 } from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { TtsEnginesService } from './tts-engines.service';
 
 @Controller('tts-engines')
+@UseGuards(JwtAuthGuard)
 export class TtsEnginesController {
   constructor(private readonly ttsEnginesService: TtsEnginesService) {}
 

@@ -162,3 +162,54 @@
 
 - Manual: `/ivrs` → «Фразы» → добавить TTS с движком и другим голосом → сохранить → звонок/диалплан воспроизводит обе фразы в порядке
 - Automated: `npm run test:backend` (ivrs + synthesis), `npm run test:frontend` (IvrPromptsEditor)
+
+---
+
+## Phase 5 — Phonebooks AI: универсальные справочники, MCP tools, chat-bot
+
+**Canonical refs (фаза):**
+
+- `.docs/PHONEBOOKS_MODULE.md` — **MUST READ** (модель данных, lookup CURL, dialplan, vars → `PB_*`)
+- `.docs/AI_CHAT_MODULE.md` — **MUST READ** (ai-tools webhooks, MCP `/api/mcp`, audit log, system prompt)
+- `packages/backend/src/modules/phonebooks/` — CRUD, lookup, dialplan generation
+- `packages/backend/src/modules/ai-chat/` — SSE-прокси, `ai-webhook.controller`, `pbx-context-builder`
+- `packages/backend/src/modules/mcp/` — `mcp-tools.service` (расширение инструментов)
+- `packages/frontend/src/features/phonebooks/` — UI справочников
+- `packages/frontend/src/widgets/AiChatWidget/` — встроенный AI-ассистент
+
+**Status:** Not planned  
+**Depends on:** — (brownfield; независима от verify Phase 4)
+
+**Goal:** Проанализировать текущую реализацию Phonebooks, улучшить её и выделить **универсальные механизмы** для проектирования и настройки справочников через AI: встроенный чат (`AiChatWidget`), webhooks `/api/ai-tools/*` и **MCP-инструменты** — чтобы простой чат-бот по запросу пользователя мог создавать/редактировать справочники, записи, actions и привязки к маршрутам.
+
+**Scope (in):**
+
+- Аудит `phonebooks` backend + frontend vs `.docs/PHONEBOOKS_MODULE.md` (gaps, tech debt)
+- Универсальный контракт «справочник» (schema/metadata для AI: поля vars, actions, invert, patterns)
+- AI tools: `create_phonebook`, `update_phonebook`, `add_phonebook_entries`, `list_phonebooks`, … (webhook + MCP)
+- Расширение `PbxContextBuilderService` / system prompt — snapshot справочников для LLM
+- Регистрация tools в aiPBX + MCP (по паттерну существующих 16 инструментов)
+- Audit log (`action_logs`) для phonebook tool calls
+- E2E-сценарии: «создай чёрный список», «добавь VIP-номера с redirect», «привяжи справочник к маршруту»
+
+**Scope (out):**
+
+- Новые типы справочников beyond phonebook (отдельная фаза после универсального слоя)
+- Полный редизайн `PhonebooksPage` UI (только если audit выявит блокеры)
+- Собственный LLM / замена aiPBX
+
+**Requirements:** TBD (после `/gsd-discuss-phase 5`)
+
+**GSD workflow (рекомендуемый порядок):**
+
+| Шаг | Команда |
+|-----|---------|
+| 1 | `/gsd-discuss-phase 5` — универсальный контракт, tool surface, MCP vs webhook |
+| 2 | `/gsd-plan-phase 5` |
+| 3 | `/gsd-execute-phase 5` |
+| 4 | `/gsd-verify-work 5` |
+
+**Verification:**
+
+- Automated: `npm run test:backend` (phonebooks + ai-tools + mcp), `npm run lint`
+- Manual: AI Chat / MCP — создать справочник и записи по текстовому запросу; lookup + dialplan работают

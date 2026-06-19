@@ -1,49 +1,52 @@
-.tableWrapper {
+/* MohTable — таблица классов MOH (токены globals.css @theme) */
+
+.tableWrap {
   overflow-x: auto;
+  width: 100%;
 }
 
 .table {
   width: 100%;
-  border-collapse: collapse;
 }
 
-.th {
-  text-align: left;
-  padding: 12px 16px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--muted-foreground, hsl(240, 5%, 64.9%));
-  border-bottom: 1px solid var(--border, hsl(240, 3.7%, 15.9%));
+/* thead: фон как у CardHeader, разделитель даёт shared Table */
+.tableHeadRow {
+  background: color-mix(in srgb, var(--color-muted) 25%, transparent);
+  border-bottom-color: var(--color-border);
+}
+
+.headCell {
   cursor: pointer;
   user-select: none;
   white-space: nowrap;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-muted-foreground);
 }
 
-.row {
+.bodyRow {
+  border-bottom: 1px solid var(--color-border);
   transition: background-color 0.15s ease;
 
+  &:last-child {
+    border-bottom: none;
+  }
+
   &:hover {
-    background-color: var(--accent, hsl(240, 3.7%, 15.9%));
+    background: color-mix(in srgb, var(--color-muted) 35%, transparent);
   }
 }
 
-.td {
-  padding: 12px 16px;
-  font-size: 0.875rem;
-  border-bottom: 1px solid var(--border, hsl(240, 3.7%, 15.9%));
-  vertical-align: middle;
-}
-
 .musicIcon {
-  color: var(--primary, hsl(239, 84%, 67%));
+  color: var(--color-primary);
   flex-shrink: 0;
 }
 
 .className {
   font-weight: 500;
-  color: var(--foreground, hsl(0, 0%, 98%));
+  color: var(--color-foreground);
 }
 
 .tracksBadge {
@@ -55,8 +58,8 @@
   font-size: 0.8rem;
   font-weight: 600;
   border-radius: 9999px;
-  background: hsl(239, 84%, 67%, 0.15);
-  color: var(--primary, hsl(239, 84%, 67%));
+  background: color-mix(in srgb, var(--color-primary) 15%, transparent);
+  color: var(--color-primary);
 }
 
 .sortBadge {
@@ -65,60 +68,75 @@
   padding: 3px 10px;
   font-size: 0.78rem;
   font-weight: 500;
-  border-radius: 6px;
-  background: hsl(240, 3.7%, 15.9%);
-  color: var(--muted-foreground, hsl(240, 5%, 64.9%));
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--color-muted) 80%, transparent);
+  color: var(--color-muted-foreground);
 }
 
 .sort_random {
-  background: hsl(280, 60%, 25%, 0.3);
-  color: hsl(280, 80%, 75%);
+  background: color-mix(in srgb, var(--color-primary) 18%, transparent);
+  color: var(--color-primary);
 }
 
 .sort_alpha {
-  background: hsl(170, 60%, 25%, 0.3);
-  color: hsl(170, 70%, 70%);
+  background: color-mix(in srgb, var(--color-success) 18%, transparent);
+  color: var(--color-success);
 }
 
-.actionBtn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 6px;
-  border: none;
-  background: transparent;
-  color: var(--muted-foreground, hsl(240, 5%, 64.9%));
-  cursor: pointer;
-  transition: all 0.15s ease;
-
-  &:hover {
-    background: var(--accent, hsl(240, 3.7%, 15.9%));
-    color: var(--foreground, hsl(0, 0%, 98%));
-  }
-}
-
-.deleteBtn {
-  &:hover {
-    background: hsl(0, 72%, 51%, 0.15);
-    color: hsl(0, 72%, 65%);
-  }
-}
-
-.emptyRow {
-  padding: 48px 16px;
+.emptyCell {
+  padding: 3rem 1rem;
   text-align: center;
-  color: var(--muted-foreground, hsl(240, 5%, 64.9%));
 }
 
 .emptyIcon {
-  color: var(--muted-foreground, hsl(240, 5%, 64.9%));
+  color: var(--color-muted-foreground);
   opacity: 0.4;
 }
 
-.loading {
-  padding: 48px 16px;
+.emptyTitle {
+  font-weight: 500;
+  color: var(--color-foreground);
+}
+
+.emptyHint {
+  font-size: 0.85rem;
+  color: var(--color-muted-foreground);
+  max-width: 320px;
   text-align: center;
-  color: var(--muted-foreground, hsl(240, 5%, 64.9%));
+}
+
+.actionIcon {
+  width: 1rem;
+  height: 1rem;
+}
+
+.actionBtnDelete:hover {
+  color: var(--color-destructive);
+}
+
+.skeletonSm {
+  height: 1rem;
+  width: 2rem;
+}
+
+.skeletonMd {
+  height: 1rem;
+  width: 10rem;
+}
+
+.skeletonBadge {
+  height: 1.25rem;
+  width: 3rem;
+  border-radius: 9999px;
+}
+
+.skeletonChip {
+  height: 1.25rem;
+  width: 6rem;
+  border-radius: var(--radius-md);
+}
+
+.skeletonActions {
+  height: 2rem;
+  width: 4rem;
 }

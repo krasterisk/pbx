@@ -6,11 +6,19 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
+import * as path from 'path';
 import { PromptsService } from './prompts.service';
+import { IvrTtsService } from '../ivrs/ivr-tts.service';
+import type { IPromptTtsMeta } from '@krasterisk/shared';
+import { PromptSynthesizeDto, PromptTtsPreviewDto } from './dto/prompt-tts.dto';
+import { PromptUpdateDto } from './dto/prompt-update.dto';
 
 @Controller('prompts')
 export class PromptsController {
-  constructor(private readonly promptsService: PromptsService) {}
+  constructor(
+    private readonly promptsService: PromptsService,
+    private readonly ivrTtsService: IvrTtsService,
+  ) {}
 
   @Get()
   async findAll(@Req() req: any) {
@@ -46,7 +54,7 @@ export class PromptsController {
   async upload(
     @UploadedFile() file: Express.Multer.File,
     @Body('comment') comment: string,
-    @Body('moh') moh: string,
+    @Body('description') description: string,
     @Req() req: any,
   ) {
     if (!file) {
@@ -56,10 +64,15 @@ export class PromptsController {
     const userUid = req.user?.vpbx_user_uid || req.user?.user_uid || 0;
     const filename = this.promptsService.generateFilename(userUid);
 
-    // TODO: Phase 3 — convert file with sox/ffmpeg, upload via SFTP
-    // For now, save metadata to DB
+    const ext = path.extname(file.originalname) || '.wav';
+    await this.promptsService.savePromptAudio(userUid, filename, file.buffer, ext);
+
     const prompt = await this.promptsService.create(
-      { filename, comment: comment || file.originalname, moh: moh || '' },
+      {
+        filename,
+        comment: comment || file.originalname,
+        description: description || '',
+      },
       userUid,
     );
 
@@ -73,6 +86,7 @@ export class PromptsController {
   async record(
     @Body('exten') exten: string,
     @Body('comment') comment: string,
+    @Body('description') description: string,
     @Req() req: any,
   ) {
     if (!exten) {
@@ -87,38 +101,73 @@ export class PromptsController {
 
     // Create DB record
     await this.promptsService.create(
-      { filename, comment: comment || `Recording ${filename}` },
+      {
+        filename,
+        comment: comment || `Recording ${filename}`,
+        description: description || '',
+      },
       userUid,
     );
 
     return { message: 'Recording initiated', filename };
   }
 
+  @Post('tts-preview')
+  async ttsPreview(
+    @Body() dto: PromptTtsPreviewDto,
+    @Req() req: any,
+    @Res() res: Response,
+  ) {
+    const userUid = req.user?.vpbx_user_uid || req.user?.user_uid || 0;
+    try {
+      const engine = await this.ivrTtsService.loadEngine(dto.engine_uid, userUid);
+      const wav = await this.ivrTtsService.synthesizeToBuffer(engine, dto.text, dto.settings);
+      res.setHeader('Content-Type', 'audio/wav');
+      res.setHeader('Content-Length', String(wav.length));
+      res.send(wav);
+    } catch (err: any) {
+      throw new BadRequestException(err.message || 'TTS preview failed');
+    }
+  }
+
   /**
-   * Synthesize speech via a configured TTS engine.
-   * TODO: Implement in Phase 6 when TTS engines are ready.
+   * Synthesize speech via a configured TTS engine and register a prompt record.
+   * Audio file upload to Asterisk (SFTP) is deferred — metadata is persisted now.
    */
   @Post('synthesize')
-  async synthesize(
-    @Body('text') text: string,
-    @Body('engineId') engineId: number,
-    @Body('comment') comment: string,
-    @Req() req: any,
-  ) {
-    if (!text || !engineId) {
-      throw new BadRequestException('Text and engineId are required');
+  async synthesize(@Body() dto: PromptSynthesizeDto, @Req() req: any) {
+    const userUid = req.user?.vpbx_user_uid || req.user?.user_uid || 0;
+    const comment = dto.comment?.trim();
+    if (!comment) {
+      throw new BadRequestException('Recording name is required');
     }
 
-    const userUid = req.user?.vpbx_user_uid || req.user?.user_uid || 0;
-    const filename = this.promptsService.generateFilename(userUid);
+    let wav: Buffer;
+    try {
+      const engine = await this.ivrTtsService.loadEngine(dto.engine_uid, userUid);
+      wav = await this.ivrTtsService.synthesizeToBuffer(engine, dto.text, dto.settings);
+    } catch (err: any) {
+      throw new BadRequestException(err.message || 'TTS synthesis failed');
+    }
 
-    // TODO: Phase 6 — call TTS engine API, convert result, upload via SFTP
-    const prompt = await this.promptsService.create(
-      { filename, comment: comment || `TTS: ${text.substring(0, 50)}` },
+    const filename = this.promptsService.generateFilename(userUid);
+    await this.promptsService.savePromptAudio(userUid, filename, wav, '.wav');
+
+    const ttsMeta: IPromptTtsMeta = {
+      text: dto.text.trim(),
+      engine_uid: dto.engine_uid,
+      settings: dto.settings,
+    };
+
+    return this.promptsService.create(
+      {
+        filename,
+        comment,
+        description: dto.description?.trim() || '',
+        tts: ttsMeta,
+      },
       userUid,
     );
-
-    return prompt;
   }
 
   /**
@@ -132,32 +181,40 @@ export class PromptsController {
     @Res() res: Response,
   ) {
     const userUid = req.user?.vpbx_user_uid || req.user?.user_uid || 0;
-    const prompt = await this.promptsService.findOne(id, userUid);
-
-    // TODO: SFTP download → pipe to res
-    // For now, return a placeholder
-    res.setHeader('Content-Type', 'audio/wav');
-    res.setHeader('Content-Disposition', `inline; filename="${prompt.filename}.wav"`);
-    res.status(200).send(''); // placeholder
+    const prompt = await this.promptsService.findOneRow(id, userUid);
+    await this.promptsService.streamPromptAudio(userUid, prompt, res);
   }
 
   @Put(':id')
   async update(
     @Param('id', ParseIntPipe) id: number,
-    @Body() body: { comment?: string; moh?: string },
+    @Body() body: PromptUpdateDto,
     @Req() req: any,
   ) {
     const userUid = req.user?.vpbx_user_uid || req.user?.user_uid || 0;
-    return this.promptsService.update(id, body, userUid);
+    return this.promptsService.update(
+      id,
+      {
+        comment: body.comment,
+        description: body.description,
+        tts: body.tts,
+      },
+      userUid,
+      async (filename, meta) => {
+        const engine = await this.ivrTtsService.loadEngine(meta.engine_uid, userUid);
+        const wav = await this.ivrTtsService.synthesizeToBuffer(engine, meta.text, meta.settings);
+        await this.promptsService.savePromptAudio(userUid, filename, wav, '.wav');
+      },
+    );
   }
 
   @Delete(':id')
   async remove(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
     const userUid = req.user?.vpbx_user_uid || req.user?.user_uid || 0;
-    const { filename, moh } = await this.promptsService.remove(id, userUid);
+    const { filename } = await this.promptsService.remove(id, userUid);
+    // audio file on disk left for manual cleanup until SFTP lifecycle is implemented
 
     // TODO: Phase 3 — delete file from Asterisk via SFTP
-    // TODO: If moh was set, also remove from MOH directory and call ami moh reload
 
     return { message: 'Prompt deleted', filename };
   }

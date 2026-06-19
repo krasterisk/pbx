@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
@@ -9,7 +9,13 @@ import * as apiHooks from '@/shared/api/endpoints/promptsApi';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string, fallback: string) => fallback || key,
+    t: (key: string, fallback?: string | { defaultValue?: string }) => {
+      if (typeof fallback === 'string') return fallback || key;
+      if (fallback && typeof fallback === 'object' && fallback.defaultValue) {
+        return fallback.defaultValue;
+      }
+      return key;
+    },
   }),
 }));
 
@@ -40,8 +46,24 @@ const renderWithStore = (ui: React.ReactElement) => {
 
 describe('PromptsTable UI integration', () => {
   const mockPrompts = [
-    { uid: 1, filename: 'welcome', comment: 'Welcome', format: 'wav' },
-    { uid: 2, filename: 'hold', comment: 'Hold MOH', format: 'wav', moh: 'default' },
+    {
+      uid: 1,
+      filename: 'welcome',
+      comment: 'Welcome',
+      description: '',
+      user_uid: 1,
+      source_type: 'file' as const,
+      tts: null,
+    },
+    {
+      uid: 2,
+      filename: 'hold',
+      comment: 'Hold music',
+      description: 'Очередь ожидания',
+      user_uid: 1,
+      source_type: 'tts' as const,
+      tts: { text: 'Подождите', engine_uid: 1 },
+    },
   ];
 
   beforeEach(() => {
@@ -54,24 +76,13 @@ describe('PromptsTable UI integration', () => {
   it('renders table rows', () => {
     renderWithStore(<PromptsTable />);
     expect(screen.getByText('Welcome')).toBeInTheDocument();
-    expect(screen.getByText('Hold MOH')).toBeInTheDocument();
+    expect(screen.getByText('Hold music')).toBeInTheDocument();
+    expect(screen.getByText('Очередь ожидания')).toBeInTheDocument();
   });
 
-  it('dispatches openUploadModal on upload button click', () => {
+  it('shows row numbers starting from 1', () => {
     renderWithStore(<PromptsTable />);
-    const uploadBtn = screen.getByText('Загрузить файл');
-    fireEvent.click(uploadBtn);
-    expect(mockDispatch).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'prompts/openUploadModal' })
-    );
-  });
-
-  it('dispatches openRecordModal on record button click', () => {
-    renderWithStore(<PromptsTable />);
-    const recordBtn = screen.getByText('Записать по телефону');
-    fireEvent.click(recordBtn);
-    expect(mockDispatch).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'prompts/openRecordModal' })
-    );
+    expect(screen.getByText('1')).toBeInTheDocument();
+    expect(screen.getByText('2')).toBeInTheDocument();
   });
 });

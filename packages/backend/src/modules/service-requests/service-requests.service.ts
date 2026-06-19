@@ -27,6 +27,18 @@ export function buildCallReceivedAtRange(dateFrom?: string, dateTo?: string): Re
   return Object.getOwnPropertySymbols(range).length > 0 ? range : null;
 }
 
+/** Parse comma-separated query filter values (e.g. topic=a,b). */
+export function parseCsvFilter(value?: string): string[] | undefined {
+  if (!value?.trim()) return undefined;
+  const items = value.split(',').map((s) => s.trim()).filter(Boolean);
+  return items.length > 0 ? items : undefined;
+}
+
+function applyInFilter(where: Record<string, unknown>, field: string, values?: string[]) {
+  if (!values?.length) return;
+  where[field] = values.length === 1 ? values[0] : { [Op.in]: values };
+}
+
 /**
  * ServiceRequestsService — CRUD-сервис для обращений клиентов.
  *
@@ -58,10 +70,10 @@ export class ServiceRequestsService {
   ): Promise<{ rows: ServiceRequest[]; count: number }> {
     const where: any = { user_uid: userUid };
 
-    if (options?.status) where.request_status = options.status;
-    if (options?.district) where.district = options.district;
-    if (options?.topic) where.topic = options.topic;
-    if (options?.territorial_zone) where.territorial_zone = options.territorial_zone;
+    applyInFilter(where, 'request_status', parseCsvFilter(options?.status));
+    applyInFilter(where, 'district', parseCsvFilter(options?.district));
+    applyInFilter(where, 'topic', parseCsvFilter(options?.topic));
+    applyInFilter(where, 'territorial_zone', parseCsvFilter(options?.territorial_zone));
 
     const callReceivedAtRange = buildCallReceivedAtRange(options?.dateFrom, options?.dateTo);
     if (callReceivedAtRange) {
