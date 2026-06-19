@@ -66,7 +66,7 @@ export function PromptSynthesizeModal({ isOpen, onClose }: PromptSynthesizeModal
     }
   }, [text, comment]);
 
-  const buildDraftPhrase = (): IIvrPhrase | null => {
+  const buildDraftPhrase = (): Extract<IIvrPhrase, { kind: 'tts' }> | null => {
     const uid = parseInt(engineUid, 10);
     if (!text.trim() || !uid) return null;
     return {
