@@ -1,5 +1,4 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { EndpointsService } from '../endpoints/endpoints.service';
 import { TrunksService } from '../trunks/trunks.service';
 import { IvrsService } from '../ivrs/ivrs.service';
@@ -12,26 +11,39 @@ import { PbxContextBuilderService } from '../ai-chat/pbx-context-builder.service
 import { InjectModel } from '@nestjs/sequelize';
 import { Context } from '../contexts/context.model';
 import { CdrService } from '../reports/cdr/cdr.service';
+import { AiAdapterRegistryService } from '../ai-platform/ai-adapter-registry.service';
+import { LoggerService } from '../logger/logger.service';
+
+interface McpToolEntry {
+    description: string;
+    inputSchema: Record<string, any>;
+    entityType: string;
+    /** vpbxUserUid is ALWAYS a call parameter — never captured via closure (D-23) */
+    handler: (args: any, vpbxUserUid: number) => Promise<Array<{ type: string; text: string }>>;
+}
 
 /**
  * McpToolsService — регистрирует все инструменты KrAsterisk в локальном реестре.
  *
  * ПРАВИЛО (ARCHITECTURE): При создании любой новой сущности АТС — добавить
- * инструмент здесь, чтобы AI-агент мог с ней работать.
+ * инструмент здесь, чтобы AI-агент мог с ней работать. Domain AI Adapter tools
+ * (D-14/D-15) регистрируются автоматически из AiAdapterRegistryService — их
+ * добавлять сюда не нужно.
  *
  * Все инструменты используют this.reg() который хранит handler в toolRegistry Map.
  * McpSessionService вызывает callTool() и getToolsList() напрямую — без MCP SDK session.
+ *
+ * Handler-сигнатура — (args, vpbxUserUid): uid ВСЕГДА передаётся параметром вызова,
+ * а не замыканием на момент регистрации (D-23 — исправленный cross-tenant баг: до
+ * фикса toolRegistry был общим Map, а uid замыкался в handlers первого тенанта,
+ * обратившегося к пустому реестру — все последующие тенанты исполняли чужой uid).
  */
 @Injectable()
 export class McpToolsService {
     private readonly logger = new Logger(McpToolsService.name);
 
-    /** Tool registry для прямого JSON-RPC dispatch (без MCP SDK session) */
-    private readonly toolRegistry = new Map<string, {
-        description: string;
-        inputSchema: Record<string, any>;
-        handler: (args: any) => Promise<Array<{ type: string; text: string }>>;
-    }>();
+    /** Tool registry для прямого JSON-RPC dispatch (без MCP SDK session). uid-независим. */
+    private readonly toolRegistry = new Map<string, McpToolEntry>();
 
     constructor(
         private readonly endpointsService: EndpointsService,
@@ -45,33 +57,47 @@ export class McpToolsService {
         private readonly contextBuilder: PbxContextBuilderService,
         @InjectModel(Context) private readonly contextModel: typeof Context,
         private readonly cdrService: CdrService,
+        private readonly aiAdapterRegistry: AiAdapterRegistryService,
+        private readonly loggerService: LoggerService,
     ) {}
 
-    registerAll(_server: McpServer, vpbxUserUid: number): void {
+    /** Builds/rebuilds the uid-independent tool registry. Safe to call once, lazily or eagerly. */
+    registerAll(): void {
         this.toolRegistry.clear();
-        this.regGetPbxState(vpbxUserUid);
-        this.regCreateEndpointsBulk(vpbxUserUid);
-        this.regCreateEndpoint(vpbxUserUid);
-        this.regDeleteEndpoint(vpbxUserUid);
-        this.regCreateTrunk(vpbxUserUid);
-        this.regDeleteTrunk(vpbxUserUid);
-        this.regCreateIvr(vpbxUserUid);
-        this.regUpdateIvr(vpbxUserUid);
-        this.regDeleteIvr(vpbxUserUid);
-        this.regCreateQueue(vpbxUserUid);
-        this.regUpdateQueue(vpbxUserUid);
-        this.regDeleteQueue(vpbxUserUid);
-        this.regCreateRoute(vpbxUserUid);
-        this.regDeleteRoute(vpbxUserUid);
-        this.regApplyDialplan(vpbxUserUid);
-        this.regListContexts(vpbxUserUid);
-        this.regGetCdrSummary(vpbxUserUid);
-        this.regFindCdrCalls(vpbxUserUid);
-        this.logger.log(`Registered ${this.toolRegistry.size} MCP tools for tenant ${vpbxUserUid}`);
+        this.regGetPbxState();
+        this.regCreateEndpointsBulk();
+        this.regCreateEndpoint();
+        this.regDeleteEndpoint();
+        this.regCreateTrunk();
+        this.regDeleteTrunk();
+        this.regCreateIvr();
+        this.regUpdateIvr();
+        this.regDeleteIvr();
+        this.regCreateQueue();
+        this.regUpdateQueue();
+        this.regDeleteQueue();
+        this.regCreateRoute();
+        this.regDeleteRoute();
+        this.regApplyDialplan();
+        this.regListContexts();
+        this.regGetCdrSummary();
+        this.regFindCdrCalls();
+
+        // Domain AI Adapter tools (D-14/D-15) — dispatched through the same registry,
+        // same audit pipeline as legacy tools.
+        for (const t of this.aiAdapterRegistry.getAllTools()) {
+            this.reg(t.name, t.description, t.inputSchema, async (args, uid) => {
+                const result = await t.handler(args, uid);
+                const text = typeof result === 'string' ? result : JSON.stringify(result, null, 2);
+                return [{ type: 'text', text }];
+            }, t.entityType);
+        }
+
+        this.logger.log(`Registered ${this.toolRegistry.size} MCP tools`);
     }
 
     getToolsList(vpbxUserUid: number): Array<{ name: string; description: string; inputSchema: any }> {
-        if (this.toolRegistry.size === 0) this.registerAll({} as any, vpbxUserUid);
+        if (this.toolRegistry.size === 0) this.registerAll();
         return Array.from(this.toolRegistry.entries()).map(([name, def]) => ({
             name,
             description: def.description,
@@ -80,22 +106,44 @@ export class McpToolsService {
     }
 
     async callTool(name: string, args: Record<string, any>, vpbxUserUid: number): Promise<Array<{ type: string; text: string }>> {
-        if (this.toolRegistry.size === 0) this.registerAll({} as any, vpbxUserUid);
+        if (this.toolRegistry.size === 0) this.registerAll();
         const tool = this.toolRegistry.get(name);
         if (!tool) {
             const available = Array.from(this.toolRegistry.keys()).join(', ');
             throw new Error(`Tool not found: "${name}". Available: ${available}`);
         }
+
         try {
-            return await tool.handler(args);
+            const result = await tool.handler(args, vpbxUserUid);
+            this.loggerService.logAction(0, 'ai_tool', tool.entityType, null, vpbxUserUid, this.buildLogDetails(name, args), 'success').catch(() => {});
+            return result;
         } catch (err: any) {
             this.logger.error(`Tool "${name}" failed for tenant ${vpbxUserUid}: ${err.message}`);
+            this.loggerService.logAction(0, 'ai_tool', tool.entityType, null, vpbxUserUid, this.buildLogDetails(name, args), 'error').catch(() => {});
             return [{ type: 'text', text: `❌ Ошибка: ${err.message}` }];
         }
     }
 
-    private reg(name: string, description: string, inputSchema: Record<string, any>, handler: (args: any) => Promise<Array<{ type: string; text: string }>>): void {
-        this.toolRegistry.set(name, { description, inputSchema, handler });
+    /** Compact, truncated audit message — avoids writing huge entry payloads into action_logs (D-19). */
+    private buildLogDetails(name: string, args: Record<string, any>): string {
+        let argsStr: string;
+        try {
+            argsStr = JSON.stringify(args ?? {});
+        } catch {
+            argsStr = String(args);
+        }
+        const truncated = argsStr.length > 200 ? `${argsStr.slice(0, 200)}...` : argsStr;
+        return `mcp:${name}: ${truncated}`;
+    }
+
+    private reg(
+        name: string,
+        description: string,
+        inputSchema: Record<string, any>,
+        handler: (args: any, vpbxUserUid: number) => Promise<Array<{ type: string; text: string }>>,
+        entityType: string = 'pbx',
+    ): void {
+        this.toolRegistry.set(name, { description, inputSchema, entityType, handler });
     }
 
     /** Генерирует криптостойкий SIP-пароль */
@@ -108,11 +156,11 @@ export class McpToolsService {
 
     // ─── Tools ────────────────────────────────────────────────────────────────────
 
-    private regGetPbxState(uid: number) {
+    private regGetPbxState() {
         this.reg('get_pbx_state',
             'Возвращает текущее состояние АТС: абоненты, транки, IVR, очереди, контексты. Вызывай чтобы узнать актуальную конфигурацию.',
             {},
-            async () => {
+            async (_args, uid) => {
                 const [endpoints, trunks, ivrs, queues, contexts] = await Promise.all([
                     this.endpointsService.findAll(uid),
                     this.trunksService.findAll(uid),
@@ -122,10 +170,11 @@ export class McpToolsService {
                 ]);
                 return [{ type: 'text', text: JSON.stringify({ endpoints, trunks, ivrs, queues, contexts }, null, 2) }];
             },
+            'pbx',
         );
     }
 
-    private regCreateEndpointsBulk(uid: number) {
+    private regCreateEndpointsBulk() {
         this.reg('create_endpoints_bulk',
             'Создаёт несколько SIP-абонентов по паттерну. Пример: "200-220" создаст 21 абонента. Максимум 5000 за раз.',
             {
@@ -136,14 +185,15 @@ export class McpToolsService {
                 codecs: { type: 'string', description: '"ulaw,alaw,g722"' },
                 natProfile: { type: 'string', enum: ['lan', 'nat', 'webrtc'] },
             },
-            async (args) => {
+            async (args, uid) => {
                 const result = await this.endpointsService.bulkCreate(args as any, uid);
                 return [{ type: 'text', text: JSON.stringify(result, null, 2) }];
             },
+            'endpoint',
         );
     }
 
-    private regCreateEndpoint(uid: number) {
+    private regCreateEndpoint() {
         this.reg('create_endpoint',
             'Создаёт одного SIP-абонента. Поле extension (или username) — номер. Пароль генерируется автоматически если не указан или слабый. Пароль возвращается — сообщи его пользователю.',
             {
@@ -155,7 +205,7 @@ export class McpToolsService {
                 codecs: { type: 'string' },
                 natProfile: { type: 'string', enum: ['lan', 'nat', 'webrtc'] },
             },
-            async (args) => {
+            async (args, uid) => {
                 const extension = args.extension ?? args.username;
                 if (!extension) return [{ type: 'text', text: '❌ Укажите extension или username' }];
 
@@ -193,22 +243,24 @@ export class McpToolsService {
                     `Контекст: ${context}`,
                 ].join('\n') }];
             },
+            'endpoint',
         );
     }
 
 
-    private regDeleteEndpoint(uid: number) {
+    private regDeleteEndpoint() {
         this.reg('delete_endpoint',
             'Удаляет SIP-абонента по SIP-ID (например "e201_42"). Получи SIP-ID из get_pbx_state.',
             { sipId: { type: 'string', description: 'SIP ID абонента (e{extension}_{tenantId})' } },
-            async ({ sipId }) => {
+            async ({ sipId }, uid) => {
                 await this.endpointsService.remove(sipId, uid);
                 return [{ type: 'text', text: `✅ Абонент ${sipId} удалён.` }];
             },
+            'endpoint',
         );
     }
 
-    private regCreateTrunk(uid: number) {
+    private regCreateTrunk() {
         this.reg('create_trunk',
             'Создаёт исходящий SIP транк. Тип "auth" — с регистрацией, "ip" — по IP-адресу.',
             {
@@ -222,25 +274,27 @@ export class McpToolsService {
                 codecs: { type: 'string' },
                 fromDomain: { type: 'string' },
             },
-            async (args) => {
+            async (args, uid) => {
                 const result = await this.trunksService.create(args as any, uid);
                 return [{ type: 'text', text: JSON.stringify(result, null, 2) }];
             },
+            'trunk',
         );
     }
 
-    private regDeleteTrunk(uid: number) {
+    private regDeleteTrunk() {
         this.reg('delete_trunk',
             'Удаляет SIP-транк по ID (формат: t_{name}_{tenantId}).',
             { trunkId: { type: 'string' } },
-            async ({ trunkId }) => {
+            async ({ trunkId }, uid) => {
                 await this.trunksService.remove(trunkId, uid);
                 return [{ type: 'text', text: `✅ Транк ${trunkId} удалён.` }];
             },
+            'trunk',
         );
     }
 
-    private regCreateIvr(uid: number) {
+    private regCreateIvr() {
         this.reg('create_ivr',
             'Создаёт IVR-меню (интерактивное голосовое меню).',
             {
@@ -248,32 +302,35 @@ export class McpToolsService {
                 description: { type: 'string' },
                 steps: { type: 'array', description: 'Шаги IVR' },
             },
-            async (args) => {
+            async (args, uid) => {
                 const result = await this.ivrsService.create(args as any, uid);
                 return [{ type: 'text', text: JSON.stringify(result, null, 2) }];
             },
+            'ivr',
         );
     }
 
-    private regUpdateIvr(uid: number) {
+    private regUpdateIvr() {
         this.reg('update_ivr',
             'Изменяет IVR-меню. ID из get_pbx_state.',
             { id: { type: 'number' }, name: { type: 'string' }, description: { type: 'string' }, steps: { type: 'array' } },
-            async ({ id, ...rest }) => {
+            async ({ id, ...rest }, uid) => {
                 const result = await this.ivrsService.update(id, rest as any, uid);
                 return [{ type: 'text', text: JSON.stringify(result, null, 2) }];
             },
+            'ivr',
         );
     }
 
-    private regDeleteIvr(uid: number) {
+    private regDeleteIvr() {
         this.reg('delete_ivr', 'Удаляет IVR по ID.',
             { id: { type: 'number' } },
-            async ({ id }) => { await this.ivrsService.remove(id, uid); return [{ type: 'text', text: `✅ IVR ${id} удалён.` }]; },
+            async ({ id }, uid) => { await this.ivrsService.remove(id, uid); return [{ type: 'text', text: `✅ IVR ${id} удалён.` }]; },
+            'ivr',
         );
     }
 
-    private regCreateQueue(uid: number) {
+    private regCreateQueue() {
         this.reg('create_queue',
             'Создаёт очередь звонков для распределения по абонентам.',
             {
@@ -282,31 +339,34 @@ export class McpToolsService {
                 timeout: { type: 'number' },
                 members: { type: 'array', description: '[{interface: "PJSIP/e201_42", penalty: 0}]' },
             },
-            async (args) => {
+            async (args, uid) => {
                 const result = await this.queuesService.create(args as any, uid);
                 return [{ type: 'text', text: JSON.stringify(result, null, 2) }];
             },
+            'queue',
         );
     }
 
-    private regUpdateQueue(uid: number) {
+    private regUpdateQueue() {
         this.reg('update_queue', 'Изменяет очередь звонков.',
             { name: { type: 'string' }, strategy: { type: 'string' }, timeout: { type: 'number' }, members: { type: 'array' } },
-            async ({ name, ...rest }) => {
+            async ({ name, ...rest }, uid) => {
                 const result = await this.queuesService.update(name, rest as any, uid);
                 return [{ type: 'text', text: JSON.stringify(result, null, 2) }];
             },
+            'queue',
         );
     }
 
-    private regDeleteQueue(uid: number) {
+    private regDeleteQueue() {
         this.reg('delete_queue', 'Удаляет очередь по имени.',
             { name: { type: 'string' } },
-            async ({ name }) => { await this.queuesService.remove(name, uid); return [{ type: 'text', text: `✅ Очередь ${name} удалена.` }]; },
+            async ({ name }, uid) => { await this.queuesService.remove(name, uid); return [{ type: 'text', text: `✅ Очередь ${name} удалена.` }]; },
+            'queue',
         );
     }
 
-    private regCreateRoute(uid: number) {
+    private regCreateRoute() {
         this.reg('create_route',
             'Создаёт правило маршрутизации. ПОСЛЕ создания ОБЯЗАТЕЛЬНО вызови apply_dialplan.',
             {
@@ -317,25 +377,27 @@ export class McpToolsService {
                 priority: { type: 'number' },
                 description: { type: 'string' },
             },
-            async (args) => {
+            async (args, uid) => {
                 const result = await this.routesService.create(args as any, uid);
                 return [{ type: 'text', text: JSON.stringify(result, null, 2) }];
             },
+            'route',
         );
     }
 
-    private regDeleteRoute(uid: number) {
+    private regDeleteRoute() {
         this.reg('delete_route', 'Удаляет правило маршрутизации. После вызови apply_dialplan.',
             { id: { type: 'number' } },
-            async ({ id }) => { await this.routesService.remove(id, uid); return [{ type: 'text', text: `✅ Маршрут ${id} удалён.` }]; },
+            async ({ id }, uid) => { await this.routesService.remove(id, uid); return [{ type: 'text', text: `✅ Маршрут ${id} удалён.` }]; },
+            'route',
         );
     }
 
-    private regApplyDialplan(uid: number) {
+    private regApplyDialplan() {
         this.reg('apply_dialplan',
             'Применяет dialplan к Asterisk через AMI. ОБЯЗАТЕЛЬНО после изменений маршрутов.',
             { contextUid: { type: 'number', description: 'UID контекста из get_pbx_state' } },
-            async ({ contextUid }) => {
+            async ({ contextUid }, uid) => {
                 const context = await this.contextModel.findOne({ where: { uid: contextUid, user_uid: uid } });
                 if (!context) return [{ type: 'text', text: `❌ Контекст ${contextUid} не найден.` }];
 
@@ -353,38 +415,41 @@ export class McpToolsService {
                 );
                 return [{ type: 'text', text: `✅ Диалплан [${contextName}] применён. ${result.linesApplied} строк.` }];
             },
+            'pbx',
         );
     }
 
-    private regListContexts(uid: number) {
+    private regListContexts() {
         this.reg('list_contexts',
             'Возвращает все контексты маршрутизации с UID. Используй перед create_route.',
             {},
-            async () => {
+            async (_args, uid) => {
                 const contexts = await this.contextsService.findAll(uid);
                 return [{ type: 'text', text: JSON.stringify(contexts, null, 2) }];
             },
+            'context',
         );
     }
 
-    private regGetCdrSummary(uid: number) {
+    private regGetCdrSummary() {
         this.reg('get_cdr_summary',
             'Сводка CDR за период: количество звонков, ASR, средняя длительность. Параметры dateFrom/dateTo в формате YYYY-MM-DD.',
             {
                 dateFrom: { type: 'string', description: 'Начало периода YYYY-MM-DD' },
                 dateTo: { type: 'string', description: 'Конец периода YYYY-MM-DD' },
             },
-            async (args) => {
+            async (args, uid) => {
                 const stats = await this.cdrService.getStats(uid, {
                     dateFrom: args.dateFrom,
                     dateTo: args.dateTo,
                 });
                 return [{ type: 'text', text: JSON.stringify(stats, null, 2) }];
             },
+            'cdr',
         );
     }
 
-    private regFindCdrCalls(uid: number) {
+    private regFindCdrCalls() {
         this.reg('find_cdr_calls',
             'Поиск звонков CDR (одна запись на звонок, GROUP BY linkedid). Лимит до 50.',
             {
@@ -394,7 +459,7 @@ export class McpToolsService {
                 direction: { type: 'string', enum: ['in', 'out', 'int', 'external'] },
                 limit: { type: 'number', default: 20 },
             },
-            async (args) => {
+            async (args, uid) => {
                 const result = await this.cdrService.findCalls(uid, {
                     dateFrom: args.dateFrom,
                     dateTo: args.dateTo,
@@ -405,6 +470,7 @@ export class McpToolsService {
                 });
                 return [{ type: 'text', text: JSON.stringify(result, null, 2) }];
             },
+            'cdr',
         );
     }
 }

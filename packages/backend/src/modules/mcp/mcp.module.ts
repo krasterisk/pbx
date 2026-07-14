@@ -16,6 +16,8 @@ import { AmiModule } from '../ami/ami.module';
 import { AiChatModule } from '../ai-chat/ai-chat.module';
 import { ReportsCdrModule } from '../reports/cdr/reports-cdr.module';
 import { Context } from '../contexts/context.model';
+import { AiPlatformModule } from '../ai-platform/ai-platform.module';
+import { LoggerModule } from '../logger/logger.module';
 
 /**
  * McpModule — MCP Server для KrAsterisk.
@@ -44,6 +46,8 @@ import { Context } from '../contexts/context.model';
         AmiModule,
         AiChatModule,
         ReportsCdrModule,
+        AiPlatformModule,
+        LoggerModule,
     ],
     controllers: [McpController],
     providers: [
