@@ -1,8 +1,35 @@
-import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { ensureCdrVpbxUserUidInDialplan } from '@krasterisk/shared';
 import { Route } from './route.model';
+import { RoutePhonebookBinding } from '../phonebooks/route-phonebook-binding.model';
+import { RoutePhonebook } from '../phonebooks/phonebook.model';
+import { PhonebookEntry } from '../phonebooks/phonebook-entry.model';
 import { AsteriskDialplanUtils } from '../../shared/utils/dialplan.util';
+
+/** Binding payload accepted from CreateRouteDto/UpdateRouteDto (bindings field). */
+export interface RouteBindingInput {
+  phonebook_uid: number;
+  match_mode?: string;
+  behavior_type?: string;
+  behavior_params?: Record<string, any> | null;
+  actions?: any[] | null;
+}
+
+// Bindings + their phonebook (with entries, for var-key based dialplan generation),
+// ordered by position ASC (Pitfall 8 — blacklist before VIP, etc.).
+const BINDING_INCLUDE = {
+  model: RoutePhonebookBinding,
+  as: 'bindings',
+  include: [
+    {
+      model: RoutePhonebook,
+      as: 'phonebook',
+      include: [{ model: PhonebookEntry, as: 'entries' }],
+    },
+  ],
+};
+const BINDING_ORDER: any = [{ model: RoutePhonebookBinding, as: 'bindings' }, 'position', 'ASC'];
 
 @Injectable()
 export class RoutesService {
@@ -10,13 +37,16 @@ export class RoutesService {
 
   constructor(
     @InjectModel(Route) private routeModel: typeof Route,
+    @InjectModel(RoutePhonebookBinding) private bindingModel: typeof RoutePhonebookBinding,
+    @InjectModel(RoutePhonebook) private phonebookModel: typeof RoutePhonebook,
   ) {}
 
   /** Get all routes for the tenant */
   async findAll(vpbxUserUid: number): Promise<Route[]> {
     return this.routeModel.findAll({
       where: { user_uid: vpbxUserUid },
-      order: [['context_uid', 'ASC'], ['priority', 'ASC'], ['uid', 'ASC']],
+      include: [BINDING_INCLUDE],
+      order: [['context_uid', 'ASC'], ['priority', 'ASC'], ['uid', 'ASC'], BINDING_ORDER],
     });
   }
 
@@ -24,7 +54,8 @@ export class RoutesService {
   async findAllByContext(contextUid: number, vpbxUserUid: number): Promise<Route[]> {
     return this.routeModel.findAll({
       where: { context_uid: contextUid, user_uid: vpbxUserUid },
-      order: [['priority', 'ASC'], ['uid', 'ASC']],
+      include: [BINDING_INCLUDE],
+      order: [['priority', 'ASC'], ['uid', 'ASC'], BINDING_ORDER],
     });
   }
 
@@ -32,45 +63,94 @@ export class RoutesService {
   async findOne(uid: number, vpbxUserUid: number): Promise<Route> {
     const route = await this.routeModel.findOne({
       where: { uid, user_uid: vpbxUserUid },
+      include: [BINDING_INCLUDE],
+      order: [BINDING_ORDER],
     });
     if (!route) throw new NotFoundException('Route not found');
     return route;
   }
 
+  /**
+   * Ensure every referenced phonebook_uid belongs to this tenant — otherwise a route
+   * could bind (and read, via runtime lookup) another tenant's phonebook (T-05-03).
+   */
+  private async validateBindingsOwnership(bindings: RouteBindingInput[], vpbxUserUid: number): Promise<void> {
+    const phonebookUids = Array.from(new Set(bindings.map((b) => b.phonebook_uid)));
+    if (phonebookUids.length === 0) return;
+    const count = await this.phonebookModel.count({ where: { uid: phonebookUids, user_uid: vpbxUserUid } });
+    if (count !== phonebookUids.length) {
+      throw new BadRequestException('One or more phonebooks are invalid or belong to another tenant');
+    }
+  }
+
+  /** Replace-all strategy for a route's bindings (pattern: entries in PhonebooksService.update). */
+  private async replaceBindings(routeUid: number, bindings: RouteBindingInput[], vpbxUserUid: number): Promise<void> {
+    await this.validateBindingsOwnership(bindings, vpbxUserUid);
+    await this.bindingModel.destroy({ where: { route_uid: routeUid, user_uid: vpbxUserUid } });
+    if (bindings.length > 0) {
+      await this.bindingModel.bulkCreate(
+        bindings.map((b, index) => ({
+          route_uid: routeUid,
+          phonebook_uid: b.phonebook_uid,
+          position: index,
+          match_mode: b.match_mode || 'on_match',
+          behavior_type: b.behavior_type || 'vars_only',
+          behavior_params: b.behavior_params ?? null,
+          actions: b.actions ?? null,
+          user_uid: vpbxUserUid,
+        })),
+      );
+    }
+  }
+
   /** Create a new route */
-  async create(data: Partial<Route>, vpbxUserUid: number): Promise<Route> {
+  async create(data: Partial<Route> & { bindings?: RouteBindingInput[] }, vpbxUserUid: number): Promise<Route> {
+    const { bindings, ...rest } = data as any;
+
     // Get the next priority
     const maxPriority = await this.routeModel.max('priority', {
-      where: { context_uid: data.context_uid, user_uid: vpbxUserUid },
+      where: { context_uid: rest.context_uid, user_uid: vpbxUserUid },
     }) as number | null;
 
-    const payload = { ...data } as Partial<Route>;
+    const payload = { ...rest } as Partial<Route>;
     if (payload.raw_dialplan?.trim()) {
       payload.raw_dialplan = ensureCdrVpbxUserUidInDialplan(payload.raw_dialplan, vpbxUserUid);
     }
 
-    return this.routeModel.create({
+    const route = await this.routeModel.create({
       ...payload,
       priority: (maxPriority || 0) + 1,
       user_uid: vpbxUserUid,
     } as any);
+
+    if (bindings !== undefined) {
+      await this.replaceBindings(route.uid, bindings, vpbxUserUid);
+    }
+
+    return this.findOne(route.uid, vpbxUserUid);
   }
 
   /** Update an existing route */
-  async update(uid: number, data: Partial<Route>, vpbxUserUid: number): Promise<Route> {
+  async update(uid: number, data: Partial<Route> & { bindings?: RouteBindingInput[] }, vpbxUserUid: number): Promise<Route> {
     const route = await this.findOne(uid, vpbxUserUid);
-    const payload = { ...data } as Partial<Route>;
+    const { bindings, ...rest } = data as any;
+    const payload = { ...rest } as Partial<Route>;
     if (payload.raw_dialplan?.trim()) {
       payload.raw_dialplan = ensureCdrVpbxUserUidInDialplan(payload.raw_dialplan, vpbxUserUid);
     }
     await route.update(payload);
-    return route;
+
+    if (bindings !== undefined) {
+      await this.replaceBindings(uid, bindings, vpbxUserUid);
+    }
+
+    return this.findOne(uid, vpbxUserUid);
   }
 
   /** Delete a route */
   async remove(uid: number, vpbxUserUid: number): Promise<void> {
     const route = await this.findOne(uid, vpbxUserUid);
-    await route.destroy();
+    await route.destroy(); // CASCADE deletes bindings
   }
 
   /** Reorder routes within a context */
@@ -84,7 +164,7 @@ export class RoutesService {
     await Promise.all(promises);
   }
 
-  /** Duplicate a route */
+  /** Duplicate a route (bindings are copied — phonebook_uid/match_mode/behavior, not uid/route_uid) */
   async duplicate(uid: number, vpbxUserUid: number): Promise<Route> {
     const source = await this.findOne(uid, vpbxUserUid);
     const data = source.toJSON();
@@ -113,6 +193,9 @@ export class RoutesService {
     const backendUrl = AsteriskDialplanUtils.backendBaseUrl;
     const apiKey = AsteriskDialplanUtils.dialplanApiKey;
     const keyParam = apiKey ? `&api_key=${encodeURIComponent(apiKey)}` : '';
+
+    const bindings = ((route as any).bindings as RoutePhonebookBinding[] | undefined) || [];
+    const orderedBindings = bindings.slice().sort((a, b) => a.position - b.position);
 
     for (const ext of extensions) {
       lines.push(`exten => ${ext},1,NoOp(Route: ${route.name})`);
@@ -174,15 +257,13 @@ export class RoutesService {
         lines.push('same => n,Set(CHANNEL(hangup_handler_push)=krsk-hangup-handler,s,1)');
       }
 
-      // Phonebook checks (cascading Gosub/Return)
-      if (opts.phonebook_uids && opts.phonebook_uids.length > 0) {
-        for (const pbUid of opts.phonebook_uids) {
-          lines.push(`same => n,Gosub(phonebook_check_${pbUid}_${vpbxUserUid},s,1)`);
-        }
+      // Phonebook binding chain (cascading Gosub/Return), ordered by position ASC (D-03, D-05)
+      for (const binding of orderedBindings) {
+        lines.push(`same => n,Gosub(pb_bind_${binding.uid}_${vpbxUserUid},s,1)`);
       }
 
-      // Legacy blacklist check (backward compat — auto-migrated to phonebooks)
-      if (opts.check_blacklist && (!opts.phonebook_uids || opts.phonebook_uids.length === 0)) {
+      // Legacy blacklist check (backward compat — only when no phonebook binding replaces it)
+      if (opts.check_blacklist && orderedBindings.length === 0) {
         lines.push(`same => n,ExecIf($["\${SHELL(/usr/scripts/check_blacklist.php "\${CALLERID(num)}" "${vpbxUserUid}")}" != ""]?hangup())`);
       }
 

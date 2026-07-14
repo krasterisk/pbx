@@ -3,8 +3,13 @@ import { InjectModel } from '@nestjs/sequelize';
 import { Op } from 'sequelize';
 import { RoutePhonebook } from './phonebook.model';
 import { PhonebookEntry } from './phonebook-entry.model';
-import type { ICreatePhonebookDto, IPhonebookCsvImportResult, IRouteAction } from '@krasterisk/shared';
-import { AsteriskDialplanUtils } from '../../shared/utils/dialplan.util';
+import { RoutePhonebookBinding } from './route-phonebook-binding.model';
+import type { ICreatePhonebookDto, IPhonebookCsvImportResult } from '@krasterisk/shared';
+import {
+  collectAllVarKeys as collectAllVarKeysUtil,
+  generateBindingDialplan as generateBindingDialplanUtil,
+  GeneratedDialplanCategory,
+} from './phonebook-dialplan.util';
 
 @Injectable()
 export class PhonebooksService {
@@ -38,7 +43,6 @@ export class PhonebooksService {
 
     const pb = await this.phonebookModel.create({
       ...phonebookData,
-      invert: data.invert ? 1 : 0,
       user_uid: userUid,
     } as any);
 
@@ -61,10 +65,7 @@ export class PhonebooksService {
     const pb = await this.findOne(uid, userUid);
     const { entries, ...phonebookData } = data;
 
-    await pb.update({
-      ...phonebookData,
-      invert: data.invert ? 1 : 0,
-    });
+    await pb.update({ ...phonebookData });
 
     // If entries provided, replace all
     if (entries !== undefined) {
@@ -438,82 +439,24 @@ export class PhonebooksService {
    * Used at dialplan generation time to know which CUT() positions to generate.
    */
   collectAllVarKeys(entries: PhonebookEntry[]): string[] {
-    const keys = new Set<string>();
-    for (const entry of entries) {
-      if (entry.vars) {
-        Object.keys(entry.vars).forEach((k) => keys.add(k));
-      }
-    }
-    return Array.from(keys).sort();
+    return collectAllVarKeysUtil(entries);
   }
 
   // ---------------------------------------------------------------------------
-  // Dialplan generation — CURL-based (replaces ODBC)
+  // Dialplan generation — CURL-based, per-binding (D-06, D-17)
   // ---------------------------------------------------------------------------
 
   /**
-   * Generate Asterisk dialplan sub-context for this phonebook.
-   *
-   * Pattern:
-   *   [phonebook_check_${uid}_${vpbx}]
-   *   exten => s,1,NoOp(Phonebook: ${name})
-   *   same => n,Set(PB_RAW=${CURL(...)})
-   *   same => n,Set(PB_MATCH=${CUT(PB_RAW,|,1)})
-   *   same => n,GotoIf(...)
-   *   same => n(match),Set(PB_<key>=${CUT(PB_RAW,|,N)})
-   *   same => n,...actions...
-   *   same => n,Return()
-   *   same => n(nomatch),Return()
+   * Generate the Asterisk dialplan sub-context for a single route<->phonebook
+   * binding. See phonebook-dialplan.util.ts for the full template + preset table.
    */
-  generateDialplan(phonebook: RoutePhonebook, vpbxUserUid: number, isAdmin: boolean): string {
-    const lines: string[] = [];
-    const ctxName = `phonebook_check_${phonebook.uid}_${vpbxUserUid}`;
-    const baseUrl = AsteriskDialplanUtils.backendBaseUrl;
-    const apiKey = AsteriskDialplanUtils.dialplanApiKey;
-    const keyParam = apiKey ? `&api_key=${encodeURIComponent(apiKey)}` : '';
-
-    lines.push(`[${ctxName}]`);
-    lines.push(`exten => s,1,NoOp(Phonebook: ${phonebook.name})`);
-
-    // 1. CURL lookup (single HTTP request)
-    const lookupUrl = `${baseUrl}/internal/dialplan/phonebook-lookup?phonebook_uid=${phonebook.uid}${keyParam}`;
-    lines.push(`same => n,Set(PB_RAW=\${CURL(${lookupUrl}&number=\${URIENCODE(\${CALLERID(num)})})})`);
-
-    // Graceful fallback if backend is unreachable
-    lines.push(`same => n,GotoIf($["\${PB_RAW}" = ""]?nomatch)`);
-
-    lines.push(`same => n,Set(PB_MATCH=\${CUT(PB_RAW,|,1)})`);
-
-    // 2. Match/nomatch branch (respects invert flag)
-    const invert = !!phonebook.invert;
-    lines.push(`same => n,GotoIf($["\${PB_MATCH}" = "1"]?${invert ? 'nomatch' : 'match'}:${invert ? 'match' : 'nomatch'})`);
-
-    // 3. Match: parse PB_* vars via CUT(), then execute actions
-    lines.push(`same => n(match),NoOp(Phonebook ${phonebook.name}: match)`);
-
-    // Collect all unique var keys across ALL entries of this phonebook
-    // Backend knows them at generation time → generates CUT() for each
-    const allKeys = this.collectAllVarKeys(phonebook.entries || []);
-    allKeys.forEach((key, index) => {
-      // Response format: 1|key1|val1|key2|val2|...
-      // match is at position 1
-      // key1 at position 2, val1 at position 3
-      // key2 at position 4, val2 at position 5, etc.
-      const cutPos = index * 2 + 3; // value position (1-indexed)
-      lines.push(`same => n,Set(PB_${key}=\${CUT(PB_RAW,|,${cutPos})})`);
-    });
-
-    // Actions from DialplanAppsEditor
-    const actions: IRouteAction[] = phonebook.actions || [];
-    for (const action of actions) {
-      const dp = AsteriskDialplanUtils.actionToDialplan(action, vpbxUserUid, isAdmin);
-      if (dp) lines.push(`same => n,${dp}`);
-    }
-    lines.push('same => n,Return()');
-
-    // 4. No match — just return
-    lines.push('same => n(nomatch),Return()');
-
-    return lines.join('\n');
+  generateBindingDialplan(
+    binding: RoutePhonebookBinding,
+    phonebook: RoutePhonebook,
+    vpbxUserUid: number,
+    routeTenantedContext: string,
+    isAdmin: boolean,
+  ): GeneratedDialplanCategory {
+    return generateBindingDialplanUtil(binding, phonebook, vpbxUserUid, routeTenantedContext, isAdmin);
   }
 }
