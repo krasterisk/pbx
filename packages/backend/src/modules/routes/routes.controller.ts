@@ -3,8 +3,8 @@ import { InjectModel } from '@nestjs/sequelize';
 import { Request } from 'express';
 import { RoutesService } from './routes.service';
 import { ContextIncludesService } from './context-includes.service';
+import { RouteApplyService } from './route-apply.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { DialplanApplyService } from '../ami/dialplan-apply.service';
 import { Context } from '../contexts/context.model';
 import { CreateRouteDto, UpdateRouteDto } from './dto/route-action.dto';
 
@@ -19,7 +19,7 @@ export class RoutesController {
     private readonly routesService: RoutesService,
     private readonly contextIncludesService: ContextIncludesService,
     @InjectModel(Context) private readonly contextModel: typeof Context,
-    private readonly dialplanApplyService: DialplanApplyService,
+    private readonly routeApplyService: RouteApplyService,
   ) {}
 
   private async findContext(contextUid: number, vpbxUserUid: number): Promise<Context> {
@@ -66,25 +66,7 @@ export class RoutesController {
   private async _applyContextDialplan(contextUid: number, user: any) {
     const vpbxUserUid = user.vpbx_user_uid;
     const isAdmin = user.level === USER_LEVEL_ADMIN;
-    const context = await this.findContext(contextUid, vpbxUserUid);
-    const includes = await this.contextIncludesService.getIncludeNames(contextUid, vpbxUserUid);
-    const dialplan = await this.routesService.generateContextDialplan(
-      contextUid, vpbxUserUid, context.name, includes, isAdmin,
-    );
-
-    const suffix = String(vpbxUserUid);
-    const tenantedContextName = context.name.endsWith(suffix) ? context.name : `${context.name}${suffix}`;
-    const filename = `krasterisk/routes/extensions_${tenantedContextName}.conf`;
-
-    const lines = dialplan.split('\n');
-
-    const result = await this.dialplanApplyService.applyCategories(
-      filename,
-      [{ name: tenantedContextName, lines }],
-      { reload: true },
-    );
-
-    return { success: result.success, filename, linesApplied: result.linesApplied };
+    return this.routeApplyService.applyContext(contextUid, vpbxUserUid, isAdmin);
   }
 
   @Get(':id')

@@ -134,4 +134,38 @@ export class DialplanApplyService {
 
     return { success: true, linesApplied: totalLines };
   }
+
+  /**
+   * Delete one or more categories from a config file (DelCat only — no NewCat/Append).
+   *
+   * Used to clean up orphaned per-binding categories (`pb_bind_{uid}_{vpbx}`) after
+   * their `route_phonebook_bindings` row is destroyed (e.g. phonebook delete) — the
+   * category would otherwise remain in the .conf file referencing nothing (Pitfall 5).
+   */
+  async deleteCategories(
+    filename: string,
+    categoryNames: string[],
+    opts: ApplyCategoriesOptions = {},
+  ): Promise<{ success: boolean }> {
+    for (const name of categoryNames) {
+      try {
+        await this.amiService.action({
+          action: 'UpdateConfig',
+          srcfilename: filename,
+          dstfilename: filename,
+          reload: 'no',
+          'Action-000000': 'DelCat',
+          'Cat-000000': name,
+        });
+      } catch (e) {
+        // Expected: category may already be gone
+      }
+    }
+
+    if (opts.reload !== false) {
+      await this.amiService.command('dialplan reload');
+    }
+
+    return { success: true };
+  }
 }

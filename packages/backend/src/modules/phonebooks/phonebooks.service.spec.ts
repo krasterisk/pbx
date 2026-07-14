@@ -216,90 +216,129 @@ describe('PhonebooksService', () => {
   });
 
   // ═══════════════════════════════════════════════════════════
-  // generateDialplan
+  // generateBindingDialplan (D-06, D-17, D-24) — per-binding dialplan generation
   // ═══════════════════════════════════════════════════════════
 
-  describe('generateDialplan', () => {
-    it('should generate CURL-based dialplan with PB_* vars', () => {
-      const phonebook = {
-        uid: 5,
-        name: 'VIP',
-        invert: 0,
-        actions: [
-          { type: 'hangup', params: {} },
-        ],
-        entries: [
-          { vars: { name: 'A', clid: '123' } },
-          { vars: { name: 'B' } },
-        ],
-      } as unknown as RoutePhonebook;
+  describe('generateBindingDialplan', () => {
+    const phonebook = {
+      uid: 5,
+      name: 'VIP',
+      entries: [
+        { vars: { name: 'A', clid: '123' } },
+        { vars: { name: 'B' } },
+      ],
+    } as unknown as RoutePhonebook;
 
-      const dp = service.generateDialplan(phonebook, 100, false);
+    const baseBinding = (overrides: Record<string, any> = {}) => ({
+      uid: 42,
+      behavior_type: 'set_name',
+      match_mode: 'on_match',
+      behavior_params: null,
+      actions: null,
+      ...overrides,
+    }) as any;
 
-      // Check context name
-      expect(dp).toContain('[phonebook_check_5_100]');
-      // Check CURL call
-      expect(dp).toContain('CURL(');
-      expect(dp).toContain('phonebook-lookup');
-      expect(dp).toContain('phonebook_uid=5');
-      // Check CUT for PB_* vars
-      expect(dp).toContain('Set(PB_clid=');
-      expect(dp).toContain('Set(PB_name=');
-      // Check CUT positions (sorted: clid=3, name=5)
-      expect(dp).toContain('CUT(PB_RAW,|,3)');
-      expect(dp).toContain('CUT(PB_RAW,|,5)');
-      // Check match/nomatch labels
-      expect(dp).toContain('n(match),NoOp');
-      expect(dp).toContain('n(nomatch),Return()');
-      // Check actions rendered
-      expect(dp).toContain('Hangup()');
+    it('generates a pb_bind_ context with CURL lookup, GotoIf branch, and Set(PB_*) only in the match branch', () => {
+      const binding = baseBinding();
+      const result = service.generateBindingDialplan(binding, phonebook, 100, 'sip-in100', false);
+      const joined = result.lines.join('\n');
+
+      expect(result.name).toBe('pb_bind_42_100');
+      expect(result.lines[0]).toBe('[pb_bind_42_100]');
+      expect(joined).toContain('CURL(');
+      expect(joined).toContain('phonebook-lookup');
+      expect(joined).toContain('phonebook_uid=5');
+      expect(joined).toContain('GotoIf($["${PB_MATCH}" = "1"]?act:nomatch)');
+      expect(joined).toContain('n(act),NoOp');
+      // Sorted var keys: clid=3, name=5
+      expect(joined).toContain('Set(PB_clid=${CUT(PB_RAW,|,3)})');
+      expect(joined).toContain('Set(PB_name=${CUT(PB_RAW,|,5)})');
+      expect(joined).toContain('ExecIf($["${PB_name}" != ""]?Set(CALLERID(name)=${PB_name}))');
+      expect(result.lines[result.lines.length - 2]).toBe('same => n,Return()');
+      expect(result.lines[result.lines.length - 1]).toBe('same => n(nomatch),Return()');
     });
 
-    it('should invert match/nomatch when invert=1', () => {
-      const phonebook = {
-        uid: 1,
-        name: 'Whitelist',
-        invert: 1,
-        actions: [],
-        entries: [],
-      } as unknown as RoutePhonebook;
+    it('inverts GotoIf and omits Set(PB_<key>) lines for match_mode=on_no_match (D-24)', () => {
+      const binding = baseBinding({ match_mode: 'on_no_match', behavior_type: 'blacklist' });
+      const result = service.generateBindingDialplan(binding, phonebook, 100, 'sip-in100', false);
+      const joined = result.lines.join('\n');
 
-      const dp = service.generateDialplan(phonebook, 100, false);
-
-      // invert: match=1 should go to nomatch label
-      expect(dp).toContain('= "1"]?nomatch:match');
+      expect(joined).toContain('GotoIf($["${PB_MATCH}" = "1"]?nomatch:act)');
+      expect(joined).not.toMatch(/Set\(PB_[a-z]/);
+      expect(joined).toContain('Hangup()');
     });
 
-    it('should handle empty entries (no CUT lines)', () => {
-      const phonebook = {
-        uid: 2,
-        name: 'Empty',
-        invert: 0,
-        actions: [],
-        entries: [],
-      } as unknown as RoutePhonebook;
+    it('handles empty entries (no PB_<key> Set lines)', () => {
+      const emptyPb = { uid: 9, name: 'Empty', entries: [] } as unknown as RoutePhonebook;
+      const binding = baseBinding({ behavior_type: 'vars_only' });
+      const result = service.generateBindingDialplan(binding, emptyPb, 100, 'sip-in100', false);
+      const joined = result.lines.join('\n');
 
-      const dp = service.generateDialplan(phonebook, 100, false);
-
-      // PB_MATCH CUT is always present, but no PB_<key> lines
-      expect(dp).toContain('CUT(PB_RAW,|,1)'); // PB_MATCH is always parsed
-      expect(dp).not.toMatch(/Set\(PB_[a-z]/); // no PB_<varname> lines
-      expect(dp).toContain('Return()');
+      expect(joined).toContain('CUT(PB_RAW,|,1)'); // PB_MATCH always parsed
+      expect(joined).not.toMatch(/Set\(PB_[a-z]/);
     });
 
-    it('should handle graceful fallback when backend unreachable', () => {
-      const phonebook = {
-        uid: 3,
-        name: 'Test',
-        invert: 0,
-        actions: [],
-        entries: [],
-      } as unknown as RoutePhonebook;
+    it('handles graceful fallback when backend is unreachable (empty PB_RAW)', () => {
+      const binding = baseBinding();
+      const result = service.generateBindingDialplan(binding, phonebook, 100, 'sip-in100', false);
+      expect(result.lines.join('\n')).toContain('GotoIf($["${PB_RAW}" = ""]?nomatch)');
+    });
 
-      const dp = service.generateDialplan(phonebook, 100, false);
+    describe('behavior presets', () => {
+      it('set_number with a fixed value sets CALLERID(num) directly', () => {
+        const binding = baseBinding({ behavior_type: 'set_number', behavior_params: { fixed: '100' } });
+        const result = service.generateBindingDialplan(binding, phonebook, 100, 'sip-in100', false);
+        expect(result.lines.join('\n')).toContain('Set(CALLERID(num)=100)');
+      });
 
-      // Should check for empty PB_RAW
-      expect(dp).toContain('GotoIf($["${PB_RAW}" = ""]?nomatch)');
+      it('set_number with a var_key uses ExecIf', () => {
+        const binding = baseBinding({ behavior_type: 'set_number', behavior_params: { var_key: 'clid' } });
+        const result = service.generateBindingDialplan(binding, phonebook, 100, 'sip-in100', false);
+        expect(result.lines.join('\n')).toContain('ExecIf($["${PB_clid}" != ""]?Set(CALLERID(num)=${PB_clid}))');
+      });
+
+      it('blacklist emits Hangup()', () => {
+        const binding = baseBinding({ behavior_type: 'blacklist' });
+        const result = service.generateBindingDialplan(binding, phonebook, 100, 'sip-in100', false);
+        expect(result.lines.join('\n')).toContain('Hangup()');
+      });
+
+      it('whitelist also emits Hangup() (UI is expected to force match_mode=on_no_match)', () => {
+        const binding = baseBinding({ behavior_type: 'whitelist', match_mode: 'on_no_match' });
+        const result = service.generateBindingDialplan(binding, phonebook, 100, 'sip-in100', false);
+        expect(result.lines.join('\n')).toContain('Hangup()');
+      });
+
+      it('redirect with fixed_exten emits a direct Goto', () => {
+        const binding = baseBinding({ behavior_type: 'redirect', behavior_params: { fixed_exten: '200' } });
+        const result = service.generateBindingDialplan(binding, phonebook, 100, 'sip-in100', false);
+        expect(result.lines.join('\n')).toContain('Goto(sip-in100,200,1)');
+      });
+
+      it('redirect with var_key emits ExecIf Goto against the route tenanted context', () => {
+        const binding = baseBinding({ behavior_type: 'redirect', behavior_params: {} });
+        const result = service.generateBindingDialplan(binding, phonebook, 100, 'sip-in100', false);
+        expect(result.lines.join('\n')).toContain('ExecIf($["${PB_redirect}" != ""]?Goto(sip-in100,${PB_redirect},1))');
+      });
+
+      it('custom renders each action via actionToDialplan', () => {
+        const binding = baseBinding({
+          behavior_type: 'custom',
+          actions: [{ id: 'a1', type: 'hangup', params: {}, condition: {} }],
+        });
+        const result = service.generateBindingDialplan(binding, phonebook, 100, 'sip-in100', false);
+        expect(result.lines.join('\n')).toContain('Hangup()');
+      });
+
+      it('vars_only emits no behavior lines', () => {
+        const binding = baseBinding({ behavior_type: 'vars_only' });
+        const result = service.generateBindingDialplan(binding, phonebook, 100, 'sip-in100', false);
+        const joined = result.lines.join('\n');
+        // Base CURL/match/Set(PB_*) lines are always present; vars_only adds nothing beyond them.
+        expect(joined).not.toContain('Hangup()');
+        expect(joined).not.toContain('Goto(');
+        expect(joined).not.toContain('CALLERID(name)');
+      });
     });
   });
 });
