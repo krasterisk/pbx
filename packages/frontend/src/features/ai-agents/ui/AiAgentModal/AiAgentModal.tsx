@@ -53,7 +53,7 @@ export function AiAgentModal({ agent, providers, toolsets, onClose }: Props) {
     setError(null);
     if (!name.trim()) return setError(t('aiAgents.error.nameRequired', 'Name is required'));
     if (!uniqueId.trim()) return setError(t('aiAgents.error.uniqueIdRequired', 'Unique ID is required'));
-    if (!/^[A-Za-z0-9_\-]+$/.test(uniqueId)) {
+    if (!/^[A-Za-z0-9_-]+$/.test(uniqueId)) {
       return setError(t('aiAgents.error.uniqueIdFormat', 'Unique ID may only contain [A-Za-z0-9_-]'));
     }
     if (!modelProfileId) return setError(t('aiAgents.error.llmRequired', 'LLM/model profile is required'));

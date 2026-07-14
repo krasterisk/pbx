@@ -76,7 +76,11 @@ export const ChatMessage = ({ message }: ChatMessageProps) => {
     const toggleTool = (idx: number) => {
         setExpandedTools(prev => {
             const next = new Set(prev);
-            next.has(idx) ? next.delete(idx) : next.add(idx);
+            if (next.has(idx)) {
+                next.delete(idx);
+            } else {
+                next.add(idx);
+            }
             return next;
         });
     };

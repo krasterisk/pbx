@@ -12,7 +12,7 @@
     "dev:backend": "npm run build -w @krasterisk/shared && npm run start:dev -w @krasterisk/backend",
     "dev:frontend": "npm run dev -w @krasterisk/frontend",
     "build": "npm run build -w @krasterisk/shared && npm run build -w @krasterisk/backend && npm run build -w @krasterisk/frontend",
-    "lint": "npm run lint -w @krasterisk/backend",
+    "lint": "npm run lint -w @krasterisk/backend && npm run lint -w @krasterisk/frontend",
     "test": "npm run test -w @krasterisk/backend && npm run test -w @krasterisk/frontend",
     "test:backend": "npm run test -w @krasterisk/backend",
     "test:frontend": "npm run test -w @krasterisk/frontend",
