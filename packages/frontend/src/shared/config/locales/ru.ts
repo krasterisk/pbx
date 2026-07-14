@@ -362,6 +362,35 @@ export const ru = {
       general: 'Основные',
       webhooks: 'Вебхуки',
       actions: 'Действия (Dialplan)',
+      phonebooks: 'Справочники',
+    },
+    // Phonebook bindings tab (D-08, D-24, D-26)
+    phonebooks: {
+      title: 'Справочники CallerID',
+      tooltip: 'Упорядоченная цепочка политик: справочники проверяются по порядку до основных действий маршрута.',
+      empty: 'Добавьте справочник, чтобы проверять CallerID перед основными действиями',
+      selectPhonebook: 'Выберите справочник',
+      add: 'Добавить справочник',
+      matchMode: {
+        on_match: 'При совпадении',
+        on_no_match: 'При отсутствии',
+      },
+      behavior: {
+        set_name: 'Имя звонящего',
+        set_number: 'Номер звонящего',
+        blacklist: 'Чёрный список',
+        whitelist: 'Белый список',
+        redirect: 'Перенаправление',
+        vars_only: 'Только переменные',
+        custom: 'Произвольно',
+      },
+      params: {
+        byVar: 'По переменной',
+        byFixed: 'Фикс. значение',
+        fixedName: 'Фикс. имя',
+        fixedNamePlaceholder: 'Иванов И.И.',
+        fixedExten: 'Фикс. номер',
+      },
     },
     // Editor modes
     modeTable: 'Таблица',
@@ -1549,6 +1578,15 @@ export const ru = {
     routePhonebooks: 'Справочники',
     routePhonebooksTooltip: 'Выберите справочники для проверки CallerID. Вызов проверяется последовательно через Gosub/Return.',
     noPhonebooks: 'Нет справочников',
+    // Demo lookup test (D-10)
+    lookupTest: {
+      title: 'Проверка номера',
+      placeholder: '+79001234567',
+      check: 'Проверить',
+      matched: 'Совпадение найдено',
+      noMatch: 'Нет совпадения',
+      error: 'Не удалось выполнить проверку. Попробуйте снова.',
+    },
   },
   webhookAuth: {
     authMode: 'Авторизация',
@@ -1934,6 +1972,18 @@ export const ru = {
       capsRequired: 'Выберите хотя бы одну возможность',
       defaultsJson: 'Defaults: некорректный JSON',
       pricingJson: 'Pricing: некорректный JSON',
+    },
+  },
+
+  // Cloud admin settings (D-20, D-25)
+  cloudAdmin: {
+    settings: {
+      aiChat: {
+        title: 'AI Chat',
+        subtitle: 'Настройки AI-ассистента для текущего кабинета',
+        confirmDestructive: 'Подтверждать деструктивные операции AI',
+        confirmDestructiveHint: 'По умолчанию выключено. Действует только для текущего кабинета: удаление и другие деструктивные операции AI-ассистента будут требовать явного подтверждения.',
+      },
     },
   },
 };

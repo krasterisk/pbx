@@ -1,6 +1,10 @@
 import { rtkApi } from '../rtkApi';
 import type { AiModel } from '@/features/ai-chat/model/types/AiChatSchema';
 
+export interface IAiChatSettings {
+    confirmDestructive: boolean;
+}
+
 const aiChatApi = rtkApi.injectEndpoints({
     endpoints: (builder) => ({
         getAiChatModels: builder.query<AiModel[], void>({
@@ -9,12 +13,27 @@ const aiChatApi = rtkApi.injectEndpoints({
         getAiChatState: builder.query<Record<string, any>, void>({
             query: () => '/ai-chat/state',
         }),
+        // Per-tenant AI confirmation settings (D-20, D-25)
+        getAiChatSettings: builder.query<IAiChatSettings, void>({
+            query: () => '/ai-chat/settings',
+            providesTags: ['AiChatSettings'],
+        }),
+        updateAiChatSettings: builder.mutation<IAiChatSettings, Partial<IAiChatSettings>>({
+            query: (body) => ({
+                url: '/ai-chat/settings',
+                method: 'PUT',
+                body,
+            }),
+            invalidatesTags: ['AiChatSettings'],
+        }),
     }),
 });
 
 export const {
     useGetAiChatModelsQuery,
     useGetAiChatStateQuery,
+    useGetAiChatSettingsQuery,
+    useUpdateAiChatSettingsMutation,
 } = aiChatApi;
 
 /**

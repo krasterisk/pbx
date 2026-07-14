@@ -361,6 +361,35 @@ export const en = {
       general: 'General',
       webhooks: 'Webhooks',
       actions: 'Actions (Dialplan)',
+      phonebooks: 'Phonebooks',
+    },
+    // Phonebook bindings tab (D-08, D-24, D-26)
+    phonebooks: {
+      title: 'CallerID Phonebooks',
+      tooltip: 'Ordered chain of policies: phonebooks are checked in order before the route\'s main actions.',
+      empty: 'Add a phonebook to check CallerID before the main actions',
+      selectPhonebook: 'Select a phonebook',
+      add: 'Add phonebook',
+      matchMode: {
+        on_match: 'On match',
+        on_no_match: 'On no match',
+      },
+      behavior: {
+        set_name: 'Caller name',
+        set_number: 'Caller number',
+        blacklist: 'Blacklist',
+        whitelist: 'Whitelist',
+        redirect: 'Redirect',
+        vars_only: 'Variables only',
+        custom: 'Custom',
+      },
+      params: {
+        byVar: 'From variable',
+        byFixed: 'Fixed value',
+        fixedName: 'Fixed name',
+        fixedNamePlaceholder: 'John Doe',
+        fixedExten: 'Fixed extension',
+      },
     },
     modeTable: 'Table',
     modeRaw: 'Dialplan',
@@ -1513,6 +1542,15 @@ export const en = {
     routePhonebooks: 'Phonebooks',
     routePhonebooksTooltip: 'Select phonebooks for CallerID checking. Calls are checked sequentially via Gosub/Return.',
     noPhonebooks: 'No phonebooks',
+    // Demo lookup test (D-10)
+    lookupTest: {
+      title: 'Number lookup test',
+      placeholder: '+79001234567',
+      check: 'Check',
+      matched: 'Match found',
+      noMatch: 'No match',
+      error: 'Lookup test failed. Please try again.',
+    },
   },
   webhookAuth: {
     authMode: 'Authorization',
@@ -1886,6 +1924,18 @@ export const en = {
       capsRequired: 'Pick at least one capability',
       defaultsJson: 'Defaults: invalid JSON',
       pricingJson: 'Pricing: invalid JSON',
+    },
+  },
+
+  // Cloud admin settings (D-20, D-25)
+  cloudAdmin: {
+    settings: {
+      aiChat: {
+        title: 'AI Chat',
+        subtitle: 'AI assistant settings for the current tenant',
+        confirmDestructive: 'Confirm destructive AI operations',
+        confirmDestructiveHint: 'Disabled by default. Applies only to the current tenant: deletions and other destructive AI assistant operations will require explicit confirmation.',
+      },
     },
   },
 };

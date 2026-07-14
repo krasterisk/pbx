@@ -8,6 +8,7 @@ import {
   useUpdateSellerInfoMutation,
 } from '@/shared/api/endpoints/cloudAdminApi';
 import type { ISellerInfo } from '@/entities/tenant';
+import { AiChatSettingsCard } from '../AiChatSettingsCard/AiChatSettingsCard';
 import cls from './SellerSettingsForm.module.scss';
 
 const EMPTY: ISellerInfo = {
@@ -219,6 +220,8 @@ export const SellerSettingsForm = memo(() => {
           </VStack>
         </CardContent>
       </Card>
+
+      <AiChatSettingsCard />
     </VStack>
   );
 });
