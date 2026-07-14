@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
+import { AiAdapterRegistryService } from '../ai-platform/ai-adapter-registry.service';
 
 /**
  * KnowledgeBaseService — загружает документацию KrAsterisk из .docs/
@@ -22,14 +23,23 @@ export class KnowledgeBaseService implements OnModuleInit {
     /** Готовый дайджест для вставки в system prompt */
     private digest = '';
 
+    constructor(private readonly aiAdapterRegistry: AiAdapterRegistryService) {}
+
     onModuleInit() {
         this.loadDocs();
     }
 
 
-    /** Возвращает дайджест документации для вставки в system prompt */
+    /**
+     * Возвращает дайджест документации для вставки в system prompt.
+     * Динамически дополняется KB-блоками зарегистрированных Domain AI Adapters
+     * (D-14/D-16, например phonebooks) — вычисляется на каждый вызов, а не
+     * кэшируется в loadDocs(), т.к. адаптеры регистрируются в своём onModuleInit
+     * и порядок относительно KnowledgeBaseService.onModuleInit не гарантирован.
+     */
     getDigest(): string {
-        return this.digest;
+        const adapterBlocks = this.aiAdapterRegistry.getKnowledgeBlocks();
+        return adapterBlocks.length ? `${this.digest}\n\n---\n\n${adapterBlocks.join('\n\n')}` : this.digest;
     }
 
     private loadDocs(): void {
@@ -110,8 +120,8 @@ KrAsterisk — это веб-интерфейс для управления IP-�
 - Шаблон конфигурации отправляется на телефон при его подключении
 
 ### Справочники (Phonebooks)
-- База данных контактов: имя, номер, организация
-- Поиск по имени при входящем звонке (CallerID lookup)
+- Справочник = чистые данные (номера + доп. поля), привязка к маршруту определяет политику CallerID: подмена имени/номера, blacklist/whitelist, переадресация
+- Один справочник можно привязать к нескольким маршрутам с разной политикой; порядок привязок важен
 
 ### Голосовые роботы (Voice Robots)
 - Автоматические исходящие звонки с TTS-голосом и распознаванием речи (STT)

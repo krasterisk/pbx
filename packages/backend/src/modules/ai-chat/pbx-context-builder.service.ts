@@ -6,6 +6,7 @@ import { QueuesService } from '../queues/queues.service';
 import { ContextsService } from '../contexts/contexts.service';
 import { KnowledgeBaseService } from './knowledge-base.service';
 import { AiChatSettingsService } from './ai-chat-settings.service';
+import { AiAdapterRegistryService } from '../ai-platform/ai-adapter-registry.service';
 
 export interface PbxStateDto {
     endpointsCount: number;
@@ -21,6 +22,8 @@ export interface PbxStateDto {
     contexts: Array<{ uid: number; name: string; comment: string }>;
     /** Per-tenant AI destructive-op confirmation setting (D-20, D-25) */
     confirmDestructive: boolean;
+    /** Compact per-domain summaries from Domain AI Adapters (D-16), e.g. phonebooks */
+    adapterSummaries: string[];
 }
 
 @Injectable()
@@ -35,20 +38,23 @@ export class PbxContextBuilderService {
         private readonly contextsService: ContextsService,
         private readonly knowledgeBase: KnowledgeBaseService,
         private readonly aiChatSettingsService: AiChatSettingsService,
+        private readonly aiAdapterRegistry: AiAdapterRegistryService,
     ) {}
 
     async buildState(userUid: number): Promise<PbxStateDto> {
-        const [endpoints, trunks, ivrs, queues, contexts, settings] = await Promise.all([
+        const [endpoints, trunks, ivrs, queues, contexts, settings, adapterSummaries] = await Promise.all([
             this.endpointsService.findAll(userUid).catch(() => []),
             this.trunksService.findAll(userUid).catch(() => []),
             this.ivrsService.findAll(userUid).catch(() => []),
             this.queuesService.findAll(userUid).catch(() => []),
             this.contextsService.findAll(userUid).catch(() => []),
             this.aiChatSettingsService.getSettings(userUid).catch(() => ({ confirmDestructive: false })),
+            this.buildAdapterSummaries(userUid),
         ]);
 
         return {
             confirmDestructive: settings.confirmDestructive,
+            adapterSummaries,
             endpointsCount: endpoints.length,
             extensionRanges: this.buildExtensionRanges(endpoints),
             endpoints: endpoints.slice(0, 30).map((e: any) => ({
@@ -78,6 +84,15 @@ export class PbxContextBuilderService {
                 comment: c.comment ?? '',
             })),
         };
+    }
+
+    /** Aggregates per-domain state summaries (D-16) — compact text blocks, NOT full entity dumps (Pitfall 10). */
+    private async buildAdapterSummaries(userUid: number): Promise<string[]> {
+        const providers = this.aiAdapterRegistry.getStateProviders();
+        const summaries = await Promise.all(
+            providers.map((p) => p.buildSummary(userUid).catch(() => '')),
+        );
+        return summaries.filter((s) => s.trim().length > 0);
     }
 
     buildSystemPrompt(state: PbxStateDto): string {
@@ -123,6 +138,7 @@ export class PbxContextBuilderService {
 - Контексты: ${state.contextsCount}${state.contexts.length ? '\n' + state.contexts.map(c => `  • "${c.name}"${c.comment ? ' — ' + c.comment : ''}`).join('\n') : ''}
 - IVR: ${state.ivrsCount}${state.ivrs.length ? ' (' + state.ivrs.map(i => `"${i.name}"`).join(', ') + ')' : ''}
 - Очереди: ${state.queuesCount}${state.queues.length ? ' (' + state.queues.map(q => q.exten).join(', ') + ')' : ''}
+${state.adapterSummaries.length ? '\n' + state.adapterSummaries.join('\n') : ''}
 
 ## ПРАВИЛА ИНСТРУМЕНТОВ${state.confirmDestructive ? '\n⛔ Деструктивные операции (удаление, update_route с изменением bindings/actions) — ТОЛЬКО после явного согласия пользователя' : ''}
 ⛔ ЗАПРЕЩЕНО писать "создан/удалён/готово" до получения реального ответа от инструмента

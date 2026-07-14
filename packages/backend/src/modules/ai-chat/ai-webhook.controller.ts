@@ -24,6 +24,8 @@ import { BulkCreateEndpointDto } from '../endpoints/dto/create-endpoint.dto';
 import { InjectModel } from '@nestjs/sequelize';
 import { Context } from '../contexts/context.model';
 import { LoggerService } from '../logger/logger.service';
+import { AiAdapterRegistryService } from '../ai-platform/ai-adapter-registry.service';
+import { AiChatSettingsService } from './ai-chat-settings.service';
 
 /**
  * AiWebhookController — dedicated endpoints for aiPBX tool calls.
@@ -54,6 +56,8 @@ export class AiWebhookController {
         private readonly dialplanApplyService: DialplanApplyService,
         private readonly loggerService: LoggerService,
         @InjectModel(Context) private readonly contextModel: typeof Context,
+        private readonly aiAdapterRegistry: AiAdapterRegistryService,
+        private readonly aiChatSettingsService: AiChatSettingsService,
     ) {}
 
     // ─── Tool: get_pbx_state ────────────────────────────────────────────────────
@@ -244,5 +248,68 @@ export class AiWebhookController {
 
         this.logger.log(`[AI Tool] Dialplan applied: [${contextName}] ${result.linesApplied} lines`);
         return { success: result.success, context: contextName, linesApplied: result.linesApplied };
+    }
+
+    // ─── Generic Domain AI Adapter dispatch (D-14/D-15) ────────────────────────
+
+    /**
+     * POST /api/ai-tools/call/:toolName
+     * Generic dispatch for any tool registered via a Domain AI Adapter
+     * (AiAdapterRegistryService) — e.g. phonebooks' list_phonebooks, update_route.
+     * The 7 existing hand-written endpoints above are untouched.
+     *
+     * Applies the same per-tenant confirmation gate (D-20, D-25) and audit
+     * logging pattern (D-19) as McpToolsService.callTool.
+     */
+    @ApiOperation({ summary: 'Generic Domain AI Adapter tool dispatch' })
+    @Post('call/:toolName')
+    async callAdapterTool(
+        @Param('toolName') toolName: string,
+        @Body() args: Record<string, any>,
+        @Req() req: Request & { user: any },
+    ) {
+        const uid = req.user.vpbx_user_uid;
+        const userId = req.user.sub || 0;
+
+        const tool = this.aiAdapterRegistry.getToolByName(toolName);
+        if (!tool) {
+            return { success: false, error: `Tool not found: "${toolName}"` };
+        }
+
+        if (tool.destructive && args?.confirm !== true) {
+            const settings = await this.aiChatSettingsService.getSettings(uid);
+            if (settings.confirmDestructive) {
+                return {
+                    success: false,
+                    requiresConfirmation: true,
+                    message: `⚠️ Требуется подтверждение: операция "${toolName}" деструктивна. Повтори вызов с confirm=true после явного согласия пользователя.`,
+                };
+            }
+        }
+
+        this.logger.log(`[AI Tool] ${toolName} for tenant ${uid}`);
+        try {
+            const result = await tool.handler(args, uid);
+            this.loggerService.logAction(userId, 'ai_tool', tool.entityType, null, uid,
+                this.buildLogDetails(toolName, args), 'success').catch(() => {});
+            return result;
+        } catch (err: any) {
+            this.logger.error(`Tool "${toolName}" failed for tenant ${uid}: ${err.message}`);
+            this.loggerService.logAction(userId, 'ai_tool', tool.entityType, null, uid,
+                this.buildLogDetails(toolName, args), 'error').catch(() => {});
+            return { success: false, error: err.message };
+        }
+    }
+
+    /** Compact, truncated audit message — avoids writing huge entry payloads into action_logs (D-19). */
+    private buildLogDetails(name: string, args: Record<string, any>): string {
+        let argsStr: string;
+        try {
+            argsStr = JSON.stringify(args ?? {});
+        } catch {
+            argsStr = String(args);
+        }
+        const truncated = argsStr.length > 200 ? `${argsStr.slice(0, 200)}...` : argsStr;
+        return `webhook:${name}: ${truncated}`;
     }
 }
