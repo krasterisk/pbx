@@ -177,8 +177,16 @@
 - `packages/frontend/src/features/phonebooks/` — UI справочников
 - `packages/frontend/src/widgets/AiChatWidget/` — встроенный AI-ассистент
 
-**Status:** Not planned  
+**Status:** Planned (4 plans, 4 waves)  
 **Depends on:** — (brownfield; независима от verify Phase 4)
+
+**Plans:** 4 plans
+
+Plans:
+- [ ] 05-01-PLAN.md — Backend-фундамент: DialplanApplyService (консолидация 4 копий AMI-батча), таблица route_phonebook_bindings + миграция, чистка invert/actions, per-binding dialplan `pb_bind_{uid}_{vpbx}` + прошивка apply + реген-триггеры, lookup-test endpoint
+- [ ] 05-02-PLAN.md — AI-платформа: каркас Domain AI Adapter (Tools/State/Knowledge), фикс cross-tenant closure в MCP, аудит MCP в action_logs, per-tenant подтверждения (default OFF), PhonebooksAiAdapter (7 tools + update_route), snapshot summary + KB-блок
+- [ ] 05-03-PLAN.md — Frontend: вкладка «Справочники» в RouteFormModal (playlist-паттерн, пресеты + custom DialplanAppsEditor), чистка PhonebookFormModal + демо-тест lookup, подраздел AI Chat в SellerSettingsForm, i18n ru/en
+- [ ] 05-04-PLAN.md — E2E/UAT: финальный гейт + документация .docs, checkpoint регистрации tools в aiPBX, checkpoint AI-сценариев D-21 с реальным звонком
 
 **Goal:** Проанализировать текущую реализацию Phonebooks, улучшить её и выделить **универсальные механизмы** для проектирования и настройки справочников через AI: встроенный чат (`AiChatWidget`), webhooks `/api/ai-tools/*` и **MCP-инструменты** — чтобы простой чат-бот по запросу пользователя мог создавать/редактировать справочники, записи, actions и привязки к маршрутам.
 
@@ -198,7 +206,7 @@
 - Полный редизайн `PhonebooksPage` UI (только если audit выявит блокеры)
 - Собственный LLM / замена aiPBX
 
-**Requirements:** TBD (после `/gsd-discuss-phase 5`)
+**Requirements:** D-01 … D-26 (locked decisions в `.planning/phases/05-phonebooks-ai-universal-directory-mechanisms-mcp-tools-and-c/05-CONTEXT.md`; REQ-ID для фазы не заводились)
 
 **GSD workflow (рекомендуемый порядок):**
 
