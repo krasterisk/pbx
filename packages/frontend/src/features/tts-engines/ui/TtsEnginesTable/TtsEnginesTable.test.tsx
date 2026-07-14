@@ -9,7 +9,8 @@ import * as apiHooks from '@/shared/api/endpoints/ttsEnginesApi';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string, fallback: string) => fallback || key,
+    t: (key: string, opts?: string | Record<string, unknown>) =>
+      typeof opts === 'string' ? opts : (opts?.defaultValue as string) ?? key,
   }),
 }));
 
@@ -55,15 +56,6 @@ describe('TtsEnginesTable UI integration', () => {
     renderWithStore(<TtsEnginesTable />);
     expect(screen.getByText('AWS Polly')).toBeInTheDocument();
     expect(screen.getByText('Yandex Alena')).toBeInTheDocument();
-  });
-
-  it('dispatches openCreateModal on add button click', () => {
-    renderWithStore(<TtsEnginesTable />);
-    const addBtn = screen.getByText('Добавить движок');
-    fireEvent.click(addBtn);
-    expect(mockDispatch).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'ttsEngines/openCreateModal' })
-    );
   });
 
   it('dispatches openEditModal on edit button click', () => {

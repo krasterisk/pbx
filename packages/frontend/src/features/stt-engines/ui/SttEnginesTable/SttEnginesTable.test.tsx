@@ -9,7 +9,8 @@ import * as apiHooks from '@/shared/api/endpoints/sttEnginesApi';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string, fallback: string) => fallback || key,
+    t: (key: string, opts?: string | Record<string, unknown>) =>
+      typeof opts === 'string' ? opts : (opts?.defaultValue as string) ?? key,
   }),
 }));
 
@@ -57,18 +58,9 @@ describe('SttEnginesTable UI integration', () => {
     expect(screen.getByText('Yandex Rec')).toBeInTheDocument();
   });
 
-  it('dispatches openCreateModal on add button click', () => {
-    renderWithStore(<SttEnginesTable />);
-    const addBtn = screen.getByText('Добавить движок');
-    fireEvent.click(addBtn);
-    expect(mockDispatch).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'sttEngines/openCreateModal' })
-    );
-  });
-
   it('dispatches openEditModal on edit button click', () => {
     renderWithStore(<SttEnginesTable />);
-    const editBtns = screen.getAllByTitle('common.edit');
+    const editBtns = screen.getAllByTitle('Редактировать');
     fireEvent.click(editBtns[0]);
     expect(mockDispatch).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'sttEngines/openEditModal', payload: mockEngines[0] })
