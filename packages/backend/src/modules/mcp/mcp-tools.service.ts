@@ -12,15 +12,23 @@ import { InjectModel } from '@nestjs/sequelize';
 import { Context } from '../contexts/context.model';
 import { CdrService } from '../reports/cdr/cdr.service';
 import { AiAdapterRegistryService } from '../ai-platform/ai-adapter-registry.service';
+import { AiChatSettingsService } from '../ai-chat/ai-chat-settings.service';
 import { LoggerService } from '../logger/logger.service';
 
 interface McpToolEntry {
     description: string;
     inputSchema: Record<string, any>;
     entityType: string;
+    /** Subject to the per-tenant confirmation gate (D-20, D-25) */
+    destructive: boolean;
     /** vpbxUserUid is ALWAYS a call parameter — never captured via closure (D-23) */
     handler: (args: any, vpbxUserUid: number) => Promise<Array<{ type: string; text: string }>>;
 }
+
+const CONFIRM_SCHEMA_PROP = {
+    type: 'boolean',
+    description: 'Подтверждение деструктивной операции — передай confirm=true только после явного согласия пользователя',
+};
 
 /**
  * McpToolsService — регистрирует все инструменты KrAsterisk в локальном реестре.
@@ -58,6 +66,7 @@ export class McpToolsService {
         @InjectModel(Context) private readonly contextModel: typeof Context,
         private readonly cdrService: CdrService,
         private readonly aiAdapterRegistry: AiAdapterRegistryService,
+        private readonly aiChatSettingsService: AiChatSettingsService,
         private readonly loggerService: LoggerService,
     ) {}
 
@@ -84,13 +93,13 @@ export class McpToolsService {
         this.regFindCdrCalls();
 
         // Domain AI Adapter tools (D-14/D-15) — dispatched through the same registry,
-        // same audit pipeline as legacy tools.
+        // same audit/confirmation pipeline as legacy tools.
         for (const t of this.aiAdapterRegistry.getAllTools()) {
             this.reg(t.name, t.description, t.inputSchema, async (args, uid) => {
                 const result = await t.handler(args, uid);
                 const text = typeof result === 'string' ? result : JSON.stringify(result, null, 2);
                 return [{ type: 'text', text }];
-            }, t.entityType);
+            }, t.entityType, !!t.destructive);
         }
 
         this.logger.log(`Registered ${this.toolRegistry.size} MCP tools`);
@@ -111,6 +120,17 @@ export class McpToolsService {
         if (!tool) {
             const available = Array.from(this.toolRegistry.keys()).join(', ');
             throw new Error(`Tool not found: "${name}". Available: ${available}`);
+        }
+
+        // Per-tenant confirmation gate for destructive tools (D-20, D-25) — default OFF.
+        if (tool.destructive && args?.confirm !== true) {
+            const settings = await this.aiChatSettingsService.getSettings(vpbxUserUid);
+            if (settings.confirmDestructive) {
+                return [{ type: 'text', text:
+                    `⚠️ Требуется подтверждение: операция "${name}" деструктивна. ` +
+                    `Повтори вызов с confirm=true после явного согласия пользователя.`,
+                }];
+            }
         }
 
         try {
@@ -142,8 +162,10 @@ export class McpToolsService {
         inputSchema: Record<string, any>,
         handler: (args: any, vpbxUserUid: number) => Promise<Array<{ type: string; text: string }>>,
         entityType: string = 'pbx',
+        destructive: boolean = false,
     ): void {
-        this.toolRegistry.set(name, { description, inputSchema, entityType, handler });
+        const schema = destructive ? { ...inputSchema, confirm: CONFIRM_SCHEMA_PROP } : inputSchema;
+        this.toolRegistry.set(name, { description, inputSchema: schema, entityType, destructive, handler });
     }
 
     /** Генерирует криптостойкий SIP-пароль */
@@ -257,6 +279,7 @@ export class McpToolsService {
                 return [{ type: 'text', text: `✅ Абонент ${sipId} удалён.` }];
             },
             'endpoint',
+            true,
         );
     }
 
@@ -291,6 +314,7 @@ export class McpToolsService {
                 return [{ type: 'text', text: `✅ Транк ${trunkId} удалён.` }];
             },
             'trunk',
+            true,
         );
     }
 
@@ -327,6 +351,7 @@ export class McpToolsService {
             { id: { type: 'number' } },
             async ({ id }, uid) => { await this.ivrsService.remove(id, uid); return [{ type: 'text', text: `✅ IVR ${id} удалён.` }]; },
             'ivr',
+            true,
         );
     }
 
@@ -363,6 +388,7 @@ export class McpToolsService {
             { name: { type: 'string' } },
             async ({ name }, uid) => { await this.queuesService.remove(name, uid); return [{ type: 'text', text: `✅ Очередь ${name} удалена.` }]; },
             'queue',
+            true,
         );
     }
 
@@ -390,6 +416,7 @@ export class McpToolsService {
             { id: { type: 'number' } },
             async ({ id }, uid) => { await this.routesService.remove(id, uid); return [{ type: 'text', text: `✅ Маршрут ${id} удалён.` }]; },
             'route',
+            true,
         );
     }
 

@@ -2,6 +2,7 @@ import {
     Controller,
     Post,
     Get,
+    Put,
     Body,
     Req,
     Res,
@@ -9,7 +10,7 @@ import {
     Logger,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
-import { IsString, IsArray, IsOptional, ValidateNested, IsIn } from 'class-validator';
+import { IsString, IsArray, IsOptional, IsBoolean, ValidateNested, IsIn } from 'class-validator';
 import { Type } from 'class-transformer';
 import { Throttle, SkipThrottle } from '@nestjs/throttler';
 import { ConfigService } from '@nestjs/config';
@@ -17,6 +18,7 @@ import { Response } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AiChatService, ChatMessage } from './ai-chat.service';
 import { PbxContextBuilderService } from './pbx-context-builder.service';
+import { AiChatSettingsService } from './ai-chat-settings.service';
 import { LoggerService } from '../logger/logger.service';
 
 class ChatMessageDto {
@@ -38,6 +40,11 @@ class SendMessageDto {
     history?: ChatMessage[];
 }
 
+class UpdateAiChatSettingsDto {
+    @IsBoolean()
+    confirmDestructive: boolean;
+}
+
 /**
  * AiChatController — endpoints для AI-ассистента.
  *
@@ -57,9 +64,34 @@ export class AiChatController {
     constructor(
         private readonly aiChatService: AiChatService,
         private readonly contextBuilder: PbxContextBuilderService,
+        private readonly aiChatSettingsService: AiChatSettingsService,
         private readonly loggerService: LoggerService,
         private readonly config: ConfigService,
     ) {}
+
+    /**
+     * GET /api/ai-chat/settings
+     * Per-tenant AI confirmation settings (D-20, D-25). Default OFF for tenants
+     * with no row yet.
+     */
+    @ApiOperation({ summary: 'Get per-tenant AI confirmation settings' })
+    @SkipThrottle()
+    @Get('settings')
+    async getSettings(@Req() req: any) {
+        return this.aiChatSettingsService.getSettings(req.user.vpbx_user_uid);
+    }
+
+    /**
+     * PUT /api/ai-chat/settings
+     * Updates per-tenant AI confirmation settings. Never touches cloud_settings
+     * or other tenants — storage is per vpbx_user_uid (D-25).
+     */
+    @ApiOperation({ summary: 'Update per-tenant AI confirmation settings' })
+    @SkipThrottle()
+    @Put('settings')
+    async updateSettings(@Body() dto: UpdateAiChatSettingsDto, @Req() req: any) {
+        return this.aiChatSettingsService.updateSettings(req.user.vpbx_user_uid, dto);
+    }
 
     /**
      * GET /api/ai-chat/state

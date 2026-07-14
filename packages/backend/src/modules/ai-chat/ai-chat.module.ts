@@ -7,6 +7,8 @@ import { AiChatService } from './ai-chat.service';
 import { PbxContextBuilderService } from './pbx-context-builder.service';
 import { KnowledgeBaseService } from './knowledge-base.service';
 import { AiWebhookController } from './ai-webhook.controller';
+import { AiChatSettings } from './ai-chat-settings.model';
+import { AiChatSettingsService } from './ai-chat-settings.service';
 import { JwtOrServiceTokenGuard } from '../auth/jwt-or-service-token.guard';
 import { ServiceTokenGuard } from '../auth/service-token.guard';
 import { EndpointsModule } from '../endpoints/endpoints.module';
@@ -23,7 +25,7 @@ import { LoggerModule } from '../logger/logger.module';
     imports: [
         ConfigModule,
         HttpModule.register({ timeout: 60_000 }),
-        SequelizeModule.forFeature([Context]),
+        SequelizeModule.forFeature([Context, AiChatSettings]),
         EndpointsModule,
         TrunksModule,
         IvrsModule,
@@ -38,10 +40,11 @@ import { LoggerModule } from '../logger/logger.module';
         AiChatService,
         PbxContextBuilderService,
         KnowledgeBaseService,
+        AiChatSettingsService,
         JwtOrServiceTokenGuard,
         ServiceTokenGuard,
     ],
-    exports: [PbxContextBuilderService, KnowledgeBaseService],
+    exports: [PbxContextBuilderService, KnowledgeBaseService, AiChatSettingsService],
 })
 export class AiChatModule {}
 

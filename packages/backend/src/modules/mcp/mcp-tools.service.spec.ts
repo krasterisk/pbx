@@ -19,6 +19,7 @@ describe('McpToolsService', () => {
   let contextModel: any;
   let cdrService: any;
   let aiAdapterRegistry: any;
+  let aiChatSettingsService: any;
   let loggerService: any;
   let service: McpToolsService;
 
@@ -35,6 +36,7 @@ describe('McpToolsService', () => {
     contextModel = { findOne: jest.fn() };
     cdrService = { getStats: jest.fn(), findCalls: jest.fn() };
     aiAdapterRegistry = { getAllTools: jest.fn().mockReturnValue([]) };
+    aiChatSettingsService = { getSettings: jest.fn().mockResolvedValue({ confirmDestructive: false }) };
     loggerService = { logAction: jest.fn().mockResolvedValue(undefined) };
 
     service = new McpToolsService(
@@ -50,6 +52,7 @@ describe('McpToolsService', () => {
       contextModel,
       cdrService,
       aiAdapterRegistry,
+      aiChatSettingsService,
       loggerService,
     );
   });
@@ -128,6 +131,60 @@ describe('McpToolsService', () => {
       for (const name of legacyNames) {
         expect(tools.map((t) => t.name)).toContain(name);
       }
+    });
+  });
+
+  describe('per-tenant confirmation gate for destructive tools (D-20, D-25)', () => {
+    it('blocks a destructive tool without confirm=true when the tenant has confirmations enabled', async () => {
+      aiChatSettingsService.getSettings.mockResolvedValue({ confirmDestructive: true });
+
+      const result = await service.callTool('delete_trunk', { trunkId: 't_x_1' }, 100);
+
+      expect(trunksService.remove).not.toHaveBeenCalled();
+      expect(result[0].text).toContain('Требуется подтверждение');
+    });
+
+    it('executes a destructive tool when confirm=true is passed, with confirmations enabled', async () => {
+      aiChatSettingsService.getSettings.mockResolvedValue({ confirmDestructive: true });
+
+      await service.callTool('delete_trunk', { trunkId: 't_x_1', confirm: true }, 100);
+
+      expect(trunksService.remove).toHaveBeenCalledWith('t_x_1', 100);
+    });
+
+    it('executes a destructive tool immediately without confirm when confirmations are disabled (default OFF)', async () => {
+      aiChatSettingsService.getSettings.mockResolvedValue({ confirmDestructive: false });
+
+      await service.callTool('delete_trunk', { trunkId: 't_x_1' }, 100);
+
+      expect(trunksService.remove).toHaveBeenCalledWith('t_x_1', 100);
+    });
+
+    it("tenant A's confirmation setting does not block tenant B's call to the same destructive tool", async () => {
+      aiChatSettingsService.getSettings.mockImplementation(async (uid: number) =>
+        uid === 100 ? { confirmDestructive: true } : { confirmDestructive: false },
+      );
+
+      const blockedForA = await service.callTool('delete_trunk', { trunkId: 't_a' }, 100);
+      expect(trunksService.remove).not.toHaveBeenCalled();
+      expect(blockedForA[0].text).toContain('Требуется подтверждение');
+
+      await service.callTool('delete_trunk', { trunkId: 't_b' }, 200);
+      expect(trunksService.remove).toHaveBeenCalledWith('t_b', 200);
+    });
+
+    it('adds a confirm boolean property to the inputSchema of destructive tools', () => {
+      const tools = service.getToolsList(100);
+      const deleteTrunk = tools.find((t) => t.name === 'delete_trunk')!;
+      expect(deleteTrunk.inputSchema.properties.confirm).toEqual(expect.objectContaining({ type: 'boolean' }));
+    });
+
+    it('does not gate a non-destructive tool even when confirmations are enabled', async () => {
+      aiChatSettingsService.getSettings.mockResolvedValue({ confirmDestructive: true });
+
+      await service.callTool('create_trunk', { name: 'MTT' }, 100);
+
+      expect(trunksService.create).toHaveBeenCalledWith({ name: 'MTT' }, 100);
     });
   });
 
