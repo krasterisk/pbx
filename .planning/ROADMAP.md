@@ -177,15 +177,15 @@
 - `packages/frontend/src/features/phonebooks/` — UI справочников
 - `packages/frontend/src/widgets/AiChatWidget/` — встроенный AI-ассистент
 
-**Status:** Planned (5 plans, 5 waves)
+**Status:** In progress — 3/5 plans executed (05-01, 05-05, 05-02)
 **Depends on:** — (brownfield; независима от verify Phase 4)
 
 **Plans:** 5 plans
 
 Plans:
-- [ ] 05-01-PLAN.md — DialplanApplyService: консолидация 4 копий AMI UpdateConfig батч-логики (routes.controller, ai-webhook.controller, mcp-tools.service, dialplan-subroutines.service) в общий сервис
-- [ ] 05-05-PLAN.md — Bindings backend: таблица route_phonebook_bindings + миграция, чистка invert/actions, bindings CRUD в маршрутах, per-binding dialplan `pb_bind_{uid}_{vpbx}` + прошивка apply + реген-триггеры, lookup-test endpoint
-- [ ] 05-02-PLAN.md — AI-платформа: каркас Domain AI Adapter (Tools/State/Knowledge), фикс cross-tenant closure в MCP, аудит MCP в action_logs, per-tenant подтверждения (default OFF, включая update_route), PhonebooksAiAdapter (7 tools + update_route), snapshot summary + KB-блок
+- [x] 05-01-PLAN.md — DialplanApplyService: консолидация 4 копий AMI UpdateConfig батч-логики (routes.controller, ai-webhook.controller, mcp-tools.service, dialplan-subroutines.service) в общий сервис
+- [x] 05-05-PLAN.md — Bindings backend: таблица route_phonebook_bindings + миграция, чистка invert/actions, bindings CRUD в маршрутах, per-binding dialplan `pb_bind_{uid}_{vpbx}` + прошивка apply + реген-триггеры, lookup-test endpoint
+- [x] 05-02-PLAN.md — AI-платформа: каркас Domain AI Adapter (Tools/State/Knowledge), фикс cross-tenant closure в MCP, аудит MCP в action_logs, per-tenant подтверждения (default OFF, включая update_route), PhonebooksAiAdapter (7 tools + update_route), snapshot summary + KB-блок
 - [ ] 05-03-PLAN.md — Frontend: вкладка «Справочники» в RouteFormModal (playlist-паттерн, пресеты + custom DialplanAppsEditor), чистка PhonebookFormModal + демо-тест lookup, подраздел AI Chat в SellerSettingsForm, i18n ru/en
 - [ ] 05-04-PLAN.md — E2E/UAT: финальный гейт + документация .docs, checkpoint регистрации tools в aiPBX, checkpoint AI-сценариев D-21 с реальным звонком
 
