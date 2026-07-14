@@ -104,9 +104,7 @@ export const PhonebooksTable = memo(() => {
               </TableHead>
               <TableHead>{t('phonebooks.name', 'Название')}</TableHead>
               <TableHead>{t('phonebooks.description', 'Описание')}</TableHead>
-              <TableHead>{t('phonebooks.mode', 'Режим')}</TableHead>
               <TableHead>{t('phonebooks.entries', 'Номера')}</TableHead>
-              <TableHead>{t('phonebooks.actionsCount', 'Действия')}</TableHead>
               <TableHead className={cls.actionsCell}>{t('common.actions', 'Действия')}</TableHead>
             </TableRow>
           </TableHeader>
@@ -130,21 +128,8 @@ export const PhonebooksTable = memo(() => {
                   <Text variant="muted">{pb.description || '—'}</Text>
                 </TableCell>
                 <TableCell>
-                  <Text className={pb.invert ? cls.badgeInvert : cls.badgeNormal}>
-                    {pb.invert
-                      ? t('phonebooks.invertMode', 'Инвертирован')
-                      : t('phonebooks.normalMode', 'Обычный')
-                    }
-                  </Text>
-                </TableCell>
-                <TableCell>
                   <Text variant="muted" className={cls.entriesCount}>
-                    {(pb as any).entries?.length ?? 0}
-                  </Text>
-                </TableCell>
-                <TableCell>
-                  <Text variant="muted" className={cls.entriesCount}>
-                    {pb.actions?.length ?? 0}
+                    {pb.entries?.length ?? 0}
                   </Text>
                 </TableCell>
                 <TableCell className={cls.actionsCell} onClick={(e) => e.stopPropagation()}>

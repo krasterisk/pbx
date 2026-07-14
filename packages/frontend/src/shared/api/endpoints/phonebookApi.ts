@@ -57,6 +57,15 @@ const phonebookApi = rtkApi.injectEndpoints({
         { type: 'Phonebooks', id: 'LIST' },
       ],
     }),
+
+    /** Demo lookup test (D-10): does a number match, and which PB_* vars would it set? Read-only, no tag invalidation. */
+    lookupTestPhonebook: builder.mutation<{ matched: boolean; vars: Record<string, string> }, { uid: number; number: string }>({
+      query: ({ uid, number }) => ({
+        url: `/phonebooks/${uid}/lookup-test`,
+        method: 'POST',
+        body: { number },
+      }),
+    }),
   }),
 });
 
@@ -68,4 +77,5 @@ export const {
   useDeletePhonebookMutation,
   useBulkDeletePhonebooksMutation,
   useImportPhonebookCsvMutation,
+  useLookupTestPhonebookMutation,
 } = phonebookApi;

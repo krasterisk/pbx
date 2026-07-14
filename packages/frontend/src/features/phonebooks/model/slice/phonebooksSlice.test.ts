@@ -6,8 +6,6 @@ const mockPhonebook = {
   uid: 1,
   name: 'VIP-клиенты',
   description: 'Приоритетные клиенты',
-  invert: false,
-  actions: [{ type: 'hangup', params: {} }],
   user_uid: 100,
 } as any;
 

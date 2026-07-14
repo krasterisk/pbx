@@ -1,7 +1,7 @@
 import { memo, useState, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Trash2, Upload, ChevronDown, ChevronRight, Download } from 'lucide-react';
-import { Button, Input, Text, Label, Checkbox, InfoTooltip, Tooltip } from '@/shared/ui';
+import { Plus, Trash2, Upload, ChevronDown, ChevronRight } from 'lucide-react';
+import { Button, Input, Text, Label, InfoTooltip, Tooltip } from '@/shared/ui';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/shared/ui/Dialog';
@@ -17,8 +17,7 @@ import {
   getPhonebooksEditingItem,
   getPhonebooksModalMode,
 } from '../../model/selectors/phonebooksSelectors';
-import { DialplanAppsEditor } from '@/features/dialplan-apps/ui/DialplanAppsEditor/DialplanAppsEditor';
-import type { IRouteAction } from '@krasterisk/shared';
+import { PhonebookLookupTest } from '../PhonebookLookupTest/PhonebookLookupTest';
 import cls from './PhonebookFormModal.module.scss';
 
 interface PhonebookEntry {
@@ -26,8 +25,6 @@ interface PhonebookEntry {
   comment: string;
   vars: Record<string, string>;
 }
-
-const TABS = ['entries', 'actions'] as const;
 
 export const PhonebookFormModal = memo(() => {
   const { t } = useTranslation();
@@ -37,11 +34,8 @@ export const PhonebookFormModal = memo(() => {
 
   const isCreateMode = mode === 'create' || mode === 'copy';
 
-  const [activeTab, setActiveTab] = useState<typeof TABS[number]>('entries');
   const [name, setName] = useState(mode === 'copy' ? '' : (editingItem?.name || ''));
   const [description, setDescription] = useState(editingItem?.description || '');
-  const [invert, setInvert] = useState(!!editingItem?.invert);
-  const [actions, setActions] = useState<IRouteAction[]>(editingItem?.actions || []);
   const [entries, setEntries] = useState<PhonebookEntry[]>(
     (editingItem as any)?.entries?.map((e: any) => ({
       number: e.number,
@@ -222,8 +216,6 @@ export const PhonebookFormModal = memo(() => {
     const payload = {
       name: name.trim(),
       description: description.trim() || undefined,
-      invert,
-      actions,
       entries: validEntries.map(e => {
         const cleanVars: Record<string, string> = {};
         for (const [k, v] of Object.entries(e.vars)) {
@@ -247,12 +239,9 @@ export const PhonebookFormModal = memo(() => {
     } catch (err) {
       console.error('Failed to save phonebook:', err);
     }
-  }, [name, description, invert, actions, entries, isCreateMode, editingItem, createPhonebook, updatePhonebook, handleClose]);
+  }, [name, description, entries, isCreateMode, editingItem, createPhonebook, updatePhonebook, handleClose]);
 
   const isSaving = isCreating || isUpdating;
-
-  // Collect all unique var keys from all entries (for hint in actions tab)
-  const allVarKeys = Array.from(new Set(entries.flatMap(e => Object.keys(e.vars)))).sort();
 
   return (
     <Dialog open onOpenChange={(open) => { if (!open) handleClose(); }}>
@@ -268,29 +257,8 @@ export const PhonebookFormModal = memo(() => {
           </DialogTitle>
         </DialogHeader>
 
-        {/* Tabs */}
-        <VStack className="border-b border-border/50 mb-6 shrink-0" max>
-          <HStack gap="8" className="-mb-[1px] flex overflow-x-auto flex-nowrap [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-            {TABS.map((tab) => (
-              <Button
-                key={tab}
-                variant="ghost"
-                onClick={() => setActiveTab(tab)}
-                className={`relative py-3 px-1 rounded-none text-sm font-medium transition-colors whitespace-nowrap shrink-0 outline-none ${
-                    activeTab === tab ? 'text-primary bg-transparent hover:bg-transparent hover:text-primary' : 'text-muted-foreground bg-transparent hover:text-foreground hover:bg-transparent'
-                }`}
-              >
-                {t(`phonebooks.tab.${tab}`, tab === 'entries' ? 'Номера' : 'Действия')}
-                {activeTab === tab && (
-                  <VStack className="absolute left-0 right-0 bottom-0 h-[2px] bg-primary rounded-t-[1px]">{''}</VStack>
-                )}
-              </Button>
-            ))}
-          </HStack>
-        </VStack>
-
         <VStack className={cls.scrollBody}>
-          {/* General fields — always visible */}
+          {/* General fields — a phonebook is pure data: name, description, entries (D-04) */}
           <VStack gap="16">
             <HStack className={cls.formGrid}>
               <VStack>
@@ -315,26 +283,14 @@ export const PhonebookFormModal = memo(() => {
                 />
               </VStack>
             </HStack>
-
-            {/* Invert switch */}
-            <HStack align="center" justify="between" className={cls.invertSwitch}>
-              <HStack align="center" gap="8">
-                <Label className="cursor-pointer" htmlFor="phonebook-invert">
-                  {t('phonebooks.invertLabel', 'Инвертировать (whitelist-режим)')}
-                </Label>
-                <InfoTooltip text={t('phonebooks.invertTooltip', 'При включении действия выполняются для номеров, которых НЕТ в справочнике. Полезно для режима «белый список».')} />
-              </HStack>
-              <Checkbox
-                id="phonebook-invert"
-                checked={invert}
-                onChange={(e) => setInvert(e.target.checked)}
-              />
-            </HStack>
           </VStack>
 
-          {/* Tab: Entries */}
-          {activeTab === 'entries' && (
-            <VStack gap="12" className={cls.entriesArea}>
+          {/* Demo lookup test (D-10) — only meaningful for an already-saved phonebook */}
+          {!isCreateMode && editingItem && (
+            <PhonebookLookupTest phonebookUid={editingItem.uid} />
+          )}
+
+          <VStack gap="12" className={cls.entriesArea}>
               <VStack gap="8">
                 <Text variant="muted" className={cls.fieldLabel}>
                   {t('phonebooks.entriesLabel', 'Номера телефонов')} ({entries.length})
@@ -481,36 +437,7 @@ export const PhonebookFormModal = memo(() => {
                 <Plus className={cls.removeEntryIcon} />
                 {t('phonebooks.addEntry', 'Добавить номер')}
               </Button>
-            </VStack>
-          )}
-
-          {/* Tab: Actions */}
-          {activeTab === 'actions' && (
-            <VStack gap="12" className={cls.actionsSection}>
-              <VStack gap="4">
-                <Text variant="muted" className={cls.fieldLabel}>
-                  {t('phonebooks.actionsLabel', 'Действия при совпадении')}
-                </Text>
-                <InfoTooltip text={t('phonebooks.actionsTooltip', 'Произвольные действия dialplan при совпадении CallerID. В действиях доступны переменные ${PB_<ключ>} из записей справочника.')} />
-              </VStack>
-
-              {/* PB_* variable hint */}
-              {allVarKeys.length > 0 && (
-                <VStack className="px-3 py-2 bg-muted/20 rounded-md border border-border/50 text-xs">
-                  <Text variant="muted" className="font-medium mb-1">
-                    ℹ️ Доступные переменные записей:
-                  </Text>
-                  {allVarKeys.map((key) => (
-                    <Text key={key} variant="muted" className="font-mono ml-2">
-                      {'${'}PB_{key}{'}'} 
-                    </Text>
-                  ))}
-                </VStack>
-              )}
-
-              <DialplanAppsEditor actions={actions} onChange={setActions} />
-            </VStack>
-          )}
+          </VStack>
         </VStack>
 
         <DialogFooter className="mt-6 pt-4 border-t border-border shrink-0">

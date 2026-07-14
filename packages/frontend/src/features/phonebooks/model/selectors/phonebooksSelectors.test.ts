@@ -9,8 +9,6 @@ import {
 const mockPhonebook = {
   uid: 5,
   name: 'Blacklist',
-  invert: false,
-  actions: [],
   user_uid: 1,
 } as any;
 
