@@ -146,7 +146,18 @@
 
 </deferred>
 
+<post_research_decisions>
+## Post-Research Decisions (после 05-RESEARCH.md, подтверждены пользователем)
+
+- **D-22 — AMI + DialplanApplyService:** phonebook-контексты применяются через AMI UpdateConfig (подтверждает D-17). Обязательный шаг: извлечь дублированную батч-логику (DelCat→NewCat→Append→reload, скопирована в 4 файлах: `routes.controller`, `ai-webhook.controller`, `mcp-tools.service`, `dialplan-subroutines.service`) в общий инжектируемый `DialplanApplyService`; перевести на него все 4 места + новый phonebooks-apply. FS-writer в этой фазе НЕ делать (интерфейс сервиса — шов на будущее).
+- **D-23 — Cross-tenant баг MCP:** фиксим в этой фазе минимальным фиксом для 16 legacy MCP-tools (uid тенанта передаётся параметром вызова, не через closure при первой регистрации). Контракт Domain AI Adapter обязан передавать uid параметром.
+- **D-24 — match_mode:** привязка имеет `match_mode: 'on_match' | 'on_no_match'` (поле в `route_phonebook_bindings`, выбирается в UI). `on_no_match` нужен для whitelist-сценариев. При `on_no_match` vars записи недоступны — UI сужает выбор пресетов (скрывает vars-only и «имя из переменной»; доступны: блокировка, редирект, фиксированное имя, custom).
+- **D-25 — Настройки подтверждений AI — per-tenant:** НЕ глобальные. Каждый tenant (vpbx_user) сам включает/выключает подтверждения деструктивных AI-операций. **По умолчанию — выключены.** Хранение — per-tenant (не глобальный ключ в `cloud_settings`).
+- **D-26 — Поведение привязки в UI:** пресеты = простой селект + 1-2 поля параметров (НЕ DialplanAppsEditor). Пресет `custom` раскрывает переиспользуемый `DialplanAppsEditor` (тот же `IRouteAction[]`, компиляция через `actionToDialplan`). Привязки отрабатывают до основных действий маршрута, в порядке списка.
+
+</post_research_decisions>
+
 ---
 
 *Phase: 05-phonebooks-ai-universal-directory-mechanisms-mcp-tools-and-c*
-*Context gathered: 2026-07-14*
+*Context gathered: 2026-07-14, дополнен после research: 2026-07-14*
