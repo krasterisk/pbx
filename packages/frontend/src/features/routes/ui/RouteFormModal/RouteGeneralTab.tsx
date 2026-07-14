@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import { Input, Select, Checkbox, Label, InfoTooltip } from '@/shared/ui';
 import { VStack, HStack } from '@/shared/ui/Stack';
 import { ExtensionChips } from '../ExtensionChips/ExtensionChips';
-import { PhonebookSelect } from '@/features/phonebooks';
 import type { IContext } from '@/shared/api/endpoints/contextApi';
 import styles from './RouteFormModal.module.scss';
 
@@ -20,8 +19,6 @@ export interface RouteGeneralTabProps {
   setRecord: (v: boolean) => void;
   recordAll: boolean;
   setRecordAll: (v: boolean) => void;
-  phonebookUids: number[];
-  setPhonebookUids: (v: number[]) => void;
   /** Context selector (create/copy mode) */
   contextUid: number | null;
   setContextUid: (v: number) => void;
@@ -45,7 +42,6 @@ export const RouteGeneralTab = memo((props: RouteGeneralTabProps) => {
   const {
     name, setName, extensions, setExtensions, active, setActive,
     routeType, setRouteType, record, setRecord, recordAll, setRecordAll,
-    phonebookUids, setPhonebookUids,
     contextUid, setContextUid, isCreateMode, contexts,
   } = props;
 
@@ -145,12 +141,6 @@ export const RouteGeneralTab = memo((props: RouteGeneralTabProps) => {
           <option value="all">{t('routes.recordAllCalls', 'Все вызовы (включая без соединения)')}</option>
         </Select>
       </VStack>
-
-      {/* Phonebook Select */}
-      <PhonebookSelect
-        value={phonebookUids}
-        onChange={setPhonebookUids}
-      />
     </VStack>
   );
 });

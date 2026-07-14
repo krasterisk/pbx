@@ -99,6 +99,12 @@ function generateBehaviorLines(
 
   switch (binding.behavior_type) {
     case 'set_name': {
+      // Fixed variant (D-24): the only set_name flavor kept available when
+      // match_mode=on_no_match, since no PB_* vars exist to read a var_key from.
+      if (params.fixed) {
+        const fixed = AsteriskDialplanUtils.sanitizeDialplanInput(params.fixed);
+        return [`Set(CALLERID(name)=${fixed})`];
+      }
       const varKey = AsteriskDialplanUtils.sanitizeDialplanInput(params.var_key) || 'name';
       return [`ExecIf($["\${PB_${varKey}}" != ""]?Set(CALLERID(name)=\${PB_${varKey}}))`];
     }

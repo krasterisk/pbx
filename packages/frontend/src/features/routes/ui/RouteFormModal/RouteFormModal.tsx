@@ -8,7 +8,7 @@ import {
   type IRouteOptions,
 } from '@/shared/api/api';
 import { useGetContextsQuery } from '@/shared/api/endpoints/contextApi';
-import { type IRouteAction } from '@krasterisk/shared';
+import { type IRouteAction, type IRoutePhonebookBinding } from '@krasterisk/shared';
 import { useAppSelector, useAppDispatch } from '@/shared/hooks/useAppStore';
 import { selectCurrentUser } from '@/entities/User';
 import { ensureCdrVpbxUserUidInDialplan } from '@krasterisk/shared';
@@ -17,8 +17,9 @@ import { routesActions } from '../../model/slice/routesSlice';
 import { RouteGeneralTab, decodeRecordMode } from './RouteGeneralTab';
 import { RouteWebhooksTab, WebhookItem } from './RouteWebhooksTab';
 import { RouteActionsTab } from './RouteActionsTab';
+import { RoutePhonebooksTab } from './RoutePhonebooksTab';
 
-const TABS = ['general', 'actions', 'webhooks'] as const;
+const TABS = ['general', 'actions', 'phonebooks', 'webhooks'] as const;
 
 export const RouteFormModal = memo(() => {
   const { t } = useTranslation();
@@ -45,7 +46,7 @@ export const RouteFormModal = memo(() => {
   // Options
   const [record, setRecord] = useState(false);
   const [recordAll, setRecordAll] = useState(false);
-  const [phonebookUids, setPhonebookUids] = useState<number[]>([]);
+  const [bindings, setBindings] = useState<IRoutePhonebookBinding[]>([]);
   const [preCommand, setPreCommand] = useState('');
   const [routeType, setRouteType] = useState(0);
 
@@ -67,7 +68,9 @@ export const RouteFormModal = memo(() => {
       const recMode = decodeRecordMode(opts);
       setRecord(recMode !== 'off');
       setRecordAll(recMode === 'all');
-      setPhonebookUids(opts.phonebook_uids || []);
+      setBindings(
+        [...(selectedRoute.bindings || [])].sort((a, b) => a.position - b.position),
+      );
       setPreCommand(opts.pre_command || '');
       setRouteType(opts.route_type || 0);
       const wh = selectedRoute.webhooks || {};
@@ -120,7 +123,7 @@ export const RouteFormModal = memo(() => {
     setRawDialplan('');
     setRecord(false);
     setRecordAll(false);
-    setPhonebookUids([]);
+    setBindings([]);
     setPreCommand('');
     setRouteType(0);
     setWebhooksList([]);
@@ -139,10 +142,13 @@ export const RouteFormModal = memo(() => {
       record: record || undefined,
       // Only persist record_all when recording is actually enabled — prevents record_all:true/record:false ghost state
       record_all: record && recordAll ? true : undefined,
-      phonebook_uids: phonebookUids.length > 0 ? phonebookUids : undefined,
       pre_command: preCommand || undefined,
       route_type: routeType || undefined,
     };
+
+    // Bindings sent as-is (positions are already kept in sync with array order by RoutePhonebooksTab);
+    // always included (even empty) so removing all bindings actually clears them server-side (Pitfall 8).
+    const bindingsPayload = bindings.map(({ phonebook, ...b }) => b);
 
     const webhooksPayload: any = {};
     webhooksList.forEach(w => {
@@ -167,6 +173,7 @@ export const RouteFormModal = memo(() => {
     const data = {
       name, extensions, active: active ? 1 : 0,
       options, webhooks: webhooksPayload, actions,
+      bindings: bindingsPayload,
       raw_dialplan: editorMode === 'raw' && rawDialplan.trim()
         ? ensureCdrVpbxUserUidInDialplan(rawDialplan, vpbxUserUid)
         : rawDialplan || undefined,
@@ -228,7 +235,6 @@ export const RouteFormModal = memo(() => {
               routeType={routeType} setRouteType={setRouteType}
               record={record} setRecord={setRecord}
               recordAll={recordAll} setRecordAll={setRecordAll}
-              phonebookUids={phonebookUids} setPhonebookUids={setPhonebookUids}
               contextUid={contextUid} setContextUid={setContextUid}
               isCreateMode={isCreateMode} contexts={contexts}
             />
@@ -240,6 +246,12 @@ export const RouteFormModal = memo(() => {
               rawDialplan={rawDialplan} setRawDialplan={setRawDialplan}
               preCommand={preCommand} setPreCommand={setPreCommand}
               vpbxUserUid={vpbxUserUid}
+            />
+          )}
+
+          {activeTab === 'phonebooks' && (
+            <RoutePhonebooksTab
+              bindings={bindings} setBindings={setBindings}
             />
           )}
 

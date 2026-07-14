@@ -1,5 +1,5 @@
 import { rtkApi } from '../rtkApi';
-import { IRoute, IRouteAction, IRouteOptions, IRouteWebhooks } from '@krasterisk/shared';
+import { IRoute, IRouteAction, IRouteOptions, IRouteWebhooks, IRoutePhonebookBinding } from '@krasterisk/shared';
 
 // Re-export shared types for convenience
 export type { IRoute, IRouteOptions, IRouteWebhooks };
@@ -12,6 +12,8 @@ export interface ICreateRoute {
   options?: IRouteOptions;
   webhooks?: IRouteWebhooks;
   actions: IRouteAction[];
+  /** Ordered chain of phonebook-binding policies (D-05, D-08) */
+  bindings?: IRoutePhonebookBinding[];
 }
 
 export interface IUpdateRoute {
@@ -22,6 +24,8 @@ export interface IUpdateRoute {
   webhooks?: IRouteWebhooks;
   actions?: IRouteAction[];
   raw_dialplan?: string;
+  /** Ordered chain of phonebook-binding policies (D-05, D-08) */
+  bindings?: IRoutePhonebookBinding[];
 }
 
 const routeApi = rtkApi.injectEndpoints({

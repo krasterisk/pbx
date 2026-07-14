@@ -1,0 +1,136 @@
+/* RoutePhonebooksTab — ordered list of route<->phonebook binding policies (D-08) */
+
+.wrapper {
+  width: 100%;
+}
+
+.bindingsBox {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-muted) 40%, transparent);
+  padding: 0.75rem;
+  min-height: 120px;
+}
+
+.emptyState {
+  padding: 1.5rem 0;
+  text-align: center;
+}
+
+.emptyIcon {
+  color: var(--color-muted-foreground);
+  opacity: 0.5;
+}
+
+.emptyText {
+  color: var(--color-muted-foreground);
+  max-width: 24rem;
+  text-align: center;
+}
+
+.bindingItem {
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-background);
+  overflow: hidden;
+}
+
+.bindingRow {
+  padding: 0.5rem;
+}
+
+.bindingIndex {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--color-primary) 15%, transparent);
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.bindingName {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-foreground);
+  min-width: 100px;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.matchModeSelect {
+  flex: 1 1 140px;
+  min-width: 140px;
+  height: 2.25rem;
+  font-size: 0.8125rem;
+}
+
+.behaviorSelect {
+  flex: 1 1 160px;
+  min-width: 160px;
+  height: 2.25rem;
+  font-size: 0.8125rem;
+}
+
+.bindingActions {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.deleteBindingBtn:hover {
+  color: var(--color-destructive);
+}
+
+.paramsRow {
+  padding: 0.5rem 0.75rem;
+  border-top: 1px solid color-mix(in srgb, var(--color-border) 50%, transparent);
+  background: color-mix(in srgb, var(--color-muted) 20%, transparent);
+}
+
+.paramsLabel {
+  color: var(--color-muted-foreground);
+  flex-shrink: 0;
+}
+
+.paramsModeSelect {
+  flex: 0 1 160px;
+  height: 2.25rem;
+  font-size: 0.8125rem;
+}
+
+.paramsInput {
+  flex: 1 1 160px;
+  min-width: 120px;
+  height: 2.25rem;
+  font-size: 0.8125rem;
+}
+
+.customBlock {
+  padding: 0.5rem 0.75rem;
+  border-top: 1px solid color-mix(in srgb, var(--color-border) 50%, transparent);
+  background: color-mix(in srgb, var(--color-muted) 20%, transparent);
+}
+
+.addRow {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.phonebookSelect {
+  flex: 1;
+  min-width: 0;
+  height: 2.25rem;
+  font-size: 0.875rem;
+}
+
+.addBindingBtn {
+  flex-shrink: 0;
+}

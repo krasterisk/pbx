@@ -285,6 +285,12 @@ describe('PhonebooksService', () => {
     });
 
     describe('behavior presets', () => {
+      it('set_name with a fixed value sets CALLERID(name) directly (D-24 on_no_match fixed variant)', () => {
+        const binding = baseBinding({ behavior_type: 'set_name', behavior_params: { fixed: 'Unknown' } });
+        const result = service.generateBindingDialplan(binding, phonebook, 100, 'sip-in100', false);
+        expect(result.lines.join('\n')).toContain('Set(CALLERID(name)=Unknown)');
+      });
+
       it('set_number with a fixed value sets CALLERID(num) directly', () => {
         const binding = baseBinding({ behavior_type: 'set_number', behavior_params: { fixed: '100' } });
         const result = service.generateBindingDialplan(binding, phonebook, 100, 'sip-in100', false);
