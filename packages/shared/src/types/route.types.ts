@@ -1,3 +1,5 @@
+import type { IRoutePhonebookBinding } from './phonebook.types';
+
 export type ActionType =
   | 'totrunk' | 'toexten' | 'toqueue' | 'togroup' | 'tolist'
   | 'toivr' | 'toroute' | 'playprompt' | 'playback'
@@ -177,8 +179,6 @@ export interface IRouteOptions {
   record_all?: boolean;
   pre_command?: string;
   route_type?: number; // outbound type (1-5)
-  /** Array of phonebook UIDs to check CallerID against (cascading Gosub) */
-  phonebook_uids?: number[];
 }
 
 export interface IRouteWebhooks {
@@ -198,6 +198,8 @@ export interface IRoute {
   options: IRouteOptions | null;
   webhooks: IRouteWebhooks | null;
   actions: IRouteAction[];
+  /** Ordered chain of phonebook-binding policies applied before actions (D-03, D-05) */
+  bindings?: IRoutePhonebookBinding[];
   raw_dialplan: string | null;
   user_uid: number;
   created_at: string;

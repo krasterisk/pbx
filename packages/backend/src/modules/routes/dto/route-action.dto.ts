@@ -16,6 +16,13 @@ const ValidDialstatuses = [
   'CANCEL', 'DONTCALL', 'TORTURE', 'INVALIDARGS',
 ];
 
+const MatchModesList = ['on_match', 'on_no_match'];
+
+const BehaviorTypesList = [
+  'set_name', 'set_number', 'blacklist', 'whitelist',
+  'redirect', 'vars_only', 'custom',
+];
+
 export class RouteActionConditionDto {
   @IsOptional()
   @IsIn(ValidDialstatuses)
@@ -40,6 +47,32 @@ export class RouteActionDto {
   @ValidateNested()
   @Type(() => RouteActionConditionDto)
   condition: RouteActionConditionDto;
+}
+
+// Bindings sent by clients omit uid/route_uid — replace-all strategy assigns
+// route_uid and position (array index) server-side (RoutesService.replaceBindings).
+export class RoutePhonebookBindingDto {
+  @IsNumber()
+  phonebook_uid: number;
+
+  @IsNumber()
+  position: number;
+
+  @IsIn(MatchModesList)
+  match_mode: string;
+
+  @IsIn(BehaviorTypesList)
+  behavior_type: string;
+
+  @IsOptional()
+  @IsObject()
+  behavior_params?: Record<string, any>;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => RouteActionDto)
+  actions?: RouteActionDto[];
 }
 
 export class CreateRouteDto {
@@ -69,6 +102,12 @@ export class CreateRouteDto {
   @ValidateNested({ each: true })
   @Type(() => RouteActionDto)
   actions: RouteActionDto[];
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => RoutePhonebookBindingDto)
+  bindings?: RoutePhonebookBindingDto[];
 }
 
 export class UpdateRouteDto {
@@ -106,4 +145,10 @@ export class UpdateRouteDto {
   @IsOptional()
   @IsString()
   raw_dialplan?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => RoutePhonebookBindingDto)
+  bindings?: RoutePhonebookBindingDto[];
 }

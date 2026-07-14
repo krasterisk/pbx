@@ -1,6 +1,12 @@
 import { Table, Column, Model, DataType, PrimaryKey, AutoIncrement, HasMany } from 'sequelize-typescript';
 import { PhonebookEntry } from './phonebook-entry.model';
+import { RoutePhonebookBinding } from './route-phonebook-binding.model';
 
+/**
+ * Route Phonebook — pure data (D-04): name, description, entries.
+ * Behavior (match_mode, presets, custom actions) lives on RoutePhonebookBinding,
+ * not here — one phonebook is reused across many route bindings (D-02).
+ */
 @Table({ tableName: 'route_phonebooks', timestamps: false, freezeTableName: true })
 export class RoutePhonebook extends Model {
   @PrimaryKey
@@ -14,12 +20,6 @@ export class RoutePhonebook extends Model {
   @Column({ type: DataType.STRING(255), defaultValue: '' })
   declare description: string;
 
-  @Column({ type: DataType.TINYINT, defaultValue: 0 })
-  declare invert: number;
-
-  @Column({ type: DataType.JSON, allowNull: true, defaultValue: null })
-  declare actions: any[];
-
   @Column({ type: DataType.INTEGER, allowNull: false, defaultValue: 0 })
   declare user_uid: number;
 
@@ -31,4 +31,7 @@ export class RoutePhonebook extends Model {
 
   @HasMany(() => PhonebookEntry, 'phonebook_uid')
   declare entries: PhonebookEntry[];
+
+  @HasMany(() => RoutePhonebookBinding, { foreignKey: 'phonebook_uid', as: 'bindings' })
+  declare bindings: RoutePhonebookBinding[];
 }
