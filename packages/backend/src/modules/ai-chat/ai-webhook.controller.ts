@@ -18,7 +18,7 @@ import { IvrsService } from '../ivrs/ivrs.service';
 import { QueuesService } from '../queues/queues.service';
 import { RoutesService } from '../routes/routes.service';
 import { ContextIncludesService } from '../routes/context-includes.service';
-import { AmiService } from '../ami/ami.service';
+import { DialplanApplyService } from '../ami/dialplan-apply.service';
 import { ContextsService } from '../contexts/contexts.service';
 import { BulkCreateEndpointDto } from '../endpoints/dto/create-endpoint.dto';
 import { InjectModel } from '@nestjs/sequelize';
@@ -51,7 +51,7 @@ export class AiWebhookController {
         private readonly routesService: RoutesService,
         private readonly contextIncludesService: ContextIncludesService,
         private readonly contextsService: ContextsService,
-        private readonly amiService: AmiService,
+        private readonly dialplanApplyService: DialplanApplyService,
         private readonly loggerService: LoggerService,
         @InjectModel(Context) private readonly contextModel: typeof Context,
     ) {}
@@ -234,67 +234,15 @@ export class AiWebhookController {
         const contextName = context.name.endsWith(suffix) ? context.name : `${context.name}${suffix}`;
         const filename = `krasterisk/routes/extensions_${contextName}.conf`;
 
-        const lines = dialplan.split('\n')
-            .map(l => l.trim())
-            .filter(l => l && !l.startsWith('[') && !l.startsWith(';'));
+        const lines = dialplan.split('\n');
 
-        // Delete existing category
-        try {
-            await this.amiService.action({
-                action: 'UpdateConfig',
-                srcfilename: filename,
-                dstfilename: filename,
-                'Action-000000': 'DelCat',
-                'Cat-000000': contextName,
-                reload: 'no',
-            });
-        } catch { /* expected if not exists */ }
+        const result = await this.dialplanApplyService.applyCategories(
+            filename,
+            [{ name: contextName, lines }],
+            { reload: true },
+        );
 
-        // Create category
-        await this.amiService.action({
-            action: 'UpdateConfig',
-            srcfilename: filename,
-            dstfilename: filename,
-            reload: 'no',
-            'Action-000000': 'NewCat',
-            'Cat-000000': contextName,
-        });
-
-        // Write lines in batches of 20
-        const BATCH = 20;
-        for (let i = 0; i < lines.length; i += BATCH) {
-            const batch = lines.slice(i, i + BATCH);
-            const batchAction: Record<string, string> = {
-                action: 'UpdateConfig',
-                srcfilename: filename,
-                dstfilename: filename,
-                reload: 'no',
-            };
-            batch.forEach((line, idx) => {
-                const pad = String(idx).padStart(6, '0');
-                batchAction[`Action-${pad}`] = 'Append';
-                batchAction[`Cat-${pad}`] = contextName;
-                const arrowPos = line.indexOf('=>');
-                if (arrowPos !== -1) {
-                    batchAction[`Var-${pad}`] = line.substring(0, arrowPos).trim();
-                    batchAction[`Value-${pad}`] = `> ${line.substring(arrowPos + 2).trim()}`;
-                } else {
-                    const eqPos = line.indexOf('=');
-                    if (eqPos !== -1) {
-                        batchAction[`Var-${pad}`] = line.substring(0, eqPos).trim();
-                        batchAction[`Value-${pad}`] = line.substring(eqPos + 1).trim();
-                    } else {
-                        batchAction[`Var-${pad}`] = line;
-                        batchAction[`Value-${pad}`] = '';
-                    }
-                }
-            });
-            await this.amiService.action(batchAction);
-        }
-
-        await this.amiService.command('dialplan reload');
-
-        this.logger.log(`[AI Tool] Dialplan applied: [${contextName}] ${lines.length} lines`);
-        return { success: true, context: contextName, linesApplied: lines.length };
+        this.logger.log(`[AI Tool] Dialplan applied: [${contextName}] ${result.linesApplied} lines`);
+        return { success: result.success, context: contextName, linesApplied: result.linesApplied };
     }
 }

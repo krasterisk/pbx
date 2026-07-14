@@ -1,6 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { AmiService } from '../ami/ami.service';
+import { DialplanApplyService } from '../ami/dialplan-apply.service';
 import { DialplanSubroutinesUtil } from '../../shared/utils/dialplan-subroutines.util';
 
 /**
@@ -30,7 +30,7 @@ export class DialplanSubroutinesService implements OnModuleInit {
 
 
   constructor(
-    private readonly amiService: AmiService,
+    private readonly dialplanApplyService: DialplanApplyService,
     private readonly config: ConfigService,
   ) {}
 
@@ -72,68 +72,10 @@ export class DialplanSubroutinesService implements OnModuleInit {
     if (currentContext) contexts.push(currentContext);
 
     const file = DialplanSubroutinesService.SUBROUTINES_FILE;
-    let totalLines = 0;
 
-    for (const ctx of contexts) {
-      // Delete existing category (ignore error if not exists)
-      try {
-        await this.amiService.action({
-          action: 'UpdateConfig',
-          srcfilename: file,
-          dstfilename: file,
-          reload: 'no',
-          'Action-000000': 'DelCat',
-          'Cat-000000': ctx.name,
-        });
-      } catch { /* expected if file/cat doesn't exist yet */ }
+    const result = await this.dialplanApplyService.applyCategories(file, contexts, { reload: true });
 
-      // Create category
-      await this.amiService.action({
-        action: 'UpdateConfig',
-        srcfilename: file,
-        dstfilename: file,
-        reload: 'no',
-        'Action-000000': 'NewCat',
-        'Cat-000000': ctx.name,
-      });
-
-      // Append lines in batches of 20 (AMI header limit)
-      const BATCH = 20;
-      for (let start = 0; start < ctx.lines.length; start += BATCH) {
-        const batch = ctx.lines.slice(start, start + BATCH);
-        const batchAction: Record<string, string> = {
-          action: 'UpdateConfig',
-          srcfilename: file,
-          dstfilename: file,
-          reload: 'no',
-        };
-
-        batch.forEach((line, idx) => {
-          const pad = String(idx).padStart(6, '0');
-          const arrowPos = line.indexOf('=>');
-          if (arrowPos !== -1) {
-            batchAction[`Action-${pad}`] = 'Append';
-            batchAction[`Cat-${pad}`] = ctx.name;
-            batchAction[`Var-${pad}`] = line.substring(0, arrowPos).trim();
-            batchAction[`Value-${pad}`] = `> ${line.substring(arrowPos + 2).trim()}`;
-          } else {
-            const eqPos = line.indexOf('=');
-            batchAction[`Action-${pad}`] = 'Append';
-            batchAction[`Cat-${pad}`] = ctx.name;
-            batchAction[`Var-${pad}`] = eqPos !== -1 ? line.substring(0, eqPos).trim() : line;
-            batchAction[`Value-${pad}`] = eqPos !== -1 ? line.substring(eqPos + 1).trim() : '';
-          }
-        });
-
-        await this.amiService.action(batchAction);
-        totalLines += batch.length;
-      }
-    }
-
-    // Reload dialplan so Asterisk picks up the new subroutines
-    await this.amiService.command('dialplan reload');
-
-    this.logger.log(`✅ Subroutines applied: ${file} (${totalLines} lines, ${contexts.length} contexts)`);
-    return { success: true, linesApplied: totalLines };
+    this.logger.log(`✅ Subroutines applied: ${file} (${result.linesApplied} lines, ${contexts.length} contexts)`);
+    return { success: result.success, linesApplied: result.linesApplied };
   }
 }

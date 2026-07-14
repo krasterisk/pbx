@@ -4,7 +4,7 @@ import { Request } from 'express';
 import { RoutesService } from './routes.service';
 import { ContextIncludesService } from './context-includes.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { AmiService } from '../ami/ami.service';
+import { DialplanApplyService } from '../ami/dialplan-apply.service';
 import { Context } from '../contexts/context.model';
 import { CreateRouteDto, UpdateRouteDto } from './dto/route-action.dto';
 
@@ -19,7 +19,7 @@ export class RoutesController {
     private readonly routesService: RoutesService,
     private readonly contextIncludesService: ContextIncludesService,
     @InjectModel(Context) private readonly contextModel: typeof Context,
-    private readonly amiService: AmiService,
+    private readonly dialplanApplyService: DialplanApplyService,
   ) {}
 
   private async findContext(contextUid: number, vpbxUserUid: number): Promise<Context> {
@@ -72,97 +72,19 @@ export class RoutesController {
       contextUid, vpbxUserUid, context.name, includes, isAdmin,
     );
 
-
-
     const suffix = String(vpbxUserUid);
     const tenantedContextName = context.name.endsWith(suffix) ? context.name : `${context.name}${suffix}`;
     const filename = `krasterisk/routes/extensions_${tenantedContextName}.conf`;
 
-    const lines = dialplan.split('\n')
-      .map(l => l.trim())
-      .filter((l) => l && !l.startsWith('[') && !l.startsWith(';'));
+    const lines = dialplan.split('\n');
 
+    const result = await this.dialplanApplyService.applyCategories(
+      filename,
+      [{ name: tenantedContextName, lines }],
+      { reload: true },
+    );
 
-
-    // Step 1: Delete existing category (silently fails if doesn't exist)
-    try {
-      await this.amiService.action({
-        action: 'UpdateConfig',
-        srcfilename: filename,
-        dstfilename: filename,
-        'Action-000000': 'DelCat',
-        'Cat-000000': tenantedContextName,
-        reload: 'no',
-      });
-    } catch (e) {
-      // Expected to fail if category or file doesn't exist yet
-      // Expected: category or file doesn't exist yet
-    }
-
-    // Step 2: Create category
-    try {
-      await this.amiService.action({
-        action: 'UpdateConfig',
-        srcfilename: filename,
-        dstfilename: filename,
-        reload: 'no',
-        'Action-000000': 'NewCat',
-        'Cat-000000': tenantedContextName,
-      });
-    } catch (e: any) {
-      this.logger.error(`Failed to create category [${tenantedContextName}]: ${e?.message || e}`);
-      throw e;
-    }
-
-    // Step 3: Append lines in batches (AMI limit: ~32 headers per request)
-    const BATCH_SIZE = 20;
-    for (let batchStart = 0; batchStart < lines.length; batchStart += BATCH_SIZE) {
-      const batch = lines.slice(batchStart, batchStart + BATCH_SIZE);
-      const batchAction: Record<string, string> = {
-        action: 'UpdateConfig',
-        srcfilename: filename,
-        dstfilename: filename,
-        reload: 'no',
-      };
-
-      batch.forEach((line, idx) => {
-        const paddedIdx = String(idx).padStart(6, '0');
-        batchAction[`Action-${paddedIdx}`] = 'Append';
-        batchAction[`Cat-${paddedIdx}`] = tenantedContextName;
-
-        // Split on first '=>' or '=' to extract Var/Value for AMI
-        const arrowPos = line.indexOf('=>');
-        if (arrowPos !== -1) {
-          batchAction[`Var-${paddedIdx}`] = line.substring(0, arrowPos).trim();
-          batchAction[`Value-${paddedIdx}`] = `> ${line.substring(arrowPos + 2).trim()}`;
-        } else {
-          const eqPos = line.indexOf('=');
-          if (eqPos !== -1) {
-            batchAction[`Var-${paddedIdx}`] = line.substring(0, eqPos).trim();
-            batchAction[`Value-${paddedIdx}`] = line.substring(eqPos + 1).trim();
-          } else {
-            batchAction[`Var-${paddedIdx}`] = line;
-            batchAction[`Value-${paddedIdx}`] = '';
-          }
-        }
-      });
-
-      try {
-        const res = await this.amiService.action(batchAction);
-        if (res && res.response === 'Error') {
-          this.logger.error(`AMI Append error for [${tenantedContextName}]: ${res.message || 'Unknown'}`);
-          throw new Error(`AMI UpdateConfig Append failed: ${res.message || 'Unknown error'}`);
-        }
-      } catch (e: any) {
-        this.logger.error(`Failed to apply dialplan for [${tenantedContextName}]: ${e?.message || e}`);
-        throw e;
-      }
-    }
-
-    this.logger.log(`Dialplan applied: [${tenantedContextName}] ${lines.length} lines`);
-
-    await this.amiService.command('dialplan reload');
-    return { success: true, filename, linesApplied: lines.length };
+    return { success: result.success, filename, linesApplied: result.linesApplied };
   }
 
   @Get(':id')

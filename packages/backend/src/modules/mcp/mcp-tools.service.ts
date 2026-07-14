@@ -7,7 +7,7 @@ import { QueuesService } from '../queues/queues.service';
 import { RoutesService } from '../routes/routes.service';
 import { ContextIncludesService } from '../routes/context-includes.service';
 import { ContextsService } from '../contexts/contexts.service';
-import { AmiService } from '../ami/ami.service';
+import { DialplanApplyService } from '../ami/dialplan-apply.service';
 import { PbxContextBuilderService } from '../ai-chat/pbx-context-builder.service';
 import { InjectModel } from '@nestjs/sequelize';
 import { Context } from '../contexts/context.model';
@@ -41,7 +41,7 @@ export class McpToolsService {
         private readonly routesService: RoutesService,
         private readonly contextIncludesService: ContextIncludesService,
         private readonly contextsService: ContextsService,
-        private readonly amiService: AmiService,
+        private readonly dialplanApplyService: DialplanApplyService,
         private readonly contextBuilder: PbxContextBuilderService,
         @InjectModel(Context) private readonly contextModel: typeof Context,
         private readonly cdrService: CdrService,
@@ -344,25 +344,14 @@ export class McpToolsService {
                 const suffix = String(uid);
                 const contextName = context.name.endsWith(suffix) ? context.name : `${context.name}${suffix}`;
                 const filename = `krasterisk/routes/extensions_${contextName}.conf`;
-                const lines = dialplan.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('[') && !l.startsWith(';'));
+                const lines = dialplan.split('\n');
 
-                try { await this.amiService.action({ action: 'UpdateConfig', srcfilename: filename, dstfilename: filename, 'Action-000000': 'DelCat', 'Cat-000000': contextName, reload: 'no' }); } catch { /* ok */ }
-                await this.amiService.action({ action: 'UpdateConfig', srcfilename: filename, dstfilename: filename, reload: 'no', 'Action-000000': 'NewCat', 'Cat-000000': contextName });
-
-                for (let i = 0; i < lines.length; i += 20) {
-                    const batch = lines.slice(i, i + 20);
-                    const act: Record<string, string> = { action: 'UpdateConfig', srcfilename: filename, dstfilename: filename, reload: 'no' };
-                    batch.forEach((line, idx) => {
-                        const pad = String(idx).padStart(6, '0');
-                        act[`Action-${pad}`] = 'Append'; act[`Cat-${pad}`] = contextName;
-                        const ap = line.indexOf('=>');
-                        if (ap !== -1) { act[`Var-${pad}`] = line.substring(0, ap).trim(); act[`Value-${pad}`] = `> ${line.substring(ap + 2).trim()}`; }
-                        else { const eq = line.indexOf('='); act[`Var-${pad}`] = eq !== -1 ? line.substring(0, eq).trim() : line; act[`Value-${pad}`] = eq !== -1 ? line.substring(eq + 1).trim() : ''; }
-                    });
-                    await this.amiService.action(act);
-                }
-                await this.amiService.command('dialplan reload');
-                return [{ type: 'text', text: `✅ Диалплан [${contextName}] применён. ${lines.length} строк.` }];
+                const result = await this.dialplanApplyService.applyCategories(
+                    filename,
+                    [{ name: contextName, lines }],
+                    { reload: true },
+                );
+                return [{ type: 'text', text: `✅ Диалплан [${contextName}] применён. ${result.linesApplied} строк.` }];
             },
         );
     }
