@@ -52,6 +52,8 @@ import { CcDailyQueueStats } from './modules/callcenter/models/daily-queue-stats
 import { CcDailyAgentStats } from './modules/callcenter/models/daily-agent-stats.model';
 import { CcOperatorSettings } from './modules/callcenter/models/operator-settings.model';
 import { CcSettings } from './modules/callcenter/models/cc-settings.model';
+import { CcDisplayToken } from './modules/callcenter/models/display-token.model';
+import { CcAlertConfig } from './modules/callcenter/models/alert-config.model';
 import { CcChatMessage } from './modules/callcenter/models/chat-message.model';
 import { CcChatChannel } from './modules/callcenter/models/chat-channel.model';
 import { CcCardTemplate } from './modules/callcenter/models/card-template.model';
@@ -134,6 +136,7 @@ import * as path from 'path';
         ServiceRequest, CcSubject, CcDistrict,
         CcPauseReason, CcAgentSession, CcAgentEvent, CcAgentQueue, CcMissedCall, CcQueueCall,
         CcDailyQueueStats, CcDailyAgentStats, CcOperatorSettings, CcSettings,
+        CcDisplayToken, CcAlertConfig,
         CcChatMessage, CcChatChannel,
         CcCardTemplate, CcCardField, CcCardData,
         CcAiAgent, CcAiProvider, CcAiToolset, CcAiCdr, CcAiBilling, CcAiInvoice, CcAiAuditLog,

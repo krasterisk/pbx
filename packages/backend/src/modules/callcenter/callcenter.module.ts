@@ -27,6 +27,8 @@ import { CcDailyQueueStats } from './models/daily-queue-stats.model';
 import { CcDailyAgentStats } from './models/daily-agent-stats.model';
 import { CcOperatorSettings } from './models/operator-settings.model';
 import { CcSettings } from './models/cc-settings.model';
+import { CcDisplayToken } from './models/display-token.model';
+import { CcAlertConfig } from './models/alert-config.model';
 import { CcCardTemplate } from './models/card-template.model';
 import { CcCardField } from './models/card-field.model';
 import { CcCardData } from './models/card-data.model';
@@ -54,6 +56,8 @@ import { queueLogReaderProvider } from './queuelog/queue-log-reader.factory';
       CcDailyAgentStats,
       CcOperatorSettings,
       CcSettings,
+      CcDisplayToken,
+      CcAlertConfig,
       CcCardTemplate,
       CcCardField,
       CcCardData,
