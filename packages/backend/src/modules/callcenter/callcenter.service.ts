@@ -374,11 +374,15 @@ export class CallCenterService {
       const call = this.stateService.getCall(dto.uniqueid);
       if (!call) throw new NotFoundException('Call not found');
 
-      // Redirect the caller's channel to the target extension
+      if (!call.callerChannel) {
+        throw new BadRequestException('Caller channel not available');
+      }
+
+      // Redirect the caller's Asterisk channel (not CallerID) to the target extension
       try {
         await this.amiService.action({
           action: 'Redirect',
-          channel: call.callerIdNum, // This should be the actual channel name
+          channel: call.callerChannel,
           context: 'from-internal',
           exten: dto.target,
           priority: '1',

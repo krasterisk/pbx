@@ -155,6 +155,63 @@ describe('CallCenterService', () => {
     });
   });
 
+  // ─── Blind transfer uses callerChannel (not CallerID) ───
+
+  describe('agentTransfer', () => {
+    it('Redirect uses Asterisk channel name, not CallerID number', async () => {
+      state.setCall('U-xfer-1', {
+        callerIdNum: '79990001122',
+        callerIdName: 'Caller',
+        callerChannel: 'PJSIP/trunk-000001',
+        queue: 'sales',
+        status: 'TALKING',
+        enterTime: new Date(),
+        answerTime: new Date(),
+        holdTime: 0,
+        talkTime: 0,
+        userUid: 7,
+      });
+
+      await service.agentTransfer(
+        { type: 'blind', uniqueid: 'U-xfer-1', target: '201' } as any,
+        7,
+        42,
+      );
+
+      expect(ami.action).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'Redirect',
+          channel: 'PJSIP/trunk-000001',
+          exten: '201',
+        }),
+      );
+      expect(ami.action).not.toHaveBeenCalledWith(
+        expect.objectContaining({ channel: '79990001122' }),
+      );
+    });
+
+    it('throws when callerChannel is missing', async () => {
+      state.setCall('U-xfer-2', {
+        callerIdNum: '79990001122',
+        callerIdName: 'Caller',
+        queue: 'sales',
+        status: 'TALKING',
+        enterTime: new Date(),
+        holdTime: 0,
+        talkTime: 0,
+        userUid: 7,
+      });
+
+      await expect(
+        service.agentTransfer(
+          { type: 'blind', uniqueid: 'U-xfer-2', target: '201' } as any,
+          7,
+          42,
+        ),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+  });
+
   // ─── Missed calls ───────────────────────────────────────
 
   describe('markMissedCalled', () => {

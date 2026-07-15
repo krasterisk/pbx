@@ -17,6 +17,8 @@ export class AmiService implements OnModuleInit, OnModuleDestroy {
   private readonly MAX_RECONNECT_DELAY = 60000; // max 60s
   private readonly BASE_RECONNECT_DELAY = 5000;
   private destroyed = false;
+  /** True after the first successful AMI connect — used to detect reconnects. */
+  private hasConnectedOnce = false;
 
   constructor(
     private readonly config: ConfigService,
@@ -117,6 +119,23 @@ export class AmiService implements OnModuleInit, OnModuleDestroy {
         this.connecting = false;
         this.reconnectDelay = this.BASE_RECONNECT_DELAY; // reset backoff on success
         this.logger.log(`✅ Connected to AMI at ${host}:${port}`);
+
+        const wasReconnect = this.hasConnectedOnce;
+        this.hasConnectedOnce = true;
+
+        // On reconnect only: resync in-memory CC state (first connect is handled by
+        // CallCenterAmiService.onModuleInit → initialize → loadInitialState).
+        if (wasReconnect) {
+          setTimeout(() => {
+            const ccAmi = this.getCcAmiService();
+            if (!ccAmi?.loadInitialState) return;
+            Promise.resolve(ccAmi.loadInitialState()).catch((err: any) => {
+              this.logger.warn(
+                `CC state resync after AMI reconnect failed: ${err?.message || err}`,
+              );
+            });
+          }, 1500);
+        }
       });
 
       this.ami.on('close', () => {
