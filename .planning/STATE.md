@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Ready to execute
-last_updated: "2026-07-15T17:05:54.108Z"
+last_updated: "2026-07-15T17:15:16.390Z"
 progress:
   total_phases: 7
   completed_phases: 4
   total_plans: 45
-  completed_plans: 35
+  completed_plans: 36
   percent: 57
 ---
 
@@ -17,7 +17,7 @@ progress:
 ## Current position
 
 Phase: 07 (call-center-overhaul-professional-agent-supervisor-workspace) — EXECUTING
-Plan: 9 of 18 (07-08 complete)
+Plan: 11 of 18 (07-08 complete)
 Phase 5 — Phonebooks AI: plans executed (verify/UAT may remain).  
 Phase 6 — Dialplan Apps: **06-01–06-14 executed**. Ready for `/gsd-verify-work 6`.
 
@@ -69,6 +69,8 @@ Phase 1 — MOH: pending verify.
 - [Phase 07]: pickup_enabled server 403 + UI hidden pick; wrapup extend via wrapupDeadlines (D-18/D-19)
 - [Phase 07]: Transfer target tenant allow-list; Browser Notification only when tab hidden (D-20/D-21)
 - [Phase 07]: Agent ARM 4-zone layout; DragTransfer blind/attended/cancel Dialog; shared/ui Progress
+- [Phase 07]: DisplayTokenGuard sets req.user without level/id (Pitfall 5)
+- [Phase 07]: Alert thresholds (WHEN) in cc_settings; routing (WHERE) in cc_alert_config (D-27/D-28)
 
 ## Roadmap Evolution
 
@@ -105,3 +107,4 @@ Phase 1 — MOH: pending verify.
 | Phase 07 P06 | 15min | 3 tasks | 15 files |
 | Phase 07 P07 | 28min | 3 tasks | 24 files |
 | Phase 07 P08 | 35min | 3 tasks | 17 files |
+| Phase 07 P10 | 12min | 3 tasks | 13 files |
