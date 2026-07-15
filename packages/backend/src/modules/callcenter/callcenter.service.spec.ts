@@ -40,6 +40,7 @@ describe('CallCenterService', () => {
   const sessionModel: any = {
     create: jest.fn().mockResolvedValue({ uid: 99 }),
     update: jest.fn().mockResolvedValue(undefined),
+    findAll: jest.fn().mockResolvedValue([]),
   };
   const pauseReasonModel: any = {
     findAll: jest.fn().mockResolvedValue([]),
@@ -66,6 +67,12 @@ describe('CallCenterService', () => {
   const serviceRequestModel: any = {
     findAll: jest.fn().mockResolvedValue([]),
   };
+  const agentEventModel: any = {
+    findAll: jest.fn().mockResolvedValue([]),
+  };
+  const queueCallModel: any = {
+    findAll: jest.fn().mockResolvedValue([]),
+  };
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -76,6 +83,8 @@ describe('CallCenterService', () => {
       ccAmi,
       pauseReasonModel,
       sessionModel,
+      agentEventModel,
+      queueCallModel,
       missedCallModel,
       userModel,
       phonebookEntryModel,
@@ -383,6 +392,92 @@ describe('CallCenterService', () => {
     it('throws if the agent is not in a call', async () => {
       state.setAgent(7, 'PJSIP/101', { name: 'Alice', status: 'READY' });
       await expect(service.supervisorSpy('PJSIP/101', 'spy', 7, 1)).rejects.toBeInstanceOf(BadRequestException);
+    });
+  });
+
+  // ─── Supervisor redirect / agent detail (07-09) ─────────
+
+  describe('supervisorRedirectCall', () => {
+    it('rejects redirect when call belongs to another tenant', async () => {
+      state.setCall('C1', {
+        uniqueid: 'C1',
+        userUid: 999,
+        callerChannel: 'SIP/1001-0001',
+        status: 'WAITING',
+        queue: 'sales',
+        callerIdNum: '1001',
+        callerIdName: '',
+        enterTime: new Date(),
+        holdTime: 0,
+        talkTime: 0,
+      });
+
+      await expect(
+        service.supervisorRedirectCall('C1', 'PJSIP/101', 7),
+      ).rejects.toThrow('Call belongs to another tenant');
+      expect(ami.action).not.toHaveBeenCalled();
+    });
+
+    it('redirects caller channel for valid tenant', async () => {
+      state.setCall('C1', {
+        uniqueid: 'C1',
+        userUid: 7,
+        callerChannel: 'SIP/1001-0001',
+        status: 'WAITING',
+        queue: 'sales',
+        callerIdNum: '1001',
+        callerIdName: '',
+        enterTime: new Date(),
+        holdTime: 0,
+        talkTime: 0,
+      });
+
+      const res = await service.supervisorRedirectCall('C1', 'PJSIP/101', 7);
+      expect(res.success).toBe(true);
+      expect(ami.action).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'Redirect',
+          channel: 'SIP/1001-0001',
+        }),
+      );
+    });
+  });
+
+  describe('getAgentDetail', () => {
+    it('aggregates stats and builds timeline segments from history', async () => {
+      const t0 = new Date('2026-07-15T08:00:00Z');
+      const t1 = new Date('2026-07-15T09:00:00Z');
+
+      sessionModel.findAll.mockResolvedValue([{ uid: 10 }]);
+      queueCallModel.findAll.mockResolvedValue([
+        { disposition: 'answered', talk_time: 120, hold_time: 5 },
+        { disposition: 'answered', talk_time: 60, hold_time: 0 },
+        { disposition: 'abandoned', talk_time: 0, hold_time: 0 },
+      ]);
+      agentEventModel.findAll.mockResolvedValue([
+        { event_type: 'LOGIN', created_at: t0, reason: '' },
+        { event_type: 'PAUSE', created_at: t1, reason: 'Lunch' },
+      ]);
+
+      state.setAgent(7, 'PJSIP/101', {
+        name: 'Alice',
+        status: 'PAUSED',
+        pauseReason: 'Lunch',
+        callsTaken: 5,
+        queues: ['sales'],
+      });
+
+      const detail = await service.getAgentDetail('PJSIP/101', 7);
+
+      expect(detail.stats.callsHandled).toBe(2);
+      expect(detail.stats.totalTalk).toBe(180);
+      expect(detail.stats.aht).toBe(90);
+      expect(detail.stats.totalHold).toBe(5);
+      expect(detail.stats.status).toBe('PAUSED');
+      expect(detail.segments).toHaveLength(2);
+      expect(detail.segments[0].state).toBe('READY');
+      expect(detail.segments[1].state).toBe('PAUSED');
+      expect(detail.segments[1].reason).toBe('Lunch');
     });
   });
 });
