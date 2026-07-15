@@ -483,6 +483,18 @@ export const ru = {
         addToPool: 'Добавить',
         poolNumber: 'Номер пула {{n}}',
       },
+      trunkCarousel: {
+        hint:
+          'Сначала выбирает случайный транк, при недозвоне проходит по упорядоченному списку. Для каждого транка CallerID — статичный номер или справочник.',
+        selectTrunk: 'Транк {{n}}',
+        selectTrunkOption: 'Выберите транк',
+        cidMode: 'Источник CID {{n}}',
+        cidStatic: 'Статичный CID',
+        cidPhonebook: 'CID из справочника',
+        callerid: 'Номер CallerID',
+        selectPhonebook: 'Выберите справочник',
+        addTrunk: 'Добавить транк',
+      },
       list: { numbers: 'Номера (через запятую)' },
       common: {
         sec: 'Сек',

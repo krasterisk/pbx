@@ -480,6 +480,18 @@ export const en = {
         addToPool: 'Add',
         poolNumber: 'Pool number {{n}}',
       },
+      trunkCarousel: {
+        hint:
+          'Picks a random trunk first, then fails over down the ordered list on no-answer. Each trunk can set CallerID from a static number or a phonebook.',
+        selectTrunk: 'Trunk {{n}}',
+        selectTrunkOption: 'Select trunk',
+        cidMode: 'CID source {{n}}',
+        cidStatic: 'Static CID',
+        cidPhonebook: 'Phonebook CID',
+        callerid: 'CallerID number',
+        selectPhonebook: 'Select phonebook',
+        addTrunk: 'Add trunk',
+      },
       list: { numbers: 'Numbers (comma separated)' },
       common: {
         sec: 'Sec',
