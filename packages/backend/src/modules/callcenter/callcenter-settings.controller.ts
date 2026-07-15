@@ -12,16 +12,24 @@ import {
 } from '@nestjs/common';
 import { Request } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { UserLevel } from '../users/user.model';
 import { CallCenterSettingsService } from './callcenter-settings.service';
 import {
   UpdateOperatorSettingsDto,
   UpdateCcSettingsDto,
 } from './dto/callcenter-settings.dto';
 
-const SUPERVISOR_LEVEL = 3;
-
+/**
+ * Supervisor/admin gate. UserLevel is inverted privilege (ADMIN=1, SUPERVISOR=3),
+ * so numeric `level >= 3` would block ADMIN and allow READONLY — use set membership.
+ */
 function assertSupervisor(user: any): void {
-  if (user.level < SUPERVISOR_LEVEL) {
+  const allowed = new Set([
+    UserLevel.SUPERADMIN,
+    UserLevel.ADMIN,
+    UserLevel.SUPERVISOR,
+  ]);
+  if (!allowed.has(user.level)) {
     throw new ForbiddenException('Supervisor access required (level >= 3)');
   }
 }
