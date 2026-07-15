@@ -28,6 +28,7 @@ import { QueuesModule } from './modules/queues/queues.module';
 import { ServiceRequestsModule } from './modules/service-requests/service-requests.module';
 import { TimeGroupsModule } from './modules/time-groups/time-groups.module';
 import { PhonebooksModule } from './modules/phonebooks/phonebooks.module';
+import { CallGroupsModule } from './modules/call-groups/call-groups.module';
 import { SmsModule } from './modules/sms/sms.module';
 import { CloudAdminModule } from './modules/cloud-admin/cloud-admin.module';
 import { AiChatModule } from './modules/ai-chat/ai-chat.module';
@@ -170,6 +171,7 @@ import * as path from 'path';
     SmsModule,
     TimeGroupsModule,
     PhonebooksModule,
+    CallGroupsModule,
     LoggerModule,
     MailerModule,
     NotificationsModule,
