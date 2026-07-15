@@ -16,6 +16,8 @@ import { ttsEnginesReducer } from '@/features/tts-engines/model/slice/ttsEngines
 import { sttEnginesReducer } from '@/features/stt-engines/model/slice/sttEnginesSlice';
 import { voiceRobotsReducer } from '@/features/voiceRobots/model/slice/voiceRobotsSlice';
 import { queuesPageReducer } from '@/features/queues/model/slice/queuesPageSlice';
+import { notificationsPageReducer } from '@/features/notifications/model/slice/notificationsPageSlice';
+import { callGroupsPageReducer } from '@/features/call-groups/model/slice/callGroupsPageSlice';
 import { timeGroupsReducer } from '@/features/timeGroups';
 import { phonebooksReducer } from '@/features/phonebooks';
 import { tenantsPageReducer } from '@/features/cloud-admin';
@@ -41,6 +43,8 @@ export const store = configureStore({
     sttEngines: sttEnginesReducer,
     voiceRobots: voiceRobotsReducer,
     queuesPage: queuesPageReducer,
+    notificationsPage: notificationsPageReducer,
+    callGroupsPage: callGroupsPageReducer,
     timeGroups: timeGroupsReducer,
     phonebooks: phonebooksReducer,
     tenantsPage: tenantsPageReducer,

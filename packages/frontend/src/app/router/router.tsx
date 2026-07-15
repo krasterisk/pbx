@@ -26,6 +26,8 @@ import { VoiceRobotEditPage } from '@/pages/VoiceRobotEditPage';
 import { VoiceRobotCdrPage } from '@/pages/VoiceRobotCdrPage';
 import { CdrReportPage } from '@/pages/CdrReportPage';
 import { QueuesPage } from '@/features/queues';
+import { NotificationIntegrationsPage } from '@/features/notifications';
+import { CallGroupsPage } from '@/features/call-groups';
 import { ServiceRequestsPage } from '@/pages/ServiceRequestsPage';
 import { SettingsPage } from '@/pages/SettingsPage';
 import { AuditLogPage } from '@/pages/AuditLogPage';
@@ -67,6 +69,8 @@ export const router = createBrowserRouter([
       { path: 'voice-robots/:id', element: <VoiceRobotEditPage /> },
       { path: 'moh', element: <MohPage /> },
       { path: 'queues', element: <QueuesPage /> },
+      { path: 'integrations', element: <NotificationIntegrationsPage /> },
+      { path: 'call-groups', element: <CallGroupsPage /> },
       { path: 'roles', element: <RolesPage /> },
       { path: 'numbers', element: <NumbersPage /> },
       { path: 'provision-templates', element: <ProvisionTemplatesPage /> },
