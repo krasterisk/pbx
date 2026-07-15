@@ -1,5 +1,6 @@
 import { CallCenterAmiService } from './callcenter-ami.service';
 import { CallCenterStateService } from './callcenter-state.service';
+import { CallCenterHistoryWriterService } from './callcenter-history-writer.service';
 
 /**
  * Unit tests for CallCenterAmiService — focuses on pure handlers
@@ -9,6 +10,7 @@ import { CallCenterStateService } from './callcenter-state.service';
 describe('CallCenterAmiService', () => {
   let state: CallCenterStateService;
   let service: CallCenterAmiService;
+  let historyWriter: { enqueue: jest.Mock };
 
   // The minimum AMI / model surface that handlers touch
   const fakeAmi: any = {
@@ -27,7 +29,15 @@ describe('CallCenterAmiService', () => {
 
   beforeEach(() => {
     state = new CallCenterStateService();
-    service = new CallCenterAmiService(fakeAmi, state, agentEventModel, missedCallModel, queueModel);
+    historyWriter = { enqueue: jest.fn() };
+    service = new CallCenterAmiService(
+      fakeAmi,
+      state,
+      historyWriter as unknown as CallCenterHistoryWriterService,
+      agentEventModel,
+      missedCallModel,
+      queueModel,
+    );
   });
 
   // ─── Status mapping ─────────────────────────────────────

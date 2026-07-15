@@ -9,6 +9,7 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { AmiService } from '../ami/ami.service';
 import { CallCenterStateService, AgentStatus } from './callcenter-state.service';
+import { CallCenterHistoryWriterService } from './callcenter-history-writer.service';
 import { CcAgentEvent } from './models/agent-event.model';
 import { CcMissedCall } from './models/missed-call.model';
 import { Queue } from '../queues/queue.model';
@@ -23,6 +24,7 @@ export class CallCenterAmiService implements OnModuleInit {
   constructor(
     private readonly amiService: AmiService,
     private readonly stateService: CallCenterStateService,
+    private readonly historyWriter: CallCenterHistoryWriterService,
     @InjectModel(CcAgentEvent) private readonly agentEventModel: typeof CcAgentEvent,
     @InjectModel(CcMissedCall) private readonly missedCallModel: typeof CcMissedCall,
     @InjectModel(Queue) private readonly queueModel: typeof Queue,
@@ -295,20 +297,58 @@ export class CallCenterAmiService implements OnModuleInit {
     const userUid = this.resolveQueueTenant(queueName);
     if (!userUid) return;
 
+    // Snapshot call before remove — needed for history row (batched writer, D-09)
+    const call = uniqueid ? this.stateService.getCall(uniqueid) : undefined;
+    const agent = agentInterface
+      ? this.stateService.getAgent(userUid, agentInterface)
+      : undefined;
+
+    if (uniqueid) {
+      const enterTime = call?.enterTime;
+      const answerTime = call?.answerTime;
+      const endTime = new Date();
+      const waitSec =
+        enterTime && answerTime
+          ? Math.max(0, Math.round((answerTime.getTime() - enterTime.getTime()) / 1000))
+          : (parseInt(evt.holdtime, 10) || 0);
+      const talkSec =
+        answerTime
+          ? Math.max(0, Math.round((endTime.getTime() - answerTime.getTime()) / 1000))
+          : (parseInt(evt.talktime, 10) || call?.talkTime || 0);
+
+      this.historyWriter.enqueue({
+        call_uniqueid: uniqueid,
+        queue_name: queueName,
+        agent_interface: agentInterface || call?.agent || '',
+        agent_user_uid: agent?.userId ?? undefined,
+        caller_id_num: call?.callerIdNum || evt.calleridnum || '',
+        caller_id_name: call?.callerIdName || evt.calleridname || '',
+        enter_time: enterTime,
+        answer_time: answerTime,
+        end_time: endTime,
+        wait_time: waitSec,
+        talk_time: talkSec,
+        hold_time: call?.holdTime || 0,
+        disposition: 'answered',
+        position: call?.position || 0,
+        user_uid: userUid,
+      });
+    }
+
     // Remove call from active
     if (uniqueid) {
       this.stateService.removeCall(uniqueid, 'completed');
     }
 
     // Agent transitions to WRAPUP (if wrapuptime > 0) or READY
-    const agent = this.stateService.getAgent(userUid, agentInterface);
-    if (agent) {
-      const wrapupTime = agent.wrapupTimeout || 0;
+    const agentAfter = this.stateService.getAgent(userUid, agentInterface);
+    if (agentAfter) {
+      const wrapupTime = agentAfter.wrapupTimeout || 0;
       if (wrapupTime > 0) {
         this.stateService.setAgent(userUid, agentInterface, {
           status: 'WRAPUP',
           currentCall: undefined,
-          callsTaken: (agent.callsTaken || 0) + 1,
+          callsTaken: (agentAfter.callsTaken || 0) + 1,
           lastCallTime: new Date(),
         });
         this.stateService.emitEvent('wrapupStart', userUid, {
@@ -333,7 +373,7 @@ export class CallCenterAmiService implements OnModuleInit {
         this.stateService.setAgent(userUid, agentInterface, {
           status: 'READY',
           currentCall: undefined,
-          callsTaken: (agent.callsTaken || 0) + 1,
+          callsTaken: (agentAfter.callsTaken || 0) + 1,
           lastCallTime: new Date(),
         });
       }
@@ -378,6 +418,24 @@ export class CallCenterAmiService implements OnModuleInit {
     const callerIdName = evt.calleridname || call?.callerIdName || '';
     const holdTime = parseInt(evt.holdtime, 10) || 0;
     const position = parseInt(evt.position, 10) || call?.position || 0;
+
+    // Full history row (batched; does not replace cc_missed_calls callback workflow)
+    if (uniqueid) {
+      this.historyWriter.enqueue({
+        call_uniqueid: uniqueid,
+        queue_name: queueName,
+        agent_interface: '',
+        caller_id_num: callerIdNum,
+        caller_id_name: callerIdName,
+        enter_time: call?.enterTime,
+        end_time: new Date(),
+        wait_time: holdTime,
+        hold_time: holdTime,
+        disposition: 'abandoned',
+        position,
+        user_uid: userUid,
+      });
+    }
 
     this.stateService.removeCall(uniqueid, 'abandoned');
     this.stateService.emitEvent('callAbandon', userUid, {

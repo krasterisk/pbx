@@ -4,6 +4,7 @@ import { AmiModule } from '../ami/ami.module';
 import { CallCenterStateService } from './callcenter-state.service';
 import { CallCenterAmiService } from './callcenter-ami.service';
 import { CallCenterService } from './callcenter.service';
+import { CallCenterHistoryWriterService } from './callcenter-history-writer.service';
 import { CallCenterController } from './callcenter.controller';
 import { CallCenterSseController } from './callcenter-sse.controller';
 import { CcPauseReason } from './models/pause-reason.model';
@@ -37,6 +38,7 @@ import { ServiceRequest } from '../service-requests/service-request.model';
   ],
   providers: [
     CallCenterStateService,
+    CallCenterHistoryWriterService,
     CallCenterAmiService,
     CallCenterService,
   ],
