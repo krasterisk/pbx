@@ -450,6 +450,20 @@ export const ru = {
         createGroup: 'Создать группу',
         editGroup: 'Редактировать группу',
       },
+      notify: {
+        selectIntegration: 'Выберите интеграцию',
+        message: 'Шаблон сообщения',
+        applyPreset: 'Пресеты',
+        target: 'Переопределение получателя (опц.)',
+        varsHint:
+          'Переменные Asterisk:\n${CALLERID(num)} - номер звонящего\n${CALLERID(name)} - имя звонящего\n${EXTEN} - набранный номер\n${DIALSTATUS} - статус набора\n${CDR(duration)} - длительность\n${UNIQUEID} - ID звонка',
+        presets: {
+          incomingCall: 'Входящий звонок',
+          missedCall: 'Пропущенный звонок',
+          answeredCall: 'Отвеченный звонок',
+          hungupCall: 'Завершение звонка',
+        },
+      },
       list: { numbers: 'Номера (через запятую)' },
       common: {
         sec: 'Сек',

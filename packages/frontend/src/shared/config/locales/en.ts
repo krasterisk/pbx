@@ -447,6 +447,20 @@ export const en = {
         createGroup: 'Create group',
         editGroup: 'Edit group',
       },
+      notify: {
+        selectIntegration: 'Select integration',
+        message: 'Message template',
+        applyPreset: 'Presets',
+        target: 'Target override (optional)',
+        varsHint:
+          'Asterisk channel variables:\n${CALLERID(num)} - caller number\n${CALLERID(name)} - caller name\n${EXTEN} - dialed number\n${DIALSTATUS} - dial status\n${CDR(duration)} - call duration\n${UNIQUEID} - call ID',
+        presets: {
+          incomingCall: 'Incoming call',
+          missedCall: 'Missed call',
+          answeredCall: 'Answered call',
+          hungupCall: 'Call ended',
+        },
+      },
       list: { numbers: 'Numbers (comma separated)' },
       common: {
         sec: 'Sec',

@@ -10,6 +10,7 @@ import { PromptApp } from '../ui/apps/PromptApp/PromptApp';
 import { ToRouteApp } from '../ui/apps/ToRouteApp/ToRouteApp';
 import { HangupApp } from '../ui/apps/HangupApp/HangupApp';
 import { GroupApp } from '../ui/apps/GroupApp/GroupApp';
+import { NotifyApp } from '../ui/apps/NotifyApp/NotifyApp';
 
 export const dialplanAppsRegistry: Record<ActionType, IDialplanAppConfig> = {
   // --- TELEPHONY & MEDIA ---
@@ -36,7 +37,7 @@ export const dialplanAppsRegistry: Record<ActionType, IDialplanAppConfig> = {
   sendmail: { type: 'sendmail', labelKey: 'routes.action.sendmail', component: GenericApp, category: 'notification' },
   sendmailpeer: { type: 'sendmailpeer', labelKey: 'routes.action.sendmailpeer', component: GenericApp, category: 'notification' },
   telegram: { type: 'telegram', labelKey: 'routes.action.telegram', component: GenericApp, category: 'notification' },
-  notify: { type: 'notify', labelKey: 'routes.action.notify', component: GenericApp, category: 'notification', defaultParams: { integration_uid: '', message: '', target: '' } },
+  notify: { type: 'notify', labelKey: 'routes.action.notify', component: NotifyApp, category: 'notification', defaultParams: { integration_uid: '', message: '', target: '' } },
   voicemail: { type: 'voicemail', labelKey: 'routes.action.voicemail', component: GenericApp, category: 'notification' },
   webhook: { type: 'webhook', labelKey: 'routes.action.webhook', component: GenericApp, category: 'system' },
   cmd: { type: 'cmd', labelKey: 'routes.action.cmd', component: GenericApp, category: 'system' },

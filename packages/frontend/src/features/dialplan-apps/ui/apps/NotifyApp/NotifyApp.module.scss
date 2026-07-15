@@ -1,0 +1,51 @@
+/* NotifyApp — integration select + template + presets */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1 1 100%;
+  min-width: 0;
+}
+
+.select {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.presets {
+  flex: 0 1 10rem;
+  min-width: 8rem;
+}
+
+.message {
+  width: 100%;
+  min-height: 4.5rem;
+  resize: vertical;
+}
+
+.target {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.labelRow {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
