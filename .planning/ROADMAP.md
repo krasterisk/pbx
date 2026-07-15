@@ -224,17 +224,6 @@ Plans:
 - Automated: `npm run test:backend` (phonebooks + ai-tools + mcp), `npm run lint`
 - Manual: AI Chat / MCP — создать справочник и записи по текстовому запросу; lookup + dialplan работают
 
-### Phase 7: Call Center overhaul: professional agent/supervisor workspaces, wallboard, call cards, reporting and analytics, AI-ready foundation
-
-**Goal:** [To be planned]
-**Requirements**: TBD
-**Depends on:** Phase 6
-**Plans:** 0 plans
-
-Plans:
-
-- [ ] TBD (run /gsd-plan-phase 7 to break down)
-
 ---
 
 ## Phase 6 — Dialplan Apps: ring groups, multi-channel notifications, UX overhaul
@@ -287,7 +276,7 @@ Plans:
 | 3 | `/gsd-execute-phase 6` |
 | 4 | `/gsd-verify-work 6` |
 
-**Plans:** 6/14 plans executed
+**Plans:** 8/14 plans executed
 
 Plans:
 
@@ -298,7 +287,7 @@ Plans:
 - [x] 06-05-PLAN.md — call-group-dialplan.util (TDD): 4 strategies, Gosub/Return semantics [D-05/06/07/08]
 - [ ] 06-06-PLAN.md — CallGroupsService (CRUD + apply) + controller + module [D-01/02/03/08]
 - [x] 06-07-PLAN.md — notification_integration store (encrypted credentials) + service + controller [D-10/11]
-- [ ] 06-08-PLAN.md — Notification dispatcher + 6 channel providers [D-11/12]
+- [x] 06-08-PLAN.md — Notification dispatcher + 6 channel providers [D-11/12]
 - [ ] 06-09-PLAN.md — /internal/dialplan/notify endpoint (async 200) + module wiring [D-12]
 - [x] 06-10-PLAN.md — Frontend RTK apis (callGroupApi/notificationApi) + tagTypes [D-01/02/10/11]
 - [ ] 06-11-PLAN.md — Call Groups page + form modal + members editor [D-02/03/04/05/06/07]
@@ -314,3 +303,66 @@ Plans:
 
 - Automated: `npm run lint`, `npm run test:backend`, `npm run test:frontend`
 - Manual: RouteFormModal → dialplan apps — создать ring group с стратегией; настроить multi-channel notification с channel vars; проверить dialplan apply
+
+---
+
+## Phase 7 — Call Center overhaul: корпоративный колл-центр (workspaces, wallboard, call cards, отчётность, AI-ready)
+
+**Canonical refs (фаза):**
+
+- `packages/frontend/.idea/ARCHITECTURE.md`, `packages/backend/.idea/ARCHITECTURE.md` — **MUST READ**
+- `.idea/call-center/CALLCENTER_MODULE_PLAN.md` — экспертный план модуля (архитектура SSE + in-memory state, фазы CC-1…CC-5)
+- `.idea/call-center/CC_IMPLEMENTATION_CHECKLIST.md` — текущий прогресс (~55%: backend core 100%, панели 55–75%, CC-2…CC-5 = 0%)
+- `.idea/call-center/CC_WORKSPACES_CONCEPT.md` — АРМ оператора (4 зоны) / супервизора (KPI + tabs) / wallboard
+- `.idea/call-center/CC_CALL_CARD_CONCEPT.md` — конфигурируемые карточки звонка (templates, field types, auto-populate)
+- `.idea/call-center/CC_WEBRTC_CONCEPT.md` — WebRTC softphone (SIP.js + PJSIP WSS, двойной режим SIP/WebRTC)
+- `.docs/CALLCENTER_MODULE.md` — документация текущей реализации
+- `packages/backend/src/modules/callcenter/` — state store, AMI, SSE, agent/supervisor API (реализовано)
+- `packages/frontend/src/features/callcenter/`, `pages/CallCenterAgentPage/`, `pages/CallCenterSupervisorPage/` — текущие панели
+
+**Status:** Not planned  
+**Depends on:** Phase 6 (dialplan apps / call groups стабилизированы; независимо от verify Phases 1–5)
+
+**Goal:** Переработать и развить начатый модуль колл-центра до уровня современного корпоративного инструмента: экспертный аудит реализованного (~55%) vs концепции, редизайн АРМ оператора/супервизора по CC_WORKSPACES_CONCEPT, wallboard + metrics engine (SLA/AHT/ASA/Occupancy), конфигурируемые карточки звонка, полная отчётность и аналитика, WebRTC softphone — с архитектурным заделом под AI (голосовые ассистенты, речевая аналитика, autonomous agents).
+
+**Scope (in):**
+
+1. **Аудит + rework ядра** — экспертная оценка текущей реализации (backend core, SSE, state store, панели) vs best practices (Genesys, NICE, QueueMetrics); tech debt: graceful SSE disconnect, unit-тесты callcenter-state/service, role-based menu
+2. **АРМ оператора (доработка)** — 4-зонный layout по концепции: client card из phonebook, pick call, drag&drop transfer, missed calls badge, звуковые + browser notifications, расширенная pause modal
+3. **АРМ супервизора (доработка)** — grid↔table toggle, agent detail modal (timeline), queue management modal (add/remove/penalty), bulk actions, live calls actions, internal chat, sparklines
+4. **Wallboard + Metrics engine** — `/callcenter/wallboard`, KPI-карточки, live charts, heatmap очередей, алерты порогов; вычисление SLA/ASR/AHT/ASA/Occupancy/Abandon из AMI событий с накоплением в state
+5. **Call Cards** — конфигурируемые шаблоны (cc_card_templates/fields/data), конструктор (drag&drop), auto-populate из phonebook, привязка к очередям и CDR, авто-карточка при пропущенном, webhook → CRM
+6. **Отчётность + аналитика** — `/callcenter/reports`: сводка очередей, детализация звонков, статистика операторов, отчёт по паузам, почасовая heatmap, agent timeline (визуализация дня), CSV/XLSX экспорт
+7. **WebRTC softphone** — SIP.js + PJSIP WSS, двойной режим (SIP-устройство / браузер), audio devices, DTMF, call quality indicator
+8. **AI-ready foundation** — архитектурные точки расширения: event bus / стриминг аудио под STT-транскрипцию, sentiment, подсказки оператору, auto wrap-up notes; контракты под голосовых ассистентов и autonomous agent (замена человека); MCP/AI tools для CC-сущностей (per backend ARCHITECTURE §6)
+
+**Scope (out):**
+
+- Сама реализация AI-модулей (STT/речевая аналитика/голосовые ассистенты) — отдельные фазы; здесь только архитектурный задел и контракты
+- Полноценный WFM (прогноз нагрузки, расписания смен) — кандидат в backlog
+- Omnichannel (чаты, email, соцсети как каналы очередей) — отдельная фаза
+- Callback / skill-based routing — по итогам discuss (возможно вынести в следующую фазу)
+
+**Requirements:** TBD (discuss → REQ / decisions; ожидается разбиение на подфазы или waves из-за объёма)
+
+**GSD workflow (рекомендуемый порядок):**
+
+| Шаг | Команда |
+|-----|---------|
+| 1 | `/gsd-discuss-phase 7` — аудит-приоритеты, scope-резка (waves/подфазы), AI-ready контракты |
+| 2 | `/gsd-ui-phase 7` — workspaces/wallboard/call cards UI |
+| 3 | `/gsd-plan-phase 7` |
+| 4 | `/gsd-execute-phase 7` |
+| 5 | `/gsd-ui-review 7` + `npm run test:frontend` |
+| 6 | `/gsd-verify-work 7` → `/gsd-ship 7` |
+
+**Plans:** 0 plans
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 7 to break down)
+
+**Verification:**
+
+- Automated: `npm run lint`, `npm run test:backend` (callcenter), `npm run test:frontend`
+- Manual: `/callcenter/agent`, `/callcenter/supervisor`, `/callcenter/wallboard` — сценарий: login → входящий из очереди → карточка авто-открылась с данными phonebook → hold/transfer → wrap-up → отчёты показывают звонок; WebRTC-режим — звонок полностью в браузере
