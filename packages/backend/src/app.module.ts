@@ -68,6 +68,8 @@ import { NumberList } from './modules/numbers/number-list.model';
 import { ActionLog } from './modules/logger/action-log.model';
 import { LoggerModule } from './modules/logger/logger.module';
 import { MailerModule } from './modules/mailer/mailer.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
+import { NotificationIntegration } from './modules/notifications/notification-integration.model';
 import { TelegramModule } from './modules/telegram/telegram.module';
 import { UserSession } from './modules/auth/user-session.model';
 import { PickupGroup } from './modules/endpoints/pickup-group.model';
@@ -123,6 +125,7 @@ import * as path from 'path';
         CcAiAgent, CcAiProvider, CcAiToolset, CcAiCdr, CcAiBilling, CcAiInvoice, CcAiAuditLog,
         TimeGroup,
         RoutePhonebook, PhonebookEntry, RoutePhonebookBinding,
+        NotificationIntegration,
         // Cloud-admin
         Tenant, ModuleRegistry, TenantModule, CloudSetting,
         BillingBalance, BillingTransaction,
@@ -169,6 +172,7 @@ import * as path from 'path';
     PhonebooksModule,
     LoggerModule,
     MailerModule,
+    NotificationsModule,
     TelegramModule,
     CloudAdminModule,
     AiChatModule,
