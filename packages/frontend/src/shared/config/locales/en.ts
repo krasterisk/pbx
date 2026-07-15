@@ -2020,9 +2020,26 @@ export const en = {
       },
     },
     dnd: {
+      title: 'Transfer call to {{name}} ({{ext}})?',
       confirmTitle: 'Transfer call?',
       confirmBody: 'Blind transfer {{caller}} to {{agent}}?',
       confirmAction: 'Transfer',
+      blind: 'Blind transfer',
+      attended: 'Attended transfer',
+      cancel: 'Cancel',
+    },
+    wrapup: {
+      title: 'Wrap-up',
+      hint: 'Fill in call notes before the next call',
+      extend: '+{{step}} sec',
+      done: 'Ready for next',
+      draftSaved: 'Call card draft saved',
+    },
+    notify: {
+      incomingTitle: 'Incoming call',
+      incomingBody: '{{number}}, queue {{queue}}',
+      missedTitle: 'Missed call',
+      missedBody: '{{number}}, queue {{queue}}',
     },
     clientCard: {
       title: 'Client Card',

@@ -1,0 +1,34 @@
+.wrapupBar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  max-width: 360px;
+  padding: 8px 0;
+}
+
+.timer {
+  font-size: 2.5rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-foreground);
+  line-height: 1;
+}
+
+.progress {
+  width: 100%;
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.hint {
+  font-size: 0.85rem;
+  color: var(--color-muted-foreground);
+  text-align: center;
+}

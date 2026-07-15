@@ -129,6 +129,14 @@ export function useCallCenterSSE(enabled: boolean = true) {
       try {
         const data = JSON.parse(e.data);
         dispatch(updateAgent({ interface: data.agent, status: 'WRAPUP' }));
+        window.dispatchEvent(new CustomEvent('cc:wrapup-start', { detail: data }));
+      } catch { /* ignore */ }
+    });
+
+    es.addEventListener('wrapupExtend', (e: MessageEvent) => {
+      try {
+        const data = JSON.parse(e.data);
+        window.dispatchEvent(new CustomEvent('cc:wrapup-extend', { detail: data }));
       } catch { /* ignore */ }
     });
 
@@ -136,6 +144,7 @@ export function useCallCenterSSE(enabled: boolean = true) {
       try {
         const data = JSON.parse(e.data);
         dispatch(updateAgent({ interface: data.agent, status: 'READY' }));
+        window.dispatchEvent(new CustomEvent('cc:wrapup-end', { detail: data }));
       } catch { /* ignore */ }
     });
 

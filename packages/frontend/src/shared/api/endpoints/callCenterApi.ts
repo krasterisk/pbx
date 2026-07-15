@@ -123,6 +123,9 @@ const callCenterApi = rtkApi.injectEndpoints({
     agentWrapupDone: build.mutation<{ success: boolean }, void>({
       query: () => ({ url: '/callcenter/agent/wrapup-done', method: 'POST' }),
     }),
+    agentWrapupExtend: build.mutation<{ success: boolean }, { seconds?: number }>({
+      query: (body) => ({ url: '/callcenter/agent/wrapup-extend', method: 'POST', body }),
+    }),
     agentPickCall: build.mutation<{ success: boolean }, { uniqueid: string }>({
       query: (body) => ({ url: '/callcenter/agent/pick-call', method: 'POST', body }),
     }),
@@ -243,6 +246,7 @@ export const {
   useAgentUnholdMutation,
   useAgentTransferMutation,
   useAgentWrapupDoneMutation,
+  useAgentWrapupExtendMutation,
   useAgentPickCallMutation,
   useGetMissedCallsQuery,
   useMarkMissedCalledBackMutation,

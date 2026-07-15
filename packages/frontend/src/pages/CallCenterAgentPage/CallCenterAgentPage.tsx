@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useSelector } from 'react-redux';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'react-toastify';
 import {
   Headphones, Phone, PhoneOff, Pause, Play,
   PhoneForwarded, ChevronDown, ChevronUp,
@@ -16,10 +17,12 @@ import { PauseReasonModal } from '@/features/callcenter/ui/PauseReasonModal/Paus
 import { ClientCard } from '@/features/callcenter/ui/ClientCard/ClientCard';
 import { MissedCallsPanel } from '@/features/callcenter/ui/MissedCallsPanel/MissedCallsPanel';
 import { ChatPanelHost } from '@/features/callcenter/ui/ChatPanel/ChatPanel';
+import { WrapupBar } from '@/features/callcenter/ui/WrapupBar/WrapupBar';
 import {
   DragTransferProvider,
   DraggableCall,
   DroppableColleague,
+  useDragTransfer,
 } from '@/features/callcenter/ui/DragTransfer/DragTransfer';
 import {
   selectMyAgent,
@@ -38,10 +41,11 @@ import {
   useAgentHoldMutation,
   useAgentUnholdMutation,
   useAgentTransferMutation,
-  useAgentWrapupDoneMutation,
   useAgentPickCallMutation,
   useGetPauseReasonsQuery,
+  useGetMyOperatorSettingsQuery,
 } from '@/shared/api/endpoints/callCenterApi';
+import type { IAgent } from '@/features/callcenter/model/types/callCenterSchema';
 import styles from './CallCenterAgentPage.module.scss';
 
 // ─── DTMF Keypad keys ───
@@ -72,6 +76,11 @@ export function CallCenterAgentPage() {
   const [transferType, setTransferType] = useState<'blind' | 'attended'>('blind');
   const [isMuted, setIsMuted] = useState(false);
   const [dtmfOpen, setDtmfOpen] = useState(false);
+  const [wrapupRemaining, setWrapupRemaining] = useState(0);
+  const [wrapupTotal, setWrapupTotal] = useState(0);
+  const [callNotes, setCallNotes] = useState('');
+  const lastCallUniqueidRef = useRef<string | null>(null);
+  const wrapupAutosavedRef = useRef(false);
 
   // RTK mutations
   const [agentLogin] = useAgentLoginMutation();
@@ -82,9 +91,79 @@ export function CallCenterAgentPage() {
   const [agentHold] = useAgentHoldMutation();
   const [agentUnhold] = useAgentUnholdMutation();
   const [agentTransfer] = useAgentTransferMutation();
-  const [agentWrapupDone] = useAgentWrapupDoneMutation();
   const [agentPickCall] = useAgentPickCallMutation();
   const { data: pauseReasons = [] } = useGetPauseReasonsQuery();
+  const { data: operatorSettings } = useGetMyOperatorSettingsQuery();
+
+  const autosaveDraft = useCallback((uniqueid: string | null) => {
+    if (!uniqueid || !operatorSettings?.wrapup_autosave_draft || wrapupAutosavedRef.current) return;
+    localStorage.setItem(`cc:draft:${uniqueid}`, callNotes);
+    wrapupAutosavedRef.current = true;
+    toast.success(t('callcenter.wrapup.draftSaved', 'Call card draft saved'));
+  }, [callNotes, operatorSettings?.wrapup_autosave_draft, t]);
+
+  // Track active call uniqueid for draft autosave
+  useEffect(() => {
+    if (myAgent?.currentCall) {
+      lastCallUniqueidRef.current = myAgent.currentCall;
+      wrapupAutosavedRef.current = false;
+    }
+  }, [myAgent?.currentCall]);
+
+  // Wrap-up countdown: SSE sync + local tick
+  useEffect(() => {
+    if (myAgent?.status === 'WRAPUP') {
+      const total = operatorSettings?.wrapup_timeout ?? 30;
+      setWrapupTotal(total);
+      setWrapupRemaining(prev => (prev > 0 ? prev : total));
+    } else {
+      setWrapupRemaining(0);
+      wrapupAutosavedRef.current = false;
+    }
+  }, [myAgent?.status, operatorSettings?.wrapup_timeout]);
+
+  useEffect(() => {
+    if (myAgent?.status !== 'WRAPUP' || wrapupRemaining <= 0) return;
+    const id = setInterval(() => {
+      setWrapupRemaining(prev => {
+        if (prev <= 1) {
+          autosaveDraft(lastCallUniqueidRef.current);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(id);
+  }, [myAgent?.status, wrapupRemaining > 0, autosaveDraft]);
+
+  useEffect(() => {
+    const onWrapupStart = (e: Event) => {
+      const { timeout } = (e as CustomEvent).detail ?? {};
+      if (typeof timeout === 'number') {
+        setWrapupTotal(timeout);
+        setWrapupRemaining(timeout);
+      }
+    };
+    const onWrapupExtend = (e: Event) => {
+      const { remainingSec } = (e as CustomEvent).detail ?? {};
+      if (typeof remainingSec === 'number') setWrapupRemaining(remainingSec);
+    };
+    const onWrapupEnd = (e: Event) => {
+      const { reason, autosaveDraft: shouldSave } = (e as CustomEvent).detail ?? {};
+      if (reason === 'timeout' && shouldSave) {
+        autosaveDraft(lastCallUniqueidRef.current);
+      }
+      setWrapupRemaining(0);
+    };
+    window.addEventListener('cc:wrapup-start', onWrapupStart);
+    window.addEventListener('cc:wrapup-extend', onWrapupExtend);
+    window.addEventListener('cc:wrapup-end', onWrapupEnd);
+    return () => {
+      window.removeEventListener('cc:wrapup-start', onWrapupStart);
+      window.removeEventListener('cc:wrapup-extend', onWrapupExtend);
+      window.removeEventListener('cc:wrapup-end', onWrapupEnd);
+    };
+  }, [autosaveDraft]);
 
   // Timer for active call
   useEffect(() => {
@@ -142,18 +221,7 @@ export function CallCenterAgentPage() {
     setTransferTarget('');
   }, [agentTransfer, transferTarget, transferType]);
 
-  // Transfer to colleague (quick action)
-  const handleTransferToAgent = useCallback((targetIface: string) => {
-    if (!activeCall) return;
-    // Extract extension from interface, e.g. PJSIP/e101_42 → e101_42
-    const target = targetIface.split('/').pop() || targetIface;
-    agentTransfer({
-      uniqueid: activeCall.uniqueid,
-      target,
-      type: 'blind',
-    });
-    setTransferModalOpen(false);
-  }, [agentTransfer]);
+  // DnD / click transfer with blind or attended type (defined after activeCall below)
 
   // Mute toggle (local state — actual mute via AMI MuteAudio would be backend)
   const handleMuteToggle = useCallback(() => {
@@ -192,6 +260,17 @@ export function CallCenterAgentPage() {
     return calls.find(c => c.uniqueid === myAgent.currentCall) || null;
   }, [myAgent?.currentCall, calls]);
 
+  const handleDragTransfer = useCallback((targetIface: string, type: 'blind' | 'attended') => {
+    if (!activeCall) return;
+    const target = targetIface.split('/').pop() || targetIface;
+    agentTransfer({
+      uniqueid: activeCall.uniqueid,
+      target,
+      type,
+    });
+    setTransferModalOpen(false);
+  }, [agentTransfer, activeCall]);
+
   // Agents in same queues (colleagues)
   const colleagues = useMemo(() => {
     if (!myAgent) return [];
@@ -210,39 +289,39 @@ export function CallCenterAgentPage() {
 
   return (
     <VStack gap="16" className={styles.wrapper}>
-      {/* Page Header */}
-      <Flex justify="between" align="center" className="px-2 sm:px-2">
-        <Flex align="center" gap="12">
-          <Flex align="center" justify="center" className="p-2 sm:p-2.5 bg-indigo-500/10 rounded-xl">
-            <Headphones className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-500" />
-          </Flex>
-          <VStack>
-            <Text variant="h1" className="text-lg sm:text-2xl bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">
-              {t('callcenter.agent.title', 'Call Center')}
-            </Text>
-            <Text variant="muted" className="mt-0.5 sm:mt-1 text-xs sm:text-sm">
-              {t('callcenter.agent.subtitle', 'Agent workspace')}
-            </Text>
-          </VStack>
-        </Flex>
+      <div className={styles.workspace}>
+        {/* Zone A — sticky status bar */}
+        <div className={styles.zoneA}>
+          <Flex justify="between" align="center" className={styles.pageHeader}>
+            <Flex align="center" gap="12">
+              <Flex align="center" justify="center" className="p-2 sm:p-2.5 bg-indigo-500/10 rounded-xl">
+                <Headphones className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-500" />
+              </Flex>
+              <VStack>
+                <Text variant="h1" className="text-lg sm:text-2xl bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">
+                  {t('callcenter.agent.title', 'Call Center')}
+                </Text>
+                <Text variant="muted" className="mt-0.5 sm:mt-1 text-xs sm:text-sm">
+                  {t('callcenter.agent.subtitle', 'Agent workspace')}
+                </Text>
+              </VStack>
+            </Flex>
 
-        {/* Connection indicator + missed calls badge */}
-        <Flex align="center" gap="12">
-          <MissedCallsPanel onCallback={handleMissedCallback} />
-          <ChatPanelHost />
-          <Flex align="center" gap="8">
-            <Text variant="muted" className="text-xs">
-              {connected ? 'Online' : 'Connecting...'}
-            </Text>
-            <HStack align="center">
-              <div className={`${styles.connectionDot} ${connected ? styles.connectionOnline : styles.connectionOffline}`} />
-            </HStack>
+            <Flex align="center" gap="12">
+              <MissedCallsPanel onCallback={handleMissedCallback} />
+              <ChatPanelHost />
+              <Flex align="center" gap="8">
+                <Text variant="muted" className="text-xs">
+                  {connected ? 'Online' : 'Connecting...'}
+                </Text>
+                <HStack align="center">
+                  <div className={`${styles.connectionDot} ${connected ? styles.connectionOnline : styles.connectionOffline}`} />
+                </HStack>
+              </Flex>
+            </Flex>
           </Flex>
-        </Flex>
-      </Flex>
 
-      {/* Status Bar */}
-      <div className={styles.statusBar}>
+          <div className={styles.statusBar}>
         <div className={`${styles.statusIndicator} ${statusClass}`}>
           <div className={styles.statusDot} />
           <Text>{statusLabel}</Text>
@@ -314,14 +393,15 @@ export function CallCenterAgentPage() {
           )}
         </div>
       </div>
+        </div>
 
-      {/* Main Content: Call Panel + Sidebar (with DnD context) */}
+      {/* Zones B + D — call panel + quick actions sidebar */}
       <DragTransferProvider
         activeCall={activeCall ? { uniqueid: activeCall.uniqueid, callerIdNum: activeCall.callerIdNum || '' } : null}
-        onTransfer={(targetIface) => handleTransferToAgent(targetIface)}
+        onTransfer={handleDragTransfer}
       >
-      <div className={styles.mainContent}>
-        {/* Active Call Panel — also the drag source */}
+      <div className={styles.zoneMain}>
+        <div className={styles.zoneB}>
         <DraggableCall
           uniqueid={activeCall?.uniqueid || 'idle'}
           className={`${styles.callPanel} ${activeCall ? styles.callPanelActive : ''}`}
@@ -414,14 +494,22 @@ export function CallCenterAgentPage() {
               )}
             </>
           ) : myAgent?.status === 'WRAPUP' ? (
-            <div className={styles.idleState}>
-              <Clock className="w-12 h-12 opacity-50 text-blue-400" />
-              <Text variant="h3">{t('callcenter.agent.wrapup', 'Wrap-up')}</Text>
-              <Text variant="muted">{t('callcenter.agent.wrapupHint', 'Fill in call notes')}</Text>
-              <Button size="sm" onClick={() => agentWrapupDone()}>
-                {t('callcenter.agent.wrapupDone', 'Ready for next')}
-              </Button>
-            </div>
+            <VStack gap="12" className="w-full max-w-md">
+              <WrapupBar
+                remainingSec={wrapupRemaining}
+                totalSec={wrapupTotal || operatorSettings?.wrapup_timeout || 30}
+                extendStep={operatorSettings?.wrapup_extend_step ?? 30}
+                onExtendSuccess={(remaining) => setWrapupRemaining(remaining)}
+                onDoneSuccess={() => setWrapupRemaining(0)}
+              />
+              <textarea
+                className={styles.transferInput}
+                rows={3}
+                placeholder={t('callcenter.wrapup.hint', 'Fill in call notes')}
+                value={callNotes}
+                onChange={(e) => setCallNotes(e.target.value)}
+              />
+            </VStack>
           ) : (
             <div className={styles.idleState}>
               <Headphones className={styles.idleIcon} />
@@ -434,9 +522,10 @@ export function CallCenterAgentPage() {
             </div>
           )}
         </DraggableCall>
+        </div>
 
-        {/* Quick Actions Sidebar */}
-        <div className={styles.sidebar}>
+        {/* Zone D — quick actions sidebar */}
+        <div className={styles.zoneD}>
           {/* Client Card — read-only context for the active caller */}
           <ClientCard
             callerIdNum={activeCall?.callerIdNum}
@@ -456,32 +545,7 @@ export function CallCenterAgentPage() {
             </Text>
             <div className={styles.transferList}>
               {colleagues.length > 0 ? colleagues.slice(0, 10).map(agent => (
-                <DroppableColleague
-                  key={agent.interface}
-                  agent={agent}
-                  className={`${styles.transferItem} ${
-                    agent.status === 'READY' ? styles.transferItemOnline :
-                    agent.status === 'OFFLINE' ? styles.transferItemOffline :
-                    styles.transferItemBusy
-                  }`}
-                >
-                  <div
-                    onClick={() => {
-                      if (activeCall && agent.status === 'READY') {
-                        handleTransferToAgent(agent.interface);
-                      }
-                    }}
-                    title={activeCall && agent.status === 'READY'
-                      ? t('callcenter.agent.clickToTransfer', 'Click to transfer')
-                      : undefined
-                    }
-                    style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%' }}
-                  >
-                    <div className={styles.transferDot} />
-                    <Text className={styles.transferName}>{agent.name}</Text>
-                    <Text className={styles.transferExt}>{agent.interface.split('/').pop()}</Text>
-                  </div>
-                </DroppableColleague>
+                <ColleagueRow key={agent.interface} agent={agent} activeCall={!!activeCall} />
               )) : (
                 <Text variant="muted" className="text-xs">{t('callcenter.agent.noColleagues', 'No agents online')}</Text>
               )}
@@ -491,7 +555,8 @@ export function CallCenterAgentPage() {
       </div>
       </DragTransferProvider>
 
-      {/* Queue Monitor (bottom) */}
+      {/* Zone C — queue monitor */}
+      <div className={styles.zoneC}>
       <div className={styles.queueMonitor}>
         <div
           className={styles.queueMonitorHeader}
@@ -531,7 +596,8 @@ export function CallCenterAgentPage() {
             <tbody>
               {waitingCalls.map((call, i) => {
                 const waitSec = Math.floor((Date.now() - new Date(call.enterTime).getTime()) / 1000);
-                const canPick = myAgent?.status === 'READY'
+                const canPick = operatorSettings?.pickup_enabled
+                  && myAgent?.status === 'READY'
                   && myAgent.queues.includes(call.queue);
                 return (
                   <tr key={call.uniqueid}>
@@ -545,18 +611,20 @@ export function CallCenterAgentPage() {
                       {formatTime(waitSec)}
                     </td>
                     <td>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={!canPick}
-                        onClick={() => handlePickCall(call.uniqueid)}
-                        title={canPick
-                          ? t('callcenter.agent.pickCallHint', 'Take this call now')
-                          : t('callcenter.agent.pickCallBlocked', 'Pick is only available when you are READY in that queue')}
-                      >
-                        <Hand className="w-3.5 h-3.5 mr-1" />
-                        {t('callcenter.agent.pick', 'Pick')}
-                      </Button>
+                      {operatorSettings?.pickup_enabled && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={!canPick}
+                          onClick={() => handlePickCall(call.uniqueid)}
+                          title={canPick
+                            ? t('callcenter.agent.pickCallHint', 'Take this call now')
+                            : t('callcenter.agent.pickCallBlocked', 'Pick is only available when you are READY in that queue')}
+                        >
+                          <Hand className="w-3.5 h-3.5 mr-1" />
+                          {t('callcenter.agent.pickCall', 'Pick')}
+                        </Button>
+                      )}
                     </td>
                   </tr>
                 );
@@ -573,8 +641,10 @@ export function CallCenterAgentPage() {
           </Flex>
         )}
       </div>
+      </div>
+      </div>
 
-      {/* ─── Transfer Modal ─── */}
+      {/* ─── Transfer Modal (manual target) ─── */}
       {transferModalOpen && (
         <div className={styles.modalOverlay} onClick={() => setTransferModalOpen(false)}>
           <div className={styles.modalContent} onClick={e => e.stopPropagation()}>
@@ -630,7 +700,13 @@ export function CallCenterAgentPage() {
                     <div
                       key={agent.interface}
                       className={styles.transferAgentRow}
-                      onClick={() => handleTransferToAgent(agent.interface)}
+                      onClick={() => {
+                        const target = agent.interface.split('/').pop() || agent.interface;
+                        if (activeCall) {
+                          agentTransfer({ uniqueid: activeCall.uniqueid, target, type: 'blind' });
+                          setTransferModalOpen(false);
+                        }
+                      }}
                     >
                       <div className={styles.transferDot} style={{ background: 'var(--color-success)' }} />
                       <Text className={styles.transferName}>{agent.name}</Text>
@@ -654,5 +730,36 @@ export function CallCenterAgentPage() {
         />
       )}
     </VStack>
+  );
+}
+
+function ColleagueRow({ agent, activeCall }: { agent: IAgent; activeCall: boolean }) {
+  const { t } = useTranslation();
+  const { requestTransfer } = useDragTransfer();
+  const statusClass =
+    agent.status === 'READY' ? styles.transferItemOnline :
+    agent.status === 'OFFLINE' ? styles.transferItemOffline :
+    styles.transferItemBusy;
+
+  return (
+    <DroppableColleague
+      agent={agent}
+      className={`${styles.transferItem} ${statusClass}`}
+      onColleagueClick={() => {
+        if (activeCall && agent.status === 'READY') requestTransfer(agent);
+      }}
+    >
+      <div
+        title={activeCall && agent.status === 'READY'
+          ? t('callcenter.agent.clickToTransfer', 'Click to transfer')
+          : undefined
+        }
+        style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%' }}
+      >
+        <div className={styles.transferDot} />
+        <Text className={styles.transferName}>{agent.name}</Text>
+        <Text className={styles.transferExt}>{agent.interface.split('/').pop()}</Text>
+      </div>
+    </DroppableColleague>
   );
 }

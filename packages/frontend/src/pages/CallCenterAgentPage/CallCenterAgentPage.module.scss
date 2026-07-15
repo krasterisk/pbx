@@ -3,8 +3,16 @@
    Design tokens: var(--color-*) from globals.css @theme
    ───────────────────────────────────────────────────── */
 
-/* 1. Layout */
+/* 1. Layout — 4-zone workspace (UI-SPEC §1) */
 .wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  flex: 1;
+  min-height: 0;
+}
+
+.workspace {
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -12,12 +20,61 @@
   min-height: 0;
 }
 
-/* 2. Status Bar */
+.zoneA {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: var(--color-background);
+  padding-bottom: 4px;
+}
+
+.zoneMain {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 16px;
+  flex: 1;
+  min-height: 0;
+
+  @media (max-width: 1024px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.zoneB {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.zoneD {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+
+  @media (max-width: 1024px) {
+    display: none;
+  }
+}
+
+.zoneC {
+  flex-shrink: 0;
+}
+
+.pageHeader {
+  padding: 0 2px;
+}
+
+/* 2. Status Bar — Zone A, 56px target height */
 .statusBar {
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 12px 20px;
+  min-height: 56px;
+  padding: 8px 20px;
   background: var(--color-card);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-xl);
@@ -128,20 +185,7 @@
   gap: 8px;
 }
 
-/* 3. Main Content */
-.mainContent {
-  display: grid;
-  grid-template-columns: 1fr 320px;
-  gap: 16px;
-  flex: 1;
-  min-height: 0;
-
-  @media (max-width: 1024px) {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* 4. Active Call Panel */
+/* 3. Zone B — Active call panel */
 .callPanel {
   background: var(--color-card);
   border: 1px solid var(--color-border);
@@ -154,6 +198,18 @@
   gap: 16px;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
   min-height: 300px;
+  flex: 1;
+}
+
+.callActions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+
+  :global(button) {
+    min-height: 44px;
+  }
 }
 
 .callPanelActive {
