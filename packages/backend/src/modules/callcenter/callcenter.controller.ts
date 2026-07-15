@@ -18,6 +18,7 @@ import {
 import { Request } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CallCenterService } from './callcenter.service';
+import { CallCenterMetricsService } from './callcenter-metrics.service';
 import {
   AgentLoginDto, AgentPauseDto, AgentUnpauseDto, AgentHangupDto,
   TransferDto, SupervisorSpyDto, SupervisorForceActionDto,
@@ -41,7 +42,17 @@ function assertSupervisor(user: any): void {
 @UseGuards(JwtAuthGuard)
 @Controller('callcenter')
 export class CallCenterController {
-  constructor(private readonly ccService: CallCenterService) {}
+  constructor(
+    private readonly ccService: CallCenterService,
+    private readonly metricsService: CallCenterMetricsService,
+  ) {}
+
+  // ─── Queue Metrics ──────────────────────────────────────
+
+  @Get('metrics/queues')
+  getQueueMetrics(@Req() req: Request & { user: any }) {
+    return this.metricsService.getTenantQueueMetrics(req.user.vpbx_user_uid);
+  }
 
   // ─── Agent Actions ──────────────────────────────────────
 

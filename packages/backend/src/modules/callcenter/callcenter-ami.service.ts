@@ -10,6 +10,7 @@ import { InjectModel } from '@nestjs/sequelize';
 import { AmiService } from '../ami/ami.service';
 import { CallCenterStateService, AgentStatus } from './callcenter-state.service';
 import { CallCenterHistoryWriterService } from './callcenter-history-writer.service';
+import { CallCenterMetricsService } from './callcenter-metrics.service';
 import { CcAgentEvent } from './models/agent-event.model';
 import { CcMissedCall } from './models/missed-call.model';
 import { Queue } from '../queues/queue.model';
@@ -25,6 +26,7 @@ export class CallCenterAmiService implements OnModuleInit {
     private readonly amiService: AmiService,
     private readonly stateService: CallCenterStateService,
     private readonly historyWriter: CallCenterHistoryWriterService,
+    private readonly metricsService: CallCenterMetricsService,
     @InjectModel(CcAgentEvent) private readonly agentEventModel: typeof CcAgentEvent,
     @InjectModel(CcMissedCall) private readonly missedCallModel: typeof CcMissedCall,
     @InjectModel(Queue) private readonly queueModel: typeof Queue,
@@ -212,6 +214,8 @@ export class CallCenterAmiService implements OnModuleInit {
       callsTaken: parseInt(evt.callstaken, 10) || 0,
       name: evt.membername || iface,
     });
+
+    this.metricsService.recordAgentStatus(userUid, iface, status);
   }
 
   /**
@@ -274,6 +278,8 @@ export class CallCenterAmiService implements OnModuleInit {
       currentCall: uniqueid,
     });
 
+    this.metricsService.recordAgentStatus(userUid, agentInterface, 'IN_CALL');
+
     // Emit specific event
     this.stateService.emitEvent('callAnswer', userUid, {
       uniqueid,
@@ -315,6 +321,17 @@ export class CallCenterAmiService implements OnModuleInit {
         answerTime
           ? Math.max(0, Math.round((endTime.getTime() - answerTime.getTime()) / 1000))
           : (parseInt(evt.talktime, 10) || call?.talkTime || 0);
+      const wrapupSec = agent?.wrapupTimeout || 0;
+
+      this.metricsService.recordAnswered(
+        userUid,
+        queueName,
+        agentInterface || call?.agent || '',
+        waitSec,
+        talkSec,
+        wrapupSec,
+      );
+      this.publishQueueMetrics(userUid, queueName);
 
       this.historyWriter.enqueue({
         call_uniqueid: uniqueid,
@@ -351,6 +368,7 @@ export class CallCenterAmiService implements OnModuleInit {
           callsTaken: (agentAfter.callsTaken || 0) + 1,
           lastCallTime: new Date(),
         });
+        this.metricsService.recordAgentStatus(userUid, agentInterface, 'WRAPUP');
         this.stateService.emitEvent('wrapupStart', userUid, {
           agent: agentInterface,
           timeout: wrapupTime,
@@ -365,6 +383,7 @@ export class CallCenterAmiService implements OnModuleInit {
           const currentAgent = this.stateService.getAgent(userUid, agentInterface);
           if (currentAgent?.status === 'WRAPUP') {
             this.stateService.setAgent(userUid, agentInterface, { status: 'READY' });
+            this.metricsService.recordAgentStatus(userUid, agentInterface, 'READY');
             this.stateService.emitEvent('wrapupEnd', userUid, { agent: agentInterface });
             this.logger.debug(`Wrapup auto-expired for ${agentInterface} after ${wrapupTime}s`);
           }
@@ -376,6 +395,7 @@ export class CallCenterAmiService implements OnModuleInit {
           callsTaken: (agentAfter.callsTaken || 0) + 1,
           lastCallTime: new Date(),
         });
+        this.metricsService.recordAgentStatus(userUid, agentInterface, 'READY');
       }
     }
 
@@ -438,6 +458,8 @@ export class CallCenterAmiService implements OnModuleInit {
     }
 
     this.stateService.removeCall(uniqueid, 'abandoned');
+    this.metricsService.recordAbandoned(userUid, queueName);
+    this.publishQueueMetrics(userUid, queueName);
     this.stateService.emitEvent('callAbandon', userUid, {
       uniqueid,
       queue: queueName,
@@ -609,6 +631,27 @@ export class CallCenterAmiService implements OnModuleInit {
     const match = queueName.match(/_(\d+)$/);
     if (match) return parseInt(match[1], 10);
     return null;
+  }
+
+  /**
+   * Publish computed queue metrics to SSE and sync SLA into QueueState.
+   */
+  private publishQueueMetrics(userUid: number, queueName: string): void {
+    const metrics = this.metricsService.getQueueMetrics(userUid, queueName);
+    this.stateService.emitEvent('queueMetrics', userUid, {
+      queue: queueName,
+      metrics,
+    });
+    this.stateService.setQueue(userUid, queueName, {
+      sla: metrics.sla,
+      avgWait: metrics.asa,
+      avgTalk: metrics.aht,
+      calls: {
+        answered: metrics.answered,
+        abandoned: metrics.abandoned,
+        total: metrics.offered,
+      },
+    });
   }
 
   /**

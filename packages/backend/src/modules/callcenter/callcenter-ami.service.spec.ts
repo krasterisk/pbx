@@ -1,6 +1,7 @@
 import { CallCenterAmiService } from './callcenter-ami.service';
 import { CallCenterStateService } from './callcenter-state.service';
 import { CallCenterHistoryWriterService } from './callcenter-history-writer.service';
+import { CallCenterMetricsService } from './callcenter-metrics.service';
 
 /**
  * Unit tests for CallCenterAmiService — focuses on pure handlers
@@ -11,6 +12,12 @@ describe('CallCenterAmiService', () => {
   let state: CallCenterStateService;
   let service: CallCenterAmiService;
   let historyWriter: { enqueue: jest.Mock };
+  let metricsService: {
+    recordAnswered: jest.Mock;
+    recordAbandoned: jest.Mock;
+    recordAgentStatus: jest.Mock;
+    getQueueMetrics: jest.Mock;
+  };
 
   // The minimum AMI / model surface that handlers touch
   const fakeAmi: any = {
@@ -30,10 +37,26 @@ describe('CallCenterAmiService', () => {
   beforeEach(() => {
     state = new CallCenterStateService();
     historyWriter = { enqueue: jest.fn() };
+    metricsService = {
+      recordAnswered: jest.fn(),
+      recordAbandoned: jest.fn(),
+      recordAgentStatus: jest.fn(),
+      getQueueMetrics: jest.fn().mockReturnValue({
+        sla: 80,
+        asr: 90,
+        aht: 120,
+        asa: 15,
+        abandonRate: 10,
+        offered: 10,
+        answered: 9,
+        abandoned: 1,
+      }),
+    };
     service = new CallCenterAmiService(
       fakeAmi,
       state,
       historyWriter as unknown as CallCenterHistoryWriterService,
+      metricsService as unknown as CallCenterMetricsService,
       agentEventModel,
       missedCallModel,
       queueModel,
