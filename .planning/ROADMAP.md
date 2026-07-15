@@ -223,3 +223,66 @@ Plans:
 
 - Automated: `npm run test:backend` (phonebooks + ai-tools + mcp), `npm run lint`
 - Manual: AI Chat / MCP — создать справочник и записи по текстовому запросу; lookup + dialplan работают
+
+---
+
+## Phase 6 — Dialplan Apps: ring groups, multi-channel notifications, UX overhaul
+
+**Canonical refs (фаза):**
+
+- `packages/frontend/.idea/ARCHITECTURE.md`, `packages/backend/.idea/ARCHITECTURE.md`
+- `packages/frontend/src/features/dialplan-apps/ui/DialplanAppsEditor/DialplanAppsEditor.tsx` — **primary target**
+- `packages/frontend/src/features/routes/ui/RouteFormModal/` — редактор маршрута (возможный host для CRUD групп)
+- Backend dialplan generation для apps (routes / dialplan-apps modules — уточнить на research)
+- Текущие apps: groups, call lists, telegram, email — аудит реальной реализации vs UI
+
+**Status:** Not planned  
+**Depends on:** Phase 5 (DialplanAppsEditor уже используется во вкладке «Справочники»; желательно после стабилизации bindings)
+
+**Goal:** Переработать `DialplanAppsEditor` и набор dialplan-приложений: (1) объединённое гибкое приложение **групп/списков вызовов** с стратегиями ring и CRUD из маршрута; (2) конфигурируемые **multi-channel уведомления** (мессенджеры/соцсети, channel vars, пресеты); (3) аудит текущих apps + UX маршрутизации и предложения дополнительных приложений.
+
+**Scope (in):**
+
+1. **Ring groups / call lists (объединённое app)**
+   - Инструмент создания/редактирования группы вызовов (в т.ч. прямо в редакторе маршрута)
+   - Участники: внутренние и внешние номера
+   - Стратегии: ringall, sequential, progressive, memory/last-answered и др. (best practices телефонии)
+   - Research + варианты решений на discuss; креативные UX-паттерны
+
+2. **Multi-channel notifications**
+   - Замена/расширение отдельных telegram/email apps → единое конфигурируемое приложение
+   - Каналы: мессенджеры, соцсети и т.д.; гибкая настройка интеграций
+   - Шаблоны с любыми переменными канала; пресеты; интуитивный UX
+
+3. **Аудит + UX overhaul DialplanAppsEditor**
+   - Проверка реальной реализации всех текущих приложений
+   - Варианты улучшения редактора маршрутизации (полнофункциональный UX)
+   - Предложения дополнительных dialplan apps
+
+**Scope (out):**
+
+- Полная замена ядра Asterisk dialplan engine
+- Несвязанный редизайн RouteFormModal целиком (только интеграция групп/apps)
+- Собственный LLM / AI Chat tools для dialplan apps (отдельная фаза при необходимости)
+
+**Requirements:** TBD (discuss → REQ / decisions)
+
+**GSD workflow (рекомендуемый порядок):**
+
+| Шаг | Команда |
+|-----|---------|
+| 1 | `/gsd-discuss-phase 6` — стратегии ring groups, каналы уведомлений, scope UX |
+| 2 | `/gsd-plan-phase 6` |
+| 3 | `/gsd-execute-phase 6` |
+| 4 | `/gsd-verify-work 6` |
+
+**Plans:** 0 plans
+
+Plans:
+
+- [ ] TBD (run `/gsd-plan-phase 6` to break down)
+
+**Verification:**
+
+- Automated: `npm run lint`, `npm run test:backend`, `npm run test:frontend`
+- Manual: RouteFormModal → dialplan apps — создать ring group с стратегией; настроить multi-channel notification с channel vars; проверить dialplan apply
