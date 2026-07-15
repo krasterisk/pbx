@@ -85,7 +85,7 @@ completed: 2026-07-15
 3. **Task 2b: assertSupervisor ADMIN fix** - `cd13059` (fix)
 4. **Task 3: Frontend RTK + forms + tabs** - `bb39918` (feat)
 
-**Plan metadata:** (pending docs commit)
+**Plan metadata:** `d26fdd4` (docs: complete plan)
 
 ## Files Created/Modified
 
