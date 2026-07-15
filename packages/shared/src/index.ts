@@ -21,6 +21,8 @@ export * from './types/api.types';
 export * from './types/route.types';
 export * from './types/timeGroup.types';
 export * from './types/phonebook.types';
+export * from './types/call-group.types';
+export * from './types/notification.types';
 export * from './types/ivr-phrase.types';
 export * from './types/prompt.types';
 export {

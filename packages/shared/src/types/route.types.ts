@@ -1,10 +1,16 @@
 import type { IRoutePhonebookBinding } from './phonebook.types';
+import type {
+  ICallerIdActionParams,
+  INotifyActionParams,
+  ITrunkCarouselActionParams,
+} from './notification.types';
 
 export type ActionType =
   | 'totrunk' | 'toexten' | 'toqueue' | 'togroup' | 'tolist'
   | 'toivr' | 'toroute' | 'playprompt' | 'playback'
   | 'setclid_custom' | 'setclid_list'
   | 'sendmail' | 'sendmailpeer' | 'telegram'
+  | 'notify' | 'callerid' | 'trunk_carousel'
   | 'voicemail' | 'text2speech' | 'voicerobot' | 'asr' | 'keywords'
   | 'webhook' | 'confbridge' | 'cmd' | 'tofax'
   | 'label' | 'busy' | 'hangup';
@@ -152,6 +158,9 @@ export type DialplanAction = BaseRouteAction & (
   | { type: 'sendmail'; params: ISendMailActionParams }
   | { type: 'sendmailpeer'; params: ISendMailPeerActionParams }
   | { type: 'telegram'; params: ITelegramActionParams }
+  | { type: 'notify'; params: INotifyActionParams }
+  | { type: 'callerid'; params: ICallerIdActionParams }
+  | { type: 'trunk_carousel'; params: ITrunkCarouselActionParams }
   | { type: 'voicemail'; params: IVoicemailActionParams }
   | { type: 'text2speech'; params: IText2SpeechActionParams }
   | { type: 'voicerobot'; params: IVoiceRobotActionParams }
