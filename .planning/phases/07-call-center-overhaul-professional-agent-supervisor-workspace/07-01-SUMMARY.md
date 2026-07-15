@@ -76,7 +76,7 @@ completed: 2026-07-15
 2. **Task 2: Batched-async history writer + wiring AMI-хендлеров** - `cf2b13b` (feat)
 3. **Task 3: Аудит-фиксы — agentTransfer + AMI reconnect resync** - `7c81b1e` (fix)
 
-**Plan metadata:** (pending docs commit)
+**Plan metadata:** `babe93b` (docs: complete plan)
 
 ## Files Created/Modified
 
