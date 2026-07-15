@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { VStack, Flex, Text } from '@/shared/ui';
 import { OperatorSettingsForm } from '@/features/callcenter/ui/OperatorSettingsForm/OperatorSettingsForm';
 import { AlertThresholdsForm } from '@/features/callcenter/ui/AlertThresholdsForm/AlertThresholdsForm';
+import { CardTemplatesTab } from './ui/CardTemplatesTab/CardTemplatesTab';
 import styles from './CallCenterSettingsPage.module.scss';
 
 export type CcSettingsTabId =
@@ -30,6 +31,9 @@ export function CallCenterSettingsPage() {
     }
     if (activeTab === 'alertThresholds') {
       return <AlertThresholdsForm />;
+    }
+    if (activeTab === 'cardTemplates') {
+      return <CardTemplatesTab />;
     }
     return <Text className={styles.placeholder}>{t('callcenter.settings.placeholder')}</Text>;
   };

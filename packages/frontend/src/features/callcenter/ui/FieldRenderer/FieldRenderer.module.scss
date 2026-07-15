@@ -1,0 +1,47 @@
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+.fieldCheckbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.label {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.checkboxLabel {
+  font-size: 14px;
+}
+
+.required {
+  color: var(--color-danger);
+  margin-left: 2px;
+}
+
+.heading {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 4px 0;
+}
+
+.divider {
+  margin: 8px 0;
+}
+
+.readonlyValue {
+  font-size: 14px;
+  color: var(--color-text-primary);
+  padding: 8px 0;
+}
+
+.hint {
+  font-size: 12px;
+}
