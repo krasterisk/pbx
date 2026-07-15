@@ -1,10 +1,12 @@
 import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { ensureCdrVpbxUserUidInDialplan, normalizePhonebookBehaviorType } from '@krasterisk/shared';
+import type { ITimeGroupInterval } from '@krasterisk/shared';
 import { Route } from './route.model';
 import { RoutePhonebookBinding } from '../phonebooks/route-phonebook-binding.model';
 import { RoutePhonebook } from '../phonebooks/phonebook.model';
 import { PhonebookEntry } from '../phonebooks/phonebook-entry.model';
+import { TimeGroupsService } from '../time-groups/time-groups.service';
 import { AsteriskDialplanUtils } from '../../shared/utils/dialplan.util';
 
 /** Binding payload accepted from CreateRouteDto/UpdateRouteDto (bindings field). */
@@ -39,6 +41,7 @@ export class RoutesService {
     @InjectModel(Route) private routeModel: typeof Route,
     @InjectModel(RoutePhonebookBinding) private bindingModel: typeof RoutePhonebookBinding,
     @InjectModel(RoutePhonebook) private phonebookModel: typeof RoutePhonebook,
+    private timeGroupsService: TimeGroupsService,
   ) {}
 
   /** Get all routes for the tenant */
@@ -176,10 +179,33 @@ export class RoutesService {
   }
 
   /**
+   * Format a single TimeGroup interval for ExecIfTime (matches time-groups.service.ts:70-72).
+   */
+  private formatTimeGroupInterval(interval: ITimeGroupInterval): string {
+    const timeExpr = `${interval.time_start}-${interval.time_end}`;
+    return `${timeExpr},${interval.days_of_week},${interval.days_of_month},${interval.months}`;
+  }
+
+  /** Build uid → ExecIfTime interval expressions map from tenant time groups. */
+  private buildTimeGroupIntervalMap(timeGroups: { uid: number; intervals?: ITimeGroupInterval[] }[]): Map<number, string[]> {
+    const map = new Map<number, string[]>();
+    for (const tg of timeGroups) {
+      const exprs = (tg.intervals || []).map((i) => this.formatTimeGroupInterval(i));
+      if (exprs.length) map.set(tg.uid, exprs);
+    }
+    return map;
+  }
+
+  /**
    * Generate raw dialplan text from JSON actions for a single route.
    * This produces Asterisk-compatible dialplan configuration.
    */
-  generateRouteDialplan(route: Route, vpbxUserUid: number, isAdmin: boolean = false): string {
+  generateRouteDialplan(
+    route: Route,
+    vpbxUserUid: number,
+    isAdmin: boolean = false,
+    timeGroupIntervals: Map<number, string[]> = new Map(),
+  ): string {
     const raw = route.raw_dialplan?.trim();
     if (raw) {
       return ensureCdrVpbxUserUidInDialplan(raw, vpbxUserUid);
@@ -297,10 +323,34 @@ export class RoutesService {
       }
 
       // --- Actions ---
+      // Collect distinct time_group_uid values and emit inline ExecIfTime guards once per uid (D-19)
+      const guardedUids = new Set<number>();
+      for (const action of actions) {
+        const tgUid = action.condition?.time_group_uid;
+        if (typeof tgUid === 'number') guardedUids.add(tgUid);
+      }
+      for (const uid of guardedUids) {
+        const intervalExprs = timeGroupIntervals.get(uid);
+        if (!intervalExprs?.length) {
+          this.logger.warn(`Route ${route.uid}: time_group_uid ${uid} not found or has no intervals — action unguarded`);
+          lines.push(`same => n,NoOp(Warning: time group ${uid} not found — action unguarded)`);
+          continue;
+        }
+        lines.push(`same => n,Set(__WT_${uid}=0)`);
+        for (const expr of intervalExprs) {
+          lines.push(`same => n,ExecIfTime(${expr}?Set(__WT_${uid}=1))`);
+        }
+      }
+
       // Pass webhooks context so Dial/Queue actions can add U()/gosub for on_answer
       for (const action of actions) {
-        const dp = AsteriskDialplanUtils.actionToDialplan(action, vpbxUserUid, isAdmin, wh);
-        if (dp) lines.push(`same => n,${dp}`);
+        let dp = AsteriskDialplanUtils.actionToDialplan(action, vpbxUserUid, isAdmin, wh);
+        if (!dp) continue;
+        const tgUid = action.condition?.time_group_uid;
+        if (typeof tgUid === 'number' && timeGroupIntervals.get(tgUid)?.length) {
+          dp = `ExecIf($["\${WT_${tgUid}}"="1"]?${dp})`;
+        }
+        lines.push(`same => n,${dp}`);
       }
 
       lines.push(''); // blank line between extensions
@@ -319,6 +369,8 @@ export class RoutesService {
    */
   async generateContextDialplan(contextUid: number, vpbxUserUid: number, contextName: string, includes: string[], isAdmin: boolean = false): Promise<string> {
     const routes = await this.findAllByContext(contextUid, vpbxUserUid);
+    const timeGroups = await this.timeGroupsService.findAll(vpbxUserUid);
+    const timeGroupIntervals = this.buildTimeGroupIntervalMap(timeGroups);
     const lines: string[] = [];
 
     const tenantedContextName = this.buildContextName(contextName, vpbxUserUid);
@@ -336,7 +388,7 @@ export class RoutesService {
     for (const route of routes) {
       if (!route.active) continue;
       lines.push(`; --- ${route.name} ---`);
-      lines.push(this.generateRouteDialplan(route, vpbxUserUid, isAdmin));
+      lines.push(this.generateRouteDialplan(route, vpbxUserUid, isAdmin, timeGroupIntervals));
     }
 
     return lines.join('\n');
