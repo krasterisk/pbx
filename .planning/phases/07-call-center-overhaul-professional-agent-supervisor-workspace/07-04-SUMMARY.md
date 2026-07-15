@@ -83,7 +83,7 @@ Each task was committed atomically:
 3. **Task 3: Nightly rollup + hybrid source** — `aefec25` (feat)
 4. **Task 4: QueueLogReader + reconciler** — `56072d7` (feat)
 
-**Plan metadata:** (docs commit follows)
+**Plan metadata:** `6ba997c` (docs: complete plan)
 
 ## Files Created/Modified
 
