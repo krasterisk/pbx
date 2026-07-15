@@ -6,6 +6,7 @@ import { CallCenterAmiService } from './callcenter-ami.service';
 import { CallCenterService } from './callcenter.service';
 import { CallCenterHistoryWriterService } from './callcenter-history-writer.service';
 import { CallCenterMetricsService } from './callcenter-metrics.service';
+import { CallCenterRollupService } from './callcenter-rollup.service';
 import { CallCenterController } from './callcenter.controller';
 import { CallCenterSseController } from './callcenter-sse.controller';
 import { CcPauseReason } from './models/pause-reason.model';
@@ -45,6 +46,7 @@ import { ServiceRequest } from '../service-requests/service-request.model';
     CallCenterStateService,
     CallCenterHistoryWriterService,
     CallCenterMetricsService,
+    CallCenterRollupService,
     CallCenterAmiService,
     CallCenterService,
   ],
@@ -55,6 +57,7 @@ import { ServiceRequest } from '../service-requests/service-request.model';
   exports: [
     CallCenterStateService,
     CallCenterMetricsService,
+    CallCenterRollupService,
     CallCenterAmiService, // exported so AmiService can resolve it via ModuleRef
     CallCenterService,
   ],
