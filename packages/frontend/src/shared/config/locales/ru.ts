@@ -82,6 +82,9 @@ export const ru = {
     cdr: 'Журнал звонков (CDR)',
     voiceRobotCdr: 'Журнал роботов (CDR)',
     serviceRequests: 'Заявки клиентов',
+    wallboard: 'Wallboard',
+    ccReports: 'Отчёты КЦ',
+    ccSettings: 'Настройки КЦ',
   },
 
   recording: {
@@ -1947,6 +1950,18 @@ export const ru = {
       agentCalls: 'Звонков',
       agentPauseReason: 'Причина паузы',
       agentCurrentCall: 'Текущий звонок',
+    },
+    settings: {
+      title: 'Настройки колл-центра',
+      subtitle: 'Шаблоны карточек, паузы, пороги алертов и параметры операторов',
+      placeholder: 'Раздел в разработке',
+      tabs: {
+        cardTemplates: 'Шаблоны карточек',
+        pauseReasons: 'Причины пауз',
+        alertThresholds: 'Пороги алертов',
+        operatorSettings: 'Настройки операторов',
+        displayTokens: 'Display-токены',
+      },
     },
     // ─── Transfer Modal ────────────────────────────
     transfer: {

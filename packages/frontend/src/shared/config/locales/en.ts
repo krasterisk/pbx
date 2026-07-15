@@ -82,6 +82,9 @@ export const en = {
     cdr: 'Call log (CDR)',
     voiceRobotCdr: 'Voice robot log (CDR)',
     serviceRequests: 'Service requests',
+    wallboard: 'Wallboard',
+    ccReports: 'Call Center Reports',
+    ccSettings: 'Call Center Settings',
   },
 
   recording: {
@@ -1903,6 +1906,18 @@ export const en = {
       agentCalls: 'Calls',
       agentPauseReason: 'Pause reason',
       agentCurrentCall: 'Current call',
+    },
+    settings: {
+      title: 'Call Center Settings',
+      subtitle: 'Card templates, pause reasons, alert thresholds, and operator parameters',
+      placeholder: 'Section in development',
+      tabs: {
+        cardTemplates: 'Card Templates',
+        pauseReasons: 'Pause Reasons',
+        alertThresholds: 'Alert Thresholds',
+        operatorSettings: 'Operator Settings',
+        displayTokens: 'Display Tokens',
+      },
     },
     transfer: {
       title: 'Transfer Call',
