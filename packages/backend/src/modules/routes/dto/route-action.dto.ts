@@ -19,7 +19,8 @@ const ValidDialstatuses = [
 const MatchModesList = ['on_match', 'on_no_match'];
 
 const BehaviorTypesList = [
-  'set_name', 'set_number', 'blacklist', 'whitelist',
+  'set_name', 'set_number', 'drop',
+  'blacklist', 'whitelist', // legacy aliases accepted, normalized on save
   'redirect', 'vars_only', 'custom',
 ];
 

@@ -153,7 +153,7 @@ describe('PhonebooksAiAdapter', () => {
       routesService.findOne.mockResolvedValue({ uid: 7, context_uid: 1 });
       routesService.update.mockResolvedValue({ uid: 7, name: 'R1', context_uid: 1, bindings: [{ uid: 1 }] });
 
-      const bindings = [{ phonebook_uid: 5, position: 0, match_mode: 'on_match', behavior_type: 'blacklist' }];
+      const bindings = [{ phonebook_uid: 5, position: 0, match_mode: 'on_match', behavior_type: 'drop' }];
       const result = await getTool('update_route').handler({ uid: 7, bindings }, 100);
 
       expect(routesService.update).toHaveBeenCalledWith(7, expect.objectContaining({ bindings }), 100);

@@ -137,11 +137,39 @@
 
 .varKeyWrapper {
   flex: 1 1 160px;
-  min-width: 160px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.varKeySelect {
+  width: 100%;
+  height: 2.25rem;
+  font-size: 0.8125rem;
+}
+
+.varKeyHintRow {
+  padding: 0 0.75rem 0.5rem;
+  border-top: none;
+  background: color-mix(in srgb, var(--color-muted) 20%, transparent);
 }
 
 .varKeyHint {
   color: var(--color-muted-foreground);
   font-size: 0.75rem;
   line-height: 1.3;
+}
+
+.varKeyWarn {
+  color: var(--color-warning, #b45309);
+  font-size: 0.75rem;
+  line-height: 1.3;
+}
+
+.behaviorHint {
+  padding: 0.5rem 0.75rem;
+  border-top: 1px solid color-mix(in srgb, var(--color-border) 50%, transparent);
+  background: color-mix(in srgb, var(--color-muted) 20%, transparent);
+  color: var(--color-muted-foreground);
+  font-size: 0.8125rem;
+  line-height: 1.4;
 }

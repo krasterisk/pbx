@@ -187,6 +187,49 @@ describe('PhonebooksService', () => {
   });
 
   // ═══════════════════════════════════════════════════════════
+  // lookupNumber — response aligned to the dialplan's CUT() layout
+  // ═══════════════════════════════════════════════════════════
+
+  describe('lookupNumber', () => {
+    const makeService = (entries: Array<{ number: string; vars: Record<string, string> | null }>) => {
+      const entryModel = {
+        findOne: jest.fn(async ({ where }: any) =>
+          entries.find((e) => e.number === where.number && !e.number.startsWith('_')) || null),
+        findAll: jest.fn(async ({ where }: any) => {
+          // Pattern query filters number LIKE '_%'; the all-keys query has no number filter
+          if (where.number) return entries.filter((e) => e.number.startsWith('_'));
+          return entries;
+        }),
+      };
+      return new PhonebooksService({} as any, entryModel as any);
+    };
+
+    it('emits values in sorted-union key order so CUT() positions match the generated dialplan', async () => {
+      const svc = makeService([
+        { number: '101', vars: { name: 'Ivanov', clid: '79123456780' } }, // JSON order: name before clid
+        { number: '102', vars: { clid: '79123456781' } },
+      ]);
+
+      // Sorted union: [clid, name] — dialplan reads PB_clid at CUT pos 3, PB_name at pos 5
+      expect(await svc.lookupNumber(5, '101')).toBe('1|clid|79123456780|name|Ivanov');
+    });
+
+    it('fills empty values for union keys the matched entry lacks (no position shift)', async () => {
+      const svc = makeService([
+        { number: '101', vars: { name: 'Ivanov', clid: '79123456780' } },
+        { number: '102', vars: { clid: '79123456781' } }, // no "name"
+      ]);
+
+      expect(await svc.lookupNumber(5, '102')).toBe('1|clid|79123456781|name|');
+    });
+
+    it('returns "0" when nothing matches', async () => {
+      const svc = makeService([{ number: '101', vars: { clid: '79123456780' } }]);
+      expect(await svc.lookupNumber(5, '999')).toBe('0');
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════
   // CSV Import Parsing (via detectSeparator)
   // ═══════════════════════════════════════════════════════════
 
@@ -233,7 +276,7 @@ describe('PhonebooksService', () => {
       uid: 42,
       behavior_type: 'set_name',
       match_mode: 'on_match',
-      behavior_params: null,
+      behavior_params: { var_key: 'name' },
       actions: null,
       ...overrides,
     }) as any;
@@ -259,7 +302,7 @@ describe('PhonebooksService', () => {
     });
 
     it('inverts GotoIf and omits Set(PB_<key>) lines for match_mode=on_no_match (D-24)', () => {
-      const binding = baseBinding({ match_mode: 'on_no_match', behavior_type: 'blacklist' });
+      const binding = baseBinding({ match_mode: 'on_no_match', behavior_type: 'drop' });
       const result = service.generateBindingDialplan(binding, phonebook, 100, 'sip-in100', false);
       const joined = result.lines.join('\n');
 
@@ -303,16 +346,18 @@ describe('PhonebooksService', () => {
         expect(result.lines.join('\n')).toContain('ExecIf($["${PB_clid}" != ""]?Set(CALLERID(num)=${PB_clid}))');
       });
 
-      it('blacklist emits Hangup()', () => {
-        const binding = baseBinding({ behavior_type: 'blacklist' });
+      it('drop emits Hangup()', () => {
+        const binding = baseBinding({ behavior_type: 'drop' });
         const result = service.generateBindingDialplan(binding, phonebook, 100, 'sip-in100', false);
         expect(result.lines.join('\n')).toContain('Hangup()');
       });
 
-      it('whitelist also emits Hangup() (UI is expected to force match_mode=on_no_match)', () => {
-        const binding = baseBinding({ behavior_type: 'whitelist', match_mode: 'on_no_match' });
-        const result = service.generateBindingDialplan(binding, phonebook, 100, 'sip-in100', false);
-        expect(result.lines.join('\n')).toContain('Hangup()');
+      it('legacy blacklist/whitelist aliases also emit Hangup()', () => {
+        for (const legacy of ['blacklist', 'whitelist'] as const) {
+          const binding = baseBinding({ behavior_type: legacy, match_mode: legacy === 'whitelist' ? 'on_no_match' : 'on_match' });
+          const result = service.generateBindingDialplan(binding, phonebook, 100, 'sip-in100', false);
+          expect(result.lines.join('\n')).toContain('Hangup()');
+        }
       });
 
       it('redirect with fixed_exten emits a direct Goto', () => {
@@ -322,9 +367,20 @@ describe('PhonebooksService', () => {
       });
 
       it('redirect with var_key emits ExecIf Goto against the route tenanted context', () => {
-        const binding = baseBinding({ behavior_type: 'redirect', behavior_params: {} });
+        const binding = baseBinding({ behavior_type: 'redirect', behavior_params: { var_key: 'redirect' } });
         const result = service.generateBindingDialplan(binding, phonebook, 100, 'sip-in100', false);
         expect(result.lines.join('\n')).toContain('ExecIf($["${PB_redirect}" != ""]?Goto(sip-in100,${PB_redirect},1))');
+      });
+
+      it('var-based presets emit NO action lines without an explicit var_key (no hardcoded key-name defaults)', () => {
+        for (const behaviorType of ['set_name', 'set_number', 'redirect'] as const) {
+          const binding = baseBinding({ behavior_type: behaviorType, behavior_params: {} });
+          const result = service.generateBindingDialplan(binding, phonebook, 100, 'sip-in100', false);
+          const joined = result.lines.join('\n');
+          expect(joined).not.toContain('CALLERID(name)=');
+          expect(joined).not.toContain('CALLERID(num)=');
+          expect(joined).not.toContain('Goto(');
+        }
       });
 
       it('custom renders each action via actionToDialplan', () => {

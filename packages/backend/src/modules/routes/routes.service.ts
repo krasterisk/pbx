@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { ensureCdrVpbxUserUidInDialplan } from '@krasterisk/shared';
+import { ensureCdrVpbxUserUidInDialplan, normalizePhonebookBehaviorType } from '@krasterisk/shared';
 import { Route } from './route.model';
 import { RoutePhonebookBinding } from '../phonebooks/route-phonebook-binding.model';
 import { RoutePhonebook } from '../phonebooks/phonebook.model';
@@ -17,7 +17,7 @@ export interface RouteBindingInput {
 }
 
 // Bindings + their phonebook (with entries, for var-key based dialplan generation),
-// ordered by position ASC (Pitfall 8 — blacklist before VIP, etc.).
+// ordered by position ASC (Pitfall 8 — drop-on-match before VIP, etc.).
 const BINDING_INCLUDE = {
   model: RoutePhonebookBinding,
   as: 'bindings',
@@ -94,7 +94,7 @@ export class RoutesService {
           phonebook_uid: b.phonebook_uid,
           position: index,
           match_mode: b.match_mode || 'on_match',
-          behavior_type: b.behavior_type || 'vars_only',
+          behavior_type: normalizePhonebookBehaviorType(b.behavior_type),
           behavior_params: b.behavior_params ?? null,
           actions: b.actions ?? null,
           user_uid: vpbxUserUid,

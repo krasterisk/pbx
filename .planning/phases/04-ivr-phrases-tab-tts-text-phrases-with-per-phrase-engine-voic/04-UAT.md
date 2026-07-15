@@ -2,16 +2,15 @@
 status: testing
 phase: 04-ivr-phrases-tab-tts-text-phrases-with-per-phrase-engine-voic
 source: 04-01-SUMMARY.md, 04-02-SUMMARY.md, 04-03-SUMMARY.md
-started: 2026-06-16T04:30:00.000Z
-updated: 2026-06-16T04:30:00.000Z
+started: 2026-07-14T07:04:04.000Z
+updated: 2026-07-14T07:04:04.000Z
 ---
 
 ## Current Test
 
 number: 1
 name: Open IVR modal — Phrases tab with audio + TTS modes
-expected: |
-  /ivrs → edit/create IVR → tab «Фразы» shows phrase list with ability to add «Запись» (audio from prompts) and «TTS» (text phrase) rows; UI readable, not merged with background.
+expected: /ivrs → create/edit IVR → tab «Фразы» shows phrase list with add «Запись» (audio) and «TTS» (text); section has visible panel/border, not merged with background.
 awaiting: user response
 
 ## Tests
@@ -37,8 +36,8 @@ expected: After apply dialplan, test call to IVR plays audio prompts then TTS ph
 result: pending
 
 ### 6. Technical — backend unit tests
-expected: npm run test:backend passes; ivrs.service.spec.ts covers phrase/dialplan logic.
-result: pass
+expected: npm run test:backend passes; ivrs phrase/dialplan logic covered.
+result: pending
 
 ### 7. Technical — frontend unit tests (IVR prompts)
 expected: IvrPromptsEditor-related tests pass if present.
@@ -47,9 +46,9 @@ result: pending
 ## Summary
 
 total: 7
-passed: 1
+passed: 0
 issues: 0
-pending: 6
+pending: 7
 skipped: 0
 blocked: 0
 

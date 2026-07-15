@@ -91,6 +91,7 @@ import { ServiceRequest } from './modules/service-requests/service-request.model
 import { TimeGroup } from './modules/time-groups/time-group.model';
 import { RoutePhonebook } from './modules/phonebooks/phonebook.model';
 import { PhonebookEntry } from './modules/phonebooks/phonebook-entry.model';
+import { RoutePhonebookBinding } from './modules/phonebooks/route-phonebook-binding.model';
 import { CcSubject } from './modules/service-requests/cc-subject.model';
 import { CcDistrict } from './modules/service-requests/cc-district.model';
 import * as path from 'path';
@@ -121,7 +122,7 @@ import * as path from 'path';
         CcPauseReason, CcAgentSession, CcAgentEvent, CcAgentQueue, CcMissedCall,
         CcAiAgent, CcAiProvider, CcAiToolset, CcAiCdr, CcAiBilling, CcAiInvoice, CcAiAuditLog,
         TimeGroup,
-        RoutePhonebook, PhonebookEntry,
+        RoutePhonebook, PhonebookEntry, RoutePhonebookBinding,
         // Cloud-admin
         Tenant, ModuleRegistry, TenantModule, CloudSetting,
         BillingBalance, BillingTransaction,

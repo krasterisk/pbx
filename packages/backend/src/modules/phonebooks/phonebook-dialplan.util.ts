@@ -105,7 +105,11 @@ function generateBehaviorLines(
         const fixed = AsteriskDialplanUtils.sanitizeDialplanInput(params.fixed);
         return [`Set(CALLERID(name)=${fixed})`];
       }
-      const varKey = AsteriskDialplanUtils.sanitizeDialplanInput(params.var_key) || 'name';
+      // No hardcoded key-name convention: var_key must be chosen explicitly in
+      // the UI (from real entry vars). Without it there is nothing to read —
+      // emit no action rather than referencing a variable that may not exist.
+      const varKey = AsteriskDialplanUtils.sanitizeDialplanInput(params.var_key);
+      if (!varKey) return [];
       return [`ExecIf($["\${PB_${varKey}}" != ""]?Set(CALLERID(name)=\${PB_${varKey}}))`];
     }
     case 'set_number': {
@@ -113,13 +117,13 @@ function generateBehaviorLines(
         const fixed = AsteriskDialplanUtils.sanitizeDialplanInput(params.fixed);
         return [`Set(CALLERID(num)=${fixed})`];
       }
-      const varKey = AsteriskDialplanUtils.sanitizeDialplanInput(params.var_key) || 'clid';
+      const varKey = AsteriskDialplanUtils.sanitizeDialplanInput(params.var_key);
+      if (!varKey) return [];
       return [`ExecIf($["\${PB_${varKey}}" != ""]?Set(CALLERID(num)=\${PB_${varKey}}))`];
     }
-    case 'blacklist':
-    case 'whitelist':
-      // whitelist relies on the UI forcing match_mode=on_no_match — the generator
-      // does not force this itself (Open Question #2 in 05-RESEARCH.md).
+    case 'drop':
+    case 'blacklist': // legacy alias → drop
+    case 'whitelist': // legacy alias → drop
       return ['Hangup()'];
     case 'redirect': {
       const ctx = AsteriskDialplanUtils.sanitizeDialplanInput(params.target_context) || routeTenantedContext;
@@ -127,7 +131,8 @@ function generateBehaviorLines(
         const fixedExten = AsteriskDialplanUtils.sanitizeDialplanInput(params.fixed_exten);
         return [`Goto(${ctx},${fixedExten},1)`];
       }
-      const varKey = AsteriskDialplanUtils.sanitizeDialplanInput(params.var_key) || 'redirect';
+      const varKey = AsteriskDialplanUtils.sanitizeDialplanInput(params.var_key);
+      if (!varKey) return [];
       return [`ExecIf($["\${PB_${varKey}}" != ""]?Goto(${ctx},\${PB_${varKey}},1))`];
     }
     case 'vars_only':

@@ -115,19 +115,54 @@ describe('RoutePhonebooksTab', () => {
     expect(screen.getByTestId('dialplan-apps-editor')).toBeInTheDocument();
   });
 
-  it('shows var_key/fixed_exten fields when behavior_type is redirect', () => {
+  it('shows a disabled var-key select and a warning hint for redirect when the phonebook has no vars', () => {
     render(<Harness initial={[twoBindings[0]]} />);
 
     const behaviorSelect = screen.getByDisplayValue('vars_only');
     fireEvent.change(behaviorSelect, { target: { value: 'redirect' } });
 
-    expect(screen.getByPlaceholderText('redirect')).toBeInTheDocument();
+    expect(screen.getByText('Нет переменных в справочнике')).toBeInTheDocument();
+    expect(screen.getByText(/В справочнике нет переменных/)).toBeInTheDocument();
+  });
+
+  it('auto-selects the only available var key and shows the dynamic-value hint', () => {
+    const pbWithVars = {
+      ...mockPhonebooks[0],
+      entries: [{ number: '101', vars: { external: '79123456780' } }],
+    };
+    render(<Harness initial={[{ ...twoBindings[0], phonebook: pbWithVars as any }]} />);
+
+    const behaviorSelect = screen.getByDisplayValue('vars_only');
+    fireEvent.change(behaviorSelect, { target: { value: 'set_number' } });
+
+    // The single real key "external" is auto-selected — no hardcoded clid/name defaults.
+    expect(screen.getByDisplayValue('external')).toBeInTheDocument();
+    expect(screen.getByText(/берётся из записи справочника/)).toBeInTheDocument();
+  });
+
+  it('requires an explicit var key choice when several keys exist', () => {
+    const pbWithVars = {
+      ...mockPhonebooks[0],
+      entries: [{ number: '101', vars: { external: '79123456780', name: 'Ivanov' } }],
+    };
+    render(<Harness initial={[{ ...twoBindings[0], phonebook: pbWithVars as any }]} />);
+
+    const behaviorSelect = screen.getByDisplayValue('vars_only');
+    fireEvent.change(behaviorSelect, { target: { value: 'set_number' } });
+
+    expect(screen.getByText('Выберите переменную, иначе действие не сработает')).toBeInTheDocument();
+
+    const varKeySelect = screen.getByDisplayValue('Выберите переменную');
+    fireEvent.change(varKeySelect, { target: { value: 'external' } });
+
+    expect(screen.getByDisplayValue('external')).toBeInTheDocument();
+    expect(screen.getByText(/берётся из записи справочника/)).toBeInTheDocument();
   });
 
   it('narrows the preset list when match_mode is switched to on_no_match', () => {
     render(<Harness initial={[twoBindings[0]]} />);
 
-    const matchModeSelect = screen.getByDisplayValue('При совпадении') as HTMLSelectElement;
+    const matchModeSelect = screen.getByDisplayValue('Номер в справочнике') as HTMLSelectElement;
     fireEvent.change(matchModeSelect, { target: { value: 'on_no_match' } });
 
     // The binding row's own div wraps both selects as siblings.
@@ -137,6 +172,6 @@ describe('RoutePhonebooksTab', () => {
 
     expect(options).not.toContain('vars_only');
     expect(options).not.toContain('set_number');
-    expect(options).toEqual(['set_name', 'blacklist', 'whitelist', 'redirect', 'custom']);
+    expect(options).toEqual(['set_name', 'drop', 'redirect', 'custom']);
   });
 });

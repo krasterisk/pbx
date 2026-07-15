@@ -62,15 +62,14 @@ export class PhonebooksAiAdapter implements DomainAiAdapter, OnModuleInit {
 - Привязка (binding) на маршруте определяет поведение: phonebook_uid + position + match_mode + behavior_type
 - match_mode: on_match (номер найден в справочнике) | on_no_match (номер НЕ найден)
 - 7 пресетов behavior_type:
-  • set_name — установить CallerID(name) из var
-  • set_number — подменить CallerID(num) (fixed или из var)
-  • blacklist — сбросить звонок (Hangup), обычно match_mode=on_match
-  • whitelist — сбросить звонок если НЕ найден (match_mode=on_no_match)
+  • set_name — установить CallerID(name) из var (behavior_params.var_key обязателен, либо fixed)
+  • set_number — подменить CallerID(num) (behavior_params.var_key обязателен, либо fixed)
+  • drop — сбросить звонок (Hangup) при срабатывании условия; match_mode=on_match → чёрный список, on_no_match → белый список
   • redirect — переадресовать на другой extension (fixed или из var)
   • custom — произвольные dialplan-actions
   • vars_only — только установить PB_<key> переменные, без побочных эффектов
 - Один справочник можно привязать к нескольким маршрутам с разной политикой
-- Порядок биндингов ВАЖЕН (position ASC): blacklist должен идти РАНЬШЕ VIP-приветствия
+- Порядок биндингов ВАЖЕН (position ASC): drop-on-match (чёрный список) должен идти РАНЬШЕ VIP-приветствия
 - Полные записи справочника — только через list_phonebook_entries (list_phonebooks даёт лишь сводку)`;
   }
 
@@ -281,7 +280,7 @@ export class PhonebooksAiAdapter implements DomainAiAdapter, OnModuleInit {
   private toolUpdateRoute(): AiToolDefinition {
     return {
       name: 'update_route',
-      description: 'Изменяет маршрут (name, extensions, actions, options, active, bindings к справочникам). bindings полностью заменяет текущие привязки и может удалить/переадресовать вызовы — деструктивная операция. bindings: [{phonebook_uid, position, match_mode: on_match|on_no_match, behavior_type: set_name|set_number|blacklist|whitelist|redirect|custom|vars_only, behavior_params?, actions?}].',
+      description: 'Изменяет маршрут (name, extensions, actions, options, active, bindings к справочникам). bindings полностью заменяет текущие привязки и может удалить/переадресовать вызовы — деструктивная операция. bindings: [{phonebook_uid, position, match_mode: on_match|on_no_match, behavior_type: set_name|set_number|drop|redirect|custom|vars_only, behavior_params?, actions?}]. Чёрный список: match_mode=on_match + drop. Белый список: match_mode=on_no_match + drop. Для set_name/set_number/redirect по переменной ОБЯЗАТЕЛЕН behavior_params.var_key — имя ключа из vars записей справочника (сначала проверь ключи через list_phonebook_entries); без var_key действие не генерируется. Альтернатива — behavior_params.fixed (фикс. значение) или fixed_exten (для redirect).',
       inputSchema: {
         uid: { type: 'number', description: 'UID маршрута' },
         name: { type: 'string' },

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import * as Dialog from '@radix-ui/react-dialog';
-import { X } from 'lucide-react';
+import { X, Key, Globe } from 'lucide-react';
 import { Button, Input, InfoTooltip } from '@/shared/ui';
 import { VStack, HStack, Flex } from '@/shared/ui/Stack';
 import { useAppSelector, useAppDispatch } from '@/shared/hooks/useAppStore';
@@ -206,26 +206,32 @@ export const TrunkFormModal = () => {
           </HStack>
 
           {/* Tabs */}
-          <HStack gap="4" className="border-b border-border mb-6 shrink-0 overflow-x-auto flex-nowrap pb-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-            {[
-              { id: 'basic', label: t('trunks.tabBasic', 'Основные') },
-              { id: 'auth', label: t('trunks.tabAuth', 'Подключение') },
-              { id: 'network', label: t('trunks.tabNetwork', 'Сеть') },
-              { id: 'advanced', label: t('trunks.tabAdvanced', 'Расширенные') },
-            ].map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`py-2 px-1 text-sm font-medium border-b-2 transition-colors whitespace-nowrap shrink-0 ${
-                  activeTab === tab.id
-                    ? 'border-primary text-primary'
-                    : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </HStack>
+          <VStack className="border-b border-border/50 mb-6 shrink-0" max>
+            <HStack gap="8" className="-mb-[1px] flex overflow-x-auto flex-nowrap [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+              {[
+                { id: 'basic', label: t('trunks.tabBasic', 'Основные') },
+                { id: 'auth', label: t('trunks.tabAuth', 'Подключение') },
+                { id: 'network', label: t('trunks.tabNetwork', 'Сеть') },
+                { id: 'advanced', label: t('trunks.tabAdvanced', 'Расширенные') },
+              ].map(tab => (
+                <Button
+                  key={tab.id}
+                  variant="ghost"
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={`relative py-3 px-1 rounded-none text-sm font-medium transition-colors whitespace-nowrap shrink-0 outline-none ${
+                    activeTab === tab.id
+                      ? 'text-primary bg-transparent hover:bg-transparent hover:text-primary'
+                      : 'text-muted-foreground bg-transparent hover:text-foreground hover:bg-transparent'
+                  }`}
+                >
+                  {tab.label}
+                  {activeTab === tab.id && (
+                    <VStack className="absolute left-0 right-0 bottom-0 h-[2px] bg-primary rounded-t-[1px]">{''}</VStack>
+                  )}
+                </Button>
+              ))}
+            </HStack>
+          </VStack>
 
           <div className="flex-1 overflow-y-auto pr-1">
             {activeTab === 'basic' && (
@@ -258,25 +264,27 @@ export const TrunkFormModal = () => {
                       type="button"
                       disabled={!isCreateMode}
                       onClick={() => setTrunkType('auth')}
-                      className={`px-4 py-2 rounded-lg text-sm border transition-all ${
+                      className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm border transition-all ${
                         trunkType === 'auth'
                           ? 'border-primary bg-primary/10 text-primary'
                           : 'border-border text-muted-foreground hover:bg-accent hover:text-accent-foreground'
                       } ${!isCreateMode ? 'opacity-60 cursor-not-allowed' : ''}`}
                     >
-                      🔑 {t('trunks.typeAuth')}
+                      <Key className="w-4 h-4 shrink-0" />
+                      {t('trunks.typeAuth')}
                     </button>
                     <button
                       type="button"
                       disabled={!isCreateMode}
                       onClick={() => setTrunkType('ip')}
-                      className={`px-4 py-2 rounded-lg text-sm border transition-all ${
+                      className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm border transition-all ${
                         trunkType === 'ip'
                           ? 'border-primary bg-primary/10 text-primary'
                           : 'border-border text-muted-foreground hover:bg-accent hover:text-accent-foreground'
                       } ${!isCreateMode ? 'opacity-60 cursor-not-allowed' : ''}`}
                     >
-                      🌐 {t('trunks.typeIp')}
+                      <Globe className="w-4 h-4 shrink-0" />
+                      {t('trunks.typeIp')}
                     </button>
                   </HStack>
                   <p className="text-[11px] text-muted-foreground">

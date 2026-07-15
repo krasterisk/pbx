@@ -317,6 +317,12 @@ export class PhonebooksService {
    *
    * Format: <match>|<key1>|<val1>|<key2>|<val2>|...
    * If no match: "0"
+   *
+   * Keys are emitted as the SORTED UNION of var keys across the whole phonebook
+   * (same rule as collectAllVarKeys at dialplan generation time), with an empty
+   * value when the matched entry lacks a key. This keeps CUT() positions in the
+   * generated dialplan aligned with the response regardless of which entry
+   * matched or the JSON key order it was stored with.
    */
   async lookupNumber(phonebookUid: number, callerIdNumber: string): Promise<string> {
     // 1. Try exact match first (fast, uses index)
@@ -345,10 +351,18 @@ export class PhonebooksService {
 
     if (!entry) return '0';
 
+    // Align key positions with the dialplan's CUT() layout: sorted union of
+    // keys across ALL entries, not just the matched one (see docblock above).
+    const allEntries = await this.entryModel.findAll({
+      where: { phonebook_uid: phonebookUid },
+      attributes: ['vars'],
+    });
+    const allKeys = collectAllVarKeysUtil(allEntries);
+
     const parts: string[] = ['1'];
     const vars = entry.vars || {};
-    for (const [key, value] of Object.entries(vars)) {
-      parts.push(key, value || '');
+    for (const key of allKeys) {
+      parts.push(key, vars[key] || '');
     }
 
     return parts.join('|');

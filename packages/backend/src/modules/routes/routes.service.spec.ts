@@ -64,7 +64,7 @@ describe('RoutesService', () => {
       phonebookModel.count.mockResolvedValueOnce(2);
 
       const bindings = [
-        { phonebook_uid: 10, match_mode: 'on_match', behavior_type: 'blacklist' },
+        { phonebook_uid: 10, match_mode: 'on_match', behavior_type: 'drop' },
         { phonebook_uid: 20, match_mode: 'on_match', behavior_type: 'set_name' },
       ];
       await service.update(5, { bindings } as any, 100);
@@ -74,6 +74,20 @@ describe('RoutesService', () => {
       expect(created[0].phonebook_uid).toBe(10);
       expect(created[1].position).toBe(1);
       expect(created[1].phonebook_uid).toBe(20);
+    });
+
+    it('normalizes legacy blacklist/whitelist behavior_type to drop on save', async () => {
+      const existingRoute = { uid: 5, context_uid: 1, update: jest.fn().mockResolvedValue(undefined) };
+      routeModel.findOne
+        .mockResolvedValueOnce(existingRoute)
+        .mockResolvedValueOnce({ uid: 5, bindings: [] });
+      phonebookModel.count.mockResolvedValueOnce(1);
+
+      await service.update(5, {
+        bindings: [{ phonebook_uid: 10, match_mode: 'on_match', behavior_type: 'blacklist' }],
+      } as any, 100);
+
+      expect(bindingModel.bulkCreate.mock.calls[0][0][0].behavior_type).toBe('drop');
     });
 
     it('rejects bindings referencing a phonebook from another tenant, without touching bindingModel', async () => {

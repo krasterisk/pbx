@@ -146,9 +146,18 @@ export const RouteFormModal = memo(() => {
       route_type: routeType || undefined,
     };
 
-    // Bindings sent as-is (positions are already kept in sync with array order by RoutePhonebooksTab);
-    // always included (even empty) so removing all bindings actually clears them server-side (Pitfall 8).
-    const bindingsPayload = bindings.map(({ phonebook, ...b }) => b);
+    // Only DTO fields: server-side props from GET (uid, route_uid, user_uid, timestamps)
+    // are rejected by the global ValidationPipe (forbidNonWhitelisted). Replace-all
+    // strategy reassigns them anyway. Always included (even empty) so removing all
+    // bindings actually clears them server-side (Pitfall 8).
+    const bindingsPayload = bindings.map((b, index) => ({
+      phonebook_uid: b.phonebook_uid,
+      position: index,
+      match_mode: b.match_mode,
+      behavior_type: b.behavior_type,
+      behavior_params: b.behavior_params ?? undefined,
+      actions: b.actions ?? undefined,
+    }));
 
     const webhooksPayload: any = {};
     webhooksList.forEach(w => {

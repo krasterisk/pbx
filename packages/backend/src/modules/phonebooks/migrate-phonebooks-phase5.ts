@@ -18,7 +18,13 @@ dotenv.config({ path: path.resolve(__dirname, '../../../../../.env') });
  * 3. ALTER route_phonebooks DROP invert, actions — behavior moves to bindings (D-04).
  *    No data conversion needed — D-07: no phonebooks exist in production yet.
  *
- * Run: npx ts-node src/modules/phonebooks/migrate-phonebooks-phase5.ts (from packages/backend)
+ * Run (automated):
+ *   npx ts-node src/modules/phonebooks/migrate-phonebooks-phase5.ts (from packages/backend)
+ *
+ * Run (manual SQL):
+ *   mysql  — migrations/mysql/005-phase5-phonebooks-bindings.sql
+ *   psql   — migrations/postgres/005-phase5-phonebooks-bindings.sql
+ *   See migrations/README.md
  */
 async function main() {
   const sequelize = new Sequelize({

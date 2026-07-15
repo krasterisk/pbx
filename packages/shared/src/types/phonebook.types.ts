@@ -25,8 +25,7 @@ export type PhonebookMatchMode = 'on_match' | 'on_no_match';
  * Behavior preset for a route<->phonebook binding.
  * - set_name: CALLERID(name) = PB_<var_key>
  * - set_number: CALLERID(num) = PB_<var_key> or a fixed value
- * - blacklist: Hangup()
- * - whitelist: Hangup() (UI forces match_mode=on_no_match)
+ * - drop: Hangup() when the binding condition fires (match_mode defines when)
  * - redirect: Goto(target_context, PB_<var_key> or fixed_exten, 1)
  * - vars_only: PB_* vars are set, no further action
  * - custom: renders binding.actions via AsteriskDialplanUtils.actionToDialplan
@@ -34,11 +33,16 @@ export type PhonebookMatchMode = 'on_match' | 'on_no_match';
 export type PhonebookBehaviorType =
   | 'set_name'
   | 'set_number'
-  | 'blacklist'
-  | 'whitelist'
+  | 'drop'
   | 'redirect'
   | 'vars_only'
   | 'custom';
+
+/** Map legacy blacklist/whitelist presets to drop (same Hangup() dialplan). */
+export function normalizePhonebookBehaviorType(type?: string | null): PhonebookBehaviorType {
+  if (type === 'blacklist' || type === 'whitelist') return 'drop';
+  return (type as PhonebookBehaviorType) || 'vars_only';
+}
 
 export interface IPhonebookBehaviorParams {
   /** Var key to read from the matched entry (e.g. "name", "clid", "redirect") */

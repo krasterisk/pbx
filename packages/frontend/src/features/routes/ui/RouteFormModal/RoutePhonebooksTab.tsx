@@ -1,4 +1,4 @@
-import { memo, useCallback, useState } from 'react';
+import { memo, useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronUp, ChevronDown, Trash2, Plus, BookOpen } from 'lucide-react';
 import { Button, Input, Select, Text, InfoTooltip } from '@/shared/ui';
@@ -12,6 +12,7 @@ import type {
   PhonebookMatchMode,
   PhonebookBehaviorType,
 } from '@krasterisk/shared';
+import { normalizePhonebookBehaviorType } from '@krasterisk/shared';
 import cls from './RoutePhonebooksTab.module.scss';
 
 /**
@@ -33,25 +34,32 @@ export interface RoutePhonebooksTabProps {
   setBindings: (bindings: IRoutePhonebookBinding[]) => void;
 }
 
-/** All behavior presets, in select order (D-06). */
-const ALL_BEHAVIOR_TYPES: PhonebookBehaviorType[] = [
-  'set_name', 'set_number', 'blacklist', 'whitelist', 'redirect', 'vars_only', 'custom',
+/** Presets available when the caller IS found in the phonebook (on_match). */
+const ON_MATCH_BEHAVIORS: PhonebookBehaviorType[] = [
+  'set_name', 'set_number', 'drop', 'redirect', 'vars_only', 'custom',
 ];
 
-/**
- * Presets that stay meaningful with match_mode=on_no_match (D-24): no matched entry
- * means no PB_* vars are available, so var-key-based presets (set_number,
- * set_name-by-var, vars_only) are dropped from the choice — only fixed-value
- * variants and value-independent presets remain.
- */
-const ON_NO_MATCH_ALLOWED = new Set<PhonebookBehaviorType>([
-  'blacklist', 'whitelist', 'redirect', 'set_name', 'custom',
-]);
+/** Presets available when the caller is NOT found (on_no_match). No PB_* vars exist. */
+const ON_NO_MATCH_BEHAVIORS: PhonebookBehaviorType[] = [
+  'set_name', 'drop', 'redirect', 'custom',
+];
+
+const ON_MATCH_BEHAVIOR_SET = new Set(ON_MATCH_BEHAVIORS);
+const ON_NO_MATCH_BEHAVIOR_SET = new Set(ON_NO_MATCH_BEHAVIORS);
 
 function getAvailableBehaviorTypes(matchMode: PhonebookMatchMode): PhonebookBehaviorType[] {
-  return matchMode === 'on_no_match'
-    ? ALL_BEHAVIOR_TYPES.filter((t) => ON_NO_MATCH_ALLOWED.has(t))
-    : ALL_BEHAVIOR_TYPES;
+  return matchMode === 'on_no_match' ? ON_NO_MATCH_BEHAVIORS : ON_MATCH_BEHAVIORS;
+}
+
+/** Pick a valid preset when match_mode changes and the current one is incompatible. */
+function coerceBehaviorForMatchMode(
+  behaviorType: PhonebookBehaviorType,
+  matchMode: PhonebookMatchMode,
+): PhonebookBehaviorType {
+  const normalized = normalizePhonebookBehaviorType(behaviorType);
+  const allowed = matchMode === 'on_no_match' ? ON_NO_MATCH_BEHAVIOR_SET : ON_MATCH_BEHAVIOR_SET;
+  if (allowed.has(normalized)) return normalized;
+  return matchMode === 'on_no_match' ? 'drop' : 'vars_only';
 }
 
 const withPositions = (list: IRoutePhonebookBinding[]): IRoutePhonebookBinding[] =>
@@ -118,27 +126,26 @@ export const RoutePhonebooksTab = memo(({ bindings, setBindings }: RoutePhoneboo
   const handleMatchModeChange = useCallback((index: number, mode: PhonebookMatchMode) => {
     setBindings(bindings.map((b, i) => {
       if (i !== index) return b;
-      let behaviorType = b.behavior_type;
-      let params = b.behavior_params;
-      if (mode === 'on_no_match' && !ON_NO_MATCH_ALLOWED.has(behaviorType)) {
-        behaviorType = 'blacklist';
-        params = null;
-      }
-      return { ...b, match_mode: mode, behavior_type: behaviorType, behavior_params: params };
+      const behaviorType = coerceBehaviorForMatchMode(b.behavior_type, mode);
+      const paramsChanged = behaviorType !== b.behavior_type;
+      return {
+        ...b,
+        match_mode: mode,
+        behavior_type: behaviorType,
+        behavior_params: paramsChanged ? null : b.behavior_params,
+      };
     }));
   }, [bindings, setBindings]);
 
   const handleBehaviorTypeChange = useCallback((index: number, type: PhonebookBehaviorType) => {
     setBindings(bindings.map((b, i) => {
       if (i !== index) return b;
-      const patch: Partial<IRoutePhonebookBinding> = {
+      return {
+        ...b,
         behavior_type: type,
         behavior_params: null,
         actions: type === 'custom' ? (b.actions || []) : null,
       };
-      // whitelist only makes sense on no-match (D-24) — force it so dialplan generation stays consistent
-      if (type === 'whitelist') patch.match_mode = 'on_no_match';
-      return { ...b, ...patch };
     }));
   }, [bindings, setBindings]);
 
@@ -179,13 +186,13 @@ export const RoutePhonebooksTab = memo(({ bindings, setBindings }: RoutePhoneboo
                       value={binding.match_mode}
                       onChange={(e) => handleMatchModeChange(index, e.target.value as PhonebookMatchMode)}
                     >
-                      <option value="on_match">{t('routes.phonebooks.matchMode.on_match', 'При совпадении')}</option>
-                      <option value="on_no_match">{t('routes.phonebooks.matchMode.on_no_match', 'При отсутствии')}</option>
+                      <option value="on_match">{t('routes.phonebooks.matchMode.on_match', 'Номер в справочнике')}</option>
+                      <option value="on_no_match">{t('routes.phonebooks.matchMode.on_no_match', 'Номера нет в справочнике')}</option>
                     </Select>
 
                     <Select
                       className={cls.behaviorSelect}
-                      value={binding.behavior_type}
+                      value={normalizePhonebookBehaviorType(binding.behavior_type)}
                       onChange={(e) => handleBehaviorTypeChange(index, e.target.value as PhonebookBehaviorType)}
                     >
                       {availableTypes.map((type) => (
@@ -290,7 +297,7 @@ const BindingParamsFields = memo(({ binding, varKeys, onChange }: BindingParamsF
 
   const setParams = (patch: IPhonebookBehaviorParams) => onChange({ behavior_params: patch });
 
-  switch (binding.behavior_type) {
+  switch (normalizePhonebookBehaviorType(binding.behavior_type)) {
     case 'set_name': {
       if (isNoMatch) {
         return (
@@ -309,61 +316,65 @@ const BindingParamsFields = memo(({ binding, varKeys, onChange }: BindingParamsF
       }
       const mode = params.fixed !== undefined ? 'fixed' : 'var';
       return (
-        <HStack gap="8" align="center" className={cls.paramsRow}>
-          <Select
-            className={cls.paramsModeSelect}
-            value={mode}
-            onChange={(e) => setParams(e.target.value === 'fixed' ? { fixed: '' } : { var_key: params.var_key || 'name' })}
-          >
-            <option value="var">{t('routes.phonebooks.params.byVar', 'По переменной')}</option>
-            <option value="fixed">{t('routes.phonebooks.params.byFixed', 'Фикс. значение')}</option>
-          </Select>
-          {mode === 'var' ? (
-            <VarKeyField
-              value={params.var_key}
-              defaultKey="name"
-              availableKeys={varKeys}
-              onChange={(v) => setParams({ var_key: v })}
-            />
-          ) : (
-            <Input
-              className={cls.paramsInput}
-              value={params.fixed || ''}
-              onChange={(e) => setParams({ fixed: e.target.value })}
-              placeholder={t('routes.phonebooks.params.fixedNamePlaceholder', 'Иванов И.И.')}
-            />
-          )}
-        </HStack>
+        <VStack gap="0" max className={cls.paramsRow}>
+          <HStack gap="8" align="center" max>
+            <Select
+              className={cls.paramsModeSelect}
+              value={mode}
+              onChange={(e) => setParams(e.target.value === 'fixed' ? { fixed: '' } : { var_key: params.var_key })}
+            >
+              <option value="var">{t('routes.phonebooks.params.byVar', 'По переменной')}</option>
+              <option value="fixed">{t('routes.phonebooks.params.byFixed', 'Фикс. значение')}</option>
+            </Select>
+            {mode === 'var' ? (
+              <VarKeyField
+                value={params.var_key}
+                availableKeys={varKeys}
+                onChange={(v) => setParams({ var_key: v })}
+              />
+            ) : (
+              <Input
+                className={cls.paramsInput}
+                value={params.fixed || ''}
+                onChange={(e) => setParams({ fixed: e.target.value })}
+                placeholder={t('routes.phonebooks.params.fixedNamePlaceholder', 'Иванов И.И.')}
+              />
+            )}
+          </HStack>
+          {mode === 'var' && <VarKeyStatusHint varKey={params.var_key} availableKeys={varKeys} />}
+        </VStack>
       );
     }
     case 'set_number': {
       const mode = params.fixed !== undefined ? 'fixed' : 'var';
       return (
-        <HStack gap="8" align="center" className={cls.paramsRow}>
-          <Select
-            className={cls.paramsModeSelect}
-            value={mode}
-            onChange={(e) => setParams(e.target.value === 'fixed' ? { fixed: '' } : { var_key: params.var_key || 'clid' })}
-          >
-            <option value="var">{t('routes.phonebooks.params.byVar', 'По переменной')}</option>
-            <option value="fixed">{t('routes.phonebooks.params.byFixed', 'Фикс. значение')}</option>
-          </Select>
-          {mode === 'var' ? (
-            <VarKeyField
-              value={params.var_key}
-              defaultKey="clid"
-              availableKeys={varKeys}
-              onChange={(v) => setParams({ var_key: v })}
-            />
-          ) : (
-            <Input
-              className={cls.paramsInput}
-              value={params.fixed || ''}
-              onChange={(e) => setParams({ fixed: e.target.value })}
-              placeholder="+79001234567"
-            />
-          )}
-        </HStack>
+        <VStack gap="0" max className={cls.paramsRow}>
+          <HStack gap="8" align="center" max>
+            <Select
+              className={cls.paramsModeSelect}
+              value={mode}
+              onChange={(e) => setParams(e.target.value === 'fixed' ? { fixed: '' } : { var_key: params.var_key })}
+            >
+              <option value="var">{t('routes.phonebooks.params.byVar', 'По переменной')}</option>
+              <option value="fixed">{t('routes.phonebooks.params.byFixed', 'Фикс. значение')}</option>
+            </Select>
+            {mode === 'var' ? (
+              <VarKeyField
+                value={params.var_key}
+                availableKeys={varKeys}
+                onChange={(v) => setParams({ var_key: v })}
+              />
+            ) : (
+              <Input
+                className={cls.paramsInput}
+                value={params.fixed || ''}
+                onChange={(e) => setParams({ fixed: e.target.value })}
+                placeholder="+79001234567"
+              />
+            )}
+          </HStack>
+          {mode === 'var' && <VarKeyStatusHint varKey={params.var_key} availableKeys={varKeys} />}
+        </VStack>
       );
     }
     case 'redirect': {
@@ -384,31 +395,33 @@ const BindingParamsFields = memo(({ binding, varKeys, onChange }: BindingParamsF
       }
       const mode = params.fixed_exten !== undefined ? 'fixed' : 'var';
       return (
-        <HStack gap="8" align="center" className={cls.paramsRow}>
-          <Select
-            className={cls.paramsModeSelect}
-            value={mode}
-            onChange={(e) => setParams(e.target.value === 'fixed' ? { fixed_exten: '' } : { var_key: params.var_key || 'redirect' })}
-          >
-            <option value="var">{t('routes.phonebooks.params.byVar', 'По переменной')}</option>
-            <option value="fixed">{t('routes.phonebooks.params.byFixed', 'Фикс. значение')}</option>
-          </Select>
-          {mode === 'var' ? (
-            <VarKeyField
-              value={params.var_key}
-              defaultKey="redirect"
-              availableKeys={varKeys}
-              onChange={(v) => setParams({ var_key: v })}
-            />
-          ) : (
-            <Input
-              className={cls.paramsInput}
-              value={params.fixed_exten || ''}
-              onChange={(e) => setParams({ fixed_exten: e.target.value })}
-              placeholder="200"
-            />
-          )}
-        </HStack>
+        <VStack gap="0" max className={cls.paramsRow}>
+          <HStack gap="8" align="center" max>
+            <Select
+              className={cls.paramsModeSelect}
+              value={mode}
+              onChange={(e) => setParams(e.target.value === 'fixed' ? { fixed_exten: '' } : { var_key: params.var_key })}
+            >
+              <option value="var">{t('routes.phonebooks.params.byVar', 'По переменной')}</option>
+              <option value="fixed">{t('routes.phonebooks.params.byFixed', 'Фикс. значение')}</option>
+            </Select>
+            {mode === 'var' ? (
+              <VarKeyField
+                value={params.var_key}
+                availableKeys={varKeys}
+                onChange={(v) => setParams({ var_key: v })}
+              />
+            ) : (
+              <Input
+                className={cls.paramsInput}
+                value={params.fixed_exten || ''}
+                onChange={(e) => setParams({ fixed_exten: e.target.value })}
+                placeholder="200"
+              />
+            )}
+          </HStack>
+          {mode === 'var' && <VarKeyStatusHint varKey={params.var_key} availableKeys={varKeys} />}
+        </VStack>
       );
     }
     case 'custom':
@@ -420,8 +433,21 @@ const BindingParamsFields = memo(({ binding, varKeys, onChange }: BindingParamsF
           />
         </VStack>
       );
+    case 'drop':
+      return (
+        <Text variant="small" className={cls.behaviorHint}>
+          {t(
+            binding.match_mode === 'on_no_match'
+              ? 'routes.phonebooks.params.dropHintOnNoMatch'
+              : 'routes.phonebooks.params.dropHintOnMatch',
+            binding.match_mode === 'on_no_match'
+              ? 'Номера нет в справочнике — звонок сбрасывается. Пропускаются только номера из списка.'
+              : 'Номер найден в справочнике — звонок сбрасывается. Остальные проходят дальше.',
+          )}
+        </Text>
+      );
     default:
-      // blacklist / whitelist / vars_only — no params (D-26)
+      // vars_only — no params (D-26)
       return null;
   }
 });
@@ -429,10 +455,8 @@ const BindingParamsFields = memo(({ binding, varKeys, onChange }: BindingParamsF
 BindingParamsFields.displayName = 'BindingParamsFields';
 
 interface VarKeyFieldProps {
-  /** Current stored var_key, or undefined if not yet set (falls back to defaultKey). */
+  /** Current stored var_key, or undefined if not yet set. */
   value: string | undefined;
-  /** Suggested key when nothing is chosen yet — a naming convention, not real data. */
-  defaultKey: string;
   /** Real `vars` keys found in the selected phonebook's entries (sorted). */
   availableKeys: string[];
   onChange: (key: string) => void;
@@ -441,50 +465,100 @@ interface VarKeyFieldProps {
 /**
  * Picks a phonebook `vars` key to read at dialplan time (${PB_<key>}).
  *
- * Strict choice from real data: the select only ever lists keys that actually
- * exist in this phonebook's entries — no manual/custom entry, so a typo can
- * never silently produce a var_key that never matches anything at runtime.
- * Falls back to plain free text (with a hint) only if the phonebook has no
- * vars at all yet (nothing to choose from).
+ * No hardcoded naming conventions: the select only lists keys that actually
+ * exist in this phonebook's entries, and the choice is mandatory — the
+ * dialplan generator emits nothing for a var-based preset without var_key.
+ * If exactly one key exists, it is auto-selected. Falls back to a disabled
+ * state (with a hint) when the phonebook has no vars at all.
  */
-const VarKeyField = memo(({ value, defaultKey, availableKeys, onChange }: VarKeyFieldProps) => {
+const VarKeyField = memo(({ value, availableKeys, onChange }: VarKeyFieldProps) => {
   const { t } = useTranslation();
+
+  // Single real key — nothing to choose, pick it automatically.
+  useEffect(() => {
+    if (availableKeys.length === 1 && value !== availableKeys[0]) {
+      onChange(availableKeys[0]);
+    }
+  }, [availableKeys, value, onChange]);
 
   if (availableKeys.length === 0) {
     return (
-      <VStack gap="2" className={cls.varKeyWrapper}>
-        <Input
-          className={cls.paramsInput}
-          value={value ?? defaultKey}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={defaultKey}
-        />
-        <Text variant="small" className={cls.varKeyHint}>
-          {t(
-            'routes.phonebooks.params.noVarsHint',
-            'В справочнике нет заполненных переменных — добавьте их в записи или введите ключ вручную',
-          )}
-        </Text>
-      </VStack>
+      <div className={cls.varKeyWrapper}>
+        <Select className={cls.varKeySelect} value="" disabled>
+          <option value="">{t('routes.phonebooks.params.noVarsOption', 'Нет переменных в справочнике')}</option>
+        </Select>
+      </div>
     );
   }
 
   const selectValue = value && availableKeys.includes(value) ? value : '';
 
   return (
-    <Select
-      className={cls.paramsInput}
-      value={selectValue}
-      onChange={(e) => onChange(e.target.value)}
-    >
-      {!selectValue && (
-        <option value="">{t('routes.phonebooks.params.selectVarKey', 'Выберите переменную')}</option>
-      )}
-      {availableKeys.map((key) => (
-        <option key={key} value={key}>{key}</option>
-      ))}
-    </Select>
+    <div className={cls.varKeyWrapper}>
+      <Select
+        className={cls.varKeySelect}
+        value={selectValue}
+        onChange={(e) => onChange(e.target.value)}
+      >
+        {!selectValue && (
+          <option value="" disabled>
+            {t('routes.phonebooks.params.selectVarKey', 'Выберите переменную')}
+          </option>
+        )}
+        {availableKeys.map((key) => (
+          <option key={key} value={key}>{key}</option>
+        ))}
+      </Select>
+    </div>
   );
 });
 
 VarKeyField.displayName = 'VarKeyField';
+
+interface VarKeyStatusHintProps {
+  varKey: string | undefined;
+  availableKeys: string[];
+}
+
+/**
+ * Context line under a var-based preset: explains where the value comes from,
+ * or warns that the preset is inert (no vars / nothing selected) — mirrors the
+ * generator, which emits no dialplan action without a valid var_key.
+ */
+const VarKeyStatusHint = memo(({ varKey, availableKeys }: VarKeyStatusHintProps) => {
+  const { t } = useTranslation();
+
+  if (availableKeys.length === 0) {
+    return (
+      <Text variant="small" className={`${cls.varKeyHintRow} ${cls.varKeyWarn}`}>
+        {t(
+          'routes.phonebooks.params.noVarsHint',
+          'В справочнике нет переменных - добавьте их в записи справочника (колонка «Переменные»), затем выберите здесь',
+        )}
+      </Text>
+    );
+  }
+
+  if (!varKey || !availableKeys.includes(varKey)) {
+    return (
+      <Text variant="small" className={`${cls.varKeyHintRow} ${cls.varKeyWarn}`}>
+        {t(
+          'routes.phonebooks.params.varKeyRequiredHint',
+          'Выберите переменную, иначе действие не сработает',
+        )}
+      </Text>
+    );
+  }
+
+  return (
+    <Text variant="small" className={`${cls.varKeyHintRow} ${cls.varKeyHint}`}>
+      {t(
+        'routes.phonebooks.params.varKeyDynamicHint',
+        'Значение «{{key}}» берётся из записи справочника, найденной по номеру звонящего',
+        { key: varKey },
+      )}
+    </Text>
+  );
+});
+
+VarKeyStatusHint.displayName = 'VarKeyStatusHint';
