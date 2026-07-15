@@ -2,24 +2,24 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Ready to execute
-last_updated: "2026-07-15T11:55:44.797Z"
+status: Phase complete — ready for verify
+last_updated: "2026-07-15T12:08:39.527Z"
 progress:
   total_phases: 7
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 27
-  completed_plans: 25
-  percent: 43
+  completed_plans: 27
+  percent: 57
 ---
 
 # State
 
 ## Current position
 
-Phase: 06 (dialplan-apps-ring-groups-multi-channel-notifications-ux-ove) — EXECUTING
-Plan: 13 of 14 complete (06-13 done; next: 06-14)
+Phase: 06 (dialplan-apps-ring-groups-multi-channel-notifications-ux-ove) — PLANS COMPLETE
+Plan: 14 of 14 complete (06-14 done)
 Phase 5 — Phonebooks AI: plans executed (verify/UAT may remain).  
-Phase 6 — Dialplan Apps: **06-01–06-13 executed**. Remaining: 06-14.
+Phase 6 — Dialplan Apps: **06-01–06-14 executed**. Ready for `/gsd-verify-work 6`.
 
 Phase 4 — IVR TTS phrases: **executed** (verify pending).  
 Phase 3 — IVR UI: **executed** (verify pending).  
@@ -46,6 +46,9 @@ Phase 1 — MOH: pending verify.
 - [Phase 06]: params.group always String(call_group.uid) for Gosub name consistency (Pitfall 2)
 - [Phase 06]: CallGroupFormModal gained optional onSaved so GroupApp refreshes selection after create/edit
 - [Phase 06]: callerid + trunk_carousel registered as GenericApp placeholders until 06-14 dedicated apps
+- [Phase 06]: CallerIdApp is a PURE CallerID modifier; carousel mode is random/rotation only — no re-dial/failover (failover lives in TrunkCarouselApp)
+- [Phase 06]: setclid_custom/setclid_list ids preserved; registry points both at CallerIdApp with mode inference for legacy records
+- [Phase 06]: trunk_carousel defaultParams.mode = random_then_failover with empty trunks array
 
 ## Roadmap Evolution
 
@@ -56,7 +59,7 @@ Phase 1 — MOH: pending verify.
 
 ## Next GSD command
 
-`/gsd-execute-phase 6` (plan 06-14)
+`/gsd-verify-work 6`
 
 ## Performance Metrics
 
@@ -73,3 +76,4 @@ Phase 1 — MOH: pending verify.
 | Phase 06 P11 | 8min | 3 tasks | 15 files |
 | Phase 06 P09 | 8min | 2 tasks | 4 files |
 | Phase 06 P13 | 12min | 3 tasks | 12 files |
+| Phase 06 P14 | 9min | 3 tasks | 9 files |
