@@ -12,6 +12,7 @@ import { DialplanWebhooksController } from './dialplan-webhooks.controller';
 import { DialplanWebhooksService } from './dialplan-webhooks.service';
 import { WebhookQueueService } from './webhook-queue.service';
 import { AmiModule } from '../ami/ami.module';
+import { TimeGroupsModule } from '../time-groups/time-groups.module';
 import { Context } from '../contexts/context.model';
 import { RoutePhonebookBinding } from '../phonebooks/route-phonebook-binding.model';
 import { RoutePhonebook } from '../phonebooks/phonebook.model';
@@ -25,6 +26,7 @@ import { PhonebookEntry } from '../phonebooks/phonebook-entry.model';
   imports: [
     SequelizeModule.forFeature([Route, ContextInclude, WebhookFailure, Context, RoutePhonebookBinding, RoutePhonebook, PhonebookEntry]),
     AmiModule,
+    TimeGroupsModule,
   ],
   controllers: [RoutesController, ContextIncludesController, DialplanWebhooksController],
   providers: [RoutesService, ContextIncludesService, RouteApplyService, DialplanWebhooksService, WebhookQueueService],
