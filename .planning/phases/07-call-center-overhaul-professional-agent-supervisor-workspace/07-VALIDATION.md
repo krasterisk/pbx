@@ -46,8 +46,11 @@ created: 2026-07-15
 | D-05 (queue_log) | 07-04 | 2 | Reconciliation job backfills missing rows after simulated AMI disconnect | integration | `callcenter-queuelog-reconciler.service.spec.ts` | ❌ W0 | ⬜ pending |
 | D-30/D-31/D-32 | 07-07 | 2 | Message sent REST → delivered via SSE to same tenant filter | integration | `callcenter-chat.controller.spec.ts` | ❌ | ⬜ pending |
 | D-26 (display-token) | 07-10 | 3 | Wallboard token grants read-only SSE ONLY, no agent/supervisor actions | integration | `callcenter-sse.controller.spec.ts` (display-token branch) | ❌ | ⬜ pending |
-| D-33 (reports) | 07-12 | 3 | Each of 7 reports returns correct aggregation on `cc_queue_calls` fixture | integration | `callcenter-reports.service.spec.ts` | ❌ | ⬜ pending |
-| D-34 (export) | 07-12 | 3 | CSV/XLSX/PDF generate without error and contain expected headers | unit | export spec (structure snapshot, not bytes) | ❌ | ⬜ pending |
+| D-33 (reports backend) | 07-12 | 4 | Each of 7 reports returns correct aggregation on `cc_queue_calls` fixture | integration | `callcenter-reports.service.spec.ts` | ❌ | ⬜ pending |
+| D-33 (reports UI) | 07-18 | 4 | Page renders all 7 report tabs and loads data from backend API | unit | `npx tsc --noEmit` + grep 7 CcReportId keys in CallCenterReportsPage | ❌ | ⬜ pending |
+| D-34 (export backend) | 07-12 | 4 | CSV/XLSX generate without error and contain expected headers | unit | export spec in `callcenter-reports.service.spec.ts` (structure snapshot, not bytes) | ❌ | ⬜ pending |
+| D-34 (export PDF/UI) | 07-18 | 4 | PDF via generateReportPdf; CSV/XLSX blob download from export endpoint | unit | grep `generateReportPdf` + `createObjectURL` in CallCenterReportsPage | ❌ | ⬜ pending |
+| D-36 (AgentTimeline reuse) | 07-18 | 4 | agent-timeline report imports AgentTimeline from 07-09 (not a duplicate component) | unit | grep `import.*AgentTimeline` from features/callcenter/ui/AgentTimeline in CallCenterReportsPage | ❌ | ⬜ pending |
 | D-14 (WebRTC) | 07-14 | 4 | `useWebRTCPhone` registers/answers (mocked SIP.js transport) | unit + manual | frontend spec + manual scenario w/ real Asterisk PJSIP WSS | ❌ | ⬜ pending |
 | D-41b (MCP tools) | 07-16 | 4 | `CallCenterAiAdapter` registers tools; handler receives `vpbxUserUid` as param (not closure) | unit | `callcenter-ai.adapter.spec.ts` (mirror `phonebooks-ai.adapter.spec.ts`) | ❌ W0 | ⬜ pending |
 

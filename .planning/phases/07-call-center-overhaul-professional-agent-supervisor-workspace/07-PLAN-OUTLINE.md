@@ -2,7 +2,7 @@
 
 **Mode:** standard · chunked (outline-only)
 **Generated:** 2026-07-15
-**Plan count:** 16 plans across 5 waves
+**Plan count:** 18 plans across 5 waves
 **Decision coverage:** D-01 … D-45 (all 45 locked decisions mapped)
 
 Brownfield rework organized as **horizontal layers** with wave dependencies. Wave 1 delivers the
@@ -24,10 +24,12 @@ reconnect resync gap, missing history layer).
 | 07-06 | Call Cards backend: `cc_card_templates` / `cc_card_fields` / `cc_card_data` schema + migrations + CRUD; per-template `auto_open_on` (answer/ring/manual); CRM webhook on card save via Phase 6 `notification_integration` (extend `WebhookProvider.send` with `extraVars` card fields — no new credential store) | 2 | 07-01 | D-11, D-12, D-13 |
 | 07-07 | Internal chat: `cc_chat_messages` model + migration + history persistence; REST POST send + SSE delivery over existing tenant-filtered stream (no WebSocket); personal supervisor↔operator / operator↔operator, supervisor broadcast (all/queue), group channels | 2 | 07-02 | D-30, D-31, D-32 |
 | 07-08 | Operator workspace rework (4-zone concept): pick-call from own queues gated by per-user permission; wrap-up UX (extend +N sec button + autosave draft card on final timeout → READY, all timers per-operator); full notifications (incoming/missed sound + Browser Notification API on inactive tab + volume/mute); DnD transfer with blind/attended/cancel confirm modal | 3 | 07-02, 07-05 | D-18, D-19, D-20, D-21 |
-| 07-09 | Supervisor workspace (all features): grid↔table (TanStack) toggle with remembered choice; agent detail modal (day timeline + stats); queue management modal (add/remove/penalty + DnD agents between queues); bulk actions (mass pause/unpause/logout); live-calls actions (pickup/transfer/hangup from table); KPI sparklines; spy/whisper/barge via Originate (as-is) | 3 | 07-02, 07-03 | D-23, D-24, D-25 |
+| 07-09 | Supervisor CORE: grid↔table toggle; agent detail modal (AgentTimeline owner, D-36); live-calls pickup/transfer/hangup; KPI sparklines; spy/whisper/barge; backend supervisor endpoints + RTK hooks (queue-penalty/force-logout ready for 07-17) | 3 | 07-02, 07-03 | D-23 (core), D-24, D-25, D-36 (owner) |
+| 07-17 | Supervisor OPS (same-wave sequential after 07-09): QueueManagementModal (DnD add/remove/penalty) + BulkActionsBar + row selection wiring; reuses 07-09 RTK/backend | 3 | 07-09 | D-23 (ops) |
 | 07-10 | Wallboard backend: `cc_display_tokens` model + migration; long-lived opaque display-token guard (separate from `JwtAuthGuard`, read-only wallboard SSE topic only) + supervisor generate/revoke endpoints; threshold-breach alerts via Phase 6 `notification_integration` (Telegram/email to supervisor) | 3 | 07-03 | D-26, D-28 |
 | 07-11 | Call Cards DnD builder + runtime card: full drag-and-drop template constructor with live preview (`@dnd-kit`, no intermediate list form), v1 field types; auto-populate from phonebook (`PhonebooksService.lookupNumber`); bind template to queues/CDR; render runtime card per `auto_open_on` | 3 | 07-06, 07-02 | D-10, D-11, D-12 |
-| 07-12 | Reports v1 + export: 7 reports (queue summary, call detail, operator stats, pause report, hourly heatmap, agent timeline, missed with callback flag); reuses the Agent Timeline component owned by 07-09 (segments contract — does NOT create its own); CSV (reuse builder) + XLSX (`exceljs`) + PDF (`@react-pdf/renderer`) export | 4 | 07-03, 07-04, 07-09 | D-33, D-34, D-36 |
+| 07-12 | Reports ENGINE + EXPORT (backend only): 7 aggregations tenant-scoped + CSV/XLSX exporters + controller; hybrid rollup source; exceljs supply-chain gate | 4 | 07-03, 07-04 | D-33, D-34 (backend) |
+| 07-18 | Reports UI (same-wave sequential after 07-12): CallCenterReportsPage, RTK callCenterReportsApi, client PDF; reuses AgentTimeline from 07-09 (D-36 consumer) | 4 | 07-12, 07-09 | D-33, D-34 (UI), D-36 (reuse) |
 | 07-13 | Wallboard UI: fixed layout per concept (KPI cards + live chart + agents + queues) at `/callcenter/wallboard`; TV display-mode consuming read-only SSE via display-token; alert-threshold config UI on settings tab (reuses `shared/ui/Progress` owned by 07-08 for SLA bars) | 4 | 07-10, 07-05, 07-08 | D-27, D-29 |
 | 07-14 | WebRTC softphone (full scope, `sip.js`): register/answer/hangup + hold/mute/DTMF + blind/attended transfer + audio device selection + call-quality indicator; mode-select modal at shift login (SIP device / browser) + extension choice; per-operator auto-answer + zip tone; STUN + env-configurable TURN | 4 | 07-05, 07-08 | D-14, D-15, D-16, D-17 |
 | 07-15 | Scheduled report delivery: schedule + template + delivery via Phase 6 `notification_integration` (email/messenger); reuses report generation + export from 07-12 | 5 | 07-12 | D-35 |
@@ -39,8 +41,8 @@ reconnect resync gap, missing history layer).
 |------|-------|-------|
 | 1 | 07-01, 07-02 | Persistence + AMI-audit fixes; roles/nav/settings shell (independent) |
 | 2 | 07-03, 07-04, 07-05, 07-06, 07-07 | Metrics, reconciliation/rollup, CC settings, cards backend, chat |
-| 3 | 07-08, 07-09, 07-10, 07-11 | Operator + supervisor panels, wallboard backend, cards builder |
-| 4 | 07-12, 07-13, 07-14, 07-16 | Reports (reuses 07-09 AgentTimeline), wallboard UI, WebRTC softphone, AI-ready foundation |
+| 3 | 07-08, 07-09 → 07-17, 07-10, 07-11 | Operator + supervisor core → supervisor ops (sequential), wallboard backend, cards builder |
+| 4 | 07-12 → 07-18, 07-13, 07-14, 07-16 | Reports backend → reports UI (sequential; 07-18 needs 07-09 AgentTimeline), wallboard UI, WebRTC, AI-ready |
 | 5 | 07-15 | Scheduled report delivery (depends on 07-12 reports) |
 
 ## Decision Coverage Matrix
@@ -52,10 +54,10 @@ Every D-NN decision maps to ≥1 plan:
 - **Call Cards:** D-10 (07-11), D-11 (07-06, 07-11), D-12 (07-06, 07-11), D-13 (07-06)
 - **WebRTC:** D-14 (07-14), D-15 (07-14), D-16 (07-14), D-17 (07-14)
 - **Operator panel:** D-18 (07-08), D-19 (07-08), D-20 (07-08), D-21 (07-08), D-22 (07-05)
-- **Supervisor panel:** D-23 (07-09), D-24 (07-09), D-25 (07-09)
+- **Supervisor panel:** D-23 (07-09 core + 07-17 ops), D-24 (07-09), D-25 (07-09)
 - **Wallboard:** D-26 (07-10), D-27 (07-05, 07-13), D-28 (07-10), D-29 (07-13)
 - **Internal chat:** D-30 (07-07), D-31 (07-07), D-32 (07-07)
-- **Reports:** D-33 (07-12), D-34 (07-12), D-35 (07-15), D-36 (07-12)
+- **Reports:** D-33 (07-12 backend + 07-18 UI), D-34 (07-12 CSV/XLSX backend + 07-18 PDF/UI), D-35 (07-15), D-36 (07-09 owner + 07-18 reuse)
 - **Roles/nav:** D-37 (07-02), D-38 (07-02), D-39 (07-02), D-40 (07-02)
 - **AI-ready:** D-41 (07-16), D-42 (07-16), D-43 (07-16), D-44 (07-16), D-45 (07-16)
 
@@ -72,12 +74,15 @@ concurrent merges stay clean.
 | `packages/backend/src/modules/callcenter/callcenter.module.ts` | Wave 2: 07-03, 07-04, 07-05, 07-06, 07-07 | additive: add to `forFeature` / `providers` / `controllers` arrays only |
 | `packages/backend/src/app.module.ts` | Wave 2: 07-04, 07-05, 07-06, 07-07 | additive: add new Cc* models to `models` array only (`autoLoadModels:false`) |
 | `packages/frontend/src/shared/api/endpoints/callCenterApi.ts` | Wave 2: 07-05, 07-07 | additive: add new `injectEndpoints` entries + hook exports only |
-| `packages/frontend/src/shared/config/locales/ru.ts` / `en.ts` | Wave 2: 07-05, 07-07 · Wave 3: 07-09 (and 07-08/07-10/07-11) · Wave 4: 07-12, 07-13, 07-14 · Wave 5: 07-15 | additive: append new keys under `callcenter.*`, never overwrite existing keys |
+| `packages/frontend/src/shared/config/locales/ru.ts` / `en.ts` | Wave 2: 07-05, 07-07 · Wave 3: 07-09, 07-17 (and 07-08/07-10/07-11) · Wave 4: 07-18, 07-13, 07-14 · Wave 5: 07-15 | additive: append new keys under `callcenter.*`, never overwrite existing keys |
 | `packages/frontend/src/shared/ui/Progress/Progress.tsx` (+ `shared/ui/index.ts` export) | **Cross-wave: owned by 07-08 (Wave 3), reused by 07-13 (Wave 4)** | 07-08 CREATES `Progress` with `tone: 'info' \| 'success' \| 'warning' \| 'destructive'` (default `'info'`; `WrapupBar.tsx` uses `<Progress tone="info" />`). 07-13 must NOT recreate the file — it only **imports** `Progress` from `shared/ui` for queue SLA bars (tone `success`/`warning`/`destructive`). If a `'primary'` variant is ever needed it must be added **additively** without removing `'info'`, or `tsc --noEmit` breaks on 07-08's shipped `WrapupBar.tsx`. |
 
 Note (D-36): the reusable `AgentTimeline` component is **owned by 07-09** (single presentational `segments` contract).
-07-12 (reports) only **imports and reuses** it — it does not create its own timeline component. This is why
-`07-12 depends_on 07-09` and 07-12 sits in Wave 4 (one wave after 07-09).
+**07-18** (reports UI) only **imports and reuses** it — 07-12 is backend-only and does not touch frontend timeline.
+
+**Same-wave sequential execution (execute-phase MUST serialize within wave):**
+- Wave 3: **07-17 after 07-09** (supervisor ops reuses core RTK/backend).
+- Wave 4: **07-18 after 07-12** (reports UI consumes backend API; 07-18 also depends_on 07-09 for AgentTimeline).
 
 ## Notes for Per-Plan Detailing
 
