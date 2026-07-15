@@ -2,6 +2,7 @@ export { Button } from './Button';
 export { Input } from './Input';
 export { Textarea } from './Textarea';
 export type { TextareaProps } from './Textarea';
+export { Switch } from './Switch';
 export { Card, CardHeader, CardTitle, CardContent, CardFooter } from './Card';
 export { Label } from './Label/Label';
 export { Text } from './Text/Text';

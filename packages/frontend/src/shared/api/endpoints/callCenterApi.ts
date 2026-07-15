@@ -44,6 +44,25 @@ export interface IMissedCall {
   created_at: string;
 }
 
+export interface IOperatorSettings {
+  pickup_enabled: boolean;
+  auto_answer: boolean;
+  auto_answer_zip_tone: boolean;
+  wrapup_timeout: number;
+  wrapup_extend_step: number;
+  wrapup_autosave_draft: boolean;
+  sound_incoming: boolean;
+  sound_missed: boolean;
+  notifications_enabled: boolean;
+  volume: number;
+}
+
+export interface ICcSettings {
+  default_sla_threshold: number;
+  alert_thresholds: Record<string, number> | null;
+  alert_sound_enabled: boolean;
+}
+
 const callCenterApi = rtkApi.injectEndpoints({
   endpoints: (build) => ({
     // ─── State ────────────────────────────────────────────
@@ -143,6 +162,24 @@ const callCenterApi = rtkApi.injectEndpoints({
       query: (id) => ({ url: `/callcenter/pause-reasons/${id}`, method: 'DELETE' }),
       invalidatesTags: ['PauseReasons'],
     }),
+
+    // ─── Settings (D-22 / D-27) ────────────────────────────
+    getMyOperatorSettings: build.query<IOperatorSettings, void>({
+      query: () => '/callcenter/settings/operator',
+      providesTags: ['CcOperatorSettings'],
+    }),
+    updateMyOperatorSettings: build.mutation<IOperatorSettings, Partial<IOperatorSettings>>({
+      query: (body) => ({ url: '/callcenter/settings/operator', method: 'PUT', body }),
+      invalidatesTags: ['CcOperatorSettings'],
+    }),
+    getTenantSettings: build.query<ICcSettings, void>({
+      query: () => '/callcenter/settings/tenant',
+      providesTags: ['CcSettings'],
+    }),
+    updateTenantSettings: build.mutation<ICcSettings, Partial<ICcSettings>>({
+      query: (body) => ({ url: '/callcenter/settings/tenant', method: 'PUT', body }),
+      invalidatesTags: ['CcSettings'],
+    }),
   }),
 });
 
@@ -171,4 +208,8 @@ export const {
   useCreatePauseReasonMutation,
   useUpdatePauseReasonMutation,
   useDeletePauseReasonMutation,
+  useGetMyOperatorSettingsQuery,
+  useUpdateMyOperatorSettingsMutation,
+  useGetTenantSettingsQuery,
+  useUpdateTenantSettingsMutation,
 } = callCenterApi;
