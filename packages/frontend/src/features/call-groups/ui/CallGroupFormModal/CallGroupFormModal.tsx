@@ -93,12 +93,8 @@ export const CallGroupFormModal = memo(() => {
       setMembers([]);
     }
     setSubmitError('');
-  }, [isOpen, mode, groupData, defaultContext, t]);
-
-  useEffect(() => {
-    if (!isOpen || externalContext) return;
-    setExternalContext(defaultContext);
-  }, [isOpen, externalContext, defaultContext]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset only when modal opens or source data changes
+  }, [isOpen, mode, groupData, defaultContext]);
 
   const handleClose = useCallback(() => {
     dispatch(callGroupsPageActions.closeModal());
