@@ -6,12 +6,27 @@ import { VStack, HStack, Flex } from '@/shared/ui/Stack';
 import { useGetPhonebooksQuery } from '@/shared/api/endpoints/phonebookApi';
 import { DialplanAppsEditor } from '@/features/dialplan-apps/ui/DialplanAppsEditor/DialplanAppsEditor';
 import type {
+  IRoutePhonebook,
   IRoutePhonebookBinding,
   IPhonebookBehaviorParams,
   PhonebookMatchMode,
   PhonebookBehaviorType,
 } from '@krasterisk/shared';
 import cls from './RoutePhonebooksTab.module.scss';
+
+/**
+ * Collect all unique `vars` keys across a phonebook's entries, sorted —
+ * mirrors backend's collectAllVarKeys (phonebook-dialplan.util.ts) so the UI
+ * suggests only keys that actually exist in this phonebook's data, instead of
+ * a hardcoded convention guess (was: free-text input defaulting to "name").
+ */
+function collectPhonebookVarKeys(phonebook: IRoutePhonebook | undefined): string[] {
+  const keys = new Set<string>();
+  for (const entry of phonebook?.entries || []) {
+    if (entry.vars) Object.keys(entry.vars).forEach((k) => keys.add(k));
+  }
+  return Array.from(keys).sort();
+}
 
 export interface RoutePhonebooksTabProps {
   bindings: IRoutePhonebookBinding[];
@@ -216,6 +231,9 @@ export const RoutePhonebooksTab = memo(({ bindings, setBindings }: RoutePhoneboo
 
                   <BindingParamsFields
                     binding={binding}
+                    varKeys={collectPhonebookVarKeys(
+                      binding.phonebook || phonebooks.find((pb) => pb.uid === binding.phonebook_uid),
+                    )}
                     onChange={(patch) => handleUpdate(index, patch)}
                   />
                 </VStack>
@@ -254,6 +272,8 @@ RoutePhonebooksTab.displayName = 'RoutePhonebooksTab';
 
 interface BindingParamsFieldsProps {
   binding: IRoutePhonebookBinding;
+  /** Real `vars` keys found in this binding's phonebook entries (sorted, deduped). */
+  varKeys: string[];
   onChange: (patch: Partial<IRoutePhonebookBinding>) => void;
 }
 
@@ -263,7 +283,7 @@ interface BindingParamsFieldsProps {
  * On_no_match forces the fixed-value variant (var-key variants are excluded
  * from the preset select itself, see ON_NO_MATCH_ALLOWED).
  */
-const BindingParamsFields = memo(({ binding, onChange }: BindingParamsFieldsProps) => {
+const BindingParamsFields = memo(({ binding, varKeys, onChange }: BindingParamsFieldsProps) => {
   const { t } = useTranslation();
   const params: IPhonebookBehaviorParams = binding.behavior_params || {};
   const isNoMatch = binding.match_mode === 'on_no_match';
@@ -299,11 +319,11 @@ const BindingParamsFields = memo(({ binding, onChange }: BindingParamsFieldsProp
             <option value="fixed">{t('routes.phonebooks.params.byFixed', 'Фикс. значение')}</option>
           </Select>
           {mode === 'var' ? (
-            <Input
-              className={cls.paramsInput}
-              value={params.var_key ?? 'name'}
-              onChange={(e) => setParams({ var_key: e.target.value })}
-              placeholder="name"
+            <VarKeyField
+              value={params.var_key}
+              defaultKey="name"
+              availableKeys={varKeys}
+              onChange={(v) => setParams({ var_key: v })}
             />
           ) : (
             <Input
@@ -329,11 +349,11 @@ const BindingParamsFields = memo(({ binding, onChange }: BindingParamsFieldsProp
             <option value="fixed">{t('routes.phonebooks.params.byFixed', 'Фикс. значение')}</option>
           </Select>
           {mode === 'var' ? (
-            <Input
-              className={cls.paramsInput}
-              value={params.var_key ?? 'clid'}
-              onChange={(e) => setParams({ var_key: e.target.value })}
-              placeholder="clid"
+            <VarKeyField
+              value={params.var_key}
+              defaultKey="clid"
+              availableKeys={varKeys}
+              onChange={(v) => setParams({ var_key: v })}
             />
           ) : (
             <Input
@@ -374,11 +394,11 @@ const BindingParamsFields = memo(({ binding, onChange }: BindingParamsFieldsProp
             <option value="fixed">{t('routes.phonebooks.params.byFixed', 'Фикс. значение')}</option>
           </Select>
           {mode === 'var' ? (
-            <Input
-              className={cls.paramsInput}
-              value={params.var_key ?? 'redirect'}
-              onChange={(e) => setParams({ var_key: e.target.value })}
-              placeholder="redirect"
+            <VarKeyField
+              value={params.var_key}
+              defaultKey="redirect"
+              availableKeys={varKeys}
+              onChange={(v) => setParams({ var_key: v })}
             />
           ) : (
             <Input
@@ -407,3 +427,80 @@ const BindingParamsFields = memo(({ binding, onChange }: BindingParamsFieldsProp
 });
 
 BindingParamsFields.displayName = 'BindingParamsFields';
+
+interface VarKeyFieldProps {
+  /** Current stored var_key, or undefined if not yet set (falls back to defaultKey). */
+  value: string | undefined;
+  /** Suggested key when nothing is chosen yet — a naming convention, not real data. */
+  defaultKey: string;
+  /** Real `vars` keys found in the selected phonebook's entries (sorted). */
+  availableKeys: string[];
+  onChange: (key: string) => void;
+}
+
+/**
+ * Picks a phonebook `vars` key to read at dialplan time (${PB_<key>}).
+ *
+ * UX improvement: previously a free-text input defaulted to a hardcoded
+ * convention guess ("name"/"clid"/"redirect") with no link to real data —
+ * users had no way to know which keys actually exist in their phonebook's
+ * entries. Now: if the phonebook has any entries with vars, show them as a
+ * dropdown (real keys only); otherwise fall back to free text with a hint.
+ * "Другое" always allows a manual key for entries not yet created.
+ */
+const VarKeyField = memo(({ value, defaultKey, availableKeys, onChange }: VarKeyFieldProps) => {
+  const { t } = useTranslation();
+  const current = value ?? defaultKey;
+
+  if (availableKeys.length === 0) {
+    return (
+      <VStack gap="2" className={cls.varKeyWrapper}>
+        <Input
+          className={cls.paramsInput}
+          value={current}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={defaultKey}
+        />
+        <Text variant="small" className={cls.varKeyHint}>
+          {t(
+            'routes.phonebooks.params.noVarsHint',
+            'В справочнике нет заполненных переменных — добавьте их в записи или введите ключ вручную',
+          )}
+        </Text>
+      </VStack>
+    );
+  }
+
+  const isManual = !availableKeys.includes(current);
+
+  if (isManual) {
+    return (
+      <HStack gap="4" align="center">
+        <Input
+          className={cls.paramsInput}
+          value={current}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={defaultKey}
+        />
+        <Button type="button" variant="ghost" size="sm" onClick={() => onChange(availableKeys[0])}>
+          {t('routes.phonebooks.params.pickFromList', 'Из списка')}
+        </Button>
+      </HStack>
+    );
+  }
+
+  return (
+    <Select
+      className={cls.paramsInput}
+      value={current}
+      onChange={(e) => onChange(e.target.value === '__custom__' ? '' : e.target.value)}
+    >
+      {availableKeys.map((key) => (
+        <option key={key} value={key}>{key}</option>
+      ))}
+      <option value="__custom__">{t('routes.phonebooks.params.customKey', 'Другое (ввести вручную)')}</option>
+    </Select>
+  );
+});
+
+VarKeyField.displayName = 'VarKeyField';

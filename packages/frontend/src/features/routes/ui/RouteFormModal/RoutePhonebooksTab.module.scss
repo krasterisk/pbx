@@ -134,3 +134,14 @@
 .addBindingBtn {
   flex-shrink: 0;
 }
+
+.varKeyWrapper {
+  flex: 1 1 160px;
+  min-width: 160px;
+}
+
+.varKeyHint {
+  color: var(--color-muted-foreground);
+  font-size: 0.75rem;
+  line-height: 1.3;
+}
