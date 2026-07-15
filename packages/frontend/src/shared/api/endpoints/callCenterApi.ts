@@ -63,6 +63,30 @@ export interface ICcSettings {
   alert_sound_enabled: boolean;
 }
 
+export interface IChatMessage {
+  uid: number;
+  channel_key: string;
+  channel_type: 'direct' | 'group' | 'broadcast_all' | 'broadcast_queue';
+  sender_user_id: number;
+  sender_name: string | null;
+  body: string;
+  created_at: string;
+}
+
+export interface IChatChannel {
+  channel_key: string;
+  type: 'direct' | 'group' | 'broadcast_all' | 'broadcast_queue';
+  name?: string;
+  member_user_ids?: number[];
+  queue_name?: string;
+}
+
+export interface IChatContact {
+  id: number;
+  name: string;
+  level: number;
+}
+
 const callCenterApi = rtkApi.injectEndpoints({
   endpoints: (build) => ({
     // ─── State ────────────────────────────────────────────
@@ -180,6 +204,31 @@ const callCenterApi = rtkApi.injectEndpoints({
       query: (body) => ({ url: '/callcenter/settings/tenant', method: 'PUT', body }),
       invalidatesTags: ['CcSettings'],
     }),
+
+    // ─── Internal Chat (D-30…D-32) ───────────────────────
+    getChatChannels: build.query<IChatChannel[], void>({
+      query: () => '/callcenter/chat/channels',
+      providesTags: ['CcChat'],
+    }),
+    getChatContacts: build.query<IChatContact[], void>({
+      query: () => '/callcenter/chat/contacts',
+    }),
+    getChatMessages: build.query<IChatMessage[], { channelKey: string; before?: string; limit?: number }>({
+      query: (params) => ({ url: '/callcenter/chat/messages', params }),
+    }),
+    sendChatMessage: build.mutation<IChatMessage, {
+      channelType: IChatMessage['channel_type'];
+      body: string;
+      targetUserId?: number;
+      groupUid?: number;
+      queue?: string;
+    }>({
+      query: (body) => ({ url: '/callcenter/chat/messages', method: 'POST', body }),
+    }),
+    createChatChannel: build.mutation<IChatChannel & { uid?: number }, { name: string; memberUserIds: number[] }>({
+      query: (body) => ({ url: '/callcenter/chat/channels', method: 'POST', body }),
+      invalidatesTags: ['CcChat'],
+    }),
   }),
 });
 
@@ -212,4 +261,9 @@ export const {
   useUpdateMyOperatorSettingsMutation,
   useGetTenantSettingsQuery,
   useUpdateTenantSettingsMutation,
+  useGetChatChannelsQuery,
+  useGetChatContactsQuery,
+  useGetChatMessagesQuery,
+  useSendChatMessageMutation,
+  useCreateChatChannelMutation,
 } = callCenterApi;

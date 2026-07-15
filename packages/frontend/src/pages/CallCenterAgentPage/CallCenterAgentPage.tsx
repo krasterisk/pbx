@@ -15,6 +15,7 @@ import { useCallNotifications } from '@/features/callcenter/lib/useCallNotificat
 import { PauseReasonModal } from '@/features/callcenter/ui/PauseReasonModal/PauseReasonModal';
 import { ClientCard } from '@/features/callcenter/ui/ClientCard/ClientCard';
 import { MissedCallsPanel } from '@/features/callcenter/ui/MissedCallsPanel/MissedCallsPanel';
+import { ChatPanelHost } from '@/features/callcenter/ui/ChatPanel/ChatPanel';
 import {
   DragTransferProvider,
   DraggableCall,
@@ -228,6 +229,7 @@ export function CallCenterAgentPage() {
         {/* Connection indicator + missed calls badge */}
         <Flex align="center" gap="12">
           <MissedCallsPanel onCallback={handleMissedCallback} />
+          <ChatPanelHost />
           <Flex align="center" gap="8">
             <Text variant="muted" className="text-xs">
               {connected ? 'Online' : 'Connecting...'}

@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { VStack, Flex, Text, Button } from '@/shared/ui';
 import { useCallCenterSSE } from '@/features/callcenter/lib/useCallCenterSSE';
+import { ChatPanelHost } from '@/features/callcenter/ui/ChatPanel/ChatPanel';
 import {
   selectCcAgents,
   selectCcQueues,
@@ -114,6 +115,7 @@ export function CallCenterSupervisorPage() {
         </Flex>
 
         <Flex align="center" gap="8">
+          <ChatPanelHost />
           <Text variant="muted" className="text-xs">
             {connected ? 'Live' : 'Connecting...'}
           </Text>

@@ -2005,6 +2005,20 @@ export const en = {
       callBack: 'Call back',
       markDone: 'Mark handled',
     },
+    chat: {
+      title: 'Chat',
+      send: 'Send',
+      newGroup: 'Create group',
+      newDm: 'Direct message',
+      broadcastAll: 'Everyone',
+      broadcastQueue: 'Queue {{queue}}',
+      createGroup: 'Create',
+      placeholder: 'Message…',
+      empty: {
+        title: 'No messages yet',
+        body: 'Send the first message — history is saved for your shift',
+      },
+    },
     dnd: {
       confirmTitle: 'Transfer call?',
       confirmBody: 'Blind transfer {{caller}} to {{agent}}?',

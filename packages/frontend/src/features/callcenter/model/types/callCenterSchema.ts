@@ -81,4 +81,16 @@ export interface CallCenterState {
   calls: ICall[];
   connected: boolean;
   myAgentInterface: string | null;
+  chatUnreadByChannel: Record<string, number>;
+  chatOpen: boolean;
+}
+
+export interface IChatMessagePayload {
+  uid: number;
+  channel_key: string;
+  channel_type: string;
+  sender_user_id: number;
+  sender_name?: string | null;
+  body: string;
+  created_at: string;
 }

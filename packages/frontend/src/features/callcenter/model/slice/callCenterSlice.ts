@@ -5,6 +5,7 @@ import type {
   IQueueStats,
   ICall,
   ICcSnapshot,
+  IChatMessagePayload,
 } from '../types/callCenterSchema';
 
 const initialState: CallCenterState = {
@@ -13,6 +14,8 @@ const initialState: CallCenterState = {
   calls: [],
   connected: false,
   myAgentInterface: null,
+  chatUnreadByChannel: {},
+  chatOpen: false,
 };
 
 export const callCenterSlice = createSlice({
@@ -79,6 +82,19 @@ export const callCenterSlice = createSlice({
     removeCall(state, action: PayloadAction<string>) {
       state.calls = state.calls.filter(c => c.uniqueid !== action.payload);
     },
+
+    chatMessageReceived(state, action: PayloadAction<IChatMessagePayload>) {
+      const key = action.payload.channel_key;
+      state.chatUnreadByChannel[key] = (state.chatUnreadByChannel[key] ?? 0) + 1;
+    },
+
+    markChannelRead(state, action: PayloadAction<string>) {
+      delete state.chatUnreadByChannel[action.payload];
+    },
+
+    setChatOpen(state, action: PayloadAction<boolean>) {
+      state.chatOpen = action.payload;
+    },
   },
 });
 
@@ -91,6 +107,9 @@ export const {
   addCall,
   updateCall,
   removeCall,
+  chatMessageReceived,
+  markChannelRead,
+  setChatOpen,
 } = callCenterSlice.actions;
 
 export default callCenterSlice.reducer;

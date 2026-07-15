@@ -2053,6 +2053,20 @@ export const ru = {
       callBack: 'Перезвонить',
       markDone: 'Отметить обработанным',
     },
+    chat: {
+      title: 'Чат',
+      send: 'Отправить',
+      newGroup: 'Создать группу',
+      newDm: 'Личное сообщение',
+      broadcastAll: 'Всем',
+      broadcastQueue: 'Очередь {{queue}}',
+      createGroup: 'Создать',
+      placeholder: 'Сообщение…',
+      empty: {
+        title: 'Сообщений пока нет',
+        body: 'Напишите первым — история сохранится за смену',
+      },
+    },
     dnd: {
       confirmTitle: 'Перевести вызов?',
       confirmBody: 'Слепой перевод {{caller}} на {{agent}}?',

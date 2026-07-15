@@ -8,6 +8,7 @@ import {
   addCall,
   updateCall,
   removeCall,
+  chatMessageReceived,
 } from '../model/slice/callCenterSlice';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
@@ -147,6 +148,14 @@ export function useCallCenterSSE(enabled: boolean = true) {
     es.addEventListener('missedCallUpdate', (e: MessageEvent) => {
       try {
         window.dispatchEvent(new CustomEvent('cc:missed-call-update', { detail: JSON.parse(e.data) }));
+      } catch { /* ignore */ }
+    });
+
+    es.addEventListener('ccChatMessage', (e: MessageEvent) => {
+      try {
+        const detail = JSON.parse(e.data);
+        dispatch(chatMessageReceived(detail));
+        window.dispatchEvent(new CustomEvent('cc:chat-message', { detail }));
       } catch { /* ignore */ }
     });
 
