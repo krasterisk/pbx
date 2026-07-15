@@ -441,23 +441,23 @@ interface VarKeyFieldProps {
 /**
  * Picks a phonebook `vars` key to read at dialplan time (${PB_<key>}).
  *
- * UX improvement: previously a free-text input defaulted to a hardcoded
- * convention guess ("name"/"clid"/"redirect") with no link to real data —
- * users had no way to know which keys actually exist in their phonebook's
- * entries. Now: if the phonebook has any entries with vars, show them as a
- * dropdown (real keys only); otherwise fall back to free text with a hint.
- * "Другое" always allows a manual key for entries not yet created.
+ * UX: shows a dropdown of real keys found in the phonebook's entries as soon
+ * as any exist — no extra click needed. Manual free-text entry only appears
+ * when the user explicitly picks "Другое" (or when a previously-saved value
+ * is a manual key that no longer matches the phonebook's real vars).
+ * Falls back to plain free text (with a hint) only if the phonebook has no
+ * vars at all yet.
  */
 const VarKeyField = memo(({ value, defaultKey, availableKeys, onChange }: VarKeyFieldProps) => {
   const { t } = useTranslation();
-  const current = value ?? defaultKey;
+  const [manualOverride, setManualOverride] = useState(false);
 
   if (availableKeys.length === 0) {
     return (
       <VStack gap="2" className={cls.varKeyWrapper}>
         <Input
           className={cls.paramsInput}
-          value={current}
+          value={value ?? defaultKey}
           onChange={(e) => onChange(e.target.value)}
           placeholder={defaultKey}
         />
@@ -471,30 +471,52 @@ const VarKeyField = memo(({ value, defaultKey, availableKeys, onChange }: VarKey
     );
   }
 
-  const isManual = !availableKeys.includes(current);
+  // Manual only when explicitly requested, or when a previously-saved value
+  // was a manual key that doesn't match this phonebook's real vars.
+  const isManual = manualOverride || (!!value && !availableKeys.includes(value));
 
   if (isManual) {
     return (
       <HStack gap="4" align="center">
         <Input
           className={cls.paramsInput}
-          value={current}
+          value={value ?? ''}
           onChange={(e) => onChange(e.target.value)}
           placeholder={defaultKey}
         />
-        <Button type="button" variant="ghost" size="sm" onClick={() => onChange(availableKeys[0])}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={() => {
+            setManualOverride(false);
+            onChange(availableKeys[0]);
+          }}
+        >
           {t('routes.phonebooks.params.pickFromList', 'Из списка')}
         </Button>
       </HStack>
     );
   }
 
+  const selectValue = value && availableKeys.includes(value) ? value : '';
+
   return (
     <Select
       className={cls.paramsInput}
-      value={current}
-      onChange={(e) => onChange(e.target.value === '__custom__' ? '' : e.target.value)}
+      value={selectValue}
+      onChange={(e) => {
+        if (e.target.value === '__custom__') {
+          setManualOverride(true);
+          onChange('');
+          return;
+        }
+        onChange(e.target.value);
+      }}
     >
+      {!selectValue && (
+        <option value="">{t('routes.phonebooks.params.selectVarKey', 'Выберите переменную')}</option>
+      )}
       {availableKeys.map((key) => (
         <option key={key} value={key}>{key}</option>
       ))}
