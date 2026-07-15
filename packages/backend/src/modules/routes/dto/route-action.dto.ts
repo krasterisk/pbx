@@ -1,4 +1,15 @@
-import { IsString, IsObject, IsOptional, ValidateNested, IsIn, IsArray, IsNumber } from 'class-validator';
+import {
+  IsString,
+  IsObject,
+  IsOptional,
+  ValidateNested,
+  IsIn,
+  IsArray,
+  IsNumber,
+  Validate,
+  ValidatorConstraint,
+  ValidatorConstraintInterface,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 const ActionTypesList = [
@@ -6,6 +17,7 @@ const ActionTypesList = [
   'toivr', 'toroute', 'playprompt', 'playback',
   'setclid_custom', 'setclid_list',
   'sendmail', 'sendmailpeer', 'telegram',
+  'notify', 'callerid', 'trunk_carousel',
   'voicemail', 'text2speech', 'voicerobot', 'asr', 'keywords',
   'webhook', 'confbridge', 'cmd', 'tofax',
   'label', 'busy', 'hangup'
@@ -24,10 +36,30 @@ const BehaviorTypesList = [
   'redirect', 'vars_only', 'custom',
 ];
 
+@ValidatorConstraint({ name: 'isDialstatusOrArray', async: false })
+class IsDialstatusOrArrayConstraint implements ValidatorConstraintInterface {
+  validate(value: unknown): boolean {
+    if (value === undefined || value === null) return true;
+    if (typeof value === 'string') return ValidDialstatuses.includes(value);
+    if (Array.isArray(value)) {
+      return value.every((item) => typeof item === 'string' && ValidDialstatuses.includes(item));
+    }
+    return false;
+  }
+
+  defaultMessage(): string {
+    return 'dialstatus must be a valid status or array of valid statuses';
+  }
+}
+
 export class RouteActionConditionDto {
   @IsOptional()
-  @IsIn(ValidDialstatuses)
-  dialstatus?: string;
+  @Validate(IsDialstatusOrArrayConstraint)
+  dialstatus?: string | string[];
+
+  @IsOptional()
+  @IsNumber()
+  time_group_uid?: number;
 
   @IsOptional()
   @IsString()
