@@ -83,7 +83,13 @@ Each task was committed atomically:
 2. **Task 2: Controller + module wiring + app.module registration** - `efb8a69` (feat)
 3. **Task 3: Service spec (CRUD, tenant isolation, apply called)** - `3ed6bf8` (test)
 
-**Plan metadata:** _(pending final docs commit)_
+**Plan metadata:** `7ff20e8` (docs: complete plan)
+
+## Self-Check: PASSED
+
+- All key files FOUND on disk
+- Task commits FOUND: bd62df7, efb8a69, 3ed6bf8
+- Docs commit: 7ff20e8
 
 ## Files Created/Modified
 

@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Ready to execute
-last_updated: "2026-07-15T11:37:16.989Z"
+status: Executing Phase 06
+last_updated: "2026-07-15T11:37:00.000Z"
 progress:
   total_phases: 7
   completed_phases: 3
   total_plans: 27
-  completed_plans: 21
-  percent: 43
+  completed_plans: 22
+  percent: 81
 ---
 
 # State
@@ -17,9 +17,9 @@ progress:
 ## Current position
 
 Phase: 06 (dialplan-apps-ring-groups-multi-channel-notifications-ux-ove) — EXECUTING
-Plan: 9 of 14 complete (next: 06-06 / 06-09 / 06-11+)
+Plan: 6 of 14 complete (06-06 done; next: 06-09 / 06-11+)
 Phase 5 — Phonebooks AI: plans executed (verify/UAT may remain).  
-Phase 6 — Dialplan Apps: **06-01–06-05, 06-07, 06-08, 06-10 executed**. Remaining: 06-06, 06-09, 06-11–06-14.
+Phase 6 — Dialplan Apps: **06-01–06-08, 06-10 executed**. Remaining: 06-09, 06-11–06-14.
 
 Phase 4 — IVR TTS phrases: **executed** (verify pending).  
 Phase 3 — IVR UI: **executed** (verify pending).  
@@ -37,6 +37,8 @@ Phase 1 — MOH: pending verify.
 - [Phase 06]: Notification integrations encrypt credentials via shared secret-cipher.util; CRUD never returns encrypted_credentials (06-07)
 - [Phase 06]: findByUidInternal skips tenant filter — dispatcher resolves globally-unique integration uid (06-07)
 - [Phase 06]: callGroupApi + notificationApi RTK slices with CallGroups/Notifications cache tags (06-10)
+- [Phase 06]: CallGroupsService Pattern 2 — generateGroupDialplan + DialplanApplyService on every CRUD (06-06)
+- [Phase 06]: Member replace-all only when members !== undefined on update (queues idiom) (06-06)
 - [Phase 06]: Local NotifyDialplanBody until 06-09 formalizes DTO; axios direct in providers (HttpModule wiring in 06-09)
 - [Phase 06]: Webhook payload_template uses {{message}}/{{target}} substitution with http(s) SSRF guard
 
@@ -49,7 +51,7 @@ Phase 1 — MOH: pending verify.
 
 ## Next GSD command
 
-`/gsd-execute-phase 6` (plan 06-09 or remaining Wave 3)
+`/gsd-execute-phase 6` (plan 06-09 or 06-11)
 
 ## Performance Metrics
 
@@ -62,3 +64,4 @@ Phase 1 — MOH: pending verify.
 | Phase 06 P07 | 30min | 3 tasks | 8 files |
 | Phase 06 P10 | 15min | 1 task | 3 files |
 | Phase 06 P08 | 12min | 2 tasks | 10 files |
+| Phase 06 P06 | 10min | 3 tasks | 6 files |
