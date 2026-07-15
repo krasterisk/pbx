@@ -1,0 +1,17 @@
+.fieldRow {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.fieldLabel {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.secretHint {
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  margin-top: 0.125rem;
+}

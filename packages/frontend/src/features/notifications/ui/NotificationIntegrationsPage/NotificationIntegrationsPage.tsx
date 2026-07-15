@@ -6,6 +6,7 @@ import { HStack, VStack } from '@/shared/ui/Stack';
 import { useAppDispatch } from '@/shared/hooks/useAppStore';
 import { notificationsPageActions } from '../../model/slice/notificationsPageSlice';
 import { NotificationIntegrationsTable } from '../NotificationIntegrationsTable/NotificationIntegrationsTable';
+import { NotificationIntegrationFormModal } from '../NotificationIntegrationFormModal/NotificationIntegrationFormModal';
 
 export const NotificationIntegrationsPage = () => {
   const { t } = useTranslation();
@@ -39,6 +40,8 @@ export const NotificationIntegrationsPage = () => {
             <NotificationIntegrationsTable />
           </CardContent>
         </Card>
+
+        <NotificationIntegrationFormModal />
       </VStack>
     </motion.div>
   );
