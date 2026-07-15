@@ -11,6 +11,7 @@ import { CcAgentSession } from './models/agent-session.model';
 import { CcAgentEvent } from './models/agent-event.model';
 import { CcAgentQueue } from './models/agent-queue.model';
 import { CcMissedCall } from './models/missed-call.model';
+import { CcQueueCall } from './models/queue-call.model';
 import { Queue } from '../queues/queue.model';
 import { User } from '../users/user.model';
 import { PhonebookEntry } from '../phonebooks/phonebook-entry.model';
@@ -25,6 +26,7 @@ import { ServiceRequest } from '../service-requests/service-request.model';
       CcAgentEvent,
       CcAgentQueue,
       CcMissedCall,
+      CcQueueCall,
       Queue,           // for tenant resolution from queue names
       User,            // for agent display names
       PhonebookEntry,  // Client Card sidebar lookup

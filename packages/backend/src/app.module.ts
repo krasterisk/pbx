@@ -47,6 +47,7 @@ import { CcAgentSession } from './modules/callcenter/models/agent-session.model'
 import { CcAgentEvent } from './modules/callcenter/models/agent-event.model';
 import { CcAgentQueue } from './modules/callcenter/models/agent-queue.model';
 import { CcMissedCall } from './modules/callcenter/models/missed-call.model';
+import { CcQueueCall } from './modules/callcenter/models/queue-call.model';
 import { Tenant } from './modules/cloud-admin/tenant.model';
 import { ModuleRegistry } from './modules/cloud-admin/module-registry.model';
 import { TenantModule } from './modules/cloud-admin/tenant-module.model';
@@ -122,7 +123,7 @@ import * as path from 'path';
         SystemSetting, Cdr, VoiceRobot, VoiceRobotKeywordGroup, VoiceRobotKeyword, VoiceRobotLog, VoiceRobotCdr, VoiceRobotDataList,
         Queue, QueueMember,
         ServiceRequest, CcSubject, CcDistrict,
-        CcPauseReason, CcAgentSession, CcAgentEvent, CcAgentQueue, CcMissedCall,
+        CcPauseReason, CcAgentSession, CcAgentEvent, CcAgentQueue, CcMissedCall, CcQueueCall,
         CcAiAgent, CcAiProvider, CcAiToolset, CcAiCdr, CcAiBilling, CcAiInvoice, CcAiAuditLog,
         TimeGroup,
         RoutePhonebook, PhonebookEntry, RoutePhonebookBinding,
