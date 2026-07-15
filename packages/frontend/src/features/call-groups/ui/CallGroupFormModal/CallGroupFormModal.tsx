@@ -27,13 +27,18 @@ import {
   useUpdateCallGroupMutation,
 } from '@/shared/api/endpoints/callGroupApi';
 import { useGetContextsQuery } from '@/shared/api/endpoints/contextApi';
-import type { RingStrategy } from '@krasterisk/shared';
+import type { ICallGroup, RingStrategy } from '@krasterisk/shared';
 import { CallGroupMembersEditor, type LocalCallGroupMember } from './CallGroupMembersEditor';
 import cls from './CallGroupFormModal.module.scss';
 
 const STRATEGY_VALUES: RingStrategy[] = ['ringall', 'hunt', 'memoryhunt', 'random'];
 
-export const CallGroupFormModal = memo(() => {
+export interface CallGroupFormModalProps {
+  /** Called after a successful create/update so inline hosts (e.g. GroupApp) can select the uid. */
+  onSaved?: (group: ICallGroup) => void;
+}
+
+export const CallGroupFormModal = memo(({ onSaved }: CallGroupFormModalProps) => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const isOpen = useAppSelector(selectCallGroupsIsModalOpen);
@@ -127,11 +132,13 @@ export const CallGroupFormModal = memo(() => {
     };
 
     try {
+      let saved: ICallGroup;
       if (mode === 'edit' && selectedUid) {
-        await updateCallGroup({ uid: selectedUid, data: payload }).unwrap();
+        saved = await updateCallGroup({ uid: selectedUid, data: payload }).unwrap();
       } else {
-        await createCallGroup(payload).unwrap();
+        saved = await createCallGroup(payload).unwrap();
       }
+      onSaved?.(saved);
       handleClose();
     } catch {
       setSubmitError(t('common.error', 'Ошибка сохранения'));
@@ -148,6 +155,7 @@ export const CallGroupFormModal = memo(() => {
     selectedUid,
     createCallGroup,
     updateCallGroup,
+    onSaved,
     handleClose,
     t,
   ]);

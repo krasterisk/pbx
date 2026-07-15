@@ -426,6 +426,9 @@ export const ru = {
       sendmail: 'Email',
       sendmailpeer: 'Email абоненту',
       telegram: 'Telegram',
+      notify: 'Уведомление',
+      callerid: 'Caller ID',
+      trunk_carousel: 'Карусель транков',
       voicemail: 'Голосовая почта',
       text2speech: 'Синтез речи',
       asr: 'Распознавание речи',
@@ -441,7 +444,12 @@ export const ru = {
     },
     apps: {
       exten: { select: 'Абонент' },
-      group: { number: 'Номер группы' },
+      group: {
+        number: 'Номер группы',
+        selectGroup: 'Выберите группу вызовов',
+        createGroup: 'Создать группу',
+        editGroup: 'Редактировать группу',
+      },
       list: { numbers: 'Номера (через запятую)' },
       common: {
         sec: 'Сек',

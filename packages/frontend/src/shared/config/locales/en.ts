@@ -422,6 +422,9 @@ export const en = {
       sendmail: 'Email',
       sendmailpeer: 'Email to ext',
       telegram: 'Telegram',
+      notify: 'Notify',
+      callerid: 'Caller ID',
+      trunk_carousel: 'Trunk Carousel',
       voicemail: 'Voicemail',
       text2speech: 'Text-to-Speech',
       asr: 'Speech Recognition',
@@ -438,7 +441,12 @@ export const en = {
     },
     apps: {
       exten: { select: 'Extension' },
-      group: { number: 'Group Number' },
+      group: {
+        number: 'Group Number',
+        selectGroup: 'Select call group',
+        createGroup: 'Create group',
+        editGroup: 'Edit group',
+      },
       list: { numbers: 'Numbers (comma separated)' },
       common: {
         sec: 'Sec',

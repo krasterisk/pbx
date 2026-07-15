@@ -9,13 +9,14 @@ import { IvrApp } from '../ui/apps/IvrApp/IvrApp';
 import { PromptApp } from '../ui/apps/PromptApp/PromptApp';
 import { ToRouteApp } from '../ui/apps/ToRouteApp/ToRouteApp';
 import { HangupApp } from '../ui/apps/HangupApp/HangupApp';
+import { GroupApp } from '../ui/apps/GroupApp/GroupApp';
 
 export const dialplanAppsRegistry: Record<ActionType, IDialplanAppConfig> = {
   // --- TELEPHONY & MEDIA ---
   totrunk: { type: 'totrunk', labelKey: 'routes.action.totrunk', component: TrunkApp, category: 'telephony', defaultParams: { trunk: '', dest: '${EXTEN}', timeout: 60, options: 'tT' } },
   toexten: { type: 'toexten', labelKey: 'routes.action.toexten', component: ExtenApp, category: 'telephony', defaultParams: { exten: '', timeout: 60, options: 'tThH' } },
   toqueue: { type: 'toqueue', labelKey: 'routes.action.toqueue', component: QueueApp, category: 'telephony', defaultParams: { queue: '', timeout: '', options: 'thH' } },
-  togroup: { type: 'togroup', labelKey: 'routes.action.togroup', component: GenericApp, category: 'telephony' },
+  togroup: { type: 'togroup', labelKey: 'routes.action.togroup', component: GroupApp, category: 'telephony', defaultParams: { group: '' } },
   tolist: { type: 'tolist', labelKey: 'routes.action.tolist', component: GenericApp, category: 'telephony' },
   toivr: { type: 'toivr', labelKey: 'routes.action.toivr', component: IvrApp, category: 'telephony', defaultParams: { ivr_uid: '' } },
   toroute: { type: 'toroute', labelKey: 'routes.action.toroute', component: ToRouteApp, category: 'telephony', defaultParams: { context: '', extension: '' } },
@@ -30,9 +31,12 @@ export const dialplanAppsRegistry: Record<ActionType, IDialplanAppConfig> = {
   // --- SYSTEM & NOTIFICATIONS ---
   setclid_custom: { type: 'setclid_custom', labelKey: 'routes.action.setclid_custom', component: GenericApp, category: 'system' },
   setclid_list: { type: 'setclid_list', labelKey: 'routes.action.setclid_list', component: GenericApp, category: 'system' },
+  callerid: { type: 'callerid', labelKey: 'routes.action.callerid', component: GenericApp, category: 'system' },
+  trunk_carousel: { type: 'trunk_carousel', labelKey: 'routes.action.trunk_carousel', component: GenericApp, category: 'telephony' },
   sendmail: { type: 'sendmail', labelKey: 'routes.action.sendmail', component: GenericApp, category: 'notification' },
   sendmailpeer: { type: 'sendmailpeer', labelKey: 'routes.action.sendmailpeer', component: GenericApp, category: 'notification' },
   telegram: { type: 'telegram', labelKey: 'routes.action.telegram', component: GenericApp, category: 'notification' },
+  notify: { type: 'notify', labelKey: 'routes.action.notify', component: GenericApp, category: 'notification', defaultParams: { integration_uid: '', message: '', target: '' } },
   voicemail: { type: 'voicemail', labelKey: 'routes.action.voicemail', component: GenericApp, category: 'notification' },
   webhook: { type: 'webhook', labelKey: 'routes.action.webhook', component: GenericApp, category: 'system' },
   cmd: { type: 'cmd', labelKey: 'routes.action.cmd', component: GenericApp, category: 'system' },
