@@ -1,5 +1,7 @@
+import { ForbiddenException } from '@nestjs/common';
 import { CallCenterChatService } from './callcenter-chat.service';
 import { CallCenterStateService } from './callcenter-state.service';
+import { CallCenterChatController } from './callcenter-chat.controller';
 
 describe('CallCenterChatService', () => {
   let service: CallCenterChatService;
@@ -80,5 +82,81 @@ describe('CallCenterChatService', () => {
         service.computeRecipientUserIds('broadcast_all', 'broadcast:all', undefined, 1, 7),
       ).resolves.toBeUndefined();
     });
+  });
+});
+
+describe('CallCenterChatController (authorization)', () => {
+  let controller: CallCenterChatController;
+  let chatService: jest.Mocked<Pick<CallCenterChatService,
+    'buildDirectKey' | 'canAccessChannel' | 'createMessage' | 'resolveSenderName'
+    | 'computeRecipientUserIds' | 'broadcastAllKey' | 'groupKey' | 'broadcastQueueKey'
+  >>;
+  let stateService: { emitEvent: jest.Mock };
+
+  const reqUser = { id: 5, level: 2, vpbx_user_uid: 7 };
+
+  beforeEach(() => {
+    chatService = {
+      buildDirectKey: jest.fn((a, b) => `dm:${Math.min(a, b)}:${Math.max(a, b)}`),
+      canAccessChannel: jest.fn(),
+      createMessage: jest.fn().mockImplementation((params) => Promise.resolve({
+        uid: 100,
+        channel_key: params.channelKey,
+        channel_type: params.channelType,
+        sender_user_id: params.senderUserId,
+        sender_name: params.senderName,
+        body: params.body,
+        created_at: new Date('2026-07-15T12:00:00Z'),
+      })),
+      resolveSenderName: jest.fn().mockResolvedValue('Alice'),
+      computeRecipientUserIds: jest.fn().mockResolvedValue([5, 9]),
+      broadcastAllKey: jest.fn().mockReturnValue('broadcast:all'),
+      groupKey: jest.fn((uid) => `group:${uid}`),
+      broadcastQueueKey: jest.fn((q) => `broadcast:queue:${q}`),
+    };
+    stateService = { emitEvent: jest.fn() };
+    controller = new CallCenterChatController(
+      chatService as unknown as CallCenterChatService,
+      stateService as unknown as CallCenterStateService,
+    );
+  });
+
+  it('emitEvent ccChatMessage with recipientUserIds on direct send', async () => {
+    chatService.canAccessChannel.mockResolvedValue(true);
+
+    await controller.sendMessage(
+      { channelType: 'direct', body: 'hello', targetUserId: 9 },
+      { user: reqUser } as any,
+    );
+
+    expect(stateService.emitEvent).toHaveBeenCalledWith(
+      'ccChatMessage',
+      7,
+      expect.objectContaining({
+        recipientUserIds: [5, 9],
+        sender_user_id: 5,
+        body: 'hello',
+      }),
+    );
+  });
+
+  it('ForbiddenException when operator sends broadcast_all', async () => {
+    await expect(
+      controller.sendMessage(
+        { channelType: 'broadcast_all', body: 'announcement' },
+        { user: reqUser } as any,
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('ForbiddenException when reading history of foreign direct channel', async () => {
+    chatService.canAccessChannel.mockResolvedValue(false);
+
+    await expect(
+      controller.getMessages(
+        { channelKey: 'dm:1:2' },
+        { user: reqUser } as any,
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
   });
 });

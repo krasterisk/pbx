@@ -13,8 +13,10 @@ import { CallCenterController } from './callcenter.controller';
 import { CallCenterSseController } from './callcenter-sse.controller';
 import { CallCenterSettingsController } from './callcenter-settings.controller';
 import { CallCenterCardsController } from './callcenter-cards.controller';
+import { CallCenterChatController } from './callcenter-chat.controller';
 import { CallCenterSettingsService } from './callcenter-settings.service';
 import { CallCenterCardsService } from './callcenter-cards.service';
+import { CallCenterChatService } from './callcenter-chat.service';
 import { CcPauseReason } from './models/pause-reason.model';
 import { CcAgentSession } from './models/agent-session.model';
 import { CcAgentEvent } from './models/agent-event.model';
@@ -28,6 +30,8 @@ import { CcSettings } from './models/cc-settings.model';
 import { CcCardTemplate } from './models/card-template.model';
 import { CcCardField } from './models/card-field.model';
 import { CcCardData } from './models/card-data.model';
+import { CcChatMessage } from './models/chat-message.model';
+import { CcChatChannel } from './models/chat-channel.model';
 import { Queue } from '../queues/queue.model';
 import { User } from '../users/user.model';
 import { PhonebookEntry } from '../phonebooks/phonebook-entry.model';
@@ -53,6 +57,8 @@ import { queueLogReaderProvider } from './queuelog/queue-log-reader.factory';
       CcCardTemplate,
       CcCardField,
       CcCardData,
+      CcChatMessage,
+      CcChatChannel,
       Queue,           // for tenant resolution from queue names
       User,            // for agent display names
       PhonebookEntry,  // Client Card sidebar lookup
@@ -80,12 +86,14 @@ import { queueLogReaderProvider } from './queuelog/queue-log-reader.factory';
     CallCenterService,
     CallCenterSettingsService,
     CallCenterCardsService,
+    CallCenterChatService,
   ],
   controllers: [
     CallCenterController,
     CallCenterSseController,
     CallCenterSettingsController,
     CallCenterCardsController,
+    CallCenterChatController,
   ],
   exports: [
     CallCenterStateService,

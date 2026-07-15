@@ -13,7 +13,7 @@
  */
 import { Controller, Sse, Req, UseGuards, Get, MessageEvent, Logger } from '@nestjs/common';
 import { Request } from 'express';
-import { Observable, map, merge, interval, startWith } from 'rxjs';
+import { Observable, map, merge, interval, startWith, filter } from 'rxjs';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CallCenterStateService } from './callcenter-state.service';
 
@@ -56,12 +56,27 @@ export class CallCenterSseController {
         userUid,
         data: snapshot,
       }),
+      // Drop chat messages not addressed to this user (server-side recipient filter)
+      filter(event => {
+        if (event.type !== 'ccChatMessage') return true;
+        const recipients = event.data?.recipientUserIds;
+        if (recipients === undefined) return true;
+        if (!Array.isArray(recipients)) return true;
+        return recipients.includes(userId);
+      }),
       // Map to SSE MessageEvent format
-      map(event => ({
-        data: JSON.stringify(event.data),
-        type: event.type,
-        id: String(event.data?._eventId || Date.now()),
-      })),
+      map(event => {
+        let data = event.data;
+        if (event.type === 'ccChatMessage' && data && typeof data === 'object') {
+          const { recipientUserIds: _omit, ...rest } = data;
+          data = rest;
+        }
+        return {
+          data: JSON.stringify(data),
+          type: event.type,
+          id: String(data?._eventId || Date.now()),
+        };
+      }),
     );
 
     // Heartbeat stream — SSE comment to keep connection alive through proxies
