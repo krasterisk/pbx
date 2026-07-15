@@ -76,7 +76,7 @@ completed: 2026-07-15
 2. **Task 2: TrunkCarouselApp + registry wiring** - `d82fbef` (feat)
 3. **Task 3: Integration tests** - `77e020e` (test)
 
-**Plan metadata:** _(pending docs commit)_
+**Plan metadata:** `fa71f4e` (docs: complete plan)
 
 ## Files Created/Modified
 
