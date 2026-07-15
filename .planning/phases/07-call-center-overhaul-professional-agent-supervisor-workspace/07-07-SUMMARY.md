@@ -85,7 +85,7 @@ completed: 2026-07-15
 2. **Task 2: Chat transport — REST controller, DTOs, SSE delivery** - `64e36bd` (feat)
 3. **Task 3: Frontend chat panel — RTK, SSE listener, ChatPanel** - `b0dc27c` (feat)
 
-**Plan metadata:** pending (docs commit)
+**Plan metadata:** `8e297d6` (docs: complete plan)
 
 ## Self-Check: PASSED
 
