@@ -481,14 +481,14 @@ export const ru = {
         listUid: 'ID списка',
         addNumber: 'Добавить номер в пул',
         addToPool: 'Добавить',
-        poolNumber: 'Номер пула {{n}}',
+        poolNumber: 'Номер пула',
       },
       trunkCarousel: {
         hint:
           'Сначала выбирает случайный транк, при недозвоне проходит по упорядоченному списку. Для каждого транка CallerID — статичный номер или справочник.',
-        selectTrunk: 'Транк {{n}}',
+        selectTrunk: 'Транк',
         selectTrunkOption: 'Выберите транк',
-        cidMode: 'Источник CID {{n}}',
+        cidMode: 'Источник CID',
         cidStatic: 'Статичный CID',
         cidPhonebook: 'CID из справочника',
         callerid: 'Номер CallerID',

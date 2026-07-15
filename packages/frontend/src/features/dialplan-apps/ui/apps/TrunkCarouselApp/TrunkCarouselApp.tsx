@@ -130,9 +130,7 @@ export const TrunkCarouselApp = memo(({ action, onUpdate }: IDialplanAppProps) =
                 value={item.trunk}
                 onChange={(e) => handleTrunkChange(index, e)}
                 disabled={trunksLoading}
-                aria-label={t('routes.apps.trunkCarousel.selectTrunk', 'Trunk {{n}}', {
-                  n: index + 1,
-                })}
+                aria-label={t('routes.apps.trunkCarousel.selectTrunk', 'Trunk')}
               >
                 <option value="">
                   {t('routes.apps.trunkCarousel.selectTrunkOption', 'Select trunk')}
@@ -147,9 +145,7 @@ export const TrunkCarouselApp = memo(({ action, onUpdate }: IDialplanAppProps) =
                 className={cls.field}
                 value={item.cid_mode}
                 onChange={(e) => handleCidModeChange(index, e)}
-                aria-label={t('routes.apps.trunkCarousel.cidMode', 'CID source {{n}}', {
-                  n: index + 1,
-                })}
+                aria-label={t('routes.apps.trunkCarousel.cidMode', 'CID source')}
               >
                 <option value="static">
                   {t('routes.apps.trunkCarousel.cidStatic', 'Static CID')}

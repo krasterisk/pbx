@@ -214,9 +214,7 @@ export const CallerIdApp = memo(({ action, onUpdate }: IDialplanAppProps) => {
                 className={cls.poolInput}
                 value={number}
                 onChange={(e) => handlePoolEdit(index, e.target.value)}
-                aria-label={t('routes.apps.callerid.poolNumber', 'Pool number {{n}}', {
-                  n: index + 1,
-                })}
+                aria-label={t('routes.apps.callerid.poolNumber', 'Pool number')}
               />
               <div className={cls.poolActions}>
                 <Button

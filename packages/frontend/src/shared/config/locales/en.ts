@@ -478,14 +478,14 @@ export const en = {
         listUid: 'List ID',
         addNumber: 'Add number to pool',
         addToPool: 'Add',
-        poolNumber: 'Pool number {{n}}',
+        poolNumber: 'Pool number',
       },
       trunkCarousel: {
         hint:
           'Picks a random trunk first, then fails over down the ordered list on no-answer. Each trunk can set CallerID from a static number or a phonebook.',
-        selectTrunk: 'Trunk {{n}}',
+        selectTrunk: 'Trunk',
         selectTrunkOption: 'Select trunk',
-        cidMode: 'CID source {{n}}',
+        cidMode: 'CID source',
         cidStatic: 'Static CID',
         cidPhonebook: 'Phonebook CID',
         callerid: 'CallerID number',
