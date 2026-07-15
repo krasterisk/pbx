@@ -76,7 +76,7 @@ Each task was committed atomically:
 2. **Task 2 RED: time_group guard specs** - `0759bce` (test)
 3. **Task 2 GREEN: ExecIfTime guard emission** - `b5a5e2d` (feat)
 
-**Plan metadata:** pending (docs commit)
+**Plan metadata:** `8842a03` (docs: complete plan)
 
 ## Files Created/Modified
 - `packages/backend/src/modules/routes/routes.module.ts` - Import TimeGroupsModule
