@@ -45,6 +45,15 @@ export class AmiService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  /** Lazily resolve queue_log reconciler (D-05 backfill on AMI reconnect). */
+  private getCcReconcilerService() {
+    try {
+      return this.moduleRef.get('CallCenterQueueLogReconcilerService', { strict: false });
+    } catch {
+      return null;
+    }
+  }
+
   onModuleInit() {
     this.connect();
   }
@@ -128,12 +137,22 @@ export class AmiService implements OnModuleInit, OnModuleDestroy {
         if (wasReconnect) {
           setTimeout(() => {
             const ccAmi = this.getCcAmiService();
-            if (!ccAmi?.loadInitialState) return;
-            Promise.resolve(ccAmi.loadInitialState()).catch((err: any) => {
-              this.logger.warn(
-                `CC state resync after AMI reconnect failed: ${err?.message || err}`,
-              );
-            });
+            if (ccAmi?.loadInitialState) {
+              Promise.resolve(ccAmi.loadInitialState()).catch((err: any) => {
+                this.logger.warn(
+                  `CC state resync after AMI reconnect failed: ${err?.message || err}`,
+                );
+              });
+            }
+            // D-05: backfill cc_queue_calls gaps from Asterisk queue_log
+            const reconciler = this.getCcReconcilerService();
+            if (reconciler?.reconcileRecent) {
+              Promise.resolve(reconciler.reconcileRecent()).catch((err: any) => {
+                this.logger.warn(
+                  `CC queue_log reconcile after AMI reconnect failed: ${err?.message || err}`,
+                );
+              });
+            }
           }, 1500);
         }
       });

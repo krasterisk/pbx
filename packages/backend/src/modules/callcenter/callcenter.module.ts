@@ -7,6 +7,7 @@ import { CallCenterService } from './callcenter.service';
 import { CallCenterHistoryWriterService } from './callcenter-history-writer.service';
 import { CallCenterMetricsService } from './callcenter-metrics.service';
 import { CallCenterRollupService } from './callcenter-rollup.service';
+import { CallCenterQueueLogReconcilerService } from './callcenter-queuelog-reconciler.service';
 import { CallCenterController } from './callcenter.controller';
 import { CallCenterSseController } from './callcenter-sse.controller';
 import { CcPauseReason } from './models/pause-reason.model';
@@ -22,6 +23,9 @@ import { User } from '../users/user.model';
 import { PhonebookEntry } from '../phonebooks/phonebook-entry.model';
 import { RoutePhonebook } from '../phonebooks/phonebook.model';
 import { ServiceRequest } from '../service-requests/service-request.model';
+import { FileQueueLogReader } from './queuelog/file-queue-log-reader';
+import { RealtimeQueueLogReader } from './queuelog/realtime-queue-log-reader';
+import { queueLogReaderProvider } from './queuelog/queue-log-reader.factory';
 
 @Module({
   imports: [
@@ -47,6 +51,15 @@ import { ServiceRequest } from '../service-requests/service-request.model';
     CallCenterHistoryWriterService,
     CallCenterMetricsService,
     CallCenterRollupService,
+    FileQueueLogReader,
+    RealtimeQueueLogReader,
+    queueLogReaderProvider,
+    CallCenterQueueLogReconcilerService,
+    // String alias for AmiService ModuleRef.get('CallCenterQueueLogReconcilerService')
+    {
+      provide: 'CallCenterQueueLogReconcilerService',
+      useExisting: CallCenterQueueLogReconcilerService,
+    },
     CallCenterAmiService,
     CallCenterService,
   ],
@@ -58,6 +71,7 @@ import { ServiceRequest } from '../service-requests/service-request.model';
     CallCenterStateService,
     CallCenterMetricsService,
     CallCenterRollupService,
+    CallCenterQueueLogReconcilerService,
     CallCenterAmiService, // exported so AmiService can resolve it via ModuleRef
     CallCenterService,
   ],
