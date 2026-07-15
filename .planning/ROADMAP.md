@@ -280,7 +280,7 @@ Plans:
 
 Plans:
 
-- [ ] 06-01-PLAN.md — Shared types (call-group/notification) + ActionType + route-action DTO (array dialstatus, time_group_uid, new types) [D-19]
+- [x] 06-01-PLAN.md — Shared types (call-group/notification) + ActionType + route-action DTO (array dialstatus, time_group_uid, new types) [D-19]
 - [ ] 06-02-PLAN.md — dialplan.util: DIALSTATUS OR-join + hangup causecode + notify/callerid/trunk_carousel cases [D-12/14/15/19]
 - [ ] 06-03-PLAN.md — routes.service: inline ExecIfTime guard for time_group_uid [D-19]
 - [ ] 06-04-PLAN.md — call_group + call_group_member models + migration [D-01/03/06/07]
