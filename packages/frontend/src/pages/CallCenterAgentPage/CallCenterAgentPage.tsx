@@ -15,6 +15,8 @@ import { useCallCenterSSE } from '@/features/callcenter/lib/useCallCenterSSE';
 import { useCallNotifications } from '@/features/callcenter/lib/useCallNotifications';
 import { PauseReasonModal } from '@/features/callcenter/ui/PauseReasonModal/PauseReasonModal';
 import { ClientCard } from '@/features/callcenter/ui/ClientCard/ClientCard';
+import { CallCardPopup } from '@/features/callcenter/ui/CallCardPopup';
+import { useCallCardPopup } from '@/features/callcenter/lib/useCallCardPopup';
 import { MissedCallsPanel } from '@/features/callcenter/ui/MissedCallsPanel/MissedCallsPanel';
 import { ChatPanelHost } from '@/features/callcenter/ui/ChatPanel/ChatPanel';
 import { WrapupBar } from '@/features/callcenter/ui/WrapupBar/WrapupBar';
@@ -101,6 +103,16 @@ export function CallCenterAgentPage() {
   const [agentTransfer] = useAgentTransferMutation();
   const [agentPickCall] = useAgentPickCallMutation();
   const { data: pauseReasons = [] } = useGetPauseReasonsQuery();
+
+  const {
+    open: cardPopupOpen,
+    template: cardTemplate,
+    initialValues: cardInitialValues,
+    callContext: cardCallContext,
+    isVip: cardIsVip,
+    openManually: openCardManually,
+    close: closeCardPopup,
+  } = useCallCardPopup();
 
   const autosaveDraft = useCallback((uniqueid: string | null) => {
     if (!uniqueid || !operatorSettings?.wrapup_autosave_draft || wrapupAutosavedRef.current) return;
@@ -470,6 +482,11 @@ export function CallCenterAgentPage() {
                   {t('callcenter.agent.transfer', 'Transfer')}
                 </Button>
 
+                {/* Open call card (manual auto_open_on) */}
+                <Button variant="outline" size="sm" onClick={openCardManually}>
+                  {t('callcenter.cards.popup.openManual')}
+                </Button>
+
                 {/* Hangup */}
                 <Button
                   variant="destructive"
@@ -736,6 +753,16 @@ export function CallCenterAgentPage() {
           onSelect={handlePause}
         />
       )}
+
+      <CallCardPopup
+        open={cardPopupOpen}
+        template={cardTemplate}
+        initialValues={cardInitialValues}
+        callContext={cardCallContext}
+        isVip={cardIsVip}
+        wrapupRemaining={myAgent?.status === 'WRAPUP' ? wrapupRemaining : undefined}
+        onClose={closeCardPopup}
+      />
     </VStack>
   );
 }
