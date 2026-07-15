@@ -50,6 +50,8 @@ import { CcMissedCall } from './modules/callcenter/models/missed-call.model';
 import { CcQueueCall } from './modules/callcenter/models/queue-call.model';
 import { CcDailyQueueStats } from './modules/callcenter/models/daily-queue-stats.model';
 import { CcDailyAgentStats } from './modules/callcenter/models/daily-agent-stats.model';
+import { CcOperatorSettings } from './modules/callcenter/models/operator-settings.model';
+import { CcSettings } from './modules/callcenter/models/cc-settings.model';
 import { Tenant } from './modules/cloud-admin/tenant.model';
 import { ModuleRegistry } from './modules/cloud-admin/module-registry.model';
 import { TenantModule } from './modules/cloud-admin/tenant-module.model';
@@ -126,7 +128,7 @@ import * as path from 'path';
         Queue, QueueMember,
         ServiceRequest, CcSubject, CcDistrict,
         CcPauseReason, CcAgentSession, CcAgentEvent, CcAgentQueue, CcMissedCall, CcQueueCall,
-        CcDailyQueueStats, CcDailyAgentStats,
+        CcDailyQueueStats, CcDailyAgentStats, CcOperatorSettings, CcSettings,
         CcAiAgent, CcAiProvider, CcAiToolset, CcAiCdr, CcAiBilling, CcAiInvoice, CcAiAuditLog,
         TimeGroup,
         RoutePhonebook, PhonebookEntry, RoutePhonebookBinding,
