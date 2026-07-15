@@ -11,7 +11,9 @@ import { CallCenterQueueLogReconcilerService } from './callcenter-queuelog-recon
 import { CallCenterController } from './callcenter.controller';
 import { CallCenterSseController } from './callcenter-sse.controller';
 import { CallCenterSettingsController } from './callcenter-settings.controller';
+import { CallCenterCardsController } from './callcenter-cards.controller';
 import { CallCenterSettingsService } from './callcenter-settings.service';
+import { CallCenterCardsService } from './callcenter-cards.service';
 import { CcPauseReason } from './models/pause-reason.model';
 import { CcAgentSession } from './models/agent-session.model';
 import { CcAgentEvent } from './models/agent-event.model';
@@ -75,11 +77,13 @@ import { queueLogReaderProvider } from './queuelog/queue-log-reader.factory';
     CallCenterAmiService,
     CallCenterService,
     CallCenterSettingsService,
+    CallCenterCardsService,
   ],
   controllers: [
     CallCenterController,
     CallCenterSseController,
     CallCenterSettingsController,
+    CallCenterCardsController,
   ],
   exports: [
     CallCenterStateService,
