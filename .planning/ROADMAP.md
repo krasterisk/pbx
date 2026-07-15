@@ -276,11 +276,28 @@ Plans:
 | 3 | `/gsd-execute-phase 6` |
 | 4 | `/gsd-verify-work 6` |
 
-**Plans:** 0 plans
+**Plans:** 14 plans
 
 Plans:
 
-- [ ] TBD (run `/gsd-plan-phase 6` to break down)
+- [ ] 06-01-PLAN.md — Shared types (call-group/notification) + ActionType + route-action DTO (array dialstatus, time_group_uid, new types) [D-19]
+- [ ] 06-02-PLAN.md — dialplan.util: DIALSTATUS OR-join + hangup causecode + notify/callerid/trunk_carousel cases [D-12/14/15/19]
+- [ ] 06-03-PLAN.md — routes.service: inline ExecIfTime guard for time_group_uid [D-19]
+- [ ] 06-04-PLAN.md — call_group + call_group_member models + migration [D-01/03/06/07]
+- [ ] 06-05-PLAN.md — call-group-dialplan.util (TDD): 4 strategies, Gosub/Return semantics [D-05/06/07/08]
+- [ ] 06-06-PLAN.md — CallGroupsService (CRUD + apply) + controller + module [D-01/02/03/08]
+- [ ] 06-07-PLAN.md — notification_integration store (encrypted credentials) + service + controller [D-10/11]
+- [ ] 06-08-PLAN.md — Notification dispatcher + 6 channel providers [D-11/12]
+- [ ] 06-09-PLAN.md — /internal/dialplan/notify endpoint (async 200) + module wiring [D-12]
+- [ ] 06-10-PLAN.md — Frontend RTK apis (callGroupApi/notificationApi) + tagTypes [D-01/02/10/11]
+- [ ] 06-11-PLAN.md — Call Groups page + form modal + members editor [D-02/03/04/05/06/07]
+- [ ] 06-12-PLAN.md — Notification Integrations page + channel-driven form modal [D-10/11/13/16]
+- [ ] 06-13-PLAN.md — GroupApp + NotifyApp + registry + inline group editor [D-02/12/13/17/18]
+- [ ] 06-14-PLAN.md — CallerIdApp (4 modes) + TrunkCarouselApp + registry [D-14/15/16/17/18]
+
+**Waves:** W1 {06-01,06-02,06-03} · W2 {06-04,06-05,06-07,06-10} · W3 {06-06,06-08,06-11} · W4 {06-09,06-12} · W5 {06-13} · W6 {06-14}
+
+**Known deferred gap:** per backend ARCHITECTURE §6 new entities (call_group, notification_integration) should get MCP/AI tools; CONTEXT defers this to a later Domain AI Adapter phase (not implemented in Phase 6).
 
 **Verification:**
 
