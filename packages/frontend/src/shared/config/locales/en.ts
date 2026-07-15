@@ -390,8 +390,6 @@ export const en = {
         fixedNamePlaceholder: 'John Doe',
         fixedExten: 'Fixed extension',
         noVarsHint: 'This phonebook has no filled-in variables yet — add them to entries, or type a key manually',
-        customKey: 'Other (type manually)',
-        pickFromList: 'Pick from list',
         selectVarKey: 'Select a variable',
       },
     },

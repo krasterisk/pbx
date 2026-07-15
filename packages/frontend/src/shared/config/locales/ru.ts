@@ -391,8 +391,6 @@ export const ru = {
         fixedNamePlaceholder: 'Иванов И.И.',
         fixedExten: 'Фикс. номер',
         noVarsHint: 'В справочнике нет заполненных переменных — добавьте их в записи или введите ключ вручную',
-        customKey: 'Другое (ввести вручную)',
-        pickFromList: 'Из списка',
         selectVarKey: 'Выберите переменную',
       },
     },
