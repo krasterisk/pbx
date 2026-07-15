@@ -14,6 +14,8 @@ import { CcAgentEvent } from './models/agent-event.model';
 import { CcAgentQueue } from './models/agent-queue.model';
 import { CcMissedCall } from './models/missed-call.model';
 import { CcQueueCall } from './models/queue-call.model';
+import { CcDailyQueueStats } from './models/daily-queue-stats.model';
+import { CcDailyAgentStats } from './models/daily-agent-stats.model';
 import { Queue } from '../queues/queue.model';
 import { User } from '../users/user.model';
 import { PhonebookEntry } from '../phonebooks/phonebook-entry.model';
@@ -29,6 +31,8 @@ import { ServiceRequest } from '../service-requests/service-request.model';
       CcAgentQueue,
       CcMissedCall,
       CcQueueCall,
+      CcDailyQueueStats,
+      CcDailyAgentStats,
       Queue,           // for tenant resolution from queue names
       User,            // for agent display names
       PhonebookEntry,  // Client Card sidebar lookup
