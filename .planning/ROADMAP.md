@@ -276,13 +276,13 @@ Plans:
 | 3 | `/gsd-execute-phase 6` |
 | 4 | `/gsd-verify-work 6` |
 
-**Plans:** 2/14 plans executed
+**Plans:** 3/14 plans executed
 
 Plans:
 
 - [x] 06-01-PLAN.md — Shared types (call-group/notification) + ActionType + route-action DTO (array dialstatus, time_group_uid, new types) [D-19]
 - [x] 06-02-PLAN.md — dialplan.util: DIALSTATUS OR-join + hangup causecode + notify/callerid/trunk_carousel cases [D-12/14/15/19]
-- [ ] 06-03-PLAN.md — routes.service: inline ExecIfTime guard for time_group_uid [D-19]
+- [x] 06-03-PLAN.md — routes.service: inline ExecIfTime guard for time_group_uid [D-19]
 - [ ] 06-04-PLAN.md — call_group + call_group_member models + migration [D-01/03/06/07]
 - [ ] 06-05-PLAN.md — call-group-dialplan.util (TDD): 4 strategies, Gosub/Return semantics [D-05/06/07/08]
 - [ ] 06-06-PLAN.md — CallGroupsService (CRUD + apply) + controller + module [D-01/02/03/08]
