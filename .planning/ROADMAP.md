@@ -224,6 +224,17 @@ Plans:
 - Automated: `npm run test:backend` (phonebooks + ai-tools + mcp), `npm run lint`
 - Manual: AI Chat / MCP — создать справочник и записи по текстовому запросу; lookup + dialplan работают
 
+### Phase 7: Call Center overhaul: professional agent/supervisor workspaces, wallboard, call cards, reporting and analytics, AI-ready foundation
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 6
+**Plans:** 0 plans
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 7 to break down)
+
 ---
 
 ## Phase 6 — Dialplan Apps: ring groups, multi-channel notifications, UX overhaul
@@ -286,7 +297,7 @@ Plans:
 - [x] 06-04-PLAN.md — call_group + call_group_member models + migration [D-01/03/06/07]
 - [x] 06-05-PLAN.md — call-group-dialplan.util (TDD): 4 strategies, Gosub/Return semantics [D-05/06/07/08]
 - [ ] 06-06-PLAN.md — CallGroupsService (CRUD + apply) + controller + module [D-01/02/03/08]
-- [ ] 06-07-PLAN.md — notification_integration store (encrypted credentials) + service + controller [D-10/11]
+- [x] 06-07-PLAN.md — notification_integration store (encrypted credentials) + service + controller [D-10/11]
 - [ ] 06-08-PLAN.md — Notification dispatcher + 6 channel providers [D-11/12]
 - [ ] 06-09-PLAN.md — /internal/dialplan/notify endpoint (async 200) + module wiring [D-12]
 - [ ] 06-10-PLAN.md — Frontend RTK apis (callGroupApi/notificationApi) + tagTypes [D-01/02/10/11]
