@@ -89,7 +89,7 @@ completed: 2026-07-16
 2. **Task 2: DnD builder + FieldRenderer + settings tab** - `48ff65d` (feat)
 3. **Task 3: Runtime CallCardPopup + agent mount** - `33fcd22` (feat)
 
-**Plan metadata:** pending (docs commit)
+**Plan metadata:** `0e5c1c7` (docs: complete plan)
 
 ## Files Created/Modified
 
