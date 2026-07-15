@@ -1,5 +1,6 @@
 import { rtkApi } from '../rtkApi';
 import type { IPauseReason, ICcSnapshot, IAgentDetail } from '@/features/callcenter/model/types/callCenterSchema';
+import type { ICardTemplate, ICardData } from '@/features/callcenter/model/types/callCard';
 
 export interface IClientLookupContact {
   phonebook_uid: number;
@@ -250,6 +251,56 @@ const callCenterApi = rtkApi.injectEndpoints({
       query: (body) => ({ url: '/callcenter/chat/channels', method: 'POST', body }),
       invalidatesTags: ['CcChat'],
     }),
+
+    // ─── Call Card Templates (D-10/D-11) ─────────────────
+    getCardTemplates: build.query<ICardTemplate[], void>({
+      query: () => '/callcenter/card-templates',
+      providesTags: ['CardTemplates'],
+    }),
+    getCardTemplate: build.query<ICardTemplate, number>({
+      query: (id) => `/callcenter/card-templates/${id}`,
+      providesTags: (_result, _error, id) => [{ type: 'CardTemplates', id }],
+    }),
+    createCardTemplate: build.mutation<ICardTemplate, Partial<ICardTemplate>>({
+      query: (body) => ({ url: '/callcenter/card-templates', method: 'POST', body }),
+      invalidatesTags: ['CardTemplates'],
+    }),
+    updateCardTemplate: build.mutation<ICardTemplate, { id: number; data: Partial<ICardTemplate> }>({
+      query: ({ id, data }) => ({ url: `/callcenter/card-templates/${id}`, method: 'PUT', body: data }),
+      invalidatesTags: ['CardTemplates'],
+    }),
+    deleteCardTemplate: build.mutation<{ success: boolean }, number>({
+      query: (id) => ({ url: `/callcenter/card-templates/${id}`, method: 'DELETE' }),
+      invalidatesTags: ['CardTemplates'],
+    }),
+
+    // ─── Call Card Data (D-12) ───────────────────────────
+    getCards: build.query<ICardData[], { call_uniqueid?: string; caller_id?: string; status?: string } | void>({
+      query: (params) => ({
+        url: '/callcenter/cards',
+        params: params ?? undefined,
+      }),
+      providesTags: ['Cards'],
+    }),
+    getCardByCall: build.query<ICardData, string>({
+      query: (uniqueid) => `/callcenter/cards/by-call/${encodeURIComponent(uniqueid)}`,
+      providesTags: ['Cards'],
+    }),
+    saveCard: build.mutation<ICardData, {
+      template_id: number;
+      call_uniqueid?: string;
+      caller_id?: string;
+      queue_name?: string;
+      status?: ICardData['status'];
+      field_values: Record<string, unknown>;
+    }>({
+      query: (body) => ({ url: '/callcenter/cards', method: 'POST', body }),
+      invalidatesTags: ['Cards'],
+    }),
+    updateCard: build.mutation<ICardData, { id: number; data: Partial<ICardData> }>({
+      query: ({ id, data }) => ({ url: `/callcenter/cards/${id}`, method: 'PUT', body: data }),
+      invalidatesTags: ['Cards'],
+    }),
   }),
 });
 
@@ -293,4 +344,13 @@ export const {
   useGetChatMessagesQuery,
   useSendChatMessageMutation,
   useCreateChatChannelMutation,
+  useGetCardTemplatesQuery,
+  useGetCardTemplateQuery,
+  useCreateCardTemplateMutation,
+  useUpdateCardTemplateMutation,
+  useDeleteCardTemplateMutation,
+  useGetCardsQuery,
+  useLazyGetCardByCallQuery,
+  useSaveCardMutation,
+  useUpdateCardMutation,
 } = callCenterApi;

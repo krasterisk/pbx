@@ -61,6 +61,7 @@ export class CallCenterCardsService {
       auto_save_on_timeout: dto.auto_save_on_timeout ?? true,
       webhook_integration_uid: dto.webhook_integration_uid ?? null,
       webhook_field_map: dto.webhook_field_map ?? null,
+      queue_names: dto.queue_names ?? null,
       user_uid: vpbx,
       created_at: new Date(),
     });
@@ -85,6 +86,7 @@ export class CallCenterCardsService {
       patch.webhook_integration_uid = dto.webhook_integration_uid;
     }
     if (dto.webhook_field_map !== undefined) patch.webhook_field_map = dto.webhook_field_map;
+    if (dto.queue_names !== undefined) patch.queue_names = dto.queue_names;
 
     await template.update(patch);
 

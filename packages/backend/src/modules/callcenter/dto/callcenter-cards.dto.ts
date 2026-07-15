@@ -118,6 +118,11 @@ export class CreateCardTemplateDto {
   @IsObject()
   webhook_field_map?: Record<string, string>;
 
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  queue_names?: string[];
+
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => CardFieldDto)
@@ -153,6 +158,11 @@ export class UpdateCardTemplateDto {
   @IsOptional()
   @IsObject()
   webhook_field_map?: Record<string, string> | null;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  queue_names?: string[];
 
   @IsOptional()
   @IsArray()

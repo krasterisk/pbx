@@ -37,6 +37,10 @@ export class CcCardTemplate extends Model {
   @Column({ type: DataType.JSON, allowNull: true, defaultValue: null })
   declare webhook_field_map: Record<string, string> | null;
 
+  /** Queue names this template applies to (runtime resolves by call queue). */
+  @Column({ type: DataType.JSON, allowNull: true, defaultValue: null })
+  declare queue_names: string[] | null;
+
   @Column({ type: DataType.DATE, allowNull: false, defaultValue: DataType.NOW })
   declare created_at: Date;
 
