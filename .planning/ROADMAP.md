@@ -287,7 +287,7 @@ Plans:
 | 3 | `/gsd-execute-phase 6` |
 | 4 | `/gsd-verify-work 6` |
 
-**Plans:** 5/14 plans executed
+**Plans:** 6/14 plans executed
 
 Plans:
 
@@ -300,7 +300,7 @@ Plans:
 - [x] 06-07-PLAN.md — notification_integration store (encrypted credentials) + service + controller [D-10/11]
 - [ ] 06-08-PLAN.md — Notification dispatcher + 6 channel providers [D-11/12]
 - [ ] 06-09-PLAN.md — /internal/dialplan/notify endpoint (async 200) + module wiring [D-12]
-- [ ] 06-10-PLAN.md — Frontend RTK apis (callGroupApi/notificationApi) + tagTypes [D-01/02/10/11]
+- [x] 06-10-PLAN.md — Frontend RTK apis (callGroupApi/notificationApi) + tagTypes [D-01/02/10/11]
 - [ ] 06-11-PLAN.md — Call Groups page + form modal + members editor [D-02/03/04/05/06/07]
 - [ ] 06-12-PLAN.md — Notification Integrations page + channel-driven form modal [D-10/11/13/16]
 - [ ] 06-13-PLAN.md — GroupApp + NotifyApp + registry + inline group editor [D-02/12/13/17/18]
