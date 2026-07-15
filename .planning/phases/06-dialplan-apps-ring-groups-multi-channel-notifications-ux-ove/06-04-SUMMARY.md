@@ -74,7 +74,7 @@ Each task was committed atomically:
 1. **Task 1: Create CallGroup and CallGroupMember models** - `7ecee78` (feat)
 2. **Task 2: Standalone migration for call_groups + call_group_members** - `5ed299d` (feat)
 
-**Plan metadata:** pending (docs commit)
+**Plan metadata:** `b8f0000` (docs: complete plan)
 
 ## Files Created/Modified
 - `packages/backend/src/modules/call-groups/call-group.model.ts` - CallGroup Sequelize model
