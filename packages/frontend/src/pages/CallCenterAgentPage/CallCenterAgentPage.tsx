@@ -54,9 +54,17 @@ const DTMF_KEYS = ['1','2','3','4','5','6','7','8','9','*','0','#'];
 export function CallCenterAgentPage() {
   const { t } = useTranslation();
 
-  // SSE connection + notifications
+  // SSE connection + notifications (per-operator settings, D-20)
   useCallCenterSSE(true);
-  useCallNotifications({ enabled: true, holdTimeoutSec: 60 });
+  const { data: operatorSettings } = useGetMyOperatorSettingsQuery();
+  useCallNotifications({
+    enabled: true,
+    holdTimeoutSec: 60,
+    soundIncoming: operatorSettings?.sound_incoming ?? true,
+    soundMissed: operatorSettings?.sound_missed ?? true,
+    notificationsEnabled: operatorSettings?.notifications_enabled ?? true,
+    volume: (operatorSettings?.volume ?? 100) / 100 * 0.15,
+  });
 
   // Redux state
   const myAgent = useSelector(selectMyAgent);
@@ -93,7 +101,6 @@ export function CallCenterAgentPage() {
   const [agentTransfer] = useAgentTransferMutation();
   const [agentPickCall] = useAgentPickCallMutation();
   const { data: pauseReasons = [] } = useGetPauseReasonsQuery();
-  const { data: operatorSettings } = useGetMyOperatorSettingsQuery();
 
   const autosaveDraft = useCallback((uniqueid: string | null) => {
     if (!uniqueid || !operatorSettings?.wrapup_autosave_draft || wrapupAutosavedRef.current) return;

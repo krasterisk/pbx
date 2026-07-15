@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSelector } from 'react-redux';
 import {
   selectMyAgent,
@@ -7,33 +8,28 @@ import {
 import type { ICall } from '../model/types/callCenterSchema';
 
 /**
- * Call Center notifications + audio cues.
+ * Call Center notifications + audio cues (D-20).
  *
- * Plays short tones via the Web Audio API (no external audio assets needed)
- * and triggers the browser Notification API when:
- *   - a new call enters one of the agent's queues          (incoming)
- *   - a caller abandons before being answered             (abandon)
- *   - a held call exceeds `holdTimeoutSec` (default 60s)  (hold-timeout)
- *
- * Permission is requested lazily on the first call event after the user
- * has logged in, so we don't surprise them at page load.
+ * Per-operator: sound_incoming, sound_missed, notifications_enabled, volume.
+ * Browser Notification only when the tab is hidden (document.hidden).
  */
 
-type CueKind = 'incoming' | 'abandon' | 'holdTimeout';
+type CueKind = 'incoming' | 'missed' | 'abandon' | 'holdTimeout';
 
 const CUE_PRESETS: Record<CueKind, { freq: number[]; durMs: number }> = {
-  // Two-tone "incoming" ring
   incoming: { freq: [880, 660], durMs: 220 },
-  // Quick descending pair for abandons
+  missed: { freq: [440, 220], durMs: 180 },
   abandon: { freq: [440, 220], durMs: 180 },
-  // Single attention tone for hold-timeout
   holdTimeout: { freq: [990], durMs: 320 },
 };
 
 interface Options {
   enabled?: boolean;
   holdTimeoutSec?: number;
-  volume?: number; // 0..1
+  volume?: number;
+  soundIncoming?: boolean;
+  soundMissed?: boolean;
+  notificationsEnabled?: boolean;
 }
 
 function makeBeep(ctx: AudioContext, freq: number, durMs: number, vol: number) {
@@ -42,7 +38,6 @@ function makeBeep(ctx: AudioContext, freq: number, durMs: number, vol: number) {
   osc.type = 'sine';
   osc.frequency.value = freq;
   gain.gain.value = vol;
-  // Quick fade-out to avoid pops
   gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + durMs / 1000);
   osc.connect(gain).connect(ctx.destination);
   osc.start();
@@ -50,7 +45,15 @@ function makeBeep(ctx: AudioContext, freq: number, durMs: number, vol: number) {
 }
 
 export function useCallNotifications(opts: Options = {}) {
-  const { enabled = true, holdTimeoutSec = 60, volume = 0.15 } = opts;
+  const { t } = useTranslation();
+  const {
+    enabled = true,
+    holdTimeoutSec = 60,
+    volume = 0.15,
+    soundIncoming = true,
+    soundMissed = true,
+    notificationsEnabled = true,
+  } = opts;
 
   const myAgent = useSelector(selectMyAgent);
   const waiting = useSelector(selectWaitingCalls);
@@ -59,49 +62,51 @@ export function useCallNotifications(opts: Options = {}) {
   const audioCtxRef = useRef<AudioContext | null>(null);
   const knownWaitingRef = useRef<Set<string>>(new Set());
   const knownAbandonedRef = useRef<Set<string>>(new Set());
+  const knownMissedRef = useRef<Set<string>>(new Set());
   const holdAlertedRef = useRef<Set<string>>(new Set());
-  // Track last seen waiting uniqueids so we can detect "removed without being answered"
   const prevWaitingRef = useRef<ICall[]>([]);
 
-  // ─── Permission ─────────────────────────────────────────
-
   const requestPermission = useCallback(() => {
+    if (!notificationsEnabled) return;
     if (typeof Notification === 'undefined') return;
     if (Notification.permission === 'default') {
       Notification.requestPermission().catch(() => { /* ignore */ });
     }
-  }, []);
-
-  // ─── Cue helpers ────────────────────────────────────────
+  }, [notificationsEnabled]);
 
   const playCue = useCallback((kind: CueKind) => {
     if (!enabled) return;
+    if (volume <= 0) return;
+    if (kind === 'incoming' && !soundIncoming) return;
+    if ((kind === 'missed' || kind === 'abandon') && !soundMissed) return;
+
     try {
       if (!audioCtxRef.current) {
         audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
       }
       const ctx = audioCtxRef.current;
-      // Resume if suspended (Chrome autoplay policy)
       if (ctx.state === 'suspended') ctx.resume().catch(() => { /* ignore */ });
       const { freq, durMs } = CUE_PRESETS[kind];
       freq.forEach((f, i) => {
         setTimeout(() => makeBeep(ctx, f, durMs, volume), i * (durMs + 40));
       });
-    } catch { /* AudioContext might be blocked — silent fallback */ }
-  }, [enabled, volume]);
+    } catch { /* AudioContext might be blocked */ }
+  }, [enabled, volume, soundIncoming, soundMissed]);
 
   const showNotification = useCallback((title: string, body: string, tag: string) => {
-    if (!enabled) return;
+    if (!enabled || !notificationsEnabled) return;
+    if (typeof document !== 'undefined' && document.visibilityState !== 'hidden' && !document.hidden) {
+      return;
+    }
     if (typeof Notification === 'undefined') return;
     if (Notification.permission !== 'granted') return;
     try {
       const n = new Notification(title, { body, tag, silent: true });
       setTimeout(() => n.close(), 8000);
     } catch { /* iOS safari throws */ }
-  }, [enabled]);
+  }, [enabled, notificationsEnabled]);
 
-  // ─── Detect new incoming calls in my queues ─────────────
-
+  // New incoming calls in my queues
   useEffect(() => {
     if (!enabled || !myAgent) return;
     requestPermission();
@@ -112,38 +117,40 @@ export function useCallNotifications(opts: Options = {}) {
       if (myAgent.queues.includes(call.queue)) {
         playCue('incoming');
         showNotification(
-          'New call in queue',
-          `${call.callerIdNum || 'Unknown'} → ${call.queue}`,
+          t('callcenter.notify.incomingTitle', 'Incoming call'),
+          t('callcenter.notify.incomingBody', '{{number}}, queue {{queue}}', {
+            number: call.callerIdNum || t('callcenter.clientCard.unknown', 'Unknown'),
+            queue: call.queue,
+          }),
           `cc-incoming-${call.uniqueid}`,
         );
       }
     });
 
-    // Cleanup uniqueids that left the waiting set so we re-trigger if they come back
     const ids = new Set(waiting.map(c => c.uniqueid));
     knownWaitingRef.current.forEach(id => {
       if (!ids.has(id)) knownWaitingRef.current.delete(id);
     });
-  }, [waiting, myAgent, enabled, playCue, showNotification, requestPermission]);
+  }, [waiting, myAgent, enabled, playCue, showNotification, requestPermission, t]);
 
-  // ─── Detect abandons (waiting call removed without being answered) ──
-
+  // Abandons (waiting removed without answer)
   useEffect(() => {
     if (!enabled) return;
     const prev = prevWaitingRef.current;
     const currentIds = new Set(waiting.map(c => c.uniqueid));
     prev.forEach(c => {
       if (!currentIds.has(c.uniqueid) && !knownAbandonedRef.current.has(c.uniqueid)) {
-        // Was waiting → no longer waiting. Could be answered OR abandoned.
-        // Heuristic: if the call is still in `calls` with TALKING/HOLD, it was answered.
         const stillExists = calls.find(x => x.uniqueid === c.uniqueid);
         if (!stillExists) {
           knownAbandonedRef.current.add(c.uniqueid);
           if (myAgent?.queues.includes(c.queue)) {
             playCue('abandon');
             showNotification(
-              'Caller abandoned',
-              `${c.callerIdNum || 'Unknown'} left queue ${c.queue}`,
+              t('callcenter.notify.missedTitle', 'Missed call'),
+              t('callcenter.notify.missedBody', '{{number}}, queue {{queue}}', {
+                number: c.callerIdNum || t('callcenter.clientCard.unknown', 'Unknown'),
+                queue: c.queue,
+              }),
               `cc-abandon-${c.uniqueid}`,
             );
           }
@@ -151,10 +158,37 @@ export function useCallNotifications(opts: Options = {}) {
       }
     });
     prevWaitingRef.current = waiting;
-  }, [waiting, calls, myAgent, enabled, playCue, showNotification]);
+  }, [waiting, calls, myAgent, enabled, playCue, showNotification, t]);
 
-  // ─── Hold-timeout watchdog ──────────────────────────────
+  // Missed calls from SSE (cc:missed-call-new)
+  useEffect(() => {
+    if (!enabled || !myAgent) return;
 
+    const onMissed = (e: Event) => {
+      const detail = (e as CustomEvent).detail ?? {};
+      const uniqueid = detail.uniqueid as string | undefined;
+      const queue = detail.queueName as string | undefined;
+      const number = detail.callerIdNum as string | undefined;
+      if (!uniqueid || knownMissedRef.current.has(uniqueid)) return;
+      if (queue && !myAgent.queues.includes(queue)) return;
+
+      knownMissedRef.current.add(uniqueid);
+      playCue('missed');
+      showNotification(
+        t('callcenter.notify.missedTitle', 'Missed call'),
+        t('callcenter.notify.missedBody', '{{number}}, queue {{queue}}', {
+          number: number || t('callcenter.clientCard.unknown', 'Unknown'),
+          queue: queue || '',
+        }),
+        `cc-missed-${uniqueid}`,
+      );
+    };
+
+    window.addEventListener('cc:missed-call-new', onMissed);
+    return () => window.removeEventListener('cc:missed-call-new', onMissed);
+  }, [enabled, myAgent, playCue, showNotification, t]);
+
+  // Hold-timeout watchdog
   useEffect(() => {
     if (!enabled || !myAgent) return;
     const id = setInterval(() => {
