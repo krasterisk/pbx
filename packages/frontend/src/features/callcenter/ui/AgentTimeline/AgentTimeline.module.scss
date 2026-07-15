@@ -1,0 +1,59 @@
+.track {
+  position: relative;
+  height: 28px;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-muted) 40%, transparent);
+  border: 1px solid var(--color-border);
+  overflow: hidden;
+}
+
+.segment {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  min-width: 2px;
+  border-radius: 2px;
+}
+
+.segmentReady {
+  background: var(--color-success);
+}
+
+.segmentInCall {
+  background: var(--color-destructive);
+}
+
+.segmentPaused {
+  background: var(--color-warning);
+}
+
+.segmentWrapup {
+  background: var(--color-info);
+}
+
+.segmentHold {
+  background: color-mix(in srgb, var(--color-info) 70%, var(--color-warning));
+}
+
+.segmentOffline {
+  background: var(--color-muted-foreground);
+}
+
+.nowMarker {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--color-primary);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-muted-foreground);
+}

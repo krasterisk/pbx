@@ -94,3 +94,37 @@ export interface IChatMessagePayload {
   body: string;
   created_at: string;
 }
+
+// ─── Agent Detail / Timeline (D-36 contract, owner 07-09) ─
+
+export interface AgentTimelineSegment {
+  state: string;
+  startTs: string;
+  endTs: string;
+  durationSec: number;
+  reason?: string;
+}
+
+export interface IAgentDetail {
+  stats: {
+    status: string;
+    pauseReason?: string;
+    callsHandled: number;
+    callsTaken: number;
+    totalTalk: number;
+    aht: number;
+    totalHold: number;
+    queues: string[];
+  };
+  segments: AgentTimelineSegment[];
+}
+
+export interface ICcKpiSample {
+  t: number;
+  waiting: number;
+  talking: number;
+  freeAgents: number;
+  sla: number;
+  avgWait: number;
+  abandoned: number;
+}

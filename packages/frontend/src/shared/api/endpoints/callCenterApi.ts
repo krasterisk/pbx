@@ -1,5 +1,5 @@
 import { rtkApi } from '../rtkApi';
-import type { IPauseReason, ICcSnapshot } from '@/features/callcenter/model/types/callCenterSchema';
+import type { IPauseReason, ICcSnapshot, IAgentDetail } from '@/features/callcenter/model/types/callCenterSchema';
 
 export interface IClientLookupContact {
   phonebook_uid: number;
@@ -171,6 +171,24 @@ const callCenterApi = rtkApi.injectEndpoints({
     supervisorQueueRemove: build.mutation<{ success: boolean }, { agentInterface: string; queue: string }>({
       query: (body) => ({ url: '/callcenter/supervisor/queue-remove', method: 'POST', body }),
     }),
+    supervisorQueuePenalty: build.mutation<{ success: boolean }, { agentInterface: string; queue: string; penalty: number }>({
+      query: (body) => ({ url: '/callcenter/supervisor/queue-penalty', method: 'POST', body }),
+    }),
+    supervisorForceLogout: build.mutation<{ success: boolean }, { agentInterface: string }>({
+      query: (body) => ({ url: '/callcenter/supervisor/force-logout', method: 'POST', body }),
+    }),
+    supervisorRedirectCall: build.mutation<{ success: boolean; uniqueid: string; target: string }, { uniqueid: string; target: string }>({
+      query: (body) => ({ url: '/callcenter/supervisor/redirect-call', method: 'POST', body }),
+    }),
+    supervisorHangupCall: build.mutation<{ success: boolean }, { uniqueid: string }>({
+      query: (body) => ({ url: '/callcenter/supervisor/hangup-call', method: 'POST', body }),
+    }),
+    getAgentDetail: build.query<IAgentDetail, { interface: string }>({
+      query: ({ interface: iface }) => ({
+        url: '/callcenter/supervisor/agent-detail',
+        params: { interface: iface },
+      }),
+    }),
 
     // ─── Pause Reasons ────────────────────────────────────
     getPauseReasons: build.query<IPauseReason[], void>({
@@ -257,6 +275,11 @@ export const {
   useSupervisorForceUnpauseMutation,
   useSupervisorQueueAddMutation,
   useSupervisorQueueRemoveMutation,
+  useSupervisorQueuePenaltyMutation,
+  useSupervisorForceLogoutMutation,
+  useSupervisorRedirectCallMutation,
+  useSupervisorHangupCallMutation,
+  useLazyGetAgentDetailQuery,
   useGetPauseReasonsQuery,
   useCreatePauseReasonMutation,
   useUpdatePauseReasonMutation,
