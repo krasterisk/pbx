@@ -11,7 +11,7 @@
 **In scope:**
 1. **Группа вызовов (call group)** — новая сущность + объединённое приложение вместо orphaned `togroup` и «тупого» `tolist`. Стратегии обзвона, внутренние + внешние участники, реализация через `Gosub` с `Return` → продолжение текущего dialplan.
 2. **Multi-channel уведомления** — единое конфигурируемое приложение поверх новой сущности «Интеграции уведомлений» (tenant-scoped credential store). Каналы: Telegram, Email, WhatsApp, generic Webhook, MAX/VK. Доставка через единый CURL → Nest endpoint.
-3. **Карусель номеров** — приложение выбора транка (random + failover) с per-trunk CallerID (статичный номер или phonebook lookup).
+3. **Редактор CallerID** — универсальное приложение чистой модификации `CALLERID(num/name)` с режимами (static, из справочника phonebook, из списка setclid, CID-карусель) — консолидирует существующие `setclid_custom` и `setclid_list`. **Плюс** отдельное приложение **«Карусель транков»** (выбор транка random + failover, per-trunk CallerID).
 4. **Аудит + UX overhaul** редактора: dedicated UI для group/notify/carousel; GenericApp остаётся fallback для редких apps; попутный фикс известных багов (multi-DIALSTATUS, `time_group_uid`, hangup causecode).
 
 **Out of scope:**
@@ -47,21 +47,26 @@
 - **D-12:** **Доставка через единый CURL → Nest endpoint** для ВСЕХ каналов (по образцу текущего `sendmail`: `Set(__K*)` + `CURL(...URIENCODE...)`). PHP-скрипты (`telegram.php`, `sendmailpeer.php`) **убираются**. Channel vars (`${CALLERID(num)}`, `${EXTEN}` и любые) работают через `sanitizeTemplate` + `URIENCODE`. Отправка в backend — **асинхронная** (не блокировать dialplan).
 - **D-13:** Шаблоны сообщений используют **любые переменные канала**; предусмотреть **пресеты** («входящий звонок», «пропущенный» и т.д.) и интуитивный UX с подсказками по каждому параметру интеграции (что нужно от пользователя: API/токены/ключи).
 
-### Карусель номеров (D-14…D-16)
-- **D-14:** Приложение «Карусель» = список пар **{транк + источник CallerID}**. Режим выбора транка по умолчанию — **`random_then_failover`**: случайный транк, при недозвоне/недоступности → следующий из оставшихся.
-- **D-15:** Источник CallerID **на каждый транк**: **статичный номер** (ввод вручную) **ИЛИ** **справочник phonebook** (динамический CID по lookup — переиспользуем механику Phase 5). setclid-list — не в v1.
-- **D-16:** UX интуитивный: подсказки/описания к каждому параметру (зачем нужен, что подставится), чтобы был понятен смысл random+failover и per-trunk CallerID.
+### Редактор CallerID (D-14…D-16)
+- **D-14:** Универсальное приложение **«Редактор CallerID»** — чистая модификация `CALLERID(num)` / `CALLERID(name)`. **Консолидирует** существующие `setclid_custom` и `setclid_list` в одно приложение с выбором режима. Режимы:
+  - **static** — фиксированный номер/имя (= текущий `setclid_custom` → `Set(CALLERID(num)=…)`)
+  - **из справочника phonebook** — динамический CID по lookup (переиспользуем механику Phase 5)
+  - **из списка setclid** — существующий механизм `exten_setclid.php` (= текущий `setclid_list`)
+  - **CID-карусель** — ротация / случайный выбор `CALLERID` из **пула номеров** (random + failover среди CID)
+- **D-15:** Отдельное приложение **«Карусель транков»** — выбор **транка** (`random_then_failover`: случайный транк, при недозвоне/недоступности → следующий) с источником CallerID **на каждый транк**: статичный номер ИЛИ справочник phonebook. Это НЕ часть редактора CallerID (редактор = только CID, карусель транков = выбор транка + CID).
+- **D-16:** UX интуитивный для обоих: подсказки/описания к каждому режиму и параметру (зачем нужен, что подставится), чтобы был понятен смысл режимов CID и random+failover.
 
 ### UX overhaul редактора (D-17…D-19)
 - **D-17:** Все текущие возможности `DialplanAppsEditor` сохраняются; новые app встраиваются как компоненты в `dialplanAppsRegistry`.
-- **D-18:** **GenericApp остаётся fallback** для редких apps (webhook, cmd, label, tofax, asr, keywords, confbridge, voicemail, text2speech) — dedicated UI в этой фазе только для group/notify/carousel.
+- **D-18:** **GenericApp остаётся fallback** для редких apps (webhook, cmd, label, tofax, asr, keywords, confbridge, voicemail, text2speech) — dedicated UI в этой фазе только для: группа вызовов, notify (multi-channel), редактор CallerID, карусель транков.
 - **D-19:** Попутно **починить известные баги** редактора/генерации: multi-DIALSTATUS (UI хранит массив, backend ждёт строку с `IsIn`), неиспользуемый `time_group_uid` (сохраняется, но не эмитится в dialplan), игнорируемый `hangup` causecode.
 
 ### Claude's Discretion
 - Схема таблиц `call_group` / участников / `notification_integration`, миграции (legacy `togroup`/`tolist` данных в проде нет — свобода).
 - Точный dialplan для каждой стратегии (`hunt`/`memoryhunt`/`random`) и корректная `Return`-семантика в `group_{id}_{vpbx}`.
 - Конкретный контракт Nest endpoint уведомлений (единый vs per-channel handler внутри) и провайдеры WhatsApp/MAX/VK.
-- Точный ActionType-набор: расширить/переименовать `togroup`/`tolist` в один `togroup` (call group) или ввести новый id; новые id для notify (`notify`) и carousel (`carousel`).
+- Точный ActionType-набор: расширить/переименовать `togroup`/`tolist` в один `togroup` (call group) или ввести новый id; новые id для notify (`notify`); консолидация `setclid_custom`/`setclid_list` в один `setclid`/`callerid` (редактор CallerID) vs сохранение id для обратной совместимости UI; отдельный id для карусели транков (`trunk_carousel`).
+- CID-карусель: как хранить пул номеров и реализовать random+failover среди CALLERID (Set + RANDOM vs список).
 - Детали call confirmation / CID prefix / failover группы.
 - Формат хранения credentials (шифрование токенов на уровне БД — учесть безопасность).
 
@@ -115,8 +120,9 @@
 - `AsteriskDialplanUtils.actionToDialplan` — единый switch app→dialplan; `sanitizeTemplate` (разрешает `${VAR}`, блокирует SHELL/SYSTEM/AGI) — модель для notify channel vars
 - `sendmail` case (dialplan.util.ts): `Set(__KMAIL_*)` + `CURL(...URIENCODE...)` — **эталон** доставки для всех каналов уведомлений
 - Очереди: `queue.model.ts` (strategy, timeout, MOH), `queue-member.model.ts`, `QueuesPage`/`QueueFormModal` — паттерн сущности + участников + страницы для `call_group`
-- `setclid_list` / `exten_setclid.php` — существующая подстановка CallerID из списка (референс для карусели, хотя v1 использует static + phonebook)
-- `PhonebooksService.lookupNumber` (Phase 5) — динамический CallerID lookup для карусели
+- `setclid_custom` case (dialplan.util.ts) → `Set(CALLERID(num)=…)` — режим static редактора CallerID
+- `setclid_list` / `exten_setclid.php` — подстановка CallerID из списка → режим «из списка setclid» редактора CallerID (консолидируется, не удаляется)
+- `PhonebooksService.lookupNumber` (Phase 5) — динамический CallerID lookup для режима phonebook и для карусели транков
 - `_applyContextDialplan` / `dialplan-apply.service.ts` — AMI UpdateConfig apply для новых контекстов
 - `SortableActionItem` + `ActionTypeSelect` (optgroups) + `@dnd-kit` — chrome строки редактора для новых app
 
@@ -130,7 +136,7 @@
 - `togroup` → `Gosub(group_{group}_{vpbx},start,1)` **уже эмитится**, но контекст нигде не генерируется — этот runtime-разрыв закрывается (генератор контекста группы + apply)
 - `tolist` → simultaneous `Dial(LOCAL/n@ctx-{vpbx}&…)` — заменяется приложением группы
 - `telegram`/`sendmailpeer` PHP System() пути — заменяются CURL→Nest
-- registry.ts: `togroup`/`tolist`/`sendmail`/`sendmailpeer`/`telegram` сейчас `GenericApp` → dedicated компоненты
+- registry.ts: `togroup`/`tolist`/`sendmail`/`sendmailpeer`/`telegram`/`setclid_custom`/`setclid_list` сейчас (кроме togroup/tolist) `GenericApp` → dedicated компоненты (группа, notify, редактор CallerID, карусель транков)
 - Route action pipeline: следующее приложение после группы выполняется при `Return` (не Hangup)
 
 </code_context>
@@ -140,7 +146,8 @@
 
 - «Группа вызовов не сильно тяжёлая» — быстрый inline-редактор из маршрута + опциональный отдельный раздел (как «Очереди»), без потери функционала.
 - Уведомления — «сразу продумать механизмы интеграции, что нужно от пользователя (api, токены, ключи доступа)»: UX с подсказками к каждому полю подключения; пресеты сообщений.
-- Карусель — «различные транки часто просят подставлять определённый CallerID перед набором» → per-trunk CallerID (static или справочник phonebook); random + failover.
+- Редактор CallerID — «сделаем более универсальный редактор CallerID, а внутри можно выбирать различные варианты модификации CallerID, в том числе карусель (CID-пул)». Карусель транков вынесена в отдельное приложение.
+- Карусель транков — «различные транки часто просят подставлять определённый CallerID перед набором» → per-trunk CallerID (static или справочник phonebook); random + failover.
 - Референсы: FreePBX/Sangoma Ring Groups (ringall/hunt/memoryhunt, call confirmation, CID prefix, external numbers), Asterisk RANDOM для случайной стратегии/карусели — как источник лучших практик, НЕ 1:1 клон.
 
 </specifics>
@@ -152,7 +159,7 @@
 - **Стратегии `-prim` / `firstavailable` / `firstnotonphone`** для групп — расширение после v1.
 - **AI Chat / MCP tools** для управления группами/уведомлениями/каруселью через чат — отдельная фаза (по паттерну Phase 5 Domain AI Adapter).
 - **Dedicated UI для остальных GenericApp** (webhook, cmd, tofax, asr, keywords, confbridge, voicemail, text2speech) — отдельная фаза UX.
-- **setclid-list как источник CallerID** карусели — возможно позже (v1: static + phonebook).
+- **setclid-list как источник CallerID для карусели транков** — v1 карусели транков использует static + phonebook (setclid-list доступен как режим в редакторе CallerID).
 
 </deferred>
 

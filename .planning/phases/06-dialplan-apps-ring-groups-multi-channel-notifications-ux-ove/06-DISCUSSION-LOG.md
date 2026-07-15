@@ -5,7 +5,7 @@
 
 **Date:** 2026-07-15
 **Phase:** 6-dialplan-apps-ring-groups-multi-channel-notifications-ux-ove
-**Areas discussed:** Ring group model & CRUD, Ring strategies, Group members, Notification integrations & channels, Notification delivery, GenericApp fate, Carousel app & CallerID, Carousel mode
+**Areas discussed:** Ring group model & CRUD, Ring strategies, Group members, Notification integrations & channels, Notification delivery, GenericApp fate, Carousel app & CallerID, Carousel mode, CallerID editor reframing
 
 ---
 
@@ -128,6 +128,17 @@
 **User's choice:** Random + failover
 
 ---
+
+## Переосмысление карусели → редактор CallerID (follow-up)
+
+| Option | Description | Selected |
+|--------|-------------|----------|
+| Pure CID editor | Редактор CallerID = только модификация CID (static/phonebook/setclid/CID-карусель); выбор транка не здесь | |
+| CID + trunk binding | Редактор CallerID с режимом карусели, привязанным к транкам | |
+| Два app | «Редактор CallerID» (только CID) + отдельно «Карусель транков» (транк + CID) | ✓ |
+
+**User's choice:** Два отдельных приложения
+**Notes:** «Сделаем более универсальный редактор CallerID, а внутри можно выбирать различные варианты модификации CallerID, в том числе карусель.» Карусель транков (выбор транка + per-trunk CID) остаётся отдельным приложением. Редактор CallerID консолидирует setclid_custom + setclid_list + phonebook + CID-карусель (пул номеров).
 
 ## Claude's Discretion
 
