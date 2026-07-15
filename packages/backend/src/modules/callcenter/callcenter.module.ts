@@ -17,6 +17,9 @@ import { CallCenterChatController } from './callcenter-chat.controller';
 import { CallCenterSettingsService } from './callcenter-settings.service';
 import { CallCenterCardsService } from './callcenter-cards.service';
 import { CallCenterChatService } from './callcenter-chat.service';
+import { CallCenterWallboardService } from './callcenter-wallboard.service';
+import { CallCenterWallboardController } from './callcenter-wallboard.controller';
+import { DisplayTokenGuard } from './guards/display-token.guard';
 import { CcPauseReason } from './models/pause-reason.model';
 import { CcAgentSession } from './models/agent-session.model';
 import { CcAgentEvent } from './models/agent-event.model';
@@ -91,6 +94,8 @@ import { queueLogReaderProvider } from './queuelog/queue-log-reader.factory';
     CallCenterSettingsService,
     CallCenterCardsService,
     CallCenterChatService,
+    CallCenterWallboardService,
+    DisplayTokenGuard,
   ],
   controllers: [
     CallCenterController,
@@ -98,6 +103,7 @@ import { queueLogReaderProvider } from './queuelog/queue-log-reader.factory';
     CallCenterSettingsController,
     CallCenterCardsController,
     CallCenterChatController,
+    CallCenterWallboardController,
   ],
   exports: [
     CallCenterStateService,
