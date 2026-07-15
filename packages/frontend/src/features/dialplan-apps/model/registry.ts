@@ -11,6 +11,7 @@ import { ToRouteApp } from '../ui/apps/ToRouteApp/ToRouteApp';
 import { HangupApp } from '../ui/apps/HangupApp/HangupApp';
 import { GroupApp } from '../ui/apps/GroupApp/GroupApp';
 import { NotifyApp } from '../ui/apps/NotifyApp/NotifyApp';
+import { CallerIdApp } from '../ui/apps/CallerIdApp/CallerIdApp';
 
 export const dialplanAppsRegistry: Record<ActionType, IDialplanAppConfig> = {
   // --- TELEPHONY & MEDIA ---
@@ -30,9 +31,9 @@ export const dialplanAppsRegistry: Record<ActionType, IDialplanAppConfig> = {
   confbridge: { type: 'confbridge', labelKey: 'routes.action.confbridge', component: GenericApp, category: 'media' },
   
   // --- SYSTEM & NOTIFICATIONS ---
-  setclid_custom: { type: 'setclid_custom', labelKey: 'routes.action.setclid_custom', component: GenericApp, category: 'system' },
-  setclid_list: { type: 'setclid_list', labelKey: 'routes.action.setclid_list', component: GenericApp, category: 'system' },
-  callerid: { type: 'callerid', labelKey: 'routes.action.callerid', component: GenericApp, category: 'system' },
+  setclid_custom: { type: 'setclid_custom', labelKey: 'routes.action.setclid_custom', component: CallerIdApp, category: 'system', defaultParams: { mode: 'static', callerid: '' } },
+  setclid_list: { type: 'setclid_list', labelKey: 'routes.action.setclid_list', component: CallerIdApp, category: 'system', defaultParams: { mode: 'setclid_list', list_uid: '' } },
+  callerid: { type: 'callerid', labelKey: 'routes.action.callerid', component: CallerIdApp, category: 'system', defaultParams: { mode: 'static', callerid: '' } },
   trunk_carousel: { type: 'trunk_carousel', labelKey: 'routes.action.trunk_carousel', component: GenericApp, category: 'telephony' },
   sendmail: { type: 'sendmail', labelKey: 'routes.action.sendmail', component: GenericApp, category: 'notification' },
   sendmailpeer: { type: 'sendmailpeer', labelKey: 'routes.action.sendmailpeer', component: GenericApp, category: 'notification' },
