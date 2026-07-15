@@ -215,12 +215,12 @@ describe('generateGroupDialplan', () => {
 
   describe('cid_prefix (D-09)', () => {
     it('emits CALLERID(name) prefix before Dial when cid_prefix is set', () => {
-      const group = baseGroup({ strategy: 'ringall', cid_prefix: '[Sales]' });
+      const group = baseGroup({ strategy: 'ringall', cid_prefix: 'Sales' });
       const result = generateGroupDialplan(group, sampleMembers(), VPBX);
 
       const dialIndex = result.lines.findIndex((l) => l.startsWith('same => n,Dial('));
       expect(dialIndex).toBeGreaterThan(1);
-      expect(result.lines[dialIndex - 1]).toBe('same => n,Set(CALLERID(name)=[Sales] ${CALLERID(name)})');
+      expect(result.lines[dialIndex - 1]).toBe('same => n,Set(CALLERID(name)=Sales ${CALLERID(name)})');
     });
   });
 
