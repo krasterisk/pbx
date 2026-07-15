@@ -36,7 +36,10 @@ import { MarketplacePage } from '@/pages/MarketplacePage/MarketplacePage';
 import { MyModulesPage } from '@/pages/MyModulesPage/MyModulesPage';
 import { CallCenterAgentPage } from '@/pages/CallCenterAgentPage';
 import { CallCenterSupervisorPage } from '@/pages/CallCenterSupervisorPage';
+import { CallCenterSettingsPage } from '@/pages/CallCenterSettingsPage';
 import { AiAgentsPage } from '@/pages/AiAgentsPage';
+import { RequireRole } from '@/app/router/RequireRole';
+import { UserLevel } from '@/entities/User';
 
 export const router = createBrowserRouter([
   {
@@ -74,8 +77,41 @@ export const router = createBrowserRouter([
       { path: 'roles', element: <RolesPage /> },
       { path: 'numbers', element: <NumbersPage /> },
       { path: 'provision-templates', element: <ProvisionTemplatesPage /> },
-      { path: 'operator', element: <CallCenterAgentPage /> },
-      { path: 'supervisor', element: <CallCenterSupervisorPage /> },
+      { path: 'operator', element: <Navigate to="/callcenter/agent" replace /> },
+      { path: 'supervisor', element: <Navigate to="/callcenter/supervisor" replace /> },
+      { path: 'callcenter/agent', element: <CallCenterAgentPage /> },
+      {
+        path: 'callcenter/supervisor',
+        element: (
+          <RequireRole allow={[UserLevel.SUPERVISOR, UserLevel.ADMIN]}>
+            <CallCenterSupervisorPage />
+          </RequireRole>
+        ),
+      },
+      {
+        path: 'callcenter/wallboard',
+        element: (
+          <RequireRole allow={[UserLevel.SUPERVISOR, UserLevel.ADMIN]}>
+            <PlaceholderPage title="Wallboard" />
+          </RequireRole>
+        ),
+      },
+      {
+        path: 'callcenter/reports',
+        element: (
+          <RequireRole allow={[UserLevel.SUPERVISOR, UserLevel.ADMIN]}>
+            <PlaceholderPage title="Call Center Reports" />
+          </RequireRole>
+        ),
+      },
+      {
+        path: 'callcenter/settings',
+        element: (
+          <RequireRole allow={[UserLevel.ADMIN]}>
+            <CallCenterSettingsPage />
+          </RequireRole>
+        ),
+      },
       { path: 'ai-agents', element: <AiAgentsPage /> },
       { path: 'service-requests', element: <ServiceRequestsPage /> },
       { path: 'reports', element: <PlaceholderPage title="Reports" /> },
