@@ -287,7 +287,7 @@ const BindingParamsFields = memo(({ binding, onChange }: BindingParamsFieldsProp
           </HStack>
         );
       }
-      const mode = params.fixed ? 'fixed' : 'var';
+      const mode = params.fixed !== undefined ? 'fixed' : 'var';
       return (
         <HStack gap="8" align="center" className={cls.paramsRow}>
           <Select
@@ -317,7 +317,7 @@ const BindingParamsFields = memo(({ binding, onChange }: BindingParamsFieldsProp
       );
     }
     case 'set_number': {
-      const mode = params.fixed ? 'fixed' : 'var';
+      const mode = params.fixed !== undefined ? 'fixed' : 'var';
       return (
         <HStack gap="8" align="center" className={cls.paramsRow}>
           <Select
@@ -362,7 +362,7 @@ const BindingParamsFields = memo(({ binding, onChange }: BindingParamsFieldsProp
           </HStack>
         );
       }
-      const mode = params.fixed_exten ? 'fixed' : 'var';
+      const mode = params.fixed_exten !== undefined ? 'fixed' : 'var';
       return (
         <HStack gap="8" align="center" className={cls.paramsRow}>
           <Select
