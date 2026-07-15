@@ -22,7 +22,9 @@ import { CallCenterMetricsService } from './callcenter-metrics.service';
 import {
   AgentLoginDto, AgentPauseDto, AgentUnpauseDto, AgentHangupDto,
   TransferDto, SupervisorSpyDto, SupervisorForceActionDto,
-  SupervisorQueueActionDto, CreatePauseReasonDto, UpdatePauseReasonDto,
+  SupervisorQueueActionDto, SupervisorQueuePenaltyDto, SupervisorForceLogoutDto,
+  SupervisorRedirectCallDto, SupervisorHangupCallDto,
+  CreatePauseReasonDto, UpdatePauseReasonDto,
   PickCallDto, MarkMissedCalledBackDto, WrapupExtendDto,
 } from './dto/callcenter.dto';
 
@@ -180,6 +182,48 @@ export class CallCenterController {
   supervisorQueueRemove(@Body() dto: SupervisorQueueActionDto, @Req() req: Request & { user: any }) {
     assertSupervisor(req.user);
     return this.ccService.supervisorQueueRemove(dto.agentInterface, dto.queue, req.user.vpbx_user_uid);
+  }
+
+  @Post('supervisor/queue-penalty')
+  supervisorQueuePenalty(@Body() dto: SupervisorQueuePenaltyDto, @Req() req: Request & { user: any }) {
+    assertSupervisor(req.user);
+    return this.ccService.supervisorQueuePenalty(
+      dto.agentInterface,
+      dto.queue,
+      dto.penalty,
+      req.user.vpbx_user_uid,
+    );
+  }
+
+  @Post('supervisor/force-logout')
+  supervisorForceLogout(@Body() dto: SupervisorForceLogoutDto, @Req() req: Request & { user: any }) {
+    assertSupervisor(req.user);
+    return this.ccService.supervisorForceLogout(dto.agentInterface, req.user.vpbx_user_uid);
+  }
+
+  @Post('supervisor/redirect-call')
+  supervisorRedirectCall(@Body() dto: SupervisorRedirectCallDto, @Req() req: Request & { user: any }) {
+    assertSupervisor(req.user);
+    return this.ccService.supervisorRedirectCall(
+      dto.uniqueid,
+      dto.target,
+      req.user.vpbx_user_uid,
+    );
+  }
+
+  @Post('supervisor/hangup-call')
+  supervisorHangupCall(@Body() dto: SupervisorHangupCallDto, @Req() req: Request & { user: any }) {
+    assertSupervisor(req.user);
+    return this.ccService.supervisorHangupCall(dto.uniqueid, req.user.vpbx_user_uid);
+  }
+
+  @Get('supervisor/agent-detail')
+  getAgentDetail(
+    @Query('interface') iface: string,
+    @Req() req: Request & { user: any },
+  ) {
+    assertSupervisor(req.user);
+    return this.ccService.getAgentDetail(iface, req.user.vpbx_user_uid);
   }
 
   // ─── Pause Reasons CRUD (level >= 3) ───────────────────

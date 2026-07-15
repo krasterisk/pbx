@@ -119,6 +119,42 @@ export class SupervisorQueueActionDto {
   penalty?: number;
 }
 
+export class SupervisorQueuePenaltyDto {
+  @IsString()
+  @MaxLength(64)
+  agentInterface: string;
+
+  @IsString()
+  @MaxLength(64)
+  queue: string;
+
+  @IsNumber()
+  @Min(0)
+  penalty: number;
+}
+
+export class SupervisorForceLogoutDto {
+  @IsString()
+  @MaxLength(64)
+  agentInterface: string;
+}
+
+export class SupervisorRedirectCallDto {
+  @IsString()
+  @MaxLength(64)
+  uniqueid: string;
+
+  @IsString()
+  @MaxLength(64)
+  target: string;
+}
+
+export class SupervisorHangupCallDto {
+  @IsString()
+  @MaxLength(64)
+  uniqueid: string;
+}
+
 // ─── Pause Reason DTOs ─────────────────────────────────────
 
 export class CreatePauseReasonDto {

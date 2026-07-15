@@ -11,6 +11,8 @@ import { CallCenterStateService } from './callcenter-state.service';
 import { CallCenterAmiService } from './callcenter-ami.service';
 import { CcPauseReason } from './models/pause-reason.model';
 import { CcAgentSession } from './models/agent-session.model';
+import { CcAgentEvent } from './models/agent-event.model';
+import { CcQueueCall } from './models/queue-call.model';
 import { CcMissedCall } from './models/missed-call.model';
 import { TransferDto } from './dto/callcenter.dto';
 import { CallCenterSettingsService } from './callcenter-settings.service';
@@ -33,6 +35,8 @@ export class CallCenterService {
     private readonly ccAmiService: CallCenterAmiService,
     @InjectModel(CcPauseReason) private readonly pauseReasonModel: typeof CcPauseReason,
     @InjectModel(CcAgentSession) private readonly sessionModel: typeof CcAgentSession,
+    @InjectModel(CcAgentEvent) private readonly agentEventModel: typeof CcAgentEvent,
+    @InjectModel(CcQueueCall) private readonly queueCallModel: typeof CcQueueCall,
     @InjectModel(CcMissedCall) private readonly missedCallModel: typeof CcMissedCall,
     @InjectModel(User) private readonly userModel: typeof User,
     @InjectModel(PhonebookEntry) private readonly phonebookEntryModel: typeof PhonebookEntry,
@@ -550,6 +554,208 @@ export class CallCenterService {
 
     this.logger.log(`Supervisor removed ${agentInterface} from queue ${queue}`);
     return { success: true };
+  }
+
+  async supervisorQueuePenalty(agentInterface: string, queue: string, penalty: number, userUid: number) {
+    try {
+      await this.amiService.action({
+        action: 'QueuePenalty',
+        Interface: agentInterface,
+        Penalty: String(penalty),
+        Queue: queue,
+      });
+    } catch (err: any) {
+      throw new BadRequestException(`Queue penalty failed: ${err.message}`);
+    }
+
+    this.logger.log(`Supervisor set penalty ${penalty} for ${agentInterface} in ${queue}`);
+    return { success: true };
+  }
+
+  async supervisorForceLogout(agentInterface: string, userUid: number) {
+    const agent = this.stateService.getAgent(userUid, agentInterface);
+    if (!agent) throw new NotFoundException('Agent not found');
+
+    for (const q of agent.queues) {
+      try {
+        await this.amiService.queueRemove(q, agentInterface);
+      } catch { /* ignore per-queue errors */ }
+    }
+
+    this.stateService.setAgent(userUid, agentInterface, {
+      status: 'OFFLINE',
+      queues: [],
+    });
+
+    this.logger.log(`Supervisor force-logout ${agentInterface}`);
+    return { success: true };
+  }
+
+  async supervisorRedirectCall(uniqueid: string, target: string, userUid: number) {
+    const call = this.stateService.getCall(uniqueid);
+    if (!call) throw new NotFoundException('Call not found');
+    if (call.userUid !== userUid) {
+      throw new BadRequestException('Call belongs to another tenant');
+    }
+    if (!call.callerChannel) {
+      throw new BadRequestException('Caller channel not available');
+    }
+
+    const exten = target.replace(/^PJSIP\//, '').replace(/^SIP\//, '');
+
+    try {
+      await this.amiService.action({
+        action: 'Redirect',
+        channel: call.callerChannel,
+        context: 'from-internal',
+        exten,
+        priority: '1',
+      });
+    } catch (err: any) {
+      throw new BadRequestException(`Redirect failed: ${err.message}`);
+    }
+
+    return { success: true, uniqueid, target: exten };
+  }
+
+  async supervisorHangupCall(uniqueid: string, userUid: number) {
+    const call = this.stateService.getCall(uniqueid);
+    if (!call) throw new NotFoundException('Call not found');
+    if (call.userUid !== userUid) {
+      throw new BadRequestException('Call belongs to another tenant');
+    }
+
+    const channel = call.callerChannel || call.agentChannel;
+    if (!channel) {
+      throw new BadRequestException('Caller channel not available');
+    }
+
+    try {
+      await this.amiService.hangup(channel);
+    } catch (err: any) {
+      throw new BadRequestException(`Hangup failed: ${err.message}`);
+    }
+
+    return { success: true };
+  }
+
+  /**
+   * Agent detail for supervisor modal: today's stats + timeline segments (D-36 contract).
+   * Segments are built server-side from cc_agent_events; presentation is AgentTimeline (07-09).
+   */
+  async getAgentDetail(agentInterface: string, userUid: number) {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const queueCalls = await this.queueCallModel.findAll({
+      where: {
+        user_uid: userUid,
+        agent_interface: agentInterface,
+        created_at: { [Op.gte]: startOfDay },
+      },
+    });
+
+    const callsHandled = queueCalls.filter(c => c.disposition === 'answered').length;
+    const totalTalk = queueCalls.reduce((s, c) => s + (c.talk_time || 0), 0);
+    const totalHold = queueCalls.reduce((s, c) => s + (c.hold_time || 0), 0);
+    const aht = Math.round(totalTalk / Math.max(callsHandled, 1));
+
+    const liveAgent = this.stateService.getAgent(userUid, agentInterface);
+
+    const todaySessions = await this.sessionModel.findAll({
+      where: {
+        user_uid: userUid,
+        agent_interface: agentInterface,
+        login_time: { [Op.gte]: startOfDay },
+      },
+      attributes: ['uid'],
+    });
+    const sessionIds = todaySessions.map(s => s.uid);
+
+    let events: CcAgentEvent[] = [];
+    if (sessionIds.length > 0) {
+      events = await this.agentEventModel.findAll({
+        where: {
+          user_uid: userUid,
+          session_id: { [Op.in]: sessionIds },
+          created_at: { [Op.gte]: startOfDay },
+        },
+        order: [['created_at', 'ASC']],
+      });
+    }
+
+    const segments = this.buildAgentTimelineSegments(events);
+
+    return {
+      stats: {
+        status: liveAgent?.status || 'OFFLINE',
+        pauseReason: liveAgent?.pauseReason,
+        callsHandled,
+        callsTaken: liveAgent?.callsTaken ?? 0,
+        totalTalk,
+        aht,
+        totalHold,
+        queues: liveAgent?.queues ?? [],
+      },
+      segments,
+    };
+  }
+
+  /**
+   * Maps cc_agent_events to contiguous timeline segments (shared contract with reports getAgentTimeline).
+   */
+  private buildAgentTimelineSegments(events: CcAgentEvent[]) {
+    if (events.length === 0) return [];
+
+    const now = new Date();
+    const segments: Array<{
+      state: string;
+      startTs: string;
+      endTs: string;
+      durationSec: number;
+      reason?: string;
+    }> = [];
+
+    for (let i = 0; i < events.length; i++) {
+      const ev = events[i];
+      const start = ev.created_at || now;
+      const end = i + 1 < events.length ? (events[i + 1].created_at || now) : now;
+      const durationSec = Math.max(0, Math.round((end.getTime() - start.getTime()) / 1000));
+
+      segments.push({
+        state: this.eventTypeToTimelineState(ev.event_type),
+        startTs: start.toISOString(),
+        endTs: end.toISOString(),
+        durationSec,
+        reason: ev.reason || undefined,
+      });
+    }
+
+    return segments;
+  }
+
+  /** event_type → AgentTimeline segment.state (status palette) */
+  private eventTypeToTimelineState(eventType: string): string {
+    switch (eventType) {
+      case 'LOGIN':
+      case 'READY':
+      case 'CALL_END':
+      case 'WRAPUP_END':
+        return 'READY';
+      case 'PAUSE':
+        return 'PAUSED';
+      case 'CALL_START':
+      case 'UNHOLD':
+        return 'IN_CALL';
+      case 'HOLD':
+        return 'HOLD';
+      case 'WRAPUP_START':
+        return 'WRAPUP';
+      case 'LOGOUT':
+        return 'OFFLINE';
+      default:
+        return 'OFFLINE';
+    }
   }
 
   // ─── Pause Reasons CRUD ─────────────────────────────────
