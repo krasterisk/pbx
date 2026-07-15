@@ -101,13 +101,19 @@ export class AsteriskDialplanUtils {
     let wrapper = '';
     let closing = '';
 
-    // Condition wrapper (DIALSTATUS) — whitelist validation
-    if (condition.dialstatus) {
-      if (!VALID_DIALSTATUSES.includes(condition.dialstatus)) {
-        // Invalid dialstatus — skip wrapping, emit a NoOp warning
-        return `NoOp(Invalid dialstatus: ${this.sanitizeDialplanInput(condition.dialstatus)})`;
-      }
-      wrapper = `ExecIf($["\${DIALSTATUS}" = "${condition.dialstatus}"]?`;
+    // Condition wrapper (DIALSTATUS) — whitelist + OR-join for arrays (D-19)
+    const statuses: string[] = Array.isArray(condition.dialstatus)
+      ? condition.dialstatus
+      : condition.dialstatus ? [condition.dialstatus] : [];
+    // Legacy single-string invalid → NoOp warning (preserves prior behavior)
+    if (!Array.isArray(condition.dialstatus) && condition.dialstatus
+        && !VALID_DIALSTATUSES.includes(condition.dialstatus)) {
+      return `NoOp(Invalid dialstatus: ${this.sanitizeDialplanInput(condition.dialstatus)})`;
+    }
+    const valid = statuses.filter((s) => VALID_DIALSTATUSES.includes(s));
+    if (valid.length) {
+      const expr = valid.map((s) => `"\${DIALSTATUS}" = "${s}"`).join(' | ');
+      wrapper = `ExecIf($[${expr}]?`;
       closing = ')';
     }
 
@@ -302,9 +308,13 @@ export class AsteriskDialplanUtils {
       case 'busy':
         dp = `${wrapper}Busy(${parseInt(params.timeout, 10) || 10})${closing}`;
         break;
-      case 'hangup':
-        dp = `${wrapper}Hangup()${closing}`;
+      case 'hangup': {
+        const causecode = this.sanitizeDialplanInput(params.causecode);
+        dp = causecode
+          ? `${wrapper}Hangup(${causecode})${closing}`
+          : `${wrapper}Hangup()${closing}`;
         break;
+      }
       default:
         dp = `NoOp(Unknown action: ${this.sanitizeDialplanInput(type)})`;
     }
