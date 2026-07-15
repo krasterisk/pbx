@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Ready to execute
-last_updated: "2026-07-15T15:42:43.138Z"
+last_updated: "2026-07-15T15:56:30.183Z"
 progress:
   total_phases: 7
   completed_phases: 4
   total_plans: 45
-  completed_plans: 29
-  percent: 64
+  completed_plans: 30
+  percent: 57
 ---
 
 # State
@@ -17,7 +17,7 @@ progress:
 ## Current position
 
 Phase: 07 (call-center-overhaul-professional-agent-supervisor-workspace) — EXECUTING
-Plan: 4 of 18 (07-03 complete)
+Plan: 5 of 18 (07-03 complete)
 Phase 5 — Phonebooks AI: plans executed (verify/UAT may remain).  
 Phase 6 — Dialplan Apps: **06-01–06-14 executed**. Ready for `/gsd-verify-work 6`.
 
@@ -55,6 +55,8 @@ Phase 1 — MOH: pending verify.
 - [Phase 07]: /callcenter/agent unguarded so supervisors/admins can work as operators (D-39)
 - [Phase 07]: CallCenterMetricsService in-memory accumulators with restoreToday from cc_queue_calls (D-03/D-06/D-07)
 - [Phase 07]: queueMetrics SSE + GET /callcenter/metrics/queues tenant-scoped via req.user.vpbx_user_uid
+- [Phase 07]: queue_log default backend realtime (Task 1 DB verify); CC_QUEUE_LOG_BACKEND env override
+- [Phase 07]: Hybrid rollup RAW_MAX_DAYS=90; sla_met_calls uses DEFAULT_SLA_THRESHOLD_SEC in rollup
 
 ## Roadmap Evolution
 
@@ -86,3 +88,4 @@ Phase 1 — MOH: pending verify.
 | Phase 07 P01 | 8min | 3 tasks | 11 files |
 | Phase 07 P02 | 18min | 3 tasks | 9 files |
 | Phase 07 P03 | 22min | 3 tasks | 7 files |
+| Phase 07 P04 | 16min | 4 tasks | 14 files |
