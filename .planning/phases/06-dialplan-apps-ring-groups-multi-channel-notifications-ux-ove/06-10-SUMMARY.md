@@ -73,7 +73,7 @@ Each task was committed atomically:
 
 1. **Task 1: Register tag types + create callGroupApi and notificationApi** - `22a4827` (feat)
 
-**Plan metadata:** pending (docs commit)
+**Plan metadata:** `34058a4` (docs: complete plan)
 
 ## Files Created/Modified
 
