@@ -79,7 +79,7 @@ completed: 2026-07-15
 2. **Task 2: NotifyApp (integration + template + presets) + registry wiring** - `0f32c1b` (feat)
 3. **Task 3: Integration tests for GroupApp and NotifyApp** - `72ef108` (test)
 
-**Plan metadata:** see final docs commit below
+**Plan metadata:** `89f18fa` (docs: complete plan)
 
 ## Files Created/Modified
 
