@@ -2,39 +2,13 @@ import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import {
-  LayoutDashboard,
-  Users,
-  Phone,
-  Route,
-  ListOrdered,
-  BarChart3,
-  Headphones,
-  Monitor,
-  Settings,
-  ChevronLeft,
-  Waypoints,
-  Shield,
-  List,
-  FileCode,
-  Network,
-  AppWindow,
-  Mic,
-  Music,
-  Volume2,
-  AudioLines,
-  Bot,
-  Activity,
-  ClipboardList,
-  ClipboardCheck,
-  Calendar,
-  BookOpen,
-  PhoneCall,
-} from 'lucide-react';
-import { classNames } from '@/shared/lib/classNames/classNames';
+import { ChevronLeft } from 'lucide-react';
 import { VStack, Flex } from '@/shared/ui/Stack';
+import { useAppSelector } from '@/shared/hooks/useAppStore';
+import { selectUserLevel } from '@/entities/User';
 import { SidebarItem, SidebarItemType } from './ui/SidebarItem/SidebarItem';
 import { SidebarLogo } from './ui/SidebarLogo/SidebarLogo';
+import { buildNavigation } from './lib/buildNavigation';
 import cls from './Sidebar.module.scss';
 
 interface SidebarProps {
@@ -46,40 +20,8 @@ interface SidebarProps {
 export const Sidebar = ({ collapsed, onToggle, isMobile }: SidebarProps) => {
   const { t } = useTranslation();
   const location = useLocation();
-
-  const navigation = [
-    { name: t('nav.dashboard'), path: '/', icon: LayoutDashboard },
-    { type: 'divider' as const, label: t('nav.pbx') },
-    { name: t('endpoints.title'), path: '/endpoints', icon: Phone },
-    { name: t('contexts.title', 'Контексты'), path: '/contexts', icon: Network },
-    { name: t('nav.trunks'), path: '/trunks', icon: Waypoints },
-    { name: t('nav.routes'), path: '/routes', icon: Route },
-    { name: t('nav.timeGroups', 'Временные группы'), path: '/time-groups', icon: Calendar },
-    { name: t('nav.phonebooks', 'Справочники'), path: '/phonebooks', icon: BookOpen },
-    { type: 'divider' as const, label: t('nav.apps', 'Приложения') },
-    { name: t('nav.voiceRobots', 'Голосовые роботы'), path: '/voice-robots', icon: Bot },
-    { name: t('nav.ivrs', 'IVR'), path: '/ivrs', icon: AppWindow },
-    { name: t('nav.queues'), path: '/queues', icon: ListOrdered },
-    { name: t('promptsPage.title', 'Записи'), path: '/prompts', icon: Mic },
-    { name: t('moh.title', 'Музыка на удержании'), path: '/moh', icon: Music },
-    { type: 'divider' as const, label: t('nav.callcenter') },
-    { name: t('nav.serviceRequests', 'Заявки клиентов'), path: '/service-requests', icon: ClipboardList },
-    { name: t('nav.operator'), path: '/operator', icon: Headphones },
-    { name: t('nav.supervisor'), path: '/supervisor', icon: Monitor },
-    { type: 'divider' as const, label: t('nav.analytics') },
-    { name: t('nav.reports'), path: '/reports', icon: BarChart3 },
-    { name: t('nav.cdr', 'Журнал звонков (CDR)'), path: '/reports/cdr', icon: PhoneCall },
-    { name: t('nav.voiceRobotCdr', 'Журнал роботов (CDR)'), path: '/reports/voice-robot-cdr', icon: Activity },
-    { name: t('nav.auditLog', 'Журнал событий'), path: '/audit-log', icon: ClipboardCheck },
-    { type: 'divider' as const, label: t('nav.system') },
-    { name: t('nav.users'), path: '/users', icon: Users },
-    { name: t('nav.roles' as any) || 'Интерфейсы', path: '/roles', icon: Shield },
-    { name: t('nav.numbers' as any) || 'Списки доступа', path: '/numbers', icon: List },
-    { name: t('nav.provisionTemplates', 'Шаблоны автонастройки'), path: '/provision-templates', icon: FileCode },
-    { name: t('nav.ttsEngines', 'Синтез речи (TTS)'), path: '/settings/tts-engines', icon: Volume2 },
-    { name: t('nav.sttEngines', 'Распознавание речи (STT)'), path: '/settings/stt-engines', icon: AudioLines },
-    { name: t('nav.settings'), path: '/settings', icon: Settings },
-  ] as const;
+  const level = useAppSelector(selectUserLevel);
+  const navigation = buildNavigation(t, level);
 
   const isVisuallyExpanded = isMobile ? true : !collapsed;
 
