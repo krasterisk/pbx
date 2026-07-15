@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Ready to execute
-last_updated: "2026-07-15T16:10:53.141Z"
+last_updated: "2026-07-15T16:27:00.000Z"
 progress:
   total_phases: 7
   completed_phases: 4
   total_plans: 45
-  completed_plans: 31
-  percent: 69
+  completed_plans: 32
+  percent: 71
 ---
 
 # State
@@ -17,7 +17,7 @@ progress:
 ## Current position
 
 Phase: 07 (call-center-overhaul-professional-agent-supervisor-workspace) — EXECUTING
-Plan: 6 of 18 (07-05 complete)
+Plan: 7 of 18 (07-06 complete)
 Phase 5 — Phonebooks AI: plans executed (verify/UAT may remain).  
 Phase 6 — Dialplan Apps: **06-01–06-14 executed**. Ready for `/gsd-verify-work 6`.
 
@@ -59,6 +59,9 @@ Phase 1 — MOH: pending verify.
 - [Phase 07]: Hybrid rollup RAW_MAX_DAYS=90; sla_met_calls uses DEFAULT_SLA_THRESHOLD_SEC in rollup
 - [Phase 07]: Settings assertSupervisor uses UserLevel set membership so ADMIN can write tenant cc_settings
 - [Phase 07]: GET operator/tenant settings returns defaults without creating rows
+- [Phase 07]: Call card v1 field types — 14 types; file upload excluded (D-11)
+- [Phase 07]: auto_open_on ENUM answer/ring/manual per D-12 (not concept never)
+- [Phase 07]: CRM card save webhook via notification_integration + extraVars tenant guard (D-13)
 
 ## Roadmap Evolution
 
@@ -69,7 +72,7 @@ Phase 1 — MOH: pending verify.
 
 ## Next GSD command
 
-`/gsd-execute-phase 7` (continue from plan 06)
+`/gsd-execute-phase 7` (continue from plan 07)
 
 ## Performance Metrics
 
@@ -92,3 +95,4 @@ Phase 1 — MOH: pending verify.
 | Phase 07 P03 | 22min | 3 tasks | 7 files |
 | Phase 07 P04 | 16min | 4 tasks | 14 files |
 | Phase 07 P05 | 16min | 3 tasks | 22 files |
+| Phase 07 P06 | 15min | 3 tasks | 15 files |
