@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { AmiModule } from '../ami/ami.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { CallCenterStateService } from './callcenter-state.service';
 import { CallCenterAmiService } from './callcenter-ami.service';
 import { CallCenterService } from './callcenter.service';
@@ -59,6 +60,7 @@ import { queueLogReaderProvider } from './queuelog/queue-log-reader.factory';
       ServiceRequest,  // Client Card sidebar — linked service requests
     ]),
     AmiModule,
+    NotificationsModule,
   ],
   providers: [
     CallCenterStateService,

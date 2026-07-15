@@ -31,6 +31,6 @@ import { VkProvider } from './providers/vk.provider';
     MaxProvider,
     VkProvider,
   ],
-  exports: [NotificationsService],
+  exports: [NotificationsService, WebhookProvider],
 })
 export class NotificationsModule {}

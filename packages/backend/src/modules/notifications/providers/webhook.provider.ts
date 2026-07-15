@@ -45,6 +45,7 @@ export class WebhookProvider implements INotificationProvider {
     integration: DecryptedNotificationIntegration,
     target: string | undefined,
     message: string,
+    extraVars?: Record<string, string>,
   ): Promise<NotificationSendResult> {
     const url =
       integration.config?.url ??
@@ -60,6 +61,7 @@ export class WebhookProvider implements INotificationProvider {
     const vars: Record<string, string> = {
       message: text,
       target: target ?? '',
+      ...extraVars,
     };
 
     const template = integration.config?.payload_template;

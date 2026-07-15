@@ -1,5 +1,7 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
+import { NotificationsService } from '../notifications/notifications.service';
+import { WebhookProvider } from '../notifications/providers/webhook.provider';
 import { CcCardTemplate } from './models/card-template.model';
 import { CcCardField } from './models/card-field.model';
 import { CcCardData } from './models/card-data.model';
@@ -25,6 +27,8 @@ export class CallCenterCardsService {
     @InjectModel(CcCardTemplate) private readonly templateModel: typeof CcCardTemplate,
     @InjectModel(CcCardField) private readonly fieldModel: typeof CcCardField,
     @InjectModel(CcCardData) private readonly cardDataModel: typeof CcCardData,
+    private readonly notificationsService: NotificationsService,
+    private readonly webhook: WebhookProvider,
   ) {}
 
   async findTemplates(vpbx: number) {
@@ -175,14 +179,65 @@ export class CallCenterCardsService {
   }
 
   /**
-   * CRM webhook dispatch — implemented in Task 3 (D-13).
+   * CRM webhook via Phase 6 notification_integration (D-13).
+   * Never throws — card save must succeed even if webhook fails.
    */
   private async dispatchWebhook(
-    _template: CcCardTemplate,
-    _card: CcCardData,
-    _vpbx: number,
+    template: CcCardTemplate,
+    card: CcCardData,
+    vpbx: number,
   ): Promise<void> {
-    // Task 3 fills this body
+    if (!template.webhook_integration_uid) return;
+
+    try {
+      const integ = await this.notificationsService.findByUidInternal(
+        template.webhook_integration_uid,
+      );
+
+      if (integ.user_uid !== vpbx) {
+        this.logger.warn(
+          `dispatchWebhook blocked: integration ${integ.uid} tenant ${integ.user_uid} !== ${vpbx}`,
+        );
+        return;
+      }
+
+      if (integ.channel !== 'webhook') {
+        this.logger.warn(`dispatchWebhook skipped: integration ${integ.uid} channel is ${integ.channel}`);
+        return;
+      }
+
+      const extraVars = this.buildWebhookExtraVars(template, card);
+      const result = await this.webhook.send(integ, undefined, '', extraVars);
+
+      if (!result.success) {
+        this.logger.warn(`dispatchWebhook failed: ${result.error ?? 'unknown'}`);
+      }
+    } catch (err: any) {
+      this.logger.warn(`dispatchWebhook error: ${err?.message ?? err}`);
+    }
+  }
+
+  private buildWebhookExtraVars(
+    template: CcCardTemplate,
+    card: CcCardData,
+  ): Record<string, string> {
+    const extraVars: Record<string, string> = {
+      caller_id: card.caller_id ?? '',
+      queue_name: card.queue_name ?? '',
+      call_uniqueid: card.call_uniqueid ?? '',
+    };
+
+    const fieldMap = template.webhook_field_map ?? {};
+    const values = card.field_values ?? {};
+
+    for (const [fieldKey, rawValue] of Object.entries(values)) {
+      const varName = fieldMap[fieldKey] ?? fieldKey;
+      extraVars[varName] = rawValue === null || rawValue === undefined
+        ? ''
+        : String(rawValue);
+    }
+
+    return extraVars;
   }
 
   private async bulkCreateFields(templateId: number, fields: CardFieldDto[], vpbx: number) {
