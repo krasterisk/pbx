@@ -1,14 +1,22 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useSelector } from 'react-redux';
 import { useTranslation } from 'react-i18next';
+import type { ColumnDef } from '@tanstack/react-table';
 import {
   Monitor, Users, Phone, PhoneIncoming, TrendingDown,
-  Eye, MessageSquare, Megaphone, Pause, Play, LogOut,
-  Clock, BarChart3, Headphones,
+  Eye, MessageSquare, Megaphone, Pause, Play,
+  Clock, BarChart3, Headphones, LayoutGrid, Table2,
+  PhoneForwarded, PhoneOff, Info,
 } from 'lucide-react';
-import { VStack, Flex, Text, Button } from '@/shared/ui';
+import {
+  VStack, Flex, Text, Button, SegmentedControl, Sparkline,
+  DataTable, Avatar, Dialog, DialogContent, DialogHeader, DialogTitle,
+  DialogFooter,
+} from '@/shared/ui';
 import { useCallCenterSSE } from '@/features/callcenter/lib/useCallCenterSSE';
+import { useKpiSamples } from '@/features/callcenter/lib/useKpiSamples';
 import { ChatPanelHost } from '@/features/callcenter/ui/ChatPanel/ChatPanel';
+import { AgentDetailModal } from '@/features/callcenter/ui/AgentDetailModal/AgentDetailModal';
 import {
   selectCcAgents,
   selectCcQueues,
@@ -19,38 +27,51 @@ import {
   useSupervisorSpyMutation,
   useSupervisorForcePauseMutation,
   useSupervisorForceUnpauseMutation,
+  useSupervisorRedirectCallMutation,
+  useSupervisorHangupCallMutation,
 } from '@/shared/api/endpoints/callCenterApi';
 import type { IAgent, ICall } from '@/features/callcenter/model/types/callCenterSchema';
 import styles from './CallCenterSupervisorPage.module.scss';
 
 type TabId = 'agents' | 'calls' | 'queues';
+type AgentView = 'grid' | 'table';
+
+const VIEW_STORAGE_KEY = 'cc:supervisor:view';
+
+function readStoredView(): AgentView {
+  try {
+    const v = localStorage.getItem(VIEW_STORAGE_KEY);
+    if (v === 'grid' || v === 'table') return v;
+  } catch { /* ignore */ }
+  return 'grid';
+}
 
 export function CallCenterSupervisorPage() {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<TabId>('agents');
+  const [agentView, setAgentView] = useState<AgentView>(readStoredView);
+  const [detailAgent, setDetailAgent] = useState<IAgent | null>(null);
+  const [hangupCall, setHangupCall] = useState<ICall | null>(null);
+  const [transferTarget, setTransferTarget] = useState<Record<string, string>>({});
 
-  // SSE connection
   useCallCenterSSE(true);
 
-  // Redux state
   const agents = useSelector(selectCcAgents);
   const queues = useSelector(selectCcQueues);
   const calls = useSelector(selectCcCalls);
   const connected = useSelector(selectCcConnected);
 
-  // Mutations
   const [supervisorSpy] = useSupervisorSpyMutation();
   const [supervisorForcePause] = useSupervisorForcePauseMutation();
   const [supervisorForceUnpause] = useSupervisorForceUnpauseMutation();
+  const [supervisorRedirectCall] = useSupervisorRedirectCallMutation();
+  const [supervisorHangupCall] = useSupervisorHangupCallMutation();
 
-  // KPI calculations
   const kpis = useMemo(() => {
     const totalWaiting = queues.reduce((s, q) => s + q.waiting, 0);
     const totalTalking = queues.reduce((s, q) => s + q.talking, 0);
     const freeAgents = agents.filter(a => a.status === 'READY').length;
-    const pausedAgents = agents.filter(a => a.status === 'PAUSED').length;
     const totalAbandoned = queues.reduce((s, q) => s + q.calls.abandoned, 0);
-    const totalAnswered = queues.reduce((s, q) => s + q.calls.answered, 0);
     const avgSla = queues.length > 0
       ? Math.round(queues.reduce((s, q) => s + q.sla, 0) / queues.length)
       : 100;
@@ -59,10 +80,27 @@ export function CallCenterSupervisorPage() {
       : 0;
 
     return {
-      totalWaiting, totalTalking, freeAgents, pausedAgents,
-      totalAbandoned, totalAnswered, avgSla, avgWait,
+      waiting: totalWaiting,
+      talking: totalTalking,
+      freeAgents,
+      sla: avgSla,
+      avgWait,
+      abandoned: totalAbandoned,
       totalAgents: agents.length,
     };
+  }, [agents, queues]);
+
+  const samples = useKpiSamples(kpis);
+
+  const readyAgents = useMemo(
+    () => agents.filter(a => a.status === 'READY'),
+    [agents],
+  );
+
+  const transferOptions = useMemo(() => {
+    const agentOpts = agents.map(a => ({ value: a.interface, label: a.name }));
+    const queueOpts = queues.map(q => ({ value: q.name, label: q.displayName || q.name }));
+    return [...agentOpts, ...queueOpts];
   }, [agents, queues]);
 
   const formatTime = (seconds: number): string => {
@@ -90,15 +128,193 @@ export function CallCenterSupervisorPage() {
     return '';
   };
 
+  const handleViewChange = useCallback((v: AgentView) => {
+    setAgentView(v);
+    try {
+      localStorage.setItem(VIEW_STORAGE_KEY, v);
+    } catch { /* ignore */ }
+  }, []);
+
+  const openAgentDetail = useCallback((agent: IAgent) => {
+    setDetailAgent(agent);
+  }, []);
+
+  const handleRedirect = useCallback(async (call: ICall, target: string) => {
+    if (!target) return;
+    await supervisorRedirectCall({ uniqueid: call.uniqueid, target });
+  }, [supervisorRedirectCall]);
+
+  const handleConfirmHangup = useCallback(async () => {
+    if (!hangupCall) return;
+    await supervisorHangupCall({ uniqueid: hangupCall.uniqueid });
+    setHangupCall(null);
+  }, [hangupCall, supervisorHangupCall]);
+
+  const renderAgentActions = useCallback((agent: IAgent) => (
+    <div className={styles.agentActions}>
+      <button
+        type="button"
+        className={styles.agentActionBtn}
+        onClick={(e) => { e.stopPropagation(); openAgentDetail(agent); }}
+        title={t('callcenter.supervisor.agentDetail.title', 'Agent details')}
+      >
+        <Info className="w-3 h-3 inline mr-0.5" />
+      </button>
+      {(agent.status === 'IN_CALL' || agent.status === 'RINGING') && (
+        <>
+          <button
+            type="button"
+            className={`${styles.agentActionBtn} ${styles.agentActionSpy}`}
+            onClick={(e) => { e.stopPropagation(); supervisorSpy({ agentInterface: agent.interface, mode: 'spy' }); }}
+          >
+            <Eye className="w-3 h-3 inline mr-0.5" /> {t('callcenter.supervisor.spy', 'Spy')}
+          </button>
+          <button
+            type="button"
+            className={`${styles.agentActionBtn} ${styles.agentActionSpy}`}
+            onClick={(e) => { e.stopPropagation(); supervisorSpy({ agentInterface: agent.interface, mode: 'whisper' }); }}
+          >
+            <MessageSquare className="w-3 h-3 inline mr-0.5" /> {t('callcenter.supervisor.whisper', 'Whisper')}
+          </button>
+          <button
+            type="button"
+            className={`${styles.agentActionBtn} ${styles.agentActionSpy}`}
+            onClick={(e) => { e.stopPropagation(); supervisorSpy({ agentInterface: agent.interface, mode: 'barge' }); }}
+          >
+            <Megaphone className="w-3 h-3 inline mr-0.5" /> {t('callcenter.supervisor.barge', 'Barge')}
+          </button>
+        </>
+      )}
+      {agent.status === 'READY' && (
+        <button
+          type="button"
+          className={`${styles.agentActionBtn} ${styles.agentActionPause}`}
+          onClick={(e) => { e.stopPropagation(); supervisorForcePause({ agentInterface: agent.interface }); }}
+        >
+          <Pause className="w-3 h-3 inline mr-0.5" /> {t('callcenter.supervisor.pause', 'Pause')}
+        </button>
+      )}
+      {agent.status === 'PAUSED' && (
+        <button
+          type="button"
+          className={styles.agentActionBtn}
+          onClick={(e) => { e.stopPropagation(); supervisorForceUnpause({ agentInterface: agent.interface }); }}
+        >
+          <Play className="w-3 h-3 inline mr-0.5" /> {t('callcenter.supervisor.unpause', 'Resume')}
+        </button>
+      )}
+    </div>
+  ), [openAgentDetail, supervisorSpy, supervisorForcePause, supervisorForceUnpause, t]);
+
+  const agentColumns = useMemo<ColumnDef<IAgent>[]>(() => [
+    {
+      id: 'status',
+      header: t('callcenter.supervisor.status', 'Status'),
+      cell: ({ row }) => (
+        <span className={`${styles.callStatusBadge} ${agentStatusDot(row.original.status)}`} style={{ paddingLeft: 14 }}>
+          <span className={`${styles.agentStatusDot} ${agentStatusDot(row.original.status)}`} style={{ width: 8, height: 8, marginRight: 6 }} />
+          {row.original.status}
+        </span>
+      ),
+    },
+    {
+      id: 'name',
+      header: t('callcenter.supervisor.agent_lbl', 'Agent'),
+      cell: ({ row }) => (
+        <Flex align="center" gap="8">
+          <Avatar name={row.original.name} size={28} />
+          <Text>{row.original.name}</Text>
+        </Flex>
+      ),
+    },
+    {
+      id: 'queues',
+      header: t('callcenter.supervisor.queue_lbl', 'Queue'),
+      cell: ({ row }) => row.original.queues.join(', ') || '-',
+    },
+    {
+      id: 'calls',
+      header: t('callcenter.supervisor.callsTaken', 'Calls'),
+      cell: ({ row }) => row.original.callsTaken,
+    },
+    {
+      id: 'currentCall',
+      header: t('callcenter.supervisor.agentCurrentCall', 'Current call'),
+      cell: ({ row }) => row.original.currentCall || '-',
+    },
+    {
+      id: 'actions',
+      header: t('callcenter.supervisor.actions_lbl', 'Actions'),
+      cell: ({ row }) => renderAgentActions(row.original),
+    },
+  ], [t, renderAgentActions]);
+
   const tabs: { id: TabId; label: string; icon: typeof Users }[] = [
     { id: 'agents', label: t('callcenter.supervisor.tabAgents', 'Agents'), icon: Users },
     { id: 'calls', label: t('callcenter.supervisor.tabCalls', 'Live Calls'), icon: Phone },
     { id: 'queues', label: t('callcenter.supervisor.tabQueues', 'Queues'), icon: BarChart3 },
   ];
 
+  const kpiCards = [
+    {
+      key: 'waiting',
+      label: t('callcenter.supervisor.waiting', 'Waiting'),
+      value: kpis.waiting,
+      icon: PhoneIncoming,
+      danger: kpis.waiting > 5,
+      warning: kpis.waiting > 2,
+      spark: samples.map(s => s.waiting),
+    },
+    {
+      key: 'talking',
+      label: t('callcenter.supervisor.inCall', 'In Call'),
+      value: kpis.talking,
+      icon: Phone,
+      spark: samples.map(s => s.talking),
+    },
+    {
+      key: 'free',
+      label: t('callcenter.supervisor.freeAgents', 'Free'),
+      value: kpis.freeAgents,
+      icon: Users,
+      danger: kpis.freeAgents < 2,
+      success: kpis.freeAgents >= 2,
+      spark: samples.map(s => s.freeAgents),
+    },
+    {
+      key: 'sla',
+      label: 'SLA %',
+      value: `${kpis.sla}%`,
+      danger: kpis.sla < 80,
+      success: kpis.sla >= 80,
+      spark: samples.map(s => s.sla),
+    },
+    {
+      key: 'avgWait',
+      label: t('callcenter.supervisor.avgWait', 'Avg Wait'),
+      value: formatTime(kpis.avgWait),
+      icon: Clock,
+      spark: samples.map(s => s.avgWait),
+    },
+    {
+      key: 'abandoned',
+      label: t('callcenter.supervisor.abandoned', 'Lost'),
+      value: kpis.abandoned,
+      icon: TrendingDown,
+      danger: kpis.abandoned > 5,
+      spark: samples.map(s => s.abandoned),
+    },
+    {
+      key: 'totalAgents',
+      label: t('callcenter.supervisor.totalAgents', 'Agents'),
+      value: kpis.totalAgents,
+      icon: Headphones,
+      spark: samples.map(s => s.freeAgents),
+    },
+  ];
+
   return (
     <VStack gap="16" className={styles.wrapper}>
-      {/* Page Header */}
       <Flex justify="between" align="center" className="px-2 sm:px-2">
         <Flex align="center" gap="12">
           <Flex align="center" justify="center" className="p-2 sm:p-2.5 bg-indigo-500/10 rounded-xl">
@@ -123,67 +339,35 @@ export function CallCenterSupervisorPage() {
         </Flex>
       </Flex>
 
-      {/* KPI Strip */}
       <div className={styles.kpiStrip}>
-        <div className={`${styles.kpiCard} ${kpis.totalWaiting > 5 ? styles.kpiDanger : kpis.totalWaiting > 2 ? styles.kpiWarning : ''}`}>
-          <Text className={styles.kpiLabel}>
-            <PhoneIncoming className="w-3 h-3 inline mr-1" />
-            {t('callcenter.supervisor.waiting', 'Waiting')}
-          </Text>
-          <Text className={styles.kpiValue}>{kpis.totalWaiting}</Text>
-        </div>
-
-        <div className={styles.kpiCard}>
-          <Text className={styles.kpiLabel}>
-            <Phone className="w-3 h-3 inline mr-1" />
-            {t('callcenter.supervisor.inCall', 'In Call')}
-          </Text>
-          <Text className={styles.kpiValue}>{kpis.totalTalking}</Text>
-        </div>
-
-        <div className={`${styles.kpiCard} ${kpis.freeAgents < 2 ? styles.kpiDanger : styles.kpiSuccess}`}>
-          <Text className={styles.kpiLabel}>
-            <Users className="w-3 h-3 inline mr-1" />
-            {t('callcenter.supervisor.freeAgents', 'Free')}
-          </Text>
-          <Text className={styles.kpiValue}>{kpis.freeAgents}</Text>
-        </div>
-
-        <div className={`${styles.kpiCard} ${kpis.avgSla < 80 ? styles.kpiDanger : styles.kpiSuccess}`}>
-          <Text className={styles.kpiLabel}>SLA %</Text>
-          <Text className={styles.kpiValue}>{kpis.avgSla}%</Text>
-        </div>
-
-        <div className={styles.kpiCard}>
-          <Text className={styles.kpiLabel}>
-            <Clock className="w-3 h-3 inline mr-1" />
-            {t('callcenter.supervisor.avgWait', 'Avg Wait')}
-          </Text>
-          <Text className={styles.kpiValue}>{formatTime(kpis.avgWait)}</Text>
-        </div>
-
-        <div className={`${styles.kpiCard} ${kpis.totalAbandoned > 5 ? styles.kpiDanger : ''}`}>
-          <Text className={styles.kpiLabel}>
-            <TrendingDown className="w-3 h-3 inline mr-1" />
-            {t('callcenter.supervisor.abandoned', 'Lost')}
-          </Text>
-          <Text className={styles.kpiValue}>{kpis.totalAbandoned}</Text>
-        </div>
-
-        <div className={styles.kpiCard}>
-          <Text className={styles.kpiLabel}>
-            <Headphones className="w-3 h-3 inline mr-1" />
-            {t('callcenter.supervisor.totalAgents', 'Agents')}
-          </Text>
-          <Text className={styles.kpiValue}>{kpis.totalAgents}</Text>
-        </div>
+        {kpiCards.map(card => {
+          const Icon = card.icon;
+          const cardClass = [
+            styles.kpiCard,
+            card.danger ? styles.kpiDanger : '',
+            card.warning ? styles.kpiWarning : '',
+            card.success ? styles.kpiSuccess : '',
+          ].filter(Boolean).join(' ');
+          return (
+            <div key={card.key} className={cardClass}>
+              <Text className={styles.kpiLabel}>
+                {Icon && <Icon className="w-3 h-3 inline mr-1" />}
+                {card.label}
+              </Text>
+              <Flex align="center" justify="between" gap="8">
+                <Text className={styles.kpiValue}>{card.value}</Text>
+                <Sparkline data={card.spark} />
+              </Flex>
+            </div>
+          );
+        })}
       </div>
 
-      {/* Tabs */}
       <div className={styles.tabsRow}>
         {tabs.map(tab => (
           <button
             key={tab.id}
+            type="button"
             className={`${styles.tab} ${activeTab === tab.id ? styles.tabActive : ''}`}
             onClick={() => setActiveTab(tab.id)}
           >
@@ -193,75 +377,71 @@ export function CallCenterSupervisorPage() {
         ))}
       </div>
 
-      {/* Tab Content */}
       {activeTab === 'agents' && (
-        <div className={styles.agentGrid}>
-          {agents.length > 0 ? agents.map((agent: IAgent) => (
-            <div key={agent.interface} className={styles.agentCard}>
-              <div className={styles.agentCardHeader}>
-                <div className={`${styles.agentStatusDot} ${agentStatusDot(agent.status)}`} />
-                <Text className={styles.agentName}>{agent.name}</Text>
-              </div>
-              <span className={styles.agentStatus} style={{
-                color: agent.status === 'READY' ? 'var(--color-success)' :
-                       agent.status === 'IN_CALL' || agent.status === 'RINGING' ? 'var(--color-destructive)' :
-                       agent.status === 'PAUSED' ? 'var(--color-warning)' : 'var(--color-muted-foreground)'
-              }}>
-                {agent.status}{agent.pauseReason ? ` (${agent.pauseReason})` : ''}
-              </span>
-              <Text className={styles.agentMeta}>
-                {t('callcenter.supervisor.callsTaken', 'Calls')}: {agent.callsTaken}
-                {agent.queues.length > 0 && ` | ${agent.queues.join(', ')}`}
-              </Text>
+        <>
+          <Flex justify="end">
+            <SegmentedControl<AgentView>
+              ariaLabel={t('callcenter.supervisor.viewToggle', 'Agent view')}
+              value={agentView}
+              onChange={handleViewChange}
+              options={[
+                { value: 'grid', icon: LayoutGrid, label: t('callcenter.supervisor.viewGrid', 'Grid') },
+                { value: 'table', icon: Table2, label: t('callcenter.supervisor.viewTable', 'Table') },
+              ]}
+            />
+          </Flex>
 
-              <div className={styles.agentActions}>
-                {(agent.status === 'IN_CALL' || agent.status === 'RINGING') && (
-                  <>
-                    <button
-                      className={`${styles.agentActionBtn} ${styles.agentActionSpy}`}
-                      onClick={() => supervisorSpy({ agentInterface: agent.interface, mode: 'spy' })}
-                    >
-                      <Eye className="w-3 h-3 inline mr-0.5" /> Spy
-                    </button>
-                    <button
-                      className={`${styles.agentActionBtn} ${styles.agentActionSpy}`}
-                      onClick={() => supervisorSpy({ agentInterface: agent.interface, mode: 'whisper' })}
-                    >
-                      <MessageSquare className="w-3 h-3 inline mr-0.5" /> Whisper
-                    </button>
-                    <button
-                      className={`${styles.agentActionBtn} ${styles.agentActionSpy}`}
-                      onClick={() => supervisorSpy({ agentInterface: agent.interface, mode: 'barge' })}
-                    >
-                      <Megaphone className="w-3 h-3 inline mr-0.5" /> Barge
-                    </button>
-                  </>
-                )}
-                {agent.status === 'READY' && (
-                  <button
-                    className={`${styles.agentActionBtn} ${styles.agentActionPause}`}
-                    onClick={() => supervisorForcePause({ agentInterface: agent.interface })}
-                  >
-                    <Pause className="w-3 h-3 inline mr-0.5" /> {t('callcenter.supervisor.pause', 'Pause')}
-                  </button>
-                )}
-                {agent.status === 'PAUSED' && (
-                  <button
-                    className={`${styles.agentActionBtn}`}
-                    onClick={() => supervisorForceUnpause({ agentInterface: agent.interface })}
-                  >
-                    <Play className="w-3 h-3 inline mr-0.5" /> {t('callcenter.supervisor.unpause', 'Resume')}
-                  </button>
-                )}
+          {agentView === 'grid' ? (
+            <div className={styles.agentGrid}>
+              {agents.length > 0 ? agents.map((agent: IAgent) => (
+                <div
+                  key={agent.interface}
+                  className={styles.agentCard}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => openAgentDetail(agent)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') openAgentDetail(agent); }}
+                >
+                  <div className={styles.agentCardHeader}>
+                    <div className={`${styles.agentStatusDot} ${agentStatusDot(agent.status)}`} />
+                    <Avatar name={agent.name} size={28} />
+                    <Text className={styles.agentName}>{agent.name}</Text>
+                  </div>
+                  <span className={styles.agentStatus} style={{
+                    color: agent.status === 'READY' ? 'var(--color-success)' :
+                           agent.status === 'IN_CALL' || agent.status === 'RINGING' ? 'var(--color-destructive)' :
+                           agent.status === 'PAUSED' ? 'var(--color-warning)' : 'var(--color-muted-foreground)',
+                  }}>
+                    {agent.status}{agent.pauseReason ? ` (${agent.pauseReason})` : ''}
+                  </span>
+                  <Text className={styles.agentMeta}>
+                    {t('callcenter.supervisor.callsTaken', 'Calls')}: {agent.callsTaken}
+                    {agent.queues.length > 0 && ` | ${agent.queues.join(', ')}`}
+                  </Text>
+                  {renderAgentActions(agent)}
+                </div>
+              )) : (
+                <div className={styles.emptyState}>
+                  <Users className="w-10 h-10 opacity-30" />
+                  <Text variant="muted">{t('callcenter.supervisor.noAgents', 'No agents online')}</Text>
+                </div>
+              )}
+            </div>
+          ) : (
+            agents.length > 0 ? (
+              <DataTable<IAgent>
+                data={agents}
+                columns={agentColumns}
+                getRowId={(row) => row.interface}
+              />
+            ) : (
+              <div className={styles.emptyState}>
+                <Users className="w-10 h-10 opacity-30" />
+                <Text variant="muted">{t('callcenter.supervisor.noAgents', 'No agents online')}</Text>
               </div>
-            </div>
-          )) : (
-            <div className={styles.emptyState}>
-              <Users className="w-10 h-10 opacity-30" />
-              <Text variant="muted">{t('callcenter.supervisor.noAgents', 'No agents online')}</Text>
-            </div>
+            )
           )}
-        </div>
+        </>
       )}
 
       {activeTab === 'calls' && (
@@ -278,29 +458,84 @@ export function CallCenterSupervisorPage() {
               </tr>
             </thead>
             <tbody>
-              {calls.map((call: ICall, i) => (
-                <tr key={call.uniqueid}>
-                  <td>{i + 1}</td>
-                  <td>{call.callerIdNum || '-'}</td>
-                  <td>{call.queue}</td>
-                  <td>
-                    <span className={`${styles.callStatusBadge} ${callStatusBadge(call.status)}`}>
-                      {call.status}
-                    </span>
-                  </td>
-                  <td>{call.agent || '-'}</td>
-                  <td>
-                    {call.agent && (
-                      <button
-                        className={`${styles.agentActionBtn} ${styles.agentActionSpy}`}
-                        onClick={() => supervisorSpy({ agentInterface: call.agent!, mode: 'spy' })}
-                      >
-                        <Eye className="w-3 h-3 inline mr-0.5" /> Spy
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
+              {calls.map((call: ICall, i) => {
+                const target = transferTarget[call.uniqueid] ?? '';
+                const isWaiting = call.status === 'WAITING' || call.status === 'RINGING';
+                const isActive = call.status === 'TALKING' || call.status === 'HOLD';
+                const redirectOptions = isWaiting
+                  ? readyAgents.map(a => ({ value: a.interface, label: a.name }))
+                  : transferOptions;
+                return (
+                  <tr key={call.uniqueid}>
+                    <td>{i + 1}</td>
+                    <td>{call.callerIdNum || '-'}</td>
+                    <td>{call.queue}</td>
+                    <td>
+                      <span className={`${styles.callStatusBadge} ${callStatusBadge(call.status)}`}>
+                        {call.status}
+                      </span>
+                    </td>
+                    <td>{call.agent || '-'}</td>
+                    <td>
+                      <Flex align="center" gap="6" wrap="wrap">
+                        {(isWaiting || isActive) && (
+                          <>
+                            <select
+                              className={styles.transferSelect}
+                              value={target}
+                              onChange={(e) => setTransferTarget(prev => ({ ...prev, [call.uniqueid]: e.target.value }))}
+                            >
+                              <option value="">{t('callcenter.supervisor.transferTarget', 'Target...')}</option>
+                              {redirectOptions.map(o => (
+                                <option key={o.value} value={o.value}>{o.label}</option>
+                              ))}
+                            </select>
+                            {isWaiting && (
+                              <button
+                                type="button"
+                                className={styles.agentActionBtn}
+                                disabled={!target}
+                                onClick={() => handleRedirect(call, target)}
+                              >
+                                <PhoneForwarded className="w-3 h-3 inline mr-0.5" />
+                                {t('callcenter.supervisor.pickup', 'Pickup')}
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              className={styles.agentActionBtn}
+                              disabled={!target}
+                              onClick={() => handleRedirect(call, target)}
+                            >
+                              <PhoneForwarded className="w-3 h-3 inline mr-0.5" />
+                              {t('callcenter.supervisor.transfer', 'Transfer')}
+                            </button>
+                          </>
+                        )}
+                        {isActive && (
+                          <button
+                            type="button"
+                            className={`${styles.agentActionBtn} ${styles.agentActionDanger}`}
+                            onClick={() => setHangupCall(call)}
+                          >
+                            <PhoneOff className="w-3 h-3 inline mr-0.5" />
+                            {t('callcenter.supervisor.hangupCall', 'Hang up')}
+                          </button>
+                        )}
+                        {call.agent && (
+                          <button
+                            type="button"
+                            className={`${styles.agentActionBtn} ${styles.agentActionSpy}`}
+                            onClick={() => supervisorSpy({ agentInterface: call.agent!, mode: 'spy' })}
+                          >
+                            <Eye className="w-3 h-3 inline mr-0.5" /> {t('callcenter.supervisor.spy', 'Spy')}
+                          </button>
+                        )}
+                      </Flex>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         ) : (
@@ -355,6 +590,35 @@ export function CallCenterSupervisorPage() {
           </div>
         )
       )}
+
+      <AgentDetailModal
+        agent={detailAgent}
+        open={detailAgent != null}
+        onClose={() => setDetailAgent(null)}
+      />
+
+      <Dialog open={hangupCall != null} onOpenChange={(v) => { if (!v) setHangupCall(null); }}>
+        <DialogContent size="default">
+          <DialogHeader>
+            <DialogTitle>{t('callcenter.supervisor.confirmHangupTitle', 'End call?')}</DialogTitle>
+          </DialogHeader>
+          <Text>
+            {t(
+              'callcenter.supervisor.confirmHangupBody',
+              'End call {{number}}? The conversation will be terminated',
+              { number: hangupCall?.callerIdNum ?? '' },
+            )}
+          </Text>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setHangupCall(null)}>
+              {t('callcenter.supervisor.cancel', 'Cancel')}
+            </Button>
+            <Button variant="destructive" onClick={handleConfirmHangup}>
+              {t('callcenter.supervisor.hangupCall', 'Hang up')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </VStack>
   );
 }
