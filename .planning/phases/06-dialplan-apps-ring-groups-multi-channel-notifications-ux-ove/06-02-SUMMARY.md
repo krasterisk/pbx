@@ -75,7 +75,7 @@ Each task was committed atomically:
 3. **Task 2 RED: notify/callerid/trunk_carousel specs** - `c08e690` (test)
 4. **Task 2 GREEN: notify/callerid/trunk_carousel cases** - `034820f` (feat)
 
-**Plan metadata:** pending (docs commit)
+**Plan metadata:** `b5087e5` (docs: complete plan)
 
 ## Files Created/Modified
 - `packages/backend/src/shared/utils/dialplan.util.ts` - New cases + DIALSTATUS/hangup fixes
