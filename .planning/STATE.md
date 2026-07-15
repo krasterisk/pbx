@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Executing Phase 06
-last_updated: "2026-07-15T11:24:00.000Z"
+last_updated: "2026-07-15T11:25:00.000Z"
 progress:
   total_phases: 6
   completed_phases: 3
   total_plans: 27
-  completed_plans: 15
-  percent: 56
+  completed_plans: 16
+  percent: 59
 ---
 
 # State
@@ -17,9 +17,9 @@ progress:
 ## Current position
 
 Phase: 06 (dialplan-apps-ring-groups-multi-channel-notifications-ux-ove) — EXECUTING
-Plan: 4 of 14 (06-03 complete)
+Plan: 5 of 14 (06-04 complete)
 Phase 5 — Phonebooks AI: plans executed (verify/UAT may remain).  
-Phase 6 — Dialplan Apps: **06-01/06-02/06-03 executed** (types + dialplan.util + time_group guard). Next: `/gsd-execute-phase 6` (06-04).
+Phase 6 — Dialplan Apps: **06-01/06-02/06-03/06-04 executed** (types + dialplan.util + time_group guard + call_group models/migration). Next: `/gsd-execute-phase 6` (06-05).
 
 Phase 4 — IVR TTS phrases: **executed** (verify pending).  
 Phase 3 — IVR UI: **executed** (verify pending).  
@@ -32,6 +32,7 @@ Phase 1 — MOH: pending verify.
 - [Phase 06]: Preserved legacy NoOp for single invalid dialstatus string; arrays silently drop invalids
 - [Phase 06]: trunk_carousel uses labeled same=>n(tN) rotation from RAND pick with Return on ANSWER
 - [Phase 06]: Inline ExecIfTime guard for time_group_uid (A8) — Set(__WT_uid) + outer ExecIf wrapper
+- [Phase 06]: call_groups schema uses vpbx_user_uid tenant column with FK cascade on members (06-04)
 
 ## Roadmap Evolution
 
@@ -41,7 +42,7 @@ Phase 1 — MOH: pending verify.
 
 ## Next GSD command
 
-`/gsd-execute-phase 6` (plan 06-04)
+`/gsd-execute-phase 6` (plan 06-05)
 
 ## Performance Metrics
 
@@ -49,3 +50,4 @@ Phase 1 — MOH: pending verify.
 |-------|------|----------|-------|
 | Phase 06 P02 | 34min | 2 tasks | 2 files |
 | Phase 06 P03 | 18min | 2 tasks | 3 files |
+| Phase 06 P04 | 12min | 2 tasks | 3 files |
