@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Executing Phase 06
-last_updated: "2026-07-15T11:37:00.000Z"
+last_updated: "2026-07-15T11:45:00.000Z"
 progress:
   total_phases: 7
   completed_phases: 3
   total_plans: 27
-  completed_plans: 22
-  percent: 81
+  completed_plans: 23
+  percent: 85
 ---
 
 # State
@@ -17,9 +17,9 @@ progress:
 ## Current position
 
 Phase: 06 (dialplan-apps-ring-groups-multi-channel-notifications-ux-ove) — EXECUTING
-Plan: 6 of 14 complete (06-06 done; next: 06-09 / 06-11+)
+Plan: 12 of 14 complete (06-12 done; next: 06-09 / 06-11 / 06-13+)
 Phase 5 — Phonebooks AI: plans executed (verify/UAT may remain).  
-Phase 6 — Dialplan Apps: **06-01–06-08, 06-10 executed**. Remaining: 06-09, 06-11–06-14.
+Phase 6 — Dialplan Apps: **06-01–06-08, 06-10, 06-12 executed**. Remaining: 06-09, 06-11, 06-13–06-14.
 
 Phase 4 — IVR TTS phrases: **executed** (verify pending).  
 Phase 3 — IVR UI: **executed** (verify pending).  
@@ -40,7 +40,7 @@ Phase 1 — MOH: pending verify.
 - [Phase 06]: CallGroupsService Pattern 2 — generateGroupDialplan + DialplanApplyService on every CRUD (06-06)
 - [Phase 06]: Member replace-all only when members !== undefined on update (queues idiom) (06-06)
 - [Phase 06]: Local NotifyDialplanBody until 06-09 formalizes DTO; axios direct in providers (HttpModule wiring in 06-09)
-- [Phase 06]: Webhook payload_template uses {{message}}/{{target}} substitution with http(s) SSRF guard
+- [Phase 06]: NotificationIntegrationsPage with channelFields-driven modal; secrets write-only via credentials object (06-12)
 
 ## Roadmap Evolution
 
@@ -64,4 +64,4 @@ Phase 1 — MOH: pending verify.
 | Phase 06 P07 | 30min | 3 tasks | 8 files |
 | Phase 06 P10 | 15min | 1 task | 3 files |
 | Phase 06 P08 | 12min | 2 tasks | 10 files |
-| Phase 06 P06 | 10min | 3 tasks | 6 files |
+| Phase 06 P12 | 7min | 2 tasks | 16 files |

@@ -291,7 +291,7 @@ Plans:
 - [ ] 06-09-PLAN.md — /internal/dialplan/notify endpoint (async 200) + module wiring [D-12]
 - [x] 06-10-PLAN.md — Frontend RTK apis (callGroupApi/notificationApi) + tagTypes [D-01/02/10/11]
 - [ ] 06-11-PLAN.md — Call Groups page + form modal + members editor [D-02/03/04/05/06/07]
-- [ ] 06-12-PLAN.md — Notification Integrations page + channel-driven form modal [D-10/11/13/16]
+- [x] 06-12-PLAN.md — Notification Integrations page + channel-driven form modal [D-10/11/13/16]
 - [ ] 06-13-PLAN.md — GroupApp + NotifyApp + registry + inline group editor [D-02/12/13/17/18]
 - [ ] 06-14-PLAN.md — CallerIdApp (4 modes) + TrunkCarouselApp + registry [D-14/15/16/17/18]
 
