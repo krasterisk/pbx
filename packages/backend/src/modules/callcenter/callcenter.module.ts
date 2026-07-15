@@ -22,6 +22,9 @@ import { CcDailyQueueStats } from './models/daily-queue-stats.model';
 import { CcDailyAgentStats } from './models/daily-agent-stats.model';
 import { CcOperatorSettings } from './models/operator-settings.model';
 import { CcSettings } from './models/cc-settings.model';
+import { CcCardTemplate } from './models/card-template.model';
+import { CcCardField } from './models/card-field.model';
+import { CcCardData } from './models/card-data.model';
 import { Queue } from '../queues/queue.model';
 import { User } from '../users/user.model';
 import { PhonebookEntry } from '../phonebooks/phonebook-entry.model';
@@ -44,6 +47,9 @@ import { queueLogReaderProvider } from './queuelog/queue-log-reader.factory';
       CcDailyAgentStats,
       CcOperatorSettings,
       CcSettings,
+      CcCardTemplate,
+      CcCardField,
+      CcCardData,
       Queue,           // for tenant resolution from queue names
       User,            // for agent display names
       PhonebookEntry,  // Client Card sidebar lookup
