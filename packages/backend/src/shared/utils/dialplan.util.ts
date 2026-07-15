@@ -308,6 +308,126 @@ export class AsteriskDialplanUtils {
       case 'busy':
         dp = `${wrapper}Busy(${parseInt(params.timeout, 10) || 10})${closing}`;
         break;
+      case 'notify': {
+        // D-12: Set(__KNOTIFY_*) + CURL → /internal/dialplan/notify (sendmail pattern)
+        const message = this.sanitizeTemplate(params.message);
+        const target = this.sanitizeTemplate(params.target);
+        const integrationUid = this.sanitizeDialplanInput(String(params.integration_uid ?? ''));
+        const url = `${this.backendBaseUrl}/internal/dialplan/notify`;
+        const keyParam = this.dialplanApiKey ? `&api_key=${encodeURIComponent(this.dialplanApiKey)}` : '';
+        const lines = [
+          `${wrapper}Set(__KNOTIFY_MSG=${message})${closing}`,
+          `Set(__KNOTIFY_TARGET=${target})`,
+          `Set(NOTIFY_RESULT=\${CURL(${url},integration_uid=${integrationUid}&message=\${URIENCODE(\${KNOTIFY_MSG})}&target=\${URIENCODE(\${KNOTIFY_TARGET})}&clid=\${URIENCODE(\${CALLERID(num)})}&exten=\${URIENCODE(\${EXTEN})}&uniqueid=\${URIENCODE(\${UNIQUEID})}${keyParam})})`,
+        ];
+        dp = lines.join('\nsame => n,');
+        break;
+      }
+      case 'callerid': {
+        // D-14: unified CallerID — static / phonebook / setclid_list / carousel
+        const mode = params.mode || 'static';
+        if (mode === 'static') {
+          const callerid = this.sanitizeDialplanInput(params.callerid);
+          const name = this.sanitizeDialplanInput(params.name);
+          const lines = [`${wrapper}Set(CALLERID(num)=${callerid})${closing}`];
+          if (name) lines.push(`Set(CALLERID(name)=${name})`);
+          dp = lines.join('\nsame => n,');
+        } else if (mode === 'phonebook') {
+          const pbUid = this.sanitizeDialplanInput(String(params.phonebook_uid ?? ''));
+          const keyParam = this.dialplanApiKey ? `&api_key=${encodeURIComponent(this.dialplanApiKey)}` : '';
+          const lookupUrl = `${this.backendBaseUrl}/internal/dialplan/phonebook-lookup?phonebook_uid=${pbUid}${keyParam}`;
+          const lines = [
+            `${wrapper}Set(PB_RAW=\${CURL(${lookupUrl}&number=\${URIENCODE(\${CALLERID(num)})})})${closing}`,
+            `ExecIf($["\${CUT(PB_RAW,|,1)}" = "1"]?Set(CALLERID(num)=\${CUT(PB_RAW,|,3)}))`,
+          ];
+          dp = lines.join('\nsame => n,');
+        } else if (mode === 'setclid_list') {
+          const listUid = this.sanitizeShellInput(String(params.list_uid || ''));
+          dp = `${wrapper}ExecIf($["\${SHELL(/usr/scripts/exten_setclid.php "${listUid}" "\${CLIDNUM}")}" != ""]?Set(CALLERID(num)=\${SHELL(/usr/scripts/exten_setclid.php "${listUid}" "\${CLIDNUM}")}))${closing}`;
+        } else if (mode === 'carousel') {
+          const pool = (Array.isArray(params.pool) ? params.pool : [])
+            .map((c: string) => this.sanitizeDialplanInput(c))
+            .filter(Boolean);
+          if (!pool.length) {
+            dp = `${wrapper}NoOp(Empty CID carousel pool)${closing}`;
+          } else {
+            const lines = pool.map((cid: string, i: number) =>
+              i === 0
+                ? `${wrapper}Set(CID_1=${cid})${closing}`
+                : `Set(CID_${i + 1}=${cid})`,
+            );
+            lines.push(`Set(CALLERID(num)=\${CID_\${RAND(1,${pool.length})}})`);
+            dp = lines.join('\nsame => n,');
+          }
+        } else {
+          dp = `${wrapper}NoOp(Unknown callerid mode)${closing}`;
+        }
+        break;
+      }
+      case 'trunk_carousel': {
+        // D-15: random_then_failover Dial loop with per-trunk CID; Return on ANSWER (never Hangup)
+        const trunks: Array<{
+          trunk?: string;
+          cid_mode?: string;
+          callerid?: string;
+          phonebook_uid?: number;
+        }> = Array.isArray(params.trunks) ? params.trunks : [];
+        if (!trunks.length) {
+          dp = `${wrapper}NoOp(Empty trunk carousel)${closing}`;
+          break;
+        }
+        const n = trunks.length;
+        const timeout = parseInt(params.timeout, 10) || 60;
+        const dialOpts = this.sanitizeDialplanInput(params.options || 'tT');
+        const keyParam = this.dialplanApiKey ? `&api_key=${encodeURIComponent(this.dialplanApiKey)}` : '';
+
+        const cidApps = (item: (typeof trunks)[0]): string[] => {
+          if (item.cid_mode === 'phonebook') {
+            const pbUid = this.sanitizeDialplanInput(String(item.phonebook_uid ?? ''));
+            const lookupUrl = `${this.backendBaseUrl}/internal/dialplan/phonebook-lookup?phonebook_uid=${pbUid}${keyParam}`;
+            return [
+              `Set(TC_PB=\${CURL(${lookupUrl}&number=\${URIENCODE(\${CALLERID(num)})})})`,
+              `ExecIf($["\${CUT(TC_PB,|,1)}" = "1"]?Set(CALLERID(num)=\${CUT(TC_PB,|,3)}))`,
+            ];
+          }
+          const cid = this.sanitizeDialplanInput(item.callerid);
+          return cid ? [`Set(CALLERID(num)=${cid})`] : [];
+        };
+
+        // First line + subsequent "same => <priority>,<app>" parts (labels need n(tN) form)
+        const head = `${wrapper}Set(TC_PICK=\${RAND(1,${n})})${closing}`;
+        const rest: string[] = [];
+        for (let i = 1; i < n; i++) {
+          rest.push(`n,GotoIf($["\${TC_PICK}" = "${i}"]?t${i})`);
+        }
+        rest.push(`n,Goto(t${n})`);
+
+        for (let start = 0; start < n; start++) {
+          let labeled = false;
+          for (let j = 0; j < n; j++) {
+            const item = trunks[(start + j) % n];
+            const trunk = this.sanitizeDialplanInput(item.trunk);
+            const apps = [
+              ...cidApps(item),
+              `Dial(${trunk}/\${EXTEN},${timeout},${dialOpts})`,
+              j < n - 1
+                ? `ExecIf($["\${DIALSTATUS}" = "ANSWER"]?Return())`
+                : 'Return()',
+            ];
+            for (const app of apps) {
+              if (!labeled) {
+                rest.push(`n(t${start + 1}),${app}`);
+                labeled = true;
+              } else {
+                rest.push(`n,${app}`);
+              }
+            }
+          }
+        }
+
+        dp = [head, ...rest.map((r) => `same => ${r}`)].join('\n');
+        break;
+      }
       case 'hangup': {
         const causecode = this.sanitizeDialplanInput(params.causecode);
         dp = causecode
