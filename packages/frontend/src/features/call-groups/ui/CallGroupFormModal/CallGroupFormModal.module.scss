@@ -1,0 +1,37 @@
+/* CallGroupFormModal — create/edit/copy call group form */
+
+.dialogContent {
+  max-width: 640px;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  width: 100%;
+}
+
+.fieldRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  width: 100%;
+}
+
+@media (max-width: 640px) {
+  .fieldRow {
+    grid-template-columns: 1fr;
+  }
+}
+
+.errorText {
+  color: var(--color-destructive);
+  font-size: 0.8125rem;
+}

@@ -1,0 +1,81 @@
+/* CallGroupMembersEditor — ordered internal/external members list */
+
+.wrapper {
+  width: 100%;
+}
+
+.membersBox {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-muted) 40%, transparent);
+  padding: 0.75rem;
+  min-height: 100px;
+}
+
+.emptyState {
+  padding: 1.25rem 0;
+  text-align: center;
+}
+
+.emptyText {
+  color: var(--color-muted-foreground);
+  font-size: 0.875rem;
+}
+
+.memberItem {
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-background);
+  padding: 0.5rem;
+}
+
+.memberIndex {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--color-primary) 15%, transparent);
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.typeSelect {
+  flex: 0 1 130px;
+  min-width: 120px;
+  height: 2.25rem;
+  font-size: 0.8125rem;
+}
+
+.valueInput {
+  flex: 1 1 140px;
+  min-width: 120px;
+}
+
+.ringTimeInput {
+  flex: 0 1 90px;
+  min-width: 80px;
+}
+
+.addRow {
+  padding-top: 0.25rem;
+}
+
+.addTypeSelect {
+  flex: 0 1 130px;
+  min-width: 120px;
+  height: 2.25rem;
+}
+
+.addValueInput {
+  flex: 1 1 140px;
+  min-width: 120px;
+}
+
+.addRingTimeInput {
+  flex: 0 1 90px;
+  min-width: 80px;
+}
