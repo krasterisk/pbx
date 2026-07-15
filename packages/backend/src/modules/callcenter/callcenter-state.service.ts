@@ -24,6 +24,8 @@ export interface AgentState {
   lastCallTime?: Date;
   loginTime?: Date;
   wrapupTimeout?: number;
+  wrapupExtendStep?: number;
+  wrapupAutosaveDraft?: boolean;
   userUid: number;          // tenant
   userId: number;           // user id
 }

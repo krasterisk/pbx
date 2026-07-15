@@ -4,7 +4,7 @@
  * Implements agent/supervisor actions by calling AMI commands
  * and updating the in-memory state store.
  */
-import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { AmiService } from '../ami/ami.service';
 import { CallCenterStateService } from './callcenter-state.service';
@@ -13,6 +13,7 @@ import { CcPauseReason } from './models/pause-reason.model';
 import { CcAgentSession } from './models/agent-session.model';
 import { CcMissedCall } from './models/missed-call.model';
 import { TransferDto } from './dto/callcenter.dto';
+import { CallCenterSettingsService } from './callcenter-settings.service';
 import { User } from '../users/user.model';
 import { PhonebookEntry } from '../phonebooks/phonebook-entry.model';
 import { RoutePhonebook } from '../phonebooks/phonebook.model';
@@ -37,6 +38,7 @@ export class CallCenterService {
     @InjectModel(PhonebookEntry) private readonly phonebookEntryModel: typeof PhonebookEntry,
     @InjectModel(RoutePhonebook) private readonly phonebookModel: typeof RoutePhonebook,
     @InjectModel(ServiceRequest) private readonly serviceRequestModel: typeof ServiceRequest,
+    private readonly settingsService: CallCenterSettingsService,
   ) {}
 
   // ─── Helpers ─────────────────────────────────────────────
@@ -49,6 +51,18 @@ export class CallCenterService {
     const agents = this.stateService.getAllAgents(userUid);
     const agent = agents.find(a => a.userId === userId);
     return agent?.interface || null;
+  }
+
+  /** Transfer target must be a known agent interface/exten or queue in this tenant. */
+  private isTransferTargetAllowed(userUid: number, target: string): boolean {
+    const agents = this.stateService.getAllAgents(userUid);
+    for (const agent of agents) {
+      if (agent.interface === target) return true;
+      const exten = agent.interface.replace(/^PJSIP\//, '').replace(/^SIP\//, '');
+      if (exten === target) return true;
+    }
+    const queues = this.stateService.getAllQueues(userUid);
+    return queues.some(q => q.name === target);
   }
 
   // ─── Agent Actions ──────────────────────────────────────
@@ -79,7 +93,9 @@ export class CallCenterService {
       }
     }
 
-    // Update in-memory state
+    const settings = await this.settingsService.getOperatorSettings(userUid, userId);
+
+    // Update in-memory state (per-operator wrap-up timers loaded once at login)
     this.stateService.setAgent(userUid, agentInterface, {
       status: 'READY',
       name: displayName,
@@ -87,6 +103,9 @@ export class CallCenterService {
       loginTime: new Date(),
       callsTaken: 0,
       userId,
+      wrapupTimeout: settings.wrapup_timeout,
+      wrapupExtendStep: settings.wrapup_extend_step,
+      wrapupAutosaveDraft: settings.wrapup_autosave_draft,
     });
 
     // Log event
@@ -369,6 +388,10 @@ export class CallCenterService {
       throw new BadRequestException('AMI not connected');
     }
 
+    if (!this.isTransferTargetAllowed(userUid, dto.target)) {
+      throw new ForbiddenException('Transfer target not allowed');
+    }
+
     // For blind transfer, use AMI Redirect
     if (dto.type === 'blind') {
       const call = this.stateService.getCall(dto.uniqueid);
@@ -408,7 +431,7 @@ export class CallCenterService {
       currentCall: undefined,
     });
 
-    this.stateService.emitEvent('wrapupEnd', userUid, { agent: agentInterface });
+    this.stateService.emitEvent('wrapupEnd', userUid, { agent: agentInterface, reason: 'manual' });
 
     const sessionId = this.activeSessions.get(this.sessionKey(userUid, userId));
     if (sessionId) {
@@ -419,6 +442,18 @@ export class CallCenterService {
         userUid,
       });
     }
+
+    return { success: true };
+  }
+
+  async agentWrapupExtend(userUid: number, userId: number, seconds?: number) {
+    const agentInterface = await this.resolveAgentInterface(userUid, userId);
+    if (!agentInterface) throw new NotFoundException('Agent not logged in');
+
+    const settings = await this.settingsService.getOperatorSettings(userUid, userId);
+    const addSeconds = seconds ?? settings.wrapup_extend_step;
+
+    this.ccAmiService.extendWrapupTimer(userUid, agentInterface, addSeconds);
 
     return { success: true };
   }
@@ -559,6 +594,11 @@ export class CallCenterService {
     if (!agent) throw new NotFoundException('Agent state not found');
     if (agent.status !== 'READY') {
       throw new BadRequestException(`Agent must be READY to pick a call (current: ${agent.status})`);
+    }
+
+    const settings = await this.settingsService.getOperatorSettings(userUid, userId);
+    if (!settings.pickup_enabled) {
+      throw new ForbiddenException('Pickup not allowed for this operator');
     }
 
     const call = this.stateService.getCall(uniqueid);

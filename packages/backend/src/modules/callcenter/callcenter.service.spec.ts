@@ -1,4 +1,4 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { CallCenterService } from './callcenter.service';
 import { CallCenterStateService } from './callcenter-state.service';
 
@@ -27,6 +27,15 @@ describe('CallCenterService', () => {
   const ccAmi: any = {
     logAgentEvent: jest.fn().mockResolvedValue(undefined),
     cancelWrapupTimer: jest.fn(),
+    extendWrapupTimer: jest.fn(),
+  };
+  const settingsService: any = {
+    getOperatorSettings: jest.fn().mockResolvedValue({
+      pickup_enabled: true,
+      wrapup_timeout: 30,
+      wrapup_extend_step: 30,
+      wrapup_autosave_draft: true,
+    }),
   };
   const sessionModel: any = {
     create: jest.fn().mockResolvedValue({ uid: 99 }),
@@ -72,6 +81,7 @@ describe('CallCenterService', () => {
       phonebookEntryModel,
       phonebookModel,
       serviceRequestModel,
+      settingsService,
     );
   });
 
@@ -153,12 +163,48 @@ describe('CallCenterService', () => {
         }),
       );
     });
+
+    it('throws ForbiddenException when pickup_enabled is false', async () => {
+      settingsService.getOperatorSettings.mockResolvedValue({
+        pickup_enabled: false,
+        wrapup_timeout: 30,
+        wrapup_extend_step: 30,
+        wrapup_autosave_draft: true,
+      });
+      await service.agentLogin('PJSIP/101', ['sales'], 7, 42);
+      state.setCall('U1', { userUid: 7, queue: 'sales', status: 'WAITING', callerChannel: 'PJSIP/trunk-1' });
+
+      await expect(service.agentPickCall('U1', 7, 42)).rejects.toBeInstanceOf(ForbiddenException);
+      expect(ami.action).not.toHaveBeenCalled();
+      // restore default for subsequent tests
+      settingsService.getOperatorSettings.mockResolvedValue({
+        pickup_enabled: true,
+        wrapup_timeout: 30,
+        wrapup_extend_step: 30,
+        wrapup_autosave_draft: true,
+      });
+    });
+
+    it('allows pickup when pickup_enabled is true', async () => {
+      settingsService.getOperatorSettings.mockResolvedValueOnce({
+        pickup_enabled: true,
+        wrapup_timeout: 30,
+        wrapup_extend_step: 30,
+        wrapup_autosave_draft: true,
+      });
+      await service.agentLogin('PJSIP/101', ['sales'], 7, 42);
+      state.setCall('U1', { userUid: 7, queue: 'sales', status: 'WAITING', callerChannel: 'PJSIP/trunk-1' });
+
+      await service.agentPickCall('U1', 7, 42);
+      expect(ami.action).toHaveBeenCalled();
+    });
   });
 
   // ─── Blind transfer uses callerChannel (not CallerID) ───
 
   describe('agentTransfer', () => {
     it('Redirect uses Asterisk channel name, not CallerID number', async () => {
+      await service.agentLogin('PJSIP/201', ['sales'], 7, 42);
       state.setCall('U-xfer-1', {
         callerIdNum: '79990001122',
         callerIdName: 'Caller',
@@ -190,7 +236,48 @@ describe('CallCenterService', () => {
       );
     });
 
+    it('throws ForbiddenException for target not in tenant', async () => {
+      await service.agentLogin('PJSIP/101', ['sales'], 7, 42);
+      state.setCall('U-xfer-3', {
+        callerIdNum: '79990001122',
+        callerChannel: 'PJSIP/trunk-000001',
+        queue: 'sales',
+        status: 'TALKING',
+        userUid: 7,
+      });
+
+      await expect(
+        service.agentTransfer(
+          { type: 'blind', uniqueid: 'U-xfer-3', target: '999' } as any,
+          7,
+          42,
+        ),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(ami.action).not.toHaveBeenCalled();
+    });
+
+    it('allows transfer to a known queue in tenant', async () => {
+      await service.agentLogin('PJSIP/101', ['sales'], 7, 42);
+      state.setQueue(7, 'support', { name: 'support', displayName: 'Support', userUid: 7 });
+      state.setCall('U-xfer-4', {
+        callerIdNum: '79990001122',
+        callerChannel: 'PJSIP/trunk-000001',
+        queue: 'sales',
+        status: 'TALKING',
+        userUid: 7,
+      });
+
+      await service.agentTransfer(
+        { type: 'blind', uniqueid: 'U-xfer-4', target: 'support' } as any,
+        7,
+        42,
+      );
+
+      expect(ami.action).toHaveBeenCalled();
+    });
+
     it('throws when callerChannel is missing', async () => {
+      await service.agentLogin('PJSIP/101', ['sales'], 7, 42);
       state.setCall('U-xfer-2', {
         callerIdNum: '79990001122',
         callerIdName: 'Caller',
@@ -204,7 +291,7 @@ describe('CallCenterService', () => {
 
       await expect(
         service.agentTransfer(
-          { type: 'blind', uniqueid: 'U-xfer-2', target: '201' } as any,
+          { type: 'blind', uniqueid: 'U-xfer-2', target: '101' } as any,
           7,
           42,
         ),
@@ -250,6 +337,30 @@ describe('CallCenterService', () => {
       expect(ccAmi.cancelWrapupTimer).toHaveBeenCalledWith(7, 'PJSIP/101');
       expect(state.getAgent(7, 'PJSIP/101')?.status).toBe('READY');
       expect(state.getAgent(7, 'PJSIP/101')?.currentCall).toBeUndefined();
+    });
+  });
+
+  describe('agentWrapupExtend', () => {
+    it('calls extendWrapupTimer with wrapup_extend_step when seconds not provided', async () => {
+      settingsService.getOperatorSettings.mockResolvedValue({
+        pickup_enabled: true,
+        wrapup_timeout: 30,
+        wrapup_extend_step: 45,
+        wrapup_autosave_draft: true,
+      });
+      await service.agentLogin('PJSIP/101', ['sales'], 7, 42);
+      state.setAgent(7, 'PJSIP/101', { status: 'WRAPUP' });
+
+      const res = await service.agentWrapupExtend(7, 42);
+
+      expect(res).toEqual({ success: true });
+      expect(ccAmi.extendWrapupTimer).toHaveBeenCalledWith(7, 'PJSIP/101', 45);
+      settingsService.getOperatorSettings.mockResolvedValue({
+        pickup_enabled: true,
+        wrapup_timeout: 30,
+        wrapup_extend_step: 30,
+        wrapup_autosave_draft: true,
+      });
     });
   });
 

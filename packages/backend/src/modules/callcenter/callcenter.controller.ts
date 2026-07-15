@@ -23,7 +23,7 @@ import {
   AgentLoginDto, AgentPauseDto, AgentUnpauseDto, AgentHangupDto,
   TransferDto, SupervisorSpyDto, SupervisorForceActionDto,
   SupervisorQueueActionDto, CreatePauseReasonDto, UpdatePauseReasonDto,
-  PickCallDto, MarkMissedCalledBackDto,
+  PickCallDto, MarkMissedCalledBackDto, WrapupExtendDto,
 } from './dto/callcenter.dto';
 
 // ─── Helpers ──────────────────────────────────────────────
@@ -104,6 +104,11 @@ export class CallCenterController {
   @Post('agent/wrapup-done')
   agentWrapupDone(@Req() req: Request & { user: any }) {
     return this.ccService.agentWrapupDone(req.user.vpbx_user_uid, req.user.id);
+  }
+
+  @Post('agent/wrapup-extend')
+  agentWrapupExtend(@Body() dto: WrapupExtendDto, @Req() req: Request & { user: any }) {
+    return this.ccService.agentWrapupExtend(req.user.vpbx_user_uid, req.user.id, dto.seconds);
   }
 
   @Post('agent/pick-call')

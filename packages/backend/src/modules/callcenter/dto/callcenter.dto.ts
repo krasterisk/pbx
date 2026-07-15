@@ -2,7 +2,7 @@
  * CallCenter DTO classes with class-validator decorators.
  * Used by NestJS ValidationPipe for automatic request body validation.
  */
-import { IsString, IsOptional, IsArray, IsEnum, IsNumber, IsBoolean, Min, MaxLength } from 'class-validator';
+import { IsString, IsOptional, IsArray, IsEnum, IsNumber, IsBoolean, Min, Max, MaxLength, IsInt } from 'class-validator';
 
 // ─── Agent DTOs ────────────────────────────────────────────
 
@@ -48,6 +48,15 @@ export class PickCallDto {
   @IsString()
   @MaxLength(64)
   uniqueid: string;
+}
+
+export class WrapupExtendDto {
+  /** Optional override seconds to extend (defaults to operator wrapup_extend_step) */
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(600)
+  seconds?: number;
 }
 
 export class MarkMissedCalledBackDto {

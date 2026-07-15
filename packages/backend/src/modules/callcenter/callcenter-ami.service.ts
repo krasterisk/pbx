@@ -22,6 +22,9 @@ export class CallCenterAmiService implements OnModuleInit {
   /** Tracks pending wrapup auto-timeout timers. Key = `${userUid}:${agentInterface}` */
   private readonly wrapupTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
+  /** Tracks wrap-up deadline timestamps (ms). Key = `${userUid}:${agentInterface}` */
+  private readonly wrapupDeadlines = new Map<string, number>();
+
   constructor(
     private readonly amiService: AmiService,
     private readonly stateService: CallCenterStateService,
@@ -376,15 +379,22 @@ export class CallCenterAmiService implements OnModuleInit {
 
         // Auto-timeout: transition to READY after wrapupTime seconds
         const timerKey = `${userUid}:${agentInterface}`;
+        const deadline = Date.now() + wrapupTime * 1000;
+        this.wrapupDeadlines.set(timerKey, deadline);
         this.clearWrapupTimer(timerKey);
         this.wrapupTimers.set(timerKey, setTimeout(() => {
           this.wrapupTimers.delete(timerKey);
+          this.wrapupDeadlines.delete(timerKey);
           // Only transition if agent is still in WRAPUP
           const currentAgent = this.stateService.getAgent(userUid, agentInterface);
           if (currentAgent?.status === 'WRAPUP') {
             this.stateService.setAgent(userUid, agentInterface, { status: 'READY' });
             this.metricsService.recordAgentStatus(userUid, agentInterface, 'READY');
-            this.stateService.emitEvent('wrapupEnd', userUid, { agent: agentInterface });
+            this.stateService.emitEvent('wrapupEnd', userUid, {
+              agent: agentInterface,
+              reason: 'timeout',
+              autosaveDraft: currentAgent.wrapupAutosaveDraft,
+            });
             this.logger.debug(`Wrapup auto-expired for ${agentInterface} after ${wrapupTime}s`);
           }
         }, wrapupTime * 1000));
@@ -407,7 +417,50 @@ export class CallCenterAmiService implements OnModuleInit {
    * Called from callcenter.service.ts when agent clicks "Ready for next".
    */
   cancelWrapupTimer(userUid: number, agentInterface: string): void {
-    this.clearWrapupTimer(`${userUid}:${agentInterface}`);
+    const key = `${userUid}:${agentInterface}`;
+    this.clearWrapupTimer(key);
+    this.wrapupDeadlines.delete(key);
+  }
+
+  /**
+   * Extend an active wrap-up timer by addSeconds.
+   * Emits wrapupExtend SSE event for frontend countdown resync.
+   */
+  extendWrapupTimer(userUid: number, agentInterface: string, addSeconds: number): void {
+    const timerKey = `${userUid}:${agentInterface}`;
+    const agent = this.stateService.getAgent(userUid, agentInterface);
+    if (!agent || agent.status !== 'WRAPUP') return;
+
+    const now = Date.now();
+    const currentDeadline = this.wrapupDeadlines.get(timerKey) ?? now;
+    const newDeadline = Math.max(currentDeadline, now) + addSeconds * 1000;
+    this.wrapupDeadlines.set(timerKey, newDeadline);
+
+    this.clearWrapupTimer(timerKey);
+    const remainingMs = newDeadline - now;
+    const remainingSec = Math.ceil(remainingMs / 1000);
+
+    this.wrapupTimers.set(timerKey, setTimeout(() => {
+      this.wrapupTimers.delete(timerKey);
+      this.wrapupDeadlines.delete(timerKey);
+      const currentAgent = this.stateService.getAgent(userUid, agentInterface);
+      if (currentAgent?.status === 'WRAPUP') {
+        this.stateService.setAgent(userUid, agentInterface, { status: 'READY' });
+        this.metricsService.recordAgentStatus(userUid, agentInterface, 'READY');
+        this.stateService.emitEvent('wrapupEnd', userUid, {
+          agent: agentInterface,
+          reason: 'timeout',
+          autosaveDraft: currentAgent.wrapupAutosaveDraft,
+        });
+        this.logger.debug(`Wrapup auto-expired for ${agentInterface} after extension`);
+      }
+    }, remainingMs));
+
+    this.stateService.emitEvent('wrapupExtend', userUid, {
+      agent: agentInterface,
+      remainingSec,
+      timeout: agent.wrapupTimeout ?? 0,
+    });
   }
 
   private clearWrapupTimer(key: string): void {
