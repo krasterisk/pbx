@@ -1,4 +1,5 @@
 import { RoutesService } from './routes.service';
+import type { ITimeGroupInterval } from '@krasterisk/shared';
 
 /**
  * Unit tests for RoutesService bindings CRUD (D-03, D-05, T-05-03).
@@ -10,6 +11,7 @@ describe('RoutesService', () => {
   let routeModel: any;
   let bindingModel: any;
   let phonebookModel: any;
+  let timeGroupsService: any;
   let service: RoutesService;
 
   beforeEach(() => {
@@ -29,8 +31,41 @@ describe('RoutesService', () => {
     phonebookModel = {
       count: jest.fn(),
     };
-    service = new RoutesService(routeModel, bindingModel, phonebookModel);
+    timeGroupsService = {
+      findAll: jest.fn().mockResolvedValue([]),
+    };
+    service = new RoutesService(routeModel, bindingModel, phonebookModel, timeGroupsService);
   });
+
+  const sampleInterval: ITimeGroupInterval = {
+    time_start: '09:00',
+    time_end: '18:00',
+    days_of_week: 'mon-fri',
+    days_of_month: '*',
+    months: '*',
+  };
+
+  const intervalExpr = `${sampleInterval.time_start}-${sampleInterval.time_end},${sampleInterval.days_of_week},${sampleInterval.days_of_month},${sampleInterval.months}`;
+
+  function timeGroupMap(uid: number, intervals: ITimeGroupInterval[] = [sampleInterval]): Map<number, string[]> {
+    const exprs = intervals.map(
+      (i) => `${i.time_start}-${i.time_end},${i.days_of_week},${i.days_of_month},${i.months}`,
+    );
+    return new Map([[uid, exprs]]);
+  }
+
+  function baseRoute(overrides: Record<string, unknown> = {}): any {
+    return {
+      uid: 1,
+      name: 'Test route',
+      extensions: ['100'],
+      actions: [],
+      options: {},
+      webhooks: {},
+      bindings: [],
+      ...overrides,
+    };
+  }
 
   describe('update — bindings replace-all', () => {
     it('destroys old bindings and bulkCreates new ones scoped to the tenant, positioned by array index', async () => {
@@ -181,6 +216,81 @@ describe('RoutesService', () => {
       };
       const dpNoBindings = service.generateRouteDialplan(routeNoBindings, 100, false);
       expect(dpNoBindings).toContain('check_blacklist.php');
+    });
+  });
+
+  describe('generateRouteDialplan — time_group_uid ExecIfTime guard', () => {
+    it('emits Set(__WT_12=0) + ExecIfTime guard once when two actions share time_group_uid=12', () => {
+      const route = baseRoute({
+        actions: [
+          { type: 'hangup', condition: { time_group_uid: 12 } },
+          { type: 'hangup', condition: { time_group_uid: 12 } },
+        ],
+      });
+
+      const dp = service.generateRouteDialplan(route, 100, false, timeGroupMap(12));
+      const lines = dp.split('\n');
+
+      expect(lines.filter((l) => l.includes('Set(__WT_12=0)'))).toHaveLength(1);
+      expect(lines.filter((l) => l.includes(`ExecIfTime(${intervalExpr}?Set(__WT_12=1))`))).toHaveLength(1);
+      expect(lines.filter((l) => l.includes('ExecIf($["${WT_12}"="1"]?Hangup())'))).toHaveLength(2);
+    });
+
+    it('emits separate guards once per distinct time_group_uid', () => {
+      const route = baseRoute({
+        actions: [
+          { type: 'hangup', condition: { time_group_uid: 12 } },
+          { type: 'hangup', condition: { time_group_uid: 34 } },
+        ],
+      });
+
+      const map = new Map<number, string[]>([
+        [12, [intervalExpr]],
+        [34, ['08:00-12:00,sat-sun,*,*']],
+      ]);
+
+      const dp = service.generateRouteDialplan(route, 100, false, map);
+      const lines = dp.split('\n');
+
+      expect(lines.filter((l) => l.includes('Set(__WT_12=0)'))).toHaveLength(1);
+      expect(lines.filter((l) => l.includes('Set(__WT_34=0)'))).toHaveLength(1);
+      expect(lines.filter((l) => l.includes('ExecIfTime(08:00-12:00,sat-sun,*,*?Set(__WT_34=1))'))).toHaveLength(1);
+      expect(lines.filter((l) => l.includes('ExecIf($["${WT_12}"="1"]?'))).toHaveLength(1);
+      expect(lines.filter((l) => l.includes('ExecIf($["${WT_34}"="1"]?'))).toHaveLength(1);
+    });
+
+    it('leaves actions without time_group_uid unwrapped', () => {
+      const route = baseRoute({
+        actions: [
+          { type: 'hangup' },
+          { type: 'hangup', condition: { time_group_uid: 12 } },
+        ],
+      });
+
+      const dp = service.generateRouteDialplan(route, 100, false, timeGroupMap(12));
+      const hangupLines = dp.split('\n').filter((l) => l.includes('Hangup()'));
+
+      expect(hangupLines).toContain('same => n,Hangup()');
+      expect(hangupLines).toContain('same => n,ExecIf($["${WT_12}"="1"]?Hangup())');
+    });
+
+    it('uses the TimeGroup interval format in ExecIfTime expression', () => {
+      const intervals: ITimeGroupInterval[] = [
+        {
+          time_start: '10:30',
+          time_end: '11:45',
+          days_of_week: 'mon-wed',
+          days_of_month: '1-15',
+          months: 'jan-mar',
+        },
+      ];
+      const route = baseRoute({
+        actions: [{ type: 'hangup', condition: { time_group_uid: 7 } }],
+      });
+
+      const dp = service.generateRouteDialplan(route, 100, false, timeGroupMap(7, intervals));
+
+      expect(dp).toContain('ExecIfTime(10:30-11:45,mon-wed,1-15,jan-mar?Set(__WT_7=1))');
     });
   });
 });
