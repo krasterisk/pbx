@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Ready to execute
-last_updated: "2026-07-15T17:15:16.390Z"
+last_updated: "2026-07-15T18:00:00.000Z"
 progress:
   total_phases: 7
   completed_phases: 4
   total_plans: 45
-  completed_plans: 36
-  percent: 57
+  completed_plans: 37
+  percent: 58
 ---
 
 # State
@@ -17,7 +17,7 @@ progress:
 ## Current position
 
 Phase: 07 (call-center-overhaul-professional-agent-supervisor-workspace) — EXECUTING
-Plan: 11 of 18 (07-08 complete)
+Plan: 11 of 18 (07-11 complete)
 Phase 5 — Phonebooks AI: plans executed (verify/UAT may remain).  
 Phase 6 — Dialplan Apps: **06-01–06-14 executed**. Ready for `/gsd-verify-work 6`.
 
@@ -71,6 +71,8 @@ Phase 1 — MOH: pending verify.
 - [Phase 07]: Agent ARM 4-zone layout; DragTransfer blind/attended/cancel Dialog; shared/ui Progress
 - [Phase 07]: DisplayTokenGuard sets req.user without level/id (Pitfall 5)
 - [Phase 07]: Alert thresholds (WHEN) in cc_settings; routing (WHERE) in cc_alert_config (D-27/D-28)
+- [Phase 07]: Call card frontend DnD builder + FieldRenderer single source of truth (D-10/D-11)
+- [Phase 07]: CallCardPopup Sheet auto_open_on ring/answer/manual + queue_names template resolve (D-12)
 
 ## Roadmap Evolution
 
