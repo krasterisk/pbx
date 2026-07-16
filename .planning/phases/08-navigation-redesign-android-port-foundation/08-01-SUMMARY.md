@@ -80,7 +80,7 @@ Each task was committed atomically:
 1. **Task 1: UserLevel.SUPERADMIN + module type contracts** - `7cdf1be` (feat)
 2. **Task 2: Registry + roleStart Wave 0 unit tests (GREEN)** - `ec3e03d` (test)
 
-**Plan metadata:** (pending docs commit)
+**Plan metadata:** `ab5951c` (docs: complete plan)
 
 ## Files Created/Modified
 

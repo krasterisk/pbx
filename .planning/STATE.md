@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Ready to execute
-last_updated: "2026-07-16T16:12:44.785Z"
+last_updated: "2026-07-16T16:14:22.731Z"
 progress:
   total_phases: 8
   completed_phases: 5
@@ -95,6 +95,8 @@ Phase 1 — MOH: pending verify.
 - [Phase 07]: SSE fallback never overwrites non-null myAgentInterface; logout owns clear
 - [Phase 07]: Document ASTERISK_WSS_URL + SIP_DOMAIN + optional WEBRTC_TURN_* in .env.example only — no invented pjsip/http.conf
 - [Phase 07]: UI copy names the env var so operators can escalate to admins with an actionable message
+- [Phase 08]: Hub module code callcenter (not call-center) for BASELINE_MODULES consistency
+- [Phase 08]: LEVEL_OPTIONS omits SUPERADMIN — platform-only (D-21)
 
 ## Roadmap Evolution
 
@@ -148,3 +150,4 @@ Phase 1 — MOH: pending verify.
 | Phase 06 P16 | 5min | 2 tasks | 6 files |
 | Phase 07 P21 | 8min | 2 tasks | 9 files |
 | Phase 07 P22 | 6min | 1 tasks | 4 files |
+| Phase 08 P01 | 7min | 2 tasks | 8 files |
