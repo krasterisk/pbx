@@ -12,12 +12,14 @@ import { User } from '../users/user.model';
 import { TenantsService } from './tenants.service';
 import { TenantsController } from './tenants.controller';
 import { TenantModulesController, MarketplaceController } from './tenant-modules.controller';
+import { MarketplacePurchaseController } from './marketplace.controller';
 import { HubModulesController } from './hub-modules.controller';
 import {
   PlatformRoleStartController,
   MarketplaceRoleStartController,
 } from './role-start.controller';
 import { ModulesRegistryService } from './modules-registry.service';
+import { PurchaseModuleService } from './purchase-module.service';
 import { RoleStartService } from './role-start.service';
 import { ModuleAccessGuard } from './module-access.guard';
 import { UsersModule } from '../users/users.module';
@@ -52,6 +54,7 @@ import { CloudSettingsController } from './cloud-settings.controller';
   providers: [
     TenantsService,
     ModulesRegistryService,
+    PurchaseModuleService,
     RoleStartService,
     ModuleAccessGuard,
     CloudSettingsService,
@@ -60,6 +63,7 @@ import { CloudSettingsController } from './cloud-settings.controller';
     TenantsController,
     TenantModulesController,
     MarketplaceController,
+    MarketplacePurchaseController,
     HubModulesController,
     PlatformRoleStartController,
     MarketplaceRoleStartController,
@@ -68,6 +72,7 @@ import { CloudSettingsController } from './cloud-settings.controller';
   exports: [
     TenantsService,
     ModulesRegistryService,
+    PurchaseModuleService,
     RoleStartService,
     ModuleAccessGuard,
     BillingModule,

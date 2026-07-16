@@ -1,4 +1,6 @@
-import { Injectable, Logger, OnApplicationBootstrap, BadRequestException } from '@nestjs/common';
+import {
+  Injectable, Logger, OnApplicationBootstrap, BadRequestException, NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { ConfigService } from '@nestjs/config';
 import { ModuleRegistry } from './module-registry.model';
@@ -6,6 +8,13 @@ import { TenantModule } from './tenant-module.model';
 import { HubModule } from './models/hub-module.model';
 import { HubModulePage } from './models/hub-module-page.model';
 import { HUB_MODULES_SEED } from './hub-modules.seed';
+
+export interface PurchaseOffer {
+  code: string;
+  name: string;
+  /** Server-authoritative price in RUB (never trust client). */
+  priceRub: number;
+}
 
 /** Initial module catalog — seeded once on startup (page-level; keep for ModuleAccessGuard) */
 const MODULES_SEED: Partial<ModuleRegistry>[] = [
@@ -315,6 +324,66 @@ export class ModulesRegistryService implements OnApplicationBootstrap {
       activated_at: new Date(),
     } as any);
     return record;
+  }
+
+  /**
+   * Resolve purchasable offer — price from modules_registry only (D-23).
+   * Hub market codes fall back to the first paid legacy license code price.
+   */
+  async resolvePurchaseOffer(moduleCode: string): Promise<PurchaseOffer> {
+    const registry = await this.registryModel.findOne({ where: { code: moduleCode } });
+    if (registry) {
+      if (registry.is_core) {
+        throw new BadRequestException({
+          code: 'NOT_PURCHASABLE',
+          message: `Core module cannot be purchased: ${moduleCode}`,
+        });
+      }
+      return {
+        code: registry.code,
+        name: registry.name,
+        priceRub: Number(registry.price_monthly) || 0,
+      };
+    }
+
+    const hub =
+      (await this.hubModuleModel.findOne({ where: { code: moduleCode } }))
+      ?? HUB_MODULES_SEED.find((m) => m.code === moduleCode);
+
+    if (!hub) {
+      throw new NotFoundException(`Unknown module: ${moduleCode}`);
+    }
+    if (hub.kind === 'base') {
+      throw new BadRequestException({
+        code: 'NOT_PURCHASABLE',
+        message: `Base hub module cannot be purchased: ${moduleCode}`,
+      });
+    }
+
+    const billingCodes = LEGACY_HUB_LICENSE_CODES[moduleCode] ?? [moduleCode];
+    let priceRub = 0;
+    for (const code of billingCodes) {
+      const paid = await this.registryModel.findOne({ where: { code } });
+      if (paid && Number(paid.price_monthly) > 0) {
+        priceRub = Number(paid.price_monthly);
+        break;
+      }
+    }
+
+    return {
+      code: moduleCode,
+      name: hub.name,
+      priceRub,
+    };
+  }
+
+  /** True when tenant already has active/trial for module or its legacy license codes. */
+  async isModuleActiveForTenant(tenantId: number, moduleCode: string): Promise<boolean> {
+    const codes = LEGACY_HUB_LICENSE_CODES[moduleCode] ?? [moduleCode];
+    const rows = await this.tenantModuleModel.findAll({
+      where: { tenant_id: tenantId, module_code: codes },
+    });
+    return rows.some((r) => r.status === 'active' || r.status === 'trial');
   }
 
   /** Deactivate a module (cannot deactivate core modules) */
