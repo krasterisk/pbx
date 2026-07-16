@@ -60,7 +60,7 @@ Each task was committed atomically:
 
 1. **Task 1: Replace bare MuteAudio TBD with tracked DEF-07-MUTE-AMI (D-14)** - `09f9041` (docs)
 
-**Plan metadata:** (pending docs commit)
+**Plan metadata:** `92a4521` (docs: complete plan)
 
 ## Files Created/Modified
 - `packages/frontend/src/pages/CallCenterAgentPage/CallCenterAgentPage.tsx` — mute comment references DEF-07-MUTE-AMI
