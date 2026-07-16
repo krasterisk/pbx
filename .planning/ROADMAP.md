@@ -320,7 +320,7 @@ Plans:
 - `packages/backend/src/modules/callcenter/` — state store, AMI, SSE, agent/supervisor API (реализовано)
 - `packages/frontend/src/features/callcenter/`, `pages/CallCenterAgentPage/`, `pages/CallCenterSupervisorPage/` — текущие панели
 
-**Status:** Executed — gaps_found; gap-closure plans 07-19…07-20 pending  
+**Status:** Complete — all 20 plans executed (including gap-closure 07-19…07-20); ready for `/gsd-verify-work 7`  
 
 **Depends on:** Phase 6 (dialplan apps / call groups стабилизированы; независимо от verify Phases 1–5)
 
@@ -357,7 +357,7 @@ Plans:
 | 5 | `/gsd-ui-review 7` + `npm run test:frontend` |
 | 6 | `/gsd-verify-work 7` → `/gsd-ship 7` |
 
-**Plans:** 19/20 plans executed
+**Plans:** 20/20 plans complete
 
 Plans:
 
@@ -368,7 +368,7 @@ Plans:
 - [x] 07-18-PLAN.md — Reports UI: 7 reports + CSV/XLSX/PDF + AgentTimeline reuse [D-33/D-34/D-36]
 - [x] 07-15-PLAN.md — Automated report delivery / schedules via notification_integration [D-35]
 - [x] 07-19-PLAN.md — Gap closure: PauseReasonsManager + operator settings picker [D-40/D-22]
-- [ ] 07-20-PLAN.md — Gap closure: track SIP MuteAudio as DEF-07-MUTE-AMI [D-14]
+- [x] 07-20-PLAN.md — Gap closure: track SIP MuteAudio as DEF-07-MUTE-AMI [D-14]
 
 **Verification:**
 
