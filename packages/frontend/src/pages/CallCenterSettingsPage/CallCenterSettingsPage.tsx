@@ -5,6 +5,7 @@ import { OperatorSettingsForm } from '@/features/callcenter/ui/OperatorSettingsF
 import { AlertThresholdsForm } from '@/features/callcenter/ui/AlertThresholdsForm/AlertThresholdsForm';
 import { AlertRoutingForm } from '@/features/callcenter/ui/AlertRoutingForm/AlertRoutingForm';
 import { DisplayTokensManager } from '@/features/callcenter/ui/DisplayTokensManager/DisplayTokensManager';
+import { ReportSchedulesManager } from '@/features/callcenter/ui/ReportSchedulesManager/ReportSchedulesManager';
 import { CardTemplatesTab } from './ui/CardTemplatesTab/CardTemplatesTab';
 import styles from './CallCenterSettingsPage.module.scss';
 
@@ -13,7 +14,8 @@ export type CcSettingsTabId =
   | 'pauseReasons'
   | 'alertThresholds'
   | 'operatorSettings'
-  | 'displayTokens';
+  | 'displayTokens'
+  | 'reportSchedules';
 
 const TAB_IDS: CcSettingsTabId[] = [
   'cardTemplates',
@@ -21,6 +23,7 @@ const TAB_IDS: CcSettingsTabId[] = [
   'alertThresholds',
   'operatorSettings',
   'displayTokens',
+  'reportSchedules',
 ];
 
 export function CallCenterSettingsPage() {
@@ -44,6 +47,9 @@ export function CallCenterSettingsPage() {
     }
     if (activeTab === 'displayTokens') {
       return <DisplayTokensManager />;
+    }
+    if (activeTab === 'reportSchedules') {
+      return <ReportSchedulesManager />;
     }
     return <Text className={styles.placeholder}>{t('callcenter.settings.placeholder')}</Text>;
   };

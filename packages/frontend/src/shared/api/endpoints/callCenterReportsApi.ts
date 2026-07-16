@@ -124,6 +124,44 @@ export interface ExportReportParams extends ReportQueryParams {
   format: 'csv' | 'xlsx';
 }
 
+/** Scheduled report delivery config (D-35) — mirrors backend CcReportSchedule */
+export type ReportSchedulePeriodPreset =
+  | 'today'
+  | 'yesterday'
+  | 'last-7-days'
+  | 'last-30-days'
+  | 'previous-month';
+
+export type ReportScheduleFrequency = 'daily' | 'weekly' | 'monthly';
+
+export interface ReportSchedule {
+  uid: number;
+  name: string;
+  report_id: CcReportId;
+  format: 'csv' | 'xlsx';
+  period_preset: ReportSchedulePeriodPreset;
+  filters?: { queueName?: string; agentInterface?: string } | null;
+  frequency: ReportScheduleFrequency;
+  hour: number;
+  minute: number;
+  day_of_week?: number | null;
+  day_of_month?: number | null;
+  integration_uid: number;
+  target?: string | null;
+  subject_template?: string | null;
+  message_template?: string | null;
+  enabled: boolean;
+  last_run_at?: string | null;
+  last_status?: string | null;
+  last_error?: string | null;
+  next_run_at?: string | null;
+}
+
+export type ReportSchedulePayload = Omit<
+  ReportSchedule,
+  'uid' | 'last_run_at' | 'last_status' | 'last_error' | 'next_run_at'
+>;
+
 const callCenterReportsApi = rtkApi.injectEndpoints({
   endpoints: (build) => ({
     getReport: build.query<ReportResult, { reportId: CcReportId } & ReportQueryParams>({
@@ -149,6 +187,42 @@ const callCenterReportsApi = rtkApi.injectEndpoints({
         responseHandler: (response) => response.blob(),
       }),
     }),
+    getReportSchedules: build.query<ReportSchedule[], void>({
+      query: () => '/callcenter/report-schedules',
+      providesTags: ['ReportSchedules'],
+    }),
+    createReportSchedule: build.mutation<ReportSchedule, ReportSchedulePayload>({
+      query: (body) => ({
+        url: '/callcenter/report-schedules',
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: ['ReportSchedules'],
+    }),
+    updateReportSchedule: build.mutation<
+      ReportSchedule,
+      { uid: number } & Partial<ReportSchedulePayload>
+    >({
+      query: ({ uid, ...body }) => ({
+        url: `/callcenter/report-schedules/${uid}`,
+        method: 'PUT',
+        body,
+      }),
+      invalidatesTags: ['ReportSchedules'],
+    }),
+    deleteReportSchedule: build.mutation<{ success: boolean }, number>({
+      query: (uid) => ({
+        url: `/callcenter/report-schedules/${uid}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['ReportSchedules'],
+    }),
+    runReportScheduleNow: build.mutation<{ success: boolean; error?: string }, number>({
+      query: (uid) => ({
+        url: `/callcenter/report-schedules/${uid}/run-now`,
+        method: 'POST',
+      }),
+    }),
   }),
 });
 
@@ -157,4 +231,9 @@ export const {
   useLazyGetReportQuery,
   useGetAgentTimelineQuery,
   useLazyExportReportQuery,
+  useGetReportSchedulesQuery,
+  useCreateReportScheduleMutation,
+  useUpdateReportScheduleMutation,
+  useDeleteReportScheduleMutation,
+  useRunReportScheduleNowMutation,
 } = callCenterReportsApi;
