@@ -123,6 +123,43 @@ describe('CallGroupsService', () => {
       expect(result.uid).toBe(7);
       expect(result.members).toHaveLength(1);
     });
+
+    it('does not rollback when applyCategories fails after commit; still returns findOne', async () => {
+      const created = groupRow({ uid: 7, name: 'Sales' });
+      groupModel.create.mockResolvedValueOnce(created);
+      memberModel.bulkCreate.mockResolvedValueOnce([memberRow()]);
+      dialplanApplyService.applyCategories.mockRejectedValueOnce(
+        new Error('File requires escalated privileges'),
+      );
+      groupModel.findOne.mockResolvedValueOnce(created);
+      memberModel.findAll.mockResolvedValueOnce([memberRow()]);
+
+      const result = await service.create(
+        {
+          name: 'Sales',
+          strategy: 'ringall',
+          members: [{ member_type: 'internal', value: '101', position: 0 }],
+        } as any,
+        vpbx,
+      );
+
+      expect(transaction.commit).toHaveBeenCalled();
+      expect(transaction.rollback).not.toHaveBeenCalled();
+      expect(result.uid).toBe(7);
+      expect(result.members).toHaveLength(1);
+    });
+
+    it('rolls back when groupModel.create rejects before commit', async () => {
+      groupModel.create.mockRejectedValueOnce(new Error('DB constraint'));
+
+      await expect(
+        service.create({ name: 'Sales', strategy: 'ringall' } as any, vpbx),
+      ).rejects.toThrow('DB constraint');
+
+      expect(transaction.commit).not.toHaveBeenCalled();
+      expect(transaction.rollback).toHaveBeenCalled();
+      expect(dialplanApplyService.applyCategories).not.toHaveBeenCalled();
+    });
   });
 
   describe('update', () => {
@@ -168,6 +205,33 @@ describe('CallGroupsService', () => {
         { reload: true },
       );
     });
+
+    it('does not rollback when applyCategories fails after commit; still returns findOne', async () => {
+      const existing = groupRow();
+      groupModel.findOne
+        .mockResolvedValueOnce(existing)
+        .mockResolvedValueOnce(existing);
+      memberModel.bulkCreate.mockResolvedValueOnce([
+        memberRow({ uid: 2, value: '102', position: 0 }),
+      ]);
+      dialplanApplyService.applyCategories.mockRejectedValueOnce(new Error('AMI NewCat failed'));
+      memberModel.findAll.mockResolvedValueOnce([
+        memberRow({ uid: 2, value: '102', position: 0 }),
+      ]);
+
+      const result = await service.update(
+        7,
+        {
+          name: 'Sales 2',
+          members: [{ member_type: 'internal', value: '102', position: 0 }],
+        } as any,
+        vpbx,
+      );
+
+      expect(transaction.commit).toHaveBeenCalled();
+      expect(transaction.rollback).not.toHaveBeenCalled();
+      expect(result.uid).toBe(7);
+    });
   });
 
   describe('remove', () => {
@@ -188,6 +252,20 @@ describe('CallGroupsService', () => {
         [`group_7_${vpbx}`],
         { reload: true },
       );
+    });
+
+    it('does not rollback when deleteCategories fails after commit; returns success', async () => {
+      const existing = groupRow();
+      groupModel.findOne.mockResolvedValueOnce(existing);
+      dialplanApplyService.deleteCategories.mockRejectedValueOnce(
+        new Error('AMI DelCat failed'),
+      );
+
+      const result = await service.remove(7, vpbx);
+
+      expect(transaction.commit).toHaveBeenCalled();
+      expect(transaction.rollback).not.toHaveBeenCalled();
+      expect(result).toEqual({ success: true });
     });
   });
 
