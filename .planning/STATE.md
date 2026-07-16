@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Ready to execute
-last_updated: "2026-07-16T18:22:00.000Z"
+last_updated: "2026-07-16T18:33:39.671Z"
 progress:
   total_phases: 8
   completed_phases: 5
   total_plans: 68
   completed_plans: 62
-  percent: 91
+  percent: 63
 ---
 
 # State
@@ -117,6 +117,7 @@ Phase 1 — MOH: pending verify.
 - [Phase 08]: CheckoutSheet 005-B plan→confirm→success wired to POST /marketplace/purchase (08-06)
 - [Phase 08]: Phone More sheet lists non-primary modules; locked shortcuts go Hub (T-08-12)
 - [Phase 08]: ModuleChip Sheet on phone / DropdownMenu on desktop via useIsMobile(768)
+- [Phase 08]: Trunks phone cards; Contexts/TimeGroups/ProvisionTemplates page-level overflow (08-14)
 
 ## Roadmap Evolution
 
@@ -181,3 +182,4 @@ Phase 1 — MOH: pending verify.
 | Phase 08 P07 | 8min | 2 tasks | 9 files |
 | Phase 08 P08 | 12min | 3 tasks | 28 files |
 | Phase 08 P09 | 12min | 3 tasks | 24 files |
+| Phase 08 P14 | 10min | 2 tasks | 11 files |

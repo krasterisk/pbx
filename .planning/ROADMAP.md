@@ -438,7 +438,7 @@ Plans:
 | 6 | `/gsd-ui-review 8` + `npm run test:frontend` |
 | 7 | `/gsd-verify-work 8` → `/gsd-ship 8` |
 
-**Plans:** 11/17 plans executed
+**Plans:** 12/17 plans executed
 
 Plans:
 
@@ -453,7 +453,7 @@ Plans:
 - [x] `08-07-PLAN.md` — Wave 6: Phone bottom bar 004-B + chip Sheet
 - [x] `08-08-PLAN.md` — Wave 7: Users/Roles/Numbers + role→start admin
 - [x] `08-09-PLAN.md` — Wave 8a: Responsive — Dashboard/Core critical + CC agent sticky softphone
-- [ ] `08-14-PLAN.md` — Wave 8b: Responsive — Core rest (Trunks/Contexts/TimeGroups/ProvisionTemplates)
+- [x] `08-14-PLAN.md` — Wave 8b: Responsive — Core rest (Trunks/Contexts/TimeGroups/ProvisionTemplates)
 - [ ] `08-15-PLAN.md` — Wave 8c: Responsive — Apps rest (Prompts/CallGroups/Integrations/VoiceRobots)
 - [ ] `08-16-PLAN.md` — Wave 8d: Responsive — System rest (Settings/TTS/STT/AuditLog/Modules)
 - [ ] `08-17-PLAN.md` — Wave 8e: Responsive — Analytics/AI/CC orphans (CDR/ServiceRequests/AiAgents)
