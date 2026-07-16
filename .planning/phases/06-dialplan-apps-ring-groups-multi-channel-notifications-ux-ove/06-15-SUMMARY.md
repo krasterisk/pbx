@@ -71,7 +71,7 @@ Each task was committed atomically (TDD RED → GREEN):
 3. **Task 2 RED:** `9b9c3b4` — test(06-15): add failing post-commit AMI rollback tests
 4. **Task 2 GREEN:** `ca9ab4c` — fix(06-15): never rollback CallGroups after commit
 
-**Plan metadata:** (pending docs commit)
+**Plan metadata:** `0285738` (docs: complete AMI CreateConfig gap-closure plan)
 
 ## Files Created/Modified
 
