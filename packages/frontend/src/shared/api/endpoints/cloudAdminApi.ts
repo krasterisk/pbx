@@ -197,6 +197,22 @@ const cloudAdminApi = rtkApi.injectEndpoints({
       ],
     }),
 
+    /** Tenant purchase — server charge + activate (NAV-07 / D-23). Never send amount. */
+    purchaseModule: builder.mutation<
+      { success: boolean; moduleCode: string; moduleName: string; amountRub: number },
+      { moduleCode: string }
+    >({
+      query: (body) => ({
+        url: '/marketplace/purchase',
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: [
+        { type: 'Tenants', id: 'HUB-CATALOG' },
+        { type: 'Tenants', id: 'MY-MODULES' },
+      ],
+    }),
+
     getRoleStart: builder.query<IRoleStartResolved, void>({
       query: () => '/marketplace/role-start',
       providesTags: [{ type: 'Tenants', id: 'ROLE-START' }],
@@ -328,6 +344,7 @@ export const {
   useGetMyHubModulesQuery,
   useEnableHubModuleMutation,
   useDisableHubModuleMutation,
+  usePurchaseModuleMutation,
   useGetRoleStartQuery,
   useUpdateTenantRoleStartMutation,
   useGetPlatformRoleStartDefaultsQuery,

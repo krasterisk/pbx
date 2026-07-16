@@ -8,22 +8,17 @@ import { TenantModulesPanel } from './TenantModulesPanel';
 
 const enableModule = vi.fn();
 const disableModule = vi.fn();
-const navigate = vi.fn();
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string, fallback?: string) => fallback ?? key,
+    t: (key: string, fallbackOrOpts?: string | Record<string, unknown>) =>
+      typeof fallbackOrOpts === 'string' ? fallbackOrOpts : key,
     i18n: { language: 'en' },
   }),
 }));
 
-vi.mock('react-router-dom', async () => {
-  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
-  return { ...actual, useNavigate: () => navigate };
-});
-
-vi.mock('react-toastify', () => ({
-  toast: { info: vi.fn() },
+vi.mock('@/shared/hooks/useIsMobile', () => ({
+  useIsMobile: () => false,
 }));
 
 vi.mock('@/shared/api/endpoints/cloudAdminApi', () => ({
@@ -61,6 +56,7 @@ vi.mock('@/shared/api/endpoints/cloudAdminApi', () => ({
   }),
   useEnableHubModuleMutation: () => [enableModule, { isLoading: false }],
   useDisableHubModuleMutation: () => [disableModule, { isLoading: false }],
+  usePurchaseModuleMutation: () => [vi.fn(), { isLoading: false }],
 }));
 
 function renderPanel(level: UserLevel = UserLevel.ADMIN) {
@@ -102,9 +98,10 @@ describe('TenantModulesPanel (D-22)', () => {
     expect(disableModule).not.toHaveBeenCalled();
   });
 
-  it('Buy for locked navigates to Hub marketplace path', () => {
+  it('Buy for locked opens CheckoutSheet', () => {
     renderPanel();
     fireEvent.click(screen.getByText('Buy'));
-    expect(navigate).toHaveBeenCalledWith('/modules');
+    expect(screen.getByTestId('checkout-sheet')).toBeInTheDocument();
+    expect(screen.getByTestId('checkout-step-plan')).toBeInTheDocument();
   });
 });

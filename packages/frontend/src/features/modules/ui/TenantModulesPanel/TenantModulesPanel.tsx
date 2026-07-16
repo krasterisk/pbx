@@ -1,6 +1,5 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
-import { toast } from 'react-toastify';
 import { Badge, Button, Loader, Switch, Text } from '@/shared/ui';
 import { VStack, HStack } from '@/shared/ui/Stack';
 import {
@@ -11,6 +10,8 @@ import {
 } from '@/shared/api/endpoints/cloudAdminApi';
 import { useAppSelector } from '@/shared/hooks/useAppStore';
 import { UserLevel } from '@krasterisk/shared';
+import { CheckoutSheet } from '@/features/modules/ui/CheckoutSheet';
+import { resolveHubDisplayPrice } from '@/features/modules/lib/hubMarketPrices';
 import cls from './TenantModulesPanel.module.scss';
 
 /**
@@ -19,7 +20,6 @@ import cls from './TenantModulesPanel.module.scss';
  */
 export function TenantModulesPanel() {
   const { t } = useTranslation();
-  const navigate = useNavigate();
   const user = useAppSelector((s) => s.auth.user);
   const isAdmin =
     user?.level === UserLevel.ADMIN || user?.level === UserLevel.SUPERADMIN;
@@ -29,6 +29,11 @@ export function TenantModulesPanel() {
   });
   const [enableModule, { isLoading: enabling }] = useEnableHubModuleMutation();
   const [disableModule, { isLoading: disabling }] = useDisableHubModuleMutation();
+  const [checkout, setCheckout] = useState<{
+    code: string;
+    name: string;
+    priceRub: number;
+  } | null>(null);
 
   const handleToggle = async (item: IHubCatalogItem, nextOn: boolean) => {
     if (!isAdmin) return;
@@ -46,11 +51,12 @@ export function TenantModulesPanel() {
     await enableModule(item.code);
   };
 
-  const handleBuy = (code: string) => {
-    // Checkout lands in 08-06 — stub CTA toward Hub marketplace browse
-    toast.info(t('hub.buyPlaceholder', 'Checkout will be available soon'));
-    navigate('/modules');
-    void code;
+  const handleBuy = (item: IHubCatalogItem) => {
+    setCheckout({
+      code: item.code,
+      name: item.name,
+      priceRub: resolveHubDisplayPrice(item.code),
+    });
   };
 
   if (isLoading) {
@@ -106,7 +112,7 @@ export function TenantModulesPanel() {
                     <Button
                       type="button"
                       size="sm"
-                      onClick={() => handleBuy(item.code)}
+                      onClick={() => handleBuy(item)}
                       id={`tenant-buy-${item.code}`}
                     >
                       {t('marketplace.buy', 'Buy')}
@@ -129,6 +135,16 @@ export function TenantModulesPanel() {
 
       {/* Explicit absence of membership editor (T-08-09) */}
       <div data-testid="tenant-no-membership-editor" hidden aria-hidden />
+
+      <CheckoutSheet
+        open={!!checkout}
+        onOpenChange={(open) => {
+          if (!open) setCheckout(null);
+        }}
+        moduleCode={checkout?.code ?? ''}
+        moduleName={checkout?.name ?? ''}
+        priceRub={checkout?.priceRub ?? 0}
+      />
     </VStack>
   );
 }
