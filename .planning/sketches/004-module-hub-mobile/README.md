@@ -2,7 +2,7 @@
 sketch: 004
 name: module-hub-mobile
 question: "How should Hub-first phone + tablet dual-pane feel with Hub E (list) and in-module tabs (003-B)?"
-winner: null
+winner: B
 tags: [mobile, phase-8, hub, shell]
 phase: 08
 ---
@@ -30,6 +30,10 @@ Use toolbar Phone / Tablet / Desktop, or device width.
 - Does bottom bar compete with Hub-first mental model?
 - Tablet dual-pane usefulness for admin PBX work
 - Continuity with winners 002-E + 003-B
+
+## Winner (2026-07-16)
+
+**Variant B — Hub list + bottom bar.** Phone Hub remains minimal list (002-E); primary modules also reachable via persistent bottom bar; chip/sheet still available inside a module. Dual-pane (C) not baseline.
 
 ## Mapping to React (post-winner)
 
