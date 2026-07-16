@@ -37,6 +37,7 @@ import { MyModulesPage } from '@/pages/MyModulesPage/MyModulesPage';
 import { CallCenterAgentPage } from '@/pages/CallCenterAgentPage';
 import { CallCenterSupervisorPage } from '@/pages/CallCenterSupervisorPage';
 import { CallCenterSettingsPage } from '@/pages/CallCenterSettingsPage';
+import { CallCenterWallboardPage } from '@/pages/CallCenterWallboardPage';
 import { AiAgentsPage } from '@/pages/AiAgentsPage';
 import { RequireRole } from '@/app/router/RequireRole';
 import { UserLevel } from '@/entities/User';
@@ -53,6 +54,11 @@ export const router = createBrowserRouter([
   {
     path: '/activate',
     element: <ActivationPage />,
+  },
+  // Public TV wallboard — display-token auth only (no AppLayout / JWT)
+  {
+    path: '/callcenter/wallboard',
+    element: <CallCenterWallboardPage />,
   },
   {
     path: '/',
@@ -85,14 +91,6 @@ export const router = createBrowserRouter([
         element: (
           <RequireRole allow={[UserLevel.SUPERVISOR, UserLevel.ADMIN]}>
             <CallCenterSupervisorPage />
-          </RequireRole>
-        ),
-      },
-      {
-        path: 'callcenter/wallboard',
-        element: (
-          <RequireRole allow={[UserLevel.SUPERVISOR, UserLevel.ADMIN]}>
-            <PlaceholderPage title="Wallboard" />
           </RequireRole>
         ),
       },

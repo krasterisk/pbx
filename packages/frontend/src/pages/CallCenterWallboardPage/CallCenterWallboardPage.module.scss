@@ -1,0 +1,270 @@
+/* TV wallboard — forced dark surface, no app chrome */
+
+.root {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 24px 28px 32px;
+  overflow: auto;
+  /* Force dark TV look even when app is in .light */
+  color-scheme: dark;
+  background: #0b1220;
+  color: #e2e8f0;
+  --color-background: #0b1220;
+  --color-foreground: #e2e8f0;
+  --color-card: #141c2e;
+  --color-border: #243049;
+  --color-muted-foreground: #94a3b8;
+  --color-success: #22c55e;
+  --color-warning: #f59e0b;
+  --color-destructive: #ef4444;
+  --color-info: #3b82f6;
+  font-variant-numeric: tabular-nums;
+}
+
+.banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  margin-bottom: 12px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--color-warning) 18%, transparent);
+  color: var(--color-warning);
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  flex: 1;
+  min-height: 0;
+  transition: opacity 150ms ease;
+}
+
+.contentDimmed {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  flex: 1;
+  min-height: 0;
+  transition: opacity 150ms ease;
+  opacity: 0.6;
+}
+
+.kpiRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.sectionTitle {
+  margin: 0 0 10px;
+  font-size: clamp(16px, 1.5vw, 24px);
+  font-weight: 600;
+  color: var(--color-muted-foreground);
+}
+
+.chartSection {
+  flex: 0 0 auto;
+  min-height: 220px;
+}
+
+.chartWrap {
+  height: clamp(180px, 22vh, 280px);
+  width: 100%;
+  padding: 12px;
+  background: color-mix(in srgb, var(--color-card) 90%, transparent);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+}
+
+.agentsStrip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.agentChip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+}
+
+.statusDot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--color-muted-foreground);
+
+  &[data-status='READY'] {
+    background: var(--color-success);
+  }
+  &[data-status='IN_CALL'] {
+    background: var(--color-destructive);
+  }
+  &[data-status='RINGING'] {
+    background: var(--color-info);
+  }
+  &[data-status='PAUSED'] {
+    background: var(--color-warning);
+  }
+  &[data-status='WRAPUP'] {
+    background: color-mix(in srgb, var(--color-info) 70%, white);
+  }
+  &[data-status='OFFLINE'] {
+    background: var(--color-muted-foreground);
+  }
+}
+
+.agentLabel {
+  font-size: clamp(14px, 1.2vw, 18px);
+  color: var(--color-muted-foreground);
+}
+
+.agentCount {
+  font-size: clamp(18px, 1.6vw, 28px);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.queuesSection {
+  flex: 1;
+  min-height: 0;
+}
+
+.queuesEmpty {
+  margin: 0;
+  color: var(--color-muted-foreground);
+  font-size: 16px;
+}
+
+.queueList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.queueRow {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 16px;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+}
+
+.queueMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+
+.queueName {
+  font-size: clamp(16px, 1.4vw, 22px);
+  font-weight: 600;
+}
+
+.queueStats {
+  display: flex;
+  gap: 16px;
+  color: var(--color-muted-foreground);
+  font-size: 14px;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+.slaBar {
+  height: 10px;
+}
+
+.empty {
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+  max-width: 480px;
+  padding: 40px 24px;
+}
+
+.emptyIcon {
+  width: 64px;
+  height: 64px;
+  color: var(--color-muted-foreground);
+  opacity: 0.7;
+}
+
+.emptyTitle {
+  margin: 0;
+  font-size: clamp(24px, 3vw, 36px);
+  font-weight: 600;
+}
+
+.emptyText {
+  margin: 0;
+  font-size: clamp(16px, 1.5vw, 20px);
+  color: var(--color-muted-foreground);
+  line-height: 1.45;
+}
+
+.fsBtn {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color-card) 90%, transparent);
+  color: var(--color-foreground);
+  cursor: pointer;
+  opacity: 1;
+  transition: opacity 200ms ease;
+}
+
+.fsBtnHidden {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color-card) 90%, transparent);
+  color: var(--color-foreground);
+  cursor: pointer;
+  transition: opacity 200ms ease;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.fsBtn:hover {
+  border-color: #6366f1;
+}

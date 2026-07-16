@@ -1,0 +1,1 @@
+export { CallCenterWallboardPage } from './CallCenterWallboardPage';
