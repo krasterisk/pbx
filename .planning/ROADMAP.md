@@ -320,7 +320,8 @@ Plans:
 - `packages/backend/src/modules/callcenter/` — state store, AMI, SSE, agent/supervisor API (реализовано)
 - `packages/frontend/src/features/callcenter/`, `pages/CallCenterAgentPage/`, `pages/CallCenterSupervisorPage/` — текущие панели
 
-**Status:** Complete — 18/18 plans executed (verify/UAT pending)  
+**Status:** Executed — gaps_found; gap-closure plans 07-19…07-20 pending  
+
 **Depends on:** Phase 6 (dialplan apps / call groups стабилизированы; независимо от verify Phases 1–5)
 
 **Goal:** Переработать и развить начатый модуль колл-центра до уровня современного корпоративного инструмента: экспертный аудит реализованного (~55%) vs концепции, редизайн АРМ оператора/супервизора по CC_WORKSPACES_CONCEPT, wallboard + metrics engine (SLA/AHT/ASA/Occupancy), конфигурируемые карточки звонка, полная отчётность и аналитика, WebRTC softphone — с архитектурным заделом под AI (голосовые ассистенты, речевая аналитика, autonomous agents).
@@ -356,7 +357,7 @@ Plans:
 | 5 | `/gsd-ui-review 7` + `npm run test:frontend` |
 | 6 | `/gsd-verify-work 7` → `/gsd-ship 7` |
 
-**Plans:** 18/18 plans complete
+**Plans:** 18/18 executed + 2 gap-closure plans
 
 Plans:
 
@@ -366,6 +367,8 @@ Plans:
 - [x] 07-16-PLAN.md — AI-ready foundation: event bus + CallCenterAiAdapter + media PCM skeleton [D-41…D-45]
 - [x] 07-18-PLAN.md — Reports UI: 7 reports + CSV/XLSX/PDF + AgentTimeline reuse [D-33/D-34/D-36]
 - [x] 07-15-PLAN.md — Automated report delivery / schedules via notification_integration [D-35]
+- [ ] 07-19-PLAN.md — Gap closure: PauseReasonsManager + operator settings picker [D-40/D-22]
+- [ ] 07-20-PLAN.md — Gap closure: track SIP MuteAudio as DEF-07-MUTE-AMI [D-14]
 
 **Verification:**
 
