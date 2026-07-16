@@ -276,7 +276,7 @@ Plans:
 | 3 | `/gsd-execute-phase 6` |
 | 4 | `/gsd-verify-work 6` |
 
-**Plans:** 16 plans (14 executed + 2 gap-closure pending)
+**Plans:** 15/16 plans executed
 
 Plans:
 
@@ -294,7 +294,7 @@ Plans:
 - [x] 06-12-PLAN.md — Notification Integrations page + channel-driven form modal [D-10/11/13/16]
 - [x] 06-13-PLAN.md — GroupApp + NotifyApp + registry + inline group editor [D-02/12/13/17/18]
 - [x] 06-14-PLAN.md — CallerIdApp (4 modes) + TrunkCarouselApp + registry [D-14/15/16/17/18]
-- [ ] 06-15-PLAN.md — Gap closure: AMI CreateConfig before UpdateConfig + CallGroups post-commit rollback fix [D-01/D-08]
+- [x] 06-15-PLAN.md — Gap closure: AMI CreateConfig before UpdateConfig + CallGroups post-commit rollback fix [D-01/D-08]
 - [ ] 06-16-PLAN.md — Gap closure: single-surface hints in CallerIdApp + TrunkCarouselApp [D-16]
 
 **Waves:** W1 {06-01,06-02,06-03} · W2 {06-04,06-05,06-07,06-10} · W3 {06-06,06-08,06-11} · W4 {06-09,06-12} · W5 {06-13} · W6 {06-14} · W7-gap {06-15,06-16}
