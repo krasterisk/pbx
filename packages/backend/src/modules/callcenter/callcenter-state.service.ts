@@ -7,7 +7,10 @@
  */
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Subject, Observable } from 'rxjs';
-import { filter } from 'rxjs/operators';
+import { filter, map } from 'rxjs/operators';
+import { CcEventBusEvent, mapCcEventToBusEvent } from './cc-event-bus.types';
+
+export type { CcEventBusEvent } from './cc-event-bus.types';
 
 // ─── Types ──────────────────────────────────────────────
 
@@ -103,6 +106,18 @@ export class CallCenterStateService implements OnModuleInit {
   getEventStream(userUid: number): Observable<CcEvent> {
     return this.eventSubject.asObservable().pipe(
       filter(event => event.userUid === userUid),
+    );
+  }
+
+  /**
+   * Typed overlay over getEventStream (D-41a).
+   * Maps known event types into CcEventBusEvent; drops unmapped legacy SSE noise.
+   * Does NOT duplicate the Subject — same underlying stream.
+   */
+  getTypedEventStream(userUid: number): Observable<CcEventBusEvent> {
+    return this.getEventStream(userUid).pipe(
+      map((event) => mapCcEventToBusEvent(event.type, event.data)),
+      filter((e): e is CcEventBusEvent => e !== null),
     );
   }
 
