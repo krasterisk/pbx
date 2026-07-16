@@ -1,8 +1,11 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useStore } from 'react-redux';
+import type { RootState } from '@/app/store/store';
+import { selectCurrentUser } from '@/entities/User';
 import {
   setSnapshot,
   setConnected,
+  setMyAgentInterface,
   updateAgent,
   updateQueue,
   addCall,
@@ -10,8 +13,30 @@ import {
   removeCall,
   chatMessageReceived,
 } from '../model/slice/callCenterSlice';
+import type { IAgent } from '../model/types/callCenterSchema';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
+
+/**
+ * Fallback: if login did not bind myAgentInterface, bind from SSE when an
+ * agent with matching userId is present and not OFFLINE. Never overwrites.
+ */
+function maybeBindMyAgentInterface(
+  getState: () => RootState,
+  dispatch: (action: ReturnType<typeof setMyAgentInterface>) => void,
+  agents: Array<Pick<IAgent, 'interface' | 'userId' | 'status'>>,
+) {
+  const state = getState();
+  if (state.callCenter?.myAgentInterface) return;
+  const userId = selectCurrentUser(state)?.uniqueid;
+  if (userId == null) return;
+  const match = agents.find(
+    (a) => a.userId === userId && a.status !== 'OFFLINE' && a.interface,
+  );
+  if (match) {
+    dispatch(setMyAgentInterface(match.interface));
+  }
+}
 
 /**
  * Hook that establishes an SSE (Server-Sent Events) connection
@@ -28,6 +53,7 @@ const API_BASE = import.meta.env.VITE_API_URL || '/api';
  */
 export function useCallCenterSSE(enabled: boolean = true) {
   const dispatch = useDispatch();
+  const store = useStore<RootState>();
   const esRef = useRef<EventSource | null>(null);
 
   const connect = useCallback(() => {
@@ -61,12 +87,19 @@ export function useCallCenterSSE(enabled: boolean = true) {
         const data = JSON.parse(e.data);
         dispatch(setSnapshot(data));
         dispatch(setConnected(true));
+        maybeBindMyAgentInterface(store.getState, dispatch, data.agents ?? []);
       } catch { /* ignore parse errors */ }
     });
 
     es.addEventListener('agentUpdate', (e: MessageEvent) => {
       try {
-        dispatch(updateAgent(JSON.parse(e.data)));
+        const agent = JSON.parse(e.data) as IAgent & { removed?: boolean };
+        dispatch(updateAgent(agent));
+        const fromStore = store.getState().callCenter?.agents ?? [];
+        const agents = fromStore.some((a) => a.interface === agent.interface)
+          ? fromStore
+          : [...fromStore, agent];
+        maybeBindMyAgentInterface(store.getState, dispatch, agents);
       } catch { /* ignore */ }
     });
 
@@ -172,7 +205,7 @@ export function useCallCenterSSE(enabled: boolean = true) {
     es.addEventListener('heartbeat', () => {
       // noop — prevents proxy timeout
     });
-  }, [enabled, dispatch]);
+  }, [enabled, dispatch, store]);
 
   useEffect(() => {
     connect();

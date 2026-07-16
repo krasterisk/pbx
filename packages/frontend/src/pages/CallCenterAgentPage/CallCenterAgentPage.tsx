@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
 import {
@@ -34,6 +34,7 @@ import {
   DroppableColleague,
   useDragTransfer,
 } from '@/features/callcenter/ui/DragTransfer/DragTransfer';
+import { interfaceToExtension } from '@/features/endpoints/lib/endpointIds';
 import {
   selectMyAgent,
   selectCcCalls,
@@ -42,6 +43,11 @@ import {
   selectCcConnected,
   selectWaitingCalls,
 } from '@/features/callcenter/model/selectors/callCenterSelectors';
+import {
+  setMyAgentInterface,
+  updateAgent,
+} from '@/features/callcenter/model/slice/callCenterSlice';
+import { selectCurrentUser } from '@/entities/User';
 import {
   useAgentLoginMutation,
   useAgentLogoutMutation,
@@ -62,6 +68,7 @@ import styles from './CallCenterAgentPage.module.scss';
 
 export function CallCenterAgentPage() {
   const { t } = useTranslation();
+  const dispatch = useDispatch();
 
   // SSE connection + notifications (per-operator settings, D-20)
   useCallCenterSSE(true);
@@ -78,6 +85,7 @@ export function CallCenterAgentPage() {
 
   // Redux state
   const myAgent = useSelector(selectMyAgent);
+  const currentUser = useSelector(selectCurrentUser);
   const connected = useSelector(selectCcConnected);
   const calls = useSelector(selectCcCalls);
   const agents = useSelector(selectCcAgents);
@@ -327,17 +335,32 @@ export function CallCenterAgentPage() {
     setMicDeviceId(result.micDeviceId);
     setSinkId(result.sinkId);
 
+    const bindIdentity = () => {
+      // Use ShiftLoginResult.interface — API unwrap is only { success, sessionId }
+      dispatch(setMyAgentInterface(result.interface));
+      dispatch(updateAgent({
+        interface: result.interface,
+        name: currentUser?.name || currentUser?.login || result.interface,
+        status: 'READY',
+        queues: result.queues,
+        callsTaken: 0,
+        userUid: currentUser?.vpbx_user_uid ?? 0,
+        userId: currentUser?.uniqueid ?? 0,
+      }));
+    };
+
     if (result.mode === 'webrtc') {
       if (!webrtcConfig?.wssUrl) {
         toast.error(t('callcenter.softphone.webrtcConfigMissing'));
-        return;
+        throw new Error(t('callcenter.softphone.webrtcConfigMissing'));
       }
       if (!result.credentials) {
         toast.error(t('callcenter.softphone.micDenied'));
-        return;
+        throw new Error(t('callcenter.softphone.micDenied'));
       }
       setSipCredentials(result.credentials);
       await agentLogin({ interface: result.interface, queues: result.queues }).unwrap();
+      bindIdentity();
       await phone.connect({
         server: webrtcConfig.wssUrl,
         sipUser: result.credentials.username,
@@ -352,21 +375,33 @@ export function CallCenterAgentPage() {
     } else {
       setSipCredentials(null);
       await agentLogin({ interface: result.interface, queues: result.queues }).unwrap();
+      bindIdentity();
     }
-  }, [agentLogin, phone, t, webrtcConfig, operatorSettings?.auto_answer, operatorSettings?.auto_answer_zip_tone]);
+  }, [
+    agentLogin,
+    phone,
+    t,
+    webrtcConfig,
+    operatorSettings?.auto_answer,
+    operatorSettings?.auto_answer_zip_tone,
+    dispatch,
+    currentUser,
+  ]);
 
   const handleLogout = useCallback(async () => {
     if (isWebrtc) {
       await phone.disconnect();
     }
     await agentLogout();
+    dispatch(setMyAgentInterface(null));
     setSoftphoneMode(null);
     setSipCredentials(null);
     setIsMuted(false);
-  }, [agentLogout, isWebrtc, phone]);
+  }, [agentLogout, isWebrtc, phone, dispatch]);
 
   const handleDragTransfer = useCallback((targetIface: string, type: 'blind' | 'attended') => {
-    const target = targetIface.split('/').pop() || targetIface;
+    // Normalize PJSIP/e110_0 and PJSIP/ew110_0 → "110" for dialable transfer target
+    const target = interfaceToExtension(targetIface);
     if (isWebrtc) {
       if (type === 'attended') void phone.attendedTransfer(target);
       else void phone.blindTransfer(target);
@@ -851,7 +886,7 @@ export function CallCenterAgentPage() {
                       key={agent.interface}
                       className={styles.transferAgentRow}
                       onClick={() => {
-                        const target = agent.interface.split('/').pop() || agent.interface;
+                        const target = interfaceToExtension(agent.interface);
                         if (activeCall) {
                           agentTransfer({ uniqueid: activeCall.uniqueid, target, type: 'blind' });
                           setTransferModalOpen(false);
@@ -860,7 +895,7 @@ export function CallCenterAgentPage() {
                     >
                       <div className={styles.transferDot} style={{ background: 'var(--color-success)' }} />
                       <Text className={styles.transferName}>{agent.name}</Text>
-                      <Text className={styles.transferExt}>{agent.interface.split('/').pop()}</Text>
+                      <Text className={styles.transferExt}>{interfaceToExtension(agent.interface)}</Text>
                     </div>
                   ))}
                 </div>
@@ -918,7 +953,7 @@ function ColleagueRow({ agent, activeCall }: { agent: IAgent; activeCall: boolea
       >
         <div className={styles.transferDot} />
         <Text className={styles.transferName}>{agent.name}</Text>
-        <Text className={styles.transferExt}>{agent.interface.split('/').pop()}</Text>
+        <Text className={styles.transferExt}>{interfaceToExtension(agent.interface)}</Text>
       </div>
     </DroppableColleague>
   );
