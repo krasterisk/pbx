@@ -77,7 +77,7 @@ Each task was committed atomically (TDD RED → GREEN):
 3. **Task 2 RED:** `8b673cc` (test) — TimeGroups + ProvisionTemplates failing smokes
 4. **Task 2 GREEN:** `5765e01` (feat) — TimeGroups + ProvisionTemplates page hybrid
 
-**Plan metadata:** (docs commit after this SUMMARY)
+**Plan metadata:** `b40e8f2` (docs: complete plan)
 
 ## Files Created/Modified
 
