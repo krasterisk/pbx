@@ -11,6 +11,7 @@ import { User } from '../users/user.model';
 import { TenantsService } from './tenants.service';
 import { TenantsController } from './tenants.controller';
 import { TenantModulesController, MarketplaceController } from './tenant-modules.controller';
+import { HubModulesController } from './hub-modules.controller';
 import { ModulesRegistryService } from './modules-registry.service';
 import { ModuleAccessGuard } from './module-access.guard';
 import { UsersModule } from '../users/users.module';
@@ -42,7 +43,13 @@ import { CloudSettingsController } from './cloud-settings.controller';
     BillingModule,
   ],
   providers: [TenantsService, ModulesRegistryService, ModuleAccessGuard, CloudSettingsService],
-  controllers: [TenantsController, TenantModulesController, MarketplaceController, CloudSettingsController],
+  controllers: [
+    TenantsController,
+    TenantModulesController,
+    MarketplaceController,
+    HubModulesController,
+    CloudSettingsController,
+  ],
   exports: [TenantsService, ModulesRegistryService, ModuleAccessGuard, BillingModule, CloudSettingsService],
 })
 export class CloudAdminModule {}

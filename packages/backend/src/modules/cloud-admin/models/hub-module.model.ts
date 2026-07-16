@@ -41,6 +41,6 @@ export class HubModule extends Model {
   @Column(DataType.BOOLEAN)
   declare requires_cloud: boolean;
 
-  @HasMany(() => HubModulePage, { foreignKey: 'hub_code', sourceKey: 'code' })
+  @HasMany(() => HubModulePage, { foreignKey: 'hub_code', sourceKey: 'code', as: 'pages' })
   declare pages?: HubModulePage[];
 }

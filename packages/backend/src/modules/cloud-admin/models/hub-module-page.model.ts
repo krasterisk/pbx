@@ -35,6 +35,6 @@ export class HubModulePage extends Model {
   @Column(DataType.INTEGER)
   declare sort_order: number;
 
-  @BelongsTo(() => HubModule, { foreignKey: 'hub_code', targetKey: 'code' })
+  @BelongsTo(() => HubModule, { foreignKey: 'hub_code', targetKey: 'code', as: 'hubModule' })
   declare hubModule?: HubModule;
 }

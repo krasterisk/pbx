@@ -1,10 +1,13 @@
-import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
+import { Injectable, Logger, OnApplicationBootstrap, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { ConfigService } from '@nestjs/config';
 import { ModuleRegistry } from './module-registry.model';
 import { TenantModule } from './tenant-module.model';
+import { HubModule } from './models/hub-module.model';
+import { HubModulePage } from './models/hub-module-page.model';
+import { HUB_MODULES_SEED } from './hub-modules.seed';
 
-/** Initial module catalog — seeded once on startup */
+/** Initial module catalog — seeded once on startup (page-level; keep for ModuleAccessGuard) */
 const MODULES_SEED: Partial<ModuleRegistry>[] = [
   // ── Core (always enabled, not billable) ─────────────────────────────────
   { code: 'pbx_core',          name: 'Базовая АТС',               category: 'pbx',          is_core: true,  is_paid: false, price_monthly: 0 },
@@ -37,6 +40,25 @@ const CORE_CODES = MODULES_SEED
   .filter((m) => m.is_core)
   .map((m) => m.code!);
 
+/** Legacy page-level codes that imply Hub market license until remapped. */
+const LEGACY_HUB_LICENSE_CODES: Record<string, string[]> = {
+  callcenter: ['callcenter', 'service_requests'],
+  analytics: ['analytics', 'cdr', 'cc_ai_voice'],
+  ai: ['ai', 'voice_robot', 'cc_ai_voice'],
+};
+
+export type LicenseStatus = 'active' | 'locked' | 'disabled';
+
+export interface HubCatalogItem {
+  code: string;
+  name: string;
+  kind: 'base' | 'market';
+  sort_order: number;
+  requires_cloud: boolean;
+  licenseStatus: LicenseStatus;
+  pages: Array<{ page_code: string; path: string | null; sort_order: number }>;
+}
+
 @Injectable()
 export class ModulesRegistryService implements OnApplicationBootstrap {
   private readonly logger = new Logger(ModulesRegistryService.name);
@@ -45,6 +67,8 @@ export class ModulesRegistryService implements OnApplicationBootstrap {
     @InjectModel(ModuleRegistry) private readonly registryModel: typeof ModuleRegistry,
     @InjectModel(TenantModule)   private readonly tenantModuleModel: typeof TenantModule,
     private readonly configService: ConfigService,
+    @InjectModel(HubModule) private readonly hubModuleModel: typeof HubModule,
+    @InjectModel(HubModulePage) private readonly hubPageModel: typeof HubModulePage,
   ) {}
 
   /** On startup — upsert module catalog from code definition */
@@ -70,12 +94,8 @@ export class ModulesRegistryService implements OnApplicationBootstrap {
     const record = await this.tenantModuleModel.findOne({
       where: { module_code: moduleCode },
       include: [{ model: ModuleRegistry, where: { code: moduleCode } }],
-      // We need the tenant_id, so we JOIN through tenants or pass tenant_id directly
-      // For now, use vpbx_user_uid via subquery — simplified check
     });
 
-    // Simplified: use vpbx_user_uid as proxy for tenant lookup
-    // Full solution: resolve tenant_id from vpbx_user_uid via tenants table
     return record?.status === 'active' || record?.status === 'trial';
   }
 
@@ -93,7 +113,188 @@ export class ModulesRegistryService implements OnApplicationBootstrap {
     return !!record && (record.status === 'active' || record.status === 'trial');
   }
 
-  // ─── CRUD ──────────────────────────────────────────────────────────────────
+  // ─── Hub catalog + licenseStatus (D-07 / D-17) ─────────────────────────────
+
+  /**
+   * Compute licenseStatus server-side — never accept client-supplied status (T-08-05).
+   */
+  computeLicenseStatus(
+    hub: { code: string; kind: 'base' | 'market'; requires_cloud: boolean },
+    tenantRows: TenantModule[],
+    deploymentMode: string,
+  ): LicenseStatus {
+    const mode = deploymentMode.toUpperCase();
+    const statusByCode = new Map(tenantRows.map((r) => [r.module_code, r.status]));
+
+    if (mode !== 'CLOUD') {
+      // BOX: base always active; market requires_cloud → locked (cloud-only); else active
+      if (hub.kind === 'base') return 'active';
+      if (hub.requires_cloud) return 'locked';
+      return 'active';
+    }
+
+    const codes = LEGACY_HUB_LICENSE_CODES[hub.code] ?? [hub.code];
+    let best: LicenseStatus | null = null;
+    for (const code of codes) {
+      const st = statusByCode.get(code);
+      if (st === 'active' || st === 'trial') return 'active';
+      if (st === 'inactive' || st === 'expired') best = 'disabled';
+    }
+
+    if (hub.kind === 'base') {
+      // Base modules are provisioned; inactive hub row → disabled, else active
+      const direct = statusByCode.get(hub.code);
+      if (direct === 'inactive' || direct === 'expired') return 'disabled';
+      return 'active';
+    }
+
+    return best ?? 'locked';
+  }
+
+  async getHubCatalogForTenant(tenantId: number): Promise<HubCatalogItem[]> {
+    const mode = this.configService.get<string>('DEPLOYMENT_MODE', 'BOX').toUpperCase();
+    const hubs = await this.hubModuleModel.findAll({
+      include: [{ model: HubModulePage, as: 'pages' }],
+      order: [['sort_order', 'ASC']],
+    });
+
+    // Fallback to seed if migration not yet applied
+    const hubList = hubs.length > 0
+      ? hubs
+      : HUB_MODULES_SEED.map((s) => ({
+          ...s,
+          pages: [] as HubModulePage[],
+        })) as unknown as HubModule[];
+
+    const tenantRows = tenantId
+      ? await this.tenantModuleModel.findAll({ where: { tenant_id: tenantId } })
+      : [];
+
+    return hubList.map((hub) => {
+      const pages = ((hub as any).pages ?? []) as HubModulePage[];
+      return {
+        code: hub.code,
+        name: hub.name,
+        kind: hub.kind,
+        sort_order: hub.sort_order,
+        requires_cloud: !!hub.requires_cloud,
+        licenseStatus: this.computeLicenseStatus(
+          { code: hub.code, kind: hub.kind, requires_cloud: !!hub.requires_cloud },
+          tenantRows,
+          mode,
+        ),
+        pages: pages
+          .slice()
+          .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+          .map((p) => ({
+            page_code: p.page_code,
+            path: p.path,
+            sort_order: p.sort_order,
+          })),
+      };
+    });
+  }
+
+  // ─── Platform Hub CRUD (SuperAdmin) ────────────────────────────────────────
+
+  async listHubModules(): Promise<HubModule[]> {
+    return this.hubModuleModel.findAll({
+      include: [{ model: HubModulePage, as: 'pages' }],
+      order: [['sort_order', 'ASC']],
+    });
+  }
+
+  async createHubModule(dto: {
+    code: string;
+    name: string;
+    kind: 'base' | 'market';
+    sort_order?: number;
+    requires_cloud?: boolean;
+  }): Promise<HubModule> {
+    return this.hubModuleModel.create({
+      code: dto.code,
+      name: dto.name,
+      kind: dto.kind,
+      sort_order: dto.sort_order ?? 100,
+      requires_cloud: dto.requires_cloud ?? false,
+    } as any);
+  }
+
+  async updateHubModule(
+    code: string,
+    dto: Partial<{ name: string; kind: 'base' | 'market'; sort_order: number; requires_cloud: boolean }>,
+  ): Promise<HubModule | null> {
+    const row = await this.hubModuleModel.findOne({ where: { code } });
+    if (!row) return null;
+    await row.update(dto as any);
+    return row;
+  }
+
+  async reorderHubModules(codes: string[]): Promise<{ success: boolean }> {
+    for (let i = 0; i < codes.length; i++) {
+      await this.hubModuleModel.update(
+        { sort_order: (i + 1) * 10 },
+        { where: { code: codes[i] } },
+      );
+    }
+    return { success: true };
+  }
+
+  async replaceHubModulePages(
+    hubCode: string,
+    pages: Array<{ page_code: string; path?: string | null; sort_order?: number }>,
+  ): Promise<HubModulePage[]> {
+    const hub = await this.hubModuleModel.findOne({ where: { code: hubCode } });
+    if (!hub) throw new BadRequestException(`Unknown hub module: ${hubCode}`);
+
+    await this.hubPageModel.destroy({ where: { hub_code: hubCode } });
+    if (pages.length === 0) return [];
+
+    const rows = pages.map((p, idx) => ({
+      hub_code: hubCode,
+      page_code: p.page_code,
+      path: p.path ?? null,
+      sort_order: p.sort_order ?? (idx + 1) * 10,
+    }));
+    return this.hubPageModel.bulkCreate(rows as any[]);
+  }
+
+  async deleteHubModule(code: string): Promise<void> {
+    await this.hubPageModel.destroy({ where: { hub_code: code } });
+    await this.hubModuleModel.destroy({ where: { code } });
+  }
+
+  /**
+   * Tenant enable/disable for Hub market modules (JWT-bound tenantId only).
+   * Cannot edit membership (D-22).
+   */
+  async setTenantHubModuleStatus(
+    tenantId: number,
+    hubCode: string,
+    status: 'active' | 'inactive',
+  ): Promise<TenantModule> {
+    const hub = await this.hubModuleModel.findOne({ where: { code: hubCode } });
+    if (!hub) {
+      // Allow enabling known seed codes before migration
+      const seeded = HUB_MODULES_SEED.find((m) => m.code === hubCode);
+      if (!seeded) throw new BadRequestException(`Unknown hub module: ${hubCode}`);
+      if (seeded.kind === 'base' && status === 'inactive') {
+        throw new BadRequestException(`Cannot deactivate base hub module: ${hubCode}`);
+      }
+    } else if (hub.kind === 'base' && status === 'inactive') {
+      throw new BadRequestException(`Cannot deactivate base hub module: ${hubCode}`);
+    }
+
+    const [record] = await this.tenantModuleModel.upsert({
+      tenant_id: tenantId,
+      module_code: hubCode,
+      status,
+      activated_at: status === 'active' ? new Date() : undefined,
+    } as any);
+    return record;
+  }
+
+  // ─── CRUD (page-level registry) ────────────────────────────────────────────
 
   /** Get all published modules in the catalog */
   async findAll(): Promise<ModuleRegistry[]> {
