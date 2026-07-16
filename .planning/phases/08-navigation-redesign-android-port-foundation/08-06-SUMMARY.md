@@ -83,7 +83,7 @@ Each task was committed atomically (TDD where applicable):
    - `3a59a4f` (feat) — service, DTO, controller, registry offer helpers, module wiring
 2. **Task 2: CheckoutSheet UI + RTK purchaseModule** - `6380ee3` (feat)
 
-**Plan metadata:** see final docs commit
+**Plan metadata:** `2654758` (docs: complete plan)
 
 ## Files Created/Modified
 
