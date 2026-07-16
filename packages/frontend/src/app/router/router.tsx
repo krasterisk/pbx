@@ -12,6 +12,7 @@ import {
   PlatformModulesPage,
   PlatformRoleStartPage,
 } from '@/pages/platform';
+import { SystemModulesPage } from '@/pages/SystemModulesPage';
 
 import { RolesPage } from '@/pages/RolesPage/RolesPage';
 import { NumbersPage } from '@/pages/NumbersPage/NumbersPage';
@@ -107,8 +108,10 @@ export const router = createBrowserRouter([
       // Legacy transitional redirects (D-41) — page files kept on disk for now
       { path: 'operator', element: <Navigate to="/callcenter/agent" replace /> },
       { path: 'supervisor', element: <Navigate to="/callcenter/supervisor" replace /> },
+      // Hub browse for marketplace; System Modules for tenant enable/disable toggles
       { path: 'marketplace', element: <Navigate to="/modules" replace /> },
-      { path: 'my-modules', element: <Navigate to="/modules" replace /> },
+      { path: 'my-modules', element: <Navigate to="/system/modules" replace /> },
+      { path: 'system/modules', element: <SystemModulesPage /> },
       { path: 'superadmin', element: <Navigate to="/platform" replace /> },
       { path: 'callcenter/agent', element: <CallCenterAgentPage /> },
       {

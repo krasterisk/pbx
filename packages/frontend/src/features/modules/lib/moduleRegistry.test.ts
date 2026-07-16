@@ -26,6 +26,12 @@ describe('moduleRegistry (NAV-01)', () => {
     );
   });
 
+  it('System module includes tenant Modules page at /system/modules', () => {
+    const system = getBaselineModule('system');
+    const page = system?.pages.find((p) => p.id === 'tenant-modules');
+    expect(page?.path).toBe('/system/modules');
+  });
+
   it('maps Hub modules to expected page paths', () => {
     const core = getBaselineModule('core');
     expect(core?.pages.map((p) => p.path)).toEqual(

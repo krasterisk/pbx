@@ -1,0 +1,46 @@
+.list {
+  width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--color-border);
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &.muted {
+    opacity: 0.6;
+  }
+}
+
+.nameBlock {
+  flex: 1;
+  min-width: 160px;
+}
+
+.moduleName {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.pages {
+  font-size: 12px;
+  color: var(--color-muted-foreground, var(--color-text-muted));
+  margin-top: 4px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}

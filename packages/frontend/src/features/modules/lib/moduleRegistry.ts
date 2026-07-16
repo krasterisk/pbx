@@ -144,7 +144,7 @@ export const BASELINE_MODULES: ModuleDef[] = [
       },
       {
         id: 'tenant-modules',
-        path: '/my-modules',
+        path: '/system/modules',
         labelKey: 'nav.modules',
         icon: Package,
         minLevels: ADMIN_PLUS,
