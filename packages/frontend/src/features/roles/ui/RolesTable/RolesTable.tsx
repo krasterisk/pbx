@@ -22,13 +22,13 @@ export const RolesTable = () => {
   const columns = useMemo<ColumnDef<any>[]>(() => [
     {
       accessorKey: 'name',
-      header: 'Название интерфейса',
+      header: t('roles.name'),
       cell: (info) => <span className="font-medium text-white">{info.getValue() as string}</span>,
     },
     {
       accessorKey: 'comment',
-      header: 'Комментарий',
-      cell: (info) => (info.getValue() as string) || '—',
+      header: t('roles.comment'),
+      cell: (info) => (info.getValue() as string) || '-',
     },
     {
       id: 'actions',
@@ -77,7 +77,7 @@ export const RolesTable = () => {
           <HStack gap="8" align="center">
             <Shield className="w-5 h-5 text-primary" />
             <span className="font-semibold text-lg">
-              {roles.length} {(t('nav.roles' as any) || 'Интерфейсы').toLowerCase()}
+              {roles.length} {t('nav.roles').toLowerCase()}
             </span>
           </HStack>
           <HStack gap="12" align="center" className="w-full sm:w-auto">

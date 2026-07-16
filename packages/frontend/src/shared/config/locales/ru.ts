@@ -68,7 +68,7 @@ export const ru = {
     system: 'Система',
     settings: 'Настройки',
     users: 'Пользователи',
-    roles: 'Интерфейсы',
+    roles: 'Профили доступа',
     numbers: 'Списки доступа',
     backups: 'Бэкапы',
     apps: 'Приложения',
@@ -1127,8 +1127,11 @@ export const ru = {
     levelOperator: 'Оператор',
     levelSupervisor: 'Супервизор',
     levelReadonly: 'Readonly',
-    role: 'Интерфейс',
-    roleNone: 'Без роли',
+    levelSuperadmin: 'SuperAdmin',
+    role: 'Профиль доступа',
+    roleNone: 'Без профиля',
+    roleHint: 'Профиль доступа задаёт гранты на модули и страницы Hub.',
+    numbersIdLinkHint: 'Связывает пользователя со списком Numbers для видимости очередей и CDR.',
     generatePassword: 'Сгенерировать пароль',
     generateShort: 'Ген.',
     passwordUnchanged: '(оставьте пустым чтобы не менять)',
@@ -1146,6 +1149,19 @@ export const ru = {
     suspensionTimeHint: 'Приостановка (секунд)',
     listbookEdit: 'Возможность просматривать и ред. справочник',
     operChanspy: 'Разрешить прослушку (Chanspy) в панели оператора',
+  },
+
+  // Профили доступа (роли)
+  roles: {
+    add: 'Добавить профиль доступа',
+    edit: 'Редактировать профиль доступа',
+    name: 'Название профиля',
+    comment: 'Комментарий',
+    pageHint: 'Выдайте доступ к модулям и страницам Hub для этого профиля.',
+    grantsTitle: 'Гранты модулей и страниц Hub',
+    grantsHint: 'Отмеченные страницы станут доступны пользователю с этим профилем.',
+    selectAll: 'Выбрать все',
+    selectModule: 'Выбрать все страницы в {{module}}',
   },
 
   // Provision Templates

@@ -68,7 +68,7 @@ export const en = {
     system: 'System',
     settings: 'Settings',
     users: 'Users',
-    roles: 'Roles',
+    roles: 'Access profiles',
     numbers: 'Access Lists',
     backups: 'Backups',
     apps: 'Applications',
@@ -1056,8 +1056,11 @@ export const en = {
     levelOperator: 'Operator',
     levelSupervisor: 'Supervisor',
     levelReadonly: 'Readonly',
-    role: 'Interface',
-    roleNone: 'No role',
+    levelSuperadmin: 'SuperAdmin',
+    role: 'Access profile',
+    roleNone: 'No profile',
+    roleHint: 'Access profile controls Hub module and page grants.',
+    numbersIdLinkHint: 'Links this user to a Numbers access list for queue/CDR visibility.',
     generatePassword: 'Generate password',
     generateShort: 'Gen.',
     passwordUnchanged: '(leave empty to keep current)',
@@ -1075,6 +1078,19 @@ export const en = {
     suspensionTimeHint: 'Suspension time (seconds)',
     listbookEdit: 'Allow viewing and editing phonebook',
     operChanspy: 'Allow listen-in (Chanspy) in operator panel',
+  },
+
+  // Access profiles (roles)
+  roles: {
+    add: 'Add access profile',
+    edit: 'Edit access profile',
+    name: 'Profile name',
+    comment: 'Comment',
+    pageHint: 'Grant Hub modules and pages for this access profile.',
+    grantsTitle: 'Hub module and page grants',
+    grantsHint: 'Checked pages become available when a user is assigned this profile.',
+    selectAll: 'Select all',
+    selectModule: 'Select all pages in {{module}}',
   },
 
   // Provision Templates

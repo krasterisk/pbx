@@ -1,9 +1,12 @@
 import { rtkApi } from '../rtkApi';
 
-// TODO: Add proper types from @krasterisk/shared when IRole is defined
+/** Access profile (roles table). `role` is TEXT JSON — Hub grants v2 or legacy table_module_*. */
 export interface IRole {
   id: number;
   name: string;
+  /** Serialized HubRoleGrants JSON (roles.role column) */
+  role?: string;
+  comment?: string;
   description?: string;
 }
 

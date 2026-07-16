@@ -2,3 +2,9 @@ export { rolesPageSlice, rolesPageActions, rolesPageReducer } from './model/slic
 export type { RolesPageSchema } from './model/types/rolesPageSchema';
 export { getRolesPageIsModalOpen, getRolesPageSelectedRole, getRolesPageModalMode } from './model/selectors/rolesPageSelectors';
 export { RolesTable } from './ui/RolesTable';
+export { RoleFormModal } from './ui/RoleFormModal/RoleFormModal';
+export {
+  parseRoleGrants,
+  serializeRoleGrants,
+  type HubRoleGrants,
+} from './lib/roleGrants';

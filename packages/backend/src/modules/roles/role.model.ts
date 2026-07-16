@@ -10,8 +10,8 @@ export class Role extends Model {
   @Column({ type: DataType.STRING })
   declare name: string;
 
-  // JSON field: stores permitted modules per category
-  // Structure: { "table_module_pbx": [...], "table_module_inbound": [...], ... }
+  // TEXT JSON: Hub grants v2 `{ version: 2, hub: { moduleCode: pageId[] } }`
+  // Legacy shape `{ "table_module_pbx": [...], ... }` still accepted (frontend mapping layer).
   @Column({ type: DataType.TEXT })
   declare role: string;
 

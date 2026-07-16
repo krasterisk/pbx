@@ -1,0 +1,40 @@
+.grantsScroll {
+  max-height: min(50vh, 420px);
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.moduleBlock {
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.moduleHeader {
+  margin-bottom: 8px;
+}
+
+.pageGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+
+  @media (min-width: 640px) {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.pageRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.checkbox {
+  width: 1rem;
+  height: 1rem;
+  border-radius: 4px;
+  accent-color: var(--primary);
+}
