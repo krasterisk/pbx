@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sketch 002 — Module Hub desktop</title>
+  <link rel="stylesheet" href="../themes/default.css" />
+  <style>
+    body { padding-top: 52px; padding-bottom: 56px; min-height: 100vh; }
+    #variant-nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 9998;
+      background: var(--color-surface); border-bottom: 1px solid var(--color-border);
+      padding: 10px 16px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+    }
+    .variant-tab {
+      padding: 8px 14px; border: 1px solid var(--color-border); border-radius: var(--radius-md);
+      background: var(--color-surface); color: var(--color-text); cursor: pointer; font-size: var(--text-sm);
+    }
+    .variant-tab.active {
+      background: var(--color-indigo-muted); border-color: var(--color-indigo); color: var(--color-indigo);
+    }
+    #variant-nav .hint { margin-left: auto; font-size: var(--text-xs); color: var(--color-text-muted); }
+    .variant { display: none; }
+    .variant.active { display: block; }
+    #sketch-viewport { transition: max-width 0.2s; margin: 0 auto; min-height: calc(100vh - 100px); }
+
+    .hub {
+      min-height: calc(100vh - 100px);
+      padding: 28px 32px 100px;
+      position: relative;
+    }
+    .hub-top {
+      display: flex; justify-content: space-between; align-items: flex-start;
+      gap: 16px; margin-bottom: 28px; flex-wrap: wrap;
+    }
+    .brand {
+      display: flex; align-items: center; gap: 12px;
+    }
+    .brand-mark {
+      width: 40px; height: 40px; border-radius: 12px;
+      background: var(--color-indigo-muted); color: var(--color-indigo);
+      display: grid; place-items: center; font-weight: 800; font-size: 14px;
+    }
+    .brand h1 {
+      margin: 0; font-size: 1.35rem; font-weight: 700;
+      background: linear-gradient(to bottom right, var(--color-text), rgba(255,255,255,0.55));
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    .brand p { margin: 2px 0 0; font-size: var(--text-sm); color: var(--color-text-muted); }
+    .hub-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px; padding: 9px 14px;
+      border-radius: var(--radius-md); font-size: var(--text-sm); font-weight: 500;
+      cursor: pointer; border: 1px solid var(--color-border); background: var(--color-surface);
+      color: var(--color-text);
+    }
+    .btn:hover { background: var(--color-surface-elevated); }
+    .btn-primary {
+      background: var(--color-primary); border-color: transparent; color: #fff;
+      box-shadow: var(--shadow-primary);
+    }
+    .search {
+      display: flex; align-items: center; gap: 8px; padding: 9px 12px; min-width: 220px;
+      border-radius: var(--radius-md); border: 1px solid var(--color-border);
+      background: rgba(255,255,255,0.03); color: var(--color-text-muted); font-size: var(--text-sm);
+    }
+    .search kbd {
+      margin-left: auto; font-size: 10px; padding: 2px 6px; border-radius: 4px;
+      border: 1px solid var(--color-border); color: var(--color-text-muted);
+    }
+
+    .bento {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 14px;
+    }
+    .tile {
+      grid-column: span 3;
+      position: relative;
+      border-radius: var(--radius-xl);
+      border: 1px solid var(--color-border-muted);
+      background: rgba(15, 15, 20, 0.55);
+      backdrop-filter: blur(14px);
+      padding: 18px;
+      min-height: 140px;
+      cursor: pointer;
+      transition: transform 0.2s ease, border-color 0.2s, box-shadow 0.2s;
+      overflow: hidden;
+      text-align: left;
+      color: inherit;
+      font: inherit;
+    }
+    .tile:hover {
+      transform: translateY(-2px);
+      border-color: rgba(99,102,241,0.45);
+      box-shadow: var(--shadow-md);
+    }
+    .tile.wide { grid-column: span 4; min-height: 160px; }
+    .tile.hero { grid-column: span 6; min-height: 180px; }
+    .tile .icon {
+      width: 42px; height: 42px; border-radius: 12px;
+      display: grid; place-items: center; margin-bottom: 14px;
+      background: var(--color-indigo-muted); color: var(--color-indigo);
+      font-size: 18px;
+    }
+    .tile h3 { margin: 0 0 6px; font-size: 1.05rem; font-weight: 600; }
+    .tile .desc { margin: 0; font-size: var(--text-sm); color: var(--color-text-muted); line-height: 1.4; }
+    .tile .meta {
+      margin-top: 14px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+    }
+    .pill {
+      font-size: 11px; padding: 3px 8px; border-radius: 999px;
+      background: rgba(255,255,255,0.06); color: var(--color-text-muted);
+    }
+    .pill.active { background: rgba(34,197,94,0.15); color: #4ade80; }
+    .pill.base { background: rgba(99,102,241,0.15); color: #a5b4fc; }
+    .star {
+      position: absolute; top: 12px; right: 12px;
+      width: 32px; height: 32px; border: none; border-radius: 8px;
+      background: transparent; color: var(--color-text-muted); cursor: pointer; font-size: 16px;
+    }
+    .star.on { color: #fbbf24; }
+    .star:hover { background: rgba(255,255,255,0.06); }
+
+    .tile.locked {
+      opacity: 0.72;
+      filter: saturate(0.7);
+    }
+    .tile.locked::after {
+      content: "";
+      position: absolute; inset: 0;
+      background: linear-gradient(135deg, rgba(0,0,0,0.15), rgba(0,0,0,0.45));
+      pointer-events: none;
+    }
+    .tile.locked .lock-badge {
+      position: absolute; bottom: 14px; right: 14px; z-index: 1;
+      font-size: 11px; padding: 4px 8px; border-radius: 6px;
+      background: rgba(0,0,0,0.55); border: 1px solid var(--color-border);
+      color: var(--color-text-muted);
+    }
+    .tile.disabled-admin {
+      opacity: 0.45;
+      outline: 1px dashed var(--color-border);
+    }
+
+    .dock {
+      position: absolute; left: 50%; bottom: 20px; transform: translateX(-50%);
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 14px; border-radius: 18px;
+      background: rgba(20,20,28,0.85); backdrop-filter: blur(16px);
+      border: 1px solid var(--color-border-muted);
+      box-shadow: var(--shadow-lg);
+      max-width: calc(100% - 48px);
+      overflow-x: auto;
+    }
+    .dock-label {
+      font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em;
+      color: var(--color-text-muted); padding: 0 6px; white-space: nowrap;
+    }
+    .dock-sep { width: 1px; height: 28px; background: var(--color-border); margin: 0 4px; }
+    .dock-item {
+      width: 44px; height: 44px; border-radius: 12px; border: 1px solid transparent;
+      background: var(--color-indigo-muted); color: var(--color-indigo);
+      display: grid; place-items: center; cursor: pointer; font-size: 14px; font-weight: 700;
+    }
+    .dock-item:hover { border-color: var(--color-indigo); }
+    .dock-item.fav { background: rgba(251,191,36,0.12); color: #fbbf24; }
+
+    .toast {
+      position: fixed; left: 50%; bottom: 88px; transform: translateX(-50%);
+      background: var(--color-surface-elevated); border: 1px solid var(--color-border);
+      padding: 10px 16px; border-radius: 10px; font-size: var(--text-sm);
+      opacity: 0; pointer-events: none; transition: opacity 0.2s; z-index: 50;
+    }
+    .toast.show { opacity: 1; }
+
+    /* Variant B — cinematic */
+    .v-b.hub {
+      background:
+        radial-gradient(900px 420px at 20% -10%, rgba(99,102,241,0.28), transparent 60%),
+        radial-gradient(700px 380px at 90% 10%, rgba(56,189,248,0.12), transparent 55%),
+        var(--color-bg);
+      padding-top: 40px;
+    }
+    .v-b .brand h1 { font-size: 1.75rem; letter-spacing: -0.02em; }
+    .v-b .tile {
+      background: linear-gradient(160deg, rgba(255,255,255,0.06), rgba(15,15,20,0.65));
+      box-shadow: 0 0 0 1px rgba(255,255,255,0.03) inset;
+    }
+    .v-b .tile.hero {
+      background:
+        linear-gradient(135deg, rgba(99,102,241,0.35), rgba(15,15,20,0.2) 50%),
+        rgba(15,15,20,0.55);
+    }
+    .v-b .tile.locked {
+      opacity: 0.85;
+      filter: blur(0.2px) saturate(0.55);
+    }
+    .v-b .tile.locked .icon { filter: grayscale(0.4); }
+    .v-b .enter-hint {
+      position: absolute; inset: auto 18px 18px 18px; z-index: 1;
+      font-size: 12px; color: #c7d2fe;
+    }
+
+    /* Variant C — launcher */
+    .v-c.hub {
+      background: linear-gradient(180deg, #0b0b12 0%, #12121a 40%, #0a0a0f 100%);
+      display: flex; flex-direction: column;
+    }
+    .v-c .bento {
+      grid-template-columns: repeat(6, 1fr);
+      gap: 12px;
+      max-width: 920px;
+      margin: 0 auto;
+      width: 100%;
+    }
+    .v-c .tile {
+      grid-column: span 1;
+      min-height: 120px;
+      border-radius: 20px;
+      text-align: center;
+      padding: 16px 12px;
+      align-items: center;
+    }
+    .v-c .tile.wide, .v-c .tile.hero { grid-column: span 1; min-height: 120px; }
+    .v-c .tile .icon { margin: 0 auto 10px; }
+    .v-c .tile .desc { display: none; }
+    .v-c .tile .meta { justify-content: center; }
+    .v-c .market-rail {
+      position: absolute; right: 24px; top: 110px; width: 200px;
+      padding: 16px; border-radius: 16px;
+      border: 1px dashed rgba(99,102,241,0.45);
+      background: rgba(99,102,241,0.08);
+    }
+    .v-c .market-rail h4 { margin: 0 0 8px; font-size: 13px; }
+    .v-c .market-rail p { margin: 0 0 12px; font-size: 12px; color: var(--color-text-muted); }
+    .v-c .dock {
+      bottom: 28px; padding: 12px 18px; border-radius: 22px;
+      background: rgba(10,10,16,0.92);
+    }
+    .v-c .dock-item { width: 52px; height: 52px; border-radius: 16px; font-size: 15px; }
+
+    #sketch-tools {
+      position: fixed; bottom: 12px; right: 12px; z-index: 9999;
+      font-family: system-ui; font-size: 12px; background: rgba(0,0,0,0.75); color: white;
+      padding: 8px 12px; border-radius: 8px; opacity: 0.4; transition: opacity 0.2s;
+      display: flex; gap: 8px; align-items: center;
+    }
+    #sketch-tools:hover { opacity: 1; }
+    #sketch-tools select, #sketch-tools button {
+      background: #222; color: #fff; border: 1px solid #444; border-radius: 4px; padding: 4px 6px; cursor: pointer;
+    }
+
+    @media (max-width: 900px) {
+      .tile, .tile.wide, .tile.hero { grid-column: span 6; }
+      .v-c .bento { grid-template-columns: repeat(3, 1fr); }
+      .v-c .market-rail { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div id="variant-nav">
+    <button type="button" class="variant-tab active" data-v="a">A: Safe — Glass bento</button>
+    <button type="button" class="variant-tab" data-v="b">B: Bold — Cinematic stage</button>
+    <button type="button" class="variant-tab" data-v="c">C: Bold — OS launcher</button>
+    <span class="hint">Phase 8 · Module Hub · star = favorite · click tile</span>
+  </div>
+
+  <div id="sketch-viewport">
+    <!-- VARIANT A -->
+    <section id="variant-a" class="variant active hub v-a" data-variant="a">
+      <div class="hub-top">
+        <div class="brand">
+          <div class="brand-mark">K</div>
+          <div>
+            <h1>Модули</h1>
+            <p>Выберите мир работы · marketplace-ready</p>
+          </div>
+        </div>
+        <div class="hub-actions">
+          <div class="search">Поиск модулей <kbd>⌘K</kbd></div>
+          <button type="button" class="btn" data-action="palette">Quick switcher</button>
+        </div>
+      </div>
+      <div class="bento" data-bento></div>
+      <div class="dock" data-dock></div>
+    </section>
+
+    <!-- VARIANT B -->
+    <section id="variant-b" class="variant hub v-b" data-variant="b">
+      <div class="hub-top">
+        <div class="brand">
+          <div class="brand-mark">K</div>
+          <div>
+            <h1>Krasterisk Universe</h1>
+            <p>Войдите в модуль · cinematic, short motion</p>
+          </div>
+        </div>
+        <div class="hub-actions">
+          <button type="button" class="btn btn-primary" data-action="palette">⌘K Switch</button>
+        </div>
+      </div>
+      <div class="bento" data-bento></div>
+      <div class="dock" data-dock></div>
+    </section>
+
+    <!-- VARIANT C -->
+    <section id="variant-c" class="variant hub v-c" data-variant="c">
+      <div class="hub-top" style="max-width:920px;margin:0 auto 20px;width:100%;">
+        <div class="brand">
+          <div class="brand-mark">K</div>
+          <div>
+            <h1>Launcher</h1>
+            <p>Модули как приложения · dock = recent + favorites</p>
+          </div>
+        </div>
+        <div class="hub-actions">
+          <div class="search">Find… <kbd>⌘K</kbd></div>
+        </div>
+      </div>
+      <div class="market-rail">
+        <h4>Marketplace</h4>
+        <p>Заблокированные модули — ghost tiles. Покупка в sketch 005.</p>
+        <button type="button" class="btn btn-primary" style="width:100%;justify-content:center;" data-action="market">Explore</button>
+      </div>
+      <div class="bento" data-bento></div>
+      <div class="dock" data-dock></div>
+    </section>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <div id="sketch-tools" onmouseenter="this.style.opacity=1" onmouseleave="this.style.opacity=0.4">
+    <select onchange="document.querySelector('link[href*=themes]').href='../themes/'+this.value+'.css'" title="Theme">
+      <option value="default">Default</option>
+    </select>
+    <button type="button" onclick="setViewport(375)">Phone</button>
+    <button type="button" onclick="setViewport(768)">Tablet</button>
+    <button type="button" onclick="setViewport(null)">Desktop</button>
+  </div>
+
+  <script>
+    const MODULES = [
+      { id: 'overview', name: 'Обзор', desc: 'Сводка тенанта · cross-cutting home', icon: '◈', status: 'active', kind: 'cross', wide: true },
+      { id: 'core', name: 'Core / PBX', desc: 'Endpoints, trunks, routes, phonebooks', icon: '☎', status: 'active', kind: 'base', hero: true },
+      { id: 'apps', name: 'Apps', desc: 'IVR, robots, queues, prompts, MOH', icon: '▦', status: 'active', kind: 'base' },
+      { id: 'system', name: 'System', desc: 'Users, roles, settings, Modules admin', icon: '⚙', status: 'active', kind: 'base' },
+      { id: 'cc', name: 'Call Center', desc: 'Agent · Supervisor · Reports', icon: '◉', status: 'locked', kind: 'market' },
+      { id: 'analytics', name: 'Analytics', desc: 'CDR · отчёты · audit', icon: '▣', status: 'locked', kind: 'market' },
+      { id: 'ai', name: 'AI Bots', desc: 'Голосовые ассистенты · agents', icon: '✦', status: 'locked', kind: 'market' },
+      { id: 'disabled', name: 'Legacy Sync', desc: 'Выключено admin тенанта', icon: '⊘', status: 'disabled', kind: 'extra' },
+    ];
+
+    const favorites = new Set(['core']);
+    const recent = ['apps', 'system', 'core'];
+
+    function toast(msg) {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.classList.add('show');
+      clearTimeout(toast._t);
+      toast._t = setTimeout(() => el.classList.remove('show'), 1600);
+    }
+
+    function pillFor(m) {
+      if (m.status === 'locked') return '<span class="pill">Locked · marketplace</span>';
+      if (m.status === 'disabled') return '<span class="pill">Disabled</span>';
+      if (m.kind === 'base') return '<span class="pill base">Base</span>';
+      if (m.kind === 'cross') return '<span class="pill active">Home</span>';
+      return '<span class="pill active">Active</span>';
+    }
+
+    function renderBento(root, variant) {
+      root.innerHTML = '';
+      MODULES.forEach((m, i) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'tile';
+        if (m.hero && variant !== 'c') btn.classList.add('hero');
+        if (m.wide && variant !== 'c') btn.classList.add('wide');
+        if (m.status === 'locked') btn.classList.add('locked');
+        if (m.status === 'disabled') btn.classList.add('disabled-admin');
+        btn.style.animationDelay = (i * 40) + 'ms';
+        const fav = favorites.has(m.id);
+        btn.innerHTML = `
+          <button type="button" class="star ${fav ? 'on' : ''}" data-star="${m.id}" title="Favorite">★</button>
+          <div class="icon">${m.icon}</div>
+          <h3>${m.name}</h3>
+          <p class="desc">${m.desc}</p>
+          <div class="meta">${pillFor(m)}</div>
+          ${m.status === 'locked' ? '<span class="lock-badge">🔒 Купить</span>' : ''}
+          ${variant === 'b' && m.status === 'active' ? '<div class="enter-hint">Enter →</div>' : ''}
+        `;
+        btn.addEventListener('click', (e) => {
+          if (e.target.closest('[data-star]')) return;
+          if (m.status === 'locked') toast('Ghost Locked → billing skeleton (sketch 005)');
+          else if (m.status === 'disabled') toast('Smart fallback: модуль выключен admin’ом');
+          else toast('Enter module: ' + m.name);
+        });
+        root.appendChild(btn);
+      });
+      root.querySelectorAll('[data-star]').forEach((star) => {
+        star.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const id = star.getAttribute('data-star');
+          if (favorites.has(id)) favorites.delete(id); else favorites.add(id);
+          document.querySelectorAll('.variant.active [data-bento]').forEach((b) => renderBento(b, document.querySelector('.variant.active').dataset.variant));
+          document.querySelectorAll('.variant.active [data-dock]').forEach(renderDock);
+          toast(favorites.has(id) ? 'Added to Favorites' : 'Removed from Favorites');
+        });
+      });
+    }
+
+    function renderDock(root) {
+      const favIds = [...favorites];
+      root.innerHTML = '<span class="dock-label">Recent</span>';
+      recent.forEach((id) => {
+        const m = MODULES.find((x) => x.id === id);
+        if (!m) return;
+        const el = document.createElement('button');
+        el.type = 'button';
+        el.className = 'dock-item';
+        el.title = m.name;
+        el.textContent = m.icon;
+        el.onclick = () => toast('Recent → ' + m.name);
+        root.appendChild(el);
+      });
+      root.insertAdjacentHTML('beforeend', '<div class="dock-sep"></div><span class="dock-label">Favorites</span>');
+      favIds.forEach((id) => {
+        const m = MODULES.find((x) => x.id === id);
+        if (!m) return;
+        const el = document.createElement('button');
+        el.type = 'button';
+        el.className = 'dock-item fav';
+        el.title = m.name;
+        el.textContent = m.icon;
+        el.onclick = () => toast('Favorite → ' + m.name);
+        root.appendChild(el);
+      });
+    }
+
+    function mountAll() {
+      document.querySelectorAll('.variant').forEach((section) => {
+        const v = section.dataset.variant;
+        renderBento(section.querySelector('[data-bento]'), v);
+        renderDock(section.querySelector('[data-dock]'));
+      });
+    }
+
+    document.querySelectorAll('.variant-tab').forEach((tab) => {
+      tab.addEventListener('click', () => {
+        const id = tab.dataset.v;
+        document.querySelectorAll('.variant-tab').forEach((t) => t.classList.remove('active'));
+        tab.classList.add('active');
+        document.querySelectorAll('.variant').forEach((v) => v.classList.remove('active'));
+        document.getElementById('variant-' + id).classList.add('active');
+      });
+    });
+
+    document.querySelectorAll('[data-action="palette"]').forEach((b) => {
+      b.addEventListener('click', () => toast('Quick switcher overlay (chip / ⌘K) — not Hub route'));
+    });
+    document.querySelectorAll('[data-action="market"]').forEach((b) => {
+      b.addEventListener('click', () => toast('Marketplace explore → sketch 005'));
+    });
+
+    function setViewport(w) {
+      const vp = document.getElementById('sketch-viewport');
+      if (!w) { vp.style.maxWidth = ''; return; }
+      vp.style.maxWidth = w + 'px';
+      vp.style.border = '1px solid var(--color-border)';
+      vp.style.borderRadius = '12px';
+    }
+
+    mountAll();
+  </script>
+</body>
+</html>
