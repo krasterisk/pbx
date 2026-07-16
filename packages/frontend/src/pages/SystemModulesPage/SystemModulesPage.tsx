@@ -6,6 +6,7 @@ import { TenantModulesPanel } from '@/features/modules/ui/TenantModulesPanel/Ten
 import { TenantRoleStartEditor } from '@/features/modules/ui/TenantRoleStartEditor/TenantRoleStartEditor';
 import { useAppSelector } from '@/shared/hooks/useAppStore';
 import { UserLevel } from '@krasterisk/shared';
+import cls from './SystemModulesPage.module.scss';
 
 type SystemTab = 'modules' | 'role-start';
 
@@ -18,16 +19,17 @@ export const SystemModulesPage = memo(function SystemModulesPage() {
     user?.level === UserLevel.ADMIN || user?.level === UserLevel.SUPERADMIN;
 
   return (
-    <VStack gap="16" max data-testid="system-modules-page">
-      <HStack gap="0" className="border-b border-border" max>
+    <VStack
+      gap="16"
+      max
+      className={cls.page}
+      data-testid="system-modules-page-responsive"
+    >
+      <HStack gap="0" className={cls.tabsRow} max>
         <button
           type="button"
           id="system-tab-modules"
-          className={`px-4 py-2 text-sm font-medium transition-colors ${
-            tab === 'modules'
-              ? 'border-b-2 border-primary text-primary'
-              : 'text-muted-foreground hover:text-foreground'
-          }`}
+          className={`${cls.tab} ${tab === 'modules' ? cls.tabActive : ''}`}
           onClick={() => setTab('modules')}
         >
           {t('nav.modules', 'Modules')}
@@ -36,11 +38,7 @@ export const SystemModulesPage = memo(function SystemModulesPage() {
           <button
             type="button"
             id="system-tab-role-start"
-            className={`px-4 py-2 text-sm font-medium transition-colors ${
-              tab === 'role-start'
-                ? 'border-b-2 border-primary text-primary'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
+            className={`${cls.tab} ${tab === 'role-start' ? cls.tabActive : ''}`}
             onClick={() => setTab('role-start')}
           >
             {t('system.roleStartTab')}
@@ -48,13 +46,19 @@ export const SystemModulesPage = memo(function SystemModulesPage() {
         )}
       </HStack>
 
-      {tab === 'modules' ? (
-        <TenantModulesPanel />
-      ) : canEditRoleStart ? (
-        <TenantRoleStartEditor />
-      ) : (
-        <Text variant="muted">{t('system.roleStartAdminOnly')}</Text>
-      )}
+      <div
+        className={`${cls.contentScroll} overflow-x-auto`}
+        data-testid="hybrid-table"
+        data-hybrid="overflow-x-auto"
+      >
+        {tab === 'modules' ? (
+          <TenantModulesPanel />
+        ) : canEditRoleStart ? (
+          <TenantRoleStartEditor />
+        ) : (
+          <Text variant="muted">{t('system.roleStartAdminOnly')}</Text>
+        )}
+      </div>
     </VStack>
   );
 });

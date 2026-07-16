@@ -2,8 +2,8 @@ import { memo, useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { ClipboardList } from 'lucide-react';
-import { Card, CardContent, Pagination, Text } from '@/shared/ui';
-import { VStack, HStack, Flex } from '@/shared/ui/Stack';
+import { Pagination, Text } from '@/shared/ui';
+import { VStack, Flex } from '@/shared/ui/Stack';
 import {
   AuditLogStats,
   AuditLogFilter,
@@ -57,20 +57,22 @@ const AuditLogPage = memo(() => {
   const failureCount = failures?.total ?? 0;
 
   return (
-    <VStack gap="24" max>
+    <VStack gap="24" max className={cls.page} data-testid="audit-log-page-responsive">
       {/* ── Page header ─────────────────────────────────── */}
-      <Flex align="center" gap="12">
+      <Flex align="center" gap="12" className="min-w-0">
         <Flex align="center" justify="center" className={cls.iconWrap}>
           <ClipboardList className={cls.pageIcon} />
         </Flex>
-        <VStack gap="2">
-          <Text variant="h1">{t('auditLog.pageTitle')}</Text>
+        <VStack gap="2" className="min-w-0">
+          <Text variant="h1" className={cls.pageTitle}>{t('auditLog.pageTitle')}</Text>
           <Text variant="muted">{t('auditLog.pageSubtitle')}</Text>
         </VStack>
       </Flex>
 
       {/* ── KPI cards ───────────────────────────────────── */}
-      <AuditLogStats stats={stats} isLoading={statsLoading} />
+      <div className={cls.statsScroll}>
+        <AuditLogStats stats={stats} isLoading={statsLoading} />
+      </div>
 
       {/* ── Main card ───────────────────────────────────── */}
       <div className={cls.card}>
@@ -99,8 +101,12 @@ const AuditLogPage = memo(() => {
           </div>
         )}
 
-        {/* Table */}
-        <div className={cls.tableWrap}>
+        {/* Table — D-29 page-level overflow hybrid */}
+        <div
+          className={`${cls.tableWrap} overflow-x-auto`}
+          data-testid="hybrid-table"
+          data-hybrid="overflow-x-auto"
+        >
           {tab === 'system' && (
             <AuditLogTable data={logs?.items ?? []} isLoading={logsLoading || isFetching} />
           )}
