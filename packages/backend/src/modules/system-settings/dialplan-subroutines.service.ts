@@ -9,6 +9,10 @@ import { DialplanSubroutinesUtil } from '../../shared/utils/dialplan-subroutines
  * File: krasterisk/subroutines/subroutines.conf
  * Auto-picked up by: #include krasterisk/*\/*.conf  (already in extensions.conf)
  *
+ * Ops (once per stand): AMI CreateConfig cannot mkdir — ensure parent dirs exist:
+ *   mkdir -p $AST_CONFIG_DIR/krasterisk/{groups,routes,phonebooks,subroutines}
+ *   && chown -R asterisk:asterisk $AST_CONFIG_DIR/krasterisk
+ *
  * Applied automatically on backend startup (onModuleInit + 5s delay for AMI connect).
  * Can be re-applied manually via POST /api/system-settings/apply-subroutines.
  *

@@ -19,9 +19,23 @@ export interface ApplyCategoriesResult {
 
 const BATCH_SIZE = 20;
 
+/** AMI CreateConfig O_CREAT|O_EXCL — file already present; UpdateConfig can proceed. */
+function isCreateConfigFileExistsError(message: string): boolean {
+  const m = message.toLowerCase();
+  return (
+    m.includes('already exists') ||
+    m.includes('file exists') ||
+    m.includes('eexist')
+  );
+}
+
 /**
- * DialplanApplyService — единая точка применения dialplan-контекстов через
- * AMI UpdateConfig (DelCat -> NewCat -> Append батчами -> опциональный reload).
+ * DialplanApplyService — единая точка применения dialplan-контекстов через AMI:
+ * CreateConfig (ensure empty file) → UpdateConfig (DelCat → NewCat → Append батчами)
+ * → опциональный dialplan reload.
+ *
+ * AMI CreateConfig cannot create parent directories — ops must mkdir
+ * krasterisk/{groups,routes,phonebooks,subroutines} under AST_CONFIG_DIR.
  *
  * Консолидирует батч-логику, ранее продублированную в routes.controller,
  * ai-webhook.controller, mcp-tools.service и dialplan-subroutines.service (D-22).
@@ -36,14 +50,38 @@ export class DialplanApplyService {
   constructor(private readonly amiService: AmiService) {}
 
   /**
-   * Applies one or more dialplan categories to a config file via AMI UpdateConfig,
-   * in the order given, then optionally reloads the dialplan once at the end.
+   * Ensures the config file exists via AMI CreateConfig (empty file).
+   * Idempotent when the file already exists; rethrows real failures
+   * (missing parent dir / true privileges) before UpdateConfig.
+   */
+  private async ensureConfigFile(filename: string): Promise<void> {
+    try {
+      await this.amiService.action({
+        action: 'CreateConfig',
+        filename,
+      });
+    } catch (e: any) {
+      const message = String(e?.message || e);
+      if (isCreateConfigFileExistsError(message)) {
+        return;
+      }
+      this.logger.error(`CreateConfig failed for ${filename}: ${message}`);
+      throw e;
+    }
+  }
+
+  /**
+   * Applies one or more dialplan categories to a config file via AMI:
+   * CreateConfig (ensure file) → UpdateConfig DelCat/NewCat/Append in the order given,
+   * then optionally reloads the dialplan once at the end.
    */
   async applyCategories(
     filename: string,
     categories: DialplanCategory[],
     opts: ApplyCategoriesOptions = {},
   ): Promise<ApplyCategoriesResult> {
+    await this.ensureConfigFile(filename);
+
     let totalLines = 0;
 
     for (const category of categories) {
