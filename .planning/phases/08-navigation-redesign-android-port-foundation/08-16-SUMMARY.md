@@ -82,7 +82,7 @@ Each task was committed atomically (TDD RED → GREEN):
 3. **Task 2 RED:** `331976e` (test) — AuditLog + SystemModules failing smokes
 4. **Task 2 GREEN:** `671e4ff` (feat) — AuditLog/SystemModules hybrid responsive
 
-**Plan metadata:** (docs commit follows)
+**Plan metadata:** `64a13b3` (docs: complete plan)
 
 ## Files Created/Modified
 
