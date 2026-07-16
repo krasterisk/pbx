@@ -36,13 +36,13 @@
 - **D-02:** **Hybrid Hub:** full-screen **Module Hub** (wow / marketplace) + **быстрый switcher** без обязательного возврата на Hub.
 - **D-03:** In-module nav — **per module type** через единый **nav registry**: dense (PBX/Settings) → sidebar/rail; sparse → tabs. Один API регистрации для marketplace modules.
 - **D-04:** Post-login — **role-aware default** + явная **матрица роль → стартовый модуль/экран**, конфигурируемая с максимальной гибкостью (per-tenant / per-role) в admin.
-- **D-05:** Hub visual = **Bento grid** модулей + **dock** (Recent + Favorites, star на карточке).
+- **D-05:** Hub visual (discuss framing) = bento grid + dock (Recent + Favorites). **Superseded for production chrome by D-11 sketch winner 002-E** (dense single-column Hub list, no dock) — see `08-UI-SPEC.md` traceability note. Conceptual Hybrid Hub (Hub route + quick switch without forced return) still stands; bento/dock visual treatment does **not**.
 - **D-06:** Quick switcher = **header chip** + **⌘K / Ctrl+K** command palette (модули + страницы текущего модуля).
 - **D-07:** Marketplace UI в Hub: **Active + ghost Locked** (blur/lock); registry поле `licenseStatus`. Полный store UX завязан на billing skeleton (D-30).
 - **D-08:** Hub = **route** (deep-linkable); quick switcher = **overlay**.
-- **D-09:** Motion = **cinematic but short** (staggered bento, короткий enter-module); уважать `prefers-reduced-motion`.
-- **D-10:** Клик по **логотипу** → всегда Module Hub.
-- **D-11:** Sketch strategy: **3 визуальных варианта** Hub/shell → выбор пользователя → один production winner (как Phase 2).
+- **D-09:** Motion = **cinematic but short**; уважать `prefers-reduced-motion`. **Production:** staggered **list-row** reveal on first Hub mount (002-E), not bento-cell stagger — per UI-SPEC / D-11 winner.
+- **D-10:** Клик по **логотипу** → всегда Module Hub (`/modules`).
+- **D-11:** Sketch strategy: **3 визуальных варианта** Hub/shell → выбор пользователя → один production winner. **Winner locked:** Hub **002-E**, ModuleShell tabs **003-B**, mobile **004-B**, marketplace **005-B**, platform admin **006-B** (`sketch-findings-krasterisk-v4` / UI-SPEC).
 
 ### IA / modules / marketplace
 - **D-12:** Baseline modules: **Base** = Core (PBX + pages) · Apps · System. **Marketplace (default)** = Analytics · Call Center · AI bots / related. Всё **конфигурируемо**.

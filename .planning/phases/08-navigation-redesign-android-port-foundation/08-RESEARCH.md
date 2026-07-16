@@ -579,21 +579,21 @@ const refresh = await SecureStorage.get('refreshToken');
 | A4 | Favorites can start as localStorage/Preferences per-user | UI-SPEC Hub | May need user prefs API for multi-device sync |
 | A5 | Tablet = same desktop shell at ≥768 (UI-SPEC) satisfies D-24 "dual-pane ≈ desktop" | Mobile | User may later want true dual-pane |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Commit policy for `android/` / `ios/` folders**
-   - What we know: Capacitor apps usually commit native projects.
-   - What's unclear: monorepo preference / CI artifact strategy.
-   - Recommendation: commit generated projects; gitignore keystores + `google-services.json`.
+1. **Commit policy for `android/` / `ios/` folders** — **RESOLVED**
+   - **Decision:** Commit generated `android/` and `ios/` projects under `packages/frontend/` (plan 08-10).
+   - **Gitignore:** keystores (`*.jks`, `*.keystore`), `google-services.json`, `local.properties`, and other secrets — never commit.
+   - Matches Capacitor default + plan 08-10 `user_setup` / Task 1 acceptance criteria.
 
-2. **Hub route path `/` vs `/modules`**
-   - What we know: Dashboard is currently `/`; Overview is cross-cutting tile.
-   - What's unclear: whether Hub replaces `/` or Dashboard remains `/` and Hub is `/modules`.
-   - Recommendation: **`/modules` = Hub**; post-login role→start may land on Overview `/` or CC; logo always → `/modules` (D-10). Keep `/` as Overview page inside/alongside Hub tile.
+2. **Hub route path `/` vs `/modules`** — **RESOLVED**
+   - **Decision:** **`/modules` = Module Hub** (002-E); logo always navigates to `/modules` (D-10).
+   - **`/` remains Overview** (Dashboard) as cross-cutting tile / role→start target; post-login may land on Overview `/` or CC per D-16.
+   - Locked in plans 08-03 / 08-04 and UI-SPEC Hub route contract.
 
-3. **BOX mode license UX**
-   - What we know: `tenantHasModule` returns true for all in non-CLOUD.
-   - Recommendation: Hub still shows structure; Marketplace locked tiles hidden or shown as "cloud-only" via `requires_cloud`.
+3. **BOX mode license UX** — **RESOLVED**
+   - **Decision:** Hub still shows Active module structure in BOX; Marketplace locked tiles are hidden or shown as cloud-only via `requires_cloud` on hub_modules (plan 08-02 Task 2).
+   - `tenantHasModule` unlock-all in non-CLOUD remains; `licenseStatus` mapping treats base as active; market modules gated by `requires_cloud` when not CLOUD.
 
 ## Environment Availability
 
