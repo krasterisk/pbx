@@ -450,7 +450,7 @@ Plans:
 - [x] `08-04-PLAN.md` — Wave 3: ⌘K palette, deep-link fallback, legacy redirects
 - [x] `08-05-PLAN.md` — Wave 4: Platform `/platform/*` vs tenant System→Modules
 - [x] `08-06-PLAN.md` — Wave 5: Billing checkout skeleton (charge + activate)
-- [ ] `08-07-PLAN.md` — Wave 6: Phone bottom bar 004-B + chip Sheet
+- [x] `08-07-PLAN.md` — Wave 6: Phone bottom bar 004-B + chip Sheet
 - [ ] `08-08-PLAN.md` — Wave 7: Users/Roles/Numbers + role→start admin
 - [ ] `08-09-PLAN.md` — Wave 8a: Responsive — Dashboard/Core critical + CC agent sticky softphone
 - [ ] `08-14-PLAN.md` — Wave 8b: Responsive — Core rest (Trunks/Contexts/TimeGroups/ProvisionTemplates)

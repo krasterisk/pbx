@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Ready to execute
-last_updated: "2026-07-16T17:48:00.000Z"
+last_updated: "2026-07-16T17:54:17.383Z"
 progress:
   total_phases: 8
   completed_phases: 5
   total_plans: 68
   completed_plans: 59
-  percent: 87
+  percent: 63
 ---
 
 # State
@@ -17,7 +17,7 @@ progress:
 ## Current position
 
 Phase: 8 (navigation-redesign-android-port-foundation) — EXECUTING
-Plan: 08-06 complete (PurchaseModuleService + CheckoutSheet); next incomplete 08-07
+Plan: 08-07 complete (MobileBottomBar 004-B + chip Sheet); next incomplete 08-08
 Phase 7 — Call Center: gap closure complete (07-21, 07-22); re-UAT / `/gsd-verify-work 7` still available in parallel.
 Phase 5 — Phonebooks AI: plans executed (verify/UAT may remain).  
 Phase 6 — Dialplan Apps: **06-01–06-16 executed** (gap closures done). Re-UAT after ops mkdir for krasterisk subdirs; UAT Tests 5–6 hint duplication fixed.
@@ -111,6 +111,8 @@ Phase 1 — MOH: pending verify.
 - [Phase 08]: Hub market prices via LEGACY_HUB_LICENSE_CODES paid registry codes (08-06)
 - [Phase 08]: Purchase JWT tenant_id with vpbx_user_uid fallback to tenants.id (08-06)
 - [Phase 08]: CheckoutSheet 005-B plan→confirm→success wired to POST /marketplace/purchase (08-06)
+- [Phase 08]: Phone More sheet lists non-primary modules; locked shortcuts go Hub (T-08-12)
+- [Phase 08]: ModuleChip Sheet on phone / DropdownMenu on desktop via useIsMobile(768)
 
 ## Roadmap Evolution
 
@@ -172,3 +174,4 @@ Phase 1 — MOH: pending verify.
 | Phase 08 P04 | 10min | 2 tasks | 11 files |
 | Phase 08 P05 | 11min | 3 tasks | 22 files |
 | Phase 08 P06 | 12min | 2 tasks | 16 files |
+| Phase 08 P07 | 8min | 2 tasks | 9 files |
