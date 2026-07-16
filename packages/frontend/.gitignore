@@ -1,0 +1,10 @@
+# Capacitor / native secrets (NAV-10 / D-30)
+*.jks
+*.keystore
+google-services.json
+**/google-services.json
+android/local.properties
+**/local.properties
+
+# Vite build output (synced into native projects)
+dist/
