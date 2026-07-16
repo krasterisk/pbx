@@ -21,5 +21,5 @@
 | 002 | module-hub-desktop | Which Module Hub (bento+dock+Locked) for Phase 8? | **E** — Minimal workspace list | hub, phase-8, navigation, marketplace |
 | 003 | in-module-shell | Dense sidebar vs sparse tabs + chip/⌘K? | **B** — Top tabs | shell, phase-8, navigation |
 | 004 | module-hub-mobile | Hub-first phone + tablet dual-pane? | **B** — Hub list + bottom bar | mobile, phase-8, hub |
-| 005 | module-marketplace-billing | Ghost Locked + purchase/billing skeleton UX? | — (in review) | marketplace, billing, phase-8 |
-| 006 | platform-modules-admin | Super-admin catalog vs tenant enable UI? | — | admin, platform, phase-8 |
+| 005 | module-marketplace-billing | Ghost Locked + purchase/billing skeleton UX? | **B** — Marketplace section | marketplace, billing, phase-8 |
+| 006 | platform-modules-admin | Super-admin catalog vs tenant enable UI? | — (in review) | admin, platform, phase-8 |

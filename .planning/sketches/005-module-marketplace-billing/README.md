@@ -2,7 +2,7 @@
 sketch: 005
 name: module-marketplace-billing
 question: "How should ghost Locked modules and billing-skeleton checkout feel in Hub E + mobile B?"
-winner: null
+winner: B
 tags: [marketplace, billing, phase-8]
 phase: 08
 ---
@@ -29,6 +29,10 @@ phase: 08
 - Distinguish Locked (need buy) vs Disabled (admin off)
 - Checkout skeleton: plan → confirm → success (no real payment)
 - Fit with tenant-admin vs super-admin split (006 next)
+
+## Winner (2026-07-16)
+
+**Variant B — Marketplace section in Hub.** Active modules stay a clean minimal list (002-E); Locked modules live in a dedicated Marketplace block with price + Buy → checkout skeleton. Distinguishes upsell from daily nav without modal-heavy store (C) or mixing Locked into the main list (A).
 
 ## Mapping to React (post-winner)
 
