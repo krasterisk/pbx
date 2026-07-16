@@ -48,11 +48,11 @@ export function AiAgentsPage() {
     !id ? '—' : (toolsets.find(t => t.uid === id)?.name || `#${id}`);
 
   return (
-    <VStack gap="24" max>
-      <HStack justify="between" align="center" className="flex-col sm:flex-row gap-4" max>
-        <VStack gap="4">
+    <VStack gap="24" max className={styles.page} data-testid="ai-agents-page-responsive">
+      <HStack justify="between" align="center" className="flex-col sm:flex-row gap-4 min-w-0" max>
+        <VStack gap="4" className="min-w-0">
           <HStack gap="12" align="center">
-            <Bot className="w-7 h-7 text-primary" />
+            <Bot className="w-7 h-7 text-primary shrink-0" />
             <h1 className="text-2xl font-bold">
               {t('aiAgents.title', 'AI Agents')}
             </h1>
@@ -62,15 +62,15 @@ export function AiAgentsPage() {
           </p>
         </VStack>
 
-        <HStack gap="8">
+        <HStack gap="8" className="w-full sm:w-auto">
           {tab === 'agents' && (
-            <Button onClick={() => { setEditingAgent(null); setAgentModalOpen(true); }}>
+            <Button className={styles.createBtn} onClick={() => { setEditingAgent(null); setAgentModalOpen(true); }}>
               <Plus className="w-4 h-4 mr-2" />
               {t('aiAgents.newAgent', 'New AI Agent')}
             </Button>
           )}
           {tab === 'providers' && (
-            <Button onClick={() => { setEditingProvider(null); setProviderModalOpen(true); }}>
+            <Button className={styles.createBtn} onClick={() => { setEditingProvider(null); setProviderModalOpen(true); }}>
               <Plus className="w-4 h-4 mr-2" />
               {t('aiAgents.newProvider', 'New Provider')}
             </Button>
@@ -81,6 +81,7 @@ export function AiAgentsPage() {
       {/* Tabs */}
       <div className={styles.tabs}>
         <button
+          type="button"
           className={`${styles.tab} ${tab === 'agents' ? styles.tabActive : ''}`}
           onClick={() => setTab('agents')}
         >
@@ -89,6 +90,7 @@ export function AiAgentsPage() {
           <span className={styles.tabBadge}>{agents.length}</span>
         </button>
         <button
+          type="button"
           className={`${styles.tab} ${tab === 'providers' ? styles.tabActive : ''}`}
           onClick={() => setTab('providers')}
         >
@@ -97,6 +99,7 @@ export function AiAgentsPage() {
           <span className={styles.tabBadge}>{providers.length}</span>
         </button>
         <button
+          type="button"
           className={`${styles.tab} ${tab === 'toolsets' ? styles.tabActive : ''}`}
           onClick={() => setTab('toolsets')}
         >
@@ -106,9 +109,13 @@ export function AiAgentsPage() {
         </button>
       </div>
 
-      {/* ─── Agents ─── */}
+      {/* ─── Agents — D-29 page-level overflow hybrid ─── */}
       {tab === 'agents' && (
-        <div className={styles.tableWrap}>
+        <div
+          className={`${styles.tableWrap} overflow-x-auto`}
+          data-testid="hybrid-table"
+          data-hybrid="overflow-x-auto"
+        >
           {agents.length === 0 ? (
             <EmptyState
               icon={<Bot className="w-12 h-12 opacity-50" />}
@@ -149,6 +156,7 @@ export function AiAgentsPage() {
                     <td>{toolsetName(a.toolset_id)}</td>
                     <td>
                       <button
+                        type="button"
                         className={styles.toggleBtn}
                         onClick={() => updateAgent({ id: a.uid, data: { enabled: !a.enabled } })}
                         title={t('aiAgents.toggleHint', 'Toggle enabled')}
@@ -186,7 +194,11 @@ export function AiAgentsPage() {
 
       {/* ─── Providers ─── */}
       {tab === 'providers' && (
-        <div className={styles.tableWrap}>
+        <div
+          className={`${styles.tableWrap} overflow-x-auto`}
+          data-testid="hybrid-table"
+          data-hybrid="overflow-x-auto"
+        >
           {providers.length === 0 ? (
             <EmptyState
               icon={<Plug className="w-12 h-12 opacity-50" />}
