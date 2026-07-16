@@ -91,7 +91,7 @@ Each task was committed atomically:
 3. **Task 3: Scheduler + CRUD service/controller/DTO** — `ce86e25` (feat)
 4. **Task 4: RTK schedules + ReportSchedulesManager + i18n** — `7b730ca` (feat)
 
-**Plan metadata:** (docs commit below)
+**Plan metadata:** `eb34408` (docs: complete plan)
 
 ## Files Created/Modified
 
