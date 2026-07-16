@@ -5,6 +5,8 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { Tenant } from './tenant.model';
 import { ModuleRegistry } from './module-registry.model';
 import { TenantModule } from './tenant-module.model';
+import { HubModule } from './models/hub-module.model';
+import { HubModulePage } from './models/hub-module-page.model';
 import { User } from '../users/user.model';
 import { TenantsService } from './tenants.service';
 import { TenantsController } from './tenants.controller';
@@ -21,7 +23,10 @@ import { CloudSettingsController } from './cloud-settings.controller';
 
 @Module({
   imports: [
-    SequelizeModule.forFeature([Tenant, ModuleRegistry, TenantModule, User, CloudSetting]),
+    SequelizeModule.forFeature([
+      Tenant, ModuleRegistry, TenantModule, User, CloudSetting,
+      HubModule, HubModulePage,
+    ]),
     UsersModule,
     LoggerModule,
     MailerModule,

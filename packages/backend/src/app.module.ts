@@ -29,6 +29,8 @@ import { ServiceRequestsModule } from './modules/service-requests/service-reques
 import { TimeGroupsModule } from './modules/time-groups/time-groups.module';
 import { PhonebooksModule } from './modules/phonebooks/phonebooks.module';
 import { CallGroupsModule } from './modules/call-groups/call-groups.module';
+import { CallGroup } from './modules/call-groups/call-group.model';
+import { CallGroupMember } from './modules/call-groups/call-group-member.model';
 import { SmsModule } from './modules/sms/sms.module';
 import { CloudAdminModule } from './modules/cloud-admin/cloud-admin.module';
 import { AiChatModule } from './modules/ai-chat/ai-chat.module';
@@ -64,6 +66,8 @@ import { Tenant } from './modules/cloud-admin/tenant.model';
 import { ModuleRegistry } from './modules/cloud-admin/module-registry.model';
 import { TenantModule } from './modules/cloud-admin/tenant-module.model';
 import { CloudSetting } from './modules/cloud-admin/cloud-setting.model';
+import { HubModule } from './modules/cloud-admin/models/hub-module.model';
+import { HubModulePage } from './modules/cloud-admin/models/hub-module-page.model';
 import { BillingBalance } from './modules/cloud-admin/billing/models/billing-balance.model';
 import { BillingTransaction } from './modules/cloud-admin/billing/models/billing-transaction.model';
 import { Queue } from './modules/queues/queue.model';
@@ -145,8 +149,10 @@ import * as path from 'path';
         TimeGroup,
         RoutePhonebook, PhonebookEntry, RoutePhonebookBinding,
         NotificationIntegration,
+        CallGroup, CallGroupMember,
         // Cloud-admin
         Tenant, ModuleRegistry, TenantModule, CloudSetting,
+        HubModule, HubModulePage,
         BillingBalance, BillingTransaction,
       ],
       autoLoadModels: false,
