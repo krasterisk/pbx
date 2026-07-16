@@ -1,48 +1,74 @@
 ---
-status: testing
+status: complete
 phase: 07-call-center-overhaul-professional-agent-supervisor-workspace
 source: [07-VERIFICATION.md]
 started: 2026-07-16T04:30:00Z
-updated: 2026-07-16T04:30:00Z
+updated: 2026-07-16T11:39:00Z
 ---
 
 ## Current Test
 
-number: 1
-name: Full agent happy-path on /callcenter/agent
-expected: |
-  Login → inbound queue call → card auto-opens with phonebook data → hold/transfer → wrap-up → call appears in reports
-awaiting: user response
+[testing complete]
 
 ## Tests
 
-### 1. Full agent happy-path on /callcenter/agent
-expected: Login → inbound queue call → card auto-opens with phonebook data → hold/transfer → wrap-up → call appears in reports
-result: [pending]
+### 1. Полный сценарий оператора на /callcenter/agent
+expected: Войти в АРМ → входящий звонок из очереди → карточка звонка открывается с данными из телефонной книги → удержание/перевод → поствызовная обработка (wrap-up) → звонок появляется в отчётах
+result: issue
+reported: "при входе в АРМ и начале смены - статусы не меняются, при выборе номера, смена не начинается. Карточка звонка не открывается, удержание\\перевод, поствызывная обработка не появляется, в отчётах звонков нет. Полный провал"
+severity: blocker
 
-### 2. WebRTC browser mode end-to-end
-expected: ShiftLoginModal WebRTC mode registers over WSS; answer/hold/mute/DTMF/transfer work entirely in browser
-result: [pending]
+### 2. WebRTC-режим в браузере (сквозной)
+expected: В ShiftLoginModal режим WebRTC регистрируется по WSS; ответ/удержание/mute/DTMF/перевод работают полностью в браузере
+result: issue
+reported: "Вообще ничего не работает"
+severity: blocker
 
-### 3. Wallboard TV display-token flow (07-13)
-expected: Create token on settings → open /callcenter/wallboard?token=… without login → KPI/agents/queues; revoke stops SSE
-result: [pending]
+### 3. Wallboard TV по display-токену
+expected: Создать токен в настройках → открыть /callcenter/wallboard?token=… без логина → видны KPI/агенты/очереди; отзыв токена останавливает SSE
+result: blocked
+blocked_by: prior-phase
+reason: "Вообще ничего не работает — АРМ/смена не стартует, зависимые сценарии не проверялись"
 
-### 4. Role-based nav DOM presence
-expected: Operator sees only АРМ оператора; supervisor sees agent/supervisor/wallboard/reports; admin also sees settings; operator deep-link to /callcenter/supervisor redirects home
-result: [pending]
+### 4. Навигация по ролям
+expected: Оператор видит только «АРМ оператора»; супервизор — agent/supervisor/wallboard/reports; админ ещё и settings; deep-link оператора на /callcenter/supervisor уводит на главную
+result: blocked
+blocked_by: prior-phase
+reason: "Вообще ничего не работает — АРМ/смена не стартует, зависимые сценарии не проверялись"
 
-### 5. Settings D-40 pause-reasons + operator picker (gap closure 07-19)
-expected: Admin opens /callcenter/settings → Причины пауз CRUD works; Настройки операторов → pick another operator → save persists via /operator/:operatorId
-result: [pending]
+### 5. Настройки: причины пауз и выбор оператора
+expected: Админ открывает /callcenter/settings → CRUD «Причины пауз» работает; «Настройки операторов» → выбрать другого оператора → сохранение через /operator/:operatorId
+result: blocked
+blocked_by: prior-phase
+reason: "Вообще ничего не работает — АРМ/смена не стартует, зависимые сценарии не проверялись"
 
 ## Summary
 
 total: 5
 passed: 0
-issues: 0
-pending: 5
+issues: 2
+pending: 0
 skipped: 0
-blocked: 0
+blocked: 3
 
 ## Gaps
+
+- truth: "Войти в АРМ → входящий звонок из очереди → карточка звонка открывается с данными из телефонной книги → удержание/перевод → поствызовная обработка (wrap-up) → звонок появляется в отчётах"
+  status: failed
+  reason: "User reported: при входе в АРМ и начале смены - статусы не меняются, при выборе номера, смена не начинается. Карточка звонка не открывается, удержание/перевод, поствызывная обработка не появляется, в отчётах звонков нет. Полный провал"
+  severity: blocker
+  test: 1
+  root_cause: ""
+  artifacts: []
+  missing: []
+  debug_session: ""
+
+- truth: "В ShiftLoginModal режим WebRTC регистрируется по WSS; ответ/удержание/mute/DTMF/перевод работают полностью в браузере"
+  status: failed
+  reason: "User reported: Вообще ничего не работает"
+  severity: blocker
+  test: 2
+  root_cause: ""
+  artifacts: []
+  missing: []
+  debug_session: ""
