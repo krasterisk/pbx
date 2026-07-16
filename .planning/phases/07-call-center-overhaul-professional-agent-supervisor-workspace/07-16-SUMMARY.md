@@ -80,7 +80,7 @@ completed: 2026-07-16
 2. **Task 2: CallCenterAiAdapter + MCP tools** - `1d27150` (feat)
 3. **Task 3: Media PCM skeleton + license-gate** - `8c5f912` (feat)
 
-**Plan metadata:** _(see docs commit below)_
+**Plan metadata:** `00f7170` (docs: complete plan)
 
 ## Files Created/Modified
 
