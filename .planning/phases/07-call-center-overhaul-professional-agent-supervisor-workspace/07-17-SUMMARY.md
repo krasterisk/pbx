@@ -68,6 +68,8 @@ completed: 2026-07-16
 1. **Task 1: QueueManagementModal (DnD add/remove/penalty) + wire** - `b9d9210` (feat)
 2. **Task 2: BulkActionsBar + row selection wiring** - `878e773` (feat)
 
+**Plan metadata:** `6d717bc` (docs: complete Supervisor OPS plan)
+
 ## Files Created/Modified
 
 - `QueueManagementModal.tsx` — agent queue membership DnD + penalty via RTK
