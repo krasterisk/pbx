@@ -81,6 +81,8 @@ Each task was committed atomically:
 2. **Task 2: CallCenterWallboardPage + public route** - `98bca96` (feat)
 3. **Task 3: DisplayTokensManager + AlertRoutingForm** - `e08f229` (feat)
 
+**Plan metadata:** `522083a` (docs: complete Wallboard UI plan)
+
 ## Files Created/Modified
 
 - `useWallboardSSE.ts` — EventSource to `/callcenter/wallboard/events?token=`
