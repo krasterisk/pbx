@@ -77,7 +77,7 @@ Each task was committed atomically:
 2. **Task 2: Reports types + service + DTO + specs** — `ddc8ead` (feat)
 3. **Task 3: CSV/XLSX exporters + controller** — `7ba1ee9` (feat)
 
-**Plan metadata:** see docs commit after this SUMMARY
+**Plan metadata:** `cd8ae19` (docs: complete plan)
 
 ## Files Created/Modified
 
