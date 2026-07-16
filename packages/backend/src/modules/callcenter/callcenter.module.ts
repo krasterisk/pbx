@@ -30,6 +30,10 @@ import { CallCenterWallboardController } from './callcenter-wallboard.controller
 import { CallCenterAlertService } from './callcenter-alert.service';
 import { CallCenterReportsService } from './reports/callcenter-reports.service';
 import { CallCenterReportsController } from './reports/callcenter-reports.controller';
+import { CallCenterReportDeliveryService } from './reports/callcenter-report-delivery.service';
+import { CallCenterReportSchedulesService } from './reports/callcenter-report-schedules.service';
+import { CallCenterReportSchedulerService } from './reports/callcenter-report-scheduler.service';
+import { CallCenterReportSchedulesController } from './reports/callcenter-report-schedules.controller';
 import { CallCenterWebrtcController } from './callcenter-webrtc.controller';
 import { DisplayTokenGuard } from './guards/display-token.guard';
 import { CcPauseReason } from './models/pause-reason.model';
@@ -119,6 +123,9 @@ import { queueLogReaderProvider } from './queuelog/queue-log-reader.factory';
     CallCenterWallboardService,
     CallCenterAlertService,
     CallCenterReportsService,
+    CallCenterReportDeliveryService,
+    CallCenterReportSchedulesService,
+    CallCenterReportSchedulerService,
     DisplayTokenGuard,
   ],
   controllers: [
@@ -129,6 +136,7 @@ import { queueLogReaderProvider } from './queuelog/queue-log-reader.factory';
     CallCenterChatController,
     CallCenterWallboardController,
     CallCenterReportsController,
+    CallCenterReportSchedulesController,
     CallCenterWebrtcController,
   ],
   exports: [
