@@ -16,31 +16,32 @@ export const DashboardPage = () => {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 min-w-0 max-w-full" data-testid="dashboard-responsive">
       {/* Welcome */}
-      <div>
-        <h1 className="text-2xl font-bold">
+      <div className="min-w-0">
+        <h1 className="text-2xl font-bold break-words">
           {t('dashboard.welcome')}, <span className="gradient-text">{user?.name || 'Admin'}</span>
         </h1>
         <p className="text-muted-foreground mt-1">{t('dashboard.systemOverview')}</p>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+      {/* Stats Grid — single column under 640px (D-27) */}
+      <div className="grid grid-cols-1 min-[640px]:grid-cols-2 xl:grid-cols-4 gap-4 min-w-0">
         {statsCards.map((stat, i) => (
           <motion.div
             key={stat.title}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.1, duration: 0.4 }}
+            className="min-w-0"
           >
-            <Card className="hover:border-primary/30 transition-colors group cursor-default">
-              <CardContent className="flex items-center gap-4">
-                <div className={`p-3 rounded-xl ${stat.bgColor} transition-transform group-hover:scale-110`}>
+            <Card className="hover:border-primary/30 transition-colors group cursor-default min-w-0">
+              <CardContent className="flex items-center gap-4 min-w-0">
+                <div className={`p-3 rounded-xl shrink-0 ${stat.bgColor} transition-transform group-hover:scale-110`}>
                   <stat.icon className={`w-6 h-6 ${stat.color}`} />
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">{stat.title}</p>
+                <div className="min-w-0">
+                  <p className="text-sm text-muted-foreground truncate">{stat.title}</p>
                   <p className="text-2xl font-bold mt-0.5">{stat.value}</p>
                 </div>
               </CardContent>
@@ -50,7 +51,7 @@ export const DashboardPage = () => {
       </div>
 
       {/* Panels row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 min-w-0">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}

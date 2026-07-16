@@ -18,16 +18,16 @@ export const QueuesPage = () => {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
     >
-      <VStack gap="16" max>
+      <VStack gap="16" max className="min-w-0 max-w-full">
         {/* Toolbar */}
-        <HStack justify="between" align="center" max>
+        <HStack justify="between" align="center" className="flex-col sm:flex-row gap-4 min-w-0" max>
           <HStack gap="8" align="center">
-            <ListOrdered className="w-6 h-6 text-primary" />
+            <ListOrdered className="w-6 h-6 text-primary shrink-0" />
             <h1 className="text-2xl font-bold">{t('queues.title', 'Очереди')}</h1>
           </HStack>
           <Button
             onClick={() => dispatch(queuesPageActions.openCreateModal())}
-            className="gap-2"
+            className="gap-2 w-full sm:w-auto"
           >
             <Plus className="w-4 h-4" />
             {t('queues.addQueue', 'Создать очередь')}
@@ -35,7 +35,7 @@ export const QueuesPage = () => {
         </HStack>
 
         {/* Table */}
-        <Card>
+        <Card className="min-w-0 overflow-hidden">
           <CardContent className="p-0">
             <QueuesTable />
           </CardContent>

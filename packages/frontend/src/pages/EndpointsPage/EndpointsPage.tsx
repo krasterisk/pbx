@@ -23,22 +23,26 @@ export const EndpointsPage = () => {
   const dispatch = useAppDispatch();
 
   return (
-    <VStack gap="24" max>
+    <VStack gap="24" max className="min-w-0 max-w-full">
       {/* Header */}
-      <HStack justify="between" align="center" className="flex-col sm:flex-row gap-4" max>
+      <HStack justify="between" align="center" className="flex-col sm:flex-row gap-4 min-w-0" max>
         <HStack gap="12" align="center">
-          <Phone className="w-7 h-7 text-primary" />
+          <Phone className="w-7 h-7 text-primary shrink-0" />
           <h1 className="text-2xl font-bold">{t('endpoints.title')}</h1>
         </HStack>
-        <HStack gap="8">
+        <HStack gap="8" className="w-full sm:w-auto flex-col sm:flex-row">
           <Button
             variant="outline"
             onClick={() => dispatch(endpointsPageActions.openBulkModal())}
+            className="w-full sm:w-auto"
           >
             <Layers className="w-4 h-4 mr-2" />
             {t('endpoints.addRange')}
           </Button>
-          <Button onClick={() => dispatch(endpointsPageActions.openCreateModal())}>
+          <Button
+            onClick={() => dispatch(endpointsPageActions.openCreateModal())}
+            className="w-full sm:w-auto"
+          >
             <Plus className="w-4 h-4 mr-2" />
             {t('endpoints.addEndpoint')}
           </Button>

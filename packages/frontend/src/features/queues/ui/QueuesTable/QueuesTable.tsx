@@ -1,9 +1,10 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ColumnDef } from '@tanstack/react-table';
 import { Pencil, Trash2, Copy } from 'lucide-react';
-import { DataTable, HStack, Button } from '@/shared/ui';
+import { DataTable, HStack, Button, Text, VStack } from '@/shared/ui';
 import { useAppDispatch } from '@/shared/hooks/useAppStore';
+import { useIsMobile } from '@/shared/hooks/useIsMobile';
 import { useGetQueuesQuery, useDeleteQueueMutation } from '@/shared/api/endpoints/queueApi';
 import { queuesPageActions } from '../../model/slice/queuesPageSlice';
 import { IQueue } from '../../model/types/queuesSchema';
@@ -21,9 +22,11 @@ const STRATEGY_LABELS: Record<string, string> = {
 export const QueuesTable = () => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
+  const isMobile = useIsMobile(768);
   const { data: queues = [], isLoading } = useGetQueuesQuery();
   const [deleteQueue] = useDeleteQueueMutation();
   const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
+  const [globalFilter, setGlobalFilter] = useState('');
 
   const handleEdit = useCallback((name: string) => {
     dispatch(queuesPageActions.openEditModal(name));
@@ -37,6 +40,17 @@ export const QueuesTable = () => {
   const handleCopy = useCallback((name: string) => {
     dispatch(queuesPageActions.openCopyModal(name));
   }, [dispatch]);
+
+  const filtered = useMemo(() => {
+    const q = globalFilter.trim().toLowerCase();
+    if (!q) return queues;
+    return queues.filter((row) => {
+      const exten = (row.exten || row.name || '').toLowerCase();
+      const display = (row.display_name || '').toLowerCase();
+      const strategy = (row.strategy || '').toLowerCase();
+      return exten.includes(q) || display.includes(q) || strategy.includes(q);
+    });
+  }, [queues, globalFilter]);
 
   const columns: ColumnDef<IQueue>[] = [
     {
@@ -126,16 +140,85 @@ export const QueuesTable = () => {
     },
   ];
 
+  // D-29 hybrid: critical columns as cards on phone
+  if (isMobile) {
+    return (
+      <div data-testid="hybrid-table" data-hybrid="mobile-card" className="p-3">
+        <input
+          type="search"
+          value={globalFilter}
+          onChange={(e) => setGlobalFilter(e.target.value)}
+          placeholder={t('common.search')}
+          className="mb-3 w-full h-9 rounded-md border border-border bg-background px-3 text-sm min-w-0"
+          aria-label={t('common.search')}
+        />
+        <VStack gap="8" max>
+          {isLoading ? (
+            <Text variant="muted" className="py-8 text-center w-full">{t('common.loading', '…')}</Text>
+          ) : filtered.length === 0 ? (
+            <Text variant="muted" className="py-8 text-center w-full">
+              {t('queues.noQueues', 'Нет очередей')}
+            </Text>
+          ) : (
+            filtered.map((row) => (
+              <div
+                key={row.name}
+                className="rounded-lg border border-border/60 bg-muted/10 p-3 mobile-card"
+              >
+                <HStack justify="between" align="start" max>
+                  <VStack gap="4">
+                    <Text className="font-mono font-semibold">{row.exten || row.name}</Text>
+                    <Text className="text-sm">{row.display_name || '—'}</Text>
+                    <Text variant="muted" className="text-xs">
+                      {STRATEGY_LABELS[row.strategy || ''] || row.strategy || '—'}
+                      {' · '}
+                      {row.memberCount || 0} {t('queues.members', 'Операторы').toLowerCase()}
+                    </Text>
+                  </VStack>
+                  <HStack gap="4">
+                    <button
+                      className="p-1.5 rounded-md hover:bg-white/5 text-muted-foreground"
+                      title={t('common.edit')}
+                      onClick={() => handleEdit(row.name)}
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                    <button
+                      className="p-1.5 rounded-md hover:bg-white/5 text-muted-foreground"
+                      title={t('common.copy')}
+                      onClick={() => handleCopy(row.name)}
+                    >
+                      <Copy className="w-4 h-4" />
+                    </button>
+                    <button
+                      className="p-1.5 rounded-md hover:bg-red-500/10 text-muted-foreground hover:text-red-400"
+                      title={t('common.delete')}
+                      onClick={() => handleDelete(row.name)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </HStack>
+                </HStack>
+              </div>
+            ))
+          )}
+        </VStack>
+      </div>
+    );
+  }
+
   return (
-    <DataTable
-      columns={columns}
-      data={queues}
-      getRowId={(row: any) => row.name}
-      selectable={false}
-      rowSelection={rowSelection}
-      onRowSelectionChange={setRowSelection}
-      emptyText={t('queues.noQueues', 'Нет очередей')}
-      exportFilename="queues_export"
-    />
+    <div className="overflow-x-auto min-w-0" data-testid="hybrid-table" data-hybrid="overflow-x-auto">
+      <DataTable
+        columns={columns}
+        data={queues}
+        getRowId={(row: any) => row.name}
+        selectable={false}
+        rowSelection={rowSelection}
+        onRowSelectionChange={setRowSelection}
+        emptyText={t('queues.noQueues', 'Нет очередей')}
+        exportFilename="queues_export"
+      />
+    </div>
   );
 };

@@ -44,15 +44,15 @@ export const RoutesPage = () => {
           <Network className="w-7 h-7 text-primary" />
           <Text as="h1" className="text-2xl font-bold">{t('routes.title', 'Маршрутизация')}</Text>
         </HStack>
-        <HStack gap="8" align="center">
+        <HStack gap="8" align="center" className="w-full sm:w-auto flex-col sm:flex-row min-w-0">
           <MultiSelect
             value={selectedContextUids.map(String)}
             onChange={handleContextFilterChange}
             options={contextOptions}
             placeholder={t('routes.allContexts', 'Все контексты')}
-            className="min-w-[220px]"
+            className="w-full sm:min-w-[220px] sm:w-auto min-w-0"
           />
-          <Button onClick={() => dispatch(routesActions.openCreateModal())}>
+          <Button onClick={() => dispatch(routesActions.openCreateModal())} className="w-full sm:w-auto">
             <Plus className="w-4 h-4 mr-2" />
             {t('routes.addRoute', 'Новый маршрут')}
           </Button>
