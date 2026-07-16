@@ -2,9 +2,11 @@ import { Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { AmiModule } from '../ami/ami.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { AiPlatformModule } from '../ai-platform/ai-platform.module';
 import { CallCenterStateService } from './callcenter-state.service';
 import { CallCenterAmiService } from './callcenter-ami.service';
 import { CallCenterService } from './callcenter.service';
+import { CallCenterAiAdapter } from './callcenter-ai.adapter';
 import { CallCenterHistoryWriterService } from './callcenter-history-writer.service';
 import { CallCenterMetricsService } from './callcenter-metrics.service';
 import { CallCenterRollupService } from './callcenter-rollup.service';
@@ -78,6 +80,7 @@ import { queueLogReaderProvider } from './queuelog/queue-log-reader.factory';
     ]),
     AmiModule,
     NotificationsModule,
+    AiPlatformModule,
   ],
   providers: [
     CallCenterStateService,
@@ -95,6 +98,7 @@ import { queueLogReaderProvider } from './queuelog/queue-log-reader.factory';
     },
     CallCenterAmiService,
     CallCenterService,
+    CallCenterAiAdapter,
     CallCenterSettingsService,
     CallCenterCardsService,
     CallCenterChatService,
