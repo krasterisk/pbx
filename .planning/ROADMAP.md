@@ -438,7 +438,7 @@ Plans:
 | 6 | `/gsd-ui-review 8` + `npm run test:frontend` |
 | 7 | `/gsd-verify-work 8` → `/gsd-ship 8` |
 
-**Plans:** 5/17 plans executed (08-01, 08-02, 08-03, 08-12, 08-13)
+**Plans:** 7/17 plans executed
 
 Plans:
 
@@ -447,7 +447,7 @@ Plans:
 - [x] `08-13-PLAN.md` — Wave 0c: backend Nyquist stubs (SuperAdminGuard / purchase / device-token)
 - [x] `08-02-PLAN.md` — Wave 1: Hub catalog + membership + licenseStatus + role→start API
 - [x] `08-03-PLAN.md` — Wave 2: Module Hub 002-E + ModuleShell 003-B
-- [ ] `08-04-PLAN.md` — Wave 3: ⌘K palette, deep-link fallback, legacy redirects
+- [x] `08-04-PLAN.md` — Wave 3: ⌘K palette, deep-link fallback, legacy redirects
 - [ ] `08-05-PLAN.md` — Wave 4: Platform `/platform/*` vs tenant System→Modules
 - [ ] `08-06-PLAN.md` — Wave 5: Billing checkout skeleton (charge + activate)
 - [ ] `08-07-PLAN.md` — Wave 6: Phone bottom bar 004-B + chip Sheet
