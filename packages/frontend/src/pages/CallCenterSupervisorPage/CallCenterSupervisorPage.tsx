@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useSelector } from 'react-redux';
 import { useTranslation } from 'react-i18next';
-import type { ColumnDef } from '@tanstack/react-table';
+import type { ColumnDef, RowSelectionState } from '@tanstack/react-table';
 import {
   Monitor, Users, Phone, PhoneIncoming, TrendingDown,
   Eye, MessageSquare, Megaphone, Pause, Play,
@@ -18,6 +18,7 @@ import { useKpiSamples } from '@/features/callcenter/lib/useKpiSamples';
 import { ChatPanelHost } from '@/features/callcenter/ui/ChatPanel/ChatPanel';
 import { AgentDetailModal } from '@/features/callcenter/ui/AgentDetailModal/AgentDetailModal';
 import { QueueManagementModal } from '@/features/callcenter/ui/QueueManagementModal/QueueManagementModal';
+import { BulkActionsBar } from '@/features/callcenter/ui/BulkActionsBar/BulkActionsBar';
 import {
   selectCcAgents,
   selectCcQueues,
@@ -53,6 +54,7 @@ export function CallCenterSupervisorPage() {
   const [agentView, setAgentView] = useState<AgentView>(readStoredView);
   const [detailAgent, setDetailAgent] = useState<IAgent | null>(null);
   const [queueMgmtAgent, setQueueMgmtAgent] = useState<IAgent | null>(null);
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [hangupCall, setHangupCall] = useState<ICall | null>(null);
   const [transferTarget, setTransferTarget] = useState<Record<string, string>>({});
 
@@ -132,10 +134,18 @@ export function CallCenterSupervisorPage() {
 
   const handleViewChange = useCallback((v: AgentView) => {
     setAgentView(v);
+    if (v !== 'table') setRowSelection({});
     try {
       localStorage.setItem(VIEW_STORAGE_KEY, v);
     } catch { /* ignore */ }
   }, []);
+
+  const selectedInterfaces = useMemo(
+    () => Object.keys(rowSelection).filter((k) => rowSelection[k]),
+    [rowSelection],
+  );
+
+  const clearRowSelection = useCallback(() => setRowSelection({}), []);
 
   const openAgentDetail = useCallback((agent: IAgent) => {
     setDetailAgent(agent);
@@ -448,6 +458,9 @@ export function CallCenterSupervisorPage() {
                 data={agents}
                 columns={agentColumns}
                 getRowId={(row) => row.interface}
+                selectable
+                rowSelection={rowSelection}
+                onRowSelectionChange={setRowSelection}
               />
             ) : (
               <div className={styles.emptyState}>
@@ -617,6 +630,13 @@ export function CallCenterSupervisorPage() {
         open={queueMgmtAgent != null}
         onClose={() => setQueueMgmtAgent(null)}
       />
+
+      {agentView === 'table' && selectedInterfaces.length > 0 && (
+        <BulkActionsBar
+          selectedInterfaces={selectedInterfaces}
+          onClear={clearRowSelection}
+        />
+      )}
 
       <Dialog open={hangupCall != null} onOpenChange={(v) => { if (!v) setHangupCall(null); }}>
         <DialogContent size="default">

@@ -1980,6 +1980,14 @@ export const ru = {
         confirmRemoveBody: 'Убрать {{name}} из очереди {{queue}}?',
         queues: 'Очереди',
       },
+      bulk: {
+        selected: 'Выбрано: {{count}}',
+        pause: 'Пауза',
+        unpause: 'Снять с паузы',
+        logout: 'Разлогинить',
+        confirmLogoutTitle: 'Разлогинить операторов?',
+        confirmLogoutBody: 'Разлогинить {{count}} операторов? Активные звонки не прерываются',
+      },
       // KPI
       agentsOnline: 'Операторов онлайн',
       agentsInCall: 'В разговоре',
