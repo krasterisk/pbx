@@ -29,7 +29,15 @@ import {
   Package,
 } from 'lucide-react';
 import { UserLevel } from '@krasterisk/shared';
-import type { LicenseStatus, ModuleDef, ModulePageDef } from '../types';
+import type { HubModuleRow, LicenseStatus, ModuleDef, ModulePageDef } from '../types';
+import { sortByFavorites } from './favorites';
+
+/** Minimal catalog shape for license merge (matches IHubCatalogItem). */
+export interface HubCatalogLicenseItem {
+  code: string;
+  licenseStatus: LicenseStatus;
+  name?: string;
+}
 
 const ADMIN_PLUS: UserLevel[] = [UserLevel.ADMIN, UserLevel.SUPERADMIN];
 const CC_AGENT_LEVELS: UserLevel[] = [
@@ -269,4 +277,97 @@ export function partitionModulesByLicense(
   }
 
   return { active, disabled, locked };
+}
+
+/** Resolve licenseStatus for a baseline module from hub-catalog (server is source of truth). */
+export function licenseStatusFromCatalog(
+  catalog: HubCatalogLicenseItem[] | undefined,
+  module: ModuleDef,
+): LicenseStatus {
+  const hit = catalog?.find((c) => c.code === module.code);
+  if (hit) return hit.licenseStatus;
+  // Client must not invent active for market modules when catalog absent
+  return module.kind === 'base' ? 'active' : 'locked';
+}
+
+/** Merge BASELINE_MODULES with RTK hub catalog → Hub rows. */
+export function mergeModulesWithCatalog(
+  modules: ModuleDef[],
+  catalog: HubCatalogLicenseItem[] | undefined,
+  favoriteCodes: string[] = [],
+): HubModuleRow[] {
+  const favSet = new Set(favoriteCodes);
+  return modules.map((mod) => {
+    const cat = catalog?.find((c) => c.code === mod.code);
+    return {
+      ...mod,
+      licenseStatus: licenseStatusFromCatalog(catalog, mod),
+      favorite: favSet.has(mod.code),
+      catalogName: cat?.name,
+    };
+  });
+}
+
+export interface HubSections {
+  /** Active section: active + disabled (disabled are not Buy targets). */
+  active: HubModuleRow[];
+  /** Marketplace section: locked only. */
+  marketplace: HubModuleRow[];
+}
+
+/**
+ * Split Hub rows into Active (active+disabled, favorites sorted to top)
+ * and Marketplace (locked only — never disabled).
+ */
+export function buildHubSections(
+  rows: HubModuleRow[],
+  favoriteCodes: string[],
+): HubSections {
+  const activeRaw = rows.filter(
+    (r) => r.licenseStatus === 'active' || r.licenseStatus === 'disabled',
+  );
+  const marketplace = rows.filter((r) => r.licenseStatus === 'locked');
+  const active = sortByFavorites(activeRaw, favoriteCodes).map((r) => ({
+    ...r,
+    favorite: favoriteCodes.includes(r.code),
+  }));
+  return { active, marketplace };
+}
+
+/**
+ * Resolve which Hub module owns a pathname (longest page path wins).
+ * Returns undefined on Hub route `/modules` or when no match.
+ */
+export function findModuleByPath(
+  pathname: string,
+  modules: ModuleDef[] = BASELINE_MODULES,
+): ModuleDef | undefined {
+  if (pathname === '/modules' || pathname.startsWith('/modules/')) {
+    return undefined;
+  }
+
+  let best: { mod: ModuleDef; len: number } | undefined;
+  for (const mod of modules) {
+    for (const page of mod.pages) {
+      const exact = pathname === page.path;
+      const nested =
+        page.path !== '/' &&
+        (pathname === page.path || pathname.startsWith(`${page.path}/`));
+      if (exact || nested) {
+        if (!best || page.path.length > best.len) {
+          best = { mod, len: page.path.length };
+        }
+      }
+    }
+  }
+  return best?.mod;
+}
+
+/** First navigable page path for a module (after level filter). */
+export function getModuleEntryPath(
+  module: ModuleDef,
+  level: UserLevel | undefined,
+): string {
+  const pages = filterPagesByLevel(module.pages, level);
+  return pages[0]?.path ?? '/';
 }

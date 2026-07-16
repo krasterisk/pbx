@@ -1,13 +1,22 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { UserLevel } from '@krasterisk/shared';
 import {
   BASELINE_MODULES,
+  buildHubSections,
   filterModulesForLevel,
   filterPagesByLevel,
+  findModuleByPath,
   getBaselineModule,
+  mergeModulesWithCatalog,
   partitionModulesByLicense,
 } from './moduleRegistry';
 import { mapTenantStatusToLicenseStatus } from './licenseStatus';
+import {
+  HUB_FAVORITES_KEY,
+  loadFavoriteCodes,
+  sortByFavorites,
+  toggleFavoriteCode,
+} from './favorites';
 
 describe('moduleRegistry (NAV-01)', () => {
   it('BASELINE_MODULES includes required Hub codes', () => {
@@ -85,5 +94,74 @@ describe('mapTenantStatusToLicenseStatus', () => {
     expect(mapTenantStatusToLicenseStatus(null)).toBe('locked');
     expect(mapTenantStatusToLicenseStatus(undefined)).toBe('locked');
     expect(mapTenantStatusToLicenseStatus('missing')).toBe('locked');
+  });
+});
+
+describe('hub merge + favorites (NAV-02)', () => {
+  beforeEach(() => {
+    localStorage.removeItem(HUB_FAVORITES_KEY);
+  });
+
+  it('mergeModulesWithCatalog applies server licenseStatus (never invents active for market)', () => {
+    const rows = mergeModulesWithCatalog(BASELINE_MODULES, [
+      { code: 'callcenter', licenseStatus: 'disabled', name: 'Call Center' },
+      { code: 'analytics', licenseStatus: 'locked' },
+      { code: 'ai', licenseStatus: 'active' },
+    ]);
+
+    expect(rows.find((r) => r.code === 'callcenter')?.licenseStatus).toBe('disabled');
+    expect(rows.find((r) => r.code === 'analytics')?.licenseStatus).toBe('locked');
+    expect(rows.find((r) => r.code === 'ai')?.licenseStatus).toBe('active');
+    expect(rows.find((r) => r.code === 'core')?.licenseStatus).toBe('active'); // base default
+  });
+
+  it('buildHubSections puts active+disabled in Active and locked in Marketplace', () => {
+    const rows = mergeModulesWithCatalog(BASELINE_MODULES, [
+      { code: 'callcenter', licenseStatus: 'disabled' },
+      { code: 'analytics', licenseStatus: 'locked' },
+      { code: 'ai', licenseStatus: 'locked' },
+    ]);
+    const { active, marketplace } = buildHubSections(rows, []);
+
+    expect(active.some((r) => r.code === 'callcenter')).toBe(true);
+    expect(active.some((r) => r.code === 'core')).toBe(true);
+    expect(active.every((r) => r.licenseStatus !== 'locked')).toBe(true);
+
+    expect(marketplace.map((r) => r.code).sort()).toEqual(
+      expect.arrayContaining(['analytics', 'ai']),
+    );
+    expect(marketplace.every((r) => r.licenseStatus === 'locked')).toBe(true);
+    // Disabled must never be Buy/Marketplace targets
+    expect(marketplace.some((r) => r.code === 'callcenter')).toBe(false);
+  });
+
+  it('favorites sort to top of Active section', () => {
+    const rows = mergeModulesWithCatalog(BASELINE_MODULES, [
+      { code: 'ai', licenseStatus: 'active' },
+      { code: 'callcenter', licenseStatus: 'active' },
+    ]);
+    const { active } = buildHubSections(rows, ['ai']);
+    const activeCodes = active.map((r) => r.code);
+    expect(activeCodes[0]).toBe('ai');
+    expect(active.find((r) => r.code === 'ai')?.favorite).toBe(true);
+  });
+
+  it('sortByFavorites preserves relative order of non-favorites', () => {
+    const items = [{ code: 'a' }, { code: 'b' }, { code: 'c' }];
+    expect(sortByFavorites(items, ['c']).map((i) => i.code)).toEqual(['c', 'a', 'b']);
+  });
+
+  it('toggleFavoriteCode persists to localStorage', () => {
+    const next = toggleFavoriteCode('apps', []);
+    expect(next).toEqual(['apps']);
+    expect(loadFavoriteCodes()).toEqual(['apps']);
+    expect(toggleFavoriteCode('apps', next)).toEqual([]);
+  });
+
+  it('findModuleByPath resolves longest match and ignores Hub route', () => {
+    expect(findModuleByPath('/modules')).toBeUndefined();
+    expect(findModuleByPath('/endpoints')?.code).toBe('core');
+    expect(findModuleByPath('/callcenter/agent')?.code).toBe('callcenter');
+    expect(findModuleByPath('/')?.code).toBe('overview');
   });
 });

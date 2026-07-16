@@ -21,3 +21,11 @@ export interface ModuleDef {
   /** i18n key for Hub tile / chip label */
   labelKey: string;
 }
+
+/** Hub list row: baseline ModuleDef + server licenseStatus + favorite flag. */
+export interface HubModuleRow extends ModuleDef {
+  licenseStatus: LicenseStatus;
+  favorite: boolean;
+  /** Optional display name from hub-catalog API */
+  catalogName?: string;
+}
