@@ -310,7 +310,8 @@ export function CallCenterAgentPage() {
     setTransferTarget('');
   }, [agentTransfer, transferTarget, transferType, isWebrtc, phone, activeCall]);
 
-  // Mute toggle — WebRTC uses local track; SIP mode keeps local UI state (AMI MuteAudio TBD)
+  // Mute toggle — WebRTC uses local track; SIP softphone mute updates local UI state only;
+  // remote mute via Asterisk AMI MuteAudio is follow-up DEF-07-MUTE-AMI.
   const handleMuteToggle = useCallback(() => {
     if (isWebrtc) {
       if (phone.isMuted) phone.unmute();
