@@ -7,6 +7,7 @@ import { useAppDispatch } from '@/shared/hooks/useAppStore';
 import { notificationsPageActions } from '../../model/slice/notificationsPageSlice';
 import { NotificationIntegrationsTable } from '../NotificationIntegrationsTable/NotificationIntegrationsTable';
 import { NotificationIntegrationFormModal } from '../NotificationIntegrationFormModal/NotificationIntegrationFormModal';
+import cls from './NotificationIntegrationsPage.module.scss';
 
 export const NotificationIntegrationsPage = () => {
   const { t } = useTranslation();
@@ -17,27 +18,34 @@ export const NotificationIntegrationsPage = () => {
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
+      style={{ width: '100%', minWidth: 0 }}
     >
-      <VStack gap="16" max>
-        <HStack justify="between" align="center" max>
-          <HStack gap="8" align="center">
-            <Bell className="w-6 h-6 text-primary" />
+      <VStack gap="16" max className={cls.page} data-testid="notifications-page-responsive">
+        <HStack justify="between" align="center" className="flex-col sm:flex-row gap-4 min-w-0" max>
+          <HStack gap="8" align="center" className="min-w-0">
+            <Bell className="w-6 h-6 text-primary shrink-0" />
             <h1 className="text-2xl font-bold">
               {t('notifications.title', 'Notification Integrations')}
             </h1>
           </HStack>
           <Button
             onClick={() => dispatch(notificationsPageActions.openCreateModal())}
-            className="gap-2"
+            className={`gap-2 ${cls.createBtn}`}
           >
             <Plus className="w-4 h-4" />
             {t('notifications.create', 'Create Integration')}
           </Button>
         </HStack>
 
-        <Card>
-          <CardContent className="p-0">
-            <NotificationIntegrationsTable />
+        <Card className="min-w-0">
+          <CardContent className={cls.cardContent}>
+            <div
+              className={`${cls.tableScroll} overflow-x-auto`}
+              data-testid="hybrid-table"
+              data-hybrid="overflow-x-auto"
+            >
+              <NotificationIntegrationsTable />
+            </div>
           </CardContent>
         </Card>
 

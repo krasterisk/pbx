@@ -1,0 +1,22 @@
+.page {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.createBtn {
+  @media (max-width: 640px) {
+    width: 100%;
+  }
+}
+
+.tableScroll {
+  overflow-x: auto;
+  min-width: 0;
+  -webkit-overflow-scrolling: touch;
+  width: 100%;
+}
+
+.cardContent {
+  padding: 0;
+  min-width: 0;
+}

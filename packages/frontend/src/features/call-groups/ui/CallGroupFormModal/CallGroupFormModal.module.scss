@@ -2,6 +2,11 @@
 
 .dialogContent {
   max-width: 640px;
+
+  @media (max-width: 640px) {
+    max-width: calc(100vw - 1rem);
+    width: calc(100vw - 1rem);
+  }
 }
 
 .form {
