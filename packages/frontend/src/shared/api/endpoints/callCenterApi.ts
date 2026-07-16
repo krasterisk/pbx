@@ -244,6 +244,26 @@ const callCenterApi = rtkApi.injectEndpoints({
       query: (body) => ({ url: '/callcenter/settings/operator', method: 'PUT', body }),
       invalidatesTags: ['CcOperatorSettings'],
     }),
+    getOperatorSettings: build.query<IOperatorSettings, number>({
+      query: (operatorId) => `/callcenter/settings/operator/${operatorId}`,
+      providesTags: (_result, _error, operatorId) => [
+        { type: 'CcOperatorSettings', id: operatorId },
+      ],
+    }),
+    updateOperatorSettings: build.mutation<
+      IOperatorSettings,
+      { operatorId: number; body: Partial<IOperatorSettings> }
+    >({
+      query: ({ operatorId, body }) => ({
+        url: `/callcenter/settings/operator/${operatorId}`,
+        method: 'PUT',
+        body,
+      }),
+      invalidatesTags: (_result, _error, { operatorId }) => [
+        { type: 'CcOperatorSettings', id: operatorId },
+        'CcOperatorSettings',
+      ],
+    }),
     getTenantSettings: build.query<ICcSettings, void>({
       query: () => '/callcenter/settings/tenant',
       providesTags: ['CcSettings'],
@@ -390,6 +410,8 @@ export const {
   useDeletePauseReasonMutation,
   useGetMyOperatorSettingsQuery,
   useUpdateMyOperatorSettingsMutation,
+  useGetOperatorSettingsQuery,
+  useUpdateOperatorSettingsMutation,
   useGetTenantSettingsQuery,
   useUpdateTenantSettingsMutation,
   useGetChatChannelsQuery,

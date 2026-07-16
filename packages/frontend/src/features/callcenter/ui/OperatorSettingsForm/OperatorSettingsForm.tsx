@@ -1,10 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
-import { Button, Input, Label, Switch, Text, Skeleton } from '@/shared/ui';
+import { Button, Input, Label, Select, Switch, Text, Skeleton } from '@/shared/ui';
+import { UserLevel, selectCurrentUser, selectUserLevel } from '@/entities/User';
+import { useAppSelector } from '@/shared/hooks/useAppStore';
+import { useGetUsersQuery } from '@/shared/api/endpoints/userApi';
 import {
   useGetMyOperatorSettingsQuery,
   useUpdateMyOperatorSettingsMutation,
+  useGetOperatorSettingsQuery,
+  useUpdateOperatorSettingsMutation,
   type IOperatorSettings,
 } from '@/shared/api/endpoints/callCenterApi';
 import styles from './OperatorSettingsForm.module.scss';
@@ -22,32 +27,74 @@ const DEFAULTS: IOperatorSettings = {
   volume: 100,
 };
 
+function toForm(data: IOperatorSettings): IOperatorSettings {
+  return {
+    pickup_enabled: data.pickup_enabled,
+    auto_answer: data.auto_answer,
+    auto_answer_zip_tone: data.auto_answer_zip_tone,
+    wrapup_timeout: data.wrapup_timeout,
+    wrapup_extend_step: data.wrapup_extend_step,
+    wrapup_autosave_draft: data.wrapup_autosave_draft,
+    sound_incoming: data.sound_incoming,
+    sound_missed: data.sound_missed,
+    notifications_enabled: data.notifications_enabled,
+    volume: data.volume,
+  };
+}
+
 /**
  * Per-operator CC settings form (D-22) for /callcenter/settings tab.
+ * ADMIN/SUPERVISOR can pick another operator and edit via /operator/:operatorId.
  */
 export function OperatorSettingsForm() {
   const { t } = useTranslation();
-  const { data, isLoading, isError, refetch } = useGetMyOperatorSettingsQuery();
-  const [update, { isLoading: isSaving }] = useUpdateMyOperatorSettingsMutation();
+  const currentUser = useAppSelector(selectCurrentUser);
+  const level = useAppSelector(selectUserLevel);
+  const canPickOperator = level === UserLevel.ADMIN || level === UserLevel.SUPERVISOR;
+  const selfId = currentUser?.uniqueid ?? 0;
+
+  const [selectedId, setSelectedId] = useState<number>(selfId);
   const [form, setForm] = useState<IOperatorSettings>(DEFAULTS);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    if (data) {
-      setForm({
-        pickup_enabled: data.pickup_enabled,
-        auto_answer: data.auto_answer,
-        auto_answer_zip_tone: data.auto_answer_zip_tone,
-        wrapup_timeout: data.wrapup_timeout,
-        wrapup_extend_step: data.wrapup_extend_step,
-        wrapup_autosave_draft: data.wrapup_autosave_draft,
-        sound_incoming: data.sound_incoming,
-        sound_missed: data.sound_missed,
-        notifications_enabled: data.notifications_enabled,
-        volume: data.volume,
-      });
+    if (selfId && selectedId === 0) {
+      setSelectedId(selfId);
     }
-  }, [data]);
+  }, [selfId, selectedId]);
+
+  const isSelf = selectedId === selfId;
+
+  const { data: users = [] } = useGetUsersQuery(undefined, { skip: !canPickOperator });
+  const operatorOptions = useMemo(
+    () =>
+      users
+        .filter((u) => u.level === UserLevel.OPERATOR || u.level === UserLevel.SUPERVISOR)
+        .slice()
+        .sort((a, b) => a.name.localeCompare(b.name) || a.login.localeCompare(b.login)),
+    [users],
+  );
+
+  const myQuery = useGetMyOperatorSettingsQuery(undefined, { skip: !isSelf || !selfId });
+  const byIdQuery = useGetOperatorSettingsQuery(selectedId, {
+    skip: isSelf || !selectedId || !canPickOperator,
+  });
+
+  const [updateMy, { isLoading: isSavingMy }] = useUpdateMyOperatorSettingsMutation();
+  const [updateById, { isLoading: isSavingById }] = useUpdateOperatorSettingsMutation();
+
+  const data = isSelf ? myQuery.data : byIdQuery.data;
+  const isLoading = isSelf ? myQuery.isLoading : byIdQuery.isLoading;
+  const isError = isSelf ? myQuery.isError : byIdQuery.isError;
+  const refetch = isSelf ? myQuery.refetch : byIdQuery.refetch;
+  const isSaving = isSavingMy || isSavingById;
+
+  useEffect(() => {
+    if (data) {
+      setForm(toForm(data));
+      setSaved(false);
+    }
+  }, [data, selectedId]);
 
   const setBool = (key: keyof IOperatorSettings) => (checked: boolean) => {
     setForm((prev) => ({ ...prev, [key]: checked }));
@@ -62,7 +109,11 @@ export function OperatorSettingsForm() {
 
   const handleSave = async () => {
     try {
-      await update(form).unwrap();
+      if (isSelf) {
+        await updateMy(form).unwrap();
+      } else {
+        await updateById({ operatorId: selectedId, body: form }).unwrap();
+      }
       setSaved(true);
       toast.success(t('callcenter.settings.operator.saved'));
       setTimeout(() => setSaved(false), 3000);
@@ -101,6 +152,36 @@ export function OperatorSettingsForm() {
         void handleSave();
       }}
     >
+      {canPickOperator && (
+        <div className={styles.picker}>
+          <Label htmlFor="op-picker">{t('callcenter.settings.operator.pickOperator')}</Label>
+          <Select
+            id="op-picker"
+            value={selectedId || ''}
+            onChange={(e) => {
+              const next = Number(e.target.value);
+              if (Number.isFinite(next) && next > 0) {
+                setSelectedId(next);
+                setSaved(false);
+              }
+            }}
+          >
+            {selfId > 0 &&
+              !operatorOptions.some((u) => u.uniqueid === selfId) && (
+                <option value={selfId}>
+                  {currentUser?.name || currentUser?.login || selfId} (#{selfId})
+                </option>
+              )}
+            {operatorOptions.map((u) => (
+              <option key={u.uniqueid} value={u.uniqueid}>
+                {u.name || u.login} ({u.login}) #{u.uniqueid}
+              </option>
+            ))}
+          </Select>
+          <Text className={styles.hint}>{t('callcenter.settings.operator.pickHint')}</Text>
+        </div>
+      )}
+
       <div className={styles.section}>
         <Text className={styles.sectionTitle}>{t('callcenter.settings.operator.pickup')}</Text>
         <div className={styles.row}>

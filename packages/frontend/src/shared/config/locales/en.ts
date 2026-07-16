@@ -2129,6 +2129,8 @@ export const en = {
         },
       },
       operator: {
+        pickOperator: 'Operator',
+        pickHint: 'Select an operator whose settings you want to view or edit',
         pickup: 'Call pickup',
         pickupEnabled: 'Allow pickup from own queues',
         autoAnswer: 'Auto-answer',
