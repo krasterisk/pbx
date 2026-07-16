@@ -438,13 +438,13 @@ Plans:
 | 6 | `/gsd-ui-review 8` + `npm run test:frontend` |
 | 7 | `/gsd-verify-work 8` → `/gsd-ship 8` |
 
-**Plans:** 3/17 plans executed
+**Plans:** 4/17 plans executed
 
 Plans:
 
 - [x] `08-01-PLAN.md` — Wave 0a: SUPERADMIN enum + module contracts + registry/roleStart tests
 - [x] `08-12-PLAN.md` — Wave 0b: tokenStorage + CommandPalette filter + locale seeds
-- [ ] `08-13-PLAN.md` — Wave 0c: backend Nyquist stubs (SuperAdminGuard / purchase / device-token)
+- [x] `08-13-PLAN.md` — Wave 0c: backend Nyquist stubs (SuperAdminGuard / purchase / device-token)
 - [ ] `08-02-PLAN.md` — Wave 1: Hub catalog + membership + licenseStatus + role→start API
 - [ ] `08-03-PLAN.md` — Wave 2: Module Hub 002-E + ModuleShell 003-B
 - [ ] `08-04-PLAN.md` — Wave 3: ⌘K palette, deep-link fallback, legacy redirects

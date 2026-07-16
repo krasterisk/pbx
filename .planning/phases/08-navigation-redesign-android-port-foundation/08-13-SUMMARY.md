@@ -75,7 +75,7 @@ Each task was committed atomically (TDD where applicable):
    - `90d3b72` (test) — failing import specs (RED)
    - `90cc39e` (feat) — NotImplemented stubs GREEN
 
-**Plan metadata:** _(pending docs commit)_
+**Plan metadata:** `f047da6` (docs: complete plan)
 
 ## Files Created/Modified
 
