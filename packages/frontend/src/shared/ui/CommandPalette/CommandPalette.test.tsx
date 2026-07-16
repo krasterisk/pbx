@@ -3,6 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { filterPaletteItems, type PaletteItem } from './filterPaletteItems';
 import { buildPaletteItems } from './buildPaletteItems';
+import { CommandPalette } from './CommandPalette';
 
 const items: PaletteItem[] = [
   { id: '1', label: 'Call Center', path: '/callcenter/agent' },
@@ -15,6 +16,29 @@ vi.mock('react-i18next', () => ({
     t: (key: string) => key,
     i18n: { language: 'en' },
   }),
+}));
+
+vi.mock('@/shared/ui/Dialog', () => ({
+  Dialog: ({
+    open,
+    children,
+  }: {
+    open?: boolean;
+    children: React.ReactNode;
+  }) => (open ? <div data-testid="dialog-root">{children}</div> : null),
+  DialogContent: ({
+    children,
+    ...rest
+  }: {
+    children: React.ReactNode;
+  } & Record<string, unknown>) => (
+    <div data-testid="command-palette" {...rest}>
+      {children}
+    </div>
+  ),
+  DialogHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  DialogTitle: ({ children }: { children: React.ReactNode }) => <h2>{children}</h2>,
+  DialogDescription: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
 }));
 
 describe('filterPaletteItems (NAV-04)', () => {
@@ -60,15 +84,10 @@ describe('CommandPalette Dialog UI (NAV-04 / D-06)', () => {
     vi.clearAllMocks();
   });
 
-  it('shows commandPalette.empty string key when filter yields no results', async () => {
-    const { CommandPalette } = await import('./CommandPalette');
+  it('shows commandPalette.empty string key when filter yields no results', () => {
     render(
       <MemoryRouter>
-        <CommandPalette
-          open
-          onOpenChange={() => {}}
-          items={items}
-        />
+        <CommandPalette open onOpenChange={() => {}} items={items} />
       </MemoryRouter>,
     );
 
@@ -77,15 +96,10 @@ describe('CommandPalette Dialog UI (NAV-04 / D-06)', () => {
     expect(screen.getByText('commandPalette.empty')).toBeInTheDocument();
   });
 
-  it('lists modules and pages when query is empty', async () => {
-    const { CommandPalette } = await import('./CommandPalette');
+  it('lists modules and pages when query is empty', () => {
     render(
       <MemoryRouter>
-        <CommandPalette
-          open
-          onOpenChange={() => {}}
-          items={items}
-        />
+        <CommandPalette open onOpenChange={() => {}} items={items} />
       </MemoryRouter>,
     );
 

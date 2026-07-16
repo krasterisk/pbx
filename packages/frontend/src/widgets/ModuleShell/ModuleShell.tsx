@@ -1,10 +1,13 @@
-import { memo, useState } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Phone, Search, Languages, Moon, Sun, LogOut } from 'lucide-react';
-import { toast } from 'react-toastify';
 import { Button, Text } from '@/shared/ui';
 import { HStack, Flex } from '@/shared/ui/Stack';
+import {
+  CommandPalette,
+  buildPaletteItems,
+} from '@/shared/ui/CommandPalette';
 import { useAppDispatch, useAppSelector } from '@/shared/hooks/useAppStore';
 import { logout } from '@/features/auth/model/authSlice';
 import { UserLevel } from '@krasterisk/shared';
@@ -12,6 +15,7 @@ import { useHubModules } from '@/features/modules/hooks/useHubModules';
 import {
   filterPagesByLevel,
   findModuleByPath,
+  getModuleEntryPath,
 } from '@/features/modules/lib/moduleRegistry';
 import { ModuleChip } from './ModuleChip';
 import { ModuleShellTabs } from './ModuleShellTabs';
@@ -19,7 +23,7 @@ import cls from './ModuleShell.module.scss';
 
 /**
  * In-module shell — sketch winner 003-B: topbar + horizontal tabs.
- * Logo → /modules (D-10). ⌘K placeholder wired in 08-04.
+ * Logo → /modules (D-10). ⌘K opens Dialog CommandPalette (D-06 / 08-04).
  */
 export const ModuleShell = memo(function ModuleShell() {
   const { t, i18n } = useTranslation();
@@ -31,6 +35,7 @@ export const ModuleShell = memo(function ModuleShell() {
   const { active } = useHubModules();
 
   const [isDark, setIsDark] = useState(() => localStorage.getItem('theme') !== 'light');
+  const [paletteOpen, setPaletteOpen] = useState(false);
 
   const isHub = location.pathname === '/modules' || location.pathname.startsWith('/modules/');
   const currentModule = isHub ? undefined : findModuleByPath(location.pathname);
@@ -57,6 +62,38 @@ export const ModuleShell = memo(function ModuleShell() {
     ? filterPagesByLevel(currentModule.pages, level)
     : [];
 
+  const paletteItems = useMemo(() => {
+    const licensed = active
+      .filter((m) => m.licenseStatus === 'active')
+      .map((m) => ({
+        code: m.code,
+        label: m.catalogName || t(m.labelKey),
+        entryPath: getModuleEntryPath(m, level),
+      }));
+
+    const pages =
+      currentModule && currentModule.code !== 'overview'
+        ? filterPagesByLevel(currentModule.pages, level).map((p) => ({
+            id: p.id,
+            label: t(p.labelKey),
+            path: p.path,
+          }))
+        : [];
+
+    return buildPaletteItems(licensed, pages);
+  }, [active, currentModule, level, t]);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() !== 'k') return;
+      if (!(e.metaKey || e.ctrlKey)) return;
+      e.preventDefault();
+      setPaletteOpen((open) => !open);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
   const handleLogout = () => {
     dispatch(logout());
     navigate('/login');
@@ -80,10 +117,6 @@ export const ModuleShell = memo(function ModuleShell() {
     i18n.changeLanguage(i18n.language === 'ru' ? 'en' : 'ru');
   };
 
-  const openCommandPalettePlaceholder = () => {
-    toast.info(t('commandPalette.placeholder'));
-  };
-
   return (
     <Flex direction="column" className={cls.shell} data-testid="module-shell">
       <HStack className={cls.topbar} align="center" gap="12" max>
@@ -105,7 +138,7 @@ export const ModuleShell = memo(function ModuleShell() {
           variant="ghost"
           size="sm"
           id="shell-cmdk-trigger"
-          onClick={openCommandPalettePlaceholder}
+          onClick={() => setPaletteOpen(true)}
           aria-label={t('commandPalette.placeholder')}
         >
           <Search size={16} aria-hidden />
@@ -146,6 +179,12 @@ export const ModuleShell = memo(function ModuleShell() {
       </HStack>
 
       {showTabs && <ModuleShellTabs pages={tabPages} />}
+
+      <CommandPalette
+        open={paletteOpen}
+        onOpenChange={setPaletteOpen}
+        items={paletteItems}
+      />
     </Flex>
   );
 });

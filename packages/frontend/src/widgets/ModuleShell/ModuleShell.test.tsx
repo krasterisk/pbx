@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { Phone } from 'lucide-react';
 import type { HubModuleRow } from '@/features/modules/types';
@@ -20,8 +20,6 @@ vi.mock('react-i18next', () => ({
     i18n: { language: 'en', changeLanguage: vi.fn() },
   }),
 }));
-
-vi.mock('react-toastify', () => ({ toast: { info: vi.fn() } }));
 
 import { useHubModules } from '@/features/modules/hooks/useHubModules';
 import { ModuleShell } from './ModuleShell';
@@ -86,4 +84,17 @@ describe('ModuleShell (003-B)', () => {
     );
     expect(screen.queryByTestId('module-shell-tabs')).toBeNull();
   });
+
+  it('opens CommandPalette on Ctrl+K (D-06)', () => {
+    render(
+      <MemoryRouter initialEntries={['/endpoints']}>
+        <ModuleShell />
+      </MemoryRouter>,
+    );
+
+    expect(screen.queryByTestId('command-palette')).toBeNull();
+    fireEvent.keyDown(window, { key: 'k', ctrlKey: true });
+    expect(screen.getByTestId('command-palette')).toBeInTheDocument();
+  });
 });
+
