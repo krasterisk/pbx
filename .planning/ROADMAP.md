@@ -438,7 +438,7 @@ Plans:
 | 6 | `/gsd-ui-review 8` + `npm run test:frontend` |
 | 7 | `/gsd-verify-work 8` → `/gsd-ship 8` |
 
-**Plans:** 8/17 plans executed
+**Plans:** 9/17 plans executed
 
 Plans:
 
@@ -449,7 +449,7 @@ Plans:
 - [x] `08-03-PLAN.md` — Wave 2: Module Hub 002-E + ModuleShell 003-B
 - [x] `08-04-PLAN.md` — Wave 3: ⌘K palette, deep-link fallback, legacy redirects
 - [x] `08-05-PLAN.md` — Wave 4: Platform `/platform/*` vs tenant System→Modules
-- [ ] `08-06-PLAN.md` — Wave 5: Billing checkout skeleton (charge + activate)
+- [x] `08-06-PLAN.md` — Wave 5: Billing checkout skeleton (charge + activate)
 - [ ] `08-07-PLAN.md` — Wave 6: Phone bottom bar 004-B + chip Sheet
 - [ ] `08-08-PLAN.md` — Wave 7: Users/Roles/Numbers + role→start admin
 - [ ] `08-09-PLAN.md` — Wave 8a: Responsive — Dashboard/Core critical + CC agent sticky softphone

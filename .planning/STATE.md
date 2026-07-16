@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Ready to execute
-last_updated: "2026-07-16T17:33:46.130Z"
+last_updated: "2026-07-16T17:48:00.000Z"
 progress:
   total_phases: 8
   completed_phases: 5
   total_plans: 68
-  completed_plans: 57
-  percent: 63
+  completed_plans: 59
+  percent: 87
 ---
 
 # State
@@ -17,7 +17,7 @@ progress:
 ## Current position
 
 Phase: 8 (navigation-redesign-android-port-foundation) — EXECUTING
-Plan: 08-05 complete (PlatformLayout + tenant System→Modules); next incomplete 08-06
+Plan: 08-06 complete (PurchaseModuleService + CheckoutSheet); next incomplete 08-07
 Phase 7 — Call Center: gap closure complete (07-21, 07-22); re-UAT / `/gsd-verify-work 7` still available in parallel.
 Phase 5 — Phonebooks AI: plans executed (verify/UAT may remain).  
 Phase 6 — Dialplan Apps: **06-01–06-16 executed** (gap closures done). Re-UAT after ops mkdir for krasterisk subdirs; UAT Tests 5–6 hint duplication fixed.
@@ -108,6 +108,9 @@ Phase 1 — MOH: pending verify.
 - [Phase 08]: Platform routes outside AppLayout with console-chrome (006-B)
 - [Phase 08]: Tenant Modules at /system/modules; /my-modules redirects there
 - [Phase 08]: Buy stub navigates Hub until 08-06 checkout
+- [Phase 08]: Hub market prices via LEGACY_HUB_LICENSE_CODES paid registry codes (08-06)
+- [Phase 08]: Purchase JWT tenant_id with vpbx_user_uid fallback to tenants.id (08-06)
+- [Phase 08]: CheckoutSheet 005-B plan→confirm→success wired to POST /marketplace/purchase (08-06)
 
 ## Roadmap Evolution
 
@@ -168,3 +171,4 @@ Phase 1 — MOH: pending verify.
 | Phase 08 P03 | 20min | 3 tasks | 26 files |
 | Phase 08 P04 | 10min | 2 tasks | 11 files |
 | Phase 08 P05 | 11min | 3 tasks | 22 files |
+| Phase 08 P06 | 12min | 2 tasks | 16 files |

@@ -46,7 +46,7 @@ created: 2026-07-16
 | NAV-04 / D-06 | 3 | ⌘K filters modules + current-module pages; empty copy | unit | CommandPalette test | ❌ W0 | ⬜ pending |
 | NAV-05 / D-04 D-16 D-17 | 1+7 | Role→start defaults; CC-off fallback; locked deep-link fallback | unit | `roleStartResolver` jest+vitest | ❌ W0 | ⬜ pending |
 | NAV-06 / D-21 D-22 | 4 | SuperAdminGuard + platform routes; tenant cannot edit membership | unit | guard + controller specs | ❌ W0 | ⬜ pending |
-| NAV-07 / D-23 | 5 | Purchase: insufficient balance fails; success charges + activates | unit | `purchase-module.service.spec.ts` | ❌ W0 | ⬜ pending |
+| NAV-07 / D-23 | 5 | Purchase: insufficient balance fails; success charges + activates | unit | `purchase-module.service.spec.ts` | ✅ 08-06 | ✅ passed |
 | NAV-08 / D-24–D-26 | 6 | Bottom bar 5 items; chip opens Sheet on mobile breakpoint | unit | MobileBottomBar + useIsMobile tests | ❌ | ⬜ pending |
 | NAV-09 / D-27–D-29 | 8 | Critical tables card/h-scroll; CC agent sticky softphone layout smoke | unit + manual | page SCSS/RTL smoke + manual 360px | ❌ | ⬜ pending |
 | NAV-10 / D-33 | 9 | Token storage: web localStorage; native Secure Storage mock | unit | `tokenStorage.test.ts` | ❌ W0 | ⬜ pending |
