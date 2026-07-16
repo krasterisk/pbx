@@ -1,5 +1,5 @@
 ---
-status: complete
+status: partial
 phase: 07-call-center-overhaul-professional-agent-supervisor-workspace
 source: [07-VERIFICATION.md]
 started: 2026-07-16T04:30:00Z
@@ -58,17 +58,17 @@ blocked: 3
   reason: "User reported: при входе в АРМ и начале смены - статусы не меняются, при выборе номера, смена не начинается. Карточка звонка не открывается, удержание/перевод, поствызывная обработка не появляется, в отчётах звонков нет. Полный провал"
   severity: blocker
   test: 1
-  root_cause: ""
-  artifacts: []
+  root_cause: "PRIMARY: After agentLogin success, frontend never dispatches setMyAgentInterface — selectMyAgent always undefined so status stays OFFLINE and call card/hold/transfer/wrap-up UI never bind (CallCenterAgentPage handleShiftLogin; callCenterSelectors.selectMyAgent; setMyAgentInterface only in slice/tests). CONTRIBUTING: empty queues[] skips AMI QueueAdd → no inbound queue calls/reports even if UI identity is fixed."
+  artifacts: [".planning/debug/DEBUG-cc-agent-shift.md"]
   missing: []
-  debug_session: ""
+  debug_session: ".planning/debug/DEBUG-cc-agent-shift.md"
 
 - truth: "В ShiftLoginModal режим WebRTC регистрируется по WSS; ответ/удержание/mute/DTMF/перевод работают полностью в браузере"
   status: failed
   reason: "User reported: Вообще ничего не работает"
   severity: blocker
   test: 2
-  root_cause: ""
-  artifacts: []
+  root_cause: "PRIMARY: same as test 1 — missing setMyAgentInterface after login so hold/mute/DTMF/transfer never mount (gated on myAgent/activeCall). SECONDARY independent: ASTERISK_WSS_URL unset → wssUrl null aborts REGISTER before phone.connect. sip.js path itself not the primary defect."
+  artifacts: [".planning/debug/DEBUG-cc-webrtc.md"]
   missing: []
-  debug_session: ""
+  debug_session: ".planning/debug/DEBUG-cc-webrtc.md"
