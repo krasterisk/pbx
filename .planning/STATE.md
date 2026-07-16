@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Ready to execute
-last_updated: "2026-07-16T16:14:22.731Z"
+last_updated: "2026-07-16T16:25:04.428Z"
 progress:
   total_phases: 8
   completed_phases: 5
   total_plans: 68
-  completed_plans: 51
+  completed_plans: 52
   percent: 63
 ---
 
@@ -17,7 +17,7 @@ progress:
 ## Current position
 
 Phase: 8 (navigation-redesign-android-port-foundation) — EXECUTING
-Plan: 2 of 17
+Plan: 3 of 17
 Phase 7 — Call Center: gap closure complete (07-21, 07-22); re-UAT / `/gsd-verify-work 7` still available in parallel.
 Phase 5 — Phonebooks AI: plans executed (verify/UAT may remain).  
 Phase 6 — Dialplan Apps: **06-01–06-16 executed** (gap closures done). Re-UAT after ops mkdir for krasterisk subdirs; UAT Tests 5–6 hint duplication fixed.
@@ -97,6 +97,8 @@ Phase 1 — MOH: pending verify.
 - [Phase 07]: UI copy names the env var so operators can escalate to admins with an actionable message
 - [Phase 08]: Hub module code callcenter (not call-center) for BASELINE_MODULES consistency
 - [Phase 08]: LEVEL_OPTIONS omits SUPERADMIN — platform-only (D-21)
+- [Phase 08]: Locale seeds written to shared/config/locales (actual path), not plan i18n/locales typo
+- [Phase 08]: createTokenStorage native returns null until Secure Storage wired in 08-10
 
 ## Roadmap Evolution
 
@@ -151,3 +153,4 @@ Phase 1 — MOH: pending verify.
 | Phase 07 P21 | 8min | 2 tasks | 9 files |
 | Phase 07 P22 | 6min | 1 tasks | 4 files |
 | Phase 08 P01 | 7min | 2 tasks | 8 files |
+| Phase 08 P12 | 8min | 2 tasks | 6 files |
