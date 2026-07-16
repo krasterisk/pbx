@@ -2375,7 +2375,7 @@ export const ru = {
       rtt: 'RTT',
       loss: 'Потери',
       micDenied: 'Нет доступа к микрофону. Разрешите доступ в настройках браузера и обновите страницу',
-      webrtcConfigMissing: 'WebRTC не настроен (нет WSS URL). Обратитесь к администратору.',
+      webrtcConfigMissing: 'WebRTC не настроен: на бэкенде не задан ASTERISK_WSS_URL. Попросите администратора указать WSS Asterisk (например wss://pbx.example.com:8089/ws).',
       connecting: 'Регистрация WebRTC...',
       registered: 'WebRTC зарегистрирован',
     },

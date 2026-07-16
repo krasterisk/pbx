@@ -2326,7 +2326,7 @@ export const en = {
       rtt: 'RTT',
       loss: 'Loss',
       micDenied: 'No microphone access. Allow access in browser settings and refresh the page',
-      webrtcConfigMissing: 'WebRTC is not configured (missing WSS URL). Contact an administrator.',
+      webrtcConfigMissing: 'WebRTC is not configured: ASTERISK_WSS_URL is missing on the backend. Ask an administrator to set it (e.g. wss://pbx.example.com:8089/ws).',
       connecting: 'Registering WebRTC...',
       registered: 'WebRTC registered',
     },
