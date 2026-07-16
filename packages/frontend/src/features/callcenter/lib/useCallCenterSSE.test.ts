@@ -38,12 +38,49 @@ class MockEventSource {
   }
 }
 
-const makeStore = () =>
-  configureStore({ reducer: { callCenter: callCenterReducer } });
+type AuthUser = { uniqueid: number; login: string; name: string; level: number; role: number; exten: string; vpbx_user_uid: number };
+
+const makeStore = (opts?: { user?: AuthUser | null; myAgentInterface?: string | null }) =>
+  configureStore({
+    reducer: {
+      callCenter: callCenterReducer,
+      auth: (state = {
+        user: opts?.user ?? null,
+        accessToken: null,
+        refreshToken: null,
+        isAuthenticated: false,
+        isLoading: false,
+        error: null,
+      }) => state,
+    },
+    preloadedState: opts?.myAgentInterface !== undefined
+      ? {
+          callCenter: {
+            agents: [],
+            queues: [],
+            calls: [],
+            connected: false,
+            myAgentInterface: opts.myAgentInterface,
+            chatUnreadByChannel: {},
+            chatOpen: false,
+          },
+        } as any
+      : undefined,
+  });
 
 const wrapper = (store: ReturnType<typeof makeStore>) =>
   ({ children }: { children: React.ReactNode }) =>
     React.createElement(Provider, { store } as any, children);
+
+const currentUser: AuthUser = {
+  uniqueid: 42,
+  login: 'agent',
+  name: 'Agent',
+  level: 2,
+  role: 0,
+  exten: '110',
+  vpbx_user_uid: 1,
+};
 
 describe('useCallCenterSSE', () => {
   let originalES: any;
@@ -166,5 +203,57 @@ describe('useCallCenterSSE', () => {
     unmount();
     expect(es.closed).toBe(true);
     expect(store.getState().callCenter.connected).toBe(false);
+  });
+
+  it('binds myAgentInterface from fullSnapshot when null and agent.userId matches current user', () => {
+    store = makeStore({ user: currentUser, myAgentInterface: null });
+    renderHook(() => useCallCenterSSE(true), { wrapper: wrapper(store) });
+    act(() => {
+      MockEventSource.instances[0].emit('fullSnapshot', {
+        agents: [{
+          interface: 'PJSIP/e110', name: 'Agent', status: 'READY',
+          queues: ['sales'], callsTaken: 0, userUid: 1, userId: 42,
+        }],
+        queues: [],
+        calls: [],
+      });
+    });
+    expect(store.getState().callCenter.myAgentInterface).toBe('PJSIP/e110');
+  });
+
+  it('binds myAgentInterface from agentUpdate when null and agent.userId matches', () => {
+    store = makeStore({ user: currentUser, myAgentInterface: null });
+    renderHook(() => useCallCenterSSE(true), { wrapper: wrapper(store) });
+    act(() => {
+      MockEventSource.instances[0].emit('agentUpdate', {
+        interface: 'PJSIP/ew110', name: 'Agent', status: 'READY',
+        queues: ['sales'], callsTaken: 0, userUid: 1, userId: 42,
+      });
+    });
+    expect(store.getState().callCenter.myAgentInterface).toBe('PJSIP/ew110');
+  });
+
+  it('does not overwrite an existing myAgentInterface via SSE fallback', () => {
+    store = makeStore({ user: currentUser, myAgentInterface: 'PJSIP/e110' });
+    renderHook(() => useCallCenterSSE(true), { wrapper: wrapper(store) });
+    act(() => {
+      MockEventSource.instances[0].emit('agentUpdate', {
+        interface: 'PJSIP/ew999', name: 'Other', status: 'READY',
+        queues: [], callsTaken: 0, userUid: 1, userId: 42,
+      });
+    });
+    expect(store.getState().callCenter.myAgentInterface).toBe('PJSIP/e110');
+  });
+
+  it('does not bind myAgentInterface for OFFLINE matching agent', () => {
+    store = makeStore({ user: currentUser, myAgentInterface: null });
+    renderHook(() => useCallCenterSSE(true), { wrapper: wrapper(store) });
+    act(() => {
+      MockEventSource.instances[0].emit('agentUpdate', {
+        interface: 'PJSIP/e110', name: 'Agent', status: 'OFFLINE',
+        queues: [], callsTaken: 0, userUid: 1, userId: 42,
+      });
+    });
+    expect(store.getState().callCenter.myAgentInterface).toBeNull();
   });
 });

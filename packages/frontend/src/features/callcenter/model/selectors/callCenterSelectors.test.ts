@@ -48,6 +48,25 @@ describe('callCenterSelectors', () => {
     expect(selectMyAgent(state)?.name).toBe('Alice');
   });
 
+  it('selectMyAgent resolves READY agent once myAgentInterface is bound (shift-login path)', () => {
+    const state = baseState({
+      myAgentInterface: 'PJSIP/e110',
+      agents: [
+        {
+          interface: 'PJSIP/e110',
+          name: 'Agent',
+          status: 'READY',
+          queues: ['sales'],
+          callsTaken: 0,
+          userUid: 1,
+          userId: 42,
+        },
+      ],
+    });
+    expect(selectMyAgent(state)?.status).toBe('READY');
+    expect(selectMyAgent(state)?.interface).toBe('PJSIP/e110');
+  });
+
   it('selectWaitingCalls returns WAITING+RINGING calls only', () => {
     const state = baseState({
       calls: [
