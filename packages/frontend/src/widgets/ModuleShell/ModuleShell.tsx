@@ -12,6 +12,7 @@ import { useAppDispatch, useAppSelector } from '@/shared/hooks/useAppStore';
 import { logout } from '@/features/auth/model/authSlice';
 import { UserLevel } from '@krasterisk/shared';
 import { useHubModules } from '@/features/modules/hooks/useHubModules';
+import { useModuleLicenseGate } from '@/features/modules/hooks/useModuleLicenseGate';
 import {
   filterPagesByLevel,
   findModuleByPath,
@@ -24,6 +25,7 @@ import cls from './ModuleShell.module.scss';
 /**
  * In-module shell — sketch winner 003-B: topbar + horizontal tabs.
  * Logo → /modules (D-10). ⌘K opens Dialog CommandPalette (D-06 / 08-04).
+ * Deep-link license gate (D-17) via useModuleLicenseGate.
  */
 export const ModuleShell = memo(function ModuleShell() {
   const { t, i18n } = useTranslation();
@@ -33,6 +35,7 @@ export const ModuleShell = memo(function ModuleShell() {
   const user = useAppSelector((s) => s.auth.user);
   const level = user?.level as UserLevel | undefined;
   const { active } = useHubModules();
+  useModuleLicenseGate();
 
   const [isDark, setIsDark] = useState(() => localStorage.getItem('theme') !== 'light');
   const [paletteOpen, setPaletteOpen] = useState(false);

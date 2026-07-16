@@ -8,6 +8,10 @@ vi.mock('@/features/modules/hooks/useHubModules', () => ({
   useHubModules: vi.fn(),
 }));
 
+vi.mock('@/features/modules/hooks/useModuleLicenseGate', () => ({
+  useModuleLicenseGate: vi.fn(),
+}));
+
 vi.mock('@/shared/hooks/useAppStore', () => ({
   useAppSelector: (sel: (s: { auth: { user: { name: string; level: number } } }) => unknown) =>
     sel({ auth: { user: { name: 'Admin', level: 1 } } }),

@@ -31,9 +31,6 @@ import { CallGroupsPage } from '@/features/call-groups';
 import { ServiceRequestsPage } from '@/pages/ServiceRequestsPage';
 import { SettingsPage } from '@/pages/SettingsPage';
 import { AuditLogPage } from '@/pages/AuditLogPage';
-import { SuperAdminPage } from '@/pages/SuperAdminPage/SuperAdminPage';
-import { MarketplacePage } from '@/pages/MarketplacePage/MarketplacePage';
-import { MyModulesPage } from '@/pages/MyModulesPage/MyModulesPage';
 import { ModulesHubPage } from '@/pages/ModulesHubPage';
 import { CallCenterAgentPage } from '@/pages/CallCenterAgentPage';
 import { CallCenterSupervisorPage } from '@/pages/CallCenterSupervisorPage';
@@ -57,10 +54,19 @@ export const router = createBrowserRouter([
     path: '/activate',
     element: <ActivationPage />,
   },
-  // Public TV wallboard — display-token auth only (no AppLayout / JWT)
+  // Public TV wallboard — display-token auth only (no AppLayout / JWT) (D-18 / NAV-15)
   {
     path: '/callcenter/wallboard',
     element: <CallCenterWallboardPage />,
+  },
+  // Platform console stub until 08-05 PlatformLayout — Navigate target for /superadmin (D-41)
+  {
+    path: '/platform',
+    element: (
+      <RequireRole allow={[UserLevel.SUPERADMIN]}>
+        <PlaceholderPage title="Platform" />
+      </RequireRole>
+    ),
   },
   {
     path: '/',
@@ -86,8 +92,12 @@ export const router = createBrowserRouter([
       { path: 'roles', element: <RolesPage /> },
       { path: 'numbers', element: <NumbersPage /> },
       { path: 'provision-templates', element: <ProvisionTemplatesPage /> },
+      // Legacy transitional redirects (D-41) — page files kept on disk for now
       { path: 'operator', element: <Navigate to="/callcenter/agent" replace /> },
       { path: 'supervisor', element: <Navigate to="/callcenter/supervisor" replace /> },
+      { path: 'marketplace', element: <Navigate to="/modules" replace /> },
+      { path: 'my-modules', element: <Navigate to="/modules" replace /> },
+      { path: 'superadmin', element: <Navigate to="/platform" replace /> },
       { path: 'callcenter/agent', element: <CallCenterAgentPage /> },
       {
         path: 'callcenter/supervisor',
@@ -122,9 +132,6 @@ export const router = createBrowserRouter([
       { path: 'settings', element: <SettingsPage /> },
       { path: 'settings/tts-engines', element: <TtsEnginesPage /> },
       { path: 'settings/stt-engines', element: <SttEnginesPage /> },
-      { path: 'superadmin', element: <SuperAdminPage /> },
-      { path: 'marketplace', element: <MarketplacePage /> },
-      { path: 'my-modules', element: <MyModulesPage /> },
     ],
   },
   {
