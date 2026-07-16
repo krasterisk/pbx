@@ -322,7 +322,7 @@ Plans:
 - `packages/backend/src/modules/callcenter/` — state store, AMI, SSE, agent/supervisor API (реализовано)
 - `packages/frontend/src/features/callcenter/`, `pages/CallCenterAgentPage/`, `pages/CallCenterSupervisorPage/` — текущие панели
 
-**Status:** Gap closure planned — 07-21…07-22 address UAT blockers (shift identity + WSS env); re-execute then re-UAT  
+**Status:** Gap closure executed (07-21, 07-22) — re-UAT / verify remaining
 
 **Depends on:** Phase 6 (dialplan apps / call groups стабилизированы; независимо от verify Phases 1–5)
 
@@ -359,7 +359,7 @@ Plans:
 | 5 | `/gsd-ui-review 7` + `npm run test:frontend` |
 | 6 | `/gsd-verify-work 7` → `/gsd-ship 7` |
 
-**Plans:** 21/22 plans executed
+**Plans:** 22/22 plans executed
 
 Plans:
 
@@ -372,9 +372,79 @@ Plans:
 - [x] 07-19-PLAN.md — Gap closure: PauseReasonsManager + operator settings picker [D-40/D-22]
 - [x] 07-20-PLAN.md — Gap closure: track SIP MuteAudio as DEF-07-MUTE-AMI [D-14]
 - [x] 07-21-PLAN.md — Gap closure: setMyAgentInterface on shift login + require ≥1 queue [D-14/D-15]
-- [ ] 07-22-PLAN.md — Gap closure: ASTERISK_WSS_URL docs + clear missing-WSS UI [D-14/D-17]
+- [x] 07-22-PLAN.md — Gap closure: ASTERISK_WSS_URL docs + clear missing-WSS UI [D-14/D-17]
 
 **Verification:**
 
 - Automated: `npm run lint`, `npm run test:backend` (callcenter), `npm run test:frontend`
 - Manual: `/callcenter/agent`, `/callcenter/supervisor`, `/callcenter/wallboard` — сценарий: login → входящий из очереди → карточка авто-открылась с данными phonebook → hold/transfer → wrap-up → отчёты показывают звонок; WebRTC-режим — звонок полностью в браузере
+
+---
+
+## Phase 8 — Navigation redesign & Android port foundation
+
+**Canonical refs (фаза):**
+
+- `packages/frontend/.idea/ARCHITECTURE.md` — **MUST READ** (FSD, Tailwind + shadcn, Stack, i18n, design tokens)
+- `packages/frontend/src/widgets/Sidebar/` — текущая навигация (`buildNavigation`, `Sidebar`, `SidebarItem`)
+- `packages/frontend/src/app/layouts/AppLayout.tsx` — shell (sidebar + content)
+- `packages/frontend/src/app/router/router.tsx` — маршруты модулей
+- `packages/frontend/package.json` — стек (React 19 + Vite + Tailwind 4; **нет** Capacitor / RN)
+
+**Status:** Not planned yet  
+**Depends on:** Phase 7 (стабильный App shell / role-based menu; независимо от verify Phases 1–6)
+
+**Goal:** Заменить плоское Tailwind-меню на масштабируемую модульную навигацию (рост разделов: настройки, маршрутизация, колл-центр, аналитика, отчёты, системные настройки и т.д.), с современным UX и полноценной mobile-адаптацией; параллельно подготовить стек и архитектуру к портированию web-клиента на Android (Capacitor-first foundation).
+
+**Scope (in):**
+
+1. **IA / информационная архитектура** — группировка модулей (workspaces / domains), role-based visibility, deep-link совместимость с текущими routes; поиск по разделам (command palette / omnibox) как first-class способ перехода при росте меню
+2. **Редизайн навигации** — несколько визуальных/функциональных вариантов (sketch → выбор → один winner): collapsible rail + module switcher, dual-rail (domains → pages), mega-menu / flyout, bottom bar (mobile) + drawer; современные паттерны (density, keyboard, recent/favorites, contextual secondary nav)
+3. **Design-system touchpoints** — токены/паттерны shell (AppLayout, nav density, focus rings, motion); без полной смены UI-kit; согласование с `shared/ui` + Tailwind + shadcn
+4. **Mobile-first адаптация** — breakpoints, touch targets, safe areas, drawer/sheet вместо sidebar, сохранение контекста при ротации; smoke на ключевых страницах (dashboard, routes, callcenter agent/supervisor)
+5. **Android port foundation** — выбор оболочки (рекомендуемый baseline: **Capacitor** над существующим Vite/React SPA); gap-анализ стека; scaffold `android/`; env/build pipelines; WebView constraints (auth storage, SSE, WebRTC/mic/camera permissions, deep links, push notifications stub); документация «что добавить / чего не хватает»
+6. **i18n** — все новые строки `ru` + `en`
+
+**Scope (out):**
+
+- Полный редизайн всех внутренних страниц модулей (только shell + navigation + critical mobile breakpoints)
+- Публикация в Google Play / store listing / production signing — только подготовка и checklist
+- Нативный React Native rewrite (если discuss выберет Capacitor — RN out of scope)
+- iOS port (можно заложить в backlog / следующую фазу после Android foundation)
+- Backend API changes кроме минимально необходимых для mobile auth/push (обсуждается на discuss)
+
+**Stack gaps (стартовая гипотеза для research/discuss):**
+
+| Область | Сейчас | Нужно для Android |
+|---------|--------|-------------------|
+| Shell | Vite SPA в браузере | Capacitor 6/7 + `@capacitor/android` |
+| Permissions | browser APIs | Capacitor plugins: Camera/Mic, Push, App, StatusBar, SplashScreen, Keyboard |
+| Softphone | sip.js + WSS в браузере | проверка WebView WebRTC / audio focus / background constraints |
+| Realtime | SSE / socket.io | keep-alive / reconnect политики под mobile network |
+| Auth | JWT / localStorage | Secure storage plugin; refresh UX offline |
+| Build | `vite build` | Gradle wrapper, CI artifact AAB/APK, env flavors |
+
+**Requirements:** TBD (discuss → REQ / decisions; ожидаются waves: IA+sketch → UI shell → mobile → Capacitor scaffold)
+
+**GSD workflow (рекомендуемый порядок):**
+
+| Шаг | Команда |
+|-----|---------|
+| 1 | `/gsd-discuss-phase 8` — IA, варианты nav, Capacitor vs RN, scope mobile vs full Android |
+| 2 | `/gsd-sketch` — 3+ варианта навигации (desktop + mobile) |
+| 3 | Выбор варианта → `/gsd-ui-phase 8` |
+| 4 | `/gsd-plan-phase 8` |
+| 5 | `/gsd-execute-phase 8` |
+| 6 | `/gsd-ui-review 8` + `npm run test:frontend` |
+| 7 | `/gsd-verify-work 8` → `/gsd-ship 8` |
+
+**Plans:** 0 plans
+
+Plans:
+
+- [ ] TBD (run `/gsd-plan-phase 8` after discuss/sketch)
+
+**Verification:**
+
+- Automated: `npm run lint`, `npm run test:frontend`; Capacitor sync/build smoke (если scaffold в scope execute)
+- Manual: desktop — переключение между доменами/модулями, keyboard/search; mobile — drawer/bottom nav, ключевые сценарии; Android emulator/device — открытие shell, login, 1–2 ключевых экрана, mic permission path для softphone

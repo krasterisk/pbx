@@ -2,22 +2,22 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: In progress — gap closure
-last_updated: "2026-07-16T11:59:30.000Z"
+status: Phase 07 gap closure complete — ready for re-UAT / verify
+last_updated: "2026-07-16T12:05:00.000Z"
 progress:
-  total_phases: 7
+  total_phases: 8
   completed_phases: 4
   total_plans: 51
-  completed_plans: 49
-  percent: 96
+  completed_plans: 50
+  percent: 98
 ---
 
 # State
 
 ## Current position
 
-Phase: 07 (call-center-overhaul-professional-agent-supervisor-workspace) — IN PROGRESS (gap closure)
-Plan: 21 of 22 executed (07-21 SUMMARY done; next: execute 07-22)
+Phase: 07 (call-center-overhaul-professional-agent-supervisor-workspace) — gap closure plans complete (07-21, 07-22)
+Plan: 22 of 22 executed (07-22 SUMMARY done; next: re-UAT / `/gsd-verify-work 7`)
 Phase 5 — Phonebooks AI: plans executed (verify/UAT may remain).  
 Phase 6 — Dialplan Apps: **06-01–06-16 executed** (gap closures done). Re-UAT after ops mkdir for krasterisk subdirs; UAT Tests 5–6 hint duplication fixed.
 
@@ -92,9 +92,12 @@ Phase 1 — MOH: pending verify.
 - [Phase 07]: Bind myAgentInterface from ShiftLoginResult.interface, not API unwrap
 - [Phase 07]: UI-only ≥1 queue gate; backend AgentLoginDto queues remain optional
 - [Phase 07]: SSE fallback never overwrites non-null myAgentInterface; logout owns clear
+- [Phase 07]: Document ASTERISK_WSS_URL + SIP_DOMAIN + optional WEBRTC_TURN_* in .env.example only — no invented pjsip/http.conf
+- [Phase 07]: UI copy names the env var so operators can escalate to admins with an actionable message
 
 ## Roadmap Evolution
 
+- Phase 8 added: Navigation redesign & Android port foundation — масштабируемая модульная навигация (IA, command palette, mobile-first), design-system shell touchpoints, Capacitor-first подготовка стека к Android (WebRTC/SSE/auth gaps).
 - Phase 7 added: Call Center overhaul — корпоративный колл-центр (аудит + rework ядра, АРМ оператора/супервизора, wallboard + metrics, call cards, отчётность/аналитика, WebRTC, AI-ready foundation).
 - Phase 6 added: Dialplan Apps — ring groups / call lists, multi-channel notifications, UX overhaul DialplanAppsEditor.
 - Phase 5 added: Phonebooks AI — универсальные механизмы справочников, MCP tools и настройка через AI Chat module.
@@ -102,7 +105,7 @@ Phase 1 — MOH: pending verify.
 
 ## Next GSD command
 
-`/gsd-execute-phase 7` (plan 07-22 — WebRTC WSS env / docs gap closure)
+`/gsd-verify-work 7` (or re-UAT Call Center Tests 1–2 with ASTERISK_WSS_URL set)
 
 ## Performance Metrics
 
@@ -140,3 +143,4 @@ Phase 1 — MOH: pending verify.
 | Phase 07 P20 | 4min | 1 tasks | 2 files |
 | Phase 06 P16 | 5min | 2 tasks | 6 files |
 | Phase 07 P21 | 8min | 2 tasks | 9 files |
+| Phase 07 P22 | 6min | 1 tasks | 4 files |
