@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sketch 006 — Platform Modules admin</title>
+  <link rel="stylesheet" href="../themes/default.css" />
+  <style>
+    body { padding-top: 52px; padding-bottom: 48px; min-height: 100vh; }
+    #variant-nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 9998;
+      background: var(--color-surface); border-bottom: 1px solid var(--color-border);
+      padding: 10px 16px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+    }
+    .variant-tab {
+      padding: 8px 14px; border: 1px solid var(--color-border); border-radius: var(--radius-md);
+      background: var(--color-surface); color: var(--color-text); cursor: pointer; font-size: var(--text-sm);
+    }
+    .variant-tab.active {
+      background: var(--color-indigo-muted); border-color: var(--color-indigo); color: var(--color-indigo);
+    }
+    #variant-nav .hint { margin-left: auto; font-size: var(--text-xs); color: var(--color-text-muted); }
+    .variant { display: none; max-width: 960px; margin: 0 auto; padding: 20px; }
+    .variant.active { display: block; }
+
+    .role-bar {
+      display: flex; gap: 8px; align-items: center; margin-bottom: 16px; flex-wrap: wrap;
+      padding: 10px 12px; border-radius: 10px; border: 1px solid var(--color-border);
+      background: var(--color-surface);
+    }
+    .role-bar span { font-size: 12px; color: var(--color-text-muted); margin-right: 4px; }
+    .seg {
+      padding: 6px 12px; border-radius: 8px; border: 1px solid var(--color-border);
+      background: transparent; color: var(--color-text-muted); cursor: pointer; font-size: 13px;
+    }
+    .seg.active { background: var(--color-indigo-muted); border-color: var(--color-indigo); color: var(--color-indigo); }
+
+    .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--color-border); margin-bottom: 16px; }
+    .tab {
+      padding: 10px 14px; border: none; background: transparent; color: var(--color-text-muted);
+      cursor: pointer; font-size: 13px; border-bottom: 2px solid transparent;
+    }
+    .tab.active { color: var(--color-indigo); border-bottom-color: var(--color-indigo); }
+
+    h1 { margin: 0 0 4px; font-size: 1.3rem; }
+    .sub { margin: 0 0 16px; font-size: var(--text-sm); color: var(--color-text-muted); }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 720px) { .grid { grid-template-columns: 1fr; } }
+
+    .panel {
+      border: 1px solid var(--color-border); border-radius: 12px;
+      background: rgba(15,15,20,0.5); overflow: hidden;
+    }
+    .panel-h {
+      padding: 12px 14px; border-bottom: 1px solid var(--color-border);
+      font-size: 13px; font-weight: 600; display: flex; justify-content: space-between; align-items: center;
+    }
+    .panel-b { padding: 8px; }
+    .mod {
+      display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 8px;
+      margin-bottom: 4px; background: transparent; border: 1px solid transparent;
+    }
+    .mod:hover { background: rgba(255,255,255,0.03); }
+    .mod.drag { border: 1px dashed var(--color-indigo); }
+    .handle { cursor: grab; color: var(--color-text-muted); font-size: 12px; }
+    .ico {
+      width: 32px; height: 32px; border-radius: 8px; display: grid; place-items: center;
+      background: var(--color-indigo-muted); color: var(--color-indigo); font-size: 14px;
+    }
+    .meta { flex: 1; min-width: 0; }
+    .meta strong { display: block; font-size: 13px; }
+    .meta span { font-size: 11px; color: var(--color-text-muted); }
+    .badge {
+      font-size: 10px; padding: 2px 7px; border-radius: 999px;
+      background: rgba(255,255,255,0.06); color: var(--color-text-muted);
+    }
+    .badge.base { background: rgba(99,102,241,0.15); color: #a5b4fc; }
+    .badge.market { background: rgba(251,191,36,0.12); color: #fbbf24; }
+
+    .toggle {
+      width: 40px; height: 22px; border-radius: 999px; border: none; cursor: pointer;
+      background: #333; position: relative; flex-shrink: 0;
+    }
+    .toggle.on { background: var(--color-indigo); }
+    .toggle::after {
+      content: ''; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px;
+      border-radius: 50%; background: #fff; transition: left 0.15s;
+    }
+    .toggle.on::after { left: 21px; }
+
+    .btn {
+      padding: 8px 12px; border-radius: 8px; border: none; cursor: pointer; font-size: 13px;
+      background: var(--color-primary); color: #fff;
+    }
+    .btn-ghost {
+      background: transparent; border: 1px solid var(--color-border); color: var(--color-text);
+    }
+    .page-item {
+      display: flex; align-items: center; gap: 8px; padding: 8px 10px; font-size: 12px;
+      border-radius: 6px; color: var(--color-text-muted);
+    }
+    .page-item select {
+      margin-left: auto; background: var(--color-surface); color: var(--color-text);
+      border: 1px solid var(--color-border); border-radius: 6px; padding: 4px 6px; font-size: 11px;
+    }
+    .banner {
+      padding: 10px 12px; border-radius: 8px; margin-bottom: 12px; font-size: 12px;
+      background: rgba(99,102,241,0.1); border: 1px solid rgba(99,102,241,0.3); color: #c7d2fe;
+    }
+    .banner.warn { background: rgba(251,191,36,0.08); border-color: rgba(251,191,36,0.3); color: #fde68a; }
+    .console-chrome {
+      display: flex; gap: 8px; padding: 8px; border-radius: 10px; margin-bottom: 12px;
+      background: #0a0a10; border: 1px solid var(--color-border); font-size: 12px; color: var(--color-text-muted);
+    }
+    .console-chrome strong { color: #fbbf24; }
+    .matrix {
+      width: 100%; border-collapse: collapse; font-size: 12px;
+    }
+    .matrix th, .matrix td { padding: 8px 10px; border-bottom: 1px solid var(--color-border); text-align: left; }
+    .matrix th { color: var(--color-text-muted); font-weight: 500; }
+    .matrix select {
+      background: var(--color-surface); color: var(--color-text); border: 1px solid var(--color-border);
+      border-radius: 6px; padding: 4px 6px; font-size: 11px;
+    }
+    .toast {
+      position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%);
+      background: var(--color-surface-elevated); border: 1px solid var(--color-border);
+      padding: 10px 16px; border-radius: 10px; font-size: var(--text-sm);
+      opacity: 0; pointer-events: none; transition: opacity 0.2s; z-index: 90;
+    }
+    .toast.show { opacity: 1; }
+  </style>
+</head>
+<body>
+  <div id="variant-nav">
+    <button type="button" class="variant-tab active" data-v="a">A: Dual workspace tabs</button>
+    <button type="button" class="variant-tab" data-v="b">B: Separate apps</button>
+    <button type="button" class="variant-tab" data-v="c">C: Role-adaptive page</button>
+    <span class="hint">006 · super-admin vs tenant · use role switcher</span>
+  </div>
+
+  <div id="variant-a" class="variant active"></div>
+  <div id="variant-b" class="variant"></div>
+  <div id="variant-c" class="variant"></div>
+  <div class="toast" id="toast"></div>
+
+  <script>
+    let role = 'super'; // super | tenant
+    let tabA = 'platform';
+    let tabC = 'modules';
+
+    const catalog = [
+      { id: 'core', name: 'Core / PBX', kind: 'base', pages: ['endpoints', 'trunks', 'routes'] },
+      { id: 'apps', name: 'Apps', kind: 'base', pages: ['ivr', 'moh', 'queues'] },
+      { id: 'system', name: 'System', kind: 'base', pages: ['users', 'roles', 'modules'] },
+      { id: 'cc', name: 'Call Center', kind: 'market', pages: ['agent', 'supervisor', 'reports'] },
+      { id: 'analytics', name: 'Analytics', kind: 'market', pages: ['cdr', 'audit'] },
+    ];
+    const tenantState = {
+      core: true, apps: true, system: true, cc: false, analytics: false,
+    };
+
+    function toast(msg) {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.classList.add('show');
+      clearTimeout(toast._t);
+      toast._t = setTimeout(() => el.classList.remove('show'), 1400);
+    }
+
+    function roleBar(extra = '') {
+      return `<div class="role-bar">
+        <span>Preview as:</span>
+        <button type="button" class="seg ${role === 'super' ? 'active' : ''}" data-role="super">Super-admin (platform)</button>
+        <button type="button" class="seg ${role === 'tenant' ? 'active' : ''}" data-role="tenant">Tenant admin</button>
+        ${extra}
+      </div>`;
+    }
+
+    function platformCatalog() {
+      return `
+        <div class="banner">Platform operator · вне тенанта · правит catalog / membership / base vs marketplace</div>
+        <div class="grid">
+          <div class="panel">
+            <div class="panel-h">Catalog modules <button type="button" class="btn" style="padding:4px 8px;font-size:11px" data-act="add-mod">+ Module</button></div>
+            <div class="panel-b">
+              ${catalog.map((m) => `
+                <div class="mod" draggable="true" data-drag="${m.id}">
+                  <span class="handle">⠿</span>
+                  <span class="ico">${m.kind === 'market' ? '✦' : '◆'}</span>
+                  <span class="meta"><strong>${m.name}</strong><span>${m.pages.length} pages</span></span>
+                  <span class="badge ${m.kind}">${m.kind}</span>
+                  <button type="button" class="btn-ghost btn" style="padding:4px 8px;font-size:11px" data-kind="${m.id}">Toggle kind</button>
+                </div>`).join('')}
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-h">Page → module membership</div>
+            <div class="panel-b">
+              ${catalog.flatMap((m) => m.pages.map((p) => `
+                <div class="page-item">
+                  <span>/${p}</span>
+                  <select data-page="${p}" data-from="${m.id}">
+                    ${catalog.map((x) => `<option value="${x.id}" ${x.id === m.id ? 'selected' : ''}>${x.name}</option>`).join('')}
+                  </select>
+                </div>`)).join('')}
+            </div>
+          </div>
+        </div>
+        <div class="panel" style="margin-top:16px">
+          <div class="panel-h">Role → start defaults (tenant-overridable)</div>
+          <div class="panel-b">
+            <table class="matrix">
+              <thead><tr><th>Role</th><th>Default module / screen</th></tr></thead>
+              <tbody>
+                <tr><td>OPERATOR</td><td><select><option>Call Center / agent</option><option>Обзор</option></select></td></tr>
+                <tr><td>SUPERVISOR</td><td><select><option>Call Center / supervisor</option><option>Обзор</option></select></td></tr>
+                <tr><td>ADMIN</td><td><select><option>Обзор</option><option>Core / PBX</option></select></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>`;
+    }
+
+    function tenantModules() {
+      return `
+        <div class="banner warn">Tenant admin · enable/disable + покупка · catalog composition read-only</div>
+        <div class="panel">
+          <div class="panel-h">Modules for this tenant</div>
+          <div class="panel-b">
+            ${catalog.map((m) => `
+              <div class="mod">
+                <span class="ico">${m.kind === 'market' ? '✦' : '◆'}</span>
+                <span class="meta"><strong>${m.name}</strong><span>${m.kind === 'market' ? 'Marketplace' : 'Base'}</span></span>
+                ${m.kind === 'market' && !tenantState[m.id]
+                  ? `<button type="button" class="btn" style="padding:6px 10px;font-size:12px" data-buy="${m.id}">Купить</button>`
+                  : `<button type="button" class="toggle ${tenantState[m.id] ? 'on' : ''}" data-tog="${m.id}" title="Enable"></button>`}
+              </div>`).join('')}
+          </div>
+        </div>
+        <p class="sub" style="margin-top:12px">Marketplace UX = sketch 005-B · checkout skeleton</p>`;
+    }
+
+    function renderA(root) {
+      const canPlatform = role === 'super';
+      root.innerHTML = `
+        ${roleBar()}
+        <h1>Modules admin</h1>
+        <p class="sub">A · dual tabs in one admin shell · Platform tab hidden for tenant</p>
+        <div class="tabs">
+          ${canPlatform ? `<button type="button" class="tab ${tabA === 'platform' ? 'active' : ''}" data-taba="platform">Platform catalog</button>` : ''}
+          <button type="button" class="tab ${tabA === 'tenant' || !canPlatform ? 'active' : ''}" data-taba="tenant">Tenant modules</button>
+        </div>
+        <div id="a-body">${(canPlatform && tabA === 'platform') ? platformCatalog() : tenantModules()}</div>
+      `;
+      bindCommon(root);
+      root.querySelectorAll('[data-taba]').forEach((t) => {
+        t.onclick = () => { tabA = t.dataset.taba; remount(); };
+      });
+    }
+
+    function renderB(root) {
+      if (role === 'super') {
+        root.innerHTML = `
+          ${roleBar()}
+          <div class="console-chrome"><strong>PLATFORM CONSOLE</strong> · /platform/modules · отдельное приложение</div>
+          <h1>Catalog</h1>
+          <p class="sub">B · super-admin only surface · tenant never sees this chrome</p>
+          ${platformCatalog()}
+        `;
+      } else {
+        root.innerHTML = `
+          ${roleBar()}
+          <div class="console-chrome">System · Modules · tenant app</div>
+          <h1>Modules</h1>
+          <p class="sub">B · System module page · no platform tools</p>
+          ${tenantModules()}
+        `;
+      }
+      bindCommon(root);
+    }
+
+    function renderC(root) {
+      root.innerHTML = `
+        ${roleBar(`<span style="margin-left:auto;font-size:11px">One route · adaptive</span>`)}
+        <h1>Modules</h1>
+        <p class="sub">C · одна страница · tools появляются по роли</p>
+        ${role === 'super' ? `
+          <div class="tabs">
+            <button type="button" class="tab ${tabC === 'modules' ? 'active' : ''}" data-tabc="modules">Tenant view</button>
+            <button type="button" class="tab ${tabC === 'catalog' ? 'active' : ''}" data-tabc="catalog">Catalog editor</button>
+          </div>
+          ${tabC === 'catalog' ? platformCatalog() : tenantModules() + '<div class="banner" style="margin-top:12px">Super-admin также видит «Catalog editor» tab</div>'}
+        ` : tenantModules()}
+      `;
+      bindCommon(root);
+      root.querySelectorAll('[data-tabc]').forEach((t) => {
+        t.onclick = () => { tabC = t.dataset.tabc; remount(); };
+      });
+    }
+
+    function bindCommon(root) {
+      root.querySelectorAll('[data-role]').forEach((b) => {
+        b.onclick = () => {
+          role = b.dataset.role;
+          if (role === 'tenant') tabA = 'tenant';
+          remount();
+          toast('Role → ' + role);
+        };
+      });
+      root.querySelectorAll('[data-kind]').forEach((b) => {
+        b.onclick = () => {
+          const m = catalog.find((x) => x.id === b.dataset.kind);
+          m.kind = m.kind === 'base' ? 'market' : 'base';
+          remount();
+          toast(m.name + ' → ' + m.kind);
+        };
+      });
+      root.querySelectorAll('[data-tog]').forEach((b) => {
+        b.onclick = () => {
+          const id = b.dataset.tog;
+          if (catalog.find((m) => m.id === id)?.kind === 'base' && tenantState[id]) {
+            toast('Base module · нельзя выключить полностью (demo policy)');
+            return;
+          }
+          tenantState[id] = !tenantState[id];
+          remount();
+        };
+      });
+      root.querySelectorAll('[data-buy]').forEach((b) => {
+        b.onclick = () => toast('Buy → checkout skeleton (005-B) · ' + b.dataset.buy);
+      });
+      root.querySelectorAll('[data-act="add-mod"]').forEach((b) => {
+        b.onclick = () => toast('Add module to catalog (fake)');
+      });
+      root.querySelectorAll('select[data-page]').forEach((sel) => {
+        sel.onchange = () => toast(`/${sel.dataset.page} → ${sel.value}`);
+      });
+      root.querySelectorAll('[data-drag]').forEach((el) => {
+        el.addEventListener('dragstart', () => el.classList.add('drag'));
+        el.addEventListener('dragend', () => {
+          el.classList.remove('drag');
+          toast('Reorder catalog (fake persist)');
+        });
+      });
+    }
+
+    function remount() {
+      renderA(document.getElementById('variant-a'));
+      renderB(document.getElementById('variant-b'));
+      renderC(document.getElementById('variant-c'));
+    }
+
+    document.querySelectorAll('.variant-tab').forEach((tab) => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.variant-tab').forEach((t) => t.classList.remove('active'));
+        tab.classList.add('active');
+        document.querySelectorAll('.variant').forEach((v) => v.classList.remove('active'));
+        document.getElementById('variant-' + tab.dataset.v).classList.add('active');
+      });
+    });
+
+    remount();
+  </script>
+</body>
+</html>
