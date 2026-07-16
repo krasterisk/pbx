@@ -6,6 +6,9 @@ import { Phone, Lock, User, ArrowRight, Loader2, Languages } from 'lucide-react'
 import { Button, Input, VStack, HStack, Flex } from '@/shared/ui';
 import { useAppDispatch, useAppSelector } from '@/shared/hooks/useAppStore';
 import { login, clearError } from '@/features/auth/model/authSlice';
+import { resolveRoleStart } from '@/features/modules/lib/roleStartResolver';
+import { ROLE_START_PENDING_KEY } from '@/features/modules/hooks/useRoleStartRedirect';
+import { UserLevel } from '@krasterisk/shared';
 
 export const LoginPage = () => {
   const { t, i18n } = useTranslation();
@@ -19,7 +22,10 @@ export const LoginPage = () => {
     e.preventDefault();
     const result = await dispatch(login(form));
     if (login.fulfilled.match(result)) {
-      navigate('/');
+      const level = result.payload?.user?.level as UserLevel | undefined;
+      const startPath = resolveRoleStart(level);
+      sessionStorage.setItem(ROLE_START_PENDING_KEY, '1');
+      navigate(startPath);
     }
   };
 

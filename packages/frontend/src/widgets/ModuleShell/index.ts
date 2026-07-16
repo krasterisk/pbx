@@ -1,0 +1,1 @@
+export { ModuleShell } from './ModuleShell';
