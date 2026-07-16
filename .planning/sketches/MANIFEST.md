@@ -18,7 +18,7 @@
 | # | Name | Design Question | Winner | Tags |
 |---|------|-----------------|--------|------|
 | 001 | moh-page-redesign | Which MohPage layout + CTA for Phase 2? | **A** — Safe glass card | moh, phase-2, layout |
-| 002 | module-hub-desktop | Which Module Hub (bento+dock+Locked) for Phase 8? | — | hub, phase-8, navigation, marketplace |
+| 002 | module-hub-desktop | Which Module Hub (bento+dock+Locked) for Phase 8? | — | hub, phase-8, navigation, marketplace — 6 variants (A-F) |
 | 003 | in-module-shell | Dense sidebar vs sparse tabs + chip/⌘K? | — | shell, phase-8, navigation |
 | 004 | module-hub-mobile | Hub-first phone + tablet dual-pane? | — | mobile, phase-8, hub |
 | 005 | module-marketplace-billing | Ghost Locked + purchase/billing skeleton UX? | — | marketplace, billing, phase-8 |

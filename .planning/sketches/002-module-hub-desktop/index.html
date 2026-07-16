@@ -142,6 +142,7 @@
       opacity: 0.45;
       outline: 1px dashed var(--color-border);
     }
+    .tile-main { display: contents; }
 
     .dock {
       position: absolute; left: 50%; bottom: 20px; transform: translateX(-50%);
@@ -240,6 +241,72 @@
     }
     .v-c .dock-item { width: 52px; height: 52px; border-radius: 16px; font-size: 15px; }
 
+    /* Variant D — command rail */
+    .v-d .d-body { display: flex; gap: 20px; align-items: flex-start; }
+    .v-d .rail {
+      width: 60px; flex-shrink: 0; display: flex; flex-direction: column; gap: 10px;
+      padding-top: 4px;
+    }
+    .v-d .rail-btn {
+      width: 44px; height: 44px; border-radius: 12px; border: 1px solid var(--color-border);
+      background: var(--color-surface); color: var(--color-text-muted);
+      display: grid; place-items: center; cursor: pointer; font-size: 16px;
+    }
+    .v-d .rail-btn:hover { background: var(--color-surface-elevated); }
+    .v-d .rail-btn.active {
+      border-color: var(--color-indigo); color: var(--color-indigo); background: var(--color-indigo-muted);
+    }
+    .v-d .hub-main { flex: 1; min-width: 0; }
+    .v-d .bento { grid-template-columns: repeat(9, 1fr); }
+    .v-d .tile { grid-column: span 3; }
+    .v-d .tile.hero { grid-column: span 6; }
+
+    /* Variant E — minimal workspace list */
+    .v-e.hub { padding-top: 36px; }
+    .v-e .hub-top { max-width: 720px; margin: 0 auto 18px; }
+    .v-e .brand h1 { font-size: 1.1rem; font-weight: 600; -webkit-text-fill-color: unset; background: none; color: var(--color-text); }
+    .v-e .bento { grid-template-columns: 1fr; gap: 0; max-width: 720px; margin: 0 auto; }
+    .v-e .tile {
+      grid-column: 1 / -1; display: flex; align-items: center; gap: 12px;
+      min-height: auto; padding: 14px 16px; border-radius: 0;
+      background: transparent; border: none; border-bottom: 1px solid var(--color-border);
+    }
+    .v-e .tile:hover { background: rgba(255,255,255,0.03); }
+    .v-e .tile .icon { order: 1; margin-bottom: 0; width: 34px; height: 34px; font-size: 15px; flex-shrink: 0; }
+    .v-e .tile .tile-main { order: 2; display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+    .v-e .tile h3 { font-size: 0.92rem; }
+    .v-e .tile .desc { font-size: 12px; }
+    .v-e .tile .meta { order: 3; margin-top: 0; flex-shrink: 0; }
+    .v-e .tile .star { order: 4; position: static; margin-left: 2px; }
+    .v-e .tile .lock-badge { order: 5; position: static; }
+    .v-e .dock { display: none; }
+
+    /* Variant F — orbit */
+    .v-f .orbit-wrap {
+      position: relative; width: 100%; min-height: 480px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .v-f .orbit-ring {
+      position: absolute; width: 70%; max-width: 620px; aspect-ratio: 16/10;
+      border: 1px dashed rgba(99,102,241,0.28); border-radius: 50%;
+    }
+    .v-f .orbit-center {
+      position: absolute; width: 92px; height: 92px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(99,102,241,0.4), rgba(99,102,241,0.06));
+      border: 1px solid rgba(99,102,241,0.55); color: var(--color-indigo);
+      display: grid; place-items: center; font-weight: 800; font-size: 20px;
+      cursor: pointer; box-shadow: 0 0 44px rgba(99,102,241,0.28); z-index: 2;
+    }
+    .v-f .bento { display: block; position: relative; width: 100%; height: 480px; }
+    .v-f .tile {
+      position: absolute; top: 50%; left: 50%; width: 148px; min-height: 108px;
+      transform: translate(-50%, -50%); text-align: center; grid-column: unset;
+    }
+    .v-f .tile .icon { margin: 0 auto 8px; }
+    .v-f .tile .desc { display: none; }
+    .v-f .tile .meta { justify-content: center; }
+    .v-f .dock { bottom: 16px; }
+
     #sketch-tools {
       position: fixed; bottom: 12px; right: 12px; z-index: 9999;
       font-family: system-ui; font-size: 12px; background: rgba(0,0,0,0.75); color: white;
@@ -255,6 +322,13 @@
       .tile, .tile.wide, .tile.hero { grid-column: span 6; }
       .v-c .bento { grid-template-columns: repeat(3, 1fr); }
       .v-c .market-rail { display: none; }
+      .v-d .d-body { flex-direction: column; }
+      .v-d .rail { flex-direction: row; width: auto; }
+      .v-d .bento { grid-template-columns: repeat(6, 1fr); }
+      .v-d .tile, .v-d .tile.hero { grid-column: span 6; }
+      .v-f .orbit-wrap { display: none; }
+      .v-f .bento { display: grid; grid-template-columns: repeat(6,1fr); position: static; height: auto; gap: 12px; }
+      .v-f .tile { position: static; transform: none; width: auto; grid-column: span 6; }
     }
   </style>
 </head>
@@ -263,6 +337,9 @@
     <button type="button" class="variant-tab active" data-v="a">A: Safe — Glass bento</button>
     <button type="button" class="variant-tab" data-v="b">B: Bold — Cinematic stage</button>
     <button type="button" class="variant-tab" data-v="c">C: Bold — OS launcher</button>
+    <button type="button" class="variant-tab" data-v="d">D: Command rail + filters</button>
+    <button type="button" class="variant-tab" data-v="e">E: Minimal workspace list</button>
+    <button type="button" class="variant-tab" data-v="f">F: Orbit</button>
     <span class="hint">Phase 8 · Module Hub · star = favorite · click tile</span>
   </div>
 
@@ -326,6 +403,74 @@
       <div class="bento" data-bento></div>
       <div class="dock" data-dock></div>
     </section>
+
+    <!-- VARIANT D -->
+    <section id="variant-d" class="variant hub v-d" data-variant="d">
+      <div class="hub-top">
+        <div class="brand">
+          <div class="brand-mark">K</div>
+          <div>
+            <h1>Модули</h1>
+            <p>Command rail слева фильтрует Hub · Home = «Обзор»</p>
+          </div>
+        </div>
+        <div class="hub-actions">
+          <div class="search">Поиск модулей <kbd>⌘K</kbd></div>
+        </div>
+      </div>
+      <div class="d-body">
+        <div class="rail">
+          <button type="button" class="rail-btn active" data-filter="all" title="Все">▦</button>
+          <button type="button" class="rail-btn" data-filter="base" title="Base">◆</button>
+          <button type="button" class="rail-btn" data-filter="market" title="Marketplace">✦</button>
+          <button type="button" class="rail-btn" data-filter="recent" title="Recent + Favorites">★</button>
+        </div>
+        <div class="hub-main">
+          <div class="bento" data-bento></div>
+        </div>
+      </div>
+      <div class="dock" data-dock></div>
+    </section>
+
+    <!-- VARIANT E -->
+    <section id="variant-e" class="variant hub v-e" data-variant="e">
+      <div class="hub-top">
+        <div class="brand">
+          <div class="brand-mark">K</div>
+          <div>
+            <h1>Модули</h1>
+            <p>Минимальный список · плотность вместо карточек</p>
+          </div>
+        </div>
+        <div class="hub-actions">
+          <div class="search">Поиск <kbd>⌘K</kbd></div>
+        </div>
+      </div>
+      <div class="bento" data-bento></div>
+      <div class="dock" data-dock></div>
+    </section>
+
+    <!-- VARIANT F -->
+    <section id="variant-f" class="variant hub v-f" data-variant="f">
+      <div class="hub-top">
+        <div class="brand">
+          <div class="brand-mark">K</div>
+          <div>
+            <h1>Orbit</h1>
+            <p>Модули вокруг ядра Krasterisk · экспериментальный wow</p>
+          </div>
+        </div>
+        <div class="hub-actions">
+          <button type="button" class="btn btn-primary" data-action="palette">⌘K Switch</button>
+        </div>
+      </div>
+      <div class="orbit-wrap">
+        <div class="orbit-ring"></div>
+        <button type="button" class="orbit-center" data-action="hub-home" title="Обзор / Home">K</button>
+        <div class="bento" data-bento></div>
+      </div>
+      <div class="dock" data-dock></div>
+    </section>
   </div>
 
   <div class="toast" id="toast"></div>
@@ -385,12 +530,15 @@
         btn.innerHTML = `
           <button type="button" class="star ${fav ? 'on' : ''}" data-star="${m.id}" title="Favorite">★</button>
           <div class="icon">${m.icon}</div>
-          <h3>${m.name}</h3>
-          <p class="desc">${m.desc}</p>
+          <div class="tile-main">
+            <h3>${m.name}</h3>
+            <p class="desc">${m.desc}</p>
+          </div>
           <div class="meta">${pillFor(m)}</div>
           ${m.status === 'locked' ? '<span class="lock-badge">🔒 Купить</span>' : ''}
           ${variant === 'b' && m.status === 'active' ? '<div class="enter-hint">Enter →</div>' : ''}
         `;
+        btn.dataset.moduleId = m.id;
         btn.addEventListener('click', (e) => {
           if (e.target.closest('[data-star]')) return;
           if (m.status === 'locked') toast('Ghost Locked → billing skeleton (sketch 005)');
@@ -399,6 +547,8 @@
         });
         root.appendChild(btn);
       });
+      if (variant === 'f') positionOrbit(root.closest('.variant'));
+      if (variant === 'd') applyFilterD(root.closest('.variant').querySelector('.rail-btn.active')?.dataset.filter || 'all');
       root.querySelectorAll('[data-star]').forEach((star) => {
         star.addEventListener('click', (e) => {
           e.stopPropagation();
@@ -439,6 +589,42 @@
       });
     }
 
+    function applyFilterD(filter) {
+      const section = document.getElementById('variant-d');
+      if (!section) return;
+      const bento = section.querySelector('[data-bento]');
+      if (!bento) return;
+      [...bento.querySelectorAll('.tile')].forEach((tile) => {
+        const m = MODULES.find((x) => x.id === tile.dataset.moduleId);
+        if (!m) return;
+        let show = true;
+        if (filter === 'base') show = m.kind === 'base' || m.kind === 'cross';
+        else if (filter === 'market') show = m.kind === 'market';
+        else if (filter === 'recent') show = recent.includes(m.id) || favorites.has(m.id);
+        tile.style.display = show ? '' : 'none';
+      });
+    }
+
+    function positionOrbit(section) {
+      if (!section) return;
+      const wrap = section.querySelector('.orbit-wrap');
+      const bento = section.querySelector('[data-bento]');
+      if (!wrap || !bento) return;
+      const tiles = [...bento.querySelectorAll('.tile')];
+      const w = wrap.clientWidth || 900;
+      const h = wrap.clientHeight || 480;
+      if (!w || !h) return;
+      const radius = Math.min(w, h) * 0.42;
+      const n = tiles.length || 1;
+      tiles.forEach((tile, i) => {
+        const angle = (2 * Math.PI * i / n) - Math.PI / 2;
+        const x = radius * Math.cos(angle);
+        const y = radius * 0.72 * Math.sin(angle);
+        tile.style.left = `calc(50% + ${x}px)`;
+        tile.style.top = `calc(50% + ${y}px)`;
+      });
+    }
+
     function mountAll() {
       document.querySelectorAll('.variant').forEach((section) => {
         const v = section.dataset.variant;
@@ -447,13 +633,27 @@
       });
     }
 
+    document.querySelectorAll('#variant-d .rail-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('#variant-d .rail-btn').forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        applyFilterD(btn.dataset.filter);
+      });
+    });
+
+    document.querySelectorAll('[data-action="hub-home"]').forEach((b) => {
+      b.addEventListener('click', () => toast('Orbit center → Обзор (Home)'));
+    });
+
     document.querySelectorAll('.variant-tab').forEach((tab) => {
       tab.addEventListener('click', () => {
         const id = tab.dataset.v;
         document.querySelectorAll('.variant-tab').forEach((t) => t.classList.remove('active'));
         tab.classList.add('active');
         document.querySelectorAll('.variant').forEach((v) => v.classList.remove('active'));
-        document.getElementById('variant-' + id).classList.add('active');
+        const section = document.getElementById('variant-' + id);
+        section.classList.add('active');
+        if (id === 'f') requestAnimationFrame(() => positionOrbit(section));
       });
     });
 
@@ -466,13 +666,23 @@
 
     function setViewport(w) {
       const vp = document.getElementById('sketch-viewport');
-      if (!w) { vp.style.maxWidth = ''; return; }
-      vp.style.maxWidth = w + 'px';
-      vp.style.border = '1px solid var(--color-border)';
-      vp.style.borderRadius = '12px';
+      if (!w) { vp.style.maxWidth = ''; }
+      else {
+        vp.style.maxWidth = w + 'px';
+        vp.style.border = '1px solid var(--color-border)';
+        vp.style.borderRadius = '12px';
+      }
+      const active = document.querySelector('.variant.active');
+      if (active && active.dataset.variant === 'f') {
+        requestAnimationFrame(() => positionOrbit(active));
+      }
     }
 
     mountAll();
+    window.addEventListener('resize', () => {
+      const active = document.querySelector('.variant.active');
+      if (active && active.dataset.variant === 'f') positionOrbit(active);
+    });
   </script>
 </body>
 </html>

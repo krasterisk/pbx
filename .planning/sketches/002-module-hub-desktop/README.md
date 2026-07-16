@@ -21,9 +21,15 @@ Open in browser:
 
 ## Variants
 
+**Round 1 — dramatic:**
 - **A: Safe — Glass bento** — Continuity with sketch 001: glass tiles, indigo accents, calm grid + dock.
 - **B: Bold — Cinematic stage** — Atmospheric gradient stage, staggered large tiles, stronger Locked ghost treatment.
 - **C: Bold — OS launcher** — App-launcher density, prominent bottom dock, Marketplace as sticky rail card.
+
+**Round 2 — more directions:**
+- **D: Command rail + filters** — Slim persistent left rail (All / Base / Marketplace / Recent+Favorites) filters the bento live; hybrid between Hub and persistent nav.
+- **E: Minimal workspace list** — No card chrome; dense single-column rows (Linear/Notion switcher feel); dock replaced by inline row actions.
+- **F: Orbit** — Modules arranged radially around a central "K" core; experimental high-wow take; degrades to grid on narrow viewports.
 
 ## What to Look For
 
@@ -32,6 +38,9 @@ Open in browser:
 - Dock (Recent + Favorites) usefulness without clutter
 - Fit with dark indigo tokens from 001
 - Room for «Обзор» as cross-cutting tile
+- D: does live filtering help or add a layer of navigation to learn?
+- E: is minimal list too plain for the "wow" goal, or refreshingly fast?
+- F: is orbit delightful once, then annoying daily — or genuinely fun to keep?
 
 ## Mapping to React (post-winner)
 
