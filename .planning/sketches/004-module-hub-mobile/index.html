@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sketch 004 — Module Hub mobile</title>
+  <link rel="stylesheet" href="../themes/default.css" />
+  <style>
+    body { padding-top: 52px; padding-bottom: 48px; min-height: 100vh; background: #111; }
+    #variant-nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 9998;
+      background: var(--color-surface); border-bottom: 1px solid var(--color-border);
+      padding: 10px 16px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+    }
+    .variant-tab {
+      padding: 8px 14px; border: 1px solid var(--color-border); border-radius: var(--radius-md);
+      background: var(--color-surface); color: var(--color-text); cursor: pointer; font-size: var(--text-sm);
+    }
+    .variant-tab.active {
+      background: var(--color-indigo-muted); border-color: var(--color-indigo); color: var(--color-indigo);
+    }
+    #variant-nav .hint { margin-left: auto; font-size: var(--text-xs); color: var(--color-text-muted); }
+    .variant { display: none; }
+    .variant.active { display: block; }
+
+    #sketch-viewport {
+      margin: 16px auto; max-width: 390px; transition: max-width 0.2s;
+      border: 1px solid var(--color-border); border-radius: 20px; overflow: hidden;
+      background: var(--color-bg); min-height: 720px; position: relative;
+      box-shadow: var(--shadow-lg);
+    }
+    #sketch-viewport.tablet { max-width: 820px; }
+    #sketch-viewport.desktop { max-width: 1100px; }
+
+    .phone-frame { display: flex; flex-direction: column; min-height: 720px; position: relative; }
+    .status { height: 28px; padding: 0 16px; display: flex; align-items: center; justify-content: space-between;
+      font-size: 11px; color: var(--color-text-muted); }
+    .topbar {
+      height: 52px; display: flex; align-items: center; gap: 10px; padding: 0 12px;
+      border-bottom: 1px solid var(--color-border);
+    }
+    .logo {
+      width: 32px; height: 32px; border-radius: 9px; border: none; cursor: pointer;
+      background: var(--color-indigo-muted); color: var(--color-indigo); font-weight: 800;
+    }
+    .chip {
+      display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 8px;
+      border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text);
+      font-size: 13px; cursor: pointer; max-width: 55%;
+    }
+    .spacer { flex: 1; }
+    .icon-btn {
+      width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--color-border);
+      background: transparent; color: var(--color-text-muted); cursor: pointer;
+    }
+
+    .screen { flex: 1; overflow: auto; padding-bottom: 72px; }
+    .hub-title { padding: 16px 16px 8px; }
+    .hub-title h1 { margin: 0; font-size: 1.2rem; }
+    .hub-title p { margin: 4px 0 0; font-size: 12px; color: var(--color-text-muted); }
+    .row {
+      display: flex; align-items: center; gap: 12px; width: 100%; padding: 14px 16px;
+      border: none; border-bottom: 1px solid var(--color-border); background: transparent;
+      color: var(--color-text); text-align: left; cursor: pointer; font: inherit;
+    }
+    .row:hover, .row:active { background: rgba(255,255,255,0.04); }
+    .row .ico {
+      width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center;
+      background: var(--color-indigo-muted); color: var(--color-indigo); flex-shrink: 0;
+    }
+    .row .meta { flex: 1; min-width: 0; }
+    .row .meta strong { display: block; font-size: 14px; }
+    .row .meta span { font-size: 12px; color: var(--color-text-muted); }
+    .row .pill {
+      font-size: 10px; padding: 3px 7px; border-radius: 999px; background: rgba(255,255,255,0.06);
+      color: var(--color-text-muted); white-space: nowrap;
+    }
+    .row.locked { opacity: 0.7; }
+    .row .star { border: none; background: transparent; color: var(--color-text-muted); cursor: pointer; font-size: 16px; }
+    .row .star.on { color: #fbbf24; }
+
+    .tabs {
+      display: flex; gap: 2px; padding: 0 8px; border-bottom: 1px solid var(--color-border);
+      overflow-x: auto; background: var(--color-surface);
+    }
+    .tab {
+      padding: 12px 12px; border: none; background: transparent; color: var(--color-text-muted);
+      font-size: 13px; white-space: nowrap; cursor: pointer; border-bottom: 2px solid transparent;
+    }
+    .tab.active { color: var(--color-indigo); border-bottom-color: var(--color-indigo); }
+    .content { padding: 16px; }
+    .content h2 { margin: 0 0 6px; font-size: 1.1rem; }
+    .content p { margin: 0 0 14px; font-size: 13px; color: var(--color-text-muted); }
+    .fake-card {
+      border: 1px solid var(--color-border); border-radius: 12px; padding: 14px;
+      background: rgba(15,15,20,0.5); font-size: 13px;
+    }
+
+    .bottom-bar {
+      position: absolute; left: 0; right: 0; bottom: 0; height: 60px;
+      display: flex; border-top: 1px solid var(--color-border);
+      background: rgba(15,15,20,0.92); backdrop-filter: blur(12px);
+    }
+    .bottom-bar button {
+      flex: 1; border: none; background: transparent; color: var(--color-text-muted);
+      font-size: 10px; cursor: pointer; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 2px;
+    }
+    .bottom-bar button.active { color: var(--color-indigo); }
+    .bottom-bar .bi { font-size: 16px; }
+
+    .sheet-backdrop {
+      position: absolute; inset: 0; background: rgba(0,0,0,0.5); z-index: 30;
+      display: none;
+    }
+    .sheet-backdrop.open { display: block; }
+    .sheet {
+      position: absolute; left: 0; right: 0; bottom: 0; z-index: 40;
+      background: var(--color-surface-elevated); border-radius: 16px 16px 0 0;
+      border: 1px solid var(--color-border); transform: translateY(105%);
+      transition: transform 0.22s ease; max-height: 70%; overflow: auto;
+    }
+    .sheet.open { transform: translateY(0); }
+    .sheet-handle { width: 40px; height: 4px; border-radius: 999px; background: var(--color-border); margin: 10px auto; }
+    .sheet h3 { margin: 0 16px 8px; font-size: 14px; }
+
+    /* Tablet dual pane */
+    .split { display: none; flex: 1; min-height: 0; }
+    #sketch-viewport.tablet .split,
+    #sketch-viewport.desktop .split { display: flex; }
+    #sketch-viewport.tablet .phone-only,
+    #sketch-viewport.desktop .phone-only { display: none; }
+    .pane-list {
+      width: 42%; border-right: 1px solid var(--color-border); overflow: auto;
+    }
+    .pane-detail { flex: 1; overflow: auto; display: flex; flex-direction: column; }
+    .toast {
+      position: absolute; left: 50%; bottom: 72px; transform: translateX(-50%);
+      background: var(--color-surface-elevated); border: 1px solid var(--color-border);
+      padding: 8px 12px; border-radius: 8px; font-size: 12px; opacity: 0;
+      pointer-events: none; transition: opacity 0.2s; z-index: 50; white-space: nowrap;
+    }
+    .toast.show { opacity: 1; }
+
+    #sketch-tools {
+      position: fixed; bottom: 12px; right: 12px; z-index: 9999;
+      font-family: system-ui; font-size: 12px; background: rgba(0,0,0,0.75); color: white;
+      padding: 8px 12px; border-radius: 8px; opacity: 0.45; display: flex; gap: 8px;
+    }
+    #sketch-tools:hover { opacity: 1; }
+    #sketch-tools button {
+      background: #222; color: #fff; border: 1px solid #444; border-radius: 4px; padding: 4px 8px; cursor: pointer;
+    }
+    #sketch-tools button.active { border-color: #818cf8; color: #a5b4fc; }
+  </style>
+</head>
+<body>
+  <div id="variant-nav">
+    <button type="button" class="variant-tab active" data-v="a">A: Hub list + sheet</button>
+    <button type="button" class="variant-tab" data-v="b">B: Hub list + bottom bar</button>
+    <button type="button" class="variant-tab" data-v="c">C: Tablet dual-pane</button>
+    <span class="hint">004 · winners Hub E + tabs B · Phone default</span>
+  </div>
+
+  <div id="sketch-viewport" class="phone">
+    <section id="variant-a" class="variant active" data-variant="a"></section>
+    <section id="variant-b" class="variant" data-variant="b"></section>
+    <section id="variant-c" class="variant" data-variant="c"></section>
+    <div class="toast" id="toast"></div>
+  </div>
+
+  <div id="sketch-tools">
+    <button type="button" class="active" data-vp="phone">Phone</button>
+    <button type="button" data-vp="tablet">Tablet</button>
+    <button type="button" data-vp="desktop">Desktop</button>
+  </div>
+
+  <script>
+    const MODULES = [
+      { id: 'overview', name: 'Обзор', desc: 'Сводка тенанта', icon: '◈', status: 'home' },
+      { id: 'core', name: 'Core / PBX', desc: 'Endpoints, routes…', icon: '☎', status: 'base' },
+      { id: 'apps', name: 'Apps', desc: 'IVR, MOH, queues', icon: '▦', status: 'base' },
+      { id: 'system', name: 'System', desc: 'Users, roles', icon: '⚙', status: 'base' },
+      { id: 'cc', name: 'Call Center', desc: 'Agent workspace', icon: '◉', status: 'locked' },
+      { id: 'analytics', name: 'Analytics', desc: 'CDR · reports', icon: '▣', status: 'locked' },
+    ];
+    const PAGES = ['Endpoints', 'Trunks', 'Routes', 'Phonebooks', 'Settings'];
+    const favorites = new Set(['core']);
+
+    let view = 'hub'; // hub | module
+    let moduleId = 'core';
+    let pageIdx = 0;
+    let viewport = 'phone';
+
+    function toast(msg) {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.classList.add('show');
+      clearTimeout(toast._t);
+      toast._t = setTimeout(() => el.classList.remove('show'), 1400);
+    }
+
+    function pill(m) {
+      if (m.status === 'locked') return 'Locked';
+      if (m.status === 'home') return 'Home';
+      return 'Base';
+    }
+
+    function rowsHtml(clickAttr = 'data-enter') {
+      return MODULES.map((m) => `
+        <button type="button" class="row ${m.status === 'locked' ? 'locked' : ''}" ${clickAttr}="${m.id}">
+          <span class="ico">${m.icon}</span>
+          <span class="meta"><strong>${m.name}</strong><span>${m.desc}</span></span>
+          <span class="pill">${pill(m)}</span>
+          <span class="star ${favorites.has(m.id) ? 'on' : ''}" data-star="${m.id}">★</span>
+        </button>`).join('');
+    }
+
+    function moduleScreen(showBottomBar) {
+      return `
+        <div class="topbar">
+          <button type="button" class="logo" data-hub>K</button>
+          <button type="button" class="chip" data-sheet>${MODULES.find(m => m.id === moduleId)?.name || 'Module'} � <button type="button" class="chip" data-sheet>${MODULES.find(m => m.id === moduleId)?.name || 'Module'} ▾</button>
+          <div class="spacer"></div>
+          <button type="button" class="icon-btn" data-palette>⌘K</button>
+        </div>
+        <div class="tabs">
+          ${PAGES.map((p, i) => `<button type="button" class="tab ${i === pageIdx ? 'active' : ''}" data-page="${i}">${p}</button>`).join('')}
+        </div>
+        <div class="screen content">
+          <h2>${PAGES[pageIdx]}</h2>
+          <p>In-module · top tabs (003-B) · phone Hub-first</p>
+          <div class="fake-card">Список / форма модуля · card fallback на phone для критичных таблиц (CONTEXT D-29).</div>
+        </div>
+        ${showBottomBar ? bottomBarHtml(false) : ''}
+        ${sheetHtml()}
+      `;
+    }
+
+    function hubScreen(showBottomBar) {
+      return `
+        <div class="status"><span>9:41</span><span>Krasterisk</span></div>
+        <div class="topbar">
+          <button type="button" class="logo" data-hub>K</button>
+          <div class="spacer"></div>
+          <button type="button" class="icon-btn" data-palette>⌘K</button>
+        </div>
+        <div class="screen phone-only">
+          <div class="hub-title">
+            <h1>Модули</h1>
+            <p>Hub E · minimal list · tap to enter</p>
+          </div>
+          ${rowsHtml('data-enter')}
+        </div>
+        <div class="split">
+          <div class="pane-list">
+            <div class="hub-title"><h1>Модули</h1><p>Tablet dual-pane</p></div>
+            ${rowsHtml('data-enter')}
+          </div>
+          <div class="pane-detail">
+            ${view === 'module' ? moduleInner() : `
+              <div class="content" style="padding-top:48px">
+                <h2>Выберите модуль</h2>
+                <p>Список слева · превью / вход справа (вариант C на tablet).</p>
+              </div>`}
+          </div>
+        </div>
+        ${showBottomBar ? bottomBarHtml(true) : ''}
+        ${sheetHtml()}
+      `;
+    }
+
+    function moduleInner() {
+      return `
+        <div class="topbar">
+          <button type="button" class="chip" data-sheet>${MODULES.find(m => m.id === moduleId)?.name} ▾</button>
+          <div class="spacer"></div>
+          <button type="button" class="icon-btn" data-palette>⌘K</button>
+        </div>
+        <div class="tabs">
+          ${PAGES.map((p, i) => `<button type="button" class="tab ${i === pageIdx ? 'active' : ''}" data-page="${i}">${p}</button>`).join('')}
+        </div>
+        <div class="content">
+          <h2>${PAGES[pageIdx]}</h2>
+          <p>Detail pane</p>
+          <div class="fake-card">Dual-pane: Hub list остаётся видимым.</div>
+        </div>`;
+    }
+
+    function bottomBarHtml(onHub) {
+      const items = [
+        { id: 'hub', label: 'Hub', icon: '▦' },
+        { id: 'core', label: 'PBX', icon: '☎' },
+        { id: 'apps', label: 'Apps', icon: '◇' },
+        { id: 'system', label: 'System', icon: '⚙' },
+        { id: 'more', label: 'More', icon: '⋯' },
+      ];
+      return `<nav class="bottom-bar">
+        ${items.map((it) => {
+          const active = onHub ? it.id === 'hub' : it.id === moduleId;
+          return `<button type="button" class="${active ? 'active' : ''}" data-bottom="${it.id}"><span class="bi">${it.icon}</span>${it.label}</button>`;
+        }).join('')}
+      </nav>`;
+    }
+
+    function sheetHtml() {
+      return `
+        <div class="sheet-backdrop" data-close-sheet></div>
+        <div class="sheet" id="sheet">
+          <div class="sheet-handle"></div>
+          <h3>Сменить модуль</h3>
+          ${rowsHtml('data-switch')}
+        </div>`;
+    }
+
+    function render(root, variant) {
+      const showBar = variant === 'b';
+      const forceSplitHint = variant === 'c';
+      root.innerHTML = `<div class="phone-frame">
+        ${view === 'hub' || (viewport !== 'phone' && variant === 'c')
+          ? hubScreen(showBar)
+          : `<div class="status"><span>9:41</span><span>Module</span></div>${moduleScreen(showBar)}`}
+      </div>`;
+
+      if (forceSplitHint && viewport === 'phone' && view === 'hub') {
+        // phone still list; note in toast once when switching to C
+      }
+
+      bind(root, variant);
+    }
+
+    function bind(root, variant) {
+      root.querySelectorAll('[data-enter]').forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+          if (e.target.closest('[data-star]')) return;
+          const id = btn.getAttribute('data-enter');
+          const m = MODULES.find((x) => x.id === id);
+          if (m.status === 'locked') { toast('Locked → marketplace'); return; }
+          moduleId = id;
+          view = 'module';
+          pageIdx = 0;
+          remount();
+          toast('Enter → ' + m.name);
+        });
+      });
+      root.querySelectorAll('[data-switch]').forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+          if (e.target.closest('[data-star]')) return;
+          const id = btn.getAttribute('data-switch');
+          const m = MODULES.find((x) => x.id === id);
+          closeSheet(root);
+          if (m.status === 'locked') { toast('Locked'); return; }
+          moduleId = id;
+          view = 'module';
+          remount();
+          toast('Switch → ' + m.name);
+        });
+      });
+      root.querySelectorAll('[data-star]').forEach((star) => {
+        star.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const id = star.getAttribute('data-star');
+          if (favorites.has(id)) favorites.delete(id); else favorites.add(id);
+          remount();
+        });
+      });
+      root.querySelectorAll('[data-hub]').forEach((b) => {
+        b.addEventListener('click', () => { view = 'hub'; remount(); toast('→ Hub'); });
+      });
+      root.querySelectorAll('[data-sheet]').forEach((b) => {
+        b.addEventListener('click', () => openSheet(root));
+      });
+      root.querySelectorAll('[data-close-sheet]').forEach((b) => {
+        b.addEventListener('click', () => closeSheet(root));
+      });
+      root.querySelectorAll('[data-palette]').forEach((b) => {
+        b.addEventListener('click', () => toast('⌘K palette (modules + pages)'));
+      });
+      root.querySelectorAll('[data-page]').forEach((b) => {
+        b.addEventListener('click', () => { pageIdx = +b.dataset.page; remount(); });
+      });
+      root.querySelectorAll('[data-bottom]').forEach((b) => {
+        b.addEventListener('click', () => {
+          const id = b.dataset.bottom;
+          if (id === 'hub' || id === 'more') { view = 'hub'; remount(); toast(id === 'more' ? 'Full catalog in Hub' : 'Hub'); return; }
+          moduleId = id; view = 'module'; pageIdx = 0; remount();
+        });
+      });
+    }
+
+    function openSheet(root) {
+      root.querySelector('.sheet')?.classList.add('open');
+      root.querySelector('.sheet-backdrop')?.classList.add('open');
+    }
+    function closeSheet(root) {
+      root.querySelector('.sheet')?.classList.remove('open');
+      root.querySelector('.sheet-backdrop')?.classList.remove('open');
+    }
+
+    function remount() {
+      const active = document.querySelector('.variant.active');
+      render(active, active.dataset.variant);
+    }
+
+    document.querySelectorAll('.variant-tab').forEach((tab) => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.variant-tab').forEach((t) => t.classList.remove('active'));
+        tab.classList.add('active');
+        document.querySelectorAll('.variant').forEach((v) => v.classList.remove('active'));
+        document.getElementById('variant-' + tab.dataset.v).classList.add('active');
+        view = 'hub';
+        remount();
+        if (tab.dataset.v === 'c') toast('C: переключите toolbar → Tablet');
+      });
+    });
+
+    document.querySelectorAll('#sketch-tools [data-vp]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        viewport = btn.dataset.vp;
+        const vp = document.getElementById('sketch-viewport');
+        vp.classList.remove('phone', 'tablet', 'desktop');
+        vp.classList.add(viewport);
+        document.querySelectorAll('#sketch-tools [data-vp]').forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        remount();
+      });
+    });
+
+    remount();
+  </script>
+</body>
+</html>
