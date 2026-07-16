@@ -72,7 +72,7 @@ Each task was committed atomically:
 1. **Task 1: PauseReasonsManager CRUD + mount on pauseReasons settings tab** - `183ca03` (feat)
 2. **Task 2: Operator settings admin picker + RTK GET/PUT /operator/:operatorId** - `485c462` (feat)
 
-**Plan metadata:** see final docs commit below
+**Plan metadata:** `149faed` (docs: complete plan)
 
 ## Files Created/Modified
 - `packages/frontend/src/features/callcenter/ui/PauseReasonsManager/PauseReasonsManager.tsx` — pause-reasons settings CRUD
