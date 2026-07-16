@@ -356,11 +356,13 @@ Plans:
 | 5 | `/gsd-ui-review 7` + `npm run test:frontend` |
 | 6 | `/gsd-verify-work 7` → `/gsd-ship 7` |
 
-**Plans:** 13/18 plans executed
+**Plans:** 14/18 plans executed
 
 Plans:
 
-- [ ] TBD (run /gsd-plan-phase 7 to break down)
+- [x] 07-01 … 07-12, 07-17 — prior waves (see phase SUMMARY files)
+- [x] 07-13-PLAN.md — Wallboard UI: TV page + display tokens + alert routing [D-27/D-29]
+- [ ] 07-14, 07-15, 07-16, 07-18 — remaining
 
 **Verification:**
 
