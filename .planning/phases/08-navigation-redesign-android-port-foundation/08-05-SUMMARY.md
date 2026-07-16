@@ -85,7 +85,7 @@ Each task was committed atomically:
 2. **Task 2: Platform catalog + membership + role→start editors** - `b9e980d` (feat)
 3. **Task 3: Tenant System→Modules page + fold Marketplace/MyModules** - `8dff692` (feat)
 
-**Plan metadata:** _(see final docs commit)_
+**Plan metadata:** `efedb55` (docs: complete plan)
 
 ## Self-Check: PASSED
 
