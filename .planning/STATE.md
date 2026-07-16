@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Ready to execute
-last_updated: "2026-07-16T18:35:00.000Z"
+last_updated: "2026-07-16T18:45:00.000Z"
 progress:
   total_phases: 8
   completed_phases: 5
   total_plans: 68
-  completed_plans: 63
-  percent: 93
+  completed_plans: 64
+  percent: 94
 ---
 
 # State
@@ -17,7 +17,7 @@ progress:
 ## Current position
 
 Phase: 8 (navigation-redesign-android-port-foundation) — EXECUTING
-Plan: 08-14 complete (Core rest responsive); next incomplete 08-10 / 08-15
+Plan: 08-15 complete (Apps rest responsive); next incomplete 08-10 / 08-16 / 08-17
 
 Phase 7 — Call Center: gap closure complete (07-21, 07-22); re-UAT / `/gsd-verify-work 7` still available in parallel.
 Phase 5 — Phonebooks AI: plans executed (verify/UAT may remain).  
@@ -30,6 +30,7 @@ Phase 1 — MOH: pending verify.
 
 ## Decisions
 
+- [Phase 08]: Apps remaining lists page-level overflow hybrid; VoiceRobotEditPage page-dir containment (08-15)
 - [Phase 08]: Trunks phone cards; Contexts/TimeGroups/ProvisionTemplates page-level overflow (08-14)
 - [Phase 08]: Critical Core lists phone cards; secondary wave-A pages page-level overflow hybrid (08-09)
 - [Phase 08]: CC softphone fixed above 60px+safe-area bottom bar; agent pads softphone height only (08-09)
@@ -133,7 +134,7 @@ Phase 1 — MOH: pending verify.
 
 ## Next GSD command
 
-`/gsd-execute-phase 8` — continue incomplete plans (08-10/11/15–17); or finish Phase 7 via `/gsd-verify-work 7`
+`/gsd-execute-phase 8` — continue incomplete plans (08-10/11/16–17); or finish Phase 7 via `/gsd-verify-work 7`
 
 ## Performance Metrics
 
@@ -184,3 +185,4 @@ Phase 1 — MOH: pending verify.
 | Phase 08 P08 | 12min | 3 tasks | 28 files |
 | Phase 08 P09 | 12min | 3 tasks | 24 files |
 | Phase 08 P14 | 10min | 2 tasks | 11 files |
+| Phase 08 P15 | 8min | 2 tasks | 15 files |
