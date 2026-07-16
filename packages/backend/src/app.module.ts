@@ -59,6 +59,7 @@ import { CcChatChannel } from './modules/callcenter/models/chat-channel.model';
 import { CcCardTemplate } from './modules/callcenter/models/card-template.model';
 import { CcCardField } from './modules/callcenter/models/card-field.model';
 import { CcCardData } from './modules/callcenter/models/card-data.model';
+import { CcReportSchedule } from './modules/callcenter/models/report-schedule.model';
 import { Tenant } from './modules/cloud-admin/tenant.model';
 import { ModuleRegistry } from './modules/cloud-admin/module-registry.model';
 import { TenantModule } from './modules/cloud-admin/tenant-module.model';
@@ -139,6 +140,7 @@ import * as path from 'path';
         CcDisplayToken, CcAlertConfig,
         CcChatMessage, CcChatChannel,
         CcCardTemplate, CcCardField, CcCardData,
+        CcReportSchedule,
         CcAiAgent, CcAiProvider, CcAiToolset, CcAiCdr, CcAiBilling, CcAiInvoice, CcAiAuditLog,
         TimeGroup,
         RoutePhonebook, PhonebookEntry, RoutePhonebookBinding,

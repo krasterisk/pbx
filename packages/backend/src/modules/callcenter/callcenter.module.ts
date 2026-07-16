@@ -3,6 +3,7 @@ import { SequelizeModule } from '@nestjs/sequelize';
 import { ConfigModule } from '@nestjs/config';
 import { AmiModule } from '../ami/ami.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { MailerModule } from '../mailer/mailer.module';
 import { AiPlatformModule } from '../ai-platform/ai-platform.module';
 import { AriModule } from '../ari/ari.module';
 import { VoiceRobotsModule } from '../voice-robots/voice-robots.module';
@@ -48,6 +49,7 @@ import { CcCardField } from './models/card-field.model';
 import { CcCardData } from './models/card-data.model';
 import { CcChatMessage } from './models/chat-message.model';
 import { CcChatChannel } from './models/chat-channel.model';
+import { CcReportSchedule } from './models/report-schedule.model';
 import { Queue } from '../queues/queue.model';
 import { User } from '../users/user.model';
 import { PhonebookEntry } from '../phonebooks/phonebook-entry.model';
@@ -77,6 +79,7 @@ import { queueLogReaderProvider } from './queuelog/queue-log-reader.factory';
       CcCardData,
       CcChatMessage,
       CcChatChannel,
+      CcReportSchedule,
       Queue,           // for tenant resolution from queue names
       User,            // for agent display names
       PhonebookEntry,  // Client Card sidebar lookup
@@ -85,6 +88,7 @@ import { queueLogReaderProvider } from './queuelog/queue-log-reader.factory';
     ]),
     AmiModule,
     NotificationsModule,
+    MailerModule,
     AiPlatformModule,
     AriModule,
     VoiceRobotsModule,
