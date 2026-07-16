@@ -6,7 +6,7 @@ import {
   Monitor, Users, Phone, PhoneIncoming, TrendingDown,
   Eye, MessageSquare, Megaphone, Pause, Play,
   Clock, BarChart3, Headphones, LayoutGrid, Table2,
-  PhoneForwarded, PhoneOff, Info,
+  PhoneForwarded, PhoneOff, Info, ListPlus,
 } from 'lucide-react';
 import {
   VStack, Flex, Text, Button, SegmentedControl, Sparkline,
@@ -17,6 +17,7 @@ import { useCallCenterSSE } from '@/features/callcenter/lib/useCallCenterSSE';
 import { useKpiSamples } from '@/features/callcenter/lib/useKpiSamples';
 import { ChatPanelHost } from '@/features/callcenter/ui/ChatPanel/ChatPanel';
 import { AgentDetailModal } from '@/features/callcenter/ui/AgentDetailModal/AgentDetailModal';
+import { QueueManagementModal } from '@/features/callcenter/ui/QueueManagementModal/QueueManagementModal';
 import {
   selectCcAgents,
   selectCcQueues,
@@ -51,6 +52,7 @@ export function CallCenterSupervisorPage() {
   const [activeTab, setActiveTab] = useState<TabId>('agents');
   const [agentView, setAgentView] = useState<AgentView>(readStoredView);
   const [detailAgent, setDetailAgent] = useState<IAgent | null>(null);
+  const [queueMgmtAgent, setQueueMgmtAgent] = useState<IAgent | null>(null);
   const [hangupCall, setHangupCall] = useState<ICall | null>(null);
   const [transferTarget, setTransferTarget] = useState<Record<string, string>>({});
 
@@ -139,6 +141,10 @@ export function CallCenterSupervisorPage() {
     setDetailAgent(agent);
   }, []);
 
+  const openQueueMgmt = useCallback((agent: IAgent) => {
+    setQueueMgmtAgent(agent);
+  }, []);
+
   const handleRedirect = useCallback(async (call: ICall, target: string) => {
     if (!target) return;
     await supervisorRedirectCall({ uniqueid: call.uniqueid, target });
@@ -159,6 +165,15 @@ export function CallCenterSupervisorPage() {
         title={t('callcenter.supervisor.agentDetail.title', 'Agent details')}
       >
         <Info className="w-3 h-3 inline mr-0.5" />
+      </button>
+      <button
+        type="button"
+        className={styles.agentActionBtn}
+        onClick={(e) => { e.stopPropagation(); openQueueMgmt(agent); }}
+        title={t('callcenter.supervisor.queueMgmt.queues', 'Queues')}
+      >
+        <ListPlus className="w-3 h-3 inline mr-0.5" />
+        {t('callcenter.supervisor.queueMgmt.queues', 'Queues')}
       </button>
       {(agent.status === 'IN_CALL' || agent.status === 'RINGING') && (
         <>
@@ -204,7 +219,7 @@ export function CallCenterSupervisorPage() {
         </button>
       )}
     </div>
-  ), [openAgentDetail, supervisorSpy, supervisorForcePause, supervisorForceUnpause, t]);
+  ), [openAgentDetail, openQueueMgmt, supervisorSpy, supervisorForcePause, supervisorForceUnpause, t]);
 
   const agentColumns = useMemo<ColumnDef<IAgent>[]>(() => [
     {
@@ -595,6 +610,12 @@ export function CallCenterSupervisorPage() {
         agent={detailAgent}
         open={detailAgent != null}
         onClose={() => setDetailAgent(null)}
+      />
+
+      <QueueManagementModal
+        agent={queueMgmtAgent}
+        open={queueMgmtAgent != null}
+        onClose={() => setQueueMgmtAgent(null)}
       />
 
       <Dialog open={hangupCall != null} onOpenChange={(v) => { if (!v) setHangupCall(null); }}>
