@@ -5,6 +5,7 @@ import { UserLevel } from '@krasterisk/shared';
  * Used by UserLevelBadge and table columns.
  */
 export const LEVEL_COLORS: Record<UserLevel, string> = {
+  [UserLevel.SUPERADMIN]: 'text-amber-400 bg-amber-400/10',
   [UserLevel.ADMIN]: 'text-red-400 bg-red-400/10',
   [UserLevel.OPERATOR]: 'text-blue-400 bg-blue-400/10',
   [UserLevel.SUPERVISOR]: 'text-purple-400 bg-purple-400/10',
@@ -15,6 +16,7 @@ export const LEVEL_COLORS: Record<UserLevel, string> = {
  * i18n translation keys for user levels.
  */
 export const LEVEL_I18N_KEYS: Record<UserLevel, string> = {
+  [UserLevel.SUPERADMIN]: 'users.levelSuperadmin',
   [UserLevel.ADMIN]: 'users.levelAdmin',
   [UserLevel.OPERATOR]: 'users.levelOperator',
   [UserLevel.SUPERVISOR]: 'users.levelSupervisor',
@@ -23,6 +25,7 @@ export const LEVEL_I18N_KEYS: Record<UserLevel, string> = {
 
 /**
  * Level options for select dropdowns (value + i18n key).
+ * Tenant-facing lists omit SUPERADMIN (platform-only, D-21).
  */
 export const LEVEL_OPTIONS = [
   { value: UserLevel.ADMIN, i18nKey: 'users.levelAdmin' },
