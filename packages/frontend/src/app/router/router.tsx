@@ -1,11 +1,17 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { AppLayout } from '@/app/layouts/AppLayout';
 import { StandaloneLayout } from '@/app/layouts/StandaloneLayout';
+import { PlatformLayout } from '@/app/layouts/PlatformLayout';
 import { LoginPage } from '@/pages/LoginPage/LoginPage';
 import { RegisterPage } from '@/pages/RegisterPage/RegisterPage';
 import { ActivationPage } from '@/pages/ActivationPage/ActivationPage';
 import { DashboardPage } from '@/pages/DashboardPage/DashboardPage';
 import { UsersPage } from '@/pages/UsersPage/UsersPage';
+import {
+  PlatformTenantsPage,
+  PlatformModulesPage,
+  PlatformRoleStartPage,
+} from '@/pages/platform';
 
 import { RolesPage } from '@/pages/RolesPage/RolesPage';
 import { NumbersPage } from '@/pages/NumbersPage/NumbersPage';
@@ -59,14 +65,20 @@ export const router = createBrowserRouter([
     path: '/callcenter/wallboard',
     element: <CallCenterWallboardPage />,
   },
-  // Platform console stub until 08-05 PlatformLayout — Navigate target for /superadmin (D-41)
+  // Platform console (006-B) — outside tenant AppLayout; SUPERADMIN only (D-21)
   {
     path: '/platform',
     element: (
       <RequireRole allow={[UserLevel.SUPERADMIN]}>
-        <PlaceholderPage title="Platform" />
+        <PlatformLayout />
       </RequireRole>
     ),
+    children: [
+      { index: true, element: <Navigate to="tenants" replace /> },
+      { path: 'tenants', element: <PlatformTenantsPage /> },
+      { path: 'modules', element: <PlatformModulesPage /> },
+      { path: 'role-start', element: <PlatformRoleStartPage /> },
+    ],
   },
   {
     path: '/',
