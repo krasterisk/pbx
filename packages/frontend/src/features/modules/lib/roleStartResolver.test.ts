@@ -56,5 +56,30 @@ describe('resolveRoleStart (NAV-05 / D-16)', () => {
   it('falls back to local D-16 defaults when apiPath absent (offline)', () => {
     expect(resolveRoleStart(UserLevel.OPERATOR)).toBe('/callcenter/agent');
   });
+
+  it('prefers tenant override over platform default and local D-16 (D-04)', () => {
+    expect(
+      resolveRoleStart(UserLevel.OPERATOR, {
+        tenantOverride: '/queues',
+        platformDefault: '/callcenter/supervisor',
+      }),
+    ).toBe('/queues');
+
+    expect(
+      resolveRoleStart(UserLevel.OPERATOR, {
+        platformDefault: '/reports',
+      }),
+    ).toBe('/reports');
+  });
+
+  it('apiPath wins over explicit tenant/platform inputs (server resolved)', () => {
+    expect(
+      resolveRoleStart(UserLevel.OPERATOR, {
+        apiPath: '/moh',
+        tenantOverride: '/queues',
+        platformDefault: '/',
+      }),
+    ).toBe('/moh');
+  });
 });
 

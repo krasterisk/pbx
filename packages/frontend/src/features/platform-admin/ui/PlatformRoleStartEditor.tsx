@@ -8,9 +8,10 @@ import {
   type IRoleStartRow,
 } from '@/shared/api/endpoints/cloudAdminApi';
 import { ROLE_START_LEVELS } from '../lib/roleStartLevels';
+import { HUB_PAGE_OPTIONS, pathForPageCode } from '../lib/hubPageOptions';
 
 /**
- * Platform role→start defaults matrix — SuperAdmin PUT /cloud-admin/role-start.
+ * Platform role→start defaults matrix — SuperAdmin PUT /cloud-admin/role-start (D-04 / D-16).
  */
 export function PlatformRoleStartEditor() {
   const { t } = useTranslation();
@@ -46,7 +47,7 @@ export function PlatformRoleStartEditor() {
   return (
     <VStack gap="16" max data-testid="platform-role-start-editor">
       <Text as="h1">{t('platform.roleStartTitle', 'Role → start')}</Text>
-      <Text variant="muted">{t('platform.roleStartHint')}</Text>
+      <Text variant="muted">{t('platform.roleStartPrecedenceHint')}</Text>
 
       <VStack gap="12" max>
         {ROLE_START_LEVELS.map(({ level, labelKey }) => (
@@ -59,10 +60,18 @@ export function PlatformRoleStartEditor() {
               }
               id={`role-start-path-${level}`}
               aria-label={t(labelKey)}
+              list="platform-role-start-path-suggestions"
             />
           </HStack>
         ))}
       </VStack>
+
+      <datalist id="platform-role-start-path-suggestions">
+        {HUB_PAGE_OPTIONS.map((opt) => {
+          const path = pathForPageCode(opt.value);
+          return path ? <option key={opt.value} value={path} /> : null;
+        })}
+      </datalist>
 
       <Button type="button" onClick={handleSave} disabled={saving} id="platform-role-start-save">
         {t('platform.roleStartSave')}

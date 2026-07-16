@@ -9,10 +9,18 @@ export interface RoleStartOptions {
    */
   lockedDeepLink?: string | null;
   /**
-   * Server-resolved path from GET /marketplace/role-start.
-   * When present (and not locked), preferred over local D-16 defaults.
+   * Server-resolved path from GET /marketplace/role-start
+   * (already tenant override → platform default → D-16 on the server).
+   * When present (and not locked), preferred over local inputs.
    */
   apiPath?: string | null;
+  /**
+   * Explicit tenant_role_start override (client preview / offline).
+   * Precedence when apiPath absent: tenantOverride → platformDefault → local D-16.
+   */
+  tenantOverride?: string | null;
+  /** Explicit platform role_start_defaults path (client preview / offline). */
+  platformDefault?: string | null;
 }
 
 const OVERVIEW_PATH = '/';
@@ -37,16 +45,26 @@ function isCallCenterPath(path: string): boolean {
   return path.startsWith('/callcenter/');
 }
 
+function firstNonEmpty(...candidates: Array<string | null | undefined>): string | null {
+  for (const c of candidates) {
+    const trimmed = c?.trim();
+    if (trimmed) return trimmed;
+  }
+  return null;
+}
+
 /**
- * Resolve post-login / role→start path (D-16) with CC-off and locked deep-link fallbacks (D-17).
- * Keeps local D-16 defaults as offline fallback when apiPath is absent.
+ * Resolve post-login / role→start path (D-04 / D-16) with CC-off and locked deep-link fallbacks (D-17).
+ * Precedence: apiPath (server) → tenantOverride → platformDefault → local D-16.
  */
 export function resolveRoleStart(
   level: UserLevel | undefined,
   opts: RoleStartOptions = {},
 ): string {
   const callCenterEnabled = opts.callCenterEnabled !== false;
-  let path = opts.apiPath?.trim() || roleDefaultPath(level);
+  let path =
+    firstNonEmpty(opts.apiPath, opts.tenantOverride, opts.platformDefault) ||
+    roleDefaultPath(level);
 
   if (!callCenterEnabled && isCallCenterPath(path)) {
     path = OVERVIEW_PATH;

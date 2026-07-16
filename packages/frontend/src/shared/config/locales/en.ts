@@ -2577,6 +2577,15 @@ export const en = {
   },
 
   // Module Hub / Marketplace / Command palette (Phase 08 NAV-14)
+  system: {
+    roleStartTab: 'Role → start',
+    roleStartTitle: 'Tenant role → start overrides',
+    roleStartPrecedenceHint:
+      'Overrides apply to your tenant only. Precedence after login: tenant override → platform default → built-in (OPERATOR→CC agent, SUPERVISOR→CC supervisor, ADMIN→Overview; Call Center off → Overview).',
+    roleStartSave: 'Save tenant role → start',
+    roleStartAdminOnly: 'Only tenant administrators can edit role → start overrides.',
+  },
+
   hub: {
     title: 'Modules',
     open: 'Open',
@@ -2659,6 +2668,8 @@ export const en = {
     changeKindBaseConfirm:
       'Remove module from base composition: this affects all tenants without an override. Continue?',
     roleStartHint: 'Default start path per user level (platform defaults)',
+    roleStartPrecedenceHint:
+      'Platform defaults for post-login start. Tenants may override per level. Precedence: tenant override → platform default → built-in (OPERATOR→CC agent, SUPERVISOR→CC supervisor, ADMIN→Overview; CC off → Overview).',
     roleStartSave: 'Save role → start defaults',
     compositionReadonly: 'Pages in this module (read-only)',
     enable: 'Enable',

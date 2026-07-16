@@ -218,13 +218,22 @@ const cloudAdminApi = rtkApi.injectEndpoints({
       providesTags: [{ type: 'Tenants', id: 'ROLE-START' }],
     }),
 
+    /** Tenant ADMIN: list own tenant_role_start overrides (D-04). */
+    getTenantRoleStartOverrides: builder.query<IRoleStartRow[], void>({
+      query: () => '/marketplace/role-start/overrides',
+      providesTags: [{ type: 'Tenants', id: 'ROLE-START-OVERRIDES' }],
+    }),
+
     updateTenantRoleStart: builder.mutation<IRoleStartRow[], { rows: IRoleStartRow[] }>({
       query: (body) => ({
         url: '/marketplace/role-start',
         method: 'PUT',
         body,
       }),
-      invalidatesTags: [{ type: 'Tenants', id: 'ROLE-START' }],
+      invalidatesTags: [
+        { type: 'Tenants', id: 'ROLE-START' },
+        { type: 'Tenants', id: 'ROLE-START-OVERRIDES' },
+      ],
     }),
 
     getPlatformRoleStartDefaults: builder.query<IRoleStartRow[], void>({
@@ -346,6 +355,7 @@ export const {
   useDisableHubModuleMutation,
   usePurchaseModuleMutation,
   useGetRoleStartQuery,
+  useGetTenantRoleStartOverridesQuery,
   useUpdateTenantRoleStartMutation,
   useGetPlatformRoleStartDefaultsQuery,
   useUpdatePlatformRoleStartDefaultsMutation,
