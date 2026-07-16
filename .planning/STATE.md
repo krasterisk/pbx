@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Ready to execute
-last_updated: "2026-07-16T18:10:00.000Z"
+last_updated: "2026-07-16T18:22:00.000Z"
 progress:
   total_phases: 8
   completed_phases: 5
   total_plans: 68
-  completed_plans: 60
-  percent: 88
+  completed_plans: 62
+  percent: 91
 ---
 
 # State
@@ -17,7 +17,7 @@ progress:
 ## Current position
 
 Phase: 8 (navigation-redesign-android-port-foundation) — EXECUTING
-Plan: 08-08 complete (Users/Roles/Numbers + role→start admin); next incomplete 08-09
+Plan: 08-09 complete (responsive wave A + CC sticky softphone); next incomplete 08-10
 Phase 7 — Call Center: gap closure complete (07-21, 07-22); re-UAT / `/gsd-verify-work 7` still available in parallel.
 Phase 5 — Phonebooks AI: plans executed (verify/UAT may remain).  
 Phase 6 — Dialplan Apps: **06-01–06-16 executed** (gap closures done). Re-UAT after ops mkdir for krasterisk subdirs; UAT Tests 5–6 hint duplication fixed.
@@ -29,6 +29,8 @@ Phase 1 — MOH: pending verify.
 
 ## Decisions
 
+- [Phase 08]: Critical Core lists phone cards; secondary wave-A pages page-level overflow hybrid (08-09)
+- [Phase 08]: CC softphone fixed above 60px+safe-area bottom bar; agent pads softphone height only (08-09)
 - [Phase 08]: Keep backend roles.role TEXT; Hub grants mapped in frontend (08-08)
 - [Phase 08]: Tenant role-start on System Modules tab; SUPERADMIN only via PLATFORM_LEVEL_OPTIONS (08-08)
 - Used IsDialstatusOrArrayConstraint custom validator for reliable array dialstatus validation (06-01)
@@ -178,3 +180,4 @@ Phase 1 — MOH: pending verify.
 | Phase 08 P06 | 12min | 2 tasks | 16 files |
 | Phase 08 P07 | 8min | 2 tasks | 9 files |
 | Phase 08 P08 | 12min | 3 tasks | 28 files |
+| Phase 08 P09 | 12min | 3 tasks | 24 files |
