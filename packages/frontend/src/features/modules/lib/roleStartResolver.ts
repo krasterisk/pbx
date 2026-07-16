@@ -8,6 +8,11 @@ export interface RoleStartOptions {
    * When set, returns smart fallback (role-default / Overview) instead of the locked path.
    */
   lockedDeepLink?: string | null;
+  /**
+   * Server-resolved path from GET /marketplace/role-start.
+   * When present (and not locked), preferred over local D-16 defaults.
+   */
+  apiPath?: string | null;
 }
 
 const OVERVIEW_PATH = '/';
@@ -34,13 +39,14 @@ function isCallCenterPath(path: string): boolean {
 
 /**
  * Resolve post-login / role→start path (D-16) with CC-off and locked deep-link fallbacks (D-17).
+ * Keeps local D-16 defaults as offline fallback when apiPath is absent.
  */
 export function resolveRoleStart(
   level: UserLevel | undefined,
   opts: RoleStartOptions = {},
 ): string {
   const callCenterEnabled = opts.callCenterEnabled !== false;
-  let path = roleDefaultPath(level);
+  let path = opts.apiPath?.trim() || roleDefaultPath(level);
 
   if (!callCenterEnabled && isCallCenterPath(path)) {
     path = OVERVIEW_PATH;

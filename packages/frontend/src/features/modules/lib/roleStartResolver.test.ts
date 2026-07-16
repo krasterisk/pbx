@@ -46,4 +46,15 @@ describe('resolveRoleStart (NAV-05 / D-16)', () => {
       }),
     ).toBe('/');
   });
+
+  it('prefers apiPath from GET /marketplace/role-start when provided', () => {
+    expect(
+      resolveRoleStart(UserLevel.OPERATOR, { apiPath: '/queues' }),
+    ).toBe('/queues');
+  });
+
+  it('falls back to local D-16 defaults when apiPath absent (offline)', () => {
+    expect(resolveRoleStart(UserLevel.OPERATOR)).toBe('/callcenter/agent');
+  });
 });
+

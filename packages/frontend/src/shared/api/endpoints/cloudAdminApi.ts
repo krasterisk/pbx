@@ -13,6 +13,29 @@ export interface ITenantModule {
   price_monthly?: number;
 }
 
+export type HubLicenseStatus = 'active' | 'locked' | 'disabled';
+
+export interface IHubCatalogItem {
+  code: string;
+  name: string;
+  kind: 'base' | 'market';
+  sort_order: number;
+  requires_cloud: boolean;
+  licenseStatus: HubLicenseStatus;
+  pages: Array<{ page_code: string; path: string | null; sort_order: number }>;
+}
+
+export interface IRoleStartResolved {
+  path: string;
+  user_level?: number;
+  callCenterEnabled?: boolean;
+}
+
+export interface IRoleStartRow {
+  user_level: number;
+  start_path: string;
+}
+
 const cloudAdminApi = rtkApi.injectEndpoints({
   endpoints: (builder) => ({
     // ─── Tenants ───────────────────────────────────────────────────────────
@@ -125,6 +148,71 @@ const cloudAdminApi = rtkApi.injectEndpoints({
       providesTags: [{ type: 'Tenants', id: 'MY-MODULES' }],
     }),
 
+    // ─── Hub catalog / role→start (Phase 8) ────────────────────────────────
+    getHubCatalog: builder.query<IHubCatalogItem[], void>({
+      query: () => '/marketplace/hub-catalog',
+      providesTags: [{ type: 'Tenants', id: 'HUB-CATALOG' }],
+    }),
+
+    /** Alias for Hub Active section — same payload as getHubCatalog. */
+    getMyHubModules: builder.query<IHubCatalogItem[], void>({
+      query: () => '/marketplace/hub-catalog',
+      providesTags: [{ type: 'Tenants', id: 'HUB-CATALOG' }],
+    }),
+
+    enableHubModule: builder.mutation<unknown, string>({
+      query: (code) => ({
+        url: `/marketplace/hub-modules/${code}/enable`,
+        method: 'POST',
+      }),
+      invalidatesTags: [
+        { type: 'Tenants', id: 'HUB-CATALOG' },
+        { type: 'Tenants', id: 'MY-MODULES' },
+      ],
+    }),
+
+    disableHubModule: builder.mutation<unknown, string>({
+      query: (code) => ({
+        url: `/marketplace/hub-modules/${code}/disable`,
+        method: 'POST',
+      }),
+      invalidatesTags: [
+        { type: 'Tenants', id: 'HUB-CATALOG' },
+        { type: 'Tenants', id: 'MY-MODULES' },
+      ],
+    }),
+
+    getRoleStart: builder.query<IRoleStartResolved, void>({
+      query: () => '/marketplace/role-start',
+      providesTags: [{ type: 'Tenants', id: 'ROLE-START' }],
+    }),
+
+    updateTenantRoleStart: builder.mutation<IRoleStartRow[], { rows: IRoleStartRow[] }>({
+      query: (body) => ({
+        url: '/marketplace/role-start',
+        method: 'PUT',
+        body,
+      }),
+      invalidatesTags: [{ type: 'Tenants', id: 'ROLE-START' }],
+    }),
+
+    getPlatformRoleStartDefaults: builder.query<IRoleStartRow[], void>({
+      query: () => '/cloud-admin/role-start',
+      providesTags: [{ type: 'Tenants', id: 'ROLE-START-DEFAULTS' }],
+    }),
+
+    updatePlatformRoleStartDefaults: builder.mutation<IRoleStartRow[], { rows: IRoleStartRow[] }>({
+      query: (body) => ({
+        url: '/cloud-admin/role-start',
+        method: 'PUT',
+        body,
+      }),
+      invalidatesTags: [
+        { type: 'Tenants', id: 'ROLE-START-DEFAULTS' },
+        { type: 'Tenants', id: 'ROLE-START' },
+      ],
+    }),
+
     // ─── Platform Settings ─────────────────────────────────────────────────
     getSellerInfo: builder.query<ISellerInfo, void>({
       query: () => '/cloud-admin/settings/seller',
@@ -155,6 +243,14 @@ export const {
   useDeactivateModuleMutation,
   useGetModuleCatalogQuery,
   useGetMyModulesQuery,
+  useGetHubCatalogQuery,
+  useGetMyHubModulesQuery,
+  useEnableHubModuleMutation,
+  useDisableHubModuleMutation,
+  useGetRoleStartQuery,
+  useUpdateTenantRoleStartMutation,
+  useGetPlatformRoleStartDefaultsQuery,
+  useUpdatePlatformRoleStartDefaultsMutation,
   useGetSellerInfoQuery,
   useUpdateSellerInfoMutation,
 } = cloudAdminApi;
