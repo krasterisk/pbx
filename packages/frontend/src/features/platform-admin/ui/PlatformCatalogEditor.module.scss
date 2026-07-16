@@ -1,0 +1,81 @@
+.list {
+  width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.row {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--color-border);
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.rowHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.moduleName {
+  font-size: 16px;
+  font-weight: 600;
+  flex: 1;
+  min-width: 120px;
+}
+
+.badgeBase {
+  background: color-mix(in srgb, var(--color-primary) 15%, transparent);
+  color: color-mix(in srgb, var(--color-primary) 70%, var(--color-foreground));
+  border-color: transparent;
+}
+
+.badgeMarket {
+  background: color-mix(in srgb, var(--color-warning, #fbbf24) 12%, transparent);
+  color: var(--color-warning, #fbbf24);
+  border-color: transparent;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.membership {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.addForm {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-end;
+  padding: 12px 0;
+  width: 100%;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 140px;
+}
+
+.label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-muted-foreground, var(--color-text-muted));
+}

@@ -36,6 +36,21 @@ export interface IRoleStartRow {
   start_path: string;
 }
 
+export interface IPlatformHubPage {
+  page_code: string;
+  path: string | null;
+  sort_order: number;
+}
+
+export interface IPlatformHubModule {
+  code: string;
+  name: string;
+  kind: 'base' | 'market';
+  sort_order: number;
+  requires_cloud: boolean;
+  pages?: IPlatformHubPage[];
+}
+
 const cloudAdminApi = rtkApi.injectEndpoints({
   endpoints: (builder) => ({
     // ─── Tenants ───────────────────────────────────────────────────────────
@@ -213,6 +228,72 @@ const cloudAdminApi = rtkApi.injectEndpoints({
       ],
     }),
 
+    // ─── Platform Hub catalog (SuperAdmin) ─────────────────────────────────
+    getPlatformHubModules: builder.query<IPlatformHubModule[], void>({
+      query: () => '/cloud-admin/hub-modules',
+      providesTags: [{ type: 'Tenants', id: 'PLATFORM-HUB' }],
+    }),
+
+    createPlatformHubModule: builder.mutation<
+      IPlatformHubModule,
+      { code: string; name: string; kind: 'base' | 'market'; sort_order?: number; requires_cloud?: boolean }
+    >({
+      query: (body) => ({ url: '/cloud-admin/hub-modules', method: 'POST', body }),
+      invalidatesTags: [
+        { type: 'Tenants', id: 'PLATFORM-HUB' },
+        { type: 'Tenants', id: 'HUB-CATALOG' },
+      ],
+    }),
+
+    updatePlatformHubModule: builder.mutation<
+      IPlatformHubModule,
+      { code: string; data: Partial<{ name: string; kind: 'base' | 'market'; sort_order: number; requires_cloud: boolean }> }
+    >({
+      query: ({ code, data }) => ({
+        url: `/cloud-admin/hub-modules/${code}`,
+        method: 'PUT',
+        body: data,
+      }),
+      invalidatesTags: [
+        { type: 'Tenants', id: 'PLATFORM-HUB' },
+        { type: 'Tenants', id: 'HUB-CATALOG' },
+      ],
+    }),
+
+    reorderPlatformHubModules: builder.mutation<{ success: boolean }, { codes: string[] }>({
+      query: (body) => ({ url: '/cloud-admin/hub-modules/reorder', method: 'PATCH', body }),
+      invalidatesTags: [
+        { type: 'Tenants', id: 'PLATFORM-HUB' },
+        { type: 'Tenants', id: 'HUB-CATALOG' },
+      ],
+    }),
+
+    replacePlatformHubModulePages: builder.mutation<
+      IPlatformHubPage[],
+      { code: string; pages: Array<{ page_code: string; path?: string | null; sort_order?: number }> }
+    >({
+      query: ({ code, pages }) => ({
+        url: `/cloud-admin/hub-modules/${code}/pages`,
+        method: 'PUT',
+        body: { pages },
+      }),
+      invalidatesTags: [
+        { type: 'Tenants', id: 'PLATFORM-HUB' },
+        { type: 'Tenants', id: 'HUB-CATALOG' },
+      ],
+    }),
+
+    deletePlatformHubModule: builder.mutation<void, string>({
+      query: (code) => ({
+        url: `/cloud-admin/hub-modules/${code}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: [
+        { type: 'Tenants', id: 'PLATFORM-HUB' },
+        { type: 'Tenants', id: 'HUB-CATALOG' },
+      ],
+    }),
+
     // ─── Platform Settings ─────────────────────────────────────────────────
     getSellerInfo: builder.query<ISellerInfo, void>({
       query: () => '/cloud-admin/settings/seller',
@@ -251,6 +332,12 @@ export const {
   useUpdateTenantRoleStartMutation,
   useGetPlatformRoleStartDefaultsQuery,
   useUpdatePlatformRoleStartDefaultsMutation,
+  useGetPlatformHubModulesQuery,
+  useCreatePlatformHubModuleMutation,
+  useUpdatePlatformHubModuleMutation,
+  useReorderPlatformHubModulesMutation,
+  useReplacePlatformHubModulePagesMutation,
+  useDeletePlatformHubModuleMutation,
   useGetSellerInfoQuery,
   useUpdateSellerInfoMutation,
 } = cloudAdminApi;
