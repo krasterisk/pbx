@@ -103,13 +103,8 @@ export const TrunkCarouselApp = memo(({ action, onUpdate }: IDialplanAppProps) =
 
   return (
     <div className={cls.root}>
-      <div className={cls.hint}>
-        <Text variant="small">
-          {t(
-            'routes.apps.trunkCarousel.hint',
-            'Picks a random trunk first, then fails over down the ordered list on no-answer. Each trunk can set CallerID from a static number or a phonebook.',
-          )}
-        </Text>
+      <div className={cls.labelRow}>
+        <span>{t('routes.apps.trunkCarousel.trunks', 'Trunks')}</span>
         <InfoTooltip
           text={t(
             'routes.apps.trunkCarousel.hint',

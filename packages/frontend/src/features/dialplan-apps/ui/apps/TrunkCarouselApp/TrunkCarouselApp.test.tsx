@@ -52,6 +52,17 @@ describe('TrunkCarouselApp', () => {
     });
   });
 
+  it('shows app hint once via InfoTooltip on the trunks label row', () => {
+    render(<TrunkCarouselApp action={baseAction} onUpdate={mockOnUpdate} />);
+
+    const hint = screen.getByTestId('trunk-carousel-hint');
+    expect(hint).toBeInTheDocument();
+    const hintText =
+      'Picks a random trunk first, then fails over down the ordered list on no-answer. Each trunk can set CallerID from a static number or a phonebook.';
+    expect(hint).toHaveTextContent(hintText);
+    expect(screen.getAllByText(hintText)).toHaveLength(1);
+  });
+
   it('adds a trunk row and updates params.trunks via onUpdate', () => {
     render(<TrunkCarouselApp action={baseAction} onUpdate={mockOnUpdate} />);
 
