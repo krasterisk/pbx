@@ -64,6 +64,26 @@ export interface ICcSettings {
   alert_sound_enabled: boolean;
 }
 
+/** Display token for TV wallboard (D-26) — opaque, revocable. */
+export interface IDisplayToken {
+  uid: number;
+  token: string;
+  label: string | null;
+  created_by: number | null;
+  expires_at: string | null;
+  revoked_at: string | null;
+  last_used_at: string | null;
+  created_at: string;
+}
+
+/** Alert delivery routing (D-27/D-28) — WHERE/channel; thresholds live in cc_settings. */
+export interface IAlertConfig {
+  integration_uid: number | null;
+  target: string | null;
+  enabled: boolean;
+  cooldown_sec: number;
+}
+
 export interface IChatMessage {
   uid: number;
   channel_key: string;
@@ -301,6 +321,28 @@ const callCenterApi = rtkApi.injectEndpoints({
       query: ({ id, data }) => ({ url: `/callcenter/cards/${id}`, method: 'PUT', body: data }),
       invalidatesTags: ['Cards'],
     }),
+
+    // ─── Wallboard (D-26 tokens + D-27/D-28 alert routing) ─
+    createDisplayToken: build.mutation<IDisplayToken, { label?: string; expires_in_days?: number }>({
+      query: (body) => ({ url: '/callcenter/wallboard/tokens', method: 'POST', body }),
+      invalidatesTags: ['CcDisplayTokens'],
+    }),
+    listDisplayTokens: build.query<IDisplayToken[], void>({
+      query: () => '/callcenter/wallboard/tokens',
+      providesTags: ['CcDisplayTokens'],
+    }),
+    revokeDisplayToken: build.mutation<{ success: boolean }, number>({
+      query: (uid) => ({ url: `/callcenter/wallboard/tokens/${uid}`, method: 'DELETE' }),
+      invalidatesTags: ['CcDisplayTokens'],
+    }),
+    getAlertConfig: build.query<IAlertConfig, void>({
+      query: () => '/callcenter/wallboard/alert-config',
+      providesTags: ['CcAlertConfig'],
+    }),
+    updateAlertConfig: build.mutation<IAlertConfig, Partial<IAlertConfig>>({
+      query: (body) => ({ url: '/callcenter/wallboard/alert-config', method: 'PUT', body }),
+      invalidatesTags: ['CcAlertConfig'],
+    }),
   }),
 });
 
@@ -353,4 +395,9 @@ export const {
   useLazyGetCardByCallQuery,
   useSaveCardMutation,
   useUpdateCardMutation,
+  useCreateDisplayTokenMutation,
+  useListDisplayTokensQuery,
+  useRevokeDisplayTokenMutation,
+  useGetAlertConfigQuery,
+  useUpdateAlertConfigMutation,
 } = callCenterApi;
