@@ -70,13 +70,11 @@ Exceptions:
 | Role | Size | Weight | Line Height | Usage |
 |------|------|--------|-------------|-------|
 | Body | 14px | 400 (regular) | 1.5 | Hub row secondary text, tab labels, bottom-bar labels |
-| Label | 12px | 500 (medium*) | 1.4 | Bottom-bar button labels, pills/badges (`licenseStatus`), console-chrome caption |
+| Label | 12px | 600 (semibold) | 1.4 | Bottom-bar button labels, pills/badges (`licenseStatus`), console-chrome caption |
 | Heading | 16px | 600 (semibold) | 1.3 | Hub row primary module name, chip module name, platform console section titles |
 | Display | 20px | 600 (semibold) | 1.2 | Hub page title (if shown) / checkout step title |
 
-\* Project ARCHITECTURE conventions elsewhere already use `font-medium`/`font-semibold` Tailwind weights inside `shared/ui`; declaring 500 here (not a 3rd weight family) keeps the "2 weights max" rule (400 regular body + 600 semibold emphasis) while permitting Tailwind's built-in 500 for compact labels only, consistent with existing `SidebarItem`/`Badge` usage. If the checker requires strictly 2 weights, collapse Label to 600 as well — do not introduce a 3rd distinct weight beyond 400/500/600.
-
-Sizes are exactly 4 (14/12/16/20), weights are 400 + 600 (with 500 permitted only for compact label caps, per above), matching the "3-4 sizes, 2 weights" contract.
+Sizes are exactly 4 (14/12/16/20), weights are exactly 2 (400 regular for Body, 600 semibold for Label/Heading/Display) — strictly no 3rd weight family, matching the "3-4 sizes, 2 weights max" contract. (Earlier draft used 500/medium for Label; collapsed to 600 to keep the weight count at 2 per checker requirement.)
 
 ---
 
@@ -110,7 +108,7 @@ All copy below is the locked baseline; both `ru` (primary) and `en` keys are man
 | Empty state body — Marketplace section empty | Новые модули появятся здесь, когда будут доступны | New modules will appear here as they become available |
 | Error state — module deep-link to disabled/locked module | Модуль недоступен. Переход на главный экран | Module unavailable. Redirecting to your default screen |
 | Error state — checkout failure | Не удалось завершить покупку. Проверьте данные и повторите попытку | Purchase could not be completed. Check the details and try again |
-| Error state — command palette no results | Ничего не найдено | Nothing found |
+| Error state — command palette no results | Ничего не найдено. Попробуйте другой запрос | Nothing found. Try a different search term |
 | Destructive confirmation — tenant admin disables an active module | Отключить модуль: доступ к разделу будет закрыт для всех пользователей тенанта. Продолжить? | Disable module: access will be revoked for all tenant users. Continue? |
 | Destructive confirmation — platform operator removes module from tenant base composition | Удалить модуль из базового набора: изменение затронет все тенанты без переопределения. Продолжить? | Remove module from base composition: this affects all tenants without an override. Continue? |
 | Locked pill label | Заблокировано | Locked |
@@ -139,10 +137,14 @@ These extend the base template with the concrete, locked layout contracts per su
 
 ### 1. Module Hub (route, winner **002-E**)
 
+> **Traceability note:** `08-CONTEXT.md` D-02/D-05 described the Hub as a **bento grid + persistent dock** (Hybrid Hub framing). Per D-11 ("3 visual variants → user picks one production winner"), the user selected sketch winner **002-E** (dense single-column list, no dock) during the `sketch-findings-krasterisk-v4` session. **002-E supersedes D-02/D-05's bento+dock visual framing** — the list layout below is the binding contract; D-02/D-05 remain valid for the *conceptual* Hybrid Hub behavior (Hub route + quick switcher without forced return to Hub), just not for the bento/dock *visual* treatment.
+
 - Route: deep-linkable (D-08), e.g. `/modules` or `/`.
 - Layout: **single-column dense list**, not bento/orbit/cinematic. No persistent dock.
+- **Focal point:** module name is the primary focal element (Heading 16/600, leftmost text); the icon badge is a secondary visual anchor (36x36, tinted, sits left of the name) — never let the icon badge outweigh the name in visual weight (no oversized icon-first bento tiles).
 - Row: `padding: 16px` horizontal / `~14px` vertical, `1px` bottom border (`--color-border`), icon badge (36x36, `radius-lg`, background `color-mix(primary 12%)`, icon `--color-primary`), module name (Heading 16/600), secondary line (Body 14/400 muted), trailing status pill (`on`/`off`/`lock`), trailing chevron/star favorite toggle.
 - Row hover: subtle background lift only (`rgba(255,255,255,0.03)` equivalent via existing hover token pattern used elsewhere in tables), no accent bleed.
+- Accessibility labels (icon-only controls): star favorite toggle → `aria-label`/tooltip `Добавить в избранное` (unfavorited) / `Убрать из избранного` (favorited) — en: `Add to favorites` / `Remove from favorites`. Trailing chevron (row is a link/button to open the module) → `aria-label`/tooltip `Открыть {moduleName}` — en: `Open {moduleName}` (chevron itself has no independent action; label describes the row's action, not a decorative arrow).
 - Sections: **"Active"** (active + disabled modules, disabled rows visually muted `opacity ~0.6`, non-purchasable) then **"Marketplace"** (locked-only, dashed border card style, price + Buy CTA).
 - Favorites: star toggle persists per-user (local prefs or user prefs endpoint), sorts favorited rows to top of Active section.
 - Header: logo (non-interactive here, already at Hub) + optional `⌘K` trigger, no module chip (no module context on Hub itself).
