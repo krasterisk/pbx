@@ -76,7 +76,7 @@ Each task was committed atomically:
 2. **Task 1: MobileBottomBar widget (GREEN)** - `4930386` (feat)
 3. **Task 2: Phone chip→Sheet + shell padding** - `b5731ab` (feat)
 
-**Plan metadata:** (pending docs commit)
+**Plan metadata:** `56768b2` (docs: complete plan)
 
 _Note: TDD Task 1 used test → feat commits_
 
