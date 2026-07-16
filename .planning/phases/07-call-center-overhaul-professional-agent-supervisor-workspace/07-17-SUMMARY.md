@@ -68,7 +68,7 @@ completed: 2026-07-16
 1. **Task 1: QueueManagementModal (DnD add/remove/penalty) + wire** - `b9d9210` (feat)
 2. **Task 2: BulkActionsBar + row selection wiring** - `878e773` (feat)
 
-**Plan metadata:** `6d717bc` (docs: complete Supervisor OPS plan)
+**Plan metadata:** `6d717bc` (docs: complete Supervisor OPS plan); `7630e09` (docs: SUMMARY hash note)
 
 ## Files Created/Modified
 
