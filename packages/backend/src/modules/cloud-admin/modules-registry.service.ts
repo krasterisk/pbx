@@ -27,6 +27,7 @@ const MODULES_SEED: Partial<ModuleRegistry>[] = [
   { code: 'service_requests',  name: 'Колл-центр CRM (Заявки)',   category: 'calls',        is_core: false, is_paid: true,  price_monthly: 1500 },
   { code: 'tts_engines',       name: 'Синтез речи (TTS)',         category: 'integrations', is_core: false, is_paid: true,  price_monthly: 500 },
   { code: 'stt_engines',       name: 'Распознавание речи (STT)', category: 'integrations', is_core: false, is_paid: true,  price_monthly: 500 },
+  { code: 'cc_ai_voice',       name: 'КЦ AI Voice (аналитика/транскрипция)', category: 'analytics', is_core: false, is_paid: true, price_monthly: 3000, is_published: true },
   // ── Cloud only ───────────────────────────────────────────────────────────
   { code: 'cloud_admin',       name: 'Облачная панель управления',category: 'admin',        is_core: false, is_paid: true,  price_monthly: 0, requires_cloud: true },
   { code: 'billing',           name: 'Биллинг и документы',       category: 'admin',        is_core: false, is_paid: false, price_monthly: 0, requires_cloud: true },

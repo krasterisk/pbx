@@ -1,12 +1,17 @@
 import { Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
+import { ConfigModule } from '@nestjs/config';
 import { AmiModule } from '../ami/ami.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { AiPlatformModule } from '../ai-platform/ai-platform.module';
+import { AriModule } from '../ari/ari.module';
+import { VoiceRobotsModule } from '../voice-robots/voice-robots.module';
+import { CloudAdminModule } from '../cloud-admin/cloud-admin.module';
 import { CallCenterStateService } from './callcenter-state.service';
 import { CallCenterAmiService } from './callcenter-ami.service';
 import { CallCenterService } from './callcenter.service';
 import { CallCenterAiAdapter } from './callcenter-ai.adapter';
+import { CallCenterMediaBridgeService } from './callcenter-media-bridge.service';
 import { CallCenterHistoryWriterService } from './callcenter-history-writer.service';
 import { CallCenterMetricsService } from './callcenter-metrics.service';
 import { CallCenterRollupService } from './callcenter-rollup.service';
@@ -81,6 +86,10 @@ import { queueLogReaderProvider } from './queuelog/queue-log-reader.factory';
     AmiModule,
     NotificationsModule,
     AiPlatformModule,
+    AriModule,
+    VoiceRobotsModule,
+    CloudAdminModule,
+    ConfigModule,
   ],
   providers: [
     CallCenterStateService,
@@ -99,6 +108,7 @@ import { queueLogReaderProvider } from './queuelog/queue-log-reader.factory';
     CallCenterAmiService,
     CallCenterService,
     CallCenterAiAdapter,
+    CallCenterMediaBridgeService,
     CallCenterSettingsService,
     CallCenterCardsService,
     CallCenterChatService,
@@ -126,6 +136,7 @@ import { queueLogReaderProvider } from './queuelog/queue-log-reader.factory';
     CallCenterService,
     CallCenterSettingsService,
     CallCenterReportsService,
+    CallCenterMediaBridgeService,
   ],
 })
 export class CallCenterModule {}

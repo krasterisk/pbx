@@ -71,6 +71,6 @@ import { TtsEngine } from '../tts-engines/tts-engine.model';
     TtsProviderFactory,
     TtsCacheService,
   ],
-  exports: [VoiceRobotsService],
+  exports: [VoiceRobotsService, RtpUdpServerService],
 })
 export class VoiceRobotsModule {}
