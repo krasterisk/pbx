@@ -1,9 +1,9 @@
 ---
-status: diagnosed
+status: fixed_pending_retest
 phase: 06-dialplan-apps-ring-groups-multi-channel-notifications-ux-ove
-source: [06-01-SUMMARY.md, 06-02-SUMMARY.md, 06-03-SUMMARY.md, 06-04-SUMMARY.md, 06-05-SUMMARY.md, 06-06-SUMMARY.md, 06-07-SUMMARY.md, 06-08-SUMMARY.md, 06-09-SUMMARY.md, 06-10-SUMMARY.md, 06-11-SUMMARY.md, 06-12-SUMMARY.md, 06-13-SUMMARY.md, 06-14-SUMMARY.md]
+source: [06-01-SUMMARY.md, 06-02-SUMMARY.md, 06-03-SUMMARY.md, 06-04-SUMMARY.md, 06-05-SUMMARY.md, 06-06-SUMMARY.md, 06-07-SUMMARY.md, 06-08-SUMMARY.md, 06-09-SUMMARY.md, 06-10-SUMMARY.md, 06-11-SUMMARY.md, 06-12-SUMMARY.md, 06-13-SUMMARY.md, 06-14-SUMMARY.md, 06-15-SUMMARY.md, 06-16-SUMMARY.md]
 started: 2026-07-15T14:00:00+07:00
-updated: 2026-07-16T12:30:00+07:00
+updated: 2026-07-16T12:45:00+07:00
 ---
 
 ## Current Test
@@ -99,7 +99,7 @@ blocked: 2
 ## Gaps
 
 - truth: "Navigating to /call-groups shows a table of call groups; create/edit/copy persist via /call-groups API and apply dialplan"
-  status: failed
+  status: fixed_pending_retest
   reason: "User reported after model+migration fix: DialplanApplyService Failed to create category [group_1_0]: File requires escalated privileges; then Transaction cannot be rolled back because it has been finished with state: commit"
   severity: blocker
   test: 1
@@ -116,9 +116,12 @@ blocked: 2
     - "Ensure/document mkdir krasterisk/groups (and peers) on Asterisk config dir"
     - "After commit: never rollback; handle AMI failure without masking DB success"
   debug_session: .planning/debug/call-groups-ami-apply.md
+  fix_plans: [06-15]
+  fix_commits: [89f4acd, ca9ab4c]
+  ops_required: "mkdir -p $AST_CONFIG_DIR/krasterisk/{groups,routes,phonebooks,subroutines}"
 
 - truth: "CallerIdApp and TrunkCarouselApp show clear per-mode/app hints without duplicating the same help as inline text and tooltip"
-  status: failed
+  status: fixed_pending_retest
   reason: "User reported duplicate hints on CallerIdApp (test 5) and TrunkCarouselApp (test 6): text + popup on button; wastes vertical space"
   severity: cosmetic
   test: 5
@@ -131,3 +134,5 @@ blocked: 2
   missing:
     - "Single hint surface (prefer InfoTooltip on label like NotifyApp)"
   debug_session: .planning/debug/dialplan-apps-duplicate-hints.md
+  fix_plans: [06-16]
+  fix_commits: [b9d09a3, c21ac79]
