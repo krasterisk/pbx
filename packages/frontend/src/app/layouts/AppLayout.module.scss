@@ -5,6 +5,11 @@
   position: relative;
 }
 
+.withBottomBar {
+  /* 60px bar + safe-area so Hub/module content is not obscured on phone */
+  padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px));
+}
+
 .main {
   flex: 1;
   width: 100%;

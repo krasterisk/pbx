@@ -61,7 +61,7 @@
   font-size: 14px;
   font-weight: 600;
   color: var(--color-foreground);
-  min-height: 36px;
+  min-height: 44px;
 
   &:hover {
     border-color: color-mix(in srgb, var(--color-primary) 40%, var(--color-border));
@@ -158,4 +158,67 @@
   color: var(--color-primary);
   font-size: 13px;
   font-weight: 600;
+}
+
+/* Phone chip → bottom Sheet (D-25); desktop keeps DropdownMenu */
+.chipSheetContent {
+  inset: auto 0 0 0 !important;
+  top: auto !important;
+  right: 0 !important;
+  left: 0 !important;
+  bottom: 0 !important;
+  height: auto !important;
+  max-height: 70vh;
+  width: 100% !important;
+  max-width: 100% !important;
+  border-left: none !important;
+  border-top: 1px solid var(--color-border);
+  border-radius: 16px 16px 0 0;
+  padding: 20px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+}
+
+.chipSheetList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-y: auto;
+  margin-top: 8px;
+}
+
+.chipSheetRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-foreground);
+  cursor: pointer;
+  text-align: left;
+  font-size: 14px;
+  font-weight: 600;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.03);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+  }
+}
+
+.chipSheetIcon {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+  color: var(--color-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }

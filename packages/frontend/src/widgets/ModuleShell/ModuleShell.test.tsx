@@ -4,6 +4,12 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { Phone } from 'lucide-react';
 import type { HubModuleRow } from '@/features/modules/types';
 
+const useIsMobileMock = vi.fn(() => false);
+
+vi.mock('@/shared/hooks/useIsMobile', () => ({
+  useIsMobile: (bp?: number) => useIsMobileMock(bp),
+}));
+
 vi.mock('@/features/modules/hooks/useHubModules', () => ({
   useHubModules: vi.fn(),
 }));
@@ -43,6 +49,7 @@ const coreRow: HubModuleRow = {
 
 describe('ModuleShell (003-B)', () => {
   beforeEach(() => {
+    useIsMobileMock.mockReturnValue(false);
     vi.mocked(useHubModules).mockReturnValue({
       active: [coreRow],
       marketplace: [],
@@ -99,6 +106,38 @@ describe('ModuleShell (003-B)', () => {
     expect(screen.queryByTestId('command-palette')).toBeNull();
     fireEvent.keyDown(window, { key: 'k', ctrlKey: true });
     expect(screen.getByTestId('command-palette')).toBeInTheDocument();
+  });
+
+  it('opens bottom Sheet for module chip on phone (D-25)', () => {
+    useIsMobileMock.mockReturnValue(true);
+    render(
+      <MemoryRouter initialEntries={['/endpoints']}>
+        <ModuleShell />
+      </MemoryRouter>,
+    );
+
+    expect(screen.queryByTestId('module-chip-sheet')).toBeNull();
+    fireEvent.click(screen.getByTestId('module-chip-trigger'));
+    expect(screen.getByTestId('module-chip-sheet')).toBeInTheDocument();
+    expect(screen.queryByTestId('module-chip-menu')).toBeNull();
+  });
+
+  it('keeps DropdownMenu chip on desktop/tablet', async () => {
+    useIsMobileMock.mockReturnValue(false);
+    render(
+      <MemoryRouter initialEntries={['/endpoints']}>
+        <ModuleShell />
+      </MemoryRouter>,
+    );
+
+    const trigger = screen.getByTestId('module-chip-trigger');
+    expect(trigger).toHaveAttribute('aria-haspopup', 'menu');
+    fireEvent.pointerDown(trigger, { button: 0, ctrlX: 0, ctrlY: 0 });
+    fireEvent.mouseDown(trigger, { button: 0 });
+    fireEvent.click(trigger);
+
+    expect(await screen.findByTestId('module-chip-menu')).toBeInTheDocument();
+    expect(screen.queryByTestId('module-chip-sheet')).toBeNull();
   });
 });
 
