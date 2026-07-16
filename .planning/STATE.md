@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Ready to execute
-last_updated: "2026-07-16T02:26:30.000Z"
+last_updated: "2026-07-16T02:43:46.512Z"
 progress:
   total_phases: 7
   completed_phases: 4
   total_plans: 45
-  completed_plans: 40
-  percent: 89
+  completed_plans: 41
+  percent: 57
 ---
 
 # State
@@ -17,7 +17,7 @@ progress:
 ## Current position
 
 Phase: 07 (call-center-overhaul-professional-agent-supervisor-workspace) — EXECUTING
-Plan: 14–16, 18 remaining (07-13 Wallboard UI complete)
+Plan: 15–16, 18 remaining (07-14 WebRTC softphone complete)
 Phase 5 — Phonebooks AI: plans executed (verify/UAT may remain).  
 Phase 6 — Dialplan Apps: **06-01–06-14 executed**. Ready for `/gsd-verify-work 6`.
 
@@ -77,6 +77,8 @@ Phase 1 — MOH: pending verify.
 - [Phase 07]: Penalty drafts local (IAgent.queues has no penalty); bulk selection table-only
 - [Phase 07]: Wallboard uses local WALLBOARD_DEFAULT_THRESHOLDS on public TV (no JWT settings fetch)
 - [Phase 07]: Public /callcenter/wallboard outside AppLayout; display-token SSE only (never localStorage)
+- [Phase 07]: UserAgent+Registerer for WebRTC REFER/getStats (not SimpleUser); connect(overrides) for credential race
+- [Phase 07]: ICE/TURN only via GET /callcenter/webrtc/config; sip.js@0.21.2 exact pin after supply-chain verify
 
 ## Roadmap Evolution
 
@@ -87,7 +89,7 @@ Phase 1 — MOH: pending verify.
 
 ## Next GSD command
 
-`/gsd-execute-phase 7` (continue incomplete plans 14–16, 18)
+`/gsd-execute-phase 7` (continue incomplete plans 15–16, 18)
 
 ## Performance Metrics
 
@@ -117,3 +119,4 @@ Phase 1 — MOH: pending verify.
 | Phase 07 P12 | 45min | 3 tasks | 9 files |
 | Phase 07 P17 | 6min | 2 tasks | 7 files |
 | Phase 07 P13 | 10min | 3 tasks | 20 files |
+| Phase 07 P14 | 25min | 4 tasks | 18 files |

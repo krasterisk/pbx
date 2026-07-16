@@ -356,13 +356,14 @@ Plans:
 | 5 | `/gsd-ui-review 7` + `npm run test:frontend` |
 | 6 | `/gsd-verify-work 7` → `/gsd-ship 7` |
 
-**Plans:** 14/18 plans executed
+**Plans:** 15/18 plans executed
 
 Plans:
 
 - [x] 07-01 … 07-12, 07-17 — prior waves (see phase SUMMARY files)
 - [x] 07-13-PLAN.md — Wallboard UI: TV page + display tokens + alert routing [D-27/D-29]
-- [ ] 07-14, 07-15, 07-16, 07-18 — remaining
+- [x] 07-14-PLAN.md — WebRTC softphone: sip.js + ShiftLoginModal + ICE config [D-14…D-17]
+- [ ] 07-15, 07-16, 07-18 — remaining
 
 **Verification:**
 
