@@ -103,7 +103,7 @@ Each task was committed atomically (TDD RED → GREEN):
    - `1d8eba8` (test) — RoleStartService resolve contract
    - `9014d40` (feat) — role-start models/service/controllers + cloudAdminApi + apiPath resolver
 
-**Plan metadata:** (docs commit after SUMMARY)
+**Plan metadata:** `73462f1` (docs: complete plan)
 
 ## Files Created/Modified
 
