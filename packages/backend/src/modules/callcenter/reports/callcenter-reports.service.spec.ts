@@ -257,6 +257,41 @@ describe('CallCenterReportsService', () => {
   });
 });
 
+describe('report exporters', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { buildReportCsv } = require('./exporters/csv-exporter') as typeof import('./exporters/csv-exporter');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { buildReportXlsx } = require('./exporters/xlsx-exporter') as typeof import('./exporters/xlsx-exporter');
+
+  it('CSV: BOM + semicolon delimiter + escaped quotes', () => {
+    const csv = buildReportCsv(
+      [
+        { key: 'name', header: 'Name' },
+        { key: 'note', header: 'Note' },
+      ],
+      [{ name: 'A', note: 'say "hi"' }],
+    );
+    expect(csv.startsWith('\uFEFF')).toBe(true);
+    expect(csv).toContain('"Name";"Note"');
+    expect(csv).toContain('"say ""hi"""');
+  });
+
+  it('XLSX: Buffer with expected header structure (not byte snapshot)', async () => {
+    const buf = await buildReportXlsx(
+      'Queue Summary',
+      [
+        { key: 'queue', header: 'Queue' },
+        { key: 'sla', header: 'SLA %' },
+      ],
+      [{ queue: 'sales', sla: 80 }],
+    );
+    expect(Buffer.isBuffer(buf)).toBe(true);
+    expect(buf.length).toBeGreaterThan(100);
+    expect(buf[0]).toBe(0x50);
+    expect(buf[1]).toBe(0x4b);
+  });
+});
+
 function round1(n: number): number {
   return Math.round(n * 10) / 10;
 }

@@ -21,6 +21,7 @@ import { CallCenterWallboardService } from './callcenter-wallboard.service';
 import { CallCenterWallboardController } from './callcenter-wallboard.controller';
 import { CallCenterAlertService } from './callcenter-alert.service';
 import { CallCenterReportsService } from './reports/callcenter-reports.service';
+import { CallCenterReportsController } from './reports/callcenter-reports.controller';
 import { DisplayTokenGuard } from './guards/display-token.guard';
 import { CcPauseReason } from './models/pause-reason.model';
 import { CcAgentSession } from './models/agent-session.model';
@@ -108,6 +109,7 @@ import { queueLogReaderProvider } from './queuelog/queue-log-reader.factory';
     CallCenterCardsController,
     CallCenterChatController,
     CallCenterWallboardController,
+    CallCenterReportsController,
   ],
   exports: [
     CallCenterStateService,
