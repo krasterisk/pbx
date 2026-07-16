@@ -339,8 +339,8 @@ export function CallCenterSupervisorPage() {
   ];
 
   return (
-    <VStack gap="16" className={styles.wrapper}>
-      <Flex justify="between" align="center" className="px-2 sm:px-2">
+    <VStack gap="16" className={styles.wrapper} data-testid="cc-supervisor-responsive">
+      <Flex justify="between" align="center" className="px-2 sm:px-2 flex-col sm:flex-row gap-3 min-w-0">
         <Flex align="center" gap="12">
           <Flex align="center" justify="center" className="p-2 sm:p-2.5 bg-indigo-500/10 rounded-xl">
             <Monitor className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-500" />
@@ -454,14 +454,20 @@ export function CallCenterSupervisorPage() {
             </div>
           ) : (
             agents.length > 0 ? (
-              <DataTable<IAgent>
-                data={agents}
-                columns={agentColumns}
-                getRowId={(row) => row.interface}
-                selectable
-                rowSelection={rowSelection}
-                onRowSelectionChange={setRowSelection}
-              />
+              <div
+                className={`${styles.tableScroll} overflow-x-auto`}
+                data-testid="hybrid-table"
+                data-hybrid="overflow-x-auto"
+              >
+                <DataTable<IAgent>
+                  data={agents}
+                  columns={agentColumns}
+                  getRowId={(row) => row.interface}
+                  selectable
+                  rowSelection={rowSelection}
+                  onRowSelectionChange={setRowSelection}
+                />
+              </div>
             ) : (
               <div className={styles.emptyState}>
                 <Users className="w-10 h-10 opacity-30" />
@@ -474,6 +480,11 @@ export function CallCenterSupervisorPage() {
 
       {activeTab === 'calls' && (
         calls.length > 0 ? (
+          <div
+            className={`${styles.tableScroll} overflow-x-auto`}
+            data-testid="hybrid-table"
+            data-hybrid="overflow-x-auto"
+          >
           <table className={styles.liveCallsTable}>
             <thead>
               <tr>
@@ -566,6 +577,7 @@ export function CallCenterSupervisorPage() {
               })}
             </tbody>
           </table>
+          </div>
         ) : (
           <div className={styles.emptyState}>
             <Phone className="w-10 h-10 opacity-30" />
@@ -576,6 +588,11 @@ export function CallCenterSupervisorPage() {
 
       {activeTab === 'queues' && (
         queues.length > 0 ? (
+          <div
+            className={`${styles.tableScroll} overflow-x-auto`}
+            data-testid="hybrid-table"
+            data-hybrid="overflow-x-auto"
+          >
           <table className={styles.liveCallsTable}>
             <thead>
               <tr>
@@ -611,6 +628,7 @@ export function CallCenterSupervisorPage() {
               ))}
             </tbody>
           </table>
+          </div>
         ) : (
           <div className={styles.emptyState}>
             <BarChart3 className="w-10 h-10 opacity-30" />

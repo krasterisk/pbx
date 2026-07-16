@@ -2,6 +2,8 @@
 
 .page {
   flex: 1;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .header {
@@ -71,4 +73,13 @@
 
 .cardContent {
   padding: 0;
+  min-width: 0;
+}
+
+/* D-29 secondary table: horizontal scroll + column priority at phone width */
+.tableScroll {
+  overflow-x: auto;
+  min-width: 0;
+  -webkit-overflow-scrolling: touch;
+  width: 100%;
 }

@@ -19,13 +19,13 @@ export const MohPage = memo(() => {
   const dispatch = useAppDispatch();
 
   return (
-    <VStack gap="24" max className={cls.page}>
+    <VStack gap="24" max className={cls.page} data-testid="moh-page-responsive">
       <Flex justify="between" align="center" className={cls.header} max>
         <HStack gap="12" align="center">
           <Flex align="center" justify="center" className={cls.iconBadge}>
             <Music size={24} />
           </Flex>
-          <VStack gap="4">
+          <VStack gap="4" className="min-w-0">
             <Text variant="h1" as="h1" className={cls.title}>
               {t('moh.title', 'Музыка на удержании')}
             </Text>
@@ -50,7 +50,13 @@ export const MohPage = memo(() => {
           </CardTitle>
         </CardHeader>
         <CardContent className={cls.cardContent}>
-          <MohTable />
+          <div
+            className={`${cls.tableScroll} overflow-x-auto`}
+            data-testid="hybrid-table"
+            data-hybrid="overflow-x-auto"
+          >
+            <MohTable />
+          </div>
         </CardContent>
       </Card>
     </VStack>

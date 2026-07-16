@@ -59,8 +59,8 @@ export function CallCenterSettingsPage() {
   };
 
   return (
-    <VStack gap="16" max className={styles.wrapper}>
-      <VStack gap="4">
+    <VStack gap="16" max className={styles.wrapper} data-testid="cc-settings-responsive">
+      <VStack gap="4" className="min-w-0">
         <Text
           variant="h1"
           className="text-lg sm:text-2xl bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent"

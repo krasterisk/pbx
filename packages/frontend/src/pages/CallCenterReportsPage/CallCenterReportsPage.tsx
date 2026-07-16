@@ -336,24 +336,30 @@ export function CallCenterReportsPage() {
     }
 
     return (
-      <DataTable<Record<string, unknown>>
-        data={rows}
-        columns={tableColumns}
-        getRowId={(row) => String(
-          row.uid
-          ?? row.callUniqueid
-          ?? row.agentInterface
-          ?? row.queueName
-          ?? JSON.stringify(row),
-        )}
-        emptyText={t('callcenter.reports.emptyTitle')}
-        pageSize={50}
-      />
+      <div
+        className={`${styles.tableScroll} overflow-x-auto`}
+        data-testid="hybrid-table"
+        data-hybrid="overflow-x-auto"
+      >
+        <DataTable<Record<string, unknown>>
+          data={rows}
+          columns={tableColumns}
+          getRowId={(row) => String(
+            row.uid
+            ?? row.callUniqueid
+            ?? row.agentInterface
+            ?? row.queueName
+            ?? JSON.stringify(row),
+          )}
+          emptyText={t('callcenter.reports.emptyTitle')}
+          pageSize={50}
+        />
+      </div>
     );
   };
 
   return (
-    <VStack gap="16" max className={styles.wrapper}>
+    <VStack gap="16" max className={styles.wrapper} data-testid="cc-reports-responsive">
       <VStack gap="4">
         <Flex align="center" gap="12">
           <Flex
