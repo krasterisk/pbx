@@ -97,6 +97,7 @@ Phase 1 — MOH: pending verify.
 
 ## Roadmap Evolution
 
+- Phase 8 UI-SPEC approved (2026-07-16): design contract verified 6/6 — Hub E list, tabs B, mobile bottom bar, marketplace section, platform separate apps; see `08-UI-SPEC.md`.
 - Phase 8 context gathered (2026-07-16): Module Hub + marketplace catalog/billing skeleton + full responsive + Capacitor Android foundation; see `08-CONTEXT.md`.
 - Phase 8 added: Navigation redesign & Android port foundation — масштабируемая модульная навигация (IA, command palette, mobile-first), design-system shell touchpoints, Capacitor-first подготовка стека к Android (WebRTC/SSE/auth gaps).
 - Phase 7 added: Call Center overhaul — корпоративный колл-центр (аудит + rework ядра, АРМ оператора/супервизора, wallboard + metrics, call cards, отчётность/аналитика, WebRTC, AI-ready foundation).
@@ -106,7 +107,7 @@ Phase 1 — MOH: pending verify.
 
 ## Next GSD command
 
-`/gsd-plan-phase 8` (after `/gsd-sketch` for 3 Hub/shell variants recommended); or finish Phase 7 via `/gsd-verify-work 7`
+`/gsd-plan-phase 8` (UI-SPEC approved 2026-07-16); or finish Phase 7 via `/gsd-verify-work 7`
 
 ## Performance Metrics
 
