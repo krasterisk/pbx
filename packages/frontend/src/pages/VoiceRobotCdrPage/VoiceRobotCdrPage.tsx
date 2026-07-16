@@ -15,6 +15,7 @@ import {
   VoiceRobotCdrStats, 
   VoiceRobotCdrDetailModal 
 } from '@/features/voiceRobotCdr';
+import cls from './VoiceRobotCdrPage.module.scss';
 
 const PAGE_SIZE = 50;
 const CSV_DELIMITER = ';';
@@ -123,14 +124,14 @@ const VoiceRobotCdrPage = memo(() => {
   const totalPages = cdrData ? Math.ceil(cdrData.count / PAGE_SIZE) : 0;
 
   return (
-    <VStack gap="24" max className="flex-1">
-      <Flex justify="between" align="center" className="px-2">
-        <Flex align="center" gap="12">
-          <Flex align="center" justify="center" className="p-2.5 bg-indigo-500/10 rounded-xl">
+    <VStack gap="24" max className={`${cls.page} flex-1`} data-testid="voice-robot-cdr-page-responsive">
+      <Flex justify="between" align="center" className="px-2 min-w-0">
+        <Flex align="center" gap="12" className="min-w-0">
+          <Flex align="center" justify="center" className="p-2.5 bg-indigo-500/10 rounded-xl shrink-0">
             <Activity className="w-6 h-6 text-indigo-500" />
           </Flex>
-          <VStack>
-             <Text variant="h1" className="bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">
+          <VStack className="min-w-0">
+             <Text variant="h1" className={`${cls.pageTitle} bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent`}>
               {t('voiceRobots.cdr.title')}
             </Text>
             <Text variant="muted" className="mt-1">
@@ -141,9 +142,11 @@ const VoiceRobotCdrPage = memo(() => {
       </Flex>
 
       {/* KPI Stats */}
-      <VoiceRobotCdrStats stats={statsData} isLoading={isLoadingStats} />
+      <div className={cls.statsScroll}>
+        <VoiceRobotCdrStats stats={statsData} isLoading={isLoadingStats} />
+      </div>
 
-      <Card className="border-muted/50 shadow-sm backdrop-blur-xl bg-background/50 flex flex-col min-h-[500px]">
+      <Card className={`${cls.card} border-muted/50 shadow-sm backdrop-blur-xl bg-background/50 flex flex-col min-h-[500px]`}>
         <CardHeader className="border-b border-border/50 bg-muted/20 pb-4">
           <Flex justify="between" align="start" className="mb-3">
             <CardTitle className="text-base font-medium">
@@ -151,19 +154,27 @@ const VoiceRobotCdrPage = memo(() => {
               {cdrData && <span className="ml-2 text-sm text-muted-foreground font-normal">({cdrData.count})</span>}
             </CardTitle>
           </Flex>
-          <VoiceRobotCdrFilter
-            filters={filters}
-            onChange={handleFilterChange}
-            onExportCsv={handleExportCsv}
-            isExporting={isExporting}
-          />
+          <div className={cls.filterBar}>
+            <VoiceRobotCdrFilter
+              filters={filters}
+              onChange={handleFilterChange}
+              onExportCsv={handleExportCsv}
+              isExporting={isExporting}
+            />
+          </div>
         </CardHeader>
-        <CardContent className="p-0 flex-1 relative">
-          <VoiceRobotCdrTable 
-            data={cdrData?.rows || []} 
-            isLoading={isLoadingCdr || isFetching} 
-            onRowClick={(cdr) => setSelectedCdrId(cdr.uid)}
-          />
+        <CardContent className="p-0 flex-1 relative min-w-0">
+          <div
+            className={`${cls.tableScroll} overflow-x-auto`}
+            data-testid="hybrid-table"
+            data-hybrid="overflow-x-auto"
+          >
+            <VoiceRobotCdrTable
+              data={cdrData?.rows || []}
+              isLoading={isLoadingCdr || isFetching}
+              onRowClick={(cdr) => setSelectedCdrId(cdr.uid)}
+            />
+          </div>
         </CardContent>
         {totalPages > 1 && (
           <div className="p-4 border-t border-border/50 bg-muted/10 flex justify-center">

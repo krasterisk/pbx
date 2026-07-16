@@ -31,6 +31,7 @@ import {
   parseFiltersFromSearchParams,
 } from '@/features/cdr/model/lib/cdrFiltersToParams';
 import type { ICdrCall } from '@/shared/api/endpoints/cdrApi';
+import cls from './CdrReportPage.module.scss';
 
 const PAGE_SIZE = 50;
 
@@ -98,25 +99,27 @@ const CdrReportPage = memo(() => {
   }, []);
 
   return (
-    <VStack gap="24" max className="flex-1">
-      <Flex justify="between" align="center" className="px-2">
-        <Flex align="center" gap="12">
-          <Flex align="center" justify="center" className="p-2.5 bg-indigo-500/10 rounded-xl">
+    <VStack gap="24" max className={`${cls.page} flex-1`} data-testid="cdr-report-page-responsive">
+      <Flex justify="between" align="center" className="px-2 min-w-0">
+        <Flex align="center" gap="12" className="min-w-0">
+          <Flex align="center" justify="center" className="p-2.5 bg-indigo-500/10 rounded-xl shrink-0">
             <PhoneCall className="w-6 h-6 text-indigo-500" />
           </Flex>
-          <VStack>
-            <Text variant="h1">{t('cdr.title', 'Журнал звонков (CDR)')}</Text>
+          <VStack className="min-w-0">
+            <Text variant="h1" className={cls.pageTitle}>{t('cdr.title', 'Журнал звонков (CDR)')}</Text>
             <Text variant="muted">{t('cdr.subtitle', 'Детализация звонков АТС')}</Text>
           </VStack>
         </Flex>
       </Flex>
 
-      <CdrStats stats={statsData} isLoading={statsLoading} />
+      <div className={cls.statsScroll}>
+        <CdrStats stats={statsData} isLoading={statsLoading} />
+      </div>
 
-      <Card className="border-muted/50 shadow-sm backdrop-blur-xl bg-background/50 flex flex-col min-h-[500px]">
+      <Card className={`${cls.card} border-muted/50 shadow-sm backdrop-blur-xl bg-background/50 flex flex-col min-h-[500px]`}>
         <CardHeader className="border-b border-border/50 bg-muted/20 pb-4">
           <Flex justify="between" align="center" className="mb-4 flex-wrap gap-2">
-            <Flex gap="8">
+            <Flex gap="8" className="flex-wrap">
               <Button
                 variant={activeTab === 'journal' ? 'default' : 'outline'}
                 size="sm"
@@ -140,16 +143,22 @@ const CdrReportPage = memo(() => {
               </Text>
             )}
           </Flex>
-          <CdrFilter
-            filters={filters}
-            onChange={handleFilterChange}
-            onExportCsv={handleExportCsv}
-            isExporting={isExporting}
-          />
+          <div className={cls.filterBar}>
+            <CdrFilter
+              filters={filters}
+              onChange={handleFilterChange}
+              onExportCsv={handleExportCsv}
+              isExporting={isExporting}
+            />
+          </div>
         </CardHeader>
-        <CardContent className="p-0 flex-1">
+        <CardContent className="p-0 flex-1 min-w-0">
           {activeTab === 'journal' ? (
-            <VStack gap="0">
+            <div
+              className={`${cls.tableScroll} overflow-x-auto`}
+              data-testid="hybrid-table"
+              data-hybrid="overflow-x-auto"
+            >
               <CdrTable
                 data={listData?.rows || []}
                 isLoading={listLoading || isFetching}
@@ -159,9 +168,9 @@ const CdrReportPage = memo(() => {
                 onPageChange={(p) => handlePageChange(p + 1)}
                 onLegsClick={(call: ICdrCall) => setLegsLinkedid(call.linkedid)}
               />
-            </VStack>
+            </div>
           ) : (
-            <VStack className="p-4">
+            <VStack className="p-4 min-w-0">
               <CdrCharts filters={filters} onDrilldown={handleDrilldown} />
             </VStack>
           )}
