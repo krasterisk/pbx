@@ -4,7 +4,7 @@
 
 **Phase 2 (done):** MohPage — professional dark admin, indigo accents, winner A glass card.
 
-**Phase 8 (in progress):** Module Hub + marketplace-ready shell. Hub winner **002-E** — minimal workspace list (dense rows, not cinematic bento). In-module shell next (003). Active/ghost Locked modules; quick switcher (chip + ⌘K). Design system may refresh shell while keeping FSD.
+**Phase 8 (sketches done 2026-07-16):** Module system shell locked via winners below. Hub = **minimal list** (not cinematic bento). In-module = **top tabs** + chip/⌘K. Phone = Hub list + **bottom bar**. Marketplace = **section under Active** + checkout skeleton. Platform vs tenant = **separate apps** (`/platform` vs System→Modules).
 
 ## Reference Points
 
@@ -22,4 +22,4 @@
 | 003 | in-module-shell | Dense sidebar vs sparse tabs + chip/⌘K? | **B** — Top tabs | shell, phase-8, navigation |
 | 004 | module-hub-mobile | Hub-first phone + tablet dual-pane? | **B** — Hub list + bottom bar | mobile, phase-8, hub |
 | 005 | module-marketplace-billing | Ghost Locked + purchase/billing skeleton UX? | **B** — Marketplace section | marketplace, billing, phase-8 |
-| 006 | platform-modules-admin | Super-admin catalog vs tenant enable UI? | — (in review) | admin, platform, phase-8 |
+| 006 | platform-modules-admin | Super-admin catalog vs tenant enable UI? | **B** — Separate apps | admin, platform, phase-8 |

@@ -2,7 +2,7 @@
 sketch: 006
 name: platform-modules-admin
 question: "How should super-admin catalog vs tenant enable/purchase admin UIs differ?"
-winner: null
+winner: B
 tags: [admin, platform, phase-8, modules]
 phase: 08
 ---
@@ -33,6 +33,10 @@ phase: 08
 - Drag/reassign page→module (CONTEXT: membership editable)
 - Role→start matrix entry point (light touch)
 - Continuity with Hub E + Marketplace B
+
+## Winner (2026-07-16)
+
+**Variant B — Separate apps.** Platform console (`/platform/...`) for super-admin catalog; tenant **System → Modules** for enable/buy only. No shared admin chrome — clearest split of powers (D-21/D-22).
 
 ## Mapping to React (post-winner)
 
