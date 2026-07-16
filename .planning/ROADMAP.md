@@ -236,7 +236,7 @@ Plans:
 - Backend dialplan generation для apps (routes / dialplan-apps modules — уточнить на research)
 - Текущие apps: groups, call lists, telegram, email — аудит реальной реализации vs UI
 
-**Status:** Not planned  
+**Status:** Executed — gap closure planned (06-15, 06-16)  
 **Depends on:** Phase 5 (DialplanAppsEditor уже используется во вкладке «Справочники»; желательно после стабилизации bindings)
 
 **Goal:** Переработать `DialplanAppsEditor` и набор dialplan-приложений: (1) объединённое гибкое приложение **групп/списков вызовов** с стратегиями ring и CRUD из маршрута; (2) конфигурируемые **multi-channel уведомления** (мессенджеры/соцсети, channel vars, пресеты); (3) аудит текущих apps + UX маршрутизации и предложения дополнительных приложений.
@@ -276,7 +276,7 @@ Plans:
 | 3 | `/gsd-execute-phase 6` |
 | 4 | `/gsd-verify-work 6` |
 
-**Plans:** 14/14 plans complete
+**Plans:** 16 plans (14 executed + 2 gap-closure pending)
 
 Plans:
 
@@ -294,8 +294,10 @@ Plans:
 - [x] 06-12-PLAN.md — Notification Integrations page + channel-driven form modal [D-10/11/13/16]
 - [x] 06-13-PLAN.md — GroupApp + NotifyApp + registry + inline group editor [D-02/12/13/17/18]
 - [x] 06-14-PLAN.md — CallerIdApp (4 modes) + TrunkCarouselApp + registry [D-14/15/16/17/18]
+- [ ] 06-15-PLAN.md — Gap closure: AMI CreateConfig before UpdateConfig + CallGroups post-commit rollback fix [D-01/D-08]
+- [ ] 06-16-PLAN.md — Gap closure: single-surface hints in CallerIdApp + TrunkCarouselApp [D-16]
 
-**Waves:** W1 {06-01,06-02,06-03} · W2 {06-04,06-05,06-07,06-10} · W3 {06-06,06-08,06-11} · W4 {06-09,06-12} · W5 {06-13} · W6 {06-14}
+**Waves:** W1 {06-01,06-02,06-03} · W2 {06-04,06-05,06-07,06-10} · W3 {06-06,06-08,06-11} · W4 {06-09,06-12} · W5 {06-13} · W6 {06-14} · W7-gap {06-15,06-16}
 
 **Known deferred gap:** per backend ARCHITECTURE §6 new entities (call_group, notification_integration) should get MCP/AI tools; CONTEXT defers this to a later Domain AI Adapter phase (not implemented in Phase 6).
 
