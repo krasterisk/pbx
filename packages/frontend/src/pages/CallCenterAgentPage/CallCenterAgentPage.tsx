@@ -35,6 +35,7 @@ import {
   useDragTransfer,
 } from '@/features/callcenter/ui/DragTransfer/DragTransfer';
 import { interfaceToExtension } from '@/features/endpoints/lib/endpointIds';
+import { useIsMobile } from '@/shared/hooks/useIsMobile';
 import {
   selectMyAgent,
   selectCcCalls,
@@ -69,6 +70,8 @@ import styles from './CallCenterAgentPage.module.scss';
 export function CallCenterAgentPage() {
   const { t } = useTranslation();
   const dispatch = useDispatch();
+  const isMobile = useIsMobile(768);
+  const [mobileSection, setMobileSection] = useState<'call' | 'team' | 'queues'>('call');
 
   // SSE connection + notifications (per-operator settings, D-20)
   useCallCenterSSE(true);
@@ -433,16 +436,98 @@ export function CallCenterAgentPage() {
 
   const isLoggedIn = myAgent && myAgent.status !== 'OFFLINE';
 
+  const softphoneControls = (
+    <>
+      <div className={`${styles.statusIndicator} ${statusClass}`}>
+        <div className={styles.statusDot} />
+        <Text>{statusLabel}</Text>
+        {myAgent?.pauseReason && (
+          <Text variant="muted" className="text-xs">({myAgent.pauseReason})</Text>
+        )}
+      </div>
+
+      {myAgent && (
+        <Text className={styles.agentName}>{myAgent.name}</Text>
+      )}
+
+      {myAgent?.queues && myAgent.queues.length > 0 && !isMobile && (
+        <div className={styles.queueChips}>
+          {myAgent.queues.map(q => (
+            <span key={q} className={styles.queueChip}>{q}</span>
+          ))}
+        </div>
+      )}
+
+      <div className={styles.statusBarRight}>
+        {isWebrtc && phone.status === 'in-call' && (
+          <CallQualityIndicator quality={phone.quality} />
+        )}
+        {myAgent?.loginTime && !isMobile && (
+          <Text className={styles.sessionTimer}>
+            <Clock className="w-3.5 h-3.5 inline mr-1" />
+            {t('callcenter.agent.session', 'Session')}: {myAgent.callsTaken} {t('callcenter.agent.calls', 'calls')}
+          </Text>
+        )}
+
+        {!isLoggedIn ? (
+          <Button
+            size="sm"
+            onClick={() => setShiftModalOpen(true)}
+          >
+            <Play className="w-4 h-4 mr-1" />
+            {t('callcenter.softphone.startShift')}
+          </Button>
+        ) : (
+          <HStack gap="8">
+            {(myAgent?.status === 'READY' || myAgent?.status === 'PAUSED') && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPauseModalOpen(true)}
+              >
+                <Pause className="w-4 h-4 mr-1" />
+                {myAgent?.status === 'PAUSED'
+                  ? t('callcenter.agent.pauseChange', 'Change reason')
+                  : t('callcenter.agent.pause', 'Pause')}
+              </Button>
+            )}
+            {myAgent?.status === 'PAUSED' && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => agentUnpause({})}
+              >
+                <Play className="w-4 h-4 mr-1" />
+                {t('callcenter.agent.unpause', 'Resume')}
+              </Button>
+            )}
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => void handleLogout()}
+            >
+              {t('callcenter.softphone.endShift')}
+            </Button>
+          </HStack>
+        )}
+      </div>
+    </>
+  );
+
   return (
-    <VStack gap="16" className={styles.wrapper}>
+    <VStack
+      gap="16"
+      className={`${styles.wrapper}${isMobile ? ` ${styles.wrapperPhone}` : ''}`}
+      data-testid={isMobile ? 'cc-agent-phone' : 'cc-agent-desktop'}
+    >
       <audio ref={remoteAudioRef} autoPlay hidden />
       <ShiftLoginModal
         open={shiftModalOpen}
         onOpenChange={setShiftModalOpen}
         onConfirm={handleShiftLogin}
       />
-      <div className={styles.workspace}>
-        {/* Zone A — sticky status bar */}
+      <div className={`${styles.workspace}${isMobile ? ` ${styles.workspacePhone}` : ''}`}>
+        {/* Zone A — sticky status (desktop) / phone tabs */}
         <div className={styles.zoneA}>
           <Flex justify="between" align="center" className={styles.pageHeader}>
             <Flex align="center" gap="12">
@@ -473,81 +558,43 @@ export function CallCenterAgentPage() {
             </Flex>
           </Flex>
 
-          <div className={styles.statusBar}>
-        <div className={`${styles.statusIndicator} ${statusClass}`}>
-          <div className={styles.statusDot} />
-          <Text>{statusLabel}</Text>
-          {myAgent?.pauseReason && (
-            <Text variant="muted" className="text-xs">({myAgent.pauseReason})</Text>
-          )}
-        </div>
-
-        {myAgent && (
-          <Text className={styles.agentName}>{myAgent.name}</Text>
-        )}
-
-        {myAgent?.queues && myAgent.queues.length > 0 && (
-          <div className={styles.queueChips}>
-            {myAgent.queues.map(q => (
-              <span key={q} className={styles.queueChip}>{q}</span>
-            ))}
-          </div>
-        )}
-
-        <div className={styles.statusBarRight}>
-          {isWebrtc && phone.status === 'in-call' && (
-            <CallQualityIndicator quality={phone.quality} />
-          )}
-          {myAgent?.loginTime && (
-            <Text className={styles.sessionTimer}>
-              <Clock className="w-3.5 h-3.5 inline mr-1" />
-              {t('callcenter.agent.session', 'Session')}: {myAgent.callsTaken} {t('callcenter.agent.calls', 'calls')}
-            </Text>
+          {!isMobile && (
+            <div className={styles.statusBar}>
+              {softphoneControls}
+            </div>
           )}
 
-          {!isLoggedIn ? (
-            <Button
-              size="sm"
-              onClick={() => setShiftModalOpen(true)}
-            >
-              <Play className="w-4 h-4 mr-1" />
-              {t('callcenter.softphone.startShift')}
-            </Button>
-          ) : (
-            <HStack gap="8">
-              {(myAgent?.status === 'READY' || myAgent?.status === 'PAUSED') && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPauseModalOpen(true)}
-                >
-                  <Pause className="w-4 h-4 mr-1" />
-                  {myAgent?.status === 'PAUSED'
-                    ? t('callcenter.agent.pauseChange', 'Change reason')
-                    : t('callcenter.agent.pause', 'Pause')}
-                </Button>
-              )}
-              {myAgent?.status === 'PAUSED' && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => agentUnpause({})}
-                >
-                  <Play className="w-4 h-4 mr-1" />
-                  {t('callcenter.agent.unpause', 'Resume')}
-                </Button>
-              )}
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => void handleLogout()}
+          {isMobile && (
+            <div className={styles.phoneTabs} role="tablist" aria-label={t('callcenter.agent.sections', 'Sections')}>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mobileSection === 'call'}
+                className={`${styles.phoneTab}${mobileSection === 'call' ? ` ${styles.phoneTabActive}` : ''}`}
+                onClick={() => setMobileSection('call')}
               >
-                {t('callcenter.softphone.endShift')}
-              </Button>
-            </HStack>
+                {t('callcenter.agent.tabCall', 'Call')}
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mobileSection === 'team'}
+                className={`${styles.phoneTab}${mobileSection === 'team' ? ` ${styles.phoneTabActive}` : ''}`}
+                onClick={() => setMobileSection('team')}
+              >
+                {t('callcenter.agent.tabTeam', 'Team')}
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mobileSection === 'queues'}
+                className={`${styles.phoneTab}${mobileSection === 'queues' ? ` ${styles.phoneTabActive}` : ''}`}
+                onClick={() => setMobileSection('queues')}
+              >
+                {t('callcenter.agent.tabQueues', 'Queues')}
+              </button>
+            </div>
           )}
-        </div>
-      </div>
         </div>
 
       {/* Zones B + D — call panel + quick actions sidebar */}
@@ -556,7 +603,7 @@ export function CallCenterAgentPage() {
         onTransfer={handleDragTransfer}
       >
       <div className={styles.zoneMain}>
-        <div className={styles.zoneB}>
+        <div className={`${styles.zoneB}${isMobile && mobileSection !== 'call' ? ` ${styles.sectionHidden}` : ''}`}>
         <DraggableCall
           uniqueid={activeCall?.uniqueid || 'idle'}
           className={`${styles.callPanel} ${activeCall ? styles.callPanelActive : ''}`}
@@ -709,8 +756,14 @@ export function CallCenterAgentPage() {
         </DraggableCall>
         </div>
 
-        {/* Zone D — quick actions sidebar */}
-        <div className={styles.zoneD}>
+        {/* Zone D — quick actions sidebar (desktop) / Team tab (phone) */}
+        <div
+          className={
+            isMobile
+              ? `${styles.zoneDPhone}${mobileSection !== 'team' ? ` ${styles.sectionHidden}` : ''}`
+              : styles.zoneD
+          }
+        >
           {/* Client Card — read-only context for the active caller */}
           <ClientCard
             callerIdNum={activeCall?.callerIdNum}
@@ -741,7 +794,7 @@ export function CallCenterAgentPage() {
       </DragTransferProvider>
 
       {/* Zone C — queue monitor */}
-      <div className={styles.zoneC}>
+      <div className={`${styles.zoneC}${isMobile && mobileSection !== 'queues' ? ` ${styles.sectionHidden}` : ''}`}>
       <div className={styles.queueMonitor}>
         <div
           className={styles.queueMonitorHeader}
@@ -768,54 +821,56 @@ export function CallCenterAgentPage() {
         </div>
 
         {queueMonitorOpen && waitingCalls.length > 0 && (
-          <table className={styles.queueTable}>
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>{t('callcenter.agent.caller', 'Caller')}</th>
-                <th>{t('callcenter.agent.queue', 'Queue')}</th>
-                <th>{t('callcenter.agent.wait', 'Wait')}</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {waitingCalls.map((call, i) => {
-                const waitSec = Math.floor((Date.now() - new Date(call.enterTime).getTime()) / 1000);
-                const canPick = operatorSettings?.pickup_enabled
-                  && myAgent?.status === 'READY'
-                  && myAgent.queues.includes(call.queue);
-                return (
-                  <tr key={call.uniqueid}>
-                    <td>{i + 1}</td>
-                    <td>{call.callerIdNum || '-'}</td>
-                    <td>{call.queue}</td>
-                    <td className={`${styles.waitTime} ${
-                      waitSec > 60 ? styles.waitTimeDanger :
-                      waitSec > 30 ? styles.waitTimeWarning : ''
-                    }`}>
-                      {formatTime(waitSec)}
-                    </td>
-                    <td>
-                      {operatorSettings?.pickup_enabled && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={!canPick}
-                          onClick={() => handlePickCall(call.uniqueid)}
-                          title={canPick
-                            ? t('callcenter.agent.pickCallHint', 'Take this call now')
-                            : t('callcenter.agent.pickCallBlocked', 'Pick is only available when you are READY in that queue')}
-                        >
-                          <Hand className="w-3.5 h-3.5 mr-1" />
-                          {t('callcenter.agent.pickCall', 'Pick')}
-                        </Button>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          <div className={styles.queueTableWrap}>
+            <table className={styles.queueTable}>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>{t('callcenter.agent.caller', 'Caller')}</th>
+                  <th>{t('callcenter.agent.queue', 'Queue')}</th>
+                  <th>{t('callcenter.agent.wait', 'Wait')}</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {waitingCalls.map((call, i) => {
+                  const waitSec = Math.floor((Date.now() - new Date(call.enterTime).getTime()) / 1000);
+                  const canPick = operatorSettings?.pickup_enabled
+                    && myAgent?.status === 'READY'
+                    && myAgent.queues.includes(call.queue);
+                  return (
+                    <tr key={call.uniqueid}>
+                      <td>{i + 1}</td>
+                      <td>{call.callerIdNum || '-'}</td>
+                      <td>{call.queue}</td>
+                      <td className={`${styles.waitTime} ${
+                        waitSec > 60 ? styles.waitTimeDanger :
+                        waitSec > 30 ? styles.waitTimeWarning : ''
+                      }`}>
+                        {formatTime(waitSec)}
+                      </td>
+                      <td>
+                        {operatorSettings?.pickup_enabled && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={!canPick}
+                            onClick={() => handlePickCall(call.uniqueid)}
+                            title={canPick
+                              ? t('callcenter.agent.pickCallHint', 'Take this call now')
+                              : t('callcenter.agent.pickCallBlocked', 'Pick is only available when you are READY in that queue')}
+                          >
+                            <Hand className="w-3.5 h-3.5 mr-1" />
+                            {t('callcenter.agent.pickCall', 'Pick')}
+                          </Button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
 
         {queueMonitorOpen && waitingCalls.length === 0 && (
@@ -827,6 +882,16 @@ export function CallCenterAgentPage() {
         )}
       </div>
       </div>
+
+      {/* D-28: sticky softphone pinned above MobileBottomBar */}
+      {isMobile && (
+        <div
+          className={`${styles.softphoneSticky} sticky`}
+          data-testid="cc-softphone-sticky"
+        >
+          {softphoneControls}
+        </div>
+      )}
       </div>
 
       {/* ─── Transfer Modal (manual target) ─── */}

@@ -691,3 +691,86 @@
     background: var(--color-accent);
   }
 }
+
+/* 12. Phone stack (D-28) — sticky softphone above MobileBottomBar */
+$softphone-bar-height: 72px;
+$bottom-nav-height: 60px;
+
+.wrapperPhone {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.workspacePhone {
+  /* Softphone height only — AppLayout already pads for bottom nav + safe-area */
+  padding-bottom: calc(#{$softphone-bar-height} + 8px);
+  min-width: 0;
+}
+
+.phoneTabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.phoneTab {
+  flex: 1;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-muted-foreground);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover {
+    color: var(--color-foreground);
+    background: color-mix(in srgb, var(--color-muted) 40%, transparent);
+  }
+}
+
+.phoneTabActive {
+  background: color-mix(in srgb, var(--color-primary) 14%, transparent);
+  color: var(--color-primary);
+}
+
+.softphoneSticky {
+  position: fixed;
+  left: 0;
+  right: 0;
+  /* Sit above MobileBottomBar (60px + safe-area) — combined height budget */
+  bottom: calc(#{$bottom-nav-height} + env(safe-area-inset-bottom, 0px));
+  z-index: 35;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  min-height: $softphone-bar-height;
+  padding: 8px 12px;
+  background: color-mix(in srgb, var(--color-card) 94%, transparent);
+  border-top: 1px solid var(--color-border);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.12);
+}
+
+.sectionHidden {
+  display: none !important;
+}
+
+.zoneDPhone {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.queueTableWrap {
+  overflow-x: auto;
+  min-width: 0;
+  -webkit-overflow-scrolling: touch;
+}
