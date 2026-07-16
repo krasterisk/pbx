@@ -6,6 +6,7 @@ import { AlertThresholdsForm } from '@/features/callcenter/ui/AlertThresholdsFor
 import { AlertRoutingForm } from '@/features/callcenter/ui/AlertRoutingForm/AlertRoutingForm';
 import { DisplayTokensManager } from '@/features/callcenter/ui/DisplayTokensManager/DisplayTokensManager';
 import { ReportSchedulesManager } from '@/features/callcenter/ui/ReportSchedulesManager/ReportSchedulesManager';
+import { PauseReasonsManager } from '@/features/callcenter/ui/PauseReasonsManager/PauseReasonsManager';
 import { CardTemplatesTab } from './ui/CardTemplatesTab/CardTemplatesTab';
 import styles from './CallCenterSettingsPage.module.scss';
 
@@ -44,6 +45,9 @@ export function CallCenterSettingsPage() {
     }
     if (activeTab === 'cardTemplates') {
       return <CardTemplatesTab />;
+    }
+    if (activeTab === 'pauseReasons') {
+      return <PauseReasonsManager />;
     }
     if (activeTab === 'displayTokens') {
       return <DisplayTokensManager />;
