@@ -1,0 +1,31 @@
+.content {
+  width: auto;
+  padding: var(--spacing-3, 12px);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, 44px);
+  gap: var(--spacing-2, 8px);
+}
+
+.key {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md, 8px);
+  border: 1px solid var(--color-border);
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 120ms ease;
+
+  &:hover {
+    background: var(--color-muted, rgba(0, 0, 0, 0.05));
+  }
+
+  &:active {
+    background: var(--color-accent, rgba(99, 102, 241, 0.15));
+  }
+}

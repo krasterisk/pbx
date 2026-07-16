@@ -1,0 +1,38 @@
+.root {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 28px;
+  padding: 0 4px;
+  cursor: default;
+}
+
+.bar {
+  width: 4px;
+  border-radius: 1px;
+  background: var(--color-border);
+  opacity: 0.35;
+}
+
+.barFilled {
+  opacity: 1;
+}
+
+.good .barFilled {
+  background: var(--color-success, #22c55e);
+}
+
+.degraded .barFilled {
+  background: var(--color-warning, #eab308);
+}
+
+.poor .barFilled {
+  background: var(--color-destructive, #ef4444);
+}
+
+.tooltip {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+}

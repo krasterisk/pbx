@@ -22,6 +22,7 @@ export { TagInput } from './TagInput';
 export type { TagInputProps } from './TagInput';
 export { RadioCards } from './RadioCards';
 export type { RadioCardsProps, RadioCardOption } from './RadioCards';
+export * from './Popover';
 export { SegmentedControl } from './SegmentedControl';
 export type { SegmentedControlProps, SegmentedControlOption } from './SegmentedControl';
 export { Sparkline } from './Sparkline';

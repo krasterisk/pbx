@@ -5,7 +5,7 @@ import { toast } from 'react-toastify';
 import {
   Headphones, Phone, PhoneOff, Pause, Play,
   PhoneForwarded, ChevronDown, ChevronUp,
-  Clock, Users, PhoneIncoming, X, Keyboard, MicOff, Mic,
+  Clock, Users, PhoneIncoming, X, MicOff, Mic,
   Hand,
 } from 'lucide-react';
 import {
@@ -13,6 +13,7 @@ import {
 } from '@/shared/ui';
 import { useCallCenterSSE } from '@/features/callcenter/lib/useCallCenterSSE';
 import { useCallNotifications } from '@/features/callcenter/lib/useCallNotifications';
+import { useWebRTCPhone } from '@/features/callcenter/lib/useWebRTCPhone';
 import { PauseReasonModal } from '@/features/callcenter/ui/PauseReasonModal/PauseReasonModal';
 import { ClientCard } from '@/features/callcenter/ui/ClientCard/ClientCard';
 import { CallCardPopup } from '@/features/callcenter/ui/CallCardPopup';
@@ -20,6 +21,13 @@ import { useCallCardPopup } from '@/features/callcenter/lib/useCallCardPopup';
 import { MissedCallsPanel } from '@/features/callcenter/ui/MissedCallsPanel/MissedCallsPanel';
 import { ChatPanelHost } from '@/features/callcenter/ui/ChatPanel/ChatPanel';
 import { WrapupBar } from '@/features/callcenter/ui/WrapupBar/WrapupBar';
+import {
+  ShiftLoginModal,
+  type SoftphoneMode,
+  type ShiftLoginResult,
+} from '@/features/callcenter/ui/ShiftLoginModal/ShiftLoginModal';
+import { DtmfKeypad } from '@/features/callcenter/ui/DtmfKeypad/DtmfKeypad';
+import { CallQualityIndicator } from '@/features/callcenter/ui/CallQualityIndicator/CallQualityIndicator';
 import {
   DragTransferProvider,
   DraggableCall,
@@ -46,12 +54,11 @@ import {
   useAgentPickCallMutation,
   useGetPauseReasonsQuery,
   useGetMyOperatorSettingsQuery,
+  useGetWebrtcConfigQuery,
 } from '@/shared/api/endpoints/callCenterApi';
+import type { IEndpointCredentials } from '@/shared/api/endpoints/endpointApi';
 import type { IAgent } from '@/features/callcenter/model/types/callCenterSchema';
 import styles from './CallCenterAgentPage.module.scss';
-
-// ─── DTMF Keypad keys ───
-const DTMF_KEYS = ['1','2','3','4','5','6','7','8','9','*','0','#'];
 
 export function CallCenterAgentPage() {
   const { t } = useTranslation();
@@ -59,6 +66,7 @@ export function CallCenterAgentPage() {
   // SSE connection + notifications (per-operator settings, D-20)
   useCallCenterSSE(true);
   const { data: operatorSettings } = useGetMyOperatorSettingsQuery();
+  const { data: webrtcConfig } = useGetWebrtcConfigQuery();
   useCallNotifications({
     enabled: true,
     holdTimeoutSec: 60,
@@ -85,12 +93,31 @@ export function CallCenterAgentPage() {
   const [transferTarget, setTransferTarget] = useState('');
   const [transferType, setTransferType] = useState<'blind' | 'attended'>('blind');
   const [isMuted, setIsMuted] = useState(false);
-  const [dtmfOpen, setDtmfOpen] = useState(false);
   const [wrapupRemaining, setWrapupRemaining] = useState(0);
   const [wrapupTotal, setWrapupTotal] = useState(0);
   const [callNotes, setCallNotes] = useState('');
+  const [shiftModalOpen, setShiftModalOpen] = useState(false);
+  const [softphoneMode, setSoftphoneMode] = useState<SoftphoneMode | null>(null);
+  const [sipCredentials, setSipCredentials] = useState<IEndpointCredentials | null>(null);
+  const [micDeviceId, setMicDeviceId] = useState<string | undefined>();
+  const [sinkId, setSinkId] = useState<string | undefined>();
   const lastCallUniqueidRef = useRef<string | null>(null);
   const wrapupAutosavedRef = useRef(false);
+  const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  const isWebrtc = softphoneMode === 'webrtc';
+  const phone = useWebRTCPhone({
+    server: webrtcConfig?.wssUrl || '',
+    sipUser: sipCredentials?.username || '',
+    sipPassword: sipCredentials?.password || '',
+    sipDomain: sipCredentials?.domain || '',
+    iceServers: webrtcConfig?.iceServers || [],
+    autoAnswer: operatorSettings?.auto_answer ?? false,
+    autoAnswerZipTone: operatorSettings?.auto_answer_zip_tone ?? false,
+    remoteAudioRef,
+    sinkId,
+    micDeviceId,
+  });
 
   // RTK mutations
   const [agentLogin] = useAgentLoginMutation();
@@ -228,26 +255,6 @@ export function CallCenterAgentPage() {
     if (number) window.location.href = `tel:${number}`;
   }, []);
 
-  // Transfer call
-  const handleTransfer = useCallback(() => {
-    if (!activeCall || !transferTarget.trim()) return;
-    agentTransfer({
-      uniqueid: activeCall.uniqueid,
-      target: transferTarget.trim(),
-      type: transferType,
-    });
-    setTransferModalOpen(false);
-    setTransferTarget('');
-  }, [agentTransfer, transferTarget, transferType]);
-
-  // DnD / click transfer with blind or attended type (defined after activeCall below)
-
-  // Mute toggle (local state — actual mute via AMI MuteAudio would be backend)
-  const handleMuteToggle = useCallback(() => {
-    setIsMuted(prev => !prev);
-    // TODO: integrate with AMI MuteAudio or WebRTC local track
-  }, []);
-
   // Status bar class
   const statusClass = useMemo(() => {
     const map: Record<string, string> = {
@@ -279,16 +286,100 @@ export function CallCenterAgentPage() {
     return calls.find(c => c.uniqueid === myAgent.currentCall) || null;
   }, [myAgent?.currentCall, calls]);
 
-  const handleDragTransfer = useCallback((targetIface: string, type: 'blind' | 'attended') => {
+  // Transfer call
+  const handleTransfer = useCallback(() => {
+    if (!transferTarget.trim()) return;
+    if (isWebrtc) {
+      const target = transferTarget.trim();
+      if (transferType === 'attended') {
+        void phone.attendedTransfer(target);
+      } else {
+        void phone.blindTransfer(target);
+      }
+      setTransferModalOpen(false);
+      setTransferTarget('');
+      return;
+    }
     if (!activeCall) return;
+    agentTransfer({
+      uniqueid: activeCall.uniqueid,
+      target: transferTarget.trim(),
+      type: transferType,
+    });
+    setTransferModalOpen(false);
+    setTransferTarget('');
+  }, [agentTransfer, transferTarget, transferType, isWebrtc, phone, activeCall]);
+
+  // Mute toggle — WebRTC uses local track; SIP mode keeps local UI state (AMI MuteAudio TBD)
+  const handleMuteToggle = useCallback(() => {
+    if (isWebrtc) {
+      if (phone.isMuted) phone.unmute();
+      else phone.mute();
+      setIsMuted(!phone.isMuted);
+      return;
+    }
+    setIsMuted(prev => !prev);
+  }, [isWebrtc, phone]);
+
+  const handleShiftLogin = useCallback(async (result: ShiftLoginResult) => {
+    setSoftphoneMode(result.mode);
+    setMicDeviceId(result.micDeviceId);
+    setSinkId(result.sinkId);
+
+    if (result.mode === 'webrtc') {
+      if (!webrtcConfig?.wssUrl) {
+        toast.error(t('callcenter.softphone.webrtcConfigMissing'));
+        return;
+      }
+      if (!result.credentials) {
+        toast.error(t('callcenter.softphone.micDenied'));
+        return;
+      }
+      setSipCredentials(result.credentials);
+      await agentLogin({ interface: result.interface, queues: result.queues }).unwrap();
+      await phone.connect({
+        server: webrtcConfig.wssUrl,
+        sipUser: result.credentials.username,
+        sipPassword: result.credentials.password,
+        sipDomain: result.credentials.domain,
+        iceServers: webrtcConfig.iceServers || [],
+        micDeviceId: result.micDeviceId,
+        sinkId: result.sinkId,
+        autoAnswer: operatorSettings?.auto_answer ?? false,
+        autoAnswerZipTone: operatorSettings?.auto_answer_zip_tone ?? false,
+      });
+    } else {
+      setSipCredentials(null);
+      await agentLogin({ interface: result.interface, queues: result.queues }).unwrap();
+    }
+  }, [agentLogin, phone, t, webrtcConfig, operatorSettings?.auto_answer, operatorSettings?.auto_answer_zip_tone]);
+
+  const handleLogout = useCallback(async () => {
+    if (isWebrtc) {
+      await phone.disconnect();
+    }
+    await agentLogout();
+    setSoftphoneMode(null);
+    setSipCredentials(null);
+    setIsMuted(false);
+  }, [agentLogout, isWebrtc, phone]);
+
+  const handleDragTransfer = useCallback((targetIface: string, type: 'blind' | 'attended') => {
     const target = targetIface.split('/').pop() || targetIface;
+    if (isWebrtc) {
+      if (type === 'attended') void phone.attendedTransfer(target);
+      else void phone.blindTransfer(target);
+      setTransferModalOpen(false);
+      return;
+    }
+    if (!activeCall) return;
     agentTransfer({
       uniqueid: activeCall.uniqueid,
       target,
       type,
     });
     setTransferModalOpen(false);
-  }, [agentTransfer, activeCall]);
+  }, [agentTransfer, activeCall, isWebrtc, phone]);
 
   // Agents in same queues (colleagues)
   const colleagues = useMemo(() => {
@@ -308,6 +399,12 @@ export function CallCenterAgentPage() {
 
   return (
     <VStack gap="16" className={styles.wrapper}>
+      <audio ref={remoteAudioRef} autoPlay hidden />
+      <ShiftLoginModal
+        open={shiftModalOpen}
+        onOpenChange={setShiftModalOpen}
+        onConfirm={handleShiftLogin}
+      />
       <div className={styles.workspace}>
         {/* Zone A — sticky status bar */}
         <div className={styles.zoneA}>
@@ -362,6 +459,9 @@ export function CallCenterAgentPage() {
         )}
 
         <div className={styles.statusBarRight}>
+          {isWebrtc && phone.status === 'in-call' && (
+            <CallQualityIndicator quality={phone.quality} />
+          )}
           {myAgent?.loginTime && (
             <Text className={styles.sessionTimer}>
               <Clock className="w-3.5 h-3.5 inline mr-1" />
@@ -372,10 +472,10 @@ export function CallCenterAgentPage() {
           {!isLoggedIn ? (
             <Button
               size="sm"
-              onClick={() => agentLogin({ interface: 'PJSIP/auto', queues: [] })}
+              onClick={() => setShiftModalOpen(true)}
             >
               <Play className="w-4 h-4 mr-1" />
-              {t('callcenter.agent.login', 'Start')}
+              {t('callcenter.softphone.startShift')}
             </Button>
           ) : (
             <HStack gap="8">
@@ -404,9 +504,9 @@ export function CallCenterAgentPage() {
               <Button
                 variant="destructive"
                 size="sm"
-                onClick={() => agentLogout()}
+                onClick={() => void handleLogout()}
               >
-                {t('callcenter.agent.logout', 'End')}
+                {t('callcenter.softphone.endShift')}
               </Button>
             </HStack>
           )}
@@ -438,15 +538,28 @@ export function CallCenterAgentPage() {
               <span className={styles.callQueue}>{activeCall.queue}</span>
               <Text className={styles.callTimer}>{formatTime(callTimer)}</Text>
 
+              {isWebrtc && phone.status === 'ringing' && (
+                <HStack gap="8" className="mb-2">
+                  <Button size="sm" onClick={() => void phone.acceptCall()}>
+                    <Phone className="w-4 h-4 mr-1" />
+                    {t('callcenter.agent.answerBtn', 'Answer')}
+                  </Button>
+                  <Button variant="destructive" size="sm" onClick={() => void phone.rejectCall()}>
+                    <PhoneOff className="w-4 h-4 mr-1" />
+                    {t('callcenter.agent.hangup', 'Reject')}
+                  </Button>
+                </HStack>
+              )}
+
               <div className={styles.callActions}>
                 {/* Mute */}
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={handleMuteToggle}
-                  className={isMuted ? styles.muteActive : ''}
+                  className={(isWebrtc ? phone.isMuted : isMuted) ? styles.muteActive : ''}
                 >
-                  {isMuted
+                  {(isWebrtc ? phone.isMuted : isMuted)
                     ? <><MicOff className="w-4 h-4 mr-1" />{t('callcenter.agent.unmute', 'Unmute')}</>
                     : <><Mic className="w-4 h-4 mr-1" />{t('callcenter.agent.mute', 'Mute')}</>
                   }
@@ -454,27 +567,39 @@ export function CallCenterAgentPage() {
 
                 {/* Hold / Unhold */}
                 {activeCall.status === 'TALKING' && (
-                  <Button variant="outline" size="sm" onClick={() => agentHold()}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      if (isWebrtc) void phone.hold();
+                      else agentHold();
+                    }}
+                  >
                     <Pause className="w-4 h-4 mr-1" />
                     {t('callcenter.agent.holdBtn', 'Hold')}
                   </Button>
                 )}
                 {activeCall.status === 'HOLD' && (
-                  <Button variant="outline" size="sm" onClick={() => agentUnhold()}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      if (isWebrtc) void phone.unhold();
+                      else agentUnhold();
+                    }}
+                  >
                     <Play className="w-4 h-4 mr-1" />
                     {t('callcenter.agent.unholdBtn', 'Unhold')}
                   </Button>
                 )}
 
                 {/* DTMF */}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setDtmfOpen(!dtmfOpen)}
-                >
-                  <Keyboard className="w-4 h-4 mr-1" />
-                  DTMF
-                </Button>
+                <DtmfKeypad
+                  onDigit={(digit) => {
+                    if (isWebrtc) void phone.sendDtmf(digit);
+                  }}
+                  disabled={!isWebrtc}
+                />
 
                 {/* Transfer */}
                 <Button variant="outline" size="sm" onClick={() => setTransferModalOpen(true)}>
@@ -491,31 +616,15 @@ export function CallCenterAgentPage() {
                 <Button
                   variant="destructive"
                   size="sm"
-                  onClick={() => agentHangup({})}
+                  onClick={() => {
+                    if (isWebrtc) void phone.hangup();
+                    agentHangup({});
+                  }}
                 >
                   <PhoneOff className="w-4 h-4 mr-1" />
                   {t('callcenter.agent.hangup', 'Hangup')}
                 </Button>
               </div>
-
-              {/* DTMF Keypad (inline) */}
-              {dtmfOpen && (
-                <div className={styles.sidebarCard} style={{ width: '200px' }}>
-                  <div className={styles.dtmfGrid}>
-                    {DTMF_KEYS.map(key => (
-                      <button
-                        key={key}
-                        className={styles.dtmfKey}
-                        onClick={() => {
-                          // TODO: send DTMF via AMI or WebRTC
-                        }}
-                      >
-                        {key}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
             </>
           ) : myAgent?.status === 'WRAPUP' ? (
             <VStack gap="12" className="w-full max-w-md">
@@ -533,6 +642,22 @@ export function CallCenterAgentPage() {
                 value={callNotes}
                 onChange={(e) => setCallNotes(e.target.value)}
               />
+            </VStack>
+          ) : isWebrtc && phone.status === 'ringing' ? (
+            <VStack gap="12" className="items-center">
+              <Text className={styles.callerNumber}>
+                {phone.callInfo?.from || t('callcenter.agent.unknown', 'Unknown')}
+              </Text>
+              <HStack gap="8">
+                <Button size="sm" onClick={() => void phone.acceptCall()}>
+                  <Phone className="w-4 h-4 mr-1" />
+                  {t('callcenter.agent.answerBtn', 'Answer')}
+                </Button>
+                <Button variant="destructive" size="sm" onClick={() => void phone.rejectCall()}>
+                  <PhoneOff className="w-4 h-4 mr-1" />
+                  {t('callcenter.agent.hangup', 'Reject')}
+                </Button>
+              </HStack>
             </VStack>
           ) : (
             <div className={styles.idleState}>

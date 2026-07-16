@@ -281,7 +281,10 @@ export function useWebRTCPhone(options: UseWebRTCPhoneOptions) {
     [acceptCall, attachSessionListeners],
   );
 
-  const connect = useCallback(async () => {
+  const connect = useCallback(async (override?: Partial<UseWebRTCPhoneOptions>) => {
+    if (override) {
+      optionsRef.current = { ...optionsRef.current, ...override };
+    }
     const opts = optionsRef.current;
     if (!opts.server) {
       throw new Error('WebRTC WSS URL is not configured');
