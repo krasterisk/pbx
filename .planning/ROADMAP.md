@@ -357,7 +357,7 @@ Plans:
 | 5 | `/gsd-ui-review 7` + `npm run test:frontend` |
 | 6 | `/gsd-verify-work 7` → `/gsd-ship 7` |
 
-**Plans:** 18/18 executed + 2 gap-closure plans
+**Plans:** 19/20 plans executed
 
 Plans:
 
@@ -367,7 +367,7 @@ Plans:
 - [x] 07-16-PLAN.md — AI-ready foundation: event bus + CallCenterAiAdapter + media PCM skeleton [D-41…D-45]
 - [x] 07-18-PLAN.md — Reports UI: 7 reports + CSV/XLSX/PDF + AgentTimeline reuse [D-33/D-34/D-36]
 - [x] 07-15-PLAN.md — Automated report delivery / schedules via notification_integration [D-35]
-- [ ] 07-19-PLAN.md — Gap closure: PauseReasonsManager + operator settings picker [D-40/D-22]
+- [x] 07-19-PLAN.md — Gap closure: PauseReasonsManager + operator settings picker [D-40/D-22]
 - [ ] 07-20-PLAN.md — Gap closure: track SIP MuteAudio as DEF-07-MUTE-AMI [D-14]
 
 **Verification:**
