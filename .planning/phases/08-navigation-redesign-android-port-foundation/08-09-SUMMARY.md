@@ -93,7 +93,7 @@ Each task was committed atomically:
 2. **Task 2: Call Center agent phone stack + sticky softphone** - `6752aba` (feat)
 3. **Task 3: Apps/CC secondary pages responsive sweep** - `81eb86b` (feat)
 
-**Plan metadata:** _(see final docs commit)_
+**Plan metadata:** `fe109b2` (docs: complete plan)
 
 ## Files Created/Modified
 
