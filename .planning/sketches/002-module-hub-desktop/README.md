@@ -2,7 +2,7 @@
 sketch: 002
 name: module-hub-desktop
 question: "Which Module Hub visual language (bento + dock + Locked) should Phase 8 ship?"
-winner: null
+winner: E
 tags: [hub, phase-8, navigation, marketplace, desktop]
 phase: 08
 ---
@@ -45,6 +45,10 @@ Open in browser:
 - E: is minimal list too plain for the "wow" goal, or refreshingly fast?
 - F: is orbit delightful once, then annoying daily — or genuinely fun to keep?
 - G: does offering a switchable view add value (personal preference / different tasks), or is it just complexity? Would one of Rail/List/Orbit alone be enough?
+
+## Winner (2026-07-16)
+
+**Variant E — Minimal workspace list.** Dense single-column rows without card chrome; dock de-emphasized (hidden in E). Fast daily switcher feel over cinematic wow. Synthesis G keeps List as one of three modes if product later wants user preference — but baseline Hub ship is E.
 
 ## Mapping to React (post-winner)
 
