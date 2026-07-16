@@ -78,7 +78,7 @@ Each task was committed atomically:
 3. **Task 2 RED: shift queue validation failing tests** - `a1d5e28` (test)
 4. **Task 2 GREEN: ≥1 queue + last queues restore** - `2696d15` (feat)
 
-**Plan metadata:** (pending docs commit)
+**Plan metadata:** `6ec685e` (docs: complete plan)
 
 ## Files Created/Modified
 - `packages/frontend/src/pages/CallCenterAgentPage/CallCenterAgentPage.tsx` — setMyAgentInterface on login/logout; READY upsert; WebRTC fail-closed throw
