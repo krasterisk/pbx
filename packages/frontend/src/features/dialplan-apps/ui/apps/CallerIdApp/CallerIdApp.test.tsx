@@ -60,6 +60,17 @@ describe('CallerIdApp', () => {
     });
   });
 
+  it('shows mode hint once via InfoTooltip on the mode label row', () => {
+    render(<CallerIdApp action={baseAction} onUpdate={mockOnUpdate} />);
+
+    const hint = screen.getByTestId('mode-hint');
+    expect(hint).toBeInTheDocument();
+    expect(hint).toHaveTextContent('Sets CALLERID(num) and optional CALLERID(name) to fixed values.');
+    expect(
+      screen.getAllByText('Sets CALLERID(num) and optional CALLERID(name) to fixed values.'),
+    ).toHaveLength(1);
+  });
+
   it('calls onUpdate when mode changes and shows mode-specific fields', () => {
     render(<CallerIdApp action={baseAction} onUpdate={mockOnUpdate} />);
 

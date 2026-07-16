@@ -131,7 +131,11 @@ export const CallerIdApp = memo(({ action, onUpdate }: IDialplanAppProps) => {
 
   return (
     <div className={cls.root}>
-      <div className={cls.row}>
+      <div className={cls.modeField}>
+        <div className={cls.labelRow}>
+          <span>{t('routes.apps.callerid.mode', 'CallerID mode')}</span>
+          <InfoTooltip text={t(MODE_HINT_KEYS[mode], MODE_HINT_FALLBACKS[mode])} />
+        </div>
         <Select
           className={cls.modeSelect}
           value={mode}
@@ -144,11 +148,6 @@ export const CallerIdApp = memo(({ action, onUpdate }: IDialplanAppProps) => {
             </option>
           ))}
         </Select>
-      </div>
-
-      <div className={cls.hint}>
-        <Text variant="small">{t(MODE_HINT_KEYS[mode], MODE_HINT_FALLBACKS[mode])}</Text>
-        <InfoTooltip text={t(MODE_HINT_KEYS[mode], MODE_HINT_FALLBACKS[mode])} />
       </div>
 
       {mode === 'static' && (

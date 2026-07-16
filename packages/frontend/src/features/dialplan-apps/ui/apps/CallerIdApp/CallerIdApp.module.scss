@@ -15,21 +15,29 @@
   width: 100%;
 }
 
+.modeField {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1 1 100%;
+  min-width: 0;
+}
+
+.labelRow {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
 .modeSelect {
   flex: 1 1 12rem;
   min-width: 0;
+  width: 100%;
 }
 
 .field {
   flex: 1 1 10rem;
   min-width: 0;
-}
-
-.hint {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.35rem;
-  width: 100%;
 }
 
 .pool {
