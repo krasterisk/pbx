@@ -307,6 +307,22 @@
     .v-f .tile .meta { justify-content: center; }
     .v-f .dock { bottom: 16px; }
 
+    /* Variant G — synthesis: switchable view (Rail / List / Orbit) */
+    .seg-control {
+      display: inline-flex; gap: 4px; padding: 4px; border-radius: 10px;
+      background: var(--color-surface); border: 1px solid var(--color-border);
+    }
+    .seg-btn {
+      padding: 7px 12px; border-radius: 8px; border: none; background: transparent;
+      color: var(--color-text-muted); cursor: pointer; font-size: var(--text-sm);
+    }
+    .seg-btn:hover:not(.active) { background: rgba(255,255,255,0.06); }
+    .seg-btn.active { background: var(--color-indigo-muted); color: var(--color-indigo); }
+    .g-mode { display: none; }
+    .g-mode.active { display: block; animation: g-fade 0.18s ease; }
+    @keyframes g-fade { from { opacity: 0; } to { opacity: 1; } }
+    .v-g .g-mode.v-f .orbit-wrap { min-height: 420px; }
+
     #sketch-tools {
       position: fixed; bottom: 12px; right: 12px; z-index: 9999;
       font-family: system-ui; font-size: 12px; background: rgba(0,0,0,0.75); color: white;
@@ -340,6 +356,7 @@
     <button type="button" class="variant-tab" data-v="d">D: Command rail + filters</button>
     <button type="button" class="variant-tab" data-v="e">E: Minimal workspace list</button>
     <button type="button" class="variant-tab" data-v="f">F: Orbit</button>
+    <button type="button" class="variant-tab" data-v="g">G: Synthesis — switch Rail/List/Orbit</button>
     <span class="hint">Phase 8 · Module Hub · star = favorite · click tile</span>
   </div>
 
@@ -471,6 +488,55 @@
       </div>
       <div class="dock" data-dock></div>
     </section>
+
+    <!-- VARIANT G — synthesis: one Hub, switchable view -->
+    <section id="variant-g" class="variant hub v-g" data-variant="g">
+      <div class="hub-top">
+        <div class="brand">
+          <div class="brand-mark">K</div>
+          <div>
+            <h1>Модули</h1>
+            <p>Один Hub · переключайте вид без потери контекста</p>
+          </div>
+        </div>
+        <div class="hub-actions">
+          <div class="seg-control" role="tablist" aria-label="Hub view mode">
+            <button type="button" class="seg-btn active" data-mode="rail">☰ Rail</button>
+            <button type="button" class="seg-btn" data-mode="list">≡ List</button>
+            <button type="button" class="seg-btn" data-mode="orbit">◎ Orbit</button>
+          </div>
+          <div class="search">Поиск <kbd>⌘K</kbd></div>
+        </div>
+      </div>
+
+      <div class="g-mode v-d active" data-mode="rail">
+        <div class="d-body">
+          <div class="rail">
+            <button type="button" class="rail-btn active" data-filter="all" title="Все">▦</button>
+            <button type="button" class="rail-btn" data-filter="base" title="Base">◆</button>
+            <button type="button" class="rail-btn" data-filter="market" title="Marketplace">✦</button>
+            <button type="button" class="rail-btn" data-filter="recent" title="Recent + Favorites">★</button>
+          </div>
+          <div class="hub-main">
+            <div class="bento" data-bento="d"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="g-mode v-e" data-mode="list">
+        <div class="bento" data-bento="e"></div>
+      </div>
+
+      <div class="g-mode v-f" data-mode="orbit">
+        <div class="orbit-wrap">
+          <div class="orbit-ring"></div>
+          <button type="button" class="orbit-center" data-action="hub-home" title="Обзор / Home">K</button>
+          <div class="bento" data-bento="f"></div>
+        </div>
+      </div>
+
+      <div class="dock" data-dock></div>
+    </section>
   </div>
 
   <div class="toast" id="toast"></div>
@@ -547,14 +613,15 @@
         });
         root.appendChild(btn);
       });
-      if (variant === 'f') positionOrbit(root.closest('.variant'));
-      if (variant === 'd') applyFilterD(root.closest('.variant').querySelector('.rail-btn.active')?.dataset.filter || 'all');
+      const scope = root.closest('.g-mode') || root.closest('.variant');
+      if (variant === 'f') positionOrbit(scope);
+      if (variant === 'd') applyFilterD(scope, scope.querySelector('.rail-btn.active')?.dataset.filter || 'all');
       root.querySelectorAll('[data-star]').forEach((star) => {
         star.addEventListener('click', (e) => {
           e.stopPropagation();
           const id = star.getAttribute('data-star');
           if (favorites.has(id)) favorites.delete(id); else favorites.add(id);
-          document.querySelectorAll('.variant.active [data-bento]').forEach((b) => renderBento(b, document.querySelector('.variant.active').dataset.variant));
+          document.querySelectorAll('.variant.active [data-bento]').forEach((b) => renderBento(b, b.dataset.bento || document.querySelector('.variant.active').dataset.variant));
           document.querySelectorAll('.variant.active [data-dock]').forEach(renderDock);
           toast(favorites.has(id) ? 'Added to Favorites' : 'Removed from Favorites');
         });
@@ -589,10 +656,9 @@
       });
     }
 
-    function applyFilterD(filter) {
-      const section = document.getElementById('variant-d');
-      if (!section) return;
-      const bento = section.querySelector('[data-bento]');
+    function applyFilterD(scopeEl, filter) {
+      if (!scopeEl) return;
+      const bento = scopeEl.querySelector('[data-bento]');
       if (!bento) return;
       [...bento.querySelectorAll('.tile')].forEach((tile) => {
         const m = MODULES.find((x) => x.id === tile.dataset.moduleId);
@@ -627,22 +693,41 @@
 
     function mountAll() {
       document.querySelectorAll('.variant').forEach((section) => {
-        const v = section.dataset.variant;
-        renderBento(section.querySelector('[data-bento]'), v);
-        renderDock(section.querySelector('[data-dock]'));
+        section.querySelectorAll('[data-bento]').forEach((bentoEl) => {
+          const v = bentoEl.dataset.bento || section.dataset.variant;
+          renderBento(bentoEl, v);
+        });
+        const dockEl = section.querySelector('[data-dock]');
+        if (dockEl) renderDock(dockEl);
       });
     }
 
-    document.querySelectorAll('#variant-d .rail-btn').forEach((btn) => {
+    document.querySelectorAll('.rail-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
-        document.querySelectorAll('#variant-d .rail-btn').forEach((b) => b.classList.remove('active'));
+        const scope = btn.closest('.g-mode') || btn.closest('.variant');
+        scope.querySelectorAll('.rail-btn').forEach((b) => b.classList.remove('active'));
         btn.classList.add('active');
-        applyFilterD(btn.dataset.filter);
+        applyFilterD(scope, btn.dataset.filter);
       });
     });
 
     document.querySelectorAll('[data-action="hub-home"]').forEach((b) => {
       b.addEventListener('click', () => toast('Orbit center → Обзор (Home)'));
+    });
+
+    function setModeG(mode) {
+      const section = document.getElementById('variant-g');
+      if (!section) return;
+      section.querySelectorAll('.g-mode').forEach((el) => el.classList.toggle('active', el.dataset.mode === mode));
+      section.querySelectorAll('.seg-btn').forEach((b) => b.classList.toggle('active', b.dataset.mode === mode));
+      if (mode === 'orbit') {
+        const orbitDiv = section.querySelector('.g-mode[data-mode="orbit"]');
+        requestAnimationFrame(() => positionOrbit(orbitDiv));
+      }
+    }
+
+    document.querySelectorAll('#variant-g .seg-btn').forEach((btn) => {
+      btn.addEventListener('click', () => setModeG(btn.dataset.mode));
     });
 
     document.querySelectorAll('.variant-tab').forEach((tab) => {
@@ -654,6 +739,12 @@
         const section = document.getElementById('variant-' + id);
         section.classList.add('active');
         if (id === 'f') requestAnimationFrame(() => positionOrbit(section));
+        if (id === 'g') {
+          requestAnimationFrame(() => {
+            const orbitDiv = section.querySelector('.g-mode[data-mode="orbit"]');
+            if (orbitDiv && orbitDiv.classList.contains('active')) positionOrbit(orbitDiv);
+          });
+        }
       });
     });
 
@@ -676,12 +767,16 @@
       if (active && active.dataset.variant === 'f') {
         requestAnimationFrame(() => positionOrbit(active));
       }
+      const orbitDiv = document.querySelector('.g-mode[data-mode="orbit"].active');
+      if (orbitDiv) requestAnimationFrame(() => positionOrbit(orbitDiv));
     }
 
     mountAll();
     window.addEventListener('resize', () => {
       const active = document.querySelector('.variant.active');
       if (active && active.dataset.variant === 'f') positionOrbit(active);
+      const orbitDiv = document.querySelector('.g-mode[data-mode="orbit"].active');
+      if (orbitDiv) positionOrbit(orbitDiv);
     });
   </script>
 </body>

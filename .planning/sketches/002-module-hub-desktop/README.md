@@ -31,6 +31,9 @@ Open in browser:
 - **E: Minimal workspace list** — No card chrome; dense single-column rows (Linear/Notion switcher feel); dock replaced by inline row actions.
 - **F: Orbit** — Modules arranged radially around a central "K" core; experimental high-wow take; degrades to grid on narrow viewports.
 
+**Round 3 — synthesis:**
+- **G: Synthesis — switchable view** — One Hub, one shared header/dock; a segmented control (Rail / List / Orbit) swaps the module-display layout in place, no page reload. Lets you compare D/E/F feel side-by-side without losing the same module set/state (favorites persist across views).
+
 ## What to Look For
 
 - Wow vs daily-driver fatigue
@@ -41,6 +44,7 @@ Open in browser:
 - D: does live filtering help or add a layer of navigation to learn?
 - E: is minimal list too plain for the "wow" goal, or refreshingly fast?
 - F: is orbit delightful once, then annoying daily — or genuinely fun to keep?
+- G: does offering a switchable view add value (personal preference / different tasks), or is it just complexity? Would one of Rail/List/Orbit alone be enough?
 
 ## Mapping to React (post-winner)
 
