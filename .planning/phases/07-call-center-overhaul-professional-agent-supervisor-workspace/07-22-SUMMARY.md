@@ -67,7 +67,7 @@ Each task was committed atomically:
 
 1. **Task 1: Document ASTERISK_WSS_URL + SIP_DOMAIN; clarify missing-WSS UX** - `432017d` (feat)
 
-**Plan metadata:** (pending docs commit)
+**Plan metadata:** `8875e08` (docs: complete plan)
 
 ## Files Created/Modified
 - `.env.example` — Call Center WebRTC env keys and comments
