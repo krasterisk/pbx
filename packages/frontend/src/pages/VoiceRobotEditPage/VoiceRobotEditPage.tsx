@@ -5,6 +5,7 @@ import { Bot, ArrowLeft } from 'lucide-react';
 import { Button, Text, Flex, VStack } from '@/shared/ui';
 import { VoiceRobotForm } from '@/features/voiceRobots/ui/VoiceRobotForm';
 import { useGetVoiceRobotQuery } from '@/shared/api/endpoints/voiceRobotsApi';
+import cls from './VoiceRobotEditPage.module.scss';
 
 const VoiceRobotEditPage = memo(() => {
   const { t } = useTranslation();
@@ -23,17 +24,23 @@ const VoiceRobotEditPage = memo(() => {
   };
 
   return (
-    <VStack max gap="24" className="flex-1 overflow-hidden">
-      {/* Page Header */}
-      <Flex justify="between" align="center" className="px-2 shrink-0">
-        <Flex align="center" gap="12">
-          <Button variant="ghost" size="icon" onClick={handleBack} className="rounded-full w-10 h-10 bg-muted/20 hover:bg-muted/50">
+    <VStack
+      max
+      gap="24"
+      className={cls.page}
+      data-testid="voice-robot-edit-responsive"
+      data-edit-stack="phone"
+    >
+      {/* Page Header — stacks under 640px; min-w-0 prevents page bleed */}
+      <Flex justify="between" align="center" className={cls.header} max>
+        <Flex align="center" gap="12" className="min-w-0">
+          <Button variant="ghost" size="icon" onClick={handleBack} className="rounded-full w-10 h-10 bg-muted/20 hover:bg-muted/50 shrink-0">
             <ArrowLeft className="w-5 h-5" />
           </Button>
-          <Flex align="center" justify="center" className="p-2.5 bg-indigo-500/10 rounded-xl">
+          <Flex align="center" justify="center" className="p-2.5 bg-indigo-500/10 rounded-xl shrink-0">
             <Bot className="w-6 h-6 text-indigo-500" />
           </Flex>
-          <VStack>
+          <VStack className={cls.headerTitle}>
              <Text variant="h1" className="bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">
               {isCreateMode 
                 ? t('voiceRobots.createTitle', 'Создание голосового робота') 
@@ -46,8 +53,8 @@ const VoiceRobotEditPage = memo(() => {
         </Flex>
       </Flex>
 
-      {/* Form Content Area */}
-      <VStack max className="flex-1 relative overflow-hidden">
+      {/* Form Content Area — overflow contained; scroll within panels OK */}
+      <VStack max className={cls.formArea}>
         {isLoading && !isCreateMode ? (
           <Flex justify="center" align="center" className="absolute inset-0 bg-background/50 backdrop-blur-sm z-10 rounded-xl">
              <Text variant="muted">{t('common.loading', 'Загрузка...')}</Text>
