@@ -2530,4 +2530,40 @@ export const en = {
       },
     },
   },
+
+  // Module Hub / Marketplace / Command palette (Phase 08 NAV-14)
+  hub: {
+    open: 'Open',
+    emptyActive: {
+      title: 'No modules available',
+      body: 'Contact your tenant admin to enable modules',
+    },
+    moduleUnavailable: 'Module unavailable. Redirecting to your default screen',
+    disableConfirm:
+      'Disable module: access will be revoked for all tenant users. Continue?',
+    chipEmpty: 'Modules',
+    more: 'More',
+  },
+  marketplace: {
+    buy: 'Buy',
+    confirmPurchase: 'Confirm purchase',
+    addModule: 'Add module',
+    empty: {
+      title: 'All modules already active',
+      body: 'New modules will appear here as they become available',
+    },
+    checkoutError:
+      'Purchase could not be completed. Check the details and try again',
+    removeFromBaseConfirm:
+      'Remove module from base composition: this affects all tenants without an override. Continue?',
+  },
+  commandPalette: {
+    placeholder: 'Search modules and pages...',
+    empty: 'Nothing found. Try a different search term',
+  },
+  license: {
+    locked: 'Locked',
+    disabled: 'Disabled',
+    active: 'Active',
+  },
 };
