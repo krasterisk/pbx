@@ -86,7 +86,7 @@ Each task was committed atomically:
 2. **Task 2: Users + Numbers System polish** - `90360fc` (feat)
 3. **Task 3: Role→start admin UI completion** - `fa1b8ce` (feat)
 
-**Plan metadata:** (docs commit via gsd-tools)
+**Plan metadata:** `1e68954` (docs: complete plan)
 
 ## Files Created/Modified
 
