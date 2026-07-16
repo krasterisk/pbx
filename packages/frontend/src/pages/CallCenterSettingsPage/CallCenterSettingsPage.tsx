@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { VStack, Flex, Text } from '@/shared/ui';
 import { OperatorSettingsForm } from '@/features/callcenter/ui/OperatorSettingsForm/OperatorSettingsForm';
 import { AlertThresholdsForm } from '@/features/callcenter/ui/AlertThresholdsForm/AlertThresholdsForm';
+import { AlertRoutingForm } from '@/features/callcenter/ui/AlertRoutingForm/AlertRoutingForm';
+import { DisplayTokensManager } from '@/features/callcenter/ui/DisplayTokensManager/DisplayTokensManager';
 import { CardTemplatesTab } from './ui/CardTemplatesTab/CardTemplatesTab';
 import styles from './CallCenterSettingsPage.module.scss';
 
@@ -30,10 +32,18 @@ export function CallCenterSettingsPage() {
       return <OperatorSettingsForm />;
     }
     if (activeTab === 'alertThresholds') {
-      return <AlertThresholdsForm />;
+      return (
+        <VStack gap="16" max>
+          <AlertThresholdsForm />
+          <AlertRoutingForm />
+        </VStack>
+      );
     }
     if (activeTab === 'cardTemplates') {
       return <CardTemplatesTab />;
+    }
+    if (activeTab === 'displayTokens') {
+      return <DisplayTokensManager />;
     }
     return <Text className={styles.placeholder}>{t('callcenter.settings.placeholder')}</Text>;
   };
