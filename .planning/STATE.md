@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Phase complete — ready for verification
-last_updated: "2026-07-16T05:46:30.903Z"
+last_updated: "2026-07-16T05:54:49.620Z"
 progress:
   total_phases: 7
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 49
-  completed_plans: 47
-  percent: 57
+  completed_plans: 48
+  percent: 71
 ---
 
 # State
@@ -19,7 +19,7 @@ progress:
 Phase: 07 (call-center-overhaul-professional-agent-supervisor-workspace) — COMPLETE (ready for verification)
 Plan: 20 of 20 (all plans executed; next: `/gsd-verify-work 7`)
 Phase 5 — Phonebooks AI: plans executed (verify/UAT may remain).  
-Phase 6 — Dialplan Apps: **06-01–06-15 executed** (06-16 gap-closure pending). Re-UAT after ops mkdir for krasterisk subdirs.
+Phase 6 — Dialplan Apps: **06-01–06-16 executed** (gap closures done). Re-UAT after ops mkdir for krasterisk subdirs; UAT Tests 5–6 hint duplication fixed.
 
 Phase 4 — IVR TTS phrases: **executed** (verify pending).  
 Phase 3 — IVR UI: **executed** (verify pending).  
@@ -45,6 +45,7 @@ Phase 1 — MOH: pending verify.
 - [Phase 06]: POST /api/internal/dialplan/notify with DIALPLAN_API_KEY auth and fire-and-forget dispatch; NotificationsModule fully wired (06-09)
 - [Phase 06]: params.group always String(call_group.uid) for Gosub name consistency (Pitfall 2)
 - [Phase 06]: CallGroupFormModal gained optional onSaved so GroupApp refreshes selection after create/edit
+- [Phase 06]: Prefer tooltip-on-label (NotifyApp) over dual Text+InfoTooltip for D-16 hints (06-16)
 - [Phase 06]: callerid + trunk_carousel registered as GenericApp placeholders until 06-14 dedicated apps
 - [Phase 06]: CallerIdApp is a PURE CallerID modifier; carousel mode is random/rotation only — no re-dial/failover (failover lives in TrunkCarouselApp)
 - [Phase 06]: setclid_custom/setclid_list ids preserved; registry points both at CallerIdApp with mode inference for legacy records
@@ -87,6 +88,7 @@ Phase 1 — MOH: pending verify.
 - [Phase 07]: PauseReasonsManager reuses existing pause-reasons RTK hooks; no new API paths
 - [Phase 07]: Operator settings: self uses my-operator endpoints; other operators use GET/PUT /operator/:operatorId with id only in path
 - [Phase 07]: Track SIP MuteAudio as DEF-07-MUTE-AMI rather than implement AMI action in gap closure (no MuteAudio helper in repo)
+- [Phase 06]: Prefer tooltip-on-label (NotifyApp) over dual Text+InfoTooltip for D-16 hints
 
 ## Roadmap Evolution
 
@@ -133,3 +135,4 @@ Phase 1 — MOH: pending verify.
 | Phase 07 P15 | 20min | 4 tasks | 19 files |
 | Phase 07 P19 | 5min | 2 tasks | 8 files |
 | Phase 07 P20 | 4min | 1 tasks | 2 files |
+| Phase 06 P16 | 5min | 2 tasks | 6 files |
