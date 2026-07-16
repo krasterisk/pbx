@@ -85,7 +85,7 @@ Each task was committed atomically (TDD RED → GREEN):
    - `57407b8` (test) — failing deepLinkFallback locked/disabled tests
    - `f6074df` (feat) — deepLinkFallback gate + legacy Navigate redirects
 
-**Plan metadata:** (pending docs commit)
+**Plan metadata:** `8abe7fa` (docs: complete plan)
 
 ## Files Created/Modified
 
