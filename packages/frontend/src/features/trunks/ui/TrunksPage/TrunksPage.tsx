@@ -14,12 +14,12 @@ export const TrunksPage = memo(() => {
   const dispatch = useAppDispatch();
 
   return (
-    <VStack gap="24" max>
+    <VStack gap="24" max className="min-w-0" data-testid="trunks-page-responsive">
       {/* Header */}
-      <HStack justify="between" align="center" className="flex-col sm:flex-row gap-4" max>
-        <VStack gap="4">
+      <HStack justify="between" align="center" className="flex-col sm:flex-row gap-4 min-w-0" max>
+        <VStack gap="4" className="min-w-0">
           <HStack gap="12" align="center">
-            <Cable className="w-7 h-7 text-primary" />
+            <Cable className="w-7 h-7 text-primary shrink-0" />
             <h1 className="text-2xl font-bold">{t('trunks.title', 'Транки')}</h1>
           </HStack>
           <p className="text-muted-foreground text-sm">
@@ -28,6 +28,7 @@ export const TrunksPage = memo(() => {
         </VStack>
         <Button
           id="add-trunk-btn"
+          className="w-full sm:w-auto"
           onClick={() => dispatch(trunksPageActions.openCreateModal())}
         >
           <Plus className="w-4 h-4 mr-2" />
@@ -40,6 +41,7 @@ export const TrunksPage = memo(() => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
+        style={{ width: '100%', minWidth: 0 }}
       >
         <TrunksTable />
       </motion.div>
