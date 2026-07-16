@@ -79,7 +79,7 @@ Each task was committed atomically (TDD RED → GREEN):
    - `e1f17d8` (test) — failing filterPaletteItems tests
    - `aadb72a` (feat) — filter helper + ru/en locale seeds GREEN
 
-**Plan metadata:** (pending docs commit)
+**Plan metadata:** `fc2c12d` (docs: complete plan)
 
 ## Files Created/Modified
 
