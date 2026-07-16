@@ -67,6 +67,39 @@ export class MailerService {
     }
   }
 
+  /**
+   * Send a report email with a single file attachment (scheduled CC delivery, D-35).
+   * Attachment content is never logged.
+   */
+  async sendReportMail(params: {
+    to: string;
+    subject?: string;
+    text?: string;
+    attachment: { filename: string; content: Buffer | string; contentType: string };
+  }): Promise<{ success: boolean }> {
+    const { to, subject, text, attachment } = params;
+    try {
+      await this.transporter.sendMail({
+        from: this.configService.get<string>('SMTP_USER'),
+        to,
+        subject: subject || 'Krasterisk — Отчёт колл-центра',
+        text: text || '',
+        attachments: [
+          {
+            filename: attachment.filename,
+            content: attachment.content,
+            contentType: attachment.contentType,
+          },
+        ],
+      });
+      this.logger.log(`Report mail sent to ${to} (${attachment.filename})`);
+      return { success: true };
+    } catch (e) {
+      this.logger.error(`Failed to send report mail to ${to}`, e);
+      return { success: false };
+    }
+  }
+
   // ─── Cloud Admin notifications ──────────────────────────────────────────────
 
   /** Приветственное письмо при создании кабинета */
