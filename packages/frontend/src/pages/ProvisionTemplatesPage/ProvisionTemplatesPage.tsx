@@ -12,34 +12,45 @@ import {
   ProvisionTemplatesTable,
   ProvisionTemplateFormModal,
 } from '@/features/provisionTemplates';
+import cls from './ProvisionTemplatesPage.module.scss';
 
 export const ProvisionTemplatesPage = () => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
 
   return (
-    <VStack gap="24" max>
+    <VStack gap="24" max className={cls.page} data-testid="provision-templates-page-responsive">
       {/* Header */}
-      <HStack justify="between" align="center" className="flex-col sm:flex-row gap-4" max>
-        <HStack gap="12" align="center">
-          <FileCode className="w-7 h-7 text-primary" />
+      <HStack justify="between" align="center" className="flex-col sm:flex-row gap-4 min-w-0" max>
+        <HStack gap="12" align="center" className="min-w-0">
+          <FileCode className="w-7 h-7 text-primary shrink-0" />
           <h1 className="text-2xl font-bold">{t('provisionTemplates.title', 'Шаблоны автонастройки')}</h1>
         </HStack>
-        <HStack gap="8">
-          <Button onClick={() => dispatch(provisionTemplatesActions.openCreateModal())}>
+        <HStack gap="8" className="w-full sm:w-auto">
+          <Button
+            className={cls.createBtn}
+            onClick={() => dispatch(provisionTemplatesActions.openCreateModal())}
+          >
             <Plus className="w-4 h-4 mr-2" />
             {t('provisionTemplates.add', 'Добавить шаблон')}
           </Button>
         </HStack>
       </HStack>
 
-      {/* Table */}
+      {/* Table — D-29 page-level overflow hybrid */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
+        style={{ width: '100%', minWidth: 0 }}
       >
-        <ProvisionTemplatesTable />
+        <div
+          className={`${cls.tableScroll} overflow-x-auto`}
+          data-testid="hybrid-table"
+          data-hybrid="overflow-x-auto"
+        >
+          <ProvisionTemplatesTable />
+        </div>
       </motion.div>
 
       {/* Modals */}
