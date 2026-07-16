@@ -438,7 +438,7 @@ Plans:
 | 6 | `/gsd-ui-review 8` + `npm run test:frontend` |
 | 7 | `/gsd-verify-work 8` → `/gsd-ship 8` |
 
-**Plans:** 13 plans
+**Plans:** 17 plans
 
 Plans:
 
@@ -452,7 +452,11 @@ Plans:
 - [ ] `08-06-PLAN.md` — Wave 5: Billing checkout skeleton (charge + activate)
 - [ ] `08-07-PLAN.md` — Wave 6: Phone bottom bar 004-B + chip Sheet
 - [ ] `08-08-PLAN.md` — Wave 7: Users/Roles/Numbers + role→start admin
-- [ ] `08-09-PLAN.md` — Wave 8: Responsive pass + CC agent sticky softphone
+- [ ] `08-09-PLAN.md` — Wave 8a: Responsive — Dashboard/Core critical + CC agent sticky softphone
+- [ ] `08-14-PLAN.md` — Wave 8b: Responsive — Core rest (Trunks/Contexts/TimeGroups/ProvisionTemplates)
+- [ ] `08-15-PLAN.md` — Wave 8c: Responsive — Apps rest (Prompts/CallGroups/Integrations/VoiceRobots)
+- [ ] `08-16-PLAN.md` — Wave 8d: Responsive — System rest (Settings/TTS/STT/AuditLog/Modules)
+- [ ] `08-17-PLAN.md` — Wave 8e: Responsive — Analytics/AI/CC orphans (CDR/ServiceRequests/AiAgents)
 - [ ] `08-10-PLAN.md` — Wave 9: Capacitor 8 + Secure Storage + URL flavors
 - [ ] `08-11-PLAN.md` — Wave 10: FCM foundation + WebRTC notes + ARCHITECTURE/i18n
 
