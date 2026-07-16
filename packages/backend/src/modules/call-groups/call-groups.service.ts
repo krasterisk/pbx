@@ -107,8 +107,11 @@ export class CallGroupsService {
     const { members, ...groupData } = data;
 
     const transaction = await this.sequelize.transaction();
+    let committed = false;
+    let group: CallGroup;
+    let createdMembers: CallGroupMember[] = [];
     try {
-      const group = await this.groupModel.create(
+      group = await this.groupModel.create(
         {
           ...groupData,
           user_uid: vpbx,
@@ -116,7 +119,6 @@ export class CallGroupsService {
         { transaction },
       );
 
-      let createdMembers: CallGroupMember[] = [];
       if (members?.length) {
         createdMembers = await this.memberModel.bulkCreate(
           members.map((m: CallGroupMemberDto) => ({
@@ -132,16 +134,23 @@ export class CallGroupsService {
       }
 
       await transaction.commit();
-
-      await this.applyGroup(group, createdMembers, vpbx);
-      this.logger.log(
-        `Call group "${group.name}" (${group.uid}) created with ${createdMembers.length} members`,
-      );
-      return this.findOne(group.uid, vpbx);
+      committed = true;
     } catch (e) {
-      await transaction.rollback();
+      if (!committed) await transaction.rollback();
       throw e;
     }
+
+    try {
+      await this.applyGroup(group, createdMembers, vpbx);
+    } catch (e: any) {
+      this.logger.error(
+        `Dialplan apply failed for call group ${group.uid} (${this.groupFile(vpbx)}); DB saved — retry/re-save may be needed: ${e?.message || e}`,
+      );
+    }
+    this.logger.log(
+      `Call group "${group.name}" (${group.uid}) created with ${createdMembers.length} members`,
+    );
+    return this.findOne(group.uid, vpbx);
   }
 
   async update(uid: number, dto: UpdateCallGroupDto, vpbx: number) {
@@ -155,6 +164,8 @@ export class CallGroupsService {
     const { members, ...groupData } = data;
 
     const transaction = await this.sequelize.transaction();
+    let committed = false;
+    let appliedMembers: CallGroupMember[] = [];
     try {
       const updateData: Record<string, unknown> = { ...groupData };
       Object.keys(updateData).forEach((k) => {
@@ -165,7 +176,6 @@ export class CallGroupsService {
         await group.update(updateData, { transaction });
       }
 
-      let appliedMembers: CallGroupMember[];
       if (members !== undefined) {
         await this.memberModel.destroy({
           where: { call_group_uid: uid, user_uid: vpbx },
@@ -194,14 +204,21 @@ export class CallGroupsService {
       }
 
       await transaction.commit();
-
-      await this.applyGroup(group, appliedMembers, vpbx);
-      this.logger.log(`Call group ${uid} updated`);
-      return this.findOne(uid, vpbx);
+      committed = true;
     } catch (e) {
-      await transaction.rollback();
+      if (!committed) await transaction.rollback();
       throw e;
     }
+
+    try {
+      await this.applyGroup(group, appliedMembers, vpbx);
+    } catch (e: any) {
+      this.logger.error(
+        `Dialplan apply failed for call group ${uid} (${this.groupFile(vpbx)}); DB saved — retry/re-save may be needed: ${e?.message || e}`,
+      );
+    }
+    this.logger.log(`Call group ${uid} updated`);
+    return this.findOne(uid, vpbx);
   }
 
   async remove(uid: number, vpbx: number) {
@@ -211,6 +228,7 @@ export class CallGroupsService {
     if (!group) throw new NotFoundException(`Call group ${uid} not found`);
 
     const transaction = await this.sequelize.transaction();
+    let committed = false;
     try {
       await this.memberModel.destroy({
         where: { call_group_uid: uid, user_uid: vpbx },
@@ -218,13 +236,20 @@ export class CallGroupsService {
       });
       await group.destroy({ transaction });
       await transaction.commit();
-
-      await this.removeGroupContext(uid, vpbx);
-      this.logger.log(`Call group ${uid} deleted`);
-      return { success: true };
+      committed = true;
     } catch (e) {
-      await transaction.rollback();
+      if (!committed) await transaction.rollback();
       throw e;
     }
+
+    try {
+      await this.removeGroupContext(uid, vpbx);
+    } catch (e: any) {
+      this.logger.error(
+        `Dialplan remove failed for call group ${uid} (${this.groupFile(vpbx)}); DB deleted — dialplan may need cleanup: ${e?.message || e}`,
+      );
+    }
+    this.logger.log(`Call group ${uid} deleted`);
+    return { success: true };
   }
 }
