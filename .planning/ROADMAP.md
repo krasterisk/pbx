@@ -391,10 +391,10 @@ Plans:
 - `packages/frontend/src/app/router/router.tsx` — маршруты модулей
 - `packages/frontend/package.json` — стек (React 19 + Vite + Tailwind 4; **нет** Capacitor / RN)
 
-**Status:** Not planned yet  
+**Status:** Planned  
 **Depends on:** Phase 7 (стабильный App shell / role-based menu; независимо от verify Phases 1–6)
 
-**Goal:** Заменить плоское Tailwind-меню на масштабируемую модульную навигацию (рост разделов: настройки, маршрутизация, колл-центр, аналитика, отчёты, системные настройки и т.д.), с современным UX и полноценной mobile-адаптацией; параллельно подготовить стек и архитектуру к портированию web-клиента на Android (Capacitor-first foundation).
+**Goal:** Заменить плоское Tailwind-меню на масштабируемую модульную навигацию (Module Hub 002-E + ModuleShell tabs + marketplace/billing skeleton + platform vs tenant admin + full responsive + Capacitor Android foundation), с современным UX и полноценной mobile-адаптацией.
 
 **Scope (in):**
 
@@ -424,25 +424,35 @@ Plans:
 | Auth | JWT / localStorage | Secure storage plugin; refresh UX offline |
 | Build | `vite build` | Gradle wrapper, CI artifact AAB/APK, env flavors |
 
-**Requirements:** TBD (discuss → REQ / decisions; ожидаются waves: IA+sketch → UI shell → mobile → Capacitor scaffold)
+**Requirements:** NAV-01…NAV-16 (derived; see `08-RESEARCH.md` `<phase_requirements>` — REQUIREMENTS.md has no Phase 8 IDs)
 
 **GSD workflow (рекомендуемый порядок):**
 
 | Шаг | Команда |
 |-----|---------|
-| 1 | `/gsd-discuss-phase 8` — IA, варианты nav, Capacitor vs RN, scope mobile vs full Android |
-| 2 | `/gsd-sketch` — 3+ варианта навигации (desktop + mobile) |
-| 3 | Выбор варианта → `/gsd-ui-phase 8` |
-| 4 | `/gsd-plan-phase 8` |
+| 1 | `/gsd-discuss-phase 8` — done |
+| 2 | `/gsd-sketch` — done (winners Hub E, tabs B, mobile B, marketplace B, admin B) |
+| 3 | `/gsd-ui-phase 8` — done (`08-UI-SPEC.md`) |
+| 4 | `/gsd-plan-phase 8` — done |
 | 5 | `/gsd-execute-phase 8` |
 | 6 | `/gsd-ui-review 8` + `npm run test:frontend` |
 | 7 | `/gsd-verify-work 8` → `/gsd-ship 8` |
 
-**Plans:** 0 plans
+**Plans:** 11 plans
 
 Plans:
 
-- [ ] TBD (run `/gsd-plan-phase 8` after discuss/sketch)
+- [ ] `08-01-PLAN.md` — Wave 0: Nyquist stubs, SUPERADMIN enum, module contracts
+- [ ] `08-02-PLAN.md` — Wave 1: Hub catalog + membership + licenseStatus + role→start API
+- [ ] `08-03-PLAN.md` — Wave 2: Module Hub 002-E + ModuleShell 003-B
+- [ ] `08-04-PLAN.md` — Wave 3: ⌘K palette, deep-link fallback, legacy redirects
+- [ ] `08-05-PLAN.md` — Wave 4: Platform `/platform/*` vs tenant System→Modules
+- [ ] `08-06-PLAN.md` — Wave 5: Billing checkout skeleton (charge + activate)
+- [ ] `08-07-PLAN.md` — Wave 6: Phone bottom bar 004-B + chip Sheet
+- [ ] `08-08-PLAN.md` — Wave 7: Users/Roles/Numbers + role→start admin
+- [ ] `08-09-PLAN.md` — Wave 8: Responsive pass + CC agent sticky softphone
+- [ ] `08-10-PLAN.md` — Wave 9: Capacitor 8 + Secure Storage + URL flavors
+- [ ] `08-11-PLAN.md` — Wave 10: FCM foundation + WebRTC notes + ARCHITECTURE/i18n
 
 **Verification:**
 
