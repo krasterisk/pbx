@@ -83,7 +83,7 @@ completed: 2026-07-16
 3. **Task 3: useWebRTCPhone + useAudioDevices + RTK** - `6d9e8ed` (feat)
 4. **Task 4: ShiftLoginModal + DTMF + quality + ARM integration** - `611834c` (feat)
 
-**Plan metadata:** (pending docs commit)
+**Plan metadata:** `aac1281` (docs: complete plan)
 
 ## Files Created/Modified
 
