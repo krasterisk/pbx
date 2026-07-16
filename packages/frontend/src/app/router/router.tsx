@@ -38,6 +38,7 @@ import { CallCenterAgentPage } from '@/pages/CallCenterAgentPage';
 import { CallCenterSupervisorPage } from '@/pages/CallCenterSupervisorPage';
 import { CallCenterSettingsPage } from '@/pages/CallCenterSettingsPage';
 import { CallCenterWallboardPage } from '@/pages/CallCenterWallboardPage';
+import { CallCenterReportsPage } from '@/pages/CallCenterReportsPage';
 import { AiAgentsPage } from '@/pages/AiAgentsPage';
 import { RequireRole } from '@/app/router/RequireRole';
 import { UserLevel } from '@/entities/User';
@@ -98,7 +99,7 @@ export const router = createBrowserRouter([
         path: 'callcenter/reports',
         element: (
           <RequireRole allow={[UserLevel.SUPERVISOR, UserLevel.ADMIN]}>
-            <PlaceholderPage title="Call Center Reports" />
+            <CallCenterReportsPage />
           </RequireRole>
         ),
       },
