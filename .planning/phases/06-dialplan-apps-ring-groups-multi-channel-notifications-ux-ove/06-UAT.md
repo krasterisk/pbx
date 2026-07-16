@@ -1,9 +1,9 @@
 ---
-status: partial
+status: diagnosed
 phase: 06-dialplan-apps-ring-groups-multi-channel-notifications-ux-ove
 source: [06-01-SUMMARY.md, 06-02-SUMMARY.md, 06-03-SUMMARY.md, 06-04-SUMMARY.md, 06-05-SUMMARY.md, 06-06-SUMMARY.md, 06-07-SUMMARY.md, 06-08-SUMMARY.md, 06-09-SUMMARY.md, 06-10-SUMMARY.md, 06-11-SUMMARY.md, 06-12-SUMMARY.md, 06-13-SUMMARY.md, 06-14-SUMMARY.md]
 started: 2026-07-15T14:00:00+07:00
-updated: 2026-07-16T12:26:00+07:00
+updated: 2026-07-16T12:30:00+07:00
 ---
 
 ## Current Test
@@ -103,19 +103,31 @@ blocked: 2
   reason: "User reported after model+migration fix: DialplanApplyService Failed to create category [group_1_0]: File requires escalated privileges; then Transaction cannot be rolled back because it has been finished with state: commit"
   severity: blocker
   test: 1
+  root_cause: "DialplanApplyService never AMI CreateConfig before UpdateConfig — missing .conf is mislabeled as escalated privileges (also blocks new route files). CallGroupsService commits then applyGroup; catch always rollback → Sequelize state: commit error."
   artifacts:
-    - packages/backend/src/modules/call-groups/call-groups.service.ts
-    - packages/backend/src/modules/ami/dialplan-apply.service.ts
+    - path: packages/backend/src/modules/ami/dialplan-apply.service.ts
+      issue: "No CreateConfig / ensure-file before UpdateConfig DelCat/NewCat/Append"
+    - path: packages/backend/src/modules/call-groups/call-groups.service.ts
+      issue: "commit then apply inside try/catch that always calls rollback"
+    - path: packages/backend/src/modules/routes/route-apply.service.ts
+      issue: "Same DialplanApplyService — Test 11 route configs not created"
   missing:
-    - "No rollback after commit when applyGroup fails"
-    - "Asterisk write path for krasterisk/groups/ (dir exists + writable, or create-file flow)"
+    - "AMI CreateConfig (idempotent) before UpdateConfig in DialplanApplyService"
+    - "Ensure/document mkdir krasterisk/groups (and peers) on Asterisk config dir"
+    - "After commit: never rollback; handle AMI failure without masking DB success"
+  debug_session: .planning/debug/call-groups-ami-apply.md
 
 - truth: "CallerIdApp and TrunkCarouselApp show clear per-mode/app hints without duplicating the same help as inline text and tooltip"
   status: failed
   reason: "User reported duplicate hints on CallerIdApp (test 5) and TrunkCarouselApp (test 6): text + popup on button; wastes vertical space"
   severity: cosmetic
   test: 5
+  root_cause: "Same i18n string rendered as both visible Text and InfoTooltip in one hint row; NotifyApp uses tooltip-only (correct)."
   artifacts:
-    - packages/frontend/src/features/dialplan-apps/ui/apps/CallerIdApp/CallerIdApp.tsx
-    - packages/frontend/src/features/dialplan-apps/ui/apps/TrunkCarouselApp/TrunkCarouselApp.tsx
-  missing: ["Single compact hint surface (tooltip OR one short line, not both)"]
+    - path: packages/frontend/src/features/dialplan-apps/ui/apps/CallerIdApp/CallerIdApp.tsx
+      issue: "Dual Text + InfoTooltip with MODE_HINT_KEYS"
+    - path: packages/frontend/src/features/dialplan-apps/ui/apps/TrunkCarouselApp/TrunkCarouselApp.tsx
+      issue: "Dual Text + InfoTooltip with routes.apps.trunkCarousel.hint"
+  missing:
+    - "Single hint surface (prefer InfoTooltip on label like NotifyApp)"
+  debug_session: .planning/debug/dialplan-apps-duplicate-hints.md
