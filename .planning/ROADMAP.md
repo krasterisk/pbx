@@ -320,7 +320,7 @@ Plans:
 - `packages/backend/src/modules/callcenter/` — state store, AMI, SSE, agent/supervisor API (реализовано)
 - `packages/frontend/src/features/callcenter/`, `pages/CallCenterAgentPage/`, `pages/CallCenterSupervisorPage/` — текущие панели
 
-**Status:** Not planned  
+**Status:** Complete — 18/18 plans executed (verify/UAT pending)  
 **Depends on:** Phase 6 (dialplan apps / call groups стабилизированы; независимо от verify Phases 1–5)
 
 **Goal:** Переработать и развить начатый модуль колл-центра до уровня современного корпоративного инструмента: экспертный аудит реализованного (~55%) vs концепции, редизайн АРМ оператора/супервизора по CC_WORKSPACES_CONCEPT, wallboard + metrics engine (SLA/AHT/ASA/Occupancy), конфигурируемые карточки звонка, полная отчётность и аналитика, WebRTC softphone — с архитектурным заделом под AI (голосовые ассистенты, речевая аналитика, autonomous agents).
@@ -356,7 +356,7 @@ Plans:
 | 5 | `/gsd-ui-review 7` + `npm run test:frontend` |
 | 6 | `/gsd-verify-work 7` → `/gsd-ship 7` |
 
-**Plans:** 17/18 plans executed
+**Plans:** 18/18 plans complete
 
 Plans:
 
@@ -365,7 +365,7 @@ Plans:
 - [x] 07-14-PLAN.md — WebRTC softphone: sip.js + ShiftLoginModal + ICE config [D-14…D-17]
 - [x] 07-16-PLAN.md — AI-ready foundation: event bus + CallCenterAiAdapter + media PCM skeleton [D-41…D-45]
 - [x] 07-18-PLAN.md — Reports UI: 7 reports + CSV/XLSX/PDF + AgentTimeline reuse [D-33/D-34/D-36]
-- [ ] 07-15 — remaining
+- [x] 07-15-PLAN.md — Automated report delivery / schedules via notification_integration [D-35]
 
 **Verification:**
 
