@@ -19,7 +19,7 @@
 |---|------|-----------------|--------|------|
 | 001 | moh-page-redesign | Which MohPage layout + CTA for Phase 2? | **A** — Safe glass card | moh, phase-2, layout |
 | 002 | module-hub-desktop | Which Module Hub (bento+dock+Locked) for Phase 8? | **E** — Minimal workspace list | hub, phase-8, navigation, marketplace |
-| 003 | in-module-shell | Dense sidebar vs sparse tabs + chip/⌘K? | — (in review) | shell, phase-8, navigation |
-| 004 | module-hub-mobile | Hub-first phone + tablet dual-pane? | — | mobile, phase-8, hub |
+| 003 | in-module-shell | Dense sidebar vs sparse tabs + chip/⌘K? | **B** — Top tabs | shell, phase-8, navigation |
+| 004 | module-hub-mobile | Hub-first phone + tablet dual-pane? | — (in review) | mobile, phase-8, hub |
 | 005 | module-marketplace-billing | Ghost Locked + purchase/billing skeleton UX? | — | marketplace, billing, phase-8 |
 | 006 | platform-modules-admin | Super-admin catalog vs tenant enable UI? | — | admin, platform, phase-8 |

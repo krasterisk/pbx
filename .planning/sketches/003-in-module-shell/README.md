@@ -2,7 +2,7 @@
 sketch: 003
 name: in-module-shell
 question: "How should navigation feel inside a module — dense sidebar, top tabs, or compact rail — with header chip + ⌘K?"
-winner: null
+winner: B
 tags: [shell, phase-8, navigation, in-module]
 phase: 08
 ---
@@ -31,6 +31,10 @@ All variants share: header with Krasterisk logo (→ Hub), **module chip** (open
 - Tabs vs sidebar for 8+ PBX pages
 - Chip + ⌘K discoverability without stealing focus from work
 - Continuity with Hub E (minimal, fast, not cinematic)
+
+## Winner (2026-07-16)
+
+**Variant B — Top tabs.** Horizontal tabs under header for in-module pages; more content width. Dense sidebar (A) and icon rail (C) deferred — registry can still offer sidebar for ultra-dense modules later if research demands, but baseline chrome is tabs + chip + ⌘K.
 
 ## Mapping to React (post-winner)
 
