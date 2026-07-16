@@ -1,31 +1,35 @@
 ---
 phase: 07-call-center-overhaul-professional-agent-supervisor-workspace
-verified: 2026-07-16T04:25:00Z
+verified: 2026-07-16T12:10:00Z
 status: human_needed
-score: 12/12 must-haves verified
+score: 16/16 must-haves verified
 overrides_applied: 0
 re_verification:
-  previous_status: gaps_found
-  previous_score: 11/12
+  previous_status: human_needed
+  previous_score: 12/12
   gaps_closed:
-    - "/callcenter/settings delivers complete D-40 tabs including functional pause-reasons management"
-    - "No unresolved TBD/FIXME/XXX debt markers in phase-modified files"
+    - "setMyAgentInterface dispatched after agentLogin and cleared on logout (CallCenterAgentPage)"
+    - "ShiftLoginModal requires ≥1 queue so AMI QueueAdd can run"
+    - "SSE fallback binds myAgentInterface by userId when interface is null"
+    - "ASTERISK_WSS_URL documented in .env.example + clearer missing-WSS locales"
   gaps_remaining: []
   regressions: []
+  uat_blockers_code_closed: true
+  note: "UAT Tests 1–2 PRIMARY/SECONDARY code fixes landed via 07-21/07-22; live re-UAT still required"
 human_verification:
-  - test: "Full agent happy-path on /callcenter/agent"
-    expected: "Login → inbound queue call → card auto-opens with phonebook data → hold/transfer → wrap-up → call appears in reports"
-    why_human: "Requires live Asterisk AMI/queue traffic and browser media; cannot be proven by static grep"
-  - test: "WebRTC browser mode end-to-end"
-    expected: "ShiftLoginModal WebRTC mode registers over WSS; answer/hold/mute/DTMF/transfer work entirely in browser"
-    why_human: "Needs real PJSIP WSS endpoint, mic permissions, and ICE/NAT conditions"
-  - test: "Wallboard TV display-token flow (07-13)"
+  - test: "Re-UAT Test 1 — Full agent happy-path on /callcenter/agent (gap closure 07-21)"
+    expected: "Start Shift with ≥1 queue → status leaves OFFLINE (READY); End Shift → OFFLINE; inbound queue call → card/hold/transfer/wrap-up; call in reports"
+    why_human: "Code binds myAgentInterface and requires queues; live AMI/queue traffic and browser session still required"
+  - test: "Re-UAT Test 2 — WebRTC browser mode end-to-end (gap closure 07-21 + 07-22)"
+    expected: "With ASTERISK_WSS_URL set: REGISTER over WSS; answer/hold/mute/DTMF/transfer in browser. With unset: toast names ASTERISK_WSS_URL and modal stays open"
+    why_human: "Needs real PJSIP WSS endpoint, mic permissions, ICE/NAT; env must be set on deploy"
+  - test: "Wallboard TV display-token flow (07-13) — was UAT-blocked"
     expected: "Create token on settings → open /callcenter/wallboard?token=… without login → KPI/agents/queues; revoke stops SSE"
-    why_human: "Cross-session TV UX and token lifecycle need a real browser"
-  - test: "Role-based nav DOM presence"
+    why_human: "Previously blocked by ARM failure; re-test after shift login works"
+  - test: "Role-based nav DOM presence — was UAT-blocked"
     expected: "Operator sees only АРМ оператора; supervisor sees agent/supervisor/wallboard/reports; admin also sees settings; operator deep-link to /callcenter/supervisor redirects home"
     why_human: "RequireRole and buildNavigation need logged-in sessions per UserLevel"
-  - test: "Settings D-40 pause-reasons + operator picker (gap closure 07-19)"
+  - test: "Settings D-40 pause-reasons + operator picker (07-19) — was UAT-blocked"
     expected: "Admin opens /callcenter/settings → Причины пауз CRUD works; Настройки операторов → pick another operator → save persists via /operator/:operatorId"
     why_human: "Static wiring verified; live CRUD/IDOR UX needs authenticated admin session"
 ---
@@ -34,10 +38,11 @@ human_verification:
 
 **Phase Goal:** Professional agent and supervisor workspaces, wallboard, call cards, reporting/analytics, WebRTC softphone, AI-ready foundation (D-01…D-45).
 
-**Verified:** 2026-07-16T04:25:00Z  
+**Verified:** 2026-07-16T12:10:00Z  
 **Status:** human_needed  
-**Re-verification:** Yes — after gap closure (07-19, 07-20)  
-**Score:** 12/12 must-haves verified
+**Re-verification:** Yes — after UAT gap closure (07-21, 07-22)  
+**Score:** 16/16 must-haves verified  
+**UAT blockers closed in code:** Yes
 
 ## Goal Achievement
 
@@ -45,69 +50,80 @@ human_verification:
 
 | # | Truth | Status | Evidence |
 | --- | ------- | ---------- | -------------- |
-| 1 | Metrics engine persists history, restores today, reconciles queue_log, hybrid rollup (D-03/05/06/07/08/09) | ✓ VERIFIED | Unchanged from prior verify; `cc_queue_calls` + HistoryWriter + MetricsService + reconciler/rollup; 147 CC Jest tests pass |
-| 2 | `/callcenter/*` namespace, legacy redirects, role-based nav (D-37/38/39) | ✓ VERIFIED | Regression: `router.tsx` redirects + `RequireRole` on supervisor/reports/settings; agent unguarded for D-39 |
-| 3 | Settings page tabs complete per D-40 (cards, **pause reasons**, alerts, operator settings, display tokens) | ✓ VERIFIED | **Gap closed (07-19):** `CallCenterSettingsPage` mounts `<PauseReasonsManager />` on `pauseReasons` (L49–50); CRUD via `useGet/Create/Update/DeletePauseReason*`; operator tab picker + `GET/PUT settings/operator/:operatorId` |
-| 4 | Agent 4-zone ARM: pick, DnD transfer, wrap-up, notifications, client card (D-18–21) | ✓ VERIFIED | Prior evidence holds; mute comment now references DEF-07-MUTE-AMI (behavior unchanged) |
-| 5 | Supervisor: detail modal, queue modal, bulk, live actions, sparklines, grid↔table, spy (D-23–25) | ✓ VERIFIED | Prior evidence; no regression |
-| 6 | Wallboard TV + display tokens + alert thresholds/routing (D-26–29) | ✓ VERIFIED | Prior evidence; TV visual tones still use local defaults (warning only) |
-| 7 | Call cards DnD builder, field types, auto_open_on, CRM webhook (D-10–13) | ✓ VERIFIED | Prior evidence |
-| 8 | Internal chat REST+SSE+DB history (D-30–32) | ✓ VERIFIED | Prior evidence |
-| 9 | Seven reports + CSV/XLSX/PDF + shared AgentTimeline (D-33/34/36) | ✓ VERIFIED | Prior evidence |
-| 10 | Automated report schedules via notification_integration (D-35) | ✓ VERIFIED | Prior evidence |
-| 11 | WebRTC softphone full v1 (D-14–17) | ✓ VERIFIED | WebRTC mute via `phone.mute/unmute`; SIP mute local-only tracked as DEF-07-MUTE-AMI (accepted follow-up, not bare TBD) |
-| 12 | AI-ready: typed event bus, CallCenterAiAdapter, ARI PCM skeleton, research D-43/45 (D-41–45) | ✓ VERIFIED | Prior evidence |
+| 1 | Metrics engine persists history, restores today, reconciles queue_log, hybrid rollup (D-03/05/06/07/08/09) | ✓ VERIFIED | Quick regression; prior evidence stands |
+| 2 | `/callcenter/*` namespace, legacy redirects, role-based nav (D-37/38/39) | ✓ VERIFIED | Quick regression; `RequireRole` / redirects unchanged |
+| 3 | Settings page tabs complete per D-40 (cards, pause reasons, alerts, operator settings, display tokens) | ✓ VERIFIED | Prior gap closure 07-19; no regression |
+| 4 | Agent 4-zone ARM: pick, DnD transfer, wrap-up, notifications, client card (D-18–21) | ✓ VERIFIED | **UAT blocker closed (07-21):** `handleShiftLogin` binds identity after `agentLogin`; `selectMyAgent` can resolve; gates no longer permanently OFFLINE |
+| 5 | Supervisor: detail modal, queue modal, bulk, live actions, sparklines, grid↔table, spy (D-23–25) | ✓ VERIFIED | Quick regression |
+| 6 | Wallboard TV + display tokens + alert thresholds/routing (D-26–29) | ✓ VERIFIED | Quick regression |
+| 7 | Call cards DnD builder, field types, auto_open_on, CRM webhook (D-10–13) | ✓ VERIFIED | Quick regression |
+| 8 | Internal chat REST+SSE+DB history (D-30–32) | ✓ VERIFIED | Quick regression |
+| 9 | Seven reports + CSV/XLSX/PDF + shared AgentTimeline (D-33/34/36) | ✓ VERIFIED | Quick regression |
+| 10 | Automated report schedules via notification_integration (D-35) | ✓ VERIFIED | Quick regression |
+| 11 | WebRTC softphone full v1 (D-14–17) | ✓ VERIFIED | **UAT blockers closed (07-21/07-22):** identity bind + queue gate + documented WSS + toast/throw on null `wssUrl` |
+| 12 | AI-ready: typed event bus, CallCenterAiAdapter, ARI PCM skeleton, research D-43/45 (D-41–45) | ✓ VERIFIED | Quick regression |
+| 13 | **(UAT/07-21)** `setMyAgentInterface` dispatched after successful `agentLogin` and cleared on logout | ✓ VERIFIED | `CallCenterAgentPage.tsx`: `bindIdentity()` after `agentLogin().unwrap()` on SIP+WebRTC (L362–378); `handleLogout` → `setMyAgentInterface(null)` (L396); missing-WSS path throws before bind (L353–355) |
+| 14 | **(UAT/07-21)** ShiftLoginModal requires ≥1 queue before confirm | ✓ VERIFIED | `isQueuesSelectionValid(queues)` gate (L184–186); `queuesRequired` en/ru; `cc:lastShiftQueues` via `shiftLoginQueues.ts`; unit tests green |
+| 15 | **(UAT/07-21)** SSE fallback binds interface by `userId` when `myAgentInterface` is null | ✓ VERIFIED | `maybeBindMyAgentInterface` in `useCallCenterSSE.ts` after `fullSnapshot`/`agentUpdate`; never overwrites non-null; tests cover bind + no-overwrite |
+| 16 | **(UAT/07-22)** `ASTERISK_WSS_URL` in `.env.example` + clearer missing-WSS locales | ✓ VERIFIED | `.env.example` Call Center/WebRTC section; en/ru `webrtcConfigMissing` names `ASTERISK_WSS_URL`; controller JSDoc; no invented pjsip/http.conf |
 
-**Debt-marker gate:** ✓ PASS — `CallCenterAgentPage.tsx` has no bare `TBD`/`FIXME`/`XXX`; SIP mute limitation documented as `DEF-07-MUTE-AMI` in code + `deferred-items.md` (07-20).
+**Debt-marker gate:** ✓ PASS — no bare `TBD`/`FIXME`/`XXX` in gap-closure files; SIP mute still `DEF-07-MUTE-AMI`.
 
-**Score:** 12/12 truths verified
+**Score:** 16/16 truths verified
 
 ### Gaps Closed (this re-verification)
 
-| Previous gap | Closure plan | Evidence |
+| Previous UAT blocker | Closure plan | Evidence |
 | --- | --- | --- |
-| D-40 pause-reasons placeholder + orphaned CRUD hooks; operator settings self-only | 07-19 | `PauseReasonsManager.tsx` (~360 LOC) wired; settings page mount; RTK `settings/operator/${operatorId}` + picker in `OperatorSettingsForm` |
-| Bare `AMI MuteAudio TBD` debt marker | 07-20 | Comment → `DEF-07-MUTE-AMI`; `deferred-items.md` section documents symptom/desired AMI fix |
+| Test 1 PRIMARY — never `setMyAgentInterface` after login → permanent OFFLINE | 07-21 | `bindIdentity()` after `agentLogin` unwrap; optimistic READY `updateAgent`; logout clears |
+| Test 1 CONTRIBUTING — empty `queues[]` skips AMI QueueAdd | 07-21 | Modal blocks `queues.length === 0`; last queues restore/persist |
+| Test 1/2 — SSE cannot recover identity | 07-21 | `maybeBindMyAgentInterface` by `userId` when interface null |
+| Test 2 SECONDARY — unset `ASTERISK_WSS_URL` silent/unclear | 07-22 | `.env.example` + locales name env var; toast+throw keeps modal open |
 
 ### Required Artifacts
 
 | Artifact | Expected | Status | Details |
 | -------- | -------- | ------ | ------- |
-| `PauseReasonsManager.tsx` | D-40 pause CRUD UI | ✓ VERIFIED | List/create/edit/delete; SUPERVISOR\|ADMIN gate; hooks wired |
-| `CallCenterSettingsPage.tsx` | All D-40 tabs functional | ✓ VERIFIED | `pauseReasons` → `PauseReasonsManager` (no placeholder fallthrough for that tab) |
-| `callCenterApi.ts` by-id operator settings | GET/PUT `/operator/:id` | ✓ VERIFIED | Endpoints + `useGetOperatorSettingsQuery` / `useUpdateOperatorSettingsMutation` exported |
-| `OperatorSettingsForm.tsx` | Admin picker + dual paths | ✓ VERIFIED | Self → my-endpoints; other → by-id; id only in URL path |
-| `CallCenterAgentPage.tsx` mute comment | Tracked DEF, no bare TBD | ✓ VERIFIED | `DEF-07-MUTE-AMI` L313–314 |
-| `deferred-items.md` | DEF-07-MUTE-AMI entry | ✓ VERIFIED | Symptom + desired AMI MuteAudio follow-up |
-| Core CC stack (metrics, agent, supervisor, wallboard, cards, chat, reports, WebRTC, AI) | Phase goal surfaces | ✓ VERIFIED | Quick regression; prior Level 1–4 evidence stands |
+| `CallCenterAgentPage.tsx` | dispatch setMyAgentInterface after login; clear on logout; fail-closed missing WSS | ✓ VERIFIED | Exists, substantive, wired; Level 4: identity from `ShiftLoginResult.interface` |
+| `ShiftLoginModal.tsx` | ≥1 queue required; last queues restore | ✓ VERIFIED | Uses `isQueuesSelectionValid` / load/save helpers |
+| `shiftLoginQueues.ts` | validate / load / save queues | ✓ VERIFIED | Extracted helper +  unit tests |
+| `useCallCenterSSE.ts` | userId→interface fallback | ✓ VERIFIED | `maybeBindMyAgentInterface` on snapshot + agentUpdate |
+| `.env.example` | ASTERISK_WSS_URL + SIP_DOMAIN | ✓ VERIFIED | Call Center / WebRTC section present |
+| `callcenter-webrtc.controller.ts` | JSDoc + null wssUrl when unset | ✓ VERIFIED | Runtime unchanged; Jest 6/6 pass |
+| `en.ts` / `ru.ts` | queuesRequired + webrtcConfigMissing names ASTERISK_WSS_URL | ✓ VERIFIED | Both locales updated |
+| Core CC stack (prior) | Phase goal surfaces | ✓ VERIFIED | Quick regression |
 
 ### Key Link Verification
 
 | From | To | Via | Status | Details |
 | ---- | --- | --- | ------ | ------- |
-| SettingsPage | PauseReasonsManager | `activeTab === 'pauseReasons'` | ✓ WIRED | L49–50 render branch |
-| PauseReasonsManager | pause-reasons RTK hooks | get/create/update/delete | ✓ WIRED | Mutations used in handleSave/handleDelete |
-| OperatorSettingsForm | `GET/PUT settings/operator/:operatorId` | by-id hooks when !isSelf | ✓ WIRED | skip logic + updateById body |
-| OperatorSettingsForm | my-operator endpoints | when isSelf | ✓ WIRED | Unchanged self path |
-| handleMuteToggle | DEF-07-MUTE-AMI | comment + deferred-items | ✓ WIRED | Cross-ref present; WebRTC mute still calls phone API |
+| `handleShiftLogin` | `callCenterSlice.myAgentInterface` | `dispatch(setMyAgentInterface(result.interface))` after unwrap | ✓ WIRED | Both SIP and WebRTC branches |
+| `handleLogout` | `myAgentInterface` | `dispatch(setMyAgentInterface(null))` | ✓ WIRED | After `agentLogout` |
+| `ShiftLoginModal.handleConfirm` | `onConfirm` | blocked when `!isQueuesSelectionValid` | ✓ WIRED | No confirm on empty queues |
+| `useCallCenterSSE` | `setMyAgentInterface` | `maybeBindMyAgentInterface` | ✓ WIRED | Only when null + userId match + not OFFLINE |
+| `selectMyAgent` | CallCard / hold / transfer / wrap-up | `myAgent` truthy | ✓ WIRED | Unchanged selector; now reachable after bind |
+| `getConfig` | `process.env.ASTERISK_WSS_URL` | `wssUrl` null when unset | ✓ WIRED | Spec confirms null/set behavior |
+| `handleShiftLogin` | toast + throw `webrtcConfigMissing` | early return when `!wssUrl` | ✓ WIRED | Modal catch keeps dialog open |
 
 ### Data-Flow Trace (Level 4)
 
 | Artifact | Data Variable | Source | Produces Real Data | Status |
 | -------- | ------------- | ------ | ------------------ | ------ |
-| PauseReasonsManager | `reasons` | `useGetPauseReasonsQuery` → `/callcenter/pause-reasons` | Backend pause-reasons CRUD | ✓ FLOWING |
-| OperatorSettingsForm | `form` / `data` | my-query or byIdQuery | `cc_operator_settings` via settings controller | ✓ FLOWING |
-| Agent / metrics / wallboard / reports / chat | (prior) | SSE / AMI / DB | Real paths | ✓ FLOWING |
+| CallCenterAgentPage | `myAgentInterface` / `myAgent` | dispatch after agentLogin + SSE fallback | Login result.interface; SSE agents[].userId | ✓ FLOWING |
+| ShiftLoginModal | `queues` | MultiSelect + `cc:lastShiftQueues` | User selection / localStorage | ✓ FLOWING |
+| useCallCenterSSE | agents → bind | EventSource fullSnapshot/agentUpdate | Backend SSE | ✓ FLOWING |
+| webrtc config | `wssUrl` | `ASTERISK_WSS_URL` env | Deploy env (null if unset — intentional) | ✓ FLOWING |
 
 ### Behavioral Spot-Checks
 
 | Behavior | Command | Result | Status |
 | -------- | ------- | ------ | ------ |
-| Callcenter Jest suite | `npx jest --testPathPattern=callcenter` (backend) | 19 suites / 147 tests passed | ✓ PASS |
-| PauseReasonsManager mount | grep SettingsPage + PauseReasonsManager | import + render on pauseReasons | ✓ PASS |
-| Operator by-id RTK | grep `settings/operator/` + form hooks | endpoints + picker wired | ✓ PASS |
-| Debt-marker gate | grep `\bTBD\b\|\bFIXME\b\|\bXXX\b` on AgentPage / callcenter FE+BE | no matches | ✓ PASS |
-| Live AMI/WebRTC E2E | — | requires running Asterisk | ? SKIP |
+| Selectors / SSE / slice / shiftLoginQueues | `npx vitest run …` (4 files) | 38 passed | ✓ PASS |
+| WebRTC controller | `npx jest callcenter-webrtc.controller.spec.ts` | 6 passed | ✓ PASS |
+| Login bind present | grep `setMyAgentInterface` in AgentPage | after unwrap + null on logout | ✓ PASS |
+| Queue gate | grep `isQueuesSelectionValid` / `queuesRequired` | wired + i18n | ✓ PASS |
+| Env docs | grep `ASTERISK_WSS_URL` in `.env.example` + locales | present | ✓ PASS |
+| Live AMI/WebRTC E2E | — | requires running Asterisk + deploy env | ? SKIP |
 
 ### Probe Execution
 
@@ -119,65 +135,67 @@ human_verification:
 
 | Requirement | Source Plan(s) | Description | Status | Evidence |
 | ----------- | -------------- | ----------- | ------ | -------- |
-| D-01…D-21, D-23…D-39, D-41…D-45 | 07-01…07-18 | Prior phase decisions | ✓ SATISFIED | Prior verification evidence; no regressions found |
-| D-22 | 07-05, **07-19** | Per-operator settings + admin UX | ✓ SATISFIED | Picker + by-id GET/PUT wired |
-| D-40 | 07-02, **07-19** | Settings tabs incl. pause reasons | ✓ SATISFIED | PauseReasonsManager mounted + CRUD |
-| D-14 | 07-14, **07-20** | Softphone mute | ✓ SATISFIED | WebRTC mute real; SIP mute tracked DEF-07-MUTE-AMI |
+| D-01…D-13, D-16, D-18…D-45 | 07-01…07-20 | Prior phase decisions | Consistent SATISFIED | Prior verification; no regressions found |
+| D-14 | 07-14, **07-21**, **07-22** | Softphone + WebRTC config clarity | ✓ SATISFIED | Identity bind + WSS docs/locales |
+| D-15 | 07-14, **07-21** | Shift login / queue membership | ✓ SATISFIED | ≥1 queue + myAgentInterface bind |
+| D-17 | 07-14, **07-22** | WebRTC runtime config from env | ✓ SATISFIED | Documented ASTERISK_WSS_URL; null wssUrl path clear |
+| D-22 / D-40 | 07-19 | Operator settings / pause reasons | ✓ SATISFIED | Prior gap closure |
 
-**Orphaned REQUIREMENTS.md IDs for Phase 07:** none (decision IDs only).
+**Orphaned REQUIREMENTS.md IDs for Phase 07:** none.
 
 ### Anti-Patterns Found
 
 | File | Line | Pattern | Severity | Impact |
 | ---- | ---- | ------- | -------- | ------ |
-| `CallCenterWallboardPage.tsx` | ~41–44 | Hardcoded TV thresholds (documented) | ⚠️ Warning | Visual tones ≠ tenant cc_settings; server alerts still correct |
+| `CallCenterWallboardPage.tsx` | ~41–44 | Hardcoded TV thresholds (documented) | ⚠️ Warning | Visual tones ≠ tenant cc_settings |
 | Spy UI / `supervisorSpy` | — | `oper_chanspy` user flag unused | ⚠️ Warning | All supervisors can spy |
-| SIP mute (tracked) | AgentPage L313–322 | Local UI only in SIP mode | ℹ️ Info | Follow-up DEF-07-MUTE-AMI — not a verification blocker |
+| SIP mute (tracked) | AgentPage | Local UI only in SIP mode | ℹ️ Info | DEF-07-MUTE-AMI — not a blocker |
 
-No bare `TBD`/`FIXME`/`XXX` in phase callcenter FE/BE sources scanned.
+No bare `TBD`/`FIXME`/`XXX` in 07-21/07-22 modified sources.
 
 ### Human Verification Required
 
-### 1. Agent happy-path
+### 1. Re-UAT Test 1 — Agent happy-path (07-21)
 
-**Test:** On `/callcenter/agent`, login to queues, receive inbound, complete hold/transfer/wrap-up; confirm card auto-open and report row.  
-**Expected:** Full cycle works with live AMI.  
-**Why human:** Needs Asterisk + real calls.
+**Test:** On `/callcenter/agent`, Start Shift with ≥1 queue; confirm status → READY; End Shift → OFFLINE; receive inbound; hold/transfer/wrap-up; report row.  
+**Expected:** Full cycle works; empty-queue Start Shift shows `queuesRequired` and does not start.  
+**Why human:** Needs Asterisk + real calls; UAT previously failed before code fix.
 
-### 2. WebRTC mode
+### 2. Re-UAT Test 2 — WebRTC mode (07-21 + 07-22)
 
-**Test:** ShiftLoginModal → browser mode → register/answer/hold/mute/DTMF/transfer.  
-**Expected:** Softphone works over WSS with mic.  
-**Why human:** Media/ICE/NAT.
+**Test:** Set deploy `ASTERISK_WSS_URL`; ShiftLoginModal → WebRTC → REGISTER/answer/hold/mute/DTMF/transfer. Also verify unset env shows toast naming `ASTERISK_WSS_URL` and keeps modal open.  
+**Expected:** Softphone works when WSS configured; clear ops error when not.  
+**Why human:** Media/ICE/NAT + real env.
 
-### 3. Wallboard display token
+### 3. Wallboard display token (was blocked)
 
 **Test:** Create token → open TV URL private window → revoke.  
 **Expected:** Read-only wallboard; revoke disconnects.  
-**Why human:** Cross-session token auth UX.
+**Why human:** Cross-session token auth UX; previously blocked by ARM failure.
 
-### 4. Role menu matrix
+### 4. Role menu matrix (was blocked)
 
 **Test:** Login as operator / supervisor / admin; inspect nav DOM and deep links.  
 **Expected:** Matches D-38/D-39.  
 **Why human:** Session-dependent UI.
 
-### 5. Settings gap-closure (07-19)
+### 5. Settings gap-closure (07-19, was blocked)
 
-**Test:** As ADMIN, open `/callcenter/settings` → CRUD pause reasons; pick another operator on operator settings and save; reload confirms persistence.  
+**Test:** As ADMIN, CRUD pause reasons; pick another operator and save; reload confirms persistence.  
 **Expected:** Pause catalog and by-id operator settings work end-to-end.  
 **Why human:** Live auth + DB round-trip.
 
 ### Gaps Summary
 
-Both prior blockers are closed in code:
+UAT blocker root causes from `07-UAT.md` / `DEBUG-cc-agent-shift.md` / `DEBUG-cc-webrtc.md` are **closed in code** via plans **07-21** and **07-22**:
 
-1. **07-19** — D-40 «Причины пауз» is a real CRUD manager; D-22 admin operator picker uses supervisor `:operatorId` API.
-2. **07-20** — Debt-marker gate cleared via `DEF-07-MUTE-AMI` (no bare TBD).
+1. **Identity bind** — `setMyAgentInterface` after successful `agentLogin`; cleared on logout; SSE userId fallback.
+2. **Queue gate** — modal requires ≥1 queue; last selection persisted.
+3. **Missing WSS visibility** — `.env.example` + locales name `ASTERISK_WSS_URL`; toast + throw keep modal open.
 
-Automated must-haves: **12/12**. Remaining work is human UAT of live Asterisk/WebRTC/settings flows — status **human_needed**, not `gaps_found`.
+Automated must-haves: **16/16**. No `gaps_found` remaining for code. Status remains **human_needed** pending re-UAT of Tests 1–2 (and previously blocked Tests 3–5).
 
 ---
 
-_Verified: 2026-07-16T04:25:00Z_  
+_Verified: 2026-07-16T12:10:00Z_  
 _Verifier: Claude (gsd-verifier)_
