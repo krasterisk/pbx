@@ -12,6 +12,62 @@ describe('DialplanApplyService', () => {
     service = new DialplanApplyService(amiService as any);
   });
 
+  it('calls CreateConfig once with filename before DelCat/NewCat/Append', async () => {
+    const filename = 'krasterisk/groups/group_42.conf';
+    await service.applyCategories(filename, [{ name: 'ctx', lines: ['a=b'] }]);
+
+    expect(amiService.action).toHaveBeenCalled();
+    const first = amiService.action.mock.calls[0][0];
+    expect(first).toEqual({ action: 'CreateConfig', filename });
+
+    const actions = amiService.action.mock.calls.map((c) => c[0].action);
+    expect(actions.filter((a) => a === 'CreateConfig')).toHaveLength(1);
+    expect(amiService.action.mock.calls[1][0]['Action-000000']).toBe('DelCat');
+  });
+
+  it('swallows CreateConfig "already exists" and continues UpdateConfig', async () => {
+    amiService.action.mockImplementation((action: any) => {
+      if (action.action === 'CreateConfig') {
+        return Promise.reject(new Error('File already exists'));
+      }
+      return Promise.resolve({ response: 'Success' });
+    });
+
+    const result = await service.applyCategories('file.conf', [
+      { name: 'ctx', lines: ['a=b'] },
+    ]);
+
+    expect(amiService.action.mock.calls[0][0]).toEqual({
+      action: 'CreateConfig',
+      filename: 'file.conf',
+    });
+    expect(result).toEqual({ success: true, linesApplied: 1 });
+    expect(amiService.action.mock.calls.some((c) => c[0]['Action-000000'] === 'NewCat')).toBe(
+      true,
+    );
+  });
+
+  it('rethrows non-exists CreateConfig failure before NewCat', async () => {
+    amiService.action.mockImplementation((action: any) => {
+      if (action.action === 'CreateConfig') {
+        return Promise.reject(new Error('File requires escalated privileges'));
+      }
+      return Promise.resolve({ response: 'Success' });
+    });
+
+    await expect(
+      service.applyCategories('krasterisk/groups/group_1.conf', [
+        { name: 'ctx', lines: ['a=b'] },
+      ]),
+    ).rejects.toThrow(/escalated privileges/i);
+
+    expect(amiService.action).toHaveBeenCalledTimes(1);
+    expect(amiService.action.mock.calls[0][0].action).toBe('CreateConfig');
+    expect(amiService.action.mock.calls.some((c) => c[0]['Action-000000'] === 'NewCat')).toBe(
+      false,
+    );
+  });
+
   it('sends DelCat (swallowing errors), NewCat, then Append batches of 20 with Var/Value parsing', async () => {
     amiService.action.mockImplementation((action: any) => {
       if (action['Action-000000'] === 'DelCat') {
@@ -28,10 +84,17 @@ describe('DialplanApplyService', () => {
       { name: 'ctx', lines },
     ]);
 
-    // 1 DelCat + 1 NewCat + 2 Append batches (20 + 6 lines)
-    expect(amiService.action).toHaveBeenCalledTimes(4);
+    // 1 CreateConfig + 1 DelCat + 1 NewCat + 2 Append batches (20 + 6 lines)
+    expect(amiService.action).toHaveBeenCalledTimes(5);
 
-    const [delCall, newCatCall, batch1, batch2] = amiService.action.mock.calls.map((c) => c[0]);
+    const [createCall, delCall, newCatCall, batch1, batch2] = amiService.action.mock.calls.map(
+      (c) => c[0],
+    );
+
+    expect(createCall).toEqual({
+      action: 'CreateConfig',
+      filename: 'krasterisk/routes/extensions_ctx.conf',
+    });
 
     expect(delCall['Action-000000']).toBe('DelCat');
     expect(delCall['Cat-000000']).toBe('ctx');
@@ -93,6 +156,10 @@ describe('DialplanApplyService', () => {
 
     expect(order).toEqual(['ctx_a', 'ctx_b', 'ctx_c']);
     expect(result.linesApplied).toBe(3);
+    // CreateConfig once per applyCategories call, not per category
+    expect(amiService.action.mock.calls.filter((c) => c[0].action === 'CreateConfig')).toHaveLength(
+      1,
+    );
   });
 
   it('defensively filters blank lines, comments, and category headers', async () => {
@@ -103,5 +170,12 @@ describe('DialplanApplyService', () => {
     const appendCall = amiService.action.mock.calls.find((c) => c[0]['Action-000000'] === 'Append')?.[0];
     expect(appendCall['Var-000000']).toBe('real');
     expect(appendCall['Value-000000']).toBe('line');
+  });
+
+  it('deleteCategories does not call CreateConfig', async () => {
+    await service.deleteCategories('file.conf', ['ctx_a', 'ctx_b'], { reload: false });
+
+    expect(amiService.action.mock.calls.every((c) => c[0].action === 'UpdateConfig')).toBe(true);
+    expect(amiService.action.mock.calls.some((c) => c[0].action === 'CreateConfig')).toBe(false);
   });
 });
