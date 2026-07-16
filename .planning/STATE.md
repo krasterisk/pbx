@@ -2,12 +2,12 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Phase 07 gap closure complete — ready for re-UAT / verify
-last_updated: "2026-07-16T13:11:56.254Z"
+status: Phase 08 planned — ready to execute
+last_updated: "2026-07-16T23:05:00.000Z"
 progress:
   total_phases: 8
   completed_phases: 5
-  total_plans: 51
+  total_plans: 68
   completed_plans: 50
   percent: 63
 ---
@@ -16,8 +16,9 @@ progress:
 
 ## Current position
 
-Phase: 07 (call-center-overhaul-professional-agent-supervisor-workspace) — gap closure plans complete (07-21, 07-22)
-Plan: 22 of 22 executed (07-22 SUMMARY done; next: re-UAT / `/gsd-verify-work 7`)
+Phase: 08 (navigation-redesign-android-port-foundation) — **planned** (17 plans, checker PASSED)
+Plan: 0 of 17 executed — next: `/gsd-execute-phase 8`
+Phase 7 — Call Center: gap closure complete (07-21, 07-22); re-UAT / `/gsd-verify-work 7` still available in parallel.
 Phase 5 — Phonebooks AI: plans executed (verify/UAT may remain).  
 Phase 6 — Dialplan Apps: **06-01–06-16 executed** (gap closures done). Re-UAT after ops mkdir for krasterisk subdirs; UAT Tests 5–6 hint duplication fixed.
 
@@ -97,6 +98,7 @@ Phase 1 — MOH: pending verify.
 
 ## Roadmap Evolution
 
+- Phase 8 planned (2026-07-16): 17 plans (`08-01`…`08-17`), waves 0–10; RESEARCH + PATTERNS + VALIDATION; plan-checker PASSED (NAV-01…16, D-01…41). Hub ships 002-E list (not bento).
 - Phase 8 UI-SPEC approved (2026-07-16): design contract verified 6/6 — Hub E list, tabs B, mobile bottom bar, marketplace section, platform separate apps; see `08-UI-SPEC.md`.
 - Phase 8 context gathered (2026-07-16): Module Hub + marketplace catalog/billing skeleton + full responsive + Capacitor Android foundation; see `08-CONTEXT.md`.
 - Phase 8 added: Navigation redesign & Android port foundation — масштабируемая модульная навигация (IA, command palette, mobile-first), design-system shell touchpoints, Capacitor-first подготовка стека к Android (WebRTC/SSE/auth gaps).
@@ -107,7 +109,7 @@ Phase 1 — MOH: pending verify.
 
 ## Next GSD command
 
-`/gsd-plan-phase 8` (UI-SPEC approved 2026-07-16); or finish Phase 7 via `/gsd-verify-work 7`
+`/gsd-execute-phase 8` — or finish Phase 7 via `/gsd-verify-work 7`
 
 ## Performance Metrics
 
