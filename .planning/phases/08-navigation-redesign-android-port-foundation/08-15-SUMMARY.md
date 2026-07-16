@@ -82,7 +82,7 @@ Each task was committed atomically (TDD RED → GREEN):
 3. **Task 2 RED:** `c88cabd` (test) — VoiceRobots list + edit failing smokes
 4. **Task 2 GREEN:** `3671aa8` (feat) — VoiceRobots list hybrid + edit phone stack
 
-**Plan metadata:** _(docs commit follows)_
+**Plan metadata:** `eb11765` (docs: complete plan)
 
 ## Files Created/Modified
 
