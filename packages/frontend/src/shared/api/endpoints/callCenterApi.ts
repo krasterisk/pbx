@@ -108,6 +108,12 @@ export interface IChatContact {
   level: number;
 }
 
+/** Runtime WebRTC softphone config (D-17) — WSS + ICE; TURN never in static bundle. */
+export interface IWebrtcConfig {
+  wssUrl: string | null;
+  iceServers: RTCIceServer[];
+}
+
 const callCenterApi = rtkApi.injectEndpoints({
   endpoints: (build) => ({
     // ─── State ────────────────────────────────────────────
@@ -343,6 +349,11 @@ const callCenterApi = rtkApi.injectEndpoints({
       query: (body) => ({ url: '/callcenter/wallboard/alert-config', method: 'PUT', body }),
       invalidatesTags: ['CcAlertConfig'],
     }),
+
+    // ─── WebRTC softphone config (D-17) ───────────────────
+    getWebrtcConfig: build.query<IWebrtcConfig, void>({
+      query: () => '/callcenter/webrtc/config',
+    }),
   }),
 });
 
@@ -400,4 +411,6 @@ export const {
   useRevokeDisplayTokenMutation,
   useGetAlertConfigQuery,
   useUpdateAlertConfigMutation,
+  useGetWebrtcConfigQuery,
+  useLazyGetWebrtcConfigQuery,
 } = callCenterApi;
