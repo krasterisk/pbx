@@ -20,6 +20,7 @@ import { CallCenterChatService } from './callcenter-chat.service';
 import { CallCenterWallboardService } from './callcenter-wallboard.service';
 import { CallCenterWallboardController } from './callcenter-wallboard.controller';
 import { CallCenterAlertService } from './callcenter-alert.service';
+import { CallCenterReportsService } from './reports/callcenter-reports.service';
 import { DisplayTokenGuard } from './guards/display-token.guard';
 import { CcPauseReason } from './models/pause-reason.model';
 import { CcAgentSession } from './models/agent-session.model';
@@ -97,6 +98,7 @@ import { queueLogReaderProvider } from './queuelog/queue-log-reader.factory';
     CallCenterChatService,
     CallCenterWallboardService,
     CallCenterAlertService,
+    CallCenterReportsService,
     DisplayTokenGuard,
   ],
   controllers: [
@@ -115,6 +117,7 @@ import { queueLogReaderProvider } from './queuelog/queue-log-reader.factory';
     CallCenterAmiService, // exported so AmiService can resolve it via ModuleRef
     CallCenterService,
     CallCenterSettingsService,
+    CallCenterReportsService,
   ],
 })
 export class CallCenterModule {}
