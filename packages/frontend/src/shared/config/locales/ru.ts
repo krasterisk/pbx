@@ -2582,7 +2582,16 @@ export const ru = {
 
   // Module Hub / Marketplace / Command palette (Phase 08 NAV-14)
   hub: {
+    title: 'Модули',
     open: 'Открыть',
+    activeSection: 'Активные',
+    marketplaceSection: 'Маркетплейс',
+    addFavorite: 'Добавить в избранное',
+    removeFavorite: 'Убрать из избранного',
+    openModule: 'Открыть {{name}}',
+    kindBase: 'В комплекте',
+    kindMarket: 'Расширение',
+    buyPlaceholder: 'Оформление покупки скоро будет доступно',
     emptyActive: {
       title: 'Нет доступных модулей',
       body: 'Обратитесь к администратору тенанта, чтобы включить модули',

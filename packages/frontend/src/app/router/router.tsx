@@ -34,6 +34,7 @@ import { AuditLogPage } from '@/pages/AuditLogPage';
 import { SuperAdminPage } from '@/pages/SuperAdminPage/SuperAdminPage';
 import { MarketplacePage } from '@/pages/MarketplacePage/MarketplacePage';
 import { MyModulesPage } from '@/pages/MyModulesPage/MyModulesPage';
+import { ModulesHubPage } from '@/pages/ModulesHubPage';
 import { CallCenterAgentPage } from '@/pages/CallCenterAgentPage';
 import { CallCenterSupervisorPage } from '@/pages/CallCenterSupervisorPage';
 import { CallCenterSettingsPage } from '@/pages/CallCenterSettingsPage';
@@ -66,6 +67,7 @@ export const router = createBrowserRouter([
     element: <AppLayout />,
     children: [
       { index: true, element: <DashboardPage /> },
+      { path: 'modules', element: <ModulesHubPage /> },
       { path: 'users', element: <UsersPage /> },
       { path: 'endpoints', element: <EndpointsPage /> },
       { path: 'trunks', element: <TrunksPage /> },

@@ -2533,7 +2533,16 @@ export const en = {
 
   // Module Hub / Marketplace / Command palette (Phase 08 NAV-14)
   hub: {
+    title: 'Modules',
     open: 'Open',
+    activeSection: 'Active',
+    marketplaceSection: 'Marketplace',
+    addFavorite: 'Add to favorites',
+    removeFavorite: 'Remove from favorites',
+    openModule: 'Open {{name}}',
+    kindBase: 'Included',
+    kindMarket: 'Extension',
+    buyPlaceholder: 'Checkout will be available soon',
     emptyActive: {
       title: 'No modules available',
       body: 'Contact your tenant admin to enable modules',
