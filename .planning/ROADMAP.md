@@ -322,7 +322,7 @@ Plans:
 - `packages/backend/src/modules/callcenter/` — state store, AMI, SSE, agent/supervisor API (реализовано)
 - `packages/frontend/src/features/callcenter/`, `pages/CallCenterAgentPage/`, `pages/CallCenterSupervisorPage/` — текущие панели
 
-**Status:** Complete — all 20 plans executed (including gap-closure 07-19…07-20); ready for `/gsd-verify-work 7`  
+**Status:** Gap closure planned — 07-21…07-22 address UAT blockers (shift identity + WSS env); re-execute then re-UAT  
 
 **Depends on:** Phase 6 (dialplan apps / call groups стабилизированы; независимо от verify Phases 1–5)
 
@@ -359,7 +359,7 @@ Plans:
 | 5 | `/gsd-ui-review 7` + `npm run test:frontend` |
 | 6 | `/gsd-verify-work 7` → `/gsd-ship 7` |
 
-**Plans:** 20/20 plans complete
+**Plans:** 22 plans (20 executed + 2 new gap-closure)
 
 Plans:
 
@@ -371,6 +371,8 @@ Plans:
 - [x] 07-15-PLAN.md — Automated report delivery / schedules via notification_integration [D-35]
 - [x] 07-19-PLAN.md — Gap closure: PauseReasonsManager + operator settings picker [D-40/D-22]
 - [x] 07-20-PLAN.md — Gap closure: track SIP MuteAudio as DEF-07-MUTE-AMI [D-14]
+- [ ] 07-21-PLAN.md — Gap closure: setMyAgentInterface on shift login + require ≥1 queue [D-14/D-15]
+- [ ] 07-22-PLAN.md — Gap closure: ASTERISK_WSS_URL docs + clear missing-WSS UI [D-14/D-17]
 
 **Verification:**
 
