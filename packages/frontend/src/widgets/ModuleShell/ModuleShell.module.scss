@@ -5,6 +5,20 @@
   z-index: var(--z-index-header, 40);
 }
 
+.offlineBanner {
+  min-height: 40px;
+  padding: 8px 16px;
+  background: color-mix(in srgb, var(--color-destructive, #b91c1c) 18%, var(--color-card));
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-foreground);
+}
+
+.offlineBannerText {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+}
+
 .topbar {
   height: 56px;
   padding: 0 16px;

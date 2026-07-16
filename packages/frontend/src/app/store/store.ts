@@ -1,6 +1,10 @@
 import { configureStore } from '@reduxjs/toolkit';
 import { rtkApi } from '@/shared/api/rtkApi';
-import { authReducer } from '@/features/auth/model/authSlice';
+import {
+  authReducer,
+  hydrateAuthFromStorage,
+} from '@/features/auth/model/authSlice';
+import { isNativePlatform } from '@/shared/lib/capacitor/isNative';
 import { usersPageReducer } from '@/features/users/model/slice/usersPageSlice';
 import { endpointsPageReducer } from '@/features/endpoints/model/slice/endpointsPageSlice';
 import { trunksPageReducer } from '@/features/trunks/model/slice/trunksPageSlice';
@@ -60,4 +64,9 @@ export type RootState = ReturnType<typeof store.getState>;
 export type AppDispatch = typeof store.dispatch;
 
 export type StateSchema = RootState;
+
+// Native: hydrate JWT/refresh from Secure Storage before UI assumes session (D-33).
+if (isNativePlatform()) {
+  void store.dispatch(hydrateAuthFromStorage());
+}
 

@@ -20,6 +20,7 @@ import {
 } from '@/features/modules/lib/moduleRegistry';
 import { ModuleChip } from './ModuleChip';
 import { ModuleShellTabs } from './ModuleShellTabs';
+import { OfflineBanner } from './OfflineBanner';
 import cls from './ModuleShell.module.scss';
 
 /**
@@ -122,6 +123,7 @@ export const ModuleShell = memo(function ModuleShell() {
 
   return (
     <Flex direction="column" className={cls.shell} data-testid="module-shell">
+      <OfflineBanner />
       <HStack className={cls.topbar} align="center" gap="12" max>
         <Link to="/modules" className={cls.logo} aria-label={t('hub.title')} id="shell-logo">
           <Flex className={cls.logoBox} align="center" justify="center">

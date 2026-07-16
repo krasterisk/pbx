@@ -9,19 +9,26 @@ describe('authSlice', () => {
     refreshToken: null,
     isAuthenticated: false,
     isLoading: false,
+    isHydrated: true,
     error: null,
   };
 
   beforeEach(() => {
     vi.stubGlobal('localStorage', {
-      getItem: vi.fn(),
+      getItem: vi.fn(() => null),
       setItem: vi.fn(),
       removeItem: vi.fn(),
     });
   });
 
   it('should return initial state', () => {
-    expect(authReducer(undefined, { type: 'unknown' })).toEqual(initialState);
+    const state = authReducer(undefined, { type: 'unknown' });
+    expect(state.user).toBeNull();
+    expect(state.accessToken).toBeNull();
+    expect(state.isAuthenticated).toBe(false);
+    expect(state.isLoading).toBe(false);
+    expect(state.error).toBeNull();
+    expect(state.isHydrated).toBe(true);
   });
 
   it('should handle logout', () => {
