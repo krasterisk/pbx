@@ -20,6 +20,11 @@ import {
   useAudioDevices,
   audioDeviceLabel,
 } from '@/features/callcenter/lib/useAudioDevices';
+import {
+  isQueuesSelectionValid,
+  loadLastShiftQueues,
+  saveLastShiftQueues,
+} from '@/features/callcenter/lib/shiftLoginQueues';
 import type { IEndpointCredentials } from '@/shared/api/endpoints/endpointApi';
 import styles from './ShiftLoginModal.module.scss';
 
@@ -161,18 +166,32 @@ export function ShiftLoginModal({ open, onOpenChange, onConfirm }: ShiftLoginMod
     }
   }, [open]);
 
+  // Restore last selected queues when modal opens and options are available
+  useEffect(() => {
+    if (!open || queueOptions.length === 0) return;
+    setQueues((prev) => {
+      if (prev.length > 0) return prev;
+      const restored = loadLastShiftQueues(queueOptions.map((o) => o.value));
+      return restored.length > 0 ? restored : prev;
+    });
+  }, [open, queueOptions]);
+
   const handleConfirm = async () => {
     if (!sipId || submitting) return;
     const endpoint = endpoints.find((e) => e.id === sipId);
     if (!endpoint) return;
 
+    if (!isQueuesSelectionValid(queues)) {
+      setMicError(t('callcenter.softphone.queuesRequired'));
+      return;
+    }
+
     setSubmitting(true);
     try {
-      const iface = `PJSIP/${endpoint.id}`;
       if (mode === 'sip') {
         await onConfirm({
           mode: 'sip',
-          interface: iface,
+          interface: `PJSIP/${endpoint.id}`,
           queues,
           sipId: endpoint.id,
         });
@@ -181,18 +200,48 @@ export function ShiftLoginModal({ open, onOpenChange, onConfirm }: ShiftLoginMod
           setSubmitting(false);
           return;
         }
-        // Fetch SIP credentials — never log password
-        const credentials = await fetchCredentials(endpoint.id).unwrap();
+        if (!endpoint.webrtc_enabled || !endpoint.webrtc?.id) {
+          setMicError(
+            t(
+              'callcenter.softphone.webrtcNotEnabled',
+              'У абонента не включён WebRTC-клиент. Включите галку в карточке абонента.',
+            ),
+          );
+          setSubmitting(false);
+          return;
+        }
+        // Primary credentials include nested webrtc companion creds
+        const allCreds = await fetchCredentials(endpoint.id).unwrap();
+        const w = allCreds.webrtc;
+        if (!w) {
+          setMicError(
+            t(
+              'callcenter.softphone.webrtcNotEnabled',
+              'У абонента не включён WebRTC-клиент. Включите галку в карточке абонента.',
+            ),
+          );
+          setSubmitting(false);
+          return;
+        }
+        const webrtcId = w.sipId;
         await onConfirm({
           mode: 'webrtc',
-          interface: iface,
+          interface: `PJSIP/${webrtcId}`,
           queues,
-          sipId: endpoint.id,
-          credentials,
+          sipId: webrtcId,
+          credentials: {
+            sipId: webrtcId,
+            extension: w.extension,
+            username: w.username,
+            password: w.password,
+            authType: w.authType,
+            domain: w.domain,
+          },
           micDeviceId: selectedMic === 'default' ? undefined : selectedMic,
           sinkId: selectedSpeaker === 'default' ? undefined : selectedSpeaker,
         });
       }
+      saveLastShiftQueues(queues);
       onOpenChange(false);
     } catch (err: unknown) {
       const msg =
@@ -244,7 +293,10 @@ export function ShiftLoginModal({ open, onOpenChange, onConfirm }: ShiftLoginMod
             <MultiSelect
               options={queueOptions}
               value={queues}
-              onChange={setQueues}
+              onChange={(next) => {
+                setQueues(next);
+                setMicError(null);
+              }}
               placeholder={t('callcenter.softphone.selectQueues')}
             />
           </label>

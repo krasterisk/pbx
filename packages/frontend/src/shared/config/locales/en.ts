@@ -179,6 +179,10 @@ export const en = {
     natLan: 'LAN (no NAT)',
     natNat: 'NAT (behind router)',
     natWebrtc: 'WebRTC',
+    webrtcClient: 'WebRTC client',
+    webrtcClientHint: 'Allows calls in the browser (including the call-center softphone). Calls to this number ring both the phone and the browser.',
+    credSip: 'Phone / SIP',
+    credWebrtc: 'WebRTC',
     status: 'Status',
     callerid: 'Caller ID',
     sipCredentials: 'SIP Credentials',
@@ -347,6 +351,8 @@ export const en = {
     recordOff: 'Disabled',
     recordCalls: 'On answer',
     recordAllCalls: 'All calls (including unanswered)',
+    recordStereo: 'Stereo (separate channels)',
+    recordStereoTooltip: 'Incoming and outgoing audio are recorded on separate stereo tracks.',
     checkBlacklist: 'Check Blacklist',
     checkListbook: 'Name from phonebook',
     preCommand: 'Pre-dial command',
@@ -453,10 +459,17 @@ export const en = {
       notify: {
         selectIntegration: 'Select integration',
         message: 'Message template',
+        messageWebhook: 'Notification text',
+        messageWebhookPh: 'Incoming call from ${CALLERID(num)}',
+        messageWebhookHint:
+          'Text that will be substituted into {{message}} in the webhook integration JSON format.\n\nAsterisk variables:\n${CALLERID(num)} — caller number\n${CALLERID(name)} — caller name\n${EXTEN} — dialed number\n${DIALSTATUS} — dial status\n${CDR(duration)} — call duration\n${UNIQUEID} — call ID\n\nConfigure the JSON body (CRM fields) in the webhook integration, not here.',
         applyPreset: 'Presets',
         target: 'Target override (optional)',
+        targetPh: 'chat_id / email / …',
+        targetHint:
+          'Optional. For Telegram — another chat_id, for email — another address, for WhatsApp/MAX/VK — another recipient. Not used for webhook: JSON body is configured in the integration.',
         varsHint:
-          'Asterisk channel variables:\n${CALLERID(num)} - caller number\n${CALLERID(name)} - caller name\n${EXTEN} - dialed number\n${DIALSTATUS} - dial status\n${CDR(duration)} - call duration\n${UNIQUEID} - call ID',
+          'Asterisk channel variables:\n${CALLERID(num)} — caller number\n${CALLERID(name)} — caller name\n${EXTEN} — dialed number\n${DIALSTATUS} — dial status\n${CDR(duration)} — call duration\n${UNIQUEID} — call ID',
         presets: {
           incomingCall: 'Incoming call',
           missedCall: 'Missed call',
@@ -769,6 +782,8 @@ export const en = {
     channel: 'Channel',
     selectChannel: 'Select channel',
     secretKeepHint: 'Leave blank to keep the current value',
+    webhookAuthTitle: 'Webhook authorization',
+    webhookAuthHint: 'Authorization headers are stored encrypted and added by the server when sending the request to your URL.',
     channels: {
       telegram: 'Telegram',
       email: 'Email',
@@ -784,7 +799,7 @@ export const en = {
       phone_number_id: 'Phone Number ID',
       access_token: 'Access Token',
       url: 'Webhook URL',
-      payload_template: 'Payload Template',
+      payload_template: 'JSON body format',
       user_id: 'User ID',
       peer_id: 'Peer ID',
     },
@@ -794,13 +809,16 @@ export const en = {
       to: 'Default recipient email address for notifications sent through this integration.',
       phone_number_id: 'WhatsApp Business phone number ID from Meta Developer Console.',
       whatsapp_access_token: 'Permanent access token from Meta for WhatsApp Cloud API.',
-      url: 'HTTPS endpoint that will receive POST requests with notification payloads.',
-      payload_template: 'Optional JSON template with placeholders such as {{message}} and {{target}}.',
+      url: 'HTTPS URL of your service. The server will POST JSON there when a route Notify action fires.',
+      payload_template:
+        'Optional. A JSON object — the request body shape for your API.\nPlaceholders are filled at call time:\n{{message}} — text from the route Notify action\n{{clid}} — caller number\n{{exten}} — dialed number\n{{uniqueid}} — call ID\n\nExample:\n{\n  "text": "{{message}}",\n  "caller": "{{clid}}",\n  "dialed": "{{exten}}"\n}\n\nIf empty, the default is sent: { message, clid, exten, uniqueid }.\nThis is not the message text — set the text in the route Notify action.',
       max_access_token: 'MasterBot access token from MAX platform for sending messages.',
       user_id: 'MAX user or chat ID that will receive notification messages.',
       vk_access_token: 'VK community access token with messages permission.',
       peer_id: 'VK peer_id of the user or chat to receive messages.',
     },
+    payloadTemplateInvalid: 'JSON body format must be a valid object (e.g. { "text": "{{message}}" }).',
+    payloadTemplatePh: '{\n  "text": "{{message}}",\n  "caller": "{{clid}}",\n  "dialed": "{{exten}}"\n}',
   },
 
   ivrs: {
@@ -2292,6 +2310,7 @@ export const en = {
       modeWebrtcDesc: 'Calls in the browser via headset',
       selectExtension: 'Extension',
       selectQueues: 'Queues',
+      queuesRequired: 'Select at least one queue to start the shift',
       microphone: 'Microphone',
       speaker: 'Speaker',
       micLevel: 'Microphone level',

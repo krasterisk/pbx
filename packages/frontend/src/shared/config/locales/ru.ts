@@ -173,6 +173,10 @@ export const ru = {
     natLan: 'LAN (без NAT)',
     natNat: 'NAT (за роутером)',
     natWebrtc: 'WebRTC',
+    webrtcClient: 'WebRTC-клиент',
+    webrtcClientHint: 'Позволяет принимать и совершать звонки через браузер (в том числе softphone в call-центре). Звонки на номер идут параллельно на телефон и в браузер.',
+    credSip: 'Телефон / SIP',
+    credWebrtc: 'WebRTC',
     status: 'Статус',
     callerid: 'Caller ID',
     sipCredentials: 'SIP Credentials',
@@ -347,6 +351,8 @@ export const ru = {
     recordOff: 'Не записывать',
     recordCalls: 'При соединении',
     recordAllCalls: 'Все вызовы (включая без соединения)',
+    recordStereo: 'Стерео (раздельные каналы)',
+    recordStereoTooltip: 'Входящий и исходящий аудиопоток записываются в отдельные дорожки стереофайла.',
     checkBlacklist: 'Проверять Blacklist',
     checkListbook: 'Имя из справочника',
     preCommand: 'Предварительная команда',
@@ -456,10 +462,17 @@ export const ru = {
       notify: {
         selectIntegration: 'Выберите интеграцию',
         message: 'Шаблон сообщения',
+        messageWebhook: 'Текст уведомления',
+        messageWebhookPh: 'Входящий звонок от ${CALLERID(num)}',
+        messageWebhookHint:
+          'Текст, который подставится в {{message}} в формате JSON интеграции webhook.\n\nПеременные Asterisk:\n${CALLERID(num)} — номер звонящего\n${CALLERID(name)} — имя\n${EXTEN} — набранный номер\n${DIALSTATUS} — статус набора\n${CDR(duration)} — длительность\n${UNIQUEID} — ID звонка\n\nФорму JSON (поля CRM) настраивайте в интеграции webhook, не здесь.',
         applyPreset: 'Пресеты',
         target: 'Переопределение получателя (опц.)',
+        targetPh: 'chat_id / email / …',
+        targetHint:
+          'Необязательно. Для Telegram — другой chat_id, для email — другой адрес, для WhatsApp/MAX/VK — другой получатель. Для webhook это поле не используется: форма JSON настраивается в интеграции.',
         varsHint:
-          'Переменные Asterisk:\n${CALLERID(num)} - номер звонящего\n${CALLERID(name)} - имя звонящего\n${EXTEN} - набранный номер\n${DIALSTATUS} - статус набора\n${CDR(duration)} - длительность\n${UNIQUEID} - ID звонка',
+          'Переменные Asterisk:\n${CALLERID(num)} — номер звонящего\n${CALLERID(name)} — имя звонящего\n${EXTEN} — набранный номер\n${DIALSTATUS} — статус набора\n${CDR(duration)} — длительность\n${UNIQUEID} — ID звонка',
         presets: {
           incomingCall: 'Входящий звонок',
           missedCall: 'Пропущенный звонок',
@@ -1023,6 +1036,8 @@ export const ru = {
     channel: 'Канал',
     selectChannel: 'Выберите канал',
     secretKeepHint: 'Оставьте пустым, чтобы сохранить текущее значение',
+    webhookAuthTitle: 'Авторизация вебхука',
+    webhookAuthHint: 'Заголовки авторизации хранятся в зашифрованном виде и добавляются сервером при отправке запроса на ваш URL.',
     channels: {
       telegram: 'Telegram',
       email: 'Email',
@@ -1038,7 +1053,7 @@ export const ru = {
       phone_number_id: 'Phone Number ID',
       access_token: 'Access Token',
       url: 'URL webhook',
-      payload_template: 'Шаблон payload',
+      payload_template: 'Формат JSON (тело запроса)',
       user_id: 'User ID',
       peer_id: 'Peer ID',
     },
@@ -1048,13 +1063,16 @@ export const ru = {
       to: 'Email получателя по умолчанию для уведомлений через эту интеграцию.',
       phone_number_id: 'ID номера WhatsApp Business из Meta Developer Console.',
       whatsapp_access_token: 'Постоянный access token Meta для WhatsApp Cloud API.',
-      url: 'HTTPS endpoint, который будет получать POST-запросы с payload уведомлений.',
-      payload_template: 'Необязательный JSON-шаблон с плейсхолдерами {{message}} и {{target}}.',
+      url: 'HTTPS URL вашего сервиса. Сервер отправит туда POST с JSON при срабатывании действия «Уведомление» в маршруте.',
+      payload_template:
+        'Необязательно. JSON-объект — форма тела запроса под ваш API.\nПлейсхолдеры подставляются в момент звонка:\n{{message}} — текст из действия Notify в маршруте\n{{clid}} — номер звонящего\n{{exten}} — набранный номер\n{{uniqueid}} — ID звонка\n\nПример:\n{\n  "text": "{{message}}",\n  "caller": "{{clid}}",\n  "dialed": "{{exten}}"\n}\n\nЕсли поле пустое, уйдёт дефолт: { message, clid, exten, uniqueid }.\nЭто не текст сообщения — текст задаётся в маршруте (действие Notify).',
       max_access_token: 'Access token MasterBot платформы MAX для отправки сообщений.',
       user_id: 'User ID или chat ID получателя в MAX.',
       vk_access_token: 'Access token сообщества VK с правом messages.',
       peer_id: 'peer_id пользователя или чата VK для получения сообщений.',
     },
+    payloadTemplateInvalid: 'Формат JSON должен быть валидным объектом (например { "text": "{{message}}" }).',
+    payloadTemplatePh: '{\n  "text": "{{message}}",\n  "caller": "{{clid}}",\n  "dialed": "{{exten}}"\n}',
   },
 
   // Reports
@@ -2341,6 +2359,7 @@ export const ru = {
       modeWebrtcDesc: 'Звонки прямо в браузере через гарнитуру',
       selectExtension: 'Добавочный',
       selectQueues: 'Очереди',
+      queuesRequired: 'Выберите хотя бы одну очередь для начала смены',
       microphone: 'Микрофон',
       speaker: 'Динамик',
       micLevel: 'Уровень микрофона',
