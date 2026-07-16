@@ -86,7 +86,7 @@ Each task was committed atomically:
 2. **Task 2: ModuleHub widget route 002-E** - `298a4d6` (feat)
 3. **Task 3: ModuleShell topbar + tabs; retire Sidebar primary** - `f0a8f08` (feat)
 
-**Plan metadata:** (docs commit after SUMMARY)
+**Plan metadata:** `99a87fd` (docs: complete plan)
 
 ## Files Created/Modified
 
