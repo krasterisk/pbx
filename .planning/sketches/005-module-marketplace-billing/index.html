@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sketch 005 — Marketplace & billing skeleton</title>
+  <link rel="stylesheet" href="../themes/default.css" />
+  <style>
+    body { padding-top: 52px; padding-bottom: 48px; min-height: 100vh; }
+    #variant-nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 9998;
+      background: var(--color-surface); border-bottom: 1px solid var(--color-border);
+      padding: 10px 16px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+    }
+    .variant-tab {
+      padding: 8px 14px; border: 1px solid var(--color-border); border-radius: var(--radius-md);
+      background: var(--color-surface); color: var(--color-text); cursor: pointer; font-size: var(--text-sm);
+    }
+    .variant-tab.active {
+      background: var(--color-indigo-muted); border-color: var(--color-indigo); color: var(--color-indigo);
+    }
+    #variant-nav .hint { margin-left: auto; font-size: var(--text-xs); color: var(--color-text-muted); }
+    .variant { display: none; max-width: 720px; margin: 0 auto; padding: 24px 20px 80px; }
+    .variant.active { display: block; }
+
+    h1 { margin: 0 0 4px; font-size: 1.35rem; }
+    .sub { margin: 0 0 20px; font-size: var(--text-sm); color: var(--color-text-muted); }
+    .section-label {
+      font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em;
+      color: var(--color-text-muted); margin: 20px 0 8px;
+    }
+    .row {
+      display: flex; align-items: center; gap: 12px; width: 100%; padding: 14px 0;
+      border: none; border-bottom: 1px solid var(--color-border); background: transparent;
+      color: var(--color-text); text-align: left; cursor: pointer; font: inherit;
+    }
+    .row:hover { background: rgba(255,255,255,0.03); }
+    .ico {
+      width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center;
+      background: var(--color-indigo-muted); color: var(--color-indigo); flex-shrink: 0;
+    }
+    .meta { flex: 1; min-width: 0; }
+    .meta strong { display: block; font-size: 14px; }
+    .meta span { font-size: 12px; color: var(--color-text-muted); }
+    .pill {
+      font-size: 10px; padding: 3px 8px; border-radius: 999px; white-space: nowrap;
+      background: rgba(255,255,255,0.06); color: var(--color-text-muted);
+    }
+    .pill.lock { background: rgba(251,191,36,0.12); color: #fbbf24; }
+    .pill.off { background: rgba(239,68,68,0.12); color: #f87171; }
+    .pill.on { background: rgba(34,197,94,0.15); color: #4ade80; }
+    .row.ghost { opacity: 0.78; }
+    .row.ghost .ico { filter: grayscale(0.5); }
+
+    .btn {
+      padding: 10px 16px; border-radius: 8px; border: none; cursor: pointer;
+      font-size: var(--text-sm); font-weight: 500;
+    }
+    .btn-primary { background: var(--color-primary); color: #fff; box-shadow: var(--shadow-primary); }
+    .btn-ghost { background: transparent; border: 1px solid var(--color-border); color: var(--color-text); }
+    .btn:disabled { opacity: 0.5; cursor: wait; }
+
+    .overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 80;
+      display: none; align-items: flex-end; justify-content: center;
+    }
+    .overlay.center { align-items: center; }
+    .overlay.open { display: flex; }
+    .sheet, .modal {
+      width: min(440px, 100%); background: var(--color-surface-elevated);
+      border: 1px solid var(--color-border); box-shadow: var(--shadow-lg);
+    }
+    .sheet { border-radius: 16px 16px 0 0; padding: 8px 20px 24px; max-height: 85vh; overflow: auto; }
+    .modal { border-radius: 14px; padding: 20px; margin: 16px; max-height: 85vh; overflow: auto; }
+    .handle { width: 40px; height: 4px; border-radius: 999px; background: var(--color-border); margin: 8px auto 14px; }
+    .sheet h2, .modal h2 { margin: 0 0 6px; font-size: 1.15rem; }
+    .sheet p, .modal p { margin: 0 0 14px; font-size: var(--text-sm); color: var(--color-text-muted); }
+    .plan {
+      display: flex; gap: 10px; padding: 12px; border-radius: 10px; border: 1px solid var(--color-border);
+      margin-bottom: 10px; cursor: pointer; background: var(--color-surface);
+    }
+    .plan.selected { border-color: var(--color-indigo); background: var(--color-indigo-muted); }
+    .plan strong { display: block; }
+    .plan span { font-size: 12px; color: var(--color-text-muted); }
+    .actions { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+    .steps { display: flex; gap: 8px; margin-bottom: 14px; font-size: 11px; color: var(--color-text-muted); }
+    .steps .on { color: var(--color-indigo); font-weight: 600; }
+    .success { text-align: center; padding: 20px 8px; }
+    .success .big { font-size: 40px; margin-bottom: 8px; }
+
+    .market-card {
+      border: 1px dashed rgba(99,102,241,0.4); border-radius: 12px; padding: 14px;
+      margin-bottom: 10px; background: rgba(99,102,241,0.06); cursor: pointer;
+    }
+    .market-card:hover { background: rgba(99,102,241,0.1); }
+    .features { margin: 0 0 14px; padding-left: 18px; font-size: 13px; color: var(--color-text-muted); }
+    .price { font-size: 1.25rem; font-weight: 700; margin-bottom: 4px; }
+
+    .toast {
+      position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%);
+      background: var(--color-surface-elevated); border: 1px solid var(--color-border);
+      padding: 10px 16px; border-radius: 10px; font-size: var(--text-sm);
+      opacity: 0; pointer-events: none; transition: opacity 0.2s; z-index: 90;
+    }
+    .toast.show { opacity: 1; }
+  </style>
+</head>
+<body>
+  <div id="variant-nav">
+    <button type="button" class="variant-tab active" data-v="a">A: Inline Locked + sheet</button>
+    <button type="button" class="variant-tab" data-v="b">B: Marketplace section</button>
+    <button type="button" class="variant-tab" data-v="c">C: Modal store card</button>
+    <span class="hint">005 · billing skeleton · Hub E list</span>
+  </div>
+
+  <div id="variant-a" class="variant active"></div>
+  <div id="variant-b" class="variant"></div>
+  <div id="variant-c" class="variant"></div>
+
+  <div class="overlay" id="overlay-sheet">
+    <div class="sheet" id="sheet-body"></div>
+  </div>
+  <div class="overlay center" id="overlay-modal">
+    <div class="modal" id="modal-body"></div>
+  </div>
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const state = {
+      modules: [
+        { id: 'overview', name: 'Обзор', desc: 'Сводка тенанта', icon: '◈', license: 'active' },
+        { id: 'core', name: 'Core / PBX', desc: 'Endpoints, routes…', icon: '☎', license: 'active' },
+        { id: 'apps', name: 'Apps', desc: 'IVR, MOH, queues', icon: '▦', license: 'active' },
+        { id: 'system', name: 'System', desc: 'Users, roles', icon: '⚙', license: 'active' },
+        { id: 'cc', name: 'Call Center', desc: 'Agent · Supervisor · Reports', icon: '◉', license: 'locked', price: '4 990 ₽/мес', features: ['АРМ оператора', 'Wallboard', 'WebRTC softphone'] },
+        { id: 'analytics', name: 'Analytics', desc: 'CDR · отчёты · audit', icon: '▣', license: 'locked', price: '2 490 ₽/мес', features: ['CDR export', 'Heatmaps', 'Scheduled reports'] },
+        { id: 'ai', name: 'AI Bots', desc: 'Голосовые ассистенты', icon: '✦', license: 'locked', price: 'от 9 990 ₽/мес', features: ['Voice bots', 'MCP tools', 'Transcripts'] },
+        { id: 'legacy', name: 'Legacy Sync', desc: 'Выключено admin тенанта', icon: '⊘', license: 'disabled' },
+      ],
+      plan: 'monthly',
+      step: 1,
+    };
+
+    function toast(msg) {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.classList.add('show');
+      clearTimeout(toast._t);
+      toast._t = setTimeout(() => el.classList.remove('show'), 1500);
+    }
+
+    function pill(lic) {
+      if (lic === 'locked') return '<span class="pill lock">🔒 Locked</span>';
+      if (lic === 'disabled') return '<span class="pill off">Disabled</span>';
+      return '<span class="pill on">Active</span>';
+    }
+
+    function row(m, ghost) {
+      return `<button type="button" class="row ${ghost || m.license === 'locked' ? 'ghost' : ''}" data-mod="${m.id}">
+        <span class="ico">${m.icon}</span>
+        <span class="meta"><strong>${m.name}</strong><span>${m.desc}</span></span>
+        ${pill(m.license)}
+      </button>`;
+    }
+
+    function renderA(root) {
+      const active = state.modules.filter((m) => m.license === 'active' || m.license === 'disabled');
+      const locked = state.modules.filter((m) => m.license === 'locked');
+      root.innerHTML = `
+        <h1>Модули</h1>
+        <p class="sub">A · Locked inline в том же списке · tap → checkout sheet</p>
+        <div class="section-label">Ваши модули</div>
+        ${active.map((m) => row(m)).join('')}
+        <div class="section-label">Доступно в marketplace</div>
+        ${locked.map((m) => row(m, true)).join('')}
+      `;
+      bindRows(root, 'sheet');
+    }
+
+    function renderB(root) {
+      const active = state.modules.filter((m) => m.license !== 'locked');
+      const locked = state.modules.filter((m) => m.license === 'locked');
+      root.innerHTML = `
+        <h1>Модули</h1>
+        <p class="sub">B · отдельная секция Marketplace под Active</p>
+        <div class="section-label">Active</div>
+        ${active.map((m) => row(m)).join('')}
+        <div class="section-label">Marketplace</div>
+        ${locked.map((m) => `
+          <div class="market-card" data-mod="${m.id}">
+            <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start">
+              <div><strong>${m.icon} ${m.name}</strong><div style="font-size:12px;color:var(--color-text-muted);margin-top:4px">${m.desc}</div></div>
+              <div style="text-align:right"><div class="price" style="font-size:14px">${m.price}</div>
+              <button type="button" class="btn btn-primary" style="margin-top:6px;padding:6px 10px" data-buy="${m.id}">Купить</button></div>
+            </div>
+          </div>`).join('')}
+      `;
+      bindRows(root, 'sheet');
+      root.querySelectorAll('[data-buy]').forEach((b) => {
+        b.addEventListener('click', (e) => {
+          e.stopPropagation();
+          openCheckout(b.dataset.buy, 'sheet');
+        });
+      });
+    }
+
+    function renderC(root) {
+      const active = state.modules.filter((m) => m.license !== 'locked');
+      const locked = state.modules.filter((m) => m.license === 'locked');
+      root.innerHTML = `
+        <h1>Модули</h1>
+        <p class="sub">C · rich modal store card · multi-step checkout</p>
+        <div class="section-label">Active</div>
+        ${active.map((m) => row(m)).join('')}
+        <div class="section-label">Locked</div>
+        ${locked.map((m) => row(m, true)).join('')}
+      `;
+      bindRows(root, 'modal');
+    }
+
+    function bindRows(root, mode) {
+      root.querySelectorAll('[data-mod]').forEach((el) => {
+        el.addEventListener('click', () => {
+          const m = state.modules.find((x) => x.id === el.dataset.mod || el.getAttribute('data-mod'));
+          const id = el.dataset.mod || el.getAttribute('data-mod');
+          const mod = state.modules.find((x) => x.id === id);
+          if (!mod) return;
+          if (mod.license === 'active') toast('Enter → ' + mod.name);
+          else if (mod.license === 'disabled') toast('Disabled admin · smart fallback (не покупка)');
+          else openCheckout(mod.id, mode);
+        });
+      });
+    }
+
+    function openCheckout(id, mode) {
+      const m = state.modules.find((x) => x.id === id);
+      state.plan = 'monthly';
+      state.step = 1;
+      if (mode === 'modal') {
+        document.getElementById('overlay-modal').classList.add('open');
+        paintModal(m);
+      } else {
+        document.getElementById('overlay-sheet').classList.add('open');
+        paintSheet(m);
+      }
+    }
+
+    function paintSheet(m) {
+      const body = document.getElementById('sheet-body');
+      if (state.step === 3) {
+        body.innerHTML = `
+          <div class="handle"></div>
+          <div class="success">
+            <div class="big">✓</div>
+            <h2>${m.name} подключён</h2>
+            <p>Billing skeleton · licenseStatus → active (fake)</p>
+            <button type="button" class="btn btn-primary" data-close>Открыть модуль</button>
+          </div>`;
+        body.querySelector('[data-close]').onclick = () => {
+          m.license = 'active';
+          closeAll();
+          remount();
+          toast('Licensed → ' + m.name);
+        };
+        return;
+      }
+      if (state.step === 2) {
+        body.innerHTML = `
+          <div class="handle"></div>
+          <div class="steps"><span>1 План</span> → <span class="on">2 Подтверждение</span> → <span>3 Готово</span></div>
+          <h2>Подтвердите покупку</h2>
+          <p>${m.name} · ${state.plan === 'yearly' ? 'год (−20%)' : 'месяц'} · каркас биллинга (без реального платежа)</p>
+          <div class="actions">
+            <button type="button" class="btn btn-ghost" data-back>Назад</button>
+            <button type="button" class="btn btn-primary" data-pay>Оплатить (demo)</button>
+          </div>`;
+        body.querySelector('[data-back]').onclick = () => { state.step = 1; paintSheet(m); };
+        body.querySelector('[data-pay]').onclick = () => {
+          const btn = body.querySelector('[data-pay]');
+          btn.disabled = true; btn.textContent = 'Обработка…';
+          setTimeout(() => { state.step = 3; paintSheet(m); }, 700);
+        };
+        return;
+      }
+      body.innerHTML = `
+        <div class="handle"></div>
+        <div class="steps"><span class="on">1 План</span> → <span>2 Подтверждение</span> → <span>3 Готово</span></div>
+        <h2>${m.name}</h2>
+        <p>${m.desc}</p>
+        <ul class="features">${(m.features || []).map((f) => `<li>${f}</li>`).join('')}</ul>
+        <div class="plan ${state.plan === 'monthly' ? 'selected' : ''}" data-plan="monthly">
+          <div><strong>Ежемесячно</strong><span>${m.price}</span></div>
+        </div>
+        <div class="plan ${state.plan === 'yearly' ? 'selected' : ''}" data-plan="yearly">
+          <div><strong>Ежегодно</strong><span>−20% · каркас</span></div>
+        </div>
+        <div class="actions">
+          <button type="button" class="btn btn-ghost" data-close>Отмена</button>
+          <button type="button" class="btn btn-primary" data-next>Продолжить</button>
+        </div>`;
+      body.querySelectorAll('[data-plan]').forEach((el) => {
+        el.onclick = () => { state.plan = el.dataset.plan; paintSheet(m); };
+      });
+      body.querySelector('[data-close]').onclick = closeAll;
+      body.querySelector('[data-next]').onclick = () => { state.step = 2; paintSheet(m); };
+    }
+
+    function paintModal(m) {
+      const body = document.getElementById('modal-body');
+      if (state.step === 3) {
+        body.innerHTML = `
+          <div class="success">
+            <div class="big">✓</div>
+            <h2>Лицензия выдана</h2>
+            <p>${m.name} · billing skeleton success</p>
+            <button type="button" class="btn btn-primary" data-close>Готово</button>
+          </div>`;
+        body.querySelector('[data-close]').onclick = () => {
+          m.license = 'active'; closeAll(); remount(); toast('Licensed → ' + m.name);
+        };
+        return;
+      }
+      body.innerHTML = `
+        <div class="steps"><span class="on">Store card</span> → <span>Checkout</span></div>
+        <h2>${m.icon} ${m.name}</h2>
+        <div class="price">${m.price}</div>
+        <p>${m.desc}</p>
+        <ul class="features">${(m.features || []).map((f) => `<li>${f}</li>`).join('')}</ul>
+        <div class="plan selected"><div><strong>Tenant admin</strong><span>Покупка / enable · catalog правит super-admin (006)</span></div></div>
+        <div class="actions">
+          <button type="button" class="btn btn-ghost" data-close>Закрыть</button>
+          <button type="button" class="btn btn-primary" data-buy>Купить</button>
+        </div>`;
+      body.querySelector('[data-close]').onclick = closeAll;
+      body.querySelector('[data-buy]').onclick = () => {
+        state.step = 2;
+        // reuse sheet flow for confirm
+        document.getElementById('overlay-modal').classList.remove('open');
+        document.getElementById('overlay-sheet').classList.add('open');
+        paintSheet(m);
+      };
+    }
+
+    function closeAll() {
+      document.querySelectorAll('.overlay').forEach((o) => o.classList.remove('open'));
+    }
+    document.querySelectorAll('.overlay').forEach((o) => {
+      o.addEventListener('click', (e) => { if (e.target === o) closeAll(); });
+    });
+
+    function remount() {
+      const map = { a: renderA, b: renderB, c: renderC };
+      document.querySelectorAll('.variant').forEach((el) => {
+        const id = el.id.replace('variant-', '');
+        map[id](el);
+      });
+    }
+
+    document.querySelectorAll('.variant-tab').forEach((tab) => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.variant-tab').forEach((t) => t.classList.remove('active'));
+        tab.classList.add('active');
+        document.querySelectorAll('.variant').forEach((v) => v.classList.remove('active'));
+        document.getElementById('variant-' + tab.dataset.v).classList.add('active');
+      });
+    });
+
+    remount();
+  </script>
+</body>
+</html>
