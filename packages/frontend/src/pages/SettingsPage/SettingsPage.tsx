@@ -52,17 +52,23 @@ export function SettingsPage() {
   const { t } = useTranslation();
 
   return (
-    <VStack gap="32" max className={cls.page}>
+    <VStack
+      gap="32"
+      max
+      className={cls.page}
+      data-testid="settings-page-responsive"
+      data-stack="phone"
+    >
       {/* Header */}
-      <HStack gap="12" align="center">
+      <HStack gap="12" align="center" className="min-w-0">
         <Settings className={cls.pageIcon} />
-        <VStack gap="4">
+        <VStack gap="4" className="min-w-0">
           <Text variant="h1" className={cls.pageTitle}>{t('systemSettings.pageTitle')}</Text>
           <Text variant="small" className={cls.pageSubtitle}>{t('systemSettings.pageSubtitle')}</Text>
         </VStack>
       </HStack>
 
-      {/* Sections */}
+      {/* Sections — stacked forms for 360px (D-29) */}
       {SECTIONS.map((section, i) => {
         const Icon = section.icon;
         return (
@@ -73,15 +79,15 @@ export function SettingsPage() {
             transition={{ duration: 0.3, delay: i * 0.06 }}
             className={cls.section}
           >
-            <VStack gap="16">
-              <HStack gap="8" align="center" className={cls.sectionHeader}>
+            <VStack gap="16" className="min-w-0" max>
+              <HStack gap="8" align="center" className={`${cls.sectionHeader} min-w-0`}>
                 <Icon className={cls.sectionIcon} />
-                <VStack gap="2">
+                <VStack gap="2" className="min-w-0">
                   <Text className={cls.sectionTitle}>{t(section.titleKey)}</Text>
                   <Text variant="small" className={cls.sectionDesc}>{t(section.descKey)}</Text>
                 </VStack>
               </HStack>
-              {section.content}
+              <div className={cls.sectionBody}>{section.content}</div>
             </VStack>
           </motion.div>
         );
