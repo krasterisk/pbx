@@ -79,6 +79,20 @@ describe('ModuleShell (003-B)', () => {
     expect(screen.getByText('nav.trunks')).toBeInTheDocument();
   });
 
+  it('mounts offline banner chrome (D-35 banner+retry)', () => {
+    Object.defineProperty(navigator, 'onLine', {
+      configurable: true,
+      get: () => false,
+    });
+    render(
+      <MemoryRouter initialEntries={['/endpoints']}>
+        <ModuleShell />
+      </MemoryRouter>,
+    );
+    expect(screen.getByTestId('offline-banner')).toBeInTheDocument();
+    expect(screen.getByTestId('offline-banner-retry')).toBeInTheDocument();
+  });
+
   it('does not invent product tabs on Hub or Overview', () => {
     const { unmount } = render(
       <MemoryRouter initialEntries={['/modules']}>
