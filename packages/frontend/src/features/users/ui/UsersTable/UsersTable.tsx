@@ -3,7 +3,12 @@ import { useTranslation } from 'react-i18next';
 import { Shield, Search, Loader2, Trash2 } from 'lucide-react';
 import { Card, CardHeader, CardContent, Input, Button, DataTable } from '@/shared/ui';
 import { HStack, Flex } from '@/shared/ui/Stack';
-import { useGetUsersQuery, useGetRolesQuery, useBulkDeleteUsersMutation } from '@/shared/api/api';
+import {
+  useGetUsersQuery,
+  useGetRolesQuery,
+  useGetNumbersQuery,
+  useBulkDeleteUsersMutation,
+} from '@/shared/api/api';
 import type { IUser } from '@/entities/User';
 import { useUsersTableColumns } from './useUsersTableColumns';
 
@@ -11,6 +16,7 @@ export const UsersTable = memo(() => {
   const { t } = useTranslation();
   const { data: users = [], isLoading } = useGetUsersQuery();
   const { data: roles = [] } = useGetRolesQuery();
+  const { data: numbers = [] } = useGetNumbersQuery();
   const [bulkDelete, { isLoading: isDeleting }] = useBulkDeleteUsersMutation();
 
   const [globalFilter, setGlobalFilter] = useState('');
@@ -22,7 +28,13 @@ export const UsersTable = memo(() => {
     return map;
   }, [roles]);
 
-  const columns = useUsersTableColumns({ rolesMap });
+  const numbersMap = useMemo(() => {
+    const map: Record<number, string> = {};
+    numbers.forEach((n) => { map[n.id] = n.name; });
+    return map;
+  }, [numbers]);
+
+  const columns = useUsersTableColumns({ rolesMap, numbersMap });
 
   const selectedCount = Object.keys(rowSelection).length;
 
@@ -80,18 +92,20 @@ export const UsersTable = memo(() => {
             <Loader2 className="w-6 h-6 animate-spin text-primary" />
           </Flex>
         ) : (
-          <DataTable
-            data={users as IUser[]}
-            columns={columns}
-            getRowId={(row) => String(row.uniqueid)}
-            globalFilter={globalFilter}
-            selectable={true}
-            rowSelection={rowSelection}
-            onRowSelectionChange={setRowSelection}
-            pageSize={50}
-            emptyText={t('common.noData')}
-            exportFilename="users_export"
-          />
+          <div className="overflow-x-auto min-w-0" data-testid="users-table-scroll">
+            <DataTable
+              data={users as IUser[]}
+              columns={columns}
+              getRowId={(row) => String(row.uniqueid)}
+              globalFilter={globalFilter}
+              selectable={true}
+              rowSelection={rowSelection}
+              onRowSelectionChange={setRowSelection}
+              pageSize={50}
+              emptyText={t('common.noData')}
+              exportFilename="users_export"
+            />
+          </div>
         )}
       </CardContent>
     </Card>

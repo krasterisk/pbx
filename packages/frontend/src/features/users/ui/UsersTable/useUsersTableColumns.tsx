@@ -12,9 +12,10 @@ import type { IRole } from '@/shared/api/api';
 
 interface UseUsersTableColumnsProps {
   rolesMap: Record<number, string>;
+  numbersMap: Record<number, string>;
 }
 
-export const useUsersTableColumns = ({ rolesMap }: UseUsersTableColumnsProps) => {
+export const useUsersTableColumns = ({ rolesMap, numbersMap }: UseUsersTableColumnsProps) => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const [deleteUser] = useDeleteUserMutation();
@@ -35,13 +36,13 @@ export const useUsersTableColumns = ({ rolesMap }: UseUsersTableColumnsProps) =>
       accessorKey: 'exten',
       header: t('peers.exten'),
       cell: (info) => (
-        <span className="text-primary font-mono">{(info.getValue() as string) || '—'}</span>
+        <span className="text-primary font-mono">{(info.getValue() as string) || '-'}</span>
       ),
     },
     {
       accessorKey: 'email',
       header: 'Email',
-      cell: (info) => (info.getValue() as string) || '—',
+      cell: (info) => (info.getValue() as string) || '-',
     },
     {
       accessorKey: 'level',
@@ -53,7 +54,16 @@ export const useUsersTableColumns = ({ rolesMap }: UseUsersTableColumnsProps) =>
       header: t('users.role'),
       cell: (info) => {
         const roleId = info.getValue() as number;
-        return rolesMap[roleId] || '—';
+        return rolesMap[roleId] || '-';
+      },
+    },
+    {
+      accessorKey: 'numbers_id',
+      header: t('users.numbersId'),
+      cell: (info) => {
+        const id = info.getValue() as number | undefined;
+        if (!id) return '-';
+        return numbersMap[id] || String(id);
       },
     },
     {
@@ -82,5 +92,5 @@ export const useUsersTableColumns = ({ rolesMap }: UseUsersTableColumnsProps) =>
         </HStack>
       ),
     },
-  ], [t, rolesMap, dispatch, deleteUser]);
+  ], [t, rolesMap, numbersMap, dispatch, deleteUser]);
 };

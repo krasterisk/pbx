@@ -2,3 +2,4 @@ export { numbersPageSlice, numbersPageActions, numbersPageReducer } from './mode
 export type { NumbersPageSchema } from './model/types/numbersPageSchema';
 export { getNumbersPageIsModalOpen, getNumbersPageSelectedNumber, getNumbersPageModalMode } from './model/selectors/numbersPageSelectors';
 export { NumbersTable } from './ui/NumbersTable';
+export { NumberFormModal } from './ui/NumberFormModal/NumberFormModal';

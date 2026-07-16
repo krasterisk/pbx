@@ -9,7 +9,12 @@ export type { IUser, IUserSafe, ICreateUser, IUpdateUser } from './model/types/u
 export { UserLevel } from './model/types/user';
 
 // Constants
-export { LEVEL_COLORS, LEVEL_I18N_KEYS, LEVEL_OPTIONS } from './model/consts/userConsts';
+export {
+  LEVEL_COLORS,
+  LEVEL_I18N_KEYS,
+  LEVEL_OPTIONS,
+  PLATFORM_LEVEL_OPTIONS,
+} from './model/consts/userConsts';
 
 // Selectors
 export {
@@ -17,6 +22,7 @@ export {
   selectUserLevel,
   selectIsAdmin,
   selectIsSupervisor,
+  selectIsSuperAdmin,
 } from './model/selectors/userSelectors';
 
 // UI Components

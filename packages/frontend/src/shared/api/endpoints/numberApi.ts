@@ -1,10 +1,12 @@
 import { rtkApi } from '../rtkApi';
 
-// TODO: Add proper types from @krasterisk/shared when INumberList is defined
+/** Access list (numbers table). `numbers` JSON scopes queues/operators/CDR visibility. */
 export interface INumberList {
   id: number;
   name: string;
+  comment?: string;
   description?: string;
+  numbers?: unknown;
 }
 
 const numberApi = rtkApi.injectEndpoints({

@@ -1057,6 +1057,7 @@ export const en = {
     levelSupervisor: 'Supervisor',
     levelReadonly: 'Readonly',
     levelSuperadmin: 'SuperAdmin',
+    pageHint: 'Manage System users, access profiles, and Numbers list linkage.',
     role: 'Access profile',
     roleNone: 'No profile',
     roleHint: 'Access profile controls Hub module and page grants.',
@@ -1091,6 +1092,18 @@ export const en = {
     grantsHint: 'Checked pages become available when a user is assigned this profile.',
     selectAll: 'Select all',
     selectModule: 'Select all pages in {{module}}',
+  },
+
+  // Access lists (numbers)
+  numbers: {
+    add: 'Add access list',
+    edit: 'Edit access list',
+    name: 'List name',
+    comment: 'Comment',
+    pageHint: 'Visibility lists for queues, operators, and CDR scopes (JSON model kept).',
+    jsonLabel: 'Access list JSON',
+    jsonHint: 'Keep queues / operators / cdr arrays. Used by CC and reports visibility.',
+    jsonInvalid: 'Invalid JSON',
   },
 
   // Provision Templates

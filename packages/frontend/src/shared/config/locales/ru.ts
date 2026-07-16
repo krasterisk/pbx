@@ -1128,6 +1128,7 @@ export const ru = {
     levelSupervisor: 'Супервизор',
     levelReadonly: 'Readonly',
     levelSuperadmin: 'SuperAdmin',
+    pageHint: 'Пользователи модуля Система: профили доступа и привязка к спискам Numbers.',
     role: 'Профиль доступа',
     roleNone: 'Без профиля',
     roleHint: 'Профиль доступа задаёт гранты на модули и страницы Hub.',
@@ -1162,6 +1163,18 @@ export const ru = {
     grantsHint: 'Отмеченные страницы станут доступны пользователю с этим профилем.',
     selectAll: 'Выбрать все',
     selectModule: 'Выбрать все страницы в {{module}}',
+  },
+
+  // Списки доступа (numbers)
+  numbers: {
+    add: 'Добавить список доступа',
+    edit: 'Редактировать список доступа',
+    name: 'Название списка',
+    comment: 'Комментарий',
+    pageHint: 'Списки видимости очередей, операторов и CDR (модель JSON сохраняется).',
+    jsonLabel: 'JSON списка доступа',
+    jsonHint: 'Оставьте массивы queues / operators / cdr. Используются для видимости КЦ и отчётов.',
+    jsonInvalid: 'Некорректный JSON',
   },
 
   // Provision Templates

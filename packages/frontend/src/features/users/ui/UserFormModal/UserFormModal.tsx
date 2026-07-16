@@ -7,7 +7,11 @@ import { useCreateUserMutation, useUpdateUserMutation, useGetNumbersQuery, useGe
 import { useAppSelector, useAppDispatch } from '@/shared/hooks/useAppStore';
 import { selectIsModalOpen, selectSelectedUser } from '../../model/selectors/usersPageSelectors';
 import { usersPageActions } from '../../model/slice/usersPageSlice';
-import { LEVEL_OPTIONS } from '@/entities/User';
+import {
+  LEVEL_OPTIONS,
+  PLATFORM_LEVEL_OPTIONS,
+  selectIsSuperAdmin,
+} from '@/entities/User';
 import type { IUser } from '@/entities/User';
 
 export const UserFormModal = () => {
@@ -16,6 +20,7 @@ export const UserFormModal = () => {
 
   const isOpen = useAppSelector(selectIsModalOpen);
   const selectedUser = useAppSelector(selectSelectedUser);
+  const isSuperAdmin = useAppSelector(selectIsSuperAdmin);
   const isEditing = !!selectedUser;
 
   const onClose = () => dispatch(usersPageActions.closeModal());
@@ -118,7 +123,8 @@ export const UserFormModal = () => {
     }
   };
 
-  const levelOptions = LEVEL_OPTIONS.map((opt) => ({
+  const levelSource = isSuperAdmin ? PLATFORM_LEVEL_OPTIONS : LEVEL_OPTIONS;
+  const levelOptions = levelSource.map((opt) => ({
     value: opt.value,
     label: t(opt.i18nKey),
   }));
@@ -242,11 +248,17 @@ export const UserFormModal = () => {
                 </VStack>
 
                 <VStack gap="8" className="flex-1" max>
-                  <label className="text-sm font-medium text-muted-foreground">{t('users.role')}</label>
+                  <label
+                    className="text-sm font-medium text-muted-foreground"
+                    title={t('users.roleHint')}
+                  >
+                    {t('users.role')}
+                  </label>
                   <select
                     className="flex h-9 w-full rounded-md border border-input bg-background/50 px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring focus-visible:border-transparent"
                     value={formData.role}
                     onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                    aria-describedby="user-role-hint"
                   >
                     <option value="" className="bg-background text-foreground">{t('users.roleNone')}</option>
                     {roles.map((r: any) => (
@@ -255,8 +267,36 @@ export const UserFormModal = () => {
                       </option>
                     ))}
                   </select>
+                  <span id="user-role-hint" className="text-xs text-muted-foreground">
+                    {t('users.roleHint')}
+                  </span>
                 </VStack>
               </HStack>
+
+              <VStack gap="8" max>
+                <label
+                  className="text-sm font-medium text-muted-foreground"
+                  title={t('users.numbersIdLinkHint')}
+                >
+                  {t('users.numbersId')}
+                </label>
+                <select
+                  className="flex h-9 w-full rounded-md border border-input bg-background/50 px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  value={formData.numbers_id}
+                  onChange={(e) => setFormData({ ...formData, numbers_id: e.target.value })}
+                  aria-describedby="user-numbers-hint"
+                >
+                  <option value="" className="bg-background text-foreground">{t('users.numbersIdNone')}</option>
+                  {numbersList.map((n: any) => (
+                    <option key={n.id} value={n.id} className="bg-background text-foreground">
+                      {n.name}
+                    </option>
+                  ))}
+                </select>
+                <span id="user-numbers-hint" className="text-xs text-muted-foreground">
+                  {t('users.numbersIdLinkHint')}
+                </span>
+              </VStack>
             </VStack>
           )}
 
@@ -271,24 +311,6 @@ export const UserFormModal = () => {
                   onChange={(e) => setFormData({ ...formData, permit_extens: e.target.value })}
                   placeholder={t('users.permitExtensPlaceholder')}
                 />
-              </VStack>
-
-              <VStack gap="8" max>
-                <label className="text-sm font-medium text-muted-foreground" title={t('users.numbersIdHint')}>
-                  {t('users.numbersId')}
-                </label>
-                <select
-                  className="flex h-9 w-full rounded-md border border-input bg-background/50 px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                  value={formData.numbers_id}
-                  onChange={(e) => setFormData({ ...formData, numbers_id: e.target.value })}
-                >
-                  <option value="" className="bg-background text-foreground">{t('users.numbersIdNone')}</option>
-                  {numbersList.map((n: any) => (
-                    <option key={n.id} value={n.id} className="bg-background text-foreground">
-                      {n.name}
-                    </option>
-                  ))}
-                </select>
               </VStack>
 
               <HStack gap="16" max className="grid grid-cols-1 sm:flex">

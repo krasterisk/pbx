@@ -33,3 +33,12 @@ export const LEVEL_OPTIONS = [
   { value: UserLevel.SUPERVISOR, i18nKey: 'users.levelSupervisor' },
   { value: UserLevel.READONLY, i18nKey: 'users.levelReadonly' },
 ] as const;
+
+/**
+ * Includes SUPERADMIN for platform-aware Users UI (D-20 / D-21).
+ * Use when the acting user is SUPERADMIN; tenant admins keep LEVEL_OPTIONS.
+ */
+export const PLATFORM_LEVEL_OPTIONS = [
+  { value: UserLevel.SUPERADMIN, i18nKey: 'users.levelSuperadmin' },
+  ...LEVEL_OPTIONS,
+] as const;
