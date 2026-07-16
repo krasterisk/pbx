@@ -65,7 +65,7 @@ Each task was committed atomically:
 1. **Task 1: CallerIdApp — single mode hint via InfoTooltip on mode row** - `b9d09a3` (fix)
 2. **Task 2: TrunkCarouselApp — single app hint via InfoTooltip on label row** - `c21ac79` (fix)
 
-**Plan metadata:** (see docs commit after self-check)
+**Plan metadata:** `0bfc1d5` (docs: complete plan)
 
 ## Files Created/Modified
 
