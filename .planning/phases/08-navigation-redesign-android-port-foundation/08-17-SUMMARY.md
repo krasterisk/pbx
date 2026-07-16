@@ -79,7 +79,7 @@ Each task was committed atomically (TDD RED → GREEN):
 3. **Task 2 RED:** `1433e6c` (test) — ServiceRequests + AiAgents failing smokes
 4. **Task 2 GREEN:** `f0e97e3` (feat) — ServiceRequests/AiAgents hybrid responsive
 
-**Plan metadata:** see docs commit after this SUMMARY
+**Plan metadata:** `998c423` (docs: complete plan)
 
 ## Files Created/Modified
 
