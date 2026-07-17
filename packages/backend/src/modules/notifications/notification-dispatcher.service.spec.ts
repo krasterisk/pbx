@@ -60,7 +60,6 @@ describe('NotificationDispatcherService', () => {
   it.each([
     ['email', () => email],
     ['whatsapp', () => whatsapp],
-    ['webhook', () => webhook],
     ['max', () => max],
     ['vk', () => vk],
   ] as const)('routes %s to its provider', async (channel, getProvider) => {
@@ -74,6 +73,24 @@ describe('NotificationDispatcherService', () => {
       expect.objectContaining({ channel }),
       't',
       'm',
+    );
+  });
+
+  it('routes webhook with call metadata as extraVars', async () => {
+    mockInteg('webhook');
+    await dispatcher.dispatch({
+      integration_uid: 3,
+      message: 'm',
+      target: 't',
+      clid: '7900',
+      exten: '100',
+      uniqueid: 'u1',
+    });
+    expect(webhook.send).toHaveBeenCalledWith(
+      expect.objectContaining({ channel: 'webhook' }),
+      't',
+      'm',
+      { clid: '7900', exten: '100', uniqueid: 'u1' },
     );
   });
 

@@ -5,11 +5,13 @@ import { CallGroupMember } from './call-group-member.model';
 import { CallGroupsController } from './call-groups.controller';
 import { CallGroupsService } from './call-groups.service';
 import { AmiModule } from '../ami/ami.module';
+import { EndpointsModule } from '../endpoints/endpoints.module';
 
 @Module({
   imports: [
     SequelizeModule.forFeature([CallGroup, CallGroupMember]),
     AmiModule,
+    EndpointsModule,
   ],
   controllers: [CallGroupsController],
   providers: [CallGroupsService],

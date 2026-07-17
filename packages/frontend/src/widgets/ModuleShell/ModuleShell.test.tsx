@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { Phone } from 'lucide-react';
 import type { HubModuleRow } from '@/features/modules/types';
 
-const useIsMobileMock = vi.fn(() => false);
+const useIsMobileMock = vi.fn((_bp?: number) => false);
 
 vi.mock('@/shared/hooks/useIsMobile', () => ({
   useIsMobile: (bp?: number) => useIsMobileMock(bp),
@@ -37,7 +37,7 @@ import { ModuleShell } from './ModuleShell';
 const coreRow: HubModuleRow = {
   code: 'core',
   kind: 'base',
-  navVariant: 'tabs',
+  navVariant: 'sidebar',
   labelKey: 'nav.pbx',
   licenseStatus: 'active',
   favorite: false,
@@ -47,11 +47,21 @@ const coreRow: HubModuleRow = {
   ],
 };
 
-describe('ModuleShell (003-B)', () => {
+const appsRow: HubModuleRow = {
+  code: 'apps',
+  kind: 'base',
+  navVariant: 'sidebar',
+  labelKey: 'nav.apps',
+  licenseStatus: 'active',
+  favorite: false,
+  pages: [],
+};
+
+describe('ModuleShell (A+C hybrid)', () => {
   beforeEach(() => {
     useIsMobileMock.mockReturnValue(false);
     vi.mocked(useHubModules).mockReturnValue({
-      active: [coreRow],
+      active: [coreRow, appsRow],
       marketplace: [],
       isLoading: false,
       favoriteCodes: [],
@@ -60,26 +70,125 @@ describe('ModuleShell (003-B)', () => {
     });
   });
 
-  it('logo navigates to /modules and tabs render for current module', () => {
+  it('shows module▾/page▾ crumbs, inert logo, sidebar; no Home crumb', () => {
     render(
       <MemoryRouter initialEntries={['/endpoints']}>
         <Routes>
-          <Route path="/endpoints" element={<ModuleShell />} />
-          <Route path="/modules" element={<ModuleShell />} />
+          <Route
+            path="/endpoints"
+            element={
+              <ModuleShell>
+                <div>page</div>
+              </ModuleShell>
+            }
+          />
         </Routes>
       </MemoryRouter>,
     );
 
-    const logo = screen.getByTestId('module-shell').querySelector('#shell-logo');
-    expect(logo).toBeTruthy();
-    expect(logo?.getAttribute('href')).toBe('/modules');
-
-    expect(screen.getByTestId('module-shell-tabs')).toBeInTheDocument();
-    expect(screen.getByText('endpoints.title')).toBeInTheDocument();
-    expect(screen.getByText('nav.trunks')).toBeInTheDocument();
+    expect(screen.getByTestId('module-shell-sidebar')).toBeInTheDocument();
+    expect(screen.getByTestId('sidebar-module-title')).toBeInTheDocument();
+    const crumbs = screen.getByTestId('module-breadcrumbs');
+    expect(within(crumbs).queryByText('hub.home')).toBeNull();
+    expect(screen.getByTestId('crumb-module')).toBeInTheDocument();
+    expect(screen.getByTestId('crumb-page')).toHaveTextContent('endpoints.title');
+    expect(screen.queryByTestId('module-shell-tabs')).toBeNull();
+    expect(screen.getByTestId('module-shell').querySelector('#shell-logo')?.tagName).toBe(
+      'DIV',
+    );
+    expect(screen.getByTestId('module-shell').querySelector('#shell-logo a')).toBeNull();
   });
 
-  it('mounts offline banner chrome (D-35 banner+retry)', () => {
+  it('opens module switcher menu from module crumb', async () => {
+    const user = (await import('@testing-library/user-event')).default.setup();
+    render(
+      <MemoryRouter initialEntries={['/endpoints']}>
+        <ModuleShell>
+          <div>page</div>
+        </ModuleShell>
+      </MemoryRouter>,
+    );
+
+    await user.click(screen.getByTestId('crumb-module'));
+    expect(await screen.findByTestId('crumb-module-menu')).toBeInTheDocument();
+    expect(within(screen.getByTestId('crumb-module-menu')).getByText('nav.apps')).toBeInTheDocument();
+  });
+
+  it('navigates to Module Hub from sidebar Модули', async () => {
+    const user = (await import('@testing-library/user-event')).default.setup();
+    render(
+      <MemoryRouter initialEntries={['/endpoints']}>
+        <Routes>
+          <Route
+            path="/endpoints"
+            element={
+              <ModuleShell>
+                <div>page</div>
+              </ModuleShell>
+            }
+          />
+          <Route path="/modules" element={<div data-testid="hub-page">hub</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await user.click(screen.getByTestId('sidebar-modules-trigger'));
+    expect(await screen.findByTestId('hub-page')).toBeInTheDocument();
+  });
+
+  it('hides sidebar on Hub', () => {
+    render(
+      <MemoryRouter initialEntries={['/modules']}>
+        <ModuleShell>
+          <div>hub</div>
+        </ModuleShell>
+      </MemoryRouter>,
+    );
+    expect(screen.queryByTestId('module-shell-sidebar')).toBeNull();
+    expect(screen.getByTestId('module-breadcrumbs')).toHaveTextContent('hub.title');
+  });
+
+  it('auto-collapses sidebar on phone', () => {
+    useIsMobileMock.mockReturnValue(true);
+    render(
+      <MemoryRouter initialEntries={['/endpoints']}>
+        <ModuleShell>
+          <div>page</div>
+        </ModuleShell>
+      </MemoryRouter>,
+    );
+    expect(screen.getByTestId('module-shell-sidebar')).toHaveAttribute(
+      'data-collapsed',
+      'true',
+    );
+    expect(screen.queryByTestId('sidebar-collapse')).toBeNull();
+  });
+
+  it('toggles collapse on desktop', () => {
+    render(
+      <MemoryRouter initialEntries={['/endpoints']}>
+        <ModuleShell>
+          <div>page</div>
+        </ModuleShell>
+      </MemoryRouter>,
+    );
+    const sidebar = screen.getByTestId('module-shell-sidebar');
+    expect(sidebar).toHaveAttribute('data-collapsed', 'false');
+    fireEvent.click(screen.getByTestId('sidebar-collapse'));
+    expect(sidebar).toHaveAttribute('data-collapsed', 'true');
+  });
+
+  it('opens CommandPalette on Ctrl+K', () => {
+    render(
+      <MemoryRouter initialEntries={['/endpoints']}>
+        <ModuleShell />
+      </MemoryRouter>,
+    );
+    fireEvent.keyDown(window, { key: 'k', ctrlKey: true });
+    expect(screen.getByTestId('command-palette')).toBeInTheDocument();
+  });
+
+  it('mounts offline banner', () => {
     Object.defineProperty(navigator, 'onLine', {
       configurable: true,
       get: () => false,
@@ -90,68 +199,5 @@ describe('ModuleShell (003-B)', () => {
       </MemoryRouter>,
     );
     expect(screen.getByTestId('offline-banner')).toBeInTheDocument();
-    expect(screen.getByTestId('offline-banner-retry')).toBeInTheDocument();
-  });
-
-  it('does not invent product tabs on Hub or Overview', () => {
-    const { unmount } = render(
-      <MemoryRouter initialEntries={['/modules']}>
-        <ModuleShell />
-      </MemoryRouter>,
-    );
-    expect(screen.queryByTestId('module-shell-tabs')).toBeNull();
-    unmount();
-
-    render(
-      <MemoryRouter initialEntries={['/']}>
-        <ModuleShell />
-      </MemoryRouter>,
-    );
-    expect(screen.queryByTestId('module-shell-tabs')).toBeNull();
-  });
-
-  it('opens CommandPalette on Ctrl+K (D-06)', () => {
-    render(
-      <MemoryRouter initialEntries={['/endpoints']}>
-        <ModuleShell />
-      </MemoryRouter>,
-    );
-
-    expect(screen.queryByTestId('command-palette')).toBeNull();
-    fireEvent.keyDown(window, { key: 'k', ctrlKey: true });
-    expect(screen.getByTestId('command-palette')).toBeInTheDocument();
-  });
-
-  it('opens bottom Sheet for module chip on phone (D-25)', () => {
-    useIsMobileMock.mockReturnValue(true);
-    render(
-      <MemoryRouter initialEntries={['/endpoints']}>
-        <ModuleShell />
-      </MemoryRouter>,
-    );
-
-    expect(screen.queryByTestId('module-chip-sheet')).toBeNull();
-    fireEvent.click(screen.getByTestId('module-chip-trigger'));
-    expect(screen.getByTestId('module-chip-sheet')).toBeInTheDocument();
-    expect(screen.queryByTestId('module-chip-menu')).toBeNull();
-  });
-
-  it('keeps DropdownMenu chip on desktop/tablet', async () => {
-    useIsMobileMock.mockReturnValue(false);
-    render(
-      <MemoryRouter initialEntries={['/endpoints']}>
-        <ModuleShell />
-      </MemoryRouter>,
-    );
-
-    const trigger = screen.getByTestId('module-chip-trigger');
-    expect(trigger).toHaveAttribute('aria-haspopup', 'menu');
-    fireEvent.pointerDown(trigger, { button: 0, ctrlX: 0, ctrlY: 0 });
-    fireEvent.mouseDown(trigger, { button: 0 });
-    fireEvent.click(trigger);
-
-    expect(await screen.findByTestId('module-chip-menu')).toBeInTheDocument();
-    expect(screen.queryByTestId('module-chip-sheet')).toBeNull();
   });
 });
-

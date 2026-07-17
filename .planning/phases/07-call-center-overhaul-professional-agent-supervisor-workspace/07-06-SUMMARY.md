@@ -80,7 +80,7 @@ completed: 2026-07-15
 2. **Task 2: CRUD шаблонов/полей/данных — service + controller + DTO** - `b9c9ffd` (feat)
 3. **Task 3: extraVars в WebhookProvider + CRM webhook при сохранении** - `778f816` (feat)
 
-**Plan metadata:** pending (docs commit)
+**Plan metadata:** `6c8f022` (docs: complete plan)
 
 ## Files Created/Modified
 

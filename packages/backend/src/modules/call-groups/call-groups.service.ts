@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { CallGroup } from './call-group.model';
@@ -11,6 +11,7 @@ import {
   CallGroupMemberDto,
 } from './dto/call-group.dto';
 import type { ICallGroup, ICallGroupMember } from '@krasterisk/shared';
+import { EndpointsService } from '../endpoints/endpoints.service';
 
 @Injectable()
 export class CallGroupsService {
@@ -21,10 +22,36 @@ export class CallGroupsService {
     @InjectModel(CallGroupMember) private readonly memberModel: typeof CallGroupMember,
     private readonly sequelize: Sequelize,
     private readonly dialplanApplyService: DialplanApplyService,
+    private readonly endpointsService: EndpointsService,
   ) {}
 
   private groupFile(vpbx: number): string {
     return `krasterisk/groups/group_${vpbx}.conf`;
+  }
+
+  /**
+   * Internal members must be extensions of this tenant (dialplan uses e{ext}_{vpbx}).
+   * Cross-tenant IDs are impossible by construction; unknown locals are rejected.
+   */
+  private async assertInternalMembersExist(
+    members: CallGroupMemberDto[] | undefined,
+    vpbx: number,
+  ): Promise<void> {
+    if (!members?.length) return;
+    const internals = members
+      .filter((m) => m.member_type === 'internal')
+      .map((m) => m.value.trim())
+      .filter(Boolean);
+    if (!internals.length) return;
+
+    const endpoints = await this.endpointsService.findAll(vpbx);
+    const known = new Set(endpoints.map((e) => String(e.extension)));
+    const missing = [...new Set(internals.filter((ext) => !known.has(ext)))];
+    if (missing.length) {
+      throw new BadRequestException(
+        `Unknown extensions for this tenant: ${missing.join(', ')}`,
+      );
+    }
   }
 
   private toICallGroup(group: CallGroup): ICallGroup {
@@ -44,10 +71,12 @@ export class CallGroupsService {
     members: CallGroupMember[],
     vpbx: number,
   ): Promise<void> {
+    const webrtcExtensions = await this.endpointsService.listWebrtcEnabledExtensions(vpbx);
     const category = generateGroupDialplan(
       this.toICallGroup(group),
       this.toIMembers(members),
       vpbx,
+      webrtcExtensions,
     );
     await this.dialplanApplyService.applyCategories(
       this.groupFile(vpbx),
@@ -105,6 +134,7 @@ export class CallGroupsService {
     const data = { ...dto } as CreateCallGroupDto & { user_uid?: number };
     delete data.user_uid;
     const { members, ...groupData } = data;
+    await this.assertInternalMembersExist(members, vpbx);
 
     const transaction = await this.sequelize.transaction();
     let committed = false;
@@ -162,6 +192,9 @@ export class CallGroupsService {
     const data = { ...dto } as UpdateCallGroupDto & { user_uid?: number };
     delete data.user_uid;
     const { members, ...groupData } = data;
+    if (members !== undefined) {
+      await this.assertInternalMembersExist(members, vpbx);
+    }
 
     const transaction = await this.sequelize.transaction();
     let committed = false;

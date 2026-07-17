@@ -59,7 +59,7 @@ Declared values (multiples of 4, project-standard):
 | 3xl | 64px | — (reserved, no Phase 8 usage) |
 
 Exceptions:
-- **12px** — allowed for `HStack`/`Flex` `gap="12"` inside chip and tabs row (matches existing `Flex` `FlexGap` enum already in `shared/ui/Stack`, and matches sketch `.chip`/`.tabs` gap of 12px). Use the existing `gap="12"` prop value rather than a new SCSS constant.
+- **12px** — allowed for `HStack`/`Flex` `gap="12"` inside topbar / sidebar footer rows (matches existing `Flex` `FlexGap` enum already in `shared/ui/Stack`). Use the existing `gap="12"` prop value rather than a new SCSS constant.
 - **56px** — fixed `topbar` height (in-module shell) and **60px** fixed `bottom-bar` height (mobile) are structural chrome heights, not spacing tokens — hardcode in the shell's own `.module.scss` per component, not reused elsewhere.
 - **44px** — minimum touch target for bottom-bar buttons and icon-only chip/logo hit areas (mobile accessibility, WCAG 2.5.5).
 
@@ -83,7 +83,7 @@ Sizes are exactly 4 (14/12/16/20), weights are exactly 2 (400 regular for Body, 
 | Role | Value | Usage |
 |------|-------|-------|
 | Dominant (60%) | `var(--color-background)` `#09090b` | Hub page background, module shell content background |
-| Secondary (30%) | `var(--color-card)` `#0a0a0f` + `var(--color-border)` `#27272a` | Topbar, tabs row, bottom bar, chip surface, console-chrome background |
+| Secondary (30%) | `var(--color-card)` `#0a0a0f` + `var(--color-border)` `#27272a` | Topbar, sidebar, bottom bar, breadcrumb surface, console-chrome background |
 | Accent (10%) | `var(--color-primary)` `#6366f1` | **Reserved for:** active tab underline (2px), active bottom-bar icon/label, focused chip border, Hub row icon badge background (`color-mix(... 12%)`), "on" pill background, checkout primary CTA, `⌘K` key-hint badge |
 | Destructive | `var(--color-destructive)` `#ef4444` | Locked/off pill text only (`off` pill uses `color-mix(destructive 12%)` background + destructive text), disable-module confirmation, checkout cancel/decline states |
 | Warning (locked semantic) | `var(--color-warning)` `#f59e0b` | "lock" pill (Marketplace-locked module) background `color-mix(warning 12%)` + warning text — distinct from destructive so "locked" never reads as an error |
@@ -150,22 +150,27 @@ These extend the base template with the concrete, locked layout contracts per su
 - Header: logo (non-interactive here, already at Hub) + optional `⌘K` trigger, no module chip (no module context on Hub itself).
 - Motion: cinematic-but-short staggered row reveal on first Hub mount only (D-09); respect `prefers-reduced-motion` (skip stagger, instant render).
 
-### 2. In-module shell (winner **003-B**)
+### 2. In-module shell (winner **003 A+C hybrid** — locked 2026-07-17; supersedes 003-B tabs)
 
-- `topbar` — fixed height 56px, `1px` bottom border, background `--color-card` with light blur (backdrop-filter acceptable, already used in `Sheet`/`Dialog` patterns) — contents: logo (click → Hub, D-10) | module chip (opens overlay list of licensed modules) | spacer | `⌘K` trigger | user avatar/menu.
-- `tabs` — horizontal row directly under topbar, `1px` bottom border on container, active tab gets 2px `--color-primary` underline overlapping the container border by `-1px` (per existing tab pattern rule in ARCHITECTURE, "one line, no double underline"). Tabs represent per-module nav-registry pages; horizontal scroll with hidden scrollbar on overflow.
-- Dense-module exception: nav registry may register a `sidebar` variant instead of `tabs` for a given module type (e.g. future ultra-dense PBX module); tabs remain the baseline for Phase 8.
-- Content region: existing FSD `pages/` render unchanged below the shell chrome.
-- Command palette (`⌘K`): searches modules + current-module pages; opens as a centered `Dialog`-based overlay (see "New component needed" above); empty-state copy per Copywriting Contract.
+> **Traceability:** Earlier sketch lock was **003-B** (top tabs + module chip). User reopened and chose a **hybrid of A (full-height dense sidebar) + C (collapsible icon rail)**: sidebar stretches full height; footer has module switcher + collapse; top chrome uses breadcrumbs `Главная → Раздел → Подраздел` instead of a module select/chip. Mobile forces collapsed rail.
+
+- Layout body — horizontal flex row: **full-height sidebar** (`align-self: stretch`) + main column (topbar + content). Sidebar width **240px** expanded / **64px** collapsed; transition ~200ms.
+- `sidebar` — registry pages as `NavLink`s (icon + label; labels hidden when collapsed). Active item: primary-tint background + primary text. Min touch target 44px.
+- `sidebar` footer — module switcher (desktop dropdown / phone bottom sheet) + **collapse** control (desktop only). Do **not** put the module switcher in the topbar.
+- `topbar` — fixed height 56px, `1px` bottom border, `--color-card` + light blur — contents: logo (click → Hub, D-10) | **breadcrumbs** (`Home → Module → Page`) | spacer | `⌘K` trigger | user avatar/menu.
+- Mobile (`useIsMobile(768)`): sidebar **auto-collapsed**; hide collapse toggle; module switcher opens `Sheet`.
+- Content region: existing FSD `pages/` render in `main` below the topbar.
+- Command palette (`⌘K`): searches modules + current-module pages; centered `Dialog`-based overlay; empty-state copy per Copywriting Contract.
+- Registry: Phase 8 baseline `navVariant: 'sidebar'` for product modules (tabs variant reserved but not the default chrome).
 
 ### 3. Mobile navigation (phone, winner **004-B**; tablet uses desktop shell per D-24)
 
-- Breakpoint: reuse existing `useIsMobile(768)` hook as the phone/desktop split. Tablet (≥768px) uses the **desktop** Hub list + in-module tabs shell (per CONTEXT D-24 "dual-pane ≈ desktop" reinterpreted as "same shell as desktop, not the phone bottom-bar paradigm") — do not build a third bespoke tablet layout.
-- Phone Hub: topbar (logo, `⌘K`) → same list rows as desktop Hub (Active + Marketplace sections) → fixed `bottom-bar` (60px height, `1px` top border, blurred background).
+- Breakpoint: reuse existing `useIsMobile(768)` hook as the phone/desktop split. Tablet (≥768px) uses the **desktop** Hub list + in-module A+C sidebar shell (per CONTEXT D-24 "dual-pane ≈ desktop" reinterpreted as "same shell as desktop, not the phone bottom-bar paradigm") — do not build a third bespoke tablet layout.
+- Phone Hub: topbar (logo, breadcrumbs Home, `⌘K`) → same list rows as desktop Hub (Active + Marketplace sections) → fixed `bottom-bar` (60px height, `1px` top border, blurred background).
 - Bottom bar items: **Hub / PBX / Apps / System / More** (5 max), each icon+label stacked, active item accent-colored (icon + label), min 44px touch target per item.
 - "More" opens the full Hub list (or a sheet with remaining modules) — copy: "Ещё" / "More".
-- Phone in-module: topbar (logo→Hub, chip→bottom sheet with full module list, `⌘K`) → horizontal tabs (same visual spec as desktop) → content → bottom bar persists.
-- Sheet component: reuse existing `shared/ui/Sheet` for the chip's mobile switcher (already available, no new component needed).
+- Phone in-module: auto-collapsed icon sidebar (footer modules → sheet) + topbar (logo→Hub, breadcrumbs, `⌘K`) + content + bottom bar persists.
+- Sheet component: reuse existing `shared/ui/Sheet` for the sidebar footer module switcher on phone (already available, no new component needed).
 - Call Center agent on phone (D-28): stacked tabs/sections with a **sticky softphone control bar** pinned above the bottom nav bar — do not let the two overlap; reserve combined height budget explicitly in the CC agent page's own spec (out of scope to fully design here, flag for CC mobile wave).
 - Tables (D-29): critical lists → card rows; secondary tables → horizontal scroll with column priority (existing `overflow-x-auto` pattern from ARCHITECTURE responsive rules).
 

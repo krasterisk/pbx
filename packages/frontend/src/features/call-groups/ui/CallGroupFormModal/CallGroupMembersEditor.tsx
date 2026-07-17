@@ -1,9 +1,10 @@
-import { memo, useCallback, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronUp, ChevronDown, Trash2, Plus } from 'lucide-react';
-import { Button, Input, Select, Text } from '@/shared/ui';
+import { Button, Input, Select, Text, Label, InfoTooltip } from '@/shared/ui';
 import { VStack, HStack, Flex } from '@/shared/ui/Stack';
-import type { CallGroupMemberType } from '@krasterisk/shared';
+import type { CallGroupMemberType, RingStrategy } from '@krasterisk/shared';
+import { useGetEndpointsQuery } from '@/shared/api/endpoints/endpointApi';
 import cls from './CallGroupMembersEditor.module.scss';
 
 export interface LocalCallGroupMember {
@@ -13,18 +14,113 @@ export interface LocalCallGroupMember {
   ring_time: string;
 }
 
+export interface CallGroupContextOption {
+  uid: number;
+  name: string;
+}
+
 export interface CallGroupMembersEditorProps {
   members: LocalCallGroupMember[];
   setMembers: (members: LocalCallGroupMember[]) => void;
+  strategy: RingStrategy;
+  externalContext: string;
+  onExternalContextChange: (value: string) => void;
+  contexts: CallGroupContextOption[];
+}
+
+/** Per-member ring_time is used by hunt, memoryhunt, and the first step of random. */
+function usesMemberRingTime(strategy: RingStrategy): boolean {
+  return strategy === 'hunt' || strategy === 'memoryhunt' || strategy === 'random';
 }
 
 const withPositions = (list: LocalCallGroupMember[]): LocalCallGroupMember[] => list;
 
-export const CallGroupMembersEditor = memo(({ members, setMembers }: CallGroupMembersEditorProps) => {
+function MemberValueField({
+  memberType,
+  value,
+  onChange,
+  endpoints,
+  endpointsLoading,
+}: {
+  memberType: CallGroupMemberType;
+  value: string;
+  onChange: (value: string) => void;
+  endpoints: { id: string; extension: string; callerid?: string }[];
+  endpointsLoading: boolean;
+}) {
   const { t } = useTranslation();
+
+  if (memberType === 'internal') {
+    const known = endpoints.some((ep) => ep.extension === value);
+    return (
+      <Select
+        className={cls.valueInput}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={endpointsLoading}
+      >
+        <option value="" disabled>
+          {t('callGroups.selectEndpoint', 'Выберите абонента')}
+        </option>
+        {!known && value ? (
+          <option value={value}>
+            {value} ({t('callGroups.endpointMissing', 'нет в списке')})
+          </option>
+        ) : null}
+        {endpoints.map((ep) => (
+          <option key={ep.id} value={ep.extension}>
+            {ep.extension}
+            {ep.callerid ? ` (${ep.callerid})` : ''}
+          </option>
+        ))}
+      </Select>
+    );
+  }
+
+  return (
+    <Input
+      className={cls.valueInput}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={t('callGroups.memberValueExternal', 'Внешний номер')}
+    />
+  );
+}
+
+export const CallGroupMembersEditor = memo(({
+  members,
+  setMembers,
+  strategy,
+  externalContext,
+  onExternalContextChange,
+  contexts,
+}: CallGroupMembersEditorProps) => {
+  const { t } = useTranslation();
+  const { data: endpoints = [], isLoading: endpointsLoading } = useGetEndpointsQuery();
   const [draftType, setDraftType] = useState<CallGroupMemberType>('internal');
   const [draftValue, setDraftValue] = useState('');
   const [draftRingTime, setDraftRingTime] = useState('');
+  const showMemberRingTime = usesMemberRingTime(strategy);
+
+  const needsExternalContext =
+    draftType === 'external' || members.some((m) => m.member_type === 'external');
+
+  const hasContexts = contexts.length > 0;
+
+  const endpointOptions = useMemo(
+    () =>
+      endpoints.map((ep) => ({
+        id: ep.id,
+        extension: ep.extension,
+        callerid: ep.callerid,
+      })),
+    [endpoints],
+  );
+
+  // Reset draft value when switching type (internal select vs external input)
+  useEffect(() => {
+    setDraftValue('');
+  }, [draftType]);
 
   const handleAdd = useCallback(() => {
     if (!draftValue.trim()) return;
@@ -60,12 +156,54 @@ export const CallGroupMembersEditor = memo(({ members, setMembers }: CallGroupMe
   }, [members, setMembers]);
 
   const handleUpdate = useCallback((index: number, patch: Partial<LocalCallGroupMember>) => {
-    setMembers(members.map((m, i) => (i === index ? { ...m, ...patch } : m)));
+    setMembers(members.map((m, i) => {
+      if (i !== index) return m;
+      const next = { ...m, ...patch };
+      // Clear value when switching member type — formats differ
+      if (patch.member_type && patch.member_type !== m.member_type) {
+        next.value = '';
+      }
+      return next;
+    }));
   }, [members, setMembers]);
 
   return (
     <VStack gap="12" max className={cls.wrapper}>
-      <Text variant="small">{t('callGroups.members', 'Участники')}</Text>
+      <HStack gap="4" align="center">
+        <Text variant="small">{t('callGroups.members', 'Участники')}</Text>
+        <InfoTooltip text={t('callGroups.membersDesc')} />
+      </HStack>
+
+      {needsExternalContext && (
+        <div className={cls.externalContextField}>
+          <HStack gap="4" align="center">
+            <Label htmlFor="call-group-external-context">
+              {t('callGroups.externalContext', 'Контекст для внешних')}
+            </Label>
+            <InfoTooltip text={t('callGroups.externalContextDesc')} />
+          </HStack>
+          {hasContexts ? (
+            <Select
+              id="call-group-external-context"
+              value={externalContext}
+              onChange={(e) => onExternalContextChange(e.target.value)}
+            >
+              {contexts.map((ctx) => (
+                <option key={ctx.uid} value={ctx.name}>
+                  {ctx.name}
+                </option>
+              ))}
+            </Select>
+          ) : (
+            <Input
+              id="call-group-external-context"
+              value={externalContext}
+              onChange={(e) => onExternalContextChange(e.target.value)}
+              required
+            />
+          )}
+        </div>
+      )}
 
       <VStack gap="8" max className={cls.membersBox}>
         {members.length === 0 ? (
@@ -89,21 +227,25 @@ export const CallGroupMembersEditor = memo(({ members, setMembers }: CallGroupMe
                   <option value="external">{t('callGroups.memberTypeExternal', 'Внешний')}</option>
                 </Select>
 
-                <Input
-                  className={cls.valueInput}
+                <MemberValueField
+                  memberType={member.member_type}
                   value={member.value}
-                  onChange={(e) => handleUpdate(index, { value: e.target.value })}
-                  placeholder={t('callGroups.memberValue', 'Номер / добавочный')}
+                  onChange={(value) => handleUpdate(index, { value })}
+                  endpoints={endpointOptions}
+                  endpointsLoading={endpointsLoading}
                 />
 
-                <Input
-                  className={cls.ringTimeInput}
-                  type="number"
-                  min={0}
-                  value={member.ring_time}
-                  onChange={(e) => handleUpdate(index, { ring_time: e.target.value })}
-                  placeholder={t('callGroups.ringTime', 'Время звонка (сек)')}
-                />
+                {showMemberRingTime && (
+                  <Input
+                    className={cls.ringTimeInput}
+                    type="number"
+                    min={0}
+                    value={member.ring_time}
+                    onChange={(e) => handleUpdate(index, { ring_time: e.target.value })}
+                    placeholder={t('callGroups.ringTimeMember', 'Сек.')}
+                    title={t('callGroups.ringTimeMemberDesc')}
+                  />
+                )}
 
                 <HStack gap="4">
                   <Button
@@ -152,22 +294,25 @@ export const CallGroupMembersEditor = memo(({ members, setMembers }: CallGroupMe
           <option value="external">{t('callGroups.memberTypeExternal', 'Внешний')}</option>
         </Select>
 
-        <Input
-          className={cls.addValueInput}
+        <MemberValueField
+          memberType={draftType}
           value={draftValue}
-          onChange={(e) => setDraftValue(e.target.value)}
-          placeholder={t('callGroups.memberValue', 'Номер / добавочный')}
-          onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAdd())}
+          onChange={setDraftValue}
+          endpoints={endpointOptions}
+          endpointsLoading={endpointsLoading}
         />
 
-        <Input
-          className={cls.addRingTimeInput}
-          type="number"
-          min={0}
-          value={draftRingTime}
-          onChange={(e) => setDraftRingTime(e.target.value)}
-          placeholder={t('callGroups.ringTime', 'Время звонка (сек)')}
-        />
+        {showMemberRingTime && (
+          <Input
+            className={cls.addRingTimeInput}
+            type="number"
+            min={0}
+            value={draftRingTime}
+            onChange={(e) => setDraftRingTime(e.target.value)}
+            placeholder={t('callGroups.ringTimeMember', 'Сек.')}
+            title={t('callGroups.ringTimeMemberDesc')}
+          />
+        )}
 
         <Button type="button" variant="outline" size="sm" onClick={handleAdd} disabled={!draftValue.trim()}>
           <Plus size={14} />

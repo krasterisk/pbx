@@ -2655,6 +2655,10 @@ export const ru = {
       'Отключить модуль: доступ к разделу будет закрыт для всех пользователей тенанта. Продолжить?',
     chipEmpty: 'Модули',
     more: 'Ещё',
+    home: 'Главная',
+    breadcrumbLabel: 'Навигация',
+    collapseSidebar: 'Свернуть',
+    expandSidebar: 'Развернуть',
   },
   marketplace: {
     buy: 'Купить',

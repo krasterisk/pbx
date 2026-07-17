@@ -457,7 +457,7 @@ Plans:
 - [x] `08-15-PLAN.md` — Wave 8c: Responsive — Apps rest (Prompts/CallGroups/Integrations/VoiceRobots)
 - [x] `08-16-PLAN.md` — Wave 8d: Responsive — System rest (Settings/TTS/STT/AuditLog/Modules)
 - [x] `08-17-PLAN.md` — Wave 8e: Responsive — Analytics/AI/CC orphans (CDR/ServiceRequests/AiAgents)
-- [ ] `08-10-PLAN.md` — Wave 9: Capacitor 8 + Secure Storage + URL flavors
+- [x] `08-10-PLAN.md` — Wave 9: Capacitor 8 + Secure Storage + URL flavors
 - [ ] `08-11-PLAN.md` — Wave 10: FCM foundation + WebRTC notes + ARCHITECTURE/i18n
 
 **Verification:**

@@ -21,11 +21,20 @@ export const NotifyApp = memo(({ action, onUpdate }: IDialplanAppProps) => {
   const target = String(action.params?.target ?? '');
   const preset = String(action.params?.preset ?? '');
 
+  const selectedIntegration = integrations.find((i) => String(i.uid) === integrationUid);
+  const isWebhook = selectedIntegration?.channel === 'webhook';
+
   const handleIntegrationChange = useCallback(
     (e: ChangeEvent<HTMLSelectElement>) => {
-      onUpdate(action.id, 'params.integration_uid', e.target.value);
+      const nextUid = e.target.value;
+      onUpdate(action.id, 'params.integration_uid', nextUid);
+      const next = integrations.find((i) => String(i.uid) === nextUid);
+      // Webhook has no recipient override — clear leftover target from other channels
+      if (next?.channel === 'webhook' && target) {
+        onUpdate(action.id, 'params.target', '');
+      }
     },
-    [action.id, onUpdate],
+    [action.id, onUpdate, integrations, target],
   );
 
   const handleMessageChange = useCallback(
@@ -90,32 +99,64 @@ export const NotifyApp = memo(({ action, onUpdate }: IDialplanAppProps) => {
 
       <div className={cls.field}>
         <div className={cls.labelRow}>
-          <span>{t('routes.apps.notify.message', 'Message template')}</span>
+          <span>
+            {isWebhook
+              ? t('routes.apps.notify.messageWebhook', 'Текст уведомления')
+              : t('routes.apps.notify.message', 'Шаблон сообщения')}
+          </span>
           <InfoTooltip
-            text={t(
-              'routes.apps.notify.varsHint',
-              'Asterisk channel variables:\n${CALLERID(num)} - caller number\n${CALLERID(name)} - caller name\n${EXTEN} - dialed number\n${DIALSTATUS} - dial status\n${CDR(duration)} - call duration\n${UNIQUEID} - call ID',
-            )}
+            text={
+              isWebhook
+                ? t(
+                    'routes.apps.notify.messageWebhookHint',
+                    'Текст, который подставится в {{message}} в формате JSON интеграции webhook.\n\nПеременные Asterisk:\n${CALLERID(num)} — номер звонящего\n${CALLERID(name)} — имя\n${EXTEN} — набранный номер\n${DIALSTATUS} — статус набора\n${CDR(duration)} — длительность\n${UNIQUEID} — ID звонка\n\nФорму JSON (поля CRM) настраивайте в интеграции webhook, не здесь.',
+                  )
+                : t(
+                    'routes.apps.notify.varsHint',
+                    'Переменные Asterisk:\n${CALLERID(num)} — номер звонящего\n${CALLERID(name)} — имя\n${EXTEN} — набранный номер\n${DIALSTATUS} — статус набора\n${CDR(duration)} — длительность\n${UNIQUEID} — ID звонка',
+                  )
+            }
           />
         </div>
         <Textarea
           className={cls.message}
           value={message}
           onChange={handleMessageChange}
-          placeholder={t('routes.apps.notify.message', 'Message template')}
-          aria-label={t('routes.apps.notify.message', 'Message template')}
+          placeholder={
+            isWebhook
+              ? t('routes.apps.notify.messageWebhookPh', 'Входящий звонок от ${CALLERID(num)}')
+              : t('routes.apps.notify.message', 'Шаблон сообщения')
+          }
+          aria-label={
+            isWebhook
+              ? t('routes.apps.notify.messageWebhook', 'Текст уведомления')
+              : t('routes.apps.notify.message', 'Шаблон сообщения')
+          }
         />
       </div>
 
-      <div className={cls.row}>
-        <Input
-          className={cls.target}
-          value={target}
-          onChange={handleTargetChange}
-          placeholder={t('routes.apps.notify.target', 'Target override (optional)')}
-          aria-label={t('routes.apps.notify.target', 'Target override (optional)')}
-        />
-      </div>
+      {!isWebhook && (
+        <div className={cls.row}>
+          <div className={cls.field} style={{ flex: 1 }}>
+            <div className={cls.labelRow}>
+              <span>{t('routes.apps.notify.target', 'Переопределение получателя (опц.)')}</span>
+              <InfoTooltip
+                text={t(
+                  'routes.apps.notify.targetHint',
+                  'Необязательно. Для Telegram — другой chat_id, для email — другой адрес, для WhatsApp/MAX/VK — другой получатель. Для webhook это поле не используется: форма JSON настраивается в интеграции.',
+                )}
+              />
+            </div>
+            <Input
+              className={cls.target}
+              value={target}
+              onChange={handleTargetChange}
+              placeholder={t('routes.apps.notify.targetPh', 'chat_id / email / …')}
+              aria-label={t('routes.apps.notify.target', 'Переопределение получателя (опц.)')}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 });

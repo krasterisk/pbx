@@ -14,7 +14,7 @@ import { CcDisplayToken } from '../models/display-token.model';
  * Separate auth branch from JwtAuthGuard: reads ?token= query param, looks up
  * cc_display_tokens, rejects revoked/expired rows.
  *
- * Pitfall 5: req.user is set WITHOUT level/id so a leaked display token cannot
+ * Pitfall 5: req.user is set WITHOUT level/sub so a leaked display token cannot
  * silently escalate if it ever hits a JWT-guarded endpoint.
  */
 @Injectable()
@@ -43,7 +43,7 @@ export class DisplayTokenGuard implements CanActivate {
       throw new UnauthorizedException('Display token expired');
     }
 
-    // Intentionally omit level/id — display tokens must never impersonate a user
+    // Intentionally omit level/sub — display tokens must never impersonate a user
     req.user = {
       vpbx_user_uid: row.user_uid,
       isDisplayToken: true,

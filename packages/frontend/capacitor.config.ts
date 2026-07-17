@@ -9,6 +9,13 @@ const config: CapacitorConfig = {
   appId: 'com.krasterisk.app',
   appName: 'Krasterisk',
   webDir: 'dist',
+  plugins: {
+    SplashScreen: {
+      launchAutoHide: true,
+      launchShowDuration: 300,
+      backgroundColor: '#0c1214',
+    },
+  },
 };
 
 export default config;

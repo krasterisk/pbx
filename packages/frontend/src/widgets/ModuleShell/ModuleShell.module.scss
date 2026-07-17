@@ -1,8 +1,31 @@
-.shell {
+.shellRoot {
+  flex: 1 1 0;
   width: 100%;
-  position: sticky;
-  top: 0;
-  z-index: var(--z-index-header, 40);
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Below full-width topbar: sidebar | content */
+.body {
+  flex: 1 1 0;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  overflow: hidden;
+}
+
+.main {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  padding: 24px;
+  overflow: auto;
 }
 
 .offlineBanner {
@@ -11,6 +34,7 @@
   background: color-mix(in srgb, var(--color-destructive, #b91c1c) 18%, var(--color-card));
   border-bottom: 1px solid var(--color-border);
   color: var(--color-foreground);
+  flex-shrink: 0;
 }
 
 .offlineBannerText {
@@ -21,6 +45,10 @@
 
 .topbar {
   height: 56px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
   padding: 0 16px;
   border-bottom: 1px solid var(--color-border);
   background: color-mix(in srgb, var(--color-card) 85%, transparent);
@@ -31,14 +59,95 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  text-decoration: none;
   color: var(--color-foreground);
   border-radius: 8px;
-  min-height: 44px;
-  padding: 4px 6px;
-  margin-left: -6px;
+  min-height: 34px;
+  padding: 2px 4px;
+  margin-left: -4px;
+  flex-shrink: 0;
+  user-select: none;
+  pointer-events: none;
+}
+
+.logoBox {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+  color: var(--color-primary);
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.logoText {
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+
+  @media (max-width: 640px) {
+    display: none;
+  }
+}
+
+.crumbs {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px;
+  min-width: 0;
+  font-size: 14px;
+}
+
+.crumbItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.crumbSep {
+  color: var(--color-muted-foreground);
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+.crumbLink {
+  color: var(--color-muted-foreground);
+  text-decoration: none;
+  white-space: nowrap;
+  border-radius: 4px;
+  padding: 2px 4px;
 
   &:hover {
+    color: var(--color-primary);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+  }
+}
+
+.crumbBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 28vw;
+  min-height: 32px;
+  padding: 2px 6px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-muted-foreground);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.2;
+
+  &:hover {
+    color: var(--color-primary);
     background: rgba(255, 255, 255, 0.04);
   }
 
@@ -46,56 +155,41 @@
     outline: 2px solid var(--color-ring);
     outline-offset: 2px;
   }
+
+  &.crumbCurrent {
+    color: var(--color-foreground);
+    font-weight: 600;
+  }
 }
 
-.logoBox {
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
-  color: var(--color-primary);
-  flex-shrink: 0;
-}
-
-.logoText {
-  font-size: 14px;
-  font-weight: 600;
+.crumbBtnLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
-  border-radius: 8px;
-  border: 1px solid var(--color-border);
-  background: var(--color-card);
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--color-foreground);
-  min-height: 44px;
-
-  &:hover {
-    border-color: color-mix(in srgb, var(--color-primary) 40%, var(--color-border));
-  }
-
-  &:focus-visible {
-    outline: 2px solid var(--color-ring);
-    outline-offset: 2px;
-  }
+.crumbChevron {
+  flex-shrink: 0;
+  opacity: 0.7;
 }
 
-.chipIcon {
-  width: 16px;
-  height: 16px;
-  color: var(--color-primary);
-  flex-shrink: 0;
+.crumbText {
+  color: var(--color-muted-foreground);
+  white-space: nowrap;
+  padding: 2px 4px;
+}
+
+.crumbCurrent {
+  color: var(--color-foreground);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 28vw;
 }
 
 .spacer {
   flex: 1;
+  min-width: 8px;
 }
 
 .cmdHint {
@@ -107,61 +201,168 @@
   padding: 2px 6px;
 }
 
-.tabs {
+/* Full-height sidebar — A+C hybrid (sketch 003) */
+.sidebar {
+  width: 240px;
+  flex: 0 0 240px;
   display: flex;
-  gap: 4px;
-  padding: 0 16px;
-  border-bottom: 1px solid var(--color-border);
-  overflow-x: auto;
+  flex-direction: column;
+  min-height: 0;
+  align-self: stretch;
+  border-right: 1px solid var(--color-border);
   background: var(--color-card);
-  scrollbar-width: none;
+  transition: width 0.2s ease, flex-basis 0.2s ease;
+}
 
-  &::-webkit-scrollbar {
+.sidebarCollapsed {
+  width: 64px;
+  flex-basis: 64px;
+
+  .sidebarText {
     display: none;
+  }
+
+  .sidebarHead {
+    display: none;
+  }
+
+  .footBtn {
+    justify-content: center;
+    padding-left: 0;
+    padding-right: 0;
   }
 }
 
-.tab {
-  display: inline-flex;
+.sidebarHead {
+  flex-shrink: 0;
+  display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 12px 14px;
+  min-height: 44px;
+  padding: 12px 18px 4px;
+}
+
+.sidebarModuleTitle {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-muted-foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebarNav {
+  flex: 1 1 0;
+  overflow-y: auto;
+  padding: 8px 8px 12px;
+  min-height: 0;
+}
+
+.sidebarList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sidebarItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 10px;
   border: none;
+  border-radius: 8px;
   background: transparent;
   color: var(--color-muted-foreground);
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
-  white-space: nowrap;
   cursor: pointer;
   text-decoration: none;
   font-size: 14px;
   font-weight: 400;
+  text-align: left;
 
   &:hover {
+    background: rgba(255, 255, 255, 0.04);
     color: var(--color-foreground);
   }
 
   &:focus-visible {
     outline: 2px solid var(--color-ring);
-    outline-offset: -2px;
+    outline-offset: 2px;
   }
 }
 
-.tabActive {
+.sidebarItemActive {
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
   color: var(--color-primary);
-  border-bottom-color: var(--color-primary);
   font-weight: 600;
 }
 
-.tabIcon {
-  width: 14px;
-  height: 14px;
+.sidebarIcon {
+  width: 18px;
+  height: 18px;
   flex-shrink: 0;
+}
+
+.sidebarText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebarFoot {
+  flex-shrink: 0;
+  border-top: 1px solid var(--color-border);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  position: relative;
+}
+
+/* Compact footer controls — match sketch .foot-btn (not bulky Button) */
+.footBtn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-muted-foreground);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.2;
+  text-align: left;
+  box-shadow: none;
+
+  &:hover {
+    border-color: var(--color-primary);
+    color: var(--color-foreground);
+    background: transparent;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+  }
 }
 
 .userName {
   font-size: 14px;
   font-weight: 600;
+
+  @media (max-width: 640px) {
+    display: none;
+  }
 }
 
 .avatar {
@@ -172,9 +373,12 @@
   color: var(--color-primary);
   font-size: 13px;
   font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
-/* Phone chip → bottom Sheet (D-25); desktop keeps DropdownMenu */
 .chipSheetContent {
   inset: auto 0 0 0 !important;
   top: auto !important;

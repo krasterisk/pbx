@@ -8,6 +8,11 @@ import { RoutePhonebook } from '../phonebooks/phonebook.model';
 import { PhonebookEntry } from '../phonebooks/phonebook-entry.model';
 import { TimeGroupsService } from '../time-groups/time-groups.service';
 import { AsteriskDialplanUtils } from '../../shared/utils/dialplan.util';
+import {
+  buildMixMonitorFlags,
+  buildFfmpegPostprocess,
+  getRecordingSourceExtension,
+} from './route-recording.util';
 
 /** Binding payload accepted from CreateRouteDto/UpdateRouteDto (bindings field). */
 export interface RouteBindingInput {
@@ -249,29 +254,38 @@ export class RoutesService {
 
       // --- Call recording (ffmpeg instead of lame) ---
       // ffmpeg: faster startup, better quality control, maintained project, supports more formats
-      // -codec:a libmp3lame -b:a 32k -ar 8000 -ac 1 = mono 32kbps 8kHz — matches telephony quality
+      // Mono: -codec:a libmp3lame -b:a 32k -ar 8000 -ac 1 — telephony quality WAV → MP3
+      // Stereo: MixMonitor `D` writes interleaved RX/TX to .raw; ffmpeg converts to stereo MP3
       // nice -n 10: low-priority background process, does not affect Asterisk real-time performance
       // MixMonitor postprocess (&) is fire-and-forget — conversion happens AFTER channel hangs up
       if (opts.record) {
-        const recordAll = opts.record_all === true;
+        const recordStereo = opts.record_stereo === true;
+        const recExt = getRecordingSourceExtension(recordStereo);
+        const monFlag = buildMixMonitorFlags({
+          record_all: opts.record_all === true,
+          record_stereo: recordStereo,
+        });
         lines.push('same => n,Set(__path=${STRFTIME(${EPOCH},,%Y%m%d)})');
-        // Sanitize CALLERID(num): strip everything except digits and + to prevent path traversal
-        lines.push('same => n,Set(__safeclid=${REGEX_REPLACE(${CALLERID(num)},^[^0-9+]+$,)})');
+        // Sanitize CALLERID(num): keep only digits and + (path-safe filename fragment)
+        lines.push('same => n,Set(__safeclid=${FILTER(0-9+,${CALLERID(num)})})');
         lines.push('same => n,Set(__fname=${STRFTIME(${EPOCH},,%Y%m%d%H%M%S)}-${safeclid}-${EXTEN})');
         const rpath = `${vpbxUserUid}/calls`;
-        const monFlag = recordAll ? '' : 'b';
-        // ffmpeg conversion + wav cleanup as MixMonitor postprocess (runs after hangup in background)
+        const recBase = `/usr/records/${rpath}/\${path}/\${fname}`;
+        if (recordStereo) {
+          lines.push('same => n,Set(__REC_STEREO=1)');
+        }
+        // ffmpeg conversion + source cleanup as MixMonitor postprocess (runs after hangup in background)
         // Note: if on_hangup webhook is set, hangup_handler (set below) will handle conversion
         // and ensure MP3 is ready before notifying the backend. Otherwise use postprocess directly.
         if (!wh.on_hangup?.url) {
-          lines.push(`same => n,Set(__monopt=nice -n 10 /usr/bin/ffmpeg -y -i /usr/records/${rpath}/\${path}/\${fname}.wav -codec:a libmp3lame -b:a 32k -ar 8000 -ac 1 /usr/records/${rpath}/\${path}/\${fname}.mp3 -loglevel quiet && rm -f /usr/records/${rpath}/\${path}/\${fname}.wav)`);
+          lines.push(`same => n,Set(__monopt=${buildFfmpegPostprocess(recBase, recordStereo)})`);
           lines.push(`same => n,Set(CDR(record)=${rpath}/\${path}/\${fname})`);
-          lines.push(`same => n,MixMonitor(/usr/records/${rpath}/\${path}/\${fname}.wav,${monFlag},\${monopt})`);
+          lines.push(`same => n,MixMonitor(${recBase}.${recExt},${monFlag},\${monopt})`);
         } else {
           // on_hangup is configured: MixMonitor WITHOUT postprocess — hangup_handler takes over
           // This guarantees MP3 is ready before the on_hangup webhook fires
           lines.push(`same => n,Set(CDR(record)=${rpath}/\${path}/\${fname})`);
-          lines.push(`same => n,MixMonitor(/usr/records/${rpath}/\${path}/\${fname}.wav,${monFlag})`);
+          lines.push(`same => n,MixMonitor(${recBase}.${recExt},${monFlag})`);
         }
       }
 

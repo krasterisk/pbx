@@ -33,15 +33,43 @@ export const SipCredentialsModal = () => {
 
   const copyAll = () => {
     if (!creds) return;
-    const text = `SIP Server: ${creds.domain}\nUsername: ${creds.username}\nPassword: ${creds.password}\nTransport: ${creds.authType === 'userpass' ? 'UDP' : 'Auto'}`;
+    let text = `SIP Server: ${creds.domain}\nUsername: ${creds.username}\nPassword: ${creds.password}`;
+    if (creds.webrtc) {
+      text += `\n\nWebRTC Username: ${creds.webrtc.username}\nWebRTC Password: ${creds.webrtc.password}\nWebRTC Transport: WSS`;
+    }
     copyToClipboard(text, 'all');
   };
+
+  const renderCredBlock = (
+    title: string,
+    fields: { label: string; value: string; field: string }[],
+  ) => (
+    <VStack gap="12" className="border border-border rounded-xl p-4 bg-background/40">
+      <p className="text-sm font-semibold">{title}</p>
+      {fields.map(({ label, value, field }) => (
+        <VStack gap="4" key={field}>
+          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{label}</label>
+          <Flex gap="8">
+            <Input readOnly value={value} className="font-mono bg-background/50" />
+            <Button
+              variant="outline"
+              size="icon"
+              className="shrink-0"
+              onClick={() => copyToClipboard(value, field)}
+            >
+              {copiedField === field ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+            </Button>
+          </Flex>
+        </VStack>
+      ))}
+    </VStack>
+  );
 
   return (
     <Dialog.Root open={!!sipId} onOpenChange={(open) => !open && handleClose()}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50" />
-        <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-card text-card-foreground border border-border rounded-2xl p-6 z-50 shadow-2xl">
+        <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-card text-card-foreground border border-border rounded-2xl p-6 z-50 shadow-2xl max-h-[90vh] overflow-y-auto">
           <HStack justify="between" align="center" className="mb-6">
             <HStack gap="8" align="center">
               <Key className="w-5 h-5 text-primary" />
@@ -63,54 +91,20 @@ export const SipCredentialsModal = () => {
             </VStack>
           ) : creds ? (
             <VStack gap="16">
-              <div className="space-y-4">
-                <VStack gap="4">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">SIP Server / Domain</label>
-                  <Flex gap="8">
-                    <Input readOnly value={creds.domain} className="font-mono bg-background/50" />
-                    <Button 
-                      variant="outline" 
-                      size="icon" 
-                      className="shrink-0"
-                      onClick={() => copyToClipboard(creds.domain, 'domain')}
-                    >
-                      {copiedField === 'domain' ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
-                    </Button>
-                  </Flex>
-                </VStack>
+              {renderCredBlock(t('endpoints.credSip', 'Телефон / SIP'), [
+                { label: 'SIP Server / Domain', value: creds.domain, field: 'domain' },
+                { label: 'Username / Login', value: creds.username, field: 'username' },
+                { label: 'Password', value: creds.password, field: 'password' },
+              ])}
 
-                <VStack gap="4">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Username / Login</label>
-                  <Flex gap="8">
-                    <Input readOnly value={creds.username} className="font-mono bg-background/50" />
-                    <Button 
-                      variant="outline" 
-                      size="icon" 
-                      className="shrink-0"
-                      onClick={() => copyToClipboard(creds.username, 'username')}
-                    >
-                      {copiedField === 'username' ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
-                    </Button>
-                  </Flex>
-                </VStack>
+              {creds.webrtc && renderCredBlock(t('endpoints.credWebrtc', 'WebRTC'), [
+                { label: 'SIP Server / Domain', value: creds.webrtc.domain, field: 'w-domain' },
+                { label: 'Username / Login', value: creds.webrtc.username, field: 'w-username' },
+                { label: 'Password', value: creds.webrtc.password, field: 'w-password' },
+                { label: 'Transport', value: 'WSS', field: 'w-transport' },
+              ])}
 
-                <VStack gap="4">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Password</label>
-                  <Flex gap="8">
-                    <Input readOnly value={creds.password} className="font-mono bg-background/50" />
-                    <Button 
-                      variant="outline" 
-                      size="icon" 
-                      className="shrink-0"
-                      onClick={() => copyToClipboard(creds.password, 'password')}
-                    >
-                      {copiedField === 'password' ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
-                    </Button>
-                  </Flex>
-                </VStack>
-              </div>
-
-              <HStack gap="8" justify="end" className="mt-4 pt-4 border-t border-border">
+              <HStack gap="8" justify="end" className="mt-2 pt-4 border-t border-border">
                 <Button variant="outline" onClick={handleClose}>
                   {t('common.close', 'Закрыть')}
                 </Button>

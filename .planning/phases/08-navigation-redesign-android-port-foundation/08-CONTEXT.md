@@ -42,7 +42,7 @@
 - **D-08:** Hub = **route** (deep-linkable); quick switcher = **overlay**.
 - **D-09:** Motion = **cinematic but short**; уважать `prefers-reduced-motion`. **Production:** staggered **list-row** reveal on first Hub mount (002-E), not bento-cell stagger — per UI-SPEC / D-11 winner.
 - **D-10:** Клик по **логотипу** → всегда Module Hub (`/modules`).
-- **D-11:** Sketch strategy: **3 визуальных варианта** Hub/shell → выбор пользователя → один production winner. **Winner locked:** Hub **002-E**, ModuleShell tabs **003-B**, mobile **004-B**, marketplace **005-B**, platform admin **006-B** (`sketch-findings-krasterisk-v4` / UI-SPEC).
+- **D-11:** Sketch strategy: **3 визуальных варианта** Hub/shell → выбор пользователя → один production winner. **Winner locked:** Hub **002-E**, ModuleShell **003 A+C hybrid** (full-height sidebar + footer modules/collapse + breadcrumbs; supersedes 003-B tabs, locked 2026-07-17), mobile **004-B**, marketplace **005-B**, platform admin **006-B** (`sketch-findings-krasterisk-v4` / UI-SPEC).
 
 ### IA / modules / marketplace
 - **D-12:** Baseline modules: **Base** = Core (PBX + pages) · Apps · System. **Marketplace (default)** = Analytics · Call Center · AI bots / related. Всё **конфигурируемо**.

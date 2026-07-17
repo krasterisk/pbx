@@ -87,7 +87,7 @@ Each task was committed atomically:
 2. **Task 2: DTO + service + spec (TDD)** - `702e971` (test), `6598feb` (feat)
 3. **Task 3: Controller + module + app.module** - `823efa7` (feat)
 
-**Plan metadata:** `pending` → will be set after docs commit
+**Plan metadata:** `9c280da` (docs: complete plan)
 
 ## Files Created/Modified
 

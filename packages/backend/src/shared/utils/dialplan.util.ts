@@ -44,6 +44,23 @@ export class AsteriskDialplanUtils {
   }
 
   /**
+   * Build PJSIP Dial() target for an internal extension.
+   * When webrtc is true (default), forks primary + companion so desk phone and browser ring together.
+   * Missing companion yields CHANUNAVAIL on that leg; Dial continues on the other.
+   *
+   * @param extenExpr literal extension ("110") or dialplan expr ("${EXTEN}", "${DIALTO}") — already sanitized
+   */
+  static pjsipDialTarget(
+    extenExpr: string,
+    vpbxUserUid: number,
+    opts?: { webrtc?: boolean },
+  ): string {
+    const primary = `PJSIP/e${extenExpr}_${vpbxUserUid}`;
+    if (opts?.webrtc === false) return primary;
+    return `${primary}&PJSIP/ew${extenExpr}_${vpbxUserUid}`;
+  }
+
+  /**
    * Sanitize file path to prevent path traversal.
    * Strips: / \ .. and null bytes.
    * Use for params that reference sound/prompt files.
@@ -136,28 +153,32 @@ export class AsteriskDialplanUtils {
         break;
       }
       case 'toexten': {
-        // PJSIP endpoint IDs use format: e{extension}_{vpbxUserUid}
+        // PJSIP: primary e{ext}_{uid} + optional WebRTC companion ew{ext}_{uid} (fork)
         // Two modes:
-        //   1. Specific extension: params.exten = "101" → Dial(PJSIP/e101_0)
-        //   2. Pattern (use EXTEN): params.useExten = true → Dial(PJSIP/e${EXTEN}_0)
+        //   1. Specific extension: params.exten = "101"
+        //   2. Pattern (use EXTEN): params.useExten = true
         const timeout = parseInt(params.timeout, 10) || 30;
-        // Inject U(krsk-on-answer) when on_answer webhook is configured
         const dialOpts = this.buildDialOptions(params.options || 'tThH', wh);
+        // params.webrtc === false → primary only; otherwise fork (missing ew → CHANUNAVAIL)
+        const webrtc = params.webrtc !== false && params.webrtc !== 'false';
         let dialTarget: string;
         if (params.useExten) {
-          dialTarget = `PJSIP/e\${EXTEN}_${vpbxUserUid}`;
+          dialTarget = this.pjsipDialTarget('${EXTEN}', vpbxUserUid, { webrtc });
         } else {
           const rawExten = this.sanitizeDialplanInput(params.exten) || '';
           if (!rawExten) {
             dp = ''; // No extension specified — skip
             break;
           }
-          dialTarget = rawExten.includes('/') ? rawExten : `PJSIP/e${rawExten}_${vpbxUserUid}`;
+          dialTarget = rawExten.includes('/')
+            ? rawExten
+            : this.pjsipDialTarget(rawExten, vpbxUserUid, { webrtc });
         }
         const dialLines: string[] = [];
         // DIALTO: attempt responsible employee first (if custom webhook returned a number)
         if (wh.custom?.url) {
-          dialLines.push(`${wrapper}ExecIf($["\${DIALTO}" != ""]?Dial(PJSIP/e\${DIALTO}_${vpbxUserUid},15,${dialOpts}))${closing}`);
+          const dialToTarget = this.pjsipDialTarget('${DIALTO}', vpbxUserUid, { webrtc: true });
+          dialLines.push(`${wrapper}ExecIf($["\${DIALTO}" != ""]?Dial(${dialToTarget},15,${dialOpts}))${closing}`);
           dialLines.push(`ExecIf($["\${DIALSTATUS}" = "ANSWER"]?Return())`);
         }
         dialLines.push(`${wrapper}Dial(${dialTarget},${timeout},${dialOpts})${closing}`);

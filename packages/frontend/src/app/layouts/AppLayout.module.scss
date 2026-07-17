@@ -1,8 +1,10 @@
 .root {
-  min-height: 100vh;
+  min-height: 100dvh;
+  height: 100dvh;
   width: 100%;
   background: var(--color-background);
   position: relative;
+  overflow: hidden;
 }
 
 .withBottomBar {
@@ -11,7 +13,5 @@
 }
 
 .main {
-  flex: 1;
-  width: 100%;
-  padding: 24px;
+  /* Content padding lives in ModuleShell.main */
 }

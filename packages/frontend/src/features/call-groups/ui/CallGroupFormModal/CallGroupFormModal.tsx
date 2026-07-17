@@ -11,8 +11,9 @@ import {
   DialogFooter,
   Select,
   Text,
+  InfoTooltip,
 } from '@/shared/ui';
-import { VStack } from '@/shared/ui/Stack';
+import { VStack, HStack } from '@/shared/ui/Stack';
 import { useAppDispatch, useAppSelector } from '@/shared/hooks/useAppStore';
 import { selectCurrentUser } from '@/entities/User';
 import {
@@ -32,6 +33,11 @@ import { CallGroupMembersEditor, type LocalCallGroupMember } from './CallGroupMe
 import cls from './CallGroupFormModal.module.scss';
 
 const STRATEGY_VALUES: RingStrategy[] = ['ringall', 'hunt', 'memoryhunt', 'random'];
+
+/** Group-level ring_time is used by ringall and by the "rest together" step of random. */
+function usesGroupRingTime(strategy: RingStrategy): boolean {
+  return strategy === 'ringall' || strategy === 'random';
+}
 
 export interface CallGroupFormModalProps {
   /** Called after a successful create/update so inline hosts (e.g. GroupApp) can select the uid. */
@@ -69,7 +75,7 @@ export const CallGroupFormModal = memo(({ onSaved }: CallGroupFormModalProps) =>
     return t('callGroups.create', 'Создать группу');
   }, [mode, t]);
 
-  const hasContexts = contexts.length > 0;
+  const showGroupRingTime = usesGroupRingTime(strategy);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -162,6 +168,11 @@ export const CallGroupFormModal = memo(({ onSaved }: CallGroupFormModalProps) =>
 
   const isSaving = isCreating || isUpdating || isFetching;
 
+  const ringTimeHint =
+    strategy === 'random'
+      ? t('callGroups.ringTimeDescRandom')
+      : t('callGroups.ringTimeDescRingall');
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
       <DialogContent size="2xl" className={cls.dialogContent}>
@@ -172,7 +183,10 @@ export const CallGroupFormModal = memo(({ onSaved }: CallGroupFormModalProps) =>
         <form className={cls.form} onSubmit={handleSubmit}>
           <VStack gap="12" max>
             <div className={cls.field}>
-              <Label htmlFor="call-group-name">{t('callGroups.name', 'Название')}</Label>
+              <HStack gap="4" align="center">
+                <Label htmlFor="call-group-name">{t('callGroups.name', 'Название')}</Label>
+                <InfoTooltip text={t('callGroups.nameDesc')} />
+              </HStack>
               <Input
                 id="call-group-name"
                 value={name}
@@ -183,7 +197,12 @@ export const CallGroupFormModal = memo(({ onSaved }: CallGroupFormModalProps) =>
 
             <div className={cls.fieldRow}>
               <div className={cls.field}>
-                <Label htmlFor="call-group-strategy">{t('callGroups.strategy', 'Стратегия')}</Label>
+                <HStack gap="4" align="center">
+                  <Label htmlFor="call-group-strategy">{t('callGroups.strategy', 'Стратегия')}</Label>
+                  <InfoTooltip
+                    text={`${t('callGroups.strategyDesc')}\n\n• ${t('callGroups.strategy.ringall')}: ${t('callGroups.strategy.ringallDesc')}\n• ${t('callGroups.strategy.hunt')}: ${t('callGroups.strategy.huntDesc')}\n• ${t('callGroups.strategy.memoryhunt')}: ${t('callGroups.strategy.memoryhuntDesc')}\n• ${t('callGroups.strategy.random')}: ${t('callGroups.strategy.randomDesc')}`}
+                  />
+                </HStack>
                 <Select
                   id="call-group-strategy"
                   value={strategy}
@@ -197,56 +216,44 @@ export const CallGroupFormModal = memo(({ onSaved }: CallGroupFormModalProps) =>
                 </Select>
               </div>
 
-              <div className={cls.field}>
-                <Label htmlFor="call-group-ring-time">{t('callGroups.ringTime', 'Время звонка (сек)')}</Label>
-                <Input
-                  id="call-group-ring-time"
-                  type="number"
-                  min={0}
-                  value={ringTime}
-                  onChange={(e) => setRingTime(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div className={cls.fieldRow}>
-              <div className={cls.field}>
-                <Label htmlFor="call-group-external-context">
-                  {t('callGroups.externalContext', 'Контекст для внешних')}
-                </Label>
-                {hasContexts ? (
-                  <Select
-                    id="call-group-external-context"
-                    value={externalContext}
-                    onChange={(e) => setExternalContext(e.target.value)}
-                  >
-                    {contexts.map((ctx) => (
-                      <option key={ctx.uid} value={ctx.name}>
-                        {ctx.name}
-                      </option>
-                    ))}
-                  </Select>
-                ) : (
+              {showGroupRingTime && (
+                <div className={cls.field}>
+                  <HStack gap="4" align="center">
+                    <Label htmlFor="call-group-ring-time">{t('callGroups.ringTime', 'Время звонка (сек)')}</Label>
+                    <InfoTooltip text={ringTimeHint} />
+                  </HStack>
                   <Input
-                    id="call-group-external-context"
-                    value={externalContext}
-                    onChange={(e) => setExternalContext(e.target.value)}
-                    required
+                    id="call-group-ring-time"
+                    type="number"
+                    min={0}
+                    value={ringTime}
+                    onChange={(e) => setRingTime(e.target.value)}
                   />
-                )}
-              </div>
-
-              <div className={cls.field}>
-                <Label htmlFor="call-group-cid-prefix">{t('callGroups.cidPrefix', 'Префикс Caller ID')}</Label>
-                <Input
-                  id="call-group-cid-prefix"
-                  value={cidPrefix}
-                  onChange={(e) => setCidPrefix(e.target.value)}
-                />
-              </div>
+                </div>
+              )}
             </div>
 
-            <CallGroupMembersEditor members={members} setMembers={setMembers} />
+            <div className={cls.field}>
+              <HStack gap="4" align="center">
+                <Label htmlFor="call-group-cid-prefix">{t('callGroups.cidPrefix', 'Префикс Caller ID')}</Label>
+                <InfoTooltip text={t('callGroups.cidPrefixDesc')} />
+              </HStack>
+              <Input
+                id="call-group-cid-prefix"
+                value={cidPrefix}
+                onChange={(e) => setCidPrefix(e.target.value)}
+                placeholder={t('callGroups.cidPrefix', 'Префикс Caller ID')}
+              />
+            </div>
+
+            <CallGroupMembersEditor
+              members={members}
+              setMembers={setMembers}
+              strategy={strategy}
+              externalContext={externalContext}
+              onExternalContextChange={setExternalContext}
+              contexts={contexts.map((c) => ({ uid: c.uid, name: c.name }))}
+            />
 
             {submitError && (
               <Text variant="small" className={cls.errorText}>{submitError}</Text>

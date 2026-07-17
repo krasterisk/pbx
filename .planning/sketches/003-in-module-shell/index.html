@@ -3,451 +3,261 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Sketch 003 — In-module shell</title>
-  <link rel="stylesheet" href="../themes/default.css" />
+  <title>Sketch 003 — In-module shell (A+C hybrid)</title>
   <style>
-    body { padding-top: 52px; padding-bottom: 48px; min-height: 100vh; }
-    #variant-nav {
-      position: fixed; top: 0; left: 0; right: 0; z-index: 9998;
-      background: var(--color-surface); border-bottom: 1px solid var(--color-border);
-      padding: 10px 16px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh; display: flex; flex-direction: column;
+      background: #0a0a0c; color: #fafafa;
+      font-family: system-ui, -apple-system, sans-serif;
     }
-    .variant-tab {
-      padding: 8px 14px; border: 1px solid var(--color-border); border-radius: var(--radius-md);
-      background: var(--color-surface); color: var(--color-text); cursor: pointer; font-size: var(--text-sm);
+    #banner {
+      flex-shrink: 0; padding: 10px 16px; background: #121214; border-bottom: 1px solid #27272a;
+      font-size: 13px; color: #a1a1aa;
     }
-    .variant-tab.active {
-      background: var(--color-indigo-muted); border-color: var(--color-indigo); color: var(--color-indigo);
+    #banner strong { color: #a5b4fc; }
+    #app {
+      flex: 1; min-height: 0; display: flex; flex-direction: row;
     }
-    #variant-nav .hint { margin-left: auto; font-size: var(--text-xs); color: var(--color-text-muted); }
-    .variant { display: none; }
-    .variant.active { display: block; }
-    #sketch-viewport { transition: max-width 0.2s; margin: 0 auto; min-height: calc(100vh - 100px); }
 
-    .shell { min-height: calc(100vh - 100px); display: flex; flex-direction: column; }
+    /* Full-height sidebar (A density + C icon collapse) */
+    .sidebar {
+      width: 240px; flex-shrink: 0; display: flex; flex-direction: column;
+      border-right: 1px solid #27272a; background: #121214; min-height: 0;
+      transition: width 0.2s ease;
+    }
+    .sidebar.collapsed { width: 64px; }
+    .sidebar.collapsed .nav-text,
+    .sidebar.collapsed .nav-label,
+    .sidebar.collapsed .foot-label { display: none; }
+    .sidebar-nav {
+      flex: 1; overflow-y: auto; padding: 12px 8px; display: flex; flex-direction: column; gap: 4px;
+    }
+    .nav-label {
+      font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em;
+      color: #71717a; padding: 8px 10px 4px;
+    }
+    .nav-item {
+      display: flex; align-items: center; gap: 10px; width: 100%;
+      min-height: 44px; padding: 9px 10px; border: none; border-radius: 8px;
+      background: transparent; color: #a1a1aa; cursor: pointer; font-size: 14px; text-align: left;
+    }
+    .nav-item:hover { background: rgba(255,255,255,0.04); color: #fafafa; }
+    .nav-item.active { background: rgba(99,102,241,0.15); color: #a5b4fc; }
+    .nav-ico { width: 20px; text-align: center; flex-shrink: 0; }
+    .sidebar-foot {
+      flex-shrink: 0; border-top: 1px solid #27272a; padding: 8px;
+      display: flex; flex-direction: column; gap: 4px;
+    }
+    .foot-btn {
+      display: flex; align-items: center; gap: 10px; width: 100%;
+      min-height: 44px; padding: 9px 10px; border: 1px solid #27272a; border-radius: 8px;
+      background: transparent; color: #a1a1aa; cursor: pointer; font-size: 13px; text-align: left;
+    }
+    .foot-btn:hover { border-color: #6366f1; color: #fafafa; }
+
+    .main-col { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0; }
     .topbar {
-      height: 56px; display: flex; align-items: center; gap: 12px; padding: 0 16px;
-      border-bottom: 1px solid var(--color-border); background: rgba(15,15,20,0.85);
-      backdrop-filter: blur(12px); position: sticky; top: 52px; z-index: 40;
+      height: 56px; flex-shrink: 0; display: flex; align-items: center; gap: 12px;
+      padding: 0 16px; border-bottom: 1px solid #27272a; background: rgba(18,18,20,0.95);
     }
     .logo {
       width: 34px; height: 34px; border-radius: 10px; border: none;
-      background: var(--color-indigo-muted); color: var(--color-indigo);
-      font-weight: 800; cursor: pointer; display: grid; place-items: center;
+      background: rgba(99,102,241,0.15); color: #6366f1; font-weight: 800;
+      cursor: pointer; display: grid; place-items: center; flex-shrink: 0;
     }
-    .logo:hover { filter: brightness(1.1); }
-    .chip {
-      display: inline-flex; align-items: center; gap: 8px; padding: 6px 10px;
-      border-radius: 8px; border: 1px solid var(--color-border); background: var(--color-surface);
-      color: var(--color-text); cursor: pointer; font-size: var(--text-sm);
+    .crumbs {
+      display: flex; align-items: center; gap: 6px; flex-wrap: wrap; min-width: 0;
+      font-size: 14px;
     }
-    .chip:hover { border-color: var(--color-indigo); }
-    .chip .chev { color: var(--color-text-muted); font-size: 10px; }
+    .crumbs a { color: #a1a1aa; text-decoration: none; }
+    .crumbs a:hover { color: #a5b4fc; }
+    .crumbs .sep { color: #52525b; }
+    .crumbs .current { color: #fafafa; font-weight: 600; }
     .spacer { flex: 1; }
     .cmd {
-      display: inline-flex; align-items: center; gap: 8px; padding: 6px 10px; min-width: 160px;
-      border-radius: 8px; border: 1px solid var(--color-border); background: rgba(255,255,255,0.03);
-      color: var(--color-text-muted); font-size: var(--text-sm); cursor: pointer;
-    }
-    .cmd kbd {
-      margin-left: auto; font-size: 10px; padding: 2px 6px; border-radius: 4px;
-      border: 1px solid var(--color-border);
+      display: inline-flex; align-items: center; gap: 8px; padding: 6px 10px;
+      border-radius: 8px; border: 1px solid #27272a; background: rgba(255,255,255,0.03);
+      color: #a1a1aa; font-size: 13px; cursor: pointer;
     }
     .avatar {
       width: 32px; height: 32px; border-radius: 999px; background: rgba(255,255,255,0.08);
-      display: grid; place-items: center; font-size: 12px; color: var(--color-text-muted);
+      display: grid; place-items: center; font-size: 12px; color: #a1a1aa;
     }
-
-    .body { display: flex; flex: 1; min-height: 0; }
-    .side {
-      width: 240px; border-right: 1px solid var(--color-border);
-      background: var(--color-surface); padding: 12px; display: flex; flex-direction: column; gap: 4px;
-      transition: width 0.2s ease;
-    }
-    .side.collapsed { width: 64px; }
-    .side .nav-label {
-      font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em;
-      color: var(--color-text-muted); padding: 8px 10px 4px;
-    }
-    .side.collapsed .nav-label, .side.collapsed .nav-text { display: none; }
-    .nav-item {
-      display: flex; align-items: center; gap: 10px; width: 100%;
-      padding: 9px 10px; border: none; border-radius: 8px; background: transparent;
-      color: var(--color-text-muted); cursor: pointer; font-size: var(--text-sm); text-align: left;
-    }
-    .nav-item:hover { background: rgba(255,255,255,0.04); color: var(--color-text); }
-    .nav-item.active { background: var(--color-indigo-muted); color: var(--color-indigo); }
-    .nav-ico { width: 20px; text-align: center; flex-shrink: 0; }
-    .collapse-btn {
-      margin-top: auto; padding: 8px; border: 1px solid var(--color-border); border-radius: 8px;
-      background: transparent; color: var(--color-text-muted); cursor: pointer; font-size: 12px;
-    }
-
-    .main { flex: 1; padding: 24px; min-width: 0; }
-    .page-h { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
-    .page-h h2 { margin: 0; font-size: 1.25rem; }
-    .page-h p { margin: 4px 0 0; font-size: var(--text-sm); color: var(--color-text-muted); }
-    .btn {
-      padding: 8px 14px; border-radius: 8px; border: none; cursor: pointer; font-size: var(--text-sm);
-      background: var(--color-primary); color: #fff; box-shadow: var(--shadow-primary);
-    }
+    .content { flex: 1; overflow: auto; padding: 24px; }
+    .content h1 { margin: 0 0 8px; font-size: 1.35rem; }
+    .content p { margin: 0 0 16px; color: #a1a1aa; font-size: 14px; }
     .card {
-      border: 1px solid var(--color-border-muted); border-radius: var(--radius-lg);
-      background: rgba(15,15,20,0.5); overflow: hidden;
+      border: 1px solid #27272a; border-radius: 12px; overflow: hidden; background: #121214;
     }
-    table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
-    th, td { padding: 12px 16px; border-bottom: 1px solid var(--color-border); text-align: left; }
-    th { color: var(--color-text-muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; }
-    tr:hover td { background: rgba(255,255,255,0.03); }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { padding: 12px 16px; border-bottom: 1px solid #27272a; text-align: left; }
+    th { color: #a1a1aa; font-size: 12px; text-transform: uppercase; }
 
-    /* B — tabs */
-    .tabs {
-      display: flex; gap: 4px; padding: 0 16px; border-bottom: 1px solid var(--color-border);
-      background: var(--color-surface); overflow-x: auto;
+    .mod-panel {
+      position: absolute; left: 8px; bottom: 64px; width: 220px;
+      background: #18181b; border: 1px solid #27272a; border-radius: 10px;
+      padding: 6px; display: none; z-index: 20;
     }
-    .tab {
-      padding: 12px 14px; border: none; background: transparent; color: var(--color-text-muted);
-      cursor: pointer; font-size: var(--text-sm); border-bottom: 2px solid transparent; white-space: nowrap;
+    .mod-panel.open { display: block; }
+    .mod-panel button {
+      display: block; width: 100%; text-align: left; padding: 10px; border: none;
+      border-radius: 8px; background: transparent; color: #fafafa; cursor: pointer; font-size: 13px;
     }
-    .tab:hover { color: var(--color-text); }
-    .tab.active { color: var(--color-indigo); border-bottom-color: var(--color-indigo); }
-    .v-b .body { flex-direction: column; }
+    .mod-panel button:hover { background: rgba(99,102,241,0.15); }
 
-    /* C — icon rail */
-    .rail {
-      width: 56px; border-right: 1px solid var(--color-border); background: var(--color-surface);
-      padding: 10px 6px; display: flex; flex-direction: column; gap: 4px; position: relative;
-    }
-    .rail:hover { width: 200px; }
-    .rail .nav-item { justify-content: flex-start; }
-    .rail:not(:hover) .nav-text { opacity: 0; width: 0; overflow: hidden; }
-    .rail .nav-text { white-space: nowrap; transition: opacity 0.15s; }
-
-    /* Overlays */
-    .overlay {
-      position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 80;
-      display: none; align-items: flex-start; justify-content: center; padding-top: 12vh;
-    }
-    .overlay.open { display: flex; }
-    .panel {
-      width: min(480px, 92vw); background: var(--color-surface-elevated);
-      border: 1px solid var(--color-border); border-radius: 14px; box-shadow: var(--shadow-lg);
-      overflow: hidden;
-    }
-    .panel-h { padding: 12px 14px; border-bottom: 1px solid var(--color-border); font-size: var(--text-sm); color: var(--color-text-muted); }
-    .panel input {
-      width: 100%; padding: 12px 14px; border: none; border-bottom: 1px solid var(--color-border);
-      background: transparent; color: var(--color-text); font-size: var(--text-base); outline: none;
-    }
-    .panel-item {
-      display: flex; gap: 10px; align-items: center; width: 100%; padding: 10px 14px;
-      border: none; background: transparent; color: var(--color-text); cursor: pointer; text-align: left;
-      font-size: var(--text-sm);
-    }
-    .panel-item:hover, .panel-item.active { background: var(--color-indigo-muted); }
-    .panel-item small { color: var(--color-text-muted); margin-left: auto; }
-    .switcher-grid {
-      display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 12px;
-    }
-    .switcher-grid button {
-      padding: 12px; border-radius: 10px; border: 1px solid var(--color-border);
-      background: var(--color-surface); color: var(--color-text); cursor: pointer; text-align: left;
-    }
-    .switcher-grid button:hover { border-color: var(--color-indigo); }
-    .switcher-grid button.active { border-color: var(--color-indigo); background: var(--color-indigo-muted); }
-    .toast {
-      position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%);
-      background: var(--color-surface-elevated); border: 1px solid var(--color-border);
-      padding: 10px 16px; border-radius: 10px; font-size: var(--text-sm);
-      opacity: 0; pointer-events: none; transition: opacity 0.2s; z-index: 90;
-    }
-    .toast.show { opacity: 1; }
-
-    #sketch-tools {
-      position: fixed; bottom: 12px; right: 12px; z-index: 9999;
-      font-family: system-ui; font-size: 12px; background: rgba(0,0,0,0.75); color: white;
-      padding: 8px 12px; border-radius: 8px; opacity: 0.4; transition: opacity 0.2s;
-      display: flex; gap: 8px; align-items: center;
-    }
-    #sketch-tools:hover { opacity: 1; }
-    #sketch-tools button {
-      background: #222; color: #fff; border: 1px solid #444; border-radius: 4px; padding: 4px 6px; cursor: pointer;
-    }
-
-    @media (max-width: 700px) {
-      .side { position: fixed; z-index: 30; height: calc(100% - 108px); top: 108px; transform: translateX(-100%); }
-      .side.open { transform: translateX(0); }
-      .rail { display: none; }
+    @media (max-width: 768px) {
+      .sidebar { width: 64px; }
+      .sidebar .nav-text,
+      .sidebar .nav-label,
+      .sidebar .foot-label { display: none; }
     }
   </style>
 </head>
 <body>
-  <div id="variant-nav">
-    <button type="button" class="variant-tab active" data-v="a">A: Dense sidebar</button>
-    <button type="button" class="variant-tab" data-v="b">B: Top tabs ★ Selected</button>
-    <button type="button" class="variant-tab" data-v="c">C: Compact icon rail</button>
-    <span class="hint">Phase 8 · after Hub E · logo→Hub · chip · ⌘K</span>
+  <div id="banner">
+    Winner: <strong>A+C hybrid</strong> — full-height sidebar (icons+labels), collapse to rail,
+    footer = modules + collapse · top = breadcrumb <strong>Главная → Раздел → Подраздел</strong>
+    (not chip select). Mobile: auto-collapsed.
   </div>
-
-  <div id="sketch-viewport">
-    <section id="variant-a" class="variant active shell v-a" data-variant="a"></section>
-    <section id="variant-b" class="variant shell v-b" data-variant="b"></section>
-    <section id="variant-c" class="variant shell v-c" data-variant="c"></section>
-  </div>
-
-  <div class="overlay" id="palette">
-    <div class="panel">
-      <div class="panel-h">Command palette · modules + pages</div>
-      <input id="palette-input" type="search" placeholder="Перейти к…" autocomplete="off" />
-      <div id="palette-list"></div>
+  <div id="app">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-nav" id="nav"></div>
+      <div class="sidebar-foot" style="position:relative">
+        <div class="mod-panel" id="mod-panel"></div>
+        <button type="button" class="foot-btn" id="mod-btn" title="Modules">
+          <span class="nav-ico">▦</span><span class="foot-label">Модули</span>
+        </button>
+        <button type="button" class="foot-btn" id="collapse-btn" title="Collapse">
+          <span class="nav-ico" id="collapse-ico">«</span><span class="foot-label">Свернуть</span>
+        </button>
+      </div>
+    </aside>
+    <div class="main-col">
+      <header class="topbar">
+        <button type="button" class="logo" id="logo" title="Hub">K</button>
+        <nav class="crumbs" id="crumbs" aria-label="Breadcrumb"></nav>
+        <div class="spacer"></div>
+        <button type="button" class="cmd">Search… <kbd style="margin-left:8px;border:1px solid #27272a;border-radius:4px;padding:2px 6px;font-size:10px">⌘K</kbd></button>
+        <div class="avatar">AD</div>
+      </header>
+      <div class="content" id="content"></div>
     </div>
   </div>
-
-  <div class="overlay" id="switcher">
-    <div class="panel">
-      <div class="panel-h">Module switcher · mini Hub (list style, as 002-E)</div>
-      <div class="switcher-grid" id="switcher-grid"></div>
-    </div>
-  </div>
-
-  <div class="toast" id="toast"></div>
-
-  <div id="sketch-tools">
-    <button type="button" onclick="setViewport(375)">Phone</button>
-    <button type="button" onclick="setViewport(768)">Tablet</button>
-    <button type="button" onclick="setViewport(null)">Desktop</button>
-  </div>
-
   <script>
-    const MODULE = {
-      id: 'core',
-      name: 'Core / PBX',
-      pages: [
+    (function () {
+      var pages = [
         { id: 'endpoints', name: 'Endpoints', icon: '☎' },
         { id: 'contexts', name: 'Contexts', icon: '⧉' },
         { id: 'trunks', name: 'Trunks', icon: '⇄' },
         { id: 'routes', name: 'Routes', icon: '⇢' },
         { id: 'time', name: 'Time groups', icon: '◷' },
         { id: 'phonebooks', name: 'Phonebooks', icon: '☰' },
-        { id: 'settings', name: 'Module settings', icon: '⚙' },
-      ],
-    };
-    const MODULES = [
-      { id: 'overview', name: 'Обзор' },
-      { id: 'core', name: 'Core / PBX' },
-      { id: 'apps', name: 'Apps' },
-      { id: 'system', name: 'System' },
-      { id: 'cc', name: 'Call Center', locked: true },
-    ];
+        { id: 'settings', name: 'Module settings', icon: '⚙' }
+      ];
+      var modules = [
+        { id: 'core', name: 'Core / PBX' },
+        { id: 'apps', name: 'Apps' },
+        { id: 'system', name: 'System' },
+        { id: 'cc', name: 'Call Center' }
+      ];
+      var current = 'endpoints';
+      var moduleName = 'Core / PBX';
+      var sidebar = document.getElementById('sidebar');
+      var collapsed = window.matchMedia('(max-width: 768px)').matches;
 
-    let currentPage = 'endpoints';
-    let collapsed = false;
-
-    function toast(msg) {
-      const el = document.getElementById('toast');
-      el.textContent = msg;
-      el.classList.add('show');
-      clearTimeout(toast._t);
-      toast._t = setTimeout(() => el.classList.remove('show'), 1400);
-    }
-
-    function topbarHtml() {
-      return `
-        <header class="topbar">
-          <button type="button" class="logo" data-action="hub" title="Module Hub">K</button>
-          <button type="button" class="chip" data-action="switcher">
-            <span>${MODULE.name}</span><span class="chev">▼</span>
-          </button>
-          <div class="spacer"></div>
-          <button type="button" class="cmd" data-action="palette">Search… <kbd>⌘K</kbd></button>
-          <div class="avatar">AD</div>
-        </header>`;
-    }
-
-    function mainHtml() {
-      const page = MODULE.pages.find((p) => p.id === currentPage) || MODULE.pages[0];
-      return `
-        <main class="main">
-          <div class="page-h">
-            <div>
-              <h2>${page.name}</h2>
-              <p>In-module page · registry-driven nav · Hub winner E (minimal)</p>
-            </div>
-            <button type="button" class="btn" data-action="create">Создать</button>
-          </div>
-          <div class="card">
-            <table>
-              <thead><tr><th>Name</th><th>Status</th><th>Updated</th></tr></thead>
-              <tbody>
-                <tr><td>1001 · Alice</td><td>Online</td><td>2 мин назад</td></tr>
-                <tr><td>1002 · Bob</td><td>Offline</td><td>вчера</td></tr>
-                <tr><td>1003 · Carol</td><td>Online</td><td>сегодня</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </main>`;
-    }
-
-    function navItems(activeId) {
-      return MODULE.pages.map((p) => `
-        <button type="button" class="nav-item ${p.id === activeId ? 'active' : ''}" data-page="${p.id}">
-          <span class="nav-ico">${p.icon}</span><span class="nav-text">${p.name}</span>
-        </button>`).join('');
-    }
-
-    function renderA(root) {
-      root.innerHTML = `
-        ${topbarHtml()}
-        <div class="body">
-          <aside class="side ${collapsed ? 'collapsed' : ''}">
-            <div class="nav-label">PBX</div>
-            ${navItems(currentPage)}
-            <button type="button" class="collapse-btn" data-action="collapse">${collapsed ? '»' : '« Свернуть'}</button>
-          </aside>
-          ${mainHtml()}
-        </div>`;
-      bindShell(root);
-    }
-
-    function renderB(root) {
-      root.innerHTML = `
-        ${topbarHtml()}
-        <div class="tabs">
-          ${MODULE.pages.map((p) => `
-            <button type="button" class="tab ${p.id === currentPage ? 'active' : ''}" data-page="${p.id}">${p.name}</button>
-          `).join('')}
-        </div>
-        <div class="body">${mainHtml()}</div>`;
-      bindShell(root);
-    }
-
-    function renderC(root) {
-      root.innerHTML = `
-        ${topbarHtml()}
-        <div class="body">
-          <aside class="rail" title="Hover to expand">
-            ${navItems(currentPage)}
-          </aside>
-          ${mainHtml()}
-        </div>`;
-      bindShell(root);
-    }
-
-    function bindShell(root) {
-      root.querySelectorAll('[data-page]').forEach((btn) => {
-        btn.addEventListener('click', () => {
-          currentPage = btn.dataset.page;
-          remountActive();
-          toast('Page → ' + currentPage);
-        });
-      });
-      root.querySelectorAll('[data-action="hub"]').forEach((b) => {
-        b.addEventListener('click', () => toast('Logo → Module Hub (002-E list)'));
-      });
-      root.querySelectorAll('[data-action="switcher"]').forEach((b) => {
-        b.addEventListener('click', () => openOverlay('switcher'));
-      });
-      root.querySelectorAll('[data-action="palette"]').forEach((b) => {
-        b.addEventListener('click', () => openOverlay('palette'));
-      });
-      root.querySelectorAll('[data-action="collapse"]').forEach((b) => {
-        b.addEventListener('click', () => { collapsed = !collapsed; remountActive(); });
-      });
-      root.querySelectorAll('[data-action="create"]').forEach((b) => {
-        b.addEventListener('click', () => toast('Create… (fake)'));
-      });
-    }
-
-    function remountActive() {
-      const active = document.querySelector('.variant.active');
-      const v = active.dataset.variant;
-      if (v === 'a') renderA(active);
-      if (v === 'b') renderB(active);
-      if (v === 'c') renderC(active);
-    }
-
-    function openOverlay(id) {
-      document.getElementById(id).classList.add('open');
-      if (id === 'palette') {
-        const input = document.getElementById('palette-input');
-        input.value = '';
-        renderPalette('');
-        setTimeout(() => input.focus(), 50);
+      function applyCollapse() {
+        sidebar.classList.toggle('collapsed', collapsed);
+        document.getElementById('collapse-ico').textContent = collapsed ? '»' : '«';
+        document.querySelector('#collapse-btn .foot-label').textContent = collapsed ? 'Развернуть' : 'Свернуть';
       }
-    }
-    function closeOverlays() {
-      document.querySelectorAll('.overlay').forEach((o) => o.classList.remove('open'));
-    }
 
-    function renderPalette(q) {
-      const list = document.getElementById('palette-list');
-      const qq = q.trim().toLowerCase();
-      const rows = [
-        ...MODULES.map((m) => ({ kind: 'module', id: m.id, name: m.name, locked: m.locked })),
-        ...MODULE.pages.map((p) => ({ kind: 'page', id: p.id, name: p.name })),
-      ].filter((r) => !qq || r.name.toLowerCase().includes(qq));
-      list.innerHTML = rows.map((r) => `
-        <button type="button" class="panel-item" data-kind="${r.kind}" data-id="${r.id}">
-          <span>${r.kind === 'module' ? '▦' : '→'}</span>
-          <span>${r.name}</span>
-          <small>${r.locked ? 'Locked' : r.kind}</small>
-        </button>`).join('') || '<div class="panel-h">Ничего не найдено</div>';
-      list.querySelectorAll('.panel-item').forEach((btn) => {
-        btn.addEventListener('click', () => {
-          closeOverlays();
-          if (btn.dataset.kind === 'page') {
-            currentPage = btn.dataset.id;
-            remountActive();
-          }
-          toast((btn.dataset.kind === 'module' ? 'Module → ' : 'Page → ') + btn.dataset.id);
-        });
-      });
-    }
-
-    document.getElementById('palette-input').addEventListener('input', (e) => renderPalette(e.target.value));
-    document.querySelectorAll('.overlay').forEach((o) => {
-      o.addEventListener('click', (e) => { if (e.target === o) closeOverlays(); });
-    });
-    document.addEventListener('keydown', (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault();
-        openOverlay('palette');
+      function renderNav() {
+        var html = '<div class="nav-label">PBX</div>';
+        for (var i = 0; i < pages.length; i++) {
+          var p = pages[i];
+          html += '<button type="button" class="nav-item' + (p.id === current ? ' active' : '') + '" data-page="' + p.id + '">' +
+            '<span class="nav-ico">' + p.icon + '</span><span class="nav-text">' + p.name + '</span></button>';
+        }
+        document.getElementById('nav').innerHTML = html;
+        var btns = document.querySelectorAll('#nav [data-page]');
+        for (var j = 0; j < btns.length; j++) {
+          btns[j].addEventListener('click', function (e) {
+            current = e.currentTarget.getAttribute('data-page');
+            renderAll();
+          });
+        }
       }
-      if (e.key === 'Escape') closeOverlays();
-    });
 
-    const grid = document.getElementById('switcher-grid');
-    grid.innerHTML = MODULES.map((m) => `
-      <button type="button" class="${m.id === MODULE.id ? 'active' : ''}" data-mod="${m.id}">
-        <strong>${m.name}</strong><br>
-        <span style="font-size:11px;color:var(--color-text-muted)">${m.locked ? 'Locked' : 'Enter'}</span>
-      </button>`).join('');
-    grid.querySelectorAll('button').forEach((b) => {
-      b.addEventListener('click', () => {
-        closeOverlays();
-        toast(MODULES.find((m) => m.id === b.dataset.mod)?.locked ? 'Locked module' : 'Switch → ' + b.dataset.mod);
+      function renderCrumbs() {
+        var page = pages.filter(function (p) { return p.id === current; })[0] || pages[0];
+        document.getElementById('crumbs').innerHTML =
+          '<a href="#" data-go="home">Главная</a>' +
+          '<span class="sep">→</span>' +
+          '<a href="#" data-go="module">' + moduleName + '</a>' +
+          '<span class="sep">→</span>' +
+          '<span class="current">' + page.name + '</span>';
+        var links = document.querySelectorAll('#crumbs a');
+        for (var i = 0; i < links.length; i++) {
+          links[i].addEventListener('click', function (e) {
+            e.preventDefault();
+            alert(e.currentTarget.getAttribute('data-go') === 'home' ? '→ Module Hub' : '→ Module home');
+          });
+        }
+      }
+
+      function renderContent() {
+        var page = pages.filter(function (p) { return p.id === current; })[0] || pages[0];
+        document.getElementById('content').innerHTML =
+          '<h1>' + page.name + '</h1>' +
+          '<p>A+C hybrid · full-height sidebar · breadcrumb instead of chip</p>' +
+          '<div class="card"><table><thead><tr><th>Name</th><th>Status</th><th>Updated</th></tr></thead>' +
+          '<tbody><tr><td>1001 · Alice</td><td>Online</td><td>2 мин назад</td></tr>' +
+          '<tr><td>1002 · Bob</td><td>Offline</td><td>вчера</td></tr>' +
+          '<tr><td>1003 · Carol</td><td>Online</td><td>сегодня</td></tr></tbody></table></div>';
+      }
+
+      function renderMods() {
+        document.getElementById('mod-panel').innerHTML = modules.map(function (m) {
+          return '<button type="button" data-mod="' + m.id + '">' + m.name + '</button>';
+        }).join('') + '<button type="button" data-mod="hub">Модули (Hub)</button>';
+      }
+
+      function renderAll() {
+        applyCollapse();
+        renderNav();
+        renderCrumbs();
+        renderContent();
+      }
+
+      document.getElementById('collapse-btn').addEventListener('click', function () {
+        if (window.matchMedia('(max-width: 768px)').matches) return;
+        collapsed = !collapsed;
+        applyCollapse();
       });
-    });
-
-    document.querySelectorAll('.variant-tab').forEach((tab) => {
-      tab.addEventListener('click', () => {
-        document.querySelectorAll('.variant-tab').forEach((t) => t.classList.remove('active'));
-        tab.classList.add('active');
-        document.querySelectorAll('.variant').forEach((v) => v.classList.remove('active'));
-        document.getElementById('variant-' + tab.dataset.v).classList.add('active');
-        remountActive();
+      document.getElementById('mod-btn').addEventListener('click', function () {
+        document.getElementById('mod-panel').classList.toggle('open');
       });
-    });
+      document.getElementById('logo').addEventListener('click', function () {
+        alert('Logo → Module Hub');
+      });
+      document.getElementById('mod-panel').addEventListener('click', function (e) {
+        var btn = e.target.closest('button');
+        if (!btn) return;
+        if (btn.getAttribute('data-mod') !== 'hub') {
+          moduleName = btn.textContent;
+        }
+        document.getElementById('mod-panel').classList.remove('open');
+        renderCrumbs();
+      });
+      window.matchMedia('(max-width: 768px)').addEventListener('change', function (e) {
+        collapsed = e.matches ? true : collapsed;
+        applyCollapse();
+      });
 
-    function setViewport(w) {
-      const vp = document.getElementById('sketch-viewport');
-      if (!w) { vp.style.maxWidth = ''; vp.style.border = ''; return; }
-      vp.style.maxWidth = w + 'px';
-      vp.style.border = '1px solid var(--color-border)';
-      vp.style.borderRadius = '12px';
-    }
-
-    remountActive();
+      renderMods();
+      renderAll();
+    })();
   </script>
 </body>
 </html>

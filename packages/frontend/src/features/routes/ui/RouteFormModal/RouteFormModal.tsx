@@ -46,6 +46,7 @@ export const RouteFormModal = memo(() => {
   // Options
   const [record, setRecord] = useState(false);
   const [recordAll, setRecordAll] = useState(false);
+  const [recordStereo, setRecordStereo] = useState(false);
   const [bindings, setBindings] = useState<IRoutePhonebookBinding[]>([]);
   const [preCommand, setPreCommand] = useState('');
   const [routeType, setRouteType] = useState(0);
@@ -68,6 +69,7 @@ export const RouteFormModal = memo(() => {
       const recMode = decodeRecordMode(opts);
       setRecord(recMode !== 'off');
       setRecordAll(recMode === 'all');
+      setRecordStereo(!!opts.record_stereo);
       setBindings(
         [...(selectedRoute.bindings || [])].sort((a, b) => a.position - b.position),
       );
@@ -123,6 +125,7 @@ export const RouteFormModal = memo(() => {
     setRawDialplan('');
     setRecord(false);
     setRecordAll(false);
+    setRecordStereo(false);
     setBindings([]);
     setPreCommand('');
     setRouteType(0);
@@ -142,6 +145,7 @@ export const RouteFormModal = memo(() => {
       record: record || undefined,
       // Only persist record_all when recording is actually enabled — prevents record_all:true/record:false ghost state
       record_all: record && recordAll ? true : undefined,
+      record_stereo: record && recordStereo ? true : undefined,
       pre_command: preCommand || undefined,
       route_type: routeType || undefined,
     };
@@ -244,6 +248,7 @@ export const RouteFormModal = memo(() => {
               routeType={routeType} setRouteType={setRouteType}
               record={record} setRecord={setRecord}
               recordAll={recordAll} setRecordAll={setRecordAll}
+              recordStereo={recordStereo} setRecordStereo={setRecordStereo}
               contextUid={contextUid} setContextUid={setContextUid}
               isCreateMode={isCreateMode} contexts={contexts}
             />

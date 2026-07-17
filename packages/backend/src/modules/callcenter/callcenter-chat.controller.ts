@@ -29,8 +29,8 @@ export class CallCenterChatController {
   ) {}
 
   @Get('channels')
-  listChannels(@Req() req: Request & { user: { id: number; level: number; vpbx_user_uid: number } }) {
-    return this.chatService.listChannels(req.user.id, req.user.level, req.user.vpbx_user_uid);
+  listChannels(@Req() req: Request & { user: { sub: number; level: number; vpbx_user_uid: number } }) {
+    return this.chatService.listChannels(req.user.sub, req.user.level, req.user.vpbx_user_uid);
   }
 
   @Get('contacts')
@@ -41,11 +41,11 @@ export class CallCenterChatController {
   @Get('messages')
   async getMessages(
     @Query() query: GetHistoryQueryDto,
-    @Req() req: Request & { user: { id: number; level: number; vpbx_user_uid: number } },
+    @Req() req: Request & { user: { sub: number; level: number; vpbx_user_uid: number } },
   ) {
     const tenant = req.user.vpbx_user_uid;
     const allowed = await this.chatService.canAccessChannel(
-      req.user.id,
+      req.user.sub,
       req.user.level,
       query.channelKey,
       tenant,
@@ -64,10 +64,10 @@ export class CallCenterChatController {
   @Post('messages')
   async sendMessage(
     @Body() dto: SendChatMessageDto,
-    @Req() req: Request & { user: { id: number; level: number; vpbx_user_uid: number } },
+    @Req() req: Request & { user: { sub: number; level: number; vpbx_user_uid: number } },
   ) {
     const tenant = req.user.vpbx_user_uid;
-    const senderUserId = req.user.id;
+    const senderUserId = req.user.sub;
 
     if (dto.channelType === 'broadcast_all' || dto.channelType === 'broadcast_queue') {
       assertSupervisor(req.user);
@@ -156,12 +156,12 @@ export class CallCenterChatController {
   @Post('channels')
   createChannel(
     @Body() dto: CreateChatChannelDto,
-    @Req() req: Request & { user: { id: number; vpbx_user_uid: number } },
+    @Req() req: Request & { user: { sub: number; vpbx_user_uid: number } },
   ) {
     return this.chatService.createGroup({
       name: dto.name,
       memberUserIds: dto.memberUserIds,
-      createdBy: req.user.id,
+      createdBy: req.user.sub,
       userUid: req.user.vpbx_user_uid,
     });
   }

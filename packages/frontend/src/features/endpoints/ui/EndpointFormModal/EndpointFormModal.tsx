@@ -19,13 +19,14 @@ import { useGetContextsQuery } from '@/shared/api/endpoints/contextApi';
 import { useGetProvisionTemplatesQuery } from '@/shared/api/endpoints/provisionTemplateApi';
 import { PickupGroupSelect } from '../PickupGroupSelect/PickupGroupSelect';
 import { ADVANCED_PJSIP_FIELDS } from '../../config/pjsipAdvancedFields';
+import {
+  PRIMARY_NAT_PROFILE_OPTIONS,
+  type PrimaryNatProfileId,
+  buildNatProfilePatch,
+  detectNatProfile,
+} from '../../config/natProfiles';
 import { AdvancedSettingsBuilder } from '../AdvancedSettingsBuilder';
-
-const NAT_PROFILES = [
-  { value: 'lan', labelKey: 'endpoints.natLan' },
-  { value: 'nat', labelKey: 'endpoints.natNat' },
-  { value: 'webrtc', labelKey: 'endpoints.natWebrtc' },
-];
+import { Checkbox, Label } from '@/shared/ui';
 
 const CODEC_OPTIONS = [
   'ulaw', 'alaw', 'g722', 'g729', 'gsm', 'opus', 'h264', 'vp8',
@@ -73,7 +74,9 @@ export const EndpointFormModal = () => {
   const [context, setContext] = useState('');
   const [transport, setTransport] = useState('transport-udp');
   const [codecs, setCodecs] = useState<string[]>(['ulaw', 'alaw', 'g722']);
-  const [natProfile, setNatProfile] = useState('nat');
+  const [natProfile, setNatProfile] = useState<PrimaryNatProfileId>('nat');
+  /** Opt-in WebRTC companion — default off */
+  const [webrtcEnabled, setWebrtcEnabled] = useState(false);
   
   // Call Groups
   const [namedCallGroup, setNamedCallGroup] = useState<string[]>([]);
@@ -104,7 +107,13 @@ export const EndpointFormModal = () => {
       setContext(selected.context || '');
       setTransport(selected.transport || '');
       setCodecs((selected.allow || 'ulaw,alaw').split(',').map((s: string) => s.trim()));
-      setNatProfile('nat');
+      const detected = detectNatProfile({
+        webrtc: selected.webrtc_enabled ? 'yes' : null,
+        direct_media: selected.direct_media ?? null,
+        force_rport: selected.force_rport ?? null,
+      });
+      setNatProfile(detected === 'webrtc' ? 'nat' : detected);
+      setWebrtcEnabled(!!selected.webrtc_enabled);
       
       setNamedCallGroup((selected.named_call_group || '').split(',').filter(Boolean));
       setNamedPickupGroup((selected.named_pickup_group || '').split(',').filter(Boolean));
@@ -132,6 +141,7 @@ export const EndpointFormModal = () => {
       setTransport('transport-udp');
       setCodecs(['ulaw', 'alaw', 'g722']);
       setNatProfile('nat');
+      setWebrtcEnabled(false);
       setNamedCallGroup([]);
       setNamedPickupGroup([]);
       setProvisionEnabled(false);
@@ -160,6 +170,7 @@ export const EndpointFormModal = () => {
           transport: transport || undefined,
           codecs: codecs.join(','),
           natProfile,
+          webrtcEnabled,
           namedCallGroup: namedCallGroup.join(','),
           namedPickupGroup: namedPickupGroup.join(','),
           provisionEnabled,
@@ -173,6 +184,9 @@ export const EndpointFormModal = () => {
           },
         }).unwrap();
       } else if (selected) {
+        // Update API takes raw PJSIP columns (no natProfile). Apply the selected
+        // profile patch after advancedState so profile fields always win.
+        const natPatch = buildNatProfilePatch(natProfile);
         await updateEndpoint({
           sipId: selected.id,
           data: {
@@ -188,9 +202,11 @@ export const EndpointFormModal = () => {
               mac_address: macAddress || '',
               provision_template_id: provisionTemplateId || null,
               pv_vars: pvVars || '',
+              webrtc_enabled: webrtcEnabled,
               permit: permit || null,
               deny: deny || null,
               ...advancedState,
+              ...natPatch,
             },
             ...(password ? { auth: { password } } : {}),
           },
@@ -297,6 +313,20 @@ export const EndpointFormModal = () => {
                   />
                 </VStack>
 
+                <HStack align="center" justify="between" className="border border-border p-3 rounded bg-background w-full">
+                  <HStack gap="4" align="center">
+                    <Label className="cursor-pointer" htmlFor="ep-webrtc">
+                      {t('endpoints.webrtcClient', 'WebRTC-клиент')}
+                    </Label>
+                    <InfoTooltip text={t('endpoints.webrtcClientHint', 'Позволяет принимать и совершать звонки через браузер (в том числе softphone в call-центре). Звонки на номер идут параллельно на телефон и в браузер.')} />
+                  </HStack>
+                  <Checkbox
+                    id="ep-webrtc"
+                    checked={webrtcEnabled}
+                    onChange={(e) => setWebrtcEnabled(e.target.checked)}
+                  />
+                </HStack>
+
                 <VStack gap="4">
                   <HStack justify="between" align="center" max>
                     <label htmlFor="ep-password" className="text-sm font-medium text-muted-foreground">{t('endpoints.password')}</label>
@@ -365,14 +395,26 @@ export const EndpointFormModal = () => {
                 <VStack gap="4">
                   <HStack gap="4" align="center">
                     <label className="text-sm font-medium text-muted-foreground">{t('endpoints.natProfile')}</label>
-                    <InfoTooltip text={t('endpoints.natDesc', 'LAN: телефон в одной локальной сети с АТС. NAT: телефон находится за роутером где-то в интернете. WebRTC: профиль для софтфона в браузере (включает шифрование и ICE).')} />
+                    <InfoTooltip text={t('endpoints.natDesc', 'LAN: телефон в одной локальной сети с АТС. NAT: телефон находится за роутером где-то в интернете. Профиль WebRTC для браузера создаётся отдельно галкой «WebRTC-клиент».')} />
                   </HStack>
                   <HStack gap="8">
-                    {NAT_PROFILES.map((p) => (
+                    {PRIMARY_NAT_PROFILE_OPTIONS.map((p) => (
                       <button
                         key={p.value}
                         type="button"
-                        onClick={() => setNatProfile(p.value)}
+                        onClick={() => {
+                          setNatProfile(p.value);
+                          // Keep Advanced tab in sync with the chosen profile
+                          const patch = buildNatProfilePatch(p.value);
+                          setAdvancedState((prev) => {
+                            const next = { ...prev };
+                            for (const [key, val] of Object.entries(patch)) {
+                              if (val == null) delete next[key];
+                              else next[key] = val;
+                            }
+                            return next;
+                          });
+                        }}
                         className={`px-3 py-1.5 rounded-lg text-sm border transition-all ${
                           natProfile === p.value
                             ? 'border-primary bg-primary/10 text-primary'

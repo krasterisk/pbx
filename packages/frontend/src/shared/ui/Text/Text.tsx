@@ -1,4 +1,4 @@
-import { ElementType, ReactNode } from 'react';
+import { ElementType, ReactNode, HTMLAttributes } from 'react';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { classNames } from '@/shared/lib/classNames/classNames';
 
@@ -29,7 +29,9 @@ const textVariants = cva('text-foreground', {
   },
 });
 
-export interface TextProps extends VariantProps<typeof textVariants> {
+export interface TextProps
+  extends VariantProps<typeof textVariants>,
+    Omit<HTMLAttributes<HTMLElement>, 'color'> {
   className?: string;
   children?: ReactNode;
   as?: ElementType;

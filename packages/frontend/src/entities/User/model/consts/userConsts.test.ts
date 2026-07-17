@@ -15,7 +15,8 @@ describe('userConsts (NAV-16 / D-20)', () => {
   });
 
   it('keeps tenant LEVEL_OPTIONS without SUPERADMIN (platform-only)', () => {
-    expect(LEVEL_OPTIONS.some((o) => o.value === UserLevel.SUPERADMIN)).toBe(false);
-    expect(LEVEL_OPTIONS.map((o) => o.value)).toContain(UserLevel.ADMIN);
+    const values = LEVEL_OPTIONS.map((o) => o.value as UserLevel);
+    expect(values).not.toContain(UserLevel.SUPERADMIN);
+    expect(values).toContain(UserLevel.ADMIN);
   });
 });

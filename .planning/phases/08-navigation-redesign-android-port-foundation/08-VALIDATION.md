@@ -42,7 +42,7 @@ created: 2026-07-16
 |-----------------|------|----------|-----------|--------------------------|-------------|--------|
 | NAV-01 / D-01–D-03 | 0–2 | Module registry maps Hub modules → pages; level filter | unit | `moduleRegistry.test.ts` | ❌ W0 | ⬜ pending |
 | NAV-02 / D-07–D-08 | 2 | Hub splits `active` / `disabled` / `locked`; favorites sort | unit | Hub license helpers + list component test | ❌ W0 | ⬜ pending |
-| NAV-03 / D-06 D-10 | 2 | Logo → Hub; chip lists licensed modules; tabs from registry | unit | ModuleShell test (RTL) | ❌ | ⬜ pending |
+| NAV-03 / D-06 D-10 | 2 | Logo → Hub; breadcrumbs; full-height sidebar + footer modules/collapse | unit | ModuleShell test (RTL) | ✅ | ⬜ pending |
 | NAV-04 / D-06 | 3 | ⌘K filters modules + current-module pages; empty copy | unit | CommandPalette test | ❌ W0 | ⬜ pending |
 | NAV-05 / D-04 D-16 D-17 | 1+7 | Role→start defaults; CC-off fallback; locked deep-link fallback | unit | `roleStartResolver` jest+vitest | ❌ W0 | ⬜ pending |
 | NAV-06 / D-21 D-22 | 4 | SuperAdminGuard + platform routes; tenant cannot edit membership | unit | guard + controller specs | ❌ W0 | ⬜ pending |

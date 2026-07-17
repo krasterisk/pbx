@@ -293,4 +293,35 @@ describe('RoutesService', () => {
       expect(dp).toContain('ExecIfTime(10:30-11:45,mon-wed,1-15,jan-mar?Set(__WT_7=1))');
     });
   });
+
+  describe('generateRouteDialplan — call recording', () => {
+    it('emits mono MixMonitor with b flag for on-answer recording', () => {
+      const route = baseRoute({ options: { record: true } });
+      const dp = service.generateRouteDialplan(route, 100, false);
+
+      expect(dp).toContain('MixMonitor(/usr/records/100/calls/${path}/${fname}.wav,b,${monopt})');
+      expect(dp).toContain('-ac 1');
+      expect(dp).not.toContain('__REC_STEREO=1');
+    });
+
+    it('emits stereo MixMonitor with D flag and raw extension', () => {
+      const route = baseRoute({ options: { record: true, record_stereo: true } });
+      const dp = service.generateRouteDialplan(route, 100, false);
+
+      expect(dp).toContain('Set(__REC_STEREO=1)');
+      expect(dp).toContain('MixMonitor(/usr/records/100/calls/${path}/${fname}.raw,bD,${monopt})');
+      expect(dp).toContain('-f s16le');
+      expect(dp).toContain('-ac 2');
+    });
+
+    it('combines record_all and record_stereo without b flag', () => {
+      const route = baseRoute({
+        options: { record: true, record_all: true, record_stereo: true },
+      });
+      const dp = service.generateRouteDialplan(route, 100, false);
+
+      expect(dp).toContain('MixMonitor(/usr/records/100/calls/${path}/${fname}.raw,D,${monopt})');
+      expect(dp).not.toMatch(/MixMonitor\([^)]*,b/);
+    });
+  });
 });

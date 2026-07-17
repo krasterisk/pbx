@@ -64,58 +64,58 @@ export class CallCenterController {
       dto.interface,
       dto.queues || [],
       req.user.vpbx_user_uid,
-      req.user.id,
+      req.user.sub,
     );
   }
 
   @Post('agent/logout')
   agentLogout(@Req() req: Request & { user: any }) {
-    return this.ccService.agentLogout(req.user.vpbx_user_uid, req.user.id);
+    return this.ccService.agentLogout(req.user.vpbx_user_uid, req.user.sub);
   }
 
   @Post('agent/pause')
   agentPause(@Body() dto: AgentPauseDto, @Req() req: Request & { user: any }) {
-    return this.ccService.agentPause(req.user.vpbx_user_uid, req.user.id, dto.reason, dto.queue);
+    return this.ccService.agentPause(req.user.vpbx_user_uid, req.user.sub, dto.reason, dto.queue);
   }
 
   @Post('agent/unpause')
   agentUnpause(@Body() dto: AgentUnpauseDto, @Req() req: Request & { user: any }) {
-    return this.ccService.agentUnpause(req.user.vpbx_user_uid, req.user.id, dto.queue);
+    return this.ccService.agentUnpause(req.user.vpbx_user_uid, req.user.sub, dto.queue);
   }
 
   @Post('agent/hangup')
   agentHangup(@Body() dto: AgentHangupDto, @Req() req: Request & { user: any }) {
-    return this.ccService.agentHangup(req.user.vpbx_user_uid, req.user.id, dto.channel);
+    return this.ccService.agentHangup(req.user.vpbx_user_uid, req.user.sub, dto.channel);
   }
 
   @Post('agent/hold')
   agentHold(@Req() req: Request & { user: any }) {
-    return this.ccService.agentHold(req.user.vpbx_user_uid, req.user.id);
+    return this.ccService.agentHold(req.user.vpbx_user_uid, req.user.sub);
   }
 
   @Post('agent/unhold')
   agentUnhold(@Req() req: Request & { user: any }) {
-    return this.ccService.agentUnhold(req.user.vpbx_user_uid, req.user.id);
+    return this.ccService.agentUnhold(req.user.vpbx_user_uid, req.user.sub);
   }
 
   @Post('agent/transfer')
   agentTransfer(@Body() dto: TransferDto, @Req() req: Request & { user: any }) {
-    return this.ccService.agentTransfer(dto, req.user.vpbx_user_uid, req.user.id);
+    return this.ccService.agentTransfer(dto, req.user.vpbx_user_uid, req.user.sub);
   }
 
   @Post('agent/wrapup-done')
   agentWrapupDone(@Req() req: Request & { user: any }) {
-    return this.ccService.agentWrapupDone(req.user.vpbx_user_uid, req.user.id);
+    return this.ccService.agentWrapupDone(req.user.vpbx_user_uid, req.user.sub);
   }
 
   @Post('agent/wrapup-extend')
   agentWrapupExtend(@Body() dto: WrapupExtendDto, @Req() req: Request & { user: any }) {
-    return this.ccService.agentWrapupExtend(req.user.vpbx_user_uid, req.user.id, dto.seconds);
+    return this.ccService.agentWrapupExtend(req.user.vpbx_user_uid, req.user.sub, dto.seconds);
   }
 
   @Post('agent/pick-call')
   agentPickCall(@Body() dto: PickCallDto, @Req() req: Request & { user: any }) {
-    return this.ccService.agentPickCall(dto.uniqueid, req.user.vpbx_user_uid, req.user.id);
+    return this.ccService.agentPickCall(dto.uniqueid, req.user.vpbx_user_uid, req.user.sub);
   }
 
   // ─── Missed Calls ─────────────────────────────────────
@@ -137,7 +137,7 @@ export class CallCenterController {
     @Body() dto: MarkMissedCalledBackDto,
     @Req() req: Request & { user: any },
   ) {
-    return this.ccService.markMissedCalled(id, dto.note, req.user.vpbx_user_uid, req.user.id);
+    return this.ccService.markMissedCalled(id, dto.note, req.user.vpbx_user_uid, req.user.sub);
   }
 
   // ─── Client Card (sidebar lookup) ─────────────────────
@@ -156,7 +156,7 @@ export class CallCenterController {
       dto.agentInterface,
       dto.mode || 'spy',
       req.user.vpbx_user_uid,
-      req.user.id,
+      req.user.sub,
     );
   }
 

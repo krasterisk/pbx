@@ -60,7 +60,7 @@ export const BASELINE_MODULES: ModuleDef[] = [
   {
     code: 'overview',
     kind: 'base',
-    navVariant: 'tabs',
+    navVariant: 'sidebar',
     labelKey: 'nav.dashboard',
     pages: [
       {
@@ -74,7 +74,7 @@ export const BASELINE_MODULES: ModuleDef[] = [
   {
     code: 'core',
     kind: 'base',
-    navVariant: 'tabs',
+    navVariant: 'sidebar',
     labelKey: 'nav.pbx',
     pages: [
       { id: 'endpoints', path: '/endpoints', labelKey: 'endpoints.title', icon: Phone },
@@ -94,7 +94,7 @@ export const BASELINE_MODULES: ModuleDef[] = [
   {
     code: 'apps',
     kind: 'base',
-    navVariant: 'tabs',
+    navVariant: 'sidebar',
     labelKey: 'nav.apps',
     pages: [
       { id: 'ivrs', path: '/ivrs', labelKey: 'nav.ivrs', icon: AppWindow },
@@ -114,7 +114,7 @@ export const BASELINE_MODULES: ModuleDef[] = [
   {
     code: 'system',
     kind: 'base',
-    navVariant: 'tabs',
+    navVariant: 'sidebar',
     labelKey: 'nav.system',
     pages: [
       { id: 'users', path: '/users', labelKey: 'nav.users', icon: Users, minLevels: ADMIN_PLUS },
@@ -154,7 +154,7 @@ export const BASELINE_MODULES: ModuleDef[] = [
   {
     code: 'callcenter',
     kind: 'market',
-    navVariant: 'tabs',
+    navVariant: 'sidebar',
     labelKey: 'nav.callcenter',
     pages: [
       {
@@ -196,7 +196,7 @@ export const BASELINE_MODULES: ModuleDef[] = [
   {
     code: 'analytics',
     kind: 'market',
-    navVariant: 'tabs',
+    navVariant: 'sidebar',
     labelKey: 'nav.analytics',
     pages: [
       { id: 'reports', path: '/reports', labelKey: 'nav.reports', icon: BarChart3 },
@@ -212,7 +212,7 @@ export const BASELINE_MODULES: ModuleDef[] = [
   {
     code: 'ai',
     kind: 'market',
-    navVariant: 'tabs',
+    navVariant: 'sidebar',
     labelKey: 'nav.ai',
     pages: [
       { id: 'ai-agents', path: '/ai-agents', labelKey: 'nav.aiAgents', icon: Sparkles },

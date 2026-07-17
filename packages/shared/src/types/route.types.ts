@@ -186,6 +186,8 @@ export interface IRouteAction {
 export interface IRouteOptions {
   record?: boolean;
   record_all?: boolean;
+  /** Stereo interleaved recording (MixMonitor D) — RX/TX on separate channels */
+  record_stereo?: boolean;
   pre_command?: string;
   route_type?: number; // outbound type (1-5)
 }

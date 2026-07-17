@@ -10,9 +10,8 @@ import { classNames } from '@/shared/lib/classNames/classNames';
 import cls from './AppLayout.module.scss';
 
 /**
- * Tenant shell host: ModuleShell (003-B) + Outlet + phone MobileBottomBar (004-B).
- * Sidebar demoted — no longer primary nav (D-01/D-03). Wallboard stays outside this layout.
- * Phone reserves bottom padding equal to the 60px bar (+ safe-area).
+ * Tenant shell: ModuleShell A+C hybrid (full-height sidebar + breadcrumbs) + phone bottom bar.
+ * Wallboard stays outside this layout.
  */
 export const AppLayout = () => {
   const isAuthenticated = useAppSelector((s) => s.auth.isAuthenticated);
@@ -26,13 +25,14 @@ export const AppLayout = () => {
   return (
     <Flex
       direction="column"
+      align="stretch"
+      max
       className={classNames(cls.root, { [cls.withBottomBar]: isMobile }, [])}
       data-phone-nav={isMobile ? 'true' : undefined}
     >
-      <ModuleShell />
-      <main className={cls.main}>
+      <ModuleShell>
         <Outlet />
-      </main>
+      </ModuleShell>
       <MobileBottomBar />
       <AiChatWidget />
     </Flex>

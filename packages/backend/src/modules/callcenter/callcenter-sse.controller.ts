@@ -42,7 +42,7 @@ export class CallCenterSseController {
   @Sse('events')
   events(@Req() req: Request & { user: any }): Observable<MessageEvent> {
     const userUid = req.user.vpbx_user_uid;
-    const userId = req.user.id;
+    const userId = req.user.sub;
     this.logger.log(`SSE connection opened: user ${userId}, tenant ${userUid}`);
 
     // Get initial snapshot

@@ -81,7 +81,7 @@ export class CallCenterWallboardController {
     assertSupervisor(req.user);
     return this.wallboardService.generateToken(
       req.user.vpbx_user_uid,
-      req.user.id,
+      req.user.sub,
       dto,
     );
   }

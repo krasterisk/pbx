@@ -6,6 +6,9 @@ import { configureStore } from '@reduxjs/toolkit';
 import {
   NotificationIntegrationFormModal,
   buildIntegrationSubmitPayload,
+  buildWebhookAuthPayload,
+  parseWebhookPayloadTemplate,
+  formatPayloadTemplateForEdit,
 } from './NotificationIntegrationFormModal';
 import { notificationsPageReducer } from '../../model/slice/notificationsPageSlice';
 import type { NotificationsPageSchema } from '../../model/types/notificationsSchema';
@@ -79,6 +82,98 @@ describe('buildIntegrationSubmitPayload', () => {
     ).toEqual({
       config: { chat_id: '-1001' },
       credentials: { bot_token: 'tok123' },
+    });
+  });
+
+  it('parses webhook payload_template JSON into an object', () => {
+    expect(
+      buildIntegrationSubmitPayload('webhook', {
+        url: 'https://hooks.example.com/x',
+        payload_template: '{\n  "text": "{{message}}",\n  "caller": "{{clid}}"\n}',
+      }),
+    ).toEqual({
+      config: {
+        url: 'https://hooks.example.com/x',
+        payload_template: { text: '{{message}}', caller: '{{clid}}' },
+      },
+      credentials: {},
+    });
+  });
+
+  it('returns error for invalid payload_template JSON', () => {
+    const result = buildIntegrationSubmitPayload('webhook', {
+      url: 'https://hooks.example.com/x',
+      payload_template: 'not-json',
+    });
+    expect(result.error).toBe('payload_template_invalid');
+  });
+});
+
+describe('parseWebhookPayloadTemplate / formatPayloadTemplateForEdit', () => {
+  it('accepts empty and object JSON', () => {
+    expect(parseWebhookPayloadTemplate('')).toEqual({ ok: true });
+    expect(parseWebhookPayloadTemplate('{"a":1}')).toEqual({ ok: true, value: { a: 1 } });
+    expect(parseWebhookPayloadTemplate('[]').ok).toBe(false);
+  });
+
+  it('pretty-prints stored objects for the textarea', () => {
+    expect(formatPayloadTemplateForEdit({ text: '{{message}}' })).toContain('"text"');
+    expect(formatPayloadTemplateForEdit(null)).toBe('');
+  });
+});
+
+describe('buildWebhookAuthPayload', () => {
+  it('returns only auth_mode for none without prior auth', () => {
+    expect(buildWebhookAuthPayload('none', '', [], { hadAuth: false })).toEqual({
+      config: { auth_mode: 'none' },
+    });
+  });
+
+  it('clears credentials for none when integration previously had auth', () => {
+    expect(buildWebhookAuthPayload('none', '', [], { hadAuth: true })).toEqual({
+      config: { auth_mode: 'none' },
+      credentials: {},
+    });
+  });
+
+  it('builds a Bearer Authorization header from token', () => {
+    expect(buildWebhookAuthPayload('bearer', 'abc123', [], { hadAuth: false })).toEqual({
+      config: { auth_mode: 'bearer' },
+      credentials: { headers: { Authorization: 'Bearer abc123' } },
+    });
+  });
+
+  it('omits credentials for bearer with blank token (keep existing)', () => {
+    expect(buildWebhookAuthPayload('bearer', '   ', [], { hadAuth: true })).toEqual({
+      config: { auth_mode: 'bearer' },
+    });
+  });
+
+  it('builds custom headers and stores keys in config', () => {
+    const result = buildWebhookAuthPayload(
+      'custom',
+      '',
+      [
+        { key: 'X-Api-Key', value: 'secret' },
+        { key: 'X-Env', value: 'prod' },
+      ],
+      { hadAuth: false },
+    );
+    expect(result).toEqual({
+      config: { auth_mode: 'custom', auth_header_keys: ['X-Api-Key', 'X-Env'] },
+      credentials: { headers: { 'X-Api-Key': 'secret', 'X-Env': 'prod' } },
+    });
+  });
+
+  it('keeps existing custom headers when all values are blank on edit', () => {
+    const result = buildWebhookAuthPayload(
+      'custom',
+      '',
+      [{ key: 'X-Api-Key', value: '' }],
+      { hadAuth: true },
+    );
+    expect(result).toEqual({
+      config: { auth_mode: 'custom', auth_header_keys: ['X-Api-Key'] },
     });
   });
 });

@@ -2,19 +2,14 @@ import { useState, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import * as Dialog from '@radix-ui/react-dialog';
 import { X, Layers } from 'lucide-react';
-import { Button, Input } from '@/shared/ui';
+import { Button, Input, Checkbox, Label, InfoTooltip } from '@/shared/ui';
 import { VStack, HStack } from '@/shared/ui/Stack';
 import { useAppSelector, useAppDispatch } from '@/shared/hooks/useAppStore';
 import { selectEndpointIsBulkModalOpen } from '../../model/selectors/endpointsPageSelectors';
 import { endpointsPageActions } from '../../model/slice/endpointsPageSlice';
 import { useBulkCreateEndpointsMutation, useGetBulkJobStatusQuery, useGetActiveBulkJobQuery } from '@/shared/api/endpoints/endpointApi';
 import { useGetContextsQuery } from '@/shared/api/endpoints/contextApi';
-
-const NAT_PROFILES = [
-  { value: 'lan', labelKey: 'endpoints.natLan' },
-  { value: 'nat', labelKey: 'endpoints.natNat' },
-  { value: 'webrtc', labelKey: 'endpoints.natWebrtc' },
-];
+import { PRIMARY_NAT_PROFILE_OPTIONS, type PrimaryNatProfileId } from '../../config/natProfiles';
 
 export const BulkCreateModal = () => {
   const { t } = useTranslation();
@@ -31,7 +26,8 @@ export const BulkCreateModal = () => {
   const [passwordPattern, setPasswordPattern] = useState('auto');
   const [department, setDepartment] = useState('');
   const [context, setContext] = useState('');
-  const [natProfile, setNatProfile] = useState('nat');
+  const [natProfile, setNatProfile] = useState<PrimaryNatProfileId>('nat');
+  const [webrtcEnabled, setWebrtcEnabled] = useState(false);
   const [codecs] = useState('ulaw,alaw,g722');
   const [result, setResult] = useState<{ created?: string[]; skipped?: string[]; total: number } | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
@@ -95,6 +91,7 @@ export const BulkCreateModal = () => {
         context: context || undefined,
         codecs,
         natProfile,
+        webrtcEnabled,
       }).unwrap();
       
       if (res.jobId) {
@@ -269,7 +266,7 @@ export const BulkCreateModal = () => {
               <VStack gap="4">
                 <label className="text-sm font-medium text-muted-foreground">{t('endpoints.natProfile')}</label>
                 <HStack gap="8">
-                  {NAT_PROFILES.map((p) => (
+                  {PRIMARY_NAT_PROFILE_OPTIONS.map((p) => (
                     <button
                       key={p.value}
                       type="button"
@@ -285,6 +282,20 @@ export const BulkCreateModal = () => {
                   ))}
                 </HStack>
               </VStack>
+
+              <HStack align="center" justify="between" className="border border-border p-3 rounded bg-background w-full">
+                <HStack gap="4" align="center">
+                  <Label className="cursor-pointer" htmlFor="bulk-webrtc">
+                    {t('endpoints.webrtcClient', 'WebRTC-клиент')}
+                  </Label>
+                  <InfoTooltip text={t('endpoints.webrtcClientHint', 'Позволяет принимать и совершать звонки через браузер (в том числе softphone в call-центре). Звонки на номер идут параллельно на телефон и в браузер.')} />
+                </HStack>
+                <Checkbox
+                  id="bulk-webrtc"
+                  checked={webrtcEnabled}
+                  onChange={(e) => setWebrtcEnabled(e.target.checked)}
+                />
+              </HStack>
 
               {/* Error */}
               {error && (

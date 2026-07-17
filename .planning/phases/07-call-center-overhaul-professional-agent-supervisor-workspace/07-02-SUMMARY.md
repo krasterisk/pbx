@@ -79,7 +79,7 @@ completed: 2026-07-15
 2. **Task 2: /callcenter/settings tabbed page skeleton + i18n** - `8dc790b` (feat)
 3. **Task 3: Role-based Sidebar navigation (from scratch) + supervisor-as-operator entry** - `059d464` (feat)
 
-**Plan metadata:** pending (docs commit)
+**Plan metadata:** `a609d3e` (docs: complete plan)
 
 ## Self-Check: PASSED
 

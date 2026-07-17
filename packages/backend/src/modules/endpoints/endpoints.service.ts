@@ -1,7 +1,7 @@
-import { Injectable, ConflictException, NotFoundException, Inject } from '@nestjs/common';
+import { Injectable, ConflictException, NotFoundException, BadRequestException, Inject } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize-typescript';
-import { Op } from 'sequelize';
+import { Op, Transaction } from 'sequelize';
 import * as crypto from 'crypto';
 import { PsEndpoint } from './ps-endpoint.model';
 import { PsAuth } from './ps-auth.model';
@@ -11,6 +11,14 @@ import { ContextsService } from '../contexts/contexts.service';
 import { CreateEndpointDto, BulkCreateEndpointDto } from './dto/create-endpoint.dto';
 import { LoggerService } from '../logger/logger.service';
 import { REDIS_CLIENT } from '../redis/redis.module';
+import {
+  buildSipId,
+  buildWebrtcSipId,
+  extractExtension,
+  isWebrtcCompanion,
+  companionIdOf,
+  primaryIdOf,
+} from './endpoint-ids.util';
 
 /** NAT profile presets that auto-configure multiple PJSIP parameters */
 const NAT_PROFILES: Record<string, Partial<PsEndpoint>> = {
@@ -71,16 +79,10 @@ export class EndpointsService {
     @Inject(REDIS_CLIENT) private readonly redis: any,
   ) {}
 
-  /** Build globally unique SIP ID: e{extension}_{vpbxUserUid} */
-  private buildSipId(vpbxUserUid: number, extension: string): string {
-    return `e${extension}_${vpbxUserUid}`;
-  }
-
   /** Build default context name for a tenant */
   private buildDefaultContext(_vpbxUserUid: number): string {
     return 'from-internal';
   }
-
 
   /**
    * Build context with tenant ID suffix.
@@ -102,11 +104,100 @@ export class EndpointsService {
     return Array.from(bytes, (b) => chars[b % chars.length]).join('');
   }
 
-  /** Extract user-facing extension number from SIP ID */
-  private extractExtension(sipId: string): string {
-    // e100_42 → "100"
-    const match = sipId.match(/^e(.+)_\d+$/);
-    return match ? match[1] : sipId;
+  private resolvePrimaryNatProfile(natProfile?: string): Partial<PsEndpoint> {
+    // WebRTC profile must not land on the primary (desk-phone) endpoint
+    if (!natProfile || natProfile === 'webrtc') return NAT_PROFILES.nat;
+    return NAT_PROFILES[natProfile] || NAT_PROFILES.nat;
+  }
+
+  private async createCompanionTriple(
+    vpbxUserUid: number,
+    extension: string,
+    primary: {
+      context: string;
+      callerid: string | null;
+      department?: string | null;
+      language?: string | null;
+      allow?: string | null;
+    },
+    transaction: Transaction,
+  ): Promise<string> {
+    const webrtcId = buildWebrtcSipId(vpbxUserUid, extension);
+    const existing = await this.endpointModel.findByPk(webrtcId, { transaction });
+    if (existing) return webrtcId;
+
+    const password = this.generatePassword();
+    await this.authModel.create(
+      {
+        id: webrtcId,
+        auth_type: 'userpass',
+        username: webrtcId,
+        password,
+      },
+      { transaction },
+    );
+    await this.aorModel.create(
+      {
+        id: webrtcId,
+        max_contacts: 1,
+        qualify_frequency: 60,
+        remove_existing: 'yes',
+      },
+      { transaction },
+    );
+    await this.endpointModel.create(
+      {
+        id: webrtcId,
+        tenantid: String(vpbxUserUid),
+        auth: webrtcId,
+        aors: webrtcId,
+        context: primary.context,
+        callerid: primary.callerid,
+        disallow: 'all',
+        allow: primary.allow || 'ulaw,alaw,g722,opus',
+        transport: 'transport-wss',
+        dtmf_mode: 'auto',
+        language: primary.language || 'ru',
+        department: primary.department || '',
+        ...(NAT_PROFILES.webrtc as any),
+      },
+      { transaction },
+    );
+    return webrtcId;
+  }
+
+  private async destroyEndpointTriple(sipId: string, transaction: Transaction): Promise<void> {
+    await this.contactModel.destroy({ where: { endpoint: sipId }, transaction });
+    await this.endpointModel.destroy({ where: { id: sipId }, transaction });
+    await this.authModel.destroy({ where: { id: sipId }, transaction });
+    await this.aorModel.destroy({ where: { id: sipId }, transaction });
+  }
+
+  private contactStatus(
+    contact: PsContact | undefined | null,
+    aorDefaultExpiration?: number | null,
+  ): {
+    status: 'online' | 'offline';
+    userAgent: string | null;
+    clientIp: string | null;
+    contactUri: string | null;
+    lastRegistered: number | null;
+  } {
+    const now = Math.floor(Date.now() / 1000);
+    let lastRegistered: number | null = null;
+    if (contact?.updatedAt) {
+      lastRegistered = Math.floor(new Date(contact.updatedAt).getTime() / 1000);
+    } else if (contact?.expiration_time) {
+      const regInterval = aorDefaultExpiration || 3600;
+      lastRegistered = contact.expiration_time - regInterval;
+    }
+    return {
+      status: contact && contact.expiration_time > now ? 'online' : 'offline',
+      userAgent: contact?.user_agent || null,
+      clientIp: contact?.via_addr || null,
+      contactUri: contact?.uri || null,
+      lastRegistered,
+    };
   }
 
   /** Numeric-aware extension sort: 114 < 1139 < 1140 */
@@ -159,35 +250,42 @@ export class EndpointsService {
   }
 
   /**
-   * Get all endpoints for a tenant, enriched with registration status
+   * Get all endpoints for a tenant, enriched with registration status.
+   * WebRTC companions (ew*) are hidden; status is attached to the primary row.
    */
   async findAll(vpbxUserUid: number) {
     const endpoints = await this.endpointModel.findAll({
       where: { tenantid: String(vpbxUserUid) },
     });
 
-    // Get active contacts (registration status) for all endpoints
-    const sipIds = endpoints.map((e) => e.id);
+    const primaryEndpoints = endpoints.filter((e) => !isWebrtcCompanion(e.id));
+    const companionByPrimary = new Map<string, string>();
+    for (const ep of endpoints) {
+      if (!isWebrtcCompanion(ep.id)) continue;
+      const primaryId = primaryIdOf(ep.id);
+      if (primaryId) companionByPrimary.set(primaryId, ep.id);
+    }
+    const companionIds = [...companionByPrimary.values()];
+
+    const sipIds = [...primaryEndpoints.map((e) => e.id), ...companionIds];
     const contacts = sipIds.length
       ? await this.contactModel.findAll({
           where: { endpoint: { [Op.in]: sipIds } },
         })
       : [];
 
-    const contactMap = new Map<string, any>();
+    const contactMap = new Map<string, PsContact>();
     contacts.forEach((c) => {
       if (c.endpoint) contactMap.set(c.endpoint, c);
     });
 
-    // Get auth data (to show username, but NOT password in list)
     const auths = sipIds.length
       ? await this.authModel.findAll({
-          where: { id: { [Op.in]: sipIds } },
+          where: { id: { [Op.in]: primaryEndpoints.map((e) => e.id) } },
           attributes: ['id', 'username', 'auth_type'],
         })
       : [];
 
-    // Get AOR data for default_expiration
     const aors = sipIds.length
       ? await this.aorModel.findAll({
           where: { id: { [Op.in]: sipIds } },
@@ -200,37 +298,38 @@ export class EndpointsService {
     const aorMap = new Map<string, any>();
     aors.forEach((a) => aorMap.set(a.id, a));
 
-    return endpoints
+    return primaryEndpoints
       .map((ep) => {
-      const contact = contactMap.get(ep.id);
-      const auth = authMap.get(ep.id);
-      const aor = aorMap.get(ep.id);
-      const now = Math.floor(Date.now() / 1000);
-      const epJson = ep.toJSON();
+        const contact = contactMap.get(ep.id);
+        const auth = authMap.get(ep.id);
+        const aor = aorMap.get(ep.id);
+        const epJson = ep.toJSON();
+        const statusInfo = this.contactStatus(contact, aor?.default_expiration);
 
-      let lastRegistered: number | null = null;
-      if (contact?.updatedAt) {
-        // Convert JS Date to Unix timestamp (seconds) to match existing logic
-        lastRegistered = Math.floor(new Date(contact.updatedAt).getTime() / 1000);
-      } else if (contact?.expiration_time) {
-        // Fallback for older records before the column was populated
-        const regInterval = aor?.default_expiration || 3600;
-        lastRegistered = contact.expiration_time - regInterval;
-      }
+        const webrtcId = companionByPrimary.get(ep.id) || null;
+        let webrtc: { id: string; status: 'online' | 'offline'; userAgent?: string | null } | null = null;
+        if (webrtcId) {
+          const wContact = contactMap.get(webrtcId);
+          const wAor = aorMap.get(webrtcId);
+          const wStatus = this.contactStatus(wContact, wAor?.default_expiration);
+          webrtc = {
+            id: webrtcId,
+            status: wStatus.status,
+            userAgent: wStatus.userAgent,
+          };
+        }
 
-      return {
-        ...epJson,
-        context: this.stripContext(epJson.context, vpbxUserUid),
-        extension: this.extractExtension(ep.id),
-        sipUsername: ep.id,
-        authType: auth?.auth_type || 'userpass',
-        status: contact && contact.expiration_time > now ? 'online' : 'offline',
-        userAgent: contact?.user_agent || null,
-        clientIp: contact?.via_addr || null,
-        contactUri: contact?.uri || null,
-        lastRegistered,
-      };
-    })
+        return {
+          ...epJson,
+          webrtc_enabled: !!webrtcId,
+          context: this.stripContext(epJson.context, vpbxUserUid),
+          extension: extractExtension(ep.id),
+          sipUsername: ep.id,
+          authType: auth?.auth_type || 'userpass',
+          ...statusInfo,
+          webrtc,
+        };
+      })
       .sort((a, b) => this.compareExtensions(a.extension, b.extension));
   }
 
@@ -238,6 +337,10 @@ export class EndpointsService {
    * Get a single endpoint with full details (including AoR and Auth)
    */
   async findOne(sipId: string, vpbxUserUid: number) {
+    if (isWebrtcCompanion(sipId)) {
+      throw new BadRequestException('Edit the primary endpoint; WebRTC companion is managed automatically');
+    }
+
     const endpoint = await this.endpointModel.findOne({
       where: { id: sipId, tenantid: String(vpbxUserUid) },
     });
@@ -246,36 +349,39 @@ export class EndpointsService {
     const auth = await this.authModel.findByPk(sipId);
     const aor = await this.aorModel.findByPk(sipId);
     const contact = await this.contactModel.findOne({ where: { endpoint: sipId } });
-
-    const now = Math.floor(Date.now() / 1000);
-
-    // Calculate last registration time
-    let lastRegistered: number | null = null;
-    if (contact?.updatedAt) {
-      lastRegistered = Math.floor(new Date(contact.updatedAt).getTime() / 1000);
-    } else if (contact?.expiration_time) {
-      const regInterval = aor?.default_expiration || 3600;
-      lastRegistered = contact.expiration_time - regInterval;
-    }
-
+    const statusInfo = this.contactStatus(contact, aor?.default_expiration);
     const epJson = endpoint.toJSON();
 
+    const webrtcId = companionIdOf(sipId);
+    const companion = webrtcId
+      ? await this.endpointModel.findByPk(webrtcId)
+      : null;
+    let webrtc: { id: string; status: 'online' | 'offline'; userAgent?: string | null } | null = null;
+    if (companion && webrtcId) {
+      const wContact = await this.contactModel.findOne({ where: { endpoint: webrtcId } });
+      const wAor = await this.aorModel.findByPk(webrtcId);
+      const wStatus = this.contactStatus(wContact, wAor?.default_expiration);
+      webrtc = { id: webrtcId, status: wStatus.status, userAgent: wStatus.userAgent };
+    }
+
     return {
-      endpoint: { ...epJson, context: this.stripContext(epJson.context, vpbxUserUid) },
+      endpoint: {
+        ...epJson,
+        webrtc_enabled: !!companion,
+        context: this.stripContext(epJson.context, vpbxUserUid),
+      },
       auth: auth ? { ...auth.toJSON(), password: '********' } : null,
       aor: aor?.toJSON() || null,
-      extension: this.extractExtension(sipId),
+      extension: extractExtension(sipId),
       sipUsername: sipId,
-      status: contact && contact.expiration_time > now ? 'online' : 'offline',
-      userAgent: contact?.user_agent || null,
-      clientIp: contact?.via_addr || null,
-      contactUri: contact?.uri || null,
-      lastRegistered,
+      ...statusInfo,
+      webrtc,
     };
   }
 
   /**
-   * Get SIP credentials (username + password) for phone provisioning
+   * Get SIP credentials (username + password) for phone provisioning.
+   * For primary with WebRTC companion — also returns webrtc credentials.
    */
   async getCredentials(sipId: string, vpbxUserUid: number) {
     const endpoint = await this.endpointModel.findOne({
@@ -283,35 +389,61 @@ export class EndpointsService {
     });
     if (!endpoint) throw new NotFoundException('Endpoint not found');
 
+    const domain = process.env.SIP_DOMAIN || process.env.DB_HOST || 'localhost';
     const auth = await this.authModel.findByPk(sipId);
-    return {
+    const base = {
       sipId,
-      extension: this.extractExtension(sipId),
+      extension: extractExtension(sipId),
       username: auth?.username || sipId,
       password: auth?.password || '',
       authType: auth?.auth_type || 'userpass',
-      domain: process.env.SIP_DOMAIN || process.env.DB_HOST || 'localhost',
+      domain,
+    };
+
+    if (isWebrtcCompanion(sipId)) {
+      return base;
+    }
+
+    const webrtcId = companionIdOf(sipId);
+    if (!webrtcId) return base;
+
+    const wAuth = await this.authModel.findByPk(webrtcId);
+    if (!wAuth) return base;
+
+    return {
+      ...base,
+      webrtc: {
+        sipId: webrtcId,
+        extension: extractExtension(webrtcId),
+        username: wAuth.username || webrtcId,
+        password: wAuth.password || '',
+        authType: wAuth.auth_type || 'userpass',
+        domain,
+        transport: 'wss',
+      },
     };
   }
 
   /**
-   * Create a single endpoint (atomically creates ps_auths + ps_aors + ps_endpoints)
+   * Create a single endpoint (atomically creates ps_auths + ps_aors + ps_endpoints).
+   * Optionally creates a WebRTC companion (ew*) when webrtcEnabled is true.
    */
   async create(dto: CreateEndpointDto, vpbxUserUid: number, userId?: number) {
-    const sipId = this.buildSipId(vpbxUserUid, dto.extension);
+    const sipId = buildSipId(vpbxUserUid, dto.extension);
+    const webrtcEnabled = dto.webrtcEnabled === true;
 
     // Check uniqueness
     const exists = await this.endpointModel.findByPk(sipId);
     if (exists) throw new ConflictException(`Extension ${dto.extension} already exists`);
 
     const context = this.buildContext(dto.context, vpbxUserUid);
-    const natSettings = dto.natProfile ? (NAT_PROFILES[dto.natProfile] || {}) : NAT_PROFILES.nat;
+    const natSettings = this.resolvePrimaryNatProfile(dto.natProfile);
     const callerid = dto.displayName
       ? `"${dto.displayName}" <${dto.extension}>`
       : `"${dto.extension}" <${dto.extension}>`;
+    const allow = dto.codecs || 'ulaw,alaw,g722';
 
     const result = await this.sequelize.transaction(async (t) => {
-      // 1. Create auth record
       await this.authModel.create(
         {
           id: sipId,
@@ -322,7 +454,6 @@ export class EndpointsService {
         { transaction: t },
       );
 
-      // 2. Create AoR record
       await this.aorModel.create(
         {
           id: sipId,
@@ -333,7 +464,6 @@ export class EndpointsService {
         { transaction: t },
       );
 
-      // 3. Create endpoint record
       const endpoint = await this.endpointModel.create(
         {
           id: sipId,
@@ -343,7 +473,7 @@ export class EndpointsService {
           context,
           callerid,
           disallow: 'all',
-          allow: dto.codecs || 'ulaw,alaw,g722',
+          allow,
           transport: dto.transport || null,
           dtmf_mode: 'auto',
           language: 'ru',
@@ -360,10 +490,18 @@ export class EndpointsService {
         { transaction: t },
       );
 
+      if (webrtcEnabled) {
+        await this.createCompanionTriple(
+          vpbxUserUid,
+          dto.extension,
+          { context, callerid, department: dto.department || '', language: 'ru', allow },
+          t,
+        );
+      }
+
       return endpoint;
     });
 
-    // Log the action
     if (userId) {
       await this.loggerService.logAction(
         userId,
@@ -371,7 +509,7 @@ export class EndpointsService {
         'endpoint',
         null,
         vpbxUserUid,
-        `Created endpoint ${dto.extension} (${sipId})`,
+        `Created endpoint ${dto.extension} (${sipId})${webrtcEnabled ? ' + WebRTC companion' : ''}`,
       );
     }
 
@@ -379,6 +517,7 @@ export class EndpointsService {
       ...result.toJSON(),
       extension: dto.extension,
       sipUsername: sipId,
+      webrtc_enabled: webrtcEnabled,
     };
   }
 
@@ -520,12 +659,14 @@ export class EndpointsService {
 
   private async processBulkChunk(chunk: number[], dto: BulkCreateEndpointDto, vpbxUserUid: number, createdDest: string[], skippedDest: string[]) {
     const context = this.buildContext(dto.context, vpbxUserUid);
-    const natSettings = dto.natProfile ? (NAT_PROFILES[dto.natProfile] || {}) : NAT_PROFILES.nat;
+    const natSettings = this.resolvePrimaryNatProfile(dto.natProfile);
+    const webrtcEnabled = dto.webrtcEnabled === true;
+    const allow = dto.codecs || 'ulaw,alaw,g722';
 
     await this.sequelize.transaction(async (t) => {
       for (const ext of chunk) {
         const extension = String(ext);
-        const sipId = this.buildSipId(vpbxUserUid, extension);
+        const sipId = buildSipId(vpbxUserUid, extension);
 
         const exists = await this.endpointModel.findByPk(sipId, { transaction: t });
         if (exists) {
@@ -561,7 +702,7 @@ export class EndpointsService {
             context,
             callerid,
             disallow: 'all',
-            allow: dto.codecs || 'ulaw,alaw,g722',
+            allow,
             transport: dto.transport || null,
             dtmf_mode: 'auto',
             language: 'ru',
@@ -571,36 +712,72 @@ export class EndpointsService {
           { transaction: t },
         );
 
+        if (webrtcEnabled) {
+          await this.createCompanionTriple(
+            vpbxUserUid,
+            extension,
+            { context, callerid, department: dto.department || '', language: 'ru', allow },
+            t,
+          );
+        }
+
         createdDest.push(extension);
       }
     });
   }
 
   /**
-   * Update an endpoint (and optionally its auth/aor)
+   * Update an endpoint (and optionally its auth/aor).
+   * Handles webrtc_enabled toggle: create/destroy companion; syncs fields to companion.
    */
   async update(
     sipId: string,
     data: {
-      endpoint?: Partial<PsEndpoint>;
+      endpoint?: Partial<PsEndpoint> & { webrtc_enabled?: boolean };
       auth?: Partial<PsAuth>;
       aor?: Partial<PsAor>;
     },
     vpbxUserUid: number,
     userId?: number,
   ) {
+    if (isWebrtcCompanion(sipId)) {
+      throw new BadRequestException('Edit the primary endpoint; WebRTC companion is managed automatically');
+    }
+
     const existing = await this.endpointModel.findOne({
       where: { id: sipId, tenantid: String(vpbxUserUid) },
     });
     if (!existing) throw new NotFoundException('Endpoint not found');
 
+    const extension = extractExtension(sipId);
+    const webrtcId = companionIdOf(sipId);
+    const existingCompanion = webrtcId
+      ? await this.endpointModel.findByPk(webrtcId)
+      : null;
+    const wasEnabled = !!existingCompanion;
+
     await this.sequelize.transaction(async (t) => {
-      if (data.endpoint) {
-        // Ensure context always has tenant ID suffix
-        if (data.endpoint.context) {
-          data.endpoint.context = this.buildContext(data.endpoint.context, vpbxUserUid);
+      const epPatch = data.endpoint ? { ...data.endpoint } : undefined;
+      let nextWebrtcEnabled = wasEnabled;
+
+      if (epPatch && typeof (epPatch as any).webrtc_enabled === 'boolean') {
+        nextWebrtcEnabled = (epPatch as any).webrtc_enabled;
+        delete (epPatch as any).webrtc_enabled; // not a DB column — derived from companion
+      }
+
+      if (epPatch) {
+        if (epPatch.context) {
+          epPatch.context = this.buildContext(epPatch.context, vpbxUserUid);
         }
-        await this.endpointModel.update(data.endpoint as any, {
+        // Never put WebRTC media profile on the primary via raw patch
+        if ((epPatch as any).webrtc === 'yes') {
+          delete (epPatch as any).webrtc;
+          delete (epPatch as any).dtls_auto_generate_cert;
+          delete (epPatch as any).media_encryption;
+          delete (epPatch as any).rtcp_mux;
+          delete (epPatch as any).bundle;
+        }
+        await this.endpointModel.update(epPatch as any, {
           where: { id: sipId },
           transaction: t,
         });
@@ -617,6 +794,38 @@ export class EndpointsService {
           transaction: t,
         });
       }
+
+      if (!wasEnabled && nextWebrtcEnabled && webrtcId) {
+        const refreshed = await this.endpointModel.findByPk(sipId, { transaction: t });
+        await this.createCompanionTriple(
+          vpbxUserUid,
+          extension,
+          {
+            context: refreshed?.context || existing.context,
+            callerid: refreshed?.callerid ?? existing.callerid,
+            department: refreshed?.department ?? existing.department,
+            language: refreshed?.language ?? existing.language,
+            allow: refreshed?.allow ?? existing.allow,
+          },
+          t,
+        );
+      } else if (wasEnabled && !nextWebrtcEnabled && webrtcId) {
+        await this.destroyEndpointTriple(webrtcId, t);
+      } else if (nextWebrtcEnabled && webrtcId) {
+        // Sync shared fields to companion
+        const sync: Partial<PsEndpoint> = {};
+        if (epPatch?.callerid !== undefined) sync.callerid = epPatch.callerid;
+        if (epPatch?.context !== undefined) sync.context = epPatch.context;
+        if (epPatch?.department !== undefined) sync.department = epPatch.department;
+        if (epPatch?.language !== undefined) sync.language = epPatch.language;
+        if (epPatch?.allow !== undefined) sync.allow = epPatch.allow;
+        if (Object.keys(sync).length) {
+          await this.endpointModel.update(sync as any, {
+            where: { id: webrtcId },
+            transaction: t,
+          });
+        }
+      }
     });
 
     if (userId) {
@@ -626,7 +835,7 @@ export class EndpointsService {
         'endpoint',
         null,
         vpbxUserUid,
-        `Updated endpoint ${this.extractExtension(sipId)} (${sipId})`,
+        `Updated endpoint ${extension} (${sipId})`,
       );
     }
 
@@ -634,19 +843,25 @@ export class EndpointsService {
   }
 
   /**
-   * Delete an endpoint (removes all 3 records atomically)
+   * Delete an endpoint (removes primary + WebRTC companion if present)
    */
   async remove(sipId: string, vpbxUserUid: number, userId?: number) {
+    if (isWebrtcCompanion(sipId)) {
+      throw new BadRequestException('Delete the primary endpoint; WebRTC companion is removed with it');
+    }
+
     const existing = await this.endpointModel.findOne({
       where: { id: sipId, tenantid: String(vpbxUserUid) },
     });
     if (!existing) throw new NotFoundException('Endpoint not found');
 
+    const webrtcId = companionIdOf(sipId);
+
     await this.sequelize.transaction(async (t) => {
-      await this.contactModel.destroy({ where: { endpoint: sipId }, transaction: t });
-      await this.endpointModel.destroy({ where: { id: sipId }, transaction: t });
-      await this.authModel.destroy({ where: { id: sipId }, transaction: t });
-      await this.aorModel.destroy({ where: { id: sipId }, transaction: t });
+      if (webrtcId) {
+        await this.destroyEndpointTriple(webrtcId, t);
+      }
+      await this.destroyEndpointTriple(sipId, t);
     });
 
     if (userId) {
@@ -656,32 +871,37 @@ export class EndpointsService {
         'endpoint',
         null,
         vpbxUserUid,
-        `Deleted endpoint ${this.extractExtension(sipId)} (${sipId})`,
+        `Deleted endpoint ${extractExtension(sipId)} (${sipId})`,
       );
     }
   }
 
   /**
-   * Bulk-delete multiple endpoints atomically
+   * Bulk-delete multiple endpoints atomically (includes WebRTC companions)
    */
   async bulkRemove(sipIds: string[], vpbxUserUid: number, userId?: number) {
-    // Verify all belong to this tenant
+    const primaryIds = sipIds.filter((id) => !isWebrtcCompanion(id));
     const endpoints = await this.endpointModel.findAll({
-      where: { id: { [Op.in]: sipIds }, tenantid: String(vpbxUserUid) },
+      where: { id: { [Op.in]: primaryIds }, tenantid: String(vpbxUserUid) },
     });
 
     const validIds = endpoints.map((e) => e.id);
     if (validIds.length === 0) throw new NotFoundException('No matching endpoints found');
 
+    const companionIds = validIds
+      .map((id) => companionIdOf(id))
+      .filter((id): id is string => !!id);
+    const allIds = [...validIds, ...companionIds];
+
     await this.sequelize.transaction(async (t) => {
-      await this.contactModel.destroy({ where: { endpoint: { [Op.in]: validIds } }, transaction: t });
-      await this.endpointModel.destroy({ where: { id: { [Op.in]: validIds } }, transaction: t });
-      await this.authModel.destroy({ where: { id: { [Op.in]: validIds } }, transaction: t });
-      await this.aorModel.destroy({ where: { id: { [Op.in]: validIds } }, transaction: t });
+      await this.contactModel.destroy({ where: { endpoint: { [Op.in]: allIds } }, transaction: t });
+      await this.endpointModel.destroy({ where: { id: { [Op.in]: allIds } }, transaction: t });
+      await this.authModel.destroy({ where: { id: { [Op.in]: allIds } }, transaction: t });
+      await this.aorModel.destroy({ where: { id: { [Op.in]: allIds } }, transaction: t });
     });
 
     if (userId) {
-      const extensions = validIds.map((id) => this.extractExtension(id)).join(', ');
+      const extensions = validIds.map((id) => extractExtension(id)).join(', ');
       await this.loggerService.logAction(
         userId,
         'bulk_delete',
@@ -693,5 +913,17 @@ export class EndpointsService {
     }
 
     return { deleted: validIds.length, ids: validIds };
+  }
+
+  /** Extensions that have a WebRTC companion (ew*) — for dialplan generation */
+  async listWebrtcEnabledExtensions(vpbxUserUid: number): Promise<Set<string>> {
+    const rows = await this.endpointModel.findAll({
+      where: {
+        tenantid: String(vpbxUserUid),
+        id: { [Op.like]: 'ew%' },
+      },
+      attributes: ['id'],
+    });
+    return new Set(rows.map((r) => extractExtension(r.id)));
   }
 }

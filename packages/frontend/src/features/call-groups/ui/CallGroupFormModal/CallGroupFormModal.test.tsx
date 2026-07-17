@@ -5,6 +5,7 @@ import '@testing-library/jest-dom';
 import { CallGroupFormModal } from './CallGroupFormModal';
 import * as callGroupApiHooks from '@/shared/api/endpoints/callGroupApi';
 import * as contextApiHooks from '@/shared/api/endpoints/contextApi';
+import * as endpointApiHooks from '@/shared/api/endpoints/endpointApi';
 import type { RootState } from '@/app/store/store';
 
 const mockDispatch = vi.fn();
@@ -54,6 +55,14 @@ vi.mock('@/shared/api/endpoints/contextApi', async (importOriginal) => {
   };
 });
 
+vi.mock('@/shared/api/endpoints/endpointApi', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...(actual as object),
+    useGetEndpointsQuery: vi.fn(),
+  };
+});
+
 vi.mock('@/shared/ui', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/shared/ui')>();
   return {
@@ -70,6 +79,11 @@ vi.mock('@/shared/ui', async (importOriginal) => {
 const mockContexts = [
   { uid: 1, name: 'ctx-42', comment: '', user_uid: 1 },
   { uid: 2, name: 'from-internal', comment: '', user_uid: 1 },
+];
+
+const mockEndpoints = [
+  { id: 'e202_42', extension: '202', callerid: '"Alice" <202>' },
+  { id: 'e303_42', extension: '303', callerid: '"Bob" <303>' },
 ];
 
 describe('CallGroupFormModal', () => {
@@ -91,6 +105,10 @@ describe('CallGroupFormModal', () => {
     (contextApiHooks.useGetContextsQuery as ReturnType<typeof vi.fn>).mockReturnValue({
       data: mockContexts,
     });
+    (endpointApiHooks.useGetEndpointsQuery as ReturnType<typeof vi.fn>).mockReturnValue({
+      data: mockEndpoints,
+      isLoading: false,
+    });
   });
 
   it('renders all four strategy options', () => {
@@ -106,21 +124,26 @@ describe('CallGroupFormModal', () => {
     render(<CallGroupFormModal />);
 
     fireEvent.change(screen.getByLabelText('Название'), { target: { value: 'Sales ring' } });
+    fireEvent.change(screen.getByLabelText('Стратегия'), { target: { value: 'hunt' } });
 
-    const addRow = screen.getByPlaceholderText('Номер / добавочный').closest('div') as HTMLElement;
+    const addRow = screen.getByText('Добавить участника').closest('div') as HTMLElement;
     const addTypeSelect = within(addRow).getAllByRole('combobox')[0] as HTMLSelectElement;
+
+    // External member with ring time
     fireEvent.change(addTypeSelect, { target: { value: 'external' } });
-    fireEvent.change(screen.getByPlaceholderText('Номер / добавочный'), { target: { value: '101' } });
-    fireEvent.change(screen.getByPlaceholderText('Время звонка (сек)'), { target: { value: '15' } });
+    fireEvent.change(screen.getByPlaceholderText('Внешний номер'), { target: { value: '79001112233' } });
+    fireEvent.change(screen.getByPlaceholderText('Сек.'), { target: { value: '15' } });
     fireEvent.click(screen.getByText('Добавить участника'));
 
+    // Context for external appears in the members block
+    expect(screen.getByLabelText('Контекст для внешних')).toBeInTheDocument();
+
+    // Internal member from endpoint select
     fireEvent.change(addTypeSelect, { target: { value: 'internal' } });
-    const valueInputs = screen.getAllByPlaceholderText('Номер / добавочный');
-    fireEvent.change(valueInputs[valueInputs.length - 1], { target: { value: '202' } });
+    const selects = within(addRow).getAllByRole('combobox');
+    const endpointSelect = selects[selects.length - 1] as HTMLSelectElement;
+    fireEvent.change(endpointSelect, { target: { value: '202' } });
     fireEvent.click(screen.getByText('Добавить участника'));
-
-    const memberRows = screen.getAllByText('1');
-    expect(memberRows.length).toBeGreaterThan(0);
 
     const moveDownButtons = screen.getAllByTitle('Вниз');
     fireEvent.click(moveDownButtons[0]);
@@ -128,17 +151,26 @@ describe('CallGroupFormModal', () => {
     fireEvent.click(screen.getByText('Сохранить'));
 
     expect(mockCreate).toHaveBeenCalledTimes(1);
-    const payload = mockCreate.mock.calls[0][0];
-    expect(payload.name).toBe('Sales ring');
-    expect(payload.members).toHaveLength(2);
-    expect(payload.members[0]).toMatchObject({
+    const rawCall = mockCreate.mock.calls[0] as unknown as
+      | [{ name: string; members: Array<{
+          member_type: string;
+          value: string;
+          position: number;
+          ring_time?: number;
+        }> }]
+      | undefined;
+    const payload = rawCall?.[0];
+    expect(payload).toBeDefined();
+    expect(payload!.name).toBe('Sales ring');
+    expect(payload!.members).toHaveLength(2);
+    expect(payload!.members[0]).toMatchObject({
       member_type: 'internal',
       value: '202',
       position: 0,
     });
-    expect(payload.members[1]).toMatchObject({
+    expect(payload!.members[1]).toMatchObject({
       member_type: 'external',
-      value: '101',
+      value: '79001112233',
       position: 1,
       ring_time: 15,
     });

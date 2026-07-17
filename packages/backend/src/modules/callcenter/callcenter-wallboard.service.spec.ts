@@ -145,7 +145,7 @@ describe('DisplayTokenGuard', () => {
     await expect(guard.canActivate(context)).rejects.toThrow(UnauthorizedException);
   });
 
-  it('sets req.user without level/id for an active token', async () => {
+  it('sets req.user without level/sub for an active token', async () => {
     displayTokenModel.findOne.mockResolvedValue({
       user_uid: 12,
       revoked_at: null,
@@ -160,7 +160,7 @@ describe('DisplayTokenGuard', () => {
     expect(req.user.isDisplayToken).toBe(true);
     expect(req.user.vpbx_user_uid).toBe(12);
     expect(req.user.level).toBeUndefined();
-    expect(req.user.id).toBeUndefined();
+    expect(req.user.sub).toBeUndefined();
   });
 
   it('throws UnauthorizedException when token is expired', async () => {

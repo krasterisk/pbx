@@ -111,7 +111,7 @@ export class CallCenterCardsController {
     @Body() dto: SaveCardDto,
     @Req() req: Request & { user: any },
   ) {
-    return this.cardsService.saveCard(dto, req.user.vpbx_user_uid, req.user.id);
+    return this.cardsService.saveCard(dto, req.user.vpbx_user_uid, req.user.sub);
   }
 
   @Put('cards/:id')

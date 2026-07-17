@@ -2,7 +2,7 @@
  * Call Center settings REST API.
  *
  * RBAC:
- * - Operator (own): GET/PUT /operator — id from req.user.id (IDOR mitigation T-07-05-01)
+ * - Operator (own): GET/PUT /operator — id from req.user.sub (IDOR mitigation T-07-05-01)
  * - Supervisor: GET/PUT /operator/:operatorId — own tenant only (T-07-05-03)
  * - Tenant singleton: GET open to tenant auth; PUT requires assertSupervisor (T-07-05-02)
  */
@@ -43,7 +43,7 @@ export class CallCenterSettingsController {
   getMyOperatorSettings(@Req() req: Request & { user: any }) {
     return this.settingsService.getOperatorSettings(
       req.user.vpbx_user_uid,
-      req.user.id,
+      req.user.sub,
     );
   }
 
@@ -54,7 +54,7 @@ export class CallCenterSettingsController {
   ) {
     return this.settingsService.updateOperatorSettings(
       req.user.vpbx_user_uid,
-      req.user.id,
+      req.user.sub,
       dto,
     );
   }

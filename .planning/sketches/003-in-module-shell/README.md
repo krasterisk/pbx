@@ -1,8 +1,8 @@
 ---
 sketch: 003
 name: in-module-shell
-question: "How should navigation feel inside a module — dense sidebar, top tabs, or compact rail — with header chip + ⌘K?"
-winner: B
+question: "How should navigation feel inside a module — dense sidebar, top tabs, or compact rail — with header context + ⌘K?"
+winner: A+C
 tags: [shell, phase-8, navigation, in-module]
 phase: 08
 ---
@@ -11,35 +11,30 @@ phase: 08
 
 ## Design Question
 
-После входа из Hub (winner **002-E** minimal list) — как выглядит chrome **внутри** модуля: dense nav, sparse tabs, или compact rail — при общем header (logo→Hub, module chip, ⌘K)?
+После входа из Hub (winner **002-E** minimal list) — как выглядит chrome **внутри** модуля: dense nav, sparse tabs, или compact rail?
 
 ## How to View
 
 `.planning/sketches/003-in-module-shell/index.html`
 
-## Variants
+## Variants (original)
 
-- **A: Dense sidebar** — Classic left nav for PBX/System (many pages); collapse to icons.
-- **B: Top tabs** — Horizontal tabs for sparse modules (e.g. Analytics); more content width.
-- **C: Compact icon rail** — Narrow icon rail + labels on hover/expand; density between A and B.
+- **A: Dense sidebar** — Classic left nav; full height; collapse to icons.
+- **B: Top tabs** — Horizontal tabs under header; more content width.
+- **C: Compact icon rail** — Narrow rail + labels on expand; density between A and B.
 
-All variants share: header with Krasterisk logo (→ Hub), **module chip** (opens mini switcher), **⌘K** palette (modules + pages).
+## Winner (2026-07-17) — **A+C hybrid**
 
-## What to Look For
+Full-height sidebar (A) with collapse to icon rail (C). Sidebar footer: module switcher + collapse. Top chrome: breadcrumbs `Главная → Раздел → Подраздел` (not a module select). Mobile: sidebar auto-collapsed.
 
-- Does dense sidebar still feel right after a minimal Hub?
-- Tabs vs sidebar for 8+ PBX pages
-- Chip + ⌘K discoverability without stealing focus from work
-- Continuity with Hub E (minimal, fast, not cinematic)
+Supersedes earlier lock of **B** (top tabs, 2026-07-16).
 
-## Winner (2026-07-16)
-
-**Variant B — Top tabs.** Horizontal tabs under header for in-module pages; more content width. Dense sidebar (A) and icon rail (C) deferred — registry can still offer sidebar for ultra-dense modules later if research demands, but baseline chrome is tabs + chip + ⌘K.
-
-## Mapping to React (post-winner)
+## Mapping to React
 
 | Element | Target |
 |---------|--------|
-| Shell layout | evolve `AppLayout` / new `ModuleShell` |
-| Nav registry | per-module nav contributors (dense vs tabs) |
-| Chip / ⌘K | header widgets + command palette |
+| Shell layout | `widgets/ModuleShell` + `AppLayout` |
+| Nav | Sidebar from registry (`navVariant: 'sidebar'`) |
+| Breadcrumbs | Topbar `ModuleBreadcrumbs` |
+| Modules / collapse | Sidebar footer |
+| ⌘K | Command palette (modules + pages) |

@@ -4,10 +4,9 @@ import {
   TOKEN_STORAGE_KEYS,
   getTokenStorage,
 } from '@/features/auth/lib/tokenStorage';
+import { getAuthApiBase } from '@/shared/api/apiBase';
 import { isNativePlatform } from '@/shared/lib/capacitor/isNative';
 import { registerPush } from '@/shared/lib/capacitor/push';
-
-const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
 export interface AuthState {
   user: ILoginResponse['user'] | null;
@@ -90,7 +89,7 @@ export const login = createAsyncThunk(
   'auth/login',
   async (credentials: { login: string; password: string }, { rejectWithValue }) => {
     try {
-      const response = await fetch(`${API_BASE}/auth/login`, {
+      const response = await fetch(`${getAuthApiBase()}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(credentials),
@@ -117,7 +116,7 @@ export const authLogout = createAsyncThunk('auth/logout', async () => {
     const storage = getTokenStorage();
     const refreshToken = await storage.get(TOKEN_STORAGE_KEYS.refreshToken);
     if (refreshToken) {
-      await fetch(`${API_BASE}/auth/logout`, {
+      await fetch(`${getAuthApiBase()}/auth/logout`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refreshToken }),

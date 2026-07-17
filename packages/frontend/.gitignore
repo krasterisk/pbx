@@ -6,5 +6,9 @@ google-services.json
 android/local.properties
 **/local.properties
 
+# Local Vite env (LAN API URL for Android smoke)
+.env.local
+.env.*.local
+
 # Vite build output (synced into native projects)
 dist/

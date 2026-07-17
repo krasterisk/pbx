@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { WebhookProvider } from './webhook.provider';
+import { WebhookProvider, resolvePayloadTemplate } from './webhook.provider';
 import { DecryptedNotificationIntegration } from './notification-provider.interface';
 
 jest.mock('axios');
@@ -83,5 +83,51 @@ describe('WebhookProvider extraVars', () => {
       { only: '' },
       expect.any(Object),
     );
+  });
+
+  it('accepts payload_template as a JSON string', async () => {
+    await provider.send(
+      webhookInteg({
+        config: {
+          url: 'https://hooks.example.com/crm',
+          payload_template: '{"text":"{{message}}","caller":"{{clid}}"}',
+        },
+      }),
+      undefined,
+      'hi',
+      { clid: '7900' },
+    );
+
+    expect(mockedAxios.post).toHaveBeenCalledWith(
+      'https://hooks.example.com/crm',
+      { text: 'hi', caller: '7900' },
+      expect.any(Object),
+    );
+  });
+
+  it('default payload includes message + call ids when no template', async () => {
+    await provider.send(
+      webhookInteg({
+        config: { url: 'https://hooks.example.com/crm' },
+      }),
+      undefined,
+      'hello',
+      { clid: '1', exten: '100', uniqueid: 'u1' },
+    );
+
+    expect(mockedAxios.post).toHaveBeenCalledWith(
+      'https://hooks.example.com/crm',
+      { message: 'hello', clid: '1', exten: '100', uniqueid: 'u1' },
+      expect.any(Object),
+    );
+  });
+});
+
+describe('resolvePayloadTemplate', () => {
+  it('parses object and JSON string, rejects arrays', () => {
+    expect(resolvePayloadTemplate({ a: 1 })).toEqual({ a: 1 });
+    expect(resolvePayloadTemplate('{"a":1}')).toEqual({ a: 1 });
+    expect(resolvePayloadTemplate('[]')).toBeNull();
+    expect(resolvePayloadTemplate('')).toBeNull();
   });
 });

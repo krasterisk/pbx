@@ -1,5 +1,6 @@
 import { AsteriskDialplanUtils } from '../../shared/utils/dialplan.util';
 import type { IRouteAction } from '@krasterisk/shared';
+import { normalizePhonebookBehaviorType } from '@krasterisk/shared';
 import { PhonebookEntry } from './phonebook-entry.model';
 import { RoutePhonebook } from './phonebook.model';
 import { RoutePhonebookBinding } from './route-phonebook-binding.model';
@@ -97,7 +98,7 @@ function generateBehaviorLines(
 ): string[] {
   const params: Record<string, any> = binding.behavior_params || {};
 
-  switch (binding.behavior_type) {
+  switch (normalizePhonebookBehaviorType(binding.behavior_type)) {
     case 'set_name': {
       // Fixed variant (D-24): the only set_name flavor kept available when
       // match_mode=on_no_match, since no PB_* vars exist to read a var_key from.
@@ -122,8 +123,6 @@ function generateBehaviorLines(
       return [`ExecIf($["\${PB_${varKey}}" != ""]?Set(CALLERID(num)=\${PB_${varKey}}))`];
     }
     case 'drop':
-    case 'blacklist': // legacy alias → drop
-    case 'whitelist': // legacy alias → drop
       return ['Hangup()'];
     case 'redirect': {
       const ctx = AsteriskDialplanUtils.sanitizeDialplanInput(params.target_context) || routeTenantedContext;

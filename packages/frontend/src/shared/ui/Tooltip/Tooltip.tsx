@@ -67,7 +67,10 @@ export function InfoTooltip({ text, children }: { text: string; children?: React
     <TooltipProvider delayDuration={200}>
       <TooltipRoot open={open} onOpenChange={setOpen}>
         <TooltipTrigger 
-          type="button" 
+          type="button"
+          // Keep out of tab/dialog autofocus order — otherwise opening a modal
+          // focuses the first help icon and the tooltip pops open immediately.
+          tabIndex={-1}
           onClick={(e) => {
             e.preventDefault();
             // On mobile devices, a tap triggers focus (which opens the tooltip) followed by a click.
@@ -75,7 +78,7 @@ export function InfoTooltip({ text, children }: { text: string; children?: React
             // It will be closed when the user taps outside (onPointerDownOutside).
             setOpen(true);
           }}
-          onPointerDown={(e) => {
+          onPointerDown={() => {
              // For some mobile browsers, focus isn't reliably triggered on tap,
              // so we can also ensure it opens on pointer interaction.
              setOpen(true);

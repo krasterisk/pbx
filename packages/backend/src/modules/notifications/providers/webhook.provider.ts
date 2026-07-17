@@ -37,6 +37,27 @@ function applyTemplate(value: unknown, vars: Record<string, string>): unknown {
   return value;
 }
 
+/** Accept object (preferred) or JSON string from legacy / textarea saves. */
+export function resolvePayloadTemplate(raw: unknown): Record<string, unknown> | null {
+  if (raw == null || raw === '') return null;
+  if (typeof raw === 'object' && !Array.isArray(raw)) {
+    return raw as Record<string, unknown>;
+  }
+  if (typeof raw === 'string') {
+    const trimmed = raw.trim();
+    if (!trimmed) return null;
+    try {
+      const parsed = JSON.parse(trimmed) as unknown;
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return parsed as Record<string, unknown>;
+      }
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
 @Injectable()
 export class WebhookProvider implements INotificationProvider {
   private readonly logger = new Logger(WebhookProvider.name);
@@ -61,14 +82,22 @@ export class WebhookProvider implements INotificationProvider {
     const vars: Record<string, string> = {
       message: text,
       target: target ?? '',
+      clid: '',
+      exten: '',
+      uniqueid: '',
       ...extraVars,
     };
 
-    const template = integration.config?.payload_template;
-    const payload =
-      template && typeof template === 'object'
-        ? applyTemplate(template, vars)
-        : { message: text, target: target ?? null };
+    const template = resolvePayloadTemplate(integration.config?.payload_template);
+    const payload = template
+      ? applyTemplate(template, vars)
+      : {
+          message: text,
+          clid: vars.clid || null,
+          exten: vars.exten || null,
+          uniqueid: vars.uniqueid || null,
+          ...(target ? { target } : {}),
+        };
 
     const headers =
       (integration.config?.headers as Record<string, string> | undefined) ??

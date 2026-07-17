@@ -1,5 +1,15 @@
+/** Optional runtime override (Capacitor Preferences / debug). */
+let runtimeApiOverride: string | null = null;
+
+/** Set after Preferences hydrate on native boot — wins over VITE_API_URL. */
+export function setRuntimeApiBase(url: string | null | undefined): void {
+  const trimmed = url?.trim();
+  runtimeApiOverride = trimmed ? trimmed.replace(/\/$/, '') : null;
+}
+
 /** API root from env (may wrongly include `/public` on some builds). */
 export function getApiBaseFromEnv(): string {
+  if (runtimeApiOverride) return runtimeApiOverride;
   return (import.meta.env.VITE_API_URL || '/api').replace(/\/$/, '');
 }
 

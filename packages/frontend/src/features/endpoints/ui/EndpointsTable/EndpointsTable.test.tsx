@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { EndpointsTable } from './EndpointsTable';
 
-const useIsMobileMock = vi.fn(() => false);
+const useIsMobileMock = vi.fn((_bp?: number) => false);
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({

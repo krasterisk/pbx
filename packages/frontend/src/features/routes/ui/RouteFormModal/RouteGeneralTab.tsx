@@ -19,6 +19,8 @@ export interface RouteGeneralTabProps {
   setRecord: (v: boolean) => void;
   recordAll: boolean;
   setRecordAll: (v: boolean) => void;
+  recordStereo: boolean;
+  setRecordStereo: (v: boolean) => void;
   /** Context selector (create/copy mode) */
   contextUid: number | null;
   setContextUid: (v: number) => void;
@@ -42,6 +44,7 @@ export const RouteGeneralTab = memo((props: RouteGeneralTabProps) => {
   const {
     name, setName, extensions, setExtensions, active, setActive,
     routeType, setRouteType, record, setRecord, recordAll, setRecordAll,
+    recordStereo, setRecordStereo,
     contextUid, setContextUid, isCreateMode, contexts,
   } = props;
 
@@ -52,6 +55,7 @@ export const RouteGeneralTab = memo((props: RouteGeneralTabProps) => {
       case 'off':
         setRecord(false);
         setRecordAll(false);
+        setRecordStereo(false);
         break;
       case 'calls':
         setRecord(true);
@@ -125,7 +129,7 @@ export const RouteGeneralTab = memo((props: RouteGeneralTabProps) => {
         </Select>
       </VStack>
 
-      {/* Recording - single select combining record + recordAll */}
+      {/* Recording - select for when; stereo checkbox appears when recording is on */}
       <VStack gap="4">
         <HStack gap="4" align="center">
           <Label htmlFor="route-record-mode">{t('routes.recordMode', 'Запись разговоров')}</Label>
@@ -140,6 +144,21 @@ export const RouteGeneralTab = memo((props: RouteGeneralTabProps) => {
           <option value="calls">{t('routes.recordCalls', 'При соединении')}</option>
           <option value="all">{t('routes.recordAllCalls', 'Все вызовы (включая без соединения)')}</option>
         </Select>
+        {record && (
+          <HStack align="center" justify="between" className="border border-border p-3 rounded bg-background w-full mt-2">
+            <HStack gap="4" align="center">
+              <Label className="cursor-pointer" htmlFor="route-record-stereo">
+                {t('routes.recordStereo', 'Стерео (раздельные каналы)')}
+              </Label>
+              <InfoTooltip text={t('routes.recordStereoTooltip', 'Входящий и исходящий аудиопоток записываются в отдельные дорожки стереофайла.')} />
+            </HStack>
+            <Checkbox
+              id="route-record-stereo"
+              checked={recordStereo}
+              onChange={(e) => setRecordStereo(e.target.checked)}
+            />
+          </HStack>
+        )}
       </VStack>
     </VStack>
   );

@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsNumber, MinLength, MaxLength } from 'class-validator';
+import { IsString, IsOptional, IsNumber, IsBoolean, MinLength, MaxLength } from 'class-validator';
 
 export class CreateEndpointDto {
   @IsString()
@@ -27,7 +27,12 @@ export class CreateEndpointDto {
 
   @IsOptional()
   @IsString()
-  natProfile?: string; // 'lan' | 'nat' | 'webrtc'
+  natProfile?: string; // 'lan' | 'nat' (webrtc profile lives on companion only)
+
+  /** Opt-in: create hidden WebRTC companion endpoint. Default false. */
+  @IsOptional()
+  @IsBoolean()
+  webrtcEnabled?: boolean;
 
   // Advanced PBX Features
   @IsOptional()
@@ -89,6 +94,10 @@ export class BulkCreateEndpointDto {
   @IsOptional()
   @IsString()
   natProfile?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  webrtcEnabled?: boolean;
 
   @IsOptional()
   @IsString()

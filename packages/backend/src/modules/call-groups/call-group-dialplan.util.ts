@@ -18,10 +18,12 @@ function memberInterface(
   member: ICallGroupMember,
   vpbx: number,
   externalContext: string,
+  webrtcExtensions?: Set<string>,
 ): string {
   const value = AsteriskDialplanUtils.sanitizeDialplanInput(member.value);
   if (member.member_type === 'internal') {
-    return `PJSIP/e${value}_${vpbx}`;
+    const webrtc = webrtcExtensions?.has(value) === true;
+    return AsteriskDialplanUtils.pjsipDialTarget(value, vpbx, { webrtc });
   }
   const ctx = AsteriskDialplanUtils.sanitizeDialplanInput(externalContext);
   return `LOCAL/${value}@${ctx}`;
@@ -45,10 +47,11 @@ function emitRingall(
   group: ICallGroup,
   members: ICallGroupMember[],
   vpbx: number,
+  webrtcExtensions?: Set<string>,
 ): void {
   maybeCidPrefix(lines, group);
   const targets = members
-    .map((m) => memberInterface(m, vpbx, group.external_context))
+    .map((m) => memberInterface(m, vpbx, group.external_context, webrtcExtensions))
     .join('&');
   lines.push(buildDialLine(targets, group.ring_time));
   lines.push(FINAL_RETURN);
@@ -59,12 +62,16 @@ function emitHunt(
   group: ICallGroup,
   members: ICallGroupMember[],
   vpbx: number,
+  webrtcExtensions?: Set<string>,
 ): void {
   maybeCidPrefix(lines, group);
   for (let i = 0; i < members.length; i++) {
     const member = members[i];
     lines.push(
-      buildDialLine(memberInterface(member, vpbx, group.external_context), member.ring_time),
+      buildDialLine(
+        memberInterface(member, vpbx, group.external_context, webrtcExtensions),
+        member.ring_time,
+      ),
     );
     if (i < members.length - 1) {
       lines.push(ANSWER_RETURN);
@@ -78,12 +85,13 @@ function emitMemoryhunt(
   group: ICallGroup,
   members: ICallGroupMember[],
   vpbx: number,
+  webrtcExtensions?: Set<string>,
 ): void {
   maybeCidPrefix(lines, group);
   for (let i = 0; i < members.length; i++) {
     const subset = members.slice(0, i + 1);
     const targets = subset
-      .map((m) => memberInterface(m, vpbx, group.external_context))
+      .map((m) => memberInterface(m, vpbx, group.external_context, webrtcExtensions))
       .join('&');
     lines.push(buildDialLine(targets, members[i].ring_time));
     if (i < members.length - 1) {
@@ -98,6 +106,7 @@ function emitRandom(
   group: ICallGroup,
   members: ICallGroupMember[],
   vpbx: number,
+  webrtcExtensions?: Set<string>,
 ): void {
   // v1 simplification (RESEARCH A1): random first member, then remaining in order — not full N! shuffle.
   const n = members.length;
@@ -114,13 +123,13 @@ function emitRandom(
     const rest = [...members.slice(0, i), ...members.slice(i + 1)];
 
     lines.push(
-      `same => n(m${i + 1}),Dial(${memberInterface(first, vpbx, group.external_context)},${first.ring_time},${DIAL_OPTS})`,
+      `same => n(m${i + 1}),Dial(${memberInterface(first, vpbx, group.external_context, webrtcExtensions)},${first.ring_time},${DIAL_OPTS})`,
     );
     lines.push(ANSWER_RETURN);
 
     if (rest.length > 0) {
       const restTargets = rest
-        .map((m) => memberInterface(m, vpbx, group.external_context))
+        .map((m) => memberInterface(m, vpbx, group.external_context, webrtcExtensions))
         .join('&');
       lines.push(buildDialLine(restTargets, group.ring_time));
     }
@@ -132,6 +141,7 @@ export function generateGroupDialplan(
   group: ICallGroup,
   members: ICallGroupMember[],
   vpbx: number,
+  webrtcExtensions?: Set<string>,
 ): GeneratedDialplanCategory {
   const ctxName = `group_${group.uid}_${vpbx}`;
   const sorted = sortMembers(members);
@@ -142,16 +152,16 @@ export function generateGroupDialplan(
 
   switch (group.strategy) {
     case 'ringall':
-      emitRingall(lines, group, sorted, vpbx);
+      emitRingall(lines, group, sorted, vpbx, webrtcExtensions);
       break;
     case 'hunt':
-      emitHunt(lines, group, sorted, vpbx);
+      emitHunt(lines, group, sorted, vpbx, webrtcExtensions);
       break;
     case 'memoryhunt':
-      emitMemoryhunt(lines, group, sorted, vpbx);
+      emitMemoryhunt(lines, group, sorted, vpbx, webrtcExtensions);
       break;
     case 'random':
-      emitRandom(lines, group, sorted, vpbx);
+      emitRandom(lines, group, sorted, vpbx, webrtcExtensions);
       break;
   }
 

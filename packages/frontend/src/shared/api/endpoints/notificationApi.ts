@@ -13,7 +13,8 @@ export interface IUpdateNotificationIntegration {
   name?: string;
   channel?: NotificationChannel;
   config?: Record<string, unknown>;
-  credentials?: string;
+  /** Secret credentials — sent on create/update, never returned in responses */
+  credentials?: Record<string, unknown>;
 }
 
 const notificationApi = rtkApi.injectEndpoints({

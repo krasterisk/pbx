@@ -245,4 +245,39 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       expect(dp).toContain('phonebook-lookup');
     });
   });
+
+  describe('pjsipDialTarget / toexten', () => {
+    it('forks primary + webrtc companion by default', () => {
+      expect(AsteriskDialplanUtils.pjsipDialTarget('110', vpbx)).toBe(
+        'PJSIP/e110_42&PJSIP/ew110_42',
+      );
+    });
+
+    it('returns primary only when webrtc=false', () => {
+      expect(AsteriskDialplanUtils.pjsipDialTarget('110', vpbx, { webrtc: false })).toBe(
+        'PJSIP/e110_42',
+      );
+    });
+
+    it('toexten Dial forks companion for a specific extension', () => {
+      const dp = AsteriskDialplanUtils.actionToDialplan(
+        { type: 'toexten', params: { exten: '101', timeout: '20' }, condition: {} },
+        vpbx,
+      );
+      expect(dp).toContain('Dial(PJSIP/e101_42&PJSIP/ew101_42,20,');
+    });
+
+    it('toexten with webrtc=false dials primary only', () => {
+      const dp = AsteriskDialplanUtils.actionToDialplan(
+        {
+          type: 'toexten',
+          params: { exten: '101', timeout: '20', webrtc: false },
+          condition: {},
+        },
+        vpbx,
+      );
+      expect(dp).toContain('Dial(PJSIP/e101_42,20,');
+      expect(dp).not.toContain('ew101');
+    });
+  });
 });

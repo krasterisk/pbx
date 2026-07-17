@@ -89,7 +89,7 @@ completed: 2026-07-15
 2. **Task 2: Frontend 4-zone ARM + wrap-up + DnD** - `a0b9036` (feat)
 3. **Task 3: Full notifications D-20** - `480ee87` (feat)
 
-**Plan metadata:** `pending` (docs commit)
+**Plan metadata:** `dcb9bfd` (docs: complete plan)
 
 ## Files Created/Modified
 

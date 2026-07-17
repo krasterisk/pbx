@@ -2606,6 +2606,10 @@ export const en = {
       'Disable module: access will be revoked for all tenant users. Continue?',
     chipEmpty: 'Modules',
     more: 'More',
+    home: 'Home',
+    breadcrumbLabel: 'Breadcrumb',
+    collapseSidebar: 'Collapse',
+    expandSidebar: 'Expand',
   },
   marketplace: {
     buy: 'Buy',

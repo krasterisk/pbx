@@ -8,6 +8,10 @@ vi.mock('@/features/modules/hooks/useHubModules', () => ({
   useHubModules: vi.fn(),
 }));
 
+vi.mock('@/features/modules/ui/CheckoutSheet/CheckoutSheet', () => ({
+  CheckoutSheet: () => null,
+}));
+
 vi.mock('@/shared/hooks/useAppStore', () => ({
   useAppSelector: (sel: (s: { auth: { user: { level: number } } }) => unknown) =>
     sel({ auth: { user: { level: 1 } } }),

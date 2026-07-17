@@ -62,8 +62,11 @@ export class CallCenterService {
     const agents = this.stateService.getAllAgents(userUid);
     for (const agent of agents) {
       if (agent.interface === target) return true;
-      const exten = agent.interface.replace(/^PJSIP\//, '').replace(/^SIP\//, '');
-      if (exten === target) return true;
+      const sipId = agent.interface.replace(/^PJSIP\//, '').replace(/^SIP\//, '');
+      if (sipId === target) return true;
+      // e110_0 / ew110_0 → "110"
+      const extMatch = sipId.match(/^ew?(.+)_\d+$/);
+      if (extMatch && extMatch[1] === target) return true;
     }
     const queues = this.stateService.getAllQueues(userUid);
     return queues.some(q => q.name === target);

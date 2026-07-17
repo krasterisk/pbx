@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { Phone } from 'lucide-react';
 import type { HubModuleRow } from '@/features/modules/types';
 
-const useIsMobileMock = vi.fn(() => true);
+const useIsMobileMock = vi.fn((_bp?: number) => true);
 
 vi.mock('@/shared/hooks/useIsMobile', () => ({
   useIsMobile: (bp?: number) => useIsMobileMock(bp),

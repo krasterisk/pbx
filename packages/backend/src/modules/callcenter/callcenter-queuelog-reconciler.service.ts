@@ -65,7 +65,7 @@ export class CallCenterQueueLogReconcilerService {
         if (existing) continue;
 
         const row = buildHistoryRow(callEntries);
-        if (!row) continue;
+        if (!row?.queue_name) continue;
 
         const userUid = resolveQueueTenant(row.queue_name);
         // T-07-04-03: skip unresolved tenant — never write user_uid=0

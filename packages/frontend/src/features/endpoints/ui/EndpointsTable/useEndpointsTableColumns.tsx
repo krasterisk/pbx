@@ -66,14 +66,28 @@ export const useEndpointsTableColumns = () => {
         cell: (info) => {
           const isOnline = info.getValue() === 'online';
           const lastReg = info.row.original.lastRegistered;
+          const webrtc = info.row.original.webrtc;
+          const webrtcEnabled = !!info.row.original.webrtc_enabled;
           return (
-            <HStack gap="4" align="center">
+            <HStack gap="4" align="center" wrap="wrap">
               <span
                 className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.5)]' : 'bg-zinc-600'}`}
               />
               <span className={`text-xs ${isOnline ? 'text-emerald-400' : 'text-zinc-500'}`}>
                 {isOnline ? t('endpoints.statusOnline') : t('endpoints.statusOffline')}
               </span>
+              {webrtcEnabled && (
+                <span
+                  className={`text-[10px] px-1.5 py-0.5 rounded border ${
+                    webrtc?.status === 'online'
+                      ? 'border-sky-500/40 text-sky-400 bg-sky-500/10'
+                      : 'border-border text-muted-foreground'
+                  }`}
+                  title={webrtc?.id || 'WebRTC'}
+                >
+                  WebRTC {webrtc?.status === 'online' ? '●' : '○'}
+                </span>
+              )}
               {lastReg && (
                 <span className="text-[10px] text-zinc-500 hidden sm:inline">
                   {new Date(lastReg * 1000).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}

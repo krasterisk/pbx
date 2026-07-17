@@ -92,7 +92,9 @@ export class DialplanSubroutinesUtil {
     // nice -n 10  : background priority, won't spike Asterisk CPU
     //
     // ExecIf: skip conversion if fname is empty (route without recording)
-    lines.push(`same  => n,ExecIf($["\${fname}" != ""]?System(nice -n 10 /usr/bin/ffmpeg -y -i ${recordsBase}/\${CDR(record)}.wav -codec:a libmp3lame -b:a 32k -ar 8000 -ac 1 ${recordsBase}/\${CDR(record)}.mp3 -loglevel quiet && rm -f ${recordsBase}/\${CDR(record)}.wav))`);
+    // Stereo routes set REC_STEREO=1 and write .raw (MixMonitor D); mono routes use .wav
+    lines.push(`same  => n,ExecIf($["\${fname}" != "" && "\${REC_STEREO}" = "1"]?System(nice -n 10 /usr/bin/ffmpeg -y -f s16le -ar 8000 -ac 2 -i ${recordsBase}/\${CDR(record)}.raw -codec:a libmp3lame -b:a 64k -ar 8000 -ac 2 ${recordsBase}/\${CDR(record)}.mp3 -loglevel quiet && rm -f ${recordsBase}/\${CDR(record)}.raw))`);
+    lines.push(`same  => n,ExecIf($["\${fname}" != "" && "\${REC_STEREO}" != "1"]?System(nice -n 10 /usr/bin/ffmpeg -y -i ${recordsBase}/\${CDR(record)}.wav -codec:a libmp3lame -b:a 32k -ar 8000 -ac 1 ${recordsBase}/\${CDR(record)}.mp3 -loglevel quiet && rm -f ${recordsBase}/\${CDR(record)}.wav))`);
 
     // on_hangup webhook: fires only if route has on_hangup configured (WH_OH=1)
     // At this point MP3 is guaranteed to exist (ffmpeg ran synchronously above)

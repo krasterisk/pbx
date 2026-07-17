@@ -52,7 +52,7 @@ const makeStore = (opts?: { user?: AuthUser | null; myAgentInterface?: string | 
         isLoading: false,
         error: null,
       }) => state,
-    },
+    } as any,
     preloadedState: opts?.myAgentInterface !== undefined
       ? {
           callCenter: {
@@ -152,7 +152,9 @@ describe('useCallCenterSSE', () => {
     act(() => {
       MockEventSource.instances[0].emit('callAnswer', { uniqueid: 'u1', agent: 'PJSIP/101' });
     });
-    const c = store.getState().callCenter.calls.find(c => c.uniqueid === 'u1');
+    const c = store.getState().callCenter.calls.find(
+      (call: { uniqueid: string }) => call.uniqueid === 'u1',
+    );
     expect(c?.status).toBe('TALKING');
     expect(c?.agent).toBe('PJSIP/101');
   });

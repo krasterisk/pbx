@@ -4,6 +4,13 @@
   width: 100%;
 }
 
+.externalContextField {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  width: 100%;
+}
+
 .membersBox {
   border-radius: var(--radius-lg);
   border: 1px solid var(--color-border);

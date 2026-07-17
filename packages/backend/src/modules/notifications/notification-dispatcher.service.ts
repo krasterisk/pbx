@@ -55,7 +55,11 @@ export class NotificationDispatcherService {
           await this.whatsapp.send(integ, target, msg);
           break;
         case 'webhook':
-          await this.webhook.send(integ, target, msg);
+          await this.webhook.send(integ, target, msg, {
+            clid: body.clid ?? '',
+            exten: body.exten ?? '',
+            uniqueid: body.uniqueid ?? '',
+          });
           break;
         case 'max':
           await this.max.send(integ, target, msg);

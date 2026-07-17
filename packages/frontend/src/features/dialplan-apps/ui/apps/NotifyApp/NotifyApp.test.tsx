@@ -41,6 +41,7 @@ describe('NotifyApp', () => {
       data: [
         { uid: 3, name: 'Sales TG', channel: 'telegram', config: {}, user_uid: 1 },
         { uid: 5, name: 'Ops Email', channel: 'email', config: {}, user_uid: 1 },
+        { uid: 7, name: 'CRM Hook', channel: 'webhook', config: {}, user_uid: 1 },
       ],
     });
   });
@@ -50,7 +51,7 @@ describe('NotifyApp', () => {
 
     const select = screen.getByLabelText('Select integration') as HTMLSelectElement;
     const values = Array.from(select.options).map((o) => o.value);
-    expect(values).toEqual(['', '3', '5']);
+    expect(values).toEqual(['', '3', '5', '7']);
 
     fireEvent.change(select, { target: { value: '5' } });
     expect(mockOnUpdate).toHaveBeenCalledWith('action-notify', 'params.integration_uid', '5');
@@ -75,10 +76,15 @@ describe('NotifyApp', () => {
     expect(NOTIFY_PRESETS.incomingCall).toContain('${CALLERID(num)}');
   });
 
-  it('updates message and optional target fields', () => {
-    render(<NotifyApp action={baseAction} onUpdate={mockOnUpdate} />);
+  it('updates message and optional target fields for non-webhook channels', () => {
+    render(
+      <NotifyApp
+        action={{ ...baseAction, params: { integration_uid: '3', message: '', target: '' } }}
+        onUpdate={mockOnUpdate}
+      />,
+    );
 
-    fireEvent.change(screen.getByLabelText('Message template'), {
+    fireEvent.change(screen.getByLabelText('Шаблон сообщения'), {
       target: { value: 'Custom ${EXTEN}' },
     });
     expect(mockOnUpdate).toHaveBeenCalledWith(
@@ -87,9 +93,34 @@ describe('NotifyApp', () => {
       'Custom ${EXTEN}',
     );
 
-    fireEvent.change(screen.getByLabelText('Target override (optional)'), {
+    fireEvent.change(screen.getByLabelText('Переопределение получателя (опц.)'), {
       target: { value: '-1001' },
     });
     expect(mockOnUpdate).toHaveBeenCalledWith('action-notify', 'params.target', '-1001');
+  });
+
+  it('hides target and shows webhook message label when webhook integration is selected', () => {
+    render(
+      <NotifyApp
+        action={{ ...baseAction, params: { integration_uid: '7', message: '', target: 'x' } }}
+        onUpdate={mockOnUpdate}
+      />,
+    );
+
+    expect(screen.getByLabelText('Текст уведомления')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Переопределение получателя (опц.)')).not.toBeInTheDocument();
+  });
+
+  it('clears target when switching to a webhook integration', () => {
+    render(
+      <NotifyApp
+        action={{ ...baseAction, params: { integration_uid: '3', message: '', target: '-1001' } }}
+        onUpdate={mockOnUpdate}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText('Select integration'), { target: { value: '7' } });
+    expect(mockOnUpdate).toHaveBeenCalledWith('action-notify', 'params.integration_uid', '7');
+    expect(mockOnUpdate).toHaveBeenCalledWith('action-notify', 'params.target', '');
   });
 });

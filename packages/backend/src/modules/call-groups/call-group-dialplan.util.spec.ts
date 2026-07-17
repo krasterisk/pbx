@@ -180,7 +180,25 @@ describe('generateGroupDialplan', () => {
       const result = generateGroupDialplan(group, members, VPBX);
 
       expect(result.lines.join('\n')).toContain('PJSIP/e555_42');
+      expect(result.lines.join('\n')).not.toContain('PJSIP/ew555_42');
       expect(result.lines.join('\n')).toContain('LOCAL/79990001122@ctx-out');
+    });
+
+    it('forks WebRTC companion when extension is in webrtcExtensions set', () => {
+      const members: ICallGroupMember[] = [
+        {
+          uid: 1,
+          call_group_uid: 15,
+          member_type: 'internal',
+          value: '110',
+          position: 1,
+          ring_time: 10,
+          user_uid: VPBX,
+        },
+      ];
+      const group = baseGroup({ strategy: 'ringall' });
+      const result = generateGroupDialplan(group, members, VPBX, new Set(['110']));
+      expect(result.lines.join('\n')).toContain('PJSIP/e110_42&PJSIP/ew110_42');
     });
 
     it('sorts members by position regardless of input order', () => {

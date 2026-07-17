@@ -1,5 +1,11 @@
 import { rtkApi } from '../rtkApi';
 
+export interface IEndpointWebrtcStatus {
+  id: string;
+  status: 'online' | 'offline';
+  userAgent?: string | null;
+}
+
 export interface IEndpointListItem {
   id: string;
   extension: string;
@@ -15,6 +21,8 @@ export interface IEndpointListItem {
   registeredAt: number | null;
   tenantid: string;
   authType: string;
+  webrtc_enabled?: boolean;
+  webrtc?: IEndpointWebrtcStatus | null;
   // All other ps_endpoint fields are also present
   [key: string]: any;
 }
@@ -39,6 +47,15 @@ export interface IEndpointCredentials {
   password: string;
   authType: string;
   domain: string;
+  webrtc?: {
+    sipId: string;
+    extension: string;
+    username: string;
+    password: string;
+    authType: string;
+    domain: string;
+    transport?: string;
+  };
 }
 
 export interface ICreateEndpoint {
@@ -49,6 +66,7 @@ export interface ICreateEndpoint {
   transport?: string;
   codecs?: string;
   natProfile?: string;
+  webrtcEnabled?: boolean;
   department?: string;
   namedCallGroup?: string;
   namedPickupGroup?: string;
@@ -67,6 +85,7 @@ export interface IBulkCreateEndpoint {
   transport?: string;
   codecs?: string;
   natProfile?: string;
+  webrtcEnabled?: boolean;
   department?: string;
 }
 
