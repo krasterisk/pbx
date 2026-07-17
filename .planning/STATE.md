@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Ready to execute
-last_updated: "2026-07-16T19:01:00.000Z"
+last_updated: "2026-07-17T10:40:00.000Z"
 progress:
   total_phases: 8
   completed_phases: 5
   total_plans: 68
-  completed_plans: 65
-  percent: 96
+  completed_plans: 66
+  percent: 65
 ---
 
 # State
@@ -17,7 +17,9 @@ progress:
 ## Current position
 
 Phase: 8 (navigation-redesign-android-port-foundation) — EXECUTING
-Plan: 08-17 complete (Analytics/AI/CC orphans responsive); next incomplete 08-10 / 08-11
+Plan: **08-11** Tasks 1–2 committed; **blocked on Task 3 human-verify** (Android WebRTC + FCM device smoke)
+
+Await resume signal: type `approved` or describe device failures. Partial SUMMARY: `08-11-SUMMARY.md`.
 
 Phase 7 — Call Center: gap closure complete (07-21, 07-22); re-UAT / `/gsd-verify-work 7` still available in parallel.
 Phase 5 — Phonebooks AI: plans executed (verify/UAT may remain).  
@@ -28,8 +30,14 @@ Phase 3 — IVR UI: **executed** (verify pending).
 Phase 2 — MohPage: executed.  
 Phase 1 — MOH: pending verify.
 
+## Blockers
+
+- [Phase 08 / 08-11 Task 3]: Human Android device/emulator smoke (FCM registration + softphone foreground audio). Requires `google-services.json` (see `08-USER-SETUP.md`).
+
 ## Decisions
 
+- [Phase 08]: 08-11 FCM POST `/marketplace/device-token`; JWT `sub` bind; foreground-only WebRTC notes (D-36)
+- [Phase 08]: 08-10 human approved — assembleDebug with Studio JBR 21; gradlew empty-classpath + proguard-optimize fixes
 - [Phase 08]: D-27 Hub-mapped reachable set closed with 08-09 + 08-14…08-17 (exclusions: wallboard, auth, legacy redirects)
 - [Phase 08]: CDR/VR-CDR/ServiceRequests/AiAgents page-level overflow hybrid (08-17)
 - [Phase 08]: Settings phone stack; TTS/STT/AuditLog/SystemModules page-level overflow hybrid (08-16)
@@ -137,12 +145,13 @@ Phase 1 — MOH: pending verify.
 
 ## Next GSD command
 
-`/gsd-execute-phase 8` — continue incomplete plans (08-10 / 08-11); or finish Phase 7 via `/gsd-verify-work 7`
+Human: complete 08-11 Task 3 smoke checklist, then reply `approved` (or list failures). After approval: finalize 08-11 SUMMARY → `/gsd-verify-work 8`
 
 ## Performance Metrics
 
 | Phase | Plan | Duration | Notes |
 |-------|------|----------|-------|
+| Phase 08 P11 | ~12min partial | 2/3 tasks | FCM+docs; await human smoke |
 | Phase 08 P17 | 6min | 2 tasks | 12 files |
 | Phase 08 P16 | 7min | 2 tasks | 15 files |
 | Phase 06 P02 | 34min | 2 tasks | 2 files |
