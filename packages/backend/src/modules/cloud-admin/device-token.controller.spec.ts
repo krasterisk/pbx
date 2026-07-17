@@ -1,55 +1,74 @@
 import {
   BadRequestException,
-  NotImplementedException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { DeviceTokenController } from './device-token.controller';
+import { DeviceTokenService } from './device-token.service';
 
 /**
- * Wave 0 Nyquist gate for NAV-12 / D-32.
- *
- * GREEN skeleton stub in plan 08-13.
- * Owning plan for full register/persist: 08-11.
+ * NAV-12 / D-32 — FCM device-token register (plan 08-11).
  *
  * Contract:
- * - JWT-bound: req.user required (no anonymous register)
+ * - JWT-bound: req.user.sub required (no anonymous register)
  * - body: { token: string, platform?: string }
+ * - upserts token bound to user + tenant
  */
 describe('DeviceTokenController', () => {
   let controller: DeviceTokenController;
+  let service: { upsertForUser: jest.Mock };
 
   beforeEach(() => {
-    controller = new DeviceTokenController();
+    service = {
+      upsertForUser: jest.fn().mockResolvedValue({ id: 1 }),
+    };
+    controller = new DeviceTokenController(service as unknown as DeviceTokenService);
   });
 
   it('rejects unauthenticated requests (no JWT user)', async () => {
     await expect(
       controller.register({ token: 'fcm-abc' }, { user: undefined }),
     ).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(service.upsertForUser).not.toHaveBeenCalled();
   });
 
   it('rejects missing token in body', async () => {
     await expect(
-      controller.register({} as { token: string }, { user: { uniqueid: 1 } }),
+      controller.register({} as { token: string }, {
+        user: { sub: 1, vpbx_user_uid: 100 },
+      }),
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('rejects empty token string', async () => {
     await expect(
-      controller.register({ token: '   ' }, { user: { uniqueid: 1 } }),
+      controller.register({ token: '   ' }, {
+        user: { sub: 1, vpbx_user_uid: 100 },
+      }),
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
-  it('Wave 0 stub throws NotImplemented after validation (full impl: 08-11)', async () => {
+  it('rejects token exceeding max length', async () => {
     await expect(
       controller.register(
-        { token: 'fcm-device-token', platform: 'android' },
-        { user: { uniqueid: 7, vpbx_user_uid: 100 } },
+        { token: 'x'.repeat(4097), platform: 'android' },
+        { user: { sub: 7, vpbx_user_uid: 100 } },
       ),
-    ).rejects.toBeInstanceOf(NotImplementedException);
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 
-  describe('persist contract (owned by 08-11)', () => {
-    it.todo('stores token bound to authenticated user/tenant');
+  it('upserts token bound to authenticated user/tenant', async () => {
+    const result = await controller.register(
+      { token: 'fcm-device-token', platform: 'android' },
+      { user: { sub: 7, vpbx_user_uid: 100, tenant_id: 42 } },
+    );
+
+    expect(service.upsertForUser).toHaveBeenCalledWith({
+      userUid: 7,
+      tenantId: 42,
+      vpbxUserUid: 100,
+      token: 'fcm-device-token',
+      platform: 'android',
+    });
+    expect(result).toEqual({ ok: true });
   });
 });
