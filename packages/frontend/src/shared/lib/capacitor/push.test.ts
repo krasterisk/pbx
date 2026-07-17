@@ -1,8 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const requestPermissions = vi.fn();
-const register = vi.fn();
-const addListener = vi.fn();
+const {
+  requestPermissions,
+  register,
+  addListener,
+} = vi.hoisted(() => ({
+  requestPermissions: vi.fn(),
+  register: vi.fn(),
+  addListener: vi.fn(),
+}));
 
 vi.mock('@capacitor/push-notifications', () => ({
   PushNotifications: {

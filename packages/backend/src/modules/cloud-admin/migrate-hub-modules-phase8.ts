@@ -98,6 +98,32 @@ async function main() {
     console.log('[migration] uq_tenant_role_start:', (e as Error).message);
   }
 
+  console.log('[migration] Creating device_tokens (NAV-12 / D-32)...');
+  await qi.createTable('device_tokens', {
+    id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+    user_uid: { type: DataTypes.INTEGER, allowNull: false },
+    tenant_id: { type: DataTypes.INTEGER, allowNull: false },
+    token: { type: DataTypes.STRING(4096), allowNull: false },
+    platform: { type: DataTypes.STRING(32), allowNull: true },
+    created_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+    updated_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+  }, { ifNotExists: true } as any);
+
+  try {
+    await qi.addIndex('device_tokens', ['user_uid', 'tenant_id'], {
+      unique: true,
+      name: 'uq_device_tokens_user_tenant',
+    });
+  } catch (e) {
+    console.log('[migration] uq_device_tokens_user_tenant:', (e as Error).message);
+  }
+
+  try {
+    await qi.addIndex('device_tokens', ['tenant_id'], { name: 'idx_device_tokens_tenant' });
+  } catch (e) {
+    console.log('[migration] idx_device_tokens_tenant:', (e as Error).message);
+  }
+
   // ── Idempotent seed ─────────────────────────────────────────────────────
   console.log('[migration] Seeding hub_modules...');
   for (const mod of HUB_MODULES_SEED) {

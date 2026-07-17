@@ -8,11 +8,13 @@ import { TenantModule } from './tenant-module.model';
 import { HubModule } from './models/hub-module.model';
 import { HubModulePage } from './models/hub-module-page.model';
 import { RoleStartDefault, TenantRoleStart } from './models/role-start.model';
+import { DeviceToken } from './models/device-token.model';
 import { User } from '../users/user.model';
 import { TenantsService } from './tenants.service';
 import { TenantsController } from './tenants.controller';
 import { TenantModulesController, MarketplaceController } from './tenant-modules.controller';
 import { MarketplacePurchaseController } from './marketplace.controller';
+import { DeviceTokenController } from './device-token.controller';
 import { HubModulesController } from './hub-modules.controller';
 import {
   PlatformRoleStartController,
@@ -21,6 +23,7 @@ import {
 import { ModulesRegistryService } from './modules-registry.service';
 import { PurchaseModuleService } from './purchase-module.service';
 import { RoleStartService } from './role-start.service';
+import { DeviceTokenService } from './device-token.service';
 import { ModuleAccessGuard } from './module-access.guard';
 import { UsersModule } from '../users/users.module';
 import { LoggerModule } from '../logger/logger.module';
@@ -36,6 +39,7 @@ import { CloudSettingsController } from './cloud-settings.controller';
       Tenant, ModuleRegistry, TenantModule, User, CloudSetting,
       HubModule, HubModulePage,
       RoleStartDefault, TenantRoleStart,
+      DeviceToken,
     ]),
     UsersModule,
     LoggerModule,
@@ -56,6 +60,7 @@ import { CloudSettingsController } from './cloud-settings.controller';
     ModulesRegistryService,
     PurchaseModuleService,
     RoleStartService,
+    DeviceTokenService,
     ModuleAccessGuard,
     CloudSettingsService,
   ],
@@ -64,6 +69,7 @@ import { CloudSettingsController } from './cloud-settings.controller';
     TenantModulesController,
     MarketplaceController,
     MarketplacePurchaseController,
+    DeviceTokenController,
     HubModulesController,
     PlatformRoleStartController,
     MarketplaceRoleStartController,
@@ -74,6 +80,7 @@ import { CloudSettingsController } from './cloud-settings.controller';
     ModulesRegistryService,
     PurchaseModuleService,
     RoleStartService,
+    DeviceTokenService,
     ModuleAccessGuard,
     BillingModule,
     CloudSettingsService,

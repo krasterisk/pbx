@@ -5,6 +5,7 @@ import {
   getTokenStorage,
 } from '@/features/auth/lib/tokenStorage';
 import { isNativePlatform } from '@/shared/lib/capacitor/isNative';
+import { registerPush } from '@/shared/lib/capacitor/push';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
@@ -100,6 +101,10 @@ export const login = createAsyncThunk(
       }
       const data: ILoginResponse & { refreshToken: string } = await response.json();
       await persistSession(data.accessToken, data.refreshToken, data.user);
+      // FCM foundation after native login (D-32) — non-blocking
+      if (isNativePlatform()) {
+        void registerPush(data.accessToken);
+      }
       return data;
     } catch {
       return rejectWithValue('Ошибка соединения с сервером');

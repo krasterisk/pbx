@@ -2,7 +2,6 @@ import {
   BadRequestException,
   Body,
   Controller,
-  NotImplementedException,
   Post,
   Req,
   UnauthorizedException,
@@ -10,6 +9,10 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import {
+  assertValidDeviceToken,
+  DeviceTokenService,
+} from './device-token.service';
 
 /** POST body for FCM / push device token registration (NAV-12 / D-32). */
 export interface RegisterDeviceTokenDto {
@@ -17,42 +20,50 @@ export interface RegisterDeviceTokenDto {
   platform?: string;
 }
 
+type DeviceTokenUser = {
+  sub?: number;
+  uniqueid?: number;
+  vpbx_user_uid?: number;
+  tenant_id?: number;
+};
+
 /**
- * Device token registration skeleton for Capacitor Push (D-32).
- *
- * Wave 0 stub (plan 08-13): JWT + body validation, then NotImplemented.
- * Full register/persist: plan 08-11.
- *
- * Not wired into CloudAdminModule routes beyond this class — 08-11 owns wiring.
+ * Device token registration for Capacitor Push (D-32).
+ * JWT-bound upsert — no campaign UX.
  */
-@ApiTags('Device tokens')
+@ApiTags('Marketplace')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@Controller('device-tokens')
+@Controller('marketplace')
 export class DeviceTokenController {
-  @Post()
+  constructor(private readonly deviceTokenService: DeviceTokenService) {}
+
+  @Post('device-token')
   @ApiOperation({ summary: 'Register FCM/device push token for current user' })
   async register(
     @Body() body: RegisterDeviceTokenDto,
-    @Req() req: { user?: { uniqueid?: number; vpbx_user_uid?: number } },
-  ): Promise<void> {
-    // JWT-bound: reject anonymous register (T-08-19)
-    if (!req?.user || req.user.uniqueid == null) {
+    @Req() req: { user?: DeviceTokenUser },
+  ): Promise<{ ok: true }> {
+    const userUid = req?.user?.sub ?? req?.user?.uniqueid;
+    if (!req?.user || userUid == null) {
       throw new UnauthorizedException('Authentication required to register device token');
     }
 
     const token = typeof body?.token === 'string' ? body.token.trim() : '';
-    if (!token) {
-      throw new BadRequestException('token is required');
-    }
+    assertValidDeviceToken(token);
 
     if (body.platform != null && typeof body.platform !== 'string') {
       throw new BadRequestException('platform must be a string when provided');
     }
 
-    // 08-11: persist token bound to authenticated user/tenant
-    throw new NotImplementedException(
-      'DeviceTokenController.register — persist in plan 08-11',
-    );
+    await this.deviceTokenService.upsertForUser({
+      userUid,
+      tenantId: req.user.tenant_id,
+      vpbxUserUid: req.user.vpbx_user_uid,
+      token,
+      platform: body.platform,
+    });
+
+    return { ok: true };
   }
 }
