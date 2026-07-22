@@ -2,21 +2,24 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
+current_phase: 9
+current_phase_name: call-center-agent-panel
 status: Ready to execute
-last_updated: "2026-07-22T10:47:03.191Z"
+stopped_at: Completed 09-01-PLAN.md
+last_updated: "2026-07-22T11:24:56.175Z"
 progress:
   total_phases: 9
   completed_phases: 6
   total_plans: 82
-  completed_plans: 67
-  percent: 67
+  completed_plans: 68
 ---
 
 # State
 
 ## Current position
 
-Phase: 9 (call-center-agent-panel) — PLANNED (14 plans, 7 waves). Ready to execute.
+Phase: 9 (call-center-agent-panel) — EXECUTING
+Plan 09-01 (schema/model foundation, wave 1): 3/3 tasks committed + migration applied to live DB. Next: 09-02+.
 Also: Phase 8 (navigation-redesign-android-port-foundation) — EXECUTING
 Plan 08-11: Tasks 1–2 committed; **blocked on Task 3 human-verify** (Android WebRTC + FCM device smoke)
 
@@ -132,6 +135,7 @@ Phase 1 — MOH: pending verify.
 - [Phase 08]: CheckoutSheet 005-B plan→confirm→success wired to POST /marketplace/purchase (08-06)
 - [Phase 08]: Phone More sheet lists non-primary modules; locked shortcuts go Hub (T-08-12)
 - [Phase 08]: ModuleChip Sheet on phone / DropdownMenu on desktop via useIsMobile(768)
+- [Phase 09]: 09-01 role_permission_defaults JSON on cc_settings singleton (not new table); Phase 9 schema migration applied to live DB
 
 ## Roadmap Evolution
 
@@ -207,3 +211,14 @@ Also open: Phase 8 / 08-11 Task 3 — complete Android smoke checklist, then rep
 | Phase 08 P09 | 12min | 3 tasks | 24 files |
 | Phase 08 P14 | 10min | 2 tasks | 11 files |
 | Phase 08 P15 | 8min | 2 tasks | 15 files |
+**Per-Plan Metrics:**
+
+| Plan | Duration | Tasks | Files |
+|------|----------|-------|-------|
+| Phase 9 P01 | 24min | 3 tasks | 8 files |
+
+## Session
+
+**Last session:** 2026-07-22T11:24:55.873Z
+**Stopped at:** Completed 09-01-PLAN.md
+**Resume file:** None
