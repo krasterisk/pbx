@@ -343,6 +343,35 @@ export class AmiService implements OnModuleInit, OnModuleDestroy {
         this.getCcAmiService()?.handleUnhold(evt);
       });
 
+      // ─── All-channel agent-scoped events (D-08) ─────────
+      // These fire for ANY channel (not just queue-tracked calls) and let
+      // CallCenterAmiService resolve tenant/agent by channel name, so
+      // outbound/personal/internal calls are tracked without a queue.
+
+      // DialBegin — a dial leg started on some channel (outbound/personal dial)
+      this.ami.on('dialbegin', (evt: any) => {
+        this.getCcAmiService()?.handleDialBegin(evt);
+      });
+
+      // DialEnd — a dial leg finished with a DialStatus (ANSWER/BUSY/NOANSWER/…)
+      this.ami.on('dialend', (evt: any) => {
+        this.getCcAmiService()?.handleDialEnd(evt);
+      });
+
+      // Newchannel (CC) — additional listener alongside the WebSocket forwarder
+      // above; used only to detect a personal/direct inbound ring on an
+      // agent's own channel.
+      this.ami.on('newchannel', (evt: any) => {
+        this.getCcAmiService()?.handleNewchannel(evt);
+      });
+
+      // Hangup (CC) — additional listener alongside the WebSocket forwarder
+      // above; releases DIALING/personal-ring/personal-call agent state that
+      // AgentComplete never sees because it isn't queue-driven.
+      this.ami.on('hangup', (evt: any) => {
+        this.getCcAmiService()?.handleAgentHangup(evt);
+      });
+
       // Reconnection is now managed manually via scheduleReconnect() with exponential backoff.
     } catch (error) {
       this.connecting = false;

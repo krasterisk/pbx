@@ -14,7 +14,17 @@ export type { CcEventBusEvent } from './cc-event-bus.types';
 
 // ─── Types ──────────────────────────────────────────────
 
-export type AgentStatus = 'OFFLINE' | 'READY' | 'IN_CALL' | 'RINGING' | 'PAUSED' | 'WRAPUP';
+export type AgentStatus =
+  | 'OFFLINE'
+  | 'READY'
+  | 'IN_CALL'
+  | 'RINGING'
+  | 'PAUSED'
+  | 'WRAPUP'
+  /** Phase 9 (D-08/D-13): outbound dial in progress, on a consult leg, after-call-work. */
+  | 'DIALING'
+  | 'CONSULT'
+  | 'ACW';
 
 export interface AgentState {
   interface: string;        // PJSIP/e101_42
@@ -157,6 +167,26 @@ export class CallCenterStateService implements OnModuleInit {
       if (agent.userUid === userUid) result.push(agent);
     }
     return result;
+  }
+
+  /**
+   * Resolve the AgentState whose interface matches an Asterisk channel (D-08).
+   * Channels look like `PJSIP/e101_42-00000005` — the interface is the prefix
+   * before the Asterisk-assigned `-xxxxxxxx` call sequence suffix.
+   * Never resolves tenant from a queue suffix (Pitfall 1) — only from the
+   * matched AgentState.userUid — and only matches agents who are actually
+   * logged in (userId > 0), so a stray/unknown channel cannot inject
+   * status/KPI updates for another tenant (T-09-03-01).
+   */
+  findAgentByChannel(channel: string): AgentState | undefined {
+    if (!channel) return undefined;
+    for (const agent of this.agents.values()) {
+      if (!agent.userId || agent.userId <= 0) continue;
+      if (channel === agent.interface || channel.startsWith(`${agent.interface}-`)) {
+        return agent;
+      }
+    }
+    return undefined;
   }
 
   /**
