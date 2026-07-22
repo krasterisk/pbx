@@ -5,13 +5,13 @@ milestone_name: milestone
 current_phase: 9
 current_phase_name: call-center-agent-panel
 status: Ready to execute
-stopped_at: Completed 09-08-PLAN.md
-last_updated: "2026-07-22T18:50:37.520Z"
+stopped_at: Completed 09-09-PLAN.md
+last_updated: "2026-07-23T02:40:00.000Z"
 progress:
   total_phases: 9
   completed_phases: 6
   total_plans: 82
-  completed_plans: 76
+  completed_plans: 77
 ---
 
 # State
@@ -28,6 +28,7 @@ Plan 09-04 (status bar redesign + KPI + call-control bar, wave 3): 3/3 tasks com
 Plan 09-07 (backend call-control: park/conference/zombie-reset/warm-transfer/click-to-call, wave 3): 3/3 tasks committed. Next: 09-08+.
 Plan 09-13 (backend settings API: UI customization/granular permissions/notification matrix, wave 3): 2/2 tasks committed. Next: 09-08+ or 09-14.
 Plan 09-08 (CallCenterAgentPage hybrid orchestrator rework + WaitingTab/QueuesTab/CoworkersTab, wave 4): 3/3 tasks committed. Next: 09-09+.
+Plan 09-09 (backend smart missed-calls engine + auto-pause rule engine, wave 4): 3/3 tasks committed (TDD RED/GREEN per task). Next: 09-10+.
 Also: Phase 8 (navigation-redesign-android-port-foundation) — EXECUTING
 Plan 08-11: Tasks 1–2 committed; **blocked on Task 3 human-verify** (Android WebRTC + FCM device smoke)
 
@@ -152,6 +153,7 @@ Phase 1 — MOH: pending verify.
 - [Phase 09]: 09-07 fixed AmiService.getActiveChannels() (was a pre-existing dead-on-arrival CoreShowChannels event-list bug — resolved on ack, never collected the CoreShowChannel/Complete events) using the same actionid+rawevent pattern as pjsipShowRegistrations(); CallCenterZombieService polls every 45s, flags zombieCandidate on CallState after a fixed 10-min grace floor, never auto-hangs (D-27 reset stays operator-triggered); parkCall/retrieveParkedCall/addToConference/resetZombieCall/warmTransferToQueue all enforce getCall->tenant->own-call-ownership->channel guards; addToConference uses Redirect(Channel+ExtraChannel) into ConfBridge(room) + Originate for the 3rd party, same ad hoc dialplan-app-string convention as supervisorSpy/peerSpy; resetZombieCall audits via LoggerService.logAction (not a new cc_agent_events ENUM value — avoids an out-of-scope migration); clickToCall branches WebRTC-direct (no AMI) vs PJSIP-Originate-with-Call-Info-header, gated by permissionsService.assert('click_to_call'); Park/ConfBridge/Call-Info field-name assumptions flagged [ASSUMED] for 09-VALIDATION
 - [Phase 09]: 09-13 extended CallCenterSettingsService/Controller with 18 self/:operatorId/tenant/matrix routes for UI customization (D-05/D-06), granular permissions (D-38/D-39), bulk matrix (D-40), notification matrix (D-41/D-42/D-43) — all merge/lock logic delegated to CallCenterPermissionsService.getEffective (09-05), never reimplemented; notification locks are per-event (not per-channel); ui_visibility_locks doubles as the lock map for softphone_placement; fixed a route-ordering bug where operator/:operatorId wildcard was shadowing the new operator/ui|permissions|notifications self routes (self routes now registered first)
 - [Phase 09]: 09-08 CallCenterAgentPage hybrid orchestrator (Coworkers/Queues/Waiting panels >=1024px, shared Tabs default Waiting <768px); WaitingTab extraction + QueuesTab + CoworkersTab; added missing GET /callcenter/agent/queues-kpi backend endpoint; getEffectivePermissions RTK query bridges CoworkersTab ChanSpy/hangup gating until 09-14 usePermissions; queue self-service join/leave omitted (no backend endpoint yet)
+- [Phase 09]: 09-09 getMissedCallsGrouped aggregates cc_missed_calls at the read layer (GROUP BY caller_id_num+personal, COUNT/MAX) — table stays call-level, UNIQUE(call_uniqueid) untouched, no unique index on caller_id_num (Pitfall 4); personal misses persist queue_name=direct:<agentInterface> (NOT NULL column, doubles as ownership marker); autoResolveOnAnswer lives on CallCenterService, invoked from CallCenterAmiService.handleAgentConnect via ModuleRef.get('CallCenterService') string alias (avoids circular constructor dep, mirrors existing 'CallCenterAmiService' alias); callbackMissedCall reuses clickToCall's WebRTC/PJSIP branching via extracted originateDial helper, success/failure decided by subscribing to the operator's own SSE agentUpdate stream (IN_CALL -> not-IN_CALL) and timing the gap against a >5s threshold; CallCenterAutoPauseService models rules as the AutoPauseRule[] typed union already on cc_settings.autopause_rules (09-01, Pitfall 7 — no per-type columns); RONA is fixed/always-on (pauses agents still RINGING in the abandoned queue), missed_count/idle_time/status_duration are configurable and evaluated from the existing handleCallerAbandon/handleAgentStatusEvent/handleDialEnd/handleAgentHangup call sites; auto-pause reuses queuePause+stateService.setAgent(PAUSED) exactly like supervisorForcePause (no forked pause path)
 
 ## Roadmap Evolution
 
@@ -240,9 +242,10 @@ Also open: Phase 8 / 08-11 Task 3 — complete Android smoke checklist, then rep
 | Phase 9 P07 | ~30min | 3 tasks | 9 files |
 | Phase 9 P13 | ~35min | 2 tasks | 4 files |
 | Phase 9 P08 | ~40min | 3 tasks | 16 files |
+| Phase 9 P09 | ~50min | 3 tasks | 7 files |
 
 ## Session
 
-**Last session:** 2026-07-22T18:50:37.474Z
-**Stopped at:** Completed 09-08-PLAN.md
+**Last session:** 2026-07-23T02:40:00.000Z
+**Stopped at:** Completed 09-09-PLAN.md
 **Resume file:** None
