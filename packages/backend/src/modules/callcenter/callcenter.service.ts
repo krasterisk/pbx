@@ -912,6 +912,13 @@ export class CallCenterService {
         return 'HOLD';
       case 'WRAPUP_START':
         return 'WRAPUP';
+      /** Phase 9 (D-09/D-13): dialing/consultation/after-call-work segments. */
+      case 'DIALING':
+        return 'DIALING';
+      case 'CONSULT':
+        return 'CONSULT';
+      case 'ACW':
+        return 'ACW';
       case 'LOGOUT':
         return 'OFFLINE';
       default:
