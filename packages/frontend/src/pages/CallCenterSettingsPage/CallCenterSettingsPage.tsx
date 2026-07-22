@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { VStack, Flex, Text } from '@/shared/ui';
 import { OperatorSettingsForm } from '@/features/callcenter/ui/OperatorSettingsForm/OperatorSettingsForm';
+import { CallCenterSettings } from '@/features/callcenter/ui/CallCenterSettings';
 import { AlertThresholdsForm } from '@/features/callcenter/ui/AlertThresholdsForm/AlertThresholdsForm';
 import { AlertRoutingForm } from '@/features/callcenter/ui/AlertRoutingForm/AlertRoutingForm';
 import { DisplayTokensManager } from '@/features/callcenter/ui/DisplayTokensManager/DisplayTokensManager';
@@ -15,6 +16,7 @@ export type CcSettingsTabId =
   | 'pauseReasons'
   | 'alertThresholds'
   | 'operatorSettings'
+  | 'myPanel'
   | 'displayTokens'
   | 'reportSchedules';
 
@@ -23,6 +25,7 @@ const TAB_IDS: CcSettingsTabId[] = [
   'pauseReasons',
   'alertThresholds',
   'operatorSettings',
+  'myPanel',
   'displayTokens',
   'reportSchedules',
 ];
@@ -34,6 +37,9 @@ export function CallCenterSettingsPage() {
   const renderPanel = () => {
     if (activeTab === 'operatorSettings') {
       return <OperatorSettingsForm />;
+    }
+    if (activeTab === 'myPanel') {
+      return <CallCenterSettings />;
     }
     if (activeTab === 'alertThresholds') {
       return (

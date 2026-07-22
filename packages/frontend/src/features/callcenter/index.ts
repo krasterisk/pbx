@@ -21,3 +21,6 @@ export type {
 } from './ui/AgentStatusBar';
 export { TransferDirectory } from './ui/TransferDirectory';
 export type { TransferDirectoryProps, TransferDirectoryMode } from './ui/TransferDirectory';
+export { CallCenterSettings } from './ui/CallCenterSettings';
+export { NotificationMatrix } from './ui/NotificationMatrix';
+export type { NotificationMatrixProps } from './ui/NotificationMatrix';

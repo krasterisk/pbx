@@ -202,6 +202,31 @@ export type IUiVisibility = Record<string, boolean>;
 export interface IUiCustomization {
   ui_visibility: IUiVisibility;
   softphone_placement: SoftphonePlacement;
+  /** D-39/09-14: non-empty entry -> that ui_visibility key is admin-locked to the tenant default. */
+  locks: IUiVisibility;
+}
+
+/** D-41/D-42: notification event ids (min. set from CONTEXT.md D-42) — mirrors backend cc-permissions.types.ts. */
+export type NotificationEvent =
+  | 'incoming_call'
+  | 'missed_call'
+  | 'queue_missed_pool'
+  | 'sla_threshold'
+  | 'chat_message'
+  | 'spy_connected';
+
+/** D-41/D-42: notification delivery channels. */
+export type NotificationChannel = 'chat' | 'sound' | 'popup';
+
+/** D-41: event × channel matrix — each event maps to the set of enabled channels. */
+export type NotificationMatrix = Partial<Record<NotificationEvent, NotificationChannel[]>>;
+
+/** D-39/D-43/09-14: own notification matrix + admin locks + tenant defaults, for lock-aware settings UI. */
+export interface INotificationSettings {
+  matrix: NotificationMatrix;
+  /** Non-empty entry for an event -> that event is admin-locked to `defaults[event]`. */
+  locks: NotificationMatrix;
+  defaults: NotificationMatrix;
 }
 
 /** Unified transfer directory row shapes (D-36/D-37) — TransferDirectory (09-12). */
@@ -323,6 +348,22 @@ const callCenterApi = rtkApi.injectEndpoints({
     getMyUiCustomization: build.query<IUiCustomization, void>({
       query: () => '/callcenter/settings/operator/ui',
       providesTags: ['CcOperatorSettings'],
+    }),
+    /** D-05/D-06/09-14: persist own ui_visibility/softphone_placement (server rejects locked keys). */
+    updateMyUiCustomization: build.mutation<IUiCustomization, Partial<{ ui_visibility: IUiVisibility; softphone_placement: SoftphonePlacement }>>({
+      query: (body) => ({ url: '/callcenter/settings/operator/ui', method: 'PUT', body }),
+      invalidatesTags: ['CcOperatorSettings'],
+    }),
+
+    /** D-41/D-43/09-14: own notification matrix + locks + tenant defaults — settings UI (lock-aware). */
+    getMyNotifications: build.query<INotificationSettings, void>({
+      query: () => '/callcenter/settings/operator/notifications',
+      providesTags: ['CcNotifications'],
+    }),
+    /** D-41/D-43/09-14: persist own notification matrix (server rejects locked events). */
+    updateMyNotifications: build.mutation<INotificationSettings, { notification_matrix: NotificationMatrix }>({
+      query: (body) => ({ url: '/callcenter/settings/operator/notifications', method: 'PUT', body }),
+      invalidatesTags: ['CcNotifications'],
     }),
 
     /**
@@ -671,6 +712,9 @@ export const {
   useGetAgentQueuesStatsQuery,
   useGetEffectivePermissionsQuery,
   useGetMyUiCustomizationQuery,
+  useUpdateMyUiCustomizationMutation,
+  useGetMyNotificationsQuery,
+  useUpdateMyNotificationsMutation,
   useGetTransferDirectoryQuery,
   useGetOperatorCallHistoryQuery,
   useClickToCallMutation,
