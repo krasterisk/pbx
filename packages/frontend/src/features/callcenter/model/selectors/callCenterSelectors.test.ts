@@ -8,6 +8,7 @@ import {
   selectMyAgentInterface,
   selectWaitingCalls,
   selectActiveCalls,
+  selectQueueMonitorCalls,
   selectTotalWaiting,
   selectAvailableAgents,
 } from './callCenterSelectors';
@@ -88,6 +89,20 @@ describe('callCenterSelectors', () => {
       ],
     });
     expect(selectActiveCalls(state).map(c => c.uniqueid)).toEqual(['b', 'c']);
+  });
+
+  it('selectQueueMonitorCalls lists waiting first, then talking', () => {
+    const state = baseState({
+      calls: [
+        { uniqueid: 't1', status: 'TALKING' },
+        { uniqueid: 'w1', status: 'WAITING' },
+        { uniqueid: 'h1', status: 'HOLD' },
+        { uniqueid: 'r1', status: 'RINGING' },
+      ],
+    });
+    expect(selectQueueMonitorCalls(state).map(c => c.uniqueid)).toEqual([
+      'w1', 'r1', 't1', 'h1',
+    ]);
   });
 
   it('selectTotalWaiting sums the waiting field across queues', () => {

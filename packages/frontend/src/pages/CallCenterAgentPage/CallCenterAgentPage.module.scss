@@ -420,6 +420,35 @@
   border-bottom: 1px solid color-mix(in srgb, var(--color-border) 50%, transparent);
 }
 
+.rowWaiting {
+  background: color-mix(in srgb, var(--color-warning, #d97706) 8%, transparent);
+}
+
+.rowTalking {
+  background: color-mix(in srgb, var(--color-success, #16a34a) 10%, transparent);
+}
+
+.badgeWaiting,
+.badgeTalking {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--radius-md, 6px);
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.badgeWaiting {
+  color: color-mix(in srgb, var(--color-warning, #d97706) 90%, #000);
+  background: color-mix(in srgb, var(--color-warning, #d97706) 18%, transparent);
+}
+
+.badgeTalking {
+  color: color-mix(in srgb, var(--color-success, #16a34a) 90%, #000);
+  background: color-mix(in srgb, var(--color-success, #16a34a) 18%, transparent);
+}
+
 .waitTime {
   font-variant-numeric: tabular-nums;
 }

@@ -127,8 +127,19 @@ export function useWebRTCPhone(options: UseWebRTCPhoneOptions) {
   const sessionRef = useRef<Session | null>(null);
   const consultRef = useRef<Session | null>(null);
   const statsTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  /** True while operator expects an active softphone (until intentional disconnect). */
+  const wantConnectedRef = useRef(false);
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reconnectAttemptRef = useRef(0);
   const optionsRef = useRef(options);
   optionsRef.current = options;
+
+  const clearReconnectTimer = useCallback(() => {
+    if (reconnectTimerRef.current) {
+      clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
+    }
+  }, []);
 
   const stopQualityPolling = useCallback(() => {
     if (statsTimerRef.current) {
@@ -245,15 +256,21 @@ export function useWebRTCPhone(options: UseWebRTCPhoneOptions) {
       ? { deviceId: { exact: micId } }
       : true;
 
-    await session.accept({
-      sessionDescriptionHandlerOptions: {
-        constraints: { audio: audioConstraint, video: false },
-      },
-    });
-
-    await setupRemoteAudio(session);
+    // Show in-call controls immediately — session.accept() can block 5–10s on ICE (mobile WebView).
     setStatus('in-call');
-    startQualityPolling(session);
+
+    try {
+      await session.accept({
+        sessionDescriptionHandlerOptions: {
+          constraints: { audio: audioConstraint, video: false },
+        },
+      });
+      await setupRemoteAudio(session);
+      startQualityPolling(session);
+    } catch (err) {
+      setStatus('ringing');
+      throw err;
+    }
   }, [setupRemoteAudio, startQualityPolling]);
 
   const handleIncoming = useCallback(
@@ -281,6 +298,63 @@ export function useWebRTCPhone(options: UseWebRTCPhoneOptions) {
     [acceptCall, attachSessionListeners],
   );
 
+  const attemptTransportReconnect = useCallback(() => {
+    clearReconnectTimer();
+    if (!wantConnectedRef.current) return;
+    const ua = uaRef.current;
+    if (!ua) return;
+
+    const attempt = reconnectAttemptRef.current + 1;
+    reconnectAttemptRef.current = attempt;
+    // Backoff: 2s, 4s, … cap 30s — browsers throttle background tabs heavily
+    const delayMs = Math.min(30_000, 2000 * 2 ** Math.min(attempt - 1, 4));
+
+    reconnectTimerRef.current = setTimeout(() => {
+      if (!wantConnectedRef.current || uaRef.current !== ua) return;
+      setStatus((prev) => (prev === 'in-call' || prev === 'ringing' ? prev : 'connecting'));
+      void ua
+        .reconnect()
+        .then(async () => {
+          reconnectAttemptRef.current = 0;
+          const registerer = registererRef.current;
+          if (registerer && wantConnectedRef.current) {
+            await registerer.register().catch(() => undefined);
+          }
+        })
+        .catch(() => {
+          attemptTransportReconnect();
+        });
+    }, delayMs);
+  }, [clearReconnectTimer]);
+
+  /** Soft re-REGISTER without tearing down WSS (refresh / brief Unregistered). */
+  const attemptReRegister = useCallback(() => {
+    clearReconnectTimer();
+    if (!wantConnectedRef.current) return;
+    const registerer = registererRef.current;
+    if (!registerer) {
+      attemptTransportReconnect();
+      return;
+    }
+    // Grace: keep showing last good status briefly (Asterisk contact often still Avail)
+    reconnectTimerRef.current = setTimeout(() => {
+      if (!wantConnectedRef.current) return;
+      if (registererRef.current?.state === RegistererState.Registered) {
+        reconnectAttemptRef.current = 0;
+        setStatus((prev) => (prev === 'in-call' || prev === 'ringing' ? prev : 'registered'));
+        return;
+      }
+      setStatus((prev) => (prev === 'in-call' || prev === 'ringing' ? prev : 'connecting'));
+      void registerer.register()
+        .then(() => {
+          reconnectAttemptRef.current = 0;
+        })
+        .catch(() => {
+          attemptTransportReconnect();
+        });
+    }, 1500);
+  }, [clearReconnectTimer, attemptTransportReconnect]);
+
   const connect = useCallback(async (override?: Partial<UseWebRTCPhoneOptions>) => {
     if (override) {
       optionsRef.current = { ...optionsRef.current, ...override };
@@ -290,7 +364,7 @@ export function useWebRTCPhone(options: UseWebRTCPhoneOptions) {
       throw new Error('WebRTC WSS URL is not configured');
     }
 
-    await disconnectInternal();
+    await disconnectInternal(true);
 
     const uri = UserAgent.makeURI(`sip:${opts.sipUser}@${opts.sipDomain}`);
     if (!uri) throw new Error('Invalid SIP URI');
@@ -300,12 +374,21 @@ export function useWebRTCPhone(options: UseWebRTCPhoneOptions) {
       ? { deviceId: { exact: micId } }
       : true;
 
+    wantConnectedRef.current = true;
+    reconnectAttemptRef.current = 0;
+    clearReconnectTimer();
+
     const ua = new UserAgent({
       uri,
+      // Built-in transport reconnect (sip.js 0.21); we reinstate REGISTER in onConnect
+      reconnectionAttempts: 10,
+      reconnectionDelay: 4,
       transportOptions: {
         server: opts.server,
         // Never log SIP frames (may contain credentials) — T-07-14-01
         traceSip: false,
+        // CRLF keep-alive so proxies / Asterisk don't idle-drop the WSS
+        keepAliveInterval: 20,
       },
       authorizationUsername: opts.sipUser,
       authorizationPassword: opts.sipPassword,
@@ -315,6 +398,7 @@ export function useWebRTCPhone(options: UseWebRTCPhoneOptions) {
           audio: audioConstraint,
           video: false,
         },
+        iceGatheringTimeout: 2000,
         peerConnectionConfiguration: {
           iceServers: opts.iceServers,
         },
@@ -322,6 +406,27 @@ export function useWebRTCPhone(options: UseWebRTCPhoneOptions) {
       delegate: {
         onInvite: (invitation: Invitation) => {
           void handleIncoming(invitation);
+        },
+        onConnect: () => {
+          reconnectAttemptRef.current = 0;
+          clearReconnectTimer();
+          const registerer = registererRef.current;
+          // Only REGISTER if we are not already registered (avoid refresh storms)
+          if (
+            wantConnectedRef.current
+            && registerer
+            && registerer.state !== RegistererState.Registered
+          ) {
+            void registerer.register().catch(() => undefined);
+          }
+        },
+        onDisconnect: (error?: Error) => {
+          if (!wantConnectedRef.current) return;
+          // Transport lost — show connecting; Asterisk contact may still be Avail briefly
+          setStatus((prev) => (prev === 'in-call' || prev === 'ringing' ? prev : 'connecting'));
+          if (error) {
+            attemptTransportReconnect();
+          }
         },
       },
     });
@@ -333,16 +438,32 @@ export function useWebRTCPhone(options: UseWebRTCPhoneOptions) {
     const registerer = new Registerer(ua, { expires: 300 });
     registererRef.current = registerer;
     registerer.stateChange.addListener((state: RegistererState) => {
-      if (state === RegistererState.Registered) setStatus('registered');
+      if (state === RegistererState.Registered) {
+        reconnectAttemptRef.current = 0;
+        clearReconnectTimer();
+        setStatus((prev) => (prev === 'in-call' || prev === 'ringing' ? prev : 'registered'));
+        return;
+      }
       if (state === RegistererState.Unregistered) {
-        setStatus((prev) => (prev === 'connecting' ? prev : 'disconnected'));
+        if (!wantConnectedRef.current) {
+          setStatus((prev) => (prev === 'connecting' ? prev : 'disconnected'));
+          return;
+        }
+        // Do NOT ua.reconnect() here — that flaps WSS while Asterisk contact is still Avail.
+        // Soft re-REGISTER; only escalate to transport reconnect if that fails.
+        attemptReRegister();
       }
     });
 
     await registerer.register();
-  }, [handleIncoming]);
+  }, [handleIncoming, attemptTransportReconnect, attemptReRegister, clearReconnectTimer]);
 
-  async function disconnectInternal(): Promise<void> {
+  async function disconnectInternal(clearWantConnected = true): Promise<void> {
+    if (clearWantConnected) {
+      wantConnectedRef.current = false;
+    }
+    clearReconnectTimer();
+    reconnectAttemptRef.current = 0;
     stopQualityPolling();
     try {
       if (sessionRef.current) {
@@ -379,8 +500,35 @@ export function useWebRTCPhone(options: UseWebRTCPhoneOptions) {
   }
 
   const disconnect = useCallback(async () => {
-    await disconnectInternal();
-  }, [stopQualityPolling]);
+    await disconnectInternal(true);
+  }, [stopQualityPolling, clearReconnectTimer]);
+
+  /** Restore REGISTER after tab wake — no-op if already registered. */
+  const ensureConnected = useCallback(async () => {
+    if (!wantConnectedRef.current) return;
+    const opts = optionsRef.current;
+    if (!opts.server || !opts.sipUser || !opts.sipPassword) return;
+
+    const registerer = registererRef.current;
+    if (registerer?.state === RegistererState.Registered) {
+      return;
+    }
+
+    const ua = uaRef.current;
+    if (ua && registerer) {
+      try {
+        setStatus((prev) => (prev === 'in-call' || prev === 'ringing' ? prev : 'connecting'));
+        await ua.reconnect().catch(() => undefined);
+        if (registererRef.current?.state !== RegistererState.Registered) {
+          await registerer.register();
+        }
+        return;
+      } catch {
+        /* fall through to full reconnect */
+      }
+    }
+    await connect();
+  }, [connect]);
 
   const rejectCall = useCallback(async () => {
     const session = sessionRef.current;
@@ -520,10 +668,25 @@ export function useWebRTCPhone(options: UseWebRTCPhoneOptions) {
     }
   }, [options.sinkId, status, applySinkId]);
 
-  // Cleanup on unmount
+  // Tab became visible again — browsers throttle/kill background WSS; restore REGISTER
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (!wantConnectedRef.current) return;
+      void ensureConnected();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('online', onVisibility);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('online', onVisibility);
+    };
+  }, [ensureConnected]);
+
+  // Cleanup on unmount (intentional leave of softphone owner)
   useEffect(() => {
     return () => {
-      void disconnectInternal();
+      void disconnectInternal(true);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- unmount-only cleanup
   }, []);
@@ -536,6 +699,7 @@ export function useWebRTCPhone(options: UseWebRTCPhoneOptions) {
     quality,
     connect,
     disconnect,
+    ensureConnected,
     acceptCall,
     rejectCall,
     hangup,

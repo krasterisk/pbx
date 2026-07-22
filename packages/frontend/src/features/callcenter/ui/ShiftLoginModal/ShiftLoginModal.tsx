@@ -34,7 +34,10 @@ export interface ShiftLoginResult {
   mode: SoftphoneMode;
   interface: string;
   queues: string[];
+  /** Member / WebRTC sip id used in PJSIP/… interface. */
   sipId: string;
+  /** Primary endpoint id (credentials + restore). */
+  endpointId: string;
   credentials?: IEndpointCredentials;
   micDeviceId?: string;
   sinkId?: string;
@@ -93,9 +96,11 @@ export function ShiftLoginModal({ open, onOpenChange, onConfirm }: ShiftLoginMod
 
   const queueOptions: MultiSelectOption[] = useMemo(
     () =>
-      queueList.map((q: { name: string; uid?: number }) => ({
+      queueList.map((q: { name: string; display_name?: string; exten?: string }) => ({
         value: q.name,
-        label: q.name,
+        label: q.display_name
+          ? `${q.display_name}${q.exten ? ` (${q.exten})` : ''}`
+          : (q.exten || q.name),
       })),
     [queueList],
   );
@@ -194,6 +199,7 @@ export function ShiftLoginModal({ open, onOpenChange, onConfirm }: ShiftLoginMod
           interface: `PJSIP/${endpoint.id}`,
           queues,
           sipId: endpoint.id,
+          endpointId: endpoint.id,
         });
       } else {
         if (micError) {
@@ -229,6 +235,7 @@ export function ShiftLoginModal({ open, onOpenChange, onConfirm }: ShiftLoginMod
           interface: `PJSIP/${webrtcId}`,
           queues,
           sipId: webrtcId,
+          endpointId: endpoint.id,
           credentials: {
             sipId: webrtcId,
             extension: w.extension,
@@ -277,12 +284,18 @@ export function ShiftLoginModal({ open, onOpenChange, onConfirm }: ShiftLoginMod
               onChange={(e) => setSipId(e.target.value)}
             >
               <option value="">{t('callcenter.softphone.selectExtension')}</option>
-              {endpoints.map((ep) => (
-                <option key={ep.id} value={ep.id}>
-                  {ep.extension || ep.id}
-                  {ep.callerid ? ` — ${ep.callerid}` : ''}
-                </option>
-              ))}
+              {endpoints.map((ep) => {
+                const cidMatch = (ep.callerid || '').match(/^"(.+?)"/);
+                const cidName = cidMatch?.[1];
+                const label = cidName
+                  ? `${cidName} (${ep.extension || ep.id})`
+                  : (ep.extension || ep.id);
+                return (
+                  <option key={ep.id} value={ep.id}>
+                    {label}
+                  </option>
+                );
+              })}
             </Select>
           </label>
 

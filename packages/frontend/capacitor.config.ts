@@ -9,6 +9,15 @@ const config: CapacitorConfig = {
   appId: 'com.krasterisk.app',
   appName: 'Krasterisk',
   webDir: 'dist',
+  // Dev/smoke: WebView defaults to https://localhost and blocks http://LAN API (mixed content).
+  // Production should use HTTPS API — then remove cleartext / allowMixedContent.
+  server: {
+    androidScheme: 'http',
+    cleartext: true,
+  },
+  android: {
+    allowMixedContent: true,
+  },
   plugins: {
     SplashScreen: {
       launchAutoHide: true,

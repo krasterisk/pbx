@@ -29,7 +29,18 @@ import { PhonebookEntry } from '../phonebooks/phonebook-entry.model';
     TimeGroupsModule,
   ],
   controllers: [RoutesController, ContextIncludesController, DialplanWebhooksController],
-  providers: [RoutesService, ContextIncludesService, RouteApplyService, DialplanWebhooksService, WebhookQueueService],
+  providers: [
+    RoutesService,
+    ContextIncludesService,
+    RouteApplyService,
+    DialplanWebhooksService,
+    // String alias for AmiService ModuleRef.get('DialplanWebhooksService')
+    {
+      provide: 'DialplanWebhooksService',
+      useExisting: DialplanWebhooksService,
+    },
+    WebhookQueueService,
+  ],
   exports: [RoutesService, ContextIncludesService, RouteApplyService, DialplanWebhooksService, WebhookQueueService],
 })
 export class RoutesModule {}

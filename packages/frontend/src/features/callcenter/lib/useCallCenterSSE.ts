@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { useDispatch, useStore } from 'react-redux';
+import { useDispatch, useStore, useSelector } from 'react-redux';
 import type { RootState } from '@/app/store/store';
 import { selectCurrentUser } from '@/entities/User';
 import {
@@ -55,6 +55,7 @@ export function useCallCenterSSE(enabled: boolean = true) {
   const dispatch = useDispatch();
   const store = useStore<RootState>();
   const esRef = useRef<EventSource | null>(null);
+  const currentUserId = useSelector(selectCurrentUser)?.uniqueid;
 
   const connect = useCallback(() => {
     if (!enabled) return;
@@ -124,7 +125,12 @@ export function useCallCenterSSE(enabled: boolean = true) {
     es.addEventListener('callAnswer', (e: MessageEvent) => {
       try {
         const data = JSON.parse(e.data);
-        dispatch(updateCall({ uniqueid: data.uniqueid, status: 'TALKING', agent: data.agent }));
+        dispatch(updateCall({
+          uniqueid: data.uniqueid,
+          status: 'TALKING',
+          agent: data.agent,
+          queue: data.queue,
+        }));
       } catch { /* ignore */ }
     });
 
@@ -132,6 +138,19 @@ export function useCallCenterSSE(enabled: boolean = true) {
       try {
         const data = JSON.parse(e.data);
         dispatch(removeCall(data.uniqueid));
+        // Uniqueid mismatch fallback: drop WAITING twin by caller channel
+        if (data.callerChannel) {
+          const calls = store.getState().callCenter?.calls ?? [];
+          for (const c of calls) {
+            if (
+              c.uniqueid !== data.uniqueid
+              && c.callerChannel === data.callerChannel
+              && (c.status === 'WAITING' || c.status === 'RINGING')
+            ) {
+              dispatch(removeCall(c.uniqueid));
+            }
+          }
+        }
       } catch { /* ignore */ }
     });
 
@@ -218,6 +237,16 @@ export function useCallCenterSSE(enabled: boolean = true) {
       dispatch(setConnected(false));
     };
   }, [connect, dispatch]);
+
+  // Auth may load after first fullSnapshot — retry bind when userId appears
+  useEffect(() => {
+    if (!enabled || currentUserId == null) return;
+    maybeBindMyAgentInterface(
+      store.getState,
+      dispatch,
+      store.getState().callCenter?.agents ?? [],
+    );
+  }, [enabled, currentUserId, dispatch, store]);
 
   /** Force reconnect (e.g. after token refresh) */
   const reconnect = useCallback(() => {

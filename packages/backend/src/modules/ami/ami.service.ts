@@ -26,12 +26,22 @@ export class AmiService implements OnModuleInit, OnModuleDestroy {
     private readonly moduleRef: ModuleRef,
   ) {}
 
+  private warnedMissingWebhooks = false;
+  private warnedMissingCcAmi = false;
+  private warnedMissingCcReconciler = false;
+
   /** Lazily resolve DialplanWebhooksService to avoid circular module dependency. */
   private getWebhooksService() {
     try {
       // strict: false searches all modules, not just AmiModule's own providers
       return this.moduleRef.get('DialplanWebhooksService', { strict: false });
     } catch {
+      if (!this.warnedMissingWebhooks) {
+        this.warnedMissingWebhooks = true;
+        this.logger.warn(
+          'DialplanWebhooksService not resolvable via ModuleRef — AMI webhooks disabled',
+        );
+      }
       return null;
     }
   }
@@ -41,6 +51,12 @@ export class AmiService implements OnModuleInit, OnModuleDestroy {
     try {
       return this.moduleRef.get('CallCenterAmiService', { strict: false });
     } catch {
+      if (!this.warnedMissingCcAmi) {
+        this.warnedMissingCcAmi = true;
+        this.logger.warn(
+          'CallCenterAmiService not resolvable via ModuleRef — queue SSE state disabled',
+        );
+      }
       return null;
     }
   }
@@ -50,6 +66,12 @@ export class AmiService implements OnModuleInit, OnModuleDestroy {
     try {
       return this.moduleRef.get('CallCenterQueueLogReconcilerService', { strict: false });
     } catch {
+      if (!this.warnedMissingCcReconciler) {
+        this.warnedMissingCcReconciler = true;
+        this.logger.warn(
+          'CallCenterQueueLogReconcilerService not resolvable via ModuleRef — reconcile disabled',
+        );
+      }
       return null;
     }
   }
@@ -290,6 +312,11 @@ export class AmiService implements OnModuleInit, OnModuleDestroy {
       // QueueCallerJoin — caller entered queue
       this.ami.on('queuecallerjoin', (evt: any) => {
         this.getCcAmiService()?.handleCallerJoin(evt);
+      });
+
+      // QueueCallerLeave — caller left queue (timeout / redirect / hangup)
+      this.ami.on('queuecallerleave', (evt: any) => {
+        this.getCcAmiService()?.handleCallerLeave?.(evt);
       });
 
       // QueueCallerAbandon — caller abandoned queue

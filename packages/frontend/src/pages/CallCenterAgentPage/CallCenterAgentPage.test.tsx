@@ -26,15 +26,21 @@ vi.mock('@/features/callcenter/lib/useCallNotifications', () => ({
 
 vi.mock('@/features/callcenter/lib/useWebRTCPhone', () => ({
   useWebRTCPhone: () => ({
-    status: 'idle',
+    status: 'disconnected',
     quality: null,
     isMuted: false,
+    isHeld: false,
     callInfo: null,
+    connect: vi.fn(),
+    disconnect: vi.fn(),
+    ensureConnected: vi.fn(),
     acceptCall: vi.fn(),
     rejectCall: vi.fn(),
     hangup: vi.fn(),
     hold: vi.fn(),
     unhold: vi.fn(),
+    mute: vi.fn(),
+    unmute: vi.fn(),
     sendDtmf: vi.fn(),
     blindTransfer: vi.fn(),
     attendedTransfer: vi.fn(),
@@ -113,6 +119,7 @@ vi.mock('@/shared/api/endpoints/callCenterApi', () => ({
   useGetPauseReasonsQuery: () => ({ data: [] }),
   useGetMyOperatorSettingsQuery: () => ({ data: undefined }),
   useGetWebrtcConfigQuery: () => ({ data: undefined }),
+  useLazyGetAgentMeQuery: () => [vi.fn(() => ({ unwrap: async () => ({ active: false }) }))],
 }));
 
 const EMPTY: never[] = [];
@@ -120,11 +127,17 @@ const CURRENT_USER = { id: 1, name: 'Agent' };
 
 vi.mock('@/features/callcenter/model/selectors/callCenterSelectors', () => ({
   selectMyAgent: () => null,
+  selectMyAgentInterface: () => null,
   selectCcCalls: () => EMPTY,
   selectCcAgents: () => EMPTY,
   selectCcQueues: () => EMPTY,
   selectCcConnected: () => true,
   selectWaitingCalls: () => EMPTY,
+  selectQueueMonitorCalls: () => EMPTY,
+}));
+
+vi.mock('@/shared/api/endpoints/endpointApi', () => ({
+  useLazyGetEndpointCredentialsQuery: () => [vi.fn()],
 }));
 
 vi.mock('@/entities/User', () => ({

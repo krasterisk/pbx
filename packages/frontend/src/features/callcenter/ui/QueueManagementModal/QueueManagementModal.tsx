@@ -28,6 +28,7 @@ import {
   useSupervisorQueuePenaltyMutation,
 } from '@/shared/api/endpoints/callCenterApi';
 import { selectCcQueues } from '@/features/callcenter/model/selectors/callCenterSelectors';
+import { queueDisplayName } from '@/features/callcenter/lib/displayLabels';
 import type { IAgent, IQueueStats } from '@/features/callcenter/model/types/callCenterSchema';
 import styles from './QueueManagementModal.module.scss';
 
@@ -41,7 +42,7 @@ export interface QueueManagementModalProps {
 }
 
 function queueLabel(q: IQueueStats): string {
-  return q.displayName || q.name;
+  return queueDisplayName(q.name, [q]);
 }
 
 interface QueueCardProps {

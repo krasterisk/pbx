@@ -114,6 +114,11 @@ import { queueLogReaderProvider } from './queuelog/queue-log-reader.factory';
       useExisting: CallCenterQueueLogReconcilerService,
     },
     CallCenterAmiService,
+    // String alias for AmiService ModuleRef.get('CallCenterAmiService')
+    {
+      provide: 'CallCenterAmiService',
+      useExisting: CallCenterAmiService,
+    },
     CallCenterService,
     CallCenterAiAdapter,
     CallCenterMediaBridgeService,

@@ -53,12 +53,28 @@ export class DeviceTokenService {
     if (input.tenantId != null && Number.isFinite(input.tenantId)) {
       return input.tenantId;
     }
-    if (input.vpbxUserUid != null) {
-      const tenant = await this.tenantsService.findByVpbxUid(input.vpbxUserUid);
+
+    // JWT carries vpbx_user_uid, not tenants.id — resolve cloud tenant when present.
+    const vpbxCandidates = [input.vpbxUserUid, input.userUid].filter(
+      (id): id is number => id != null && Number.isFinite(id) && id > 0,
+    );
+    for (const vpbx of vpbxCandidates) {
+      const tenant = await this.tenantsService.findByVpbxUid(vpbx);
       if (tenant?.id != null) {
         return tenant.id;
       }
     }
+
+    // Local / legacy installs often have no `tenants` row (SUPERADMIN, single-PBX).
+    // Partition by vpbx_user_uid the same way billing does when tenants.id is absent.
+    const partitionKey = vpbxCandidates[0];
+    if (partitionKey != null) {
+      this.logger.warn(
+        `No tenants row for user=${input.userUid}; using vpbx partition ${partitionKey} for device token`,
+      );
+      return partitionKey;
+    }
+
     throw new ForbiddenException('Tenant binding required to register device token');
   }
 }

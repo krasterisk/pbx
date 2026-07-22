@@ -68,6 +68,12 @@ export class CallCenterController {
     );
   }
 
+  /** Active shift snapshot — used to restore operator panel after refresh. */
+  @Get('agent/me')
+  agentMe(@Req() req: Request & { user: any }) {
+    return this.ccService.getAgentMe(req.user.vpbx_user_uid, req.user.sub);
+  }
+
   @Post('agent/logout')
   agentLogout(@Req() req: Request & { user: any }) {
     return this.ccService.agentLogout(req.user.vpbx_user_uid, req.user.sub);
@@ -128,6 +134,7 @@ export class CallCenterController {
     return this.ccService.getMissedCalls(
       req.user.vpbx_user_uid,
       includeHandled === '1' || includeHandled === 'true',
+      req.user.sub,
     );
   }
 

@@ -31,6 +31,16 @@ export const selectWaitingCalls = (state: RootState): ICall[] =>
 export const selectActiveCalls = (state: RootState): ICall[] =>
   (state.callCenter?.calls ?? []).filter(c => c.status === 'TALKING' || c.status === 'HOLD');
 
+/**
+ * Queue monitor list: waiting/ringing first, then talking/hold.
+ * Used by the operator panel bottom table.
+ */
+export const selectQueueMonitorCalls = (state: RootState): ICall[] => {
+  const waiting = selectWaitingCalls(state);
+  const talking = selectActiveCalls(state);
+  return [...waiting, ...talking];
+};
+
 /** Total waiting across all queues */
 export const selectTotalWaiting = (state: RootState): number =>
   (state.callCenter?.queues ?? []).reduce((sum, q) => sum + q.waiting, 0);

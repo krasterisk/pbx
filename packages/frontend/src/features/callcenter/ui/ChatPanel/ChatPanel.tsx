@@ -160,7 +160,7 @@ export function ChatPanel({ open, onClose }: PanelProps) {
     <aside className={styles.panel} aria-label={t('callcenter.chat.title')}>
       <div className={styles.header}>
         <Text className={styles.title}>{t('callcenter.chat.title')}</Text>
-        <button type="button" className={styles.closeBtn} onClick={handleClose} aria-label="Close">
+        <button type="button" className={styles.closeBtn} onClick={handleClose} aria-label={t('common.close', 'Close')}>
           <X className="w-4 h-4" />
         </button>
       </div>

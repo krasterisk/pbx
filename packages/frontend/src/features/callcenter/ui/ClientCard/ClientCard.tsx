@@ -137,7 +137,10 @@ export function ClientCard({ callerIdNum, callerIdName }: Props) {
                 )}
                 <Text className={styles.requestMeta}>
                   <Clock className="w-3 h-3 inline mr-0.5" />
-                  {fmtDate(r.created_at)} · {r.request_status}
+                  {fmtDate(r.created_at)} ·{' '}
+                  {t(`callcenter.clientCard.requestStatus.${r.request_status}`, {
+                    defaultValue: r.request_status,
+                  })}
                 </Text>
               </div>
             </div>

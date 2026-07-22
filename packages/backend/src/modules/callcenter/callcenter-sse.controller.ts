@@ -41,15 +41,15 @@ export class CallCenterSseController {
    */
   @Sse('events')
   events(@Req() req: Request & { user: any }): Observable<MessageEvent> {
-    const userUid = req.user.vpbx_user_uid;
+    const jwtUserUid = Number(req.user.vpbx_user_uid ?? 0);
     const userId = req.user.sub;
-    this.logger.log(`SSE connection opened: user ${userId}, tenant ${userUid}`);
+    const { tenant: userUid, snapshot } = this.stateService.getSnapshotForUser(jwtUserUid, userId);
+    this.logger.log(
+      `SSE connection opened: user ${userId}, jwtTenant=${jwtUserUid}, effectiveTenant=${userUid}`,
+    );
 
-    // Get initial snapshot
-    const snapshot = this.stateService.getSnapshot(userUid);
-
-    // Real CC events stream
-    const ccEvents$ = this.stateService.getEventStream(userUid).pipe(
+    // Real CC events stream (JWT tenant and/or queue-suffix tenant where agent is online)
+    const ccEvents$ = this.stateService.getEventStreamForUser(jwtUserUid, userId).pipe(
       // Send snapshot immediately on connect
       startWith({
         type: 'fullSnapshot',
@@ -100,7 +100,8 @@ export class CallCenterSseController {
    */
   @Get('state')
   getState(@Req() req: Request & { user: any }) {
-    const userUid = req.user.vpbx_user_uid;
-    return this.stateService.getSnapshot(userUid);
+    const jwtUserUid = Number(req.user.vpbx_user_uid ?? 0);
+    const { snapshot } = this.stateService.getSnapshotForUser(jwtUserUid, req.user.sub);
+    return snapshot;
   }
 }

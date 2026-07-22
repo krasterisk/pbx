@@ -78,7 +78,7 @@ export function PauseReasonModal({ reasons, onSelect, onClose, activeReason }: P
             <Pause className="w-5 h-5 inline mr-2" />
             {t('callcenter.pause.title', 'Pause Reason')}
           </span>
-          <button className={styles.close} onClick={onClose} aria-label="Close">
+          <button className={styles.close} onClick={onClose} aria-label={t('common.close', 'Close')}>
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -111,7 +111,7 @@ export function PauseReasonModal({ reasons, onSelect, onClose, activeReason }: P
         <div className={styles.grid}>
           <button
             className={styles.tile}
-            onClick={() => onSelect('Pause', 0)}
+            onClick={() => onSelect(t('callcenter.pause.quickPause'), 0)}
             style={{ '--tile-color': '#888' } as React.CSSProperties}
           >
             <Pause className={styles.tileIcon} />

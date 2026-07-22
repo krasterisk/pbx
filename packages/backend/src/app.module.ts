@@ -69,6 +69,7 @@ import { CloudSetting } from './modules/cloud-admin/cloud-setting.model';
 import { HubModule } from './modules/cloud-admin/models/hub-module.model';
 import { HubModulePage } from './modules/cloud-admin/models/hub-module-page.model';
 import { RoleStartDefault, TenantRoleStart } from './modules/cloud-admin/models/role-start.model';
+import { DeviceToken } from './modules/cloud-admin/models/device-token.model';
 import { BillingBalance } from './modules/cloud-admin/billing/models/billing-balance.model';
 import { BillingTransaction } from './modules/cloud-admin/billing/models/billing-transaction.model';
 import { Queue } from './modules/queues/queue.model';
@@ -155,6 +156,7 @@ import * as path from 'path';
         Tenant, ModuleRegistry, TenantModule, CloudSetting,
         HubModule, HubModulePage,
         RoleStartDefault, TenantRoleStart,
+        DeviceToken,
         BillingBalance, BillingTransaction,
       ],
       autoLoadModels: false,

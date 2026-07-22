@@ -1,9 +1,9 @@
-/**
+﻿/**
  * CallCenter AMI Event Listener.
  *
  * Subscribes to relevant AMI events from the existing AmiService
  * and updates the in-memory CallCenterStateService.
- * Maps raw Asterisk AMI events → structured CC state changes.
+ * Maps raw Asterisk AMI events в†’ structured CC state changes.
  */
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
@@ -25,6 +25,9 @@ export class CallCenterAmiService implements OnModuleInit {
   /** Tracks wrap-up deadline timestamps (ms). Key = `${userUid}:${agentInterface}` */
   private readonly wrapupDeadlines = new Map<string, number>();
 
+  /** In-process dedupe for missed-call inserts (AMI reconnect / multi-handler races). */
+  private readonly loggedMissedUniqueids = new Set<string>();
+
   constructor(
     private readonly amiService: AmiService,
     private readonly stateService: CallCenterStateService,
@@ -44,7 +47,7 @@ export class CallCenterAmiService implements OnModuleInit {
     try {
       // Load initial queue states via QueueStatus AMI action
       await this.loadInitialState();
-      this.logger.log('✅ CallCenter AMI listener initialized');
+      this.logger.log('вњ… CallCenter AMI listener initialized');
     } catch (err: any) {
       this.logger.warn(`CallCenter AMI init deferred: ${err.message}`);
     }
@@ -53,10 +56,10 @@ export class CallCenterAmiService implements OnModuleInit {
   /**
    * Load current queue/agent state from Asterisk via QueueStatus AMI command.
    * QueueStatus triggers multiple response events:
-   *  - QueueParams  — one per queue (strategy, weight, calls, etc.)
-   *  - QueueMember  — one per member in each queue (interface, status, paused)
-   *  - QueueEntry   — one per waiting caller in each queue
-   *  - QueueStatusComplete — final "done" event
+   *  - QueueParams  вЂ” one per queue (strategy, weight, calls, etc.)
+   *  - QueueMember  вЂ” one per member in each queue (interface, status, paused)
+   *  - QueueEntry   вЂ” one per waiting caller in each queue
+   *  - QueueStatusComplete вЂ” final "done" event
    *
    * We collect them all and populate the in-memory state store.
    */
@@ -66,7 +69,7 @@ export class CallCenterAmiService implements OnModuleInit {
       return;
     }
 
-    // Build DB queue→tenant map
+    // Build DB queueв†’tenant map
     const dbQueues = await this.queueModel.findAll({ attributes: ['name', 'user_uid', 'display_name'] });
     const queueTenantMap = new Map<string, { userUid: number; displayName: string }>();
     for (const q of dbQueues) {
@@ -102,7 +105,7 @@ export class CallCenterAmiService implements OnModuleInit {
     ami.on('queueentry', onQueueEntry);
 
     try {
-      // Fire QueueStatus AMI action — triggers the events above
+      // Fire QueueStatus AMI action вЂ” triggers the events above
       await this.amiService.queueStatus();
 
       // Wait briefly for async events to arrive
@@ -116,7 +119,7 @@ export class CallCenterAmiService implements OnModuleInit {
       ami.removeListener('queueentry', onQueueEntry);
     }
 
-    // Process collected QueueParams → initialize queue stats
+    // Process collected QueueParams в†’ initialize queue stats
     for (const qp of queueParams) {
       const qName = qp.queue;
       if (!qName) continue;
@@ -140,7 +143,7 @@ export class CallCenterAmiService implements OnModuleInit {
       });
     }
 
-    // Process collected QueueMembers → initialize agent states
+    // Process collected QueueMembers в†’ initialize agent states
     for (const m of members) {
       const qName = m.queue;
       const iface = m.interface || m.name;
@@ -155,15 +158,19 @@ export class CallCenterAmiService implements OnModuleInit {
 
       this.stateService.setAgent(tenant.userUid, iface, {
         queues: existingQueues,
-        name: m.name || m.membername || iface,
+        name: this.pickAgentDisplayName(iface, m.name || m.membername, existingAgent?.name),
         status: this.mapAsteriskStatus(m.status, m.paused),
         pauseReason: m.paused === '1' ? (m.pausedreason || '') : undefined,
-        callsTaken: parseInt(m.callstaken, 10) || 0,
+        // Asterisk CallsTaken is cumulative — keep session counter once operator is logged in
+        callsTaken:
+          existingAgent?.userId
+            ? (existingAgent.callsTaken ?? 0)
+            : (parseInt(m.callstaken, 10) || 0),
         lastCallTime: m.lastcall && m.lastcall !== '0' ? new Date(parseInt(m.lastcall, 10) * 1000) : undefined,
       });
     }
 
-    // Process collected QueueEntries → initialize waiting calls
+    // Process collected QueueEntries в†’ initialize waiting calls
     for (const e of entries) {
       const qName = e.queue;
       const uniqueid = e.uniqueid;
@@ -189,11 +196,11 @@ export class CallCenterAmiService implements OnModuleInit {
     }
 
     this.logger.log(
-      `✅ Initial state loaded: ${queueParams.length} queues, ${members.length} members, ${entries.length} waiting calls`,
+      `вњ… Initial state loaded: ${queueParams.length} queues, ${members.length} members, ${entries.length} waiting calls`,
     );
   }
 
-  // ─── AMI Event Handlers ──────────────────────────────────
+  // в”Ђв”Ђв”Ђ AMI Event Handlers в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
   // These are called from AmiService event listeners.
   // We'll register them when we extend ami.service.ts to forward CC events.
 
@@ -207,15 +214,44 @@ export class CallCenterAmiService implements OnModuleInit {
     if (!queueName || !iface) return;
 
     const userUid = this.resolveQueueTenant(queueName);
-    if (!userUid) return;
+    if (userUid == null) return;
 
-    const status = this.mapAsteriskStatus(evt.status, evt.paused);
+    const existing = this.stateService.getAgent(userUid, iface);
+    const paused = evt.paused === '1' || evt.paused === 1 || evt.paused === true;
+    let status = this.mapAsteriskStatus(evt.status, evt.paused);
+    // Logged-in operator: temporary SIP/WebRTC Unavailable must not end the shift.
+    // Browser tab throttle often drops WSS → Asterisk status 5 → would show "Start shift".
+    if (status === 'OFFLINE' && existing?.userId) {
+      if (paused || existing.status === 'PAUSED') {
+        status = 'PAUSED';
+      } else if (
+        existing.status === 'IN_CALL'
+        || existing.status === 'RINGING'
+        || existing.status === 'WRAPUP'
+      ) {
+        status = existing.status;
+      } else {
+        status = 'READY';
+      }
+    }
+    // Asterisk QueueMemberPause / QueueMember use PausedReason → pausedreason
+    const amiReason = (evt.pausedreason || evt.reason || '').trim();
+    let pauseReason: string | undefined;
+    if (paused || status === 'PAUSED') {
+      pauseReason = amiReason || existing?.pauseReason || undefined;
+    } else {
+      pauseReason = ''; // clear for SSE (setAgent → pauseReason: null)
+    }
 
     this.stateService.setAgent(userUid, iface, {
       status,
-      pauseReason: evt.paused === '1' ? (evt.reason || 'Unknown') : undefined,
-      callsTaken: parseInt(evt.callstaken, 10) || 0,
-      name: evt.membername || iface,
+      pauseReason,
+      // Session counter (agentLogin resets to 0); do not import Asterisk lifetime CallsTaken
+      callsTaken:
+        existing?.userId != null && existing.userId > 0
+          ? (existing.callsTaken ?? 0)
+          : (parseInt(evt.callstaken, 10) || existing?.callsTaken || 0),
+      name: this.pickAgentDisplayName(iface, evt.membername, existing?.name),
     });
 
     this.metricsService.recordAgentStatus(userUid, iface, status);
@@ -230,7 +266,7 @@ export class CallCenterAmiService implements OnModuleInit {
     if (!queueName || !uniqueid) return;
 
     const userUid = this.resolveQueueTenant(queueName);
-    if (!userUid) return;
+    if (userUid == null) return;
 
     this.stateService.setCall(uniqueid, {
       callerIdNum: evt.calleridnum || '',
@@ -248,34 +284,66 @@ export class CallCenterAmiService implements OnModuleInit {
   }
 
   /**
+   * Handle QueueCallerLeave — caller left the queue without AgentComplete
+   * (timeout, redirect, abandon race). Clears orphan WAITING rows.
+   */
+  handleCallerLeave(evt: any): void {
+    const queueName = evt.queue;
+    const uniqueid = evt.uniqueid;
+    if (!queueName) return;
+
+    const userUid = this.resolveQueueTenant(queueName);
+    if (userUid == null) return;
+
+    const key = this.resolveCallerCallKey(evt, userUid);
+    if (key) {
+      this.stateService.removeCall(key, 'left');
+    } else if (uniqueid) {
+      this.stateService.removeCall(uniqueid, 'left');
+    }
+
+    this.recalcQueueStats(userUid, queueName);
+  }
+
+  /**
    * Handle AgentConnect — an agent answered a queued call.
    */
   handleAgentConnect(evt: any): void {
     const queueName = evt.queue;
-    const uniqueid = evt.destuniqueid || evt.uniqueid;
     const agentInterface = evt.interface || evt.membername;
-    if (!queueName || !uniqueid) return;
+    if (!queueName) return;
 
     const userUid = this.resolveQueueTenant(queueName);
-    if (!userUid) return;
+    if (userUid == null) return;
 
-    // Save actual Asterisk channel names — needed for Hold, Transfer, Hangup
+    const uniqueid = this.resolveCallerCallKey(evt, userUid);
+    if (!uniqueid) return;
+
+    // Drop mistaken entries keyed by agent-channel uniqueid (destuniqueid missing)
+    const agentUid = evt.uniqueid;
+    if (agentUid && agentUid !== uniqueid) {
+      const mistaken = this.stateService.getCall(agentUid);
+      if (mistaken && mistaken.queue === queueName) {
+        this.stateService.removeCall(agentUid, 'merged');
+      }
+    }
+
     // AgentConnect event fields (asterisk-manager lowercases):
     //   channel      = agent's channel  (e.g. PJSIP/e101_42-00000002)
     //   destchannel  = caller's channel (e.g. PJSIP/trunk-00000001)
     const agentChannel = evt.channel || '';
     const callerChannel = evt.destchannel || '';
 
-    // Update call state with channel info
     this.stateService.setCall(uniqueid, {
       agent: agentInterface,
       agentChannel,
-      callerChannel,
+      callerChannel: callerChannel || undefined,
       status: 'TALKING',
       answerTime: new Date(),
+      userUid,
+      queue: queueName,
     });
 
-    // Update agent state
     this.stateService.setAgent(userUid, agentInterface, {
       status: 'IN_CALL',
       currentCall: uniqueid,
@@ -283,12 +351,12 @@ export class CallCenterAmiService implements OnModuleInit {
 
     this.metricsService.recordAgentStatus(userUid, agentInterface, 'IN_CALL');
 
-    // Emit specific event
     this.stateService.emitEvent('callAnswer', userUid, {
       uniqueid,
       queue: queueName,
       agent: agentInterface,
       holdTime: evt.holdtime || '0',
+      status: 'TALKING',
     });
 
     this.recalcQueueStats(userUid, queueName);
@@ -299,18 +367,24 @@ export class CallCenterAmiService implements OnModuleInit {
    */
   handleAgentComplete(evt: any): void {
     const queueName = evt.queue;
-    const uniqueid = evt.destuniqueid || evt.uniqueid;
     const agentInterface = evt.interface || evt.membername;
     if (!queueName) return;
 
     const userUid = this.resolveQueueTenant(queueName);
-    if (!userUid) return;
+    if (userUid == null) return;
 
-    // Snapshot call before remove — needed for history row (batched writer, D-09)
-    const call = uniqueid ? this.stateService.getCall(uniqueid) : undefined;
     const agent = agentInterface
       ? this.stateService.getAgent(userUid, agentInterface)
       : undefined;
+    const uniqueid =
+      this.resolveCallerCallKey(evt, userUid)
+      || agent?.currentCall
+      || evt.destuniqueid
+      || evt.uniqueid
+      || undefined;
+
+    // Snapshot call before remove — needed for history row (batched writer, D-09)
+    const call = uniqueid ? this.stateService.getCall(uniqueid) : undefined;
 
     if (uniqueid) {
       const enterTime = call?.enterTime;
@@ -355,9 +429,25 @@ export class CallCenterAmiService implements OnModuleInit {
       });
     }
 
-    // Remove call from active
+    // Remove call from active (+ agent.currentCall if uniqueid mismatched)
     if (uniqueid) {
       this.stateService.removeCall(uniqueid, 'completed');
+    }
+    if (agent?.currentCall && agent.currentCall !== uniqueid) {
+      this.stateService.removeCall(agent.currentCall, 'completed');
+    }
+    // Orphan WAITING rows left when connect used the wrong uniqueid key
+    if (call?.callerChannel) {
+      for (const orphan of this.stateService.getAllCalls(userUid)) {
+        if (
+          orphan.uniqueid !== uniqueid
+          && orphan.queue === queueName
+          && (orphan.status === 'WAITING' || orphan.status === 'RINGING')
+          && orphan.callerChannel === call.callerChannel
+        ) {
+          this.stateService.removeCall(orphan.uniqueid, 'completed');
+        }
+      }
     }
 
     // Agent transitions to WRAPUP (if wrapuptime > 0) or READY
@@ -472,7 +562,7 @@ export class CallCenterAmiService implements OnModuleInit {
   }
 
   /**
-   * Handle QueueCallerAbandon — caller gave up waiting.
+   * Handle QueueCallerAbandon вЂ” caller gave up waiting.
    *
    * Persists a `cc_missed_calls` record so operators can call back later.
    * Multi-tenant: only logged when the queue resolves to a known tenant.
@@ -483,7 +573,7 @@ export class CallCenterAmiService implements OnModuleInit {
     if (!queueName) return;
 
     const userUid = this.resolveQueueTenant(queueName);
-    if (!userUid) return;
+    if (userUid == null) return;
 
     // Pull caller info from in-memory state before removing
     const call = uniqueid ? this.stateService.getCall(uniqueid) : undefined;
@@ -522,8 +612,45 @@ export class CallCenterAmiService implements OnModuleInit {
 
     // Persist for missed-calls workflow (best-effort, doesn't block state)
     if (uniqueid && callerIdNum) {
-      this.missedCallModel
-        .create({
+      void this.persistMissedCall({
+        uniqueid,
+        queueName,
+        callerIdNum,
+        callerIdName,
+        holdTime,
+        position,
+        userUid,
+      });
+    }
+
+    this.recalcQueueStats(userUid, queueName);
+  }
+
+  /**
+   * Insert one missed-call row per Asterisk uniqueid (idempotent).
+   * Guards against duplicate AMI delivery (reconnect, multiple Nest processes).
+   */
+  private async persistMissedCall(params: {
+    uniqueid: string;
+    queueName: string;
+    callerIdNum: string;
+    callerIdName: string;
+    holdTime: number;
+    position: number;
+    userUid: number;
+  }): Promise<void> {
+    const { uniqueid, queueName, callerIdNum, callerIdName, holdTime, position, userUid } = params;
+    if (this.loggedMissedUniqueids.has(uniqueid)) return;
+    this.loggedMissedUniqueids.add(uniqueid);
+    if (this.loggedMissedUniqueids.size > 2000) {
+      const first = this.loggedMissedUniqueids.values().next().value;
+      if (first) this.loggedMissedUniqueids.delete(first);
+    }
+
+    try {
+      const [, created] = await this.missedCallModel.findOrCreate({
+        where: { call_uniqueid: uniqueid },
+        defaults: {
           call_uniqueid: uniqueid,
           queue_name: queueName,
           caller_id_num: callerIdNum,
@@ -532,19 +659,26 @@ export class CallCenterAmiService implements OnModuleInit {
           position,
           called_back: false,
           user_uid: userUid,
-        })
-        .then(() => {
-          this.stateService.emitEvent('missedCallNew', userUid, {
-            uniqueid,
-            queue: queueName,
-            callerIdNum,
-            holdTime,
-          });
-        })
-        .catch(err => this.logger.warn(`Persist missed call failed: ${err.message}`));
+        },
+      });
+      if (!created) {
+        this.logger.debug(`Missed call ${uniqueid} already logged — skip duplicate`);
+        return;
+      }
+      this.stateService.emitEvent('missedCallNew', userUid, {
+        uniqueid,
+        queue: queueName,
+        callerIdNum,
+        holdTime,
+      });
+    } catch (err: any) {
+      // Unique-index race from another process
+      if (err?.name === 'SequelizeUniqueConstraintError') {
+        this.logger.debug(`Missed call ${uniqueid} race — already inserted`);
+        return;
+      }
+      this.logger.warn(`Persist missed call failed: ${err.message}`);
     }
-
-    this.recalcQueueStats(userUid, queueName);
   }
 
   /**
@@ -556,7 +690,7 @@ export class CallCenterAmiService implements OnModuleInit {
     if (!queueName || !iface) return;
 
     const userUid = this.resolveQueueTenant(queueName);
-    if (!userUid) return;
+    if (userUid == null) return;
 
     const agent = this.stateService.getAgent(userUid, iface);
     const queues = agent?.queues || [];
@@ -564,7 +698,7 @@ export class CallCenterAmiService implements OnModuleInit {
 
     this.stateService.setAgent(userUid, iface, {
       queues,
-      name: evt.membername || iface,
+      name: this.pickAgentDisplayName(iface, evt.membername, agent?.name),
       status: agent?.status || 'READY',
     });
 
@@ -580,7 +714,7 @@ export class CallCenterAmiService implements OnModuleInit {
     if (!queueName || !iface) return;
 
     const userUid = this.resolveQueueTenant(queueName);
-    if (!userUid) return;
+    if (userUid == null) return;
 
     const agent = this.stateService.getAgent(userUid, iface);
     if (agent) {
@@ -596,7 +730,7 @@ export class CallCenterAmiService implements OnModuleInit {
   }
 
   /**
-   * Handle AMI Hold event — fired when a channel is placed on hold.
+   * Handle AMI Hold event вЂ” fired when a channel is placed on hold.
    * This happens when:
    * 1. SIP phone presses Hold button (SIP re-INVITE sendonly)
    * 2. Web UI triggers hold via AMI Redirect to MusicOnHold
@@ -626,7 +760,7 @@ export class CallCenterAmiService implements OnModuleInit {
   }
 
   /**
-   * Handle AMI Unhold event — fired when a hold is released.
+   * Handle AMI Unhold event вЂ” fired when a hold is released.
    */
   handleUnhold(evt: any): void {
     const channel = evt.channel || '';
@@ -653,7 +787,7 @@ export class CallCenterAmiService implements OnModuleInit {
     return this.stateService.getAllCallsGlobal();
   }
 
-  // ─── Helpers ─────────────────────────────────────────────
+  // в”Ђв”Ђв”Ђ Helpers в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 
   /**
    * Map Asterisk device status code to our AgentStatus.
@@ -677,13 +811,88 @@ export class CallCenterAmiService implements OnModuleInit {
   }
 
   /**
-   * Resolve queue name → tenant userUid.
-   * Queue names follow the convention: q{exten}_{vpbxUserUid}
+   * Tenant from queue name suffix (`q700_0` → 0, `sales_7` → 7).
+   * IMPORTANT: 0 is a valid tenant — never treat it as falsy.
    */
   private resolveQueueTenant(queueName: string): number | null {
+    return CallCenterAmiService.parseQueueTenant(queueName);
+  }
+
+  /** Public helper for agentLogin / SSE tenant alignment. */
+  static parseQueueTenant(queueName: string): number | null {
     const match = queueName.match(/_(\d+)$/);
-    if (match) return parseInt(match[1], 10);
-    return null;
+    if (!match) return null;
+    return parseInt(match[1], 10);
+  }
+
+  /** True when AMI gave us a raw interface string instead of a person name. */
+  private isRawAgentName(iface: string, name?: string): boolean {
+    if (!name) return true;
+    if (name === iface) return true;
+    return /^(PJSIP|SIP)\//i.test(name);
+  }
+
+  /**
+   * Keep a human display name from agentLogin; never let AMI overwrite it
+   * with PJSIP/… membername.
+   */
+  private pickAgentDisplayName(
+    iface: string,
+    candidate: string | undefined,
+    existing?: string,
+  ): string {
+    if (existing && !this.isRawAgentName(iface, existing)) return existing;
+    if (candidate && !this.isRawAgentName(iface, candidate)) return candidate;
+    return existing || candidate || iface;
+  }
+
+  /**
+   * Resolve the caller's uniqueid for AgentConnect / AgentComplete / Leave.
+   * Prefer destuniqueid (caller). Never key state by the agent channel uniqueid
+   * alone — that orphans the QueueCallerJoin WAITING row.
+   */
+  private resolveCallerCallKey(evt: any, userUid: number): string | null {
+    const destUid = evt.destuniqueid || '';
+    const uid = evt.uniqueid || '';
+    const destChannel = evt.destchannel || '';
+    const channel = evt.channel || '';
+    const queue = evt.queue || '';
+
+    if (destUid && this.stateService.getCall(destUid)) return destUid;
+    if (uid && this.stateService.getCall(uid)) return uid;
+
+    const channelCandidates = [destChannel, channel].filter(Boolean);
+    if (channelCandidates.length) {
+      const byChannel = this.stateService.getAllCalls(userUid).find(
+        (c) =>
+          (c.callerChannel && channelCandidates.includes(c.callerChannel))
+          || (c.agentChannel && channelCandidates.includes(c.agentChannel)),
+      );
+      if (byChannel) return byChannel.uniqueid;
+    }
+
+    if (queue) {
+      const inQueue = this.stateService
+        .getAllCalls(userUid)
+        .filter((c) => c.queue === queue);
+      const onlyWaiting = inQueue.filter(
+        (c) => c.status === 'WAITING' || c.status === 'RINGING',
+      );
+      if (onlyWaiting.length === 1) return onlyWaiting[0].uniqueid;
+
+      const byAgent = evt.interface || evt.membername;
+      if (byAgent) {
+        const linked = inQueue.find(
+          (c) =>
+            c.agent === byAgent
+            && (c.status === 'TALKING' || c.status === 'HOLD'),
+        );
+        if (linked) return linked.uniqueid;
+      }
+    }
+
+    // Prefer caller destuniqueid; never invent a key from agent-only uniqueid
+    return destUid || null;
   }
 
   /**

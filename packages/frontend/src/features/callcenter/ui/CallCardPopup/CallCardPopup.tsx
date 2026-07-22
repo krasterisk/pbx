@@ -138,7 +138,8 @@ export const CallCardPopup = memo(({
         <SheetFooter>
           {typeof wrapupRemaining === 'number' && wrapupRemaining > 0 ? (
             <Text variant="muted" className={styles.wrapupCountdown}>
-              {t('callcenter.agent.wrapupRemaining')}: {wrapupRemaining}s
+              {t('callcenter.agent.wrapupRemaining')}: {wrapupRemaining}
+              {t('callcenter.agent.secShort', 's')}
             </Text>
           ) : null}
           <HStack gap="8">

@@ -38,7 +38,7 @@ export const callCenterSlice = createSlice({
     },
 
     // ─── Agent updates ────────────────────────────────────
-    updateAgent(state, action: PayloadAction<Partial<IAgent> & { interface: string; removed?: boolean }>) {
+    updateAgent(state, action: PayloadAction<Partial<IAgent> & { interface: string; removed?: boolean; pauseReason?: string | null }>) {
       const data = action.payload;
       if (data.removed) {
         state.agents = state.agents.filter(a => a.interface !== data.interface);
@@ -47,9 +47,17 @@ export const callCenterSlice = createSlice({
       const idx = state.agents.findIndex(a => a.interface === data.interface);
       if (idx >= 0) {
         state.agents[idx] = { ...state.agents[idx], ...data };
+        // SSE sends pauseReason: null when leaving PAUSED (JSON omits undefined)
+        if (data.pauseReason === null || data.pauseReason === '' || (data.status && data.status !== 'PAUSED')) {
+          delete state.agents[idx].pauseReason;
+        }
       } else if (data.name && data.status) {
         // Only add as new agent if we have enough data
-        state.agents.push(data as IAgent);
+        const agent = { ...data } as IAgent;
+        if (agent.pauseReason === null || agent.pauseReason === '' || agent.status !== 'PAUSED') {
+          delete agent.pauseReason;
+        }
+        state.agents.push(agent);
       }
     },
 
@@ -76,6 +84,9 @@ export const callCenterSlice = createSlice({
       const idx = state.calls.findIndex(c => c.uniqueid === action.payload.uniqueid);
       if (idx >= 0) {
         state.calls[idx] = { ...state.calls[idx], ...action.payload };
+      } else if (action.payload.status) {
+        // Upsert: callAnswer/callUpdate can arrive before callNew was applied
+        state.calls.push(action.payload as ICall);
       }
     },
 

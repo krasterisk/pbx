@@ -146,6 +146,21 @@ const authSlice = createSlice({
       state.isAuthenticated = true;
       void getTokenStorage().set(TOKEN_STORAGE_KEYS.accessToken, action.payload);
     },
+    /** Sync tokens after /auth/refresh (rtkApi reauth) — must update Redux, not only localStorage. */
+    setSession(
+      state,
+      action: PayloadAction<{
+        accessToken: string;
+        refreshToken: string;
+        user: ILoginResponse['user'];
+      }>,
+    ) {
+      state.accessToken = action.payload.accessToken;
+      state.refreshToken = action.payload.refreshToken;
+      state.user = action.payload.user;
+      state.isAuthenticated = true;
+      state.error = null;
+    },
     clearError(state) {
       state.error = null;
     },
@@ -191,5 +206,5 @@ const authSlice = createSlice({
   },
 });
 
-export const { logout, clearError, setToken } = authSlice.actions;
+export const { logout, clearError, setToken, setSession } = authSlice.actions;
 export const authReducer = authSlice.reducer;

@@ -112,6 +112,19 @@ describe('callCenterSlice', () => {
       const s2 = reducer(s1, updateAgent({ interface: 'PJSIP/101', removed: true }));
       expect(s2.agents).toHaveLength(0);
     });
+
+    it('clears pauseReason when status leaves PAUSED', () => {
+      const s1 = reducer(
+        baseState(),
+        updateAgent({ ...agent(), status: 'PAUSED', pauseReason: 'Быстрая пауза' }),
+      );
+      const s2 = reducer(
+        s1,
+        updateAgent({ interface: 'PJSIP/101', status: 'READY', pauseReason: null }),
+      );
+      expect(s2.agents[0].status).toBe('READY');
+      expect(s2.agents[0].pauseReason).toBeUndefined();
+    });
   });
 
   describe('updateQueue', () => {
@@ -143,10 +156,11 @@ describe('callCenterSlice', () => {
       expect(s2.calls).toHaveLength(0);
     });
 
-    it('updateCall on an unknown call is a no-op', () => {
+    it('updateCall on an unknown call upserts when status is present', () => {
       const s1 = reducer(baseState(), addCall(call()));
       const s2 = reducer(s1, updateCall({ uniqueid: 'nope', status: 'TALKING' }));
-      expect(s2.calls).toEqual(s1.calls);
+      expect(s2.calls).toHaveLength(2);
+      expect(s2.calls.find(c => c.uniqueid === 'nope')?.status).toBe('TALKING');
     });
   });
 });

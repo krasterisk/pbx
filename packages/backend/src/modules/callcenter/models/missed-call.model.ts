@@ -9,7 +9,7 @@ export class CcMissedCall extends Model {
   @Column({ primaryKey: true, autoIncrement: true, type: DataType.BIGINT })
   declare uid: number;
 
-  @Column({ type: DataType.STRING(64), allowNull: false })
+  @Column({ type: DataType.STRING(64), allowNull: false, unique: true })
   declare call_uniqueid: string;
 
   @Column({ type: DataType.STRING(64), allowNull: false })

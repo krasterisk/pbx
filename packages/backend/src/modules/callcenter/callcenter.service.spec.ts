@@ -41,6 +41,7 @@ describe('CallCenterService', () => {
     create: jest.fn().mockResolvedValue({ uid: 99 }),
     update: jest.fn().mockResolvedValue(undefined),
     findAll: jest.fn().mockResolvedValue([]),
+    findOne: jest.fn().mockResolvedValue(null),
   };
   const pauseReasonModel: any = {
     findAll: jest.fn().mockResolvedValue([]),
@@ -111,6 +112,37 @@ describe('CallCenterService', () => {
       expect(agent?.queues).toEqual(['sales', 'support']);
       expect(ccAmi.logAgentEvent).toHaveBeenCalledWith(
         expect.objectContaining({ eventType: 'LOGIN', userUid: 7, userId: 42 }),
+      );
+    });
+
+    it('drops primary SIP twin when logging in with WebRTC companion', async () => {
+      await service.agentLogin('PJSIP/ew112_0', ['q700_0'], 0, 58);
+
+      expect(ami.queueRemove).toHaveBeenCalledWith('q700_0', 'PJSIP/e112_0');
+      expect(ami.queueAdd).toHaveBeenCalledWith('q700_0', 'PJSIP/ew112_0');
+    });
+  });
+
+  describe('agentLogout', () => {
+    it('removes both WebRTC and primary SIP interfaces from queues', async () => {
+      await service.agentLogin('PJSIP/ew112_0', ['q700_0'], 0, 58);
+      ami.queueRemove.mockClear();
+
+      await service.agentLogout(0, 58);
+
+      expect(ami.queueRemove).toHaveBeenCalledWith('q700_0', 'PJSIP/ew112_0');
+      expect(ami.queueRemove).toHaveBeenCalledWith('q700_0', 'PJSIP/e112_0');
+      expect(state.getAgent(0, 'PJSIP/ew112_0')).toBeUndefined();
+    });
+  });
+
+  describe('relatedQueueInterfaces', () => {
+    it('pairs ew* with e*', () => {
+      expect(CallCenterService.relatedQueueInterfaces('PJSIP/ew112_0')).toEqual(
+        expect.arrayContaining(['PJSIP/ew112_0', 'PJSIP/e112_0']),
+      );
+      expect(CallCenterService.relatedQueueInterfaces('PJSIP/e112_0')).toEqual(
+        expect.arrayContaining(['PJSIP/e112_0', 'PJSIP/ew112_0']),
       );
     });
   });

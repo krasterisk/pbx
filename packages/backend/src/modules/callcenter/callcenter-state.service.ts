@@ -110,6 +110,20 @@ export class CallCenterStateService implements OnModuleInit {
   }
 
   /**
+   * SSE stream for a logged-in operator: JWT tenant OR the queue-suffix tenant
+   * where they currently have an online agent (fixes q700_0 vs vpbx=58 mismatch).
+   */
+  getEventStreamForUser(jwtUserUid: number, userId: number): Observable<CcEvent> {
+    return this.eventSubject.asObservable().pipe(
+      filter((event) => {
+        if (event.userUid === jwtUserUid) return true;
+        const agentTenant = this.findTenantForOnlineUser(userId);
+        return agentTenant != null && event.userUid === agentTenant;
+      }),
+    );
+  }
+
+  /**
    * Typed overlay over getEventStream (D-41a).
    * Maps known event types into CcEventBusEvent; drops unmapped legacy SSE noise.
    * Does NOT duplicate the Subject — same underlying stream.
@@ -145,6 +159,24 @@ export class CallCenterStateService implements OnModuleInit {
     return result;
   }
 
+  /**
+   * Tenant bucket where this login has an online agent (queue suffix may differ from JWT vpbx).
+   */
+  findTenantForOnlineUser(userId: number): number | null {
+    for (const agent of this.agents.values()) {
+      if (agent.userId === userId && agent.status !== 'OFFLINE') {
+        return agent.userUid;
+      }
+    }
+    return null;
+  }
+
+  /** Snapshot for SSE: prefer the tenant where the user is actually logged into queues. */
+  getSnapshotForUser(jwtUserUid: number, userId: number) {
+    const tenant = this.findTenantForOnlineUser(userId) ?? jwtUserUid;
+    return { tenant, snapshot: this.getSnapshot(tenant) };
+  }
+
   setAgent(userUid: number, iface: string, state: Partial<AgentState>): AgentState {
     const key = this.agentKey(userUid, iface);
     const existing = this.agents.get(key);
@@ -159,8 +191,17 @@ export class CallCenterStateService implements OnModuleInit {
       ...(existing || {}),
       ...state,
     };
+    // Leaving PAUSED must clear reason — undefined is dropped by JSON.stringify (SSE)
+    if (updated.status !== 'PAUSED') {
+      delete updated.pauseReason;
+    }
     this.agents.set(key, updated);
-    this.emitEvent('agentUpdate', userUid, updated);
+    // Explicit null so SSE clients clear the previous reason label
+    const payload =
+      updated.status !== 'PAUSED'
+        ? { ...updated, pauseReason: null }
+        : updated;
+    this.emitEvent('agentUpdate', userUid, payload);
     return updated;
   }
 

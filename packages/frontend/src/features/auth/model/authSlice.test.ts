@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { authReducer, logout, clearError } from './authSlice';
+﻿import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { authReducer, logout, clearError, setSession } from './authSlice';
 import type { AuthState } from './authSlice';
 
 describe('authSlice', () => {
@@ -49,5 +49,17 @@ describe('authSlice', () => {
     const state: AuthState = { ...initialState, error: 'some error' };
     const nextState = authReducer(state, clearError());
     expect(nextState.error).toBeNull();
+  });
+
+  it('setSession updates tokens after refresh', () => {
+    const user = { id: 1, login: 'agent' } as any;
+    const next = authReducer(
+      { ...initialState, accessToken: 'expired', isAuthenticated: true },
+      setSession({ accessToken: 'new-access', refreshToken: 'new-refresh', user }),
+    );
+    expect(next.accessToken).toBe('new-access');
+    expect(next.refreshToken).toBe('new-refresh');
+    expect(next.user).toEqual(user);
+    expect(next.isAuthenticated).toBe(true);
   });
 });

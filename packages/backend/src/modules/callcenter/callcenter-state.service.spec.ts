@@ -44,6 +44,19 @@ describe('CallCenterStateService', () => {
       expect(agent?.userId).toBe(42);
     });
 
+    it('clears pauseReason and emits null when leaving PAUSED', () => {
+      service.setAgent(7, 'PJSIP/101', { name: 'Alice', status: 'PAUSED', pauseReason: 'Быстрая пауза' });
+      const received: any[] = [];
+      service.getEventStream(7).subscribe(e => received.push(e));
+
+      service.setAgent(7, 'PJSIP/101', { status: 'READY', pauseReason: '' });
+
+      const agent = service.getAgent(7, 'PJSIP/101');
+      expect(agent?.status).toBe('READY');
+      expect(agent?.pauseReason).toBeUndefined();
+      expect(received[0].data.pauseReason).toBeNull();
+    });
+
     it('keys agents by tenant — same interface in two tenants is independent', () => {
       service.setAgent(7, 'PJSIP/101', { name: 'Alice', status: 'READY' });
       service.setAgent(8, 'PJSIP/101', { name: 'Bob', status: 'IN_CALL' });

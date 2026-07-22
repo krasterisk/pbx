@@ -31,7 +31,9 @@ export interface IClientLookupResult {
 }
 
 export interface IMissedCall {
-  id: number;
+  uid: number;
+  /** @deprecated use uid — kept for older clients */
+  id?: number;
   call_uniqueid: string;
   queue_name: string;
   caller_id_num: string;
@@ -119,6 +121,25 @@ const callCenterApi = rtkApi.injectEndpoints({
     // ─── State ────────────────────────────────────────────
     getCcState: build.query<ICcSnapshot, void>({
       query: () => '/callcenter/state',
+      providesTags: ['CallCenter'],
+    }),
+
+    getAgentMe: build.query<
+      | { active: false }
+      | {
+          active: true;
+          interface: string;
+          queues: string[];
+          status: string;
+          name: string;
+          sessionId: number;
+          loginTime?: string;
+          pauseReason?: string;
+          callsTaken?: number;
+        },
+      void
+    >({
+      query: () => '/callcenter/agent/me',
       providesTags: ['CallCenter'],
     }),
 
@@ -379,6 +400,8 @@ const callCenterApi = rtkApi.injectEndpoints({
 
 export const {
   useGetCcStateQuery,
+  useGetAgentMeQuery,
+  useLazyGetAgentMeQuery,
   useAgentLoginMutation,
   useAgentLogoutMutation,
   useAgentPauseMutation,

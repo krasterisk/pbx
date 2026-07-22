@@ -20,6 +20,7 @@ import { User } from '../users/user.model';
 import { PhonebookEntry } from '../phonebooks/phonebook-entry.model';
 import { RoutePhonebook } from '../phonebooks/phonebook.model';
 import { ServiceRequest } from '../service-requests/service-request.model';
+import { companionIdOf, isWebrtcCompanion, primaryIdOf } from '../endpoints/endpoint-ids.util';
 import { Op } from 'sequelize';
 
 @Injectable()
@@ -51,10 +52,58 @@ export class CallCenterService {
     return `${userUid}:${userId}`;
   }
 
+  /**
+   * Queue member interfaces for a primary/WebRTC pair.
+   * PJSIP/ew112_0 ↔ PJSIP/e112_0 — logout must remove both (stale SIP member otherwise remains).
+   */
+  static relatedQueueInterfaces(agentInterface: string): string[] {
+    const tech = agentInterface.includes('/')
+      ? agentInterface.slice(0, agentInterface.indexOf('/') + 1)
+      : 'PJSIP/';
+    const sipId = agentInterface.includes('/')
+      ? agentInterface.slice(agentInterface.indexOf('/') + 1)
+      : agentInterface;
+
+    const related = new Set<string>([`PJSIP/${sipId}`, `${tech}${sipId}`, agentInterface]);
+    const twin = isWebrtcCompanion(sipId) ? primaryIdOf(sipId) : companionIdOf(sipId);
+    if (twin) {
+      related.add(`PJSIP/${twin}`);
+      related.add(`${tech}${twin}`);
+    }
+    return [...related];
+  }
+
+  private async queueRemoveAll(queues: string[], agentInterface: string): Promise<void> {
+    const ifaces = CallCenterService.relatedQueueInterfaces(agentInterface);
+    for (const queue of queues) {
+      for (const iface of ifaces) {
+        try {
+          await this.amiService.queueRemove(queue, iface);
+        } catch (err: any) {
+          this.logger.warn(`Failed to remove ${iface} from queue ${queue}: ${err.message}`);
+        }
+      }
+    }
+  }
+
+  /** Queue-suffix tenant where operator is online, else JWT vpbx (q700_0 vs vpbx=58). */
+  private resolveTenant(jwtUserUid: number, userId: number): number {
+    return this.stateService.findTenantForOnlineUser(userId) ?? jwtUserUid;
+  }
+
   private async resolveAgentInterface(userUid: number, userId: number): Promise<string | null> {
-    const agents = this.stateService.getAllAgents(userUid);
+    const tenant = this.resolveTenant(userUid, userId);
+    const agents = this.stateService.getAllAgents(tenant);
     const agent = agents.find(a => a.userId === userId);
     return agent?.interface || null;
+  }
+
+  private tenantFromQueues(queues: string[]): number | null {
+    for (const q of queues) {
+      const t = CallCenterAmiService.parseQueueTenant(q);
+      if (t != null) return t;
+    }
+    return null;
   }
 
   /** Transfer target must be a known agent interface/exten or queue in this tenant. */
@@ -75,24 +124,41 @@ export class CallCenterService {
   // ─── Agent Actions ──────────────────────────────────────
 
   async agentLogin(agentInterface: string, queues: string[], userUid: number, userId: number) {
+    // In-memory + AMI events use queue suffix (q700_0 → 0), not necessarily JWT vpbx.
+    const stateUid = this.tenantFromQueues(queues) ?? userUid;
+
+    // Close any prior open sessions for this user (refresh / re-login)
+    await this.sessionModel.update(
+      { logout_time: new Date() },
+      { where: { user_id: userId, logout_time: null } },
+    );
+
     // Create a session record
     const session = await this.sessionModel.create({
       user_id: userId,
       agent_interface: agentInterface,
       login_time: new Date(),
-      user_uid: userUid,
+      user_uid: stateUid,
     });
-    this.activeSessions.set(this.sessionKey(userUid, userId), session.uid);
+    this.activeSessions.set(this.sessionKey(stateUid, userId), session.uid);
 
     // Get user display name
     let displayName = agentInterface;
     try {
-      const user = await this.userModel.findOne({ where: { id: userId, vpbx_user_uid: userUid } });
+      const user = await this.userModel.findOne({ where: { uniqueid: userId } });
       if (user) displayName = user.getDataValue('name') || user.getDataValue('login') || agentInterface;
     } catch { /* ignore */ }
 
-    // Add agent to queues via AMI
+    // Add agent to queues via AMI; drop primary↔webrtc twin so stale members don't linger
     for (const queue of queues) {
+      for (const twin of CallCenterService.relatedQueueInterfaces(agentInterface)) {
+        if (twin === agentInterface) continue;
+        try {
+          await this.amiService.queueRemove(queue, twin);
+        } catch {
+          /* ignore — twin may not be in queue */
+        }
+      }
       try {
         await this.amiService.queueAdd(queue, agentInterface);
       } catch (err: any) {
@@ -100,10 +166,10 @@ export class CallCenterService {
       }
     }
 
-    const settings = await this.settingsService.getOperatorSettings(userUid, userId);
+    const settings = await this.settingsService.getOperatorSettings(stateUid, userId);
 
     // Update in-memory state (per-operator wrap-up timers loaded once at login)
-    this.stateService.setAgent(userUid, agentInterface, {
+    this.stateService.setAgent(stateUid, agentInterface, {
       status: 'READY',
       name: displayName,
       queues,
@@ -115,33 +181,33 @@ export class CallCenterService {
       wrapupAutosaveDraft: settings.wrapup_autosave_draft,
     });
 
+    // Refresh SSE clients that connected under JWT tenant before shift login
+    this.stateService.emitEvent('fullSnapshot', stateUid, this.stateService.getSnapshot(stateUid));
+
     // Log event
     await this.ccAmiService.logAgentEvent({
       sessionId: session.uid,
       userId,
       eventType: 'LOGIN',
-      userUid,
+      userUid: stateUid,
     });
 
-    this.logger.log(`Agent ${displayName} (${agentInterface}) logged in, queues: [${queues.join(', ')}]`);
+    this.logger.log(
+      `Agent ${displayName} (${agentInterface}) logged in, queues: [${queues.join(', ')}], stateTenant=${stateUid}`,
+    );
     return { success: true, sessionId: session.uid };
   }
 
   async agentLogout(userUid: number, userId: number) {
+    userUid = this.resolveTenant(userUid, userId);
     const agentInterface = await this.resolveAgentInterface(userUid, userId);
     if (!agentInterface) throw new NotFoundException('Agent not logged in');
 
     const agent = this.stateService.getAgent(userUid, agentInterface);
     if (!agent) throw new NotFoundException('Agent state not found');
 
-    // Remove from all queues via AMI
-    for (const queue of agent.queues) {
-      try {
-        await this.amiService.queueRemove(queue, agentInterface);
-      } catch (err: any) {
-        this.logger.warn(`Failed to remove ${agentInterface} from queue ${queue}: ${err.message}`);
-      }
-    }
+    // Remove from all queues via AMI (primary + WebRTC companion)
+    await this.queueRemoveAll(agent.queues, agentInterface);
 
     // Close session
     const sessionKey = this.sessionKey(userUid, userId);
@@ -169,6 +235,7 @@ export class CallCenterService {
   }
 
   async agentPause(userUid: number, userId: number, reason?: string, queue?: string) {
+    userUid = this.resolveTenant(userUid, userId);
     const agentInterface = await this.resolveAgentInterface(userUid, userId);
     if (!agentInterface) throw new NotFoundException('Agent not logged in');
 
@@ -206,6 +273,7 @@ export class CallCenterService {
   }
 
   async agentUnpause(userUid: number, userId: number, queue?: string) {
+    userUid = this.resolveTenant(userUid, userId);
     const agentInterface = await this.resolveAgentInterface(userUid, userId);
     if (!agentInterface) throw new NotFoundException('Agent not logged in');
 
@@ -223,7 +291,7 @@ export class CallCenterService {
 
     this.stateService.setAgent(userUid, agentInterface, {
       status: 'READY',
-      pauseReason: undefined,
+      pauseReason: '',
     });
 
     const sessionId = this.activeSessions.get(this.sessionKey(userUid, userId));
@@ -240,6 +308,7 @@ export class CallCenterService {
   }
 
   async agentHangup(userUid: number, userId: number, channel?: string) {
+    userUid = this.resolveTenant(userUid, userId);
     if (channel) {
       await this.amiService.hangup(channel);
       return { success: true };
@@ -254,15 +323,98 @@ export class CallCenterService {
 
     const call = this.stateService.getCall(agent.currentCall);
     if (call) {
-      // Hangup via AMI — the AgentComplete event will clean up state
+      // Hang live channel (not bare interface) — AgentComplete cleans state
+      const hangChannel = call.callerChannel || call.agentChannel || agentInterface;
       try {
-        await this.amiService.hangup(agentInterface);
+        await this.amiService.hangup(hangChannel);
       } catch (err: any) {
-        this.logger.warn(`Hangup failed for ${agentInterface}: ${err.message}`);
+        this.logger.warn(`Hangup failed for ${hangChannel}: ${err.message}`);
       }
     }
 
     return { success: true };
+  }
+
+  /**
+   * Active shift for the current user (survives page refresh).
+   * Rebinds in-memory agent.userId from an open DB session when needed.
+   */
+  async getAgentMe(jwtUserUid: number, userId: number) {
+    const session = await this.sessionModel.findOne({
+      where: { user_id: userId, logout_time: null },
+      order: [['login_time', 'DESC']],
+    });
+
+    const tenant =
+      this.stateService.findTenantForOnlineUser(userId)
+      ?? (session ? Number(session.user_uid) : null)
+      ?? jwtUserUid;
+
+    let agent =
+      this.stateService.getAllAgents(tenant).find((a) => a.userId === userId)
+      || (session
+        ? this.stateService.getAgent(Number(session.user_uid), session.agent_interface)
+          || this.stateService.getAgent(tenant, session.agent_interface)
+        : undefined);
+
+    if (session && agent) {
+      this.activeSessions.set(
+        this.sessionKey(Number(session.user_uid), userId),
+        session.uid,
+      );
+      // Re-attach login identity after AMI preload (userId was 0)
+      if (!agent.userId || agent.userId !== userId) {
+        let displayName = agent.name;
+        try {
+          const user = await this.userModel.findOne({ where: { uniqueid: userId } });
+          if (user) {
+            displayName =
+              user.getDataValue('name') || user.getDataValue('login') || displayName;
+          }
+        } catch { /* ignore */ }
+        this.stateService.setAgent(Number(session.user_uid), session.agent_interface, {
+          userId,
+          name: displayName,
+          loginTime: agent.loginTime || session.login_time,
+        });
+        agent = this.stateService.getAgent(
+          Number(session.user_uid),
+          session.agent_interface,
+        );
+      }
+    }
+
+    // Open DB session = shift still active. AMI may flip to OFFLINE when WebRTC
+    // WSS drops (tab background) — that must not end the shift for /agent/me.
+    if (!session) {
+      return { active: false as const };
+    }
+
+    if (!agent) {
+      return {
+        active: true as const,
+        interface: session.agent_interface,
+        queues: [] as string[],
+        status: 'OFFLINE' as const,
+        name: session.agent_interface,
+        sessionId: session.uid,
+        loginTime: session.login_time,
+        pauseReason: undefined,
+        callsTaken: 0,
+      };
+    }
+
+    return {
+      active: true as const,
+      interface: agent.interface,
+      queues: agent.queues,
+      status: agent.status,
+      name: agent.name,
+      sessionId: session.uid,
+      loginTime: agent.loginTime || session.login_time,
+      pauseReason: agent.pauseReason,
+      callsTaken: agent.callsTaken,
+    };
   }
 
   /**
@@ -282,6 +434,7 @@ export class CallCenterService {
    * Alternative: Redirect to a custom context with MusicOnHold().
    */
   async agentHold(userUid: number, userId: number) {
+    userUid = this.resolveTenant(userUid, userId);
     const agentInterface = await this.resolveAgentInterface(userUid, userId);
     if (!agentInterface) throw new NotFoundException('Agent not logged in');
 
@@ -340,6 +493,7 @@ export class CallCenterService {
    * sends re-INVITE to resume and Asterisk fires AMI "Unhold".
    */
   async agentUnhold(userUid: number, userId: number) {
+    userUid = this.resolveTenant(userUid, userId);
     const agentInterface = await this.resolveAgentInterface(userUid, userId);
     if (!agentInterface) throw new NotFoundException('Agent not logged in');
 
@@ -391,6 +545,7 @@ export class CallCenterService {
   }
 
   async agentTransfer(dto: TransferDto, userUid: number, userId: number) {
+    userUid = this.resolveTenant(userUid, userId);
     if (!this.amiService.isConnected()) {
       throw new BadRequestException('AMI not connected');
     }
@@ -427,6 +582,7 @@ export class CallCenterService {
   }
 
   async agentWrapupDone(userUid: number, userId: number) {
+    userUid = this.resolveTenant(userUid, userId);
     const agentInterface = await this.resolveAgentInterface(userUid, userId);
     if (!agentInterface) throw new NotFoundException('Agent not logged in');
 
@@ -454,6 +610,7 @@ export class CallCenterService {
   }
 
   async agentWrapupExtend(userUid: number, userId: number, seconds?: number) {
+    userUid = this.resolveTenant(userUid, userId);
     const agentInterface = await this.resolveAgentInterface(userUid, userId);
     if (!agentInterface) throw new NotFoundException('Agent not logged in');
 
@@ -530,7 +687,7 @@ export class CallCenterService {
 
     this.stateService.setAgent(userUid, agentInterface, {
       status: 'READY',
-      pauseReason: undefined,
+      pauseReason: '',
     });
 
     return { success: true };
@@ -579,11 +736,7 @@ export class CallCenterService {
     const agent = this.stateService.getAgent(userUid, agentInterface);
     if (!agent) throw new NotFoundException('Agent not found');
 
-    for (const q of agent.queues) {
-      try {
-        await this.amiService.queueRemove(q, agentInterface);
-      } catch { /* ignore per-queue errors */ }
-    }
+    await this.queueRemoveAll(agent.queues, agentInterface);
 
     this.stateService.setAgent(userUid, agentInterface, {
       status: 'OFFLINE',
@@ -796,6 +949,7 @@ export class CallCenterService {
   // also pre-update state optimistically so the SSE event is instant.
 
   async agentPickCall(uniqueid: string, userUid: number, userId: number) {
+    userUid = this.resolveTenant(userUid, userId);
     const agentInterface = await this.resolveAgentInterface(userUid, userId);
     if (!agentInterface) throw new NotFoundException('Agent not logged in');
 
@@ -863,16 +1017,20 @@ export class CallCenterService {
     userUid: number;
   }): Promise<void> {
     try {
-      await this.missedCallModel.create({
-        call_uniqueid: params.uniqueid,
-        queue_name: params.queueName,
-        caller_id_num: params.callerIdNum || '',
-        caller_id_name: params.callerIdName || '',
-        hold_time: params.holdTime || 0,
-        position: params.position || 0,
-        called_back: false,
-        user_uid: params.userUid,
+      const [, created] = await this.missedCallModel.findOrCreate({
+        where: { call_uniqueid: params.uniqueid },
+        defaults: {
+          call_uniqueid: params.uniqueid,
+          queue_name: params.queueName,
+          caller_id_num: params.callerIdNum || '',
+          caller_id_name: params.callerIdName || '',
+          hold_time: params.holdTime || 0,
+          position: params.position || 0,
+          called_back: false,
+          user_uid: params.userUid,
+        },
       });
+      if (!created) return;
 
       this.stateService.emitEvent('missedCallNew', params.userUid, {
         uniqueid: params.uniqueid,
@@ -881,17 +1039,30 @@ export class CallCenterService {
         holdTime: params.holdTime || 0,
       });
     } catch (err: any) {
+      if (err?.name === 'SequelizeUniqueConstraintError') return;
       this.logger.warn(`Failed to log missed call: ${err.message}`);
     }
   }
 
-  async getMissedCalls(userUid: number, includeHandled = false) {
-    const where: any = { user_uid: userUid };
+  async getMissedCalls(userUid: number, includeHandled = false, userId?: number) {
+    const tenant =
+      userId != null
+        ? (this.stateService.findTenantForOnlineUser(userId) ?? userUid)
+        : userUid;
+    const where: any = { user_uid: tenant };
     if (!includeHandled) where.called_back = false;
-    return this.missedCallModel.findAll({
+    const rows = await this.missedCallModel.findAll({
       where,
       order: [['created_at', 'DESC']],
       limit: 200,
+    });
+    // Defensive: collapse legacy duplicates that share the same Asterisk uniqueid
+    const seen = new Set<string>();
+    return rows.filter((r) => {
+      const id = r.call_uniqueid;
+      if (!id || seen.has(id)) return false;
+      seen.add(id);
+      return true;
     });
   }
 

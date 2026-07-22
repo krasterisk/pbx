@@ -32,6 +32,7 @@ describe('CallCenterAmiService', () => {
   };
   const missedCallModel: any = {
     create: jest.fn().mockResolvedValue(undefined),
+    findOrCreate: jest.fn().mockResolvedValue([{}, true]),
   };
 
   beforeEach(() => {
@@ -101,9 +102,31 @@ describe('CallCenterAmiService', () => {
       expect(resolve('sales_7')).toBe(7);
     });
 
+    it('treats tenant 0 as valid (q700_0) — must not be dropped as falsy', () => {
+      expect(resolve('q700_0')).toBe(0);
+      expect(CallCenterAmiService.parseQueueTenant('q700_0')).toBe(0);
+    });
+
     it('returns null for unrecognised names', () => {
       expect(resolve('plain')).toBeNull();
       expect(resolve('')).toBeNull();
+    });
+  });
+
+  describe('handleCallerJoin tenant 0', () => {
+    it('registers waiting calls for queues with _0 suffix', () => {
+      service.handleCallerJoin({
+        queue: 'q700_0',
+        uniqueid: 'U-t0',
+        calleridnum: '201',
+        channel: 'PJSIP/e201_0-00000001',
+        position: '1',
+      });
+      const call = state.getCall('U-t0');
+      expect(call).toBeDefined();
+      expect(call?.userUid).toBe(0);
+      expect(call?.status).toBe('WAITING');
+      expect(call?.queue).toBe('q700_0');
     });
   });
 
@@ -162,6 +185,106 @@ describe('CallCenterAmiService', () => {
       expect(agent?.status).toBe('IN_CALL');
       expect(agent?.currentCall).toBe('U1');
     });
+
+    it('resolves waiting call by channel when destuniqueid is missing', () => {
+      service.handleCallerJoin({
+        queue: 'q700_0',
+        uniqueid: 'CALLER.1',
+        calleridnum: '201',
+        channel: 'PJSIP/e201_0-00000023',
+      });
+
+      // Broken AMI shape: uniqueid = agent channel, no destuniqueid
+      service.handleAgentConnect({
+        queue: 'q700_0',
+        uniqueid: 'AGENT.2',
+        interface: 'PJSIP/ew112_0',
+        channel: 'PJSIP/ew112_0-00000024',
+        destchannel: 'PJSIP/e201_0-00000023',
+      });
+
+      expect(state.getCall('CALLER.1')?.status).toBe('TALKING');
+      expect(state.getCall('AGENT.2')).toBeUndefined();
+      expect(state.getAgent(0, 'PJSIP/ew112_0')?.currentCall).toBe('CALLER.1');
+    });
+
+    it('does not overwrite human agent name with AMI membername', () => {
+      state.setAgent(0, 'PJSIP/ew112_0', {
+        name: 'Иван',
+        status: 'READY',
+        userId: 58,
+      });
+      service.handleAgentStatusEvent({
+        queue: 'q700_0',
+        interface: 'PJSIP/ew112_0',
+        membername: 'PJSIP/ew112_0',
+        status: '1',
+        paused: '0',
+        callstaken: '0',
+      });
+      expect(state.getAgent(0, 'PJSIP/ew112_0')?.name).toBe('Иван');
+    });
+
+    it('keeps pause reason from pausedreason / existing, never Unknown fallback', () => {
+      // pauseReason only lives while PAUSED (setAgent strips it otherwise)
+      state.setAgent(0, 'PJSIP/ew112_0', {
+        name: 'Иван',
+        status: 'PAUSED',
+        pauseReason: 'Обед',
+      });
+      service.handleAgentStatusEvent({
+        queue: 'q700_0',
+        interface: 'PJSIP/ew112_0',
+        status: '1',
+        paused: '1',
+        // AMI often omits reason or uses pausedreason
+      });
+      expect(state.getAgent(0, 'PJSIP/ew112_0')?.pauseReason).toBe('Обед');
+      expect(state.getAgent(0, 'PJSIP/ew112_0')?.status).toBe('PAUSED');
+
+      service.handleAgentStatusEvent({
+        queue: 'q700_0',
+        interface: 'PJSIP/ew112_0',
+        status: '1',
+        paused: '1',
+        pausedreason: 'Перерыв',
+      });
+      expect(state.getAgent(0, 'PJSIP/ew112_0')?.pauseReason).toBe('Перерыв');
+    });
+
+    it('does not demote logged-in agent to OFFLINE on Asterisk Unavailable', () => {
+      state.setAgent(0, 'PJSIP/ew112_0', {
+        name: 'Иван',
+        status: 'READY',
+        userId: 58,
+      });
+      service.handleAgentStatusEvent({
+        queue: 'q700_0',
+        interface: 'PJSIP/ew112_0',
+        status: '5', // Unavailable — typical after WSS drop
+        paused: '0',
+      });
+      expect(state.getAgent(0, 'PJSIP/ew112_0')?.status).toBe('READY');
+      expect(state.getAgent(0, 'PJSIP/ew112_0')?.userId).toBe(58);
+    });
+
+    it('does not overwrite session callsTaken with Asterisk cumulative CallsTaken', () => {
+      state.setAgent(0, 'PJSIP/ew112_0', {
+        name: 'Иван',
+        status: 'READY',
+        userId: 58,
+        loginTime: new Date(),
+        callsTaken: 0,
+      });
+      service.handleAgentStatusEvent({
+        queue: 'q700_0',
+        interface: 'PJSIP/ew112_0',
+        status: '1',
+        paused: '0',
+        callstaken: '8',
+      });
+      expect(state.getAgent(0, 'PJSIP/ew112_0')?.callsTaken).toBe(0);
+    });
   });
 
   describe('handleAgentComplete', () => {
@@ -176,6 +299,38 @@ describe('CallCenterAmiService', () => {
       expect(agent?.status).toBe('READY');
       expect(agent?.callsTaken).toBe(4);
       expect(agent?.currentCall).toBeUndefined();
+    });
+
+    it('removes orphan WAITING row with same caller channel after complete', () => {
+      state.setAgent(0, 'PJSIP/ew112_0', {
+        name: 'Op',
+        status: 'IN_CALL',
+        currentCall: 'TALK.1',
+        wrapupTimeout: 0,
+      });
+      state.setCall('WAIT.orphan', {
+        userUid: 0,
+        queue: 'q700_0',
+        status: 'WAITING',
+        callerChannel: 'PJSIP/e201_0-00000023',
+        callerIdNum: '201',
+      });
+      state.setCall('TALK.1', {
+        userUid: 0,
+        queue: 'q700_0',
+        status: 'TALKING',
+        agent: 'PJSIP/ew112_0',
+        callerChannel: 'PJSIP/e201_0-00000023',
+      });
+
+      service.handleAgentComplete({
+        queue: 'q700_0',
+        destuniqueid: 'TALK.1',
+        interface: 'PJSIP/ew112_0',
+      });
+
+      expect(state.getCall('TALK.1')).toBeUndefined();
+      expect(state.getCall('WAIT.orphan')).toBeUndefined();
     });
 
     it('transitions to WRAPUP when wrapupTimeout>0 and auto-expires after timeout', () => {
@@ -210,27 +365,45 @@ describe('CallCenterAmiService', () => {
       });
 
       expect(state.getCall('U1')).toBeUndefined();
-      // give the .then() chain a tick to flush
       await Promise.resolve();
-      expect(missedCallModel.create).toHaveBeenCalledWith(
+      expect(missedCallModel.findOrCreate).toHaveBeenCalledWith(
         expect.objectContaining({
-          call_uniqueid: 'U1',
-          queue_name: 'sales_7',
-          caller_id_num: '+1',
-          caller_id_name: 'Alice',
-          hold_time: 42,
-          position: 3,
-          called_back: false,
-          user_uid: 7,
+          where: { call_uniqueid: 'U1' },
+          defaults: expect.objectContaining({
+            call_uniqueid: 'U1',
+            queue_name: 'sales_7',
+            caller_id_num: '+1',
+            caller_id_name: 'Alice',
+            hold_time: 42,
+            position: 3,
+            called_back: false,
+            user_uid: 7,
+          }),
         }),
       );
     });
 
     it('does not persist when caller id is empty (e.g. anonymous internal abandon)', async () => {
-      missedCallModel.create.mockClear();
+      missedCallModel.findOrCreate.mockClear();
       service.handleCallerAbandon({ queue: 'sales_7', uniqueid: 'U2', calleridnum: '' });
       await Promise.resolve();
-      expect(missedCallModel.create).not.toHaveBeenCalled();
+      expect(missedCallModel.findOrCreate).not.toHaveBeenCalled();
+    });
+
+    it('skips second Abandon for the same uniqueid (in-memory dedupe)', async () => {
+      missedCallModel.findOrCreate.mockClear();
+      service.handleCallerAbandon({
+        queue: 'sales_7',
+        uniqueid: 'U-dup',
+        calleridnum: '201',
+      });
+      service.handleCallerAbandon({
+        queue: 'sales_7',
+        uniqueid: 'U-dup',
+        calleridnum: '201',
+      });
+      await Promise.resolve();
+      expect(missedCallModel.findOrCreate).toHaveBeenCalledTimes(1);
     });
   });
 

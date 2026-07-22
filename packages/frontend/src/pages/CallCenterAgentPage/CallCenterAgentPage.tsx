@@ -6,7 +6,7 @@ import {
   Headphones, Phone, PhoneOff, Pause, Play,
   PhoneForwarded, ChevronDown, ChevronUp,
   Clock, Users, PhoneIncoming, X, MicOff, Mic,
-  Hand,
+  Hand, Loader2,
 } from 'lucide-react';
 import {
   VStack, HStack, Flex, Text, Button,
@@ -35,14 +35,25 @@ import {
   useDragTransfer,
 } from '@/features/callcenter/ui/DragTransfer/DragTransfer';
 import { interfaceToExtension } from '@/features/endpoints/lib/endpointIds';
+import {
+  agentDisplayName,
+  queueDisplayName,
+  callerDisplayLabel,
+} from '@/features/callcenter/lib/displayLabels';
+import {
+  loadActiveShift,
+  saveActiveShift,
+  clearActiveShift,
+} from '@/features/callcenter/lib/shiftSession';
 import { useIsMobile } from '@/shared/hooks/useIsMobile';
 import {
   selectMyAgent,
+  selectMyAgentInterface,
   selectCcCalls,
   selectCcAgents,
   selectCcQueues,
   selectCcConnected,
-  selectWaitingCalls,
+  selectQueueMonitorCalls,
 } from '@/features/callcenter/model/selectors/callCenterSelectors';
 import {
   setMyAgentInterface,
@@ -62,7 +73,9 @@ import {
   useGetPauseReasonsQuery,
   useGetMyOperatorSettingsQuery,
   useGetWebrtcConfigQuery,
+  useLazyGetAgentMeQuery,
 } from '@/shared/api/endpoints/callCenterApi';
+import { useLazyGetEndpointCredentialsQuery } from '@/shared/api/endpoints/endpointApi';
 import type { IEndpointCredentials } from '@/shared/api/endpoints/endpointApi';
 import type { IAgent } from '@/features/callcenter/model/types/callCenterSchema';
 import styles from './CallCenterAgentPage.module.scss';
@@ -88,12 +101,13 @@ export function CallCenterAgentPage() {
 
   // Redux state
   const myAgent = useSelector(selectMyAgent);
+  const myAgentInterface = useSelector(selectMyAgentInterface);
   const currentUser = useSelector(selectCurrentUser);
   const connected = useSelector(selectCcConnected);
   const calls = useSelector(selectCcCalls);
   const agents = useSelector(selectCcAgents);
   const queues = useSelector(selectCcQueues);
-  const waitingCalls = useSelector(selectWaitingCalls);
+  const monitorCalls = useSelector(selectQueueMonitorCalls);
 
   // Local state
   const [queueMonitorOpen, setQueueMonitorOpen] = useState(true);
@@ -112,6 +126,7 @@ export function CallCenterAgentPage() {
   const [sipCredentials, setSipCredentials] = useState<IEndpointCredentials | null>(null);
   const [micDeviceId, setMicDeviceId] = useState<string | undefined>();
   const [sinkId, setSinkId] = useState<string | undefined>();
+  const [webrtcAccepting, setWebrtcAccepting] = useState(false);
   const lastCallUniqueidRef = useRef<string | null>(null);
   const wrapupAutosavedRef = useRef(false);
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -140,7 +155,10 @@ export function CallCenterAgentPage() {
   const [agentUnhold] = useAgentUnholdMutation();
   const [agentTransfer] = useAgentTransferMutation();
   const [agentPickCall] = useAgentPickCallMutation();
+  const [fetchAgentMe] = useLazyGetAgentMeQuery();
+  const [fetchCredentials] = useLazyGetEndpointCredentialsQuery();
   const { data: pauseReasons = [] } = useGetPauseReasonsQuery();
+  const shiftRestoreTried = useRef(false);
 
   const {
     open: cardPopupOpen,
@@ -222,15 +240,15 @@ export function CallCenterAgentPage() {
     };
   }, [autosaveDraft]);
 
-  // Timer for active call
+  // Timer for active call (SSE IN_CALL or WebRTC session — AMI may not bind ew* companion)
   useEffect(() => {
-    if (myAgent?.status === 'IN_CALL') {
+    const inCall = myAgent?.status === 'IN_CALL' || (isWebrtc && phone.status === 'in-call');
+    if (inCall) {
       const interval = setInterval(() => setCallTimer(prev => prev + 1), 1000);
       return () => clearInterval(interval);
-    } else {
-      setCallTimer(0);
     }
-  }, [myAgent?.status]);
+    setCallTimer(0);
+  }, [myAgent?.status, isWebrtc, phone.status]);
 
   // Clear pausedAt state when the agent comes off pause
   useEffect(() => {
@@ -266,6 +284,35 @@ export function CallCenterAgentPage() {
     if (number) window.location.href = `tel:${number}`;
   }, []);
 
+  // Active call from Call Center SSE (queue AMI). May be missing for WebRTC companion (ew*).
+  const activeCall = useMemo(() => {
+    if (!myAgent?.currentCall) return null;
+    return calls.find(c => c.uniqueid === myAgent.currentCall) || null;
+  }, [myAgent?.currentCall, calls]);
+
+  const webrtcRinging = isWebrtc && phone.status === 'ringing';
+  const webrtcInCall = isWebrtc && phone.status === 'in-call';
+  /** Show call panel from SSE activeCall OR live sip.js session (Answer path without AMI bind). */
+  const showCallPanel = !!activeCall || webrtcRinging || webrtcInCall;
+
+  const effectiveStatus = useMemo(() => {
+    if (webrtcInCall) return 'IN_CALL';
+    if (webrtcRinging) return 'RINGING';
+    // WebRTC shift is only "really" online when sip.js REGISTER is active.
+    // AMI can stay READY (queue member still logged in) while Asterisk has no contact.
+    if (isWebrtc && myAgentInterface) {
+      if (phone.status === 'registered') {
+        return myAgent?.status && myAgent.status !== 'OFFLINE'
+          ? myAgent.status
+          : 'READY';
+      }
+      if (phone.status === 'in-call') return 'IN_CALL';
+      if (phone.status === 'ringing') return 'RINGING';
+      return 'CONNECTING';
+    }
+    return myAgent?.status || (myAgentInterface ? 'READY' : 'OFFLINE');
+  }, [webrtcInCall, webrtcRinging, isWebrtc, myAgentInterface, phone.status, myAgent?.status]);
+
   // Status bar class
   const statusClass = useMemo(() => {
     const map: Record<string, string> = {
@@ -274,10 +321,11 @@ export function CallCenterAgentPage() {
       IN_CALL: styles.statusInCall,
       RINGING: styles.statusInCall,
       WRAPUP: styles.statusWrapup,
+      CONNECTING: styles.statusOffline,
       OFFLINE: styles.statusOffline,
     };
-    return map[myAgent?.status || 'OFFLINE'] || styles.statusOffline;
-  }, [myAgent?.status]);
+    return map[effectiveStatus] || styles.statusOffline;
+  }, [effectiveStatus]);
 
   const statusLabel = useMemo(() => {
     const map: Record<string, string> = {
@@ -286,16 +334,23 @@ export function CallCenterAgentPage() {
       IN_CALL: t('callcenter.status.inCall', 'In Call'),
       RINGING: t('callcenter.status.ringing', 'Ringing'),
       WRAPUP: t('callcenter.status.wrapup', 'Wrap-up'),
+      CONNECTING: t('callcenter.status.connecting', 'Connecting'),
       OFFLINE: t('callcenter.status.offline', 'Offline'),
     };
-    return map[myAgent?.status || 'OFFLINE'] || 'Offline';
-  }, [myAgent?.status, t]);
+    return map[effectiveStatus] || t('callcenter.status.offline');
+  }, [effectiveStatus, t]);
 
-  // Active call for this agent
-  const activeCall = useMemo(() => {
-    if (!myAgent?.currentCall) return null;
-    return calls.find(c => c.uniqueid === myAgent.currentCall) || null;
-  }, [myAgent?.currentCall, calls]);
+  const handleWebrtcAccept = useCallback(async () => {
+    setWebrtcAccepting(true);
+    try {
+      await phone.acceptCall();
+    } catch (err) {
+      console.warn('WebRTC accept failed:', err);
+      toast.error(t('callcenter.softphone.acceptFailed', 'Could not answer call'));
+    } finally {
+      setWebrtcAccepting(false);
+    }
+  }, [phone, t]);
 
   // Transfer call
   const handleTransfer = useCallback(() => {
@@ -364,6 +419,15 @@ export function CallCenterAgentPage() {
       setSipCredentials(result.credentials);
       await agentLogin({ interface: result.interface, queues: result.queues }).unwrap();
       bindIdentity();
+      saveActiveShift({
+        interface: result.interface,
+        queues: result.queues,
+        mode: result.mode,
+        endpointId: result.endpointId,
+        sipId: result.sipId,
+        micDeviceId: result.micDeviceId,
+        sinkId: result.sinkId,
+      });
       await phone.connect({
         server: webrtcConfig.wssUrl,
         sipUser: result.credentials.username,
@@ -379,6 +443,13 @@ export function CallCenterAgentPage() {
       setSipCredentials(null);
       await agentLogin({ interface: result.interface, queues: result.queues }).unwrap();
       bindIdentity();
+      saveActiveShift({
+        interface: result.interface,
+        queues: result.queues,
+        mode: result.mode,
+        endpointId: result.endpointId,
+        sipId: result.sipId,
+      });
     }
   }, [
     agentLogin,
@@ -396,11 +467,94 @@ export function CallCenterAgentPage() {
       await phone.disconnect();
     }
     await agentLogout();
+    clearActiveShift();
     dispatch(setMyAgentInterface(null));
     setSoftphoneMode(null);
     setSipCredentials(null);
     setIsMuted(false);
   }, [agentLogout, isWebrtc, phone, dispatch]);
+
+  // Restore active shift after refresh (DB session + sessionStorage softphone)
+  useEffect(() => {
+    if (shiftRestoreTried.current) return;
+    if (!currentUser?.uniqueid) return;
+    const saved = loadActiveShift();
+    // Wait for WSS config before finishing WebRTC restore
+    if (saved?.mode === 'webrtc' && !webrtcConfig?.wssUrl) return;
+
+    shiftRestoreTried.current = true;
+
+    let cancelled = false;
+    const phoneConnect = phone.connect;
+    (async () => {
+      try {
+        const me = await fetchAgentMe().unwrap();
+        if (cancelled) return;
+        if (!me.active) {
+          clearActiveShift();
+          return;
+        }
+
+        dispatch(setMyAgentInterface(me.interface));
+        dispatch(updateAgent({
+          interface: me.interface,
+          name: me.name || currentUser.name || currentUser.login || me.interface,
+          status: (me.status as IAgent['status']) || 'READY',
+          queues: me.queues?.length ? me.queues : (saved?.queues || []),
+          callsTaken: me.callsTaken ?? 0,
+          pauseReason: me.pauseReason,
+          loginTime: me.loginTime as unknown as string,
+          userUid: currentUser.vpbx_user_uid ?? 0,
+          userId: currentUser.uniqueid,
+        }));
+
+        const mode = saved?.mode || 'sip';
+        setSoftphoneMode(mode);
+        setMicDeviceId(saved?.micDeviceId);
+        setSinkId(saved?.sinkId);
+
+        if (mode === 'webrtc' && saved?.endpointId && webrtcConfig?.wssUrl) {
+          const allCreds = await fetchCredentials(saved.endpointId).unwrap();
+          const w = allCreds.webrtc;
+          if (!w || cancelled) return;
+          const creds: IEndpointCredentials = {
+            sipId: w.sipId,
+            extension: w.extension,
+            username: w.username,
+            password: w.password,
+            authType: w.authType,
+            domain: w.domain,
+          };
+          setSipCredentials(creds);
+          await phoneConnect({
+            server: webrtcConfig.wssUrl,
+            sipUser: creds.username,
+            sipPassword: creds.password,
+            sipDomain: creds.domain,
+            iceServers: webrtcConfig.iceServers || [],
+            micDeviceId: saved.micDeviceId,
+            sinkId: saved.sinkId,
+            autoAnswer: operatorSettings?.auto_answer ?? false,
+            autoAnswerZipTone: operatorSettings?.auto_answer_zip_tone ?? false,
+          });
+        }
+      } catch {
+        // No open session — stay on Start shift
+      }
+    })();
+
+    return () => { cancelled = true; };
+    // phone.connect identity is unstable; capture once when restore starts
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    currentUser,
+    fetchAgentMe,
+    fetchCredentials,
+    dispatch,
+    webrtcConfig,
+    operatorSettings?.auto_answer,
+    operatorSettings?.auto_answer_zip_tone,
+  ]);
 
   const handleDragTransfer = useCallback((targetIface: string, type: 'blind' | 'attended') => {
     // Normalize PJSIP/e110_0 and PJSIP/ew110_0 → "110" for dialable transfer target
@@ -434,7 +588,7 @@ export function CallCenterAgentPage() {
   const totalTalking = useMemo(() => queues.reduce((s, q) => s + q.talking, 0), [queues]);
   const freeAgents = useMemo(() => agents.filter(a => a.status === 'READY').length, [agents]);
 
-  const isLoggedIn = myAgent && myAgent.status !== 'OFFLINE';
+  const isLoggedIn = Boolean(myAgentInterface);
 
   const softphoneControls = (
     <>
@@ -447,13 +601,20 @@ export function CallCenterAgentPage() {
       </div>
 
       {myAgent && (
-        <Text className={styles.agentName}>{myAgent.name}</Text>
+        <Text className={styles.agentName}>
+          {agentDisplayName(myAgent)}
+          <span className="text-xs text-muted-foreground ml-1">
+            ({interfaceToExtension(myAgent.interface)})
+          </span>
+        </Text>
       )}
 
       {myAgent?.queues && myAgent.queues.length > 0 && !isMobile && (
         <div className={styles.queueChips}>
           {myAgent.queues.map(q => (
-            <span key={q} className={styles.queueChip}>{q}</span>
+            <span key={q} className={styles.queueChip} title={q}>
+              {queueDisplayName(q, queues)}
+            </span>
           ))}
         </div>
       )}
@@ -549,7 +710,9 @@ export function CallCenterAgentPage() {
               <ChatPanelHost />
               <Flex align="center" gap="8">
                 <Text variant="muted" className="text-xs">
-                  {connected ? 'Online' : 'Connecting...'}
+                  {connected
+                    ? t('callcenter.agent.connectionOnline')
+                    : t('callcenter.agent.connectionConnecting')}
                 </Text>
                 <HStack align="center">
                   <div className={`${styles.connectionDot} ${connected ? styles.connectionOnline : styles.connectionOffline}`} />
@@ -605,37 +768,58 @@ export function CallCenterAgentPage() {
       <div className={styles.zoneMain}>
         <div className={`${styles.zoneB}${isMobile && mobileSection !== 'call' ? ` ${styles.sectionHidden}` : ''}`}>
         <DraggableCall
-          uniqueid={activeCall?.uniqueid || 'idle'}
-          className={`${styles.callPanel} ${activeCall ? styles.callPanelActive : ''}`}
+          uniqueid={activeCall?.uniqueid || (webrtcInCall || webrtcRinging ? 'webrtc' : 'idle')}
+          className={`${styles.callPanel} ${showCallPanel ? styles.callPanelActive : ''}`}
         >
-          {activeCall ? (
+          {showCallPanel ? (
             <>
               <div className={styles.callerInfo}>
                 <Text className={styles.callerNumber}>
-                  {activeCall.callerIdNum || t('callcenter.agent.unknown', 'Unknown')}
+                  {activeCall?.callerIdNum
+                    || phone.callInfo?.from
+                    || t('callcenter.agent.unknown', 'Unknown')}
                 </Text>
-                {activeCall.callerIdName && (
+                {activeCall?.callerIdName && (
                   <Text className={styles.callerName}>{activeCall.callerIdName}</Text>
                 )}
               </div>
-              <span className={styles.callQueue}>{activeCall.queue}</span>
-              <Text className={styles.callTimer}>{formatTime(callTimer)}</Text>
+              {activeCall?.queue && (
+                <span className={styles.callQueue} title={activeCall.queue}>
+                  {queueDisplayName(activeCall.queue, queues)}
+                </span>
+              )}
+              {(webrtcInCall || activeCall) && (
+                <Text className={styles.callTimer}>{formatTime(callTimer)}</Text>
+              )}
 
-              {isWebrtc && phone.status === 'ringing' && (
+              {webrtcRinging && (
                 <HStack gap="8" className="mb-2">
-                  <Button size="sm" onClick={() => void phone.acceptCall()}>
-                    <Phone className="w-4 h-4 mr-1" />
-                    {t('callcenter.agent.answerBtn', 'Answer')}
+                  <Button
+                    size="sm"
+                    disabled={webrtcAccepting}
+                    onClick={() => void handleWebrtcAccept()}
+                  >
+                    {webrtcAccepting
+                      ? <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                      : <Phone className="w-4 h-4 mr-1" />}
+                    {webrtcAccepting
+                      ? t('callcenter.agent.answering', 'Answering…')
+                      : t('callcenter.agent.answerBtn', 'Answer')}
                   </Button>
-                  <Button variant="destructive" size="sm" onClick={() => void phone.rejectCall()}>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    disabled={webrtcAccepting}
+                    onClick={() => void phone.rejectCall()}
+                  >
                     <PhoneOff className="w-4 h-4 mr-1" />
-                    {t('callcenter.agent.hangup', 'Reject')}
+                    {t('callcenter.agent.rejectBtn', 'Reject')}
                   </Button>
                 </HStack>
               )}
 
+              {(webrtcInCall || (activeCall && !webrtcRinging)) && (
               <div className={styles.callActions}>
-                {/* Mute */}
                 <Button
                   variant="outline"
                   size="sm"
@@ -643,13 +827,12 @@ export function CallCenterAgentPage() {
                   className={(isWebrtc ? phone.isMuted : isMuted) ? styles.muteActive : ''}
                 >
                   {(isWebrtc ? phone.isMuted : isMuted)
-                    ? <><MicOff className="w-4 h-4 mr-1" />{t('callcenter.agent.unmute', 'Unmute')}</>
-                    : <><Mic className="w-4 h-4 mr-1" />{t('callcenter.agent.mute', 'Mute')}</>
+                    ? <><MicOff className="w-4 h-4 mr-1" />{t('callcenter.agent.unmuteBtn', 'Unmute')}</>
+                    : <><Mic className="w-4 h-4 mr-1" />{t('callcenter.agent.muteBtn', 'Mute')}</>
                   }
                 </Button>
 
-                {/* Hold / Unhold */}
-                {activeCall.status === 'TALKING' && (
+                {(isWebrtc ? !phone.isHeld : activeCall?.status === 'TALKING') && (
                   <Button
                     variant="outline"
                     size="sm"
@@ -662,7 +845,7 @@ export function CallCenterAgentPage() {
                     {t('callcenter.agent.holdBtn', 'Hold')}
                   </Button>
                 )}
-                {activeCall.status === 'HOLD' && (
+                {(isWebrtc ? phone.isHeld : activeCall?.status === 'HOLD') && (
                   <Button
                     variant="outline"
                     size="sm"
@@ -676,7 +859,6 @@ export function CallCenterAgentPage() {
                   </Button>
                 )}
 
-                {/* DTMF */}
                 <DtmfKeypad
                   onDigit={(digit) => {
                     if (isWebrtc) void phone.sendDtmf(digit);
@@ -684,30 +866,30 @@ export function CallCenterAgentPage() {
                   disabled={!isWebrtc}
                 />
 
-                {/* Transfer */}
                 <Button variant="outline" size="sm" onClick={() => setTransferModalOpen(true)}>
                   <PhoneForwarded className="w-4 h-4 mr-1" />
-                  {t('callcenter.agent.transfer', 'Transfer')}
+                  {t('callcenter.agent.transferBtn', 'Transfer')}
                 </Button>
 
-                {/* Open call card (manual auto_open_on) */}
-                <Button variant="outline" size="sm" onClick={openCardManually}>
-                  {t('callcenter.cards.popup.openManual')}
-                </Button>
+                {activeCall && (
+                  <Button variant="outline" size="sm" onClick={openCardManually}>
+                    {t('callcenter.cards.popup.openManual')}
+                  </Button>
+                )}
 
-                {/* Hangup */}
                 <Button
                   variant="destructive"
                   size="sm"
                   onClick={() => {
                     if (isWebrtc) void phone.hangup();
-                    agentHangup({});
+                    if (activeCall) agentHangup({});
                   }}
                 >
                   <PhoneOff className="w-4 h-4 mr-1" />
-                  {t('callcenter.agent.hangup', 'Hangup')}
+                  {t('callcenter.agent.hangupBtn', 'Hangup')}
                 </Button>
               </div>
+              )}
             </>
           ) : myAgent?.status === 'WRAPUP' ? (
             <VStack gap="12" className="w-full max-w-md">
@@ -725,22 +907,6 @@ export function CallCenterAgentPage() {
                 value={callNotes}
                 onChange={(e) => setCallNotes(e.target.value)}
               />
-            </VStack>
-          ) : isWebrtc && phone.status === 'ringing' ? (
-            <VStack gap="12" className="items-center">
-              <Text className={styles.callerNumber}>
-                {phone.callInfo?.from || t('callcenter.agent.unknown', 'Unknown')}
-              </Text>
-              <HStack gap="8">
-                <Button size="sm" onClick={() => void phone.acceptCall()}>
-                  <Phone className="w-4 h-4 mr-1" />
-                  {t('callcenter.agent.answerBtn', 'Answer')}
-                </Button>
-                <Button variant="destructive" size="sm" onClick={() => void phone.rejectCall()}>
-                  <PhoneOff className="w-4 h-4 mr-1" />
-                  {t('callcenter.agent.hangup', 'Reject')}
-                </Button>
-              </HStack>
             </VStack>
           ) : (
             <div className={styles.idleState}>
@@ -766,7 +932,7 @@ export function CallCenterAgentPage() {
         >
           {/* Client Card — read-only context for the active caller */}
           <ClientCard
-            callerIdNum={activeCall?.callerIdNum}
+            callerIdNum={activeCall?.callerIdNum || phone.callInfo?.from}
             callerIdName={activeCall?.callerIdName}
           />
 
@@ -820,37 +986,63 @@ export function CallCenterAgentPage() {
           {queueMonitorOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
         </div>
 
-        {queueMonitorOpen && waitingCalls.length > 0 && (
+        {queueMonitorOpen && monitorCalls.length > 0 && (
           <div className={styles.queueTableWrap}>
             <table className={styles.queueTable}>
               <thead>
                 <tr>
                   <th>#</th>
+                  <th>{t('callcenter.agent.status', 'Status')}</th>
                   <th>{t('callcenter.agent.caller', 'Caller')}</th>
                   <th>{t('callcenter.agent.queue', 'Queue')}</th>
+                  <th>{t('callcenter.agent.operator', 'Operator')}</th>
                   <th>{t('callcenter.agent.wait', 'Wait')}</th>
                   <th></th>
                 </tr>
               </thead>
               <tbody>
-                {waitingCalls.map((call, i) => {
+                {monitorCalls.map((call, i) => {
+                  const isTalking = call.status === 'TALKING' || call.status === 'HOLD';
                   const waitSec = Math.floor((Date.now() - new Date(call.enterTime).getTime()) / 1000);
-                  const canPick = operatorSettings?.pickup_enabled
+                  const canPick = !isTalking
+                    && operatorSettings?.pickup_enabled
                     && myAgent?.status === 'READY'
                     && myAgent.queues.includes(call.queue);
+                  const agent = call.agent
+                    ? agents.find(a => a.interface === call.agent)
+                    : undefined;
+                  const operatorLabel = agent
+                    ? agentDisplayName(agent)
+                    : (call.agent ? interfaceToExtension(call.agent) : '—');
                   return (
-                    <tr key={call.uniqueid}>
+                    <tr
+                      key={call.uniqueid}
+                      className={isTalking ? styles.rowTalking : styles.rowWaiting}
+                      data-status={call.status}
+                    >
                       <td>{i + 1}</td>
-                      <td>{call.callerIdNum || '-'}</td>
-                      <td>{call.queue}</td>
+                      <td>
+                        <span className={isTalking ? styles.badgeTalking : styles.badgeWaiting}>
+                          {isTalking
+                            ? (call.status === 'HOLD'
+                              ? t('callcenter.agent.onHold', 'Hold')
+                              : t('callcenter.agent.talking', 'talking'))
+                            : (call.status === 'RINGING'
+                              ? t('callcenter.agent.ringing', 'Ringing')
+                              : t('callcenter.agent.waiting_lbl', 'waiting'))}
+                        </span>
+                      </td>
+                      <td>{callerDisplayLabel(call.callerIdNum, call.callerIdName)}</td>
+                      <td title={call.queue}>{queueDisplayName(call.queue, queues)}</td>
+                      <td title={call.agent || undefined}>{operatorLabel}</td>
                       <td className={`${styles.waitTime} ${
-                        waitSec > 60 ? styles.waitTimeDanger :
-                        waitSec > 30 ? styles.waitTimeWarning : ''
+                        !isTalking && waitSec > 60 ? styles.waitTimeDanger :
+                        !isTalking && waitSec > 30 ? styles.waitTimeWarning : ''
                       }`}>
                         {formatTime(waitSec)}
                       </td>
                       <td>
-                        {operatorSettings?.pickup_enabled && (
+                        {operatorSettings?.pickup_enabled && !isTalking && (
                           <Button
                             size="sm"
                             variant="outline"
@@ -873,7 +1065,7 @@ export function CallCenterAgentPage() {
           </div>
         )}
 
-        {queueMonitorOpen && waitingCalls.length === 0 && (
+        {queueMonitorOpen && monitorCalls.length === 0 && (
           <Flex justify="center" className="py-6">
             <Text variant="muted" className="text-sm">
               {t('callcenter.agent.noWaiting', 'No calls waiting')}
@@ -1000,6 +1192,8 @@ function ColleagueRow({ agent, activeCall }: { agent: IAgent; activeCall: boolea
     agent.status === 'READY' ? styles.transferItemOnline :
     agent.status === 'OFFLINE' ? styles.transferItemOffline :
     styles.transferItemBusy;
+  const label = agentDisplayName(agent);
+  const ext = interfaceToExtension(agent.interface);
 
   return (
     <DroppableColleague
@@ -1017,8 +1211,10 @@ function ColleagueRow({ agent, activeCall }: { agent: IAgent; activeCall: boolea
         style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%' }}
       >
         <div className={styles.transferDot} />
-        <Text className={styles.transferName}>{agent.name}</Text>
-        <Text className={styles.transferExt}>{interfaceToExtension(agent.interface)}</Text>
+        <Text className={styles.transferName}>{label}</Text>
+        {label !== ext && (
+          <Text className={styles.transferExt}>{ext}</Text>
+        )}
       </div>
     </DroppableColleague>
   );

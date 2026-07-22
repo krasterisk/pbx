@@ -1,6 +1,8 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import type { BaseQueryFn, FetchArgs, FetchBaseQueryError } from '@reduxjs/toolkit/query/react';
+import type { ILoginResponse } from '@krasterisk/shared';
 
+import { setSession } from '@/features/auth/model/authSlice';
 import { getEffectiveApiBase, isStandaloneApp } from './apiBase';
 
 type AuthSliceState = { auth?: { accessToken?: string | null } };
@@ -10,12 +12,15 @@ function resolveAccessToken(getState: () => unknown): string | null {
   return fromStore ?? localStorage.getItem('accessToken');
 }
 
-function createBaseQuery(baseUrl: string) {
+function createBaseQuery(baseUrl: string, accessTokenOverride?: string | null) {
   return fetchBaseQuery({
     baseUrl,
     prepareHeaders: (headers, { getState }) => {
       if (isStandaloneApp()) return headers;
-      const token = resolveAccessToken(getState);
+      const token =
+        accessTokenOverride !== undefined
+          ? accessTokenOverride
+          : resolveAccessToken(getState);
       if (token) {
         headers.set('Authorization', `Bearer ${token}`);
       }
@@ -48,13 +53,28 @@ const baseQueryWithReauth: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQue
       );
 
       if (refreshResult.data) {
-        const data = refreshResult.data as { accessToken: string; refreshToken: string; user: unknown };
+        const data = refreshResult.data as {
+          accessToken: string;
+          refreshToken: string;
+          user: ILoginResponse['user'];
+        };
 
         localStorage.setItem('accessToken', data.accessToken);
         localStorage.setItem('refreshToken', data.refreshToken);
         localStorage.setItem('user', JSON.stringify(data.user));
+        // Critical: Redux must match localStorage — resolveAccessToken prefers the store
+        api.dispatch(setSession({
+          accessToken: data.accessToken,
+          refreshToken: data.refreshToken,
+          user: data.user,
+        }));
 
-        result = await createBaseQuery(getEffectiveApiBase())(args, api, extraOptions);
+        // Retry with the new token explicitly (don't rely on getState timing)
+        result = await createBaseQuery(getEffectiveApiBase(), data.accessToken)(
+          args,
+          api,
+          extraOptions,
+        );
       } else {
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
