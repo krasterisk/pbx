@@ -1,0 +1,181 @@
+/* SoftphoneWidget - floating FAB (desktop) + sticky bar fallback (phone), D-01/D-46 */
+
+@keyframes softphonePulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+/* ── Desktop FAB (collapsed) ─────────────────────── */
+.fab {
+  position: fixed;
+  bottom: 24px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-primary);
+  color: var(--color-primary-foreground, #fff);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  z-index: var(--z-index-toast);
+  transition: filter 0.15s ease, transform 0.1s ease;
+
+  &:hover {
+    filter: brightness(1.08);
+  }
+
+  &:active {
+    transform: scale(0.96);
+  }
+}
+
+.fabRight {
+  right: 24px;
+}
+
+.fabLeft {
+  left: 24px;
+}
+
+.fabRinging {
+  background: var(--color-destructive);
+  animation: softphonePulse 1.4s infinite;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+/* ── Desktop expanded panel ──────────────────────── */
+.panel {
+  padding: 16px;
+}
+
+.panelBody {
+  width: 100%;
+}
+
+.panelTitle {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--color-foreground);
+}
+
+.callSummary {
+  padding: 8px 0;
+}
+
+.callTimerDisplay {
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-foreground);
+}
+
+.callerNumber {
+  font-size: 14px;
+  color: var(--color-muted-foreground);
+}
+
+.queueTag {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  color: var(--color-primary);
+}
+
+.ringingActions {
+  width: 100%;
+
+  :global(button) {
+    flex: 1;
+    min-height: 44px;
+  }
+}
+
+.controlsRow {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+
+  :global(button) {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* ── Phone (<768): sticky bar fallback, no floating FAB (D-46) ── */
+$bottom-nav-height: 60px;
+$softphone-bar-height: 72px;
+
+.stickyBar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(#{$bottom-nav-height} + env(safe-area-inset-bottom, 0px));
+  z-index: var(--z-index-toast);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  min-height: $softphone-bar-height;
+  padding: 8px 12px;
+  background: color-mix(in srgb, var(--color-card) 94%, transparent);
+  border-top: 1px solid var(--color-border);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.12);
+}
+
+.stickyDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  animation: softphonePulse 2s infinite;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+.stickyDotIdle {
+  background: var(--color-primary);
+  animation: none;
+}
+
+.stickyDotInCall {
+  background: var(--color-destructive);
+  animation: none;
+}
+
+.stickyDotRinging {
+  background: var(--color-destructive);
+}
+
+.stickyInfo {
+  min-width: 0;
+  flex-shrink: 1;
+}
+
+.stickyCaller {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stickyTimer {
+  font-size: 12px;
+  color: var(--color-muted-foreground);
+  font-variant-numeric: tabular-nums;
+}
