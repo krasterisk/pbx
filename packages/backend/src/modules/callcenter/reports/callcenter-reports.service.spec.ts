@@ -222,6 +222,26 @@ describe('CallCenterReportsService', () => {
       });
     });
 
+    it('maps DIALING/CONSULT/ACW journal events to their own timeline states (D-09/D-13)', async () => {
+      sessionModel.findAll.mockResolvedValue([{ uid: 5 }]);
+      const t0 = new Date('2026-07-15T09:00:00.000Z');
+      const t1 = new Date('2026-07-15T09:00:20.000Z');
+      const t2 = new Date('2026-07-15T09:01:00.000Z');
+      agentEventModel.findAll.mockResolvedValue([
+        { event_type: 'DIALING', created_at: t0, reason: '' },
+        { event_type: 'CONSULT', created_at: t1, reason: '' },
+        { event_type: 'ACW', created_at: t2, reason: '' },
+      ]);
+
+      const result = await service.getAgentTimeline(3, {
+        dateFrom: '2026-07-15T00:00:00.000Z',
+        dateTo: '2026-07-15T23:59:59.000Z',
+        agentInterface: 'PJSIP/101',
+      });
+
+      expect(result.rows[0].segments.map((s: any) => s.state)).toEqual(['DIALING', 'CONSULT', 'ACW']);
+    });
+
     it('requires agentInterface', async () => {
       await expect(
         service.getAgentTimeline(1, {

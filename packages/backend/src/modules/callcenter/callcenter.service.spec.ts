@@ -520,5 +520,25 @@ describe('CallCenterService', () => {
       expect(detail.segments[1].state).toBe('PAUSED');
       expect(detail.segments[1].reason).toBe('Lunch');
     });
+
+    it('maps DIALING/CONSULT/ACW journal events to their own timeline states (D-09/D-13)', async () => {
+      const t0 = new Date('2026-07-15T08:00:00Z');
+      const t1 = new Date('2026-07-15T08:00:20Z');
+      const t2 = new Date('2026-07-15T08:01:00Z');
+
+      sessionModel.findAll.mockResolvedValue([{ uid: 10 }]);
+      queueCallModel.findAll.mockResolvedValue([]);
+      agentEventModel.findAll.mockResolvedValue([
+        { event_type: 'DIALING', created_at: t0, reason: '' },
+        { event_type: 'CONSULT', created_at: t1, reason: '' },
+        { event_type: 'ACW', created_at: t2, reason: '' },
+      ]);
+
+      state.setAgent(7, 'PJSIP/101', { name: 'Alice', status: 'ACW', queues: ['sales'] });
+
+      const detail = await service.getAgentDetail('PJSIP/101', 7);
+
+      expect(detail.segments.map((s: any) => s.state)).toEqual(['DIALING', 'CONSULT', 'ACW']);
+    });
   });
 });
