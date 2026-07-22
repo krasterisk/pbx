@@ -3,6 +3,11 @@ import { CallCenterStateService } from './callcenter-state.service';
 import { CallCenterHistoryWriterService } from './callcenter-history-writer.service';
 import { CallCenterMetricsService } from './callcenter-metrics.service';
 
+/** Flush pending microtask + macrotask queues — used after fire-and-forget async handler calls. */
+function flushMicrotasks(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
 /**
  * Unit tests for CallCenterAmiService — focuses on pure handlers
  * (status mapping, tenant resolution, state propagation). The real
@@ -16,8 +21,13 @@ describe('CallCenterAmiService', () => {
     recordAnswered: jest.Mock;
     recordAbandoned: jest.Mock;
     recordAgentStatus: jest.Mock;
+    recordMade: jest.Mock;
+    recordMissed: jest.Mock;
     getQueueMetrics: jest.Mock;
+    getAgentKpi: jest.Mock;
+    getAgentQueueKpi: jest.Mock;
   };
+  let agentSessionModel: { findOne: jest.Mock };
 
   // The minimum AMI / model surface that handlers touch
   const fakeAmi: any = {
@@ -28,20 +38,31 @@ describe('CallCenterAmiService', () => {
     findAll: jest.fn().mockResolvedValue([]),
   };
   const agentEventModel: any = {
-    create: jest.fn().mockResolvedValue(undefined),
+    create: jest.fn().mockResolvedValue({ getDataValue: () => 1 }),
+    update: jest.fn().mockResolvedValue(undefined),
   };
   const missedCallModel: any = {
     create: jest.fn().mockResolvedValue(undefined),
     findOrCreate: jest.fn().mockResolvedValue([{}, true]),
   };
 
+  const emptyKpi = () => ({
+    sinceLogin: { answered: 0, made: 0, missed: 0 },
+    sinceMidnight: { answered: 0, made: 0, missed: 0 },
+  });
+
   beforeEach(() => {
     state = new CallCenterStateService();
     historyWriter = { enqueue: jest.fn() };
+    agentEventModel.create.mockClear();
+    agentEventModel.update.mockClear();
+    agentSessionModel = { findOne: jest.fn().mockResolvedValue(null) };
     metricsService = {
       recordAnswered: jest.fn(),
       recordAbandoned: jest.fn(),
       recordAgentStatus: jest.fn(),
+      recordMade: jest.fn(),
+      recordMissed: jest.fn(),
       getQueueMetrics: jest.fn().mockReturnValue({
         sla: 80,
         asr: 90,
@@ -52,6 +73,8 @@ describe('CallCenterAmiService', () => {
         answered: 9,
         abandoned: 1,
       }),
+      getAgentKpi: jest.fn().mockReturnValue(emptyKpi()),
+      getAgentQueueKpi: jest.fn().mockReturnValue(emptyKpi()),
     };
     service = new CallCenterAmiService(
       fakeAmi,
@@ -61,6 +84,7 @@ describe('CallCenterAmiService', () => {
       agentEventModel,
       missedCallModel,
       queueModel,
+      agentSessionModel as any,
     );
   });
 
@@ -427,6 +451,144 @@ describe('CallCenterAmiService', () => {
       service.handleHold({ channel: 'PJSIP/999-0001' });
       // no call exists — nothing should be created
       expect(state.getAllCallsGlobal()).toHaveLength(0);
+    });
+  });
+
+  // ─── All-channel agent handlers (D-08) ──────────────────
+
+  describe('handleDialBegin', () => {
+    it('sets a READY agent to DIALING when their own channel starts a dial', () => {
+      state.setAgent(7, 'PJSIP/e101_42', { name: 'Alice', status: 'READY', userId: 42 });
+
+      service.handleDialBegin({ channel: 'PJSIP/e101_42-00000005' });
+
+      expect(state.getAgent(7, 'PJSIP/e101_42')?.status).toBe('DIALING');
+      expect(metricsService.recordAgentStatus).toHaveBeenCalledWith(7, 'PJSIP/e101_42', 'DIALING');
+    });
+
+    it('is a no-op for channels not belonging to a logged-in agent (unknown channel)', () => {
+      expect(() => service.handleDialBegin({ channel: 'PJSIP/unknown-00000001' })).not.toThrow();
+      expect(metricsService.recordAgentStatus).not.toHaveBeenCalled();
+    });
+
+    it('ignores a dial on a channel that is not READY (consult/transfer leg guard)', () => {
+      state.setAgent(7, 'PJSIP/e101_42', { name: 'Alice', status: 'IN_CALL', userId: 42, currentCall: 'U1' });
+
+      service.handleDialBegin({ channel: 'PJSIP/e101_42-00000009' });
+
+      expect(state.getAgent(7, 'PJSIP/e101_42')?.status).toBe('IN_CALL');
+    });
+
+    it('does not throw on an empty channel', () => {
+      expect(() => service.handleDialBegin({})).not.toThrow();
+    });
+  });
+
+  describe('handleDialEnd', () => {
+    it('moves a DIALING agent to IN_CALL and records "made" on ANSWER', () => {
+      state.setAgent(7, 'PJSIP/e101_42', { name: 'Alice', status: 'DIALING', userId: 42 });
+
+      service.handleDialEnd({ channel: 'PJSIP/e101_42-00000005', dialstatus: 'ANSWER' });
+
+      expect(state.getAgent(7, 'PJSIP/e101_42')?.status).toBe('IN_CALL');
+      expect(metricsService.recordMade).toHaveBeenCalledWith(7, 'PJSIP/e101_42');
+      expect(metricsService.recordMissed).not.toHaveBeenCalled();
+    });
+
+    it('returns a DIALING agent to READY and records "missed" on NOANSWER', () => {
+      state.setAgent(7, 'PJSIP/e101_42', { name: 'Alice', status: 'DIALING', userId: 42 });
+
+      service.handleDialEnd({ channel: 'PJSIP/e101_42-00000005', dialstatus: 'NOANSWER' });
+
+      expect(state.getAgent(7, 'PJSIP/e101_42')?.status).toBe('READY');
+      expect(metricsService.recordMissed).toHaveBeenCalledWith(7, 'PJSIP/e101_42');
+      expect(metricsService.recordMade).not.toHaveBeenCalled();
+    });
+
+    it('ignores DialEnd for an agent who is not currently DIALING', () => {
+      state.setAgent(7, 'PJSIP/e101_42', { name: 'Alice', status: 'IN_CALL', userId: 42 });
+
+      service.handleDialEnd({ channel: 'PJSIP/e101_42-00000005', dialstatus: 'ANSWER' });
+
+      expect(state.getAgent(7, 'PJSIP/e101_42')?.status).toBe('IN_CALL');
+      expect(metricsService.recordMade).not.toHaveBeenCalled();
+    });
+
+    it('is a no-op for unknown channels', () => {
+      expect(() => service.handleDialEnd({ channel: 'PJSIP/unknown-1', dialstatus: 'ANSWER' })).not.toThrow();
+    });
+  });
+
+  describe('handleNewchannel / handleAgentHangup — personal direct ring (D-08/D-10)', () => {
+    it('marks a READY agent RINGING on a ringing Newchannel and records a personal missed on hangup', () => {
+      state.setAgent(7, 'PJSIP/e101_42', { name: 'Alice', status: 'READY', userId: 42 });
+
+      service.handleNewchannel({ channel: 'PJSIP/e101_42-00000005', channelstatedesc: 'Ring' });
+      expect(state.getAgent(7, 'PJSIP/e101_42')?.status).toBe('RINGING');
+
+      service.handleAgentHangup({ channel: 'PJSIP/e101_42-00000005' });
+      expect(state.getAgent(7, 'PJSIP/e101_42')?.status).toBe('READY');
+      expect(metricsService.recordMissed).toHaveBeenCalledWith(7, 'PJSIP/e101_42');
+    });
+
+    it('does not mark RINGING when the agent is not READY (avoids mid-call false positives)', () => {
+      state.setAgent(7, 'PJSIP/e101_42', { name: 'Alice', status: 'IN_CALL', userId: 42, currentCall: 'U1' });
+
+      service.handleNewchannel({ channel: 'PJSIP/e101_42-00000005', channelstatedesc: 'Ring' });
+
+      expect(state.getAgent(7, 'PJSIP/e101_42')?.status).toBe('IN_CALL');
+    });
+
+    it('handleAgentHangup releases a personal (non-queue) IN_CALL agent to READY without a queue-driven double-release', () => {
+      state.setAgent(7, 'PJSIP/e101_42', { name: 'Alice', status: 'IN_CALL', userId: 42 }); // no currentCall — personal call
+
+      service.handleAgentHangup({ channel: 'PJSIP/e101_42-00000005' });
+
+      expect(state.getAgent(7, 'PJSIP/e101_42')?.status).toBe('READY');
+    });
+
+    it('handleAgentHangup does not touch a queue-tracked IN_CALL agent (has currentCall — AgentComplete owns that transition)', () => {
+      state.setAgent(7, 'PJSIP/e101_42', { name: 'Alice', status: 'IN_CALL', userId: 42, currentCall: 'U1' });
+
+      service.handleAgentHangup({ channel: 'PJSIP/e101_42-00000005' });
+
+      expect(state.getAgent(7, 'PJSIP/e101_42')?.status).toBe('IN_CALL');
+    });
+
+    it('handleAgentHangup is a no-op for unknown channels', () => {
+      expect(() => service.handleAgentHangup({ channel: 'PJSIP/unknown-1' })).not.toThrow();
+    });
+  });
+
+  describe('DIALING journal (cc_agent_events, D-09/D-13)', () => {
+    it('writes a DIALING row on entry and fills duration on exit', async () => {
+      agentSessionModel.findOne.mockResolvedValue({ getDataValue: () => 55 });
+      state.setAgent(7, 'PJSIP/e101_42', { name: 'Alice', status: 'READY', userId: 42 });
+
+      service.handleDialBegin({ channel: 'PJSIP/e101_42-00000005' });
+      await flushMicrotasks();
+
+      expect(agentEventModel.create).toHaveBeenCalledWith(
+        expect.objectContaining({ session_id: 55, user_id: 42, event_type: 'DIALING', user_uid: 7 }),
+      );
+
+      service.handleDialEnd({ channel: 'PJSIP/e101_42-00000005', dialstatus: 'ANSWER' });
+      await flushMicrotasks();
+
+      expect(agentEventModel.update).toHaveBeenCalledWith(
+        expect.objectContaining({ duration: expect.any(Number) }),
+        expect.objectContaining({ where: { uid: 1 } }),
+      );
+    });
+
+    it('does not write a journal row when no active session is found', async () => {
+      agentSessionModel.findOne.mockResolvedValue(null);
+      state.setAgent(7, 'PJSIP/e101_42', { name: 'Alice', status: 'READY', userId: 42 });
+
+      service.handleDialBegin({ channel: 'PJSIP/e101_42-00000005' });
+      await flushMicrotasks();
+
+      expect(agentEventModel.create).not.toHaveBeenCalled();
     });
   });
 

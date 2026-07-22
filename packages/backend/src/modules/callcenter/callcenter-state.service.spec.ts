@@ -180,6 +180,41 @@ describe('CallCenterStateService', () => {
     });
   });
 
+  // ─── findAgentByChannel (D-08) ──────────────────────────
+
+  describe('findAgentByChannel', () => {
+    it('matches a channel with the Asterisk call-sequence suffix', () => {
+      service.setAgent(7, 'PJSIP/e101_42', { name: 'Alice', status: 'READY', userId: 42 });
+
+      const found = service.findAgentByChannel('PJSIP/e101_42-00000005');
+      expect(found?.interface).toBe('PJSIP/e101_42');
+      expect(found?.userUid).toBe(7);
+    });
+
+    it('matches an exact channel with no suffix', () => {
+      service.setAgent(7, 'PJSIP/e101_42', { name: 'Alice', status: 'READY', userId: 42 });
+      expect(service.findAgentByChannel('PJSIP/e101_42')?.name).toBe('Alice');
+    });
+
+    it('returns undefined for an unknown channel (no leak/no throw)', () => {
+      service.setAgent(7, 'PJSIP/e101_42', { name: 'Alice', status: 'READY', userId: 42 });
+      expect(service.findAgentByChannel('PJSIP/e999_0-00000001')).toBeUndefined();
+      expect(service.findAgentByChannel('')).toBeUndefined();
+    });
+
+    it('ignores agents who are not logged in (userId <= 0) — never a queue-preload phantom match', () => {
+      // loadInitialState populates agents from QueueMember without a real login (userId stays 0)
+      service.setAgent(7, 'PJSIP/e101_42', { name: 'PJSIP/e101_42', status: 'READY' });
+      expect(service.findAgentByChannel('PJSIP/e101_42-00000005')).toBeUndefined();
+    });
+
+    it('does not confuse two similarly-prefixed interfaces (PJSIP/e101_42 vs PJSIP/e101_420)', () => {
+      service.setAgent(7, 'PJSIP/e101_42', { name: 'Alice', status: 'READY', userId: 42 });
+      service.setAgent(7, 'PJSIP/e101_420', { name: 'Bob', status: 'READY', userId: 43 });
+      expect(service.findAgentByChannel('PJSIP/e101_420-00000001')?.name).toBe('Bob');
+    });
+  });
+
   // ─── getAllCallsGlobal ──────────────────────────────────
 
   describe('getAllCallsGlobal', () => {
