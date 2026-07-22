@@ -238,6 +238,19 @@ export class CallCenterController {
     return this.ccService.callbackMissedCall(req.user.vpbx_user_uid, req.user.sub, dto.callerIdNum);
   }
 
+  /** Unified all-direction call history for the operator's own shift/day (D-34/D-35). */
+  @Get('agent/history')
+  getOperatorCallHistory(
+    @Query('period') period: string | undefined,
+    @Req() req: Request & { user: any },
+  ) {
+    return this.ccService.getOperatorCallHistory(
+      req.user.vpbx_user_uid,
+      req.user.sub,
+      period === 'shift' ? 'shift' : 'day',
+    );
+  }
+
   // ─── Client Card (sidebar lookup) ─────────────────────
 
   @Get('client-lookup')

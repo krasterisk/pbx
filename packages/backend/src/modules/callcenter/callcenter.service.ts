@@ -1731,6 +1731,58 @@ export class CallCenterService {
     }
   }
 
+  /**
+   * D-34/D-35: unified call history across all directions (queue inbound,
+   * personal, outbound, internal) for a single operator, most-recent-first.
+   * `period='shift'` looks back to the operator's current open login session
+   * (falls back to start-of-day if none is open); `period='day'` always uses
+   * start-of-day. Tenant-scoped by vpbx_user_uid (T-09-11-03).
+   */
+  async getOperatorCallHistory(userUid: number, operatorUserId: number, period: 'shift' | 'day' = 'day') {
+    let since = this.startOfToday();
+
+    if (period === 'shift') {
+      const session = await this.sessionModel.findOne({
+        where: { user_id: operatorUserId, user_uid: userUid, logout_time: null },
+        order: [['login_time', 'DESC']],
+      });
+      const loginTime = session?.getDataValue('login_time') as Date | undefined;
+      if (loginTime) since = loginTime;
+    }
+
+    const rows = await this.queueCallModel.findAll({
+      where: {
+        user_uid: userUid,
+        agent_user_uid: operatorUserId,
+        created_at: { [Op.gte]: since },
+      },
+      order: [['created_at', 'DESC']],
+      limit: 200,
+    });
+
+    return rows.map((r) => ({
+      uid: r.getDataValue('uid'),
+      callUniqueid: r.getDataValue('call_uniqueid'),
+      queueName: r.getDataValue('queue_name'),
+      callerIdNum: r.getDataValue('caller_id_num'),
+      callerIdName: r.getDataValue('caller_id_name'),
+      direction: r.getDataValue('direction'),
+      callType: r.getDataValue('call_type'),
+      disposition: r.getDataValue('disposition'),
+      enterTime: r.getDataValue('enter_time'),
+      answerTime: r.getDataValue('answer_time'),
+      endTime: r.getDataValue('end_time'),
+      waitTime: r.getDataValue('wait_time'),
+      talkTime: r.getDataValue('talk_time'),
+    }));
+  }
+
+  private startOfToday(): Date {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }
+
   // ─── Client Card (lookup by callerIdNum) ──────────────────
 
   /**
