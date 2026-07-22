@@ -136,6 +136,31 @@ export interface IAgentKpi {
 
 const EMPTY_KPI_COUNTERS: IKpiCounters = { answered: 0, made: 0, missed: 0 };
 
+/** Dual shift·day personal answered/missed per queue (D-31/D-32) — Queues tab (09-08). */
+export interface IAgentQueueKpi {
+  answered: { shift: number; day: number };
+  missed: { shift: number; day: number };
+}
+export type IAgentQueuesKpi = Record<string, IAgentQueueKpi>;
+
+/** D-22/D-38: effective (role default + operator override, merged server-side) rights set. */
+export type SpyMode = 'listen' | 'whisper' | 'barge';
+export interface IEffectivePermissions {
+  can_spy: boolean;
+  spyable: boolean;
+  spy_modes: SpyMode[];
+  click_to_call: boolean;
+  customize_ui: boolean;
+}
+
+export type SoftphonePlacement = 'bottom-right' | 'bottom-left' | 'hidden';
+/** D-05: per-panel tab/panel visibility map — keys are UI-SPEC surface ids (coworkers/queues/waiting/...). */
+export type IUiVisibility = Record<string, boolean>;
+export interface IUiCustomization {
+  ui_visibility: IUiVisibility;
+  softphone_placement: SoftphonePlacement;
+}
+
 const callCenterApi = rtkApi.injectEndpoints({
   endpoints: (build) => ({
     // ─── State ────────────────────────────────────────────
@@ -178,6 +203,39 @@ const callCenterApi = rtkApi.injectEndpoints({
       providesTags: ['AgentKpi'],
     }),
 
+    /** Same shape, batched per-queue (D-31/D-32) — Queues tab (09-08). */
+    getAgentQueuesStats: build.query<IAgentQueuesKpi, void>({
+      query: () => '/callcenter/agent/queues-kpi',
+      transformResponse: (raw: Record<string, IRawAgentKpi>): IAgentQueuesKpi => {
+        const result: IAgentQueuesKpi = {};
+        for (const [queueName, kpi] of Object.entries(raw || {})) {
+          const shift = kpi?.sinceLogin ?? EMPTY_KPI_COUNTERS;
+          const day = kpi?.sinceMidnight ?? EMPTY_KPI_COUNTERS;
+          result[queueName] = {
+            answered: { shift: shift.answered, day: day.answered },
+            missed: { shift: shift.missed, day: day.missed },
+          };
+        }
+        return result;
+      },
+      providesTags: ['AgentKpi'],
+    }),
+
+    /**
+     * Own effective rights (role default + operator override merged server-side, D-38/D-39).
+     * Concrete hook CoworkersTab uses for ChanSpy/hangup gating until usePermissions ships (09-14).
+     */
+    getEffectivePermissions: build.query<IEffectivePermissions, void>({
+      query: () => '/callcenter/settings/operator/permissions',
+      providesTags: ['CcPermissions'],
+    }),
+
+    /** D-05: own tab/panel visibility + softphone placement — safe default is all-visible/bottom-right. */
+    getMyUiCustomization: build.query<IUiCustomization, void>({
+      query: () => '/callcenter/settings/operator/ui',
+      providesTags: ['CcOperatorSettings'],
+    }),
+
     // ─── Agent Actions ────────────────────────────────────
     agentLogin: build.mutation<{ success: boolean; sessionId: number }, { interface: string; queues?: string[] }>({
       query: (body) => ({ url: '/callcenter/agent/login', method: 'POST', body }),
@@ -211,6 +269,14 @@ const callCenterApi = rtkApi.injectEndpoints({
     }),
     agentPickCall: build.mutation<{ success: boolean }, { uniqueid: string }>({
       query: (body) => ({ url: '/callcenter/agent/pick-call', method: 'POST', body }),
+    }),
+    /** D-33: warm-transfer the operator's own active call to another queue — non-destructive routing change. */
+    warmTransferToQueue: build.mutation<{ success: boolean }, { uniqueid: string; queue: string }>({
+      query: (body) => ({ url: '/callcenter/agent/warm-transfer-queue', method: 'POST', body }),
+    }),
+    /** D-21/D-22: coworker-to-coworker ChanSpy (Listen/Whisper/Barge), gated server-side by can_spy/spyable/spy_modes. */
+    peerSpy: build.mutation<{ success: boolean; mode: SpyMode }, { targetInterface: string; mode: SpyMode }>({
+      query: (body) => ({ url: '/callcenter/agent/peer-spy', method: 'POST', body }),
     }),
 
     // ─── Missed Calls (Callbacks) ─────────────────────────
@@ -438,6 +504,9 @@ export const {
   useGetAgentMeQuery,
   useLazyGetAgentMeQuery,
   useGetAgentKpiQuery,
+  useGetAgentQueuesStatsQuery,
+  useGetEffectivePermissionsQuery,
+  useGetMyUiCustomizationQuery,
   useAgentLoginMutation,
   useAgentLogoutMutation,
   useAgentPauseMutation,
@@ -449,6 +518,8 @@ export const {
   useAgentWrapupDoneMutation,
   useAgentWrapupExtendMutation,
   useAgentPickCallMutation,
+  useWarmTransferToQueueMutation,
+  usePeerSpyMutation,
   useGetMissedCallsQuery,
   useMarkMissedCalledBackMutation,
   useClientLookupQuery,

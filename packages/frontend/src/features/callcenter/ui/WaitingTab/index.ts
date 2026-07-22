@@ -1,0 +1,1 @@
+export { WaitingTab } from './WaitingTab';
