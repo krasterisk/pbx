@@ -31,6 +31,13 @@ export interface PermissionSet {
 }
 
 /**
+ * D-06/D-39: per-right lock flags keyed by UserLevel, mirroring the existing
+ * `ui_visibility_locks`/`notification_locks` shape on `CcSettings` — a locked right
+ * cannot be self-overridden by the operator; the role default always wins.
+ */
+export type PermissionLocks = Partial<Record<keyof PermissionSet, boolean>>;
+
+/**
  * D-05: tab/panel visibility map. Keys are UI-SPEC surface ids
  * (e.g. `coworkers`, `queues`, `waiting`, `history`, `directory`); values are on/off.
  * `undefined`/missing key falls back to the role default.

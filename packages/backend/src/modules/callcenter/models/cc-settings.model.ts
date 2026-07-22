@@ -2,6 +2,7 @@ import { Column, DataType, Model, Table } from 'sequelize-typescript';
 import type {
   AutoPauseRule,
   NotificationMatrix,
+  PermissionLocks,
   PermissionSet,
   UiVisibility,
 } from './cc-permissions.types';
@@ -38,6 +39,14 @@ export class CcSettings extends Model {
    */
   @Column({ type: DataType.JSON, allowNull: true, defaultValue: null })
   declare role_permission_defaults: Partial<Record<UserLevel, Partial<PermissionSet>>> | null;
+
+  /**
+   * D-06/D-39: per-right lock flags keyed by UserLevel — a locked right cannot be
+   * self-overridden by the operator; `CallCenterPermissionsService.getEffective` always
+   * returns the role default for a locked right regardless of the operator's own column value.
+   */
+  @Column({ type: DataType.JSON, allowNull: true, defaultValue: null })
+  declare permission_locks: Partial<Record<UserLevel, PermissionLocks>> | null;
 
   /** D-05/D-06: role-default tab/panel visibility (per-operator override on CcOperatorSettings). */
   @Column({ type: DataType.JSON, allowNull: true, defaultValue: null })

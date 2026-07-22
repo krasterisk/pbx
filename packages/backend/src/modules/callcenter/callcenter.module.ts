@@ -8,9 +8,11 @@ import { AiPlatformModule } from '../ai-platform/ai-platform.module';
 import { AriModule } from '../ari/ari.module';
 import { VoiceRobotsModule } from '../voice-robots/voice-robots.module';
 import { CloudAdminModule } from '../cloud-admin/cloud-admin.module';
+import { LoggerModule } from '../logger/logger.module';
 import { CallCenterStateService } from './callcenter-state.service';
 import { CallCenterAmiService } from './callcenter-ami.service';
 import { CallCenterService } from './callcenter.service';
+import { CallCenterPermissionsService } from './callcenter-permissions.service';
 import { CallCenterAiAdapter } from './callcenter-ai.adapter';
 import { CallCenterMediaBridgeService } from './callcenter-media-bridge.service';
 import { CallCenterHistoryWriterService } from './callcenter-history-writer.service';
@@ -98,6 +100,7 @@ import { queueLogReaderProvider } from './queuelog/queue-log-reader.factory';
     VoiceRobotsModule,
     CloudAdminModule,
     ConfigModule,
+    LoggerModule,
   ],
   providers: [
     CallCenterStateService,
@@ -120,6 +123,7 @@ import { queueLogReaderProvider } from './queuelog/queue-log-reader.factory';
       useExisting: CallCenterAmiService,
     },
     CallCenterService,
+    CallCenterPermissionsService,
     CallCenterAiAdapter,
     CallCenterMediaBridgeService,
     CallCenterSettingsService,
@@ -151,6 +155,7 @@ import { queueLogReaderProvider } from './queuelog/queue-log-reader.factory';
     CallCenterQueueLogReconcilerService,
     CallCenterAmiService, // exported so AmiService can resolve it via ModuleRef
     CallCenterService,
+    CallCenterPermissionsService,
     CallCenterSettingsService,
     CallCenterReportsService,
     CallCenterMediaBridgeService,
