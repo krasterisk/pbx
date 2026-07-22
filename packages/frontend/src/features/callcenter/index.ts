@@ -11,3 +11,10 @@ export type {
 } from './ui/IncomingCallToast';
 export { CallControlBar } from './ui/CallControlBar';
 export type { CallControlBarProps, CallControlBarVariant } from './ui/CallControlBar';
+export { AgentStatusBar } from './ui/AgentStatusBar';
+export type {
+  AgentStatusBarProps,
+  AgentStatusBarActiveCall,
+  AgentStatusBarCallControls,
+  ActiveCallDirection,
+} from './ui/AgentStatusBar';

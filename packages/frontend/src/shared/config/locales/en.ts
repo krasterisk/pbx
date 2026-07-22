@@ -1905,6 +1905,31 @@ export const en = {
       consult: 'Consulting',
       acw: 'After-call work',
     },
+    // ─── Status bar KPI group (D-11/D-12) — shift · day counters ──
+    kpi: {
+      answered: 'Answered',
+      made: 'Made',
+      missed: 'Missed',
+    },
+    // ─── Status bar active-call indicator (D-14) ──
+    statusBar: {
+      personal: 'Personal',
+      outbound: 'Outbound',
+    },
+    // ─── CallControlBar inline actions (D-03) ──
+    controlBar: {
+      title: 'Call controls',
+      mute: 'Mute',
+      unmute: 'Unmute',
+      hold: 'Hold',
+      unhold: 'Unhold',
+      transfer: 'Transfer',
+      hangup: 'Hang up',
+      park: 'Park',
+      conference: 'Add to conference',
+      warmTransfer: 'Transfer to queue',
+      zombieReset: 'Reset call',
+    },
     // ─── Phone tabs (D-04/D-13, shared/ui/Tabs, consumed by 09-08) ──
     tabs: {
       coworkers: 'Coworkers',

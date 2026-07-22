@@ -1943,6 +1943,31 @@ export const ru = {
       consult: 'Консультация',
       acw: 'Постобработка',
     },
+    // ─── KPI-группа в статус-баре (D-11/D-12) — счётчики смена · день ──
+    kpi: {
+      answered: 'Принял',
+      made: 'Совершил',
+      missed: 'Пропустил',
+    },
+    // ─── Индикатор активного звонка в статус-баре (D-14) ──
+    statusBar: {
+      personal: 'Личный',
+      outbound: 'Исходящий',
+    },
+    // ─── Инлайн-действия CallControlBar (D-03) ──
+    controlBar: {
+      title: 'Управление звонком',
+      mute: 'Выключить микрофон',
+      unmute: 'Включить микрофон',
+      hold: 'Удержание',
+      unhold: 'Снять удержание',
+      transfer: 'Перевести',
+      hangup: 'Завершить',
+      park: 'Парковка',
+      conference: 'Добавить в конференцию',
+      warmTransfer: 'Перевести в очередь',
+      zombieReset: 'Сбросить звонок',
+    },
     // ─── Phone tabs (D-04/D-13, shared/ui/Tabs, consumed by 09-08) ──
     tabs: {
       coworkers: 'Коллеги',
