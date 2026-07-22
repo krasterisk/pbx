@@ -16,6 +16,7 @@ import { CallCenterPermissionsService } from './callcenter-permissions.service';
 import { CallCenterAiAdapter } from './callcenter-ai.adapter';
 import { CallCenterMediaBridgeService } from './callcenter-media-bridge.service';
 import { CallCenterHistoryWriterService } from './callcenter-history-writer.service';
+import { CallCenterPresenceService } from './callcenter-presence.service';
 import { CallCenterMetricsService } from './callcenter-metrics.service';
 import { CallCenterRollupService } from './callcenter-rollup.service';
 import { CallCenterQueueLogReconcilerService } from './callcenter-queuelog-reconciler.service';
@@ -107,6 +108,12 @@ import { queueLogReaderProvider } from './queuelog/queue-log-reader.factory';
   providers: [
     CallCenterStateService,
     CallCenterHistoryWriterService,
+    CallCenterPresenceService,
+    // String alias for AmiService ModuleRef.get('CallCenterPresenceService')
+    {
+      provide: 'CallCenterPresenceService',
+      useExisting: CallCenterPresenceService,
+    },
     CallCenterMetricsService,
     CallCenterRollupService,
     CallCenterAutoPauseService,

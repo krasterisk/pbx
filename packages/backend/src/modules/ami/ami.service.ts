@@ -29,6 +29,7 @@ export class AmiService implements OnModuleInit, OnModuleDestroy {
   private warnedMissingWebhooks = false;
   private warnedMissingCcAmi = false;
   private warnedMissingCcReconciler = false;
+  private warnedMissingCcPresence = false;
 
   /** Lazily resolve DialplanWebhooksService to avoid circular module dependency. */
   private getWebhooksService() {
@@ -55,6 +56,21 @@ export class AmiService implements OnModuleInit, OnModuleDestroy {
         this.warnedMissingCcAmi = true;
         this.logger.warn(
           'CallCenterAmiService not resolvable via ModuleRef — queue SSE state disabled',
+        );
+      }
+      return null;
+    }
+  }
+
+  /** Lazily resolve CallCenterPresenceService to avoid circular module dependency. */
+  private getCcPresenceService() {
+    try {
+      return this.moduleRef.get('CallCenterPresenceService', { strict: false });
+    } catch {
+      if (!this.warnedMissingCcPresence) {
+        this.warnedMissingCcPresence = true;
+        this.logger.warn(
+          'CallCenterPresenceService not resolvable via ModuleRef — BLF presence disabled',
         );
       }
       return null;
@@ -370,6 +386,18 @@ export class AmiService implements OnModuleInit, OnModuleDestroy {
       // AgentComplete never sees because it isn't queue-driven.
       this.ami.on('hangup', (evt: any) => {
         this.getCcAmiService()?.handleAgentHangup(evt);
+      });
+
+      // ─── BLF presence (D-36/D-37) ────────────────────────
+      // DeviceState/ExtensionState are independent of the queue/agent-channel
+      // events above; CallCenterPresenceService debounces and re-emits them
+      // as presenceUpdate SSE deltas (D-45).
+      this.ami.on('devicestatechange', (evt: any) => {
+        this.getCcPresenceService()?.handleDeviceStateChange(evt);
+      });
+
+      this.ami.on('extensionstatus', (evt: any) => {
+        this.getCcPresenceService()?.handleExtensionStatus(evt);
       });
 
       // Reconnection is now managed manually via scheduleReconnect() with exponential backoff.
