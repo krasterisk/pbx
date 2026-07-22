@@ -620,6 +620,7 @@ describe('CallCenterAmiService', () => {
     });
 
     it('does not persist a personal missed call when caller id is unknown (in-queue RNA never enters the tool, D-10/D-20)', async () => {
+      missedCallModel.findOrCreate.mockClear();
       state.setAgent(7, 'PJSIP/e101_42', { name: 'Alice', status: 'READY', userId: 42 });
 
       service.handleNewchannel({ channel: 'PJSIP/e101_42-00000006', channelstatedesc: 'Ring' });

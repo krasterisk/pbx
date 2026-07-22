@@ -1048,9 +1048,17 @@ describe('CallCenterService', () => {
 
   describe('callbackMissedCall', () => {
     beforeEach(() => {
+      // Fake timers so trackCallbackOutcome's 120s give-up setTimeout never
+      // holds a real handle open after the test ends (discarded cleanly by
+      // useRealTimers below); Date.now() advances with jest.advanceTimersByTime.
+      jest.useFakeTimers();
       permissionsService.getEffective.mockResolvedValue({
         can_spy: false, spyable: true, spy_modes: [], click_to_call: true, customize_ui: false,
       });
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
     });
 
     it('rejects when agent is not logged in', async () => {
@@ -1087,12 +1095,9 @@ describe('CallCenterService', () => {
       await service.agentLogin('PJSIP/101', ['sales'], 7, 42);
       await service.callbackMissedCall(7, 42, '79990001122');
 
-      const nowSpy = jest.spyOn(Date, 'now');
-      nowSpy.mockReturnValueOnce(1_000_000);
       state.setAgent(7, 'PJSIP/101', { status: 'IN_CALL' });
-      nowSpy.mockReturnValueOnce(1_007_000);
+      jest.advanceTimersByTime(7_000);
       state.setAgent(7, 'PJSIP/101', { status: 'READY' });
-      nowSpy.mockRestore();
       await Promise.resolve();
       await Promise.resolve();
 
@@ -1108,12 +1113,9 @@ describe('CallCenterService', () => {
       await service.agentLogin('PJSIP/101', ['sales'], 7, 42);
       await service.callbackMissedCall(7, 42, '79990001122');
 
-      const nowSpy = jest.spyOn(Date, 'now');
-      nowSpy.mockReturnValueOnce(2_000_000);
       state.setAgent(7, 'PJSIP/101', { status: 'IN_CALL' });
-      nowSpy.mockReturnValueOnce(2_002_000);
+      jest.advanceTimersByTime(2_000);
       state.setAgent(7, 'PJSIP/101', { status: 'READY' });
-      nowSpy.mockRestore();
       await Promise.resolve();
       await Promise.resolve();
 

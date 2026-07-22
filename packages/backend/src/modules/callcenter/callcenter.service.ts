@@ -1149,6 +1149,18 @@ export class CallCenterService {
 
     await this.permissionsService.assert(userUid, userId, 'click_to_call');
 
+    return this.originateDial(agentInterface, target);
+  }
+
+  /**
+   * Shared WebRTC-direct / PJSIP-originate-with-auto-answer dial, used by
+   * both clickToCall (D-29) and callbackMissedCall (D-18) — same scheme,
+   * never duplicated (09-09 Task 2).
+   */
+  private async originateDial(
+    agentInterface: string,
+    target: string,
+  ): Promise<{ success: true; mode: 'webrtc' | 'pjsip'; target: string }> {
     const dialTarget = (target || '').replace(/[^\d+*#]/g, '');
     if (!dialTarget) {
       throw new BadRequestException('Target is required');
@@ -1179,6 +1191,110 @@ export class CallCenterService {
 
     this.logger.log(`Click-to-call (pjsip) ${agentInterface} -> ${dialTarget}`);
     return { success: true, mode: 'pjsip' as const, target: dialTarget };
+  }
+
+  /**
+   * D-18/D-29: operator-initiated callback for a missed-call number, reusing
+   * clickToCall's WebRTC-direct/PJSIP-originate branching verbatim. The
+   * resulting call's duration is correlated asynchronously (agentUpdate SSE
+   * transitions on the operator's own AgentState — no queue/CallState
+   * tracking exists for personal outbound dials) and the >5s success rule
+   * is applied once the call ends: success sets called_back on every open
+   * row for the number; failure/<=5s leaves the group active and adds a
+   * fresh attempt row so attemptCount grows naturally in the grouped view.
+   */
+  async callbackMissedCall(userUid: number, operatorUserId: number, callerIdNum: string) {
+    userUid = this.resolveTenant(userUid, operatorUserId);
+    const agentInterface = await this.resolveAgentInterface(userUid, operatorUserId);
+    if (!agentInterface) throw new NotFoundException('Agent not logged in');
+    if (!callerIdNum) throw new BadRequestException('callerIdNum is required');
+
+    await this.permissionsService.assert(userUid, operatorUserId, 'click_to_call');
+
+    const result = await this.originateDial(agentInterface, callerIdNum);
+    this.trackCallbackOutcome(userUid, agentInterface, callerIdNum, operatorUserId);
+    return result;
+  }
+
+  /**
+   * Watches the operator's AgentState for the IN_CALL -> not-IN_CALL
+   * transition following a callback dial and measures its duration
+   * (D-18's >5s rule). Fire-and-forget — never blocks the REST response.
+   * Gives up after 2 minutes if the call never appears to connect/end.
+   */
+  private trackCallbackOutcome(
+    userUid: number,
+    agentInterface: string,
+    callerIdNum: string,
+    operatorUserId: number,
+  ): void {
+    let answeredAt: number | undefined;
+    let settled = false;
+
+    const finish = (connected: boolean): void => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      sub.unsubscribe();
+      const durationSec = answeredAt !== undefined ? (Date.now() - answeredAt) / 1000 : 0;
+      void this.resolveCallbackOutcome(userUid, operatorUserId, callerIdNum, connected && durationSec > 5);
+    };
+
+    const timer = setTimeout(() => finish(false), 120_000);
+    const sub = this.stateService.getEventStream(userUid).subscribe((evt) => {
+      if (evt.type !== 'agentUpdate' || evt.data?.interface !== agentInterface) return;
+      if (evt.data.status === 'IN_CALL' && answeredAt === undefined) {
+        answeredAt = Date.now();
+        return;
+      }
+      if (answeredAt !== undefined && evt.data.status !== 'IN_CALL') {
+        finish(true);
+      }
+    });
+  }
+
+  private async resolveCallbackOutcome(
+    userUid: number,
+    operatorUserId: number,
+    callerIdNum: string,
+    success: boolean,
+  ): Promise<void> {
+    try {
+      if (success) {
+        await this.missedCallModel.update(
+          { called_back: true, called_back_by: operatorUserId, called_back_at: new Date() },
+          {
+            where: {
+              user_uid: userUid,
+              caller_id_num: callerIdNum,
+              called_back: false,
+              client_called_back: false,
+            },
+          },
+        );
+        this.stateService.emitEvent('missedCallUpdate', userUid, {
+          callerIdNum,
+          called_back: true,
+          called_back_by: operatorUserId,
+        });
+      } else {
+        await this.missedCallModel.create({
+          call_uniqueid: `callback-${userUid}-${callerIdNum}-${Date.now()}`,
+          queue_name: 'callback-attempt',
+          caller_id_num: callerIdNum,
+          caller_id_name: '',
+          hold_time: 0,
+          position: 0,
+          called_back: false,
+          client_called_back: false,
+          personal: false,
+          user_uid: userUid,
+        });
+        this.stateService.emitEvent('missedCallUpdate', userUid, { callerIdNum, attempt: true });
+      }
+    } catch (err: any) {
+      this.logger.warn(`Failed to resolve callback outcome: ${err.message}`);
+    }
   }
 
   /**

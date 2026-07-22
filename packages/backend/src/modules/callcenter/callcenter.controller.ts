@@ -32,6 +32,7 @@ import {
   ParkCallDto, RetrieveParkedCallDto, ConferenceAddDto,
   ZombieResetDto, WarmTransferQueueDto, ClickToCallDto,
 } from './dto/callcenter-callcontrol.dto';
+import { MissedCallActionDto } from './dto/callcenter-missed.dto';
 
 // ─── Helpers ──────────────────────────────────────────────
 
@@ -211,6 +212,24 @@ export class CallCenterController {
     @Req() req: Request & { user: any },
   ) {
     return this.ccService.markMissedCalled(id, dto.note, req.user.vpbx_user_uid, req.user.sub);
+  }
+
+  /** Number-grouped worklist: personal-vs-queue-missed, attemptCount/lastAttemptAt (D-16/D-19). */
+  @Get('agent/missed/grouped')
+  getMissedCallsGrouped(@Req() req: Request & { user: any }) {
+    return this.ccService.getMissedCallsGrouped(req.user.vpbx_user_uid);
+  }
+
+  /** Claims a queue-missed (shared-pool) number group for the operator (D-19). */
+  @Post('agent/missed/claim')
+  claimMissedCall(@Body() dto: MissedCallActionDto, @Req() req: Request & { user: any }) {
+    return this.ccService.claimMissedCall(req.user.vpbx_user_uid, req.user.sub, dto.callerIdNum);
+  }
+
+  /** Operator callback with the >5s success rule (D-18) — ids come from the JWT only. */
+  @Post('agent/missed/callback')
+  callbackMissedCall(@Body() dto: MissedCallActionDto, @Req() req: Request & { user: any }) {
+    return this.ccService.callbackMissedCall(req.user.vpbx_user_uid, req.user.sub, dto.callerIdNum);
   }
 
   // ─── Client Card (sidebar lookup) ─────────────────────
