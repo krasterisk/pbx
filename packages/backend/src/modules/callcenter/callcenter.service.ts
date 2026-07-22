@@ -9,6 +9,7 @@ import { InjectModel } from '@nestjs/sequelize';
 import { AmiService } from '../ami/ami.service';
 import { CallCenterStateService } from './callcenter-state.service';
 import { CallCenterAmiService } from './callcenter-ami.service';
+import { CallCenterMetricsService } from './callcenter-metrics.service';
 import { CcPauseReason } from './models/pause-reason.model';
 import { CcAgentSession } from './models/agent-session.model';
 import { CcAgentEvent } from './models/agent-event.model';
@@ -34,6 +35,7 @@ export class CallCenterService {
     private readonly amiService: AmiService,
     private readonly stateService: CallCenterStateService,
     private readonly ccAmiService: CallCenterAmiService,
+    private readonly metricsService: CallCenterMetricsService,
     @InjectModel(CcPauseReason) private readonly pauseReasonModel: typeof CcPauseReason,
     @InjectModel(CcAgentSession) private readonly sessionModel: typeof CcAgentSession,
     @InjectModel(CcAgentEvent) private readonly agentEventModel: typeof CcAgentEvent,
@@ -141,6 +143,9 @@ export class CallCenterService {
       user_uid: stateUid,
     });
     this.activeSessions.set(this.sessionKey(stateUid, userId), session.uid);
+
+    // Fresh shift — sinceLogin KPI counters start at 0 (sinceMidnight is untouched, D-11).
+    this.metricsService.resetKpiSinceLogin(stateUid, agentInterface);
 
     // Get user display name
     let displayName = agentInterface;

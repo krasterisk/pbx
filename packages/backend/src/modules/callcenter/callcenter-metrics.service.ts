@@ -30,6 +30,20 @@ export interface AgentAccumulator {
   idleSeconds: number;
 }
 
+/** Dual shift/day answered·made·missed counters (D-11/D-12/D-31/D-32). */
+export interface KpiCounters {
+  answered: number;
+  made: number;
+  missed: number;
+}
+
+export interface KpiAccumulator {
+  /** Reset on agentLogin — current-shift counters. */
+  sinceLogin: KpiCounters;
+  /** Restored from cc_queue_calls on startup — calendar-day counters. */
+  sinceMidnight: KpiCounters;
+}
+
 export interface QueueMetrics {
   sla: number;
   asr: number;
@@ -58,6 +72,13 @@ export class CallCenterMetricsService implements OnModuleInit {
   private readonly agentAccumulators = new Map<string, AgentAccumulator>();
   private readonly slaThresholdCache = new Map<string, number>();
   private readonly agentStatusTracks = new Map<string, AgentStatusTrack>();
+
+  /**
+   * Dual shift/day answered·made·missed counters (D-11/D-12/D-31/D-32).
+   * Key = `${userUid}:${agentInterface}` (agent-level) OR
+   *       `${userUid}:${agentInterface}:${queueName}` (per-queue personal stats).
+   */
+  private readonly kpiAccumulators = new Map<string, KpiAccumulator>();
 
   constructor(
     @InjectModel(CcQueueCall) private readonly queueCallModel: typeof CcQueueCall,
@@ -142,6 +163,18 @@ export class CallCenterMetricsService implements OnModuleInit {
     return this.computeOccupancy(acc);
   }
 
+  /** Dual shift/day answered·made·missed for an agent, across all queues (D-11/D-12). */
+  getAgentKpi(userUid: number, agentInterface: string): KpiAccumulator {
+    const acc = this.kpiAccumulators.get(this.agentKey(userUid, agentInterface));
+    return acc ? this.cloneKpiAcc(acc) : this.emptyKpiAcc();
+  }
+
+  /** Dual shift/day answered·made·missed for an agent within one queue (D-31/D-32). */
+  getAgentQueueKpi(userUid: number, agentInterface: string, queueName: string): KpiAccumulator {
+    const acc = this.kpiAccumulators.get(this.agentQueueKey(userUid, agentInterface, queueName));
+    return acc ? this.cloneKpiAcc(acc) : this.emptyKpiAcc();
+  }
+
   getTenantQueueMetrics(userUid: number): TenantQueueMetrics[] {
     const prefix = `${userUid}:`;
     const result: TenantQueueMetrics[] = [];
@@ -173,6 +206,7 @@ export class CallCenterMetricsService implements OnModuleInit {
       const agentAcc = this.getOrCreateAgentAcc(userUid, agentInterface);
       agentAcc.talkSeconds += talkSec;
       agentAcc.wrapupSeconds += wrapupSec;
+      this.bumpKpi(userUid, agentInterface, 'answered', queueName);
     }
 
     void this.ensureSlaThreshold(userUid, queueName);
@@ -180,6 +214,31 @@ export class CallCenterMetricsService implements OnModuleInit {
 
   recordAbandoned(userUid: number, queueName: string): void {
     this.accumulateQueueRow(userUid, queueName, 'abandoned', 0, 0, 0, 0);
+  }
+
+  /** Outbound/personal dial answered (D-08/D-11) — never a queue metric (Pitfall 1). */
+  recordMade(userUid: number, agentInterface: string, queueName?: string): void {
+    this.bumpKpi(userUid, agentInterface, 'made', queueName);
+  }
+
+  /**
+   * Personal/direct missed call — outbound dial that didn't answer, or a
+   * direct inbound ring the agent never picked up (D-08/D-12). In-queue
+   * Ring-No-Answer must never flow through here (D-10/D-20) — callers use
+   * recordAbandoned for that.
+   */
+  recordMissed(userUid: number, agentInterface: string, queueName?: string): void {
+    this.bumpKpi(userUid, agentInterface, 'missed', queueName);
+  }
+
+  /** Reset the current-shift KPI counters on agentLogin; sinceMidnight is untouched (D-11). */
+  resetKpiSinceLogin(userUid: number, agentInterface: string): void {
+    const prefix = this.agentKey(userUid, agentInterface);
+    for (const [key, acc] of this.kpiAccumulators) {
+      if (key === prefix || key.startsWith(`${prefix}:`)) {
+        acc.sinceLogin = this.emptyKpiCounters();
+      }
+    }
   }
 
   /**
@@ -226,6 +285,7 @@ export class CallCenterMetricsService implements OnModuleInit {
       this.queueAccumulators.clear();
       this.agentAccumulators.clear();
       this.agentStatusTracks.clear();
+      this.kpiAccumulators.clear();
 
       const thresholdPromises = new Map<string, Promise<number>>();
 
@@ -249,10 +309,25 @@ export class CallCenterMetricsService implements OnModuleInit {
           threshold,
         );
 
-        if (row.agent_interface && this.isAnsweredDisposition(row.disposition)) {
-          const agentAcc = this.getOrCreateAgentAcc(userUid, row.agent_interface);
-          agentAcc.talkSeconds += row.talk_time;
-          agentAcc.wrapupSeconds += row.wrapup_time;
+        if (row.agent_interface) {
+          // D-34/D-35: rows may now carry non-queue direction (outbound/personal/internal).
+          // Missing direction defaults to 'inbound' — matches the column's DB default and
+          // keeps pre-existing rows/tests (which never set it) behaving exactly as before.
+          const direction = row.direction || 'inbound';
+          if (this.isAnsweredDisposition(row.disposition)) {
+            const agentAcc = this.getOrCreateAgentAcc(userUid, row.agent_interface);
+            agentAcc.talkSeconds += row.talk_time;
+            agentAcc.wrapupSeconds += row.wrapup_time;
+            if (direction === 'outbound') {
+              this.restoreKpi(userUid, row.agent_interface, 'made');
+            } else {
+              this.restoreKpi(userUid, row.agent_interface, 'answered', queueName);
+            }
+          } else if (row.disposition === 'abandoned' && direction !== 'inbound') {
+            // Personal/outbound miss only — in-queue Ring-No-Answer (direction 'inbound')
+            // must never be restored as a personal missed call (D-10/D-20).
+            this.restoreKpi(userUid, row.agent_interface, 'missed');
+          }
         }
         // idleSeconds NOT restored — accumulates from module start only (Occupancy partial after restart).
       }
@@ -271,6 +346,59 @@ export class CallCenterMetricsService implements OnModuleInit {
 
   private agentKey(userUid: number, agentInterface: string): string {
     return `${userUid}:${agentInterface}`;
+  }
+
+  private agentQueueKey(userUid: number, agentInterface: string, queueName: string): string {
+    return `${this.agentKey(userUid, agentInterface)}:${queueName}`;
+  }
+
+  private emptyKpiCounters(): KpiCounters {
+    return { answered: 0, made: 0, missed: 0 };
+  }
+
+  private emptyKpiAcc(): KpiAccumulator {
+    return { sinceLogin: this.emptyKpiCounters(), sinceMidnight: this.emptyKpiCounters() };
+  }
+
+  private cloneKpiAcc(acc: KpiAccumulator): KpiAccumulator {
+    return { sinceLogin: { ...acc.sinceLogin }, sinceMidnight: { ...acc.sinceMidnight } };
+  }
+
+  private getOrCreateKpiAcc(key: string): KpiAccumulator {
+    let acc = this.kpiAccumulators.get(key);
+    if (!acc) {
+      acc = this.emptyKpiAcc();
+      this.kpiAccumulators.set(key, acc);
+    }
+    return acc;
+  }
+
+  /** Apply a delta to one KPI counter. `dayOnly` is used by restoreToday (sinceLogin resets per-session only). */
+  private applyKpiDelta(
+    userUid: number,
+    agentInterface: string,
+    kind: keyof KpiCounters,
+    scope: 'both' | 'dayOnly',
+    queueName?: string,
+  ): void {
+    if (!agentInterface) return;
+    const acc = this.getOrCreateKpiAcc(this.agentKey(userUid, agentInterface));
+    if (scope === 'both') acc.sinceLogin[kind]++;
+    acc.sinceMidnight[kind]++;
+    if (queueName) {
+      const qAcc = this.getOrCreateKpiAcc(this.agentQueueKey(userUid, agentInterface, queueName));
+      if (scope === 'both') qAcc.sinceLogin[kind]++;
+      qAcc.sinceMidnight[kind]++;
+    }
+  }
+
+  private bumpKpi(userUid: number, agentInterface: string, kind: keyof KpiCounters, queueName?: string): void {
+    this.applyKpiDelta(userUid, agentInterface, kind, 'both', queueName);
+  }
+
+  /** Rebuild-from-history variant (restoreToday) — only affects sinceMidnight. */
+  private restoreKpi(userUid: number, agentInterface: string, kind: keyof KpiCounters, queueName?: string): void {
+    this.applyKpiDelta(userUid, agentInterface, kind, 'dayOnly', queueName);
   }
 
   private emptyQueueAcc(): QueueAccumulator {

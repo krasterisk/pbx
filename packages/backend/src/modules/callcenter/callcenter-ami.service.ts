@@ -3,7 +3,7 @@
  *
  * Subscribes to relevant AMI events from the existing AmiService
  * and updates the in-memory CallCenterStateService.
- * Maps raw Asterisk AMI events → structured CC state changes.
+ * Maps raw Asterisk AMI events ? structured CC state changes.
  */
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
@@ -63,7 +63,7 @@ export class CallCenterAmiService implements OnModuleInit {
     try {
       // Load initial queue states via QueueStatus AMI action
       await this.loadInitialState();
-      this.logger.log('✅ CallCenter AMI listener initialized');
+      this.logger.log('? CallCenter AMI listener initialized');
     } catch (err: any) {
       this.logger.warn(`CallCenter AMI init deferred: ${err.message}`);
     }
@@ -72,10 +72,10 @@ export class CallCenterAmiService implements OnModuleInit {
   /**
    * Load current queue/agent state from Asterisk via QueueStatus AMI command.
    * QueueStatus triggers multiple response events:
-   *  - QueueParams  — one per queue (strategy, weight, calls, etc.)
-   *  - QueueMember  — one per member in each queue (interface, status, paused)
-   *  - QueueEntry   — one per waiting caller in each queue
-   *  - QueueStatusComplete — final "done" event
+   *  - QueueParams  ? one per queue (strategy, weight, calls, etc.)
+   *  - QueueMember  ? one per member in each queue (interface, status, paused)
+   *  - QueueEntry   ? one per waiting caller in each queue
+   *  - QueueStatusComplete ? final "done" event
    *
    * We collect them all and populate the in-memory state store.
    */
@@ -85,7 +85,7 @@ export class CallCenterAmiService implements OnModuleInit {
       return;
     }
 
-    // Build DB queue→tenant map
+    // Build DB queue?tenant map
     const dbQueues = await this.queueModel.findAll({ attributes: ['name', 'user_uid', 'display_name'] });
     const queueTenantMap = new Map<string, { userUid: number; displayName: string }>();
     for (const q of dbQueues) {
@@ -121,7 +121,7 @@ export class CallCenterAmiService implements OnModuleInit {
     ami.on('queueentry', onQueueEntry);
 
     try {
-      // Fire QueueStatus AMI action — triggers the events above
+      // Fire QueueStatus AMI action ? triggers the events above
       await this.amiService.queueStatus();
 
       // Wait briefly for async events to arrive
@@ -135,7 +135,7 @@ export class CallCenterAmiService implements OnModuleInit {
       ami.removeListener('queueentry', onQueueEntry);
     }
 
-    // Process collected QueueParams → initialize queue stats
+    // Process collected QueueParams ? initialize queue stats
     for (const qp of queueParams) {
       const qName = qp.queue;
       if (!qName) continue;
@@ -159,7 +159,7 @@ export class CallCenterAmiService implements OnModuleInit {
       });
     }
 
-    // Process collected QueueMembers → initialize agent states
+    // Process collected QueueMembers ? initialize agent states
     for (const m of members) {
       const qName = m.queue;
       const iface = m.interface || m.name;
@@ -177,7 +177,7 @@ export class CallCenterAmiService implements OnModuleInit {
         name: this.pickAgentDisplayName(iface, m.name || m.membername, existingAgent?.name),
         status: this.mapAsteriskStatus(m.status, m.paused),
         pauseReason: m.paused === '1' ? (m.pausedreason || '') : undefined,
-        // Asterisk CallsTaken is cumulative � keep session counter once operator is logged in
+        // Asterisk CallsTaken is cumulative ? keep session counter once operator is logged in
         callsTaken:
           existingAgent?.userId
             ? (existingAgent.callsTaken ?? 0)
@@ -186,7 +186,7 @@ export class CallCenterAmiService implements OnModuleInit {
       });
     }
 
-    // Process collected QueueEntries → initialize waiting calls
+    // Process collected QueueEntries ? initialize waiting calls
     for (const e of entries) {
       const qName = e.queue;
       const uniqueid = e.uniqueid;
@@ -212,11 +212,11 @@ export class CallCenterAmiService implements OnModuleInit {
     }
 
     this.logger.log(
-      `✅ Initial state loaded: ${queueParams.length} queues, ${members.length} members, ${entries.length} waiting calls`,
+      `? Initial state loaded: ${queueParams.length} queues, ${members.length} members, ${entries.length} waiting calls`,
     );
   }
 
-  // ─── AMI Event Handlers ──────────────────────────────────
+  // ??? AMI Event Handlers ??????????????????????????????????
   // These are called from AmiService event listeners.
   // We'll register them when we extend ami.service.ts to forward CC events.
 
@@ -274,7 +274,7 @@ export class CallCenterAmiService implements OnModuleInit {
   }
 
   /**
-   * Handle QueueCallerJoin � a caller entered a queue.
+   * Handle QueueCallerJoin ? a caller entered a queue.
    */
   handleCallerJoin(evt: any): void {
     const queueName = evt.queue;
@@ -300,7 +300,7 @@ export class CallCenterAmiService implements OnModuleInit {
   }
 
   /**
-   * Handle QueueCallerLeave � caller left the queue without AgentComplete
+   * Handle QueueCallerLeave ? caller left the queue without AgentComplete
    * (timeout, redirect, abandon race). Clears orphan WAITING rows.
    */
   handleCallerLeave(evt: any): void {
@@ -322,7 +322,7 @@ export class CallCenterAmiService implements OnModuleInit {
   }
 
   /**
-   * Handle AgentConnect � an agent answered a queued call.
+   * Handle AgentConnect ? an agent answered a queued call.
    */
   handleAgentConnect(evt: any): void {
     const queueName = evt.queue;
@@ -379,7 +379,7 @@ export class CallCenterAmiService implements OnModuleInit {
   }
 
   /**
-   * Handle AgentComplete � call finished (agent or caller hung up).
+   * Handle AgentComplete ? call finished (agent or caller hung up).
    */
   handleAgentComplete(evt: any): void {
     const queueName = evt.queue;
@@ -399,7 +399,7 @@ export class CallCenterAmiService implements OnModuleInit {
       || evt.uniqueid
       || undefined;
 
-    // Snapshot call before remove � needed for history row (batched writer, D-09)
+    // Snapshot call before remove ? needed for history row (batched writer, D-09)
     const call = uniqueid ? this.stateService.getCall(uniqueid) : undefined;
 
     if (uniqueid) {
@@ -424,6 +424,7 @@ export class CallCenterAmiService implements OnModuleInit {
         talkSec,
         wrapupSec,
       );
+      this.emitKpiUpdate(userUid, agentInterface || call?.agent || '', queueName);
       this.publishQueueMetrics(userUid, queueName);
 
       this.historyWriter.enqueue({
@@ -578,7 +579,7 @@ export class CallCenterAmiService implements OnModuleInit {
   }
 
   /**
-   * Handle QueueCallerAbandon — caller gave up waiting.
+   * Handle QueueCallerAbandon ? caller gave up waiting.
    *
    * Persists a `cc_missed_calls` record so operators can call back later.
    * Multi-tenant: only logged when the queue resolves to a known tenant.
@@ -678,7 +679,7 @@ export class CallCenterAmiService implements OnModuleInit {
         },
       });
       if (!created) {
-        this.logger.debug(`Missed call ${uniqueid} already logged � skip duplicate`);
+        this.logger.debug(`Missed call ${uniqueid} already logged ? skip duplicate`);
         return;
       }
       this.stateService.emitEvent('missedCallNew', userUid, {
@@ -690,7 +691,7 @@ export class CallCenterAmiService implements OnModuleInit {
     } catch (err: any) {
       // Unique-index race from another process
       if (err?.name === 'SequelizeUniqueConstraintError') {
-        this.logger.debug(`Missed call ${uniqueid} race � already inserted`);
+        this.logger.debug(`Missed call ${uniqueid} race ? already inserted`);
         return;
       }
       this.logger.warn(`Persist missed call failed: ${err.message}`);
@@ -698,7 +699,7 @@ export class CallCenterAmiService implements OnModuleInit {
   }
 
   /**
-   * Handle QueueMemberAdded � agent added to queue dynamically.
+   * Handle QueueMemberAdded ? agent added to queue dynamically.
    */
   handleMemberAdded(evt: any): void {
     const queueName = evt.queue;
@@ -722,7 +723,7 @@ export class CallCenterAmiService implements OnModuleInit {
   }
 
   /**
-   * Handle QueueMemberRemoved � agent removed from queue.
+   * Handle QueueMemberRemoved ? agent removed from queue.
    */
   handleMemberRemoved(evt: any): void {
     const queueName = evt.queue;
@@ -746,7 +747,7 @@ export class CallCenterAmiService implements OnModuleInit {
   }
 
   /**
-   * Handle AMI Hold event — fired when a channel is placed on hold.
+   * Handle AMI Hold event ? fired when a channel is placed on hold.
    * This happens when:
    * 1. SIP phone presses Hold button (SIP re-INVITE sendonly)
    * 2. Web UI triggers hold via AMI Redirect to MusicOnHold
@@ -776,7 +777,7 @@ export class CallCenterAmiService implements OnModuleInit {
   }
 
   /**
-   * Handle AMI Unhold event — fired when a hold is released.
+   * Handle AMI Unhold event ? fired when a hold is released.
    */
   handleUnhold(evt: any): void {
     const channel = evt.channel || '';
@@ -805,14 +806,14 @@ export class CallCenterAmiService implements OnModuleInit {
 
   // --- All-channel agent AMI handlers (D-08) --------------
   // Unlike the queue-scoped handlers above, these resolve tenant/agent from
-  // the AMI channel name via stateService.findAgentByChannel � never from a
-  // queue suffix (RESEARCH Pattern 2, Pitfall 1) � so outbound/personal/
+  // the AMI channel name via stateService.findAgentByChannel ? never from a
+  // queue suffix (RESEARCH Pattern 2, Pitfall 1) ? so outbound/personal/
   // internal calls on an agent's own channel are tracked even outside a
   // queue context.
 
   /**
-   * Handle DialBegin � a dial leg started on an agent's own channel (D-08/D-13).
-   * Only sets DIALING when the agent is currently READY � this guards against
+   * Handle DialBegin ? a dial leg started on an agent's own channel (D-08/D-13).
+   * Only sets DIALING when the agent is currently READY ? this guards against
    * misinterpreting a consult/transfer leg dialed mid-call as a fresh
    * outbound attempt (RESEARCH Pitfall 1/6).
    */
@@ -830,7 +831,7 @@ export class CallCenterAmiService implements OnModuleInit {
   }
 
   /**
-   * Handle DialEnd � a dial leg on an agent's channel finished with a
+   * Handle DialEnd ? a dial leg on an agent's channel finished with a
    * DialStatus (D-08/D-11/D-12). ANSWER moves the agent to IN_CALL and
    * records a "made" call; anything else (BUSY/NOANSWER/CANCEL/
    * CONGESTION/CHANUNAVAIL) returns the agent to READY and records a
@@ -860,12 +861,12 @@ export class CallCenterAmiService implements OnModuleInit {
   }
 
   /**
-   * Handle Newchannel � used only to detect a personal/direct inbound ring
+   * Handle Newchannel ? used only to detect a personal/direct inbound ring
    * on an agent's own channel (D-08). Queue-driven ringing is already
    * reported via QueueMemberStatus (status code 6 > handleAgentStatusEvent)
    * so this must stay conservative to avoid double-counting: it only acts
    * when the agent is READY and AMI already reports a ringing channel state
-   * (field casing/values to be confirmed against a live Asterisk � see
+   * (field casing/values to be confirmed against a live Asterisk ? see
    * 09-RESEARCH "Manual-Only" verification note).
    */
   handleNewchannel(evt: any): void {
@@ -886,7 +887,7 @@ export class CallCenterAmiService implements OnModuleInit {
   }
 
   /**
-   * Handle Hangup on an agent's own channel � releases DIALING / a personal
+   * Handle Hangup on an agent's own channel ? releases DIALING / a personal
    * direct ring / a personal (non-queue) call that AgentComplete never sees
    * because it wasn't answered through a queue (D-08). Queue-driven hangups
    * continue to be resolved exclusively via AgentComplete; this only acts
@@ -921,7 +922,7 @@ export class CallCenterAmiService implements OnModuleInit {
 
     // Personal call ending outside a queue context: agent is IN_CALL but has
     // no queue-tracked currentCall (queue calls are released by AgentComplete,
-    // never by this handler � avoids double-processing the same hangup).
+    // never by this handler ? avoids double-processing the same hangup).
     if (agent.status === 'IN_CALL' && !agent.currentCall) {
       this.stateService.setAgent(agent.userUid, agent.interface, { status: 'READY' });
       this.metricsService.recordAgentStatus(agent.userUid, agent.interface, 'READY');
@@ -945,7 +946,7 @@ export class CallCenterAmiService implements OnModuleInit {
     this.stateService.emitEvent('agentKpiUpdate', userUid, payload);
   }
 
-  // ─── Helpers ─────────────────────────────────────────────
+  // ??? Helpers ?????????????????????????????????????????????
 
   /**
    * Map Asterisk device status code to our AgentStatus.
@@ -970,7 +971,7 @@ export class CallCenterAmiService implements OnModuleInit {
 
   /**
    * Tenant from queue name suffix (`q700_0` > 0, `sales_7` > 7).
-   * IMPORTANT: 0 is a valid tenant � never treat it as falsy.
+   * IMPORTANT: 0 is a valid tenant ? never treat it as falsy.
    */
   private resolveQueueTenant(queueName: string): number | null {
     return CallCenterAmiService.parseQueueTenant(queueName);
@@ -992,7 +993,7 @@ export class CallCenterAmiService implements OnModuleInit {
 
   /**
    * Keep a human display name from agentLogin; never let AMI overwrite it
-   * with PJSIP/� membername.
+   * with PJSIP/? membername.
    */
   private pickAgentDisplayName(
     iface: string,
@@ -1007,7 +1008,7 @@ export class CallCenterAmiService implements OnModuleInit {
   /**
    * Resolve the caller's uniqueid for AgentConnect / AgentComplete / Leave.
    * Prefer destuniqueid (caller). Never key state by the agent channel uniqueid
-   * alone � that orphans the QueueCallerJoin WAITING row.
+   * alone ? that orphans the QueueCallerJoin WAITING row.
    */
   private resolveCallerCallKey(evt: any, userUid: number): string | null {
     const destUid = evt.destuniqueid || '';
@@ -1104,7 +1105,7 @@ export class CallCenterAmiService implements OnModuleInit {
    * existing LOGIN/LOGOUT/PAUSE/etc. rows written from CallCenterService.
    * AMI handlers only have the in-memory AgentState, not CallCenterService's
    * activeSessions map, so this looks the session up by (user_id,
-   * agent_interface, logout_time IS NULL) � the same tuple agentLogin() uses
+   * agent_interface, logout_time IS NULL) ? the same tuple agentLogin() uses
    * to create it.
    */
   private async findActiveSessionId(userId: number, agentInterface: string): Promise<number | null> {
@@ -1128,7 +1129,7 @@ export class CallCenterAmiService implements OnModuleInit {
   /**
    * Write a DIALING/CONSULT/ACW journal row on entry (D-09/D-13); the row's
    * uid + entry time are kept in-memory so logStatusJournalExit can fill in
-   * duration once the state ends � mirrors the "duration filled on exit"
+   * duration once the state ends ? mirrors the "duration filled on exit"
    * shape of the cc_agent_events.duration column comment.
    */
   private async logStatusJournalEnter(agent: AgentState, eventType: 'DIALING' | 'CONSULT' | 'ACW'): Promise<void> {
