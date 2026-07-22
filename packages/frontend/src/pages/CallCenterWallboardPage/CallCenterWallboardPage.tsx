@@ -158,6 +158,9 @@ export function CallCenterWallboardPage() {
       PAUSED: 0,
       WRAPUP: 0,
       OFFLINE: 0,
+      DIALING: 0,
+      CONSULT: 0,
+      ACW: 0,
     };
     for (const a of agents) {
       counts[a.status] = (counts[a.status] ?? 0) + 1;
@@ -367,6 +370,9 @@ function statusKey(status: AgentStatus): string {
     case 'RINGING': return 'ringing';
     case 'PAUSED': return 'paused';
     case 'WRAPUP': return 'wrapup';
+    case 'DIALING': return 'dialing';
+    case 'CONSULT': return 'consult';
+    case 'ACW': return 'acw';
     case 'OFFLINE': return 'offline';
     default: return 'offline';
   }

@@ -127,4 +127,16 @@ describe('callCenterSelectors', () => {
     });
     expect(selectAvailableAgents(state)).toBe(2);
   });
+
+  it('selectAvailableAgents excludes the three new D-13 statuses (DIALING/CONSULT/ACW)', () => {
+    const state = baseState({
+      agents: [
+        { status: 'READY' },
+        { status: 'DIALING' },
+        { status: 'CONSULT' },
+        { status: 'ACW' },
+      ],
+    });
+    expect(selectAvailableAgents(state)).toBe(1);
+  });
 });

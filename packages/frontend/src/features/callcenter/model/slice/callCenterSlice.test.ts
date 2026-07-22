@@ -125,6 +125,19 @@ describe('callCenterSlice', () => {
       expect(s2.agents[0].status).toBe('READY');
       expect(s2.agents[0].pauseReason).toBeUndefined();
     });
+
+    it('flows the three new D-13 statuses (DIALING/CONSULT/ACW) through unchanged', () => {
+      const s1 = reducer(baseState(), updateAgent(agent({ status: 'DIALING' })));
+      expect(s1.agents[0].status).toBe('DIALING');
+
+      const s2 = reducer(s1, updateAgent({ interface: 'PJSIP/101', status: 'CONSULT' }));
+      expect(s2.agents[0].status).toBe('CONSULT');
+
+      const s3 = reducer(s2, updateAgent({ interface: 'PJSIP/101', status: 'ACW' }));
+      expect(s3.agents[0].status).toBe('ACW');
+      // Non-PAUSED statuses must never carry a stale pauseReason forward
+      expect(s3.agents[0].pauseReason).toBeUndefined();
+    });
   });
 
   describe('updateQueue', () => {

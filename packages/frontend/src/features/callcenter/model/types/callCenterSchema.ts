@@ -1,6 +1,15 @@
 // ─── Agent ────────────────────────────────────────────────
 
-export type AgentStatus = 'OFFLINE' | 'READY' | 'IN_CALL' | 'RINGING' | 'PAUSED' | 'WRAPUP';
+export type AgentStatus =
+  | 'OFFLINE'
+  | 'READY'
+  | 'IN_CALL'
+  | 'RINGING'
+  | 'PAUSED'
+  | 'WRAPUP'
+  | 'DIALING'
+  | 'CONSULT'
+  | 'ACW';
 
 export interface IAgent {
   interface: string;

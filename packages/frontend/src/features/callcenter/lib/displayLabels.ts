@@ -1,5 +1,5 @@
 import { interfaceToExtension } from '@/features/endpoints/lib/endpointIds';
-import type { IAgent, IQueueStats } from '../model/types/callCenterSchema';
+import type { AgentStatus, IAgent, IQueueStats } from '../model/types/callCenterSchema';
 
 /** True when name is a raw AMI/PJSIP interface string. */
 export function isRawAgentName(name: string | undefined, iface?: string): boolean {
@@ -48,4 +48,57 @@ export function callerDisplayLabel(callerIdNum?: string, callerIdName?: string):
     return num ? `${name} (${num})` : name;
   }
   return num || '—';
+}
+
+// ─── Agent status (D-13/D-44) — single authoritative label + color map ──
+
+/**
+ * Authoritative i18n key + fallback per AgentStatus (all 9 members).
+ * READY is relabelled to "Ожидание звонка"/"Waiting for call" per D-13 —
+ * this is a label-only change, the union member itself stays 'READY'.
+ */
+export const AGENT_STATUS_LABEL_KEYS: Record<AgentStatus, { key: string; fallback: string }> = {
+  OFFLINE: { key: 'callcenter.status.offline', fallback: 'Offline' },
+  READY: { key: 'callcenter.status.ready', fallback: 'Waiting for call' },
+  IN_CALL: { key: 'callcenter.status.inCall', fallback: 'In Call' },
+  RINGING: { key: 'callcenter.status.ringing', fallback: 'Ringing' },
+  PAUSED: { key: 'callcenter.status.paused', fallback: 'Paused' },
+  WRAPUP: { key: 'callcenter.status.wrapup', fallback: 'Wrap-up' },
+  DIALING: { key: 'callcenter.status.dialing', fallback: 'Dialing' },
+  CONSULT: { key: 'callcenter.status.consult', fallback: 'Consulting' },
+  ACW: { key: 'callcenter.status.acw', fallback: 'After-call work' },
+};
+
+/** Resolve the i18n label for an AgentStatus via a react-i18next `t` function. */
+export function agentStatusLabel(
+  status: AgentStatus,
+  t: (key: string, fallback?: string) => string,
+): string {
+  const entry = AGENT_STATUS_LABEL_KEYS[status] ?? AGENT_STATUS_LABEL_KEYS.OFFLINE;
+  return t(entry.key, entry.fallback);
+}
+
+/**
+ * Status→color-family map (UI-SPEC Color contract, D-13/D-44): two-color busy system,
+ * no 6th color. Matches the existing `.statusReady/.statusPaused/.statusInCall/.statusWrapup/
+ * .statusOffline` SCSS class families in CallCenterAgentPage.module.scss — consumers pick the
+ * matching class/token by this family name instead of re-deriving it per status.
+ */
+export type AgentStatusColorFamily = 'success' | 'warning' | 'destructive' | 'info' | 'muted';
+
+export const AGENT_STATUS_COLOR_FAMILY: Record<AgentStatus, AgentStatusColorFamily> = {
+  READY: 'success',
+  PAUSED: 'warning',
+  IN_CALL: 'destructive',
+  RINGING: 'destructive',
+  DIALING: 'destructive',
+  WRAPUP: 'info',
+  CONSULT: 'info',
+  ACW: 'info',
+  OFFLINE: 'muted',
+};
+
+/** Resolve the color family for an AgentStatus (falls back to 'muted' for unknown values). */
+export function agentStatusColorFamily(status: AgentStatus): AgentStatusColorFamily {
+  return AGENT_STATUS_COLOR_FAMILY[status] ?? 'muted';
 }
