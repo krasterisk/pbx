@@ -513,7 +513,7 @@ Plans:
 | 5 | `/gsd-ui-review 9` + `npm run test:frontend` / `test:backend` |
 | 6 | `/gsd-verify-work 9` → `/gsd-ship 9` |
 
-**Plans:** 3/14 plans executed
+**Plans:** 4/14 plans executed
 
 Plans:
 
@@ -521,7 +521,7 @@ Plans:
 - [x] 09-02-PLAN.md — Frontend Tabs primitive + AgentStatus enum + labels/i18n (D-01/04/07/13/44)
 - [x] 09-03-PLAN.md — Backend all-channel AMI listener + dual shift/day KPI (D-08/09/11/12/13/14/31/32)
 - [ ] 09-04-PLAN.md — Frontend status bar redesign + KPI + call-control bar (D-03/11/12/13/14/44)
-- [ ] 09-05-PLAN.md — Backend PermissionsService + peer ChanSpy + audit (D-21/22/23/24/25/26/38/39)
+- [x] 09-05-PLAN.md — Backend PermissionsService + peer ChanSpy + audit (D-21/22/23/24/25/26/38/39)
 - [ ] 09-06-PLAN.md — Frontend softphone widget (FAB) + incoming call toast (D-01/02/03/44/46)
 - [ ] 09-07-PLAN.md — Backend call-control: park/conference/zombie-reset/warm-transfer (D-25/26/27/28/29/33)
 - [ ] 09-08-PLAN.md — Frontend layout/IA rework + Coworkers/Queues/Waiting tabs (D-04/05/07/21/22/23/25/26/31/32/33/44/46)
