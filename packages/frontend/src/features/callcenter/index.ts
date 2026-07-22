@@ -9,3 +9,5 @@ export type {
   IncomingCallContext,
   IncomingCallKind,
 } from './ui/IncomingCallToast';
+export { CallControlBar } from './ui/CallControlBar';
+export type { CallControlBarProps, CallControlBarVariant } from './ui/CallControlBar';

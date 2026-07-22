@@ -1,0 +1,33 @@
+/* CallControlBar - reusable inline mute/hold/transfer/hangup row, shared by
+   AgentStatusBar (compact) and the softphone widget (full). D-03. */
+
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.controlBtn {
+  min-height: 44px;
+  min-width: 44px;
+  position: relative;
+}
+
+.controlLabel {
+  margin-left: 4px;
+}
+
+/* Toggled-on indicator (muted / on hold) - dot echoes the existing
+   .muteActive treatment in CallCenterAgentPage.module.scss. */
+.controlBtnActive::after {
+  content: '';
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 8px;
+  height: 8px;
+  background: var(--color-warning);
+  border-radius: 50%;
+  border: 2px solid var(--color-card);
+}
