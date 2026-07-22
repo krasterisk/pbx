@@ -5,13 +5,13 @@ milestone_name: milestone
 current_phase: 9
 current_phase_name: call-center-agent-panel
 status: Ready to execute
-stopped_at: Completed 09-13-PLAN.md
-last_updated: "2026-07-23T00:24:00.000Z"
+stopped_at: Completed 09-08-PLAN.md
+last_updated: "2026-07-22T18:50:37.520Z"
 progress:
   total_phases: 9
   completed_phases: 6
   total_plans: 82
-  completed_plans: 75
+  completed_plans: 76
 ---
 
 # State
@@ -27,6 +27,7 @@ Plan 09-06 (SoftphoneWidget FAB + IncomingCallToast, wave 2): 3/3 tasks committe
 Plan 09-04 (status bar redesign + KPI + call-control bar, wave 3): 3/3 tasks committed.
 Plan 09-07 (backend call-control: park/conference/zombie-reset/warm-transfer/click-to-call, wave 3): 3/3 tasks committed. Next: 09-08+.
 Plan 09-13 (backend settings API: UI customization/granular permissions/notification matrix, wave 3): 2/2 tasks committed. Next: 09-08+ or 09-14.
+Plan 09-08 (CallCenterAgentPage hybrid orchestrator rework + WaitingTab/QueuesTab/CoworkersTab, wave 4): 3/3 tasks committed. Next: 09-09+.
 Also: Phase 8 (navigation-redesign-android-port-foundation) — EXECUTING
 Plan 08-11: Tasks 1–2 committed; **blocked on Task 3 human-verify** (Android WebRTC + FCM device smoke)
 
@@ -150,6 +151,7 @@ Phase 1 — MOH: pending verify.
 - [Phase 09]: 09-04 added missing GET /callcenter/agent/kpi + CallCenterService.getAgentKpi (self-scoped from req.user.sub, T-09-04-01) since 09-03 only shipped the in-memory accumulator + SSE emission, not an endpoint; CallControlBar (compact/full) + AgentStatusBar built standalone and NOT wired into CallCenterAgentPage.tsx — that integration belongs to 09-08 (page not in this plan's files_modified); live status timer tracked client-side (ref+interval) since IAgent has no server "status changed at" field yet
 - [Phase 09]: 09-07 fixed AmiService.getActiveChannels() (was a pre-existing dead-on-arrival CoreShowChannels event-list bug — resolved on ack, never collected the CoreShowChannel/Complete events) using the same actionid+rawevent pattern as pjsipShowRegistrations(); CallCenterZombieService polls every 45s, flags zombieCandidate on CallState after a fixed 10-min grace floor, never auto-hangs (D-27 reset stays operator-triggered); parkCall/retrieveParkedCall/addToConference/resetZombieCall/warmTransferToQueue all enforce getCall->tenant->own-call-ownership->channel guards; addToConference uses Redirect(Channel+ExtraChannel) into ConfBridge(room) + Originate for the 3rd party, same ad hoc dialplan-app-string convention as supervisorSpy/peerSpy; resetZombieCall audits via LoggerService.logAction (not a new cc_agent_events ENUM value — avoids an out-of-scope migration); clickToCall branches WebRTC-direct (no AMI) vs PJSIP-Originate-with-Call-Info-header, gated by permissionsService.assert('click_to_call'); Park/ConfBridge/Call-Info field-name assumptions flagged [ASSUMED] for 09-VALIDATION
 - [Phase 09]: 09-13 extended CallCenterSettingsService/Controller with 18 self/:operatorId/tenant/matrix routes for UI customization (D-05/D-06), granular permissions (D-38/D-39), bulk matrix (D-40), notification matrix (D-41/D-42/D-43) — all merge/lock logic delegated to CallCenterPermissionsService.getEffective (09-05), never reimplemented; notification locks are per-event (not per-channel); ui_visibility_locks doubles as the lock map for softphone_placement; fixed a route-ordering bug where operator/:operatorId wildcard was shadowing the new operator/ui|permissions|notifications self routes (self routes now registered first)
+- [Phase 09]: 09-08 CallCenterAgentPage hybrid orchestrator (Coworkers/Queues/Waiting panels >=1024px, shared Tabs default Waiting <768px); WaitingTab extraction + QueuesTab + CoworkersTab; added missing GET /callcenter/agent/queues-kpi backend endpoint; getEffectivePermissions RTK query bridges CoworkersTab ChanSpy/hangup gating until 09-14 usePermissions; queue self-service join/leave omitted (no backend endpoint yet)
 
 ## Roadmap Evolution
 
@@ -237,9 +239,10 @@ Also open: Phase 8 / 08-11 Task 3 — complete Android smoke checklist, then rep
 | Phase 9 P04 | ~35min | 3 tasks | 16 files |
 | Phase 9 P07 | ~30min | 3 tasks | 9 files |
 | Phase 9 P13 | ~35min | 2 tasks | 4 files |
+| Phase 9 P08 | ~40min | 3 tasks | 16 files |
 
 ## Session
 
-**Last session:** 2026-07-23T00:24:00.000Z
-**Stopped at:** Completed 09-13-PLAN.md
+**Last session:** 2026-07-22T18:50:37.474Z
+**Stopped at:** Completed 09-08-PLAN.md
 **Resume file:** None
