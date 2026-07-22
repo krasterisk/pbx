@@ -153,6 +153,45 @@ export interface IEffectivePermissions {
   customize_ui: boolean;
 }
 
+/** Number-grouped missed-call worklist row (D-16/D-17/D-19) — MissedCallsPanel (09-10). */
+export interface IMissedCallGroup {
+  callerIdNum: string;
+  callerIdName: string;
+  /** true = personal/direct miss owned by the agent whose channel rang; false = queue-abandoned shared pool. */
+  personal: boolean;
+  attemptCount: number;
+  lastAttemptAt: string;
+  /** Operator user id who has claimed this queue-missed group, or already resolved it, or null. */
+  claimedBy: number | null;
+  /** Queue name (queue-missed) or `direct:<agentInterface>` (personal) — chip source, may be null on legacy rows. */
+  queueName: string | null;
+}
+
+/** A single resolved/active missed-call attempt row — raw shape from GET /callcenter/missed-calls. */
+export interface IMissedCallAttempt {
+  uid: number;
+  id?: number;
+  call_uniqueid: string;
+  queue_name: string;
+  caller_id_num: string;
+  caller_id_name: string;
+  personal: boolean;
+  called_back: boolean;
+  called_back_by: number | null;
+  called_back_at: string | null;
+  client_called_back: boolean;
+  created_at: string;
+}
+
+/** Tenant-wide parking lot entry (D-28) — ParkedCallsIndicator (09-10). */
+export interface IParkedCall {
+  parkingSpace: string;
+  callerIdNum: string;
+  callerIdName: string;
+  channel?: string;
+  timeoutSec?: number;
+}
+
 export type SoftphonePlacement = 'bottom-right' | 'bottom-left' | 'hidden';
 /** D-05: per-panel tab/panel visibility map — keys are UI-SPEC surface ids (coworkers/queues/waiting/...). */
 export type IUiVisibility = Record<string, boolean>;
@@ -294,6 +333,50 @@ const callCenterApi = rtkApi.injectEndpoints({
         body: { note: note || '' },
       }),
       invalidatesTags: ['MissedCalls'],
+    }),
+
+    /** Smart missed-calls worklist, grouped by number+ownership (D-16/D-19). */
+    getMissedCallsGrouped: build.query<IMissedCallGroup[], void>({
+      query: () => '/callcenter/agent/missed/grouped',
+      providesTags: ['MissedCalls'],
+    }),
+    /** First-to-claim wins a queue-missed (shared-pool) number group (D-19). */
+    claimMissedCall: build.mutation<{ success: boolean; claimed: number }, { callerIdNum: string }>({
+      query: (body) => ({ url: '/callcenter/agent/missed/claim', method: 'POST', body }),
+      invalidatesTags: ['MissedCalls'],
+    }),
+    /** Operator callback via the click_to_call WebRTC/PJSIP branching; >5s success is server-tracked (D-18). */
+    callbackMissedCall: build.mutation<
+      { success: boolean; mode: 'webrtc' | 'pjsip'; target: string },
+      { callerIdNum: string }
+    >({
+      query: (body) => ({ url: '/callcenter/agent/missed/callback', method: 'POST', body }),
+      invalidatesTags: ['MissedCalls'],
+    }),
+
+    // ─── Call Control (D-27/D-28/D-33) ────────────────────
+    /** Park the operator's own active call (D-28). */
+    parkCall: build.mutation<{ success: boolean; uniqueid: string; parkingSpace: string | null }, { uniqueid: string }>({
+      query: (body) => ({ url: '/callcenter/agent/park', method: 'POST', body }),
+      invalidatesTags: ['ParkedCalls'],
+    }),
+    /** Retrieve any parked call in the tenant's parking lot (not agent-owned). */
+    retrieveParkedCall: build.mutation<{ success: boolean; parkingSpace: string }, { parkingSpace: string }>({
+      query: (body) => ({ url: '/callcenter/agent/retrieve-parked', method: 'POST', body }),
+      invalidatesTags: ['ParkedCalls'],
+    }),
+    /** Tenant-wide parking lot listing — ParkedCallsIndicator badge + retrieve list. */
+    getParkedCalls: build.query<IParkedCall[], void>({
+      query: () => '/callcenter/agent/parked-calls',
+      providesTags: ['ParkedCalls'],
+    }),
+    /** Add a third party to the operator's own active call via ConfBridge (D-28). */
+    addToConference: build.mutation<{ success: boolean }, { uniqueid: string; target: string }>({
+      query: (body) => ({ url: '/callcenter/agent/conference-add', method: 'POST', body }),
+    }),
+    /** Self-serve reset of a call flagged as a zombie candidate (D-27) — always requires UI confirmation. */
+    resetZombieCall: build.mutation<{ success: boolean }, { uniqueid: string }>({
+      query: (body) => ({ url: '/callcenter/agent/zombie-reset', method: 'POST', body }),
     }),
 
     // ─── Client Card (Sidebar Lookup) ─────────────────────
@@ -522,6 +605,14 @@ export const {
   usePeerSpyMutation,
   useGetMissedCallsQuery,
   useMarkMissedCalledBackMutation,
+  useGetMissedCallsGroupedQuery,
+  useClaimMissedCallMutation,
+  useCallbackMissedCallMutation,
+  useParkCallMutation,
+  useRetrieveParkedCallMutation,
+  useGetParkedCallsQuery,
+  useAddToConferenceMutation,
+  useResetZombieCallMutation,
   useClientLookupQuery,
   useLazyClientLookupQuery,
   useSupervisorSpyMutation,

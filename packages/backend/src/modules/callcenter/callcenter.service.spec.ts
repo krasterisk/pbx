@@ -24,6 +24,7 @@ describe('CallCenterService', () => {
     action: jest.fn().mockResolvedValue({ response: 'Success' }),
     originate: jest.fn().mockResolvedValue(undefined),
     park: jest.fn().mockResolvedValue({ response: 'Success' }),
+    parkedCalls: jest.fn().mockResolvedValue({ events: [] }),
   };
   const ccAmi: any = {
     logAgentEvent: jest.fn().mockResolvedValue(undefined),
@@ -443,6 +444,7 @@ describe('CallCenterService', () => {
           lastAttemptAt: '2026-07-20T10:00:00.000Z',
           claimedBy: 42,
           callerIdName: 'Ivan',
+          queueName: 'sales',
         },
         {
           caller_id_num: '79990003344',
@@ -451,6 +453,7 @@ describe('CallCenterService', () => {
           lastAttemptAt: '2026-07-21T09:00:00.000Z',
           claimedBy: null,
           callerIdName: '',
+          queueName: 'direct:PJSIP/101',
         },
       ]);
 
@@ -474,6 +477,7 @@ describe('CallCenterService', () => {
           attemptCount: 3,
           lastAttemptAt: '2026-07-20T10:00:00.000Z',
           claimedBy: 42,
+          queueName: 'sales',
         },
         {
           callerIdNum: '79990003344',
@@ -482,6 +486,7 @@ describe('CallCenterService', () => {
           attemptCount: 1,
           lastAttemptAt: '2026-07-21T09:00:00.000Z',
           claimedBy: null,
+          queueName: 'direct:PJSIP/101',
         },
       ]);
     });
@@ -842,6 +847,18 @@ describe('CallCenterService', () => {
       expect(ami.park).toHaveBeenCalledWith('PJSIP/trunk-1');
       expect(state.getCall('U1')?.status).toBe('HOLD');
     });
+
+    it('emits a parkedCallsUpdate SSE delta for other operators (D-45, 09-10)', async () => {
+      ami.park.mockResolvedValueOnce({ response: 'Success', exten: '71' });
+      await service.agentLogin('PJSIP/101', ['sales'], 7, 42);
+      state.setCall('U1', { userUid: 7, queue: 'sales', status: 'TALKING', callerChannel: 'PJSIP/trunk-1', agent: 'PJSIP/101' });
+      const events: any[] = [];
+      state.getEventStream(7).subscribe(e => events.push(e));
+
+      await service.parkCall('U1', 7, 42);
+
+      expect(events.some(e => e.type === 'parkedCallsUpdate' && e.data.parkingSpace === '71')).toBe(true);
+    });
   });
 
   describe('retrieveParkedCall', () => {
@@ -861,6 +878,46 @@ describe('CallCenterService', () => {
         'parkedcalls',
         '71',
       );
+    });
+
+    it('emits a parkedCallsUpdate SSE delta for other operators (D-45, 09-10)', async () => {
+      await service.agentLogin('PJSIP/101', ['sales'], 7, 42);
+      const events: any[] = [];
+      state.getEventStream(7).subscribe(e => events.push(e));
+
+      await service.retrieveParkedCall('71', 7, 42);
+
+      expect(events.some(e => e.type === 'parkedCallsUpdate' && e.data.action === 'retrieved')).toBe(true);
+    });
+  });
+
+  describe('getParkedCalls', () => {
+    it('rejects when agent is not logged in', async () => {
+      await expect(service.getParkedCalls(7, 42)).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('maps ParkedCall AMI events into the ParkedCallsIndicator shape', async () => {
+      await service.agentLogin('PJSIP/101', ['sales'], 7, 42);
+      ami.parkedCalls.mockResolvedValueOnce({
+        events: [
+          { event: 'ParkedCall', exten: '71', calleridnum: '79990001122', calleridname: 'Ivan', channel: 'PJSIP/trunk-1', timeout: '45' },
+        ],
+      });
+
+      const res = await service.getParkedCalls(7, 42);
+
+      expect(res).toEqual([
+        { parkingSpace: '71', callerIdNum: '79990001122', callerIdName: 'Ivan', channel: 'PJSIP/trunk-1', timeoutSec: 45 },
+      ]);
+    });
+
+    it('returns an empty list when the AMI query fails rather than throwing', async () => {
+      await service.agentLogin('PJSIP/101', ['sales'], 7, 42);
+      ami.parkedCalls.mockRejectedValueOnce(new Error('AMI not connected'));
+
+      const res = await service.getParkedCalls(7, 42);
+
+      expect(res).toEqual([]);
     });
   });
 

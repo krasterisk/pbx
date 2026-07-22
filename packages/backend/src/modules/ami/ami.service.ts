@@ -507,9 +507,64 @@ export class AmiService implements OnModuleInit, OnModuleDestroy {
     return this.action(params);
   }
 
-  /** List currently parked calls (immediate-response action, unlike CoreShowChannels). */
-  async parkedCalls(): Promise<any> {
-    return this.action({ action: 'ParkedCalls' });
+  /**
+   * List currently parked calls (Phase 9 D-28, ParkedCallsIndicator - 09-10).
+   * Like CoreShowChannels/PJSIPShowRegistrationsOutbound, ParkedCalls is an
+   * event-list action: it resolves immediately with an ack, then Asterisk
+   * emits one ParkedCall event per parked call, ending with
+   * ParkedCallsComplete. The original wrapper here only awaited the ack and
+   * could never have returned the actual list - same defect class already
+   * fixed for getActiveChannels() in 09-07 (Rule 1, in-scope: this plan's
+   * ParkedCallsIndicator needs a working list right now).
+   * [ASSUMED - exact ParkedCall event field names not verified against a
+   * live Asterisk instance; flagged for 09-VALIDATION like the other D-28
+   * AMI field-name assumptions.]
+   */
+  async parkedCalls(): Promise<{ events: any[] }> {
+    return new Promise((resolve, reject) => {
+      if (!this.connected) {
+        reject(new Error('AMI not connected'));
+        return;
+      }
+
+      const events: any[] = [];
+      const actionId = String(Date.now()) + String(Math.random()).slice(2, 6);
+      let settled = false;
+
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        this.ami.removeListener('rawevent', handler);
+        resolve({ events });
+      };
+
+      const handler = (evt: any) => {
+        if (evt.actionid !== actionId) return;
+        if (evt.event === 'ParkedCall') {
+          events.push(evt);
+        }
+        if (evt.event === 'ParkedCallsComplete') {
+          finish();
+        }
+      };
+
+      this.ami.on('rawevent', handler);
+
+      const timer = setTimeout(finish, 5000);
+
+      this.ami.action(
+        { action: 'ParkedCalls', actionid: actionId },
+        (err: any, _res: any) => {
+          if (err) {
+            clearTimeout(timer);
+            settled = true;
+            this.ami.removeListener('rawevent', handler);
+            reject(err);
+          }
+        },
+      );
+    });
   }
 
   /** Query device presence/BLF state list (D-36/D-37 presence groundwork). */

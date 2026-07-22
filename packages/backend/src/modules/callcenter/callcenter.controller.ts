@@ -171,6 +171,12 @@ export class CallCenterController {
     return this.ccService.retrieveParkedCall(dto.parkingSpace, req.user.vpbx_user_uid, req.user.sub);
   }
 
+  /** Tenant-wide parking lot listing for ParkedCallsIndicator (D-28, 09-10). */
+  @Get('agent/parked-calls')
+  getParkedCalls(@Req() req: Request & { user: any }) {
+    return this.ccService.getParkedCalls(req.user.vpbx_user_uid, req.user.sub);
+  }
+
   @Post('agent/conference-add')
   addToConference(@Body() dto: ConferenceAddDto, @Req() req: Request & { user: any }) {
     return this.ccService.addToConference(dto.uniqueid, dto.target, req.user.vpbx_user_uid, req.user.sub);

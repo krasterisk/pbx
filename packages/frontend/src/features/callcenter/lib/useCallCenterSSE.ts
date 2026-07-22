@@ -226,6 +226,14 @@ export function useCallCenterSSE(enabled: boolean = true) {
       } catch { /* ignore */ }
     });
 
+    // Parked calls (D-28/D-45) — any operator's park/retrieve invalidates
+    // everyone's ParkedCallsIndicator list. Zombie-candidate flags need no
+    // dedicated listener: they ride the existing callUpdate merge above
+    // (CallState.zombieCandidate -> ICall.zombieCandidate).
+    es.addEventListener('parkedCallsUpdate', () => {
+      dispatch(rtkApi.util.invalidateTags(['ParkedCalls']));
+    });
+
     es.addEventListener('ccChatMessage', (e: MessageEvent) => {
       try {
         const detail = JSON.parse(e.data);

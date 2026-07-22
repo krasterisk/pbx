@@ -942,11 +942,15 @@ export class CallCenterService {
     this.stateService.setCall(uniqueid, { status: 'HOLD' });
     this.logger.log(`Parked call ${uniqueid} (${call.callerChannel}) by ${agentInterface}`);
 
+    const parkingSpace: string | null = res?.exten || res?.parkinglot || null;
+    // Delta-driven refresh for every operator's ParkedCallsIndicator (D-45, 09-10).
+    this.stateService.emitEvent('parkedCallsUpdate', userUid, { parkingSpace, action: 'parked' });
+
     return {
       success: true,
       uniqueid,
       // [ASSUMED] field name — verify on live Asterisk (09-VALIDATION).
-      parkingSpace: res?.exten || res?.parkinglot || null,
+      parkingSpace,
     };
   }
 
@@ -977,7 +981,39 @@ export class CallCenterService {
     }
 
     this.logger.log(`Agent ${agentInterface} retrieving parked call ${parkingSpace}`);
+    // Delta-driven refresh for every operator's ParkedCallsIndicator (D-45, 09-10).
+    this.stateService.emitEvent('parkedCallsUpdate', userUid, { parkingSpace, action: 'retrieved' });
     return { success: true, parkingSpace };
+  }
+
+  /**
+   * List the tenant's currently parked calls (D-28, 09-10 ParkedCallsIndicator).
+   * Parking is a tenant-wide lot (see retrieveParkedCall) — only requires the
+   * requester to be a logged-in agent, matching that method's ownership model.
+   */
+  async getParkedCalls(userUid: number, userId: number) {
+    userUid = this.resolveTenant(userUid, userId);
+    const agentInterface = await this.resolveAgentInterface(userUid, userId);
+    if (!agentInterface) throw new NotFoundException('Agent not logged in');
+
+    let events: any[] = [];
+    try {
+      const res = await this.amiService.parkedCalls();
+      events = res?.events || [];
+    } catch (err: any) {
+      this.logger.warn(`getParkedCalls: AMI query failed: ${err.message}`);
+      return [];
+    }
+
+    return events.map((evt) => ({
+      // [ASSUMED] field names — verify on live Asterisk (09-VALIDATION), same
+      // caveat as parkCall's response-field assumption above.
+      parkingSpace: evt?.exten || evt?.parkinglot || '',
+      callerIdNum: evt?.calleridnum || evt?.callerid || '',
+      callerIdName: evt?.calleridname || '',
+      channel: evt?.channel || undefined,
+      timeoutSec: evt?.timeout != null ? Number(evt.timeout) : undefined,
+    }));
   }
 
   /**
@@ -1614,6 +1650,10 @@ export class CallCenterService {
         [fn('MAX', col('created_at')), 'lastAttemptAt'],
         [fn('MAX', col('called_back_by')), 'claimedBy'],
         [fn('MAX', col('caller_id_name')), 'callerIdName'],
+        // D-19 queue-name chip for queue-missed rows — same MAX-aggregate
+        // idiom as callerIdName/claimedBy above (09-10, Rule 2: the UI's
+        // queue-missed chip has no data source without this).
+        [fn('MAX', col('queue_name')), 'queueName'],
       ],
       group: ['caller_id_num', 'personal'],
       order: [[literal('lastAttemptAt'), 'DESC']],
@@ -1627,6 +1667,7 @@ export class CallCenterService {
       attemptCount: parseInt(r.attemptCount, 10) || 0,
       lastAttemptAt: r.lastAttemptAt,
       claimedBy: r.claimedBy ?? null,
+      queueName: r.queueName || null,
     }));
   }
 

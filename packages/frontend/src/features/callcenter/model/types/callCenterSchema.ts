@@ -61,6 +61,9 @@ export interface ICall {
   talkTime: number;
   position?: number;
   userUid: number;
+  /** Phase 9 (D-27/D-28): flagged by the backend zombie reconciler, cleared by resetZombieCall.
+   *  Flows through the existing callUpdate SSE merge — no dedicated listener needed. */
+  zombieCandidate?: boolean;
 }
 
 // ─── Snapshot ─────────────────────────────────────────────
