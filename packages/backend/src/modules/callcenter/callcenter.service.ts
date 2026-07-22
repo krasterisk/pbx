@@ -24,8 +24,13 @@ import { User } from '../users/user.model';
 import { PhonebookEntry } from '../phonebooks/phonebook-entry.model';
 import { RoutePhonebook } from '../phonebooks/phonebook.model';
 import { ServiceRequest } from '../service-requests/service-request.model';
-import { companionIdOf, isWebrtcCompanion, primaryIdOf } from '../endpoints/endpoint-ids.util';
+import { companionIdOf, isWebrtcCompanion, primaryIdOf, extractExtension, interfaceToExtension } from '../endpoints/endpoint-ids.util';
 import { Op, fn, col, literal } from 'sequelize';
+import { CallCenterPresenceService } from './callcenter-presence.service';
+import { Queue } from '../queues/queue.model';
+import { PsEndpoint } from '../endpoints/ps-endpoint.model';
+import { CallGroup } from '../call-groups/call-group.model';
+import { CallGroupMember } from '../call-groups/call-group-member.model';
 
 @Injectable()
 export class CallCenterService {
@@ -51,6 +56,11 @@ export class CallCenterService {
     private readonly settingsService: CallCenterSettingsService,
     private readonly permissionsService: CallCenterPermissionsService,
     private readonly loggerService: LoggerService,
+    @InjectModel(Queue) private readonly queueModel: typeof Queue,
+    @InjectModel(PsEndpoint) private readonly endpointModel: typeof PsEndpoint,
+    @InjectModel(CallGroup) private readonly callGroupModel: typeof CallGroup,
+    @InjectModel(CallGroupMember) private readonly callGroupMemberModel: typeof CallGroupMember,
+    private readonly presenceService: CallCenterPresenceService,
   ) {}
 
   // ─── Helpers ─────────────────────────────────────────────
@@ -1861,6 +1871,102 @@ export class CallCenterService {
       requests: requests
         .map(r => r.get({ plain: true }))
         .filter((r: any) => (r.phone || '').replace(/\D/g, '').endsWith(suffix)),
+    };
+  }
+
+  // ─── Transfer Directory (D-36) ────────────────────────────
+
+  /**
+   * Unified transfer directory (D-36): internal endpoints (with extension +
+   * live presence from the Task-2 CallCenterPresenceService, falling back to
+   * CC agent status when the endpoint is a logged-in agent), queues (free
+   * count reused from the existing CC-state aggregation — recalcQueueStats'
+   * agents.available), and call groups (free count derived by matching each
+   * member extension against the live CC agent map). Tenant-scoped by
+   * vpbx_user_uid throughout (T-09-11-01).
+   */
+  async getTransferDirectory(userUid: number, search?: string) {
+    const agents = this.stateService.getAllAgents(userUid);
+    const agentByExtension = new Map<string, (typeof agents)[number]>();
+    for (const agent of agents) {
+      agentByExtension.set(interfaceToExtension(agent.interface), agent);
+    }
+
+    const endpointRows = await this.endpointModel.findAll({
+      where: { tenantid: String(userUid) },
+      attributes: ['id', 'department'],
+    });
+    const endpoints = endpointRows
+      .filter((ep) => !isWebrtcCompanion(ep.id))
+      .map((ep) => {
+        const extension = extractExtension(ep.id);
+        const agent = agentByExtension.get(extension);
+        return {
+          type: 'endpoint' as const,
+          id: ep.id,
+          extension,
+          label: ep.department || extension,
+          presence: this.presenceService.getPresence(userUid, extension) || agent?.status || 'OFFLINE',
+        };
+      });
+
+    const queueRows = await this.queueModel.findAll({
+      where: { user_uid: userUid },
+      attributes: ['name', 'display_name'],
+    });
+    const queues = queueRows.map((q) => {
+      const name = q.getDataValue('name') as string;
+      const liveQueue = this.stateService.getQueue(userUid, name);
+      return {
+        type: 'queue' as const,
+        id: name,
+        label: (q.getDataValue('display_name') as string) || name,
+        freeOperators: liveQueue?.agents.available ?? 0,
+        totalOperators: liveQueue?.agents.total ?? 0,
+      };
+    });
+
+    const groupRows = await this.callGroupModel.findAll({
+      where: { user_uid: userUid },
+      attributes: ['uid', 'name'],
+    });
+    const groupIds = groupRows.map((g) => g.getDataValue('uid') as number);
+    const members = groupIds.length
+      ? await this.callGroupMemberModel.findAll({
+          where: { call_group_uid: { [Op.in]: groupIds }, member_type: 'internal' },
+          attributes: ['call_group_uid', 'value'],
+        })
+      : [];
+    const membersByGroup = new Map<number, string[]>();
+    for (const m of members) {
+      const groupUid = m.getDataValue('call_group_uid') as number;
+      const list = membersByGroup.get(groupUid) || [];
+      list.push(m.getDataValue('value') as string);
+      membersByGroup.set(groupUid, list);
+    }
+
+    const groups = groupRows.map((g) => {
+      const uid = g.getDataValue('uid') as number;
+      const extensions = membersByGroup.get(uid) || [];
+      const freeOperators = extensions.filter((ext) => agentByExtension.get(ext)?.status === 'READY').length;
+      return {
+        type: 'group' as const,
+        id: String(uid),
+        label: g.getDataValue('name') as string,
+        freeOperators,
+        totalOperators: extensions.length,
+      };
+    });
+
+    if (!search) return { endpoints, queues, groups };
+
+    const term = search.toLowerCase();
+    return {
+      endpoints: endpoints.filter(
+        (e) => e.extension.toLowerCase().includes(term) || e.label.toLowerCase().includes(term),
+      ),
+      queues: queues.filter((q) => q.id.toLowerCase().includes(term) || q.label.toLowerCase().includes(term)),
+      groups: groups.filter((g) => g.label.toLowerCase().includes(term)),
     };
   }
 }

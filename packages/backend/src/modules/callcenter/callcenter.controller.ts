@@ -33,6 +33,7 @@ import {
   ZombieResetDto, WarmTransferQueueDto, ClickToCallDto,
 } from './dto/callcenter-callcontrol.dto';
 import { MissedCallActionDto } from './dto/callcenter-missed.dto';
+import { DirectoryQueryDto } from './dto/callcenter-directory.dto';
 
 // ─── Helpers ──────────────────────────────────────────────
 
@@ -249,6 +250,12 @@ export class CallCenterController {
       req.user.sub,
       period === 'shift' ? 'shift' : 'day',
     );
+  }
+
+  /** Unified transfer directory: endpoints + queues + call groups (D-36). */
+  @Get('agent/directory')
+  getTransferDirectory(@Query() query: DirectoryQueryDto, @Req() req: Request & { user: any }) {
+    return this.ccService.getTransferDirectory(req.user.vpbx_user_uid, query.search);
   }
 
   // ─── Client Card (sidebar lookup) ─────────────────────

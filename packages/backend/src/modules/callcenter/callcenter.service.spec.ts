@@ -99,6 +99,21 @@ describe('CallCenterService', () => {
   const queueCallModel: any = {
     findAll: jest.fn().mockResolvedValue([]),
   };
+  const queueModel: any = {
+    findAll: jest.fn().mockResolvedValue([]),
+  };
+  const endpointModel: any = {
+    findAll: jest.fn().mockResolvedValue([]),
+  };
+  const callGroupModel: any = {
+    findAll: jest.fn().mockResolvedValue([]),
+  };
+  const callGroupMemberModel: any = {
+    findAll: jest.fn().mockResolvedValue([]),
+  };
+  const presenceService: any = {
+    getPresence: jest.fn().mockReturnValue(undefined),
+  };
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -120,6 +135,11 @@ describe('CallCenterService', () => {
       settingsService,
       permissionsService,
       loggerService,
+      queueModel,
+      endpointModel,
+      callGroupModel,
+      callGroupMemberModel,
+      presenceService,
     );
   });
 
@@ -1320,6 +1340,78 @@ describe('CallCenterService', () => {
       const since: Date = call.where.created_at[Op.gte];
       expect(since.getHours()).toBe(0);
       expect(since.getMinutes()).toBe(0);
+    });
+  });
+
+  // ─── Transfer directory (D-36) ──────────────────────────
+
+  describe('getTransferDirectory', () => {
+    beforeEach(() => {
+      endpointModel.findAll.mockResolvedValue([
+        { id: 'e101_7', department: 'Sales' },
+        { id: 'ew101_7', department: 'Sales' }, // webrtc companion — excluded
+      ]);
+      queueModel.findAll.mockResolvedValue([
+        { getDataValue: (k: string) => ({ name: 'sales_7', display_name: 'Sales' } as any)[k] },
+      ]);
+      callGroupModel.findAll.mockResolvedValue([
+        { getDataValue: (k: string) => ({ uid: 1, name: 'Support Group' } as any)[k] },
+      ]);
+      callGroupMemberModel.findAll.mockResolvedValue([
+        { getDataValue: (k: string) => ({ call_group_uid: 1, value: '101' } as any)[k] },
+        { getDataValue: (k: string) => ({ call_group_uid: 1, value: '102' } as any)[k] },
+      ]);
+    });
+
+    it('returns endpoints (webrtc companions excluded) with presence, queues with free/total, and groups with free/total', async () => {
+      state.setAgent(7, 'PJSIP/e101_7', { name: 'Alice', status: 'READY', userId: 42 });
+      state.setQueue(7, 'sales_7', { agents: { total: 3, available: 2, paused: 0, busy: 1 } });
+      presenceService.getPresence.mockReturnValue('INUSE');
+
+      const dir = await service.getTransferDirectory(7);
+
+      expect(dir.endpoints).toEqual([
+        { type: 'endpoint', id: 'e101_7', extension: '101', label: 'Sales', presence: 'INUSE' },
+      ]);
+      expect(dir.queues).toEqual([
+        { type: 'queue', id: 'sales_7', label: 'Sales', freeOperators: 2, totalOperators: 3 },
+      ]);
+      expect(dir.groups).toEqual([
+        { type: 'group', id: '1', label: 'Support Group', freeOperators: 1, totalOperators: 2 },
+      ]);
+    });
+
+    it('falls back to live CC agent status when the presence service has no entry', async () => {
+      state.setAgent(7, 'PJSIP/e101_7', { name: 'Alice', status: 'PAUSED', userId: 42 });
+      presenceService.getPresence.mockReturnValue(undefined);
+
+      const dir = await service.getTransferDirectory(7);
+
+      expect(dir.endpoints[0].presence).toBe('PAUSED');
+    });
+
+    it('filters all three entity types by a case-insensitive search term', async () => {
+      state.setQueue(7, 'sales_7', { agents: { total: 1, available: 1, paused: 0, busy: 0 } });
+
+      const dir = await service.getTransferDirectory(7, 'SALES_7');
+
+      expect(dir.endpoints).toHaveLength(0); // extension "101" / label "Sales" — neither matches "sales_7"
+      expect(dir.queues).toHaveLength(1);
+      expect(dir.groups).toHaveLength(0);
+    });
+
+    it('scopes every query by tenant (vpbx_user_uid)', async () => {
+      await service.getTransferDirectory(7);
+
+      expect(endpointModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { tenantid: '7' } }),
+      );
+      expect(queueModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { user_uid: 7 } }),
+      );
+      expect(callGroupModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { user_uid: 7 } }),
+      );
     });
   });
 });
