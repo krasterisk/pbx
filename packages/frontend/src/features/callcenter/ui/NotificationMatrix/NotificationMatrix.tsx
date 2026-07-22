@@ -72,7 +72,7 @@ export function NotificationMatrix({ matrix, locks, defaults, onChange, disabled
                       checked={checked}
                       disabled={disabled || isLocked}
                       onCheckedChange={(next) => onChange(event, channel, next)}
-                      aria-label={`${rowLabel} — ${t(`callcenter.settings.notifications.columns.${channel}`)}`}
+                      aria-label={`${rowLabel}, ${t(`callcenter.settings.notifications.columns.${channel}`)}`}
                     />
                   </TableCell>
                 );
