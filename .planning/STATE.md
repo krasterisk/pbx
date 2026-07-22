@@ -180,7 +180,7 @@ Phase 1 — MOH: pending verify.
 
 ## Next GSD command
 
-`/gsd-verify-work 9` — Phase 9 (Call Center Agent Panel) all 14 plans / 7 waves executed; verify + UAT next.
+`/gsd-plan-phase 9 --gaps` — close wiring gaps from 09-VERIFICATION (park/zombie UI, CallHistoryPanel mount, TransferDirectory for transfer mode). Then re-run `/gsd-execute-phase 9`.
 
 Also open: Phase 8 / 08-11 Task 3 — complete Android smoke checklist, then reply `approved` (or list failures). After approval: finalize 08-11 SUMMARY → `/gsd-verify-work 8`
 
