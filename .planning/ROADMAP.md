@@ -513,7 +513,7 @@ Plans:
 | 5 | `/gsd-ui-review 9` + `npm run test:frontend` / `test:backend` |
 | 6 | `/gsd-verify-work 9` → `/gsd-ship 9` |
 
-**Plans:** 7/14 plans executed
+**Plans:** 8/14 plans executed
 
 Plans:
 
@@ -529,5 +529,5 @@ Plans:
 - [ ] 09-10-PLAN.md — Frontend missed-calls UI + call-control UI + parked indicator (D-16/17/18/19/27/28/33/44)
 - [ ] 09-11-PLAN.md — Backend unified call history + transfer directory + BLF presence (D-34/35/36/37/45)
 - [ ] 09-12-PLAN.md — Frontend transfer directory + click-to-call + call-history UI (D-29/34/36/37/44)
-- [ ] 09-13-PLAN.md — Backend settings endpoints: permissions/notifications/UI customization (D-05/06/38/39/40/41/42/43)
+- [x] 09-13-PLAN.md — Backend settings endpoints: permissions/notifications/UI customization (D-05/06/38/39/40/41/42/43)
 - [ ] 09-14-PLAN.md — Frontend settings UI + notification engine + mobile rework + i18n (D-38/39/40/41/42/43/44/46)
