@@ -1,0 +1,133 @@
+/* CallHistoryPanel — Surface 11 (D-34/D-35) */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+  min-height: 0;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.title {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.empty {
+  text-align: center;
+  padding: 32px 16px;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow-y: auto;
+  min-height: 0;
+  flex: 1;
+}
+
+/* Card row on phone (responsive convention, D-46) — flex-wrap naturally
+   stacks number/tags below the icon+actions on narrow viewports. */
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 6px;
+  border-radius: var(--radius-md);
+  flex-wrap: wrap;
+
+  &:hover {
+    background: var(--color-accent);
+  }
+
+  & + & {
+    border-top: 1px dashed var(--color-border);
+  }
+}
+
+.iconInbound {
+  color: var(--color-success);
+}
+
+.iconOutbound {
+  color: var(--color-muted-foreground);
+}
+
+.iconOther {
+  color: var(--color-muted-foreground);
+}
+
+.iconMissed {
+  color: var(--color-destructive);
+}
+
+.rowMain {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.rowTop {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rowNum {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--color-foreground);
+}
+
+.missedTag {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-destructive) 14%, transparent);
+  color: var(--color-destructive);
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
+.rowTags {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--color-muted);
+  color: var(--color-muted-foreground);
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
+.rowActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* WCAG 2.5.5 — 44px minimum touch target (Spacing Scale exception). */
+.actionBtn {
+  min-height: 44px;
+  min-width: 44px;
+}

@@ -2604,6 +2604,40 @@ export const en = {
         impossible: 'Impossible',
       },
     },
+    // ─── Unified transfer directory (D-36/D-37, 09-12) — transfer/conference-add/click-to-call ──
+    directory: {
+      searchPlaceholder: 'Search by name or number...',
+      emptyTitle: 'Nothing found',
+      emptyBody: 'Try a different number or name',
+      callCta: 'Call',
+      addCta: 'Add',
+      free: 'free',
+    },
+    // ─── Operator call-history panel (D-38, 09-12) ──
+    history: {
+      title: 'Call history',
+      searchPlaceholder: 'Search by number or name...',
+      empty: 'No calls in this period',
+      shift: 'Shift',
+      day: 'Day',
+      direction: {
+        all: 'All',
+        inbound: 'Inbound',
+        outbound: 'Outbound',
+        internal: 'Internal',
+        missed: 'Missed',
+      },
+      kind: {
+        personal: 'Personal',
+        outbound: 'Outbound',
+        internal: 'Internal',
+      },
+      callBack: 'Call back',
+      openCard: 'Open card',
+      noCard: 'No call card saved for this call',
+      duration: '{{duration}}',
+      missedTag: 'Missed',
+    },
   },
   // AI Agents
   aiAgents: {
