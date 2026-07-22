@@ -38,11 +38,15 @@ export interface IMissedCall {
   queue_name: string;
   caller_id_num: string;
   caller_id_name: string;
+  /** true = personal/direct miss owned by the agent whose channel rang; false = queue-abandoned shared pool. */
+  personal: boolean;
   hold_time: number;
   position: number;
   called_back: boolean;
   called_back_by: number | null;
   called_back_at: string | null;
+  /** True when the caller rang back themselves before any operator callback (D-17) — distinct success tag. */
+  client_called_back: boolean;
   note: string;
   created_at: string;
 }

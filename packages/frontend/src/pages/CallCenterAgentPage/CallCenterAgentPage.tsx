@@ -273,11 +273,6 @@ export function CallCenterAgentPage() {
     setPauseModalOpen(false);
   }, [agentPause]);
 
-  // Callback from MissedCallsPanel — dial the missed number through the OS
-  const handleMissedCallback = useCallback((number: string) => {
-    if (number) window.location.href = `tel:${number}`;
-  }, []);
-
   // Active call from Call Center SSE (queue AMI). May be missing for WebRTC companion (ew*).
   const activeCall = useMemo(() => {
     if (!myAgent?.currentCall) return null;
@@ -611,7 +606,7 @@ export function CallCenterAgentPage() {
             </Flex>
 
             <Flex align="center" gap="12">
-              <MissedCallsPanel onCallback={handleMissedCallback} />
+              <MissedCallsPanel />
               <ChatPanelHost />
               <Flex align="center" gap="8">
                 <Text variant="muted" className="text-xs">
