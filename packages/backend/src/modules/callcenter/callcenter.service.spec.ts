@@ -80,6 +80,7 @@ describe('CallCenterService', () => {
     create: jest.fn().mockResolvedValue(undefined),
     findOne: jest.fn(),
     findAll: jest.fn().mockResolvedValue([]),
+    update: jest.fn().mockResolvedValue([0]),
   };
   const phonebookEntryModel: any = {
     findAll: jest.fn().mockResolvedValue([]),
@@ -429,6 +430,139 @@ describe('CallCenterService', () => {
     it('throws NotFoundException when the row does not belong to the tenant', async () => {
       missedCallModel.findOne.mockResolvedValueOnce(null);
       await expect(service.markMissedCalled(5, undefined, 7, 42)).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
+  describe('getMissedCallsGrouped', () => {
+    it('groups by caller_id_num + personal, excluding resolved rows (D-16/D-19)', async () => {
+      missedCallModel.findAll.mockResolvedValueOnce([
+        {
+          caller_id_num: '79990001122',
+          personal: 0,
+          attemptCount: '3',
+          lastAttemptAt: '2026-07-20T10:00:00.000Z',
+          claimedBy: 42,
+          callerIdName: 'Ivan',
+        },
+        {
+          caller_id_num: '79990003344',
+          personal: 1,
+          attemptCount: '1',
+          lastAttemptAt: '2026-07-21T09:00:00.000Z',
+          claimedBy: null,
+          callerIdName: '',
+        },
+      ]);
+
+      const result = await service.getMissedCallsGrouped(7);
+
+      expect(missedCallModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            user_uid: 7,
+            called_back: false,
+            client_called_back: false,
+          }),
+          group: expect.arrayContaining(['caller_id_num', 'personal']),
+        }),
+      );
+      expect(result).toEqual([
+        {
+          callerIdNum: '79990001122',
+          callerIdName: 'Ivan',
+          personal: false,
+          attemptCount: 3,
+          lastAttemptAt: '2026-07-20T10:00:00.000Z',
+          claimedBy: 42,
+        },
+        {
+          callerIdNum: '79990003344',
+          callerIdName: '',
+          personal: true,
+          attemptCount: 1,
+          lastAttemptAt: '2026-07-21T09:00:00.000Z',
+          claimedBy: null,
+        },
+      ]);
+    });
+  });
+
+  describe('claimMissedCall', () => {
+    it('assigns the queue-missed pool group to the claiming operator', async () => {
+      missedCallModel.update.mockResolvedValueOnce([2]);
+      const events: any[] = [];
+      state.getEventStream(7).subscribe(e => events.push(e));
+
+      const res = await service.claimMissedCall(7, 42, '79990001122');
+
+      expect(missedCallModel.update).toHaveBeenCalledWith(
+        { called_back_by: 42 },
+        expect.objectContaining({
+          where: expect.objectContaining({
+            user_uid: 7,
+            caller_id_num: '79990001122',
+            personal: false,
+            called_back: false,
+          }),
+        }),
+      );
+      expect(res).toEqual({ success: true, claimed: 2 });
+      expect(events.some(e => e.type === 'missedCallUpdate' && e.data.claimedBy === 42)).toBe(true);
+    });
+
+    it('is idempotent — re-claim by a different operator overwrites (server is source of truth)', async () => {
+      missedCallModel.update.mockResolvedValueOnce([1]);
+      await service.claimMissedCall(7, 42, '79990001122');
+      missedCallModel.update.mockResolvedValueOnce([1]);
+      const res = await service.claimMissedCall(7, 99, '79990001122');
+
+      expect(missedCallModel.update).toHaveBeenLastCalledWith(
+        { called_back_by: 99 },
+        expect.objectContaining({ where: expect.objectContaining({ caller_id_num: '79990001122' }) }),
+      );
+      expect(res).toEqual({ success: true, claimed: 1 });
+    });
+
+    it('throws BadRequestException when callerIdNum is missing', async () => {
+      await expect(service.claimMissedCall(7, 42, '')).rejects.toBeInstanceOf(BadRequestException);
+    });
+  });
+
+  describe('autoResolveOnAnswer', () => {
+    it('tags open missed rows as client_called_back when the client rings back and connects (D-17)', async () => {
+      missedCallModel.update.mockResolvedValueOnce([1]);
+      const events: any[] = [];
+      state.getEventStream(7).subscribe(e => events.push(e));
+
+      await service.autoResolveOnAnswer(7, '79990001122');
+
+      expect(missedCallModel.update).toHaveBeenCalledWith(
+        { client_called_back: true },
+        expect.objectContaining({
+          where: expect.objectContaining({
+            user_uid: 7,
+            caller_id_num: '79990001122',
+            called_back: false,
+            client_called_back: false,
+          }),
+        }),
+      );
+      expect(events.some(e => e.type === 'missedCallUpdate' && e.data.clientCalledBack === true)).toBe(true);
+    });
+
+    it('does not emit when nothing matched', async () => {
+      missedCallModel.update.mockResolvedValueOnce([0]);
+      const events: any[] = [];
+      state.getEventStream(7).subscribe(e => events.push(e));
+
+      await service.autoResolveOnAnswer(7, '79990009999');
+
+      expect(events.some(e => e.type === 'missedCallUpdate')).toBe(false);
+    });
+
+    it('is a no-op when callerIdNum is empty', async () => {
+      await service.autoResolveOnAnswer(7, '');
+      expect(missedCallModel.update).not.toHaveBeenCalled();
     });
   });
 
