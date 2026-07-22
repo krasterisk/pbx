@@ -27,6 +27,7 @@ import {
   CreatePauseReasonDto, UpdatePauseReasonDto,
   PickCallDto, MarkMissedCalledBackDto, WrapupExtendDto,
 } from './dto/callcenter.dto';
+import { PeerSpyDto } from './dto/callcenter-permissions.dto';
 
 // ─── Helpers ──────────────────────────────────────────────
 
@@ -122,6 +123,21 @@ export class CallCenterController {
   @Post('agent/pick-call')
   agentPickCall(@Body() dto: PickCallDto, @Req() req: Request & { user: any }) {
     return this.ccService.agentPickCall(dto.uniqueid, req.user.vpbx_user_uid, req.user.sub);
+  }
+
+  /**
+   * Coworker↔coworker ChanSpy — permission-gated in CallCenterService.peerSpy,
+   * not by assertSupervisor (a supervisor is only additionally allowed by their
+   * own broader queue membership, not a blanket bypass). Ids always from JWT.
+   */
+  @Post('agent/peer-spy')
+  peerSpy(@Body() dto: PeerSpyDto, @Req() req: Request & { user: any }) {
+    return this.ccService.peerSpy(
+      req.user.sub,
+      dto.targetInterface,
+      dto.mode,
+      req.user.vpbx_user_uid,
+    );
   }
 
   // ─── Missed Calls ─────────────────────────────────────
