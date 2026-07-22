@@ -659,6 +659,127 @@ describe('CallCenterAmiService', () => {
     });
   });
 
+  // ─── Non-queue call history (D-34/D-35) ────────────────
+
+  describe('non-queue call history rows (D-34/D-35)', () => {
+    it('persists an "answered" outbound history row once the call ends (DialEnd ANSWER → Hangup)', () => {
+      state.setAgent(7, 'PJSIP/e101_42', { name: 'Alice', status: 'READY', userId: 42 });
+
+      service.handleDialBegin({ channel: 'PJSIP/e101_42-00000005', destcalleridnum: '+79990001122', uniqueid: 'DB-1' });
+      service.handleDialEnd({ channel: 'PJSIP/e101_42-00000005', dialstatus: 'ANSWER' });
+      expect(historyWriter.enqueue).not.toHaveBeenCalled(); // not yet — call still active
+
+      service.handleAgentHangup({ channel: 'PJSIP/e101_42-00000005' });
+
+      expect(historyWriter.enqueue).toHaveBeenCalledWith(
+        expect.objectContaining({
+          call_uniqueid: 'DB-1',
+          agent_interface: 'PJSIP/e101_42',
+          agent_user_uid: 42,
+          caller_id_num: '+79990001122',
+          disposition: 'answered',
+          direction: 'outbound',
+          call_type: 'dial',
+          user_uid: 7,
+        }),
+      );
+    });
+
+    it('persists a "timeout" outbound history row on DialEnd NOANSWER', () => {
+      state.setAgent(7, 'PJSIP/e101_42', { name: 'Alice', status: 'READY', userId: 42 });
+
+      service.handleDialBegin({ channel: 'PJSIP/e101_42-00000005', destcalleridnum: '+79990001122', uniqueid: 'DB-2' });
+      service.handleDialEnd({ channel: 'PJSIP/e101_42-00000005', dialstatus: 'NOANSWER' });
+
+      expect(historyWriter.enqueue).toHaveBeenCalledWith(
+        expect.objectContaining({
+          call_uniqueid: 'DB-2',
+          disposition: 'timeout',
+          direction: 'outbound',
+          call_type: 'noanswer',
+          user_uid: 7,
+        }),
+      );
+    });
+
+    it('classifies a short numeric destination as direction "internal"', () => {
+      state.setAgent(7, 'PJSIP/e101_42', { name: 'Alice', status: 'READY', userId: 42 });
+
+      service.handleDialBegin({ channel: 'PJSIP/e101_42-00000005', destcalleridnum: '105', uniqueid: 'DB-3' });
+      service.handleDialEnd({ channel: 'PJSIP/e101_42-00000005', dialstatus: 'BUSY' });
+
+      expect(historyWriter.enqueue).toHaveBeenCalledWith(
+        expect.objectContaining({ direction: 'internal', call_type: 'busy' }),
+      );
+    });
+
+    it('persists an "abandoned" history row when the agent hangs up while still DIALING (no DialEnd)', () => {
+      state.setAgent(7, 'PJSIP/e101_42', { name: 'Alice', status: 'READY', userId: 42 });
+
+      service.handleDialBegin({ channel: 'PJSIP/e101_42-00000005', destcalleridnum: '+79990001122', uniqueid: 'DB-4' });
+      service.handleAgentHangup({ channel: 'PJSIP/e101_42-00000005' });
+
+      expect(historyWriter.enqueue).toHaveBeenCalledWith(
+        expect.objectContaining({
+          call_uniqueid: 'DB-4',
+          disposition: 'abandoned',
+          direction: 'outbound',
+          call_type: 'cancel',
+        }),
+      );
+    });
+
+    it('persists a "personal" abandoned history row for a missed direct ring (alongside cc_missed_calls)', async () => {
+      state.setAgent(7, 'PJSIP/e101_42', { name: 'Alice', status: 'READY', userId: 42 });
+
+      service.handleNewchannel({
+        channel: 'PJSIP/e101_42-00000005',
+        channelstatedesc: 'Ring',
+        calleridnum: '+79990001122',
+        calleridname: 'Ivan',
+        uniqueid: 'H-2',
+      });
+      service.handleAgentHangup({ channel: 'PJSIP/e101_42-00000005', uniqueid: 'H-2' });
+      await Promise.resolve();
+
+      expect(historyWriter.enqueue).toHaveBeenCalledWith(
+        expect.objectContaining({
+          call_uniqueid: 'H-2',
+          disposition: 'abandoned',
+          direction: 'personal',
+          call_type: 'ring',
+          caller_id_num: '+79990001122',
+        }),
+      );
+    });
+
+    it('persists an "answered" personal history row once a direct-ring call (no currentCall) ends', () => {
+      state.setAgent(7, 'PJSIP/e101_42', { name: 'Alice', status: 'READY', userId: 42 });
+
+      service.handleNewchannel({
+        channel: 'PJSIP/e101_42-00000005',
+        channelstatedesc: 'Ring',
+        calleridnum: '+79990001122',
+        calleridname: 'Ivan',
+        uniqueid: 'H-3',
+      });
+      // Simulates QueueMemberStatus reporting the device now in-use (call answered)
+      state.setAgent(7, 'PJSIP/e101_42', { status: 'IN_CALL' });
+
+      service.handleAgentHangup({ channel: 'PJSIP/e101_42-00000005' });
+
+      expect(historyWriter.enqueue).toHaveBeenCalledWith(
+        expect.objectContaining({
+          call_uniqueid: 'H-3',
+          disposition: 'answered',
+          direction: 'personal',
+          call_type: 'ring',
+          caller_id_num: '+79990001122',
+        }),
+      );
+    });
+  });
+
   describe('DIALING journal (cc_agent_events, D-09/D-13)', () => {
     it('writes a DIALING row on entry and fills duration on exit', async () => {
       agentSessionModel.findOne.mockResolvedValue({ getDataValue: () => 55 });
