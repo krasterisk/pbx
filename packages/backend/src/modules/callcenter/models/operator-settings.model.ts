@@ -1,4 +1,5 @@
 import { Column, DataType, Model, Table } from 'sequelize-typescript';
+import type { NotificationMatrix, SoftphonePlacement, SpyMode, UiVisibility } from './cc-permissions.types';
 
 /**
  * Per-operator call-center settings (D-16/18/19/20 → D-22).
@@ -55,6 +56,38 @@ export class CcOperatorSettings extends Model {
 
   @Column({ type: DataType.DATE, allowNull: false, defaultValue: DataType.NOW })
   declare updated_at: Date;
+
+  /** D-21: can this operator ChanSpy on a colleague. */
+  @Column({ type: DataType.BOOLEAN, allowNull: false, defaultValue: false })
+  declare can_spy: boolean;
+
+  /** D-21: can this operator be ChanSpy'd on by a colleague/supervisor. */
+  @Column({ type: DataType.BOOLEAN, allowNull: false, defaultValue: true })
+  declare spyable: boolean;
+
+  /** D-29: client-aware click-to-call (WebRTC direct / PJSIP originate-first). */
+  @Column({ type: DataType.BOOLEAN, allowNull: false, defaultValue: false })
+  declare click_to_call: boolean;
+
+  /** D-05/D-06: operator may customize their own tab/panel visibility + softphone placement. */
+  @Column({ type: DataType.BOOLEAN, allowNull: false, defaultValue: false })
+  declare customize_ui: boolean;
+
+  /** D-22: ChanSpy modes granted to this operator when can_spy is true. */
+  @Column({ type: DataType.JSON, allowNull: false, defaultValue: ['listen'] })
+  declare spy_modes: SpyMode[];
+
+  /** D-05: per-operator override of tab/panel visibility (null = inherit role default). */
+  @Column({ type: DataType.JSON, allowNull: true, defaultValue: null })
+  declare ui_visibility: UiVisibility | null;
+
+  /** D-01: softphone widget placement. */
+  @Column({ type: DataType.STRING(16), allowNull: false, defaultValue: 'bottom-right' })
+  declare softphone_placement: SoftphonePlacement;
+
+  /** D-41/D-43: per-operator event×channel notification matrix (null = inherit role default). */
+  @Column({ type: DataType.JSON, allowNull: true, defaultValue: null })
+  declare notification_matrix: NotificationMatrix | null;
 
   // Tenant isolation
   @Column({ type: DataType.INTEGER, allowNull: false, defaultValue: 0, field: 'vpbx_user_uid' })

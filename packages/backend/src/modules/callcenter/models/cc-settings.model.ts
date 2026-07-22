@@ -1,4 +1,11 @@
 import { Column, DataType, Model, Table } from 'sequelize-typescript';
+import type {
+  AutoPauseRule,
+  NotificationMatrix,
+  PermissionSet,
+  UiVisibility,
+} from './cc-permissions.types';
+import type { UserLevel } from '../../users/user.model';
 
 /**
  * Per-tenant call-center settings singleton (D-07 default SLA + D-27 alert thresholds).
@@ -23,6 +30,34 @@ export class CcSettings extends Model {
   /** D-27: play alert sound on wallboard. */
   @Column({ type: DataType.BOOLEAN, allowNull: false, defaultValue: true })
   declare alert_sound_enabled: boolean;
+
+  /**
+   * D-38/D-39: role = set of rights (default), keyed by UserLevel. Per-operator overrides
+   * live as columns on CcOperatorSettings; merge precedence is resolved by the
+   * permissions service (09-05), not here.
+   */
+  @Column({ type: DataType.JSON, allowNull: true, defaultValue: null })
+  declare role_permission_defaults: Partial<Record<UserLevel, Partial<PermissionSet>>> | null;
+
+  /** D-05/D-06: role-default tab/panel visibility (per-operator override on CcOperatorSettings). */
+  @Column({ type: DataType.JSON, allowNull: true, defaultValue: null })
+  declare ui_visibility_defaults: UiVisibility | null;
+
+  /** D-06: keys locked by admin/supervisor — operator cannot override these ui_visibility keys. */
+  @Column({ type: DataType.JSON, allowNull: true, defaultValue: null })
+  declare ui_visibility_locks: UiVisibility | null;
+
+  /** D-41/D-43: role-default notification matrix (per-operator override on CcOperatorSettings). */
+  @Column({ type: DataType.JSON, allowNull: true, defaultValue: null })
+  declare notification_defaults: NotificationMatrix | null;
+
+  /** D-43: notification matrix entries locked by admin/supervisor. */
+  @Column({ type: DataType.JSON, allowNull: true, defaultValue: null })
+  declare notification_locks: NotificationMatrix | null;
+
+  /** D-15: tenant-wide flexible auto-pause rules (missed-count / idle-time / status-duration). */
+  @Column({ type: DataType.JSON, allowNull: true, defaultValue: null })
+  declare autopause_rules: AutoPauseRule[] | null;
 
   @Column({ type: DataType.DATE, allowNull: false, defaultValue: DataType.NOW })
   declare updated_at: Date;
