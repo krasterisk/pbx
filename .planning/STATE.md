@@ -5,13 +5,13 @@ milestone_name: milestone
 current_phase: 9
 current_phase_name: call-center-agent-panel
 status: Ready to execute
-stopped_at: Completed 09-05-PLAN.md
-last_updated: "2026-07-22T14:42:00.000Z"
+stopped_at: Completed 09-06-PLAN.md
+last_updated: "2026-07-22T16:19:09.082Z"
 progress:
   total_phases: 9
   completed_phases: 6
   total_plans: 82
-  completed_plans: 71
+  completed_plans: 72
 ---
 
 # State
@@ -22,7 +22,8 @@ Phase: 9 (call-center-agent-panel) — EXECUTING
 Plan 09-01 (schema/model foundation, wave 1): 3/3 tasks committed + migration applied to live DB.
 Plan 09-02 (Tabs primitive + AgentStatus model, wave 1): 3/3 tasks committed.
 Plan 09-03 (all-channel AMI listener + dual shift/day KPI, wave 1): 3/3 tasks committed.
-Plan 09-05 (PermissionsService + peer ChanSpy + audit, wave 2): 3/3 tasks committed. Next: 09-04/09-06+.
+Plan 09-05 (PermissionsService + peer ChanSpy + audit, wave 2): 3/3 tasks committed.
+Plan 09-06 (SoftphoneWidget FAB + IncomingCallToast, wave 2): 3/3 tasks committed. Next: 09-04/09-07+.
 Also: Phase 8 (navigation-redesign-android-port-foundation) — EXECUTING
 Plan 08-11: Tasks 1–2 committed; **blocked on Task 3 human-verify** (Android WebRTC + FCM device smoke)
 
@@ -142,6 +143,7 @@ Phase 1 — MOH: pending verify.
 - [Phase 09]: 09-02 shared/ui/Tabs (Radix data-state driven underline); AgentStatus 9-member union + authoritative agentStatusLabel/agentStatusColorFamily maps; ru/en status+tabs i18n keys
 - [Phase 09]: 09-03 findAgentByChannel channel-substring resolver (userId>0 guard, T-09-03-01); DIALING journaled via logStatusJournalEnter/Exit direct create+update (not CallCenterHistoryWriterService); dual sinceLogin/sinceMidnight KPI accumulators (agent + agent:queue) with agentKpiUpdate SSE delta; CONSULT/ACW journal path exists but no producer yet
 - [Phase 09]: 09-05 CallCenterPermissionsService.getEffective merges role default + per-operator override with lock precedence; added permission_locks JSON column to cc_settings (09-01 gap — ui_visibility_locks/notification_locks shipped but no permissions sibling); peerSpy adds coworker ChanSpy scoped by shared online queue (no tenant-wide supervisor bypass), audited via LoggerService.logAction before AMI originate; noted (not fixed) the pre-existing assertSupervisor Set-vs-numeric divergence between callcenter.controller.ts and callcenter-settings.controller.ts
+- [Phase 09]: 09-06 SoftphoneWidget takes phone (useWebRTCPhone return value) as required prop, not internal hook - single SIP session owned by 09-08 orchestrator; mobile (<768) branch renders structurally different sticky-bar tree (no floating FAB), per D-46 superseding UI-SPEC Sheet-on-phone wording; IncomingCallToast is non-modal plain div with CSS keyframes (no Sheet/motion lib); new callcenter.softphone.*/callcenter.incoming.* i18n keys genuinely translated in ru.ts (not falling back to English like pre-existing callcenter.agent.* keys)
 
 ## Roadmap Evolution
 
@@ -225,9 +227,10 @@ Also open: Phase 8 / 08-11 Task 3 — complete Android smoke checklist, then rep
 | Phase 9 P02 | 42min | 3 tasks | 14 files |
 | Phase 9 P03 | 70min | 3 tasks | 11 files |
 | Phase 9 P05 | ~40min | 3 tasks | 10 files |
+| Phase 9 P06 | ~25min | 3 tasks | 9 files |
 
 ## Session
 
-**Last session:** 2026-07-22T14:42:00.000Z
-**Stopped at:** Completed 09-05-PLAN.md
+**Last session:** 2026-07-22T16:18:43.779Z
+**Stopped at:** Completed 09-06-PLAN.md
 **Resume file:** None
