@@ -3,6 +3,7 @@ import { useDispatch, useStore, useSelector } from 'react-redux';
 import type { RootState } from '@/app/store/store';
 import { selectCurrentUser } from '@/entities/User';
 import { rtkApi } from '@/shared/api/rtkApi';
+import { callCenterApi } from '@/shared/api/endpoints/callCenterApi';
 import {
   setSnapshot,
   setConnected,
@@ -223,6 +224,25 @@ export function useCallCenterSSE(enabled: boolean = true) {
     es.addEventListener('missedCallUpdate', (e: MessageEvent) => {
       try {
         window.dispatchEvent(new CustomEvent('cc:missed-call-update', { detail: JSON.parse(e.data) }));
+      } catch { /* ignore */ }
+    });
+
+    // Presence (D-36/D-37/D-45) — a single BLF dot changed. Patch the cached
+    // unfiltered getTransferDirectory entry in place (no refetch, no full-list
+    // rebroadcast) so TransferDirectory's directory list updates live without
+    // re-hitting the server. Search-filtered cache entries (a distinct RTK
+    // Query cache key) are not patched here — they refresh on their own next
+    // fetch, a documented scope limit rather than a silent gap.
+    es.addEventListener('presenceUpdate', (e: MessageEvent) => {
+      try {
+        const data = JSON.parse(e.data) as { extension?: string; state?: string };
+        if (!data?.extension) return;
+        dispatch(
+          callCenterApi.util.updateQueryData('getTransferDirectory', undefined, (draft) => {
+            const entry = draft.endpoints.find((ep) => ep.extension === data.extension);
+            if (entry) entry.presence = data.state || entry.presence;
+          }),
+        );
       } catch { /* ignore */ }
     });
 

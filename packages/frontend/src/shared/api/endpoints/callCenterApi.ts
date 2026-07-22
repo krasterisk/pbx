@@ -204,6 +204,52 @@ export interface IUiCustomization {
   softphone_placement: SoftphonePlacement;
 }
 
+/** Unified transfer directory row shapes (D-36/D-37) — TransferDirectory (09-12). */
+export interface IDirectoryEndpoint {
+  type: 'endpoint';
+  id: string;
+  extension: string;
+  label: string;
+  /** Raw AMI DeviceState/ExtensionState value, or a CallCenterAgentPage AgentStatus fallback. */
+  presence: string;
+}
+export interface IDirectoryQueue {
+  type: 'queue';
+  id: string;
+  label: string;
+  freeOperators: number;
+  totalOperators: number;
+}
+export interface IDirectoryGroup {
+  type: 'group';
+  id: string;
+  label: string;
+  freeOperators: number;
+  totalOperators: number;
+}
+export interface ITransferDirectory {
+  endpoints: IDirectoryEndpoint[];
+  queues: IDirectoryQueue[];
+  groups: IDirectoryGroup[];
+}
+
+/** Unified all-direction call history row (D-34/D-35) — CallHistoryPanel (09-12). */
+export interface IOperatorHistoryRow {
+  uid: number;
+  callUniqueid: string;
+  queueName: string | null;
+  callerIdNum: string;
+  callerIdName: string;
+  direction: 'inbound' | 'outbound' | 'personal' | 'internal';
+  callType: string | null;
+  disposition: 'answered' | 'abandoned' | 'transferred' | 'timeout' | 'other';
+  enterTime: string | null;
+  answerTime: string | null;
+  endTime: string | null;
+  waitTime: number | null;
+  talkTime: number | null;
+}
+
 const callCenterApi = rtkApi.injectEndpoints({
   endpoints: (build) => ({
     // ─── State ────────────────────────────────────────────
@@ -277,6 +323,34 @@ const callCenterApi = rtkApi.injectEndpoints({
     getMyUiCustomization: build.query<IUiCustomization, void>({
       query: () => '/callcenter/settings/operator/ui',
       providesTags: ['CcOperatorSettings'],
+    }),
+
+    /**
+     * Unified transfer directory (D-36/D-37) — endpoints + queues + call groups,
+     * tenant-scoped. `search` is optional server-side filtering support; TransferDirectory
+     * (09-12) itself always queries unfiltered and filters client-side so the single
+     * cache entry stays in sync with the presenceUpdate SSE patch below (D-45).
+     */
+    getTransferDirectory: build.query<ITransferDirectory, { search?: string } | void>({
+      query: (params) => ({
+        url: '/callcenter/agent/directory',
+        params: params?.search ? { search: params.search } : undefined,
+      }),
+      providesTags: ['Directory'],
+    }),
+
+    /** Unified all-direction call history for the operator's own shift/day (D-34/D-35). */
+    getOperatorCallHistory: build.query<IOperatorHistoryRow[], { period?: 'shift' | 'day' } | void>({
+      query: (params) => ({
+        url: '/callcenter/agent/history',
+        params: params?.period ? { period: params.period } : undefined,
+      }),
+      providesTags: ['CallHistory'],
+    }),
+
+    /** Client-aware click-to-call from the directory/history (D-29) — same WebRTC/PJSIP branching as callbackMissedCall. */
+    clickToCall: build.mutation<{ success: boolean; mode: 'webrtc' | 'pjsip'; target: string }, { target: string }>({
+      query: (body) => ({ url: '/callcenter/agent/click-to-call', method: 'POST', body }),
     }),
 
     // ─── Agent Actions ────────────────────────────────────
@@ -586,6 +660,9 @@ const callCenterApi = rtkApi.injectEndpoints({
   }),
 });
 
+/** Injected api reference — used by useCallCenterSSE.ts for typed `util.updateQueryData` cache patches (presenceUpdate, D-45). */
+export { callCenterApi };
+
 export const {
   useGetCcStateQuery,
   useGetAgentMeQuery,
@@ -594,6 +671,9 @@ export const {
   useGetAgentQueuesStatsQuery,
   useGetEffectivePermissionsQuery,
   useGetMyUiCustomizationQuery,
+  useGetTransferDirectoryQuery,
+  useGetOperatorCallHistoryQuery,
+  useClickToCallMutation,
   useAgentLoginMutation,
   useAgentLogoutMutation,
   useAgentPauseMutation,
