@@ -19,6 +19,7 @@ import { CallCenterHistoryWriterService } from './callcenter-history-writer.serv
 import { CallCenterMetricsService } from './callcenter-metrics.service';
 import { CallCenterRollupService } from './callcenter-rollup.service';
 import { CallCenterQueueLogReconcilerService } from './callcenter-queuelog-reconciler.service';
+import { CallCenterZombieService } from './callcenter-zombie.service';
 import { CallCenterController } from './callcenter.controller';
 import { CallCenterSseController } from './callcenter-sse.controller';
 import { CallCenterSettingsController } from './callcenter-settings.controller';
@@ -123,6 +124,7 @@ import { queueLogReaderProvider } from './queuelog/queue-log-reader.factory';
       useExisting: CallCenterAmiService,
     },
     CallCenterService,
+    CallCenterZombieService,
     CallCenterPermissionsService,
     CallCenterAiAdapter,
     CallCenterMediaBridgeService,

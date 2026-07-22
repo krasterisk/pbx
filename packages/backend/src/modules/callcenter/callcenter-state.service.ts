@@ -74,6 +74,8 @@ export interface CallState {
   talkTime: number;         // accumulated seconds talking
   position?: number;        // position in queue
   userUid: number;
+  /** Phase 9 (D-27/D-28): flagged by CallCenterZombieService, cleared by resetZombieCall. */
+  zombieCandidate?: boolean;
 }
 
 export interface CcEvent {

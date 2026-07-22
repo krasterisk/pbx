@@ -437,12 +437,84 @@ export class AmiService implements OnModuleInit, OnModuleDestroy {
     return this.action({ action: 'Hangup', channel });
   }
 
-  async getActiveChannels(): Promise<any> {
-    return this.action({ action: 'CoreShowChannels' });
+  /**
+   * List all active channels via CoreShowChannels.
+   * CoreShowChannels is an event-list action (Phase 9 D-27/D-28 zombie-call
+   * reconciler): it resolves immediately with Success, then Asterisk emits
+   * individual CoreShowChannel events, ending with CoreShowChannelsComplete —
+   * same actionid/rawevent collection shape as pjsipShowRegistrations() above.
+   * [ASSUMED — event/field names verified against asterisk-manager's general
+   * lowercasing behavior, not a live Asterisk instance; see 09-RESEARCH.md
+   * Environment Availability / 09-VALIDATION manual check.]
+   */
+  async getActiveChannels(): Promise<{ events: any[] }> {
+    return new Promise((resolve, reject) => {
+      if (!this.connected) {
+        reject(new Error('AMI not connected'));
+        return;
+      }
+
+      const events: any[] = [];
+      const actionId = String(Date.now()) + String(Math.random()).slice(2, 6);
+      let settled = false;
+
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        this.ami.removeListener('rawevent', handler);
+        resolve({ events });
+      };
+
+      const handler = (evt: any) => {
+        if (evt.actionid !== actionId) return;
+        if (evt.event === 'CoreShowChannel') {
+          events.push(evt);
+        }
+        if (evt.event === 'CoreShowChannelsComplete') {
+          finish();
+        }
+      };
+
+      this.ami.on('rawevent', handler);
+
+      const timer = setTimeout(finish, 5000);
+
+      this.ami.action(
+        { action: 'CoreShowChannels', actionid: actionId },
+        (err: any, _res: any) => {
+          if (err) {
+            clearTimeout(timer);
+            settled = true;
+            this.ami.removeListener('rawevent', handler);
+            reject(err);
+          }
+        },
+      );
+    });
   }
 
   async getPeerStatus(peer: string): Promise<any> {
     return this.action({ action: 'SIPpeerstatus', peer });
+  }
+
+  // --- Call Control (D-28: park/retrieve, ConfBridge, device presence) ---
+
+  /** Park a channel into the (optional) named parking lot. */
+  async park(channel: string, parkingLot?: string): Promise<any> {
+    const params: any = { action: 'Park', channel };
+    if (parkingLot) params.parkinglot = parkingLot;
+    return this.action(params);
+  }
+
+  /** List currently parked calls (immediate-response action, unlike CoreShowChannels). */
+  async parkedCalls(): Promise<any> {
+    return this.action({ action: 'ParkedCalls' });
+  }
+
+  /** Query device presence/BLF state list (D-36/D-37 presence groundwork). */
+  async deviceStateList(): Promise<any> {
+    return this.action({ action: 'DeviceStateList' });
   }
 
   async queueAdd(queue: string, iface: string, penalty?: number): Promise<any> {
