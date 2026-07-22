@@ -439,6 +439,16 @@ export class CallCenterService {
   }
 
   /**
+   * Current agent's own dual shift/day answered·made·missed KPI per queue (D-31/D-32) —
+   * Queues tab (09-08). Self-scoped identically to getAgentKpi: the agent interface and
+   * its queue membership are resolved server-side, never accepted from the client.
+   */
+  getAgentQueuesKpi(userUid: number, userId: number) {
+    const agent = this.stateService.getAllAgents(userUid).find((a) => a.userId === userId);
+    return this.metricsService.getAgentQueuesKpi(userUid, agent?.interface || '', agent?.queues || []);
+  }
+
+  /**
    * Hold — Put the caller on hold (they hear MusicOnHold).
    *
    * Two scenarios:

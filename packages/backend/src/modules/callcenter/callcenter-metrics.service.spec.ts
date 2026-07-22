@@ -263,6 +263,20 @@ describe('CallCenterMetricsService', () => {
       expect(service.getAgentQueueKpi(1, 'PJSIP/a1', 'q_sales').sinceLogin.made).toBe(1);
       expect(service.getAgentQueueKpi(2, 'PJSIP/a1', 'q_sales').sinceLogin.made).toBe(1);
     });
+
+    it('getAgentQueuesKpi batches getAgentQueueKpi across every queue name given', () => {
+      service.recordMade(1, 'PJSIP/a1', 'q_sales');
+      service.recordAnswered(1, 'q_support', 'PJSIP/a1', 5, 30, 0);
+
+      const result = service.getAgentQueuesKpi(1, 'PJSIP/a1', ['q_sales', 'q_support', 'q_empty']);
+
+      expect(result.q_sales.sinceLogin.made).toBe(1);
+      expect(result.q_support.sinceLogin.answered).toBe(1);
+      expect(result.q_empty).toEqual({
+        sinceLogin: { answered: 0, made: 0, missed: 0 },
+        sinceMidnight: { answered: 0, made: 0, missed: 0 },
+      });
+    });
   });
 
   describe('restoreToday KPI rebuild (D-11/D-12 day counter)', () => {

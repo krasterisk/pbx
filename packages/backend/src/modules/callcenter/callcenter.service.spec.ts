@@ -36,6 +36,7 @@ describe('CallCenterService', () => {
       sinceLogin: { answered: 0, made: 0, missed: 0 },
       sinceMidnight: { answered: 0, made: 0, missed: 0 },
     }),
+    getAgentQueuesKpi: jest.fn().mockReturnValue({}),
   };
   const settingsService: any = {
     getOperatorSettings: jest.fn().mockResolvedValue({
@@ -182,6 +183,22 @@ describe('CallCenterService', () => {
       service.getAgentKpi(7, 999);
 
       expect(metricsService.getAgentKpi).toHaveBeenCalledWith(7, '');
+    });
+  });
+
+  describe('getAgentQueuesKpi', () => {
+    it('resolves the logged-in agent interface and queues, delegating to metricsService.getAgentQueuesKpi', async () => {
+      await service.agentLogin('PJSIP/101', ['sales', 'support'], 7, 42);
+
+      service.getAgentQueuesKpi(7, 42);
+
+      expect(metricsService.getAgentQueuesKpi).toHaveBeenCalledWith(7, 'PJSIP/101', ['sales', 'support']);
+    });
+
+    it('never accepts a client-supplied interface — falls back to an empty lookup when the user is not online (self-scoped)', () => {
+      service.getAgentQueuesKpi(7, 999);
+
+      expect(metricsService.getAgentQueuesKpi).toHaveBeenCalledWith(7, '', []);
     });
   });
 

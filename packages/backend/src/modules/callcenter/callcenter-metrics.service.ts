@@ -175,6 +175,19 @@ export class CallCenterMetricsService implements OnModuleInit {
     return acc ? this.cloneKpiAcc(acc) : this.emptyKpiAcc();
   }
 
+  /** Same as getAgentQueueKpi, batched across every queue the agent belongs to (Queues tab, D-31/D-32). */
+  getAgentQueuesKpi(
+    userUid: number,
+    agentInterface: string,
+    queueNames: string[],
+  ): Record<string, KpiAccumulator> {
+    const result: Record<string, KpiAccumulator> = {};
+    for (const queueName of queueNames) {
+      result[queueName] = this.getAgentQueueKpi(userUid, agentInterface, queueName);
+    }
+    return result;
+  }
+
   getTenantQueueMetrics(userUid: number): TenantQueueMetrics[] {
     const prefix = `${userUid}:`;
     const result: TenantQueueMetrics[] = [];

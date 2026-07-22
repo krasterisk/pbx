@@ -85,6 +85,11 @@ export class CallCenterController {
     return this.ccService.getAgentKpi(req.user.vpbx_user_uid, req.user.sub);
   }
 
+  @Get('agent/queues-kpi')
+  getAgentQueuesKpi(@Req() req: Request & { user: any }) {
+    return this.ccService.getAgentQueuesKpi(req.user.vpbx_user_uid, req.user.sub);
+  }
+
   @Post('agent/logout')
   agentLogout(@Req() req: Request & { user: any }) {
     return this.ccService.agentLogout(req.user.vpbx_user_uid, req.user.sub);
