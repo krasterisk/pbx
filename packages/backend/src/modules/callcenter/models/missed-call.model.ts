@@ -43,6 +43,14 @@ export class CcMissedCall extends Model {
   @Column({ type: DataType.STRING(255), allowNull: true, defaultValue: '' })
   declare note: string;
 
+  /** D-17: client called back on their own (any subsequent answered call from this number). */
+  @Column({ type: DataType.BOOLEAN, allowNull: false, defaultValue: false })
+  declare client_called_back: boolean;
+
+  /** D-19: true for direct/internal misses on the operator, false for queue-abandoned. */
+  @Column({ type: DataType.BOOLEAN, allowNull: false, defaultValue: false })
+  declare personal: boolean;
+
   @Column({ type: DataType.DATE, allowNull: false, defaultValue: DataType.NOW })
   declare created_at: Date;
 

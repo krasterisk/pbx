@@ -17,6 +17,8 @@ export class CcAgentEvent extends Model {
       'CALL_START', 'CALL_END',
       'WRAPUP_START', 'WRAPUP_END',
       'HOLD', 'UNHOLD',
+      /** Phase 9 (D-09/D-13): dialing/consultation/after-call-work timeline events. */
+      'DIALING', 'CONSULT', 'ACW',
     ),
     allowNull: false,
   })

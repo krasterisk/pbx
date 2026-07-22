@@ -62,6 +62,17 @@ export class CcQueueCall extends Model {
   @Column({ type: DataType.INTEGER, allowNull: false, defaultValue: 0 })
   declare position: number;
 
+  /**
+   * D-34/D-35: call direction so this table can carry non-queue rows too
+   * (personal/outbound/internal), not only queue calls.
+   */
+  @Column({ type: DataType.STRING(16), allowNull: false, defaultValue: 'inbound' })
+  declare direction: 'inbound' | 'outbound' | 'personal' | 'internal';
+
+  /** D-34/D-35: free-form call type/channel classification for history filtering. */
+  @Column({ type: DataType.STRING(32), allowNull: true, defaultValue: '' })
+  declare call_type: string;
+
   @Column({ type: DataType.DATE, allowNull: false, defaultValue: DataType.NOW })
   declare created_at: Date;
 
