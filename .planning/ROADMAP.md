@@ -464,3 +464,70 @@ Plans:
 
 - Automated: `npm run lint`, `npm run test:frontend`; Capacitor sync/build smoke (если scaffold в scope execute)
 - Manual: desktop — переключение между доменами/модулями, keyboard/search; mobile — drawer/bottom nav, ключевые сценарии; Android emulator/device — открытие shell, login, 1–2 ключевых экрана, mic permission path для softphone
+
+---
+
+## Phase 9 — Call Center Agent Panel: softphone widget & professional call control
+
+**Canonical refs (фаза):**
+
+- `packages/frontend/.idea/ARCHITECTURE.md`, `packages/backend/.idea/ARCHITECTURE.md` — **MUST READ**
+- `.idea/call-center/CC_WORKSPACES_CONCEPT.md` — АРМ оператора (зоны / layout)
+- `.idea/call-center/CC_WEBRTC_CONCEPT.md` — WebRTC softphone
+- `packages/frontend/src/pages/CallCenterAgentPage/CallCenterAgentPage.tsx` — primary target (orchestrator)
+- `packages/frontend/src/features/callcenter/` — softphone, SSE, selectors, UI panels
+- `packages/backend/src/modules/callcenter/` — AMI actions (transfer, chanspy, hangup, pickup), state, metrics
+
+**Status:** Planned (14 plans, 7 waves)  
+**Depends on:** Phase 7 (CC core + WebRTC softphone); Phase 8 agent sticky softphone / mobile shell — желательно после стабилизации layout
+
+**Goal:** Переработать АРМ оператора (`CallCenterAgentPage`): основными становятся вкладки **Коллеги / Очереди / Текущие (ожидающие) звонки**; софтфон — компактный виджет + окно входящего вызова и кнопки управления в верхней статус-панели; статус «Готов» → «Ожидание звонка»; KPI принял/пропустил в статус-строке (все звонки, не только queue); per-queue answered/missed; transfer / ChanSpy / hangup по ролям; pickup из waiting; полный набор call-control по практикам профессиональных колл-центров.
+
+**Scope (in):**
+
+1. **IA / layout АРМ** — primary tabs: Коллеги (Операторы), Очереди, Текущие/ожидающие звонки; софтфон как виджет (не доминирующая «карточка ожидания»)
+2. **Статус-панель оператора** — «Ожидание звонка» вместо «Готов»; counters принял / пропустил (incoming+outgoing answered; любой missed/abandoned); при активном вызове — call controls в статус-баре + окно звонка
+3. **Вкладка Очереди** — все очереди оператора; per-queue answered/missed stats
+4. **Вкладка Коллеги** — активные операторы в очередях; click-to-transfer; ChanSpy modes если включена прослушка; hangup — свой разговор (оператор) / разговоры своих операторов (супервизор)
+5. **Вкладка Текущие/ожидающие** — таблица waiting queue calls + pickup («подобрать»)
+6. **Call-control feature set** — hold, mute, DTMF, blind/attended transfer, conference/chanspy modes, hangup, pickup и прочие best-practice действия (discuss уточняет MVP vs full)
+7. **Backend/AMI** — недостающие actions/events для counters, chanspy, hangup-remote, pickup; KPI semantics (не только queue-missed)
+8. **i18n** — `ru` + `en`
+
+**Scope (out):**
+
+- Полноценный WFM / schedules
+- Omnichannel очереди (chat/email) — отдельная фаза
+- Полный redesign супервизорского АРМ (кроме hangup/chanspy прав, пересекающихся с коллегами)
+
+**Requirements:** TBD (discuss → REQ / decisions)
+
+**GSD workflow (рекомендуемый порядок):**
+
+| Шаг | Команда |
+|-----|---------|
+| 1 | `/gsd-discuss-phase 9` — IA вкладок, KPI semantics, call-control MVP vs full, supervisor overlap |
+| 2 | `/gsd-ui-phase 9` — status bar + tabs + softphone widget + call window |
+| 3 | `/gsd-plan-phase 9` |
+| 4 | `/gsd-execute-phase 9` |
+| 5 | `/gsd-ui-review 9` + `npm run test:frontend` / `test:backend` |
+| 6 | `/gsd-verify-work 9` → `/gsd-ship 9` |
+
+**Plans:** 14 plans
+
+Plans:
+
+- [ ] 09-01-PLAN.md — Backend schema/models + Phase-9 migration + push (D-05/06/12/13/16/17/38/41)
+- [ ] 09-02-PLAN.md — Frontend Tabs primitive + AgentStatus enum + labels/i18n (D-08/09/10/44)
+- [ ] 09-03-PLAN.md — Backend all-channel AMI listener + dual shift/day KPI (D-11/12/13/14/15)
+- [ ] 09-04-PLAN.md — Frontend status bar redesign + KPI + call-control bar (D-08/11/12/26)
+- [ ] 09-05-PLAN.md — Backend PermissionsService + peer ChanSpy + audit (D-20/21/22/38/39)
+- [ ] 09-06-PLAN.md — Frontend softphone widget (FAB) + incoming call toast (D-06/07/23/24)
+- [ ] 09-07-PLAN.md — Backend call-control: park/conference/zombie-reset/warm-transfer (D-25/27/28/29/33)
+- [ ] 09-08-PLAN.md — Frontend layout/IA rework + Coworkers/Queues/Waiting tabs (D-08/09/10/30/31)
+- [ ] 09-09-PLAN.md — Backend smart missed-calls engine + auto-pause rules (D-16/17/18/19/40)
+- [ ] 09-10-PLAN.md — Frontend missed-calls UI + call-control UI + parked indicator (D-16/17/18/19/27/28/33/44)
+- [ ] 09-11-PLAN.md — Backend unified call history + transfer directory + BLF presence (D-34/35/36/37/45)
+- [ ] 09-12-PLAN.md — Frontend transfer directory + click-to-call + call-history UI (D-29/34/36/37/44)
+- [ ] 09-13-PLAN.md — Backend settings endpoints: permissions/notifications/UI customization (D-38/39/40/41/42)
+- [ ] 09-14-PLAN.md — Frontend settings UI + notification engine + mobile rework + i18n (D-38..44/46)
