@@ -498,22 +498,25 @@ async getMissedCallsGrouped(userUid: number) {
 
 **If this table is empty:** N/A — see rows above.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Where does "role" live for D-38/D-39's role-default permission storage?**
    - What we know: `CcSettings` is a tenant-singleton (`unique on vpbx_user_uid`), used today for tenant-wide `default_sla_threshold`/`alert_thresholds`. `UserLevel` (ADMIN/SUPERVISOR/etc.) is the only existing "role" concept, defined in `users/user.model.ts`, not per-tenant-configurable.
    - What's unclear: D-39 says "роль = набор прав (default) + переопределение на оператора" — this reads as **per-`UserLevel`** defaults (e.g. all SUPERVISORs get `can_spy=true` by default), which `CcSettings`'s single-row-per-tenant shape cannot represent without adding a `role` dimension.
    - Recommendation: Planner should design a small `cc_role_permission_defaults` table (or a JSON column on `CcSettings` keyed by `UserLevel`) rather than trying to force this into the existing singleton row. Flag as a locked decision needed before implementation, or resolve via Claude's discretion in the plan with a `checkpoint:human-verify` if ambiguous.
+   - **RESOLVED (09-01 Task 1/2):** Stored as a `role_permission_defaults` JSON column keyed by `UserLevel` on the tenant-singleton `cc_settings` (+ per-item `*_locks` JSON), with per-operator overrides as columns on `cc_operator_settings` — no separate `cc_role_permission_defaults` table. The merge/lock resolution is centralised in `CallCenterPermissionsService.getEffective` (09-05 Task 1); no `checkpoint` needed.
 
 2. **Exact zombie-call detection threshold and polling cadence.**
    - What we know: UI-SPEC explicitly defers this to "backend/research concern". No existing telemetry on typical call durations in this tenant base to calibrate a safe default.
    - What's unclear: Whether a fixed threshold (e.g. 10 min) is acceptable for MVP or whether it needs to be tenant-configurable from day one.
    - Recommendation: Ship a fixed, conservative, code-level constant for MVP (per D-30 "MVP priority; heavy features to waves/backlog") with a follow-up backlog item to make it configurable if support tickets show it's too aggressive/lax.
+   - **RESOLVED (09-07 Task 1):** `CallCenterZombieService` polls `CoreShowChannels` every 30-60s and flags a stuck call using a fixed, documented conservative threshold constant (≈10-min floor); it only FLAGS candidates (never auto-hangs) — the destructive reset stays operator-triggered per D-27. Tenant-configurability is deferred to backlog.
 
 3. **ACW/CONSULT status persistence in `cc_agent_events`.**
    - What we know: `CcAgentEvent.event_type` is a fixed Sequelize `ENUM('LOGIN','LOGOUT','READY','PAUSE','CALL_START','CALL_END','WRAPUP_START','WRAPUP_END','HOLD','UNHOLD')` — adding ACW/CONSULT/DIALING as trackable timeline events requires a **migration** to extend this ENUM (MySQL `ALTER TABLE ... MODIFY COLUMN event_type ENUM(...)`), not just a TypeScript-level status union change.
    - What's unclear: Whether the planner intends full timeline/reporting visibility for these three new statuses (matching D-09's "детальный исторический журнал") or just live-state visibility without historical logging.
    - Recommendation: Given D-09 explicitly wants a detailed historical log and D-13 lists DIALING/CONSULT/ACW as first-class statuses, the ENUM migration should be treated as required, not optional — call this out explicitly as a Wave-0/early task so later waves that build reporting off `cc_agent_events` aren't blocked.
+   - **RESOLVED (09-01 migration + 09-03 Task 3):** The `cc_agent_events.event_type` ENUM is extended (DIALING/CONSULT/ACW) by the 09-01 Phase-9 migration + model update (wave 1); 09-03 Task 3 writes those transitions to `cc_agent_events`, making them reportable via the existing agent-detail timeline. Treated as required, resolved in the earliest wave.
 
 ## Environment Availability
 

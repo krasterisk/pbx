@@ -1,9 +1,9 @@
 ---
 phase: 9
 slug: call-center-agent-panel
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: approved
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-07-22
 ---
 
@@ -39,15 +39,16 @@ created: 2026-07-22
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| TBD | TBD | 0 | D-13 | — | N/A | unit | `vitest run src/features/callcenter/model` | ❌ W0 extend slice/selectors tests | ⬜ pending |
-| TBD | TBD | 0 | D-08 | — | N/A | unit | `jest --testPathPattern=callcenter-ami.service.spec` | ✅ extend | ⬜ pending |
-| TBD | TBD | 0 | D-16/17/19/20 | — | UNIQUE(call_uniqueid) preserved | unit | `jest --testPathPattern=callcenter.service.spec` | ✅ extend | ⬜ pending |
-| TBD | TBD | 0 | D-21…D-25 | T-9-01 | can_spy/spyable/scope enforced server-side | unit | new permissions / peer-spy spec | ❌ W0 | ⬜ pending |
-| TBD | TBD | 0 | D-38…D-40 | T-9-02 | lock flag enforced on PUT | unit | new permissions merge spec | ❌ W0 | ⬜ pending |
-| TBD | TBD | 0 | D-01…D-07, D-46 | — | Tabs ARIA + Waiting default | integration | `vitest run src/shared/ui/Tabs` + AgentPage | ❌ Tabs / ✅ page | ⬜ pending |
-| TBD | TBD | 0 | D-45 | — | SSE delta/throttle | unit | `jest --testPathPattern=callcenter-state.service.spec` | ✅ extend | ⬜ pending |
+| T2 | 09-02 | 1 | D-13 | — | N/A | unit | `vitest run src/features/callcenter/model` | ❌ W0 extend slice/selectors tests | ⬜ pending |
+| T1 | 09-03 | 2 | D-08 | T-09-03-01 | N/A | unit | `jest --testPathPattern=callcenter-ami.service.spec` | ✅ extend | ⬜ pending |
+| T1 | 09-09 | 4 | D-16/17/19/20 | T-09-09-02 | UNIQUE(call_uniqueid) preserved | unit | `jest --testPathPattern=callcenter.service.spec` | ✅ extend | ⬜ pending |
+| T2 | 09-05 | 2 | D-21…D-25 | T-09-05-01 | can_spy/spyable/scope enforced server-side | unit | `jest --testPathPattern=callcenter-permissions.service.spec` (+ callcenter.service.spec peer-spy) | ❌ W0 new spec | ⬜ pending |
+| T1 | 09-05 | 2 | D-38…D-40 | T-09-05-03 | lock flag enforced on PUT | unit | `jest --testPathPattern=callcenter-permissions.service.spec` | ❌ W0 new spec | ⬜ pending |
+| T1 / T3 | 09-02 / 09-08 | 1 / 4 | D-01…D-07, D-46 | — | Tabs ARIA + Waiting default | integration | `vitest run src/shared/ui/Tabs` + `src/pages/CallCenterAgentPage` | ❌ Tabs W0 / ✅ page extend | ⬜ pending |
+| T2 | 09-11 | 5 | D-45 | T-09-11-02 | SSE delta/throttle (debounced presenceUpdate) | unit | `jest --testPathPattern=callcenter-state.service.spec` | ✅ extend | ⬜ pending |
 
-*Planner fills concrete Task ID / Plan / Wave columns when writing PLAN.md files.*
+*Task ID / Plan / Wave now filled from the final PLAN.md files (see mapping above).*
+*Status reflects planning state; flips to ✅ during `/gsd-execute-phase 9` as each spec goes green.*
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
 ---
@@ -76,11 +77,11 @@ created: 2026-07-22
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 120s (scoped)
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references
+- [x] No watch-mode flags
+- [x] Feedback latency < 120s (scoped)
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** approved
