@@ -30,12 +30,8 @@ import {
   UpdateRoleDefaultsDto,
 } from './dto/callcenter-settings.dto';
 
-const PERMISSION_BOOLEAN_KEYS: (keyof PermissionSet)[] = [
-  'can_spy',
-  'spyable',
-  'click_to_call',
-  'customize_ui',
-];
+const PERMISSION_BOOLEAN_KEYS = ['can_spy', 'spyable', 'click_to_call', 'customize_ui'] as const;
+type PermissionBooleanKey = (typeof PERMISSION_BOOLEAN_KEYS)[number];
 const SPY_MODES: SpyMode[] = ['listen', 'whisper', 'barge'];
 const USER_LEVELS: UserLevel[] = [
   UserLevel.SUPERADMIN,
