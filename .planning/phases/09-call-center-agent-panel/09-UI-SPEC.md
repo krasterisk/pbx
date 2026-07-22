@@ -1,7 +1,7 @@
 ---
 phase: 9
 slug: call-center-agent-panel
-status: draft
+status: approved
 shadcn_initialized: false
 preset: none
 created: 2026-07-22
