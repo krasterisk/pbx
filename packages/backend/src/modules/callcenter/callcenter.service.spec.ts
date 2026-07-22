@@ -1046,6 +1046,84 @@ describe('CallCenterService', () => {
     });
   });
 
+  describe('callbackMissedCall', () => {
+    beforeEach(() => {
+      permissionsService.getEffective.mockResolvedValue({
+        can_spy: false, spyable: true, spy_modes: [], click_to_call: true, customize_ui: false,
+      });
+    });
+
+    it('rejects when agent is not logged in', async () => {
+      await expect(service.callbackMissedCall(7, 42, '79990001122')).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('throws BadRequestException when callerIdNum is missing', async () => {
+      await service.agentLogin('PJSIP/101', ['sales'], 7, 42);
+      await expect(service.callbackMissedCall(7, 42, '')).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('throws Forbidden when click_to_call permission is not granted', async () => {
+      await service.agentLogin('PJSIP/101', ['sales'], 7, 42);
+      permissionsService.getEffective.mockResolvedValue({
+        can_spy: false, spyable: true, spy_modes: [], click_to_call: false, customize_ui: false,
+      });
+
+      await expect(service.callbackMissedCall(7, 42, '79990001122')).rejects.toBeInstanceOf(ForbiddenException);
+      expect(ami.action).not.toHaveBeenCalled();
+    });
+
+    it('dials via the clickToCall branching — same scheme, not duplicated (D-18/D-29)', async () => {
+      await service.agentLogin('PJSIP/101', ['sales'], 7, 42);
+
+      const res = await service.callbackMissedCall(7, 42, '79990001122');
+
+      expect(res).toEqual({ success: true, mode: 'pjsip', target: '79990001122' });
+      expect(ami.action).toHaveBeenCalledWith(
+        expect.objectContaining({ action: 'Originate', channel: 'PJSIP/101', exten: '79990001122' }),
+      );
+    });
+
+    it('marks the number called_back when the connect exceeds 5s (D-18)', async () => {
+      await service.agentLogin('PJSIP/101', ['sales'], 7, 42);
+      await service.callbackMissedCall(7, 42, '79990001122');
+
+      const nowSpy = jest.spyOn(Date, 'now');
+      nowSpy.mockReturnValueOnce(1_000_000);
+      state.setAgent(7, 'PJSIP/101', { status: 'IN_CALL' });
+      nowSpy.mockReturnValueOnce(1_007_000);
+      state.setAgent(7, 'PJSIP/101', { status: 'READY' });
+      nowSpy.mockRestore();
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(missedCallModel.update).toHaveBeenCalledWith(
+        expect.objectContaining({ called_back: true, called_back_by: 42 }),
+        expect.objectContaining({
+          where: expect.objectContaining({ caller_id_num: '79990001122', user_uid: 7, called_back: false }),
+        }),
+      );
+    });
+
+    it('creates a new attempt row and leaves the group active when the connect is <=5s (D-18)', async () => {
+      await service.agentLogin('PJSIP/101', ['sales'], 7, 42);
+      await service.callbackMissedCall(7, 42, '79990001122');
+
+      const nowSpy = jest.spyOn(Date, 'now');
+      nowSpy.mockReturnValueOnce(2_000_000);
+      state.setAgent(7, 'PJSIP/101', { status: 'IN_CALL' });
+      nowSpy.mockReturnValueOnce(2_002_000);
+      state.setAgent(7, 'PJSIP/101', { status: 'READY' });
+      nowSpy.mockRestore();
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(missedCallModel.create).toHaveBeenCalledWith(
+        expect.objectContaining({ caller_id_num: '79990001122', called_back: false, user_uid: 7 }),
+      );
+      expect(missedCallModel.update).not.toHaveBeenCalled();
+    });
+  });
+
   describe('getAgentDetail', () => {
     it('aggregates stats and builds timeline segments from history', async () => {
       const t0 = new Date('2026-07-15T08:00:00Z');
