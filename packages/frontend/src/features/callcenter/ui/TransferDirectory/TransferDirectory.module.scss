@@ -1,0 +1,122 @@
+/* TransferDirectory — Surface 10 (D-36/D-37) */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+  min-height: 0;
+}
+
+.searchRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 2px;
+  color: var(--color-muted-foreground);
+  flex-shrink: 0;
+
+  input {
+    flex: 1;
+  }
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow-y: auto;
+  min-height: 0;
+  flex: 1;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 6px;
+  border-radius: var(--radius-md);
+
+  &:hover {
+    background: var(--color-accent);
+  }
+}
+
+.typeIcon {
+  color: var(--color-muted-foreground);
+  flex-shrink: 0;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.dotOnline {
+  background: var(--color-success);
+}
+
+.dotBusy {
+  background: var(--color-destructive);
+}
+
+.dotOffline {
+  background: var(--color-muted-foreground);
+  opacity: 0.5;
+}
+
+.rowMain {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+
+.rowLabel {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--color-foreground);
+}
+
+.freeCount {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.freeOk {
+  color: var(--color-success);
+}
+
+.freeWarning {
+  color: var(--color-warning);
+}
+
+.freeDanger {
+  color: var(--color-destructive);
+}
+
+/* WCAG 2.5.5 — 44px minimum touch target for every row's CTA (Spacing Scale exception). */
+.ctaBtn {
+  min-height: 44px;
+  min-width: 44px;
+  flex-shrink: 0;
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 32px 16px;
+  text-align: center;
+  flex: 1;
+}

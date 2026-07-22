@@ -19,3 +19,5 @@ export type {
   AgentStatusBarCallControls,
   ActiveCallDirection,
 } from './ui/AgentStatusBar';
+export { TransferDirectory } from './ui/TransferDirectory';
+export type { TransferDirectoryProps, TransferDirectoryMode } from './ui/TransferDirectory';

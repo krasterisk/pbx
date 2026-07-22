@@ -798,6 +798,7 @@ export function CallCenterAgentPage() {
           placement={softphonePlacement}
           onTransferClick={() => setTransferModalOpen(true)}
           onOpenCard={openCardManually}
+          activeCallUniqueid={activeCall?.uniqueid}
         />
       )}
 

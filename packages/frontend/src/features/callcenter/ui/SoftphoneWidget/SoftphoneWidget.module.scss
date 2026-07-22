@@ -179,3 +179,9 @@ $softphone-bar-height: 72px;
   color: var(--color-muted-foreground);
   font-variant-numeric: tabular-nums;
 }
+
+/* ── Add-to-conference sheet (D-28, wired into TransferDirectory in 09-12) ── */
+.conferenceSheet {
+  display: flex;
+  flex-direction: column;
+}

@@ -1,12 +1,14 @@
 import { useCallback, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  Mic, MicOff, Pause, Play, Phone, PhoneOff, PhoneForwarded, PhoneIncoming,
+  Mic, MicOff, Pause, Play, Phone, PhoneOff, PhoneForwarded, PhoneIncoming, Users,
 } from 'lucide-react';
 import {
   Button, Text, HStack, VStack, Popover, PopoverTrigger, PopoverContent,
+  Sheet, SheetContent, SheetHeader, SheetTitle,
 } from '@/shared/ui';
 import { DtmfKeypad } from '@/features/callcenter/ui/DtmfKeypad/DtmfKeypad';
+import { TransferDirectory } from '@/features/callcenter/ui/TransferDirectory';
 import { useIsMobile } from '@/shared/hooks/useIsMobile';
 import type { useWebRTCPhone } from '@/features/callcenter/lib/useWebRTCPhone';
 import styles from './SoftphoneWidget.module.scss';
@@ -24,8 +26,14 @@ export interface SoftphoneWidgetProps {
   visible?: boolean;
   onTransferClick?: () => void;
   onOpenCard?: () => void;
-  /** Slot for park/conference/zombie-reset controls, wired in 09-10. */
+  /** Slot for park/zombie-reset controls (09-10's remaining CallControlBar full-variant actions). */
   extraControls?: ReactNode;
+  /**
+   * uniqueid of the operator's own active call — required for the built-in
+   * "Add to conference" control (D-28, 09-10→09-12 key link). Omit/undefined
+   * degrades the control to disabled (no active call, nothing to conference).
+   */
+  activeCallUniqueid?: string;
 }
 
 function formatCallTime(totalSeconds: number): string {
@@ -44,10 +52,12 @@ export function SoftphoneWidget({
   onTransferClick,
   onOpenCard,
   extraControls,
+  activeCallUniqueid,
 }: SoftphoneWidgetProps) {
   const { t } = useTranslation();
   const isMobile = useIsMobile(768);
   const [open, setOpen] = useState(false);
+  const [conferenceOpen, setConferenceOpen] = useState(false);
 
   const isRinging = phone.status === 'ringing';
   const isInCall = phone.status === 'in-call';
@@ -101,6 +111,15 @@ export function SoftphoneWidget({
           <PhoneForwarded className="w-4 h-4" />
         </Button>
       )}
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => setConferenceOpen(true)}
+        disabled={!isInCall || !activeCallUniqueid}
+        aria-label={t('callcenter.controlBar.conference', 'Add to conference')}
+      >
+        <Users className="w-4 h-4" />
+      </Button>
       {extraControls}
       <Button
         variant="destructive"
@@ -149,51 +168,72 @@ export function SoftphoneWidget({
     </VStack>
   );
 
+  const conferenceSheet = (
+    <Sheet open={conferenceOpen} onOpenChange={setConferenceOpen}>
+      <SheetContent className={styles.conferenceSheet}>
+        <SheetHeader>
+          <SheetTitle>{t('callcenter.controlBar.conference', 'Add to conference')}</SheetTitle>
+        </SheetHeader>
+        <TransferDirectory
+          mode="conference-add"
+          activeCallUniqueid={activeCallUniqueid}
+          onDone={() => setConferenceOpen(false)}
+        />
+      </SheetContent>
+    </Sheet>
+  );
+
   // Phone (<768): no free-floating FAB — controls surface through the sticky bar (D-46).
   if (isMobile) {
     return (
-      <div className={styles.stickyBar} data-testid="softphone-widget-sticky">
-        <div
-          className={`${styles.stickyDot} ${
-            isRinging ? styles.stickyDotRinging : isInCall ? styles.stickyDotInCall : styles.stickyDotIdle
-          }`}
-        />
-        <VStack gap="0" className={styles.stickyInfo}>
-          <Text className={styles.stickyCaller}>
-            {isInCall || isRinging ? callerLabel : t('callcenter.noActiveCall')}
-          </Text>
-          {isInCall || isRinging ? (
-            <Text className={styles.stickyTimer}>{formatCallTime(callSeconds)}</Text>
-          ) : null}
-        </VStack>
-        {isRinging ? ringingActions : isInCall ? controlsRow : null}
-      </div>
+      <>
+        <div className={styles.stickyBar} data-testid="softphone-widget-sticky">
+          <div
+            className={`${styles.stickyDot} ${
+              isRinging ? styles.stickyDotRinging : isInCall ? styles.stickyDotInCall : styles.stickyDotIdle
+            }`}
+          />
+          <VStack gap="0" className={styles.stickyInfo}>
+            <Text className={styles.stickyCaller}>
+              {isInCall || isRinging ? callerLabel : t('callcenter.noActiveCall')}
+            </Text>
+            {isInCall || isRinging ? (
+              <Text className={styles.stickyTimer}>{formatCallTime(callSeconds)}</Text>
+            ) : null}
+          </VStack>
+          {isRinging ? ringingActions : isInCall ? controlsRow : null}
+        </div>
+        {conferenceSheet}
+      </>
     );
   }
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          className={`${styles.fab} ${placement === 'bottom-left' ? styles.fabLeft : styles.fabRight} ${
-            isRinging ? styles.fabRinging : ''
-          }`}
-          aria-label={t('callcenter.softphone.panelTitle')}
-          data-testid="softphone-widget-fab"
+    <>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className={`${styles.fab} ${placement === 'bottom-left' ? styles.fabLeft : styles.fabRight} ${
+              isRinging ? styles.fabRinging : ''
+            }`}
+            aria-label={t('callcenter.softphone.panelTitle')}
+            data-testid="softphone-widget-fab"
+          >
+            {isRinging ? <PhoneIncoming className="w-6 h-6" /> : <Phone className="w-6 h-6" />}
+          </button>
+        </PopoverTrigger>
+        <PopoverContent
+          align={placement === 'bottom-left' ? 'start' : 'end'}
+          side="top"
+          sideOffset={12}
+          style={{ width: 320 }}
+          className={styles.panel}
         >
-          {isRinging ? <PhoneIncoming className="w-6 h-6" /> : <Phone className="w-6 h-6" />}
-        </button>
-      </PopoverTrigger>
-      <PopoverContent
-        align={placement === 'bottom-left' ? 'start' : 'end'}
-        side="top"
-        sideOffset={12}
-        style={{ width: 320 }}
-        className={styles.panel}
-      >
-        {panelBody}
-      </PopoverContent>
-    </Popover>
+          {panelBody}
+        </PopoverContent>
+      </Popover>
+      {conferenceSheet}
+    </>
   );
 }

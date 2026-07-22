@@ -1,7 +1,8 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { useDispatch, useStore, useSelector } from 'react-redux';
+import { useStore, useSelector } from 'react-redux';
 import type { RootState } from '@/app/store/store';
 import { selectCurrentUser } from '@/entities/User';
+import { useAppDispatch } from '@/shared/hooks/useAppStore';
 import { rtkApi } from '@/shared/api/rtkApi';
 import { callCenterApi } from '@/shared/api/endpoints/callCenterApi';
 import {
@@ -54,7 +55,7 @@ function maybeBindMyAgentInterface(
  * The backend should accept ?token= for SSE auth.
  */
 export function useCallCenterSSE(enabled: boolean = true) {
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
   const store = useStore<RootState>();
   const esRef = useRef<EventSource | null>(null);
   const currentUserId = useSelector(selectCurrentUser)?.uniqueid;
