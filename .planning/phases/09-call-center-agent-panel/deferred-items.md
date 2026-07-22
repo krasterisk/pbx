@@ -25,3 +25,11 @@ directly caused by the current task).
   `pauseReason?: string` but the test passes `null` to exercise the slice's runtime
   `pauseReason === null` branch (SSE sends `null` on the wire). Logged, not fixed —
   belongs to whichever plan next touches `callCenterSlice.ts`'s action payload typing.
+
+## From 09-07 (call-control set: park/conference/zombie-reset/warm-transfer/click-to-call)
+
+- `npx jest --testPathPattern="modules/callcenter" --no-coverage` reports 1 pre-existing
+  failure — the same `callcenter-chat.service.spec.ts › emitEvent ccChatMessage with
+  recipientUserIds on direct send` mismatch logged under 09-01, confirmed still present
+  and untouched by this plan's changes (`git log` shows the file was last modified by
+  07-07, not by any 09-xx plan).

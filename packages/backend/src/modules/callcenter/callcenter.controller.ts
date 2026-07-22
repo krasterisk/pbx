@@ -28,6 +28,10 @@ import {
   PickCallDto, MarkMissedCalledBackDto, WrapupExtendDto,
 } from './dto/callcenter.dto';
 import { PeerSpyDto } from './dto/callcenter-permissions.dto';
+import {
+  ParkCallDto, RetrieveParkedCallDto, ConferenceAddDto,
+  ZombieResetDto, WarmTransferQueueDto, ClickToCallDto,
+} from './dto/callcenter-callcontrol.dto';
 
 // ─── Helpers ──────────────────────────────────────────────
 
@@ -144,6 +148,41 @@ export class CallCenterController {
       dto.mode,
       req.user.vpbx_user_uid,
     );
+  }
+
+  // ─── Call Control (D-27/D-28/D-29/D-33) ────────────────
+  // All ids come from the JWT (req.user) only — never a client-supplied
+  // userUid — same convention as every agent/* route above. Ownership and
+  // tenant checks live server-side in CallCenterService.
+
+  @Post('agent/park')
+  parkCall(@Body() dto: ParkCallDto, @Req() req: Request & { user: any }) {
+    return this.ccService.parkCall(dto.uniqueid, req.user.vpbx_user_uid, req.user.sub);
+  }
+
+  @Post('agent/retrieve-parked')
+  retrieveParkedCall(@Body() dto: RetrieveParkedCallDto, @Req() req: Request & { user: any }) {
+    return this.ccService.retrieveParkedCall(dto.parkingSpace, req.user.vpbx_user_uid, req.user.sub);
+  }
+
+  @Post('agent/conference-add')
+  addToConference(@Body() dto: ConferenceAddDto, @Req() req: Request & { user: any }) {
+    return this.ccService.addToConference(dto.uniqueid, dto.target, req.user.vpbx_user_uid, req.user.sub);
+  }
+
+  @Post('agent/zombie-reset')
+  resetZombieCall(@Body() dto: ZombieResetDto, @Req() req: Request & { user: any }) {
+    return this.ccService.resetZombieCall(dto.uniqueid, req.user.vpbx_user_uid, req.user.sub);
+  }
+
+  @Post('agent/warm-transfer-queue')
+  warmTransferToQueue(@Body() dto: WarmTransferQueueDto, @Req() req: Request & { user: any }) {
+    return this.ccService.warmTransferToQueue(dto.uniqueid, dto.queue, req.user.vpbx_user_uid, req.user.sub);
+  }
+
+  @Post('agent/click-to-call')
+  clickToCall(@Body() dto: ClickToCallDto, @Req() req: Request & { user: any }) {
+    return this.ccService.clickToCall(dto.target, req.user.vpbx_user_uid, req.user.sub);
   }
 
   // ─── Missed Calls ─────────────────────────────────────
