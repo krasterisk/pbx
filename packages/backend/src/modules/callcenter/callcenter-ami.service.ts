@@ -40,6 +40,21 @@ export class CallCenterAmiService implements OnModuleInit {
    */
   private readonly personalRingingChannels = new Map<string, { callerIdNum: string; callerIdName: string }>();
 
+  /**
+   * Open non-queue call attempts awaiting their history row (D-34/D-35).
+   * Seeded by handleDialBegin (outbound/internal) or handleNewchannel
+   * (personal direct ring), consumed by handleDialEnd/handleAgentHangup once
+   * the attempt resolves (answered/missed/cancelled). Key = `${userUid}:${agentInterface}`.
+   */
+  private readonly nonQueueCallStates = new Map<string, {
+    uniqueid: string;
+    direction: 'outbound' | 'personal' | 'internal';
+    callerIdNum: string;
+    callerIdName: string;
+    enterTime: Date;
+    answerTime?: Date;
+  }>();
+
   /** Warn only once if CallCenterService isn't resolvable via ModuleRef. */
   private warnedMissingCcService = false;
 
@@ -866,6 +881,17 @@ export class CallCenterAmiService implements OnModuleInit {
     this.stateService.setAgent(agent.userUid, agent.interface, { status: 'DIALING' });
     this.metricsService.recordAgentStatus(agent.userUid, agent.interface, 'DIALING');
     void this.logStatusJournalEnter(agent, 'DIALING');
+
+    // D-34/D-35: seed the non-queue call state so DialEnd/Hangup can persist
+    // an all-direction cc_queue_calls history row for this attempt.
+    const dialedNumber = evt.destcalleridnum || evt.exten || '';
+    this.nonQueueCallStates.set(this.journalKey(agent.userUid, agent.interface), {
+      uniqueid: evt.uniqueid || channel,
+      direction: dialedNumber && this.isInternalNumber(dialedNumber) ? 'internal' : 'outbound',
+      callerIdNum: dialedNumber,
+      callerIdName: evt.destcalleridname || '',
+      enterTime: new Date(),
+    });
   }
 
   /**
@@ -885,16 +911,43 @@ export class CallCenterAmiService implements OnModuleInit {
 
     void this.logStatusJournalExit(agent);
     const dialStatus = String(evt.dialstatus || '').toUpperCase();
+    const key = this.journalKey(agent.userUid, agent.interface);
+    const nonQueueState = this.nonQueueCallStates.get(key);
 
     if (dialStatus === 'ANSWER') {
       this.stateService.setAgent(agent.userUid, agent.interface, { status: 'IN_CALL' });
       this.metricsService.recordAgentStatus(agent.userUid, agent.interface, 'IN_CALL');
       this.metricsService.recordMade(agent.userUid, agent.interface);
+      // Kept open — handleAgentHangup writes the history row once the
+      // (now-answered) call actually ends, so talk_time is accurate.
+      if (nonQueueState) nonQueueState.answerTime = new Date();
     } else {
       this.stateService.setAgent(agent.userUid, agent.interface, { status: 'READY' });
       this.metricsService.recordAgentStatus(agent.userUid, agent.interface, 'READY');
       this.metricsService.recordMissed(agent.userUid, agent.interface);
       void this.autoPauseService.evaluateOnMissed(agent.userUid, agent.interface, agent.queues);
+
+      // D-34/D-35: the dial never connected — persist the history row now.
+      this.nonQueueCallStates.delete(key);
+      if (nonQueueState) {
+        this.historyWriter.enqueue({
+          call_uniqueid: nonQueueState.uniqueid,
+          queue_name: `direct:${agent.interface}`,
+          agent_interface: agent.interface,
+          agent_user_uid: agent.userId,
+          caller_id_num: nonQueueState.callerIdNum,
+          caller_id_name: nonQueueState.callerIdName,
+          enter_time: nonQueueState.enterTime,
+          end_time: new Date(),
+          wait_time: 0,
+          talk_time: 0,
+          disposition: dialStatus === 'NOANSWER' ? 'timeout' : dialStatus === 'CANCEL' ? 'abandoned' : 'other',
+          position: 0,
+          direction: nonQueueState.direction,
+          call_type: dialStatus.toLowerCase() || 'unknown',
+          user_uid: agent.userUid,
+        });
+      }
     }
     this.emitKpiUpdate(agent.userUid, agent.interface);
   }
@@ -924,6 +977,15 @@ export class CallCenterAmiService implements OnModuleInit {
       callerIdNum: evt.calleridnum || '',
       callerIdName: evt.calleridname || '',
     });
+    // D-34/D-35: seed the non-queue call state for a personal direct ring —
+    // handleAgentHangup persists the history row (missed or answered).
+    this.nonQueueCallStates.set(this.journalKey(agent.userUid, agent.interface), {
+      uniqueid: evt.uniqueid || channel,
+      direction: 'personal',
+      callerIdNum: evt.calleridnum || '',
+      callerIdName: evt.calleridname || '',
+      enterTime: new Date(),
+    });
     this.stateService.setAgent(agent.userUid, agent.interface, { status: 'RINGING' });
     this.metricsService.recordAgentStatus(agent.userUid, agent.interface, 'RINGING');
   }
@@ -945,12 +1007,37 @@ export class CallCenterAmiService implements OnModuleInit {
     const agent = this.stateService.findAgentByChannel(channel);
     if (!agent) return;
 
+    const key = this.journalKey(agent.userUid, agent.interface);
+    const nonQueueState = this.nonQueueCallStates.get(key);
+
     if (agent.status === 'DIALING') {
       void this.logStatusJournalExit(agent);
       this.stateService.setAgent(agent.userUid, agent.interface, { status: 'READY' });
       this.metricsService.recordAgentStatus(agent.userUid, agent.interface, 'READY');
       this.metricsService.recordMissed(agent.userUid, agent.interface);
       void this.autoPauseService.evaluateOnMissed(agent.userUid, agent.interface, agent.queues);
+
+      // D-34/D-35: agent hung up before DialEnd fired — the attempt was cancelled.
+      this.nonQueueCallStates.delete(key);
+      if (nonQueueState) {
+        this.historyWriter.enqueue({
+          call_uniqueid: nonQueueState.uniqueid,
+          queue_name: `direct:${agent.interface}`,
+          agent_interface: agent.interface,
+          agent_user_uid: agent.userId,
+          caller_id_num: nonQueueState.callerIdNum,
+          caller_id_name: nonQueueState.callerIdName,
+          enter_time: nonQueueState.enterTime,
+          end_time: new Date(),
+          wait_time: 0,
+          talk_time: 0,
+          disposition: 'abandoned',
+          position: 0,
+          direction: nonQueueState.direction,
+          call_type: 'cancel',
+          user_uid: agent.userUid,
+        });
+      }
       this.emitKpiUpdate(agent.userUid, agent.interface);
       return;
     }
@@ -978,6 +1065,28 @@ export class CallCenterAmiService implements OnModuleInit {
           personal: true,
         });
       }
+
+      // D-34/D-35: same missed direct ring, now as an all-direction history row.
+      this.nonQueueCallStates.delete(key);
+      if (nonQueueState) {
+        this.historyWriter.enqueue({
+          call_uniqueid: nonQueueState.uniqueid,
+          queue_name: `direct:${agent.interface}`,
+          agent_interface: agent.interface,
+          agent_user_uid: agent.userId,
+          caller_id_num: nonQueueState.callerIdNum,
+          caller_id_name: nonQueueState.callerIdName,
+          enter_time: nonQueueState.enterTime,
+          end_time: new Date(),
+          wait_time: 0,
+          talk_time: 0,
+          disposition: 'abandoned',
+          position: 0,
+          direction: 'personal',
+          call_type: 'ring',
+          user_uid: agent.userUid,
+        });
+      }
       this.emitKpiUpdate(agent.userUid, agent.interface);
       return;
     }
@@ -988,6 +1097,36 @@ export class CallCenterAmiService implements OnModuleInit {
     if (agent.status === 'IN_CALL' && !agent.currentCall) {
       this.stateService.setAgent(agent.userUid, agent.interface, { status: 'READY' });
       this.metricsService.recordAgentStatus(agent.userUid, agent.interface, 'READY');
+
+      // D-34/D-35: the outbound/personal call connected and has now ended.
+      // Answer time is precise for outbound (set at DialEnd ANSWER); for a
+      // personal direct ring there is no distinct "answered" AMI event in
+      // this listener set, so it is approximated as ring-start ([ASSUMED],
+      // slightly overestimates talk_time by the ring duration — flagged for
+      // 09-VALIDATION).
+      this.nonQueueCallStates.delete(key);
+      if (nonQueueState) {
+        const answerTime = nonQueueState.answerTime || nonQueueState.enterTime;
+        const talkSec = Math.max(0, Math.round((Date.now() - answerTime.getTime()) / 1000));
+        this.historyWriter.enqueue({
+          call_uniqueid: nonQueueState.uniqueid,
+          queue_name: `direct:${agent.interface}`,
+          agent_interface: agent.interface,
+          agent_user_uid: agent.userId,
+          caller_id_num: nonQueueState.callerIdNum,
+          caller_id_name: nonQueueState.callerIdName,
+          enter_time: nonQueueState.enterTime,
+          answer_time: answerTime,
+          end_time: new Date(),
+          wait_time: 0,
+          talk_time: talkSec,
+          disposition: 'answered',
+          position: 0,
+          direction: nonQueueState.direction,
+          call_type: nonQueueState.direction === 'personal' ? 'ring' : 'dial',
+          user_uid: agent.userUid,
+        });
+      }
     }
   }
 
@@ -1044,6 +1183,17 @@ export class CallCenterAmiService implements OnModuleInit {
     const match = queueName.match(/_(\d+)$/);
     if (!match) return null;
     return parseInt(match[1], 10);
+  }
+
+  /**
+   * [ASSUMED] Heuristic for D-34/D-35 direction classification: a short
+   * all-digit destination (no leading '+', no separators) looks like an
+   * internal extension rather than an external PSTN number, so DialBegin
+   * can tag the attempt 'internal' instead of 'outbound'. Verify against
+   * real extension lengths on a live tenant (09-VALIDATION).
+   */
+  private isInternalNumber(num: string): boolean {
+    return /^\d{1,5}$/.test(num);
   }
 
   /** True when AMI gave us a raw interface string instead of a person name. */
