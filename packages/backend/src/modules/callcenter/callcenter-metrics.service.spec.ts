@@ -188,6 +188,137 @@ describe('CallCenterMetricsService', () => {
     });
   });
 
+  describe('dual shift/day answered·made·missed counters (D-11/D-12/D-31/D-32)', () => {
+    beforeEach(() => {
+      service['slaThresholdCache'].set('1:q_sales', 20);
+    });
+
+    it('recordAnswered bumps both sinceLogin and sinceMidnight answered, agent-level and per-queue', () => {
+      service.recordAnswered(1, 'q_sales', 'PJSIP/a1', 10, 60, 5);
+
+      const agentKpi = service.getAgentKpi(1, 'PJSIP/a1');
+      expect(agentKpi.sinceLogin.answered).toBe(1);
+      expect(agentKpi.sinceMidnight.answered).toBe(1);
+
+      const queueKpi = service.getAgentQueueKpi(1, 'PJSIP/a1', 'q_sales');
+      expect(queueKpi.sinceLogin.answered).toBe(1);
+      expect(queueKpi.sinceMidnight.answered).toBe(1);
+    });
+
+    it('recordMade/recordMissed bump the agent-level counters', () => {
+      service.recordMade(1, 'PJSIP/a1');
+      service.recordMade(1, 'PJSIP/a1');
+      service.recordMissed(1, 'PJSIP/a1');
+
+      const kpi = service.getAgentKpi(1, 'PJSIP/a1');
+      expect(kpi.sinceLogin.made).toBe(2);
+      expect(kpi.sinceLogin.missed).toBe(1);
+      expect(kpi.sinceMidnight.made).toBe(2);
+      expect(kpi.sinceMidnight.missed).toBe(1);
+    });
+
+    it('recordMade/recordMissed with a queueName also bump the per-queue counters', () => {
+      service.recordMade(1, 'PJSIP/a1', 'q_sales');
+      service.recordMissed(1, 'PJSIP/a1', 'q_sales');
+
+      const queueKpi = service.getAgentQueueKpi(1, 'PJSIP/a1', 'q_sales');
+      expect(queueKpi.sinceLogin.made).toBe(1);
+      expect(queueKpi.sinceLogin.missed).toBe(1);
+
+      // agent-level counters unaffected by queue-only lookups being separate keys
+      const agentKpi = service.getAgentKpi(1, 'PJSIP/a1');
+      expect(agentKpi.sinceLogin.made).toBe(1);
+      expect(agentKpi.sinceLogin.missed).toBe(1);
+    });
+
+    it('resetKpiSinceLogin zeroes sinceLogin but preserves sinceMidnight, agent + per-queue', () => {
+      service.recordAnswered(1, 'q_sales', 'PJSIP/a1', 10, 60, 5);
+      service.recordMade(1, 'PJSIP/a1', 'q_sales');
+
+      service.resetKpiSinceLogin(1, 'PJSIP/a1');
+
+      const agentKpi = service.getAgentKpi(1, 'PJSIP/a1');
+      expect(agentKpi.sinceLogin).toEqual({ answered: 0, made: 0, missed: 0 });
+      expect(agentKpi.sinceMidnight.answered).toBe(1);
+
+      const queueKpi = service.getAgentQueueKpi(1, 'PJSIP/a1', 'q_sales');
+      expect(queueKpi.sinceLogin).toEqual({ answered: 0, made: 0, missed: 0 });
+      expect(queueKpi.sinceMidnight.made).toBe(1);
+    });
+
+    it('resetKpiSinceLogin does not clobber a different agent with a similar interface prefix', () => {
+      service.recordMade(1, 'PJSIP/a1');
+      service.recordMade(1, 'PJSIP/a10');
+
+      service.resetKpiSinceLogin(1, 'PJSIP/a1');
+
+      expect(service.getAgentKpi(1, 'PJSIP/a1').sinceLogin.made).toBe(0);
+      expect(service.getAgentKpi(1, 'PJSIP/a10').sinceLogin.made).toBe(1);
+    });
+
+    it('keeps agent-level and per-queue counters isolated per tenant', () => {
+      service.recordMade(1, 'PJSIP/a1', 'q_sales');
+      service.recordMade(2, 'PJSIP/a1', 'q_sales');
+
+      expect(service.getAgentQueueKpi(1, 'PJSIP/a1', 'q_sales').sinceLogin.made).toBe(1);
+      expect(service.getAgentQueueKpi(2, 'PJSIP/a1', 'q_sales').sinceLogin.made).toBe(1);
+    });
+  });
+
+  describe('restoreToday KPI rebuild (D-11/D-12 day counter)', () => {
+    it('rebuilds sinceMidnight answered from answered/transferred cc_queue_calls rows, never sinceLogin', async () => {
+      queueModel.findOne.mockResolvedValue({ servicelevel: 20 });
+      queueCallModel.findAll.mockResolvedValue([
+        {
+          user_uid: 1,
+          queue_name: 'q_a',
+          disposition: 'answered',
+          wait_time: 10,
+          talk_time: 100,
+          wrapup_time: 20,
+          agent_interface: 'PJSIP/op1',
+        },
+        {
+          user_uid: 1,
+          queue_name: 'q_a',
+          disposition: 'transferred',
+          wait_time: 5,
+          talk_time: 50,
+          wrapup_time: 0,
+          agent_interface: 'PJSIP/op1',
+        },
+      ]);
+
+      await service.restoreToday();
+
+      const kpi = service.getAgentKpi(1, 'PJSIP/op1');
+      expect(kpi.sinceMidnight.answered).toBe(2);
+      expect(kpi.sinceLogin.answered).toBe(0);
+
+      const queueKpi = service.getAgentQueueKpi(1, 'PJSIP/op1', 'q_a');
+      expect(queueKpi.sinceMidnight.answered).toBe(2);
+    });
+
+    it('does not count in-queue abandoned rows as a personal missed (D-10/D-20)', async () => {
+      queueModel.findOne.mockResolvedValue({ servicelevel: 20 });
+      queueCallModel.findAll.mockResolvedValue([
+        {
+          user_uid: 1,
+          queue_name: 'q_a',
+          disposition: 'abandoned',
+          wait_time: 45,
+          talk_time: 0,
+          wrapup_time: 0,
+          agent_interface: '',
+        },
+      ]);
+
+      await service.restoreToday();
+
+      expect(service.getAgentKpi(1, 'PJSIP/op1').sinceMidnight.missed).toBe(0);
+    });
+  });
+
   describe('recordAgentStatus occupancy', () => {
     it('accumulates idle seconds while READY', () => {
       jest.useFakeTimers();

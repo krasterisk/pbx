@@ -29,6 +29,9 @@ describe('CallCenterService', () => {
     cancelWrapupTimer: jest.fn(),
     extendWrapupTimer: jest.fn(),
   };
+  const metricsService: any = {
+    resetKpiSinceLogin: jest.fn(),
+  };
   const settingsService: any = {
     getOperatorSettings: jest.fn().mockResolvedValue({
       pickup_enabled: true,
@@ -82,6 +85,7 @@ describe('CallCenterService', () => {
       ami,
       state,
       ccAmi,
+      metricsService,
       pauseReasonModel,
       sessionModel,
       agentEventModel,
@@ -113,6 +117,11 @@ describe('CallCenterService', () => {
       expect(ccAmi.logAgentEvent).toHaveBeenCalledWith(
         expect.objectContaining({ eventType: 'LOGIN', userUid: 7, userId: 42 }),
       );
+    });
+
+    it('resets sinceLogin KPI counters for a fresh shift (D-11)', async () => {
+      await service.agentLogin('PJSIP/101', ['sales'], 7, 42);
+      expect(metricsService.resetKpiSinceLogin).toHaveBeenCalledWith(7, 'PJSIP/101');
     });
 
     it('drops primary SIP twin when logging in with WebRTC companion', async () => {
