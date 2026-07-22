@@ -134,6 +134,7 @@ Phase 1 — MOH: pending verify.
 
 ## Roadmap Evolution
 
+- Phase 9 context gathered (2026-07-22): 14 областей обсуждено; 46 решений (D-01…D-46) в `09-CONTEXT.md`. Ключевое: softphone-виджет + hybrid tabs/panels; KPI по всем каналам (расширение AMI); умный модуль пропущенных (group-by-number, callback >5с, claim); ChanSpy peer (can_spy/spyable); supervisor scope=назначенные очереди; call-control (conference/park/warm-transfer/zombie-clear/click-to-call), запись — отложена; granular-права + матрица уведомлений; mobile-first rework. Next: `/gsd-plan-phase 9`.
 - Phase 9 added: Call Center Agent Panel — softphone widget & professional call control (tabs Коллеги/Очереди/Waiting; status «Ожидание звонка» + answered/missed KPIs; transfer/chanspy/hangup; queue pickup).
 - Phase 8 planned (2026-07-16): 17 plans (`08-01`…`08-17`), waves 0–10; RESEARCH + PATTERNS + VALIDATION; plan-checker PASSED (NAV-01…16, D-01…41). Hub ships 002-E list (not bento).
 - Phase 8 UI-SPEC approved (2026-07-16): design contract verified 6/6 — Hub E list, tabs B, mobile bottom bar, marketplace section, platform separate apps; see `08-UI-SPEC.md`.
