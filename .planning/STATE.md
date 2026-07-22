@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Ready to execute
-last_updated: "2026-07-17T10:40:00.000Z"
+last_updated: "2026-07-22T09:40:31.306Z"
 progress:
-  total_phases: 8
-  completed_phases: 5
+  total_phases: 9
+  completed_phases: 6
   total_plans: 68
-  completed_plans: 66
-  percent: 65
+  completed_plans: 67
+  percent: 67
 ---
 
 # State
@@ -134,6 +134,7 @@ Phase 1 — MOH: pending verify.
 
 ## Roadmap Evolution
 
+- Phase 9 added: Call Center Agent Panel — softphone widget & professional call control (tabs Коллеги/Очереди/Waiting; status «Ожидание звонка» + answered/missed KPIs; transfer/chanspy/hangup; queue pickup).
 - Phase 8 planned (2026-07-16): 17 plans (`08-01`…`08-17`), waves 0–10; RESEARCH + PATTERNS + VALIDATION; plan-checker PASSED (NAV-01…16, D-01…41). Hub ships 002-E list (not bento).
 - Phase 8 UI-SPEC approved (2026-07-16): design contract verified 6/6 — Hub E list, tabs B, mobile bottom bar, marketplace section, platform separate apps; see `08-UI-SPEC.md`.
 - Phase 8 context gathered (2026-07-16): Module Hub + marketplace catalog/billing skeleton + full responsive + Capacitor Android foundation; see `08-CONTEXT.md`.
