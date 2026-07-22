@@ -1967,6 +1967,8 @@ export const ru = {
       conference: 'Добавить в конференцию',
       warmTransfer: 'Перевести в очередь',
       zombieReset: 'Сбросить звонок',
+      zombieResetConfirmTitle: 'Сбросить зависший звонок?',
+      zombieResetConfirmBody: 'Сбросить зависший звонок: канал будет принудительно завершён. Продолжить?',
     },
     // ─── Phone tabs (D-04/D-13, shared/ui/Tabs, consumed by 09-08) ──
     tabs: {
@@ -2462,6 +2464,7 @@ export const ru = {
       empty: 'Нет запаркованных звонков',
       retrieve: 'Забрать',
       retrieving: 'Забираем…',
+      spaceLabel: 'Место {{space}}',
     },
     chat: {
       title: 'Чат',

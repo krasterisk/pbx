@@ -1929,6 +1929,8 @@ export const en = {
       conference: 'Add to conference',
       warmTransfer: 'Transfer to queue',
       zombieReset: 'Reset call',
+      zombieResetConfirmTitle: 'Reset stuck call?',
+      zombieResetConfirmBody: 'Reset stuck call: the channel will be forcibly terminated. Continue?',
     },
     // ─── Phone tabs (D-04/D-13, shared/ui/Tabs, consumed by 09-08) ──
     tabs: {
@@ -2414,6 +2416,7 @@ export const en = {
       empty: 'No parked calls',
       retrieve: 'Retrieve',
       retrieving: 'Retrieving…',
+      spaceLabel: 'Space {{space}}',
     },
     chat: {
       title: 'Chat',

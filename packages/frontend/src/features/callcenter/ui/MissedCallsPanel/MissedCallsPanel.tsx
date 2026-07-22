@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { useTranslation } from 'react-i18next';
 import { PhoneMissed, X, ChevronDown, PhoneCall, Check } from 'lucide-react';
 import { Button, Text, SegmentedControl } from '@/shared/ui';
@@ -14,6 +14,7 @@ import { useGetQueuesQuery } from '@/shared/api/endpoints/queueApi';
 import { selectCcQueues } from '@/features/callcenter/model/selectors/callCenterSelectors';
 import { selectCurrentUser } from '@/entities/User';
 import { queueDisplayName } from '@/features/callcenter/lib/displayLabels';
+import { rtkApi } from '@/shared/api/rtkApi';
 import styles from './MissedCallsPanel.module.scss';
 
 type ViewMode = 'active' | 'resolved';
@@ -32,6 +33,7 @@ function groupKey(g: Pick<IMissedCallGroup, 'callerIdNum' | 'personal'>): string
  */
 export function MissedCallsPanel() {
   const { t } = useTranslation();
+  const dispatch = useDispatch();
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<ViewMode>('active');
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
@@ -57,6 +59,18 @@ export function MissedCallsPanel() {
       exten: q.exten,
     })),
   ];
+
+  // Refresh the grouped/raw lists when SSE reports a new or updated missed
+  // call (cc:missed-call-new/-update window events, useCallCenterSSE.ts).
+  useEffect(() => {
+    const invalidate = () => dispatch(rtkApi.util.invalidateTags(['MissedCalls']));
+    window.addEventListener('cc:missed-call-new', invalidate);
+    window.addEventListener('cc:missed-call-update', invalidate);
+    return () => {
+      window.removeEventListener('cc:missed-call-new', invalidate);
+      window.removeEventListener('cc:missed-call-update', invalidate);
+    };
+  }, [dispatch]);
 
   // Inline error flash on a failed/<=5s callback attempt (D-18) — driven by the
   // missedCallUpdate SSE window event already broadcast by useCallCenterSSE.ts.
