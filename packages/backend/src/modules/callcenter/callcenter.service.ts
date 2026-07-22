@@ -890,6 +890,287 @@ export class CallCenterService {
     return { success: true };
   }
 
+  // ─── Call Control (D-27/D-28/D-29/D-33) ─────────────────
+  //
+  // Every method below opens with the same guard sequence: resolve the
+  // requesting operator's own agentInterface → getCall → tenant guard →
+  // own-call ownership guard (call.agent === agentInterface) → channel
+  // presence guard — *before* touching AMI. No client-supplied userUid is
+  // ever trusted; ids are always resolved server-side from the JWT.
+
+  /**
+   * Park the operator's own active call (D-28). Ownership-scoped like
+   * agentHangup/resetZombieCall — an agent can only park their own call.
+   * [ASSUMED] the exact AMI Park response field carrying the parking-space
+   * extension is not verified against a live Asterisk instance in this repo
+   * (09-RESEARCH.md confidence: MEDIUM) — surfaced best-effort for the UI.
+   */
+  async parkCall(uniqueid: string, userUid: number, userId: number) {
+    userUid = this.resolveTenant(userUid, userId);
+    const agentInterface = await this.resolveAgentInterface(userUid, userId);
+    if (!agentInterface) throw new NotFoundException('Agent not logged in');
+
+    const call = this.stateService.getCall(uniqueid);
+    if (!call) throw new NotFoundException('Call not found');
+    if (call.userUid !== userUid) {
+      throw new BadRequestException('Call belongs to another tenant');
+    }
+    if (call.agent !== agentInterface) {
+      throw new ForbiddenException("Only the operator's own call can be parked");
+    }
+    if (!call.callerChannel) {
+      throw new BadRequestException('Caller channel not available');
+    }
+
+    let res: any;
+    try {
+      res = await this.amiService.park(call.callerChannel);
+    } catch (err: any) {
+      throw new BadRequestException(`Park failed: ${err.message}`);
+    }
+
+    this.stateService.setCall(uniqueid, { status: 'HOLD' });
+    this.logger.log(`Parked call ${uniqueid} (${call.callerChannel}) by ${agentInterface}`);
+
+    return {
+      success: true,
+      uniqueid,
+      // [ASSUMED] field name — verify on live Asterisk (09-VALIDATION).
+      parkingSpace: res?.exten || res?.parkinglot || null,
+    };
+  }
+
+  /**
+   * Retrieve a parked call into the requesting operator's own device (D-28).
+   * Parked calls sit in a tenant-wide parking lot (not owned by a specific
+   * agent), so beyond being a logged-in agent no further ownership check
+   * applies — any operator in the tenant may retrieve any parked call.
+   */
+  async retrieveParkedCall(parkingSpace: string, userUid: number, userId: number) {
+    userUid = this.resolveTenant(userUid, userId);
+    const agentInterface = await this.resolveAgentInterface(userUid, userId);
+    if (!agentInterface) throw new NotFoundException('Agent not logged in');
+
+    if (!parkingSpace || !parkingSpace.trim()) {
+      throw new BadRequestException('Parking space is required');
+    }
+
+    try {
+      await this.amiService.originate(
+        agentInterface,
+        `Retrieve parked call ${parkingSpace}`,
+        'parkedcalls',
+        parkingSpace,
+      );
+    } catch (err: any) {
+      throw new BadRequestException(`Retrieve failed: ${err.message}`);
+    }
+
+    this.logger.log(`Agent ${agentInterface} retrieving parked call ${parkingSpace}`);
+    return { success: true, parkingSpace };
+  }
+
+  /**
+   * Add a third party to the operator's own active call via ConfBridge (D-28).
+   * Both existing legs are moved into the same conference room in one atomic
+   * Redirect (Channel + ExtraChannel keeps the bridge intact); the target is
+   * brought in via Originate. Uses the same ad hoc dialplan-app-string
+   * convention already used by supervisorSpy/peerSpy's ChanSpy-via-Originate
+   * above (RESEARCH Alternatives Considered) rather than inventing a new AMI
+   * mechanism. [ASSUMED — relies on existing dialplan evaluating this exten
+   * as ConfBridge(); verify on live Asterisk, 09-VALIDATION.]
+   */
+  async addToConference(uniqueid: string, target: string, userUid: number, userId: number) {
+    userUid = this.resolveTenant(userUid, userId);
+    const agentInterface = await this.resolveAgentInterface(userUid, userId);
+    if (!agentInterface) throw new NotFoundException('Agent not logged in');
+
+    const call = this.stateService.getCall(uniqueid);
+    if (!call) throw new NotFoundException('Call not found');
+    if (call.userUid !== userUid) {
+      throw new BadRequestException('Call belongs to another tenant');
+    }
+    if (call.agent !== agentInterface) {
+      throw new ForbiddenException("Only the operator's own call can be conferenced");
+    }
+    if (!call.callerChannel || !call.agentChannel) {
+      throw new BadRequestException('Call channels not available yet');
+    }
+    if (!target || !target.trim()) {
+      throw new BadRequestException('Conference target is required');
+    }
+
+    const room = uniqueid.replace(/[^A-Za-z0-9_-]/g, '');
+    const exten = target.replace(/^PJSIP\//, '').replace(/^SIP\//, '');
+
+    try {
+      await this.amiService.action({
+        action: 'Redirect',
+        channel: call.callerChannel,
+        context: 'from-internal',
+        exten: `ConfBridge(${room})`,
+        priority: '1',
+        extrachannel: call.agentChannel,
+        extracontext: 'from-internal',
+        extraexten: `ConfBridge(${room})`,
+        extrapriority: '1',
+      });
+      await this.amiService.originate(
+        `PJSIP/${exten}`,
+        `Conference ${room}`,
+        'from-internal',
+        `ConfBridge(${room})`,
+      );
+    } catch (err: any) {
+      throw new BadRequestException(`Conference failed: ${err.message}`);
+    }
+
+    this.stateService.setCall(uniqueid, { status: 'TALKING' });
+    this.logger.log(`Conference ${room} started by ${agentInterface} with ${exten}`);
+    return { success: true, room, target: exten };
+  }
+
+  /**
+   * Operator self-serve reset of a "zombie" call — a channel stuck in the
+   * panel with no BYE, per D-27. Strictly own-call only (never a coworker's,
+   * unlike supervisorHangupCall) — this is the anti-griefing guard from the
+   * threat model (T-09-07-01). Hangup is attempted best-effort; local state
+   * is always cleared so the operator is never stuck behind a truly dead
+   * channel even if the AMI Hangup itself fails.
+   */
+  async resetZombieCall(uniqueid: string, userUid: number, userId: number) {
+    userUid = this.resolveTenant(userUid, userId);
+    const agentInterface = await this.resolveAgentInterface(userUid, userId);
+    if (!agentInterface) throw new NotFoundException('Agent not logged in');
+
+    const call = this.stateService.getCall(uniqueid);
+    if (!call) throw new NotFoundException('Call not found');
+    if (call.userUid !== userUid) {
+      throw new BadRequestException('Call belongs to another tenant');
+    }
+    if (call.agent !== agentInterface) {
+      throw new ForbiddenException("Only the operator's own call can be reset");
+    }
+
+    const channel = call.callerChannel || call.agentChannel;
+    if (channel) {
+      try {
+        await this.amiService.hangup(channel);
+      } catch (err: any) {
+        this.logger.warn(`Zombie-reset hangup failed for ${channel}: ${err.message} — clearing state anyway`);
+      }
+    }
+
+    this.stateService.removeCall(uniqueid, 'zombie-reset');
+    this.stateService.setAgent(userUid, agentInterface, { status: 'READY', currentCall: undefined });
+
+    await this.loggerService.logAction(
+      userId,
+      'zombie_reset',
+      'cc_call',
+      null,
+      userUid,
+      `uniqueid=${uniqueid} agent=${agentInterface}`,
+    );
+
+    this.logger.log(`Zombie call ${uniqueid} reset by ${agentInterface}`);
+    return { success: true, uniqueid };
+  }
+
+  /**
+   * Warm transfer of the operator's own active call into a target queue (D-33).
+   * Queue-only (not an arbitrary extension/agent — that's agentTransfer's
+   * blind mode) and ownership-scoped, unlike agentTransfer which has no
+   * per-call ownership check.
+   */
+  async warmTransferToQueue(uniqueid: string, queue: string, userUid: number, userId: number) {
+    userUid = this.resolveTenant(userUid, userId);
+    const agentInterface = await this.resolveAgentInterface(userUid, userId);
+    if (!agentInterface) throw new NotFoundException('Agent not logged in');
+
+    const call = this.stateService.getCall(uniqueid);
+    if (!call) throw new NotFoundException('Call not found');
+    if (call.userUid !== userUid) {
+      throw new BadRequestException('Call belongs to another tenant');
+    }
+    if (call.agent !== agentInterface) {
+      throw new ForbiddenException("Only the operator's own call can be transferred");
+    }
+    if (!call.callerChannel) {
+      throw new BadRequestException('Caller channel not available');
+    }
+
+    const queues = this.stateService.getAllQueues(userUid);
+    if (!queues.some((q) => q.name === queue)) {
+      throw new BadRequestException('Unknown target queue');
+    }
+
+    try {
+      await this.amiService.action({
+        action: 'Redirect',
+        channel: call.callerChannel,
+        context: 'from-internal',
+        exten: queue,
+        priority: '1',
+      });
+    } catch (err: any) {
+      throw new BadRequestException(`Warm transfer failed: ${err.message}`);
+    }
+
+    this.stateService.setCall(uniqueid, { status: 'TRANSFERRED', queue });
+    this.logger.log(`Warm transfer of ${uniqueid} to queue ${queue} by ${agentInterface}`);
+    return { success: true, uniqueid, queue };
+  }
+
+  /**
+   * Client-aware click-to-call (D-29): WebRTC clients dial directly over
+   * their own signalling (nothing to originate server-side); PJSIP clients
+   * (softphone/hardware) get an operator-leg Originate with an auto-answer
+   * Call-Info header, then dial the target — same scheme as the D-18
+   * missed-call callback flow. Gated by the click_to_call permission
+   * (D-38/D-39), resolved server-side — never trusted from the client.
+   * [ASSUMED] exact SIPADDHEADER Call-Info syntax for auto-answer — verify
+   * against the live PJSIP endpoint config (09-VALIDATION).
+   */
+  async clickToCall(target: string, userUid: number, userId: number) {
+    userUid = this.resolveTenant(userUid, userId);
+    const agentInterface = await this.resolveAgentInterface(userUid, userId);
+    if (!agentInterface) throw new NotFoundException('Agent not logged in');
+
+    await this.permissionsService.assert(userUid, userId, 'click_to_call');
+
+    const dialTarget = (target || '').replace(/[^\d+*#]/g, '');
+    if (!dialTarget) {
+      throw new BadRequestException('Target is required');
+    }
+
+    const sipId = agentInterface.replace(/^PJSIP\//, '').replace(/^SIP\//, '');
+
+    if (isWebrtcCompanion(sipId)) {
+      // WebRTC dials directly through its own client signalling — no AMI action here.
+      this.logger.log(`Click-to-call (webrtc) ${agentInterface} -> ${dialTarget}`);
+      return { success: true, mode: 'webrtc' as const, target: dialTarget };
+    }
+
+    try {
+      await this.amiService.action({
+        action: 'Originate',
+        channel: agentInterface,
+        context: 'from-internal',
+        exten: dialTarget,
+        priority: '1',
+        callerid: `Click-to-call <${dialTarget}>`,
+        async: 'true',
+        variable: 'SIPADDHEADER=Call-Info: <sip:click-to-call>\\;answer-after=0',
+      });
+    } catch (err: any) {
+      throw new BadRequestException(`Click-to-call failed: ${err.message}`);
+    }
+
+    this.logger.log(`Click-to-call (pjsip) ${agentInterface} -> ${dialTarget}`);
+    return { success: true, mode: 'pjsip' as const, target: dialTarget };
+  }
+
   /**
    * Agent detail for supervisor modal: today's stats + timeline segments (D-36 contract).
    * Segments are built server-side from cc_agent_events; presentation is AgentTimeline (07-09).

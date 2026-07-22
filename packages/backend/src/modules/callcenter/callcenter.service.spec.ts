@@ -23,6 +23,7 @@ describe('CallCenterService', () => {
     hangup: jest.fn().mockResolvedValue(undefined),
     action: jest.fn().mockResolvedValue({ response: 'Success' }),
     originate: jest.fn().mockResolvedValue(undefined),
+    park: jest.fn().mockResolvedValue({ response: 'Success' }),
   };
   const ccAmi: any = {
     logAgentEvent: jest.fn().mockResolvedValue(undefined),
@@ -46,6 +47,13 @@ describe('CallCenterService', () => {
   };
   const permissionsService: any = {
     getEffective: jest.fn(),
+    assert: jest.fn(async (userUid: number, operatorUserId: number, right: string) => {
+      const perms = await permissionsService.getEffective(userUid, operatorUserId);
+      if (!perms?.[right]) {
+        throw new ForbiddenException(`${right} not granted`);
+      }
+      return perms;
+    }),
   };
   const loggerService: any = {
     logAction: jest.fn().mockResolvedValue(undefined),
@@ -645,6 +653,243 @@ describe('CallCenterService', () => {
         expect.objectContaining({
           action: 'Redirect',
           channel: 'SIP/1001-0001',
+        }),
+      );
+    });
+  });
+
+  // ─── Call Control (D-27/D-28/D-29/D-33) ─────────────────
+
+  describe('parkCall', () => {
+    it('rejects when agent is not logged in', async () => {
+      await expect(service.parkCall('U1', 7, 42)).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('rejects cross-tenant call', async () => {
+      await service.agentLogin('PJSIP/101', ['sales'], 7, 42);
+      state.setCall('U1', { userUid: 99, queue: 'sales', status: 'TALKING', callerChannel: 'PJSIP/trunk-1', agent: 'PJSIP/101' });
+
+      await expect(service.parkCall('U1', 7, 42)).rejects.toBeInstanceOf(BadRequestException);
+      expect(ami.action).not.toHaveBeenCalled();
+    });
+
+    it("rejects a coworker's call (own-call ownership guard)", async () => {
+      await service.agentLogin('PJSIP/101', ['sales'], 7, 42);
+      state.setCall('U1', { userUid: 7, queue: 'sales', status: 'TALKING', callerChannel: 'PJSIP/trunk-1', agent: 'PJSIP/other' });
+
+      await expect(service.parkCall('U1', 7, 42)).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('parks the caller channel and returns the parking space', async () => {
+      ami.park.mockResolvedValueOnce({ response: 'Success', exten: '71' });
+      await service.agentLogin('PJSIP/101', ['sales'], 7, 42);
+      state.setCall('U1', { userUid: 7, queue: 'sales', status: 'TALKING', callerChannel: 'PJSIP/trunk-1', agent: 'PJSIP/101' });
+
+      const res = await service.parkCall('U1', 7, 42);
+
+      expect(res).toEqual({ success: true, uniqueid: 'U1', parkingSpace: '71' });
+      expect(ami.park).toHaveBeenCalledWith('PJSIP/trunk-1');
+      expect(state.getCall('U1')?.status).toBe('HOLD');
+    });
+  });
+
+  describe('retrieveParkedCall', () => {
+    it('rejects when agent is not logged in', async () => {
+      await expect(service.retrieveParkedCall('71', 7, 42)).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('originates the agent interface into the parking lot context', async () => {
+      await service.agentLogin('PJSIP/101', ['sales'], 7, 42);
+
+      const res = await service.retrieveParkedCall('71', 7, 42);
+
+      expect(res).toEqual({ success: true, parkingSpace: '71' });
+      expect(ami.originate).toHaveBeenCalledWith(
+        'PJSIP/101',
+        expect.stringContaining('71'),
+        'parkedcalls',
+        '71',
+      );
+    });
+  });
+
+  describe('addToConference', () => {
+    it('rejects cross-tenant call', async () => {
+      await service.agentLogin('PJSIP/101', ['sales'], 7, 42);
+      state.setCall('U1', {
+        userUid: 99, queue: 'sales', status: 'TALKING',
+        callerChannel: 'PJSIP/trunk-1', agentChannel: 'PJSIP/101-1', agent: 'PJSIP/101',
+      });
+
+      await expect(service.addToConference('U1', '201', 7, 42)).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it("rejects a coworker's call", async () => {
+      await service.agentLogin('PJSIP/101', ['sales'], 7, 42);
+      state.setCall('U1', {
+        userUid: 7, queue: 'sales', status: 'TALKING',
+        callerChannel: 'PJSIP/trunk-1', agentChannel: 'PJSIP/101-1', agent: 'PJSIP/other',
+      });
+
+      await expect(service.addToConference('U1', '201', 7, 42)).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('rejects when agent channel is not known yet', async () => {
+      await service.agentLogin('PJSIP/101', ['sales'], 7, 42);
+      state.setCall('U1', { userUid: 7, queue: 'sales', status: 'TALKING', callerChannel: 'PJSIP/trunk-1', agent: 'PJSIP/101' });
+
+      await expect(service.addToConference('U1', '201', 7, 42)).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('redirects both bridged legs into the same ConfBridge room and originates the target', async () => {
+      await service.agentLogin('PJSIP/101', ['sales'], 7, 42);
+      state.setCall('U1', {
+        userUid: 7, queue: 'sales', status: 'TALKING',
+        callerChannel: 'PJSIP/trunk-1', agentChannel: 'PJSIP/101-1', agent: 'PJSIP/101',
+      });
+
+      const res = await service.addToConference('U1', 'PJSIP/201', 7, 42);
+
+      expect(res).toEqual({ success: true, room: 'U1', target: '201' });
+      expect(ami.action).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'Redirect',
+          channel: 'PJSIP/trunk-1',
+          extrachannel: 'PJSIP/101-1',
+          exten: 'ConfBridge(U1)',
+        }),
+      );
+      expect(ami.originate).toHaveBeenCalledWith(
+        'PJSIP/201',
+        expect.stringContaining('Conference'),
+        'from-internal',
+        'ConfBridge(U1)',
+      );
+      expect(state.getCall('U1')?.status).toBe('TALKING');
+    });
+  });
+
+  describe('resetZombieCall', () => {
+    it('rejects when agent is not logged in', async () => {
+      await expect(service.resetZombieCall('U1', 7, 42)).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('rejects cross-tenant call', async () => {
+      await service.agentLogin('PJSIP/101', ['sales'], 7, 42);
+      state.setCall('U1', { userUid: 99, queue: 'sales', status: 'TALKING', agent: 'PJSIP/101' });
+
+      await expect(service.resetZombieCall('U1', 7, 42)).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it("rejects a coworker's call (D-27 own-call only, anti-griefing)", async () => {
+      await service.agentLogin('PJSIP/101', ['sales'], 7, 42);
+      state.setCall('U1', { userUid: 7, queue: 'sales', status: 'TALKING', agent: 'PJSIP/other' });
+
+      await expect(service.resetZombieCall('U1', 7, 42)).rejects.toBeInstanceOf(ForbiddenException);
+      expect(ami.hangup).not.toHaveBeenCalled();
+    });
+
+    it('hangs up the stuck channel, clears state, and audit-logs the reset', async () => {
+      await service.agentLogin('PJSIP/101', ['sales'], 7, 42);
+      state.setAgent(7, 'PJSIP/101', { status: 'IN_CALL', currentCall: 'U1' });
+      state.setCall('U1', { userUid: 7, queue: 'sales', status: 'TALKING', callerChannel: 'PJSIP/trunk-1', agent: 'PJSIP/101' });
+
+      const res = await service.resetZombieCall('U1', 7, 42);
+
+      expect(res).toEqual({ success: true, uniqueid: 'U1' });
+      expect(ami.hangup).toHaveBeenCalledWith('PJSIP/trunk-1');
+      expect(state.getCall('U1')).toBeUndefined();
+      expect(state.getAgent(7, 'PJSIP/101')?.status).toBe('READY');
+      expect(loggerService.logAction).toHaveBeenCalledWith(
+        42, 'zombie_reset', 'cc_call', null, 7, expect.stringContaining('U1'),
+      );
+    });
+
+    it('still clears state when the AMI hangup itself fails', async () => {
+      await service.agentLogin('PJSIP/101', ['sales'], 7, 42);
+      state.setCall('U1', { userUid: 7, queue: 'sales', status: 'TALKING', callerChannel: 'PJSIP/trunk-1', agent: 'PJSIP/101' });
+      ami.hangup.mockRejectedValueOnce(new Error('No such channel'));
+
+      const res = await service.resetZombieCall('U1', 7, 42);
+
+      expect(res).toEqual({ success: true, uniqueid: 'U1' });
+      expect(state.getCall('U1')).toBeUndefined();
+    });
+  });
+
+  describe('warmTransferToQueue', () => {
+    it('rejects an unknown target queue', async () => {
+      await service.agentLogin('PJSIP/101', ['sales'], 7, 42);
+      state.setCall('U1', { userUid: 7, queue: 'sales', status: 'TALKING', callerChannel: 'PJSIP/trunk-1', agent: 'PJSIP/101' });
+
+      await expect(service.warmTransferToQueue('U1', 'ghost-queue', 7, 42)).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it("rejects a coworker's call", async () => {
+      await service.agentLogin('PJSIP/101', ['sales'], 7, 42);
+      state.setQueue(7, 'support', { name: 'support', displayName: 'Support', userUid: 7 });
+      state.setCall('U1', { userUid: 7, queue: 'sales', status: 'TALKING', callerChannel: 'PJSIP/trunk-1', agent: 'PJSIP/other' });
+
+      await expect(service.warmTransferToQueue('U1', 'support', 7, 42)).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('redirects the caller channel into the target queue', async () => {
+      await service.agentLogin('PJSIP/101', ['sales'], 7, 42);
+      state.setQueue(7, 'support', { name: 'support', displayName: 'Support', userUid: 7 });
+      state.setCall('U1', { userUid: 7, queue: 'sales', status: 'TALKING', callerChannel: 'PJSIP/trunk-1', agent: 'PJSIP/101' });
+
+      const res = await service.warmTransferToQueue('U1', 'support', 7, 42);
+
+      expect(res).toEqual({ success: true, uniqueid: 'U1', queue: 'support' });
+      expect(ami.action).toHaveBeenCalledWith(
+        expect.objectContaining({ action: 'Redirect', channel: 'PJSIP/trunk-1', exten: 'support' }),
+      );
+      expect(state.getCall('U1')?.status).toBe('TRANSFERRED');
+    });
+  });
+
+  describe('clickToCall', () => {
+    it('rejects when agent is not logged in', async () => {
+      await expect(service.clickToCall('79990001122', 7, 42)).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('throws Forbidden when click_to_call permission is not granted', async () => {
+      await service.agentLogin('PJSIP/101', ['sales'], 7, 42);
+      permissionsService.getEffective.mockResolvedValue({
+        can_spy: false, spyable: true, spy_modes: [], click_to_call: false, customize_ui: false,
+      });
+
+      await expect(service.clickToCall('79990001122', 7, 42)).rejects.toBeInstanceOf(ForbiddenException);
+      expect(ami.action).not.toHaveBeenCalled();
+    });
+
+    it('WebRTC companion dials directly — no AMI Originate issued', async () => {
+      await service.agentLogin('PJSIP/ew112_0', ['q700_0'], 0, 58);
+      permissionsService.getEffective.mockResolvedValue({
+        can_spy: false, spyable: true, spy_modes: [], click_to_call: true, customize_ui: false,
+      });
+
+      const res = await service.clickToCall('79990001122', 0, 58);
+
+      expect(res).toEqual({ success: true, mode: 'webrtc', target: '79990001122' });
+      expect(ami.action).not.toHaveBeenCalled();
+    });
+
+    it('PJSIP client originates the operator leg with an auto-answer Call-Info header', async () => {
+      await service.agentLogin('PJSIP/101', ['sales'], 7, 42);
+      permissionsService.getEffective.mockResolvedValue({
+        can_spy: false, spyable: true, spy_modes: [], click_to_call: true, customize_ui: false,
+      });
+
+      const res = await service.clickToCall('79990001122', 7, 42);
+
+      expect(res).toEqual({ success: true, mode: 'pjsip', target: '79990001122' });
+      expect(ami.action).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'Originate',
+          channel: 'PJSIP/101',
+          exten: '79990001122',
+          variable: expect.stringContaining('Call-Info'),
         }),
       );
     });
