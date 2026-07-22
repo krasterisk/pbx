@@ -247,6 +247,36 @@ describe('useCallCenterSSE', () => {
     expect(store.getState().callCenter.myAgentInterface).toBe('PJSIP/e110');
   });
 
+  it('invalidates the AgentKpi cache tag on agentKpiUpdate for my own interface (D-11/D-12/D-45)', () => {
+    store = makeStore({ myAgentInterface: 'PJSIP/101' });
+    const dispatchSpy = vi.spyOn(store, 'dispatch');
+    renderHook(() => useCallCenterSSE(true), { wrapper: wrapper(store) });
+    act(() => {
+      MockEventSource.instances[0].emit('agentKpiUpdate', {
+        agent: 'PJSIP/101',
+        kpi: { sinceLogin: { answered: 1, made: 0, missed: 0 }, sinceMidnight: { answered: 3, made: 0, missed: 0 } },
+      });
+    });
+    expect(dispatchSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ type: expect.stringContaining('invalidateTags') }),
+    );
+  });
+
+  it('ignores agentKpiUpdate deltas for a different agent (never refetches a coworker KPI change)', () => {
+    store = makeStore({ myAgentInterface: 'PJSIP/101' });
+    const dispatchSpy = vi.spyOn(store, 'dispatch');
+    renderHook(() => useCallCenterSSE(true), { wrapper: wrapper(store) });
+    act(() => {
+      MockEventSource.instances[0].emit('agentKpiUpdate', {
+        agent: 'PJSIP/999',
+        kpi: { sinceLogin: { answered: 1, made: 0, missed: 0 }, sinceMidnight: { answered: 3, made: 0, missed: 0 } },
+      });
+    });
+    expect(dispatchSpy).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: expect.stringContaining('invalidateTags') }),
+    );
+  });
+
   it('does not bind myAgentInterface for OFFLINE matching agent', () => {
     store = makeStore({ user: currentUser, myAgentInterface: null });
     renderHook(() => useCallCenterSSE(true), { wrapper: wrapper(store) });

@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import { useDispatch, useStore, useSelector } from 'react-redux';
 import type { RootState } from '@/app/store/store';
 import { selectCurrentUser } from '@/entities/User';
+import { rtkApi } from '@/shared/api/rtkApi';
 import {
   setSnapshot,
   setConnected,
@@ -197,6 +198,19 @@ export function useCallCenterSSE(enabled: boolean = true) {
         const data = JSON.parse(e.data);
         dispatch(updateAgent({ interface: data.agent, status: 'READY' }));
         window.dispatchEvent(new CustomEvent('cc:wrapup-end', { detail: data }));
+      } catch { /* ignore */ }
+    });
+
+    // KPI deltas (D-11/D-12/D-45) — invalidate only when the update is for this
+    // agent; the SSE stream is tenant-wide, not per-agent, so a coworker's KPI
+    // change must never trigger a refetch of my own status-bar counters.
+    es.addEventListener('agentKpiUpdate', (e: MessageEvent) => {
+      try {
+        const data = JSON.parse(e.data);
+        const myIface = store.getState().callCenter?.myAgentInterface;
+        if (myIface && data.agent === myIface) {
+          dispatch(rtkApi.util.invalidateTags(['AgentKpi']));
+        }
       } catch { /* ignore */ }
     });
 

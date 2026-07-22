@@ -75,6 +75,12 @@ export class CallCenterController {
     return this.ccService.getAgentMe(req.user.vpbx_user_uid, req.user.sub);
   }
 
+  /** Own dual shift/day answered·made·missed KPI counters (D-11/D-12) — status bar. */
+  @Get('agent/kpi')
+  getAgentKpi(@Req() req: Request & { user: any }) {
+    return this.ccService.getAgentKpi(req.user.vpbx_user_uid, req.user.sub);
+  }
+
   @Post('agent/logout')
   agentLogout(@Req() req: Request & { user: any }) {
     return this.ccService.agentLogout(req.user.vpbx_user_uid, req.user.sub);

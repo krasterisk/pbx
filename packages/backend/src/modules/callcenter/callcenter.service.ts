@@ -428,6 +428,17 @@ export class CallCenterService {
   }
 
   /**
+   * Current agent's own dual shift/day answered·made·missed KPI (D-11/D-12).
+   * Self-scoped only — the agent interface is resolved server-side from the
+   * caller's own online presence, never accepted as a client-supplied param,
+   * so an operator can never read a coworker's personal counters this way.
+   */
+  getAgentKpi(userUid: number, userId: number) {
+    const agent = this.stateService.getAllAgents(userUid).find((a) => a.userId === userId);
+    return this.metricsService.getAgentKpi(userUid, agent?.interface || '');
+  }
+
+  /**
    * Hold — Put the caller on hold (they hear MusicOnHold).
    *
    * Two scenarios:

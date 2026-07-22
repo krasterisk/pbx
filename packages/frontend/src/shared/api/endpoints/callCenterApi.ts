@@ -116,6 +116,26 @@ export interface IWebrtcConfig {
   iceServers: RTCIceServer[];
 }
 
+/** Raw dual shift/day KPI counters as stored by CallCenterMetricsService (09-03). */
+interface IKpiCounters {
+  answered: number;
+  made: number;
+  missed: number;
+}
+interface IRawAgentKpi {
+  sinceLogin: IKpiCounters;
+  sinceMidnight: IKpiCounters;
+}
+
+/** Dual shift·day KPI, reshaped for the status bar (D-11/D-12): answered/made/missed → {shift, day}. */
+export interface IAgentKpi {
+  answered: { shift: number; day: number };
+  made: { shift: number; day: number };
+  missed: { shift: number; day: number };
+}
+
+const EMPTY_KPI_COUNTERS: IKpiCounters = { answered: 0, made: 0, missed: 0 };
+
 const callCenterApi = rtkApi.injectEndpoints({
   endpoints: (build) => ({
     // ─── State ────────────────────────────────────────────
@@ -141,6 +161,21 @@ const callCenterApi = rtkApi.injectEndpoints({
     >({
       query: () => '/callcenter/agent/me',
       providesTags: ['CallCenter'],
+    }),
+
+    /** Own dual shift/day answered·made·missed KPI (D-11/D-12) — status bar (09-04). */
+    getAgentKpi: build.query<IAgentKpi, void>({
+      query: () => '/callcenter/agent/kpi',
+      transformResponse: (raw: IRawAgentKpi): IAgentKpi => {
+        const shift = raw?.sinceLogin ?? EMPTY_KPI_COUNTERS;
+        const day = raw?.sinceMidnight ?? EMPTY_KPI_COUNTERS;
+        return {
+          answered: { shift: shift.answered, day: day.answered },
+          made: { shift: shift.made, day: day.made },
+          missed: { shift: shift.missed, day: day.missed },
+        };
+      },
+      providesTags: ['AgentKpi'],
     }),
 
     // ─── Agent Actions ────────────────────────────────────
@@ -402,6 +437,7 @@ export const {
   useGetCcStateQuery,
   useGetAgentMeQuery,
   useLazyGetAgentMeQuery,
+  useGetAgentKpiQuery,
   useAgentLoginMutation,
   useAgentLogoutMutation,
   useAgentPauseMutation,
