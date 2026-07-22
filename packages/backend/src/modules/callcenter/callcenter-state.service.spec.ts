@@ -226,4 +226,40 @@ describe('CallCenterStateService', () => {
       expect(service.getAllCallsGlobal()).toHaveLength(3);
     });
   });
+
+  // ─── presenceUpdate (D-36/D-37/D-45) ────────────────────
+
+  describe('emitEvent presenceUpdate', () => {
+    it('carries only the changed extension + state fields plus _eventId — never a full-state rebroadcast', () => {
+      const received: any[] = [];
+      service.getEventStream(7).subscribe(e => received.push(e));
+
+      service.emitEvent('presenceUpdate', 7, { extension: '110', device: 'PJSIP/e110_0', state: 'INUSE' });
+
+      expect(received).toHaveLength(1);
+      expect(received[0].type).toBe('presenceUpdate');
+      expect(received[0].userUid).toBe(7);
+      expect(received[0].data).toEqual({
+        extension: '110',
+        device: 'PJSIP/e110_0',
+        state: 'INUSE',
+        _eventId: expect.any(Number),
+      });
+      // No agents/queues/calls full-state keys leaking into the delta payload
+      expect(received[0].data.agents).toBeUndefined();
+      expect(received[0].data.queues).toBeUndefined();
+    });
+
+    it('is tenant-isolated like every other CC event', () => {
+      const seen7: any[] = [];
+      const seen8: any[] = [];
+      service.getEventStream(7).subscribe(e => seen7.push(e));
+      service.getEventStream(8).subscribe(e => seen8.push(e));
+
+      service.emitEvent('presenceUpdate', 7, { extension: '110', state: 'INUSE' });
+
+      expect(seen7).toHaveLength(1);
+      expect(seen8).toHaveLength(0);
+    });
+  });
 });
