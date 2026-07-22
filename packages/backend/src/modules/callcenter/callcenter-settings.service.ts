@@ -318,17 +318,34 @@ export class CallCenterSettingsService {
   // D-05/D-06: operator UI customization (tab/panel visibility + softphone placement)
   // ---------------------------------------------------------------------
 
+  /**
+   * D-14 (09-14 gap fix, Rule 1): read-side now forces a locked key back to the tenant
+   * default, matching the write-side lock enforcement below and the same "role default
+   * always wins when locked" semantics CallCenterPermissionsService.getEffective uses for
+   * permission_locks. Previously a locked key just returned whatever the operator's row
+   * held (correct only until the very next write, since writes were already blocked) -
+   * this closes that read/write inconsistency. `locks` is also now surfaced so the 09-14
+   * settings UI can render locked controls disabled with a "set by administrator" hint
+   * without needing supervisor-gated access to `tenant/ui-defaults`.
+   */
   async getOperatorUiCustomization(
     userUid: number,
     operatorUserId: number,
-  ): Promise<{ ui_visibility: UiVisibility; softphone_placement: SoftphonePlacement }> {
+  ): Promise<{ ui_visibility: UiVisibility; softphone_placement: SoftphonePlacement; locks: UiVisibility }> {
     const row = await this.operatorSettingsModel.findOne({
       where: { user_uid: userUid, operator_user_id: operatorUserId },
     });
     const tenant = await this.ccSettingsModel.findOne({ where: { user_uid: userUid } });
+    const defaults = tenant?.ui_visibility_defaults ?? {};
+    const locks = tenant?.ui_visibility_locks ?? {};
+    const merged: UiVisibility = { ...defaults, ...(row?.ui_visibility ?? {}) };
+    for (const key of Object.keys(locks)) {
+      if (locks[key]) merged[key] = defaults[key] ?? merged[key];
+    }
     return {
-      ui_visibility: { ...(tenant?.ui_visibility_defaults ?? {}), ...(row?.ui_visibility ?? {}) },
+      ui_visibility: merged,
       softphone_placement: row?.softphone_placement ?? 'bottom-right',
+      locks,
     };
   }
 
@@ -439,12 +456,31 @@ export class CallCenterSettingsService {
   // D-41/D-42/D-43: notification matrix (event × channel)
   // ---------------------------------------------------------------------
 
-  async getOperatorNotifications(userUid: number, operatorUserId: number): Promise<NotificationMatrix> {
+  /**
+   * D-41/D-43 (09-14 gap fix, Rule 1): return shape widened from a flat merged
+   * `NotificationMatrix` to `{ matrix, locks, defaults }` - the 09-14 settings UI needs
+   * `locks`/`defaults` to render "set by administrator" disabled rows without supervisor
+   * access to `tenant/notification-defaults`. `matrix` also now forces a locked event back
+   * to the tenant default on read (previously only enforced on write), closing the same
+   * read/write lock-consistency gap fixed above for UI customization. No existing consumer
+   * depended on the old flat shape (first frontend consumer ships in this plan).
+   */
+  async getOperatorNotifications(userUid: number, operatorUserId: number): Promise<{
+    matrix: NotificationMatrix;
+    locks: NotificationMatrix;
+    defaults: NotificationMatrix;
+  }> {
     const row = await this.operatorSettingsModel.findOne({
       where: { user_uid: userUid, operator_user_id: operatorUserId },
     });
     const tenant = await this.ccSettingsModel.findOne({ where: { user_uid: userUid } });
-    return { ...(tenant?.notification_defaults ?? {}), ...(row?.notification_matrix ?? {}) };
+    const defaults = tenant?.notification_defaults ?? {};
+    const locks = tenant?.notification_locks ?? {};
+    const merged: NotificationMatrix = { ...defaults, ...(row?.notification_matrix ?? {}) };
+    for (const event of Object.keys(locks) as NotificationEvent[]) {
+      if ((locks[event] ?? []).length > 0) merged[event] = defaults[event] ?? [];
+    }
+    return { matrix: merged, locks, defaults };
   }
 
   /**
@@ -456,7 +492,7 @@ export class CallCenterSettingsService {
     userUid: number,
     operatorUserId: number,
     dto: UpdateNotificationMatrixDto,
-  ): Promise<NotificationMatrix> {
+  ): Promise<{ matrix: NotificationMatrix; locks: NotificationMatrix; defaults: NotificationMatrix }> {
     if (dto.notification_matrix === undefined) {
       return this.getOperatorNotifications(userUid, operatorUserId);
     }

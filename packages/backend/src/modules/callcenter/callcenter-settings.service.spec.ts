@@ -230,6 +230,23 @@ describe('CallCenterSettingsService', () => {
       const patch = row.update.mock.calls[0][0];
       expect(patch.softphone_placement).toBeUndefined();
     });
+
+    it('forces a locked key back to the tenant default on read and surfaces locks (09-14)', async () => {
+      ccSettingsModel.findOne.mockResolvedValue({
+        ui_visibility_defaults: { coworkers: true, queues: false },
+        ui_visibility_locks: { queues: true },
+      });
+      operatorModel.findOne.mockResolvedValue({
+        // Stale override predating the lock - read must not surface it.
+        ui_visibility: { queues: true },
+        softphone_placement: 'bottom-left',
+      });
+
+      const result = await service.getOperatorUiCustomization(7, 42);
+
+      expect(result.ui_visibility).toEqual({ coworkers: true, queues: false });
+      expect(result.locks).toEqual({ queues: true });
+    });
   });
 
   describe('getOperatorPermissions / updateOperatorPermissions (D-38/D-06/D-39)', () => {
@@ -306,6 +323,24 @@ describe('CallCenterSettingsService', () => {
   });
 
   describe('getOperatorNotifications / updateOperatorNotifications (D-41/D-43)', () => {
+    it('read forces a locked event to the tenant default and returns { matrix, locks, defaults } (09-14)', async () => {
+      ccSettingsModel.findOne.mockResolvedValue({
+        notification_locks: { sla_threshold: ['sound'] },
+        notification_defaults: { sla_threshold: ['sound', 'popup'], incoming_call: ['sound'] },
+      });
+      operatorModel.findOne.mockResolvedValue({
+        // Stale override predating the lock - read must not surface it.
+        notification_matrix: { sla_threshold: [], incoming_call: ['popup'] },
+      });
+
+      const result = await service.getOperatorNotifications(7, 42);
+
+      expect(result.matrix.sla_threshold).toEqual(['sound', 'popup']);
+      expect(result.matrix.incoming_call).toEqual(['popup']);
+      expect(result.locks).toEqual({ sla_threshold: ['sound'] });
+      expect(result.defaults.sla_threshold).toEqual(['sound', 'popup']);
+    });
+
     it('a locked event keeps the tenant default channel set, ignoring the operator request', async () => {
       ccSettingsModel.findOne.mockResolvedValue({
         notification_locks: { sla_threshold: ['sound'] },
