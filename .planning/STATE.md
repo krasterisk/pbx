@@ -7,7 +7,7 @@ last_updated: "2026-07-22T10:47:03.191Z"
 progress:
   total_phases: 9
   completed_phases: 6
-  total_plans: 68
+  total_plans: 82
   completed_plans: 67
   percent: 67
 ---
@@ -16,10 +16,11 @@ progress:
 
 ## Current position
 
-Phase: 8 (navigation-redesign-android-port-foundation) — EXECUTING
-Plan: **08-11** Tasks 1–2 committed; **blocked on Task 3 human-verify** (Android WebRTC + FCM device smoke)
+Phase: 9 (call-center-agent-panel) — PLANNED (14 plans, 7 waves). Ready to execute.
+Also: Phase 8 (navigation-redesign-android-port-foundation) — EXECUTING
+Plan 08-11: Tasks 1–2 committed; **blocked on Task 3 human-verify** (Android WebRTC + FCM device smoke)
 
-Await resume signal: type `approved` or describe device failures. Partial SUMMARY: `08-11-SUMMARY.md`.
+Await resume signal for 08-11: type `approved` or describe device failures. Partial SUMMARY: `08-11-SUMMARY.md`.
 
 Phase 7 — Call Center: gap closure complete (07-21, 07-22); re-UAT / `/gsd-verify-work 7` still available in parallel.
 Phase 5 — Phonebooks AI: plans executed (verify/UAT may remain).  
@@ -134,7 +135,8 @@ Phase 1 — MOH: pending verify.
 
 ## Roadmap Evolution
 
-- Phase 9 UI-SPEC approved (2026-07-22): design contract verified 6/6 (2 non-blocking FLAGs — single-word softphone CTAs; aria-label for icon-only controls). Softphone widget, status bar, hybrid tabs/panels, missed-calls tool, transfer directory, settings; hand-built Radix/`shared/ui` + existing `--color-*` tokens; new `shared/ui/Tabs` required. See `09-UI-SPEC.md`. Next: `/gsd-plan-phase 9`.
+- Phase 9 planned (2026-07-22): 14 plans (`09-01`…`09-14`), 7 waves; RESEARCH + PATTERNS + VALIDATION + UI-SPEC; plan-checker PASSED (D-01…D-46). Softphone widget, status bar, hybrid tabs, missed-calls, ChanSpy/permissions, call-control, history/directory, settings. Next: `/gsd-execute-phase 9`.
+- Phase 9 UI-SPEC approved (2026-07-22): design contract verified 6/6 (2 non-blocking FLAGs — single-word softphone CTAs; aria-label for icon-only controls). Softphone widget, status bar, hybrid tabs/panels, missed-calls tool, transfer directory, settings; hand-built Radix/`shared/ui` + existing `--color-*` tokens; new `shared/ui/Tabs` required. See `09-UI-SPEC.md`.
 - Phase 9 context gathered (2026-07-22): 14 областей обсуждено; 46 решений (D-01…D-46) в `09-CONTEXT.md`. Ключевое: softphone-виджет + hybrid tabs/panels; KPI по всем каналам (расширение AMI); умный модуль пропущенных (group-by-number, callback >5с, claim); ChanSpy peer (can_spy/spyable); supervisor scope=назначенные очереди; call-control (conference/park/warm-transfer/zombie-clear/click-to-call), запись — отложена; granular-права + матрица уведомлений; mobile-first rework.
 - Phase 9 added: Call Center Agent Panel — softphone widget & professional call control (tabs Коллеги/Очереди/Waiting; status «Ожидание звонка» + answered/missed KPIs; transfer/chanspy/hangup; queue pickup).
 - Phase 8 planned (2026-07-16): 17 plans (`08-01`…`08-17`), waves 0–10; RESEARCH + PATTERNS + VALIDATION; plan-checker PASSED (NAV-01…16, D-01…41). Hub ships 002-E list (not bento).
@@ -148,7 +150,9 @@ Phase 1 — MOH: pending verify.
 
 ## Next GSD command
 
-Human: complete 08-11 Task 3 smoke checklist, then reply `approved` (or list failures). After approval: finalize 08-11 SUMMARY → `/gsd-verify-work 8`
+`/gsd-execute-phase 9` — execute Call Center Agent Panel plans (14 plans / 7 waves).
+
+Also open: Phase 8 / 08-11 Task 3 — complete Android smoke checklist, then reply `approved` (or list failures). After approval: finalize 08-11 SUMMARY → `/gsd-verify-work 8`
 
 ## Performance Metrics
 
