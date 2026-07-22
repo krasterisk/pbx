@@ -5,13 +5,13 @@ milestone_name: milestone
 current_phase: 9
 current_phase_name: call-center-agent-panel
 status: Ready to execute
-stopped_at: Completed 09-10-PLAN.md
-last_updated: "2026-07-23T04:15:00.000Z"
+stopped_at: Completed 09-11-PLAN.md
+last_updated: "2026-07-23T04:40:00.000Z"
 progress:
   total_phases: 9
   completed_phases: 6
   total_plans: 82
-  completed_plans: 78
+  completed_plans: 79
 ---
 
 # State
@@ -30,6 +30,7 @@ Plan 09-13 (backend settings API: UI customization/granular permissions/notifica
 Plan 09-08 (CallCenterAgentPage hybrid orchestrator rework + WaitingTab/QueuesTab/CoworkersTab, wave 4): 3/3 tasks committed. Next: 09-09+.
 Plan 09-09 (backend smart missed-calls engine + auto-pause rule engine, wave 4): 3/3 tasks committed (TDD RED/GREEN per task). Next: 09-10+.
 Plan 09-10 (smart missed-calls UI rework + ParkedCallsIndicator + CallControlBar full-variant actions, wave 5): 3/3 tasks committed. Next: 09-11+.
+Plan 09-11 (backend unified call history + transfer directory + BLF presence, wave 5): 3/3 tasks committed (TDD RED/GREEN Tasks 1-2). Next: 09-12+.
 Also: Phase 8 (navigation-redesign-android-port-foundation) — EXECUTING
 Plan 08-11: Tasks 1–2 committed; **blocked on Task 3 human-verify** (Android WebRTC + FCM device smoke)
 
@@ -156,6 +157,7 @@ Phase 1 — MOH: pending verify.
 - [Phase 09]: 09-08 CallCenterAgentPage hybrid orchestrator (Coworkers/Queues/Waiting panels >=1024px, shared Tabs default Waiting <768px); WaitingTab extraction + QueuesTab + CoworkersTab; added missing GET /callcenter/agent/queues-kpi backend endpoint; getEffectivePermissions RTK query bridges CoworkersTab ChanSpy/hangup gating until 09-14 usePermissions; queue self-service join/leave omitted (no backend endpoint yet)
 - [Phase 09]: 09-09 getMissedCallsGrouped aggregates cc_missed_calls at the read layer (GROUP BY caller_id_num+personal, COUNT/MAX) — table stays call-level, UNIQUE(call_uniqueid) untouched, no unique index on caller_id_num (Pitfall 4); personal misses persist queue_name=direct:<agentInterface> (NOT NULL column, doubles as ownership marker); autoResolveOnAnswer lives on CallCenterService, invoked from CallCenterAmiService.handleAgentConnect via ModuleRef.get('CallCenterService') string alias (avoids circular constructor dep, mirrors existing 'CallCenterAmiService' alias); callbackMissedCall reuses clickToCall's WebRTC/PJSIP branching via extracted originateDial helper, success/failure decided by subscribing to the operator's own SSE agentUpdate stream (IN_CALL -> not-IN_CALL) and timing the gap against a >5s threshold; CallCenterAutoPauseService models rules as the AutoPauseRule[] typed union already on cc_settings.autopause_rules (09-01, Pitfall 7 — no per-type columns); RONA is fixed/always-on (pauses agents still RINGING in the abandoned queue), missed_count/idle_time/status_duration are configurable and evaluated from the existing handleCallerAbandon/handleAgentStatusEvent/handleDialEnd/handleAgentHangup call sites; auto-pause reuses queuePause+stateService.setAgent(PAUSED) exactly like supervisorForcePause (no forked pause path)
 - [Phase 09]: 09-10 fixed AmiService.parkedCalls() dead-on-arrival bug (same class as getActiveChannels, 09-07) + added missing GET /callcenter/agent/parked-calls + CallCenterService.getParkedCalls + queueName MAX-aggregate on getMissedCallsGrouped (Task 1, Rule 2); MissedCallsPanel reworked around getMissedCallsGrouped with claim/callback/resolve/attempt-history, dropped the client-side tel: onCallback fallback now that callback flows server-side (CallCenterAgentPage call site updated); ParkedCallsIndicator built mirroring MissedCallsPanel 1:1 with --color-info tint; CallControlBar full variant now self-wires RTK mutations for park/warm-transfer-to-queue(DropdownMenu picker)/zombie-reset(confirm dialog, isZombie-gated) given a uniqueid prop — conference-add stays a host callback prop pending 09-12's transfer directory; fixed a mid-rework regression that dropped cc:missed-call-new/-update -> MissedCalls tag SSE invalidation, and a stale IMissedCall type missing personal/client_called_back; ParkedCallsIndicator/CallControlBar full variant built standalone, not yet mounted into CallCenterAgentPage (same precedent as SoftphoneWidget in 09-04/09-08) — next mounting plan must supply uniqueid/isZombie from active-call state
+- [Phase 09]: 09-11 kept CallCenterHistoryWriterService untouched (already generic Partial<CcQueueCall>) — added a nonQueueCallStates Map (keyed like journalKey) to CallCenterAmiService, seeded at DialBegin/Newchannel, consumed at DialEnd/AgentHangup, writing all-direction cc_queue_calls rows (outbound/personal/internal, answered/missed/cancelled); direction=internal via a short-all-digit destination heuristic ([ASSUMED], 09-VALIDATION); personal-ring answer_time approximated as ring-start (no distinct answered AMI event in current listener set — documented limitation); getOperatorCallHistory shift period resolves the operator's open cc_agent_sessions row, falls back to start-of-day; new CallCenterPresenceService debounces DeviceState/ExtensionState (300ms per-extension coalescing) into presenceUpdate SSE deltas via existing emitEvent, wired into ami.service.ts via the same ModuleRef lazy-resolve + string-alias pattern as CallCenterAmiService; reused CallCenterAmiService.parseQueueTenant + endpoint-ids.util interfaceToExtension/extractExtension instead of duplicating regexes; getTransferDirectory reuses recalcQueueStats' agents.available for queue free counts (no parallel scheme), derives call-group free counts from the live agent map (no existing aggregation to reuse there)
 
 ## Roadmap Evolution
 
