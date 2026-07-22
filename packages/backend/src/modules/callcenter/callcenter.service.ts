@@ -25,7 +25,7 @@ import { PhonebookEntry } from '../phonebooks/phonebook-entry.model';
 import { RoutePhonebook } from '../phonebooks/phonebook.model';
 import { ServiceRequest } from '../service-requests/service-request.model';
 import { companionIdOf, isWebrtcCompanion, primaryIdOf } from '../endpoints/endpoint-ids.util';
-import { Op } from 'sequelize';
+import { Op, fn, col, literal } from 'sequelize';
 
 @Injectable()
 export class CallCenterService {
@@ -1479,6 +1479,99 @@ export class CallCenterService {
     });
 
     return { success: true };
+  }
+
+  /**
+   * Number-level worklist (D-16/D-19): groups the call-level cc_missed_calls
+   * rows by caller_id_num + personal at the READ layer only — the table
+   * itself stays call-level (findOrCreate-by-uniqueid in persistMissedCall
+   * keeps UNIQUE(call_uniqueid) intact, RESEARCH Pitfall 4). Excludes rows
+   * already resolved (called_back) or self-resolved (client_called_back).
+   */
+  async getMissedCallsGrouped(userUid: number) {
+    const rows = await this.missedCallModel.findAll({
+      where: { user_uid: userUid, called_back: false, client_called_back: false },
+      attributes: [
+        'caller_id_num',
+        'personal',
+        [fn('COUNT', col('uid')), 'attemptCount'],
+        [fn('MAX', col('created_at')), 'lastAttemptAt'],
+        [fn('MAX', col('called_back_by')), 'claimedBy'],
+        [fn('MAX', col('caller_id_name')), 'callerIdName'],
+      ],
+      group: ['caller_id_num', 'personal'],
+      order: [[literal('lastAttemptAt'), 'DESC']],
+      raw: true,
+    });
+
+    return (rows as any[]).map((r) => ({
+      callerIdNum: r.caller_id_num,
+      callerIdName: r.callerIdName || '',
+      personal: !!r.personal,
+      attemptCount: parseInt(r.attemptCount, 10) || 0,
+      lastAttemptAt: r.lastAttemptAt,
+      claimedBy: r.claimedBy ?? null,
+    }));
+  }
+
+  /**
+   * Claims a queue-missed (shared-pool) number group for the operator
+   * (D-19). Personal misses are already owned by the agent whose channel
+   * rang, so claim only ever targets personal=false rows. Idempotent —
+   * server is source of truth on conflict, last write wins (T-09-09-03).
+   */
+  async claimMissedCall(userUid: number, operatorUserId: number, callerIdNum: string) {
+    if (!callerIdNum) throw new BadRequestException('callerIdNum is required');
+
+    const [claimed] = await this.missedCallModel.update(
+      { called_back_by: operatorUserId },
+      {
+        where: {
+          user_uid: userUid,
+          caller_id_num: callerIdNum,
+          personal: false,
+          called_back: false,
+          client_called_back: false,
+        },
+      },
+    );
+
+    this.stateService.emitEvent('missedCallUpdate', userUid, {
+      callerIdNum,
+      claimedBy: operatorUserId,
+    });
+
+    return { success: true, claimed };
+  }
+
+  /**
+   * D-17: when the client calls back on their own and the call connects,
+   * tag every open (unresolved) missed row for that number as
+   * client_called_back so it drops out of the active worklist.
+   */
+  async autoResolveOnAnswer(userUid: number, callerIdNum: string): Promise<void> {
+    if (!callerIdNum) return;
+    try {
+      const [affected] = await this.missedCallModel.update(
+        { client_called_back: true },
+        {
+          where: {
+            user_uid: userUid,
+            caller_id_num: callerIdNum,
+            called_back: false,
+            client_called_back: false,
+          },
+        },
+      );
+      if (affected > 0) {
+        this.stateService.emitEvent('missedCallUpdate', userUid, {
+          callerIdNum,
+          clientCalledBack: true,
+        });
+      }
+    } catch (err: any) {
+      this.logger.warn(`autoResolveOnAnswer failed: ${err.message}`);
+    }
   }
 
   // ─── Client Card (lookup by callerIdNum) ──────────────────

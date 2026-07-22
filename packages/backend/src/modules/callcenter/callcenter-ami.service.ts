@@ -7,10 +7,12 @@
  */
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
+import { ModuleRef } from '@nestjs/core';
 import { AmiService } from '../ami/ami.service';
 import { CallCenterStateService, AgentStatus, AgentState } from './callcenter-state.service';
 import { CallCenterHistoryWriterService } from './callcenter-history-writer.service';
 import { CallCenterMetricsService } from './callcenter-metrics.service';
+import { CallCenterAutoPauseService } from './callcenter-autopause.service';
 import { CcAgentEvent } from './models/agent-event.model';
 import { CcMissedCall } from './models/missed-call.model';
 import { CcAgentSession } from './models/agent-session.model';
@@ -30,12 +32,16 @@ export class CallCenterAmiService implements OnModuleInit {
   private readonly loggedMissedUniqueids = new Set<string>();
 
   /**
-   * Channels currently ringing a personal/direct call (not queue-driven).
-   * Populated by handleNewchannel, consumed/cleared by handleAgentHangup so a
-   * hangup while ringing on a direct call counts as a personal missed call
+   * Channels currently ringing a personal/direct call (not queue-driven),
+   * mapped to the caller info captured at Newchannel time. Populated by
+   * handleNewchannel, consumed/cleared by handleAgentHangup so a hangup
+   * while ringing on a direct call counts as a personal missed call
    * without misclassifying in-queue Ring-No-Answer (D-08/D-10/D-20).
    */
-  private readonly personalRingingChannels = new Set<string>();
+  private readonly personalRingingChannels = new Map<string, { callerIdNum: string; callerIdName: string }>();
+
+  /** Warn only once if CallCenterService isn't resolvable via ModuleRef. */
+  private warnedMissingCcService = false;
 
   /**
    * Open DIALING/CONSULT/ACW journal rows awaiting their exit timestamp
@@ -48,11 +54,26 @@ export class CallCenterAmiService implements OnModuleInit {
     private readonly stateService: CallCenterStateService,
     private readonly historyWriter: CallCenterHistoryWriterService,
     private readonly metricsService: CallCenterMetricsService,
+    private readonly autoPauseService: CallCenterAutoPauseService,
     @InjectModel(CcAgentEvent) private readonly agentEventModel: typeof CcAgentEvent,
     @InjectModel(CcMissedCall) private readonly missedCallModel: typeof CcMissedCall,
     @InjectModel(Queue) private readonly queueModel: typeof Queue,
     @InjectModel(CcAgentSession) private readonly agentSessionModel: typeof CcAgentSession,
+    private readonly moduleRef: ModuleRef,
   ) {}
+
+  /** Lazily resolve CallCenterService to avoid a circular module dependency (same pattern as AmiService.getCcAmiService). */
+  private getCcService(): { autoResolveOnAnswer: (userUid: number, callerIdNum: string) => Promise<void> } | null {
+    try {
+      return this.moduleRef.get('CallCenterService', { strict: false });
+    } catch {
+      if (!this.warnedMissingCcService) {
+        this.warnedMissingCcService = true;
+        this.logger.warn('CallCenterService not resolvable via ModuleRef — missed-call auto-resolve disabled');
+      }
+      return null;
+    }
+  }
 
   async onModuleInit() {
     // Wait a bit for AMI connection to establish
@@ -259,7 +280,7 @@ export class CallCenterAmiService implements OnModuleInit {
       pauseReason = ''; // clear for SSE (setAgent > pauseReason: null)
     }
 
-    this.stateService.setAgent(userUid, iface, {
+    const updated = this.stateService.setAgent(userUid, iface, {
       status,
       pauseReason,
       // Session counter (agentLogin resets to 0); do not import Asterisk lifetime CallsTaken
@@ -271,6 +292,7 @@ export class CallCenterAmiService implements OnModuleInit {
     });
 
     this.metricsService.recordAgentStatus(userUid, iface, status);
+    void this.autoPauseService.evaluateOnStatusEvent(userUid, iface, status, updated.queues, updated.lastCallTime);
   }
 
   /**
@@ -366,6 +388,14 @@ export class CallCenterAmiService implements OnModuleInit {
     });
 
     this.metricsService.recordAgentStatus(userUid, agentInterface, 'IN_CALL');
+
+    // D-17: a client answering after a prior miss auto-resolves their open
+    // missed-call rows. Lives on CallCenterService (missedCallModel owner);
+    // resolved lazily via ModuleRef to avoid a circular constructor dependency.
+    const answeredCall = this.stateService.getCall(uniqueid);
+    if (answeredCall?.callerIdNum) {
+      void this.getCcService()?.autoResolveOnAnswer(userUid, answeredCall.callerIdNum);
+    }
 
     this.stateService.emitEvent('callAnswer', userUid, {
       uniqueid,
@@ -637,8 +667,13 @@ export class CallCenterAmiService implements OnModuleInit {
         holdTime,
         position,
         userUid,
+        personal: false,
       });
     }
+
+    // D-15 RONA: agents still RINGING in this queue when the caller gave up
+    // did not answer in time — auto-pause them (fixed, always-on trigger).
+    void this.autoPauseService.evaluateRonaOnAbandon(userUid, queueName);
 
     this.recalcQueueStats(userUid, queueName);
   }
@@ -655,8 +690,10 @@ export class CallCenterAmiService implements OnModuleInit {
     holdTime: number;
     position: number;
     userUid: number;
+    /** D-19: true for direct/internal misses on the operator, false for queue-abandoned. */
+    personal: boolean;
   }): Promise<void> {
-    const { uniqueid, queueName, callerIdNum, callerIdName, holdTime, position, userUid } = params;
+    const { uniqueid, queueName, callerIdNum, callerIdName, holdTime, position, userUid, personal } = params;
     if (this.loggedMissedUniqueids.has(uniqueid)) return;
     this.loggedMissedUniqueids.add(uniqueid);
     if (this.loggedMissedUniqueids.size > 2000) {
@@ -675,6 +712,7 @@ export class CallCenterAmiService implements OnModuleInit {
           hold_time: holdTime,
           position,
           called_back: false,
+          personal,
           user_uid: userUid,
         },
       });
@@ -856,6 +894,7 @@ export class CallCenterAmiService implements OnModuleInit {
       this.stateService.setAgent(agent.userUid, agent.interface, { status: 'READY' });
       this.metricsService.recordAgentStatus(agent.userUid, agent.interface, 'READY');
       this.metricsService.recordMissed(agent.userUid, agent.interface);
+      void this.autoPauseService.evaluateOnMissed(agent.userUid, agent.interface, agent.queues);
     }
     this.emitKpiUpdate(agent.userUid, agent.interface);
   }
@@ -881,7 +920,10 @@ export class CallCenterAmiService implements OnModuleInit {
     const isRinging = stateDesc.includes('ring') || evt.channelstate === '4' || evt.channelstate === '5';
     if (!isRinging) return;
 
-    this.personalRingingChannels.add(channel);
+    this.personalRingingChannels.set(channel, {
+      callerIdNum: evt.calleridnum || '',
+      callerIdName: evt.calleridname || '',
+    });
     this.stateService.setAgent(agent.userUid, agent.interface, { status: 'RINGING' });
     this.metricsService.recordAgentStatus(agent.userUid, agent.interface, 'RINGING');
   }
@@ -897,7 +939,7 @@ export class CallCenterAmiService implements OnModuleInit {
     const channel = evt.channel || '';
     if (!channel) return;
 
-    const wasPersonalRing = this.personalRingingChannels.has(channel);
+    const personalRing = this.personalRingingChannels.get(channel);
     this.personalRingingChannels.delete(channel);
 
     const agent = this.stateService.findAgentByChannel(channel);
@@ -908,14 +950,34 @@ export class CallCenterAmiService implements OnModuleInit {
       this.stateService.setAgent(agent.userUid, agent.interface, { status: 'READY' });
       this.metricsService.recordAgentStatus(agent.userUid, agent.interface, 'READY');
       this.metricsService.recordMissed(agent.userUid, agent.interface);
+      void this.autoPauseService.evaluateOnMissed(agent.userUid, agent.interface, agent.queues);
       this.emitKpiUpdate(agent.userUid, agent.interface);
       return;
     }
 
-    if (agent.status === 'RINGING' && wasPersonalRing) {
+    if (agent.status === 'RINGING' && personalRing) {
       this.stateService.setAgent(agent.userUid, agent.interface, { status: 'READY' });
       this.metricsService.recordAgentStatus(agent.userUid, agent.interface, 'READY');
       this.metricsService.recordMissed(agent.userUid, agent.interface);
+      void this.autoPauseService.evaluateOnMissed(agent.userUid, agent.interface, agent.queues);
+      // D-19 personal miss: queue_name is NOT NULL, so encode ownership as
+      // direct:<agentInterface> rather than persisting an empty queue. Skips
+      // silently when the caller id is unknown — in-queue RNA never reaches
+      // this handler, but a genuinely anonymous direct ring is not worklist-
+      // actionable either (D-10/D-20).
+      const callerIdNum = personalRing.callerIdNum || evt.calleridnum || '';
+      if (callerIdNum) {
+        void this.persistMissedCall({
+          uniqueid: evt.uniqueid || channel,
+          queueName: `direct:${agent.interface}`,
+          callerIdNum,
+          callerIdName: personalRing.callerIdName || evt.calleridname || '',
+          holdTime: 0,
+          position: 0,
+          userUid: agent.userUid,
+          personal: true,
+        });
+      }
       this.emitKpiUpdate(agent.userUid, agent.interface);
       return;
     }

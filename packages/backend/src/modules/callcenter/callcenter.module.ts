@@ -20,6 +20,7 @@ import { CallCenterMetricsService } from './callcenter-metrics.service';
 import { CallCenterRollupService } from './callcenter-rollup.service';
 import { CallCenterQueueLogReconcilerService } from './callcenter-queuelog-reconciler.service';
 import { CallCenterZombieService } from './callcenter-zombie.service';
+import { CallCenterAutoPauseService } from './callcenter-autopause.service';
 import { CallCenterController } from './callcenter.controller';
 import { CallCenterSseController } from './callcenter-sse.controller';
 import { CallCenterSettingsController } from './callcenter-settings.controller';
@@ -108,6 +109,7 @@ import { queueLogReaderProvider } from './queuelog/queue-log-reader.factory';
     CallCenterHistoryWriterService,
     CallCenterMetricsService,
     CallCenterRollupService,
+    CallCenterAutoPauseService,
     FileQueueLogReader,
     RealtimeQueueLogReader,
     queueLogReaderProvider,
@@ -124,6 +126,13 @@ import { queueLogReaderProvider } from './queuelog/queue-log-reader.factory';
       useExisting: CallCenterAmiService,
     },
     CallCenterService,
+    // String alias so CallCenterAmiService can lazily resolve CallCenterService
+    // via ModuleRef (autoResolveOnAnswer, D-17) without a circular constructor
+    // dependency — same pattern as the 'CallCenterAmiService' alias above.
+    {
+      provide: 'CallCenterService',
+      useExisting: CallCenterService,
+    },
     CallCenterZombieService,
     CallCenterPermissionsService,
     CallCenterAiAdapter,
