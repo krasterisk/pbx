@@ -5,13 +5,13 @@ milestone_name: milestone
 current_phase: 9
 current_phase_name: call-center-agent-panel
 status: Ready to execute
-stopped_at: Completed 09-01-PLAN.md
-last_updated: "2026-07-22T11:24:56.175Z"
+stopped_at: Completed 09-02-PLAN.md
+last_updated: "2026-07-22T11:52:00.766Z"
 progress:
   total_phases: 9
   completed_phases: 6
   total_plans: 82
-  completed_plans: 68
+  completed_plans: 69
 ---
 
 # State
@@ -19,7 +19,8 @@ progress:
 ## Current position
 
 Phase: 9 (call-center-agent-panel) — EXECUTING
-Plan 09-01 (schema/model foundation, wave 1): 3/3 tasks committed + migration applied to live DB. Next: 09-02+.
+Plan 09-01 (schema/model foundation, wave 1): 3/3 tasks committed + migration applied to live DB.
+Plan 09-02 (Tabs primitive + AgentStatus model, wave 1): 3/3 tasks committed. Next: 09-03+.
 Also: Phase 8 (navigation-redesign-android-port-foundation) — EXECUTING
 Plan 08-11: Tasks 1–2 committed; **blocked on Task 3 human-verify** (Android WebRTC + FCM device smoke)
 
@@ -136,6 +137,7 @@ Phase 1 — MOH: pending verify.
 - [Phase 08]: Phone More sheet lists non-primary modules; locked shortcuts go Hub (T-08-12)
 - [Phase 08]: ModuleChip Sheet on phone / DropdownMenu on desktop via useIsMobile(768)
 - [Phase 09]: 09-01 role_permission_defaults JSON on cc_settings singleton (not new table); Phase 9 schema migration applied to live DB
+- [Phase 09]: 09-02 shared/ui/Tabs (Radix data-state driven underline); AgentStatus 9-member union + authoritative agentStatusLabel/agentStatusColorFamily maps; ru/en status+tabs i18n keys
 
 ## Roadmap Evolution
 
@@ -216,9 +218,10 @@ Also open: Phase 8 / 08-11 Task 3 — complete Android smoke checklist, then rep
 | Plan | Duration | Tasks | Files |
 |------|----------|-------|-------|
 | Phase 9 P01 | 24min | 3 tasks | 8 files |
+| Phase 9 P02 | 42min | 3 tasks | 14 files |
 
 ## Session
 
-**Last session:** 2026-07-22T11:24:55.873Z
-**Stopped at:** Completed 09-01-PLAN.md
+**Last session:** 2026-07-22T11:51:37.398Z
+**Stopped at:** Completed 09-02-PLAN.md
 **Resume file:** None

@@ -513,12 +513,12 @@ Plans:
 | 5 | `/gsd-ui-review 9` + `npm run test:frontend` / `test:backend` |
 | 6 | `/gsd-verify-work 9` → `/gsd-ship 9` |
 
-**Plans:** 1/14 plans executed
+**Plans:** 2/14 plans executed
 
 Plans:
 
 - [x] 09-01-PLAN.md — Backend schema/models + Phase-9 migration + push (D-09/10/13/16/17/19/34/35/38/39/41/43)
-- [ ] 09-02-PLAN.md — Frontend Tabs primitive + AgentStatus enum + labels/i18n (D-01/04/07/13/44)
+- [x] 09-02-PLAN.md — Frontend Tabs primitive + AgentStatus enum + labels/i18n (D-01/04/07/13/44)
 - [ ] 09-03-PLAN.md — Backend all-channel AMI listener + dual shift/day KPI (D-08/09/11/12/13/14/31/32)
 - [ ] 09-04-PLAN.md — Frontend status bar redesign + KPI + call-control bar (D-03/11/12/13/14/44)
 - [ ] 09-05-PLAN.md — Backend PermissionsService + peer ChanSpy + audit (D-21/22/23/24/25/26/38/39)
