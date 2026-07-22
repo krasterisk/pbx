@@ -1,4 +1,5 @@
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { Op } from 'sequelize';
 import { CallCenterService } from './callcenter.service';
 import { CallCenterStateService } from './callcenter-state.service';
 
@@ -1238,6 +1239,87 @@ describe('CallCenterService', () => {
       const detail = await service.getAgentDetail('PJSIP/101', 7);
 
       expect(detail.segments.map((s: any) => s.state)).toEqual(['DIALING', 'CONSULT', 'ACW']);
+    });
+  });
+
+  // ─── Operator call history (D-34/D-35) ──────────────────
+
+  describe('getOperatorCallHistory', () => {
+    beforeEach(() => {
+      queueCallModel.findAll.mockClear();
+      sessionModel.findOne.mockClear();
+    });
+
+    it('queries cc_queue_calls tenant+operator scoped, most-recent-first, for a "day" period', async () => {
+      queueCallModel.findAll.mockResolvedValue([
+        {
+          getDataValue: (k: string) =>
+            ({
+              uid: 1,
+              call_uniqueid: 'U1',
+              queue_name: 'sales_7',
+              caller_id_num: '+7999',
+              caller_id_name: 'Ivan',
+              direction: 'inbound',
+              call_type: '',
+              disposition: 'answered',
+              enter_time: new Date('2026-07-15T08:00:00Z'),
+              answer_time: new Date('2026-07-15T08:00:05Z'),
+              end_time: new Date('2026-07-15T08:01:00Z'),
+              wait_time: 5,
+              talk_time: 55,
+            } as any)[k],
+        },
+      ]);
+
+      const rows = await service.getOperatorCallHistory(7, 42, 'day');
+
+      expect(queueCallModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ user_uid: 7, agent_user_uid: 42 }),
+          order: [['created_at', 'DESC']],
+        }),
+      );
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toEqual(
+        expect.objectContaining({
+          callUniqueid: 'U1',
+          direction: 'inbound',
+          disposition: 'answered',
+          waitTime: 5,
+          talkTime: 55,
+        }),
+      );
+    });
+
+    it('resolves the "shift" period from the operator\'s open login session', async () => {
+      const loginTime = new Date('2026-07-15T06:00:00Z');
+      sessionModel.findOne.mockResolvedValue({
+        getDataValue: (k: string) => ({ login_time: loginTime } as any)[k],
+      });
+      queueCallModel.findAll.mockResolvedValue([]);
+
+      await service.getOperatorCallHistory(7, 42, 'shift');
+
+      expect(sessionModel.findOne).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ user_id: 42, user_uid: 7, logout_time: null }),
+        }),
+      );
+      const call = queueCallModel.findAll.mock.calls[0][0];
+      expect(call.where.created_at[Op.gte]).toEqual(loginTime);
+    });
+
+    it('falls back to start-of-day when no open session is found for "shift"', async () => {
+      sessionModel.findOne.mockResolvedValue(null);
+      queueCallModel.findAll.mockResolvedValue([]);
+
+      await service.getOperatorCallHistory(7, 42, 'shift');
+
+      const call = queueCallModel.findAll.mock.calls[0][0];
+      const since: Date = call.where.created_at[Op.gte];
+      expect(since.getHours()).toBe(0);
+      expect(since.getMinutes()).toBe(0);
     });
   });
 });
