@@ -20,8 +20,8 @@ vi.mock('@/features/callcenter/lib/useCallCenterSSE', () => ({
   useCallCenterSSE: vi.fn(),
 }));
 
-vi.mock('@/features/callcenter/lib/useCallNotifications', () => ({
-  useCallNotifications: vi.fn(),
+vi.mock('@/features/callcenter/lib/useCallCenterNotifications', () => ({
+  useCallCenterNotifications: vi.fn(),
 }));
 
 vi.mock('@/features/callcenter/lib/useWebRTCPhone', () => ({
@@ -138,6 +138,7 @@ vi.mock('@/shared/api/endpoints/callCenterApi', () => ({
   useGetPauseReasonsQuery: () => ({ data: [] }),
   useGetMyOperatorSettingsQuery: () => ({ data: undefined }),
   useGetMyUiCustomizationQuery: () => ({ data: undefined }),
+  useGetMyNotificationsQuery: () => ({ data: undefined }),
   useGetWebrtcConfigQuery: () => ({ data: undefined }),
   useLazyGetAgentMeQuery: () => [vi.fn(() => ({ unwrap: async () => ({ active: false }) }))],
 }));

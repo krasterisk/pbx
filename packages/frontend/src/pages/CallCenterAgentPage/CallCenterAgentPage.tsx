@@ -12,7 +12,7 @@ import {
   Tabs, TabsList, TabsTrigger, TabsContent,
 } from '@/shared/ui';
 import { useCallCenterSSE } from '@/features/callcenter/lib/useCallCenterSSE';
-import { useCallNotifications } from '@/features/callcenter/lib/useCallNotifications';
+import { useCallCenterNotifications } from '@/features/callcenter/lib/useCallCenterNotifications';
 import { useWebRTCPhone } from '@/features/callcenter/lib/useWebRTCPhone';
 import { PauseReasonModal } from '@/features/callcenter/ui/PauseReasonModal/PauseReasonModal';
 import { ClientCard } from '@/features/callcenter/ui/ClientCard/ClientCard';
@@ -68,6 +68,7 @@ import {
   useGetPauseReasonsQuery,
   useGetMyOperatorSettingsQuery,
   useGetMyUiCustomizationQuery,
+  useGetMyNotificationsQuery,
   useGetWebrtcConfigQuery,
   useLazyGetAgentMeQuery,
 } from '@/shared/api/endpoints/callCenterApi';
@@ -103,12 +104,13 @@ export function CallCenterAgentPage() {
   const { data: operatorSettings } = useGetMyOperatorSettingsQuery();
   const { data: webrtcConfig } = useGetWebrtcConfigQuery();
   const { data: uiCustomization } = useGetMyUiCustomizationQuery();
-  useCallNotifications({
-    enabled: true,
+  const { data: notificationSettings } = useGetMyNotificationsQuery();
+  useCallCenterNotifications({
+    enabled: operatorSettings?.notifications_enabled ?? true,
     holdTimeoutSec: 60,
-    soundIncoming: operatorSettings?.sound_incoming ?? true,
-    soundMissed: operatorSettings?.sound_missed ?? true,
-    notificationsEnabled: operatorSettings?.notifications_enabled ?? true,
+    matrix: notificationSettings?.matrix,
+    locks: notificationSettings?.locks,
+    defaults: notificationSettings?.defaults,
     volume: (operatorSettings?.volume ?? 100) / 100 * 0.15,
   });
 
