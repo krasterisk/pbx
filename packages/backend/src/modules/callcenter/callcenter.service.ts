@@ -10,6 +10,9 @@ import { AmiService } from '../ami/ami.service';
 import { CallCenterStateService } from './callcenter-state.service';
 import { CallCenterAmiService } from './callcenter-ami.service';
 import { CallCenterMetricsService } from './callcenter-metrics.service';
+import { CallCenterPermissionsService } from './callcenter-permissions.service';
+import { LoggerService } from '../logger/logger.service';
+import type { SpyMode } from './models/cc-permissions.types';
 import { CcPauseReason } from './models/pause-reason.model';
 import { CcAgentSession } from './models/agent-session.model';
 import { CcAgentEvent } from './models/agent-event.model';
@@ -46,6 +49,8 @@ export class CallCenterService {
     @InjectModel(RoutePhonebook) private readonly phonebookModel: typeof RoutePhonebook,
     @InjectModel(ServiceRequest) private readonly serviceRequestModel: typeof ServiceRequest,
     private readonly settingsService: CallCenterSettingsService,
+    private readonly permissionsService: CallCenterPermissionsService,
+    private readonly loggerService: LoggerService,
   ) {}
 
   // ─── Helpers ─────────────────────────────────────────────
@@ -659,6 +664,80 @@ export class CallCenterService {
     }
 
     this.logger.log(`Supervisor ${supervisorId} started ${mode} on ${agentInterface}`);
+    return { success: true, mode };
+  }
+
+  // ─── Peer Actions (D-21…D-25) ───────────────────────────
+
+  /**
+   * Coworker↔coworker ChanSpy — the permission+scope+audit-gated peer analog of
+   * supervisorSpy (which has no permission check beyond controller-level assertSupervisor).
+   * Check order (RESEARCH Pitfall 2): target must be IN_CALL → shared online queue →
+   * target spyable → requester can_spy → mode ∈ requester spy_modes → audit log → AMI originate.
+   * A supervisor calling this endpoint is scoped by the same shared-queue check as any
+   * other agent (D-25) — this endpoint never grants tenant-wide reach the way
+   * supervisor/spy does; that broader supervisor tool is untouched by this method.
+   */
+  async peerSpy(requesterUserId: number, targetInterface: string, mode: SpyMode, userUid: number) {
+    userUid = this.resolveTenant(userUid, requesterUserId);
+
+    const requesterAgent = this.stateService
+      .getAllAgents(userUid)
+      .find(a => a.userId === requesterUserId);
+    if (!requesterAgent) throw new NotFoundException('Requester agent not logged in');
+
+    const targetAgent = this.stateService.getAgent(userUid, targetInterface);
+    if (!targetAgent) throw new NotFoundException('Target agent not found');
+    if (targetAgent.userUid !== userUid) {
+      throw new BadRequestException('Agent belongs to another tenant');
+    }
+    if (targetAgent.status !== 'IN_CALL') {
+      throw new BadRequestException('Agent is not on a call');
+    }
+
+    const sharedQueue = requesterAgent.queues.some(q => targetAgent.queues.includes(q));
+    if (!sharedQueue) {
+      throw new ForbiddenException('Not in a shared queue with the target agent');
+    }
+
+    const targetPerms = await this.permissionsService.getEffective(userUid, targetAgent.userId);
+    if (!targetPerms.spyable) {
+      throw new ForbiddenException('Target is not spyable');
+    }
+
+    const requesterPerms = await this.permissionsService.getEffective(userUid, requesterUserId);
+    if (!requesterPerms.can_spy) {
+      throw new ForbiddenException('can_spy not granted');
+    }
+    if (!requesterPerms.spy_modes.includes(mode)) {
+      throw new ForbiddenException(`Mode ${mode} not granted`);
+    }
+
+    // D-24: audit row written before AMI originate — listen mode stays silent to the target,
+    // but every spy invocation (any mode) must be attributable after the fact.
+    await this.loggerService.logAction(
+      requesterUserId,
+      'peer_spy',
+      'cc_agent',
+      targetAgent.userId || null,
+      userUid,
+      `mode=${mode} target=${targetInterface}`,
+    );
+
+    const spyOptions = mode === 'listen' ? 'q' : mode === 'whisper' ? 'w' : 'B';
+
+    try {
+      await this.amiService.originate(
+        requesterAgent.interface,
+        `Peer spy on ${targetAgent.name}`,
+        'from-internal',
+        `ChanSpy(${targetInterface},${spyOptions})`,
+      );
+    } catch (err: any) {
+      throw new BadRequestException(`Spy failed: ${err.message}`);
+    }
+
+    this.logger.log(`Peer spy: ${requesterUserId} started ${mode} on ${targetInterface}`);
     return { success: true, mode };
   }
 

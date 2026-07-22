@@ -40,6 +40,12 @@ describe('CallCenterService', () => {
       wrapup_autosave_draft: true,
     }),
   };
+  const permissionsService: any = {
+    getEffective: jest.fn(),
+  };
+  const loggerService: any = {
+    logAction: jest.fn().mockResolvedValue(undefined),
+  };
   const sessionModel: any = {
     create: jest.fn().mockResolvedValue({ uid: 99 }),
     update: jest.fn().mockResolvedValue(undefined),
@@ -96,6 +102,8 @@ describe('CallCenterService', () => {
       phonebookModel,
       serviceRequestModel,
       settingsService,
+      permissionsService,
+      loggerService,
     );
   });
 
@@ -433,6 +441,140 @@ describe('CallCenterService', () => {
     it('throws if the agent is not in a call', async () => {
       state.setAgent(7, 'PJSIP/101', { name: 'Alice', status: 'READY' });
       await expect(service.supervisorSpy('PJSIP/101', 'spy', 7, 1)).rejects.toBeInstanceOf(BadRequestException);
+    });
+  });
+
+  // ─── Peer ChanSpy (D-21…D-25) ────────────────────────────
+
+  describe('peerSpy', () => {
+    const REQUESTER_ID = 10;
+    const TARGET_ID = 20;
+
+    function fullPerms(overrides: Record<string, any> = {}) {
+      return {
+        can_spy: true,
+        spyable: true,
+        spy_modes: ['listen'],
+        click_to_call: false,
+        customize_ui: false,
+        ...overrides,
+      };
+    }
+
+    function mockPerms(opts: { requester?: Record<string, any>; target?: Record<string, any> } = {}) {
+      permissionsService.getEffective.mockImplementation((_userUid: number, operatorUserId: number) => {
+        if (operatorUserId === TARGET_ID) {
+          return Promise.resolve(fullPerms({ can_spy: false, ...opts.target }));
+        }
+        return Promise.resolve(fullPerms(opts.requester));
+      });
+    }
+
+    beforeEach(() => {
+      state.setAgent(7, 'PJSIP/req', {
+        name: 'Requester',
+        status: 'READY',
+        queues: ['sales'],
+        userId: REQUESTER_ID,
+        userUid: 7,
+      });
+      state.setAgent(7, 'PJSIP/target', {
+        name: 'Target',
+        status: 'IN_CALL',
+        queues: ['sales'],
+        userId: TARGET_ID,
+        userUid: 7,
+      });
+    });
+
+    it('writes the audit log before AMI originate, and originates ChanSpy with the correct listen option', async () => {
+      mockPerms();
+      const result = await service.peerSpy(REQUESTER_ID, 'PJSIP/target', 'listen', 7);
+
+      expect(result).toEqual({ success: true, mode: 'listen' });
+      expect(loggerService.logAction).toHaveBeenCalledWith(
+        REQUESTER_ID,
+        'peer_spy',
+        'cc_agent',
+        TARGET_ID,
+        7,
+        expect.stringContaining('listen'),
+      );
+      expect(ami.originate).toHaveBeenCalledWith(
+        'PJSIP/req',
+        expect.stringContaining('Peer spy on'),
+        'from-internal',
+        'ChanSpy(PJSIP/target,q)',
+      );
+
+      const logOrder = loggerService.logAction.mock.invocationCallOrder[0];
+      const originateOrder = ami.originate.mock.invocationCallOrder[0];
+      expect(logOrder).toBeLessThan(originateOrder);
+    });
+
+    it('rejects with BadRequest when the target agent is not IN_CALL', async () => {
+      state.setAgent(7, 'PJSIP/target', { status: 'READY' });
+      mockPerms();
+      await expect(
+        service.peerSpy(REQUESTER_ID, 'PJSIP/target', 'listen', 7),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(ami.originate).not.toHaveBeenCalled();
+    });
+
+    it('rejects with Forbidden when requester and target share no online queue', async () => {
+      state.setAgent(7, 'PJSIP/target', { queues: ['support'] });
+      mockPerms();
+      await expect(
+        service.peerSpy(REQUESTER_ID, 'PJSIP/target', 'listen', 7),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(ami.originate).not.toHaveBeenCalled();
+    });
+
+    it('rejects with Forbidden when the target is not spyable', async () => {
+      mockPerms({ target: { spyable: false } });
+      await expect(
+        service.peerSpy(REQUESTER_ID, 'PJSIP/target', 'listen', 7),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(ami.originate).not.toHaveBeenCalled();
+    });
+
+    it('rejects with Forbidden when the requester lacks can_spy', async () => {
+      mockPerms({ requester: { can_spy: false } });
+      await expect(
+        service.peerSpy(REQUESTER_ID, 'PJSIP/target', 'listen', 7),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(ami.originate).not.toHaveBeenCalled();
+    });
+
+    it('rejects with Forbidden when the mode is not in the requester spy_modes', async () => {
+      mockPerms({ requester: { spy_modes: ['listen'] } });
+      await expect(
+        service.peerSpy(REQUESTER_ID, 'PJSIP/target', 'whisper', 7),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(ami.originate).not.toHaveBeenCalled();
+    });
+
+    it('rejects a cross-tenant target (agent registered under a different tenant is simply not found)', async () => {
+      state.setAgent(99, 'PJSIP/other-tenant-target', {
+        name: 'OtherTenantTarget',
+        status: 'IN_CALL',
+        queues: ['sales'],
+        userId: 30,
+        userUid: 99,
+      });
+      mockPerms();
+      await expect(
+        service.peerSpy(REQUESTER_ID, 'PJSIP/other-tenant-target', 'listen', 7),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(ami.originate).not.toHaveBeenCalled();
+    });
+
+    it('rejects when the requester agent is not logged in', async () => {
+      mockPerms();
+      await expect(
+        service.peerSpy(999, 'PJSIP/target', 'listen', 7),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(ami.originate).not.toHaveBeenCalled();
     });
   });
 
