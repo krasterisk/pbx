@@ -87,12 +87,32 @@ vi.mock('@/features/callcenter/ui/ShiftLoginModal/ShiftLoginModal', () => ({
   ShiftLoginModal: () => null,
 }));
 
-vi.mock('@/features/callcenter/ui/DtmfKeypad/DtmfKeypad', () => ({
-  DtmfKeypad: () => null,
-}));
-
 vi.mock('@/features/callcenter/ui/CallQualityIndicator/CallQualityIndicator', () => ({
   CallQualityIndicator: () => null,
+}));
+
+vi.mock('@/features/callcenter/ui/AgentStatusBar/AgentStatusBar', () => ({
+  AgentStatusBar: () => <div data-testid="agent-status-bar-stub" />,
+}));
+
+vi.mock('@/features/callcenter/ui/SoftphoneWidget/SoftphoneWidget', () => ({
+  SoftphoneWidget: () => null,
+}));
+
+vi.mock('@/features/callcenter/ui/IncomingCallToast/IncomingCallToast', () => ({
+  IncomingCallToast: () => null,
+}));
+
+vi.mock('@/features/callcenter/ui/CoworkersTab/CoworkersTab', () => ({
+  CoworkersTab: () => <div data-testid="coworkers-tab-stub" />,
+}));
+
+vi.mock('@/features/callcenter/ui/QueuesTab/QueuesTab', () => ({
+  QueuesTab: () => <div data-testid="queues-tab-stub" />,
+}));
+
+vi.mock('@/features/callcenter/ui/WaitingTab/WaitingTab', () => ({
+  WaitingTab: () => <div data-testid="waiting-tab-stub" />,
 }));
 
 vi.mock('@/features/callcenter/ui/DragTransfer/DragTransfer', () => ({
@@ -115,9 +135,9 @@ vi.mock('@/shared/api/endpoints/callCenterApi', () => ({
   useAgentHoldMutation: () => [vi.fn()],
   useAgentUnholdMutation: () => [vi.fn()],
   useAgentTransferMutation: () => [vi.fn()],
-  useAgentPickCallMutation: () => [vi.fn()],
   useGetPauseReasonsQuery: () => ({ data: [] }),
   useGetMyOperatorSettingsQuery: () => ({ data: undefined }),
+  useGetMyUiCustomizationQuery: () => ({ data: undefined }),
   useGetWebrtcConfigQuery: () => ({ data: undefined }),
   useLazyGetAgentMeQuery: () => [vi.fn(() => ({ unwrap: async () => ({ active: false }) }))],
 }));
@@ -153,13 +173,13 @@ const store = configureStore({
   },
 });
 
-describe('CallCenterAgentPage phone sticky softphone (D-28)', () => {
+describe('CallCenterAgentPage hybrid orchestrator (D-04/D-07)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     useIsMobileMock.mockReturnValue(false);
   });
 
-  it('keeps desktop layout without sticky softphone bar', () => {
+  it('renders side-by-side panels on wide screens', () => {
     useIsMobileMock.mockReturnValue(false);
     render(
       <Provider store={store}>
@@ -167,11 +187,13 @@ describe('CallCenterAgentPage phone sticky softphone (D-28)', () => {
       </Provider>,
     );
     expect(screen.getByTestId('cc-agent-desktop')).toBeInTheDocument();
-    expect(screen.queryByTestId('cc-softphone-sticky')).not.toBeInTheDocument();
+    expect(screen.getByTestId('coworkers-tab-stub')).toBeInTheDocument();
+    expect(screen.getByTestId('queues-tab-stub')).toBeInTheDocument();
+    expect(screen.getByTestId('waiting-tab-stub')).toBeInTheDocument();
     expect(useIsMobileMock).toHaveBeenCalledWith(768);
   });
 
-  it('renders sticky softphone above bottom bar when isMobile', () => {
+  it('renders the shared Tabs component on phone with Waiting selected by default (D-07)', () => {
     useIsMobileMock.mockReturnValue(true);
     render(
       <Provider store={store}>
@@ -179,11 +201,16 @@ describe('CallCenterAgentPage phone sticky softphone (D-28)', () => {
       </Provider>,
     );
     expect(screen.getByTestId('cc-agent-phone')).toBeInTheDocument();
-    const sticky = screen.getByTestId('cc-softphone-sticky');
-    expect(sticky).toBeInTheDocument();
-    expect(sticky.className).toMatch(/sticky/i);
-    expect(screen.getByRole('tab', { name: 'Call' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Team' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Queues' })).toBeInTheDocument();
+
+    const coworkersTab = screen.getByRole('tab', { name: /Coworkers/i });
+    const queuesTab = screen.getByRole('tab', { name: /Queues/i });
+    const waitingTab = screen.getByRole('tab', { name: /Waiting/i });
+    expect(coworkersTab).toBeInTheDocument();
+    expect(queuesTab).toBeInTheDocument();
+    expect(waitingTab).toBeInTheDocument();
+
+    expect(waitingTab).toHaveAttribute('aria-selected', 'true');
+    expect(coworkersTab).toHaveAttribute('aria-selected', 'false');
+    expect(queuesTab).toHaveAttribute('aria-selected', 'false');
   });
 });

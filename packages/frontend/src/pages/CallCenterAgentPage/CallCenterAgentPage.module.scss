@@ -1,9 +1,9 @@
 /* ─────────────────────────────────────────────────────
-   CallCenterAgentPage - Operator workspace
+   CallCenterAgentPage - thin orchestrator (D-04)
    Design tokens: var(--color-*) from globals.css @theme
    ───────────────────────────────────────────────────── */
 
-/* 1. Layout — 4-zone workspace (UI-SPEC §1) */
+/* 1. Layout */
 .wrapper {
   display: flex;
   flex-direction: column;
@@ -31,439 +31,119 @@
   padding-bottom: 4px;
 }
 
-.zoneMain {
+.pageHeader {
+  padding: 0 2px;
+}
+
+/* 2. Status chrome — AgentStatusBar (draggable transfer source) + shift buttons */
+.statusChrome {
+  display: flex;
+  flex-direction: column;
+}
+
+.shiftRow {
+  padding: 0 2px;
+}
+
+.callChrome {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.wrapupChrome {
+  width: 100%;
+  max-width: 480px;
+}
+
+/* 3. Tabs/Panels area — Coworkers/Queues/Waiting (D-04) */
+.tabsArea {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.panelToggleRow {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.panelToggleChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  background: var(--color-card);
+  color: var(--color-muted-foreground);
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover {
+    background: var(--color-accent);
+  }
+}
+
+.panelToggleChipActive {
+  border-color: color-mix(in srgb, var(--color-primary) 30%, transparent);
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+}
+
+.panelColumns {
   display: grid;
-  grid-template-columns: 1fr 320px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 16px;
   flex: 1;
   min-height: 0;
+  align-items: start;
 
   @media (max-width: 1024px) {
     grid-template-columns: 1fr;
   }
 }
 
-.zoneB {
+.panel {
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  display: flex;
+  flex-direction: column;
   min-height: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.zoneD {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  min-width: 0;
-
-  @media (max-width: 1024px) {
-    display: none;
-  }
-}
-
-.zoneC {
-  flex-shrink: 0;
-}
-
-.pageHeader {
-  padding: 0 2px;
-}
-
-/* 2. Status Bar — Zone A, 56px target height */
-.statusBar {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  min-height: 56px;
-  padding: 8px 20px;
-  background: var(--color-card);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-xl);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
-  flex-wrap: wrap;
-}
-
-.statusIndicator {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 14px;
-  border-radius: var(--radius-lg);
-  font-weight: 600;
-  font-size: 0.875rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  border: 1px solid transparent;
-
-  &:hover {
-    filter: brightness(1.1);
-  }
-}
-
-.statusDot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
-}
-
-.statusReady {
-  background: color-mix(in srgb, var(--color-success) 12%, transparent);
-  color: var(--color-success);
-  border-color: color-mix(in srgb, var(--color-success) 25%, transparent);
-
-  .statusDot { background: var(--color-success); }
-}
-
-.statusPaused {
-  background: color-mix(in srgb, var(--color-warning) 12%, transparent);
-  color: var(--color-warning);
-  border-color: color-mix(in srgb, var(--color-warning) 25%, transparent);
-
-  .statusDot { background: var(--color-warning); animation: none; }
-}
-
-.statusInCall {
-  background: color-mix(in srgb, var(--color-destructive) 12%, transparent);
-  color: var(--color-destructive);
-  border-color: color-mix(in srgb, var(--color-destructive) 25%, transparent);
-
-  .statusDot { background: var(--color-destructive); }
-}
-
-.statusWrapup {
-  background: color-mix(in srgb, var(--color-info) 12%, transparent);
-  color: var(--color-info);
-  border-color: color-mix(in srgb, var(--color-info) 25%, transparent);
-
-  .statusDot { background: var(--color-info); animation: none; }
-}
-
-.statusOffline {
-  background: color-mix(in srgb, var(--color-muted-foreground) 12%, transparent);
-  color: var(--color-muted-foreground);
-  border-color: color-mix(in srgb, var(--color-muted-foreground) 25%, transparent);
-
-  .statusDot { background: var(--color-muted-foreground); animation: none; }
-}
-
-.agentName {
-  font-weight: 600;
-  font-size: 0.9rem;
-  color: var(--color-foreground);
-}
-
-.sessionTimer {
-  font-size: 0.8rem;
-  color: var(--color-muted-foreground);
-  font-variant-numeric: tabular-nums;
-}
-
-.queueChips {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.queueChip {
-  padding: 2px 10px;
-  border-radius: var(--radius-md);
-  font-size: 0.75rem;
-  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
-  color: var(--color-primary);
-  border: 1px solid color-mix(in srgb, var(--color-primary) 20%, transparent);
-}
-
-.statusBarRight {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-/* 3. Zone B — Active call panel */
-.callPanel {
-  background: var(--color-card);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-xl);
-  padding: 24px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
-  min-height: 300px;
-  flex: 1;
-}
-
-.callActions {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  justify-content: center;
-
-  :global(button) {
-    min-height: 44px;
-  }
-}
-
-.callPanelActive {
-  border-color: color-mix(in srgb, var(--color-primary) 40%, transparent);
-  box-shadow: 0 0 20px color-mix(in srgb, var(--color-primary) 10%, transparent);
-}
-
-.callerInfo {
-  text-align: center;
-}
-
-.callerNumber {
-  font-size: 1.75rem;
-  font-weight: 700;
-  color: var(--color-foreground);
-  letter-spacing: -0.02em;
-}
-
-.callerName {
-  font-size: 0.9rem;
-  color: var(--color-muted-foreground);
-  margin-top: 4px;
-}
-
-.callQueue {
-  font-size: 0.8rem;
-  padding: 4px 12px;
-  border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
-  color: var(--color-primary);
-}
-
-.callTimer {
-  font-size: 2rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  color: var(--color-foreground);
-}
-
-.callActions {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  justify-content: center;
-}
-
-.idleState {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  color: var(--color-muted-foreground);
-}
-
-.idleIcon {
-  width: 48px;
-  height: 48px;
-  opacity: 0.3;
-}
-
-/* 5. Quick Actions Sidebar */
-.sidebar {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-
-  @media (max-width: 1024px) {
-    display: none;
-  }
-}
-
-.sidebarCard {
-  background: var(--color-card);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-xl);
-  padding: 16px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
-}
-
-.sidebarTitle {
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--color-muted-foreground);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-bottom: 12px;
-}
-
-.transferList {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.transferItem {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: background 0.15s ease;
-
-  &:hover {
-    background: color-mix(in srgb, var(--color-muted) 50%, transparent);
-  }
-}
-
-.transferItemOnline {
-  .transferDot { background: var(--color-success); }
-}
-
-.transferItemBusy {
-  .transferDot { background: var(--color-destructive); }
-}
-
-.transferItemOffline {
-  opacity: 0.5;
-  .transferDot { background: var(--color-muted-foreground); }
-}
-
-.transferDot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.transferName {
-  font-size: 0.85rem;
-  color: var(--color-foreground);
-  flex: 1;
-}
-
-.transferExt {
-  font-size: 0.75rem;
-  color: var(--color-muted-foreground);
-}
-
-/* 6. Queue Monitor (bottom) */
-.queueMonitor {
-  background: var(--color-card);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-xl);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  max-height: calc(100vh - 320px);
   overflow: hidden;
 }
 
-.queueMonitorHeader {
+.panelHeader {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 8px;
   padding: 12px 16px;
-  background: color-mix(in srgb, var(--color-muted) 30%, transparent);
   border-bottom: 1px solid var(--color-border);
-  cursor: pointer;
-
-  &:hover {
-    background: color-mix(in srgb, var(--color-muted) 50%, transparent);
-  }
+  flex-shrink: 0;
 }
 
-.queueStats {
-  display: flex;
-  gap: 20px;
-}
-
-.queueStat {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.8rem;
-}
-
-.queueStatValue {
-  font-weight: 700;
+.panelTitle {
+  font-size: 0.95rem;
+  font-weight: 600;
   color: var(--color-foreground);
 }
 
-.queueStatLabel {
-  color: var(--color-muted-foreground);
+.panelBody {
+  flex: 1;
+  min-height: 0;
+  padding: 12px;
+  overflow-y: auto;
 }
 
-.queueStatDanger {
-  .queueStatValue { color: var(--color-destructive); }
-}
-
-.queueTable {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.queueTable th {
-  text-align: left;
-  padding: 8px 12px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--color-muted-foreground);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.queueTable td {
-  padding: 8px 12px;
-  font-size: 0.85rem;
-  color: var(--color-foreground);
-  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 50%, transparent);
-}
-
-.rowWaiting {
-  background: color-mix(in srgb, var(--color-warning, #d97706) 8%, transparent);
-}
-
-.rowTalking {
-  background: color-mix(in srgb, var(--color-success, #16a34a) 10%, transparent);
-}
-
-.badgeWaiting,
-.badgeTalking {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: var(--radius-md, 6px);
-  font-size: 0.7rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-}
-
-.badgeWaiting {
-  color: color-mix(in srgb, var(--color-warning, #d97706) 90%, #000);
-  background: color-mix(in srgb, var(--color-warning, #d97706) 18%, transparent);
-}
-
-.badgeTalking {
-  color: color-mix(in srgb, var(--color-success, #16a34a) 90%, #000);
-  background: color-mix(in srgb, var(--color-success, #16a34a) 18%, transparent);
-}
-
-.waitTime {
-  font-variant-numeric: tabular-nums;
-}
-
-.waitTimeDanger {
-  color: var(--color-destructive);
-  font-weight: 600;
-}
-
-.waitTimeWarning {
-  color: var(--color-warning);
-  font-weight: 600;
-}
-
-/* 7. Connection indicator */
+/* 4. Connection indicator */
 .connectionDot {
   width: 8px;
   height: 8px;
@@ -479,65 +159,12 @@
   animation: pulse 1s infinite;
 }
 
-/* 8. Pause Reason Dropdown */
-.pauseDropdown {
-  position: relative;
-  display: inline-block;
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }
 
-.pauseDropdownMenu {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  z-index: 50;
-  min-width: 220px;
-  margin-top: 4px;
-  padding: 6px;
-  background: var(--color-popover);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-  animation: dropdownIn 0.15s ease;
-}
-
-@keyframes dropdownIn {
-  from { opacity: 0; transform: translateY(-4px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-.pauseDropdownItem {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  font-size: 0.85rem;
-  color: var(--color-foreground);
-  transition: background 0.12s ease;
-
-  &:hover {
-    background: var(--color-accent);
-  }
-}
-
-.pauseReasonDot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.pauseReasonName {
-  flex: 1;
-}
-
-.pauseReasonDuration {
-  font-size: 0.75rem;
-  color: var(--color-muted-foreground);
-}
-
-/* 9. Transfer Modal */
+/* 5. Transfer Modal (manual target entry — quick-transfer to a colleague lives in CoworkersTab) */
 .modalOverlay {
   position: fixed;
   inset: 0;
@@ -647,83 +274,8 @@
   font-weight: 600;
 }
 
-.transferAgentList {
-  max-height: 200px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  margin-top: 8px;
-}
-
-.transferAgentRow {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: background 0.12s;
-
-  &:hover {
-    background: var(--color-accent);
-  }
-}
-
-/* 10. Mute indicator */
-.muteActive {
-  position: relative;
-
-  &::after {
-    content: '';
-    position: absolute;
-    top: -2px;
-    right: -2px;
-    width: 10px;
-    height: 10px;
-    background: var(--color-destructive);
-    border-radius: 50%;
-    border: 2px solid var(--color-card);
-  }
-}
-
-/* 11. DTMF Keypad */
-.dtmfGrid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 6px;
-  padding: 12px;
-}
-
-.dtmfKey {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 12px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: transparent;
-  color: var(--color-foreground);
-  font-size: 1.1rem;
-  font-weight: 600;
-  cursor: pointer;
-  user-select: none;
-  transition: all 0.1s;
-
-  &:active {
-    background: var(--color-primary);
-    color: white;
-    transform: scale(0.95);
-  }
-
-  &:hover {
-    background: var(--color-accent);
-  }
-}
-
-/* 12. Phone stack (D-28) — sticky softphone above MobileBottomBar */
+/* 6. Phone stack (D-28) — sticky softphone above MobileBottomBar */
 $softphone-bar-height: 72px;
-$bottom-nav-height: 60px;
 
 .wrapperPhone {
   min-width: 0;
@@ -734,72 +286,4 @@ $bottom-nav-height: 60px;
   /* Softphone height only — AppLayout already pads for bottom nav + safe-area */
   padding-bottom: calc(#{$softphone-bar-height} + 8px);
   min-width: 0;
-}
-
-.phoneTabs {
-  display: flex;
-  gap: 4px;
-  padding: 4px;
-  background: var(--color-card);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-}
-
-.phoneTab {
-  flex: 1;
-  min-height: 44px;
-  padding: 8px 10px;
-  border: none;
-  border-radius: var(--radius-md);
-  background: transparent;
-  color: var(--color-muted-foreground);
-  font-size: 0.8rem;
-  font-weight: 600;
-  cursor: pointer;
-
-  &:hover {
-    color: var(--color-foreground);
-    background: color-mix(in srgb, var(--color-muted) 40%, transparent);
-  }
-}
-
-.phoneTabActive {
-  background: color-mix(in srgb, var(--color-primary) 14%, transparent);
-  color: var(--color-primary);
-}
-
-.softphoneSticky {
-  position: fixed;
-  left: 0;
-  right: 0;
-  /* Sit above MobileBottomBar (60px + safe-area) — combined height budget */
-  bottom: calc(#{$bottom-nav-height} + env(safe-area-inset-bottom, 0px));
-  z-index: 35;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  min-height: $softphone-bar-height;
-  padding: 8px 12px;
-  background: color-mix(in srgb, var(--color-card) 94%, transparent);
-  border-top: 1px solid var(--color-border);
-  backdrop-filter: blur(12px);
-  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.12);
-}
-
-.sectionHidden {
-  display: none !important;
-}
-
-.zoneDPhone {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  min-width: 0;
-}
-
-.queueTableWrap {
-  overflow-x: auto;
-  min-width: 0;
-  -webkit-overflow-scrolling: touch;
 }
