@@ -2,11 +2,16 @@ import { useCallback } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { cva } from 'class-variance-authority';
 import { cn } from '@/shared/ui/Dialog/Dialog';
+import { Tooltip } from '@/shared/ui/Tooltip/Tooltip';
 
 export interface SegmentedControlOption<T extends string> {
   value: T;
   label?: string;
   icon?: LucideIcon;
+  /** Renders the option dimmed/non-interactive — pair with tooltipContent to explain why. */
+  disabled?: boolean;
+  /** Shown on hover, most useful when disabled (e.g. right not granted). */
+  tooltipContent?: string;
 }
 
 export interface SegmentedControlProps<T extends string> {
@@ -56,20 +61,27 @@ export function SegmentedControl<T extends string>({
       {options.map(opt => {
         const Icon = opt.icon;
         const isActive = opt.value === value;
-        return (
+        const button = (
           <button
             key={opt.value}
             type="button"
             role="tab"
             aria-selected={isActive}
             aria-pressed={isActive}
-            className={segmentBtn({ active: isActive })}
-            onClick={() => handleSelect(opt.value)}
+            aria-disabled={opt.disabled || undefined}
+            disabled={opt.disabled}
+            className={cn(segmentBtn({ active: isActive }), opt.disabled && 'opacity-50 cursor-not-allowed hover:bg-transparent hover:text-muted-foreground')}
+            onClick={() => !opt.disabled && handleSelect(opt.value)}
           >
             {Icon && <Icon className="h-4 w-4" aria-hidden />}
             {opt.label && <span>{opt.label}</span>}
           </button>
         );
+        return opt.tooltipContent ? (
+          <Tooltip key={opt.value} content={opt.tooltipContent}>
+            <span>{button}</span>
+          </Tooltip>
+        ) : button;
       })}
     </div>
   );
