@@ -1934,11 +1934,20 @@ export const ru = {
     // ─── Agent Statuses ────────────────────────────
     status: {
       offline: 'Не в сети',
-      ready: 'Готов',
+      ready: 'Ожидание звонка',
       inCall: 'В разговоре',
       ringing: 'Звонок',
       paused: 'На паузе',
       wrapup: 'Постобработка',
+      dialing: 'Вызов',
+      consult: 'Консультация',
+      acw: 'Постобработка',
+    },
+    // ─── Phone tabs (D-04/D-13, shared/ui/Tabs, consumed by 09-08) ──
+    tabs: {
+      coworkers: 'Коллеги',
+      queues: 'Очереди',
+      waiting: 'Текущие',
     },
     // ─── Call Statuses ─────────────────────────────
     callStatus: {

@@ -1896,11 +1896,20 @@ export const en = {
     noActiveCall: 'No active call',
     status: {
       offline: 'Offline',
-      ready: 'Ready',
+      ready: 'Waiting for call',
       inCall: 'In Call',
       ringing: 'Ringing',
       paused: 'Paused',
       wrapup: 'Wrap-up',
+      dialing: 'Dialing',
+      consult: 'Consulting',
+      acw: 'After-call work',
+    },
+    // ─── Phone tabs (D-04/D-13, shared/ui/Tabs, consumed by 09-08) ──
+    tabs: {
+      coworkers: 'Coworkers',
+      queues: 'Queues',
+      waiting: 'Waiting',
     },
     callStatus: {
       waiting: 'Waiting',
