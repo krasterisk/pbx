@@ -71,6 +71,14 @@ export class UpdateCcSettingsDto {
   @IsOptional()
   @IsObject()
   alert_thresholds?: Record<string, unknown>;
+
+  /**
+   * D-15: flexible auto-pause rules (missed_count / idle_time / status_duration).
+   * Deep shape enforced by sanitizeAutopauseRules — RONA is never a writable type.
+   */
+  @IsOptional()
+  @IsArray()
+  autopause_rules?: unknown[];
 }
 
 /** D-05: tab/panel visibility + softphone placement. Locked keys rejected server-side (D-06). */

@@ -12,6 +12,7 @@ import { CcSettings } from './models/cc-settings.model';
 import { CallCenterPermissionsService } from './callcenter-permissions.service';
 import { User, UserLevel } from '../users/user.model';
 import type {
+  AutoPauseRule,
   NotificationChannel,
   NotificationEvent,
   NotificationMatrix,
@@ -83,7 +84,59 @@ export const DEFAULT_TENANT_SETTINGS = {
   default_sla_threshold: 20,
   alert_thresholds: { ...DEFAULT_ALERT_THRESHOLDS },
   alert_sound_enabled: true,
+  /** D-15: empty → engine fires only always-on RONA. */
+  autopause_rules: [] as AutoPauseRule[],
 };
+
+/** Soft cap for autopause_rules array (T-09-17-03). */
+const MAX_AUTOPAUSE_RULES = 20;
+
+function coerceOptionalFiniteInt(raw: unknown): number | undefined {
+  if (raw === undefined || raw === null || raw === '') return undefined;
+  const n = Number(raw);
+  return Number.isFinite(n) ? Math.trunc(n) : undefined;
+}
+
+/**
+ * D-15 / G-09-2: whitelist AutoPauseRule triad; drop unknown types (incl. rona);
+ * non-array → []. RONA stays engine-fixed and is never a writable rule type.
+ */
+export function sanitizeAutopauseRules(raw: unknown): AutoPauseRule[] {
+  if (!Array.isArray(raw)) return [];
+  const out: AutoPauseRule[] = [];
+  for (const entry of raw) {
+    if (out.length >= MAX_AUTOPAUSE_RULES) break;
+    if (!entry || typeof entry !== 'object') continue;
+    const row = entry as Record<string, unknown>;
+    const type = row.type;
+    const pauseReasonId = coerceOptionalFiniteInt(row.pauseReasonId);
+    const pauseDurationSec = coerceOptionalFiniteInt(row.pauseDurationSec);
+    const optional: { pauseReasonId?: number; pauseDurationSec?: number } = {};
+    if (pauseReasonId !== undefined) optional.pauseReasonId = pauseReasonId;
+    if (pauseDurationSec !== undefined) optional.pauseDurationSec = pauseDurationSec;
+
+    if (type === 'missed_count') {
+      const threshold = Number(row.threshold);
+      if (!Number.isFinite(threshold)) continue;
+      out.push({ type: 'missed_count', threshold, ...optional });
+      continue;
+    }
+    if (type === 'idle_time') {
+      const thresholdSec = Number(row.thresholdSec);
+      if (!Number.isFinite(thresholdSec)) continue;
+      out.push({ type: 'idle_time', thresholdSec, ...optional });
+      continue;
+    }
+    if (type === 'status_duration') {
+      const status = typeof row.status === 'string' ? row.status.trim() : '';
+      const thresholdSec = Number(row.thresholdSec);
+      if (!status || !Number.isFinite(thresholdSec)) continue;
+      out.push({ type: 'status_duration', status, thresholdSec, ...optional });
+    }
+    // Unknown types (including fabricated "rona") are dropped.
+  }
+  return out;
+}
 
 /** Sanitize alert_thresholds: whitelist keys, coerce to finite numbers. */
 export function sanitizeAlertThresholds(
@@ -274,6 +327,9 @@ export class CallCenterSettingsService {
       const prev = existing?.alert_thresholds ?? null;
       patch.alert_thresholds = sanitizeAlertThresholds(dto.alert_thresholds, prev);
     }
+    if (dto.autopause_rules !== undefined) {
+      patch.autopause_rules = sanitizeAutopauseRules(dto.autopause_rules);
+    }
 
     if (existing) {
       await existing.update(patch);
@@ -287,6 +343,8 @@ export class CallCenterSettingsService {
       alert_thresholds:
         (patch.alert_thresholds as Record<string, number>) ??
         { ...DEFAULT_ALERT_THRESHOLDS },
+      autopause_rules:
+        (patch.autopause_rules as AutoPauseRule[]) ?? [],
     });
   }
 
@@ -306,10 +364,10 @@ export class CallCenterSettingsService {
     });
   }
 
-  /** Same `where: { id, vpbx_user_uid }` lookup shape used by CallCenterPermissionsService.getEffective. */
+  /** Same `where: { uniqueid, vpbx_user_uid }` lookup shape used by CallCenterPermissionsService.getEffective. */
   private async getOperatorLevel(userUid: number, operatorUserId: number): Promise<UserLevel | undefined> {
     const user = await this.userModel.findOne({
-      where: { id: operatorUserId, vpbx_user_uid: userUid },
+      where: { uniqueid: operatorUserId, vpbx_user_uid: userUid },
     });
     return (user?.getDataValue('level') as UserLevel | undefined) ?? undefined;
   }
