@@ -96,9 +96,11 @@ status: complete
 1. **Task 1: Single global throttler + AI POST route-scoped 10/min** - `df758b8` (fix)
 2. **Task 2: Named SkipThrottle on intentional bypass routes** - `7e6cf5e` (fix)
 
-**Plan metadata:** `docs(09-16)` commit after SUMMARY
+**Plan metadata:** `c4dd605` (docs: complete plan)
 
 _Note: TDD tasks may have multiple commits (test → feat → refactor)_
+
+## Files Created/Modified
 
 - `packages/backend/src/app.module.ts` — forRoot only `global` 60/min; comment documents route-scoped AI budget
 - `packages/backend/src/modules/ai-chat/ai-chat.controller.ts` — `@Throttle({ global: { limit: 10 } })` on POST; named SkipThrottle on GET/PUT bypasses
