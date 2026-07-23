@@ -180,7 +180,7 @@ Phase 1 — MOH: pending verify.
 
 ## Next GSD command
 
-`/gsd-plan-phase 9 --gaps` — close wiring gaps from 09-VERIFICATION (park/zombie UI, CallHistoryPanel mount, TransferDirectory for transfer mode). Then re-run `/gsd-execute-phase 9`.
+`/gsd-execute-phase 9` — execute gap-closure plan 09-15 (wires park/zombie, TransferDirectory transfer mode, CallHistoryPanel).
 
 Also open: Phase 8 / 08-11 Task 3 — complete Android smoke checklist, then reply `approved` (or list failures). After approval: finalize 08-11 SUMMARY → `/gsd-verify-work 8`
 
