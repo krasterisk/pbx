@@ -513,7 +513,7 @@ Plans:
 | 5 | `/gsd-ui-review 9` + `npm run test:frontend` / `test:backend` |
 | 6 | `/gsd-verify-work 9` → `/gsd-ship 9` |
 
-**Plans:** 14/14 plans executed
+**Plans:** 14/14 executed + 1 gap-closure plan (09-15)
 
 Plans:
 
@@ -531,3 +531,4 @@ Plans:
 - [x] 09-12-PLAN.md — Frontend transfer directory + click-to-call + call-history UI (D-29/34/36/37/44)
 - [x] 09-13-PLAN.md — Backend settings endpoints: permissions/notifications/UI customization (D-05/06/38/39/40/41/42/43)
 - [x] 09-14-PLAN.md — Frontend settings UI + notification engine + mobile rework + i18n (D-38/39/40/41/42/43/44/46)
+- [ ] 09-15-PLAN.md — Gap closure: wire orphaned call-control/history components into CallCenterAgentPage — park/retrieve/zombie-reset + directory transfer + call history/click-to-call (D-05/27/28/29/34/35/36/37)
