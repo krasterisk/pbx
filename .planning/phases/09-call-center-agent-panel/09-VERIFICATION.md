@@ -1,47 +1,46 @@
 ---
 phase: 09-call-center-agent-panel
-verified: 2026-07-23T04:20:00Z
+verified: 2026-07-23T09:20:00Z
 status: human_needed
-score: 14/14 must-haves verified
+score: 16/16 must-haves verified
 behavior_unverified: 2
 overrides_applied: 0
 re_verification:
-  previous_status: gaps_found
-  previous_score: 11/14
+  previous_status: human_needed
+  previous_score: 14/14
   gaps_closed:
-    - "Call-control set expanded toward professional practices (D-27 zombie-reset, D-28 park/retrieve) is reachable by the operator"
-    - "Client-aware click-to-call (D-29) and the transfer/BLF directory (D-36/D-37) are reachable as a general-purpose 'directory' surface, not only for conference-add"
-    - "Operator call history (all directions, shift/day, click-to-callback, card access) is visible in the agent panel (D-34/D-35, phase goal item 9)"
+    - "G-09-1: Single global throttler; AI POST route-scoped 10/min; callcenter operator notifications not crushed by named ai 10/min global"
+    - "G-09-2: sanitizeAutopauseRules + PUT tenant autopause_rules; AutoPauseRulesForm on Settings autoPause tab; RONA not editable; SUPERVISOR/ADMIN gate; i18n"
   gaps_remaining: []
   regressions: []
 deferred: []
 behavior_unverified_items:
   - truth: "Notification matrix (D-41/D-42) actually fires sound/popup/in-app-toast per the configured event×channel grid at runtime"
-    test: "Trigger an incoming call, a missed call, and a whisper/barge event while operator has notifications configured for sound+popup; observe actual sound playback and OS/browser popup"
-    expected: "Configured channels fire for each event per the matrix, respecting locks/defaults; hidden-tab browser notification appears per D-42"
-    why_human: "Runtime audio/notification behavior and OS-level permission prompts cannot be verified by static analysis; useCallCenterNotifications.test.ts exercises the decision logic but not real playback"
-  - truth: "Auto-pause rule engine (D-15) correctly transitions an agent to PAUSED at the configured RONA/missed-count/idle-time/status-duration thresholds without false triggers in production AMI event ordering"
-    test: "Drive real (or AMI-simulated) sequences of missed calls / idle periods / long WRAPUP against a live tenant and confirm auto-pause fires at the exact configured threshold, not earlier/later, and does not double-fire"
-    expected: "Agent transitions to PAUSED exactly once per configured rule breach, with the correct reason recorded"
-    why_human: "callcenter-autopause.service.spec.ts covers the unit-level rule logic in isolation; true event-ordering races (concurrent AMI events, timer drift) are a runtime characteristic not provable by presence/wiring checks"
+    test: "After confirming GET /callcenter/settings/operator/notifications returns 200 (not 429), configure sound+popup for incoming/missed; trigger both with tab visible and hidden"
+    expected: "Matrix loads; configured channels fire; browser notification when tab hidden; locks respected"
+    why_human: "Throttle mis-scope (G-09-1) is fixed in code; actual audio/OS notification playback still requires a live browser session"
+  - truth: "Auto-pause rule engine (D-15) correctly transitions an agent to PAUSED at configured RONA/missed-count/idle-time/status-duration thresholds under live AMI ordering"
+    test: "As SUPERVISOR/ADMIN open Call Center Settings → Auto-pause; add missed_count/idle_time/status_duration rules and save; drive live/staging AMI sequences against those thresholds"
+    expected: "Rules persist and reload; agent auto-pauses exactly once per breach with correct reason; no double-fire"
+    why_human: "G-09-2 config API/UI is verified in code + unit tests; true AMI event-ordering races need a live event stream"
 human_verification:
-  - test: "Configure sound+popup for incoming call and missed call in Settings → Notifications; trigger both while tab visible and hidden"
-    expected: "Sound plays and popup/toast appears per configuration; browser notification when tab hidden, respecting role locks"
-    why_human: "Audio playback and OS notification permissions are runtime/browser behaviors"
-  - test: "Simulate consecutive missed queue calls, idle, and long WRAPUP against a live/staging tenant; confirm auto-pause at configured thresholds"
-    expected: "Agent auto-pauses exactly once per rule breach with correct logged reason; no double-fire from concurrent AMI events"
-    why_human: "Unit tests verify rule logic in isolation; AMI event-ordering races need a live event stream"
+  - test: "Re-UAT G-09-1 unblock: open Моя панель → Уведомления (or Settings notifications); confirm GET operator/notifications is 200; then configure sound+popup and trigger incoming/missed with tab visible and hidden"
+    expected: "No 429 on notification settings load; sound/popup/toast fire per matrix; browser notification when hidden"
+    why_human: "Code removes parallel ai throttler; only a live SPA session proves 429 is gone and audio/OS channels work"
+  - test: "Re-UAT G-09-2 unblock: as SUPERVISOR/ADMIN open Call Center Settings → tab «Автопауза»/Auto-pause; add/edit/save missed_count, idle_time, status_duration; confirm RONA info is read-only; then drive live AMI missed/idle/WRAPUP sequences"
+    expected: "Tab visible; rules save and reload; non-supervisor sees read-only; live auto-pause fires at thresholds once"
+    why_human: "Config surface is code-verified; live AMI ordering and end-to-end pause transition need staging"
 ---
 
 # Phase 9: Call Center Agent Panel Verification Report
 
 **Phase Goal:** Rework agent ARM (`CallCenterAgentPage`): primary tabs Coworkers / Queues / Waiting; softphone as floating widget + incoming-call toast with call controls and dialpad; rename Ready → Waiting for call; KPI answered/missed in status bar (all channels); per-queue answered/missed; transfer / ChanSpy / hangup by role; pickup from waiting; expand call-control toward professional call-center practices; operator call history; transfer directory.
 
-**Verified:** 2026-07-23T04:20:00Z
-**Status:** human_needed
-**Re-verification:** Yes — after gap-closure plan 09-15
+**Verified:** 2026-07-23T09:20:00Z  
+**Status:** human_needed  
+**Re-verification:** Yes — after UAT gap-closure plans **09-16** (G-09-1) and **09-17** (G-09-2)
 
-**Requirement basis:** No REQUIREMENTS.md IDs mapped to Phase 9. Verified against Implementation Decisions **D-01…D-46** from `09-CONTEXT.md`, cross-checked against the phase goal and ROADMAP.md Phase 9 scope.
+**Requirement basis:** No REQUIREMENTS.md IDs mapped to Phase 9. Verified against Implementation Decisions **D-01…D-46** from `09-CONTEXT.md`, prior `09-VERIFICATION.md` truths, and gap-plan must_haves from `09-16-PLAN.md` / `09-17-PLAN.md`.
 
 ## Goal Achievement
 
@@ -49,73 +48,97 @@ human_verification:
 
 | # | Truth | Status | Evidence |
 |---|-------|--------|----------|
-| 1 | Primary tabs Coworkers / Queues / Waiting exist, hybrid panels (≥1024px) / tabs (<768px) (D-04) | ✓ VERIFIED | `CallCenterAgentPage.tsx` renders `CoworkersTab`/`QueuesTab`/`WaitingTab` (+ `history`) via `PANEL_ORDER` / `panelBody`; wide = columns, narrow = `Tabs` |
-| 2 | Softphone is a floating widget (FAB/sticky bar); incoming call is non-modal slide-in toast with controls + dialpad (D-01, D-02) | ✓ VERIFIED | `SoftphoneWidget.tsx` + `IncomingCallToast.tsx` mounted on page |
-| 3 | READY status relabeled "Ожидание звонка" / "Waiting for call" (D-13) | ✓ VERIFIED | `displayLabels.ts` + `displayLabels.test.ts` |
-| 4 | KPI answered/missed in status bar across ALL channels, shift+day (D-08, D-11, D-12, D-14) | ✓ VERIFIED | AMI KPI pipeline + `AgentStatusBar` dual counters |
-| 5 | Per-queue answered/missed with aggregate + personal stats (D-31, D-32) | ✓ VERIFIED | `QueuesTab` + `useGetAgentQueuesStatsQuery` |
-| 6 | Transfer / ChanSpy / hangup gated by role (D-21…D-26) | ✓ VERIFIED | `CoworkersTab` permission-gated actions |
+| 1 | Primary tabs Coworkers / Queues / Waiting exist, hybrid panels (≥1024px) / tabs (<768px) (D-04) | ✓ VERIFIED | `CallCenterAgentPage.tsx` — `PANEL_ORDER` / hybrid layout (regression intact) |
+| 2 | Softphone floating widget; incoming call non-modal toast with controls (D-01, D-02) | ✓ VERIFIED | `SoftphoneWidget` + `IncomingCallToast` mounted (prior + unchanged) |
+| 3 | READY relabeled "Ожидание звонка" / "Waiting for call" (D-13) | ✓ VERIFIED | `displayLabels.ts` + tests |
+| 4 | KPI answered/missed in status bar, all channels, shift+day (D-08, D-11, D-12, D-14) | ✓ VERIFIED | AMI KPI + `AgentStatusBar` |
+| 5 | Per-queue answered/missed (D-31, D-32) | ✓ VERIFIED | `QueuesTab` + stats query |
+| 6 | Transfer / ChanSpy / hangup gated by role (D-21…D-26) | ✓ VERIFIED | `CoworkersTab` + permissions |
 | 7 | Pickup from Waiting tab (D-06/D-18/D-19) | ✓ VERIFIED | `WaitingTab` → `agentPickCall` |
-| 8 | Call-control expanded: zombie-reset (D-27), park/retrieve (D-28), conference, warm-transfer-to-queue, click-to-call (D-29) — **reachable** | ✓ VERIFIED | **Gap closed (09-15):** `CallControlBar variant="full"` gated on `showCallControls` with `uniqueid={activeCall?.uniqueid}` / `isZombie={activeCall?.zombieCandidate ?? false}`; `ParkedCallsIndicator` in header chrome; warm-transfer also via `QueuesTab`; conference-add via `SoftphoneWidget`; click-to-call via mounted `CallHistoryPanel` |
-| 9 | Operator call history in the panel, all directions, shift/day, click-to-callback (D-34, D-35) | ✓ VERIFIED | **Gap closed (09-15):** `history` in `PanelKey`/`PANEL_ORDER`/`PANEL_META`/`panelBody`; `effectivePanelVisibility.history` defaults true (D-05); `callcenter.tabs.history` ru/en |
-| 10 | Transfer directory (endpoints+queues+groups) with live BLF presence, usable for transfer (D-36, D-37) | ✓ VERIFIED | **Gap closed (09-15) for endpoint targets:** Transfer Modal hosts `TransferDirectory mode="transfer"` → `executeTransfer(entry.extension)` shared with manual input; blind/attended host toggle preserved. Queue/group rows still lack a transfer CTA inside `TransferDirectory` (documented 09-15 follow-up, not a remaining wiring gap for the prior FAILED truth) |
-| 11 | UI customization: tab/card visibility + softphone placement (D-05, D-06) | ✓ VERIFIED | Settings + `useGetMyUiCustomizationQuery`; history panel honors same visibility model |
-| 12 | Granular permissions with role default + operator override + locks (D-38…D-40) | ✓ VERIFIED | `CallCenterPermissionsService` + settings UI + `CoworkersTab` |
-| 13 | Notifications matrix (event × channel), per-operator + role default/locks (D-41…D-43) | ✓ VERIFIED (wiring) | Matrix editor + `useCallCenterNotifications`; runtime audio/popup → human verification |
-| 14 | i18n ru+en; mobile-first rework (D-44, D-46) | ✓ VERIFIED | Locale keys incl. `tabs.history`; `useIsMobile` hybrid layout |
+| 8 | Call-control expanded: zombie-reset, park/retrieve, conference, warm-transfer, click-to-call — reachable (D-27…D-29) | ✓ VERIFIED | `CallControlBar` full + `ParkedCallsIndicator` + history (09-15; still wired) |
+| 9 | Operator call history in panel (D-34, D-35) | ✓ VERIFIED | `history` panel mounts `CallHistoryPanel` |
+| 10 | Transfer directory with BLF, usable for transfer (D-36, D-37) | ✓ VERIFIED | Transfer Modal `TransferDirectory mode="transfer"` |
+| 11 | UI customization tab/card visibility + softphone placement (D-05, D-06) | ✓ VERIFIED | Settings + UI customization query |
+| 12 | Granular permissions role default + override + locks (D-38…D-40) | ✓ VERIFIED | PermissionsService + settings UI |
+| 13 | Notifications matrix event×channel, per-operator + locks (D-41…D-43) — **wiring + throttle** | ✓ VERIFIED | Matrix UI/API + **G-09-1 closed** (single `global` throttler); runtime audio → human |
+| 14 | i18n ru+en; mobile-first (D-44, D-46) | ✓ VERIFIED | Locales + `useIsMobile`; autoPause keys added |
+| 15 | **G-09-1:** SPA call-center GETs (incl. operator/notifications) use only app-wide 60/min `global`; AI POST is route-scoped 10/min; no parallel named `ai` forRoot | ✓ VERIFIED | See Gap Closure G-09-1 below |
+| 16 | **G-09-2:** Supervisor/admin can configure tenant auto-pause rules (missed_count / idle_time / status_duration); RONA not writable; persists to `cc_settings.autopause_rules` | ✓ VERIFIED | See Gap Closure G-09-2 below |
 
-**Score:** 14/14 truths verified (2 present, behavior-unverified runtime items — notifications audio, auto-pause AMI ordering)
+**Score:** 16/16 truths verified (2 present, behavior-unverified runtime items — notification audio, auto-pause AMI ordering)
+
+### Gap Closure Detail
+
+#### G-09-1 (09-16) — throttle scope
+
+| Check | Status | Evidence |
+|-------|--------|----------|
+| `ThrottlerModule.forRoot` has exactly one named profile `global` 60/min | ✓ | `app.module.ts` lines ~173–177; no `name: 'ai'` in forRoot |
+| AI POST `/ai-chat/message` `@Throttle({ global: { limit: 10, ttl: 60000 } })` | ✓ | `ai-chat.controller.ts` `@Post('message')` |
+| Intentional bypasses use named `@SkipThrottle({ default: true, global: true })` | ✓ | ai-chat GET/settings (4) + endpoints bulk (2); **zero** bare `@SkipThrottle()` in those files |
+| No SkipThrottle paper-over on operator/notifications | ✓ | `callcenter-settings.controller.ts` GET/PUT `operator/notifications` have no SkipThrottle |
+| Repo-wide: no `@Throttle({ ai: … })` / `name: 'ai'` forRoot | ✓ | ripgrep across `packages/backend/src` — no matches |
+
+#### G-09-2 (09-17) — autopause config surface
+
+| Check | Status | Evidence |
+|-------|--------|----------|
+| `sanitizeAutopauseRules` whitelist triad; drops `rona`/unknown; non-array → `[]` | ✓ | `callcenter-settings.service.ts`; Jest: `drops unknown types including fabricated rona-like entries` |
+| `UpdateCcSettingsDto.autopause_rules` + `updateTenantSettings` patch | ✓ | DTO + service; test `persists sanitized autopause_rules` |
+| PUT `/callcenter/settings/tenant` gated by `assertSupervisor` | ✓ | Controller `assertSupervisor` (SUPERADMIN/ADMIN/SUPERVISOR) |
+| GET tenant / defaults expose `autopause_rules: []` | ✓ | `DEFAULT_TENANT_SETTINGS` |
+| Engine reads rules unchanged | ✓ | `CallCenterAutoPauseService.getRules` → `autopause_rules ?? []` |
+| `AutoPauseRulesForm` on Settings tab `autoPause` | ✓ | `CallCenterSettingsPage` TAB_IDS + `renderPanel` |
+| RONA read-only info; only triad editable | ✓ | `RULE_TYPES` + `ronaInfo` callout; no rona option |
+| SUPERVISOR/ADMIN `canEdit` gate | ✓ | Same pattern as `AlertThresholdsForm` |
+| i18n `callcenter.settings.tabs.autoPause` + `autoPause.*` ru+en | ✓ | `en.ts` / `ru.ts` |
 
 ### Deferred Items
 
-None. Queue/group transfer CTA inside `TransferDirectory` is a documented follow-up from 09-15 (out of scope for gap closure), not matched to a later roadmap phase and not blocking the prior FAILED truths (endpoint transfer + reachability).
+None actionable. Queue/group transfer CTA inside `TransferDirectory` remains a documented 09-15 follow-up (not a UAT gap).
 
 ### Required Artifacts
 
 | Artifact | Expected | Status | Details |
 |----------|----------|--------|---------|
-| `CallCenterAgentPage.tsx` | Orchestrator mounting all Phase 9 surfaces | ✓ VERIFIED | Now also mounts `CallControlBar` full, `ParkedCallsIndicator`, `TransferDirectory` transfer, `CallHistoryPanel` |
-| `AgentStatusBar.tsx` | Compact call-control | ✓ VERIFIED | `variant="compact"` |
-| `SoftphoneWidget.tsx` | FAB/sticky-bar, conference-add | ✓ VERIFIED | Conference-add directory still hosted here |
-| `IncomingCallToast.tsx` | Non-modal answer/reject | ✓ VERIFIED | Mounted |
-| `CoworkersTab` / `QueuesTab` / `WaitingTab` | Core tabs | ✓ VERIFIED | Mounted |
-| `MissedCallsPanel` | Grouped missed | ✓ VERIFIED | Header chrome |
-| `CallControlBar.tsx` (full) | Park/warm-transfer/zombie-reset | ✓ VERIFIED | Reachable via `showCallControls` gate; RTK mutations internal |
-| `ParkedCallsIndicator.tsx` | Parked badge + retrieve | ✓ VERIFIED | Persistent header chrome |
-| `CallHistoryPanel.tsx` | History + click-to-call | ✓ VERIFIED | Fourth `history` panel/tab |
-| `TransferDirectory.tsx` | transfer / conference-add / call | ✓ VERIFIED | `conference-add` (Softphone) + `transfer` (Transfer Modal); `call` via history panel |
-| `CallCenterSettings.tsx` / `NotificationMatrix.tsx` | Settings surfaces | ✓ VERIFIED | Mounted via settings page |
+| `app.module.ts` ThrottlerModule | Single `global` profile | ✓ VERIFIED | G-09-1 |
+| `ai-chat.controller.ts` | Route-scoped AI POST + named skips | ✓ VERIFIED | G-09-1 |
+| `endpoints.controller.ts` | Named SkipThrottle | ✓ VERIFIED | G-09-1 |
+| `sanitizeAutopauseRules` + DTO write path | Tenant autopause persistence | ✓ VERIFIED | G-09-2 |
+| `AutoPauseRulesForm.tsx` | Tenant settings editor | ✓ VERIFIED | Mounted on `autoPause` tab |
+| `CallCenterSettingsPage.tsx` | `autoPause` tab | ✓ VERIFIED | Wired |
+| Prior Phase 9 surfaces (page orchestrator, softphone, tabs, etc.) | Unchanged after gap plans | ✓ VERIFIED | Regression: mounts still present |
 
 ### Key Link Verification
 
 | From | To | Via | Status | Details |
 |------|-----|-----|--------|---------|
-| `CallCenterAgentPage` | `CallControlBar` full | `showCallControls && <CallControlBar variant="full" uniqueid=… isZombie=…>` | ✓ WIRED | Lines ~709–721; connected-call only (not ringing) |
-| `CallCenterAgentPage` | `ParkedCallsIndicator` | header chrome render | ✓ WIRED | Line ~621 |
-| `CallCenterAgentPage` | `CallHistoryPanel` | `panelBody.history` + `PANEL_ORDER` | ✓ WIRED | Lines ~82–90, 554, 585 |
-| `CallControlBar` full | park / warm-transfer / zombie-reset mutations | internal RTK hooks + `uniqueid` prop | ✓ WIRED | Props from live `activeCall` |
-| Transfer Modal | `TransferDirectory` mode=transfer | `onSelectTransferTarget` → `executeTransfer` | ✓ WIRED | Lines ~886–893; shared with manual input |
-| `SoftphoneWidget` | `TransferDirectory` mode=conference-add | Sheet | ✓ WIRED | Unchanged |
-| `QueuesTab` | warm-transfer-to-queue | button → mutation | ✓ WIRED | Unchanged |
-| `AgentStatusBar` / `CoworkersTab` / `WaitingTab` | KPI / spy / pickup | prior wiring | ✓ WIRED | Unchanged |
+| `APP_GUARD` ThrottlerGuard | all routes without named skip | `forRoot([{ name: 'global', … }])` only | ✓ WIRED | G-09-1 |
+| AI POST message | stricter 10/min | `@Throttle({ global: { limit: 10, ttl: 60000 } })` | ✓ WIRED | G-09-1 |
+| GET operator/notifications | inherits `global` only | no dedicated SkipThrottle | ✓ WIRED | Intentional — not paper-over |
+| PUT tenant settings | `updateTenantSettings` → `autopause_rules` | `assertSupervisor` → sanitize | ✓ WIRED | G-09-2 |
+| GET tenant → `AutoPauseRulesForm` | `useGetTenantSettingsQuery` → `autopause_rules` | RTK + form state | ✓ WIRED | G-09-2 |
+| Form save | PUT tenant | `useUpdateTenantSettingsMutation({ autopause_rules })` | ✓ WIRED | G-09-2 |
+| Engine | `cc_settings.autopause_rules` | `getRules` | ✓ WIRED | No engine change required |
+| Prior 09-15 page links | CallControlBar / Parked / History / TransferDirectory | orchestrator | ✓ WIRED | Regression |
 
 ### Data-Flow Trace (Level 4)
 
 | Artifact | Data Variable | Source | Produces Real Data | Status |
 |----------|---------------|--------|---------------------|--------|
-| `CallControlBar` full | `uniqueid` / `isZombie` | `activeCall.uniqueid` / `activeCall.zombieCandidate` | Yes (live SSE/AMI call state) | ✓ FLOWING |
-| `ParkedCallsIndicator` | `parked` | `useGetParkedCallsQuery` + SSE invalidate | Yes | ✓ FLOWING |
-| `TransferDirectory` (transfer) | directory rows | `useGetTransferDirectoryQuery` + `presenceUpdate` SSE | Yes | ✓ FLOWING |
-| `CallHistoryPanel` | `rows` | `useGetOperatorCallHistoryQuery` → history API | Yes (now reachable) | ✓ FLOWING |
-| `QueuesTab` / `AgentStatusBar` | KPI | prior Phase 9 pipelines | Yes | ✓ FLOWING |
+| `AutoPauseRulesForm` | `rules` | GET tenant `autopause_rules` → sanitize on PUT | Yes (DB JSON column) | ✓ FLOWING |
+| Notification matrix settings | operator matrix | GET operator/notifications (now under global only) | Yes (when not 429) | ✓ FLOWING (throttle fixed; human re-confirms) |
+| Prior history/control/directory | unchanged | prior pipelines | Yes | ✓ FLOWING |
 
 ### Behavioral Spot-Checks
 
 | Behavior | Command | Result | Status |
 |----------|---------|--------|--------|
-| Page suite after 09-15 wiring | `npm run test:frontend -- CallCenterAgentPage` | 1 file, 2/2 tests passed | ✓ PASS |
-| `CallControlBar` / `ParkedCallsIndicator` / `TransferDirectory` / `CallHistoryPanel` in page | `rg` on `CallCenterAgentPage.tsx` | All four imported and rendered; `variant="full"`, `mode="transfer"`, `history` panel | ✓ PASS |
-| Page test stubs for unconditional mounts | `CallCenterAgentPage.test.tsx` | `ParkedCallsIndicator` + `CallHistoryPanel` mocked | ✓ PASS |
+| Autopause sanitize + updateTenantSettings | `npx jest callcenter-settings.service.spec.ts --forceExit` | 27/27 passed incl. rona-drop + persist | ✓ PASS |
+| forRoot single global | node parse of `ThrottlerModule.forRoot([...])` | `forRoot ok` (no `ai`) | ✓ PASS |
+| AI POST throttle decorator | rg `@Throttle({ global: { limit: 10` | Present on POST message | ✓ PASS |
+| AutoPauseRulesForm mount | rg on Settings page | `autoPause` tab → `<AutoPauseRulesForm />` | ✓ PASS |
+| Page orchestrator regression | rg CallCenterAgentPage | CallControlBar / Parked / History / TransferDirectory present | ✓ PASS |
 
 ### Probe Execution
 
@@ -123,62 +146,46 @@ None. Queue/group transfer CTA inside `TransferDirectory` is a documented follow
 |-------|---------|--------|--------|
 | — | — | No phase-declared `scripts/*/tests/probe-*.sh` | SKIP |
 
-### Requirements Coverage (D-01…D-46)
+### Requirements Coverage (D-01…D-46 + UAT gaps)
 
-| Decision | Description | Status | Evidence |
-|----------|-------------|--------|----------|
-| D-01, D-02 | Softphone widget + incoming toast | ✓ SATISFIED | SoftphoneWidget, IncomingCallToast |
-| D-03 | Controls in status bar + full set | ✓ SATISFIED | compact in AgentStatusBar; full bar on connected call |
-| D-04 | Hybrid panels/tabs | ✓ SATISFIED | PANEL_ORDER + breakpoints |
-| D-05, D-06 | UI config visibility/placement | ✓ SATISFIED | incl. `history` visibility |
-| D-07 | Default tab | ? UNCERTAIN | Discretion item; low risk |
-| D-08…D-14 | All-channel KPI, journal, dual counters, status set, timer | ✓ SATISFIED | Prior plans 09-01…09-04 |
-| D-15 | Auto-pause rules | ✓ SATISFIED (wiring); ⚠️ runtime unverified | Human item |
-| D-16…D-20 | Missed-call engine | ✓ SATISFIED | 09-09/09-10 |
-| D-21…D-26 | ChanSpy + supervisor hangup/scope | ✓ SATISFIED | CoworkersTab + permissions |
-| D-27 | Operator zombie-reset | ✓ SATISFIED | Full CallControlBar reachable |
-| D-28 | Park/retrieve, conference, warm-transfer | ✓ SATISFIED | Full bar + ParkedCallsIndicator + Softphone + QueuesTab |
-| D-29 | Click-to-call | ✓ SATISFIED | CallHistoryPanel mounted |
-| D-30 | MVP waves | ✓ SATISFIED | Process |
-| D-31…D-33 | Per-queue metrics + actions | ✓ SATISFIED | QueuesTab |
-| D-34, D-35 | Call history in panel | ✓ SATISFIED | history panel |
-| D-36, D-37 | Transfer directory + BLF | ✓ SATISFIED (endpoint transfer) | mode=transfer in modal; queue/group CTA follow-up |
-| D-38…D-40 | Permissions UI/model | ✓ SATISFIED | Settings |
-| D-41…D-43 | Notification matrix | ✓ SATISFIED (wiring) | Human runtime item |
-| D-44…D-46 | i18n, SSE deltas, mobile | ✓ SATISFIED | Locales + SSE + useIsMobile |
+| Decision / Gap | Description | Status | Evidence |
+|----------------|-------------|--------|----------|
+| D-01…D-14, D-16…D-40, D-44…D-46 | Prior phase scope | ✓ SATISFIED | Unchanged from prior verification |
+| D-15 | Auto-pause rules | ✓ SATISFIED (config+engine wiring); ⚠️ live AMI human | **G-09-2 closed** — API/UI/i18n |
+| D-41…D-43 | Notification matrix | ✓ SATISFIED (wiring+throttle); ⚠️ audio human | **G-09-1 closed** — 429 root cause fixed |
+| G-09-1 | Throttle crush of notifications GET | ✓ CLOSED | Code evidence above |
+| G-09-2 | Missing autopause Settings UI/API | ✓ CLOSED | Code evidence above |
 
 ### Anti-Patterns Found
 
 | File | Line | Pattern | Severity | Impact |
 |------|------|---------|----------|--------|
-| `SoftphoneWidget.tsx` | ~29 | Comment still mentions unused `extraControls` slot | ℹ️ Info | Intentional: 09-15 mounted full bar in call chrome (SIP+WebRTC) instead of Softphone-only slot |
-| — | — | No `TBD`/`FIXME`/`XXX` in page/orchestrator after 09-15 | — | Debt-marker gate: clean |
+| Gap-touched files (app.module, ai-chat, endpoints, settings service/form) | — | No `TBD`/`FIXME`/`XXX` | — | Debt-marker gate: clean |
+| — | — | No bare `@SkipThrottle()` left on intentional bypass sites | — | G-09-1 acceptance met |
 
 ### Human Verification Required
 
-1. **Notification matrix runtime behavior (D-41/D-42)**
-   **Test:** Configure sound+popup for incoming/missed; trigger with tab visible and hidden.
-   **Expected:** Channels fire per matrix; browser notification when hidden; locks respected.
-   **Why human:** Audio/OS permissions not statically verifiable.
+1. **Re-UAT notifications after G-09-1 (D-41/D-42)**  
+   **Test:** Load Моя панель → Уведомления; confirm GET `/api/callcenter/settings/operator/notifications` is **200** (not 429); configure sound+popup; trigger incoming/missed with tab visible and hidden.  
+   **Expected:** Matrix loads under SPA traffic; channels fire; browser notification when hidden.  
+   **Why human:** Throttle structure is code-verified; live 429 absence + audio/OS permissions are runtime.
 
-2. **Auto-pause under real AMI timing (D-15)**
-   **Test:** Drive missed/idle/WRAPUP sequences on live/staging tenant.
-   **Expected:** Single pause per threshold with correct reason; no double-fire.
-   **Why human:** Unit tests isolate rule logic; event-ordering needs live AMI.
+2. **Re-UAT auto-pause after G-09-2 (D-15)**  
+   **Test:** SUPERVISOR/ADMIN → Call Center Settings → **Автопауза** tab; add/save triad rules; confirm RONA info only; then drive live AMI missed/idle/WRAPUP.  
+   **Expected:** Config persists; read-only for operators; single pause per threshold with correct reason.  
+   **Why human:** Config path unit-tested; AMI ordering needs staging.
 
-**Recommended (non-blocking) live UAT after 09-15:** park/retrieve/zombie-reset on a connected call; blind/attended transfer via directory endpoint; click-to-callback from History — confirms AMI/WebRTC end-to-end beyond wiring.
+**Do not mark Phase 9 complete in ROADMAP** until these human items pass via `/gsd-verify-work 9`.
 
 ### Gaps Summary
 
-Previous verification (`gaps_found`, 11/14) found three orchestrator wiring gaps. Plan **09-15** closed all three:
+UAT gaps **G-09-1** and **G-09-2** are **closed in code** (plans 09-16, 09-17). No remaining BLOCKER wiring gaps.
 
-1. **Park / retrieve / zombie-reset** — `CallControlBar variant="full"` under `showCallControls` with live `activeCall` identity; `ParkedCallsIndicator` in persistent header.
-2. **Directory transfer** — Transfer Modal hosts `TransferDirectory mode="transfer"` via shared `executeTransfer`.
-3. **Call history + click-to-call** — fourth `history` panel/tab mounting `CallHistoryPanel`.
+Prior phase orchestrator wiring (09-15) remains intact. Status is **human_needed** solely for runtime re-UAT of notifications (post-throttle fix) and auto-pause under live AMI (post-config UI).
 
-No remaining BLOCKER wiring gaps. Status is **human_needed** solely for runtime notification audio and auto-pause AMI ordering (unchanged from prior report).
+**Next command:** `/gsd-verify-work 9`
 
 ---
 
-_Verified: 2026-07-23T04:20:00Z_
+_Verified: 2026-07-23T09:20:00Z_  
 _Verifier: Claude (gsd-verifier)_
