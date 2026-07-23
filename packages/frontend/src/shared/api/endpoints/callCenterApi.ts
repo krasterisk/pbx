@@ -64,10 +64,34 @@ export interface IOperatorSettings {
   volume: number;
 }
 
+/** D-15: flexible auto-pause rules (RONA is engine-fixed, not a writable type). */
+export type AutoPauseRule =
+  | {
+      type: 'missed_count';
+      threshold: number;
+      pauseReasonId?: number;
+      pauseDurationSec?: number;
+    }
+  | {
+      type: 'idle_time';
+      thresholdSec: number;
+      pauseReasonId?: number;
+      pauseDurationSec?: number;
+    }
+  | {
+      type: 'status_duration';
+      status: string;
+      thresholdSec: number;
+      pauseReasonId?: number;
+      pauseDurationSec?: number;
+    };
+
 export interface ICcSettings {
   default_sla_threshold: number;
   alert_thresholds: Record<string, number> | null;
   alert_sound_enabled: boolean;
+  /** D-15: empty/null → engine fires only always-on RONA. */
+  autopause_rules?: AutoPauseRule[] | null;
 }
 
 /** Display token for TV wallboard (D-26) — opaque, revocable. */

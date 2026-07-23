@@ -2170,7 +2170,7 @@ export const en = {
     },
     settings: {
       title: 'Call Center Settings',
-      subtitle: 'Card templates, pause reasons, alert thresholds, and operator parameters',
+      subtitle: 'Card templates, pause reasons, auto-pause rules, alert thresholds, and operator parameters',
       placeholder: 'Section in development',
       save: 'Save',
       loadError: 'Failed to load data',
@@ -2178,6 +2178,7 @@ export const en = {
       tabs: {
         cardTemplates: 'Card Templates',
         pauseReasons: 'Pause Reasons',
+        autoPause: 'Auto-pause',
         alertThresholds: 'Alert Thresholds',
         operatorSettings: 'Operator Settings',
         myPanel: 'My panel',
@@ -2234,6 +2235,32 @@ export const en = {
         unlimited: 'Unlimited',
         minutes: 'min',
         unpaid: 'No',
+      },
+      autoPause: {
+        title: 'Auto-pause rules',
+        ronaInfo:
+          'RONA (ring-no-answer) is always enabled and cannot be turned off or edited as a rule.',
+        rules: 'Configurable rules',
+        empty: 'No configurable rules yet — only RONA is active',
+        add: 'Add rule',
+        remove: 'Remove',
+        readOnly: 'Editing is available to supervisors and admins',
+        saved: 'Auto-pause rules saved',
+        types: {
+          missed_count: 'Missed call count',
+          idle_time: 'Idle time',
+          status_duration: 'Status duration',
+        },
+        fields: {
+          type: 'Rule type',
+          threshold: 'Missed count threshold',
+          thresholdSec: 'Threshold (seconds)',
+          status: 'Status (e.g. WRAPUP)',
+          pauseReasonId: 'Pause reason (optional)',
+          pauseReasonNone: 'Default',
+          pauseDurationSec: 'Pause duration (sec, optional)',
+          pauseDurationPh: 'empty = unlimited',
+        },
       },
       reportSchedules: {
         title: 'Scheduled report delivery',

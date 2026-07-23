@@ -1,0 +1,102 @@
+.form {
+  width: 100%;
+  max-width: 48rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.sectionTitle {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-foreground);
+}
+
+.ronaInfo {
+  font-size: 0.8125rem;
+  color: var(--color-muted-foreground);
+  padding: 0.625rem 0.75rem;
+  border-radius: 0.375rem;
+  background: color-mix(in srgb, var(--color-muted-foreground) 10%, transparent);
+  border-left: 3px solid var(--color-primary, #2563eb);
+}
+
+.readonlyHint {
+  font-size: 0.8125rem;
+  color: var(--color-muted-foreground);
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.375rem;
+  background: color-mix(in srgb, var(--color-muted-foreground) 10%, transparent);
+}
+
+.ruleCard {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  padding: 0.75rem;
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: 0.5rem;
+}
+
+.ruleHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.ruleFields {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+  gap: 0.625rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.empty {
+  font-size: 0.8125rem;
+  color: var(--color-muted-foreground);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding-top: 0.5rem;
+}
+
+.saved {
+  font-size: 0.8125rem;
+  color: var(--color-success, #16a34a);
+}
+
+.errorCard {
+  width: 100%;
+  max-width: 48rem;
+  padding: 1rem;
+  border: 1px solid var(--color-destructive, #dc2626);
+  border-radius: 0.5rem;
+  background: color-mix(in srgb, var(--color-destructive, #dc2626) 8%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.skeletonWrap {
+  width: 100%;
+  max-width: 48rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
