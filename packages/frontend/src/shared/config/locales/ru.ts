@@ -1975,6 +1975,7 @@ export const ru = {
       coworkers: 'Коллеги',
       queues: 'Очереди',
       waiting: 'Текущие',
+      history: 'История',
     },
     // ─── Call Statuses ─────────────────────────────
     callStatus: {

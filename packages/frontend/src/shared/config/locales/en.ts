@@ -1937,6 +1937,7 @@ export const en = {
       coworkers: 'Coworkers',
       queues: 'Queues',
       waiting: 'Waiting',
+      history: 'History',
     },
     callStatus: {
       waiting: 'Waiting',

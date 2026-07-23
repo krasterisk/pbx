@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
 import {
   Headphones, PhoneForwarded, Pause, Play,
-  X, Loader2, Users, Layers, PhoneIncoming, Eye, EyeOff,
+  X, Loader2, Users, Layers, PhoneIncoming, Eye, EyeOff, History,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import {
@@ -33,6 +33,7 @@ import { CallControlBar, ParkedCallsIndicator, TransferDirectory } from '@/featu
 import { CoworkersTab } from '@/features/callcenter/ui/CoworkersTab/CoworkersTab';
 import { QueuesTab } from '@/features/callcenter/ui/QueuesTab/QueuesTab';
 import { WaitingTab } from '@/features/callcenter/ui/WaitingTab/WaitingTab';
+import { CallHistoryPanel } from '@/features/callcenter/ui/CallHistoryPanel';
 import {
   DragTransferProvider,
   DraggableCall,
@@ -78,14 +79,15 @@ import type { IEndpointCredentials } from '@/shared/api/endpoints/endpointApi';
 import type { IAgent } from '@/features/callcenter/model/types/callCenterSchema';
 import styles from './CallCenterAgentPage.module.scss';
 
-type PanelKey = 'coworkers' | 'queues' | 'waiting';
+type PanelKey = 'coworkers' | 'queues' | 'waiting' | 'history';
 
-const PANEL_ORDER: PanelKey[] = ['coworkers', 'queues', 'waiting'];
+const PANEL_ORDER: PanelKey[] = ['coworkers', 'queues', 'waiting', 'history'];
 
 const PANEL_META: Record<PanelKey, { icon: LucideIcon; labelKey: string; fallback: string }> = {
   coworkers: { icon: Users, labelKey: 'callcenter.tabs.coworkers', fallback: 'Coworkers' },
   queues: { icon: Layers, labelKey: 'callcenter.tabs.queues', fallback: 'Queues' },
   waiting: { icon: PhoneIncoming, labelKey: 'callcenter.tabs.waiting', fallback: 'Waiting' },
+  history: { icon: History, labelKey: 'callcenter.tabs.history', fallback: 'History' },
 };
 
 /**
@@ -549,6 +551,7 @@ export function CallCenterAgentPage() {
     coworkers: manualPanelVisibility.coworkers ?? uiCustomization?.ui_visibility.coworkers ?? true,
     queues: manualPanelVisibility.queues ?? uiCustomization?.ui_visibility.queues ?? true,
     waiting: manualPanelVisibility.waiting ?? uiCustomization?.ui_visibility.waiting ?? true,
+    history: manualPanelVisibility.history ?? uiCustomization?.ui_visibility.history ?? true,
   };
   const togglePanel = useCallback((key: PanelKey) => {
     setManualPanelVisibility(prev => ({ ...prev, [key]: !(prev[key] ?? true) }));
@@ -579,6 +582,7 @@ export function CallCenterAgentPage() {
     coworkers: <CoworkersTab hasActiveCall={!!activeCall} />,
     queues: <QueuesTab activeCallUniqueid={activeCall?.uniqueid ?? null} onGoToWaiting={handleGoToWaiting} />,
     waiting: <WaitingTab />,
+    history: <CallHistoryPanel />,
   };
 
   return (

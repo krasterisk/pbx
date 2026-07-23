@@ -119,6 +119,10 @@ vi.mock('@/features/callcenter/ui/WaitingTab/WaitingTab', () => ({
   WaitingTab: () => <div data-testid="waiting-tab-stub" />,
 }));
 
+vi.mock('@/features/callcenter/ui/CallHistoryPanel/CallHistoryPanel', () => ({
+  CallHistoryPanel: () => <div data-testid="call-history-panel-stub" />,
+}));
+
 vi.mock('@/features/callcenter/ui/DragTransfer/DragTransfer', () => ({
   DragTransferProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   DraggableCall: ({ children, className }: { children: React.ReactNode; className?: string; uniqueid?: string }) => (
