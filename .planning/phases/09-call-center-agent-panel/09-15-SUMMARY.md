@@ -106,7 +106,7 @@ Each task was committed atomically:
 2. **Task 2: Wire Transfer Modal to TransferDirectory mode=transfer** - `abc7698` (feat)
 3. **Task 3: Mount CallHistoryPanel as toggleable panel/tab** - `e18433e` (feat)
 
-**Plan metadata:** (pending docs commit)
+**Plan metadata:** `0aee1e2` (docs: complete plan)
 
 ## Files Created/Modified
 - `packages/frontend/src/pages/CallCenterAgentPage/CallCenterAgentPage.tsx` - Orchestrator mounts all four previously orphaned surfaces
