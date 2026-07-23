@@ -4,14 +4,14 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 9
 current_phase_name: call-center-agent-panel
-status: Executing gap closure 09-17
-stopped_at: Completed 09-16-PLAN.md
-last_updated: "2026-07-23T07:42:49.289Z"
+status: Gap closure done � awaiting UAT verify
+stopped_at: Completed 09-17-PLAN.md
+last_updated: "2026-07-23T08:54:33.983Z"
 progress:
   total_phases: 9
   completed_phases: 6
   total_plans: 87
-  completed_plans: 84
+  completed_plans: 85
 ---
 
 # State
@@ -34,7 +34,8 @@ Plan 09-11 (backend unified call history + transfer directory + BLF presence, wa
 Plan 09-12 (TransferDirectory + CallHistoryPanel frontend, wave 6): 3/3 tasks committed.
 Plan 09-14 (operator settings UI + notification engine + mobile verification + i18n, wave 7): 3/3 tasks committed.
 Plan 09-15 (gap closure: wire CallControlBar/ParkedCallsIndicator/TransferDirectory/CallHistoryPanel into CallCenterAgentPage): 3/3 tasks committed.
-Plan 09-16 (UAT gap G-09-1: single global throttler + AI POST route-scoped 10/min): 2/2 tasks committed. Next: 09-17 (G-09-2 autopause).
+Plan 09-16 (UAT gap G-09-1: single global throttler + AI POST route-scoped 10/min): 2/2 tasks committed.
+Plan 09-17 (UAT gap G-09-2: tenant autopause_rules API + AutoPauseRulesForm): 2/2 tasks committed. Gap closure done.
 Also: Phase 8 (navigation-redesign-android-port-foundation) — EXECUTING
 Plan 08-11: Tasks 1–2 committed; **blocked on Task 3 human-verify** (Android WebRTC + FCM device smoke)
 
@@ -188,7 +189,7 @@ Phase 1 — MOH: pending verify.
 
 ## Next GSD command
 
-`/gsd-execute-phase 9 --gaps-only` — execute remaining UAT gap plan 09-17 (autopause API/UI G-09-2). Plan 09-16 (throttle G-09-1) complete.
+`/gsd-verify-work 9` — UAT after gap closure (09-16 G-09-1, 09-17 G-09-2) complete.
 
 Also open: Phase 8 / 08-11 Task 3 — complete Android smoke checklist, then reply `approved` (or list failures). After approval: finalize 08-11 SUMMARY → `/gsd-verify-work 8`
 
@@ -264,9 +265,10 @@ Also open: Phase 8 / 08-11 Task 3 — complete Android smoke checklist, then rep
 | Phase 09 P14 | ~35min | 3 tasks | 13 files |
 | Phase 09 P15 | 14min | 3 tasks | 5 files |
 | Phase 09-call-center-agent-panel P16 | 12min | 2 tasks | 3 files |
+| Phase 09-call-center-agent-panel P17 | 44min | 2 tasks | 9 files |
 
 ## Session
 
-**Last session:** 2026-07-23T07:42:49.240Z
-**Stopped at:** Completed 09-16-PLAN.md
+**Last session:** 2026-07-23T08:54:33.983Z
+**Stopped at:** Completed 09-17-PLAN.md
 **Resume file:** None
