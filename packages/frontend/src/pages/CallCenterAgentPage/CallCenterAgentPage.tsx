@@ -29,6 +29,7 @@ import {
 import { AgentStatusBar } from '@/features/callcenter/ui/AgentStatusBar/AgentStatusBar';
 import { SoftphoneWidget } from '@/features/callcenter/ui/SoftphoneWidget/SoftphoneWidget';
 import { IncomingCallToast } from '@/features/callcenter/ui/IncomingCallToast/IncomingCallToast';
+import { CallControlBar, ParkedCallsIndicator } from '@/features/callcenter';
 import { CoworkersTab } from '@/features/callcenter/ui/CoworkersTab/CoworkersTab';
 import { QueuesTab } from '@/features/callcenter/ui/QueuesTab/QueuesTab';
 import { WaitingTab } from '@/features/callcenter/ui/WaitingTab/WaitingTab';
@@ -609,6 +610,7 @@ export function CallCenterAgentPage() {
 
             <Flex align="center" gap="12">
               <MissedCallsPanel />
+              <ParkedCallsIndicator />
               <ChatPanelHost />
               <Flex align="center" gap="8">
                 <Text variant="muted" className="text-xs">
@@ -695,6 +697,20 @@ export function CallCenterAgentPage() {
                 <Button variant="outline" size="sm" onClick={openCardManually}>
                   {t('callcenter.cards.popup.openManual')}
                 </Button>
+              )}
+              {showCallControls && (
+                <CallControlBar
+                  variant="full"
+                  className={styles.fullControlBar}
+                  uniqueid={activeCall?.uniqueid}
+                  isZombie={activeCall?.zombieCandidate ?? false}
+                  isMuted={isWebrtc ? phone.isMuted : isMuted}
+                  isHeld={isWebrtc ? phone.isHeld : activeCall?.status === 'HOLD'}
+                  onMuteToggle={handleMuteToggle}
+                  onHoldToggle={handleHoldToggle}
+                  onHangup={handleHangup}
+                  onTransferClick={() => setTransferModalOpen(true)}
+                />
               )}
             </div>
           )}
