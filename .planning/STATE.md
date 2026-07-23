@@ -184,7 +184,7 @@ Phase 1 — MOH: pending verify.
 
 ## Next GSD command
 
-`/gsd-verify-work 9` — re-verify Phase 9 after gap-closure 09-15 (park/retrieve/zombie-reset, directory transfer, call history mounted).
+`/gsd-verify-work 9` — human UAT: (1) notification matrix sound/popup, (2) auto-pause under live AMI. Wiring gaps closed (09-15); score 14/14.
 
 Also open: Phase 8 / 08-11 Task 3 — complete Android smoke checklist, then reply `approved` (or list failures). After approval: finalize 08-11 SUMMARY → `/gsd-verify-work 8`
 
