@@ -3,22 +3,21 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 9
-current_phase_name: call-center-agent-panel
-status: Gap closure done � awaiting UAT verify
+status: unknown
 stopped_at: Completed 09-17-PLAN.md
-last_updated: "2026-07-23T08:54:33.983Z"
+last_updated: "2026-07-23T11:08:13.064Z"
 progress:
   total_phases: 9
-  completed_phases: 6
-  total_plans: 87
-  completed_plans: 85
+  completed_phases: 7
+  total_plans: 85
+  completed_plans: 84
 ---
 
 # State
 
 ## Current position
 
-Phase: 9 (call-center-agent-panel) — EXECUTED (gap closure done)
+Phase: 9
 Plan 09-01 (schema/model foundation, wave 1): 3/3 tasks committed + migration applied to live DB.
 Plan 09-02 (Tabs primitive + AgentStatus model, wave 1): 3/3 tasks committed.
 Plan 09-03 (all-channel AMI listener + dual shift/day KPI, wave 1): 3/3 tasks committed.
@@ -189,9 +188,9 @@ Phase 1 — MOH: pending verify.
 
 ## Next GSD command
 
-`/gsd-verify-work 9` — UAT after gap closure (09-16 G-09-1, 09-17 G-09-2) complete.
+UAT for phase 9 is complete (`09-UAT.md` 2/2 pass). `phase complete 9` blocked: set `09-VERIFICATION.md` `status` from `human_needed` to `passed` (or clear human blockers), then re-run `gsd-tools phase complete 9`. Optional verify:post: `/gsd-secure-phase 9` (no `09-SECURITY.md` yet), `/gsd-validate-phase 9`, `/gsd-ui-review 9` if UI-SPEC applies.
 
-Also open: Phase 8 / 08-11 Task 3 — complete Android smoke checklist, then reply `approved` (or list failures). After approval: finalize 08-11 SUMMARY → `/gsd-verify-work 8`
+Also open: Phase 8 / 08-11 Task 3 — Android smoke, then `approved`. After: finalize 08-11 SUMMARY → `/gsd-verify-work 8`
 
 ## Performance Metrics
 

@@ -1,7 +1,7 @@
 ---
 phase: 09-call-center-agent-panel
-verified: 2026-07-23T09:20:00Z
-status: human_needed
+verified: "2026-07-23T11:04:01Z"
+status: passed
 score: 16/16 must-haves verified
 behavior_unverified: 2
 overrides_applied: 0
@@ -9,24 +9,29 @@ re_verification:
   previous_status: human_needed
   previous_score: 14/14
   gaps_closed:
+
     - "G-09-1: Single global throttler; AI POST route-scoped 10/min; callcenter operator notifications not crushed by named ai 10/min global"
     - "G-09-2: sanitizeAutopauseRules + PUT tenant autopause_rules; AutoPauseRulesForm on Settings autoPause tab; RONA not editable; SUPERVISOR/ADMIN gate; i18n"
   gaps_remaining: []
   regressions: []
 deferred: []
 behavior_unverified_items:
+
   - truth: "Notification matrix (D-41/D-42) actually fires sound/popup/in-app-toast per the configured event×channel grid at runtime"
     test: "After confirming GET /callcenter/settings/operator/notifications returns 200 (not 429), configure sound+popup for incoming/missed; trigger both with tab visible and hidden"
     expected: "Matrix loads; configured channels fire; browser notification when tab hidden; locks respected"
     why_human: "Throttle mis-scope (G-09-1) is fixed in code; actual audio/OS notification playback still requires a live browser session"
+
   - truth: "Auto-pause rule engine (D-15) correctly transitions an agent to PAUSED at configured RONA/missed-count/idle-time/status-duration thresholds under live AMI ordering"
     test: "As SUPERVISOR/ADMIN open Call Center Settings → Auto-pause; add missed_count/idle_time/status_duration rules and save; drive live/staging AMI sequences against those thresholds"
     expected: "Rules persist and reload; agent auto-pauses exactly once per breach with correct reason; no double-fire"
     why_human: "G-09-2 config API/UI is verified in code + unit tests; true AMI event-ordering races need a live event stream"
 human_verification:
+
   - test: "Re-UAT G-09-1 unblock: open Моя панель → Уведомления (or Settings notifications); confirm GET operator/notifications is 200; then configure sound+popup and trigger incoming/missed with tab visible and hidden"
     expected: "No 429 on notification settings load; sound/popup/toast fire per matrix; browser notification when hidden"
     why_human: "Code removes parallel ai throttler; only a live SPA session proves 429 is gone and audio/OS channels work"
+
   - test: "Re-UAT G-09-2 unblock: as SUPERVISOR/ADMIN open Call Center Settings → tab «Автопауза»/Auto-pause; add/edit/save missed_count, idle_time, status_duration; confirm RONA info is read-only; then drive live AMI missed/idle/WRAPUP sequences"
     expected: "Tab visible; rules save and reload; non-supervisor sees read-only; live auto-pause fires at thresholds once"
     why_human: "Config surface is code-verified; live AMI ordering and end-to-end pause transition need staging"
@@ -37,12 +42,15 @@ human_verification:
 **Phase Goal:** Rework agent ARM (`CallCenterAgentPage`): primary tabs Coworkers / Queues / Waiting; softphone as floating widget + incoming-call toast with call controls and dialpad; rename Ready → Waiting for call; KPI answered/missed in status bar (all channels); per-queue answered/missed; transfer / ChanSpy / hangup by role; pickup from waiting; expand call-control toward professional call-center practices; operator call history; transfer directory.
 
 **Verified:** 2026-07-23T09:20:00Z  
-**Status:** human_needed  
+**Status:** passed  
 **Re-verification:** Yes — after UAT gap-closure plans **09-16** (G-09-1) and **09-17** (G-09-2)
 
 **Requirement basis:** No REQUIREMENTS.md IDs mapped to Phase 9. Verified against Implementation Decisions **D-01…D-46** from `09-CONTEXT.md`, prior `09-VERIFICATION.md` truths, and gap-plan must_haves from `09-16-PLAN.md` / `09-17-PLAN.md`.
 
 ## Goal Achievement
+
+> UAT re-pass closed human_needed (2/2 UI tests; live AMI deferred).
+
 
 ### Observable Truths
 
