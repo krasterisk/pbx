@@ -4,14 +4,14 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 9
 current_phase_name: call-center-agent-panel
-status: Phase complete — ready for verify
-stopped_at: Completed 09-15-PLAN.md
-last_updated: "2026-07-23T04:06:26.120Z"
+status: Executing gap closure 09-17
+stopped_at: Completed 09-16-PLAN.md
+last_updated: "2026-07-23T07:42:49.289Z"
 progress:
   total_phases: 9
-  completed_phases: 8
-  total_plans: 83
-  completed_plans: 82
+  completed_phases: 6
+  total_plans: 87
+  completed_plans: 84
 ---
 
 # State
@@ -33,7 +33,8 @@ Plan 09-10 (smart missed-calls UI rework + ParkedCallsIndicator + CallControlBar
 Plan 09-11 (backend unified call history + transfer directory + BLF presence, wave 5): 3/3 tasks committed (TDD RED/GREEN Tasks 1-2). Next: 09-12+.
 Plan 09-12 (TransferDirectory + CallHistoryPanel frontend, wave 6): 3/3 tasks committed.
 Plan 09-14 (operator settings UI + notification engine + mobile verification + i18n, wave 7): 3/3 tasks committed.
-Plan 09-15 (gap closure: wire CallControlBar/ParkedCallsIndicator/TransferDirectory/CallHistoryPanel into CallCenterAgentPage): 3/3 tasks committed. Phase 9 (09-01…09-15) fully executed. Next: `/gsd-verify-work 9`.
+Plan 09-15 (gap closure: wire CallControlBar/ParkedCallsIndicator/TransferDirectory/CallHistoryPanel into CallCenterAgentPage): 3/3 tasks committed.
+Plan 09-16 (UAT gap G-09-1: single global throttler + AI POST route-scoped 10/min): 2/2 tasks committed. Next: 09-17 (G-09-2 autopause).
 Also: Phase 8 (navigation-redesign-android-port-foundation) — EXECUTING
 Plan 08-11: Tasks 1–2 committed; **blocked on Task 3 human-verify** (Android WebRTC + FCM device smoke)
 
@@ -166,6 +167,9 @@ Phase 1 — MOH: pending verify.
 - [Phase 09]: Gate CallControlBar full on showCallControls; uniqueid/isZombie from live activeCall only
 - [Phase 09]: Directory transfer closes endpoint targets only; queue/group CTA follow-up
 - [Phase 09]: history panel default-visible via IUiVisibility open map (D-05)
+- [Phase 09]: Removed forRoot named ai profile; AI 10/min is route-scoped @Throttle on global only
+- [Phase 09]: SkipThrottle on bypass routes names both default and global because AuthModule forRootAsync still registers default
+- [Phase 09]: Did not SkipThrottle callcenter operator/notifications — fix is app-wide scope, not a paper-over
 
 ## Roadmap Evolution
 
@@ -184,7 +188,7 @@ Phase 1 — MOH: pending verify.
 
 ## Next GSD command
 
-`/gsd-verify-work 9` — human UAT: (1) notification matrix sound/popup, (2) auto-pause under live AMI. Wiring gaps closed (09-15); score 14/14.
+`/gsd-execute-phase 9 --gaps-only` — execute remaining UAT gap plan 09-17 (autopause API/UI G-09-2). Plan 09-16 (throttle G-09-1) complete.
 
 Also open: Phase 8 / 08-11 Task 3 — complete Android smoke checklist, then reply `approved` (or list failures). After approval: finalize 08-11 SUMMARY → `/gsd-verify-work 8`
 
@@ -259,9 +263,10 @@ Also open: Phase 8 / 08-11 Task 3 — complete Android smoke checklist, then rep
 | Phase 09 P12 | ~40min | 3 tasks | 14 files |
 | Phase 09 P14 | ~35min | 3 tasks | 13 files |
 | Phase 09 P15 | 14min | 3 tasks | 5 files |
+| Phase 09-call-center-agent-panel P16 | 12min | 2 tasks | 3 files |
 
 ## Session
 
-**Last session:** 2026-07-23T04:06:26.074Z
-**Stopped at:** Completed 09-15-PLAN.md
+**Last session:** 2026-07-23T07:42:49.240Z
+**Stopped at:** Completed 09-16-PLAN.md
 **Resume file:** None
