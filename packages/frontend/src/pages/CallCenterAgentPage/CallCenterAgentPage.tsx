@@ -29,7 +29,7 @@ import {
 import { AgentStatusBar } from '@/features/callcenter/ui/AgentStatusBar/AgentStatusBar';
 import { SoftphoneWidget } from '@/features/callcenter/ui/SoftphoneWidget/SoftphoneWidget';
 import { IncomingCallToast } from '@/features/callcenter/ui/IncomingCallToast/IncomingCallToast';
-import { CallControlBar, ParkedCallsIndicator } from '@/features/callcenter';
+import { CallControlBar, ParkedCallsIndicator, TransferDirectory } from '@/features/callcenter';
 import { CoworkersTab } from '@/features/callcenter/ui/CoworkersTab/CoworkersTab';
 import { QueuesTab } from '@/features/callcenter/ui/QueuesTab/QueuesTab';
 import { WaitingTab } from '@/features/callcenter/ui/WaitingTab/WaitingTab';
@@ -300,11 +300,11 @@ export function CallCenterAgentPage() {
     }
   }, [phone, t]);
 
-  // Transfer call (manual target modal)
-  const handleTransfer = useCallback(() => {
-    if (!transferTarget.trim()) return;
+  // Transfer call (manual target modal + directory picker share one dispatch path)
+  const executeTransfer = useCallback((rawTarget: string) => {
+    const target = rawTarget.trim();
+    if (!target) return;
     if (isWebrtc) {
-      const target = transferTarget.trim();
       if (transferType === 'attended') {
         void phone.attendedTransfer(target);
       } else {
@@ -317,12 +317,16 @@ export function CallCenterAgentPage() {
     if (!activeCall) return;
     agentTransfer({
       uniqueid: activeCall.uniqueid,
-      target: transferTarget.trim(),
+      target,
       type: transferType,
     });
     setTransferModalOpen(false);
     setTransferTarget('');
-  }, [agentTransfer, transferTarget, transferType, isWebrtc, phone, activeCall]);
+  }, [agentTransfer, transferType, isWebrtc, phone, activeCall]);
+
+  const handleTransfer = useCallback(() => {
+    executeTransfer(transferTarget);
+  }, [executeTransfer, transferTarget]);
 
   const handleDragTransfer = useCallback((targetIface: string, type: 'blind' | 'attended') => {
     // Normalize PJSIP/e110_0 and PJSIP/ew110_0 → "110" for dialable transfer target
@@ -874,6 +878,15 @@ export function CallCenterAgentPage() {
               <PhoneForwarded className="w-4 h-4 mr-1" />
               {t('callcenter.transfer.execute', 'Transfer')}
             </Button>
+
+            <TransferDirectory
+              mode="transfer"
+              onSelectTransferTarget={(entry) => {
+                setTransferTarget(entry.extension);
+                executeTransfer(entry.extension);
+              }}
+              onDone={() => setTransferModalOpen(false)}
+            />
           </div>
         </div>
       )}
