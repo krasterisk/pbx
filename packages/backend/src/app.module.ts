@@ -170,10 +170,10 @@ import * as path from 'path';
     EventEmitterModule.forRoot({
       wildcard: true,
     }),
-    // Rate limiting: 60 requests per minute globally, stricter for AI endpoints
+    // Rate limiting: 60 requests per minute app-wide (named 'global').
+    // Stricter AI budget (10/min) is applied only on AI POST /message via route-scoped @Throttle — not a second forRoot profile.
     ThrottlerModule.forRoot([
       { name: 'global', ttl: 60000, limit: 60 },
-      { name: 'ai', ttl: 60000, limit: 10 }, // AI chat: 10 req/min
     ]),
     RedisModule,
     AuthModule,

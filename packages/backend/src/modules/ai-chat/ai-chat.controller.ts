@@ -49,8 +49,8 @@ class UpdateAiChatSettingsDto {
  * AiChatController — endpoints для AI-ассистента.
  *
  * Rate limits (через ThrottlerModule):
- *   - POST /message: 10 запросов/минуту (throttle name 'ai')
- *   - GET endpoints: без ограничений
+ *   - POST /message: 10 запросов/минуту (route-scoped @Throttle on app-wide 'global' profile)
+ *   - GET/settings endpoints: skip app-wide 'global' via @SkipThrottle({ global: true })
  *
  * Audit log: все tool calls, выполненные через AI, логируются в ActionLog.
  */
@@ -120,7 +120,7 @@ export class AiChatController {
      * POST /api/ai-chat/message
      * Streams AI response via SSE.
      *
-     * Rate limited: 10 requests/minute per user (throttle name 'ai').
+     * Rate limited: 10 requests/minute (route-scoped override on 'global' profile).
      *
      * SSE events (proxied from aiPBX ChatService):
      *   event: text        → chunk of text
@@ -130,7 +130,7 @@ export class AiChatController {
      *   event: error       → error message string
      */
     @ApiOperation({ summary: 'Send message and get SSE streaming response' })
-    @Throttle({ ai: { limit: 10, ttl: 60000 } })
+    @Throttle({ global: { limit: 10, ttl: 60000 } })
     @Post('message')
     async sendMessage(
         @Body() dto: SendMessageDto,
