@@ -3,6 +3,7 @@ import {
   DEFAULT_OPERATOR_SETTINGS,
   DEFAULT_ALERT_THRESHOLDS,
   sanitizeAlertThresholds,
+  sanitizeAutopauseRules,
   sanitizeNotificationMatrix,
 } from './callcenter-settings.service';
 import { UserLevel } from '../users/user.model';
@@ -125,6 +126,7 @@ describe('CallCenterSettingsService', () => {
       expect(result).toMatchObject({
         default_sla_threshold: 20,
         alert_sound_enabled: true,
+        autopause_rules: [],
         user_uid: 7,
       });
       expect(result.alert_thresholds).toEqual(DEFAULT_ALERT_THRESHOLDS);
@@ -156,6 +158,22 @@ describe('CallCenterSettingsService', () => {
         where: { user_uid: 55 },
       });
     });
+
+    it('persists sanitized autopause_rules (D-15)', async () => {
+      await service.updateTenantSettings(7, {
+        autopause_rules: [
+          { type: 'missed_count', threshold: '3' },
+          { type: 'rona', threshold: 1 },
+          { type: 'idle_time', thresholdSec: 120 },
+        ] as any,
+      });
+
+      const created = ccSettingsModel.create.mock.calls[0][0];
+      expect(created.autopause_rules).toEqual([
+        { type: 'missed_count', threshold: 3 },
+        { type: 'idle_time', thresholdSec: 120 },
+      ]);
+    });
   });
 
   describe('sanitizeAlertThresholds', () => {
@@ -168,6 +186,42 @@ describe('CallCenterSettingsService', () => {
       expect(out.max_wait_sec).toBe(45);
       expect(out.abandon_rate_pct).toBe(12);
       expect(out).not.toHaveProperty('evil');
+    });
+  });
+
+  describe('sanitizeAutopauseRules (D-15 / G-09-2)', () => {
+    it('returns [] for empty array', () => {
+      expect(sanitizeAutopauseRules([])).toEqual([]);
+    });
+
+    it('returns [] for non-array input', () => {
+      expect(sanitizeAutopauseRules(null)).toEqual([]);
+      expect(sanitizeAutopauseRules({ type: 'missed_count' })).toEqual([]);
+      expect(sanitizeAutopauseRules('x')).toEqual([]);
+    });
+
+    it('keeps valid missed_count / idle_time / status_duration and coerces numbers', () => {
+      const out = sanitizeAutopauseRules([
+        { type: 'missed_count', threshold: '5', pauseReasonId: '2', pauseDurationSec: '60' },
+        { type: 'idle_time', thresholdSec: '90' },
+        { type: 'status_duration', status: 'WRAPUP', thresholdSec: '30', pauseReasonId: 7 },
+      ]);
+      expect(out).toEqual([
+        { type: 'missed_count', threshold: 5, pauseReasonId: 2, pauseDurationSec: 60 },
+        { type: 'idle_time', thresholdSec: 90 },
+        { type: 'status_duration', status: 'WRAPUP', thresholdSec: 30, pauseReasonId: 7 },
+      ]);
+    });
+
+    it('drops unknown types including fabricated rona-like entries', () => {
+      const out = sanitizeAutopauseRules([
+        { type: 'rona', threshold: 1 },
+        { type: 'missed_count', threshold: 2 },
+        { type: 'evil', thresholdSec: 10 },
+        { type: 'status_duration', status: '', thresholdSec: 5 },
+        { type: 'idle_time' },
+      ]);
+      expect(out).toEqual([{ type: 'missed_count', threshold: 2 }]);
     });
   });
 
