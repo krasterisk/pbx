@@ -4,21 +4,21 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 9
 current_phase_name: call-center-agent-panel
-status: Ready to execute
-stopped_at: Completed 09-14-PLAN.md
-last_updated: "2026-07-22T23:23:48.518Z"
+status: Phase complete — ready for verify
+stopped_at: Completed 09-15-PLAN.md
+last_updated: "2026-07-23T04:06:26.120Z"
 progress:
   total_phases: 9
-  completed_phases: 7
-  total_plans: 82
-  completed_plans: 81
+  completed_phases: 8
+  total_plans: 83
+  completed_plans: 82
 ---
 
 # State
 
 ## Current position
 
-Phase: 9 (call-center-agent-panel) — EXECUTING
+Phase: 9 (call-center-agent-panel) — EXECUTED (gap closure done)
 Plan 09-01 (schema/model foundation, wave 1): 3/3 tasks committed + migration applied to live DB.
 Plan 09-02 (Tabs primitive + AgentStatus model, wave 1): 3/3 tasks committed.
 Plan 09-03 (all-channel AMI listener + dual shift/day KPI, wave 1): 3/3 tasks committed.
@@ -31,8 +31,9 @@ Plan 09-08 (CallCenterAgentPage hybrid orchestrator rework + WaitingTab/QueuesTa
 Plan 09-09 (backend smart missed-calls engine + auto-pause rule engine, wave 4): 3/3 tasks committed (TDD RED/GREEN per task). Next: 09-10+.
 Plan 09-10 (smart missed-calls UI rework + ParkedCallsIndicator + CallControlBar full-variant actions, wave 5): 3/3 tasks committed. Next: 09-11+.
 Plan 09-11 (backend unified call history + transfer directory + BLF presence, wave 5): 3/3 tasks committed (TDD RED/GREEN Tasks 1-2). Next: 09-12+.
-Plan 09-12 (TransferDirectory + CallHistoryPanel frontend, wave 6): 3/3 tasks committed. CallHistoryPanel not yet mounted into CallCenterAgentPage (standalone component, same precedent as SoftphoneWidget/ParkedCallsIndicator). Next: 09-14.
-Plan 09-14 (operator settings UI + notification engine + mobile verification + i18n, wave 7): 3/3 tasks committed. CallCenterSettings + NotificationMatrix editor, useCallCenterNotifications replaces useCallNotifications, backend read-side lock enforcement gap closed, D-43/D-46 mobile/tablet confirmed already delivered by 09-08/09-06, ru/en i18n pass complete. Phase 9 (09-01…09-14) fully executed. Next: `/gsd-verify-work 9`.
+Plan 09-12 (TransferDirectory + CallHistoryPanel frontend, wave 6): 3/3 tasks committed.
+Plan 09-14 (operator settings UI + notification engine + mobile verification + i18n, wave 7): 3/3 tasks committed.
+Plan 09-15 (gap closure: wire CallControlBar/ParkedCallsIndicator/TransferDirectory/CallHistoryPanel into CallCenterAgentPage): 3/3 tasks committed. Phase 9 (09-01…09-15) fully executed. Next: `/gsd-verify-work 9`.
 Also: Phase 8 (navigation-redesign-android-port-foundation) — EXECUTING
 Plan 08-11: Tasks 1–2 committed; **blocked on Task 3 human-verify** (Android WebRTC + FCM device smoke)
 
@@ -162,6 +163,9 @@ Phase 1 — MOH: pending verify.
 - [Phase 09]: 09-11 kept CallCenterHistoryWriterService untouched (already generic Partial<CcQueueCall>) — added a nonQueueCallStates Map (keyed like journalKey) to CallCenterAmiService, seeded at DialBegin/Newchannel, consumed at DialEnd/AgentHangup, writing all-direction cc_queue_calls rows (outbound/personal/internal, answered/missed/cancelled); direction=internal via a short-all-digit destination heuristic ([ASSUMED], 09-VALIDATION); personal-ring answer_time approximated as ring-start (no distinct answered AMI event in current listener set — documented limitation); getOperatorCallHistory shift period resolves the operator's open cc_agent_sessions row, falls back to start-of-day; new CallCenterPresenceService debounces DeviceState/ExtensionState (300ms per-extension coalescing) into presenceUpdate SSE deltas via existing emitEvent, wired into ami.service.ts via the same ModuleRef lazy-resolve + string-alias pattern as CallCenterAmiService; reused CallCenterAmiService.parseQueueTenant + endpoint-ids.util interfaceToExtension/extractExtension instead of duplicating regexes; getTransferDirectory reuses recalcQueueStats' agents.available for queue free counts (no parallel scheme), derives call-group free counts from the live agent map (no existing aggregation to reuse there)
 - [Phase 09]: 09-12 TransferDirectory unfiltered+client-filtered getTransferDirectory cache so presenceUpdate SSE always patches one known cache key (D-45); SoftphoneWidget gets its own built-in conference-add control (Sheet+TransferDirectory conference-add mode) rather than routing through CallControlBar full variant; useCallCenterSSE dispatch switched to typed useAppDispatch for RTK updateQueryData; CallHistoryPanel open-card fetches getCardByCall+getCardTemplates directly and renders CallCardPopup (useCallCardPopup stays scoped to the live active call)
 - [Phase 09]: 09-14 CallCenterSettings + NotificationMatrix lock-aware editor; useCallCenterNotifications fully replaces useCallNotifications with matrix-driven sound/popup/chat dispatch; backend read-side lock enforcement gap closed on getOperatorUiCustomization/getOperatorNotifications; D-43/D-46 mobile/tablet verified already complete from 09-08/09-06; ru/en i18n pass complete
+- [Phase 09]: Gate CallControlBar full on showCallControls; uniqueid/isZombie from live activeCall only
+- [Phase 09]: Directory transfer closes endpoint targets only; queue/group CTA follow-up
+- [Phase 09]: history panel default-visible via IUiVisibility open map (D-05)
 
 ## Roadmap Evolution
 
@@ -180,7 +184,7 @@ Phase 1 — MOH: pending verify.
 
 ## Next GSD command
 
-`/gsd-execute-phase 9` — execute gap-closure plan 09-15 (wires park/zombie, TransferDirectory transfer mode, CallHistoryPanel).
+`/gsd-verify-work 9` — re-verify Phase 9 after gap-closure 09-15 (park/retrieve/zombie-reset, directory transfer, call history mounted).
 
 Also open: Phase 8 / 08-11 Task 3 — complete Android smoke checklist, then reply `approved` (or list failures). After approval: finalize 08-11 SUMMARY → `/gsd-verify-work 8`
 
@@ -254,9 +258,10 @@ Also open: Phase 8 / 08-11 Task 3 — complete Android smoke checklist, then rep
 | Phase 9 P10 | ~55min | 3 tasks | 16 files |
 | Phase 09 P12 | ~40min | 3 tasks | 14 files |
 | Phase 09 P14 | ~35min | 3 tasks | 13 files |
+| Phase 09 P15 | 14min | 3 tasks | 5 files |
 
 ## Session
 
-**Last session:** 2026-07-22T23:23:48.466Z
-**Stopped at:** Completed 09-14-PLAN.md
+**Last session:** 2026-07-23T04:06:26.074Z
+**Stopped at:** Completed 09-15-PLAN.md
 **Resume file:** None
