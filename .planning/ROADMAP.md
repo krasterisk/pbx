@@ -478,7 +478,7 @@ Plans:
 - `packages/frontend/src/features/callcenter/` — softphone, SSE, selectors, UI panels
 - `packages/backend/src/modules/callcenter/` — AMI actions (transfer, chanspy, hangup, pickup), state, metrics
 
-**Status:** Executed — 15/15 plans (incl. gap closure 09-15); verify/UAT remaining  
+**Status:** UAT gap closure planned — 09-16/09-17 (G-09-1 throttle, G-09-2 autopause UI); execute next  
 **Depends on:** Phase 7 (CC core + WebRTC softphone); Phase 8 agent sticky softphone / mobile shell — желательно после стабилизации layout
 
 **Goal:** Переработать АРМ оператора (`CallCenterAgentPage`): основными становятся вкладки **Коллеги / Очереди / Текущие (ожидающие) звонки**; софтфон — компактный виджет + окно входящего вызова и кнопки управления в верхней статус-панели; статус «Готов» → «Ожидание звонка»; KPI принял/пропустил в статус-строке (все звонки, не только queue); per-queue answered/missed; transfer / ChanSpy / hangup по ролям; pickup из waiting; полный набор call-control по практикам профессиональных колл-центров.
@@ -513,7 +513,7 @@ Plans:
 | 5 | `/gsd-ui-review 9` + `npm run test:frontend` / `test:backend` |
 | 6 | `/gsd-verify-work 9` → `/gsd-ship 9` |
 
-**Plans:** 15/15 plans executed
+**Plans:** 15/17 executed; 2 UAT gap-closure plans pending
 
 Plans:
 
@@ -532,3 +532,5 @@ Plans:
 - [x] 09-13-PLAN.md — Backend settings endpoints: permissions/notifications/UI customization (D-05/06/38/39/40/41/42/43)
 - [x] 09-14-PLAN.md — Frontend settings UI + notification engine + mobile rework + i18n (D-38/39/40/41/42/43/44/46)
 - [x] 09-15-PLAN.md — Gap closure: wire orphaned call-control/history components into CallCenterAgentPage — park/retrieve/zombie-reset + directory transfer + call history/click-to-call (D-05/27/28/29/34/35/36/37)
+- [ ] 09-16-PLAN.md — UAT gap G-09-1: single global throttler + AI POST route-scoped 10/min (D-41/D-42)
+- [ ] 09-17-PLAN.md — UAT gap G-09-2: tenant autopause_rules API + AutoPauseRulesForm Settings UI (D-15)
