@@ -49,8 +49,8 @@ class UpdateAiChatSettingsDto {
  * AiChatController — endpoints для AI-ассистента.
  *
  * Rate limits (через ThrottlerModule):
+ *   - GET/settings endpoints: skip app-wide 'global' (and Auth 'default' if present) via @SkipThrottle({ default: true, global: true })
  *   - POST /message: 10 запросов/минуту (route-scoped @Throttle on app-wide 'global' profile)
- *   - GET/settings endpoints: skip app-wide 'global' via @SkipThrottle({ global: true })
  *
  * Audit log: все tool calls, выполненные через AI, логируются в ActionLog.
  */
@@ -75,7 +75,7 @@ export class AiChatController {
      * with no row yet.
      */
     @ApiOperation({ summary: 'Get per-tenant AI confirmation settings' })
-    @SkipThrottle()
+    @SkipThrottle({ default: true, global: true })
     @Get('settings')
     async getSettings(@Req() req: any) {
         return this.aiChatSettingsService.getSettings(req.user.vpbx_user_uid);
@@ -87,7 +87,7 @@ export class AiChatController {
      * or other tenants — storage is per vpbx_user_uid (D-25).
      */
     @ApiOperation({ summary: 'Update per-tenant AI confirmation settings' })
-    @SkipThrottle()
+    @SkipThrottle({ default: true, global: true })
     @Put('settings')
     async updateSettings(@Body() dto: UpdateAiChatSettingsDto, @Req() req: any) {
         return this.aiChatSettingsService.updateSettings(req.user.vpbx_user_uid, dto);
@@ -98,7 +98,7 @@ export class AiChatController {
      * Returns current PBX configuration snapshot for the tenant.
      */
     @ApiOperation({ summary: 'Get PBX state snapshot for AI context' })
-    @SkipThrottle()
+    @SkipThrottle({ default: true, global: true })
     @Get('state')
     async getState(@Req() req: any) {
         const userUid: number = req.user.vpbx_user_uid;
@@ -110,7 +110,7 @@ export class AiChatController {
      * Returns list of available LLM models from aiPBX.
      */
     @ApiOperation({ summary: 'Get available AI models' })
-    @SkipThrottle()
+    @SkipThrottle({ default: true, global: true })
     @Get('models')
     async getModels() {
         return this.aiChatService.getAvailableModels();

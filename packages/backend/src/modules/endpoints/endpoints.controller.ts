@@ -35,13 +35,13 @@ export class EndpointsController {
     return this.endpointsService.bulkCreate(dto, req.user.vpbx_user_uid, req.user.uid);
   }
 
-  @SkipThrottle()
+  @SkipThrottle({ default: true, global: true })
   @Get('bulk/active')
   getActiveBulkJob(@Req() req: Request & { user: any }) {
     return this.endpointsService.getActiveBulkJob(req.user.vpbx_user_uid);
   }
 
-  @SkipThrottle()
+  @SkipThrottle({ default: true, global: true })
   @Get('bulk/status/:jobId')
   getBulkJobStatus(@Param('jobId') jobId: string) {
     return this.endpointsService.getBulkJobStatus(jobId);
