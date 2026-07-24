@@ -597,11 +597,11 @@ Plans:
 
 **Requirements:** D-01 … D-35 (locked decisions in `.planning/phases/10-full-softphone/10-CONTEXT.md`; no REQ-IDs, same convention as Phases 5-9)
 
-**Plans:** 9 plans
+**Plans:** 1/9 plans executed
 
 Plans:
 
-- [ ] 10-01-PLAN.md — cc_contacts backend: new table + model + migration + DTO + tenant/ownership-gated CRUD (D-11…D-15)
+- [x] 10-01-PLAN.md — cc_contacts backend: new table + model + migration + DTO + tenant/ownership-gated CRUD (D-11…D-15)
 - [ ] 10-02-PLAN.md — Journal SSE emit (historyRow) on history writer + journal_depth tenant setting (D-04/D-05)
 - [ ] 10-03-PLAN.md — SIP backend: AMI PlayDTMF + validated sendDtmf + my-endpoint registration-state (D-32/D-33/D-35)
 - [ ] 10-04-PLAN.md — Frontend foundation: RTK endpoints/types/tags + historyRow prepend + shiftSession dial buffer + full ru/en copy (D-04/D-05/D-11…D-14/D-16/D-18/D-19/D-32/D-35)
@@ -612,4 +612,3 @@ Plans:
 - [ ] 10-09-PLAN.md — Dual-mode SIP: useSipPhoneAmi facade + CallCenterAgentPage isSip branch + live-Asterisk checkpoint (D-24/D-31…D-35)
 
 **Waves:** W1 {10-01, 10-02} · W2 {10-03} · W3 {10-04} · W4 {10-05, 10-06, 10-07} · W5 {10-08} · W6 {10-09}
-
