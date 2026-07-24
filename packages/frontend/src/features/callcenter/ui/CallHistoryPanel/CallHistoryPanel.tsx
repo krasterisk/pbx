@@ -3,9 +3,9 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
 import {
-  PhoneIncoming, PhoneOutgoing, Phone, PhoneMissed, PhoneCall, IdCard,
+  PhoneIncoming, PhoneOutgoing, Phone, PhoneMissed, PhoneCall, IdCard, Search,
 } from 'lucide-react';
-import { Button, Text, SegmentedControl } from '@/shared/ui';
+import { Button, Text, SegmentedControl, Input } from '@/shared/ui';
 import {
   useGetOperatorCallHistoryQuery,
   useClickToCallMutation,
@@ -22,6 +22,9 @@ import type { ICardTemplate } from '@/features/callcenter/model/types/callCard';
 import styles from './CallHistoryPanel.module.scss';
 
 type Period = 'shift' | 'day';
+
+/** ARM History segment tabs (D-07) — no Missed segment. */
+export type HistorySegment = 'queue' | 'outbound' | 'personal';
 
 interface DirectionVisual {
   Icon: typeof PhoneIncoming;
@@ -44,16 +47,86 @@ function formatDuration(seconds: number | null): string {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
+function isDirectQueue(queueName: string | null): boolean {
+  return !queueName || queueName.startsWith('direct:');
+}
+
+/** Queue segment = inbound rows that arrived via a real queue (not direct:/empty). */
+export function isQueueHistoryRow(row: Pick<IOperatorHistoryRow, 'direction' | 'queueName'>): boolean {
+  return row.direction === 'inbound' && !isDirectQueue(row.queueName);
+}
+
+/** Client-side segment filter over getOperatorCallHistory rows (D-07). */
+export function matchesHistorySegment(
+  row: Pick<IOperatorHistoryRow, 'direction' | 'queueName'>,
+  segment: HistorySegment,
+): boolean {
+  if (segment === 'queue') return isQueueHistoryRow(row);
+  if (segment === 'outbound') return row.direction === 'outbound';
+  // Personal = personal / direct inbound / internal (not queue, not outbound)
+  return (
+    row.direction === 'personal'
+    || row.direction === 'internal'
+    || (row.direction === 'inbound' && isDirectQueue(row.queueName))
+  );
+}
+
+function isAnsweredDisposition(disposition: IOperatorHistoryRow['disposition']): boolean {
+  return disposition === 'answered' || disposition === 'transferred';
+}
+
+/** Status tokens for Outbound/Personal search (D-10) — no new locale keys. */
+export function historyStatusSearchHaystack(
+  disposition: IOperatorHistoryRow['disposition'],
+): string {
+  if (isAnsweredDisposition(disposition)) {
+    return `answered отвечен ${disposition}`;
+  }
+  return `not answered не отвечен unanswered ${disposition}`;
+}
+
+/**
+ * Per-segment quick search (D-10):
+ * Queue → number / name / queue; Outbound/Personal → number / name / status.
+ */
+export function matchesHistorySearch(
+  row: Pick<
+    IOperatorHistoryRow,
+    'callerIdNum' | 'callerIdName' | 'queueName' | 'disposition' | 'direction'
+  >,
+  segment: HistorySegment,
+  query: string,
+  queueLabel?: string,
+): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+
+  const number = (row.callerIdNum || '').toLowerCase();
+  const name = (row.callerIdName || '').toLowerCase();
+  if (number.includes(q) || name.includes(q)) return true;
+
+  if (segment === 'queue') {
+    const queue = (row.queueName || '').toLowerCase();
+    const label = (queueLabel || '').toLowerCase();
+    return queue.includes(q) || label.includes(q);
+  }
+
+  return historyStatusSearchHaystack(row.disposition).toLowerCase().includes(q);
+}
+
 /**
  * Operator call-history panel (D-34/D-35) — reverse-chronological list of
  * ALL directions (inbound/outbound/personal/internal, in-queue RNA excluded
  * per D-20) with a shift/day filter, click-to-callback, and open-call-card
  * (reuses CallCardPopup, no bespoke viewer per the UI-SPEC Surface 11 note).
+ * Phase 10: Queue/Outbound/Personal segments + per-segment search (D-07/D-10).
  */
 export function CallHistoryPanel({ summaryOnly = false }: { summaryOnly?: boolean } = {}) {
   const { t } = useTranslation();
   const dispatch = useDispatch();
   const [period, setPeriod] = useState<Period>('shift');
+  const [segment, setSegment] = useState<HistorySegment>('queue');
+  const [search, setSearch] = useState('');
   const ccQueues = useSelector(selectCcQueues);
 
   const { data: rows = [], isFetching } = useGetOperatorCallHistoryQuery({ period });
@@ -71,6 +144,16 @@ export function CallHistoryPanel({ summaryOnly = false }: { summaryOnly?: boolea
     () => ccQueues.map((q) => ({ name: q.name, displayName: q.displayName })),
     [ccQueues],
   );
+
+  const filteredRows = useMemo(() => {
+    return rows.filter((row) => {
+      if (!matchesHistorySegment(row, segment)) return false;
+      const queueLabel = row.queueName
+        ? queueDisplayName(row.queueName, queueLabelSources)
+        : undefined;
+      return matchesHistorySearch(row, segment, search, queueLabel);
+    });
+  }, [rows, segment, search, queueLabelSources]);
 
   const missedCount = useMemo(
     () => rows.filter((r) => r.disposition === 'abandoned' || r.disposition === 'timeout').length,
@@ -90,6 +173,25 @@ export function CallHistoryPanel({ summaryOnly = false }: { summaryOnly?: boolea
       ]}
     />
   );
+
+  const segmentControl = (
+    <SegmentedControl
+      ariaLabel={t('callcenter.history.segmentQueue', 'Queue')}
+      value={segment}
+      onChange={setSegment}
+      options={[
+        { value: 'queue', label: t('callcenter.history.segmentQueue', 'Queue') },
+        { value: 'outbound', label: t('callcenter.history.segmentOutbound', 'Outbound') },
+        { value: 'personal', label: t('callcenter.history.segmentPersonal', 'Personal') },
+      ]}
+    />
+  );
+
+  const searchPlaceholder = segment === 'queue'
+    ? t('callcenter.history.searchPlaceholderQueue', 'Search by number, name or queue...')
+    : segment === 'outbound'
+      ? t('callcenter.history.searchPlaceholderOutbound', 'Search by number, name or status...')
+      : t('callcenter.history.searchPlaceholderPersonal', 'Search by number, name or status...');
 
   const summary = (
     <div className={styles.summaryBar}>
@@ -153,7 +255,7 @@ export function CallHistoryPanel({ summaryOnly = false }: { summaryOnly?: boolea
   };
 
   const kindTag = (row: IOperatorHistoryRow): string | null => {
-    const isDirect = !row.queueName || row.queueName.startsWith('direct:');
+    const isDirect = isDirectQueue(row.queueName);
     if (!isDirect && row.direction === 'inbound') {
       return queueDisplayName(row.queueName as string, queueLabelSources);
     }
@@ -164,25 +266,40 @@ export function CallHistoryPanel({ summaryOnly = false }: { summaryOnly?: boolea
   };
 
   return (
-    <div className={styles.wrap}>
+    <div className={styles.wrap} data-testid="history-panel">
       <div className={styles.header}>
         <Text className={styles.title}>{t('callcenter.history.title', 'Call history')}</Text>
         {periodControl}
       </div>
 
-      {rows.length === 0 && !isFetching ? (
+      <div className={styles.filterRow} data-testid="history-segment-control">
+        {segmentControl}
+      </div>
+
+      <div className={styles.searchRow}>
+        <Search className="w-4 h-4" aria-hidden />
+        <Input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder={searchPlaceholder}
+          aria-label={searchPlaceholder}
+          data-testid="history-search"
+        />
+      </div>
+
+      {filteredRows.length === 0 && !isFetching ? (
         <Text variant="muted" className={styles.empty}>
           {t('callcenter.history.empty', 'No calls in this period')}
         </Text>
       ) : (
         <div className={styles.list}>
-          {rows.map((row) => {
+          {filteredRows.map((row) => {
             const { Icon, colorClass } = directionVisual(row);
             const tag = kindTag(row);
             const timestamp = row.enterTime || row.answerTime || row.endTime;
             const isMissed = row.disposition === 'abandoned' || row.disposition === 'timeout';
             return (
-              <div key={row.uid} className={styles.row}>
+              <div key={row.uid} className={styles.row} data-testid={`history-row-${row.uid}`}>
                 <Icon className={`w-4 h-4 ${colorClass}`} aria-hidden />
                 <div className={styles.rowMain}>
                   <div className={styles.rowTop}>

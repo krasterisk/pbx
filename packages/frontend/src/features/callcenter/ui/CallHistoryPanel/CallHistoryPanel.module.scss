@@ -61,6 +61,27 @@
   font-size: 0.95rem;
 }
 
+/* Segment tabs (D-07) — TransferDirectory .filterRow shape */
+.filterRow {
+  flex-shrink: 0;
+  overflow-x: auto;
+}
+
+/* Per-segment search (D-10) — TransferDirectory .searchRow shape */
+.searchRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 2px;
+  color: var(--color-muted-foreground);
+  flex-shrink: 0;
+
+  input {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
 .empty {
   text-align: center;
   padding: 32px 16px;
