@@ -63,6 +63,13 @@ export class UpdateCcSettingsDto {
   @Min(0)
   default_sla_threshold?: number;
 
+  /** D-04: Journal last-N depth (tenant-level; no per-operator override). */
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(500)
+  journal_depth?: number;
+
   @IsOptional()
   @IsBoolean()
   alert_sound_enabled?: boolean;

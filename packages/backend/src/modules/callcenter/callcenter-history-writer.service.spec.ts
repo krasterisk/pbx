@@ -8,11 +8,14 @@ import {
 describe('CallCenterHistoryWriterService', () => {
   let service: CallCenterHistoryWriterService;
   let bulkCreate: jest.Mock;
+  let emitEvent: jest.Mock;
 
   beforeEach(() => {
     bulkCreate = jest.fn().mockResolvedValue([]);
+    emitEvent = jest.fn();
     const model = { bulkCreate } as any;
-    service = new CallCenterHistoryWriterService(model);
+    const stateService = { emitEvent } as any;
+    service = new CallCenterHistoryWriterService(model, stateService);
   });
 
   it('enqueue does not write to DB immediately', () => {
@@ -27,6 +30,7 @@ describe('CallCenterHistoryWriterService', () => {
         call_uniqueid: `u-${i}`,
         queue_name: 'q1',
         disposition: 'answered',
+        user_uid: 7,
       });
     }
     // Threshold flush is fire-and-forget; allow microtask to settle
@@ -72,5 +76,158 @@ describe('CallCenterHistoryWriterService', () => {
 
     flushSpy.mockRestore();
     warnSpy.mockRestore();
+  });
+
+  describe('historyRow SSE (D-05)', () => {
+    it('emits one historyRow per written row addressed to row.user_uid', async () => {
+      const createdAt = new Date('2026-07-24T10:00:00Z');
+      bulkCreate.mockResolvedValue([
+        {
+          uid: 101,
+          user_uid: 7,
+          caller_id_num: '79001112233',
+          caller_id_name: 'Alice',
+          direction: 'inbound',
+          disposition: 'answered',
+          agent_user_uid: 42,
+          created_at: createdAt,
+        },
+        {
+          uid: 102,
+          user_uid: 9,
+          caller_id_num: '79004445566',
+          caller_id_name: '',
+          direction: 'outbound',
+          disposition: 'abandoned',
+          agent_user_uid: 43,
+          created_at: createdAt,
+        },
+      ]);
+
+      service.enqueue({
+        call_uniqueid: 'a',
+        queue_name: 'q',
+        disposition: 'answered',
+        user_uid: 7,
+        caller_id_num: '79001112233',
+        caller_id_name: 'Alice',
+        direction: 'inbound',
+        agent_user_uid: 42,
+        created_at: createdAt,
+      });
+      service.enqueue({
+        call_uniqueid: 'b',
+        queue_name: 'q',
+        disposition: 'abandoned',
+        user_uid: 9,
+        caller_id_num: '79004445566',
+        direction: 'outbound',
+        agent_user_uid: 43,
+        created_at: createdAt,
+      });
+
+      await service.flush();
+
+      expect(emitEvent).toHaveBeenCalledTimes(2);
+      expect(emitEvent).toHaveBeenNthCalledWith(1, 'historyRow', 7, {
+        uid: 101,
+        callerIdNum: '79001112233',
+        callerIdName: 'Alice',
+        direction: 'inbound',
+        disposition: 'answered',
+        agentUserUid: 42,
+        createdAt,
+      });
+      expect(emitEvent).toHaveBeenNthCalledWith(2, 'historyRow', 9, {
+        uid: 102,
+        callerIdNum: '79004445566',
+        callerIdName: '',
+        direction: 'outbound',
+        disposition: 'abandoned',
+        agentUserUid: 43,
+        createdAt,
+      });
+    });
+
+    it('does not emit when bulkCreate throws', async () => {
+      bulkCreate.mockRejectedValue(new Error('DB down'));
+      const errorSpy = jest.spyOn(Logger.prototype, 'error').mockImplementation();
+
+      service.enqueue({
+        call_uniqueid: 'x',
+        queue_name: 'q',
+        disposition: 'other',
+        user_uid: 7,
+      });
+      await service.flush();
+
+      expect(emitEvent).not.toHaveBeenCalled();
+      errorSpy.mockRestore();
+    });
+
+    it('falls back to buffered row fields when bulkCreate returns empty', async () => {
+      bulkCreate.mockResolvedValue([]);
+      const createdAt = new Date('2026-07-24T11:00:00Z');
+
+      service.enqueue({
+        uid: undefined,
+        call_uniqueid: 'c',
+        queue_name: 'q',
+        disposition: 'answered',
+        user_uid: 7,
+        caller_id_num: '101',
+        caller_id_name: 'Bob',
+        direction: 'personal',
+        agent_user_uid: 5,
+        created_at: createdAt,
+      });
+      await service.flush();
+
+      expect(emitEvent).toHaveBeenCalledTimes(1);
+      expect(emitEvent).toHaveBeenCalledWith('historyRow', 7, {
+        uid: undefined,
+        callerIdNum: '101',
+        callerIdName: 'Bob',
+        direction: 'personal',
+        disposition: 'answered',
+        agentUserUid: 5,
+        createdAt,
+      });
+    });
+
+    it('createOne emits historyRow after a successful single insert', async () => {
+      const createdAt = new Date('2026-07-24T12:00:00Z');
+      const create = jest.fn().mockResolvedValue({
+        uid: 55,
+        user_uid: 7,
+        caller_id_num: '200',
+        caller_id_name: 'Carol',
+        direction: 'internal',
+        disposition: 'answered',
+        agent_user_uid: 1,
+        created_at: createdAt,
+      });
+      const model = { bulkCreate, create } as any;
+      const stateService = { emitEvent } as any;
+      const single = new CallCenterHistoryWriterService(model, stateService);
+
+      await single.createOne({
+        call_uniqueid: 's1',
+        queue_name: 'direct',
+        disposition: 'answered',
+        user_uid: 7,
+      });
+
+      expect(create).toHaveBeenCalledTimes(1);
+      expect(emitEvent).toHaveBeenCalledWith('historyRow', 7, {
+        uid: 55,
+        callerIdNum: '200',
+        callerIdName: 'Carol',
+        direction: 'internal',
+        disposition: 'answered',
+        agentUserUid: 1,
+        createdAt,
+      });
+    });
   });
 });

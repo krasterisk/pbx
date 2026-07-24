@@ -82,6 +82,8 @@ export const DEFAULT_OPERATOR_SETTINGS = {
 
 export const DEFAULT_TENANT_SETTINGS = {
   default_sla_threshold: 20,
+  /** D-04: softphone Journal last-N (not a frontend hardcode). */
+  journal_depth: 50,
   alert_thresholds: { ...DEFAULT_ALERT_THRESHOLDS },
   alert_sound_enabled: true,
   /** Master switch for RONA + flexible rules (default on = prior always-on RONA behavior). */
@@ -321,6 +323,9 @@ export class CallCenterSettingsService {
     const patch: Record<string, unknown> = { updated_at: new Date() };
     if (dto.default_sla_threshold !== undefined) {
       patch.default_sla_threshold = dto.default_sla_threshold;
+    }
+    if (dto.journal_depth !== undefined) {
+      patch.journal_depth = dto.journal_depth;
     }
     if (dto.alert_sound_enabled !== undefined) {
       patch.alert_sound_enabled = dto.alert_sound_enabled;

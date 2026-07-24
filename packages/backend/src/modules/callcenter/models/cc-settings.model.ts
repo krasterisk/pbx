@@ -21,6 +21,10 @@ export class CcSettings extends Model {
   @Column({ type: DataType.INTEGER, allowNull: false, defaultValue: 20 })
   declare default_sla_threshold: number;
 
+  /** D-04: softphone Journal tab depth (last N rows); admin-configurable, default 50. */
+  @Column({ type: DataType.INTEGER, allowNull: false, defaultValue: 50 })
+  declare journal_depth: number;
+
   /**
    * D-27: flexible alert thresholds JSON.
    * Known keys: max_wait_sec, abandon_rate_pct, sla_critical_pct, agents_available_min.

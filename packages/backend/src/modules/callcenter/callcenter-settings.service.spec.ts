@@ -125,6 +125,7 @@ describe('CallCenterSettingsService', () => {
       });
       expect(result).toMatchObject({
         default_sla_threshold: 20,
+        journal_depth: 50,
         alert_sound_enabled: true,
         autopause_enabled: true,
         autopause_rules: [],
@@ -180,6 +181,12 @@ describe('CallCenterSettingsService', () => {
       await service.updateTenantSettings(7, { autopause_enabled: false });
       const created = ccSettingsModel.create.mock.calls[0][0];
       expect(created.autopause_enabled).toBe(false);
+    });
+
+    it('persists journal_depth tenant setting (D-04)', async () => {
+      await service.updateTenantSettings(7, { journal_depth: 100 });
+      const created = ccSettingsModel.create.mock.calls[0][0];
+      expect(created.journal_depth).toBe(100);
     });
   });
 
