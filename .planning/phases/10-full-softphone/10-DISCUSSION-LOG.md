@@ -90,6 +90,18 @@
 - Contact book storage model (Phase 5 phonebooks vs new CC entity)
 - Recover timeout duration
 - Exact SSE events for Journal live update
+- AMI action ↔ softphone control mapping for SIP mode
+
+## Dual mode: WebRTC + SIP/AMI (addendum)
+
+| Option | Description | Selected |
+|--------|-------------|----------|
+| Full UI console via AMI | Same Dial/Journal/Contacts/controls; media on handset | ✓ |
+| Reduced console | Click-to-call + status only | |
+| Hide quality + devices in SIP | | ✓ |
+| SIP trigger = AMI online/offline + Recover re-query | | ✓ |
+
+**User's choice:** Full analogous softphone for external SIP; outbound = AMI callback to internal number; D-31…D-35.
 
 ## Deferred Ideas
 
