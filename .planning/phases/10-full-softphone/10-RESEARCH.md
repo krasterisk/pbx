@@ -467,20 +467,20 @@ This is precisely the pattern D-33 says to reuse for SIP-mode softphone outbound
 
 ## Open Questions
 
-1. **Should `SoftphonePlacement` be removed entirely or narrowed?**
+1. **Should `SoftphonePlacement` be removed entirely or narrowed? (RESOLVED)**
    - What we know: UI-SPEC Surface A explicitly hedges ("`SoftphonePlacement` narrows to `'bottom-right' | 'bottom-left' | 'hidden'` used only for the deprecated placement setting's remaining chrome-adjacent meaning, **or is removed if no longer referenced**").
    - What's unclear: Whether any other call site outside the 4 files read this session (`SoftphoneWidget.tsx`, `CallCenterAgentPage.tsx`, settings UI) still reads `placement`/`SoftphonePlacement` at runtime (e.g. a settings form letting operators pick FAB corner, which would need its own cleanup).
-   - Recommendation: Planner should schedule a grep-and-decide task at the start of the FAB-removal wave (`grep -rn "SoftphonePlacement\|placement=" packages/frontend/src`) rather than pre-deciding here; the answer changes the FAB-removal task's exact diff but not its risk level.
+   - RESOLVED: 10-08 Task 1 owns this as a grep-and-decide action - it greps the whole frontend (`variant="fab"`/`SoftphoneVariant`/`SoftphonePlacement`/`.fabWrap`/`.fabRinging`) and narrows-or-removes `SoftphonePlacement` per whether any live call site still reads it (D-26, Pitfall 5). The answer changes that task's exact diff but not its risk level; no separate research needed.
 
-2. **Exact Journal N=50 setting UI location (Settings page tab)?**
+2. **Exact Journal N=50 setting UI location (Settings page tab)? (RESOLVED)**
    - What we know: D-04 says "N задаётся в настройках call-центра" (tenant CC settings, admin/supervisor-configurable per the existing `CallCenterSettings.tsx`/`callcenter-settings.controller.ts` pattern).
    - What's unclear: Whether it belongs in the existing generic `CallCenterSettings.tsx` form or needs its own small section; this is a 1-field addition, not architecturally significant.
-   - Recommendation: Add it as a single numeric field in the existing tenant `CallCenterSettings.tsx` form (near `default_sla_threshold`/`alert_thresholds`) - no new settings sub-page needed for one field.
+   - RESOLVED: 10-05 Task 2 adds `journal_depth` as a single numeric field in the existing tenant `CallCenterSettings.tsx` form (near `default_sla_threshold`/`alert_thresholds`), bound to the settings query/mutation extended in 10-04 - no new settings sub-page for one field.
 
-3. **Should the new `cc_contacts` Book section support bulk import, given phonebooks already have CSV/bulk patterns elsewhere?**
+3. **Should the new `cc_contacts` Book section support bulk import, given phonebooks already have CSV/bulk patterns elsewhere? (RESOLVED)**
    - What we know: D-14's UI-SPEC only describes a small inline `Sheet` add/edit form (name/number/note), one row at a time - no bulk import is mentioned anywhere in CONTEXT.md or UI-SPEC.
    - What's unclear: Nothing - this is explicitly out of D-11...D-15's locked scope; flagging only so the planner doesn't over-build.
-   - Recommendation: Do not add bulk import/CSV for `cc_contacts` in this phase; it is not requested and would expand scope beyond the locked decisions.
+   - RESOLVED: Do not add bulk import/CSV for `cc_contacts` in this phase; it is not in the locked scope. 10-01 (backend CRUD) and 10-06 (inline Sheet add/edit/delete) implement one-row-at-a-time only, as scoped.
 
 ## Environment Availability
 
