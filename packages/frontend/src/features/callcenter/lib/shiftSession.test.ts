@@ -4,6 +4,10 @@ import {
   saveActiveShift,
   clearActiveShift,
   CC_ACTIVE_SHIFT_KEY,
+  loadDialBuffer,
+  saveDialBuffer,
+  clearDialBuffer,
+  CC_DIAL_BUFFER_KEY,
 } from './shiftSession';
 
 describe('shiftSession', () => {
@@ -36,5 +40,25 @@ describe('shiftSession', () => {
     expect(loadActiveShift(storage)).toBeNull();
     clearActiveShift(storage);
     expect(loadActiveShift(storage)).toBeNull();
+  });
+
+  it('round-trips dial buffer independently of shift (D-19)', () => {
+    saveDialBuffer({ dialBuffer: '7900', lastNumber: '79001112233' }, storage);
+    expect(loadDialBuffer(storage)).toEqual({
+      dialBuffer: '7900',
+      lastNumber: '79001112233',
+    });
+    expect(mem.has(CC_DIAL_BUFFER_KEY)).toBe(true);
+
+    clearActiveShift(storage);
+    expect(loadDialBuffer(storage)?.lastNumber).toBe('79001112233');
+
+    clearDialBuffer(storage);
+    expect(loadDialBuffer(storage)).toBeNull();
+  });
+
+  it('rejects malformed dial buffer JSON', () => {
+    storage.setItem(CC_DIAL_BUFFER_KEY, '{bad');
+    expect(loadDialBuffer(storage)).toBeNull();
   });
 });

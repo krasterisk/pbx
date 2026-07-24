@@ -4,7 +4,7 @@ import type { RootState } from '@/app/store/store';
 import { selectCurrentUser } from '@/entities/User';
 import { useAppDispatch } from '@/shared/hooks/useAppStore';
 import { rtkApi } from '@/shared/api/rtkApi';
-import { callCenterApi } from '@/shared/api/endpoints/callCenterApi';
+import { callCenterApi, type IOperatorHistoryRow } from '@/shared/api/endpoints/callCenterApi';
 import {
   setSnapshot,
   setConnected,
@@ -253,6 +253,55 @@ export function useCallCenterSSE(enabled: boolean = true) {
             const entry = draft.endpoints.find((ep) => ep.extension === data.extension);
             if (entry) entry.presence = data.state || entry.presence;
           }),
+        );
+      } catch { /* ignore */ }
+    });
+
+    // Journal live prepend (D-05) — own rows only; cap at journal_depth (default 50).
+    es.addEventListener('historyRow', (e: MessageEvent) => {
+      try {
+        const row = JSON.parse(e.data) as {
+          uid?: number;
+          callerIdNum?: string;
+          callerIdName?: string;
+          direction?: IOperatorHistoryRow['direction'];
+          disposition?: IOperatorHistoryRow['disposition'];
+          agentUserUid?: number;
+          createdAt?: string;
+          callUniqueid?: string;
+          queueName?: string | null;
+        };
+        const myId = selectCurrentUser(store.getState())?.uniqueid;
+        if (myId == null || row.agentUserUid == null || Number(row.agentUserUid) !== Number(myId)) {
+          return;
+        }
+        const settings = callCenterApi.endpoints.getTenantSettings.select()(store.getState());
+        const rawDepth = settings?.data?.journal_depth;
+        const journalDepthN = typeof rawDepth === 'number' && rawDepth > 0 ? rawDepth : 50;
+        const mapped: IOperatorHistoryRow = {
+          uid: Number(row.uid ?? 0),
+          callUniqueid: String(row.callUniqueid ?? ''),
+          queueName: row.queueName ?? null,
+          callerIdNum: String(row.callerIdNum ?? ''),
+          callerIdName: String(row.callerIdName ?? ''),
+          direction: row.direction ?? 'inbound',
+          callType: null,
+          disposition: row.disposition ?? 'other',
+          enterTime: null,
+          answerTime: null,
+          endTime: row.createdAt ?? null,
+          waitTime: null,
+          talkTime: null,
+        };
+        dispatch(
+          callCenterApi.util.updateQueryData(
+            'getOperatorCallHistory',
+            { period: 'shift' },
+            (draft) => {
+              draft.unshift(mapped);
+              while (draft.length > journalDepthN) draft.pop();
+            },
+          ),
         );
       } catch { /* ignore */ }
     });

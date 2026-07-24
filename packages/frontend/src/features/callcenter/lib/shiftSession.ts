@@ -3,6 +3,12 @@ import type { SoftphoneMode } from '../ui/ShiftLoginModal/ShiftLoginModal';
 /** sessionStorage key for active operator shift (survives refresh, not logout). */
 export const CC_ACTIVE_SHIFT_KEY = 'cc:activeShift';
 
+/**
+ * Independent of ActiveShiftSession — dial buffer / last number must survive F5
+ * and shift clear (Phase 10 D-19).
+ */
+export const CC_DIAL_BUFFER_KEY = 'cc:dialBuffer';
+
 export interface ActiveShiftSession {
   interface: string;
   queues: string[];
@@ -13,6 +19,11 @@ export interface ActiveShiftSession {
   sipId: string;
   micDeviceId?: string;
   sinkId?: string;
+}
+
+export interface DialBufferSession {
+  dialBuffer: string;
+  lastNumber: string;
 }
 
 export function loadActiveShift(
@@ -57,4 +68,40 @@ export function clearActiveShift(
   storage: Pick<Storage, 'removeItem'> = sessionStorage,
 ): void {
   storage.removeItem(CC_ACTIVE_SHIFT_KEY);
+}
+
+export function loadDialBuffer(
+  storage: Pick<Storage, 'getItem'> = sessionStorage,
+): DialBufferSession | null {
+  try {
+    const raw = storage.getItem(CC_DIAL_BUFFER_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<DialBufferSession>;
+    if (
+      !parsed
+      || typeof parsed.dialBuffer !== 'string'
+      || typeof parsed.lastNumber !== 'string'
+    ) {
+      return null;
+    }
+    return {
+      dialBuffer: parsed.dialBuffer,
+      lastNumber: parsed.lastNumber,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function saveDialBuffer(
+  dial: DialBufferSession,
+  storage: Pick<Storage, 'setItem'> = sessionStorage,
+): void {
+  storage.setItem(CC_DIAL_BUFFER_KEY, JSON.stringify(dial));
+}
+
+export function clearDialBuffer(
+  storage: Pick<Storage, 'removeItem'> = sessionStorage,
+): void {
+  storage.removeItem(CC_DIAL_BUFFER_KEY);
 }

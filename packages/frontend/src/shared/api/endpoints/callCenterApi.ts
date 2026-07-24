@@ -88,12 +88,35 @@ export type AutoPauseRule =
 
 export interface ICcSettings {
   default_sla_threshold: number;
+  /** D-04: softphone Journal last-N depth (tenant setting, default 50). */
+  journal_depth?: number;
   alert_thresholds: Record<string, number> | null;
   alert_sound_enabled: boolean;
   /** Master switch for RONA + flexible rules (default true). */
   autopause_enabled?: boolean;
   /** D-15: empty/null → when enabled, engine fires only RONA. */
   autopause_rules?: AutoPauseRule[] | null;
+}
+
+/** Softphone shared contact book row (Phase 10 D-11…D-15). */
+export interface ICcContact {
+  uid: number;
+  name: string;
+  number: string;
+  note: string;
+  createdBy: number;
+  createdAt: string;
+}
+
+function mapCcContact(raw: Record<string, unknown>): ICcContact {
+  return {
+    uid: Number(raw.uid),
+    name: String(raw.name ?? ''),
+    number: String(raw.number ?? ''),
+    note: String(raw.note ?? ''),
+    createdBy: Number(raw.created_by ?? raw.createdBy ?? 0),
+    createdAt: String(raw.created_at ?? raw.createdAt ?? ''),
+  };
 }
 
 /** Display token for TV wallboard (D-26) — opaque, revocable. */
@@ -667,6 +690,37 @@ const callCenterApi = rtkApi.injectEndpoints({
       invalidatesTags: ['CcSettings'],
     }),
 
+    // ─── Softphone contacts / SIP DTMF / registration (Phase 10) ─
+    getMyContacts: build.query<ICcContact[], void>({
+      query: () => '/callcenter/contacts',
+      transformResponse: (raw: unknown): ICcContact[] =>
+        (Array.isArray(raw) ? raw : []).map((row) => mapCcContact(row as Record<string, unknown>)),
+      providesTags: ['CcContacts'],
+    }),
+    createContact: build.mutation<ICcContact, { name: string; number: string; note?: string }>({
+      query: (body) => ({ url: '/callcenter/contacts', method: 'POST', body }),
+      transformResponse: (raw: Record<string, unknown>) => mapCcContact(raw),
+      invalidatesTags: ['CcContacts'],
+    }),
+    updateContact: build.mutation<
+      ICcContact,
+      { id: number; body: { name?: string; number?: string; note?: string } }
+    >({
+      query: ({ id, body }) => ({ url: `/callcenter/contacts/${id}`, method: 'PUT', body }),
+      transformResponse: (raw: Record<string, unknown>) => mapCcContact(raw),
+      invalidatesTags: ['CcContacts'],
+    }),
+    deleteContact: build.mutation<{ success: boolean }, number>({
+      query: (id) => ({ url: `/callcenter/contacts/${id}`, method: 'DELETE' }),
+      invalidatesTags: ['CcContacts'],
+    }),
+    sendDtmf: build.mutation<{ success: boolean }, { uniqueid: string; digit: string }>({
+      query: (body) => ({ url: '/callcenter/agent/dtmf', method: 'POST', body }),
+    }),
+    getMyRegistrationState: build.query<{ online: boolean }, void>({
+      query: () => '/callcenter/agent/registration-state',
+    }),
+
     // ─── Internal Chat (D-30…D-32) ───────────────────────
     getChatChannels: build.query<IChatChannel[], void>({
       query: () => '/callcenter/chat/channels',
@@ -835,6 +889,12 @@ export const {
   useUpdateOperatorSettingsMutation,
   useGetTenantSettingsQuery,
   useUpdateTenantSettingsMutation,
+  useGetMyContactsQuery,
+  useCreateContactMutation,
+  useUpdateContactMutation,
+  useDeleteContactMutation,
+  useSendDtmfMutation,
+  useGetMyRegistrationStateQuery,
   useGetChatChannelsQuery,
   useGetChatContactsQuery,
   useGetChatMessagesQuery,
