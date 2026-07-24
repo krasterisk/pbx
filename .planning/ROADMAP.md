@@ -597,7 +597,7 @@ Plans:
 
 **Requirements:** D-01 … D-35 (locked decisions in `.planning/phases/10-full-softphone/10-CONTEXT.md`; no REQ-IDs, same convention as Phases 5-9)
 
-**Plans:** 7/9 plans executed
+**Plans:** 8/9 plans executed
 
 Plans:
 
@@ -608,7 +608,7 @@ Plans:
 - [x] 10-05-PLAN.md — SoftphoneJournal live blended feed (callback/open-card, N cap, empty+error) + journal_depth settings UI (D-01…D-05)
 - [x] 10-06-PLAN.md — SoftphoneContacts 5-section unified catalog + ContactBookForm inline CRUD (ownership-gated) (D-11…D-14/D-25)
 - [x] 10-07-PLAN.md — ARM CallHistoryPanel: Queue/Outbound/Personal segments + per-segment search (D-06…D-10)
-- [ ] 10-08-PLAN.md — SoftphoneWidget shell rework: remove fab + Tabs + mode prop + mount Journal/Contacts + redial/restore + registration/Recover + quality/devices (D-16…D-24/D-26/D-27/D-34)
+- [x] 10-08-PLAN.md — SoftphoneWidget shell rework: remove fab + Tabs + mode prop + mount Journal/Contacts + redial/restore + registration/Recover + quality/devices (D-16…D-24/D-26/D-27/D-34)
 - [ ] 10-09-PLAN.md — Dual-mode SIP: useSipPhoneAmi facade + CallCenterAgentPage isSip branch + live-Asterisk checkpoint (D-24/D-31…D-35)
 
 **Waves:** W1 {10-01, 10-02} · W2 {10-03} · W3 {10-04} · W4 {10-05, 10-06, 10-07} · W5 {10-08} · W6 {10-09}
