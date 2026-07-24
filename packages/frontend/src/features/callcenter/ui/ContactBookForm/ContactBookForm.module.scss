@@ -1,0 +1,33 @@
+/* ContactBookForm — Softphone Contacts Book Sheet (Phase 10 D-11…D-13) */
+
+.formGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 8px 0 16px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.deleteBody {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 8px 0;
+}
+
+.touchBtn {
+  min-height: 44px;
+  min-width: 44px;
+}

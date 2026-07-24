@@ -1,0 +1,197 @@
+/* SoftphoneContacts — Surface D (D-11…D-14, D-25) */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+  min-height: 0;
+  width: 100%;
+  max-width: 320px;
+}
+
+.searchRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 2px;
+  color: var(--color-muted-foreground);
+  flex-shrink: 0;
+
+  input {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  overflow-y: auto;
+  min-height: 0;
+  flex: 1;
+  max-height: 100%;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.sectionHeader {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 6px 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-muted-foreground);
+  background: color-mix(in srgb, var(--color-card, var(--color-background)) 92%, transparent);
+  backdrop-filter: blur(2px);
+}
+
+.sectionTitle {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-muted-foreground);
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 6px;
+  border-radius: var(--radius-md);
+
+  &:hover {
+    background: var(--color-accent);
+  }
+}
+
+.typeIcon {
+  color: var(--color-muted-foreground);
+  flex-shrink: 0;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.dotOnline {
+  background: var(--color-success);
+}
+
+.dotBusy {
+  background: var(--color-destructive);
+}
+
+.dotOffline {
+  background: var(--color-muted-foreground);
+  opacity: 0.5;
+}
+
+.rowMain {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+
+.rowLabel {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--color-foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rowMeta {
+  font-size: 0.75rem;
+}
+
+.freeCount {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.freeOk {
+  color: var(--color-success);
+}
+
+.freeWarning {
+  color: var(--color-warning);
+}
+
+.freeDanger {
+  color: var(--color-destructive);
+}
+
+.rowActions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+/* WCAG 2.5.5 — 44px minimum touch target for every row CTA. */
+.ctaBtn,
+.iconBtn {
+  min-height: 44px;
+  min-width: 44px;
+  flex-shrink: 0;
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 32px 16px;
+  text-align: center;
+  flex: 1;
+}
+
+.sectionEmpty {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 6px 12px;
+}
+
+.errorBanner {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-destructive);
+  background: color-mix(in srgb, var(--color-destructive) 8%, transparent);
+  flex-shrink: 0;
+}
