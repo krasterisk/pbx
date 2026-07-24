@@ -3,23 +3,25 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 10
+current_phase_name: full-softphone
 status: executing
-stopped_at: Completed 10-01-PLAN.md
-last_updated: "2026-07-24T14:41:35.844Z"
+stopped_at: Completed 10-02-PLAN.md
+last_updated: "2026-07-24T14:47:07.473Z"
 progress:
   total_phases: 10
   completed_phases: 7
   total_plans: 94
-  completed_plans: 85
+  completed_plans: 86
 ---
 
 # State
 
 ## Current position
 
-Phase: 10 (full-softphone) — EXECUTING Wave 1
+Phase: 10 (full-softphone) — EXECUTING Wave 2
 Plan 10-01 (cc_contacts backend CRUD): 2/2 tasks committed. Migration apply to live DB still pending (ops).
-Next: 10-02 (Journal SSE + journal_depth).
+Plan 10-02 (historyRow SSE + journal_depth): 2/2 tasks committed. Migration apply pending.
+Next: 10-03 (SIP AMI PlayDTMF + endpoint state).
 
 Also Phase 9 (complete, verify/UAT open):
 Plan 09-01 (schema/model foundation, wave 1): 3/3 tasks committed + migration applied to live DB.
@@ -175,9 +177,11 @@ Phase 1 — MOH: pending verify.
 - [Phase 09]: SkipThrottle on bypass routes names both default and global because AuthModule forRootAsync still registers default
 - [Phase 09]: Did not SkipThrottle callcenter operator/notifications — fix is app-wide scope, not a paper-over
 - [Phase 10]: cc_contacts net-new (not Phase 5 phonebooks); D-13 ownership in where clause
+- [Phase 10]: historyRow SSE after successful writer flush/createOne; journal_depth tenant setting default 50
 
 ## Roadmap Evolution
 
+- Phase 10 plan 10-02 complete (2026-07-24): historyRow SSE + journal_depth. Next: 10-03.
 - Phase 10 plan 10-01 complete (2026-07-24): cc_contacts tenant book + D-13 ownership CRUD. Next: 10-02.
 - Phase 10 planned (2026-07-24): 9 plans (`10-01`…`10-09`), 6 waves; RESEARCH + PATTERNS + VALIDATION + UI-SPEC; plan-checker PASSED (D-01…D-35). Dual-mode WebRTC+SIP/AMI; Journal≠History; cc_contacts book; chrome-only (FAB removed). Next: `/gsd-execute-phase 10`.
 - Phase 10 context gathered (2026-07-24): 6 областей; D-01…D-30 в `10-CONTEXT.md`. Dual Journal≠History; Contacts=directory+shared book; Recover UX; quality+devices; chrome-only (FAB removed); multi-call deferred. Next: `/gsd-ui-phase 10` или `/gsd-plan-phase 10`.
@@ -197,7 +201,7 @@ Phase 1 — MOH: pending verify.
 
 ## Next GSD command
 
-**Phase 10 executing:** continue `/gsd-execute-phase 10` — next `10-02-PLAN.md` (Journal SSE + journal_depth). Wave 1: 10-01 done.
+**Phase 10 executing:** continue `/gsd-execute-phase 10` — next `10-03-PLAN.md` (SIP AMI). Wave 1 done (10-01, 10-02).
 
 Also open: Phase 9 — UAT complete (`09-UAT.md` 2/2); `phase complete 9` blocked until `09-VERIFICATION.md` → `passed`. Phase 8 / 08-11 Task 3 — Android smoke, then `approved`.
 
@@ -275,9 +279,10 @@ Also open: Phase 9 — UAT complete (`09-UAT.md` 2/2); `phase complete 9` blocke
 | Phase 09-call-center-agent-panel P16 | 12min | 2 tasks | 3 files |
 | Phase 09-call-center-agent-panel P17 | 44min | 2 tasks | 9 files |
 | Phase 10 P01 | 25min | 2 tasks | 8 files |
+| Phase 10 P02 | 20min | 2 tasks | 7 files |
 
 ## Session
 
-**Last session:** 2026-07-24T14:41:35.791Z
-**Stopped at:** Completed 10-01-PLAN.md
-**Resume file:** .planning/phases/10-full-softphone/10-02-PLAN.md
+**Last session:** 2026-07-24T14:47:07.417Z
+**Stopped at:** Completed 10-02-PLAN.md
+**Resume file:** .planning/phases/10-full-softphone/10-03-PLAN.md
