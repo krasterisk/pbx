@@ -1,7 +1,7 @@
 ---
 phase: 10
 slug: full-softphone
-status: draft
+status: approved
 shadcn_initialized: false
 preset: none
 created: 2026-07-24
@@ -220,10 +220,14 @@ These extend the base template with the concrete, locked layout contracts per su
 
 ## Checker Sign-Off
 
-- [ ] Dimension 1 Copywriting: PASS
-- [ ] Dimension 2 Visuals: PASS
-- [ ] Dimension 3 Color: PASS
-- [ ] Dimension 4 Typography: PASS
+- [x] Dimension 1 Copywriting: FLAG (non-blocking — single-word CTAs Call/Recover accepted in dialpad context)
+- [x] Dimension 2 Visuals: FLAG (non-blocking — focal point + aria-label for icon-only actions noted for executor)
+- [x] Dimension 3 Color: PASS
+- [x] Dimension 4 Typography: FLAG (non-blocking — legacy 20px dial readout quarantined)
+- [x] Dimension 5 Spacing: PASS
+- [x] Dimension 6 Registry Safety: PASS
+
+**UI Considerations:** accepted researcher table (13 covered / 2 backstop / 0 unresolved) after kind confirm on plan-phase entry.
 - [ ] Dimension 5 Spacing: PASS
 - [ ] Dimension 6 Registry Safety: PASS
 
