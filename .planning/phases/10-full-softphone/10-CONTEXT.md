@@ -6,7 +6,7 @@
 <domain>
 ## Phase Boundary
 
-Полнофункциональный WebRTC-софтфон как отдельный продуктовый контур внутри АРМ оператора: Dial / Journal / Contacts, call features, качество связи, device picker, resilience — **вшит в chrome** (status strip / header), без плавающего FAB.
+Полнофункциональный softphone как отдельный продуктовый контур внутри АРМ оператора в **двух режимах**: WebRTC (браузер) и SIP (внешний аппарат / PJSIP endpoint). Один chrome UI (Dial / Journal / Contacts, call features); в WebRTC — медиа в браузере + sip.js; в SIP — медиа на аппарате, управление максимально аналогично через **AMI**. Вшит в chrome (status strip / header), без плавающего FAB.
 
 **In scope:**
 1. Softphone chrome shell (collapsed trigger · expanded panel · mobile sticky + sheet)
@@ -15,10 +15,11 @@
 4. Softphone Contacts — TransferDirectory + общая книга контактов тенанта
 5. ARM History panel enhancement — сегменты Queue/Outbound/Personal, фильтры/поиск, CallCard + phonebook
 6. Call-control ownership — status-bar essentials + softphone full set; remove FAB variant
-7. Call quality indicator + mid-shift device picker
-8. Resilience — WSS/re-REGISTER UX, Recover after timeout, F5 shift restore
-9. Auto-answer + zip tone parity with chrome UX
-10. i18n ru/en; a11y keyboard dial + ARIA tabs
+7. Call quality indicator + mid-shift device picker (**WebRTC only**; hide in SIP mode)
+8. Resilience — WebRTC: WSS/re-REGISTER; SIP: AMI endpoint state; Recover; F5 shift restore
+9. Auto-answer + zip tone parity with chrome UX (WebRTC); SIP — AMI-equivalent where applicable
+10. Dual-mode softphone: WebRTC path + SIP/AMI path (outbound = callback на внутренний номер)
+11. i18n ru/en; a11y keyboard dial + ARIA tabs
 
 **Out of scope:**
 - Video softphone
@@ -74,10 +75,18 @@
 - **D-29:** Второй входящий при активном звонке — **текущее queue/RONA/missed поведение**; не вторая линия softphone.
 - **D-30:** Park/retrieve — **оставить Phase 9** (role-gated в softphone full set + ParkedCallsIndicator).
 
+### Dual mode: WebRTC + SIP/AMI
+- **D-31:** Softphone работает в **двух режимах**: WebRTC (браузерный endpoint) и **SIP** (внешний клиент / аппаратный телефон на PJSIP). Режим определяется типом endpoint оператора на смене (как Phase 9 click-to-call branching). — **Reversibility:** costly — два transport path в одном UI.
+- **D-32:** В SIP-режиме — **полный UI-пульт** (Dial / Journal / Contacts / call controls) максимально аналогичен WebRTC; **медиа на аппарате**; набор / ответ / hangup / hold / transfer / DTMF / park / conference — через **AMI** (не sip.js).
+- **D-33:** Исходящая связь в SIP-режиме — **AMI callback/originate на внутренний номер оператора**, затем набор цели (существующий click-to-call / Call-Info pattern Phase 9 D-18/D-29); не WebRTC `makeCall`.
+- **D-34:** В SIP-режиме **скрыть** call quality indicator и device picker (нет getStats / браузерных устройств).
+- **D-35:** Trigger в SIP-режиме: **endpoint online / offline** по AMI DeviceState/ExtensionState; **Recover** = перезапрос AMI state (аналог re-REGISTER).
+
 ### Claude's Discretion
 - D-15: конкретная модель хранения общей книги контактов (phonebooks Phase 5 vs CC table).
 - Timeout значения для Recover (D-16) — разумный default на research/plan.
 - Точные SSE events для Journal invalidate (D-05) — research.
+- Точный mapping AMI actions ↔ softphone controls в SIP mode (D-32) — research; reuse Phase 9 call-control endpoints where possible.
 
 </decisions>
 
@@ -147,6 +156,7 @@
 - Softphone Journal должен ощущаться «как обычный софтфон», а History panel — «инструмент оператора» с сущностями и фильтрами.
 - Общая книга контактов — операторы наполняют; lookup имени на следующих звонках; исходящие из softphone.
 - FAB больше не нужен даже как fallback — вычистить variant.
+- Dual mode: внешний SIP-абонент = тот же chrome UX, транспорт AMI; исходящие = callback на внутренний номер.
 
 </specifics>
 
