@@ -4,8 +4,8 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 9
 status: unknown
-stopped_at: Completed 09-17-PLAN.md
-last_updated: "2026-07-23T11:08:13.064Z"
+stopped_at: Phase 10 context gathered
+last_updated: "2026-07-24T13:00:22.158Z"
 progress:
   total_phases: 10
   completed_phases: 7
@@ -173,6 +173,7 @@ Phase 1 — MOH: pending verify.
 
 ## Roadmap Evolution
 
+- Phase 10 context gathered (2026-07-24): 6 областей; D-01…D-30 в `10-CONTEXT.md`. Dual Journal≠History; Contacts=directory+shared book; Recover UX; quality+devices; chrome-only (FAB removed); multi-call deferred. Next: `/gsd-ui-phase 10` или `/gsd-plan-phase 10`.
 - Phase 10 prepared (2026-07-24): Full Softphone — WebRTC dial / journal / contacts in ARM chrome (no FAB); resilience WSS/re-REGISTER; call quality + device picker. Brief: `10-BRIEF.md`. Next: `/gsd-discuss-phase 10`.
 - Phase 9 planned (2026-07-22): 14 plans (`09-01`…`09-14`), 7 waves; RESEARCH + PATTERNS + VALIDATION + UI-SPEC; plan-checker PASSED (D-01…D-46). Softphone widget, status bar, hybrid tabs, missed-calls, ChanSpy/permissions, call-control, history/directory, settings. Next: `/gsd-execute-phase 9`.
 - Phase 9 UI-SPEC approved (2026-07-22): design contract verified 6/6 (2 non-blocking FLAGs — single-word softphone CTAs; aria-label for icon-only controls). Softphone widget, status bar, hybrid tabs/panels, missed-calls tool, transfer directory, settings; hand-built Radix/`shared/ui` + existing `--color-*` tokens; new `shared/ui/Tabs` required. See `09-UI-SPEC.md`.
@@ -269,6 +270,6 @@ Also open: Phase 9 — UAT complete (`09-UAT.md` 2/2); `phase complete 9` blocke
 
 ## Session
 
-**Last session:** 2026-07-23T08:54:33.983Z
-**Stopped at:** Completed 09-17-PLAN.md
-**Resume file:** None
+**Last session:** 2026-07-24T13:00:22.111Z
+**Stopped at:** Phase 10 context gathered
+**Resume file:** C:/Users/Professional/WebstormProjects/krasterisk_v4/.planning/phases/10-full-softphone/10-CONTEXT.md
