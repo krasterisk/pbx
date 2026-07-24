@@ -22,6 +22,7 @@ describe('CallCenterService', () => {
     queueRemove: jest.fn().mockResolvedValue(undefined),
     queuePause: jest.fn().mockResolvedValue(undefined),
     hangup: jest.fn().mockResolvedValue(undefined),
+    playDtmf: jest.fn().mockResolvedValue({ response: 'Success' }),
     action: jest.fn().mockResolvedValue({ response: 'Success' }),
     originate: jest.fn().mockResolvedValue(undefined),
     park: jest.fn().mockResolvedValue({ response: 'Success' }),
@@ -1484,6 +1485,83 @@ describe('CallCenterService', () => {
       expect(callGroupModel.findAll).toHaveBeenCalledWith(
         expect.objectContaining({ where: { user_uid: 7 } }),
       );
+    });
+  });
+
+  // ─── SIP DTMF + registration-state (Phase 10 D-32/D-35) ─
+
+  describe('sendDtmf', () => {
+    async function loginOwnCall() {
+      await service.agentLogin('PJSIP/101', ['sales'], 7, 42);
+      state.setCall('U1', {
+        uniqueid: 'U1',
+        userUid: 7,
+        agent: 'PJSIP/101',
+        agentChannel: 'PJSIP/101-00000001',
+        callerChannel: 'PJSIP/trunk-1-00000002',
+        status: 'TALKING',
+        queue: 'sales',
+      });
+      state.setAgent(7, 'PJSIP/101', { currentCall: 'U1', status: 'IN_CALL' });
+    }
+
+    it('calls playDtmf on the operator own agent channel for a valid digit', async () => {
+      await loginOwnCall();
+      const res = await service.sendDtmf(7, 42, 'U1', '5');
+      expect(res).toEqual({ success: true, uniqueid: 'U1', digit: '5' });
+      expect(ami.playDtmf).toHaveBeenCalledWith('PJSIP/101-00000001', '5');
+    });
+
+    it('rejects illegal/multi-char digits before AMI', async () => {
+      await loginOwnCall();
+      await expect(service.sendDtmf(7, 42, 'U1', '12')).rejects.toBeInstanceOf(BadRequestException);
+      await expect(service.sendDtmf(7, 42, 'U1', 'x')).rejects.toBeInstanceOf(BadRequestException);
+      expect(ami.playDtmf).not.toHaveBeenCalled();
+    });
+
+    it('does not dispatch PlayDTMF for a foreign or unknown uniqueid', async () => {
+      await loginOwnCall();
+      state.setCall('OTHER', {
+        uniqueid: 'OTHER',
+        userUid: 7,
+        agent: 'PJSIP/999',
+        agentChannel: 'PJSIP/999-00000009',
+        status: 'TALKING',
+        queue: 'sales',
+      });
+
+      await expect(service.sendDtmf(7, 42, 'OTHER', '1')).rejects.toBeInstanceOf(ForbiddenException);
+      await expect(service.sendDtmf(7, 42, 'MISSING', '1')).rejects.toBeInstanceOf(NotFoundException);
+      expect(ami.playDtmf).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getMyRegistrationState', () => {
+    it('returns online true when DeviceState is NOT_INUSE', async () => {
+      await service.agentLogin('PJSIP/e101_7', ['sales'], 7, 42);
+      presenceService.getPresence.mockReturnValue('NOT_INUSE');
+
+      const res = await service.getMyRegistrationState(7, 42);
+      expect(res).toEqual({ online: true });
+      expect(presenceService.getPresence).toHaveBeenCalledWith(7, '101');
+    });
+
+    it('returns online false for UNAVAILABLE or missing presence', async () => {
+      await service.agentLogin('PJSIP/e101_7', ['sales'], 7, 42);
+      presenceService.getPresence.mockReturnValue('UNAVAILABLE');
+      expect(await service.getMyRegistrationState(7, 42)).toEqual({ online: false });
+
+      presenceService.getPresence.mockReturnValue(undefined);
+      expect(await service.getMyRegistrationState(7, 42)).toEqual({ online: false });
+    });
+
+    it('maps WebRTC companion to primary SIP extension for presence lookup', async () => {
+      await service.agentLogin('PJSIP/ew101_7', ['sales'], 7, 42);
+      presenceService.getPresence.mockReturnValue('INUSE');
+
+      const res = await service.getMyRegistrationState(7, 42);
+      expect(res).toEqual({ online: true });
+      expect(presenceService.getPresence).toHaveBeenCalledWith(7, '101');
     });
   });
 });

@@ -477,6 +477,15 @@ export class AmiService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
+   * Send an in-call DTMF digit on a live channel (Phase 10 D-32 / SIP softphone).
+   * [ASSUMED — A1] PlayDTMF params `channel`/`digit` (no Duration) — verify on live
+   * Asterisk during 10-09 checkpoint.
+   */
+  async playDtmf(channel: string, digit: string): Promise<any> {
+    return this.action({ action: 'PlayDTMF', channel, digit });
+  }
+
+  /**
    * List all active channels via CoreShowChannels.
    * CoreShowChannels is an event-list action (Phase 9 D-27/D-28 zombie-call
    * reconciler): it resolves immediately with Success, then Asterisk emits

@@ -20,7 +20,7 @@ import { CcQueueCall } from './models/queue-call.model';
 import { CcMissedCall } from './models/missed-call.model';
 import { CcContact } from './models/cc-contact.model';
 import { TransferDto } from './dto/callcenter.dto';
-import { CreateContactDto, UpdateContactDto } from './dto/callcenter-contacts.dto';
+import { CreateContactDto, SendDtmfDto, UpdateContactDto } from './dto/callcenter-contacts.dto';
 import { CallCenterSettingsService } from './callcenter-settings.service';
 import { User } from '../users/user.model';
 import { PhonebookEntry } from '../phonebooks/phonebook-entry.model';
@@ -1632,6 +1632,72 @@ export class CallCenterService {
     if (!row) throw new NotFoundException('Contact not found');
     await row.destroy();
     return { success: true };
+  }
+
+  /**
+   * SIP-mode in-call DTMF via AMI PlayDTMF (D-32).
+   * Channel is resolved from the caller's own active call — never client-supplied.
+   * Digit must already be a single [0-9*#A-D] (DTO + defense-in-depth here).
+   */
+  async sendDtmf(userUid: number, userId: number, uniqueid: string, digit: string) {
+    if (!/^[0-9*#A-D]$/.test(digit)) {
+      throw new BadRequestException('Invalid DTMF digit');
+    }
+
+    userUid = this.resolveTenant(userUid, userId);
+    const agentInterface = await this.resolveAgentInterface(userUid, userId);
+    if (!agentInterface) throw new NotFoundException('Agent not logged in');
+
+    const call = this.stateService.getCall(uniqueid);
+    if (!call) throw new NotFoundException('Call not found');
+    if (call.userUid !== userUid) {
+      throw new BadRequestException('Call belongs to another tenant');
+    }
+    if (call.agent !== agentInterface) {
+      throw new ForbiddenException("Only the operator's own call can receive DTMF");
+    }
+
+    const channel = call.agentChannel || call.callerChannel;
+    if (!channel) {
+      throw new BadRequestException('Call channel not available');
+    }
+
+    try {
+      await this.amiService.playDtmf(channel, digit);
+    } catch (err: any) {
+      this.logger.warn(`PlayDTMF failed for ${channel} digit=${digit}: ${err?.message}`);
+      throw new BadRequestException(`DTMF failed: ${err?.message}`);
+    }
+
+    return { success: true, uniqueid, digit };
+  }
+
+  /**
+   * Operator's own endpoint online/offline for SIP softphone trigger (D-35).
+   * Extension/mode re-derived server-side — never trust client-supplied mode.
+   * [ASSUMED — A3] DeviceState state strings via CallCenterPresenceService.
+   */
+  async getMyRegistrationState(userUid: number, userId: number): Promise<{ online: boolean }> {
+    userUid = this.resolveTenant(userUid, userId);
+    const agentInterface = await this.resolveAgentInterface(userUid, userId);
+    if (!agentInterface) {
+      return { online: false };
+    }
+
+    const sipId = agentInterface.includes('/')
+      ? agentInterface.slice(agentInterface.indexOf('/') + 1)
+      : agentInterface;
+    // WebRTC companion → look up primary SIP handset registration; else self.
+    const endpointId = isWebrtcCompanion(sipId) ? (primaryIdOf(sipId) ?? sipId) : sipId;
+    const extension = extractExtension(endpointId);
+
+    const state = this.presenceService.getPresence(userUid, extension);
+    if (!state) {
+      return { online: false };
+    }
+    // Offline DeviceState values; anything else (NOT_INUSE/INUSE/BUSY/RINGING/…) = online.
+    const offline = /^(unavailable|invalid|unknown)$/i.test(String(state).trim());
+    return { online: !offline };
   }
 
   /**

@@ -34,7 +34,7 @@ import {
 } from './dto/callcenter-callcontrol.dto';
 import { MissedCallActionDto } from './dto/callcenter-missed.dto';
 import { DirectoryQueryDto } from './dto/callcenter-directory.dto';
-import { CreateContactDto, UpdateContactDto } from './dto/callcenter-contacts.dto';
+import { CreateContactDto, SendDtmfDto, UpdateContactDto } from './dto/callcenter-contacts.dto';
 
 // ─── Helpers ──────────────────────────────────────────────
 
@@ -211,6 +211,26 @@ export class CallCenterController {
   @Post('agent/click-to-call')
   clickToCall(@Body() dto: ClickToCallDto, @Req() req: Request & { user: any }) {
     return this.ccService.clickToCall(dto.target, req.user.vpbx_user_uid, req.user.sub);
+  }
+
+  /** SIP-mode in-call DTMF via AMI PlayDTMF (D-32). Channel from own active call only. */
+  @Post('agent/dtmf')
+  sendDtmf(@Body() dto: SendDtmfDto, @Req() req: Request & { user: any }) {
+    return this.ccService.sendDtmf(
+      req.user.vpbx_user_uid,
+      req.user.sub,
+      dto.uniqueid,
+      dto.digit,
+    );
+  }
+
+  /**
+   * Own endpoint online/offline for SIP softphone trigger (D-35).
+   * Extension re-derived server-side — no client mode/extension.
+   */
+  @Get('agent/registration-state')
+  getMyRegistrationState(@Req() req: Request & { user: any }) {
+    return this.ccService.getMyRegistrationState(req.user.vpbx_user_uid, req.user.sub);
   }
 
   // ─── Missed Calls ─────────────────────────────────────
