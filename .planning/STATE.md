@@ -4,8 +4,8 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 9
 status: unknown
-stopped_at: Phase 10 context gathered
-last_updated: "2026-07-24T13:00:22.158Z"
+stopped_at: Phase 10 UI-SPEC approved
+last_updated: "2026-07-24T13:21:06.361Z"
 progress:
   total_phases: 10
   completed_phases: 7
@@ -270,6 +270,6 @@ Also open: Phase 9 — UAT complete (`09-UAT.md` 2/2); `phase complete 9` blocke
 
 ## Session
 
-**Last session:** 2026-07-24T13:00:22.111Z
-**Stopped at:** Phase 10 context gathered
-**Resume file:** C:/Users/Professional/WebstormProjects/krasterisk_v4/.planning/phases/10-full-softphone/10-CONTEXT.md
+**Last session:** 2026-07-24T13:21:06.306Z
+**Stopped at:** Phase 10 UI-SPEC approved
+**Resume file:** .planning/phases/10-full-softphone/10-UI-SPEC.md
