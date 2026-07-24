@@ -18,7 +18,9 @@ import { CcAgentSession } from './models/agent-session.model';
 import { CcAgentEvent } from './models/agent-event.model';
 import { CcQueueCall } from './models/queue-call.model';
 import { CcMissedCall } from './models/missed-call.model';
+import { CcContact } from './models/cc-contact.model';
 import { TransferDto } from './dto/callcenter.dto';
+import { CreateContactDto, UpdateContactDto } from './dto/callcenter-contacts.dto';
 import { CallCenterSettingsService } from './callcenter-settings.service';
 import { User } from '../users/user.model';
 import { PhonebookEntry } from '../phonebooks/phonebook-entry.model';
@@ -61,6 +63,7 @@ export class CallCenterService {
     @InjectModel(CallGroup) private readonly callGroupModel: typeof CallGroup,
     @InjectModel(CallGroupMember) private readonly callGroupMemberModel: typeof CallGroupMember,
     private readonly presenceService: CallCenterPresenceService,
+    @InjectModel(CcContact) private readonly contactModel: typeof CcContact,
   ) {}
 
   // ─── Helpers ─────────────────────────────────────────────
@@ -1571,6 +1574,63 @@ export class CallCenterService {
     const reason = await this.pauseReasonModel.findOne({ where: { uid: id, user_uid: userUid } });
     if (!reason) throw new NotFoundException('Pause reason not found');
     await reason.destroy();
+    return { success: true };
+  }
+
+  // ─── Softphone contact book (D-11…D-15) ─────────────────
+
+  /** Tenant-scoped shared book for Contacts "Книга" — never trust client tenant ids. */
+  async getMyContacts(userUid: number) {
+    return this.contactModel.findAll({
+      where: { user_uid: userUid },
+      order: [['name', 'ASC']],
+    });
+  }
+
+  async createContact(dto: CreateContactDto, userUid: number, userId: number) {
+    return this.contactModel.create({
+      name: dto.name,
+      number: dto.number,
+      note: dto.note ?? null,
+      user_uid: userUid,
+      created_by: userId,
+    });
+  }
+
+  /**
+   * D-13: ownership folded into where (operator = own rows only; supervisor any tenant row).
+   * Never a post-fetch ownership if — NotFound when absent from filtered where.
+   */
+  async updateContact(
+    id: number,
+    dto: UpdateContactDto,
+    userUid: number,
+    userId: number,
+    isSupervisor: boolean,
+  ) {
+    const where: Record<string, number> = { uid: id, user_uid: userUid };
+    if (!isSupervisor) where.created_by = userId;
+    const row = await this.contactModel.findOne({ where });
+    if (!row) throw new NotFoundException('Contact not found');
+    // Never trust client user_uid / created_by — only whitelist fields from DTO.
+    const patch: { name?: string; number?: string; note?: string | null } = {};
+    if (dto.name !== undefined) patch.name = dto.name;
+    if (dto.number !== undefined) patch.number = dto.number;
+    if (dto.note !== undefined) patch.note = dto.note;
+    return row.update(patch);
+  }
+
+  async deleteContact(
+    id: number,
+    userUid: number,
+    userId: number,
+    isSupervisor: boolean,
+  ) {
+    const where: Record<string, number> = { uid: id, user_uid: userUid };
+    if (!isSupervisor) where.created_by = userId;
+    const row = await this.contactModel.findOne({ where });
+    if (!row) throw new NotFoundException('Contact not found');
+    await row.destroy();
     return { success: true };
   }
 

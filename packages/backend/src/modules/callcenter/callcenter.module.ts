@@ -46,6 +46,7 @@ import { CcAgentSession } from './models/agent-session.model';
 import { CcAgentEvent } from './models/agent-event.model';
 import { CcAgentQueue } from './models/agent-queue.model';
 import { CcMissedCall } from './models/missed-call.model';
+import { CcContact } from './models/cc-contact.model';
 import { CcQueueCall } from './models/queue-call.model';
 import { CcDailyQueueStats } from './models/daily-queue-stats.model';
 import { CcDailyAgentStats } from './models/daily-agent-stats.model';
@@ -79,6 +80,7 @@ import { queueLogReaderProvider } from './queuelog/queue-log-reader.factory';
       CcAgentEvent,
       CcAgentQueue,
       CcMissedCall,
+      CcContact,
       CcQueueCall,
       CcDailyQueueStats,
       CcDailyAgentStats,

@@ -119,6 +119,11 @@ describe('CallCenterService', () => {
   const callGroupMemberModel: any = {
     findAll: jest.fn().mockResolvedValue([]),
   };
+  const contactModel: any = {
+    findAll: jest.fn().mockResolvedValue([]),
+    findOne: jest.fn(),
+    create: jest.fn(),
+  };
   const presenceService: any = {
     getPresence: jest.fn().mockReturnValue(undefined),
   };
@@ -148,6 +153,7 @@ describe('CallCenterService', () => {
       callGroupModel,
       callGroupMemberModel,
       presenceService,
+      contactModel,
     );
   });
 

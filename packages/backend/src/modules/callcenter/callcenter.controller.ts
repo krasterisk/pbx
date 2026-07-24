@@ -34,11 +34,16 @@ import {
 } from './dto/callcenter-callcontrol.dto';
 import { MissedCallActionDto } from './dto/callcenter-missed.dto';
 import { DirectoryQueryDto } from './dto/callcenter-directory.dto';
+import { CreateContactDto, UpdateContactDto } from './dto/callcenter-contacts.dto';
 
 // ─── Helpers ──────────────────────────────────────────────
 
 /** Minimum user level for supervisor actions */
 const SUPERVISOR_LEVEL = 3;
+
+function isSupervisorUser(user: any): boolean {
+  return Number(user?.level) >= SUPERVISOR_LEVEL;
+}
 
 function assertSupervisor(user: any): void {
   if (user.level < SUPERVISOR_LEVEL) {
@@ -266,6 +271,43 @@ export class CallCenterController {
   @Get('agent/directory')
   getTransferDirectory(@Query() query: DirectoryQueryDto, @Req() req: Request & { user: any }) {
     return this.ccService.getTransferDirectory(req.user.vpbx_user_uid, query.search);
+  }
+
+  // ─── Softphone contact book (D-11…D-15) ───────────────
+
+  @Get('contacts')
+  getMyContacts(@Req() req: Request & { user: any }) {
+    return this.ccService.getMyContacts(req.user.vpbx_user_uid);
+  }
+
+  @Post('contacts')
+  createContact(@Body() dto: CreateContactDto, @Req() req: Request & { user: any }) {
+    return this.ccService.createContact(dto, req.user.vpbx_user_uid, Number(req.user.sub));
+  }
+
+  @Put('contacts/:id')
+  updateContact(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateContactDto,
+    @Req() req: Request & { user: any },
+  ) {
+    return this.ccService.updateContact(
+      id,
+      dto,
+      req.user.vpbx_user_uid,
+      Number(req.user.sub),
+      isSupervisorUser(req.user),
+    );
+  }
+
+  @Delete('contacts/:id')
+  deleteContact(@Param('id', ParseIntPipe) id: number, @Req() req: Request & { user: any }) {
+    return this.ccService.deleteContact(
+      id,
+      req.user.vpbx_user_uid,
+      Number(req.user.sub),
+      isSupervisorUser(req.user),
+    );
   }
 
   // ─── Client Card (sidebar lookup) ─────────────────────
