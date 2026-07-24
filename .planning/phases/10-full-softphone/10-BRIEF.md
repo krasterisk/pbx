@@ -68,7 +68,6 @@ Phase 9 закрыла АРМ (статус-бар, вкладки, KPI, missed,
 - Status-bar hosts softphone trigger alongside missed/chat
 
 ## Next GSD steps
-1. `/gsd-discuss-phase 10` — зафиксировать D-XX (journal source, contact sources, multi-call, quality metrics MVP)
-2. `/gsd-ui-phase 10` — UI-SPEC softphone surfaces (Dial / Journal / Contacts + chrome states)
-3. `/gsd-plan-phase 10` — backend+frontend plans
-4. `/gsd-execute-phase 10` → `/gsd-verify-work 10`
+1. `/gsd-ui-phase 10` — UI-SPEC softphone surfaces (Dial / Journal / Contacts + chrome states)
+2. `/gsd-plan-phase 10` — backend+frontend plans
+3. `/gsd-execute-phase 10` → `/gsd-verify-work 10`
