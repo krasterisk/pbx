@@ -20,6 +20,7 @@ import {
 import { useCallCenterSSE } from '@/features/callcenter/lib/useCallCenterSSE';
 import { useCallCenterNotifications } from '@/features/callcenter/lib/useCallCenterNotifications';
 import { useWebRTCPhone } from '@/features/callcenter/lib/useWebRTCPhone';
+import { useSipPhoneAmi } from '@/features/callcenter/lib/useSipPhoneAmi';
 import { PauseReasonModal } from '@/features/callcenter/ui/PauseReasonModal/PauseReasonModal';
 import { ClientCard } from '@/features/callcenter/ui/ClientCard/ClientCard';
 import { CallCardPopup } from '@/features/callcenter/ui/CallCardPopup';
@@ -200,6 +201,7 @@ export function CallCenterAgentPage() {
       ? 'webrtc'
       : null);
   const isWebrtc = effectiveSoftphoneMode === 'webrtc';
+  const isSip = effectiveSoftphoneMode === 'sip';
   const phone = useWebRTCPhone({
     server: webrtcConfig?.wssUrl || '',
     sipUser: sipCredentials?.username || '',
@@ -212,6 +214,37 @@ export function CallCenterAgentPage() {
     sinkId,
     micDeviceId,
   });
+
+  // Active call from Call Center SSE (queue AMI) — computed early so useSipPhoneAmi can bind.
+  // Prefer agent.currentCall (set on AgentCalled / AgentConnect); fall back to a
+  // RINGING row offered to this agent so WebRTC ring shows queue — not Personal.
+  const activeCall = useMemo(() => {
+    if (!myAgent) return null;
+    // After RONA auto-pause the RINGING row can linger — do not keep call chrome.
+    if (
+      myAgent.status === 'PAUSED'
+      || myAgent.status === 'OUTBOUND_WORK'
+      || myAgent.status === 'OFFLINE'
+      || myAgent.status === 'READY'
+      || myAgent.status === 'WRAPUP'
+    ) {
+      return null;
+    }
+    if (myAgent.currentCall) {
+      const bound = calls.find((c) => c.uniqueid === myAgent.currentCall);
+      if (bound) return bound;
+    }
+    if (myAgent.status === 'RINGING') {
+      return (
+        calls.find(
+          (c) => c.status === 'RINGING' && c.agent === myAgent.interface,
+        ) ?? null
+      );
+    }
+    return null;
+  }, [myAgent, calls]);
+
+  const sipPhone = useSipPhoneAmi(activeCall);
 
   // RTK mutations
   const [agentLogin] = useAgentLoginMutation();
@@ -364,35 +397,7 @@ export function CallCenterAgentPage() {
     setPauseModalOpen(false);
   }, [agentPause]);
 
-  // Active call from Call Center SSE (queue AMI).
-  // Prefer agent.currentCall (set on AgentCalled / AgentConnect); fall back to a
-  // RINGING row offered to this agent so WebRTC ring shows queue — not Personal.
-  const activeCall = useMemo(() => {
-    if (!myAgent) return null;
-    // After RONA auto-pause the RINGING row can linger — do not keep call chrome.
-    if (
-      myAgent.status === 'PAUSED'
-      || myAgent.status === 'OUTBOUND_WORK'
-      || myAgent.status === 'OFFLINE'
-      || myAgent.status === 'READY'
-      || myAgent.status === 'WRAPUP'
-    ) {
-      return null;
-    }
-    if (myAgent.currentCall) {
-      const bound = calls.find((c) => c.uniqueid === myAgent.currentCall);
-      if (bound) return bound;
-    }
-    if (myAgent.status === 'RINGING') {
-      return (
-        calls.find(
-          (c) => c.status === 'RINGING' && c.agent === myAgent.interface,
-        ) ?? null
-      );
-    }
-    return null;
-  }, [myAgent, calls]);
-
+  // Active call bound above (before sipPhone) for the SIP AMI facade.
   const webrtcRinging = isWebrtc && phone.status === 'ringing';
   const webrtcDialing = isWebrtc && phone.status === 'dialing';
   const webrtcInCall = isWebrtc && phone.status === 'in-call';
@@ -434,6 +439,8 @@ export function CallCenterAgentPage() {
         } else {
           await phone.blindTransfer(target);
         }
+      } else if (isSip) {
+        await sipPhone.transfer(target, transferType);
       } else {
         if (!activeCall) {
           throw new Error(t('callcenter.transfer.noActiveCall', 'No active call to transfer'));
@@ -457,7 +464,7 @@ export function CallCenterAgentPage() {
     } finally {
       setTransferBusy(false);
     }
-  }, [agentTransfer, transferType, isWebrtc, phone, activeCall, t]);
+  }, [agentTransfer, transferType, isWebrtc, isSip, phone, sipPhone, activeCall, t]);
 
   const handleTransfer = useCallback(() => {
     void executeTransfer(transferTarget);
@@ -471,6 +478,8 @@ export function CallCenterAgentPage() {
         if (isWebrtc) {
           if (type === 'attended') await phone.attendedTransfer(target);
           else await phone.blindTransfer(target);
+        } else if (isSip) {
+          await sipPhone.transfer(target, type);
         } else {
           if (!activeCall) return;
           await agentTransfer({
@@ -488,7 +497,7 @@ export function CallCenterAgentPage() {
         toast.error(message);
       }
     })();
-  }, [agentTransfer, activeCall, isWebrtc, phone, t]);
+  }, [agentTransfer, activeCall, isWebrtc, isSip, phone, sipPhone, t]);
 
   // Mute toggle — WebRTC uses local track; SIP softphone mute updates local UI state only;
   // remote mute via Asterisk AMI MuteAudio is follow-up DEF-07-MUTE-AMI.
@@ -499,8 +508,14 @@ export function CallCenterAgentPage() {
       setIsMuted(!phone.isMuted);
       return;
     }
+    if (isSip) {
+      if (sipPhone.isMuted) sipPhone.unmute();
+      else sipPhone.mute();
+      setIsMuted(!sipPhone.isMuted);
+      return;
+    }
     setIsMuted(prev => !prev);
-  }, [isWebrtc, phone]);
+  }, [isWebrtc, isSip, phone, sipPhone]);
 
   const handleHoldToggle = useCallback(() => {
     if (isWebrtc) {
@@ -508,14 +523,27 @@ export function CallCenterAgentPage() {
       else void phone.hold();
       return;
     }
+    if (isSip) {
+      if (sipPhone.isHeld) void sipPhone.unhold();
+      else void sipPhone.hold();
+      return;
+    }
     if (activeCall?.status === 'HOLD') agentUnhold();
     else agentHold();
-  }, [isWebrtc, phone, activeCall?.status, agentHold, agentUnhold]);
+  }, [isWebrtc, isSip, phone, sipPhone, activeCall?.status, agentHold, agentUnhold]);
 
   const handleHangup = useCallback(() => {
-    if (isWebrtc) void phone.hangup();
+    if (isWebrtc) {
+      void phone.hangup();
+      if (activeCall) agentHangup({});
+      return;
+    }
+    if (isSip) {
+      void sipPhone.hangup();
+      return;
+    }
     if (activeCall) agentHangup({});
-  }, [isWebrtc, phone, activeCall, agentHangup]);
+  }, [isWebrtc, isSip, phone, sipPhone, activeCall, agentHangup]);
 
   const handleShiftLogin = useCallback(async (result: ShiftLoginResult) => {
     setSoftphoneMode(result.mode);
@@ -841,10 +869,10 @@ export function CallCenterAgentPage() {
             <HStack gap="8" className={styles.headerTools}>
               <MissedCallsPanel />
               <ParkedCallsIndicator showLabel />
-              {isWebrtc && (
+              {(isWebrtc || isSip) && (
                 <SoftphoneWidget
-                  phone={phone}
-                  variant="chrome"
+                  phone={isWebrtc ? phone : sipPhone}
+                  mode={isWebrtc ? 'webrtc' : 'sip'}
                   showLabel
                   callerName={activeCallLabel}
                   queueLabel={activeCallQueueLabel}
@@ -857,13 +885,15 @@ export function CallCenterAgentPage() {
                   activeCallUniqueid={activeCall?.uniqueid}
                   pendingOutboundDial={pendingOutboundDial}
                   onOutboundDialConsumed={() => dispatch(clearOutboundDial())}
+                  onMicDeviceChange={setMicDeviceId}
+                  onSpeakerDeviceChange={setSinkId}
                   extraControls={showCallControls ? (
                     <CallControlBar
                       variant="extended"
                       uniqueid={activeCall?.uniqueid}
                       isZombie={activeCall?.zombieCandidate ?? false}
-                      isMuted={isWebrtc ? phone.isMuted : isMuted}
-                      isHeld={isWebrtc ? phone.isHeld : activeCall?.status === 'HOLD'}
+                      isMuted={isWebrtc ? phone.isMuted : isSip ? sipPhone.isMuted : isMuted}
+                      isHeld={isWebrtc ? phone.isHeld : isSip ? sipPhone.isHeld : activeCall?.status === 'HOLD'}
                       onMuteToggle={handleMuteToggle}
                       onHoldToggle={handleHoldToggle}
                       onHangup={handleHangup}
@@ -925,8 +955,8 @@ export function CallCenterAgentPage() {
               kpiDisplay={kpiDisplay}
               activeCall={statusBarActiveCall}
               callControls={showCallControls ? {
-                isMuted: isWebrtc ? phone.isMuted : isMuted,
-                isHeld: isWebrtc ? phone.isHeld : activeCall?.status === 'HOLD',
+                isMuted: isWebrtc ? phone.isMuted : isSip ? sipPhone.isMuted : isMuted,
+                isHeld: isWebrtc ? phone.isHeld : isSip ? sipPhone.isHeld : activeCall?.status === 'HOLD',
                 onMuteToggle: handleMuteToggle,
                 onHoldToggle: handleHoldToggle,
                 onHangup: handleHangup,

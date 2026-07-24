@@ -1,2 +1,7 @@
 export { SoftphoneWidget } from './SoftphoneWidget';
-export type { SoftphoneWidgetProps, SoftphonePlacement } from './SoftphoneWidget';
+export type {
+  SoftphoneWidgetProps,
+  SoftphoneWidgetPhone,
+  SoftphoneMode,
+  SoftphoneVariant,
+} from './SoftphoneWidget';

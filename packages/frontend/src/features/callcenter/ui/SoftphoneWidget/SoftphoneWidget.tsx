@@ -2,33 +2,70 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Mic, MicOff, Pause, Play, Phone, PhoneOff, PhoneForwarded, PhoneIncoming, Users,
-  BookUser, History,
+  BookUser, History, RotateCcw,
 } from 'lucide-react';
 import {
-  Button, Text, HStack, VStack, Tooltip,
+  Button, Text, HStack, VStack, Tooltip, Select, Tabs, TabsList, TabsTrigger, TabsContent,
   Sheet, SheetContent, SheetHeader, SheetTitle,
 } from '@/shared/ui';
 import { DialpadGrid, DIALPAD_KEYS } from '@/features/callcenter/ui/DtmfKeypad/DialpadGrid';
 import { DtmfKeypad } from '@/features/callcenter/ui/DtmfKeypad/DtmfKeypad';
 import { TransferDirectory } from '@/features/callcenter/ui/TransferDirectory';
+import { CallQualityIndicator } from '@/features/callcenter/ui/CallQualityIndicator/CallQualityIndicator';
 import { useIsMobile } from '@/shared/hooks/useIsMobile';
-import type { useWebRTCPhone } from '@/features/callcenter/lib/useWebRTCPhone';
+import {
+  audioDeviceLabel,
+  useAudioDevices,
+} from '@/features/callcenter/lib/useAudioDevices';
+import {
+  loadDialBuffer,
+  saveDialBuffer,
+} from '@/features/callcenter/lib/shiftSession';
+import type { CallQuality } from '@/features/callcenter/lib/useWebRTCPhone';
+import { SoftphoneJournal } from './SoftphoneJournal';
+import { SoftphoneContacts } from './SoftphoneContacts';
 import styles from './SoftphoneWidget.module.scss';
 
-export type SoftphonePlacement = 'bottom-right' | 'bottom-left' | 'hidden';
-export type SoftphoneVariant = 'fab' | 'chrome';
+/** Chrome-only softphone shell (D-26). */
+export type SoftphoneVariant = 'chrome';
+export type SoftphoneMode = 'webrtc' | 'sip';
 type SoftphoneTab = 'dial' | 'journal' | 'contacts';
 
+/**
+ * Transport-agnostic phone contract. SoftphoneWidget imports neither useWebRTCPhone
+ * nor useSipPhoneAmi — both hooks satisfy this by shape (D-31 / Anti-Pattern 1).
+ */
+export interface SoftphoneWidgetPhone {
+  status: string;
+  callInfo: { from?: string; to?: string } | null;
+  isHeld: boolean;
+  isMuted: boolean;
+  hangup: () => void | Promise<void>;
+  hold: () => void | Promise<void>;
+  unhold: () => void | Promise<void>;
+  mute: () => void;
+  unmute: () => void;
+  sendDtmf: (digit: string) => void | Promise<void>;
+  makeCall: (target: string) => Promise<void>;
+  /** WebRTC-only optional fields */
+  quality?: CallQuality;
+  ensureConnected?: (force?: boolean) => void | Promise<void>;
+  acceptCall?: () => void | Promise<void>;
+  rejectCall?: () => void | Promise<void>;
+  switchMicrophone?: (deviceId: string) => Promise<void>;
+  switchSpeaker?: (deviceId: string) => Promise<void>;
+}
+
 export interface SoftphoneWidgetProps {
-  /** Return value of useWebRTCPhone - this widget only renders it, never forks call logic. */
-  phone: ReturnType<typeof useWebRTCPhone>;
+  /** Structural phone interface — widget only renders it, never forks call logic. */
+  phone: SoftphoneWidgetPhone;
+  /** Gates quality + device picker (D-34). Defaults to webrtc for backward compatibility. */
+  mode?: SoftphoneMode;
   callerName?: string;
   queueLabel?: string;
   /** Elapsed call seconds, owned by the page orchestrator's timer. */
   callSeconds?: number;
-  /** @deprecated FAB corner placement — prefer variant="chrome" docked in the status bar. */
-  placement?: SoftphonePlacement;
-  /** fab = floating corner button; chrome = inline header/status trigger. */
+  /** @deprecated Always chrome (D-26). Kept so call sites compiling against old props stay green. */
   variant?: SoftphoneVariant;
   /** Show text label next to the chrome trigger (e.g. "Softphone"). */
   showLabel?: boolean;
@@ -49,6 +86,98 @@ export interface SoftphoneWidgetProps {
    */
   pendingOutboundDial?: string | null;
   onOutboundDialConsumed?: () => void;
+  /** Persist preferred mic when operator picks a device mid-shift (WebRTC). */
+  onMicDeviceChange?: (deviceId: string | undefined) => void;
+  /** Persist preferred speaker when operator picks a device mid-shift (WebRTC). */
+  onSpeakerDeviceChange?: (deviceId: string | undefined) => void;
+}
+
+const RECOVER_TIMEOUT_MS = 10_000;
+
+/** WebRTC-only device rows — isolated so SIP mode never mounts useAudioDevices. */
+function SoftphoneDevicePicker({
+  phone,
+  deviceError,
+  onDeviceError,
+  onMicDeviceChange,
+  onSpeakerDeviceChange,
+}: {
+  phone: SoftphoneWidgetPhone;
+  deviceError: string | null;
+  onDeviceError: (msg: string | null) => void;
+  onMicDeviceChange?: (deviceId: string | undefined) => void;
+  onSpeakerDeviceChange?: (deviceId: string | undefined) => void;
+}) {
+  const { t } = useTranslation();
+  const audioDevices = useAudioDevices();
+
+  const handleMicChange = async (deviceId: string) => {
+    onDeviceError(null);
+    audioDevices.setSelectedMic(deviceId);
+    const preferred = deviceId === 'default' ? undefined : deviceId;
+    onMicDeviceChange?.(preferred);
+    if (!phone.switchMicrophone) return;
+    try {
+      await phone.switchMicrophone(deviceId);
+    } catch {
+      onDeviceError(t('callcenter.softphone.deviceSwitchFailed', 'Could not switch device'));
+    }
+  };
+
+  const handleSpeakerChange = async (deviceId: string) => {
+    onDeviceError(null);
+    audioDevices.setSelectedSpeaker(deviceId);
+    const preferred = deviceId === 'default' ? undefined : deviceId;
+    onSpeakerDeviceChange?.(preferred);
+    if (!phone.switchSpeaker) return;
+    try {
+      await phone.switchSpeaker(deviceId);
+    } catch {
+      onDeviceError(t('callcenter.softphone.deviceSwitchFailed', 'Could not switch device'));
+    }
+  };
+
+  return (
+    <VStack gap="8" className={styles.devicePicker} data-testid="softphone-device-picker">
+      <label className={styles.deviceRow}>
+        <Text className={styles.deviceLabel}>{t('callcenter.softphone.microphone', 'Microphone')}</Text>
+        <Select
+          value={audioDevices.selectedMic}
+          onChange={(e) => void handleMicChange(e.target.value)}
+          aria-label={t('callcenter.softphone.microphone', 'Microphone')}
+          data-testid="softphone-mic-select"
+        >
+          <option value="default">Default</option>
+          {audioDevices.microphones.map((d, i) => (
+            <option key={d.deviceId} value={d.deviceId}>
+              {audioDeviceLabel(d, i, 'mic')}
+            </option>
+          ))}
+        </Select>
+      </label>
+      <label className={styles.deviceRow}>
+        <Text className={styles.deviceLabel}>{t('callcenter.softphone.speaker', 'Speaker')}</Text>
+        <Select
+          value={audioDevices.selectedSpeaker}
+          onChange={(e) => void handleSpeakerChange(e.target.value)}
+          aria-label={t('callcenter.softphone.speaker', 'Speaker')}
+          data-testid="softphone-speaker-select"
+        >
+          <option value="default">Default</option>
+          {audioDevices.speakers.map((d, i) => (
+            <option key={d.deviceId} value={d.deviceId}>
+              {audioDeviceLabel(d, i, 'speaker')}
+            </option>
+          ))}
+        </Select>
+      </label>
+      {deviceError ? (
+        <Text variant="muted" className={styles.deviceError} data-testid="softphone-device-error">
+          {deviceError}
+        </Text>
+      ) : null}
+    </VStack>
+  );
 }
 
 function formatCallTime(totalSeconds: number): string {
@@ -57,13 +186,25 @@ function formatCallTime(totalSeconds: number): string {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
+type RegVisual = 'online' | 'registering' | 'offline';
+
+function registrationVisual(status: string, mode: SoftphoneMode): RegVisual {
+  if (status === 'registered' || status === 'in-call' || status === 'ringing' || status === 'dialing') {
+    return 'online';
+  }
+  if (status === 'connecting') return 'registering';
+  if (status === 'disconnected') return 'offline';
+  // SIP binary presence: treat unknown as offline (D-35 — no registering in SIP)
+  if (mode === 'sip') return status === 'online' ? 'online' : 'offline';
+  return 'offline';
+}
+
 export function SoftphoneWidget({
   phone,
+  mode = 'webrtc',
   callerName,
   queueLabel,
   callSeconds = 0,
-  placement = 'bottom-right',
-  variant = 'fab',
   showLabel = false,
   visible = true,
   onTransferClick,
@@ -72,6 +213,8 @@ export function SoftphoneWidget({
   activeCallUniqueid,
   pendingOutboundDial,
   onOutboundDialConsumed,
+  onMicDeviceChange,
+  onSpeakerDeviceChange,
 }: SoftphoneWidgetProps) {
   const { t } = useTranslation();
   const isMobile = useIsMobile(768);
@@ -79,9 +222,13 @@ export function SoftphoneWidget({
   const [mobileDialOpen, setMobileDialOpen] = useState(false);
   const [conferenceOpen, setConferenceOpen] = useState(false);
   const [dialNumber, setDialNumber] = useState('');
+  const [lastNumber, setLastNumber] = useState('');
   const [dialError, setDialError] = useState<string | null>(null);
+  const [deviceError, setDeviceError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<SoftphoneTab>('dial');
-  const isChrome = variant === 'chrome';
+  const [recoverAvailable, setRecoverAvailable] = useState(false);
+
+  const isWebrtc = mode === 'webrtc';
 
   const isRinging = phone.status === 'ringing';
   const isDialing = phone.status === 'dialing';
@@ -91,12 +238,39 @@ export function SoftphoneWidget({
     || phone.status === 'connecting'
     || phone.status === 'disconnected';
   const canDial = phone.status === 'registered';
+  const regVisual = registrationVisual(phone.status, mode);
+  const showRegBanner = regVisual === 'registering' || regVisual === 'offline';
+  const pulseActive = isRinging || isDialing;
 
   const callerLabel =
     callerName
     || phone.callInfo?.from
     || phone.callInfo?.to
     || t('callcenter.noActiveCall');
+
+  // Restore dial buffer + last number after F5 (D-19)
+  useEffect(() => {
+    const saved = loadDialBuffer();
+    if (!saved) return;
+    if (saved.dialBuffer) setDialNumber(saved.dialBuffer);
+    if (saved.lastNumber) setLastNumber(saved.lastNumber);
+  }, []);
+
+  // Persist dial buffer on change
+  useEffect(() => {
+    saveDialBuffer({ dialBuffer: dialNumber, lastNumber });
+  }, [dialNumber, lastNumber]);
+
+  // Recover CTA only after silent auto-retry window (D-16)
+  useEffect(() => {
+    if (!showRegBanner) {
+      setRecoverAvailable(false);
+      return;
+    }
+    setRecoverAvailable(false);
+    const timer = window.setTimeout(() => setRecoverAvailable(true), RECOVER_TIMEOUT_MS);
+    return () => window.clearTimeout(timer);
+  }, [showRegBanner, phone.status]);
 
   // Auto-expand only for outbound dialing (already interacting with softphone).
   // Incoming ring: toast only — softphone opens manually (avoids duplicate UI).
@@ -108,6 +282,14 @@ export function SoftphoneWidget({
     }
   }, [isDialing, isMobile]);
 
+  // Opening the panel while offline — nudge WebRTC re-REGISTER (Nest restart recovery).
+  useEffect(() => {
+    if (!isWebrtc) return;
+    if (!open && !mobileDialOpen) return;
+    if (phone.status !== 'disconnected') return;
+    void phone.ensureConnected?.(true);
+  }, [open, mobileDialOpen, phone, phone.status, isWebrtc]);
+
   // Click-to-call / history → WebRTC INVITE bridge
   useEffect(() => {
     if (!pendingOutboundDial || !canDial) return;
@@ -116,17 +298,22 @@ export function SoftphoneWidget({
     setDialNumber(target);
     setDialError(null);
     setOpen(true);
+    setActiveTab('dial');
     if (isMobile) setMobileDialOpen(true);
-    void phone.makeCall(target).catch(() => {
+    void phone.makeCall(target).then(() => {
+      setLastNumber(target);
+    }).catch(() => {
       setDialError(t('callcenter.softphone.dialFailed', 'Could not place call'));
     });
   }, [pendingOutboundDial, canDial, phone, onOutboundDialConsumed, t, isMobile]);
 
-  // Hardware keyboard → dial buffer while idle / DTMF while in-call
+  // Hardware keyboard → dial buffer while idle / DTMF while in-call (Dial tab only)
   useEffect(() => {
     if (!open && !mobileDialOpen) return;
+    if (activeTab !== 'dial') return;
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.target instanceof HTMLSelectElement) return;
       if (isInCall) {
         if (DIALPAD_KEYS.includes(e.key as (typeof DIALPAD_KEYS)[number])) {
           e.preventDefault();
@@ -147,14 +334,16 @@ export function SoftphoneWidget({
         if (!target) return;
         e.preventDefault();
         setDialError(null);
-        void phone.makeCall(target).catch(() => {
+        void phone.makeCall(target).then(() => {
+          setLastNumber(target);
+        }).catch(() => {
           setDialError(t('callcenter.softphone.dialFailed', 'Could not place call'));
         });
       }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [open, mobileDialOpen, isInCall, isIdle, canDial, dialNumber, phone, t]);
+  }, [open, mobileDialOpen, activeTab, isInCall, isIdle, canDial, dialNumber, phone, t]);
 
   const handleDigit = useCallback((digit: string) => {
     if (isInCall) {
@@ -176,10 +365,27 @@ export function SoftphoneWidget({
     setDialError(null);
     try {
       await phone.makeCall(target);
+      setLastNumber(target);
     } catch {
       setDialError(t('callcenter.softphone.dialFailed', 'Could not place call'));
     }
   }, [dialNumber, canDial, phone, t]);
+
+  const handleRedial = useCallback(async () => {
+    const target = lastNumber.trim();
+    if (!target || !canDial || !isIdle) return;
+    setDialNumber(target);
+    setDialError(null);
+    try {
+      await phone.makeCall(target);
+    } catch {
+      setDialError(t('callcenter.softphone.dialFailed', 'Could not place call'));
+    }
+  }, [lastNumber, canDial, isIdle, phone, t]);
+
+  const handleRecover = useCallback(() => {
+    void phone.ensureConnected?.(true);
+  }, [phone]);
 
   const handleHoldToggle = useCallback(() => {
     if (phone.isHeld) void phone.unhold();
@@ -191,7 +397,72 @@ export function SoftphoneWidget({
     else phone.mute();
   }, [phone]);
 
-  if ((placement === 'hidden' && !isChrome) || !visible) return null;
+  if (!visible) return null;
+
+  const regBadgeClass =
+    regVisual === 'online'
+      ? styles.regBadgeOnline
+      : regVisual === 'registering'
+        ? styles.regBadgeRegistering
+        : styles.regBadgeOffline;
+
+  const regBadgeLabel =
+    regVisual === 'online'
+      ? t('callcenter.registration.online', 'Online')
+      : regVisual === 'registering'
+        ? t('callcenter.registration.registering', 'Registering...')
+        : t('callcenter.registration.offline', 'Offline');
+
+  const qualityBlock = isWebrtc && phone.quality && isInCall ? (
+    <div className={styles.qualityDetail} data-testid="softphone-quality-detail">
+      <CallQualityIndicator quality={phone.quality} />
+      <Text className={styles.qualityMetrics}>
+        {t('callcenter.softphone.mos')}: {phone.quality.mos.toFixed(1)}
+        {' · '}
+        {t('callcenter.softphone.jitter')}: {phone.quality.jitterMs} ms
+        {' · '}
+        {t('callcenter.softphone.rtt')}: {phone.quality.rttMs} ms
+        {' · '}
+        {t('callcenter.softphone.loss')}: {phone.quality.lossPct}%
+      </Text>
+    </div>
+  ) : null;
+
+  // Mounted only in WebRTC mode so useAudioDevices never runs under SIP (T-10-08-01 / D-34).
+  const devicePicker = isWebrtc ? (
+    <SoftphoneDevicePicker
+      phone={phone}
+      deviceError={deviceError}
+      onDeviceError={setDeviceError}
+      onMicDeviceChange={onMicDeviceChange}
+      onSpeakerDeviceChange={onSpeakerDeviceChange}
+    />
+  ) : null;
+
+  const registrationBanner = showRegBanner ? (
+    <div
+      className={`${styles.regBanner} ${regVisual === 'registering' ? styles.regBannerWarning : styles.regBannerDanger}`}
+      data-testid="softphone-reg-banner"
+      role="status"
+    >
+      <Text className={styles.regBannerText}>
+        {regVisual === 'registering' || !recoverAvailable
+          ? t('callcenter.registration.bannerReconnecting', 'Reconnecting the softphone...')
+          : t('callcenter.registration.bannerRecover', 'Could not restore registration. Press "Recover"')}
+      </Text>
+      {recoverAvailable ? (
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={handleRecover}
+          data-testid="softphone-recover"
+        >
+          <RotateCcw className="w-3.5 h-3.5 mr-1" />
+          {t('callcenter.softphone.recover', 'Recover')}
+        </Button>
+      ) : null}
+    </div>
+  ) : null;
 
   const controlsRow = (
     <div className={styles.controlsRow}>
@@ -265,16 +536,18 @@ export function SoftphoneWidget({
 
   const ringingActions = isRinging ? (
     <div className={styles.ringingActions}>
-      <Button size="lg" className={styles.ringingBtn} onClick={() => void phone.acceptCall()}>
+      <Button size="lg" className={styles.ringingBtn} onClick={() => void phone.acceptCall?.()}>
         <Phone className="w-4 h-4 mr-1" />
         {t('callcenter.softphone.answer')}
       </Button>
-      <Button variant="destructive" size="lg" className={styles.ringingBtn} onClick={() => void phone.rejectCall()}>
+      <Button variant="destructive" size="lg" className={styles.ringingBtn} onClick={() => void phone.rejectCall?.()}>
         <PhoneOff className="w-4 h-4 mr-1" />
         {t('callcenter.softphone.reject')}
       </Button>
     </div>
   ) : null;
+
+  const canRedial = Boolean(isIdle && canDial && lastNumber.trim());
 
   const dialPadBlock = (
     <VStack gap="8" className={styles.dialBlock} data-testid="softphone-dialpad">
@@ -304,88 +577,94 @@ export function SoftphoneWidget({
       </div>
       <DialpadGrid onDigit={handleDigit} disabled={!canDial} className={styles.dialGrid} />
       {dialError ? <Text variant="muted" className={styles.dialError}>{dialError}</Text> : null}
-      <Button
-        size="lg"
-        className={styles.dialCallBtn}
-        onClick={() => void handleDial()}
-        disabled={!canDial || !dialNumber.trim()}
-      >
-        <Phone className="w-4 h-4 mr-1" />
-        {t('callcenter.softphone.dial', 'Call')}
-      </Button>
-      {!canDial && phone.status === 'connecting' ? (
-        <Text variant="muted" className="text-xs text-center">
-          {t('callcenter.softphone.connecting')}
-        </Text>
-      ) : null}
+      <HStack gap="8" className={styles.dialActions}>
+        <Button
+          variant="outline"
+          size="lg"
+          className={styles.redialBtn}
+          onClick={() => void handleRedial()}
+          disabled={!canRedial}
+          data-testid="softphone-redial"
+        >
+          {t('callcenter.softphone.redial', 'Redial')}
+        </Button>
+        <Button
+          size="lg"
+          className={styles.dialCallBtn}
+          onClick={() => void handleDial()}
+          disabled={!canDial || !dialNumber.trim()}
+        >
+          <Phone className="w-4 h-4 mr-1" />
+          {t('callcenter.softphone.dial', 'Call')}
+        </Button>
+      </HStack>
+      {devicePicker}
     </VStack>
+  );
+
+  const dialTabContent = (
+    <>
+      {isInCall || isRinging || isDialing ? (
+        <VStack gap="4" align="center" className={styles.callSummary}>
+          <Text className={styles.callTimerDisplay}>
+            {isDialing
+              ? t('callcenter.softphone.calling', 'Calling…')
+              : formatCallTime(callSeconds)}
+          </Text>
+          <Text className={styles.callerNumber}>{callerLabel}</Text>
+          {queueLabel && !isDialing ? <span className={styles.queueTag}>{queueLabel}</span> : null}
+          {qualityBlock}
+        </VStack>
+      ) : (
+        dialPadBlock
+      )}
+      {isInCall || isRinging || isDialing ? devicePicker : null}
+      {ringingActions}
+      {isDialing ? (
+        <Button variant="destructive" size="lg" onClick={() => void phone.hangup()}>
+          <PhoneOff className="w-4 h-4 mr-1" />
+          {t('callcenter.softphone.cancelDial', 'Cancel')}
+        </Button>
+      ) : null}
+      {isInCall ? controlsRow : null}
+      {isInCall && onOpenCard ? (
+        <Button variant="outline" size="sm" onClick={onOpenCard}>
+          {t('callcenter.cards.popup.openManual')}
+        </Button>
+      ) : null}
+    </>
   );
 
   const panelBody = (
     <VStack gap="12" className={styles.panelBody}>
       <Text className={styles.panelTitle}>{t('callcenter.softphone.panelTitle')}</Text>
-      <div className={styles.tabRow} role="tablist" aria-label={t('callcenter.softphone.tabsLabel', 'Softphone sections')}>
-        {([
-          { id: 'dial' as const, icon: Phone, label: t('callcenter.softphone.tabDial', 'Dial') },
-          { id: 'journal' as const, icon: History, label: t('callcenter.softphone.tabJournal', 'Journal') },
-          { id: 'contacts' as const, icon: BookUser, label: t('callcenter.softphone.tabContacts', 'Contacts') },
-        ]).map(({ id, icon: Icon, label }) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            aria-selected={activeTab === id}
-            className={`${styles.tabBtn}${activeTab === id ? ` ${styles.tabBtnActive}` : ''}`}
-            onClick={() => setActiveTab(id)}
-          >
-            <Icon className="w-3.5 h-3.5" />
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {activeTab === 'journal' ? (
-        <Text variant="muted" className={styles.tabPlaceholder}>
-          {t('callcenter.softphone.journalSoon', 'Call journal will land in the full softphone phase.')}
-        </Text>
-      ) : null}
-
-      {activeTab === 'contacts' ? (
-        <Text variant="muted" className={styles.tabPlaceholder}>
-          {t('callcenter.softphone.contactsSoon', 'Endpoints, queues and groups: full softphone phase.')}
-        </Text>
-      ) : null}
-
-      {activeTab === 'dial' ? (
-        <>
-          {isInCall || isRinging || isDialing ? (
-            <VStack gap="4" align="center" className={styles.callSummary}>
-              <Text className={styles.callTimerDisplay}>
-                {isDialing
-                  ? t('callcenter.softphone.calling', 'Calling…')
-                  : formatCallTime(callSeconds)}
-              </Text>
-              <Text className={styles.callerNumber}>{callerLabel}</Text>
-              {queueLabel && !isDialing ? <span className={styles.queueTag}>{queueLabel}</span> : null}
-            </VStack>
-          ) : (
-            dialPadBlock
-          )}
-          {ringingActions}
-          {isDialing ? (
-            <Button variant="destructive" size="lg" onClick={() => void phone.hangup()}>
-              <PhoneOff className="w-4 h-4 mr-1" />
-              {t('callcenter.softphone.cancelDial', 'Cancel')}
-            </Button>
-          ) : null}
-          {isInCall ? controlsRow : null}
-          {isInCall && onOpenCard ? (
-            <Button variant="outline" size="sm" onClick={onOpenCard}>
-              {t('callcenter.cards.popup.openManual')}
-            </Button>
-          ) : null}
-        </>
-      ) : null}
+      {registrationBanner}
+      <Tabs
+        value={activeTab}
+        onValueChange={(v) => setActiveTab(v as SoftphoneTab)}
+      >
+        <TabsList aria-label={t('callcenter.softphone.tabsLabel', 'Softphone sections')}>
+          <TabsTrigger value="dial" data-testid="softphone-tab-dial">
+            <Phone className="w-3.5 h-3.5" />
+            {t('callcenter.softphone.tabDial', 'Dial')}
+          </TabsTrigger>
+          <TabsTrigger value="journal" data-testid="softphone-tab-journal">
+            <History className="w-3.5 h-3.5" />
+            {t('callcenter.softphone.tabJournal', 'Journal')}
+          </TabsTrigger>
+          <TabsTrigger value="contacts" data-testid="softphone-tab-contacts">
+            <BookUser className="w-3.5 h-3.5" />
+            {t('callcenter.softphone.tabContacts', 'Contacts')}
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value="dial">{dialTabContent}</TabsContent>
+        <TabsContent value="journal" data-testid="softphone-journal-panel">
+          <SoftphoneJournal />
+        </TabsContent>
+        <TabsContent value="contacts" data-testid="softphone-contacts-panel">
+          <SoftphoneContacts />
+        </TabsContent>
+      </Tabs>
     </VStack>
   );
 
@@ -404,20 +683,22 @@ export function SoftphoneWidget({
     </Sheet>
   );
 
+  const stickyDotClass = pulseActive
+    ? styles.stickyDotRinging
+    : isInCall
+      ? styles.stickyDotInCall
+      : regVisual === 'online'
+        ? styles.stickyDotOnline
+        : regVisual === 'registering'
+          ? styles.stickyDotRegistering
+          : styles.stickyDotOffline;
+
   // Phone (<768): sticky bar + dial sheet (D-01/D-46)
   if (isMobile) {
     return (
       <>
         <div className={styles.stickyBar} data-testid="softphone-widget-sticky">
-          <div
-            className={`${styles.stickyDot} ${
-              isRinging || isDialing
-                ? styles.stickyDotRinging
-                : isInCall
-                  ? styles.stickyDotInCall
-                  : styles.stickyDotIdle
-            }`}
-          />
+          <div className={`${styles.stickyDot} ${stickyDotClass}`} />
           <VStack gap="0" className={styles.stickyInfo}>
             <Text className={styles.stickyCaller}>
               {isInCall || isRinging || isDialing
@@ -449,7 +730,12 @@ export function SoftphoneWidget({
             <SheetHeader>
               <SheetTitle>{t('callcenter.softphone.panelTitle')}</SheetTitle>
             </SheetHeader>
-            {isIdle ? dialPadBlock : panelBody}
+            {isIdle ? (
+              <VStack gap="12">
+                {registrationBanner}
+                {dialPadBlock}
+              </VStack>
+            ) : panelBody}
           </SheetContent>
         </Sheet>
         {conferenceSheet}
@@ -457,76 +743,53 @@ export function SoftphoneWidget({
     );
   }
 
-  if (isChrome) {
-    return (
-      <div className={styles.chromeWrap} data-testid="softphone-widget-chrome">
-        {open ? (
-          <div className={styles.chromePanel} data-testid="softphone-widget-panel">
-            {panelBody}
-            <Button
-              variant="ghost"
-              size="sm"
-              className={styles.collapseBtn}
-              onClick={() => setOpen(false)}
-            >
-              {t('callcenter.softphone.collapse', 'Minimize')}
-            </Button>
-          </div>
-        ) : null}
-        <button
-          type="button"
-          className={`${styles.chromeTrigger}${showLabel ? ` ${styles.chromeTriggerLabeled}` : ''}${isRinging || isDialing ? ` ${styles.chromeTriggerRinging}` : ''}${open ? ` ${styles.chromeTriggerOpen}` : ''}`}
-          aria-label={t('callcenter.softphone.panelTitle')}
-          aria-expanded={open}
-          data-testid="softphone-widget-fab"
-          onClick={() => setOpen((v) => !v)}
-        >
-          {isRinging || isDialing
-            ? <PhoneIncoming className="w-5 h-5" />
-            : <Phone className="w-5 h-5" />}
-          {showLabel ? (
-            <span className={styles.chromeTriggerLabel}>
-              {t('callcenter.softphone.panelTitle')}
-            </span>
-          ) : null}
-        </button>
-        {conferenceSheet}
-      </div>
-    );
-  }
-
   return (
-    <>
-      <div
-        className={`${styles.fabWrap} ${placement === 'bottom-left' ? styles.fabLeft : styles.fabRight}`}
-      >
-        {open ? (
-          <div className={styles.panel} data-testid="softphone-widget-panel">
-            {panelBody}
-            <Button
-              variant="ghost"
-              size="sm"
-              className={styles.collapseBtn}
-              onClick={() => setOpen(false)}
-            >
-              {t('callcenter.softphone.collapse', 'Minimize')}
-            </Button>
-          </div>
-        ) : (
-          <button
-            type="button"
-            className={`${styles.fab} ${isRinging || isDialing ? styles.fabRinging : ''}`}
-            aria-label={t('callcenter.softphone.panelTitle')}
-            data-testid="softphone-widget-fab"
-            onClick={() => setOpen(true)}
+    <div className={styles.chromeWrap} data-testid="softphone-widget-chrome">
+      {open ? (
+        <div className={styles.chromePanel} data-testid="softphone-widget-panel">
+          {panelBody}
+          <Button
+            variant="ghost"
+            size="sm"
+            className={styles.collapseBtn}
+            onClick={() => setOpen(false)}
           >
-            {isRinging || isDialing
-              ? <PhoneIncoming className="w-6 h-6" />
-              : <Phone className="w-6 h-6" />}
-          </button>
-        )}
-      </div>
+            {t('callcenter.softphone.collapse', 'Minimize')}
+          </Button>
+        </div>
+      ) : null}
+      <button
+        type="button"
+        className={`${styles.chromeTrigger}${showLabel ? ` ${styles.chromeTriggerLabeled}` : ''}${pulseActive ? ` ${styles.chromeTriggerRinging}` : ''}${open ? ` ${styles.chromeTriggerOpen}` : ''}`}
+        aria-label={t('callcenter.softphone.panelTitle')}
+        aria-expanded={open}
+        data-testid="softphone-widget-trigger"
+        onClick={() => setOpen((v) => !v)}
+      >
+        {pulseActive
+          ? <PhoneIncoming className="w-5 h-5" />
+          : <Phone className="w-5 h-5" />}
+        {showLabel ? (
+          <span className={styles.chromeTriggerLabel}>
+            {t('callcenter.softphone.panelTitle')}
+          </span>
+        ) : null}
+        {!pulseActive ? (
+          <span
+            className={`${styles.regBadge} ${regBadgeClass}`}
+            title={regBadgeLabel}
+            aria-label={regBadgeLabel}
+            data-testid="softphone-reg-badge"
+            data-state={regVisual}
+          />
+        ) : null}
+        {isWebrtc && isInCall && phone.quality ? (
+          <span className={styles.qualityCompact} data-testid="softphone-quality-compact">
+            <CallQualityIndicator quality={phone.quality} />
+          </span>
+        ) : null}
+      </button>
       {conferenceSheet}
-    </>
+    </div>
   );
 }
