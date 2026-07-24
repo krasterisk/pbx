@@ -4,23 +4,22 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 10
 current_phase_name: full-softphone
-status: executing
-stopped_at: Completed 10-04-PLAN.md
-last_updated: "2026-07-24T14:56:50.726Z"
+status: executed
+stopped_at: Phase 10 plans executed — ready to verify
+last_updated: "2026-07-24T15:26:48.439Z"
 progress:
   total_phases: 10
-  completed_phases: 7
+  completed_phases: 8
   total_plans: 94
-  completed_plans: 88
+  completed_plans: 93
 ---
 
 # State
 
 ## Current position
 
-Phase: 10 (full-softphone) — EXECUTING Wave 6
-Plans 10-01…10-08 committed. Migrations still pending on live DB.
-Next: 10-09 SIP dual-mode (useSipPhoneAmi + isSip branch + live checkpoint).
+Phase: 10 (full-softphone) — EXECUTED (9/9 plans). Ready for `/gsd-verify-work 10`.
+Open before UAT trust: apply `migrate-callcenter-contacts.ts` + `migrate-callcenter-journal-depth.ts` on live DB; live Asterisk A1/A3 checkpoint deferred in WINDOWS.md.
 
 Also Phase 9 (complete, verify/UAT open):
 Plan 09-01 (schema/model foundation, wave 1): 3/3 tasks committed + migration applied to live DB.
@@ -181,6 +180,7 @@ Phase 1 — MOH: pending verify.
 
 ## Roadmap Evolution
 
+- Phase 10 executed (2026-07-24): 9/9 plans (`10-01`…`10-09`). Dual-mode softphone chrome shipped; A1/A3 live Asterisk verify deferred. Next: `/gsd-verify-work 10`.
 - Phase 10 plan 10-04 complete (2026-07-24): FE foundation RTK/SSE/i18n. Next: Wave 4 (10-05…10-07).
 - Phase 10 plan 10-03 complete (2026-07-24): PlayDTMF + registration-state. Next: 10-04.
 - Phase 10 plan 10-02 complete (2026-07-24): historyRow SSE + journal_depth. Next: 10-03.
@@ -203,7 +203,7 @@ Phase 1 — MOH: pending verify.
 
 ## Next GSD command
 
-**Phase 10 executing:** next `10-09-PLAN.md` (SIP dual-mode). Waves 1–5 done (10-01…10-08).
+**Phase 10 executed (9/9):** `/gsd-verify-work 10` (then `/gsd-ship 10`). Apply contacts + journal_depth migrations; live Asterisk A1/A3 still open in WINDOWS.md.
 
 Also open: Phase 9 — UAT complete (`09-UAT.md` 2/2); `phase complete 9` blocked until `09-VERIFICATION.md` → `passed`. Phase 8 / 08-11 Task 3 — Android smoke, then `approved`.
 
@@ -287,6 +287,6 @@ Also open: Phase 9 — UAT complete (`09-UAT.md` 2/2); `phase complete 9` blocke
 
 ## Session
 
-**Last session:** 2026-07-24T14:56:50.672Z
-**Stopped at:** Completed 10-04-PLAN.md
-**Resume file:** .planning/phases/10-full-softphone/10-05-PLAN.md
+**Last session:** 2026-07-24T15:26:48.388Z
+**Stopped at:** Phase 10 plans executed — ready to verify
+**Resume file:** None
