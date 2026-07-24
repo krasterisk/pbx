@@ -2445,6 +2445,8 @@ export const en = {
         sla: 'Default SLA',
         defaultSla: 'Tenant SLA threshold (sec)',
         defaultSlaHint: 'Used when a queue has no servicelevel of its own',
+        journalDepth: 'Softphone journal depth',
+        journalDepthHint: 'Last N personal calls shown in the softphone Journal tab (default 50)',
         thresholds: 'Alert thresholds',
         maxWait: 'Max queue wait (sec)',
         abandonRate: 'Abandon rate (%)',

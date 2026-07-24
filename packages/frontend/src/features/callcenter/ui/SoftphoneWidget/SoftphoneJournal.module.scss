@@ -1,0 +1,156 @@
+/* SoftphoneJournal — UI-SPEC Surface C (D-01..D-05) */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  height: 100%;
+  min-height: 0;
+}
+
+.empty {
+  text-align: center;
+  padding: 32px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.emptyTitle {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.emptyBody {
+  font-size: 0.875rem;
+}
+
+.errorCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 24px 16px;
+  text-align: center;
+}
+
+.retryBtn {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow-y: auto;
+  min-height: 0;
+  flex: 1;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 8px;
+  border-radius: var(--radius-md);
+
+  &:hover {
+    background: var(--color-accent);
+  }
+
+  & + & {
+    border-top: 1px dashed var(--color-border);
+  }
+}
+
+.iconInbound {
+  color: var(--color-success);
+}
+
+.iconOutbound {
+  color: var(--color-muted-foreground);
+}
+
+.iconOther {
+  color: var(--color-muted-foreground);
+}
+
+.iconMissed {
+  color: var(--color-destructive);
+}
+
+.rowMain {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.rowTop {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.rowNum {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--color-foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.missedTag {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-destructive) 14%, transparent);
+  color: var(--color-destructive);
+  font-size: 0.68rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.rowTags {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--color-muted);
+  color: var(--color-muted-foreground);
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
+.rowActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* WCAG 2.5.5 — 44px minimum touch target */
+.actionBtn {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+.footnote {
+  text-align: center;
+  padding: 12px 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}

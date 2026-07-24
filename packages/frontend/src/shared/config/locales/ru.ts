@@ -2489,6 +2489,8 @@ export const ru = {
         sla: 'SLA по умолчанию',
         defaultSla: 'Порог SLA тенанта (сек)',
         defaultSlaHint: 'Используется, если у очереди не задан свой servicelevel',
+        journalDepth: 'Глубина журнала софтфона',
+        journalDepthHint: 'Последние N личных звонков во вкладке Журнал софтфона (по умолчанию 50)',
         thresholds: 'Пороги алертов',
         maxWait: 'Макс. ожидание в очереди (сек)',
         abandonRate: 'Доля отказов (%)',
