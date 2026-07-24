@@ -597,14 +597,14 @@ Plans:
 
 **Requirements:** D-01 … D-35 (locked decisions in `.planning/phases/10-full-softphone/10-CONTEXT.md`; no REQ-IDs, same convention as Phases 5-9)
 
-**Plans:** 3/9 plans executed
+**Plans:** 4/9 plans executed
 
 Plans:
 
 - [x] 10-01-PLAN.md — cc_contacts backend: new table + model + migration + DTO + tenant/ownership-gated CRUD (D-11…D-15)
 - [x] 10-02-PLAN.md — Journal SSE emit (historyRow) on history writer + journal_depth tenant setting (D-04/D-05)
 - [x] 10-03-PLAN.md — SIP backend: AMI PlayDTMF + validated sendDtmf + my-endpoint registration-state (D-32/D-33/D-35)
-- [ ] 10-04-PLAN.md — Frontend foundation: RTK endpoints/types/tags + historyRow prepend + shiftSession dial buffer + full ru/en copy (D-04/D-05/D-11…D-14/D-16/D-18/D-19/D-32/D-35)
+- [x] 10-04-PLAN.md — Frontend foundation: RTK endpoints/types/tags + historyRow prepend + shiftSession dial buffer + full ru/en copy (D-04/D-05/D-11…D-14/D-16/D-18/D-19/D-32/D-35)
 - [ ] 10-05-PLAN.md — SoftphoneJournal live blended feed (callback/open-card, N cap, empty+error) + journal_depth settings UI (D-01…D-05)
 - [ ] 10-06-PLAN.md — SoftphoneContacts 5-section unified catalog + ContactBookForm inline CRUD (ownership-gated) (D-11…D-14/D-25)
 - [ ] 10-07-PLAN.md — ARM CallHistoryPanel: Queue/Outbound/Personal segments + per-segment search (D-06…D-10)
