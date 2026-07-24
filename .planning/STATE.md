@@ -190,7 +190,7 @@ Phase 1 — MOH: pending verify.
 
 ## Next GSD command
 
-**Phase 10 ready for discuss:** `/gsd-discuss-phase 10` (Full Softphone — see `10-BRIEF.md` + ROADMAP Phase 10).
+**Phase 10 context ready:** `/gsd-ui-phase 10` или `/gsd-plan-phase 10` (Full Softphone — see `10-CONTEXT.md`).
 
 Also open: Phase 9 — UAT complete (`09-UAT.md` 2/2); `phase complete 9` blocked until `09-VERIFICATION.md` status → `passed`. Phase 8 / 08-11 Task 3 — Android smoke, then `approved`.
 
