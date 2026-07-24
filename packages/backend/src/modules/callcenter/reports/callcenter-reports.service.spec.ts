@@ -13,6 +13,7 @@ describe('CallCenterReportsService', () => {
   let agentEventModel: { findAll: jest.Mock };
   let sessionModel: { findAll: jest.Mock };
   let missedCallModel: { findAll: jest.Mock };
+  let pauseReasonModel: { findAll: jest.Mock };
   let queueModel: { findOne: jest.Mock };
   let rollupService: { resolveAggregationSource: jest.Mock };
 
@@ -26,6 +27,7 @@ describe('CallCenterReportsService', () => {
     agentEventModel = { findAll: jest.fn().mockResolvedValue([]) };
     sessionModel = { findAll: jest.fn().mockResolvedValue([]) };
     missedCallModel = { findAll: jest.fn().mockResolvedValue([]) };
+    pauseReasonModel = { findAll: jest.fn().mockResolvedValue([]) };
     queueModel = { findOne: jest.fn().mockResolvedValue({ servicelevel: 20 }) };
     rollupService = { resolveAggregationSource: jest.fn().mockReturnValue('raw') };
 
@@ -36,6 +38,7 @@ describe('CallCenterReportsService', () => {
       agentEventModel as any,
       sessionModel as any,
       missedCallModel as any,
+      pauseReasonModel as any,
       queueModel as any,
       rollupService as any,
     );
@@ -184,6 +187,39 @@ describe('CallCenterReportsService', () => {
       expect(result.page).toBe(2);
       expect(result.pageSize).toBe(10);
       expect(result.rows).toHaveLength(1);
+    });
+  });
+
+  describe('getPauseReport', () => {
+    it('derives pause duration from adjacent events when duration is 0', async () => {
+      sessionModel.findAll.mockResolvedValue([
+        { uid: 5, agent_interface: 'PJSIP/101', user_id: 42 },
+      ]);
+      const t0 = new Date('2026-07-15T09:00:00.000Z');
+      const t1 = new Date('2026-07-15T09:10:00.000Z');
+      const t2 = new Date('2026-07-15T09:25:00.000Z');
+      agentEventModel.findAll.mockResolvedValue([
+        { session_id: 5, user_id: 42, event_type: 'READY', created_at: t0, reason: '', duration: 0 },
+        { session_id: 5, user_id: 42, event_type: 'PAUSE', created_at: t1, reason: 'lunch', duration: 0 },
+        { session_id: 5, user_id: 42, event_type: 'READY', created_at: t2, reason: '', duration: 0 },
+      ]);
+      pauseReasonModel.findAll.mockResolvedValue([
+        { name: 'lunch', is_paid: false },
+      ]);
+
+      const result = await service.getPauseReport(3, {
+        dateFrom: '2026-07-15T00:00:00.000Z',
+        dateTo: '2026-07-15T23:59:59.000Z',
+      });
+
+      expect(result.rows).toHaveLength(1);
+      expect(result.rows[0]).toMatchObject({
+        agentInterface: 'PJSIP/101',
+        pauseReason: 'lunch',
+        pauseCount: 1,
+        totalPauseSec: 900,
+        isPaid: false,
+      });
     });
   });
 

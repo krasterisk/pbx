@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { Button, Text } from '@/shared/ui';
 import type { IPauseReason } from '@/features/callcenter/model/types/callCenterSchema';
+import { formatPauseReason } from '@/features/callcenter/lib/displayLabels';
 import styles from './PauseReasonModal.module.scss';
 
 /**
@@ -91,7 +92,9 @@ export function PauseReasonModal({ reasons, onSelect, onClose, activeReason }: P
             }`}
           >
             <Clock className="w-4 h-4" />
-            <Text className={styles.activeName}>{activeReason.name}</Text>
+            <Text className={styles.activeName}>
+              {formatPauseReason(activeReason.name, t)}
+            </Text>
             <Text className={styles.activeTime}>{fmt(elapsedSec)}</Text>
             {maxSec > 0 && (
               <Text variant="muted" className={styles.activeMax}>

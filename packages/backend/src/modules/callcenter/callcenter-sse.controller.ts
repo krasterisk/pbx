@@ -16,6 +16,7 @@ import { Request } from 'express';
 import { Observable, map, merge, interval, startWith, filter } from 'rxjs';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CallCenterStateService } from './callcenter-state.service';
+import { CallCenterMetricsService } from './callcenter-metrics.service';
 
 /** Heartbeat interval (ms) — keeps SSE connection alive through proxies/load balancers */
 const SSE_HEARTBEAT_MS = 15_000;
@@ -25,7 +26,10 @@ const SSE_HEARTBEAT_MS = 15_000;
 export class CallCenterSseController {
   private readonly logger = new Logger(CallCenterSseController.name);
 
-  constructor(private readonly stateService: CallCenterStateService) {}
+  constructor(
+    private readonly stateService: CallCenterStateService,
+    private readonly metricsService: CallCenterMetricsService,
+  ) {}
 
   /**
    * SSE endpoint: GET /api/callcenter/events?token=<JWT>
@@ -48,13 +52,15 @@ export class CallCenterSseController {
       `SSE connection opened: user ${userId}, jwtTenant=${jwtUserUid}, effectiveTenant=${userUid}`,
     );
 
+    const snapshotWithKpi = this.enrichSnapshotKpiDay(userUid, snapshot);
+
     // Real CC events stream (JWT tenant and/or queue-suffix tenant where agent is online)
     const ccEvents$ = this.stateService.getEventStreamForUser(jwtUserUid, userId).pipe(
       // Send snapshot immediately on connect
       startWith({
         type: 'fullSnapshot',
         userUid,
-        data: snapshot,
+        data: snapshotWithKpi,
       }),
       // Drop chat messages not addressed to this user (server-side recipient filter)
       filter(event => {
@@ -101,7 +107,28 @@ export class CallCenterSseController {
   @Get('state')
   getState(@Req() req: Request & { user: any }) {
     const jwtUserUid = Number(req.user.vpbx_user_uid ?? 0);
-    const { snapshot } = this.stateService.getSnapshotForUser(jwtUserUid, req.user.sub);
-    return snapshot;
+    const { tenant, snapshot } = this.stateService.getSnapshotForUser(jwtUserUid, req.user.sub);
+    return this.enrichSnapshotKpiDay(tenant, snapshot);
+  }
+
+  /** Attach since-midnight KPI so panel day/both modes work for all coworkers. */
+  private enrichSnapshotKpiDay(
+    userUid: number,
+    snapshot: { agents: any[]; queues: any[]; calls: any[] },
+  ) {
+    return {
+      ...snapshot,
+      agents: snapshot.agents.map((agent) => {
+        const kpi = this.metricsService.getAgentKpi(userUid, agent.interface);
+        return {
+          ...agent,
+          kpiDay: {
+            answered: kpi.sinceMidnight.answered,
+            made: kpi.sinceMidnight.made,
+            missed: kpi.sinceMidnight.missed,
+          },
+        };
+      }),
+    };
   }
 }

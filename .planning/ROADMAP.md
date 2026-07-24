@@ -534,3 +534,66 @@ Plans:
 - [x] 09-15-PLAN.md — Gap closure: wire orphaned call-control/history components into CallCenterAgentPage — park/retrieve/zombie-reset + directory transfer + call history/click-to-call (D-05/27/28/29/34/35/36/37)
 - [x] 09-16-PLAN.md — UAT gap G-09-1: single global throttler + AI POST route-scoped 10/min (D-41/D-42)
 - [x] 09-17-PLAN.md — UAT gap G-09-2: tenant autopause_rules API + AutoPauseRulesForm Settings UI (D-15)
+
+---
+
+## Phase 10 — Full Softphone (WebRTC dial / journal / contacts)
+
+**Canonical refs (фаза):**
+
+- `packages/frontend/.idea/ARCHITECTURE.md`, `packages/backend/.idea/ARCHITECTURE.md` — **MUST READ**
+- `.planning/phases/10-full-softphone/10-BRIEF.md` — product brief (seed from Phase 9 ARM layout)
+- `.idea/call-center/CC_WEBRTC_CONCEPT.md` — WebRTC softphone (если доступен локально)
+- `packages/frontend/src/features/callcenter/ui/SoftphoneWidget/` — chrome softphone shell (Dial / Journal / Contacts tabs)
+- `packages/frontend/src/features/callcenter/lib/useWebRTCPhone.ts` — sip.js + WSS / re-REGISTER
+- `packages/frontend/src/features/callcenter/ui/AgentStatusBar/` — softphone trigger + call controls host
+- `packages/frontend/src/features/callcenter/ui/CallHistoryPanel/`, `TransferDirectory/` — journal / contacts seeds
+- `packages/frontend/src/pages/CallCenterAgentPage/CallCenterAgentPage.tsx` — orchestrator (single SIP session owner)
+- `packages/backend/src/modules/callcenter/` — operator history, transfer directory, BLF presence, click-to-call, WebRTC config
+
+**Status:** Not planned — brief ready  
+**Brief:** `.planning/phases/10-full-softphone/10-BRIEF.md`  
+**Depends on:** Phase 9 agent panel (chrome, KPI, TransferDirectory, history API); existing `useWebRTCPhone` + PJSIP WSS; BLF / transfer directory backend
+
+**Goal:** Сделать полнофункциональный WebRTC-софтфон отдельным продуктовым контуром внутри АРМ оператора: набор, журнал, контакты (абоненты / очереди / группы), управление вызовом и качеством связи — вшитый в chrome (status strip / header), без плавающего FAB, перекрывающего UI.
+
+**Scope (in):**
+
+1. **Shell / chrome** — softphone вшит в chrome АРМ (status strip / header); состояния collapsed trigger · expanded panel · mobile sticky + sheet; единый источник правды по активному вызову со status-bar call controls (без дублирования логики)
+2. **Dial** — dialpad, click-to-call bridge, DTMF in-call, redial last; dial buffer / last number в sessionStorage
+3. **Journal** — личный журнал звонков оператора (in/out/missed), фильтры смена/сутки, callback, открытие карточки звонка (реальные данные, не placeholder)
+4. **Contacts** — единый каталог: абоненты (endpoints / phonebook), очереди, группы (ring / dial groups), BLF presence где доступно, поиск + недавно использованные; click-to-call ≤1 клик от строки
+5. **Call features** — Mute / Hold / Transfer (blind + attended) / Conference add; Park / retrieve (если роль разрешает); call quality indicator (MOS / jitter / RTT / loss) + degraded UX; device picker (mic/speaker) без перелогина смены; auto-answer + zip tone до parity с softphone UX
+6. **Resilience** — переподключение WSS / re-REGISTER после рестарта backend / Asterisk без потери смены; явный UI «регистрируюсь… / offline» в trigger; recover path без повторного Start shift (или одна явная кнопка Recover)
+7. **i18n / a11y** — `ru` + `en`; keyboard dial + ARIA tabs
+
+**Scope (out):**
+
+- Video softphone
+- Embedded CRM screen-pop beyond existing CallCard
+- Multi-line / multi-call UI (park + switch) — только если появится в discuss
+- Native mobile app softphone (Capacitor) — отдельный трек (Phase 8 Android)
+
+**Requirements:** TBD (discuss → REQ / decisions)
+
+**Success criteria (draft):**
+
+1. Оператор набирает, принимает и переводит звонок только из softphone chrome — FAB нигде не перекрывает таблицы
+2. Вкладки Journal и Contacts показывают реальные данные (не placeholder)
+3. После F5 / смены вкладки / краткого рестарта backend смена и регистрация WebRTC восстанавливаются без повторного «Start shift», либо с одной явной кнопкой Recover
+4. Контакты: поиск ≤300ms perceived; click-to-call ≤1 клик от строки
+5. i18n ru/en; a11y: keyboard dial + ARIA tabs
+
+**GSD workflow (рекомендуемый порядок):**
+
+| Шаг | Команда |
+|-----|---------|
+| 1 | `/gsd-discuss-phase 10` — journal source, contact sources, multi-call, quality metrics MVP |
+| 2 | `/gsd-ui-phase 10` — chrome softphone surfaces (Dial / Journal / Contacts) |
+| 3 | `/gsd-plan-phase 10` |
+| 4 | `/gsd-execute-phase 10` |
+| 5 | `/gsd-ui-review 10` + `npm run test:frontend` / `test:backend` |
+| 6 | `/gsd-verify-work 10` → `/gsd-ship 10` |
+
+**Plans:** TBD (after discuss + plan)
+

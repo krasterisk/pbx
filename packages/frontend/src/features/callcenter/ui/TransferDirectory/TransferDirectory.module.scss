@@ -8,6 +8,11 @@
   min-height: 0;
 }
 
+.filterRow {
+  flex-shrink: 0;
+  overflow-x: auto;
+}
+
 .searchRow {
   display: flex;
   align-items: center;
@@ -18,6 +23,7 @@
 
   input {
     flex: 1;
+    min-width: 0;
   }
 }
 

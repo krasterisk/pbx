@@ -195,6 +195,9 @@ export class CallCenterService {
       queues,
       loginTime: new Date(),
       callsTaken: 0,
+      callsMissed: 0,
+      callsMade: 0,
+      dialTarget: undefined,
       userId,
       wrapupTimeout: settings.wrapup_timeout,
       wrapupExtendStep: settings.wrapup_extend_step,
@@ -225,6 +228,22 @@ export class CallCenterService {
 
     const agent = this.stateService.getAgent(userUid, agentInterface);
     if (!agent) throw new NotFoundException('Agent state not found');
+
+    // Close any open timed status (PAUSE / CALL / WRAPUP) before logout
+    await this.ccAmiService.endTimedStatus(agent);
+
+    // Accumulate READY idle since last status change when ending the shift
+    if (agent.status === 'READY' && agent.statusSince) {
+      const idleSec = Math.max(
+        0,
+        Math.round((Date.now() - new Date(agent.statusSince).getTime()) / 1000),
+      );
+      if (idleSec > 0) {
+        await this.ccAmiService.incrementSessionTotals(userId, agentInterface, {
+          total_idle_time: idleSec,
+        });
+      }
+    }
 
     // Remove from all queues via AMI (primary + WebRTC companion)
     await this.queueRemoveAll(agent.queues, agentInterface);
@@ -277,16 +296,9 @@ export class CallCenterService {
       pauseReason: reason || 'Pause',
     });
 
-    // Log event
-    const sessionId = this.activeSessions.get(this.sessionKey(userUid, userId));
-    if (sessionId) {
-      await this.ccAmiService.logAgentEvent({
-        sessionId,
-        userId,
-        eventType: 'PAUSE',
-        reason: reason || '',
-        userUid,
-      });
+    const paused = this.stateService.getAgent(userUid, agentInterface);
+    if (paused) {
+      await this.ccAmiService.beginTimedStatus(paused, 'PAUSE', reason || 'Pause');
     }
 
     return { success: true };
@@ -314,17 +326,73 @@ export class CallCenterService {
       pauseReason: '',
     });
 
-    const sessionId = this.activeSessions.get(this.sessionKey(userUid, userId));
-    if (sessionId) {
-      await this.ccAmiService.logAgentEvent({
-        sessionId,
-        userId,
-        eventType: 'READY',
-        userUid,
-      });
+    const ready = this.stateService.getAgent(userUid, agentInterface);
+    if (ready) {
+      await this.ccAmiService.endTimedStatus(agent);
+      await this.ccAmiService.logAgentEventForAgent(ready, 'READY');
     }
 
     return { success: true };
+  }
+
+  /**
+   * Queue-paused outbound work: no inbound from queues, dial-out allowed,
+   * counts as working time (not PAUSE journal).
+   */
+  async agentStartOutboundWork(userUid: number, userId: number) {
+    userUid = this.resolveTenant(userUid, userId);
+    const agentInterface = await this.resolveAgentInterface(userUid, userId);
+    if (!agentInterface) throw new NotFoundException('Agent not logged in');
+
+    const agent = this.stateService.getAgent(userUid, agentInterface);
+    if (!agent) throw new NotFoundException('Agent state not found');
+
+    const allowed =
+      agent.status === 'READY'
+      || agent.status === 'PAUSED'
+      || agent.status === 'OUTBOUND_WORK';
+    if (!allowed) {
+      throw new BadRequestException('Outbound work is only available from READY or PAUSED');
+    }
+
+    const reason = 'outbound_work';
+    // Set OUTBOUND_WORK before AMI queuePause so QueueMemberPause events do not
+    // briefly remap the agent to PAUSED (which flashes "Change pause reason" in UI).
+    await this.ccAmiService.endTimedStatus(agent);
+    this.stateService.setAgent(userUid, agentInterface, {
+      status: 'OUTBOUND_WORK',
+      pauseReason: reason,
+    });
+
+    for (const q of agent.queues) {
+      try {
+        await this.amiService.queuePause(q, agentInterface, true, reason);
+      } catch (err: any) {
+        this.logger.warn(`Failed to pause ${agentInterface} in ${q} for outbound work: ${err.message}`);
+      }
+    }
+
+    const live = this.stateService.getAgent(userUid, agentInterface);
+    if (live) {
+      await this.ccAmiService.logAgentEventForAgent(live, 'OUTBOUND_WORK', reason);
+    }
+
+    return { success: true };
+  }
+
+  /** Leave outbound work → READY (unpause queues). */
+  async agentLeaveOutboundWork(userUid: number, userId: number) {
+    userUid = this.resolveTenant(userUid, userId);
+    const agentInterface = await this.resolveAgentInterface(userUid, userId);
+    if (!agentInterface) throw new NotFoundException('Agent not logged in');
+
+    const agent = this.stateService.getAgent(userUid, agentInterface);
+    if (!agent) throw new NotFoundException('Agent state not found');
+    if (agent.status !== 'OUTBOUND_WORK') {
+      throw new BadRequestException('Agent is not in outbound work');
+    }
+
+    return this.agentUnpause(userUid, userId);
   }
 
   async agentHangup(userUid: number, userId: number, channel?: string) {
@@ -434,6 +502,9 @@ export class CallCenterService {
       loginTime: agent.loginTime || session.login_time,
       pauseReason: agent.pauseReason,
       callsTaken: agent.callsTaken,
+      callsMissed: agent.callsMissed ?? 0,
+      callsMade: agent.callsMade ?? 0,
+      statusSince: agent.statusSince,
     };
   }
 
@@ -627,9 +698,13 @@ export class CallCenterService {
     const agentInterface = await this.resolveAgentInterface(userUid, userId);
     if (!agentInterface) throw new NotFoundException('Agent not logged in');
 
+    const agent = this.stateService.getAgent(userUid, agentInterface);
+    if (!agent) throw new NotFoundException('Agent state not found');
+
     // Cancel auto-timeout timer if pending
     this.ccAmiService.cancelWrapupTimer(userUid, agentInterface);
 
+    await this.ccAmiService.endTimedStatus(agent);
     this.stateService.setAgent(userUid, agentInterface, {
       status: 'READY',
       currentCall: undefined,
@@ -637,14 +712,9 @@ export class CallCenterService {
 
     this.stateService.emitEvent('wrapupEnd', userUid, { agent: agentInterface, reason: 'manual' });
 
-    const sessionId = this.activeSessions.get(this.sessionKey(userUid, userId));
-    if (sessionId) {
-      await this.ccAmiService.logAgentEvent({
-        sessionId,
-        userId,
-        eventType: 'WRAPUP_END',
-        userUid,
-      });
+    const ready = this.stateService.getAgent(userUid, agentInterface);
+    if (ready) {
+      await this.ccAmiService.logAgentEventForAgent(ready, 'WRAPUP_END', 'manual');
     }
 
     return { success: true };
@@ -676,7 +746,7 @@ export class CallCenterService {
     const spyOptions = mode === 'spy' ? 'q' : mode === 'whisper' ? 'w' : 'B';
 
     // Get supervisor's SIP interface
-    const supervisor = await this.userModel.findOne({ where: { id: supervisorId, vpbx_user_uid: userUid } });
+    const supervisor = await this.userModel.findOne({ where: { uniqueid: supervisorId, vpbx_user_uid: userUid } });
     if (!supervisor) throw new NotFoundException('Supervisor not found');
 
     // Build the ChanSpy channel — supervisor's device rings and connects to spy
@@ -787,6 +857,15 @@ export class CallCenterService {
       pauseReason: reason || 'Forced by supervisor',
     });
 
+    const paused = this.stateService.getAgent(userUid, agentInterface);
+    if (paused) {
+      await this.ccAmiService.beginTimedStatus(
+        paused,
+        'PAUSE',
+        reason || 'Forced by supervisor',
+      );
+    }
+
     return { success: true };
   }
 
@@ -800,10 +879,16 @@ export class CallCenterService {
       } catch { /* ignore */ }
     }
 
+    await this.ccAmiService.endTimedStatus(agent);
     this.stateService.setAgent(userUid, agentInterface, {
       status: 'READY',
       pauseReason: '',
     });
+
+    const ready = this.stateService.getAgent(userUid, agentInterface);
+    if (ready) {
+      await this.ccAmiService.logAgentEventForAgent(ready, 'READY');
+    }
 
     return { success: true };
   }
@@ -1241,21 +1326,15 @@ export class CallCenterService {
 
   /**
    * D-18/D-29: operator-initiated callback for a missed-call number, reusing
-   * clickToCall's WebRTC-direct/PJSIP-originate branching verbatim. The
-   * resulting call's duration is correlated asynchronously (agentUpdate SSE
-   * transitions on the operator's own AgentState — no queue/CallState
-   * tracking exists for personal outbound dials) and the >5s success rule
-   * is applied once the call ends: success sets called_back on every open
-   * row for the number; failure/<=5s leaves the group active and adds a
-   * fresh attempt row so attemptCount grows naturally in the grouped view.
+   * clickToCall's WebRTC-direct/PJSIP-originate branching. Gated only by an
+   * active shift (logged-in agent) — missed-call worklist callback is core
+   * operator work and must not require the separate click_to_call right.
    */
   async callbackMissedCall(userUid: number, operatorUserId: number, callerIdNum: string) {
     userUid = this.resolveTenant(userUid, operatorUserId);
     const agentInterface = await this.resolveAgentInterface(userUid, operatorUserId);
     if (!agentInterface) throw new NotFoundException('Agent not logged in');
     if (!callerIdNum) throw new BadRequestException('callerIdNum is required');
-
-    await this.permissionsService.assert(userUid, operatorUserId, 'click_to_call');
 
     const result = await this.originateDial(agentInterface, callerIdNum);
     this.trackCallbackOutcome(userUid, agentInterface, callerIdNum, operatorUserId);
@@ -1495,13 +1574,44 @@ export class CallCenterService {
     return { success: true };
   }
 
+  /**
+   * Resolve AMI Redirect target for an agent interface.
+   * Uses the endpoint's real dialplan context (tenant-suffixed, e.g. from-internal0)
+   * and the numeric extension (ew112_0 → 112) — never raw SIP id / bare from-internal.
+   */
+  private async resolveAgentRedirectTarget(
+    userUid: number,
+    agentInterface: string,
+  ): Promise<{ exten: string; context: string }> {
+    const exten = interfaceToExtension(agentInterface);
+    const sipId = agentInterface.includes('/')
+      ? agentInterface.slice(agentInterface.indexOf('/') + 1)
+      : agentInterface;
+    const primaryId = primaryIdOf(sipId) ?? sipId;
+
+    try {
+      const ep =
+        (await this.endpointModel.findByPk(primaryId))
+        ?? (await this.endpointModel.findByPk(sipId));
+      const ctx =
+        ep?.getDataValue?.('context')
+        ?? (ep as { context?: string } | null)?.context;
+      if (ctx && String(ctx).trim()) {
+        return { exten, context: String(ctx).trim() };
+      }
+    } catch (err: any) {
+      this.logger.warn(`resolveAgentRedirectTarget: endpoint lookup failed: ${err.message}`);
+    }
+
+    // Last resort: tenant-suffixed default (endpoints.service buildContext pattern)
+    return { exten, context: `from-internal${userUid}` };
+  }
+
   // ─── Pick Call ──────────────────────────────────────────
   //
   // Pick Call: agent manually grabs a waiting caller from a queue.
-  // Implemented as AMI Redirect of the caller channel to the agent's
-  // extension via the `from-internal` context, bypassing queue strategy.
-  // The subsequent AgentConnect AMI event normally updates state, but we
-  // also pre-update state optimistically so the SSE event is instant.
+  // AMI Redirect of the caller channel to the agent's dialplan extension
+  // (endpoint context + numeric exten), bypassing queue strategy.
 
   async agentPickCall(uniqueid: string, userUid: number, userId: number) {
     userUid = this.resolveTenant(userUid, userId);
@@ -1528,10 +1638,6 @@ export class CallCenterService {
       throw new BadRequestException(`Call is not pickable (status: ${call.status})`);
     }
 
-    // The caller's actual channel might not be tracked yet (we only learn it on AgentConnect),
-    // so we redirect using the well-known QueueCallerJoin channel pattern.
-    // The "channel" recorded on a waiting call is the caller's channel from QueueCallerJoin
-    // (we store it as `callerChannel` once available; fall back to the call uniqueid + queue context).
     const callerChannel = call.callerChannel;
     if (!callerChannel) {
       throw new BadRequestException(
@@ -1539,13 +1645,16 @@ export class CallCenterService {
       );
     }
 
-    const agentExten = agentInterface.replace(/^PJSIP\//, '').replace(/^SIP\//, '');
+    const { exten: agentExten, context } = await this.resolveAgentRedirectTarget(
+      userUid,
+      agentInterface,
+    );
 
     try {
       await this.amiService.action({
         action: 'Redirect',
         channel: callerChannel,
-        context: 'from-internal',
+        context,
         exten: agentExten,
         priority: '1',
       });
@@ -1554,10 +1663,10 @@ export class CallCenterService {
     }
 
     this.logger.log(
-      `Agent ${agentInterface} picked call ${uniqueid} from queue ${call.queue}`,
+      `Agent ${agentInterface} picked call ${uniqueid} from queue ${call.queue} → ${context},${agentExten}`,
     );
 
-    return { success: true, uniqueid, target: agentExten };
+    return { success: true, uniqueid, target: agentExten, context };
   }
 
   // ─── Missed Calls ──────────────────────────────────────

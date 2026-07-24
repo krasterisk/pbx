@@ -36,18 +36,23 @@ interface ChatToggleProps {
   onClick: () => void;
   unreadTotal: number;
   active?: boolean;
+  /** Show text label next to the icon (header placement). */
+  showLabel?: boolean;
 }
 
-export function ChatPanelToggle({ onClick, unreadTotal, active }: ChatToggleProps) {
+export function ChatPanelToggle({ onClick, unreadTotal, active, showLabel = false }: ChatToggleProps) {
   const { t } = useTranslation();
   return (
     <button
       type="button"
-      className={`${styles.toggleBtn} ${active ? styles.toggleBtnActive : ''}`}
+      className={`${styles.toggleBtn}${showLabel ? ` ${styles.toggleBtnLabeled}` : ''}${active ? ` ${styles.toggleBtnActive}` : ''}`}
       onClick={onClick}
       title={t('callcenter.chat.title')}
+      aria-label={t('callcenter.chat.title')}
+      aria-expanded={active}
     >
-      <MessageSquare className="w-4 h-4" />
+      <MessageSquare className={showLabel ? 'w-5 h-5' : 'w-4 h-4'} />
+      {showLabel ? <span className={styles.toggleLabel}>{t('callcenter.chat.title')}</span> : null}
       {unreadTotal > 0 && (
         <span className={styles.toggleBadge}>{unreadTotal > 99 ? '99+' : unreadTotal}</span>
       )}
@@ -285,14 +290,19 @@ export function ChatPanel({ open, onClose }: PanelProps) {
 }
 
 /** Header toggle + panel wrapper for agent/supervisor pages */
-export function ChatPanelHost() {
+export function ChatPanelHost({ showLabel = false }: { showLabel?: boolean } = {}) {
   const [open, setOpen] = useState(false);
   const unreadByChannel = useSelector((s: RootState) => s.callCenter.chatUnreadByChannel);
   const unreadTotal = Object.values(unreadByChannel).reduce((s, n) => s + n, 0);
 
   return (
     <>
-      <ChatPanelToggle onClick={() => setOpen(v => !v)} unreadTotal={unreadTotal} active={open} />
+      <ChatPanelToggle
+        onClick={() => setOpen(v => !v)}
+        unreadTotal={unreadTotal}
+        active={open}
+        showLabel={showLabel}
+      />
       <ChatPanel open={open} onClose={() => setOpen(false)} />
     </>
   );

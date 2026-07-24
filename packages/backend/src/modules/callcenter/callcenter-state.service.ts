@@ -24,7 +24,9 @@ export type AgentStatus =
   /** Phase 9 (D-08/D-13): outbound dial in progress, on a consult leg, after-call-work. */
   | 'DIALING'
   | 'CONSULT'
-  | 'ACW';
+  | 'ACW'
+  /** Queue-paused outbound work mode — no inbound, dial-out allowed, counts as working time. */
+  | 'OUTBOUND_WORK';
 
 export interface AgentState {
   interface: string;        // PJSIP/e101_42
@@ -34,8 +36,16 @@ export interface AgentState {
   currentCall?: string;     // uniqueid of active call
   queues: string[];         // queue names this agent belongs to
   callsTaken: number;
+  /** Session queue RINGNOANSWER (+ personal/outbound miss) count. */
+  callsMissed: number;
+  /** Session outbound/internal answered count (DialEnd ANSWER). */
+  callsMade: number;
+  /** Outbound dial target while status is DIALING (cleared on DialEnd/Hangup). */
+  dialTarget?: string;
   lastCallTime?: Date;
   loginTime?: Date;
+  /** Wall-clock when the current `status` was entered (operator timer / auto-pause). */
+  statusSince?: Date;
   wrapupTimeout?: number;
   wrapupExtendStep?: number;
   wrapupAutosaveDraft?: boolean;
@@ -212,35 +222,104 @@ export class CallCenterStateService implements OnModuleInit {
   setAgent(userUid: number, iface: string, state: Partial<AgentState>): AgentState {
     const key = this.agentKey(userUid, iface);
     const existing = this.agents.get(key);
+    const prevQueues = existing?.queues ?? [];
+    const prevStatus = existing?.status;
     const updated: AgentState = {
       interface: iface,
       name: '',
       status: 'OFFLINE',
       queues: [],
       callsTaken: 0,
+      callsMissed: 0,
+      callsMade: 0,
       userUid,
       userId: 0,
       ...(existing || {}),
       ...state,
     };
-    // Leaving PAUSED must clear reason — undefined is dropped by JSON.stringify (SSE)
-    if (updated.status !== 'PAUSED') {
+    // Stamp when status actually changes so UI timers survive refresh / remount
+    if (state.statusSince != null) {
+      updated.statusSince =
+        state.statusSince instanceof Date
+          ? state.statusSince
+          : new Date(state.statusSince as unknown as string);
+    } else if (!existing || existing.status !== updated.status) {
+      updated.statusSince = new Date();
+    } else if (!updated.statusSince) {
+      updated.statusSince = existing?.statusSince ?? new Date();
+    }
+    // Leaving PAUSED / OUTBOUND_WORK must clear reason — undefined is dropped by JSON.stringify (SSE).
+    // Keep reason while DIALING so we can resume the prior pause/outbound-work mode after the dial.
+    if (
+      updated.status !== 'PAUSED'
+      && updated.status !== 'OUTBOUND_WORK'
+      && updated.status !== 'DIALING'
+    ) {
       delete updated.pauseReason;
     }
     this.agents.set(key, updated);
     // Explicit null so SSE clients clear the previous reason label
-    const payload =
-      updated.status !== 'PAUSED'
-        ? { ...updated, pauseReason: null }
-        : updated;
+    const keepReason =
+      updated.status === 'PAUSED'
+      || updated.status === 'OUTBOUND_WORK'
+      || updated.status === 'DIALING';
+    const payload = keepReason ? updated : { ...updated, pauseReason: null };
     this.emitEvent('agentUpdate', userUid, payload);
+
+    // Keep queue free/paused/busy counts in sync (login/pause/dial often skip AMI recalc).
+    const queuesChanged =
+      prevQueues.length !== updated.queues.length
+      || prevQueues.some((q) => !updated.queues.includes(q));
+    if (!existing || prevStatus !== updated.status || queuesChanged) {
+      const affected = new Set([...prevQueues, ...updated.queues]);
+      for (const queueName of affected) {
+        this.recomputeQueueAgentStats(userUid, queueName);
+      }
+    }
+
     return updated;
   }
 
   removeAgent(userUid: number, iface: string): void {
     const key = this.agentKey(userUid, iface);
+    const existing = this.agents.get(key);
     this.agents.delete(key);
     this.emitEvent('agentUpdate', userUid, { interface: iface, status: 'OFFLINE', removed: true });
+    if (existing?.queues?.length) {
+      for (const queueName of existing.queues) {
+        this.recomputeQueueAgentStats(userUid, queueName);
+      }
+    }
+  }
+
+  /**
+   * Refresh queue.agents.* from live agent statuses.
+   * OFFLINE (Invalid / unreachable) members are excluded from totals.
+   */
+  recomputeQueueAgentStats(userUid: number, queueName: string): void {
+    if (!this.getQueue(userUid, queueName)) return;
+
+    const live = this.getAllAgents(userUid).filter(
+      (a) => a.queues.includes(queueName) && a.status !== 'OFFLINE',
+    );
+
+    this.setQueue(userUid, queueName, {
+      agents: {
+        total: live.length,
+        available: live.filter((a) => a.status === 'READY').length,
+        paused: live.filter((a) =>
+          a.status === 'PAUSED' || a.status === 'OUTBOUND_WORK'
+        ).length,
+        busy: live.filter((a) =>
+          a.status === 'IN_CALL'
+          || a.status === 'RINGING'
+          || a.status === 'DIALING'
+          || a.status === 'CONSULT'
+          || a.status === 'WRAPUP'
+          || a.status === 'ACW'
+        ).length,
+      },
+    });
   }
 
   // ─── Queue State ────────────────────────────────────────

@@ -1,0 +1,115 @@
+.panel {
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.panelCompact {
+  width: 100%;
+  min-width: 0;
+  max-height: calc(100vh - 240px);
+}
+
+.panelFull {
+  width: 100%;
+  grid-column: 1 / -1;
+  max-height: calc(100vh - 240px);
+}
+
+.panelCollapsed {
+  max-height: none;
+}
+
+.panelDragging {
+  opacity: 0.92;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.14);
+  z-index: 5;
+  /* Lock size while dragging so grid reflow cannot stretch/jitter the card */
+  max-height: none !important;
+}
+
+.panelHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+  min-height: 44px;
+}
+
+.dragHandle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-muted-foreground);
+  cursor: grab;
+  flex-shrink: 0;
+
+  &:hover {
+    background: var(--color-accent);
+    color: var(--color-foreground);
+  }
+
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+.panelTitle {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--color-foreground);
+  margin-right: auto;
+}
+
+.headerSummary {
+  display: none;
+  gap: 8px;
+  align-items: center;
+  margin-right: 4px;
+
+  @media (min-width: 900px) {
+    display: flex;
+  }
+}
+
+.collapseBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-card);
+  color: var(--color-muted-foreground);
+  cursor: pointer;
+  flex-shrink: 0;
+
+  &:hover {
+    background: var(--color-accent);
+    color: var(--color-foreground);
+  }
+}
+
+.panelBody {
+  flex: 1;
+  min-height: 0;
+  padding: 12px;
+  overflow-y: auto;
+}
+
+.collapsedBody {
+  padding: 10px 12px 12px;
+}

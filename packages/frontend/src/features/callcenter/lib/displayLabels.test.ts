@@ -6,6 +6,8 @@ import {
   isRawAgentName,
   agentStatusLabel,
   agentStatusColorFamily,
+  coworkerActivityLabel,
+  formatPauseReason,
   AGENT_STATUS_LABEL_KEYS,
   AGENT_STATUS_COLOR_FAMILY,
 } from './displayLabels';
@@ -37,7 +39,7 @@ describe('displayLabels', () => {
   it('callerDisplayLabel formats name + number', () => {
     expect(callerDisplayLabel('201', 'Bob')).toBe('Bob (201)');
     expect(callerDisplayLabel('201', '')).toBe('201');
-    expect(callerDisplayLabel('', '')).toBe('—');
+    expect(callerDisplayLabel('', '')).toBe('-');
   });
 
   describe('agentStatusLabel / agentStatusColorFamily (D-13/D-44)', () => {
@@ -93,6 +95,58 @@ describe('displayLabels', () => {
 
     it('falls back to muted for an unrecognized status value', () => {
       expect(agentStatusColorFamily('BOGUS' as AgentStatus)).toBe('muted');
+    });
+  });
+
+  describe('formatPauseReason', () => {
+    it('localizes RONA / auto_pause:rona codes', () => {
+      expect(formatPauseReason('auto_pause:rona', identityT)).toBe('Auto-pause: no answer');
+      expect(formatPauseReason('RONA (ring-no-answer)', identityT)).toBe('Auto-pause: no answer');
+    });
+
+    it('localizes missed / idle / status auto-pause codes', () => {
+      expect(formatPauseReason('auto_pause:missed:3', identityT)).toBe('Auto-pause: 3 missed');
+      expect(formatPauseReason('auto_pause:idle:60', identityT)).toBe('Auto-pause: idle 60s');
+      expect(formatPauseReason('auto_pause:status:WRAPUP:30', identityT)).toContain('Wrap-up');
+    });
+
+    it('passes through catalog pause reasons', () => {
+      expect(formatPauseReason('Lunch', identityT)).toBe('Lunch');
+    });
+  });
+
+  describe('coworkerActivityLabel', () => {
+    it('formats queue ring as Calling · queue name', () => {
+      const result = coworkerActivityLabel(
+        { status: 'RINGING' },
+        { queue: 'q700_0', callerIdNum: '201' },
+        [{ name: 'q700_0', displayName: 'Sales' }],
+        identityT,
+      );
+      expect(result.tone).toBe('warning');
+      expect(result.text).toContain('Calling');
+      expect(result.text).toContain('Sales (700)');
+    });
+
+    it('formats outbound dial and talking with success tone', () => {
+      const dialing = coworkerActivityLabel(
+        { status: 'DIALING', dialTarget: '79001234567' },
+        undefined,
+        [],
+        identityT,
+      );
+      expect(dialing.tone).toBe('warning');
+      expect(dialing.text).toContain('Outbound');
+      expect(dialing.text).toContain('79001234567');
+
+      const talking = coworkerActivityLabel(
+        { status: 'IN_CALL' },
+        { queue: 'q700_0', callerIdNum: '201' },
+        [{ name: 'q700_0', displayName: 'Sales' }],
+        identityT,
+      );
+      expect(talking.tone).toBe('success');
+      expect(talking.text).toContain('Talking');
     });
   });
 });

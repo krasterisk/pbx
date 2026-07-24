@@ -12,6 +12,7 @@ import {
 } from '@/shared/api/endpoints/callCenterApi';
 import { useGetQueuesQuery } from '@/shared/api/endpoints/queueApi';
 import { selectCcQueues } from '@/features/callcenter/model/selectors/callCenterSelectors';
+import { requestOutboundDial } from '@/features/callcenter/model/slice/callCenterSlice';
 import { selectCurrentUser } from '@/entities/User';
 import { queueDisplayName } from '@/features/callcenter/lib/displayLabels';
 import { rtkApi } from '@/shared/api/rtkApi';
@@ -21,6 +22,12 @@ type ViewMode = 'active' | 'resolved';
 
 function groupKey(g: Pick<IMissedCallGroup, 'callerIdNum' | 'personal'>): string {
   return `${g.callerIdNum}|${g.personal ? 1 : 0}`;
+}
+
+function startOfLocalDayMs(): number {
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  return start.getTime();
 }
 
 /**
@@ -102,17 +109,19 @@ export function MissedCallsPanel() {
     return t('callcenter.missed.agoDays', { count: Math.floor(h / 24) });
   };
 
-  const unclaimedQueueMissedCount = useMemo(
-    () => activeGroups.filter((g) => !g.personal && !g.claimedBy).length,
-    [activeGroups],
-  );
+  const todaysActiveGroups = useMemo(() => {
+    const startMs = startOfLocalDayMs();
+    return activeGroups.filter((g) => new Date(g.lastAttemptAt).getTime() >= startMs);
+  }, [activeGroups]);
 
   // Resolved sub-view (D-17/D-18): dedupe raw rows by number+ownership, keep
   // the most recent resolution, tag client-self vs operator-callback success.
   const resolvedGroups = useMemo(() => {
+    const startMs = startOfLocalDayMs();
     const byKey = new Map<string, { row: typeof allRows[number]; key: string }>();
     for (const row of allRows) {
       if (!row.called_back && !row.client_called_back) continue;
+      if (new Date(row.created_at).getTime() < startMs) continue;
       const key = `${row.caller_id_num}|${row.personal ? 1 : 0}`;
       const existing = byKey.get(key);
       if (!existing || new Date(row.created_at).getTime() > new Date(existing.row.created_at).getTime()) {
@@ -124,11 +133,18 @@ export function MissedCallsPanel() {
     );
   }, [allRows]);
 
-  const attemptHistoryFor = (g: Pick<IMissedCallGroup, 'callerIdNum' | 'personal'>) =>
-    allRows
-      .filter((row) => row.caller_id_num === g.callerIdNum && row.personal === g.personal)
+  /** Attempt history for a number — current local calendar day only. */
+  const attemptHistoryFor = (g: Pick<IMissedCallGroup, 'callerIdNum' | 'personal'>) => {
+    const startMs = startOfLocalDayMs();
+    return allRows
+      .filter((row) =>
+        row.caller_id_num === g.callerIdNum
+        && row.personal === g.personal
+        && new Date(row.created_at).getTime() >= startMs
+      )
       .slice()
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  };
 
   const handleClaim = async (callerIdNum: string) => {
     try {
@@ -138,12 +154,15 @@ export function MissedCallsPanel() {
 
   const handleCallback = async (callerIdNum: string) => {
     try {
-      await callbackMissedCall({ callerIdNum }).unwrap();
+      const res = await callbackMissedCall({ callerIdNum }).unwrap();
+      if (res.mode === 'webrtc' && res.target) {
+        dispatch(requestOutboundDial(res.target));
+      }
     } catch { /* dial-initiation error (e.g. not logged in) — nothing more to do client-side */ }
   };
 
-  const count = activeGroups.length;
-  const badgeClass = unclaimedQueueMissedCount > 0 ? styles.badgeWarning : '';
+  const count = todaysActiveGroups.length;
+  const badgeClass = count > 0 ? styles.badgeAlert : '';
 
   return (
     <div className={styles.wrap}>
@@ -151,6 +170,7 @@ export function MissedCallsPanel() {
         className={`${styles.badge} ${badgeClass}`}
         onClick={() => setOpen((o) => !o)}
         title={t('callcenter.missed.title')}
+        aria-label={`${t('callcenter.missed.title')}: ${count}`}
       >
         <PhoneMissed className="w-4 h-4" />
         <span className={styles.count}>{count}</span>
@@ -184,15 +204,17 @@ export function MissedCallsPanel() {
           />
 
           {view === 'active' ? (
-            activeGroups.length === 0 ? (
+            todaysActiveGroups.length === 0 ? (
               <Text variant="muted" className="text-xs text-center py-4">
                 {t('callcenter.missed.empty')}
               </Text>
             ) : (
               <div className={styles.list}>
-                {activeGroups.map((g) => {
+                {todaysActiveGroups.map((g) => {
                   const key = groupKey(g);
                   const expanded = expandedKey === key;
+                  const todayAttempts = attemptHistoryFor(g);
+                  const attemptCount = todayAttempts.length || g.attemptCount;
                   const claimedByMe = g.claimedBy != null && currentUserId != null && g.claimedBy === currentUserId;
                   const claimedByOther = g.claimedBy != null && !claimedByMe;
                   return (
@@ -207,8 +229,8 @@ export function MissedCallsPanel() {
                           <Text className={styles.rowNum}>
                             {g.callerIdNum || t('callcenter.missed.unknown')}
                           </Text>
-                          <span className={styles.attemptBadge} title={t('callcenter.missed.attemptsLabel', { count: g.attemptCount })}>
-                            {g.attemptCount}
+                          <span className={styles.attemptBadge} title={t('callcenter.missed.attemptsLabel', { count: attemptCount })}>
+                            {attemptCount}
                           </span>
                           <ChevronDown className={`w-3.5 h-3.5 ${styles.chevron} ${expanded ? styles.chevronOpen : ''}`} />
                         </div>
@@ -241,7 +263,11 @@ export function MissedCallsPanel() {
                           <Text variant="muted" className="text-xs font-semibold">
                             {t('callcenter.missed.attemptHistoryTitle', 'Attempt history')}
                           </Text>
-                          {attemptHistoryFor(g).map((row) => (
+                          {todayAttempts.length === 0 ? (
+                            <Text variant="muted" className="text-xs">
+                              {t('callcenter.missed.noAttemptsToday', 'No attempts today')}
+                            </Text>
+                          ) : todayAttempts.map((row) => (
                             <div key={row.uid ?? row.id} className={styles.attemptRow}>
                               <Text variant="muted" className="text-xs">
                                 {new Date(row.created_at).toLocaleString()}

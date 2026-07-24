@@ -5,10 +5,18 @@
   50% { opacity: 0.55; }
 }
 
-/* ── Desktop FAB (collapsed) ─────────────────────── */
-.fab {
+/* ── Desktop FAB / expanded panel wrap ───────────── */
+.fabWrap {
   position: fixed;
   bottom: 24px;
+  z-index: var(--z-index-toast);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.fab {
   width: 56px;
   height: 56px;
   border-radius: 50%;
@@ -20,7 +28,6 @@
   background: var(--color-primary);
   color: var(--color-primary-foreground, #fff);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
-  z-index: var(--z-index-toast);
   transition: filter 0.15s ease, transform 0.1s ease;
 
   &:hover {
@@ -38,6 +45,7 @@
 
 .fabLeft {
   left: 24px;
+  align-items: flex-start;
 }
 
 .fabRinging {
@@ -49,9 +57,117 @@
   }
 }
 
+/* ── Docked in status bar (chrome) ───────────────── */
+.chromeWrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.chromeTrigger {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-primary) 10%, var(--color-card));
+  color: var(--color-primary);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background 0.15s ease, border-color 0.15s ease;
+
+  &:hover {
+    background: color-mix(in srgb, var(--color-primary) 16%, var(--color-card));
+  }
+}
+
+.chromeTriggerLabeled {
+  padding: 8px 14px;
+}
+
+.chromeTriggerLabel {
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.chromeTriggerOpen {
+  border-color: color-mix(in srgb, var(--color-primary) 40%, transparent);
+  background: color-mix(in srgb, var(--color-primary) 18%, var(--color-card));
+}
+
+.chromeTriggerRinging {
+  border-color: color-mix(in srgb, var(--color-destructive) 40%, transparent);
+  background: color-mix(in srgb, var(--color-destructive) 12%, transparent);
+  color: var(--color-destructive);
+  animation: softphonePulse 1.4s infinite;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+.chromePanel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: var(--z-index-toast);
+  width: min(320px, calc(100vw - 32px));
+  padding: 16px;
+  border-radius: var(--radius-lg, 12px);
+  background: var(--color-card, var(--color-background));
+  border: 1px solid var(--color-border);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.22);
+}
+
+.tabRow {
+  display: flex;
+  gap: 4px;
+  padding: 2px;
+  border-radius: var(--radius-md);
+  background: var(--color-muted);
+}
+
+.tabBtn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 6px 8px;
+  border: none;
+  border-radius: calc(var(--radius-md) - 2px);
+  background: transparent;
+  color: var(--color-muted-foreground);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tabBtnActive {
+  background: var(--color-card);
+  color: var(--color-foreground);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.tabPlaceholder {
+  text-align: center;
+  font-size: 0.8rem;
+  padding: 20px 8px;
+  line-height: 1.45;
+}
+
 /* ── Desktop expanded panel ──────────────────────── */
 .panel {
+  width: 300px;
   padding: 16px;
+  border-radius: var(--radius-lg, 12px);
+  background: var(--color-card, var(--color-background));
+  border: 1px solid var(--color-border);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.22);
 }
 
 .panelBody {
@@ -63,6 +179,11 @@
   font-weight: 600;
   line-height: 1.3;
   color: var(--color-foreground);
+}
+
+.collapseBtn {
+  width: 100%;
+  margin-top: 4px;
 }
 
 .callSummary {
@@ -92,12 +213,20 @@
 }
 
 .ringingActions {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  gap: 8px;
   width: 100%;
+}
 
-  :global(button) {
-    flex: 1;
-    min-height: 44px;
-  }
+.ringingBtn {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 44px;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
 }
 
 .controlsRow {
@@ -110,6 +239,65 @@
     min-height: 44px;
     min-width: 44px;
   }
+}
+
+/* ── Idle dialpad (D-01) ─────────────────────────── */
+.dialBlock {
+  width: 100%;
+}
+
+.dialDisplay {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+}
+
+.dialInput {
+  flex: 1;
+  min-width: 0;
+  height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md, 8px);
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-size: 20px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  text-align: center;
+
+  &::placeholder {
+    font-size: 14px;
+    font-weight: 400;
+    letter-spacing: normal;
+    color: var(--color-muted-foreground);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+  }
+}
+
+.dialGrid {
+  max-width: 240px;
+}
+
+.dialCallBtn {
+  width: 100%;
+  min-height: 48px;
+}
+
+.dialError {
+  font-size: 12px;
+  color: var(--color-destructive);
+  text-align: center;
+}
+
+.mobileDialSheet {
+  max-height: 85vh;
+  overflow-y: auto;
 }
 
 /* ── Phone (<768): sticky bar fallback, no floating FAB (D-46) ── */
@@ -163,6 +351,7 @@ $softphone-bar-height: 72px;
 .stickyInfo {
   min-width: 0;
   flex-shrink: 1;
+  flex: 1;
 }
 
 .stickyCaller {
@@ -180,7 +369,7 @@ $softphone-bar-height: 72px;
   font-variant-numeric: tabular-nums;
 }
 
-/* ── Add-to-conference sheet (D-28, wired into TransferDirectory in 09-12) ── */
+/* ── Add-to-conference sheet (D-28) ── */
 .conferenceSheet {
   display: flex;
   flex-direction: column;

@@ -98,6 +98,8 @@ describe('callCenterSlice', () => {
       const s1 = reducer(baseState(), updateAgent(agent()));
       const s2 = reducer(s1, updateAgent({ interface: 'PJSIP/101', status: 'PAUSED' }));
       expect(s2.agents[0].status).toBe('PAUSED');
+      expect(s2.agents[0].statusSince).toBeTruthy();
+      expect(s2.agents[0].statusSince).not.toBe(s1.agents[0].statusSince);
       expect(s2.agents[0].name).toBe('Alice');
     });
 
@@ -126,6 +128,32 @@ describe('callCenterSlice', () => {
       expect(s2.agents[0].pauseReason).toBeUndefined();
     });
 
+    it('keeps pauseReason while DIALING (resume pause after outbound)', () => {
+      const s1 = reducer(
+        baseState(),
+        updateAgent({ ...agent(), status: 'PAUSED', pauseReason: 'Lunch' }),
+      );
+      const s2 = reducer(
+        s1,
+        updateAgent({ interface: 'PJSIP/101', status: 'DIALING', pauseReason: 'Lunch', dialTarget: '201' }),
+      );
+      expect(s2.agents[0].status).toBe('DIALING');
+      expect(s2.agents[0].pauseReason).toBe('Lunch');
+      expect(s2.agents[0].dialTarget).toBe('201');
+    });
+
+    it('keeps pauseReason for OUTBOUND_WORK', () => {
+      const s1 = reducer(
+        baseState(),
+        updateAgent({
+          ...agent(),
+          status: 'OUTBOUND_WORK',
+          pauseReason: 'outbound_work',
+        }),
+      );
+      expect(s1.agents[0].pauseReason).toBe('outbound_work');
+    });
+
     it('flows the three new D-13 statuses (DIALING/CONSULT/ACW) through unchanged', () => {
       const s1 = reducer(baseState(), updateAgent(agent({ status: 'DIALING' })));
       expect(s1.agents[0].status).toBe('DIALING');
@@ -135,7 +163,7 @@ describe('callCenterSlice', () => {
 
       const s3 = reducer(s2, updateAgent({ interface: 'PJSIP/101', status: 'ACW' }));
       expect(s3.agents[0].status).toBe('ACW');
-      // Non-PAUSED statuses must never carry a stale pauseReason forward
+      // Non-pause statuses must never carry a stale pauseReason forward
       expect(s3.agents[0].pauseReason).toBeUndefined();
     });
   });

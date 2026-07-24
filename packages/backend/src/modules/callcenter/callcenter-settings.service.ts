@@ -84,7 +84,9 @@ export const DEFAULT_TENANT_SETTINGS = {
   default_sla_threshold: 20,
   alert_thresholds: { ...DEFAULT_ALERT_THRESHOLDS },
   alert_sound_enabled: true,
-  /** D-15: empty → engine fires only always-on RONA. */
+  /** Master switch for RONA + flexible rules (default on = prior always-on RONA behavior). */
+  autopause_enabled: true,
+  /** D-15: empty → when enabled, engine fires only RONA. */
   autopause_rules: [] as AutoPauseRule[],
 };
 
@@ -330,6 +332,9 @@ export class CallCenterSettingsService {
     if (dto.autopause_rules !== undefined) {
       patch.autopause_rules = sanitizeAutopauseRules(dto.autopause_rules);
     }
+    if (dto.autopause_enabled !== undefined) {
+      patch.autopause_enabled = Boolean(dto.autopause_enabled);
+    }
 
     if (existing) {
       await existing.update(patch);
@@ -345,6 +350,9 @@ export class CallCenterSettingsService {
         { ...DEFAULT_ALERT_THRESHOLDS },
       autopause_rules:
         (patch.autopause_rules as AutoPauseRule[]) ?? [],
+      autopause_enabled:
+        (patch.autopause_enabled as boolean | undefined) ??
+        DEFAULT_TENANT_SETTINGS.autopause_enabled,
     });
   }
 

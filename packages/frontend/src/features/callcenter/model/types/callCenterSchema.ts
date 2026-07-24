@@ -9,7 +9,9 @@ export type AgentStatus =
   | 'WRAPUP'
   | 'DIALING'
   | 'CONSULT'
-  | 'ACW';
+  | 'ACW'
+  /** Queue-paused outbound work — no inbound, dial-out allowed. */
+  | 'OUTBOUND_WORK';
 
 export interface IAgent {
   interface: string;
@@ -19,8 +21,21 @@ export interface IAgent {
   currentCall?: string;
   queues: string[];
   callsTaken: number;
+  /** Session queue RINGNOANSWER (+ personal/outbound miss) count. */
+  callsMissed?: number;
+  /** Session outbound/internal answered count. */
+  callsMade?: number;
+  /** Outbound dial target while DIALING. */
+  dialTarget?: string;
+  /**
+   * Since-midnight answered/made/missed (metrics). Used when panel KPI mode is day/both.
+   * Shift counters stay on callsTaken / callsMade / callsMissed.
+   */
+  kpiDay?: { answered: number; made: number; missed: number };
   lastCallTime?: string;
   loginTime?: string;
+  /** ISO timestamp when current status was entered (from server). */
+  statusSince?: string;
   wrapupTimeout?: number;
   userUid: number;
   userId: number;
@@ -95,6 +110,8 @@ export interface CallCenterState {
   myAgentInterface: string | null;
   chatUnreadByChannel: Record<string, number>;
   chatOpen: boolean;
+  /** WebRTC softphone: number to dial once registered (click-to-call / history). */
+  pendingOutboundDial: string | null;
 }
 
 export interface IChatMessagePayload {

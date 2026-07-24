@@ -240,7 +240,7 @@ export function QueueManagementModal({ agent, open, onClose }: QueueManagementMo
         <DialogContent size="xl">
           <DialogHeader>
             <DialogTitle>
-              {t('callcenter.supervisor.queueMgmt.title', 'Queue management — {{name}}', {
+              {t('callcenter.supervisor.queueMgmt.title', 'Queue management: {{name}}', {
                 name: agent?.name ?? '',
               })}
             </DialogTitle>

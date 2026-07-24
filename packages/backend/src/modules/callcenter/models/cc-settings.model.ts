@@ -68,6 +68,13 @@ export class CcSettings extends Model {
   @Column({ type: DataType.JSON, allowNull: true, defaultValue: null })
   declare autopause_rules: AutoPauseRule[] | null;
 
+  /**
+   * Master switch for the auto-pause engine (RONA + autopause_rules).
+   * When false, CallCenterAutoPauseService does not pause anyone.
+   */
+  @Column({ type: DataType.BOOLEAN, allowNull: false, defaultValue: true })
+  declare autopause_enabled: boolean;
+
   @Column({ type: DataType.DATE, allowNull: false, defaultValue: DataType.NOW })
   declare updated_at: Date;
 

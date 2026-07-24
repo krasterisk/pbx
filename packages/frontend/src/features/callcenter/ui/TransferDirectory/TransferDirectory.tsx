@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
+import { useDispatch } from 'react-redux';
 import { useTranslation } from 'react-i18next';
 import { Search, Users, List, UsersRound } from 'lucide-react';
-import { Input, Text, Button } from '@/shared/ui';
+import { Input, Text, Button, Tooltip, SegmentedControl } from '@/shared/ui';
 import {
   useGetTransferDirectoryQuery,
   useAddToConferenceMutation,
@@ -12,9 +13,11 @@ import type {
   IDirectoryQueue,
   IDirectoryGroup,
 } from '@/shared/api/endpoints/callCenterApi';
+import { requestOutboundDial } from '@/features/callcenter/model/slice/callCenterSlice';
 import styles from './TransferDirectory.module.scss';
 
 export type TransferDirectoryMode = 'transfer' | 'conference-add' | 'call';
+type TypeFilter = 'all' | 'endpoints' | 'queues' | 'groups';
 
 type DirectoryRow =
   | (IDirectoryEndpoint & { type: 'endpoint' })
@@ -34,15 +37,24 @@ export interface TransferDirectoryProps {
 }
 
 /**
- * [ASSUMED] Presence bucketing over both raw AMI DeviceState/ExtensionState
- * strings (NOT_INUSE/INUSE/BUSY/RINGING/UNAVAILABLE/...) and the CC AgentStatus
- * fallback (READY/IN_CALL/PAUSED/...) that CallCenterPresenceService.getPresence
- * (09-11) may return — casing/values unverified against a live Asterisk
- * instance (09-VALIDATION carries the same flag for the presence source).
+ * True when the endpoint has no usable registration (hide from transfer list).
+ * Busy/talking agents stay visible — only unreachable devices are filtered out.
  */
+export function isEndpointUnreachable(presence: string | undefined): boolean {
+  const state = (presence || '').toUpperCase();
+  return (
+    !state
+    || state === 'OFFLINE'
+    || state === 'UNAVAILABLE'
+    || state === 'INVALID'
+    || state === 'UNKNOWN'
+    || state === 'NOT_FOUND'
+  );
+}
+
 function presenceDotClass(presence: string | undefined): string {
   const state = (presence || '').toUpperCase();
-  if (!state || state === 'OFFLINE' || state === 'UNAVAILABLE' || state === 'INVALID' || state === 'UNKNOWN') {
+  if (isEndpointUnreachable(state)) {
     return styles.dotOffline;
   }
   if (state === 'READY' || state === 'NOT_INUSE' || state === 'IDLE' || state === 'AVAILABLE') {
@@ -58,12 +70,8 @@ function freeCountClass(free: number, total: number): string {
 }
 
 /**
- * Unified transfer directory (D-36/D-37) — one searchable list mixing internal
- * endpoints, queues and call groups, each with a type icon; endpoints carry a
- * live BLF presence dot (patched by presenceUpdate SSE, see useCallCenterSSE.ts),
- * queues/groups show a free-operator count with the same warning/danger
- * thresholds as QueuesTab. Serves three call sites via `mode` (D-29): transfer
- * target, conference-add, click-to-call — never three bespoke pickers.
+ * Unified transfer directory (D-36/D-37) — searchable list of endpoints/queues/groups.
+ * Unregistered endpoints are hidden; type filters narrow the list.
  */
 export function TransferDirectory({
   mode,
@@ -73,10 +81,9 @@ export function TransferDirectory({
   className,
 }: TransferDirectoryProps) {
   const { t } = useTranslation();
+  const dispatch = useDispatch();
   const [search, setSearch] = useState('');
-  // Always unfiltered — filtering client-side keeps a single cache entry so
-  // the presenceUpdate SSE patch (useCallCenterSSE.ts) always targets the
-  // list this component renders, regardless of what the operator typed (D-45).
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
   const { data, isFetching } = useGetTransferDirectoryQuery();
   const [addToConference, { isLoading: isAdding }] = useAddToConferenceMutation();
   const [clickToCall, { isLoading: isCalling }] = useClickToCallMutation();
@@ -85,17 +92,23 @@ export function TransferDirectory({
   const rows = useMemo<DirectoryRow[]>(() => {
     if (!data) return [];
     const term = search.trim().toLowerCase();
-    const all: DirectoryRow[] = [
-      ...data.endpoints.map((e) => ({ ...e, type: 'endpoint' as const })),
-      ...data.queues.map((q) => ({ ...q, type: 'queue' as const })),
-      ...data.groups.map((g) => ({ ...g, type: 'group' as const })),
-    ];
+    const endpoints = data.endpoints
+      .filter((e) => !isEndpointUnreachable(e.presence))
+      .map((e) => ({ ...e, type: 'endpoint' as const }));
+    const queues = data.queues.map((q) => ({ ...q, type: 'queue' as const }));
+    const groups = data.groups.map((g) => ({ ...g, type: 'group' as const }));
+
+    let all: DirectoryRow[] = [];
+    if (typeFilter === 'all' || typeFilter === 'endpoints') all = all.concat(endpoints);
+    if (typeFilter === 'all' || typeFilter === 'queues') all = all.concat(queues);
+    if (typeFilter === 'all' || typeFilter === 'groups') all = all.concat(groups);
+
     if (!term) return all;
     return all.filter((row) => {
       const extension = row.type === 'endpoint' ? row.extension : '';
       return row.label.toLowerCase().includes(term) || extension.toLowerCase().includes(term);
     });
-  }, [data, search]);
+  }, [data, search, typeFilter]);
 
   const ctaLabel = mode === 'call'
     ? t('callcenter.directory.callCta', 'Call')
@@ -106,7 +119,6 @@ export function TransferDirectory({
   const handleEntryClick = async (entry: IDirectoryEndpoint) => {
     if (mode === 'transfer') {
       onSelectTransferTarget?.(entry);
-      onDone?.();
       return;
     }
     setPendingId(entry.id);
@@ -115,7 +127,10 @@ export function TransferDirectory({
         if (!activeCallUniqueid) return;
         await addToConference({ uniqueid: activeCallUniqueid, target: entry.extension }).unwrap();
       } else {
-        await clickToCall({ target: entry.extension }).unwrap();
+        const res = await clickToCall({ target: entry.extension }).unwrap();
+        if (res.mode === 'webrtc' && res.target) {
+          dispatch(requestOutboundDial(res.target));
+        }
       }
       onDone?.();
     } catch { /* server is source of truth — row stays interactive to retry */ }
@@ -126,6 +141,39 @@ export function TransferDirectory({
 
   return (
     <div className={`${styles.wrap}${className ? ` ${className}` : ''}`}>
+      <div className={styles.filterRow}>
+        <SegmentedControl
+          ariaLabel={t('callcenter.directory.filterLabel', 'Directory filters')}
+          value={typeFilter}
+          onChange={setTypeFilter}
+          options={[
+            {
+              value: 'all',
+              label: t('callcenter.directory.filterAll', 'All'),
+              tooltipContent: t('callcenter.directory.filterAllHint', 'Show subscribers, queues and groups'),
+            },
+            {
+              value: 'endpoints',
+              label: t('callcenter.directory.filterEndpoints', 'Subscribers'),
+              icon: Users,
+              tooltipContent: t('callcenter.directory.filterEndpointsHint', 'Registered extensions only'),
+            },
+            {
+              value: 'queues',
+              label: t('callcenter.directory.filterQueues', 'Queues'),
+              icon: List,
+              tooltipContent: t('callcenter.directory.filterQueuesHint', 'Call queues'),
+            },
+            {
+              value: 'groups',
+              label: t('callcenter.directory.filterGroups', 'Groups'),
+              icon: UsersRound,
+              tooltipContent: t('callcenter.directory.filterGroupsHint', 'Call groups'),
+            },
+          ]}
+        />
+      </div>
+
       <div className={styles.searchRow}>
         <Search className="w-4 h-4" aria-hidden />
         <Input
@@ -149,25 +197,35 @@ export function TransferDirectory({
             return (
               <div key={`endpoint-${entry.id}`} className={styles.row}>
                 <Users className={`w-4 h-4 ${styles.typeIcon}`} aria-hidden />
-                <span
-                  className={`${styles.dot} ${presenceDotClass(entry.presence)}`}
-                  role="img"
-                  aria-label={entry.presence || t('callcenter.status.offline', 'Offline')}
-                />
+                <Tooltip content={entry.presence || t('callcenter.status.offline', 'Offline')}>
+                  <span
+                    className={`${styles.dot} ${presenceDotClass(entry.presence)}`}
+                    role="img"
+                    aria-label={entry.presence || t('callcenter.status.offline', 'Offline')}
+                  />
+                </Tooltip>
                 <div className={styles.rowMain}>
                   <Text className={styles.rowLabel}>{entry.label}</Text>
                   <Text variant="muted" className="text-xs">{entry.extension}</Text>
                 </div>
-                <Button
-                  type="button"
-                  size="sm"
-                  className={styles.ctaBtn}
-                  disabled={isPending(entry.id) || (mode === 'conference-add' && !activeCallUniqueid)}
-                  aria-label={`${ctaLabel} ${entry.label}`}
-                  onClick={() => void handleEntryClick(entry)}
-                >
-                  {ctaLabel}
-                </Button>
+                <Tooltip content={
+                  mode === 'transfer'
+                    ? t('callcenter.directory.transferHint', 'Transfer the active call to this subscriber')
+                    : mode === 'conference-add'
+                      ? t('callcenter.directory.addHint', 'Add this subscriber to the conference')
+                      : t('callcenter.directory.callHint', 'Place a call to this subscriber')
+                }>
+                  <Button
+                    type="button"
+                    size="sm"
+                    className={styles.ctaBtn}
+                    disabled={isPending(entry.id) || (mode === 'conference-add' && !activeCallUniqueid)}
+                    aria-label={`${ctaLabel} ${entry.label}`}
+                    onClick={() => void handleEntryClick(entry)}
+                  >
+                    {ctaLabel}
+                  </Button>
+                </Tooltip>
               </div>
             );
           }
@@ -178,9 +236,11 @@ export function TransferDirectory({
                 <div className={styles.rowMain}>
                   <Text className={styles.rowLabel}>{entry.label}</Text>
                 </div>
-                <span className={`${styles.freeCount} ${freeCountClass(entry.freeOperators, entry.totalOperators)}`}>
-                  {entry.freeOperators} {t('callcenter.directory.free', 'free')}
-                </span>
+                <Tooltip content={t('callcenter.directory.freeHint', 'Agents ready in this queue')}>
+                  <span className={`${styles.freeCount} ${freeCountClass(entry.freeOperators, entry.totalOperators)}`}>
+                    {entry.freeOperators} {t('callcenter.directory.free', 'free')}
+                  </span>
+                </Tooltip>
               </div>
             );
           }
@@ -190,9 +250,11 @@ export function TransferDirectory({
               <div className={styles.rowMain}>
                 <Text className={styles.rowLabel}>{entry.label}</Text>
               </div>
-              <span className={`${styles.freeCount} ${freeCountClass(entry.freeOperators, entry.totalOperators)}`}>
-                {entry.freeOperators} {t('callcenter.directory.free', 'free')}
-              </span>
+              <Tooltip content={t('callcenter.directory.freeHint', 'Agents ready in this group')}>
+                <span className={`${styles.freeCount} ${freeCountClass(entry.freeOperators, entry.totalOperators)}`}>
+                  {entry.freeOperators} {t('callcenter.directory.free', 'free')}
+                </span>
+              </Tooltip>
             </div>
           );
         })}

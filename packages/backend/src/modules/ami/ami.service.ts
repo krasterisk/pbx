@@ -340,6 +340,17 @@ export class AmiService implements OnModuleInit, OnModuleDestroy {
         this.getCcAmiService()?.handleCallerAbandon(evt);
       });
 
+      // AgentCalled — queue offered a call to a member (phone ringing).
+      // Required so RINGING is visible for RONA / missed_count on later Abandon/RNA.
+      this.ami.on('agentcalled', (evt: any) => {
+        this.getCcAmiService()?.handleAgentCalled?.(evt);
+      });
+
+      // AgentRingNoAnswer — member did not answer before queue ring timeout
+      this.ami.on('agentringnoanswer', (evt: any) => {
+        this.getCcAmiService()?.handleAgentRingNoAnswer?.(evt);
+      });
+
       // AgentConnect — agent answered a queued call (also used by webhooks above)
       this.ami.on('agentconnect', (evt: any) => {
         this.getCcAmiService()?.handleAgentConnect(evt);

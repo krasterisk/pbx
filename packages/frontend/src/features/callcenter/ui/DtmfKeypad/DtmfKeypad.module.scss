@@ -5,27 +5,36 @@
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(3, 44px);
+  grid-template-columns: repeat(3, minmax(44px, 1fr));
   gap: var(--spacing-2, 8px);
+  width: 100%;
+  max-width: 220px;
+  margin: 0 auto;
 }
 
 .key {
-  width: 44px;
-  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  height: 48px;
   border-radius: var(--radius-md, 8px);
   border: 1px solid var(--color-border);
   background: var(--color-background);
   color: var(--color-foreground);
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 600;
   cursor: pointer;
   transition: background 120ms ease;
 
-  &:hover {
+  &:hover:not(:disabled) {
     background: var(--color-muted, rgba(0, 0, 0, 0.05));
   }
 
-  &:active {
-    background: var(--color-accent, rgba(99, 102, 241, 0.15));
+  &:active:not(:disabled) {
+    background: color-mix(in srgb, var(--color-primary) 15%, transparent);
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
   }
 }

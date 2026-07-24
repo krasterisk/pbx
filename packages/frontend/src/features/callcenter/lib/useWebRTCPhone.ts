@@ -20,6 +20,7 @@ export type PhoneStatus =
   | 'disconnected'
   | 'connecting'
   | 'registered'
+  | 'dialing'
   | 'ringing'
   | 'in-call';
 
@@ -311,7 +312,9 @@ export function useWebRTCPhone(options: UseWebRTCPhoneOptions) {
 
     reconnectTimerRef.current = setTimeout(() => {
       if (!wantConnectedRef.current || uaRef.current !== ua) return;
-      setStatus((prev) => (prev === 'in-call' || prev === 'ringing' ? prev : 'connecting'));
+      setStatus((prev) =>
+        prev === 'in-call' || prev === 'ringing' || prev === 'dialing' ? prev : 'connecting',
+      );
       void ua
         .reconnect()
         .then(async () => {
@@ -341,10 +344,14 @@ export function useWebRTCPhone(options: UseWebRTCPhoneOptions) {
       if (!wantConnectedRef.current) return;
       if (registererRef.current?.state === RegistererState.Registered) {
         reconnectAttemptRef.current = 0;
-        setStatus((prev) => (prev === 'in-call' || prev === 'ringing' ? prev : 'registered'));
+        setStatus((prev) =>
+          prev === 'in-call' || prev === 'ringing' || prev === 'dialing' ? prev : 'registered',
+        );
         return;
       }
-      setStatus((prev) => (prev === 'in-call' || prev === 'ringing' ? prev : 'connecting'));
+      setStatus((prev) =>
+        prev === 'in-call' || prev === 'ringing' || prev === 'dialing' ? prev : 'connecting',
+      );
       void registerer.register()
         .then(() => {
           reconnectAttemptRef.current = 0;
@@ -423,7 +430,9 @@ export function useWebRTCPhone(options: UseWebRTCPhoneOptions) {
         onDisconnect: (error?: Error) => {
           if (!wantConnectedRef.current) return;
           // Transport lost — show connecting; Asterisk contact may still be Avail briefly
-          setStatus((prev) => (prev === 'in-call' || prev === 'ringing' ? prev : 'connecting'));
+          setStatus((prev) =>
+        prev === 'in-call' || prev === 'ringing' || prev === 'dialing' ? prev : 'connecting',
+      );
           if (error) {
             attemptTransportReconnect();
           }
@@ -441,7 +450,9 @@ export function useWebRTCPhone(options: UseWebRTCPhoneOptions) {
       if (state === RegistererState.Registered) {
         reconnectAttemptRef.current = 0;
         clearReconnectTimer();
-        setStatus((prev) => (prev === 'in-call' || prev === 'ringing' ? prev : 'registered'));
+        setStatus((prev) =>
+          prev === 'in-call' || prev === 'ringing' || prev === 'dialing' ? prev : 'registered',
+        );
         return;
       }
       if (state === RegistererState.Unregistered) {
@@ -517,7 +528,9 @@ export function useWebRTCPhone(options: UseWebRTCPhoneOptions) {
     const ua = uaRef.current;
     if (ua && registerer) {
       try {
-        setStatus((prev) => (prev === 'in-call' || prev === 'ringing' ? prev : 'connecting'));
+        setStatus((prev) =>
+        prev === 'in-call' || prev === 'ringing' || prev === 'dialing' ? prev : 'connecting',
+      );
         await ua.reconnect().catch(() => undefined);
         if (registererRef.current?.state !== RegistererState.Registered) {
           await registerer.register();
@@ -554,6 +567,57 @@ export function useWebRTCPhone(options: UseWebRTCPhoneOptions) {
     }
     cleanupCall();
   }, [cleanupCall]);
+
+  /**
+   * Outbound dial (D-01 softphone dialpad / click-to-call WebRTC path).
+   * INVITE via the registered UserAgent — no AMI Originate for companion endpoints.
+   */
+  const makeCall = useCallback(async (rawTarget: string) => {
+    const ua = uaRef.current;
+    const domain = optionsRef.current.sipDomain;
+    if (!ua) throw new Error('WebRTC not connected');
+    if (sessionRef.current) throw new Error('Already in a call');
+
+    const target = (rawTarget || '').replace(/[^\d+*#]/g, '');
+    if (!target) throw new Error('Empty dial target');
+
+    const targetUri = UserAgent.makeURI(
+      target.includes('@') ? `sip:${target}` : `sip:${target}@${domain}`,
+    );
+    if (!targetUri) throw new Error('Invalid dial URI');
+
+    const micId = optionsRef.current.micDeviceId;
+    const audioConstraint: boolean | MediaTrackConstraints = micId
+      ? { deviceId: { exact: micId } }
+      : true;
+
+    const inviter = new Inviter(ua, targetUri, {
+      sessionDescriptionHandlerOptions: {
+        constraints: { audio: audioConstraint, video: false },
+      },
+    });
+
+    sessionRef.current = inviter;
+    setCallInfo({ to: target });
+    setStatus('dialing');
+    attachSessionListeners(inviter);
+
+    inviter.stateChange.addListener((state: SessionState) => {
+      if (sessionRef.current !== inviter) return;
+      if (state === SessionState.Established) {
+        setStatus('in-call');
+        void setupRemoteAudio(inviter);
+        startQualityPolling(inviter);
+      }
+    });
+
+    try {
+      await inviter.invite();
+    } catch (err) {
+      if (sessionRef.current === inviter) cleanupCall();
+      throw err;
+    }
+  }, [attachSessionListeners, cleanupCall, setupRemoteAudio, startQualityPolling]);
 
   const hold = useCallback(async () => {
     const session = sessionRef.current;
@@ -616,12 +680,27 @@ export function useWebRTCPhone(options: UseWebRTCPhoneOptions) {
     const session = sessionRef.current;
     const ua = uaRef.current;
     const domain = optionsRef.current.sipDomain;
-    if (!session || !ua) return;
+    if (!session || !ua) {
+      throw new Error('No active call session');
+    }
     const targetUri = UserAgent.makeURI(
       target.includes('@') ? `sip:${target}` : `sip:${target}@${domain}`,
     );
-    if (!targetUri) return;
-    await session.refer(targetUri);
+    if (!targetUri) {
+      throw new Error('Invalid transfer target');
+    }
+    try {
+      await session.refer(targetUri, {
+        requestDelegate: {
+          onReject: (response) => {
+            const reason = response.message.reasonPhrase || response.message.statusCode || 'rejected';
+            throw new Error(String(reason));
+          },
+        },
+      });
+    } catch (err: any) {
+      throw new Error(err?.message || 'Blind transfer failed');
+    }
   }, []);
 
   const attendedTransfer = useCallback(async (target: string) => {
@@ -703,6 +782,7 @@ export function useWebRTCPhone(options: UseWebRTCPhoneOptions) {
     acceptCall,
     rejectCall,
     hangup,
+    makeCall,
     hold,
     unhold,
     mute,

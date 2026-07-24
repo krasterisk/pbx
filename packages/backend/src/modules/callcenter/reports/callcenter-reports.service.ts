@@ -17,6 +17,7 @@ import { CcDailyAgentStats } from '../models/daily-agent-stats.model';
 import { CcAgentEvent } from '../models/agent-event.model';
 import { CcAgentSession } from '../models/agent-session.model';
 import { CcMissedCall } from '../models/missed-call.model';
+import { CcPauseReason } from '../models/pause-reason.model';
 import { Queue } from '../../queues/queue.model';
 import { CallCenterRollupService } from '../callcenter-rollup.service';
 import { DEFAULT_SLA_THRESHOLD_SEC } from '../callcenter-metrics.service';
@@ -51,6 +52,7 @@ export class CallCenterReportsService {
     @InjectModel(CcAgentEvent) private readonly agentEventModel: typeof CcAgentEvent,
     @InjectModel(CcAgentSession) private readonly sessionModel: typeof CcAgentSession,
     @InjectModel(CcMissedCall) private readonly missedCallModel: typeof CcMissedCall,
+    @InjectModel(CcPauseReason) private readonly pauseReasonModel: typeof CcPauseReason,
     @InjectModel(Queue) private readonly queueModel: typeof Queue,
     private readonly rollupService: CallCenterRollupService,
   ) {}
@@ -291,7 +293,12 @@ export class CallCenterReportsService {
       { key: 'totalWrapupSec', header: 'Wrap-up (sec)' },
       { key: 'avgHandleSec', header: 'Avg handle (sec)' },
       { key: 'ahtSec', header: 'AHT (sec)' },
+      { key: 'loggedInSec', header: 'Logged in (sec)' },
+      { key: 'totalPauseSec', header: 'Pause (sec)' },
+      { key: 'totalIdleSec', header: 'Idle/Ready (sec)' },
     ];
+
+    const sessionTimeByAgent = await this.aggregateSessionTime(vpbxUserUid, from, to, query.agentInterface);
 
     if (source === 'rollup') {
       const where: Record<string, unknown> = {
@@ -322,6 +329,7 @@ export class CallCenterReportsService {
       const result: OperatorStatsRow[] = [];
       for (const [agentInterface, a] of byAgent) {
         const handle = a.talk + a.hold + a.wrapup;
+        const sess = sessionTimeByAgent.get(agentInterface);
         result.push({
           agentInterface,
           agentUserUid: a.agentUserUid,
@@ -331,6 +339,9 @@ export class CallCenterReportsService {
           totalWrapupSec: a.wrapup,
           avgHandleSec: a.calls ? Math.round(handle / a.calls) : 0,
           ahtSec: a.calls ? Math.round((a.talk + a.wrapup) / a.calls) : 0,
+          loggedInSec: sess?.loggedInSec ?? 0,
+          totalPauseSec: sess?.totalPauseSec ?? 0,
+          totalIdleSec: sess?.totalIdleSec ?? 0,
         });
       }
       return { reportId: 'operator-stats', columns, rows: result, source };
@@ -365,9 +376,15 @@ export class CallCenterReportsService {
       agg.wrapup += c.wrapup_time ?? 0;
       if (c.agent_user_uid != null) agg.agentUserUid = c.agent_user_uid;
     }
+    for (const [iface, sess] of sessionTimeByAgent) {
+      if (!byAgent.has(iface)) {
+        byAgent.set(iface, { agentUserUid: sess.userId, calls: 0, talk: 0, hold: 0, wrapup: 0 });
+      }
+    }
     const result: OperatorStatsRow[] = [];
     for (const [agentInterface, a] of byAgent) {
       const handle = a.talk + a.hold + a.wrapup;
+      const sess = sessionTimeByAgent.get(agentInterface);
       result.push({
         agentInterface,
         agentUserUid: a.agentUserUid,
@@ -377,9 +394,62 @@ export class CallCenterReportsService {
         totalWrapupSec: a.wrapup,
         avgHandleSec: a.calls ? Math.round(handle / a.calls) : 0,
         ahtSec: a.calls ? Math.round((a.talk + a.wrapup) / a.calls) : 0,
+        loggedInSec: sess?.loggedInSec ?? 0,
+        totalPauseSec: sess?.totalPauseSec ?? 0,
+        totalIdleSec: sess?.totalIdleSec ?? 0,
       });
     }
     return { reportId: 'operator-stats', columns, rows: result, source };
+  }
+
+  /** Aggregate shift / pause / idle seconds from cc_agent_sessions overlapping [from, to]. */
+  private async aggregateSessionTime(
+    vpbxUserUid: number,
+    from: Date,
+    to: Date,
+    agentInterface?: string,
+  ): Promise<Map<string, {
+    userId: number | null;
+    loggedInSec: number;
+    totalPauseSec: number;
+    totalIdleSec: number;
+  }>> {
+    const where: Record<string, unknown> = {
+      user_uid: vpbxUserUid,
+      login_time: { [Op.lte]: to },
+      [Op.or]: [
+        { logout_time: null },
+        { logout_time: { [Op.gte]: from } },
+      ],
+    };
+    if (agentInterface) where.agent_interface = agentInterface;
+    const sessions = await this.sessionModel.findAll({ where });
+    const map = new Map<string, {
+      userId: number | null;
+      loggedInSec: number;
+      totalPauseSec: number;
+      totalIdleSec: number;
+    }>();
+    const now = Date.now();
+    for (const s of sessions) {
+      const iface = s.agent_interface;
+      let agg = map.get(iface);
+      if (!agg) {
+        agg = { userId: s.user_id ?? null, loggedInSec: 0, totalPauseSec: 0, totalIdleSec: 0 };
+        map.set(iface, agg);
+      }
+      const login = new Date(s.login_time).getTime();
+      const logout = s.logout_time ? new Date(s.logout_time).getTime() : now;
+      const overlapStart = Math.max(login, from.getTime());
+      const overlapEnd = Math.min(logout, to.getTime());
+      if (overlapEnd > overlapStart) {
+        agg.loggedInSec += Math.round((overlapEnd - overlapStart) / 1000);
+      }
+      agg.totalPauseSec += s.total_pause_time ?? 0;
+      agg.totalIdleSec += s.total_idle_time ?? 0;
+      if (s.user_id != null) agg.userId = s.user_id;
+    }
+    return map;
   }
 
   async getPauseReport(
@@ -387,25 +457,46 @@ export class CallCenterReportsService {
     query: ReportQuery,
   ): Promise<ReportResult<PauseReportRow>> {
     const { from, to } = this.parseAndClampPeriod(query.dateFrom, query.dateTo);
-    const where: Record<string, unknown> = {
-      user_uid: vpbxUserUid,
-      event_type: 'PAUSE',
-      created_at: { [Op.gte]: from, [Op.lte]: to },
-    };
+
+    const sessionWhere: Record<string, unknown> = { user_uid: vpbxUserUid };
+    if (query.agentInterface) sessionWhere.agent_interface = query.agentInterface;
+    const sessions = await this.sessionModel.findAll({
+      where: sessionWhere,
+      attributes: ['uid', 'agent_interface', 'user_id'],
+    });
+    const sessionMap = new Map(sessions.map((s) => [s.uid, s]));
+    const sessionIds = sessions.map((s) => s.uid);
+
+    const pauseColumns: ReportColumn[] = [
+      { key: 'agentInterface', header: 'Agent' },
+      { key: 'userId', header: 'User ID' },
+      { key: 'pauseReason', header: 'Reason' },
+      { key: 'pauseCount', header: 'Count' },
+      { key: 'totalPauseSec', header: 'Total (sec)' },
+      { key: 'avgPauseSec', header: 'Avg (sec)' },
+      { key: 'isPaid', header: 'Paid' },
+    ];
+
+    if (!sessionIds.length) {
+      return { reportId: 'pause-report', columns: pauseColumns, rows: [], source: 'raw' };
+    }
+
     const events = await this.agentEventModel.findAll({
-      where,
-      order: [['created_at', 'ASC']],
+      where: {
+        user_uid: vpbxUserUid,
+        session_id: { [Op.in]: sessionIds },
+        created_at: { [Op.gte]: from, [Op.lte]: to },
+      },
+      order: [['session_id', 'ASC'], ['created_at', 'ASC']],
     });
 
-    // Resolve agent_interface via sessions (tenant-scoped)
-    const sessionIds = [...new Set(events.map((e) => e.session_id))];
-    const sessions = sessionIds.length
-      ? await this.sessionModel.findAll({
-          where: { user_uid: vpbxUserUid, uid: { [Op.in]: sessionIds } },
-          attributes: ['uid', 'agent_interface', 'user_id'],
-        })
-      : [];
-    const sessionMap = new Map(sessions.map((s) => [s.uid, s]));
+    const reasons = await this.pauseReasonModel.findAll({
+      where: { user_uid: vpbxUserUid },
+      attributes: ['name', 'is_paid'],
+    });
+    const paidByName = new Map(
+      reasons.map((r) => [r.name, r.is_paid !== false] as const),
+    );
 
     const byKey = new Map<string, {
       agentInterface: string;
@@ -413,37 +504,45 @@ export class CallCenterReportsService {
       pauseReason: string;
       count: number;
       totalSec: number;
+      isPaid: boolean | null;
     }>();
 
-    for (const ev of events) {
+    const now = Date.now();
+    for (let i = 0; i < events.length; i++) {
+      const ev = events[i];
+      if (ev.event_type !== 'PAUSE') continue;
       const sess = sessionMap.get(ev.session_id);
       const agentInterface = sess?.agent_interface || '';
       if (query.agentInterface && agentInterface !== query.agentInterface) continue;
+
+      let durationSec = ev.duration ?? 0;
+      if (durationSec <= 0) {
+        const next = events.slice(i + 1).find((e) => e.session_id === ev.session_id);
+        const start = ev.created_at ? new Date(ev.created_at).getTime() : now;
+        const end = next?.created_at
+          ? new Date(next.created_at).getTime()
+          : Math.min(now, to.getTime());
+        durationSec = Math.max(0, Math.round((end - start) / 1000));
+      }
+
       const reason = ev.reason || '(none)';
       const key = `${agentInterface}|${ev.user_id}|${reason}`;
       let agg = byKey.get(key);
       if (!agg) {
+        const isPaid = reason === '(none)' ? null : (paidByName.get(reason) ?? null);
         agg = {
           agentInterface,
           userId: ev.user_id,
           pauseReason: reason,
           count: 0,
           totalSec: 0,
+          isPaid,
         };
         byKey.set(key, agg);
       }
       agg.count += 1;
-      agg.totalSec += ev.duration ?? 0;
+      agg.totalSec += durationSec;
     }
-
-    const columns: ReportColumn[] = [
-      { key: 'agentInterface', header: 'Agent' },
-      { key: 'userId', header: 'User ID' },
-      { key: 'pauseReason', header: 'Reason' },
-      { key: 'pauseCount', header: 'Count' },
-      { key: 'totalPauseSec', header: 'Total (sec)' },
-      { key: 'avgPauseSec', header: 'Avg (sec)' },
-    ];
 
     const rows: PauseReportRow[] = [...byKey.values()].map((a) => ({
       agentInterface: a.agentInterface,
@@ -452,9 +551,10 @@ export class CallCenterReportsService {
       pauseCount: a.count,
       totalPauseSec: a.totalSec,
       avgPauseSec: a.count ? Math.round(a.totalSec / a.count) : 0,
+      isPaid: a.isPaid,
     }));
 
-    return { reportId: 'pause-report', columns, rows, source: 'raw' };
+    return { reportId: 'pause-report', columns: pauseColumns, rows, source: 'raw' };
   }
 
   async getHourlyHeatmap(

@@ -128,6 +128,8 @@ export class CallCenterAiAdapter implements DomainAiAdapter, OnModuleInit {
             pauseReason: a.pauseReason,
             queues: a.queues,
             callsTaken: a.callsTaken,
+            callsMissed: a.callsMissed,
+            callsMade: a.callsMade,
             currentCall: a.currentCall,
           })),
         };

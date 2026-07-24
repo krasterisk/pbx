@@ -5,24 +5,43 @@
 .badge {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--color-info) 12%, transparent);
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-info) 12%, var(--color-card));
   border: 1px solid color-mix(in srgb, var(--color-info) 30%, transparent);
   color: var(--color-info);
-  font-size: 0.8rem;
+  font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.15s;
 
   &:hover {
-    background: color-mix(in srgb, var(--color-info) 20%, transparent);
+    background: color-mix(in srgb, var(--color-info) 20%, var(--color-card));
   }
 }
 
+.badgeLabeled {
+  padding: 8px 14px;
+}
+
+.badgeLabel {
+  white-space: nowrap;
+}
+
 .count {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font-variant-numeric: tabular-nums;
+  font-size: 0.75rem;
+  background: color-mix(in srgb, var(--color-info) 22%, transparent);
 }
 
 .dropdown {

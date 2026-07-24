@@ -119,8 +119,29 @@ vi.mock('@/features/callcenter/ui/WaitingTab/WaitingTab', () => ({
   WaitingTab: () => <div data-testid="waiting-tab-stub" />,
 }));
 
+vi.mock('@/features/callcenter/ui/CallHistoryPanel', () => ({
+  CallHistoryPanel: () => <div data-testid="call-history-panel-stub" />,
+}));
+
 vi.mock('@/features/callcenter/ui/CallHistoryPanel/CallHistoryPanel', () => ({
   CallHistoryPanel: () => <div data-testid="call-history-panel-stub" />,
+}));
+
+vi.mock('@/features/callcenter/ui/SortableAgentPanel/SortableAgentPanel', () => ({
+  SortableAgentPanel: ({
+    children,
+    title,
+    id,
+  }: {
+    children: React.ReactNode;
+    title?: string;
+    id?: string;
+  }) => (
+    <div data-testid={`cc-panel-${id || 'x'}`}>
+      <h2>{title}</h2>
+      {children}
+    </div>
+  ),
 }));
 
 vi.mock('@/features/callcenter/ui/DragTransfer/DragTransfer', () => ({
@@ -163,6 +184,13 @@ vi.mock('@/features/callcenter/model/selectors/callCenterSelectors', () => ({
   selectCcConnected: () => true,
   selectWaitingCalls: () => EMPTY,
   selectQueueMonitorCalls: () => EMPTY,
+  selectPendingOutboundDial: () => null,
+}));
+
+vi.mock('@/features/callcenter/model/slice/callCenterSlice', () => ({
+  setMyAgentInterface: vi.fn(),
+  updateAgent: vi.fn(),
+  clearOutboundDial: vi.fn(),
 }));
 
 vi.mock('@/shared/api/endpoints/endpointApi', () => ({

@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { Phone, PhoneOff } from 'lucide-react';
-import { Button, Text, HStack, VStack } from '@/shared/ui';
+import { Button, Text, HStack, VStack, Tooltip } from '@/shared/ui';
 import styles from './IncomingCallToast.module.scss';
 
 export type IncomingCallKind = 'queue' | 'personal' | 'outbound';
@@ -46,7 +46,7 @@ export function IncomingCallToast({ open, call, onAnswer, onReject }: IncomingCa
       data-testid="incoming-call-toast"
     >
       <VStack gap="8">
-        <HStack justify="between" align="start" gap="8">
+        <HStack justify="between" align="start" gap="8" className={styles.headerRow}>
           <VStack gap="0" className={styles.callerBlock}>
             <Text className={styles.callerNumber}>
               {call.callerNumber || t('callcenter.incoming.unknownCaller')}
@@ -55,19 +55,25 @@ export function IncomingCallToast({ open, call, onAnswer, onReject }: IncomingCa
               <Text variant="muted" className={styles.callerName}>{call.callerName}</Text>
             ) : null}
           </VStack>
-          <span className={styles.contextTag}>{contextLabel}</span>
+          <Tooltip content={t('callcenter.incoming.contextHint', 'Call source')}>
+            <span className={styles.contextTag}>{contextLabel}</span>
+          </Tooltip>
         </HStack>
 
-        <HStack gap="8" className={styles.actions}>
-          <Button size="lg" onClick={onAnswer}>
-            <Phone className="w-4 h-4 mr-1" />
-            {t('callcenter.incoming.answer')}
-          </Button>
-          <Button variant="destructive" size="lg" onClick={onReject}>
-            <PhoneOff className="w-4 h-4 mr-1" />
-            {t('callcenter.incoming.reject')}
-          </Button>
-        </HStack>
+        <div className={styles.actions}>
+          <Tooltip content={t('callcenter.incoming.answerHint', 'Answer the incoming call')}>
+            <Button size="lg" className={styles.actionBtn} onClick={onAnswer}>
+              <Phone className="w-4 h-4 mr-1 shrink-0" />
+              <span className={styles.actionLabel}>{t('callcenter.incoming.answer')}</span>
+            </Button>
+          </Tooltip>
+          <Tooltip content={t('callcenter.incoming.rejectHint', 'Reject and hang up')}>
+            <Button variant="destructive" size="lg" className={styles.actionBtn} onClick={onReject}>
+              <PhoneOff className="w-4 h-4 mr-1 shrink-0" />
+              <span className={styles.actionLabel}>{t('callcenter.incoming.reject')}</span>
+            </Button>
+          </Tooltip>
+        </div>
       </VStack>
     </div>
   );

@@ -47,6 +47,7 @@ describe('CallCenterAmiService', () => {
   };
   const autoPauseService: any = {
     evaluateRonaOnAbandon: jest.fn().mockResolvedValue(undefined),
+    evaluateRonaForAgent: jest.fn().mockResolvedValue(undefined),
     evaluateOnMissed: jest.fn().mockResolvedValue(undefined),
     evaluateOnStatusEvent: jest.fn().mockResolvedValue(undefined),
   };
@@ -68,6 +69,7 @@ describe('CallCenterAmiService', () => {
     agentEventModel.create.mockClear();
     agentEventModel.update.mockClear();
     autoPauseService.evaluateRonaOnAbandon.mockClear();
+    autoPauseService.evaluateRonaForAgent.mockClear();
     autoPauseService.evaluateOnMissed.mockClear();
     autoPauseService.evaluateOnStatusEvent.mockClear();
     fakeCcService.autoResolveOnAnswer.mockClear();
@@ -122,6 +124,8 @@ describe('CallCenterAmiService', () => {
       expect(map('1')).toBe('READY');
       expect(map('2')).toBe('IN_CALL');
       expect(map('3')).toBe('IN_CALL');
+      expect(map('0')).toBe('OFFLINE');
+      expect(map('4')).toBe('OFFLINE');
       expect(map('5')).toBe('OFFLINE');
       expect(map('6')).toBe('RINGING');
       expect(map('7')).toBe('IN_CALL');
@@ -348,6 +352,57 @@ describe('CallCenterAmiService', () => {
       expect(state.getAgent(0, 'PJSIP/ew112_0')?.callsTaken).toBe(0);
     });
 
+    it('keeps DIALING when device goes In use before remote answer', () => {
+      state.setAgent(0, 'PJSIP/ew112_0', {
+        name: 'Иван',
+        status: 'DIALING',
+        dialTarget: '201',
+        userId: 58,
+      });
+      service.handleAgentStatusEvent({
+        queue: 'q700_0',
+        interface: 'PJSIP/ew112_0',
+        status: '2', // In use
+        paused: '0',
+      });
+      expect(state.getAgent(0, 'PJSIP/ew112_0')?.status).toBe('DIALING');
+      expect(state.getAgent(0, 'PJSIP/ew112_0')?.dialTarget).toBe('201');
+    });
+
+    it('preserves OUTBOUND_WORK when AMI reports paused', () => {
+      state.setAgent(0, 'PJSIP/ew112_0', {
+        name: 'Иван',
+        status: 'OUTBOUND_WORK',
+        pauseReason: 'outbound_work',
+        userId: 58,
+      });
+      service.handleAgentStatusEvent({
+        queue: 'q700_0',
+        interface: 'PJSIP/ew112_0',
+        status: '1',
+        paused: '1',
+        pausedreason: 'outbound_work',
+      });
+      expect(state.getAgent(0, 'PJSIP/ew112_0')?.status).toBe('OUTBOUND_WORK');
+    });
+
+    it('maps pausedreason outbound_work to OUTBOUND_WORK even from READY', () => {
+      state.setAgent(0, 'PJSIP/ew112_0', {
+        name: 'Иван',
+        status: 'READY',
+        userId: 58,
+      });
+      service.handleAgentStatusEvent({
+        queue: 'q700_0',
+        interface: 'PJSIP/ew112_0',
+        status: '1',
+        paused: '1',
+        pausedreason: 'outbound_work',
+      });
+      expect(state.getAgent(0, 'PJSIP/ew112_0')?.status).toBe('OUTBOUND_WORK');
+      expect(state.getAgent(0, 'PJSIP/ew112_0')?.pauseReason).toBe('outbound_work');
+    });
+
     it('evaluates auto-pause idle_time/status_duration rules on every status update (D-15)', () => {
       service.handleAgentStatusEvent({
         queue: 'sales_7',
@@ -370,7 +425,13 @@ describe('CallCenterAmiService', () => {
   describe('handleAgentComplete', () => {
     it('clears the call, increments callsTaken, transitions to READY when wrapupTimeout=0', () => {
       state.setAgent(7, 'PJSIP/101', { name: 'Alice', status: 'IN_CALL', currentCall: 'U1', callsTaken: 3, wrapupTimeout: 0 });
-      state.setCall('U1', { userUid: 7, queue: 'sales_7', status: 'TALKING', agent: 'PJSIP/101' });
+      state.setCall('U1', {
+        userUid: 7,
+        queue: 'sales_7',
+        status: 'TALKING',
+        agent: 'PJSIP/101',
+        answerTime: new Date(),
+      });
 
       service.handleAgentComplete({ queue: 'sales_7', destuniqueid: 'U1', interface: 'PJSIP/101' });
 
@@ -379,6 +440,15 @@ describe('CallCenterAmiService', () => {
       expect(agent?.status).toBe('READY');
       expect(agent?.callsTaken).toBe(4);
       expect(agent?.currentCall).toBeUndefined();
+    });
+
+    it('does not increment callsTaken when the call was never answered', () => {
+      state.setAgent(7, 'PJSIP/101', { name: 'Alice', status: 'IN_CALL', currentCall: 'U1', callsTaken: 3, wrapupTimeout: 0 });
+      state.setCall('U1', { userUid: 7, queue: 'sales_7', status: 'RINGING', agent: 'PJSIP/101' });
+
+      service.handleAgentComplete({ queue: 'sales_7', destuniqueid: 'U1', interface: 'PJSIP/101' });
+
+      expect(state.getAgent(7, 'PJSIP/101')?.callsTaken).toBe(3);
     });
 
     it('removes orphan WAITING row with same caller channel after complete', () => {
@@ -401,6 +471,7 @@ describe('CallCenterAmiService', () => {
         status: 'TALKING',
         agent: 'PJSIP/ew112_0',
         callerChannel: 'PJSIP/e201_0-00000023',
+        answerTime: new Date(),
       });
 
       service.handleAgentComplete({
@@ -416,7 +487,7 @@ describe('CallCenterAmiService', () => {
     it('transitions to WRAPUP when wrapupTimeout>0 and auto-expires after timeout', () => {
       jest.useFakeTimers();
       state.setAgent(7, 'PJSIP/101', { name: 'Alice', status: 'IN_CALL', currentCall: 'U1', callsTaken: 1, wrapupTimeout: 30 });
-      state.setCall('U1', { userUid: 7, queue: 'sales_7', status: 'TALKING' });
+      state.setCall('U1', { userUid: 7, queue: 'sales_7', status: 'TALKING', answerTime: new Date() });
 
       service.handleAgentComplete({ queue: 'sales_7', destuniqueid: 'U1', interface: 'PJSIP/101' });
 
@@ -464,7 +535,7 @@ describe('CallCenterAmiService', () => {
       );
     });
 
-    it('evaluates the RONA auto-pause rule for the abandoned queue (D-15)', () => {
+    it('evaluates the RONA auto-pause rule for the abandoned queue (D-15)', async () => {
       service.handleCallerAbandon({
         queue: 'sales_7',
         uniqueid: 'U-rona',
@@ -472,6 +543,28 @@ describe('CallCenterAmiService', () => {
       });
 
       expect(autoPauseService.evaluateRonaOnAbandon).toHaveBeenCalledWith(7, 'sales_7');
+      await flushMicrotasks();
+    });
+
+    it('increments missed_count for agents RINGING on the abandoned queue', async () => {
+      state.setAgent(7, 'PJSIP/e101_42', {
+        name: 'Alice',
+        status: 'RINGING',
+        queues: ['sales_7'],
+        userId: 42,
+      });
+
+      service.handleCallerAbandon({
+        queue: 'sales_7',
+        uniqueid: 'U-miss',
+        calleridnum: '+7999',
+      });
+
+      expect(autoPauseService.evaluateOnMissed).toHaveBeenCalledWith(7, 'PJSIP/e101_42', ['sales_7']);
+      expect(metricsService.recordMissed).toHaveBeenCalledWith(7, 'PJSIP/e101_42');
+      expect(state.getAgent(7, 'PJSIP/e101_42')?.callsMissed).toBe(1);
+      await flushMicrotasks();
+      expect(state.getAgent(7, 'PJSIP/e101_42')?.status).toBe('READY');
     });
 
     it('does not persist when caller id is empty (e.g. anonymous internal abandon)', async () => {
@@ -495,6 +588,64 @@ describe('CallCenterAmiService', () => {
       });
       await Promise.resolve();
       expect(missedCallModel.findOrCreate).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('handleAgentCalled / handleAgentRingNoAnswer', () => {
+    it('updates the existing WAITING call to RINGING (no duplicate destuniqueid row)', () => {
+      state.setAgent(7, 'PJSIP/e101_42', {
+        name: 'Alice',
+        status: 'READY',
+        queues: ['sales_7'],
+        userId: 42,
+      });
+      state.setCall('U-caller', {
+        userUid: 7,
+        queue: 'sales_7',
+        status: 'WAITING',
+        callerIdNum: '201',
+      });
+
+      service.handleAgentCalled({
+        queue: 'sales_7',
+        interface: 'PJSIP/e101_42',
+        uniqueid: 'U-caller',
+        destuniqueid: 'U-agent-leg',
+      });
+
+      expect(state.getAgent(7, 'PJSIP/e101_42')?.status).toBe('RINGING');
+      expect(state.getCall('U-caller')?.status).toBe('RINGING');
+      expect(state.getCall('U-caller')?.agent).toBe('PJSIP/e101_42');
+      expect(state.getAgent(7, 'PJSIP/e101_42')?.currentCall).toBe('U-caller');
+      expect(state.getCall('U-agent-leg')).toBeUndefined();
+      expect(state.getAllCalls(7)).toHaveLength(1);
+    });
+
+    it('ignores AgentCalled for interfaces not in CC state', () => {
+      expect(() =>
+        service.handleAgentCalled({ queue: 'sales_7', interface: 'PJSIP/unknown' }),
+      ).not.toThrow();
+      expect(metricsService.recordAgentStatus).not.toHaveBeenCalled();
+    });
+
+    it('evaluates RONA for the agent on AgentRingNoAnswer (even if status already READY)', async () => {
+      state.setAgent(7, 'PJSIP/e101_42', {
+        name: 'Alice',
+        status: 'READY', // QMS often clears RINGING before RNA arrives
+        queues: ['sales_7'],
+        userId: 42,
+      });
+
+      service.handleAgentRingNoAnswer({
+        queue: 'sales_7',
+        interface: 'PJSIP/e101_42',
+      });
+
+      expect(metricsService.recordMissed).toHaveBeenCalledWith(7, 'PJSIP/e101_42');
+      expect(state.getAgent(7, 'PJSIP/e101_42')?.callsMissed).toBe(1);
+      await flushMicrotasks();
+      expect(autoPauseService.evaluateOnMissed).toHaveBeenCalledWith(7, 'PJSIP/e101_42', ['sales_7']);
+      expect(autoPauseService.evaluateRonaForAgent).toHaveBeenCalledWith(7, 'PJSIP/e101_42', ['sales_7']);
     });
   });
 
@@ -533,6 +684,41 @@ describe('CallCenterAmiService', () => {
       expect(metricsService.recordAgentStatus).toHaveBeenCalledWith(7, 'PJSIP/e101_42', 'DIALING');
     });
 
+    it('allows dial from PAUSED and remembers resume status', () => {
+      state.setAgent(7, 'PJSIP/e101_42', {
+        name: 'Alice', status: 'PAUSED', pauseReason: 'Lunch', userId: 42,
+      });
+
+      service.handleDialBegin({
+        channel: 'PJSIP/e101_42-00000005',
+        destcalleridnum: '201',
+        uniqueid: 'DB-PAUSED',
+      });
+
+      expect(state.getAgent(7, 'PJSIP/e101_42')?.status).toBe('DIALING');
+      expect(state.getAgent(7, 'PJSIP/e101_42')?.dialTarget).toBe('201');
+      expect(state.getAgent(7, 'PJSIP/e101_42')?.pauseReason).toBe('Lunch');
+
+      service.handleDialEnd({
+        channel: 'PJSIP/e101_42-00000005',
+        dialstatus: 'NOANSWER',
+      });
+      expect(state.getAgent(7, 'PJSIP/e101_42')?.status).toBe('PAUSED');
+    });
+
+    it('allows dial from OUTBOUND_WORK', () => {
+      state.setAgent(7, 'PJSIP/e101_42', {
+        name: 'Alice', status: 'OUTBOUND_WORK', pauseReason: 'outbound_work', userId: 42,
+      });
+
+      service.handleDialBegin({
+        channel: 'PJSIP/e101_42-00000005',
+        destcalleridnum: '201',
+      });
+
+      expect(state.getAgent(7, 'PJSIP/e101_42')?.status).toBe('DIALING');
+    });
+
     it('is a no-op for channels not belonging to a logged-in agent (unknown channel)', () => {
       expect(() => service.handleDialBegin({ channel: 'PJSIP/unknown-00000001' })).not.toThrow();
       expect(metricsService.recordAgentStatus).not.toHaveBeenCalled();
@@ -558,6 +744,7 @@ describe('CallCenterAmiService', () => {
       service.handleDialEnd({ channel: 'PJSIP/e101_42-00000005', dialstatus: 'ANSWER' });
 
       expect(state.getAgent(7, 'PJSIP/e101_42')?.status).toBe('IN_CALL');
+      expect(state.getAgent(7, 'PJSIP/e101_42')?.callsMade).toBe(1);
       expect(metricsService.recordMade).toHaveBeenCalledWith(7, 'PJSIP/e101_42');
       expect(metricsService.recordMissed).not.toHaveBeenCalled();
     });
@@ -568,6 +755,7 @@ describe('CallCenterAmiService', () => {
       service.handleDialEnd({ channel: 'PJSIP/e101_42-00000005', dialstatus: 'NOANSWER' });
 
       expect(state.getAgent(7, 'PJSIP/e101_42')?.status).toBe('READY');
+      expect(state.getAgent(7, 'PJSIP/e101_42')?.callsMissed).toBe(1);
       expect(metricsService.recordMissed).toHaveBeenCalledWith(7, 'PJSIP/e101_42');
       expect(metricsService.recordMade).not.toHaveBeenCalled();
       expect(autoPauseService.evaluateOnMissed).toHaveBeenCalledWith(7, 'PJSIP/e101_42', expect.any(Array));
@@ -818,7 +1006,7 @@ describe('CallCenterAmiService', () => {
     it('cancels a pending auto-READY transition (allows manual wrap-up done)', () => {
       jest.useFakeTimers();
       state.setAgent(7, 'PJSIP/101', { name: 'Alice', status: 'IN_CALL', currentCall: 'U1', callsTaken: 0, wrapupTimeout: 30 });
-      state.setCall('U1', { userUid: 7, queue: 'sales_7' });
+      state.setCall('U1', { userUid: 7, queue: 'sales_7', answerTime: new Date() });
       service.handleAgentComplete({ queue: 'sales_7', destuniqueid: 'U1', interface: 'PJSIP/101' });
 
       service.cancelWrapupTimer(7, 'PJSIP/101');

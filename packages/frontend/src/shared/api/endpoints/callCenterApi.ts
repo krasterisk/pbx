@@ -90,7 +90,9 @@ export interface ICcSettings {
   default_sla_threshold: number;
   alert_thresholds: Record<string, number> | null;
   alert_sound_enabled: boolean;
-  /** D-15: empty/null → engine fires only always-on RONA. */
+  /** Master switch for RONA + flexible rules (default true). */
+  autopause_enabled?: boolean;
+  /** D-15: empty/null → when enabled, engine fires only RONA. */
   autopause_rules?: AutoPauseRule[] | null;
 }
 
@@ -319,6 +321,9 @@ const callCenterApi = rtkApi.injectEndpoints({
           loginTime?: string;
           pauseReason?: string;
           callsTaken?: number;
+          callsMissed?: number;
+          callsMade?: number;
+          statusSince?: string;
         },
       void
     >({
@@ -376,7 +381,27 @@ const callCenterApi = rtkApi.injectEndpoints({
     /** D-05/D-06/09-14: persist own ui_visibility/softphone_placement (server rejects locked keys). */
     updateMyUiCustomization: build.mutation<IUiCustomization, Partial<{ ui_visibility: IUiVisibility; softphone_placement: SoftphonePlacement }>>({
       query: (body) => ({ url: '/callcenter/settings/operator/ui', method: 'PUT', body }),
-      invalidatesTags: ['CcOperatorSettings'],
+      /** Optimistic: Switch/Select flip immediately; undo on failure (ARCHITECTURE: optimistic toggles). */
+      async onQueryStarted(arg, { dispatch, queryFulfilled }) {
+        const patchResult = dispatch(
+          callCenterApi.util.updateQueryData('getMyUiCustomization', undefined, (draft) => {
+            if (arg.ui_visibility) {
+              draft.ui_visibility = { ...draft.ui_visibility, ...arg.ui_visibility };
+            }
+            if (arg.softphone_placement !== undefined) {
+              draft.softphone_placement = arg.softphone_placement;
+            }
+          }),
+        );
+        try {
+          const { data } = await queryFulfilled;
+          dispatch(
+            callCenterApi.util.updateQueryData('getMyUiCustomization', undefined, () => data),
+          );
+        } catch {
+          patchResult.undo();
+        }
+      },
     }),
 
     /** D-41/D-43/09-14: own notification matrix + locks + tenant defaults — settings UI (lock-aware). */
@@ -387,7 +412,22 @@ const callCenterApi = rtkApi.injectEndpoints({
     /** D-41/D-43/09-14: persist own notification matrix (server rejects locked events). */
     updateMyNotifications: build.mutation<INotificationSettings, { notification_matrix: NotificationMatrix }>({
       query: (body) => ({ url: '/callcenter/settings/operator/notifications', method: 'PUT', body }),
-      invalidatesTags: ['CcNotifications'],
+      /** Optimistic cache patch so Switches flip immediately; undo + toast on failure. */
+      async onQueryStarted(arg, { dispatch, queryFulfilled }) {
+        const patchResult = dispatch(
+          callCenterApi.util.updateQueryData('getMyNotifications', undefined, (draft) => {
+            draft.matrix = { ...draft.matrix, ...arg.notification_matrix };
+          }),
+        );
+        try {
+          const { data } = await queryFulfilled;
+          dispatch(
+            callCenterApi.util.updateQueryData('getMyNotifications', undefined, () => data),
+          );
+        } catch {
+          patchResult.undo();
+        }
+      },
     }),
 
     /**
@@ -430,6 +470,12 @@ const callCenterApi = rtkApi.injectEndpoints({
     }),
     agentUnpause: build.mutation<{ success: boolean }, { queue?: string } | void>({
       query: (body) => ({ url: '/callcenter/agent/unpause', method: 'POST', body: body || {} }),
+    }),
+    agentStartOutboundWork: build.mutation<{ success: boolean }, void>({
+      query: () => ({ url: '/callcenter/agent/outbound-work', method: 'POST' }),
+    }),
+    agentLeaveOutboundWork: build.mutation<{ success: boolean }, void>({
+      query: () => ({ url: '/callcenter/agent/outbound-work/leave', method: 'POST' }),
     }),
     agentHangup: build.mutation<{ success: boolean }, { channel?: string } | void>({
       query: (body) => ({ url: '/callcenter/agent/hangup', method: 'POST', body: body || {} }),
@@ -488,7 +534,7 @@ const callCenterApi = rtkApi.injectEndpoints({
       query: (body) => ({ url: '/callcenter/agent/missed/claim', method: 'POST', body }),
       invalidatesTags: ['MissedCalls'],
     }),
-    /** Operator callback via the click_to_call WebRTC/PJSIP branching; >5s success is server-tracked (D-18). */
+    /** Operator callback for a missed number; >5s success is server-tracked (D-18). Shift login is enough — no click_to_call right. */
     callbackMissedCall: build.mutation<
       { success: boolean; mode: 'webrtc' | 'pjsip'; target: string },
       { callerIdNum: string }
@@ -746,6 +792,8 @@ export const {
   useAgentLogoutMutation,
   useAgentPauseMutation,
   useAgentUnpauseMutation,
+  useAgentStartOutboundWorkMutation,
+  useAgentLeaveOutboundWorkMutation,
   useAgentHangupMutation,
   useAgentHoldMutation,
   useAgentUnholdMutation,

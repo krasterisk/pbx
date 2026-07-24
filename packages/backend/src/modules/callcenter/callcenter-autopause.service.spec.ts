@@ -12,23 +12,55 @@ describe('CallCenterAutoPauseService', () => {
   let amiService: { queuePause: jest.Mock };
   let metricsService: { recordAgentStatus: jest.Mock };
   let settingsModel: { findOne: jest.Mock };
+  let agentEventModel: { create: jest.Mock };
+  let sessionModel: { findOne: jest.Mock };
 
-  const setRules = (rules: any[]) => {
-    settingsModel.findOne.mockResolvedValue({ autopause_rules: rules });
+  const setRules = (rules: any[], enabled = true) => {
+    settingsModel.findOne.mockResolvedValue({ autopause_rules: rules, autopause_enabled: enabled });
   };
 
   beforeEach(() => {
     state = new CallCenterStateService();
     amiService = { queuePause: jest.fn().mockResolvedValue(undefined) };
     metricsService = { recordAgentStatus: jest.fn() };
-    settingsModel = { findOne: jest.fn().mockResolvedValue({ autopause_rules: [] }) };
+    settingsModel = {
+      findOne: jest.fn().mockResolvedValue({ autopause_rules: [], autopause_enabled: true }),
+    };
+    agentEventModel = {
+      create: jest.fn().mockResolvedValue({ getDataValue: () => 1 }),
+    };
+    sessionModel = {
+      findOne: jest.fn().mockResolvedValue({ getDataValue: () => 99 }),
+    };
 
     service = new CallCenterAutoPauseService(
       amiService as any,
       state,
       metricsService as unknown as any,
       settingsModel as any,
+      agentEventModel as any,
+      sessionModel as any,
     );
+  });
+
+  describe('evaluateRonaForAgent', () => {
+    it('pauses the agent when auto-pause is on and no missed_count rule', async () => {
+      state.setAgent(7, 'PJSIP/101', { status: 'READY', queues: ['sales_7'], userId: 42 });
+
+      await service.evaluateRonaForAgent(7, 'PJSIP/101', ['sales_7']);
+
+      expect(amiService.queuePause).toHaveBeenCalledWith('sales_7', 'PJSIP/101', true, expect.any(String));
+      expect(state.getAgent(7, 'PJSIP/101')?.status).toBe('PAUSED');
+    });
+
+    it('does not pause when missed_count rule owns the threshold', async () => {
+      setRules([{ type: 'missed_count', threshold: 3 }]);
+      state.setAgent(7, 'PJSIP/101', { status: 'READY', queues: ['sales_7'], userId: 42 });
+
+      await service.evaluateRonaForAgent(7, 'PJSIP/101', ['sales_7']);
+
+      expect(amiService.queuePause).not.toHaveBeenCalled();
+    });
   });
 
   // ─── RONA ───────────────────────────────────────────────
@@ -61,6 +93,26 @@ describe('CallCenterAutoPauseService', () => {
       await service.evaluateRonaOnAbandon(7, 'sales_7');
 
       expect(amiService.queuePause).not.toHaveBeenCalled();
+    });
+
+    it('does not pause when a missed_count rule owns the queue-miss threshold', async () => {
+      setRules([{ type: 'missed_count', threshold: 3 }]);
+      state.setAgent(7, 'PJSIP/101', { status: 'RINGING', queues: ['sales_7'], userId: 42 });
+
+      await service.evaluateRonaOnAbandon(7, 'sales_7');
+
+      expect(amiService.queuePause).not.toHaveBeenCalled();
+      expect(state.getAgent(7, 'PJSIP/101')?.status).toBe('RINGING');
+    });
+
+    it('does not pause when autopause_enabled is false', async () => {
+      setRules([], false);
+      state.setAgent(7, 'PJSIP/101', { status: 'RINGING', queues: ['sales_7'], userId: 42 });
+
+      await service.evaluateRonaOnAbandon(7, 'sales_7');
+
+      expect(amiService.queuePause).not.toHaveBeenCalled();
+      expect(state.getAgent(7, 'PJSIP/101')?.status).toBe('RINGING');
     });
   });
 
@@ -116,6 +168,15 @@ describe('CallCenterAutoPauseService', () => {
   // ─── idle_time ──────────────────────────────────────────
 
   describe('evaluateOnStatusEvent (idle_time rule)', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      service.onModuleDestroy();
+      jest.useRealTimers();
+    });
+
     it('pauses a READY agent idle longer than the threshold', async () => {
       setRules([{ type: 'idle_time', thresholdSec: 60, pauseReasonId: 2 }]);
       state.setAgent(7, 'PJSIP/101', { status: 'READY', queues: ['sales_7'], userId: 42 });
@@ -127,14 +188,18 @@ describe('CallCenterAutoPauseService', () => {
       expect(state.getAgent(7, 'PJSIP/101')?.status).toBe('PAUSED');
     });
 
-    it('does not pause when idle time is below the threshold', async () => {
+    it('schedules pause when idle time is below the threshold, then fires after remaining wait', async () => {
       setRules([{ type: 'idle_time', thresholdSec: 60, pauseReasonId: 2 }]);
       state.setAgent(7, 'PJSIP/101', { status: 'READY', queues: ['sales_7'], userId: 42 });
       const lastCallTime = new Date(Date.now() - 10_000);
 
       await service.evaluateOnStatusEvent(7, 'PJSIP/101', 'READY', ['sales_7'], lastCallTime);
-
       expect(amiService.queuePause).not.toHaveBeenCalled();
+
+      await jest.advanceTimersByTimeAsync(50_000);
+
+      expect(amiService.queuePause).toHaveBeenCalledWith('sales_7', 'PJSIP/101', true, expect.any(String));
+      expect(state.getAgent(7, 'PJSIP/101')?.status).toBe('PAUSED');
     });
 
     it('is a no-op for non-READY statuses even if idle_time is configured', async () => {
@@ -143,6 +208,20 @@ describe('CallCenterAutoPauseService', () => {
       const lastCallTime = new Date(Date.now() - 90_000);
 
       await service.evaluateOnStatusEvent(7, 'PJSIP/101', 'IN_CALL', ['sales_7'], lastCallTime);
+
+      expect(amiService.queuePause).not.toHaveBeenCalled();
+    });
+
+    it('cancels a pending idle timer when the agent leaves READY', async () => {
+      setRules([{ type: 'idle_time', thresholdSec: 60 }]);
+      state.setAgent(7, 'PJSIP/101', { status: 'READY', queues: ['sales_7'], userId: 42 });
+      const lastCallTime = new Date(Date.now() - 10_000);
+
+      await service.evaluateOnStatusEvent(7, 'PJSIP/101', 'READY', ['sales_7'], lastCallTime);
+      state.setAgent(7, 'PJSIP/101', { status: 'IN_CALL' });
+      await service.evaluateOnStatusEvent(7, 'PJSIP/101', 'IN_CALL', ['sales_7'], lastCallTime);
+
+      await jest.advanceTimersByTimeAsync(60_000);
 
       expect(amiService.queuePause).not.toHaveBeenCalled();
     });
@@ -156,20 +235,21 @@ describe('CallCenterAutoPauseService', () => {
     });
 
     afterEach(() => {
+      service.onModuleDestroy();
       jest.useRealTimers();
     });
 
-    it('pauses once the agent has held the watched status past the threshold', async () => {
+    it('pauses once the agent has held the watched status past the threshold (timer)', async () => {
       setRules([{ type: 'status_duration', status: 'WRAPUP', thresholdSec: 30, pauseReasonId: 3 }]);
       state.setAgent(7, 'PJSIP/101', { status: 'WRAPUP', queues: ['sales_7'], userId: 42 });
 
       await service.evaluateOnStatusEvent(7, 'PJSIP/101', 'WRAPUP', ['sales_7']);
       expect(amiService.queuePause).not.toHaveBeenCalled();
 
-      jest.advanceTimersByTime(35_000);
-      await service.evaluateOnStatusEvent(7, 'PJSIP/101', 'WRAPUP', ['sales_7']);
+      await jest.advanceTimersByTimeAsync(30_000);
 
       expect(amiService.queuePause).toHaveBeenCalledWith('sales_7', 'PJSIP/101', true, expect.any(String));
+      expect(state.getAgent(7, 'PJSIP/101')?.status).toBe('PAUSED');
     });
 
     it('does not pause when the status duration is below the threshold', async () => {
@@ -177,20 +257,33 @@ describe('CallCenterAutoPauseService', () => {
       state.setAgent(7, 'PJSIP/101', { status: 'WRAPUP', queues: ['sales_7'], userId: 42 });
 
       await service.evaluateOnStatusEvent(7, 'PJSIP/101', 'WRAPUP', ['sales_7']);
-      jest.advanceTimersByTime(5_000);
-      await service.evaluateOnStatusEvent(7, 'PJSIP/101', 'WRAPUP', ['sales_7']);
+      await jest.advanceTimersByTimeAsync(5_000);
 
       expect(amiService.queuePause).not.toHaveBeenCalled();
     });
 
-    it('resets the status timer when the agent transitions to a different status', async () => {
+    it('cancels the status timer when the agent transitions to a different status', async () => {
       setRules([{ type: 'status_duration', status: 'WRAPUP', thresholdSec: 30, pauseReasonId: 3 }]);
       state.setAgent(7, 'PJSIP/101', { status: 'WRAPUP', queues: ['sales_7'], userId: 42 });
 
       await service.evaluateOnStatusEvent(7, 'PJSIP/101', 'WRAPUP', ['sales_7']);
-      jest.advanceTimersByTime(35_000);
+      state.setAgent(7, 'PJSIP/101', { status: 'READY' });
       await service.evaluateOnStatusEvent(7, 'PJSIP/101', 'READY', ['sales_7']);
+
+      await jest.advanceTimersByTimeAsync(35_000);
+
+      expect(amiService.queuePause).not.toHaveBeenCalled();
+    });
+
+    it('does not pause if status changed before the timer fires (stale timer guard)', async () => {
+      setRules([{ type: 'status_duration', status: 'WRAPUP', thresholdSec: 30 }]);
+      state.setAgent(7, 'PJSIP/101', { status: 'WRAPUP', queues: ['sales_7'], userId: 42 });
+
       await service.evaluateOnStatusEvent(7, 'PJSIP/101', 'WRAPUP', ['sales_7']);
+      // Simulate external status change without going through evaluate (race)
+      state.setAgent(7, 'PJSIP/101', { status: 'READY' });
+
+      await jest.advanceTimersByTimeAsync(30_000);
 
       expect(amiService.queuePause).not.toHaveBeenCalled();
     });

@@ -21,10 +21,10 @@ import { selectMyAgent, selectCcQueues } from '@/features/callcenter/model/selec
 import { queueDisplayName } from '@/features/callcenter/lib/displayLabels';
 import styles from './CallControlBar.module.scss';
 
-export type CallControlBarVariant = 'compact' | 'full';
+export type CallControlBarVariant = 'compact' | 'full' | 'extended';
 
 export interface CallControlBarProps {
-  /** compact = mute/hold/transfer/hangup only (status bar); full = adds park/conference/warm-transfer/zombie-reset slots (widget). */
+  /** compact = mute/hold/transfer/hangup (status bar); full = primary + park/conference/warm/zombie; extended = park/warm/zombie only (softphone slot). */
   variant?: CallControlBarVariant;
   isMuted: boolean;
   isHeld: boolean;
@@ -80,7 +80,7 @@ export function CallControlBar({
 
   const myAgent = useSelector(selectMyAgent);
   const ccQueues = useSelector(selectCcQueues);
-  const { data: queueList = [] } = useGetQueuesQuery(undefined, { skip: variant !== 'full' });
+  const { data: queueList = [] } = useGetQueuesQuery(undefined, { skip: variant === 'compact' });
   const queueLabelSources = [
     ...ccQueues.map((q) => ({ name: q.name, displayName: q.displayName })),
     ...queueList.map((q) => ({
@@ -132,7 +132,7 @@ export function CallControlBar({
     icon: ReactNode,
     label: string,
     onClick: () => void,
-    opts?: { destructive?: boolean; active?: boolean; disabled?: boolean },
+    opts?: { destructive?: boolean; active?: boolean; disabled?: boolean; hint?: string },
   ) => {
     const button = (
       <Button
@@ -146,11 +146,18 @@ export function CallControlBar({
         aria-label={label}
       >
         {icon}
-        {!iconOnly && <span className={styles.controlLabel}>{label}</span>}
+        {!iconOnly && variant !== 'extended' && <span className={styles.controlLabel}>{label}</span>}
       </Button>
     );
-    return iconOnly ? <Tooltip key={key} content={label}>{button}</Tooltip> : button;
+    return (
+      <Tooltip key={key} content={opts?.hint || label}>
+        {button}
+      </Tooltip>
+    );
   };
+
+  const showPrimary = variant === 'compact' || variant === 'full';
+  const showExtended = variant === 'full' || variant === 'extended';
 
   return (
     <div
@@ -158,69 +165,84 @@ export function CallControlBar({
       role="group"
       aria-label={t('callcenter.controlBar.title', 'Call controls')}
     >
-      {renderButton(
+      {showPrimary && renderButton(
         'mute',
         isMuted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />,
         isMuted ? t('callcenter.controlBar.unmute', 'Unmute') : t('callcenter.controlBar.mute', 'Mute'),
         onMuteToggle,
-        { active: isMuted },
+        {
+          active: isMuted,
+          hint: t('callcenter.controlBar.muteHint', 'Mute or unmute your microphone'),
+        },
       )}
-      {renderButton(
+      {showPrimary && renderButton(
         'hold',
         isHeld ? <Play className="w-4 h-4" /> : <Pause className="w-4 h-4" />,
         isHeld ? t('callcenter.controlBar.unhold', 'Unhold') : t('callcenter.controlBar.hold', 'Hold'),
         onHoldToggle,
-        { active: isHeld },
+        {
+          active: isHeld,
+          hint: t('callcenter.controlBar.holdHint', 'Put the caller on hold or resume'),
+        },
       )}
-      {onTransferClick && renderButton(
+      {showPrimary && onTransferClick && renderButton(
         'transfer',
         <PhoneForwarded className="w-4 h-4" />,
         t('callcenter.controlBar.transfer', 'Transfer'),
         onTransferClick,
+        { hint: t('callcenter.controlBar.transferHint', 'Open transfer panel') },
       )}
 
-      {variant === 'full' && (
+      {showExtended && (
         <>
           {renderButton(
             'park',
             <ParkingCircle className="w-4 h-4" />,
             t('callcenter.controlBar.park', 'Park'),
             handlePark,
-            { disabled: isParking },
+            {
+              disabled: isParking,
+              hint: t('callcenter.controlBar.parkHint', 'Park the call so another agent can pick it up'),
+            },
           )}
-          {renderButton(
+          {variant === 'full' && renderButton(
             'conference',
             <Users className="w-4 h-4" />,
             t('callcenter.controlBar.conference', 'Add to conference'),
             onConferenceClick,
+            { hint: t('callcenter.controlBar.conferenceHint', 'Add another party to this call') },
           )}
 
           {(() => {
             const warmTransferLabel = t('callcenter.controlBar.warmTransfer', 'Transfer to queue');
+            const warmHint = t('callcenter.controlBar.warmTransferHint', 'Send the caller into one of your queues');
             return (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild disabled={disabled || isTransferring || myQueues.length === 0}>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className={styles.controlBtn}
-                    disabled={disabled || isTransferring || myQueues.length === 0}
-                    aria-label={warmTransferLabel}
-                    title={iconOnly ? warmTransferLabel : undefined}
-                  >
-                    <ArrowLeftRight className="w-4 h-4" />
-                    {!iconOnly && <span className={styles.controlLabel}>{warmTransferLabel}</span>}
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start">
-                  {myQueues.map((q) => (
-                    <DropdownMenuItem key={q} onClick={() => handleWarmTransfer(q)}>
-                      {queueDisplayName(q, queueLabelSources) || q}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <Tooltip content={warmHint}>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild disabled={disabled || isTransferring || myQueues.length === 0}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className={styles.controlBtn}
+                      disabled={disabled || isTransferring || myQueues.length === 0}
+                      aria-label={warmTransferLabel}
+                    >
+                      <ArrowLeftRight className="w-4 h-4" />
+                      {!iconOnly && variant !== 'extended' && (
+                        <span className={styles.controlLabel}>{warmTransferLabel}</span>
+                      )}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start">
+                    {myQueues.map((q) => (
+                      <DropdownMenuItem key={q} onClick={() => handleWarmTransfer(q)}>
+                        {queueDisplayName(q, queueLabelSources) || q}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </Tooltip>
             );
           })()}
 
@@ -229,17 +251,23 @@ export function CallControlBar({
             <RotateCcw className="w-4 h-4" />,
             t('callcenter.controlBar.zombieReset', 'Reset call'),
             () => setZombieConfirmOpen(true),
-            { destructive: true },
+            {
+              destructive: true,
+              hint: t('callcenter.controlBar.zombieResetHint', 'Force-clear a stuck call channel'),
+            },
           )}
         </>
       )}
 
-      {renderButton(
+      {showPrimary && renderButton(
         'hangup',
         <PhoneOff className="w-4 h-4" />,
         t('callcenter.controlBar.hangup', 'Hang up'),
         onHangup,
-        { destructive: true },
+        {
+          destructive: true,
+          hint: t('callcenter.controlBar.hangupHint', 'End the active call'),
+        },
       )}
 
       <Dialog open={zombieConfirmOpen} onOpenChange={setZombieConfirmOpen}>

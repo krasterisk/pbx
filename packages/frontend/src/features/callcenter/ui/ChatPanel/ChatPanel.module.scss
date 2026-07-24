@@ -110,18 +110,29 @@
 .toggleBtn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  border-radius: 999px;
+  justify-content: center;
+  gap: 8px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: var(--radius-lg);
   background: var(--color-card);
   border: 1px solid var(--color-border);
   color: var(--color-foreground);
-  font-size: 0.8rem;
+  font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.15s;
 
   &:hover { background: var(--color-accent); }
+}
+
+.toggleBtnLabeled {
+  padding: 8px 14px;
+}
+
+.toggleLabel {
+  white-space: nowrap;
 }
 
 .toggleBtnActive {

@@ -44,6 +44,27 @@ describe('CallCenterStateService', () => {
       expect(agent?.userId).toBe(42);
     });
 
+    it('stamps statusSince on create and status change, keeps it on same-status updates', () => {
+      jest.useFakeTimers();
+      jest.setSystemTime(new Date('2026-07-22T10:00:00Z'));
+
+      service.setAgent(7, 'PJSIP/101', { name: 'Alice', status: 'READY', userId: 42 });
+      const first = service.getAgent(7, 'PJSIP/101')?.statusSince;
+      expect(first).toEqual(new Date('2026-07-22T10:00:00Z'));
+
+      jest.setSystemTime(new Date('2026-07-22T10:05:00Z'));
+      service.setAgent(7, 'PJSIP/101', { callsTaken: 3 });
+      expect(service.getAgent(7, 'PJSIP/101')?.statusSince).toEqual(first);
+
+      jest.setSystemTime(new Date('2026-07-22T10:10:00Z'));
+      service.setAgent(7, 'PJSIP/101', { status: 'PAUSED', pauseReason: 'Lunch' });
+      expect(service.getAgent(7, 'PJSIP/101')?.statusSince).toEqual(
+        new Date('2026-07-22T10:10:00Z'),
+      );
+
+      jest.useRealTimers();
+    });
+
     it('clears pauseReason and emits null when leaving PAUSED', () => {
       service.setAgent(7, 'PJSIP/101', { name: 'Alice', status: 'PAUSED', pauseReason: 'Быстрая пауза' });
       const received: any[] = [];
@@ -65,6 +86,41 @@ describe('CallCenterStateService', () => {
       expect(service.getAgent(8, 'PJSIP/101')?.name).toBe('Bob');
       expect(service.getAllAgents(7)).toHaveLength(1);
       expect(service.getAllAgents(8)).toHaveLength(1);
+    });
+
+    it('recomputes queue available count when agent becomes READY', () => {
+      service.setQueue(7, 'q700_0', { displayName: 'Sales' });
+      service.setAgent(7, 'PJSIP/ew112_0', {
+        name: 'Admin',
+        status: 'READY',
+        queues: ['q700_0'],
+        userId: 1,
+      });
+
+      expect(service.getQueue(7, 'q700_0')?.agents).toEqual({
+        total: 1,
+        available: 1,
+        paused: 0,
+        busy: 0,
+      });
+    });
+
+    it('excludes OFFLINE agents from queue free totals', () => {
+      service.setQueue(7, 'q700_0', { displayName: 'Sales' });
+      service.setAgent(7, 'PJSIP/101', {
+        name: 'Invalid',
+        status: 'OFFLINE',
+        queues: ['q700_0'],
+      });
+      service.setAgent(7, 'PJSIP/ew112_0', {
+        name: 'Admin',
+        status: 'READY',
+        queues: ['q700_0'],
+        userId: 1,
+      });
+
+      expect(service.getQueue(7, 'q700_0')?.agents.available).toBe(1);
+      expect(service.getQueue(7, 'q700_0')?.agents.total).toBe(1);
     });
   });
 

@@ -28,8 +28,15 @@
   animation: pulse-missed 2s ease-in-out infinite;
 }
 
+.badgeAlert {
+  background: color-mix(in srgb, var(--color-destructive) 14%, transparent);
+  border-color: color-mix(in srgb, var(--color-destructive) 40%, transparent);
+  color: var(--color-destructive);
+  animation: pulse-missed 2s ease-in-out infinite;
+}
+
 @keyframes pulse-missed {
-  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-warning) 35%, transparent); }
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-destructive) 40%, transparent); }
   50% { box-shadow: 0 0 0 6px transparent; }
 }
 

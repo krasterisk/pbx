@@ -8,6 +8,7 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Op } from 'sequelize';
 import { CcQueueCall } from './models/queue-call.model';
+import { CcMissedCall } from './models/missed-call.model';
 import { Queue } from '../queues/queue.model';
 import type { AgentStatus } from './callcenter-state.service';
 
@@ -82,6 +83,7 @@ export class CallCenterMetricsService implements OnModuleInit {
 
   constructor(
     @InjectModel(CcQueueCall) private readonly queueCallModel: typeof CcQueueCall,
+    @InjectModel(CcMissedCall) private readonly missedCallModel: typeof CcMissedCall,
     @InjectModel(Queue) private readonly queueModel: typeof Queue,
   ) {}
 
@@ -229,6 +231,11 @@ export class CallCenterMetricsService implements OnModuleInit {
     this.accumulateQueueRow(userUid, queueName, 'abandoned', 0, 0, 0, 0);
   }
 
+  /** Personal/direct inbound answered (not a queue call) — shift KPI only. */
+  recordAnsweredDirect(userUid: number, agentInterface: string): void {
+    this.bumpKpi(userUid, agentInterface, 'answered');
+  }
+
   /** Outbound/personal dial answered (D-08/D-11) — never a queue metric (Pitfall 1). */
   recordMade(userUid: number, agentInterface: string, queueName?: string): void {
     this.bumpKpi(userUid, agentInterface, 'made', queueName);
@@ -345,7 +352,24 @@ export class CallCenterMetricsService implements OnModuleInit {
         // idleSeconds NOT restored — accumulates from module start only (Occupancy partial after restart).
       }
 
-      this.logger.log(`Metrics restoreToday: ${rows.length} cc_queue_calls rows loaded`);
+      // Personal missed-call worklist rows (direct:<interface>) — day KPI after restart.
+      const personalMissed = await this.missedCallModel.findAll({
+        where: {
+          created_at: { [Op.gte]: startOfToday },
+          personal: true,
+        },
+      });
+      for (const row of personalMissed) {
+        const q = row.queue_name || '';
+        if (!q.startsWith('direct:')) continue;
+        const agentInterface = q.slice('direct:'.length);
+        if (!agentInterface) continue;
+        this.restoreKpi(row.user_uid, agentInterface, 'missed');
+      }
+
+      this.logger.log(
+        `Metrics restoreToday: ${rows.length} cc_queue_calls + ${personalMissed.length} personal missed`,
+      );
     } catch (err: any) {
       this.logger.error(`Metrics restoreToday failed: ${err.message}`);
     }

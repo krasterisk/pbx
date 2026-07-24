@@ -180,6 +180,22 @@ const cloudAdminApi = rtkApi.injectEndpoints({
         url: `/marketplace/hub-modules/${code}/enable`,
         method: 'POST',
       }),
+      /** Optimistic: tenant module Switch flips immediately; undo on failure. */
+      async onQueryStarted(code, { dispatch, queryFulfilled }) {
+        const apply = (draft: IHubCatalogItem[]) => {
+          const item = draft.find((i) => i.code === code);
+          if (item) item.licenseStatus = 'active';
+        };
+        const patches = [
+          dispatch(cloudAdminApi.util.updateQueryData('getHubCatalog', undefined, apply)),
+          dispatch(cloudAdminApi.util.updateQueryData('getMyHubModules', undefined, apply)),
+        ];
+        try {
+          await queryFulfilled;
+        } catch {
+          patches.forEach((p) => p.undo());
+        }
+      },
       invalidatesTags: [
         { type: 'Tenants', id: 'HUB-CATALOG' },
         { type: 'Tenants', id: 'MY-MODULES' },
@@ -191,6 +207,22 @@ const cloudAdminApi = rtkApi.injectEndpoints({
         url: `/marketplace/hub-modules/${code}/disable`,
         method: 'POST',
       }),
+      /** Optimistic: tenant module Switch flips immediately; undo on failure. */
+      async onQueryStarted(code, { dispatch, queryFulfilled }) {
+        const apply = (draft: IHubCatalogItem[]) => {
+          const item = draft.find((i) => i.code === code);
+          if (item) item.licenseStatus = 'disabled';
+        };
+        const patches = [
+          dispatch(cloudAdminApi.util.updateQueryData('getHubCatalog', undefined, apply)),
+          dispatch(cloudAdminApi.util.updateQueryData('getMyHubModules', undefined, apply)),
+        ];
+        try {
+          await queryFulfilled;
+        } catch {
+          patches.forEach((p) => p.undo());
+        }
+      },
       invalidatesTags: [
         { type: 'Tenants', id: 'HUB-CATALOG' },
         { type: 'Tenants', id: 'MY-MODULES' },

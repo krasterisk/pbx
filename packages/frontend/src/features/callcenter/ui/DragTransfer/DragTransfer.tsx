@@ -157,16 +157,25 @@ interface DroppableColleagueProps {
   className?: string;
   children: ReactNode;
   onColleagueClick?: (agent: IAgent) => void;
+  /** Render as table row when used inside <tbody>. */
+  as?: 'div' | 'tr';
 }
 
-export function DroppableColleague({ agent, className, children, onColleagueClick }: DroppableColleagueProps) {
+export function DroppableColleague({
+  agent,
+  className,
+  children,
+  onColleagueClick,
+  as = 'div',
+}: DroppableColleagueProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: `agent-${agent.interface}`,
     data: { iface: agent.interface, name: agent.name, status: agent.status },
   });
   const canAccept = agent.status === 'READY';
+  const Comp = as === 'tr' ? 'tr' : 'div';
   return (
-    <div
+    <Comp
       ref={setNodeRef}
       className={`${className || ''} ${isOver ? (canAccept ? styles.dropOk : styles.dropBlocked) : ''}`}
       onClick={() => onColleagueClick?.(agent)}
@@ -180,6 +189,6 @@ export function DroppableColleague({ agent, className, children, onColleagueClic
       }}
     >
       {children}
-    </div>
+    </Comp>
   );
 }

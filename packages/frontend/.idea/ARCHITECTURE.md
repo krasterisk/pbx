@@ -104,6 +104,13 @@ krasterisk_v4/
     - Если нужен сложный компонент из сторонней библиотеки (фреймворка) — он **обязательно** оборачивается в собственную обертку (wrapper) внутри `shared/ui` с инкапсуляцией Public API.
 - **Стилизация:** TailwindCSS используется только внутри базовых UI компонентов (`shared/ui`). На уровне бизнес-логики (`features/`, `pages/`, `widgets/`) кастомная стилизация **обязана** осуществляться через SCSS-модули с CSS-переменными из дизайн-системы.
 - **Z-Index:** Хардкодирование `z-index` (например, `z-index: 100`) **строго запрещено**. Для управления слоями необходимо использовать только глобальные CSS-переменные из `globals.css` (например, `var(--z-index-dropdown)`, `var(--z-index-modal)` и т.д.). Это предотвращает конфликты перекрытия и "z-index войны".
+- **Optimistic toggles (MUST):** Любой `Switch` / toggle, который **сразу пишет на сервер** (нет отдельной кнопки Save) и чей `checked` берётся из RTK Query cache, **обязан** обновлять UI мгновенно:
+  1. В mutation — `async onQueryStarted` → `api.util.updateQueryData(...)` (optimistic patch).
+  2. При успехе — записать ответ сервера в тот же cache entry (или оставить patch).
+  3. При ошибке — `patchResult.undo()` **и** показать toast/ошибку пользователю.
+  4. Не полагаться только на `invalidatesTags` + refetch: это даёт заметную задержку бегунка до ответа сети.
+  - Формы с локальным `useState` + явной кнопкой «Сохранить» уже «optimistic» на уровне UI — правило про RTK-patch к ним не применяется, пока toggle не биндится напрямую к query cache.
+  - Эталон: `updateMyNotifications` / `updateMyUiCustomization` в `shared/api/endpoints/callCenterApi.ts`.
 
 ---
 

@@ -13,6 +13,9 @@ export const selectCcCalls = (state: RootState): ICall[] =>
 export const selectCcConnected = (state: RootState): boolean =>
   state.callCenter?.connected ?? false;
 
+export const selectPendingOutboundDial = (state: RootState): string | null =>
+  state.callCenter?.pendingOutboundDial ?? null;
+
 export const selectMyAgentInterface = (state: RootState): string | null =>
   state.callCenter?.myAgentInterface ?? null;
 

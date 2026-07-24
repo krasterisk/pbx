@@ -8,12 +8,18 @@ import {
 describe('CallCenterMetricsService', () => {
   let service: CallCenterMetricsService;
   let queueCallModel: { findAll: jest.Mock };
+  let missedCallModel: { findAll: jest.Mock };
   let queueModel: { findOne: jest.Mock };
 
   beforeEach(() => {
     queueCallModel = { findAll: jest.fn().mockResolvedValue([]) };
+    missedCallModel = { findAll: jest.fn().mockResolvedValue([]) };
     queueModel = { findOne: jest.fn().mockResolvedValue(null) };
-    service = new CallCenterMetricsService(queueCallModel as any, queueModel as any);
+    service = new CallCenterMetricsService(
+      queueCallModel as any,
+      missedCallModel as any,
+      queueModel as any,
+    );
   });
 
   describe('formula methods', () => {

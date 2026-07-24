@@ -79,6 +79,11 @@ export class UpdateCcSettingsDto {
   @IsOptional()
   @IsArray()
   autopause_rules?: unknown[];
+
+  /** Master switch: when false, RONA + rules are inactive. */
+  @IsOptional()
+  @IsBoolean()
+  autopause_enabled?: boolean;
 }
 
 /** D-05: tab/panel visibility + softphone placement. Locked keys rejected server-side (D-06). */

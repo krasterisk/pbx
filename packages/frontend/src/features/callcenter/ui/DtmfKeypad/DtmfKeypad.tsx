@@ -1,10 +1,9 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Keyboard } from 'lucide-react';
 import { Button, Popover, PopoverTrigger, PopoverContent } from '@/shared/ui';
+import { DialpadGrid, DIALPAD_KEYS } from './DialpadGrid';
 import styles from './DtmfKeypad.module.scss';
-
-const DTMF_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '0', '#'] as const;
 
 interface DtmfKeypadProps {
   onDigit: (digit: string) => void;
@@ -14,18 +13,11 @@ interface DtmfKeypadProps {
 export function DtmfKeypad({ onDigit, disabled }: DtmfKeypadProps) {
   const { t } = useTranslation();
 
-  const handleKey = useCallback(
-    (digit: string) => {
-      if (!disabled) onDigit(digit);
-    },
-    [disabled, onDigit],
-  );
-
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (disabled) return;
       const key = e.key;
-      if (DTMF_KEYS.includes(key as (typeof DTMF_KEYS)[number])) {
+      if (DIALPAD_KEYS.includes(key as (typeof DIALPAD_KEYS)[number])) {
         e.preventDefault();
         onDigit(key);
       }
@@ -48,18 +40,7 @@ export function DtmfKeypad({ onDigit, disabled }: DtmfKeypadProps) {
         </Button>
       </PopoverTrigger>
       <PopoverContent className={styles.content} align="center">
-        <div className={styles.grid} role="group" aria-label={t('callcenter.softphone.dtmfTitle')}>
-          {DTMF_KEYS.map((key) => (
-            <button
-              key={key}
-              type="button"
-              className={styles.key}
-              onClick={() => handleKey(key)}
-            >
-              {key}
-            </button>
-          ))}
-        </div>
+        <DialpadGrid onDigit={onDigit} disabled={disabled} />
       </PopoverContent>
     </Popover>
   );

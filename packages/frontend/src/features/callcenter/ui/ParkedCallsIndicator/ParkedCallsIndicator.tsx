@@ -14,8 +14,9 @@ import styles from './ParkedCallsIndicator.module.scss';
  * warning) and a per-entry Retrieve action. Auto-refreshes via the
  * ParkedCalls RTK cache tag, invalidated on any operator's park/retrieve
  * through the parkedCallsUpdate SSE event (useCallCenterSSE.ts).
+ * Hidden when the lot is empty.
  */
-export function ParkedCallsIndicator() {
+export function ParkedCallsIndicator({ showLabel = false }: { showLabel?: boolean } = {}) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
 
@@ -29,15 +30,22 @@ export function ParkedCallsIndicator() {
   };
 
   const count = parked.length;
+  if (count === 0) return null;
 
   return (
     <div className={styles.wrap}>
       <button
-        className={styles.badge}
+        type="button"
+        className={`${styles.badge}${showLabel ? ` ${styles.badgeLabeled}` : ''}`}
         onClick={() => setOpen((o) => !o)}
         title={t('callcenter.parked.title')}
+        aria-label={t('callcenter.parked.title')}
+        aria-expanded={open}
       >
-        <ParkingCircle className="w-4 h-4" />
+        <ParkingCircle className={showLabel ? 'w-5 h-5' : 'w-4 h-4'} />
+        {showLabel ? (
+          <span className={styles.badgeLabel}>{t('callcenter.parked.title')}</span>
+        ) : null}
         <span className={styles.count}>{count}</span>
       </button>
 
@@ -57,41 +65,35 @@ export function ParkedCallsIndicator() {
             </button>
           </div>
 
-          {parked.length === 0 ? (
-            <Text variant="muted" className="text-xs text-center py-4">
-              {t('callcenter.parked.empty')}
-            </Text>
-          ) : (
-            <div className={styles.list}>
-              {parked.map((p) => (
-                <div key={p.parkingSpace} className={styles.row}>
-                  <div className={styles.rowMain}>
-                    <Text className={styles.rowNum}>
-                      {p.callerIdNum || t('callcenter.missed.unknown')}
-                    </Text>
-                    {p.callerIdName && (
-                      <Text variant="muted" className="text-xs">{p.callerIdName}</Text>
-                    )}
-                    <Text variant="muted" className="text-xs">
-                      {t('callcenter.parked.spaceLabel', 'Space {{space}}', { space: p.parkingSpace })}
-                    </Text>
-                  </div>
-
-                  <div className={styles.rowActions}>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={isRetrieving}
-                      onClick={() => handleRetrieve(p.parkingSpace)}
-                    >
-                      <PhoneCall className="w-3.5 h-3.5 mr-1" />
-                      {isRetrieving ? t('callcenter.parked.retrieving') : t('callcenter.parked.retrieve')}
-                    </Button>
-                  </div>
+          <div className={styles.list}>
+            {parked.map((p) => (
+              <div key={p.parkingSpace} className={styles.row}>
+                <div className={styles.rowMain}>
+                  <Text className={styles.rowNum}>
+                    {p.callerIdNum || t('callcenter.missed.unknown')}
+                  </Text>
+                  {p.callerIdName && (
+                    <Text variant="muted" className="text-xs">{p.callerIdName}</Text>
+                  )}
+                  <Text variant="muted" className="text-xs">
+                    {t('callcenter.parked.spaceLabel', 'Space {{space}}', { space: p.parkingSpace })}
+                  </Text>
                 </div>
-              ))}
-            </div>
-          )}
+
+                <div className={styles.rowActions}>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={isRetrieving}
+                    onClick={() => handleRetrieve(p.parkingSpace)}
+                  >
+                    <PhoneCall className="w-3.5 h-3.5 mr-1" />
+                    {isRetrieving ? t('callcenter.parked.retrieving') : t('callcenter.parked.retrieve')}
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>

@@ -178,7 +178,7 @@ export function PauseReasonsManager() {
         <Text className={styles.hint}>
           {t(
             'callcenter.settings.pauseReasons.hint',
-            'Каталог причин паузы для операторов. Длительность — в минутах (0 = без лимита).',
+            'Каталог причин паузы для операторов. Длительность в минутах (0 = без лимита).',
           )}
         </Text>
       </div>

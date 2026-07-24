@@ -11,6 +11,9 @@ import {
 import { useAppDispatch, useAppSelector } from '@/shared/hooks/useAppStore';
 import { useIsMobile } from '@/shared/hooks/useIsMobile';
 import { logout } from '@/features/auth/model/authSlice';
+import { selectMyAgent } from '@/features/callcenter/model/selectors/callCenterSelectors';
+import { agentDisplayName } from '@/features/callcenter/lib/displayLabels';
+import { interfaceToExtension } from '@/features/endpoints/lib/endpointIds';
 import { UserLevel } from '@krasterisk/shared';
 import { useHubModules } from '@/features/modules/hooks/useHubModules';
 import { useModuleLicenseGate } from '@/features/modules/hooks/useModuleLicenseGate';
@@ -42,6 +45,7 @@ export const ModuleShell = memo(function ModuleShell({ children }: ModuleShellPr
   const dispatch = useAppDispatch();
   const isMobile = useIsMobile(768);
   const user = useAppSelector((s) => s.auth.user);
+  const ccAgent = useAppSelector(selectMyAgent);
   const level = user?.level as UserLevel | undefined;
   const { active } = useHubModules();
   useModuleLicenseGate();
@@ -225,10 +229,21 @@ export const ModuleShell = memo(function ModuleShell({ children }: ModuleShellPr
         </Button>
 
         <HStack gap="8" align="center">
-          <Text as="span" className={cls.userName}>
-            {user?.name}
-          </Text>
-          <span className={cls.avatar}>{user?.name?.charAt(0)?.toUpperCase() || 'U'}</span>
+          <div className={cls.userBlock}>
+            <Text as="span" className={cls.userName}>
+              {ccAgent ? agentDisplayName(ccAgent) : user?.name}
+            </Text>
+            {(ccAgent || user?.exten) && (
+              <Text as="span" className={cls.userExt}>
+                {ccAgent
+                  ? interfaceToExtension(ccAgent.interface)
+                  : `ext. ${user?.exten}`}
+              </Text>
+            )}
+          </div>
+          <span className={cls.avatar}>
+            {(ccAgent ? agentDisplayName(ccAgent) : user?.name)?.charAt(0)?.toUpperCase() || 'U'}
+          </span>
           <Button
             id="shell-logout-btn"
             variant="ghost"

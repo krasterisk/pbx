@@ -7,7 +7,7 @@ status: unknown
 stopped_at: Completed 09-17-PLAN.md
 last_updated: "2026-07-23T11:08:13.064Z"
 progress:
-  total_phases: 9
+  total_phases: 10
   completed_phases: 7
   total_plans: 85
   completed_plans: 84
@@ -173,6 +173,7 @@ Phase 1 — MOH: pending verify.
 
 ## Roadmap Evolution
 
+- Phase 10 prepared (2026-07-24): Full Softphone — WebRTC dial / journal / contacts in ARM chrome (no FAB); resilience WSS/re-REGISTER; call quality + device picker. Brief: `10-BRIEF.md`. Next: `/gsd-discuss-phase 10`.
 - Phase 9 planned (2026-07-22): 14 plans (`09-01`…`09-14`), 7 waves; RESEARCH + PATTERNS + VALIDATION + UI-SPEC; plan-checker PASSED (D-01…D-46). Softphone widget, status bar, hybrid tabs, missed-calls, ChanSpy/permissions, call-control, history/directory, settings. Next: `/gsd-execute-phase 9`.
 - Phase 9 UI-SPEC approved (2026-07-22): design contract verified 6/6 (2 non-blocking FLAGs — single-word softphone CTAs; aria-label for icon-only controls). Softphone widget, status bar, hybrid tabs/panels, missed-calls tool, transfer directory, settings; hand-built Radix/`shared/ui` + existing `--color-*` tokens; new `shared/ui/Tabs` required. See `09-UI-SPEC.md`.
 - Phase 9 context gathered (2026-07-22): 14 областей обсуждено; 46 решений (D-01…D-46) в `09-CONTEXT.md`. Ключевое: softphone-виджет + hybrid tabs/panels; KPI по всем каналам (расширение AMI); умный модуль пропущенных (group-by-number, callback >5с, claim); ChanSpy peer (can_spy/spyable); supervisor scope=назначенные очереди; call-control (conference/park/warm-transfer/zombie-clear/click-to-call), запись — отложена; granular-права + матрица уведомлений; mobile-first rework.
@@ -188,9 +189,9 @@ Phase 1 — MOH: pending verify.
 
 ## Next GSD command
 
-UAT for phase 9 is complete (`09-UAT.md` 2/2 pass). `phase complete 9` blocked: set `09-VERIFICATION.md` `status` from `human_needed` to `passed` (or clear human blockers), then re-run `gsd-tools phase complete 9`. Optional verify:post: `/gsd-secure-phase 9` (no `09-SECURITY.md` yet), `/gsd-validate-phase 9`, `/gsd-ui-review 9` if UI-SPEC applies.
+**Phase 10 ready for discuss:** `/gsd-discuss-phase 10` (Full Softphone — see `10-BRIEF.md` + ROADMAP Phase 10).
 
-Also open: Phase 8 / 08-11 Task 3 — Android smoke, then `approved`. After: finalize 08-11 SUMMARY → `/gsd-verify-work 8`
+Also open: Phase 9 — UAT complete (`09-UAT.md` 2/2); `phase complete 9` blocked until `09-VERIFICATION.md` status → `passed`. Phase 8 / 08-11 Task 3 — Android smoke, then `approved`.
 
 ## Performance Metrics
 

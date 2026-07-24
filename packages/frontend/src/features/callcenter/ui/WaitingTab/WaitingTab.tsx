@@ -33,7 +33,7 @@ function formatTime(seconds: number): string {
  * pickup_enabled-gated "Pick" action verbatim. Scoped to the operator's own
  * queues (D-31 convention); a logged-out operator sees the empty state.
  */
-export function WaitingTab() {
+export function WaitingTab({ summaryOnly = false }: { summaryOnly?: boolean } = {}) {
   const { t } = useTranslation();
   const myAgent = useSelector(selectMyAgent);
   const agents = useSelector(selectCcAgents);
@@ -62,25 +62,33 @@ export function WaitingTab() {
     }
   };
 
+  const stats = (
+    <div className={styles.stats}>
+      <div className={`${styles.stat} ${totalWaiting > 5 ? styles.statDanger : ''}`}>
+        <PhoneIncoming className="w-3.5 h-3.5" />
+        <Text className={styles.statValue}>{totalWaiting}</Text>
+        <Text className={styles.statLabel}>{t('callcenter.agent.waiting_lbl', 'waiting')}</Text>
+      </div>
+      <div className={styles.stat}>
+        <Phone className="w-3.5 h-3.5" />
+        <Text className={styles.statValue}>{totalTalking}</Text>
+        <Text className={styles.statLabel}>{t('callcenter.agent.talking', 'talking')}</Text>
+      </div>
+      <div className={styles.stat}>
+        <Users className="w-3.5 h-3.5" />
+        <Text className={styles.statValue}>{freeAgents}</Text>
+        <Text className={styles.statLabel}>{t('callcenter.agent.free', 'free')}</Text>
+      </div>
+    </div>
+  );
+
+  if (summaryOnly) {
+    return <div className={styles.wrap} data-testid="waiting-tab-summary">{stats}</div>;
+  }
+
   return (
     <div className={styles.wrap} data-testid="waiting-tab">
-      <div className={styles.stats}>
-        <div className={`${styles.stat} ${totalWaiting > 5 ? styles.statDanger : ''}`}>
-          <PhoneIncoming className="w-3.5 h-3.5" />
-          <Text className={styles.statValue}>{totalWaiting}</Text>
-          <Text className={styles.statLabel}>{t('callcenter.agent.waiting_lbl', 'waiting')}</Text>
-        </div>
-        <div className={styles.stat}>
-          <Phone className="w-3.5 h-3.5" />
-          <Text className={styles.statValue}>{totalTalking}</Text>
-          <Text className={styles.statLabel}>{t('callcenter.agent.talking', 'talking')}</Text>
-        </div>
-        <div className={styles.stat}>
-          <Users className="w-3.5 h-3.5" />
-          <Text className={styles.statValue}>{freeAgents}</Text>
-          <Text className={styles.statLabel}>{t('callcenter.agent.free', 'free')}</Text>
-        </div>
-      </div>
+      {stats}
 
       {monitorCalls.length === 0 ? (
         <div className={styles.empty}>
@@ -117,7 +125,7 @@ export function WaitingTab() {
                   : undefined;
                 const operatorLabel = agent
                   ? agentDisplayName(agent)
-                  : (call.agent ? interfaceToExtension(call.agent) : '—');
+                  : (call.agent ? interfaceToExtension(call.agent) : '-');
                 return (
                   <tr
                     key={call.uniqueid}

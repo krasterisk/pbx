@@ -16,6 +16,7 @@ const initialState: CallCenterState = {
   myAgentInterface: null,
   chatUnreadByChannel: {},
   chatOpen: false,
+  pendingOutboundDial: null,
 };
 
 export const callCenterSlice = createSlice({
@@ -46,15 +47,32 @@ export const callCenterSlice = createSlice({
       }
       const idx = state.agents.findIndex(a => a.interface === data.interface);
       if (idx >= 0) {
-        state.agents[idx] = { ...state.agents[idx], ...data };
-        // SSE sends pauseReason: null when leaving PAUSED (JSON omits undefined)
-        if (data.pauseReason === null || data.pauseReason === '' || (data.status && data.status !== 'PAUSED')) {
+        const prev = state.agents[idx];
+        state.agents[idx] = { ...prev, ...data };
+        // Optimistic status flip without server stamp — start clock now until SSE arrives
+        if (data.status && data.status !== prev.status && data.statusSince === undefined) {
+          state.agents[idx].statusSince = new Date().toISOString();
+        }
+        // SSE sends pauseReason: null when leaving pause modes (JSON omits undefined)
+        const statusKeepsReason =
+          data.status === 'PAUSED'
+          || data.status === 'OUTBOUND_WORK'
+          || data.status === 'DIALING';
+        if (
+          data.pauseReason === null
+          || data.pauseReason === ''
+          || (data.status && !statusKeepsReason)
+        ) {
           delete state.agents[idx].pauseReason;
         }
       } else if (data.name && data.status) {
         // Only add as new agent if we have enough data
         const agent = { ...data } as IAgent;
-        if (agent.pauseReason === null || agent.pauseReason === '' || agent.status !== 'PAUSED') {
+        const statusKeepsReason =
+          agent.status === 'PAUSED'
+          || agent.status === 'OUTBOUND_WORK'
+          || agent.status === 'DIALING';
+        if (agent.pauseReason === null || agent.pauseReason === '' || !statusKeepsReason) {
           delete agent.pauseReason;
         }
         state.agents.push(agent);
@@ -106,6 +124,16 @@ export const callCenterSlice = createSlice({
     setChatOpen(state, action: PayloadAction<boolean>) {
       state.chatOpen = action.payload;
     },
+
+    /** Queue a WebRTC outbound dial for SoftphoneWidget (click-to-call bridge). */
+    requestOutboundDial(state, action: PayloadAction<string>) {
+      const target = (action.payload || '').replace(/[^\d+*#]/g, '');
+      state.pendingOutboundDial = target || null;
+    },
+
+    clearOutboundDial(state) {
+      state.pendingOutboundDial = null;
+    },
   },
 });
 
@@ -121,6 +149,8 @@ export const {
   chatMessageReceived,
   markChannelRead,
   setChatOpen,
+  requestOutboundDial,
+  clearOutboundDial,
 } = callCenterSlice.actions;
 
 export default callCenterSlice.reducer;

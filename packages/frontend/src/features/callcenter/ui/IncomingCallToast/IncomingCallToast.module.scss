@@ -16,20 +16,23 @@
   right: 16px;
   left: auto;
   z-index: var(--z-index-toast);
-  width: 320px;
+  width: min(320px, calc(100vw - 32px));
   max-width: calc(100vw - 32px);
+  box-sizing: border-box;
   padding: 16px;
   border-radius: var(--radius-xl);
   background: var(--color-card);
   border: 1px solid var(--color-border);
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.25);
   animation: incomingToastSlideDesktop 0.2s ease;
+  overflow: hidden;
 
   @media (max-width: 767px) {
     top: 8px;
     right: 8px;
     left: 8px;
     width: auto;
+    max-width: none;
     animation: incomingToastSlidePhone 0.2s ease;
   }
 
@@ -38,8 +41,14 @@
   }
 }
 
+.headerRow {
+  min-width: 0;
+  width: 100%;
+}
+
 .callerBlock {
   min-width: 0;
+  flex: 1;
 }
 
 .callerNumber {
@@ -47,14 +56,21 @@
   font-weight: 600;
   line-height: 1.2;
   color: var(--color-foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .callerName {
   font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .contextTag {
-  flex-shrink: 0;
+  flex-shrink: 1;
+  max-width: 45%;
   font-size: 12px;
   font-weight: 600;
   padding: 2px 10px;
@@ -62,13 +78,33 @@
   background: color-mix(in srgb, var(--color-primary) 10%, transparent);
   color: var(--color-primary);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
   width: 100%;
+  min-width: 0;
+}
 
-  :global(button) {
-    flex: 1;
-    min-height: 44px;
+.actionBtn {
+  flex: 1 1 calc(50% - 4px);
+  min-width: 0;
+  min-height: 44px;
+  max-width: 100%;
+}
+
+.actionLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 360px) {
+  .actionBtn {
+    flex: 1 1 100%;
   }
 }

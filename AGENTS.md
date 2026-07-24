@@ -4,7 +4,7 @@
 
 - Монорепо: `packages/backend` (NestJS), `packages/frontend` (React FSD), `packages/shared`
 - **Архитектура (MUST READ):**
-  - `packages/frontend/.idea/ARCHITECTURE.md`
+  - `packages/frontend/.idea/ARCHITECTURE.md` (в т.ч. **Optimistic toggles** — Switch с мгновенным PUT через RTK `onQueryStarted` + undo)
   - `packages/backend/.idea/ARCHITECTURE.md`
 - Индекс для GSD: `.planning/CANONICAL_REFS.md`
 - Модули: `.docs/*_MODULE.md` (локально)

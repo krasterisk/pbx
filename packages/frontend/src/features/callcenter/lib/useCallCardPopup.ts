@@ -82,9 +82,17 @@ export function useCallCardPopup() {
   const openedForRef = useRef<string | null>(null);
 
   const activeCall: ICall | null = useMemo(() => {
-    if (!myAgent?.currentCall) return null;
-    return calls.find((c) => c.uniqueid === myAgent.currentCall) ?? null;
-  }, [myAgent?.currentCall, calls]);
+    if (!myAgent) return null;
+    if (myAgent.currentCall) {
+      const bound = calls.find((c) => c.uniqueid === myAgent.currentCall);
+      if (bound) return bound;
+    }
+    return (
+      calls.find(
+        (c) => c.status === 'RINGING' && c.agent === myAgent.interface,
+      ) ?? null
+    );
+  }, [myAgent, calls]);
 
   const populateAndOpen = useCallback(async (tpl: ICardTemplate, call: CallCardContext) => {
     let phonebookName = '';

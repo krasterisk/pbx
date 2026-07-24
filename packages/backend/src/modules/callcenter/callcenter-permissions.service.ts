@@ -49,7 +49,7 @@ export class CallCenterPermissionsService {
    */
   async getEffective(userUid: number, operatorUserId: number): Promise<PermissionSet> {
     const operatorUser = await this.userModel.findOne({
-      where: { id: operatorUserId, vpbx_user_uid: userUid },
+      where: { uniqueid: operatorUserId, vpbx_user_uid: userUid },
     });
     const level = (operatorUser?.getDataValue('level') as UserLevel | undefined) ?? undefined;
 

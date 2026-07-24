@@ -4,15 +4,36 @@
 
 .bar {
   display: flex;
-  align-items: center;
-  gap: 16px;
+  flex-direction: column;
+  gap: 8px;
   min-height: 56px;
   padding: 8px 20px;
   background: var(--color-card);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-xl);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  overflow: visible;
+}
+
+.barMain {
+  display: flex;
+  align-items: center;
+  gap: 16px;
   flex-wrap: wrap;
+  width: 100%;
+}
+
+.controlsRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding-top: 4px;
+  border-top: 1px solid var(--color-border);
+}
+
+.barWithControls {
+  min-height: auto;
 }
 
 /* ─── Status pill (9 statuses, D-13) ─── */
@@ -131,37 +152,11 @@
   font-variant-numeric: tabular-nums;
 }
 
-.queueChips {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.queueChip {
-  padding: 2px 10px;
-  border-radius: var(--radius-md);
-  font-size: 0.75rem;
-  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
-  color: var(--color-primary);
-  border: 1px solid color-mix(in srgb, var(--color-primary) 20%, transparent);
-}
-
-.inlineControls {
-  margin-left: 4px;
-}
-
-/* ─── Right side: dual shift·day KPI group + session timer + connection dot ─── */
-
-.barRight {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
 .kpiGroup {
   display: flex;
   align-items: center;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .kpiCounter {
@@ -179,6 +174,12 @@
   line-height: 1.2;
 }
 
+.kpiSep {
+  margin: 0 2px;
+  color: var(--color-muted-foreground);
+  font-weight: 500;
+}
+
 .kpiLabel {
   font-size: 0.6875rem;
   font-weight: 600;
@@ -187,25 +188,60 @@
   text-transform: lowercase;
 }
 
-.sessionTimer {
-  font-size: 0.8rem;
-  color: var(--color-muted-foreground);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.connectionDot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
+.shiftActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
   flex-shrink: 0;
 }
 
-.connectionOnline {
-  background: var(--color-success);
+.shiftActions :global(button) {
+  flex: 0 1 auto;
+  white-space: nowrap;
 }
 
-.connectionOffline {
-  background: var(--color-destructive);
-  animation: agentStatusPulse 1s infinite;
+.outboundToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 4px 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-card);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  transition: background 0.15s ease, border-color 0.15s ease;
+
+  &:hover {
+    background: var(--color-accent);
+  }
+
+  &:has(:global([data-state='checked'])) {
+    border-color: color-mix(in srgb, var(--color-primary) 40%, transparent);
+    background: color-mix(in srgb, var(--color-primary) 10%, var(--color-card));
+  }
 }
+
+.outboundToggleLabel {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-foreground);
+}
+
+.inlineControls {
+  margin-left: 4px;
+}
+
+/* ─── Right side: shift actions + trailing + connection ─── */
+
+.barRight {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+

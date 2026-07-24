@@ -8,6 +8,46 @@
   min-height: 0;
 }
 
+.summaryBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.summaryStats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.summaryChip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 6px 10px;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-muted) 55%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
+}
+
+.summaryChipWarn {
+  background: color-mix(in srgb, var(--color-destructive) 10%, transparent);
+  border-color: color-mix(in srgb, var(--color-destructive) 25%, transparent);
+}
+
+.summaryValue {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.9rem;
+}
+
+.summaryLabel {
+  font-size: 0.72rem;
+  text-transform: lowercase;
+}
+
 .header {
   display: flex;
   align-items: center;
@@ -38,12 +78,12 @@
 /* Card row on phone (responsive convention, D-46) — flex-wrap naturally
    stacks number/tags below the icon+actions on narrow viewports. */
 .row {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: 10px;
-  padding: 10px 6px;
+  gap: 12px;
+  padding: 12px 10px;
   border-radius: var(--radius-md);
-  flex-wrap: wrap;
 
   &:hover {
     background: var(--color-accent);
@@ -51,6 +91,10 @@
 
   & + & {
     border-top: 1px dashed var(--color-border);
+  }
+
+  @media (max-width: 640px) {
+    grid-template-columns: auto minmax(0, 1fr);
   }
 }
 

@@ -107,6 +107,16 @@ export class CallCenterController {
     return this.ccService.agentUnpause(req.user.vpbx_user_uid, req.user.sub, dto.queue);
   }
 
+  @Post('agent/outbound-work')
+  agentStartOutboundWork(@Req() req: Request & { user: any }) {
+    return this.ccService.agentStartOutboundWork(req.user.vpbx_user_uid, req.user.sub);
+  }
+
+  @Post('agent/outbound-work/leave')
+  agentLeaveOutboundWork(@Req() req: Request & { user: any }) {
+    return this.ccService.agentLeaveOutboundWork(req.user.vpbx_user_uid, req.user.sub);
+  }
+
   @Post('agent/hangup')
   agentHangup(@Body() dto: AgentHangupDto, @Req() req: Request & { user: any }) {
     return this.ccService.agentHangup(req.user.vpbx_user_uid, req.user.sub, dto.channel);

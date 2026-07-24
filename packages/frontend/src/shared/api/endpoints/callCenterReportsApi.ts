@@ -208,7 +208,27 @@ const callCenterReportsApi = rtkApi.injectEndpoints({
         method: 'PUT',
         body,
       }),
-      invalidatesTags: ['ReportSchedules'],
+      /** Optimistic: enabled Switch (and other inline edits) flip immediately; undo on failure. */
+      async onQueryStarted(arg, { dispatch, queryFulfilled }) {
+        const { uid, ...patch } = arg;
+        const patchResult = dispatch(
+          callCenterReportsApi.util.updateQueryData('getReportSchedules', undefined, (draft) => {
+            const row = draft.find((r) => r.uid === uid);
+            if (row) Object.assign(row, patch);
+          }),
+        );
+        try {
+          const { data } = await queryFulfilled;
+          dispatch(
+            callCenterReportsApi.util.updateQueryData('getReportSchedules', undefined, (draft) => {
+              const i = draft.findIndex((r) => r.uid === data.uid);
+              if (i >= 0) draft[i] = data;
+            }),
+          );
+        } catch {
+          patchResult.undo();
+        }
+      },
     }),
     deleteReportSchedule: build.mutation<{ success: boolean }, number>({
       query: (uid) => ({

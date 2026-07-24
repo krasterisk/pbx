@@ -60,6 +60,9 @@ describe('CallCenterPermissionsService', () => {
 
       const perms = await service.getEffective(TENANT, OPERATOR_USER_ID);
 
+      expect(userModel.findOne).toHaveBeenCalledWith({
+        where: { uniqueid: OPERATOR_USER_ID, vpbx_user_uid: TENANT },
+      });
       expect(perms).toEqual({
         can_spy: false,
         spyable: true,

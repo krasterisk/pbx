@@ -29,6 +29,10 @@ describe('CallCenterService', () => {
   };
   const ccAmi: any = {
     logAgentEvent: jest.fn().mockResolvedValue(undefined),
+    logAgentEventForAgent: jest.fn().mockResolvedValue(undefined),
+    beginTimedStatus: jest.fn().mockResolvedValue(undefined),
+    endTimedStatus: jest.fn().mockResolvedValue(0),
+    incrementSessionTotals: jest.fn().mockResolvedValue(undefined),
     cancelWrapupTimer: jest.fn(),
     extendWrapupTimer: jest.fn(),
   };
@@ -104,6 +108,10 @@ describe('CallCenterService', () => {
   };
   const endpointModel: any = {
     findAll: jest.fn().mockResolvedValue([]),
+    findByPk: jest.fn().mockResolvedValue({
+      getDataValue: (k: string) => (k === 'context' ? 'from-internal7' : undefined),
+      context: 'from-internal7',
+    }),
   };
   const callGroupModel: any = {
     findAll: jest.fn().mockResolvedValue([]),
@@ -252,6 +260,37 @@ describe('CallCenterService', () => {
     });
   });
 
+  describe('agentStartOutboundWork', () => {
+    it('pauses queues and sets OUTBOUND_WORK without PAUSE journal', async () => {
+      await service.agentLogin('PJSIP/101', ['sales'], 7, 42);
+      await service.agentStartOutboundWork(7, 42);
+
+      const agent = state.getAgent(7, 'PJSIP/101');
+      expect(agent?.status).toBe('OUTBOUND_WORK');
+      expect(agent?.pauseReason).toBe('outbound_work');
+      expect(ami.queuePause).toHaveBeenCalledWith('sales', 'PJSIP/101', true, 'outbound_work');
+      expect(ccAmi.beginTimedStatus).not.toHaveBeenCalledWith(
+        expect.anything(),
+        'PAUSE',
+        expect.anything(),
+      );
+      expect(ccAmi.logAgentEventForAgent).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'OUTBOUND_WORK' }),
+        'OUTBOUND_WORK',
+        'outbound_work',
+      );
+    });
+
+    it('leave returns READY and unpauses queues', async () => {
+      await service.agentLogin('PJSIP/101', ['sales'], 7, 42);
+      await service.agentStartOutboundWork(7, 42);
+      await service.agentLeaveOutboundWork(7, 42);
+
+      expect(state.getAgent(7, 'PJSIP/101')?.status).toBe('READY');
+      expect(ami.queuePause).toHaveBeenCalledWith('sales', 'PJSIP/101', false);
+    });
+  });
+
   // ─── Pick Call ──────────────────────────────────────────
 
   describe('agentPickCall', () => {
@@ -283,13 +322,38 @@ describe('CallCenterService', () => {
       state.setCall('U1', { userUid: 7, queue: 'sales', status: 'WAITING', callerChannel: 'PJSIP/trunk-1' });
 
       const res = await service.agentPickCall('U1', 7, 42);
-      expect(res).toEqual({ success: true, uniqueid: 'U1', target: '101' });
+      expect(res).toEqual({ success: true, uniqueid: 'U1', target: '101', context: 'from-internal7' });
       expect(ami.action).toHaveBeenCalledWith(
         expect.objectContaining({
           action: 'Redirect',
           channel: 'PJSIP/trunk-1',
-          context: 'from-internal',
+          context: 'from-internal7',
           exten: '101',
+        }),
+      );
+    });
+
+    it('maps WebRTC sip id to numeric exten and endpoint dialplan context', async () => {
+      endpointModel.findByPk.mockResolvedValue({
+        getDataValue: (k: string) => (k === 'context' ? 'sip-out0' : undefined),
+        context: 'sip-out0',
+      });
+      await service.agentLogin('PJSIP/ew112_0', ['q700_0'], 0, 58);
+      state.setCall('U-w', {
+        userUid: 0,
+        queue: 'q700_0',
+        status: 'WAITING',
+        callerChannel: 'PJSIP/e201_0-00000073',
+      });
+
+      const res = await service.agentPickCall('U-w', 0, 58);
+      expect(res).toEqual({ success: true, uniqueid: 'U-w', target: '112', context: 'sip-out0' });
+      expect(ami.action).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'Redirect',
+          channel: 'PJSIP/e201_0-00000073',
+          context: 'sip-out0',
+          exten: '112',
         }),
       );
     });
@@ -1148,14 +1212,16 @@ describe('CallCenterService', () => {
       await expect(service.callbackMissedCall(7, 42, '')).rejects.toBeInstanceOf(BadRequestException);
     });
 
-    it('throws Forbidden when click_to_call permission is not granted', async () => {
+    it('allows callback without click_to_call permission (missed worklist is shift-scoped)', async () => {
       await service.agentLogin('PJSIP/101', ['sales'], 7, 42);
       permissionsService.getEffective.mockResolvedValue({
         can_spy: false, spyable: true, spy_modes: [], click_to_call: false, customize_ui: false,
       });
 
-      await expect(service.callbackMissedCall(7, 42, '79990001122')).rejects.toBeInstanceOf(ForbiddenException);
-      expect(ami.action).not.toHaveBeenCalled();
+      const res = await service.callbackMissedCall(7, 42, '79990001122');
+
+      expect(res).toEqual({ success: true, mode: 'pjsip', target: '79990001122' });
+      expect(ami.action).toHaveBeenCalled();
     });
 
     it('dials via the clickToCall branching — same scheme, not duplicated (D-18/D-29)', async () => {

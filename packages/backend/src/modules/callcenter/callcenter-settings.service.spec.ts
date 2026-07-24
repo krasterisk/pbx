@@ -126,6 +126,7 @@ describe('CallCenterSettingsService', () => {
       expect(result).toMatchObject({
         default_sla_threshold: 20,
         alert_sound_enabled: true,
+        autopause_enabled: true,
         autopause_rules: [],
         user_uid: 7,
       });
@@ -173,6 +174,12 @@ describe('CallCenterSettingsService', () => {
         { type: 'missed_count', threshold: 3 },
         { type: 'idle_time', thresholdSec: 120 },
       ]);
+    });
+
+    it('persists autopause_enabled master switch', async () => {
+      await service.updateTenantSettings(7, { autopause_enabled: false });
+      const created = ccSettingsModel.create.mock.calls[0][0];
+      expect(created.autopause_enabled).toBe(false);
     });
   });
 

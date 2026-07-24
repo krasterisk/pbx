@@ -73,6 +73,12 @@ export interface OperatorStatsRow {
   totalWrapupSec: number;
   avgHandleSec: number;
   ahtSec: number;
+  /** Shift length from cc_agent_sessions (login→logout/now) overlapping the period. */
+  loggedInSec?: number;
+  /** Sum of session.total_pause_time (filled on pause exit). */
+  totalPauseSec?: number;
+  /** Sum of session.total_idle_time (READY time accumulated on logout / transitions). */
+  totalIdleSec?: number;
 }
 
 export interface PauseReportRow {
@@ -82,6 +88,8 @@ export interface PauseReportRow {
   pauseCount: number;
   totalPauseSec: number;
   avgPauseSec: number;
+  /** From cc_pause_reasons.is_paid; undefined when reason is not in the catalog. */
+  isPaid?: boolean | null;
 }
 
 export interface HourlyHeatmapRow {

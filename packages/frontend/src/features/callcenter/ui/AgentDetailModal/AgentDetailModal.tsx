@@ -13,6 +13,7 @@ import {
 } from '@/shared/ui';
 import { useLazyGetAgentDetailQuery } from '@/shared/api/endpoints/callCenterApi';
 import type { IAgent } from '@/features/callcenter/model/types/callCenterSchema';
+import { formatPauseReason } from '@/features/callcenter/lib/displayLabels';
 import { AgentTimeline } from '@/features/callcenter/ui/AgentTimeline/AgentTimeline';
 import styles from './AgentDetailModal.module.scss';
 
@@ -52,7 +53,9 @@ export function AgentDetailModal({ agent, open, onClose }: AgentDetailModalProps
               data-status={status}
             >
               {status}
-              {detail?.stats.pauseReason ? ` (${detail.stats.pauseReason})` : ''}
+              {detail?.stats.pauseReason
+                ? ` (${formatPauseReason(detail.stats.pauseReason, t)})`
+                : ''}
             </span>
           </DialogTitle>
         </DialogHeader>

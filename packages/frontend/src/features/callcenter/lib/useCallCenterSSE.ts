@@ -203,12 +203,22 @@ export function useCallCenterSSE(enabled: boolean = true) {
       } catch { /* ignore */ }
     });
 
-    // KPI deltas (D-11/D-12/D-45) — invalidate only when the update is for this
-    // agent; the SSE stream is tenant-wide, not per-agent, so a coworker's KPI
-    // change must never trigger a refetch of my own status-bar counters.
+    // KPI deltas (D-11/D-12/D-45) — patch day counters for any agent (panel KPI mode);
+    // invalidate RTK AgentKpi only for myself (status-bar query cache).
     es.addEventListener('agentKpiUpdate', (e: MessageEvent) => {
       try {
         const data = JSON.parse(e.data);
+        const midnight = data?.kpi?.sinceMidnight;
+        if (data?.agent && midnight) {
+          dispatch(updateAgent({
+            interface: data.agent,
+            kpiDay: {
+              answered: midnight.answered ?? 0,
+              made: midnight.made ?? 0,
+              missed: midnight.missed ?? 0,
+            },
+          }));
+        }
         const myIface = store.getState().callCenter?.myAgentInterface;
         if (myIface && data.agent === myIface) {
           dispatch(rtkApi.util.invalidateTags(['AgentKpi']));

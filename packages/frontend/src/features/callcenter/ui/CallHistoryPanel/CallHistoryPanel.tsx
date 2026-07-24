@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
 import {
@@ -14,6 +14,7 @@ import {
   type IOperatorHistoryRow,
 } from '@/shared/api/endpoints/callCenterApi';
 import { selectCcQueues } from '@/features/callcenter/model/selectors/callCenterSelectors';
+import { requestOutboundDial } from '@/features/callcenter/model/slice/callCenterSlice';
 import { queueDisplayName } from '@/features/callcenter/lib/displayLabels';
 import { CallCardPopup } from '@/features/callcenter/ui/CallCardPopup/CallCardPopup';
 import type { CallCardContext } from '@/features/callcenter/lib/useCallCardPopup';
@@ -37,7 +38,7 @@ function directionVisual(row: Pick<IOperatorHistoryRow, 'direction' | 'dispositi
 }
 
 function formatDuration(seconds: number | null): string {
-  if (!seconds || seconds <= 0) return '—';
+  if (!seconds || seconds <= 0) return '-';
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
@@ -49,8 +50,9 @@ function formatDuration(seconds: number | null): string {
  * per D-20) with a shift/day filter, click-to-callback, and open-call-card
  * (reuses CallCardPopup, no bespoke viewer per the UI-SPEC Surface 11 note).
  */
-export function CallHistoryPanel() {
+export function CallHistoryPanel({ summaryOnly = false }: { summaryOnly?: boolean } = {}) {
   const { t } = useTranslation();
+  const dispatch = useDispatch();
   const [period, setPeriod] = useState<Period>('shift');
   const ccQueues = useSelector(selectCcQueues);
 
@@ -70,11 +72,61 @@ export function CallHistoryPanel() {
     [ccQueues],
   );
 
+  const missedCount = useMemo(
+    () => rows.filter((r) => r.disposition === 'abandoned' || r.disposition === 'timeout').length,
+    [rows],
+  );
+  const inboundCount = useMemo(() => rows.filter((r) => r.direction === 'inbound').length, [rows]);
+  const outboundCount = useMemo(() => rows.filter((r) => r.direction === 'outbound').length, [rows]);
+
+  const periodControl = (
+    <SegmentedControl
+      ariaLabel={t('callcenter.history.title', 'Call history')}
+      value={period}
+      onChange={setPeriod}
+      options={[
+        { value: 'shift', label: t('callcenter.history.shift', 'Shift') },
+        { value: 'day', label: t('callcenter.history.day', 'Day') },
+      ]}
+    />
+  );
+
+  const summary = (
+    <div className={styles.summaryBar}>
+      {periodControl}
+      <div className={styles.summaryStats}>
+        <span className={styles.summaryChip}>
+          <Text className={styles.summaryValue}>{rows.length}</Text>
+          <Text variant="muted" className={styles.summaryLabel}>{t('callcenter.history.summaryTotal', 'calls')}</Text>
+        </span>
+        <span className={styles.summaryChip}>
+          <Text className={styles.summaryValue}>{inboundCount}</Text>
+          <Text variant="muted" className={styles.summaryLabel}>{t('callcenter.history.summaryIn', 'in')}</Text>
+        </span>
+        <span className={styles.summaryChip}>
+          <Text className={styles.summaryValue}>{outboundCount}</Text>
+          <Text variant="muted" className={styles.summaryLabel}>{t('callcenter.history.summaryOut', 'out')}</Text>
+        </span>
+        <span className={`${styles.summaryChip} ${missedCount > 0 ? styles.summaryChipWarn : ''}`}>
+          <Text className={styles.summaryValue}>{missedCount}</Text>
+          <Text variant="muted" className={styles.summaryLabel}>{t('callcenter.history.missedTag', 'Missed')}</Text>
+        </span>
+      </div>
+    </div>
+  );
+
+  if (summaryOnly) {
+    return <div className={styles.wrap} data-testid="history-panel-summary">{summary}</div>;
+  }
+
   const handleCallback = async (row: IOperatorHistoryRow) => {
     if (!row.callerIdNum) return;
     setPendingId(row.uid);
     try {
-      await clickToCall({ target: row.callerIdNum }).unwrap();
+      const res = await clickToCall({ target: row.callerIdNum }).unwrap();
+      if (res.mode === 'webrtc' && res.target) {
+        dispatch(requestOutboundDial(res.target));
+      }
     } catch { /* dial-initiation error — nothing more to do client-side */ }
     finally { setPendingId(null); }
   };
@@ -115,15 +167,7 @@ export function CallHistoryPanel() {
     <div className={styles.wrap}>
       <div className={styles.header}>
         <Text className={styles.title}>{t('callcenter.history.title', 'Call history')}</Text>
-        <SegmentedControl
-          ariaLabel={t('callcenter.history.title', 'Call history')}
-          value={period}
-          onChange={setPeriod}
-          options={[
-            { value: 'shift', label: t('callcenter.history.shift', 'Shift') },
-            { value: 'day', label: t('callcenter.history.day', 'Day') },
-          ]}
-        />
+        {periodControl}
       </div>
 
       {rows.length === 0 && !isFetching ? (
