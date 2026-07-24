@@ -99,7 +99,7 @@ status: complete
 ## Task Commits
 
 1. **Task 1+2: SoftphoneContacts + ContactBookForm** - `23419ac` (feat)
-2. **Plan metadata** - (docs SUMMARY commit follows)
+2. **Plan metadata** - `4429d3e` (docs: SUMMARY included in Wave 4 state sync)
 
 ## Files Created/Modified
 
