@@ -18,9 +18,9 @@ progress:
 
 ## Current position
 
-Phase: 10 (full-softphone) — EXECUTING Wave 4
-Plan 10-01…10-04 committed. Migrations (contacts, journal_depth) still pending on live DB.
-Next: 10-05 SoftphoneJournal · 10-06 SoftphoneContacts · 10-07 History segments.
+Phase: 10 (full-softphone) — EXECUTING Wave 5
+Plans 10-01…10-07 committed (Wave 4 Journal/Contacts/History done). Migrations still pending on live DB.
+Next: 10-08 SoftphoneWidget shell · 10-09 SIP dual-mode.
 
 Also Phase 9 (complete, verify/UAT open):
 Plan 09-01 (schema/model foundation, wave 1): 3/3 tasks committed + migration applied to live DB.
@@ -203,7 +203,7 @@ Phase 1 — MOH: pending verify.
 
 ## Next GSD command
 
-**Phase 10 executing:** Wave 4 next — `10-05` / `10-06` / `10-07`. Waves 1–3 done (10-01…10-04).
+**Phase 10 executing:** next `10-08-PLAN.md` (SoftphoneWidget shell). Waves 1–4 done (10-01…10-07).
 
 Also open: Phase 9 — UAT complete (`09-UAT.md` 2/2); `phase complete 9` blocked until `09-VERIFICATION.md` → `passed`. Phase 8 / 08-11 Task 3 — Android smoke, then `approved`.
 
