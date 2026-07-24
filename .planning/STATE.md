@@ -173,6 +173,7 @@ Phase 1 — MOH: pending verify.
 
 ## Roadmap Evolution
 
+- Phase 10 planned (2026-07-24): 9 plans (`10-01`…`10-09`), 6 waves; RESEARCH + PATTERNS + VALIDATION + UI-SPEC; plan-checker PASSED (D-01…D-35). Dual-mode WebRTC+SIP/AMI; Journal≠History; cc_contacts book; chrome-only (FAB removed). Next: `/gsd-execute-phase 10`.
 - Phase 10 context gathered (2026-07-24): 6 областей; D-01…D-30 в `10-CONTEXT.md`. Dual Journal≠History; Contacts=directory+shared book; Recover UX; quality+devices; chrome-only (FAB removed); multi-call deferred. Next: `/gsd-ui-phase 10` или `/gsd-plan-phase 10`.
 - Phase 10 prepared (2026-07-24): Full Softphone — WebRTC dial / journal / contacts in ARM chrome (no FAB); resilience WSS/re-REGISTER; call quality + device picker. Brief: `10-BRIEF.md`. Next: `/gsd-discuss-phase 10`.
 - Phase 9 planned (2026-07-22): 14 plans (`09-01`…`09-14`), 7 waves; RESEARCH + PATTERNS + VALIDATION + UI-SPEC; plan-checker PASSED (D-01…D-46). Softphone widget, status bar, hybrid tabs, missed-calls, ChanSpy/permissions, call-control, history/directory, settings. Next: `/gsd-execute-phase 9`.
@@ -190,7 +191,9 @@ Phase 1 — MOH: pending verify.
 
 ## Next GSD command
 
-**Phase 10 context ready:** `/gsd-ui-phase 10` или `/gsd-plan-phase 10` (Full Softphone — see `10-CONTEXT.md`).
+**Phase 10 planned:** `/gsd-execute-phase 10` (Wave 1: `10-01` + `10-02` parallel). See `10-01-PLAN.md`.
+
+Also open: Phase 9 — UAT complete; `phase complete 9` blocked until `09-VERIFICATION.md` → `passed`. Phase 8 / 08-11 Task 3 — Android smoke.
 
 Also open: Phase 9 — UAT complete (`09-UAT.md` 2/2); `phase complete 9` blocked until `09-VERIFICATION.md` status → `passed`. Phase 8 / 08-11 Task 3 — Android smoke, then `approved`.
 
