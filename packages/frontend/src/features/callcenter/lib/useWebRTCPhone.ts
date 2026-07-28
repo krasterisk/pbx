@@ -15,6 +15,13 @@ import {
   UserAgent,
   Web,
 } from 'sip.js';
+import {
+  dialFailureFromOutboundEnd,
+  dialFailureFromSipStatus,
+  type DialFailure,
+} from './dialFailure';
+
+export type { DialFailure, DialFailureKind } from './dialFailure';
 
 export type PhoneStatus =
   | 'disconnected'
@@ -122,6 +129,7 @@ export function useWebRTCPhone(options: UseWebRTCPhoneOptions) {
   const [isHeld, setIsHeld] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [quality, setQuality] = useState<CallQuality>(EMPTY_QUALITY);
+  const [lastDialFailure, setLastDialFailure] = useState<DialFailure | null>(null);
 
   const uaRef = useRef<UserAgent | null>(null);
   const registererRef = useRef<Registerer | null>(null);
@@ -132,8 +140,30 @@ export function useWebRTCPhone(options: UseWebRTCPhoneOptions) {
   const wantConnectedRef = useRef(false);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectAttemptRef = useRef(0);
+  /** Coalesce parallel connect() / ensureConnected(force) — avoids REGISTER contact storms. */
+  const connectInFlightRef = useRef<Promise<void> | null>(null);
+  /** Operator-initiated hangup/cancel — do not show dial-failure toast. */
+  const localHangupRef = useRef(false);
+  const outboundEstablishedAtRef = useRef<number | null>(null);
   const optionsRef = useRef(options);
-  optionsRef.current = options;
+  /** Full connect() for transport-loss rebuild when UA is gone (avoids circular deps). */
+  const connectRef = useRef<(override?: Partial<UseWebRTCPhoneOptions>) => Promise<void>>(
+    async () => undefined,
+  );
+  // Keep last non-empty SIP/WSS credentials — parent may briefly render with empty
+  // sipCredentials (restore race / HMR), which would otherwise wipe optionsRef and
+  // make Recover / ensureConnected silently no-op.
+  {
+    const prev = optionsRef.current;
+    optionsRef.current = {
+      ...options,
+      server: options.server || prev.server,
+      sipUser: options.sipUser || prev.sipUser,
+      sipPassword: options.sipPassword || prev.sipPassword,
+      sipDomain: options.sipDomain || prev.sipDomain,
+      iceServers: options.iceServers?.length ? options.iceServers : prev.iceServers,
+    };
+  }
 
   const clearReconnectTimer = useCallback(() => {
     if (reconnectTimerRef.current) {
@@ -302,20 +332,34 @@ export function useWebRTCPhone(options: UseWebRTCPhoneOptions) {
   const attemptTransportReconnect = useCallback(() => {
     clearReconnectTimer();
     if (!wantConnectedRef.current) return;
-    const ua = uaRef.current;
-    if (!ua) {
-      // UA gone (exhausted sip.js attempts / stop) — surface disconnected so
-      // CallCenterAgentPage can call ensureConnected() after SSE comes back.
-      setStatus((prev) =>
-        prev === 'in-call' || prev === 'ringing' || prev === 'dialing' ? prev : 'disconnected',
-      );
-      return;
-    }
 
     const attempt = reconnectAttemptRef.current + 1;
     reconnectAttemptRef.current = attempt;
     // Backoff: 2s, 4s, … cap 30s — browsers throttle background tabs heavily
     const delayMs = Math.min(30_000, 2000 * 2 ** Math.min(attempt - 1, 4));
+
+    const ua = uaRef.current;
+    if (!ua) {
+      // UA gone (exhausted sip.js attempts / stop / failed connect) — rebuild
+      // UserAgent + REGISTER from saved credentials (do not wait for Recover).
+      setStatus((prev) =>
+        prev === 'in-call' || prev === 'ringing' || prev === 'dialing' ? prev : 'disconnected',
+      );
+      reconnectTimerRef.current = setTimeout(() => {
+        if (!wantConnectedRef.current) return;
+        if (uaRef.current) {
+          attemptTransportReconnect();
+          return;
+        }
+        setStatus((prev) =>
+          prev === 'in-call' || prev === 'ringing' || prev === 'dialing' ? prev : 'connecting',
+        );
+        void connectRef.current().catch(() => {
+          attemptTransportReconnect();
+        });
+      }, delayMs);
+      return;
+    }
 
     reconnectTimerRef.current = setTimeout(() => {
       if (!wantConnectedRef.current || uaRef.current !== ua) return;
@@ -373,12 +417,20 @@ export function useWebRTCPhone(options: UseWebRTCPhoneOptions) {
     if (override) {
       optionsRef.current = { ...optionsRef.current, ...override };
     }
+    if (connectInFlightRef.current) {
+      return connectInFlightRef.current;
+    }
+
+    const task = (async () => {
     const opts = optionsRef.current;
     if (!opts.server) {
       throw new Error('WebRTC WSS URL is not configured');
     }
+    if (!opts.sipUser || !opts.sipPassword || !opts.sipDomain) {
+      throw new Error('WebRTC SIP credentials missing');
+    }
 
-    await disconnectInternal(true);
+    await disconnectInternal(false);
 
     const uri = UserAgent.makeURI(`sip:${opts.sipUser}@${opts.sipDomain}`);
     if (!uri) throw new Error('Invalid SIP URI');
@@ -392,89 +444,124 @@ export function useWebRTCPhone(options: UseWebRTCPhoneOptions) {
     reconnectAttemptRef.current = 0;
     clearReconnectTimer();
 
-    const ua = new UserAgent({
-      uri,
-      // Built-in transport reconnect (sip.js 0.21); we reinstate REGISTER in onConnect
-      reconnectionAttempts: 10,
-      reconnectionDelay: 4,
-      transportOptions: {
-        server: opts.server,
-        // Never log SIP frames (may contain credentials) — T-07-14-01
-        traceSip: false,
-        // CRLF keep-alive so proxies / Asterisk don't idle-drop the WSS
-        keepAliveInterval: 20,
-      },
-      authorizationUsername: opts.sipUser,
-      authorizationPassword: opts.sipPassword,
-      displayName: opts.sipUser,
-      sessionDescriptionHandlerFactoryOptions: {
-        constraints: {
-          audio: audioConstraint,
-          video: false,
+    try {
+      const ua = new UserAgent({
+        uri,
+        // Built-in transport reconnect (sip.js 0.21); we reinstate REGISTER in onConnect
+        reconnectionAttempts: 10,
+        reconnectionDelay: 4,
+        transportOptions: {
+          server: opts.server,
+          // Never log SIP frames (may contain credentials) — T-07-14-01
+          traceSip: false,
+          // CRLF keep-alive so proxies / Asterisk don't idle-drop the WSS
+          keepAliveInterval: 20,
         },
-        iceGatheringTimeout: 2000,
-        peerConnectionConfiguration: {
-          iceServers: opts.iceServers,
+        authorizationUsername: opts.sipUser,
+        authorizationPassword: opts.sipPassword,
+        displayName: opts.sipUser,
+        sessionDescriptionHandlerFactoryOptions: {
+          constraints: {
+            audio: audioConstraint,
+            video: false,
+          },
+          iceGatheringTimeout: 2000,
+          peerConnectionConfiguration: {
+            iceServers: opts.iceServers,
+          },
         },
-      },
-      delegate: {
-        onInvite: (invitation: Invitation) => {
-          void handleIncoming(invitation);
+        delegate: {
+          onInvite: (invitation: Invitation) => {
+            void handleIncoming(invitation);
+          },
+          onConnect: () => {
+            reconnectAttemptRef.current = 0;
+            clearReconnectTimer();
+            const registerer = registererRef.current;
+            // Only REGISTER if we are not already registered (avoid refresh storms)
+            if (
+              wantConnectedRef.current
+              && registerer
+              && registerer.state !== RegistererState.Registered
+            ) {
+              void registerer.register().catch(() => undefined);
+            }
+          },
+          onDisconnect: (error?: Error) => {
+            if (!wantConnectedRef.current) return;
+            // Transport lost — show connecting; Asterisk contact may still be Avail briefly.
+            // Always schedule reconnect (clean closes often omit Error).
+            setStatus((prev) =>
+              prev === 'in-call' || prev === 'ringing' || prev === 'dialing' ? prev : 'connecting',
+            );
+            void error;
+            attemptTransportReconnect();
+          },
         },
-        onConnect: () => {
+      });
+
+      uaRef.current = ua;
+      setStatus('connecting');
+      await ua.start();
+
+      const registerer = new Registerer(ua, { expires: 300 });
+      registererRef.current = registerer;
+      registerer.stateChange.addListener((state: RegistererState) => {
+        if (state === RegistererState.Registered) {
           reconnectAttemptRef.current = 0;
           clearReconnectTimer();
-          const registerer = registererRef.current;
-          // Only REGISTER if we are not already registered (avoid refresh storms)
-          if (
-            wantConnectedRef.current
-            && registerer
-            && registerer.state !== RegistererState.Registered
-          ) {
-            void registerer.register().catch(() => undefined);
-          }
-        },
-        onDisconnect: (error?: Error) => {
-          if (!wantConnectedRef.current) return;
-          // Transport lost — show connecting; Asterisk contact may still be Avail briefly.
-          // Always schedule reconnect (clean closes often omit Error).
           setStatus((prev) =>
-            prev === 'in-call' || prev === 'ringing' || prev === 'dialing' ? prev : 'connecting',
+            prev === 'in-call' || prev === 'ringing' || prev === 'dialing' ? prev : 'registered',
           );
-          void error;
-          attemptTransportReconnect();
-        },
-      },
-    });
-
-    uaRef.current = ua;
-    setStatus('connecting');
-    await ua.start();
-
-    const registerer = new Registerer(ua, { expires: 300 });
-    registererRef.current = registerer;
-    registerer.stateChange.addListener((state: RegistererState) => {
-      if (state === RegistererState.Registered) {
-        reconnectAttemptRef.current = 0;
-        clearReconnectTimer();
-        setStatus((prev) =>
-          prev === 'in-call' || prev === 'ringing' || prev === 'dialing' ? prev : 'registered',
-        );
-        return;
-      }
-      if (state === RegistererState.Unregistered) {
-        if (!wantConnectedRef.current) {
-          setStatus((prev) => (prev === 'connecting' ? prev : 'disconnected'));
           return;
         }
-        // Do NOT ua.reconnect() here — that flaps WSS while Asterisk contact is still Avail.
-        // Soft re-REGISTER; only escalate to transport reconnect if that fails.
-        attemptReRegister();
-      }
-    });
+        if (state === RegistererState.Unregistered) {
+          if (!wantConnectedRef.current) {
+            setStatus((prev) => (prev === 'connecting' ? prev : 'disconnected'));
+            return;
+          }
+          // Do NOT ua.reconnect() here — that flaps WSS while Asterisk contact is still Avail.
+          // Soft re-REGISTER; only escalate to transport reconnect if that fails.
+          attemptReRegister();
+        }
+      });
 
-    await registerer.register();
-  }, [handleIncoming, attemptTransportReconnect, attemptReRegister, clearReconnectTimer]);
+      await registerer.register();
+    } catch (err) {
+      // Tear down partial UA but keep wantConnected so backoff rebuild continues.
+      clearReconnectTimer();
+      reconnectAttemptRef.current = 0;
+      stopQualityPolling();
+      sessionRef.current = null;
+      consultRef.current = null;
+      registererRef.current = null;
+      try {
+        await uaRef.current?.stop();
+      } catch {
+        /* ignore */
+      }
+      uaRef.current = null;
+      wantConnectedRef.current = true;
+      setStatus('disconnected');
+      setCallInfo(null);
+      setIsHeld(false);
+      setIsMuted(false);
+      attemptTransportReconnect();
+      throw err;
+    }
+    })();
+
+    connectInFlightRef.current = task;
+    try {
+      await task;
+    } finally {
+      if (connectInFlightRef.current === task) {
+        connectInFlightRef.current = null;
+      }
+    }
+  }, [handleIncoming, attemptTransportReconnect, attemptReRegister, clearReconnectTimer, stopQualityPolling]);
+
+  connectRef.current = (override) => connect(override);
 
   async function disconnectInternal(clearWantConnected = true): Promise<void> {
     if (clearWantConnected) {
@@ -528,13 +615,36 @@ export function useWebRTCPhone(options: UseWebRTCPhoneOptions) {
    */
   const ensureConnected = useCallback(async (force = false) => {
     const opts = optionsRef.current;
-    if (!opts.server || !opts.sipUser || !opts.sipPassword) return;
+    if (!opts.server || !opts.sipUser || !opts.sipPassword) {
+      // No credentials yet (shift restore in flight) — stay quiet; page will retry.
+      return;
+    }
     if (force) wantConnectedRef.current = true;
     if (!wantConnectedRef.current) return;
 
+    if (connectInFlightRef.current) {
+      return connectInFlightRef.current;
+    }
+
+    // Recover CTA / explicit force: always rebuild WSS + REGISTER.
+    // sip.js may still report Registered after Asterisk deleted the contact
+    // ("Removed contact due to shutdown") — a soft early-return then no-ops.
+    if (force) {
+      try {
+        await connect();
+      } catch {
+        /* connect() already schedules attemptTransportReconnect */
+      }
+      return;
+    }
+
     // UA torn down after exhausted reconnect — rebuild from saved credentials.
     if (!uaRef.current) {
-      await connect();
+      try {
+        await connect();
+      } catch {
+        /* backoff via connect failure path */
+      }
       return;
     }
 
@@ -558,7 +668,11 @@ export function useWebRTCPhone(options: UseWebRTCPhoneOptions) {
         /* fall through to full reconnect */
       }
     }
-    await connect();
+    try {
+      await connect();
+    } catch {
+      /* backoff via connect failure path */
+    }
   }, [connect]);
 
   const rejectCall = useCallback(async () => {
@@ -572,6 +686,7 @@ export function useWebRTCPhone(options: UseWebRTCPhoneOptions) {
   const hangup = useCallback(async () => {
     const session = sessionRef.current;
     if (!session) return;
+    localHangupRef.current = true;
     try {
       if (session.state === SessionState.Established) {
         await session.bye();
@@ -609,6 +724,10 @@ export function useWebRTCPhone(options: UseWebRTCPhoneOptions) {
       ? { deviceId: { exact: micId } }
       : true;
 
+    localHangupRef.current = false;
+    outboundEstablishedAtRef.current = null;
+    setLastDialFailure(null);
+
     const inviter = new Inviter(ua, targetUri, {
       sessionDescriptionHandlerOptions: {
         constraints: { audio: audioConstraint, video: false },
@@ -620,22 +739,65 @@ export function useWebRTCPhone(options: UseWebRTCPhoneOptions) {
     setStatus('dialing');
     attachSessionListeners(inviter);
 
+    let rejectStatusCode: number | undefined;
+
     inviter.stateChange.addListener((state: SessionState) => {
-      if (sessionRef.current !== inviter) return;
+      if (sessionRef.current !== inviter && state !== SessionState.Terminated) return;
       if (state === SessionState.Established) {
+        outboundEstablishedAtRef.current = Date.now();
         setStatus('in-call');
         void setupRemoteAudio(inviter);
         startQualityPolling(inviter);
+        return;
       }
+      if (state !== SessionState.Terminated) return;
+      // Local cancel/hangup — silent return to dialpad.
+      if (localHangupRef.current) {
+        localHangupRef.current = false;
+        outboundEstablishedAtRef.current = null;
+        return;
+      }
+      if (rejectStatusCode != null) {
+        setLastDialFailure({
+          kind: dialFailureFromSipStatus(rejectStatusCode),
+          statusCode: rejectStatusCode,
+          target,
+        });
+      } else {
+        const kind = dialFailureFromOutboundEnd({
+          establishedAt: outboundEstablishedAtRef.current,
+        });
+        if (kind) {
+          setLastDialFailure({ kind, target });
+        }
+      }
+      outboundEstablishedAtRef.current = null;
     });
 
     try {
-      await inviter.invite();
-    } catch (err) {
+      await inviter.invite({
+        requestDelegate: {
+          onReject: (response) => {
+            rejectStatusCode = response.message.statusCode;
+          },
+        },
+      });
+    } catch {
       if (sessionRef.current === inviter) cleanupCall();
-      throw err;
+      if (!localHangupRef.current) {
+        setLastDialFailure({
+          kind: dialFailureFromSipStatus(rejectStatusCode),
+          statusCode: rejectStatusCode,
+          target,
+        });
+      }
+      // SoftphoneWidget surfaces lastDialFailure — do not rethrow (avoids double toast).
     }
   }, [attachSessionListeners, cleanupCall, setupRemoteAudio, startQualityPolling]);
+
+  const clearLastDialFailure = useCallback(() => {
+    setLastDialFailure(null);
+  }, []);
 
   const hold = useCallback(async () => {
     const session = sessionRef.current;
@@ -831,6 +993,8 @@ export function useWebRTCPhone(options: UseWebRTCPhoneOptions) {
     isHeld,
     isMuted,
     quality,
+    lastDialFailure,
+    clearLastDialFailure,
     connect,
     disconnect,
     ensureConnected,

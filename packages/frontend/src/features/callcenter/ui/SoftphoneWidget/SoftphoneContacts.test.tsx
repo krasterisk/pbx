@@ -167,6 +167,7 @@ vi.mock('@/shared/api/endpoints/callCenterApi', () => ({
     refetch: refetchContacts,
   }),
   useClickToCallMutation: () => [clickToCall, { isLoading: false }],
+  useGetEffectivePermissionsQuery: () => ({ data: { click_to_call: true } }),
   useCreateContactMutation: () => [vi.fn(), { isLoading: false }],
   useUpdateContactMutation: () => [vi.fn(), { isLoading: false }],
   useDeleteContactMutation: () => [vi.fn(), { isLoading: false }],
@@ -186,6 +187,7 @@ vi.mock('lucide-react', () => ({
   Trash2: () => null,
   BookUser: () => null,
   Phone: () => null,
+  PhoneCall: () => null,
 }));
 
 vi.mock('react-toastify', () => ({

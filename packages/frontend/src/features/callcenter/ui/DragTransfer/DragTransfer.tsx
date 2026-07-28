@@ -172,7 +172,7 @@ export function DroppableColleague({
     id: `agent-${agent.interface}`,
     data: { iface: agent.interface, name: agent.name, status: agent.status },
   });
-  const canAccept = agent.status === 'READY';
+  const canAccept = agent.status === 'READY' || agent.status === 'OUTBOUND_WORK';
   const Comp = as === 'tr' ? 'tr' : 'div';
   return (
     <Comp

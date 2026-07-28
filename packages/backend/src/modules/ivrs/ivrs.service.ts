@@ -3,12 +3,14 @@ import { InjectModel } from '@nestjs/sequelize';
 import type { IIvrPhrase, IvrPromptsValidationEngine } from '@krasterisk/shared';
 import { Ivr } from './ivr.model';
 import { TtsEnginesService } from '../tts-engines/tts-engines.service';
+import { DialplanApplyService } from '../ami/dialplan-apply.service';
 import { AsteriskDialplanUtils } from '../../shared/utils/dialplan.util';
 import {
   normalizeIvrPrompts,
   assertIvrPromptsForSave,
   IvrPromptsValidationError,
 } from './ivr-prompts.util';
+import { resolveIvrTimeouts } from './ivr-timeouts.util';
 
 @Injectable()
 export class IvrsService {
@@ -17,7 +19,17 @@ export class IvrsService {
   constructor(
     @InjectModel(Ivr) private ivrModel: typeof Ivr,
     private readonly ttsEnginesService: TtsEnginesService,
+    private readonly dialplanApplyService: DialplanApplyService,
   ) {}
+
+  /** Per-tenant IVR dialplan file under krasterisk/ivrs/ (two levels deep for Asterisk include glob). */
+  private ivrFile(vpbxUserUid: number): string {
+    return `krasterisk/ivrs/ivr_${vpbxUserUid}.conf`;
+  }
+
+  private ivrCategoryName(uid: number): string {
+    return `ivr_${uid}`;
+  }
 
   private async loadEnginesForPrompts(
     prompts: IIvrPhrase[],
@@ -60,6 +72,50 @@ export class IvrsService {
     return json as Ivr;
   }
 
+  /**
+   * Write `[ivr_{uid}]` via AMI when active; remove category when inactive.
+   * DB is already saved — dialplan failures are logged, not thrown (same as call groups).
+   */
+  private async syncIvrDialplan(
+    ivr: Ivr,
+    vpbxUserUid: number,
+    isAdmin: boolean = false,
+  ): Promise<void> {
+    const file = this.ivrFile(vpbxUserUid);
+    const category = this.ivrCategoryName(ivr.uid);
+    try {
+      if (ivr.active === 0) {
+        await this.dialplanApplyService.deleteCategories(file, [category], { reload: true });
+        return;
+      }
+      const dialplan = this.generateIvrDialplan(ivr, vpbxUserUid, isAdmin);
+      await this.dialplanApplyService.applyCategories(
+        file,
+        [{ name: category, lines: dialplan.split('\n') }],
+        { reload: true },
+      );
+    } catch (e: any) {
+      this.logger.error(
+        `Dialplan sync failed for IVR ${ivr.uid} (${file}); DB saved — retry/re-save may be needed: ${e?.message || e}`,
+      );
+    }
+  }
+
+  private async removeIvrDialplan(uid: number, vpbxUserUid: number): Promise<void> {
+    const file = this.ivrFile(vpbxUserUid);
+    try {
+      await this.dialplanApplyService.deleteCategories(
+        file,
+        [this.ivrCategoryName(uid)],
+        { reload: true },
+      );
+    } catch (e: any) {
+      this.logger.error(
+        `Dialplan remove failed for IVR ${uid} (${file}); DB deleted — dialplan may need cleanup: ${e?.message || e}`,
+      );
+    }
+  }
+
   async findAll(vpbxUserUid: number): Promise<Ivr[]> {
     const rows = await this.ivrModel.findAll({
       where: { user_uid: vpbxUserUid },
@@ -76,7 +132,11 @@ export class IvrsService {
     return this.mapIvrForResponse(ivr);
   }
 
-  async create(data: Partial<Ivr>, vpbxUserUid: number): Promise<Ivr> {
+  async create(
+    data: Partial<Ivr>,
+    vpbxUserUid: number,
+    isAdmin: boolean = false,
+  ): Promise<Ivr> {
     const prompts = data.prompts !== undefined
       ? await this.normalizeAndValidatePrompts(data.prompts, vpbxUserUid)
       : [];
@@ -86,10 +146,17 @@ export class IvrsService {
       prompts,
       user_uid: vpbxUserUid,
     } as any);
+
+    await this.syncIvrDialplan(created, vpbxUserUid, isAdmin);
     return this.mapIvrForResponse(created);
   }
 
-  async update(uid: number, data: Partial<Ivr>, vpbxUserUid: number): Promise<Ivr> {
+  async update(
+    uid: number,
+    data: Partial<Ivr>,
+    vpbxUserUid: number,
+    isAdmin: boolean = false,
+  ): Promise<Ivr> {
     const ivr = await this.ivrModel.findOne({
       where: { uid, user_uid: vpbxUserUid },
     });
@@ -101,6 +168,7 @@ export class IvrsService {
     }
 
     await ivr.update(patch);
+    await this.syncIvrDialplan(ivr, vpbxUserUid, isAdmin);
     return this.mapIvrForResponse(ivr);
   }
 
@@ -110,6 +178,7 @@ export class IvrsService {
     });
     if (!ivr) throw new NotFoundException('IVR not found');
     await ivr.destroy();
+    await this.removeIvrDialplan(uid, vpbxUserUid);
   }
 
   /**
@@ -117,14 +186,15 @@ export class IvrsService {
    */
   generateIvrDialplan(ivr: Ivr, vpbxUserUid: number, isAdmin: boolean = false): string {
     const lines: string[] = [];
+    const safeName = AsteriskDialplanUtils.sanitizeDialplanInput(ivr.name) || String(ivr.uid);
     lines.push(`[ivr_${ivr.uid}]`);
-    lines.push(`exten => start,1,NoOp(IVR: ${ivr.name})`);
+    lines.push(`exten => start,1,NoOp(IVR: ${safeName})`);
+    lines.push(`same => n,Answer()`);
     lines.push(`same => n,Set(CDR(vpbx_user_uid)=${vpbxUserUid})`);
 
-    if (ivr.timeout) {
-      lines.push(`same => n,Set(TIMEOUT(digit)=${ivr.timeout})`);
-      lines.push(`same => n,Set(TIMEOUT(response)=${ivr.timeout})`);
-    }
+    const timeouts = resolveIvrTimeouts(ivr);
+    lines.push(`same => n,Set(TIMEOUT(digit)=${timeouts.digit})`);
+    lines.push(`same => n,Set(TIMEOUT(response)=${timeouts.response})`);
 
     if (ivr.max_count > 0) {
       lines.push(`same => n,ExecIf($["\${step${ivr.uid}}" = ""]?Set(__step${ivr.uid}=0))`);
@@ -162,17 +232,16 @@ export class IvrsService {
       }
     });
 
-    if (ivr.timeout) {
-      lines.push(`same => n,WaitExten(${ivr.timeout})`);
-    } else {
-      lines.push(`same => n,WaitExten(5)`);
-    }
+    lines.push(`same => n,WaitExten(${timeouts.waitExten})`);
 
     lines.push('');
 
     const menuItems = ivr.menu_items || [];
+    const menuExtens = new Set<string>();
     for (const item of menuItems) {
-      const exten = item.digit || 'i';
+      const rawDigit = String(item.digit ?? 'i');
+      const exten = AsteriskDialplanUtils.sanitizeDialplanInput(rawDigit) || 'i';
+      menuExtens.add(exten);
       const actions = item.actions || [];
       lines.push(`exten => ${exten},1,NoOp(IVR choice: ${exten})`);
 
@@ -183,6 +252,13 @@ export class IvrsService {
       lines.push('');
     }
 
+    // Fallback only when menu does not already define "max" (user handler wins).
+    if (ivr.max_count > 0 && !menuExtens.has('max')) {
+      lines.push(`exten => max,1,NoOp(IVR max retries: ${safeName})`);
+      lines.push(`same => n,Hangup()`);
+      lines.push('');
+    }
+
     return lines.join('\n');
   }
 
@@ -190,6 +266,20 @@ export class IvrsService {
     const deleted = await this.ivrModel.destroy({
       where: { uid: uids, user_uid: vpbxUserUid },
     });
+
+    if (deleted > 0 && uids.length > 0) {
+      const file = this.ivrFile(vpbxUserUid);
+      const categories = uids.map((uid) => this.ivrCategoryName(uid));
+      try {
+        await this.dialplanApplyService.deleteCategories(file, categories, { reload: true });
+      } catch (e: any) {
+        const ids = uids.join(',');
+        this.logger.error(
+          `Dialplan bulk remove failed for IVRs [${ids}] (${file}); DB deleted - dialplan may need cleanup: ${e?.message || e}`,
+        );
+      }
+    }
+
     return { deleted };
   }
 }

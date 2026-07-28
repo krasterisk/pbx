@@ -54,7 +54,12 @@ vi.mock('@/features/callcenter/lib/shiftSession', () => ({
   saveDialBuffer: vi.fn(),
 }));
 
+vi.mock('react-toastify', () => ({
+  toast: { error: vi.fn(), success: vi.fn() },
+}));
+
 import { loadDialBuffer } from '@/features/callcenter/lib/shiftSession';
+import { toast } from 'react-toastify';
 
 function mockPhone(over: Record<string, unknown> = {}) {
   return {
@@ -63,6 +68,8 @@ function mockPhone(over: Record<string, unknown> = {}) {
     isHeld: false,
     isMuted: false,
     quality: { level: 3, mos: 4.1, jitterMs: 12, rttMs: 40, lossPct: 0.2 },
+    lastDialFailure: null,
+    clearLastDialFailure: vi.fn(),
     connect: vi.fn(),
     disconnect: vi.fn(),
     ensureConnected: vi.fn(),
@@ -143,36 +150,36 @@ describe('SoftphoneWidget', () => {
     expect(screen.getByTestId('softphone-contacts')).toBeTruthy();
   });
 
-  it('enables Redial when lastNumber exists and dials it', async () => {
-    vi.mocked(loadDialBuffer).mockReturnValue({ dialBuffer: '', lastNumber: '5551234' });
-
-    const phone = mockPhone();
+  it('shows dial failure message and toast when lastDialFailure is set', () => {
+    const clearLastDialFailure = vi.fn();
+    const phone = mockPhone({
+      lastDialFailure: { kind: 'ended_early', target: '800' },
+      clearLastDialFailure,
+    });
     render(<SoftphoneWidget phone={phone} mode="webrtc" />);
-    fireEvent.click(screen.getByTestId('softphone-widget-trigger'));
-
-    const redial = screen.getByTestId('softphone-redial');
-    expect(redial).not.toBeDisabled();
-    fireEvent.click(redial);
-    expect(phone.makeCall).toHaveBeenCalledWith('5551234');
+    expect(screen.getByText(/Call dropped immediately/i)).toBeTruthy();
+    expect(toast.error).toHaveBeenCalled();
+    expect(clearLastDialFailure).toHaveBeenCalled();
   });
 
   it('shows registration badge online/registering/offline and Recover after timeout', () => {
     vi.useFakeTimers();
     const phone = mockPhone({ status: 'disconnected' });
-    const { rerender } = render(<SoftphoneWidget phone={phone} mode="webrtc" />);
+    const { rerender, unmount } = render(<SoftphoneWidget phone={phone} mode="webrtc" />);
     const badge = screen.getByTestId('softphone-reg-badge');
     expect(badge.getAttribute('data-state')).toBe('offline');
 
     fireEvent.click(screen.getByTestId('softphone-widget-trigger'));
     expect(screen.getByTestId('softphone-reg-banner')).toBeTruthy();
     expect(screen.queryByTestId('softphone-recover')).toBeNull();
+    expect(phone.ensureConnected).toHaveBeenCalledWith(true);
 
     act(() => {
       vi.advanceTimersByTime(10_000);
     });
     expect(screen.getByTestId('softphone-recover')).toBeTruthy();
     fireEvent.click(screen.getByTestId('softphone-recover'));
-    expect(phone.ensureConnected).toHaveBeenCalledWith(true);
+    expect(phone.ensureConnected).toHaveBeenCalledTimes(2);
 
     rerender(<SoftphoneWidget phone={mockPhone({ status: 'connecting' })} mode="webrtc" />);
     expect(screen.getByTestId('softphone-reg-badge').getAttribute('data-state')).toBe('registering');
@@ -180,6 +187,27 @@ describe('SoftphoneWidget', () => {
     rerender(<SoftphoneWidget phone={mockPhone({ status: 'registered' })} mode="webrtc" />);
     expect(screen.getByTestId('softphone-reg-badge').getAttribute('data-state')).toBe('online');
     expect(screen.queryByTestId('softphone-reg-banner')).toBeNull();
+
+    unmount();
+
+    const onRecover = vi.fn();
+    const phoneWithRecover = mockPhone({ status: 'disconnected' });
+    render(
+      <SoftphoneWidget
+        phone={phoneWithRecover}
+        mode="webrtc"
+        onRecover={onRecover}
+      />,
+    );
+    fireEvent.click(screen.getByTestId('softphone-widget-trigger'));
+    expect(onRecover).not.toHaveBeenCalled();
+    expect(phoneWithRecover.ensureConnected).toHaveBeenCalledWith(true);
+
+    act(() => {
+      vi.advanceTimersByTime(10_000);
+    });
+    fireEvent.click(screen.getByTestId('softphone-recover'));
+    expect(onRecover).toHaveBeenCalled();
   });
 
   it('renders quality + device picker in WebRTC mode and omits both in SIP mode', () => {

@@ -40,8 +40,8 @@ const renderWithStore = (ui: React.ReactElement) => {
 
 describe('IvrsTable UI integration', () => {
   const mockIvrs = [
-    { uid: 1, name: 'Menu A', exten: '100', timeout: 5, max_count: 2 },
-    { uid: 2, name: 'Menu B', exten: '101', timeout: 10, max_count: 3 },
+    { uid: 1, name: 'Menu A', timeout: 5, max_count: 2 },
+    { uid: 2, name: 'Menu B', timeout: 10, max_count: 3 },
   ];
 
   beforeEach(() => {

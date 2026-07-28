@@ -106,7 +106,12 @@ export class CallCenterAutoPauseService implements OnModuleDestroy {
         this.logger.warn(`Auto-pause failed for ${agentInterface} in ${q}: ${err.message}`);
       }
     }
-    this.stateService.setAgent(userUid, agentInterface, { status: 'PAUSED', pauseReason: reason });
+    this.stateService.setAgent(userUid, agentInterface, {
+      status: 'PAUSED',
+      pauseReason: reason,
+      dialTarget: undefined,
+      peerNumber: '',
+    });
     this.metricsService.recordAgentStatus(userUid, agentInterface, 'PAUSED');
     await this.journalAutoPause(userUid, agentInterface, reason);
     this.logger.log(`Auto-paused ${agentInterface} (tenant ${userUid}): ${reason}`);

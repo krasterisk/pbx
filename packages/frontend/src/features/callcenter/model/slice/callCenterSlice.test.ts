@@ -74,6 +74,27 @@ describe('callCenterSlice', () => {
       expect(next.queues).toHaveLength(1);
       expect(next.calls).toHaveLength(1);
     });
+
+    it('keeps my agent queues when snapshot briefly sends queues: []', () => {
+      let state = reducer(baseState(), setMyAgentInterface('PJSIP/101'));
+      state = reducer(
+        state,
+        setSnapshot({
+          agents: [agent({ queues: ['q700_0'] })],
+          queues: [queue({ name: 'q700_0' })],
+          calls: [],
+        }),
+      );
+      state = reducer(
+        state,
+        setSnapshot({
+          agents: [agent({ queues: [] })],
+          queues: [],
+          calls: [],
+        }),
+      );
+      expect(state.agents[0].queues).toEqual(['q700_0']);
+    });
   });
 
   describe('setConnected / setMyAgentInterface', () => {
@@ -101,6 +122,21 @@ describe('callCenterSlice', () => {
       expect(s2.agents[0].statusSince).toBeTruthy();
       expect(s2.agents[0].statusSince).not.toBe(s1.agents[0].statusSince);
       expect(s2.agents[0].name).toBe('Alice');
+    });
+
+    it('keeps human name when SSE sends extension-only name', () => {
+      const s1 = reducer(baseState(), updateAgent({
+        ...agent(),
+        interface: 'PJSIP/e201_0',
+        name: 'Оператор',
+      }));
+      const s2 = reducer(s1, updateAgent({
+        interface: 'PJSIP/e201_0',
+        name: '201',
+        status: 'DIALING',
+      }));
+      expect(s2.agents[0].name).toBe('Оператор');
+      expect(s2.agents[0].status).toBe('DIALING');
     });
 
     it('ignores partial updates for unknown agents (no name+status)', () => {
@@ -140,6 +176,19 @@ describe('callCenterSlice', () => {
       expect(s2.agents[0].status).toBe('DIALING');
       expect(s2.agents[0].pauseReason).toBe('Lunch');
       expect(s2.agents[0].dialTarget).toBe('201');
+    });
+
+    it('clears dialTarget when leaving DIALING for READY (SSE null)', () => {
+      const s1 = reducer(
+        baseState(),
+        updateAgent({ ...agent(), status: 'DIALING', dialTarget: '800' }),
+      );
+      const s2 = reducer(
+        s1,
+        updateAgent({ interface: 'PJSIP/101', status: 'READY', dialTarget: null }),
+      );
+      expect(s2.agents[0].status).toBe('READY');
+      expect(s2.agents[0].dialTarget).toBeUndefined();
     });
 
     it('keeps pauseReason for OUTBOUND_WORK', () => {

@@ -13,10 +13,11 @@
  */
 import { Controller, Sse, Req, UseGuards, Get, MessageEvent, Logger } from '@nestjs/common';
 import { Request } from 'express';
-import { Observable, map, merge, interval, startWith, filter } from 'rxjs';
+import { Observable, map, merge, interval, startWith, filter, defer, from, switchMap } from 'rxjs';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CallCenterStateService } from './callcenter-state.service';
 import { CallCenterMetricsService } from './callcenter-metrics.service';
+import { CallCenterAmiService } from './callcenter-ami.service';
 
 /** Heartbeat interval (ms) — keeps SSE connection alive through proxies/load balancers */
 const SSE_HEARTBEAT_MS = 15_000;
@@ -29,6 +30,7 @@ export class CallCenterSseController {
   constructor(
     private readonly stateService: CallCenterStateService,
     private readonly metricsService: CallCenterMetricsService,
+    private readonly amiCcService: CallCenterAmiService,
   ) {}
 
   /**
@@ -47,55 +49,62 @@ export class CallCenterSseController {
   events(@Req() req: Request & { user: any }): Observable<MessageEvent> {
     const jwtUserUid = Number(req.user.vpbx_user_uid ?? 0);
     const userId = req.user.sub;
-    const { tenant: userUid, snapshot } = this.stateService.getSnapshotForUser(jwtUserUid, userId);
-    this.logger.log(
-      `SSE connection opened: user ${userId}, jwtTenant=${jwtUserUid}, effectiveTenant=${userUid}`,
+
+    // Rebind mid-call state before the snapshot so F5 / SSE reconnect keeps
+    // caller ID, call controls, and the client card.
+    return defer(() =>
+      from(
+        this.amiCcService.reconcileActiveAgentCalls().catch((err: any) => {
+          this.logger.warn(`SSE reconcile skipped: ${err?.message || err}`);
+        }),
+      ).pipe(
+        switchMap(() => {
+          const { tenant: userUid, snapshot } = this.stateService.getSnapshotForUser(jwtUserUid, userId);
+          this.logger.log(
+            `SSE connection opened: user ${userId}, jwtTenant=${jwtUserUid}, effectiveTenant=${userUid}`,
+          );
+
+          const snapshotWithKpi = this.enrichSnapshotKpiDay(userUid, snapshot);
+
+          const ccEvents$ = this.stateService.getEventStreamForUser(jwtUserUid, userId).pipe(
+            startWith({
+              type: 'fullSnapshot',
+              userUid,
+              data: snapshotWithKpi,
+            }),
+            filter((event) => {
+              if (event.type !== 'ccChatMessage') return true;
+              const recipients = event.data?.recipientUserIds;
+              if (recipients === undefined) return true;
+              if (!Array.isArray(recipients)) return true;
+              return recipients.includes(userId);
+            }),
+            map((event) => {
+              let data = event.data;
+              if (event.type === 'ccChatMessage' && data && typeof data === 'object') {
+                const { recipientUserIds: _omit, ...rest } = data;
+                data = rest;
+              }
+              return {
+                data: JSON.stringify(data),
+                type: event.type,
+                id: String(data?._eventId || Date.now()),
+              };
+            }),
+          );
+
+          const heartbeat$ = interval(SSE_HEARTBEAT_MS).pipe(
+            map(() => ({
+              data: '',
+              type: 'heartbeat',
+              id: undefined as any,
+            })),
+          );
+
+          return merge(ccEvents$, heartbeat$);
+        }),
+      ),
     );
-
-    const snapshotWithKpi = this.enrichSnapshotKpiDay(userUid, snapshot);
-
-    // Real CC events stream (JWT tenant and/or queue-suffix tenant where agent is online)
-    const ccEvents$ = this.stateService.getEventStreamForUser(jwtUserUid, userId).pipe(
-      // Send snapshot immediately on connect
-      startWith({
-        type: 'fullSnapshot',
-        userUid,
-        data: snapshotWithKpi,
-      }),
-      // Drop chat messages not addressed to this user (server-side recipient filter)
-      filter(event => {
-        if (event.type !== 'ccChatMessage') return true;
-        const recipients = event.data?.recipientUserIds;
-        if (recipients === undefined) return true;
-        if (!Array.isArray(recipients)) return true;
-        return recipients.includes(userId);
-      }),
-      // Map to SSE MessageEvent format
-      map(event => {
-        let data = event.data;
-        if (event.type === 'ccChatMessage' && data && typeof data === 'object') {
-          const { recipientUserIds: _omit, ...rest } = data;
-          data = rest;
-        }
-        return {
-          data: JSON.stringify(data),
-          type: event.type,
-          id: String(data?._eventId || Date.now()),
-        };
-      }),
-    );
-
-    // Heartbeat stream — SSE comment to keep connection alive through proxies
-    // NestJS SSE sends { data: '' } as a comment-like keepalive
-    const heartbeat$ = interval(SSE_HEARTBEAT_MS).pipe(
-      map(() => ({
-        data: '',
-        type: 'heartbeat',
-        id: undefined as any,
-      })),
-    );
-
-    return merge(ccEvents$, heartbeat$);
   }
 
   /**
@@ -105,7 +114,8 @@ export class CallCenterSseController {
    * Useful when SSE is not yet connected or for debugging.
    */
   @Get('state')
-  getState(@Req() req: Request & { user: any }) {
+  async getState(@Req() req: Request & { user: any }) {
+    await this.amiCcService.reconcileActiveAgentCalls().catch(() => undefined);
     const jwtUserUid = Number(req.user.vpbx_user_uid ?? 0);
     const { tenant, snapshot } = this.stateService.getSnapshotForUser(jwtUserUid, req.user.sub);
     return this.enrichSnapshotKpiDay(tenant, snapshot);

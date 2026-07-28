@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
@@ -12,17 +12,21 @@ import {
   useClickToCallMutation,
   useLazyGetCardByCallQuery,
   useGetCardTemplatesQuery,
+  useGetEffectivePermissionsQuery,
   type IOperatorHistoryRow,
 } from '@/shared/api/endpoints/callCenterApi';
-import { selectCcQueues } from '@/features/callcenter/model/selectors/callCenterSelectors';
-import { requestOutboundDial } from '@/features/callcenter/model/slice/callCenterSlice';
+import { selectCcQueues, selectMyAgentInterface } from '@/features/callcenter/model/selectors/callCenterSelectors';
+import { requestOutboundDial, updateAgent } from '@/features/callcenter/model/slice/callCenterSlice';
 import { queueDisplayName } from '@/features/callcenter/lib/displayLabels';
 import { CallCardPopup } from '@/features/callcenter/ui/CallCardPopup/CallCardPopup';
+import { useAppSelector } from '@/shared/hooks/useAppStore';
 import type { CallCardContext } from '@/features/callcenter/lib/useCallCardPopup';
 import type { ICardTemplate } from '@/features/callcenter/model/types/callCard';
 import styles from './SoftphoneJournal.module.scss';
 
 const DEFAULT_JOURNAL_DEPTH = 50;
+/** Matches backend getOperatorCallHistory hard cap. */
+const HISTORY_FETCH_CAP = 200;
 
 interface DirectionVisual {
   Icon: typeof PhoneIncoming;
@@ -33,15 +37,19 @@ function directionVisual(row: Pick<IOperatorHistoryRow, 'direction' | 'dispositi
   if (row.disposition === 'abandoned' || row.disposition === 'timeout') {
     return { Icon: PhoneMissed, colorClass: styles.iconMissed };
   }
-  if (row.direction === 'inbound') return { Icon: PhoneIncoming, colorClass: styles.iconInbound };
-  if (row.direction === 'outbound') return { Icon: PhoneOutgoing, colorClass: styles.iconOutbound };
+  if (row.direction === 'inbound' || row.direction === 'personal') {
+    return { Icon: PhoneIncoming, colorClass: styles.iconInbound };
+  }
+  if (row.direction === 'outbound' || row.direction === 'internal') {
+    return { Icon: PhoneOutgoing, colorClass: styles.iconOutbound };
+  }
   return { Icon: Phone, colorClass: styles.iconOther };
 }
 
 function directionAttr(row: Pick<IOperatorHistoryRow, 'direction' | 'disposition'>): string {
   if (row.disposition === 'abandoned' || row.disposition === 'timeout') return 'missed';
-  if (row.direction === 'inbound') return 'inbound';
-  if (row.direction === 'outbound') return 'outbound';
+  if (row.direction === 'inbound' || row.direction === 'personal') return 'inbound';
+  if (row.direction === 'outbound' || row.direction === 'internal') return 'outbound';
   return 'other';
 }
 
@@ -52,15 +60,55 @@ function formatDuration(seconds: number | null): string {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
+function peerLabel(row: Pick<IOperatorHistoryRow, 'callerIdNum' | 'callerIdName'>): string {
+  const num = (row.callerIdNum || '').trim();
+  const name = (row.callerIdName || '').trim();
+  if (name && name !== 'unknown' && name !== num) {
+    return num ? `${name} (${num})` : name;
+  }
+  return num || name || '';
+}
+
+function dispositionLabel(
+  disposition: string | null | undefined,
+  t: (key: string, fallback?: string) => string,
+): { text: string; tone: 'success' | 'danger' | 'muted' } | null {
+  switch (disposition) {
+    case 'answered':
+      return {
+        text: t('callcenter.history.disposition.answered', 'Answered'),
+        tone: 'success',
+      };
+    case 'abandoned':
+    case 'timeout':
+      return {
+        text: t('callcenter.history.missedTag', 'Missed'),
+        tone: 'danger',
+      };
+    case 'other':
+      return {
+        text: t('callcenter.history.disposition.failed', 'Failed'),
+        tone: 'muted',
+      };
+    default:
+      return disposition
+        ? { text: disposition, tone: 'muted' }
+        : null;
+  }
+}
+
 /**
  * Softphone Journal tab (D-01..D-05) — blended personal call feed, N-capped,
  * callback + open-card only. Live prepend comes from 10-04 historyRow SSE
  * cache patch (no local SSE listener). Mounted by SoftphoneWidget in 10-08.
  */
-export function SoftphoneJournal() {
+export function SoftphoneJournal({ softphoneMode = 'webrtc' }: { softphoneMode?: 'webrtc' | 'sip' }) {
   const { t } = useTranslation();
   const dispatch = useDispatch();
   const ccQueues = useSelector(selectCcQueues);
+  const myAgentInterface = useAppSelector(selectMyAgentInterface);
+  const { data: permissions } = useGetEffectivePermissionsQuery();
+  const sipClickBlocked = softphoneMode === 'sip' && permissions?.click_to_call === false;
 
   const {
     data: history = [],
@@ -80,11 +128,17 @@ export function SoftphoneJournal() {
   const [cardContext, setCardContext] = useState<CallCardContext | null>(null);
 
   const journalDepth = settings?.journal_depth ?? DEFAULT_JOURNAL_DEPTH;
+  const [visibleCount, setVisibleCount] = useState(journalDepth);
+
+  useEffect(() => {
+    setVisibleCount(journalDepth);
+  }, [journalDepth]);
+
   const rows = useMemo(
-    () => history.slice(0, journalDepth),
-    [history, journalDepth],
+    () => history.slice(0, visibleCount),
+    [history, visibleCount],
   );
-  const atCap = history.length >= journalDepth;
+  const hasMore = history.length > visibleCount;
 
   const queueLabelSources = useMemo(
     () => ccQueues.map((q) => ({ name: q.name, displayName: q.displayName })),
@@ -92,12 +146,19 @@ export function SoftphoneJournal() {
   );
 
   const handleCallback = async (row: IOperatorHistoryRow) => {
-    if (!row.callerIdNum) return;
+    if (!row.callerIdNum || sipClickBlocked) return;
     setPendingId(row.uid);
     try {
       const res = await clickToCall({ target: row.callerIdNum }).unwrap();
       if (res.mode === 'webrtc' && res.target) {
         dispatch(requestOutboundDial(res.target));
+      }
+      if (res.mode === 'pjsip' && res.target && myAgentInterface) {
+        dispatch(updateAgent({
+          interface: myAgentInterface,
+          dialTarget: res.target,
+          status: 'DIALING',
+        }));
       }
     } catch { /* dial-initiation error — nothing more to do client-side */ }
     finally { setPendingId(null); }
@@ -132,6 +193,7 @@ export function SoftphoneJournal() {
     if (row.direction === 'personal') return t('callcenter.history.kind.personal', 'Personal');
     if (row.direction === 'outbound') return t('callcenter.history.kind.outbound', 'Outbound');
     if (row.direction === 'internal') return t('callcenter.history.kind.internal', 'Internal');
+    if (row.direction === 'inbound') return t('callcenter.history.direction.inbound', 'Inbound');
     return null;
   };
 
@@ -171,29 +233,42 @@ export function SoftphoneJournal() {
           {rows.map((row) => {
             const { Icon, colorClass } = directionVisual(row);
             const tag = kindTag(row);
+            const peer = peerLabel(row) || t('callcenter.missed.unknown', 'Unknown');
+            const status = dispositionLabel(row.disposition, t);
             const timestamp = row.enterTime || row.answerTime || row.endTime;
-            const isMissed = row.disposition === 'abandoned' || row.disposition === 'timeout';
             return (
               <div
                 key={row.uid}
                 className={styles.row}
                 data-testid="softphone-journal-row"
                 data-direction={directionAttr(row)}
+                data-disposition={row.disposition || ''}
               >
                 <Icon className={`w-4 h-4 ${colorClass}`} aria-hidden />
                 <div className={styles.rowMain}>
                   <div className={styles.rowTop}>
-                    <Text className={styles.rowNum}>
-                      {row.callerIdName || row.callerIdNum || t('callcenter.missed.unknown', 'Unknown')}
-                    </Text>
-                    {isMissed && (
-                      <span className={styles.missedTag}>
-                        {t('callcenter.history.missedTag', 'Missed')}
+                    <Text className={styles.rowNum}>{peer}</Text>
+                    {status && (
+                      <span
+                        className={
+                          status.tone === 'danger'
+                            ? styles.missedTag
+                            : status.tone === 'success'
+                              ? styles.statusOk
+                              : styles.statusMuted
+                        }
+                        data-testid="softphone-journal-status"
+                      >
+                        {status.text}
                       </span>
                     )}
                   </div>
                   <div className={styles.rowTags}>
-                    {tag && <span className={styles.tag}>{tag}</span>}
+                    {tag && (
+                      <span className={styles.tag} data-testid="softphone-journal-direction">
+                        {tag}
+                      </span>
+                    )}
                     {timestamp && (
                       <Text variant="muted" className="text-xs">
                         {new Date(timestamp).toLocaleString()}
@@ -208,7 +283,13 @@ export function SoftphoneJournal() {
                     variant="outline"
                     size="sm"
                     className={styles.actionBtn}
-                    disabled={!row.callerIdNum || (isCalling && pendingId === row.uid)}
+                    disabled={!row.callerIdNum || sipClickBlocked || (isCalling && pendingId === row.uid)}
+                    title={sipClickBlocked
+                      ? t(
+                        'callcenter.settings.permissions.clickToCallDenied',
+                        'Click-to-call is not granted for SIP mode',
+                      )
+                      : undefined}
                     aria-label={`${t('callcenter.softphone.callBack', 'Call back')} ${row.callerIdNum}`}
                     onClick={() => void handleCallback(row)}
                   >
@@ -228,10 +309,17 @@ export function SoftphoneJournal() {
               </div>
             );
           })}
-          {atCap && (
-            <Text variant="muted" className={styles.footnote} data-testid="softphone-journal-footnote">
-              {t('callcenter.journal.moreInHistory', 'More in History')}
-            </Text>
+          {hasMore && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className={styles.showMoreBtn}
+              data-testid="softphone-journal-show-more"
+              onClick={() => setVisibleCount((n) => Math.min(n + journalDepth, HISTORY_FETCH_CAP))}
+            >
+              {t('callcenter.journal.showMore', 'Show more')}
+            </Button>
           )}
         </div>
       )}

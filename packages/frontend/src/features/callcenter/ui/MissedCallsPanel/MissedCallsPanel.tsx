@@ -115,24 +115,65 @@ export function MissedCallsPanel() {
   }, [activeGroups]);
 
   // Resolved sub-view (D-17/D-18): dedupe raw rows by number+ownership, keep
-  // the most recent resolution, tag client-self vs operator-callback success.
+  // the most recent resolution, track first miss for handling-time, tag
+  // client-self vs operator-callback success.
   const resolvedGroups = useMemo(() => {
     const startMs = startOfLocalDayMs();
-    const byKey = new Map<string, { row: typeof allRows[number]; key: string }>();
+    type ResolvedGroup = {
+      key: string;
+      row: (typeof allRows)[number];
+      firstMissAt: string;
+    };
+    const byKey = new Map<string, ResolvedGroup>();
     for (const row of allRows) {
       if (!row.called_back && !row.client_called_back) continue;
       if (new Date(row.created_at).getTime() < startMs) continue;
       const key = `${row.caller_id_num}|${row.personal ? 1 : 0}`;
       const existing = byKey.get(key);
-      if (!existing || new Date(row.created_at).getTime() > new Date(existing.row.created_at).getTime()) {
-        byKey.set(key, { row, key });
+      if (!existing) {
+        byKey.set(key, { key, row, firstMissAt: row.created_at });
+        continue;
+      }
+      const existingResolvedAt = new Date(
+        existing.row.called_back_at || existing.row.created_at,
+      ).getTime();
+      const thisResolvedAt = new Date(row.called_back_at || row.created_at).getTime();
+      if (thisResolvedAt >= existingResolvedAt) {
+        existing.row = row;
+      }
+      if (new Date(row.created_at).getTime() < new Date(existing.firstMissAt).getTime()) {
+        existing.firstMissAt = row.created_at;
       }
     }
     return Array.from(byKey.values()).sort(
-      (a, b) => new Date(b.row.created_at).getTime() - new Date(a.row.created_at).getTime(),
+      (a, b) =>
+        new Date(b.row.called_back_at || b.row.created_at).getTime()
+        - new Date(a.row.called_back_at || a.row.created_at).getTime(),
     );
   }, [allRows]);
 
+  /** Handling latency from first miss of the day to operator callback success. */
+  const fmtHandlingTime = (firstMissAt: string, calledBackAt: string | null) => {
+    if (!calledBackAt) return null;
+    const ms = new Date(calledBackAt).getTime() - new Date(firstMissAt).getTime();
+    if (!Number.isFinite(ms) || ms < 0) return null;
+    const totalSec = Math.floor(ms / 1000);
+    if (totalSec < 60) {
+      return t('callcenter.missed.handledInSeconds', { count: totalSec });
+    }
+    const m = Math.floor(totalSec / 60);
+    if (m < 60) {
+      const s = totalSec % 60;
+      return s > 0
+        ? t('callcenter.missed.handledInMinutesSeconds', { minutes: m, seconds: s })
+        : t('callcenter.missed.handledInMinutes', { count: m });
+    }
+    const h = Math.floor(m / 60);
+    const remM = m % 60;
+    return remM > 0
+      ? t('callcenter.missed.handledInHoursMinutes', { hours: h, minutes: remM })
+      : t('callcenter.missed.handledInHours', { count: h });
+  };
   /** Attempt history for a number — current local calendar day only. */
   const attemptHistoryFor = (g: Pick<IMissedCallGroup, 'callerIdNum' | 'personal'>) => {
     const startMs = startOfLocalDayMs();
@@ -304,32 +345,61 @@ export function MissedCallsPanel() {
             </Text>
           ) : (
             <div className={styles.list}>
-              {resolvedGroups.map(({ row, key }) => (
-                <div key={key} className={styles.row}>
-                  <div className={styles.rowMain}>
-                    <Text className={styles.rowNum}>
-                      {row.caller_id_num || t('callcenter.missed.unknown')}
-                    </Text>
-                    {row.caller_id_name && (
-                      <Text variant="muted" className="text-xs">{row.caller_id_name}</Text>
-                    )}
-                    <div className={styles.rowTags}>
-                      {row.client_called_back ? (
-                        <span className={styles.tagSuccessClient}>
-                          <Check className="w-3 h-3 inline mr-1" />
-                          {t('callcenter.missed.clientCalledBackTag', 'Client called back')}
-                        </span>
-                      ) : (
-                        <span className={styles.tagSuccessOperator}>
-                          <Check className="w-3 h-3 inline mr-1" />
-                          {t('callcenter.missed.calledBackTag', 'Reached them')}
-                        </span>
+              {resolvedGroups.map(({ row, key, firstMissAt }) => {
+                const operatorLabel =
+                  row.called_back && !row.client_called_back
+                    ? (row.called_back_by_name
+                      || (row.called_back_by != null ? `#${row.called_back_by}` : null))
+                    : null;
+                const handlingLabel =
+                  row.called_back && !row.client_called_back
+                    ? fmtHandlingTime(firstMissAt, row.called_back_at)
+                    : null;
+                return (
+                  <div key={key} className={styles.row}>
+                    <div className={styles.rowMain}>
+                      <Text className={styles.rowNum}>
+                        {row.caller_id_num || t('callcenter.missed.unknown')}
+                      </Text>
+                      {row.caller_id_name && (
+                        <Text variant="muted" className="text-xs">{row.caller_id_name}</Text>
                       )}
-                      <Text variant="muted" className="text-xs">{fmtAgo(row.created_at)}</Text>
+                      <div className={styles.rowTags}>
+                        {row.client_called_back ? (
+                          <span className={styles.tagSuccessClient}>
+                            <Check className="w-3 h-3 inline mr-1" />
+                            {t('callcenter.missed.clientCalledBackTag', 'Client called back')}
+                          </span>
+                        ) : (
+                          <span className={styles.tagSuccessOperator}>
+                            <Check className="w-3 h-3 inline mr-1" />
+                            {t('callcenter.missed.calledBackTag', 'Reached them')}
+                          </span>
+                        )}
+                        <Text variant="muted" className="text-xs">
+                          {fmtAgo(row.called_back_at || row.created_at)}
+                        </Text>
+                      </div>
+                      {(operatorLabel || handlingLabel) && (
+                        <div className={styles.resolvedMeta}>
+                          {operatorLabel && (
+                            <Text variant="muted" className="text-xs">
+                              {t('callcenter.missed.handledBy', {
+                                name: operatorLabel,
+                              })}
+                            </Text>
+                          )}
+                          {handlingLabel && (
+                            <Text variant="muted" className="text-xs">
+                              {handlingLabel}
+                            </Text>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

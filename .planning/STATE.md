@@ -4,9 +4,9 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 10
 current_phase_name: full-softphone
-status: executed
-stopped_at: Phase 10 plans executed — ready to verify
-last_updated: "2026-07-24T15:26:48.439Z"
+status: uat_complete
+stopped_at: Phase 10 UAT complete — awaiting canonical verification
+last_updated: "2026-07-28T10:42:00.000Z"
 progress:
   total_phases: 10
   completed_phases: 8
@@ -18,8 +18,8 @@ progress:
 
 ## Current position
 
-Phase: 10 (full-softphone) — EXECUTED (9/9 plans). Ready for `/gsd-verify-work 10`.
-Open before UAT trust: apply `migrate-callcenter-contacts.ts` + `migrate-callcenter-journal-depth.ts` on live DB; live Asterisk A1/A3 checkpoint deferred in WINDOWS.md.
+Phase: 10 (full-softphone) — UAT complete (35/35). Phase advancement blocked until `10-VERIFICATION.md` (canonical verify).
+Migrations applied (2026-07-24): `cc_contacts` table + `cc_settings.journal_depth`. Live Asterisk A1/A3 checkpoint still deferred in WINDOWS.md.
 
 Also Phase 9 (complete, verify/UAT open):
 Plan 09-01 (schema/model foundation, wave 1): 3/3 tasks committed + migration applied to live DB.

@@ -24,6 +24,7 @@ import {
 } from '@/features/callcenter/model/selectors/callCenterSelectors';
 import {
   agentDisplayName,
+  agentStatusColorFamily,
   coworkerActivityLabel,
 } from '@/features/callcenter/lib/displayLabels';
 import { resolveKpiTriple } from '@/features/callcenter/lib/kpiDisplay';
@@ -46,11 +47,19 @@ interface CoworkersTabProps {
   kpiDisplay?: KpiDisplayMode;
 }
 
+/** Presence follows shared status→color map — OUTBOUND_WORK is available (info), not busy-red. */
 function presenceDotClass(status: AgentStatus): string {
-  if (status === 'READY') return styles.dotSuccess;
-  if (status === 'PAUSED') return styles.dotWarning;
-  if (status === 'OFFLINE') return styles.dotMuted;
+  const family = agentStatusColorFamily(status);
+  if (family === 'success') return styles.dotSuccess;
+  if (family === 'warning') return styles.dotWarning;
+  if (family === 'info') return styles.dotInfo;
+  if (family === 'muted') return styles.dotMuted;
   return styles.dotDestructive;
+}
+
+/** Queue-idle or outbound-work peers can take a transfer. */
+function canReceiveTransfer(status: AgentStatus): boolean {
+  return status === 'READY' || status === 'OUTBOUND_WORK';
 }
 
 function activityToneClass(tone: string): string {
@@ -133,7 +142,12 @@ export function CoworkersTab({ hasActiveCall, kpiDisplay: kpiDisplayProp }: Cowo
 
   const colleagues = useMemo(() => {
     if (!myAgent) return [];
-    const shared = agents.filter((a) => a.queues.some((q) => myAgent.queues.includes(q)));
+    const shared = agents.filter((a) => {
+      if (a.interface === myAgent.interface) return true;
+      // Empty own queues must not hide self; peers still need a shared queue.
+      if (!myAgent.queues.length) return false;
+      return a.queues.some((q) => myAgent.queues.includes(q));
+    });
     const visible = shared.filter((a) => {
       if (a.interface === myAgent.interface) return true;
       // Invalid / unreachable endpoints cannot take calls — hide from list
@@ -213,7 +227,9 @@ export function CoworkersTab({ hasActiveCall, kpiDisplay: kpiDisplayProp }: Cowo
           <Users className="w-8 h-8 opacity-30" />
           <Text className="font-semibold">{t('callcenter.coworkersTab.emptyTitle', 'No coworkers online')}</Text>
           <Text variant="muted" className="text-sm">
-            {t('callcenter.coworkersTab.emptyBody', 'Agents sharing your queues will appear here')}
+            {myAgent
+              ? t('callcenter.coworkersTab.emptyBody', 'Agents sharing your queues will appear here')
+              : t('callcenter.coworkersTab.emptyBodyStartShift', 'Start a shift to see yourself and coworkers')}
           </Text>
         </div>
       </div>
@@ -221,7 +237,7 @@ export function CoworkersTab({ hasActiveCall, kpiDisplay: kpiDisplayProp }: Cowo
   }
 
   const renderActions = (agent: IAgent, isSelf: boolean) => {
-    const canClickTransfer = hasActiveCall && agent.status === 'READY' && !isSelf;
+    const canClickTransfer = hasActiveCall && canReceiveTransfer(agent.status) && !isSelf;
     const canSpy = !!permissions?.can_spy && agent.status === 'IN_CALL';
     const canHangup = isSelf
       ? (agent.status === 'IN_CALL' || agent.status === 'DIALING' || agent.status === 'RINGING' || !!agent.currentCall)
@@ -335,13 +351,19 @@ export function CoworkersTab({ hasActiveCall, kpiDisplay: kpiDisplayProp }: Cowo
         <div className={styles.cardGrid}>
           {colleagues.map((agent) => {
             const isSelf = agent.interface === myAgent?.interface;
-            const canClickTransfer = hasActiveCall && agent.status === 'READY' && !isSelf;
+            const canClickTransfer = hasActiveCall && canReceiveTransfer(agent.status) && !isSelf;
             const since = statusSinceRef.current[agent.interface]?.at ?? nowTick;
             const elapsed = Math.max(0, Math.floor((nowTick - since) / 1000));
             const call = agent.currentCall
               ? calls.find((c) => c.uniqueid === agent.currentCall)
               : undefined;
-            const activity = coworkerActivityLabel(agent, call, queues, tLabel);
+            const liveCall = call
+              ?? calls.find(
+                (c) =>
+                  c.agent === agent.interface
+                  && (c.status === 'TALKING' || c.status === 'HOLD' || c.status === 'RINGING'),
+              );
+            const activity = coworkerActivityLabel(agent, liveCall, queues, tLabel);
             const kpi = agentKpi(agent);
 
             return (
@@ -425,13 +447,19 @@ export function CoworkersTab({ hasActiveCall, kpiDisplay: kpiDisplayProp }: Cowo
           <tbody>
             {colleagues.map((agent) => {
               const isSelf = agent.interface === myAgent?.interface;
-              const canClickTransfer = hasActiveCall && agent.status === 'READY' && !isSelf;
+              const canClickTransfer = hasActiveCall && canReceiveTransfer(agent.status) && !isSelf;
               const since = statusSinceRef.current[agent.interface]?.at ?? nowTick;
               const elapsed = Math.max(0, Math.floor((nowTick - since) / 1000));
               const call = agent.currentCall
                 ? calls.find((c) => c.uniqueid === agent.currentCall)
                 : undefined;
-              const activity = coworkerActivityLabel(agent, call, queues, tLabel);
+              const liveCall = call
+                ?? calls.find(
+                  (c) =>
+                    c.agent === agent.interface
+                    && (c.status === 'TALKING' || c.status === 'HOLD' || c.status === 'RINGING'),
+                );
+              const activity = coworkerActivityLabel(agent, liveCall, queues, tLabel);
               const kpi = agentKpi(agent);
               const ext = interfaceToExtension(agent.interface);
 

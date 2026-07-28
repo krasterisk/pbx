@@ -91,6 +91,8 @@ describe('CallCenterHistoryWriterService', () => {
           disposition: 'answered',
           agent_user_uid: 42,
           created_at: createdAt,
+          queue_name: 'q',
+          call_uniqueid: 'a',
         },
         {
           uid: 102,
@@ -101,6 +103,8 @@ describe('CallCenterHistoryWriterService', () => {
           disposition: 'abandoned',
           agent_user_uid: 43,
           created_at: createdAt,
+          queue_name: 'q',
+          call_uniqueid: 'b',
         },
       ]);
 
@@ -137,6 +141,8 @@ describe('CallCenterHistoryWriterService', () => {
         disposition: 'answered',
         agentUserUid: 42,
         createdAt,
+        queueName: 'q',
+        callUniqueid: 'a',
       });
       expect(emitEvent).toHaveBeenNthCalledWith(2, 'historyRow', 9, {
         uid: 102,
@@ -146,6 +152,8 @@ describe('CallCenterHistoryWriterService', () => {
         disposition: 'abandoned',
         agentUserUid: 43,
         createdAt,
+        queueName: 'q',
+        callUniqueid: 'b',
       });
     });
 
@@ -192,6 +200,8 @@ describe('CallCenterHistoryWriterService', () => {
         disposition: 'answered',
         agentUserUid: 5,
         createdAt,
+        queueName: 'q',
+        callUniqueid: 'c',
       });
     });
 
@@ -206,6 +216,8 @@ describe('CallCenterHistoryWriterService', () => {
         disposition: 'answered',
         agent_user_uid: 1,
         created_at: createdAt,
+        queue_name: 'direct',
+        call_uniqueid: 's1',
       });
       const model = { bulkCreate, create } as any;
       const stateService = { emitEvent } as any;
@@ -227,6 +239,8 @@ describe('CallCenterHistoryWriterService', () => {
         disposition: 'answered',
         agentUserUid: 1,
         createdAt,
+        queueName: 'direct',
+        callUniqueid: 's1',
       });
     });
   });

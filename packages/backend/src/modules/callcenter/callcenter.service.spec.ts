@@ -27,6 +27,9 @@ describe('CallCenterService', () => {
     originate: jest.fn().mockResolvedValue(undefined),
     park: jest.fn().mockResolvedValue({ response: 'Success' }),
     parkedCalls: jest.fn().mockResolvedValue({ events: [] }),
+    collectDeviceStateList: jest.fn().mockResolvedValue({ events: [] }),
+    isPjsipEndpointReachable: jest.fn().mockResolvedValue(null),
+    getActiveChannels: jest.fn().mockResolvedValue({ events: [] }),
   };
   const ccAmi: any = {
     logAgentEvent: jest.fn().mockResolvedValue(undefined),
@@ -36,9 +39,14 @@ describe('CallCenterService', () => {
     incrementSessionTotals: jest.fn().mockResolvedValue(undefined),
     cancelWrapupTimer: jest.fn(),
     extendWrapupTimer: jest.fn(),
+    clearNonQueueDialAttempt: jest.fn(),
   };
   const metricsService: any = {
     resetKpiSinceLogin: jest.fn(),
+    recordAgentStatus: jest.fn(),
+    rebuildSinceLoginFromHistory: jest.fn().mockResolvedValue({
+      answered: 0, made: 0, missed: 0,
+    }),
     getAgentKpi: jest.fn().mockReturnValue({
       sinceLogin: { answered: 0, made: 0, missed: 0 },
       sinceMidnight: { answered: 0, made: 0, missed: 0 },
@@ -51,6 +59,8 @@ describe('CallCenterService', () => {
       wrapup_timeout: 30,
       wrapup_extend_step: 30,
       wrapup_autosave_draft: true,
+      auto_answer: true,
+      auto_answer_zip_tone: true,
     }),
   };
   const permissionsService: any = {
@@ -82,6 +92,7 @@ describe('CallCenterService', () => {
       getDataValue: (k: string) =>
         ({ name: 'Alice', login: 'alice', extension: '101' } as any)[k],
     }),
+    findAll: jest.fn().mockResolvedValue([]),
   };
   const missedCallModel: any = {
     create: jest.fn().mockResolvedValue(undefined),
@@ -106,6 +117,7 @@ describe('CallCenterService', () => {
   };
   const queueModel: any = {
     findAll: jest.fn().mockResolvedValue([]),
+    findOne: jest.fn().mockResolvedValue(null),
   };
   const endpointModel: any = {
     findAll: jest.fn().mockResolvedValue([]),
@@ -127,10 +139,23 @@ describe('CallCenterService', () => {
   };
   const presenceService: any = {
     getPresence: jest.fn().mockReturnValue(undefined),
+    handleDeviceStateChange: jest.fn(),
   };
 
   beforeEach(() => {
     jest.clearAllMocks();
+    settingsService.getOperatorSettings.mockResolvedValue({
+      pickup_enabled: true,
+      wrapup_timeout: 30,
+      wrapup_extend_step: 30,
+      wrapup_autosave_draft: true,
+      auto_answer: true,
+      auto_answer_zip_tone: true,
+    });
+    endpointModel.findByPk.mockResolvedValue({
+      getDataValue: (k: string) => (k === 'context' ? 'from-internal7' : undefined),
+      context: 'from-internal7',
+    });
     state = new CallCenterStateService();
     service = new CallCenterService(
       ami,
@@ -189,6 +214,21 @@ describe('CallCenterService', () => {
       expect(ami.queueRemove).toHaveBeenCalledWith('q700_0', 'PJSIP/e112_0');
       expect(ami.queueAdd).toHaveBeenCalledWith('q700_0', 'PJSIP/ew112_0');
     });
+
+    it('seeds live queue rows into the snapshot so QueuesTab has data before AMI QueueParams', async () => {
+      queueModel.findOne.mockResolvedValueOnce({
+        getDataValue: (k: string) =>
+          ({ display_name: 'Продажи', name: 'q700_0' } as any)[k],
+      });
+
+      await service.agentLogin('PJSIP/ew112_0', ['q700_0'], 0, 58);
+
+      const q = state.getQueue(0, 'q700_0');
+      expect(q).toBeDefined();
+      expect(q?.displayName).toBe('Продажи');
+      expect(q?.agents.total).toBe(1);
+      expect(q?.agents.available).toBe(1);
+    });
   });
 
   describe('agentLogout', () => {
@@ -208,7 +248,7 @@ describe('CallCenterService', () => {
     it('resolves the logged-in agent interface from userId and delegates to metricsService', async () => {
       await service.agentLogin('PJSIP/101', ['sales'], 7, 42);
 
-      const result = service.getAgentKpi(7, 42);
+      const result = await service.getAgentKpi(7, 42);
 
       expect(metricsService.getAgentKpi).toHaveBeenCalledWith(7, 'PJSIP/101');
       expect(result).toEqual({
@@ -217,8 +257,8 @@ describe('CallCenterService', () => {
       });
     });
 
-    it('never accepts a client-supplied interface — falls back to an empty lookup when the user is not online (self-scoped, T-09-04-01)', () => {
-      service.getAgentKpi(7, 999);
+    it('never accepts a client-supplied interface — falls back to an empty lookup when the user is not online (self-scoped, T-09-04-01)', async () => {
+      await service.getAgentKpi(7, 999);
 
       expect(metricsService.getAgentKpi).toHaveBeenCalledWith(7, '');
     });
@@ -430,6 +470,7 @@ describe('CallCenterService', () => {
           action: 'Redirect',
           channel: 'PJSIP/trunk-000001',
           exten: '201',
+          context: 'from-internal7',
         }),
       );
       expect(ami.action).not.toHaveBeenCalledWith(
@@ -523,6 +564,69 @@ describe('CallCenterService', () => {
     it('throws NotFoundException when the row does not belong to the tenant', async () => {
       missedCallModel.findOne.mockResolvedValueOnce(null);
       await expect(service.markMissedCalled(5, undefined, 7, 42)).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
+  describe('getMissedCalls', () => {
+    it('attaches called_back_by_name for operator-handled rows', async () => {
+      missedCallModel.findAll.mockResolvedValueOnce([
+        {
+          call_uniqueid: 'u1',
+          called_back_by: 42,
+          toJSON: () => ({
+            uid: 1,
+            call_uniqueid: 'u1',
+            caller_id_num: '79990001122',
+            called_back: true,
+            called_back_by: 42,
+            called_back_at: '2026-07-28T10:05:00.000Z',
+            client_called_back: false,
+            created_at: '2026-07-28T10:00:00.000Z',
+          }),
+        },
+        {
+          call_uniqueid: 'u2',
+          called_back_by: null,
+          toJSON: () => ({
+            uid: 2,
+            call_uniqueid: 'u2',
+            caller_id_num: '79990003344',
+            called_back: false,
+            called_back_by: null,
+            called_back_at: null,
+            client_called_back: true,
+            created_at: '2026-07-28T09:00:00.000Z',
+          }),
+        },
+      ]);
+      userModel.findAll.mockResolvedValueOnce([
+        {
+          getDataValue: (k: string) =>
+            ({ uniqueid: 42, name: 'Alice Operator', login: 'alice' } as any)[k],
+        },
+      ]);
+
+      const result = await service.getMissedCalls(7, true, 42);
+
+      expect(userModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            uniqueid: { [Op.in]: [42] },
+            vpbx_user_uid: 7,
+          }),
+        }),
+      );
+      expect(result).toEqual([
+        expect.objectContaining({
+          call_uniqueid: 'u1',
+          called_back_by: 42,
+          called_back_by_name: 'Alice Operator',
+        }),
+        expect.objectContaining({
+          call_uniqueid: 'u2',
+          called_back_by_name: null,
+        }),
+      ]);
     });
   });
 
@@ -713,7 +817,7 @@ describe('CallCenterService', () => {
       expect(ami.originate).toHaveBeenCalledWith(
         expect.stringMatching(/^PJSIP\//),
         expect.stringContaining('Spy on'),
-        'from-internal',
+        'from-internal7',
         'ChanSpy(PJSIP/101,w)',
       );
     });
@@ -783,7 +887,7 @@ describe('CallCenterService', () => {
       expect(ami.originate).toHaveBeenCalledWith(
         'PJSIP/req',
         expect.stringContaining('Peer spy on'),
-        'from-internal',
+        'from-internal7',
         'ChanSpy(PJSIP/target,q)',
       );
 
@@ -901,6 +1005,8 @@ describe('CallCenterService', () => {
         expect.objectContaining({
           action: 'Redirect',
           channel: 'SIP/1001-0001',
+          context: 'from-internal7',
+          exten: '101',
         }),
       );
     });
@@ -1057,12 +1163,14 @@ describe('CallCenterService', () => {
           channel: 'PJSIP/trunk-1',
           extrachannel: 'PJSIP/101-1',
           exten: 'ConfBridge(U1)',
+          context: 'from-internal7',
+          extracontext: 'from-internal7',
         }),
       );
       expect(ami.originate).toHaveBeenCalledWith(
         'PJSIP/201',
         expect.stringContaining('Conference'),
-        'from-internal',
+        'from-internal7',
         'ConfBridge(U1)',
       );
       expect(state.getCall('U1')?.status).toBe('TALKING');
@@ -1142,7 +1250,12 @@ describe('CallCenterService', () => {
 
       expect(res).toEqual({ success: true, uniqueid: 'U1', queue: 'support' });
       expect(ami.action).toHaveBeenCalledWith(
-        expect.objectContaining({ action: 'Redirect', channel: 'PJSIP/trunk-1', exten: 'support' }),
+        expect.objectContaining({
+          action: 'Redirect',
+          channel: 'PJSIP/trunk-1',
+          exten: 'support',
+          context: 'from-internal7',
+        }),
       );
       expect(state.getCall('U1')?.status).toBe('TRANSFERRED');
     });
@@ -1153,7 +1266,7 @@ describe('CallCenterService', () => {
       await expect(service.clickToCall('79990001122', 7, 42)).rejects.toBeInstanceOf(NotFoundException);
     });
 
-    it('throws Forbidden when click_to_call permission is not granted', async () => {
+    it('throws Forbidden when SIP shift lacks click_to_call permission', async () => {
       await service.agentLogin('PJSIP/101', ['sales'], 7, 42);
       permissionsService.getEffective.mockResolvedValue({
         can_spy: false, spyable: true, spy_modes: [], click_to_call: false, customize_ui: false,
@@ -1163,16 +1276,17 @@ describe('CallCenterService', () => {
       expect(ami.action).not.toHaveBeenCalled();
     });
 
-    it('WebRTC companion dials directly — no AMI Originate issued', async () => {
+    it('WebRTC companion skips click_to_call assert and dials directly (no AMI)', async () => {
       await service.agentLogin('PJSIP/ew112_0', ['q700_0'], 0, 58);
       permissionsService.getEffective.mockResolvedValue({
-        can_spy: false, spyable: true, spy_modes: [], click_to_call: true, customize_ui: false,
+        can_spy: false, spyable: true, spy_modes: [], click_to_call: false, customize_ui: false,
       });
 
       const res = await service.clickToCall('79990001122', 0, 58);
 
       expect(res).toEqual({ success: true, mode: 'webrtc', target: '79990001122' });
       expect(ami.action).not.toHaveBeenCalled();
+      expect(permissionsService.assert).not.toHaveBeenCalled();
     });
 
     it('PJSIP client originates the operator leg with an auto-answer Call-Info header', async () => {
@@ -1188,9 +1302,75 @@ describe('CallCenterService', () => {
         expect.objectContaining({
           action: 'Originate',
           channel: 'PJSIP/101',
+          context: 'from-internal7',
           exten: '79990001122',
-          variable: expect.stringContaining('Call-Info'),
+          // Callee must see operator extension, not "Click-to-call" / PJSIP/…
+          callerid: '"101" <101>',
+          variable: expect.stringMatching(/Call-Info:.*answer-after=0/),
         }),
+      );
+      expect(ami.action).not.toHaveBeenCalledWith(
+        expect.objectContaining({ callerid: expect.stringContaining('Click-to-call') }),
+      );
+      expect(ami.action).not.toHaveBeenCalledWith(
+        expect.objectContaining({ callerid: expect.stringContaining('PJSIP/') }),
+      );
+      expect(state.getAgent(7, 'PJSIP/101')?.status).toBe('DIALING');
+      expect(state.getAgent(7, 'PJSIP/101')?.dialTarget).toBe('79990001122');
+    });
+
+    it('omits Call-Info auto-answer header when operator auto_answer is off', async () => {
+      settingsService.getOperatorSettings.mockResolvedValue({
+        pickup_enabled: true,
+        wrapup_timeout: 30,
+        wrapup_extend_step: 30,
+        wrapup_autosave_draft: true,
+        auto_answer: false,
+        auto_answer_zip_tone: false,
+      });
+      await service.agentLogin('PJSIP/101', ['sales'], 7, 42);
+      permissionsService.getEffective.mockResolvedValue({
+        can_spy: false, spyable: true, spy_modes: [], click_to_call: true, customize_ui: false,
+      });
+
+      await service.clickToCall('201', 7, 42);
+
+      expect(ami.action).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'Originate',
+          channel: 'PJSIP/101',
+          exten: '201',
+        }),
+      );
+      const originateArgs = ami.action.mock.calls.find(
+        (c: any[]) => c[0]?.action === 'Originate',
+      )?.[0];
+      expect(originateArgs?.variable).toBeUndefined();
+    });
+
+    it('uses endpoint dialplan context (sip-outN), never bare from-internal', async () => {
+      endpointModel.findByPk.mockResolvedValueOnce({
+        getDataValue: (k: string) => (k === 'context' ? 'sip-out0' : undefined),
+        context: 'sip-out0',
+      });
+      await service.agentLogin('PJSIP/e112_0', ['q700_0'], 0, 58);
+      permissionsService.getEffective.mockResolvedValue({
+        can_spy: false, spyable: true, spy_modes: [], click_to_call: true, customize_ui: false,
+      });
+
+      await service.clickToCall('201', 0, 58);
+
+      expect(ami.action).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'Originate',
+          channel: 'PJSIP/e112_0',
+          context: 'sip-out0',
+          exten: '201',
+          callerid: '"112" <112>',
+        }),
+      );
+      expect(ami.action).not.toHaveBeenCalledWith(
+        expect.objectContaining({ context: 'from-internal' }),
       );
     });
   });
@@ -1238,7 +1418,12 @@ describe('CallCenterService', () => {
 
       expect(res).toEqual({ success: true, mode: 'pjsip', target: '79990001122' });
       expect(ami.action).toHaveBeenCalledWith(
-        expect.objectContaining({ action: 'Originate', channel: 'PJSIP/101', exten: '79990001122' }),
+        expect.objectContaining({
+          action: 'Originate',
+          channel: 'PJSIP/101',
+          context: 'from-internal7',
+          exten: '79990001122',
+        }),
       );
     });
 
@@ -1544,15 +1729,51 @@ describe('CallCenterService', () => {
       const res = await service.getMyRegistrationState(7, 42);
       expect(res).toEqual({ online: true });
       expect(presenceService.getPresence).toHaveBeenCalledWith(7, '101');
+      expect(ami.collectDeviceStateList).not.toHaveBeenCalled();
+    });
+
+    it('prefers live PJSIP contact Avail over stale DeviceState UNAVAILABLE', async () => {
+      await service.agentLogin('PJSIP/e201_0', ['q700_0'], 0, 58);
+      presenceService.getPresence.mockReturnValue('UNAVAILABLE');
+      ami.isPjsipEndpointReachable.mockResolvedValueOnce(true);
+
+      const res = await service.getMyRegistrationState(0, 58);
+      expect(res).toEqual({ online: true });
+      expect(ami.isPjsipEndpointReachable).toHaveBeenCalledWith('e201_0');
+      expect(presenceService.handleDeviceStateChange).toHaveBeenCalledWith(
+        expect.objectContaining({ device: 'PJSIP/e201_0', state: 'NOT_INUSE' }),
+      );
+      expect(ami.collectDeviceStateList).not.toHaveBeenCalled();
     });
 
     it('returns online false for UNAVAILABLE or missing presence', async () => {
       await service.agentLogin('PJSIP/e101_7', ['sales'], 7, 42);
+      ami.isPjsipEndpointReachable.mockResolvedValue(null);
       presenceService.getPresence.mockReturnValue('UNAVAILABLE');
       expect(await service.getMyRegistrationState(7, 42)).toEqual({ online: false });
+      expect(ami.collectDeviceStateList).toHaveBeenCalled();
 
       presenceService.getPresence.mockReturnValue(undefined);
+      ami.collectDeviceStateList.mockClear();
       expect(await service.getMyRegistrationState(7, 42)).toEqual({ online: false });
+      expect(ami.collectDeviceStateList).toHaveBeenCalled();
+    });
+
+    it('seeds presence from live DeviceStateList when cache is empty', async () => {
+      await service.agentLogin('PJSIP/e101_7', ['sales'], 7, 42);
+      ami.isPjsipEndpointReachable.mockResolvedValue(null);
+      presenceService.getPresence
+        .mockReturnValueOnce(undefined)
+        .mockReturnValueOnce('NOT_INUSE');
+      ami.collectDeviceStateList.mockResolvedValueOnce({
+        events: [{ device: 'PJSIP/e101_7', state: 'NOT_INUSE' }],
+      });
+
+      const res = await service.getMyRegistrationState(7, 42);
+      expect(res).toEqual({ online: true });
+      expect(presenceService.handleDeviceStateChange).toHaveBeenCalledWith(
+        expect.objectContaining({ device: 'PJSIP/e101_7', state: 'NOT_INUSE' }),
+      );
     });
 
     it('maps WebRTC companion to primary SIP extension for presence lookup', async () => {
@@ -1562,6 +1783,112 @@ describe('CallCenterService', () => {
       const res = await service.getMyRegistrationState(7, 42);
       expect(res).toEqual({ online: true });
       expect(presenceService.getPresence).toHaveBeenCalledWith(7, '101');
+    });
+
+    it('maps WebRTC companion to primary endpoint for PJSIP contact check', async () => {
+      await service.agentLogin('PJSIP/ew201_0', ['q700_0'], 0, 58);
+      ami.isPjsipEndpointReachable.mockResolvedValueOnce(true);
+
+      const res = await service.getMyRegistrationState(0, 58);
+      expect(res).toEqual({ online: true });
+      expect(ami.isPjsipEndpointReachable).toHaveBeenCalledWith('e201_0');
+    });
+
+    it('rebounds via open DB session after Nest restart (userId wiped to 0)', async () => {
+      await service.agentLogin('PJSIP/e201_0', ['q700_0'], 0, 58);
+      // Simulate AMI QueueMember preload after Nest restart: identity lost.
+      state.setAgent(0, 'PJSIP/e201_0', { userId: 0 });
+      sessionModel.findOne.mockResolvedValue({
+        user_id: 58,
+        user_uid: 0,
+        agent_interface: 'PJSIP/e201_0',
+        login_time: new Date(),
+        uid: 99,
+      });
+      ami.isPjsipEndpointReachable.mockResolvedValueOnce(true);
+
+      const res = await service.getMyRegistrationState(58, 58);
+      expect(res).toEqual({ online: true });
+      expect(state.getAgent(0, 'PJSIP/e201_0')?.userId).toBe(58);
+      expect(ami.isPjsipEndpointReachable).toHaveBeenCalledWith('e201_0');
+    });
+  });
+
+  describe('agentHangup (SIP outbound / post-restart)', () => {
+    it('hangs live channels when agent is IN_CALL without queue currentCall', async () => {
+      await service.agentLogin('PJSIP/101', ['sales'], 7, 42);
+      state.setAgent(7, 'PJSIP/101', {
+        status: 'IN_CALL',
+        dialTarget: '201',
+        currentCall: undefined,
+      });
+      ami.getActiveChannels.mockResolvedValueOnce({
+        events: [
+          { channel: 'PJSIP/101-00000001' },
+          { channel: 'PJSIP/201-00000002' },
+        ],
+      });
+
+      const res = await service.agentHangup(7, 42);
+      expect(res).toEqual({ success: true });
+      expect(ami.hangup).toHaveBeenCalledWith('PJSIP/101-00000001');
+      expect(state.getAgent(7, 'PJSIP/101')?.status).toBe('READY');
+      expect(ccAmi.clearNonQueueDialAttempt).toHaveBeenCalledWith(7, 'PJSIP/101');
+    });
+
+    it('resolves interface from open session when in-memory userId is 0', async () => {
+      await service.agentLogin('PJSIP/e201_0', ['q700_0'], 0, 58);
+      state.setAgent(0, 'PJSIP/e201_0', {
+        userId: 0,
+        status: 'IN_CALL',
+        dialTarget: '7900',
+      });
+      sessionModel.findOne.mockResolvedValue({
+        user_id: 58,
+        user_uid: 0,
+        agent_interface: 'PJSIP/e201_0',
+        login_time: new Date(),
+        uid: 99,
+      });
+      ami.getActiveChannels.mockResolvedValueOnce({
+        events: [{ channel: 'PJSIP/e201_0-00000009' }],
+      });
+
+      const res = await service.agentHangup(58, 58);
+      expect(res).toEqual({ success: true });
+      expect(ami.hangup).toHaveBeenCalledWith('PJSIP/e201_0-00000009');
+    });
+  });
+
+  describe('clickToCall dialTarget tenant bucket', () => {
+    it('writes DIALING+dialTarget on the live queue-suffix agent, not JWT vpbx ghost', async () => {
+      // Agent lives under tenant 0 (q700_0); JWT vpbx may be 58 after restart rebound.
+      state.setAgent(0, 'PJSIP/e201_0', {
+        userId: 58,
+        status: 'READY',
+        queues: ['q700_0'],
+        name: 'Op',
+      });
+      sessionModel.findOne.mockResolvedValue({
+        user_id: 58,
+        user_uid: 0,
+        agent_interface: 'PJSIP/e201_0',
+        login_time: new Date(),
+        uid: 99,
+      });
+      permissionsService.getEffective.mockResolvedValue({
+        can_spy: false, spyable: true, spy_modes: [], click_to_call: true, customize_ui: false,
+      });
+      endpointModel.findByPk.mockResolvedValue({
+        getDataValue: (k: string) => (k === 'context' ? 'from-internal0' : undefined),
+        context: 'from-internal0',
+      });
+
+      await service.clickToCall('201', 58, 58);
+
+      expect(state.getAgent(0, 'PJSIP/e201_0')?.status).toBe('DIALING');
+      expect(state.getAgent(0, 'PJSIP/e201_0')?.dialTarget).toBe('201');
+      expect(state.getAgent(58, 'PJSIP/e201_0')).toBeUndefined();
     });
   });
 });

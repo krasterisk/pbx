@@ -19,11 +19,14 @@ describe('displayLabels', () => {
   it('detects raw PJSIP names', () => {
     expect(isRawAgentName('PJSIP/ew112_0', 'PJSIP/ew112_0')).toBe(true);
     expect(isRawAgentName('Alice', 'PJSIP/ew112_0')).toBe(false);
+    expect(isRawAgentName('112', 'PJSIP/ew112_0')).toBe(true);
+    expect(isRawAgentName('201', 'PJSIP/e201_0')).toBe(true);
   });
 
   it('agentDisplayName prefers human name, else extension', () => {
     expect(agentDisplayName({ name: 'Alice', interface: 'PJSIP/ew112_0' })).toBe('Alice');
     expect(agentDisplayName({ name: 'PJSIP/ew112_0', interface: 'PJSIP/ew112_0' })).toBe('112');
+    expect(agentDisplayName({ name: '201', interface: 'PJSIP/e201_0' })).toBe('201');
   });
 
   it('queueDisplayName formats as Name (number)', () => {
@@ -93,6 +96,10 @@ describe('displayLabels', () => {
       expect(agentStatusColorFamily('PAUSED')).toBe('warning');
     });
 
+    it('maps OUTBOUND_WORK to info (available, not busy-red)', () => {
+      expect(agentStatusColorFamily('OUTBOUND_WORK')).toBe('info');
+    });
+
     it('falls back to muted for an unrecognized status value', () => {
       expect(agentStatusColorFamily('BOGUS' as AgentStatus)).toBe('muted');
     });
@@ -116,7 +123,7 @@ describe('displayLabels', () => {
   });
 
   describe('coworkerActivityLabel', () => {
-    it('formats queue ring as Calling · queue name', () => {
+    it('formats queue ring as Calling · queue name (caller)', () => {
       const result = coworkerActivityLabel(
         { status: 'RINGING' },
         { queue: 'q700_0', callerIdNum: '201' },
@@ -126,6 +133,7 @@ describe('displayLabels', () => {
       expect(result.tone).toBe('warning');
       expect(result.text).toContain('Calling');
       expect(result.text).toContain('Sales (700)');
+      expect(result.text).toContain('201');
     });
 
     it('formats outbound dial and talking with success tone', () => {
@@ -147,6 +155,42 @@ describe('displayLabels', () => {
       );
       expect(talking.tone).toBe('success');
       expect(talking.text).toContain('Talking');
+      expect(talking.text).toContain('201');
+    });
+
+    it('formats personal inbound via peerNumber (no CallState)', () => {
+      const ringing = coworkerActivityLabel(
+        { status: 'RINGING', peerNumber: '201' },
+        undefined,
+        [],
+        identityT,
+      );
+      expect(ringing.text).toContain('Calling');
+      expect(ringing.text).toContain('Personal');
+      expect(ringing.text).toContain('201');
+      expect(ringing.text).not.toContain('Outbound');
+
+      const talking = coworkerActivityLabel(
+        { status: 'IN_CALL', peerNumber: '201' },
+        undefined,
+        [],
+        identityT,
+      );
+      expect(talking.text).toContain('Talking');
+      expect(talking.text).toContain('Personal');
+      expect(talking.text).toContain('201');
+    });
+
+    it('does not treat bare DIALING without dialTarget as outbound when peerNumber is set', () => {
+      const result = coworkerActivityLabel(
+        { status: 'DIALING', peerNumber: '201' },
+        undefined,
+        [],
+        identityT,
+      );
+      expect(result.text).toContain('Personal');
+      expect(result.text).toContain('201');
+      expect(result.text).not.toContain('Outbound');
     });
   });
 });

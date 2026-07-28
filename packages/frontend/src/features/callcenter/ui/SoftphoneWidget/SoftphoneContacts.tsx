@@ -1,8 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { useTranslation } from 'react-i18next';
 import {
-  Search, Users, List, UsersRound, Plus, Pencil, Trash2, BookUser, Phone,
+  Search, Users, List, UsersRound, Plus, Pencil, Trash2, BookUser, Phone, PhoneCall,
 } from 'lucide-react';
 import { Input, Text, Button, Tooltip } from '@/shared/ui';
 import {
@@ -10,6 +10,7 @@ import {
   useGetOperatorCallHistoryQuery,
   useGetMyContactsQuery,
   useClickToCallMutation,
+  useGetEffectivePermissionsQuery,
   type IDirectoryEndpoint,
   type IDirectoryQueue,
   type IDirectoryGroup,
@@ -18,7 +19,8 @@ import {
 } from '@/shared/api/endpoints/callCenterApi';
 import { UserLevel, selectCurrentUser, selectUserLevel } from '@/entities/User';
 import { useAppSelector } from '@/shared/hooks/useAppStore';
-import { requestOutboundDial } from '@/features/callcenter/model/slice/callCenterSlice';
+import { requestOutboundDial, updateAgent } from '@/features/callcenter/model/slice/callCenterSlice';
+import { selectMyAgentInterface } from '@/features/callcenter/model/selectors/callCenterSelectors';
 import { isEndpointUnreachable } from '@/features/callcenter/ui/TransferDirectory/TransferDirectory';
 import {
   ContactBookForm,
@@ -75,25 +77,31 @@ function matchesTerm(haystacks: Array<string | undefined | null>, term: string):
 
 export interface SoftphoneContactsProps {
   className?: string;
+  /** Softphone transport mode — SIP CTAs need click_to_call; WebRTC does not. */
+  softphoneMode?: 'webrtc' | 'sip';
 }
 
 /**
  * Softphone Contacts tab catalog (D-11…D-14, D-25): five sticky sections with
  * unified search and click-to-call-only CTAs. Not mounted in SoftphoneWidget until 10-08.
  */
-export function SoftphoneContacts({ className }: SoftphoneContactsProps) {
+export function SoftphoneContacts({ className, softphoneMode = 'webrtc' }: SoftphoneContactsProps) {
   const { t } = useTranslation();
   const dispatch = useDispatch();
   const currentUser = useAppSelector(selectCurrentUser);
   const level = useAppSelector(selectUserLevel);
+  const myAgentInterface = useAppSelector(selectMyAgentInterface);
   const myUserId = currentUser?.uniqueid ?? 0;
   const isSupervisor = level === UserLevel.SUPERVISOR || level === UserLevel.ADMIN;
+  const { data: permissions } = useGetEffectivePermissionsQuery();
+  const sipClickBlocked = softphoneMode === 'sip' && permissions?.click_to_call === false;
 
   const [search, setSearch] = useState('');
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editing, setEditing] = useState<ICcContact | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ICcContact | null>(null);
+  const [scrollToUid, setScrollToUid] = useState<number | null>(null);
 
   const {
     data: directory,
@@ -156,13 +164,27 @@ export function SoftphoneContacts({ className }: SoftphoneContactsProps) {
   const showLoadError = contactsError || dirError || histError;
 
   const ctaLabel = t('callcenter.directory.callCta', 'Call');
+  const callHint = sipClickBlocked
+    ? t(
+      'callcenter.settings.permissions.clickToCallDenied',
+      'Click-to-call is not granted for SIP mode',
+    )
+    : t('callcenter.directory.callHint', 'Place a call to this subscriber');
 
   const dial = async (target: string, pendingKey: string) => {
+    if (sipClickBlocked) return;
     setPendingId(pendingKey);
     try {
       const res = await clickToCall({ target }).unwrap();
       if (res.mode === 'webrtc' && res.target) {
         dispatch(requestOutboundDial(res.target));
+      }
+      if (res.mode === 'pjsip' && res.target && myAgentInterface) {
+        dispatch(updateAgent({
+          interface: myAgentInterface,
+          dialTarget: res.target,
+          status: 'DIALING',
+        }));
       }
     } catch {
       /* server is source of truth — row stays interactive to retry */
@@ -188,6 +210,20 @@ export function SoftphoneContacts({ className }: SoftphoneContactsProps) {
     if (dirError) void refetchDir();
     if (histError) void refetchHist();
   };
+
+  const handleContactSaved = (row: ICcContact) => {
+    setSearch('');
+    setScrollToUid(row.uid);
+  };
+
+  useEffect(() => {
+    if (scrollToUid == null) return;
+    const el = document.querySelector(`[data-testid="book-row-${scrollToUid}"]`);
+    if (el instanceof HTMLElement) {
+      el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      setScrollToUid(null);
+    }
+  }, [scrollToUid, book]);
 
   return (
     <div
@@ -249,16 +285,17 @@ export function SoftphoneContacts({ className }: SoftphoneContactsProps) {
                         </Text>
                       ) : null}
                     </div>
-                    <Tooltip content={t('callcenter.directory.callHint', 'Place a call to this subscriber')}>
+                    <Tooltip content={callHint}>
                       <Button
                         type="button"
+                        variant="outline"
                         size="sm"
                         className={styles.ctaBtn}
-                        disabled={isPending(`recent-${row.number}`)}
+                        disabled={isPending(`recent-${row.number}`) || sipClickBlocked}
                         aria-label={`${ctaLabel} ${row.label}`}
                         onClick={() => void dial(row.number, `recent-${row.number}`)}
                       >
-                        {ctaLabel}
+                        <PhoneCall className="w-4 h-4" />
                       </Button>
                     </Tooltip>
                   </div>
@@ -287,16 +324,17 @@ export function SoftphoneContacts({ className }: SoftphoneContactsProps) {
                       <Text className={styles.rowLabel}>{entry.label}</Text>
                       <Text variant="muted" className="text-xs">{entry.extension}</Text>
                     </div>
-                    <Tooltip content={t('callcenter.directory.callHint', 'Place a call to this subscriber')}>
+                    <Tooltip content={callHint}>
                       <Button
                         type="button"
+                        variant="outline"
                         size="sm"
                         className={styles.ctaBtn}
-                        disabled={isPending(`endpoint-${entry.id}`)}
+                        disabled={isPending(`endpoint-${entry.id}`) || sipClickBlocked}
                         aria-label={`${ctaLabel} ${entry.label}`}
                         onClick={() => void dial(entry.extension, `endpoint-${entry.id}`)}
                       >
-                        {ctaLabel}
+                        <PhoneCall className="w-4 h-4" />
                       </Button>
                     </Tooltip>
                   </div>
@@ -322,16 +360,17 @@ export function SoftphoneContacts({ className }: SoftphoneContactsProps) {
                         {entry.freeOperators} {t('callcenter.directory.free', 'free')}
                       </span>
                     </Tooltip>
-                    <Tooltip content={t('callcenter.directory.callHint', 'Place a call to this subscriber')}>
+                    <Tooltip content={callHint}>
                       <Button
                         type="button"
+                        variant="outline"
                         size="sm"
                         className={styles.ctaBtn}
-                        disabled={isPending(`queue-${entry.id}`)}
+                        disabled={isPending(`queue-${entry.id}`) || sipClickBlocked}
                         aria-label={`${ctaLabel} ${entry.label}`}
                         onClick={() => void dial(entry.id, `queue-${entry.id}`)}
                       >
-                        {ctaLabel}
+                        <PhoneCall className="w-4 h-4" />
                       </Button>
                     </Tooltip>
                   </div>
@@ -357,16 +396,17 @@ export function SoftphoneContacts({ className }: SoftphoneContactsProps) {
                         {entry.freeOperators} {t('callcenter.directory.free', 'free')}
                       </span>
                     </Tooltip>
-                    <Tooltip content={t('callcenter.directory.callHint', 'Place a call to this subscriber')}>
+                    <Tooltip content={callHint}>
                       <Button
                         type="button"
+                        variant="outline"
                         size="sm"
                         className={styles.ctaBtn}
-                        disabled={isPending(`group-${entry.id}`)}
+                        disabled={isPending(`group-${entry.id}`) || sipClickBlocked}
                         aria-label={`${ctaLabel} ${entry.label}`}
                         onClick={() => void dial(entry.id, `group-${entry.id}`)}
                       >
-                        {ctaLabel}
+                        <PhoneCall className="w-4 h-4" />
                       </Button>
                     </Tooltip>
                   </div>
@@ -445,16 +485,17 @@ export function SoftphoneContacts({ className }: SoftphoneContactsProps) {
                               </Button>
                             </>
                           ) : null}
-                          <Tooltip content={t('callcenter.directory.callHint', 'Place a call to this subscriber')}>
+                          <Tooltip content={callHint}>
                             <Button
                               type="button"
+                              variant="outline"
                               size="sm"
                               className={styles.ctaBtn}
-                              disabled={isPending(`book-${row.uid}`)}
+                              disabled={isPending(`book-${row.uid}`) || sipClickBlocked}
                               aria-label={`${ctaLabel} ${row.name}`}
                               onClick={() => void dial(row.number, `book-${row.uid}`)}
                             >
-                              {ctaLabel}
+                              <PhoneCall className="w-4 h-4" />
                             </Button>
                           </Tooltip>
                         </div>
@@ -478,6 +519,7 @@ export function SoftphoneContacts({ className }: SoftphoneContactsProps) {
           if (!next) setEditing(null);
         }}
         onDeleteTargetChange={setDeleteTarget}
+        onSaved={handleContactSaved}
       />
     </div>
   );

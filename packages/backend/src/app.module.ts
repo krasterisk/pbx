@@ -49,6 +49,7 @@ import { CcAgentSession } from './modules/callcenter/models/agent-session.model'
 import { CcAgentEvent } from './modules/callcenter/models/agent-event.model';
 import { CcAgentQueue } from './modules/callcenter/models/agent-queue.model';
 import { CcMissedCall } from './modules/callcenter/models/missed-call.model';
+import { CcContact } from './modules/callcenter/models/cc-contact.model';
 import { CcQueueCall } from './modules/callcenter/models/queue-call.model';
 import { CcDailyQueueStats } from './modules/callcenter/models/daily-queue-stats.model';
 import { CcDailyAgentStats } from './modules/callcenter/models/daily-agent-stats.model';
@@ -141,7 +142,7 @@ import * as path from 'path';
         SystemSetting, Cdr, VoiceRobot, VoiceRobotKeywordGroup, VoiceRobotKeyword, VoiceRobotLog, VoiceRobotCdr, VoiceRobotDataList,
         Queue, QueueMember,
         ServiceRequest, CcSubject, CcDistrict,
-        CcPauseReason, CcAgentSession, CcAgentEvent, CcAgentQueue, CcMissedCall, CcQueueCall,
+        CcPauseReason, CcAgentSession, CcAgentEvent, CcAgentQueue, CcMissedCall, CcContact, CcQueueCall,
         CcDailyQueueStats, CcDailyAgentStats, CcOperatorSettings, CcSettings,
         CcDisplayToken, CcAlertConfig,
         CcChatMessage, CcChatChannel,

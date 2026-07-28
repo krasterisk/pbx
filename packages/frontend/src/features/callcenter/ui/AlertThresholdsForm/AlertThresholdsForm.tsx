@@ -12,8 +12,6 @@ import styles from './AlertThresholdsForm.module.scss';
 
 interface ThresholdForm {
   default_sla_threshold: number;
-  /** Softphone Journal last-N depth (D-04), default 50. */
-  journal_depth: number;
   alert_sound_enabled: boolean;
   max_wait_sec: number;
   abandon_rate_pct: number;
@@ -23,7 +21,6 @@ interface ThresholdForm {
 
 const DEFAULTS: ThresholdForm = {
   default_sla_threshold: 20,
-  journal_depth: 50,
   alert_sound_enabled: true,
   max_wait_sec: 60,
   abandon_rate_pct: 10,
@@ -48,7 +45,6 @@ export function AlertThresholdsForm() {
     const th = data.alert_thresholds ?? {};
     setForm({
       default_sla_threshold: data.default_sla_threshold,
-      journal_depth: data.journal_depth ?? DEFAULTS.journal_depth,
       alert_sound_enabled: data.alert_sound_enabled,
       max_wait_sec: th.max_wait_sec ?? DEFAULTS.max_wait_sec,
       abandon_rate_pct: th.abandon_rate_pct ?? DEFAULTS.abandon_rate_pct,
@@ -69,7 +65,6 @@ export function AlertThresholdsForm() {
     try {
       await update({
         default_sla_threshold: form.default_sla_threshold,
-        journal_depth: form.journal_depth,
         alert_sound_enabled: form.alert_sound_enabled,
         alert_thresholds: {
           max_wait_sec: form.max_wait_sec,
@@ -132,26 +127,6 @@ export function AlertThresholdsForm() {
             disabled={!canEdit}
           />
           <Text className={styles.hint}>{t('callcenter.settings.alerts.defaultSlaHint')}</Text>
-        </div>
-        <div className={styles.field}>
-          <Label htmlFor="cc-journal-depth">
-            {t('callcenter.settings.alerts.journalDepth', 'Softphone journal depth')}
-          </Label>
-          <Input
-            id="cc-journal-depth"
-            type="number"
-            min={1}
-            max={500}
-            value={form.journal_depth}
-            onChange={setNum('journal_depth')}
-            disabled={!canEdit}
-          />
-          <Text className={styles.hint}>
-            {t(
-              'callcenter.settings.alerts.journalDepthHint',
-              'Last N personal calls shown in the softphone Journal tab (default 50)',
-            )}
-          </Text>
         </div>
       </div>
 

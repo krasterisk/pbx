@@ -124,6 +124,7 @@
 
 .dotSuccess { background: var(--color-success); }
 .dotWarning { background: var(--color-warning); }
+.dotInfo { background: var(--color-info, var(--color-primary)); }
 .dotDestructive { background: color-mix(in srgb, var(--color-destructive) 70%, transparent); }
 .dotMuted { background: var(--color-muted-foreground); opacity: 0.5; }
 

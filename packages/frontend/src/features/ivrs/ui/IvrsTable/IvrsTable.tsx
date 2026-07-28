@@ -32,15 +32,11 @@ export const IvrsTable = memo(() => {
   const columns = useMemo(
     () => [
       {
-        header: t('ivrs.table.exten', 'Номер'),
-        accessorKey: 'exten',
-      },
-      {
         header: t('ivrs.table.name', 'Наименование'),
         accessorKey: 'name',
       },
       {
-        header: t('ivrs.table.timeout', 'Таймаут'),
+        header: t('ivrs.table.timeout', 'Ожидание выбора'),
         accessorKey: 'timeout',
       },
       {

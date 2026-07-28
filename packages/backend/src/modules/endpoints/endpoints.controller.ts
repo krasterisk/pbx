@@ -57,6 +57,7 @@ export class EndpointsController {
     return this.endpointsService.findOne(sipId, req.user.vpbx_user_uid);
   }
 
+  @SkipThrottle({ default: true, global: true })
   @Get(':sipId/credentials')
   getCredentials(@Param('sipId') sipId: string, @Req() req: Request & { user: any }) {
     return this.endpointsService.getCredentials(sipId, req.user.vpbx_user_uid);

@@ -73,6 +73,16 @@
   color: var(--color-muted-foreground);
 }
 
+.totalsRow {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 12px;
+  font-size: 0.75rem;
+  color: var(--color-muted-foreground);
+  padding-top: 6px;
+  border-top: 1px dashed var(--color-border);
+}
+
 .freeOk { color: var(--color-success); font-weight: 600; }
 .freeWarning { color: var(--color-warning); font-weight: 600; }
 .freeDanger { color: var(--color-destructive); font-weight: 600; }

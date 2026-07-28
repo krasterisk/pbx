@@ -170,6 +170,24 @@ export class AmiService implements OnModuleInit, OnModuleDestroy {
         const wasReconnect = this.hasConnectedOnce;
         this.hasConnectedOnce = true;
 
+        // Seed BLF / SIP registration presence cache (DeviceStateChange only fires
+        // on transitions otherwise — softphone badge stays red forever).
+        setTimeout(() => {
+          void this.collectDeviceStateList()
+            .then(({ events }) => {
+              const presence = this.getCcPresenceService();
+              if (!presence) return;
+              for (const evt of events) {
+                presence.handleDeviceStateChange(evt);
+              }
+            })
+            .catch((err: any) => {
+              this.logger.warn(
+                `DeviceStateList presence seed failed: ${err?.message || err}`,
+              );
+            });
+        }, wasReconnect ? 1500 : 500);
+
         // On reconnect only: resync in-memory CC state (first connect is handled by
         // CallCenterAmiService.onModuleInit → initialize → loadInitialState).
         if (wasReconnect) {
@@ -615,9 +633,65 @@ export class AmiService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  /** Query device presence/BLF state list (D-36/D-37 presence groundwork). */
+  /**
+   * Query full device presence/BLF snapshot (D-36/D-37 / SIP softphone D-35).
+   * DeviceStateList resolves with Success, then Asterisk emits DeviceStateChange
+   * events ending with DeviceStateListComplete — same rawevent collection shape
+   * as ParkedCalls / CoreShowChannels.
+   */
+  async collectDeviceStateList(): Promise<{ events: any[] }> {
+    return new Promise((resolve, reject) => {
+      if (!this.connected) {
+        reject(new Error('AMI not connected'));
+        return;
+      }
+
+      const events: any[] = [];
+      const actionId = String(Date.now()) + String(Math.random()).slice(2, 6);
+      let settled = false;
+
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        this.ami.removeListener('rawevent', handler);
+        resolve({ events });
+      };
+
+      const handler = (evt: any) => {
+        const eventName = String(evt.event || '').toLowerCase();
+        // Prefer ActionID match; accept events without ActionID during the window
+        // (some Asterisk builds omit it on intermediate DeviceStateChange rows).
+        if (evt.actionid && evt.actionid !== actionId) return;
+        if (eventName === 'devicestatechange') {
+          events.push(evt);
+        }
+        if (eventName === 'devicestatelistcomplete') {
+          finish();
+        }
+      };
+
+      this.ami.on('rawevent', handler);
+
+      const timer = setTimeout(finish, 5000);
+
+      this.ami.action(
+        { action: 'DeviceStateList', actionid: actionId },
+        (err: any, _res: any) => {
+          if (err && err.response !== 'Success') {
+            clearTimeout(timer);
+            settled = true;
+            this.ami.removeListener('rawevent', handler);
+            reject(err);
+          }
+        },
+      );
+    });
+  }
+
+  /** Fire-and-forget DeviceStateList (legacy callers / warm-up). */
   async deviceStateList(): Promise<any> {
-    return this.action({ action: 'DeviceStateList' });
+    return this.collectDeviceStateList();
   }
 
   async queueAdd(queue: string, iface: string, penalty?: number): Promise<any> {
@@ -679,6 +753,106 @@ export class AmiService implements OnModuleInit, OnModuleDestroy {
   /** Unregister a specific outbound registration by name */
   async pjsipUnregister(registrationName: string): Promise<any> {
     return this.action({ action: 'PJSIPUnregister', registration: registrationName });
+  }
+
+  /**
+   * Live PJSIP endpoint reachability via PJSIPShowEndpoint (same truth as
+   * `pjsip show contacts` / Contact Avail). DeviceState alone is often stale
+   * or never seeded for endpoints without BLF hints — D-35 Recover needs this.
+   * Returns true if any contact is Reachable/Avail, false if endpoint has no
+   * reachable contact, null if AMI could not answer.
+   */
+  async isPjsipEndpointReachable(endpointId: string): Promise<boolean | null> {
+    try {
+      const { events } = await this.pjsipShowEndpoint(endpointId);
+      if (!events.length) return null;
+
+      const contacts = events.filter((evt) => {
+        const name = String(evt.event || '').toLowerCase();
+        return name === 'contactstatusdetail' || name === 'contactlist';
+      });
+
+      if (contacts.length > 0) {
+        return contacts.some((evt) => {
+          const status = String(evt.status || evt.Status || '').toLowerCase();
+          return status === 'reachable' || status === 'avail' || status === 'created';
+        });
+      }
+
+      // No ContactStatusDetail rows — fall back to EndpointDetail.DeviceState.
+      const detail = events.find((evt) => {
+        const name = String(evt.event || '').toLowerCase();
+        return name === 'endpointdetail';
+      });
+      if (!detail) return null;
+      const deviceState = String(
+        detail.devicestate || detail.DeviceState || detail.state || detail.State || '',
+      ).trim();
+      if (!deviceState) return null;
+      return !/^(unavailable|invalid|unknown|nonexistent)$/i.test(deviceState);
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * PJSIPShowEndpoint event-list: EndpointDetail (+ ContactStatusDetail…) then
+   * EndpointDetailComplete — used for SIP softphone registration badge (D-35).
+   */
+  async pjsipShowEndpoint(endpointId: string): Promise<{ events: any[] }> {
+    return new Promise((resolve, reject) => {
+      if (!this.connected) {
+        reject(new Error('AMI not connected'));
+        return;
+      }
+
+      const events: any[] = [];
+      const actionId = String(Date.now()) + String(Math.random()).slice(2, 6);
+      let settled = false;
+
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        this.ami.removeListener('rawevent', handler);
+        resolve({ events });
+      };
+
+      const handler = (evt: any) => {
+        if (evt.actionid && evt.actionid !== actionId) return;
+        const eventName = String(evt.event || '').toLowerCase();
+        if (
+          eventName === 'endpointdetail'
+          || eventName === 'contactstatusdetail'
+          || eventName === 'contactlist'
+          || eventName === 'authdetail'
+          || eventName === 'aordetail'
+          || eventName === 'transportdetail'
+          || eventName === 'identifydetail'
+        ) {
+          events.push(evt);
+        }
+        if (eventName === 'endpointdetailcomplete') {
+          finish();
+        }
+      };
+
+      this.ami.on('rawevent', handler);
+
+      const timer = setTimeout(finish, 5000);
+
+      this.ami.action(
+        { action: 'PJSIPShowEndpoint', endpoint: endpointId, actionid: actionId },
+        (err: any, _res: any) => {
+          if (err && err.response !== 'Success') {
+            clearTimeout(timer);
+            settled = true;
+            this.ami.removeListener('rawevent', handler);
+            reject(err);
+          }
+        },
+      );
+    });
   }
 
   /**

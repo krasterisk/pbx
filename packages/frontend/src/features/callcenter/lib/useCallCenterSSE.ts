@@ -133,6 +133,8 @@ export function useCallCenterSSE(enabled: boolean = true) {
           status: 'TALKING',
           agent: data.agent,
           queue: data.queue,
+          ...(data.callerIdNum ? { callerIdNum: String(data.callerIdNum) } : {}),
+          ...(data.callerIdName ? { callerIdName: String(data.callerIdName) } : {}),
         }));
       } catch { /* ignore */ }
     });
@@ -203,20 +205,37 @@ export function useCallCenterSSE(enabled: boolean = true) {
       } catch { /* ignore */ }
     });
 
-    // KPI deltas (D-11/D-12/D-45) — patch day counters for any agent (panel KPI mode);
-    // invalidate RTK AgentKpi only for myself (status-bar query cache).
+    // KPI deltas (D-11/D-12/D-45) — patch shift + day counters for any agent
+    // (status bar + Coworkers); invalidate RTK AgentKpi only for myself.
     es.addEventListener('agentKpiUpdate', (e: MessageEvent) => {
       try {
         const data = JSON.parse(e.data);
+        const login = data?.kpi?.sinceLogin;
         const midnight = data?.kpi?.sinceMidnight;
-        if (data?.agent && midnight) {
+        if (data?.agent && (login || midnight)) {
+          const prev = store.getState().callCenter?.agents?.find(
+            (a: { interface: string }) => a.interface === data.agent,
+          );
           dispatch(updateAgent({
             interface: data.agent,
-            kpiDay: {
-              answered: midnight.answered ?? 0,
-              made: midnight.made ?? 0,
-              missed: midnight.missed ?? 0,
-            },
+            ...(login
+              ? {
+                  // Never let a lagging KPI emit wipe a higher live counter
+                  // (DialEnd bumps agent.callsMade before metrics emit).
+                  callsTaken: Math.max(prev?.callsTaken ?? 0, login.answered ?? 0),
+                  callsMade: Math.max(prev?.callsMade ?? 0, login.made ?? 0),
+                  callsMissed: Math.max(prev?.callsMissed ?? 0, login.missed ?? 0),
+                }
+              : {}),
+            ...(midnight
+              ? {
+                  kpiDay: {
+                    answered: midnight.answered ?? 0,
+                    made: midnight.made ?? 0,
+                    missed: midnight.missed ?? 0,
+                  },
+                }
+              : {}),
           }));
         }
         const myIface = store.getState().callCenter?.myAgentInterface;
@@ -257,7 +276,8 @@ export function useCallCenterSSE(enabled: boolean = true) {
       } catch { /* ignore */ }
     });
 
-    // Journal live prepend (D-05) — own rows only; cap at journal_depth (default 50).
+    // Journal live prepend (D-05) — own rows only; keep up to the API fetch cap
+    // (200) so SoftphoneJournal "Show more" can still page through older rows.
     es.addEventListener('historyRow', (e: MessageEvent) => {
       try {
         const row = JSON.parse(e.data) as {
@@ -275,9 +295,6 @@ export function useCallCenterSSE(enabled: boolean = true) {
         if (myId == null || row.agentUserUid == null || Number(row.agentUserUid) !== Number(myId)) {
           return;
         }
-        const settings = callCenterApi.endpoints.getTenantSettings.select()(store.getState());
-        const rawDepth = settings?.data?.journal_depth;
-        const journalDepthN = typeof rawDepth === 'number' && rawDepth > 0 ? rawDepth : 50;
         const mapped: IOperatorHistoryRow = {
           uid: Number(row.uid ?? 0),
           callUniqueid: String(row.callUniqueid ?? ''),
@@ -293,16 +310,24 @@ export function useCallCenterSSE(enabled: boolean = true) {
           waitTime: null,
           talkTime: null,
         };
-        dispatch(
-          callCenterApi.util.updateQueryData(
-            'getOperatorCallHistory',
-            { period: 'shift' },
-            (draft) => {
-              draft.unshift(mapped);
-              while (draft.length > journalDepthN) draft.pop();
-            },
-          ),
-        );
+        const prepend = (draft: IOperatorHistoryRow[] | undefined) => {
+          if (!draft) return;
+          if (mapped.uid && draft.some((r) => r.uid === mapped.uid)) return;
+          if (
+            mapped.callUniqueid
+            && draft.some((r) => r.callUniqueid && r.callUniqueid === mapped.callUniqueid)
+          ) {
+            return;
+          }
+          draft.unshift(mapped);
+          while (draft.length > 200) draft.pop();
+        };
+        // Patch every subscribed period cache (shift / day / default void → day).
+        for (const arg of [{ period: 'shift' as const }, { period: 'day' as const }, undefined]) {
+          dispatch(
+            callCenterApi.util.updateQueryData('getOperatorCallHistory', arg, prepend),
+          );
+        }
       } catch { /* ignore */ }
     });
 

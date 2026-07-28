@@ -74,12 +74,22 @@ describe('CallCenterPresenceService', () => {
       expect(() => service.handleDeviceStateChange({})).not.toThrow();
     });
 
-    it('updates getPresence after the debounce window elapses', () => {
+    it('updates getPresence immediately; SSE emit waits for debounce', () => {
+      const received: any[] = [];
+      state.getEventStream(0).subscribe(e => received.push(e));
+
       service.handleDeviceStateChange({ device: 'PJSIP/e110_0', state: 'INUSE' });
-      expect(service.getPresence(0, '110')).toBeUndefined(); // not yet — still debouncing
+      expect(service.getPresence(0, '110')).toBe('INUSE');
+      expect(received).toHaveLength(0);
 
       jest.advanceTimersByTime(PRESENCE_DEBOUNCE_MS);
-      expect(service.getPresence(0, '110')).toBe('INUSE');
+      expect(received).toHaveLength(1);
+      expect(received[0].data.state).toBe('INUSE');
+    });
+
+    it('accepts PascalCase Device/State from AMI', () => {
+      service.handleDeviceStateChange({ Device: 'PJSIP/e110_0', State: 'NOT_INUSE' });
+      expect(service.getPresence(0, '110')).toBe('NOT_INUSE');
     });
   });
 

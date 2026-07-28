@@ -4,6 +4,7 @@ import { ConfigModule } from '@nestjs/config';
 import { Ivr } from './ivr.model';
 import { TtsEngine } from '../tts-engines/tts-engine.model';
 import { TtsEnginesModule } from '../tts-engines/tts-engines.module';
+import { AmiModule } from '../ami/ami.module';
 import { IvrsController } from './ivrs.controller';
 import { IvrsInternalController } from './ivrs-internal.controller';
 import { IvrsService } from './ivrs.service';
@@ -18,6 +19,7 @@ import { YandexStreamingTtsProvider } from '../voice-robots/providers/yandex-str
     ConfigModule,
     SequelizeModule.forFeature([Ivr, TtsEngine]),
     TtsEnginesModule,
+    AmiModule,
   ],
   controllers: [IvrsController, IvrsInternalController],
   providers: [

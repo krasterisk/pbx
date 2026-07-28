@@ -26,6 +26,8 @@ export interface AgentStatusBarActiveCall {
 export interface AgentStatusBarCallControls {
   isMuted: boolean;
   isHeld: boolean;
+  /** SIP mode: Hold stays visible but inactive (use device hold). */
+  holdDisabled?: boolean;
   onMuteToggle: () => void;
   onHoldToggle: () => void;
   onHangup: () => void;
@@ -269,19 +271,19 @@ export function AgentStatusBar({
           >
             <KpiCounter
               label={t('callcenter.kpi.answered', 'Answered')}
-              shift={agent.callsTaken ?? 0}
+              shift={Math.max(agent.callsTaken ?? 0, kpi?.answered.shift ?? 0)}
               day={Math.max(agent.kpiDay?.answered ?? 0, kpi?.answered.day ?? 0)}
               mode={kpiDisplay}
             />
             <KpiCounter
               label={t('callcenter.kpi.made', 'Made')}
-              shift={agent.callsMade ?? 0}
+              shift={Math.max(agent.callsMade ?? 0, kpi?.made.shift ?? 0)}
               day={Math.max(agent.kpiDay?.made ?? 0, kpi?.made.day ?? 0)}
               mode={kpiDisplay}
             />
             <KpiCounter
               label={t('callcenter.kpi.missed', 'Missed')}
-              shift={agent.callsMissed ?? 0}
+              shift={Math.max(agent.callsMissed ?? 0, kpi?.missed.shift ?? 0)}
               day={Math.max(agent.kpiDay?.missed ?? 0, kpi?.missed.day ?? 0)}
               mode={kpiDisplay}
             />
@@ -302,6 +304,7 @@ export function AgentStatusBar({
             variant="compact"
             isMuted={callControls.isMuted}
             isHeld={callControls.isHeld}
+            holdDisabled={callControls.holdDisabled}
             onMuteToggle={callControls.onMuteToggle}
             onHoldToggle={callControls.onHoldToggle}
             onHangup={callControls.onHangup}

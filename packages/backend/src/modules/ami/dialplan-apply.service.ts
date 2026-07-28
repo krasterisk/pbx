@@ -35,7 +35,7 @@ function isCreateConfigFileExistsError(message: string): boolean {
  * → опциональный dialplan reload.
  *
  * AMI CreateConfig cannot create parent directories — ops must mkdir
- * krasterisk/{groups,routes,phonebooks,subroutines} under AST_CONFIG_DIR.
+ * krasterisk/{groups,routes,phonebooks,subroutines,ivrs} under AST_CONFIG_DIR.
  *
  * Консолидирует батч-логику, ранее продублированную в routes.controller,
  * ai-webhook.controller, mcp-tools.service и dialplan-subroutines.service (D-22).

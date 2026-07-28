@@ -33,6 +33,7 @@ describe('CallCenterAmiService', () => {
   const fakeAmi: any = {
     isConnected: () => false,
     queueStatus: jest.fn(),
+    getActiveChannels: jest.fn().mockResolvedValue({ events: [] }),
   };
   const queueModel: any = {
     findAll: jest.fn().mockResolvedValue([]),
@@ -226,10 +227,64 @@ describe('CallCenterAmiService', () => {
       expect(call?.status).toBe('TALKING');
       expect(call?.agent).toBe('PJSIP/101');
       expect(call?.agentChannel).toBe('PJSIP/101-00000002');
+      expect(call?.callerIdNum).toBe('+1');
 
       const agent = state.getAgent(7, 'PJSIP/101');
       expect(agent?.status).toBe('IN_CALL');
       expect(agent?.currentCall).toBe('U1');
+      expect(agent?.peerNumber).toBe('+1');
+    });
+
+    it('keeps callerIdNum when QueueCallerLeave races after answer', () => {
+      state.setAgent(7, 'PJSIP/101', { name: 'Alice', status: 'READY', queues: ['sales_7'] });
+      service.handleCallerJoin({
+        queue: 'sales_7',
+        uniqueid: 'U-leave',
+        calleridnum: '111',
+        channel: 'PJSIP/trunk-00000021',
+      });
+      service.handleAgentCalled({
+        queue: 'sales_7',
+        uniqueid: 'U-leave',
+        interface: 'PJSIP/101',
+      });
+      service.handleAgentConnect({
+        queue: 'sales_7',
+        destuniqueid: 'U-leave',
+        interface: 'PJSIP/101',
+        channel: 'PJSIP/101-00000022',
+        destchannel: 'PJSIP/trunk-00000021',
+      });
+      service.handleCallerLeave({
+        queue: 'sales_7',
+        uniqueid: 'U-leave',
+      });
+
+      const call = state.getCall('U-leave');
+      expect(call?.status).toBe('TALKING');
+      expect(call?.callerIdNum).toBe('111');
+    });
+
+    it('does not drop RINGING row on Leave before Connect (answer race)', () => {
+      state.setAgent(7, 'PJSIP/101', { name: 'Alice', status: 'READY', queues: ['sales_7'] });
+      service.handleCallerJoin({
+        queue: 'sales_7',
+        uniqueid: 'U-ring',
+        calleridnum: '111',
+        channel: 'PJSIP/trunk-00000031',
+      });
+      service.handleAgentCalled({
+        queue: 'sales_7',
+        uniqueid: 'U-ring',
+        interface: 'PJSIP/101',
+      });
+      service.handleCallerLeave({
+        queue: 'sales_7',
+        uniqueid: 'U-ring',
+      });
+
+      expect(state.getCall('U-ring')?.callerIdNum).toBe('111');
+      expect(state.getCall('U-ring')?.status).toBe('RINGING');
     });
 
     it('auto-resolves open missed-call rows for the caller number via CallCenterService (D-17)', () => {
@@ -289,6 +344,23 @@ describe('CallCenterAmiService', () => {
         callstaken: '0',
       });
       expect(state.getAgent(0, 'PJSIP/ew112_0')?.name).toBe('Иван');
+    });
+
+    it('does not overwrite human agent name with Originate CallerID extension', () => {
+      state.setAgent(0, 'PJSIP/e201_0', {
+        name: 'Оператор',
+        status: 'DIALING',
+        userId: 58,
+      });
+      service.handleAgentStatusEvent({
+        queue: 'q700_0',
+        interface: 'PJSIP/e201_0',
+        membername: '201',
+        status: '6',
+        paused: '0',
+        callstaken: '0',
+      });
+      expect(state.getAgent(0, 'PJSIP/e201_0')?.name).toBe('Оператор');
     });
 
     it('keeps pause reason from pausedreason / existing, never Unknown fallback', () => {
@@ -367,6 +439,127 @@ describe('CallCenterAmiService', () => {
       });
       expect(state.getAgent(0, 'PJSIP/ew112_0')?.status).toBe('DIALING');
       expect(state.getAgent(0, 'PJSIP/ew112_0')?.dialTarget).toBe('201');
+    });
+
+    it('keeps DIALING on In use after DialBegin seeded unanswered outbound', () => {
+      state.setAgent(0, 'PJSIP/ew112_0', {
+        name: 'Иван',
+        status: 'READY',
+        userId: 58,
+      });
+      service.handleDialBegin({
+        channel: 'PJSIP/ew112_0-00000001',
+        destcalleridnum: '201',
+        uniqueid: 'DB-KEEP',
+      });
+      expect(state.getAgent(0, 'PJSIP/ew112_0')?.status).toBe('DIALING');
+
+      service.handleAgentStatusEvent({
+        queue: 'q700_0',
+        interface: 'PJSIP/ew112_0',
+        status: '2',
+        paused: '0',
+      });
+      expect(state.getAgent(0, 'PJSIP/ew112_0')?.status).toBe('DIALING');
+    });
+
+    it('does not resurrect DIALING from stale unanswered outbound when AMI says READY (after unpause)', () => {
+      state.setAgent(0, 'PJSIP/ew112_0', {
+        name: 'Администратор',
+        status: 'READY',
+        dialTarget: '201',
+        userId: 58,
+      });
+      // Seed a leftover outbound attempt (e.g. auto-pause mid-dial without DialEnd).
+      service.handleDialBegin({
+        channel: 'PJSIP/ew112_0-00000099',
+        destcalleridnum: '201',
+        uniqueid: 'STALE-OUT',
+      });
+      expect(state.getAgent(0, 'PJSIP/ew112_0')?.status).toBe('DIALING');
+
+      // Simulate pause + unpause clearing agent to READY but leaving nonQueue seed
+      // if clearNonQueueDialAttempt was skipped — remap must still not resurrect.
+      state.setAgent(0, 'PJSIP/ew112_0', {
+        status: 'READY',
+        dialTarget: '201',
+        pauseReason: '',
+      });
+      service.handleAgentStatusEvent({
+        queue: 'q700_0',
+        interface: 'PJSIP/ew112_0',
+        status: '1', // Not in use
+        paused: '0',
+      });
+      expect(state.getAgent(0, 'PJSIP/ew112_0')?.status).toBe('READY');
+    });
+
+    it('clearNonQueueDialAttempt drops stale outbound so READY stays READY', () => {
+      state.setAgent(0, 'PJSIP/ew112_0', {
+        name: 'Администратор',
+        status: 'READY',
+        userId: 58,
+      });
+      service.handleDialBegin({
+        channel: 'PJSIP/ew112_0-00000088',
+        destcalleridnum: '201',
+        uniqueid: 'CLR-OUT',
+      });
+      service.clearNonQueueDialAttempt(0, 'PJSIP/ew112_0');
+      state.setAgent(0, 'PJSIP/ew112_0', {
+        status: 'READY',
+        dialTarget: undefined,
+        peerNumber: '',
+      });
+      service.handleAgentStatusEvent({
+        queue: 'q700_0',
+        interface: 'PJSIP/ew112_0',
+        status: '1',
+        paused: '0',
+      });
+      expect(state.getAgent(0, 'PJSIP/ew112_0')?.status).toBe('READY');
+    });
+
+    it('releases DIALING to READY when AMI reports Not in use after failed dial', () => {
+      state.setAgent(0, 'PJSIP/ew112_0', {
+        name: 'Администратор',
+        status: 'READY',
+        userId: 58,
+      });
+      service.handleDialBegin({
+        channel: 'PJSIP/ew112_0-00000077',
+        destcalleridnum: '800',
+        uniqueid: 'FAIL-OUT',
+      });
+      expect(state.getAgent(0, 'PJSIP/ew112_0')?.status).toBe('DIALING');
+      expect(state.getAgent(0, 'PJSIP/ew112_0')?.dialTarget).toBe('800');
+
+      // Dialplan Hangup / Congestion: channel free, DialEnd may never arrive.
+      service.handleAgentStatusEvent({
+        queue: 'q700_0',
+        interface: 'PJSIP/ew112_0',
+        status: '1', // Not in use
+        paused: '0',
+      });
+      expect(state.getAgent(0, 'PJSIP/ew112_0')?.status).toBe('READY');
+      expect(state.getAgent(0, 'PJSIP/ew112_0')?.dialTarget).toBeUndefined();
+    });
+
+    it('routes QueueMemberStatus on primary twin to the logged-in WebRTC agent', () => {
+      state.setAgent(0, 'PJSIP/ew112_0', {
+        name: 'Администратор',
+        status: 'DIALING',
+        dialTarget: '201',
+        userId: 58,
+      });
+      service.handleAgentStatusEvent({
+        queue: 'q700_0',
+        interface: 'PJSIP/e112_0',
+        status: '2',
+        paused: '0',
+      });
+      expect(state.getAgent(0, 'PJSIP/ew112_0')?.status).toBe('DIALING');
+      expect(state.getAgent(0, 'PJSIP/e112_0')).toBeUndefined();
     });
 
     it('preserves OUTBOUND_WORK when AMI reports paused', () => {
@@ -449,6 +642,39 @@ describe('CallCenterAmiService', () => {
       service.handleAgentComplete({ queue: 'sales_7', destuniqueid: 'U1', interface: 'PJSIP/101' });
 
       expect(state.getAgent(7, 'PJSIP/101')?.callsTaken).toBe(3);
+      expect(metricsService.recordAnswered).not.toHaveBeenCalled();
+    });
+
+    it('resolves WebRTC twin interface and emits agentKpiUpdate after answered complete', () => {
+      const emitSpy = jest.spyOn(state, 'emitEvent');
+      state.setAgent(7, 'PJSIP/ew101_7', {
+        name: 'Alice',
+        status: 'IN_CALL',
+        currentCall: 'U1',
+        callsTaken: 2,
+        wrapupTimeout: 0,
+        userId: 42,
+      });
+      state.setCall('U1', {
+        userUid: 7,
+        queue: 'sales_7',
+        status: 'TALKING',
+        agent: 'PJSIP/ew101_7',
+        answerTime: new Date(),
+      });
+
+      // AMI may report the primary twin while the agent is logged in on WebRTC.
+      service.handleAgentComplete({ queue: 'sales_7', destuniqueid: 'U1', interface: 'PJSIP/e101_7' });
+
+      expect(state.getAgent(7, 'PJSIP/ew101_7')?.callsTaken).toBe(3);
+      expect(metricsService.recordAnswered).toHaveBeenCalledWith(
+        7, 'sales_7', 'PJSIP/ew101_7', expect.any(Number), expect.any(Number), expect.any(Number),
+      );
+      expect(emitSpy).toHaveBeenCalledWith(
+        'agentKpiUpdate',
+        7,
+        expect.objectContaining({ agent: 'PJSIP/ew101_7' }),
+      );
     });
 
     it('removes orphan WAITING row with same caller channel after complete', () => {
@@ -561,7 +787,7 @@ describe('CallCenterAmiService', () => {
       });
 
       expect(autoPauseService.evaluateOnMissed).toHaveBeenCalledWith(7, 'PJSIP/e101_42', ['sales_7']);
-      expect(metricsService.recordMissed).toHaveBeenCalledWith(7, 'PJSIP/e101_42');
+      expect(metricsService.recordMissed).toHaveBeenCalledWith(7, 'PJSIP/e101_42', 'sales_7');
       expect(state.getAgent(7, 'PJSIP/e101_42')?.callsMissed).toBe(1);
       await flushMicrotasks();
       expect(state.getAgent(7, 'PJSIP/e101_42')?.status).toBe('READY');
@@ -641,7 +867,7 @@ describe('CallCenterAmiService', () => {
         interface: 'PJSIP/e101_42',
       });
 
-      expect(metricsService.recordMissed).toHaveBeenCalledWith(7, 'PJSIP/e101_42');
+      expect(metricsService.recordMissed).toHaveBeenCalledWith(7, 'PJSIP/e101_42', 'sales_7');
       expect(state.getAgent(7, 'PJSIP/e101_42')?.callsMissed).toBe(1);
       await flushMicrotasks();
       expect(autoPauseService.evaluateOnMissed).toHaveBeenCalledWith(7, 'PJSIP/e101_42', ['sales_7']);
@@ -717,6 +943,35 @@ describe('CallCenterAmiService', () => {
       });
 
       expect(state.getAgent(7, 'PJSIP/e101_42')?.status).toBe('DIALING');
+    });
+
+    it('reclaims false early IN_CALL (device In use before DialBegin) back to DIALING', () => {
+      state.setAgent(7, 'PJSIP/e101_42', {
+        name: 'Alice', status: 'IN_CALL', userId: 42,
+      });
+
+      service.handleDialBegin({
+        channel: 'PJSIP/e101_42-00000005',
+        destcalleridnum: '201',
+        uniqueid: 'DB-RECLAIM',
+      });
+
+      expect(state.getAgent(7, 'PJSIP/e101_42')?.status).toBe('DIALING');
+      expect(state.getAgent(7, 'PJSIP/e101_42')?.dialTarget).toBe('201');
+    });
+
+    it('matches DialBegin on primary twin of a WebRTC-logged agent', () => {
+      state.setAgent(0, 'PJSIP/ew112_0', {
+        name: 'Администратор', status: 'READY', userId: 58,
+      });
+
+      service.handleDialBegin({
+        channel: 'PJSIP/e112_0-00000005',
+        destcalleridnum: '201',
+      });
+
+      expect(state.getAgent(0, 'PJSIP/ew112_0')?.status).toBe('DIALING');
+      expect(state.getAgent(0, 'PJSIP/ew112_0')?.dialTarget).toBe('201');
     });
 
     it('is a no-op for channels not belonging to a logged-in agent (unknown channel)', () => {
@@ -816,6 +1071,117 @@ describe('CallCenterAmiService', () => {
 
       await Promise.resolve();
       expect(missedCallModel.findOrCreate).not.toHaveBeenCalled();
+    });
+
+    it('does not mark RINGING when CallerID is the agent own extension (softphone outbound Newchannel)', () => {
+      state.setAgent(0, 'PJSIP/ew112_0', { name: 'Admin', status: 'READY', userId: 58 });
+
+      service.handleNewchannel({
+        channel: 'PJSIP/ew112_0-00000005',
+        channelstatedesc: 'Ring',
+        calleridnum: '112',
+      });
+
+      expect(state.getAgent(0, 'PJSIP/ew112_0')?.status).toBe('READY');
+      expect(metricsService.recordAgentStatus).not.toHaveBeenCalled();
+    });
+
+    it('does not convert personal RINGING into outbound DIALING', () => {
+      state.setAgent(0, 'PJSIP/ew112_0', { name: 'Admin', status: 'READY', userId: 58 });
+
+      // Simulate legacy race if Newchannel slipped through with a remote-looking id
+      service.handleNewchannel({
+        channel: 'PJSIP/ew112_0-00000005',
+        channelstatedesc: 'Ring',
+        calleridnum: '999',
+      });
+      expect(state.getAgent(0, 'PJSIP/ew112_0')?.status).toBe('RINGING');
+
+      service.handleDialBegin({
+        channel: 'PJSIP/ew112_0-00000005',
+        dialstring: 'PJSIP/e201_0/sip:201@127.0.0.1',
+        uniqueid: 'DB-SOFT',
+      });
+      // Personal RINGING must NOT be converted to outbound DIALING
+      expect(state.getAgent(0, 'PJSIP/ew112_0')?.status).toBe('RINGING');
+      expect(historyWriter.enqueue).not.toHaveBeenCalled();
+    });
+
+    it('seeds personal RINGING on DestChannel (inbound Dial to WebRTC softphone)', () => {
+      state.setAgent(0, 'PJSIP/ew112_0', { name: 'Admin', status: 'READY', userId: 58 });
+
+      service.handleDialBegin({
+        channel: 'PJSIP/e201_0-000000ab',
+        destchannel: 'PJSIP/ew112_0-000000ac',
+        calleridnum: '201',
+        dialstring: 'ew112_0',
+        uniqueid: 'DB-IN',
+        destuniqueid: 'DB-IN-DEST',
+      });
+
+      expect(state.getAgent(0, 'PJSIP/ew112_0')?.status).toBe('RINGING');
+      expect(state.getAgent(0, 'PJSIP/ew112_0')?.dialTarget).toBeUndefined();
+      expect(state.getAgent(0, 'PJSIP/ew112_0')?.peerNumber).toBe('201');
+
+      service.handleAgentHangup({ channel: 'PJSIP/ew112_0-000000ac', uniqueid: 'DB-IN-DEST' });
+      expect(historyWriter.enqueue).toHaveBeenCalledWith(
+        expect.objectContaining({
+          caller_id_num: '201',
+          direction: 'personal',
+          disposition: 'abandoned',
+        }),
+      );
+      expect(state.getAgent(0, 'PJSIP/ew112_0')?.peerNumber).toBeUndefined();
+    });
+
+    it('keeps personal RINGING on In use (does not remap unanswered personal to DIALING)', () => {
+      state.setAgent(0, 'PJSIP/ew112_0', { name: 'Admin', status: 'READY', userId: 58 });
+
+      service.handleDialBegin({
+        channel: 'PJSIP/e201_0-000000ab',
+        destchannel: 'PJSIP/ew112_0-000000ac',
+        calleridnum: '201',
+        uniqueid: 'DB-IN2',
+        destuniqueid: 'DB-IN2-DEST',
+      });
+      expect(state.getAgent(0, 'PJSIP/ew112_0')?.status).toBe('RINGING');
+
+      service.handleAgentStatusEvent({
+        queue: 'q700_0',
+        interface: 'PJSIP/ew112_0',
+        status: '2', // In use
+        paused: '0',
+        membername: 'Admin',
+      });
+
+      const agent = state.getAgent(0, 'PJSIP/ew112_0');
+      expect(agent?.status).toBe('IN_CALL');
+      expect(agent?.peerNumber).toBe('201');
+      expect(agent?.dialTarget).toBeUndefined();
+    });
+
+    it('does not reclaim answered personal IN_CALL back to outbound DIALING', () => {
+      state.setAgent(0, 'PJSIP/ew112_0', {
+        name: 'Admin', status: 'IN_CALL', userId: 58, peerNumber: '201',
+      });
+      // Seed personal non-queue state as handleDialBegin DestChannel would
+      service.handleDialBegin({
+        channel: 'PJSIP/e201_0-000000ab',
+        destchannel: 'PJSIP/ew112_0-000000ac',
+        calleridnum: '201',
+        uniqueid: 'DB-IN3',
+        destuniqueid: 'DB-IN3-DEST',
+      });
+      // Late DialBegin on our twin must not flip to outbound
+      service.handleDialBegin({
+        channel: 'PJSIP/ew112_0-000000ac',
+        destcalleridnum: '201',
+        uniqueid: 'DB-FALSE-OUT',
+      });
+
+      expect(state.getAgent(0, 'PJSIP/ew112_0')?.status).toBe('IN_CALL');
+      expect(state.getAgent(0, 'PJSIP/ew112_0')?.dialTarget).toBeUndefined();
+      expect(state.getAgent(0, 'PJSIP/ew112_0')?.peerNumber).toBe('201');
     });
 
     it('does not mark RINGING when the agent is not READY (avoids mid-call false positives)', () => {
@@ -1014,6 +1380,63 @@ describe('CallCenterAmiService', () => {
       // No auto-transition fired — the agent stays in WRAPUP until the manual handler runs
       expect(state.getAgent(7, 'PJSIP/101')?.status).toBe('WRAPUP');
       jest.useRealTimers();
+    });
+  });
+
+  describe('reconcileActiveAgentCalls', () => {
+    it('restores currentCall + CID from CoreShowChannels for IN_CALL without binding', async () => {
+      fakeAmi.isConnected = () => true;
+      fakeAmi.getActiveChannels.mockResolvedValue({
+        events: [
+          {
+            channel: 'PJSIP/101-0000000a',
+            uniqueid: 'AGENT.1',
+            linkedid: 'CALLER.1',
+            bridgeid: 'BR1',
+            connectedlinenum: '79991234567',
+          },
+          {
+            channel: 'PJSIP/trunk-0000000b',
+            uniqueid: 'CALLER.1',
+            linkedid: 'CALLER.1',
+            bridgeid: 'BR1',
+            calleridnum: '79991234567',
+            calleridname: 'Client',
+          },
+        ],
+      });
+      state.setAgent(7, 'PJSIP/101', {
+        name: 'Alice',
+        status: 'IN_CALL',
+        userId: 42,
+        queues: ['sales_7'],
+      });
+
+      await service.reconcileActiveAgentCalls();
+
+      expect(state.getAgent(7, 'PJSIP/101')?.currentCall).toBe('CALLER.1');
+      expect(state.getAgent(7, 'PJSIP/101')?.peerNumber).toBe('79991234567');
+      expect(state.getCall('CALLER.1')?.status).toBe('TALKING');
+      expect(state.getCall('CALLER.1')?.callerIdNum).toBe('79991234567');
+      expect(state.getCall('CALLER.1')?.agent).toBe('PJSIP/101');
+      fakeAmi.isConnected = () => false;
+    });
+
+    it('no-ops when every busy agent already has a live call binding', async () => {
+      fakeAmi.isConnected = () => true;
+      fakeAmi.getActiveChannels.mockClear();
+      state.setAgent(7, 'PJSIP/101', {
+        name: 'Alice',
+        status: 'IN_CALL',
+        userId: 42,
+        currentCall: 'U1',
+      });
+      state.setCall('U1', { userUid: 7, queue: 'sales_7', status: 'TALKING', agent: 'PJSIP/101' });
+
+      await service.reconcileActiveAgentCalls();
+
+      expect(fakeAmi.getActiveChannels).not.toHaveBeenCalled();
+      fakeAmi.isConnected = () => false;
     });
   });
 });

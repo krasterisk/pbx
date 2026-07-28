@@ -1,11 +1,18 @@
 import { interfaceToExtension } from '@/features/endpoints/lib/endpointIds';
 import type { AgentStatus, IAgent, IQueueStats } from '../model/types/callCenterSchema';
 
-/** True when name is a raw AMI/PJSIP interface string. */
+/** True when name is a raw AMI/PJSIP interface string or bare extension. */
 export function isRawAgentName(name: string | undefined, iface?: string): boolean {
   if (!name) return true;
   if (iface && name === iface) return true;
-  return /^(PJSIP|SIP)\//i.test(name);
+  if (/^(PJSIP|SIP)\//i.test(name)) return true;
+  // Originate CallerID / QueueMember often echo the short extension — not a person name.
+  if (iface) {
+    const ext = interfaceToExtension(iface);
+    if (ext && name === ext) return true;
+  }
+  if (/^e(w)?.+_\d+$/i.test(name)) return true;
+  return false;
 }
 
 /** Operator label: human name, else extension (ew112_0 → 112). */
@@ -159,7 +166,7 @@ export type CoworkerActivityTone = 'warning' | 'success' | 'muted' | 'default';
  * RINGING/DIALING → warning; IN_CALL → success.
  */
 export function coworkerActivityLabel(
-  agent: Pick<IAgent, 'status' | 'dialTarget' | 'pauseReason'>,
+  agent: Pick<IAgent, 'status' | 'dialTarget' | 'pauseReason' | 'peerNumber'>,
   call: { callerIdNum?: string; callerIdName?: string; queue?: string } | undefined,
   queues: Array<Pick<IQueueStats, 'name' | 'displayName'> & { exten?: string }>,
   t: (key: string, fallback?: string) => string,
@@ -175,14 +182,25 @@ export function coworkerActivityLabel(
 
     let context: string;
     if (call?.queue) {
-      context = queueDisplayName(call.queue, queues);
-    } else if (agent.dialTarget || status === 'DIALING') {
-      const num = agent.dialTarget || call?.callerIdNum || '';
+      const queueLabel = queueDisplayName(call.queue, queues);
+      const caller = callerDisplayLabel(call.callerIdNum, call.callerIdName);
+      context = caller && caller !== '-'
+        ? `${queueLabel} (${caller})`
+        : queueLabel;
+    } else if (agent.dialTarget && !agent.peerNumber) {
+      // Real outbound dial — dialTarget set by DialBegin / softphone optimistic dial.
+      const outbound = t('callcenter.statusBar.outbound', 'Outbound');
+      context = `${outbound} (${agent.dialTarget})`;
+    } else if (status === 'DIALING' && !agent.peerNumber) {
+      const num = call?.callerIdNum || '';
       const outbound = t('callcenter.statusBar.outbound', 'Outbound');
       context = num ? `${outbound} (${num})` : outbound;
     } else {
       const personal = t('callcenter.statusBar.personal', 'Personal');
-      const caller = callerDisplayLabel(call?.callerIdNum, call?.callerIdName);
+      const caller = callerDisplayLabel(
+        agent.peerNumber || call?.callerIdNum,
+        call?.callerIdName,
+      );
       context = caller && caller !== '-' ? `${personal} (${caller})` : personal;
     }
 
@@ -197,7 +215,7 @@ export function coworkerActivityLabel(
   }
 
   if (status === 'OUTBOUND_WORK') {
-    return { text: agentStatusLabel(status, t), tone: 'default' };
+    return { text: agentStatusLabel(status, t), tone: 'success' };
   }
 
   return { text: agentStatusLabel(status, t), tone: status === 'READY' ? 'success' : 'default' };

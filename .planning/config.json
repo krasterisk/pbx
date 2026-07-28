@@ -11,5 +11,6 @@
   },
   "models": {
     "execution": "sonnet"
-  }
+  },
+  "response_language": "ru"
 }

@@ -61,7 +61,7 @@ import {
   verticalListSortingStrategy,
   arrayMove,
 } from '@dnd-kit/sortable';
-import { interfaceToExtension, isWebrtcCompanion } from '@/features/endpoints/lib/endpointIds';
+import { interfaceToExtension, isWebrtcCompanion, buildPrimarySipId } from '@/features/endpoints/lib/endpointIds';
 import { queueDisplayName } from '@/features/callcenter/lib/displayLabels';
 import {
   loadActiveShift,
@@ -112,7 +112,7 @@ import {
 } from '@/shared/api/endpoints/callCenterApi';
 import { useLazyGetEndpointCredentialsQuery } from '@/shared/api/endpoints/endpointApi';
 import type { IEndpointCredentials } from '@/shared/api/endpoints/endpointApi';
-import type { IAgent } from '@/features/callcenter/model/types/callCenterSchema';
+import type { IAgent, ICall } from '@/features/callcenter/model/types/callCenterSchema';
 import styles from './CallCenterAgentPage.module.scss';
 
 type PanelKey = PrefsPanelKey;
@@ -191,15 +191,15 @@ export function CallCenterAgentPage() {
   const wrapupAutosavedRef = useRef(false);
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
 
-  /** Recover WebRTC after HMR / refresh when sessionStorage mode was lost but interface is ew*. */
-  const effectiveSoftphoneMode: SoftphoneMode | null = softphoneMode
-    ?? (myAgentInterface && isWebrtcCompanion(
-      myAgentInterface.includes('/')
-        ? myAgentInterface.split('/').pop() || myAgentInterface
-        : myAgentInterface,
-    )
-      ? 'webrtc'
-      : null);
+  /** Recover softphone mode after HMR / refresh when sessionStorage mode was lost but shift interface remains. */
+  const effectiveSoftphoneMode: SoftphoneMode | null = (() => {
+    if (softphoneMode) return softphoneMode;
+    if (!myAgentInterface) return null;
+    const ifaceId = myAgentInterface.includes('/')
+      ? myAgentInterface.split('/').pop() || myAgentInterface
+      : myAgentInterface;
+    return isWebrtcCompanion(ifaceId) ? 'webrtc' : 'sip';
+  })();
   const isWebrtc = effectiveSoftphoneMode === 'webrtc';
   const isSip = effectiveSoftphoneMode === 'sip';
   const phone = useWebRTCPhone({
@@ -217,7 +217,7 @@ export function CallCenterAgentPage() {
 
   // Active call from Call Center SSE (queue AMI) — computed early so useSipPhoneAmi can bind.
   // Prefer agent.currentCall (set on AgentCalled / AgentConnect); fall back to a
-  // RINGING row offered to this agent so WebRTC ring shows queue — not Personal.
+  // live call offered/answered on this agent so F5 / SSE reconnect keeps chrome.
   const activeCall = useMemo(() => {
     if (!myAgent) return null;
     // After RONA auto-pause the RINGING row can linger — do not keep call chrome.
@@ -234,6 +234,12 @@ export function CallCenterAgentPage() {
       const bound = calls.find((c) => c.uniqueid === myAgent.currentCall);
       if (bound) return bound;
     }
+    const byAgent = calls.find(
+      (c) =>
+        c.agent === myAgent.interface
+        && (c.status === 'RINGING' || c.status === 'TALKING' || c.status === 'HOLD'),
+    );
+    if (byAgent) return byAgent;
     if (myAgent.status === 'RINGING') {
       return (
         calls.find(
@@ -241,10 +247,35 @@ export function CallCenterAgentPage() {
         ) ?? null
       );
     }
+    // Synthetic row so SIP chrome / status bar keep CID when CallState is briefly missing.
+    // Keep call.status aligned with agent: DIALING must not become RINGING here —
+    // SoftphoneWidget treats RINGING as Answer/Reject (WebRTC), not "answer on device".
+    if (
+      (myAgent.status === 'IN_CALL' || myAgent.status === 'DIALING' || myAgent.status === 'CONSULT')
+      && (myAgent.peerNumber || myAgent.dialTarget || myAgent.currentCall)
+    ) {
+      return {
+        uniqueid: myAgent.currentCall || `local:${myAgent.interface}`,
+        callerIdNum: myAgent.peerNumber || myAgent.dialTarget || '',
+        callerIdName: '',
+        queue: '',
+        status: myAgent.status === 'DIALING' ? 'WAITING' : 'TALKING',
+        enterTime: myAgent.statusSince || new Date().toISOString(),
+        holdTime: 0,
+        talkTime: 0,
+        userUid: 0,
+        agent: myAgent.interface,
+      } as ICall;
+    }
     return null;
   }, [myAgent, calls]);
 
-  const sipPhone = useSipPhoneAmi(activeCall);
+  const sipPhone = useSipPhoneAmi(
+    activeCall,
+    myAgent?.status ?? null,
+    myAgent?.dialTarget,
+    myAgent?.peerNumber,
+  );
 
   // RTK mutations
   const [agentLogin] = useAgentLoginMutation();
@@ -381,14 +412,67 @@ export function CallCenterAgentPage() {
     });
   }, [myAgent?.status, myAgent?.pauseReason, myAgent?.statusSince, pauseReasons]);
 
-  // Optimistic dialTarget from WebRTC softphone until AMI DialBegin SSE arrives
+  // Optimistic dial state from WebRTC until AMI DialBegin / DialEnd SSE catches up
+  // (QueueMember "In use" can map to IN_CALL before remote answer — coworkers would show Talking).
+  // Never apply on inbound (callInfo.from) — that would paint "Outbound".
   useEffect(() => {
     if (!myAgentInterface) return;
-    const to = phone.callInfo?.to;
-    if ((phone.status === 'dialing' || phone.status === 'in-call') && to) {
-      dispatch(updateAgent({ interface: myAgentInterface, dialTarget: to }));
+    if (phone.status === 'ringing' && phone.callInfo?.from) {
+      dispatch(updateAgent({
+        interface: myAgentInterface,
+        dialTarget: undefined,
+        peerNumber: phone.callInfo.from,
+        status: 'RINGING',
+      }));
+      return;
     }
-  }, [phone.status, phone.callInfo?.to, myAgentInterface, dispatch]);
+    if (phone.status === 'in-call' && phone.callInfo?.from) {
+      dispatch(updateAgent({
+        interface: myAgentInterface,
+        dialTarget: undefined,
+        peerNumber: phone.callInfo.from,
+        status: 'IN_CALL',
+      }));
+      return;
+    }
+    const to = phone.callInfo?.to;
+    if (phone.status === 'dialing' && to) {
+      dispatch(updateAgent({ interface: myAgentInterface, dialTarget: to, status: 'DIALING' }));
+      return;
+    }
+    if (phone.status === 'in-call' && to && !phone.callInfo?.from) {
+      dispatch(updateAgent({ interface: myAgentInterface, dialTarget: to }));
+      return;
+    }
+    // Softphone session ended (busy / reject / dialplan Hangup) while panel still
+    // shows DIALING/IN_CALL — clear local chrome immediately. Server catch-up via
+    // QueueMember Not-in-use / DialEnd (do not agentHangup here — races a quick re-dial).
+    if (
+      isWebrtc
+      && (phone.status === 'registered' || phone.status === 'disconnected')
+      && !phone.callInfo
+      && (myAgent?.status === 'DIALING'
+        || (myAgent?.status === 'IN_CALL' && !!myAgent?.dialTarget && !myAgent?.currentCall))
+    ) {
+      dispatch(updateAgent({
+        interface: myAgentInterface,
+        status: 'READY',
+        dialTarget: null,
+        peerNumber: '',
+      }));
+    }
+  }, [
+    phone.status,
+    phone.callInfo?.to,
+    phone.callInfo?.from,
+    phone.callInfo,
+    myAgentInterface,
+    myAgent?.status,
+    myAgent?.dialTarget,
+    myAgent?.currentCall,
+    isWebrtc,
+    dispatch,
+  ]);
 
   // Pause with reason from PauseReasonModal
   const handlePause = useCallback((reason: string, maxDurationMin: number) => {
@@ -403,8 +487,16 @@ export function CallCenterAgentPage() {
   const webrtcInCall = isWebrtc && phone.status === 'in-call';
   const callAnswered =
     webrtcInCall
-    || (!!activeCall && (activeCall.status === 'TALKING' || activeCall.status === 'HOLD'));
-  /** Ringing/dialing show context in the status pill; mute/hold/transfer only after answer. */
+    || (!!activeCall && (activeCall.status === 'TALKING' || activeCall.status === 'HOLD'))
+    || (isSip && myAgent?.status === 'IN_CALL');
+  /** Ringing/dialing show context in the status pill; mute/hold/transfer only after answer.
+   * Phantom DIALING (AMI ghost, no softphone session) still needs hangup to clear. */
+  const phantomDialStuck =
+    !callAnswered
+    && !webrtcRinging
+    && !webrtcDialing
+    && !activeCall
+    && (myAgent?.status === 'DIALING' || myAgent?.status === 'RINGING');
   const showCallPanel =
     callAnswered
     || webrtcRinging
@@ -412,7 +504,7 @@ export function CallCenterAgentPage() {
     || myAgent?.status === 'DIALING'
     || myAgent?.status === 'RINGING'
     || myAgent?.status === 'IN_CALL';
-  const showCallControls = callAnswered;
+  const showCallControls = callAnswered || phantomDialStuck;
 
   const handleWebrtcAccept = useCallback(async () => {
     setWebrtcAccepting(true);
@@ -518,32 +610,59 @@ export function CallCenterAgentPage() {
   }, [isWebrtc, isSip, phone, sipPhone]);
 
   const handleHoldToggle = useCallback(() => {
+    // SIP hold must be done on the desk phone / SIP client (AMI Redirect to
+    // cc-hold is not provisioned and drops the call).
+    if (isSip) return;
     if (isWebrtc) {
       if (phone.isHeld) void phone.unhold();
       else void phone.hold();
       return;
     }
-    if (isSip) {
-      if (sipPhone.isHeld) void sipPhone.unhold();
-      else void sipPhone.hold();
-      return;
-    }
     if (activeCall?.status === 'HOLD') agentUnhold();
     else agentHold();
-  }, [isWebrtc, isSip, phone, sipPhone, activeCall?.status, agentHold, agentUnhold]);
+  }, [isWebrtc, isSip, phone, activeCall?.status, agentHold, agentUnhold]);
+
+  // Optimistic SIP dial chrome (answer-on-device) before AMI DialBegin SSE arrives.
+  const handleSipOutboundDial = useCallback((target: string) => {
+    if (!isSip || !myAgentInterface) return;
+    const to = (target || '').replace(/[^\d+*#]/g, '');
+    if (!to) return;
+    dispatch(updateAgent({
+      interface: myAgentInterface,
+      dialTarget: to,
+      status: 'DIALING',
+    }));
+  }, [isSip, myAgentInterface, dispatch]);
 
   const handleHangup = useCallback(() => {
     if (isWebrtc) {
       void phone.hangup();
-      if (activeCall) agentHangup({});
-      return;
-    }
-    if (isSip) {
+    } else if (isSip) {
+      // SIP softphone hangup is always AMI agent/hangup (incl. outbound without currentCall).
       void sipPhone.hangup();
       return;
     }
-    if (activeCall) agentHangup({});
-  }, [isWebrtc, isSip, phone, sipPhone, activeCall, agentHangup]);
+    if (activeCall) {
+      void agentHangup({});
+      return;
+    }
+    // Phantom DIALING/RINGING — softphone has no session; clear server + local state.
+    if (
+      myAgentInterface
+      && (myAgent?.status === 'DIALING' || myAgent?.status === 'RINGING' || myAgent?.dialTarget)
+    ) {
+      void agentHangup({});
+      dispatch(updateAgent({
+        interface: myAgentInterface,
+        status: 'READY',
+        dialTarget: undefined,
+        peerNumber: '',
+      }));
+    }
+  }, [
+    isWebrtc, isSip, phone, sipPhone, activeCall, agentHangup,
+    myAgentInterface, myAgent?.status, myAgent?.dialTarget, dispatch,
+  ]);
 
   const handleShiftLogin = useCallback(async (result: ShiftLoginResult) => {
     setSoftphoneMode(result.mode);
@@ -633,6 +752,129 @@ export function CallCenterAgentPage() {
     setIsMuted(false);
   }, [agentLogout, isWebrtc, phone, dispatch]);
 
+  /** Recover CTA: rebuild WSS+REGISTER; optional credential refetch (explicit Recover only). */
+  const recoverInFlightRef = useRef(false);
+  const lastCredentialFetchRef = useRef(0);
+  const CREDENTIAL_FETCH_COOLDOWN_MS = 60_000;
+  const credsConnectNudgedRef = useRef(false);
+
+  const recoverSoftphone = useCallback(async (refetchCredentials = false) => {
+    if (recoverInFlightRef.current) return;
+    recoverInFlightRef.current = true;
+    try {
+      if (!isWebrtc || !webrtcConfig?.wssUrl) {
+        // SIP Recover: rebind shift identity after Nest restart, then re-query PJSIP contact.
+        try {
+          const me = await fetchAgentMe().unwrap();
+          if (me.active && me.interface) {
+            dispatch(setMyAgentInterface(me.interface));
+          }
+        } catch {
+          /* still try registration poll */
+        }
+        await phone.ensureConnected?.(true);
+        return;
+      }
+
+      const saved = loadActiveShift();
+      const connectWithCreds = async (creds: IEndpointCredentials) => {
+        await phone.connect({
+          server: webrtcConfig.wssUrl,
+          sipUser: creds.username,
+          sipPassword: creds.password,
+          sipDomain: creds.domain,
+          iceServers: webrtcConfig.iceServers || [],
+          micDeviceId: micDeviceId ?? saved?.micDeviceId,
+          sinkId: sinkId ?? saved?.sinkId,
+          autoAnswer: operatorSettings?.auto_answer ?? false,
+          autoAnswerZipTone: operatorSettings?.auto_answer_zip_tone ?? false,
+        });
+      };
+
+      if (sipCredentials?.password && !refetchCredentials) {
+        await connectWithCreds(sipCredentials);
+        return;
+      }
+
+      const now = Date.now();
+      const ifaceId = myAgentInterface
+        ? (myAgentInterface.includes('/')
+          ? myAgentInterface.split('/').pop() || myAgentInterface
+          : myAgentInterface)
+        : '';
+      const endpointId = saved?.endpointId
+        ?? (ifaceId && isWebrtcCompanion(ifaceId) ? buildPrimarySipId(ifaceId) : null)
+        ?? null;
+
+      if (
+        endpointId
+        && refetchCredentials
+        && now - lastCredentialFetchRef.current >= CREDENTIAL_FETCH_COOLDOWN_MS
+      ) {
+        lastCredentialFetchRef.current = now;
+        try {
+          const allCreds = await fetchCredentials(endpointId).unwrap();
+          const w = allCreds.webrtc;
+          if (w) {
+            const creds: IEndpointCredentials = {
+              sipId: w.sipId,
+              extension: w.extension,
+              username: w.username,
+              password: w.password,
+              authType: w.authType,
+              domain: w.domain,
+            };
+            setSipCredentials(creds);
+            await connectWithCreds(creds);
+            return;
+          }
+        } catch {
+          /* fall through to local ensureConnected */
+        }
+      }
+
+      if (sipCredentials?.password) {
+        await connectWithCreds(sipCredentials);
+        return;
+      }
+
+      await phone.ensureConnected?.(true);
+    } finally {
+      recoverInFlightRef.current = false;
+    }
+  }, [
+    isWebrtc,
+    webrtcConfig,
+    phone,
+    sipCredentials,
+    myAgentInterface,
+    fetchCredentials,
+    fetchAgentMe,
+    dispatch,
+    micDeviceId,
+    sinkId,
+    operatorSettings?.auto_answer,
+    operatorSettings?.auto_answer_zip_tone,
+  ]);
+
+  // After credentials land (restore / Recover) while UA is down — nudge rebuild once per cred set.
+  useEffect(() => {
+    credsConnectNudgedRef.current = false;
+  }, [sipCredentials?.password]);
+
+  useEffect(() => {
+    if (!isWebrtc || !sipCredentials?.password || !webrtcConfig?.wssUrl) return;
+    if (phone.status !== 'disconnected') return;
+    if (credsConnectNudgedRef.current) return;
+    credsConnectNudgedRef.current = true;
+    const timer = window.setTimeout(() => {
+      void phone.ensureConnected(true);
+    }, 400);
+    return () => window.clearTimeout(timer);
+    // phone.ensureConnected identity is stable enough; avoid `phone` object churn.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isWebrtc, sipCredentials?.password, webrtcConfig?.wssUrl, phone.status]);
+
   // Restore active shift after refresh (DB session + sessionStorage softphone)
   useEffect(() => {
     if (shiftRestoreTried.current) return;
@@ -679,8 +921,12 @@ export function CallCenterAgentPage() {
         setMicDeviceId(saved?.micDeviceId);
         setSinkId(saved?.sinkId);
 
-        if (mode === 'webrtc' && saved?.endpointId && webrtcConfig?.wssUrl) {
-          const allCreds = await fetchCredentials(saved.endpointId).unwrap();
+        const endpointId = saved?.endpointId
+          ?? (isWebrtcCompanion(ifaceId) ? buildPrimarySipId(ifaceId) : null)
+          ?? null;
+
+        if (mode === 'webrtc' && endpointId && webrtcConfig?.wssUrl) {
+          const allCreds = await fetchCredentials(endpointId).unwrap();
           const w = allCreds.webrtc;
           if (!w || cancelled) return;
           const creds: IEndpointCredentials = {
@@ -692,14 +938,25 @@ export function CallCenterAgentPage() {
             domain: w.domain,
           };
           setSipCredentials(creds);
+          if (!saved?.endpointId) {
+            saveActiveShift({
+              interface: me.interface,
+              queues: me.queues?.length ? me.queues : (saved?.queues || []),
+              mode: 'webrtc',
+              endpointId,
+              sipId: w.sipId,
+              micDeviceId: saved?.micDeviceId,
+              sinkId: saved?.sinkId,
+            });
+          }
           await phoneConnect({
             server: webrtcConfig.wssUrl,
             sipUser: creds.username,
             sipPassword: creds.password,
             sipDomain: creds.domain,
             iceServers: webrtcConfig.iceServers || [],
-            micDeviceId: saved.micDeviceId,
-            sinkId: saved.sinkId,
+            micDeviceId: saved?.micDeviceId,
+            sinkId: saved?.sinkId,
             autoAnswer: operatorSettings?.auto_answer ?? false,
             autoAnswerZipTone: operatorSettings?.auto_answer_zip_tone ?? false,
           });
@@ -784,30 +1041,50 @@ export function CallCenterAgentPage() {
   // D-33 warm-transfer stays on QueuesTab; agent-wide pause is status-bar only.
 
   const activeCallLabel =
-    phone.callInfo?.to
+    (webrtcDialing || (phone.status === 'in-call' && !!phone.callInfo?.to && !phone.callInfo?.from)
+      ? phone.callInfo?.to
+      : undefined)
+    || (isSip && (myAgent?.status === 'DIALING' || (!!myAgent?.dialTarget && !myAgent?.peerNumber))
+      ? myAgent?.dialTarget
+      : undefined)
+    || phone.callInfo?.from
+    || myAgent?.peerNumber
     || activeCall?.callerIdName
     || activeCall?.callerIdNum
-    || phone.callInfo?.from;
+    || myAgent?.dialTarget
+    || phone.callInfo?.to;
   const activeCallQueueLabel = activeCall?.queue ? queueDisplayName(activeCall.queue, queues) : undefined;
+
+  // Outbound only when we are actually dialing out — not personal inbound
+  // (peerNumber / callInfo.from) even if AMI briefly reported DIALING.
+  const isWebRtcOutbound =
+    !phone.callInfo?.from
+    && !myAgent?.peerNumber
+    && (
+      webrtcDialing
+      || (phone.status === 'in-call' && !!phone.callInfo?.to && !phone.callInfo?.from)
+      || (myAgent?.status === 'DIALING' && !webrtcRinging && !!myAgent?.dialTarget)
+    );
+  const isSipOutbound =
+    isSip
+    && !myAgent?.peerNumber
+    && (!!myAgent?.dialTarget || myAgent?.status === 'DIALING');
+  const isOutboundCall = isWebRtcOutbound || isSipOutbound;
 
   const statusBarActiveCall = showCallPanel ? {
     queue: activeCall?.queue,
     callerIdNum:
-      phone.callInfo?.to
-      || myAgent?.dialTarget
-      || activeCall?.callerIdNum
-      || phone.callInfo?.from,
+      isOutboundCall
+        ? (phone.callInfo?.to || myAgent?.dialTarget || activeCall?.callerIdNum || phone.callInfo?.from)
+        : (phone.callInfo?.from || myAgent?.peerNumber || activeCall?.callerIdNum || myAgent?.dialTarget || phone.callInfo?.to),
     callerIdName: activeCall?.callerIdName,
     direction: (
-      webrtcDialing
-      || myAgent?.status === 'DIALING'
-      || !!phone.callInfo?.to
-      || !!myAgent?.dialTarget
-    )
-      ? 'outbound' as const
-      : activeCall?.queue
-        ? 'queue' as const
-        : 'personal' as const,
+      isOutboundCall
+        ? 'outbound' as const
+        : activeCall?.queue
+          ? 'queue' as const
+          : 'personal' as const
+    ),
   } : null;
 
   const panelBody: Record<PanelKey, React.ReactNode> = {
@@ -877,6 +1154,7 @@ export function CallCenterAgentPage() {
                   callerName={activeCallLabel}
                   queueLabel={activeCallQueueLabel}
                   callSeconds={callTimer}
+                  onRecover={() => void recoverSoftphone(true)}
                   onTransferClick={() => {
                     setTransferError(null);
                     setTransferModalOpen(true);
@@ -887,6 +1165,7 @@ export function CallCenterAgentPage() {
                   onOutboundDialConsumed={() => dispatch(clearOutboundDial())}
                   onMicDeviceChange={setMicDeviceId}
                   onSpeakerDeviceChange={setSinkId}
+                  onOutboundDialStarted={handleSipOutboundDial}
                   extraControls={showCallControls ? (
                     <CallControlBar
                       variant="extended"
@@ -894,6 +1173,7 @@ export function CallCenterAgentPage() {
                       isZombie={activeCall?.zombieCandidate ?? false}
                       isMuted={isWebrtc ? phone.isMuted : isSip ? sipPhone.isMuted : isMuted}
                       isHeld={isWebrtc ? phone.isHeld : isSip ? sipPhone.isHeld : activeCall?.status === 'HOLD'}
+                      holdDisabled={isSip}
                       onMuteToggle={handleMuteToggle}
                       onHoldToggle={handleHoldToggle}
                       onHangup={handleHangup}
@@ -957,13 +1237,14 @@ export function CallCenterAgentPage() {
               callControls={showCallControls ? {
                 isMuted: isWebrtc ? phone.isMuted : isSip ? sipPhone.isMuted : isMuted,
                 isHeld: isWebrtc ? phone.isHeld : isSip ? sipPhone.isHeld : activeCall?.status === 'HOLD',
+                holdDisabled: isSip,
                 onMuteToggle: handleMuteToggle,
                 onHoldToggle: handleHoldToggle,
                 onHangup: handleHangup,
-                onTransferClick: () => {
+                onTransferClick: callAnswered ? () => {
                   setTransferError(null);
                   setTransferModalOpen(true);
-                },
+                } : undefined,
               } : undefined}
               shiftActions={{
                 isLoggedIn,
@@ -997,10 +1278,9 @@ export function CallCenterAgentPage() {
             <div className={styles.callChrome}>
               <ClientCard
                 callerIdNum={
-                  phone.callInfo?.to
-                  || activeCall?.callerIdNum
-                  || phone.callInfo?.from
-                  || myAgent?.dialTarget
+                  isOutboundCall
+                    ? (phone.callInfo?.to || myAgent?.dialTarget || activeCall?.callerIdNum || phone.callInfo?.from)
+                    : (phone.callInfo?.from || myAgent?.peerNumber || activeCall?.callerIdNum || myAgent?.dialTarget || phone.callInfo?.to)
                 }
                 callerIdName={activeCall?.callerIdName}
               />
@@ -1105,7 +1385,7 @@ export function CallCenterAgentPage() {
       <IncomingCallToast
         open={webrtcRinging}
         call={webrtcRinging ? {
-          callerNumber: phone.callInfo?.from || activeCall?.callerIdNum,
+          callerNumber: phone.callInfo?.from || myAgent?.peerNumber || activeCall?.callerIdNum,
           callerName: activeCall?.callerIdName,
           kind: activeCall?.queue ? 'queue' : 'personal',
           queueLabel: activeCallQueueLabel,

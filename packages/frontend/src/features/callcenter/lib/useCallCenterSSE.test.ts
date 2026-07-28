@@ -40,7 +40,11 @@ class MockEventSource {
 
 type AuthUser = { uniqueid: number; login: string; name: string; level: number; role: number; exten: string; vpbx_user_uid: number };
 
-const makeStore = (opts?: { user?: AuthUser | null; myAgentInterface?: string | null }) =>
+const makeStore = (opts?: {
+  user?: AuthUser | null;
+  myAgentInterface?: string | null;
+  agents?: unknown[];
+}) =>
   configureStore({
     reducer: {
       callCenter: callCenterReducer,
@@ -53,14 +57,14 @@ const makeStore = (opts?: { user?: AuthUser | null; myAgentInterface?: string | 
         error: null,
       }) => state,
     } as any,
-    preloadedState: opts?.myAgentInterface !== undefined
+    preloadedState: opts?.myAgentInterface !== undefined || opts?.agents
       ? {
           callCenter: {
-            agents: [],
+            agents: opts?.agents ?? [],
             queues: [],
             calls: [],
             connected: false,
-            myAgentInterface: opts.myAgentInterface,
+            myAgentInterface: opts?.myAgentInterface ?? null,
             chatUnreadByChannel: {},
             chatOpen: false,
           },
@@ -139,7 +143,7 @@ describe('useCallCenterSSE', () => {
     expect(store.getState().callCenter.connected).toBe(true);
   });
 
-  it('translates callAnswer into updateCall(TALKING)', () => {
+  it('translates callAnswer into updateCall(TALKING) and keeps callerId', () => {
     renderHook(() => useCallCenterSSE(true), { wrapper: wrapper(store) });
     // Seed a call so we can patch it
     act(() => {
@@ -150,13 +154,16 @@ describe('useCallCenterSSE', () => {
       });
     });
     act(() => {
-      MockEventSource.instances[0].emit('callAnswer', { uniqueid: 'u1', agent: 'PJSIP/101' });
+      MockEventSource.instances[0].emit('callAnswer', {
+        uniqueid: 'u1', agent: 'PJSIP/101', callerIdNum: '111', queue: 'sales',
+      });
     });
     const c = store.getState().callCenter.calls.find(
       (call: { uniqueid: string }) => call.uniqueid === 'u1',
     );
     expect(c?.status).toBe('TALKING');
     expect(c?.agent).toBe('PJSIP/101');
+    expect(c?.callerIdNum).toBe('111');
   });
 
   it('removes call on callEnd / callAbandon', () => {
@@ -260,6 +267,54 @@ describe('useCallCenterSSE', () => {
     expect(dispatchSpy).toHaveBeenCalledWith(
       expect.objectContaining({ type: expect.stringContaining('invalidateTags') }),
     );
+  });
+
+  it('patches shift callsTaken/Made/Missed and kpiDay from agentKpiUpdate (status bar + Coworkers)', () => {
+    store = makeStore({
+      myAgentInterface: 'PJSIP/101',
+      agents: [{
+        interface: 'PJSIP/101', name: 'Me', status: 'READY',
+        queues: [], callsTaken: 0, callsMade: 0, callsMissed: 0, userUid: 1, userId: 42,
+      }],
+    });
+    renderHook(() => useCallCenterSSE(true), { wrapper: wrapper(store) });
+    act(() => {
+      MockEventSource.instances[0].emit('agentKpiUpdate', {
+        agent: 'PJSIP/101',
+        kpi: {
+          sinceLogin: { answered: 4, made: 2, missed: 1 },
+          sinceMidnight: { answered: 10, made: 5, missed: 3 },
+        },
+      });
+    });
+    const me = store.getState().callCenter.agents.find((a: { interface: string }) => a.interface === 'PJSIP/101');
+    expect(me?.callsTaken).toBe(4);
+    expect(me?.callsMade).toBe(2);
+    expect(me?.callsMissed).toBe(1);
+    expect(me?.kpiDay).toEqual({ answered: 10, made: 5, missed: 3 });
+  });
+
+  it('does not let a lagging agentKpiUpdate wipe a higher live callsMade', () => {
+    store = makeStore({
+      myAgentInterface: 'PJSIP/101',
+      agents: [{
+        interface: 'PJSIP/101', name: 'Me', status: 'READY',
+        queues: [], callsTaken: 1, callsMade: 3, callsMissed: 0, userUid: 1, userId: 42,
+      }],
+    });
+    renderHook(() => useCallCenterSSE(true), { wrapper: wrapper(store) });
+    act(() => {
+      MockEventSource.instances[0].emit('agentKpiUpdate', {
+        agent: 'PJSIP/101',
+        kpi: {
+          sinceLogin: { answered: 1, made: 0, missed: 0 },
+          sinceMidnight: { answered: 1, made: 0, missed: 0 },
+        },
+      });
+    });
+    const me = store.getState().callCenter.agents.find((a: { interface: string }) => a.interface === 'PJSIP/101');
+    expect(me?.callsMade).toBe(3);
+    expect(me?.callsTaken).toBe(1);
   });
 
   it('ignores agentKpiUpdate deltas for a different agent (never refetches a coworker KPI change)', () => {

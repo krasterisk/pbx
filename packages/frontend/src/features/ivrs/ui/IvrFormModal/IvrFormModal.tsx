@@ -34,8 +34,9 @@ export function IvrFormModal({ isOpen, onClose, ivr, mode = ivr ? 'edit' : 'crea
 
   const [activeTab, setActiveTab] = useState('main');
   const [name, setName] = useState('');
-  const [exten, setExten] = useState('');
-  const [timeoutMs, setTimeoutMs] = useState('10');
+  const [waitExten, setWaitExten] = useState('10');
+  const [timeoutResponse, setTimeoutResponse] = useState('10');
+  const [timeoutDigit, setTimeoutDigit] = useState('5');
   const [maxCount, setMaxCount] = useState<number>(0);
   const [active, setActive] = useState(true);
   const [directDial, setDirectDial] = useState(true);
@@ -61,8 +62,17 @@ export function IvrFormModal({ isOpen, onClose, ivr, mode = ivr ? 'edit' : 'crea
   useEffect(() => {
     if ((mode === 'edit' || mode === 'copy') && ivr) {
       setName(mode === 'copy' ? '' : (ivr.name || ''));
-      setExten(mode === 'copy' ? '' : (ivr.exten || ''));
-      setTimeoutMs(ivr.timeout ? String(ivr.timeout) : '10');
+      setWaitExten(ivr.timeout ? String(ivr.timeout) : '10');
+      setTimeoutResponse(
+        ivr.timeout_response != null && ivr.timeout_response !== ''
+          ? String(ivr.timeout_response)
+          : (ivr.timeout ? String(ivr.timeout) : '10'),
+      );
+      setTimeoutDigit(
+        ivr.timeout_digit != null && ivr.timeout_digit !== ''
+          ? String(ivr.timeout_digit)
+          : '5',
+      );
       setMaxCount(ivr.max_count || 0);
       setActive(ivr.active === 1);
       setDirectDial(ivr.direct_dial === 1);
@@ -70,8 +80,9 @@ export function IvrFormModal({ isOpen, onClose, ivr, mode = ivr ? 'edit' : 'crea
       setPrompts(normalizeIvrPrompts(ivr.prompts || []));
     } else {
       setName('');
-      setExten('');
-      setTimeoutMs('10');
+      setWaitExten('10');
+      setTimeoutResponse('10');
+      setTimeoutDigit('5');
       setMaxCount(0);
       setActive(true);
       setDirectDial(true);
@@ -98,8 +109,9 @@ export function IvrFormModal({ isOpen, onClose, ivr, mode = ivr ? 'edit' : 'crea
 
     const payload = {
       name,
-      exten,
-      timeout: timeoutMs,
+      timeout: waitExten,
+      timeout_response: timeoutResponse,
+      timeout_digit: timeoutDigit,
       max_count: Number(maxCount),
       active: active ? 1 : 0,
       direct_dial: directDial ? 1 : 0,
@@ -163,10 +175,12 @@ export function IvrFormModal({ isOpen, onClose, ivr, mode = ivr ? 'edit' : 'crea
             <IvrMainTab
               name={name}
               onNameChange={setName}
-              exten={exten}
-              onExtenChange={setExten}
-              timeoutMs={timeoutMs}
-              onTimeoutMsChange={setTimeoutMs}
+              waitExten={waitExten}
+              onWaitExtenChange={setWaitExten}
+              timeoutResponse={timeoutResponse}
+              onTimeoutResponseChange={setTimeoutResponse}
+              timeoutDigit={timeoutDigit}
+              onTimeoutDigitChange={setTimeoutDigit}
               maxCount={maxCount}
               onMaxCountChange={setMaxCount}
               active={active}

@@ -31,6 +31,25 @@ export const SAFE_DEFAULT_PERMISSIONS: PermissionSet = {
   customize_ui: false,
 };
 
+/**
+ * D-40 / dual-mode softphone: SIP dialpad needs click_to_call (AMI Originate).
+ * Seed OPERATOR + SUPERVISOR role defaults with click_to_call:true only when the
+ * key is absent — never overwrite an explicit false set by an admin.
+ */
+export function withClickToCallRoleSeed(
+  defaults: Partial<Record<UserLevel, Partial<PermissionSet>>> | null | undefined,
+): Partial<Record<UserLevel, Partial<PermissionSet>>> {
+  const out: Partial<Record<UserLevel, Partial<PermissionSet>>> = { ...(defaults ?? {}) };
+  for (const level of [UserLevel.OPERATOR, UserLevel.SUPERVISOR]) {
+    const entry: Partial<PermissionSet> = { ...(out[level] ?? {}) };
+    if (!Object.prototype.hasOwnProperty.call(entry, 'click_to_call')) {
+      entry.click_to_call = true;
+      out[level] = entry;
+    }
+  }
+  return out;
+}
+
 @Injectable()
 export class CallCenterPermissionsService {
   constructor(
@@ -54,8 +73,9 @@ export class CallCenterPermissionsService {
     const level = (operatorUser?.getDataValue('level') as UserLevel | undefined) ?? undefined;
 
     const tenantSettings = await this.ccSettingsModel.findOne({ where: { user_uid: userUid } });
+    const roleDefaultsMap = withClickToCallRoleSeed(tenantSettings?.role_permission_defaults);
     const roleDefault: Partial<PermissionSet> =
-      (level != null && tenantSettings?.role_permission_defaults?.[level]) || {};
+      (level != null && roleDefaultsMap[level]) || {};
     const locks: Partial<Record<keyof PermissionSet, boolean>> =
       (level != null && tenantSettings?.permission_locks?.[level]) || {};
 

@@ -9,7 +9,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { CcOperatorSettings } from './models/operator-settings.model';
 import { CcSettings } from './models/cc-settings.model';
-import { CallCenterPermissionsService } from './callcenter-permissions.service';
+import { CallCenterPermissionsService, withClickToCallRoleSeed } from './callcenter-permissions.service';
 import { User, UserLevel } from '../users/user.model';
 import type {
   AutoPauseRule,
@@ -78,6 +78,12 @@ export const DEFAULT_OPERATOR_SETTINGS = {
   sound_missed: true,
   notifications_enabled: true,
   volume: 100,
+  /** D-40: SIP softphone outbound needs this; WebRTC ignores the assert. */
+  click_to_call: true,
+  can_spy: false,
+  spyable: true,
+  customize_ui: false,
+  spy_modes: ['listen'] as SpyMode[],
 };
 
 export const DEFAULT_TENANT_SETTINGS = {
@@ -605,8 +611,18 @@ export class CallCenterSettingsService {
     permission_locks: Partial<Record<UserLevel, PermissionLocks>>;
   }> {
     const tenant = await this.ccSettingsModel.findOne({ where: { user_uid: userUid } });
+    const stored = tenant?.role_permission_defaults ?? {};
+    const seeded = withClickToCallRoleSeed(stored);
+    // Persist seed once so getEffective / admin UI share the same DB row.
+    const needsPersist = JSON.stringify(stored) !== JSON.stringify(seeded);
+    if (needsPersist) {
+      await this.upsertTenantSettings(userUid, tenant, {
+        role_permission_defaults: seeded,
+        updated_at: new Date(),
+      });
+    }
     return {
-      role_permission_defaults: tenant?.role_permission_defaults ?? {},
+      role_permission_defaults: seeded,
       permission_locks: tenant?.permission_locks ?? {},
     };
   }

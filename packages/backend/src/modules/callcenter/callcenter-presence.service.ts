@@ -37,42 +37,38 @@ export class CallCenterPresenceService {
   constructor(private readonly stateService: CallCenterStateService) {}
 
   /**
-   * DeviceState → presence (D-36/D-37). [ASSUMED] `evt.device` / `evt.state`
-   * field names follow asterisk-manager's DeviceStateChange event shape;
-   * tenant is parsed from the device identifier's `_<uid>` suffix (same
-   * convention as endpoint SIP ids / queue names — CallCenterAmiService.
-   * parseQueueTenant). Verify against a live Asterisk instance
-   * (09-VALIDATION) — field casing/values are unconfirmed.
+   * DeviceState → presence (D-36/D-37).
+   * Accepts both lowercased (asterisk-manager) and AMI PascalCase Device/State.
+   * Tenant is parsed from the device identifier's `_<uid>` suffix.
    */
   handleDeviceStateChange(evt: any): void {
-    const device = evt?.device || '';
+    const device = String(evt?.device || evt?.Device || '').trim();
     if (!device) return;
 
     const userUid = CallCenterAmiService.parseQueueTenant(device);
     if (userUid == null) return;
 
     const extension = interfaceToExtension(device);
-    this.scheduleUpdate(userUid, { device, extension, state: evt.state || '' });
+    const state = String(evt?.state || evt?.State || '').trim();
+    this.scheduleUpdate(userUid, { device, extension, state });
   }
 
   /**
-   * ExtensionState (hint-based BLF) → presence (D-36/D-37). [ASSUMED]
-   * `evt.exten` / `evt.context` / `evt.status` field names — asterisk-manager's
-   * ExtensionStatus event shape is unconfirmed against a live instance
-   * (09-VALIDATION). Tenant is parsed from the dialplan context's `_<uid>`
-   * suffix, same convention as queue/device tenant resolution.
+   * ExtensionState (hint-based BLF) → presence (D-36/D-37).
+   * Accepts Exten/Context/StatusText/Status casing variants.
    */
   handleExtensionStatus(evt: any): void {
-    const exten = evt?.exten || '';
+    const exten = String(evt?.exten || evt?.Exten || '').trim();
     if (!exten) return;
 
-    const userUid = CallCenterAmiService.parseQueueTenant(evt.context || exten);
+    const context = String(evt?.context || evt?.Context || '').trim();
+    const userUid = CallCenterAmiService.parseQueueTenant(context || exten);
     if (userUid == null) return;
 
     this.scheduleUpdate(userUid, {
       device: exten,
       extension: exten,
-      state: evt.statustext || evt.status || '',
+      state: String(evt?.statustext || evt?.StatusText || evt?.status || evt?.Status || '').trim(),
     });
   }
 
@@ -95,9 +91,14 @@ export class CallCenterPresenceService {
     return `${userUid}:${extension}`;
   }
 
-  /** Debounce/coalesce rapid bursts for the same extension before emitting (D-45/Pitfall 8). */
+  /**
+   * Cache updates immediately so getPresence / registration-state polls are fresh;
+   * only the SSE `presenceUpdate` emit is debounced (D-45/Pitfall 8).
+   */
   private scheduleUpdate(userUid: number, entry: PresenceEntry): void {
     const key = this.presenceKey(userUid, entry.extension);
+    this.presence.set(key, entry);
+
     const existingTimer = this.pending.get(key);
     if (existingTimer) clearTimeout(existingTimer);
 
@@ -105,11 +106,12 @@ export class CallCenterPresenceService {
       key,
       setTimeout(() => {
         this.pending.delete(key);
-        this.presence.set(key, entry);
+        // Re-read latest cache entry in case a newer state arrived during the window.
+        const latest = this.presence.get(key) ?? entry;
         this.stateService.emitEvent('presenceUpdate', userUid, {
-          device: entry.device,
-          extension: entry.extension,
-          state: entry.state,
+          device: latest.device,
+          extension: latest.extension,
+          state: latest.state,
         });
       }, PRESENCE_DEBOUNCE_MS),
     );

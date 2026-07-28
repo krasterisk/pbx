@@ -262,6 +262,56 @@ export class CallCenterMetricsService implements OnModuleInit {
   }
 
   /**
+   * Rebuild sinceLogin from cc_queue_calls for an open shift (F5 / Nest restart).
+   * Journal already persists those rows — shift KPI must match after memory loss.
+   * sinceMidnight is left untouched (still owned by restoreToday).
+   */
+  async rebuildSinceLoginFromHistory(opts: {
+    userUid: number;
+    agentInterface: string;
+    operatorUserId: number;
+    loginTime: Date;
+  }): Promise<KpiCounters> {
+    const sinceLogin = this.emptyKpiCounters();
+    if (!opts.agentInterface || !opts.operatorUserId || !opts.loginTime) {
+      return sinceLogin;
+    }
+
+    try {
+      const rows = await this.queueCallModel.findAll({
+        where: {
+          user_uid: opts.userUid,
+          agent_user_uid: opts.operatorUserId,
+          created_at: { [Op.gte]: opts.loginTime },
+        },
+      });
+
+      for (const row of rows) {
+        const direction = (row.direction || 'inbound') as string;
+        const disposition = String(row.disposition || '');
+        if (this.isAnsweredDisposition(disposition)) {
+          if (direction === 'outbound' || direction === 'internal') {
+            sinceLogin.made++;
+          } else {
+            sinceLogin.answered++;
+          }
+        } else if (disposition === 'abandoned' || disposition === 'timeout') {
+          // Queue RNA/abandon (inbound) + personal/outbound miss — all feed the
+          // operator "пропустил" shift KPI. Missed-calls worklist stays separate (D-10).
+          sinceLogin.missed++;
+        }
+      }
+
+      const acc = this.getOrCreateKpiAcc(this.agentKey(opts.userUid, opts.agentInterface));
+      acc.sinceLogin = { ...sinceLogin };
+      return { ...sinceLogin };
+    } catch (err: any) {
+      this.logger.warn(`rebuildSinceLoginFromHistory failed: ${err.message}`);
+      return sinceLogin;
+    }
+  }
+
+  /**
    * Track READY idle time for Occupancy.
    * Only time in READY counts toward idleSeconds (pause excluded).
    */
@@ -338,15 +388,18 @@ export class CallCenterMetricsService implements OnModuleInit {
             const agentAcc = this.getOrCreateAgentAcc(userUid, row.agent_interface);
             agentAcc.talkSeconds += row.talk_time;
             agentAcc.wrapupSeconds += row.wrapup_time;
-            if (direction === 'outbound') {
+            if (direction === 'outbound' || direction === 'internal') {
               this.restoreKpi(userUid, row.agent_interface, 'made');
             } else {
               this.restoreKpi(userUid, row.agent_interface, 'answered', queueName);
             }
-          } else if (row.disposition === 'abandoned' && direction !== 'inbound') {
-            // Personal/outbound miss only — in-queue Ring-No-Answer (direction 'inbound')
-            // must never be restored as a personal missed call (D-10/D-20).
-            this.restoreKpi(userUid, row.agent_interface, 'missed');
+          } else if (
+            (row.disposition === 'abandoned' || row.disposition === 'timeout')
+            && row.agent_interface
+          ) {
+            // Operator shift/day "пропустил" KPI (incl. queue RNA). Personal missed
+            // worklist still comes only from cc_missed_calls (D-10/D-20).
+            this.restoreKpi(userUid, row.agent_interface, 'missed', queueName);
           }
         }
         // idleSeconds NOT restored — accumulates from module start only (Occupancy partial after restart).

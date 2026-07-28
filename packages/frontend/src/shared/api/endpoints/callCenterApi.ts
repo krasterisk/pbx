@@ -1,6 +1,9 @@
 import { rtkApi } from '../rtkApi';
 import type { IPauseReason, ICcSnapshot, IAgentDetail } from '@/features/callcenter/model/types/callCenterSchema';
 import type { ICardTemplate, ICardData } from '@/features/callcenter/model/types/callCard';
+import { updateAgent } from '@/features/callcenter/model/slice/callCenterSlice';
+import { toast } from 'react-toastify';
+import i18n from '@/shared/config/i18n';
 
 export interface IClientLookupContact {
   phonebook_uid: number;
@@ -45,6 +48,8 @@ export interface IMissedCall {
   called_back: boolean;
   called_back_by: number | null;
   called_back_at: string | null;
+  /** Display name of the operator who handled the callback (from GET /missed-calls). */
+  called_back_by_name?: string | null;
   /** True when the caller rang back themselves before any operator callback (D-17) — distinct success tag. */
   client_called_back: boolean;
   note: string;
@@ -206,6 +211,22 @@ export interface IEffectivePermissions {
   customize_ui: boolean;
 }
 
+/** D-40: one row of GET /callcenter/settings/permissions/matrix. */
+export interface IPermissionsMatrixRow {
+  operator_user_id: number;
+  name: string;
+  level: number;
+  permissions: IEffectivePermissions;
+}
+
+/** D-39: tenant role defaults + locks for granular rights. */
+export interface ITenantPermissionsDefaults {
+  role_permission_defaults: Record<string, Partial<IEffectivePermissions>>;
+  permission_locks: Record<string, Partial<Record<keyof IEffectivePermissions, boolean>>>;
+}
+
+export type IPermissionsPatch = Partial<IEffectivePermissions>;
+
 /** Number-grouped missed-call worklist row (D-16/D-17/D-19) — MissedCallsPanel (09-10). */
 export interface IMissedCallGroup {
   callerIdNum: string;
@@ -232,6 +253,7 @@ export interface IMissedCallAttempt {
   called_back: boolean;
   called_back_by: number | null;
   called_back_at: string | null;
+  called_back_by_name?: string | null;
   client_called_back: boolean;
   created_at: string;
 }
@@ -396,6 +418,72 @@ const callCenterApi = rtkApi.injectEndpoints({
       providesTags: ['CcPermissions'],
     }),
 
+    /** D-40: bulk operators × effective rights (supervisor). */
+    getPermissionsMatrix: build.query<IPermissionsMatrixRow[], void>({
+      query: () => '/callcenter/settings/permissions/matrix',
+      providesTags: ['CcPermissions'],
+    }),
+
+    /** D-38: update own permission overrides (locked keys ignored server-side). */
+    updateMyPermissions: build.mutation<IEffectivePermissions, IPermissionsPatch>({
+      query: (body) => ({ url: '/callcenter/settings/operator/permissions', method: 'PUT', body }),
+      invalidatesTags: ['CcPermissions'],
+    }),
+
+    /** D-40: supervisor update of another operator's permission overrides. */
+    updateOperatorPermissions: build.mutation<
+      IEffectivePermissions,
+      { operatorId: number; body: IPermissionsPatch }
+    >({
+      query: ({ operatorId, body }) => ({
+        url: `/callcenter/settings/operator/${operatorId}/permissions`,
+        method: 'PUT',
+        body,
+      }),
+      async onQueryStarted({ operatorId, body }, { dispatch, queryFulfilled }) {
+        const patchResult = dispatch(
+          callCenterApi.util.updateQueryData('getPermissionsMatrix', undefined, (draft) => {
+            const row = draft.find((r) => r.operator_user_id === operatorId);
+            if (!row) return;
+            if (body.can_spy !== undefined) row.permissions.can_spy = body.can_spy;
+            if (body.spyable !== undefined) row.permissions.spyable = body.spyable;
+            if (body.click_to_call !== undefined) row.permissions.click_to_call = body.click_to_call;
+            if (body.customize_ui !== undefined) row.permissions.customize_ui = body.customize_ui;
+            if (body.spy_modes !== undefined) row.permissions.spy_modes = body.spy_modes;
+          }),
+        );
+        try {
+          const { data } = await queryFulfilled;
+          dispatch(
+            callCenterApi.util.updateQueryData('getPermissionsMatrix', undefined, (draft) => {
+              const row = draft.find((r) => r.operator_user_id === operatorId);
+              if (row) row.permissions = data;
+            }),
+          );
+        } catch {
+          patchResult.undo();
+        }
+      },
+      invalidatesTags: ['CcPermissions'],
+    }),
+
+    getTenantPermissionsDefaults: build.query<ITenantPermissionsDefaults, void>({
+      query: () => '/callcenter/settings/tenant/permissions-defaults',
+      providesTags: ['CcPermissions'],
+    }),
+
+    updateTenantPermissionsDefaults: build.mutation<
+      ITenantPermissionsDefaults,
+      Partial<ITenantPermissionsDefaults>
+    >({
+      query: (body) => ({
+        url: '/callcenter/settings/tenant/permissions-defaults',
+        method: 'PUT',
+        body,
+      }),
+      invalidatesTags: ['CcPermissions'],
+    }),
+
     /** D-05: own tab/panel visibility + softphone placement — safe default is all-visible/bottom-right. */
     getMyUiCustomization: build.query<IUiCustomization, void>({
       query: () => '/callcenter/settings/operator/ui',
@@ -494,11 +582,104 @@ const callCenterApi = rtkApi.injectEndpoints({
     agentUnpause: build.mutation<{ success: boolean }, { queue?: string } | void>({
       query: (body) => ({ url: '/callcenter/agent/unpause', method: 'POST', body: body || {} }),
     }),
+    /**
+     * Pause queues for outbound dialing (status-bar Switch).
+     * Optimistic: Switch reads Redux agent status — patch SSE store + getAgentMe immediately.
+     */
     agentStartOutboundWork: build.mutation<{ success: boolean }, void>({
       query: () => ({ url: '/callcenter/agent/outbound-work', method: 'POST' }),
+      async onQueryStarted(_arg, { dispatch, getState, queryFulfilled }) {
+        const cc = (getState() as { callCenter?: {
+          myAgentInterface: string | null;
+          agents: Array<{ interface: string; status?: string; pauseReason?: string }>;
+        } }).callCenter;
+        const iface = cc?.myAgentInterface;
+        const agent = iface ? cc?.agents?.find((a) => a.interface === iface) : undefined;
+        const prevStatus = agent?.status;
+        const prevPause = agent?.pauseReason;
+
+        const mePatch = dispatch(
+          callCenterApi.util.updateQueryData('getAgentMe', undefined, (draft) => {
+            if (draft && 'active' in draft && draft.active) {
+              draft.status = 'OUTBOUND_WORK';
+              draft.pauseReason = 'outbound_work';
+            }
+          }),
+        );
+
+        if (iface) {
+          dispatch(updateAgent({
+            interface: iface,
+            status: 'OUTBOUND_WORK',
+            pauseReason: 'outbound_work',
+          }));
+        }
+
+        try {
+          await queryFulfilled;
+        } catch {
+          mePatch.undo();
+          if (iface) {
+            dispatch(updateAgent({
+              interface: iface,
+              status: (prevStatus as 'READY' | 'PAUSED' | 'OUTBOUND_WORK' | undefined) || 'READY',
+              pauseReason: prevPause ?? '',
+            }));
+          }
+          toast.error(i18n.t(
+            'callcenter.agent.outboundWorkStartFailed',
+            'Could not start outbound work',
+          ));
+        }
+      },
     }),
+    /** Leave outbound-work mode → READY. Optimistic undo on failure. */
     agentLeaveOutboundWork: build.mutation<{ success: boolean }, void>({
       query: () => ({ url: '/callcenter/agent/outbound-work/leave', method: 'POST' }),
+      async onQueryStarted(_arg, { dispatch, getState, queryFulfilled }) {
+        const cc = (getState() as { callCenter?: {
+          myAgentInterface: string | null;
+          agents: Array<{ interface: string; status?: string; pauseReason?: string }>;
+        } }).callCenter;
+        const iface = cc?.myAgentInterface;
+        const agent = iface ? cc?.agents?.find((a) => a.interface === iface) : undefined;
+        const prevStatus = agent?.status;
+        const prevPause = agent?.pauseReason;
+
+        const mePatch = dispatch(
+          callCenterApi.util.updateQueryData('getAgentMe', undefined, (draft) => {
+            if (draft && 'active' in draft && draft.active) {
+              draft.status = 'READY';
+              draft.pauseReason = undefined;
+            }
+          }),
+        );
+
+        if (iface) {
+          dispatch(updateAgent({
+            interface: iface,
+            status: 'READY',
+            pauseReason: '',
+          }));
+        }
+
+        try {
+          await queryFulfilled;
+        } catch {
+          mePatch.undo();
+          if (iface) {
+            dispatch(updateAgent({
+              interface: iface,
+              status: (prevStatus as 'OUTBOUND_WORK' | undefined) || 'OUTBOUND_WORK',
+              pauseReason: prevPause ?? 'outbound_work',
+            }));
+          }
+          toast.error(i18n.t(
+            'callcenter.agent.outboundWorkLeaveFailed',
+            'Could not leave outbound work',
+          ));
+        }
+      },
     }),
     agentHangup: build.mutation<{ success: boolean }, { channel?: string } | void>({
       query: (body) => ({ url: '/callcenter/agent/hangup', method: 'POST', body: body || {} }),
@@ -835,6 +1016,11 @@ export const {
   useGetAgentKpiQuery,
   useGetAgentQueuesStatsQuery,
   useGetEffectivePermissionsQuery,
+  useGetPermissionsMatrixQuery,
+  useUpdateMyPermissionsMutation,
+  useUpdateOperatorPermissionsMutation,
+  useGetTenantPermissionsDefaultsQuery,
+  useUpdateTenantPermissionsDefaultsMutation,
   useGetMyUiCustomizationQuery,
   useUpdateMyUiCustomizationMutation,
   useGetMyNotificationsQuery,

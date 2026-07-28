@@ -103,6 +103,8 @@ export class CallCenterHistoryWriterService {
       disposition: row.disposition,
       agentUserUid: row.agent_user_uid,
       createdAt: row.created_at,
+      queueName: row.queue_name ?? null,
+      callUniqueid: row.call_uniqueid ?? '',
     });
   }
 }

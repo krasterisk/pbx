@@ -24,7 +24,9 @@ export interface SortableIvrPhraseItemProps {
   onUpdate: (index: number, phrase: IIvrPhrase) => void;
   onRemove: (index: number) => void;
   onPreviewTts: (text: string, engineUid: number, settings?: IIvrPhraseTtsSettings) => void;
+  onPreviewAudio: (filename: string) => void;
   isPreviewLoading: boolean;
+  isAudioPlaying?: boolean;
   engineOptions: IvrPromptsValidationEngine[];
   hasError?: boolean;
 }
@@ -49,7 +51,9 @@ export function SortableIvrPhraseItem({
   onUpdate,
   onRemove,
   onPreviewTts,
+  onPreviewAudio,
   isPreviewLoading,
+  isAudioPlaying = false,
   engineOptions,
   hasError = false,
 }: SortableIvrPhraseItemProps) {
@@ -94,7 +98,10 @@ export function SortableIvrPhraseItem({
   );
 
   const handlePreview = () => {
-    if (phrase.kind !== 'tts') return;
+    if (phrase.kind === 'audio') {
+      onPreviewAudio(phrase.filename);
+      return;
+    }
     onPreviewTts(phrase.text.trim(), phrase.engine_uid, phrase.settings);
   };
 
@@ -102,12 +109,14 @@ export function SortableIvrPhraseItem({
     ? getIvrPromptsValidationIssues([phrase], { engines: engineOptions })
     : [];
 
-  const previewDisabled =
-    isPreviewLoading
-    || phrase.kind !== 'tts'
-    || !phrase.text.trim()
-    || !phrase.engine_uid
-    || rowIssues.length > 0;
+  const previewDisabled = phrase.kind === 'tts'
+    ? (
+      isPreviewLoading
+      || !phrase.text.trim()
+      || !phrase.engine_uid
+      || rowIssues.length > 0
+    )
+    : !phrase.filename;
 
   const showError = hasError || rowIssues.length > 0;
 
@@ -198,18 +207,20 @@ export function SortableIvrPhraseItem({
           </div>
         )}
 
-        {phrase.kind === 'tts' && (
-          <HStack gap="4" className={cls.rowActions}>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={previewDisabled}
-              onClick={handlePreview}
-            >
-              {t('ivrs.prompts.preview', 'Прослушать')}
-            </Button>
-            {isEditing ? (
+        <HStack gap="4" className={cls.rowActions}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={previewDisabled}
+            onClick={handlePreview}
+          >
+            {phrase.kind === 'audio' && isAudioPlaying
+              ? t('ivrs.prompts.stop', 'Стоп')
+              : t('ivrs.prompts.preview', 'Прослушать')}
+          </Button>
+          {phrase.kind === 'tts' && (
+            isEditing ? (
               <Button
                 type="button"
                 variant="secondary"
@@ -232,9 +243,9 @@ export function SortableIvrPhraseItem({
                 <Pencil size={14} />
                 {t('common.edit', 'Редактировать')}
               </Button>
-            )}
-          </HStack>
-        )}
+            )
+          )}
+        </HStack>
 
         <Button
           type="button"

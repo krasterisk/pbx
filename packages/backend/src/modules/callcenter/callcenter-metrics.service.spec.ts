@@ -319,7 +319,39 @@ describe('CallCenterMetricsService', () => {
       expect(queueKpi.sinceMidnight.answered).toBe(2);
     });
 
-    it('does not count in-queue abandoned rows as a personal missed (D-10/D-20)', async () => {
+    it('counts internal answered as made (softphone internal dial), not answered', async () => {
+      queueModel.findOne.mockResolvedValue({ servicelevel: 20 });
+      queueCallModel.findAll.mockResolvedValue([
+        {
+          user_uid: 1,
+          queue_name: 'direct:PJSIP/ew112_0',
+          disposition: 'answered',
+          wait_time: 0,
+          talk_time: 12,
+          wrapup_time: 0,
+          agent_interface: 'PJSIP/ew112_0',
+          direction: 'internal',
+        },
+        {
+          user_uid: 1,
+          queue_name: 'direct:PJSIP/ew112_0',
+          disposition: 'answered',
+          wait_time: 0,
+          talk_time: 8,
+          wrapup_time: 0,
+          agent_interface: 'PJSIP/ew112_0',
+          direction: 'outbound',
+        },
+      ]);
+
+      await service.restoreToday();
+
+      const kpi = service.getAgentKpi(1, 'PJSIP/ew112_0');
+      expect(kpi.sinceMidnight.made).toBe(2);
+      expect(kpi.sinceMidnight.answered).toBe(0);
+    });
+
+    it('does not count queue-abandoned rows without agent_interface as operator missed (D-10 worklist)', async () => {
       queueModel.findOne.mockResolvedValue({ servicelevel: 20 });
       queueCallModel.findAll.mockResolvedValue([
         {
@@ -336,6 +368,58 @@ describe('CallCenterMetricsService', () => {
       await service.restoreToday();
 
       expect(service.getAgentKpi(1, 'PJSIP/op1').sinceMidnight.missed).toBe(0);
+    });
+
+    it('restores operator missed KPI from inbound timeout/abandoned with agent_interface (RNA)', async () => {
+      queueModel.findOne.mockResolvedValue({ servicelevel: 20 });
+      queueCallModel.findAll.mockResolvedValue([
+        {
+          user_uid: 1,
+          queue_name: 'q_a',
+          disposition: 'timeout',
+          wait_time: 15,
+          talk_time: 0,
+          wrapup_time: 0,
+          agent_interface: 'PJSIP/op1',
+          direction: 'inbound',
+        },
+      ]);
+
+      await service.restoreToday();
+
+      expect(service.getAgentKpi(1, 'PJSIP/op1').sinceMidnight.missed).toBe(1);
+    });
+  });
+
+  describe('rebuildSinceLoginFromHistory', () => {
+    it('rehydrates sinceLogin made/answered/missed from shift history rows', async () => {
+      const loginTime = new Date('2026-07-27T05:00:00Z');
+      queueCallModel.findAll.mockResolvedValue([
+        { direction: 'outbound', disposition: 'answered' },
+        { direction: 'internal', disposition: 'answered' },
+        { direction: 'inbound', disposition: 'answered' },
+        { direction: 'personal', disposition: 'answered' },
+        { direction: 'outbound', disposition: 'timeout' },
+        { direction: 'inbound', disposition: 'abandoned' },
+      ]);
+
+      const counters = await service.rebuildSinceLoginFromHistory({
+        userUid: 0,
+        agentInterface: 'PJSIP/ew112_0',
+        operatorUserId: 58,
+        loginTime,
+      });
+
+      expect(counters).toEqual({ answered: 2, made: 2, missed: 2 });
+      expect(service.getAgentKpi(0, 'PJSIP/ew112_0').sinceLogin).toEqual({
+        answered: 2, made: 2, missed: 2,
+      });
+      expect(queueCallModel.findAll).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({
+          user_uid: 0,
+          agent_user_uid: 58,
+        }),
+      }));
     });
   });
 

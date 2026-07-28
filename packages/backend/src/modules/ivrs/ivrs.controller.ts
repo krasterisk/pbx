@@ -19,6 +19,8 @@ import { IvrTtsService } from './ivr-tts.service';
 import { Ivr } from './ivr.model';
 import { IvrTtsPreviewDto } from './dto/ivr-tts-preview.dto';
 
+const USER_LEVEL_ADMIN = 1;
+
 @Controller('ivrs')
 @UseGuards(JwtAuthGuard)
 export class IvrsController {
@@ -26,6 +28,10 @@ export class IvrsController {
     private readonly ivrsService: IvrsService,
     private readonly ivrTtsService: IvrTtsService,
   ) {}
+
+  private isAdmin(user: { level?: number }): boolean {
+    return user?.level === USER_LEVEL_ADMIN;
+  }
 
   @Get()
   async findAll(@Req() req: any) {
@@ -39,12 +45,12 @@ export class IvrsController {
 
   @Post()
   async create(@Body() createDto: Partial<Ivr>, @Req() req: any) {
-    return this.ivrsService.create(createDto, req.user.vpbx_user_uid);
+    return this.ivrsService.create(createDto, req.user.vpbx_user_uid, this.isAdmin(req.user));
   }
 
   @Put(':id')
   async update(@Param('id', ParseIntPipe) id: number, @Body() updateDto: Partial<Ivr>, @Req() req: any) {
-    return this.ivrsService.update(id, updateDto, req.user.vpbx_user_uid);
+    return this.ivrsService.update(id, updateDto, req.user.vpbx_user_uid, this.isAdmin(req.user));
   }
 
   @Delete(':id')

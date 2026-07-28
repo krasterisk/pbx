@@ -8,6 +8,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Subject, Observable } from 'rxjs';
 import { filter, map } from 'rxjs/operators';
+import { companionIdOf, isWebrtcCompanion, primaryIdOf } from '../endpoints/endpoint-ids.util';
 import { CcEventBusEvent, mapCcEventToBusEvent } from './cc-event-bus.types';
 
 export type { CcEventBusEvent } from './cc-event-bus.types';
@@ -42,6 +43,11 @@ export interface AgentState {
   callsMade: number;
   /** Outbound dial target while status is DIALING (cleared on DialEnd/Hangup). */
   dialTarget?: string;
+  /**
+   * Remote party for personal inbound (RINGING / IN_CALL without a queue CallState).
+   * Survives F5 via SSE agent snapshot; cleared on hangup.
+   */
+  peerNumber?: string | null;
   lastCallTime?: Date;
   loginTime?: Date;
   /** Wall-clock when the current `status` was entered (operator timer / auto-pause). */
@@ -181,24 +187,40 @@ export class CallCenterStateService implements OnModuleInit {
     return result;
   }
 
+  /** All agents across tenants (reconcile / global AMI sweeps). */
+  getAllAgentsGlobal(): AgentState[] {
+    return Array.from(this.agents.values());
+  }
+
   /**
-   * Resolve the AgentState whose interface matches an Asterisk channel (D-08).
-   * Channels look like `PJSIP/e101_42-00000005` — the interface is the prefix
-   * before the Asterisk-assigned `-xxxxxxxx` call sequence suffix.
-   * Never resolves tenant from a queue suffix (Pitfall 1) — only from the
-   * matched AgentState.userUid — and only matches agents who are actually
-   * logged in (userId > 0), so a stray/unknown channel cannot inject
-   * status/KPI updates for another tenant (T-09-03-01).
+   * Resolve a live Asterisk channel to a logged-in agent (D-08 / T-09-03-01).
+   * Channels look like `PJSIP/e101_42-00000005` — match interface prefix before
+   * the Asterisk `-xxxxxxxx` suffix. Also matches the WebRTC↔primary twin
+   * (ew112_0 ↔ e112_0). Only logged-in agents (userId > 0); tenant comes from
+   * the matched AgentState, never from a queue name suffix.
    */
   findAgentByChannel(channel: string): AgentState | undefined {
     if (!channel) return undefined;
     for (const agent of this.agents.values()) {
       if (!agent.userId || agent.userId <= 0) continue;
-      if (channel === agent.interface || channel.startsWith(`${agent.interface}-`)) {
-        return agent;
+      for (const iface of this.channelMatchInterfaces(agent.interface)) {
+        if (channel === iface || channel.startsWith(`${iface}-`)) {
+          return agent;
+        }
       }
     }
     return undefined;
+  }
+
+  /** Agent interface + optional PJSIP twin (primary ↔ WebRTC companion). */
+  private channelMatchInterfaces(agentInterface: string): string[] {
+    const related = new Set<string>([agentInterface]);
+    const slash = agentInterface.indexOf('/');
+    const tech = slash >= 0 ? agentInterface.slice(0, slash + 1) : '';
+    const sipId = slash >= 0 ? agentInterface.slice(slash + 1) : agentInterface;
+    const twin = isWebrtcCompanion(sipId) ? primaryIdOf(sipId) : companionIdOf(sipId);
+    if (twin) related.add(`${tech}${twin}`);
+    return [...related];
   }
 
   /**
@@ -257,13 +279,45 @@ export class CallCenterStateService implements OnModuleInit {
     ) {
       delete updated.pauseReason;
     }
+    // peerNumber only for personal ring/talk; clear when leaving those states
+    // (or when caller explicitly clears via empty string / null).
+    const keepPeer =
+      updated.status === 'RINGING'
+      || updated.status === 'IN_CALL'
+      || updated.status === 'DIALING'
+      || updated.status === 'CONSULT';
+    if (
+      !keepPeer
+      || state.peerNumber === ''
+      || state.peerNumber === null
+    ) {
+      delete updated.peerNumber;
+    }
+    // dialTarget only while outbound dial / answered outbound talk; clear otherwise.
+    // Explicit undefined/null/'' from callers must wipe even while still DIALING/IN_CALL.
+    const keepDial =
+      updated.status === 'DIALING'
+      || updated.status === 'IN_CALL'
+      || updated.status === 'CONSULT';
+    if (
+      !keepDial
+      || state.dialTarget === ''
+      || state.dialTarget === null
+      || (Object.prototype.hasOwnProperty.call(state, 'dialTarget') && state.dialTarget === undefined)
+    ) {
+      delete updated.dialTarget;
+    }
     this.agents.set(key, updated);
-    // Explicit null so SSE clients clear the previous reason label
+    // Explicit null so SSE clients clear the previous reason / peer / dial labels
     const keepReason =
       updated.status === 'PAUSED'
       || updated.status === 'OUTBOUND_WORK'
       || updated.status === 'DIALING';
-    const payload = keepReason ? updated : { ...updated, pauseReason: null };
+    const payload = {
+      ...(keepReason ? updated : { ...updated, pauseReason: null }),
+      ...(!updated.peerNumber ? { peerNumber: null } : {}),
+      ...(!updated.dialTarget ? { dialTarget: null } : {}),
+    };
     this.emitEvent('agentUpdate', userUid, payload);
 
     // Keep queue free/paused/busy counts in sync (login/pause/dial often skip AMI recalc).

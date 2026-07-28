@@ -20,6 +20,14 @@ export function buildWebrtcSipId(primaryId: string): string | null {
   return `ew${match[1]}_${match[2]}`;
 }
 
+/** ew110_0 → e110_0; primary ids pass through; other strings → null. */
+export function buildPrimarySipId(sipId: string): string | null {
+  const companion = sipId.match(/^ew(.+)_(\d+)$/);
+  if (companion) return `e${companion[1]}_${companion[2]}`;
+  if (/^e(?!w).+_\d+$/.test(sipId)) return sipId;
+  return null;
+}
+
 /** PJSIP/ew110_0 → "110" */
 export function interfaceToExtension(iface: string): string {
   const id = iface.includes('/') ? iface.split('/').pop() || iface : iface;

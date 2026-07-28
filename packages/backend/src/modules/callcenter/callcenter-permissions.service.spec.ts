@@ -67,7 +67,8 @@ describe('CallCenterPermissionsService', () => {
         can_spy: false,
         spyable: true,
         spy_modes: ['listen'],
-        click_to_call: false,
+        // D-40 seed: OPERATOR gets click_to_call:true when role key absent
+        click_to_call: true,
         customize_ui: false,
       });
     });
@@ -83,9 +84,21 @@ describe('CallCenterPermissionsService', () => {
 
       expect(perms.can_spy).toBe(true);
       expect(perms.spy_modes).toEqual(['listen', 'whisper', 'barge']);
-      // Not specified in role default → falls back to safe default
-      expect(perms.click_to_call).toBe(false);
+      // click_to_call absent from role entry → seed fills true for SUPERVISOR
+      expect(perms.click_to_call).toBe(true);
       expect(perms.spyable).toBe(true);
+    });
+
+    it('preserves explicit click_to_call:false in role defaults (seed does not overwrite)', async () => {
+      mockUser(UserLevel.OPERATOR);
+      mockTenantSettings({
+        [UserLevel.OPERATOR]: { click_to_call: false },
+      });
+      mockOperatorRow(null);
+
+      const perms = await service.getEffective(TENANT, OPERATOR_USER_ID);
+
+      expect(perms.click_to_call).toBe(false);
     });
 
     it('applies the per-operator override when unlocked', async () => {

@@ -1,16 +1,18 @@
 import { useTranslation } from 'react-i18next';
 import { VStack, HStack } from '@/shared/ui/Stack';
-import { Input, Label, Checkbox } from '@/shared/ui';
+import { Input, Label, Checkbox, Text } from '@/shared/ui';
 import { InfoTooltip } from '@/shared/ui/Tooltip/Tooltip';
 import cls from './IvrMainTab.module.scss';
 
 export interface IvrMainTabProps {
   name: string;
   onNameChange: (val: string) => void;
-  exten: string;
-  onExtenChange: (val: string) => void;
-  timeoutMs: string;
-  onTimeoutMsChange: (val: string) => void;
+  waitExten: string;
+  onWaitExtenChange: (val: string) => void;
+  timeoutResponse: string;
+  onTimeoutResponseChange: (val: string) => void;
+  timeoutDigit: string;
+  onTimeoutDigitChange: (val: string) => void;
   maxCount: number;
   onMaxCountChange: (val: number) => void;
   active: boolean;
@@ -24,10 +26,12 @@ export function IvrMainTab(props: IvrMainTabProps) {
   const {
     name,
     onNameChange,
-    exten,
-    onExtenChange,
-    timeoutMs,
-    onTimeoutMsChange,
+    waitExten,
+    onWaitExtenChange,
+    timeoutResponse,
+    onTimeoutResponseChange,
+    timeoutDigit,
+    onTimeoutDigitChange,
     maxCount,
     onMaxCountChange,
     active,
@@ -67,40 +71,76 @@ export function IvrMainTab(props: IvrMainTabProps) {
         />
       </VStack>
 
-      <VStack gap="4" max className={cls.field}>
-        <HStack gap="4" align="center" className={cls.labelRow}>
-          <Label htmlFor="ivr-exten">{t('ivrs.fields.exten', 'Внутренний номер меню (Exten)')}</Label>
-          <InfoTooltip
-            text={t(
-              'ivrs.tooltips.exten',
-              'Внутренний номер, по которому будет доступно голосовое меню. Абоненты, набравшие этот номер, попадут в IVR',
-            )}
-          />
-        </HStack>
-        <Input
-          id="ivr-exten"
-          placeholder="5000"
-          value={exten}
-          onChange={(e) => onExtenChange(e.target.value)}
-        />
-      </VStack>
+      <VStack gap="12" max className={cls.timeoutsSection}>
+        <Text variant="small" className={cls.timeoutsHeading}>
+          {t('ivrs.fields.timeoutsSection', 'Таймауты DTMF')}
+        </Text>
 
-      <VStack gap="4" max className={cls.field}>
-        <HStack gap="4" align="center" className={cls.labelRow}>
-          <Label htmlFor="ivr-timeout">{t('ivrs.fields.timeout', 'Таймаут ожидания ввода (сек)')}</Label>
-          <InfoTooltip
-            text={t(
-              'ivrs.tooltips.timeout',
-              'Время ожидания (в секундах) после воспроизведения приветствия, в течение которого система ожидает DTMF-ввода от абонента',
-            )}
+        <VStack gap="4" max className={cls.field}>
+          <HStack gap="4" align="center" className={cls.labelRow}>
+            <Label htmlFor="ivr-wait-exten">
+              {t('ivrs.fields.waitExten', 'Ожидание выбора после фразы (сек)')}
+            </Label>
+            <InfoTooltip
+              text={t(
+                'ivrs.tooltips.waitExten',
+                'WaitExten: сколько секунд ждать нажатие пункта меню после проигрывания фраз. По истечении срабатывает маршрут «t» (timeout), если он настроен',
+              )}
+            />
+          </HStack>
+          <Input
+            id="ivr-wait-exten"
+            type="number"
+            min={1}
+            placeholder="10"
+            value={waitExten}
+            onChange={(e) => onWaitExtenChange(e.target.value)}
           />
-        </HStack>
-        <Input
-          id="ivr-timeout"
-          placeholder="10"
-          value={timeoutMs}
-          onChange={(e) => onTimeoutMsChange(e.target.value)}
-        />
+        </VStack>
+
+        <VStack gap="4" max className={cls.field}>
+          <HStack gap="4" align="center" className={cls.labelRow}>
+            <Label htmlFor="ivr-timeout-response">
+              {t('ivrs.fields.timeoutResponse', 'Таймаут первой цифры (сек)')}
+            </Label>
+            <InfoTooltip
+              text={t(
+                'ivrs.tooltips.timeoutResponse',
+                'TIMEOUT(response): сколько секунд ждать первую DTMF-цифру — во время и после проигрывания фразы (Background). Важно при прямом донаборе',
+              )}
+            />
+          </HStack>
+          <Input
+            id="ivr-timeout-response"
+            type="number"
+            min={1}
+            placeholder="10"
+            value={timeoutResponse}
+            onChange={(e) => onTimeoutResponseChange(e.target.value)}
+          />
+        </VStack>
+
+        <VStack gap="4" max className={cls.field}>
+          <HStack gap="4" align="center" className={cls.labelRow}>
+            <Label htmlFor="ivr-timeout-digit">
+              {t('ivrs.fields.timeoutDigit', 'Пауза между цифрами (сек)')}
+            </Label>
+            <InfoTooltip
+              text={t(
+                'ivrs.tooltips.timeoutDigit',
+                'TIMEOUT(digit): пауза между последующими DTMF-цифрами при наборе многозначного паттерна или прямом донаборе внутреннего номера',
+              )}
+            />
+          </HStack>
+          <Input
+            id="ivr-timeout-digit"
+            type="number"
+            min={1}
+            placeholder="5"
+            value={timeoutDigit}
+            onChange={(e) => onTimeoutDigitChange(e.target.value)}
+          />
+        </VStack>
       </VStack>
 
       <VStack gap="4" max className={cls.field}>

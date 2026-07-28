@@ -30,6 +30,8 @@ export interface CallControlBarProps {
   isHeld: boolean;
   /** No active call to control - every action button renders disabled. */
   disabled?: boolean;
+  /** SIP desk-phone mode: Hold is client-side only — keep the button visible but inactive. */
+  holdDisabled?: boolean;
   onMuteToggle: () => void;
   onHoldToggle: () => void;
   onHangup: () => void;
@@ -57,6 +59,7 @@ export function CallControlBar({
   isMuted,
   isHeld,
   disabled = false,
+  holdDisabled = false,
   onMuteToggle,
   onHoldToggle,
   onHangup,
@@ -134,6 +137,7 @@ export function CallControlBar({
     onClick: () => void,
     opts?: { destructive?: boolean; active?: boolean; disabled?: boolean; hint?: string },
   ) => {
+    const isBtnDisabled = disabled || !!opts?.disabled;
     const button = (
       <Button
         key={key}
@@ -142,7 +146,7 @@ export function CallControlBar({
         size="sm"
         className={`${styles.controlBtn}${opts?.active ? ` ${styles.controlBtnActive}` : ''}`}
         onClick={onClick}
-        disabled={disabled || opts?.disabled}
+        disabled={isBtnDisabled}
         aria-label={label}
       >
         {icon}
@@ -151,7 +155,8 @@ export function CallControlBar({
     );
     return (
       <Tooltip key={key} content={opts?.hint || label}>
-        {button}
+        {/* Disabled buttons don't fire pointer events — wrap so the hint still shows. */}
+        {isBtnDisabled ? <span className="inline-flex">{button}</span> : button}
       </Tooltip>
     );
   };
@@ -181,8 +186,14 @@ export function CallControlBar({
         isHeld ? t('callcenter.controlBar.unhold', 'Unhold') : t('callcenter.controlBar.hold', 'Hold'),
         onHoldToggle,
         {
-          active: isHeld,
-          hint: t('callcenter.controlBar.holdHint', 'Put the caller on hold or resume'),
+          active: isHeld && !holdDisabled,
+          disabled: holdDisabled,
+          hint: holdDisabled
+            ? t(
+              'callcenter.controlBar.holdUseDeviceHint',
+              'Use the Hold button on your SIP phone or softphone client',
+            )
+            : t('callcenter.controlBar.holdHint', 'Put the caller on hold or resume'),
         },
       )}
       {showPrimary && onTransferClick && renderButton(

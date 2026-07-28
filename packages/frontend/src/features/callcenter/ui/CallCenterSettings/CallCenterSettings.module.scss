@@ -43,6 +43,18 @@
   gap: 0.375rem;
 }
 
+.journalRow {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  max-width: 16rem;
+
+  input {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
 .hint {
   font-size: 0.8125rem;
 }

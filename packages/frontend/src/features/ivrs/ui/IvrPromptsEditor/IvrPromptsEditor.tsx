@@ -56,9 +56,28 @@ export function IvrPromptsEditor({
   const [ttsEngineUid, setTtsEngineUid] = useState('');
   const [ttsSettings, setTtsSettings] = useState<IIvrPhraseTtsSettings>({});
   const [phraseIds, setPhraseIds] = useState<string[]>([]);
+  const [playingPromptUid, setPlayingPromptUid] = useState<number | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const objectUrlRef = useRef<string | null>(null);
 
   const selectedEngine = engines.find((e) => String(e.uid) === ttsEngineUid) ?? null;
+  const selectedPromptRecord = allPrompts.find((p) => p.filename === selectedPrompt) ?? null;
+
+  const stopAudio = useCallback(() => {
+    const el = audioRef.current;
+    if (el) {
+      el.pause();
+      el.removeAttribute('src');
+      el.load();
+    }
+    if (objectUrlRef.current) {
+      URL.revokeObjectURL(objectUrlRef.current);
+      objectUrlRef.current = null;
+    }
+    setPlayingPromptUid(null);
+  }, []);
+
+  useEffect(() => () => stopAudio(), [stopAudio]);
 
   useEffect(() => {
     setPhraseIds((prev) => {
@@ -122,10 +141,47 @@ export function IvrPromptsEditor({
   };
 
   const playPreviewBlob = async (blob: Blob) => {
+    const el = audioRef.current;
+    if (!el) return;
+    stopAudio();
     const url = URL.createObjectURL(blob);
-    if (audioRef.current) {
-      audioRef.current.src = url;
-      await audioRef.current.play();
+    objectUrlRef.current = url;
+    el.src = url;
+    el.onended = () => setPlayingPromptUid(null);
+    el.onerror = () => {
+      stopAudio();
+      toast.error(t('ivrs.prompts.previewError', 'Не удалось синтезировать фразу'));
+    };
+    await el.play();
+  };
+
+  const playPromptByFilename = async (filename: string) => {
+    const prompt = allPrompts.find((p) => p.filename === filename);
+    if (!prompt) {
+      toast.error(t('ivrs.prompts.audioNotFound', 'Запись не найдена'));
+      return;
+    }
+
+    if (playingPromptUid === prompt.uid) {
+      stopAudio();
+      return;
+    }
+
+    const el = audioRef.current;
+    if (!el) return;
+    stopAudio();
+    el.src = `/api/prompts/${prompt.uid}/stream`;
+    el.onended = () => setPlayingPromptUid(null);
+    el.onerror = () => {
+      stopAudio();
+      toast.error(t('ivrs.prompts.audioPlayError', 'Не удалось воспроизвести запись'));
+    };
+    setPlayingPromptUid(prompt.uid);
+    try {
+      await el.play();
+    } catch {
+      stopAudio();
+      toast.error(t('ivrs.prompts.audioPlayError', 'Не удалось воспроизвести запись'));
     }
   };
 
@@ -234,7 +290,15 @@ export function IvrPromptsEditor({
                     onUpdate={updatePhrase}
                     onRemove={handleRemove}
                     onPreviewTts={handlePreviewRow}
+                    onPreviewAudio={playPromptByFilename}
                     isPreviewLoading={isPreviewLoading}
+                    isAudioPlaying={
+                      phrase.kind === 'audio'
+                      && playingPromptUid != null
+                      && allPrompts.some(
+                        (p) => p.uid === playingPromptUid && p.filename === phrase.filename,
+                      )
+                    }
                     hasError={invalidPhraseIndexes.includes(index)}
                   />
                 ))}
@@ -249,7 +313,10 @@ export function IvrPromptsEditor({
               type="button"
               variant={addMode === 'audio' ? 'default' : 'outline'}
               size="sm"
-              onClick={() => setAddMode('audio')}
+              onClick={() => {
+                stopAudio();
+                setAddMode('audio');
+              }}
             >
               <Volume2 size={14} />
               {t('ivrs.prompts.modeAudio', 'Запись')}
@@ -258,7 +325,10 @@ export function IvrPromptsEditor({
               type="button"
               variant={addMode === 'tts' ? 'default' : 'outline'}
               size="sm"
-              onClick={() => setAddMode('tts')}
+              onClick={() => {
+                stopAudio();
+                setAddMode('tts');
+              }}
             >
               <Mic size={14} />
               {t('ivrs.prompts.modeTts', 'TTS')}
@@ -270,7 +340,10 @@ export function IvrPromptsEditor({
               <Select
                 className={cls.promptSelect}
                 value={selectedPrompt}
-                onChange={(e) => setSelectedPrompt(e.target.value)}
+                onChange={(e) => {
+                  stopAudio();
+                  setSelectedPrompt(e.target.value);
+                }}
               >
                 <option value="">{t('ivrs.prompts.selectPrompt', 'Выберите запись')}</option>
                 {availablePrompts.map((p) => (
@@ -279,6 +352,20 @@ export function IvrPromptsEditor({
                   </option>
                 ))}
               </Select>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  if (selectedPrompt) void playPromptByFilename(selectedPrompt);
+                }}
+                disabled={!selectedPromptRecord}
+                className={cls.addBtn}
+                title={t('ivrs.prompts.preview', 'Прослушать')}
+              >
+                {playingPromptUid != null && selectedPromptRecord?.uid === playingPromptUid
+                  ? t('ivrs.prompts.stop', 'Стоп')
+                  : t('ivrs.prompts.preview', 'Прослушать')}
+              </Button>
               <Button type="button" onClick={handleAddAudio} disabled={!selectedPrompt} className={cls.addBtn}>
                 <Plus size={16} />
                 {t('ivrs.prompts.add', 'Добавить')}

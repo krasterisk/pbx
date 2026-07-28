@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useSelector } from 'react-redux';
 import { useTranslation } from 'react-i18next';
 import { PhoneIncoming, Phone, Users } from 'lucide-react';
@@ -26,8 +27,8 @@ function freeTextClass(available: number, total: number): string {
 }
 
 /**
- * Queues tab — fixed-size badges; click transfers the active call into the queue.
- * Answered/abandoned are queue-wide totals (not personal KPI).
+ * Queues tab — live occupancy + today queue answered/abandoned (D-31/D-32).
+ * Totals are never Asterisk lifetime Completed counters.
  */
 export function QueuesTab({ activeCallUniqueid }: QueuesTabProps) {
   const { t } = useTranslation();
@@ -46,21 +47,7 @@ export function QueuesTab({ activeCallUniqueid }: QueuesTabProps) {
     }
   };
 
-  if (myQueues.length === 0) {
-    return (
-      <div className={styles.wrap}>
-        <div className={styles.empty}>
-          <Users className="w-8 h-8 opacity-30" />
-          <Text className="font-semibold">{t('callcenter.queuesTab.emptyTitle', 'No queues assigned')}</Text>
-          <Text variant="muted" className="text-sm">
-            {t('callcenter.queuesTab.emptyBody', 'You are not a member of any queue yet')}
-          </Text>
-        </div>
-      </div>
-    );
-  }
-
-  const rows = myQueues.map((queueName) => {
+  const rows = useMemo(() => myQueues.map((queueName) => {
     const queue = allQueues.find((q) => q.name === queueName);
     const available = queue?.agents.available ?? 0;
     const total = queue?.agents.total ?? 0;
@@ -72,12 +59,29 @@ export function QueuesTab({ activeCallUniqueid }: QueuesTabProps) {
       available,
       total,
       sla: queue?.sla ?? 0,
-      answered: queue?.calls.answered ?? 0,
-      abandoned: queue?.calls.abandoned ?? 0,
+      /** Queue-wide since midnight (not personal, not Asterisk lifetime). */
+      dayAnswered: queue?.calls.answered ?? 0,
+      dayAbandoned: queue?.calls.abandoned ?? 0,
       badgeClass: freeLevelClass(available, total),
       freeClass: freeTextClass(available, total),
     };
-  });
+  }), [myQueues, allQueues]);
+
+  if (myQueues.length === 0) {
+    return (
+      <div className={styles.wrap}>
+        <div className={styles.empty}>
+          <Users className="w-8 h-8 opacity-30" />
+          <Text className="font-semibold">{t('callcenter.queuesTab.emptyTitle', 'No queues assigned')}</Text>
+          <Text variant="muted" className="text-sm">
+            {myAgent
+              ? t('callcenter.queuesTab.emptyBody', 'You are not a member of any queue yet')
+              : t('callcenter.queuesTab.emptyBodyStartShift', 'Start a shift and select at least one queue')}
+          </Text>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.wrap} data-testid="queues-tab">
@@ -120,14 +124,16 @@ export function QueuesTab({ activeCallUniqueid }: QueuesTabProps) {
                 <Tooltip content={t('callcenter.queuesTab.hintSla', 'Service level within threshold')}>
                   <span>{t('callcenter.queuesTab.sla', 'SLA')} {row.sla}%</span>
                 </Tooltip>
-                <Tooltip content={t('callcenter.queuesTab.hintAnswered', 'Calls answered in this queue')}>
+              </div>
+              <div className={styles.totalsRow} data-testid="queues-tab-day-totals">
+                <Tooltip content={t('callcenter.queuesTab.hintAnsweredDay', 'Answered today since midnight (all agents)')}>
                   <span>
-                    {t('callcenter.queuesTab.answered', 'Answered')}: <strong>{row.answered}</strong>
+                    {t('callcenter.queuesTab.answered', 'Answered')}: <strong>{row.dayAnswered}</strong>
                   </span>
                 </Tooltip>
-                <Tooltip content={t('callcenter.queuesTab.hintMissed', 'Calls abandoned / missed in this queue')}>
+                <Tooltip content={t('callcenter.queuesTab.hintMissedDay', 'Missed / abandoned today since midnight (all agents)')}>
                   <span>
-                    {t('callcenter.queuesTab.missed', 'Abandoned')}: <strong>{row.abandoned}</strong>
+                    {t('callcenter.queuesTab.missed', 'Missed')}: <strong>{row.dayAbandoned}</strong>
                   </span>
                 </Tooltip>
               </div>

@@ -6,7 +6,6 @@ import type { IIvr } from '@/entities/ivr';
 const mockIvr = {
   uid: 1,
   name: 'Main Menu',
-  exten: '100',
   timeout: 10,
   max_count: 3,
   description: 'Main auto attendant',

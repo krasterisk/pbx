@@ -269,6 +269,12 @@ describe('CallCenterStateService', () => {
       service.setAgent(7, 'PJSIP/e101_420', { name: 'Bob', status: 'READY', userId: 43 });
       expect(service.findAgentByChannel('PJSIP/e101_420-00000001')?.name).toBe('Bob');
     });
+
+    it('matches WebRTC↔primary twin channels to the logged-in agent', () => {
+      service.setAgent(0, 'PJSIP/ew112_0', { name: 'Admin', status: 'READY', userId: 58 });
+      expect(service.findAgentByChannel('PJSIP/e112_0-00000005')?.interface).toBe('PJSIP/ew112_0');
+      expect(service.findAgentByChannel('PJSIP/ew112_0-00000005')?.name).toBe('Admin');
+    });
   });
 
   // ─── getAllCallsGlobal ──────────────────────────────────

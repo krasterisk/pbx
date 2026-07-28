@@ -9,6 +9,9 @@ import { AutoPauseRulesForm } from '@/features/callcenter/ui/AutoPauseRulesForm/
 import { DisplayTokensManager } from '@/features/callcenter/ui/DisplayTokensManager/DisplayTokensManager';
 import { ReportSchedulesManager } from '@/features/callcenter/ui/ReportSchedulesManager/ReportSchedulesManager';
 import { PauseReasonsManager } from '@/features/callcenter/ui/PauseReasonsManager/PauseReasonsManager';
+import { PermissionsSettingsPanel } from '@/features/callcenter/ui/PermissionsMatrix';
+import { UserLevel, selectUserLevel } from '@/entities/User';
+import { useAppSelector } from '@/shared/hooks/useAppStore';
 import { CardTemplatesTab } from './ui/CardTemplatesTab/CardTemplatesTab';
 import styles from './CallCenterSettingsPage.module.scss';
 
@@ -19,6 +22,7 @@ export type CcSettingsTabId =
   | 'alertThresholds'
   | 'operatorSettings'
   | 'myPanel'
+  | 'permissions'
   | 'displayTokens'
   | 'reportSchedules';
 
@@ -29,13 +33,18 @@ const TAB_IDS: CcSettingsTabId[] = [
   'alertThresholds',
   'operatorSettings',
   'myPanel',
+  'permissions',
   'displayTokens',
   'reportSchedules',
 ];
 
 export function CallCenterSettingsPage() {
   const { t } = useTranslation();
+  const level = useAppSelector(selectUserLevel);
+  const canManagePermissions = level === UserLevel.ADMIN || level === UserLevel.SUPERVISOR;
   const [activeTab, setActiveTab] = useState<CcSettingsTabId>('cardTemplates');
+
+  const visibleTabs = TAB_IDS.filter((id) => id !== 'permissions' || canManagePermissions);
 
   const renderPanel = () => {
     if (activeTab === 'operatorSettings') {
@@ -43,6 +52,9 @@ export function CallCenterSettingsPage() {
     }
     if (activeTab === 'myPanel') {
       return <CallCenterSettings />;
+    }
+    if (activeTab === 'permissions') {
+      return <PermissionsSettingsPanel />;
     }
     if (activeTab === 'alertThresholds') {
       return (
@@ -83,7 +95,7 @@ export function CallCenterSettingsPage() {
       </VStack>
 
       <div className={styles.tabsRow}>
-        {TAB_IDS.map((tabId) => (
+        {visibleTabs.map((tabId) => (
           <button
             key={tabId}
             type="button"

@@ -43,6 +43,7 @@ vi.mock('@/shared/api/endpoints/callCenterApi', () => ({
   useGetOperatorCallHistoryQuery: () => historyState,
   useGetTenantSettingsQuery: () => settingsState,
   useClickToCallMutation: () => [clickToCall, { isLoading: false }],
+  useGetEffectivePermissionsQuery: () => ({ data: { click_to_call: true } }),
   useLazyGetCardByCallQuery: () => [triggerGetCardByCall],
   useGetCardTemplatesQuery: () => ({ data: [] }),
 }));
@@ -93,20 +94,43 @@ describe('SoftphoneJournal', () => {
 
     const { container } = render(<SoftphoneJournal />);
 
-    expect(screen.getByText('Caller 1')).toBeTruthy();
-    expect(screen.getByText('Caller 2')).toBeTruthy();
-    expect(screen.getByText('Caller 3')).toBeTruthy();
+    expect(screen.getByText('Caller 1 (101)')).toBeTruthy();
+    expect(screen.getByText('Caller 2 (102)')).toBeTruthy();
+    expect(screen.getByText('Caller 3 (103)')).toBeTruthy();
 
     const list = screen.getByTestId('softphone-journal-list');
     const items = within(list).getAllByTestId('softphone-journal-row');
     expect(items).toHaveLength(3);
-    expect(items[0]).toHaveTextContent('Caller 1');
-    expect(items[1]).toHaveTextContent('Caller 2');
-    expect(items[2]).toHaveTextContent('Caller 3');
+    expect(items[0]).toHaveTextContent('Caller 1 (101)');
+    expect(items[1]).toHaveTextContent('Caller 2 (102)');
+    expect(items[2]).toHaveTextContent('Caller 3 (103)');
 
     expect(container.querySelectorAll('[data-direction="inbound"]')).toHaveLength(1);
     expect(container.querySelectorAll('[data-direction="outbound"]')).toHaveLength(1);
     expect(container.querySelectorAll('[data-direction="missed"]')).toHaveLength(1);
+
+    expect(screen.getAllByTestId('softphone-journal-status')).toHaveLength(3);
+    expect(screen.getAllByText('Answered')).toHaveLength(2);
+    expect(screen.getByText('Missed')).toBeTruthy();
+  });
+
+  it('shows internal dial peer number with outbound icon and Internal direction tag', () => {
+    historyState.data = [
+      row({
+        uid: 9,
+        direction: 'internal',
+        disposition: 'answered',
+        callerIdNum: '201',
+        callerIdName: '',
+      }),
+    ];
+
+    const { container } = render(<SoftphoneJournal />);
+
+    expect(screen.getByText('201')).toBeTruthy();
+    expect(screen.getByTestId('softphone-journal-direction')).toHaveTextContent('Internal');
+    expect(screen.getByTestId('softphone-journal-status')).toHaveTextContent('Answered');
+    expect(container.querySelectorAll('[data-direction="outbound"]')).toHaveLength(1);
   });
 
   it('caps the feed at journal_depth N', () => {
@@ -120,9 +144,9 @@ describe('SoftphoneJournal', () => {
     render(<SoftphoneJournal />);
 
     expect(screen.getAllByTestId('softphone-journal-row')).toHaveLength(2);
-    expect(screen.getByText('Caller 1')).toBeTruthy();
-    expect(screen.getByText('Caller 2')).toBeTruthy();
-    expect(screen.queryByText('Caller 3')).toBeNull();
+    expect(screen.getByText('Caller 1 (101)')).toBeTruthy();
+    expect(screen.getByText('Caller 2 (102)')).toBeTruthy();
+    expect(screen.queryByText('Caller 3 (103)')).toBeNull();
   });
 
   it('defaults N to 50 when journal_depth is unset', () => {
@@ -134,6 +158,35 @@ describe('SoftphoneJournal', () => {
     render(<SoftphoneJournal />);
 
     expect(screen.getAllByTestId('softphone-journal-row')).toHaveLength(50);
+  });
+
+  it('Show more reveals the next journal_depth page', () => {
+    settingsState.data = { journal_depth: 2 };
+    historyState.data = [
+      row({ uid: 1, direction: 'inbound', disposition: 'answered' }),
+      row({ uid: 2, direction: 'outbound', disposition: 'answered' }),
+      row({ uid: 3, direction: 'inbound', disposition: 'answered' }),
+      row({ uid: 4, direction: 'outbound', disposition: 'answered' }),
+    ];
+
+    render(<SoftphoneJournal />);
+
+    expect(screen.getAllByTestId('softphone-journal-row')).toHaveLength(2);
+    fireEvent.click(screen.getByTestId('softphone-journal-show-more'));
+    expect(screen.getAllByTestId('softphone-journal-row')).toHaveLength(4);
+    expect(screen.queryByTestId('softphone-journal-show-more')).toBeNull();
+  });
+
+  it('hides Show more when there are no extra rows beyond the first page', () => {
+    settingsState.data = { journal_depth: 2 };
+    historyState.data = [
+      row({ uid: 1, direction: 'inbound', disposition: 'answered' }),
+      row({ uid: 2, direction: 'outbound', disposition: 'answered' }),
+    ];
+
+    render(<SoftphoneJournal />);
+
+    expect(screen.queryByTestId('softphone-journal-show-more')).toBeNull();
   });
 
   it('exposes exactly two row actions: callback and open-card', () => {
@@ -177,18 +230,6 @@ describe('SoftphoneJournal', () => {
     expect(screen.getByText('Could not load the journal')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: /retry/i }));
     expect(refetchHistory).toHaveBeenCalledTimes(1);
-  });
-
-  it('shows More in History footnote when at the N cap', () => {
-    settingsState.data = { journal_depth: 2 };
-    historyState.data = [
-      row({ uid: 1, direction: 'inbound', disposition: 'answered' }),
-      row({ uid: 2, direction: 'outbound', disposition: 'answered' }),
-    ];
-
-    render(<SoftphoneJournal />);
-
-    expect(screen.getByText('More in History')).toBeTruthy();
   });
 
   it('dials via clickToCall on callback', async () => {

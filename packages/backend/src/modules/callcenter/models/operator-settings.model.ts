@@ -65,8 +65,8 @@ export class CcOperatorSettings extends Model {
   @Column({ type: DataType.BOOLEAN, allowNull: false, defaultValue: true })
   declare spyable: boolean;
 
-  /** D-29: client-aware click-to-call (WebRTC direct / PJSIP originate-first). */
-  @Column({ type: DataType.BOOLEAN, allowNull: false, defaultValue: false })
+  /** D-29/D-40: client-aware click-to-call (SIP originate); default on for SIP softphone. */
+  @Column({ type: DataType.BOOLEAN, allowNull: false, defaultValue: true })
   declare click_to_call: boolean;
 
   /** D-05/D-06: operator may customize their own tab/panel visibility + softphone placement. */

@@ -28,6 +28,11 @@ export interface IAgent {
   /** Outbound dial target while DIALING. */
   dialTarget?: string;
   /**
+   * Remote party for personal inbound (RINGING / IN_CALL) when there is no queue CallState.
+   * Survives F5 via SSE; cleared on hangup (`null` from server).
+   */
+  peerNumber?: string;
+  /**
    * Since-midnight answered/made/missed (metrics). Used when panel KPI mode is day/both.
    * Shift counters stay on callsTaken / callsMade / callsMissed.
    */
