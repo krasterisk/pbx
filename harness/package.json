@@ -4,8 +4,8 @@
   "private": true,
   "description": "Black-box harness layer for Krasterisk v4",
   "scripts": {
-    "test": "vitest run",
-    "test:api": "vitest run scenarios/api"
+    "test": "tsx runner/index.ts",
+    "test:api": "tsx runner/index.ts --kind api"
   },
   "devDependencies": {
     "@types/node": "^22.13.4",
