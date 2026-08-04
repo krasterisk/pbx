@@ -1,0 +1,6 @@
+# Generated test artifacts (D-11)
+reports/*.xml
+reports/*.json
+reports/*.md
+playwright-report/
+test-results/

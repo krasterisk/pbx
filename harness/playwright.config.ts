@@ -15,6 +15,7 @@ export default defineConfig({
   reporter: [
     ['list'],
     ['html', { outputFolder: 'playwright-report', open: 'never' }],
+    ['junit', { outputFile: 'reports/junit-ui.xml' }],
   ],
   use: {
     baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3010',
