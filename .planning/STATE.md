@@ -5,13 +5,13 @@ milestone_name: milestone
 current_phase: 10
 current_phase_name: full-softphone
 status: uat_complete
-stopped_at: Phase 11 planned — 8 plans verified
-last_updated: "2026-08-04T12:00:01.111Z"
+stopped_at: Completed 11-02-PLAN.md
+last_updated: "2026-08-04T12:54:58.950Z"
 progress:
   total_phases: 11
   completed_phases: 8
   total_plans: 103
-  completed_plans: 93
+  completed_plans: 95
 ---
 
 # State
@@ -177,6 +177,9 @@ Phase 1 — MOH: pending verify.
 - [Phase 10]: cc_contacts net-new (not Phase 5 phonebooks); D-13 ownership in where clause
 - [Phase 10]: historyRow SSE after successful writer flush/createOne; journal_depth tenant setting default 50
 - [Phase 10]: PlayDTMF own-channel DTMF; registration-state from presence with WebRTC-to-primary mapping
+- [Phase ?]: HealthModule public liveness before AuthModule; harness runner sequential default with --parallel opt-in
+- [Phase ?]: USE_TESTCONTAINERS=1 selects Testcontainers MySQL; default uses DB_* env for GHA compatibility
+- [Phase ?]: Runner drains registerCleanup queue in finally block on scenario failure
 
 ## Roadmap Evolution
 
@@ -288,9 +291,11 @@ Also open: Phase 10 — `/gsd-verify-work 10`. Phase 9 verify. Phase 8 / 08-11 A
 | Phase 10 P02 | 20min | 2 tasks | 7 files |
 | Phase 10 P03 | 25min | 2 tasks | 5 files |
 | Phase 10 P04 | 35min | 3 tasks | 7 files |
+| Phase 11-harness-layer-external-scenario-runner-environment-observabi P01 | 15min | 2 tasks | 11 files |
+| Phase 11-harness-layer-external-scenario-runner-environment-observabi P02 | 44min | 3 tasks | 9 files |
 
 ## Session
 
-**Last session:** 2026-08-04T12:00:00.950Z
-**Stopped at:** Phase 11 planned — 8 plans verified
-**Resume file:** .planning/phases/11-harness-layer-external-scenario-runner-environment-observabi/11-01-PLAN.md
+**Last session:** 2026-08-04T12:54:58.900Z
+**Stopped at:** Completed 11-02-PLAN.md
+**Resume file:** None

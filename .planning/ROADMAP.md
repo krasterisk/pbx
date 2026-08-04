@@ -666,12 +666,12 @@ Plans:
 
 **Status:** Planned (2026-08-04) — plan-checker PASSED; ready to execute  
 
-**Plans:** 8/8 planned
+**Plans:** 2/8 plans executed
 
 Plans:
 
-- [ ] 11-01-PLAN.md — PR-1 Scaffold: harness workspace, Runner/registry, GET /api/health (D-H06, D-21)
-- [ ] 11-02-PLAN.md — PR-2 Environment: Testcontainers MySQL, readiness, API seed/teardown (D-08, D-15, D-16)
+- [x] 11-01-PLAN.md — PR-1 Scaffold: harness workspace, Runner/registry, GET /api/health (D-H06, D-21)
+- [x] 11-02-PLAN.md — PR-2 Environment: Testcontainers MySQL, readiness, API seed/teardown (D-08, D-15, D-16)
 - [ ] 11-03-PLAN.md — PR-3 Backend scenarios: auth + MOH CRUD + http assertions (D-01, D-02)
 - [ ] 11-04-PLAN.md — PR-4 Frontend absorb: e2e→harness UI + SSE heartbeat; keep e2e/ until CI green (D-H01, D-03, D-04)
 - [ ] 11-05-PLAN.md — PR-5 Metrics + Reporter: md/json/junit triad (D-11)
