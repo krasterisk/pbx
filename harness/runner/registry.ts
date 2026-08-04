@@ -33,6 +33,24 @@ export const SCENARIOS: ScenarioEntry[] = [
     kind: 'api',
     command: 'scenarios/api/moh-crud.test.ts',
   },
+  {
+    id: 'agent-smoke',
+    tags: ['ui', 'agent', 'smoke'],
+    kind: 'ui',
+    command: 'scenarios/ui/agent-smoke.spec.ts',
+  },
+  {
+    id: 'supervisor-smoke',
+    tags: ['ui', 'supervisor', 'smoke'],
+    kind: 'ui',
+    command: 'scenarios/ui/supervisor-smoke.spec.ts',
+  },
+  {
+    id: 'sse-heartbeat',
+    tags: ['sse', 'realtime'],
+    kind: 'realtime',
+    command: 'scenarios/realtime/sse-heartbeat.test.ts',
+  },
 ];
 
 export function filterScenarios(options: {
@@ -43,7 +61,11 @@ export function filterScenarios(options: {
   let list = [...SCENARIOS];
 
   if (options.kind) {
-    list = list.filter((s) => s.kind === options.kind);
+    if (options.kind === 'api') {
+      list = list.filter((s) => s.kind === 'api' || s.kind === 'realtime');
+    } else {
+      list = list.filter((s) => s.kind === options.kind);
+    }
   }
 
   if (options.scenarioId) {
