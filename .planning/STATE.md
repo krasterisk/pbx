@@ -5,12 +5,12 @@ milestone_name: milestone
 current_phase: 10
 current_phase_name: full-softphone
 status: uat_complete
-stopped_at: Phase 11 context gathered
-last_updated: "2026-08-04T11:40:48.382Z"
+stopped_at: Phase 11 planned — 8 plans verified
+last_updated: "2026-08-04T12:00:01.111Z"
 progress:
   total_phases: 11
   completed_phases: 8
-  total_plans: 94
+  total_plans: 103
   completed_plans: 93
 ---
 
@@ -180,6 +180,7 @@ Phase 1 — MOH: pending verify.
 
 ## Roadmap Evolution
 
+- Phase 11 planned (2026-08-04): 8 plans (`11-01`…`11-08`), waves W1–W8; RESEARCH + PATTERNS + VALIDATION; plan-checker PASSED (iter 2). Next: `/gsd-execute-phase 11`.
 - Phase 11 context gathered (2026-08-04): D-H01…D-H06 + D-01…D-24 in `11-CONTEXT.md` (MVP auth/MOH/agent+supervisor/SSE; Asterisk originate path; CI/seed/CLI/package). Next: `/gsd-plan-phase 11`.
 - Phase 11 architecture approved (2026-08-04): D-H01 absorb e2e; D-H02 API+SSE+UI default (SQL opt-in Asterisk/CC); D-H03 Asterisk/realtime in plan; D-H04 Vitest@harness / Jest@backend; D-H05 harness-only OTel v1; D-H06 `/api/health`. Next: `/gsd-discuss-phase 11`.
 - Phase 11 added (2026-08-04): Harness Layer — external black-box runner/environment/scenarios/metrics/observability around existing app (`/harness`, absorb `e2e/`). Architecture pending user approval before plan/execute.
@@ -206,7 +207,7 @@ Phase 1 — MOH: pending verify.
 
 ## Next GSD command
 
-**Phase 11 (Harness):** context ready → `/gsd-plan-phase 11`.
+**Phase 11 (Harness):** planned & verified → `/gsd-execute-phase 11` (starts `11-01`).
 
 Also open: Phase 10 — `/gsd-verify-work 10`. Phase 9 verify. Phase 8 / 08-11 Android smoke.
 
@@ -290,6 +291,6 @@ Also open: Phase 10 — `/gsd-verify-work 10`. Phase 9 verify. Phase 8 / 08-11 A
 
 ## Session
 
-**Last session:** 2026-08-04T11:40:48.293Z
-**Stopped at:** Phase 11 context gathered
-**Resume file:** .planning/phases/11-harness-layer-external-scenario-runner-environment-observabi/11-CONTEXT.md
+**Last session:** 2026-08-04T12:00:00.950Z
+**Stopped at:** Phase 11 planned — 8 plans verified
+**Resume file:** .planning/phases/11-harness-layer-external-scenario-runner-environment-observabi/11-01-PLAN.md

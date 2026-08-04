@@ -664,17 +664,19 @@ Plans:
 | 4 | `/gsd-execute-phase 11` — по PR-этапам |
 | 5 | `/gsd-verify-work 11` |
 
-**Plans:** 8 plans
+**Status:** Planned (2026-08-04) — plan-checker PASSED; ready to execute  
+
+**Plans:** 8/8 planned
 
 Plans:
 
-- [ ] 11-01-PLAN.md — PR-1 Scaffold: harness workspace, Runner/registry, GET /api/health (D-H06, D-H21)
+- [ ] 11-01-PLAN.md — PR-1 Scaffold: harness workspace, Runner/registry, GET /api/health (D-H06, D-21)
 - [ ] 11-02-PLAN.md — PR-2 Environment: Testcontainers MySQL, readiness, API seed/teardown (D-08, D-15, D-16)
 - [ ] 11-03-PLAN.md — PR-3 Backend scenarios: auth + MOH CRUD + http assertions (D-01, D-02)
-- [ ] 11-04-PLAN.md — PR-4 Frontend absorb: e2e→harness UI + SSE heartbeat; delete e2e/ (D-H01, D-23, D-03, D-04)
+- [ ] 11-04-PLAN.md — PR-4 Frontend absorb: e2e→harness UI + SSE heartbeat; keep e2e/ until CI green (D-H01, D-03, D-04)
 - [ ] 11-05-PLAN.md — PR-5 Metrics + Reporter: md/json/junit triad (D-11)
 - [ ] 11-06-PLAN.md — PR-6 Observability: harness-side OTel + structured logs (D-H05)
 - [ ] 11-07-PLAN.md — PR-7 Asterisk/realtime: gated originate, ami-events, sql opt-in, harness-asterisk.yml (D-05–D-07, D-H03)
-- [ ] 11-08-PLAN.md — PR-8 CI harden: harness.yml Node 22, workers=1, artifacts, Nyquist sign-off (D-09, D-12, D-24)
+- [ ] 11-08-PLAN.md — PR-8 CI harden: harness.yml Node 22, workers=1, artifacts; then delete e2e/ (D-09, D-12, D-23, D-24)
 
 **Waves:** W1 {11-01} · W2 {11-02} · W3 {11-03} · W4 {11-04} · W5 {11-05} · W6 {11-06} · W7 {11-07} · W8 {11-08}
