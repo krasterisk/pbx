@@ -6,6 +6,7 @@
   "scripts": {
     "test": "vitest run scenarios/api scenarios/realtime && playwright test",
     "test:api": "tsx runner/index.ts --kind api",
+    "test:asterisk": "tsx runner/index.ts --tag asterisk",
     "test:ui": "playwright test",
     "test:ui:headed": "playwright test --headed",
     "report": "playwright show-report"
@@ -13,6 +14,7 @@
   "devDependencies": {
     "@playwright/test": "^1.50.0",
     "@testcontainers/mysql": "^10.28.0",
+    "@types/asterisk-manager": "^0.0.1",
     "@types/node": "^22.13.4",
     "eventsource": "^2.0.2",
     "testcontainers": "^10.28.0",
@@ -25,6 +27,9 @@
     "@opentelemetry/api": "^1.9.1",
     "@opentelemetry/exporter-trace-otlp-http": "^0.221.0",
     "@opentelemetry/sdk-node": "^0.221.0",
-    "pino": "^9.14.0"
+    "asterisk-manager": "^0.2.0",
+    "mysql2": "^3.12.0",
+    "pino": "^9.14.0",
+    "socket.io-client": "^4.8.3"
   }
 }

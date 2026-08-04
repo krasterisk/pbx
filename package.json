@@ -24,7 +24,7 @@
     "harness": "npm run test -w @krasterisk/harness",
     "harness:api": "npm run test:api -w @krasterisk/harness --",
     "harness:ui": "npm run test:ui -w @krasterisk/harness",
-    "harness:asterisk": "echo \"harness:asterisk not yet implemented (plan 06+)\"",
+    "harness:asterisk": "npm run test:asterisk -w @krasterisk/harness",
     "db:migrate": "npm run db:migrate -w @krasterisk/backend",
     "db:migrate:list": "npm run db:migrate:list -w @krasterisk/backend",
     "db:migrate:rollback": "npm run db:migrate:rollback -w @krasterisk/backend --"
