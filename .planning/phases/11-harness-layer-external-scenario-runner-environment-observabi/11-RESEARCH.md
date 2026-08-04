@@ -704,19 +704,19 @@ Replace `test:e2e` / `test:e2e:install` after absorption (D-23).
 | A4 | Socket.IO client path for `/ami-events` is `http://host:5010/ami-events` | AMI gateway | Connection URL may need `/socket.io` prefix — verify at PR-7 |
 | A5 | Inbound originate requires lab AMI helper (not public HTTP) | Asterisk | May need ops-provided test trunk context name |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **MOH JWT guard**
+1. **MOH JWT guard** — RESOLVED: Add `@UseGuards(JwtAuthGuard)` at MohController class level in Plan 03 Task 2, matching ivrs.controller.ts pattern; harness always sends Bearer.
    - What we know: Controller has no `@UseGuards(JwtAuthGuard)`.
    - What's unclear: Intentional public API vs oversight.
    - Recommendation: Add guard in minimal backend PR; harness always sends Bearer.
 
-2. **Valid MOH entry filename for CI**
+2. **Valid MOH entry filename for CI** — RESOLVED: Assert HTTP 200 roundtrip only (create, GET, PUT, DELETE); do not assert Asterisk audio playback. Use silence/1 entry filename per RESEARCH Pitfall 3.
    - What we know: Create requires ≥1 entry with `filename` under `ASTERISK_SOUNDS_PATH`.
    - What's unclear: Which files exist in CI without Asterisk.
    - Recommendation: MOH API scenario may succeed on DB write even if AMI reload noop when AMI disconnected [VERIFIED: `moh.service.spec.ts` mocks `amiService.isConnected` false] — assert HTTP 200 + GET roundtrip, not audio playback.
 
-3. **Supervisor UI smoke locators**
+3. **Supervisor UI smoke locators** — RESOLVED: Use `getByRole('heading')` plus queue monitor KPI regex patterns mirroring agent spec in Plan 04 Task 2.
    - What we know: Agent spec uses i18n regex patterns.
    - What's unclear: Stable supervisor-specific headings without reading FE source in harness.
    - Recommendation: Prefer `getByRole('heading')` + queue monitor KPI regexes similar to agent spec during migration.
