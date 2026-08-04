@@ -666,7 +666,7 @@ Plans:
 
 **Status:** Planned (2026-08-04) — plan-checker PASSED; ready to execute  
 
-**Plans:** 5/8 plans executed
+**Plans:** 6/8 plans executed
 
 Plans:
 
@@ -675,7 +675,7 @@ Plans:
 - [x] 11-03-PLAN.md — PR-3 Backend scenarios: auth + MOH CRUD + http assertions (D-01, D-02)
 - [x] 11-04-PLAN.md — PR-4 Frontend absorb: e2e→harness UI + SSE heartbeat; keep e2e/ until CI green (D-H01, D-03, D-04)
 - [x] 11-05-PLAN.md — PR-5 Metrics + Reporter: md/json/junit triad (D-11)
-- [ ] 11-06-PLAN.md — PR-6 Observability: harness-side OTel + structured logs (D-H05)
+- [x] 11-06-PLAN.md — PR-6 Observability: harness-side OTel + structured logs (D-H05)
 - [ ] 11-07-PLAN.md — PR-7 Asterisk/realtime: gated originate, ami-events, sql opt-in, harness-asterisk.yml (D-05–D-07, D-H03)
 - [ ] 11-08-PLAN.md — PR-8 CI harden: harness.yml Node 22, workers=1, artifacts; then delete e2e/ (D-09, D-12, D-23, D-24)
 

@@ -5,13 +5,13 @@ milestone_name: milestone
 current_phase: 10
 current_phase_name: full-softphone
 status: uat_complete
-stopped_at: Completed 11-05-PLAN.md
-last_updated: "2026-08-04T13:28:27.225Z"
+stopped_at: Completed 11-06-PLAN.md
+last_updated: "2026-08-04T13:38:57.782Z"
 progress:
   total_phases: 11
   completed_phases: 8
   total_plans: 103
-  completed_plans: 98
+  completed_plans: 99
 ---
 
 # State
@@ -185,6 +185,8 @@ Phase 1 — MOH: pending verify.
 - [Phase ?]: Auth fixture uses HARNESS_API_URL for worker-scoped login
 - [Phase ?]: filterScenarios --kind api includes realtime for harness:api --tag sse
 - [Phase ?]: Partial JUnit merge preserves D-11 completeness with D-19 per-scenario timing
+- [Phase ?]: Harness OTel + pino logs only in /harness; packages/* untouched per D-H05
+- [Phase ?]: pino mixin for per-log trace_id; ConsoleSpanExporter default, OTLP when env set
 
 ## Roadmap Evolution
 
@@ -301,9 +303,10 @@ Also open: Phase 10 — `/gsd-verify-work 10`. Phase 9 verify. Phase 8 / 08-11 A
 | Phase 11-harness-layer-external-scenario-runner-environment-observabi P03 | 25min | 2 tasks | 5 files |
 | Phase 11-harness-layer-external-scenario-runner-environment-observabi P04 | 45min | 3 tasks | 11 files |
 | Phase 11-harness-layer-external-scenario-runner-environment-observabi P05 | 25min | 3 tasks | 11 files |
+| Phase 11 P06 | 18min | 2 tasks | 5 files |
 
 ## Session
 
-**Last session:** 2026-08-04T13:28:27.172Z
-**Stopped at:** Completed 11-05-PLAN.md
+**Last session:** 2026-08-04T13:38:57.734Z
+**Stopped at:** Completed 11-06-PLAN.md
 **Resume file:** None
