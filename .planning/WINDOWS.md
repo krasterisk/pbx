@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 2
+open_count: 4
 waived_count: 0
 fixed_count: 0
-total_count: 2
-last_updated: 2026-08-04T12:55:24.448Z
+total_count: 4
+last_updated: 2026-08-04T13:02:03.163Z
 ---
 
 # Broken Windows Ledger
@@ -17,6 +17,8 @@ last_updated: 2026-08-04T12:55:24.448Z
 |----|-------|------|------|------|-------------|--------|--------|-------------|-------------|
 | 1 | 10 | unrun-verify | .planning/phases/10-full-softphone/10-09-SUMMARY.md |  | [ASSUMED] A1 PlayDTMF + A3 DeviceState/ExtensionState live-Asterisk checkpoint deferred (no live PBX) | open |  | 2026-07-24T15:23:50.364Z |  |
 | 2 | 11 | unrun-verify | harness/scenarios/api/health-smoke.test.ts |  | harness:api health integration requires live backend on :5010 | open |  | 2026-08-04T12:55:24.448Z |  |
+| 3 | 11 | unrun-verify | harness/scenarios/api/auth.test.ts |  | Live harness:api --tag auth deferred (backend not running during 11-03 execution) | open |  | 2026-08-04T13:01:43.629Z |  |
+| 4 | 11 | unrun-verify | harness/scenarios/api/moh-crud.test.ts |  | Live harness:api --tag moh deferred (backend not running during 11-03 execution) | open |  | 2026-08-04T13:02:03.163Z |  |
 
 ````json
 [
@@ -42,6 +44,30 @@ last_updated: 2026-08-04T12:55:24.448Z
     "status": "open",
     "reason": "",
     "recorded_at": "2026-08-04T12:55:24.448Z",
+    "resolved_at": null
+  },
+  {
+    "id": 3,
+    "kind": "unrun-verify",
+    "phase": "11",
+    "file": "harness/scenarios/api/auth.test.ts",
+    "line": null,
+    "description": "Live harness:api --tag auth deferred (backend not running during 11-03 execution)",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-08-04T13:01:43.629Z",
+    "resolved_at": null
+  },
+  {
+    "id": 4,
+    "kind": "unrun-verify",
+    "phase": "11",
+    "file": "harness/scenarios/api/moh-crud.test.ts",
+    "line": null,
+    "description": "Live harness:api --tag moh deferred (backend not running during 11-03 execution)",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-08-04T13:02:03.163Z",
     "resolved_at": null
   }
 ]

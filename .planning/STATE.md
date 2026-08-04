@@ -5,13 +5,13 @@ milestone_name: milestone
 current_phase: 10
 current_phase_name: full-softphone
 status: uat_complete
-stopped_at: Completed 11-02-PLAN.md
-last_updated: "2026-08-04T12:54:58.950Z"
+stopped_at: Completed 11-03-PLAN.md
+last_updated: "2026-08-04T13:02:07.436Z"
 progress:
   total_phases: 11
   completed_phases: 8
   total_plans: 103
-  completed_plans: 95
+  completed_plans: 96
 ---
 
 # State
@@ -180,6 +180,8 @@ Phase 1 — MOH: pending verify.
 - [Phase ?]: HealthModule public liveness before AuthModule; harness runner sequential default with --parallel opt-in
 - [Phase ?]: USE_TESTCONTAINERS=1 selects Testcontainers MySQL; default uses DB_* env for GHA compatibility
 - [Phase ?]: Runner drains registerCleanup queue in finally block on scenario failure
+- [Phase ?]: apiRequest/apiFetch split enables negative auth status assertions without try/catch
+- [Phase ?]: JwtAuthGuard on MohController prevents unauthenticated MOH writes with user_uid 0
 
 ## Roadmap Evolution
 
@@ -293,9 +295,10 @@ Also open: Phase 10 — `/gsd-verify-work 10`. Phase 9 verify. Phase 8 / 08-11 A
 | Phase 10 P04 | 35min | 3 tasks | 7 files |
 | Phase 11-harness-layer-external-scenario-runner-environment-observabi P01 | 15min | 2 tasks | 11 files |
 | Phase 11-harness-layer-external-scenario-runner-environment-observabi P02 | 44min | 3 tasks | 9 files |
+| Phase 11-harness-layer-external-scenario-runner-environment-observabi P03 | 25min | 2 tasks | 5 files |
 
 ## Session
 
-**Last session:** 2026-08-04T12:54:58.900Z
-**Stopped at:** Completed 11-02-PLAN.md
+**Last session:** 2026-08-04T13:02:07.386Z
+**Stopped at:** Completed 11-03-PLAN.md
 **Resume file:** None
