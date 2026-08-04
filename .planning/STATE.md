@@ -5,13 +5,13 @@ milestone_name: milestone
 current_phase: 10
 current_phase_name: full-softphone
 status: uat_complete
-stopped_at: Completed 11-03-PLAN.md
-last_updated: "2026-08-04T13:02:07.436Z"
+stopped_at: Completed 11-05-PLAN.md
+last_updated: "2026-08-04T13:28:27.225Z"
 progress:
   total_phases: 11
   completed_phases: 8
   total_plans: 103
-  completed_plans: 96
+  completed_plans: 98
 ---
 
 # State
@@ -182,6 +182,9 @@ Phase 1 — MOH: pending verify.
 - [Phase ?]: Runner drains registerCleanup queue in finally block on scenario failure
 - [Phase ?]: apiRequest/apiFetch split enables negative auth status assertions without try/catch
 - [Phase ?]: JwtAuthGuard on MohController prevents unauthenticated MOH writes with user_uid 0
+- [Phase ?]: Auth fixture uses HARNESS_API_URL for worker-scoped login
+- [Phase ?]: filterScenarios --kind api includes realtime for harness:api --tag sse
+- [Phase ?]: Partial JUnit merge preserves D-11 completeness with D-19 per-scenario timing
 
 ## Roadmap Evolution
 
@@ -296,9 +299,11 @@ Also open: Phase 10 — `/gsd-verify-work 10`. Phase 9 verify. Phase 8 / 08-11 A
 | Phase 11-harness-layer-external-scenario-runner-environment-observabi P01 | 15min | 2 tasks | 11 files |
 | Phase 11-harness-layer-external-scenario-runner-environment-observabi P02 | 44min | 3 tasks | 9 files |
 | Phase 11-harness-layer-external-scenario-runner-environment-observabi P03 | 25min | 2 tasks | 5 files |
+| Phase 11-harness-layer-external-scenario-runner-environment-observabi P04 | 45min | 3 tasks | 11 files |
+| Phase 11-harness-layer-external-scenario-runner-environment-observabi P05 | 25min | 3 tasks | 11 files |
 
 ## Session
 
-**Last session:** 2026-08-04T13:02:07.386Z
-**Stopped at:** Completed 11-03-PLAN.md
+**Last session:** 2026-08-04T13:28:27.172Z
+**Stopped at:** Completed 11-05-PLAN.md
 **Resume file:** None
