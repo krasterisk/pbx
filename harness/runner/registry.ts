@@ -51,6 +51,18 @@ export const SCENARIOS: ScenarioEntry[] = [
     kind: 'realtime',
     command: 'scenarios/realtime/sse-heartbeat.test.ts',
   },
+  {
+    id: 'asterisk-originate',
+    tags: ['asterisk', 'realtime'],
+    kind: 'realtime',
+    command: 'scenarios/realtime/asterisk-originate.test.ts',
+  },
+  {
+    id: 'ami-events',
+    tags: ['asterisk', 'ami-events', 'realtime'],
+    kind: 'realtime',
+    command: 'scenarios/realtime/ami-events.test.ts',
+  },
 ];
 
 export function filterScenarios(options: {

@@ -143,7 +143,11 @@ async function mainAsync(): Promise<number> {
 
   try {
     const needsFrontend = selected.some((s) => s.kind === 'ui') || opts.kind === 'ui';
-    if (process.env.SKIP_READINESS !== '1') {
+    const allAsteriskTagged =
+      selected.length > 0 && selected.every((s) => s.tags.includes('asterisk'));
+    const skipReadinessForNoLab =
+      allAsteriskTagged && process.env.HAS_ASTERISK !== '1';
+    if (process.env.SKIP_READINESS !== '1' && !skipReadinessForNoLab) {
       await waitForAppReady({ waitForFrontend: needsFrontend });
     }
 
