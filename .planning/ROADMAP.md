@@ -612,3 +612,60 @@ Plans:
 - [x] 10-09-PLAN.md — Dual-mode SIP: useSipPhoneAmi facade + CallCenterAgentPage isSip branch + live-Asterisk checkpoint (D-24/D-31…D-35)
 
 **Waves:** W1 {10-01, 10-02} · W2 {10-03} · W3 {10-04} · W4 {10-05, 10-06, 10-07} · W5 {10-08} · W6 {10-09}
+
+---
+
+## Phase 11 — Harness Layer (external black-box infrastructure)
+
+**Canonical refs (фаза):**
+
+- `packages/frontend/.idea/ARCHITECTURE.md`, `packages/backend/.idea/ARCHITECTURE.md` — MUST READ (public API / auth / multi-tenant conventions)
+- Existing seed: `e2e/` (Playwright operator happy-path) + `.github/workflows/e2e.yml`
+- Public surfaces only: HTTP `/api/*`, SSE `/api/callcenter/events`, Socket.IO AMI gateway, UI routes — **no** imports from `packages/*/src`
+
+**Status:** Context gathered (2026-08-04) — ready for `/gsd-plan-phase 11`  
+**Depends on:** — (независима от product-фаз; может идти параллельно с Phase 10 verify)
+
+**Goal:** Построить отдельный каталог `/harness` вокруг production-приложения: Runner, Environment, Scenarios, Assertions, Metrics, Reporter, Observability. Harness работает как внешний пользователь (HTTP/UI/SSE/AMI), не меняет бизнес-логику, минимально трогает `packages/*`.
+
+**Locked (D-H01…D-H06):** absorb `e2e/`; assertions API+SSE+UI (SQL точечно); Asterisk/realtime in plan; Vitest@harness / Jest@backend; harness-only OTel v1; minimal `GET /api/health`.
+
+**Scope (in):**
+
+- Корневой пакет `harness/` (TypeScript, npm workspace или standalone package)
+- Backend black-box: API scenarios + Testcontainers/Compose environment + fixtures via public API
+- Frontend black-box: Playwright scenarios (миграция/абсорбция существующего `e2e/`)
+- Metrics + reporters (markdown / JSON / JUnit)
+- Harness-side OpenTelemetry + structured logging
+- CI wiring (эволюция `.github/workflows/e2e.yml`)
+
+**Scope (out):**
+
+- Переписывание unit/integration тестов внутри `packages/*`
+- Миграция Jest → Vitest в backend package
+- Внедрение OTel SDK внутрь NestJS/React без отдельного approval (только harness-side в v1; app OTel — v2)
+
+**Asterisk / realtime (in scope for planning, staged delivery):**
+
+- Environment profile `asterisk` (AMI/ARI/WSS endpoints via env)
+- Scenarios gated by `requires: ['asterisk']` — skip when unreachable, run when `HAS_ASTERISK=1` / live lab
+- SSE + Socket.IO `/ami-events` assertions as first-class (not deferred out of roadmap)
+- Delivery still staged: PR env stub → PR live-lab scenarios (после доступа к подготовленному Asterisk)
+
+**Requirements:** TBD (discuss → ADR / REQ после утверждения архитектуры)
+
+**GSD workflow:**
+
+| Шаг | Команда |
+|-----|---------|
+| 1 | Утверждение архитектуры (этот чат) |
+| 2 | `/gsd-discuss-phase 11` — сценарии MVP, env strategy, CI |
+| 3 | `/gsd-plan-phase 11` |
+| 4 | `/gsd-execute-phase 11` — по PR-этапам |
+| 5 | `/gsd-verify-work 11` |
+
+**Plans:** 0 plans
+
+Plans:
+
+- [ ] TBD (run `/gsd-plan-phase 11` after architecture approval)

@@ -180,6 +180,7 @@ Phase 1 — MOH: pending verify.
 
 ## Roadmap Evolution
 
+- Phase 11 context gathered (2026-08-04): D-H01…D-H06 + D-01…D-24 in `11-CONTEXT.md` (MVP auth/MOH/agent+supervisor/SSE; Asterisk originate path; CI/seed/CLI/package). Next: `/gsd-plan-phase 11`.
 - Phase 11 architecture approved (2026-08-04): D-H01 absorb e2e; D-H02 API+SSE+UI default (SQL opt-in Asterisk/CC); D-H03 Asterisk/realtime in plan; D-H04 Vitest@harness / Jest@backend; D-H05 harness-only OTel v1; D-H06 `/api/health`. Next: `/gsd-discuss-phase 11`.
 - Phase 11 added (2026-08-04): Harness Layer — external black-box runner/environment/scenarios/metrics/observability around existing app (`/harness`, absorb `e2e/`). Architecture pending user approval before plan/execute.
 - Phase 10 executed (2026-07-24): 9/9 plans (`10-01`…`10-09`). Dual-mode softphone chrome shipped; A1/A3 live Asterisk verify deferred. Next: `/gsd-verify-work 10`.
@@ -205,7 +206,7 @@ Phase 1 — MOH: pending verify.
 
 ## Next GSD command
 
-**Phase 11 (Harness):** architecture approved → `/gsd-discuss-phase 11` → `/gsd-plan-phase 11`.
+**Phase 11 (Harness):** context ready → `/gsd-plan-phase 11`.
 
 Also open: Phase 10 — `/gsd-verify-work 10`. Phase 9 verify. Phase 8 / 08-11 Android smoke.
 
