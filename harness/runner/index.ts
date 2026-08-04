@@ -8,6 +8,7 @@ import { spawnSync } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { waitForAppReady } from '../environment/readiness.js';
+import { runCleanupQueue } from '../environment/teardown.js';
 import { filterScenarios, type ScenarioKind } from './registry.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -99,17 +100,25 @@ async function mainAsync(): Promise<number> {
     return 1;
   }
 
-  if (process.env.SKIP_READINESS !== '1') {
-    const needsFrontend = uiPaths.length > 0 || opts.kind === 'ui';
-    await waitForAppReady({ waitForFrontend: needsFrontend });
+  let exitCode = 1;
+
+  try {
+    if (process.env.SKIP_READINESS !== '1') {
+      const needsFrontend = uiPaths.length > 0 || opts.kind === 'ui';
+      await waitForAppReady({ waitForFrontend: needsFrontend });
+    }
+
+    exitCode = runVitest(apiPaths, opts.parallel);
+  } finally {
+    await runCleanupQueue();
   }
 
-  return runVitest(apiPaths, opts.parallel);
+  return exitCode;
 }
 
 mainAsync()
   .then((code) => process.exit(code))
   .catch((err: unknown) => {
     console.error(err);
-    process.exit(1);
+    void runCleanupQueue().finally(() => process.exit(1));
   });
