@@ -35,6 +35,7 @@ import { SmsModule } from './modules/sms/sms.module';
 import { CloudAdminModule } from './modules/cloud-admin/cloud-admin.module';
 import { AiChatModule } from './modules/ai-chat/ai-chat.module';
 import { McpModule } from './modules/mcp/mcp.module';
+import { HealthModule } from './modules/health/health.module';
 import { CallCenterModule } from './modules/callcenter/callcenter.module';
 import { AiAgentsModule } from './modules/ai-agents/ai-agents.module';
 import { CcAiAgent } from './modules/ai-agents/models/ai-agent.model';
@@ -177,6 +178,7 @@ import * as path from 'path';
       { name: 'global', ttl: 60000, limit: 60 },
     ]),
     RedisModule,
+    HealthModule,
     AuthModule,
     UsersModule,
     EndpointsModule,

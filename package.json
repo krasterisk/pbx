@@ -6,7 +6,8 @@
   "workspaces": [
     "packages/shared",
     "packages/backend",
-    "packages/frontend"
+    "packages/frontend",
+    "harness"
   ],
   "scripts": {
     "dev:backend": "npm run build -w @krasterisk/shared && npm run start:dev -w @krasterisk/backend",
@@ -20,6 +21,10 @@
     "test:ai": "npm run test:ai -w @krasterisk/backend && npm run test:ai -w @krasterisk/frontend",
     "test:cov": "npm run test:cov -w @krasterisk/backend && npm run test:cov -w @krasterisk/frontend",
     "test:watch": "npm run test:watch -w @krasterisk/frontend",
+    "harness": "npm run test -w @krasterisk/harness",
+    "harness:api": "npm run test:api -w @krasterisk/harness",
+    "harness:ui": "echo \"harness:ui not yet implemented (plan 02+)\"",
+    "harness:asterisk": "echo \"harness:asterisk not yet implemented (plan 04+)\"",
     "test:e2e": "npm --prefix e2e test",
     "test:e2e:install": "npm --prefix e2e install && npm --prefix e2e exec playwright install --with-deps chromium",
     "db:migrate": "npm run db:migrate -w @krasterisk/backend",
