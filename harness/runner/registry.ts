@@ -21,6 +21,12 @@ export const SCENARIOS: ScenarioEntry[] = [
     kind: 'api',
     command: 'scenarios/api/health-smoke.test.ts',
   },
+  {
+    id: 'auth-login',
+    tags: ['auth', 'api'],
+    kind: 'api',
+    command: 'scenarios/api/auth.test.ts',
+  },
 ];
 
 export function filterScenarios(options: {
