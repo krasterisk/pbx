@@ -6,6 +6,7 @@ import { spawnSync } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import waitOn from 'wait-on';
+import { amiTcpReady, ariInfoReady, hasAsteriskLabFlag, isAsteriskLabReady } from './asterisk.js';
 
 const DEFAULT_API_URL = 'http://localhost:5010';
 const DEFAULT_FRONTEND_URL = 'http://localhost:3010';
@@ -69,20 +70,39 @@ export async function waitForAppReady(options: WaitForAppReadyOptions = {}): Pro
   if (waitFrontend) {
     await pollResource(frontendUrl, timeoutMs, 'frontend');
   }
+
+  const asteriskProfile =
+    process.env.HARNESS_PROFILE === 'asterisk' ||
+    (process.env.HARNESS_PROFILE === undefined && hasAsteriskLabFlag());
+
+  if (asteriskProfile && hasAsteriskLabFlag()) {
+    await waitForAsteriskLabReady(timeoutMs);
+  }
 }
 
-/** Stub — full AMI/ARI gates implemented in plan 07. */
+/** AMI TCP readiness (D-07). Sync wrapper returns false — use amiTcpReady() async. */
 export function isAmiReady(): boolean {
-  if (process.env.HAS_ASTERISK !== '1') return false;
-  // Plan 07: TCP probe to AMI_HOST:AMI_PORT
   return false;
 }
 
-/** Stub — full ARI gate implemented in plan 07. */
+/** ARI /asterisk/info readiness (D-07). Sync wrapper returns false — use ariInfoReady() async. */
 export function isAriReady(): boolean {
-  if (process.env.HAS_ASTERISK !== '1') return false;
-  // Plan 07: GET ARI_BASE_URL/asterisk/info
   return false;
+}
+
+export { amiTcpReady, ariInfoReady, isAsteriskLabReady, hasAsteriskLabFlag };
+
+async function waitForAsteriskLabReady(timeoutMs: number): Promise<void> {
+  console.log('→ waiting for Asterisk lab (AMI TCP + ARI /asterisk/info)');
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (await isAsteriskLabReady()) {
+      console.log('✓ Asterisk lab ready');
+      return;
+    }
+    await new Promise((r) => setTimeout(r, 2_000));
+  }
+  throw new Error('Asterisk lab readiness timeout (AMI TCP + ARI /asterisk/info)');
 }
 
 async function main(): Promise<void> {

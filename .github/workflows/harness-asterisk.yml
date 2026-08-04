@@ -1,0 +1,115 @@
+# Asterisk lab harness — workflow_dispatch + optional nightly (D-10).
+# Separate from default PR CI (D-06/D-09). Requires lab secrets in repo settings.
+name: harness-asterisk
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 3 * * *'
+
+jobs:
+  asterisk:
+    name: Harness Asterisk (lab)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: krasterisk
+          MYSQL_DATABASE: krasterisk
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -p$MYSQL_ROOT_PASSWORD"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install workspace deps
+        run: npm ci
+
+      - name: Build shared + backend
+        run: npm run build
+
+      - name: Run database migrations
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_USER: root
+          DB_PASS: krasterisk
+          DB_NAME: krasterisk
+        run: npm run db:migrate
+
+      - name: Start backend
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_USER: root
+          DB_PASS: krasterisk
+          DB_NAME: krasterisk
+          JWT_SECRET: ci-test-secret
+          CC_AI_KEY_SECRET: ci-test-ai-secret
+          AMI_HOST: ${{ secrets.AMI_HOST }}
+          AMI_PORT: ${{ secrets.AMI_PORT }}
+          AMI_LOGIN: ${{ secrets.AMI_LOGIN }}
+          AMI_SECRET: ${{ secrets.AMI_SECRET }}
+          ARI_PROTOCOL: ${{ secrets.ARI_PROTOCOL }}
+          ARI_HOST: ${{ secrets.ARI_HOST }}
+          ARI_PORT: ${{ secrets.ARI_PORT }}
+          ARI_USER: ${{ secrets.ARI_USER }}
+          ARI_PASSWORD: ${{ secrets.ARI_PASSWORD }}
+        run: |
+          npm run dev:backend &
+          npx wait-on -t 60000 http://localhost:5010/api/health
+
+      - name: Start frontend
+        run: |
+          npm run dev:frontend &
+          npx wait-on -t 60000 http://localhost:3010
+
+      - name: Run Asterisk harness scenarios
+        working-directory: harness
+        env:
+          HAS_ASTERISK: '1'
+          HARNESS_PROFILE: asterisk
+          HARNESS_API_URL: http://localhost:5010
+          PLAYWRIGHT_BASE_URL: http://localhost:3010
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_USER: root
+          DB_PASS: krasterisk
+          DB_NAME: krasterisk
+          JWT_SECRET: ci-test-secret
+          CC_AI_KEY_SECRET: ci-test-ai-secret
+          PW_USER: admin
+          PW_PASS: admin
+          AMI_HOST: ${{ secrets.AMI_HOST }}
+          AMI_PORT: ${{ secrets.AMI_PORT }}
+          AMI_LOGIN: ${{ secrets.AMI_LOGIN }}
+          AMI_SECRET: ${{ secrets.AMI_SECRET }}
+          ARI_PROTOCOL: ${{ secrets.ARI_PROTOCOL }}
+          ARI_HOST: ${{ secrets.ARI_HOST }}
+          ARI_PORT: ${{ secrets.ARI_PORT }}
+          ARI_USER: ${{ secrets.ARI_USER }}
+          ARI_PASSWORD: ${{ secrets.ARI_PASSWORD }}
+          HARNESS_ORIGINATE_EXTEN: ${{ secrets.HARNESS_ORIGINATE_EXTEN }}
+          HARNESS_AGENT_INTERFACE: ${{ secrets.HARNESS_AGENT_INTERFACE }}
+        run: npm run test:asterisk
+
+      - name: Upload harness reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: harness-asterisk-reports
+          path: |
+            harness/reports/
+          retention-days: 14
