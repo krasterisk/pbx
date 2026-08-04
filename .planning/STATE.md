@@ -5,10 +5,10 @@ milestone_name: milestone
 current_phase: 10
 current_phase_name: full-softphone
 status: uat_complete
-stopped_at: Phase 10 UAT complete — awaiting canonical verification
-last_updated: "2026-07-28T10:42:00.000Z"
+stopped_at: Phase 11 context gathered
+last_updated: "2026-08-04T11:40:48.382Z"
 progress:
-  total_phases: 10
+  total_phases: 11
   completed_phases: 8
   total_plans: 94
   completed_plans: 93
@@ -180,6 +180,8 @@ Phase 1 — MOH: pending verify.
 
 ## Roadmap Evolution
 
+- Phase 11 architecture approved (2026-08-04): D-H01 absorb e2e; D-H02 API+SSE+UI default (SQL opt-in Asterisk/CC); D-H03 Asterisk/realtime in plan; D-H04 Vitest@harness / Jest@backend; D-H05 harness-only OTel v1; D-H06 `/api/health`. Next: `/gsd-discuss-phase 11`.
+- Phase 11 added (2026-08-04): Harness Layer — external black-box runner/environment/scenarios/metrics/observability around existing app (`/harness`, absorb `e2e/`). Architecture pending user approval before plan/execute.
 - Phase 10 executed (2026-07-24): 9/9 plans (`10-01`…`10-09`). Dual-mode softphone chrome shipped; A1/A3 live Asterisk verify deferred. Next: `/gsd-verify-work 10`.
 - Phase 10 plan 10-04 complete (2026-07-24): FE foundation RTK/SSE/i18n. Next: Wave 4 (10-05…10-07).
 - Phase 10 plan 10-03 complete (2026-07-24): PlayDTMF + registration-state. Next: 10-04.
@@ -203,9 +205,9 @@ Phase 1 — MOH: pending verify.
 
 ## Next GSD command
 
-**Phase 10 executed (9/9):** `/gsd-verify-work 10` (then `/gsd-ship 10`). Apply contacts + journal_depth migrations; live Asterisk A1/A3 still open in WINDOWS.md.
+**Phase 11 (Harness):** architecture approved → `/gsd-discuss-phase 11` → `/gsd-plan-phase 11`.
 
-Also open: Phase 9 — UAT complete (`09-UAT.md` 2/2); `phase complete 9` blocked until `09-VERIFICATION.md` → `passed`. Phase 8 / 08-11 Task 3 — Android smoke, then `approved`.
+Also open: Phase 10 — `/gsd-verify-work 10`. Phase 9 verify. Phase 8 / 08-11 Android smoke.
 
 ## Performance Metrics
 
@@ -287,6 +289,6 @@ Also open: Phase 9 — UAT complete (`09-UAT.md` 2/2); `phase complete 9` blocke
 
 ## Session
 
-**Last session:** 2026-07-24T15:26:48.388Z
-**Stopped at:** Phase 10 plans executed — ready to verify
-**Resume file:** None
+**Last session:** 2026-08-04T11:40:48.293Z
+**Stopped at:** Phase 11 context gathered
+**Resume file:** .planning/phases/11-harness-layer-external-scenario-runner-environment-observabi/11-CONTEXT.md
