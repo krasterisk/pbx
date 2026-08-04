@@ -59,6 +59,23 @@ npm run test -- --tag health --parallel   # opt-in parallelism (D-19)
 
 **Do not** add `@krasterisk/shared` or import from `packages/backend/src` / `packages/frontend/src`. Inline minimal types when needed.
 
+## Reports and CI artifacts (D-11)
+
+Each harness run writes aggregated reports under `harness/reports/`:
+
+| File | Format | Purpose |
+|------|--------|---------|
+| `reports/summary.md` | Markdown | Human-readable scenario table, failures (truncated), Playwright link |
+| `reports/summary.json` | JSON | Machine-readable run summary + optional `GITHUB_SHA` |
+| `reports/junit-api.xml` | JUnit | Vitest API/realtime results |
+| `reports/junit-ui.xml` | JUnit | Playwright UI results |
+
+Playwright HTML traces live in `harness/playwright-report/`. Generated artifacts are gitignored; only `reports/.gitkeep` is tracked.
+
+**CI upload (plan 08):** the harness workflow should upload `harness/reports/` (summary + JUnit) and `harness/playwright-report/` as build artifacts alongside trace zips from `harness/test-results/`.
+
+Per-scenario duration metrics are collected in-process (no RSS sampling in MVP).
+
 ## Current scenarios
 
 | id | tags | kind | command |

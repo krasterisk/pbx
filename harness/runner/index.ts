@@ -9,7 +9,8 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { waitForAppReady } from '../environment/readiness.js';
 import { runCleanupQueue } from '../environment/teardown.js';
-import { endScenario, resetMetrics, startScenario, type ScenarioStatus } from '../metrics/index.js';
+import { endScenario, getRunSummary, resetMetrics, startScenario, type ScenarioStatus } from '../metrics/index.js';
+import { aggregateReporters } from '../reporters/index.js';
 import { filterScenarios, type ScenarioEntry, type ScenarioKind } from './registry.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -52,10 +53,13 @@ function parseArgs(argv: string[]): CliOptions {
   return opts;
 }
 
-function runVitest(paths: string[], parallel: boolean): number {
+function runVitest(paths: string[], parallel: boolean, scenarioId?: string): number {
   const args = ['vitest', 'run', ...paths];
   if (!parallel) {
     args.push('--pool=forks', '--maxWorkers=1', '--fileParallelism=false');
+  }
+  if (scenarioId) {
+    args.push('--reporter=default', '--reporter=junit', `--outputFile=reports/junit-partial-${scenarioId}.xml`);
   }
 
   const result = spawnSync('npx', args, {
@@ -88,7 +92,7 @@ function runScenario(scenario: ScenarioEntry, parallel: boolean): number {
   if (scenario.kind === 'ui') {
     code = runPlaywright([scenario.command]);
   } else {
-    code = runVitest([scenario.command], parallel);
+    code = runVitest([scenario.command], parallel, scenario.id);
   }
 
   const status = exitCodeToStatus(code);
@@ -136,6 +140,10 @@ async function mainAsync(): Promise<number> {
       if (code !== 0) exitCode = code;
     }
   } finally {
+    const summary = getRunSummary();
+    summary.finishedAt = new Date().toISOString();
+    const { markdownPath, jsonPath } = aggregateReporters(summary);
+    console.log(`→ reports: ${markdownPath}, ${jsonPath}`);
     await runCleanupQueue();
   }
 

@@ -1,5 +1,6 @@
 # Generated test artifacts (D-11)
 reports/*.xml
+reports/junit-partial-*.xml
 reports/*.json
 reports/*.md
 playwright-report/
