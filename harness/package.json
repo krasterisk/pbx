@@ -20,5 +20,11 @@
     "typescript": "^5.7.3",
     "vitest": "^3.0.5",
     "wait-on": "^8.0.3"
+  },
+  "dependencies": {
+    "@opentelemetry/api": "^1.9.1",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.221.0",
+    "@opentelemetry/sdk-node": "^0.221.0",
+    "pino": "^9.14.0"
   }
 }

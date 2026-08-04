@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { waitForAppReady } from '../environment/readiness.js';
 import { runCleanupQueue } from '../environment/teardown.js';
 import { endScenario, getRunSummary, resetMetrics, startScenario, type ScenarioStatus } from '../metrics/index.js';
+import { initTracing, shutdownTracing, withScenarioSpan } from '../observability/tracing.js';
 import { aggregateReporters } from '../reporters/index.js';
 import { filterScenarios, type ScenarioEntry, type ScenarioKind } from './registry.js';
 
@@ -85,22 +86,25 @@ function exitCodeToStatus(code: number): ScenarioStatus {
   return code === 0 ? 'passed' : 'failed';
 }
 
-function runScenario(scenario: ScenarioEntry, parallel: boolean): number {
-  startScenario(scenario.id, scenario.tags);
+async function runScenario(scenario: ScenarioEntry, parallel: boolean): Promise<number> {
+  return withScenarioSpan(scenario.id, scenario.tags, async () => {
+    startScenario(scenario.id, scenario.tags);
 
-  let code: number;
-  if (scenario.kind === 'ui') {
-    code = runPlaywright([scenario.command]);
-  } else {
-    code = runVitest([scenario.command], parallel, scenario.id);
-  }
+    let code: number;
+    if (scenario.kind === 'ui') {
+      code = runPlaywright([scenario.command]);
+    } else {
+      code = runVitest([scenario.command], parallel, scenario.id);
+    }
 
-  const status = exitCodeToStatus(code);
-  endScenario(scenario.id, status);
-  return code;
+    const status = exitCodeToStatus(code);
+    endScenario(scenario.id, status);
+    return code;
+  });
 }
 
 async function mainAsync(): Promise<number> {
+  initTracing();
   const opts = parseArgs(process.argv.slice(2));
   const selected = filterScenarios({
     scenarioId: opts.scenarioId,
@@ -136,7 +140,7 @@ async function mainAsync(): Promise<number> {
     }
 
     for (const scenario of selected) {
-      const code = runScenario(scenario, opts.parallel);
+      const code = await runScenario(scenario, opts.parallel);
       if (code !== 0) exitCode = code;
     }
   } finally {
@@ -145,6 +149,7 @@ async function mainAsync(): Promise<number> {
     const { markdownPath, jsonPath } = aggregateReporters(summary);
     console.log(`→ reports: ${markdownPath}, ${jsonPath}`);
     await runCleanupQueue();
+    await shutdownTracing();
   }
 
   return exitCode;
