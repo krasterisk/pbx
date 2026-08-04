@@ -87,28 +87,38 @@ async function mainAsync(): Promise<number> {
     return 0;
   }
 
-  const apiPaths = selected.filter((s) => s.kind === 'api').map((s) => s.command);
+  const vitestKinds: ScenarioKind[] = ['api', 'realtime'];
+  const vitestPaths = selected.filter((s) => vitestKinds.includes(s.kind)).map((s) => s.command);
   const uiPaths = selected.filter((s) => s.kind === 'ui');
-  const realtimePaths = selected.filter((s) => s.kind === 'realtime');
 
-  if (uiPaths.length > 0 || realtimePaths.length > 0) {
-    console.error('UI and realtime scenarios require Playwright (plan 02+). Skipping non-api entries.');
-  }
-
-  if (apiPaths.length === 0) {
-    console.error('No runnable API scenarios in selection.');
+  if (vitestPaths.length === 0 && uiPaths.length === 0) {
+    console.error('No runnable scenarios in selection.');
     return 1;
   }
 
-  let exitCode = 1;
+  let exitCode = 0;
 
   try {
+    const needsFrontend = uiPaths.length > 0 || opts.kind === 'ui';
     if (process.env.SKIP_READINESS !== '1') {
-      const needsFrontend = uiPaths.length > 0 || opts.kind === 'ui';
       await waitForAppReady({ waitForFrontend: needsFrontend });
     }
 
-    exitCode = runVitest(apiPaths, opts.parallel);
+    if (vitestPaths.length > 0) {
+      const code = runVitest(vitestPaths, opts.parallel);
+      if (code !== 0) exitCode = code;
+    }
+
+    if (uiPaths.length > 0) {
+      const pwArgs = ['playwright', 'test', ...uiPaths.map((s) => s.command)];
+      const result = spawnSync('npx', pwArgs, {
+        cwd: harnessRoot,
+        stdio: 'inherit',
+        shell: true,
+      });
+      const code = result.status ?? 1;
+      if (code !== 0) exitCode = code;
+    }
   } finally {
     await runCleanupQueue();
   }

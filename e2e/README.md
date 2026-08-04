@@ -1,5 +1,9 @@
 # Krasterisk E2E tests (Playwright)
 
+> **Migration notice:** New UI and API scenarios live in [`../harness/`](../harness/).
+> This `e2e/` folder is retained for interim CI (`e2e.yml`) until Plan 11-08
+> switches CI to `harness.yml`. Use `npm run harness:ui` for new work.
+
 End-to-end tests covering operator/supervisor flows of the Call Center module
 and other UI smoke scenarios.
 

@@ -23,10 +23,8 @@
     "test:watch": "npm run test:watch -w @krasterisk/frontend",
     "harness": "npm run test -w @krasterisk/harness",
     "harness:api": "npm run test:api -w @krasterisk/harness",
-    "harness:ui": "echo \"harness:ui not yet implemented (plan 02+)\"",
-    "harness:asterisk": "echo \"harness:asterisk not yet implemented (plan 04+)\"",
-    "test:e2e": "npm --prefix e2e test",
-    "test:e2e:install": "npm --prefix e2e install && npm --prefix e2e exec playwright install --with-deps chromium",
+    "harness:ui": "npm run test:ui -w @krasterisk/harness",
+    "harness:asterisk": "echo \"harness:asterisk not yet implemented (plan 06+)\"",
     "db:migrate": "npm run db:migrate -w @krasterisk/backend",
     "db:migrate:list": "npm run db:migrate:list -w @krasterisk/backend",
     "db:migrate:rollback": "npm run db:migrate:rollback -w @krasterisk/backend --"
