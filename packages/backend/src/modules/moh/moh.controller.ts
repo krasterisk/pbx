@@ -1,10 +1,12 @@
 import {
   Controller, Get, Post, Put, Delete,
-  Param, Body, Req,
+  Param, Body, Req, UseGuards,
 } from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { MohService } from './moh.service';
 
 @Controller('moh')
+@UseGuards(JwtAuthGuard)
 export class MohController {
   constructor(private readonly mohService: MohService) {}
 

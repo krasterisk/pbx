@@ -27,6 +27,12 @@ export const SCENARIOS: ScenarioEntry[] = [
     kind: 'api',
     command: 'scenarios/api/auth.test.ts',
   },
+  {
+    id: 'moh-crud',
+    tags: ['moh', 'api'],
+    kind: 'api',
+    command: 'scenarios/api/moh-crud.test.ts',
+  },
 ];
 
 export function filterScenarios(options: {
