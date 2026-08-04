@@ -1,0 +1,15 @@
+# Optional long-lived MySQL stack for local harness development (hybrid pattern).
+# Testcontainers is preferred when USE_TESTCONTAINERS=1; this mirrors GHA e2e.yml services.
+services:
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: krasterisk
+      MYSQL_DATABASE: krasterisk
+    ports:
+      - '3306:3306'
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost', '-pkrasterisk']
+      interval: 10s
+      timeout: 5s
+      retries: 10

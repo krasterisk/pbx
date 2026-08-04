@@ -7,6 +7,7 @@
 import { spawnSync } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { waitForAppReady } from '../environment/readiness.js';
 import { filterScenarios, type ScenarioKind } from './registry.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -64,7 +65,7 @@ function runVitest(paths: string[], parallel: boolean): number {
   return result.status ?? 1;
 }
 
-function main(): number {
+async function mainAsync(): Promise<number> {
   const opts = parseArgs(process.argv.slice(2));
   const selected = filterScenarios({
     scenarioId: opts.scenarioId,
@@ -98,7 +99,17 @@ function main(): number {
     return 1;
   }
 
+  if (process.env.SKIP_READINESS !== '1') {
+    const needsFrontend = uiPaths.length > 0 || opts.kind === 'ui';
+    await waitForAppReady({ waitForFrontend: needsFrontend });
+  }
+
   return runVitest(apiPaths, opts.parallel);
 }
 
-process.exit(main());
+mainAsync()
+  .then((code) => process.exit(code))
+  .catch((err: unknown) => {
+    console.error(err);
+    process.exit(1);
+  });
