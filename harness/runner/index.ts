@@ -11,6 +11,7 @@ import { waitForAppReady } from '../environment/readiness.js';
 import { runCleanupQueue } from '../environment/teardown.js';
 import { endScenario, getRunSummary, resetMetrics, startScenario, type ScenarioStatus } from '../metrics/index.js';
 import { initTracing, shutdownTracing, withScenarioSpan } from '../observability/tracing.js';
+import { logger } from '../observability/logger.js';
 import { aggregateReporters } from '../reporters/index.js';
 import { filterScenarios, type ScenarioEntry, type ScenarioKind } from './registry.js';
 
@@ -88,6 +89,7 @@ function exitCodeToStatus(code: number): ScenarioStatus {
 
 async function runScenario(scenario: ScenarioEntry, parallel: boolean): Promise<number> {
   return withScenarioSpan(scenario.id, scenario.tags, async () => {
+    logger.info({ msg: 'scenario start', scenario_id: scenario.id, tags: scenario.tags, kind: scenario.kind });
     startScenario(scenario.id, scenario.tags);
 
     let code: number;
@@ -99,6 +101,7 @@ async function runScenario(scenario: ScenarioEntry, parallel: boolean): Promise<
 
     const status = exitCodeToStatus(code);
     endScenario(scenario.id, status);
+    logger.info({ msg: 'scenario end', scenario_id: scenario.id, status, exitCode: code });
     return code;
   });
 }
@@ -113,12 +116,17 @@ async function mainAsync(): Promise<number> {
   });
 
   if (selected.length === 0) {
-    console.error('No scenarios matched the given filters.');
+    logger.error({ msg: 'No scenarios matched the given filters.' });
     return 1;
   }
 
   for (const scenario of selected) {
-    console.log(`→ ${scenario.id} [${scenario.tags.join(', ')}] (${scenario.kind})`);
+    logger.info({
+      msg: 'scenario selected',
+      scenario_id: scenario.id,
+      tags: scenario.tags,
+      kind: scenario.kind,
+    });
   }
 
   if (opts.listOnly) {
@@ -126,7 +134,7 @@ async function mainAsync(): Promise<number> {
   }
 
   if (selected.length === 0) {
-    console.error('No runnable scenarios in selection.');
+    logger.error({ msg: 'No runnable scenarios in selection.' });
     return 1;
   }
 
@@ -147,7 +155,7 @@ async function mainAsync(): Promise<number> {
     const summary = getRunSummary();
     summary.finishedAt = new Date().toISOString();
     const { markdownPath, jsonPath } = aggregateReporters(summary);
-    console.log(`→ reports: ${markdownPath}, ${jsonPath}`);
+    logger.info({ msg: 'reports written', markdownPath, jsonPath });
     await runCleanupQueue();
     await shutdownTracing();
   }
@@ -158,6 +166,6 @@ async function mainAsync(): Promise<number> {
 mainAsync()
   .then((code) => process.exit(code))
   .catch((err: unknown) => {
-    console.error(err);
+    logger.error({ msg: 'runner failed', err });
     void runCleanupQueue().finally(() => process.exit(1));
   });

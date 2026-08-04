@@ -1,5 +1,5 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { context, SpanStatusCode, trace } from '@opentelemetry/api';
+import { SpanStatusCode, trace } from '@opentelemetry/api';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import { ConsoleSpanExporter } from '@opentelemetry/sdk-trace';
@@ -68,7 +68,7 @@ export async function withScenarioSpan<T>(
 }
 
 export function getActiveTraceId(): string | undefined {
-  const span = trace.getSpan(context.active());
+  const span = trace.getActiveSpan();
   if (!span) return undefined;
   const { traceId } = span.spanContext();
   return traceId && traceId !== '00000000000000000000000000000000' ? traceId : undefined;

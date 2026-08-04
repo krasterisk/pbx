@@ -22,7 +22,7 @@
     "test:cov": "npm run test:cov -w @krasterisk/backend && npm run test:cov -w @krasterisk/frontend",
     "test:watch": "npm run test:watch -w @krasterisk/frontend",
     "harness": "npm run test -w @krasterisk/harness",
-    "harness:api": "npm run test:api -w @krasterisk/harness",
+    "harness:api": "npm run test:api -w @krasterisk/harness --",
     "harness:ui": "npm run test:ui -w @krasterisk/harness",
     "harness:asterisk": "echo \"harness:asterisk not yet implemented (plan 06+)\"",
     "db:migrate": "npm run db:migrate -w @krasterisk/backend",
