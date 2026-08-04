@@ -9,7 +9,8 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { waitForAppReady } from '../environment/readiness.js';
 import { runCleanupQueue } from '../environment/teardown.js';
-import { filterScenarios, type ScenarioKind } from './registry.js';
+import { endScenario, resetMetrics, startScenario, type ScenarioStatus } from '../metrics/index.js';
+import { filterScenarios, type ScenarioEntry, type ScenarioKind } from './registry.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const harnessRoot = join(__dirname, '..');
@@ -66,6 +67,35 @@ function runVitest(paths: string[], parallel: boolean): number {
   return result.status ?? 1;
 }
 
+function runPlaywright(paths: string[]): number {
+  const pwArgs = ['playwright', 'test', ...paths];
+  const result = spawnSync('npx', pwArgs, {
+    cwd: harnessRoot,
+    stdio: 'inherit',
+    shell: true,
+  });
+  return result.status ?? 1;
+}
+
+function exitCodeToStatus(code: number): ScenarioStatus {
+  return code === 0 ? 'passed' : 'failed';
+}
+
+function runScenario(scenario: ScenarioEntry, parallel: boolean): number {
+  startScenario(scenario.id, scenario.tags);
+
+  let code: number;
+  if (scenario.kind === 'ui') {
+    code = runPlaywright([scenario.command]);
+  } else {
+    code = runVitest([scenario.command], parallel);
+  }
+
+  const status = exitCodeToStatus(code);
+  endScenario(scenario.id, status);
+  return code;
+}
+
 async function mainAsync(): Promise<number> {
   const opts = parseArgs(process.argv.slice(2));
   const selected = filterScenarios({
@@ -87,36 +117,22 @@ async function mainAsync(): Promise<number> {
     return 0;
   }
 
-  const vitestKinds: ScenarioKind[] = ['api', 'realtime'];
-  const vitestPaths = selected.filter((s) => vitestKinds.includes(s.kind)).map((s) => s.command);
-  const uiPaths = selected.filter((s) => s.kind === 'ui');
-
-  if (vitestPaths.length === 0 && uiPaths.length === 0) {
+  if (selected.length === 0) {
     console.error('No runnable scenarios in selection.');
     return 1;
   }
 
+  resetMetrics();
   let exitCode = 0;
 
   try {
-    const needsFrontend = uiPaths.length > 0 || opts.kind === 'ui';
+    const needsFrontend = selected.some((s) => s.kind === 'ui') || opts.kind === 'ui';
     if (process.env.SKIP_READINESS !== '1') {
       await waitForAppReady({ waitForFrontend: needsFrontend });
     }
 
-    if (vitestPaths.length > 0) {
-      const code = runVitest(vitestPaths, opts.parallel);
-      if (code !== 0) exitCode = code;
-    }
-
-    if (uiPaths.length > 0) {
-      const pwArgs = ['playwright', 'test', ...uiPaths.map((s) => s.command)];
-      const result = spawnSync('npx', pwArgs, {
-        cwd: harnessRoot,
-        stdio: 'inherit',
-        shell: true,
-      });
-      const code = result.status ?? 1;
+    for (const scenario of selected) {
+      const code = runScenario(scenario, opts.parallel);
       if (code !== 0) exitCode = code;
     }
   } finally {
