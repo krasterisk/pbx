@@ -698,8 +698,27 @@ Plans:
 - `packages/frontend/src/features/routes/ui/RouteFormModal/` — эталон табов/модалок (Phase 3)
 - Предыдущая фаза по этой области: Phase 6 (`06-13`/`06-14`/`06-16` — apps + registry + inline group editor)
 
-**Status:** Planned — 17 планов, waves 0…13 (`12-01`…`12-17`)
-**Plans:** 17 plans
+**Status:** In Progress — 17 планов, waves 0…13 (`12-01`…`12-17`)
+**Plans:** 1/17 plans executed
+
+- [x] 12-01-PLAN.md
+- [ ] 12-02-PLAN.md
+- [ ] 12-03-PLAN.md
+- [ ] 12-04-PLAN.md
+- [ ] 12-05-PLAN.md
+- [ ] 12-06-PLAN.md
+- [ ] 12-07-PLAN.md
+- [ ] 12-08-PLAN.md
+- [ ] 12-09-PLAN.md
+- [ ] 12-10-PLAN.md
+- [ ] 12-11-PLAN.md
+- [ ] 12-12-PLAN.md
+- [ ] 12-13-PLAN.md
+- [ ] 12-14-PLAN.md
+- [ ] 12-15-PLAN.md
+- [ ] 12-16-PLAN.md
+- [ ] 12-17-PLAN.md
+
 **Depends on:** Phase 6 (registry + apps + call groups / notifications стабилизированы) — brownfield, не блокируется verify Phases 1–11
 
 > **Граница фазы расширена в ходе `/gsd-discuss-phase 12` (2026-08-18).**
@@ -788,7 +807,7 @@ Plans:
 
 **Plans:**
 
-- [ ] `12-01-PLAN.md` — Wave 0: characterization-тесты генератора (22 непокрытые ветви → 29/29)
+- [x] `12-01-PLAN.md` — Wave 0: characterization-тесты генератора (22 непокрытые ветви → 29/29)
 - [ ] `12-02-PLAN.md` — tracer: «очередь по маске маршрута» сквозь все слои
 - [ ] `12-03-PLAN.md` — discriminated union `params` + 29 per-type DTO + реестр DTO
 - [ ] `12-04-PLAN.md` — подсистема тенантных настроек (backend + миграция)

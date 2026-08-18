@@ -2,23 +2,24 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 10
-current_phase_name: full-softphone
-status: uat_complete
-stopped_at: Completed 11-06-PLAN.md
-last_updated: "2026-08-04T13:38:57.782Z"
+current_phase: 12
+current_phase_name: dialplan-apps-editor-refactor-reusable-route-chain-builder
+status: executing
+stopped_at: Completed 12-01-PLAN.md
+last_updated: "2026-08-18T18:13:00.000Z"
 progress:
-  total_phases: 11
+  total_phases: 12
   completed_phases: 8
-  total_plans: 103
-  completed_plans: 99
+  total_plans: 120
+  completed_plans: 101
 ---
 
 # State
 
 ## Current position
 
-Phase: 10 (full-softphone) — UAT complete (35/35). Phase advancement blocked until `10-VERIFICATION.md` (canonical verify).
+Phase: 12 (dialplan-apps-editor-refactor-reusable-route-chain-builder) — EXECUTING
+Plan 12-01 (Wave 0 characterization) complete: 3/3 tasks. Next: 12-02 tracer.
 Migrations applied (2026-07-24): `cc_contacts` table + `cc_settings.journal_depth`. Live Asterisk A1/A3 checkpoint still deferred in WINDOWS.md.
 
 Also Phase 9 (complete, verify/UAT open):
@@ -59,6 +60,10 @@ Phase 1 — MOH: pending verify.
 
 ## Decisions
 
+- [Phase 12]: Wave 0 froze current generator output only — no production files changed
+- [Phase 12]: ActionType (shared) and ActionTypesList (DTO) already match at Wave 0; completeness test is green
+- [Phase 12]: voice-robots.service.ts:444 is max_retries_action and :456 is fallback_action (PLAN.md labels were swapped)
+- [Phase 12]: dialplan.util.ts Wave 0 coverage: 100% stmts/lines, 93.06% branch; all 29 case arms reached
 - [Phase 08]: 08-11 FCM POST `/marketplace/device-token`; JWT `sub` bind; foreground-only WebRTC notes (D-36)
 - [Phase 08]: 08-10 human approved — assembleDebug with Studio JBR 21; gradlew empty-classpath + proguard-optimize fixes
 - [Phase 08]: D-27 Hub-mapped reachable set closed with 08-09 + 08-14…08-17 (exclusions: wallboard, auth, legacy redirects)
@@ -190,6 +195,9 @@ Phase 1 — MOH: pending verify.
 
 ## Roadmap Evolution
 
+- Phase 12 context extended (2026-08-18): +D-51…D-59. Единое приложение «Воспроизведение» складывает `Playback`/`BackGround`/`ControlPlayback` (приложение Asterisk выбирается по режиму; `Read`/`MusicOnHold`/`Say*` остаются отдельными типами) — попутно снимает инверсию имён `playprompt`/`playback`. `VoiceMail()` заменяется кастомной голосовой почтой целиком: обоснование — MWI/папки/`VoiceMailMain` в проекте никогда не были подключены (`mailboxes` и `incoming_mwi_mailbox` — пассивные колонки PJSIP, никем не заполняются). Критично: опция `Record()` `k` обязательна, иначе при отбое абонента теряются все сообщения. Расшифровка и саммаризация — в Phase 12 через существующие `stt-engines` + `ai-agents`. Доступ к сообщениям — вкладка/фильтр в CDR-отчёте поверх существующих `hasRecording`/`streamRecording`/access-scope; ссылка в уведомлении обязана быть с истекающим токеном (`cdr-public.controller.ts` без JWT переиспользовать нельзя). Отложенная фаза тенантности voicemail снята как ненужная. Sizing risk обновлён: голосовая почта — отдельный workstream и главный кандидат на вынос.
+- Phase 12 context gathered (2026-08-18): D-01…D-50 в `12-CONTEXT.md`. **Граница фазы расширена** — бэкенд включён в scope по прямому указанию пользователя: типизация `params` через весь стек (shared discriminated union → per-type DTO → генератор), тенант-скоупинг целей набора (`${EXTEN}` никогда напрямую в `Dial`/`Queue`; `q{exten}_{uid}` / `e{exten}_{uid}` / `group_{exten}_{uid}`), фиксы генератора dialplan, расширение условий за пределы `DIALSTATUS` (`QUEUESTATUS`/`DEVICE_STATE`/переменная/`CURL`), per-app усиление функциональности до конкурентного уровня, подсистема тенантных настроек. Отменено относительно первоначального запроса: удаление `raw_dialplan` (колонка и UI остаются, видимость через настройку). Отложено: блок-схема + MCP/LLM → Phase 13; ConfBridge-модуль и тенантный контекст voicemail → отдельные фазы. Зафиксирован sizing risk с рекомендацией разбить на 7 workstream-ов. Next: `/gsd-ui-phase 12` или `/gsd-plan-phase 12`.
+- Phase 12 added (2026-08-18): DialplanAppsEditor refactor — переиспользуемый конструктор цепочек маршрутов (параметры действий в модалку, summary/validate контракт в registry, типизированные обновления вместо `(field: string, value: any)`, конфигурируемость под 3 host-а, design tokens + a11y). 11 зафиксированных слабых мест (W1–W11) в ROADMAP. Next: `/gsd-discuss-phase 12`.
 - Phase 11 planned (2026-08-04): 8 plans (`11-01`…`11-08`), waves W1–W8; RESEARCH + PATTERNS + VALIDATION; plan-checker PASSED (iter 2). Next: `/gsd-execute-phase 11`.
 - Phase 11 context gathered (2026-08-04): D-H01…D-H06 + D-01…D-24 in `11-CONTEXT.md` (MVP auth/MOH/agent+supervisor/SSE; Asterisk originate path; CI/seed/CLI/package). Next: `/gsd-plan-phase 11`.
 - Phase 11 architecture approved (2026-08-04): D-H01 absorb e2e; D-H02 API+SSE+UI default (SQL opt-in Asterisk/CC); D-H03 Asterisk/realtime in plan; D-H04 Vitest@harness / Jest@backend; D-H05 harness-only OTel v1; D-H06 `/api/health`. Next: `/gsd-discuss-phase 11`.
@@ -217,9 +225,9 @@ Phase 1 — MOH: pending verify.
 
 ## Next GSD command
 
-**Phase 11 (Harness):** planned & verified → `/gsd-execute-phase 11` (starts `11-01`).
+**Phase 12:** 12-01 complete → `/gsd-execute-phase 12` continues with `12-02` (tracer).
 
-Also open: Phase 10 — `/gsd-verify-work 10`. Phase 9 verify. Phase 8 / 08-11 Android smoke.
+Also open: Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 verify; Phase 8 / 08-11 Android smoke.
 
 ## Performance Metrics
 
@@ -304,9 +312,10 @@ Also open: Phase 10 — `/gsd-verify-work 10`. Phase 9 verify. Phase 8 / 08-11 A
 | Phase 11-harness-layer-external-scenario-runner-environment-observabi P04 | 45min | 3 tasks | 11 files |
 | Phase 11-harness-layer-external-scenario-runner-environment-observabi P05 | 25min | 3 tasks | 11 files |
 | Phase 11 P06 | 18min | 2 tasks | 5 files |
+| Phase 12 P01 | 25min | 3 tasks | 6 files |
 
 ## Session
 
-**Last session:** 2026-08-04T13:38:57.734Z
-**Stopped at:** Completed 11-06-PLAN.md
+**Last session:** 2026-08-18T18:13:00.000Z
+**Stopped at:** Completed 12-01-PLAN.md
 **Resume file:** None
