@@ -698,7 +698,8 @@ Plans:
 - `packages/frontend/src/features/routes/ui/RouteFormModal/` — эталон табов/модалок (Phase 3)
 - Предыдущая фаза по этой области: Phase 6 (`06-13`/`06-14`/`06-16` — apps + registry + inline group editor)
 
-**Status:** Discussed → границы сужены при планировании (см. `12-CONTEXT.md`)
+**Status:** Planned — 17 планов, waves 0…13 (`12-01`…`12-17`)
+**Plans:** 17 plans
 **Depends on:** Phase 6 (registry + apps + call groups / notifications стабилизированы) — brownfield, не блокируется verify Phases 1–11
 
 > **Граница фазы расширена в ходе `/gsd-discuss-phase 12` (2026-08-18).**
@@ -783,7 +784,27 @@ Plans:
 7. `npm run lint`, `npm run test:frontend` зелёные; новые тесты покрывают add/remove/reorder/validate/readOnly/allowedTypes
 8. i18n `ru` + `en` для всех новых/изменённых строк
 
-**Requirements:** Locked decisions **D-01…D-53 + D-44, D-45, D-47, D-49** в `.planning/phases/12-dialplan-apps-editor-refactor-reusable-route-chain-builder/12-CONTEXT.md` (48 отслеживаемых). Вне фазы: D-46/D-48/D-50 (Phase 13), D-54…D-59 (Phase 12b), D-40 (отменено самим CONTEXT), D-41 (сознательно частичное — только перевод действия на схему параметров)
+**Requirements:** Locked decisions **D-01…D-53 + D-44, D-45, D-47, D-49** в `.planning/phases/12-dialplan-apps-editor-refactor-reusable-route-chain-builder/12-CONTEXT.md` (**49 отслеживаемых** — уточнено `check.decision-coverage-plan`; ROADMAP ранее указывал 48). Вне фазы: D-46/D-48/D-50 (Phase 13), D-54…D-59 (Phase 12b), D-40 (отменено самим CONTEXT), D-41 (сознательно частичное — только перевод действия на схему параметров)
+
+**Plans:**
+
+- [ ] `12-01-PLAN.md` — Wave 0: characterization-тесты генератора (22 непокрытые ветви → 29/29)
+- [ ] `12-02-PLAN.md` — tracer: «очередь по маске маршрута» сквозь все слои
+- [ ] `12-03-PLAN.md` — discriminated union `params` + 29 per-type DTO + реестр DTO
+- [ ] `12-04-PLAN.md` — подсистема тенантных настроек (backend + миграция)
+- [ ] `12-05-PLAN.md` — ядро генератора: multi-line условия, `label`, 5 call-site, `normalizeTarget`
+- [ ] `12-06-PLAN.md` — расширенные условия шага + защита от петель и недостижимые шаги
+- [ ] `12-07-PLAN.md` — ядро FE-редактора: reducer, undo, clipboard, unknown-тип
+- [ ] `12-08-PLAN.md` — Sheet целиком: schema-поля, опции, условия, проекция ошибок
+- [ ] `12-09-PLAN.md` — UI тенантных настроек с optimistic toggle
+- [ ] `12-10-PLAN.md` — единое приложение «Воспроизведение» (backend + UI)
+- [ ] `12-11-PLAN.md` — чистка legacy: PHP → внутренние endpoint'ы, `notify`, внутренние TTS
+- [ ] `12-12-PLAN.md` — миграция данных `params` + hard-remove типов
+- [ ] `12-13-PLAN.md` — per-app фиксы: транки, CallerID, очередь, exten, confbridge
+- [ ] `12-14-PLAN.md` — `exten` у групп вызова + единая схема контекста с переходным `include`
+- [ ] `12-15-PLAN.md` — группы вызова уровня Ring Group: подтверждение, пропуск занятых, MOH
+- [ ] `12-16-PLAN.md` — новые типы действий: метка/переход/ветвление, расписание, HTTP, сбор ввода
+- [ ] `12-17-PLAN.md` — финальный гейт: ручные проверки M1, M4…M9, M12 + полный прогон
 
 **GSD workflow (рекомендуемый порядок):**
 
@@ -801,7 +822,7 @@ Plans:
 - Automated: `npm run lint`, `npm run test:frontend` (editor + SortableActionItem + registry summarize/validate + существующие `apps/*` тесты + `RoutePhonebooksTab.test.tsx`), `npm run test:backend` (per-type DTO-валидация + `dialplan.util.spec.ts` на все ветви генератора — **22 из 29 не покрыты** (уточнено research; ROADMAP ранее указывал 21) + `call-group-dialplan.util`)
 - Manual: `/routes` → маршрут → «Действия» — собрать цепочку из 5+ шагов (queue → group → notify → hangup), настроить параметры в Sheet, переупорядочить drag и клавиатурой, дублировать и выключить шаг, сохранить → dialplan применяется как раньше; «Справочники» маршрута и IVR-меню — тот же редактор без регрессий; проверить 375px / 768px / 1280px
 - Manual (Asterisk): маршрут с маской `_2XX` + действие «очередь по маске» → набор 201 попадает в очередь `q201_{uid}`; то же для группы; условие «очередь переполнена» отрабатывает через `QUEUESTATUS`; `dialplan show` подтверждает, что условие применяется ко всем строкам multi-line действий
-- Manual-only чеклист M1…M12 (живой Asterisk, `packages/harness` отсутствует) — в `12-VALIDATION.md`
+- Manual-only чеклист M1…M12 (живой Asterisk, `packages/harness` отсутствует) — в `12-VALIDATION.md`. В Phase 12 закрываются **M1, M4…M9, M12** (план `12-17`); **M2, M3, M10, M11** относятся к голосовой почте и перенесены в Phase 12b
 
 ---
 
