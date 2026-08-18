@@ -1,7 +1,8 @@
 import 'reflect-metadata';
 import { plainToInstance } from 'class-transformer';
-import { validate } from 'class-validator';
+import { validate, validateSync } from 'class-validator';
 import { RouteActionDto } from './route-action.dto';
+import { ToQueueParamsDto } from './dialplan-params/toqueue.params.dto';
 
 async function validateAction(plain: Record<string, unknown>) {
   const dto = plainToInstance(RouteActionDto, plain);
@@ -75,5 +76,22 @@ describe('RouteActionDto', () => {
       const conditionErrors = errors.find((e) => e.property === 'condition');
       expect(conditionErrors?.children?.some((c) => c.property === 'time_group_uid')).toBe(true);
     });
+  });
+});
+
+describe('ToQueueParamsDto', () => {
+  it('rejects target.source outside the allowed set', () => {
+    const dto = plainToInstance(ToQueueParamsDto, { target: { source: 'nope' } });
+    expect(validateSync(dto).length).toBeGreaterThan(0);
+  });
+
+  it('rejects source fixed with empty value', () => {
+    const dto = plainToInstance(ToQueueParamsDto, { target: { source: 'fixed', value: '' } });
+    expect(validateSync(dto).length).toBeGreaterThan(0);
+  });
+
+  it('accepts source route_pattern without value', () => {
+    const dto = plainToInstance(ToQueueParamsDto, { target: { source: 'route_pattern' } });
+    expect(validateSync(dto)).toHaveLength(0);
   });
 });

@@ -395,7 +395,7 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       );
     });
 
-    it('toqueue with filled params emits Queue(name,options,,,timeout)', () => {
+    it('toqueue with filled legacy queue emits tenant-scoped Queue(q{name}_{uid},…)', () => {
       const dp = AsteriskDialplanUtils.actionToDialplan(
         {
           type: 'toqueue',
@@ -404,18 +404,31 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
         },
         vpbx,
       );
-      expect(dp).toBe('Queue(sales,thH,,,30)');
+      expect(dp).toBe('Queue(qsales_42,thH,,,30)');
     });
 
-    it('toqueue with empty params substitutes ${EXTEN} (D-21 baseline)', () => {
+    it('toqueue with route_pattern target emits Queue(q${EXTEN}_{uid},…)', () => {
+      const dp = AsteriskDialplanUtils.actionToDialplan(
+        {
+          type: 'toqueue',
+          params: { target: { source: 'route_pattern' }, timeout: 60 },
+          condition: {},
+        },
+        vpbx,
+      );
+      expect(dp).toContain('Queue(q${EXTEN}_42,');
+    });
+
+    it('toqueue with empty params no longer emits raw ${EXTEN} (D-21, replaces 12-01 baseline)', () => {
       const dp = AsteriskDialplanUtils.actionToDialplan(
         { type: 'toqueue', params: {}, condition: {} },
         vpbx,
       );
-      expect(dp).toBe('Queue(${EXTEN},thH,,,)');
+      expect(dp).not.toBe('Queue(${EXTEN},thH,,,)');
+      expect(dp).toBe('Queue(q${EXTEN}_42,thH,,,)');
     });
 
-    it('toqueue registry defaultParams match empty-queue ${EXTEN} fallback', () => {
+    it('toqueue registry empty-queue maps to route_pattern, not raw ${EXTEN}', () => {
       const dp = AsteriskDialplanUtils.actionToDialplan(
         {
           type: 'toqueue',
@@ -424,7 +437,7 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
         },
         vpbx,
       );
-      expect(dp).toBe('Queue(${EXTEN},thH,,,)');
+      expect(dp).toBe('Queue(q${EXTEN}_42,thH,,,)');
     });
 
     it('toivr with filled ivr_uid emits Goto(ivr_<uid>,start,1)', () => {
