@@ -1,5 +1,6 @@
 import { RoutesService } from './routes.service';
 import type { ITimeGroupInterval } from '@krasterisk/shared';
+import { AsteriskDialplanUtils } from '../../shared/utils/dialplan.util';
 
 /**
  * Unit tests for RoutesService bindings CRUD (D-03, D-05, T-05-03).
@@ -322,6 +323,68 @@ describe('RoutesService', () => {
 
       expect(dp).toContain('MixMonitor(/usr/records/100/calls/${path}/${fname}.raw,D,${monopt})');
       expect(dp).not.toMatch(/MixMonitor\([^)]*,b/);
+    });
+  });
+
+  describe('characterization (Wave 0) — time-group wrap and buildContextName', () => {
+    const prevKey = AsteriskDialplanUtils.dialplanApiKey;
+    const prevUrl = AsteriskDialplanUtils.backendBaseUrl;
+
+    beforeEach(() => {
+      AsteriskDialplanUtils.backendBaseUrl = 'http://backend.test/api';
+      AsteriskDialplanUtils.dialplanApiKey = 'wave0-key';
+    });
+
+    afterEach(() => {
+      AsteriskDialplanUtils.backendBaseUrl = prevUrl;
+      AsteriskDialplanUtils.dialplanApiKey = prevKey;
+    });
+
+    /**
+     * 12-RESEARCH.md Pitfall 3 — routes.service.ts:361-365 wraps the whole multi-line dp.
+     * Closing ')' lands on the last line. 12-05 must rewrite this expectation.
+     */
+    it('characterizes current (defective) behaviour: time_group_uid wrap puts closing paren on last sendmail line', () => {
+      const route = baseRoute({
+        extensions: ['100'],
+        actions: [
+          {
+            type: 'sendmail',
+            params: {
+              email: 'ops@example.com',
+              subject: 'Call from ${CALLERID(num)}',
+              text: 'Incoming on ${EXTEN}',
+            },
+            condition: { time_group_uid: 12 },
+          },
+        ],
+      });
+
+      const dp = service.generateRouteDialplan(route, 42, false, timeGroupMap(12));
+      const start = dp.indexOf('same => n,ExecIf($["${WT_12}"="1"]?Set(__KMAIL_TO=');
+      expect(start).toBeGreaterThan(-1);
+      const wrapped = dp.slice(start).trimEnd();
+      expect(wrapped).toBe(
+        [
+          'same => n,ExecIf($["${WT_12}"="1"]?Set(__KMAIL_TO=ops@example.com)',
+          'same => n,Set(__KMAIL_SUBJ=Call from ${CALLERID(num)})',
+          'same => n,Set(__KMAIL_TEXT=Incoming on ${EXTEN})',
+          'same => n,Set(MAIL_RESULT=${CURL(http://backend.test/api/internal/dialplan/sendmail,to=${URIENCODE(${KMAIL_TO})}&subject=${URIENCODE(${KMAIL_SUBJ})}&text=${URIENCODE(${KMAIL_TEXT})}&api_key=wave0-key)}))',
+        ].join('\n'),
+      );
+    });
+
+    it('buildContextName endsWith guard keeps an already-suffixed context (D-42 contrast vs toroute)', async () => {
+      routeModel.findAll.mockResolvedValue([]);
+      const dp = await service.generateContextDialplan(
+        1,
+        42,
+        'sip-out42',
+        ['from-internal42', 'default'],
+      );
+      expect(dp).toBe(
+        ['[sip-out42]', 'include => from-internal42', 'include => default42', ''].join('\n'),
+      );
     });
   });
 });

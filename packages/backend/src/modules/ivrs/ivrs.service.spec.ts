@@ -118,6 +118,34 @@ describe('IvrsService.generateIvrDialplan', () => {
     expect(dp).toContain('exten => 1,1,NoOp(IVR choice: 1)');
     expect(dp).toContain('Hangup()');
   });
+
+  /**
+   * ivrs.service.ts:249 — actionToDialplan without time-group guard.
+   * 12-05 must wrap this call site; this expectation is the missing-guard baseline.
+   */
+  it('characterizes current (defective) behaviour: menu action with time_group_uid emits no ExecIfTime/WT_ guard', () => {
+    const dp = service.generateIvrDialplan(
+      {
+        ...baseIvr,
+        prompts: [],
+        menu_items: [
+          {
+            digit: '1',
+            actions: [
+              {
+                type: 'hangup',
+                params: {},
+                condition: { time_group_uid: 12 },
+              },
+            ],
+          },
+        ],
+      } as Ivr,
+      42,
+    );
+    expect(dp).not.toMatch(/ExecIfTime|WT_/);
+    expect(dp).toContain('same => n,Hangup()');
+  });
 });
 
 describe('IvrsService dialplan sync', () => {

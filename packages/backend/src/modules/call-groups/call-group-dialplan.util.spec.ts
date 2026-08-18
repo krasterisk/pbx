@@ -272,3 +272,102 @@ describe('generateGroupDialplan', () => {
     });
   });
 });
+
+describe('generateGroupDialplan (Wave 0 exact toBe baselines)', () => {
+  it('ringall full output is exact (D-33 context + D-34 tT)', () => {
+    const result = generateGroupDialplan(baseGroup({ strategy: 'ringall' }), sampleMembers(), VPBX);
+    expect(result.lines.join('\n')).toBe(
+      [
+        '[group_15_42]',
+        'exten => start,1,NoOp(Call group: Sales dept [ringall])',
+        'same => n,Dial(PJSIP/e101_42&PJSIP/e102_42&LOCAL/79001234567@ctx-42,25,tT)',
+        'same => n,Return()',
+      ].join('\n'),
+    );
+  });
+
+  it('hunt full output is exact', () => {
+    const result = generateGroupDialplan(baseGroup({ strategy: 'hunt' }), sampleMembers(), VPBX);
+    expect(result.lines.join('\n')).toBe(
+      [
+        '[group_15_42]',
+        'exten => start,1,NoOp(Call group: Sales dept [hunt])',
+        'same => n,Dial(PJSIP/e101_42,20,tT)',
+        'same => n,ExecIf($["${DIALSTATUS}" = "ANSWER"]?Return())',
+        'same => n,Dial(PJSIP/e102_42,15,tT)',
+        'same => n,ExecIf($["${DIALSTATUS}" = "ANSWER"]?Return())',
+        'same => n,Dial(LOCAL/79001234567@ctx-42,30,tT)',
+        'same => n,Return()',
+      ].join('\n'),
+    );
+  });
+
+  it('memoryhunt full output is exact', () => {
+    const result = generateGroupDialplan(baseGroup({ strategy: 'memoryhunt' }), sampleMembers(), VPBX);
+    expect(result.lines.join('\n')).toBe(
+      [
+        '[group_15_42]',
+        'exten => start,1,NoOp(Call group: Sales dept [memoryhunt])',
+        'same => n,Dial(PJSIP/e101_42,20,tT)',
+        'same => n,ExecIf($["${DIALSTATUS}" = "ANSWER"]?Return())',
+        'same => n,Dial(PJSIP/e101_42&PJSIP/e102_42,15,tT)',
+        'same => n,ExecIf($["${DIALSTATUS}" = "ANSWER"]?Return())',
+        'same => n,Dial(PJSIP/e101_42&PJSIP/e102_42&LOCAL/79001234567@ctx-42,30,tT)',
+        'same => n,Return()',
+      ].join('\n'),
+    );
+  });
+
+  it('random full output is exact', () => {
+    const result = generateGroupDialplan(baseGroup({ strategy: 'random' }), sampleMembers(), VPBX);
+    expect(result.lines.join('\n')).toBe(
+      [
+        '[group_15_42]',
+        'exten => start,1,NoOp(Call group: Sales dept [random])',
+        'same => n,Set(GRP_PICK=${RAND(1,3)})',
+        'same => n,GotoIf($["${GRP_PICK}" = "1"]?m1)',
+        'same => n,GotoIf($["${GRP_PICK}" = "2"]?m2)',
+        'same => n,Goto(m3)',
+        'same => n(m1),Dial(PJSIP/e101_42,20,tT)',
+        'same => n,ExecIf($["${DIALSTATUS}" = "ANSWER"]?Return())',
+        'same => n,Dial(PJSIP/e102_42&LOCAL/79001234567@ctx-42,25,tT)',
+        'same => n,Return()',
+        'same => n(m2),Dial(PJSIP/e102_42,15,tT)',
+        'same => n,ExecIf($["${DIALSTATUS}" = "ANSWER"]?Return())',
+        'same => n,Dial(PJSIP/e101_42&LOCAL/79001234567@ctx-42,25,tT)',
+        'same => n,Return()',
+        'same => n(m3),Dial(LOCAL/79001234567@ctx-42,30,tT)',
+        'same => n,ExecIf($["${DIALSTATUS}" = "ANSWER"]?Return())',
+        'same => n,Dial(PJSIP/e101_42&PJSIP/e102_42,25,tT)',
+        'same => n,Return()',
+      ].join('\n'),
+    );
+  });
+
+  it('CALLERID(name) after cid_prefix is not restored after Return() (D-35 baseline)', () => {
+    const result = generateGroupDialplan(
+      baseGroup({ strategy: 'ringall', cid_prefix: 'Sales' }),
+      sampleMembers(),
+      VPBX,
+    );
+    const joined = result.lines.join('\n');
+    const returnIndex = joined.lastIndexOf('same => n,Return()');
+    expect(joined.slice(returnIndex)).toBe('same => n,Return()');
+    expect(joined).toContain('same => n,Set(CALLERID(name)=Sales ${CALLERID(name)})');
+  });
+
+  it('random with five members emits 10 Dial() blocks (D-35 baseline)', () => {
+    const five: ICallGroupMember[] = [1, 2, 3, 4, 5].map((i) => ({
+      uid: i,
+      call_group_uid: 15,
+      member_type: 'internal' as const,
+      value: String(100 + i),
+      position: i,
+      ring_time: 15,
+      user_uid: VPBX,
+    }));
+    const result = generateGroupDialplan(baseGroup({ strategy: 'random' }), five, VPBX);
+    expect(result.lines.join('\n').split('Dial(').length - 1).toBe(10);
+    expect(result.name).toBe('group_15_42');
+  });
+});
