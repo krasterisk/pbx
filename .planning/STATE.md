@@ -5,13 +5,13 @@ milestone_name: milestone
 current_phase: 12
 current_phase_name: dialplan-apps-editor-refactor-reusable-route-chain-builder
 status: executing
-stopped_at: Completed 12-01-PLAN.md
-last_updated: "2026-08-18T18:13:00.000Z"
+stopped_at: Completed 12-04-PLAN.md
+last_updated: "2026-08-18T18:29:49.288Z"
 progress:
   total_phases: 12
   completed_phases: 8
   total_plans: 120
-  completed_plans: 101
+  completed_plans: 102
 ---
 
 # State
@@ -19,7 +19,7 @@ progress:
 ## Current position
 
 Phase: 12 (dialplan-apps-editor-refactor-reusable-route-chain-builder) — EXECUTING
-Plan 12-01 (Wave 0 characterization) complete: 3/3 tasks. Next: 12-02 tracer.
+Plan 12-01 (Wave 0 characterization) complete: 3/3 tasks. Plan 12-04 (tenant-settings module) complete: 3/3 tasks. Next: remaining Wave 0 (12-02 tracer).
 Migrations applied (2026-07-24): `cc_contacts` table + `cc_settings.journal_depth`. Live Asterisk A1/A3 checkpoint still deferred in WINDOWS.md.
 
 Also Phase 9 (complete, verify/UAT open):
@@ -192,6 +192,9 @@ Phase 1 — MOH: pending verify.
 - [Phase ?]: Partial JUnit merge preserves D-11 completeness with D-19 per-scenario timing
 - [Phase ?]: Harness OTel + pino logs only in /harness; packages/* untouched per D-H05
 - [Phase ?]: pino mixin for per-log trace_id; ConsoleSpanExporter default, OTLP when env set
+- [Phase 12]: D-17 both flags default true (ON); empty-table getAll returns toBe(true)
+- [Phase 12]: GLOBAL_SETTING_KEYS is a live Set from system-settings MANAGED_KEYS
+- [Phase 12]: No @Roles(UserLevel.ADMIN) on tenant-settings; JWT tenant only (D-19)
 
 ## Roadmap Evolution
 
@@ -225,7 +228,7 @@ Phase 1 — MOH: pending verify.
 
 ## Next GSD command
 
-**Phase 12:** 12-01 complete → `/gsd-execute-phase 12` continues with `12-02` (tracer).
+**Phase 12:** 12-01 and 12-04 complete → `/gsd-execute-phase 12` continues with remaining Wave 0 (`12-02` tracer).
 
 Also open: Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 verify; Phase 8 / 08-11 Android smoke.
 
@@ -313,9 +316,10 @@ Also open: Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 veri
 | Phase 11-harness-layer-external-scenario-runner-environment-observabi P05 | 25min | 3 tasks | 11 files |
 | Phase 11 P06 | 18min | 2 tasks | 5 files |
 | Phase 12 P01 | 25min | 3 tasks | 6 files |
+| Phase 12-dialplan-apps-editor-refactor-reusable-route-chain-builder P04 | 15min | 3 tasks | 12 files |
 
 ## Session
 
-**Last session:** 2026-08-18T18:13:00.000Z
-**Stopped at:** Completed 12-01-PLAN.md
+**Last session:** 2026-08-18T18:29:49.230Z
+**Stopped at:** Completed 12-04-PLAN.md
 **Resume file:** None
