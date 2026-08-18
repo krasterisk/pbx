@@ -680,3 +680,182 @@ Plans:
 - [ ] 11-08-PLAN.md — PR-8 CI harden: harness.yml Node 22, workers=1, artifacts; then delete e2e/ (D-09, D-12, D-23, D-24)
 
 **Waves:** W1 {11-01} · W2 {11-02} · W3 {11-03} · W4 {11-04} · W5 {11-05} · W6 {11-06} · W7 {11-07} · W8 {11-08}
+
+---
+
+## Phase 12 — DialplanAppsEditor refactor: reusable route-chain builder
+
+**Canonical refs (фаза):**
+
+- `packages/frontend/.idea/ARCHITECTURE.md` — **MUST READ** (FSD, SCSS-модули + токены `var(--color-*)`, `shared/ui`, Optimistic toggles, i18n)
+- `packages/frontend/src/features/dialplan-apps/ui/DialplanAppsEditor/DialplanAppsEditor.tsx` — **primary target** (orchestrator: add/remove/update/reorder)
+- `packages/frontend/src/features/dialplan-apps/ui/SortableActionItem/SortableActionItem.tsx` — строка действия (сейчас все параметры inline)
+- `packages/frontend/src/features/dialplan-apps/model/registry.ts`, `model/types.ts` — реестр приложений (`IDialplanAppConfig`, `defaultParams`)
+- `packages/frontend/src/features/dialplan-apps/ui/apps/*` — 13 app-компонентов (Group, Notify, CallerId, TrunkCarousel, Queue, Ivr, Prompt, ToRoute, Trunk, Exten, VoiceRobot, Hangup, Generic)
+- `packages/frontend/src/features/dialplan-apps/ui/ActionTypeSelect/`, `ActionConditionFilters/`, `DialstatusSelect/`, `TimeGroupSelect/`
+- **Consumers (все 3 host-а):** `features/routes/ui/RouteFormModal/RouteActionsTab.tsx`, `features/routes/ui/RouteFormModal/RoutePhonebooksTab.tsx`, `features/ivrs/ui/IvrMenuItemsEditor/IvrMenuItemsEditor.tsx`
+- `packages/shared` — `IRouteAction`, `ActionType`, `DialStatus`
+- `packages/frontend/src/features/routes/ui/RouteFormModal/` — эталон табов/модалок (Phase 3)
+- Предыдущая фаза по этой области: Phase 6 (`06-13`/`06-14`/`06-16` — apps + registry + inline group editor)
+
+**Status:** Discussed → границы сужены при планировании (см. `12-CONTEXT.md`)
+**Depends on:** Phase 6 (registry + apps + call groups / notifications стабилизированы) — brownfield, не блокируется verify Phases 1–11
+
+> **Граница фазы расширена в ходе `/gsd-discuss-phase 12` (2026-08-18).**
+> Исходно фаза была FE-only. Пользователь явно включил бэкенд в scope и добавил две крупные темы:
+> типизацию/валидацию `params` через весь стек и подсистему тенантных настроек. Полный список
+> зафиксированных решений (D-01…D-59) — в `.planning/phases/12-.../12-CONTEXT.md`.
+
+> **Граница сужена в ходе `/gsd-plan-phase 12` (2026-08-18).**
+> Планировщик вернул `PHASE SPLIT RECOMMENDED`: 59 решений не помещаются в бюджет одного набора планов.
+> Независимо к тому же выводу пришёл research (`12-RESEARCH.md` § `Phase Sizing Assessment`).
+> Пользователь подтвердил разделение, отменив тем самым своё более раннее решение `vm_phase: full_in_12`:
+> - **Кастомная голосовая почта (D-54…D-59) → Phase 12b.** Критический путь в самом конце (зависит от типов,
+>   `RECORD_STATUS` в условиях и `notify`), новый класс данных со своей моделью угроз, плюс два вопроса дизайна
+>   остались нерешёнными.
+> - **D-46 (шаблоны цепочек), D-48 (dry-run), D-50 (обратный звонок) → Phase 13.** Ни одна из 12 поверхностей
+>   утверждённого `12-UI-SPEC.md` их не покрывает — это самостоятельные экраны, а не поля в Sheet. Планировать их
+>   здесь означало бы либо изобрести UI-контракт в обход approved-гейта, либо выпустить backend-only полуфичи.
+> - **D-44, D-45, D-47, D-49 остаются в Phase 12** — это новые типы действий на generic schema-driven поверхности C.
+>
+> Также по итогам research исправлены два фактических дефекта в залоченных решениях: **D-55** (опции `k`
+> недостаточно — нужен `hangup_handler_push` перед `Record()`) и **D-56** (`RECORD_STATUS` имеет 7 значений,
+> пропущено `OPERATOR`). Оба уехали в Phase 12b вместе с голосовой почтой.
+
+**Goal:** Отрефакторить `DialplanAppsEditor` в простой, функциональный и **переиспользуемый** конструктор цепочек маршрутов АТС: параметры приложения переезжают из перегруженной inline-строки в Sheet настройки шага, строка становится сканируемым «summary», редактор получает явный типизированный контракт и конфигурируемость (набор разрешённых действий, read-only, лимиты) для всех host-ов — маршруты, справочники маршрута, IVR-меню. **Плюс** — довести dialplan-приложения до конкурентного уровня: типизировать `params` через весь стек (shared → DTO → генератор), починить найденные баги генерации, обеспечить тенант-скоупинг целей набора и расширить функциональность приложений.
+
+**Известные слабые стороны (гипотезы для research/discuss — подтвердить кодом):**
+
+| # | Проблема | Где |
+|---|----------|-----|
+| W1 | `updateAction(id, field, value: any)` — stringly-typed путь (`params.*` / `condition.*`) вместо типизированного контракта; типы теряются на границе редактор↔app | `DialplanAppsEditor.tsx`, все `apps/*` |
+| W2 | `useCallback` с зависимостью `[actions]` пересоздаёт `updateAction`/`removeAction` при любом изменении → `memo` на `SortableActionItem` не работает, перерисовываются все строки на каждое нажатие клавиши | `DialplanAppsEditor.tsx` |
+| W3 | Все параметры приложения inline в строке → горизонтальный `overflow-x-auto`, `max-sm:` костыли, тесно на планшете/мобиле | `SortableActionItem.tsx` |
+| W4 | Строку нельзя «прочитать»: нет summary шага (что реально делает действие), нет свёрнутого/развёрнутого состояния | `SortableActionItem.tsx`, `registry.ts` |
+| W5 | Fallback `registry[action.type] \|\| registry.hangup` — неизвестный/новый тип молча рендерится как Hangup (риск порчи данных вместо явной ошибки) | `DialplanAppsEditor.tsx` |
+| W6 | Нет валидации: пустой `type: ''` и незаполненные обязательные params сохраняются молча; нет per-step ошибок | editor + hosts |
+| W7 | Хардкод Tailwind `bg-black/20` / `border-white/10` вместо design-токенов `var(--color-*)` — расхождение с ARCHITECTURE и Phase 3 | `SortableActionItem.tsx` |
+| W8 | Нулевая конфигурируемость под host: нельзя ограничить набор действий (IVR-меню ≠ маршрут), нет read-only, нет `maxSteps`, нет override заголовков/i18n | props = только `{ actions, onChange }` |
+| W9 | Нет операций продуктивности: дублировать шаг, вкл/выкл шаг, копировать/вставить, undo удаления | editor |
+| W10 | DnD без `DragOverlay` / ограничения по вертикальной оси и без a11y-анонсов; `id` через `Date.now()+Math.random()` вместо `crypto.randomUUID()` | `DialplanAppsEditor.tsx` |
+| W11 | Нет тестов на сам editor и на `SortableActionItem` (тесты есть только у части `apps/*`) | `features/dialplan-apps` |
+
+**Scope (in):**
+
+1. **Модалка настройки шага** — параметры приложения и условия (`dialstatus`, `time_group_uid`) переносятся в модалку/Sheet на базе `shared/ui/Dialog`; строка в списке остаётся компактной: номер, drag-handle, тип, summary, badges условий, действия строки
+2. **Summary-контракт в registry** — расширение `IDialplanAppConfig`: человекочитаемый `summarize(action)` (i18n) + `validate(action)` + метаданные полей; строка и модалка питаются из одного источника
+3. **Типизированный контракт редактора** — уход от `(id, field: string, value: any)` к типизированным обновлениям (patch action / patch params / patch condition); стабильные колбэки (`useCallback` без зависимости от всего массива, functional `onChange` или ref-паттерн) → отсутствие каскадных ре-рендеров
+4. **Переиспользуемость** — props: `allowedTypes` / `excludedTypes`, `readOnly`, `maxSteps`, `labels`/i18n-namespace, `emptyState`; все 3 host-а (`RouteActionsTab`, `RoutePhonebooksTab`, `IvrMenuItemsEditor`) переводятся на новый контракт без регрессий
+5. **UX цепочки** — сканируемый список шагов, дублирование шага, вкл/выкл шага, undo удаления, явная валидация с per-step ошибкой и блокировкой сохранения в host-е, понятный empty state, hint про порядок выполнения
+6. **Явная обработка неизвестных типов** — вместо silent-fallback на Hangup: отдельное «unknown action» состояние, сохраняющее исходные `params` без потери данных
+7. **Design tokens + a11y** — `var(--color-*)` / SCSS-модуль по паттерну проекта; `DragOverlay` + вертикальное ограничение, keyboard-reorder с ARIA-анонсами, focus-management при открытии/закрытии модалки
+8. **Тесты + i18n** — unit/RTL на editor (add/remove/reorder/validate/readOnly/allowedTypes) и на summary/validate в registry; `ru` + `en` для всех новых строк
+9. **Типизация `params` через весь стек** (D-08/D-09) — discriminated union в `packages/shared` → per-type DTO-валидация вместо `Record<string, any>` → выравнивание всех действующих `ActionType` с генератором dialplan
+10. **Тенант-скоупинг целей набора** (D-21) — `${EXTEN}` не попадает в `Dial()`/`Queue()`/`Gosub()` напрямую; единая функция нормализации (`q{exten}_{uid}`, `e{exten}_{uid}`, `group_{exten}_{uid}`). Закрывает запрос «вызвать очередь/группу по маске маршрута»
+11. **Фиксы генератора dialplan** (D-42/D-43) — условие в multi-line действиях применяется только к первой строке; битый `label`; отсутствующий time-group guard в IVR/phonebook-биндингах; теряемые params у `setclid_*`; двойной суффикс контекста в `toroute`
+12. **Расширение условий шага** (D-22/D-23) — за пределы `DIALSTATUS`: `QUEUESTATUS`, `DEVICE_STATE`, переменная канала, результат `CURL`; UI = пресеты понятным языком + expert-режим
+13. **Per-app усиление функциональности** (D-32…D-39) — `QUEUE_PRIO` и `announceoverride` у очереди; номер (`exten`) у групп вызова + подтверждение вызова, пропуск занятых, приветствие/MOH; линейная карусель транков; фикс двойного `SHELL()` в CallerID; корректные опции медиа-приложений
+14. **Подсистема тенантных настроек** (D-19) — глобальные (ADMIN-guard) + тенантные, не пересекающиеся; на ней стоят флаги видимости raw-dialplan и блок-схемы (D-16/D-17)
+15. **Чистка legacy** (D-28…D-31) — `tofax`/`asr`/`keywords` hard-remove; `sendmail`/`sendmailpeer`/`telegram` → `notify`; `text2speech` → внутренние TTS; PHP через `SHELL()`/`System()` → `CURL` → Nest
+16. **Единое приложение «Воспроизведение»** (D-51…D-53) — складывает `Playback` + `BackGround` + `ControlPlayback`, приложение Asterisk выбирается по режиму; генератор берёт на себя язык (`langoverride` vs `Set(CHANNEL(language))`) и `Progress()` при `noanswer`; режим «выход по цифре» маркируется как меняющий поток управления. Устраняет инверсию имён `playprompt`/`playback`
+17. **Новые типы действий на generic-поверхности** (D-44, D-45, D-47, D-49) — логические примитивы (метка / переход / ветвление, делает `label` осмысленным), расписание как действие, HTTP-запрос → переменная (результат доступен в условиях по D-22), сбор ввода пользователя (`Read` / `WaitExten`). Все четыре едут на schema-driven поверхность C из UI-SPEC, отдельных экранов не требуют
+
+**Scope (out):**
+
+- **Кастомная голосовая почта (D-54…D-59) — Phase 12b** (вынесено при планировании: критический путь в конце, новый класс данных со своей моделью угроз, два нерешённых вопроса дизайна). Старый тип действия `voicemail` до Phase 12b остаётся как есть
+- **Шаблоны цепочек (D-46), dry-run маршрута (D-48), обратный звонок (D-50) — Phase 13** (нет поверхностей в утверждённом `12-UI-SPEC.md`)
+- Граф-редактор / блок-схема dialplan с печатью и экспортом в PDF — **Phase 13** (в Phase 12 только флаг видимости)
+- MCP-сервер + построение и редактирование маршрутов с помощью LLM — **Phase 13**
+- ConfBridge как полноценный модуль (профили, PIN, admin/marked, запись, DTMF-меню) со своим UI — **отдельная фаза** (D-41)
+- MWI (индикатор нового сообщения на телефоне) и прослушивание голосовой почты с трубки (аналог `VoiceMailMain`) — вне фазы; в проекте отсутствуют и сейчас
+- ~~Тенантный контекст ящиков voicemail~~ — **снято:** `VoiceMail()` удаляется целиком (D-54), тенантность решается по построению
+- Полный редизайн `RouteFormModal` целиком (только вкладки-потребители редактора)
+- Удаление колонки `raw_dialplan` — **отменено** в discuss: колонка и UI остаются, видимость через настройку (D-16)
+
+**Success criteria (draft):**
+
+1. Строка шага читается без открытия: тип + summary параметров + условия; список из 8+ шагов не требует горизонтального скролла на 1280px и не ломается на 375px
+2. Все параметры действия редактируются в модалке; сохранение/отмена модалки не теряет изменения остальных шагов
+3. Ввод в модалке одного шага не вызывает ре-рендер остальных строк (проверяемо тестом/профилем) — W2 закрыт
+4. `DialplanAppsEditor` используется всеми 3 host-ами через один контракт; IVR-меню видит только разрешённый набор действий
+5. Пустой тип и незаполненные обязательные params явно подсвечены и блокируют сохранение в host-е
+6. Неизвестный `action.type` отображается как unknown-шаг с сохранением `params` (не как Hangup)
+7. `npm run lint`, `npm run test:frontend` зелёные; новые тесты покрывают add/remove/reorder/validate/readOnly/allowedTypes
+8. i18n `ru` + `en` для всех новых/изменённых строк
+
+**Requirements:** Locked decisions **D-01…D-53 + D-44, D-45, D-47, D-49** в `.planning/phases/12-dialplan-apps-editor-refactor-reusable-route-chain-builder/12-CONTEXT.md` (48 отслеживаемых). Вне фазы: D-46/D-48/D-50 (Phase 13), D-54…D-59 (Phase 12b), D-40 (отменено самим CONTEXT), D-41 (сознательно частичное — только перевод действия на схему параметров)
+
+**GSD workflow (рекомендуемый порядок):**
+
+| Шаг | Команда |
+|-----|---------|
+| 1 | ~~`/gsd-discuss-phase 12`~~ — **done 2026-08-18**, решения D-01…D-59 в `12-CONTEXT.md` |
+| 2 | ~~`/gsd-ui-phase 12`~~ — **done 2026-08-18**, `12-UI-SPEC.md` approved (12 поверхностей A…L) |
+| 3 | `/gsd-plan-phase 12` — **research + PATTERNS + VALIDATION готовы 2026-08-18**; границы сужены |
+| 4 | `/gsd-execute-phase 12` |
+| 5 | `/gsd-ui-review 12` + `npm run test:frontend` |
+| 6 | `/gsd-verify-work 12` → `/gsd-ship 12` |
+
+**Verification:**
+
+- Automated: `npm run lint`, `npm run test:frontend` (editor + SortableActionItem + registry summarize/validate + существующие `apps/*` тесты + `RoutePhonebooksTab.test.tsx`), `npm run test:backend` (per-type DTO-валидация + `dialplan.util.spec.ts` на все ветви генератора — **22 из 29 не покрыты** (уточнено research; ROADMAP ранее указывал 21) + `call-group-dialplan.util`)
+- Manual: `/routes` → маршрут → «Действия» — собрать цепочку из 5+ шагов (queue → group → notify → hangup), настроить параметры в Sheet, переупорядочить drag и клавиатурой, дублировать и выключить шаг, сохранить → dialplan применяется как раньше; «Справочники» маршрута и IVR-меню — тот же редактор без регрессий; проверить 375px / 768px / 1280px
+- Manual (Asterisk): маршрут с маской `_2XX` + действие «очередь по маске» → набор 201 попадает в очередь `q201_{uid}`; то же для группы; условие «очередь переполнена» отрабатывает через `QUEUESTATUS`; `dialplan show` подтверждает, что условие применяется ко всем строкам multi-line действий
+- Manual-only чеклист M1…M12 (живой Asterisk, `packages/harness` отсутствует) — в `12-VALIDATION.md`
+
+---
+
+## Phase 12b — Кастомная голосовая почта вместо `VoiceMail()`
+
+**Canonical refs (фаза):**
+
+- `.planning/phases/12-dialplan-apps-editor-refactor-reusable-route-chain-builder/12-CONTEXT.md` — **залоченные решения D-54…D-59 живут здесь** (не дублируются, чтобы не разошлись)
+- `.planning/phases/12-.../12-RESEARCH.md` — Pitfall по `Record()`/hangup handler, разбор `stt-engines`, `safeRecordFilePath`, WAV→PCM16, Open Questions 2–5
+- `.planning/phases/12-.../12-PATTERNS.md` — scaffold модуля (`modules/notifications/`), `cc_display_tokens` + `DisplayTokenGuard`, AES-паттерн ключей провайдера
+- `.planning/phases/12-.../12-UI-SPEC.md` — **Surface L переносится в эту фазу целиком**
+- `packages/backend/src/modules/reports/cdr/` — `hasRecording`/`streamRecording`/access-scope, на которые садится вкладка сообщений
+- `packages/backend/src/modules/stt-engines/`, `packages/backend/src/modules/ai-agents/`
+
+**Status:** Pending (вынесено из Phase 12 при планировании 2026-08-18)
+**Depends on:** Phase 12 (типизация `params`, `RECORD_STATUS` в расширенных условиях D-22, слияние notify D-28)
+
+**Goal:** Заменить приложение Asterisk `VoiceMail()` собственной голосовой почтой: опциональное приветствие → `Record()` → уведомление через `notify` → расшифровка и саммаризация через `stt-engines` + LLM. Доступ к сообщениям — вкладка/фильтр в CDR-отчёте с кнопкой «Детализация» и плеером. Старый тип действия `voicemail` — hard-remove с миграцией существующих шагов.
+
+**Scope (in):** D-54…D-59.
+
+**Известные ловушки, зафиксированные до планирования:**
+
+| # | Ловушка |
+|---|---------|
+| 1 | Опция `k` у `Record()` сохраняет **файл**, но канал всё равно завершается на отбое. Без `Set(CHANNEL(hangup_handler_push)=…)` **перед** `Record()` уведомление, запись в БД и расшифровка не запустятся ровно в том сценарии, ради которого `k` и вводится (D-55) |
+| 2 | `RECORD_STATUS` имеет **7** значений, включая `OPERATOR` (опция `o`). Без него «нажал 0 для оператора» неотличимо от «нажал `#`» (D-56) |
+| 3 | LLM-клиента в проекте **нет** — `ai-agents` это CRUD-реестр провайдеров, `ai-chat` зовёт внешний aiPBX. Нужен тонкий OpenAI-совместимый клиент с AES-ключом по паттерну `CcAiProvider.encrypted_api_key` |
+| 4 | `safeRecordFilePath` жёстко добавляет `.mp3` и отдаёт `audio/mpeg` — прямой реюз даст 404 на `.wav`. Access-scope и `Range` переиспользуются, резолвер пути — нет |
+| 5 | STT ждёт headerless PCM16 8 kHz — заголовок WAV снимать разбором чанков, не «первыми 44 байтами» |
+| 6 | Для токен-ссылки (D-59) в проекте есть лучший прецедент, чем второй JWT `audience`: `cc_display_tokens` + `DisplayTokenGuard` (opaque-токен с TTL и отзывом, `req.user` без `sub`/`level`). `cdr-public.controller.ts` для голосовой почты **запрещён** |
+
+**Открытые вопросы к discuss:** чем триггерить STT/LLM (очередь против inline); числовой порог «вложение против ссылки»; политика ретраев; формат записи (`wav` рекомендован); подтверждение владельцем инфраструктуры, что сообщения лежат на том же томе, что записи разговоров.
+
+**GSD workflow:** `/gsd-discuss-phase 12b` → `/gsd-plan-phase 12b` → `/gsd-execute-phase 12b` → `/gsd-secure-phase 12b` (новый класс персональных данных) → `/gsd-verify-work 12b`
+
+---
+
+## Phase 13 — Визуальный конструктор маршрутов и автоматизация
+
+**Status:** Pending (собирает отложенное из Phase 12)
+
+**Goal:** Визуальное представление и автоматизация построения маршрутов поверх редактора, доведённого в Phase 12.
+
+**Scope (in):**
+
+1. **Блок-схема dialplan** — визуальное отображение цепочки с печатью и экспортом в PDF (в Phase 12 сделан только флаг видимости, D-18)
+2. **MCP-сервер + построение и редактирование маршрутов с помощью LLM** — анализ и развитие действующего MCP на бэкенде
+3. **Шаблоны цепочек маршрутов** (D-46) — самостоятельная поверхность, отсутствует в `12-UI-SPEC.md`
+4. **Dry-run / тест маршрута без реального звонка** (D-48) — самостоятельная поверхность результата
+5. **Обратный звонок (callback) как действие маршрута** (D-50) — требует своего экрана настройки
+
+**Requirements:** D-46, D-48, D-50 из `12-CONTEXT.md` + решения собственного discuss.
+
+**Depends on:** Phase 12 (типизированный контракт редактора и корректный генератор — основание и для схемы, и для LLM-построения)
+
+**GSD workflow:** `/gsd-discuss-phase 13` → `/gsd-ui-phase 13` (три новых поверхности) → `/gsd-plan-phase 13`
