@@ -417,6 +417,46 @@ export const en = {
     conditionLabel: 'Condition',
     actionsCount: 'Count',
     addAction: 'Add action',
+    chain: {
+      configureStep: 'Configure step',
+      closeParams: 'Close parameters',
+      liveHint: 'Changes apply immediately. Saving happens in the route form',
+      placeholder: 'Select an action',
+      stepIndex: 'Step {{index}}',
+      section: {
+        params: 'Parameters',
+        noParams: 'This action has no parameters, only the conditions below are available',
+      },
+      source: {
+        aria: 'Value source',
+        fixed: 'Fixed value',
+        routePattern: 'From the route pattern',
+        variable: 'From a variable',
+        phonebook: 'From a phonebook',
+        normalizeHint: 'The number from the pattern is normalized to an internal name scoped to your tenant',
+      },
+      catalog: {
+        loading: 'Loading the list',
+        empty: 'Nothing created yet',
+        emptyHint: 'Create an entry in "{{section}}" first',
+        openSection: 'Open "{{section}}"',
+        queuesSection: 'Queues',
+      },
+      fields: {
+        queue: 'Queue',
+        timeout: 'Timeout, sec',
+        options: 'Options',
+        variableName: 'Variable name',
+      },
+      summary: {
+        toqueue: {
+          routePattern: 'Queue from the route pattern',
+          fixed: 'Queue {{queue}}',
+          empty: 'Queue: not selected',
+          variable: 'Queue from a variable',
+        },
+      },
+    },
     action: {
       totrunk: 'Trunk',
       toexten: 'Extension',

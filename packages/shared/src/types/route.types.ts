@@ -4,6 +4,7 @@ import type {
   INotifyActionParams,
   ITrunkCarouselActionParams,
 } from './notification.types';
+import type { IQueueActionParams } from './dialplan-params.types';
 
 export type ActionType =
   | 'totrunk' | 'toexten' | 'toqueue' | 'togroup' | 'tolist'
@@ -46,12 +47,6 @@ export interface ITrunkActionParams {
 
 export interface IExtenActionParams {
   exten?: string;
-  timeout?: number | string;
-  options?: string;
-}
-
-export interface IQueueActionParams {
-  queue?: string;
   timeout?: number | string;
   options?: string;
 }

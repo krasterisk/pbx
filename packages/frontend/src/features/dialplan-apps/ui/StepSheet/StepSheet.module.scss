@@ -1,0 +1,14 @@
+.body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.footerHint {
+  color: var(--color-muted-foreground, #71717a);
+}
+
+.params {
+  width: 100%;
+}

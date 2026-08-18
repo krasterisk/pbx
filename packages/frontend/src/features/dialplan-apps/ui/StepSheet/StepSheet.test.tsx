@@ -29,6 +29,10 @@ vi.mock('@/shared/api/endpoints/queueApi', () => ({
   useGetQueuesQuery: vi.fn(),
 }));
 
+vi.mock('@/shared/api/endpoints/timeGroupApi', () => ({
+  useGetTimeGroupsQuery: vi.fn(() => ({ data: [], isLoading: false })),
+}));
+
 vi.mock('@/shared/ui', async () => {
   const actual = await vi.importActual<typeof import('@/shared/ui')>('@/shared/ui');
   return {
@@ -75,22 +79,29 @@ describe('StepSheet', () => {
 
   it('switching to route_pattern patches target and shows tenant-scoped chip', () => {
     const onChange = vi.fn();
-    render(
-      <StepSheet
-        open
-        stepId="step-1"
-        tenantUid={42}
-        action={{
-          id: 'step-1',
-          type: 'toqueue',
-          params: { target: { source: 'fixed', value: 'sales' }, options: 'thH' },
-          condition: {},
-        }}
-        onOpenChange={vi.fn()}
-        onChange={onChange}
-        onTypeChange={vi.fn()}
-      />,
-    );
+    function ChipHarness() {
+      const [action, setAction] = useState<IRouteAction>({
+        id: 'step-1',
+        type: 'toqueue',
+        params: { target: { source: 'fixed', value: 'sales' }, options: 'thH' },
+        condition: {},
+      });
+      return (
+        <StepSheet
+          open
+          stepId="step-1"
+          tenantUid={42}
+          action={action}
+          onOpenChange={vi.fn()}
+          onChange={(patch) => {
+            onChange(patch);
+            setAction((prev) => ({ ...prev, params: { ...prev.params, ...patch } }));
+          }}
+          onTypeChange={vi.fn()}
+        />
+      );
+    }
+    render(<ChipHarness />);
 
     fireEvent.click(screen.getByRole('tab', { name: 'По маске маршрута' }));
     expect(onChange).toHaveBeenCalledWith(

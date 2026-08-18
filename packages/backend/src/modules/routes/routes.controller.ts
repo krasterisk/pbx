@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, UseGuards, UsePipes, ValidationPipe, Logger, NotFoundException } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, UseGuards, UsePipes, Logger, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Request } from 'express';
 import { RoutesService } from './routes.service';
@@ -6,7 +6,7 @@ import { ContextIncludesService } from './context-includes.service';
 import { RouteApplyService } from './route-apply.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Context } from '../contexts/context.model';
-import { CreateRouteDto, UpdateRouteDto } from './dto/route-action.dto';
+import { CreateRouteDto, UpdateRouteDto, createRoutesValidationPipe } from './dto/route-action.dto';
 
 const USER_LEVEL_ADMIN = 1;
 
@@ -78,7 +78,7 @@ export class RoutesController {
   }
 
   @Post()
-  @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
+  @UsePipes(createRoutesValidationPipe())
   async create(
     @Body() body: CreateRouteDto,
     @Req() req: Request & { user: any },
@@ -109,7 +109,7 @@ export class RoutesController {
   }
 
   @Put(':id')
-  @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
+  @UsePipes(createRoutesValidationPipe())
   async update(
     @Param('id') id: string,
     @Body() body: UpdateRouteDto,

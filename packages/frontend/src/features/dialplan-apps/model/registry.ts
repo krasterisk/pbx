@@ -18,7 +18,49 @@ export const dialplanAppsRegistry: Record<ActionType, IDialplanAppConfig> = {
   // --- TELEPHONY & MEDIA ---
   totrunk: { type: 'totrunk', labelKey: 'routes.action.totrunk', component: TrunkApp, category: 'telephony', defaultParams: { trunk: '', dest: '${EXTEN}', timeout: 60, options: 'tT' } },
   toexten: { type: 'toexten', labelKey: 'routes.action.toexten', component: ExtenApp, category: 'telephony', defaultParams: { exten: '', timeout: 60, options: 'tThH' } },
-  toqueue: { type: 'toqueue', labelKey: 'routes.action.toqueue', component: QueueApp, category: 'telephony', defaultParams: { queue: '', timeout: '', options: 'thH' } },
+  toqueue: {
+    type: 'toqueue',
+    labelKey: 'routes.action.toqueue',
+    component: QueueApp,
+    category: 'telephony',
+    defaultParams: { target: { source: 'fixed', value: '' }, options: 'thH' },
+    terminal: 'conditional',
+    allowedIn: ['route', 'phonebook', 'ivr'],
+    schema: [
+      {
+        key: 'target',
+        kind: 'value-source',
+        required: true,
+        labelKey: 'routes.chain.fields.queue',
+        hintKey: 'routes.chain.source.normalizeHint',
+        optionsSource: 'queues',
+      },
+      {
+        key: 'timeout',
+        kind: 'duration',
+        labelKey: 'routes.chain.fields.timeout',
+      },
+      {
+        key: 'options',
+        kind: 'text',
+        labelKey: 'routes.chain.fields.options',
+      },
+    ],
+    summarize: (params, t) => {
+      const target = params?.target;
+      if (target?.source === 'route_pattern') {
+        return t('routes.chain.summary.toqueue.routePattern', 'Очередь по маске маршрута');
+      }
+      if (target?.source === 'variable' && target.name) {
+        return t('routes.chain.summary.toqueue.variable', 'Очередь из переменной');
+      }
+      const fixed = (target?.source === 'fixed' && target.value) || params?.queue;
+      if (fixed) {
+        return t('routes.chain.summary.toqueue.fixed', 'Очередь {{queue}}').replace('{{queue}}', String(fixed));
+      }
+      return t('routes.chain.summary.toqueue.empty', 'Очередь: не выбрана');
+    },
+  },
   togroup: { type: 'togroup', labelKey: 'routes.action.togroup', component: GroupApp, category: 'telephony', defaultParams: { group: '' } },
   tolist: { type: 'tolist', labelKey: 'routes.action.tolist', component: GenericApp, category: 'telephony' },
   toivr: { type: 'toivr', labelKey: 'routes.action.toivr', component: IvrApp, category: 'telephony', defaultParams: { ivr_uid: '' } },

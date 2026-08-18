@@ -420,6 +420,46 @@ export const ru = {
     conditionLabel: 'Условие',
     actionsCount: 'Кол-во',
     addAction: 'Добавить действие',
+    chain: {
+      configureStep: 'Настроить шаг',
+      closeParams: 'Закрыть параметры',
+      liveHint: 'Изменения применяются сразу. Сохранение - в форме маршрута',
+      placeholder: 'Выберите действие',
+      stepIndex: 'Шаг {{index}}',
+      section: {
+        params: 'Параметры',
+        noParams: 'У этого действия нет параметров, доступны только условия ниже',
+      },
+      source: {
+        aria: 'Источник значения',
+        fixed: 'Фиксированное значение',
+        routePattern: 'По маске маршрута',
+        variable: 'Из переменной',
+        phonebook: 'Из справочника',
+        normalizeHint: 'Номер из маски приводится к внутреннему имени с учётом вашего тенанта',
+      },
+      catalog: {
+        loading: 'Загружаем список',
+        empty: 'Ничего не создано',
+        emptyHint: 'Сначала создайте запись в разделе «{{section}}»',
+        openSection: 'Открыть раздел «{{section}}»',
+        queuesSection: 'Очереди',
+      },
+      fields: {
+        queue: 'Очередь',
+        timeout: 'Таймаут, сек',
+        options: 'Опции',
+        variableName: 'Имя переменной',
+      },
+      summary: {
+        toqueue: {
+          routePattern: 'Очередь по маске маршрута',
+          fixed: 'Очередь {{queue}}',
+          empty: 'Очередь: не выбрана',
+          variable: 'Очередь из переменной',
+        },
+      },
+    },
     // Action type names
     action: {
       totrunk: 'Транк',

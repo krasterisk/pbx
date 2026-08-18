@@ -7,7 +7,6 @@ import { CSS } from '@dnd-kit/utilities';
 import { Button, Text, Tooltip } from '@/shared/ui';
 import { VStack, Flex } from '@/shared/ui/Stack';
 import { type IRouteAction, type ActionType, type DialStatus } from '@krasterisk/shared';
-import { dialplanAppsRegistry } from '../../model/registry';
 import { IDialplanAppConfig } from '../../model/types';
 import { ActionTypeSelect } from '../ActionTypeSelect';
 import { ActionConditionFilters } from '../ActionConditionFilters';
@@ -18,6 +17,7 @@ export interface SortableActionItemProps {
   updateAction: (id: string, field: string, value: any) => void;
   removeAction: (id: string) => void;
   AppConfig: IDialplanAppConfig;
+  onConfigure?: (id: string) => void;
 }
 
 /**
@@ -28,7 +28,7 @@ export interface SortableActionItemProps {
  * @layer features/dialplan-apps
  */
 export const SortableActionItem = memo(({
-  action, idx, updateAction, removeAction, AppConfig,
+  action, idx, updateAction, removeAction, AppConfig, onConfigure,
 }: SortableActionItemProps) => {
   const { t } = useTranslation();
 
@@ -108,7 +108,21 @@ export const SortableActionItem = memo(({
       <VStack gap="2" className="flex-1 min-w-[180px] max-sm:w-full max-sm:basis-full">
         {isEmptyType
           ? <Text variant="muted" className="py-2 italic">{t('routes.selectActionHint', 'Выберите действие из списка')}</Text>
-          : <AppComponent action={action} onUpdate={updateAction} />
+          : AppConfig.schema && AppConfig.summarize
+            ? (
+              <VStack gap="8">
+                <Text>{AppConfig.summarize(action.params, t)}</Text>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onConfigure?.(action.id)}
+                >
+                  {t('routes.chain.configureStep', 'Настроить шаг')}
+                </Button>
+              </VStack>
+            )
+            : <AppComponent action={action} onUpdate={updateAction} />
         }
       </VStack>
 

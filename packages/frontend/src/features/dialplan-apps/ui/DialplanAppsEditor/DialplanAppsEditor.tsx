@@ -1,4 +1,4 @@
-import { memo, useCallback } from 'react';
+import { memo, useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus } from 'lucide-react';
 import {
@@ -20,8 +20,11 @@ import {
 import { Button } from '@/shared/ui';
 import { VStack } from '@/shared/ui/Stack';
 import { type IRouteAction, type ActionType } from '@krasterisk/shared';
+import { selectCurrentUser } from '@/entities/User';
+import { useAppSelector } from '@/shared/hooks/useAppStore';
 import { dialplanAppsRegistry } from '../../model/registry';
 import { SortableActionItem } from '../SortableActionItem';
+import { StepSheet } from '../StepSheet/StepSheet';
 
 /**
  * Dialplan Actions Editor.
@@ -42,6 +45,9 @@ interface DialplanAppsEditorProps {
 
 export const DialplanAppsEditor = memo(({ actions, onChange }: DialplanAppsEditorProps) => {
   const { t } = useTranslation();
+  const currentUser = useAppSelector(selectCurrentUser);
+  const tenantUid = currentUser?.vpbx_user_uid ?? 0;
+  const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -69,6 +75,7 @@ export const DialplanAppsEditor = memo(({ actions, onChange }: DialplanAppsEdito
       if (a.id !== id) return a;
       if (field === 'type') {
         const config = dialplanAppsRegistry[value as ActionType];
+        setSelectedStepId(id);
         return { ...a, type: value as ActionType, params: config?.defaultParams || {} };
       }
       if (field === 'params' && typeof value === 'object') {
@@ -85,6 +92,11 @@ export const DialplanAppsEditor = memo(({ actions, onChange }: DialplanAppsEdito
       return a;
     }));
   }, [actions, onChange]);
+
+  const selectedAction = actions.find((a) => a.id === selectedStepId) ?? null;
+  const selectedIndex = selectedAction
+    ? actions.findIndex((a) => a.id === selectedAction.id) + 1
+    : 1;
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -114,6 +126,7 @@ export const DialplanAppsEditor = memo(({ actions, onChange }: DialplanAppsEdito
                   AppConfig={AppConfig}
                   updateAction={updateAction}
                   removeAction={removeAction}
+                  onConfigure={setSelectedStepId}
                 />
               );
             })}
@@ -125,6 +138,23 @@ export const DialplanAppsEditor = memo(({ actions, onChange }: DialplanAppsEdito
         <Plus className="w-4 h-4 mr-1" />
         {t('routes.addAction', 'Добавить действие')}
       </Button>
+
+      <StepSheet
+        open={!!selectedStepId && !!selectedAction}
+        stepId={selectedStepId}
+        action={selectedAction}
+        tenantUid={tenantUid}
+        stepIndex={selectedIndex}
+        onOpenChange={(next) => {
+          if (!next) setSelectedStepId(null);
+        }}
+        onChange={(patch) => {
+          if (selectedStepId) updateAction(selectedStepId, 'params', patch);
+        }}
+        onTypeChange={(type) => {
+          if (selectedStepId) updateAction(selectedStepId, 'type', type);
+        }}
+      />
     </VStack>
   );
 });

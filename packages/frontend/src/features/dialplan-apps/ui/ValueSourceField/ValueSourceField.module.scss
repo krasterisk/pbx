@@ -1,0 +1,30 @@
+.field {
+  width: 100%;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.5rem;
+  padding: 0 0.75rem;
+  border-radius: var(--radius-md, 0.5rem);
+  border: 1px solid var(--color-border, #27272a);
+  background: var(--color-muted, #18181b);
+  color: var(--color-foreground, #fafafa);
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+  font-size: inherit;
+  font-weight: 400;
+}
+
+.emptyHint {
+  color: var(--color-muted-foreground, #71717a);
+}
+
+.catalogLink {
+  color: var(--color-primary, #3b82f6);
+  text-decoration: underline;
+}
+
+.catalogLink:hover {
+  color: var(--color-foreground, #fafafa);
+}

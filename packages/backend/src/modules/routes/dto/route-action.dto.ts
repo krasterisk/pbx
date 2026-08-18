@@ -9,8 +9,13 @@ import {
   Validate,
   ValidatorConstraint,
   ValidatorConstraintInterface,
+  ValidationArguments,
+  ValidationError,
+  validateSync,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { plainToInstance, Type } from 'class-transformer';
+import { BadRequestException, ValidationPipe } from '@nestjs/common';
+import { ToQueueParamsDto } from './dialplan-params/toqueue.params.dto';
 
 const ActionTypesList = [
   'totrunk', 'toexten', 'toqueue', 'togroup', 'tolist',
@@ -35,6 +40,63 @@ const BehaviorTypesList = [
   'blacklist', 'whitelist', // legacy aliases accepted, normalized on save
   'redirect', 'vars_only', 'custom',
 ];
+
+@ValidatorConstraint({ name: 'isTypedActionParams', async: false })
+class IsTypedActionParamsConstraint implements ValidatorConstraintInterface {
+  validate(params: unknown, args: ValidationArguments): boolean {
+    if (!params || typeof params !== 'object' || Array.isArray(params)) return false;
+    const action = args.object as RouteActionDto;
+    if (action.type !== 'toqueue') return true;
+    const dto = plainToInstance(ToQueueParamsDto, params);
+    const errors = validateSync(dto);
+    (action as RouteActionDto & { __toQueueErrors?: ValidationError[] }).__toQueueErrors = errors;
+    return errors.length === 0;
+  }
+
+  defaultMessage(args: ValidationArguments): string {
+    const action = args.object as RouteActionDto & { __toQueueErrors?: ValidationError[] };
+    const nested = action.__toQueueErrors ?? [];
+    if (nested.length) {
+      return nested
+        .flatMap((err) => Object.values(err.constraints ?? {}))
+        .filter(Boolean)
+        .join('; ') || 'params are invalid';
+    }
+    return 'params must be an object';
+  }
+}
+
+export function formatRouteValidationErrors(
+  errors: ValidationError[],
+): Array<{ actionId: string; path: string; message: string }> {
+  const out: Array<{ actionId: string; path: string; message: string }> = [];
+  const walk = (list: ValidationError[], prefix: string, inheritedId: string) => {
+    for (const err of list) {
+      const path = prefix ? `${prefix}.${err.property}` : err.property;
+      const target = err.target as { id?: string } | undefined;
+      const actionId = target?.id ?? inheritedId;
+      if (err.constraints) {
+        for (const message of Object.values(err.constraints)) {
+          out.push({ actionId: actionId || '', path, message });
+        }
+      }
+      if (err.children?.length) {
+        walk(err.children, path, actionId || inheritedId);
+      }
+    }
+  };
+  walk(errors, '', '');
+  return out;
+}
+
+export function createRoutesValidationPipe(): ValidationPipe {
+  return new ValidationPipe({
+    transform: true,
+    whitelist: true,
+    exceptionFactory: (errors) =>
+      new BadRequestException({ errors: formatRouteValidationErrors(errors) }),
+  });
+}
 
 @ValidatorConstraint({ name: 'isDialstatusOrArray', async: false })
 class IsDialstatusOrArrayConstraint implements ValidatorConstraintInterface {
@@ -73,7 +135,7 @@ export class RouteActionDto {
   @IsIn(ActionTypesList)
   type: string;
 
-  @IsObject()
+  @Validate(IsTypedActionParamsConstraint)
   params: Record<string, any>;
 
   @IsObject()

@@ -1,3 +1,5 @@
+import { normalizeTarget, resolveQueueValueSource } from './dialplan-target.util';
+
 /**
  * Valid Asterisk DIALSTATUS values.
  * @see https://docs.asterisk.org/Asterisk_22_Documentation/API_Documentation/Dialplan_Applications/Dial — DIALSTATUS section
@@ -186,7 +188,7 @@ export class AsteriskDialplanUtils {
         break;
       }
       case 'toqueue': {
-        const queue = this.sanitizeDialplanInput(params.queue) || '${EXTEN}';
+        const queue = normalizeTarget('queue', resolveQueueValueSource(params), vpbxUserUid);
         const timeout = params.timeout ? parseInt(params.timeout, 10) : '';
         const options = this.sanitizeDialplanInput(params.options) || 'thH';
         // Queue on_answer: Asterisk docs confirm gosub runs on the AGENT's channel, not caller's.
