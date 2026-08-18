@@ -1,4 +1,38 @@
+import * as fs from 'fs';
+import * as path from 'path';
+import type { ActionType } from '@krasterisk/shared';
 import { AsteriskDialplanUtils } from './dialplan.util';
+
+/** Runtime copy of the shared ActionType union — compile-fails if a member is missing. */
+const ACTION_TYPES = [
+  'totrunk', 'toexten', 'toqueue', 'togroup', 'tolist',
+  'toivr', 'toroute', 'playprompt', 'playback',
+  'setclid_custom', 'setclid_list',
+  'sendmail', 'sendmailpeer', 'telegram',
+  'notify', 'callerid', 'trunk_carousel',
+  'voicemail', 'text2speech', 'voicerobot', 'asr', 'keywords',
+  'webhook', 'confbridge', 'cmd', 'tofax',
+  'label', 'busy', 'hangup',
+] as const satisfies readonly ActionType[];
+
+type MissingActionType = Exclude<ActionType, (typeof ACTION_TYPES)[number]>;
+const _assertActionTypesComplete: [MissingActionType] extends [never] ? true : MissingActionType = true;
+void _assertActionTypesComplete;
+
+/**
+ * Manifest of types that have an exact toBe characterization (Wave 0 + pre-existing).
+ * Test 3 diffs this set against ACTION_TYPES so a new type cannot land silently.
+ */
+const CHARACTERIZED_TYPES: readonly ActionType[] = [
+  'totrunk', 'toexten', 'toqueue', 'togroup', 'tolist',
+  'toivr', 'toroute', 'playprompt', 'playback',
+  'setclid_custom', 'setclid_list',
+  'sendmail', 'sendmailpeer', 'telegram',
+  'notify', 'callerid', 'trunk_carousel',
+  'voicemail', 'text2speech', 'voicerobot', 'asr', 'keywords',
+  'webhook', 'confbridge', 'cmd', 'tofax',
+  'label', 'busy', 'hangup',
+];
 
 describe('AsteriskDialplanUtils.actionToDialplan', () => {
   const vpbx = 42;
@@ -1030,6 +1064,58 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
      * 12-RESEARCH.md Pitfall 3 — wrapper/closing applied only to the first Set(TC_PICK) line.
      * 12-05 must rewrite this expectation after wrapEachLine / GotoIf.
      */
+    it('toexten useExten dials PJSIP/e${EXTEN}_<vpbx> fork', () => {
+      const dp = AsteriskDialplanUtils.actionToDialplan(
+        {
+          type: 'toexten',
+          params: { useExten: true, timeout: 60, options: 'tThH' },
+          condition: {},
+        },
+        vpbx,
+      );
+      expect(dp).toBe('Dial(PJSIP/e${EXTEN}_42&PJSIP/ew${EXTEN}_42,60,tThH)');
+    });
+
+    it('callerid carousel with empty pool emits NoOp', () => {
+      const dp = AsteriskDialplanUtils.actionToDialplan(
+        { type: 'callerid', params: { mode: 'carousel', pool: [] }, condition: {} },
+        vpbx,
+      );
+      expect(dp).toBe('NoOp(Empty CID carousel pool)');
+    });
+
+    it('callerid unknown mode emits NoOp', () => {
+      const dp = AsteriskDialplanUtils.actionToDialplan(
+        { type: 'callerid', params: { mode: 'nope' }, condition: {} },
+        vpbx,
+      );
+      expect(dp).toBe('NoOp(Unknown callerid mode)');
+    });
+
+    it('unknown ActionType hits default NoOp', () => {
+      const dp = AsteriskDialplanUtils.actionToDialplan(
+        { type: 'not-a-real-type', params: {}, condition: {} },
+        vpbx,
+      );
+      expect(dp).toBe('NoOp(Unknown action: not-a-real-type)');
+    });
+
+    it('toexten injects U(krsk-on-answer) when on_answer webhook is set', () => {
+      const dp = AsteriskDialplanUtils.actionToDialplan(
+        {
+          type: 'toexten',
+          params: { exten: '101', timeout: 60, options: 'tThH' },
+          condition: {},
+        },
+        vpbx,
+        false,
+        { on_answer: { url: 'http://crm.example/answered' } },
+      );
+      expect(dp).toBe(
+        'Dial(PJSIP/e101_42&PJSIP/ew101_42,60,tThHU(krsk-on-answer,s,1(dial)))',
+      );
+    });
+
     it('characterizes current (defective) behaviour: trunk_carousel wraps only TC_PICK when dialstatus is set', () => {
       const dp = AsteriskDialplanUtils.actionToDialplan(
         {
@@ -1067,5 +1153,47 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
         ].join('\n'),
       );
     });
+  });
+});
+
+describe('characterization completeness (Wave 0 gate)', () => {
+  const vpbx = 42;
+
+  function parseActionTypesListFromDto(): string[] {
+    const dtoPath = path.join(__dirname, '../../modules/routes/dto/route-action.dto.ts');
+    const src = fs.readFileSync(dtoPath, 'utf8');
+    const match = src.match(/const ActionTypesList = \[([\s\S]*?)\];/);
+    if (!match) {
+      throw new Error(`ActionTypesList not found in ${dtoPath}`);
+    }
+    return match[1]
+      .split(',')
+      .map((s) => s.replace(/['"\s]/g, ''))
+      .filter(Boolean);
+  }
+
+  it('actionToDialplan does not throw for every ActionType with empty params', () => {
+    for (const type of ACTION_TYPES) {
+      expect(() =>
+        AsteriskDialplanUtils.actionToDialplan({ type, params: {}, condition: {} }, vpbx),
+      ).not.toThrow();
+    }
+  });
+
+  it('ActionType (shared) and ActionTypesList (DTO) are the same set (Pitfall 5 / D-08)', () => {
+    const fromDto = new Set(parseActionTypesListFromDto());
+    const fromShared = new Set<string>(ACTION_TYPES);
+    const missingInDto = [...fromShared].filter((t) => !fromDto.has(t));
+    const extraInDto = [...fromDto].filter((t) => !fromShared.has(t));
+    expect({ missingInDto, extraInDto }).toEqual({ missingInDto: [], extraInDto: [] });
+  });
+
+  it('CHARACTERIZED_TYPES covers every ActionType', () => {
+    const characterized = new Set(CHARACTERIZED_TYPES);
+    const required = new Set<string>(ACTION_TYPES);
+    const missing = [...required].filter((t) => !characterized.has(t as ActionType));
+    if (missing.length) {
+      throw new Error(`Uncharacterized ActionType(s): ${missing.join(', ')}`);
+    }
   });
 });
