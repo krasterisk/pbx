@@ -105,6 +105,8 @@ import { Ivr } from './modules/ivrs/ivr.model';
 import { MohClass } from './modules/moh/moh-class.model';
 import { MohEntry } from './modules/moh/moh-entry.model';
 import { SystemSetting } from './modules/system-settings/system-setting.model';
+import { TenantSettingsModule } from './modules/tenant-settings/tenant-settings.module';
+import { TenantSetting } from './modules/tenant-settings/tenant-setting.model';
 import { VoiceRobot } from './modules/voice-robots/voice-robot.model';
 import { VoiceRobotKeywordGroup } from './modules/voice-robots/keyword-group.model';
 import { VoiceRobotKeyword } from './modules/voice-robots/keyword.model';
@@ -140,7 +142,7 @@ import * as path from 'path';
         PsRegistration, PsEndpointIdIp,
         Route, ContextInclude, WebhookFailure, Ivr, Prompt, TtsEngine, SttEngine,
         MohClass, MohEntry,
-        SystemSetting, Cdr, VoiceRobot, VoiceRobotKeywordGroup, VoiceRobotKeyword, VoiceRobotLog, VoiceRobotCdr, VoiceRobotDataList,
+        SystemSetting, TenantSetting, Cdr, VoiceRobot, VoiceRobotKeywordGroup, VoiceRobotKeyword, VoiceRobotLog, VoiceRobotCdr, VoiceRobotDataList,
         Queue, QueueMember,
         ServiceRequest, CcSubject, CcDistrict,
         CcPauseReason, CcAgentSession, CcAgentEvent, CcAgentQueue, CcMissedCall, CcContact, CcQueueCall,
@@ -194,6 +196,7 @@ import * as path from 'path';
     SttEnginesModule,
     MohModule,
     SystemSettingsModule,
+    TenantSettingsModule,
     VoiceRobotsModule,
     ReportsCdrModule,
     AriModule,

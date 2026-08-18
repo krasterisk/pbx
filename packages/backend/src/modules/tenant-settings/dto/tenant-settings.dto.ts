@@ -1,5 +1,6 @@
 import {
   IsObject,
+  IsOptional,
   Validate,
   ValidatorConstraint,
   ValidatorConstraintInterface,
@@ -27,4 +28,8 @@ export class UpdateTenantSettingsDto {
   @IsObject()
   @IsTenantSettingKeys()
   settings: Record<string, unknown>;
+
+  /** Declared so global forbidNonWhitelisted does not 400; never read — tenant is JWT-only. */
+  @IsOptional()
+  vpbx_user_uid?: unknown;
 }
