@@ -27,6 +27,21 @@ export const tenantSettingsApi = rtkApi.injectEndpoints({
         body: { settings },
       }),
       transformResponse: (raw: Partial<TenantSettings>) => withDefaults(raw),
+      async onQueryStarted(settings, { dispatch, queryFulfilled }) {
+        const patchResult = dispatch(
+          tenantSettingsApi.util.updateQueryData('getVpbxTenantSettings', undefined, (draft) => {
+            Object.assign(draft, settings);
+          }),
+        );
+        try {
+          const { data } = await queryFulfilled;
+          dispatch(
+            tenantSettingsApi.util.updateQueryData('getVpbxTenantSettings', undefined, () => data),
+          );
+        } catch {
+          patchResult.undo();
+        }
+      },
     }),
   }),
 });

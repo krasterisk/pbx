@@ -24,7 +24,11 @@ function jsonResponse(body: unknown, status = 200): Response {
 }
 
 function selectCached(store: ReturnType<typeof createStore>): TenantSettings | undefined {
-  return tenantSettingsApi.endpoints.getVpbxTenantSettings.select(undefined)(store.getState()).data;
+  return tenantSettingsApi.endpoints.getVpbxTenantSettings.select()(store.getState()).data;
+}
+
+async function seedCache(store: ReturnType<typeof createStore>): Promise<TenantSettings> {
+  return store.dispatch(tenantSettingsApi.endpoints.getVpbxTenantSettings.initiate()).unwrap();
 }
 
 describe('tenantSettingsApi (D-19, D-17)', () => {
@@ -75,7 +79,8 @@ describe('tenantSettingsApi (D-19, D-17)', () => {
 
   it('patches getVpbxTenantSettings cache before the PUT resolves', async () => {
     const store = createStore();
-    store.dispatch(tenantSettingsApi.util.upsertQueryData('getVpbxTenantSettings', undefined, INITIAL));
+    await seedCache(store);
+    expect(selectCached(store)).toEqual(INITIAL);
 
     const pending = store.dispatch(
       tenantSettingsApi.endpoints.updateVpbxTenantSettings.initiate({
@@ -83,7 +88,10 @@ describe('tenantSettingsApi (D-19, D-17)', () => {
       }),
     );
 
-    expect(selectCached(store)?.['routes.show_raw_dialplan']).toBe(false);
+    expect(selectCached(store)).toEqual({
+      'routes.show_raw_dialplan': false,
+      'routes.show_flowchart': true,
+    });
 
     putGate.resolve(jsonResponse({
       'routes.show_raw_dialplan': false,
@@ -94,7 +102,7 @@ describe('tenantSettingsApi (D-19, D-17)', () => {
 
   it('undo() restores the pre-mutation cache snapshot when PUT is rejected', async () => {
     const store = createStore();
-    store.dispatch(tenantSettingsApi.util.upsertQueryData('getVpbxTenantSettings', undefined, INITIAL));
+    await seedCache(store);
     const before = structuredClone(selectCached(store));
 
     const pending = store.dispatch(
@@ -113,7 +121,7 @@ describe('tenantSettingsApi (D-19, D-17)', () => {
 
   it('replaces the optimistic patch with the server payload on success', async () => {
     const store = createStore();
-    store.dispatch(tenantSettingsApi.util.upsertQueryData('getVpbxTenantSettings', undefined, INITIAL));
+    await seedCache(store);
 
     const server: TenantSettings = {
       'routes.show_raw_dialplan': true,
