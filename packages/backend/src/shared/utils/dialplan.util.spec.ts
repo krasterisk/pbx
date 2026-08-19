@@ -231,7 +231,11 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       expect(dp).toContain('Set(CALLERID(num)=');
     });
 
-    it('mode setclid_list preserves exten_setclid.php SHELL branch', () => {
+    it('mode setclid_list emits CURL to internal setclid (D-31)', () => {
+      const prevUrl = AsteriskDialplanUtils.backendBaseUrl;
+      const prevKey = AsteriskDialplanUtils.dialplanApiKey;
+      AsteriskDialplanUtils.backendBaseUrl = 'http://backend.test/api';
+      AsteriskDialplanUtils.dialplanApiKey = 'wave0-key';
       const dp = AsteriskDialplanUtils.actionToDialplan(
         {
           type: 'callerid',
@@ -240,8 +244,13 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
         },
         vpbx,
       );
-      expect(dp).toContain('exten_setclid.php');
-      expect(dp).toContain('"5"');
+      expect(dp).toContain('CURL(');
+      expect(dp).toContain('/internal/dialplan/setclid');
+      expect(dp).toContain('KRSK_HTTP_RESULT');
+      expect(dp).not.toContain('SHELL(');
+      expect(dp).not.toContain('.php');
+      AsteriskDialplanUtils.backendBaseUrl = prevUrl;
+      AsteriskDialplanUtils.dialplanApiKey = prevKey;
     });
 
     it('mode carousel emits CID pool then nested RAND selection', () => {
@@ -641,18 +650,29 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       expect(dp).toBe('Set(CALLERID(num)=)');
     });
 
-    it('setclid_list with filled list_uid emits dual SHELL() (D-37 baseline)', () => {
+    it('setclid_list with filled list_uid emits CURL setclid (D-31)', () => {
+      const prevUrl = AsteriskDialplanUtils.backendBaseUrl;
+      const prevKey = AsteriskDialplanUtils.dialplanApiKey;
+      AsteriskDialplanUtils.backendBaseUrl = 'http://backend.test/api';
+      AsteriskDialplanUtils.dialplanApiKey = 'wave0-key';
       const dp = AsteriskDialplanUtils.actionToDialplan(
         { type: 'setclid_list', params: { list_uid: 5 }, condition: {} },
         vpbx,
       );
-      expect(dp).toBe(
-        'ExecIf($["${SHELL(/usr/scripts/exten_setclid.php "5" "${CLIDNUM}")}" != ""]?Set(CALLERID(num)=${SHELL(/usr/scripts/exten_setclid.php "5" "${CLIDNUM}")}))',
-      );
-      expect(dp.split('SHELL(').length - 1).toBe(2);
+      expect(dp).toContain('Set(CURLOPT(httptimeout)=');
+      expect(dp).toContain('Set(KRSK_HTTP_RESULT=${CURL(http://backend.test/api/internal/dialplan/setclid');
+      expect(dp).toContain('list_uid=5');
+      expect(dp).toContain('ExecIf($["${KRSK_HTTP_RESULT}" != ""]?Set(CALLERID(num)=${KRSK_HTTP_RESULT}))');
+      expect(dp).not.toContain('SHELL(');
+      AsteriskDialplanUtils.backendBaseUrl = prevUrl;
+      AsteriskDialplanUtils.dialplanApiKey = prevKey;
     });
 
-    it('setclid_list with registry defaultParams still emits dual SHELL()', () => {
+    it('setclid_list with registry defaultParams still emits CURL setclid', () => {
+      const prevUrl = AsteriskDialplanUtils.backendBaseUrl;
+      const prevKey = AsteriskDialplanUtils.dialplanApiKey;
+      AsteriskDialplanUtils.backendBaseUrl = 'http://backend.test/api';
+      AsteriskDialplanUtils.dialplanApiKey = 'wave0-key';
       const dp = AsteriskDialplanUtils.actionToDialplan(
         {
           type: 'setclid_list',
@@ -661,10 +681,11 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
         },
         vpbx,
       );
-      expect(dp).toBe(
-        'ExecIf($["${SHELL(/usr/scripts/exten_setclid.php "" "${CLIDNUM}")}" != ""]?Set(CALLERID(num)=${SHELL(/usr/scripts/exten_setclid.php "" "${CLIDNUM}")}))',
-      );
-      expect(dp.split('SHELL(').length - 1).toBe(2);
+      expect(dp).toContain('/internal/dialplan/setclid');
+      expect(dp).toContain('CURL(');
+      expect(dp).not.toContain('SHELL(');
+      AsteriskDialplanUtils.backendBaseUrl = prevUrl;
+      AsteriskDialplanUtils.dialplanApiKey = prevKey;
     });
 
     it('sendmail with UI fields emits Set(__KMAIL_*) then CURL', () => {
@@ -716,7 +737,11 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       );
     });
 
-    it('sendmailpeer emits System(sendmailpeer.php …)', () => {
+    it('sendmailpeer emits CURL to internal sendmailpeer (D-31)', () => {
+      const prevUrl = AsteriskDialplanUtils.backendBaseUrl;
+      const prevKey = AsteriskDialplanUtils.dialplanApiKey;
+      AsteriskDialplanUtils.backendBaseUrl = 'http://backend.test/api';
+      AsteriskDialplanUtils.dialplanApiKey = 'wave0-key';
       const dp = AsteriskDialplanUtils.actionToDialplan(
         {
           type: 'sendmailpeer',
@@ -725,12 +750,19 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
         },
         vpbx,
       );
-      expect(dp).toBe(
-        'System(/usr/scripts/sendmailpeer.php "101" "missed call" "${CALLERID(num)}" "${EXTEN}" "${UNIQUEID}" "42")',
-      );
+      expect(dp).toContain('/internal/dialplan/sendmailpeer');
+      expect(dp).toContain('Set(KRSK_HTTP_RESULT=${CURL(');
+      expect(dp).not.toContain('System(');
+      expect(dp).not.toContain('.php');
+      AsteriskDialplanUtils.backendBaseUrl = prevUrl;
+      AsteriskDialplanUtils.dialplanApiKey = prevKey;
     });
 
-    it('telegram emits System(telegram.php …)', () => {
+    it('telegram emits CURL to internal telegram (D-31)', () => {
+      const prevUrl = AsteriskDialplanUtils.backendBaseUrl;
+      const prevKey = AsteriskDialplanUtils.dialplanApiKey;
+      AsteriskDialplanUtils.backendBaseUrl = 'http://backend.test/api';
+      AsteriskDialplanUtils.dialplanApiKey = 'wave0-key';
       const dp = AsteriskDialplanUtils.actionToDialplan(
         {
           type: 'telegram',
@@ -739,9 +771,12 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
         },
         vpbx,
       );
-      expect(dp).toBe(
-        'System(/usr/scripts/telegram.php "12345" "hello" "${CALLERID(num)}" "${EXTEN}" "${UNIQUEID}" "42")',
-      );
+      expect(dp).toContain('/internal/dialplan/telegram');
+      expect(dp).toContain('Set(KRSK_HTTP_RESULT=${CURL(');
+      expect(dp).not.toContain('System(');
+      expect(dp).not.toContain('.php');
+      AsteriskDialplanUtils.backendBaseUrl = prevUrl;
+      AsteriskDialplanUtils.dialplanApiKey = prevKey;
     });
 
     it('voicemail with filled exten emits VoiceMail(exten@default,u)', () => {
@@ -760,12 +795,21 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       expect(dp).toBe('VoiceMail(${EXTEN}@default,u)');
     });
 
-    it('text2speech emits AGI(say.php,"…")', () => {
+    it('text2speech emits CURL to internal tts (D-31, no PHP)', () => {
+      const prevUrl = AsteriskDialplanUtils.backendBaseUrl;
+      const prevKey = AsteriskDialplanUtils.dialplanApiKey;
+      AsteriskDialplanUtils.backendBaseUrl = 'http://backend.test/api';
+      AsteriskDialplanUtils.dialplanApiKey = 'wave0-key';
       const dp = AsteriskDialplanUtils.actionToDialplan(
         { type: 'text2speech', params: { text: 'hello world' }, condition: {} },
         vpbx,
       );
-      expect(dp).toBe('AGI(say.php,"hello world")');
+      expect(dp).toContain('/internal/dialplan/tts');
+      expect(dp).toContain('CURL(');
+      expect(dp).not.toContain('AGI(');
+      expect(dp).not.toContain('.php');
+      AsteriskDialplanUtils.backendBaseUrl = prevUrl;
+      AsteriskDialplanUtils.dialplanApiKey = prevKey;
     });
 
     it('asr with empty params uses default silence 3 / max 6', () => {
@@ -800,7 +844,11 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       expect(dp).toBe('Record(/tmp/${UNIQUEID}.wav,4,8)');
     });
 
-    it('webhook emits Set(WH_DATA=${SHELL(webhook.php …)})', () => {
+    it('webhook emits CURL to internal webhook (D-31)', () => {
+      const prevUrl = AsteriskDialplanUtils.backendBaseUrl;
+      const prevKey = AsteriskDialplanUtils.dialplanApiKey;
+      AsteriskDialplanUtils.backendBaseUrl = 'http://backend.test/api';
+      AsteriskDialplanUtils.dialplanApiKey = 'wave0-key';
       const dp = AsteriskDialplanUtils.actionToDialplan(
         {
           type: 'webhook',
@@ -809,9 +857,12 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
         },
         vpbx,
       );
-      expect(dp).toBe(
-        'Set(WH_DATA=${SHELL(/usr/scripts/webhook.php "https://example.com/hook" "${CALLERID(num)}" "${EXTEN}" "${UNIQUEID}" "42")})',
-      );
+      expect(dp).toContain('/internal/dialplan/webhook');
+      expect(dp).toContain('Set(KRSK_HTTP_RESULT=${CURL(');
+      expect(dp).not.toContain('SHELL(');
+      expect(dp).not.toContain('.php');
+      AsteriskDialplanUtils.backendBaseUrl = prevUrl;
+      AsteriskDialplanUtils.dialplanApiKey = prevKey;
     });
 
     it('confbridge with filled room emits ConfBridge(room)', () => {
