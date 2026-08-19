@@ -223,6 +223,52 @@ describe('D-38 MediaOptionsDto round-trip', () => {
     }]);
     expect(errors).toEqual([]);
   });
+
+  it('rejects DTMF-control option p when mode is plain', () => {
+    const errors = validateActionParams([{
+      id: 'p1',
+      type: 'playback',
+      params: { mode: 'plain', files: 'welcome', options: { p: true } },
+    }]);
+    expect(errors.length).toBeGreaterThan(0);
+    expect(errors.some((e) => /p|control|режим|mode/i.test(`${e.path} ${e.message}`))).toBe(true);
+  });
+
+  it('accepts DTMF-control option p when mode is control', () => {
+    const errors = validateActionParams([{
+      id: 'p1',
+      type: 'playback',
+      params: { mode: 'control', files: 'welcome', options: { p: true } },
+    }]);
+    expect(errors).toEqual([]);
+  });
+
+  it('rejects langoverride when mode is not menu', () => {
+    const errors = validateActionParams([{
+      id: 'p1',
+      type: 'playback',
+      params: { mode: 'plain', files: 'welcome', langoverride: 'ru' },
+    }]);
+    expect(errors.length).toBeGreaterThan(0);
+  });
+
+  it('rejects a path-like files value', () => {
+    const errors = validateActionParams([{
+      id: 'p1',
+      type: 'playback',
+      params: { mode: 'plain', files: '../etc/passwd' },
+    }]);
+    expect(errors.length).toBeGreaterThan(0);
+  });
+
+  it('rejects an oversized digittimeout', () => {
+    const errors = validateActionParams([{
+      id: 'p1',
+      type: 'playback',
+      params: { mode: 'menu', files: 'menu', digittimeout: 99999 },
+    }]);
+    expect(errors.length).toBeGreaterThan(0);
+  });
 });
 
 describe('D-39 / D-41 validateActionParams paths', () => {

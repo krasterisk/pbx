@@ -589,7 +589,7 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       ].join('\n'));
     });
 
-    it('playprompt with filled file emits Playback under tenant sounds', () => {
+    it('dual-read playprompt still emits the 12-01 Playback baseline', () => {
       const dp = AsteriskDialplanUtils.actionToDialplan(
         { type: 'playprompt', params: { file: 'welcome' }, condition: {} },
         vpbx,
@@ -605,7 +605,7 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       expect(dp).toBe('Playback(/usr/records/42/sounds/)');
     });
 
-    it('playback with filled file emits Background under tenant sounds', () => {
+    it('dual-read playback without mode still emits the 12-01 Background baseline', () => {
       const dp = AsteriskDialplanUtils.actionToDialplan(
         { type: 'playback', params: { file: 'menu' }, condition: {} },
         vpbx,
