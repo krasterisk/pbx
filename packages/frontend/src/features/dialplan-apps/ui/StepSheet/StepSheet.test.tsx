@@ -44,8 +44,24 @@ vi.mock('@/shared/ui', async () => {
     ...actual,
     Sheet: ({ open, children }: { open?: boolean; children?: React.ReactNode }) =>
       open ? <div role="dialog">{children}</div> : null,
-    SheetContent: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
-    SheetHeader: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+    SheetContent: ({
+      children,
+      side,
+      className,
+      style,
+    }: {
+      children?: React.ReactNode;
+      side?: string;
+      className?: string;
+      style?: React.CSSProperties;
+    }) => (
+      <div data-testid="sheet-content" data-side={side} className={className} style={style}>
+        {children}
+      </div>
+    ),
+    SheetHeader: ({ children }: { children?: React.ReactNode }) => (
+      <div data-testid="step-sheet-header">{children}</div>
+    ),
     SheetFooter: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
     SheetTitle: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
     SheetDescription: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
@@ -197,7 +213,7 @@ describe('StepSheet', () => {
       />,
     );
 
-    const close = screen.getByRole('button', { name: 'Закрыть' });
+    const close = screen.getByRole('button', { name: /Закрыть/ });
     expect(close).not.toBeDisabled();
     fireEvent.click(close);
     expect(confirmSpy).toHaveBeenCalled();
@@ -226,8 +242,75 @@ describe('StepSheet', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Закрыть' }));
+    fireEvent.click(screen.getByRole('button', { name: /Закрыть/ }));
     expect(onOpenChange).toHaveBeenCalledWith(false);
     confirmSpy.mockRestore();
+  });
+
+  it('has no OK / Apply pair inside the sheet (D-02)', () => {
+    render(
+      <StepSheet
+        open
+        stepId="step-1"
+        tenantUid={42}
+        action={{
+          id: 'step-1',
+          type: 'hangup',
+          params: {},
+          condition: {},
+        }}
+        onOpenChange={vi.fn()}
+        onChange={vi.fn()}
+        onTypeChange={vi.fn()}
+      />,
+    );
+    expect(screen.queryByRole('button', { name: /ОК|Применить|Apply/i })).toBeNull();
+  });
+
+  it('uses a bottom sheet with 85dvh max-height and a scrolling body', () => {
+    render(
+      <StepSheet
+        open
+        stepId="step-1"
+        tenantUid={42}
+        forceSide="bottom"
+        action={{
+          id: 'step-1',
+          type: 'hangup',
+          params: {},
+          condition: {},
+        }}
+        onOpenChange={vi.fn()}
+        onChange={vi.fn()}
+        onTypeChange={vi.fn()}
+      />,
+    );
+    const panel = screen.getByTestId('sheet-content');
+    expect(panel).toHaveAttribute('data-side', 'bottom');
+    expect(panel).toHaveStyle({ maxHeight: '85dvh' });
+    const body = screen.getByTestId('step-sheet-body');
+    expect(body).toHaveStyle({ overflowY: 'auto' });
+    expect(screen.getByTestId('step-sheet-header')).not.toHaveStyle({ overflowY: 'auto' });
+  });
+
+  it('focuses the first invalid field on open', () => {
+    render(
+      <StepSheet
+        open
+        stepId="step-1"
+        tenantUid={42}
+        action={{
+          id: 'step-1',
+          type: 'toexten',
+          params: { strip: 1, prepend: '' },
+          condition: {},
+        }}
+        fieldErrors={{ prepend: 'required' }}
+        onOpenChange={vi.fn()}
+        onChange={vi.fn()}
+        onTypeChange={vi.fn()}
+      />,
+    );
+    expect(screen.getByLabelText(/routes\.chain\.fields\.prepend/i)).toHaveFocus();
   });
 });
