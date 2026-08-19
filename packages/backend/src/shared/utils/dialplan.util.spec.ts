@@ -1,7 +1,14 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import type { ActionType } from '@krasterisk/shared';
+import { DIALPLAN_ACTION_META } from '@krasterisk/shared';
+import { ActionTypesList } from '../../modules/routes/dto/route-action.dto';
+import { ActionLog } from '../../modules/logger/action-log.model';
 import { AsteriskDialplanUtils } from './dialplan.util';
+
+jest.mock('../../modules/logger/action-log.model', () => ({
+  ActionLog: { create: jest.fn().mockResolvedValue({}) },
+}));
 
 /** Runtime copy of the shared ActionType union — compile-fails if a member is missing. */
 const ACTION_TYPES = [
@@ -119,13 +126,15 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
     });
   });
 
-  describe('congestion (type only — generator branch is 12-05)', () => {
-    it('currently falls through to Unknown action NoOp', () => {
+  describe('congestion (D-42 generator branch)', () => {
+    it('emits Congestion() like busy — 12-RESEARCH Pitfall / 12-03 type already registered', () => {
       const dp = AsteriskDialplanUtils.actionToDialplan(
-        { type: 'congestion', params: { timeout: 10 }, condition: {} },
+        { type: 'congestion', params: {}, condition: {} },
         vpbx,
       );
-      expect(dp).toBe('NoOp(Unknown action: congestion)');
+      expect(dp).toContain('Congestion()');
+      expect(dp).toBe('Congestion(10)');
+      expect(DIALPLAN_ACTION_META.congestion.terminal).toBe('always');
     });
   });
 
@@ -364,10 +373,9 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
     });
 
     /**
-     * 12-RESEARCH.md Pitfall 3 — wrapper/closing applied as if dp were a single line.
-     * 12-05 must rewrite this expectation after wrapEachLine / GotoIf.
+     * 12-RESEARCH.md Pitfall 3 — now wrapEachLine; single-line Dial output unchanged.
      */
-    it('characterizes current (defective) behaviour: totrunk wraps Dial when dialstatus is set', () => {
+    it('totrunk wraps Dial when dialstatus is set (wrapEachLine, single line)', () => {
       const dp = AsteriskDialplanUtils.actionToDialplan(
         {
           type: 'totrunk',
@@ -382,10 +390,9 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
     });
 
     /**
-     * 12-RESEARCH.md Pitfall 3 — custom webhook makes totrunk multi-line; Return() is unwrapped.
-     * 12-05 must rewrite this expectation after wrapEachLine / GotoIf.
+     * 12-RESEARCH.md Pitfall 3 — wrapEachLine now wraps Return() as well as Dial.
      */
-    it('characterizes current (defective) behaviour: totrunk DIALTO block leaves Return() unwrapped', () => {
+    it('totrunk DIALTO block wraps every line including Return() (Pitfall 3)', () => {
       const dp = AsteriskDialplanUtils.actionToDialplan(
         {
           type: 'totrunk',
@@ -399,7 +406,7 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       expect(dp).toBe(
         [
           'ExecIf($["${DIALSTATUS}" = "NOANSWER"]?ExecIf($["${DIALTO}" != ""]?Dial(PJSIP/out1/${DIALTO},15,tT)))',
-          'same => n,ExecIf($["${DIALSTATUS}" = "ANSWER"]?Return())',
+          'same => n,ExecIf($["${DIALSTATUS}" = "NOANSWER"]?ExecIf($["${DIALSTATUS}" = "ANSWER"]?Return()))',
           'same => n,ExecIf($["${DIALSTATUS}" = "NOANSWER"]?Dial(PJSIP/out1/${EXTEN},60,tT))',
         ].join('\n'),
       );
@@ -656,10 +663,9 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
     });
 
     /**
-     * 12-RESEARCH.md Pitfall 3 — wrapper/closing applied only to the first Set line.
-     * 12-05 must rewrite this expectation after wrapEachLine / GotoIf.
+     * 12-RESEARCH.md Pitfall 3 — wrapEachLine applies the condition to every sendmail line.
      */
-    it('characterizes current (defective) behaviour: sendmail wraps only the first Set when dialstatus is set', () => {
+    it('sendmail wraps every Set/CURL line when dialstatus is set (Pitfall 3)', () => {
       const dp = AsteriskDialplanUtils.actionToDialplan(
         {
           type: 'sendmail',
@@ -675,9 +681,9 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       expect(dp).toBe(
         [
           'ExecIf($["${DIALSTATUS}" = "NOANSWER"]?Set(__KMAIL_TO=ops@example.com))',
-          'same => n,Set(__KMAIL_SUBJ=Call from ${CALLERID(num)})',
-          'same => n,Set(__KMAIL_TEXT=Incoming on ${EXTEN})',
-          'same => n,Set(MAIL_RESULT=${CURL(http://backend.test/api/internal/dialplan/sendmail,to=${URIENCODE(${KMAIL_TO})}&subject=${URIENCODE(${KMAIL_SUBJ})}&text=${URIENCODE(${KMAIL_TEXT})}&api_key=wave0-key)})',
+          'same => n,ExecIf($["${DIALSTATUS}" = "NOANSWER"]?Set(__KMAIL_SUBJ=Call from ${CALLERID(num)}))',
+          'same => n,ExecIf($["${DIALSTATUS}" = "NOANSWER"]?Set(__KMAIL_TEXT=Incoming on ${EXTEN}))',
+          'same => n,ExecIf($["${DIALSTATUS}" = "NOANSWER"]?Set(MAIL_RESULT=${CURL(http://backend.test/api/internal/dialplan/sendmail,to=${URIENCODE(${KMAIL_TO})}&subject=${URIENCODE(${KMAIL_SUBJ})}&text=${URIENCODE(${KMAIL_TEXT})}&api_key=wave0-key)}))',
         ].join('\n'),
       );
     });
@@ -840,10 +846,9 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
     });
 
     /**
-     * 12-RESEARCH.md Pitfall 4 — closing ')' is appended without wrapper → NoOp()).
-     * 12-05 must rewrite this expectation after wrapCondition / priority labels.
+     * 12-RESEARCH.md Pitfall 4 — label no longer emits unbalanced NoOp()); wrapEachLine owns the condition.
      */
-    it('characterizes current (defective) behaviour: label with dialstatus emits invalid NoOp())', () => {
+    it('label with dialstatus emits balanced ExecIf(...?NoOp()) (Pitfall 4)', () => {
       const dp = AsteriskDialplanUtils.actionToDialplan(
         {
           type: 'label',
@@ -852,7 +857,8 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
         },
         vpbx,
       );
-      expect(dp).toBe('NoOp())');
+      expect(dp).toBe('ExecIf($["${DIALSTATUS}" = "ANSWER"]?NoOp())');
+      expect((dp.match(/\(/g) || []).length).toBe((dp.match(/\)/g) || []).length);
     });
 
     it('toexten with empty params emits empty string (skip)', () => {
@@ -872,10 +878,9 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
     });
 
     /**
-     * 12-RESEARCH.md Pitfall 3 — toexten is single-line without webhook; wrapper still applied.
-     * 12-05 must rewrite this expectation after wrapEachLine / GotoIf.
+     * 12-RESEARCH.md Pitfall 3 — wrapEachLine; single-line Dial output unchanged.
      */
-    it('characterizes current (defective) behaviour: toexten wraps Dial when dialstatus is set', () => {
+    it('toexten wraps Dial when dialstatus is set (wrapEachLine, single line)', () => {
       const dp = AsteriskDialplanUtils.actionToDialplan(
         {
           type: 'toexten',
@@ -890,10 +895,9 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
     });
 
     /**
-     * 12-RESEARCH.md Pitfall 3 — custom webhook makes toexten multi-line; Return() is unwrapped.
-     * 12-05 must rewrite this expectation after wrapEachLine / GotoIf.
+     * 12-RESEARCH.md Pitfall 3 — wrapEachLine now wraps Return() as well as Dial.
      */
-    it('characterizes current (defective) behaviour: toexten DIALTO block leaves Return() unwrapped', () => {
+    it('toexten DIALTO block wraps every line including Return() (Pitfall 3)', () => {
       const dp = AsteriskDialplanUtils.actionToDialplan(
         {
           type: 'toexten',
@@ -907,7 +911,7 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       expect(dp).toBe(
         [
           'ExecIf($["${DIALSTATUS}" = "NOANSWER"]?ExecIf($["${DIALTO}" != ""]?Dial(PJSIP/e${DIALTO}_42&PJSIP/ew${DIALTO}_42,15,tThH)))',
-          'same => n,ExecIf($["${DIALSTATUS}" = "ANSWER"]?Return())',
+          'same => n,ExecIf($["${DIALSTATUS}" = "NOANSWER"]?ExecIf($["${DIALSTATUS}" = "ANSWER"]?Return()))',
           'same => n,ExecIf($["${DIALSTATUS}" = "NOANSWER"]?Dial(PJSIP/e101_42&PJSIP/ew101_42,60,tThH))',
         ].join('\n'),
       );
@@ -936,10 +940,9 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
     });
 
     /**
-     * 12-RESEARCH.md Pitfall 3 — wrapper/closing applied only to the first Set line.
-     * 12-05 must rewrite this expectation after wrapEachLine / GotoIf.
+     * 12-RESEARCH.md Pitfall 3 — wrapEachLine applies the condition to every notify line.
      */
-    it('characterizes current (defective) behaviour: notify wraps only the first Set when dialstatus is set', () => {
+    it('notify wraps every Set/CURL line when dialstatus is set (Pitfall 3)', () => {
       const dp = AsteriskDialplanUtils.actionToDialplan(
         {
           type: 'notify',
@@ -955,10 +958,11 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       expect(dp).toBe(
         [
           'ExecIf($["${DIALSTATUS}" = "NOANSWER"]?Set(__KNOTIFY_MSG=Call from ${CALLERID(num)}))',
-          'same => n,Set(__KNOTIFY_TARGET=12345)',
-          'same => n,Set(NOTIFY_RESULT=${CURL(http://backend.test/api/internal/dialplan/notify,integration_uid=15&message=${URIENCODE(${KNOTIFY_MSG})}&target=${URIENCODE(${KNOTIFY_TARGET})}&clid=${URIENCODE(${CALLERID(num)})}&exten=${URIENCODE(${EXTEN})}&uniqueid=${URIENCODE(${UNIQUEID})}&api_key=wave0-key)})',
+          'same => n,ExecIf($["${DIALSTATUS}" = "NOANSWER"]?Set(__KNOTIFY_TARGET=12345))',
+          'same => n,ExecIf($["${DIALSTATUS}" = "NOANSWER"]?Set(NOTIFY_RESULT=${CURL(http://backend.test/api/internal/dialplan/notify,integration_uid=15&message=${URIENCODE(${KNOTIFY_MSG})}&target=${URIENCODE(${KNOTIFY_TARGET})}&clid=${URIENCODE(${CALLERID(num)})}&exten=${URIENCODE(${EXTEN})}&uniqueid=${URIENCODE(${UNIQUEID})}&api_key=wave0-key)}))',
         ].join('\n'),
       );
+      expect((dp.match(/ExecIf\(/g) || []).length).toBe(3);
     });
 
     it('callerid static with name emits two Set lines', () => {
@@ -976,10 +980,9 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
     });
 
     /**
-     * 12-RESEARCH.md Pitfall 3 — wrapper/closing applied only to the first Set line.
-     * 12-05 must rewrite this expectation after wrapEachLine / GotoIf.
+     * 12-RESEARCH.md Pitfall 3 — wrapEachLine applies the condition to every callerid line.
      */
-    it('characterizes current (defective) behaviour: callerid wraps only the first Set when dialstatus is set', () => {
+    it('callerid wraps every Set line when dialstatus is set (Pitfall 3)', () => {
       const dp = AsteriskDialplanUtils.actionToDialplan(
         {
           type: 'callerid',
@@ -991,7 +994,7 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       expect(dp).toBe(
         [
           'ExecIf($["${DIALSTATUS}" = "NOANSWER"]?Set(CALLERID(num)=79001112233))',
-          'same => n,Set(CALLERID(name)=Sales)',
+          'same => n,ExecIf($["${DIALSTATUS}" = "NOANSWER"]?Set(CALLERID(name)=Sales))',
         ].join('\n'),
       );
     });
@@ -1159,7 +1162,10 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       );
     });
 
-    it('characterizes current (defective) behaviour: trunk_carousel wraps only TC_PICK when dialstatus is set', () => {
+    /**
+     * 12-RESEARCH.md Pitfall 3 — wrapEachLine covers every carousel line; Goto → GotoIf.
+     */
+    it('trunk_carousel wraps every line when dialstatus is set (Pitfall 3)', () => {
       const dp = AsteriskDialplanUtils.actionToDialplan(
         {
           type: 'trunk_carousel',
@@ -1176,25 +1182,115 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
         },
         vpbx,
       );
+      const g = '"${DIALSTATUS}" = "NOANSWER"';
       expect(dp).toBe(
         [
-          'ExecIf($["${DIALSTATUS}" = "NOANSWER"]?Set(TC_PICK=${RAND(1,2)}))',
-          'same => n,GotoIf($["${TC_PICK}" = "1"]?t1)',
-          'same => n,Goto(t2)',
-          'same => n(t1),Set(CALLERID(num)=79001110001)',
-          'same => n,Dial(PJSIP/t1/${EXTEN},60,tT)',
-          'same => n,ExecIf($["${DIALSTATUS}" = "ANSWER"]?Return())',
-          'same => n,Set(CALLERID(num)=79001110002)',
-          'same => n,Dial(PJSIP/t2/${EXTEN},60,tT)',
-          'same => n,Return()',
-          'same => n(t2),Set(CALLERID(num)=79001110002)',
-          'same => n,Dial(PJSIP/t2/${EXTEN},60,tT)',
-          'same => n,ExecIf($["${DIALSTATUS}" = "ANSWER"]?Return())',
-          'same => n,Set(CALLERID(num)=79001110001)',
-          'same => n,Dial(PJSIP/t1/${EXTEN},60,tT)',
-          'same => n,Return()',
+          `ExecIf($[${g}]?Set(TC_PICK=\${RAND(1,2)}))`,
+          `same => n,GotoIf($[(${g}) & ("\${TC_PICK}" = "1")]?t1)`,
+          `same => n,GotoIf($[${g}]?t2)`,
+          `same => n(t1),ExecIf($[${g}]?Set(CALLERID(num)=79001110001))`,
+          `same => n,ExecIf($[${g}]?Dial(PJSIP/t1/\${EXTEN},60,tT))`,
+          `same => n,ExecIf($[${g}]?ExecIf($["\${DIALSTATUS}" = "ANSWER"]?Return()))`,
+          `same => n,ExecIf($[${g}]?Set(CALLERID(num)=79001110002))`,
+          `same => n,ExecIf($[${g}]?Dial(PJSIP/t2/\${EXTEN},60,tT))`,
+          `same => n,ExecIf($[${g}]?Return())`,
+          `same => n(t2),ExecIf($[${g}]?Set(CALLERID(num)=79001110002))`,
+          `same => n,ExecIf($[${g}]?Dial(PJSIP/t2/\${EXTEN},60,tT))`,
+          `same => n,ExecIf($[${g}]?ExecIf($["\${DIALSTATUS}" = "ANSWER"]?Return()))`,
+          `same => n,ExecIf($[${g}]?Set(CALLERID(num)=79001110001))`,
+          `same => n,ExecIf($[${g}]?Dial(PJSIP/t1/\${EXTEN},60,tT))`,
+          `same => n,ExecIf($[${g}]?Return())`,
         ].join('\n'),
       );
+    });
+  });
+
+  describe('D-43 wrapEachLine / D-42 cmd log / bracket balance', () => {
+    beforeEach(() => {
+      (ActionLog.create as jest.Mock).mockClear();
+    });
+
+    const FIXTURE_PARAMS: Record<string, Record<string, unknown>> = {
+      totrunk: { trunk: 'PJSIP/t1', dest: '7900' },
+      toexten: { exten: '101' },
+      toqueue: { queue: 'sales' },
+      togroup: { group: '15' },
+      tolist: { numbers: '101' },
+      toivr: { ivr_uid: 1 },
+      toroute: { context: 'sip-in', extension: '100' },
+      playprompt: { file: 'welcome' },
+      playback: { file: 'welcome' },
+      setclid_custom: { callerid: '7900' },
+      setclid_list: { list_uid: 1 },
+      sendmail: { email: 'a@b.c', subject: 's', text: 't' },
+      sendmailpeer: { exten: '101', text: 't' },
+      telegram: { chat_id: '1', text: 't' },
+      notify: { integration_uid: 1, message: 'm', target: 't' },
+      callerid: { mode: 'static', callerid: '7900', name: 'N' },
+      trunk_carousel: { trunks: [{ trunk: 'PJSIP/t1', cid_mode: 'static', callerid: '1' }] },
+      voicemail: { exten: '101' },
+      text2speech: { text: 'hi' },
+      voicerobot: { robot_uid: 1 },
+      asr: {},
+      keywords: {},
+      webhook: { url: 'http://x' },
+      confbridge: { room: '100' },
+      cmd: { command: 'NoOp(ok)' },
+      tofax: { email: 'fax@example.com' },
+      label: { label_name: 'x' },
+      busy: {},
+      hangup: {},
+      congestion: {},
+    };
+
+    it.each([...ActionTypesList])('emits balanced parentheses for %s', (type) => {
+      const dp = AsteriskDialplanUtils.actionToDialplan(
+        { type, params: FIXTURE_PARAMS[type] ?? {}, condition: { dialstatus: 'ANSWER' } },
+        vpbx,
+        true,
+      );
+      expect((dp.match(/\(/g) || []).length).toBe((dp.match(/\)/g) || []).length);
+    });
+
+    it('empty condition output equals output without condition (toBe)', () => {
+      const action = { type: 'busy' as const, params: {}, condition: {} };
+      const withEmpty = AsteriskDialplanUtils.actionToDialplan(action, vpbx);
+      const without = AsteriskDialplanUtils.actionToDialplan({ type: 'busy', params: {} }, vpbx);
+      expect(withEmpty).toBe(without);
+      expect(withEmpty).toBe('Busy(10)');
+    });
+
+    it('cmd apply writes action_logs via ActionLog.create (D-42)', () => {
+      AsteriskDialplanUtils.actionToDialplan(
+        { id: 9, type: 'cmd', params: { command: 'NoOp(hello-from-cmd)' }, condition: {} },
+        vpbx,
+        true,
+      );
+      expect(ActionLog.create).toHaveBeenCalled();
+      const payload = (ActionLog.create as jest.Mock).mock.calls[0][0];
+      expect(payload.action).toBe('cmd_apply');
+      expect(payload.entity_type).toBe('dialplan_action');
+      expect(payload.details).toMatch(/cmd/);
+    });
+
+    it('chain without cmd does not log cmd_apply', () => {
+      AsteriskDialplanUtils.actionToDialplan(
+        { type: 'busy', params: {}, condition: {} },
+        vpbx,
+      );
+      const cmdApplies = (ActionLog.create as jest.Mock).mock.calls.filter(
+        (c) => c[0]?.action === 'cmd_apply',
+      );
+      expect(cmdApplies).toHaveLength(0);
+    });
+
+    it('cmd with isAdmin=false does not log cmd_apply', () => {
+      AsteriskDialplanUtils.actionToDialplan(
+        { type: 'cmd', params: { command: 'NoOp(x)' }, condition: {} },
+        vpbx,
+        false,
+      );
+      expect(ActionLog.create).not.toHaveBeenCalled();
     });
   });
 });

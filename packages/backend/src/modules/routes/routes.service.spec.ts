@@ -1,6 +1,11 @@
 import { RoutesService } from './routes.service';
 import type { ITimeGroupInterval } from '@krasterisk/shared';
 import { AsteriskDialplanUtils } from '../../shared/utils/dialplan.util';
+import { ActionLog } from '../logger/action-log.model';
+
+jest.mock('../logger/action-log.model', () => ({
+  ActionLog: { create: jest.fn().mockResolvedValue({}) },
+}));
 
 /**
  * Unit tests for RoutesService bindings CRUD (D-03, D-05, T-05-03).
@@ -372,6 +377,28 @@ describe('RoutesService', () => {
           'same => n,Set(MAIL_RESULT=${CURL(http://backend.test/api/internal/dialplan/sendmail,to=${URIENCODE(${KMAIL_TO})}&subject=${URIENCODE(${KMAIL_SUBJ})}&text=${URIENCODE(${KMAIL_TEXT})}&api_key=wave0-key)}))',
         ].join('\n'),
       );
+    });
+
+    it('cmd action on generate path logs cmd_apply (D-42)', () => {
+      (ActionLog.create as jest.Mock).mockClear();
+      const route = baseRoute({
+        actions: [{ id: 3, type: 'cmd', params: { command: 'NoOp(route-cmd)' }, condition: {} }],
+      });
+      service.generateRouteDialplan(route, 42, true);
+      expect(ActionLog.create).toHaveBeenCalled();
+      expect((ActionLog.create as jest.Mock).mock.calls[0][0].action).toBe('cmd_apply');
+    });
+
+    it('route without cmd does not log cmd_apply', () => {
+      (ActionLog.create as jest.Mock).mockClear();
+      const route = baseRoute({
+        actions: [{ type: 'hangup', params: {}, condition: {} }],
+      });
+      service.generateRouteDialplan(route, 42, true);
+      const cmdApplies = (ActionLog.create as jest.Mock).mock.calls.filter(
+        (c) => c[0]?.action === 'cmd_apply',
+      );
+      expect(cmdApplies).toHaveLength(0);
     });
 
     it('buildContextName endsWith guard keeps an already-suffixed context (D-42 contrast vs toroute)', async () => {
