@@ -36,6 +36,10 @@ vi.mock('@/features/system-settings/ui/RedisStatusCard', () => ({
   RedisStatusCard: () => <div data-testid="redis-card-stub">redis</div>,
 }));
 
+vi.mock('@/features/tenant-settings/ui/TenantSettingsSection', () => ({
+  TenantSettingsSection: () => <div data-testid="tenant-settings-section-stub">tenant</div>,
+}));
+
 import { SettingsPage } from './SettingsPage';
 
 describe('SettingsPage stacked forms (D-29 / D-27 wave D)', () => {
@@ -46,5 +50,21 @@ describe('SettingsPage stacked forms (D-29 / D-27 wave D)', () => {
     expect(page).toHaveAttribute('data-stack', 'phone');
     expect(page.className).toMatch(/min-w-0|page/);
     expect(screen.getByTestId('dialplan-card-stub')).toBeInTheDocument();
+  });
+
+  it('renders six sections including the tenant settings stub', () => {
+    render(<SettingsPage />);
+    expect(screen.getByTestId('dialplan-card-stub')).toBeInTheDocument();
+    expect(screen.getByTestId('recordings-card-stub')).toBeInTheDocument();
+    expect(screen.getByTestId('webhook-card-stub')).toBeInTheDocument();
+    expect(screen.getByTestId('ffmpeg-card-stub')).toBeInTheDocument();
+    expect(screen.getByTestId('redis-card-stub')).toBeInTheDocument();
+    expect(screen.getByTestId('tenant-settings-section-stub')).toBeInTheDocument();
+  });
+
+  it('still renders the tenant section when admin cards report request errors', () => {
+    render(<SettingsPage />);
+    expect(screen.getByTestId('tenant-settings-section-stub')).toBeInTheDocument();
+    expect(screen.queryByText(/RequireRole/)).toBeNull();
   });
 });
