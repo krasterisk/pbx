@@ -5,6 +5,9 @@ describe('DialplanBridgeService', () => {
   const http = { axiosRef: { post: jest.fn() } };
   const mailer = { sendNotification: jest.fn().mockResolvedValue({ success: true }) };
   const telegram = { sendMessage: jest.fn().mockResolvedValue(undefined) };
+  const ttsEngines = { findAll: jest.fn(), findOne: jest.fn() };
+  const ivrTts = { synthesizeToBuffer: jest.fn() };
+  const ttsCache = { writeWav: jest.fn() };
   const logger = { log: jest.fn(), warn: jest.fn(), error: jest.fn() };
 
   let service: DialplanBridgeService;
@@ -16,6 +19,9 @@ describe('DialplanBridgeService', () => {
       http as any,
       mailer as any,
       telegram as any,
+      ttsEngines as any,
+      ivrTts as any,
+      ttsCache as any,
     );
     (service as any).logger = logger;
   });
@@ -65,5 +71,35 @@ describe('DialplanBridgeService', () => {
     await expect(
       service.telegram({ chat_id: '1', text: 'hi', vpbx_user_uid: '42' }),
     ).resolves.toEqual({ accepted: true });
+  });
+
+  it('tts writes a sanitized basename and logs when the engine fails', async () => {
+    ttsEngines.findAll.mockResolvedValue([{ uid: 3, name: 'Yandex', type: 'yandex' }]);
+    ivrTts.synthesizeToBuffer.mockResolvedValue(Buffer.from('RIFF'));
+    ttsCache.writeWav.mockReturnValue('/tmp/krasterisk-ivr-tts/42/abc.wav');
+
+    await expect(
+      service.tts({ text: 'hello', engine: '3', vpbx_user_uid: '42' }),
+    ).resolves.toEqual({ status: 'ok', file: 'abc' });
+
+    ivrTts.synthesizeToBuffer.mockRejectedValueOnce(new Error('engine down'));
+    await expect(
+      service.tts({ text: 'hello', engine: '3', vpbx_user_uid: '42' }),
+    ).resolves.toEqual({ status: 'error', file: '' });
+    expect(logger.error).toHaveBeenCalled();
+  });
+
+  it('tts rejects an unknown engine and sanitizes path traversal from the engine response', async () => {
+    ttsEngines.findAll.mockResolvedValue([{ uid: 3, name: 'Yandex', type: 'yandex' }]);
+    await expect(
+      service.tts({ text: 'hello', engine: '99', vpbx_user_uid: '42' }),
+    ).rejects.toThrow('Unknown TTS engine');
+
+    ttsEngines.findAll.mockResolvedValue([{ uid: 3, name: 'Yandex', type: 'yandex' }]);
+    ivrTts.synthesizeToBuffer.mockResolvedValue(Buffer.from('RIFF'));
+    ttsCache.writeWav.mockReturnValue('/tmp/krasterisk-ivr-tts/42/../../etc/passwd');
+    const result = await service.tts({ text: 'hello', engine: '3', vpbx_user_uid: '42' });
+    expect(result.file).not.toContain('..');
+    expect(result.file).not.toContain('/');
   });
 });

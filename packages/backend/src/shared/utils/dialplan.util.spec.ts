@@ -795,7 +795,7 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       expect(dp).toBe('VoiceMail(${EXTEN}@default,u)');
     });
 
-    it('text2speech emits CURL to internal tts (D-31, no PHP)', () => {
+    it('text2speech emits CURL to internal tts then Playback of the result (D-30)', () => {
       const prevUrl = AsteriskDialplanUtils.backendBaseUrl;
       const prevKey = AsteriskDialplanUtils.dialplanApiKey;
       AsteriskDialplanUtils.backendBaseUrl = 'http://backend.test/api';
@@ -806,6 +806,7 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       );
       expect(dp).toContain('/internal/dialplan/tts');
       expect(dp).toContain('CURL(');
+      expect(dp).toContain('Playback(/usr/records/42/sounds/${KRSK_HTTP_RESULT})');
       expect(dp).not.toContain('AGI(');
       expect(dp).not.toContain('usr/scripts');
       AsteriskDialplanUtils.backendBaseUrl = prevUrl;

@@ -131,7 +131,7 @@ const VALID_PARAMS: Record<ActionType, Record<string, unknown>> = {
   callerid: { mode: 'static', callerid: '7900' },
   trunk_carousel: { mode: 'random_then_failover', trunks: [{ trunk: 'PJSIP/t1', cid_mode: 'static' }] },
   voicemail: { target: { source: 'route_pattern' } },
-  text2speech: { text: 'hello' },
+  text2speech: { text: 'hello', engine: 3 },
   voicerobot: { robot_uid: 5 },
   asr: { silence_timeout: 3, max_timer: 6 },
   keywords: { silence_timeout: 3, max_timer: 6 },
@@ -164,7 +164,7 @@ const INVALID_PARAMS: Record<ActionType, Record<string, unknown>> = {
   callerid: { mode: 'nope' },
   trunk_carousel: { mode: 'random_then_failover', trunks: 'x' },
   voicemail: { target: { source: 'fixed', value: '' } },
-  text2speech: { digittimeout: -1 },
+  text2speech: { engine: 'nope' },
   voicerobot: { robot_uid: 'x' },
   asr: { silence_timeout: -1 },
   keywords: { max_timer: -1 },
@@ -314,5 +314,17 @@ describe('D-26 numberManipulation DTO', () => {
       params: { trunk: 'PJSIP/t1', dest: { source: 'fixed', value: '7900' }, numberManipulation: { prepend: 'abc' } },
     }]);
     expect(errors.some((e) => e.path === 'numberManipulation.prepend')).toBe(true);
+  });
+});
+
+describe('D-30 text2speech engine', () => {
+  it('rejects an engine that is not a catalog uid', () => {
+    const errors = validateActionParams([{
+      id: 't1',
+      type: 'text2speech',
+      params: { text: 'hello', engine: 'nope' },
+    }]);
+    expect(errors.length).toBeGreaterThan(0);
+    expect(errors.some((e) => e.path === 'engine' || e.message.toLowerCase().includes('engine'))).toBe(true);
   });
 });
