@@ -24,7 +24,13 @@ vi.mock('@/entities/tenantSettings', () => ({
 }));
 
 vi.mock('@/features/dialplan-apps', () => ({
-  DialplanAppsEditor: () => <div data-testid="table-editor" />,
+  DialplanAppsEditor: (props: { host?: string; allowedTypes?: string[] }) => (
+    <div
+      data-testid="table-editor"
+      data-host={props.host}
+      data-allowed={(props.allowedTypes ?? []).join(',')}
+    />
+  ),
 }));
 
 vi.mock('../RawDialplanEditor/RawDialplanEditor', () => ({
@@ -94,5 +100,13 @@ describe('RouteActionsTab raw dialplan visibility (D-16 / D-17)', () => {
     renderTab('raw');
     expect(screen.getByTestId('table-editor')).toBeInTheDocument();
     expect(screen.queryByTestId('raw-dialplan-editor')).toBeNull();
+  });
+
+  it('passes host=route and a nonempty allowedTypes list', () => {
+    renderTab('table');
+    const editor = screen.getByTestId('table-editor');
+    expect(editor).toHaveAttribute('data-host', 'route');
+    expect((editor.getAttribute('data-allowed') ?? '').length).toBeGreaterThan(0);
+    expect(editor.getAttribute('data-allowed')).not.toContain(',,');
   });
 });

@@ -21,8 +21,22 @@ vi.mock('@/shared/api/endpoints/phonebookApi', async (importOriginal) => {
 });
 
 vi.mock('@/features/dialplan-apps/ui/DialplanAppsEditor/DialplanAppsEditor', () => ({
-  DialplanAppsEditor: ({ actions }: { actions: any[] }) => (
-    <div data-testid="dialplan-apps-editor">actions:{actions.length}</div>
+  DialplanAppsEditor: ({
+    actions,
+    host,
+    allowedTypes,
+  }: {
+    actions: any[];
+    host?: string;
+    allowedTypes?: string[];
+  }) => (
+    <div
+      data-testid="dialplan-apps-editor"
+      data-host={host}
+      data-allowed={(allowedTypes ?? []).join(',')}
+    >
+      actions:{actions.length}
+    </div>
   ),
 }));
 
@@ -75,7 +89,7 @@ describe('RoutePhonebooksTab', () => {
 
     expect(bindingNames()).toEqual(['Blacklist', 'VIP']);
 
-    // Move the second row (VIP) up — it should now render before Blacklist.
+    // Move the second row (VIP) up - it should now render before Blacklist.
     const moveUpButtons = screen.getAllByTitle('Вверх');
     fireEvent.click(moveUpButtons[1]);
 
@@ -135,7 +149,7 @@ describe('RoutePhonebooksTab', () => {
     const behaviorSelect = screen.getByDisplayValue('vars_only');
     fireEvent.change(behaviorSelect, { target: { value: 'set_number' } });
 
-    // The single real key "external" is auto-selected — no hardcoded clid/name defaults.
+    // The single real key "external" is auto-selected - no hardcoded clid/name defaults.
     expect(screen.getByDisplayValue('external')).toBeInTheDocument();
     expect(screen.getByText(/берётся из записи справочника/)).toBeInTheDocument();
   });
@@ -173,5 +187,25 @@ describe('RoutePhonebooksTab', () => {
     expect(options).not.toContain('vars_only');
     expect(options).not.toContain('set_number');
     expect(options).toEqual(['set_name', 'drop', 'redirect', 'custom']);
+  });
+
+  it('passes host=phonebook and excludes route-only types', () => {
+    render(
+      <Harness
+        initial={[
+          {
+            ...twoBindings[0],
+            behavior_type: 'custom',
+            actions: [],
+          },
+        ]}
+      />,
+    );
+    const editor = screen.getByTestId('dialplan-apps-editor');
+    expect(editor).toHaveAttribute('data-host', 'phonebook');
+    const allowed = editor.getAttribute('data-allowed') ?? '';
+    expect(allowed.length).toBeGreaterThan(0);
+    expect(allowed.split(',')).not.toContain('cmd');
+    expect(allowed.split(',')).not.toContain('trunk_carousel');
   });
 });
