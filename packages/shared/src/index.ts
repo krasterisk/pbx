@@ -42,3 +42,4 @@ export type {
   ValidateIvrPromptsOptions,
 } from './utils/ivr-prompts';
 export { ensureCdrVpbxUserUidInDialplan } from './utils/dialplan-vpbx';
+export { OPTIONS_ROUNDTRIP_STRINGS } from './fixtures/dialplan-options.roundtrip';

@@ -1,14 +1,8 @@
+import { OPTIONS_ROUNDTRIP_STRINGS } from '@krasterisk/shared';
 import { parseOptions, serializeOptions } from './dialplan-options.util';
 
 describe('parseOptions / serializeOptions (D-27)', () => {
-  it.each([
-    'tT',
-    'U(sub-x)',
-    'L(60000:30000:10000)',
-    'nU(a,b)M(c)',
-    'zzz',
-    '',
-  ])('round-trips %j', (s) => {
+  it.each([...OPTIONS_ROUNDTRIP_STRINGS])('round-trips %j', (s) => {
     expect(serializeOptions(parseOptions(s))).toBe(s);
   });
 
