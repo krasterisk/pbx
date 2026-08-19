@@ -19,10 +19,14 @@ export interface INotificationIntegration {
 export type CallerIdMode = 'static' | 'phonebook' | 'setclid_list' | 'carousel';
 
 export interface INotifyActionParams {
-  integration_uid: number;
-  message: string;
+  integration_uid?: number;
+  message?: string;
   target?: string;
   preset?: string;
+  channels?: NotificationChannel[];
+  recipients?: Partial<Record<NotificationChannel, string>>;
+  subject?: string;
+  body?: string;
 }
 
 export interface ICallerIdActionParams {

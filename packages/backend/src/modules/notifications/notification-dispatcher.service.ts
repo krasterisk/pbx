@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { MailerService } from '../mailer/mailer.service';
 import { NotificationsService } from './notifications.service';
 import { TelegramProvider } from './providers/telegram.provider';
 import { EmailProvider } from './providers/email.provider';
@@ -9,7 +10,10 @@ import { VkProvider } from './providers/vk.provider';
 
 /** Dialplan notify payload (DTO formalized in 06-09). */
 export interface NotifyDialplanBody {
-  integration_uid: number;
+  integration_uid?: number;
+  channels?: string;
+  recipients?: string;
+  subject?: string;
   message?: string;
   target?: string;
   clid?: string;
@@ -34,10 +38,22 @@ export class NotificationDispatcherService {
     private readonly webhook: WebhookProvider,
     private readonly max: MaxProvider,
     private readonly vk: VkProvider,
+    private readonly mailer: MailerService,
   ) {}
 
   async dispatch(body: NotifyDialplanBody): Promise<void> {
     try {
+      if (!body.integration_uid) {
+        const channels = String(body.channels ?? '').split(',').map((item) => item.trim()).filter(Boolean);
+        if (channels.includes('email')) {
+          await this.mailer.sendNotification({
+            to: body.target ?? '',
+            subject: body.subject,
+            text: body.message ?? '',
+          });
+        }
+        return;
+      }
       const integ = await this.notificationsService.findByUidInternal(
         Number(body.integration_uid),
       );

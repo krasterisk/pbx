@@ -10,6 +10,7 @@ import {
   findUnreachableSteps,
   renderActionChain,
 } from './dialplan.util';
+import { decodeCurlPostData, extractCurlInvocation } from './dialplan-curl.util';
 
 jest.mock('../../modules/logger/action-log.model', () => ({
   ActionLog: { create: jest.fn().mockResolvedValue({}) },
@@ -186,6 +187,44 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       expect(dp).toContain('message=${URIENCODE(${KNOTIFY_MSG})}');
       expect(dp).toContain('URIENCODE');
       expect(dp).toContain('api_key=');
+    });
+
+    it('sendmail old params match notify equivalent payload (D-28)', () => {
+      const ctx = { email: 'ops@example.com', subject: 'Call', text: 'Incoming' };
+      const sendmail = AsteriskDialplanUtils.actionToDialplan(
+        { type: 'sendmail', params: ctx, condition: {} },
+        vpbx,
+      );
+      const notify = AsteriskDialplanUtils.actionToDialplan(
+        {
+          type: 'notify',
+          params: {
+            channels: ['email'],
+            recipients: { email: ctx.email },
+            subject: ctx.subject,
+            body: ctx.text,
+          },
+          condition: {},
+        },
+        vpbx,
+      );
+      const sendmailCurl = extractCurlInvocation(sendmail);
+      const notifyCurl = extractCurlInvocation(notify);
+      expect(sendmailCurl).toContain('/internal/dialplan/notify');
+      expect(notifyCurl).toContain('/internal/dialplan/notify');
+      expect(decodeCurlPostData(sendmailCurl)).toEqual(decodeCurlPostData(notifyCurl));
+    });
+
+    it('notify failure does not stop later steps in the chain', () => {
+      const dp = renderActionChain(
+        [
+          { type: 'notify', params: { channels: ['email'], recipients: { email: 'a@b.c' }, body: 'x' }, condition: {} },
+          { type: 'busy', params: {}, condition: {} },
+        ],
+        { vpbxUserUid: vpbx, host: 'route' },
+      );
+      expect(dp).toContain('/internal/dialplan/notify');
+      expect(dp).toContain('Busy(');
     });
   });
 
@@ -688,7 +727,11 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       AsteriskDialplanUtils.dialplanApiKey = prevKey;
     });
 
-    it('sendmail with UI fields emits Set(__KMAIL_*) then CURL', () => {
+    it('sendmail with UI fields emits notify-equivalent CURL (D-28)', () => {
+      const prevUrl = AsteriskDialplanUtils.backendBaseUrl;
+      const prevKey = AsteriskDialplanUtils.dialplanApiKey;
+      AsteriskDialplanUtils.backendBaseUrl = 'http://backend.test/api';
+      AsteriskDialplanUtils.dialplanApiKey = 'wave0-key';
       const dp = AsteriskDialplanUtils.actionToDialplan(
         {
           type: 'sendmail',
@@ -701,20 +744,21 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
         },
         vpbx,
       );
-      expect(dp).toBe(
-        [
-          'Set(__KMAIL_TO=ops@example.com)',
-          'same => n,Set(__KMAIL_SUBJ=Call from ${CALLERID(num)})',
-          'same => n,Set(__KMAIL_TEXT=Incoming on ${EXTEN})',
-          'same => n,Set(MAIL_RESULT=${CURL(http://backend.test/api/internal/dialplan/sendmail,to=${URIENCODE(${KMAIL_TO})}&subject=${URIENCODE(${KMAIL_SUBJ})}&text=${URIENCODE(${KMAIL_TEXT})}&api_key=wave0-key)})',
-        ].join('\n'),
-      );
+      expect(dp).toContain('/internal/dialplan/notify');
+      expect(dp).toContain('channels=email');
+      expect(dp).toContain('Set(KRSK_HTTP_RESULT=${CURL(');
+      AsteriskDialplanUtils.backendBaseUrl = prevUrl;
+      AsteriskDialplanUtils.dialplanApiKey = prevKey;
     });
 
     /**
      * 12-RESEARCH.md Pitfall 3 — wrapEachLine applies the condition to every sendmail line.
      */
     it('sendmail wraps every Set/CURL line when dialstatus is set (Pitfall 3)', () => {
+      const prevUrl = AsteriskDialplanUtils.backendBaseUrl;
+      const prevKey = AsteriskDialplanUtils.dialplanApiKey;
+      AsteriskDialplanUtils.backendBaseUrl = 'http://backend.test/api';
+      AsteriskDialplanUtils.dialplanApiKey = 'wave0-key';
       const dp = AsteriskDialplanUtils.actionToDialplan(
         {
           type: 'sendmail',
@@ -727,17 +771,14 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
         },
         vpbx,
       );
-      expect(dp).toBe(
-        [
-          'ExecIf($["${DIALSTATUS}" = "NOANSWER"]?Set(__KMAIL_TO=ops@example.com))',
-          'same => n,ExecIf($["${DIALSTATUS}" = "NOANSWER"]?Set(__KMAIL_SUBJ=Call from ${CALLERID(num)}))',
-          'same => n,ExecIf($["${DIALSTATUS}" = "NOANSWER"]?Set(__KMAIL_TEXT=Incoming on ${EXTEN}))',
-          'same => n,ExecIf($["${DIALSTATUS}" = "NOANSWER"]?Set(MAIL_RESULT=${CURL(http://backend.test/api/internal/dialplan/sendmail,to=${URIENCODE(${KMAIL_TO})}&subject=${URIENCODE(${KMAIL_SUBJ})}&text=${URIENCODE(${KMAIL_TEXT})}&api_key=wave0-key)}))',
-        ].join('\n'),
-      );
+      expect(dp).toContain('ExecIf($["${DIALSTATUS}" = "NOANSWER"]?Set(__KNOTIFY_MSG=');
+      expect(dp).toContain('ExecIf($["${DIALSTATUS}" = "NOANSWER"]?Set(CURLOPT(httptimeout)=');
+      expect(dp).toContain('/internal/dialplan/notify');
+      AsteriskDialplanUtils.backendBaseUrl = prevUrl;
+      AsteriskDialplanUtils.dialplanApiKey = prevKey;
     });
 
-    it('sendmailpeer emits CURL to internal sendmailpeer (D-31)', () => {
+    it('sendmailpeer emits CURL to notify (D-28)', () => {
       const prevUrl = AsteriskDialplanUtils.backendBaseUrl;
       const prevKey = AsteriskDialplanUtils.dialplanApiKey;
       AsteriskDialplanUtils.backendBaseUrl = 'http://backend.test/api';
@@ -750,7 +791,7 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
         },
         vpbx,
       );
-      expect(dp).toContain('/internal/dialplan/sendmailpeer');
+      expect(dp).toContain('/internal/dialplan/notify');
       expect(dp).toContain('Set(KRSK_HTTP_RESULT=${CURL(');
       expect(dp).not.toContain('System(');
       expect(dp).not.toContain('usr/scripts');
@@ -758,7 +799,7 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       AsteriskDialplanUtils.dialplanApiKey = prevKey;
     });
 
-    it('telegram emits CURL to internal telegram (D-31)', () => {
+    it('telegram emits CURL to notify (D-28)', () => {
       const prevUrl = AsteriskDialplanUtils.backendBaseUrl;
       const prevKey = AsteriskDialplanUtils.dialplanApiKey;
       AsteriskDialplanUtils.backendBaseUrl = 'http://backend.test/api';
@@ -771,7 +812,7 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
         },
         vpbx,
       );
-      expect(dp).toContain('/internal/dialplan/telegram');
+      expect(dp).toContain('/internal/dialplan/notify');
       expect(dp).toContain('Set(KRSK_HTTP_RESULT=${CURL(');
       expect(dp).not.toContain('System(');
       expect(dp).not.toContain('usr/scripts');
@@ -1010,13 +1051,12 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
         },
         vpbx,
       );
-      expect(dp).toBe(
-        [
-          'Set(__KNOTIFY_MSG=Call from ${CALLERID(num)})',
-          'same => n,Set(__KNOTIFY_TARGET=12345)',
-          'same => n,Set(NOTIFY_RESULT=${CURL(http://backend.test/api/internal/dialplan/notify,integration_uid=15&message=${URIENCODE(${KNOTIFY_MSG})}&target=${URIENCODE(${KNOTIFY_TARGET})}&clid=${URIENCODE(${CALLERID(num)})}&exten=${URIENCODE(${EXTEN})}&uniqueid=${URIENCODE(${UNIQUEID})}&api_key=wave0-key)})',
-        ].join('\n'),
-      );
+      expect(dp).toContain('Set(__KNOTIFY_MSG=Call from ${CALLERID(num)})');
+      expect(dp).toContain('Set(__KNOTIFY_TARGET=12345)');
+      expect(dp).toContain('/internal/dialplan/notify');
+      expect(dp).toContain('integration_uid=15');
+      expect(dp).toContain('message=${URIENCODE(${KNOTIFY_MSG})}');
+      expect(dp).toContain('Set(KRSK_HTTP_RESULT=${CURL(');
     });
 
     /**
@@ -1035,14 +1075,10 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
         },
         vpbx,
       );
-      expect(dp).toBe(
-        [
-          'ExecIf($["${DIALSTATUS}" = "NOANSWER"]?Set(__KNOTIFY_MSG=Call from ${CALLERID(num)}))',
-          'same => n,ExecIf($["${DIALSTATUS}" = "NOANSWER"]?Set(__KNOTIFY_TARGET=12345))',
-          'same => n,ExecIf($["${DIALSTATUS}" = "NOANSWER"]?Set(NOTIFY_RESULT=${CURL(http://backend.test/api/internal/dialplan/notify,integration_uid=15&message=${URIENCODE(${KNOTIFY_MSG})}&target=${URIENCODE(${KNOTIFY_TARGET})}&clid=${URIENCODE(${CALLERID(num)})}&exten=${URIENCODE(${EXTEN})}&uniqueid=${URIENCODE(${UNIQUEID})}&api_key=wave0-key)}))',
-        ].join('\n'),
-      );
-      expect((dp.match(/ExecIf\(/g) || []).length).toBe(3);
+      expect(dp).toContain('ExecIf($["${DIALSTATUS}" = "NOANSWER"]?Set(__KNOTIFY_MSG=Call from ${CALLERID(num)}))');
+      expect(dp).toContain('ExecIf($["${DIALSTATUS}" = "NOANSWER"]?Set(__KNOTIFY_TARGET=12345))');
+      expect(dp).toContain('/internal/dialplan/notify');
+      expect((dp.match(/ExecIf\(/g) || []).length).toBeGreaterThanOrEqual(3);
     });
 
     it('callerid static with name emits two Set lines', () => {

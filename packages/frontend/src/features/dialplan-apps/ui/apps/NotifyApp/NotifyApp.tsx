@@ -1,164 +1,87 @@
-import { memo, useCallback, type ChangeEvent } from 'react';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Input, Select, Textarea } from '@/shared/ui';
-import { InfoTooltip } from '@/shared/ui/Tooltip/Tooltip';
-import { useGetNotificationsQuery } from '@/shared/api/endpoints/notificationApi';
-import {
-  NOTIFY_PRESETS,
-  NOTIFY_PRESET_KEYS,
-  NOTIFY_PRESET_LABEL_KEYS,
-  type NotifyPresetKey,
-} from '../../../config/notifyPresets';
-import { IDialplanAppProps } from '../../../model/types';
+import { Input } from '@/shared/ui';
+import type { NotificationChannel } from '@krasterisk/shared';
+import type { FieldSchema } from '../../../model/schema.types';
+import type { IDialplanAppProps } from '../../../model/types';
+import { SchemaFields } from '../../SchemaFields/SchemaFields';
 import cls from './NotifyApp.module.scss';
 
-export const NotifyApp = memo(({ params, onChange, readOnly, actionType }: IDialplanAppProps) => {
+const CHANNELS: NotificationChannel[] = [
+  'email',
+  'telegram',
+  'whatsapp',
+  'webhook',
+  'max',
+  'vk',
+];
+
+const RECIPIENT_CHANNELS: NotificationChannel[] = [
+  'email',
+  'telegram',
+  'whatsapp',
+  'max',
+  'vk',
+];
+
+type TFn = (key: string, fallback?: string) => string;
+
+export function buildNotifySchema(t: TFn): FieldSchema[] {
+  return [
+    {
+      key: 'channels',
+      kind: 'multiselect',
+      required: true,
+      labelKey: 'routes.chain.notify.channels',
+      options: CHANNELS.map((channel) => ({
+        value: channel,
+        labelKey: `routes.chain.notify.channel.${channel}`,
+        label: t(`routes.chain.notify.channel.${channel}`, channel),
+      })),
+    },
+    {
+      key: 'subject',
+      kind: 'text',
+      labelKey: 'routes.chain.notify.subject',
+    },
+    {
+      key: 'body',
+      kind: 'text',
+      required: true,
+      labelKey: 'routes.chain.notify.body',
+    },
+  ];
+}
+
+export function NotifyApp({ params, onChange, readOnly }: IDialplanAppProps) {
   const { t } = useTranslation();
-  const { data: integrations = [] } = useGetNotificationsQuery();
-
-  const integrationUid = String(params?.integration_uid ?? '');
-  const message = String(params?.message ?? '');
-  const target = String(params?.target ?? '');
-  const preset = String(params?.preset ?? '');
-
-  const selectedIntegration = integrations.find((i) => String(i.uid) === integrationUid);
-  const isWebhook = selectedIntegration?.channel === 'webhook';
-
-  const handleIntegrationChange = useCallback(
-    (e: ChangeEvent<HTMLSelectElement>) => {
-      const nextUid = e.target.value;
-      onChange({ integration_uid: nextUid });
-      const next = integrations.find((i) => String(i.uid) === nextUid);
-      // Webhook has no recipient override - clear leftover target from other channels
-      if (next?.channel === 'webhook' && target) {
-        onChange({ target: '' });
-      }
-    },
-    [onChange, integrations, target],
-  );
-
-  const handleMessageChange = useCallback(
-    (e: ChangeEvent<HTMLTextAreaElement>) => {
-      onChange({ message: e.target.value });
-    },
-    [onChange],
-  );
-
-  const handleTargetChange = useCallback(
-    (e: ChangeEvent<HTMLInputElement>) => {
-      onChange({ target: e.target.value });
-    },
-    [onChange],
-  );
-
-  const handlePresetChange = useCallback(
-    (e: ChangeEvent<HTMLSelectElement>) => {
-      const key = e.target.value as NotifyPresetKey | '';
-      onChange({ preset: key });
-      if (key && key in NOTIFY_PRESETS) {
-        onChange({ message: NOTIFY_PRESETS[key] });
-      }
-    },
-    [onChange],
-  );
+  const schema = useMemo(() => buildNotifySchema(t), [t]);
+  const channels = Array.isArray(params?.channels) ? params.channels as NotificationChannel[] : [];
+  const recipients = (params?.recipients && typeof params.recipients === 'object')
+    ? params.recipients as Record<string, string>
+    : {};
 
   return (
     <div className={cls.root}>
-      <div className={cls.row}>
-        <Select
-          className={cls.select}
-          value={integrationUid}
-          onChange={handleIntegrationChange}
-          aria-label={t('routes.apps.notify.selectIntegration', 'Select integration')}
-        >
-          <option value="">
-            {t('routes.apps.notify.selectIntegration', 'Select integration')}
-          </option>
-          {integrations.map((item) => (
-            <option key={item.uid} value={String(item.uid)}>
-              {item.name} ({item.channel})
-            </option>
-          ))}
-        </Select>
-        <Select
-          className={cls.presets}
-          value={preset}
-          onChange={handlePresetChange}
-          aria-label={t('routes.apps.notify.applyPreset', 'Presets')}
-        >
-          <option value="">
-            {t('routes.apps.notify.applyPreset', 'Presets')}
-          </option>
-          {NOTIFY_PRESET_KEYS.map((key) => (
-            <option key={key} value={key}>
-              {t(NOTIFY_PRESET_LABEL_KEYS[key], key)}
-            </option>
-          ))}
-        </Select>
-      </div>
-
-      <div className={cls.field}>
-        <div className={cls.labelRow}>
-          <span>
-            {isWebhook
-              ? t('routes.apps.notify.messageWebhook', 'Текст уведомления')
-              : t('routes.apps.notify.message', 'Шаблон сообщения')}
-          </span>
-          <InfoTooltip
-            text={
-              isWebhook
-                ? t(
-                    'routes.apps.notify.messageWebhookHint',
-                    'Текст, который подставится в {{message}} в формате JSON интеграции webhook.\n\nПеременные Asterisk:\n${CALLERID(num)} - номер звонящего\n${CALLERID(name)} - имя\n${EXTEN} - набранный номер\n${DIALSTATUS} - статус набора\n${CDR(duration)} - длительность\n${UNIQUEID} - ID звонка\n\nФорму JSON (поля CRM) настраивайте в интеграции webhook, не здесь.',
-                  )
-                : t(
-                    'routes.apps.notify.varsHint',
-                    'Переменные Asterisk:\n${CALLERID(num)} - номер звонящего\n${CALLERID(name)} - имя\n${EXTEN} - набранный номер\n${DIALSTATUS} - статус набора\n${CDR(duration)} - длительность\n${UNIQUEID} - ID звонка',
-                  )
-            }
-          />
-        </div>
-        <Textarea
-          className={cls.message}
-          value={message}
-          onChange={handleMessageChange}
-          placeholder={
-            isWebhook
-              ? t('routes.apps.notify.messageWebhookPh', 'Входящий звонок от ${CALLERID(num)}')
-              : t('routes.apps.notify.message', 'Шаблон сообщения')
-          }
-          aria-label={
-            isWebhook
-              ? t('routes.apps.notify.messageWebhook', 'Текст уведомления')
-              : t('routes.apps.notify.message', 'Шаблон сообщения')
-          }
+      <SchemaFields
+        schema={schema}
+        params={params as Record<string, unknown>}
+        readOnly={readOnly}
+        onChange={onChange}
+      />
+      {channels.filter((channel) => RECIPIENT_CHANNELS.includes(channel)).map((channel) => (
+        <Input
+          key={channel}
+          className={cls.target}
+          value={recipients[channel] ?? ''}
+          disabled={readOnly}
+          aria-label={t(`routes.chain.notify.recipient.${channel}`, channel)}
+          placeholder={t(`routes.chain.notify.recipient.${channel}`, channel)}
+          onChange={(e) => onChange({
+            recipients: { ...recipients, [channel]: e.target.value },
+          })}
         />
-      </div>
-
-      {!isWebhook && (
-        <div className={cls.row}>
-          <div className={cls.field} style={{ flex: 1 }}>
-            <div className={cls.labelRow}>
-              <span>{t('routes.apps.notify.target', 'Переопределение получателя (опц.)')}</span>
-              <InfoTooltip
-                text={t(
-                  'routes.apps.notify.targetHint',
-                  'Необязательно. Для Telegram - другой chat_id, для email - другой адрес, для WhatsApp/MAX/VK - другой получатель. Для webhook это поле не используется: форма JSON настраивается в интеграции.',
-                )}
-              />
-            </div>
-            <Input
-              className={cls.target}
-              value={target}
-              onChange={handleTargetChange}
-              placeholder={t('routes.apps.notify.targetPh', 'chat_id / email / …')}
-              aria-label={t('routes.apps.notify.target', 'Переопределение получателя (опц.)')}
-            />
-          </div>
-        </div>
-      )}
+      ))}
     </div>
   );
-});
-
-NotifyApp.displayName = 'NotifyApp';
+}

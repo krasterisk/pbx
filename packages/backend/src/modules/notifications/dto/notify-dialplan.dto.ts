@@ -2,9 +2,10 @@ import { Type } from 'class-transformer';
 import { IsNumber, IsOptional, IsString } from 'class-validator';
 
 export class NotifyDialplanDto {
+  @IsOptional()
   @Type(() => Number)
   @IsNumber()
-  integration_uid: number;
+  integration_uid?: number;
 
   @IsOptional()
   @IsString()
@@ -29,4 +30,16 @@ export class NotifyDialplanDto {
   @IsOptional()
   @IsString()
   api_key?: string;
+
+  @IsOptional()
+  @IsString()
+  channels?: string;
+
+  @IsOptional()
+  @IsString()
+  recipients?: string;
+
+  @IsOptional()
+  @IsString()
+  subject?: string;
 }

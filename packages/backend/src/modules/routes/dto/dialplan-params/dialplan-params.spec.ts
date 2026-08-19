@@ -124,7 +124,7 @@ const VALID_PARAMS: Record<ActionType, Record<string, unknown>> = {
   playback: { file: 'welcome', options: { noanswer: true, skip: false }, langoverride: 'ru' },
   setclid_custom: { callerid: '79001112233' },
   setclid_list: { list_uid: 2 },
-  sendmail: { email: 'a@b.c', text: 'hi' },
+  sendmail: { email: 'ops@example.com', text: 'hi' },
   sendmailpeer: { exten: '101', text: 'hi' },
   telegram: { chat_id: '1', text: 'hi' },
   notify: { integration_uid: 1, message: 'hello' },
@@ -314,6 +314,26 @@ describe('D-26 numberManipulation DTO', () => {
       params: { trunk: 'PJSIP/t1', dest: { source: 'fixed', value: '7900' }, numberManipulation: { prepend: 'abc' } },
     }]);
     expect(errors.some((e) => e.path === 'numberManipulation.prepend')).toBe(true);
+  });
+});
+
+describe('D-28 notify recipients', () => {
+  it('rejects an invalid email recipient for the email channel', () => {
+    const errors = validateActionParams([{
+      id: 'n1',
+      type: 'notify',
+      params: { channels: ['email'], recipients: { email: 'not-an-email' }, body: 'hi' },
+    }]);
+    expect(errors.length).toBeGreaterThan(0);
+  });
+
+  it('accepts a valid email recipient for the email channel', () => {
+    const errors = validateActionParams([{
+      id: 'n1',
+      type: 'notify',
+      params: { channels: ['email'], recipients: { email: 'ops@example.com' }, body: 'hi' },
+    }]);
+    expect(errors).toEqual([]);
   });
 });
 

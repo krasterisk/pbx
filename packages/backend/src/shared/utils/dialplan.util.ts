@@ -319,48 +319,27 @@ export class AsteriskDialplanUtils {
         dp = this.emitSetclidCurl(listUid, vpbxUserUid);
         break;
       }
-      case 'sendmail': {
-        // Multi-line approach:
-        // 1) Set channel vars — Asterisk resolves ${CALLERID(num)}, ${EXTEN}, etc. at call time
-        // 2) CURL() with ${URIENCODE()} for runtime percent-encoding (handles Cyrillic)
-        //
-        // User can use any Asterisk channel variable in subject/text, e.g.:
-        //   "Звонок от ${CALLERID(num)} на ${EXTEN}"
-        //
-        // sanitizeTemplate() blocks dangerous functions (SHELL, SYSTEM, AGI)
-        // and strips newlines to prevent dialplan injection.
-        const email = this.sanitizeTemplate(params.email);
-        const subject = this.sanitizeTemplate(params.subject);
-        const text = this.sanitizeTemplate(params.text);
-        const url = `${this.backendBaseUrl}/internal/dialplan/sendmail`;
-        const keyParam = this.dialplanApiKey ? `&api_key=${encodeURIComponent(this.dialplanApiKey)}` : '';
-
-        const lines = [
-          `Set(__KMAIL_TO=${email})`,
-          `Set(__KMAIL_SUBJ=${subject})`,
-          `Set(__KMAIL_TEXT=${text})`,
-          `Set(MAIL_RESULT=\${CURL(${url},to=\${URIENCODE(\${KMAIL_TO})}&subject=\${URIENCODE(\${KMAIL_SUBJ})}&text=\${URIENCODE(\${KMAIL_TEXT})}${keyParam})})`,
-        ];
-        dp = lines.join('\nsame => n,');
+      case 'sendmail':
+        dp = this.emitNotifyDialplan({
+          channels: ['email'],
+          recipients: { email: params.email },
+          subject: params.subject,
+          body: params.text,
+        }, vpbxUserUid);
         break;
-      }
       case 'sendmailpeer':
-        dp = buildCurlCall('sendmailpeer', {
-          exten: this.sanitizeDialplanInput(params.exten),
-          text: this.sanitizeDialplanInput(params.text),
-          clid: '${CALLERID(num)}',
-          called: '${EXTEN}',
-          uniqueid: '${UNIQUEID}',
-        }, this.curlCtx(vpbxUserUid));
+        dp = this.emitNotifyDialplan({
+          channels: ['email'],
+          recipients: { email: params.exten },
+          body: params.text,
+        }, vpbxUserUid);
         break;
       case 'telegram':
-        dp = buildCurlCall('telegram', {
-          chat_id: this.sanitizeDialplanInput(params.chat_id),
-          text: this.sanitizeDialplanInput(params.text),
-          clid: '${CALLERID(num)}',
-          exten: '${EXTEN}',
-          uniqueid: '${UNIQUEID}',
-        }, this.curlCtx(vpbxUserUid));
+        dp = this.emitNotifyDialplan({
+          channels: ['telegram'],
+          recipients: { telegram: params.chat_id },
+          body: params.text,
+        }, vpbxUserUid);
         break;
       case 'voicemail': {
         const vmExten = this.sanitizeDialplanInput(params.exten) || '${EXTEN}';
@@ -425,21 +404,9 @@ export class AsteriskDialplanUtils {
         dp = timeout ? `Congestion(${timeout})` : 'Congestion()';
         break;
       }
-      case 'notify': {
-        // D-12: Set(__KNOTIFY_*) + CURL → /internal/dialplan/notify (sendmail pattern)
-        const message = this.sanitizeTemplate(params.message);
-        const target = this.sanitizeTemplate(params.target);
-        const integrationUid = this.sanitizeDialplanInput(String(params.integration_uid ?? ''));
-        const url = `${this.backendBaseUrl}/internal/dialplan/notify`;
-        const keyParam = this.dialplanApiKey ? `&api_key=${encodeURIComponent(this.dialplanApiKey)}` : '';
-        const lines = [
-          `Set(__KNOTIFY_MSG=${message})`,
-          `Set(__KNOTIFY_TARGET=${target})`,
-          `Set(NOTIFY_RESULT=\${CURL(${url},integration_uid=${integrationUid}&message=\${URIENCODE(\${KNOTIFY_MSG})}&target=\${URIENCODE(\${KNOTIFY_TARGET})}&clid=\${URIENCODE(\${CALLERID(num)})}&exten=\${URIENCODE(\${EXTEN})}&uniqueid=\${URIENCODE(\${UNIQUEID})}${keyParam})})`,
-        ];
-        dp = lines.join('\nsame => n,');
+      case 'notify':
+        dp = this.emitNotifyDialplan(params, vpbxUserUid);
         break;
-      }
       case 'callerid': {
         // D-14: unified CallerID — static / phonebook / setclid_list / carousel
         const mode = params.mode || 'static';
@@ -566,6 +533,58 @@ export class AsteriskDialplanUtils {
       apiKey: this.dialplanApiKey,
       vpbxUserUid,
     };
+  }
+
+  private static emitNotifyDialplan(params: Record<string, any>, vpbxUserUid: number): string {
+    const message = this.sanitizeTemplate(params.body ?? params.message ?? params.text ?? '');
+    const subject = this.sanitizeTemplate(params.subject ?? '');
+    const recipients = params.recipients && typeof params.recipients === 'object' && !Array.isArray(params.recipients)
+      ? params.recipients as Record<string, string>
+      : {};
+    const channels: string[] = Array.isArray(params.channels)
+      ? params.channels.map(String)
+      : params.channels
+        ? String(params.channels).split(',').map((item: string) => item.trim()).filter(Boolean)
+        : [];
+    let target = this.sanitizeTemplate(params.target ?? '');
+    if (!target) {
+      target = this.sanitizeTemplate(
+        recipients.email
+        ?? recipients.telegram
+        ?? recipients.whatsapp
+        ?? recipients.max
+        ?? recipients.vk
+        ?? '',
+      );
+    }
+    const payload: Record<string, string> = {
+      message: '${KNOTIFY_MSG}',
+      target: '${KNOTIFY_TARGET}',
+      subject: '${KNOTIFY_SUBJ}',
+      clid: '${CALLERID(num)}',
+      exten: '${EXTEN}',
+      uniqueid: '${UNIQUEID}',
+    };
+    if (params.integration_uid) {
+      payload.integration_uid = this.sanitizeDialplanInput(String(params.integration_uid));
+    }
+    if (channels.length) {
+      payload.channels = channels.join(',');
+    }
+    if (Object.keys(recipients).length) {
+      const safeRecipients: Record<string, string> = {};
+      for (const [key, value] of Object.entries(recipients)) {
+        safeRecipients[key] = this.sanitizeTemplate(String(value ?? ''));
+      }
+      payload.recipients = JSON.stringify(safeRecipients);
+    }
+    const curl = buildCurlCall('notify', payload, this.curlCtx(vpbxUserUid));
+    return [
+      `Set(__KNOTIFY_MSG=${message})`,
+      `Set(__KNOTIFY_TARGET=${target})`,
+      `Set(__KNOTIFY_SUBJ=${subject})`,
+      curl,
+    ].join('\nsame => n,');
   }
 
   private static emitSetclidCurl(listUid: string, vpbxUserUid: number): string {

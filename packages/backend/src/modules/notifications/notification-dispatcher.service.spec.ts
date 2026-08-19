@@ -8,6 +8,7 @@ describe('NotificationDispatcherService', () => {
   let webhook: { send: jest.Mock };
   let max: { send: jest.Mock };
   let vk: { send: jest.Mock };
+  let mailer: { sendNotification: jest.Mock };
   let dispatcher: NotificationDispatcherService;
 
   beforeEach(() => {
@@ -20,6 +21,7 @@ describe('NotificationDispatcherService', () => {
     webhook = { send: jest.fn().mockResolvedValue({ success: true }) };
     max = { send: jest.fn().mockResolvedValue({ success: true }) };
     vk = { send: jest.fn().mockResolvedValue({ success: true }) };
+    mailer = { sendNotification: jest.fn().mockResolvedValue({ success: true }) };
 
     dispatcher = new NotificationDispatcherService(
       notificationsService as any,
@@ -29,6 +31,7 @@ describe('NotificationDispatcherService', () => {
       webhook as any,
       max as any,
       vk as any,
+      mailer as any,
     );
   });
 
