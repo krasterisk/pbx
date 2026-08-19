@@ -5,13 +5,13 @@ milestone_name: milestone
 current_phase: 12
 current_phase_name: dialplan-apps-editor-refactor-reusable-route-chain-builder
 status: executing
-stopped_at: Completed 12-09-PLAN.md
-last_updated: "2026-08-19T08:58:12.945Z"
+stopped_at: Completed 12-08-PLAN.md
+last_updated: "2026-08-19T09:29:45.953Z"
 progress:
   total_phases: 12
   completed_phases: 8
   total_plans: 120
-  completed_plans: 109
+  completed_plans: 110
 ---
 
 # State
@@ -19,7 +19,7 @@ progress:
 ## Current position
 
 Phase: 12 (dialplan-apps-editor-refactor-reusable-route-chain-builder) — EXECUTING
-Plan 12-01 (Wave 0 characterization) complete: 3/3 tasks. Plan 12-02 (queue-by-route-mask tracer) complete: 2/2 tasks (human-approved). Plan 12-03 (per-type DTO expansion) complete: 3/3 tasks. Plan 12-04 (tenant-settings module) complete: 3/3 tasks. Plan 12-05 (generator core / Congestion()) complete: 3/3 tasks. Plan 12-06 (ConditionSource / hops / unreachable-tail) complete: 3/3 tasks. Plan 12-07 (FE editor core) complete: 4/4 tasks. Plan 12-09 (tenant settings UI) complete: 2/2 tasks. Wave 4 done. Next sequential: 12-08 (host wiring / conditions Sheet).
+Plan 12-01 (Wave 0 characterization) complete: 3/3 tasks. Plan 12-02 (queue-by-route-mask tracer) complete: 2/2 tasks (human-approved). Plan 12-03 (per-type DTO expansion) complete: 3/3 tasks. Plan 12-04 (tenant-settings module) complete: 3/3 tasks. Plan 12-05 (generator core / Congestion()) complete: 3/3 tasks. Plan 12-06 (ConditionSource / hops / unreachable-tail) complete: 3/3 tasks. Plan 12-07 (FE editor core) complete: 4/4 tasks. Plan 12-08 (Sheet schema/options/conditions/host wiring) complete: 3/3 tasks. Plan 12-09 (tenant settings UI) complete: 2/2 tasks. Wave 4–5 Sheet branch done. Next sequential: 12-10 (unified Playback).
 Migrations applied (2026-07-24): `cc_contacts` table + `cc_settings.journal_depth`. Live Asterisk A1/A3 checkpoint still deferred in WINDOWS.md.
 
 Also Phase 9 (complete, verify/UAT open):
@@ -216,6 +216,8 @@ Phase 1 — MOH: pending verify.
 - [Phase 12]: RTK endpoints named getVpbxTenantSettings/updateVpbxTenantSettings; hooks aliased as useGetTenantSettingsQuery/useUpdateTenantSettingsMutation
 - [Phase 12]: 12-09 locales skipped — ru.ts/en.ts mixed with unrelated WIP; t(key, fallback) used
 - [Phase 12]: RouteFormModal also degrades editorMode when the flag is off so save payload keeps loaded raw_dialplan
+- [Phase 12]: 12-08: t(key, fallback) instead of staging dirty locale files
+- [Phase 12]: 12-08: --z-index-modal-nested declared, applied only after M8/12-17
 
 ## Roadmap Evolution
 
@@ -249,7 +251,7 @@ Phase 1 — MOH: pending verify.
 
 ## Next GSD command
 
-**Phase 12:** 12-01…12-07 and **12-09** complete (wave 4). Next sequential: **12-08** (host wiring / conditions Sheet).
+**Phase 12:** 12-01…12-09 complete (wave 4–5 Sheet branch). Next sequential: **12-10** (unified Playback).
 
 Also open: Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 verify; Phase 8 / 08-11 Android smoke.
 
@@ -344,9 +346,10 @@ Also open: Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 veri
 | Phase 12 P07 | 46 | 4 tasks | 40 files |
 | Phase 12 P06 | 30 | 3 tasks | 13 files |
 | Phase 12-dialplan-apps-editor-refactor-reusable-route-chain-builder P09 | 31 | 2 tasks | 15 files |
+| Phase 12-dialplan-apps-editor-refactor-reusable-route-chain-builder P08 | 55 | 3 tasks | 28 files |
 
 ## Session
 
-**Last session:** 2026-08-19T08:58:12.840Z
-**Stopped at:** Completed 12-09-PLAN.md
+**Last session:** 2026-08-19T09:29:45.882Z
+**Stopped at:** Completed 12-08-PLAN.md
 **Resume file:** None
