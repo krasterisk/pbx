@@ -699,14 +699,14 @@ Plans:
 - Предыдущая фаза по этой области: Phase 6 (`06-13`/`06-14`/`06-16` — apps + registry + inline group editor)
 
 **Status:** In Progress — 17 планов, waves 0…13 (`12-01`…`12-17`)
-**Plans:** 6/17 plans executed
+**Plans:** 7/17 plans executed
 
 - [x] 12-01-PLAN.md
 - [x] 12-02-PLAN.md
 - [x] 12-03-PLAN.md
 - [x] 12-04-PLAN.md
 - [x] 12-05-PLAN.md
-- [ ] 12-06-PLAN.md
+- [x] 12-06-PLAN.md
 - [x] 12-07-PLAN.md
 - [ ] 12-08-PLAN.md
 - [ ] 12-09-PLAN.md
@@ -812,7 +812,7 @@ Plans:
 - [x] `12-03-PLAN.md` — discriminated union `params` + 30 per-type DTO + реестр DTO
 - [x] `12-04-PLAN.md` — подсистема тенантных настроек (backend + миграция)
 - [x] `12-05-PLAN.md` — ядро генератора: multi-line условия, `label`, 5 call-site, `normalizeTarget`
-- [ ] `12-06-PLAN.md` — расширенные условия шага + защита от петель и недостижимые шаги
+- [x] `12-06-PLAN.md` — расширенные условия шага + защита от петель и недостижимые шаги
 - [x] `12-07-PLAN.md` — ядро FE-редактора: reducer, undo, clipboard, unknown-тип
 - [ ] `12-08-PLAN.md` — Sheet целиком: schema-поля, опции, условия, проекция ошибок
 - [ ] `12-09-PLAN.md` — UI тенантных настроек с optimistic toggle
