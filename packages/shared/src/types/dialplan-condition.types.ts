@@ -85,3 +85,13 @@ export type ConditionSource =
 export function assertNeverCondition(x: never): never {
   throw new Error(`Unexpected condition source: ${JSON.stringify(x)}`);
 }
+
+/**
+ * D-53 mechanic consumed by the unified Playback app (12-10).
+ * `digitExit: true` marks a conditional control transfer — not `terminal: 'always'`.
+ */
+export interface DigitExitParams {
+  digitExit?: boolean;
+  digit?: string;
+  digitExitDest?: string;
+}

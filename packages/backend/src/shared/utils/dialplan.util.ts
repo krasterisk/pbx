@@ -1,3 +1,4 @@
+import { DIALPLAN_ACTION_META, type ActionType } from '@krasterisk/shared';
 import { ActionLog } from '../../modules/logger/action-log.model';
 import { normalizeTarget, resolveQueueValueSource, resolveValueSource, PHONEBOOK_TARGET_VAR } from './dialplan-target.util';
 import { applyNumberManipulation } from './dialplan-number.util';
@@ -294,6 +295,13 @@ export class AsteriskDialplanUtils {
       case 'playback': {
         const file = this.sanitizeFilePath(params.file);
         dp = `Background(/usr/records/${vpbxUserUid}/sounds/${file})`;
+        if (params.digitExit) {
+          const digit = String(params.digit ?? '');
+          const dest = String(params.digitExitDest ?? '');
+          if (digit && dest) {
+            dp = `${dp}\nsame => n,${emitDigitExitTransition(digit, dest)}`;
+          }
+        }
         break;
       }
       case 'setclid_custom': {
@@ -536,6 +544,29 @@ export class AsteriskDialplanUtils {
     const stripped = sanitized.replace(/U\([^)]*\)/g, '');
     return `${stripped}U(krsk-on-answer,s,1(dial))`;
   }
+}
+
+/**
+ * D-53: digit-exit is a control transfer, not linear continuation.
+ * Emits GotoIf only — never an unconditional Goto to the same dest.
+ */
+export function emitDigitExitTransition(digit: string, dest: string): string {
+  const safeDigit = String(digit ?? '').replace(/[^0-9*#A-D]/g, '');
+  const safeDest = String(dest ?? '').replace(/[?\[\]{}$\\";\n\r]/g, '').trim();
+  return `GotoIf($["\${EXTEN}" = "${safeDigit}"]?${safeDest})`;
+}
+
+/**
+ * D-53 / D-24: indices after the first `terminal === 'always'` step.
+ * `conditional` (digit-exit playback) does NOT cut reachability.
+ */
+export function findUnreachableSteps(actions: Array<{ type: string }>): number[] {
+  const cut = actions.findIndex((action) => {
+    const meta = DIALPLAN_ACTION_META[action.type as ActionType];
+    return meta?.terminal === 'always';
+  });
+  if (cut === -1) return [];
+  return actions.map((_, i) => i).filter((i) => i > cut);
 }
 
 export type ActionChainHost = 'route' | 'ivr' | 'phonebook' | 'robot';
