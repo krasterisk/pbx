@@ -35,7 +35,7 @@ describe('dialplan hops (D-25)', () => {
 
   it('missing incoming hops is treated as 0 via arithmetic default, not empty-string compare', () => {
     const increment = emitHopIncrement();
-    expect(increment).toContain(`$[${HOPS_VAR} + 1]`);
+    expect(increment).toContain(`$[\${${HOPS_VAR}} + 1]`);
     expect(increment).not.toContain(`= ""`);
     expect(emitHopGuard('Congestion()')).not.toContain(`= ""`);
     expect(resolveHopDecision(undefined)).toBe('goto');

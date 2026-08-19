@@ -477,12 +477,17 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       expect(dp).toBe('Queue(q${EXTEN}_42,thH,,,)');
     });
 
-    it('toivr with filled ivr_uid emits Goto(ivr_<uid>,start,1)', () => {
+    it('toivr with filled ivr_uid emits hop-prologue then Goto(ivr_<uid>,start,1)', () => {
       const dp = AsteriskDialplanUtils.actionToDialplan(
         { type: 'toivr', params: { ivr_uid: 7 }, condition: {} },
         vpbx,
       );
-      expect(dp).toBe('Goto(ivr_7,start,1)');
+      expect(dp).toBe([
+        'Set(__KRSK_HOPS=$[${__KRSK_HOPS} + 1])',
+        'same => n,GotoIf($[${__KRSK_HOPS} <= 10]?ivr_7,start,1)',
+        'same => n,NoOp(KRSK hop limit exceeded route=ivr_7)',
+        'same => n,Congestion()',
+      ].join('\n'));
     });
 
     it('toivr with registry defaultParams emits NoOp(Missing IVR UID)', () => {
@@ -538,7 +543,12 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
         },
         vpbx,
       );
-      expect(dp).toBe('Goto(sip-out42,100,1)');
+      expect(dp).toBe([
+        'Set(__KRSK_HOPS=$[${__KRSK_HOPS} + 1])',
+        'same => n,GotoIf($[${__KRSK_HOPS} <= 10]?sip-out42,100,1)',
+        'same => n,NoOp(KRSK hop limit exceeded route=sip-out42)',
+        'same => n,Congestion()',
+      ].join('\n'));
     });
 
     /**
@@ -553,7 +563,12 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
         },
         vpbx,
       );
-      expect(dp).toBe('Goto(sip-out42,100,1)');
+      expect(dp).toBe([
+        'Set(__KRSK_HOPS=$[${__KRSK_HOPS} + 1])',
+        'same => n,GotoIf($[${__KRSK_HOPS} <= 10]?sip-out42,100,1)',
+        'same => n,NoOp(KRSK hop limit exceeded route=sip-out42)',
+        'same => n,Congestion()',
+      ].join('\n'));
     });
 
     it('toroute with registry defaultParams uses sip-in + ${EXTEN}', () => {
@@ -561,7 +576,12 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
         { type: 'toroute', params: { context: '', extension: '' }, condition: {} },
         vpbx,
       );
-      expect(dp).toBe('Goto(sip-in42,${EXTEN},1)');
+      expect(dp).toBe([
+        'Set(__KRSK_HOPS=$[${__KRSK_HOPS} + 1])',
+        'same => n,GotoIf($[${__KRSK_HOPS} <= 10]?sip-in42,${EXTEN},1)',
+        'same => n,NoOp(KRSK hop limit exceeded route=sip-in42)',
+        'same => n,Congestion()',
+      ].join('\n'));
     });
 
     it('playprompt with filled file emits Playback under tenant sounds', () => {
@@ -1336,7 +1356,7 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
         { type: 'toivr', params: { ivr_uid: 7 }, condition: {} },
         vpbx,
       );
-      expect(ivr).toBe('Goto(ivr_7,start,1)');
+      expect(ivr).toContain('GotoIf($[${__KRSK_HOPS} <= 10]?ivr_7,start,1)');
       expect(ivr).not.toContain('${EXTEN}');
     });
 

@@ -2,6 +2,7 @@ import { ActionLog } from '../../modules/logger/action-log.model';
 import { normalizeTarget, resolveQueueValueSource, resolveValueSource, PHONEBOOK_TARGET_VAR } from './dialplan-target.util';
 import { applyNumberManipulation } from './dialplan-number.util';
 import { buildConditionExpr, isLegacyInvalidDialstatus, wrapEachLine } from './dialplan-condition.util';
+import { emitHopPrologue } from './dialplan-hops.util';
 
 function logCmdApply(action: { id?: number; uid?: number; params?: { command?: string } }, vpbxUserUid: number): void {
   const command = String(action?.params?.command ?? '');
@@ -233,7 +234,7 @@ export class AsteriskDialplanUtils {
       case 'toivr': {
         const ivrUid = parseInt(params.ivr_uid, 10);
         dp = ivrUid
-          ? `Goto(ivr_${ivrUid},start,1)`
+          ? emitHopPrologue(`ivr_${ivrUid},start,1`, { routeId: `ivr_${ivrUid}` })
           : `NoOp(Missing IVR UID)`;
         break;
       }
@@ -282,7 +283,7 @@ export class AsteriskDialplanUtils {
             : destSrc.source === 'phonebook'
               ? `\${${PHONEBOOK_TARGET_VAR}}`
               : '${EXTEN}';
-        dp = `Goto(${ctx},${dest},1)`;
+        dp = emitHopPrologue(`${ctx},${dest},1`, { routeId: ctx });
         break;
       }
       case 'playprompt': {
