@@ -831,7 +831,7 @@ Plans:
 |-----|---------|
 | 1 | ~~`/gsd-discuss-phase 12`~~ — **done 2026-08-18**, решения D-01…D-59 в `12-CONTEXT.md` |
 | 2 | ~~`/gsd-ui-phase 12`~~ — **done 2026-08-18**, `12-UI-SPEC.md` approved (12 поверхностей A…L) |
-| 3 | `/gsd-plan-phase 12` — **research + PATTERNS + VALIDATION готовы 2026-08-18**; границы сужены |
+| 3 | `/gsd-plan-phase 12` — **done**: research + PATTERNS + VALIDATION + 17 PLAN; checker blockers closed (12-09 Switch loading `checked`, 12-07 local DnD modifier / no `@dnd-kit/modifiers`) |
 | 4 | `/gsd-execute-phase 12` |
 | 5 | `/gsd-ui-review 12` + `npm run test:frontend` |
 | 6 | `/gsd-verify-work 12` → `/gsd-ship 12` |

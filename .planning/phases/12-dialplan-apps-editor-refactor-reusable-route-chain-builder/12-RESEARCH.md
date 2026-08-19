@@ -322,7 +322,7 @@ REQ-ID в ROADMAP на эту фазу не назначены. Требован
 | `jest` + `ts-jest` | `^29.7.0` / `^29.2.5` | Тесты бэкенда, `testRegex: .*\.spec\.ts$`, `rootDir: src` | Канон |
 | `vitest` | `^4.1.4` | Тесты фронтенда, `setupTests.ts` в `shared/config/tests/` | Канон |
 | `@testing-library/react` + `user-event` | `^16.3.2` / `^14.6.1` | Held-out тесты UI-состояний | Канон |
-| `@dnd-kit/core` + `@dnd-kit/sortable` | `^6.3.1` / `^10.0.0` | DnD цепочки, `DragOverlay`, `restrictToVerticalAxis`, `announcements` | Уже используется, `KeyboardSensor` подключён |
+| `@dnd-kit/core` + `@dnd-kit/sortable` | `^6.3.1` / `^10.0.0` | DnD цепочки, `DragOverlay`, vertical lock, `announcements` | Уже в `package.json`. Vertical lock — **локальный** modifier `x: 0` в feature; пакет `@dnd-kit/modifiers` **не** ставить |
 | `@radix-ui/react-dialog` | `^1.1.6` | Базис `Sheet` и `Dialog` в `shared/ui` | Порядок монтирования порталов — механизм наложения (UI-SPEC ⚠ unresolved) |
 | `lucide-react` | `^0.475.0` | Иконки; эмодзи запрещены | ARCHITECTURE MUST |
 | `react-i18next` | `^15.4.1` | i18n, включая `_one`/`_other` плюрализацию | ARCHITECTURE MUST; ru даёт `_one`/`_few`/`_many` |
