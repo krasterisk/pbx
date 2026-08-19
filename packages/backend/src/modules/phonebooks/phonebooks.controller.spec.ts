@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { PhonebooksController } from './phonebooks.controller';
 
 /**
@@ -80,6 +80,16 @@ describe('PhonebooksController', () => {
       await controller.update(5, { name: 'X' }, { user: { vpbx_user_uid: 100, level: 0 } });
 
       expect(routeApplyService.applyContextsForPhonebook).not.toHaveBeenCalled();
+    });
+
+    it('rejects a sneaked-in invalid actions chain and does not call update', async () => {
+      await expect(
+        controller.update(5, {
+          name: 'X',
+          actions: [{ id: 'pb-bad', type: 'toexten', params: { target: { source: 'fixed', value: '' } } }],
+        }, { user: { vpbx_user_uid: 100, level: 0 } }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(phonebooksService.update).not.toHaveBeenCalled();
     });
   });
 
