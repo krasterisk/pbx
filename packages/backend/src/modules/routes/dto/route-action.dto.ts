@@ -17,7 +17,7 @@ import { plainToInstance, Type } from 'class-transformer';
 import { BadRequestException, ValidationPipe } from '@nestjs/common';
 import { ToQueueParamsDto } from './dialplan-params/toqueue.params.dto';
 
-const ActionTypesList = [
+export const ActionTypesList = [
   'totrunk', 'toexten', 'toqueue', 'togroup', 'tolist',
   'toivr', 'toroute', 'playprompt', 'playback',
   'setclid_custom', 'setclid_list',
@@ -25,7 +25,7 @@ const ActionTypesList = [
   'notify', 'callerid', 'trunk_carousel',
   'voicemail', 'text2speech', 'voicerobot', 'asr', 'keywords',
   'webhook', 'confbridge', 'cmd', 'tofax',
-  'label', 'busy', 'hangup'
+  'label', 'busy', 'hangup', 'congestion',
 ];
 
 const ValidDialstatuses = [

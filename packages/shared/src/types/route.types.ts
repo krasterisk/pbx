@@ -4,7 +4,34 @@ import type {
   INotifyActionParams,
   ITrunkCarouselActionParams,
 } from './notification.types';
-import type { IQueueActionParams } from './dialplan-params.types';
+import type {
+  IBusyParams,
+  ICmdParams,
+  IConfBridgeParams,
+  ICongestionParams,
+  IHangupParams,
+  ILabelParams,
+  IPlaybackParams,
+  IPlayPromptParams,
+  IQueueActionParams,
+  IRecordParams,
+  ISendMailParams,
+  ISendMailPeerParams,
+  ISetClidCustomParams,
+  ISetClidListParams,
+  ITelegramParams,
+  IText2SpeechParams,
+  IToExtenParams,
+  IToFaxParams,
+  IToGroupParams,
+  IToIvrParams,
+  IToListParams,
+  IToRouteParams,
+  IToTrunkParams,
+  IVoiceRobotParams,
+  IVoicemailParams,
+  IWebhookParams,
+} from './dialplan-params.types';
 
 export type ActionType =
   | 'totrunk' | 'toexten' | 'toqueue' | 'togroup' | 'tolist'
@@ -14,7 +41,7 @@ export type ActionType =
   | 'notify' | 'callerid' | 'trunk_carousel'
   | 'voicemail' | 'text2speech' | 'voicerobot' | 'asr' | 'keywords'
   | 'webhook' | 'confbridge' | 'cmd' | 'tofax'
-  | 'label' | 'busy' | 'hangup';
+  | 'label' | 'busy' | 'hangup' | 'congestion';
 
 /** Asterisk DIALSTATUS values — used as condition whitelist */
 export type DialStatus =
@@ -32,149 +59,81 @@ export interface IRouteActionCondition {
   calendar?: string;
 }
 
-
 interface BaseRouteAction {
   id: string;
   condition: IRouteActionCondition;
 }
 
-export interface ITrunkActionParams {
-  trunk?: string;
-  dest?: string;
-  timeout?: number | string;
-  options?: string;
-}
-
-export interface IExtenActionParams {
-  exten?: string;
-  timeout?: number | string;
-  options?: string;
-}
-
-export interface IGroupActionParams {
-  group?: string;
-}
-
-export interface IListActionParams {
-  numbers?: string;
-  timeout?: number | string;
-  options?: string;
-}
-
-export interface IIvrActionParams {
-  ivr_uid?: string | number;
-}
-
-export interface IRouteActionParams {
-  context?: string;
-  extension?: string;
-}
-
-export interface IPromptActionParams {
-  file?: string;
-}
-
-export interface ISetClidCustomActionParams {
-  callerid?: string;
-}
-
-export interface ISetClidListActionParams {
-  list_uid?: string | number;
-}
-
-export interface ISendMailActionParams {
-  email?: string;
-  text?: string;
-}
-
-export interface ISendMailPeerActionParams {
-  exten?: string;
-  text?: string;
-}
-
-export interface ITelegramActionParams {
-  chat_id?: string;
-  text?: string;
-}
-
-export interface IVoicemailActionParams {
-  exten?: string;
-}
-
-export interface IText2SpeechActionParams {
-  text?: string;
-}
-
-export interface IVoiceRobotActionParams {
-  robot_uid?: number;
-}
-
-export interface IRecordActionParams {
-  silence_timeout?: number | string;
-  max_timer?: number | string;
-}
-
-export interface IWebhookActionParams {
-  url?: string;
-}
-
-export interface IConfbridgeActionParams {
-  room?: string;
-}
-
-export interface ICmdActionParams {
-  command?: string;
-}
-
-export interface IToFaxActionParams {
-  email?: string;
-}
-
-export interface ILabelActionParams {
-  label_name?: string;
-}
-
-export interface IBusyActionParams {
-  timeout?: number | string;
-}
+export type {
+  IBusyParams as IBusyActionParams,
+  ICmdParams as ICmdActionParams,
+  IConfBridgeParams as IConfbridgeActionParams,
+  IHangupParams,
+  ILabelParams as ILabelActionParams,
+  IPlayPromptParams as IPromptActionParams,
+  IQueueActionParams,
+  IRecordParams as IRecordActionParams,
+  ISendMailParams as ISendMailActionParams,
+  ISendMailPeerParams as ISendMailPeerActionParams,
+  ISetClidCustomParams as ISetClidCustomActionParams,
+  ISetClidListParams as ISetClidListActionParams,
+  ITelegramParams as ITelegramActionParams,
+  IText2SpeechParams as IText2SpeechActionParams,
+  IToExtenParams as IExtenActionParams,
+  IToFaxParams as IToFaxActionParams,
+  IToGroupParams as IGroupActionParams,
+  IToIvrParams as IIvrActionParams,
+  IToListParams as IListActionParams,
+  IToRouteParams as IRouteActionParams,
+  IToTrunkParams as ITrunkActionParams,
+  IVoiceRobotParams as IVoiceRobotActionParams,
+  IVoicemailParams as IVoicemailActionParams,
+  IWebhookParams as IWebhookActionParams,
+} from './dialplan-params.types';
 
 export type DialplanAction = BaseRouteAction & (
-  | { type: 'totrunk'; params: ITrunkActionParams }
-  | { type: 'toexten'; params: IExtenActionParams }
+  | { type: 'totrunk'; params: IToTrunkParams }
+  | { type: 'toexten'; params: IToExtenParams }
   | { type: 'toqueue'; params: IQueueActionParams }
-  | { type: 'togroup'; params: IGroupActionParams }
-  | { type: 'tolist'; params: IListActionParams }
-  | { type: 'toivr'; params: IIvrActionParams }
-  | { type: 'toroute'; params: IRouteActionParams }
-  | { type: 'playprompt'; params: IPromptActionParams }
-  | { type: 'playback'; params: IPromptActionParams }
-  | { type: 'setclid_custom'; params: ISetClidCustomActionParams }
-  | { type: 'setclid_list'; params: ISetClidListActionParams }
-  | { type: 'sendmail'; params: ISendMailActionParams }
-  | { type: 'sendmailpeer'; params: ISendMailPeerActionParams }
-  | { type: 'telegram'; params: ITelegramActionParams }
+  | { type: 'togroup'; params: IToGroupParams }
+  | { type: 'tolist'; params: IToListParams }
+  | { type: 'toivr'; params: IToIvrParams }
+  | { type: 'toroute'; params: IToRouteParams }
+  | { type: 'playprompt'; params: IPlayPromptParams }
+  | { type: 'playback'; params: IPlaybackParams }
+  | { type: 'setclid_custom'; params: ISetClidCustomParams }
+  | { type: 'setclid_list'; params: ISetClidListParams }
+  | { type: 'sendmail'; params: ISendMailParams }
+  | { type: 'sendmailpeer'; params: ISendMailPeerParams }
+  | { type: 'telegram'; params: ITelegramParams }
   | { type: 'notify'; params: INotifyActionParams }
   | { type: 'callerid'; params: ICallerIdActionParams }
   | { type: 'trunk_carousel'; params: ITrunkCarouselActionParams }
-  | { type: 'voicemail'; params: IVoicemailActionParams }
-  | { type: 'text2speech'; params: IText2SpeechActionParams }
-  | { type: 'voicerobot'; params: IVoiceRobotActionParams }
-  | { type: 'asr'; params: IRecordActionParams }
-  | { type: 'keywords'; params: IRecordActionParams }
-  | { type: 'webhook'; params: IWebhookActionParams }
-  | { type: 'confbridge'; params: IConfbridgeActionParams }
-  | { type: 'cmd'; params: ICmdActionParams }
-  | { type: 'tofax'; params: IToFaxActionParams }
-  | { type: 'label'; params: ILabelActionParams }
-  | { type: 'busy'; params: IBusyActionParams }
-  | { type: 'hangup'; params: Partial<Record<string, never>> } // Record<string, never> doesn't work well due to JS {} values, Partial allows empty objects
+  | { type: 'voicemail'; params: IVoicemailParams }
+  | { type: 'text2speech'; params: IText2SpeechParams }
+  | { type: 'voicerobot'; params: IVoiceRobotParams }
+  | { type: 'asr'; params: IRecordParams }
+  | { type: 'keywords'; params: IRecordParams }
+  | { type: 'webhook'; params: IWebhookParams }
+  | { type: 'confbridge'; params: IConfBridgeParams }
+  | { type: 'cmd'; params: ICmdParams }
+  | { type: 'tofax'; params: IToFaxParams }
+  | { type: 'label'; params: ILabelParams }
+  | { type: 'busy'; params: IBusyParams }
+  | { type: 'hangup'; params: IHangupParams }
+  | { type: 'congestion'; params: ICongestionParams }
 );
+
+/** Exhaustiveness helper for `switch (action.type)` without `default` (D-08). */
+export function assertNeverAction(x: never): never {
+  throw new Error(`Unexpected dialplan action: ${JSON.stringify(x)}`);
+}
 
 /** Helper generic type, backwards compatible with older references if needed */
 export interface IRouteAction {
   id: string;
   type: ActionType;
-  params: Record<string, any>; // Used where type safety is temporarily relaxed
+  params: Record<string, any>;
   condition: IRouteActionCondition;
 }
 

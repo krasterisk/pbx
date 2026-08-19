@@ -12,7 +12,7 @@ const ACTION_TYPES = [
   'notify', 'callerid', 'trunk_carousel',
   'voicemail', 'text2speech', 'voicerobot', 'asr', 'keywords',
   'webhook', 'confbridge', 'cmd', 'tofax',
-  'label', 'busy', 'hangup',
+  'label', 'busy', 'hangup', 'congestion',
 ] as const satisfies readonly ActionType[];
 
 type MissingActionType = Exclude<ActionType, (typeof ACTION_TYPES)[number]>;
@@ -31,7 +31,7 @@ const CHARACTERIZED_TYPES: readonly ActionType[] = [
   'notify', 'callerid', 'trunk_carousel',
   'voicemail', 'text2speech', 'voicerobot', 'asr', 'keywords',
   'webhook', 'confbridge', 'cmd', 'tofax',
-  'label', 'busy', 'hangup',
+  'label', 'busy', 'hangup', 'congestion',
 ];
 
 describe('AsteriskDialplanUtils.actionToDialplan', () => {
@@ -116,6 +116,16 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
         vpbx,
       );
       expect(dp).toBe('Hangup()');
+    });
+  });
+
+  describe('congestion (type only — generator branch is 12-05)', () => {
+    it('currently falls through to Unknown action NoOp', () => {
+      const dp = AsteriskDialplanUtils.actionToDialplan(
+        { type: 'congestion', params: { timeout: 10 }, condition: {} },
+        vpbx,
+      );
+      expect(dp).toBe('NoOp(Unknown action: congestion)');
     });
   });
 

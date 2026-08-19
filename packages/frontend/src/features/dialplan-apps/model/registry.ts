@@ -93,6 +93,7 @@ export const dialplanAppsRegistry: Record<ActionType, IDialplanAppConfig> = {
   tofax: { type: 'tofax', labelKey: 'routes.action.tofax', component: GenericApp, category: 'media' },
   label: { type: 'label', labelKey: 'routes.action.label', component: GenericApp, category: 'system' },
   busy: { type: 'busy', labelKey: 'routes.action.busy', component: GenericApp, category: 'telephony' },
+  congestion: { type: 'congestion', labelKey: 'routes.action.congestion', component: GenericApp, category: 'telephony', defaultParams: { timeout: 10 } },
   hangup: { type: 'hangup', labelKey: 'routes.action.hangup', component: HangupApp, category: 'telephony', defaultParams: { causecode: '' } },
 };
 
