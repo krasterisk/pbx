@@ -699,7 +699,7 @@ Plans:
 - Предыдущая фаза по этой области: Phase 6 (`06-13`/`06-14`/`06-16` — apps + registry + inline group editor)
 
 **Status:** In Progress — 17 планов, waves 0…13 (`12-01`…`12-17`)
-**Plans:** 10/17 plans executed
+**Plans:** 11/17 plans executed
 
 - [x] 12-01-PLAN.md
 - [x] 12-02-PLAN.md
@@ -711,7 +711,7 @@ Plans:
 - [x] 12-08-PLAN.md
 - [x] 12-09-PLAN.md
 - [x] 12-10-PLAN.md
-- [ ] 12-11-PLAN.md
+- [x] 12-11-PLAN.md
 - [ ] 12-12-PLAN.md
 - [ ] 12-13-PLAN.md
 - [ ] 12-14-PLAN.md
@@ -817,7 +817,7 @@ Plans:
 - [x] `12-08-PLAN.md` — Sheet целиком: schema-поля, опции, условия, проекция ошибок
 - [x] `12-09-PLAN.md` — UI тенантных настроек с optimistic toggle
 - [x] `12-10-PLAN.md` — единое приложение «Воспроизведение» (backend + UI)
-- [ ] `12-11-PLAN.md` — чистка legacy: PHP → внутренние endpoint'ы, `notify`, внутренние TTS
+- [x] `12-11-PLAN.md` — чистка legacy: PHP → внутренние endpoint'ы, `notify`, внутренние TTS
 - [ ] `12-12-PLAN.md` — миграция данных `params` + hard-remove типов
 - [ ] `12-13-PLAN.md` — per-app фиксы: транки, CallerID, очередь, exten, confbridge
 - [ ] `12-14-PLAN.md` — `exten` у групп вызова + единая схема контекста с переходным `include`
