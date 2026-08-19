@@ -1,0 +1,31 @@
+.fields {
+  width: 100%;
+}
+
+.field {
+  width: 100%;
+}
+
+.label {
+  color: var(--color-foreground);
+}
+
+.error {
+  color: var(--color-destructive);
+}
+
+.catalogLink {
+  color: var(--color-primary);
+  text-decoration: underline;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.invalid {
+  outline: 1px solid var(--color-destructive);
+}
+
+.touchTarget {
+  min-height: 44px;
+}

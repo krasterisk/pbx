@@ -23,21 +23,33 @@ const SheetOverlay = React.forwardRef<
 ));
 SheetOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
+type SheetSide = 'right' | 'bottom';
+
+type SheetContentProps = React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
+  side?: SheetSide;
+};
+
 const SheetContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, ...props }, ref) => (
+  SheetContentProps
+>(({ className, children, side = 'right', style, ...props }, ref) => (
   <SheetPortal>
-    <SheetOverlay />
+    <SheetOverlay className={side === 'bottom' ? 'bg-black/40' : undefined} />
     <DialogPrimitive.Content
       ref={ref}
+      data-side={side}
       className={cn(
-        'fixed inset-y-0 right-0 layer-modal h-full w-[480px] max-sm:w-full border-l border-border bg-background p-6 shadow-lg duration-200',
+        'layer-modal border-border bg-background p-6 shadow-lg duration-200',
         'data-[state=open]:animate-in data-[state=closed]:animate-out',
-        'data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right',
         'flex flex-col gap-4 overflow-hidden',
+        'motion-reduce:animate-none motion-reduce:transition-none',
+        side === 'right' &&
+          'fixed inset-y-0 right-0 h-full w-[480px] max-sm:w-full border-l data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right',
+        side === 'bottom' &&
+          'fixed inset-x-0 bottom-0 h-auto max-h-[85dvh] w-full border-t rounded-t-[var(--radius-xl)] data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom',
         className,
       )}
+      style={side === 'bottom' ? { maxHeight: '85dvh', ...style } : style}
       {...props}
     >
       {children}

@@ -93,7 +93,7 @@ export function ValueSourceField({
     src.phonebookUid > 0 &&
     !(typeof src.varKey === 'string' && src.varKey.trim());
   const loadingLabel = t('routes.chain.catalog.loading', 'Загружаем список');
-  const emptyLabel = t('routes.chain.catalog.empty', 'Нет очередей');
+  const emptyLabel = t('routes.chain.catalog.empty', 'Ничего не создано');
   const sectionName = t('routes.chain.catalog.queuesSection', 'Очереди');
   const placeholder = isLoading
     ? loadingLabel
@@ -144,7 +144,7 @@ export function ValueSourceField({
       {optionsSource === 'queues' ? (
         <VStack gap="8" max>
           <Select
-            disabled={readOnly || isLoading}
+            disabled={readOnly || isLoading || isEmpty}
             value={selectValue(src)}
             error={queueEmptyError || (markError && src.source !== 'fixed' && !complete)}
             aria-invalid={markError || undefined}

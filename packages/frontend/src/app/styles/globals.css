@@ -55,6 +55,7 @@
   --z-index-backdrop: 35;
   --z-index-sidebar: 40;
   --z-index-modal: 50;
+  --z-index-modal-nested: 55;
   --z-index-popover: 60;
   --z-index-toast: 100;
 
@@ -71,6 +72,7 @@
 .layer-backdrop { z-index: var(--z-index-backdrop); }
 .layer-sidebar  { z-index: var(--z-index-sidebar); }
 .layer-modal    { z-index: var(--z-index-modal); }
+.layer-modal-nested { z-index: var(--z-index-modal-nested); }
 .layer-popover  { z-index: var(--z-index-popover); }
 .layer-toast    { z-index: var(--z-index-toast); }
 
@@ -174,4 +176,12 @@ body {
   --color-sidebar-foreground: #71717a;
   --color-sidebar-accent: #f4f4f5;
   --color-sidebar-border: #e4e4e7;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .layer-modal,
+  .layer-modal-nested {
+    animation: none !important;
+    transition: none !important;
+  }
 }

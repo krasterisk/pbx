@@ -128,7 +128,7 @@ describe('StepSheet', () => {
     }
     render(<SourceHarness />);
 
-    fireEvent.change(screen.getByRole('combobox', { name: 'Очередь' }), {
+    fireEvent.change(screen.getByRole('combobox', { name: 'routes.chain.fields.queue' }), {
       target: { value: '__src:route_pattern' },
     });
     expect(onChange).toHaveBeenCalledWith(
@@ -186,8 +186,8 @@ describe('StepSheet', () => {
       />,
     );
 
-    const emptySelect = screen.getByRole('combobox', { name: 'Нет очередей' });
-    expect(emptySelect).not.toBeDisabled();
+    const emptySelect = screen.getByRole('combobox', { name: 'Ничего не создано' });
+    expect(emptySelect).toBeDisabled();
     expect(emptySelect.textContent).not.toBe(loadingText);
     const link = screen.getByRole('link');
     expect(link).toHaveAttribute('target', '_blank');

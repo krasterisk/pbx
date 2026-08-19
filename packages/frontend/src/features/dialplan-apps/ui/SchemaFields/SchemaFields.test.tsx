@@ -12,7 +12,10 @@ vi.mock('react-i18next', () => ({
 }));
 
 vi.mock('@/shared/api/endpoints/queueApi', () => ({
-  useGetQueuesQuery: vi.fn(() => ({ data: [], isLoading: false })),
+  useGetQueuesQuery: vi.fn(() => ({
+    data: [{ name: 'qsales_42', exten: 'sales', display_name: 'Sales' }],
+    isLoading: false,
+  })),
 }));
 
 vi.mock('@/shared/api/endpoints/phonebookApi', () => ({
@@ -55,9 +58,10 @@ function fieldForKind(kind: FieldKind): FieldSchema {
 function findControl(kind: FieldKind): HTMLElement {
   switch (kind) {
     case 'text':
-    case 'secret':
     case 'custom':
       return screen.getByRole('textbox', { name: LABEL });
+    case 'secret':
+      return screen.getByLabelText(LABEL);
     case 'number':
     case 'duration':
       return screen.getByRole('spinbutton', { name: LABEL });
@@ -71,7 +75,7 @@ function findControl(kind: FieldKind): HTMLElement {
     case 'checkbox':
       return screen.getByRole('checkbox', { name: LABEL });
     case 'tags':
-      return screen.getByRole('textbox', { name: LABEL });
+      return screen.getByPlaceholderText(LABEL);
     case 'choice-cards':
       return screen.getByRole('radiogroup', { name: LABEL });
     case 'mode':
@@ -192,6 +196,7 @@ describe('SchemaFields', () => {
     const loading = screen.getByRole('combobox', { name: 'Загружаем список' });
     expect(loading).toBeDisabled();
     const loadingText = loading.textContent;
+    const loadingAria = loading.getAttribute('aria-label');
 
     rerender(
       <SchemaFields
@@ -212,7 +217,7 @@ describe('SchemaFields', () => {
     const empty = screen.getByRole('combobox', { name: 'Ничего не создано' });
     expect(empty).toBeDisabled();
     expect(empty.textContent).not.toBe(loadingText);
-    expect(empty.textContent).not.toBe(loading.getAttribute('aria-label'));
+    expect(empty.getAttribute('aria-label')).not.toBe(loadingAria);
     const link = screen.getByRole('link');
     expect(link).toHaveAttribute('target', '_blank');
     expect(link).toHaveAttribute('rel', 'noopener noreferrer');
