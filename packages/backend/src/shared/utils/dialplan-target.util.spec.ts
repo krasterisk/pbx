@@ -21,12 +21,18 @@ describe('normalizeTarget', () => {
     expect(out).toBe('qabexten_42');
   });
 
+  it('queue + phonebook returns q${PB_TARGET}_{uid}', () => {
+    expect(
+      normalizeTarget('queue', { source: 'phonebook', phonebookUid: 7, varKey: 'queue' }, 42),
+    ).toBe('q${PB_TARGET}_42');
+  });
+
   it('queue result always carries the tenant suffix for every ValueSource', () => {
     const sources: ValueSource[] = [
       { source: 'fixed', value: 'sales' },
       { source: 'route_pattern' },
       { source: 'variable', name: 'MYVAR' },
-      { source: 'phonebook', phonebookUid: 7 },
+      { source: 'phonebook', phonebookUid: 7, varKey: 'queue' },
     ];
     for (const src of sources) {
       expect(normalizeTarget('queue', src, 42)).toMatch(/^q.+_42$/);

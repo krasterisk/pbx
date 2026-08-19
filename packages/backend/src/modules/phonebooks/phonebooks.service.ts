@@ -318,13 +318,16 @@ export class PhonebooksService {
    * Format: <match>|<key1>|<val1>|<key2>|<val2>|...
    * If no match: "0"
    *
+   * When `varKey` is set, returns only that entry var value (or "" on no match /
+   * missing key) so dialplan can Set(PB_TARGET=${CURL(...&var_key=...)}) without CUT().
+   *
    * Keys are emitted as the SORTED UNION of var keys across the whole phonebook
    * (same rule as collectAllVarKeys at dialplan generation time), with an empty
    * value when the matched entry lacks a key. This keeps CUT() positions in the
    * generated dialplan aligned with the response regardless of which entry
    * matched or the JSON key order it was stored with.
    */
-  async lookupNumber(phonebookUid: number, callerIdNumber: string): Promise<string> {
+  async lookupNumber(phonebookUid: number, callerIdNumber: string, varKey?: string): Promise<string> {
     // 1. Try exact match first (fast, uses index)
     let entry = await this.entryModel.findOne({
       where: { phonebook_uid: phonebookUid, number: callerIdNumber },
@@ -349,7 +352,13 @@ export class PhonebooksService {
       }
     }
 
-    if (!entry) return '0';
+    if (!entry) return varKey ? '' : '0';
+
+    if (varKey) {
+      const vars = entry.vars || {};
+      const value = vars[varKey];
+      return typeof value === 'string' ? value : '';
+    }
 
     // Align key positions with the dialplan's CUT() layout: sorted union of
     // keys across ALL entries, not just the matched one (see docblock above).

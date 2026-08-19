@@ -96,8 +96,24 @@ describe('ToQueueParamsDto', () => {
   });
 
   it('rejects phonebookUid 0', () => {
-    const dto = plainToInstance(ToQueueParamsDto, { target: { source: 'phonebook', phonebookUid: 0 } });
+    const dto = plainToInstance(ToQueueParamsDto, {
+      target: { source: 'phonebook', phonebookUid: 0, varKey: 'queue' },
+    });
     expect(validateSync(dto).length).toBeGreaterThan(0);
+  });
+
+  it('rejects phonebook without varKey', () => {
+    const dto = plainToInstance(ToQueueParamsDto, {
+      target: { source: 'phonebook', phonebookUid: 5 },
+    });
+    expect(validateSync(dto).length).toBeGreaterThan(0);
+  });
+
+  it('accepts phonebook with phonebookUid and varKey', () => {
+    const dto = plainToInstance(ToQueueParamsDto, {
+      target: { source: 'phonebook', phonebookUid: 5, varKey: 'queue' },
+    });
+    expect(validateSync(dto)).toHaveLength(0);
   });
 });
 

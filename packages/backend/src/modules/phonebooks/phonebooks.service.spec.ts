@@ -227,6 +227,19 @@ describe('PhonebooksService', () => {
       const svc = makeService([{ number: '101', vars: { clid: '79123456780' } }]);
       expect(await svc.lookupNumber(5, '999')).toBe('0');
     });
+
+    it('varKey mode returns only the entry value', async () => {
+      const svc = makeService([
+        { number: '101', vars: { queue: 'sales', name: 'Ivanov' } },
+      ]);
+      expect(await svc.lookupNumber(5, '101', 'queue')).toBe('sales');
+    });
+
+    it('varKey mode returns empty string on no match or missing key', async () => {
+      const svc = makeService([{ number: '101', vars: { queue: 'sales' } }]);
+      expect(await svc.lookupNumber(5, '999', 'queue')).toBe('');
+      expect(await svc.lookupNumber(5, '101', 'missing')).toBe('');
+    });
   });
 
   // ═══════════════════════════════════════════════════════════

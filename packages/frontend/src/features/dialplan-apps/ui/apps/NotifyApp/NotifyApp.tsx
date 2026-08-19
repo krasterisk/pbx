@@ -29,7 +29,7 @@ export const NotifyApp = memo(({ action, onUpdate }: IDialplanAppProps) => {
       const nextUid = e.target.value;
       onUpdate(action.id, 'params.integration_uid', nextUid);
       const next = integrations.find((i) => String(i.uid) === nextUid);
-      // Webhook has no recipient override — clear leftover target from other channels
+      // Webhook has no recipient override - clear leftover target from other channels
       if (next?.channel === 'webhook' && target) {
         onUpdate(action.id, 'params.target', '');
       }
@@ -109,11 +109,11 @@ export const NotifyApp = memo(({ action, onUpdate }: IDialplanAppProps) => {
               isWebhook
                 ? t(
                     'routes.apps.notify.messageWebhookHint',
-                    'Текст, который подставится в {{message}} в формате JSON интеграции webhook.\n\nПеременные Asterisk:\n${CALLERID(num)} — номер звонящего\n${CALLERID(name)} — имя\n${EXTEN} — набранный номер\n${DIALSTATUS} — статус набора\n${CDR(duration)} — длительность\n${UNIQUEID} — ID звонка\n\nФорму JSON (поля CRM) настраивайте в интеграции webhook, не здесь.',
+                    'Текст, который подставится в {{message}} в формате JSON интеграции webhook.\n\nПеременные Asterisk:\n${CALLERID(num)} - номер звонящего\n${CALLERID(name)} - имя\n${EXTEN} - набранный номер\n${DIALSTATUS} - статус набора\n${CDR(duration)} - длительность\n${UNIQUEID} - ID звонка\n\nФорму JSON (поля CRM) настраивайте в интеграции webhook, не здесь.',
                   )
                 : t(
                     'routes.apps.notify.varsHint',
-                    'Переменные Asterisk:\n${CALLERID(num)} — номер звонящего\n${CALLERID(name)} — имя\n${EXTEN} — набранный номер\n${DIALSTATUS} — статус набора\n${CDR(duration)} — длительность\n${UNIQUEID} — ID звонка',
+                    'Переменные Asterisk:\n${CALLERID(num)} - номер звонящего\n${CALLERID(name)} - имя\n${EXTEN} - набранный номер\n${DIALSTATUS} - статус набора\n${CDR(duration)} - длительность\n${UNIQUEID} - ID звонка',
                   )
             }
           />
@@ -143,7 +143,7 @@ export const NotifyApp = memo(({ action, onUpdate }: IDialplanAppProps) => {
               <InfoTooltip
                 text={t(
                   'routes.apps.notify.targetHint',
-                  'Необязательно. Для Telegram — другой chat_id, для email — другой адрес, для WhatsApp/MAX/VK — другой получатель. Для webhook это поле не используется: форма JSON настраивается в интеграции.',
+                  'Необязательно. Для Telegram - другой chat_id, для email - другой адрес, для WhatsApp/MAX/VK - другой получатель. Для webhook это поле не используется: форма JSON настраивается в интеграции.',
                 )}
               />
             </div>

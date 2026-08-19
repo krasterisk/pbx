@@ -14,10 +14,17 @@ import { selectCurrentUser } from '@/entities/User';
 import { ensureCdrVpbxUserUidInDialplan } from '@krasterisk/shared';
 import { routesActions } from '../../model/slice/routesSlice';
 
+import { isValueSourceComplete } from '@/features/dialplan-apps/ui/ValueSourceField/ValueSourceField';
 import { RouteGeneralTab, decodeRecordMode } from './RouteGeneralTab';
 import { RouteWebhooksTab, WebhookItem } from './RouteWebhooksTab';
 import { RouteActionsTab } from './RouteActionsTab';
 import { RoutePhonebooksTab } from './RoutePhonebooksTab';
+
+function hasIncompleteQueueAction(list: IRouteAction[]): boolean {
+  return list.some(
+    (a) => a.type === 'toqueue' && !isValueSourceComplete(a.params?.target as any),
+  );
+}
 
 const TABS = ['general', 'actions', 'phonebooks', 'webhooks'] as const;
 
@@ -141,6 +148,13 @@ export const RouteFormModal = memo(() => {
   const handleSave = async () => {
     if (!contextUid) return;
 
+    if (hasIncompleteQueueAction(actions)) {
+      const ok = window.confirm(
+        t('routes.chain.confirmSaveWithoutQueue', 'Точно сохранить без выбора очереди?'),
+      );
+      if (!ok) return;
+    }
+
     const options: IRouteOptions = {
       record: record || undefined,
       // Only persist record_all when recording is actually enabled - prevents record_all:true/record:false ghost state
@@ -149,19 +163,6 @@ export const RouteFormModal = memo(() => {
       pre_command: preCommand || undefined,
       route_type: routeType || undefined,
     };
-
-    // Only DTO fields: server-side props from GET (uid, route_uid, user_uid, timestamps)
-    // are rejected by the global ValidationPipe (forbidNonWhitelisted). Replace-all
-    // strategy reassigns them anyway. Always included (even empty) so removing all
-    // bindings actually clears them server-side (Pitfall 8).
-    const bindingsPayload = bindings.map((b, index) => ({
-      phonebook_uid: b.phonebook_uid,
-      position: index,
-      match_mode: b.match_mode,
-      behavior_type: b.behavior_type,
-      behavior_params: b.behavior_params ?? undefined,
-      actions: b.actions ?? undefined,
-    }));
 
     const webhooksPayload: any = {};
     webhooksList.forEach(w => {

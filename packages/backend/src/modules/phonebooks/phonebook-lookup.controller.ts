@@ -11,10 +11,12 @@ import { PhonebooksService } from './phonebooks.service';
  * Asterisk dialplan usage:
  *   Set(PB_RAW=${CURL(http://127.0.0.1:5010/api/internal/dialplan/phonebook-lookup
  *     ?number=${URIENCODE(${CALLERID(num)})}&phonebook_uid=5&api_key=xxx)})
+ *   Set(PB_TARGET=${CURL(...&var_key=queue...)})  ; value-only mode for address targets
  *
  * Response: plain text, pipe-delimited
  *   Match:   "1|key1|val1|key2|val2|..."
  *   No match: "0"
+ *   With var_key: matched value only, or "" when missing / no match
  */
 @Controller('internal/dialplan')
 export class PhonebookLookupController {
@@ -34,6 +36,7 @@ export class PhonebookLookupController {
     @Query('number') number: string,
     @Query('phonebook_uid') phonebookUid: string,
     @Query('api_key') queryApiKey: string,
+    @Query('var_key') varKey?: string,
   ): Promise<string> {
     // Validate API key
     if (this.apiKey && queryApiKey !== this.apiKey) {
@@ -42,12 +45,12 @@ export class PhonebookLookupController {
     }
 
     if (!number || !phonebookUid) {
-      return '0';
+      return varKey ? '' : '0';
     }
 
     const uid = parseInt(phonebookUid, 10);
-    if (isNaN(uid)) return '0';
+    if (isNaN(uid)) return varKey ? '' : '0';
 
-    return this.phonebooksService.lookupNumber(uid, number);
+    return this.phonebooksService.lookupNumber(uid, number, varKey || undefined);
   }
 }

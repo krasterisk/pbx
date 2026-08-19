@@ -1,4 +1,4 @@
-import { normalizeTarget, resolveQueueValueSource } from './dialplan-target.util';
+import { normalizeTarget, resolveQueueValueSource, PHONEBOOK_TARGET_VAR } from './dialplan-target.util';
 
 /**
  * Valid Asterisk DIALSTATUS values.
@@ -188,7 +188,7 @@ export class AsteriskDialplanUtils {
         break;
       }
       case 'toqueue': {
-        const queue = normalizeTarget('queue', resolveQueueValueSource(params), vpbxUserUid);
+        const src = resolveQueueValueSource(params);
         const timeout = params.timeout ? parseInt(params.timeout, 10) : '';
         const options = this.sanitizeDialplanInput(params.options) || 'thH';
         // Queue on_answer: Asterisk docs confirm gosub runs on the AGENT's channel, not caller's.
@@ -196,7 +196,26 @@ export class AsteriskDialplanUtils {
         // on_answer for Queue is handled by AMI AgentConnect event in ami.service.ts.
         // We still pass gosub param to capture MEMBERINTERFACE for the AMI handler to correlate.
         // Queue(name,options,URL,announceoverride,timeout,AGI,gosub,...)
-        dp = `${wrapper}Queue(${queue},${options},,,${timeout})${closing}`;
+        if (src.source === 'phonebook') {
+          const pbUid = this.sanitizeDialplanInput(String(src.phonebookUid ?? ''));
+          const varKey = this.sanitizeDialplanInput(String(src.varKey ?? ''));
+          if (!pbUid || !varKey) {
+            dp = `${wrapper}NoOp(Missing phonebook queue target)${closing}`;
+            break;
+          }
+          const keyParam = this.dialplanApiKey ? `&api_key=${encodeURIComponent(this.dialplanApiKey)}` : '';
+          const lookupUrl =
+            `${this.backendBaseUrl}/internal/dialplan/phonebook-lookup` +
+            `?phonebook_uid=${pbUid}&var_key=${encodeURIComponent(varKey)}${keyParam}`;
+          const queue = normalizeTarget('queue', src, vpbxUserUid);
+          dp = [
+            `${wrapper}Set(${PHONEBOOK_TARGET_VAR}=\${CURL(${lookupUrl}&number=\${URIENCODE(\${CALLERID(num)})})})${closing}`,
+            `ExecIf($["\${${PHONEBOOK_TARGET_VAR}}" != ""]?Queue(${queue},${options},,,${timeout}))`,
+          ].join('\nsame => n,');
+        } else {
+          const queue = normalizeTarget('queue', src, vpbxUserUid);
+          dp = `${wrapper}Queue(${queue},${options},,,${timeout})${closing}`;
+        }
         break;
       }
       case 'toivr': {

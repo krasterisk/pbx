@@ -24,13 +24,18 @@ export class IsValueSourceConstraint implements ValidatorConstraintInterface {
       return typeof src.name === 'string' && src.name.trim().length > 0;
     }
     if (src.source === 'phonebook') {
-      return Number.isInteger(src.phonebookUid) && Number(src.phonebookUid) > 0;
+      return (
+        Number.isInteger(src.phonebookUid) &&
+        Number(src.phonebookUid) > 0 &&
+        typeof src.varKey === 'string' &&
+        src.varKey.trim().length > 0
+      );
     }
     return true;
   }
 
   defaultMessage(): string {
-    return 'target.source must be fixed, route_pattern, variable, or phonebook; fixed requires a non-empty value';
+    return 'target.source must be fixed, route_pattern, variable, or phonebook; phonebook requires phonebookUid and varKey';
   }
 }
 

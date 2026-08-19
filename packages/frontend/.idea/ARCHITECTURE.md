@@ -111,6 +111,31 @@ krasterisk_v4/
   4. Не полагаться только на `invalidatesTags` + refetch: это даёт заметную задержку бегунка до ответа сети.
   - Формы с локальным `useState` + явной кнопкой «Сохранить» уже «optimistic» на уровне UI — правило про RTK-patch к ним не применяется, пока toggle не биндится напрямую к query cache.
   - Эталон: `updateMyNotifications` / `updateMyUiCustomization` в `shared/api/endpoints/callCenterApi.ts`.
+- **Table row actions (MUST):** Колонка действий в `DataTable` / списках (edit / copy / delete) **обязана** использовать `TableRowActions` + `TableRowAction` из `@/shared/ui`.
+  - Нельзя: нативный `<button>` / Tailwind `hover:bg-white/5` / `hover:bg-accent` на иконках — фон кнопки сливается с hover строки, иконка «пропадает».
+  - Визуал: muted иконка → на hover только смена цвета (`foreground` / `destructive` для `danger`), **без** заливки фона.
+  - Обязательны `title` и `aria-label`.
+  - Эталоны: `features/users/ui/UsersTable/useUsersTableColumns.tsx`, `features/routes/ui/RoutesTable/RoutesTable.tsx`.
+  - Компонент: `shared/ui/TableRowActions`.
+
+```tsx
+import { TableRowActions, TableRowAction } from '@/shared/ui';
+import { Pencil, Trash2 } from 'lucide-react';
+
+<TableRowActions>
+  <TableRowAction title={t('common.edit')} aria-label={t('common.edit')} onClick={onEdit}>
+    <Pencil />
+  </TableRowAction>
+  <TableRowAction danger title={t('common.delete')} aria-label={t('common.delete')} onClick={onDelete}>
+    <Trash2 />
+  </TableRowAction>
+</TableRowActions>
+```
+
+- **No emoji icons (MUST):** Unicode-эмодзи **запрещены** как иконки UI (кнопки, лейблы, бейджи, tooltips, empty states, tab triggers). Для иконок используется **только Lucide React** (`lucide-react`). Подсказки у полей — текст (`Text` / `InfoTooltip` с Lucide), не символы вроде ℹ️ / ❓ / ✅.
+  - Эталон без emoji-иконок у лейблов: `features/users/ui/UserFormModal/UserFormModal.tsx`.
+- **Password fields (MUST):** Поля пароля с возможностью просмотра используют `PasswordInput` из `@/shared/ui` — toggle «показать/скрыть» **внутри** поля (Eye/EyeOff), не отдельной кнопкой рядом. Генерация пароля (если нужна) — соседняя action-кнопка вне инпута.
+  - Компонент: `shared/ui/PasswordInput`. Эталон: `features/users/ui/UserFormModal/UserFormModal.tsx`.
 
 ---
 
@@ -328,10 +353,153 @@ krasterisk_v4/
 - `min-height` на модалках, превышающий viewport мобильных устройств
 
 ### Паттерны оформления UI
-- **Модальные окна (Forms):** Используется композиция `<Dialog>`, `<DialogContent size="large"|size="xl">`, `<DialogHeader>`, контентная часть с `flex-1 overflow-y-auto` и `<DialogFooter>` для кнопок Отмена/Сохранить.
-- **Скролл тела модалки (scrollBody):** Контент между `<DialogHeader>` и `<DialogFooter>` **обязан** оборачиваться в `<VStack className={cls.scrollBody}>`. В SCSS-модуле класс `.scrollBody` определяется по единому паттерну:
+
+#### Модальные окна форм (MUST) — эталон `UserFormModal`
+
+**Эталон:** `features/users/ui/UserFormModal/UserFormModal.tsx` + `UserFormModal.module.scss`.
+
+Новые и рефакторимые form-модалки (create/edit) **обязаны** следовать этой композиции. Крупные модалки с табами (`size="large"`) дополнительно используют паттерн `scrollBody` и табы ниже.
+
+##### 1. Оболочка: высота viewport, скролл только у тела
+
+`DialogContent` по умолчанию — `grid` без надёжного скролла на коротких экранах. Для form-модалки:
+
+| Зона | Поведение |
+|------|-----------|
+| **Shell** | `flex flex-col`, `overflow: hidden`, `max-height: min(90vh, 90dvh)`, `max-width: min(<ширина>, calc(100vw - 1rem))`, `gap: 0` |
+| **Header** | `flex-shrink: 0`, `padding-right` под кнопку Close |
+| **Form** | `flex: 1`, `min-height: 0`, column; внутри: **formBody** + **footer** |
+| **formBody** | единственная зона со `overflow-y: auto` + `overscroll-behavior: contain` |
+| **Footer** | `flex-shrink: 0`, `border-top: 1px solid var(--color-border)`, кнопки всегда видны |
+
+```tsx
+<Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+  <DialogContent className={`flex flex-col gap-0 overflow-hidden max-h-[min(90vh,90dvh)] ${styles.dialogContent}`}>
+    <DialogHeader className={`shrink-0 ${styles.header}`}>
+      <DialogTitle>{isEditing ? t('…edit') : t('…add')}</DialogTitle>
+    </DialogHeader>
+    <form onSubmit={handleSubmit} className={styles.form} autoComplete="off">
+      <div className={styles.formBody}>
+        <VStack gap="16" max>{/* поля */}</VStack>
+      </div>
+      <DialogFooter className={styles.footer}>
+        <HStack gap="8" justify="end" max>
+          <Button type="button" variant="outline" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button type="submit">{t('common.save')}</Button>
+        </HStack>
+      </DialogFooter>
+    </form>
+  </DialogContent>
+</Dialog>
+```
+
+```scss
+.dialogContent {
+  max-width: min(560px, calc(100vw - 1rem));
+  gap: 0;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  gap: 0;
+}
+
+.formBody {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-block: 0.75rem 0.5rem;
+  padding-right: 0.25rem;
+}
+
+.footer {
+  flex-shrink: 0;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-border);
+}
+```
+
+**❌ Запрещено:** растягивать модалку выше viewport без внутреннего скролла; прятать Cancel/Save/Close за краем экрана; скроллить весь `DialogContent` целиком (крестик и футер уезжают).
+
+##### 2. Поля формы
+
+- Поле = `<VStack gap="8" max className={styles.field}>` → `Label` + контрол (`Input` / `Select` / `PasswordInput`).
+- Обязательные поля: суффикс ` *` в лейбле.
+- Лейблы: muted (`var(--color-muted-foreground)`), кроме **primary-поля** (ключевой селект/роль) — `foreground` + `font-weight: 600`.
+- Ряды с action-кнопкой (пароль + generate): input `flex: 1; min-width: 0`, кнопка `flex-shrink: 0`.
+- Пароль: только `PasswordInput`; генерация — соседняя `Button variant="outline" size="icon"`.
+
+##### 3. Подсказки — только `InfoTooltip`
+
+Длинный текст-подсказка **под** полем **запрещён**. Подсказки — `InfoTooltip` рядом с лейблом (`HStack gap="4" align="center"`).
+
+Текст подсказки: понятный язык для пользователя, без жаргона (не «гранты», не «Hub», если можно сказать «какие модули видит пользователь»).
+
+```tsx
+<HStack gap="4" align="center">
+  <Label htmlFor="…" className={styles.fieldLabel}>{t('…')}</Label>
+  <InfoTooltip text={t('….hint')} />
+</HStack>
+```
+
+**Оформление текста подсказки (MUST):** `InfoTooltip` / `Tooltip` рендерят строки через `formatRichTooltipText` (`shared/ui/Tooltip/Tooltip.tsx`). В locale / fallback:
+
+- Каждый смысловой пункт — **с новой строки** (`\n`). Не склеивать варианты в одно предложение через точку.
+- Ключевые имена параметров / режимов / примеров — в `**жирный**` (маркеры `**…**`, без HTML в строках i18n).
+- Без длинного тире `—` (см. типографику выше); обычный дефис `-` или запятая.
+- Без dialplan-внутренностей (`Queue(…)`, `PB_*`, tenant-суффиксы), если пользователь их не настраивает руками.
+
+```ts
+// ✅
+'**Статичная очередь** - из списка\n**По маске** - номер набранного exten\n**Из переменной** - имя канала без ${}'
+
+// ❌ одна простыня без акцентов
+'Статичная очередь - из списка. По маске - номер exten. Из переменной - имя канала.'
+```
+
+```tsx
+<InfoTooltip
+  text={t(
+    'routes.chain.source.variableHint',
+    'Имя переменной канала **без ${}**\n**Пример:** MY_QUEUE\nЗначения переменной задаются ранее в цепочке маршрута, либо в webhook',
+  )}
+/>
+```
+
+##### 4. Вторичная группа полей — сворачиваемый блок
+
+Доп. параметры (редко нужные) — в bordered-группе, **по умолчанию свёрнутой** (при edit можно открыть, если значения уже заданы):
+
+- Фон: `color-mix(in srgb, var(--color-muted) 35%, transparent)`.
+- Заголовок: toggle-кнопка + `ChevronDown` (rotate при open) + `InfoTooltip` **снаружи** toggle (клик по `?` не сворачивает секцию).
+- `aria-expanded` / `aria-controls` на toggle.
+
+##### 5. Медиа / аватар
+
+- Блок по центру (`VStack align="center"`).
+- Лейбл действия и upload — **одна** кнопка (напр. «Загрузить аватар»), рядом `InfoTooltip` и опционально remove.
+
+##### 6. Валидация
+
+- HTML-атрибуты по типу (`type="email"`, `inputMode="email"`) + явная проверка перед submit.
+- Ошибка — текст под полем (`styles.fieldError` / `var(--color-destructive)`), `aria-invalid` + `aria-describedby`.
+- Пустое опциональное поле = валидно.
+
+##### 7. Footer-кнопки
+
+Порядок: **Отмена** (`variant="outline"`) → **Сохранить** (primary, `type="submit"`). При loading — disable обеих, на Save — `Loader2`.
+
+---
+
+- **Скролл тела модалки (`scrollBody`, large / tabs):** для `DialogContent size="large"` контент между header и footer **обязан** оборачиваться в скролл-контейнер. Имя класса в эталонах с табами — `.scrollBody`; в компактных form-модалках (см. выше) — `.formBody`. Суть одна:
+
   ```scss
-  .scrollBody {
+  .scrollBody /* или .formBody */ {
     flex: 1;
     min-height: 0;
     overflow-y: auto;
@@ -342,8 +510,11 @@ krasterisk_v4/
     }
   }
   ```
-  **Обоснование:** `DialogContent size="large"` использует `flex flex-col h-[85vh] overflow-hidden`. Без `min-height: 0` flex-дети не сжимаются ниже своего контента, а без `> * { flex-shrink: 0 }` дочерние VStack-элементы сжимаются вместо того, чтобы переполнять контейнер и активировать скролл. Использование `<div>` вместо `<VStack>` **запрещено** (правило FSD).
+
+  **Обоснование:** без `min-height: 0` flex-дети не сжимаются; без `> * { flex-shrink: 0 }` (где применимо) дочерние блоки сжимаются вместо скролла. Нативный `<div>` для layout в `features/` нежелателен — предпочтительны Stack; исключение — обёртка `formBody`/`scrollBody`, если Stack ломает flex-сжатие.
+
 - **Табы в модалках:** Если форма сложная (>150 строк или сложная логика), она декомпозируется на «умный» родитель-модалку и дочерние компоненты-вкладки (напр. `[Feature]GeneralTab.tsx`, `[Feature]PromptsTab.tsx`).
+- **Table row actions:** Колонка иконок действий в таблицах — только `TableRowActions` / `TableRowAction` (см. MUST выше в «Дизайн-система и Стандарты»). Не дублировать `.actionBtn` в feature SCSS.
 
 #### Паттерн табов в модалках (обязательный)
 
@@ -811,6 +982,7 @@ FRONTEND_PORT=3010
 Используется обобщенный UI-компонент на базе `TanStack Table` (v8).
 - Пагинация, сортировка и "живой" фильтр работают на стороне клиента в браузере (Client-side), обеспечивая микросекундную задержку при поиске абонента по Extension/Name в масштабах до 10 000 строк.
 - Для выгрузки данных `DataTable` экспонирует `useImperativeHandle(ref)`, позволяя внешнему родительскому компоненту (`EndpointsTable`) вызывать `tableRef.current?.exportCsv()`, а не навязывать жесткую верстку своих кнопок внутри таблицы.
+- Колонка row-actions (edit/copy/delete): **только** `TableRowActions` + `TableRowAction` из `@/shared/ui` (см. MUST «Table row actions» выше).
 
 ### 3. Индикация Bulk-операций
 Для отображения прогресса работы фоновых Bulk-Job бэкенда используется Long Polling. `EndpointsTable` вызывает сервис состояния `useGetBulkJobStatusQuery` через RTK-Query с флагом `pollingInterval: 1000`, и плавно отрисовывает ProgressBar поверх таблицы до тех пор, пока бэкенд не закончит обработку.
@@ -849,4 +1021,4 @@ Node.js **22+** is required for Capacitor 8 CLI/sync.
 
 ---
 
-*Last updated: 2026-07-17 (Phase 8 Module Hub / Capacitor)*
+*Last updated: 2026-08-17 (UserFormModal form-modal patterns)*

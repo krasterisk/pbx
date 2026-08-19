@@ -17,7 +17,7 @@ export const TooltipContent = React.forwardRef<
       sideOffset={sideOffset}
       collisionPadding={8}
       className={cn(
-        'z-50 overflow-hidden rounded-md border border-border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 max-w-[280px]',
+        'z-50 overflow-hidden rounded-md border border-border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 max-w-[320px]',
         className
       )}
       {...props}
@@ -25,6 +25,33 @@ export const TooltipContent = React.forwardRef<
   </TooltipPrimitive.Portal>
 ));
 TooltipContent.displayName = TooltipPrimitive.Content.displayName;
+
+/** Renders tooltip copy with newlines and **bold** segments (no HTML in locales). */
+export function formatRichTooltipText(text: string): React.ReactNode {
+  const lines = text.split('\n');
+  return (
+    <div className="flex flex-col gap-1.5 text-left leading-relaxed">
+      {lines.map((line, lineIdx) => {
+        if (!line.trim()) return <div key={lineIdx} className="h-1" aria-hidden />;
+        const parts = line.split(/(\*\*[^*]+\*\*)/g).filter(Boolean);
+        return (
+          <p key={lineIdx} className="m-0">
+            {parts.map((part, partIdx) => {
+              if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
+                return (
+                  <strong key={partIdx} className="font-semibold text-popover-foreground">
+                    {part.slice(2, -2)}
+                  </strong>
+                );
+              }
+              return <React.Fragment key={partIdx}>{part}</React.Fragment>;
+            })}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
 
 export interface TooltipProps extends React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Root> {
   content?: React.ReactNode;
@@ -42,11 +69,7 @@ export function Tooltip({ children, content, side = 'top', contentClassName, ...
           {children}
         </TooltipTrigger>
         <TooltipContent side={side} className={contentClassName}>
-          {typeof content === 'string' ? (
-            <p className="text-left leading-relaxed whitespace-pre-wrap">{content}</p>
-          ) : (
-            content
-          )}
+          {typeof content === 'string' ? formatRichTooltipText(content) : content}
         </TooltipContent>
       </TooltipRoot>
     </TooltipProvider>
@@ -56,8 +79,9 @@ export function Tooltip({ children, content, side = 'top', contentClassName, ...
 /**
  * Reusable InfoTooltip component with a generic HelpCircle icon.
  * Perfect for adding quick contextual help text next to labels.
+ * Supports multiline (`\n`) and **bold** markers in `text`.
  */
-export function InfoTooltip({ text, children }: { text: string; children?: React.ReactNode }) {
+export function InfoTooltip({ text, children }: { text: React.ReactNode; children?: React.ReactNode }) {
   const [open, setOpen] = React.useState(false);
 
   // If no text is provided, don't render tooltip at all to avoid empty bubbles
@@ -68,7 +92,7 @@ export function InfoTooltip({ text, children }: { text: string; children?: React
       <TooltipRoot open={open} onOpenChange={setOpen}>
         <TooltipTrigger 
           type="button"
-          // Keep out of tab/dialog autofocus order — otherwise opening a modal
+          // Keep out of tab/dialog autofocus order - otherwise opening a modal
           // focuses the first help icon and the tooltip pops open immediately.
           tabIndex={-1}
           onClick={(e) => {
@@ -88,7 +112,7 @@ export function InfoTooltip({ text, children }: { text: string; children?: React
           {children || <HelpCircle className="w-3.5 h-3.5 ml-1.5" />}
         </TooltipTrigger>
         <TooltipContent side="top" onPointerDownOutside={() => setOpen(false)}>
-          <p className="text-left leading-relaxed whitespace-pre-wrap">{text}</p>
+          {typeof text === 'string' ? formatRichTooltipText(text) : text}
         </TooltipContent>
       </TooltipRoot>
     </TooltipProvider>

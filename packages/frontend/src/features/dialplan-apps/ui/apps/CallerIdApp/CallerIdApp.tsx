@@ -29,7 +29,7 @@ const MODE_HINT_FALLBACKS: Record<CallerIdMode, string> = {
   phonebook: 'Looks up CallerID in the selected phonebook and applies matched variables.',
   setclid_list: 'Picks CallerID from a legacy setclid list via exten_setclid.php.',
   carousel:
-    'Randomly selects one number from the ordered pool (${CID_${RAND(1,N)}}). Does not dial or fail over — use Trunk Carousel for retry/failover.',
+    'Randomly selects one number from the ordered pool (${CID_${RAND(1,N)}}). Does not dial or fail over - use Trunk Carousel for retry/failover.',
 };
 
 function isCallerIdMode(value: unknown): value is CallerIdMode {

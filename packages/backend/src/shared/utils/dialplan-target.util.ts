@@ -3,6 +3,9 @@ import { AsteriskDialplanUtils } from './dialplan.util';
 
 export type TargetKind = 'queue' | 'exten' | 'group' | 'context';
 
+/** Channel var set by toqueue phonebook lookup CURL (value-only response). */
+export const PHONEBOOK_TARGET_VAR = 'PB_TARGET';
+
 export function resolveQueueValueSource(params: Record<string, any> | undefined): ValueSource {
   const p = params ?? {};
   if (p.target && typeof p.target === 'object' && typeof p.target.source === 'string') {
@@ -26,7 +29,7 @@ export function normalizeTarget(
         ? '${EXTEN}'
         : src.source === 'variable'
           ? `\${${AsteriskDialplanUtils.sanitizeDialplanInput(src.name)}}`
-          : '${PB_RESULT}';
+          : `\${${PHONEBOOK_TARGET_VAR}}`;
 
   switch (kind) {
     case 'queue': {

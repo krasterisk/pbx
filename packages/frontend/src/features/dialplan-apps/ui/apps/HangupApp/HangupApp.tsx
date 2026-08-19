@@ -9,7 +9,7 @@ import { IDialplanAppProps } from '../../../model/types';
  * ISDN/SIP hangup cause codes from Asterisk documentation.
  * @see https://docs.asterisk.org/Latest_API/API_Documentation/Dialplan_Applications/Hangup
  *
- * Hangup(causecode) — optional cause code (number or name).
+ * Hangup(causecode) - optional cause code (number or name).
  * If omitted, Asterisk uses cause 16 (Normal Clearing).
  */
 

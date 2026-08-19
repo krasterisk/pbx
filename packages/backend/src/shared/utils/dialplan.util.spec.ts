@@ -419,6 +419,26 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       expect(dp).toContain('Queue(q${EXTEN}_42,');
     });
 
+    it('toqueue with phonebook target emits lookup by var_key then Queue(q${PB_TARGET}_{uid})', () => {
+      const dp = AsteriskDialplanUtils.actionToDialplan(
+        {
+          type: 'toqueue',
+          params: {
+            target: { source: 'phonebook', phonebookUid: 7, varKey: 'queue' },
+            timeout: 30,
+            options: 'thH',
+          },
+          condition: {},
+        },
+        vpbx,
+      );
+      expect(dp).toContain('internal/dialplan/phonebook-lookup');
+      expect(dp).toContain('phonebook_uid=7');
+      expect(dp).toContain('var_key=queue');
+      expect(dp).toContain('Set(PB_TARGET=${CURL(');
+      expect(dp).toContain('ExecIf($["${PB_TARGET}" != ""]?Queue(q${PB_TARGET}_42,thH,,,30))');
+    });
+
     it('toqueue with empty params no longer emits raw ${EXTEN} (D-21, replaces 12-01 baseline)', () => {
       const dp = AsteriskDialplanUtils.actionToDialplan(
         { type: 'toqueue', params: {}, condition: {} },

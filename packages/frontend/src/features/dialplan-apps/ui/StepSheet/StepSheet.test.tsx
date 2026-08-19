@@ -112,7 +112,7 @@ describe('StepSheet', () => {
     }
     render(<SourceHarness />);
 
-    fireEvent.change(screen.getByRole('combobox', { name: 'routes.chain.fields.queue' }), {
+    fireEvent.change(screen.getByRole('combobox', { name: 'Очередь' }), {
       target: { value: '__src:route_pattern' },
     });
     expect(onChange).toHaveBeenCalledWith(
@@ -177,7 +177,8 @@ describe('StepSheet', () => {
     expect(link).toHaveAttribute('target', '_blank');
   });
 
-  it('does not close while queue is unspecified', () => {
+  it('highlights required queue and keeps sheet open when close is cancelled', () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
     const onOpenChange = vi.fn();
     render(
       <StepSheet
@@ -197,8 +198,36 @@ describe('StepSheet', () => {
     );
 
     const close = screen.getByRole('button', { name: 'Закрыть' });
-    expect(close).toBeDisabled();
+    expect(close).not.toBeDisabled();
     fireEvent.click(close);
+    expect(confirmSpy).toHaveBeenCalled();
     expect(onOpenChange).not.toHaveBeenCalled();
+    expect(screen.getByText('Укажите очередь')).toBeInTheDocument();
+    confirmSpy.mockRestore();
+  });
+
+  it('closes without queue when user confirms', () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const onOpenChange = vi.fn();
+    render(
+      <StepSheet
+        open
+        stepId="step-1"
+        tenantUid={42}
+        action={{
+          id: 'step-1',
+          type: 'toqueue',
+          params: { target: { source: 'fixed', value: '' }, options: 'thH' },
+          condition: {},
+        }}
+        onOpenChange={onOpenChange}
+        onChange={vi.fn()}
+        onTypeChange={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Закрыть' }));
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+    confirmSpy.mockRestore();
   });
 });

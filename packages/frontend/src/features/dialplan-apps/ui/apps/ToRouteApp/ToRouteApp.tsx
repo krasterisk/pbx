@@ -8,11 +8,11 @@ import { useGetContextsQuery } from '@/shared/api/endpoints/contextApi';
 import { useGetRoutesByContextQuery } from '@/shared/api/endpoints/routeApi';
 
 /**
- * ToRouteApp — select a target context and route (rule) to redirect to.
+ * ToRouteApp - select a target context and route (rule) to redirect to.
  *
  * Saves params:
- *   - context: string  — context name (used in dialplan Goto)
- *   - extension: string — first extension pattern of the selected route
+ *   - context: string  - context name (used in dialplan Goto)
+ *   - extension: string - first extension pattern of the selected route
  */
 export const ToRouteApp: React.FC<IDialplanAppProps> = ({ action, onUpdate }) => {
   const { t } = useTranslation();
@@ -74,7 +74,7 @@ export const ToRouteApp: React.FC<IDialplanAppProps> = ({ action, onUpdate }) =>
         </Select>
       </VStack>
 
-      {/* Route (rule) selector — shows after context is chosen */}
+      {/* Route (rule) selector - shows after context is chosen */}
       <VStack gap="2" className="flex-1">
         {selectedContextUid ? (
           <Select

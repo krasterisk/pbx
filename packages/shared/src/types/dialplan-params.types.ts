@@ -2,7 +2,7 @@ export type ValueSource =
   | { source: 'fixed'; value: string }
   | { source: 'route_pattern' }
   | { source: 'variable'; name: string }
-  | { source: 'phonebook'; phonebookUid: number };
+  | { source: 'phonebook'; phonebookUid: number; varKey: string };
 
 export interface IQueueActionParams {
   target?: ValueSource;

@@ -53,6 +53,12 @@ export const dialplanAppsRegistry: Record<ActionType, IDialplanAppConfig> = {
       if (target?.source === 'variable' && target.name) {
         return t('routes.chain.summary.toqueue.variable', 'Очередь из переменной');
       }
+      if (target?.source === 'phonebook' && target.phonebookUid && target.varKey) {
+        return t('routes.chain.summary.toqueue.phonebook', 'Очередь из справочника ({{field}})').replace(
+          '{{field}}',
+          String(target.varKey),
+        );
+      }
       const fixed = (target?.source === 'fixed' && target.value) || params?.queue;
       if (fixed) {
         return t('routes.chain.summary.toqueue.fixed', 'Очередь {{queue}}').replace('{{queue}}', String(fixed));
