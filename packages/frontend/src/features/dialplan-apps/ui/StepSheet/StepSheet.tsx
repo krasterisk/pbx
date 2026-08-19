@@ -17,6 +17,7 @@ import { dialplanAppsRegistry } from '../../model/registry';
 import { ActionTypeSelect } from '../ActionTypeSelect';
 import { isValueSourceComplete } from '../ValueSourceField/ValueSourceField';
 import { SchemaFields } from '../SchemaFields/SchemaFields';
+import { OptionsEditor } from '../OptionsEditor/OptionsEditor';
 import styles from './StepSheet.module.scss';
 
 export type StepSheetSide = 'right' | 'bottom';
@@ -116,6 +117,9 @@ export function StepSheet({
   };
 
   const hasParams = Boolean(config?.schema?.length);
+  const optionsValue = typeof action?.params?.options === 'string' ? action.params.options : '';
+  const optionFlags = config?.optionFlags ?? [];
+  const showOptions = optionFlags.length > 0 || optionsValue.length > 0;
 
   return (
     <Sheet open={open && !!stepId} onOpenChange={requestClose}>
@@ -177,7 +181,7 @@ export function StepSheet({
             </Text>
           )}
 
-          {optionsSlot != null ? (
+          {showOptions || optionsSlot != null ? (
             <VStack gap="8" max className={styles.collapsible}>
               <button
                 type="button"
@@ -187,7 +191,15 @@ export function StepSheet({
               >
                 {t('routes.chain.section.options', 'Опции')}
               </button>
-              {optionsOpen ? optionsSlot : null}
+              {optionsOpen
+                ? (optionsSlot ?? (
+                    <OptionsEditor
+                      value={optionsValue}
+                      flags={optionFlags}
+                      onChange={(options) => onChange({ options })}
+                    />
+                  ))
+                : null}
             </VStack>
           ) : null}
 

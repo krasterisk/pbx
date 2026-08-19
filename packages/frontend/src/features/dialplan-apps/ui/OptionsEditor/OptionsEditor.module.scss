@@ -1,0 +1,47 @@
+.root {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-md, 0.5rem);
+  background: color-mix(in srgb, var(--color-muted) 35%, transparent);
+  border: 1px solid var(--color-border);
+}
+
+.flagRow {
+  width: 100%;
+  min-height: 44px;
+}
+
+.flagLetter {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  padding: 0.125rem 0.375rem;
+  border-radius: var(--radius-sm, 0.25rem);
+  background: color-mix(in srgb, var(--color-muted) 60%, transparent);
+}
+
+.unknown {
+  color: var(--color-warning, var(--color-foreground));
+  min-height: 44px;
+}
+
+.expert {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+}
+
+.invalid {
+  outline: 1px solid var(--color-destructive);
+}
+
+.error {
+  color: var(--color-destructive);
+}
+
+.toggle {
+  min-height: 44px;
+  border: 0;
+  background: transparent;
+  color: var(--color-foreground);
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+  padding: 0;
+}

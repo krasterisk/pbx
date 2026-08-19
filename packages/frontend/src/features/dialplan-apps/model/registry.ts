@@ -127,6 +127,15 @@ const registryDraft: Record<ActionType, Omit<IDialplanAppConfig, 'schema' | 'sum
   hangup: { type: 'hangup', labelKey: 'routes.action.hangup', component: HangupApp, category: 'telephony', defaultParams: { causecode: '' } },
 };
 
+function inferOptionFlags(options: unknown): string[] {
+  if (typeof options !== 'string' || !options) return [];
+  const flags: string[] = [];
+  for (const ch of options) {
+    if (/^[A-Za-z]$/.test(ch) && !flags.includes(ch)) flags.push(ch);
+  }
+  return flags;
+}
+
 function withRequiredFields(
   config: (typeof registryDraft)[ActionType],
 ): IDialplanAppConfig {
@@ -134,7 +143,7 @@ function withRequiredFields(
   return {
     ...config,
     schema: config.schema ?? [],
-    optionFlags: config.optionFlags ?? [],
+    optionFlags: config.optionFlags ?? inferOptionFlags(config.defaultParams?.options),
     terminal: config.terminal ?? meta.terminal,
     allowedIn: config.allowedIn ?? meta.allowedIn,
     summarize:
