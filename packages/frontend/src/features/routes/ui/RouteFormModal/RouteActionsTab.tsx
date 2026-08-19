@@ -1,11 +1,12 @@
 import { memo, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Table2, Code2 } from 'lucide-react';
-import { Button, Input, Label, InfoTooltip } from '@/shared/ui';
+import { Button, Input, Label, InfoTooltip, Text } from '@/shared/ui';
 import { VStack, HStack } from '@/shared/ui/Stack';
 import { useAppSelector, useAppDispatch } from '@/shared/hooks/useAppStore';
 import { routesActions } from '../../model/slice/routesSlice';
-import { DialplanAppsEditor } from '@/features/dialplan-apps';
+import { DialplanAppsEditor, allowedTypesForHost } from '@/features/dialplan-apps';
+import type { MappedStepErrors } from '@/features/dialplan-apps/model/stepErrors';
 import { RawDialplanEditor } from '../RawDialplanEditor/RawDialplanEditor';
 import { useGetTenantSettingsQuery } from '@/entities/tenantSettings';
 import { ensureCdrVpbxUserUidInDialplan } from '@krasterisk/shared';
@@ -20,9 +21,10 @@ export interface RouteActionsTabProps {
   preCommand: string;
   setPreCommand: (v: string) => void;
   vpbxUserUid: number;
+  stepErrors?: MappedStepErrors;
 }
 
-export const RouteActionsTab = memo(({ actions, setActions, rawDialplan, setRawDialplan, preCommand, setPreCommand, vpbxUserUid }: RouteActionsTabProps) => {
+export const RouteActionsTab = memo(({ actions, setActions, rawDialplan, setRawDialplan, preCommand, setPreCommand, vpbxUserUid, stepErrors }: RouteActionsTabProps) => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const { editorMode } = useAppSelector((s) => s.routes);
@@ -83,7 +85,21 @@ export const RouteActionsTab = memo(({ actions, setActions, rawDialplan, setRawD
       )}
 
       {effectiveMode === 'table' && (
-        <DialplanAppsEditor actions={actions} onChange={setActions} />
+        <>
+          <DialplanAppsEditor
+            host="route"
+            labels={{ namespace: 'routes.chain' }}
+            allowedTypes={allowedTypesForHost('route')}
+            actions={actions}
+            onChange={setActions}
+            stepErrors={stepErrors}
+          />
+          {stepErrors?.orphans.length ? (
+            <Text variant="error">
+              {stepErrors.orphans.map((err) => err.message).join('; ')}
+            </Text>
+          ) : null}
+        </>
       )}
       {showRawDialplan && effectiveMode === 'raw' && (
         <RawDialplanEditor

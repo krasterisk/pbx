@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Plus, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button, Input, Text } from '@/shared/ui';
 import { VStack, HStack, Flex } from '@/shared/ui/Stack';
-import { DialplanAppsEditor } from '@/features/dialplan-apps';
+import { DialplanAppsEditor, allowedTypesForHost } from '@/features/dialplan-apps';
 import { IIvrMenuItem } from '@/entities/ivr';
 import cls from './IvrMenuItemsEditor.module.scss';
 
@@ -97,6 +97,9 @@ export const IvrMenuItemsEditor = memo(({ menuItems, onChange }: IvrMenuItemsEdi
               {isExpanded && (
                 <div className={cls.itemBody}>
                   <DialplanAppsEditor
+                    host="ivr"
+                    labels={{ namespace: 'ivrs.menuItems' }}
+                    allowedTypes={allowedTypesForHost('ivr')}
                     actions={item.actions}
                     onChange={(newActions) => updateActions(idx, newActions)}
                   />

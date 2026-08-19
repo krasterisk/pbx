@@ -19,6 +19,8 @@ import { useGetTenantSettingsQuery } from '@/entities/tenantSettings';
 import { RouteGeneralTab, decodeRecordMode } from './RouteGeneralTab';
 import { RouteWebhooksTab, WebhookItem } from './RouteWebhooksTab';
 import { RouteActionsTab } from './RouteActionsTab';
+import { mapStepErrors } from '@/features/dialplan-apps';
+import type { MappedStepErrors } from '@/features/dialplan-apps/model/stepErrors';
 import { RoutePhonebooksTab } from './RoutePhonebooksTab';
 
 function hasIncompleteQueueAction(list: IRouteAction[]): boolean {
@@ -49,6 +51,7 @@ export const RouteFormModal = memo(() => {
   const [extensions, setExtensions] = useState<string[]>([]);
   const [active, setActive] = useState(true);
   const [actions, setActions] = useState<IRouteAction[]>([]);
+  const [stepErrors, setStepErrors] = useState<MappedStepErrors | undefined>();
   const [rawDialplan, setRawDialplan] = useState('');
 
   const { data: contexts = [] } = useGetContextsQuery();
@@ -226,9 +229,11 @@ export const RouteFormModal = memo(() => {
       } else if (selectedRoute) {
         await updateRoute({ uid: selectedRoute.uid, data }).unwrap();
       }
+      setStepErrors(undefined);
       handleClose();
     } catch (err) {
-      console.error('Failed to save route:', err);
+      const body = (err as { data?: { errors?: Array<{ actionId?: string; path: string; message: string }> } })?.data;
+      setStepErrors(mapStepErrors(body, actions));
     }
   };
 
@@ -287,6 +292,7 @@ export const RouteFormModal = memo(() => {
               rawDialplan={rawDialplan} setRawDialplan={setRawDialplan}
               preCommand={preCommand} setPreCommand={setPreCommand}
               vpbxUserUid={vpbxUserUid}
+              stepErrors={stepErrors}
             />
           )}
 

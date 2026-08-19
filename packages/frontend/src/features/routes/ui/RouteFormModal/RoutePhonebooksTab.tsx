@@ -5,6 +5,7 @@ import { Button, Input, Select, Text, InfoTooltip } from '@/shared/ui';
 import { VStack, HStack, Flex } from '@/shared/ui/Stack';
 import { useGetPhonebooksQuery } from '@/shared/api/endpoints/phonebookApi';
 import { DialplanAppsEditor } from '@/features/dialplan-apps/ui/DialplanAppsEditor/DialplanAppsEditor';
+import { allowedTypesForHost } from '@/features/dialplan-apps/model/hostTypes';
 import type {
   IRoutePhonebook,
   IRoutePhonebookBinding,
@@ -16,7 +17,7 @@ import { normalizePhonebookBehaviorType } from '@krasterisk/shared';
 import cls from './RoutePhonebooksTab.module.scss';
 
 /**
- * Collect all unique `vars` keys across a phonebook's entries, sorted —
+ * Collect all unique `vars` keys across a phonebook's entries, sorted -
  * mirrors backend's collectAllVarKeys (phonebook-dialplan.util.ts) so the UI
  * suggests only keys that actually exist in this phonebook's data, instead of
  * a hardcoded convention guess (was: free-text input defaulting to "name").
@@ -428,6 +429,9 @@ const BindingParamsFields = memo(({ binding, varKeys, onChange }: BindingParamsF
       return (
         <VStack gap="8" className={cls.customBlock}>
           <DialplanAppsEditor
+            host="phonebook"
+            labels={{ namespace: 'routes.chain' }}
+            allowedTypes={allowedTypesForHost('phonebook')}
             actions={binding.actions || []}
             onChange={(actions) => onChange({ actions })}
           />
@@ -441,13 +445,13 @@ const BindingParamsFields = memo(({ binding, varKeys, onChange }: BindingParamsF
               ? 'routes.phonebooks.params.dropHintOnNoMatch'
               : 'routes.phonebooks.params.dropHintOnMatch',
             binding.match_mode === 'on_no_match'
-              ? 'Номера нет в справочнике — звонок сбрасывается. Пропускаются только номера из списка.'
-              : 'Номер найден в справочнике — звонок сбрасывается. Остальные проходят дальше.',
+              ? 'Номера нет в справочнике - звонок сбрасывается. Пропускаются только номера из списка.'
+              : 'Номер найден в справочнике - звонок сбрасывается. Остальные проходят дальше.',
           )}
         </Text>
       );
     default:
-      // vars_only — no params (D-26)
+      // vars_only - no params (D-26)
       return null;
   }
 });
@@ -466,7 +470,7 @@ interface VarKeyFieldProps {
  * Picks a phonebook `vars` key to read at dialplan time (${PB_<key>}).
  *
  * No hardcoded naming conventions: the select only lists keys that actually
- * exist in this phonebook's entries, and the choice is mandatory — the
+ * exist in this phonebook's entries, and the choice is mandatory - the
  * dialplan generator emits nothing for a var-based preset without var_key.
  * If exactly one key exists, it is auto-selected. Falls back to a disabled
  * state (with a hint) when the phonebook has no vars at all.
@@ -474,7 +478,7 @@ interface VarKeyFieldProps {
 const VarKeyField = memo(({ value, availableKeys, onChange }: VarKeyFieldProps) => {
   const { t } = useTranslation();
 
-  // Single real key — nothing to choose, pick it automatically.
+  // Single real key - nothing to choose, pick it automatically.
   useEffect(() => {
     if (availableKeys.length === 1 && value !== availableKeys[0]) {
       onChange(availableKeys[0]);
@@ -522,7 +526,7 @@ interface VarKeyStatusHintProps {
 
 /**
  * Context line under a var-based preset: explains where the value comes from,
- * or warns that the preset is inert (no vars / nothing selected) — mirrors the
+ * or warns that the preset is inert (no vars / nothing selected) - mirrors the
  * generator, which emits no dialplan action without a valid var_key.
  */
 const VarKeyStatusHint = memo(({ varKey, availableKeys }: VarKeyStatusHintProps) => {

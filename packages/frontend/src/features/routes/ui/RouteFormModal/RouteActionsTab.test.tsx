@@ -23,15 +23,19 @@ vi.mock('@/entities/tenantSettings', () => ({
   useGetTenantSettingsQuery: () => tenantQuery,
 }));
 
-vi.mock('@/features/dialplan-apps', () => ({
-  DialplanAppsEditor: (props: { host?: string; allowedTypes?: string[] }) => (
-    <div
-      data-testid="table-editor"
-      data-host={props.host}
-      data-allowed={(props.allowedTypes ?? []).join(',')}
-    />
-  ),
-}));
+vi.mock('@/features/dialplan-apps', async () => {
+  const actual = await vi.importActual<typeof import('@/features/dialplan-apps')>('@/features/dialplan-apps');
+  return {
+    ...actual,
+    DialplanAppsEditor: (props: { host?: string; allowedTypes?: string[] }) => (
+      <div
+        data-testid="table-editor"
+        data-host={props.host}
+        data-allowed={(props.allowedTypes ?? []).join(',')}
+      />
+    ),
+  };
+});
 
 vi.mock('../RawDialplanEditor/RawDialplanEditor', () => ({
   RawDialplanEditor: () => <div data-testid="raw-dialplan-editor" />,

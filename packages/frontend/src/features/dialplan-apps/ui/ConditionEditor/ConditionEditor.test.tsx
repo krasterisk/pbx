@@ -40,8 +40,8 @@ describe('ConditionEditor', () => {
     const onChange = vi.fn();
     render(<ConditionEditor value={value} onChange={onChange} />);
     fireEvent.click(screen.getByRole('tab', { name: 'Эксперт' }));
-    expect(screen.getByDisplayValue('queuestatus')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('FULL')).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Источник' })).toHaveValue('queuestatus');
+    expect(screen.getByRole('combobox', { name: 'Значение' })).toHaveValue('FULL');
     fireEvent.click(screen.getByRole('tab', { name: 'Простой' }));
     expect(screen.getByRole('combobox', { name: 'Выберите условие' })).toHaveValue('queue-full');
   });

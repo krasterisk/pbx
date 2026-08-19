@@ -40,6 +40,8 @@ import { dialplanAppsRegistry } from '../../model/registry';
 import type { DialplanHost } from '../../model/types';
 import { StepRow, type StepSection } from '../StepRow/StepRow';
 import { StepSheet } from '../StepSheet/StepSheet';
+import { allowedTypesForHost } from '../../model/hostTypes';
+import type { MappedStepErrors } from '../../model/stepErrors';
 import { UnknownActionCard } from '../UnknownActionCard/UnknownActionCard';
 import styles from './DialplanAppsEditor.module.scss';
 
@@ -57,6 +59,7 @@ export interface DialplanAppsEditorProps {
   maxSteps?: number;
   host?: DialplanHost;
   makeId?: () => string;
+  stepErrors?: MappedStepErrors;
 }
 
 export function restrictToVerticalAxisLocal({
@@ -104,9 +107,7 @@ export function buildDndAnnouncements(
 }
 
 function typesForHost(host: DialplanHost): ActionType[] {
-  return (Object.keys(DIALPLAN_ACTION_META) as ActionType[]).filter((type) =>
-    DIALPLAN_ACTION_META[type].allowedIn.includes(host),
-  );
+  return allowedTypesForHost(host);
 }
 
 function firstAlwaysTerminalIndex(actions: IRouteAction[]): number {
@@ -147,6 +148,7 @@ export const DialplanAppsEditor = memo(function DialplanAppsEditor({
   maxSteps,
   host = 'route',
   makeId = () => crypto.randomUUID(),
+  stepErrors,
 }: DialplanAppsEditorProps) {
   const { t, i18n } = useTranslation();
   const currentUser = useAppSelector(selectCurrentUser);
@@ -483,6 +485,15 @@ export const DialplanAppsEditor = memo(function DialplanAppsEditor({
           }}
           onTypeChange={(type) => {
             if (selectedStepId) handleTypeChange(selectedStepId, type);
+          }}
+          fieldErrors={selectedStepId ? stepErrors?.byStep.get(selectedStepId) : undefined}
+          onConditionChange={(condition) => {
+            if (!selectedStepId) return;
+            onChange(
+              actions.map((item) =>
+                item.id === selectedStepId ? { ...item, condition } : item,
+              ),
+            );
           }}
         />
       )}

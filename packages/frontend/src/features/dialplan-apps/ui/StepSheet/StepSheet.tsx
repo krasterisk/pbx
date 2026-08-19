@@ -18,6 +18,9 @@ import { ActionTypeSelect } from '../ActionTypeSelect';
 import { isValueSourceComplete } from '../ValueSourceField/ValueSourceField';
 import { SchemaFields } from '../SchemaFields/SchemaFields';
 import { OptionsEditor } from '../OptionsEditor/OptionsEditor';
+import { ConditionEditor } from '../ConditionEditor/ConditionEditor';
+import { toConditionSource, toRouteCondition } from '../../model/conditionMap';
+import type { ConditionSource } from '@krasterisk/shared';
 import styles from './StepSheet.module.scss';
 
 export type StepSheetSide = 'right' | 'bottom';
@@ -32,6 +35,7 @@ export interface StepSheetProps {
   onOpenChange: (open: boolean) => void;
   onChange: (patch: Record<string, unknown>) => void;
   onTypeChange: (type: ActionType) => void;
+  onConditionChange?: (condition: ReturnType<typeof toRouteCondition>) => void;
   fieldErrors?: Record<string, string>;
   forceSide?: StepSheetSide;
   initialSection?: StepSheetSection;
@@ -60,6 +64,7 @@ export function StepSheet({
   onOpenChange,
   onChange,
   onTypeChange,
+  onConditionChange,
   fieldErrors,
   forceSide,
   initialSection,
@@ -203,19 +208,24 @@ export function StepSheet({
             </VStack>
           ) : null}
 
-          {conditionsSlot != null ? (
-            <VStack gap="8" max className={styles.collapsible}>
-              <button
-                type="button"
-                className={styles.groupToggle}
-                aria-expanded={conditionsOpen}
-                onClick={() => setConditionsOpen((v) => !v)}
-              >
-                {t('routes.chain.section.conditions', 'Условия')}
-              </button>
-              {conditionsOpen ? conditionsSlot : null}
-            </VStack>
-          ) : null}
+          <VStack gap="8" max className={styles.collapsible}>
+            <button
+              type="button"
+              className={styles.groupToggle}
+              aria-expanded={conditionsOpen}
+              onClick={() => setConditionsOpen((v) => !v)}
+            >
+              {t('routes.chain.section.conditions', 'Условия')}
+            </button>
+            {conditionsOpen
+              ? (conditionsSlot ?? (
+                  <ConditionEditor
+                    value={toConditionSource(action?.condition) as ConditionSource | undefined}
+                    onChange={(next) => onConditionChange?.(toRouteCondition(next))}
+                  />
+                ))
+              : null}
+          </VStack>
         </VStack>
         </div>
 
