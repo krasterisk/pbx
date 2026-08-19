@@ -11,12 +11,12 @@ import type { ICallGroup } from '@krasterisk/shared';
 import { IDialplanAppProps } from '../../../model/types';
 import cls from './GroupApp.module.scss';
 
-export const GroupApp = memo(({ action, onUpdate }: IDialplanAppProps) => {
+export const GroupApp = memo(({ params, onChange, readOnly, actionType }: IDialplanAppProps) => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const { data: callGroups = [] } = useGetCallGroupsQuery();
 
-  const selectedGroup = String(action.params?.group ?? '');
+  const selectedGroup = String(params?.group ?? '');
   const selectedUid = selectedGroup ? Number(selectedGroup) : NaN;
   const hasValidSelection = Number.isFinite(selectedUid) && selectedUid > 0;
 
@@ -24,9 +24,9 @@ export const GroupApp = memo(({ action, onUpdate }: IDialplanAppProps) => {
     (e: ChangeEvent<HTMLSelectElement>) => {
       const value = e.target.value;
       // Store numeric call_group uid as string (Gosub target consistency)
-      onUpdate(action.id, 'params.group', value);
+      onChange({ group: value });
     },
-    [action.id, onUpdate],
+    [onChange],
   );
 
   const handleOpenModal = useCallback(() => {
@@ -39,9 +39,10 @@ export const GroupApp = memo(({ action, onUpdate }: IDialplanAppProps) => {
 
   const handleSaved = useCallback(
     (group: ICallGroup) => {
-      onUpdate(action.id, 'params.group', String(group.uid));
+      const nextUid = String(group.uid);
+      onChange({ group: nextUid });
     },
-    [action.id, onUpdate],
+    [onChange],
   );
 
   return (

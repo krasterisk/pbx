@@ -6,7 +6,7 @@ import { Text } from '@/shared/ui/Text/Text';
 import { IDialplanAppProps } from '../../../model/types';
 import { useGetVoiceRobotsQuery } from '@/shared/api/endpoints/voiceRobotsApi';
 
-export const VoiceRobotApp: React.FC<IDialplanAppProps> = ({ action, onUpdate }) => {
+export const VoiceRobotApp: React.FC<IDialplanAppProps> = ({ params, onChange, readOnly, actionType }) => {
   const { t } = useTranslation();
   const { data: voiceRobots = [], isLoading, isError } = useGetVoiceRobotsQuery();
 
@@ -19,8 +19,8 @@ export const VoiceRobotApp: React.FC<IDialplanAppProps> = ({ action, onUpdate })
             <Text variant="small" className="text-destructive">{t('common.loadError', 'Ошибка загрузки')}</Text>
           ) : (
             <Select
-              value={action.params?.robot_uid?.toString() || ''}
-              onChange={(e) => onUpdate(action.id, 'params.robot_uid', Number(e.target.value))}
+              value={params?.robot_uid?.toString() || ''}
+              onChange={(e) => onChange({ robot_uid: Number(e.target.value) })}
               disabled={isLoading}
             >
               <option value="" disabled>{t('routes.apps.voicerobot.select', 'Голосовой робот')}</option>

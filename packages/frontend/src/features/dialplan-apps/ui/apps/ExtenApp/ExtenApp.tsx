@@ -9,17 +9,17 @@ import { useGetEndpointsQuery } from '@/shared/api/endpoints/endpointApi';
 
 const EXTEN_PATTERN_VALUE = '__USE_EXTEN__';
 
-export const ExtenApp: React.FC<IDialplanAppProps> = ({ action, onUpdate }) => {
+export const ExtenApp: React.FC<IDialplanAppProps> = ({ params, onChange, readOnly, actionType }) => {
   const { t } = useTranslation();
   const { data: endpoints = [], isLoading, isError } = useGetEndpointsQuery();
 
-  const currentValue = action.params?.useExten ? EXTEN_PATTERN_VALUE : (action.params?.exten || '');
+  const currentValue = params?.useExten ? EXTEN_PATTERN_VALUE : (params?.exten || '');
 
   const handleChange = (value: string) => {
     if (value === EXTEN_PATTERN_VALUE) {
-      onUpdate(action.id, 'params', { useExten: true, exten: '' });
+      onChange({ useExten: true, exten: '' });
     } else {
-      onUpdate(action.id, 'params', { useExten: false, exten: value });
+      onChange({ useExten: false, exten: value });
     }
   };
 
@@ -54,16 +54,16 @@ export const ExtenApp: React.FC<IDialplanAppProps> = ({ action, onUpdate }) => {
           <Input
             placeholder={t('routes.apps.common.timeout', 'Таймаут, сек')}
             type="number"
-            value={action.params?.timeout || ''}
-            onChange={(e) => onUpdate(action.id, 'params.timeout', e.target.value)}
+            value={params?.timeout || ''}
+            onChange={(e) => onChange({ timeout: e.target.value })}
           />
         </VStack>
 
         <VStack gap="2" className="flex-1">
           <Input
             placeholder={t('routes.apps.common.options', 'Опции (tThH)')}
-            value={action.params?.options || ''}
-            onChange={(e) => onUpdate(action.id, 'params.options', e.target.value)}
+            value={params?.options || ''}
+            onChange={(e) => onChange({ options: e.target.value })}
           />
         </VStack>
       </HStack>

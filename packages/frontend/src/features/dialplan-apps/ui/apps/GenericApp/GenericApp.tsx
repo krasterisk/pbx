@@ -10,16 +10,14 @@ import { Text } from '@/shared/ui/Text/Text';
  * Fallback app that renders generic inputs based on the ActionType.
  * As the project scales, each of these switch cases should become a dedicated App component.
  */
-export const GenericApp = memo(({ action, onUpdate }: IDialplanAppProps) => {
+export const GenericApp = memo(({ params, onChange, readOnly, actionType }: IDialplanAppProps) => {
   const { t } = useTranslation();
-  const p = action.params;
-  const id = action.id;
-
+  const p = params;
   const handleUpdate = (field: string, value: string) => {
-    onUpdate(id, `params.${field}`, value);
+    onChange({ [field]: value });
   };
 
-  switch (action.type) {
+  switch (actionType) {
     case 'togroup':
       return <Input className="w-full" value={p.group || ''} onChange={(e) => handleUpdate('group', e.target.value)} placeholder={t('routes.apps.group.number', 'Номер группы')} />;
     case 'tolist':

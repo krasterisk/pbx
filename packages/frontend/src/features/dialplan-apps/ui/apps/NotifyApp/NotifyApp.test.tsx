@@ -5,9 +5,8 @@ import '@testing-library/jest-dom';
 import { NotifyApp } from './NotifyApp';
 import * as notificationApiHooks from '@/shared/api/endpoints/notificationApi';
 import { NOTIFY_PRESETS } from '../../../config/notifyPresets';
-import type { IRouteAction } from '@krasterisk/shared';
 
-const mockOnUpdate = vi.fn();
+const mockOnChange = vi.fn();
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -27,12 +26,7 @@ vi.mock('@/shared/api/endpoints/notificationApi', () => ({
   useGetNotificationsQuery: vi.fn(),
 }));
 
-const baseAction: IRouteAction = {
-  id: 'action-notify',
-  type: 'notify',
-  params: { integration_uid: '', message: '', target: '' },
-  condition: {},
-};
+const baseParams = { integration_uid: '', message: '', target: '' };
 
 describe('NotifyApp', () => {
   beforeEach(() => {
@@ -46,64 +40,49 @@ describe('NotifyApp', () => {
     });
   });
 
-  it('renders integration options and calls onUpdate for integration_uid', () => {
-    render(<NotifyApp action={baseAction} onUpdate={mockOnUpdate} />);
+  it('renders integration options and calls onChange for integration_uid', () => {
+    render(<NotifyApp params={baseParams} onChange={mockOnChange} />);
 
     const select = screen.getByLabelText('Select integration') as HTMLSelectElement;
-    const values = Array.from(select.options).map((o) => o.value);
-    expect(values).toEqual(['', '3', '5', '7']);
+    expect(Array.from(select.options).map((o) => o.value)).toEqual(['', '3', '5', '7']);
 
     fireEvent.change(select, { target: { value: '5' } });
-    expect(mockOnUpdate).toHaveBeenCalledWith('action-notify', 'params.integration_uid', '5');
+    expect(mockOnChange).toHaveBeenCalledWith({ integration_uid: '5' });
   });
 
-  it('applies a preset into the message template via onUpdate', () => {
-    render(<NotifyApp action={baseAction} onUpdate={mockOnUpdate} />);
+  it('applies a preset into the message template via onChange', () => {
+    render(<NotifyApp params={baseParams} onChange={mockOnChange} />);
 
-    const presets = screen.getByLabelText('Presets') as HTMLSelectElement;
-    fireEvent.change(presets, { target: { value: 'incomingCall' } });
-
-    expect(mockOnUpdate).toHaveBeenCalledWith(
-      'action-notify',
-      'params.preset',
-      'incomingCall',
-    );
-    expect(mockOnUpdate).toHaveBeenCalledWith(
-      'action-notify',
-      'params.message',
-      NOTIFY_PRESETS.incomingCall,
-    );
+    fireEvent.change(screen.getByLabelText('Presets'), { target: { value: 'incomingCall' } });
+    expect(mockOnChange).toHaveBeenCalledWith({ preset: 'incomingCall' });
+    expect(mockOnChange).toHaveBeenCalledWith({ message: NOTIFY_PRESETS.incomingCall });
     expect(NOTIFY_PRESETS.incomingCall).toContain('${CALLERID(num)}');
   });
 
   it('updates message and optional target fields for non-webhook channels', () => {
     render(
       <NotifyApp
-        action={{ ...baseAction, params: { integration_uid: '3', message: '', target: '' } }}
-        onUpdate={mockOnUpdate}
+        params={{ integration_uid: '3', message: '', target: '' }}
+        onChange={mockOnChange}
       />,
     );
 
     fireEvent.change(screen.getByLabelText('Шаблон сообщения'), {
       target: { value: 'Custom ${EXTEN}' },
     });
-    expect(mockOnUpdate).toHaveBeenCalledWith(
-      'action-notify',
-      'params.message',
-      'Custom ${EXTEN}',
-    );
+    expect(mockOnChange).toHaveBeenCalledWith({ message: 'Custom ${EXTEN}' });
 
     fireEvent.change(screen.getByLabelText('Переопределение получателя (опц.)'), {
       target: { value: '-1001' },
     });
-    expect(mockOnUpdate).toHaveBeenCalledWith('action-notify', 'params.target', '-1001');
+    expect(mockOnChange).toHaveBeenCalledWith({ target: '-1001' });
   });
 
   it('hides target and shows webhook message label when webhook integration is selected', () => {
     render(
       <NotifyApp
-        action={{ ...baseAction, params: { integration_uid: '7', message: '', target: 'x' } }}
-        onUpdate={mockOnUpdate}
+        params={{ integration_uid: '7', message: '', target: 'x' }}
+        onChange={mockOnChange}
       />,
     );
 
@@ -114,13 +93,13 @@ describe('NotifyApp', () => {
   it('clears target when switching to a webhook integration', () => {
     render(
       <NotifyApp
-        action={{ ...baseAction, params: { integration_uid: '3', message: '', target: '-1001' } }}
-        onUpdate={mockOnUpdate}
+        params={{ integration_uid: '3', message: '', target: '-1001' }}
+        onChange={mockOnChange}
       />,
     );
 
     fireEvent.change(screen.getByLabelText('Select integration'), { target: { value: '7' } });
-    expect(mockOnUpdate).toHaveBeenCalledWith('action-notify', 'params.integration_uid', '7');
-    expect(mockOnUpdate).toHaveBeenCalledWith('action-notify', 'params.target', '');
+    expect(mockOnChange).toHaveBeenCalledWith({ integration_uid: '7' });
+    expect(mockOnChange).toHaveBeenCalledWith({ target: '' });
   });
 });

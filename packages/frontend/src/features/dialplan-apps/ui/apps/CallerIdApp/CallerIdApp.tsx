@@ -52,14 +52,14 @@ export function resolveCallerIdMode(
   return 'static';
 }
 
-export const CallerIdApp = memo(({ action, onUpdate }: IDialplanAppProps) => {
+export const CallerIdApp = memo(({ params, onChange, readOnly, actionType }: IDialplanAppProps) => {
   const { t } = useTranslation();
   const { data: phonebooks = [], isLoading: phonebooksLoading } = useGetPhonebooksQuery();
   const [pendingNumber, setPendingNumber] = useState('');
 
-  const mode = resolveCallerIdMode(action.type, action.params);
-  const pool: string[] = Array.isArray(action.params?.pool)
-    ? action.params.pool.map((n: unknown) => String(n ?? ''))
+  const mode = resolveCallerIdMode(actionType ?? '', params);
+  const pool: string[] = Array.isArray(params?.pool)
+    ? params.pool.map((n: unknown) => String(n ?? ''))
     : [];
 
   const modeOptions = useMemo(
@@ -74,16 +74,16 @@ export const CallerIdApp = memo(({ action, onUpdate }: IDialplanAppProps) => {
   const handleModeChange = useCallback(
     (e: ChangeEvent<HTMLSelectElement>) => {
       const next = e.target.value as CallerIdMode;
-      onUpdate(action.id, 'params.mode', next);
+      onChange({ mode: next });
     },
-    [action.id, onUpdate],
+    [onChange],
   );
 
   const updatePool = useCallback(
     (next: string[]) => {
-      onUpdate(action.id, 'params.pool', next);
+      onChange({ pool: next });
     },
-    [action.id, onUpdate],
+    [onChange],
   );
 
   const handleAddPoolNumber = useCallback(() => {
@@ -154,15 +154,15 @@ export const CallerIdApp = memo(({ action, onUpdate }: IDialplanAppProps) => {
         <div className={cls.row}>
           <Input
             className={cls.field}
-            value={String(action.params?.callerid ?? '')}
-            onChange={(e) => onUpdate(action.id, 'params.callerid', e.target.value)}
+            value={String(params?.callerid ?? '')}
+            onChange={(e) => onChange({ callerid: e.target.value })}
             placeholder={t('routes.apps.callerid.callerid', 'CallerID number')}
             aria-label={t('routes.apps.callerid.callerid', 'CallerID number')}
           />
           <Input
             className={cls.field}
-            value={String(action.params?.name ?? '')}
-            onChange={(e) => onUpdate(action.id, 'params.name', e.target.value)}
+            value={String(params?.name ?? '')}
+            onChange={(e) => onChange({ name: e.target.value })}
             placeholder={t('routes.apps.callerid.name', 'CallerID name (optional)')}
             aria-label={t('routes.apps.callerid.name', 'CallerID name (optional)')}
           />
@@ -173,8 +173,8 @@ export const CallerIdApp = memo(({ action, onUpdate }: IDialplanAppProps) => {
         <div className={cls.row}>
           <Select
             className={cls.field}
-            value={String(action.params?.phonebook_uid ?? '')}
-            onChange={(e) => onUpdate(action.id, 'params.phonebook_uid', e.target.value)}
+            value={String(params?.phonebook_uid ?? '')}
+            onChange={(e) => onChange({ phonebook_uid: e.target.value })}
             disabled={phonebooksLoading}
             aria-label={t('routes.apps.callerid.selectPhonebook', 'Select phonebook')}
           >
@@ -194,8 +194,8 @@ export const CallerIdApp = memo(({ action, onUpdate }: IDialplanAppProps) => {
         <div className={cls.row}>
           <Input
             className={cls.field}
-            value={String(action.params?.list_uid ?? '')}
-            onChange={(e) => onUpdate(action.id, 'params.list_uid', e.target.value)}
+            value={String(params?.list_uid ?? '')}
+            onChange={(e) => onChange({ list_uid: e.target.value })}
             placeholder={t('routes.apps.callerid.listUid', 'List ID')}
             aria-label={t('routes.apps.callerid.listUid', 'List ID')}
           />

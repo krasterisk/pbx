@@ -6,7 +6,7 @@ import { Text } from '@/shared/ui/Text/Text';
 import { IDialplanAppProps } from '../../../model/types';
 import { useGetPromptsQuery } from '@/shared/api/endpoints/promptsApi';
 
-export const PromptApp: React.FC<IDialplanAppProps> = ({ action, onUpdate }) => {
+export const PromptApp: React.FC<IDialplanAppProps> = ({ params, onChange, readOnly, actionType }) => {
   const { t } = useTranslation();
   const { data: prompts = [], isLoading, isError } = useGetPromptsQuery();
 
@@ -18,8 +18,8 @@ export const PromptApp: React.FC<IDialplanAppProps> = ({ action, onUpdate }) => 
             <Text variant="small" className="text-destructive">{t('common.loadError', 'Ошибка загрузки')}</Text>
           ) : (
             <Select
-              value={action.params?.file || ''}
-              onChange={(e) => onUpdate(action.id, 'params.file', e.target.value)}
+              value={params?.file || ''}
+              onChange={(e) => onChange({ file: e.target.value })}
               disabled={isLoading}
             >
               <option value="" disabled>{t('routes.apps.prompt.select', 'Аудио файл')}</option>

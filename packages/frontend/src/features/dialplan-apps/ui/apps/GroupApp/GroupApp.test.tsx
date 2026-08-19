@@ -4,10 +4,9 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { GroupApp } from './GroupApp';
 import * as callGroupApiHooks from '@/shared/api/endpoints/callGroupApi';
-import type { IRouteAction } from '@krasterisk/shared';
 
 const mockDispatch = vi.fn();
-const mockOnUpdate = vi.fn();
+const mockOnChange = vi.fn();
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -42,12 +41,7 @@ vi.mock('@/features/call-groups', () => ({
   },
 }));
 
-const baseAction: IRouteAction = {
-  id: 'action-1',
-  type: 'togroup',
-  params: { group: '' },
-  condition: {},
-};
+const baseParams = { group: '', extra: 'keep-me' };
 
 describe('GroupApp', () => {
   beforeEach(() => {
@@ -60,20 +54,23 @@ describe('GroupApp', () => {
     });
   });
 
-  it('renders group options and calls onUpdate with string uid on selection', () => {
-    render(<GroupApp action={baseAction} onUpdate={mockOnUpdate} />);
+  it('renders group options and patches only the changed field', () => {
+    let params = { ...baseParams };
+    const onChange = vi.fn((patch: Record<string, unknown>) => {
+      params = { ...params, ...patch };
+    });
+    render(<GroupApp params={params} onChange={onChange} />);
 
     const select = screen.getByLabelText('Select call group') as HTMLSelectElement;
-    const optionValues = Array.from(select.options).map((o) => o.value);
-    expect(optionValues).toEqual(['', '7', '12']);
+    expect(Array.from(select.options).map((o) => o.value)).toEqual(['', '7', '12']);
 
     fireEvent.change(select, { target: { value: '12' } });
-    expect(mockOnUpdate).toHaveBeenCalledWith('action-1', 'params.group', '12');
-    expect(typeof mockOnUpdate.mock.calls[0][2]).toBe('string');
+    expect(onChange).toHaveBeenCalledWith({ group: '12' });
+    expect(params).toEqual({ group: '12', extra: 'keep-me' });
   });
 
   it('opens CallGroupFormModal create flow when no group is selected', () => {
-    render(<GroupApp action={baseAction} onUpdate={mockOnUpdate} />);
+    render(<GroupApp params={baseParams} onChange={mockOnChange} />);
 
     expect(screen.getByTestId('call-group-form-modal')).toBeInTheDocument();
     fireEvent.click(screen.getByText('Create group'));
@@ -81,12 +78,7 @@ describe('GroupApp', () => {
   });
 
   it('opens edit modal when a group is selected and refreshes uid after save', () => {
-    render(
-      <GroupApp
-        action={{ ...baseAction, params: { group: '7' } }}
-        onUpdate={mockOnUpdate}
-      />,
-    );
+    render(<GroupApp params={{ group: '7' }} onChange={mockOnChange} />);
 
     fireEvent.click(screen.getByText('Edit group'));
     expect(mockDispatch).toHaveBeenCalledWith({
@@ -95,6 +87,6 @@ describe('GroupApp', () => {
     });
 
     fireEvent.click(screen.getByTestId('simulate-saved'));
-    expect(mockOnUpdate).toHaveBeenCalledWith('action-1', 'params.group', '99');
+    expect(mockOnChange).toHaveBeenCalledWith({ group: '99' });
   });
 });

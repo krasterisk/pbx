@@ -14,16 +14,16 @@ import { useGetRoutesByContextQuery } from '@/shared/api/endpoints/routeApi';
  *   - context: string  - context name (used in dialplan Goto)
  *   - extension: string - first extension pattern of the selected route
  */
-export const ToRouteApp: React.FC<IDialplanAppProps> = ({ action, onUpdate }) => {
+export const ToRouteApp: React.FC<IDialplanAppProps> = ({ params, onChange, readOnly, actionType }) => {
   const { t } = useTranslation();
   const { data: contexts = [], isLoading: ctxLoading } = useGetContextsQuery();
 
   // Find the uid of the currently selected context by name
   const selectedContextUid = useMemo(() => {
-    if (!action.params?.context) return undefined;
-    const found = contexts.find(c => c.name === action.params.context);
+    if (!params?.context) return undefined;
+    const found = contexts.find(c => c.name === params.context);
     return found?.uid;
-  }, [action.params?.context, contexts]);
+  }, [params?.context, contexts]);
 
   // Fetch routes for the selected context
   const { data: routes = [], isLoading: routesLoading } = useGetRoutesByContextQuery(
@@ -34,14 +34,14 @@ export const ToRouteApp: React.FC<IDialplanAppProps> = ({ action, onUpdate }) =>
   const handleContextChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const ctx = contexts.find(c => c.uid === Number(e.target.value));
     if (ctx) {
-      onUpdate(action.id, 'params.context', ctx.name);
+      onChange({ context: ctx.name });
       // Reset extension when context changes
-      onUpdate(action.id, 'params.extension', '');
+      onChange({ extension: '' });
     }
   };
 
   const handleRouteChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    onUpdate(action.id, 'params.extension', e.target.value);
+    onChange({ extension: e.target.value });
   };
 
   /**
@@ -78,7 +78,7 @@ export const ToRouteApp: React.FC<IDialplanAppProps> = ({ action, onUpdate }) =>
       <VStack gap="2" className="flex-1">
         {selectedContextUid ? (
           <Select
-            value={action.params?.extension || ''}
+            value={params?.extension || ''}
             onChange={handleRouteChange}
             disabled={routesLoading}
           >

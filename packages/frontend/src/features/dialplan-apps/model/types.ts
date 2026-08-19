@@ -1,22 +1,17 @@
-import { type ActionType, type ActionCategory, type IRouteAction } from '@krasterisk/shared';
+import { type ActionType, type ActionCategory } from '@krasterisk/shared';
 import type { FieldSchema } from './schema.types';
 
-/**
- * Common properties passed to every Dialplan Application UI component.
- * `onUpdate` remains until 12-07 migrates the remaining 14 apps.
- */
-export interface IDialplanAppProps {
-  action: IRouteAction;
-  /** Callback to update a specific parameter inside `action.params` or `action.type` etc. */
-  onUpdate: (id: string, field: string, value: any) => void;
-}
-
-/** Sheet / schema-driven contract (D-06). Used by tracer `toqueue` and 12-07 apps. */
-export interface IDialplanAppParamsProps<P = Record<string, unknown>> {
+/** Sheet / schema-driven contract (D-06). Apps do not receive their step id. */
+export interface IDialplanAppProps<P = Record<string, unknown>> {
   params: P;
   onChange: (patch: Partial<P>) => void;
   readOnly?: boolean;
+  /** Discriminator for shared shells (GenericApp / CallerIdApp). Not the step id. */
+  actionType?: ActionType;
 }
+
+/** @deprecated use IDialplanAppProps */
+export type IDialplanAppParamsProps<P = Record<string, unknown>> = IDialplanAppProps<P>;
 
 export type DialplanHost = 'route' | 'phonebook' | 'ivr';
 

@@ -12,14 +12,14 @@ import {
 import { IDialplanAppProps } from '../../../model/types';
 import cls from './NotifyApp.module.scss';
 
-export const NotifyApp = memo(({ action, onUpdate }: IDialplanAppProps) => {
+export const NotifyApp = memo(({ params, onChange, readOnly, actionType }: IDialplanAppProps) => {
   const { t } = useTranslation();
   const { data: integrations = [] } = useGetNotificationsQuery();
 
-  const integrationUid = String(action.params?.integration_uid ?? '');
-  const message = String(action.params?.message ?? '');
-  const target = String(action.params?.target ?? '');
-  const preset = String(action.params?.preset ?? '');
+  const integrationUid = String(params?.integration_uid ?? '');
+  const message = String(params?.message ?? '');
+  const target = String(params?.target ?? '');
+  const preset = String(params?.preset ?? '');
 
   const selectedIntegration = integrations.find((i) => String(i.uid) === integrationUid);
   const isWebhook = selectedIntegration?.channel === 'webhook';
@@ -27,39 +27,39 @@ export const NotifyApp = memo(({ action, onUpdate }: IDialplanAppProps) => {
   const handleIntegrationChange = useCallback(
     (e: ChangeEvent<HTMLSelectElement>) => {
       const nextUid = e.target.value;
-      onUpdate(action.id, 'params.integration_uid', nextUid);
+      onChange({ integration_uid: nextUid });
       const next = integrations.find((i) => String(i.uid) === nextUid);
       // Webhook has no recipient override - clear leftover target from other channels
       if (next?.channel === 'webhook' && target) {
-        onUpdate(action.id, 'params.target', '');
+        onChange({ target: '' });
       }
     },
-    [action.id, onUpdate, integrations, target],
+    [onChange, integrations, target],
   );
 
   const handleMessageChange = useCallback(
     (e: ChangeEvent<HTMLTextAreaElement>) => {
-      onUpdate(action.id, 'params.message', e.target.value);
+      onChange({ message: e.target.value });
     },
-    [action.id, onUpdate],
+    [onChange],
   );
 
   const handleTargetChange = useCallback(
     (e: ChangeEvent<HTMLInputElement>) => {
-      onUpdate(action.id, 'params.target', e.target.value);
+      onChange({ target: e.target.value });
     },
-    [action.id, onUpdate],
+    [onChange],
   );
 
   const handlePresetChange = useCallback(
     (e: ChangeEvent<HTMLSelectElement>) => {
       const key = e.target.value as NotifyPresetKey | '';
-      onUpdate(action.id, 'params.preset', key);
+      onChange({ preset: key });
       if (key && key in NOTIFY_PRESETS) {
-        onUpdate(action.id, 'params.message', NOTIFY_PRESETS[key]);
+        onChange({ message: NOTIFY_PRESETS[key] });
       }
     },
-    [action.id, onUpdate],
+    [onChange],
   );
 
   return (

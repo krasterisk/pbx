@@ -6,7 +6,7 @@ import { Text } from '@/shared/ui/Text/Text';
 import { IDialplanAppProps } from '../../../model/types';
 import { useGetIvrsQuery } from '@/shared/api/endpoints/ivrsApi';
 
-export const IvrApp: React.FC<IDialplanAppProps> = ({ action, onUpdate }) => {
+export const IvrApp: React.FC<IDialplanAppProps> = ({ params, onChange, readOnly, actionType }) => {
   const { t } = useTranslation();
   const { data: ivrs = [], isLoading, isError } = useGetIvrsQuery();
 
@@ -18,8 +18,8 @@ export const IvrApp: React.FC<IDialplanAppProps> = ({ action, onUpdate }) => {
             <Text variant="small" className="text-destructive">{t('common.loadError', 'Ошибка загрузки')}</Text>
           ) : (
             <Select
-              value={action.params?.ivr_uid || ''}
-              onChange={(e) => onUpdate(action.id, 'params.ivr_uid', Number(e.target.value))}
+              value={params?.ivr_uid || ''}
+              onChange={(e) => onChange({ ivr_uid: Number(e.target.value) })}
               disabled={isLoading}
             >
               <option value="" disabled>{t('routes.apps.ivr.select', 'IVR меню')}</option>

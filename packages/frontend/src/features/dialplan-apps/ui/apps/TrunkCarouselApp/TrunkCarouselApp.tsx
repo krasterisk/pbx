@@ -31,21 +31,21 @@ function normalizeTrunks(raw: unknown): ITrunkCarouselItem[] {
   });
 }
 
-export const TrunkCarouselApp = memo(({ action, onUpdate }: IDialplanAppProps) => {
+export const TrunkCarouselApp = memo(({ params, onChange, readOnly, actionType }: IDialplanAppProps) => {
   const { t } = useTranslation();
   const { data: trunks = [], isLoading: trunksLoading } = useGetTrunksQuery();
   const { data: phonebooks = [], isLoading: phonebooksLoading } = useGetPhonebooksQuery();
 
-  const items = normalizeTrunks(action.params?.trunks);
+  const items = normalizeTrunks(params?.trunks);
 
   const commitTrunks = useCallback(
     (next: ITrunkCarouselItem[]) => {
-      onUpdate(action.id, 'params.trunks', next);
-      if (action.params?.mode !== 'random_then_failover') {
-        onUpdate(action.id, 'params.mode', 'random_then_failover');
+      onChange({ trunks: next });
+      if (params?.mode !== 'random_then_failover') {
+        onChange({ mode: 'random_then_failover' });
       }
     },
-    [action.id, action.params?.mode, onUpdate],
+    [onChange, params?.mode],
   );
 
   const handleAdd = useCallback(() => {
@@ -239,15 +239,15 @@ export const TrunkCarouselApp = memo(({ action, onUpdate }: IDialplanAppProps) =
         <Input
           className={cls.timeout}
           type="number"
-          value={action.params?.timeout ?? ''}
-          onChange={(e) => onUpdate(action.id, 'params.timeout', e.target.value)}
+          value={params?.timeout ?? ''}
+          onChange={(e) => onChange({ timeout: e.target.value })}
           placeholder={t('routes.apps.common.timeout', 'Timeout, sec')}
           aria-label={t('routes.apps.common.timeout', 'Timeout, sec')}
         />
         <Input
           className={cls.options}
-          value={String(action.params?.options ?? '')}
-          onChange={(e) => onUpdate(action.id, 'params.options', e.target.value)}
+          value={String(params?.options ?? '')}
+          onChange={(e) => onChange({ options: e.target.value })}
           placeholder={t('routes.apps.common.options', 'Options (tThH)')}
           aria-label={t('routes.apps.common.options', 'Options (tThH)')}
         />

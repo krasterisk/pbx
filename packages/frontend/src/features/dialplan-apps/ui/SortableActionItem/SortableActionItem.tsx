@@ -122,7 +122,13 @@ export const SortableActionItem = memo(({
                 </Button>
               </VStack>
             )
-            : <AppComponent action={action} onUpdate={updateAction} />
+            : (
+              <AppComponent
+                params={action.params}
+                actionType={action.type}
+                onChange={(patch) => updateAction(action.id, 'params', patch)}
+              />
+            )
         }
       </VStack>
 

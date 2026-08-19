@@ -31,9 +31,9 @@ const HANGUP_CAUSES = [
   { value: '22', labelKey: 'routes.apps.hangup.cause22' },
 ] as const;
 
-export const HangupApp = memo(({ action, onUpdate }: IDialplanAppProps) => {
+export const HangupApp = memo(({ params, onChange, readOnly, actionType }: IDialplanAppProps) => {
   const { t } = useTranslation();
-  const causeCode = action.params?.causecode || '';
+  const causeCode = params?.causecode || '';
 
   const options = useMemo(() =>
     HANGUP_CAUSES.map(c => ({
@@ -50,7 +50,7 @@ export const HangupApp = memo(({ action, onUpdate }: IDialplanAppProps) => {
       <Select
         className="flex-1"
         value={causeCode}
-        onChange={(e) => onUpdate(action.id, 'params.causecode', e.target.value)}
+        onChange={(e) => onChange({ causecode: e.target.value })}
       >
         {options.map(o => (
           <option key={o.value} value={o.value}>{o.label}</option>

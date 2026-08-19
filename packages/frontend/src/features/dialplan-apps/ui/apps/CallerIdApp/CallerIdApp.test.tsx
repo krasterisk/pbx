@@ -4,9 +4,8 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { CallerIdApp, resolveCallerIdMode } from './CallerIdApp';
 import * as phonebookApiHooks from '@/shared/api/endpoints/phonebookApi';
-import type { IRouteAction } from '@krasterisk/shared';
 
-const mockOnUpdate = vi.fn();
+const mockOnChange = vi.fn();
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -26,12 +25,7 @@ vi.mock('@/shared/api/endpoints/phonebookApi', () => ({
   useGetPhonebooksQuery: vi.fn(),
 }));
 
-const baseAction: IRouteAction = {
-  id: 'action-cid',
-  type: 'callerid',
-  params: { mode: 'static', callerid: '' },
-  condition: {},
-};
+const baseParams = { mode: 'static', callerid: '' };
 
 describe('resolveCallerIdMode', () => {
   it('infers setclid_list from legacy action type', () => {
@@ -43,9 +37,7 @@ describe('resolveCallerIdMode', () => {
   });
 
   it('prefers explicit params.mode', () => {
-    expect(resolveCallerIdMode('setclid_list', { mode: 'carousel', pool: ['1'] })).toBe(
-      'carousel',
-    );
+    expect(resolveCallerIdMode('setclid_list', { mode: 'carousel', pool: ['1'] })).toBe('carousel');
   });
 });
 
@@ -61,7 +53,7 @@ describe('CallerIdApp', () => {
   });
 
   it('shows mode hint once via InfoTooltip on the mode label row', () => {
-    render(<CallerIdApp action={baseAction} onUpdate={mockOnUpdate} />);
+    render(<CallerIdApp params={baseParams} onChange={mockOnChange} />);
 
     const hint = screen.getByTestId('mode-hint');
     expect(hint).toBeInTheDocument();
@@ -71,22 +63,21 @@ describe('CallerIdApp', () => {
     ).toHaveLength(1);
   });
 
-  it('calls onUpdate when mode changes and shows mode-specific fields', () => {
-    render(<CallerIdApp action={baseAction} onUpdate={mockOnUpdate} />);
+  it('calls onChange when mode changes and shows mode-specific fields', () => {
+    render(<CallerIdApp params={baseParams} onChange={mockOnChange} />);
 
     expect(screen.getByLabelText('CallerID number')).toBeInTheDocument();
     expect(screen.getByLabelText('CallerID name (optional)')).toBeInTheDocument();
 
-    const modeSelect = screen.getByLabelText('CallerID mode') as HTMLSelectElement;
-    fireEvent.change(modeSelect, { target: { value: 'phonebook' } });
-    expect(mockOnUpdate).toHaveBeenCalledWith('action-cid', 'params.mode', 'phonebook');
+    fireEvent.change(screen.getByLabelText('CallerID mode'), { target: { value: 'phonebook' } });
+    expect(mockOnChange).toHaveBeenCalledWith({ mode: 'phonebook' });
   });
 
   it('renders phonebook select when mode is phonebook', () => {
     render(
       <CallerIdApp
-        action={{ ...baseAction, params: { mode: 'phonebook', phonebook_uid: '' } }}
-        onUpdate={mockOnUpdate}
+        params={{ mode: 'phonebook', phonebook_uid: '' }}
+        onChange={mockOnChange}
       />,
     );
 
@@ -94,35 +85,29 @@ describe('CallerIdApp', () => {
     expect(Array.from(pbSelect.options).map((o) => o.value)).toEqual(['', '2', '9']);
 
     fireEvent.change(pbSelect, { target: { value: '9' } });
-    expect(mockOnUpdate).toHaveBeenCalledWith('action-cid', 'params.phonebook_uid', '9');
+    expect(mockOnChange).toHaveBeenCalledWith({ phonebook_uid: '9' });
   });
 
   it('renders list_uid field for setclid_list mode', () => {
     render(
       <CallerIdApp
-        action={{
-          ...baseAction,
-          type: 'setclid_list',
-          params: { list_uid: '5' },
-        }}
-        onUpdate={mockOnUpdate}
+        actionType="setclid_list"
+        params={{ list_uid: '5' }}
+        onChange={mockOnChange}
       />,
     );
 
     const listInput = screen.getByLabelText('List ID') as HTMLInputElement;
     expect(listInput.value).toBe('5');
     fireEvent.change(listInput, { target: { value: '12' } });
-    expect(mockOnUpdate).toHaveBeenCalledWith('action-cid', 'params.list_uid', '12');
+    expect(mockOnChange).toHaveBeenCalledWith({ list_uid: '12' });
   });
 
-  it('supports carousel pool add and reorder via onUpdate(params.pool)', () => {
+  it('supports carousel pool add and reorder via onChange({ pool })', () => {
     render(
       <CallerIdApp
-        action={{
-          ...baseAction,
-          params: { mode: 'carousel', pool: ['111', '222'] },
-        }}
-        onUpdate={mockOnUpdate}
+        params={{ mode: 'carousel', pool: ['111', '222'] }}
+        onChange={mockOnChange}
       />,
     );
 
@@ -133,14 +118,9 @@ describe('CallerIdApp', () => {
       target: { value: '333' },
     });
     fireEvent.click(screen.getByLabelText('Add'));
-    expect(mockOnUpdate).toHaveBeenCalledWith('action-cid', 'params.pool', [
-      '111',
-      '222',
-      '333',
-    ]);
+    expect(mockOnChange).toHaveBeenCalledWith({ pool: ['111', '222', '333'] });
 
-    const upButtons = screen.getAllByLabelText('Up');
-    fireEvent.click(upButtons[1]);
-    expect(mockOnUpdate).toHaveBeenCalledWith('action-cid', 'params.pool', ['222', '111']);
+    fireEvent.click(screen.getAllByLabelText('Up')[1]);
+    expect(mockOnChange).toHaveBeenCalledWith({ pool: ['222', '111'] });
   });
 });
