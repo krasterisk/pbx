@@ -6,6 +6,7 @@ import type { IRouteAction } from '@krasterisk/shared';
 import { DialplanAppsEditor } from '../DialplanAppsEditor/DialplanAppsEditor';
 import { StepSheet } from './StepSheet';
 import * as queueApiHooks from '@/shared/api/endpoints/queueApi';
+import * as phonebookApiHooks from '@/shared/api/endpoints/phonebookApi';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -27,6 +28,10 @@ vi.mock('@/entities/User', () => ({
 
 vi.mock('@/shared/api/endpoints/queueApi', () => ({
   useGetQueuesQuery: vi.fn(),
+}));
+
+vi.mock('@/shared/api/endpoints/phonebookApi', () => ({
+  useGetPhonebooksQuery: vi.fn(),
 }));
 
 vi.mock('@/shared/api/endpoints/timeGroupApi', () => ({
@@ -68,6 +73,10 @@ describe('StepSheet', () => {
       data: [{ name: 'qsales_42', exten: 'sales', display_name: 'Sales' }],
       isLoading: false,
     });
+    (phonebookApiHooks.useGetPhonebooksQuery as ReturnType<typeof vi.fn>).mockReturnValue({
+      data: [],
+      isLoading: false,
+    });
   });
 
   it('opens Sheet when toqueue is chosen on an empty row', () => {
@@ -77,9 +86,9 @@ describe('StepSheet', () => {
     expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
 
-  it('switching to route_pattern patches target and shows tenant-scoped chip', () => {
+  it('switching to route_pattern patches target without showing tenant internals', () => {
     const onChange = vi.fn();
-    function ChipHarness() {
+    function SourceHarness() {
       const [action, setAction] = useState<IRouteAction>({
         id: 'step-1',
         type: 'toqueue',
@@ -101,15 +110,17 @@ describe('StepSheet', () => {
         />
       );
     }
-    render(<ChipHarness />);
+    render(<SourceHarness />);
 
-    fireEvent.click(screen.getByRole('tab', { name: 'По маске маршрута' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'routes.chain.fields.queue' }), {
+      target: { value: '__src:route_pattern' },
+    });
     expect(onChange).toHaveBeenCalledWith(
       expect.objectContaining({
         target: expect.objectContaining({ source: 'route_pattern' }),
       }),
     );
-    expect(screen.getByText(/^q.*_\d+$/)).toBeInTheDocument();
+    expect(screen.queryByText(/^q\$\{EXTEN\}_/)).not.toBeInTheDocument();
   });
 
   it('distinguishes queues loading from empty catalog (backstop)', () => {
@@ -159,10 +170,35 @@ describe('StepSheet', () => {
       />,
     );
 
-    const emptySelect = screen.getByRole('combobox', { name: 'Ничего не создано' });
-    expect(emptySelect).toBeDisabled();
+    const emptySelect = screen.getByRole('combobox', { name: 'Нет очередей' });
+    expect(emptySelect).not.toBeDisabled();
     expect(emptySelect.textContent).not.toBe(loadingText);
     const link = screen.getByRole('link');
     expect(link).toHaveAttribute('target', '_blank');
+  });
+
+  it('does not close while queue is unspecified', () => {
+    const onOpenChange = vi.fn();
+    render(
+      <StepSheet
+        open
+        stepId="step-1"
+        tenantUid={42}
+        action={{
+          id: 'step-1',
+          type: 'toqueue',
+          params: { target: { source: 'fixed', value: '' }, options: 'thH' },
+          condition: {},
+        }}
+        onOpenChange={onOpenChange}
+        onChange={vi.fn()}
+        onTypeChange={vi.fn()}
+      />,
+    );
+
+    const close = screen.getByRole('button', { name: 'Закрыть' });
+    expect(close).toBeDisabled();
+    fireEvent.click(close);
+    expect(onOpenChange).not.toHaveBeenCalled();
   });
 });

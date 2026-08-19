@@ -41,6 +41,8 @@ const BehaviorTypesList = [
   'redirect', 'vars_only', 'custom',
 ];
 
+const toQueueParamErrors = new WeakMap<object, ValidationError[]>();
+
 @ValidatorConstraint({ name: 'isTypedActionParams', async: false })
 class IsTypedActionParamsConstraint implements ValidatorConstraintInterface {
   validate(params: unknown, args: ValidationArguments): boolean {
@@ -49,13 +51,12 @@ class IsTypedActionParamsConstraint implements ValidatorConstraintInterface {
     if (action.type !== 'toqueue') return true;
     const dto = plainToInstance(ToQueueParamsDto, params);
     const errors = validateSync(dto);
-    (action as RouteActionDto & { __toQueueErrors?: ValidationError[] }).__toQueueErrors = errors;
+    toQueueParamErrors.set(action, errors);
     return errors.length === 0;
   }
 
   defaultMessage(args: ValidationArguments): string {
-    const action = args.object as RouteActionDto & { __toQueueErrors?: ValidationError[] };
-    const nested = action.__toQueueErrors ?? [];
+    const nested = toQueueParamErrors.get(args.object as object) ?? [];
     if (nested.length) {
       return nested
         .flatMap((err) => Object.values(err.constraints ?? {}))

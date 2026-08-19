@@ -5,7 +5,6 @@ import {
   Input,
   Label,
   Sheet,
-  SheetClose,
   SheetContent,
   SheetFooter,
   SheetHeader,
@@ -16,7 +15,7 @@ import { VStack } from '@/shared/ui/Stack';
 import { dialplanAppsRegistry } from '../../model/registry';
 import type { FieldSchema } from '../../model/schema.types';
 import { ActionTypeSelect } from '../ActionTypeSelect';
-import { ValueSourceField } from '../ValueSourceField/ValueSourceField';
+import { isValueSourceComplete, ValueSourceField } from '../ValueSourceField/ValueSourceField';
 import styles from './StepSheet.module.scss';
 
 export interface StepSheetProps {
@@ -28,6 +27,11 @@ export interface StepSheetProps {
   onOpenChange: (open: boolean) => void;
   onChange: (patch: Record<string, unknown>) => void;
   onTypeChange: (type: ActionType) => void;
+}
+
+export function canCloseStepSheet(action: IRouteAction | null): boolean {
+  if (!action || action.type !== 'toqueue') return true;
+  return isValueSourceComplete(action.params?.target as ValueSource | undefined);
 }
 
 function SchemaFields({
@@ -104,10 +108,27 @@ export function StepSheet({
   const title = config
     ? t(config.labelKey, action?.type ?? '')
     : t('routes.chain.placeholder', 'Выберите действие');
+  const canClose = canCloseStepSheet(action);
+
+  const requestClose = (next: boolean) => {
+    if (!next && !canClose) return;
+    onOpenChange(next);
+  };
 
   return (
-    <Sheet open={open && !!stepId} onOpenChange={onOpenChange}>
-      <SheetContent>
+    <Sheet open={open && !!stepId} onOpenChange={requestClose}>
+      <SheetContent
+        className={styles.panel}
+        onPointerDownOutside={(event) => {
+          if (!canClose) event.preventDefault();
+        }}
+        onEscapeKeyDown={(event) => {
+          if (!canClose) event.preventDefault();
+        }}
+        onInteractOutside={(event) => {
+          if (!canClose) event.preventDefault();
+        }}
+      >
         <SheetHeader>
           <SheetTitle>
             <Text variant="h4">{title}</Text>
@@ -146,19 +167,9 @@ export function StepSheet({
         </VStack>
 
         <SheetFooter>
-          <VStack gap="8">
-            <SheetClose asChild>
-              <Button type="button" variant="outline">
-                {t('routes.chain.closeParams', 'Закрыть параметры')}
-              </Button>
-            </SheetClose>
-            <Text variant="muted" className={styles.footerHint}>
-              {t(
-                'routes.chain.liveHint',
-                'Изменения применяются сразу. Сохранение - в форме маршрута',
-              )}
-            </Text>
-          </VStack>
+          <Button type="button" variant="outline" disabled={!canClose} onClick={() => requestClose(false)}>
+            {t('routes.chain.closeParams', 'Закрыть')}
+          </Button>
         </SheetFooter>
       </SheetContent>
     </Sheet>

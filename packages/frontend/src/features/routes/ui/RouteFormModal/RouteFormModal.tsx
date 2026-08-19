@@ -143,7 +143,7 @@ export const RouteFormModal = memo(() => {
 
     const options: IRouteOptions = {
       record: record || undefined,
-      // Only persist record_all when recording is actually enabled — prevents record_all:true/record:false ghost state
+      // Only persist record_all when recording is actually enabled - prevents record_all:true/record:false ghost state
       record_all: record && recordAll ? true : undefined,
       record_stereo: record && recordStereo ? true : undefined,
       pre_command: preCommand || undefined,
@@ -183,9 +183,26 @@ export const RouteFormModal = memo(() => {
       }
     });
 
+    const sanitizeActions = (list: IRouteAction[] | undefined) =>
+      (list ?? []).map((a) => ({
+        id: a.id,
+        type: a.type,
+        params: a.params,
+        condition: a.condition,
+      }));
+
+    const bindingsPayload = bindings.map((b, index) => ({
+      phonebook_uid: b.phonebook_uid,
+      position: index,
+      match_mode: b.match_mode,
+      behavior_type: b.behavior_type,
+      behavior_params: b.behavior_params ?? undefined,
+      actions: b.actions ? sanitizeActions(b.actions) : undefined,
+    }));
+
     const data = {
       name, extensions, active: active ? 1 : 0,
-      options, webhooks: webhooksPayload, actions,
+      options, webhooks: webhooksPayload, actions: sanitizeActions(actions),
       bindings: bindingsPayload,
       raw_dialplan: editorMode === 'raw' && rawDialplan.trim()
         ? ensureCdrVpbxUserUidInDialplan(rawDialplan, vpbxUserUid)

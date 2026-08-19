@@ -94,4 +94,23 @@ describe('ToQueueParamsDto', () => {
     const dto = plainToInstance(ToQueueParamsDto, { target: { source: 'route_pattern' } });
     expect(validateSync(dto)).toHaveLength(0);
   });
+
+  it('rejects phonebookUid 0', () => {
+    const dto = plainToInstance(ToQueueParamsDto, { target: { source: 'phonebook', phonebookUid: 0 } });
+    expect(validateSync(dto).length).toBeGreaterThan(0);
+  });
+});
+
+describe('RouteActionDto toqueue params', () => {
+  it('does not attach __toQueueErrors onto the action object', async () => {
+    const dto = plainToInstance(RouteActionDto, {
+      id: 'a1',
+      type: 'toqueue',
+      params: { target: { source: 'fixed', value: '' }, options: 'thH' },
+      condition: {},
+    });
+    const errors = await validate(dto);
+    expect(errors.length).toBeGreaterThan(0);
+    expect(dto).not.toHaveProperty('__toQueueErrors');
+  });
 });

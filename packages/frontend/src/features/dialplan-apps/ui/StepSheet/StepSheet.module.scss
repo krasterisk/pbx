@@ -1,12 +1,23 @@
+.panel {
+  width: 30vw !important;
+  max-width: 30vw !important;
+}
+
+@media (max-width: 767px) {
+  .panel {
+    inset: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    border-left: none;
+  }
+}
+
 .body {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-}
-
-.footerHint {
-  color: var(--color-muted-foreground, #71717a);
 }
 
 .params {

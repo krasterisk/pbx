@@ -32,7 +32,6 @@ export const dialplanAppsRegistry: Record<ActionType, IDialplanAppConfig> = {
         kind: 'value-source',
         required: true,
         labelKey: 'routes.chain.fields.queue',
-        hintKey: 'routes.chain.source.normalizeHint',
         optionsSource: 'queues',
       },
       {

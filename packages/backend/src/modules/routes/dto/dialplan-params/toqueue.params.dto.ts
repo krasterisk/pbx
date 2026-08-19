@@ -24,7 +24,7 @@ export class IsValueSourceConstraint implements ValidatorConstraintInterface {
       return typeof src.name === 'string' && src.name.trim().length > 0;
     }
     if (src.source === 'phonebook') {
-      return Number.isInteger(src.phonebookUid);
+      return Number.isInteger(src.phonebookUid) && Number(src.phonebookUid) > 0;
     }
     return true;
   }
