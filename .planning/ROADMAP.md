@@ -813,7 +813,7 @@ Plans:
 - [x] `12-04-PLAN.md` — подсистема тенантных настроек (backend + миграция)
 - [x] `12-05-PLAN.md` — ядро генератора: multi-line условия, `label`, 5 call-site, `normalizeTarget`
 - [ ] `12-06-PLAN.md` — расширенные условия шага + защита от петель и недостижимые шаги
-- [ ] `12-07-PLAN.md` — ядро FE-редактора: reducer, undo, clipboard, unknown-тип
+- [x] `12-07-PLAN.md` — ядро FE-редактора: reducer, undo, clipboard, unknown-тип
 - [ ] `12-08-PLAN.md` — Sheet целиком: schema-поля, опции, условия, проекция ошибок
 - [ ] `12-09-PLAN.md` — UI тенантных настроек с optimistic toggle
 - [ ] `12-10-PLAN.md` — единое приложение «Воспроизведение» (backend + UI)

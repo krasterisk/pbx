@@ -5,13 +5,13 @@ milestone_name: milestone
 current_phase: 12
 current_phase_name: dialplan-apps-editor-refactor-reusable-route-chain-builder
 status: executing
-stopped_at: Completed 12-05-PLAN.md
-last_updated: "2026-08-19T08:19:43.892Z"
+stopped_at: Completed 12-07-PLAN.md
+last_updated: "2026-08-19T08:22:38.979Z"
 progress:
   total_phases: 12
   completed_phases: 8
   total_plans: 120
-  completed_plans: 105
+  completed_plans: 106
 ---
 
 # State
@@ -19,7 +19,7 @@ progress:
 ## Current position
 
 Phase: 12 (dialplan-apps-editor-refactor-reusable-route-chain-builder) — EXECUTING
-Plan 12-01 (Wave 0 characterization) complete: 3/3 tasks. Plan 12-02 (queue-by-route-mask tracer) complete: 2/2 tasks (human-approved). Plan 12-03 (per-type DTO expansion) complete: 3/3 tasks. Plan 12-04 (tenant-settings module) complete: 3/3 tasks. Plan 12-05 (generator core / Congestion()) complete: 3/3 tasks. Next: 12-06 (hop-counter / unreachable-tail).
+Plan 12-01 (Wave 0 characterization) complete: 3/3 tasks. Plan 12-02 (queue-by-route-mask tracer) complete: 2/2 tasks (human-approved). Plan 12-03 (per-type DTO expansion) complete: 3/3 tasks. Plan 12-04 (tenant-settings module) complete: 3/3 tasks. Plan 12-05 (generator core / Congestion()) complete: 3/3 tasks. Plan 12-07 (FE editor core) complete: 4/4 tasks. Next sequential: 12-06 (hop-counter / unreachable-tail). After wave-3 siblings: 12-08 (host wiring).
 Migrations applied (2026-07-24): `cc_contacts` table + `cc_settings.journal_depth`. Live Asterisk A1/A3 checkpoint still deferred in WINDOWS.md.
 
 Also Phase 9 (complete, verify/UAT open):
@@ -207,6 +207,9 @@ Phase 1 — MOH: pending verify.
 - [Phase 12]: toivr stays Goto(ivr_{uid},start,1) without tenant suffix
 - [Phase 12]: totrunk dest is a PSTN/ValueSource number, not normalizeTarget(exten)
 - [Phase 12]: Empty congestion params emit Congestion() with no default timeout
+- [Phase 12]: 12-07 undo is a removed-step stack of 20, not full editor snapshots
+- [Phase 12]: 12-07 vertical DnD lock is local restrictToVerticalAxisLocal; @dnd-kit/modifiers stays uninstalled
+- [Phase 12]: 12-07 readOnly/allowedTypes/maxSteps are UI hints; server validation remains the access barrier
 
 ## Roadmap Evolution
 
@@ -240,7 +243,7 @@ Phase 1 — MOH: pending verify.
 
 ## Next GSD command
 
-**Phase 12:** 12-01…12-05 complete. Next recommended: **12-06** (hop-counter / unreachable-tail). Do not start 12-06 from the 12-05 close-out.
+**Phase 12:** 12-01…12-05 and **12-07** complete. Next sequential: **12-06** (hop-counter / unreachable-tail). After wave-3 siblings: **12-08** (host wiring / conditions Sheet). Do not start 12-08 from the 12-07 close-out.
 
 Also open: Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 verify; Phase 8 / 08-11 Android smoke.
 
@@ -332,9 +335,10 @@ Also open: Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 veri
 | Phase 12-dialplan-apps-editor-refactor-reusable-route-chain-builder P04 | 15min | 3 tasks | 12 files |
 | Phase 12 P03 | 100min | 3 tasks | 25 files |
 | Phase 12 P05 | 55 | 3 tasks | 22 files |
+| Phase 12 P07 | 46 | 4 tasks | 40 files |
 
 ## Session
 
-**Last session:** 2026-08-19T08:18:31.809Z
-**Stopped at:** Completed 12-05-PLAN.md
+**Last session:** 2026-08-19T08:22:38.816Z
+**Stopped at:** Completed 12-07-PLAN.md
 **Resume file:** None
