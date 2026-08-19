@@ -91,6 +91,7 @@ import { ActionLog } from './modules/logger/action-log.model';
 import { LoggerModule } from './modules/logger/logger.module';
 import { MailerModule } from './modules/mailer/mailer.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { DialplanBridgeModule } from './modules/dialplan-bridge/dialplan-bridge.module';
 import { NotificationIntegration } from './modules/notifications/notification-integration.model';
 import { TelegramModule } from './modules/telegram/telegram.module';
 import { UserSession } from './modules/auth/user-session.model';
@@ -209,6 +210,7 @@ import * as path from 'path';
     LoggerModule,
     MailerModule,
     NotificationsModule,
+    DialplanBridgeModule,
     TelegramModule,
     CloudAdminModule,
     AiChatModule,

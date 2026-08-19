@@ -1,10 +1,11 @@
-import { DIALPLAN_ACTION_META, type ActionType } from '@krasterisk/shared';
+import { DIALPLAN_ACTION_META, HTTP_RESULT_VAR, type ActionType } from '@krasterisk/shared';
 import { ActionLog } from '../../modules/logger/action-log.model';
 import { normalizeTarget, resolveQueueValueSource, resolveValueSource, PHONEBOOK_TARGET_VAR } from './dialplan-target.util';
 import { applyNumberManipulation } from './dialplan-number.util';
 import { buildConditionExpr, isLegacyInvalidDialstatus, wrapEachLine } from './dialplan-condition.util';
 import { emitHopPrologue } from './dialplan-hops.util';
 import { emitPlayback } from './dialplan-playback.util';
+import { buildCurlCall } from './dialplan-curl.util';
 
 function logCmdApply(action: { id?: number; uid?: number; params?: { command?: string } }, vpbxUserUid: number): void {
   const command = String(action?.params?.command ?? '');
@@ -44,7 +45,7 @@ export class AsteriskDialplanUtils {
   /**
    * Sanitize input to prevent OS shell injection.
    * Strips: ; | & $ ` \ " ' \n \r
-   * Use for params that end up inside System() / SHELL() calls.
+   * Use for params that previously ended up in host command execution.
    */
   static sanitizeShellInput(input?: string): string {
     if (!input) return '';
@@ -97,7 +98,7 @@ export class AsteriskDialplanUtils {
    * Used for sendmail subject/text where users can embed dialplan variables.
    *
    * Allows:  ${CALLERID(num)}, ${EXTEN}, ${STRFTIME(...)}, ${CDR(...)}, etc.
-   * Blocks:  ${SHELL(...)}, ${SYSTEM(...)}, ${AGI(...)}, TrySystem(...)
+   * Blocks host-exec Asterisk functions (shell / system / agi / trysystem).
    * Strips:  \n, \r (prevent dialplan line injection)
    *          ;  (prevent dialplan comment injection)
    *          \  (prevent escape sequences)
@@ -112,8 +113,7 @@ export class AsteriskDialplanUtils {
       // 3. Strip backslashes — prevent escape sequences
       .replace(/\\/g, '')
       // 4. Block dangerous Asterisk functions that execute OS commands
-      //    Matches ${SHELL(...)}, ${SYSTEM(...)}, ${AGI(...)}, ${TrySystem(...)}
-      //    Case-insensitive to catch ${ SHELL(...) } etc.
+      //    Case-insensitive block of host-exec Asterisk functions.
       .replace(/\$\{\s*(SHELL|SYSTEM|AGI|TrySystem)\s*\(/gi, '${BLOCKED_')
       .trim();
   }
@@ -315,8 +315,8 @@ export class AsteriskDialplanUtils {
         break;
       }
       case 'setclid_list': {
-        const listUid = this.sanitizeShellInput(String(params.list_uid || ''));
-        dp = `ExecIf($["\${SHELL(/usr/scripts/exten_setclid.php "${listUid}" "\${CLIDNUM}")}" != ""]?Set(CALLERID(num)=\${SHELL(/usr/scripts/exten_setclid.php "${listUid}" "\${CLIDNUM}")}))`;
+        const listUid = this.sanitizeDialplanInput(String(params.list_uid || ''));
+        dp = this.emitSetclidCurl(listUid, vpbxUserUid);
         break;
       }
       case 'sendmail': {
@@ -345,10 +345,22 @@ export class AsteriskDialplanUtils {
         break;
       }
       case 'sendmailpeer':
-        dp = `System(/usr/scripts/sendmailpeer.php "${this.sanitizeShellInput(params.exten)}" "${this.sanitizeShellInput(params.text)}" "\${CALLERID(num)}" "\${EXTEN}" "\${UNIQUEID}" "${vpbxUserUid}")`;
+        dp = buildCurlCall('sendmailpeer', {
+          exten: this.sanitizeDialplanInput(params.exten),
+          text: this.sanitizeDialplanInput(params.text),
+          clid: '${CALLERID(num)}',
+          called: '${EXTEN}',
+          uniqueid: '${UNIQUEID}',
+        }, this.curlCtx(vpbxUserUid));
         break;
       case 'telegram':
-        dp = `System(/usr/scripts/telegram.php "${this.sanitizeShellInput(params.chat_id)}" "${this.sanitizeShellInput(params.text)}" "\${CALLERID(num)}" "\${EXTEN}" "\${UNIQUEID}" "${vpbxUserUid}")`;
+        dp = buildCurlCall('telegram', {
+          chat_id: this.sanitizeDialplanInput(params.chat_id),
+          text: this.sanitizeDialplanInput(params.text),
+          clid: '${CALLERID(num)}',
+          exten: '${EXTEN}',
+          uniqueid: '${UNIQUEID}',
+        }, this.curlCtx(vpbxUserUid));
         break;
       case 'voicemail': {
         const vmExten = this.sanitizeDialplanInput(params.exten) || '${EXTEN}';
@@ -356,8 +368,9 @@ export class AsteriskDialplanUtils {
         break;
       }
       case 'text2speech': {
-        const ttsText = this.sanitizeShellInput(params.text);
-        dp = `AGI(say.php,"${ttsText}")`;
+        dp = buildCurlCall('tts', {
+          text: this.sanitizeDialplanInput(params.text),
+        }, this.curlCtx(vpbxUserUid));
         break;
       }
       case 'asr':
@@ -367,7 +380,12 @@ export class AsteriskDialplanUtils {
         dp = `Record(/tmp/\${UNIQUEID}.wav,${parseInt(params.silence_timeout, 10) || 3},${parseInt(params.max_timer, 10) || 6})`;
         break;
       case 'webhook':
-        dp = `Set(WH_DATA=\${SHELL(/usr/scripts/webhook.php "${this.sanitizeShellInput(params.url)}" "\${CALLERID(num)}" "\${EXTEN}" "\${UNIQUEID}" "${vpbxUserUid}")})`;
+        dp = buildCurlCall('webhook', {
+          url: String(params.url ?? '').replace(/[\n\r"'\\]/g, ''),
+          clid: '${CALLERID(num)}',
+          exten: '${EXTEN}',
+          uniqueid: '${UNIQUEID}',
+        }, this.curlCtx(vpbxUserUid));
         break;
       case 'confbridge': {
         const room = this.sanitizeDialplanInput(params.room) || '${EXTEN}';
@@ -433,8 +451,8 @@ export class AsteriskDialplanUtils {
           ];
           dp = lines.join('\nsame => n,');
         } else if (mode === 'setclid_list') {
-          const listUid = this.sanitizeShellInput(String(params.list_uid || ''));
-          dp = `ExecIf($["\${SHELL(/usr/scripts/exten_setclid.php "${listUid}" "\${CLIDNUM}")}" != ""]?Set(CALLERID(num)=\${SHELL(/usr/scripts/exten_setclid.php "${listUid}" "\${CLIDNUM}")}))`;
+          const listUid = this.sanitizeDialplanInput(String(params.list_uid || ''));
+          dp = this.emitSetclidCurl(listUid, vpbxUserUid);
         } else if (mode === 'carousel') {
           const pool = (Array.isArray(params.pool) ? params.pool : [])
             .map((c: string) => this.sanitizeDialplanInput(c))
@@ -532,6 +550,22 @@ export class AsteriskDialplanUtils {
 
     // D-43: condition wraps every line; branches must not concatenate ExecIf themselves.
     return wrapEachLine(buildConditionExpr(action.condition), dp);
+  }
+
+  private static curlCtx(vpbxUserUid: number) {
+    return {
+      baseUrl: this.backendBaseUrl,
+      apiKey: this.dialplanApiKey,
+      vpbxUserUid,
+    };
+  }
+
+  private static emitSetclidCurl(listUid: string, vpbxUserUid: number): string {
+    const curl = buildCurlCall('setclid', {
+      list_uid: listUid,
+      clidnum: '${CLIDNUM}',
+    }, this.curlCtx(vpbxUserUid));
+    return `${curl}\nsame => n,ExecIf($["\${${HTTP_RESULT_VAR}}" != ""]?Set(CALLERID(num)=\${${HTTP_RESULT_VAR}}))`;
   }
 
   /**

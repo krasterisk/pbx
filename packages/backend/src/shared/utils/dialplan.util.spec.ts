@@ -248,7 +248,7 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       expect(dp).toContain('/internal/dialplan/setclid');
       expect(dp).toContain('KRSK_HTTP_RESULT');
       expect(dp).not.toContain('SHELL(');
-      expect(dp).not.toContain('.php');
+      expect(dp).not.toContain('usr/scripts');
       AsteriskDialplanUtils.backendBaseUrl = prevUrl;
       AsteriskDialplanUtils.dialplanApiKey = prevKey;
     });
@@ -753,7 +753,7 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       expect(dp).toContain('/internal/dialplan/sendmailpeer');
       expect(dp).toContain('Set(KRSK_HTTP_RESULT=${CURL(');
       expect(dp).not.toContain('System(');
-      expect(dp).not.toContain('.php');
+      expect(dp).not.toContain('usr/scripts');
       AsteriskDialplanUtils.backendBaseUrl = prevUrl;
       AsteriskDialplanUtils.dialplanApiKey = prevKey;
     });
@@ -774,7 +774,7 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       expect(dp).toContain('/internal/dialplan/telegram');
       expect(dp).toContain('Set(KRSK_HTTP_RESULT=${CURL(');
       expect(dp).not.toContain('System(');
-      expect(dp).not.toContain('.php');
+      expect(dp).not.toContain('usr/scripts');
       AsteriskDialplanUtils.backendBaseUrl = prevUrl;
       AsteriskDialplanUtils.dialplanApiKey = prevKey;
     });
@@ -807,7 +807,7 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       expect(dp).toContain('/internal/dialplan/tts');
       expect(dp).toContain('CURL(');
       expect(dp).not.toContain('AGI(');
-      expect(dp).not.toContain('.php');
+      expect(dp).not.toContain('usr/scripts');
       AsteriskDialplanUtils.backendBaseUrl = prevUrl;
       AsteriskDialplanUtils.dialplanApiKey = prevKey;
     });
@@ -860,7 +860,7 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       expect(dp).toContain('/internal/dialplan/webhook');
       expect(dp).toContain('Set(KRSK_HTTP_RESULT=${CURL(');
       expect(dp).not.toContain('SHELL(');
-      expect(dp).not.toContain('.php');
+      expect(dp).not.toContain('usr/scripts');
       AsteriskDialplanUtils.backendBaseUrl = prevUrl;
       AsteriskDialplanUtils.dialplanApiKey = prevKey;
     });
