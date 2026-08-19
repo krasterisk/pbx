@@ -17,6 +17,7 @@ import {
 import { plainToInstance, Type } from 'class-transformer';
 import { BadRequestException, ValidationPipe } from '@nestjs/common';
 import { ToQueueParamsDto } from './dialplan-params/toqueue.params.dto';
+import { RouteConditionDto } from './route-condition.dto';
 
 export const ActionTypesList = [
   'totrunk', 'toexten', 'toqueue', 'togroup', 'tolist',
@@ -27,11 +28,6 @@ export const ActionTypesList = [
   'voicemail', 'text2speech', 'voicerobot', 'asr', 'keywords',
   'webhook', 'confbridge', 'cmd', 'tofax',
   'label', 'busy', 'hangup', 'congestion',
-];
-
-const ValidDialstatuses = [
-  '', 'CHANUNAVAIL', 'CONGESTION', 'BUSY', 'NOANSWER', 'ANSWER',
-  'CANCEL', 'DONTCALL', 'TORTURE', 'INVALIDARGS',
 ];
 
 const MatchModesList = ['on_match', 'on_no_match'];
@@ -100,27 +96,7 @@ export function createRoutesValidationPipe(): ValidationPipe {
   });
 }
 
-@ValidatorConstraint({ name: 'isDialstatusOrArray', async: false })
-class IsDialstatusOrArrayConstraint implements ValidatorConstraintInterface {
-  validate(value: unknown): boolean {
-    if (value === undefined || value === null) return true;
-    if (typeof value === 'string') return ValidDialstatuses.includes(value);
-    if (Array.isArray(value)) {
-      return value.every((item) => typeof item === 'string' && ValidDialstatuses.includes(item));
-    }
-    return false;
-  }
-
-  defaultMessage(): string {
-    return 'dialstatus must be a valid status or array of valid statuses';
-  }
-}
-
-export class RouteActionConditionDto {
-  @IsOptional()
-  @Validate(IsDialstatusOrArrayConstraint)
-  dialstatus?: string | string[];
-
+export class RouteActionConditionDto extends RouteConditionDto {
   @IsOptional()
   @IsNumber()
   time_group_uid?: number;
