@@ -1,9 +1,13 @@
 import {
   assertNeverAction,
   DIALPLAN_ACTION_META,
+  type ActionType,
   type DialplanAction,
 } from '@krasterisk/shared';
 import { ActionTypesList } from '../route-action.dto';
+import { ACTION_PARAM_DTO, resolveParamsDto } from './index';
+import { MediaOptionsDto, serializeMediaOptions } from './media.params.dto';
+import { validateActionParams } from '../../../../shared/pipes/action-params-validation.util';
 
 /**
  * Compile-time exhaustiveness: a switch over DialplanAction['type'] without
@@ -105,5 +109,144 @@ describe('D-08 DialplanAction union + D-24 meta + D-42 congestion', () => {
       params: { timeout: 10 },
     };
     expect(describeAction(action)).toBe('10');
+  });
+});
+
+const VALID_PARAMS: Record<ActionType, Record<string, unknown>> = {
+  totrunk: { trunk: 'PJSIP/t1', dest: { source: 'fixed', value: '7900' } },
+  toexten: { target: { source: 'fixed', value: '101' }, webrtc: true },
+  toqueue: { target: { source: 'route_pattern' } },
+  togroup: { target: { source: 'fixed', value: 'sales' } },
+  tolist: { numbers: '101,102' },
+  toivr: { ivr_uid: 3 },
+  toroute: { context: 'sip-in', extension: { source: 'route_pattern' } },
+  playprompt: { file: 'welcome', options: { noanswer: true }, langoverride: 'ru' },
+  playback: { file: 'welcome', options: { noanswer: true, skip: false }, langoverride: 'ru' },
+  setclid_custom: { callerid: '79001112233' },
+  setclid_list: { list_uid: 2 },
+  sendmail: { email: 'a@b.c', text: 'hi' },
+  sendmailpeer: { exten: '101', text: 'hi' },
+  telegram: { chat_id: '1', text: 'hi' },
+  notify: { integration_uid: 1, message: 'hello' },
+  callerid: { mode: 'static', callerid: '7900' },
+  trunk_carousel: { mode: 'random_then_failover', trunks: [{ trunk: 'PJSIP/t1', cid_mode: 'static' }] },
+  voicemail: { target: { source: 'route_pattern' } },
+  text2speech: { text: 'hello' },
+  voicerobot: { robot_uid: 5 },
+  asr: { silence_timeout: 3, max_timer: 6 },
+  keywords: { silence_timeout: 3, max_timer: 6 },
+  webhook: { url: 'https://example.com/hook' },
+  confbridge: { room: { source: 'fixed', value: '100' } },
+  cmd: { command: 'NoOp(ok)' },
+  tofax: { email: 'fax@example.com' },
+  label: { label_name: 'retry' },
+  busy: {},
+  hangup: {},
+  congestion: {},
+};
+
+const INVALID_PARAMS: Record<ActionType, Record<string, unknown>> = {
+  totrunk: { dest: { source: 'fixed', value: '' } },
+  toexten: { target: { source: 'fixed', value: '' } },
+  toqueue: { target: { source: 'fixed', value: '' } },
+  togroup: { target: { source: 'fixed', value: '' } },
+  tolist: { timeout: -1 },
+  toivr: { ivr_uid: 'x' },
+  toroute: { extension: { source: 'fixed', value: '' } },
+  playprompt: { digittimeout: -1 },
+  playback: { digittimeout: -1 },
+  setclid_custom: { callerid: 1 },
+  setclid_list: { list_uid: false },
+  sendmail: { email: 1 },
+  sendmailpeer: { exten: 1 },
+  telegram: { chat_id: 1 },
+  notify: { integration_uid: 'x', message: '' },
+  callerid: { mode: 'nope' },
+  trunk_carousel: { mode: 'random_then_failover', trunks: 'x' },
+  voicemail: { target: { source: 'fixed', value: '' } },
+  text2speech: { digittimeout: -1 },
+  voicerobot: { robot_uid: 'x' },
+  asr: { silence_timeout: -1 },
+  keywords: { max_timer: -1 },
+  webhook: { url: 1 },
+  confbridge: {},
+  cmd: { command: 1 },
+  tofax: { email: 1 },
+  label: { label_name: 1 },
+  busy: {},
+  hangup: {},
+  congestion: {},
+};
+
+describe('D-09 ACTION_PARAM_DTO registry', () => {
+  it.each([...ActionTypesList])('has an ACTION_PARAM_DTO entry for %s', (type) => {
+    expect(Object.prototype.hasOwnProperty.call(ACTION_PARAM_DTO, type)).toBe(true);
+    expect(resolveParamsDto(type) === null || typeof resolveParamsDto(type) === 'function').toBe(true);
+  });
+
+  it.each([...ActionTypesList])('accepts a valid params object for %s', (type) => {
+    const errors = validateActionParams([{ id: 'a1', type, params: VALID_PARAMS[type] }]);
+    expect(errors).toEqual([]);
+  });
+
+  it.each([...ActionTypesList])('rejects an invalid params object for %s', (type) => {
+    if (resolveParamsDto(type) === null) {
+      const errors = validateActionParams([{ id: 'a1', type, params: 'not-an-object' }]);
+      expect(errors.length).toBeGreaterThan(0);
+      return;
+    }
+    const errors = validateActionParams([{ id: 'a1', type, params: INVALID_PARAMS[type] }]);
+    expect(errors.length).toBeGreaterThan(0);
+  });
+});
+
+describe('D-38 MediaOptionsDto round-trip', () => {
+  it.each(['nsp', 'nU(x)L(1:2:3)'])('serializes %s back to the original string', (raw) => {
+    const parsed = MediaOptionsDto.fromString(raw);
+    expect(serializeMediaOptions(parsed)).toBe(raw);
+  });
+
+  it('accepts a structured options object for playback', () => {
+    const errors = validateActionParams([{
+      id: 'p1',
+      type: 'playback',
+      params: { options: { noanswer: true, skip: false }, langoverride: 'ru' },
+    }]);
+    expect(errors).toEqual([]);
+  });
+
+  it('accepts a string options value and normalizes it', () => {
+    const errors = validateActionParams([{
+      id: 'p1',
+      type: 'playback',
+      params: { options: 'nsp' },
+    }]);
+    expect(errors).toEqual([]);
+  });
+});
+
+describe('D-39 / D-41 validateActionParams paths', () => {
+  it('rejects empty toexten target.value with a dotted path', () => {
+    const errors = validateActionParams([{
+      id: 'e1',
+      type: 'toexten',
+      params: { target: { source: 'fixed', value: '' } },
+    }]);
+    expect(errors.some((e) => e.path === 'target.value')).toBe(true);
+  });
+
+  it('accepts toexten with webrtc true', () => {
+    const errors = validateActionParams([{
+      id: 'e1',
+      type: 'toexten',
+      params: { target: { source: 'fixed', value: '101' }, webrtc: true },
+    }]);
+    expect(errors).toEqual([]);
+  });
+
+  it('rejects confbridge without a room', () => {
+    const errors = validateActionParams([{ id: 'c1', type: 'confbridge', params: {} }]);
+    expect(errors.length).toBeGreaterThan(0);
+    expect(errors.some((e) => e.path === 'room' || e.path.startsWith('room'))).toBe(true);
   });
 });
