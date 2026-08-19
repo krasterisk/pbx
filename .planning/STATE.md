@@ -5,13 +5,13 @@ milestone_name: milestone
 current_phase: 12
 current_phase_name: dialplan-apps-editor-refactor-reusable-route-chain-builder
 status: executing
-stopped_at: Completed 12-03-PLAN.md
-last_updated: "2026-08-19T07:27:17.261Z"
+stopped_at: Completed 12-05-PLAN.md
+last_updated: "2026-08-19T08:19:43.892Z"
 progress:
   total_phases: 12
   completed_phases: 8
   total_plans: 120
-  completed_plans: 104
+  completed_plans: 105
 ---
 
 # State
@@ -19,7 +19,7 @@ progress:
 ## Current position
 
 Phase: 12 (dialplan-apps-editor-refactor-reusable-route-chain-builder) — EXECUTING
-Plan 12-01 (Wave 0 characterization) complete: 3/3 tasks. Plan 12-02 (queue-by-route-mask tracer) complete: 2/2 tasks (human-approved). Plan 12-03 (per-type DTO expansion) complete: 3/3 tasks. Plan 12-04 (tenant-settings module) complete: 3/3 tasks. Next: 12-05 (generator core / Congestion()).
+Plan 12-01 (Wave 0 characterization) complete: 3/3 tasks. Plan 12-02 (queue-by-route-mask tracer) complete: 2/2 tasks (human-approved). Plan 12-03 (per-type DTO expansion) complete: 3/3 tasks. Plan 12-04 (tenant-settings module) complete: 3/3 tasks. Plan 12-05 (generator core / Congestion()) complete: 3/3 tasks. Next: 12-06 (hop-counter / unreachable-tail).
 Migrations applied (2026-07-24): `cc_contacts` table + `cc_settings.journal_depth`. Live Asterisk A1/A3 checkpoint still deferred in WINDOWS.md.
 
 Also Phase 9 (complete, verify/UAT open):
@@ -203,6 +203,10 @@ Phase 1 — MOH: pending verify.
 - [Phase 12]: D-17 both flags default true (ON); empty-table getAll returns toBe(true)
 - [Phase 12]: GLOBAL_SETTING_KEYS is a live Set from system-settings MANAGED_KEYS
 - [Phase 12]: No @Roles(UserLevel.ADMIN) on tenant-settings; JWT tenant only (D-19)
+- [Phase 12]: cmd_apply writes ActionLog.create from the static generator
+- [Phase 12]: toivr stays Goto(ivr_{uid},start,1) without tenant suffix
+- [Phase 12]: totrunk dest is a PSTN/ValueSource number, not normalizeTarget(exten)
+- [Phase 12]: Empty congestion params emit Congestion() with no default timeout
 
 ## Roadmap Evolution
 
@@ -236,7 +240,7 @@ Phase 1 — MOH: pending verify.
 
 ## Next GSD command
 
-**Phase 12:** 12-01, 12-02, and 12-04 complete → next is **12-03** (per-type DTO expansion). Do not start 12-03 from the 12-02 close-out.
+**Phase 12:** 12-01…12-05 complete. Next recommended: **12-06** (hop-counter / unreachable-tail). Do not start 12-06 from the 12-05 close-out.
 
 Also open: Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 verify; Phase 8 / 08-11 Android smoke.
 
@@ -327,9 +331,10 @@ Also open: Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 veri
 | Phase 12 P02 | multi-session | 2 tasks | 24 files (close-out; locales skipped) |
 | Phase 12-dialplan-apps-editor-refactor-reusable-route-chain-builder P04 | 15min | 3 tasks | 12 files |
 | Phase 12 P03 | 100min | 3 tasks | 25 files |
+| Phase 12 P05 | 55 | 3 tasks | 22 files |
 
 ## Session
 
-**Last session:** 2026-08-19T07:27:17.126Z
-**Stopped at:** Completed 12-03-PLAN.md
+**Last session:** 2026-08-19T08:18:31.809Z
+**Stopped at:** Completed 12-05-PLAN.md
 **Resume file:** None
