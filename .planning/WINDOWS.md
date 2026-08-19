@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 4
+open_count: 5
 waived_count: 0
 fixed_count: 0
-total_count: 4
-last_updated: 2026-08-04T13:02:03.163Z
+total_count: 5
+last_updated: 2026-08-19T06:47:39.880Z
 ---
 
 # Broken Windows Ledger
@@ -19,6 +19,7 @@ last_updated: 2026-08-04T13:02:03.163Z
 | 2 | 11 | unrun-verify | harness/scenarios/api/health-smoke.test.ts |  | harness:api health integration requires live backend on :5010 | open |  | 2026-08-04T12:55:24.448Z |  |
 | 3 | 11 | unrun-verify | harness/scenarios/api/auth.test.ts |  | Live harness:api --tag auth deferred (backend not running during 11-03 execution) | open |  | 2026-08-04T13:01:43.629Z |  |
 | 4 | 11 | unrun-verify | harness/scenarios/api/moh-crud.test.ts |  | Live harness:api --tag moh deferred (backend not running during 11-03 execution) | open |  | 2026-08-04T13:02:03.163Z |  |
+| 5 | 12 | deviation | packages/frontend/src/shared/config/locales/ru.ts |  | 12-02 close-out skipped ru.ts/en.ts (mixed with unrelated WIP); routes.chain keys remain unstaged | open |  | 2026-08-19T06:47:39.880Z |  |
 
 ````json
 [
@@ -68,6 +69,18 @@ last_updated: 2026-08-04T13:02:03.163Z
     "status": "open",
     "reason": "",
     "recorded_at": "2026-08-04T13:02:03.163Z",
+    "resolved_at": null
+  },
+  {
+    "id": 5,
+    "kind": "deviation",
+    "phase": "12",
+    "file": "packages/frontend/src/shared/config/locales/ru.ts",
+    "line": null,
+    "description": "12-02 close-out skipped ru.ts/en.ts (mixed with unrelated WIP); routes.chain keys remain unstaged",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-08-19T06:47:39.880Z",
     "resolved_at": null
   }
 ]

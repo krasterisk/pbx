@@ -699,10 +699,10 @@ Plans:
 - Предыдущая фаза по этой области: Phase 6 (`06-13`/`06-14`/`06-16` — apps + registry + inline group editor)
 
 **Status:** In Progress — 17 планов, waves 0…13 (`12-01`…`12-17`)
-**Plans:** 2/17 plans executed
+**Plans:** 3/17 plans executed
 
 - [x] 12-01-PLAN.md
-- [ ] 12-02-PLAN.md
+- [x] 12-02-PLAN.md
 - [ ] 12-03-PLAN.md
 - [x] 12-04-PLAN.md
 - [ ] 12-05-PLAN.md
@@ -808,7 +808,7 @@ Plans:
 **Plans:**
 
 - [x] `12-01-PLAN.md` — Wave 0: characterization-тесты генератора (22 непокрытые ветви → 29/29)
-- [ ] `12-02-PLAN.md` — tracer: «очередь по маске маршрута» сквозь все слои
+- [x] `12-02-PLAN.md` — tracer: «очередь по маске маршрута» сквозь все слои
 - [ ] `12-03-PLAN.md` — discriminated union `params` + 29 per-type DTO + реестр DTO
 - [x] `12-04-PLAN.md` — подсистема тенантных настроек (backend + миграция)
 - [ ] `12-05-PLAN.md` — ядро генератора: multi-line условия, `label`, 5 call-site, `normalizeTarget`

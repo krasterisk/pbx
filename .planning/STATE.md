@@ -5,13 +5,13 @@ milestone_name: milestone
 current_phase: 12
 current_phase_name: dialplan-apps-editor-refactor-reusable-route-chain-builder
 status: executing
-stopped_at: Completed 12-04-PLAN.md
-last_updated: "2026-08-18T18:29:49.288Z"
+stopped_at: Completed 12-02-PLAN.md
+last_updated: "2026-08-19T06:47:37.904Z"
 progress:
   total_phases: 12
   completed_phases: 8
   total_plans: 120
-  completed_plans: 102
+  completed_plans: 103
 ---
 
 # State
@@ -19,7 +19,7 @@ progress:
 ## Current position
 
 Phase: 12 (dialplan-apps-editor-refactor-reusable-route-chain-builder) — EXECUTING
-Plan 12-01 (Wave 0 characterization) complete: 3/3 tasks. Plan 12-04 (tenant-settings module) complete: 3/3 tasks. Next: remaining Wave 0 (12-02 tracer).
+Plan 12-01 (Wave 0 characterization) complete: 3/3 tasks. Plan 12-02 (queue-by-route-mask tracer) complete: 2/2 tasks (human-approved). Plan 12-04 (tenant-settings module) complete: 3/3 tasks. Next: 12-03 (per-type DTO expansion).
 Migrations applied (2026-07-24): `cc_contacts` table + `cc_settings.journal_depth`. Live Asterisk A1/A3 checkpoint still deferred in WINDOWS.md.
 
 Also Phase 9 (complete, verify/UAT open):
@@ -64,6 +64,11 @@ Phase 1 — MOH: pending verify.
 - [Phase 12]: ActionType (shared) and ActionTypesList (DTO) already match at Wave 0; completeness test is green
 - [Phase 12]: voice-robots.service.ts:444 is max_retries_action and :456 is fallback_action (PLAN.md labels were swapped)
 - [Phase 12]: dialplan.util.ts Wave 0 coverage: 100% stmts/lines, 93.06% branch; all 29 case arms reached
+- [Phase 12]: Phonebook ValueSource requires varKey; lookup uses ?var_key= value-only into PB_TARGET
+- [Phase 12]: Empty queue allowed with confirm on Sheet close and RouteFormModal save
+- [Phase 12]: Sheet desktop width 50vw; queue Select uses Dynamic/Static optgroups
+- [Phase 12]: UI never shows dialplan internals in tooltips (ARCHITECTURE rich InfoTooltip pattern)
+- [Phase 12]: 12-02 locales skipped in close-out — ru.ts/en.ts mixed with unrelated WIP; commit chain keys later
 - [Phase 08]: 08-11 FCM POST `/marketplace/device-token`; JWT `sub` bind; foreground-only WebRTC notes (D-36)
 - [Phase 08]: 08-10 human approved — assembleDebug with Studio JBR 21; gradlew empty-classpath + proguard-optimize fixes
 - [Phase 08]: D-27 Hub-mapped reachable set closed with 08-09 + 08-14…08-17 (exclusions: wallboard, auth, legacy redirects)
@@ -228,7 +233,7 @@ Phase 1 — MOH: pending verify.
 
 ## Next GSD command
 
-**Phase 12:** 12-01 and 12-04 complete → `/gsd-execute-phase 12` continues with remaining Wave 0 (`12-02` tracer).
+**Phase 12:** 12-01, 12-02, and 12-04 complete → next is **12-03** (per-type DTO expansion). Do not start 12-03 from the 12-02 close-out.
 
 Also open: Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 verify; Phase 8 / 08-11 Android smoke.
 
@@ -316,10 +321,11 @@ Also open: Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 veri
 | Phase 11-harness-layer-external-scenario-runner-environment-observabi P05 | 25min | 3 tasks | 11 files |
 | Phase 11 P06 | 18min | 2 tasks | 5 files |
 | Phase 12 P01 | 25min | 3 tasks | 6 files |
+| Phase 12 P02 | multi-session | 2 tasks | 24 files (close-out; locales skipped) |
 | Phase 12-dialplan-apps-editor-refactor-reusable-route-chain-builder P04 | 15min | 3 tasks | 12 files |
 
 ## Session
 
-**Last session:** 2026-08-18T18:29:49.230Z
-**Stopped at:** Completed 12-04-PLAN.md
+**Last session:** 2026-08-19T06:47:34.999Z
+**Stopped at:** Completed 12-02-PLAN.md
 **Resume file:** None
