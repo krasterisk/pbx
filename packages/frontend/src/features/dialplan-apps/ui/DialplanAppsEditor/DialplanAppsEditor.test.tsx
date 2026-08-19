@@ -41,6 +41,10 @@ vi.mock('@/shared/api/endpoints/timeGroupApi', () => ({
   useGetTimeGroupsQuery: () => ({ data: [], isLoading: false }),
 }));
 
+vi.mock('@/shared/api/endpoints/promptsApi', () => ({
+  useGetPromptsQuery: () => ({ data: [], isLoading: false }),
+}));
+
 vi.mock('@dnd-kit/core', async () => {
   const actual = await vi.importActual<typeof import('@dnd-kit/core')>('@dnd-kit/core');
   return {

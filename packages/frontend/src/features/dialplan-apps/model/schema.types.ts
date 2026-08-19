@@ -42,6 +42,11 @@ export interface SchemaFieldRenderCtx {
   field: FieldSchema;
 }
 
+export interface FieldVisibleWhen {
+  key: string;
+  equals: string | readonly string[];
+}
+
 export interface FieldSchema {
   key: string;
   kind: FieldKind;
@@ -50,6 +55,8 @@ export interface FieldSchema {
   hintKey?: string;
   optionsSource?: OptionsSource;
   options?: FieldOption[];
+  /** Hide the field unless `params[key]` matches `equals`. */
+  visibleWhen?: FieldVisibleWhen;
   /** Custom field renderer. String `'custom'` is accepted as a flag from older schemas. */
   render?: 'custom' | ((ctx: SchemaFieldRenderCtx) => ReactNode);
 }

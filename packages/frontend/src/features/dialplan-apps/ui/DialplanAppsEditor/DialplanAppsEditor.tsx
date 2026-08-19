@@ -117,6 +117,12 @@ function firstAlwaysTerminalIndex(actions: IRouteAction[]): number {
   });
 }
 
+function firstMenuPlaybackIndex(actions: IRouteAction[]): number {
+  return actions.findIndex((action) => (
+    action.type === 'playback' && action.params?.mode === 'menu'
+  ));
+}
+
 function SortableStepRow(
   props: React.ComponentProps<typeof StepRow> & { id: string },
 ) {
@@ -165,6 +171,9 @@ export const DialplanAppsEditor = memo(function DialplanAppsEditor({
   const terminalIndex = firstAlwaysTerminalIndex(actions);
   const unreachableCount =
     terminalIndex >= 0 ? Math.max(0, actions.length - terminalIndex - 1) : 0;
+  const menuIndex = firstMenuPlaybackIndex(actions);
+  const maybeSkipCount =
+    menuIndex >= 0 ? Math.max(0, actions.length - menuIndex - 1) : 0;
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -296,6 +305,31 @@ export const DialplanAppsEditor = memo(function DialplanAppsEditor({
                     'Действие {{index}} завершает цепочку. Перенесите его вниз или удалите действия после него',
                   )
               ).replace('{{index}}', String(terminalIndex + 1))}
+            </Text>
+          </VStack>
+        </Flex>
+      ) : null}
+
+      {maybeSkipCount > 0 && unreachableCount === 0 ? (
+        <Flex className={styles.unreachable} gap="8" align="start">
+          <AlertTriangle size={16} />
+          <VStack gap="4">
+            <Text>
+              {maybeSkipCount === 1
+                ? t('routes.chain.maybeUnreachable.title_one', 'Шаг ниже может не выполниться')
+                : t('routes.chain.maybeUnreachable.title_other', 'Шаги ниже могут не выполниться')}
+            </Text>
+            <Text variant="muted">
+              {(maybeSkipCount === 1
+                ? t(
+                    'routes.chain.maybeUnreachable.body_one',
+                    'Действие {{index}} может увести вызов из цепочки, тогда следующее действие пропускается',
+                  )
+                : t(
+                    'routes.chain.maybeUnreachable.body_other',
+                    'Действие {{index}} может увести вызов из цепочки, тогда следующие действия пропускаются',
+                  )
+              ).replace('{{index}}', String(menuIndex + 1))}
             </Text>
           </VStack>
         </Flex>

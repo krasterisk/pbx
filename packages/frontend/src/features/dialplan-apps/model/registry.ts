@@ -13,6 +13,7 @@ import { GroupApp } from '../ui/apps/GroupApp/GroupApp';
 import { NotifyApp } from '../ui/apps/NotifyApp/NotifyApp';
 import { CallerIdApp } from '../ui/apps/CallerIdApp/CallerIdApp';
 import { TrunkCarouselApp } from '../ui/apps/TrunkCarouselApp/TrunkCarouselApp';
+import { PlaybackApp, buildPlaybackSchema, summarizePlayback } from '../ui/apps/PlaybackApp/PlaybackApp';
 
 const registryDraft: Record<ActionType, Omit<IDialplanAppConfig, 'schema' | 'summarize' | 'terminal' | 'allowedIn' | 'optionFlags'> & Partial<IDialplanAppConfig>> = {
   // --- TELEPHONY & MEDIA ---
@@ -100,8 +101,24 @@ const registryDraft: Record<ActionType, Omit<IDialplanAppConfig, 'schema' | 'sum
   tolist: { type: 'tolist', labelKey: 'routes.action.tolist', component: GenericApp, category: 'telephony' },
   toivr: { type: 'toivr', labelKey: 'routes.action.toivr', component: IvrApp, category: 'telephony', defaultParams: { ivr_uid: '' } },
   toroute: { type: 'toroute', labelKey: 'routes.action.toroute', component: ToRouteApp, category: 'telephony', defaultParams: { context: '', extension: '' } },
-  playprompt: { type: 'playprompt', labelKey: 'routes.action.playprompt', component: PromptApp, category: 'media', defaultParams: { file: '' } },
-  playback: { type: 'playback', labelKey: 'routes.action.playback', component: PromptApp, category: 'media', defaultParams: { file: '' } },
+  playprompt: {
+    type: 'playprompt',
+    labelKey: 'routes.action.playprompt',
+    component: PromptApp,
+    category: 'media',
+    defaultParams: { file: '' },
+    offerOnCreate: false,
+  },
+  playback: {
+    type: 'playback',
+    labelKey: 'routes.action.playback',
+    component: PlaybackApp,
+    category: 'media',
+    defaultParams: { mode: 'plain', files: '', options: {} },
+    schema: buildPlaybackSchema((key, fallback) => fallback ?? key),
+    summarize: summarizePlayback,
+    optionFlags: [],
+  },
   voicerobot: { type: 'voicerobot', labelKey: 'routes.action.voicerobot', component: VoiceRobotApp, category: 'media' },
   text2speech: { type: 'text2speech', labelKey: 'routes.action.text2speech', component: GenericApp, category: 'media' },
   asr: { type: 'asr', labelKey: 'routes.action.asr', component: GenericApp, category: 'media' },
@@ -149,6 +166,7 @@ function withRequiredFields(
     summarize:
       config.summarize
       ?? ((_, t) => t(config.labelKey, config.type)),
+    offerOnCreate: config.offerOnCreate ?? true,
   };
 }
 

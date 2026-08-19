@@ -31,12 +31,13 @@ export const ActionTypeSelect = memo(({ value, onChange, className, allowedTypes
     const groups: Record<string, IDialplanAppConfig[]> = {};
     ACTION_TYPES_LIST.forEach((item) => {
       if (allowedTypes && !allowedTypes.includes(item.type)) return;
+      if (item.offerOnCreate === false && item.type !== value) return;
       const cat = item.category || 'other';
       if (!groups[cat]) groups[cat] = [];
       groups[cat].push(item);
     });
     return groups;
-  }, [allowedTypes]);
+  }, [allowedTypes, value]);
 
   const isEmpty = !value;
 

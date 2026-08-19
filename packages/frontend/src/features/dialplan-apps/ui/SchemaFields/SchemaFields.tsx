@@ -386,6 +386,14 @@ export function SchemaFields({
   return (
     <VStack gap="12" max className={styles.fields}>
       {schema.map((field) => {
+        if (field.visibleWhen) {
+          const actual = params[field.visibleWhen.key];
+          const expected = field.visibleWhen.equals;
+          const visible = Array.isArray(expected)
+            ? expected.includes(String(actual ?? ''))
+            : String(actual ?? '') === expected;
+          if (!visible) return null;
+        }
         const label = t(field.labelKey, field.labelKey);
         const hint = field.hintKey ? t(field.hintKey, field.hintKey) : undefined;
         const id = `schema-field-${field.key}`;

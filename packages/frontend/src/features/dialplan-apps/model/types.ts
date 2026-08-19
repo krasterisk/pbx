@@ -36,4 +36,6 @@ export interface IDialplanAppConfig {
   terminal: 'always' | 'conditional' | 'never';
   allowedIn: ReadonlyArray<DialplanHost>;
   optionFlags: ReadonlyArray<string>;
+  /** When false, hidden from ActionTypeSelect on new steps (dual-read legacy). */
+  offerOnCreate?: boolean;
 }

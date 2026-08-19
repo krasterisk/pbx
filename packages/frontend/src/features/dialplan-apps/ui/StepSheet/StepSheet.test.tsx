@@ -38,6 +38,10 @@ vi.mock('@/shared/api/endpoints/timeGroupApi', () => ({
   useGetTimeGroupsQuery: vi.fn(() => ({ data: [], isLoading: false })),
 }));
 
+vi.mock('@/shared/api/endpoints/promptsApi', () => ({
+  useGetPromptsQuery: vi.fn(() => ({ data: [], isLoading: false })),
+}));
+
 vi.mock('@/shared/ui', async () => {
   const actual = await vi.importActual<typeof import('@/shared/ui')>('@/shared/ui');
   return {

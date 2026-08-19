@@ -19,6 +19,8 @@ import { isValueSourceComplete } from '../ValueSourceField/ValueSourceField';
 import { SchemaFields } from '../SchemaFields/SchemaFields';
 import { OptionsEditor } from '../OptionsEditor/OptionsEditor';
 import { ConditionEditor } from '../ConditionEditor/ConditionEditor';
+import { useGetPromptsQuery } from '@/shared/api/endpoints/promptsApi';
+import { normalizePlaybackParams } from '../apps/PlaybackApp/PlaybackApp';
 import { toConditionSource, toRouteCondition } from '../../model/conditionMap';
 import type { ConditionSource } from '@krasterisk/shared';
 import styles from './StepSheet.module.scss';
@@ -80,6 +82,7 @@ export function StepSheet({
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [conditionsOpen, setConditionsOpen] = useState(initialSection === 'conditions');
   const bodyRef = useRef<HTMLDivElement>(null);
+  const { data: prompts = [], isLoading: promptsLoading } = useGetPromptsQuery();
   const config = action?.type ? dialplanAppsRegistry[action.type] : undefined;
   const title = config
     ? t(config.labelKey, action?.type ?? '')
@@ -170,10 +173,23 @@ export function StepSheet({
               </HStack>
               <SchemaFields
                 schema={config?.schema ?? []}
-                params={action?.params ?? {}}
+                params={action?.type === 'playback'
+                  ? normalizePlaybackParams(action?.params ?? {})
+                  : action?.params ?? {}}
                 tenantUid={tenantUid}
                 showErrors={showErrors}
                 fieldErrors={fieldErrors}
+                refs={{
+                  prompts: {
+                    items: prompts.map((prompt) => ({
+                      value: prompt.filename,
+                      label: prompt.comment || prompt.filename,
+                    })),
+                    isLoading: promptsLoading,
+                    sectionHref: '/prompts',
+                    sectionFallback: 'Промпты',
+                  },
+                }}
                 onChange={onChange}
               />
             </VStack>
