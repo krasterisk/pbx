@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 5
+open_count: 6
 waived_count: 0
 fixed_count: 0
-total_count: 5
-last_updated: 2026-08-19T06:47:39.880Z
+total_count: 6
+last_updated: 2026-08-19T07:27:22.769Z
 ---
 
 # Broken Windows Ledger
@@ -20,6 +20,7 @@ last_updated: 2026-08-19T06:47:39.880Z
 | 3 | 11 | unrun-verify | harness/scenarios/api/auth.test.ts |  | Live harness:api --tag auth deferred (backend not running during 11-03 execution) | open |  | 2026-08-04T13:01:43.629Z |  |
 | 4 | 11 | unrun-verify | harness/scenarios/api/moh-crud.test.ts |  | Live harness:api --tag moh deferred (backend not running during 11-03 execution) | open |  | 2026-08-04T13:02:03.163Z |  |
 | 5 | 12 | deviation | packages/frontend/src/shared/config/locales/ru.ts |  | 12-02 close-out skipped ru.ts/en.ts (mixed with unrelated WIP); routes.chain keys remain unstaged | open |  | 2026-08-19T06:47:39.880Z |  |
+| 6 | 12 | deviation | packages/frontend/src/shared/config/locales/ru.ts |  | routes.action.congestion added in working tree but not committed (WIP mix) | open |  | 2026-08-19T07:27:22.769Z |  |
 
 ````json
 [
@@ -81,6 +82,18 @@ last_updated: 2026-08-19T06:47:39.880Z
     "status": "open",
     "reason": "",
     "recorded_at": "2026-08-19T06:47:39.880Z",
+    "resolved_at": null
+  },
+  {
+    "id": 6,
+    "kind": "deviation",
+    "phase": "12",
+    "file": "packages/frontend/src/shared/config/locales/ru.ts",
+    "line": null,
+    "description": "routes.action.congestion added in working tree but not committed (WIP mix)",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-08-19T07:27:22.769Z",
     "resolved_at": null
   }
 ]

@@ -5,13 +5,13 @@ milestone_name: milestone
 current_phase: 12
 current_phase_name: dialplan-apps-editor-refactor-reusable-route-chain-builder
 status: executing
-stopped_at: Completed 12-02-PLAN.md
-last_updated: "2026-08-19T06:47:37.904Z"
+stopped_at: Completed 12-03-PLAN.md
+last_updated: "2026-08-19T07:27:17.261Z"
 progress:
   total_phases: 12
   completed_phases: 8
   total_plans: 120
-  completed_plans: 103
+  completed_plans: 104
 ---
 
 # State
@@ -19,7 +19,7 @@ progress:
 ## Current position
 
 Phase: 12 (dialplan-apps-editor-refactor-reusable-route-chain-builder) — EXECUTING
-Plan 12-01 (Wave 0 characterization) complete: 3/3 tasks. Plan 12-02 (queue-by-route-mask tracer) complete: 2/2 tasks (human-approved). Plan 12-04 (tenant-settings module) complete: 3/3 tasks. Next: 12-03 (per-type DTO expansion).
+Plan 12-01 (Wave 0 characterization) complete: 3/3 tasks. Plan 12-02 (queue-by-route-mask tracer) complete: 2/2 tasks (human-approved). Plan 12-03 (per-type DTO expansion) complete: 3/3 tasks. Plan 12-04 (tenant-settings module) complete: 3/3 tasks. Next: 12-05 (generator core / Congestion()).
 Migrations applied (2026-07-24): `cc_contacts` table + `cc_settings.journal_depth`. Live Asterisk A1/A3 checkpoint still deferred in WINDOWS.md.
 
 Also Phase 9 (complete, verify/UAT open):
@@ -69,6 +69,9 @@ Phase 1 — MOH: pending verify.
 - [Phase 12]: Sheet desktop width 50vw; queue Select uses Dynamic/Static optgroups
 - [Phase 12]: UI never shows dialplan internals in tooltips (ARCHITECTURE rich InfoTooltip pattern)
 - [Phase 12]: 12-02 locales skipped in close-out — ru.ts/en.ts mixed with unrelated WIP; commit chain keys later
+- [Phase 12]: 30 ActionTypes are the live 29 plus congestion, not the planner setvar/goto taxonomy
+- [Phase 12]: ACTION_PARAM_DTO is null only for hangup/busy/congestion
+- [Phase 12]: 12-03 locales skipped — ru.ts/en.ts mixed with unrelated WIP; t(key, type) fallback
 - [Phase 08]: 08-11 FCM POST `/marketplace/device-token`; JWT `sub` bind; foreground-only WebRTC notes (D-36)
 - [Phase 08]: 08-10 human approved — assembleDebug with Studio JBR 21; gradlew empty-classpath + proguard-optimize fixes
 - [Phase 08]: D-27 Hub-mapped reachable set closed with 08-09 + 08-14…08-17 (exclusions: wallboard, auth, legacy redirects)
@@ -323,9 +326,10 @@ Also open: Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 veri
 | Phase 12 P01 | 25min | 3 tasks | 6 files |
 | Phase 12 P02 | multi-session | 2 tasks | 24 files (close-out; locales skipped) |
 | Phase 12-dialplan-apps-editor-refactor-reusable-route-chain-builder P04 | 15min | 3 tasks | 12 files |
+| Phase 12 P03 | 100min | 3 tasks | 25 files |
 
 ## Session
 
-**Last session:** 2026-08-19T06:47:34.999Z
-**Stopped at:** Completed 12-02-PLAN.md
+**Last session:** 2026-08-19T07:27:17.126Z
+**Stopped at:** Completed 12-03-PLAN.md
 **Resume file:** None
