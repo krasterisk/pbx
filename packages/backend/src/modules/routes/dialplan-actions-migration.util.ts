@@ -7,6 +7,17 @@ export const USE_EXTEN_SENTINEL = '__USE_EXTEN__';
 
 const UNMAPPED_HARD_REMOVE = new Set(['tofax', 'asr', 'keywords']);
 
+const KNOWN_TYPES = new Set([
+  'totrunk', 'toexten', 'toqueue', 'togroup', 'tolist',
+  'toivr', 'toroute', 'playprompt', 'playback', 'background',
+  'setclid_custom', 'setclid_list',
+  'sendmail', 'sendmailpeer', 'telegram',
+  'notify', 'callerid', 'trunk_carousel',
+  'voicemail', 'text2speech', 'voicerobot',
+  'webhook', 'confbridge', 'cmd',
+  'label', 'busy', 'hangup', 'congestion',
+]);
+
 const ADDRESS_STRING_FIELDS: Record<string, { from: string; to: string; useExtenField?: string }> = {
   toqueue: { from: 'queue', to: 'target' },
   toexten: { from: 'exten', to: 'target', useExtenField: 'useExten' },
@@ -175,14 +186,7 @@ export function migrateAction(action: unknown): MigrateActionResult {
   if (lifted.changed) changed = true;
 
   if (!changed) {
-    if (!(nextType in ADDRESS_STRING_FIELDS)
-      && nextType !== 'playback'
-      && nextType !== 'notify'
-      && nextType !== 'playprompt'
-      && nextType !== 'background'
-      && nextType !== 'sendmail'
-      && nextType !== 'sendmailpeer'
-      && nextType !== 'telegram') {
+    if (!KNOWN_TYPES.has(type)) {
       return { action, changed: false, unmapped: type };
     }
     return { action, changed: false };
@@ -190,4 +194,40 @@ export function migrateAction(action: unknown): MigrateActionResult {
 
   const nextAction = { ...action, type: nextType, params: nextParams };
   return { action: nextAction, changed: true };
+}
+
+export interface ChainMigrationResult {
+  value: unknown;
+  changed: boolean;
+  converted: number;
+  unmapped: Array<{ type: string; index: number }>;
+}
+
+/** Apply `migrateAction` to every element of an action chain (or a lone action). */
+export function migrateActionChain(
+  value: unknown,
+  migrate: typeof migrateAction = migrateAction,
+): ChainMigrationResult {
+  if (value == null) {
+    return { value, changed: false, converted: 0, unmapped: [] };
+  }
+  const items = Array.isArray(value) ? value : [value];
+  const unmapped: Array<{ type: string; index: number }> = [];
+  let converted = 0;
+  let changed = false;
+  const next = items.map((item, index) => {
+    const result = migrate(item);
+    if (result.unmapped) unmapped.push({ type: result.unmapped, index });
+    if (result.changed) {
+      converted += 1;
+      changed = true;
+    }
+    return result.action;
+  });
+  return {
+    value: Array.isArray(value) ? next : next[0],
+    changed,
+    converted,
+    unmapped,
+  };
 }
