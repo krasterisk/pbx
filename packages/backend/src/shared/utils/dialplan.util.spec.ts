@@ -4,7 +4,12 @@ import type { ActionType } from '@krasterisk/shared';
 import { DIALPLAN_ACTION_META } from '@krasterisk/shared';
 import { ActionTypesList } from '../../modules/routes/dto/route-action.dto';
 import { ActionLog } from '../../modules/logger/action-log.model';
-import { AsteriskDialplanUtils, renderActionChain } from './dialplan.util';
+import {
+  AsteriskDialplanUtils,
+  emitDigitExitTransition,
+  findUnreachableSteps,
+  renderActionChain,
+} from './dialplan.util';
 
 jest.mock('../../modules/logger/action-log.model', () => ({
   ActionLog: { create: jest.fn().mockResolvedValue({}) },
@@ -1464,5 +1469,39 @@ describe('D-25 hop prologue on toroute / toivr', () => {
     expect(dp).toContain('GotoIf($[');
     expect(dp).toContain('ivr_7,start,1');
     expect(dp).toContain('Congestion()');
+  });
+});
+
+describe('D-53 findUnreachableSteps / digit-exit', () => {
+  const playback = { type: 'playback', params: { file: 'welcome' }, condition: {} };
+  const hangup = { type: 'hangup', params: {}, condition: {} };
+  const setvar = { type: 'setvar', params: {}, condition: {} };
+  const wait = { type: 'wait', params: {}, condition: {} };
+  const playbackWithDigitExit = { type: 'playback', params: { file: 'menu', digitExit: true, digit: '1', digitExitDest: 'ivr_7,start,1' }, condition: {} };
+
+  it('marks steps after an always-terminal hangup as unreachable', () => {
+    expect(findUnreachableSteps([playback, hangup, setvar, wait])).toEqual([2, 3]);
+  });
+
+  it('does not treat a conditional terminal (digit-exit playback) as cutting the tail', () => {
+    expect(findUnreachableSteps([playbackWithDigitExit, setvar])).toEqual([]);
+  });
+
+  it('does not false-positive on empty chain or a single terminal step', () => {
+    expect(findUnreachableSteps([])).toEqual([]);
+    expect(findUnreachableSteps([hangup])).toEqual([]);
+  });
+
+  it('digit-exit emits a conditional transfer, not an unconditional Goto to the same dest', () => {
+    const dest = 'ivr_7,start,1';
+    const out = emitDigitExitTransition('1', dest);
+    expect(out).toContain('GotoIf($[');
+    expect(out).toContain(dest);
+    expect(out).not.toContain(`Goto(${dest})`);
+
+    const dp = AsteriskDialplanUtils.actionToDialplan(playbackWithDigitExit, 42);
+    expect(dp).toContain('GotoIf($[');
+    expect(dp).toContain(dest);
+    expect(dp).not.toContain(`Goto(${dest})`);
   });
 });
