@@ -19,72 +19,51 @@ import type {
   IVoiceRobotParams,
   MediaMixMode,
 } from '@krasterisk/shared';
+import { parseOptions, serializeOptions } from '../../../../shared/utils/dialplan-options.util';
 
 const MIX_MODES = ['say', 'mix'] as const;
 const SAFE_TEXT = /^[^\n\r;]*$/;
 const RAW_FLAGS = /^[A-Za-z0-9().,:_-]*$/;
 
-function isWordChar(ch: string | undefined): boolean {
-  return !!ch && /[A-Za-z]/.test(ch);
-}
-
 export function parseMediaOptions(input: string): IMediaOptions {
-  let i = 0;
   const result: IMediaOptions = {};
   const rawParts: string[] = [];
-  while (i < input.length) {
-    if (input.startsWith('say', i) && !isWordChar(input[i + 3])) {
+  for (const token of parseOptions(input).tokens) {
+    if (token === 'say') {
       result.mixMode = 'say';
-      i += 3;
       continue;
     }
-    if (input.startsWith('mix', i) && !isWordChar(input[i + 3])) {
+    if (token === 'mix') {
       result.mixMode = 'mix';
-      i += 3;
       continue;
     }
-    const ch = input[i];
-    if (ch === 'n') {
+    if (token === 'n') {
       result.noanswer = true;
-      i += 1;
       continue;
     }
-    if (ch === 's') {
+    if (token === 's') {
       result.skip = true;
-      i += 1;
       continue;
     }
-    if (ch === 'p') {
+    if (token === 'p') {
       result.p = true;
-      i += 1;
       continue;
     }
-    let j = i + 1;
-    if (input[j] === '(') {
-      let depth = 1;
-      j += 1;
-      while (j < input.length && depth > 0) {
-        if (input[j] === '(') depth += 1;
-        else if (input[j] === ')') depth -= 1;
-        j += 1;
-      }
-    }
-    rawParts.push(input.slice(i, j));
-    i = j;
+    rawParts.push(token);
   }
   if (rawParts.length) result.raw = rawParts.join('');
   return result;
 }
 
 export function serializeMediaOptions(opts: IMediaOptions): string {
-  let out = '';
-  if (opts.noanswer) out += 'n';
-  if (opts.skip) out += 's';
-  if (opts.p) out += 'p';
-  if (opts.mixMode === 'say') out += 'say';
-  if (opts.mixMode === 'mix') out += 'mix';
-  if (opts.raw) out += opts.raw;
-  return out;
+  const tokens: string[] = [];
+  if (opts.noanswer) tokens.push('n');
+  if (opts.skip) tokens.push('s');
+  if (opts.p) tokens.push('p');
+  if (opts.mixMode === 'say') tokens.push('say');
+  if (opts.mixMode === 'mix') tokens.push('mix');
+  if (opts.raw) tokens.push(opts.raw);
+  return serializeOptions({ tokens });
 }
 
 export class MediaOptionsDto implements IMediaOptions {

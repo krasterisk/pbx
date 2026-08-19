@@ -6,6 +6,25 @@ export type TargetKind = 'queue' | 'exten' | 'group' | 'context';
 /** Channel var set by toqueue phonebook lookup CURL (value-only response). */
 export const PHONEBOOK_TARGET_VAR = 'PB_TARGET';
 
+export function resolveValueSource(
+  params: Record<string, any> | undefined,
+  field: string,
+  legacy?: { stringField?: string; useExtenField?: string },
+): ValueSource {
+  const p = params ?? {};
+  const nested = p[field];
+  if (nested && typeof nested === 'object' && typeof nested.source === 'string') {
+    return nested as ValueSource;
+  }
+  if (legacy?.useExtenField && p[legacy.useExtenField]) {
+    return { source: 'route_pattern' };
+  }
+  const legacyVal = legacy?.stringField ? p[legacy.stringField] : undefined;
+  if (typeof nested === 'string' && nested) return { source: 'fixed', value: nested };
+  if (typeof legacyVal === 'string' && legacyVal) return { source: 'fixed', value: legacyVal };
+  return { source: 'route_pattern' };
+}
+
 export function resolveQueueValueSource(params: Record<string, any> | undefined): ValueSource {
   const p = params ?? {};
   if (p.target && typeof p.target === 'object' && typeof p.target.source === 'string') {

@@ -250,3 +250,23 @@ describe('D-39 / D-41 validateActionParams paths', () => {
     expect(errors.some((e) => e.path === 'room' || e.path.startsWith('room'))).toBe(true);
   });
 });
+
+describe('D-26 numberManipulation DTO', () => {
+  it.each(['totrunk', 'dial', 'toexten'] as const)('accepts numberManipulation on %s', (type) => {
+    const typeForDto = type === 'dial' ? 'toexten' : type;
+    const params = typeForDto === 'toexten'
+      ? { target: { source: 'fixed', value: '101' }, numberManipulation: { strip: 1, prepend: '8' } }
+      : { trunk: 'PJSIP/t1', dest: { source: 'fixed', value: '7900' }, numberManipulation: { strip: 1, prepend: '8' } };
+    const errors = validateActionParams([{ id: 'n1', type: typeForDto, params }]);
+    expect(errors).toEqual([]);
+  });
+
+  it('rejects letter prepend with path numberManipulation.prepend', () => {
+    const errors = validateActionParams([{
+      id: 'n1',
+      type: 'totrunk',
+      params: { trunk: 'PJSIP/t1', dest: { source: 'fixed', value: '7900' }, numberManipulation: { prepend: 'abc' } },
+    }]);
+    expect(errors.some((e) => e.path === 'numberManipulation.prepend')).toBe(true);
+  });
+});

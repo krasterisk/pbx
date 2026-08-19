@@ -541,7 +541,10 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       expect(dp).toBe('Goto(sip-out42,100,1)');
     });
 
-    it('toroute with already-suffixed context double-appends tenant (D-42 defect)', () => {
+    /**
+     * 12-RESEARCH / D-21 — normalizeTarget endsWith guard; Wave 0 froze the double suffix.
+     */
+    it('toroute with already-suffixed context keeps a single tenant suffix (D-21)', () => {
       const dp = AsteriskDialplanUtils.actionToDialplan(
         {
           type: 'toroute',
@@ -550,7 +553,7 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
         },
         vpbx,
       );
-      expect(dp).toBe('Goto(sip-out4242,100,1)');
+      expect(dp).toBe('Goto(sip-out42,100,1)');
     });
 
     it('toroute with registry defaultParams uses sip-in + ${EXTEN}', () => {
@@ -1302,6 +1305,57 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       );
       expect(dp.indexOf('WT_12')).toBeGreaterThan(-1);
       expect(dp.indexOf('WT_12')).toBeLessThan(dp.indexOf('DIALSTATUS'));
+    });
+
+    it('address kinds tenant-suffix via normalizeTarget and skip raw ${EXTEN} as the whole dest', () => {
+      const sources = [
+        { source: 'fixed' as const, value: '101' },
+        { source: 'route_pattern' as const },
+        { source: 'variable' as const, name: 'MYVAR' },
+        { source: 'phonebook' as const, phonebookUid: 7, varKey: 'n' },
+      ];
+      const cases: Array<{ type: string; params: (src: (typeof sources)[number]) => Record<string, unknown> }> = [
+        { type: 'toexten', params: (src) => ({ target: src, timeout: 30 }) },
+        { type: 'togroup', params: (src) => ({ target: src }) },
+        { type: 'toroute', params: (src) => ({ context: 'sip-in', extension: src }) },
+        { type: 'totrunk', params: (src) => ({ trunk: 'PJSIP/out1', dest: src, timeout: 60, options: 'tT' }) },
+      ];
+      for (const c of cases) {
+        for (const src of sources) {
+          const dp = AsteriskDialplanUtils.actionToDialplan(
+            { type: c.type, params: c.params(src), condition: {} },
+            vpbx,
+          );
+          if (c.type !== 'totrunk') expect(dp).toMatch(/_42|42,/);
+          expect(dp).not.toMatch(/Dial\(\$\{EXTEN\}/);
+          expect(dp).not.toMatch(/Queue\(\$\{EXTEN\}/);
+          expect(dp).not.toMatch(/Goto\(\$\{EXTEN\}/);
+        }
+      }
+      const ivr = AsteriskDialplanUtils.actionToDialplan(
+        { type: 'toivr', params: { ivr_uid: 7 }, condition: {} },
+        vpbx,
+      );
+      expect(ivr).toBe('Goto(ivr_7,start,1)');
+      expect(ivr).not.toContain('${EXTEN}');
+    });
+
+    it('totrunk numberManipulation strip then prepend', () => {
+      const dp = AsteriskDialplanUtils.actionToDialplan(
+        {
+          type: 'totrunk',
+          params: {
+            trunk: 'PJSIP/out1',
+            dest: { source: 'fixed', value: '79001234567' },
+            timeout: 60,
+            options: 'tT',
+            numberManipulation: { strip: 1, prepend: '8' },
+          },
+          condition: {},
+        },
+        vpbx,
+      );
+      expect(dp).toBe('Dial(PJSIP/out1/89001234567,60,tT)');
     });
 
     it('multiline + time group never produces ?same =>', () => {

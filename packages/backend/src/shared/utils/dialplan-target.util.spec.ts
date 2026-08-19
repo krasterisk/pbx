@@ -1,4 +1,4 @@
-import { normalizeTarget } from './dialplan-target.util';
+import { normalizeTarget, resolveValueSource } from './dialplan-target.util';
 import type { ValueSource } from '@krasterisk/shared';
 
 describe('normalizeTarget', () => {
@@ -46,6 +46,13 @@ describe('normalizeTarget', () => {
 
   it('group uses group_{raw}_{uid}', () => {
     expect(normalizeTarget('group', { source: 'fixed', value: 'sales' }, 42)).toBe('group_sales_42');
+  });
+
+  it('resolveValueSource prefers nested ValueSource over legacy string', () => {
+    expect(resolveValueSource({ target: { source: 'fixed', value: '101' }, exten: '9' }, 'target', { stringField: 'exten' }))
+      .toEqual({ source: 'fixed', value: '101' });
+    expect(resolveValueSource({ useExten: true }, 'target', { stringField: 'exten', useExtenField: 'useExten' }))
+      .toEqual({ source: 'route_pattern' });
   });
 
   it('context concatenates uid with endsWith guard', () => {

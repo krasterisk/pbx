@@ -6,6 +6,12 @@ export type ValueSource =
 
 export type MediaMixMode = 'say' | 'mix';
 
+/** D-26: strip digits then prepend, applied to trunk-dialing targets. */
+export interface NumberManipulation {
+  strip?: number;
+  prepend?: string;
+}
+
 /** Structured Playback / BackGround option flags (D-38). String form is accepted and normalized. */
 export interface IMediaOptions {
   noanswer?: boolean;
@@ -38,6 +44,7 @@ export interface IToTrunkParams {
   dest?: ValueSource;
   timeout?: number | string;
   options?: string;
+  numberManipulation?: NumberManipulation;
 }
 
 /**
@@ -50,6 +57,7 @@ export interface IToExtenParams {
   webrtc?: boolean;
   timeout?: number | string;
   options?: string;
+  numberManipulation?: NumberManipulation;
   /** @deprecated Wave 0 — read when `target` is absent */
   exten?: string;
   /** @deprecated replaced by `target.source === 'route_pattern'` */
@@ -58,6 +66,7 @@ export interface IToExtenParams {
 
 export interface IToGroupParams {
   target?: ValueSource;
+  numberManipulation?: NumberManipulation;
   /** @deprecated Wave 0 — read when `target` is absent */
   group?: string;
 }

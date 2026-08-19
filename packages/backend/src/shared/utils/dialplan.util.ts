@@ -1,5 +1,6 @@
 import { ActionLog } from '../../modules/logger/action-log.model';
-import { normalizeTarget, resolveQueueValueSource, PHONEBOOK_TARGET_VAR } from './dialplan-target.util';
+import { normalizeTarget, resolveQueueValueSource, resolveValueSource, PHONEBOOK_TARGET_VAR } from './dialplan-target.util';
+import { applyNumberManipulation } from './dialplan-number.util';
 import { buildConditionExpr, isLegacyInvalidDialstatus, wrapEachLine } from './dialplan-condition.util';
 
 function logCmdApply(action: { id?: number; uid?: number; params?: { command?: string } }, vpbxUserUid: number): void {
@@ -138,7 +139,15 @@ export class AsteriskDialplanUtils {
 
     switch (type) {
       case 'totrunk': {
-        const dest = this.sanitizeDialplanInput(params.dest) || '${EXTEN}';
+        const destSrc = resolveValueSource(params, 'dest');
+        let dest = destSrc.source === 'fixed'
+          ? applyNumberManipulation(this.sanitizeDialplanInput(destSrc.value), params.numberManipulation)
+          : destSrc.source === 'variable'
+            ? `\${${this.sanitizeDialplanInput(destSrc.name)}}`
+            : destSrc.source === 'phonebook'
+              ? `\${${PHONEBOOK_TARGET_VAR}}`
+              : '${EXTEN}';
+        if (!dest) dest = '${EXTEN}';
         const trunk = this.sanitizeDialplanInput(params.trunk) || '';
         const timeout = parseInt(params.timeout, 10) || 60;
         // Inject U(krsk-on-answer) when on_answer webhook is configured
@@ -155,26 +164,29 @@ export class AsteriskDialplanUtils {
         break;
       }
       case 'toexten': {
-        // PJSIP: primary e{ext}_{uid} + optional WebRTC companion ew{ext}_{uid} (fork)
-        // Two modes:
-        //   1. Specific extension: params.exten = "101"
-        //   2. Pattern (use EXTEN): params.useExten = true
         const timeout = parseInt(params.timeout, 10) || 30;
         const dialOpts = this.buildDialOptions(params.options || 'tThH', wh);
-        // params.webrtc === false → primary only; otherwise fork (missing ew → CHANUNAVAIL)
         const webrtc = params.webrtc !== false && params.webrtc !== 'false';
+        const hasTarget = !!(params.target && typeof params.target === 'object')
+          || !!params.useExten
+          || !!(typeof params.exten === 'string' && params.exten);
+        if (!hasTarget) {
+          dp = '';
+          break;
+        }
+        const src = resolveValueSource(params, 'target', { stringField: 'exten', useExtenField: 'useExten' });
         let dialTarget: string;
-        if (params.useExten) {
-          dialTarget = this.pjsipDialTarget('${EXTEN}', vpbxUserUid, { webrtc });
-        } else {
-          const rawExten = this.sanitizeDialplanInput(params.exten) || '';
-          if (!rawExten) {
-            dp = ''; // No extension specified — skip
+        if (src.source === 'fixed' && this.sanitizeDialplanInput(src.value).includes('/')) {
+          dialTarget = this.sanitizeDialplanInput(src.value);
+        } else if (src.source === 'fixed') {
+          const manipulated = applyNumberManipulation(this.sanitizeDialplanInput(src.value), params.numberManipulation);
+          if (!manipulated) {
+            dp = '';
             break;
           }
-          dialTarget = rawExten.includes('/')
-            ? rawExten
-            : this.pjsipDialTarget(rawExten, vpbxUserUid, { webrtc });
+          dialTarget = normalizeTarget('exten', { source: 'fixed', value: manipulated }, vpbxUserUid, { webrtc });
+        } else {
+          dialTarget = normalizeTarget('exten', src, vpbxUserUid, { webrtc });
         }
         const dialLines: string[] = [];
         // DIALTO: attempt responsible employee first (if custom webhook returned a number)
@@ -226,8 +238,14 @@ export class AsteriskDialplanUtils {
         break;
       }
       case 'togroup': {
-        const group = this.sanitizeDialplanInput(params.group) || '${EXTEN}';
-        dp = `Gosub(group_${group}_${vpbxUserUid},start,1)`;
+        const src = resolveValueSource(params, 'target', { stringField: 'group' });
+        const groupSrc = src.source === 'fixed' && params.numberManipulation
+          ? {
+            source: 'fixed' as const,
+            value: applyNumberManipulation(this.sanitizeDialplanInput(src.value), params.numberManipulation),
+          }
+          : src;
+        dp = `Gosub(${normalizeTarget('group', groupSrc, vpbxUserUid)},start,1)`;
         break;
       }
       case 'voicerobot': {
@@ -251,9 +269,20 @@ export class AsteriskDialplanUtils {
         break;
       }
       case 'toroute': {
-        const ctx = this.sanitizeDialplanInput(params.context) || 'sip-in';
-        const dest = this.sanitizeDialplanInput(params.extension) || '${EXTEN}';
-        dp = `Goto(${ctx}${vpbxUserUid},${dest},1)`;
+        const ctx = normalizeTarget(
+          'context',
+          { source: 'fixed', value: this.sanitizeDialplanInput(params.context) || 'sip-in' },
+          vpbxUserUid,
+        );
+        const destSrc = resolveValueSource(params, 'extension');
+        const dest = destSrc.source === 'fixed'
+          ? (this.sanitizeDialplanInput(destSrc.value) || '${EXTEN}')
+          : destSrc.source === 'variable'
+            ? `\${${this.sanitizeDialplanInput(destSrc.name)}}`
+            : destSrc.source === 'phonebook'
+              ? `\${${PHONEBOOK_TARGET_VAR}}`
+              : '${EXTEN}';
+        dp = `Goto(${ctx},${dest},1)`;
         break;
       }
       case 'playprompt': {

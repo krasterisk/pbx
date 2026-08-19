@@ -47,4 +47,5 @@ export interface ITrunkCarouselActionParams {
   trunks: ITrunkCarouselItem[];
   timeout?: number | string;
   options?: string;
+  numberManipulation?: { strip?: number; prepend?: string };
 }

@@ -22,6 +22,19 @@ import type {
 import { IsValueSourceConstraint, ValueSourceDto } from './value-source.dto';
 
 const SAFE_DIAL = /^[^(),?\[\]{}$\\";\n\r]*$/;
+const PREPEND_DIGITS = /^[0-9+]*$/;
+
+export class NumberManipulationDto {
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  strip?: number;
+
+  @IsOptional()
+  @IsString()
+  @Matches(PREPEND_DIGITS)
+  prepend?: string;
+}
 
 /**
  * ConfBridge params as the generator reads them today (`room` / `options`).
@@ -69,6 +82,11 @@ export class ToExtenParamsDto {
   @IsOptional()
   @IsBoolean()
   useExten?: boolean;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => NumberManipulationDto)
+  numberManipulation?: NumberManipulationDto;
 }
 
 export class ToQueueParamsDto {
@@ -104,6 +122,11 @@ export class ToGroupParamsDto {
   @IsString()
   @Matches(SAFE_DIAL)
   group?: string;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => NumberManipulationDto)
+  numberManipulation?: NumberManipulationDto;
 }
 
 export class ToListParamsDto implements IToListParams {
@@ -165,6 +188,11 @@ export class ToTrunkParamsDto {
   @IsString()
   @Matches(SAFE_DIAL)
   options?: string;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => NumberManipulationDto)
+  numberManipulation?: NumberManipulationDto;
 }
 
 export class VoicemailParamsDto {
@@ -218,4 +246,9 @@ export class TrunkCarouselParamsDto implements ITrunkCarouselActionParams {
   @IsString()
   @Matches(SAFE_DIAL)
   options?: string;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => NumberManipulationDto)
+  numberManipulation?: NumberManipulationDto;
 }
