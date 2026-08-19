@@ -1418,3 +1418,31 @@ describe('characterization completeness (Wave 0 gate)', () => {
     }
   });
 });
+
+describe('D-25 hop prologue on toroute / toivr', () => {
+  const vpbx = 42;
+
+  it('toroute emits Set(__KRSK_HOPS and guard in the same branch', () => {
+    const dp = AsteriskDialplanUtils.actionToDialplan(
+      { type: 'toroute', params: { context: 'sip-out', extension: '100' }, condition: {} },
+      vpbx,
+    );
+    expect(dp).toContain('Set(__KRSK_HOPS=');
+    expect(dp).toContain('GotoIf($[');
+    expect(dp).toContain('sip-out42,100,1');
+    expect(dp).toContain('Congestion()');
+    expect(dp).toContain('NoOp(');
+    expect(dp.indexOf('Set(__KRSK_HOPS=')).toBeLessThan(dp.indexOf('GotoIf'));
+  });
+
+  it('toivr emits the same hop prologue around Goto(ivr_...)', () => {
+    const dp = AsteriskDialplanUtils.actionToDialplan(
+      { type: 'toivr', params: { ivr_uid: 7 }, condition: {} },
+      vpbx,
+    );
+    expect(dp).toContain('Set(__KRSK_HOPS=');
+    expect(dp).toContain('GotoIf($[');
+    expect(dp).toContain('ivr_7,start,1');
+    expect(dp).toContain('Congestion()');
+  });
+});
