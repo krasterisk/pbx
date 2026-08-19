@@ -6,6 +6,8 @@ import { DialplanBridgeService } from './dialplan-bridge.service';
 import { NumbersModule } from '../numbers/numbers.module';
 import { MailerModule } from '../mailer/mailer.module';
 import { TelegramModule } from '../telegram/telegram.module';
+import { TtsEnginesModule } from '../tts-engines/tts-engines.module';
+import { IvrsModule } from '../ivrs/ivrs.module';
 
 @Module({
   imports: [
@@ -14,6 +16,8 @@ import { TelegramModule } from '../telegram/telegram.module';
     NumbersModule,
     MailerModule,
     TelegramModule,
+    TtsEnginesModule,
+    IvrsModule,
   ],
   controllers: [DialplanBridgeController],
   providers: [DialplanBridgeService],

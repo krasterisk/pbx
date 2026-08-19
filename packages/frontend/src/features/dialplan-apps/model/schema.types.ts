@@ -15,7 +15,7 @@ export type FieldKind =
   | 'value-source'
   | 'custom';
 
-export type OptionsSource = 'queues' | 'trunks' | 'ivrs' | 'prompts' | 'phonebooks';
+export type OptionsSource = 'queues' | 'trunks' | 'ivrs' | 'prompts' | 'phonebooks' | 'tts-engines';
 
 export interface FieldOption {
   value: string;

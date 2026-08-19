@@ -213,6 +213,26 @@ export class Text2SpeechParamsDto implements IText2SpeechParams {
   text?: string;
 
   @IsOptional()
+  @Transform(({ value }) => {
+    if (value === '' || value == null) return undefined;
+    const n = Number(value);
+    return Number.isFinite(n) ? n : value;
+  })
+  @IsInt()
+  @Min(1)
+  engine?: number;
+
+  @IsOptional()
+  @IsString()
+  @Matches(SAFE_TEXT)
+  voice?: string;
+
+  @IsOptional()
+  @IsString()
+  @Matches(SAFE_TEXT)
+  language?: string;
+
+  @IsOptional()
   @Transform(transformMediaOptions)
   @ValidateNested()
   @Type(() => MediaOptionsDto)

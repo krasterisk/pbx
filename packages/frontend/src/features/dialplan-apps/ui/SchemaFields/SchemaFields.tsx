@@ -61,6 +61,11 @@ const CATALOG_DEFAULTS: Record<
     sectionKey: 'routes.chain.catalog.phonebooksSection',
     sectionFallback: 'Справочники',
   },
+  'tts-engines': {
+    href: '/settings/tts-engines',
+    sectionKey: 'routes.chain.catalog.ttsSection',
+    sectionFallback: 'Движки синтеза',
+  },
 };
 
 function FieldShell({

@@ -368,9 +368,17 @@ export class AsteriskDialplanUtils {
         break;
       }
       case 'text2speech': {
-        dp = buildCurlCall('tts', {
+        const curl = buildCurlCall('tts', {
           text: this.sanitizeDialplanInput(params.text),
+          engine: this.sanitizeDialplanInput(String(params.engine ?? '')),
+          voice: this.sanitizeDialplanInput(params.voice),
+          language: this.sanitizeDialplanInput(params.language),
         }, this.curlCtx(vpbxUserUid));
+        const play = emitPlayback(
+          { mode: 'plain', files: `\${${HTTP_RESULT_VAR}}` },
+          { vpbxUserUid },
+        );
+        dp = `${curl}\nsame => n,${play}`;
         break;
       }
       case 'asr':

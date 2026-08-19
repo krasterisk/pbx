@@ -138,6 +138,10 @@ export interface IVoicemailParams {
 
 export interface IText2SpeechParams {
   text?: string;
+  /** Tenant TTS engine uid from the project catalog (D-30). */
+  engine?: number | string;
+  voice?: string;
+  language?: string;
   options?: IMediaOptions | string;
   langoverride?: string;
   digittimeout?: number;

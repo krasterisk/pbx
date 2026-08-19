@@ -86,7 +86,8 @@ export class DialplanBridgeController {
     @Body() body: TtsDialplanDto,
   ) {
     this.assertKey(headerKey || body.api_key);
-    return this.bridge.tts(body);
+    const result = await this.bridge.tts(body);
+    return result.file ?? '';
   }
 
   private assertKey(provided?: string): void {

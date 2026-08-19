@@ -1,8 +1,13 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
+import * as path from 'path';
 import { MailerService } from '../mailer/mailer.service';
 import { TelegramService } from '../telegram/telegram.service';
 import { NumbersService } from '../numbers/numbers.service';
+import { TtsEnginesService } from '../tts-engines/tts-engines.service';
+import { IvrTtsService } from '../ivrs/ivr-tts.service';
+import { IvrTtsCacheService } from '../ivrs/ivr-tts-cache.service';
+import { AsteriskDialplanUtils } from '../../shared/utils/dialplan.util';
 import type {
   SendmailPeerDialplanDto,
   SetclidDialplanDto,
@@ -53,6 +58,9 @@ export class DialplanBridgeService {
     private readonly http: HttpService,
     private readonly mailer: MailerService,
     private readonly telegramBot: TelegramService,
+    private readonly ttsEngines: TtsEnginesService,
+    private readonly ivrTts: IvrTtsService,
+    private readonly ttsCache: IvrTtsCacheService,
   ) {}
 
   async setclid(body: SetclidDialplanDto): Promise<{ callerid: string }> {
@@ -125,7 +133,36 @@ export class DialplanBridgeService {
     return { accepted: true };
   }
 
-  async tts(_body: TtsDialplanDto): Promise<{ status: string; file: string }> {
-    return { status: 'ok', file: '' };
+  async tts(body: TtsDialplanDto): Promise<{ status: string; file: string }> {
+    const tenant = Number(body.vpbx_user_uid);
+    const engineUid = Number(body.engine);
+    const text = String(body.text ?? '').trim();
+    const engines = Number.isFinite(tenant)
+      ? await this.ttsEngines.findAll(tenant)
+      : [];
+    const engine = engines.find((item) => item.uid === engineUid);
+    if (!engine) {
+      throw new BadRequestException('Unknown TTS engine');
+    }
+    try {
+      const wav = await this.ivrTts.synthesizeToBuffer(engine, text, {
+        voice: body.voice,
+        language_code: body.language,
+      });
+      const cacheKey = IvrTtsCacheService.buildCacheKey({
+        engine: engineUid,
+        text,
+        voice: body.voice ?? '',
+        language: body.language ?? '',
+      });
+      const written = this.ttsCache.writeWav(tenant, cacheKey, wav);
+      const file = AsteriskDialplanUtils.sanitizeFilePath(
+        path.basename(written).replace(/\.[^.]+$/, ''),
+      );
+      return { status: 'ok', file };
+    } catch (e: any) {
+      this.logger.error(`TTS engine failed: ${e?.message ?? e}`);
+      return { status: 'error', file: '' };
+    }
   }
 }

@@ -14,6 +14,7 @@ import { NotifyApp } from '../ui/apps/NotifyApp/NotifyApp';
 import { CallerIdApp } from '../ui/apps/CallerIdApp/CallerIdApp';
 import { TrunkCarouselApp } from '../ui/apps/TrunkCarouselApp/TrunkCarouselApp';
 import { PlaybackApp, buildPlaybackSchema, summarizePlayback } from '../ui/apps/PlaybackApp/PlaybackApp';
+import { Text2SpeechApp, buildText2SpeechSchema } from '../ui/apps/Text2SpeechApp/Text2SpeechApp';
 
 const registryDraft: Record<ActionType, Omit<IDialplanAppConfig, 'schema' | 'summarize' | 'terminal' | 'allowedIn' | 'optionFlags'> & Partial<IDialplanAppConfig>> = {
   // --- TELEPHONY & MEDIA ---
@@ -120,7 +121,14 @@ const registryDraft: Record<ActionType, Omit<IDialplanAppConfig, 'schema' | 'sum
     optionFlags: [],
   },
   voicerobot: { type: 'voicerobot', labelKey: 'routes.action.voicerobot', component: VoiceRobotApp, category: 'media' },
-  text2speech: { type: 'text2speech', labelKey: 'routes.action.text2speech', component: GenericApp, category: 'media' },
+  text2speech: {
+    type: 'text2speech',
+    labelKey: 'routes.action.text2speech',
+    component: Text2SpeechApp,
+    category: 'media',
+    defaultParams: { text: '', engine: '' },
+    schema: buildText2SpeechSchema((key, fallback) => fallback ?? key),
+  },
   asr: { type: 'asr', labelKey: 'routes.action.asr', component: GenericApp, category: 'media' },
   keywords: { type: 'keywords', labelKey: 'routes.action.keywords', component: GenericApp, category: 'media' },
   confbridge: { type: 'confbridge', labelKey: 'routes.action.confbridge', component: GenericApp, category: 'media' },
