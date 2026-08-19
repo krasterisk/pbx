@@ -7,6 +7,7 @@ import { VoiceRobotsService } from './voice-robots.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ModuleAccessGuard } from '../cloud-admin/module-access.guard';
 import { RequiresModule } from '../cloud-admin/requires-module.decorator';
+import { throwIfInvalidActionPayload } from '../../shared/pipes/action-params-validation.util';
 
 /**
  * Voice Robots CRUD Controller.
@@ -143,6 +144,7 @@ export class VoiceRobotsController {
 
   @Post()
   async create(@Request() req: any, @Body() body: any) {
+    throwIfInvalidActionPayload(body);
     return this.voiceRobotsService.createRobot(req.user.vpbx_user_uid, body);
   }
 
@@ -152,6 +154,7 @@ export class VoiceRobotsController {
     @Param('uid', ParseIntPipe) uid: number,
     @Body() body: any,
   ) {
+    throwIfInvalidActionPayload(body);
     return this.voiceRobotsService.updateRobot(req.user.vpbx_user_uid, uid, body);
   }
 
@@ -217,6 +220,7 @@ export class VoiceRobotsController {
     @Param('id', ParseIntPipe) groupId: number,
     @Body() body: any,
   ) {
+    throwIfInvalidActionPayload(body);
     return this.voiceRobotsService.createKeyword(req.user.vpbx_user_uid, groupId, body);
   }
 
@@ -226,6 +230,7 @@ export class VoiceRobotsController {
     @Param('uid', ParseIntPipe) uid: number,
     @Body() body: any,
   ) {
+    throwIfInvalidActionPayload(body);
     return this.voiceRobotsService.updateKeyword(req.user.vpbx_user_uid, uid, body);
   }
 

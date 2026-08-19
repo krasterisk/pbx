@@ -18,6 +18,7 @@ import { IvrsService } from './ivrs.service';
 import { IvrTtsService } from './ivr-tts.service';
 import { Ivr } from './ivr.model';
 import { IvrTtsPreviewDto } from './dto/ivr-tts-preview.dto';
+import { throwIfInvalidActionPayload } from '../../shared/pipes/action-params-validation.util';
 
 const USER_LEVEL_ADMIN = 1;
 
@@ -45,11 +46,13 @@ export class IvrsController {
 
   @Post()
   async create(@Body() createDto: Partial<Ivr>, @Req() req: any) {
+    throwIfInvalidActionPayload(createDto);
     return this.ivrsService.create(createDto, req.user.vpbx_user_uid, this.isAdmin(req.user));
   }
 
   @Put(':id')
   async update(@Param('id', ParseIntPipe) id: number, @Body() updateDto: Partial<Ivr>, @Req() req: any) {
+    throwIfInvalidActionPayload(updateDto);
     return this.ivrsService.update(id, updateDto, req.user.vpbx_user_uid, this.isAdmin(req.user));
   }
 

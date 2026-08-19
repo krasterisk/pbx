@@ -7,6 +7,7 @@ import { RouteApplyService } from './route-apply.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Context } from '../contexts/context.model';
 import { CreateRouteDto, UpdateRouteDto, createRoutesValidationPipe } from './dto/route-action.dto';
+import { throwIfInvalidActionPayload } from '../../shared/pipes/action-params-validation.util';
 
 const USER_LEVEL_ADMIN = 1;
 
@@ -83,6 +84,7 @@ export class RoutesController {
     @Body() body: CreateRouteDto,
     @Req() req: Request & { user: any },
   ) {
+    throwIfInvalidActionPayload(body);
     const route = await this.routesService.create(body as any, req.user.vpbx_user_uid);
     try { await this._applyContextDialplan(route.context_uid, req.user); } catch (e) {}
     return route;
@@ -115,6 +117,7 @@ export class RoutesController {
     @Body() body: UpdateRouteDto,
     @Req() req: Request & { user: any },
   ) {
+    throwIfInvalidActionPayload(body);
     const userUid = req.user.vpbx_user_uid;
     // Remember old context_uid before update (for regenerating old context)
     const oldRoute = await this.routesService.findOne(+id, userUid);

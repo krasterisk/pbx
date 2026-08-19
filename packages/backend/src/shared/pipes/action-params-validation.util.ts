@@ -85,6 +85,24 @@ export function assertValidActionParams(actions: unknown[]): void {
   }
 }
 
+export function collectHostActionErrors(body: unknown): ActionParamsError[] {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return [];
+  const record = body as Record<string, unknown>;
+  const errors: ActionParamsError[] = [];
+  if (record.name === '') {
+    errors.push({ actionId: null, path: 'name', message: 'name must be a non-empty string' });
+  }
+  errors.push(...validateActionParams(collectNestedActionChains(record)));
+  return errors;
+}
+
+export function throwIfInvalidActionPayload(body: unknown): void {
+  const errors = collectHostActionErrors(body);
+  if (errors.length) {
+    throw new BadRequestException({ errors });
+  }
+}
+
 export function collectNestedActionChains(body: Record<string, unknown>): unknown[] {
   const chains: unknown[] = [];
   if (Array.isArray(body.actions)) chains.push(...body.actions);

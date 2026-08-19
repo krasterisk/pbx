@@ -70,16 +70,16 @@ class IsTypedActionParamsConstraint implements ValidatorConstraintInterface {
 
 export function formatRouteValidationErrors(
   errors: ValidationError[],
-): Array<{ actionId: string; path: string; message: string }> {
-  const out: Array<{ actionId: string; path: string; message: string }> = [];
-  const walk = (list: ValidationError[], prefix: string, inheritedId: string) => {
+): Array<{ actionId: string | null; path: string; message: string }> {
+  const out: Array<{ actionId: string | null; path: string; message: string }> = [];
+  const walk = (list: ValidationError[], prefix: string, inheritedId: string | null) => {
     for (const err of list) {
       const path = prefix ? `${prefix}.${err.property}` : err.property;
       const target = err.target as { id?: string } | undefined;
-      const actionId = target?.id ?? inheritedId;
+      const actionId = target?.id || inheritedId;
       if (err.constraints) {
         for (const message of Object.values(err.constraints)) {
-          out.push({ actionId: actionId || '', path, message });
+          out.push({ actionId: actionId || null, path, message });
         }
       }
       if (err.children?.length) {
@@ -87,7 +87,7 @@ export function formatRouteValidationErrors(
       }
     }
   };
-  walk(errors, '', '');
+  walk(errors, '', null);
   return out;
 }
 

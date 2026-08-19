@@ -9,6 +9,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PhonebooksService } from './phonebooks.service';
 import { RouteApplyService } from '../routes/route-apply.service';
 import { DialplanApplyService } from '../ami/dialplan-apply.service';
+import { throwIfInvalidActionPayload } from '../../shared/pipes/action-params-validation.util';
 
 const USER_LEVEL_ADMIN = 1;
 
@@ -35,6 +36,7 @@ export class PhonebooksController {
 
   @Post()
   create(@Body() body: any, @Req() req: any) {
+    throwIfInvalidActionPayload(body);
     return this.phonebooksService.create(body, req.user.vpbx_user_uid);
   }
 
@@ -50,6 +52,7 @@ export class PhonebooksController {
     @Body() body: any,
     @Req() req: any,
   ) {
+    throwIfInvalidActionPayload(body);
     const userUid = req.user.vpbx_user_uid;
     const before = await this.phonebooksService.findOne(id, userUid);
     const beforeKeys = this.phonebooksService.collectAllVarKeys(before.entries || []);
