@@ -1,0 +1,74 @@
+.root {
+  width: 100%;
+  min-width: 0;
+}
+
+.list {
+  width: 100%;
+  min-width: 0;
+}
+
+.undoBar {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md, 8px);
+  background: var(--color-muted);
+}
+
+.readOnlyBar {
+  color: var(--color-muted-foreground);
+}
+
+.empty {
+  width: 100%;
+  padding: 24px 16px;
+  text-align: center;
+}
+
+.emptyIcon {
+  color: var(--color-muted-foreground);
+}
+
+.gap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 8px;
+  position: relative;
+}
+
+.gapButton {
+  min-width: 44px;
+  min-height: 44px;
+  opacity: 0;
+}
+
+.gap:hover .gapButton,
+.gapButton:focus-visible {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .gapButton {
+    opacity: 1;
+  }
+}
+
+.footer {
+  width: 100%;
+}
+
+.counter {
+  color: var(--color-muted-foreground);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.unreachable {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--color-warning, var(--color-primary));
+  border-radius: var(--radius-md, 8px);
+  background: color-mix(in srgb, var(--color-warning, var(--color-primary)) 10%, transparent);
+}

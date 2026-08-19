@@ -1,4 +1,4 @@
-import { ActionType } from '@krasterisk/shared';
+import { DIALPLAN_ACTION_META, type ActionType } from '@krasterisk/shared';
 import { IDialplanAppConfig } from './types';
 import { VoiceRobotApp } from '../ui/apps/VoiceRobotApp/VoiceRobotApp';
 import { GenericApp } from '../ui/apps/GenericApp/GenericApp';
@@ -14,7 +14,7 @@ import { NotifyApp } from '../ui/apps/NotifyApp/NotifyApp';
 import { CallerIdApp } from '../ui/apps/CallerIdApp/CallerIdApp';
 import { TrunkCarouselApp } from '../ui/apps/TrunkCarouselApp/TrunkCarouselApp';
 
-export const dialplanAppsRegistry: Record<ActionType, IDialplanAppConfig> = {
+const registryDraft: Record<ActionType, IDialplanAppConfig> = {
   // --- TELEPHONY & MEDIA ---
   totrunk: { type: 'totrunk', labelKey: 'routes.action.totrunk', component: TrunkApp, category: 'telephony', defaultParams: { trunk: '', dest: '${EXTEN}', timeout: 60, options: 'tT' } },
   toexten: { type: 'toexten', labelKey: 'routes.action.toexten', component: ExtenApp, category: 'telephony', defaultParams: { exten: '', timeout: 60, options: 'tThH' } },
@@ -96,6 +96,25 @@ export const dialplanAppsRegistry: Record<ActionType, IDialplanAppConfig> = {
   congestion: { type: 'congestion', labelKey: 'routes.action.congestion', component: GenericApp, category: 'telephony', defaultParams: { timeout: 10 } },
   hangup: { type: 'hangup', labelKey: 'routes.action.hangup', component: HangupApp, category: 'telephony', defaultParams: { causecode: '' } },
 };
+
+function withRequiredSummarize(config: IDialplanAppConfig): IDialplanAppConfig {
+  const meta = DIALPLAN_ACTION_META[config.type];
+  return {
+    ...config,
+    terminal: config.terminal ?? meta.terminal,
+    allowedIn: config.allowedIn ?? meta.allowedIn,
+    summarize:
+      config.summarize
+      ?? ((_, t) => t(config.labelKey, config.type)),
+  };
+}
+
+export const dialplanAppsRegistry: Record<ActionType, IDialplanAppConfig> = Object.fromEntries(
+  (Object.entries(registryDraft) as Array<[ActionType, IDialplanAppConfig]>).map(([type, config]) => [
+    type,
+    withRequiredSummarize(config),
+  ]),
+) as Record<ActionType, IDialplanAppConfig>;
 
 /** Ensure the runtime keys ordered logically for Select menus */
 export const ACTION_TYPES_LIST = Object.values(dialplanAppsRegistry);

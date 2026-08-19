@@ -13,6 +13,8 @@ export interface ActionTypeSelectProps {
   onChange: (type: ActionType) => void;
   /** Optional className */
   className?: string;
+  /** Host-provided type filter (D-15). */
+  allowedTypes?: readonly ActionType[];
 }
 
 /**
@@ -22,18 +24,19 @@ export interface ActionTypeSelectProps {
  *
  * @layer features/dialplan-apps
  */
-export const ActionTypeSelect = memo(({ value, onChange, className }: ActionTypeSelectProps) => {
+export const ActionTypeSelect = memo(({ value, onChange, className, allowedTypes }: ActionTypeSelectProps) => {
   const { t } = useTranslation();
 
   const groupedCategories = useMemo(() => {
     const groups: Record<string, IDialplanAppConfig[]> = {};
     ACTION_TYPES_LIST.forEach((item) => {
+      if (allowedTypes && !allowedTypes.includes(item.type)) return;
       const cat = item.category || 'other';
       if (!groups[cat]) groups[cat] = [];
       groups[cat].push(item);
     });
     return groups;
-  }, []);
+  }, [allowedTypes]);
 
   const isEmpty = !value;
 

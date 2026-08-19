@@ -3,7 +3,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { DIALPLAN_ACTION_META, type IRouteAction } from '@krasterisk/shared';
 import { StepRow } from './StepRow';
@@ -79,7 +79,7 @@ describe('StepRow', () => {
       </div>,
     );
     const scope = screen.getByTestId('row-scope');
-    expect(scope.querySelectorAll('[role="button"]').length).toBe(0);
+    expect(within(scope).queryAllByRole('button')).toEqual([]);
     expect(screen.queryByLabelText(/перетащ/i)).toBeNull();
     expect(screen.queryByLabelText(/drag/i)).toBeNull();
   });
