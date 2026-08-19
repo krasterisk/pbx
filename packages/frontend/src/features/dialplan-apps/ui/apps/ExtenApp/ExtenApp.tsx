@@ -7,19 +7,24 @@ import { Input } from '@/shared/ui/Input/Input';
 import { IDialplanAppProps } from '../../../model/types';
 import { useGetEndpointsQuery } from '@/shared/api/endpoints/endpointApi';
 
-const EXTEN_PATTERN_VALUE = '__USE_EXTEN__';
+const ROUTE_PATTERN_VALUE = '__src:route_pattern';
 
 export const ExtenApp: React.FC<IDialplanAppProps> = ({ params, onChange, readOnly, actionType }) => {
   const { t } = useTranslation();
   const { data: endpoints = [], isLoading, isError } = useGetEndpointsQuery();
 
-  const currentValue = params?.useExten ? EXTEN_PATTERN_VALUE : (params?.exten || '');
+  const currentValue =
+    params?.target?.source === 'route_pattern' || params?.useExten
+      ? ROUTE_PATTERN_VALUE
+      : params?.target?.source === 'fixed'
+        ? (params.target.value || '')
+        : (params?.exten || '');
 
   const handleChange = (value: string) => {
-    if (value === EXTEN_PATTERN_VALUE) {
-      onChange({ useExten: true, exten: '' });
+    if (value === ROUTE_PATTERN_VALUE) {
+      onChange({ target: { source: 'route_pattern' }, useExten: true, exten: '' });
     } else {
-      onChange({ useExten: false, exten: value });
+      onChange({ target: { source: 'fixed', value }, useExten: false, exten: value });
     }
   };
 
@@ -36,7 +41,7 @@ export const ExtenApp: React.FC<IDialplanAppProps> = ({ params, onChange, readOn
               disabled={isLoading}
             >
               <option value="" disabled>{t('routes.apps.exten.select', 'Абонент')}</option>
-              <option value={EXTEN_PATTERN_VALUE}>
+              <option value={ROUTE_PATTERN_VALUE}>
                 {t('routes.apps.exten.modePattern', '${EXTEN} (по маске маршрута)')}
               </option>
               {endpoints.map(ep => (
