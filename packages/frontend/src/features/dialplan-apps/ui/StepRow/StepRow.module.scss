@@ -21,6 +21,14 @@
   color: var(--color-muted-foreground);
 }
 
+.row[data-unknown='true'] {
+  border-left: 2px solid var(--color-warning, var(--color-primary));
+}
+
+.unknownType {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
 .handle {
   display: flex;
   align-items: center;

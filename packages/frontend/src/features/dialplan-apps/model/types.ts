@@ -32,13 +32,13 @@ export interface IDialplanAppConfig {
   defaultParams?: Record<string, any>;
   /** Optional icon or description if needed in the future */
   descriptionKey?: string;
-  schema?: FieldSchema[];
-  summarize?: (
+  schema: FieldSchema[];
+  summarize: (
     params: Record<string, any>,
-    t: (key: string, fallback?: string | Record<string, unknown>) => string,
+    t: (key: string, fallback?: any) => string,
     refs?: Record<string, unknown>,
   ) => string;
-  terminal?: 'always' | 'conditional' | 'never';
-  allowedIn?: ReadonlyArray<DialplanHost>;
-  optionFlags?: ReadonlyArray<string>;
+  terminal: 'always' | 'conditional' | 'never';
+  allowedIn: ReadonlyArray<DialplanHost>;
+  optionFlags: ReadonlyArray<string>;
 }

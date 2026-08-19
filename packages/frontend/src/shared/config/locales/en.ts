@@ -509,6 +509,13 @@ export const en = {
       },
       unknown: {
         summary: 'Unknown action type. Its parameters are preserved and will not be lost',
+        replace: 'Replace the type',
+        replaceConfirm:
+          'Replace the unknown action: its preserved parameters will be lost permanently. Continue?',
+        key: 'Key',
+        value: 'Value',
+        noDuplicate: 'An unknown type cannot be duplicated',
+        noToggle: 'An unknown type cannot be toggled',
       },
       dnd: {
         picked: 'Step picked',

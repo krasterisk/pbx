@@ -14,10 +14,30 @@ import { NotifyApp } from '../ui/apps/NotifyApp/NotifyApp';
 import { CallerIdApp } from '../ui/apps/CallerIdApp/CallerIdApp';
 import { TrunkCarouselApp } from '../ui/apps/TrunkCarouselApp/TrunkCarouselApp';
 
-const registryDraft: Record<ActionType, IDialplanAppConfig> = {
+const registryDraft: Record<ActionType, Omit<IDialplanAppConfig, 'schema' | 'summarize' | 'terminal' | 'allowedIn' | 'optionFlags'> & Partial<IDialplanAppConfig>> = {
   // --- TELEPHONY & MEDIA ---
-  totrunk: { type: 'totrunk', labelKey: 'routes.action.totrunk', component: TrunkApp, category: 'telephony', defaultParams: { trunk: '', dest: '${EXTEN}', timeout: 60, options: 'tT' } },
-  toexten: { type: 'toexten', labelKey: 'routes.action.toexten', component: ExtenApp, category: 'telephony', defaultParams: { exten: '', timeout: 60, options: 'tThH' } },
+  totrunk: {
+    type: 'totrunk',
+    labelKey: 'routes.action.totrunk',
+    component: TrunkApp,
+    category: 'telephony',
+    defaultParams: { trunk: '', dest: '${EXTEN}', timeout: 60, options: 'tT' },
+    schema: [
+      { key: 'strip', kind: 'number', labelKey: 'routes.chain.fields.strip' },
+      { key: 'prepend', kind: 'text', labelKey: 'routes.chain.fields.prepend' },
+    ],
+  },
+  toexten: {
+    type: 'toexten',
+    labelKey: 'routes.action.toexten',
+    component: ExtenApp,
+    category: 'telephony',
+    defaultParams: { exten: '', timeout: 60, options: 'tThH' },
+    schema: [
+      { key: 'strip', kind: 'number', labelKey: 'routes.chain.fields.strip' },
+      { key: 'prepend', kind: 'text', labelKey: 'routes.chain.fields.prepend' },
+    ],
+  },
   toqueue: {
     type: 'toqueue',
     labelKey: 'routes.action.toqueue',
@@ -66,7 +86,17 @@ const registryDraft: Record<ActionType, IDialplanAppConfig> = {
       return t('routes.chain.summary.toqueue.empty', 'Очередь: не выбрана');
     },
   },
-  togroup: { type: 'togroup', labelKey: 'routes.action.togroup', component: GroupApp, category: 'telephony', defaultParams: { group: '' } },
+  togroup: {
+    type: 'togroup',
+    labelKey: 'routes.action.togroup',
+    component: GroupApp,
+    category: 'telephony',
+    defaultParams: { group: '' },
+    schema: [
+      { key: 'strip', kind: 'number', labelKey: 'routes.chain.fields.strip' },
+      { key: 'prepend', kind: 'text', labelKey: 'routes.chain.fields.prepend' },
+    ],
+  },
   tolist: { type: 'tolist', labelKey: 'routes.action.tolist', component: GenericApp, category: 'telephony' },
   toivr: { type: 'toivr', labelKey: 'routes.action.toivr', component: IvrApp, category: 'telephony', defaultParams: { ivr_uid: '' } },
   toroute: { type: 'toroute', labelKey: 'routes.action.toroute', component: ToRouteApp, category: 'telephony', defaultParams: { context: '', extension: '' } },
@@ -97,10 +127,14 @@ const registryDraft: Record<ActionType, IDialplanAppConfig> = {
   hangup: { type: 'hangup', labelKey: 'routes.action.hangup', component: HangupApp, category: 'telephony', defaultParams: { causecode: '' } },
 };
 
-function withRequiredSummarize(config: IDialplanAppConfig): IDialplanAppConfig {
+function withRequiredFields(
+  config: (typeof registryDraft)[ActionType],
+): IDialplanAppConfig {
   const meta = DIALPLAN_ACTION_META[config.type];
   return {
     ...config,
+    schema: config.schema ?? [],
+    optionFlags: config.optionFlags ?? [],
     terminal: config.terminal ?? meta.terminal,
     allowedIn: config.allowedIn ?? meta.allowedIn,
     summarize:
@@ -112,7 +146,7 @@ function withRequiredSummarize(config: IDialplanAppConfig): IDialplanAppConfig {
 export const dialplanAppsRegistry: Record<ActionType, IDialplanAppConfig> = Object.fromEntries(
   (Object.entries(registryDraft) as Array<[ActionType, IDialplanAppConfig]>).map(([type, config]) => [
     type,
-    withRequiredSummarize(config),
+    withRequiredFields(config),
   ]),
 ) as Record<ActionType, IDialplanAppConfig>;
 

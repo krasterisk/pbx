@@ -2,6 +2,7 @@ import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Copy,
+  FileQuestion,
   GripVertical,
   MoreVertical,
   Power,
@@ -90,6 +91,7 @@ export const StepRow = memo(function StepRow({
   const enabled = action.enabled ?? true;
   const minHeight = density === 'compact' ? '44px' : '56px';
   const isEmptyType = !action.type;
+  const isUnknown = Boolean(action.type && !config);
 
   const configureLabel = t('routes.chain.configureStep', 'Настроить шаг');
   const duplicateLabel = t('routes.chain.row.duplicate', 'Дублировать действие');
@@ -110,6 +112,7 @@ export const StepRow = memo(function StepRow({
       data-testid="step-row"
       data-density={density}
       data-unreachable={unreachable ? 'true' : undefined}
+      data-unknown={isUnknown ? 'true' : undefined}
       className={styles.row}
       style={{
         ...style,
@@ -162,7 +165,10 @@ export const StepRow = memo(function StepRow({
           />
         ) : (
           <>
-            <Text className={styles.title}>{title}</Text>
+            <Flex gap="6" align="center">
+              {isUnknown ? <FileQuestion size={16} /> : null}
+              <Text className={isUnknown ? styles.unknownType : styles.title}>{title}</Text>
+            </Flex>
             <Text data-testid="step-row-summary" className={styles.summary}>
               {summary}
             </Text>
@@ -210,8 +216,9 @@ export const StepRow = memo(function StepRow({
           </TableRowAction>
           <TableRowAction
             className={styles.actionBtn}
-            title={duplicateLabel}
+            title={isUnknown ? t('routes.chain.unknown.noDuplicate', 'Нельзя дублировать неизвестный тип') : duplicateLabel}
             aria-label={duplicateLabel}
+            disabled={isUnknown}
             onClick={(event) => {
               event.stopPropagation();
               onDuplicate(action.id);
@@ -221,8 +228,9 @@ export const StepRow = memo(function StepRow({
           </TableRowAction>
           <TableRowAction
             className={styles.actionBtn}
-            title={toggleLabel}
+            title={isUnknown ? t('routes.chain.unknown.noToggle', 'Нельзя выключить неизвестный тип') : toggleLabel}
             aria-label={toggleLabel}
+            disabled={isUnknown}
             onClick={(event) => {
               event.stopPropagation();
               onToggleEnabled(action.id);

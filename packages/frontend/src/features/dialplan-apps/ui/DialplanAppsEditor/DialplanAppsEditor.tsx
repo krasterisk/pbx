@@ -25,7 +25,7 @@ import {
   type ActionType,
   type IRouteAction,
 } from '@krasterisk/shared';
-import { Button, Text, Tooltip } from '@/shared/ui';
+import { Button, Sheet, SheetContent, SheetHeader, SheetTitle, Text, Tooltip } from '@/shared/ui';
 import { Flex, VStack } from '@/shared/ui/Stack';
 import { selectCurrentUser } from '@/entities/User';
 import { useAppSelector } from '@/shared/hooks/useAppStore';
@@ -40,6 +40,7 @@ import { dialplanAppsRegistry } from '../../model/registry';
 import type { DialplanHost } from '../../model/types';
 import { StepRow, type StepSection } from '../StepRow/StepRow';
 import { StepSheet } from '../StepSheet/StepSheet';
+import { UnknownActionCard } from '../UnknownActionCard/UnknownActionCard';
 import styles from './DialplanAppsEditor.module.scss';
 
 export interface DialplanAppsEditorProps {
@@ -67,7 +68,7 @@ export function restrictToVerticalAxisLocal({
 }
 
 export function buildDndAnnouncements(
-  t: (key: string, fallback?: string) => string,
+  t: (key: string, fallback?: any) => string,
   lang: string,
   getIndex?: (id: string | number) => number,
 ): Announcements {
@@ -124,8 +125,8 @@ function SortableStepRow(
     <StepRow
       {...rest}
       setNodeRef={sortable.setNodeRef}
-      dragListeners={sortable.listeners as Record<string, unknown>}
-      dragAttributes={sortable.attributes as Record<string, unknown>}
+      dragListeners={sortable.listeners as unknown as Record<string, unknown>}
+      dragAttributes={sortable.attributes as unknown as Record<string, unknown>}
       style={{
         ...style,
         transform: CSS.Transform.toString(sortable.transform),
@@ -439,28 +440,62 @@ export const DialplanAppsEditor = memo(function DialplanAppsEditor({
         </Flex>
       ) : null}
 
-      <StepSheet
-        open={!!selectedStepId && !!selectedAction && !isEmptyType(selectedAction)}
-        stepId={selectedStepId}
-        action={selectedAction}
-        tenantUid={tenantUid}
-        stepIndex={selectedIndex}
-        onOpenChange={(next) => {
-          if (!next) setSelectedStepId(null);
-        }}
-        onChange={(patch) => {
-          if (selectedStepId) apply({ type: 'patchParams', id: selectedStepId, patch });
-        }}
-        onTypeChange={(type) => {
-          if (selectedStepId) handleTypeChange(selectedStepId, type);
-        }}
-      />
+      {isUnknownType(selectedAction) ? (
+        <Sheet
+          open={!!selectedStepId && !!selectedAction}
+          onOpenChange={(next) => {
+            if (!next) setSelectedStepId(null);
+          }}
+        >
+          <SheetContent>
+            <SheetHeader>
+              <SheetTitle>
+                <Text variant="h4">
+                  {t('routes.chain.badge.unknown', 'Неизвестное действие')}
+                </Text>
+              </SheetTitle>
+            </SheetHeader>
+            {selectedAction ? (
+              <UnknownActionCard
+                type={selectedAction.type}
+                params={selectedAction.params ?? {}}
+                onDelete={() => {
+                  apply({ type: 'remove', id: selectedAction.id });
+                  setSelectedStepId(null);
+                }}
+                onReplaceType={(type) => handleTypeChange(selectedAction.id, type)}
+              />
+            ) : null}
+          </SheetContent>
+        </Sheet>
+      ) : (
+        <StepSheet
+          open={!!selectedStepId && !!selectedAction && !isEmptyType(selectedAction)}
+          stepId={selectedStepId}
+          action={selectedAction}
+          tenantUid={tenantUid}
+          stepIndex={selectedIndex}
+          onOpenChange={(next) => {
+            if (!next) setSelectedStepId(null);
+          }}
+          onChange={(patch) => {
+            if (selectedStepId) apply({ type: 'patchParams', id: selectedStepId, patch });
+          }}
+          onTypeChange={(type) => {
+            if (selectedStepId) handleTypeChange(selectedStepId, type);
+          }}
+        />
+      )}
     </VStack>
   );
 });
 
 function isEmptyType(action: IRouteAction | null): boolean {
   return !action?.type;
+}
+
+function isUnknownType(action: IRouteAction | null): boolean {
+  return Boolean(action?.type && !dialplanAppsRegistry[action.type]);
 }
 
 DialplanAppsEditor.displayName = 'DialplanAppsEditor';
