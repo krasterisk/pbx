@@ -15,6 +15,7 @@ import { ensureCdrVpbxUserUidInDialplan } from '@krasterisk/shared';
 import { routesActions } from '../../model/slice/routesSlice';
 
 import { isValueSourceComplete } from '@/features/dialplan-apps/ui/ValueSourceField/ValueSourceField';
+import { useGetTenantSettingsQuery } from '@/entities/tenantSettings';
 import { RouteGeneralTab, decodeRecordMode } from './RouteGeneralTab';
 import { RouteWebhooksTab, WebhookItem } from './RouteWebhooksTab';
 import { RouteActionsTab } from './RouteActionsTab';
@@ -34,6 +35,8 @@ export const RouteFormModal = memo(() => {
   const { isModalOpen, selectedRoute, selectedContextUids, modalMode, editorMode } = useAppSelector((s) => s.routes);
   const currentUser = useAppSelector(selectCurrentUser);
   const vpbxUserUid = currentUser?.vpbx_user_uid ?? 0;
+  const { data: tenantSettings } = useGetTenantSettingsQuery();
+  const showRawDialplan = tenantSettings?.['routes.show_raw_dialplan'] ?? true;
 
   const isCreateMode = modalMode === 'create' || modalMode === 'copy';
 
@@ -49,6 +52,12 @@ export const RouteFormModal = memo(() => {
   const [rawDialplan, setRawDialplan] = useState('');
 
   const { data: contexts = [] } = useGetContextsQuery();
+
+  useEffect(() => {
+    if (!showRawDialplan && editorMode === 'raw') {
+      dispatch(routesActions.setEditorMode('table'));
+    }
+  }, [showRawDialplan, editorMode, dispatch]);
 
   // Options
   const [record, setRecord] = useState(false);
@@ -205,7 +214,7 @@ export const RouteFormModal = memo(() => {
       name, extensions, active: active ? 1 : 0,
       options, webhooks: webhooksPayload, actions: sanitizeActions(actions),
       bindings: bindingsPayload,
-      raw_dialplan: editorMode === 'raw' && rawDialplan.trim()
+      raw_dialplan: showRawDialplan && editorMode === 'raw' && rawDialplan.trim()
         ? ensureCdrVpbxUserUidInDialplan(rawDialplan, vpbxUserUid)
         : rawDialplan || undefined,
       context_uid: contextUid,

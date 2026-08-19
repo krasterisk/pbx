@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { motion } from 'motion/react';
-import { Settings, Terminal, Mic2, Shield, Cpu, Database } from 'lucide-react';
+import { Settings, Terminal, Mic2, Shield, Cpu, Database, Route } from 'lucide-react';
 import { Text } from '@/shared/ui';
 import { VStack, HStack } from '@/shared/ui/Stack';
 import { DialplanSubroutinesCard } from '@/features/system-settings/ui/DialplanSubroutinesCard';
@@ -8,6 +8,7 @@ import { RecordingsCard } from '@/features/system-settings/ui/RecordingsCard';
 import { WebhookSecurityCard } from '@/features/system-settings/ui/WebhookSecurityCard';
 import { FfmpegStatusCard } from '@/features/system-settings/ui/FfmpegStatusCard';
 import { RedisStatusCard } from '@/features/system-settings/ui/RedisStatusCard';
+import { TenantSettingsSection } from '@/features/tenant-settings/ui/TenantSettingsSection';
 import cls from './SettingsPage.module.scss';
 
 const SECTIONS = [
@@ -46,6 +47,13 @@ const SECTIONS = [
     descKey: 'systemSettings.sectionRedisDesc',
     content: <RedisStatusCard />,
   },
+  {
+    key: 'tenant',
+    icon: Route,
+    titleKey: 'settings.tenant.title',
+    descKey: 'settings.tenant.description',
+    content: <TenantSettingsSection />,
+  },
 ] as const;
 
 export function SettingsPage() {
@@ -68,7 +76,7 @@ export function SettingsPage() {
         </VStack>
       </HStack>
 
-      {/* Sections — stacked forms for 360px (D-29) */}
+      {/* Sections - stacked forms for 360px (D-29) */}
       {SECTIONS.map((section, i) => {
         const Icon = section.icon;
         return (
@@ -83,8 +91,12 @@ export function SettingsPage() {
               <HStack gap="8" align="center" className={`${cls.sectionHeader} min-w-0`}>
                 <Icon className={cls.sectionIcon} />
                 <VStack gap="2" className="min-w-0">
-                  <Text className={cls.sectionTitle}>{t(section.titleKey)}</Text>
-                  <Text variant="small" className={cls.sectionDesc}>{t(section.descKey)}</Text>
+                  <Text className={cls.sectionTitle}>
+                    {t(section.titleKey, section.key === 'tenant' ? 'Маршруты' : undefined)}
+                  </Text>
+                  <Text variant="small" className={cls.sectionDesc}>
+                    {t(section.descKey, section.key === 'tenant' ? 'Видимость dialplan и блок-схемы в форме маршрута' : undefined)}
+                  </Text>
                 </VStack>
               </HStack>
               <div className={cls.sectionBody}>{section.content}</div>

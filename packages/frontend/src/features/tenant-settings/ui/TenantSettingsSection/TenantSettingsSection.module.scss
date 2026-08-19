@@ -1,5 +1,24 @@
-.rows {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+.root {
+  width: 100%;
+}
+
+.row {
+  min-height: 40px;
+}
+
+.labels {
+  min-width: 0;
+  flex: 1;
+}
+
+.label {
+  color: var(--color-foreground);
+}
+
+.hint {
+  color: var(--color-muted-foreground);
+}
+
+.error {
+  color: var(--color-destructive);
 }

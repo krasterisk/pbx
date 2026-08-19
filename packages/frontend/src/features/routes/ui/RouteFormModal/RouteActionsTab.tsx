@@ -1,4 +1,4 @@
-import { memo, useCallback } from 'react';
+import { memo, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Table2, Code2 } from 'lucide-react';
 import { Button, Input, Label, InfoTooltip } from '@/shared/ui';
@@ -7,6 +7,7 @@ import { useAppSelector, useAppDispatch } from '@/shared/hooks/useAppStore';
 import { routesActions } from '../../model/slice/routesSlice';
 import { DialplanAppsEditor } from '@/features/dialplan-apps';
 import { RawDialplanEditor } from '../RawDialplanEditor/RawDialplanEditor';
+import { useGetTenantSettingsQuery } from '@/entities/tenantSettings';
 import { ensureCdrVpbxUserUidInDialplan } from '@krasterisk/shared';
 import type { IRouteAction } from '@krasterisk/shared';
 import styles from './RouteFormModal.module.scss';
@@ -25,6 +26,15 @@ export const RouteActionsTab = memo(({ actions, setActions, rawDialplan, setRawD
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const { editorMode } = useAppSelector((s) => s.routes);
+  const { data: tenantSettings } = useGetTenantSettingsQuery();
+  const showRawDialplan = tenantSettings?.['routes.show_raw_dialplan'] ?? true;
+  const effectiveMode = showRawDialplan ? editorMode : 'table';
+
+  useEffect(() => {
+    if (!showRawDialplan && editorMode === 'raw') {
+      dispatch(routesActions.setEditorMode('table'));
+    }
+  }, [showRawDialplan, editorMode, dispatch]);
 
   const switchToRaw = useCallback(() => {
     dispatch(routesActions.setEditorMode('raw'));
@@ -49,31 +59,33 @@ export const RouteActionsTab = memo(({ actions, setActions, rawDialplan, setRawD
         />
       </VStack>
 
-      <HStack gap="8">
-        <Button
-          type="button"
-          size="sm"
-          variant={editorMode === 'table' ? 'default' : 'outline'}
-          onClick={() => dispatch(routesActions.setEditorMode('table'))}
-        >
-          <Table2 className="w-4 h-4 mr-2" />
-          {t('routes.modeTable', 'Таблица')}
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant={editorMode === 'raw' ? 'default' : 'outline'}
-          onClick={switchToRaw}
-        >
-          <Code2 className="w-4 h-4 mr-2" />
-          {t('routes.modeRaw', 'Dialplan')}
-        </Button>
-      </HStack>
+      {showRawDialplan && (
+        <HStack gap="8">
+          <Button
+            type="button"
+            size="sm"
+            variant={effectiveMode === 'table' ? 'default' : 'outline'}
+            onClick={() => dispatch(routesActions.setEditorMode('table'))}
+          >
+            <Table2 className="w-4 h-4 mr-2" />
+            {t('routes.modeTable', 'Таблица')}
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant={effectiveMode === 'raw' ? 'default' : 'outline'}
+            onClick={switchToRaw}
+          >
+            <Code2 className="w-4 h-4 mr-2" />
+            {t('routes.modeRaw', 'Dialplan')}
+          </Button>
+        </HStack>
+      )}
 
-      {editorMode === 'table' && (
+      {effectiveMode === 'table' && (
         <DialplanAppsEditor actions={actions} onChange={setActions} />
       )}
-      {editorMode === 'raw' && (
+      {showRawDialplan && effectiveMode === 'raw' && (
         <RawDialplanEditor
           value={rawDialplan}
           onChange={setRawDialplan}
