@@ -179,17 +179,17 @@ const INVALID_PARAMS: Record<ActionType, Record<string, unknown>> = {
 };
 
 describe('D-09 ACTION_PARAM_DTO registry', () => {
-  it.each([...ActionTypesList])('has an ACTION_PARAM_DTO entry for %s', (type) => {
+  it.each([...ActionTypesList] as ActionType[])('has an ACTION_PARAM_DTO entry for %s', (type) => {
     expect(Object.prototype.hasOwnProperty.call(ACTION_PARAM_DTO, type)).toBe(true);
     expect(resolveParamsDto(type) === null || typeof resolveParamsDto(type) === 'function').toBe(true);
   });
 
-  it.each([...ActionTypesList])('accepts a valid params object for %s', (type) => {
+  it.each([...ActionTypesList] as ActionType[])('accepts a valid params object for %s', (type) => {
     const errors = validateActionParams([{ id: 'a1', type, params: VALID_PARAMS[type] }]);
     expect(errors).toEqual([]);
   });
 
-  it.each([...ActionTypesList])('rejects an invalid params object for %s', (type) => {
+  it.each([...ActionTypesList] as ActionType[])('rejects an invalid params object for %s', (type) => {
     if (resolveParamsDto(type) === null) {
       const errors = validateActionParams([{ id: 'a1', type, params: 'not-an-object' }]);
       expect(errors.length).toBeGreaterThan(0);

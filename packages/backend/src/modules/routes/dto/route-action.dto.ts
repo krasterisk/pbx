@@ -6,6 +6,7 @@ import {
   IsIn,
   IsArray,
   IsNumber,
+  ArrayMaxSize,
   Validate,
   ValidatorConstraint,
   ValidatorConstraintInterface,
@@ -137,7 +138,7 @@ export class RouteActionDto {
   type: string;
 
   @Validate(IsTypedActionParamsConstraint)
-  params: Record<string, any>;
+  params: object;
 
   @IsObject()
   @ValidateNested()
@@ -166,6 +167,7 @@ export class RoutePhonebookBindingDto {
 
   @IsOptional()
   @IsArray()
+  @ArrayMaxSize(200)
   @ValidateNested({ each: true })
   @Type(() => RouteActionDto)
   actions?: RouteActionDto[];
@@ -195,6 +197,7 @@ export class CreateRouteDto {
   webhooks?: Record<string, any>;
 
   @IsArray()
+  @ArrayMaxSize(200)
   @ValidateNested({ each: true })
   @Type(() => RouteActionDto)
   actions: RouteActionDto[];
@@ -234,6 +237,7 @@ export class UpdateRouteDto {
 
   @IsOptional()
   @IsArray()
+  @ArrayMaxSize(200)
   @ValidateNested({ each: true })
   @Type(() => RouteActionDto)
   actions?: RouteActionDto[];
