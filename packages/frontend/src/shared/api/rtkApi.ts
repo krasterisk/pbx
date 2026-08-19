@@ -62,7 +62,7 @@ const baseQueryWithReauth: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQue
         localStorage.setItem('accessToken', data.accessToken);
         localStorage.setItem('refreshToken', data.refreshToken);
         localStorage.setItem('user', JSON.stringify(data.user));
-        // Critical: Redux must match localStorage — resolveAccessToken prefers the store
+        // Critical: Redux must match localStorage - resolveAccessToken prefers the store
         api.dispatch(setSession({
           accessToken: data.accessToken,
           refreshToken: data.refreshToken,
@@ -95,6 +95,6 @@ const baseQueryWithReauth: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQue
 export const rtkApi = createApi({
   reducerPath: 'api',
   baseQuery: baseQueryWithReauth,
-  tagTypes: ['Endpoints', 'Contexts', 'Peers', 'Trunks', 'Queues', 'Routes', 'Users', 'Roles', 'Numbers', 'CDR', 'PickupGroups', 'ProvisionTemplates', 'Ivrs', 'Prompts', 'TtsEngines', 'SttEngines', 'Moh', 'VoiceRobots', 'VoiceRobotsGroups', 'VoiceRobotsKeywords', 'VoiceRobotsLogs', 'VoiceRobotsCdr', 'VoiceRobotsDataLists', 'ServiceRequests', 'TimeGroups', 'Phonebooks', 'ServerConfig', 'AuditLog', 'WebhookFailure', 'Tenants', 'CallCenter', 'PauseReasons', 'MissedCalls', 'CcOperatorSettings', 'CcSettings', 'CcChat', 'AiAgents', 'AiProviders', 'AiToolsets', 'AiChatSettings', 'CallGroups', 'Notifications', 'CardTemplates', 'Cards', 'CcDisplayTokens', 'CcAlertConfig', 'ReportSchedules', 'AgentKpi', 'CcPermissions', 'ParkedCalls', 'Directory', 'CallHistory', 'CcNotifications', 'CcContacts'],
+  tagTypes: ['Endpoints', 'Contexts', 'Peers', 'Trunks', 'Queues', 'Routes', 'Users', 'Roles', 'Numbers', 'CDR', 'PickupGroups', 'ProvisionTemplates', 'Ivrs', 'Prompts', 'TtsEngines', 'SttEngines', 'Moh', 'VoiceRobots', 'VoiceRobotsGroups', 'VoiceRobotsKeywords', 'VoiceRobotsLogs', 'VoiceRobotsCdr', 'VoiceRobotsDataLists', 'ServiceRequests', 'TimeGroups', 'Phonebooks', 'ServerConfig', 'AuditLog', 'WebhookFailure', 'Tenants', 'CallCenter', 'PauseReasons', 'MissedCalls', 'CcOperatorSettings', 'CcSettings', 'CcChat', 'AiAgents', 'AiProviders', 'AiToolsets', 'AiChatSettings', 'CallGroups', 'Notifications', 'CardTemplates', 'Cards', 'CcDisplayTokens', 'CcAlertConfig', 'ReportSchedules', 'AgentKpi', 'CcPermissions', 'ParkedCalls', 'Directory', 'CallHistory', 'CcNotifications', 'CcContacts', 'CcSupervisorWatchlist', 'TenantSettings'],
   endpoints: () => ({}),
 });
