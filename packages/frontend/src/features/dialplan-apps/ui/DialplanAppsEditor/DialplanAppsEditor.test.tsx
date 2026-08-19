@@ -177,4 +177,23 @@ describe('DialplanAppsEditor', () => {
     expect(editorSrc).not.toMatch(['@dnd-kit', 'modifiers'].join('/'));
     expect(editorSrc).toMatch(/restrictToVerticalAxisLocal/);
   });
+
+  it('round-trips an unknown action type without rewriting params', () => {
+    const unknown = step('u1', 'legacy_widget' as ActionType, {
+      params: { foo: 'keep', nested: { a: 1 } },
+    });
+    function RoundTrip() {
+      const [actions, setActions] = useState([unknown]);
+      return (
+        <>
+          <DialplanAppsEditor actions={actions} onChange={setActions} />
+          <pre data-testid="payload">{JSON.stringify(actions)}</pre>
+        </>
+      );
+    }
+    render(<RoundTrip />);
+    expect(screen.getByText('legacy_widget')).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText(/настроить/i));
+    expect(JSON.parse(screen.getByTestId('payload').textContent ?? '[]')).toEqual([unknown]);
+  });
 });
