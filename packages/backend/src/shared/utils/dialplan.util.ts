@@ -4,6 +4,7 @@ import { normalizeTarget, resolveQueueValueSource, resolveValueSource, PHONEBOOK
 import { applyNumberManipulation } from './dialplan-number.util';
 import { buildConditionExpr, isLegacyInvalidDialstatus, wrapEachLine } from './dialplan-condition.util';
 import { emitHopPrologue } from './dialplan-hops.util';
+import { emitPlayback } from './dialplan-playback.util';
 
 function logCmdApply(action: { id?: number; uid?: number; params?: { command?: string } }, vpbxUserUid: number): void {
   const command = String(action?.params?.command ?? '');
@@ -293,6 +294,10 @@ export class AsteriskDialplanUtils {
         break;
       }
       case 'playback': {
+        if (params.mode) {
+          dp = emitPlayback(params, { vpbxUserUid });
+          break;
+        }
         const file = this.sanitizeFilePath(params.file);
         dp = `Background(/usr/records/${vpbxUserUid}/sounds/${file})`;
         if (params.digitExit) {

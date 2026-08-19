@@ -16,7 +16,7 @@ describe('emitPlayback (D-51 / D-52 / D-53)', () => {
   it('control mode emits ControlPlayback(', () => {
     const out = emitPlayback({ files: 'welcome', mode: 'control' }, CTX);
     expect(out).toContain('ControlPlayback(');
-    expect(out).not.toContain('Playback(');
+    expect(out).not.toMatch(/(?:^|[^a-zA-Z])Playback\(/);
     expect(out).not.toContain('BackGround(');
   });
 
@@ -84,7 +84,7 @@ describe('emitPlayback (D-51 / D-52 / D-53)', () => {
     const out = emitPlayback({ files: '../etc/passwd', mode: 'plain' }, CTX);
     expect(out).toContain('Playback(/usr/records/42/sounds/etcpasswd)');
     expect(out).not.toContain('..');
-    expect(out).not.toContain('/');
+    expect(out).not.toContain('/etc/');
   });
 });
 

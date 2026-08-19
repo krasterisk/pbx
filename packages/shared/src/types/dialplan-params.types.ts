@@ -86,9 +86,22 @@ export interface IToRouteParams {
   extension?: ValueSource;
 }
 
+export const PLAYBACK_MODES = ['plain', 'control', 'menu'] as const;
+export type PlaybackMode = (typeof PLAYBACK_MODES)[number];
+
 export interface IPlayPromptParams extends IMediaParams {}
 
-export interface IPlaybackParams extends IMediaParams {}
+/** Unified Playback (D-51). `file` remains for dual-read of pre-12-12 rows. */
+export interface IPlaybackParams extends IMediaParams {
+  files?: string | string[];
+  mode?: PlaybackMode;
+  /** @deprecated dual-read until 12-12 */
+  digitExit?: boolean;
+  /** @deprecated dual-read until 12-12 */
+  digit?: string;
+  /** @deprecated dual-read until 12-12 */
+  digitExitDest?: string;
+}
 
 export interface ISetClidCustomParams {
   callerid?: string;

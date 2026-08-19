@@ -5,20 +5,29 @@ import {
   IsOptional,
   IsString,
   Matches,
+  Max,
+  MaxLength,
   Min,
   MinLength,
+  Validate,
   ValidateNested,
+  ValidationArguments,
+  ValidatorConstraint,
+  ValidatorConstraintInterface,
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 import type {
   IMediaOptions,
   IMediaParams,
+  IPlaybackParams,
   IRecordParams,
   IText2SpeechParams,
   IToFaxParams,
   IVoiceRobotParams,
   MediaMixMode,
+  PlaybackMode,
 } from '@krasterisk/shared';
+import { PLAYBACK_MODES } from '@krasterisk/shared';
 import { parseOptions, serializeOptions } from '../../../../shared/utils/dialplan-options.util';
 
 const MIX_MODES = ['say', 'mix'] as const;
@@ -131,7 +140,71 @@ class MediaParamsBase implements IMediaParams {
 
 export class PlayPromptParamsDto extends MediaParamsBase implements IMediaParams {}
 
-export class PlaybackParamsDto extends MediaParamsBase implements IMediaParams {}
+const SAFE_PROMPT_FILE = /^[A-Za-z0-9._-]*$/;
+const LANG_OVERRIDE = /^[A-Za-z]{1,8}(?:-[A-Za-z]{1,8})?$/;
+const MAX_DIGIT_TIMEOUT = 60;
+
+function optionsHasP(options?: MediaOptionsDto | string): boolean {
+  if (!options) return false;
+  if (typeof options === 'string') return parseMediaOptions(options).p === true;
+  return options.p === true;
+}
+
+@ValidatorConstraint({ name: 'isPlaybackFiles', async: false })
+class IsPlaybackFilesConstraint implements ValidatorConstraintInterface {
+  validate(value: unknown): boolean {
+    if (value === undefined || value === null || value === '') return true;
+    const list = Array.isArray(value) ? value : [value];
+    return list.every((item) => typeof item === 'string' && SAFE_PROMPT_FILE.test(item));
+  }
+
+  defaultMessage(): string {
+    return 'files must be prompt identifiers, not a path';
+  }
+}
+
+@ValidatorConstraint({ name: 'playbackOptionApplicability', async: false })
+class PlaybackOptionApplicabilityConstraint implements ValidatorConstraintInterface {
+  validate(_value: unknown, args: ValidationArguments): boolean {
+    const obj = args.object as PlaybackParamsDto;
+    if (!obj.mode) return true;
+    if (obj.mode !== 'control' && optionsHasP(obj.options)) return false;
+    if (obj.mode !== 'menu' && obj.langoverride) return false;
+    return true;
+  }
+
+  defaultMessage(args: ValidationArguments): string {
+    const obj = args.object as PlaybackParamsDto;
+    if (obj.mode !== 'control' && optionsHasP(obj.options)) {
+      return 'option p is only valid in control playback mode';
+    }
+    return 'langoverride is only valid in menu playback mode';
+  }
+}
+
+export class PlaybackParamsDto extends MediaParamsBase implements IPlaybackParams {
+  @IsOptional()
+  @IsIn(PLAYBACK_MODES)
+  @Validate(PlaybackOptionApplicabilityConstraint)
+  mode?: PlaybackMode;
+
+  @IsOptional()
+  @Validate(IsPlaybackFilesConstraint)
+  files?: string | string[];
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(8)
+  @Matches(LANG_OVERRIDE)
+  langoverride?: string;
+
+  @IsOptional()
+  @Transform(({ value }) => (value === '' || value == null ? undefined : Number(value)))
+  @IsInt()
+  @Min(0)
+  @Max(MAX_DIGIT_TIMEOUT)
+  digittimeout?: number;
+}
 
 export class Text2SpeechParamsDto implements IText2SpeechParams {
   @IsOptional()
