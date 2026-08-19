@@ -1,4 +1,4 @@
-import { AsteriskDialplanUtils } from '../../shared/utils/dialplan.util';
+import { AsteriskDialplanUtils, renderActionChain } from '../../shared/utils/dialplan.util';
 import type { IRouteAction } from '@krasterisk/shared';
 import { normalizePhonebookBehaviorType } from '@krasterisk/shared';
 import { PhonebookEntry } from './phonebook-entry.model';
@@ -138,12 +138,8 @@ function generateBehaviorLines(
       return [];
     case 'custom': {
       const actions: IRouteAction[] = binding.actions || [];
-      const out: string[] = [];
-      for (const action of actions) {
-        const dp = AsteriskDialplanUtils.actionToDialplan(action, vpbxUserUid, isAdmin);
-        if (dp) out.push(dp);
-      }
-      return out;
+      const dp = renderActionChain(actions, { vpbxUserUid, host: 'phonebook', isAdmin });
+      return dp ? dp.split('\n') : [];
     }
     default:
       return [];

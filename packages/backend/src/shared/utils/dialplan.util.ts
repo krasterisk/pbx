@@ -507,3 +507,40 @@ export class AsteriskDialplanUtils {
     return `${stripped}U(krsk-on-answer,s,1(dial))`;
   }
 }
+
+export type ActionChainHost = 'route' | 'ivr' | 'phonebook' | 'robot';
+
+export interface RenderActionChainCtx {
+  vpbxUserUid: number;
+  timeGroup?: string;
+  host: ActionChainHost;
+  isAdmin?: boolean;
+  wh?: Record<string, any>;
+}
+
+/**
+ * D-42: single production path for action chains.
+ * Order is fixed: step condition (inner, via actionToDialplan) then time-group (outer).
+ */
+export function renderActionChain(
+  actions: any[] | undefined,
+  ctx: RenderActionChainCtx,
+): string {
+  const parts: string[] = [];
+  for (const action of actions ?? []) {
+    let dp = AsteriskDialplanUtils.actionToDialplan(
+      action,
+      ctx.vpbxUserUid,
+      ctx.isAdmin ?? false,
+      ctx.wh ?? {},
+    );
+    if (!dp) continue;
+    const tgExpr = ctx.timeGroup
+      ?? (typeof action?.condition?.time_group_uid === 'number'
+        ? `"\${WT_${action.condition.time_group_uid}}"="1"`
+        : '');
+    if (tgExpr) dp = wrapEachLine(tgExpr, dp);
+    parts.push(dp);
+  }
+  return parts.join('\nsame => n,');
+}

@@ -7,7 +7,7 @@ import { RoutePhonebookBinding } from '../phonebooks/route-phonebook-binding.mod
 import { RoutePhonebook } from '../phonebooks/phonebook.model';
 import { PhonebookEntry } from '../phonebooks/phonebook-entry.model';
 import { TimeGroupsService } from '../time-groups/time-groups.service';
-import { AsteriskDialplanUtils } from '../../shared/utils/dialplan.util';
+import { AsteriskDialplanUtils, renderActionChain } from '../../shared/utils/dialplan.util';
 import {
   buildMixMonitorFlags,
   buildFfmpegPostprocess,
@@ -358,12 +358,16 @@ export class RoutesService {
 
       // Pass webhooks context so Dial/Queue actions can add U()/gosub for on_answer
       for (const action of actions) {
-        let dp = AsteriskDialplanUtils.actionToDialplan(action, vpbxUserUid, isAdmin, wh);
-        if (!dp) continue;
         const tgUid = action.condition?.time_group_uid;
-        if (typeof tgUid === 'number' && timeGroupIntervals.get(tgUid)?.length) {
-          dp = `ExecIf($["\${WT_${tgUid}}"="1"]?${dp})`;
-        }
+        const hasTg = typeof tgUid === 'number' && !!timeGroupIntervals.get(tgUid)?.length;
+        const dp = renderActionChain([action], {
+          vpbxUserUid,
+          host: 'route',
+          isAdmin,
+          wh,
+          timeGroup: hasTg ? `"\${WT_${tgUid}}"="1"` : undefined,
+        });
+        if (!dp) continue;
         lines.push(`same => n,${dp}`);
       }
 
