@@ -1,13 +1,25 @@
+import { ActionLog } from '../../modules/logger/action-log.model';
 import { normalizeTarget, resolveQueueValueSource, PHONEBOOK_TARGET_VAR } from './dialplan-target.util';
+import { buildConditionExpr, isLegacyInvalidDialstatus, wrapEachLine } from './dialplan-condition.util';
 
-/**
- * Valid Asterisk DIALSTATUS values.
- * @see https://docs.asterisk.org/Asterisk_22_Documentation/API_Documentation/Dialplan_Applications/Dial — DIALSTATUS section
- */
-const VALID_DIALSTATUSES = [
-  'CHANUNAVAIL', 'CONGESTION', 'BUSY', 'NOANSWER', 'ANSWER',
-  'CANCEL', 'DONTCALL', 'TORTURE', 'INVALIDARGS',
-];
+function logCmdApply(action: { id?: number; uid?: number; params?: { command?: string } }, vpbxUserUid: number): void {
+  const command = String(action?.params?.command ?? '');
+  const actionId = typeof action?.id === 'number' ? action.id : typeof action?.uid === 'number' ? action.uid : null;
+  const details = JSON.stringify({
+    actionId,
+    type: 'cmd',
+    command: command.slice(0, 80),
+  });
+  void ActionLog.create({
+    user_id: 0,
+    action: 'cmd_apply',
+    entity_type: 'dialplan_action',
+    entity_id: actionId,
+    user_uid: vpbxUserUid,
+    details,
+    status: 'success',
+  }).catch(() => undefined);
+}
 
 export class AsteriskDialplanUtils {
   /**
@@ -117,23 +129,11 @@ export class AsteriskDialplanUtils {
   ): string {
     const { type, params = {}, condition = {} } = action;
     let dp = '';
-    let wrapper = '';
-    let closing = '';
 
-    // Condition wrapper (DIALSTATUS) — whitelist + OR-join for arrays (D-19)
-    const statuses: string[] = Array.isArray(condition.dialstatus)
-      ? condition.dialstatus
-      : condition.dialstatus ? [condition.dialstatus] : [];
     // Legacy single-string invalid → NoOp warning (preserves prior behavior)
-    if (!Array.isArray(condition.dialstatus) && condition.dialstatus
-        && !VALID_DIALSTATUSES.includes(condition.dialstatus)) {
-      return `NoOp(Invalid dialstatus: ${this.sanitizeDialplanInput(condition.dialstatus)})`;
-    }
-    const valid = statuses.filter((s) => VALID_DIALSTATUSES.includes(s));
-    if (valid.length) {
-      const expr = valid.map((s) => `"\${DIALSTATUS}" = "${s}"`).join(' | ');
-      wrapper = `ExecIf($[${expr}]?`;
-      closing = ')';
+    const invalidStatus = isLegacyInvalidDialstatus(condition);
+    if (invalidStatus) {
+      return `NoOp(Invalid dialstatus: ${this.sanitizeDialplanInput(invalidStatus)})`;
     }
 
     switch (type) {
@@ -147,10 +147,10 @@ export class AsteriskDialplanUtils {
         const dialLines: string[] = [];
         // DIALTO: attempt responsible employee first (if custom webhook returned a number)
         if (wh.custom?.url) {
-          dialLines.push(`${wrapper}ExecIf($["\${DIALTO}" != ""]?Dial(${trunk}/\${DIALTO},15,${dialOpts}))${closing}`);
+          dialLines.push(`ExecIf($["\${DIALTO}" != ""]?Dial(${trunk}/\${DIALTO},15,${dialOpts}))`);
           dialLines.push(`ExecIf($["\${DIALSTATUS}" = "ANSWER"]?Return())`);
         }
-        dialLines.push(`${wrapper}Dial(${trunk}/${dest},${timeout},${dialOpts})${closing}`);
+        dialLines.push(`Dial(${trunk}/${dest},${timeout},${dialOpts})`);
         dp = dialLines.join('\nsame => n,');
         break;
       }
@@ -180,10 +180,10 @@ export class AsteriskDialplanUtils {
         // DIALTO: attempt responsible employee first (if custom webhook returned a number)
         if (wh.custom?.url) {
           const dialToTarget = this.pjsipDialTarget('${DIALTO}', vpbxUserUid, { webrtc: true });
-          dialLines.push(`${wrapper}ExecIf($["\${DIALTO}" != ""]?Dial(${dialToTarget},15,${dialOpts}))${closing}`);
+          dialLines.push(`ExecIf($["\${DIALTO}" != ""]?Dial(${dialToTarget},15,${dialOpts}))`);
           dialLines.push(`ExecIf($["\${DIALSTATUS}" = "ANSWER"]?Return())`);
         }
-        dialLines.push(`${wrapper}Dial(${dialTarget},${timeout},${dialOpts})${closing}`);
+        dialLines.push(`Dial(${dialTarget},${timeout},${dialOpts})`);
         dp = dialLines.join('\nsame => n,');
         break;
       }
@@ -200,7 +200,7 @@ export class AsteriskDialplanUtils {
           const pbUid = this.sanitizeDialplanInput(String(src.phonebookUid ?? ''));
           const varKey = this.sanitizeDialplanInput(String(src.varKey ?? ''));
           if (!pbUid || !varKey) {
-            dp = `${wrapper}NoOp(Missing phonebook queue target)${closing}`;
+            dp = `NoOp(Missing phonebook queue target)`;
             break;
           }
           const keyParam = this.dialplanApiKey ? `&api_key=${encodeURIComponent(this.dialplanApiKey)}` : '';
@@ -209,32 +209,32 @@ export class AsteriskDialplanUtils {
             `?phonebook_uid=${pbUid}&var_key=${encodeURIComponent(varKey)}${keyParam}`;
           const queue = normalizeTarget('queue', src, vpbxUserUid);
           dp = [
-            `${wrapper}Set(${PHONEBOOK_TARGET_VAR}=\${CURL(${lookupUrl}&number=\${URIENCODE(\${CALLERID(num)})})})${closing}`,
+            `Set(${PHONEBOOK_TARGET_VAR}=\${CURL(${lookupUrl}&number=\${URIENCODE(\${CALLERID(num)})})})`,
             `ExecIf($["\${${PHONEBOOK_TARGET_VAR}}" != ""]?Queue(${queue},${options},,,${timeout}))`,
           ].join('\nsame => n,');
         } else {
           const queue = normalizeTarget('queue', src, vpbxUserUid);
-          dp = `${wrapper}Queue(${queue},${options},,,${timeout})${closing}`;
+          dp = `Queue(${queue},${options},,,${timeout})`;
         }
         break;
       }
       case 'toivr': {
         const ivrUid = parseInt(params.ivr_uid, 10);
         dp = ivrUid
-          ? `${wrapper}Goto(ivr_${ivrUid},start,1)${closing}`
-          : `${wrapper}NoOp(Missing IVR UID)${closing}`;
+          ? `Goto(ivr_${ivrUid},start,1)`
+          : `NoOp(Missing IVR UID)`;
         break;
       }
       case 'togroup': {
         const group = this.sanitizeDialplanInput(params.group) || '${EXTEN}';
-        dp = `${wrapper}Gosub(group_${group}_${vpbxUserUid},start,1)${closing}`;
+        dp = `Gosub(group_${group}_${vpbxUserUid},start,1)`;
         break;
       }
       case 'voicerobot': {
         const robotUid = parseInt(params.robot_uid, 10);
         dp = robotUid
-          ? `${wrapper}Stasis(krasterisk_voicerobots,${robotUid})${closing}`
-          : `${wrapper}NoOp(Missing Robot UID)${closing}`;
+          ? `Stasis(krasterisk_voicerobots,${robotUid})`
+          : `NoOp(Missing Robot UID)`;
         break;
       }
       case 'tolist': {
@@ -246,34 +246,34 @@ export class AsteriskDialplanUtils {
         const timeout = parseInt(params.timeout, 10) || 30;
         const dialOpts = this.buildDialOptions(params.options || 'tT', wh);
         dp = numbers
-          ? `${wrapper}Dial(${numbers},${timeout},${dialOpts})${closing}`
-          : `${wrapper}NoOp(Empty dial list)${closing}`;
+          ? `Dial(${numbers},${timeout},${dialOpts})`
+          : `NoOp(Empty dial list)`;
         break;
       }
       case 'toroute': {
         const ctx = this.sanitizeDialplanInput(params.context) || 'sip-in';
         const dest = this.sanitizeDialplanInput(params.extension) || '${EXTEN}';
-        dp = `${wrapper}Goto(${ctx}${vpbxUserUid},${dest},1)${closing}`;
+        dp = `Goto(${ctx}${vpbxUserUid},${dest},1)`;
         break;
       }
       case 'playprompt': {
         const file = this.sanitizeFilePath(params.file);
-        dp = `${wrapper}Playback(/usr/records/${vpbxUserUid}/sounds/${file})${closing}`;
+        dp = `Playback(/usr/records/${vpbxUserUid}/sounds/${file})`;
         break;
       }
       case 'playback': {
         const file = this.sanitizeFilePath(params.file);
-        dp = `${wrapper}Background(/usr/records/${vpbxUserUid}/sounds/${file})${closing}`;
+        dp = `Background(/usr/records/${vpbxUserUid}/sounds/${file})`;
         break;
       }
       case 'setclid_custom': {
         const callerid = this.sanitizeDialplanInput(params.callerid);
-        dp = `${wrapper}Set(CALLERID(num)=${callerid})${closing}`;
+        dp = `Set(CALLERID(num)=${callerid})`;
         break;
       }
       case 'setclid_list': {
         const listUid = this.sanitizeShellInput(String(params.list_uid || ''));
-        dp = `${wrapper}ExecIf($["\${SHELL(/usr/scripts/exten_setclid.php "${listUid}" "\${CLIDNUM}")}" != ""]?Set(CALLERID(num)=\${SHELL(/usr/scripts/exten_setclid.php "${listUid}" "\${CLIDNUM}")}))${closing}`;
+        dp = `ExecIf($["\${SHELL(/usr/scripts/exten_setclid.php "${listUid}" "\${CLIDNUM}")}" != ""]?Set(CALLERID(num)=\${SHELL(/usr/scripts/exten_setclid.php "${listUid}" "\${CLIDNUM}")}))`;
         break;
       }
       case 'sendmail': {
@@ -293,7 +293,7 @@ export class AsteriskDialplanUtils {
         const keyParam = this.dialplanApiKey ? `&api_key=${encodeURIComponent(this.dialplanApiKey)}` : '';
 
         const lines = [
-          `${wrapper}Set(__KMAIL_TO=${email})${closing}`,
+          `Set(__KMAIL_TO=${email})`,
           `Set(__KMAIL_SUBJ=${subject})`,
           `Set(__KMAIL_TEXT=${text})`,
           `Set(MAIL_RESULT=\${CURL(${url},to=\${URIENCODE(\${KMAIL_TO})}&subject=\${URIENCODE(\${KMAIL_SUBJ})}&text=\${URIENCODE(\${KMAIL_TEXT})}${keyParam})})`,
@@ -302,54 +302,60 @@ export class AsteriskDialplanUtils {
         break;
       }
       case 'sendmailpeer':
-        dp = `${wrapper}System(/usr/scripts/sendmailpeer.php "${this.sanitizeShellInput(params.exten)}" "${this.sanitizeShellInput(params.text)}" "\${CALLERID(num)}" "\${EXTEN}" "\${UNIQUEID}" "${vpbxUserUid}")${closing}`;
+        dp = `System(/usr/scripts/sendmailpeer.php "${this.sanitizeShellInput(params.exten)}" "${this.sanitizeShellInput(params.text)}" "\${CALLERID(num)}" "\${EXTEN}" "\${UNIQUEID}" "${vpbxUserUid}")`;
         break;
       case 'telegram':
-        dp = `${wrapper}System(/usr/scripts/telegram.php "${this.sanitizeShellInput(params.chat_id)}" "${this.sanitizeShellInput(params.text)}" "\${CALLERID(num)}" "\${EXTEN}" "\${UNIQUEID}" "${vpbxUserUid}")${closing}`;
+        dp = `System(/usr/scripts/telegram.php "${this.sanitizeShellInput(params.chat_id)}" "${this.sanitizeShellInput(params.text)}" "\${CALLERID(num)}" "\${EXTEN}" "\${UNIQUEID}" "${vpbxUserUid}")`;
         break;
       case 'voicemail': {
         const vmExten = this.sanitizeDialplanInput(params.exten) || '${EXTEN}';
-        dp = `${wrapper}VoiceMail(${vmExten}@default,u)${closing}`;
+        dp = `VoiceMail(${vmExten}@default,u)`;
         break;
       }
       case 'text2speech': {
         const ttsText = this.sanitizeShellInput(params.text);
-        dp = `${wrapper}AGI(say.php,"${ttsText}")${closing}`;
+        dp = `AGI(say.php,"${ttsText}")`;
         break;
       }
       case 'asr':
-        dp = `${wrapper}Record(/tmp/\${UNIQUEID}.wav,${parseInt(params.silence_timeout, 10) || 3},${parseInt(params.max_timer, 10) || 6})${closing}`;
+        dp = `Record(/tmp/\${UNIQUEID}.wav,${parseInt(params.silence_timeout, 10) || 3},${parseInt(params.max_timer, 10) || 6})`;
         break;
       case 'keywords':
-        dp = `${wrapper}Record(/tmp/\${UNIQUEID}.wav,${parseInt(params.silence_timeout, 10) || 3},${parseInt(params.max_timer, 10) || 6})${closing}`;
+        dp = `Record(/tmp/\${UNIQUEID}.wav,${parseInt(params.silence_timeout, 10) || 3},${parseInt(params.max_timer, 10) || 6})`;
         break;
       case 'webhook':
-        dp = `${wrapper}Set(WH_DATA=\${SHELL(/usr/scripts/webhook.php "${this.sanitizeShellInput(params.url)}" "\${CALLERID(num)}" "\${EXTEN}" "\${UNIQUEID}" "${vpbxUserUid}")})${closing}`;
+        dp = `Set(WH_DATA=\${SHELL(/usr/scripts/webhook.php "${this.sanitizeShellInput(params.url)}" "\${CALLERID(num)}" "\${EXTEN}" "\${UNIQUEID}" "${vpbxUserUid}")})`;
         break;
       case 'confbridge': {
         const room = this.sanitizeDialplanInput(params.room) || '${EXTEN}';
-        dp = `${wrapper}ConfBridge(${room})${closing}`;
+        dp = `ConfBridge(${room})`;
         break;
       }
       case 'cmd':
         if (!isAdmin) {
-          dp = `${wrapper}NoOp(Unauthorized cmd action)${closing}`;
+          dp = `NoOp(Unauthorized cmd action)`;
         } else {
           const cleanCmd = (params.command || '').replace(/[\n\r]/g, '');
-          dp = `${wrapper}${cleanCmd || 'NoOp()'}${closing}`;
+          dp = `${cleanCmd || 'NoOp()'}`;
+          logCmdApply(action, vpbxUserUid);
         }
         break;
       case 'tofax': {
         const faxEmail = this.sanitizeDialplanInput(params.email);
-        dp = `${wrapper}Set(__faxmail=${faxEmail})${closing}`;
+        dp = `Set(__faxmail=${faxEmail})`;
         break;
       }
       case 'label':
-        dp = `NoOp()${closing}`; // labels are handled as priority labels
+        dp = `NoOp()`; // labels are handled as priority labels
         break;
       case 'busy':
-        dp = `${wrapper}Busy(${parseInt(params.timeout, 10) || 10})${closing}`;
+        dp = `Busy(${parseInt(params.timeout, 10) || 10})`;
         break;
+      case 'congestion': {
+        const timeout = parseInt(params.timeout, 10);
+        dp = timeout ? `Congestion(${timeout})` : 'Congestion()';
+        break;
+      }
       case 'notify': {
         // D-12: Set(__KNOTIFY_*) + CURL → /internal/dialplan/notify (sendmail pattern)
         const message = this.sanitizeTemplate(params.message);
@@ -358,7 +364,7 @@ export class AsteriskDialplanUtils {
         const url = `${this.backendBaseUrl}/internal/dialplan/notify`;
         const keyParam = this.dialplanApiKey ? `&api_key=${encodeURIComponent(this.dialplanApiKey)}` : '';
         const lines = [
-          `${wrapper}Set(__KNOTIFY_MSG=${message})${closing}`,
+          `Set(__KNOTIFY_MSG=${message})`,
           `Set(__KNOTIFY_TARGET=${target})`,
           `Set(NOTIFY_RESULT=\${CURL(${url},integration_uid=${integrationUid}&message=\${URIENCODE(\${KNOTIFY_MSG})}&target=\${URIENCODE(\${KNOTIFY_TARGET})}&clid=\${URIENCODE(\${CALLERID(num)})}&exten=\${URIENCODE(\${EXTEN})}&uniqueid=\${URIENCODE(\${UNIQUEID})}${keyParam})})`,
         ];
@@ -371,7 +377,7 @@ export class AsteriskDialplanUtils {
         if (mode === 'static') {
           const callerid = this.sanitizeDialplanInput(params.callerid);
           const name = this.sanitizeDialplanInput(params.name);
-          const lines = [`${wrapper}Set(CALLERID(num)=${callerid})${closing}`];
+          const lines = [`Set(CALLERID(num)=${callerid})`];
           if (name) lines.push(`Set(CALLERID(name)=${name})`);
           dp = lines.join('\nsame => n,');
         } else if (mode === 'phonebook') {
@@ -379,30 +385,30 @@ export class AsteriskDialplanUtils {
           const keyParam = this.dialplanApiKey ? `&api_key=${encodeURIComponent(this.dialplanApiKey)}` : '';
           const lookupUrl = `${this.backendBaseUrl}/internal/dialplan/phonebook-lookup?phonebook_uid=${pbUid}${keyParam}`;
           const lines = [
-            `${wrapper}Set(PB_RAW=\${CURL(${lookupUrl}&number=\${URIENCODE(\${CALLERID(num)})})})${closing}`,
+            `Set(PB_RAW=\${CURL(${lookupUrl}&number=\${URIENCODE(\${CALLERID(num)})})})`,
             `ExecIf($["\${CUT(PB_RAW,|,1)}" = "1"]?Set(CALLERID(num)=\${CUT(PB_RAW,|,3)}))`,
           ];
           dp = lines.join('\nsame => n,');
         } else if (mode === 'setclid_list') {
           const listUid = this.sanitizeShellInput(String(params.list_uid || ''));
-          dp = `${wrapper}ExecIf($["\${SHELL(/usr/scripts/exten_setclid.php "${listUid}" "\${CLIDNUM}")}" != ""]?Set(CALLERID(num)=\${SHELL(/usr/scripts/exten_setclid.php "${listUid}" "\${CLIDNUM}")}))${closing}`;
+          dp = `ExecIf($["\${SHELL(/usr/scripts/exten_setclid.php "${listUid}" "\${CLIDNUM}")}" != ""]?Set(CALLERID(num)=\${SHELL(/usr/scripts/exten_setclid.php "${listUid}" "\${CLIDNUM}")}))`;
         } else if (mode === 'carousel') {
           const pool = (Array.isArray(params.pool) ? params.pool : [])
             .map((c: string) => this.sanitizeDialplanInput(c))
             .filter(Boolean);
           if (!pool.length) {
-            dp = `${wrapper}NoOp(Empty CID carousel pool)${closing}`;
+            dp = `NoOp(Empty CID carousel pool)`;
           } else {
             const lines = pool.map((cid: string, i: number) =>
               i === 0
-                ? `${wrapper}Set(CID_1=${cid})${closing}`
+                ? `Set(CID_1=${cid})`
                 : `Set(CID_${i + 1}=${cid})`,
             );
             lines.push(`Set(CALLERID(num)=\${CID_\${RAND(1,${pool.length})}})`);
             dp = lines.join('\nsame => n,');
           }
         } else {
-          dp = `${wrapper}NoOp(Unknown callerid mode)${closing}`;
+          dp = `NoOp(Unknown callerid mode)`;
         }
         break;
       }
@@ -415,7 +421,7 @@ export class AsteriskDialplanUtils {
           phonebook_uid?: number;
         }> = Array.isArray(params.trunks) ? params.trunks : [];
         if (!trunks.length) {
-          dp = `${wrapper}NoOp(Empty trunk carousel)${closing}`;
+          dp = `NoOp(Empty trunk carousel)`;
           break;
         }
         const n = trunks.length;
@@ -437,7 +443,7 @@ export class AsteriskDialplanUtils {
         };
 
         // First line + subsequent "same => <priority>,<app>" parts (labels need n(tN) form)
-        const head = `${wrapper}Set(TC_PICK=\${RAND(1,${n})})${closing}`;
+        const head = `Set(TC_PICK=\${RAND(1,${n})})`;
         const rest: string[] = [];
         for (let i = 1; i < n; i++) {
           rest.push(`n,GotoIf($["\${TC_PICK}" = "${i}"]?t${i})`);
@@ -473,15 +479,16 @@ export class AsteriskDialplanUtils {
       case 'hangup': {
         const causecode = this.sanitizeDialplanInput(params.causecode);
         dp = causecode
-          ? `${wrapper}Hangup(${causecode})${closing}`
-          : `${wrapper}Hangup()${closing}`;
+          ? `Hangup(${causecode})`
+          : `Hangup()`;
         break;
       }
       default:
         dp = `NoOp(Unknown action: ${this.sanitizeDialplanInput(type)})`;
     }
 
-    return dp;
+    // D-43: condition wraps every line; branches must not concatenate ExecIf themselves.
+    return wrapEachLine(buildConditionExpr(action.condition), dp);
   }
 
   /**

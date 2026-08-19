@@ -133,7 +133,7 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
         vpbx,
       );
       expect(dp).toContain('Congestion()');
-      expect(dp).toBe('Congestion(10)');
+      expect(dp).toBe('Congestion()');
       expect(DIALPLAN_ACTION_META.congestion.terminal).toBe('always');
     });
   });
