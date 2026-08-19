@@ -1,3 +1,4 @@
+import type { ConditionOp, ConditionSourceKind } from './dialplan-condition.types';
 import type { IRoutePhonebookBinding } from './phonebook.types';
 import type {
   ICallerIdActionParams,
@@ -52,6 +53,13 @@ export type DialStatus =
 export type ActionCategory = 'telephony' | 'media' | 'notification' | 'system';
 
 export interface IRouteActionCondition {
+  /** Discriminated condition source (D-22). Absent = legacy dialstatus-only payload. */
+  source?: ConditionSourceKind;
+  values?: string[];
+  device?: string;
+  name?: string;
+  op?: ConditionOp;
+  value?: string;
   /** Single status or array of statuses (OR logic). Empty/undefined = any status. */
   dialstatus?: DialStatus | DialStatus[] | '';
   time_group_uid?: number;
