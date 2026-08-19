@@ -59,10 +59,9 @@ describe('generateBindingDialplan (Wave 0 characterization)', () => {
   });
 
   /**
-   * phonebook-dialplan.util.ts:143 — actionToDialplan without time-group guard.
-   * 12-05 must wrap this call site; this expectation is the missing-guard baseline.
+   * phonebook-dialplan.util.ts:143 — guard was missing; 12-05 renderActionChain adds WT_.
    */
-  it('characterizes current (defective) behaviour: custom action with time_group_uid emits no ExecIfTime/WT_ guard', () => {
+  it('custom action with time_group_uid emits WT_ guard (guard appeared where it was absent)', () => {
     const result = generateBindingDialplan(
       binding({
         actions: [
@@ -79,8 +78,8 @@ describe('generateBindingDialplan (Wave 0 characterization)', () => {
       false,
     );
     const dp = result.lines.join('\n');
-    expect(dp).not.toMatch(/ExecIfTime|WT_/);
-    expect(dp).toContain('same => n,Hangup()');
+    expect(dp).toMatch(/ExecIfTime|WT_/);
+    expect(dp).toContain('ExecIf($["${WT_12}"="1"]?Hangup())');
   });
 
   it('drop behavior emits Hangup without custom actions', () => {

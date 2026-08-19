@@ -4,7 +4,7 @@ import type { ActionType } from '@krasterisk/shared';
 import { DIALPLAN_ACTION_META } from '@krasterisk/shared';
 import { ActionTypesList } from '../../modules/routes/dto/route-action.dto';
 import { ActionLog } from '../../modules/logger/action-log.model';
-import { AsteriskDialplanUtils } from './dialplan.util';
+import { AsteriskDialplanUtils, renderActionChain } from './dialplan.util';
 
 jest.mock('../../modules/logger/action-log.model', () => ({
   ActionLog: { create: jest.fn().mockResolvedValue({}) },
@@ -1291,6 +1291,34 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
         false,
       );
       expect(ActionLog.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('renderActionChain (D-42 / D-43)', () => {
+    it('time-group wrap is outside the step condition (indexOf)', () => {
+      const dp = renderActionChain(
+        [{ type: 'hangup', params: {}, condition: { dialstatus: 'ANSWER', time_group_uid: 12 } }],
+        { vpbxUserUid: vpbx, host: 'route' },
+      );
+      expect(dp.indexOf('WT_12')).toBeGreaterThan(-1);
+      expect(dp.indexOf('WT_12')).toBeLessThan(dp.indexOf('DIALSTATUS'));
+    });
+
+    it('multiline + time group never produces ?same =>', () => {
+      AsteriskDialplanUtils.backendBaseUrl = 'http://backend.test/api';
+      AsteriskDialplanUtils.dialplanApiKey = 'wave0-key';
+      const dp = renderActionChain(
+        [{
+          type: 'sendmail',
+          params: { email: 'ops@example.com', subject: 's', text: 't' },
+          condition: { time_group_uid: 12 },
+        }],
+        { vpbxUserUid: vpbx, host: 'route' },
+      );
+      expect(dp).not.toContain('?same =>');
+      for (const line of dp.split('\n').filter(Boolean)) {
+        expect(line === dp.split('\n')[0] || line.startsWith('same =>')).toBe(true);
+      }
     });
   });
 });

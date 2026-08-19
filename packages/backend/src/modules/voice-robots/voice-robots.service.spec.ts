@@ -50,7 +50,7 @@ describe('VoiceRobotsService.generateAllVoiceRobotContexts (Wave 0 characterizat
    * voice-robots.service.ts:444 — max_retries_action without time-group guard.
    * 12-05 must wrap this call site.
    */
-  it('characterizes current (defective) behaviour: max_retries_action (line 444) emits no ExecIfTime/WT_ guard', async () => {
+  it('max_retries_action (line 444) emits WT_ guard when time_group_uid is set', async () => {
     voiceRobotModel.findAll.mockResolvedValue([
       {
         uid: 9,
@@ -62,7 +62,7 @@ describe('VoiceRobotsService.generateAllVoiceRobotContexts (Wave 0 characterizat
       },
     ]);
     const dp = await service.generateAllVoiceRobotContexts(42);
-    expect(dp).not.toMatch(/ExecIfTime|WT_/);
+    expect(dp).toMatch(/ExecIfTime|WT_/);
   });
 
   it('max_retries_action (line 444) happy-path Hangup is exact', async () => {
@@ -102,7 +102,7 @@ describe('VoiceRobotsService.generateAllVoiceRobotContexts (Wave 0 characterizat
    * voice-robots.service.ts:456 — fallback_action without time-group guard.
    * 12-05 must wrap this call site.
    */
-  it('characterizes current (defective) behaviour: fallback_action (line 456) emits no ExecIfTime/WT_ guard', async () => {
+  it('fallback_action (line 456) emits WT_ guard when time_group_uid is set', async () => {
     voiceRobotModel.findAll.mockResolvedValue([
       {
         uid: 9,
@@ -114,7 +114,7 @@ describe('VoiceRobotsService.generateAllVoiceRobotContexts (Wave 0 characterizat
       },
     ]);
     const dp = await service.generateAllVoiceRobotContexts(42);
-    expect(dp).not.toMatch(/ExecIfTime|WT_/);
+    expect(dp).toMatch(/ExecIfTime|WT_/);
   });
 
   it('fallback_action (line 456) happy-path Busy(10) is exact', async () => {
@@ -154,7 +154,7 @@ describe('VoiceRobotsService.generateAllVoiceRobotContexts (Wave 0 characterizat
    * voice-robots.service.ts:479 — keyword.actions without time-group guard.
    * 12-05 must wrap this call site.
    */
-  it('characterizes current (defective) behaviour: vr_keywords action (line 479) emits no ExecIfTime/WT_ guard', async () => {
+  it('vr_keywords action (line 479) emits WT_ guard when time_group_uid is set', async () => {
     voiceRobotModel.findAll.mockResolvedValue([
       {
         uid: 9,
@@ -174,7 +174,7 @@ describe('VoiceRobotsService.generateAllVoiceRobotContexts (Wave 0 characterizat
       },
     ]);
     const dp = await service.generateAllVoiceRobotContexts(42);
-    expect(dp).not.toMatch(/ExecIfTime|WT_/);
+    expect(dp).toMatch(/ExecIfTime|WT_/);
   });
 
   it('vr_keywords action (line 479) happy-path Goto(ivr_7) is exact', async () => {

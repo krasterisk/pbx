@@ -120,10 +120,9 @@ describe('IvrsService.generateIvrDialplan', () => {
   });
 
   /**
-   * ivrs.service.ts:249 — actionToDialplan without time-group guard.
-   * 12-05 must wrap this call site; this expectation is the missing-guard baseline.
+   * ivrs.service.ts:249 — guard was missing; 12-05 renderActionChain adds WT_.
    */
-  it('characterizes current (defective) behaviour: menu action with time_group_uid emits no ExecIfTime/WT_ guard', () => {
+  it('menu action with time_group_uid emits WT_ guard (guard appeared where it was absent)', () => {
     const dp = service.generateIvrDialplan(
       {
         ...baseIvr,
@@ -143,8 +142,26 @@ describe('IvrsService.generateIvrDialplan', () => {
       } as Ivr,
       42,
     );
-    expect(dp).not.toMatch(/ExecIfTime|WT_/);
+    expect(dp).toMatch(/ExecIfTime|WT_/);
+    expect(dp).toContain('ExecIf($["${WT_12}"="1"]?Hangup())');
+  });
+
+  it('menu action without time_group_uid stays Hangup() (12-01 baseline toBe)', () => {
+    const dp = service.generateIvrDialplan(
+      {
+        ...baseIvr,
+        prompts: [],
+        menu_items: [
+          {
+            digit: '1',
+            actions: [{ type: 'hangup', params: {}, condition: {} }],
+          },
+        ],
+      } as Ivr,
+      42,
+    );
     expect(dp).toContain('same => n,Hangup()');
+    expect(dp).not.toMatch(/ExecIfTime|WT_/);
   });
 });
 

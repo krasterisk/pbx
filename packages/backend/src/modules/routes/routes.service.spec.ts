@@ -346,10 +346,9 @@ describe('RoutesService', () => {
     });
 
     /**
-     * 12-RESEARCH.md Pitfall 3 — routes.service.ts:361-365 wraps the whole multi-line dp.
-     * Closing ')' lands on the last line. 12-05 must rewrite this expectation.
+     * 12-RESEARCH.md Pitfall 3 — renderActionChain wraps each sendmail line; no ?same =>.
      */
-    it('characterizes current (defective) behaviour: time_group_uid wrap puts closing paren on last sendmail line', () => {
+    it('time_group_uid wraps every sendmail line via renderActionChain (Pitfall 3)', () => {
       const route = baseRoute({
         extensions: ['100'],
         actions: [
@@ -366,17 +365,12 @@ describe('RoutesService', () => {
       });
 
       const dp = service.generateRouteDialplan(route, 42, false, timeGroupMap(12));
-      const start = dp.indexOf('same => n,ExecIf($["${WT_12}"="1"]?Set(__KMAIL_TO=');
-      expect(start).toBeGreaterThan(-1);
-      const wrapped = dp.slice(start).trimEnd();
-      expect(wrapped).toBe(
-        [
-          'same => n,ExecIf($["${WT_12}"="1"]?Set(__KMAIL_TO=ops@example.com)',
-          'same => n,Set(__KMAIL_SUBJ=Call from ${CALLERID(num)})',
-          'same => n,Set(__KMAIL_TEXT=Incoming on ${EXTEN})',
-          'same => n,Set(MAIL_RESULT=${CURL(http://backend.test/api/internal/dialplan/sendmail,to=${URIENCODE(${KMAIL_TO})}&subject=${URIENCODE(${KMAIL_SUBJ})}&text=${URIENCODE(${KMAIL_TEXT})}&api_key=wave0-key)}))',
-        ].join('\n'),
-      );
+      expect(dp).not.toContain('?same =>');
+      const g = '"${WT_12}"="1"';
+      expect(dp).toContain(`same => n,ExecIf($[${g}]?Set(__KMAIL_TO=ops@example.com))`);
+      expect(dp).toContain(`same => n,ExecIf($[${g}]?Set(__KMAIL_SUBJ=Call from \${CALLERID(num)}))`);
+      expect(dp).toContain(`same => n,ExecIf($[${g}]?Set(__KMAIL_TEXT=Incoming on \${EXTEN}))`);
+      expect(dp).toContain(`same => n,ExecIf($[${g}]?Set(MAIL_RESULT=\${CURL(http://backend.test/api/internal/dialplan/sendmail,to=\${URIENCODE(\${KMAIL_TO})}&subject=\${URIENCODE(\${KMAIL_SUBJ})}&text=\${URIENCODE(\${KMAIL_TEXT})}&api_key=wave0-key)}))`);
     });
 
     it('cmd action on generate path logs cmd_apply (D-42)', () => {
