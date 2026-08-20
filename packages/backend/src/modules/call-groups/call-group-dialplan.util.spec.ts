@@ -637,6 +637,64 @@ describe('generateGroupDialplan (D-34 confirm + skip busy)', () => {
     }
   });
 
+  it('plays greetingPrompt via Playback before the first Dial()', () => {
+    const result = generateGroupDialplan(
+      baseGroup({ strategy: 'ringall' }),
+      sampleMembers(),
+      VPBX,
+      undefined,
+      { greetingPrompt: 'welcome' },
+    );
+    const joined = result.lines.join('\n');
+    const playIdx = joined.indexOf('Playback(');
+    const dialIdx = joined.indexOf('Dial(');
+    expect(playIdx).toBeGreaterThan(-1);
+    expect(dialIdx).toBeGreaterThan(-1);
+    expect(playIdx).toBeLessThan(dialIdx);
+    expect(joined).toContain('welcome');
+  });
+
+  it('emits MOH Dial option when useMohInsteadOfRingback is on and not when off', () => {
+    const on = generateGroupDialplan(
+      baseGroup({ strategy: 'ringall' }),
+      sampleMembers(),
+      VPBX,
+      undefined,
+      { useMohInsteadOfRingback: true, mohClass: 'sales' },
+    );
+    expect(on.lines.join('\n')).toContain('m(sales)');
+    const off = generateGroupDialplan(baseGroup({ strategy: 'ringall' }), sampleMembers(), VPBX);
+    expect(off.lines.join('\n')).not.toContain('m(sales)');
+    expect(off.lines.join('\n')).not.toMatch(/Dial\([^)]*m[,(]/);
+  });
+
+  it('uses default MOH class token m when flag is on and mohClass is empty', () => {
+    const result = generateGroupDialplan(
+      baseGroup({ strategy: 'ringall' }),
+      sampleMembers(),
+      VPBX,
+      undefined,
+      { useMohInsteadOfRingback: true },
+    );
+    const dial = result.lines.find((l) => /Dial\(/.test(l)) ?? '';
+    const opts = /Dial\([^,]+,\d+,([^)]*)\)/.exec(dial)?.[1] ?? '';
+    expect(opts).toMatch(/m/);
+    expect(opts).not.toContain('m()');
+    expect(opts).not.toContain('m(');
+  });
+
+  it('keeps 12-01 baseline when dialOptions are omitted (default tT)', () => {
+    const result = generateGroupDialplan(baseGroup({ strategy: 'ringall', exten: '15' }), sampleMembers(), VPBX);
+    expect(result.lines.join('\n')).toBe(
+      [
+        '[group_15_42]',
+        'exten => start,1,NoOp(Call group: Sales dept [ringall])',
+        'same => n,Dial(PJSIP/e101_42&PJSIP/e102_42&LOCAL/79001234567@ctx-42,25,tT)',
+        'same => n,Return()',
+      ].join('\n'),
+    );
+  });
+
   it.each(['ringall', 'hunt', 'memoryhunt', 'random'] as const)(
     '%s remains byte-identical to the 12-01 baseline when confirm and skipBusy are off',
     (strategy) => {

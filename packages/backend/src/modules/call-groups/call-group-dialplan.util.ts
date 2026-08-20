@@ -19,6 +19,9 @@ export interface GenerateGroupDialplanOptions {
   rng?: () => number;
   confirmExternal?: boolean;
   skipBusy?: boolean;
+  greetingPrompt?: string;
+  mohClass?: string;
+  useMohInsteadOfRingback?: boolean;
 }
 
 const ANSWER_RETURN = 'same => n,ExecIf($["${DIALSTATUS}" = "ANSWER"]?Return())';
