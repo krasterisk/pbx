@@ -1,9 +1,9 @@
-import { DIALPLAN_ACTION_META, HTTP_RESULT_VAR, type ActionType } from '@krasterisk/shared';
+import { DIALPLAN_ACTION_META, HTTP_RESULT_VAR, type ActionType, type ITimeGroupInterval } from '@krasterisk/shared';
 import { ActionLog } from '../../modules/logger/action-log.model';
 import { normalizeTarget, resolveQueueValueSource, resolveValueSource, PHONEBOOK_TARGET_VAR } from './dialplan-target.util';
 import { applyNumberManipulation } from './dialplan-number.util';
 import { buildConditionExpr, isLegacyInvalidDialstatus, wrapEachLine } from './dialplan-condition.util';
-import { emitHopPrologue } from './dialplan-hops.util';
+import { emitHopGuard, emitHopIncrement, emitHopPrologue } from './dialplan-hops.util';
 import { emitPlayback } from './dialplan-playback.util';
 import { buildCurlCall } from './dialplan-curl.util';
 import { buildTrunkCarousel } from './dialplan-trunk-carousel.util';
@@ -366,9 +366,37 @@ export class AsteriskDialplanUtils {
           logCmdApply(action, vpbxUserUid);
         }
         break;
-      case 'label':
-        dp = `NoOp()`; // labels are handled as priority labels
+      case 'label': {
+        const name = this.sanitizeDialplanInput(params.label_name);
+        dp = name ? `NoOp(${name})` : 'NoOp()';
         break;
+      }
+      case 'goto': {
+        const name = this.sanitizeDialplanInput(params.label_name);
+        dp = emitHopPrologue(name || 'invalid');
+        break;
+      }
+      case 'branch': {
+        const trueLabel = this.sanitizeDialplanInput(params.true_label);
+        const falseLabel = this.sanitizeDialplanInput(params.false_label);
+        const expr = buildConditionExpr(params.condition) || '1';
+        dp = [
+          emitHopIncrement(),
+          emitHopGuard('Congestion()'),
+          `GotoIf($[${expr}]?${trueLabel}:${falseLabel})`,
+        ].join('\nsame => n,');
+        break;
+      }
+      case 'schedule': {
+        const intervals: ITimeGroupInterval[] = Array.isArray(params.intervals) ? params.intervals : [];
+        const lines = ['Set(__KRSK_SCHEDULE=0)'];
+        for (const interval of intervals) {
+          const expr = formatTimeGroupInterval(interval);
+          lines.push(`ExecIfTime(${expr}?Set(__KRSK_SCHEDULE=1))`);
+        }
+        dp = lines.join('\nsame => n,');
+        break;
+      }
       case 'busy':
         dp = `Busy(${parseInt(params.timeout, 10) || 10})`;
         break;
@@ -579,6 +607,24 @@ export function findUnreachableSteps(actions: Array<{ type: string }>): number[]
   return actions.map((_, i) => i).filter((i) => i > cut);
 }
 
+/**
+ * Shared time_group / schedule interval → ExecIfTime / GotoIfTime expression
+ * (time,dow,dom,months). Used by route time-group guards and the schedule action.
+ */
+export function formatTimeGroupInterval(interval: ITimeGroupInterval): string {
+  const timeExpr = `${interval.time_start}-${interval.time_end}`;
+  return `${timeExpr},${interval.days_of_week},${interval.days_of_month},${interval.months}`;
+}
+
+/** Prefix a generated application so a leading `(name),` becomes `n(name)`. */
+export function prefixSamePriority(application: string): string {
+  return application.startsWith('(') ? `same => n${application}` : `same => n,${application}`;
+}
+
+function joinDialplanParts(parts: string[]): string {
+  return parts.map((part, i) => (i === 0 ? part : prefixSamePriority(part))).join('\n');
+}
+
 export type ActionChainHost = 'route' | 'ivr' | 'phonebook' | 'robot';
 
 export interface RenderActionChainCtx {
@@ -611,7 +657,11 @@ export function renderActionChain(
         ? `"\${WT_${action.condition.time_group_uid}}"="1"`
         : '');
     if (tgExpr) dp = wrapEachLine(tgExpr, dp);
+    if (action?.type === 'label') {
+      const name = AsteriskDialplanUtils.sanitizeDialplanInput(action.params?.label_name);
+      if (name) dp = `(${name}),${dp}`;
+    }
     parts.push(dp);
   }
-  return parts.join('\nsame => n,');
+  return joinDialplanParts(parts);
 }

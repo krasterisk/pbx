@@ -7,7 +7,7 @@ import { RoutePhonebookBinding } from '../phonebooks/route-phonebook-binding.mod
 import { RoutePhonebook } from '../phonebooks/phonebook.model';
 import { PhonebookEntry } from '../phonebooks/phonebook-entry.model';
 import { TimeGroupsService } from '../time-groups/time-groups.service';
-import { AsteriskDialplanUtils, renderActionChain } from '../../shared/utils/dialplan.util';
+import { AsteriskDialplanUtils, formatTimeGroupInterval, prefixSamePriority, renderActionChain } from '../../shared/utils/dialplan.util';
 import {
   buildMixMonitorFlags,
   buildFfmpegPostprocess,
@@ -183,12 +183,9 @@ export class RoutesService {
     return this.create(data, vpbxUserUid);
   }
 
-  /**
-   * Format a single TimeGroup interval for ExecIfTime (matches time-groups.service.ts:70-72).
-   */
+  /** Format a single TimeGroup interval for ExecIfTime (shared with schedule action). */
   private formatTimeGroupInterval(interval: ITimeGroupInterval): string {
-    const timeExpr = `${interval.time_start}-${interval.time_end}`;
-    return `${timeExpr},${interval.days_of_week},${interval.days_of_month},${interval.months}`;
+    return formatTimeGroupInterval(interval);
   }
 
   /** Build uid → ExecIfTime interval expressions map from tenant time groups. */
@@ -368,7 +365,7 @@ export class RoutesService {
           timeGroup: hasTg ? `"\${WT_${tgUid}}"="1"` : undefined,
         });
         if (!dp) continue;
-        lines.push(`same => n,${dp}`);
+        lines.push(prefixSamePriority(dp));
       }
 
       lines.push(''); // blank line between extensions

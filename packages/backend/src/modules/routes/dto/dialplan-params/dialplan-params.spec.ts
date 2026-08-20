@@ -56,6 +56,12 @@ function describeAction(action: DialplanAction): string {
       return action.params.command ?? '';
     case 'label':
       return action.params.label_name ?? '';
+    case 'goto':
+      return action.params.label_name ?? '';
+    case 'branch':
+      return action.params.true_label ?? '';
+    case 'schedule':
+      return String(action.params.intervals?.length ?? '');
     case 'busy':
       return String(action.params.timeout ?? '');
     case 'hangup':
@@ -67,8 +73,8 @@ function describeAction(action: DialplanAction): string {
 }
 
 describe('D-08 DialplanAction union + D-24 meta + D-42 congestion', () => {
-  it('has 23 ActionTypesList values including congestion after 12-12 hard-remove', () => {
-    expect(ActionTypesList).toHaveLength(23);
+  it('has 26 ActionTypesList values including goto/branch/schedule after 12-16', () => {
+    expect(ActionTypesList).toHaveLength(26);
     expect(ActionTypesList).toContain('congestion');
     expect(ActionTypesList).toContain('voicemail');
     expect(ActionTypesList).not.toContain("tofax");
@@ -79,7 +85,7 @@ describe('D-08 DialplanAction union + D-24 meta + D-42 congestion', () => {
     const metaKeys = Object.keys(DIALPLAN_ACTION_META).sort();
     const listKeys = [...ActionTypesList].sort();
     expect(metaKeys).toEqual(listKeys);
-    expect(metaKeys).toHaveLength(23);
+    expect(metaKeys).toHaveLength(26);
   });
 
   it('declares terminal flags required by D-24 / D-42', () => {
@@ -124,6 +130,9 @@ const VALID_PARAMS: Record<ActionType, Record<string, unknown>> = {
   confbridge: { room: { source: 'fixed', value: '100' } },
   cmd: { command: 'NoOp(ok)' },
   label: { label_name: 'retry' },
+  goto: { label_name: 'retry' },
+  branch: { true_label: 'ok', false_label: 'fail', condition: { source: 'dialstatus', values: ['ANSWER'] } },
+  schedule: { intervals: [{ time_start: '09:00', time_end: '18:00', days_of_week: 'mon-fri', days_of_month: '*', months: '*' }] },
   busy: {},
   hangup: {},
   congestion: {},
@@ -150,6 +159,9 @@ const INVALID_PARAMS: Record<ActionType, Record<string, unknown>> = {
   confbridge: {},
   cmd: { command: 1 },
   label: { label_name: 1 },
+  goto: { label_name: '' },
+  branch: { true_label: '', false_label: '' },
+  schedule: { intervals: [] },
   busy: {},
   hangup: {},
   congestion: {},

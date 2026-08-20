@@ -4,6 +4,7 @@ import { validateSync, ValidationError } from 'class-validator';
 import type { ActionType } from '@krasterisk/shared';
 import { ActionTypesList } from '../../modules/routes/dto/route-action.dto';
 import { resolveParamsDto } from '../../modules/routes/dto/dialplan-params';
+import { validateLabelRefs } from '../utils/dialplan-labels.util';
 
 export type ActionParamsError = {
   actionId: string | null;
@@ -93,7 +94,40 @@ export function collectHostActionErrors(body: unknown): ActionParamsError[] {
     errors.push({ actionId: null, path: 'name', message: 'name must be a non-empty string' });
   }
   errors.push(...validateActionParams(collectNestedActionChains(record)));
+  for (const chain of collectLabelChains(record)) {
+    errors.push(...validateLabelRefs(chain));
+  }
   return errors;
+}
+
+function collectLabelChains(body: Record<string, unknown>): unknown[][] {
+  const chains: unknown[][] = [];
+  if (Array.isArray(body.actions)) chains.push(body.actions);
+  if (body.fallback_action) chains.push([body.fallback_action]);
+  if (body.max_retries_action) chains.push([body.max_retries_action]);
+  if (Array.isArray(body.bindings)) {
+    for (const binding of body.bindings as Array<{ actions?: unknown[] }>) {
+      if (Array.isArray(binding?.actions)) chains.push(binding.actions);
+    }
+  }
+  if (Array.isArray(body.menu_items)) {
+    for (const item of body.menu_items as Array<{ actions?: unknown[] }>) {
+      if (Array.isArray(item?.actions)) chains.push(item.actions);
+    }
+  }
+  if (Array.isArray(body.keywords)) {
+    for (const kw of body.keywords as Array<{ actions?: unknown[] }>) {
+      if (Array.isArray(kw?.actions)) chains.push(kw.actions);
+    }
+  }
+  if (Array.isArray(body.keyword_groups)) {
+    for (const group of body.keyword_groups as Array<{ keywords?: Array<{ actions?: unknown[] }> }>) {
+      for (const kw of group?.keywords ?? []) {
+        if (Array.isArray(kw?.actions)) chains.push(kw.actions);
+      }
+    }
+  }
+  return chains;
 }
 
 export function throwIfInvalidActionPayload(body: unknown): void {

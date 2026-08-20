@@ -1,23 +1,31 @@
 import {
+  ArrayMinSize,
   IsArray,
   IsIn,
   IsInt,
+  IsObject,
   IsOptional,
   IsString,
   Matches,
   Min,
   MinLength,
+  ValidateNested,
 } from 'class-validator';
-import { Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import type {
   CallerIdMode,
+  IBranchParams,
   ICallerIdActionParams,
   ICmdParams,
+  IGotoParams,
   ILabelParams,
+  IScheduleParams,
   ISetClidCustomParams,
   ISetClidListParams,
+  ITimeGroupInterval,
   IWebhookParams,
 } from '@krasterisk/shared';
+import { RouteConditionDto } from '../route-condition.dto';
 
 const SAFE_DIAL = /^[^(),?\[\]{}$\\";\n\r]*$/;
 const SAFE_TEXT = /^[^\n\r;]*$/;
@@ -87,6 +95,61 @@ export class LabelParamsDto implements ILabelParams {
   @MinLength(1)
   @Matches(SAFE_DIAL)
   label_name?: string;
+}
+
+export class GotoParamsDto implements IGotoParams {
+  @IsString()
+  @MinLength(1)
+  @Matches(SAFE_DIAL)
+  label_name: string;
+}
+
+export class BranchParamsDto implements IBranchParams {
+  @IsString()
+  @MinLength(1)
+  @Matches(SAFE_DIAL)
+  true_label: string;
+
+  @IsString()
+  @MinLength(1)
+  @Matches(SAFE_DIAL)
+  false_label: string;
+
+  @IsOptional()
+  @IsObject()
+  @ValidateNested()
+  @Type(() => RouteConditionDto)
+  condition?: RouteConditionDto;
+}
+
+export class TimeGroupIntervalDto implements ITimeGroupInterval {
+  @IsString()
+  @MinLength(1)
+  time_start: string;
+
+  @IsString()
+  @MinLength(1)
+  time_end: string;
+
+  @IsString()
+  @MinLength(1)
+  days_of_week: string;
+
+  @IsString()
+  @MinLength(1)
+  days_of_month: string;
+
+  @IsString()
+  @MinLength(1)
+  months: string;
+}
+
+export class ScheduleParamsDto implements IScheduleParams {
+  @IsArray()
+  @ArrayMinSize(1)
+  @ValidateNested({ each: true })
+  @Type(() => TimeGroupIntervalDto)
+  intervals: TimeGroupIntervalDto[];
 }
 
 export class CmdParamsDto implements ICmdParams {

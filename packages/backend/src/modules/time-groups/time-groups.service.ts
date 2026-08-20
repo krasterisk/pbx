@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { TimeGroup } from './time-group.model';
 import type { ITimeGroupInterval } from '@krasterisk/shared';
+import { formatTimeGroupInterval } from '../../shared/utils/dialplan.util';
 
 @Injectable()
 export class TimeGroupsService {
@@ -67,8 +68,7 @@ export class TimeGroupsService {
 
     const intervals: ITimeGroupInterval[] = timeGroup.intervals || [];
     for (const interval of intervals) {
-      const timeExpr = `${interval.time_start}-${interval.time_end}`;
-      const expr = `${timeExpr},${interval.days_of_week},${interval.days_of_month},${interval.months}`;
+      const expr = formatTimeGroupInterval(interval);
       lines.push(`same => n,ExecIfTime(${expr}?Set(__WORKTIME_${timeGroup.uid}=1))`);
     }
 

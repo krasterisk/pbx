@@ -26,7 +26,8 @@ export const ActionTypesList = [
   'notify', 'callerid', 'trunk_carousel',
   'voicemail', 'text2speech', 'voicerobot',
   'webhook', 'confbridge', 'cmd',
-  'label', 'busy', 'hangup', 'congestion',
+  'label', 'goto', 'branch', 'schedule',
+  'busy', 'hangup', 'congestion',
 ];
 
 const MatchModesList = ['on_match', 'on_no_match'];

@@ -4,7 +4,7 @@ import type { IIvrPhrase, IvrPromptsValidationEngine } from '@krasterisk/shared'
 import { Ivr } from './ivr.model';
 import { TtsEnginesService } from '../tts-engines/tts-engines.service';
 import { DialplanApplyService } from '../ami/dialplan-apply.service';
-import { AsteriskDialplanUtils, renderActionChain } from '../../shared/utils/dialplan.util';
+import { AsteriskDialplanUtils, prefixSamePriority, renderActionChain } from '../../shared/utils/dialplan.util';
 import {
   normalizeIvrPrompts,
   assertIvrPromptsForSave,
@@ -246,7 +246,7 @@ export class IvrsService {
       lines.push(`exten => ${exten},1,NoOp(IVR choice: ${exten})`);
 
       const dp = renderActionChain(actions, { vpbxUserUid, host: 'ivr', isAdmin });
-      if (dp) lines.push(`same => n,${dp}`);
+      if (dp) lines.push(prefixSamePriority(dp));
       lines.push('');
     }
 

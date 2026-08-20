@@ -24,7 +24,8 @@ const ACTION_TYPES = [
   'notify', 'callerid', 'trunk_carousel',
   'voicemail', 'text2speech', 'voicerobot',
   'webhook', 'confbridge', 'cmd',
-  'label', 'busy', 'hangup', 'congestion',
+  'label', 'goto', 'branch', 'schedule',
+  'busy', 'hangup', 'congestion',
 ] as const satisfies readonly ActionType[];
 
 type MissingActionType = Exclude<ActionType, (typeof ACTION_TYPES)[number]>;
@@ -42,7 +43,8 @@ const CHARACTERIZED_TYPES: readonly ActionType[] = [
   'notify', 'callerid', 'trunk_carousel',
   'voicemail', 'text2speech', 'voicerobot',
   'webhook', 'confbridge', 'cmd',
-  'label', 'busy', 'hangup', 'congestion',
+  'label', 'goto', 'branch', 'schedule',
+  'busy', 'hangup', 'congestion',
 ];
 
 describe('AsteriskDialplanUtils.actionToDialplan', () => {
@@ -826,12 +828,12 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       expect(dp).toBe('NoOp()');
     });
 
-    it('label without condition emits NoOp() and ignores label_name', () => {
+    it('label without condition emits NoOp(name) so the label is addressable', () => {
       const dp = AsteriskDialplanUtils.actionToDialplan(
         { type: 'label', params: { label_name: 'after-dial' }, condition: {} },
         vpbx,
       );
-      expect(dp).toBe('NoOp()');
+      expect(dp).toBe('NoOp(after-dial)');
     });
 
     /**
@@ -846,7 +848,7 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
         },
         vpbx,
       );
-      expect(dp).toBe('ExecIf($["${DIALSTATUS}" = "ANSWER"]?NoOp())');
+      expect(dp).toBe('ExecIf($["${DIALSTATUS}" = "ANSWER"]?NoOp(after-dial))');
       expect((dp.match(/\(/g) || []).length).toBe((dp.match(/\)/g) || []).length);
     });
 
@@ -1123,6 +1125,9 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       confbridge: { room: '100' },
       cmd: { command: 'NoOp(ok)' },
       label: { label_name: 'x' },
+      goto: { label_name: 'x' },
+      branch: { true_label: 'ok', false_label: 'fail', condition: { source: 'dialstatus', values: ['ANSWER'] } },
+      schedule: { intervals: [{ time_start: '09:00', time_end: '18:00', days_of_week: 'mon-fri', days_of_month: '*', months: '*' }] },
       busy: {},
       hangup: {},
       congestion: {},

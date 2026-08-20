@@ -12,9 +12,12 @@ import {
   VoicemailParamsDto,
 } from './address.params.dto';
 import {
+  BranchParamsDto,
   CallerIdParamsDto,
   CmdParamsDto,
+  GotoParamsDto,
   LabelParamsDto,
+  ScheduleParamsDto,
   SetClidCustomParamsDto,
   SetClidListParamsDto,
   WebhookParamsDto,
@@ -57,6 +60,9 @@ export const ACTION_PARAM_DTO: Record<ActionType, ParamsDtoClass | null> = {
   confbridge: ConfBridgeParamsDto,
   cmd: CmdParamsDto,
   label: LabelParamsDto,
+  goto: GotoParamsDto,
+  branch: BranchParamsDto,
+  schedule: ScheduleParamsDto,
   busy: null,
   hangup: null,
   congestion: null,

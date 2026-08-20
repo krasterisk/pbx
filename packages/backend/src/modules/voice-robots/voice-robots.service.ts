@@ -23,7 +23,7 @@ import { AudioService } from './services/audio.service';
 import { TtsCacheService } from './services/tts-cache.service';
 import { VoiceRobotSession, CallerInfo } from './services/voice-robot-session';
 import { SttProviderFactory, TtsProviderFactory } from './providers/provider-factory';
-import { AsteriskDialplanUtils, renderActionChain } from '../../shared/utils/dialplan.util';
+import { AsteriskDialplanUtils, prefixSamePriority, renderActionChain } from '../../shared/utils/dialplan.util';
 
 @Injectable()
 export class VoiceRobotsService implements OnApplicationShutdown, OnModuleInit {
@@ -441,7 +441,7 @@ export class VoiceRobotsService implements OnApplicationShutdown, OnModuleInit {
       lines.push(`same => n(max_retries),NoOp(Max retries for ${robot.name})`);
       if (robot.max_retries_action && Array.isArray(robot.max_retries_action)) {
         const dp = renderActionChain(robot.max_retries_action, { vpbxUserUid, host: 'robot' });
-        if (dp) lines.push(`same => n,${dp}`);
+        if (dp) lines.push(prefixSamePriority(dp));
       }
       lines.push(`same => n,Return()`);
       lines.push('');
@@ -451,7 +451,7 @@ export class VoiceRobotsService implements OnApplicationShutdown, OnModuleInit {
       lines.push(`exten => s,1,NoOp(Fallback for Robot: ${robot.name})`);
       if (robot.fallback_action && Array.isArray(robot.fallback_action)) {
         const dp = renderActionChain(robot.fallback_action, { vpbxUserUid, host: 'robot' });
-        if (dp) lines.push(`same => n,${dp}`);
+        if (dp) lines.push(prefixSamePriority(dp));
       }
       lines.push(`same => n,Return()`);
       lines.push('');
@@ -472,7 +472,7 @@ export class VoiceRobotsService implements OnApplicationShutdown, OnModuleInit {
           lines.push(`exten => s,1,NoOp(Robot Keyword Match: ${keyword.keywords})`);
           if (keyword.actions && Array.isArray(keyword.actions)) {
             const dp = renderActionChain(keyword.actions, { vpbxUserUid, host: 'robot' });
-            if (dp) lines.push(`same => n,${dp}`);
+            if (dp) lines.push(prefixSamePriority(dp));
           }
           lines.push(`same => n,Return()`);
           lines.push('');

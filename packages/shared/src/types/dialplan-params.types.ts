@@ -1,3 +1,6 @@
+import type { ConditionOp, ConditionSourceKind } from './dialplan-condition.types';
+import type { ITimeGroupInterval } from './timeGroup.types';
+
 export type ValueSource =
   | { source: 'fixed'; value: string }
   | { source: 'route_pattern' }
@@ -184,6 +187,30 @@ export interface IToFaxParams {
 
 export interface ILabelParams {
   label_name?: string;
+}
+
+export interface IGotoParams {
+  label_name?: string;
+}
+
+export interface IBranchCondition {
+  source?: ConditionSourceKind;
+  values?: string[];
+  device?: string;
+  name?: string;
+  op?: ConditionOp;
+  value?: string;
+  dialstatus?: string | string[];
+}
+
+export interface IBranchParams {
+  true_label?: string;
+  false_label?: string;
+  condition?: IBranchCondition;
+}
+
+export interface IScheduleParams {
+  intervals?: ITimeGroupInterval[];
 }
 
 export interface IBusyParams {
