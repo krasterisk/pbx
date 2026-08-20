@@ -19,6 +19,12 @@ export interface ICreateCallGroup {
   ring_time?: number;
   external_context?: string;
   cid_prefix?: string;
+  confirmExternal?: boolean;
+  skipBusy?: boolean;
+  greetingPrompt?: string;
+  mohClass?: string;
+  useMohInsteadOfRingback?: boolean;
+  dialOptions?: string;
   members?: ICallGroupMemberInput[];
 }
 
@@ -29,6 +35,12 @@ export interface IUpdateCallGroup {
   ring_time?: number;
   external_context?: string;
   cid_prefix?: string;
+  confirmExternal?: boolean;
+  skipBusy?: boolean;
+  greetingPrompt?: string;
+  mohClass?: string;
+  useMohInsteadOfRingback?: boolean;
+  dialOptions?: string;
   members?: ICallGroupMemberInput[];
 }
 

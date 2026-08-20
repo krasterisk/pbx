@@ -1,11 +1,20 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+class ResizeObserverStub {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+vi.stubGlobal('ResizeObserver', ResizeObserverStub);
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { CallGroupFormModal } from './CallGroupFormModal';
 import * as callGroupApiHooks from '@/shared/api/endpoints/callGroupApi';
 import * as contextApiHooks from '@/shared/api/endpoints/contextApi';
 import * as endpointApiHooks from '@/shared/api/endpoints/endpointApi';
+import * as promptsApiHooks from '@/shared/api/endpoints/promptsApi';
+import * as mohApiHooks from '@/shared/api/endpoints/mohApi';
 import type { RootState } from '@/app/store/store';
 
 const mockDispatch = vi.fn();
@@ -63,6 +72,22 @@ vi.mock('@/shared/api/endpoints/endpointApi', async (importOriginal) => {
   };
 });
 
+vi.mock('@/shared/api/endpoints/promptsApi', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...(actual as object),
+    useGetPromptsQuery: vi.fn(),
+  };
+});
+
+vi.mock('@/shared/api/endpoints/mohApi', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...(actual as object),
+    useGetMohClassesQuery: vi.fn(),
+  };
+});
+
 vi.mock('@/shared/ui', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/shared/ui')>();
   return {
@@ -107,6 +132,14 @@ describe('CallGroupFormModal', () => {
     });
     (endpointApiHooks.useGetEndpointsQuery as ReturnType<typeof vi.fn>).mockReturnValue({
       data: mockEndpoints,
+      isLoading: false,
+    });
+    (promptsApiHooks.useGetPromptsQuery as ReturnType<typeof vi.fn>).mockReturnValue({
+      data: [{ uid: 1, filename: 'welcome', comment: 'Welcome' }],
+      isLoading: false,
+    });
+    (mohApiHooks.useGetMohClassesQuery as ReturnType<typeof vi.fn>).mockReturnValue({
+      data: [{ name: 'moh_15_sales', displayName: 'Sales' }],
       isLoading: false,
     });
   });
@@ -176,5 +209,26 @@ describe('CallGroupFormModal', () => {
       position: 1,
       ring_time: 15,
     });
+  });
+
+  it('marks invalid Dial options and does not call the save mutation', () => {
+    render(<CallGroupFormModal />);
+
+    fireEvent.change(screen.getByLabelText('Название'), { target: { value: 'Sales ring' } });
+    fireEvent.change(screen.getByLabelText('Номер'), { target: { value: '6007' } });
+
+    const addRow = screen.getByText('Добавить участника').closest('div') as HTMLElement;
+    const addTypeSelect = within(addRow).getAllByRole('combobox')[0] as HTMLSelectElement;
+    fireEvent.change(addTypeSelect, { target: { value: 'internal' } });
+    const selects = within(addRow).getAllByRole('combobox');
+    fireEvent.change(selects[selects.length - 1] as HTMLSelectElement, { target: { value: '202' } });
+    fireEvent.click(screen.getByText('Добавить участника'));
+
+    const optionsInput = screen.getByLabelText('Строка опций');
+    fireEvent.change(optionsInput, { target: { value: 'tTU(x' } });
+
+    expect(screen.getByText('Незакрытая скобка в строке опций')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Сохранить'));
+    expect(mockCreate).not.toHaveBeenCalled();
   });
 });

@@ -30,7 +30,18 @@ import {
 import { useGetContextsQuery } from '@/shared/api/endpoints/contextApi';
 import type { ICallGroup, RingStrategy } from '@krasterisk/shared';
 import { CallGroupMembersEditor, type LocalCallGroupMember } from './CallGroupMembersEditor';
+import { CallGroupRingOptions, type CallGroupRingOptionsValue } from './CallGroupRingOptions';
+import { isOptionsParseError } from '@/features/dialplan-apps/model/optionsSync';
 import cls from './CallGroupFormModal.module.scss';
+
+const DEFAULT_RING: CallGroupRingOptionsValue = {
+  confirmExternal: false,
+  skipBusy: false,
+  greetingPrompt: '',
+  mohClass: '',
+  useMohInsteadOfRingback: false,
+  dialOptions: 'tT',
+};
 
 const STRATEGY_VALUES: RingStrategy[] = ['ringall', 'hunt', 'memoryhunt', 'random'];
 
@@ -68,6 +79,7 @@ export const CallGroupFormModal = memo(({ onSaved }: CallGroupFormModalProps) =>
   const [externalContext, setExternalContext] = useState(defaultContext);
   const [cidPrefix, setCidPrefix] = useState('');
   const [members, setMembers] = useState<LocalCallGroupMember[]>([]);
+  const [ring, setRing] = useState<CallGroupRingOptionsValue>(DEFAULT_RING);
   const [submitError, setSubmitError] = useState('');
 
   const modalTitle = useMemo(() => {
@@ -88,6 +100,14 @@ export const CallGroupFormModal = memo(({ onSaved }: CallGroupFormModalProps) =>
       setRingTime(String(groupData.ring_time ?? 30));
       setExternalContext(groupData.external_context || defaultContext);
       setCidPrefix(groupData.cid_prefix || '');
+      setRing({
+        confirmExternal: groupData.confirmExternal ?? false,
+        skipBusy: groupData.skipBusy ?? false,
+        greetingPrompt: groupData.greetingPrompt ?? '',
+        mohClass: groupData.mohClass ?? '',
+        useMohInsteadOfRingback: groupData.useMohInsteadOfRingback ?? false,
+        dialOptions: groupData.dialOptions || 'tT',
+      });
       const loadedMembers: LocalCallGroupMember[] = [...(groupData.members || [])]
         .sort((a, b) => a.position - b.position)
         .map((m, idx) => ({
@@ -104,6 +124,7 @@ export const CallGroupFormModal = memo(({ onSaved }: CallGroupFormModalProps) =>
       setRingTime('30');
       setExternalContext(defaultContext);
       setCidPrefix('');
+      setRing(DEFAULT_RING);
       setMembers([]);
     }
     setSubmitError('');
@@ -136,6 +157,11 @@ export const CallGroupFormModal = memo(({ onSaved }: CallGroupFormModalProps) =>
       return;
     }
 
+    if (isOptionsParseError(ring.dialOptions)) {
+      setSubmitError(t('routes.chain.options.unclosed', 'Незакрытая скобка в строке опций'));
+      return;
+    }
+
     const payload = {
       name: trimmedName,
       exten: trimmedExten,
@@ -143,6 +169,12 @@ export const CallGroupFormModal = memo(({ onSaved }: CallGroupFormModalProps) =>
       ring_time: Number(ringTime) || undefined,
       external_context: externalContext.trim() || defaultContext,
       cid_prefix: cidPrefix.trim() || undefined,
+      confirmExternal: ring.confirmExternal,
+      skipBusy: ring.skipBusy,
+      greetingPrompt: ring.greetingPrompt || undefined,
+      mohClass: ring.mohClass || undefined,
+      useMohInsteadOfRingback: ring.useMohInsteadOfRingback,
+      dialOptions: ring.dialOptions || 'tT',
       members: members.map((m, index) => ({
         member_type: m.member_type,
         value: m.value.trim(),
@@ -173,6 +205,7 @@ export const CallGroupFormModal = memo(({ onSaved }: CallGroupFormModalProps) =>
     ringTime,
     externalContext,
     cidPrefix,
+    ring,
     defaultContext,
     mode,
     selectedUid,
@@ -285,6 +318,11 @@ export const CallGroupFormModal = memo(({ onSaved }: CallGroupFormModalProps) =>
               externalContext={externalContext}
               onExternalContextChange={setExternalContext}
               contexts={contexts.map((c) => ({ uid: c.uid, name: c.name }))}
+            />
+
+            <CallGroupRingOptions
+              value={ring}
+              onChange={(patch) => setRing((prev) => ({ ...prev, ...patch }))}
             />
 
             {submitError && (
