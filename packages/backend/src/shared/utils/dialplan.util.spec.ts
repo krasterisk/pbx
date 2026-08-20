@@ -1365,3 +1365,111 @@ describe('D-53 findUnreachableSteps / digit-exit', () => {
     expect(dp).not.toContain(`Goto(${dest})`);
   });
 });
+
+describe('D-37 / D-32 / D-39 / D-43 per-app generator fixes', () => {
+  const vpbx = 42;
+
+  it('setclid_list emits exactly one CURL (12-01 baseline was 2 SHELL)', () => {
+    const prevUrl = AsteriskDialplanUtils.backendBaseUrl;
+    const prevKey = AsteriskDialplanUtils.dialplanApiKey;
+    AsteriskDialplanUtils.backendBaseUrl = 'http://backend.test/api';
+    AsteriskDialplanUtils.dialplanApiKey = 'wave0-key';
+    const dp = AsteriskDialplanUtils.actionToDialplan(
+      { type: 'callerid', params: { mode: 'setclid_list', list_uid: 5 }, condition: {} },
+      vpbx,
+    );
+    expect((dp.match(/CURL\(/g) ?? []).length).toBe(1);
+    expect(dp).toContain('KRSK_HTTP_RESULT');
+    AsteriskDialplanUtils.backendBaseUrl = prevUrl;
+    AsteriskDialplanUtils.dialplanApiKey = prevKey;
+  });
+
+  it('toqueue emits Set(QUEUE_PRIO=) before Queue() when priority is set', () => {
+    const dp = AsteriskDialplanUtils.actionToDialplan(
+      { type: 'toqueue', params: { queue: 'sales', priority: 7 }, condition: {} },
+      vpbx,
+    );
+    expect(dp.indexOf('Set(QUEUE_PRIO=')).toBeGreaterThan(-1);
+    expect(dp.indexOf('Set(QUEUE_PRIO=')).toBeLessThan(dp.indexOf('Queue('));
+    expect(dp).toContain('Set(QUEUE_PRIO=7)');
+  });
+
+  it('toqueue without priority does not emit QUEUE_PRIO', () => {
+    const dp = AsteriskDialplanUtils.actionToDialplan(
+      { type: 'toqueue', params: { queue: 'sales' }, condition: {} },
+      vpbx,
+    );
+    expect(dp).not.toContain('QUEUE_PRIO');
+  });
+
+  it('toqueue announceoverride lands in Queue() args after sanitize', () => {
+    const dp = AsteriskDialplanUtils.actionToDialplan(
+      { type: 'toqueue', params: { queue: 'sales', announceoverride: 'vip-welcome' }, condition: {} },
+      vpbx,
+    );
+    expect(dp).toMatch(/Queue\([^)]*vip-welcome/);
+  });
+
+  it('toexten webrtc true !== webrtc false and both keep the tenant suffix', () => {
+    const on = AsteriskDialplanUtils.actionToDialplan(
+      { type: 'toexten', params: { exten: '101', webrtc: true }, condition: {} },
+      vpbx,
+    );
+    const off = AsteriskDialplanUtils.actionToDialplan(
+      { type: 'toexten', params: { exten: '101', webrtc: false }, condition: {} },
+      vpbx,
+    );
+    expect(on).not.toBe(off);
+    expect(on).toContain('_42');
+    expect(off).toContain('_42');
+  });
+
+  it('toexten without a target does not emit an empty string', () => {
+    const dp = AsteriskDialplanUtils.actionToDialplan(
+      { type: 'toexten', params: { target: { source: 'fixed', value: '' } }, condition: {} },
+      vpbx,
+    );
+    expect(dp).not.toBe('');
+    expect(dp).toContain('NoOp(');
+  });
+
+  it('callerid phonebook also sets CALLERID(name) from lookup field 5', () => {
+    const dp = AsteriskDialplanUtils.actionToDialplan(
+      { type: 'callerid', params: { mode: 'phonebook', phonebook_uid: 7 }, condition: {} },
+      vpbx,
+    );
+    expect(dp).toContain('CALLERID(name)');
+    expect(dp).toContain('CUT(PB_RAW,|,5)');
+  });
+
+  it('callerid carousel anti-repeats against the previous pick', () => {
+    const dp = AsteriskDialplanUtils.actionToDialplan(
+      {
+        type: 'callerid',
+        params: { mode: 'carousel', pool: ['79001112233', '79004445566'] },
+        condition: {},
+      },
+      vpbx,
+    );
+    expect(dp).toMatch(/CID_LAST|CID_PREV/);
+    expect(dp).toContain('RAND');
+  });
+
+  it('setclid_custom with name emits both CALLERID(num) and CALLERID(name)', () => {
+    const dp = AsteriskDialplanUtils.actionToDialplan(
+      { type: 'setclid_custom', params: { callerid: '100', name: 'Sales' }, condition: {} },
+      vpbx,
+    );
+    expect(dp).toContain('CALLERID(num)=100');
+    expect(dp).toContain('CALLERID(name)=Sales');
+  });
+
+  it('setclid_custom without name does not emit empty CALLERID(name)', () => {
+    const dp = AsteriskDialplanUtils.actionToDialplan(
+      { type: 'setclid_custom', params: { callerid: '100' }, condition: {} },
+      vpbx,
+    );
+    expect(dp).toContain('CALLERID(num)=100');
+    expect(dp).not.toContain('CALLERID(name)=');
+  });
+});

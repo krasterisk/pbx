@@ -325,3 +325,50 @@ describe('D-30 text2speech engine', () => {
     expect(errors.some((e) => e.path === 'engine' || e.message.toLowerCase().includes('engine'))).toBe(true);
   });
 });
+
+describe('D-32 / D-39 / D-43 params whitelist', () => {
+  it('keeps setclid_custom name through the whitelist', () => {
+    const errors = validateActionParams([{
+      id: 'c1',
+      type: 'setclid_custom',
+      params: { callerid: '100', name: 'Sales' },
+    }]);
+    expect(errors).toEqual([]);
+  });
+
+  it('rejects empty toexten target (D-39)', () => {
+    const errors = validateActionParams([{
+      id: 'e1',
+      type: 'toexten',
+      params: { target: { source: 'fixed', value: '' } },
+    }]);
+    expect(errors.length).toBeGreaterThan(0);
+  });
+
+  it('rejects announceoverride with path traversal', () => {
+    const errors = validateActionParams([{
+      id: 'q1',
+      type: 'toqueue',
+      params: { target: { source: 'fixed', value: 'sales' }, announceoverride: '../etc/passwd' },
+    }]);
+    expect(errors.length).toBeGreaterThan(0);
+  });
+
+  it('accepts toqueue priority and a safe announceoverride', () => {
+    const errors = validateActionParams([{
+      id: 'q1',
+      type: 'toqueue',
+      params: { target: { source: 'fixed', value: 'sales' }, priority: 5, announceoverride: 'vip-welcome' },
+    }]);
+    expect(errors).toEqual([]);
+  });
+
+  it('rejects an out-of-range QUEUE_PRIO', () => {
+    const errors = validateActionParams([{
+      id: 'q1',
+      type: 'toqueue',
+      params: { target: { source: 'fixed', value: 'sales' }, priority: 999 },
+    }]);
+    expect(errors.length).toBeGreaterThan(0);
+  });
+});
