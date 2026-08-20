@@ -1,4 +1,5 @@
 import type { ICallGroup, ICallGroupMember } from '@krasterisk/shared';
+import { parseOptions, serializeOptions } from '../../shared/utils/dialplan-options.util';
 import { generateGroupDialplan } from './call-group-dialplan.util';
 
 const VPBX = 42;
@@ -540,6 +541,145 @@ describe('generateGroupDialplan (D-35 callerid restore + full random shuffle)', 
           'same => n,Dial(PJSIP/e101_42&PJSIP/e102_42,15,tT)',
           'same => n,ExecIf($["${DIALSTATUS}" = "ANSWER"]?Return())',
           'same => n,Dial(PJSIP/e101_42&PJSIP/e102_42&LOCAL/79001234567@ctx-42,30,tT)',
+          'same => n,Return()',
+        ].join('\n'),
+      };
+      expect(result.lines.join('\n')).toBe(expected[strategy]);
+    },
+  );
+});
+
+describe('generateGroupDialplan (D-34 confirm + skip busy)', () => {
+  function dialLines(lines: string[]): string[] {
+    return lines.filter((l) => /Dial\(/.test(l));
+  }
+
+  it('adds M(confirm) to Dial options when confirmExternal is on', () => {
+    const result = generateGroupDialplan(
+      baseGroup({ strategy: 'hunt' }),
+      sampleMembers(),
+      VPBX,
+      undefined,
+      { confirmExternal: true },
+    );
+    const joined = result.lines.join('\n');
+    expect(joined).toContain('M(');
+    const externalDial = dialLines(result.lines).find((l) => l.includes('LOCAL/79001234567@ctx-42'));
+    expect(externalDial).toBeDefined();
+    expect(externalDial).toContain('M(');
+  });
+
+  it('does not add M( when confirmExternal is off', () => {
+    const result = generateGroupDialplan(baseGroup({ strategy: 'hunt' }), sampleMembers(), VPBX);
+    expect(result.lines.join('\n')).not.toContain('M(');
+  });
+
+  it('does not add M( for an internals-only group even when confirmExternal is on', () => {
+    const internals = sampleMembers().filter((m) => m.member_type === 'internal');
+    const result = generateGroupDialplan(
+      baseGroup({ strategy: 'ringall' }),
+      internals,
+      VPBX,
+      undefined,
+      { confirmExternal: true },
+    );
+    expect(result.lines.join('\n')).not.toContain('M(');
+  });
+
+  it('round-trips Dial options that include M(...) through parseOptions', () => {
+    const result = generateGroupDialplan(
+      baseGroup({ strategy: 'hunt' }),
+      sampleMembers(),
+      VPBX,
+      undefined,
+      { confirmExternal: true },
+    );
+    const externalDial = dialLines(result.lines).find((l) => l.includes('LOCAL/79001234567'));
+    const opts = /Dial\([^,]+,\d+,([^)]*)\)/.exec(externalDial ?? '')?.[1] ?? '';
+    expect(serializeOptions(parseOptions(opts))).toBe(opts);
+  });
+
+  it('omits a DEVICE_STATE-busy member from the Dial() argument and keeps idle members', () => {
+    const result = generateGroupDialplan(
+      baseGroup({ strategy: 'ringall' }),
+      sampleMembers(),
+      VPBX,
+      undefined,
+      { skipBusy: true },
+    );
+    const joined = result.lines.join('\n');
+    expect(joined).toContain('${DEVICE_STATE(PJSIP/e101_42)}');
+    expect(joined).toContain('${DEVICE_STATE(PJSIP/e102_42)}');
+    const dial = dialLines(result.lines).join('\n');
+    expect(dial).not.toContain('PJSIP/e101_42');
+    expect(dial).not.toContain('PJSIP/e102_42');
+    expect(joined).toContain('PJSIP/e101_42');
+    expect(joined).toContain('PJSIP/e102_42');
+    expect(joined).toContain('LOCAL/79001234567@ctx-42');
+  });
+
+  it('emits diagnostic NoOp and no empty Dial() when every member is busy-filtered', () => {
+    const internals = sampleMembers().filter((m) => m.member_type === 'internal');
+    const result = generateGroupDialplan(
+      baseGroup({ strategy: 'ringall' }),
+      internals,
+      VPBX,
+      undefined,
+      { skipBusy: true },
+    );
+    const joined = result.lines.join('\n');
+    expect(joined).toMatch(/NoOp\(.*busy/i);
+    expect(joined).not.toMatch(/Dial\(\s*,/);
+    expect(joined).not.toMatch(/Dial\(\)/);
+    const dial = dialLines(result.lines);
+    for (const line of dial) {
+      expect(line).not.toMatch(/Dial\(,/);
+    }
+  });
+
+  it.each(['ringall', 'hunt', 'memoryhunt', 'random'] as const)(
+    '%s remains byte-identical to the 12-01 baseline when confirm and skipBusy are off',
+    (strategy) => {
+      const result = generateGroupDialplan(
+        baseGroup({ strategy, exten: '15' }),
+        sampleMembers(),
+        VPBX,
+        undefined,
+        strategy === 'random' ? { rng: () => 0.999 } : undefined,
+      );
+      const expected: Record<typeof strategy, string> = {
+        ringall: [
+          '[group_15_42]',
+          'exten => start,1,NoOp(Call group: Sales dept [ringall])',
+          'same => n,Dial(PJSIP/e101_42&PJSIP/e102_42&LOCAL/79001234567@ctx-42,25,tT)',
+          'same => n,Return()',
+        ].join('\n'),
+        hunt: [
+          '[group_15_42]',
+          'exten => start,1,NoOp(Call group: Sales dept [hunt])',
+          'same => n,Dial(PJSIP/e101_42,20,tT)',
+          'same => n,ExecIf($["${DIALSTATUS}" = "ANSWER"]?Return())',
+          'same => n,Dial(PJSIP/e102_42,15,tT)',
+          'same => n,ExecIf($["${DIALSTATUS}" = "ANSWER"]?Return())',
+          'same => n,Dial(LOCAL/79001234567@ctx-42,30,tT)',
+          'same => n,Return()',
+        ].join('\n'),
+        memoryhunt: [
+          '[group_15_42]',
+          'exten => start,1,NoOp(Call group: Sales dept [memoryhunt])',
+          'same => n,Dial(PJSIP/e101_42,20,tT)',
+          'same => n,ExecIf($["${DIALSTATUS}" = "ANSWER"]?Return())',
+          'same => n,Dial(PJSIP/e101_42&PJSIP/e102_42,15,tT)',
+          'same => n,ExecIf($["${DIALSTATUS}" = "ANSWER"]?Return())',
+          'same => n,Dial(PJSIP/e101_42&PJSIP/e102_42&LOCAL/79001234567@ctx-42,30,tT)',
+          'same => n,Return()',
+        ].join('\n'),
+        random: [
+          '[group_15_42]',
+          'exten => start,1,NoOp(Call group: Sales dept [random])',
+          'same => n,Dial(PJSIP/e101_42,20,tT)',
+          'same => n,ExecIf($["${DIALSTATUS}" = "ANSWER"]?Return())',
+          'same => n,Dial(PJSIP/e102_42&LOCAL/79001234567@ctx-42,25,tT)',
           'same => n,Return()',
         ].join('\n'),
       };
