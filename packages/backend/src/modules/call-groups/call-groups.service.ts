@@ -113,7 +113,7 @@ export class CallGroupsService {
     );
     await this.dialplanApplyService.applyCategories(
       this.groupFile(vpbx),
-      [category],
+      [category, ...(category.extras ?? [])],
       { reload: true },
     );
   }
