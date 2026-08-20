@@ -1,5 +1,7 @@
 import { AsteriskDialplanUtils } from '../../shared/utils/dialplan.util';
 import { normalizeTarget } from '../../shared/utils/dialplan-target.util';
+import { emitPlayback } from '../../shared/utils/dialplan-playback.util';
+import { parseOptions, serializeOptions } from '../../shared/utils/dialplan-options.util';
 import type { ICallGroup, ICallGroupMember } from '@krasterisk/shared';
 import {
   CALL_GROUP_CONFIRM_MACRO,
@@ -155,11 +157,25 @@ interface EmitCtx {
   dialOpts: string;
   confirm: boolean;
   skipBusy: boolean;
+  greetingPrompt?: string;
+}
+
+function emitGreeting(lines: string[], prompt: string | undefined, vpbx: number): void {
+  const file = AsteriskDialplanUtils.sanitizeFilePath(prompt);
+  if (!file) return;
+  const playback = emitPlayback({ mode: 'plain', files: [file] }, { vpbxUserUid: vpbx });
+  lines.push(`same => n,${playback}`);
+}
+
+function emitPrologue(lines: string[], ctx: EmitCtx): ReturnType<typeof cidPrefixOps> {
+  const cid = cidPrefixOps(ctx.group);
+  lines.push(...cid.enter);
+  emitGreeting(lines, ctx.greetingPrompt, ctx.vpbx);
+  return cid;
 }
 
 function emitRingall(lines: string[], ctx: EmitCtx): void {
-  const cid = cidPrefixOps(ctx.group);
-  lines.push(...cid.enter);
+  const cid = emitPrologue(lines, ctx);
   const opts = optsForMembers(ctx.dialOpts, ctx.members, ctx.confirm);
   if (ctx.skipBusy) {
     emitFilterOnce(lines, ctx.members, ctx.vpbx, ctx.group.external_context, ctx.webrtcExtensions);
@@ -175,8 +191,7 @@ function emitRingall(lines: string[], ctx: EmitCtx): void {
 }
 
 function emitHunt(lines: string[], ctx: EmitCtx): void {
-  const cid = cidPrefixOps(ctx.group);
-  lines.push(...cid.enter);
+  const cid = emitPrologue(lines, ctx);
   for (let i = 0; i < ctx.members.length; i++) {
     const member = ctx.members[i];
     const opts = optsForMembers(ctx.dialOpts, [member], ctx.confirm);
@@ -207,8 +222,7 @@ function emitHunt(lines: string[], ctx: EmitCtx): void {
 }
 
 function emitMemoryhunt(lines: string[], ctx: EmitCtx): void {
-  const cid = cidPrefixOps(ctx.group);
-  lines.push(...cid.enter);
+  const cid = emitPrologue(lines, ctx);
   if (ctx.skipBusy) {
     emitFilterOnce(lines, ctx.members, ctx.vpbx, ctx.group.external_context, ctx.webrtcExtensions);
     emitDialOrAllBusy(
@@ -237,8 +251,7 @@ function emitMemoryhunt(lines: string[], ctx: EmitCtx): void {
 
 function emitRandom(lines: string[], ctx: EmitCtx, rng: () => number): void {
   const shuffled = shuffleCopy(ctx.members, rng);
-  const cid = cidPrefixOps(ctx.group);
-  lines.push(...cid.enter);
+  const cid = emitPrologue(lines, ctx);
   const first = shuffled[0];
   if (!first) {
     lines.push(...cid.beforeReturn);
@@ -283,10 +296,17 @@ export function generateGroupDialplan(
   webrtcExtensions?: Set<string>,
   options?: GenerateGroupDialplanOptions,
 ): GeneratedDialplanCategory {
-  const dialOpts = options?.dialOpts ?? 'tT';
   const rng = options?.rng ?? (Math as { random(): number }).random.bind(Math);
-  const confirm = options?.confirmExternal === true;
-  const skipBusy = options?.skipBusy === true;
+  const confirm = options?.confirmExternal ?? group.confirmExternal ?? false;
+  const skipBusy = options?.skipBusy ?? group.skipBusy ?? false;
+  const greetingPrompt = options?.greetingPrompt ?? group.greetingPrompt;
+  const useMoh = options?.useMohInsteadOfRingback ?? group.useMohInsteadOfRingback ?? false;
+  const mohClass = AsteriskDialplanUtils.sanitizeFilePath(options?.mohClass ?? group.mohClass);
+  const rawOpts = options?.dialOpts ?? group.dialOptions ?? 'tT';
+  let dialOpts = serializeOptions(parseOptions(rawOpts));
+  if (useMoh) {
+    dialOpts = mergeDialOptions(dialOpts, mohClass ? `m(${mohClass})` : 'm');
+  }
   const ctxName = normalizeTarget('group', { source: 'fixed', value: group.exten }, vpbx);
   const sorted = sortMembers(members);
   const lines: string[] = [];
@@ -306,6 +326,7 @@ export function generateGroupDialplan(
     dialOpts,
     confirm,
     skipBusy,
+    greetingPrompt,
   };
 
   switch (group.strategy) {

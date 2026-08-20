@@ -105,11 +105,20 @@ export class CallGroupsService {
     vpbx: number,
   ): Promise<void> {
     const webrtcExtensions = await this.endpointsService.listWebrtcEnabledExtensions(vpbx);
+    const mapped = this.toICallGroup(group);
     const category = generateGroupDialplan(
-      this.toICallGroup(group),
+      mapped,
       this.toIMembers(members),
       vpbx,
       webrtcExtensions,
+      {
+        confirmExternal: mapped.confirmExternal,
+        skipBusy: mapped.skipBusy,
+        greetingPrompt: mapped.greetingPrompt,
+        mohClass: mapped.mohClass,
+        useMohInsteadOfRingback: mapped.useMohInsteadOfRingback,
+        dialOpts: mapped.dialOptions,
+      },
     );
     await this.dialplanApplyService.applyCategories(
       this.groupFile(vpbx),

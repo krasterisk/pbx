@@ -30,4 +30,22 @@ export class CallGroup extends Model {
 
   @Column({ type: DataType.INTEGER, allowNull: false, defaultValue: 0, field: 'vpbx_user_uid' })
   declare user_uid: number;
+
+  @Column({ type: DataType.BOOLEAN, allowNull: false, defaultValue: false, field: 'confirm_external' })
+  declare confirmExternal: boolean;
+
+  @Column({ type: DataType.BOOLEAN, allowNull: false, defaultValue: false, field: 'skip_busy' })
+  declare skipBusy: boolean;
+
+  @Column({ type: DataType.STRING(128), allowNull: true, field: 'greeting_prompt' })
+  declare greetingPrompt: string | null;
+
+  @Column({ type: DataType.STRING(64), allowNull: true, field: 'moh_class' })
+  declare mohClass: string | null;
+
+  @Column({ type: DataType.BOOLEAN, allowNull: false, defaultValue: false, field: 'use_moh_instead_of_ringback' })
+  declare useMohInsteadOfRingback: boolean;
+
+  @Column({ type: DataType.STRING(64), allowNull: false, defaultValue: 'tT', field: 'dial_options' })
+  declare dialOptions: string;
 }

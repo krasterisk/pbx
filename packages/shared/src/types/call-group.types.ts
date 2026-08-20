@@ -24,5 +24,16 @@ export interface ICallGroup {
   external_context: string;
   cid_prefix?: string;
   user_uid: number;
+  /** D-34: confirm only external members via Dial M(macro) */
+  confirmExternal?: boolean;
+  /** D-34: drop busy internals via DEVICE_STATE before Dial */
+  skipBusy?: boolean;
+  /** Prompt file id played to the caller before ringing */
+  greetingPrompt?: string;
+  /** MOH class when useMohInsteadOfRingback is on */
+  mohClass?: string;
+  useMohInsteadOfRingback?: boolean;
+  /** Per-group Dial() options; default tT */
+  dialOptions?: string;
   members?: ICallGroupMember[];
 }
