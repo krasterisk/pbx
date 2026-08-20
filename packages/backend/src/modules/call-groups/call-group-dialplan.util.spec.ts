@@ -372,3 +372,49 @@ describe('generateGroupDialplan (Wave 0 exact toBe baselines)', () => {
     expect(result.name).toBe('group_15_42');
   });
 });
+
+describe('generateGroupDialplan (D-33 unified context + transitional include)', () => {
+  it('names the context group_{exten}_{uid} for exten 600 and tenant 42', () => {
+    const result = generateGroupDialplan(baseGroup({ exten: '600' }), sampleMembers(), VPBX);
+    expect(result.name).toBe('group_600_42');
+    expect(result.lines[0]).toBe('[group_600_42]');
+  });
+
+  it('emits include => of the old group_{uid}_{vpbx} name', () => {
+    const result = generateGroupDialplan(baseGroup({ exten: '600' }), sampleMembers(), VPBX);
+    expect(result.lines).toContain('include => group_15_42');
+  });
+
+  it('does not self-include when the new name equals the old name', () => {
+    const result = generateGroupDialplan(baseGroup({ exten: '15' }), sampleMembers(), VPBX);
+    const includes = result.lines.filter((l) => l.startsWith('include =>'));
+    expect(includes).toEqual([]);
+  });
+
+  it('accepts dialOpts and keeps default tT when omitted', () => {
+    const custom = generateGroupDialplan(
+      baseGroup({ strategy: 'ringall', exten: '600' }),
+      sampleMembers(),
+      VPBX,
+      undefined,
+      { dialOpts: 't' },
+    );
+    expect(custom.lines.join('\n')).toMatch(/,t\)$/m);
+    expect(custom.lines.join('\n')).not.toContain(',tT)');
+  });
+
+  it.each(['ringall', 'hunt', 'memoryhunt'] as const)(
+    '%s body matches 12-01 baseline after substituting the new context name',
+    (strategy) => {
+      const result = generateGroupDialplan(baseGroup({ strategy, exten: '600' }), sampleMembers(), VPBX);
+      const body = result.lines
+        .filter((l) => !l.startsWith('[') && !l.startsWith('include =>'))
+        .join('\n');
+      const baseline = generateGroupDialplan(baseGroup({ strategy, exten: '15' }), sampleMembers(), VPBX);
+      const baselineBody = baseline.lines
+        .filter((l) => !l.startsWith('[') && !l.startsWith('include =>'))
+        .join('\n');
+      expect(body).toBe(baselineBody);
+    },
+  );
+});

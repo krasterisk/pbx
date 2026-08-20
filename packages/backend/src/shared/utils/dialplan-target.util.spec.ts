@@ -48,6 +48,14 @@ describe('normalizeTarget', () => {
     expect(normalizeTarget('group', { source: 'fixed', value: 'sales' }, 42)).toBe('group_sales_42');
   });
 
+  it('group + fixed 600 is group_600_42', () => {
+    expect(normalizeTarget('group', { source: 'fixed', value: '600' }, 42)).toBe('group_600_42');
+  });
+
+  it('group + route_pattern is group_${EXTEN}_{uid} (D-33 mask source)', () => {
+    expect(normalizeTarget('group', { source: 'route_pattern' }, 42)).toBe('group_${EXTEN}_42');
+  });
+
   it('resolveValueSource prefers nested ValueSource over legacy string', () => {
     expect(resolveValueSource({ target: { source: 'fixed', value: '101' }, exten: '9' }, 'target', { stringField: 'exten' }))
       .toEqual({ source: 'fixed', value: '101' });
