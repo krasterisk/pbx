@@ -372,3 +372,53 @@ describe('D-32 / D-39 / D-43 params whitelist', () => {
     expect(errors.length).toBeGreaterThan(0);
   });
 });
+
+describe('D-44 / D-45 new control params', () => {
+  it('rejects schedule with an empty intervals array', () => {
+    const errors = validateActionParams([{
+      id: 's1',
+      type: 'schedule',
+      params: { intervals: [] },
+    }]);
+    expect(errors.length).toBeGreaterThan(0);
+  });
+
+  it('accepts schedule with a time_group-shaped interval', () => {
+    const errors = validateActionParams([{
+      id: 's1',
+      type: 'schedule',
+      params: {
+        intervals: [{
+          time_start: '09:00',
+          time_end: '18:00',
+          days_of_week: 'mon-fri',
+          days_of_month: '*',
+          months: '*',
+        }],
+      },
+    }]);
+    expect(errors).toEqual([]);
+  });
+
+  it('accepts goto with a label name', () => {
+    const errors = validateActionParams([{
+      id: 'g1',
+      type: 'goto',
+      params: { label_name: 'start' },
+    }]);
+    expect(errors).toEqual([]);
+  });
+
+  it('accepts branch with both labels and a condition', () => {
+    const errors = validateActionParams([{
+      id: 'b1',
+      type: 'branch',
+      params: {
+        true_label: 'ok',
+        false_label: 'fail',
+        condition: { source: 'dialstatus', values: ['ANSWER'] },
+      },
+    }]);
+    expect(errors).toEqual([]);
+  });
+});

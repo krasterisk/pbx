@@ -1475,3 +1475,68 @@ describe('D-37 / D-32 / D-39 / D-43 per-app generator fixes', () => {
     expect(dp).not.toContain('CALLERID(name)=');
   });
 });
+
+describe('D-44 label / goto / branch generator', () => {
+  const vpbx = 42;
+  const workHours = {
+    time_start: '09:00',
+    time_end: '18:00',
+    days_of_week: 'mon-fri',
+    days_of_month: '*',
+    months: '*',
+  };
+
+  it('label emits a balanced NoOp and carries the label name for n(name)', () => {
+    const dp = AsteriskDialplanUtils.actionToDialplan(
+      { type: 'label', params: { label_name: 'start' }, condition: {} },
+      vpbx,
+    );
+    expect((dp.match(/\(/g) || []).length).toBe((dp.match(/\)/g) || []).length);
+    expect(dp).toMatch(/NoOp\(/);
+    expect(dp).toContain('start');
+  });
+
+  it('goto to an existing label emits Goto with that label and hop prologue', () => {
+    const dp = renderActionChain(
+      [
+        { id: 'l1', type: 'label', params: { label_name: 'start' }, condition: {} },
+        { id: 'p1', type: 'playback', params: { file: 'welcome', mode: 'plain' }, condition: {} },
+        { id: 'g1', type: 'goto', params: { label_name: 'start' }, condition: {} },
+      ],
+      { vpbxUserUid: vpbx, host: 'route' },
+    );
+    expect(dp).toMatch(/Goto(?:If)?\(/);
+    expect(dp).toContain('start');
+    expect(dp).toContain('__KRSK_HOPS');
+  });
+
+  it('branch emits GotoIf with both existing label addresses and hop prologue', () => {
+    const dp = AsteriskDialplanUtils.actionToDialplan(
+      {
+        type: 'branch',
+        params: {
+          true_label: 'ok',
+          false_label: 'fail',
+          condition: { source: 'dialstatus', values: ['ANSWER'] },
+        },
+        condition: {},
+      },
+      vpbx,
+    );
+    expect(dp).toContain('GotoIf');
+    expect(dp).toContain('ok');
+    expect(dp).toContain('fail');
+    expect(dp).toContain('__KRSK_HOPS');
+    expect(dp).toContain('DIALSTATUS');
+  });
+
+  it('schedule time expression matches the time_group interval format byte-for-byte', () => {
+    const expected = `${workHours.time_start}-${workHours.time_end},${workHours.days_of_week},${workHours.days_of_month},${workHours.months}`;
+    const dp = AsteriskDialplanUtils.actionToDialplan(
+      { type: 'schedule', params: { intervals: [workHours] }, condition: {} },
+      vpbx,
+    );
+    expect(dp).toContain(expected);
+    expect(dp).toMatch(/GotoIfTime|ExecIfTime/);
+  });
+});
