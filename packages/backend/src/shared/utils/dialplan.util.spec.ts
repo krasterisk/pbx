@@ -297,7 +297,9 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       expect(dp).toContain('Set(CID_1=79001112233)');
       expect(dp).toContain('Set(CID_2=79004445566)');
       expect(dp).toContain('Set(CID_3=79007778899)');
-      expect(dp).toContain('Set(CALLERID(num)=${CID_${RAND(1,3)}})');
+      expect(dp).toContain('Set(CID_PICK=${RAND(1,3)})');
+      expect(dp).toContain('CID_LAST');
+      expect(dp).toContain('Set(CALLERID(num)=${CID_${CID_PICK}})');
     });
   });
 
@@ -848,12 +850,12 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       expect((dp.match(/\(/g) || []).length).toBe((dp.match(/\)/g) || []).length);
     });
 
-    it('toexten with empty params emits empty string (skip)', () => {
+    it('toexten with empty params emits diagnostic NoOp (D-39)', () => {
       const dp = AsteriskDialplanUtils.actionToDialplan(
         { type: 'toexten', params: {}, condition: {} },
         vpbx,
       );
-      expect(dp).toBe('');
+      expect(dp).toBe('NoOp(Missing toexten target)');
     });
 
     it('togroup with empty params substitutes ${EXTEN} (D-21 baseline)', () => {

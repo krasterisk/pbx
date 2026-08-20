@@ -44,10 +44,12 @@ export interface ITrunkCarouselItem {
   cid_mode: 'static' | 'phonebook';
   callerid?: string;
   phonebook_uid?: number;
+  /** Per-trunk Dial timeout; falls back to action-level timeout (D-36). */
+  timeout?: number | string;
 }
 
 export interface ITrunkCarouselActionParams {
-  mode: 'random_then_failover';
+  mode: 'random_then_failover' | 'sequential';
   trunks: ITrunkCarouselItem[];
   timeout?: number | string;
   options?: string;

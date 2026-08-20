@@ -7,6 +7,7 @@ import {
   IsOptional,
   IsString,
   Matches,
+  Max,
   Min,
   MinLength,
   Validate,
@@ -110,6 +111,20 @@ export class ToQueueParamsDto {
   @IsOptional()
   @IsString()
   queue?: string;
+
+  /** VIP skip of the queue tail — Set(QUEUE_PRIO=N) before Queue() (D-32, T-12-13-04). */
+  @IsOptional()
+  @Transform(({ value }) => (value === '' || value == null ? undefined : Number(value)))
+  @IsInt()
+  @Min(0)
+  @Max(20)
+  priority?: number;
+
+  /** 4th Queue() argument; prompt id only, never a path (T-12-13-02). */
+  @IsOptional()
+  @IsString()
+  @Matches(/^(?!.*\.\.)[^\\/]*$/)
+  announceoverride?: string;
 }
 
 export class ToGroupParamsDto {
@@ -225,11 +240,17 @@ class TrunkCarouselItemDto implements ITrunkCarouselItem {
   @IsInt()
   @Min(1)
   phonebook_uid?: number;
+
+  @IsOptional()
+  @Transform(({ value }) => (value === '' || value == null ? undefined : Number(value)))
+  @IsInt()
+  @Min(1)
+  timeout?: number;
 }
 
 export class TrunkCarouselParamsDto implements ITrunkCarouselActionParams {
-  @IsIn(['random_then_failover'])
-  mode: 'random_then_failover';
+  @IsIn(['random_then_failover', 'sequential'])
+  mode: 'random_then_failover' | 'sequential';
 
   @IsArray()
   @ValidateNested({ each: true })

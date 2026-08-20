@@ -175,7 +175,7 @@ export class AsteriskDialplanUtils {
           || !!params.useExten
           || !!(typeof params.exten === 'string' && params.exten);
         if (!hasTarget) {
-          dp = '';
+          dp = 'NoOp(Missing toexten target)';
           break;
         }
         const src = resolveValueSource(params, 'target', { stringField: 'exten', useExtenField: 'useExten' });
@@ -185,7 +185,7 @@ export class AsteriskDialplanUtils {
         } else if (src.source === 'fixed') {
           const manipulated = applyNumberManipulation(this.sanitizeDialplanInput(src.value), params.numberManipulation);
           if (!manipulated) {
-            dp = '';
+            dp = 'NoOp(Missing toexten target)';
             break;
           }
           dialTarget = normalizeTarget('exten', { source: 'fixed', value: manipulated }, vpbxUserUid, { webrtc });
@@ -207,11 +207,16 @@ export class AsteriskDialplanUtils {
         const src = resolveQueueValueSource(params);
         const timeout = params.timeout ? parseInt(params.timeout, 10) : '';
         const options = this.sanitizeDialplanInput(params.options) || 'thH';
+        const announce = this.sanitizeFilePath(String(params.announceoverride ?? ''));
+        const prioRaw = parseInt(String(params.priority ?? ''), 10);
+        const prio = Number.isFinite(prioRaw) && String(params.priority ?? '') !== '' ? prioRaw : undefined;
+        const prioLine = prio !== undefined ? `Set(QUEUE_PRIO=${prio})` : '';
         // Queue on_answer: Asterisk docs confirm gosub runs on the AGENT's channel, not caller's.
         // Variable bridging from caller → agent channel is limited.
         // on_answer for Queue is handled by AMI AgentConnect event in ami.service.ts.
         // We still pass gosub param to capture MEMBERINTERFACE for the AMI handler to correlate.
         // Queue(name,options,URL,announceoverride,timeout,AGI,gosub,...)
+        // D-32: QUEUE_PRIO must be set BEFORE Queue() or it has no effect.
         if (src.source === 'phonebook') {
           const pbUid = this.sanitizeDialplanInput(String(src.phonebookUid ?? ''));
           const varKey = this.sanitizeDialplanInput(String(src.varKey ?? ''));
@@ -224,13 +229,19 @@ export class AsteriskDialplanUtils {
             `${this.backendBaseUrl}/internal/dialplan/phonebook-lookup` +
             `?phonebook_uid=${pbUid}&var_key=${encodeURIComponent(varKey)}${keyParam}`;
           const queue = normalizeTarget('queue', src, vpbxUserUid);
-          dp = [
+          const lines = [
             `Set(${PHONEBOOK_TARGET_VAR}=\${CURL(${lookupUrl}&number=\${URIENCODE(\${CALLERID(num)})})})`,
-            `ExecIf($["\${${PHONEBOOK_TARGET_VAR}}" != ""]?Queue(${queue},${options},,,${timeout}))`,
-          ].join('\nsame => n,');
+          ];
+          if (prioLine) lines.push(prioLine);
+          lines.push(
+            `ExecIf($["\${${PHONEBOOK_TARGET_VAR}}" != ""]?Queue(${queue},${options},,${announce},${timeout}))`,
+          );
+          dp = lines.join('\nsame => n,');
         } else {
           const queue = normalizeTarget('queue', src, vpbxUserUid);
-          dp = `Queue(${queue},${options},,,${timeout})`;
+          const lines = prioLine ? [prioLine] : [];
+          lines.push(`Queue(${queue},${options},,${announce},${timeout})`);
+          dp = lines.join('\nsame => n,');
         }
         break;
       }
@@ -294,7 +305,10 @@ export class AsteriskDialplanUtils {
         break;
       case 'setclid_custom': {
         const callerid = this.sanitizeDialplanInput(params.callerid);
-        dp = `Set(CALLERID(num)=${callerid})`;
+        const name = this.sanitizeDialplanInput(params.name);
+        const lines = [`Set(CALLERID(num)=${callerid})`];
+        if (name) lines.push(`Set(CALLERID(name)=${name})`);
+        dp = lines.join('\nsame => n,');
         break;
       }
       case 'setclid_list': {
@@ -373,6 +387,7 @@ export class AsteriskDialplanUtils {
           const lines = [
             `Set(PB_RAW=\${CURL(${lookupUrl}&number=\${URIENCODE(\${CALLERID(num)})})})`,
             `ExecIf($["\${CUT(PB_RAW,|,1)}" = "1"]?Set(CALLERID(num)=\${CUT(PB_RAW,|,3)}))`,
+            `ExecIf($["\${CUT(PB_RAW,|,1)}" = "1"]?Set(CALLERID(name)=\${CUT(PB_RAW,|,5)}))`,
           ];
           dp = lines.join('\nsame => n,');
         } else if (mode === 'setclid_list') {
@@ -390,7 +405,13 @@ export class AsteriskDialplanUtils {
                 ? `Set(CID_1=${cid})`
                 : `Set(CID_${i + 1}=${cid})`,
             );
-            lines.push(`Set(CALLERID(num)=\${CID_\${RAND(1,${pool.length})}})`);
+            // D-37: skip the same CID twice in a row (CID_LAST from the previous pick).
+            lines.push(`Set(CID_PICK=\${RAND(1,${pool.length})})`);
+            lines.push(
+              `ExecIf($["\${CID_\${CID_PICK}}" = "\${CID_LAST}"]?Set(CID_PICK=$[\${CID_PICK} % ${pool.length} + 1]))`,
+            );
+            lines.push(`Set(CALLERID(num)=\${CID_\${CID_PICK}})`);
+            lines.push(`Set(__CID_LAST=\${CALLERID(num)})`);
             dp = lines.join('\nsame => n,');
           }
         } else {
