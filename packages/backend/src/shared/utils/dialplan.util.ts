@@ -6,6 +6,7 @@ import { buildConditionExpr, isLegacyInvalidDialstatus, wrapEachLine } from './d
 import { emitHopPrologue } from './dialplan-hops.util';
 import { emitPlayback } from './dialplan-playback.util';
 import { buildCurlCall } from './dialplan-curl.util';
+import { buildTrunkCarousel } from './dialplan-trunk-carousel.util';
 
 function logCmdApply(action: { id?: number; uid?: number; params?: { command?: string } }, vpbxUserUid: number): void {
   const command = String(action?.params?.command ?? '');
@@ -398,67 +399,31 @@ export class AsteriskDialplanUtils {
         break;
       }
       case 'trunk_carousel': {
-        // D-15: random_then_failover Dial loop with per-trunk CID; Return on ANSWER (never Hangup)
+        // D-36: linear Dial loop; mode from params is real (not forced)
         const trunks: Array<{
           trunk?: string;
           cid_mode?: string;
           callerid?: string;
           phonebook_uid?: number;
+          timeout?: number | string;
         }> = Array.isArray(params.trunks) ? params.trunks : [];
-        if (!trunks.length) {
-          dp = `NoOp(Empty trunk carousel)`;
-          break;
-        }
-        const n = trunks.length;
-        const timeout = parseInt(params.timeout, 10) || 60;
-        const dialOpts = this.sanitizeDialplanInput(params.options || 'tT');
-        const keyParam = this.dialplanApiKey ? `&api_key=${encodeURIComponent(this.dialplanApiKey)}` : '';
-
-        const cidApps = (item: (typeof trunks)[0]): string[] => {
-          if (item.cid_mode === 'phonebook') {
-            const pbUid = this.sanitizeDialplanInput(String(item.phonebook_uid ?? ''));
-            const lookupUrl = `${this.backendBaseUrl}/internal/dialplan/phonebook-lookup?phonebook_uid=${pbUid}${keyParam}`;
-            return [
-              `Set(TC_PB=\${CURL(${lookupUrl}&number=\${URIENCODE(\${CALLERID(num)})})})`,
-              `ExecIf($["\${CUT(TC_PB,|,1)}" = "1"]?Set(CALLERID(num)=\${CUT(TC_PB,|,3)}))`,
-            ];
-          }
-          const cid = this.sanitizeDialplanInput(item.callerid);
-          return cid ? [`Set(CALLERID(num)=${cid})`] : [];
-        };
-
-        // First line + subsequent "same => <priority>,<app>" parts (labels need n(tN) form)
-        const head = `Set(TC_PICK=\${RAND(1,${n})})`;
-        const rest: string[] = [];
-        for (let i = 1; i < n; i++) {
-          rest.push(`n,GotoIf($["\${TC_PICK}" = "${i}"]?t${i})`);
-        }
-        rest.push(`n,Goto(t${n})`);
-
-        for (let start = 0; start < n; start++) {
-          let labeled = false;
-          for (let j = 0; j < n; j++) {
-            const item = trunks[(start + j) % n];
-            const trunk = this.sanitizeDialplanInput(item.trunk);
-            const apps = [
-              ...cidApps(item),
-              `Dial(${trunk}/\${EXTEN},${timeout},${dialOpts})`,
-              j < n - 1
-                ? `ExecIf($["\${DIALSTATUS}" = "ANSWER"]?Return())`
-                : 'Return()',
-            ];
-            for (const app of apps) {
-              if (!labeled) {
-                rest.push(`n(t${start + 1}),${app}`);
-                labeled = true;
-              } else {
-                rest.push(`n,${app}`);
-              }
-            }
-          }
-        }
-
-        dp = [head, ...rest.map((r) => `same => ${r}`)].join('\n');
+        dp = buildTrunkCarousel(
+          trunks.map((item) => ({
+            trunk: String(item.trunk ?? ''),
+            cid_mode: item.cid_mode === 'phonebook' ? 'phonebook' : 'static',
+            callerid: item.callerid,
+            phonebook_uid: item.phonebook_uid,
+            timeout: item.timeout,
+          })),
+          {
+            mode: params.mode,
+            timeout: params.timeout,
+            options: params.options,
+            backendBaseUrl: this.backendBaseUrl,
+            dialplanApiKey: this.dialplanApiKey,
+            vpbxUserUid,
+          },
+        );
         break;
       }
       case 'hangup': {

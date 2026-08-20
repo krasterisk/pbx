@@ -335,9 +335,9 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       expect(dp).toContain('RAND');
       expect(dp).toContain('Return()');
       expect(dp).not.toContain('Hangup');
-      expect(dp).toContain('Dial(PJSIP/trunkA/${EXTEN}');
-      expect(dp).toContain('Dial(PJSIP/trunkB/${EXTEN}');
-      expect(dp).toContain('Set(CALLERID(num)=79001112233)');
+      expect(dp).toContain('Set(TC_LIST=PJSIP/trunkA|PJSIP/trunkB)');
+      expect(dp).toContain('Dial(${TC_TRUNK}/${EXTEN},${TC_TO},tT)');
+      expect(dp).toContain('79001112233');
       expect(dp).toContain('phonebook-lookup');
     });
   });
@@ -981,7 +981,7 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       );
     });
 
-    it('trunk_carousel with five trunks emits 25 Dial() blocks (D-36 O(n²) baseline)', () => {
+    it('trunk_carousel with five trunks emits one Dial() (D-36 linear)', () => {
       const trunks = [1, 2, 3, 4, 5].map((i) => ({
         trunk: `PJSIP/t${i}`,
         cid_mode: 'static',
@@ -1000,92 +1000,11 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
         },
         vpbx,
       );
-      expect(dp.split('Dial(').length - 1).toBe(25);
-      expect(dp).toBe(
-        [
-          'Set(TC_PICK=${RAND(1,5)})',
-          'same => n,GotoIf($["${TC_PICK}" = "1"]?t1)',
-          'same => n,GotoIf($["${TC_PICK}" = "2"]?t2)',
-          'same => n,GotoIf($["${TC_PICK}" = "3"]?t3)',
-          'same => n,GotoIf($["${TC_PICK}" = "4"]?t4)',
-          'same => n,Goto(t5)',
-          'same => n(t1),Set(CALLERID(num)=79001110001)',
-          'same => n,Dial(PJSIP/t1/${EXTEN},60,tT)',
-          'same => n,ExecIf($["${DIALSTATUS}" = "ANSWER"]?Return())',
-          'same => n,Set(CALLERID(num)=79001110002)',
-          'same => n,Dial(PJSIP/t2/${EXTEN},60,tT)',
-          'same => n,ExecIf($["${DIALSTATUS}" = "ANSWER"]?Return())',
-          'same => n,Set(CALLERID(num)=79001110003)',
-          'same => n,Dial(PJSIP/t3/${EXTEN},60,tT)',
-          'same => n,ExecIf($["${DIALSTATUS}" = "ANSWER"]?Return())',
-          'same => n,Set(CALLERID(num)=79001110004)',
-          'same => n,Dial(PJSIP/t4/${EXTEN},60,tT)',
-          'same => n,ExecIf($["${DIALSTATUS}" = "ANSWER"]?Return())',
-          'same => n,Set(CALLERID(num)=79001110005)',
-          'same => n,Dial(PJSIP/t5/${EXTEN},60,tT)',
-          'same => n,Return()',
-          'same => n(t2),Set(CALLERID(num)=79001110002)',
-          'same => n,Dial(PJSIP/t2/${EXTEN},60,tT)',
-          'same => n,ExecIf($["${DIALSTATUS}" = "ANSWER"]?Return())',
-          'same => n,Set(CALLERID(num)=79001110003)',
-          'same => n,Dial(PJSIP/t3/${EXTEN},60,tT)',
-          'same => n,ExecIf($["${DIALSTATUS}" = "ANSWER"]?Return())',
-          'same => n,Set(CALLERID(num)=79001110004)',
-          'same => n,Dial(PJSIP/t4/${EXTEN},60,tT)',
-          'same => n,ExecIf($["${DIALSTATUS}" = "ANSWER"]?Return())',
-          'same => n,Set(CALLERID(num)=79001110005)',
-          'same => n,Dial(PJSIP/t5/${EXTEN},60,tT)',
-          'same => n,ExecIf($["${DIALSTATUS}" = "ANSWER"]?Return())',
-          'same => n,Set(CALLERID(num)=79001110001)',
-          'same => n,Dial(PJSIP/t1/${EXTEN},60,tT)',
-          'same => n,Return()',
-          'same => n(t3),Set(CALLERID(num)=79001110003)',
-          'same => n,Dial(PJSIP/t3/${EXTEN},60,tT)',
-          'same => n,ExecIf($["${DIALSTATUS}" = "ANSWER"]?Return())',
-          'same => n,Set(CALLERID(num)=79001110004)',
-          'same => n,Dial(PJSIP/t4/${EXTEN},60,tT)',
-          'same => n,ExecIf($["${DIALSTATUS}" = "ANSWER"]?Return())',
-          'same => n,Set(CALLERID(num)=79001110005)',
-          'same => n,Dial(PJSIP/t5/${EXTEN},60,tT)',
-          'same => n,ExecIf($["${DIALSTATUS}" = "ANSWER"]?Return())',
-          'same => n,Set(CALLERID(num)=79001110001)',
-          'same => n,Dial(PJSIP/t1/${EXTEN},60,tT)',
-          'same => n,ExecIf($["${DIALSTATUS}" = "ANSWER"]?Return())',
-          'same => n,Set(CALLERID(num)=79001110002)',
-          'same => n,Dial(PJSIP/t2/${EXTEN},60,tT)',
-          'same => n,Return()',
-          'same => n(t4),Set(CALLERID(num)=79001110004)',
-          'same => n,Dial(PJSIP/t4/${EXTEN},60,tT)',
-          'same => n,ExecIf($["${DIALSTATUS}" = "ANSWER"]?Return())',
-          'same => n,Set(CALLERID(num)=79001110005)',
-          'same => n,Dial(PJSIP/t5/${EXTEN},60,tT)',
-          'same => n,ExecIf($["${DIALSTATUS}" = "ANSWER"]?Return())',
-          'same => n,Set(CALLERID(num)=79001110001)',
-          'same => n,Dial(PJSIP/t1/${EXTEN},60,tT)',
-          'same => n,ExecIf($["${DIALSTATUS}" = "ANSWER"]?Return())',
-          'same => n,Set(CALLERID(num)=79001110002)',
-          'same => n,Dial(PJSIP/t2/${EXTEN},60,tT)',
-          'same => n,ExecIf($["${DIALSTATUS}" = "ANSWER"]?Return())',
-          'same => n,Set(CALLERID(num)=79001110003)',
-          'same => n,Dial(PJSIP/t3/${EXTEN},60,tT)',
-          'same => n,Return()',
-          'same => n(t5),Set(CALLERID(num)=79001110005)',
-          'same => n,Dial(PJSIP/t5/${EXTEN},60,tT)',
-          'same => n,ExecIf($["${DIALSTATUS}" = "ANSWER"]?Return())',
-          'same => n,Set(CALLERID(num)=79001110001)',
-          'same => n,Dial(PJSIP/t1/${EXTEN},60,tT)',
-          'same => n,ExecIf($["${DIALSTATUS}" = "ANSWER"]?Return())',
-          'same => n,Set(CALLERID(num)=79001110002)',
-          'same => n,Dial(PJSIP/t2/${EXTEN},60,tT)',
-          'same => n,ExecIf($["${DIALSTATUS}" = "ANSWER"]?Return())',
-          'same => n,Set(CALLERID(num)=79001110003)',
-          'same => n,Dial(PJSIP/t3/${EXTEN},60,tT)',
-          'same => n,ExecIf($["${DIALSTATUS}" = "ANSWER"]?Return())',
-          'same => n,Set(CALLERID(num)=79001110004)',
-          'same => n,Dial(PJSIP/t4/${EXTEN},60,tT)',
-          'same => n,Return()',
-        ].join('\n'),
-      );
+      expect(dp.split('Dial(').length - 1).toBe(1);
+      expect(dp).toContain('Set(TC_LIST=PJSIP/t1|PJSIP/t2|PJSIP/t3|PJSIP/t4|PJSIP/t5)');
+      expect(dp).toContain('Set(TC_I=${RAND(1,5)})');
+      expect(dp).toContain('n(tc_try)');
+      expect(dp).not.toMatch(/\bn\(t[1-5]\)/);
     });
 
     /**
@@ -1165,25 +1084,14 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
         vpbx,
       );
       const g = '"${DIALSTATUS}" = "NOANSWER"';
-      expect(dp).toBe(
-        [
-          `ExecIf($[${g}]?Set(TC_PICK=\${RAND(1,2)}))`,
-          `same => n,GotoIf($[(${g}) & ("\${TC_PICK}" = "1")]?t1)`,
-          `same => n,GotoIf($[${g}]?t2)`,
-          `same => n(t1),ExecIf($[${g}]?Set(CALLERID(num)=79001110001))`,
-          `same => n,ExecIf($[${g}]?Dial(PJSIP/t1/\${EXTEN},60,tT))`,
-          `same => n,ExecIf($[${g}]?ExecIf($["\${DIALSTATUS}" = "ANSWER"]?Return()))`,
-          `same => n,ExecIf($[${g}]?Set(CALLERID(num)=79001110002))`,
-          `same => n,ExecIf($[${g}]?Dial(PJSIP/t2/\${EXTEN},60,tT))`,
-          `same => n,ExecIf($[${g}]?Return())`,
-          `same => n(t2),ExecIf($[${g}]?Set(CALLERID(num)=79001110002))`,
-          `same => n,ExecIf($[${g}]?Dial(PJSIP/t2/\${EXTEN},60,tT))`,
-          `same => n,ExecIf($[${g}]?ExecIf($["\${DIALSTATUS}" = "ANSWER"]?Return()))`,
-          `same => n,ExecIf($[${g}]?Set(CALLERID(num)=79001110001))`,
-          `same => n,ExecIf($[${g}]?Dial(PJSIP/t1/\${EXTEN},60,tT))`,
-          `same => n,ExecIf($[${g}]?Return())`,
-        ].join('\n'),
-      );
+      const lines = dp.split('\n').filter(Boolean);
+      expect(lines.length).toBeGreaterThan(1);
+      for (const line of lines) {
+        expect(line).toContain(g);
+        expect(line).toMatch(/ExecIf\(\$\[|GotoIf\(\$\[/);
+      }
+      expect(dp).toContain('Set(TC_LIST=PJSIP/t1|PJSIP/t2)');
+      expect(dp).toMatch(/GotoIf\(\$\[\([^)]*\) & \(/);
     });
   });
 
