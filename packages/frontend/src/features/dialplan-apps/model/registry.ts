@@ -173,6 +173,8 @@ const registryDraft: Record<ActionType, Omit<IDialplanAppConfig, 'schema' | 'sum
   goto: { type: 'goto', labelKey: 'routes.action.goto', component: GenericApp, category: 'system', defaultParams: { label_name: '' } },
   branch: { type: 'branch', labelKey: 'routes.action.branch', component: GenericApp, category: 'system', defaultParams: { true_label: '', false_label: '', condition: {} } },
   schedule: { type: 'schedule', labelKey: 'routes.action.schedule', component: GenericApp, category: 'system', defaultParams: { intervals: [] } },
+  http_request: { type: 'http_request', labelKey: 'routes.action.http_request', component: GenericApp, category: 'system', defaultParams: { url: '', method: 'GET', timeout: 5 } },
+  collect_input: { type: 'collect_input', labelKey: 'routes.action.collect_input', component: GenericApp, category: 'system', defaultParams: { variableName: '', digitsCount: 1, timeout: 5 } },
   busy: { type: 'busy', labelKey: 'routes.action.busy', component: GenericApp, category: 'telephony' },
   congestion: { type: 'congestion', labelKey: 'routes.action.congestion', component: GenericApp, category: 'telephony', defaultParams: { timeout: 10 } },
   hangup: { type: 'hangup', labelKey: 'routes.action.hangup', component: HangupApp, category: 'telephony', defaultParams: { causecode: '' } },

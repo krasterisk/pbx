@@ -213,6 +213,27 @@ export interface IScheduleParams {
   intervals?: ITimeGroupInterval[];
 }
 
+export type HttpRequestMethod = 'GET' | 'POST';
+
+export interface IHttpRequestParams {
+  url?: string;
+  method?: HttpRequestMethod;
+  headers?: Record<string, string>;
+  body?: string;
+  timeout?: number;
+}
+
+export type CollectInputMode = 'digits' | 'extension';
+
+export interface ICollectInputParams {
+  variableName?: string;
+  promptFile?: string;
+  digitsCount?: number;
+  timeout?: number;
+  attempts?: number;
+  mode?: CollectInputMode;
+}
+
 export interface IBusyParams {
   timeout?: number | string;
 }

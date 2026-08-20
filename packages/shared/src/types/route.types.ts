@@ -10,8 +10,10 @@ import type {
   ICmdParams,
   IConfBridgeParams,
   ICongestionParams,
+  ICollectInputParams,
   IGotoParams,
   IHangupParams,
+  IHttpRequestParams,
   ILabelParams,
   IBranchParams,
   IPlaybackParams,
@@ -39,6 +41,7 @@ export type ActionType =
   | 'voicemail' | 'text2speech' | 'voicerobot'
   | 'webhook' | 'confbridge' | 'cmd'
   | 'label' | 'goto' | 'branch' | 'schedule'
+  | 'http_request' | 'collect_input'
   | 'busy' | 'hangup' | 'congestion';
 
 /** Asterisk DIALSTATUS values — used as condition whitelist */
@@ -73,8 +76,10 @@ export type {
   IBusyParams as IBusyActionParams,
   ICmdParams as ICmdActionParams,
   IConfBridgeParams as IConfbridgeActionParams,
+  ICollectInputParams as ICollectInputActionParams,
   IGotoParams as IGotoActionParams,
   IHangupParams,
+  IHttpRequestParams as IHttpRequestActionParams,
   ILabelParams as ILabelActionParams,
   IBranchParams as IBranchActionParams,
   IScheduleParams as IScheduleActionParams,
@@ -117,6 +122,8 @@ export type DialplanAction = BaseRouteAction & (
   | { type: 'goto'; params: IGotoParams }
   | { type: 'branch'; params: IBranchParams }
   | { type: 'schedule'; params: IScheduleParams }
+  | { type: 'http_request'; params: IHttpRequestParams }
+  | { type: 'collect_input'; params: ICollectInputParams }
   | { type: 'busy'; params: IBusyParams }
   | { type: 'hangup'; params: IHangupParams }
   | { type: 'congestion'; params: ICongestionParams }

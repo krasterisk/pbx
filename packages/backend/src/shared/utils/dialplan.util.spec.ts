@@ -25,6 +25,7 @@ const ACTION_TYPES = [
   'voicemail', 'text2speech', 'voicerobot',
   'webhook', 'confbridge', 'cmd',
   'label', 'goto', 'branch', 'schedule',
+  'http_request', 'collect_input',
   'busy', 'hangup', 'congestion',
 ] as const satisfies readonly ActionType[];
 
@@ -44,6 +45,7 @@ const CHARACTERIZED_TYPES: readonly ActionType[] = [
   'voicemail', 'text2speech', 'voicerobot',
   'webhook', 'confbridge', 'cmd',
   'label', 'goto', 'branch', 'schedule',
+  'http_request', 'collect_input',
   'busy', 'hangup', 'congestion',
 ];
 
@@ -1128,6 +1130,8 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       goto: { label_name: 'x' },
       branch: { true_label: 'ok', false_label: 'fail', condition: { source: 'dialstatus', values: ['ANSWER'] } },
       schedule: { intervals: [{ time_start: '09:00', time_end: '18:00', days_of_week: 'mon-fri', days_of_month: '*', months: '*' }] },
+      http_request: { url: 'https://example.com/x', method: 'GET', timeout: 5 },
+      collect_input: { variableName: 'PIN', digitsCount: 4, timeout: 5 },
       busy: {},
       hangup: {},
       congestion: {},

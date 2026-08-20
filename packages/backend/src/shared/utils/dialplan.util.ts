@@ -6,6 +6,7 @@ import { buildConditionExpr, isLegacyInvalidDialstatus, wrapEachLine } from './d
 import { emitHopGuard, emitHopIncrement, emitHopPrologue } from './dialplan-hops.util';
 import { emitPlayback } from './dialplan-playback.util';
 import { buildCurlCall } from './dialplan-curl.util';
+import { emitHttpRequest } from './dialplan-http.util';
 import { buildTrunkCarousel } from './dialplan-trunk-carousel.util';
 
 function logCmdApply(action: { id?: number; uid?: number; params?: { command?: string } }, vpbxUserUid: number): void {
@@ -395,6 +396,26 @@ export class AsteriskDialplanUtils {
           lines.push(`ExecIfTime(${expr}?Set(__KRSK_SCHEDULE=1))`);
         }
         dp = lines.join('\nsame => n,');
+        break;
+      }
+      case 'http_request':
+        try {
+          dp = emitHttpRequest(params);
+        } catch {
+          dp = 'NoOp(Invalid HTTP URL)';
+        }
+        break;
+      case 'collect_input': {
+        const variable = this.sanitizeDialplanInput(params.variableName);
+        const digits = parseInt(params.digitsCount, 10);
+        const timeout = parseInt(params.timeout, 10) || 5;
+        const attempts = parseInt(params.attempts, 10) || 1;
+        const prompt = this.sanitizeFilePath(params.promptFile);
+        if (params.mode === 'extension') {
+          dp = [`WaitExten(${timeout})`, `Set(${variable}=\${EXTEN})`].join('\nsame => n,');
+        } else {
+          dp = `Read(${variable},${prompt},${digits || 1},,${attempts},${timeout})`;
+        }
         break;
       }
       case 'busy':

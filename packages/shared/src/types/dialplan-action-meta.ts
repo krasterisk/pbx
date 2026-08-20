@@ -42,6 +42,8 @@ export const DIALPLAN_ACTION_META: Record<ActionType, IDialplanActionMeta> = {
   goto: { terminal: 'always', allowedIn: ALL_HOSTS, family: 'control' },
   branch: { terminal: 'always', allowedIn: ALL_HOSTS, family: 'control' },
   schedule: { terminal: 'never', allowedIn: ALL_HOSTS, family: 'control' },
+  http_request: { terminal: 'never', allowedIn: ALL_HOSTS, family: 'integration' },
+  collect_input: { terminal: 'never', allowedIn: ALL_HOSTS, family: 'control' },
   busy: { terminal: 'always', allowedIn: ALL_HOSTS, family: 'control' },
   hangup: { terminal: 'always', allowedIn: ALL_HOSTS, family: 'control' },
   congestion: { terminal: 'always', allowedIn: ALL_HOSTS, family: 'control' },

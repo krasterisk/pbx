@@ -62,6 +62,10 @@ function describeAction(action: DialplanAction): string {
       return action.params.true_label ?? '';
     case 'schedule':
       return String(action.params.intervals?.length ?? '');
+    case 'http_request':
+      return action.params.url ?? '';
+    case 'collect_input':
+      return action.params.variableName ?? '';
     case 'busy':
       return String(action.params.timeout ?? '');
     case 'hangup':
@@ -73,8 +77,8 @@ function describeAction(action: DialplanAction): string {
 }
 
 describe('D-08 DialplanAction union + D-24 meta + D-42 congestion', () => {
-  it('has 26 ActionTypesList values including goto/branch/schedule after 12-16', () => {
-    expect(ActionTypesList).toHaveLength(26);
+  it('has 28 ActionTypesList values including http_request and collect_input after 12-16', () => {
+    expect(ActionTypesList).toHaveLength(28);
     expect(ActionTypesList).toContain('congestion');
     expect(ActionTypesList).toContain('voicemail');
     expect(ActionTypesList).not.toContain("tofax");
@@ -85,7 +89,7 @@ describe('D-08 DialplanAction union + D-24 meta + D-42 congestion', () => {
     const metaKeys = Object.keys(DIALPLAN_ACTION_META).sort();
     const listKeys = [...ActionTypesList].sort();
     expect(metaKeys).toEqual(listKeys);
-    expect(metaKeys).toHaveLength(26);
+    expect(metaKeys).toHaveLength(28);
   });
 
   it('declares terminal flags required by D-24 / D-42', () => {
@@ -133,6 +137,8 @@ const VALID_PARAMS: Record<ActionType, Record<string, unknown>> = {
   goto: { label_name: 'retry' },
   branch: { true_label: 'ok', false_label: 'fail', condition: { source: 'dialstatus', values: ['ANSWER'] } },
   schedule: { intervals: [{ time_start: '09:00', time_end: '18:00', days_of_week: 'mon-fri', days_of_month: '*', months: '*' }] },
+  http_request: { url: 'https://example.com/x', method: 'GET', timeout: 5 },
+  collect_input: { variableName: 'PIN', digitsCount: 4, timeout: 5 },
   busy: {},
   hangup: {},
   congestion: {},
@@ -162,6 +168,8 @@ const INVALID_PARAMS: Record<ActionType, Record<string, unknown>> = {
   goto: { label_name: '' },
   branch: { true_label: '', false_label: '' },
   schedule: { intervals: [] },
+  http_request: { url: 'http://localhost/', method: 'GET', timeout: 5 },
+  collect_input: { variableName: 'a b', digitsCount: 0, timeout: 5 },
   busy: {},
   hangup: {},
   congestion: {},

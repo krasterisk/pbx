@@ -27,6 +27,7 @@ export const ActionTypesList = [
   'voicemail', 'text2speech', 'voicerobot',
   'webhook', 'confbridge', 'cmd',
   'label', 'goto', 'branch', 'schedule',
+  'http_request', 'collect_input',
   'busy', 'hangup', 'congestion',
 ];
 

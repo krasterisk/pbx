@@ -23,6 +23,8 @@ import {
   WebhookParamsDto,
 } from './control.params.dto';
 import {
+  CollectInputParamsDto,
+  HttpRequestParamsDto,
   NotifyParamsDto,
 } from './integration.params.dto';
 import {
@@ -63,6 +65,8 @@ export const ACTION_PARAM_DTO: Record<ActionType, ParamsDtoClass | null> = {
   goto: GotoParamsDto,
   branch: BranchParamsDto,
   schedule: ScheduleParamsDto,
+  http_request: HttpRequestParamsDto,
+  collect_input: CollectInputParamsDto,
   busy: null,
   hangup: null,
   congestion: null,
