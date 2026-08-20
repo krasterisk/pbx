@@ -818,7 +818,7 @@ Plans:
 - [x] `12-09-PLAN.md` — UI тенантных настроек с optimistic toggle
 - [x] `12-10-PLAN.md` — единое приложение «Воспроизведение» (backend + UI)
 - [x] `12-11-PLAN.md` — чистка legacy: PHP → внутренние endpoint'ы, `notify`, внутренние TTS
-- [ ] `12-12-PLAN.md` — миграция данных `params` + hard-remove типов
+- [x] `12-12-PLAN.md` — миграция данных `params` + hard-remove типов
 - [ ] `12-13-PLAN.md` — per-app фиксы: транки, CallerID, очередь, exten, confbridge
 - [ ] `12-14-PLAN.md` — `exten` у групп вызова + единая схема контекста с переходным `include`
 - [ ] `12-15-PLAN.md` — группы вызова уровня Ring Group: подтверждение, пропуск занятых, MOH
