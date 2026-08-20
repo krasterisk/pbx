@@ -1,55 +1,84 @@
-import React from 'react';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { VStack, HStack } from '@/shared/ui/Stack';
-import { Select } from '@/shared/ui/Select/Select';
-import { Text } from '@/shared/ui/Text/Text';
-import { Input } from '@/shared/ui/Input/Input';
-import { IDialplanAppProps } from '../../../model/types';
-import { useGetQueuesQuery } from '@/shared/api/endpoints/queueApi';
+import { useGetPromptsQuery } from '@/shared/api/endpoints/promptsApi';
+import type { FieldSchema, SchemaRefs } from '../../../model/schema.types';
+import type { IDialplanAppProps } from '../../../model/types';
+import { SchemaFields } from '../../SchemaFields/SchemaFields';
 
-export const QueueApp: React.FC<IDialplanAppProps> = ({ params, onChange, readOnly, actionType }) => {
+type TFn = (key: string, fallback?: string) => string;
+
+export function buildQueueSchema(t: TFn): FieldSchema[] {
+  return [
+    {
+      key: 'target',
+      kind: 'value-source',
+      required: true,
+      labelKey: 'routes.chain.fields.queue',
+      label: t('routes.chain.fields.queue', 'Очередь'),
+      optionsSource: 'queues',
+    },
+    {
+      key: 'timeout',
+      kind: 'duration',
+      labelKey: 'routes.chain.fields.timeout',
+      label: t('routes.chain.fields.timeout', 'Таймаут, сек'),
+    },
+    {
+      key: 'priority',
+      kind: 'number',
+      labelKey: 'routes.chain.queue.priority',
+      label: t('routes.chain.queue.priority', 'Приоритет'),
+      hintKey: 'routes.chain.queue.priority.hint',
+      hint: t(
+        'routes.chain.queue.priority.hint',
+        'VIP-обход хвоста очереди: большее число ставит звонок ближе к началу.',
+      ),
+    },
+    {
+      key: 'announceoverride',
+      kind: 'select',
+      labelKey: 'routes.chain.queue.announceoverride',
+      label: t('routes.chain.queue.announceoverride', 'Приветствие очереди'),
+      hintKey: 'routes.chain.queue.announceoverride.hint',
+      hint: t(
+        'routes.chain.queue.announceoverride.hint',
+        'Другой файл приветствия для этого DID, чем у очереди по умолчанию.',
+      ),
+      optionsSource: 'prompts',
+    },
+    {
+      key: 'options',
+      kind: 'text',
+      labelKey: 'routes.chain.fields.options',
+      label: t('routes.chain.fields.options', 'Опции (tThH)'),
+    },
+  ];
+}
+
+export const QueueApp: React.FC<IDialplanAppProps> = ({ params, onChange, readOnly }) => {
   const { t } = useTranslation();
-  const { data: queues = [] } = useGetQueuesQuery();
+  const { data: prompts = [], isLoading } = useGetPromptsQuery();
+  const schema = useMemo(() => buildQueueSchema((key, fallback) => t(key, fallback)), [t]);
+  const refs: SchemaRefs = {
+    prompts: {
+      items: prompts.map((prompt) => ({
+        value: prompt.filename,
+        label: prompt.comment || prompt.filename,
+      })),
+      isLoading,
+      sectionHref: '/prompts',
+      sectionFallback: 'Промпты',
+    },
+  };
 
   return (
-    <VStack gap="2" className="w-full">
-      <HStack gap="2" className="w-full">
-        <VStack gap="2" className="flex-1">
-
-          <Select
-            value={params?.queue || ''}
-            onChange={(e) => onChange({ queue: e.target.value })}
-          >
-            <option value="">{t('routes.apps.queue.selectQueue', 'Выберите очередь')}</option>
-            {queues.map((q) => (
-              <option key={q.name} value={q.name}>
-                {q.exten || q.name}{q.display_name ? ` - ${q.display_name}` : ''}
-              </option>
-            ))}
-          </Select>
-        </VStack>
-
-        <VStack gap="2" className="w-24">
-
-          <Input
-            placeholder={t('routes.apps.common.timeout', 'Таймаут, сек')}
-            type="number"
-            value={params?.timeout || ''}
-            onChange={(e) => onChange({ timeout: e.target.value })}
-          />
-        </VStack>
-      </HStack>
-
-      <HStack gap="2" className="w-full">
-        <VStack gap="2" className="flex-1">
-
-          <Input
-            placeholder={t('routes.apps.common.options', 'Опции (tThH)')}
-            value={params?.options || ''}
-            onChange={(e) => onChange({ options: e.target.value })}
-          />
-        </VStack>
-      </HStack>
-    </VStack>
+    <SchemaFields
+      schema={schema}
+      params={params as Record<string, unknown>}
+      refs={refs}
+      readOnly={readOnly}
+      showErrors
+      onChange={onChange}
+    />
   );
 };

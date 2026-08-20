@@ -52,7 +52,10 @@ export interface FieldSchema {
   kind: FieldKind;
   required?: boolean;
   labelKey: string;
+  /** Fallback shown when the locale key is missing (t(key, fallback)). */
+  label?: string;
   hintKey?: string;
+  hint?: string;
   optionsSource?: OptionsSource;
   options?: FieldOption[];
   /** Hide the field unless `params[key]` matches `equals`. */

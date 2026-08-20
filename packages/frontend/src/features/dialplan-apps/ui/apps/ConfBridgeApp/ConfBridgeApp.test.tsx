@@ -28,7 +28,7 @@ describe('ConfBridgeApp', () => {
     );
 
     expect(screen.getByText(/комнат/i)).toBeInTheDocument();
-    expect(screen.getByText(/опц/i)).toBeInTheDocument();
+    expect(screen.getByText('Опции')).toBeInTheDocument();
     expect(screen.queryByLabelText(/PIN/i)).toBeNull();
     expect(screen.queryByLabelText(/профил/i)).toBeNull();
     expect(screen.queryByLabelText(/profile/i)).toBeNull();

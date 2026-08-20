@@ -190,10 +190,11 @@ describe('StepSheet', () => {
       />,
     );
 
-    const emptySelect = screen.getByRole('combobox', { name: 'Ничего не создано' });
+    const emptySelects = screen.getAllByRole('combobox', { name: 'Ничего не создано' });
+    const emptySelect = emptySelects[0];
     expect(emptySelect).toBeDisabled();
     expect(emptySelect.textContent).not.toBe(loadingText);
-    const link = screen.getByRole('link');
+    const link = screen.getByRole('link', { name: /Очереди/ });
     expect(link).toHaveAttribute('target', '_blank');
   });
 
@@ -306,7 +307,7 @@ describe('StepSheet', () => {
         action={{
           id: 'step-1',
           type: 'toexten',
-          params: { strip: 1, prepend: '' },
+          params: { target: { source: 'fixed', value: '101' }, strip: 1, prepend: '' },
           condition: {},
         }}
         fieldErrors={{ prepend: 'required' }}

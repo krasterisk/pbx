@@ -27,7 +27,7 @@ const MODE_HINT_KEYS: Record<CallerIdMode, string> = {
 const MODE_HINT_FALLBACKS: Record<CallerIdMode, string> = {
   static: 'Sets CALLERID(num) and optional CALLERID(name) to fixed values.',
   phonebook: 'Looks up CallerID in the selected phonebook and applies matched variables.',
-  setclid_list: 'Picks CallerID from a legacy setclid list via exten_setclid.php.',
+  setclid_list: 'Picks CallerID from the setclid list in one request and reuses the result.',
   carousel:
     'Randomly selects one number from the ordered pool (${CID_${RAND(1,N)}}). Does not dial or fail over - use Trunk Carousel for retry/failover.',
 };

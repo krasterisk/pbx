@@ -399,8 +399,8 @@ export function SchemaFields({
             : String(actual ?? '') === expected;
           if (!visible) return null;
         }
-        const label = t(field.labelKey, field.labelKey);
-        const hint = field.hintKey ? t(field.hintKey, field.hintKey) : undefined;
+        const label = t(field.labelKey, field.label ?? field.labelKey);
+        const hint = field.hintKey ? t(field.hintKey, field.hint ?? field.hintKey) : undefined;
         const id = `schema-field-${field.key}`;
         const empty = isEmptyValue(params[field.key]);
         const error = fieldErrors?.[field.key];

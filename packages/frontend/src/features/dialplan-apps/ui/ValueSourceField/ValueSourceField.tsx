@@ -197,6 +197,8 @@ export function ValueSourceField({
         <Input
           value={src.source === 'fixed' ? src.value : ''}
           disabled={readOnly}
+          aria-invalid={markError || undefined}
+          aria-label={label}
           onChange={(e) => onChange({ source: 'fixed', value: e.target.value })}
         />
       )}

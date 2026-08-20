@@ -14,6 +14,7 @@ import { CallerIdApp } from '../ui/apps/CallerIdApp/CallerIdApp';
 import { TrunkCarouselApp } from '../ui/apps/TrunkCarouselApp/TrunkCarouselApp';
 import { PlaybackApp, buildPlaybackSchema, summarizePlayback } from '../ui/apps/PlaybackApp/PlaybackApp';
 import { Text2SpeechApp, buildText2SpeechSchema } from '../ui/apps/Text2SpeechApp/Text2SpeechApp';
+import { ConfBridgeApp, buildConfBridgeSchema } from '../ui/apps/ConfBridgeApp/ConfBridgeApp';
 
 const registryDraft: Record<ActionType, Omit<IDialplanAppConfig, 'schema' | 'summarize' | 'terminal' | 'allowedIn' | 'optionFlags'> & Partial<IDialplanAppConfig>> = {
   // --- TELEPHONY & MEDIA ---
@@ -33,8 +34,15 @@ const registryDraft: Record<ActionType, Omit<IDialplanAppConfig, 'schema' | 'sum
     labelKey: 'routes.action.toexten',
     component: ExtenApp,
     category: 'telephony',
-    defaultParams: { exten: '', timeout: 60, options: 'tThH' },
+    defaultParams: { target: { source: 'fixed', value: '' }, webrtc: true, timeout: 60, options: 'tThH' },
     schema: [
+      { key: 'target', kind: 'value-source', required: true, labelKey: 'routes.chain.fields.exten' },
+      {
+        key: 'webrtc',
+        kind: 'toggle',
+        labelKey: 'routes.chain.toexten.webrtc',
+        hintKey: 'routes.chain.toexten.webrtc.hint',
+      },
       { key: 'strip', kind: 'number', labelKey: 'routes.chain.fields.strip' },
       { key: 'prepend', kind: 'text', labelKey: 'routes.chain.fields.prepend' },
     ],
@@ -59,6 +67,19 @@ const registryDraft: Record<ActionType, Omit<IDialplanAppConfig, 'schema' | 'sum
         key: 'timeout',
         kind: 'duration',
         labelKey: 'routes.chain.fields.timeout',
+      },
+      {
+        key: 'priority',
+        kind: 'number',
+        labelKey: 'routes.chain.queue.priority',
+        hintKey: 'routes.chain.queue.priority.hint',
+      },
+      {
+        key: 'announceoverride',
+        kind: 'select',
+        labelKey: 'routes.chain.queue.announceoverride',
+        hintKey: 'routes.chain.queue.announceoverride.hint',
+        optionsSource: 'prompts',
       },
       {
         key: 'options',
@@ -120,7 +141,14 @@ const registryDraft: Record<ActionType, Omit<IDialplanAppConfig, 'schema' | 'sum
     defaultParams: { text: '', engine: '' },
     schema: buildText2SpeechSchema((key, fallback) => fallback ?? key),
   },
-  confbridge: { type: 'confbridge', labelKey: 'routes.action.confbridge', component: GenericApp, category: 'media' },
+  confbridge: {
+    type: 'confbridge',
+    labelKey: 'routes.action.confbridge',
+    component: ConfBridgeApp,
+    category: 'media',
+    defaultParams: { room: { source: 'fixed', value: '' }, options: '' },
+    schema: buildConfBridgeSchema((key, fallback) => fallback ?? key),
+  },
   
   // --- SYSTEM & NOTIFICATIONS ---
   setclid_custom: { type: 'setclid_custom', labelKey: 'routes.action.setclid_custom', component: CallerIdApp, category: 'system', defaultParams: { mode: 'static', callerid: '' } },

@@ -1,78 +1,57 @@
-import React from 'react';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { VStack, HStack } from '@/shared/ui/Stack';
-import { Select } from '@/shared/ui/Select/Select';
-import { Text } from '@/shared/ui/Text/Text';
-import { Input } from '@/shared/ui/Input/Input';
-import { IDialplanAppProps } from '../../../model/types';
-import { useGetEndpointsQuery } from '@/shared/api/endpoints/endpointApi';
+import type { FieldSchema } from '../../../model/schema.types';
+import type { IDialplanAppProps } from '../../../model/types';
+import { SchemaFields } from '../../SchemaFields/SchemaFields';
 
-const ROUTE_PATTERN_VALUE = '__src:route_pattern';
+type TFn = (key: string, fallback?: string) => string;
 
-export const ExtenApp: React.FC<IDialplanAppProps> = ({ params, onChange, readOnly, actionType }) => {
+export function buildExtenSchema(t: TFn): FieldSchema[] {
+  return [
+    {
+      key: 'target',
+      kind: 'value-source',
+      required: true,
+      labelKey: 'routes.chain.fields.exten',
+      label: t('routes.chain.fields.exten', 'Абонент'),
+    },
+    {
+      key: 'webrtc',
+      kind: 'toggle',
+      labelKey: 'routes.chain.toexten.webrtc',
+      label: t('routes.chain.toexten.webrtc', 'Звонить на WebRTC'),
+      hintKey: 'routes.chain.toexten.webrtc.hint',
+      hint: t(
+        'routes.chain.toexten.webrtc.hint',
+        'Параллельно звонит браузерный телефон. Выключите, если нужен только настольный.',
+      ),
+    },
+    {
+      key: 'timeout',
+      kind: 'duration',
+      labelKey: 'routes.chain.fields.timeout',
+      label: t('routes.chain.fields.timeout', 'Таймаут, сек'),
+    },
+    {
+      key: 'options',
+      kind: 'text',
+      labelKey: 'routes.chain.fields.options',
+      label: t('routes.chain.fields.options', 'Опции (tThH)'),
+    },
+  ];
+}
+
+export const ExtenApp: React.FC<IDialplanAppProps> = ({ params, onChange, readOnly }) => {
   const { t } = useTranslation();
-  const { data: endpoints = [], isLoading, isError } = useGetEndpointsQuery();
-
-  const target = params?.target as { source?: string; value?: string } | undefined;
-  const currentValue =
-    target?.source === 'route_pattern' || Boolean(params?.useExten)
-      ? ROUTE_PATTERN_VALUE
-      : target?.source === 'fixed'
-        ? (target.value || '')
-        : String(params?.exten ?? '');
-
-  const handleChange = (value: string) => {
-    if (value === ROUTE_PATTERN_VALUE) {
-      onChange({ target: { source: 'route_pattern' }, useExten: true, exten: '' });
-    } else {
-      onChange({ target: { source: 'fixed', value }, useExten: false, exten: value });
-    }
-  };
+  const schema = useMemo(() => buildExtenSchema((key, fallback) => t(key, fallback)), [t]);
 
   return (
-    <VStack gap="2" className="w-full">
-      <HStack gap="2" className="w-full">
-        <VStack gap="2" className="flex-1">
-          {isError ? (
-            <Text variant="small" className="text-destructive">{t('common.loadError', 'Ошибка загрузки')}</Text>
-          ) : (
-            <Select
-              value={currentValue}
-              onChange={(e) => handleChange(e.target.value)}
-              disabled={isLoading}
-            >
-              <option value="" disabled>{t('routes.apps.exten.select', 'Абонент')}</option>
-              <option value={ROUTE_PATTERN_VALUE}>
-                {t('routes.apps.exten.modePattern', '${EXTEN} (по маске маршрута)')}
-              </option>
-              {endpoints.map(ep => (
-                <option key={ep.id} value={ep.extension}>
-                  {ep.extension} {ep.callerid ? `(${ep.callerid})` : ''}
-                </option>
-              ))}
-            </Select>
-          )}
-        </VStack>
-      </HStack>
-
-      <HStack gap="2" className="w-full">
-        <VStack gap="2" className="w-24">
-          <Input
-            placeholder={t('routes.apps.common.timeout', 'Таймаут, сек')}
-            type="number"
-            value={String(params?.timeout ?? '')}
-            onChange={(e) => onChange({ timeout: e.target.value })}
-          />
-        </VStack>
-
-        <VStack gap="2" className="flex-1">
-          <Input
-            placeholder={t('routes.apps.common.options', 'Опции (tThH)')}
-            value={String(params?.options ?? '')}
-            onChange={(e) => onChange({ options: e.target.value })}
-          />
-        </VStack>
-      </HStack>
-    </VStack>
+    <SchemaFields
+      schema={schema}
+      params={params as Record<string, unknown>}
+      readOnly={readOnly}
+      showErrors
+      onChange={onChange}
+    />
   );
 };

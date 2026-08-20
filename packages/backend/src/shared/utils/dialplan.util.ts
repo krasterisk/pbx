@@ -344,8 +344,17 @@ export class AsteriskDialplanUtils {
         }, this.curlCtx(vpbxUserUid));
         break;
       case 'confbridge': {
-        const room = this.sanitizeDialplanInput(params.room) || '${EXTEN}';
-        dp = `ConfBridge(${room})`;
+        // Room stays without a tenant suffix (accepted risk T-12-03-05 / T-12-13-03).
+        const roomSrc = resolveValueSource(params, 'room');
+        const room = roomSrc.source === 'fixed'
+          ? (this.sanitizeDialplanInput(roomSrc.value) || '${EXTEN}')
+          : roomSrc.source === 'variable'
+            ? `\${${this.sanitizeDialplanInput(roomSrc.name)}}`
+            : roomSrc.source === 'phonebook'
+              ? `\${${PHONEBOOK_TARGET_VAR}}`
+              : '${EXTEN}';
+        const roomOpts = this.sanitizeDialplanInput(params.options);
+        dp = roomOpts ? `ConfBridge(${room},${roomOpts})` : `ConfBridge(${room})`;
         break;
       }
       case 'cmd':
