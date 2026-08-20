@@ -699,7 +699,7 @@ Plans:
 - Предыдущая фаза по этой области: Phase 6 (`06-13`/`06-14`/`06-16` — apps + registry + inline group editor)
 
 **Status:** In Progress — 17 планов, waves 0…13 (`12-01`…`12-17`)
-**Plans:** 11/17 plans executed
+**Plans:** 12/17 plans executed
 
 - [x] 12-01-PLAN.md
 - [x] 12-02-PLAN.md
@@ -712,7 +712,7 @@ Plans:
 - [x] 12-09-PLAN.md
 - [x] 12-10-PLAN.md
 - [x] 12-11-PLAN.md
-- [ ] 12-12-PLAN.md
+- [x] 12-12-PLAN.md
 - [ ] 12-13-PLAN.md
 - [ ] 12-14-PLAN.md
 - [ ] 12-15-PLAN.md

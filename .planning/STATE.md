@@ -5,8 +5,8 @@ milestone_name: milestone
 current_phase: 12
 current_phase_name: dialplan-apps-editor-refactor-reusable-route-chain-builder
 status: executing
-stopped_at: Completed 12-11-PLAN.md
-last_updated: "2026-08-19T10:48:29.524Z"
+stopped_at: Completed 12-12-PLAN.md
+last_updated: "2026-08-20T01:55:39.921Z"
 progress:
   total_phases: 12
   completed_phases: 8
@@ -222,6 +222,10 @@ Phase 1 — MOH: pending verify.
 - [Phase 12]: 12-10 t(key, fallback) instead of staging dirty locale files
 - [Phase 12]: PHP functions replaced by dialplan-bridge CURL (setclid, webhook, tts); notify folds sendmail/telegram
 - [Phase 12]: DIALPLAN_API_KEY timing-safe; missing key is 401; network bind is deploy-only
+- [Phase ?]: 12-12 unknown-state: asr/tofax/keywords stay in data as unmapped (not dropped)
+- [Phase ?]: 12-12 voicemail is not removed — Phase 12b
+- [Phase ?]: 12-12 live write approved with the word write after --dry-run
+- [Phase ?]: 12-12 t(key, fallback) — dirty locale files not staged
 
 ## Roadmap Evolution
 
@@ -354,9 +358,10 @@ Also open: Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 veri
 | Phase 12-dialplan-apps-editor-refactor-reusable-route-chain-builder P10 | 25 | 3 tasks | 19 files |
 | Phase 12-dialplan-apps-editor-refactor-reusable-route-chain-builder P11 | 60 | 3 tasks | 28 files |
 | Phase 12 P11 | 60 | 3 tasks | 28 files |
+| Phase 12 P12 | 90min | 3 tasks | 22 files |
 
 ## Session
 
-**Last session:** 2026-08-19T10:48:29.406Z
-**Stopped at:** Completed 12-11-PLAN.md
+**Last session:** 2026-08-20T01:55:39.853Z
+**Stopped at:** Completed 12-12-PLAN.md
 **Resume file:** None
