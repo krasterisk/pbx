@@ -40,7 +40,7 @@ describe('UnknownActionCard', () => {
     const listKeys = ACTION_TYPES_LIST.map((item) => item.type).sort();
     expect(registryKeys).toEqual(metaKeys);
     expect(listKeys).toEqual(metaKeys);
-    expect(metaKeys).toHaveLength(23);
+    expect(metaKeys).toHaveLength(28);
   });
 
   it('requires schema, summarize, terminal, allowedIn and optionFlags on every registry entry', () => {

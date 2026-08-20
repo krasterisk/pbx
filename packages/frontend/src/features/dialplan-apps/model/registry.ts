@@ -15,6 +15,12 @@ import { TrunkCarouselApp } from '../ui/apps/TrunkCarouselApp/TrunkCarouselApp';
 import { PlaybackApp, buildPlaybackSchema, summarizePlayback } from '../ui/apps/PlaybackApp/PlaybackApp';
 import { Text2SpeechApp, buildText2SpeechSchema } from '../ui/apps/Text2SpeechApp/Text2SpeechApp';
 import { ConfBridgeApp, buildConfBridgeSchema } from '../ui/apps/ConfBridgeApp/ConfBridgeApp';
+import { LabelApp, buildLabelSchema, summarizeLabel } from '../ui/apps/LabelApp/LabelApp';
+import { GotoApp, buildGotoSchema, summarizeGoto } from '../ui/apps/GotoApp/GotoApp';
+import { BranchApp, buildBranchSchema, summarizeBranch } from '../ui/apps/BranchApp/BranchApp';
+import { ScheduleApp, buildScheduleSchema, summarizeSchedule } from '../ui/apps/ScheduleApp/ScheduleApp';
+import { HttpRequestApp, buildHttpRequestSchema, summarizeHttpRequest } from '../ui/apps/HttpRequestApp/HttpRequestApp';
+import { CollectInputApp, buildCollectInputSchema, summarizeCollectInput } from '../ui/apps/CollectInputApp/CollectInputApp';
 
 const registryDraft: Record<ActionType, Omit<IDialplanAppConfig, 'schema' | 'summarize' | 'terminal' | 'allowedIn' | 'optionFlags'> & Partial<IDialplanAppConfig>> = {
   // --- TELEPHONY & MEDIA ---
@@ -169,12 +175,60 @@ const registryDraft: Record<ActionType, Omit<IDialplanAppConfig, 'schema' | 'sum
   voicemail: { type: 'voicemail', labelKey: 'routes.action.voicemail', component: GenericApp, category: 'notification' },
   webhook: { type: 'webhook', labelKey: 'routes.action.webhook', component: GenericApp, category: 'system' },
   cmd: { type: 'cmd', labelKey: 'routes.action.cmd', component: GenericApp, category: 'system' },
-  label: { type: 'label', labelKey: 'routes.action.label', component: GenericApp, category: 'system' },
-  goto: { type: 'goto', labelKey: 'routes.action.goto', component: GenericApp, category: 'system', defaultParams: { label_name: '' } },
-  branch: { type: 'branch', labelKey: 'routes.action.branch', component: GenericApp, category: 'system', defaultParams: { true_label: '', false_label: '', condition: {} } },
-  schedule: { type: 'schedule', labelKey: 'routes.action.schedule', component: GenericApp, category: 'system', defaultParams: { intervals: [] } },
-  http_request: { type: 'http_request', labelKey: 'routes.action.http_request', component: GenericApp, category: 'system', defaultParams: { url: '', method: 'GET', timeout: 5 } },
-  collect_input: { type: 'collect_input', labelKey: 'routes.action.collect_input', component: GenericApp, category: 'system', defaultParams: { variableName: '', digitsCount: 1, timeout: 5 } },
+  label: {
+    type: 'label',
+    labelKey: 'routes.action.label',
+    component: LabelApp,
+    category: 'system',
+    defaultParams: { label_name: '' },
+    schema: buildLabelSchema((key, fallback) => fallback ?? key),
+    summarize: summarizeLabel,
+  },
+  goto: {
+    type: 'goto',
+    labelKey: 'routes.action.goto',
+    component: GotoApp,
+    category: 'system',
+    defaultParams: { label_name: '' },
+    schema: buildGotoSchema((key, fallback) => fallback ?? key),
+    summarize: summarizeGoto,
+  },
+  branch: {
+    type: 'branch',
+    labelKey: 'routes.action.branch',
+    component: BranchApp,
+    category: 'system',
+    defaultParams: { true_label: '', false_label: '', condition: {} },
+    schema: buildBranchSchema((key, fallback) => fallback ?? key),
+    summarize: summarizeBranch,
+  },
+  schedule: {
+    type: 'schedule',
+    labelKey: 'routes.action.schedule',
+    component: ScheduleApp,
+    category: 'system',
+    defaultParams: { intervals: [] },
+    schema: buildScheduleSchema((key, fallback) => fallback ?? key),
+    summarize: summarizeSchedule,
+  },
+  http_request: {
+    type: 'http_request',
+    labelKey: 'routes.action.http_request',
+    component: HttpRequestApp,
+    category: 'system',
+    defaultParams: { url: '', method: 'GET', timeout: 5 },
+    schema: buildHttpRequestSchema((key, fallback) => fallback ?? key),
+    summarize: summarizeHttpRequest,
+  },
+  collect_input: {
+    type: 'collect_input',
+    labelKey: 'routes.action.collect_input',
+    component: CollectInputApp,
+    category: 'system',
+    defaultParams: { variableName: '', digitsCount: 1, timeout: 5, mode: 'digits' },
+    schema: buildCollectInputSchema((key, fallback) => fallback ?? key),
+    summarize: summarizeCollectInput,
+  },
   busy: { type: 'busy', labelKey: 'routes.action.busy', component: GenericApp, category: 'telephony' },
   congestion: { type: 'congestion', labelKey: 'routes.action.congestion', component: GenericApp, category: 'telephony', defaultParams: { timeout: 10 } },
   hangup: { type: 'hangup', labelKey: 'routes.action.hangup', component: HangupApp, category: 'telephony', defaultParams: { causecode: '' } },

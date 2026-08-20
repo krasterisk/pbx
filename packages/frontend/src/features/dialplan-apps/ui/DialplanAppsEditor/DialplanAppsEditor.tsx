@@ -30,6 +30,7 @@ import { Flex, VStack } from '@/shared/ui/Stack';
 import { selectCurrentUser } from '@/entities/User';
 import { useAppSelector } from '@/shared/hooks/useAppStore';
 import { copyStep, hasStep } from '../../model/clipboard';
+import { ChainLabelsProvider, collectChainLabelNames } from '../../model/chainLabels';
 import {
   editorReducer,
   type EditorAction,
@@ -261,6 +262,7 @@ export const DialplanAppsEditor = memo(function DialplanAppsEditor({
   };
 
   return (
+    <ChainLabelsProvider labels={collectChainLabelNames(actions)}>
     <VStack gap="12" className={styles.root}>
       {readOnly ? (
         <Text variant="muted" className={styles.readOnlyBar}>
@@ -532,6 +534,7 @@ export const DialplanAppsEditor = memo(function DialplanAppsEditor({
         />
       )}
     </VStack>
+    </ChainLabelsProvider>
   );
 });
 
