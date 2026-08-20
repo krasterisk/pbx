@@ -434,3 +434,60 @@ describe('D-44 / D-45 new control params', () => {
     expect(errors).toEqual([]);
   });
 });
+
+describe('D-47 / D-49 http_request and collect_input DTO', () => {
+  const ssrf = [
+    'https://example.com/x',
+    'http://10.0.0.1/',
+    'http://192.168.1.1/',
+    'http://172.16.0.1/',
+    'http://127.0.0.1/',
+    'http://localhost/',
+    'http://169.254.169.254/latest/meta-data/',
+    'file:///etc/passwd',
+    'gopher://x/',
+  ] as const;
+
+  it.each(ssrf)('DTO http_request url %s', (url) => {
+    const errors = validateActionParams([{
+      id: 'h1',
+      type: 'http_request',
+      params: { url, method: 'GET', timeout: 5 },
+    }]);
+    if (url === 'https://example.com/x') {
+      expect(errors).toEqual([]);
+    } else {
+      expect(errors.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('rejects missing or zero timeout', () => {
+    const missing = validateActionParams([{
+      id: 'h1',
+      type: 'http_request',
+      params: { url: 'https://example.com/x', method: 'GET' },
+    }]);
+    const zero = validateActionParams([{
+      id: 'h1',
+      type: 'http_request',
+      params: { url: 'https://example.com/x', method: 'GET', timeout: 0 },
+    }]);
+    expect(missing.length).toBeGreaterThan(0);
+    expect(zero.length).toBeGreaterThan(0);
+  });
+
+  it('rejects collect_input digitsCount 0 and a spaced variable name', () => {
+    const zeroDigits = validateActionParams([{
+      id: 'c1',
+      type: 'collect_input',
+      params: { variableName: 'PIN', digitsCount: 0, timeout: 5 },
+    }]);
+    const badName = validateActionParams([{
+      id: 'c1',
+      type: 'collect_input',
+      params: { variableName: 'a b', digitsCount: 4, timeout: 5 },
+    }]);
+    expect(zeroDigits.length).toBeGreaterThan(0);
+    expect(badName.length).toBeGreaterThan(0);
+  });
+});

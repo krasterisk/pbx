@@ -1545,3 +1545,63 @@ describe('D-44 label / goto / branch generator', () => {
     expect(dp).toMatch(/GotoIfTime|ExecIfTime/);
   });
 });
+
+describe('D-47 / D-49 http_request and collect_input generator', () => {
+  const vpbx = 42;
+
+  it('http_request stores the result in HTTP_RESULT_VAR with a timeout', () => {
+    const { HTTP_RESULT_VAR } = require('@krasterisk/shared');
+    const dp = AsteriskDialplanUtils.actionToDialplan(
+      { type: 'http_request', params: { url: 'https://example.com/x', method: 'GET' }, condition: {} },
+      vpbx,
+    );
+    expect(dp).toContain(`Set(${HTTP_RESULT_VAR}=`);
+    expect(dp).toMatch(/CURLOPT\(httptimeout\)=\d+/);
+  });
+
+  it('collect_input emits Read( with the variable name from params', () => {
+    const dp = AsteriskDialplanUtils.actionToDialplan(
+      {
+        type: 'collect_input',
+        params: { variableName: 'PIN', digitsCount: 4, timeout: 5 },
+        condition: {},
+      },
+      vpbx,
+    );
+    expect(dp).toMatch(/Read\(/);
+    expect(dp).toContain('PIN');
+  });
+
+  it('collect_input extension mode emits WaitExten(', () => {
+    const dp = AsteriskDialplanUtils.actionToDialplan(
+      {
+        type: 'collect_input',
+        params: { variableName: 'EXT_IN', mode: 'extension', timeout: 5, digitsCount: 1 },
+        condition: {},
+      },
+      vpbx,
+    );
+    expect(dp).toMatch(/WaitExten\(/);
+  });
+
+  it('collected variable is usable by a variable condition on the next step', () => {
+    const chain = renderActionChain(
+      [
+        {
+          type: 'collect_input',
+          params: { variableName: 'PIN', digitsCount: 4, timeout: 5 },
+          condition: {},
+        },
+        {
+          type: 'hangup',
+          params: {},
+          condition: { source: 'variable', name: 'PIN', op: 'eq', value: '1234' },
+        },
+      ],
+      { vpbxUserUid: vpbx, host: 'route' },
+    );
+    expect(chain).toMatch(/Read\(/);
+    expect(chain).toContain('${PIN}');
+    expect(chain).toContain('1234');
+  });
+});
