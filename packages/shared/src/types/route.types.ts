@@ -13,17 +13,11 @@ import type {
   IHangupParams,
   ILabelParams,
   IPlaybackParams,
-  IPlayPromptParams,
   IQueueActionParams,
-  IRecordParams,
-  ISendMailParams,
-  ISendMailPeerParams,
   ISetClidCustomParams,
   ISetClidListParams,
-  ITelegramParams,
   IText2SpeechParams,
   IToExtenParams,
-  IToFaxParams,
   IToGroupParams,
   IToIvrParams,
   IToListParams,
@@ -36,12 +30,11 @@ import type {
 
 export type ActionType =
   | 'totrunk' | 'toexten' | 'toqueue' | 'togroup' | 'tolist'
-  | 'toivr' | 'toroute' | 'playprompt' | 'playback'
+  | 'toivr' | 'toroute' | 'playback'
   | 'setclid_custom' | 'setclid_list'
-  | 'sendmail' | 'sendmailpeer' | 'telegram'
   | 'notify' | 'callerid' | 'trunk_carousel'
-  | 'voicemail' | 'text2speech' | 'voicerobot' | 'asr' | 'keywords'
-  | 'webhook' | 'confbridge' | 'cmd' | 'tofax'
+  | 'voicemail' | 'text2speech' | 'voicerobot'
+  | 'webhook' | 'confbridge' | 'cmd'
   | 'label' | 'busy' | 'hangup' | 'congestion';
 
 /** Asterisk DIALSTATUS values — used as condition whitelist */
@@ -78,17 +71,11 @@ export type {
   IConfBridgeParams as IConfbridgeActionParams,
   IHangupParams,
   ILabelParams as ILabelActionParams,
-  IPlayPromptParams as IPromptActionParams,
   IQueueActionParams,
-  IRecordParams as IRecordActionParams,
-  ISendMailParams as ISendMailActionParams,
-  ISendMailPeerParams as ISendMailPeerActionParams,
   ISetClidCustomParams as ISetClidCustomActionParams,
   ISetClidListParams as ISetClidListActionParams,
-  ITelegramParams as ITelegramActionParams,
   IText2SpeechParams as IText2SpeechActionParams,
   IToExtenParams as IExtenActionParams,
-  IToFaxParams as IToFaxActionParams,
   IToGroupParams as IGroupActionParams,
   IToIvrParams as IIvrActionParams,
   IToListParams as IListActionParams,
@@ -107,25 +94,18 @@ export type DialplanAction = BaseRouteAction & (
   | { type: 'tolist'; params: IToListParams }
   | { type: 'toivr'; params: IToIvrParams }
   | { type: 'toroute'; params: IToRouteParams }
-  | { type: 'playprompt'; params: IPlayPromptParams }
   | { type: 'playback'; params: IPlaybackParams }
   | { type: 'setclid_custom'; params: ISetClidCustomParams }
   | { type: 'setclid_list'; params: ISetClidListParams }
-  | { type: 'sendmail'; params: ISendMailParams }
-  | { type: 'sendmailpeer'; params: ISendMailPeerParams }
-  | { type: 'telegram'; params: ITelegramParams }
   | { type: 'notify'; params: INotifyActionParams }
   | { type: 'callerid'; params: ICallerIdActionParams }
   | { type: 'trunk_carousel'; params: ITrunkCarouselActionParams }
   | { type: 'voicemail'; params: IVoicemailParams }
   | { type: 'text2speech'; params: IText2SpeechParams }
   | { type: 'voicerobot'; params: IVoiceRobotParams }
-  | { type: 'asr'; params: IRecordParams }
-  | { type: 'keywords'; params: IRecordParams }
   | { type: 'webhook'; params: IWebhookParams }
   | { type: 'confbridge'; params: IConfBridgeParams }
   | { type: 'cmd'; params: ICmdParams }
-  | { type: 'tofax'; params: IToFaxParams }
   | { type: 'label'; params: ILabelParams }
   | { type: 'busy'; params: IBusyParams }
   | { type: 'hangup'; params: IHangupParams }

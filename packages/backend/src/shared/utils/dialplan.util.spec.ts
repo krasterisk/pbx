@@ -19,12 +19,11 @@ jest.mock('../../modules/logger/action-log.model', () => ({
 /** Runtime copy of the shared ActionType union — compile-fails if a member is missing. */
 const ACTION_TYPES = [
   'totrunk', 'toexten', 'toqueue', 'togroup', 'tolist',
-  'toivr', 'toroute', 'playprompt', 'playback',
+  'toivr', 'toroute', 'playback',
   'setclid_custom', 'setclid_list',
-  'sendmail', 'sendmailpeer', 'telegram',
   'notify', 'callerid', 'trunk_carousel',
-  'voicemail', 'text2speech', 'voicerobot', 'asr', 'keywords',
-  'webhook', 'confbridge', 'cmd', 'tofax',
+  'voicemail', 'text2speech', 'voicerobot',
+  'webhook', 'confbridge', 'cmd',
   'label', 'busy', 'hangup', 'congestion',
 ] as const satisfies readonly ActionType[];
 
@@ -38,12 +37,11 @@ void _assertActionTypesComplete;
  */
 const CHARACTERIZED_TYPES: readonly ActionType[] = [
   'totrunk', 'toexten', 'toqueue', 'togroup', 'tolist',
-  'toivr', 'toroute', 'playprompt', 'playback',
+  'toivr', 'toroute', 'playback',
   'setclid_custom', 'setclid_list',
-  'sendmail', 'sendmailpeer', 'telegram',
   'notify', 'callerid', 'trunk_carousel',
-  'voicemail', 'text2speech', 'voicerobot', 'asr', 'keywords',
-  'webhook', 'confbridge', 'cmd', 'tofax',
+  'voicemail', 'text2speech', 'voicerobot',
+  'webhook', 'confbridge', 'cmd',
   'label', 'busy', 'hangup', 'congestion',
 ];
 
@@ -189,30 +187,22 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       expect(dp).toContain('api_key=');
     });
 
-    it('sendmail old params match notify equivalent payload (D-28)', () => {
-      const ctx = { email: 'ops@example.com', subject: 'Call', text: 'Incoming' };
-      const sendmail = AsteriskDialplanUtils.actionToDialplan(
-        { type: 'sendmail', params: ctx, condition: {} },
-        vpbx,
-      );
+    it('notify email payload emits CURL to /internal/dialplan/notify (D-28)', () => {
       const notify = AsteriskDialplanUtils.actionToDialplan(
         {
           type: 'notify',
           params: {
             channels: ['email'],
-            recipients: { email: ctx.email },
-            subject: ctx.subject,
-            body: ctx.text,
+            recipients: { email: 'ops@example.com' },
+            subject: 'Call',
+            body: 'Incoming',
           },
           condition: {},
         },
         vpbx,
       );
-      const sendmailCurl = extractCurlInvocation(sendmail);
       const notifyCurl = extractCurlInvocation(notify);
-      expect(sendmailCurl).toContain('/internal/dialplan/notify');
       expect(notifyCurl).toContain('/internal/dialplan/notify');
-      expect(decodeCurlPostData(sendmailCurl)).toEqual(decodeCurlPostData(notifyCurl));
     });
 
     it('notify failure does not stop later steps in the chain', () => {
@@ -637,36 +627,20 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       ].join('\n'));
     });
 
-    it('dual-read playprompt still emits the 12-01 Playback baseline', () => {
-      const dp = AsteriskDialplanUtils.actionToDialplan(
-        { type: 'playprompt', params: { file: 'welcome' }, condition: {} },
-        vpbx,
-      );
-      expect(dp).toBe('Playback(/usr/records/42/sounds/welcome)');
-    });
-
-    it('playprompt with registry defaultParams emits Playback with empty filename', () => {
-      const dp = AsteriskDialplanUtils.actionToDialplan(
-        { type: 'playprompt', params: { file: '' }, condition: {} },
-        vpbx,
-      );
-      expect(dp).toBe('Playback(/usr/records/42/sounds/)');
-    });
-
-    it('dual-read playback without mode still emits the 12-01 Background baseline', () => {
+    it('playback without mode defaults to plain Playback via emitPlayback', () => {
       const dp = AsteriskDialplanUtils.actionToDialplan(
         { type: 'playback', params: { file: 'menu' }, condition: {} },
         vpbx,
       );
-      expect(dp).toBe('Background(/usr/records/42/sounds/menu)');
+      expect(dp).toBe('Playback(/usr/records/42/sounds/menu)');
     });
 
-    it('playback with registry defaultParams emits Background with empty filename', () => {
+    it('playback with empty file emits Playback with empty filename', () => {
       const dp = AsteriskDialplanUtils.actionToDialplan(
         { type: 'playback', params: { file: '' }, condition: {} },
         vpbx,
       );
-      expect(dp).toBe('Background(/usr/records/42/sounds/)');
+      expect(dp).toBe('Playback(/usr/records/42/sounds/)');
     });
 
     it('setclid_custom with filled callerid emits Set(CALLERID(num))', () => {
@@ -727,45 +701,19 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       AsteriskDialplanUtils.dialplanApiKey = prevKey;
     });
 
-    it('sendmail with UI fields emits notify-equivalent CURL (D-28)', () => {
+    it('notify wraps every Set/CURL line when dialstatus is set (Pitfall 3)', () => {
       const prevUrl = AsteriskDialplanUtils.backendBaseUrl;
       const prevKey = AsteriskDialplanUtils.dialplanApiKey;
       AsteriskDialplanUtils.backendBaseUrl = 'http://backend.test/api';
       AsteriskDialplanUtils.dialplanApiKey = 'wave0-key';
       const dp = AsteriskDialplanUtils.actionToDialplan(
         {
-          type: 'sendmail',
+          type: 'notify',
           params: {
-            email: 'ops@example.com',
+            channels: ['email'],
+            recipients: { email: 'ops@example.com' },
             subject: 'Call from ${CALLERID(num)}',
-            text: 'Incoming on ${EXTEN}',
-          },
-          condition: {},
-        },
-        vpbx,
-      );
-      expect(dp).toContain('/internal/dialplan/notify');
-      expect(dp).toContain('channels=email');
-      expect(dp).toContain('Set(KRSK_HTTP_RESULT=${CURL(');
-      AsteriskDialplanUtils.backendBaseUrl = prevUrl;
-      AsteriskDialplanUtils.dialplanApiKey = prevKey;
-    });
-
-    /**
-     * 12-RESEARCH.md Pitfall 3 — wrapEachLine applies the condition to every sendmail line.
-     */
-    it('sendmail wraps every Set/CURL line when dialstatus is set (Pitfall 3)', () => {
-      const prevUrl = AsteriskDialplanUtils.backendBaseUrl;
-      const prevKey = AsteriskDialplanUtils.dialplanApiKey;
-      AsteriskDialplanUtils.backendBaseUrl = 'http://backend.test/api';
-      AsteriskDialplanUtils.dialplanApiKey = 'wave0-key';
-      const dp = AsteriskDialplanUtils.actionToDialplan(
-        {
-          type: 'sendmail',
-          params: {
-            email: 'ops@example.com',
-            subject: 'Call from ${CALLERID(num)}',
-            text: 'Incoming on ${EXTEN}',
+            body: 'Incoming on ${EXTEN}',
           },
           condition: { dialstatus: 'NOANSWER' },
         },
@@ -774,48 +722,6 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       expect(dp).toContain('ExecIf($["${DIALSTATUS}" = "NOANSWER"]?Set(__KNOTIFY_MSG=');
       expect(dp).toContain('ExecIf($["${DIALSTATUS}" = "NOANSWER"]?Set(CURLOPT(httptimeout)=');
       expect(dp).toContain('/internal/dialplan/notify');
-      AsteriskDialplanUtils.backendBaseUrl = prevUrl;
-      AsteriskDialplanUtils.dialplanApiKey = prevKey;
-    });
-
-    it('sendmailpeer emits CURL to notify (D-28)', () => {
-      const prevUrl = AsteriskDialplanUtils.backendBaseUrl;
-      const prevKey = AsteriskDialplanUtils.dialplanApiKey;
-      AsteriskDialplanUtils.backendBaseUrl = 'http://backend.test/api';
-      AsteriskDialplanUtils.dialplanApiKey = 'wave0-key';
-      const dp = AsteriskDialplanUtils.actionToDialplan(
-        {
-          type: 'sendmailpeer',
-          params: { exten: '101', text: 'missed call' },
-          condition: {},
-        },
-        vpbx,
-      );
-      expect(dp).toContain('/internal/dialplan/notify');
-      expect(dp).toContain('Set(KRSK_HTTP_RESULT=${CURL(');
-      expect(dp).not.toContain('System(');
-      expect(dp).not.toContain('usr/scripts');
-      AsteriskDialplanUtils.backendBaseUrl = prevUrl;
-      AsteriskDialplanUtils.dialplanApiKey = prevKey;
-    });
-
-    it('telegram emits CURL to notify (D-28)', () => {
-      const prevUrl = AsteriskDialplanUtils.backendBaseUrl;
-      const prevKey = AsteriskDialplanUtils.dialplanApiKey;
-      AsteriskDialplanUtils.backendBaseUrl = 'http://backend.test/api';
-      AsteriskDialplanUtils.dialplanApiKey = 'wave0-key';
-      const dp = AsteriskDialplanUtils.actionToDialplan(
-        {
-          type: 'telegram',
-          params: { chat_id: '12345', text: 'hello' },
-          condition: {},
-        },
-        vpbx,
-      );
-      expect(dp).toContain('/internal/dialplan/notify');
-      expect(dp).toContain('Set(KRSK_HTTP_RESULT=${CURL(');
-      expect(dp).not.toContain('System(');
-      expect(dp).not.toContain('usr/scripts');
       AsteriskDialplanUtils.backendBaseUrl = prevUrl;
       AsteriskDialplanUtils.dialplanApiKey = prevKey;
     });
@@ -852,38 +758,6 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       expect(dp).not.toContain('usr/scripts');
       AsteriskDialplanUtils.backendBaseUrl = prevUrl;
       AsteriskDialplanUtils.dialplanApiKey = prevKey;
-    });
-
-    it('asr with empty params uses default silence 3 / max 6', () => {
-      const dp = AsteriskDialplanUtils.actionToDialplan(
-        { type: 'asr', params: {}, condition: {} },
-        vpbx,
-      );
-      expect(dp).toBe('Record(/tmp/${UNIQUEID}.wav,3,6)');
-    });
-
-    it('asr with UI timers emits Record with those values', () => {
-      const dp = AsteriskDialplanUtils.actionToDialplan(
-        {
-          type: 'asr',
-          params: { silence_timeout: '4', max_timer: '8' },
-          condition: {},
-        },
-        vpbx,
-      );
-      expect(dp).toBe('Record(/tmp/${UNIQUEID}.wav,4,8)');
-    });
-
-    it('keywords with UI timers emits the same Record as asr', () => {
-      const dp = AsteriskDialplanUtils.actionToDialplan(
-        {
-          type: 'keywords',
-          params: { silence_timeout: '4', max_timer: '8' },
-          condition: {},
-        },
-        vpbx,
-      );
-      expect(dp).toBe('Record(/tmp/${UNIQUEID}.wav,4,8)');
     });
 
     it('webhook emits CURL to internal webhook (D-31)', () => {
@@ -948,14 +822,6 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
         true,
       );
       expect(dp).toBe('NoOp()');
-    });
-
-    it('tofax emits Set(__faxmail=…)', () => {
-      const dp = AsteriskDialplanUtils.actionToDialplan(
-        { type: 'tofax', params: { email: 'fax@example.com' }, condition: {} },
-        vpbx,
-      );
-      expect(dp).toBe('Set(__faxmail=fax@example.com)');
     });
 
     it('label without condition emits NoOp() and ignores label_name', () => {
@@ -1334,25 +1200,18 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       tolist: { numbers: '101' },
       toivr: { ivr_uid: 1 },
       toroute: { context: 'sip-in', extension: '100' },
-      playprompt: { file: 'welcome' },
-      playback: { file: 'welcome' },
+      playback: { file: 'welcome', mode: 'plain' },
       setclid_custom: { callerid: '7900' },
       setclid_list: { list_uid: 1 },
-      sendmail: { email: 'a@b.c', subject: 's', text: 't' },
-      sendmailpeer: { exten: '101', text: 't' },
-      telegram: { chat_id: '1', text: 't' },
       notify: { integration_uid: 1, message: 'm', target: 't' },
       callerid: { mode: 'static', callerid: '7900', name: 'N' },
       trunk_carousel: { trunks: [{ trunk: 'PJSIP/t1', cid_mode: 'static', callerid: '1' }] },
       voicemail: { exten: '101' },
       text2speech: { text: 'hi' },
       voicerobot: { robot_uid: 1 },
-      asr: {},
-      keywords: {},
       webhook: { url: 'http://x' },
       confbridge: { room: '100' },
       cmd: { command: 'NoOp(ok)' },
-      tofax: { email: 'fax@example.com' },
       label: { label_name: 'x' },
       busy: {},
       hangup: {},
@@ -1476,8 +1335,13 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       AsteriskDialplanUtils.dialplanApiKey = 'wave0-key';
       const dp = renderActionChain(
         [{
-          type: 'sendmail',
-          params: { email: 'ops@example.com', subject: 's', text: 't' },
+          type: 'notify',
+          params: {
+            channels: ['email'],
+            recipients: { email: 'ops@example.com' },
+            subject: 's',
+            body: 't',
+          },
           condition: { time_group_uid: 12 },
         }],
         { vpbxUserUid: vpbx, host: 'route' },
@@ -1565,7 +1429,7 @@ describe('D-53 findUnreachableSteps / digit-exit', () => {
   const hangup = { type: 'hangup', params: {}, condition: {} };
   const setvar = { type: 'setvar', params: {}, condition: {} };
   const wait = { type: 'wait', params: {}, condition: {} };
-  const playbackWithDigitExit = { type: 'playback', params: { file: 'menu', digitExit: true, digit: '1', digitExitDest: 'ivr_7,start,1' }, condition: {} };
+  const playbackWithDigitExit = { type: 'playback', params: { file: 'menu', mode: 'menu', digitExit: true, digit: '1', digitExitDest: 'ivr_7,start,1' }, condition: {} };
 
   it('marks steps after an always-terminal hangup as unreachable', () => {
     expect(findUnreachableSteps([playback, hangup, setvar, wait])).toEqual([2, 3]);

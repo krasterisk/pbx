@@ -1,6 +1,5 @@
 import {
   IsArray,
-  IsEmail,
   IsIn,
   IsInt,
   IsObject,
@@ -18,9 +17,6 @@ import {
 import { Transform } from 'class-transformer';
 import type {
   INotifyActionParams,
-  ISendMailParams,
-  ISendMailPeerParams,
-  ITelegramParams,
   NotificationChannel,
 } from '@krasterisk/shared';
 
@@ -105,44 +101,4 @@ export class NotifyParamsDto implements INotifyActionParams {
   @IsString()
   @Matches(SAFE_TEXT)
   body?: string;
-}
-
-export class SendMailParamsDto implements ISendMailParams {
-  @IsOptional()
-  @IsEmail()
-  email?: string;
-
-  @IsOptional()
-  @IsString()
-  @Matches(SAFE_TEXT)
-  subject?: string;
-
-  @IsOptional()
-  @IsString()
-  @Matches(SAFE_TEXT)
-  text?: string;
-}
-
-export class SendMailPeerParamsDto implements ISendMailPeerParams {
-  @IsOptional()
-  @IsString()
-  @Matches(SAFE_TEXT)
-  exten?: string;
-
-  @IsOptional()
-  @IsString()
-  @Matches(SAFE_TEXT)
-  text?: string;
-}
-
-export class TelegramParamsDto implements ITelegramParams {
-  @IsOptional()
-  @IsString()
-  @Matches(SAFE_TEXT)
-  chat_id?: string;
-
-  @IsOptional()
-  @IsString()
-  @Matches(SAFE_TEXT)
-  text?: string;
 }

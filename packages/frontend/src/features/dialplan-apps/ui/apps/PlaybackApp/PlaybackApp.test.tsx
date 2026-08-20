@@ -98,14 +98,13 @@ describe('PlaybackApp', () => {
     expect(screen.getByLabelText(/язык|language|langoverride/i)).toBeInTheDocument();
   });
 
-  it('omits playprompt and background from create select but keeps playprompt in the registry', () => {
+  it('omits playprompt and background from create select after hard-remove', () => {
     render(<ActionTypeSelect value="" onChange={vi.fn()} />);
     const select = screen.getByRole('combobox') as HTMLSelectElement;
     const values = Array.from(select.options).map((option) => option.value);
     expect(values).not.toContain('playprompt');
     expect(values).not.toContain('background');
-    expect(dialplanAppsRegistry.playprompt).toBeDefined();
-    expect(dialplanAppsRegistry.playprompt.component).toBeTruthy();
+    expect(dialplanAppsRegistry).not.toHaveProperty('playprompt');
   });
 
   it('shows a may-exit badge for menu mode and warns about the tail without blocking save', () => {

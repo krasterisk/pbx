@@ -21,16 +21,10 @@ import {
 } from './control.params.dto';
 import {
   NotifyParamsDto,
-  SendMailParamsDto,
-  SendMailPeerParamsDto,
-  TelegramParamsDto,
 } from './integration.params.dto';
 import {
   PlaybackParamsDto,
-  PlayPromptParamsDto,
-  RecordParamsDto,
   Text2SpeechParamsDto,
-  ToFaxParamsDto,
   VoiceRobotParamsDto,
 } from './media.params.dto';
 
@@ -50,25 +44,18 @@ export const ACTION_PARAM_DTO: Record<ActionType, ParamsDtoClass | null> = {
   tolist: ToListParamsDto,
   toivr: ToIvrParamsDto,
   toroute: ToRouteParamsDto,
-  playprompt: PlayPromptParamsDto,
   playback: PlaybackParamsDto,
   setclid_custom: SetClidCustomParamsDto,
   setclid_list: SetClidListParamsDto,
-  sendmail: SendMailParamsDto,
-  sendmailpeer: SendMailPeerParamsDto,
-  telegram: TelegramParamsDto,
   notify: NotifyParamsDto,
   callerid: CallerIdParamsDto,
   trunk_carousel: TrunkCarouselParamsDto,
   voicemail: VoicemailParamsDto,
   text2speech: Text2SpeechParamsDto,
   voicerobot: VoiceRobotParamsDto,
-  asr: RecordParamsDto,
-  keywords: RecordParamsDto,
   webhook: WebhookParamsDto,
   confbridge: ConfBridgeParamsDto,
   cmd: CmdParamsDto,
-  tofax: ToFaxParamsDto,
   label: LabelParamsDto,
   busy: null,
   hangup: null,

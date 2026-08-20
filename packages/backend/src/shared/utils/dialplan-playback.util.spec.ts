@@ -97,21 +97,13 @@ describe('D-53 playback terminal meta', () => {
   });
 });
 
-describe('actionToDialplan dual-read + unified playback', () => {
-  it('legacy playprompt still emits the 12-01 Playback baseline', () => {
-    const dp = AsteriskDialplanUtils.actionToDialplan(
-      { type: 'playprompt', params: { file: 'welcome' }, condition: {} },
-      42,
-    );
-    expect(dp).toBe('Playback(/usr/records/42/sounds/welcome)');
-  });
-
-  it('legacy playback without mode still emits the 12-01 Background baseline', () => {
+describe('actionToDialplan unified playback', () => {
+  it('playback without mode defaults to plain Playback', () => {
     const dp = AsteriskDialplanUtils.actionToDialplan(
       { type: 'playback', params: { file: 'menu' }, condition: {} },
       42,
     );
-    expect(dp).toBe('Background(/usr/records/42/sounds/menu)');
+    expect(dp).toBe('Playback(/usr/records/42/sounds/menu)');
   });
 
   it('playback with mode:plain routes through emitPlayback', () => {

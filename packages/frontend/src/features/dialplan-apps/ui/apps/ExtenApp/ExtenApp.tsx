@@ -13,12 +13,13 @@ export const ExtenApp: React.FC<IDialplanAppProps> = ({ params, onChange, readOn
   const { t } = useTranslation();
   const { data: endpoints = [], isLoading, isError } = useGetEndpointsQuery();
 
+  const target = params?.target as { source?: string; value?: string } | undefined;
   const currentValue =
-    params?.target?.source === 'route_pattern' || params?.useExten
+    target?.source === 'route_pattern' || Boolean(params?.useExten)
       ? ROUTE_PATTERN_VALUE
-      : params?.target?.source === 'fixed'
-        ? (params.target.value || '')
-        : (params?.exten || '');
+      : target?.source === 'fixed'
+        ? (target.value || '')
+        : String(params?.exten ?? '');
 
   const handleChange = (value: string) => {
     if (value === ROUTE_PATTERN_VALUE) {
@@ -59,7 +60,7 @@ export const ExtenApp: React.FC<IDialplanAppProps> = ({ params, onChange, readOn
           <Input
             placeholder={t('routes.apps.common.timeout', 'Таймаут, сек')}
             type="number"
-            value={params?.timeout || ''}
+            value={String(params?.timeout ?? '')}
             onChange={(e) => onChange({ timeout: e.target.value })}
           />
         </VStack>
@@ -67,7 +68,7 @@ export const ExtenApp: React.FC<IDialplanAppProps> = ({ params, onChange, readOn
         <VStack gap="2" className="flex-1">
           <Input
             placeholder={t('routes.apps.common.options', 'Опции (tThH)')}
-            value={params?.options || ''}
+            value={String(params?.options ?? '')}
             onChange={(e) => onChange({ options: e.target.value })}
           />
         </VStack>

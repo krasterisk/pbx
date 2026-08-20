@@ -288,27 +288,9 @@ export class AsteriskDialplanUtils {
         dp = emitHopPrologue(`${ctx},${dest},1`, { routeId: ctx });
         break;
       }
-      case 'playprompt': {
-        const file = this.sanitizeFilePath(params.file);
-        dp = `Playback(/usr/records/${vpbxUserUid}/sounds/${file})`;
+      case 'playback':
+        dp = emitPlayback(params, { vpbxUserUid });
         break;
-      }
-      case 'playback': {
-        if (params.mode) {
-          dp = emitPlayback(params, { vpbxUserUid });
-          break;
-        }
-        const file = this.sanitizeFilePath(params.file);
-        dp = `Background(/usr/records/${vpbxUserUid}/sounds/${file})`;
-        if (params.digitExit) {
-          const digit = String(params.digit ?? '');
-          const dest = String(params.digitExitDest ?? '');
-          if (digit && dest) {
-            dp = `${dp}\nsame => n,${emitDigitExitTransition(digit, dest)}`;
-          }
-        }
-        break;
-      }
       case 'setclid_custom': {
         const callerid = this.sanitizeDialplanInput(params.callerid);
         dp = `Set(CALLERID(num)=${callerid})`;
@@ -319,28 +301,6 @@ export class AsteriskDialplanUtils {
         dp = this.emitSetclidCurl(listUid, vpbxUserUid);
         break;
       }
-      case 'sendmail':
-        dp = this.emitNotifyDialplan({
-          channels: ['email'],
-          recipients: { email: params.email },
-          subject: params.subject,
-          body: params.text,
-        }, vpbxUserUid);
-        break;
-      case 'sendmailpeer':
-        dp = this.emitNotifyDialplan({
-          channels: ['email'],
-          recipients: { email: params.exten },
-          body: params.text,
-        }, vpbxUserUid);
-        break;
-      case 'telegram':
-        dp = this.emitNotifyDialplan({
-          channels: ['telegram'],
-          recipients: { telegram: params.chat_id },
-          body: params.text,
-        }, vpbxUserUid);
-        break;
       case 'voicemail': {
         const vmExten = this.sanitizeDialplanInput(params.exten) || '${EXTEN}';
         dp = `VoiceMail(${vmExten}@default,u)`;
@@ -360,12 +320,6 @@ export class AsteriskDialplanUtils {
         dp = `${curl}\nsame => n,${play}`;
         break;
       }
-      case 'asr':
-        dp = `Record(/tmp/\${UNIQUEID}.wav,${parseInt(params.silence_timeout, 10) || 3},${parseInt(params.max_timer, 10) || 6})`;
-        break;
-      case 'keywords':
-        dp = `Record(/tmp/\${UNIQUEID}.wav,${parseInt(params.silence_timeout, 10) || 3},${parseInt(params.max_timer, 10) || 6})`;
-        break;
       case 'webhook':
         dp = buildCurlCall('webhook', {
           url: String(params.url ?? '').replace(/[\n\r"'\\]/g, ''),
@@ -388,11 +342,6 @@ export class AsteriskDialplanUtils {
           logCmdApply(action, vpbxUserUid);
         }
         break;
-      case 'tofax': {
-        const faxEmail = this.sanitizeDialplanInput(params.email);
-        dp = `Set(__faxmail=${faxEmail})`;
-        break;
-      }
       case 'label':
         dp = `NoOp()`; // labels are handled as priority labels
         break;

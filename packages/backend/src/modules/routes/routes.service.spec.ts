@@ -346,18 +346,19 @@ describe('RoutesService', () => {
     });
 
     /**
-     * 12-RESEARCH.md Pitfall 3 — renderActionChain wraps each sendmail line; no ?same =>.
+     * 12-RESEARCH.md Pitfall 3 — renderActionChain wraps each notify line; no ?same =>.
      */
-    it('time_group_uid wraps every sendmail line via renderActionChain (Pitfall 3)', () => {
+    it('time_group_uid wraps every notify line via renderActionChain (Pitfall 3)', () => {
       const route = baseRoute({
         extensions: ['100'],
         actions: [
           {
-            type: 'sendmail',
+            type: 'notify',
             params: {
-              email: 'ops@example.com',
+              channels: ['email'],
+              recipients: { email: 'ops@example.com' },
               subject: 'Call from ${CALLERID(num)}',
-              text: 'Incoming on ${EXTEN}',
+              body: 'Incoming on ${EXTEN}',
             },
             condition: { time_group_uid: 12 },
           },

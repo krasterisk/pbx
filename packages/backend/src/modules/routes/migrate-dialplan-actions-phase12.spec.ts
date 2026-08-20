@@ -1,4 +1,4 @@
-import { migrateAction } from './dialplan-actions-migration.util';
+import { migrateAction, UNMAPPED_HARD_REMOVE } from './dialplan-actions-migration.util';
 import {
   PHASE12_ACTION_TARGETS,
   runPhase12ActionMigration,
@@ -37,7 +37,8 @@ function makeStore(rowsByKey: Record<string, TargetRow[]>): MigrationStore & { u
 
 const legacyQueue = { type: 'toqueue', params: { queue: 'sales' } };
 const already = { type: 'toqueue', params: { target: { source: 'fixed', value: 'sales' } } };
-const asr = { type: 'asr', params: { silence_timeout: 3 } };
+const unmappedType = [...UNMAPPED_HARD_REMOVE][0];
+const unmappedAction = { type: unmappedType, params: { silence_timeout: 3 } };
 
 describe('migrate-dialplan-actions-phase12', () => {
   it('lists exactly the six JSON action-chain columns', () => {
@@ -151,7 +152,7 @@ describe('migrate-dialplan-actions-phase12', () => {
 
   it('leaves unmapped asr in place and lists the row id', async () => {
     const store = makeStore({
-      'routes.actions': [{ id: 9, value: [asr] }],
+      'routes.actions': [{ id: 9, value: [unmappedAction] }],
       'route_phonebook_bindings.actions': [],
       'ivrs.menu_items': [],
       'voice_robot_keywords.actions': [],
@@ -169,8 +170,8 @@ describe('migrate-dialplan-actions-phase12', () => {
 
     expect(store.updates).toHaveLength(0);
     expect(result.unmapped).toEqual([
-      { table: 'routes', column: 'actions', id: 9, type: 'asr', index: 0 },
+      { table: 'routes', column: 'actions', id: 9, type: unmappedType, index: 0 },
     ]);
-    expect(io.logs.some((line) => line.includes('id=9') && line.includes('asr'))).toBe(true);
+    expect(io.logs.some((line) => line.includes('id=9') && line.includes(unmappedType))).toBe(true);
   });
 });

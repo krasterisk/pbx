@@ -30,21 +30,14 @@ function describeAction(action: DialplanAction): string {
       return String(action.params.ivr_uid ?? '');
     case 'toroute':
       return action.params.context ?? '';
-    case 'playprompt':
     case 'playback':
       return action.params.file ?? '';
     case 'setclid_custom':
       return action.params.callerid ?? '';
     case 'setclid_list':
       return String(action.params.list_uid ?? '');
-    case 'sendmail':
-      return action.params.email ?? '';
-    case 'sendmailpeer':
-      return action.params.exten ?? '';
-    case 'telegram':
-      return action.params.chat_id ?? '';
     case 'notify':
-      return action.params.message;
+      return action.params.message ?? '';
     case 'callerid':
       return action.params.mode;
     case 'trunk_carousel':
@@ -55,17 +48,12 @@ function describeAction(action: DialplanAction): string {
       return action.params.text ?? '';
     case 'voicerobot':
       return String(action.params.robot_uid ?? '');
-    case 'asr':
-    case 'keywords':
-      return String(action.params.silence_timeout ?? '');
     case 'webhook':
       return action.params.url ?? '';
     case 'confbridge':
       return action.params.room?.source ?? '';
     case 'cmd':
       return action.params.command ?? '';
-    case 'tofax':
-      return action.params.email ?? '';
     case 'label':
       return action.params.label_name ?? '';
     case 'busy':
@@ -79,16 +67,19 @@ function describeAction(action: DialplanAction): string {
 }
 
 describe('D-08 DialplanAction union + D-24 meta + D-42 congestion', () => {
-  it('has 30 ActionTypesList values including congestion', () => {
-    expect(ActionTypesList).toHaveLength(30);
+  it('has 23 ActionTypesList values including congestion after 12-12 hard-remove', () => {
+    expect(ActionTypesList).toHaveLength(23);
     expect(ActionTypesList).toContain('congestion');
+    expect(ActionTypesList).toContain('voicemail');
+    expect(ActionTypesList).not.toContain("tofax");
+    expect(ActionTypesList).not.toContain("playprompt");
   });
 
   it('DIALPLAN_ACTION_META keys match ActionTypesList', () => {
     const metaKeys = Object.keys(DIALPLAN_ACTION_META).sort();
     const listKeys = [...ActionTypesList].sort();
     expect(metaKeys).toEqual(listKeys);
-    expect(metaKeys).toHaveLength(30);
+    expect(metaKeys).toHaveLength(23);
   });
 
   it('declares terminal flags required by D-24 / D-42', () => {
@@ -120,25 +111,18 @@ const VALID_PARAMS: Record<ActionType, Record<string, unknown>> = {
   tolist: { numbers: '101,102' },
   toivr: { ivr_uid: 3 },
   toroute: { context: 'sip-in', extension: { source: 'route_pattern' } },
-  playprompt: { file: 'welcome', options: { noanswer: true }, langoverride: 'ru' },
   playback: { file: 'welcome', options: { noanswer: true, skip: false }, langoverride: 'ru' },
   setclid_custom: { callerid: '79001112233' },
   setclid_list: { list_uid: 2 },
-  sendmail: { email: 'ops@example.com', text: 'hi' },
-  sendmailpeer: { exten: '101', text: 'hi' },
-  telegram: { chat_id: '1', text: 'hi' },
   notify: { integration_uid: 1, message: 'hello' },
   callerid: { mode: 'static', callerid: '7900' },
   trunk_carousel: { mode: 'random_then_failover', trunks: [{ trunk: 'PJSIP/t1', cid_mode: 'static' }] },
   voicemail: { target: { source: 'route_pattern' } },
   text2speech: { text: 'hello', engine: 3 },
   voicerobot: { robot_uid: 5 },
-  asr: { silence_timeout: 3, max_timer: 6 },
-  keywords: { silence_timeout: 3, max_timer: 6 },
   webhook: { url: 'https://example.com/hook' },
   confbridge: { room: { source: 'fixed', value: '100' } },
   cmd: { command: 'NoOp(ok)' },
-  tofax: { email: 'fax@example.com' },
   label: { label_name: 'retry' },
   busy: {},
   hangup: {},
@@ -153,25 +137,18 @@ const INVALID_PARAMS: Record<ActionType, Record<string, unknown>> = {
   tolist: { timeout: -1 },
   toivr: { ivr_uid: 'x' },
   toroute: { extension: { source: 'fixed', value: '' } },
-  playprompt: { digittimeout: -1 },
   playback: { digittimeout: -1 },
   setclid_custom: { callerid: 1 },
   setclid_list: { list_uid: false },
-  sendmail: { email: 1 },
-  sendmailpeer: { exten: 1 },
-  telegram: { chat_id: 1 },
   notify: { integration_uid: 'x', message: '' },
   callerid: { mode: 'nope' },
   trunk_carousel: { mode: 'random_then_failover', trunks: 'x' },
   voicemail: { target: { source: 'fixed', value: '' } },
   text2speech: { engine: 'nope' },
   voicerobot: { robot_uid: 'x' },
-  asr: { silence_timeout: -1 },
-  keywords: { max_timer: -1 },
   webhook: { url: 1 },
   confbridge: {},
   cmd: { command: 1 },
-  tofax: { email: 1 },
   label: { label_name: 1 },
   busy: {},
   hangup: {},

@@ -40,14 +40,14 @@ describe('NotifyApp', () => {
     expect(screen.getByLabelText(/telegram|chat/i)).toBeInTheDocument();
   });
 
-  it('hides sendmail, sendmailpeer and telegram from create select but keeps telegram in the registry', () => {
+  it('omits sendmail, sendmailpeer and telegram from create select after hard-remove', () => {
     render(<ActionTypeSelect value="" onChange={vi.fn()} />);
     const select = screen.getByRole('combobox') as HTMLSelectElement;
     const values = Array.from(select.options).map((option) => option.value);
     expect(values).not.toContain('sendmail');
     expect(values).not.toContain('sendmailpeer');
     expect(values).not.toContain('telegram');
-    expect(dialplanAppsRegistry.telegram).toBeDefined();
-    expect(dialplanAppsRegistry.telegram.component).toBeTruthy();
+    expect(dialplanAppsRegistry).not.toHaveProperty('sendmail');
+    expect(dialplanAppsRegistry).not.toHaveProperty('telegram');
   });
 });

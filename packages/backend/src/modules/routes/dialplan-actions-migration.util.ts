@@ -5,7 +5,7 @@
 
 export const USE_EXTEN_SENTINEL = '__USE_EXTEN__';
 
-const UNMAPPED_HARD_REMOVE = new Set(['tofax', 'asr', 'keywords']);
+export const UNMAPPED_HARD_REMOVE = new Set(['tofax', 'asr', 'keywords']);
 
 const KNOWN_TYPES = new Set([
   'totrunk', 'toexten', 'toqueue', 'togroup', 'tolist',

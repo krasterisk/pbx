@@ -6,7 +6,6 @@ import { TrunkApp } from '../ui/apps/TrunkApp/TrunkApp';
 import { ExtenApp } from '../ui/apps/ExtenApp/ExtenApp';
 import { QueueApp } from '../ui/apps/QueueApp/QueueApp';
 import { IvrApp } from '../ui/apps/IvrApp/IvrApp';
-import { PromptApp } from '../ui/apps/PromptApp/PromptApp';
 import { ToRouteApp } from '../ui/apps/ToRouteApp/ToRouteApp';
 import { HangupApp } from '../ui/apps/HangupApp/HangupApp';
 import { GroupApp } from '../ui/apps/GroupApp/GroupApp';
@@ -102,14 +101,6 @@ const registryDraft: Record<ActionType, Omit<IDialplanAppConfig, 'schema' | 'sum
   tolist: { type: 'tolist', labelKey: 'routes.action.tolist', component: GenericApp, category: 'telephony' },
   toivr: { type: 'toivr', labelKey: 'routes.action.toivr', component: IvrApp, category: 'telephony', defaultParams: { ivr_uid: '' } },
   toroute: { type: 'toroute', labelKey: 'routes.action.toroute', component: ToRouteApp, category: 'telephony', defaultParams: { context: '', extension: '' } },
-  playprompt: {
-    type: 'playprompt',
-    labelKey: 'routes.action.playprompt',
-    component: PromptApp,
-    category: 'media',
-    defaultParams: { file: '' },
-    offerOnCreate: false,
-  },
   playback: {
     type: 'playback',
     labelKey: 'routes.action.playback',
@@ -129,8 +120,6 @@ const registryDraft: Record<ActionType, Omit<IDialplanAppConfig, 'schema' | 'sum
     defaultParams: { text: '', engine: '' },
     schema: buildText2SpeechSchema((key, fallback) => fallback ?? key),
   },
-  asr: { type: 'asr', labelKey: 'routes.action.asr', component: GenericApp, category: 'media' },
-  keywords: { type: 'keywords', labelKey: 'routes.action.keywords', component: GenericApp, category: 'media' },
   confbridge: { type: 'confbridge', labelKey: 'routes.action.confbridge', component: GenericApp, category: 'media' },
   
   // --- SYSTEM & NOTIFICATIONS ---
@@ -138,9 +127,6 @@ const registryDraft: Record<ActionType, Omit<IDialplanAppConfig, 'schema' | 'sum
   setclid_list: { type: 'setclid_list', labelKey: 'routes.action.setclid_list', component: CallerIdApp, category: 'system', defaultParams: { mode: 'setclid_list', list_uid: '' } },
   callerid: { type: 'callerid', labelKey: 'routes.action.callerid', component: CallerIdApp, category: 'system', defaultParams: { mode: 'static', callerid: '' } },
   trunk_carousel: { type: 'trunk_carousel', labelKey: 'routes.action.trunk_carousel', component: TrunkCarouselApp, category: 'telephony', defaultParams: { mode: 'random_then_failover', trunks: [] } },
-  sendmail: { type: 'sendmail', labelKey: 'routes.action.sendmail', component: GenericApp, category: 'notification', offerOnCreate: false },
-  sendmailpeer: { type: 'sendmailpeer', labelKey: 'routes.action.sendmailpeer', component: GenericApp, category: 'notification', offerOnCreate: false },
-  telegram: { type: 'telegram', labelKey: 'routes.action.telegram', component: GenericApp, category: 'notification', offerOnCreate: false },
   notify: {
     type: 'notify',
     labelKey: 'routes.action.notify',
@@ -155,7 +141,6 @@ const registryDraft: Record<ActionType, Omit<IDialplanAppConfig, 'schema' | 'sum
   voicemail: { type: 'voicemail', labelKey: 'routes.action.voicemail', component: GenericApp, category: 'notification' },
   webhook: { type: 'webhook', labelKey: 'routes.action.webhook', component: GenericApp, category: 'system' },
   cmd: { type: 'cmd', labelKey: 'routes.action.cmd', component: GenericApp, category: 'system' },
-  tofax: { type: 'tofax', labelKey: 'routes.action.tofax', component: GenericApp, category: 'media' },
   label: { type: 'label', labelKey: 'routes.action.label', component: GenericApp, category: 'system' },
   busy: { type: 'busy', labelKey: 'routes.action.busy', component: GenericApp, category: 'telephony' },
   congestion: { type: 'congestion', labelKey: 'routes.action.congestion', component: GenericApp, category: 'telephony', defaultParams: { timeout: 10 } },

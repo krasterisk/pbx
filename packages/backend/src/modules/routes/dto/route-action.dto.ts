@@ -21,12 +21,11 @@ import { RouteConditionDto } from './route-condition.dto';
 
 export const ActionTypesList = [
   'totrunk', 'toexten', 'toqueue', 'togroup', 'tolist',
-  'toivr', 'toroute', 'playprompt', 'playback',
+  'toivr', 'toroute', 'playback',
   'setclid_custom', 'setclid_list',
-  'sendmail', 'sendmailpeer', 'telegram',
   'notify', 'callerid', 'trunk_carousel',
-  'voicemail', 'text2speech', 'voicerobot', 'asr', 'keywords',
-  'webhook', 'confbridge', 'cmd', 'tofax',
+  'voicemail', 'text2speech', 'voicerobot',
+  'webhook', 'confbridge', 'cmd',
   'label', 'busy', 'hangup', 'congestion',
 ];
 
