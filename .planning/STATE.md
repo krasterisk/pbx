@@ -5,13 +5,13 @@ milestone_name: milestone
 current_phase: 12
 current_phase_name: dialplan-apps-editor-refactor-reusable-route-chain-builder
 status: executing
-stopped_at: Completed 12-12-PLAN.md
-last_updated: "2026-08-20T01:55:39.921Z"
+stopped_at: Completed 12-13-PLAN.md
+last_updated: "2026-08-20T02:20:41.550Z"
 progress:
   total_phases: 12
   completed_phases: 8
   total_plans: 120
-  completed_plans: 113
+  completed_plans: 114
 ---
 
 # State
@@ -19,7 +19,7 @@ progress:
 ## Current position
 
 Phase: 12 (dialplan-apps-editor-refactor-reusable-route-chain-builder) — EXECUTING
-Plan 12-01 (Wave 0 characterization) complete: 3/3 tasks. Plan 12-02 (queue-by-route-mask tracer) complete: 2/2 tasks (human-approved). Plan 12-03 (per-type DTO expansion) complete: 3/3 tasks. Plan 12-04 (tenant-settings module) complete: 3/3 tasks. Plan 12-05 (generator core / Congestion()) complete: 3/3 tasks. Plan 12-06 (ConditionSource / hops / unreachable-tail) complete: 3/3 tasks. Plan 12-07 (FE editor core) complete: 4/4 tasks. Plan 12-08 (Sheet schema/options/conditions/host wiring) complete: 3/3 tasks. Plan 12-09 (tenant settings UI) complete: 2/2 tasks. Plan 12-10 (unified Playback) complete: 3/3 tasks (dual-read). Plan 12-11 (legacy PHP cleanup / notify / TTS) complete: 3/3 tasks. Plan 12-12 (params migration + legacy hard-remove) complete: 3/3 tasks (live write confirmed, second dry-run rowsChanged=0). Wave 8 done. Next sequential: 12-13.
+Plan 12-01 (Wave 0 characterization) complete: 3/3 tasks. Plan 12-02 (queue-by-route-mask tracer) complete: 2/2 tasks (human-approved). Plan 12-03 (per-type DTO expansion) complete: 3/3 tasks. Plan 12-04 (tenant-settings module) complete: 3/3 tasks. Plan 12-05 (generator core / Congestion()) complete: 3/3 tasks. Plan 12-06 (ConditionSource / hops / unreachable-tail) complete: 3/3 tasks. Plan 12-07 (FE editor core) complete: 4/4 tasks. Plan 12-08 (Sheet schema/options/conditions/host wiring) complete: 3/3 tasks. Plan 12-09 (tenant settings UI) complete: 2/2 tasks. Plan 12-10 (unified Playback) complete: 3/3 tasks (dual-read). Plan 12-11 (legacy PHP cleanup / notify / TTS) complete: 3/3 tasks. Plan 12-12 (params migration + legacy hard-remove) complete: 3/3 tasks (live write confirmed, second dry-run rowsChanged=0). Plan 12-13 (per-app generator/schema UI) complete: 3/3 tasks (TDD). Wave 9 done. Next sequential: 12-14.
 Migrations applied (2026-07-24): `cc_contacts` table + `cc_settings.journal_depth`. Live Asterisk A1/A3 checkpoint still deferred in WINDOWS.md.
 
 Also Phase 9 (complete, verify/UAT open):
@@ -226,6 +226,11 @@ Phase 1 — MOH: pending verify.
 - [Phase 12]: 12-12 voicemail is not removed — Phase 12b
 - [Phase 12]: 12-12 live write approved with the word write after --dry-run
 - [Phase 12]: 12-12 t(key, fallback) — dirty locale files not staged
+- [Phase 12]: Carousel: sequential Set(TC_I=1); random_then_failover RAND; never assign mode
+- [Phase 12]: setclid_list cache variable is KRSK_HTTP_RESULT
+- [Phase 12]: 12-13 t(key, fallback) — dirty locale files not staged
+- [Phase 12]: ConfBridge room stays unsuffixed (T-12-03-05 / T-12-13-03 accepted)
+- [Phase 12]: CallerIdApp pool editor keeps local Input/Select (kind custom)
 
 ## Roadmap Evolution
 
@@ -259,7 +264,7 @@ Phase 1 — MOH: pending verify.
 
 ## Next GSD command
 
-**Phase 12:** 12-01…12-12 complete (wave 8 params migration + hard-remove). Next sequential: **12-13**.
+**Phase 12:** 12-01…12-13 complete (wave 9 per-app carousel/CID/queue/exten/confbridge). Next sequential: **12-14**.
 
 Also open: Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 verify; Phase 8 / 08-11 Android smoke.
 
@@ -359,9 +364,10 @@ Also open: Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 veri
 | Phase 12-dialplan-apps-editor-refactor-reusable-route-chain-builder P11 | 60 | 3 tasks | 28 files |
 | Phase 12 P11 | 60 | 3 tasks | 28 files |
 | Phase 12 P12 | 90min | 3 tasks | 22 files |
+| Phase 12 P13 | 25 | 3 tasks | 20 files |
 
 ## Session
 
-**Last session:** 2026-08-20T01:55:39.853Z
-**Stopped at:** Completed 12-12-PLAN.md
+**Last session:** 2026-08-20T02:20:41.455Z
+**Stopped at:** Completed 12-13-PLAN.md
 **Resume file:** None
