@@ -16,6 +16,8 @@ export interface ICallGroupMember {
 export interface ICallGroup {
   uid: number;
   name: string;
+  /** Tenant-unique dialable number; keys the Asterisk context `group_{exten}_{uid}` (D-33) */
+  exten: string;
   strategy: RingStrategy;
   ring_time: number;
   /** Context for routing external numbers via LOCAL channel */

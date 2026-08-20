@@ -1,6 +1,7 @@
-import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ConflictException, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize-typescript';
+import { Op, UniqueConstraintError } from 'sequelize';
 import { CallGroup } from './call-group.model';
 import { CallGroupMember } from './call-group-member.model';
 import { DialplanApplyService } from '../ami/dialplan-apply.service';
@@ -27,6 +28,37 @@ export class CallGroupsService {
 
   private groupFile(vpbx: number): string {
     return `krasterisk/groups/group_${vpbx}.conf`;
+  }
+
+  /**
+   * Tenant-unique group number must not collide with another group, a queue, or an internal.
+   */
+  private async assertExtenFree(exten: string, vpbx: number, excludeUid?: number): Promise<void> {
+    const existing = await this.groupModel.findOne({
+      where: {
+        user_uid: vpbx,
+        exten,
+        ...(excludeUid !== undefined ? { uid: { [Op.ne]: excludeUid } } : {}),
+      },
+    });
+    if (existing) {
+      throw new ConflictException(
+        `Call group extension "${exten}" is already used by group "${existing.name}" (uid ${existing.uid})`,
+      );
+    }
+
+    const [queues] = await this.sequelize.query(
+      'SELECT name FROM queue_table WHERE name = :name LIMIT 1',
+      { replacements: { name: `q${exten}_${vpbx}` } },
+    );
+    if (Array.isArray(queues) && queues.length > 0) {
+      throw new ConflictException(`Extension "${exten}" is already used by a queue`);
+    }
+
+    const endpoints = await this.endpointsService.findAll(vpbx);
+    if (endpoints.some((e) => String(e.extension) === exten)) {
+      throw new ConflictException(`Extension "${exten}" is already used by an internal number`);
+    }
   }
 
   /**
@@ -131,9 +163,13 @@ export class CallGroupsService {
   }
 
   async create(dto: CreateCallGroupDto, vpbx: number) {
+    if (!dto.exten) {
+      throw new BadRequestException('exten is required');
+    }
     const data = { ...dto } as CreateCallGroupDto & { user_uid?: number };
     delete data.user_uid;
     const { members, ...groupData } = data;
+    await this.assertExtenFree(dto.exten, vpbx);
     await this.assertInternalMembersExist(members, vpbx);
 
     const transaction = await this.sequelize.transaction();
@@ -167,6 +203,11 @@ export class CallGroupsService {
       committed = true;
     } catch (e) {
       if (!committed) await transaction.rollback();
+      if (e instanceof UniqueConstraintError || (e as { name?: string })?.name === 'SequelizeUniqueConstraintError') {
+        throw new ConflictException(
+          `Call group extension "${dto.exten}" is already used in this tenant`,
+        );
+      }
       throw e;
     }
 
@@ -192,6 +233,9 @@ export class CallGroupsService {
     const data = { ...dto } as UpdateCallGroupDto & { user_uid?: number };
     delete data.user_uid;
     const { members, ...groupData } = data;
+    if (dto.exten) {
+      await this.assertExtenFree(dto.exten, vpbx, uid);
+    }
     if (members !== undefined) {
       await this.assertInternalMembersExist(members, vpbx);
     }
@@ -240,6 +284,11 @@ export class CallGroupsService {
       committed = true;
     } catch (e) {
       if (!committed) await transaction.rollback();
+      if (e instanceof UniqueConstraintError || (e as { name?: string })?.name === 'SequelizeUniqueConstraintError') {
+        throw new ConflictException(
+          `Call group extension "${dto.exten}" is already used in this tenant`,
+        );
+      }
       throw e;
     }
 

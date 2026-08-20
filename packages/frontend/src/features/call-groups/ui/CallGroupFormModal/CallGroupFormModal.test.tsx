@@ -124,6 +124,7 @@ describe('CallGroupFormModal', () => {
     render(<CallGroupFormModal />);
 
     fireEvent.change(screen.getByLabelText('Название'), { target: { value: 'Sales ring' } });
+    fireEvent.change(screen.getByLabelText('Номер'), { target: { value: '6007' } });
     fireEvent.change(screen.getByLabelText('Стратегия'), { target: { value: 'hunt' } });
 
     const addRow = screen.getByText('Добавить участника').closest('div') as HTMLElement;
@@ -162,6 +163,7 @@ describe('CallGroupFormModal', () => {
     const payload = rawCall?.[0];
     expect(payload).toBeDefined();
     expect(payload!.name).toBe('Sales ring');
+    expect((payload as { exten?: string }).exten).toBe('6007');
     expect(payload!.members).toHaveLength(2);
     expect(payload!.members[0]).toMatchObject({
       member_type: 'internal',

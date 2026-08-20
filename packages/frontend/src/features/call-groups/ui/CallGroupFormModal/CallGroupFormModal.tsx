@@ -62,6 +62,7 @@ export const CallGroupFormModal = memo(({ onSaved }: CallGroupFormModalProps) =>
   const { data: contexts = [] } = useGetContextsQuery(undefined, { skip: !isOpen });
 
   const [name, setName] = useState('');
+  const [exten, setExten] = useState('');
   const [strategy, setStrategy] = useState<RingStrategy>('ringall');
   const [ringTime, setRingTime] = useState('30');
   const [externalContext, setExternalContext] = useState(defaultContext);
@@ -82,6 +83,7 @@ export const CallGroupFormModal = memo(({ onSaved }: CallGroupFormModalProps) =>
 
     if ((mode === 'edit' || mode === 'copy') && groupData) {
       setName(mode === 'copy' ? `${groupData.name} (${t('common.copy', 'копия')})` : groupData.name);
+      setExten(mode === 'copy' ? '' : (groupData.exten || ''));
       setStrategy(groupData.strategy || 'ringall');
       setRingTime(String(groupData.ring_time ?? 30));
       setExternalContext(groupData.external_context || defaultContext);
@@ -97,6 +99,7 @@ export const CallGroupFormModal = memo(({ onSaved }: CallGroupFormModalProps) =>
       setMembers(loadedMembers);
     } else if (mode === 'create') {
       setName('');
+      setExten('');
       setStrategy('ringall');
       setRingTime('30');
       setExternalContext(defaultContext);
@@ -118,6 +121,16 @@ export const CallGroupFormModal = memo(({ onSaved }: CallGroupFormModalProps) =>
     const trimmedName = name.trim();
     if (!trimmedName) return;
 
+    const trimmedExten = exten.trim();
+    if (!trimmedExten) {
+      setSubmitError(t('callGroups.extenRequired', 'Укажите номер группы'));
+      return;
+    }
+    if (!/^\d{2,8}$/.test(trimmedExten)) {
+      setSubmitError(t('callGroups.extenInvalid', 'Номер должен содержать от 2 до 8 цифр'));
+      return;
+    }
+
     if (members.length === 0) {
       setSubmitError(t('callGroups.noMembers', 'Добавьте хотя бы одного участника'));
       return;
@@ -125,6 +138,7 @@ export const CallGroupFormModal = memo(({ onSaved }: CallGroupFormModalProps) =>
 
     const payload = {
       name: trimmedName,
+      exten: trimmedExten,
       strategy,
       ring_time: Number(ringTime) || undefined,
       external_context: externalContext.trim() || defaultContext,
@@ -146,11 +160,14 @@ export const CallGroupFormModal = memo(({ onSaved }: CallGroupFormModalProps) =>
       }
       onSaved?.(saved);
       handleClose();
-    } catch {
-      setSubmitError(t('common.error', 'Ошибка сохранения'));
+    } catch (err: unknown) {
+      const data = (err as { data?: { message?: string | string[] } })?.data;
+      const serverMsg = Array.isArray(data?.message) ? data.message.join(', ') : data?.message;
+      setSubmitError(serverMsg || t('common.error', 'Ошибка сохранения'));
     }
   }, [
     name,
+    exten,
     members,
     strategy,
     ringTime,
@@ -191,6 +208,21 @@ export const CallGroupFormModal = memo(({ onSaved }: CallGroupFormModalProps) =>
                 id="call-group-name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
+                required
+              />
+            </div>
+
+            <div className={cls.field}>
+              <HStack gap="4" align="center">
+                <Label htmlFor="call-group-exten">{t('callGroups.exten', 'Номер')}</Label>
+                <InfoTooltip text={t('callGroups.extenDesc', 'Уникальный номер группы в пределах АТС. Нужен для вызова группы по маске маршрута.')} />
+              </HStack>
+              <Input
+                id="call-group-exten"
+                value={exten}
+                onChange={(e) => setExten(e.target.value)}
+                inputMode="numeric"
+                pattern="\d{2,8}"
                 required
               />
             </div>

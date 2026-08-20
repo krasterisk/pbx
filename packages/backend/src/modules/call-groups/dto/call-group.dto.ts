@@ -4,9 +4,13 @@ import {
   IsNumber,
   IsIn,
   IsArray,
+  Matches,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+
+/** 2–8 digits — same envelope as queue/internal numbers (T-12-14-02) */
+export const CALL_GROUP_EXTEN_PATTERN = /^\d{2,8}$/;
 
 export class CallGroupMemberDto {
   @IsIn(['internal', 'external'])
@@ -26,6 +30,10 @@ export class CallGroupMemberDto {
 export class CreateCallGroupDto {
   @IsString()
   name: string;
+
+  @IsString()
+  @Matches(CALL_GROUP_EXTEN_PATTERN, { message: 'exten must be 2-8 digits' })
+  exten: string;
 
   @IsIn(['ringall', 'hunt', 'memoryhunt', 'random'])
   strategy: 'ringall' | 'hunt' | 'memoryhunt' | 'random';
@@ -53,6 +61,11 @@ export class UpdateCallGroupDto {
   @IsOptional()
   @IsString()
   name?: string;
+
+  @IsOptional()
+  @IsString()
+  @Matches(CALL_GROUP_EXTEN_PATTERN, { message: 'exten must be 2-8 digits' })
+  exten?: string;
 
   @IsOptional()
   @IsIn(['ringall', 'hunt', 'memoryhunt', 'random'])

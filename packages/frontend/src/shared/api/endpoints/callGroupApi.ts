@@ -14,6 +14,7 @@ export interface ICallGroupMemberInput {
 
 export interface ICreateCallGroup {
   name: string;
+  exten: string;
   strategy: RingStrategy;
   ring_time?: number;
   external_context?: string;
@@ -23,6 +24,7 @@ export interface ICreateCallGroup {
 
 export interface IUpdateCallGroup {
   name?: string;
+  exten?: string;
   strategy?: RingStrategy;
   ring_time?: number;
   external_context?: string;

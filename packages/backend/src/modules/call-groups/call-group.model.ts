@@ -9,6 +9,10 @@ export class CallGroup extends Model {
   @Column({ type: DataType.STRING(128), allowNull: false })
   declare name: string;
 
+  /** Tenant-unique number; NOT NULL after migrate-call-groups-exten */
+  @Column({ type: DataType.STRING(8), allowNull: false })
+  declare exten: string;
+
   @Column({
     type: DataType.ENUM('ringall', 'hunt', 'memoryhunt', 'random'),
     allowNull: false,

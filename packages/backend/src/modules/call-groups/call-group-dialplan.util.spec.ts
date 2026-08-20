@@ -7,6 +7,7 @@ function baseGroup(overrides: Partial<ICallGroup> = {}): ICallGroup {
   return {
     uid: 15,
     name: 'Sales dept',
+    exten: '15',
     strategy: 'ringall',
     ring_time: 25,
     external_context: 'ctx-42',
