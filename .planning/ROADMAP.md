@@ -699,7 +699,7 @@ Plans:
 - Предыдущая фаза по этой области: Phase 6 (`06-13`/`06-14`/`06-16` — apps + registry + inline group editor)
 
 **Status:** In Progress — 17 планов, waves 0…13 (`12-01`…`12-17`)
-**Plans:** 14/17 plans executed
+**Plans:** 15/17 plans executed
 
 - [x] 12-01-PLAN.md
 - [x] 12-02-PLAN.md
@@ -715,7 +715,7 @@ Plans:
 - [x] 12-12-PLAN.md
 - [x] 12-13-PLAN.md
 - [x] 12-14-PLAN.md
-- [ ] 12-15-PLAN.md
+- [x] 12-15-PLAN.md
 - [ ] 12-16-PLAN.md
 - [ ] 12-17-PLAN.md
 
@@ -821,7 +821,7 @@ Plans:
 - [x] `12-12-PLAN.md` — миграция данных `params` + hard-remove типов
 - [x] `12-13-PLAN.md` — per-app фиксы: транки, CallerID, очередь, exten, confbridge
 - [x] `12-14-PLAN.md` — `exten` у групп вызова + единая схема контекста с переходным `include`
-- [ ] `12-15-PLAN.md` — группы вызова уровня Ring Group: подтверждение, пропуск занятых, MOH
+- [x] `12-15-PLAN.md` — группы вызова уровня Ring Group: подтверждение, пропуск занятых, MOH
 - [ ] `12-16-PLAN.md` — новые типы действий: метка/переход/ветвление, расписание, HTTP, сбор ввода
 - [ ] `12-17-PLAN.md` — финальный гейт: ручные проверки M1, M4…M9, M12 + полный прогон
 
