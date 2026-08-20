@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 6
+open_count: 7
 waived_count: 0
 fixed_count: 0
-total_count: 6
-last_updated: 2026-08-19T07:27:22.769Z
+total_count: 7
+last_updated: 2026-08-20T02:38:06.854Z
 ---
 
 # Broken Windows Ledger
@@ -21,6 +21,7 @@ last_updated: 2026-08-19T07:27:22.769Z
 | 4 | 11 | unrun-verify | harness/scenarios/api/moh-crud.test.ts |  | Live harness:api --tag moh deferred (backend not running during 11-03 execution) | open |  | 2026-08-04T13:02:03.163Z |  |
 | 5 | 12 | deviation | packages/frontend/src/shared/config/locales/ru.ts |  | 12-02 close-out skipped ru.ts/en.ts (mixed with unrelated WIP); routes.chain keys remain unstaged | open |  | 2026-08-19T06:47:39.880Z |  |
 | 6 | 12 | deviation | packages/frontend/src/shared/config/locales/ru.ts |  | routes.action.congestion added in working tree but not committed (WIP mix) | open |  | 2026-08-19T07:27:22.769Z |  |
+| 7 | 12 | unrun-verify | packages/backend/src/modules/call-groups/migrate-call-groups-exten.ts |  | Live MySQL ALTER not run; human must execute migrate-call-groups-exten.ts twice | open |  | 2026-08-20T02:38:06.854Z |  |
 
 ````json
 [
@@ -94,6 +95,18 @@ last_updated: 2026-08-19T07:27:22.769Z
     "status": "open",
     "reason": "",
     "recorded_at": "2026-08-19T07:27:22.769Z",
+    "resolved_at": null
+  },
+  {
+    "id": 7,
+    "kind": "unrun-verify",
+    "phase": "12",
+    "file": "packages/backend/src/modules/call-groups/migrate-call-groups-exten.ts",
+    "line": null,
+    "description": "Live MySQL ALTER not run; human must execute migrate-call-groups-exten.ts twice",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-08-20T02:38:06.854Z",
     "resolved_at": null
   }
 ]
