@@ -418,3 +418,138 @@ describe('generateGroupDialplan (D-33 unified context + transitional include)', 
     },
   );
 });
+
+function dialMemberOrder(lines: string[]): string[] {
+  const order: string[] = [];
+  for (const line of lines) {
+    const dial = /Dial\(([^,]+),/.exec(line);
+    if (!dial) continue;
+    for (const target of dial[1].split('&')) {
+      const ext = /PJSIP\/e(\d+)_/.exec(target) ?? /LOCAL\/(\d+)@/.exec(target);
+      if (ext) order.push(ext[1]);
+    }
+  }
+  return order;
+}
+
+describe('generateGroupDialplan (D-35 callerid restore + full random shuffle)', () => {
+  it('saves CALLERID(name) before the prefix and restores it before Return()', () => {
+    const result = generateGroupDialplan(
+      baseGroup({ strategy: 'ringall', cid_prefix: 'Sales' }),
+      sampleMembers(),
+      VPBX,
+    );
+    const joined = result.lines.join('\n');
+    const saveIdx = joined.indexOf('Set(KRSK_CID_NAME=${CALLERID(name)})');
+    const prefixIdx = joined.indexOf('Set(CALLERID(name)=Sales ${CALLERID(name)})');
+    const restoreIdx = joined.indexOf('Set(CALLERID(name)=${KRSK_CID_NAME})');
+    const returnIdx = joined.indexOf('same => n,Return()');
+    expect(saveIdx).toBeGreaterThan(-1);
+    expect(prefixIdx).toBeGreaterThan(saveIdx);
+    expect(restoreIdx).toBeGreaterThan(prefixIdx);
+    expect(restoreIdx).toBeLessThan(returnIdx);
+  });
+
+  it('emits neither save nor restore when cid_prefix is absent', () => {
+    const result = generateGroupDialplan(baseGroup({ strategy: 'ringall' }), sampleMembers(), VPBX);
+    const joined = result.lines.join('\n');
+    expect(joined).not.toContain('KRSK_CID_NAME');
+    expect(joined).not.toContain('Set(CALLERID(name)=');
+  });
+
+  it('random shuffles the whole list: each of 5 members appears at each position in 200 runs', () => {
+    const five: ICallGroupMember[] = [1, 2, 3, 4, 5].map((i) => ({
+      uid: i,
+      call_group_uid: 15,
+      member_type: 'internal' as const,
+      value: String(100 + i),
+      position: i,
+      ring_time: 15,
+      user_uid: VPBX,
+    }));
+    const seen: boolean[][] = Array.from({ length: 5 }, () => [false, false, false, false, false]);
+    let seed = 1;
+    const rng = () => {
+      seed = (seed * 1664525 + 1013904223) >>> 0;
+      return seed / 0x100000000;
+    };
+    for (let i = 0; i < 200; i++) {
+      const result = generateGroupDialplan(
+        baseGroup({ strategy: 'random', exten: '600' }),
+        five,
+        VPBX,
+        undefined,
+        { rng },
+      );
+      const order = dialMemberOrder(result.lines);
+      expect(order).toHaveLength(5);
+      order.forEach((value, pos) => {
+        const idx = Number(value) - 101;
+        seen[idx][pos] = true;
+      });
+    }
+    for (let member = 0; member < 5; member++) {
+      for (let pos = 0; pos < 5; pos++) {
+        expect(seen[member][pos]).toBe(true);
+      }
+    }
+  });
+
+  it('random with a single member does not throw and emits one Dial', () => {
+    const one: ICallGroupMember[] = [{
+      uid: 1,
+      call_group_uid: 15,
+      member_type: 'internal',
+      value: '101',
+      position: 1,
+      ring_time: 10,
+      user_uid: VPBX,
+    }];
+    const result = generateGroupDialplan(
+      baseGroup({ strategy: 'random', exten: '600' }),
+      one,
+      VPBX,
+      undefined,
+      { rng: () => 0.5 },
+    );
+    expect(result.lines.join('\n').split('Dial(').length - 1).toBe(1);
+    expect(result.lines.join('\n')).toContain('PJSIP/e101_42');
+    expect(result.lines[result.lines.length - 1]).toBe('same => n,Return()');
+  });
+
+  it.each(['ringall', 'hunt', 'memoryhunt'] as const)(
+    '%s remains byte-identical to the 12-01 baseline (exten 15, no include)',
+    (strategy) => {
+      const result = generateGroupDialplan(baseGroup({ strategy, exten: '15' }), sampleMembers(), VPBX);
+      const expected: Record<typeof strategy, string> = {
+        ringall: [
+          '[group_15_42]',
+          'exten => start,1,NoOp(Call group: Sales dept [ringall])',
+          'same => n,Dial(PJSIP/e101_42&PJSIP/e102_42&LOCAL/79001234567@ctx-42,25,tT)',
+          'same => n,Return()',
+        ].join('\n'),
+        hunt: [
+          '[group_15_42]',
+          'exten => start,1,NoOp(Call group: Sales dept [hunt])',
+          'same => n,Dial(PJSIP/e101_42,20,tT)',
+          'same => n,ExecIf($["${DIALSTATUS}" = "ANSWER"]?Return())',
+          'same => n,Dial(PJSIP/e102_42,15,tT)',
+          'same => n,ExecIf($["${DIALSTATUS}" = "ANSWER"]?Return())',
+          'same => n,Dial(LOCAL/79001234567@ctx-42,30,tT)',
+          'same => n,Return()',
+        ].join('\n'),
+        memoryhunt: [
+          '[group_15_42]',
+          'exten => start,1,NoOp(Call group: Sales dept [memoryhunt])',
+          'same => n,Dial(PJSIP/e101_42,20,tT)',
+          'same => n,ExecIf($["${DIALSTATUS}" = "ANSWER"]?Return())',
+          'same => n,Dial(PJSIP/e101_42&PJSIP/e102_42,15,tT)',
+          'same => n,ExecIf($["${DIALSTATUS}" = "ANSWER"]?Return())',
+          'same => n,Dial(PJSIP/e101_42&PJSIP/e102_42&LOCAL/79001234567@ctx-42,30,tT)',
+          'same => n,Return()',
+        ].join('\n'),
+      };
+      expect(result.lines.join('\n')).toBe(expected[strategy]);
+    },
+  );
+});
