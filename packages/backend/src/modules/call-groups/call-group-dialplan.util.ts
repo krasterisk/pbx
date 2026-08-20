@@ -38,13 +38,41 @@ function buildDialLine(targets: string, ringTime: number, dialOpts: string): str
   return `same => n,Dial(${targets},${ringTime},${dialOpts})`;
 }
 
-function maybeCidPrefix(lines: string[], group: ICallGroup): void {
-  if (group.cid_prefix) {
-    const prefix = AsteriskDialplanUtils.sanitizeDialplanInput(group.cid_prefix);
-    if (prefix) {
-      lines.push(`same => n,Set(CALLERID(name)=${prefix} \${CALLERID(name)})`);
-    }
+/**
+ * Prefix install and rollback live in one function so restore cannot be forgotten (D-35 / T-12-14-04).
+ */
+function cidPrefixOps(group: ICallGroup): {
+  enter: string[];
+  beforeReturn: string[];
+  beforeAnswerReturn: string[];
+} {
+  const prefix = group.cid_prefix
+    ? AsteriskDialplanUtils.sanitizeDialplanInput(group.cid_prefix)
+    : '';
+  if (!prefix) {
+    return { enter: [], beforeReturn: [], beforeAnswerReturn: [] };
   }
+  return {
+    enter: [
+      'same => n,Set(KRSK_CID_NAME=${CALLERID(name)})',
+      `same => n,Set(CALLERID(name)=${prefix} \${CALLERID(name)})`,
+    ],
+    beforeReturn: ['same => n,Set(CALLERID(name)=${KRSK_CID_NAME})'],
+    beforeAnswerReturn: [
+      'same => n,ExecIf($["${DIALSTATUS}" = "ANSWER"]?Set(CALLERID(name)=${KRSK_CID_NAME}))',
+    ],
+  };
+}
+
+function shuffleCopy<T>(items: T[], rng: () => number): T[] {
+  const out = [...items];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    const swap = out[i];
+    out[i] = out[j];
+    out[j] = swap;
+  }
+  return out;
 }
 
 function emitRingall(
@@ -55,11 +83,13 @@ function emitRingall(
   webrtcExtensions: Set<string> | undefined,
   dialOpts: string,
 ): void {
-  maybeCidPrefix(lines, group);
+  const cid = cidPrefixOps(group);
+  lines.push(...cid.enter);
   const targets = members
     .map((m) => memberInterface(m, vpbx, group.external_context, webrtcExtensions))
     .join('&');
   lines.push(buildDialLine(targets, group.ring_time, dialOpts));
+  lines.push(...cid.beforeReturn);
   lines.push(FINAL_RETURN);
 }
 
@@ -71,7 +101,8 @@ function emitHunt(
   webrtcExtensions: Set<string> | undefined,
   dialOpts: string,
 ): void {
-  maybeCidPrefix(lines, group);
+  const cid = cidPrefixOps(group);
+  lines.push(...cid.enter);
   for (let i = 0; i < members.length; i++) {
     const member = members[i];
     lines.push(
@@ -82,9 +113,11 @@ function emitHunt(
       ),
     );
     if (i < members.length - 1) {
+      lines.push(...cid.beforeAnswerReturn);
       lines.push(ANSWER_RETURN);
     }
   }
+  lines.push(...cid.beforeReturn);
   lines.push(FINAL_RETURN);
 }
 
@@ -96,7 +129,8 @@ function emitMemoryhunt(
   webrtcExtensions: Set<string> | undefined,
   dialOpts: string,
 ): void {
-  maybeCidPrefix(lines, group);
+  const cid = cidPrefixOps(group);
+  lines.push(...cid.enter);
   for (let i = 0; i < members.length; i++) {
     const subset = members.slice(0, i + 1);
     const targets = subset
@@ -104,9 +138,11 @@ function emitMemoryhunt(
       .join('&');
     lines.push(buildDialLine(targets, members[i].ring_time, dialOpts));
     if (i < members.length - 1) {
+      lines.push(...cid.beforeAnswerReturn);
       lines.push(ANSWER_RETURN);
     }
   }
+  lines.push(...cid.beforeReturn);
   lines.push(FINAL_RETURN);
 }
 
@@ -117,34 +153,35 @@ function emitRandom(
   vpbx: number,
   webrtcExtensions: Set<string> | undefined,
   dialOpts: string,
+  rng: () => number,
 ): void {
-  // v1 simplification (RESEARCH A1): random first member, then remaining in order — not full N! shuffle.
-  const n = members.length;
-  maybeCidPrefix(lines, group);
-  lines.push(`same => n,Set(GRP_PICK=\${RAND(1,${n})})`);
-
-  for (let i = 1; i < n; i++) {
-    lines.push(`same => n,GotoIf($["\${GRP_PICK}" = "${i}"]?m${i})`);
-  }
-  lines.push(`same => n,Goto(m${n})`);
-
-  for (let i = 0; i < n; i++) {
-    const first = members[i];
-    const rest = [...members.slice(0, i), ...members.slice(i + 1)];
-
-    lines.push(
-      `same => n(m${i + 1}),Dial(${memberInterface(first, vpbx, group.external_context, webrtcExtensions)},${first.ring_time},${dialOpts})`,
-    );
-    lines.push(ANSWER_RETURN);
-
-    if (rest.length > 0) {
-      const restTargets = rest
-        .map((m) => memberInterface(m, vpbx, group.external_context, webrtcExtensions))
-        .join('&');
-      lines.push(buildDialLine(restTargets, group.ring_time, dialOpts));
-    }
+  const shuffled = shuffleCopy(members, rng);
+  const cid = cidPrefixOps(group);
+  lines.push(...cid.enter);
+  const first = shuffled[0];
+  if (!first) {
+    lines.push(...cid.beforeReturn);
     lines.push(FINAL_RETURN);
+    return;
   }
+  lines.push(
+    buildDialLine(
+      memberInterface(first, vpbx, group.external_context, webrtcExtensions),
+      first.ring_time,
+      dialOpts,
+    ),
+  );
+  if (shuffled.length > 1) {
+    lines.push(...cid.beforeAnswerReturn);
+    lines.push(ANSWER_RETURN);
+    const restTargets = shuffled
+      .slice(1)
+      .map((m) => memberInterface(m, vpbx, group.external_context, webrtcExtensions))
+      .join('&');
+    lines.push(buildDialLine(restTargets, group.ring_time, dialOpts));
+  }
+  lines.push(...cid.beforeReturn);
+  lines.push(FINAL_RETURN);
 }
 
 export function generateGroupDialplan(
@@ -155,6 +192,7 @@ export function generateGroupDialplan(
   options?: GenerateGroupDialplanOptions,
 ): GeneratedDialplanCategory {
   const dialOpts = options?.dialOpts ?? 'tT';
+  const rng = options?.rng ?? (Math as { random(): number }).random.bind(Math);
   const ctxName = normalizeTarget('group', { source: 'fixed', value: group.exten }, vpbx);
   const sorted = sortMembers(members);
   const lines: string[] = [];
@@ -177,7 +215,7 @@ export function generateGroupDialplan(
       emitMemoryhunt(lines, group, sorted, vpbx, webrtcExtensions, dialOpts);
       break;
     case 'random':
-      emitRandom(lines, group, sorted, vpbx, webrtcExtensions, dialOpts);
+      emitRandom(lines, group, sorted, vpbx, webrtcExtensions, dialOpts, rng);
       break;
   }
 

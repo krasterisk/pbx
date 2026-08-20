@@ -129,27 +129,19 @@ describe('generateGroupDialplan', () => {
   });
 
   describe('random strategy', () => {
-    it('emits RAND pick, GotoIf branches, and per-branch hunt of remaining members', () => {
+    it('emits first-then-rest Dial on a generate-time shuffle (identity rng keeps original order)', () => {
       const members = sampleMembers();
       const group = baseGroup({ strategy: 'random' });
-      const result = generateGroupDialplan(group, members, VPBX);
+      const result = generateGroupDialplan(group, members, VPBX, undefined, { rng: () => 0.999 });
 
       expect(result.lines).toContain(`exten => start,1,NoOp(Call group: ${group.name} [random])`);
-      expect(result.lines).toContain('same => n,Set(GRP_PICK=${RAND(1,3)})');
-      expect(result.lines).toContain('same => n,GotoIf($["${GRP_PICK}" = "1"]?m1)');
-      expect(result.lines).toContain('same => n,GotoIf($["${GRP_PICK}" = "2"]?m2)');
-      expect(result.lines).toContain('same => n,Goto(m3)');
-      expect(result.lines).toContain(`same => n(m1),Dial(${memberInterface(members[0], VPBX, group.external_context)},20,tT)`);
+      expect(result.lines.join('\n')).not.toContain('GRP_PICK');
+      expect(result.lines).toContain(
+        `same => n,Dial(${memberInterface(members[0], VPBX, group.external_context)},20,tT)`,
+      );
+      expect(result.lines).toContain('same => n,ExecIf($["${DIALSTATUS}" = "ANSWER"]?Return())');
       expect(result.lines).toContain(
         `same => n,Dial(${memberInterface(members[1], VPBX, group.external_context)}&${memberInterface(members[2], VPBX, group.external_context)},25,tT)`,
-      );
-      expect(result.lines).toContain(`same => n(m2),Dial(${memberInterface(members[1], VPBX, group.external_context)},15,tT)`);
-      expect(result.lines).toContain(
-        `same => n,Dial(${memberInterface(members[0], VPBX, group.external_context)}&${memberInterface(members[2], VPBX, group.external_context)},25,tT)`,
-      );
-      expect(result.lines).toContain(`same => n(m3),Dial(${memberInterface(members[2], VPBX, group.external_context)},30,tT)`);
-      expect(result.lines).toContain(
-        `same => n,Dial(${memberInterface(members[0], VPBX, group.external_context)}&${memberInterface(members[1], VPBX, group.external_context)},25,tT)`,
       );
       assertNeverHangupAlwaysReturn(result.lines);
     });
@@ -319,45 +311,41 @@ describe('generateGroupDialplan (Wave 0 exact toBe baselines)', () => {
     );
   });
 
-  it('random full output is exact', () => {
-    const result = generateGroupDialplan(baseGroup({ strategy: 'random' }), sampleMembers(), VPBX);
+  it('random full output is first-then-rest on an identity shuffle (D-35)', () => {
+    const result = generateGroupDialplan(
+      baseGroup({ strategy: 'random' }),
+      sampleMembers(),
+      VPBX,
+      undefined,
+      { rng: () => 0.999 },
+    );
     expect(result.lines.join('\n')).toBe(
       [
         '[group_15_42]',
         'exten => start,1,NoOp(Call group: Sales dept [random])',
-        'same => n,Set(GRP_PICK=${RAND(1,3)})',
-        'same => n,GotoIf($["${GRP_PICK}" = "1"]?m1)',
-        'same => n,GotoIf($["${GRP_PICK}" = "2"]?m2)',
-        'same => n,Goto(m3)',
-        'same => n(m1),Dial(PJSIP/e101_42,20,tT)',
+        'same => n,Dial(PJSIP/e101_42,20,tT)',
         'same => n,ExecIf($["${DIALSTATUS}" = "ANSWER"]?Return())',
         'same => n,Dial(PJSIP/e102_42&LOCAL/79001234567@ctx-42,25,tT)',
-        'same => n,Return()',
-        'same => n(m2),Dial(PJSIP/e102_42,15,tT)',
-        'same => n,ExecIf($["${DIALSTATUS}" = "ANSWER"]?Return())',
-        'same => n,Dial(PJSIP/e101_42&LOCAL/79001234567@ctx-42,25,tT)',
-        'same => n,Return()',
-        'same => n(m3),Dial(LOCAL/79001234567@ctx-42,30,tT)',
-        'same => n,ExecIf($["${DIALSTATUS}" = "ANSWER"]?Return())',
-        'same => n,Dial(PJSIP/e101_42&PJSIP/e102_42,25,tT)',
         'same => n,Return()',
       ].join('\n'),
     );
   });
 
-  it('CALLERID(name) after cid_prefix is not restored after Return() (D-35 baseline)', () => {
+  it('CALLERID(name) is restored before Return() (D-35)', () => {
     const result = generateGroupDialplan(
       baseGroup({ strategy: 'ringall', cid_prefix: 'Sales' }),
       sampleMembers(),
       VPBX,
     );
     const joined = result.lines.join('\n');
-    const returnIndex = joined.lastIndexOf('same => n,Return()');
-    expect(joined.slice(returnIndex)).toBe('same => n,Return()');
+    const restoreIdx = joined.indexOf('Set(CALLERID(name)=${KRSK_CID_NAME})');
+    const returnIdx = joined.lastIndexOf('same => n,Return()');
+    expect(restoreIdx).toBeGreaterThan(-1);
+    expect(restoreIdx).toBeLessThan(returnIdx);
     expect(joined).toContain('same => n,Set(CALLERID(name)=Sales ${CALLERID(name)})');
   });
 
-  it('random with five members emits 10 Dial() blocks (D-35 baseline)', () => {
+  it('random with five members emits 2 Dial() blocks after generate-time shuffle (D-35)', () => {
     const five: ICallGroupMember[] = [1, 2, 3, 4, 5].map((i) => ({
       uid: i,
       call_group_uid: 15,
@@ -367,8 +355,14 @@ describe('generateGroupDialplan (Wave 0 exact toBe baselines)', () => {
       ring_time: 15,
       user_uid: VPBX,
     }));
-    const result = generateGroupDialplan(baseGroup({ strategy: 'random' }), five, VPBX);
-    expect(result.lines.join('\n').split('Dial(').length - 1).toBe(10);
+    const result = generateGroupDialplan(
+      baseGroup({ strategy: 'random' }),
+      five,
+      VPBX,
+      undefined,
+      { rng: () => 0.999 },
+    );
+    expect(result.lines.join('\n').split('Dial(').length - 1).toBe(2);
     expect(result.name).toBe('group_15_42');
   });
 });
