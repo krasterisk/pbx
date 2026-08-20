@@ -131,7 +131,7 @@ describe('CallGroupsService', () => {
       expect(transaction.commit).toHaveBeenCalled();
       expect(dialplanApplyService.applyCategories).toHaveBeenCalledWith(
         `krasterisk/groups/group_${vpbx}.conf`,
-        [expect.objectContaining({ name: `group_7_${vpbx}` })],
+        [expect.objectContaining({ name: `group_6007_${vpbx}` })],
         { reload: true },
       );
       expect(result.uid).toBe(7);
@@ -254,7 +254,7 @@ describe('CallGroupsService', () => {
       expect(transaction.commit).toHaveBeenCalled();
       expect(dialplanApplyService.applyCategories).toHaveBeenCalledWith(
         `krasterisk/groups/group_${vpbx}.conf`,
-        [expect.objectContaining({ name: `group_7_${vpbx}` })],
+        [expect.objectContaining({ name: `group_6007_${vpbx}` })],
         { reload: true },
       );
     });
@@ -302,7 +302,7 @@ describe('CallGroupsService', () => {
       expect(transaction.commit).toHaveBeenCalled();
       expect(dialplanApplyService.deleteCategories).toHaveBeenCalledWith(
         `krasterisk/groups/group_${vpbx}.conf`,
-        [`group_7_${vpbx}`],
+        [`group_6007_${vpbx}`, `group_7_${vpbx}`],
         { reload: true },
       );
     });

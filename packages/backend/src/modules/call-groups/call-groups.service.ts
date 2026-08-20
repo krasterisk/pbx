@@ -6,6 +6,7 @@ import { CallGroup } from './call-group.model';
 import { CallGroupMember } from './call-group-member.model';
 import { DialplanApplyService } from '../ami/dialplan-apply.service';
 import { generateGroupDialplan } from './call-group-dialplan.util';
+import { normalizeTarget } from '../../shared/utils/dialplan-target.util';
 import {
   CreateCallGroupDto,
   UpdateCallGroupDto,
@@ -117,10 +118,14 @@ export class CallGroupsService {
     );
   }
 
-  private async removeGroupContext(uid: number, vpbx: number): Promise<void> {
+  private async removeGroupContext(group: CallGroup, vpbx: number): Promise<void> {
+    const names = [
+      normalizeTarget('group', { source: 'fixed', value: group.exten }, vpbx),
+      `group_${group.uid}_${vpbx}`,
+    ];
     await this.dialplanApplyService.deleteCategories(
       this.groupFile(vpbx),
-      [`group_${uid}_${vpbx}`],
+      [...new Set(names)],
       { reload: true },
     );
   }
@@ -325,7 +330,7 @@ export class CallGroupsService {
     }
 
     try {
-      await this.removeGroupContext(uid, vpbx);
+      await this.removeGroupContext(group, vpbx);
     } catch (e: any) {
       this.logger.error(
         `Dialplan remove failed for call group ${uid} (${this.groupFile(vpbx)}); DB deleted — dialplan may need cleanup: ${e?.message || e}`,
