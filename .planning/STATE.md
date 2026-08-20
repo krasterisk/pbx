@@ -5,13 +5,13 @@ milestone_name: milestone
 current_phase: 12
 current_phase_name: dialplan-apps-editor-refactor-reusable-route-chain-builder
 status: executing
-stopped_at: Completed 12-15-PLAN.md
-last_updated: "2026-08-20T03:03:59.123Z"
+stopped_at: Completed 12-16-PLAN.md
+last_updated: "2026-08-20T03:30:52.848Z"
 progress:
   total_phases: 12
   completed_phases: 8
   total_plans: 120
-  completed_plans: 116
+  completed_plans: 117
 ---
 
 # State
@@ -19,7 +19,7 @@ progress:
 ## Current position
 
 Phase: 12 (dialplan-apps-editor-refactor-reusable-route-chain-builder) — EXECUTING
-Plan 12-01 (Wave 0 characterization) complete: 3/3 tasks. Plan 12-02 (queue-by-route-mask tracer) complete: 2/2 tasks (human-approved). Plan 12-03 (per-type DTO expansion) complete: 3/3 tasks. Plan 12-04 (tenant-settings module) complete: 3/3 tasks. Plan 12-05 (generator core / Congestion()) complete: 3/3 tasks. Plan 12-06 (ConditionSource / hops / unreachable-tail) complete: 3/3 tasks. Plan 12-07 (FE editor core) complete: 4/4 tasks. Plan 12-08 (Sheet schema/options/conditions/host wiring) complete: 3/3 tasks. Plan 12-09 (tenant settings UI) complete: 2/2 tasks. Plan 12-10 (unified Playback) complete: 3/3 tasks (dual-read). Plan 12-11 (legacy PHP cleanup / notify / TTS) complete: 3/3 tasks. Plan 12-12 (params migration + legacy hard-remove) complete: 3/3 tasks (live write confirmed, second dry-run rowsChanged=0). Plan 12-13 (per-app generator/schema UI) complete: 3/3 tasks (TDD). Wave 9 done. Plan 12-14 (call-group exten + unified context) complete: 4/4 tasks (TDD; live ALTER deferred). Wave 10 done. Plan 12-15 (Ring Group options D-34) complete: 3/3 tasks (TDD; live ALTER deferred). Wave 11 done. Next sequential: 12-16.
+Plan 12-01 (Wave 0 characterization) complete: 3/3 tasks. Plan 12-02 (queue-by-route-mask tracer) complete: 2/2 tasks (human-approved). Plan 12-03 (per-type DTO expansion) complete: 3/3 tasks. Plan 12-04 (tenant-settings module) complete: 3/3 tasks. Plan 12-05 (generator core / Congestion()) complete: 3/3 tasks. Plan 12-06 (ConditionSource / hops / unreachable-tail) complete: 3/3 tasks. Plan 12-07 (FE editor core) complete: 4/4 tasks. Plan 12-08 (Sheet schema/options/conditions/host wiring) complete: 3/3 tasks. Plan 12-09 (tenant settings UI) complete: 2/2 tasks. Plan 12-10 (unified Playback) complete: 3/3 tasks (dual-read). Plan 12-11 (legacy PHP cleanup / notify / TTS) complete: 3/3 tasks. Plan 12-12 (params migration + legacy hard-remove) complete: 3/3 tasks (live write confirmed, second dry-run rowsChanged=0). Plan 12-13 (per-app generator/schema UI) complete: 3/3 tasks (TDD). Wave 9 done. Plan 12-14 (call-group exten + unified context) complete: 4/4 tasks (TDD; live ALTER deferred). Wave 10 done. Plan 12-15 (Ring Group options D-34) complete: 3/3 tasks (TDD; live ALTER deferred). Wave 11 done. Plan 12-16 (new action types D-44/D-45/D-47/D-49) complete: 3/3 tasks (TDD). Wave 12 done. Next sequential: 12-17.
 Migrations applied (2026-07-24): `cc_contacts` table + `cc_settings.journal_depth`. Live Asterisk A1/A3 checkpoint still deferred in WINDOWS.md.
 
 Also Phase 9 (complete, verify/UAT open):
@@ -237,6 +237,11 @@ Phase 1 — MOH: pending verify.
 - [Phase 12]: 12-15: external = member_type === external (same as memberInterface)
 - [Phase 12]: 12-15: Live ALTER not run — mock QI; human runs migrate-call-groups-ring-options.ts
 - [Phase 12]: 12-15: t(key, fallback) — dirty locale files not staged
+- [Phase 12]: 12-16: label emits NoOp(name) + prefixSamePriority so GotoIf can land on n(name)
+- [Phase 12]: 12-16: branch condition lives in params.condition to avoid double wrapEachLine
+- [Phase 12]: 12-16: HTTP result variable is HTTP_RESULT_VAR (KRSK_HTTP_RESULT); invalid URL at emit → NoOp(Invalid HTTP URL)
+- [Phase 12]: 12-16: t(key, fallback) — dirty locale files not staged
+- [Phase 12]: 12-16: ActionTypesList / DIALPLAN_ACTION_META / registry now 28 types
 
 ## Roadmap Evolution
 
@@ -270,7 +275,7 @@ Phase 1 — MOH: pending verify.
 
 ## Next GSD command
 
-**Phase 12:** 12-01…12-15 complete (wave 11 Ring Group options). Next sequential: **12-16**. Live `migrate-call-groups-exten.ts` and `migrate-call-groups-ring-options.ts` still need a human run.
+**Phase 12:** 12-01…12-16 complete (wave 12 new action types). Next sequential: **12-17** final gate. Live `migrate-call-groups-exten.ts` and `migrate-call-groups-ring-options.ts` still need a human run.
 
 Also open: Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 verify; Phase 8 / 08-11 Android smoke.
 
@@ -373,9 +378,10 @@ Also open: Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 veri
 | Phase 12 P13 | 25 | 3 tasks | 20 files |
 | Phase 12 P14 | 15 | 4 tasks | 13 files |
 | Phase 12 P15 | 21 | 3 tasks | 16 files |
+| Phase 12 P16 | 23min | 3 tasks | 32 files |
 
 ## Session
 
-**Last session:** 2026-08-20T03:03:59.056Z
-**Stopped at:** Completed 12-15-PLAN.md
+**Last session:** 2026-08-20T03:30:52.778Z
+**Stopped at:** Completed 12-16-PLAN.md
 **Resume file:** None
