@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useTranslation } from 'react-i18next';
+import type { TranslateFn } from '@/shared/lib/translateFn';
 import { toast } from 'react-toastify';
 import {
   PhoneIncoming, PhoneOutgoing, Phone, PhoneMissed, PhoneCall, IdCard,
@@ -71,7 +72,7 @@ function peerLabel(row: Pick<IOperatorHistoryRow, 'callerIdNum' | 'callerIdName'
 
 function dispositionLabel(
   disposition: string | null | undefined,
-  t: (key: string, fallback?: string) => string,
+  t: TranslateFn,
 ): { text: string; tone: 'success' | 'danger' | 'muted' } | null {
   switch (disposition) {
     case 'answered':

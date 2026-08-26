@@ -707,7 +707,7 @@ export function CallCenterAgentPage() {
         sinkId: result.sinkId,
       });
       await phone.connect({
-        server: webrtcConfig.wssUrl,
+        server: webrtcConfig.wssUrl ?? '',
         sipUser: result.credentials.username,
         sipPassword: result.credentials.password,
         sipDomain: result.credentials.domain,
@@ -779,7 +779,7 @@ export function CallCenterAgentPage() {
       const saved = loadActiveShift();
       const connectWithCreds = async (creds: IEndpointCredentials) => {
         await phone.connect({
-          server: webrtcConfig.wssUrl,
+          server: webrtcConfig.wssUrl ?? '',
           sipUser: creds.username,
           sipPassword: creds.password,
           sipDomain: creds.domain,
@@ -950,7 +950,7 @@ export function CallCenterAgentPage() {
             });
           }
           await phoneConnect({
-            server: webrtcConfig.wssUrl,
+            server: webrtcConfig.wssUrl ?? '',
             sipUser: creds.username,
             sipPassword: creds.password,
             sipDomain: creds.domain,

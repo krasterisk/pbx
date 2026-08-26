@@ -92,10 +92,12 @@ export function SettingsPage() {
                 <Icon className={cls.sectionIcon} />
                 <VStack gap="2" className="min-w-0">
                   <Text className={cls.sectionTitle}>
-                    {t(section.titleKey, section.key === 'tenant' ? 'Маршруты' : undefined)}
+                    {section.key === 'tenant' ? t(section.titleKey, 'Маршруты') : t(section.titleKey)}
                   </Text>
                   <Text variant="small" className={cls.sectionDesc}>
-                    {t(section.descKey, section.key === 'tenant' ? 'Видимость dialplan и блок-схемы в форме маршрута' : undefined)}
+                    {section.key === 'tenant'
+                      ? t(section.descKey, 'Видимость dialplan и блок-схемы в форме маршрута')
+                      : t(section.descKey)}
                   </Text>
                 </VStack>
               </HStack>

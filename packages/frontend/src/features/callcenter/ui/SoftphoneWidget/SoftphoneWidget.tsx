@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import type { TranslateFn } from '@/shared/lib/translateFn';
 import { toast } from 'react-toastify';
 import {
   Mic, MicOff, Pause, Play, Phone, PhoneOff, PhoneForwarded, PhoneIncoming, Users,
@@ -211,7 +212,7 @@ function registrationVisual(status: string, mode: SoftphoneMode): RegVisual {
 
 function dialFailureMessage(
   failure: DialFailure,
-  t: (key: string, fallback?: string) => string,
+  t: TranslateFn,
 ): string {
   switch (failure.kind) {
     case 'busy':

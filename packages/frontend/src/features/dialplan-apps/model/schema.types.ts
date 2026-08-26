@@ -74,6 +74,7 @@ export interface FieldSchema {
   labelKey: string;
   /** Fallback shown when the locale key is missing (t(key, fallback)). */
   label?: string;
+  placeholder?: string;
   /** Hide visible field label (keep aria-label). Useful when a section title already names the field. */
   hideLabel?: boolean;
   /**

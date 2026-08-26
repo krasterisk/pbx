@@ -25,6 +25,7 @@ import {
   useUploadUserAvatarMutation,
   useDeleteUserAvatarMutation,
 } from '@/shared/api/api';
+import type { ICreateUser, IUpdateUser } from '@krasterisk/shared';
 import { useAppSelector, useAppDispatch } from '@/shared/hooks/useAppStore';
 import { selectIsModalOpen, selectSelectedUser } from '../../model/selectors/usersPageSelectors';
 import { usersPageActions } from '../../model/slice/usersPageSlice';
@@ -32,6 +33,7 @@ import {
   LEVEL_OPTIONS,
   PLATFORM_LEVEL_OPTIONS,
   selectIsSuperAdmin,
+  UserLevel,
 } from '@/entities/User';
 import { patchAuthUser } from '@/features/auth/model/authSlice';
 import { buildUserAvatarUrl } from '@/shared/lib/userAvatarUrl';
@@ -130,22 +132,26 @@ export const UserFormModal = () => {
     }
     setEmailError('');
     try {
-      const payload: Record<string, unknown> = {
-        login: formData.login,
-        name: formData.name,
-        email,
-        level: Number(formData.level),
-        role: formData.role ? Number(formData.role) : undefined,
-        numbers_id: formData.numbers_id ? Number(formData.numbers_id) : undefined,
-      };
-
-      if (formData.passwd) {
-        payload.password = formData.passwd;
-      }
-
       if (isEditing) {
+        const payload: IUpdateUser = {
+          login: formData.login,
+          name: formData.name,
+          email,
+          level: Number(formData.level) as UserLevel,
+          role: formData.role ? Number(formData.role) : undefined,
+          numbers_id: formData.numbers_id ? Number(formData.numbers_id) : undefined,
+        };
+        if (formData.passwd) payload.password = formData.passwd;
         await updateUser({ id: selectedUser!.uniqueid, data: payload }).unwrap();
       } else {
+        const payload: ICreateUser = {
+          login: formData.login,
+          name: formData.name,
+          password: formData.passwd,
+          email,
+          level: Number(formData.level) as UserLevel,
+          role: formData.role ? Number(formData.role) : undefined,
+        };
         await createUser(payload).unwrap();
       }
       onClose();

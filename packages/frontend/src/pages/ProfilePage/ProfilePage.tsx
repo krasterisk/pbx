@@ -116,10 +116,10 @@ export const ProfilePage = () => {
           {isLoading ? (
             <Loader2 className={styles.spinner} />
           ) : (
-            <HStack gap="16" max align="center" wrap className={styles.avatarBlock}>
+            <HStack gap="16" max align="center" wrap="wrap" className={styles.avatarBlock}>
               <Avatar name={name || authUser?.name || 'U'} src={avatarSrc} size={80} />
               <VStack gap="8" max align="center" className={styles.avatarActions}>
-                <HStack gap="8" wrap className={styles.avatarButtons}>
+                <HStack gap="8" wrap="wrap" className={styles.avatarButtons}>
                   <Button
                     type="button"
                     variant="outline"

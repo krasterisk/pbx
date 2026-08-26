@@ -1,10 +1,11 @@
 import type { IRouteAction } from '@krasterisk/shared';
+import type { TranslateFn } from '@/shared/lib/translateFn';
 import { cmdFieldErrors } from './schemas/cmd';
 import { httpRequestFieldErrors } from './schemas/httpRequest';
 import { labelFieldErrors } from './schemas/label';
 import { webhookFieldErrors } from './schemas/webhook';
 
-type TFn = (key: string, fallback?: string) => string;
+type TFn = TranslateFn;
 
 const ERROR_MESSAGES: Record<string, { key: string; fallback: string }> = {
   required: { key: 'routes.chain.fieldError.required', fallback: 'Обязательное поле' },

@@ -161,6 +161,7 @@ export function CallCenterWallboardPage() {
       DIALING: 0,
       CONSULT: 0,
       ACW: 0,
+      OUTBOUND_WORK: 0,
     };
     for (const a of agents) {
       counts[a.status] = (counts[a.status] ?? 0) + 1;

@@ -17,7 +17,7 @@ export interface IAgent {
   interface: string;
   name: string;
   status: AgentStatus;
-  pauseReason?: string;
+  pauseReason?: string | null;
   currentCall?: string;
   queues: string[];
   callsTaken: number;
@@ -26,7 +26,7 @@ export interface IAgent {
   /** Session outbound/internal answered count. */
   callsMade?: number;
   /** Outbound dial target while DIALING. */
-  dialTarget?: string;
+  dialTarget?: string | null;
   /**
    * Remote party for personal inbound (RINGING / IN_CALL) when there is no queue CallState.
    * Survives F5 via SSE; cleared on hangup (`null` from server).

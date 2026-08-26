@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import type { TranslateFn } from '@/shared/lib/translateFn';
 import {
   Table, TableHeader, TableBody, TableRow, TableHead, TableCell,
   Switch, Tooltip, Skeleton, Button, Text,
@@ -30,7 +31,7 @@ export interface PermissionsMatrixProps {
 
 function levelLabel(
   level: number,
-  t: (key: string, fallback?: string) => string,
+  t: TranslateFn,
 ): string {
   const map: Record<number, string> = {
     0: t('callcenter.settings.permissions.levels.superadmin', 'Superadmin'),

@@ -1,4 +1,5 @@
 import { interfaceToExtension } from '@/features/endpoints/lib/endpointIds';
+import type { TranslateFn } from '@/shared/lib/translateFn';
 import type { AgentStatus, IAgent, IQueueStats } from '../model/types/callCenterSchema';
 
 /** True when name is a raw AMI/PJSIP interface string or bare extension. */
@@ -89,7 +90,7 @@ export function queueDisplayName(
  */
 export function formatPauseReason(
   reason: string | undefined | null,
-  t: (key: string, fallback?: string) => string,
+  t: TranslateFn,
 ): string {
   if (!reason) return '';
 
@@ -163,7 +164,7 @@ export const AGENT_STATUS_LABEL_KEYS: Record<AgentStatus, { key: string; fallbac
 /** Resolve the i18n label for an AgentStatus via a react-i18next `t` function. */
 export function agentStatusLabel(
   status: AgentStatus,
-  t: (key: string, fallback?: string) => string,
+  t: TranslateFn,
 ): string {
   const entry = AGENT_STATUS_LABEL_KEYS[status] ?? AGENT_STATUS_LABEL_KEYS.OFFLINE;
   return t(entry.key, entry.fallback);
@@ -205,7 +206,7 @@ export function coworkerActivityLabel(
   agent: Pick<IAgent, 'status' | 'dialTarget' | 'pauseReason' | 'peerNumber'>,
   call: { callerIdNum?: string; callerIdName?: string; queue?: string } | undefined,
   queues: Array<Pick<IQueueStats, 'name' | 'displayName'> & { exten?: string }>,
-  t: (key: string, fallback?: string) => string,
+  t: TranslateFn,
 ): { text: string; tone: CoworkerActivityTone } {
   const status = agent.status;
 

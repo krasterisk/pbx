@@ -20,6 +20,7 @@ import { ValueSourceField } from '../ValueSourceField/ValueSourceField';
 import type {
   FieldKind,
   FieldSchema,
+  FieldVisibleWhenRule,
   OptionsSource,
   SchemaRefs,
 } from '../../model/schema.types';
@@ -42,10 +43,7 @@ function assertNever(x: never): never {
   throw new Error(`Unknown field kind: ${String(x)}`);
 }
 
-function isRuleVisible(
-  rule: { key: string; equals: string | readonly string[] },
-  params: Record<string, unknown>,
-): boolean {
+function isRuleVisible(rule: FieldVisibleWhenRule, params: Record<string, unknown>): boolean {
   const actual = params[rule.key];
   const expected = rule.equals;
   return Array.isArray(expected)
@@ -53,12 +51,17 @@ function isRuleVisible(
     : String(actual ?? '') === expected;
 }
 
+function isVisibleWhenArray(cond: FieldSchema['visibleWhen']): cond is readonly FieldVisibleWhenRule[] {
+  return Array.isArray(cond);
+}
+
 function isFieldVisible(field: FieldSchema, params: Record<string, unknown>): boolean {
-  if (!field.visibleWhen) return true;
-  if (Array.isArray(field.visibleWhen)) {
-    return field.visibleWhen.every((rule) => isRuleVisible(rule, params));
+  const cond = field.visibleWhen;
+  if (!cond) return true;
+  if (isVisibleWhenArray(cond)) {
+    return cond.every((rule) => isRuleVisible(rule, params));
   }
-  return isRuleVisible(field.visibleWhen, params);
+  return isRuleVisible(cond, params);
 }
 
 type SchemaChunk =
@@ -324,6 +327,7 @@ function renderControl(
           disabled={readOnly}
           className={invalid ? styles.invalid : undefined}
           value={typeof raw === 'string' ? raw : ''}
+          placeholder={field.placeholder}
           onChange={(e) => onChange({ [field.key]: e.target.value })}
         />
       );

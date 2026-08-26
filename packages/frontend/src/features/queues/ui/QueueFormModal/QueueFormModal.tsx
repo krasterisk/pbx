@@ -217,7 +217,7 @@ export const QueueFormModal = () => {
       setExten(''); setDisplayName(''); setStrategy('ringall'); setTimeout('30'); setRetry('5');
       setWrapuptime('0'); setMaxlen('0'); setMusiconhold(''); setContext('');
       setWeight('0'); setServicelevel('60'); setJoinempty(''); setLeavewhenempty('');
-      setRinginuse(false); setAutofill(true); setPersistentmembers(true);
+      setRinginuse(false); setAutofill(true);
       setSetinterfacevar(true); setSetqueueentryvar(true); setSetqueuevar(true);
       setMembers([]);
       setAnnounceFrequency(''); setAnnounceHoldtime(''); setAnnouncePosition('');

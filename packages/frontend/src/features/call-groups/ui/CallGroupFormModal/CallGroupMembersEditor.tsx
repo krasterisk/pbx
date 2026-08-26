@@ -1,5 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import type { TranslateFn } from '@/shared/lib/translateFn';
 import { GripVertical, Trash2, Plus } from 'lucide-react';
 import {
   DndContext,
@@ -60,7 +61,7 @@ function restrictToVerticalAxisLocal({
 }
 
 function buildMemberDndAnnouncements(
-  t: (key: string, fallback?: string) => string,
+  t: TranslateFn,
   lang: string,
   getIndex?: (id: string | number) => number,
 ): Announcements {

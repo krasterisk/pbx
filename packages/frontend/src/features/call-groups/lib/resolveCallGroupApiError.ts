@@ -1,3 +1,5 @@
+import type { TranslateFn } from '@/shared/lib/translateFn';
+
 /** Maps Nest call-group API errors (`code` + `params`) to i18n strings. */
 
 export type CallGroupApiErrorBody = {
@@ -8,7 +10,7 @@ export type CallGroupApiErrorBody = {
   error?: string;
 };
 
-type TFn = (key: string, options?: string | Record<string, unknown>) => string;
+type TFn = TranslateFn;
 
 function unwrapBody(data: CallGroupApiErrorBody | undefined): CallGroupApiErrorBody | undefined {
   if (!data) return undefined;

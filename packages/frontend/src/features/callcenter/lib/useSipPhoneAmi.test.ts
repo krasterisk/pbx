@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import type { ICall } from '@/features/callcenter/model/types/callCenterSchema';
+import type { AgentStatus, ICall } from '@/features/callcenter/model/types/callCenterSchema';
 
 const agentHangup = vi.fn(() => ({ unwrap: () => Promise.resolve({ success: true }) }));
 const agentTransfer = vi.fn(() => ({ unwrap: () => Promise.resolve({ success: true }) }));
@@ -103,11 +103,11 @@ describe('useSipPhoneAmi', () => {
 
   it('maps activeCall / agent IN_CALL to in-call chrome (SIP softphone)', () => {
     const { result, rerender } = renderHook(
-      ({ call, status }) => useSipPhoneAmi(call, status),
+      ({ call, status }: { call: ICall | null; status: AgentStatus }) => useSipPhoneAmi(call, status),
       {
         initialProps: {
           call: makeCall({ status: 'TALKING' }) as ICall | null,
-          status: 'IN_CALL' as const,
+          status: 'IN_CALL' as AgentStatus,
         },
       },
     );
