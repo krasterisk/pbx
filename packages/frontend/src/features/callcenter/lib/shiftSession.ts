@@ -4,7 +4,7 @@ import type { SoftphoneMode } from '../ui/ShiftLoginModal/ShiftLoginModal';
 export const CC_ACTIVE_SHIFT_KEY = 'cc:activeShift';
 
 /**
- * Independent of ActiveShiftSession — dial buffer / last number must survive F5
+ * Independent of ActiveShiftSession - dial buffer / last number must survive F5
  * and shift clear (Phase 10 D-19).
  */
 export const CC_DIAL_BUFFER_KEY = 'cc:dialBuffer';

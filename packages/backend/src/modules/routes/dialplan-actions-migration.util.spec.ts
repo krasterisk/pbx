@@ -60,44 +60,53 @@ const TRANSITIONS: Array<{
     expected: { type: 'playback', params: { file: 'x', mode: 'menu' } },
   },
   {
-    name: 'D-28 sendmail → notify email channel',
+    name: 'busy → hangup with the busy signal',
+    input: { type: 'busy', params: { timeout: 15 } },
+    expected: { type: 'hangup', params: { timeout: 15, signal: 'busy' } },
+  },
+  {
+    name: 'congestion → hangup with the congestion signal',
+    input: { type: 'congestion', params: {} },
+    expected: { type: 'hangup', params: { signal: 'congestion' } },
+  },
+  {
+    name: 'bare hangup gains an explicit signal',
+    input: { type: 'hangup', params: { causecode: '17' } },
+    expected: { type: 'hangup', params: { causecode: '17', signal: 'hangup' } },
+  },
+  {
+    name: 'branch → goto with the then-label lifted onto label_name',
     input: {
-      type: 'sendmail',
-      params: { email: 'ops@example.com', subject: 'Missed', text: 'Call from ${CALLERID(num)}' },
+      type: 'branch',
+      params: {
+        true_label: 'ok',
+        false_label: 'fail',
+        condition: { source: 'dialstatus', values: ['ANSWER'] },
+      },
     },
     expected: {
-      type: 'notify',
+      type: 'goto',
       params: {
-        channels: ['email'],
-        recipients: { email: 'ops@example.com' },
-        subject: 'Missed',
-        body: 'Call from ${CALLERID(num)}',
+        label_name: 'ok',
+        false_label: 'fail',
+        condition: { source: 'dialstatus', values: ['ANSWER'] },
       },
     },
   },
   {
-    name: 'D-28 sendmailpeer → notify email via exten',
-    input: { type: 'sendmailpeer', params: { exten: '101', text: 'missed' } },
-    expected: {
-      type: 'notify',
-      params: {
-        channels: ['email'],
-        recipients: { email: '101' },
-        body: 'missed',
-      },
-    },
+    name: 'setclid_custom → callerid static mode',
+    input: { type: 'setclid_custom', params: { callerid: '7900', name: 'Sales' } },
+    expected: { type: 'callerid', params: { callerid: '7900', name: 'Sales', mode: 'static' } },
   },
   {
-    name: 'D-28 telegram → notify telegram channel',
-    input: { type: 'telegram', params: { chat_id: '-100123', text: 'hello' } },
-    expected: {
-      type: 'notify',
-      params: {
-        channels: ['telegram'],
-        recipients: { telegram: '-100123' },
-        body: 'hello',
-      },
-    },
+    name: 'setclid_list → callerid number_list mode',
+    input: { type: 'setclid_list', params: { list_uid: 5 } },
+    expected: { type: 'callerid', params: { list_uid: 5, mode: 'number_list' } },
+  },
+  {
+    name: 'legacy callerid setclid_list mode is renamed to number_list',
+    input: { type: 'callerid', params: { mode: 'setclid_list', list_uid: 5 } },
+    expected: { type: 'callerid', params: { mode: 'number_list', list_uid: 5 } },
   },
 ];
 
@@ -134,24 +143,18 @@ describe('migrateAction', () => {
     expect(result.changed).toBe(true);
   });
 
-  it('keeps remainder keys when folding sendmail', () => {
+  it('keeps remainder keys when folding a merged type', () => {
     const result = migrateAction({
-      type: 'sendmail',
-      params: { email: 'a@b.c', subject: 's', text: 't', legacyThing: true },
+      type: 'setclid_custom',
+      params: { callerid: 'a', name: 's', legacyThing: true },
     });
     expect(result.action).toEqual({
-      type: 'notify',
-      params: {
-        channels: ['email'],
-        recipients: { email: 'a@b.c' },
-        subject: 's',
-        body: 't',
-        legacyThing: true,
-      },
+      type: 'callerid',
+      params: { callerid: 'a', name: 's', legacyThing: true, mode: 'static' },
     });
   });
 
-  it.each(['asr', 'tofax', 'keywords'] as const)(
+  it.each(['asr', 'tofax', 'keywords', 'sendmail', 'sendmailpeer', 'telegram'] as const)(
     'unknown-state: %s stays unchanged and is marked unmapped',
     (type) => {
       const input = { type, params: { silence_timeout: 3, email: 'fax@x' } };
@@ -168,10 +171,55 @@ describe('migrateAction', () => {
     };
     const notify = {
       type: 'notify',
-      params: { channels: ['email'], recipients: { email: 'a@b.c' }, body: 't' },
+      params: { integration_uid: 4, target: 'a@b.c', body: 't' },
     };
     expect(migrateAction(playback)).toEqual({ action: playback, changed: false });
     expect(migrateAction(notify)).toEqual({ action: notify, changed: false });
+  });
+
+  it('lifts dest ${EXTEN} and top-level strip/prepend into rewrite', () => {
+    const result = migrateAction({
+      type: 'totrunk',
+      params: { trunk: 'sip', dest: '${EXTEN}', strip: 1, prepend: '8' },
+    });
+    expect(result.changed).toBe(true);
+    expect(result.action).toEqual({
+      type: 'totrunk',
+      params: {
+        trunk: 'sip',
+        dest: { source: 'route_pattern' },
+        rewrite: {
+          noMatch: 'passthrough',
+          rules: [{
+            id: 'legacy',
+            enabled: true,
+            conditions: [],
+            transform: { stripStartCount: 1, prefix: '8' },
+          }],
+        },
+      },
+    });
+  });
+
+  it('migrates legacy trunk_carousel type to totrunk with trunkMode=carousel', () => {
+    const result = migrateAction({
+      type: 'trunk_carousel',
+      params: {
+        mode: 'random_then_failover',
+        trunks: [{ trunk: 'PJSIP/t1', cid_mode: 'static' }],
+        timeout: 60,
+      },
+    });
+    expect(result.changed).toBe(true);
+    expect(result.action).toEqual({
+      type: 'totrunk',
+      params: {
+        trunkMode: 'carousel',
+        mode: 'random_then_failover',
+        trunks: [{ trunk: 'PJSIP/t1', cid_mode: 'static' }],
+        timeout: 60,
+      },
+    });
   });
 
   it('leaves a truly unknown type in place without substituting another type', () => {

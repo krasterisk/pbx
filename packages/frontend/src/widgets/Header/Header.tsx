@@ -1,10 +1,8 @@
 import { useTranslation } from 'react-i18next';
-import { Bell, Moon, Sun, LogOut, Search, Languages, Menu } from 'lucide-react';
+import { Bell, Moon, Sun, Search, Languages, Menu } from 'lucide-react';
 import { Button } from '@/shared/ui';
-import { useAppDispatch, useAppSelector } from '@/shared/hooks/useAppStore';
-import { logout } from '@/features/auth/model/authSlice';
-import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
+import { UserBlock } from '@/widgets/UserBlock';
 
 interface HeaderProps {
   sidebarWidth: number;
@@ -14,17 +12,9 @@ interface HeaderProps {
 
 export const Header = ({ sidebarWidth, onMenuToggle, isMobile }: HeaderProps) => {
   const { t, i18n } = useTranslation();
-  const dispatch = useAppDispatch();
-  const navigate = useNavigate();
-  const user = useAppSelector((s) => s.auth.user);
   const [isDark, setIsDark] = useState(() => {
     return localStorage.getItem('theme') !== 'light';
   });
-
-  const handleLogout = () => {
-    dispatch(logout());
-    navigate('/login');
-  };
 
   const toggleTheme = () => {
     const html = document.documentElement;
@@ -50,7 +40,6 @@ export const Header = ({ sidebarWidth, onMenuToggle, isMobile }: HeaderProps) =>
       className="fixed top-0 right-0 h-16 flex items-center justify-between px-6 border-b border-border bg-background/80 backdrop-blur-md layer-header"
       style={{ left: sidebarWidth }}
     >
-      {/* Search and Menu Toggle */}
       <div className="flex items-center gap-3 flex-1 max-w-md">
         {isMobile && (
           <Button variant="ghost" size="icon" onClick={onMenuToggle} className="flex-shrink-0">
@@ -68,36 +57,22 @@ export const Header = ({ sidebarWidth, onMenuToggle, isMobile }: HeaderProps) =>
         </div>
       </div>
 
-      {/* Actions */}
       <div className="flex items-center gap-1">
-        {/* Language toggle */}
         <Button id="lang-toggle" variant="ghost" size="icon" onClick={toggleLanguage} title={i18n.language.toUpperCase()}>
           <Languages className="w-4 h-4" />
         </Button>
 
-        {/* Theme toggle */}
         <Button id="theme-toggle" variant="ghost" size="icon" onClick={toggleTheme}>
           {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
         </Button>
 
-        {/* Notifications */}
         <Button id="notifications-btn" variant="ghost" size="icon" className="relative">
           <Bell className="w-4 h-4" />
           <span className="absolute top-1 right-1 w-2 h-2 bg-primary rounded-full pulse-online" />
         </Button>
 
-        {/* User */}
-        <div className="flex items-center gap-3 ml-2 pl-4 border-l border-border">
-          <div className="text-right hidden sm:block">
-            <p className="text-sm font-medium">{user?.name}</p>
-            <p className="text-xs text-muted-foreground">ext. {user?.exten || '—'}</p>
-          </div>
-          <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-sm">
-            {user?.name?.charAt(0)?.toUpperCase() || 'U'}
-          </div>
-          <Button id="logout-btn" variant="ghost" size="icon" onClick={handleLogout} title={t('auth.logout')}>
-            <LogOut className="w-4 h-4" />
-          </Button>
+        <div className="ml-2 pl-4 border-l border-border">
+          <UserBlock />
         </div>
       </div>
     </header>

@@ -3,7 +3,7 @@ export type CallSample = { t: number; total: number };
 
 /**
  * Append a sample and trim to maxSamples (oldest first).
- * Pure — returns a new array.
+ * Pure - returns a new array.
  */
 export function pushSample(
   samples: CallSample[],
@@ -19,7 +19,7 @@ export function pushSample(
  * Bucket cumulative-counter samples into 24 hourly deltas (calls/hour).
  * Negative deltas (midnight counter reset) are treated as 0.
  * Always returns exactly 24 buckets { hour: 0..23, calls }.
- * Pure — does not call Date.now().
+ * Pure - does not call Date.now().
  */
 export function bucketHourlyDeltas(
   samples: CallSample[],

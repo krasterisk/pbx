@@ -267,11 +267,11 @@ export function TtsEngineFormModal({ isOpen, onClose, engine }: TtsEngineFormMod
               </HStack>
               <HStack gap="8">
                 <VStack gap="4" className="flex-1">
-                  <Label>{t('ttsEngines.yandex.speed', 'Скорость (0.1 — 3.0)')}</Label>
+                  <Label>{t('ttsEngines.yandex.speed', 'Скорость (0.1 - 3.0)')}</Label>
                   <Input value={speed} onChange={e => setSpeed(e.target.value)} placeholder="1.0" type="number" step="0.1" min="0.1" max="3.0" />
                 </VStack>
                 <VStack gap="4" className="flex-1">
-                  <Label>{t('ttsEngines.yandex.pitchShift', 'Сдвиг тона (-1000 — 1000 Hz)')}</Label>
+                  <Label>{t('ttsEngines.yandex.pitchShift', 'Сдвиг тона (-1000 - 1000 Hz)')}</Label>
                   <Input value={pitchShift} onChange={e => setPitchShift(e.target.value)} placeholder="0" type="number" step="10" min="-1000" max="1000" />
                 </VStack>
               </HStack>

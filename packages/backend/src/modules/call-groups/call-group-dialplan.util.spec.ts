@@ -368,22 +368,16 @@ describe('generateGroupDialplan (Wave 0 exact toBe baselines)', () => {
   });
 });
 
-describe('generateGroupDialplan (D-33 unified context + transitional include)', () => {
+describe('generateGroupDialplan (D-33 unified context)', () => {
   it('names the context group_{exten}_{uid} for exten 600 and tenant 42', () => {
     const result = generateGroupDialplan(baseGroup({ exten: '600' }), sampleMembers(), VPBX);
     expect(result.name).toBe('group_600_42');
     expect(result.lines[0]).toBe('[group_600_42]');
   });
 
-  it('emits include => of the old group_{uid}_{vpbx} name', () => {
+  it('does not emit transitional include of the old group_{uid}_{vpbx} name', () => {
     const result = generateGroupDialplan(baseGroup({ exten: '600' }), sampleMembers(), VPBX);
-    expect(result.lines).toContain('include => group_15_42');
-  });
-
-  it('does not self-include when the new name equals the old name', () => {
-    const result = generateGroupDialplan(baseGroup({ exten: '15' }), sampleMembers(), VPBX);
-    const includes = result.lines.filter((l) => l.startsWith('include =>'));
-    expect(includes).toEqual([]);
+    expect(result.lines.filter((l) => l.startsWith('include =>'))).toEqual([]);
   });
 
   it('accepts dialOpts and keeps default tT when omitted', () => {
@@ -569,6 +563,18 @@ describe('generateGroupDialplan (D-34 confirm + skip busy)', () => {
     expect(externalDial).toContain('M(');
   });
 
+  it('embeds confirmDigit into the confirm macro', () => {
+    const result = generateGroupDialplan(
+      baseGroup({ strategy: 'hunt', confirmDigit: '7' }),
+      sampleMembers(),
+      VPBX,
+      undefined,
+      { confirmExternal: true, confirmDigit: '7' },
+    );
+    const macro = result.extras?.find((e) => e.name.includes('krsk-cg-confirm'));
+    expect(macro?.lines.join('\n')).toContain('= "7"');
+  });
+
   it('does not add M( when confirmExternal is off', () => {
     const result = generateGroupDialplan(baseGroup({ strategy: 'hunt' }), sampleMembers(), VPBX);
     expect(result.lines.join('\n')).not.toContain('M(');
@@ -681,6 +687,22 @@ describe('generateGroupDialplan (D-34 confirm + skip busy)', () => {
     expect(opts).toMatch(/m/);
     expect(opts).not.toContain('m()');
     expect(opts).not.toContain('m(');
+  });
+
+  it('does not emit mm when dialOptions already contain m and useMoh is on', () => {
+    const result = generateGroupDialplan(
+      baseGroup({ strategy: 'ringall', dialOptions: 'tTm' }),
+      sampleMembers(),
+      VPBX,
+      undefined,
+      { useMohInsteadOfRingback: true, mohClass: 'sales' },
+    );
+    const dial = result.lines.find((l) => /Dial\(/.test(l)) ?? '';
+    expect(dial).toContain('m(sales)');
+    expect(dial).not.toMatch(/mm\(/);
+    expect(dial).not.toMatch(/[^(\w]mm[^(\w]|tTmm|mm\(sales\)/);
+    const mohMatches = dial.match(/m(\(|\b)/g) ?? [];
+    expect(mohMatches).toHaveLength(1);
   });
 
   it('keeps 12-01 baseline when dialOptions are omitted (default tT)', () => {

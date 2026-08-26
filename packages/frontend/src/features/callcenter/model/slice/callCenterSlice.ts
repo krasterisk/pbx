@@ -27,7 +27,7 @@ export const callCenterSlice = createSlice({
     // ─── Full snapshot (on SSE connect) ────────────────────
     setSnapshot(state, action: PayloadAction<ICcSnapshot>) {
       // Nest restart / AMI preload can briefly emit the operator with queues: []
-      // while sessionStorage / prior bindIdentity still knows the shift queues —
+      // while sessionStorage / prior bindIdentity still knows the shift queues -
       // wiping them empties QueuesTab + hides self in CoworkersTab.
       const prevMy = state.myAgentInterface
         ? state.agents.find((a) => a.interface === state.myAgentInterface)
@@ -82,9 +82,22 @@ export const callCenterSlice = createSlice({
           delete merge.name;
         }
         state.agents[idx] = { ...prev, ...merge };
-        // Optimistic status flip without server stamp — start clock now until SSE arrives
+        // Optimistic status flip without server stamp - start clock now until SSE arrives
         if (data.status && data.status !== prev.status && data.statusSince === undefined) {
           state.agents[idx].statusSince = new Date().toISOString();
+        } else if (
+          data.status
+          && data.status === prev.status
+          && prev.statusSince
+          && data.statusSince
+        ) {
+          // Same status: keep the earlier stamp so a Nest restart / AMI reload
+          // cannot shrink an overnight timer back to "hours since boot".
+          const prevMs = Date.parse(prev.statusSince);
+          const nextMs = Date.parse(String(data.statusSince));
+          if (Number.isFinite(prevMs) && Number.isFinite(nextMs) && nextMs > prevMs) {
+            state.agents[idx].statusSince = prev.statusSince;
+          }
         }
         // SSE sends pauseReason: null when leaving pause modes (JSON omits undefined)
         const statusKeepsReason =

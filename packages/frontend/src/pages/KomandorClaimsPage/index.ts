@@ -1,0 +1,1 @@
+export { KomandorClaimsPage } from './KomandorClaimsPage';

@@ -30,7 +30,7 @@ function saveMessages(messages: AiChatMessage[]) {
             .slice(-MAX_STORED_MESSAGES);
         sessionStorage.setItem(STORAGE_KEY, JSON.stringify(toStore));
     } catch {
-        // Storage quota exceeded — clear it
+        // Storage quota exceeded - clear it
         sessionStorage.removeItem(STORAGE_KEY);
     }
 }

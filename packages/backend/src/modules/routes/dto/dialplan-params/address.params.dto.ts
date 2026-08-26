@@ -17,10 +17,10 @@ import { Transform, Type } from 'class-transformer';
 import type {
   IToIvrParams,
   IToListParams,
-  ITrunkCarouselActionParams,
   ITrunkCarouselItem,
 } from '@krasterisk/shared';
-import { IsValueSourceConstraint, ValueSourceDto } from './value-source.dto';
+import { coerceDestValueSource } from '@krasterisk/shared';
+import { IsValueSourceConstraint, IsQueuePrioritySourceConstraint, ValueSourceDto } from './value-source.dto';
 
 const SAFE_DIAL = /^[^(),?\[\]{}$\\";\n\r]*$/;
 const PREPEND_DIGITS = /^[0-9+]*$/;
@@ -35,6 +35,110 @@ export class NumberManipulationDto {
   @IsString()
   @Matches(PREPEND_DIGITS)
   prepend?: string;
+}
+
+const REWRITE_KINDS = ['eq', 'startsWith', 'endsWith', 'length', 'digitMask', 'regex'] as const;
+
+export class DialRewriteConditionDto {
+  @IsIn(REWRITE_KINDS)
+  kind: (typeof REWRITE_KINDS)[number];
+
+  @IsOptional()
+  @IsString()
+  value?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(64)
+  min?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(64)
+  max?: number;
+}
+
+export class DialRewriteTransformDto {
+  @IsOptional()
+  @IsString()
+  @Matches(/^[0-9A-Za-z+*#]*$/)
+  replaceAll?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(32)
+  stripStartCount?: number;
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^[0-9A-Za-z+*#]*$/)
+  stripStartText?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(32)
+  stripEndCount?: number;
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^[0-9A-Za-z+*#]*$/)
+  stripEndText?: string;
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^[0-9A-Za-z+*#]*$/)
+  replaceFind?: string;
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^[0-9A-Za-z+*#]*$/)
+  replaceWith?: string;
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^[0-9A-Za-z+*#]*$/)
+  prefix?: string;
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^[0-9A-Za-z+*#]*$/)
+  postfix?: string;
+}
+
+export class DialRewriteRuleDto {
+  @IsString()
+  @MinLength(1)
+  id: string;
+
+  @IsOptional()
+  @IsBoolean()
+  enabled?: boolean;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => DialRewriteConditionDto)
+  conditions?: DialRewriteConditionDto[];
+
+  @ValidateNested()
+  @Type(() => DialRewriteTransformDto)
+  transform: DialRewriteTransformDto;
+}
+
+export class DialTargetRewriteDto {
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => DialRewriteRuleDto)
+  rules?: DialRewriteRuleDto[];
+
+  @IsOptional()
+  @IsIn(['passthrough', 'reject'])
+  noMatch?: 'passthrough' | 'reject';
 }
 
 /**
@@ -88,6 +192,11 @@ export class ToExtenParamsDto {
   @ValidateNested()
   @Type(() => NumberManipulationDto)
   numberManipulation?: NumberManipulationDto;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => DialTargetRewriteDto)
+  rewrite?: DialTargetRewriteDto;
 }
 
 export class ToQueueParamsDto {
@@ -112,13 +221,22 @@ export class ToQueueParamsDto {
   @IsString()
   queue?: string;
 
-  /** VIP skip of the queue tail — Set(QUEUE_PRIO=N) before Queue() (D-32, T-12-13-04). */
+  /** VIP skip of the queue tail — Set(QUEUE_PRIO=…) before Queue() (D-32). ValueSource or legacy number. */
   @IsOptional()
-  @Transform(({ value }) => (value === '' || value == null ? undefined : Number(value)))
-  @IsInt()
-  @Min(0)
-  @Max(20)
-  priority?: number;
+  @Transform(({ value }) => {
+    if (value === '' || value == null) return undefined;
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return { source: 'fixed', value: String(Math.trunc(value)) };
+    }
+    if (typeof value === 'string' && value.trim() !== '') {
+      const n = parseInt(value, 10);
+      if (!Number.isFinite(n)) return value;
+      return { source: 'fixed', value: String(n) };
+    }
+    return value;
+  })
+  @Validate(IsQueuePrioritySourceConstraint)
+  priority?: ValueSourceDto;
 
   /** 4th Queue() argument; prompt id only, never a path (T-12-13-02). */
   @IsOptional()
@@ -160,6 +278,11 @@ export class ToListParamsDto implements IToListParams {
   @IsString()
   @Matches(SAFE_DIAL)
   options?: string;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => DialTargetRewriteDto)
+  rewrite?: DialTargetRewriteDto;
 }
 
 export class ToIvrParamsDto implements IToIvrParams {
@@ -180,46 +303,11 @@ export class ToRouteParamsDto {
   @ValidateNested()
   @Type(() => ValueSourceDto)
   extension?: ValueSourceDto;
-}
-
-export class ToTrunkParamsDto {
-  @IsOptional()
-  @IsString()
-  @Matches(SAFE_DIAL)
-  trunk?: string;
 
   @IsOptional()
   @ValidateNested()
-  @Type(() => ValueSourceDto)
-  dest?: ValueSourceDto;
-
-  @IsOptional()
-  @Transform(({ value }) => (value === '' || value == null ? undefined : Number(value)))
-  @IsInt()
-  @Min(1)
-  timeout?: number;
-
-  @IsOptional()
-  @IsString()
-  @Matches(SAFE_DIAL)
-  options?: string;
-
-  @IsOptional()
-  @ValidateNested()
-  @Type(() => NumberManipulationDto)
-  numberManipulation?: NumberManipulationDto;
-}
-
-export class VoicemailParamsDto {
-  @IsOptional()
-  @ValidateNested()
-  @Type(() => ValueSourceDto)
-  target?: ValueSourceDto;
-
-  @IsOptional()
-  @IsString()
-  @Matches(SAFE_DIAL)
-  exten?: string;
+  @Type(() => DialTargetRewriteDto)
+  rewrite?: DialTargetRewriteDto;
 }
 
 class TrunkCarouselItemDto implements ITrunkCarouselItem {
@@ -248,14 +336,49 @@ class TrunkCarouselItemDto implements ITrunkCarouselItem {
   timeout?: number;
 }
 
-export class TrunkCarouselParamsDto implements ITrunkCarouselActionParams {
-  @IsIn(['random_then_failover', 'sequential'])
-  mode: 'random_then_failover' | 'sequential';
+export class ToTrunkParamsDto {
+  @IsOptional()
+  @IsIn(['single', 'carousel'])
+  trunkMode?: 'single' | 'carousel';
 
+  @IsOptional()
+  @IsString()
+  @Matches(SAFE_DIAL)
+  trunk?: string;
+
+  @IsOptional()
+  @IsIn(['random_then_failover', 'sequential'])
+  mode?: 'random_then_failover' | 'sequential';
+
+  @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => TrunkCarouselItemDto)
-  trunks: TrunkCarouselItemDto[];
+  trunks?: TrunkCarouselItemDto[];
+
+  @IsOptional()
+  @IsIn(['static', 'phonebook'])
+  cid_mode?: 'static' | 'phonebook';
+
+  @IsOptional()
+  @IsString()
+  @Matches(SAFE_DIAL)
+  callerid?: string;
+
+  @IsOptional()
+  @Transform(({ value }) => (value === '' || value == null ? undefined : Number(value)))
+  @IsInt()
+  @Min(1)
+  phonebook_uid?: number;
+
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (value == null || value === '') return undefined;
+    return coerceDestValueSource(value);
+  })
+  @ValidateNested()
+  @Type(() => ValueSourceDto)
+  dest?: ValueSourceDto;
 
   @IsOptional()
   @Transform(({ value }) => (value === '' || value == null ? undefined : Number(value)))
@@ -272,4 +395,22 @@ export class TrunkCarouselParamsDto implements ITrunkCarouselActionParams {
   @ValidateNested()
   @Type(() => NumberManipulationDto)
   numberManipulation?: NumberManipulationDto;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => DialTargetRewriteDto)
+  rewrite?: DialTargetRewriteDto;
 }
+
+export class VoicemailParamsDto {
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => ValueSourceDto)
+  target?: ValueSourceDto;
+
+  @IsOptional()
+  @IsString()
+  @Matches(SAFE_DIAL)
+  exten?: string;
+}
+

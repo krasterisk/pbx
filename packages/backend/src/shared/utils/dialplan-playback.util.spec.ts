@@ -92,7 +92,7 @@ describe('D-53 playback terminal meta', () => {
   it('marks unified playback as conditional and does not cut the tail', () => {
     expect(DIALPLAN_ACTION_META.playback.terminal).toBe('conditional');
     const playbackMenu = { type: 'playback', params: { files: 'menu', mode: 'menu' } };
-    const setvar = { type: 'setclid_custom', params: { callerid: '1' } };
+    const setvar = { type: 'callerid', params: { mode: 'static', callerid: '1' } };
     expect(findUnreachableSteps([playbackMenu, setvar])).toEqual([]);
   });
 });

@@ -10,14 +10,18 @@
  * - Heartbeat every 15s to prevent proxy/LB timeout
  * - fullSnapshot on initial connect
  * - Auto-reconnect is built into browser EventSource API
+ * - Tracks panel presence (active SSE count) for shift idle policy
  */
 import { Controller, Sse, Req, UseGuards, Get, MessageEvent, Logger } from '@nestjs/common';
 import { Request } from 'express';
-import { Observable, map, merge, interval, startWith, filter, defer, from, switchMap } from 'rxjs';
+import {
+  Observable, map, merge, interval, startWith, filter, defer, from, switchMap, finalize,
+} from 'rxjs';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CallCenterStateService } from './callcenter-state.service';
 import { CallCenterMetricsService } from './callcenter-metrics.service';
 import { CallCenterAmiService } from './callcenter-ami.service';
+import { CallCenterService } from './callcenter.service';
 
 /** Heartbeat interval (ms) — keeps SSE connection alive through proxies/load balancers */
 const SSE_HEARTBEAT_MS = 15_000;
@@ -31,24 +35,19 @@ export class CallCenterSseController {
     private readonly stateService: CallCenterStateService,
     private readonly metricsService: CallCenterMetricsService,
     private readonly amiCcService: CallCenterAmiService,
+    private readonly ccService: CallCenterService,
   ) {}
 
   /**
    * SSE endpoint: GET /api/callcenter/events?token=<JWT>
-   *
-   * On connect: sends a fullSnapshot event with current state.
-   * Then streams all CC events filtered by tenant in real-time.
-   * Heartbeat comment is sent every 15s to keep connection alive.
-   *
-   * Browser usage:
-   *   const es = new EventSource('/api/callcenter/events?token=' + accessToken);
-   *   es.addEventListener('agentUpdate', (e) => { ... });
-   *   es.addEventListener('fullSnapshot', (e) => { ... });
    */
   @Sse('events')
   events(@Req() req: Request & { user: any }): Observable<MessageEvent> {
     const jwtUserUid = Number(req.user.vpbx_user_uid ?? 0);
-    const userId = req.user.sub;
+    const userId = Number(req.user.sub);
+
+    this.ccService.bumpPanelConnection(userId, 1);
+    void this.ccService.touchPanelSeen(userId);
 
     // Rebind mid-call state before the snapshot so F5 / SSE reconnect keeps
     // caller ID, call controls, and the client card.
@@ -103,15 +102,18 @@ export class CallCenterSseController {
 
           return merge(ccEvents$, heartbeat$);
         }),
+        finalize(() => {
+          const left = this.ccService.bumpPanelConnection(userId, -1);
+          if (left <= 0) {
+            void this.ccService.touchPanelSeen(userId);
+          }
+        }),
       ),
     );
   }
 
   /**
    * REST endpoint: GET /api/callcenter/state
-   *
-   * Returns the current snapshot (for initial page load or manual refresh).
-   * Useful when SSE is not yet connected or for debugging.
    */
   @Get('state')
   async getState(@Req() req: Request & { user: any }) {

@@ -117,6 +117,10 @@ krasterisk_v4/
   - Обязательны `title` и `aria-label`.
   - Эталоны: `features/users/ui/UsersTable/useUsersTableColumns.tsx`, `features/routes/ui/RoutesTable/RoutesTable.tsx`.
   - Компонент: `shared/ui/TableRowActions`.
+- **Focus ring inset (MUST):** обводка фокуса у полей ввода **обязана** рисоваться **внутри** рамки (`ring-inset`). Контейнеры модалок (`DialogContent size="large"` → `overflow: hidden`) и тело со скроллом (`.scrollBody` / `.formBody` → `overflow-y: auto`) **обрезают** внешний ring / `box-shadow` - слева/сверху «пропадает» половина выделения.
+  - Tailwind: `focus:outline-none focus:ring-2 focus:ring-inset focus:ring-ring focus:border-transparent` (для обёрток вроде `TagInput` - `focus-within:…`).
+  - Запрещено: `focus:ring-1` / `focus-within:ring-1` без `ring-inset`, внешний `box-shadow: 0 0 0 2px` на контроле внутри скролла.
+  - Эталоны: `shared/ui/Input`, `shared/ui/Select`, `shared/ui/Textarea`, `shared/ui/TagInput`. Новый контрол в `shared/ui` копирует этот же focus-паттерн.
 
 ```tsx
 import { TableRowActions, TableRowAction } from '@/shared/ui';
@@ -447,12 +451,29 @@ import { Pencil, Trash2 } from 'lucide-react';
 </HStack>
 ```
 
+**Неявные vs явные параметры (MUST):**
+
+| Тип поля | Нужен `InfoTooltip`? | Пример |
+|----------|----------------------|--------|
+| **Неявный** - селект режимов / источников / enum, смысл опций неочевиден из подписи | **Обязательно** | «Назначение» (`ValueSource`: B-номер / фиксированный / переменная / справочник), режим очереди, поведение справочника |
+| **Явный** - подпись уже говорит, что это (единица измерения, число, имя) | Не нужен | «Таймаут, сек», «Имя», «Транк» (каталог сущностей) |
+
+Правила для неявных полей:
+
+- В схеме dialplan-apps: задать `hintKey` + `hint` (fallback) на `FieldSchema`.
+- Текст перечисляет **каждую** опцию селекта: `**Опция** - что делает` по строкам (`\n`).
+- Если лейбл скрыт (`hideLabel` / `hideFieldLabels`), `InfoTooltip` всё равно показывают, но **слева от самого контрола в одной строке** (`HStack gap="4" align="center"`, контрол во flex-1) - отдельная строка с одинокой иконкой `?` **запрещена**.
+- Вложенные неявные контролы (имя переменной, поле справочника) тоже получают свой `InfoTooltip` с контекстом режима (`queue` / `dial` / `scalar`).
+
+Эталон dial-назначения: `routes.chain.source.dialHint` + `ValueSourceField` (`mode="dial"`).
+
 **Оформление текста подсказки (MUST):** `InfoTooltip` / `Tooltip` рендерят строки через `formatRichTooltipText` (`shared/ui/Tooltip/Tooltip.tsx`). В locale / fallback:
 
 - Каждый смысловой пункт — **с новой строки** (`\n`). Не склеивать варианты в одно предложение через точку.
 - Ключевые имена параметров / режимов / примеров — в `**жирный**` (маркеры `**…**`, без HTML в строках i18n).
 - Без длинного тире `—` (см. типографику выше); обычный дефис `-` или запятая.
 - Без dialplan-внутренностей (`Queue(…)`, `PB_*`, tenant-суффиксы), если пользователь их не настраивает руками.
+- **Терминология продукта (MUST):** система называется **Krasterisk**. Слово **Asterisk** в подсказках / лейблах / empty states **запрещено**, кроме случаев, где пользователь работает с самим движком напрямую и это оговорено (raw dialplan `extensions.conf`, PJSIP ACL, список переменных канала). Вместо «dialplan-приложение Asterisk» - «приложение Krasterisk».
 
 ```ts
 // ✅
@@ -471,12 +492,34 @@ import { Pencil, Trash2 } from 'lucide-react';
 />
 ```
 
+```tsx
+// Эталон: неявное поле «Назначение» (dial ValueSource)
+<InfoTooltip
+  text={t(
+    'routes.chain.source.dialHint',
+    '**B-номер маршрута** - номер, который набрал абонент (маска этого маршрута)\n**Фиксированное значение** - постоянный номер для набора\n**Из переменной** - номер из переменной канала\n**Из справочника** - номер из поля записи по CallerID',
+  )}
+/>
+```
+
+##### 3.1. Dialplan apps — только схемы (MUST)
+
+Живой редактор шага - это `StepSheet` → `splitSchemaFields` → `SchemaFields`. Он рендерит **только** `IDialplanAppConfig.schema`.
+
+- Персональных React-компонентов на приложение **нет**. Поля `component` в `IDialplanAppConfig` не существует; попытка «сделать UI приложения» отдельным компонентом создаёт мёртвый код, который не виден в интерфейсе (так пропало 46 файлов в `ui/apps/*`).
+- Нестандартный контрол подключается через `FieldSchema.render` (см. `renderDialModify*`, `LabelSelect`, `ScheduleIntervalsEditor`). Файлы в `ui/apps/*` содержат **только** `build*Schema` / `summarize*` / кастомные поля.
+- Каталоги (`optionsSource`) резолвит **единственный** владелец - `model/useSchemaRefs.ts`. Каждое значение `OptionsSource` обязано иметь запись и в `useSchemaRefs`, и в `CATALOG_DEFAULTS` (`SchemaFields`): без записи `RefSelect` покажет «Ничего не создано» вместо данных. Прямые `useGetXQuery` в `StepSheet` / полях **запрещены** (исключение - `ValueSourceField`, который сам грузит очереди и справочники по своему режиму).
+- `useSchemaRefs` вызывает RTK-хуки безусловно, поэтому в тестах, рендерящих `StepSheet` без Redux-Provider, мокаются **все** каталоги.
+
 ##### 4. Вторичная группа полей — сворачиваемый блок
 
 Доп. параметры (редко нужные) — в bordered-группе, **по умолчанию свёрнутой** (при edit можно открыть, если значения уже заданы):
 
 - Фон: `color-mix(in srgb, var(--color-muted) 35%, transparent)`.
-- Заголовок: toggle-кнопка + `ChevronDown` (rotate при open) + `InfoTooltip` **снаружи** toggle (клик по `?` не сворачивает секцию).
+- Заголовок: название + `InfoTooltip` **сразу справа от заголовка** (клик по `?` не сворачивает секцию). Справа в строке - только иконка `ChevronDown` (toggle, rotate при open); текст «Раскрыть» / «Свернуть» **запрещён** - подпись только в `aria-label` / `title` кнопки.
+- **Обязательная подсказка секции (MUST):** у каждого `AppCollapsibleSection` в StepSheet (`Параметры` / primary, доп. параметры, `Опции`, `Условия`, `Модификация номера` и т.д.) задаётся `tooltip` с кратким описанием содержимого «под катом» (как у «Условий»). Без tooltip секцию не оставлять. Ключи: `routes.chain.section.*Tooltip` / `routes.chain.modify.sectionHint`.
+- **Подсказка описывает только то, что реально в секции (MUST):** дефолтный текст `extraParamsTooltip` не перечисляет поля. Если у приложения в доп. параметрах есть специфика - задаётся `paramsSection.tooltipKey` в registry. Перечислять в подсказке поля, которых в секции нет, хуже, чем не давать подсказку.
+- **Два блока параметров (MUST):** когда у шага есть и primary-, и `params`-поля, заголовки - «Основные параметры» / «Дополнительные параметры» (`routes.chain.section.primaryParams` / `extraParams`). Один блок - обычные «Параметры».
 - `aria-expanded` / `aria-controls` на toggle.
 
 ##### 5. Медиа / аватар
@@ -511,7 +554,7 @@ import { Pencil, Trash2 } from 'lucide-react';
   }
   ```
 
-  **Обоснование:** без `min-height: 0` flex-дети не сжимаются; без `> * { flex-shrink: 0 }` (где применимо) дочерние блоки сжимаются вместо скролла. Нативный `<div>` для layout в `features/` нежелателен — предпочтительны Stack; исключение — обёртка `formBody`/`scrollBody`, если Stack ломает flex-сжатие.
+  **Обоснование:** без `min-height: 0` flex-дети не сжимаются; без `> * { flex-shrink: 0 }` (где применимо) дочерние блоки сжимаются вместо скролла. Нативный `<div>` для layout в `features/` нежелателен — предпочтительны Stack; исключение — обёртка `formBody`/`scrollBody`, если Stack ломает flex-сжатие. Скролл-контейнер клипит outset-обводку фокуса - только `ring-inset` (см. MUST «Focus ring inset» выше).
 
 - **Табы в модалках:** Если форма сложная (>150 строк или сложная логика), она декомпозируется на «умный» родитель-модалку и дочерние компоненты-вкладки (напр. `[Feature]GeneralTab.tsx`, `[Feature]PromptsTab.tsx`).
 - **Table row actions:** Колонка иконок действий в таблицах — только `TableRowActions` / `TableRowAction` (см. MUST выше в «Дизайн-система и Стандарты»). Не дублировать `.actionBtn` в feature SCSS.
@@ -1021,4 +1064,4 @@ Node.js **22+** is required for Capacitor 8 CLI/sync.
 
 ---
 
-*Last updated: 2026-08-17 (UserFormModal form-modal patterns)*
+*Last updated: 2026-08-24 (implicit-field InfoTooltip pattern / dialHint)*

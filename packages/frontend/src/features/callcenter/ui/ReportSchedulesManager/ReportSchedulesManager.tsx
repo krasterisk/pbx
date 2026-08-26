@@ -74,7 +74,7 @@ function formatDt(iso: string | null | undefined): string {
 
 /**
  * Supervisor tab: CRUD + run-now for scheduled CC report delivery (D-35).
- * Format options are CSV/XLSX only — PDF is client-only on the reports page.
+ * Format options are CSV/XLSX only - PDF is client-only on the reports page.
  */
 export function ReportSchedulesManager() {
   const { t } = useTranslation();

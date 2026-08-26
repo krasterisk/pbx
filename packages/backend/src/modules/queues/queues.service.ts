@@ -4,6 +4,7 @@ import { Sequelize } from 'sequelize-typescript';
 import { Queue } from './queue.model';
 import { QueueMember } from './queue-member.model';
 import { AmiService } from '../ami/ami.service';
+import { buildSipId } from '../endpoints/endpoint-ids.util';
 
 export interface CreateQueueDto {
   exten: string;
@@ -20,6 +21,7 @@ export interface CreateQueueDto {
   joinempty?: string;
   leavewhenempty?: string;
   ringinuse?: boolean;
+  autofill?: string | boolean;
   // Announcements
   announce?: string;
   announce_frequency?: number;
@@ -74,6 +76,32 @@ export class QueuesService {
     // q700_42 → "700"
     const match = queueName.match(/^q(.+)_\d+$/);
     return match ? match[1] : queueName;
+  }
+
+  /**
+   * Queue members must use tenant SIP ids (PJSIP/e101_0), not bare PJSIP/101.
+   * Legacy bare extensions are rewritten on save.
+   */
+  private normalizeMemberInterface(iface: string, vpbxUserUid: number): string {
+    const raw = String(iface || '').trim();
+    if (!raw) return raw;
+    if (/^Local\//i.test(raw)) return raw;
+    const m = raw.match(/^(PJSIP|SIP)\/(.+)$/i);
+    if (!m) return raw;
+    const id = m[2].trim();
+    if (/^e(w)?.+_\d+$/i.test(id)) return `PJSIP/${id}`;
+    if (/^\d+$/.test(id)) return `PJSIP/${buildSipId(vpbxUserUid, id)}`;
+    return `PJSIP/${id}`;
+  }
+
+  private mapMembersForSave(members: MemberDto[] | undefined, queueName: string, vpbxUserUid: number) {
+    if (!members?.length) return [];
+    return members.map((m) => ({
+      ...m,
+      interface: this.normalizeMemberInterface(m.interface, vpbxUserUid),
+      queue_name: queueName,
+      user_uid: vpbxUserUid,
+    }));
   }
 
   async findAll(vpbxUserUid: number) {
@@ -143,11 +171,7 @@ export class QueuesService {
       // Create members
       if (members?.length) {
         await this.memberModel.bulkCreate(
-          members.map(m => ({
-            ...m,
-            queue_name: queueName,
-            user_uid: vpbxUserUid,
-          })),
+          this.mapMembersForSave(members, queueName, vpbxUserUid),
           { transaction },
         );
       }
@@ -206,11 +230,7 @@ export class QueuesService {
         });
         if (members.length) {
           await this.memberModel.bulkCreate(
-            members.map(m => ({
-              ...m,
-              queue_name: newQueueName,
-              user_uid: vpbxUserUid,
-            })),
+            this.mapMembersForSave(members, newQueueName, vpbxUserUid),
             { transaction },
           );
         }

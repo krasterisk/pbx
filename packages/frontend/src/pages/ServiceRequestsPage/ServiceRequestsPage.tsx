@@ -45,7 +45,7 @@ export function ServiceRequestsPage() {
         <ServiceRequestsStats stats={statsData} isLoading={isLoadingStats} />
       </div>
 
-      {/* Main card with filters + table — D-29 page-level overflow hybrid */}
+      {/* Main card with filters + table - D-29 page-level overflow hybrid */}
       <Card className={`${cls.card} border-muted/50 shadow-sm backdrop-blur-xl bg-background/50 flex flex-col min-h-[400px] sm:min-h-[500px]`}>
         <CardHeader className="border-b border-border/50 bg-muted/20 pb-4 px-3 sm:px-6">
           <div className={cls.filterBar}>

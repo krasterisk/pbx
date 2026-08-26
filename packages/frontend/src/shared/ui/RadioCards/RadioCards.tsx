@@ -13,55 +13,51 @@ export interface RadioCardsProps {
   value: string;
   onChange: (value: string) => void;
   disabled?: boolean;
+  ariaLabel?: string;
 }
 
 /**
- * RadioCards — visual radio-button card selector.
+ * RadioCards - visual radio-button card selector.
  *
  * Replaces native `<select>` for cases where each option needs
  * an icon + description for better UX comprehension.
  *
  * FSD layer: shared/ui
  */
-export const RadioCards = memo(({ options, value, onChange, disabled }: RadioCardsProps) => {
+export const RadioCards = memo(({ options, value, onChange, disabled, ariaLabel }: RadioCardsProps) => {
   const handleSelect = useCallback((optValue: string) => {
     if (!disabled) onChange(optValue);
   }, [onChange, disabled]);
 
   return (
-    <div className={cls.container}>
+    <div className={cls.container} role="radiogroup" aria-label={ariaLabel}>
       {options.map((opt) => {
         const isSelected = opt.value === value;
         const Icon = opt.icon;
 
         return (
-          <div
+          <button
             key={opt.value}
+            type="button"
             className={`${cls.card} ${isSelected ? cls.cardSelected : ''}`}
             onClick={() => handleSelect(opt.value)}
             role="radio"
             aria-checked={isSelected}
-            tabIndex={0}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                handleSelect(opt.value);
-              }
-            }}
+            disabled={disabled}
           >
-            <div className={`${cls.indicator} ${isSelected ? cls.indicatorSelected : ''}`} />
+            <span className={`${cls.indicator} ${isSelected ? cls.indicatorSelected : ''}`} aria-hidden />
 
             {Icon && (
-              <Icon className={`${cls.cardIcon} ${isSelected ? cls.cardIconSelected : ''}`} />
+              <Icon className={`${cls.cardIcon} ${isSelected ? cls.cardIconSelected : ''}`} aria-hidden />
             )}
 
-            <div className={cls.content}>
-              <span className={cls.label}>{opt.label}</span>
+            <span className={cls.content}>
+              <span className={`${cls.label} ${isSelected ? cls.labelSelected : ''}`}>{opt.label}</span>
               {opt.description && (
                 <span className={cls.description}>{opt.description}</span>
               )}
-            </div>
-          </div>
+            </span>
+          </button>
         );
       })}
     </div>

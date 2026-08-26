@@ -28,10 +28,9 @@ const DragTransferContext = createContext<DragTransferContextValue | null>(null)
 
 export function useDragTransfer(): DragTransferContextValue {
   const ctx = useContext(DragTransferContext);
-  if (!ctx) {
-    throw new Error('useDragTransfer must be used within DragTransferProvider');
-  }
-  return ctx;
+  // Soft no-op outside provider so panels remain usable if provider is missing
+  // (e.g. tests, partial remounts) - transfer just won't open.
+  return ctx ?? { requestTransfer: () => undefined };
 }
 
 interface ProviderProps {

@@ -301,7 +301,7 @@ export function ServiceRequestModal({ isOpen, onClose, record }: ServiceRequestM
               </HStack>
             )}
 
-            {/* Контрагент — 3 per row responsive */}
+            {/* Контрагент - 3 per row responsive */}
             <VStack gap="8">
               <SectionHeader icon={User} title={t('serviceRequests.section.counterparty', 'Контрагент')} />
               <HStack gap="12" className="flex-wrap">
@@ -343,7 +343,7 @@ export function ServiceRequestModal({ isOpen, onClose, record }: ServiceRequestM
                 <VStack gap="4" className={fieldClass}>
                   <RequiredLabel>{t('serviceRequests.topic', 'Тема обращения')}</RequiredLabel>
                   <Select value={topic} onChange={(e) => setTopic(e.target.value)}>
-                    <option value="">{t('serviceRequests.placeholder.selectTopic', '— Выберите тему —')}</option>
+                    <option value="">{t('serviceRequests.placeholder.selectTopic', 'Выберите тему')}</option>
                     {subjects.map((s) => (
                       <option key={s.uid} value={s.name}>{s.name}</option>
                     ))}
@@ -352,14 +352,14 @@ export function ServiceRequestModal({ isOpen, onClose, record }: ServiceRequestM
               </HStack>
             </VStack>
 
-            {/* Территория — 3 per row responsive */}
+            {/* Территория - 3 per row responsive */}
             <VStack gap="8">
               <SectionHeader icon={MapPin} title={t('serviceRequests.section.territory', 'Территория')} />
               <HStack gap="12" className="flex-wrap">
                 <VStack gap="4" className={fieldClass}>
                   <RequiredLabel>{t('serviceRequests.territorialZone', 'Территориальная зона')}</RequiredLabel>
                   <Select value={territorialZone} onChange={(e) => setTerritorialZone(e.target.value)}>
-                    <option value="">{t('serviceRequests.placeholder.selectZone', '— Выберите зону —')}</option>
+                    <option value="">{t('serviceRequests.placeholder.selectZone', 'Выберите зону')}</option>
                     {territorialZones.map((z) => (
                       <option key={z} value={z}>{z}</option>
                     ))}
@@ -368,7 +368,7 @@ export function ServiceRequestModal({ isOpen, onClose, record }: ServiceRequestM
                 <VStack gap="4" className={fieldClass}>
                   <RequiredLabel>{t('serviceRequests.district', 'Район')}</RequiredLabel>
                   <Select value={district} onChange={(e) => setDistrict(e.target.value)} disabled={!territorialZone}>
-                    <option value="">{territorialZone ? t('serviceRequests.placeholder.selectDistrict', '— Выберите район —') : t('serviceRequests.placeholder.selectZoneFirst', '← Сначала выберите зону')}</option>
+                    <option value="">{territorialZone ? t('serviceRequests.placeholder.selectDistrict', 'Выберите район') : t('serviceRequests.placeholder.selectZoneFirst', '← Сначала выберите зону')}</option>
                     {filteredDistricts.map((d) => (
                       <option key={d.uid} value={d.district}>{d.district}</option>
                     ))}
@@ -387,7 +387,7 @@ export function ServiceRequestModal({ isOpen, onClose, record }: ServiceRequestM
               </HStack>
             </VStack>
 
-            {/* Суть обращения — full width */}
+            {/* Суть обращения - full width */}
             <VStack gap="8">
               <SectionHeader icon={MessageSquare} title={t('serviceRequests.section.requestDetails', 'Суть обращения')} />
               <VStack gap="4">
@@ -448,7 +448,7 @@ export function ServiceRequestModal({ isOpen, onClose, record }: ServiceRequestM
                     if (e.target.value) setScheduleComment(e.target.value);
                   }}
                 >
-                  <option value="">{t('serviceRequests.placeholder.scheduleCommentPreset', '— Выберите вариант —')}</option>
+                  <option value="">{t('serviceRequests.placeholder.scheduleCommentPreset', 'Выберите вариант')}</option>
                   {SCHEDULE_COMMENT_PRESETS.map((preset) => (
                     <option key={preset} value={preset}>{preset}</option>
                   ))}

@@ -1,9 +1,13 @@
 .root {
   width: 100%;
   padding: 0.75rem 1rem;
-  border-radius: var(--radius-md, 0.5rem);
+  border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--color-muted) 35%, transparent);
   border: 1px solid var(--color-border);
+}
+
+.embedded {
+  width: 100%;
 }
 
 .flagRow {
@@ -36,7 +40,11 @@
 }
 
 .toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   min-height: 44px;
+  width: 100%;
   border: 0;
   background: transparent;
   color: var(--color-foreground);
@@ -44,4 +52,9 @@
   cursor: pointer;
   text-align: left;
   padding: 0;
+}
+
+.toggleIcon {
+  flex-shrink: 0;
+  color: var(--color-muted-foreground, #71717a);
 }

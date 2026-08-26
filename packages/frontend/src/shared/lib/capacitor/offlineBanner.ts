@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { App } from '@capacitor/app';
 import { isNativePlatform } from './isNative';
 
-/** Current online flag from navigator (D-35 — banner only, no action queue). */
+/** Current online flag from navigator (D-35 - banner only, no action queue). */
 export function getOnlineStatus(): boolean {
   if (typeof navigator === 'undefined') return true;
   return navigator.onLine;

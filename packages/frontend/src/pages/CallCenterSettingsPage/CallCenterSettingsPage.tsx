@@ -6,6 +6,7 @@ import { CallCenterSettings } from '@/features/callcenter/ui/CallCenterSettings'
 import { AlertThresholdsForm } from '@/features/callcenter/ui/AlertThresholdsForm/AlertThresholdsForm';
 import { AlertRoutingForm } from '@/features/callcenter/ui/AlertRoutingForm/AlertRoutingForm';
 import { AutoPauseRulesForm } from '@/features/callcenter/ui/AutoPauseRulesForm/AutoPauseRulesForm';
+import { ShiftPolicyForm } from '@/features/callcenter/ui/ShiftPolicyForm/ShiftPolicyForm';
 import { DisplayTokensManager } from '@/features/callcenter/ui/DisplayTokensManager/DisplayTokensManager';
 import { ReportSchedulesManager } from '@/features/callcenter/ui/ReportSchedulesManager/ReportSchedulesManager';
 import { PauseReasonsManager } from '@/features/callcenter/ui/PauseReasonsManager/PauseReasonsManager';
@@ -19,6 +20,7 @@ export type CcSettingsTabId =
   | 'cardTemplates'
   | 'pauseReasons'
   | 'autoPause'
+  | 'shifts'
   | 'alertThresholds'
   | 'operatorSettings'
   | 'myPanel'
@@ -30,6 +32,7 @@ const TAB_IDS: CcSettingsTabId[] = [
   'cardTemplates',
   'pauseReasons',
   'autoPause',
+  'shifts',
   'alertThresholds',
   'operatorSettings',
   'myPanel',
@@ -72,6 +75,9 @@ export function CallCenterSettingsPage() {
     }
     if (activeTab === 'autoPause') {
       return <AutoPauseRulesForm />;
+    }
+    if (activeTab === 'shifts') {
+      return <ShiftPolicyForm />;
     }
     if (activeTab === 'displayTokens') {
       return <DisplayTokensManager />;

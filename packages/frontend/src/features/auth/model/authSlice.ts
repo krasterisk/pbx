@@ -100,7 +100,7 @@ export const login = createAsyncThunk(
       }
       const data: ILoginResponse & { refreshToken: string } = await response.json();
       await persistSession(data.accessToken, data.refreshToken, data.user);
-      // FCM foundation after native login (D-32) — non-blocking
+      // FCM foundation after native login (D-32) - non-blocking
       if (isNativePlatform()) {
         void registerPush(data.accessToken);
       }
@@ -146,7 +146,7 @@ const authSlice = createSlice({
       state.isAuthenticated = true;
       void getTokenStorage().set(TOKEN_STORAGE_KEYS.accessToken, action.payload);
     },
-    /** Sync tokens after /auth/refresh (rtkApi reauth) — must update Redux, not only localStorage. */
+    /** Sync tokens after /auth/refresh (rtkApi reauth) - must update Redux, not only localStorage. */
     setSession(
       state,
       action: PayloadAction<{
@@ -160,6 +160,12 @@ const authSlice = createSlice({
       state.user = action.payload.user;
       state.isAuthenticated = true;
       state.error = null;
+    },
+    /** Patch fields on the logged-in user (e.g. after avatar upload). */
+    patchAuthUser(state, action: PayloadAction<Partial<ILoginResponse['user']>>) {
+      if (!state.user) return;
+      state.user = { ...state.user, ...action.payload };
+      void getTokenStorage().set(TOKEN_STORAGE_KEYS.user, JSON.stringify(state.user));
     },
     clearError(state) {
       state.error = null;
@@ -206,5 +212,5 @@ const authSlice = createSlice({
   },
 });
 
-export const { logout, clearError, setToken, setSession } = authSlice.actions;
+export const { logout, clearError, setToken, setSession, patchAuthUser } = authSlice.actions;
 export const authReducer = authSlice.reducer;

@@ -13,6 +13,7 @@ import { CallCenterStateService } from './callcenter-state.service';
 import { CallCenterAmiService } from './callcenter-ami.service';
 import { CallCenterService } from './callcenter.service';
 import { CallCenterPermissionsService } from './callcenter-permissions.service';
+import { CallCenterAccessListService } from './callcenter-access-list.service';
 import { CallCenterAiAdapter } from './callcenter-ai.adapter';
 import { CallCenterMediaBridgeService } from './callcenter-media-bridge.service';
 import { CallCenterHistoryWriterService } from './callcenter-history-writer.service';
@@ -22,6 +23,9 @@ import { CallCenterRollupService } from './callcenter-rollup.service';
 import { CallCenterQueueLogReconcilerService } from './callcenter-queuelog-reconciler.service';
 import { CallCenterZombieService } from './callcenter-zombie.service';
 import { CallCenterAutoPauseService } from './callcenter-autopause.service';
+import { CallCenterShiftStoreService } from './callcenter-shift-store.service';
+import { CallCenterShiftRestoreService } from './callcenter-shift-restore.service';
+import { CallCenterShiftJanitorService } from './callcenter-shift-janitor.service';
 import { CallCenterController } from './callcenter.controller';
 import { CallCenterSseController } from './callcenter-sse.controller';
 import { CallCenterSettingsController } from './callcenter-settings.controller';
@@ -62,6 +66,7 @@ import { CcChatChannel } from './models/chat-channel.model';
 import { CcReportSchedule } from './models/report-schedule.model';
 import { Queue } from '../queues/queue.model';
 import { User } from '../users/user.model';
+import { NumberList } from '../numbers/number-list.model';
 import { PhonebookEntry } from '../phonebooks/phonebook-entry.model';
 import { RoutePhonebook } from '../phonebooks/phonebook.model';
 import { ServiceRequest } from '../service-requests/service-request.model';
@@ -96,6 +101,7 @@ import { queueLogReaderProvider } from './queuelog/queue-log-reader.factory';
       CcReportSchedule,
       Queue,           // for tenant resolution from queue names
       User,            // for agent display names
+      NumberList,      // supervisor access lists (numbers)
       PhonebookEntry,  // Client Card sidebar lookup
       RoutePhonebook,  // Client Card sidebar lookup
       ServiceRequest,  // Client Card sidebar — linked service requests
@@ -148,8 +154,12 @@ import { queueLogReaderProvider } from './queuelog/queue-log-reader.factory';
       provide: 'CallCenterService',
       useExisting: CallCenterService,
     },
+    CallCenterShiftStoreService,
+    CallCenterShiftRestoreService,
+    CallCenterShiftJanitorService,
     CallCenterZombieService,
     CallCenterPermissionsService,
+    CallCenterAccessListService,
     CallCenterAiAdapter,
     CallCenterMediaBridgeService,
     CallCenterSettingsService,

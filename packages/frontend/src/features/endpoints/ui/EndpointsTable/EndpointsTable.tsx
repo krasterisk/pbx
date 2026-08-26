@@ -20,7 +20,7 @@ import { useEndpointsTableColumns } from './useEndpointsTableColumns';
 
 function parseCallerName(raw: string): string {
   const match = (raw || '').match(/^"(.+?)"/);
-  return match ? match[1] : raw || '—';
+  return match ? match[1] : raw || '-';
 }
 
 export const EndpointsTable = memo(() => {

@@ -66,7 +66,7 @@ describe('PlatformLayout (NAV-06 / 006-B)', () => {
 
   it('does not render platform catalog tabs inside tenant AppLayout (separate tree)', () => {
     renderPlatform(UserLevel.SUPERADMIN);
-    // Platform nav lives only under PlatformLayout — no ModuleShell/AppLayout chrome
+    // Platform nav lives only under PlatformLayout - no ModuleShell/AppLayout chrome
     expect(screen.queryByTestId('module-shell')).not.toBeInTheDocument();
     expect(screen.getByRole('navigation', { name: 'Platform console' })).toBeInTheDocument();
   });

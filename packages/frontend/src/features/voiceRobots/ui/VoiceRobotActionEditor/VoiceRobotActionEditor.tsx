@@ -31,12 +31,12 @@ interface VoiceRobotActionEditorProps {
   action: IVoiceRobotBotAction;
   onChange: (action: IVoiceRobotBotAction) => void;
   robotId?: number;
-  /** When true, hides slots and webhook details — used for fallback/max-retries editors */
+  /** When true, hides slots and webhook details - used for fallback/max-retries editors */
   compact?: boolean;
 }
 
 /**
- * VoiceRobotActionEditor — specialized editor for a keyword's bot action.
+ * VoiceRobotActionEditor - specialized editor for a keyword's bot action.
  *
  * Structured form with RadioCards for nextState selection:
  * 1. Response section (TTS text / audio prompt / none)
@@ -195,7 +195,7 @@ export const VoiceRobotActionEditor = memo(({ action, onChange, robotId, compact
                 value={action.response.value || ''}
                 onChange={e => updateResponse({ value: e.target.value })}
               >
-                <option value="">{t('voiceRobots.action.selectPrompt', '— Выберите промпт —')}</option>
+                <option value="">{t('voiceRobots.action.selectPrompt', 'Выберите промпт')}</option>
                 {prompts.map(p => (
                   <option key={p.uid} value={p.filename}>
                     {p.comment ? `${p.comment} (${p.filename})` : p.filename}
@@ -278,7 +278,7 @@ export const VoiceRobotActionEditor = memo(({ action, onChange, robotId, compact
                 />
               </VStack>
 
-              {/* Choice editor — shown when slot type is 'choice' */}
+              {/* Choice editor - shown when slot type is 'choice' */}
               {slot.type === 'choice' && (
                 <SlotChoiceEditor
                   choices={slot.choices || []}
@@ -344,7 +344,7 @@ export const VoiceRobotActionEditor = memo(({ action, onChange, robotId, compact
               value={String(action.nextState.target || '')}
               onChange={e => updateNextState({ target: e.target.value })}
             >
-              <option value="">{t('voiceRobots.action.selectGroup', '— Выберите группу —')}</option>
+              <option value="">{t('voiceRobots.action.selectGroup', 'Выберите группу')}</option>
               {groups.map(g => (
                 <option key={g.uid} value={g.uid}>{g.name}</option>
               ))}
@@ -372,7 +372,7 @@ export const VoiceRobotActionEditor = memo(({ action, onChange, robotId, compact
                 onChange={e => updateNextState({ target: `${tExt}@${e.target.value}` })}
                 className={!tCtx ? 'border-destructive ring-destructive/20' : ''}
               >
-                <option value="">{t('voiceRobots.action.selectContext', '— Выберите контекст —')}</option>
+                <option value="">{t('voiceRobots.action.selectContext', 'Выберите контекст')}</option>
                 {contexts.map(c => (
                   <option key={c.name} value={c.name}>{c.name}</option>
                 ))}
@@ -402,7 +402,7 @@ export const VoiceRobotActionEditor = memo(({ action, onChange, robotId, compact
                 value={String(dlsConfig.listId || '')}
                 onChange={e => updateDataListSearch({ listId: parseInt(e.target.value, 10) || 0 })}
               >
-                <option value="">{t('voiceRobots.action.selectDataList', '— Выберите справочник —')}</option>
+                <option value="">{t('voiceRobots.action.selectDataList', 'Выберите справочник')}</option>
                 {dataLists.map(dl => (
                   <option key={dl.uid} value={dl.uid}>
                     {dl.name} ({dl.rows?.length || 0} {t('voiceRobots.action.dataListRecords', 'записей')})
@@ -441,7 +441,7 @@ export const VoiceRobotActionEditor = memo(({ action, onChange, robotId, compact
                   value={dlsConfig.returnField}
                   onChange={e => updateDataListSearch({ returnField: e.target.value })}
                 >
-                  <option value="">{t('voiceRobots.action.selectField', '— Выберите поле —')}</option>
+                  <option value="">{t('voiceRobots.action.selectField', 'Выберите поле')}</option>
                   {listColumns.map(col => (
                     <option key={col.key} value={col.key}>{col.label} ({col.key})</option>
                   ))}
@@ -483,7 +483,7 @@ export const VoiceRobotActionEditor = memo(({ action, onChange, robotId, compact
               </Select>
               <Text variant="xs" className="text-muted-foreground">
                 {dlsConfig.multiMatchStrategy === 'random'
-                  ? t('voiceRobots.action.strategyRandomHint', 'Робот случайно выберет одну из подходящих строк — для распределения нагрузки')
+                  ? t('voiceRobots.action.strategyRandomHint', 'Робот случайно выберет одну из подходящих строк - для распределения нагрузки')
                   : t('voiceRobots.action.strategyBestHint', 'Робот вернёт первую подходящую строку из справочника')
                 }
               </Text>
@@ -572,7 +572,7 @@ export const VoiceRobotActionEditor = memo(({ action, onChange, robotId, compact
                         })}
                         className={!nfCtx ? 'border-destructive ring-destructive/20' : ''}
                       >
-                        <option value="">{t('voiceRobots.action.selectContext', '— Выберите контекст —')}</option>
+                        <option value="">{t('voiceRobots.action.selectContext', 'Выберите контекст')}</option>
                         {contexts.map(c => (
                           <option key={c.name} value={c.name}>{c.name}</option>
                         ))}
@@ -596,7 +596,7 @@ export const VoiceRobotActionEditor = memo(({ action, onChange, robotId, compact
                     },
                   })}
                 >
-                  <option value="">{t('voiceRobots.action.selectGroup', '— Выберите группу —')}</option>
+                  <option value="">{t('voiceRobots.action.selectGroup', 'Выберите группу')}</option>
                   {groups.map(g => (
                     <option key={g.uid} value={g.uid}>{g.name}</option>
                   ))}
@@ -628,7 +628,7 @@ export const VoiceRobotActionEditor = memo(({ action, onChange, robotId, compact
                 return (
                   <>
                     <span className="block">
-                      <strong>{'{{' + rv + '}}'}</strong> — значение поля «{dlsConfig.returnField || 'returnField'}» из найденной строки
+                      <strong>{'{{' + rv + '}}'}</strong> - значение поля «{dlsConfig.returnField || 'returnField'}» из найденной строки
                     </span>
                     {cols.length > 0 && (
                       <span className="block">
@@ -640,7 +640,7 @@ export const VoiceRobotActionEditor = memo(({ action, onChange, robotId, compact
                     )}
                     {cols.length === 0 && (
                       <span className="block text-muted-foreground/70">
-                        Формат: <code className="bg-muted px-1 rounded text-[10px]">{'{{'}{'переменная_колонка'}{'}}'}</code> — например <code className="bg-muted px-1 rounded text-[10px]">{'{{'}{ `${rv}_имя` }{'}}'}</code>
+                        Формат: <code className="bg-muted px-1 rounded text-[10px]">{'{{'}{'переменная_колонка'}{'}}'}</code> - например <code className="bg-muted px-1 rounded text-[10px]">{'{{'}{ `${rv}_имя` }{'}}'}</code>
                       </span>
                     )}
                   </>
@@ -693,7 +693,7 @@ export const VoiceRobotActionEditor = memo(({ action, onChange, robotId, compact
                       })}
                       className={!ofCtx ? 'border-destructive ring-destructive/20' : ''}
                     >
-                      <option value="">{t('voiceRobots.action.selectContext', '— Выберите контекст —')}</option>
+                      <option value="">{t('voiceRobots.action.selectContext', 'Выберите контекст')}</option>
                       {contexts.map(c => (
                         <option key={c.name} value={c.name}>{c.name}</option>
                       ))}
@@ -716,7 +716,7 @@ export const VoiceRobotActionEditor = memo(({ action, onChange, robotId, compact
                     },
                   })}
                 >
-                  <option value="">{t('voiceRobots.action.selectGroup', '— Выберите группу —')}</option>
+                  <option value="">{t('voiceRobots.action.selectGroup', 'Выберите группу')}</option>
                   {groups.map(g => (
                     <option key={g.uid} value={g.uid}>{g.name}</option>
                   ))}
@@ -728,7 +728,7 @@ export const VoiceRobotActionEditor = memo(({ action, onChange, robotId, compact
                 const rv = dlsConfig.resultVariable || 'result';
                 return (
                   <>
-                    Номер можно не вводить — если пусто, используется <code className="bg-muted px-1 rounded text-[10px]">{'{{'}{ rv }{'}}'}</code> автоматически.
+                    Номер можно не вводить - если пусто, используется <code className="bg-muted px-1 rounded text-[10px]">{'{{'}{ rv }{'}}'}</code> автоматически.
                     {' '}Можно явно указать другое поле: <code className="bg-muted px-1 rounded text-[10px]">{'{{'}{ `${rv}_телефон` }{'}}'}</code>
                   </>
                 );
@@ -755,9 +755,9 @@ export const VoiceRobotActionEditor = memo(({ action, onChange, robotId, compact
                     <strong>{t('voiceRobots.action.webhookSpecTitle', 'Спецификация Webhook:')}</strong><br/>
                     {t('voiceRobots.action.webhookSpecDesc', 'Робот отправит POST-запрос с собранными параметрами slots и текущим контекстом звонка.')}<br/><br/>
                     <strong>{t('voiceRobots.action.webhookExpectTitle', 'Ожидаемый JSON-ответ:')}</strong><br/>
-                    • <code>{`{"action": "continue_dialogue", "say_text": "...", "next_state": "listen"}`}</code> — {t('voiceRobots.action.webhookContinue', 'продолжить опрос')}<br/>
-                    • <code>{`{"action": "transfer_exten", "target": "100"}`}</code> — {t('voiceRobots.action.webhookTransfer', 'перевести звонок')}<br/>
-                    • <code>{`{"action": "hangup"}`}</code> — {t('voiceRobots.action.webhookHangup', 'завершить звонок')}<br/><br/>
+                    • <code>{`{"action": "continue_dialogue", "say_text": "...", "next_state": "listen"}`}</code> - {t('voiceRobots.action.webhookContinue', 'продолжить опрос')}<br/>
+                    • <code>{`{"action": "transfer_exten", "target": "100"}`}</code> - {t('voiceRobots.action.webhookTransfer', 'перевести звонок')}<br/>
+                    • <code>{`{"action": "hangup"}`}</code> - {t('voiceRobots.action.webhookHangup', 'завершить звонок')}<br/><br/>
                     <em>{t('voiceRobots.action.webhookVariables', 'Любые другие ключи можно подставить в Шаблон ответа через {{key}}.', { key: '{{key}}' })}</em>
                   </div>
                 }

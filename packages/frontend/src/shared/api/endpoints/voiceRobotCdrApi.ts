@@ -86,7 +86,7 @@ interface CdrQueryParams {
 
 const voiceRobotCdrApi = rtkApi.injectEndpoints({
   endpoints: (build) => ({
-    /** GET /voice-robots/cdr — список с пагинацией и фильтрами */
+    /** GET /voice-robots/cdr - список с пагинацией и фильтрами */
     getVoiceRobotCdrs: build.query<IVoiceRobotCdrListResponse, CdrQueryParams | void>({
       query: (params) => ({
         url: '/voice-robots/cdr',
@@ -95,7 +95,7 @@ const voiceRobotCdrApi = rtkApi.injectEndpoints({
       providesTags: ['VoiceRobotsCdr'],
     }),
 
-    /** GET /voice-robots/cdr/stats — статистика */
+    /** GET /voice-robots/cdr/stats - статистика */
     getVoiceRobotCdrStats: build.query<IVoiceRobotCdrStats, { robotId?: number } | void>({
       query: (params) => ({
         url: '/voice-robots/cdr/stats',
@@ -104,23 +104,23 @@ const voiceRobotCdrApi = rtkApi.injectEndpoints({
       providesTags: ['VoiceRobotsCdr'],
     }),
 
-    /** GET /voice-robots/cdr/:id — одна запись */
+    /** GET /voice-robots/cdr/:id - одна запись */
     getVoiceRobotCdr: build.query<IVoiceRobotCdr, number>({
       query: (id) => `/voice-robots/cdr/${id}`,
       providesTags: (_r, _e, id) => [{ type: 'VoiceRobotsCdr', id }],
     }),
 
-    /** GET /voice-robots/cdr/:id/detail — CDR + пошаговые логи */
+    /** GET /voice-robots/cdr/:id/detail - CDR + пошаговые логи */
     getVoiceRobotCdrDetail: build.query<IVoiceRobotCdrDetail, number>({
       query: (id) => `/voice-robots/cdr/${id}/detail`,
       providesTags: (_r, _e, id) => [{ type: 'VoiceRobotsCdr', id }],
     }),
-    /** GET /voice-robots/cdr/tags — unique tags for filter */
+    /** GET /voice-robots/cdr/tags - unique tags for filter */
     getCdrTags: build.query<string[], void>({
       query: () => '/voice-robots/cdr/tags',
       providesTags: ['VoiceRobotsCdr'],
     }),
-    /** GET /voice-robots/cdr/export — all matching records for CSV export */
+    /** GET /voice-robots/cdr/export - all matching records for CSV export */
     exportVoiceRobotCdr: build.query<IVoiceRobotCdrListResponse, Omit<CdrQueryParams, 'limit' | 'offset'>>({
       query: (params) => ({
         url: '/voice-robots/cdr/export',

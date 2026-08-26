@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useSelector } from 'react-redux';
 import { Phone, MonitorSmartphone } from 'lucide-react';
 import {
   Dialog,
@@ -26,6 +27,8 @@ import {
   saveLastShiftQueues,
 } from '@/features/callcenter/lib/shiftLoginQueues';
 import type { IEndpointCredentials } from '@/shared/api/endpoints/endpointApi';
+import { buildWebrtcSipId, extractExtension, interfaceToExtension } from '@/features/endpoints/lib/endpointIds';
+import { selectCcAgents } from '@/features/callcenter/model/selectors/callCenterSelectors';
 import styles from './ShiftLoginModal.module.scss';
 
 export type SoftphoneMode = 'sip' | 'webrtc';
@@ -47,10 +50,28 @@ interface ShiftLoginModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onConfirm: (result: ShiftLoginResult) => void | Promise<void>;
+  /**
+   * Supervisor starts a shift for another agent: same SIP/WebRTC choice,
+   * but no local headset/mic setup (media runs on the operator's side).
+   */
+  remoteAgent?: boolean;
+  title?: string;
+  subtitle?: string;
+  /** null = all queues; otherwise filter to access-list queues. */
+  allowedQueues?: string[] | null;
 }
 
-export function ShiftLoginModal({ open, onOpenChange, onConfirm }: ShiftLoginModalProps) {
+export function ShiftLoginModal({
+  open,
+  onOpenChange,
+  onConfirm,
+  remoteAgent = false,
+  title,
+  subtitle,
+  allowedQueues = null,
+}: ShiftLoginModalProps) {
   const { t } = useTranslation();
+  const agents = useSelector(selectCcAgents);
   const [mode, setMode] = useState<SoftphoneMode>('sip');
   const [sipId, setSipId] = useState('');
   const [queues, setQueues] = useState<string[]>([]);
@@ -61,6 +82,20 @@ export function ShiftLoginModal({ open, onOpenChange, onConfirm }: ShiftLoginMod
   const { data: endpoints = [] } = useGetEndpointsQuery(undefined, { skip: !open });
   const { data: queueList = [] } = useGetQueuesQuery(undefined, { skip: !open });
   const [fetchCredentials] = useLazyGetEndpointCredentialsQuery();
+
+  /** extension → display name of the operator currently on shift (SIP or WebRTC). */
+  const occupiedByExten = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const agent of agents) {
+      if (!agent.userId || agent.status === 'OFFLINE') continue;
+      if (!agent.interface || agent.interface.startsWith('user:')) continue;
+      const exten = interfaceToExtension(agent.interface) || extractExtension(agent.interface);
+      if (!exten) continue;
+      const name = (agent.name || '').trim() || `#${agent.userId}`;
+      map.set(exten, name);
+    }
+    return map;
+  }, [agents]);
   const {
     microphones,
     speakers,
@@ -81,28 +116,51 @@ export function ShiftLoginModal({ open, onOpenChange, onConfirm }: ShiftLoginMod
       {
         value: 'sip',
         label: t('callcenter.softphone.modeSip'),
-        description: t('callcenter.softphone.modeSipDesc'),
+        description: remoteAgent
+          ? t(
+            'callcenter.softphone.modeSipDescRemote',
+            'Оператор работает на SIP-телефоне или софтфоне',
+          )
+          : t('callcenter.softphone.modeSipDesc'),
         icon: Phone,
       },
       {
         value: 'webrtc',
         label: t('callcenter.softphone.modeWebrtc'),
-        description: t('callcenter.softphone.modeWebrtcDesc'),
+        description: remoteAgent
+          ? t(
+            'callcenter.softphone.modeWebrtcDescRemote',
+            'Оператор работает в браузере (WebRTC); гарнитуру подключает у себя',
+          )
+          : t('callcenter.softphone.modeWebrtcDesc'),
         icon: MonitorSmartphone,
       },
     ],
-    [t],
+    [t, remoteAgent],
   );
 
   const queueOptions: MultiSelectOption[] = useMemo(
-    () =>
-      queueList.map((q: { name: string; display_name?: string; exten?: string }) => ({
-        value: q.name,
-        label: q.display_name
-          ? `${q.display_name}${q.exten ? ` (${q.exten})` : ''}`
-          : (q.exten || q.name),
-      })),
-    [queueList],
+    () => {
+      const allowed = allowedQueues == null
+        ? null
+        : new Set(allowedQueues.map((q) => q.toLowerCase()));
+      return queueList
+        .filter((q: { name: string; display_name?: string; exten?: string }) => {
+          if (!allowed) return true;
+          const name = (q.name || '').toLowerCase();
+          const exten = (q.exten || '').toLowerCase();
+          if (allowed.has(name) || (exten && allowed.has(exten))) return true;
+          const m = name.match(/^q(.+)_\d+$/i);
+          return Boolean(m && allowed.has(m[1].toLowerCase()));
+        })
+        .map((q: { name: string; display_name?: string; exten?: string }) => ({
+          value: q.name,
+          label: q.display_name
+            ? `${q.display_name}${q.exten ? ` (${q.exten})` : ''}`
+            : (q.exten || q.name),
+        }));
+    },
+    [queueList, allowedQueues],
   );
 
   const stopMicMeter = useCallback(() => {
@@ -156,20 +214,30 @@ export function ShiftLoginModal({ open, onOpenChange, onConfirm }: ShiftLoginMod
   }, [refresh, stopMicMeter, t]);
 
   useEffect(() => {
-    if (!open || mode !== 'webrtc') {
+    if (!open || mode !== 'webrtc' || remoteAgent) {
       stopMicMeter();
       return;
     }
     void startMicMeter(selectedMic);
     return () => stopMicMeter();
-  }, [open, mode, selectedMic, startMicMeter, stopMicMeter]);
+  }, [open, mode, selectedMic, remoteAgent, startMicMeter, stopMicMeter]);
 
   useEffect(() => {
     if (!open) {
       setMicError(null);
       setSubmitting(false);
+      return;
     }
+    setMicError(null);
+    setSubmitting(false);
   }, [open]);
+
+  // Switching SIP ↔ WebRTC must clear a previous hard-fail (e.g. webrtcNotEnabled),
+  // otherwise the Start button stays disabled forever.
+  useEffect(() => {
+    if (!open) return;
+    setMicError(null);
+  }, [mode, open]);
 
   // Restore last selected queues when modal opens and options are available
   useEffect(() => {
@@ -181,6 +249,19 @@ export function ShiftLoginModal({ open, onOpenChange, onConfirm }: ShiftLoginMod
     });
   }, [open, queueOptions]);
 
+  const resolveWebrtcSipId = async (endpointId: string): Promise<string | null> => {
+    const fromList = endpoints.find((e) => e.id === endpointId);
+    if (fromList?.webrtc?.id) return fromList.webrtc.id;
+    const derived = buildWebrtcSipId(endpointId);
+    if (fromList?.webrtc_enabled && derived) return derived;
+    try {
+      const allCreds = await fetchCredentials(endpointId).unwrap();
+      return allCreds.webrtc?.sipId || null;
+    } catch {
+      return derived;
+    }
+  };
+
   const handleConfirm = async () => {
     if (!sipId || submitting) return;
     const endpoint = endpoints.find((e) => e.id === sipId);
@@ -191,7 +272,22 @@ export function ShiftLoginModal({ open, onOpenChange, onConfirm }: ShiftLoginMod
       return;
     }
 
+    const selectedExten = endpoint.extension || extractExtension(endpoint.id) || endpoint.id;
+    const occupant = occupiedByExten.get(selectedExten);
+    if (occupant) {
+      setMicError(
+        t('callcenter.softphone.extensionInUse', {
+          exten: selectedExten,
+          name: occupant,
+          defaultValue:
+            'Номер {{exten}} уже занят оператором {{name}}. Завершите его смену или выберите другой номер.',
+        }),
+      );
+      return;
+    }
+
     setSubmitting(true);
+    setMicError(null);
     try {
       if (mode === 'sip') {
         await onConfirm({
@@ -201,12 +297,31 @@ export function ShiftLoginModal({ open, onOpenChange, onConfirm }: ShiftLoginMod
           sipId: endpoint.id,
           endpointId: endpoint.id,
         });
+      } else if (remoteAgent) {
+        const webrtcId = await resolveWebrtcSipId(endpoint.id);
+        if (!webrtcId) {
+          setMicError(
+            t(
+              'callcenter.softphone.webrtcNotEnabled',
+              'У абонента не включён WebRTC-клиент. Включите галку в карточке абонента.',
+            ),
+          );
+          setSubmitting(false);
+          return;
+        }
+        await onConfirm({
+          mode: 'webrtc',
+          interface: `PJSIP/${webrtcId}`,
+          queues,
+          sipId: webrtcId,
+          endpointId: endpoint.id,
+        });
       } else {
         if (micError) {
           setSubmitting(false);
           return;
         }
-        if (!endpoint.webrtc_enabled || !endpoint.webrtc?.id) {
+        if (!endpoint.webrtc_enabled && !endpoint.webrtc?.id) {
           setMicError(
             t(
               'callcenter.softphone.webrtcNotEnabled',
@@ -251,10 +366,11 @@ export function ShiftLoginModal({ open, onOpenChange, onConfirm }: ShiftLoginMod
       saveLastShiftQueues(queues);
       onOpenChange(false);
     } catch (err: unknown) {
-      const msg =
-        (err as { data?: { message?: string }; message?: string })?.data?.message
-        || (err as { message?: string })?.message
-        || t('callcenter.softphone.micDenied');
+      const data = (err as { data?: { message?: string | string[] }; message?: string })?.data;
+      const raw = data?.message ?? (err as { message?: string })?.message;
+      const msg = Array.isArray(raw)
+        ? raw.join(', ')
+        : (raw || t('callcenter.softphone.extensionInUseFallback', 'Этот номер уже занят другим оператором'));
       setMicError(String(msg));
     } finally {
       setSubmitting(false);
@@ -265,14 +381,22 @@ export function ShiftLoginModal({ open, onOpenChange, onConfirm }: ShiftLoginMod
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent size="xl">
         <DialogHeader>
-          <DialogTitle>{t('callcenter.softphone.startShift')}</DialogTitle>
+          <DialogTitle>{title || t('callcenter.softphone.startShift')}</DialogTitle>
         </DialogHeader>
 
         <div className={styles.body}>
+          {subtitle && (
+            <Text variant="muted" className="text-xs">
+              {subtitle}
+            </Text>
+          )}
           <RadioCards
             options={modeOptions}
             value={mode}
-            onChange={(v) => setMode(v as SoftphoneMode)}
+            onChange={(v) => {
+              setMode(v as SoftphoneMode);
+              setMicError(null);
+            }}
           />
 
           <label className={styles.field}>
@@ -281,17 +405,29 @@ export function ShiftLoginModal({ open, onOpenChange, onConfirm }: ShiftLoginMod
             </Text>
             <Select
               value={sipId}
-              onChange={(e) => setSipId(e.target.value)}
+              onChange={(e) => {
+                setSipId(e.target.value);
+                setMicError(null);
+              }}
             >
               <option value="">{t('callcenter.softphone.selectExtension')}</option>
               {endpoints.map((ep) => {
                 const cidMatch = (ep.callerid || '').match(/^"(.+?)"/);
                 const cidName = cidMatch?.[1];
-                const label = cidName
-                  ? `${cidName} (${ep.extension || ep.id})`
-                  : (ep.extension || ep.id);
+                const exten = ep.extension || extractExtension(ep.id) || ep.id;
+                const baseLabel = cidName
+                  ? `${cidName} (${exten})`
+                  : exten;
+                const occupant = occupiedByExten.get(exten);
+                const label = occupant
+                  ? t('callcenter.softphone.extensionOccupiedOption', {
+                      label: baseLabel,
+                      name: occupant,
+                      defaultValue: '{{label}} - занят ({{name}})',
+                    })
+                  : baseLabel;
                 return (
-                  <option key={ep.id} value={ep.id}>
+                  <option key={ep.id} value={ep.id} disabled={Boolean(occupant)}>
                     {label}
                   </option>
                 );
@@ -314,7 +450,7 @@ export function ShiftLoginModal({ open, onOpenChange, onConfirm }: ShiftLoginMod
             />
           </label>
 
-          {mode === 'webrtc' && (
+          {mode === 'webrtc' && !remoteAgent && (
             <div className={styles.audioSection}>
               <label className={styles.field}>
                 <Text variant="muted" className="text-xs mb-1">
@@ -373,7 +509,7 @@ export function ShiftLoginModal({ open, onOpenChange, onConfirm }: ShiftLoginMod
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
             {t('callcenter.transfer.cancel', 'Cancel')}
           </Button>
-          <Button onClick={() => void handleConfirm()} disabled={!sipId || submitting || !!micError}>
+          <Button onClick={() => void handleConfirm()} disabled={!sipId || submitting}>
             {t('callcenter.softphone.startShift')}
           </Button>
         </DialogFooter>

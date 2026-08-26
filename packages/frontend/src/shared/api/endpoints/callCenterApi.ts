@@ -35,7 +35,7 @@ export interface IClientLookupResult {
 
 export interface IMissedCall {
   uid: number;
-  /** @deprecated use uid — kept for older clients */
+  /** @deprecated use uid - kept for older clients */
   id?: number;
   call_uniqueid: string;
   queue_name: string;
@@ -50,7 +50,7 @@ export interface IMissedCall {
   called_back_at: string | null;
   /** Display name of the operator who handled the callback (from GET /missed-calls). */
   called_back_by_name?: string | null;
-  /** True when the caller rang back themselves before any operator callback (D-17) — distinct success tag. */
+  /** True when the caller rang back themselves before any operator callback (D-17) - distinct success tag. */
   client_called_back: boolean;
   note: string;
   created_at: string;
@@ -91,6 +91,15 @@ export type AutoPauseRule =
       pauseDurationSec?: number;
     };
 
+export interface IShiftPolicy {
+  max_duration_min: number;
+  close_at_eod: boolean;
+  eod_time: string;
+  idle_timeout_min: number;
+  idle_requires_unregistered: boolean;
+  free_exten_on_close: boolean;
+}
+
 export interface ICcSettings {
   default_sla_threshold: number;
   /** D-04: softphone Journal last-N depth (tenant setting, default 50). */
@@ -101,6 +110,7 @@ export interface ICcSettings {
   autopause_enabled?: boolean;
   /** D-15: empty/null → when enabled, engine fires only RONA. */
   autopause_rules?: AutoPauseRule[] | null;
+  shift_policy?: IShiftPolicy | null;
 }
 
 /** Softphone shared contact book row (Phase 10 D-11…D-15). */
@@ -124,7 +134,7 @@ function mapCcContact(raw: Record<string, unknown>): ICcContact {
   };
 }
 
-/** Display token for TV wallboard (D-26) — opaque, revocable. */
+/** Display token for TV wallboard (D-26) - opaque, revocable. */
 export interface IDisplayToken {
   uid: number;
   token: string;
@@ -136,7 +146,7 @@ export interface IDisplayToken {
   created_at: string;
 }
 
-/** Alert delivery routing (D-27/D-28) — WHERE/channel; thresholds live in cc_settings. */
+/** Alert delivery routing (D-27/D-28) - WHERE/channel; thresholds live in cc_settings. */
 export interface IAlertConfig {
   integration_uid: number | null;
   target: string | null;
@@ -168,7 +178,7 @@ export interface IChatContact {
   level: number;
 }
 
-/** Runtime WebRTC softphone config (D-17) — WSS + ICE; TURN never in static bundle. */
+/** Runtime WebRTC softphone config (D-17) - WSS + ICE; TURN never in static bundle. */
 export interface IWebrtcConfig {
   wssUrl: string | null;
   iceServers: RTCIceServer[];
@@ -194,7 +204,7 @@ export interface IAgentKpi {
 
 const EMPTY_KPI_COUNTERS: IKpiCounters = { answered: 0, made: 0, missed: 0 };
 
-/** Dual shift·day personal answered/missed per queue (D-31/D-32) — Queues tab (09-08). */
+/** Dual shift·day personal answered/missed per queue (D-31/D-32) - Queues tab (09-08). */
 export interface IAgentQueueKpi {
   answered: { shift: number; day: number };
   missed: { shift: number; day: number };
@@ -227,7 +237,7 @@ export interface ITenantPermissionsDefaults {
 
 export type IPermissionsPatch = Partial<IEffectivePermissions>;
 
-/** Number-grouped missed-call worklist row (D-16/D-17/D-19) — MissedCallsPanel (09-10). */
+/** Number-grouped missed-call worklist row (D-16/D-17/D-19) - MissedCallsPanel (09-10). */
 export interface IMissedCallGroup {
   callerIdNum: string;
   callerIdName: string;
@@ -237,11 +247,11 @@ export interface IMissedCallGroup {
   lastAttemptAt: string;
   /** Operator user id who has claimed this queue-missed group, or already resolved it, or null. */
   claimedBy: number | null;
-  /** Queue name (queue-missed) or `direct:<agentInterface>` (personal) — chip source, may be null on legacy rows. */
+  /** Queue name (queue-missed) or `direct:<agentInterface>` (personal) - chip source, may be null on legacy rows. */
   queueName: string | null;
 }
 
-/** A single resolved/active missed-call attempt row — raw shape from GET /callcenter/missed-calls. */
+/** A single resolved/active missed-call attempt row - raw shape from GET /callcenter/missed-calls. */
 export interface IMissedCallAttempt {
   uid: number;
   id?: number;
@@ -258,7 +268,7 @@ export interface IMissedCallAttempt {
   created_at: string;
 }
 
-/** Tenant-wide parking lot entry (D-28) — ParkedCallsIndicator (09-10). */
+/** Tenant-wide parking lot entry (D-28) - ParkedCallsIndicator (09-10). */
 export interface IParkedCall {
   parkingSpace: string;
   callerIdNum: string;
@@ -268,7 +278,7 @@ export interface IParkedCall {
 }
 
 export type SoftphonePlacement = 'bottom-right' | 'bottom-left' | 'hidden';
-/** D-05: per-panel tab/panel visibility map — keys are UI-SPEC surface ids (coworkers/queues/waiting/...). */
+/** D-05: per-panel tab/panel visibility map - keys are UI-SPEC surface ids (coworkers/queues/waiting/...). */
 export type IUiVisibility = Record<string, boolean>;
 export interface IUiCustomization {
   ui_visibility: IUiVisibility;
@@ -277,7 +287,7 @@ export interface IUiCustomization {
   locks: IUiVisibility;
 }
 
-/** D-41/D-42: notification event ids (min. set from CONTEXT.md D-42) — mirrors backend cc-permissions.types.ts. */
+/** D-41/D-42: notification event ids (min. set from CONTEXT.md D-42) - mirrors backend cc-permissions.types.ts. */
 export type NotificationEvent =
   | 'incoming_call'
   | 'missed_call'
@@ -289,7 +299,7 @@ export type NotificationEvent =
 /** D-41/D-42: notification delivery channels. */
 export type NotificationChannel = 'chat' | 'sound' | 'popup';
 
-/** D-41: event × channel matrix — each event maps to the set of enabled channels. */
+/** D-41: event × channel matrix - each event maps to the set of enabled channels. */
 export type NotificationMatrix = Partial<Record<NotificationEvent, NotificationChannel[]>>;
 
 /** D-39/D-43/09-14: own notification matrix + admin locks + tenant defaults, for lock-aware settings UI. */
@@ -300,7 +310,7 @@ export interface INotificationSettings {
   defaults: NotificationMatrix;
 }
 
-/** Unified transfer directory row shapes (D-36/D-37) — TransferDirectory (09-12). */
+/** Unified transfer directory row shapes (D-36/D-37) - TransferDirectory (09-12). */
 export interface IDirectoryEndpoint {
   type: 'endpoint';
   id: string;
@@ -329,7 +339,7 @@ export interface ITransferDirectory {
   groups: IDirectoryGroup[];
 }
 
-/** Unified all-direction call history row (D-34/D-35) — CallHistoryPanel (09-12). */
+/** Unified all-direction call history row (D-34/D-35) - CallHistoryPanel (09-12). */
 export interface IOperatorHistoryRow {
   uid: number;
   callUniqueid: string;
@@ -339,11 +349,34 @@ export interface IOperatorHistoryRow {
   direction: 'inbound' | 'outbound' | 'personal' | 'internal';
   callType: string | null;
   disposition: 'answered' | 'abandoned' | 'transferred' | 'timeout' | 'other';
+  /** Transfer target extension / queue when disposition is transferred. */
+  transferDestination?: string | null;
+  /** Operator who handled a missed callback (name). */
+  handledByName?: string | null;
+  /** Operator extension who handled a missed callback. */
+  handledByExten?: string | null;
   enterTime: string | null;
   answerTime: string | null;
   endTime: string | null;
   waitTime: number | null;
   talkTime: number | null;
+  agentUserId?: number | null;
+}
+
+export interface ISupervisorAccessCandidate {
+  userId: number;
+  name: string;
+  exten: string;
+  interface: string;
+  online: boolean;
+  avatar?: string | null;
+}
+
+export interface ISupervisorAccessScope {
+  /** null = unrestricted; values are user uniqueids */
+  operators: number[] | null;
+  queues: string[] | null;
+  candidates: ISupervisorAccessCandidate[];
 }
 
 const callCenterApi = rtkApi.injectEndpoints({
@@ -369,6 +402,7 @@ const callCenterApi = rtkApi.injectEndpoints({
           callsMissed?: number;
           callsMade?: number;
           statusSince?: string;
+          queuesDetached?: boolean;
         },
       void
     >({
@@ -376,7 +410,7 @@ const callCenterApi = rtkApi.injectEndpoints({
       providesTags: ['CallCenter'],
     }),
 
-    /** Own dual shift/day answered·made·missed KPI (D-11/D-12) — status bar (09-04). */
+    /** Own dual shift/day answered·made·missed KPI (D-11/D-12) - status bar (09-04). */
     getAgentKpi: build.query<IAgentKpi, void>({
       query: () => '/callcenter/agent/kpi',
       transformResponse: (raw: IRawAgentKpi): IAgentKpi => {
@@ -391,7 +425,7 @@ const callCenterApi = rtkApi.injectEndpoints({
       providesTags: ['AgentKpi'],
     }),
 
-    /** Same shape, batched per-queue (D-31/D-32) — Queues tab (09-08). */
+    /** Same shape, batched per-queue (D-31/D-32) - Queues tab (09-08). */
     getAgentQueuesStats: build.query<IAgentQueuesKpi, void>({
       query: () => '/callcenter/agent/queues-kpi',
       transformResponse: (raw: Record<string, IRawAgentKpi>): IAgentQueuesKpi => {
@@ -484,7 +518,7 @@ const callCenterApi = rtkApi.injectEndpoints({
       invalidatesTags: ['CcPermissions'],
     }),
 
-    /** D-05: own tab/panel visibility + softphone placement — safe default is all-visible/bottom-right. */
+    /** D-05: own tab/panel visibility + softphone placement - safe default is all-visible/bottom-right. */
     getMyUiCustomization: build.query<IUiCustomization, void>({
       query: () => '/callcenter/settings/operator/ui',
       providesTags: ['CcOperatorSettings'],
@@ -515,7 +549,7 @@ const callCenterApi = rtkApi.injectEndpoints({
       },
     }),
 
-    /** D-41/D-43/09-14: own notification matrix + locks + tenant defaults — settings UI (lock-aware). */
+    /** D-41/D-43/09-14: own notification matrix + locks + tenant defaults - settings UI (lock-aware). */
     getMyNotifications: build.query<INotificationSettings, void>({
       query: () => '/callcenter/settings/operator/notifications',
       providesTags: ['CcNotifications'],
@@ -542,7 +576,7 @@ const callCenterApi = rtkApi.injectEndpoints({
     }),
 
     /**
-     * Unified transfer directory (D-36/D-37) — endpoints + queues + call groups,
+     * Unified transfer directory (D-36/D-37) - endpoints + queues + call groups,
      * tenant-scoped. `search` is optional server-side filtering support; TransferDirectory
      * (09-12) itself always queries unfiltered and filters client-side so the single
      * cache entry stays in sync with the presenceUpdate SSE patch below (D-45).
@@ -564,7 +598,7 @@ const callCenterApi = rtkApi.injectEndpoints({
       providesTags: ['CallHistory'],
     }),
 
-    /** Client-aware click-to-call from the directory/history (D-29) — same WebRTC/PJSIP branching as callbackMissedCall. */
+    /** Client-aware click-to-call from the directory/history (D-29) - same WebRTC/PJSIP branching as callbackMissedCall. */
     clickToCall: build.mutation<{ success: boolean; mode: 'webrtc' | 'pjsip'; target: string }, { target: string }>({
       query: (body) => ({ url: '/callcenter/agent/click-to-call', method: 'POST', body }),
     }),
@@ -576,6 +610,10 @@ const callCenterApi = rtkApi.injectEndpoints({
     agentLogout: build.mutation<{ success: boolean }, void>({
       query: () => ({ url: '/callcenter/agent/logout', method: 'POST' }),
     }),
+    agentRejoinQueues: build.mutation<{ success: boolean; queues: string[] }, void>({
+      query: () => ({ url: '/callcenter/agent/rejoin-queues', method: 'POST' }),
+      invalidatesTags: ['CallCenter'],
+    }),
     agentPause: build.mutation<{ success: boolean }, { reason?: string; queue?: string }>({
       query: (body) => ({ url: '/callcenter/agent/pause', method: 'POST', body }),
     }),
@@ -584,7 +622,7 @@ const callCenterApi = rtkApi.injectEndpoints({
     }),
     /**
      * Pause queues for outbound dialing (status-bar Switch).
-     * Optimistic: Switch reads Redux agent status — patch SSE store + getAgentMe immediately.
+     * Optimistic: Switch reads Redux agent status - patch SSE store + getAgentMe immediately.
      */
     agentStartOutboundWork: build.mutation<{ success: boolean }, void>({
       query: () => ({ url: '/callcenter/agent/outbound-work', method: 'POST' }),
@@ -702,7 +740,7 @@ const callCenterApi = rtkApi.injectEndpoints({
     agentPickCall: build.mutation<{ success: boolean }, { uniqueid: string }>({
       query: (body) => ({ url: '/callcenter/agent/pick-call', method: 'POST', body }),
     }),
-    /** D-33: warm-transfer the operator's own active call to another queue — non-destructive routing change. */
+    /** D-33: warm-transfer the operator's own active call to another queue - non-destructive routing change. */
     warmTransferToQueue: build.mutation<{ success: boolean }, { uniqueid: string; queue: string }>({
       query: (body) => ({ url: '/callcenter/agent/warm-transfer-queue', method: 'POST', body }),
     }),
@@ -738,7 +776,7 @@ const callCenterApi = rtkApi.injectEndpoints({
       query: (body) => ({ url: '/callcenter/agent/missed/claim', method: 'POST', body }),
       invalidatesTags: ['MissedCalls'],
     }),
-    /** Operator callback for a missed number; >5s success is server-tracked (D-18). Shift login is enough — no click_to_call right. */
+    /** Operator callback for a missed number; >5s success is server-tracked (D-18). Shift login is enough - no click_to_call right. */
     callbackMissedCall: build.mutation<
       { success: boolean; mode: 'webrtc' | 'pjsip'; target: string },
       { callerIdNum: string }
@@ -758,7 +796,7 @@ const callCenterApi = rtkApi.injectEndpoints({
       query: (body) => ({ url: '/callcenter/agent/retrieve-parked', method: 'POST', body }),
       invalidatesTags: ['ParkedCalls'],
     }),
-    /** Tenant-wide parking lot listing — ParkedCallsIndicator badge + retrieve list. */
+    /** Tenant-wide parking lot listing - ParkedCallsIndicator badge + retrieve list. */
     getParkedCalls: build.query<IParkedCall[], void>({
       query: () => '/callcenter/agent/parked-calls',
       providesTags: ['ParkedCalls'],
@@ -767,7 +805,7 @@ const callCenterApi = rtkApi.injectEndpoints({
     addToConference: build.mutation<{ success: boolean }, { uniqueid: string; target: string }>({
       query: (body) => ({ url: '/callcenter/agent/conference-add', method: 'POST', body }),
     }),
-    /** Self-serve reset of a call flagged as a zombie candidate (D-27) — always requires UI confirmation. */
+    /** Self-serve reset of a call flagged as a zombie candidate (D-27) - always requires UI confirmation. */
     resetZombieCall: build.mutation<{ success: boolean }, { uniqueid: string }>({
       query: (body) => ({ url: '/callcenter/agent/zombie-reset', method: 'POST', body }),
     }),
@@ -813,6 +851,41 @@ const callCenterApi = rtkApi.injectEndpoints({
         url: '/callcenter/supervisor/agent-detail',
         params: { interface: iface },
       }),
+    }),
+
+    getSupervisorAccessScope: build.query<ISupervisorAccessScope, void>({
+      query: () => '/callcenter/supervisor/access-scope',
+      providesTags: ['CcSupervisorWatchlist'],
+    }),
+
+    getSupervisorWatchedAgents: build.query<{ userIds: number[] }, void>({
+      query: () => '/callcenter/supervisor/watched-agents',
+      providesTags: ['CcSupervisorWatchlist'],
+    }),
+
+    setSupervisorWatchedAgents: build.mutation<{ userIds: number[] }, { userIds: number[] }>({
+      query: (body) => ({
+        url: '/callcenter/supervisor/watched-agents',
+        method: 'PUT',
+        body,
+      }),
+      invalidatesTags: ['CcSupervisorWatchlist', 'CallHistory'],
+    }),
+
+    supervisorStartShift: build.mutation<
+      { success: boolean; sessionId: number },
+      { operatorUserId: number; interface: string; queues: string[] }
+    >({
+      query: (body) => ({ url: '/callcenter/supervisor/start-shift', method: 'POST', body }),
+      invalidatesTags: ['CallCenter', 'CcSupervisorWatchlist'],
+    }),
+
+    getSupervisorCallHistory: build.query<IOperatorHistoryRow[], { period?: 'shift' | 'day' } | void>({
+      query: (params) => ({
+        url: '/callcenter/supervisor/history',
+        params: params?.period ? { period: params.period } : undefined,
+      }),
+      providesTags: ['CallHistory'],
     }),
 
     // ─── Pause Reasons ────────────────────────────────────
@@ -1006,7 +1079,7 @@ const callCenterApi = rtkApi.injectEndpoints({
   }),
 });
 
-/** Injected api reference — used by useCallCenterSSE.ts for typed `util.updateQueryData` cache patches (presenceUpdate, D-45). */
+/** Injected api reference - used by useCallCenterSSE.ts for typed `util.updateQueryData` cache patches (presenceUpdate, D-45). */
 export { callCenterApi };
 
 export const {
@@ -1030,6 +1103,7 @@ export const {
   useClickToCallMutation,
   useAgentLoginMutation,
   useAgentLogoutMutation,
+  useAgentRejoinQueuesMutation,
   useAgentPauseMutation,
   useAgentUnpauseMutation,
   useAgentStartOutboundWorkMutation,
@@ -1065,6 +1139,11 @@ export const {
   useSupervisorRedirectCallMutation,
   useSupervisorHangupCallMutation,
   useLazyGetAgentDetailQuery,
+  useGetSupervisorAccessScopeQuery,
+  useGetSupervisorWatchedAgentsQuery,
+  useSetSupervisorWatchedAgentsMutation,
+  useSupervisorStartShiftMutation,
+  useGetSupervisorCallHistoryQuery,
   useGetPauseReasonsQuery,
   useCreatePauseReasonMutation,
   useUpdatePauseReasonMutation,

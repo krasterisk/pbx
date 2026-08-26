@@ -34,7 +34,7 @@ type TFunc = (key: string, opts?: Record<string, unknown>) => string;
 
 /** Recursively render a nested object as a key-value list */
 function ObjectValueRenderer({ value, t, level = 0 }: { value: unknown; t: TFunc; level?: number }) {
-  if (value === null || value === undefined) return <span className="text-muted-foreground italic">—</span>;
+  if (value === null || value === undefined) return <span className="text-muted-foreground italic">-</span>;
 
   if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
     return <span>{String(value)}</span>;
@@ -155,7 +155,7 @@ export const VoiceRobotCdrDetailModal = memo(({ cdrId, isOpen, onClose }: VoiceR
     }
 
     // Primitive value → compact badge
-    const displayValue = val === null || val === undefined ? '—' : String(val);
+    const displayValue = val === null || val === undefined ? '-' : String(val);
     return (
       <div key={key} className="bg-muted/30 border border-muted/50 rounded-md px-3 py-1.5 flex gap-2 items-baseline max-w-full overflow-hidden">
         <span className="text-xs text-muted-foreground font-medium shrink-0">{label}:</span>

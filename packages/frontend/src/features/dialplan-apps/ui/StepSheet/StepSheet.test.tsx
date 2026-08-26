@@ -42,6 +42,49 @@ vi.mock('@/shared/api/endpoints/promptsApi', () => ({
   useGetPromptsQuery: vi.fn(() => ({ data: [], isLoading: false })),
 }));
 
+vi.mock('@/shared/api/endpoints/callGroupApi', () => ({
+  useGetCallGroupsQuery: vi.fn(() => ({
+    data: [{ uid: 7, name: 'Sales group' }],
+    isLoading: false,
+  })),
+}));
+
+vi.mock('@/shared/api/endpoints/trunkApi', () => ({
+  useGetTrunksQuery: vi.fn(() => ({
+    data: [{ id: 1, name: 'trunk-main' }],
+    isLoading: false,
+  })),
+}));
+
+// useSchemaRefs owns every catalog, so each one needs a stub here (no Redux store in this suite).
+vi.mock('@/shared/api/endpoints/ivrsApi', () => ({
+  useGetIvrsQuery: vi.fn(() => ({ data: [], isLoading: false })),
+}));
+
+vi.mock('@/shared/api/endpoints/ttsEnginesApi', () => ({
+  useGetTtsEnginesQuery: vi.fn(() => ({ data: [], isLoading: false })),
+}));
+
+vi.mock('@/shared/api/endpoints/voiceRobotsApi', () => ({
+  useGetVoiceRobotsQuery: vi.fn(() => ({ data: [], isLoading: false })),
+}));
+
+vi.mock('@/shared/api/endpoints/contextApi', () => ({
+  useGetContextsQuery: vi.fn(() => ({ data: [], isLoading: false })),
+}));
+
+vi.mock('@/shared/api/endpoints/endpointApi', () => ({
+  useGetEndpointsQuery: vi.fn(() => ({ data: [], isLoading: false })),
+}));
+
+vi.mock('@/shared/api/endpoints/numberApi', () => ({
+  useGetNumbersQuery: vi.fn(() => ({ data: [], isLoading: false })),
+}));
+
+vi.mock('@/shared/api/endpoints/notificationApi', () => ({
+  useGetNotificationsQuery: vi.fn(() => ({ data: [], isLoading: false })),
+}));
+
 vi.mock('@/shared/ui', async () => {
   const actual = await vi.importActual<typeof import('@/shared/ui')>('@/shared/ui');
   return {
@@ -132,7 +175,7 @@ describe('StepSheet', () => {
     }
     render(<SourceHarness />);
 
-    fireEvent.change(screen.getByRole('combobox', { name: 'routes.chain.fields.queue' }), {
+    fireEvent.change(screen.getByRole('combobox', { name: 'Очередь' }), {
       target: { value: '__src:route_pattern' },
     });
     expect(onChange).toHaveBeenCalledWith(
@@ -292,9 +335,9 @@ describe('StepSheet', () => {
     );
     const panel = screen.getByTestId('sheet-content');
     expect(panel).toHaveAttribute('data-side', 'bottom');
-    expect(panel).toHaveStyle({ maxHeight: '85dvh' });
+    expect(panel.className).toMatch(/panelBottom/);
     const body = screen.getByTestId('step-sheet-body');
-    expect(body).toHaveStyle({ overflowY: 'auto' });
+    expect(body.className).toMatch(/body/);
     expect(screen.getByTestId('step-sheet-header')).not.toHaveStyle({ overflowY: 'auto' });
   });
 
@@ -304,18 +347,20 @@ describe('StepSheet', () => {
         open
         stepId="step-1"
         tenantUid={42}
+        initialSection="params"
         action={{
           id: 'step-1',
           type: 'toexten',
-          params: { target: { source: 'fixed', value: '101' }, strip: 1, prepend: '' },
+          params: { target: { source: 'fixed', value: '' } },
           condition: {},
         }}
-        fieldErrors={{ prepend: 'required' }}
+        fieldErrors={{ target: 'required' }}
         onOpenChange={vi.fn()}
         onChange={vi.fn()}
         onTypeChange={vi.fn()}
       />,
     );
-    expect(screen.getByLabelText(/routes\.chain\.fields\.prepend/i)).toHaveFocus();
+    expect(document.activeElement).toHaveAttribute('aria-invalid', 'true');
+    expect(document.activeElement).toHaveAttribute('aria-label', 'Абонент');
   });
 });

@@ -4,7 +4,9 @@ import {
   CallHistoryPanel,
   matchesHistorySegment,
   matchesHistorySearch,
+  matchesHistoryStatus,
   isQueueHistoryRow,
+  historyPeriodFromKpi,
   type HistorySegment,
 } from './CallHistoryPanel';
 import type { IOperatorHistoryRow } from '@/shared/api/endpoints/callCenterApi';
@@ -18,7 +20,16 @@ let historyState: { data: IOperatorHistoryRow[]; isFetching: boolean } = {
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (_key: string, fallback?: string) => fallback || _key,
+    t: (key: string, fallback?: string | Record<string, unknown>) => {
+      if (typeof fallback === 'string') return fallback;
+      if (fallback && typeof fallback === 'object' && 'target' in fallback) {
+        return `→ ${fallback.target}`;
+      }
+      if (fallback && typeof fallback === 'object' && 'name' in fallback) {
+        return `Handled by ${fallback.name}`;
+      }
+      return key;
+    },
   }),
 }));
 
@@ -34,6 +45,7 @@ vi.mock('react-toastify', () => ({
 
 vi.mock('@/shared/api/endpoints/callCenterApi', () => ({
   useGetOperatorCallHistoryQuery: () => historyState,
+  useGetSupervisorCallHistoryQuery: () => historyState,
   useClickToCallMutation: () => [vi.fn(), { isLoading: false }],
   useLazyGetCardByCallQuery: () => [vi.fn()],
   useGetCardTemplatesQuery: () => ({ data: [] }),
@@ -41,6 +53,11 @@ vi.mock('@/shared/api/endpoints/callCenterApi', () => ({
 
 vi.mock('@/features/callcenter/ui/CallCardPopup/CallCardPopup', () => ({
   CallCardPopup: () => null,
+}));
+
+vi.mock('@/features/callcenter/lib/agentPanelPrefs', () => ({
+  loadKpiDisplay: () => 'shift',
+  PANEL_PREFS_EVENT: 'cc:panel-prefs',
 }));
 
 function row(over: Partial<IOperatorHistoryRow> & Pick<IOperatorHistoryRow, 'uid'>): IOperatorHistoryRow {
@@ -52,6 +69,9 @@ function row(over: Partial<IOperatorHistoryRow> & Pick<IOperatorHistoryRow, 'uid
     direction: 'inbound',
     callType: null,
     disposition: 'answered',
+    transferDestination: null,
+    handledByName: null,
+    handledByExten: null,
     enterTime: '2026-07-24T10:00:00Z',
     answerTime: '2026-07-24T10:00:05Z',
     endTime: '2026-07-24T10:01:00Z',
@@ -102,6 +122,25 @@ const sampleRows: IOperatorHistoryRow[] = [
     callerIdName: 'Eve Missed Out',
     disposition: 'timeout',
   }),
+  row({
+    uid: 6,
+    direction: 'inbound',
+    queueName: 'sales',
+    callerIdNum: '79009998877',
+    callerIdName: 'Frank Xfer',
+    disposition: 'transferred',
+    transferDestination: '205',
+  }),
+  row({
+    uid: 7,
+    direction: 'inbound',
+    queueName: 'sales',
+    callerIdNum: '79005554433',
+    callerIdName: 'Gina Miss',
+    disposition: 'abandoned',
+    handledByName: 'Alice',
+    handledByExten: '101',
+  }),
 ];
 
 describe('history segment / search helpers (D-07 / D-10)', () => {
@@ -115,6 +154,19 @@ describe('history segment / search helpers (D-07 / D-10)', () => {
 
     const segments: HistorySegment[] = ['queue', 'outbound', 'personal'];
     expect(segments).not.toContain('missed' as HistorySegment);
+  });
+
+  it('maps KPI display preference to history API period', () => {
+    expect(historyPeriodFromKpi('shift')).toBe('shift');
+    expect(historyPeriodFromKpi('day')).toBe('day');
+    expect(historyPeriodFromKpi('both')).toBe('day');
+  });
+
+  it('filters by status', () => {
+    expect(matchesHistoryStatus(sampleRows[0], 'answered')).toBe(true);
+    expect(matchesHistoryStatus(sampleRows[5], 'transferred')).toBe(true);
+    expect(matchesHistoryStatus(sampleRows[6], 'missed')).toBe(true);
+    expect(matchesHistoryStatus(sampleRows[0], 'missed')).toBe(false);
   });
 
   it('Queue search matches number / name / queue', () => {
@@ -142,17 +194,20 @@ describe('CallHistoryPanel segments UI', () => {
     historyState = { data: sampleRows, isFetching: false };
   });
 
-  it('renders Queue / Outbound / Personal segments and no Missed segment', () => {
-    render(<CallHistoryPanel />);
+  it('renders Queue / Outbound / Personal segments and no Missed or Shift/Day tabs', () => {
+    render(<CallHistoryPanel kpiDisplay="shift" />);
     const ctrl = screen.getByTestId('history-segment-control');
     expect(within(ctrl).getByRole('tab', { name: 'Queue' })).toBeTruthy();
     expect(within(ctrl).getByRole('tab', { name: 'Outbound' })).toBeTruthy();
     expect(within(ctrl).getByRole('tab', { name: 'Personal' })).toBeTruthy();
     expect(within(ctrl).queryByRole('tab', { name: /Missed/i })).toBeNull();
+    expect(screen.queryByRole('tab', { name: 'Shift' })).toBeNull();
+    expect(screen.queryByRole('tab', { name: 'Day' })).toBeNull();
+    expect(screen.getByTestId('history-period-hint')).toBeTruthy();
   });
 
   it('filters rows by segment client-side', () => {
-    render(<CallHistoryPanel />);
+    render(<CallHistoryPanel kpiDisplay="day" />);
     expect(screen.getByTestId('history-row-1')).toBeTruthy();
     expect(screen.queryByTestId('history-row-2')).toBeNull();
 
@@ -167,18 +222,26 @@ describe('CallHistoryPanel segments UI', () => {
     expect(screen.queryByTestId('history-row-1')).toBeNull();
   });
 
+  it('applies status filter for queue transferred / missed', () => {
+    render(<CallHistoryPanel kpiDisplay="day" />);
+    const select = screen.getByTestId('history-status-filter');
+    fireEvent.change(select, { target: { value: 'transferred' } });
+    expect(screen.getByTestId('history-row-6')).toBeTruthy();
+    expect(screen.getByTestId('history-xfer-6')).toBeTruthy();
+    expect(screen.queryByTestId('history-row-1')).toBeNull();
+
+    fireEvent.change(select, { target: { value: 'missed' } });
+    expect(screen.getByTestId('history-row-7')).toBeTruthy();
+    expect(screen.getByTestId('history-handled-7')).toBeTruthy();
+    expect(screen.queryByTestId('history-row-6')).toBeNull();
+  });
+
   it('applies per-segment search within the active segment', () => {
-    render(<CallHistoryPanel />);
+    render(<CallHistoryPanel kpiDisplay="day" />);
     fireEvent.click(screen.getByRole('tab', { name: 'Outbound' }));
     const input = screen.getByTestId('history-search');
     fireEvent.change(input, { target: { value: 'not answered' } });
     expect(screen.getByTestId('history-row-5')).toBeTruthy();
     expect(screen.queryByTestId('history-row-2')).toBeNull();
-  });
-
-  it('keeps shift/day period control', () => {
-    render(<CallHistoryPanel />);
-    expect(screen.getByRole('tab', { name: 'Shift' })).toBeTruthy();
-    expect(screen.getByRole('tab', { name: 'Day' })).toBeTruthy();
   });
 });

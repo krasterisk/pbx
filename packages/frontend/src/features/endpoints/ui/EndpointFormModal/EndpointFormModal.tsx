@@ -75,7 +75,7 @@ export const EndpointFormModal = () => {
   const [transport, setTransport] = useState('transport-udp');
   const [codecs, setCodecs] = useState<string[]>(['ulaw', 'alaw', 'g722']);
   const [natProfile, setNatProfile] = useState<PrimaryNatProfileId>('nat');
-  /** Opt-in WebRTC companion — default off */
+  /** Opt-in WebRTC companion - default off */
   const [webrtcEnabled, setWebrtcEnabled] = useState(false);
   
   // Call Groups
@@ -358,7 +358,7 @@ export const EndpointFormModal = () => {
                       onChange={(e) => setContext(e.target.value)}
                       className="flex h-9 w-full rounded-md border border-input bg-background/50 px-3 py-1 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary focus:border-transparent"
                     >
-                      <option value="">— Default —</option>
+                      <option value="">- Default -</option>
                       {contexts.map((c) => (
                         <option key={c.uid} value={c.name}>
                           {c.name} {c.comment ? `(${c.comment})` : ''}

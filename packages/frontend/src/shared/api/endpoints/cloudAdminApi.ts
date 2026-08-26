@@ -169,7 +169,7 @@ const cloudAdminApi = rtkApi.injectEndpoints({
       providesTags: [{ type: 'Tenants', id: 'HUB-CATALOG' }],
     }),
 
-    /** Alias for Hub Active section — same payload as getHubCatalog. */
+    /** Alias for Hub Active section - same payload as getHubCatalog. */
     getMyHubModules: builder.query<IHubCatalogItem[], void>({
       query: () => '/marketplace/hub-catalog',
       providesTags: [{ type: 'Tenants', id: 'HUB-CATALOG' }],
@@ -229,7 +229,7 @@ const cloudAdminApi = rtkApi.injectEndpoints({
       ],
     }),
 
-    /** Tenant purchase — server charge + activate (NAV-07 / D-23). Never send amount. */
+    /** Tenant purchase - server charge + activate (NAV-07 / D-23). Never send amount. */
     purchaseModule: builder.mutation<
       { success: boolean; moduleCode: string; moduleName: string; amountRub: number },
       { moduleCode: string }

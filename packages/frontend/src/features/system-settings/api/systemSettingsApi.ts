@@ -13,7 +13,7 @@ export interface ApplySubroutinesResult {
 export interface ServerConfig {
   records_base_path: string;
   records_base_url: string;
-  /** Always returned as '••••••••' if set — submit new value to change, empty string to clear */
+  /** Always returned as '••••••••' if set - submit new value to change, empty string to clear */
   webhook_secret: string;
 }
 

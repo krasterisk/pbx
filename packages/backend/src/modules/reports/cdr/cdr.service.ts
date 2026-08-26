@@ -5,6 +5,8 @@ import { Sequelize } from 'sequelize-typescript';
 import { QueryTypes } from 'sequelize';
 import { Cdr } from './cdr.model';
 import { CdrQueryDto } from './dto/cdr-query.dto';
+import { User, UserLevel } from '../../users/user.model';
+import { NumberList } from '../../numbers/number-list.model';
 import {
   classifyDirection,
   extractExtension,
@@ -15,6 +17,12 @@ import {
 } from './cdr.utils';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
 import { PsEndpoint } from '../../endpoints/ps-endpoint.model';
+import {
+  buildCdrLinkedidAccessClause,
+  parseCdrAccessBlob,
+  type CdrAccessScope,
+} from './cdr-access-scope';
+import { normalizeAccessToken } from '../../callcenter/callcenter-access-list.util';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -55,6 +63,8 @@ export class CdrService {
   constructor(
     @InjectModel(Cdr) private readonly cdrModel: typeof Cdr,
     @InjectModel(PsEndpoint) private readonly endpointModel: typeof PsEndpoint,
+    @InjectModel(User) private readonly userModel: typeof User,
+    @InjectModel(NumberList) private readonly numberListModel: typeof NumberList,
     private readonly sequelize: Sequelize,
     private readonly systemSettings: SystemSettingsService,
   ) {}
@@ -67,7 +77,107 @@ export class CdrService {
     };
   }
 
-  private applyFilters(vpbxUserUid: number, filters: CdrFilters): SqlParts {
+  private async resolveCdrAccess(
+    viewerUserId?: number,
+  ): Promise<CdrAccessScope | null> {
+    if (!viewerUserId) return null;
+    const user = await this.userModel.findOne({
+      where: { uniqueid: viewerUserId },
+      attributes: ['uniqueid', 'numbers_id', 'exten', 'login', 'level'],
+    });
+    if (!user) return null;
+
+    const level = Number(user.getDataValue('level'));
+    if (level === UserLevel.SUPERADMIN || level === UserLevel.ADMIN) return null;
+
+    const numbersId = user.getDataValue('numbers_id') as number | null | undefined;
+    if (!numbersId || numbersId <= 0) return null;
+
+    const list = await this.numberListModel.findOne({
+      where: { id: numbersId },
+      attributes: ['numbers'],
+    });
+    let blob = list?.getDataValue('numbers') as unknown;
+    if (typeof blob === 'string') {
+      try {
+        blob = JSON.parse(blob);
+      } catch {
+        blob = null;
+      }
+    }
+    const parsed = parseCdrAccessBlob(
+      blob && typeof blob === 'object' ? (blob as { cdr?: unknown }).cdr : undefined,
+    );
+    let operatorExtens = parsed.operators;
+    if (parsed.operatorUserIds.length > 0) {
+      const staff = await this.userModel.findAll({
+        where: { uniqueid: parsed.operatorUserIds },
+        attributes: ['uniqueid', 'exten', 'login'],
+      });
+      operatorExtens = staff
+        .map((u) =>
+          normalizeAccessToken(u.getDataValue('exten') as string)
+          || (/^\d+$/.test(String(u.getDataValue('login') || ''))
+            ? String(u.getDataValue('login'))
+            : ''),
+        )
+        .filter(Boolean);
+    }
+    const ownExten =
+      normalizeAccessToken(user.getDataValue('exten') as string)
+      || (/^\d+$/.test(String(user.getDataValue('login') || ''))
+        ? String(user.getDataValue('login'))
+        : null);
+    return { operators: operatorExtens, queues: parsed.queues, ownExten };
+  }
+
+  private async accessWhere(
+    vpbxUserUid: number,
+    viewerUserId?: number,
+  ): Promise<SqlParts | null> {
+    const scope = await this.resolveCdrAccess(viewerUserId);
+    if (!scope) return null;
+    const clause = buildCdrLinkedidAccessClause('c', vpbxUserUid, scope);
+    if (!clause) return null;
+    return { where: clause.sql, replacements: clause.replacements };
+  }
+
+  private viewerIdFromReq(req?: Request): number | undefined {
+    const sub = (req as Request & { user?: { sub?: number } })?.user?.sub;
+    const n = Number(sub);
+    return Number.isFinite(n) && n > 0 ? n : undefined;
+  }
+
+  private async ensureCallVisible(
+    vpbxUserUid: number,
+    callId: string,
+    viewerUserId?: number,
+  ): Promise<void> {
+    const access = await this.accessWhere(vpbxUserUid, viewerUserId);
+    if (!access) return;
+    const tenant = tenantLegFilter(vpbxUserUid);
+    const sql = `
+      SELECT 1 AS ok
+      FROM cdr c
+      WHERE ${tenant.sql}
+        AND (c.uniqueid = :callId OR c.linkedid = :callId OR c.transid = :callId)
+        AND ${access.where}
+      LIMIT 1
+    `;
+    const [row] = await this.sequelize.query(sql, {
+      replacements: { ...tenant.replacements, ...access.replacements, callId },
+      type: QueryTypes.SELECT,
+    }) as any[];
+    if (!row) {
+      throw new NotFoundException('CDR record not found');
+    }
+  }
+
+  private async applyFilters(
+    vpbxUserUid: number,
+    filters: CdrFilters,
+    viewerUserId?: number,
+  ): Promise<SqlParts> {
     const parts = this.legFilter(vpbxUserUid);
     const clauses: string[] = [parts.where];
     const replacements = { ...parts.replacements };
@@ -124,6 +234,12 @@ export class CdrService {
       clauses.push(`(c.dialednum = :trunk OR c.channel LIKE :trunkPat OR c.dstchannel LIKE :trunkPat)`);
       replacements.trunk = trunk;
       replacements.trunkPat = `%t_${trunk}_${vpbxUserUid}%`;
+    }
+
+    const access = await this.accessWhere(vpbxUserUid, viewerUserId);
+    if (access) {
+      clauses.push(access.where);
+      Object.assign(replacements, access.replacements);
     }
 
     return { where: clauses.join(' AND '), replacements };
@@ -193,11 +309,16 @@ export class CdrService {
     return fs.existsSync(fileResolved) ? fileResolved : null;
   }
 
-  async resolveRecordingFile(vpbxUserUid: number, uniqueid: string): Promise<{
+  async resolveRecordingFile(
+    vpbxUserUid: number,
+    uniqueid: string,
+    viewerUserId?: number,
+  ): Promise<{
     filePath: string;
     uniqueid: string;
     record: string;
   }> {
+    await this.ensureCallVisible(vpbxUserUid, uniqueid, viewerUserId);
     const tenant = tenantLegFilter(vpbxUserUid);
     const sql = `
       SELECT record, uniqueid
@@ -315,7 +436,11 @@ export class CdrService {
     res: Response,
     req?: Request,
   ): Promise<void> {
-    const { filePath } = await this.resolveRecordingFile(vpbxUserUid, uniqueid);
+    const { filePath } = await this.resolveRecordingFile(
+      vpbxUserUid,
+      uniqueid,
+      this.viewerIdFromReq(req),
+    );
     let fileSize: number;
     try {
       fileSize = (await fs.promises.stat(filePath)).size;
@@ -447,8 +572,8 @@ export class CdrService {
     });
   }
 
-  async findCalls(vpbxUserUid: number, filters: CdrFilters) {
-    const { where, replacements } = this.applyFilters(vpbxUserUid, filters);
+  async findCalls(vpbxUserUid: number, filters: CdrFilters, viewerUserId?: number) {
+    const { where, replacements } = await this.applyFilters(vpbxUserUid, filters, viewerUserId);
     const { having, replacements: havingRepl } = this.bucketHaving(filters);
     const limit = filters.limit ?? 50;
     const offset = filters.offset ?? 0;
@@ -490,7 +615,8 @@ export class CdrService {
     return { rows: enriched, count };
   }
 
-  async findLegs(vpbxUserUid: number, linkedid: string) {
+  async findLegs(vpbxUserUid: number, linkedid: string, viewerUserId?: number) {
+    await this.ensureCallVisible(vpbxUserUid, linkedid, viewerUserId);
     const tenant = tenantLegFilter(vpbxUserUid);
     const sql = `
       SELECT calldate, usrc, src, clid, dst, channel, dstchannel, disposition,
@@ -520,8 +646,8 @@ export class CdrService {
     }));
   }
 
-  async getStats(vpbxUserUid: number, filters: CdrFilters) {
-    const { where, replacements } = this.applyFilters(vpbxUserUid, filters);
+  async getStats(vpbxUserUid: number, filters: CdrFilters, viewerUserId?: number) {
+    const { where, replacements } = await this.applyFilters(vpbxUserUid, filters, viewerUserId);
     const sql = `
       SELECT
         COUNT(DISTINCT c.linkedid) AS totalCalls,
@@ -571,8 +697,8 @@ export class CdrService {
     };
   }
 
-  async getByHour(vpbxUserUid: number, filters: CdrFilters) {
-    const { where, replacements } = this.applyFilters(vpbxUserUid, filters);
+  async getByHour(vpbxUserUid: number, filters: CdrFilters, viewerUserId?: number) {
+    const { where, replacements } = await this.applyFilters(vpbxUserUid, filters, viewerUserId);
     const rows = await this.sequelize.query(`
       SELECT hr AS hour, COUNT(*) AS calls,
         SUM(ans) AS answered,
@@ -590,8 +716,8 @@ export class CdrService {
     return rows;
   }
 
-  async getByDay(vpbxUserUid: number, filters: CdrFilters) {
-    const { where, replacements } = this.applyFilters(vpbxUserUid, filters);
+  async getByDay(vpbxUserUid: number, filters: CdrFilters, viewerUserId?: number) {
+    const { where, replacements } = await this.applyFilters(vpbxUserUid, filters, viewerUserId);
     const sql = `
       SELECT DATE(MIN(c.calldate)) AS day,
         COUNT(DISTINCT c.linkedid) AS calls,
@@ -624,7 +750,7 @@ export class CdrService {
     return rows;
   }
 
-  async getByExtension(vpbxUserUid: number, filters: CdrFilters) {
+  async getByExtension(vpbxUserUid: number, filters: CdrFilters, viewerUserId?: number) {
     const endpoints = await this.endpointModel.findAll({
       where: { tenantid: String(vpbxUserUid) },
       attributes: ['id', 'callerid'],
@@ -637,7 +763,7 @@ export class CdrService {
       }
     }
 
-    const { where, replacements } = this.applyFilters(vpbxUserUid, filters);
+    const { where, replacements } = await this.applyFilters(vpbxUserUid, filters, viewerUserId);
     const extLikeSuffix = `_%_${vpbxUserUid}`;
     const rows = await this.sequelize.query(`
       SELECT ext, COUNT(*) AS total,
@@ -677,8 +803,8 @@ export class CdrService {
     }));
   }
 
-  async getByTrunk(vpbxUserUid: number, filters: CdrFilters) {
-    const { where, replacements } = this.applyFilters(vpbxUserUid, filters);
+  async getByTrunk(vpbxUserUid: number, filters: CdrFilters, viewerUserId?: number) {
+    const { where, replacements } = await this.applyFilters(vpbxUserUid, filters, viewerUserId);
     const rows = await this.sequelize.query(`
       SELECT COALESCE(dialednum, 'unknown') AS trunk,
         COUNT(DISTINCT linkedid) AS calls,
@@ -696,16 +822,16 @@ export class CdrService {
     return rows;
   }
 
-  async getByDisposition(vpbxUserUid: number, filters: CdrFilters) {
-    const stats = await this.getStats(vpbxUserUid, filters);
+  async getByDisposition(vpbxUserUid: number, filters: CdrFilters, viewerUserId?: number) {
+    const stats = await this.getStats(vpbxUserUid, filters, viewerUserId);
     return Object.entries(stats.byDisposition).map(([disposition, count]) => ({
       disposition,
       count,
     }));
   }
 
-  async getHeatmap(vpbxUserUid: number, filters: CdrFilters) {
-    const { where, replacements } = this.applyFilters(vpbxUserUid, filters);
+  async getHeatmap(vpbxUserUid: number, filters: CdrFilters, viewerUserId?: number) {
+    const { where, replacements } = await this.applyFilters(vpbxUserUid, filters, viewerUserId);
     const rows = await this.sequelize.query(`
       SELECT DAYOFWEEK(MIN(c.calldate)) AS dow, HOUR(MIN(c.calldate)) AS hour,
         COUNT(DISTINCT c.linkedid) AS calls
@@ -727,7 +853,8 @@ export class CdrService {
     return result;
   }
 
-  async findByUniqueid(vpbxUserUid: number, uniqueid: string) {
+  async findByUniqueid(vpbxUserUid: number, uniqueid: string, viewerUserId?: number) {
+    await this.ensureCallVisible(vpbxUserUid, uniqueid, viewerUserId);
     const tenant = tenantLegFilter(vpbxUserUid);
     const sql = `
       SELECT record, uniqueid, linkedid, userfield
@@ -762,12 +889,16 @@ export class CdrService {
     return { record, uniqueid: row.uniqueid, linkedid: row.linkedid, recordingUrl, exists };
   }
 
-  async exportCalls(vpbxUserUid: number, filters: CdrFilters): Promise<CdrCallSummary[]> {
+  async exportCalls(
+    vpbxUserUid: number,
+    filters: CdrFilters,
+    viewerUserId?: number,
+  ): Promise<CdrCallSummary[]> {
     const result = await this.findCalls(vpbxUserUid, {
       ...filters,
       limit: 10000,
       offset: 0,
-    });
+    }, viewerUserId);
     return result.rows;
   }
 }

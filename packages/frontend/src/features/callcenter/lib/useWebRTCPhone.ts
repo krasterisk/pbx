@@ -115,7 +115,7 @@ async function playZipTone(): Promise<void> {
     osc.stop();
     await ctx.close();
   } catch {
-    /* ignore — zip-tone is best-effort */
+    /* ignore - zip-tone is best-effort */
   }
 }
 
@@ -140,9 +140,9 @@ export function useWebRTCPhone(options: UseWebRTCPhoneOptions) {
   const wantConnectedRef = useRef(false);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectAttemptRef = useRef(0);
-  /** Coalesce parallel connect() / ensureConnected(force) — avoids REGISTER contact storms. */
+  /** Coalesce parallel connect() / ensureConnected(force) - avoids REGISTER contact storms. */
   const connectInFlightRef = useRef<Promise<void> | null>(null);
-  /** Operator-initiated hangup/cancel — do not show dial-failure toast. */
+  /** Operator-initiated hangup/cancel - do not show dial-failure toast. */
   const localHangupRef = useRef(false);
   const outboundEstablishedAtRef = useRef<number | null>(null);
   const optionsRef = useRef(options);
@@ -150,7 +150,7 @@ export function useWebRTCPhone(options: UseWebRTCPhoneOptions) {
   const connectRef = useRef<(override?: Partial<UseWebRTCPhoneOptions>) => Promise<void>>(
     async () => undefined,
   );
-  // Keep last non-empty SIP/WSS credentials — parent may briefly render with empty
+  // Keep last non-empty SIP/WSS credentials - parent may briefly render with empty
   // sipCredentials (restore race / HMR), which would otherwise wipe optionsRef and
   // make Recover / ensureConnected silently no-op.
   {
@@ -244,7 +244,7 @@ export function useWebRTCPhone(options: UseWebRTCPhoneOptions) {
       try {
         await el.play();
       } catch {
-        /* autoplay may require user gesture — accept still attaches stream */
+        /* autoplay may require user gesture - accept still attaches stream */
       }
       await applySinkId();
     },
@@ -287,7 +287,7 @@ export function useWebRTCPhone(options: UseWebRTCPhoneOptions) {
       ? { deviceId: { exact: micId } }
       : true;
 
-    // Show in-call controls immediately — session.accept() can block 5–10s on ICE (mobile WebView).
+    // Show in-call controls immediately - session.accept() can block 5–10s on ICE (mobile WebView).
     setStatus('in-call');
 
     try {
@@ -335,12 +335,12 @@ export function useWebRTCPhone(options: UseWebRTCPhoneOptions) {
 
     const attempt = reconnectAttemptRef.current + 1;
     reconnectAttemptRef.current = attempt;
-    // Backoff: 2s, 4s, … cap 30s — browsers throttle background tabs heavily
+    // Backoff: 2s, 4s, … cap 30s - browsers throttle background tabs heavily
     const delayMs = Math.min(30_000, 2000 * 2 ** Math.min(attempt - 1, 4));
 
     const ua = uaRef.current;
     if (!ua) {
-      // UA gone (exhausted sip.js attempts / stop / failed connect) — rebuild
+      // UA gone (exhausted sip.js attempts / stop / failed connect) - rebuild
       // UserAgent + REGISTER from saved credentials (do not wait for Recover).
       setStatus((prev) =>
         prev === 'in-call' || prev === 'ringing' || prev === 'dialing' ? prev : 'disconnected',
@@ -452,7 +452,7 @@ export function useWebRTCPhone(options: UseWebRTCPhoneOptions) {
         reconnectionDelay: 4,
         transportOptions: {
           server: opts.server,
-          // Never log SIP frames (may contain credentials) — T-07-14-01
+          // Never log SIP frames (may contain credentials) - T-07-14-01
           traceSip: false,
           // CRLF keep-alive so proxies / Asterisk don't idle-drop the WSS
           keepAliveInterval: 20,
@@ -489,7 +489,7 @@ export function useWebRTCPhone(options: UseWebRTCPhoneOptions) {
           },
           onDisconnect: (error?: Error) => {
             if (!wantConnectedRef.current) return;
-            // Transport lost — show connecting; Asterisk contact may still be Avail briefly.
+            // Transport lost - show connecting; Asterisk contact may still be Avail briefly.
             // Always schedule reconnect (clean closes often omit Error).
             setStatus((prev) =>
               prev === 'in-call' || prev === 'ringing' || prev === 'dialing' ? prev : 'connecting',
@@ -520,7 +520,7 @@ export function useWebRTCPhone(options: UseWebRTCPhoneOptions) {
             setStatus((prev) => (prev === 'connecting' ? prev : 'disconnected'));
             return;
           }
-          // Do NOT ua.reconnect() here — that flaps WSS while Asterisk contact is still Avail.
+          // Do NOT ua.reconnect() here - that flaps WSS while Asterisk contact is still Avail.
           // Soft re-REGISTER; only escalate to transport reconnect if that fails.
           attemptReRegister();
         }
@@ -616,7 +616,7 @@ export function useWebRTCPhone(options: UseWebRTCPhoneOptions) {
   const ensureConnected = useCallback(async (force = false) => {
     const opts = optionsRef.current;
     if (!opts.server || !opts.sipUser || !opts.sipPassword) {
-      // No credentials yet (shift restore in flight) — stay quiet; page will retry.
+      // No credentials yet (shift restore in flight) - stay quiet; page will retry.
       return;
     }
     if (force) wantConnectedRef.current = true;
@@ -628,7 +628,7 @@ export function useWebRTCPhone(options: UseWebRTCPhoneOptions) {
 
     // Recover CTA / explicit force: always rebuild WSS + REGISTER.
     // sip.js may still report Registered after Asterisk deleted the contact
-    // ("Removed contact due to shutdown") — a soft early-return then no-ops.
+    // ("Removed contact due to shutdown") - a soft early-return then no-ops.
     if (force) {
       try {
         await connect();
@@ -638,7 +638,7 @@ export function useWebRTCPhone(options: UseWebRTCPhoneOptions) {
       return;
     }
 
-    // UA torn down after exhausted reconnect — rebuild from saved credentials.
+    // UA torn down after exhausted reconnect - rebuild from saved credentials.
     if (!uaRef.current) {
       try {
         await connect();
@@ -703,7 +703,7 @@ export function useWebRTCPhone(options: UseWebRTCPhoneOptions) {
 
   /**
    * Outbound dial (D-01 softphone dialpad / click-to-call WebRTC path).
-   * INVITE via the registered UserAgent — no AMI Originate for companion endpoints.
+   * INVITE via the registered UserAgent - no AMI Originate for companion endpoints.
    */
   const makeCall = useCallback(async (rawTarget: string) => {
     const ua = uaRef.current;
@@ -751,7 +751,7 @@ export function useWebRTCPhone(options: UseWebRTCPhoneOptions) {
         return;
       }
       if (state !== SessionState.Terminated) return;
-      // Local cancel/hangup — silent return to dialpad.
+      // Local cancel/hangup - silent return to dialpad.
       if (localHangupRef.current) {
         localHangupRef.current = false;
         outboundEstablishedAtRef.current = null;
@@ -791,7 +791,7 @@ export function useWebRTCPhone(options: UseWebRTCPhoneOptions) {
           target,
         });
       }
-      // SoftphoneWidget surfaces lastDialFailure — do not rethrow (avoids double toast).
+      // SoftphoneWidget surfaces lastDialFailure - do not rethrow (avoids double toast).
     }
   }, [attachSessionListeners, cleanupCall, setupRemoteAudio, startQualityPolling]);
 
@@ -879,7 +879,7 @@ export function useWebRTCPhone(options: UseWebRTCPhoneOptions) {
         },
       });
     } catch (err: any) {
-      throw new Error(err?.message || 'Blind transfer failed');
+      throw new Error(err?.message || 'Blind transfer failed', { cause: err });
     }
   }, []);
 
@@ -927,7 +927,7 @@ export function useWebRTCPhone(options: UseWebRTCPhoneOptions) {
     }
   }, [options.sinkId, status, applySinkId]);
 
-  /** Mid-call / mid-shift mic switch (D-23) — replaceTrack when in-call. */
+  /** Mid-call / mid-shift mic switch (D-23) - replaceTrack when in-call. */
   const switchMicrophone = useCallback(async (deviceId: string) => {
     const preferred = deviceId === 'default' ? undefined : deviceId;
     optionsRef.current = { ...optionsRef.current, micDeviceId: preferred };
@@ -951,7 +951,7 @@ export function useWebRTCPhone(options: UseWebRTCPhoneOptions) {
     prev?.stop();
   }, [status]);
 
-  /** Mid-call / mid-shift speaker switch (D-23) — setSinkId on remote audio element. */
+  /** Mid-call / mid-shift speaker switch (D-23) - setSinkId on remote audio element. */
   const switchSpeaker = useCallback(async (deviceId: string) => {
     const preferred = deviceId === 'default' ? undefined : deviceId;
     optionsRef.current = { ...optionsRef.current, sinkId: preferred };
@@ -965,7 +965,7 @@ export function useWebRTCPhone(options: UseWebRTCPhoneOptions) {
     await el.setSinkId(preferred || 'default');
   }, []);
 
-  // Tab became visible again — browsers throttle/kill background WSS; restore REGISTER
+  // Tab became visible again - browsers throttle/kill background WSS; restore REGISTER
   useEffect(() => {
     const onVisibility = () => {
       if (document.visibilityState !== 'visible') return;

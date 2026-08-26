@@ -16,7 +16,9 @@ describe('emitHttpRequest / assertSafeHttpUrl (D-47)', () => {
   it('accepts https://example.com/x', () => {
     expect(() => assertSafeHttpUrl('https://example.com/x')).not.toThrow();
     const dp = emitHttpRequest({ url: 'https://example.com/x', method: 'GET' });
-    expect(dp).toContain('https://example.com/x');
+    expect(dp).toContain('/internal/dialplan/http-request');
+    expect(dp).toContain('url=https%3A%2F%2Fexample.com%2Fx');
+    expect(dp).not.toContain('CURL(https://example.com/x');
     expect(dp).toContain(`Set(${HTTP_RESULT_VAR}=`);
   });
 

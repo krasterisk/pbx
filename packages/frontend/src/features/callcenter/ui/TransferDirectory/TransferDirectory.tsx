@@ -27,9 +27,9 @@ type DirectoryRow =
 export interface TransferDirectoryProps {
   /** transfer = existing blind/attended transfer target picker; conference-add = D-28 "add to conference"; call = D-29 click-to-call. One component, three call sites. */
   mode: TransferDirectoryMode;
-  /** conference-add mode only — uniqueid of the operator's own active call. CTA disables without it (degrades to nothing, no active call). */
+  /** conference-add mode only - uniqueid of the operator's own active call. CTA disables without it (degrades to nothing, no active call). */
   activeCallUniqueid?: string;
-  /** transfer mode only — host decides blind vs attended; this component only surfaces the picked endpoint. */
+  /** transfer mode only - host decides blind vs attended; this component only surfaces the picked endpoint. */
   onSelectTransferTarget?: (entry: IDirectoryEndpoint) => void;
   /** Fires after a successful conference-add/click-to-call, or a transfer pick, so the host can close its Sheet/Popover. */
   onDone?: () => void;
@@ -38,7 +38,7 @@ export interface TransferDirectoryProps {
 
 /**
  * True when the endpoint has no usable registration (hide from transfer list).
- * Busy/talking agents stay visible — only unreachable devices are filtered out.
+ * Busy/talking agents stay visible - only unreachable devices are filtered out.
  */
 export function isEndpointUnreachable(presence: string | undefined): boolean {
   const state = (presence || '').toUpperCase();
@@ -70,7 +70,7 @@ function freeCountClass(free: number, total: number): string {
 }
 
 /**
- * Unified transfer directory (D-36/D-37) — searchable list of endpoints/queues/groups.
+ * Unified transfer directory (D-36/D-37) - searchable list of endpoints/queues/groups.
  * Unregistered endpoints are hidden; type filters narrow the list.
  */
 export function TransferDirectory({
@@ -133,7 +133,7 @@ export function TransferDirectory({
         }
       }
       onDone?.();
-    } catch { /* server is source of truth — row stays interactive to retry */ }
+    } catch { /* server is source of truth - row stays interactive to retry */ }
     finally { setPendingId(null); }
   };
 

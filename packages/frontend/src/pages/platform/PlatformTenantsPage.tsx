@@ -9,7 +9,7 @@ import cls from './PlatformPages.module.scss';
 
 type TenantsTab = 'tenants' | 'settings';
 
-/** Platform tenants tools — migrated from SuperAdminPage into /platform/tenants. */
+/** Platform tenants tools - migrated from SuperAdminPage into /platform/tenants. */
 export const PlatformTenantsPage = () => {
   const { t } = useTranslation();
   const [tab, setTab] = useState<TenantsTab>('tenants');

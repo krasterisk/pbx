@@ -37,7 +37,7 @@ export class LocalStorageTokenStorage implements TokenStorage {
   }
 }
 
-/** Native Secure Storage (Keystore/Keychain) — never log token values. */
+/** Native Secure Storage (Keystore/Keychain) - never log token values. */
 export class SecureStorageTokenStorage implements TokenStorage {
   async get(key: string): Promise<string | null> {
     try {
@@ -92,7 +92,7 @@ export function getTokenStorage(): TokenStorage {
   return defaultStorage;
 }
 
-/** Test helper — reset singleton between suites. */
+/** Test helper - reset singleton between suites. */
 export function __resetTokenStorageForTests(storage?: TokenStorage | null): void {
   defaultStorage = storage ?? null;
 }

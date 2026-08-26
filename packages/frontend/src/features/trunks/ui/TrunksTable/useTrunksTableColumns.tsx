@@ -46,7 +46,7 @@ export const useTrunksTableColumns = () => {
       columnHelper.accessor('host', {
         header: () => t('trunks.host'),
         cell: (info) => (
-          <span className="text-sm font-mono">{info.getValue() || '—'}</span>
+          <span className="text-sm font-mono">{info.getValue() || '-'}</span>
         ),
       }),
 
@@ -54,7 +54,7 @@ export const useTrunksTableColumns = () => {
         header: () => t('trunks.username'),
         cell: (info) => (
           <span className="text-sm font-mono text-muted-foreground">
-            {info.getValue() || '—'}
+            {info.getValue() || '-'}
           </span>
         ),
       }),
@@ -63,7 +63,7 @@ export const useTrunksTableColumns = () => {
         header: () => t('trunks.context', 'Контекст'),
         cell: (info) => (
           <span className="text-xs font-mono bg-white/5 px-2 py-0.5 rounded">
-            {info.getValue() || '—'}
+            {info.getValue() || '-'}
           </span>
         ),
       }),

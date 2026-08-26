@@ -8,7 +8,7 @@
 import {
   Controller, Get, Post, Put, Delete, Sse,
   Body, Param, Req, UseGuards, ParseIntPipe,
-  ForbiddenException, MessageEvent, Logger,
+  MessageEvent, Logger,
 } from '@nestjs/common';
 import { Request } from 'express';
 import { Observable, map, merge, interval, startWith } from 'rxjs';
@@ -17,15 +17,9 @@ import { DisplayTokenGuard } from './guards/display-token.guard';
 import { CallCenterStateService } from './callcenter-state.service';
 import { CallCenterWallboardService } from './callcenter-wallboard.service';
 import { CreateDisplayTokenDto, UpdateAlertConfigDto } from './dto/wallboard.dto';
+import { assertSupervisor } from './callcenter-rbac.util';
 
-const SUPERVISOR_LEVEL = 3;
 const SSE_HEARTBEAT_MS = 15_000;
-
-function assertSupervisor(user: any): void {
-  if (user.level < SUPERVISOR_LEVEL) {
-    throw new ForbiddenException('Supervisor access required (level >= 3)');
-  }
-}
 
 @Controller('callcenter/wallboard')
 export class CallCenterWallboardController {

@@ -12,7 +12,7 @@ const PLATFORM_NAV = [
 ] as const;
 
 /**
- * Platform console shell (006-B) — outside tenant AppLayout/ModuleShell.
+ * Platform console shell (006-B) - outside tenant AppLayout/ModuleShell.
  * Chrome cue disambiguates platform scope from tenant admin.
  */
 export const PlatformLayout = () => {

@@ -8,18 +8,15 @@ import {
   ToQueueParamsDto,
   ToRouteParamsDto,
   ToTrunkParamsDto,
-  TrunkCarouselParamsDto,
   VoicemailParamsDto,
 } from './address.params.dto';
 import {
-  BranchParamsDto,
   CallerIdParamsDto,
   CmdParamsDto,
   GotoParamsDto,
+  HangupParamsDto,
   LabelParamsDto,
   ScheduleParamsDto,
-  SetClidCustomParamsDto,
-  SetClidListParamsDto,
   WebhookParamsDto,
 } from './control.params.dto';
 import {
@@ -37,9 +34,8 @@ export type ParamsDtoClass = new (...args: any[]) => object;
 
 /**
  * Per-type params DTO registry (D-09).
- * `null` is allowed only for types that have no required params
- * (hangup / busy / congestion): nonempty params must not fail, and unknown
- * keys are stripped by whitelist when a DTO exists.
+ * `null` is allowed only for types that have no params at all: nonempty params
+ * must not fail, and unknown keys are stripped by whitelist when a DTO exists.
  */
 export const ACTION_PARAM_DTO: Record<ActionType, ParamsDtoClass | null> = {
   totrunk: ToTrunkParamsDto,
@@ -50,11 +46,8 @@ export const ACTION_PARAM_DTO: Record<ActionType, ParamsDtoClass | null> = {
   toivr: ToIvrParamsDto,
   toroute: ToRouteParamsDto,
   playback: PlaybackParamsDto,
-  setclid_custom: SetClidCustomParamsDto,
-  setclid_list: SetClidListParamsDto,
   notify: NotifyParamsDto,
   callerid: CallerIdParamsDto,
-  trunk_carousel: TrunkCarouselParamsDto,
   voicemail: VoicemailParamsDto,
   text2speech: Text2SpeechParamsDto,
   voicerobot: VoiceRobotParamsDto,
@@ -63,13 +56,10 @@ export const ACTION_PARAM_DTO: Record<ActionType, ParamsDtoClass | null> = {
   cmd: CmdParamsDto,
   label: LabelParamsDto,
   goto: GotoParamsDto,
-  branch: BranchParamsDto,
   schedule: ScheduleParamsDto,
   http_request: HttpRequestParamsDto,
   collect_input: CollectInputParamsDto,
-  busy: null,
-  hangup: null,
-  congestion: null,
+  hangup: HangupParamsDto,
 };
 
 export function resolveParamsDto(type: ActionType): ParamsDtoClass | null {

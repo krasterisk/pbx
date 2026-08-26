@@ -40,12 +40,12 @@ export function AiAgentsPage() {
 
   // Resolve provider name by uid for the agents table
   const providerName = (id: number | null) => {
-    if (!id) return '—';
+    if (!id) return '-';
     const p = providers.find(x => x.uid === id);
     return p ? `${p.name} (${p.vendor})` : `#${id}`;
   };
   const toolsetName = (id: number | null) =>
-    !id ? '—' : (toolsets.find(t => t.uid === id)?.name || `#${id}`);
+    !id ? '-' : (toolsets.find(t => t.uid === id)?.name || `#${id}`);
 
   return (
     <VStack gap="24" max className={styles.page} data-testid="ai-agents-page-responsive">
@@ -109,7 +109,7 @@ export function AiAgentsPage() {
         </button>
       </div>
 
-      {/* ─── Agents — D-29 page-level overflow hybrid ─── */}
+      {/* ─── Agents - D-29 page-level overflow hybrid ─── */}
       {tab === 'agents' && (
         <div
           className={`${styles.tableWrap} overflow-x-auto`}

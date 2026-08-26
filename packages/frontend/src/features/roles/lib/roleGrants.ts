@@ -66,6 +66,8 @@ const LEGACY_PAGE_ALIASES: Record<string, string> = {
   'tenant-modules': 'tenant-modules',
   service_requests: 'service-requests',
   'service-requests': 'service-requests',
+  komandor_claims: 'komandor-claims',
+  'komandor-claims': 'komandor-claims',
   cc_agent: 'cc-agent',
   'cc-agent': 'cc-agent',
   cc_supervisor: 'cc-supervisor',

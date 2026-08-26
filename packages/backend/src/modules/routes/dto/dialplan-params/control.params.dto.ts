@@ -14,14 +14,13 @@ import {
 import { Transform, Type } from 'class-transformer';
 import type {
   CallerIdMode,
-  IBranchParams,
+  HangupSignal,
   ICallerIdActionParams,
   ICmdParams,
   IGotoParams,
+  IHangupParams,
   ILabelParams,
   IScheduleParams,
-  ISetClidCustomParams,
-  ISetClidListParams,
   ITimeGroupInterval,
   IWebhookParams,
 } from '@krasterisk/shared';
@@ -29,35 +28,8 @@ import { RouteConditionDto } from '../route-condition.dto';
 
 const SAFE_DIAL = /^[^(),?\[\]{}$\\";\n\r]*$/;
 const SAFE_TEXT = /^[^\n\r;]*$/;
-const CALLERID_MODES: CallerIdMode[] = ['static', 'phonebook', 'setclid_list', 'carousel'];
-
-export class SetClidCustomParamsDto implements ISetClidCustomParams {
-  @IsOptional()
-  @IsString()
-  @Matches(SAFE_DIAL)
-  callerid?: string;
-
-  @IsOptional()
-  @IsString()
-  @Matches(SAFE_DIAL)
-  name?: string;
-
-  @IsOptional()
-  @IsString()
-  mode?: string;
-}
-
-export class SetClidListParamsDto implements ISetClidListParams {
-  @IsOptional()
-  @Transform(({ value }) => (value === '' || value == null ? undefined : Number(value)))
-  @IsInt()
-  @Min(1)
-  list_uid?: number;
-
-  @IsOptional()
-  @IsString()
-  mode?: string;
-}
+const CALLERID_MODES: CallerIdMode[] = ['static', 'phonebook', 'number_list', 'carousel'];
+const HANGUP_SIGNALS: HangupSignal[] = ['busy', 'congestion', 'hangup'];
 
 export class CallerIdParamsDto implements ICallerIdActionParams {
   @IsIn(CALLERID_MODES)
@@ -74,11 +46,13 @@ export class CallerIdParamsDto implements ICallerIdActionParams {
   name?: string;
 
   @IsOptional()
+  @Transform(({ value }) => (value === '' || value == null ? undefined : Number(value)))
   @IsInt()
   @Min(1)
   phonebook_uid?: number;
 
   @IsOptional()
+  @Transform(({ value }) => (value === '' || value == null ? undefined : Number(value)))
   @IsInt()
   @Min(1)
   list_uid?: number;
@@ -97,29 +71,44 @@ export class LabelParamsDto implements ILabelParams {
   label_name?: string;
 }
 
-export class GotoParamsDto implements IGotoParams {
+/**
+ * Unified jump: without `condition` it is a plain Goto, with `condition` it is
+ * a two-way branch and `false_label` is the else-target.
+ */
+export class GotoParamsDto implements Omit<IGotoParams, 'condition'> {
   @IsString()
   @MinLength(1)
   @Matches(SAFE_DIAL)
   label_name: string;
-}
-
-export class BranchParamsDto implements IBranchParams {
-  @IsString()
-  @MinLength(1)
-  @Matches(SAFE_DIAL)
-  true_label: string;
-
-  @IsString()
-  @MinLength(1)
-  @Matches(SAFE_DIAL)
-  false_label: string;
 
   @IsOptional()
   @IsObject()
   @ValidateNested()
   @Type(() => RouteConditionDto)
   condition?: RouteConditionDto;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @Matches(SAFE_DIAL)
+  false_label?: string;
+}
+
+export class HangupParamsDto implements IHangupParams {
+  @IsOptional()
+  @IsIn(HANGUP_SIGNALS)
+  signal?: HangupSignal;
+
+  @IsOptional()
+  @Transform(({ value }) => (value === '' || value == null ? undefined : Number(value)))
+  @IsInt()
+  @Min(0)
+  timeout?: number;
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d{1,3}$/)
+  causecode?: string;
 }
 
 export class TimeGroupIntervalDto implements ITimeGroupInterval {

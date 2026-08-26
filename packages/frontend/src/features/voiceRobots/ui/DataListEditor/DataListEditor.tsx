@@ -90,7 +90,7 @@ function parseCsv(text: string): { columns: IDataListColumn[]; rows: Record<stri
         currentRecord.push(field.trim());
         field = '';
       } else if (!delimiter && (ch === ';' || ch === ',')) {
-        // First delimiter encountered — auto-detect
+        // First delimiter encountered - auto-detect
         // Look at the rest of the first line to confirm
         const firstNewline = input.indexOf('\n');
         const headerPart = firstNewline > 0 ? input.substring(0, firstNewline) : input;
@@ -731,7 +731,7 @@ export const DataListEditor = memo(({ robotId }: DataListEditorProps) => {
                               <input
                                 value={row[col.key] || ''}
                                 onChange={(e) => updateRowCell(rowIdx, col.key, e.target.value)}
-                                placeholder="—"
+                                placeholder="-"
                               />
                             </td>
                           ))}

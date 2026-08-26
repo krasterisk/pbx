@@ -27,6 +27,10 @@ export interface MultiSelectProps {
   placeholder?: string;
   /** Optional className */
   className?: string;
+  /** Filter options by typing (default false). */
+  searchable?: boolean;
+  /** Placeholder for the dropdown search field. */
+  searchPlaceholder?: string;
 }
 
 /**
@@ -34,12 +38,25 @@ export interface MultiSelectProps {
  * Selected items appear as removable tags at the top.
  * Dropdown shows checkboxes for each option.
  * Rendered via createPortal to evade modal boundary overflow issues.
+ *
+ * When searchable, the filter input lives in the trigger (inside Dialog focus
+ * scope) so Radix focus-trap does not steal keystrokes from a body portal.
  */
-export const MultiSelect = memo(({ value, onChange, options, placeholder, className }: MultiSelectProps) => {
+export const MultiSelect = memo(({
+  value,
+  onChange,
+  options,
+  placeholder,
+  className,
+  searchable = false,
+  searchPlaceholder,
+}: MultiSelectProps) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [query, setQuery] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
   const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
 
   const selected = value;
@@ -53,7 +70,7 @@ export const MultiSelect = memo(({ value, onChange, options, placeholder, classN
         left: `${rect.left}px`,
         width: `${rect.width}px`,
         zIndex: PORTAL_Z_INDEX,
-        pointerEvents: 'auto', // Fix for Radix Dialog setting pointer-events: none on body
+        pointerEvents: 'auto',
       });
     }
   }, [isOpen]);
@@ -61,22 +78,24 @@ export const MultiSelect = memo(({ value, onChange, options, placeholder, classN
   useEffect(() => {
     updateDropdownPosition();
     if (isOpen) {
-      // Capture true ensures we catch scroll events from parent containers
       window.addEventListener('scroll', updateDropdownPosition, true);
       window.addEventListener('resize', updateDropdownPosition);
+      if (searchable) {
+        // Focus after portal paint; keep inside trigger (Dialog scope).
+        requestAnimationFrame(() => searchRef.current?.focus());
+      }
       return () => {
         window.removeEventListener('scroll', updateDropdownPosition, true);
         window.removeEventListener('resize', updateDropdownPosition);
       };
     }
-  }, [isOpen, updateDropdownPosition]);
+    setQuery('');
+  }, [isOpen, updateDropdownPosition, searchable]);
 
   // Close on outside click
   useEffect(() => {
     if (!isOpen) return;
 
-    // Prevent clicks inside the dropdown from bubbling up to document
-    // This stops Radix Dialog from intercepting pointerdown and blocking scroll/clicks
     const dropdown = dropdownRef.current;
     const stopProp = (e: Event) => {
       e.stopPropagation();
@@ -99,7 +118,7 @@ export const MultiSelect = memo(({ value, onChange, options, placeholder, classN
       }
     };
     document.addEventListener('mousedown', handler);
-    
+
     return () => {
       document.removeEventListener('mousedown', handler);
       if (dropdown) {
@@ -117,7 +136,10 @@ export const MultiSelect = memo(({ value, onChange, options, placeholder, classN
       ? selected.filter(s => s !== val)
       : [...selected, val];
     onChange(next);
-  }, [selected, onChange]);
+    if (searchable) {
+      requestAnimationFrame(() => searchRef.current?.focus());
+    }
+  }, [selected, onChange, searchable]);
 
   const remove = useCallback((val: string) => {
     onChange(selected.filter(s => s !== val));
@@ -130,18 +152,34 @@ export const MultiSelect = memo(({ value, onChange, options, placeholder, classN
     return opt ? opt.label : val;
   };
 
+  const filteredOptions = (() => {
+    const q = query.trim().toLowerCase();
+    if (!searchable || !q) return options;
+    return options.filter((opt) => {
+      const hay = `${opt.label} ${opt.value} ${opt.description ?? ''}`.toLowerCase();
+      return hay.includes(q);
+    });
+  })();
+
+  const openDropdown = () => {
+    if (!isOpen) setIsOpen(true);
+  };
+
   return (
     <div ref={containerRef} className={`${cls.container} ${className || ''}`}>
-      {/* Tags area + trigger */}
       <div
         ref={triggerRef}
         className={`${cls.trigger} ${isOpen ? cls.triggerOpen : ''}`}
-        onClick={() => setIsOpen(prev => !prev)}
+        onClick={() => {
+          if (searchable) {
+            openDropdown();
+            requestAnimationFrame(() => searchRef.current?.focus());
+            return;
+          }
+          setIsOpen((prev) => !prev);
+        }}
       >
         <div className={cls.tagsArea}>
-          {selected.length === 0 && (
-            <span className={cls.placeholder}>{placeholder || 'Select...'}</span>
-          )}
           {selected.map(val => {
             const label = getLabel(val);
             return (
@@ -157,6 +195,28 @@ export const MultiSelect = memo(({ value, onChange, options, placeholder, classN
               </span>
             );
           })}
+          {searchable && isOpen ? (
+            <input
+              ref={searchRef}
+              type="text"
+              className={cls.searchInline}
+              value={query}
+              placeholder={selected.length === 0 ? (searchPlaceholder || placeholder || 'Search...') : (searchPlaceholder || '')}
+              onChange={(e) => setQuery(e.target.value)}
+              onClick={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
+              onKeyDown={(e) => {
+                e.stopPropagation();
+                if (e.key === 'Enter') e.preventDefault();
+                if (e.key === 'Escape') {
+                  e.preventDefault();
+                  setIsOpen(false);
+                }
+              }}
+            />
+          ) : selected.length === 0 ? (
+            <span className={cls.placeholder}>{placeholder || 'Select...'}</span>
+          ) : null}
         </div>
         <div className={cls.actions}>
           {selected.length > 0 && (
@@ -168,24 +228,35 @@ export const MultiSelect = memo(({ value, onChange, options, placeholder, classN
               <X className="w-3.5 h-3.5" />
             </button>
           )}
-          <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+          <button
+            type="button"
+            className={cls.chevronBtn}
+            aria-label={isOpen ? 'Close' : 'Open'}
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsOpen((prev) => !prev);
+            }}
+          >
+            <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+          </button>
         </div>
       </div>
 
-      {/* Dropdown in Portal */}
       {isOpen && createPortal(
-        <div 
-          ref={dropdownRef} 
-          className={cls.dropdown} 
+        <div
+          ref={dropdownRef}
+          className={cls.dropdown}
           style={dropdownStyle}
+          data-multiselect-dropdown=""
           onWheel={(e) => {
-            // Bypass global Radix react-remove-scroll locks by forcing manual scroll
             if (dropdownRef.current) {
               dropdownRef.current.scrollTop += e.deltaY;
             }
           }}
         >
-          {options.map(opt => {
+          {filteredOptions.length === 0 ? (
+            <div className={cls.empty}>{query.trim() ? '-' : (placeholder || 'Select...')}</div>
+          ) : filteredOptions.map(opt => {
             const isChecked = selected.includes(opt.value);
             return (
               <div

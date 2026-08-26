@@ -6,7 +6,6 @@ import {
   Body,
   Controller,
   Delete,
-  ForbiddenException,
   Get,
   Param,
   ParseIntPipe,
@@ -17,28 +16,13 @@ import {
 } from '@nestjs/common';
 import { Request } from 'express';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
-import { UserLevel } from '../../users/user.model';
 import { CallCenterReportSchedulesService } from './callcenter-report-schedules.service';
 import { CallCenterReportDeliveryService } from './callcenter-report-delivery.service';
 import {
   CreateReportScheduleDto,
   UpdateReportScheduleDto,
 } from './dto/report-schedule.dto';
-
-/**
- * Supervisor/admin gate. UserLevel is inverted privilege (ADMIN=1, SUPERVISOR=3),
- * so numeric `level >= 3` would block ADMIN — use set membership (07-05 pattern).
- */
-function assertSupervisor(user: any): void {
-  const allowed = new Set([
-    UserLevel.SUPERADMIN,
-    UserLevel.ADMIN,
-    UserLevel.SUPERVISOR,
-  ]);
-  if (!allowed.has(user.level)) {
-    throw new ForbiddenException('Supervisor access required (level >= 3)');
-  }
-}
+import { assertSupervisor } from '../callcenter-rbac.util';
 
 @UseGuards(JwtAuthGuard)
 @Controller('callcenter/report-schedules')

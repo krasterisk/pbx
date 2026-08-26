@@ -11,7 +11,7 @@ interface SlotChoiceEditorProps {
 }
 
 /**
- * SlotChoiceEditor — editor for slot type="choice" variants.
+ * SlotChoiceEditor - editor for slot type="choice" variants.
  *
  * Each choice has a value (sent to webhook) and synonyms (phrases
  * the client might say). Uses TagInput for synonym management.

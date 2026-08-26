@@ -232,7 +232,7 @@ const InvoiceDocument: React.FC<InvoicePdfProps> = ({
 
   return (
     <Document
-      title={`Счёт №${invoiceNumber} — ${tenant.name}`}
+      title={`Счёт №${invoiceNumber} - ${tenant.name}`}
       author="KrAsterisk"
       creator="KrAsterisk Cloud Platform"
     >

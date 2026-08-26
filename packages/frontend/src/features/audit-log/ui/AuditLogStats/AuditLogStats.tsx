@@ -29,7 +29,7 @@ export const AuditLogStats = memo(({ stats, isLoading }: AuditLogStatsProps) => 
             <Text variant="muted" className={cls.label}>{t(labelKey)}</Text>
           </HStack>
           <span className={cls.value}>
-            {isLoading ? '—' : (stats?.[key] ?? 0)}
+            {isLoading ? '-' : (stats?.[key] ?? 0)}
           </span>
         </VStack>
       ))}

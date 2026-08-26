@@ -9,7 +9,7 @@ import {
 import styles from './ParkedCallsIndicator.module.scss';
 
 /**
- * Tenant-wide parking lot indicator (D-28) — badge + dropdown, mirrors
+ * Tenant-wide parking lot indicator (D-28) - badge + dropdown, mirrors
  * MissedCallsPanel's shape 1:1 but with an info-tint (neutral, not a
  * warning) and a per-entry Retrieve action. Auto-refreshes via the
  * ParkedCalls RTK cache tag, invalidated on any operator's park/retrieve
@@ -26,7 +26,7 @@ export function ParkedCallsIndicator({ showLabel = false }: { showLabel?: boolea
   const handleRetrieve = async (parkingSpace: string) => {
     try {
       await retrieveParkedCall({ parkingSpace }).unwrap();
-    } catch { /* server is source of truth — parked list refetches regardless via ParkedCalls tag */ }
+    } catch { /* server is source of truth - parked list refetches regardless via ParkedCalls tag */ }
   };
 
   const count = parked.length;

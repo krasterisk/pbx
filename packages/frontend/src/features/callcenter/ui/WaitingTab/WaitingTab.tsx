@@ -28,7 +28,7 @@ function formatTime(seconds: number): string {
 }
 
 /**
- * Waiting tab (Surface 7) — extraction of the pre-09-08 queueMonitor table,
+ * Waiting tab (Surface 7) - extraction of the pre-09-08 queueMonitor table,
  * preserving the 30s/60s wait-timer warning/danger thresholds and the
  * pickup_enabled-gated "Pick" action verbatim. Scoped to the operator's own
  * queues (D-31 convention); a logged-out operator sees the empty state.
@@ -63,7 +63,7 @@ export function WaitingTab({ summaryOnly = false }: { summaryOnly?: boolean } = 
   };
 
   const stats = (
-    <div className={styles.stats}>
+    <div className={summaryOnly ? styles.statsInline : styles.stats}>
       <div className={`${styles.stat} ${totalWaiting > 5 ? styles.statDanger : ''}`}>
         <PhoneIncoming className="w-3.5 h-3.5" />
         <Text className={styles.statValue}>{totalWaiting}</Text>
@@ -83,7 +83,7 @@ export function WaitingTab({ summaryOnly = false }: { summaryOnly?: boolean } = 
   );
 
   if (summaryOnly) {
-    return <div className={styles.wrap} data-testid="waiting-tab-summary">{stats}</div>;
+    return <div data-testid="waiting-tab-summary">{stats}</div>;
   }
 
   return (

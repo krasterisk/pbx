@@ -31,7 +31,7 @@ function startOfLocalDayMs(): number {
 }
 
 /**
- * Smart missed-calls worklist (D-16…D-19) — badge + dropdown, number-grouped
+ * Smart missed-calls worklist (D-16…D-19) - badge + dropdown, number-grouped
  * rows with attempt count + expandable attempt history, personal-vs-queue
  * ownership, claim (shared pool) + operator callback, and a resolved
  * sub-view distinguishing client-self-callback from operator-callback
@@ -52,7 +52,7 @@ export function MissedCallsPanel() {
 
   const { data: activeGroups = [] } = useGetMissedCallsGroupedQuery();
   // Raw rows (personal + queue, incl. resolved) power both the attempt-history
-  // expansion and the resolved sub-view — one fetch, no dedicated backend endpoint needed.
+  // expansion and the resolved sub-view - one fetch, no dedicated backend endpoint needed.
   const { data: allRows = [] } = useGetMissedCallsQuery({ includeHandled: true });
 
   const [claimMissedCall, { isLoading: isClaiming }] = useClaimMissedCallMutation();
@@ -79,7 +79,7 @@ export function MissedCallsPanel() {
     };
   }, [dispatch]);
 
-  // Inline error flash on a failed/<=5s callback attempt (D-18) — driven by the
+  // Inline error flash on a failed/<=5s callback attempt (D-18) - driven by the
   // missedCallUpdate SSE window event already broadcast by useCallCenterSSE.ts.
   useEffect(() => {
     const handler = (e: Event) => {
@@ -174,7 +174,7 @@ export function MissedCallsPanel() {
       ? t('callcenter.missed.handledInHoursMinutes', { hours: h, minutes: remM })
       : t('callcenter.missed.handledInHours', { count: h });
   };
-  /** Attempt history for a number — current local calendar day only. */
+  /** Attempt history for a number - current local calendar day only. */
   const attemptHistoryFor = (g: Pick<IMissedCallGroup, 'callerIdNum' | 'personal'>) => {
     const startMs = startOfLocalDayMs();
     return allRows
@@ -190,7 +190,7 @@ export function MissedCallsPanel() {
   const handleClaim = async (callerIdNum: string) => {
     try {
       await claimMissedCall({ callerIdNum }).unwrap();
-    } catch { /* server is source of truth on conflict — UI just reflects the refetch */ }
+    } catch { /* server is source of truth on conflict - UI just reflects the refetch */ }
   };
 
   const handleCallback = async (callerIdNum: string) => {
@@ -199,7 +199,7 @@ export function MissedCallsPanel() {
       if (res.mode === 'webrtc' && res.target) {
         dispatch(requestOutboundDial(res.target));
       }
-    } catch { /* dial-initiation error (e.g. not logged in) — nothing more to do client-side */ }
+    } catch { /* dial-initiation error (e.g. not logged in) - nothing more to do client-side */ }
   };
 
   const count = todaysActiveGroups.length;

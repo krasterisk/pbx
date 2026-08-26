@@ -98,7 +98,7 @@ export const ChatMessage = ({ message }: ChatMessageProps) => {
                 </div>
             )}
 
-            {/* Main bubble — Markdown */}
+            {/* Main bubble - Markdown */}
             {content && (
                 <div className={cls.bubble}>
                     {role === 'assistant' ? (
@@ -133,7 +133,7 @@ export const ChatMessage = ({ message }: ChatMessageProps) => {
                 </div>
             )}
 
-            {/* Tool calls — ExecutionPlan */}
+            {/* Tool calls - ExecutionPlan */}
             {toolCalls && toolCalls.length > 0 && (
                 <div className={cls.executionPlan}>
                     <div className={cls.planHeader}>

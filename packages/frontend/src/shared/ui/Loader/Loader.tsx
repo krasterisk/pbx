@@ -1,7 +1,7 @@
 import { memo } from 'react';
 
 /* ────────────────────────────────────────────────────────────── */
-/*  Loader — spinner for non-card loading states                 */
+/*  Loader - spinner for non-card loading states                 */
 /* ────────────────────────────────────────────────────────────── */
 
 interface LoaderProps {
@@ -14,7 +14,7 @@ interface LoaderProps {
 }
 
 /**
- * Loader — animated spinner with optional label.
+ * Loader - animated spinner with optional label.
  *
  * Usage:
  *   <Loader />
@@ -54,7 +54,7 @@ export const Loader = memo(({ size = 24, className, label }: LoaderProps) => {
 Loader.displayName = 'Loader';
 
 /* ────────────────────────────────────────────────────────────── */
-/*  PageLoader — full-area centered loader                       */
+/*  PageLoader - full-area centered loader                       */
 /* ────────────────────────────────────────────────────────────── */
 
 interface PageLoaderProps {

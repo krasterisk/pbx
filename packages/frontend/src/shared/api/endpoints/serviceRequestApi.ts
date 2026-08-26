@@ -30,7 +30,7 @@ export interface ICcDistrict {
 
 const serviceRequestApi = rtkApi.injectEndpoints({
   endpoints: (build) => ({
-    /** GET /service-requests — список с фильтрами и пагинацией */
+    /** GET /service-requests - список с фильтрами и пагинацией */
     getServiceRequests: build.query<IServiceRequestListResponse, ServiceRequestQueryParams | void>({
       query: (params) => ({
         url: '/service-requests',
@@ -39,19 +39,19 @@ const serviceRequestApi = rtkApi.injectEndpoints({
       providesTags: ['ServiceRequests'],
     }),
 
-    /** GET /service-requests/stats — статистика по статусам */
+    /** GET /service-requests/stats - статистика по статусам */
     getServiceRequestStats: build.query<IServiceRequestStats, void>({
       query: () => '/service-requests/stats',
       providesTags: ['ServiceRequests'],
     }),
 
-    /** GET /service-requests/:id — одно обращение */
+    /** GET /service-requests/:id - одно обращение */
     getServiceRequest: build.query<IServiceRequest, number>({
       query: (id) => `/service-requests/${id}`,
       providesTags: (_r, _e, id) => [{ type: 'ServiceRequests', id }],
     }),
 
-    /** POST /service-requests — создать обращение */
+    /** POST /service-requests - создать обращение */
     createServiceRequest: build.mutation<IServiceRequest, Partial<IServiceRequest>>({
       query: (body) => ({
         url: '/service-requests',
@@ -61,7 +61,7 @@ const serviceRequestApi = rtkApi.injectEndpoints({
       invalidatesTags: ['ServiceRequests'],
     }),
 
-    /** PUT /service-requests/:id — обновить обращение */
+    /** PUT /service-requests/:id - обновить обращение */
     updateServiceRequest: build.mutation<IServiceRequest, { id: number; data: Partial<IServiceRequest> }>({
       query: ({ id, data }) => ({
         url: `/service-requests/${id}`,
@@ -71,7 +71,7 @@ const serviceRequestApi = rtkApi.injectEndpoints({
       invalidatesTags: ['ServiceRequests'],
     }),
 
-    /** DELETE /service-requests/:id — удалить обращение */
+    /** DELETE /service-requests/:id - удалить обращение */
     deleteServiceRequest: build.mutation<void, number>({
       query: (id) => ({
         url: `/service-requests/${id}`,
@@ -82,12 +82,12 @@ const serviceRequestApi = rtkApi.injectEndpoints({
 
     // ─── Справочники ───────────────────────────────────────
 
-    /** GET /service-requests/dictionaries/subjects — темы обращений */
+    /** GET /service-requests/dictionaries/subjects - темы обращений */
     getCcSubjects: build.query<ICcSubject[], void>({
       query: () => '/service-requests/dictionaries/subjects',
     }),
 
-    /** GET /service-requests/dictionaries/districts — зоны и районы */
+    /** GET /service-requests/dictionaries/districts - зоны и районы */
     getCcDistricts: build.query<ICcDistrict[], void>({
       query: () => '/service-requests/dictionaries/districts',
     }),

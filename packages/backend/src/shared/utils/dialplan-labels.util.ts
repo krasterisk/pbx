@@ -9,7 +9,6 @@ type ActionLike = {
   type?: unknown;
   params?: {
     label_name?: unknown;
-    true_label?: unknown;
     false_label?: unknown;
   };
 };
@@ -70,9 +69,6 @@ export function validateLabelRefs(actions: unknown[]): LabelRefError[] {
     const refs: Array<{ path: string; name: string }> = [];
     if (action.type === 'goto') {
       refs.push({ path: 'params.label_name', name: labelName(action.params?.label_name) });
-    }
-    if (action.type === 'branch') {
-      refs.push({ path: 'params.true_label', name: labelName(action.params?.true_label) });
       refs.push({ path: 'params.false_label', name: labelName(action.params?.false_label) });
     }
     for (const ref of refs) {

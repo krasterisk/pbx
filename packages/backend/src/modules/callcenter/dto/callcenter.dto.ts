@@ -3,6 +3,7 @@
  * Used by NestJS ValidationPipe for automatic request body validation.
  */
 import { IsString, IsOptional, IsArray, IsEnum, IsNumber, IsBoolean, Min, Max, MaxLength, IsInt } from 'class-validator';
+import { Type } from 'class-transformer';
 
 // ─── Agent DTOs ────────────────────────────────────────────
 
@@ -153,6 +154,34 @@ export class SupervisorHangupCallDto {
   @IsString()
   @MaxLength(64)
   uniqueid: string;
+}
+
+export class SupervisorWatchedAgentsDto {
+  @IsOptional()
+  @IsArray()
+  @Type(() => Number)
+  @IsInt({ each: true })
+  userIds?: number[];
+
+  /** @deprecated legacy extension list — mapped to user ids on the server. */
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  extens?: string[];
+}
+
+export class SupervisorStartShiftDto {
+  @Type(() => Number)
+  @IsInt()
+  operatorUserId: number;
+
+  @IsString()
+  @MaxLength(64)
+  interface: string;
+
+  @IsArray()
+  @IsString({ each: true })
+  queues: string[];
 }
 
 // ─── Pause Reason DTOs ─────────────────────────────────────

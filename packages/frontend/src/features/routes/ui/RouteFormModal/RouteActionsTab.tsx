@@ -22,9 +22,11 @@ export interface RouteActionsTabProps {
   setPreCommand: (v: string) => void;
   vpbxUserUid: number;
   stepErrors?: MappedStepErrors;
+  /** Live route extensions for dial-number preview. */
+  previewPatterns?: string[];
 }
 
-export const RouteActionsTab = memo(({ actions, setActions, rawDialplan, setRawDialplan, preCommand, setPreCommand, vpbxUserUid, stepErrors }: RouteActionsTabProps) => {
+export const RouteActionsTab = memo(({ actions, setActions, rawDialplan, setRawDialplan, preCommand, setPreCommand, vpbxUserUid, stepErrors, previewPatterns }: RouteActionsTabProps) => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const { editorMode } = useAppSelector((s) => s.routes);
@@ -93,6 +95,7 @@ export const RouteActionsTab = memo(({ actions, setActions, rawDialplan, setRawD
             actions={actions}
             onChange={setActions}
             stepErrors={stepErrors}
+            previewPatterns={previewPatterns}
           />
           {stepErrors?.orphans.length ? (
             <Text variant="error">

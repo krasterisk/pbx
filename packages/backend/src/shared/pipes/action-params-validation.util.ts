@@ -1,7 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { validateSync, ValidationError } from 'class-validator';
-import type { ActionType } from '@krasterisk/shared';
+import { coerceDestValueSource, type ActionType } from '@krasterisk/shared';
 import { ActionTypesList } from '../../modules/routes/dto/route-action.dto';
 import { resolveParamsDto } from '../../modules/routes/dto/dialplan-params';
 import { validateLabelRefs } from '../utils/dialplan-labels.util';
@@ -56,7 +56,14 @@ function validateOne(action: Record<string, unknown>, index: number): ActionPara
   if (params == null || typeof params !== 'object' || Array.isArray(params)) {
     return [{ actionId, path: 'params', message: 'params must be an object' }];
   }
-  const instance = plainToInstance(Dto, params);
+  const next = { ...(params as Record<string, unknown>) };
+  if (type === 'totrunk' && 'dest' in next) {
+    next.dest = coerceDestValueSource(next.dest);
+  }
+  if (type === 'toroute' && 'extension' in next && (typeof next.extension === 'string' || next.extension == null)) {
+    next.extension = coerceDestValueSource(next.extension);
+  }
+  const instance = plainToInstance(Dto, next);
   const errors = validateSync(instance, { whitelist: true });
   return flattenErrors(errors, actionId);
 }

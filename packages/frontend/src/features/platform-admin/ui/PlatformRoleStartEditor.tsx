@@ -11,7 +11,7 @@ import { ROLE_START_LEVELS } from '../lib/roleStartLevels';
 import { HUB_PAGE_OPTIONS, pathForPageCode } from '../lib/hubPageOptions';
 
 /**
- * Platform role→start defaults matrix — SuperAdmin PUT /cloud-admin/role-start (D-04 / D-16).
+ * Platform role→start defaults matrix - SuperAdmin PUT /cloud-admin/role-start (D-04 / D-16).
  */
 export function PlatformRoleStartEditor() {
   const { t } = useTranslation();

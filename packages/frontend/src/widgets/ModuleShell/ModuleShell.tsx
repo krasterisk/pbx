@@ -1,22 +1,22 @@
 import { memo, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Phone, Search, Languages, Moon, Sun, LogOut } from 'lucide-react';
+import { Phone, Search, Languages, Moon, Sun } from 'lucide-react';
 import { Button, Text } from '@/shared/ui';
 import { HStack } from '@/shared/ui/Stack';
 import {
   CommandPalette,
   buildPaletteItems,
 } from '@/shared/ui/CommandPalette';
-import { useAppDispatch, useAppSelector } from '@/shared/hooks/useAppStore';
+import { useAppSelector } from '@/shared/hooks/useAppStore';
 import { useIsMobile } from '@/shared/hooks/useIsMobile';
-import { logout } from '@/features/auth/model/authSlice';
 import { selectMyAgent } from '@/features/callcenter/model/selectors/callCenterSelectors';
 import { agentDisplayName } from '@/features/callcenter/lib/displayLabels';
 import { interfaceToExtension } from '@/features/endpoints/lib/endpointIds';
 import { UserLevel } from '@krasterisk/shared';
 import { useHubModules } from '@/features/modules/hooks/useHubModules';
 import { useModuleLicenseGate } from '@/features/modules/hooks/useModuleLicenseGate';
+import { UserBlock } from '@/widgets/UserBlock';
 import {
   filterPagesByLevel,
   findModuleByPath,
@@ -34,7 +34,7 @@ interface ModuleShellProps {
 }
 
 /**
- * In-module shell — A+C hybrid:
+ * In-module shell - A+C hybrid:
  * full-width topbar (logo inert, Module▾ → Page▾ menus) → sidebar | content.
  * Sidebar footer «Модули» → Hub. Mobile: sidebar auto-collapsed.
  */
@@ -42,7 +42,6 @@ export const ModuleShell = memo(function ModuleShell({ children }: ModuleShellPr
   const { t, i18n } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
-  const dispatch = useAppDispatch();
   const isMobile = useIsMobile(768);
   const user = useAppSelector((s) => s.auth.user);
   const ccAgent = useAppSelector(selectMyAgent);
@@ -152,11 +151,6 @@ export const ModuleShell = memo(function ModuleShell({ children }: ModuleShellPr
     }
   };
 
-  const handleLogout = () => {
-    dispatch(logout());
-    navigate('/login');
-  };
-
   const toggleTheme = () => {
     const html = document.documentElement;
     if (isDark) {
@@ -229,30 +223,16 @@ export const ModuleShell = memo(function ModuleShell({ children }: ModuleShellPr
         </Button>
 
         <HStack gap="8" align="center">
-          <div className={cls.userBlock}>
-            <Text as="span" className={cls.userName}>
-              {ccAgent ? agentDisplayName(ccAgent) : user?.name}
-            </Text>
-            {(ccAgent || user?.exten) && (
-              <Text as="span" className={cls.userExt}>
-                {ccAgent
-                  ? interfaceToExtension(ccAgent.interface)
-                  : `ext. ${user?.exten}`}
-              </Text>
-            )}
-          </div>
-          <span className={cls.avatar}>
-            {(ccAgent ? agentDisplayName(ccAgent) : user?.name)?.charAt(0)?.toUpperCase() || 'U'}
-          </span>
-          <Button
-            id="shell-logout-btn"
-            variant="ghost"
-            size="icon"
-            onClick={handleLogout}
-            title={t('auth.logout')}
-          >
-            <LogOut className="w-4 h-4" />
-          </Button>
+          <UserBlock
+            displayName={ccAgent ? agentDisplayName(ccAgent) : undefined}
+            secondaryLine={
+              ccAgent
+                ? interfaceToExtension(ccAgent.interface)
+                : user?.exten
+                  ? `ext. ${user.exten}`
+                  : null
+            }
+          />
         </HStack>
       </header>
 

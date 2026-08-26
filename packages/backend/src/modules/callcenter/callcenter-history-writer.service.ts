@@ -105,6 +105,7 @@ export class CallCenterHistoryWriterService {
       createdAt: row.created_at,
       queueName: row.queue_name ?? null,
       callUniqueid: row.call_uniqueid ?? '',
+      transferDestination: row.transfer_destination || null,
     });
   }
 }

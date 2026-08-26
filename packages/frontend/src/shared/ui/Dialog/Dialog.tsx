@@ -51,15 +51,32 @@ interface DialogContentProps
   extends React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>,
     VariantProps<typeof dialogContentVariants> {}
 
+/** Portaled popovers (e.g. MultiSelect) live outside Dialog content; keep focus/pointer there. */
+function isPortaledSelectTarget(target: EventTarget | null): boolean {
+  return target instanceof Element && Boolean(target.closest('[data-multiselect-dropdown]'));
+}
+
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   DialogContentProps
->(({ className, size, children, ...props }, ref) => (
+>(({ className, size, children, onPointerDownOutside, onFocusOutside, onInteractOutside, ...props }, ref) => (
   <DialogPortal>
     <DialogOverlay />
     <DialogPrimitive.Content
       ref={ref}
       className={cn(dialogContentVariants({ size }), className)}
+      onPointerDownOutside={(e) => {
+        if (isPortaledSelectTarget(e.target)) e.preventDefault();
+        onPointerDownOutside?.(e);
+      }}
+      onFocusOutside={(e) => {
+        if (isPortaledSelectTarget(e.target)) e.preventDefault();
+        onFocusOutside?.(e);
+      }}
+      onInteractOutside={(e) => {
+        if (isPortaledSelectTarget(e.target)) e.preventDefault();
+        onInteractOutside?.(e);
+      }}
       {...props}
     >
       {children}

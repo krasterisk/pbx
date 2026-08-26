@@ -143,6 +143,7 @@ describe('CallCenterHistoryWriterService', () => {
         createdAt,
         queueName: 'q',
         callUniqueid: 'a',
+        transferDestination: null,
       });
       expect(emitEvent).toHaveBeenNthCalledWith(2, 'historyRow', 9, {
         uid: 102,
@@ -154,6 +155,7 @@ describe('CallCenterHistoryWriterService', () => {
         createdAt,
         queueName: 'q',
         callUniqueid: 'b',
+        transferDestination: null,
       });
     });
 
@@ -202,6 +204,7 @@ describe('CallCenterHistoryWriterService', () => {
         createdAt,
         queueName: 'q',
         callUniqueid: 'c',
+        transferDestination: null,
       });
     });
 
@@ -241,6 +244,7 @@ describe('CallCenterHistoryWriterService', () => {
         createdAt,
         queueName: 'direct',
         callUniqueid: 's1',
+        transferDestination: null,
       });
     });
   });

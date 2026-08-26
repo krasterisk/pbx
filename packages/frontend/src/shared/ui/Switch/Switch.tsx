@@ -11,7 +11,7 @@ export interface SwitchProps
 }
 
 /**
- * Accessible toggle switch — Radix Switch + Tailwind (shared/ui pattern).
+ * Accessible toggle switch - Radix Switch + Tailwind (shared/ui pattern).
  */
 export const Switch = React.forwardRef<
   React.ElementRef<typeof SwitchPrimitive.Root>,

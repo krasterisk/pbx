@@ -231,7 +231,7 @@ ActionSummaryNode.displayName = 'ActionSummaryNode';
 /* ──────────── Main Component ──────────── */
 
 /**
- * ScenarioTreePreview — visual tree showing the full dialogue algorithm.
+ * ScenarioTreePreview - visual tree showing the full dialogue algorithm.
  *
  * Renders all groups, their keywords, and action outcomes as a nested tree.
  * Escalation paths are displayed with dashed rose-colored borders.
@@ -305,7 +305,7 @@ export const ScenarioTreePreview = memo(({
         />
       )}
 
-      {/* Groups — each one self-loads its keywords */}
+      {/* Groups - each one self-loads its keywords */}
       {activeGroups.map((group) => (
         <GroupKeywordsRenderer key={group.uid} group={group} t={t} robotId={robotId} />
       ))}

@@ -44,11 +44,11 @@ export const LoginPage = () => {
 
   return (
     <VStack className="min-h-screen p-6 relative overflow-hidden bg-[#0c1214]" justify="between">
-      {/* Background decoration — radial glow (aiPBX pattern) */}
+      {/* Background decoration - radial glow (aiPBX pattern) */}
       <div className="absolute -top-[10%] -right-[10%] w-[50%] h-[50%] bg-[radial-gradient(circle,rgba(99,102,241,0.12)_0%,transparent_70%)] blur-[80px] z-[1] pointer-events-none" />
       <div className="absolute -bottom-[20%] -left-[15%] w-[40%] h-[40%] bg-[radial-gradient(circle,rgba(168,85,247,0.08)_0%,transparent_70%)] blur-[80px] z-[1] pointer-events-none" />
 
-      {/* Header — lang switcher */}
+      {/* Header - lang switcher */}
       <header className="relative z-10 w-full">
         <HStack max justify="end">
           <button
@@ -62,7 +62,7 @@ export const LoginPage = () => {
         </HStack>
       </header>
 
-      {/* Form wrapper — center */}
+      {/* Form wrapper - center */}
       <Flex className="flex-1 w-full relative z-[5]" align="center" justify="center">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -73,7 +73,7 @@ export const LoginPage = () => {
           {/* Glass card (aiPBX pattern) */}
           <div className="relative rounded-2xl p-8 bg-[rgba(21,28,31,0.6)] backdrop-blur-[24px] border border-white/[0.15] shadow-[0_8px_32px_rgba(0,0,0,0.3),inset_0_0_0_1px_rgba(255,255,255,0.08)] transition-all duration-300 hover:border-white/[0.25] hover:shadow-[0_12px_40px_rgba(0,0,0,0.35),inset_0_0_0_1px_rgba(255,255,255,0.1)]">
             <VStack gap="24" align="center">
-              {/* Logo wrapper — floating animation (aiPBX pattern) */}
+              {/* Logo wrapper - floating animation (aiPBX pattern) */}
               <motion.div
                 animate={{ y: [0, -8, 0] }}
                 transition={{ duration: 6, ease: 'easeInOut', repeat: Infinity }}
@@ -147,7 +147,7 @@ export const LoginPage = () => {
                   />
                 </div>
 
-                {/* Submit button — glass-action style (aiPBX pattern) */}
+                {/* Submit button - glass-action style (aiPBX pattern) */}
                 <Button
                   id="login-button"
                   type="submit"

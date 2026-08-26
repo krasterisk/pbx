@@ -35,6 +35,23 @@ function makeStore(rowsByKey: Record<string, TargetRow[]>): MigrationStore & { u
   };
 }
 
+describe('migrateAction priority lift', () => {
+  it('rewrites numeric toqueue priority into fixed ValueSource', () => {
+    const result = migrateAction({
+      type: 'toqueue',
+      params: { target: { source: 'fixed', value: 'sales' }, priority: 5 },
+    });
+    expect(result.changed).toBe(true);
+    expect(result.action).toEqual({
+      type: 'toqueue',
+      params: {
+        target: { source: 'fixed', value: 'sales' },
+        priority: { source: 'fixed', value: '5' },
+      },
+    });
+  });
+});
+
 const legacyQueue = { type: 'toqueue', params: { queue: 'sales' } };
 const already = { type: 'toqueue', params: { target: { source: 'fixed', value: 'sales' } } };
 const unmappedType = [...UNMAPPED_HARD_REMOVE][0];

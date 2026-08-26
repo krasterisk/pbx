@@ -1,4 +1,5 @@
 import { Column, DataType, Model, Table } from 'sequelize-typescript';
+import type { SoftphoneMode, ShiftCloseReason } from './shift-policy.types';
 
 @Table({ tableName: 'cc_agent_sessions', timestamps: false })
 export class CcAgentSession extends Model {
@@ -31,6 +32,41 @@ export class CcAgentSession extends Model {
   /** Total idle (ready but not on call) time in seconds */
   @Column({ type: DataType.INTEGER, allowNull: true, defaultValue: 0 })
   declare total_idle_time: number;
+
+  /** Last known AgentStatus snapshot (survives Nest restart). */
+  @Column({ type: DataType.STRING(32), allowNull: true })
+  declare last_status: string | null;
+
+  /** Wall-clock when last_status was entered. */
+  @Column({ type: DataType.DATE, allowNull: true })
+  declare last_status_at: Date | null;
+
+  /** Pause / outbound-work reason at last snapshot. */
+  @Column({ type: DataType.STRING(128), allowNull: true })
+  declare pause_reason: string | null;
+
+  /**
+   * Provenance of last_status (manual / policy / login / restore / …).
+   * Used to decide whether panel may override Asterisk pause.
+   */
+  @Column({ type: DataType.STRING(16), allowNull: true })
+  declare last_status_origin: string | null;
+
+  /** Queues claimed at shift start (JSON string array). */
+  @Column({ type: DataType.JSON, allowNull: true })
+  declare queues_snapshot: string[] | null;
+
+  /** Softphone mode chosen at login. */
+  @Column({ type: DataType.STRING(16), allowNull: true })
+  declare softphone_mode: SoftphoneMode | null;
+
+  /** Last time operator panel had an active SSE connection. */
+  @Column({ type: DataType.DATE, allowNull: true })
+  declare panel_seen_at: Date | null;
+
+  /** Why the session was closed (null while open). */
+  @Column({ type: DataType.STRING(32), allowNull: true })
+  declare close_reason: ShiftCloseReason | null;
 
   // Tenant isolation
   @Column({ type: DataType.INTEGER, allowNull: false, defaultValue: 0, field: 'vpbx_user_uid' })

@@ -1,7 +1,7 @@
 import { rtkApi } from '../rtkApi';
 import type { AgentTimelineSegment } from '@/features/callcenter/model/types/callCenterSchema';
 
-/** Closed whitelist — mirrors backend callcenter-reports.types.ts */
+/** Closed whitelist - mirrors backend callcenter-reports.types.ts */
 export const CC_REPORT_IDS = [
   'queue-summary',
   'call-detail',
@@ -115,7 +115,7 @@ export interface ReportQueryParams {
 
 export interface AgentTimelineQueryParams {
   agentInterface: string;
-  /** Single day — mapped to dateFrom/dateTo */
+  /** Single day - mapped to dateFrom/dateTo */
   date: string;
 }
 
@@ -124,7 +124,7 @@ export interface ExportReportParams extends ReportQueryParams {
   format: 'csv' | 'xlsx';
 }
 
-/** Scheduled report delivery config (D-35) — mirrors backend CcReportSchedule */
+/** Scheduled report delivery config (D-35) - mirrors backend CcReportSchedule */
 export type ReportSchedulePeriodPreset =
   | 'today'
   | 'yesterday'

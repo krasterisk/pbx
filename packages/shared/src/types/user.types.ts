@@ -16,6 +16,8 @@ export interface IUser {
   suspension_time: number;
   inactive_time: number;
   user_uid: number;
+  /** Avatar filename on disk; null = initials only */
+  avatar?: string | null;
 }
 
 export interface IUserSafe extends Omit<IUser, 'passwd'> {}

@@ -58,6 +58,13 @@ export class CcQueueCall extends Model {
   })
   declare disposition: 'answered' | 'abandoned' | 'transferred' | 'timeout' | 'other';
 
+  /**
+   * Blind/attended transfer target (extension or queue name).
+   * Populated from QueueLog TRANSFER data1 or agentTransfer.
+   */
+  @Column({ type: DataType.STRING(64), allowNull: true, defaultValue: '' })
+  declare transfer_destination: string;
+
   /** Queue position at enter/abandon (1-based, 0 if unknown). */
   @Column({ type: DataType.INTEGER, allowNull: false, defaultValue: 0 })
   declare position: number;

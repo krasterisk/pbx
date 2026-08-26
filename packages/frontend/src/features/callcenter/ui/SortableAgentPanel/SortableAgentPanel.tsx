@@ -20,7 +20,7 @@ export interface SortableAgentPanelProps {
 }
 
 /**
- * Sortable ARM card — drag handle in header; optional collapse for Waiting/History.
+ * Sortable ARM card - drag handle in header; optional collapse for Waiting/History.
  */
 export function SortableAgentPanel({
   id,
@@ -67,6 +67,11 @@ export function SortableAgentPanel({
         </button>
         <Icon className="w-4 h-4" />
         <Text as="h2" className={styles.panelTitle}>{title}</Text>
+        {collapsed && summary ? (
+          <div className={styles.headerSummary} data-testid="cc-panel-header-summary">
+            {summary}
+          </div>
+        ) : null}
         {collapsible && onToggleCollapse ? (
           <button
             type="button"
@@ -79,9 +84,7 @@ export function SortableAgentPanel({
           </button>
         ) : null}
       </div>
-      {collapsed ? (
-        <div className={styles.collapsedBody}>{summary}</div>
-      ) : (
+      {collapsed ? null : (
         <div className={styles.panelBody}>{children}</div>
       )}
     </div>

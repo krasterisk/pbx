@@ -19,7 +19,7 @@ interface MatchHistoryItem {
 }
 
 /**
- * TestMatchPanel — interactive test panel for keyword matching.
+ * TestMatchPanel - interactive test panel for keyword matching.
  *
  * Sends text to POST /voice-robots/:id/test-match and displays
  * the matching result with confidence, method, and timing info.

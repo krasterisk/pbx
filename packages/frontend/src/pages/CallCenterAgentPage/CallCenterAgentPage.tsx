@@ -129,7 +129,7 @@ const PANEL_META: Record<PanelKey, { icon: LucideIcon; labelKey: string; fallbac
 /**
  * Thin orchestrator (D-04): mounts AgentStatusBar/SoftphoneWidget/IncomingCallToast as
  * persistent chrome, owns shift/call/wrap-up lifecycle, and delegates the primary real
- * estate to Coworkers/Queues/Waiting — side-by-side panels ≥1024px (each with a
+ * estate to Coworkers/Queues/Waiting - side-by-side panels ≥1024px (each with a
  * per-panel visibility toggle, D-05), a single stacked column 768-1024px, and the
  * shared Tabs component on phone (default Waiting, D-07, no remember-last-tab).
  */
@@ -215,12 +215,12 @@ export function CallCenterAgentPage() {
     micDeviceId,
   });
 
-  // Active call from Call Center SSE (queue AMI) — computed early so useSipPhoneAmi can bind.
+  // Active call from Call Center SSE (queue AMI) - computed early so useSipPhoneAmi can bind.
   // Prefer agent.currentCall (set on AgentCalled / AgentConnect); fall back to a
   // live call offered/answered on this agent so F5 / SSE reconnect keeps chrome.
   const activeCall = useMemo(() => {
     if (!myAgent) return null;
-    // After RONA auto-pause the RINGING row can linger — do not keep call chrome.
+    // After RONA auto-pause the RINGING row can linger - do not keep call chrome.
     if (
       myAgent.status === 'PAUSED'
       || myAgent.status === 'OUTBOUND_WORK'
@@ -248,7 +248,7 @@ export function CallCenterAgentPage() {
       );
     }
     // Synthetic row so SIP chrome / status bar keep CID when CallState is briefly missing.
-    // Keep call.status aligned with agent: DIALING must not become RINGING here —
+    // Keep call.status aligned with agent: DIALING must not become RINGING here -
     // SoftphoneWidget treats RINGING as Answer/Reject (WebRTC), not "answer on device".
     if (
       (myAgent.status === 'IN_CALL' || myAgent.status === 'DIALING' || myAgent.status === 'CONSULT')
@@ -373,7 +373,7 @@ export function CallCenterAgentPage() {
     };
   }, [autosaveDraft]);
 
-  // Timer for active call (SSE IN_CALL or WebRTC session — AMI may not bind ew* companion)
+  // Timer for active call (SSE IN_CALL or WebRTC session - AMI may not bind ew* companion)
   useEffect(() => {
     const inCall = myAgent?.status === 'IN_CALL' || (isWebrtc && phone.status === 'in-call');
     if (inCall) {
@@ -413,8 +413,8 @@ export function CallCenterAgentPage() {
   }, [myAgent?.status, myAgent?.pauseReason, myAgent?.statusSince, pauseReasons]);
 
   // Optimistic dial state from WebRTC until AMI DialBegin / DialEnd SSE catches up
-  // (QueueMember "In use" can map to IN_CALL before remote answer — coworkers would show Talking).
-  // Never apply on inbound (callInfo.from) — that would paint "Outbound".
+  // (QueueMember "In use" can map to IN_CALL before remote answer - coworkers would show Talking).
+  // Never apply on inbound (callInfo.from) - that would paint "Outbound".
   useEffect(() => {
     if (!myAgentInterface) return;
     if (phone.status === 'ringing' && phone.callInfo?.from) {
@@ -445,8 +445,8 @@ export function CallCenterAgentPage() {
       return;
     }
     // Softphone session ended (busy / reject / dialplan Hangup) while panel still
-    // shows DIALING/IN_CALL — clear local chrome immediately. Server catch-up via
-    // QueueMember Not-in-use / DialEnd (do not agentHangup here — races a quick re-dial).
+    // shows DIALING/IN_CALL - clear local chrome immediately. Server catch-up via
+    // QueueMember Not-in-use / DialEnd (do not agentHangup here - races a quick re-dial).
     if (
       isWebrtc
       && (phone.status === 'registered' || phone.status === 'disconnected')
@@ -591,7 +591,7 @@ export function CallCenterAgentPage() {
     })();
   }, [agentTransfer, activeCall, isWebrtc, isSip, phone, sipPhone, t]);
 
-  // Mute toggle — WebRTC uses local track; SIP softphone mute updates local UI state only;
+  // Mute toggle - WebRTC uses local track; SIP softphone mute updates local UI state only;
   // remote mute via Asterisk AMI MuteAudio is follow-up DEF-07-MUTE-AMI.
   const handleMuteToggle = useCallback(() => {
     if (isWebrtc) {
@@ -646,7 +646,7 @@ export function CallCenterAgentPage() {
       void agentHangup({});
       return;
     }
-    // Phantom DIALING/RINGING — softphone has no session; clear server + local state.
+    // Phantom DIALING/RINGING - softphone has no session; clear server + local state.
     if (
       myAgentInterface
       && (myAgent?.status === 'DIALING' || myAgent?.status === 'RINGING' || myAgent?.dialTarget)
@@ -670,7 +670,7 @@ export function CallCenterAgentPage() {
     setSinkId(result.sinkId);
 
     const bindIdentity = () => {
-      // Use ShiftLoginResult.interface — API unwrap is only { success, sessionId }
+      // Use ShiftLoginResult.interface - API unwrap is only { success, sessionId }
       dispatch(setMyAgentInterface(result.interface));
       dispatch(updateAgent({
         interface: result.interface,
@@ -857,7 +857,7 @@ export function CallCenterAgentPage() {
     operatorSettings?.auto_answer_zip_tone,
   ]);
 
-  // After credentials land (restore / Recover) while UA is down — nudge rebuild once per cred set.
+  // After credentials land (restore / Recover) while UA is down - nudge rebuild once per cred set.
   useEffect(() => {
     credsConnectNudgedRef.current = false;
   }, [sipCredentials?.password]);
@@ -962,7 +962,7 @@ export function CallCenterAgentPage() {
           });
         }
       } catch {
-        // No open session — stay on Start shift
+        // No open session - stay on Start shift
       }
     })();
 
@@ -1055,7 +1055,7 @@ export function CallCenterAgentPage() {
     || phone.callInfo?.to;
   const activeCallQueueLabel = activeCall?.queue ? queueDisplayName(activeCall.queue, queues) : undefined;
 
-  // Outbound only when we are actually dialing out — not personal inbound
+  // Outbound only when we are actually dialing out - not personal inbound
   // (peerNumber / callInfo.from) even if AMI briefly reported DIALING.
   const isWebRtcOutbound =
     !phone.callInfo?.from
@@ -1091,7 +1091,7 @@ export function CallCenterAgentPage() {
     coworkers: <CoworkersTab hasActiveCall={!!activeCall} kpiDisplay={kpiDisplay} />,
     queues: <QueuesTab activeCallUniqueid={activeCall?.uniqueid ?? null} />,
     waiting: <WaitingTab />,
-    history: <CallHistoryPanel />,
+    history: <CallHistoryPanel kpiDisplay={kpiDisplay} />,
   };
 
   return (
@@ -1108,7 +1108,11 @@ export function CallCenterAgentPage() {
       />
 
       <div className={`${styles.workspace}${isMobile ? ` ${styles.workspacePhone}` : ''}`}>
-        {/* Persistent chrome — header, status bar, shift controls, call/wrap-up context */}
+        <DragTransferProvider
+          activeCall={activeCall ? { uniqueid: activeCall.uniqueid, callerIdNum: activeCall.callerIdNum || '' } : null}
+          onTransfer={handleDragTransfer}
+        >
+        {/* Persistent chrome - header, status bar, shift controls, call/wrap-up context */}
         <div className={styles.zoneA}>
           <Flex justify="between" align="center" className={styles.pageHeader}>
             <Flex align="center" gap="12">
@@ -1314,11 +1318,7 @@ export function CallCenterAgentPage() {
           )}
         </div>
 
-        {/* Primary real estate — Coworkers/Queues/Waiting, hybrid panels/tabs (D-04) */}
-        <DragTransferProvider
-          activeCall={activeCall ? { uniqueid: activeCall.uniqueid, callerIdNum: activeCall.callerIdNum || '' } : null}
-          onTransfer={handleDragTransfer}
-        >
+        {/* Primary real estate - Coworkers/Queues/Waiting, hybrid panels/tabs (D-04) */}
           <div className={styles.tabsArea}>
             {isMobile ? (
               <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as PanelKey)}>
@@ -1366,7 +1366,7 @@ export function CallCenterAgentPage() {
                             isCollapsed
                               ? (key === 'waiting'
                                 ? <WaitingTab summaryOnly />
-                                : <CallHistoryPanel summaryOnly />)
+                                : <CallHistoryPanel summaryOnly kpiDisplay={kpiDisplay} />)
                               : undefined
                           }
                         >

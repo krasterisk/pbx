@@ -11,6 +11,7 @@ import { ConfigService } from '@nestjs/config';
 import { DialplanBridgeService } from './dialplan-bridge.service';
 import { timingSafeApiKeyEqual } from './dialplan-api-key';
 import type {
+  HttpRequestDialplanDto,
   SendmailPeerDialplanDto,
   SetclidDialplanDto,
   TelegramDialplanDto,
@@ -57,6 +58,16 @@ export class DialplanBridgeController {
     this.assertKey(headerKey || body.api_key);
     const result = await this.bridge.webhook(body);
     return result.body ?? '';
+  }
+
+  @Post('http-request')
+  @HttpCode(200)
+  async httpRequest(
+    @Headers('x-api-key') headerKey: string,
+    @Body() body: HttpRequestDialplanDto,
+  ) {
+    this.assertKey(headerKey || body.api_key);
+    return this.bridge.httpRequest(body);
   }
 
   @Post('sendmailpeer')

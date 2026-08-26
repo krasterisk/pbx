@@ -1,174 +1,186 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X } from 'lucide-react';
 import {
   DIALSTATUS_VALUES,
   QUEUESTATUS_VALUES,
   type ConditionSource,
   type DialstatusValue,
+  type IRouteActionCondition,
   type QueuestatusValue,
 } from '@krasterisk/shared';
-import { Button, Select, SegmentedControl, Text } from '@/shared/ui';
+import { InfoTooltip, Label, MultiSelect, type MultiSelectOption } from '@/shared/ui';
 import { HStack, VStack } from '@/shared/ui/Stack';
+import { toConditionSource, toRouteCondition } from '../../model/conditionMap';
+import { TimeGroupSelect } from '../TimeGroupSelect';
 import styles from './ConditionEditor.module.scss';
 
-type Mode = 'simple' | 'expert';
-type PresetId = 'no-answer' | 'busy' | 'queue-full' | '';
+const DIAL_PREFIX = 'dial:';
+const QUEUE_PREFIX = 'queue:';
 
-const PRESETS: Array<{ id: Exclude<PresetId, ''>; condition: ConditionSource }> = [
-  { id: 'no-answer', condition: { source: 'dialstatus', values: ['NOANSWER'] } },
-  { id: 'busy', condition: { source: 'dialstatus', values: ['BUSY'] } },
-  { id: 'queue-full', condition: { source: 'queuestatus', values: ['FULL'] } },
-];
+const DIAL_LABELS: Record<string, string> = {
+  CHANUNAVAIL: 'Недоступен',
+  CONGESTION: 'Перегрузка',
+  BUSY: 'Занято',
+  NOANSWER: 'Не отвечает',
+  ANSWER: 'Ответили',
+  CANCEL: 'Отмена',
+  DONTCALL: 'Не звонить',
+  TORTURE: 'Torture',
+  INVALIDARGS: 'Неверные аргументы',
+};
 
-function asCondition(value: ConditionSource | undefined): ConditionSource | undefined {
-  if (!value?.source) return undefined;
-  return value;
+const QUEUE_LABELS: Record<string, string> = {
+  TIMEOUT: 'Таймаут очереди',
+  FULL: 'Очередь переполнена',
+  JOINEMPTY: 'Нет операторов при входе',
+  LEAVEEMPTY: 'Не осталось операторов',
+  CONTINUE: 'Продолжить',
+};
+
+function encodeDial(value: string) {
+  return `${DIAL_PREFIX}${value}`;
 }
 
-function matchPreset(value: ConditionSource | undefined): PresetId {
-  if (!value) return '';
-  const found = PRESETS.find((preset) => {
-    if (preset.condition.source !== value.source) return false;
-    if (preset.condition.source === 'dialstatus' && value.source === 'dialstatus') {
-      return JSON.stringify(preset.condition.values) === JSON.stringify(value.values);
-    }
-    if (preset.condition.source === 'queuestatus' && value.source === 'queuestatus') {
-      return JSON.stringify(preset.condition.values) === JSON.stringify(value.values);
-    }
-    return false;
-  });
-  return found?.id ?? '';
+function encodeQueue(value: string) {
+  return `${QUEUE_PREFIX}${value}`;
+}
+
+export function sourceToSelection(source: ConditionSource | undefined): string[] {
+  if (!source) return [];
+  if (source.source === 'dialstatus') return source.values.map(encodeDial);
+  if (source.source === 'queuestatus') return source.values.map(encodeQueue);
+  return [];
+}
+
+/** Keep a single source group; prefer the group of the last newly added value. */
+export function selectionToSource(
+  values: string[],
+  previous: string[],
+): ConditionSource | undefined {
+  if (!values.length) return undefined;
+
+  const added = values.filter((item) => !previous.includes(item));
+  const pivot = added[added.length - 1] ?? values[values.length - 1];
+  const preferQueue = pivot.startsWith(QUEUE_PREFIX);
+  const filtered = values.filter((item) =>
+    (preferQueue ? item.startsWith(QUEUE_PREFIX) : item.startsWith(DIAL_PREFIX)),
+  );
+
+  if (!filtered.length) return undefined;
+
+  if (preferQueue) {
+    return {
+      source: 'queuestatus',
+      values: filtered.map((item) => item.slice(QUEUE_PREFIX.length) as QueuestatusValue),
+    };
+  }
+
+  return {
+    source: 'dialstatus',
+    values: filtered.map((item) => item.slice(DIAL_PREFIX.length) as DialstatusValue),
+  };
 }
 
 export interface ConditionEditorProps {
-  value: ConditionSource | undefined;
-  onChange: (next: ConditionSource | undefined) => void;
+  /** Full step condition (status source + optional time group). */
+  condition?: IRouteActionCondition;
+  onChange: (next: IRouteActionCondition) => void;
   readOnly?: boolean;
 }
 
-export function ConditionEditor({ value, onChange, readOnly }: ConditionEditorProps) {
+export function ConditionEditor({ condition, onChange, readOnly }: ConditionEditorProps) {
   const { t } = useTranslation();
-  const condition = asCondition(value);
-  const [mode, setMode] = useState<Mode>('simple');
-  const [hasRow, setHasRow] = useState(Boolean(condition));
-  const preset = matchPreset(condition);
+  const source = toConditionSource(condition);
+  const [selection, setSelection] = useState(() => sourceToSelection(source));
 
-  const simpleOptions = useMemo(
-    () => [
-      { value: '', label: t('routes.chain.conditions.placeholder', 'Выберите условие') },
-      { value: 'no-answer', label: t('routes.chain.conditions.preset.noAnswer', 'Не ответили') },
-      { value: 'busy', label: t('routes.chain.conditions.preset.busy', 'Занято') },
-      { value: 'queue-full', label: t('routes.chain.conditions.preset.queueFull', 'Очередь переполнена') },
-    ],
-    [t],
-  );
+  useEffect(() => {
+    setSelection(sourceToSelection(toConditionSource(condition)));
+  }, [condition]);
 
-  const applyPreset = (id: string) => {
-    const found = PRESETS.find((presetItem) => presetItem.id === id);
-    onChange(found ? { ...found.condition } : undefined);
+  const options: MultiSelectOption[] = useMemo(() => {
+    const dialOpts = DIALSTATUS_VALUES.map((value) => ({
+      value: encodeDial(value),
+      label: t(
+        `routes.chain.conditions.dial.${value.toLowerCase()}`,
+        `${DIAL_LABELS[value] ?? value} (набор)`,
+      ),
+    }));
+    const queueOpts = QUEUESTATUS_VALUES.map((value) => ({
+      value: encodeQueue(value),
+      label: t(
+        `routes.chain.conditions.queue.${value.toLowerCase()}`,
+        `${QUEUE_LABELS[value] ?? value} (очередь)`,
+      ),
+    }));
+    return [...dialOpts, ...queueOpts];
+  }, [t]);
+
+  const handleStatusesChange = (nextEncoded: string[]) => {
+    if (readOnly) return;
+    const nextSource = selectionToSource(nextEncoded, selection);
+    const normalized = sourceToSelection(nextSource);
+    setSelection(normalized);
+    const base = toRouteCondition(nextSource);
+    onChange({
+      ...base,
+      ...(condition?.time_group_uid != null
+        ? { time_group_uid: condition.time_group_uid }
+        : {}),
+    });
   };
 
-  const showZero = !hasRow && !condition;
+  const handleTimeGroupChange = (uid: number | undefined) => {
+    if (readOnly) return;
+    const base = toRouteCondition(source);
+    if (uid == null) {
+      const next: IRouteActionCondition = { ...condition, ...base };
+      delete next.time_group_uid;
+      onChange(next);
+      return;
+    }
+    onChange({ ...condition, ...base, time_group_uid: uid });
+  };
 
   return (
     <VStack gap="12" max className={styles.root}>
-      <SegmentedControl
-        ariaLabel={t('routes.chain.conditions.mode', 'Режим условий')}
-        value={mode}
-        onChange={setMode}
-        options={[
-          { value: 'simple', label: t('routes.chain.conditions.simple', 'Простой') },
-          { value: 'expert', label: t('routes.chain.conditions.expert', 'Эксперт') },
-        ]}
-      />
-
-      {showZero && mode === 'simple' ? (
-        <VStack gap="8" max>
-          <Text variant="small">{t('routes.chain.conditions.emptyTitle', 'Условий нет')}</Text>
-          <Text variant="muted" className={styles.zero}>
-            {t('routes.chain.conditions.emptyBody', 'Действие выполнится всегда')}
-          </Text>
-          <Button type="button" variant="outline" disabled={readOnly} onClick={() => setHasRow(true)}>
-            {t('routes.chain.conditions.add', 'Добавить условие')}
-          </Button>
-        </VStack>
-      ) : null}
-
-      {mode === 'simple' && (hasRow || condition) ? (
-        <HStack gap="8" align="center" className={styles.row}>
-          <Select
-            aria-label={t('routes.chain.conditions.placeholder', 'Выберите условие')}
-            disabled={readOnly}
-            value={preset}
-            onChange={(e) => applyPreset(e.target.value)}
-          >
-            {simpleOptions.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </Select>
-          <Button
-            type="button"
-            variant="ghost"
-            className={styles.remove}
-            title={t('routes.chain.conditions.remove', 'Удалить условие')}
-            aria-label={t('routes.chain.conditions.remove', 'Удалить условие')}
-            disabled={readOnly}
-            onClick={() => {
-              setHasRow(false);
-              onChange(undefined);
-            }}
-          >
-            <X size={16} />
-          </Button>
+      <VStack gap="8" max className={styles.field}>
+        <HStack gap="4" align="center">
+          <Label className={styles.fieldLabel}>
+            {t('routes.chain.conditions.statusLabel', 'Результат предыдущего шага')}
+          </Label>
+          <InfoTooltip
+            text={t(
+              'routes.chain.conditions.statusHint',
+              'Можно выбрать несколько статусов одного типа.\n**Набор** и **очередь** не смешиваются: при выборе другого типа предыдущие снимаются.\nБез условия шаг выполняется всегда.',
+            )}
+          />
         </HStack>
-      ) : null}
+        <MultiSelect
+          value={selection}
+          onChange={handleStatusesChange}
+          options={options}
+          placeholder={t('routes.chain.conditions.placeholder', 'Выберите условие')}
+        />
+      </VStack>
 
-      {mode === 'expert' ? (
-        <VStack gap="8" max>
-          <Select
-            aria-label={t('routes.chain.conditions.source', 'Источник')}
-            disabled={readOnly}
-            value={condition?.source ?? 'dialstatus'}
-            onChange={(e) => {
-              const source = e.target.value;
-              if (source === 'queuestatus') {
-                onChange({ source: 'queuestatus', values: condition?.source === 'queuestatus' ? condition.values : ['FULL'] });
-              } else {
-                onChange({
-                  source: 'dialstatus',
-                  values: condition?.source === 'dialstatus' ? condition.values : ['NOANSWER'],
-                });
-              }
-            }}
-          >
-            <option value="dialstatus">{t('routes.chain.conditions.group.dial', 'Результат набора')}</option>
-            <option value="queuestatus">{t('routes.chain.conditions.group.queue', 'Результат очереди')}</option>
-          </Select>
-          <Select
-            aria-label={t('routes.chain.conditions.value', 'Значение')}
-            disabled={readOnly}
-            value={condition?.source === 'variable' || condition?.source === 'http_result' || condition?.source === 'device_state'
-              ? ''
-              : (condition?.values?.[0] ?? '')}
-            onChange={(e) => {
-              if (condition?.source === 'queuestatus') {
-                onChange({ source: 'queuestatus', values: [e.target.value as QueuestatusValue] });
-              } else {
-                onChange({ source: 'dialstatus', values: [e.target.value as DialstatusValue] });
-              }
-            }}
-          >
-            {(condition?.source === 'queuestatus' ? QUEUESTATUS_VALUES : DIALSTATUS_VALUES).map((item) => (
-              <option key={item} value={item}>
-                {item}
-              </option>
-            ))}
-          </Select>
-        </VStack>
-      ) : null}
+      <VStack gap="8" max className={styles.field}>
+        <HStack gap="4" align="center">
+          <Label className={styles.fieldLabel}>
+            {t('routes.chain.conditions.scheduleLabel', 'Расписание (группа времени)')}
+          </Label>
+          <InfoTooltip
+            text={t(
+              'routes.chain.conditions.scheduleHint',
+              'Шаг выполнится только в рамках выбранной группы времени.\n**Всегда** - без ограничения по расписанию.',
+            )}
+          />
+        </HStack>
+        <TimeGroupSelect
+          value={condition?.time_group_uid}
+          onChange={handleTimeGroupChange}
+          showHint={false}
+        />
+      </VStack>
     </VStack>
   );
 }

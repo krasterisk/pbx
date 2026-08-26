@@ -9,10 +9,10 @@ export const DashboardPage = () => {
   const user = useAppSelector((s) => s.auth.user);
 
   const statsCards = [
-    { title: t('dashboard.activeCalls'), value: '—', icon: PhoneCall, color: 'text-green-400', bgColor: 'bg-green-400/10' },
-    { title: t('dashboard.peersOnline'), value: '—', icon: Users, color: 'text-blue-400', bgColor: 'bg-blue-400/10' },
-    { title: t('dashboard.operators'), value: '—', icon: Headphones, color: 'text-purple-400', bgColor: 'bg-purple-400/10' },
-    { title: t('dashboard.callsToday'), value: '—', icon: TrendingUp, color: 'text-amber-400', bgColor: 'bg-amber-400/10' },
+    { title: t('dashboard.activeCalls'), value: '-', icon: PhoneCall, color: 'text-green-400', bgColor: 'bg-green-400/10' },
+    { title: t('dashboard.peersOnline'), value: '-', icon: Users, color: 'text-blue-400', bgColor: 'bg-blue-400/10' },
+    { title: t('dashboard.operators'), value: '-', icon: Headphones, color: 'text-purple-400', bgColor: 'bg-purple-400/10' },
+    { title: t('dashboard.callsToday'), value: '-', icon: TrendingUp, color: 'text-amber-400', bgColor: 'bg-amber-400/10' },
   ];
 
   return (
@@ -25,7 +25,7 @@ export const DashboardPage = () => {
         <p className="text-muted-foreground mt-1">{t('dashboard.systemOverview')}</p>
       </div>
 
-      {/* Stats Grid — single column under 640px (D-27) */}
+      {/* Stats Grid - single column under 640px (D-27) */}
       <div className="grid grid-cols-1 min-[640px]:grid-cols-2 xl:grid-cols-4 gap-4 min-w-0">
         {statsCards.map((stat, i) => (
           <motion.div

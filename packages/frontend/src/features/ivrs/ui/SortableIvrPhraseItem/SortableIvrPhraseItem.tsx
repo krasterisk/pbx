@@ -87,7 +87,7 @@ export function SortableIvrPhraseItem({
     : null;
 
   const engineName = engine?.name
-    ?? (phrase.kind === 'tts' && phrase.engine_uid > 0 ? `#${phrase.engine_uid}` : '—');
+    ?? (phrase.kind === 'tts' && phrase.engine_uid > 0 ? `#${phrase.engine_uid}` : '-');
 
   const handleTtsPatch = useCallback(
     (patch: Partial<Extract<IIvrPhrase, { kind: 'tts' }>>) => {

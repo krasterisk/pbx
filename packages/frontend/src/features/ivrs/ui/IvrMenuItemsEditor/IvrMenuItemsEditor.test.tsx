@@ -43,6 +43,6 @@ describe('IvrMenuItemsEditor host wiring', () => {
     expect(route).not.toEqual(ivr);
     expect(route).toContain('cmd');
     expect(phonebook).not.toContain('cmd');
-    expect(ivr).not.toContain('trunk_carousel');
+    expect(ivr).not.toContain('cmd');
   });
 });

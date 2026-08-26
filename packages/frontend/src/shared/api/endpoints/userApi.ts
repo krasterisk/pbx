@@ -45,6 +45,26 @@ const userApi = rtkApi.injectEndpoints({
       }),
       invalidatesTags: [{ type: 'Users', id: 'LIST' }],
     }),
+
+    uploadUserAvatar: builder.mutation<IUser, { id: number; file: File }>({
+      query: ({ id, file }) => {
+        const body = new FormData();
+        body.append('file', file);
+        return { url: `/users/${id}/avatar`, method: 'POST', body };
+      },
+      invalidatesTags: (_r, _e, { id }) => [
+        { type: 'Users', id },
+        { type: 'Users', id: 'LIST' },
+      ],
+    }),
+
+    deleteUserAvatar: builder.mutation<IUser, number>({
+      query: (id) => ({ url: `/users/${id}/avatar`, method: 'DELETE' }),
+      invalidatesTags: (_r, _e, id) => [
+        { type: 'Users', id },
+        { type: 'Users', id: 'LIST' },
+      ],
+    }),
   }),
 });
 
@@ -55,5 +75,7 @@ export const {
   useUpdateUserMutation,
   useDeleteUserMutation,
   useBulkDeleteUsersMutation,
+  useUploadUserAvatarMutation,
+  useDeleteUserAvatarMutation,
 } = userApi;
 

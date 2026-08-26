@@ -8,13 +8,13 @@ function goto(id: string, name: string) {
   return { id, type: 'goto', params: { label_name: name }, condition: {} };
 }
 
-function branch(id: string, trueLabel: string, falseLabel: string) {
+function conditionalGoto(id: string, thenLabel: string, elseLabel: string) {
   return {
     id,
-    type: 'branch',
+    type: 'goto',
     params: {
-      true_label: trueLabel,
-      false_label: falseLabel,
+      label_name: thenLabel,
+      false_label: elseLabel,
       condition: { source: 'dialstatus', values: ['ANSWER'] },
     },
     condition: {},
@@ -53,19 +53,19 @@ describe('validateLabelRefs (D-44)', () => {
     expect(errors[0].message).toMatch(/дубл|duplicate/i);
   });
 
-  it('rejects a branch whose true or false label is missing', () => {
+  it('rejects a conditional goto whose else-label is missing', () => {
     const errors = validateLabelRefs([
       label('l1', 'ok'),
-      branch('b1', 'ok', 'missing'),
+      conditionalGoto('b1', 'ok', 'missing'),
     ]);
     expect(errors.length).toBeGreaterThan(0);
     expect(errors.some((e) => e.actionId === 'b1' && /missing/.test(e.message))).toBe(true);
   });
 
-  it('accepts a goto and branch that both point at existing labels', () => {
+  it('accepts plain and conditional gotos that point at existing labels', () => {
     const errors = validateLabelRefs([
       label('l1', 'start'),
-      branch('b1', 'start', 'end'),
+      conditionalGoto('b1', 'start', 'end'),
       goto('g1', 'end'),
       label('l2', 'end'),
     ]);

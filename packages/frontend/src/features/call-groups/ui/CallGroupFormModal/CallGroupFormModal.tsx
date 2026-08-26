@@ -30,13 +30,16 @@ import {
 import { useGetContextsQuery } from '@/shared/api/endpoints/contextApi';
 import type { ICallGroup, RingStrategy } from '@krasterisk/shared';
 import { CallGroupMembersEditor, type LocalCallGroupMember } from './CallGroupMembersEditor';
-import { CallGroupRingOptions, type CallGroupRingOptionsValue } from './CallGroupRingOptions';
+import { CallGroupRingOptions, type CallGroupRingOptionsValue, stripMohDialOption } from './CallGroupRingOptions';
 import { isOptionsParseError } from '@/features/dialplan-apps/model/optionsSync';
+import { resolveCallGroupApiError } from '../../lib/resolveCallGroupApiError';
 import cls from './CallGroupFormModal.module.scss';
 
 const DEFAULT_RING: CallGroupRingOptionsValue = {
   confirmExternal: false,
+  confirmDigit: '1',
   skipBusy: false,
+  useGreeting: false,
   greetingPrompt: '',
   mohClass: '',
   useMohInsteadOfRingback: false,
@@ -102,11 +105,13 @@ export const CallGroupFormModal = memo(({ onSaved }: CallGroupFormModalProps) =>
       setCidPrefix(groupData.cid_prefix || '');
       setRing({
         confirmExternal: groupData.confirmExternal ?? false,
+        confirmDigit: groupData.confirmDigit || '1',
         skipBusy: groupData.skipBusy ?? false,
+        useGreeting: Boolean(groupData.greetingPrompt),
         greetingPrompt: groupData.greetingPrompt ?? '',
         mohClass: groupData.mohClass ?? '',
         useMohInsteadOfRingback: groupData.useMohInsteadOfRingback ?? false,
-        dialOptions: groupData.dialOptions || 'tT',
+        dialOptions: stripMohDialOption(groupData.dialOptions || 'tT'),
       });
       const loadedMembers: LocalCallGroupMember[] = [...(groupData.members || [])]
         .sort((a, b) => a.position - b.position)
@@ -169,12 +174,14 @@ export const CallGroupFormModal = memo(({ onSaved }: CallGroupFormModalProps) =>
       ring_time: Number(ringTime) || undefined,
       external_context: externalContext.trim() || defaultContext,
       cid_prefix: cidPrefix.trim() || undefined,
-      confirmExternal: ring.confirmExternal,
+      confirmExternal:
+        members.some((m) => m.member_type === 'external') && ring.confirmExternal,
+      confirmDigit: ring.confirmDigit || '1',
       skipBusy: ring.skipBusy,
-      greetingPrompt: ring.greetingPrompt || undefined,
+      greetingPrompt: ring.useGreeting ? ring.greetingPrompt || undefined : undefined,
       mohClass: ring.mohClass || undefined,
       useMohInsteadOfRingback: ring.useMohInsteadOfRingback,
-      dialOptions: ring.dialOptions || 'tT',
+      dialOptions: stripMohDialOption(ring.dialOptions || 'tT'),
       members: members.map((m, index) => ({
         member_type: m.member_type,
         value: m.value.trim(),
@@ -193,9 +200,7 @@ export const CallGroupFormModal = memo(({ onSaved }: CallGroupFormModalProps) =>
       onSaved?.(saved);
       handleClose();
     } catch (err: unknown) {
-      const data = (err as { data?: { message?: string | string[] } })?.data;
-      const serverMsg = Array.isArray(data?.message) ? data.message.join(', ') : data?.message;
-      setSubmitError(serverMsg || t('common.error', 'Ошибка сохранения'));
+      setSubmitError(resolveCallGroupApiError(err, t));
     }
   }, [
     name,
@@ -323,6 +328,7 @@ export const CallGroupFormModal = memo(({ onSaved }: CallGroupFormModalProps) =>
             <CallGroupRingOptions
               value={ring}
               onChange={(patch) => setRing((prev) => ({ ...prev, ...patch }))}
+              hasExternalMembers={members.some((m) => m.member_type === 'external')}
             />
 
             {submitError && (

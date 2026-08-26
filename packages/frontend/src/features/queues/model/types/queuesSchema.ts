@@ -26,6 +26,7 @@ export interface IQueue {
   joinempty?: string;
   leavewhenempty?: string;
   ringinuse?: boolean;
+  autofill?: string | boolean;
   // Announcements
   announce_frequency?: number;
   announce_holdtime?: string;

@@ -168,7 +168,7 @@ export const TimeGroupsTable = memo(() => {
                   <Text className="font-medium">{tg.name}</Text>
                 </TableCell>
                 <TableCell>
-                  <Text variant="muted">{tg.comment || '—'}</Text>
+                  <Text variant="muted">{tg.comment || '-'}</Text>
                 </TableCell>
                 <TableCell>
                   <VStack gap="2">

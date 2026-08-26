@@ -109,6 +109,7 @@ export class CallCenterAutoPauseService implements OnModuleDestroy {
     this.stateService.setAgent(userUid, agentInterface, {
       status: 'PAUSED',
       pauseReason: reason,
+      statusOrigin: 'policy',
       dialTarget: undefined,
       peerNumber: '',
     });

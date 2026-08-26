@@ -1,4 +1,5 @@
 import { HTTP_RESULT_VAR, type IHttpRequestParams } from '@krasterisk/shared';
+import { buildCurlCall, type BuildCurlCallCtx } from './dialplan-curl.util';
 
 export const HTTP_REQUEST_DEFAULT_TIMEOUT = 5;
 export const HTTP_STATUS_VAR = 'KRSK_HTTP_STATUS';
@@ -89,9 +90,14 @@ export function assertSafeHttpUrl(raw: string): void {
   }
 }
 
+export interface EmitHttpRequestCtx {
+  curlCtx?: BuildCurlCallCtx;
+  actionId?: string;
+}
+
 export function emitHttpRequest(
   params: IHttpRequestParams,
-  _ctx?: { allowlist?: string[] },
+  ctx: EmitHttpRequestCtx = {},
 ): string {
   const url = String(params.url ?? '');
   assertSafeHttpUrl(url);
@@ -101,25 +107,37 @@ export function emitHttpRequest(
     : HTTP_REQUEST_DEFAULT_TIMEOUT;
   const method = params.method === 'POST' ? 'POST' : 'GET';
   const safeUrl = sanitizeDialplanInput(url);
-  const lines = [
-    `Set(CURLOPT(httptimeout)=${seconds})`,
-  ];
-  if (method === 'POST') {
-    lines.push('Set(CURLOPT(httpheader)=Content-Type:application/x-www-form-urlencoded)');
+  const payload: Record<string, string> = {
+    url: safeUrl,
+    method,
+    timeout: String(seconds),
+    route_uid: '${HH_ROUTE_UID}',
+  };
+  if (ctx.actionId) {
+    payload.action_id = sanitizeDialplanInput(ctx.actionId);
   }
-  const headers = params.headers && typeof params.headers === 'object' ? params.headers : {};
+  if (method === 'POST') {
+    payload.body = sanitizeDialplanInput(params.body);
+  }
+
+  const curl = buildCurlCall('http-request', payload, {
+    ...ctx.curlCtx,
+    timeoutSec: seconds,
+  });
+  const lines = [
+    curl,
+    `ExecIf($["\${${HTTP_RESULT_VAR}}" = ""]?Set(${HTTP_STATUS_VAR}=timeout))`,
+    `ExecIf($["\${${HTTP_RESULT_VAR}}" != ""]?Set(${HTTP_STATUS_VAR}=ok))`,
+  ];
+  return lines.join('\nsame => n,');
+}
+
+export function pickAllowedHttpHeaders(headers: Record<string, unknown> | undefined): Record<string, string> {
+  if (!headers || typeof headers !== 'object') return {};
+  const out: Record<string, string> = {};
   for (const [key, value] of Object.entries(headers)) {
     if (!(ALLOWED_HTTP_HEADER_KEYS as readonly string[]).includes(key)) continue;
-    const safeKey = sanitizeDialplanInput(key);
-    const safeVal = sanitizeDialplanInput(String(value ?? ''));
-    if (safeKey) lines.push(`Set(CURLOPT(httpheader)=${safeKey}:${safeVal})`);
+    out[key] = String(value ?? '');
   }
-  const body = method === 'POST' ? sanitizeDialplanInput(params.body) : '';
-  const curl = body
-    ? `\${CURL(${safeUrl},${body})}`
-    : `\${CURL(${safeUrl})}`;
-  lines.push(`Set(${HTTP_RESULT_VAR}=${curl})`);
-  lines.push(`ExecIf($["\${${HTTP_RESULT_VAR}}" = ""]?Set(${HTTP_STATUS_VAR}=timeout))`);
-  lines.push(`ExecIf($["\${${HTTP_RESULT_VAR}}" != ""]?Set(${HTTP_STATUS_VAR}=ok))`);
-  return lines.join('\nsame => n,');
+  return out;
 }

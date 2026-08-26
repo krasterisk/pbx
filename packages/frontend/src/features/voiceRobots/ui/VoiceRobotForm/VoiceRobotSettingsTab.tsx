@@ -26,7 +26,7 @@ interface VoiceRobotSettingsTabProps {
 }
 
 /**
- * VoiceRobotSettingsTab — unified settings tab merging VAD + TTS/STT configuration.
+ * VoiceRobotSettingsTab - unified settings tab merging VAD + TTS/STT configuration.
  *
  * Replaces separate VoiceRobotVadTab and VoiceRobotAdvancedTab.
  * Three sections: TTS Engine, STT Engine, Voice Activity Detection.
@@ -57,7 +57,7 @@ export const VoiceRobotSettingsTab = memo(({
         <VStack gap="4">
           <HStack align="center" gap="4">
             <Label>{t('voiceRobots.tts.mode', 'Режим синтеза')}</Label>
-            <InfoTooltip text={t('voiceRobots.tts.modeTooltip', 'Batch — экономичнее, фразы кэшируются. Streaming — минимальная задержка, но дороже.')} />
+            <InfoTooltip text={t('voiceRobots.tts.modeTooltip', 'Batch - экономичнее, фразы кэшируются. Streaming - минимальная задержка, но дороже.')} />
           </HStack>
           <Select
             value={ttsMode}
@@ -74,12 +74,12 @@ export const VoiceRobotSettingsTab = memo(({
           </Text>
         </VStack>
 
-        {/* Cache lifetime — only visible in batch mode */}
+        {/* Cache lifetime - only visible in batch mode */}
         {ttsMode === 'batch' && (
           <VStack gap="4">
             <HStack align="center" gap="4">
               <Label>{t('voiceRobots.tts.cacheMaxAge', 'Срок хранения кэша')}</Label>
-              <InfoTooltip text={t('voiceRobots.tts.cacheMaxAgeHint', 'Кэшированные аудиофайлы старше указанного срока удаляются автоматически. «Без ограничений» — файлы хранятся бессрочно.')} />
+              <InfoTooltip text={t('voiceRobots.tts.cacheMaxAgeHint', 'Кэшированные аудиофайлы старше указанного срока удаляются автоматически. «Без ограничений» - файлы хранятся бессрочно.')} />
             </HStack>
             <Select
               value={String(ttsCacheMaxAgeDays)}
@@ -110,7 +110,7 @@ export const VoiceRobotSettingsTab = memo(({
         <VStack gap="4">
           <HStack align="center" gap="4">
             <Label>{t('voiceRobots.stt.mode', 'Режим распознавания')}</Label>
-            <InfoTooltip text={t('voiceRobots.stt.modeTooltip', 'Hybrid — экономит деньги (stream только во время речи). Full-Stream — нулевая задержка, но постоянное подключение.')} />
+            <InfoTooltip text={t('voiceRobots.stt.modeTooltip', 'Hybrid - экономит деньги (stream только во время речи). Full-Stream - нулевая задержка, но постоянное подключение.')} />
           </HStack>
           <Select
             value={sttMode}

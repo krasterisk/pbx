@@ -109,7 +109,7 @@ describe('VoiceRobotsService.generateAllVoiceRobotContexts (Wave 0 characterizat
         name: 'Bot',
         max_retries_action: [],
         fallback_action: [
-          { type: 'busy', params: {}, condition: { time_group_uid: 12 } },
+          { type: 'hangup', params: { signal: 'busy', timeout: 10 }, condition: { time_group_uid: 12 } },
         ],
       },
     ]);
@@ -123,7 +123,7 @@ describe('VoiceRobotsService.generateAllVoiceRobotContexts (Wave 0 characterizat
         uid: 9,
         name: 'Bot',
         max_retries_action: [],
-        fallback_action: [{ type: 'busy', params: {}, condition: {} }],
+        fallback_action: [{ type: 'hangup', params: { signal: 'busy', timeout: 10 }, condition: {} }],
       },
     ]);
     const dp = await service.generateAllVoiceRobotContexts(42);
@@ -215,7 +215,10 @@ describe('VoiceRobotsService.generateAllVoiceRobotContexts (Wave 0 characterizat
         '',
         '[voicerobot_keyword_4]',
         'exten => s,1,NoOp(Robot Keyword Match: help)',
-        'same => n,Goto(ivr_7,start,1)',
+        'same => n,Set(__KRSK_HOPS=$[${__KRSK_HOPS} + 1])',
+        'same => n,GotoIf($[${__KRSK_HOPS} <= 10]?ivr_7,start,1)',
+        'same => n,NoOp(KRSK hop limit exceeded route=ivr_7)',
+        'same => n,Congestion()',
         'same => n,Return()',
         '',
       ].join('\n'),

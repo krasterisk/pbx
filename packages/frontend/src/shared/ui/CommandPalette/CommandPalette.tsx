@@ -26,7 +26,7 @@ export type CommandPaletteProps = {
 };
 
 /**
- * ⌘K / Ctrl+K palette — Dialog + Input + keyboard-navigable list (D-06).
+ * ⌘K / Ctrl+K palette - Dialog + Input + keyboard-navigable list (D-06).
  * No cmdk dependency (UI-SPEC / T-08-SC).
  */
 export function CommandPalette({ open, onOpenChange, items }: CommandPaletteProps) {

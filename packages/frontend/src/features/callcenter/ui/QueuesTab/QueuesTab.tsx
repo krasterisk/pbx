@@ -9,7 +9,7 @@ import { queueDisplayName } from '@/features/callcenter/lib/displayLabels';
 import styles from './QueuesTab.module.scss';
 
 interface QueuesTabProps {
-  /** uniqueid of the operator's own active call — enables warm-transfer-to-queue. */
+  /** uniqueid of the operator's own active call - enables warm-transfer-to-queue. */
   activeCallUniqueid?: string | null;
 }
 
@@ -27,7 +27,7 @@ function freeTextClass(available: number, total: number): string {
 }
 
 /**
- * Queues tab — live occupancy + today queue answered/abandoned (D-31/D-32).
+ * Queues tab - live occupancy + today queue answered/abandoned (D-31/D-32).
  * Totals are never Asterisk lifetime Completed counters.
  */
 export function QueuesTab({ activeCallUniqueid }: QueuesTabProps) {

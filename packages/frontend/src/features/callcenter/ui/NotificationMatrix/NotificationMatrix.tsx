@@ -26,10 +26,10 @@ export interface NotificationMatrixProps {
 }
 
 /**
- * D-41/D-42/D-43: event × channel notification grid — 6 event rows, 3 channel columns
+ * D-41/D-42/D-43: event × channel notification grid - 6 event rows, 3 channel columns
  * (Chat/Sound/Popup, Copywriting Contract). Reused as-is for both the per-operator
  * settings screen (this plan) and, per UI-SPEC Surface 12, the future admin
- * role-default/lock screen — one row/column/lock pattern for both, so this component
+ * role-default/lock screen - one row/column/lock pattern for both, so this component
  * takes matrix/locks/defaults as plain props rather than owning its own data fetch.
  */
 export function NotificationMatrix({ matrix, locks, defaults, onChange, disabled }: NotificationMatrixProps) {

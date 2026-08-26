@@ -27,11 +27,8 @@ export const DIALPLAN_ACTION_META: Record<ActionType, IDialplanActionMeta> = {
   toivr: { terminal: 'always', allowedIn: ALL_HOSTS, family: 'address' },
   toroute: { terminal: 'always', allowedIn: ALL_HOSTS, family: 'address' },
   playback: { terminal: 'conditional', allowedIn: ALL_HOSTS, family: 'media' },
-  setclid_custom: { terminal: 'never', allowedIn: ALL_HOSTS, family: 'control' },
-  setclid_list: { terminal: 'never', allowedIn: ALL_HOSTS, family: 'control' },
   notify: { terminal: 'never', allowedIn: ALL_HOSTS, family: 'integration' },
   callerid: { terminal: 'never', allowedIn: ALL_HOSTS, family: 'control' },
-  trunk_carousel: { terminal: 'conditional', allowedIn: ROUTE_ONLY, family: 'address' },
   voicemail: { terminal: 'conditional', allowedIn: ALL_HOSTS, family: 'address' },
   text2speech: { terminal: 'never', allowedIn: ALL_HOSTS, family: 'media' },
   voicerobot: { terminal: 'conditional', allowedIn: ALL_HOSTS, family: 'media' },
@@ -39,12 +36,11 @@ export const DIALPLAN_ACTION_META: Record<ActionType, IDialplanActionMeta> = {
   confbridge: { terminal: 'conditional', allowedIn: ALL_HOSTS, family: 'address' },
   cmd: { terminal: 'never', allowedIn: ROUTE_ONLY, family: 'control' },
   label: { terminal: 'never', allowedIn: ALL_HOSTS, family: 'control' },
-  goto: { terminal: 'always', allowedIn: ALL_HOSTS, family: 'control' },
-  branch: { terminal: 'always', allowedIn: ALL_HOSTS, family: 'control' },
+  // Conditional, not 'always': a goto with a condition and no else-label falls
+  // through, so marking it terminal would flag reachable steps as unreachable.
+  goto: { terminal: 'conditional', allowedIn: ALL_HOSTS, family: 'control' },
   schedule: { terminal: 'never', allowedIn: ALL_HOSTS, family: 'control' },
   http_request: { terminal: 'never', allowedIn: ALL_HOSTS, family: 'integration' },
   collect_input: { terminal: 'never', allowedIn: ALL_HOSTS, family: 'control' },
-  busy: { terminal: 'always', allowedIn: ALL_HOSTS, family: 'control' },
   hangup: { terminal: 'always', allowedIn: ALL_HOSTS, family: 'control' },
-  congestion: { terminal: 'always', allowedIn: ALL_HOSTS, family: 'control' },
 };

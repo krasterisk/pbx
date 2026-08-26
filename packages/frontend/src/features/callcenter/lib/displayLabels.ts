@@ -6,7 +6,7 @@ export function isRawAgentName(name: string | undefined, iface?: string): boolea
   if (!name) return true;
   if (iface && name === iface) return true;
   if (/^(PJSIP|SIP)\//i.test(name)) return true;
-  // Originate CallerID / QueueMember often echo the short extension — not a person name.
+  // Originate CallerID / QueueMember often echo the short extension - not a person name.
   if (iface) {
     const ext = interfaceToExtension(iface);
     if (ext && name === ext) return true;
@@ -21,6 +21,42 @@ export function agentDisplayName(agent: Pick<IAgent, 'name' | 'interface'>): str
   return interfaceToExtension(agent.interface) || agent.name || agent.interface;
 }
 
+/** "Alice (201)" - human name + normalized extension; raw name → extension only. */
+export function agentLabelWithExt(agent: Pick<IAgent, 'name' | 'interface'>): string {
+  if (String(agent.interface || '').startsWith('user:')) {
+    return agent.name || agent.interface;
+  }
+  const ext = interfaceToExtension(agent.interface);
+  if (!ext) return agentDisplayName(agent);
+  if (isRawAgentName(agent.name, agent.interface)) return ext;
+  if (agent.name.includes(`(${ext})`)) return agent.name;
+  return `${agent.name} (${ext})`;
+}
+
+/**
+ * Label for a watchlist/access-list row: prefer the first human name among
+ * live agent / user directory / API candidate, then "Name (exten)".
+ */
+export function operatorChoiceLabel(
+  exten: string,
+  sources: Array<{ name?: string; interface?: string } | null | undefined>,
+): string {
+  const ext = (exten || '').trim();
+  const fallbackIface = `PJSIP/e${ext}_0`;
+  for (const src of sources) {
+    if (!src?.name) continue;
+    const iface = src.interface || fallbackIface;
+    if (isRawAgentName(src.name, iface)) continue;
+    const stripped = src.name.replace(
+      new RegExp(`\\s*\\(${ext.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\)\\s*$`),
+      '',
+    ).trim();
+    if (!stripped || isRawAgentName(stripped, iface)) continue;
+    return `${stripped} (${ext})`;
+  }
+  return ext;
+}
+
 /** q700_0 → 700; sales_7 → null (no leading q). */
 export function queueNumberFromName(queueName: string): string | null {
   const m = queueName.match(/^q(.+)_\d+$/i);
@@ -28,7 +64,7 @@ export function queueNumberFromName(queueName: string): string | null {
 }
 
 /**
- * Queue label as "Name (number)" — e.g. "Очередь продаж (700)".
+ * Queue label as "Name (number)" - e.g. "Очередь продаж (700)".
  * Falls back to number-only or raw name when displayName is missing.
  */
 export function queueDisplayName(
@@ -104,11 +140,11 @@ export function callerDisplayLabel(callerIdNum?: string, callerIdName?: string):
   return num || '-';
 }
 
-// ─── Agent status (D-13/D-44) — single authoritative label + color map ──
+// ─── Agent status (D-13/D-44) - single authoritative label + color map ──
 
 /**
  * Authoritative i18n key + fallback per AgentStatus (all 9 members).
- * READY is relabelled to "Ожидание звонка"/"Waiting for call" per D-13 —
+ * READY is relabelled to "Ожидание звонка"/"Waiting for call" per D-13 -
  * this is a label-only change, the union member itself stays 'READY'.
  */
 export const AGENT_STATUS_LABEL_KEYS: Record<AgentStatus, { key: string; fallback: string }> = {
@@ -136,7 +172,7 @@ export function agentStatusLabel(
 /**
  * Status→color-family map (UI-SPEC Color contract, D-13/D-44): two-color busy system,
  * no 6th color. Matches the existing `.statusReady/.statusPaused/.statusInCall/.statusWrapup/
- * .statusOffline` SCSS class families in CallCenterAgentPage.module.scss — consumers pick the
+ * .statusOffline` SCSS class families in CallCenterAgentPage.module.scss - consumers pick the
  * matching class/token by this family name instead of re-deriving it per status.
  */
 export type AgentStatusColorFamily = 'success' | 'warning' | 'destructive' | 'info' | 'muted';
@@ -188,7 +224,7 @@ export function coworkerActivityLabel(
         ? `${queueLabel} (${caller})`
         : queueLabel;
     } else if (agent.dialTarget && !agent.peerNumber) {
-      // Real outbound dial — dialTarget set by DialBegin / softphone optimistic dial.
+      // Real outbound dial - dialTarget set by DialBegin / softphone optimistic dial.
       const outbound = t('callcenter.statusBar.outbound', 'Outbound');
       context = `${outbound} (${agent.dialTarget})`;
     } else if (status === 'DIALING' && !agent.peerNumber) {
@@ -219,4 +255,20 @@ export function coworkerActivityLabel(
   }
 
   return { text: agentStatusLabel(status, t), tone: status === 'READY' ? 'success' : 'default' };
+}
+
+/**
+ * Live status / pause timer for status bar & coworkers.
+ * Under 1h → `mm:ss`; at/above 1h → `h:mm:ss` (avoids `977:13`-style minutes).
+ */
+export function formatStatusElapsed(totalSeconds: number): string {
+  const sec = Math.max(0, Math.floor(totalSeconds));
+  const s = sec % 60;
+  const totalMin = Math.floor(sec / 60);
+  const m = totalMin % 60;
+  const h = Math.floor(totalMin / 60);
+  const ss = String(s).padStart(2, '0');
+  const mm = String(m).padStart(2, '0');
+  if (h > 0) return `${h}:${mm}:${ss}`;
+  return `${String(totalMin).padStart(2, '0')}:${ss}`;
 }

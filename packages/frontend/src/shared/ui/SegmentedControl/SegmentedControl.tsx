@@ -8,7 +8,7 @@ export interface SegmentedControlOption<T extends string> {
   value: T;
   label?: string;
   icon?: LucideIcon;
-  /** Renders the option dimmed/non-interactive — pair with tooltipContent to explain why. */
+  /** Renders the option dimmed/non-interactive - pair with tooltipContent to explain why. */
   disabled?: boolean;
   /** Shown on hover, most useful when disabled (e.g. right not granted). */
   tooltipContent?: string;

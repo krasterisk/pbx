@@ -8,6 +8,6 @@ export async function hideNativeSplash(): Promise<void> {
   try {
     await SplashScreen.hide();
   } catch {
-    // Plugin missing / already hidden — ignore
+    // Plugin missing / already hidden - ignore
   }
 }

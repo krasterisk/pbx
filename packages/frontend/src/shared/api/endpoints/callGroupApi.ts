@@ -20,6 +20,7 @@ export interface ICreateCallGroup {
   external_context?: string;
   cid_prefix?: string;
   confirmExternal?: boolean;
+  confirmDigit?: string;
   skipBusy?: boolean;
   greetingPrompt?: string;
   mohClass?: string;
@@ -36,6 +37,7 @@ export interface IUpdateCallGroup {
   external_context?: string;
   cid_prefix?: string;
   confirmExternal?: boolean;
+  confirmDigit?: string;
   skipBusy?: boolean;
   greetingPrompt?: string;
   mohClass?: string;

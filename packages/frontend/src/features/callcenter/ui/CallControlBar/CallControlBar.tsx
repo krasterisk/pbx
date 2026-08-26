@@ -30,7 +30,7 @@ export interface CallControlBarProps {
   isHeld: boolean;
   /** No active call to control - every action button renders disabled. */
   disabled?: boolean;
-  /** SIP desk-phone mode: Hold is client-side only — keep the button visible but inactive. */
+  /** SIP desk-phone mode: Hold is client-side only - keep the button visible but inactive. */
   holdDisabled?: boolean;
   onMuteToggle: () => void;
   onHoldToggle: () => void;
@@ -155,7 +155,7 @@ export function CallControlBar({
     );
     return (
       <Tooltip key={key} content={opts?.hint || label}>
-        {/* Disabled buttons don't fire pointer events — wrap so the hint still shows. */}
+        {/* Disabled buttons don't fire pointer events - wrap so the hint still shows. */}
         {isBtnDisabled ? <span className="inline-flex">{button}</span> : button}
       </Tooltip>
     );

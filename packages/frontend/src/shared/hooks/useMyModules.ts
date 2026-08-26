@@ -3,10 +3,10 @@ import { useGetMyModulesQuery } from '@/shared/api/endpoints/cloudAdminApi';
 import { useAppSelector } from '@/shared/hooks/useAppStore';
 
 /**
- * useMyModules — возвращает список кодов активных модулей текущего тенанта.
+ * useMyModules - возвращает список кодов активных модулей текущего тенанта.
  *
- * SuperAdmin всегда получает пустой массив (у него нет модулей — только панель управления).
- * Если пользователь не авторизован или endpoint вернул ошибку — [] (всё открыто).
+ * SuperAdmin всегда получает пустой массив (у него нет модулей - только панель управления).
+ * Если пользователь не авторизован или endpoint вернул ошибку - [] (всё открыто).
  */
 export const useMyModules = () => {
   const user = useAppSelector((s) => s.auth.user);

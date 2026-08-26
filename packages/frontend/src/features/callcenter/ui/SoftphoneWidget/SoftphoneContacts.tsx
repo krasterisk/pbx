@@ -77,7 +77,7 @@ function matchesTerm(haystacks: Array<string | undefined | null>, term: string):
 
 export interface SoftphoneContactsProps {
   className?: string;
-  /** Softphone transport mode — SIP CTAs need click_to_call; WebRTC does not. */
+  /** Softphone transport mode - SIP CTAs need click_to_call; WebRTC does not. */
   softphoneMode?: 'webrtc' | 'sip';
 }
 
@@ -187,7 +187,7 @@ export function SoftphoneContacts({ className, softphoneMode = 'webrtc' }: Softp
         }));
       }
     } catch {
-      /* server is source of truth — row stays interactive to retry */
+      /* server is source of truth - row stays interactive to retry */
     } finally {
       setPendingId(null);
     }

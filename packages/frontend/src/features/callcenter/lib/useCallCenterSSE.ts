@@ -166,7 +166,7 @@ export function useCallCenterSSE(enabled: boolean = true) {
       } catch { /* ignore */ }
     });
 
-    // Hold / Unhold events — update call status in real-time
+    // Hold / Unhold events - update call status in real-time
     es.addEventListener('callHold', (e: MessageEvent) => {
       try {
         const data = JSON.parse(e.data);
@@ -181,7 +181,7 @@ export function useCallCenterSSE(enabled: boolean = true) {
       } catch { /* ignore */ }
     });
 
-    // Wrapup events — update agent status
+    // Wrapup events - update agent status
     es.addEventListener('wrapupStart', (e: MessageEvent) => {
       try {
         const data = JSON.parse(e.data);
@@ -205,7 +205,7 @@ export function useCallCenterSSE(enabled: boolean = true) {
       } catch { /* ignore */ }
     });
 
-    // KPI deltas (D-11/D-12/D-45) — patch shift + day counters for any agent
+    // KPI deltas (D-11/D-12/D-45) - patch shift + day counters for any agent
     // (status bar + Coworkers); invalidate RTK AgentKpi only for myself.
     es.addEventListener('agentKpiUpdate', (e: MessageEvent) => {
       try {
@@ -245,7 +245,7 @@ export function useCallCenterSSE(enabled: boolean = true) {
       } catch { /* ignore */ }
     });
 
-    // Missed calls — broadcast on window so the MissedCallsPanel invalidates its cache
+    // Missed calls - broadcast on window so the MissedCallsPanel invalidates its cache
     es.addEventListener('missedCallNew', (e: MessageEvent) => {
       try {
         window.dispatchEvent(new CustomEvent('cc:missed-call-new', { detail: JSON.parse(e.data) }));
@@ -257,11 +257,11 @@ export function useCallCenterSSE(enabled: boolean = true) {
       } catch { /* ignore */ }
     });
 
-    // Presence (D-36/D-37/D-45) — a single BLF dot changed. Patch the cached
+    // Presence (D-36/D-37/D-45) - a single BLF dot changed. Patch the cached
     // unfiltered getTransferDirectory entry in place (no refetch, no full-list
     // rebroadcast) so TransferDirectory's directory list updates live without
     // re-hitting the server. Search-filtered cache entries (a distinct RTK
-    // Query cache key) are not patched here — they refresh on their own next
+    // Query cache key) are not patched here - they refresh on their own next
     // fetch, a documented scope limit rather than a silent gap.
     es.addEventListener('presenceUpdate', (e: MessageEvent) => {
       try {
@@ -276,7 +276,7 @@ export function useCallCenterSSE(enabled: boolean = true) {
       } catch { /* ignore */ }
     });
 
-    // Journal live prepend (D-05) — own rows only; keep up to the API fetch cap
+    // Journal live prepend (D-05) - own rows only; keep up to the API fetch cap
     // (200) so SoftphoneJournal "Show more" can still page through older rows.
     es.addEventListener('historyRow', (e: MessageEvent) => {
       try {
@@ -290,6 +290,7 @@ export function useCallCenterSSE(enabled: boolean = true) {
           createdAt?: string;
           callUniqueid?: string;
           queueName?: string | null;
+          transferDestination?: string | null;
         };
         const myId = selectCurrentUser(store.getState())?.uniqueid;
         if (myId == null || row.agentUserUid == null || Number(row.agentUserUid) !== Number(myId)) {
@@ -304,6 +305,9 @@ export function useCallCenterSSE(enabled: boolean = true) {
           direction: row.direction ?? 'inbound',
           callType: null,
           disposition: row.disposition ?? 'other',
+          transferDestination: row.transferDestination ?? null,
+          handledByName: null,
+          handledByExten: null,
           enterTime: null,
           answerTime: null,
           endTime: row.createdAt ?? null,
@@ -331,7 +335,7 @@ export function useCallCenterSSE(enabled: boolean = true) {
       } catch { /* ignore */ }
     });
 
-    // Parked calls (D-28/D-45) — any operator's park/retrieve invalidates
+    // Parked calls (D-28/D-45) - any operator's park/retrieve invalidates
     // everyone's ParkedCallsIndicator list. Zombie-candidate flags need no
     // dedicated listener: they ride the existing callUpdate merge above
     // (CallState.zombieCandidate -> ICall.zombieCandidate).
@@ -347,9 +351,9 @@ export function useCallCenterSSE(enabled: boolean = true) {
       } catch { /* ignore */ }
     });
 
-    // Heartbeat — no action needed, just keeps SSE alive
+    // Heartbeat - no action needed, just keeps SSE alive
     es.addEventListener('heartbeat', () => {
-      // noop — prevents proxy timeout
+      // noop - prevents proxy timeout
     });
   }, [enabled, dispatch, store]);
 
@@ -365,7 +369,7 @@ export function useCallCenterSSE(enabled: boolean = true) {
     };
   }, [connect, dispatch]);
 
-  // Auth may load after first fullSnapshot — retry bind when userId appears
+  // Auth may load after first fullSnapshot - retry bind when userId appears
   useEffect(() => {
     if (!enabled || currentUserId == null) return;
     maybeBindMyAgentInterface(

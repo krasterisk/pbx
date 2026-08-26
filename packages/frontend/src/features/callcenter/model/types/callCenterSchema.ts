@@ -10,7 +10,7 @@ export type AgentStatus =
   | 'DIALING'
   | 'CONSULT'
   | 'ACW'
-  /** Queue-paused outbound work — no inbound, dial-out allowed. */
+  /** Queue-paused outbound work - no inbound, dial-out allowed. */
   | 'OUTBOUND_WORK';
 
 export interface IAgent {
@@ -41,6 +41,11 @@ export interface IAgent {
   loginTime?: string;
   /** ISO timestamp when current status was entered (from server). */
   statusSince?: string;
+  /**
+   * Open shift but Asterisk no longer lists the agent in queues
+   * (e.g. after Asterisk restart) — operator must rejoin.
+   */
+  queuesDetached?: boolean;
   wrapupTimeout?: number;
   userUid: number;
   userId: number;
@@ -82,7 +87,7 @@ export interface ICall {
   position?: number;
   userUid: number;
   /** Phase 9 (D-27/D-28): flagged by the backend zombie reconciler, cleared by resetZombieCall.
-   *  Flows through the existing callUpdate SSE merge — no dedicated listener needed. */
+   *  Flows through the existing callUpdate SSE merge - no dedicated listener needed. */
   zombieCandidate?: boolean;
 }
 
@@ -145,9 +150,23 @@ export interface IAgentDetail {
     pauseReason?: string;
     callsHandled: number;
     callsTaken: number;
+    callsMade?: number;
+    callsMissed?: number;
+    shiftAnswered?: number;
+    shiftMade?: number;
+    shiftMissed?: number;
+    dayAnswered?: number;
+    dayMade?: number;
+    dayMissed?: number;
     totalTalk: number;
     aht: number;
+    asa?: number;
     totalHold: number;
+    occupancy?: number;
+    loginDurationSec?: number;
+    pauseTotalSec?: number;
+    wrapupTotalSec?: number;
+    queuesDetached?: boolean;
     queues: string[];
   };
   segments: AgentTimelineSegment[];

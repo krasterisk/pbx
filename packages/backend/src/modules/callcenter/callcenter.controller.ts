@@ -6,14 +6,13 @@
  * Real-time events are pushed via SSE (CallCenterSseController).
  *
  * Access control:
- * - Agent endpoints: any authenticated user (level >= 2)
- * - Supervisor endpoints: level >= 3 only
- * - Pause reasons CRUD: level >= 3
+ * - Agent endpoints: any authenticated user
+ * - Supervisor endpoints: SUPERADMIN | ADMIN | SUPERVISOR (inverted UserLevel)
+ * - Pause reasons CRUD: same supervisor gate
  */
 import {
   Controller, Get, Post, Put, Delete,
   Body, Param, Query, Req, UseGuards, ParseIntPipe,
-  ForbiddenException,
 } from '@nestjs/common';
 import { Request } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -23,7 +22,8 @@ import {
   AgentLoginDto, AgentPauseDto, AgentUnpauseDto, AgentHangupDto,
   TransferDto, SupervisorSpyDto, SupervisorForceActionDto,
   SupervisorQueueActionDto, SupervisorQueuePenaltyDto, SupervisorForceLogoutDto,
-  SupervisorRedirectCallDto, SupervisorHangupCallDto,
+  SupervisorRedirectCallDto, SupervisorHangupCallDto, SupervisorWatchedAgentsDto,
+  SupervisorStartShiftDto,
   CreatePauseReasonDto, UpdatePauseReasonDto,
   PickCallDto, MarkMissedCalledBackDto, WrapupExtendDto,
 } from './dto/callcenter.dto';
@@ -35,21 +35,7 @@ import {
 import { MissedCallActionDto } from './dto/callcenter-missed.dto';
 import { DirectoryQueryDto } from './dto/callcenter-directory.dto';
 import { CreateContactDto, SendDtmfDto, UpdateContactDto } from './dto/callcenter-contacts.dto';
-
-// ─── Helpers ──────────────────────────────────────────────
-
-/** Minimum user level for supervisor actions */
-const SUPERVISOR_LEVEL = 3;
-
-function isSupervisorUser(user: any): boolean {
-  return Number(user?.level) >= SUPERVISOR_LEVEL;
-}
-
-function assertSupervisor(user: any): void {
-  if (user.level < SUPERVISOR_LEVEL) {
-    throw new ForbiddenException('Supervisor access required (level >= 3)');
-  }
-}
+import { assertSupervisor, isSupervisorUser } from './callcenter-rbac.util';
 
 // ─── Controller ────────────────────────────────────────────
 
@@ -100,6 +86,11 @@ export class CallCenterController {
   @Post('agent/logout')
   agentLogout(@Req() req: Request & { user: any }) {
     return this.ccService.agentLogout(req.user.vpbx_user_uid, req.user.sub);
+  }
+
+  @Post('agent/rejoin-queues')
+  agentRejoinQueues(@Req() req: Request & { user: any }) {
+    return this.ccService.agentRejoinQueues(req.user.vpbx_user_uid, req.user.sub);
   }
 
   @Post('agent/pause')
@@ -365,7 +356,13 @@ export class CallCenterController {
   @Post('supervisor/queue-add')
   supervisorQueueAdd(@Body() dto: SupervisorQueueActionDto, @Req() req: Request & { user: any }) {
     assertSupervisor(req.user);
-    return this.ccService.supervisorQueueAdd(dto.agentInterface, dto.queue, dto.penalty, req.user.vpbx_user_uid);
+    return this.ccService.supervisorQueueAdd(
+      dto.agentInterface,
+      dto.queue,
+      dto.penalty,
+      req.user.vpbx_user_uid,
+      req.user.sub,
+    );
   }
 
   @Post('supervisor/queue-remove')
@@ -416,7 +413,55 @@ export class CallCenterController {
     return this.ccService.getAgentDetail(iface, req.user.vpbx_user_uid);
   }
 
-  // ─── Pause Reasons CRUD (level >= 3) ───────────────────
+  @Get('supervisor/access-scope')
+  getSupervisorAccessScope(@Req() req: Request & { user: any }) {
+    assertSupervisor(req.user);
+    return this.ccService.getSupervisorAccessScope(req.user.vpbx_user_uid, req.user.sub);
+  }
+
+  @Get('supervisor/watched-agents')
+  getWatchedAgents(@Req() req: Request & { user: any }) {
+    assertSupervisor(req.user);
+    return this.ccService.getWatchedAgents(req.user.vpbx_user_uid, req.user.sub);
+  }
+
+  @Put('supervisor/watched-agents')
+  setWatchedAgents(@Body() dto: SupervisorWatchedAgentsDto, @Req() req: Request & { user: any }) {
+    assertSupervisor(req.user);
+    return this.ccService.setWatchedAgents(
+      req.user.vpbx_user_uid,
+      req.user.sub,
+      dto.userIds || [],
+      dto.extens,
+    );
+  }
+
+  @Post('supervisor/start-shift')
+  supervisorStartShift(@Body() dto: SupervisorStartShiftDto, @Req() req: Request & { user: any }) {
+    assertSupervisor(req.user);
+    return this.ccService.supervisorStartShift(
+      req.user.vpbx_user_uid,
+      req.user.sub,
+      dto.operatorUserId,
+      dto.interface,
+      dto.queues || [],
+    );
+  }
+
+  @Get('supervisor/history')
+  getSupervisorHistory(
+    @Query('period') period: 'shift' | 'day' | undefined,
+    @Req() req: Request & { user: any },
+  ) {
+    assertSupervisor(req.user);
+    return this.ccService.getSupervisorCallHistory(
+      req.user.vpbx_user_uid,
+      req.user.sub,
+      period === 'shift' ? 'shift' : 'day',
+    );
+  }
+
+  // ─── Pause Reasons CRUD ────────────────────────────────
 
   @Get('pause-reasons')
   getPauseReasons(@Req() req: Request & { user: any }) {

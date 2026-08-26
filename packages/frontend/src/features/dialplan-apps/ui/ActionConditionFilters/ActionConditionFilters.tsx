@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { type DialStatus } from '@krasterisk/shared';
 import { VStack } from '@/shared/ui/Stack';
-import { DialstatusSelect, normalizeDialstatus } from '../DialstatusSelect';
+import { DialstatusSelect } from '../DialstatusSelect';
 import { TimeGroupSelect } from '../TimeGroupSelect';
 
 export interface ActionConditionFiltersProps {

@@ -37,7 +37,7 @@ const EMPTY_FORM: ContactFormState = {
   note: '',
 };
 
-/** D-13 UX gate — server still enforces ownership in the where clause. */
+/** D-13 UX gate - server still enforces ownership in the where clause. */
 export function canManageContact(
   row: Pick<ICcContact, 'createdBy'>,
   myUserId: number,

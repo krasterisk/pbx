@@ -22,7 +22,7 @@ import {
 import { useGetVoiceRobotDataListsQuery } from '@/shared/api/endpoints/voiceRobotDataListsApi';
 
 /* ────────────────────────────────────────────────────────────── */
-/*  Bot Action Summary — compact display of action config        */
+/*  Bot Action Summary - compact display of action config        */
 /* ────────────────────────────────────────────────────────────── */
 
 const BotActionSummary = memo(({ action, robotId }: { action: IVoiceRobotBotAction | null; robotId?: number }) => {
@@ -88,7 +88,7 @@ const BotActionSummary = memo(({ action, robotId }: { action: IVoiceRobotBotActi
 BotActionSummary.displayName = 'BotActionSummary';
 
 /* ────────────────────────────────────────────────────────────── */
-/*  Keyword Card — summary card, click to edit in dialog         */
+/*  Keyword Card - summary card, click to edit in dialog         */
 /* ────────────────────────────────────────────────────────────── */
 
 interface KeywordCardProps {
@@ -442,8 +442,8 @@ const KeywordGroupPanel = memo(({ group, onDelete, onUpdate, robotId }: KeywordG
                   : 'bg-red-500/10 text-red-500/70 border-red-500/20 line-through'
               }`}
               title={optimisticActive
-                ? t('voiceRobots.groupActive', 'Группа активна — нажмите чтобы отключить')
-                : t('voiceRobots.groupInactive', 'Группа отключена — нажмите чтобы включить')}
+                ? t('voiceRobots.groupActive', 'Группа активна - нажмите чтобы отключить')
+                : t('voiceRobots.groupInactive', 'Группа отключена - нажмите чтобы включить')}
             >
               <span className={`w-2 h-2 rounded-full ${optimisticActive ? 'bg-emerald-500' : 'bg-red-400/60'}`} />
               {optimisticActive
@@ -460,8 +460,8 @@ const KeywordGroupPanel = memo(({ group, onDelete, onUpdate, robotId }: KeywordG
                   : 'bg-muted/50 text-muted-foreground/50 border-border/50 hover:text-muted-foreground hover:border-border'
               }`}
               title={optimisticGlobal
-                ? t('voiceRobots.globalGroupActive', 'Глобальная — ключевые слова доступны на всех стадиях диалога. Нажмите чтобы отключить.')
-                : t('voiceRobots.globalGroupInactive', 'Сделать глобальной — ключевые слова будут доступны на всех стадиях диалога.')}
+                ? t('voiceRobots.globalGroupActive', 'Глобальная - ключевые слова доступны на всех стадиях диалога. Нажмите чтобы отключить.')
+                : t('voiceRobots.globalGroupInactive', 'Сделать глобальной - ключевые слова будут доступны на всех стадиях диалога.')}
             >
               <Globe className="w-3 h-3" />
               {optimisticGlobal
@@ -617,7 +617,7 @@ export const VoiceRobotDialogueTab = memo(({ selectedRobot }: VoiceRobotDialogue
             {t('voiceRobots.dialogueScenarios', 'Сценарии диалога')}
           </Text>
           <Text variant="xs" className="text-muted-foreground">
-            {t('voiceRobots.dialogueScenariosDescription', 'Группа определяет «стадию» разговора. Ключевые слова внутри — это варианты фраз клиента, на которые реагирует робот на этой стадии.')}
+            {t('voiceRobots.dialogueScenariosDescription', 'Группа определяет «стадию» разговора. Ключевые слова внутри - это варианты фраз клиента, на которые реагирует робот на этой стадии.')}
           </Text>
         </VStack>
         <Button

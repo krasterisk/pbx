@@ -125,6 +125,11 @@ async function bootstrap() {
       hsts: strictSecurityHeaders ? undefined : false,
       crossOriginOpenerPolicy: strictSecurityHeaders ? undefined : false,
       crossOriginEmbedderPolicy: strictSecurityHeaders ? undefined : false,
+      // Allow <img>/<audio> from the SPA origin (different port) to load API streams.
+      // Default helmet CORP=same-origin blocks cross-origin subresource loads.
+      crossOriginResourcePolicy: strictSecurityHeaders
+        ? undefined
+        : { policy: 'cross-origin' },
       contentSecurityPolicy: strictSecurityHeaders
         ? undefined
         : {

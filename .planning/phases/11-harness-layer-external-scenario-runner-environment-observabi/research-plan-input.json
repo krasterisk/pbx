@@ -1,0 +1,10 @@
+{
+  "ecosystem": "npm",
+  "config": { "exa_search": false, "brave_search": false, "firecrawl": false, "tavily_search": false },
+  "questions": [
+    { "text": "Playwright test fixtures storageState auth pattern", "kind": "docs", "library": "playwright", "version": "1.62" },
+    { "text": "Testcontainers Node.js MySQL container setup", "kind": "docs", "library": "testcontainers", "version": "12" },
+    { "text": "OpenTelemetry Node.js SDK manual instrumentation spans", "kind": "docs", "library": "@opentelemetry/sdk-node", "version": "0.221" },
+    { "text": "Vitest test project configuration multiple configs", "kind": "docs", "library": "vitest", "version": "4.1" }
+  ]
+}

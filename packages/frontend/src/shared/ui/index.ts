@@ -1,5 +1,7 @@
 export { Button } from './Button';
 export { Input } from './Input';
+export { PasswordInput } from './PasswordInput';
+export type { PasswordInputProps } from './PasswordInput';
 export { Textarea } from './Textarea';
 export type { TextareaProps } from './Textarea';
 export { Switch } from './Switch';
@@ -14,6 +16,8 @@ export * from './DropdownMenu';
 export * from './Stack';
 export { DataTable } from './DataTable';
 export type { DataTableProps, DataTableRef } from './DataTable';
+export { TableRowActions, TableRowAction, tableRowActionsStyles } from './TableRowActions';
+export type { TableRowActionsProps, TableRowActionProps } from './TableRowActions';
 export * from './Tooltip/Tooltip';
 export * from './WebhookAuthConfig/WebhookAuthConfig';
 export { MultiSelect } from './MultiSelect/MultiSelect';

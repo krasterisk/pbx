@@ -34,7 +34,7 @@ type SoftphoneTab = 'dial' | 'journal' | 'contacts';
 
 /**
  * Transport-agnostic phone contract. SoftphoneWidget imports neither useWebRTCPhone
- * nor useSipPhoneAmi — both hooks satisfy this by shape (D-31 / Anti-Pattern 1).
+ * nor useSipPhoneAmi - both hooks satisfy this by shape (D-31 / Anti-Pattern 1).
  */
 export interface SoftphoneWidgetPhone {
   status: string;
@@ -60,7 +60,7 @@ export interface SoftphoneWidgetPhone {
 }
 
 export interface SoftphoneWidgetProps {
-  /** Structural phone interface — widget only renders it, never forks call logic. */
+  /** Structural phone interface - widget only renders it, never forks call logic. */
   phone: SoftphoneWidgetPhone;
   /** Gates quality + device picker (D-34). Defaults to webrtc for backward compatibility. */
   mode?: SoftphoneMode;
@@ -78,7 +78,7 @@ export interface SoftphoneWidgetProps {
   /** Slot for park/zombie-reset controls (09-10's remaining CallControlBar full-variant actions). */
   extraControls?: ReactNode;
   /**
-   * uniqueid of the operator's own active call — required for the built-in
+   * uniqueid of the operator's own active call - required for the built-in
    * "Add to conference" control (D-28, 09-10→09-12 key link). Omit/undefined
    * degrades the control to disabled (no active call, nothing to conference).
    */
@@ -104,7 +104,7 @@ export interface SoftphoneWidgetProps {
 
 const RECOVER_TIMEOUT_MS = 10_000;
 
-/** WebRTC-only device rows — isolated so SIP mode never mounts useAudioDevices. */
+/** WebRTC-only device rows - isolated so SIP mode never mounts useAudioDevices. */
 function SoftphoneDevicePicker({
   phone,
   deviceError,
@@ -204,7 +204,7 @@ function registrationVisual(status: string, mode: SoftphoneMode): RegVisual {
   }
   if (status === 'connecting') return 'registering';
   if (status === 'disconnected') return 'offline';
-  // SIP binary presence: treat unknown as offline (D-35 — no registering in SIP)
+  // SIP binary presence: treat unknown as offline (D-35 - no registering in SIP)
   if (mode === 'sip') return status === 'online' ? 'online' : 'offline';
   return 'offline';
 }
@@ -225,7 +225,7 @@ function dialFailureMessage(
     case 'ended_early':
       return t(
         'callcenter.softphone.dialFailedEndedEarly',
-        'Call dropped immediately — check the number or dialplan route',
+        'Call dropped immediately - check the number or dialplan route',
       );
     case 'rejected':
       return failure.statusCode
@@ -295,7 +295,7 @@ export function SoftphoneWidget({
     )
     : t('callcenter.softphone.calling', 'Calling…');
 
-  // SIP desk phone: Answer/Reject are WebRTC-only — inbound ring is answered on the handset.
+  // SIP desk phone: Answer/Reject are WebRTC-only - inbound ring is answered on the handset.
   const showWebRtcRingActions = isRinging && mode === 'webrtc';
   const showSipDeviceHint = mode === 'sip' && (isDialing || isRinging);
 
@@ -322,7 +322,7 @@ export function SoftphoneWidget({
     return () => window.clearTimeout(timer);
   }, [showRegBanner, phone.status]);
 
-  // Outbound dial failed / dialplan Hangup — surface reason on dialpad + toast
+  // Outbound dial failed / dialplan Hangup - surface reason on dialpad + toast
   useEffect(() => {
     const failure = phone.lastDialFailure;
     if (!failure) return;
@@ -336,7 +336,7 @@ export function SoftphoneWidget({
   }, [phone.lastDialFailure, phone, t, isMobile]);
 
   // Auto-expand only for outbound dialing (already interacting with softphone).
-  // Incoming ring: toast only — softphone opens manually (avoids duplicate UI).
+  // Incoming ring: toast only - softphone opens manually (avoids duplicate UI).
   useEffect(() => {
     if (isDialing) {
       setOpen(true);
@@ -345,7 +345,7 @@ export function SoftphoneWidget({
     }
   }, [isDialing, isMobile]);
 
-  // Opening the panel while offline — soft reconnect only (no credential refetch).
+  // Opening the panel while offline - soft reconnect only (no credential refetch).
   const openReconnectNudgedRef = useRef(false);
   useEffect(() => {
     if (!open && !mobileDialOpen) {
@@ -357,7 +357,7 @@ export function SoftphoneWidget({
     openReconnectNudgedRef.current = true;
     // WebRTC: soft reconnect UA; SIP: refetch AMI DeviceState registration.
     void phone.ensureConnected?.(true);
-    // Intentionally omit `phone` object — only react to open/status.
+    // Intentionally omit `phone` object - only react to open/status.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, mobileDialOpen, phone.status]);
 
@@ -694,11 +694,11 @@ export function SoftphoneWidget({
               {isDialing
                 ? t(
                   'callcenter.softphone.answerOnDeviceHint',
-                  'Click-to-call is ringing your device — pick up to connect the callee',
+                  'Click-to-call is ringing your device - pick up to connect the callee',
                 )
                 : t(
                   'callcenter.softphone.answerOnDeviceInboundHint',
-                  'Incoming call — answer on your SIP phone or softphone client',
+                  'Incoming call - answer on your SIP phone or softphone client',
                 )}
             </Text>
           ) : null}

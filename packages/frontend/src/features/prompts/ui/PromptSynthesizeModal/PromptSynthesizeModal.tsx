@@ -163,7 +163,7 @@ export function PromptSynthesizeModal({ isOpen, onClose }: PromptSynthesizeModal
           <VStack gap="4">
             <Text variant="small">{t('promptsPage.synthesize.engineLabel', 'TTS-движок')} *</Text>
             <Select value={engineUid} onChange={(e) => setEngineUid(e.target.value)}>
-              <option value="">{t('promptsPage.synthesize.engineSelect', '— Выберите движок —')}</option>
+              <option value="">{t('promptsPage.synthesize.engineSelect', 'Выберите движок')}</option>
               {engines.map((eng) => (
                 <option key={eng.uid} value={String(eng.uid)}>
                   {eng.name} ({eng.type})

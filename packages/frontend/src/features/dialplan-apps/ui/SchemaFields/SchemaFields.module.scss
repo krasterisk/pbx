@@ -1,13 +1,43 @@
+/* ─────────────────────────────────────────────────────
+   SchemaFields — dialplan step form fields
+   Design tokens: var(--color-*) from globals.css @theme
+   ───────────────────────────────────────────────────── */
+
 .fields {
   width: 100%;
 }
 
 .field {
   width: 100%;
+  min-width: 0;
+}
+
+/* Side-by-side schema fields (ARCHITECTURE formGrid) */
+.fieldRow {
+  display: grid;
+  width: 100%;
+  gap: 0.75rem;
+  grid-template-columns: var(--schema-row-cols, 1fr);
+  align-items: start;
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.fieldCell {
+  min-width: 0;
+  width: 100%;
+}
+
+/* Hidden label: the hint icon sits left of the control instead of on its own row. */
+.inlineHintRow > :last-child {
+  flex: 1;
+  min-width: 0;
 }
 
 .label {
-  color: var(--color-foreground);
+  color: var(--color-muted-foreground);
 }
 
 .error {

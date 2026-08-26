@@ -31,7 +31,7 @@ const VoiceRobotEditPage = memo(() => {
       data-testid="voice-robot-edit-responsive"
       data-edit-stack="phone"
     >
-      {/* Page Header — stacks under 640px; min-w-0 prevents page bleed */}
+      {/* Page Header - stacks under 640px; min-w-0 prevents page bleed */}
       <Flex justify="between" align="center" className={cls.header} max>
         <Flex align="center" gap="12" className="min-w-0">
           <Button variant="ghost" size="icon" onClick={handleBack} className="rounded-full w-10 h-10 bg-muted/20 hover:bg-muted/50 shrink-0">
@@ -53,7 +53,7 @@ const VoiceRobotEditPage = memo(() => {
         </Flex>
       </Flex>
 
-      {/* Form Content Area — overflow contained; scroll within panels OK */}
+      {/* Form Content Area - overflow contained; scroll within panels OK */}
       <VStack max className={cls.formArea}>
         {isLoading && !isCreateMode ? (
           <Flex justify="center" align="center" className="absolute inset-0 bg-background/50 backdrop-blur-sm z-10 rounded-xl">

@@ -16,7 +16,7 @@ import cls from './TenantModulesPanel.module.scss';
 
 /**
  * Tenant System→Modules (D-22 / 006-B): enable/disable + Buy for locked.
- * Composition is read-only — no hub_module_pages membership editor.
+ * Composition is read-only - no hub_module_pages membership editor.
  */
 export function TenantModulesPanel() {
   const { t } = useTranslation();
@@ -95,7 +95,7 @@ export function TenantModulesPanel() {
                 <div className={cls.nameBlock}>
                   <div className={cls.moduleName}>{item.name}</div>
                   <div className={cls.pages} data-testid={`tenant-module-pages-${item.code}`}>
-                    {t('platform.compositionReadonly')}: {pagesLabel || '—'}
+                    {t('platform.compositionReadonly')}: {pagesLabel || '-'}
                   </div>
                 </div>
 

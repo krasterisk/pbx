@@ -20,13 +20,12 @@ jest.mock('../../modules/logger/action-log.model', () => ({
 const ACTION_TYPES = [
   'totrunk', 'toexten', 'toqueue', 'togroup', 'tolist',
   'toivr', 'toroute', 'playback',
-  'setclid_custom', 'setclid_list',
-  'notify', 'callerid', 'trunk_carousel',
+  'notify', 'callerid',
   'voicemail', 'text2speech', 'voicerobot',
   'webhook', 'confbridge', 'cmd',
-  'label', 'goto', 'branch', 'schedule',
+  'label', 'goto', 'schedule',
   'http_request', 'collect_input',
-  'busy', 'hangup', 'congestion',
+  'hangup',
 ] as const satisfies readonly ActionType[];
 
 type MissingActionType = Exclude<ActionType, (typeof ACTION_TYPES)[number]>;
@@ -40,22 +39,23 @@ void _assertActionTypesComplete;
 const CHARACTERIZED_TYPES: readonly ActionType[] = [
   'totrunk', 'toexten', 'toqueue', 'togroup', 'tolist',
   'toivr', 'toroute', 'playback',
-  'setclid_custom', 'setclid_list',
-  'notify', 'callerid', 'trunk_carousel',
+  'notify', 'callerid',
   'voicemail', 'text2speech', 'voicerobot',
   'webhook', 'confbridge', 'cmd',
-  'label', 'goto', 'branch', 'schedule',
+  'label', 'goto', 'schedule',
   'http_request', 'collect_input',
-  'busy', 'hangup', 'congestion',
+  'hangup',
 ];
 
 describe('AsteriskDialplanUtils.actionToDialplan', () => {
   const vpbx = 42;
 
+  const busy = { signal: 'busy', timeout: 10 };
+
   describe('DIALSTATUS condition wrapper', () => {
     it('wraps a single valid dialstatus in ExecIf', () => {
       const dp = AsteriskDialplanUtils.actionToDialplan(
-        { type: 'busy', params: {}, condition: { dialstatus: 'ANSWER' } },
+        { type: 'hangup', params: busy, condition: { dialstatus: 'ANSWER' } },
         vpbx,
       );
       expect(dp).toBe('ExecIf($["${DIALSTATUS}" = "ANSWER"]?Busy(10))');
@@ -64,8 +64,8 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
     it('OR-joins an array of dialstatuses into a single ExecIf', () => {
       const dp = AsteriskDialplanUtils.actionToDialplan(
         {
-          type: 'busy',
-          params: {},
+          type: 'hangup',
+          params: busy,
           condition: { dialstatus: ['ANSWER', 'NOANSWER'] },
         },
         vpbx,
@@ -78,8 +78,8 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
     it('filters invalid statuses from an array', () => {
       const dp = AsteriskDialplanUtils.actionToDialplan(
         {
-          type: 'busy',
-          params: {},
+          type: 'hangup',
+          params: busy,
           condition: { dialstatus: ['ANSWER', 'BOGUS'] },
         },
         vpbx,
@@ -90,8 +90,8 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
     it('emits no wrapper when all array statuses are invalid', () => {
       const dp = AsteriskDialplanUtils.actionToDialplan(
         {
-          type: 'busy',
-          params: {},
+          type: 'hangup',
+          params: busy,
           condition: { dialstatus: ['BOGUS', 'NOPE'] },
         },
         vpbx,
@@ -101,17 +101,17 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
 
     it('emits NoOp for a single invalid dialstatus (legacy path)', () => {
       const dp = AsteriskDialplanUtils.actionToDialplan(
-        { type: 'busy', params: {}, condition: { dialstatus: 'BOGUS' } },
+        { type: 'hangup', params: busy, condition: { dialstatus: 'BOGUS' } },
         vpbx,
       );
       expect(dp).toContain('NoOp(Invalid dialstatus:');
     });
   });
 
-  describe('hangup causecode', () => {
+  describe('unified hangup signals', () => {
     it('emits Hangup(causecode) when causecode is non-empty', () => {
       const dp = AsteriskDialplanUtils.actionToDialplan(
-        { type: 'hangup', params: { causecode: '17' }, condition: {} },
+        { type: 'hangup', params: { signal: 'hangup', causecode: '17' }, condition: {} },
         vpbx,
       );
       expect(dp).toBe('Hangup(17)');
@@ -119,30 +119,43 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
 
     it('emits Hangup() when causecode is empty', () => {
       const dp = AsteriskDialplanUtils.actionToDialplan(
-        { type: 'hangup', params: { causecode: '' }, condition: {} },
+        { type: 'hangup', params: { signal: 'hangup', causecode: '' }, condition: {} },
         vpbx,
       );
       expect(dp).toBe('Hangup()');
     });
 
-    it('emits Hangup() when causecode is absent', () => {
+    it('defaults to Hangup() when the signal is absent', () => {
       const dp = AsteriskDialplanUtils.actionToDialplan(
         { type: 'hangup', params: {}, condition: {} },
         vpbx,
       );
       expect(dp).toBe('Hangup()');
     });
-  });
 
-  describe('congestion (D-42 generator branch)', () => {
-    it('emits Congestion() like busy — 12-RESEARCH Pitfall / 12-03 type already registered', () => {
+    it('emits Busy(timeout) for the busy signal', () => {
       const dp = AsteriskDialplanUtils.actionToDialplan(
-        { type: 'congestion', params: {}, condition: {} },
+        { type: 'hangup', params: { signal: 'busy', timeout: 20 }, condition: {} },
         vpbx,
       );
-      expect(dp).toContain('Congestion()');
+      expect(dp).toBe('Busy(20)');
+    });
+
+    it('emits Congestion() for the congestion signal without a timeout', () => {
+      const dp = AsteriskDialplanUtils.actionToDialplan(
+        { type: 'hangup', params: { signal: 'congestion' }, condition: {} },
+        vpbx,
+      );
       expect(dp).toBe('Congestion()');
-      expect(DIALPLAN_ACTION_META.congestion.terminal).toBe('always');
+      expect(DIALPLAN_ACTION_META.hangup.terminal).toBe('always');
+    });
+
+    it('emits Congestion(timeout) for the congestion signal with a timeout', () => {
+      const dp = AsteriskDialplanUtils.actionToDialplan(
+        { type: 'hangup', params: { signal: 'congestion', timeout: 5 }, condition: {} },
+        vpbx,
+      );
+      expect(dp).toBe('Congestion(5)');
     });
   });
 
@@ -176,7 +189,7 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
           type: 'notify',
           params: {
             integration_uid: 15,
-            message: 'Call from ${CALLERID(num)}',
+            body: 'Call from ${CALLERID(num)}',
             target: '12345',
           },
           condition: {},
@@ -191,13 +204,13 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       expect(dp).toContain('api_key=');
     });
 
-    it('notify email payload emits CURL to /internal/dialplan/notify (D-28)', () => {
+    it('notify payload emits CURL to /internal/dialplan/notify (D-28)', () => {
       const notify = AsteriskDialplanUtils.actionToDialplan(
         {
           type: 'notify',
           params: {
-            channels: ['email'],
-            recipients: { email: 'ops@example.com' },
+            integration_uid: 4,
+            target: 'ops@example.com',
             subject: 'Call',
             body: 'Incoming',
           },
@@ -209,11 +222,24 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       expect(notifyCurl).toContain('/internal/dialplan/notify');
     });
 
+    it('does not leak per-channel recipients into the payload', () => {
+      const dp = AsteriskDialplanUtils.actionToDialplan(
+        {
+          type: 'notify',
+          params: { integration_uid: 4, body: 'x', target: 'ops@example.com' },
+          condition: {},
+        },
+        vpbx,
+      );
+      expect(dp).not.toContain('channels=');
+      expect(dp).not.toContain('recipients=');
+    });
+
     it('notify failure does not stop later steps in the chain', () => {
       const dp = renderActionChain(
         [
-          { type: 'notify', params: { channels: ['email'], recipients: { email: 'a@b.c' }, body: 'x' }, condition: {} },
-          { type: 'busy', params: {}, condition: {} },
+          { type: 'notify', params: { integration_uid: 4, body: 'x' }, condition: {} },
+          { type: 'hangup', params: busy, condition: {} },
         ],
         { vpbxUserUid: vpbx, host: 'route' },
       );
@@ -264,7 +290,7 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       expect(dp).toContain('Set(CALLERID(num)=');
     });
 
-    it('mode setclid_list emits CURL to internal setclid (D-31)', () => {
+    it('mode number_list emits CURL to internal setclid (D-31)', () => {
       const prevUrl = AsteriskDialplanUtils.backendBaseUrl;
       const prevKey = AsteriskDialplanUtils.dialplanApiKey;
       AsteriskDialplanUtils.backendBaseUrl = 'http://backend.test/api';
@@ -272,7 +298,7 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       const dp = AsteriskDialplanUtils.actionToDialplan(
         {
           type: 'callerid',
-          params: { mode: 'setclid_list', list_uid: 5 },
+          params: { mode: 'number_list', list_uid: 5 },
           condition: {},
         },
         vpbx,
@@ -307,7 +333,7 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
     });
   });
 
-  describe('trunk_carousel', () => {
+  describe('totrunk carousel mode', () => {
     const prevKey = AsteriskDialplanUtils.dialplanApiKey;
     const prevUrl = AsteriskDialplanUtils.backendBaseUrl;
 
@@ -324,8 +350,9 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
     it('emits random_then_failover Dial loop with Return and no Hangup', () => {
       const dp = AsteriskDialplanUtils.actionToDialplan(
         {
-          type: 'trunk_carousel',
+          type: 'totrunk',
           params: {
+            trunkMode: 'carousel',
             mode: 'random_then_failover',
             trunks: [
               { trunk: 'PJSIP/trunkA', cid_mode: 'static', callerid: '79001112233' },
@@ -397,7 +424,7 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       AsteriskDialplanUtils.dialplanApiKey = prevKey;
     });
 
-    it('totrunk uses registry dest ${EXTEN} after sanitizeDialplanInput (strips $ {})', () => {
+    it('totrunk dest ${EXTEN} is route_pattern and dials ${EXTEN}', () => {
       const dp = AsteriskDialplanUtils.actionToDialplan(
         {
           type: 'totrunk',
@@ -406,7 +433,95 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
         },
         vpbx,
       );
-      expect(dp).toBe('Dial(PJSIP/out1/EXTEN,60,tT)');
+      expect(dp).toBe('Dial(PJSIP/out1/${EXTEN},60,tT)');
+    });
+
+    it('totrunk dest route_pattern dials ${EXTEN}', () => {
+      const dp = AsteriskDialplanUtils.actionToDialplan(
+        {
+          type: 'totrunk',
+          params: { trunk: 'PJSIP/out1', dest: { source: 'route_pattern' }, timeout: 60, options: 'tT' },
+          condition: {},
+        },
+        vpbx,
+      );
+      expect(dp).toBe('Dial(PJSIP/out1/${EXTEN},60,tT)');
+    });
+
+    it('totrunk single mode emits static CallerID if provided', () => {
+      const dp = AsteriskDialplanUtils.actionToDialplan(
+        {
+          type: 'totrunk',
+          params: { trunk: 'PJSIP/out1', dest: '${EXTEN}', callerid: '79001234567', timeout: 60, options: 'tT' },
+          condition: {},
+        },
+        vpbx,
+      );
+      expect(dp).toBe('Set(CALLERID(num)=79001234567)\nsame => n,Dial(PJSIP/out1/${EXTEN},60,tT)');
+    });
+
+    it('totrunk single mode emits phonebook CallerID lookup when cid_mode is phonebook', () => {
+      const prevKey = AsteriskDialplanUtils.dialplanApiKey;
+      const prevUrl = AsteriskDialplanUtils.backendBaseUrl;
+      AsteriskDialplanUtils.backendBaseUrl = 'http://backend.test/api';
+      AsteriskDialplanUtils.dialplanApiKey = 'tc-key';
+
+      try {
+        const dp = AsteriskDialplanUtils.actionToDialplan(
+          {
+            type: 'totrunk',
+            params: {
+              trunk: 'PJSIP/out1',
+              dest: '${EXTEN}',
+              cid_mode: 'phonebook',
+              phonebook_uid: 42,
+              timeout: 60,
+              options: 'tT',
+            },
+            condition: {},
+          },
+          vpbx,
+        );
+        expect(dp).toContain('Set(PB_RAW=${CURL(http://backend.test/api/internal/dialplan/phonebook-lookup?phonebook_uid=42&api_key=tc-key&number=${URIENCODE(${CALLERID(num)})})})');
+        expect(dp).toContain('ExecIf($["${CUT(PB_RAW,|,1)}" = "1"]?Set(CALLERID(num)=${CUT(PB_RAW,|,3)}))');
+        expect(dp).toContain('Dial(PJSIP/out1/${EXTEN},60,tT)');
+      } finally {
+        AsteriskDialplanUtils.backendBaseUrl = prevUrl;
+        AsteriskDialplanUtils.dialplanApiKey = prevKey;
+      }
+    });
+
+    it('totrunk carousel mode emits trunk carousel dialplan', () => {
+      const prevKey = AsteriskDialplanUtils.dialplanApiKey;
+      const prevUrl = AsteriskDialplanUtils.backendBaseUrl;
+      AsteriskDialplanUtils.backendBaseUrl = 'http://backend.test/api';
+      AsteriskDialplanUtils.dialplanApiKey = 'tc-key';
+
+      const dp = AsteriskDialplanUtils.actionToDialplan(
+        {
+          type: 'totrunk',
+          params: {
+            trunkMode: 'carousel',
+            mode: 'random_then_failover',
+            trunks: [
+              { trunk: 'PJSIP/trunkA', cid_mode: 'static', callerid: '79001112233' },
+              { trunk: 'PJSIP/trunkB', cid_mode: 'static', callerid: '79004445566' },
+            ],
+            dest: { source: 'route_pattern' },
+            timeout: 60,
+            options: 'tT',
+          },
+          condition: {},
+        },
+        vpbx,
+      );
+
+      AsteriskDialplanUtils.backendBaseUrl = prevUrl;
+      AsteriskDialplanUtils.dialplanApiKey = prevKey;
+
+      expect(dp).toContain('RAND');
+      expect(dp).toContain('Set(TC_LIST=PJSIP/trunkA|PJSIP/trunkB)');
+      expect(dp).toContain('Dial(${TC_TRUNK}/${EXTEN},${TC_TO},tT)');
     });
 
     it('totrunk empty dest falls back to literal ${EXTEN}', () => {
@@ -649,18 +764,18 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       expect(dp).toBe('Playback(/usr/records/42/sounds/)');
     });
 
-    it('setclid_custom with filled callerid emits Set(CALLERID(num))', () => {
+    it('callerid static with filled callerid emits Set(CALLERID(num))', () => {
       const dp = AsteriskDialplanUtils.actionToDialplan(
-        { type: 'setclid_custom', params: { callerid: '79001112233' }, condition: {} },
+        { type: 'callerid', params: { mode: 'static', callerid: '79001112233' }, condition: {} },
         vpbx,
       );
       expect(dp).toBe('Set(CALLERID(num)=79001112233)');
     });
 
-    it('setclid_custom with registry defaultParams emits empty CALLERID(num)', () => {
+    it('callerid static with registry defaultParams emits empty CALLERID(num)', () => {
       const dp = AsteriskDialplanUtils.actionToDialplan(
         {
-          type: 'setclid_custom',
+          type: 'callerid',
           params: { mode: 'static', callerid: '' },
           condition: {},
         },
@@ -669,13 +784,13 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       expect(dp).toBe('Set(CALLERID(num)=)');
     });
 
-    it('setclid_list with filled list_uid emits CURL setclid (D-31)', () => {
+    it('callerid number_list with filled list_uid emits CURL setclid (D-31)', () => {
       const prevUrl = AsteriskDialplanUtils.backendBaseUrl;
       const prevKey = AsteriskDialplanUtils.dialplanApiKey;
       AsteriskDialplanUtils.backendBaseUrl = 'http://backend.test/api';
       AsteriskDialplanUtils.dialplanApiKey = 'wave0-key';
       const dp = AsteriskDialplanUtils.actionToDialplan(
-        { type: 'setclid_list', params: { list_uid: 5 }, condition: {} },
+        { type: 'callerid', params: { mode: 'number_list', list_uid: 5 }, condition: {} },
         vpbx,
       );
       expect(dp).toContain('Set(CURLOPT(httptimeout)=');
@@ -687,15 +802,15 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       AsteriskDialplanUtils.dialplanApiKey = prevKey;
     });
 
-    it('setclid_list with registry defaultParams still emits CURL setclid', () => {
+    it('callerid number_list with registry defaultParams still emits CURL setclid', () => {
       const prevUrl = AsteriskDialplanUtils.backendBaseUrl;
       const prevKey = AsteriskDialplanUtils.dialplanApiKey;
       AsteriskDialplanUtils.backendBaseUrl = 'http://backend.test/api';
       AsteriskDialplanUtils.dialplanApiKey = 'wave0-key';
       const dp = AsteriskDialplanUtils.actionToDialplan(
         {
-          type: 'setclid_list',
-          params: { mode: 'setclid_list', list_uid: '' },
+          type: 'callerid',
+          params: { mode: 'number_list', list_uid: '' },
           condition: {},
         },
         vpbx,
@@ -916,7 +1031,7 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
           type: 'notify',
           params: {
             integration_uid: 15,
-            message: 'Call from ${CALLERID(num)}',
+            body: 'Call from ${CALLERID(num)}',
             target: '12345',
           },
           condition: {},
@@ -940,7 +1055,7 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
           type: 'notify',
           params: {
             integration_uid: 15,
-            message: 'Call from ${CALLERID(num)}',
+            body: 'Call from ${CALLERID(num)}',
             target: '12345',
           },
           condition: { dialstatus: 'NOANSWER' },
@@ -987,7 +1102,7 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       );
     });
 
-    it('trunk_carousel with five trunks emits one Dial() (D-36 linear)', () => {
+    it('totrunk carousel with five trunks emits one Dial() (D-36 linear)', () => {
       const trunks = [1, 2, 3, 4, 5].map((i) => ({
         trunk: `PJSIP/t${i}`,
         cid_mode: 'static',
@@ -995,8 +1110,9 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       }));
       const dp = AsteriskDialplanUtils.actionToDialplan(
         {
-          type: 'trunk_carousel',
+          type: 'totrunk',
           params: {
+            trunkMode: 'carousel',
             mode: 'random_then_failover',
             trunks,
             timeout: 60,
@@ -1072,11 +1188,12 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
     /**
      * 12-RESEARCH.md Pitfall 3 — wrapEachLine covers every carousel line; Goto → GotoIf.
      */
-    it('trunk_carousel wraps every line when dialstatus is set (Pitfall 3)', () => {
+    it('totrunk carousel wraps every line when dialstatus is set (Pitfall 3)', () => {
       const dp = AsteriskDialplanUtils.actionToDialplan(
         {
-          type: 'trunk_carousel',
+          type: 'totrunk',
           params: {
+            trunkMode: 'carousel',
             mode: 'random_then_failover',
             trunks: [
               { trunk: 'PJSIP/t1', cid_mode: 'static', callerid: '79001110001' },
@@ -1115,11 +1232,8 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       toivr: { ivr_uid: 1 },
       toroute: { context: 'sip-in', extension: '100' },
       playback: { file: 'welcome', mode: 'plain' },
-      setclid_custom: { callerid: '7900' },
-      setclid_list: { list_uid: 1 },
-      notify: { integration_uid: 1, message: 'm', target: 't' },
+      notify: { integration_uid: 1, body: 'm', target: 't' },
       callerid: { mode: 'static', callerid: '7900', name: 'N' },
-      trunk_carousel: { trunks: [{ trunk: 'PJSIP/t1', cid_mode: 'static', callerid: '1' }] },
       voicemail: { exten: '101' },
       text2speech: { text: 'hi' },
       voicerobot: { robot_uid: 1 },
@@ -1127,14 +1241,11 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       confbridge: { room: '100' },
       cmd: { command: 'NoOp(ok)' },
       label: { label_name: 'x' },
-      goto: { label_name: 'x' },
-      branch: { true_label: 'ok', false_label: 'fail', condition: { source: 'dialstatus', values: ['ANSWER'] } },
+      goto: { label_name: 'ok', false_label: 'fail', condition: { source: 'dialstatus', values: ['ANSWER'] } },
       schedule: { intervals: [{ time_start: '09:00', time_end: '18:00', days_of_week: 'mon-fri', days_of_month: '*', months: '*' }] },
       http_request: { url: 'https://example.com/x', method: 'GET', timeout: 5 },
       collect_input: { variableName: 'PIN', digitsCount: 4, timeout: 5 },
-      busy: {},
-      hangup: {},
-      congestion: {},
+      hangup: { signal: 'busy', timeout: 10 },
     };
 
     it.each([...ActionTypesList])('emits balanced parentheses for %s', (type) => {
@@ -1147,9 +1258,9 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
     });
 
     it('empty condition output equals output without condition (toBe)', () => {
-      const action = { type: 'busy' as const, params: {}, condition: {} };
+      const action = { type: 'hangup' as const, params: busy, condition: {} };
       const withEmpty = AsteriskDialplanUtils.actionToDialplan(action, vpbx);
-      const without = AsteriskDialplanUtils.actionToDialplan({ type: 'busy', params: {} }, vpbx);
+      const without = AsteriskDialplanUtils.actionToDialplan({ type: 'hangup', params: busy }, vpbx);
       expect(withEmpty).toBe(without);
       expect(withEmpty).toBe('Busy(10)');
     });
@@ -1169,7 +1280,7 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
 
     it('chain without cmd does not log cmd_apply', () => {
       AsteriskDialplanUtils.actionToDialplan(
-        { type: 'busy', params: {}, condition: {} },
+        { type: 'hangup', params: busy, condition: {} },
         vpbx,
       );
       const cmdApplies = (ActionLog.create as jest.Mock).mock.calls.filter(
@@ -1231,7 +1342,7 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       expect(ivr).not.toContain('${EXTEN}');
     });
 
-    it('totrunk numberManipulation strip then prepend', () => {
+    it('totrunk numberManipulation compiles to first-match rewrite', () => {
       const dp = AsteriskDialplanUtils.actionToDialplan(
         {
           type: 'totrunk',
@@ -1246,7 +1357,56 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
         },
         vpbx,
       );
-      expect(dp).toBe('Dial(PJSIP/out1/89001234567,60,tT)');
+      expect(dp).toContain('Set(KRSK_DIAL_SRC=79001234567)');
+      expect(dp).toContain('Set(KRSK_DIAL_NUM=${KRSK_DIAL_NUM:1})');
+      expect(dp).toContain('Set(KRSK_DIAL_NUM=8${KRSK_DIAL_NUM})');
+      expect(dp).toContain('ExecIf($["${KRSK_DIAL_OK}" = "1"]?Dial(PJSIP/out1/${KRSK_DIAL_NUM},60,tT))');
+    });
+
+    it('totrunk phonebook dest looks up before rewrite', () => {
+      AsteriskDialplanUtils.backendBaseUrl = 'http://backend.test/api';
+      AsteriskDialplanUtils.dialplanApiKey = 'wave0-key';
+      const dp = AsteriskDialplanUtils.actionToDialplan(
+        {
+          type: 'totrunk',
+          params: {
+            trunk: 'PJSIP/out1',
+            dest: { source: 'phonebook', phonebookUid: 3, varKey: 'bnum' },
+            timeout: 60,
+            options: 'tT',
+          },
+          condition: {},
+        },
+        vpbx,
+      );
+      expect(dp).toContain('phonebook-lookup');
+      expect(dp).toContain('phonebook_uid=3');
+      expect(dp).toContain('Set(PB_TARGET=');
+      expect(dp).toContain('Dial(PJSIP/out1/${PB_TARGET},60,tT)');
+    });
+
+    it('totrunk rewrite reject leaves Dial gated', () => {
+      const dp = AsteriskDialplanUtils.actionToDialplan(
+        {
+          type: 'totrunk',
+          params: {
+            trunk: 'PJSIP/out1',
+            dest: { source: 'route_pattern' },
+            rewrite: {
+              noMatch: 'reject',
+              rules: [{
+                id: 'r1',
+                conditions: [{ kind: 'startsWith', value: '7' }],
+                transform: { prefix: '8' },
+              }],
+            },
+          },
+          condition: {},
+        },
+        vpbx,
+      );
+      expect(dp).toContain('NoOp(Invalid rewritten dest)');
+      expect(dp).toContain('ExecIf($["${KRSK_DIAL_OK}" = "1"]?Dial(PJSIP/out1/${KRSK_DIAL_NUM}');
     });
 
     it('multiline + time group never produces ?same =>', () => {
@@ -1380,13 +1540,13 @@ describe('D-53 findUnreachableSteps / digit-exit', () => {
 describe('D-37 / D-32 / D-39 / D-43 per-app generator fixes', () => {
   const vpbx = 42;
 
-  it('setclid_list emits exactly one CURL (12-01 baseline was 2 SHELL)', () => {
+  it('callerid number_list emits exactly one CURL (12-01 baseline was 2 SHELL)', () => {
     const prevUrl = AsteriskDialplanUtils.backendBaseUrl;
     const prevKey = AsteriskDialplanUtils.dialplanApiKey;
     AsteriskDialplanUtils.backendBaseUrl = 'http://backend.test/api';
     AsteriskDialplanUtils.dialplanApiKey = 'wave0-key';
     const dp = AsteriskDialplanUtils.actionToDialplan(
-      { type: 'callerid', params: { mode: 'setclid_list', list_uid: 5 }, condition: {} },
+      { type: 'callerid', params: { mode: 'number_list', list_uid: 5 }, condition: {} },
       vpbx,
     );
     expect((dp.match(/CURL\(/g) ?? []).length).toBe(1);
@@ -1403,6 +1563,41 @@ describe('D-37 / D-32 / D-39 / D-43 per-app generator fixes', () => {
     expect(dp.indexOf('Set(QUEUE_PRIO=')).toBeGreaterThan(-1);
     expect(dp.indexOf('Set(QUEUE_PRIO=')).toBeLessThan(dp.indexOf('Queue('));
     expect(dp).toContain('Set(QUEUE_PRIO=7)');
+  });
+
+  it('toqueue priority from variable emits Set(QUEUE_PRIO=${VAR})', () => {
+    const dp = AsteriskDialplanUtils.actionToDialplan(
+      {
+        type: 'toqueue',
+        params: {
+          target: { source: 'fixed', value: 'sales' },
+          priority: { source: 'variable', name: 'VIP_PRIO' },
+        },
+        condition: {},
+      },
+      vpbx,
+    );
+    expect(dp).toContain('Set(QUEUE_PRIO=${VIP_PRIO})');
+    expect(dp.indexOf('Set(QUEUE_PRIO=')).toBeLessThan(dp.indexOf('Queue('));
+  });
+
+  it('toqueue priority from phonebook looks up PB_PRIO before QUEUE_PRIO', () => {
+    const dp = AsteriskDialplanUtils.actionToDialplan(
+      {
+        type: 'toqueue',
+        params: {
+          target: { source: 'fixed', value: 'sales' },
+          priority: { source: 'phonebook', phonebookUid: 9, varKey: 'prio' },
+        },
+        condition: {},
+      },
+      vpbx,
+    );
+    expect(dp).toContain('Set(PB_PRIO=${CURL(');
+    expect(dp).toContain('var_key=prio');
+    expect(dp).toContain('Set(QUEUE_PRIO=${PB_PRIO})');
+    expect(dp.indexOf('Set(PB_PRIO=')).toBeLessThan(dp.indexOf('Set(QUEUE_PRIO='));
+    expect(dp.indexOf('Set(QUEUE_PRIO=')).toBeLessThan(dp.indexOf('Queue('));
   });
 
   it('toqueue without priority does not emit QUEUE_PRIO', () => {
@@ -1466,18 +1661,18 @@ describe('D-37 / D-32 / D-39 / D-43 per-app generator fixes', () => {
     expect(dp).toContain('RAND');
   });
 
-  it('setclid_custom with name emits both CALLERID(num) and CALLERID(name)', () => {
+  it('callerid static with name emits both CALLERID(num) and CALLERID(name)', () => {
     const dp = AsteriskDialplanUtils.actionToDialplan(
-      { type: 'setclid_custom', params: { callerid: '100', name: 'Sales' }, condition: {} },
+      { type: 'callerid', params: { mode: 'static', callerid: '100', name: 'Sales' }, condition: {} },
       vpbx,
     );
     expect(dp).toContain('CALLERID(num)=100');
     expect(dp).toContain('CALLERID(name)=Sales');
   });
 
-  it('setclid_custom without name does not emit empty CALLERID(name)', () => {
+  it('callerid static without name does not emit empty CALLERID(name)', () => {
     const dp = AsteriskDialplanUtils.actionToDialplan(
-      { type: 'setclid_custom', params: { callerid: '100' }, condition: {} },
+      { type: 'callerid', params: { mode: 'static', callerid: '100' }, condition: {} },
       vpbx,
     );
     expect(dp).toContain('CALLERID(num)=100');
@@ -1485,7 +1680,7 @@ describe('D-37 / D-32 / D-39 / D-43 per-app generator fixes', () => {
   });
 });
 
-describe('D-44 label / goto / branch generator', () => {
+describe('D-44 label / goto generator', () => {
   const vpbx = 42;
   const workHours = {
     time_start: '09:00',
@@ -1519,12 +1714,12 @@ describe('D-44 label / goto / branch generator', () => {
     expect(dp).toContain('__KRSK_HOPS');
   });
 
-  it('branch emits GotoIf with both existing label addresses and hop prologue', () => {
+  it('conditional goto emits GotoIf with both label addresses and hop prologue', () => {
     const dp = AsteriskDialplanUtils.actionToDialplan(
       {
-        type: 'branch',
+        type: 'goto',
         params: {
-          true_label: 'ok',
+          label_name: 'ok',
           false_label: 'fail',
           condition: { source: 'dialstatus', values: ['ANSWER'] },
         },
@@ -1537,6 +1732,23 @@ describe('D-44 label / goto / branch generator', () => {
     expect(dp).toContain('fail');
     expect(dp).toContain('__KRSK_HOPS');
     expect(dp).toContain('DIALSTATUS');
+  });
+
+  it('conditional goto without an else-label falls through instead of jumping', () => {
+    const dp = AsteriskDialplanUtils.actionToDialplan(
+      {
+        type: 'goto',
+        params: {
+          label_name: 'ok',
+          condition: { source: 'dialstatus', values: ['ANSWER'] },
+        },
+        condition: {},
+      },
+      vpbx,
+    );
+    expect(dp).toContain('GotoIf');
+    expect(dp).toContain('?ok)');
+    expect(dp).not.toContain(':');
   });
 
   it('schedule time expression matches the time_group interval format byte-for-byte', () => {
@@ -1553,14 +1765,17 @@ describe('D-44 label / goto / branch generator', () => {
 describe('D-47 / D-49 http_request and collect_input generator', () => {
   const vpbx = 42;
 
-  it('http_request stores the result in HTTP_RESULT_VAR with a timeout', () => {
+  it('http_request stores the result in HTTP_RESULT_VAR with a timeout via backend proxy', () => {
     const { HTTP_RESULT_VAR } = require('@krasterisk/shared');
     const dp = AsteriskDialplanUtils.actionToDialplan(
-      { type: 'http_request', params: { url: 'https://example.com/x', method: 'GET' }, condition: {} },
+      { id: 'h1', type: 'http_request', params: { url: 'https://example.com/x', method: 'GET' }, condition: {} },
       vpbx,
     );
     expect(dp).toContain(`Set(${HTTP_RESULT_VAR}=`);
     expect(dp).toMatch(/CURLOPT\(httptimeout\)=\d+/);
+    expect(dp).toContain('/internal/dialplan/http-request');
+    expect(dp).toContain('action_id=h1');
+    expect(dp).not.toContain('CURL(https://example.com/x');
   });
 
   it('collect_input emits Read( with the variable name from params', () => {

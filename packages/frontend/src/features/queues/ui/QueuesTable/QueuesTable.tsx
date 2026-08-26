@@ -67,7 +67,7 @@ export const QueuesTable = () => {
       header: t('queues.displayName', 'Название'),
       size: 180,
       cell: ({ row }) => (
-        <span className="text-sm text-foreground">{row.original.display_name || <span className="text-muted-foreground">—</span>}</span>
+        <span className="text-sm text-foreground">{row.original.display_name || <span className="text-muted-foreground">-</span>}</span>
       ),
     },
     {
@@ -75,7 +75,7 @@ export const QueuesTable = () => {
       header: t('queues.strategy', 'Стратегия'),
       size: 150,
       cell: ({ row }) => (
-        <span className="text-sm">{STRATEGY_LABELS[row.original.strategy || ''] || row.original.strategy || '—'}</span>
+        <span className="text-sm">{STRATEGY_LABELS[row.original.strategy || ''] || row.original.strategy || '-'}</span>
       ),
     },
     {
@@ -96,7 +96,7 @@ export const QueuesTable = () => {
       accessorKey: 'timeout',
       header: t('queues.timeout', 'Таймаут'),
       size: 80,
-      cell: ({ row }) => <span className="text-sm text-muted-foreground">{row.original.timeout ?? '—'}s</span>,
+      cell: ({ row }) => <span className="text-sm text-muted-foreground">{row.original.timeout ?? '-'}s</span>,
     },
     {
       accessorKey: 'maxlen',
@@ -168,9 +168,9 @@ export const QueuesTable = () => {
                 <HStack justify="between" align="start" max>
                   <VStack gap="4">
                     <Text className="font-mono font-semibold">{row.exten || row.name}</Text>
-                    <Text className="text-sm">{row.display_name || '—'}</Text>
+                    <Text className="text-sm">{row.display_name || '-'}</Text>
                     <Text variant="muted" className="text-xs">
-                      {STRATEGY_LABELS[row.strategy || ''] || row.strategy || '—'}
+                      {STRATEGY_LABELS[row.strategy || ''] || row.strategy || '-'}
                       {' · '}
                       {row.memberCount || 0} {t('queues.members', 'Операторы').toLowerCase()}
                     </Text>

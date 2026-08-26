@@ -1,4 +1,6 @@
 import type { ConditionOp, ConditionSourceKind } from './dialplan-condition.types';
+import type { IIvrPhraseTtsSettings } from './ivr-phrase.types';
+import type { ITrunkCarouselItem } from './notification.types';
 import type { ITimeGroupInterval } from './timeGroup.types';
 
 export type ValueSource =
@@ -9,10 +11,69 @@ export type ValueSource =
 
 export type MediaMixMode = 'say' | 'mix';
 
-/** D-26: strip digits then prepend, applied to trunk-dialing targets. */
+/** D-26: strip digits then prepend. Dual-read legacy — prefer `DialTargetRewrite`. */
 export interface NumberManipulation {
   strip?: number;
   prepend?: string;
+}
+
+export type DialRewriteNoMatchPolicy = 'passthrough' | 'reject';
+
+export type DialRewriteCharset = 'phone' | 'exten' | 'generic';
+
+export type DialRewriteConditionKind =
+  | 'eq'
+  | 'startsWith'
+  | 'endsWith'
+  | 'length'
+  | 'digitMask'
+  | 'regex';
+
+export interface DialRewriteCondition {
+  kind: DialRewriteConditionKind;
+  value?: string;
+  min?: number;
+  max?: number;
+}
+
+export interface DialRewriteTransform {
+  /** Replace the whole source value. */
+  replaceAll?: string;
+  stripStartCount?: number;
+  stripStartText?: string;
+  stripEndCount?: number;
+  stripEndText?: string;
+  replaceFind?: string;
+  replaceWith?: string;
+  prefix?: string;
+  postfix?: string;
+}
+
+export interface DialRewriteRule {
+  id: string;
+  enabled?: boolean;
+  /** AND. Empty = match any number. */
+  conditions?: DialRewriteCondition[];
+  transform: DialRewriteTransform;
+}
+
+/** First matching rule wins. Applied after ValueSource is resolved. */
+export interface DialTargetRewrite {
+  rules?: DialRewriteRule[];
+  noMatch?: DialRewriteNoMatchPolicy;
+}
+
+export type DialRewriteErrorCode =
+  | 'empty'
+  | 'charset'
+  | 'rejected'
+  | 'invalid_regex'
+  | 'invalid_transform';
+
+export interface DialRewriteEvalResult {
+  output: string;
+  matchedRuleId: string | null;
+  error?: DialRewriteErrorCode;
 }
 
 /** Structured Playback / BackGround option flags (D-38). String form is accepted and normalized. */
@@ -39,14 +100,29 @@ export interface IQueueActionParams {
   timeout?: number | string;
   options?: string;
   announceoverride?: string;
-  priority?: number;
+  /**
+   * Caller priority before Queue() → Set(QUEUE_PRIO=…).
+   * Prefer ValueSource (`fixed` | `variable` | `phonebook`). Plain number is dual-read legacy.
+   */
+  priority?: ValueSource | number;
 }
 
 export interface IToTrunkParams {
+  /** `single` — one trunk; `carousel` — ordered list with failover strategy */
+  trunkMode?: 'single' | 'carousel';
   trunk?: string;
+  /** Carousel traversal order when `trunkMode` is `carousel` */
+  mode?: 'random_then_failover' | 'sequential';
+  trunks?: ITrunkCarouselItem[];
+  /** CallerID mode in single trunk mode: static number or lookup from phonebook */
+  cid_mode?: 'static' | 'phonebook';
+  callerid?: string;
+  phonebook_uid?: number;
   dest?: ValueSource;
   timeout?: number | string;
   options?: string;
+  rewrite?: DialTargetRewrite;
+  /** @deprecated dual-read — lifted into `rewrite` */
   numberManipulation?: NumberManipulation;
 }
 
@@ -60,6 +136,8 @@ export interface IToExtenParams {
   webrtc?: boolean;
   timeout?: number | string;
   options?: string;
+  rewrite?: DialTargetRewrite;
+  /** @deprecated dual-read — lifted into `rewrite` */
   numberManipulation?: NumberManipulation;
   /** @deprecated Wave 0 — read when `target` is absent */
   exten?: string;
@@ -78,6 +156,7 @@ export interface IToListParams {
   numbers?: string;
   timeout?: number | string;
   options?: string;
+  rewrite?: DialTargetRewrite;
 }
 
 export interface IToIvrParams {
@@ -87,6 +166,7 @@ export interface IToIvrParams {
 export interface IToRouteParams {
   context?: string;
   extension?: ValueSource;
+  rewrite?: DialTargetRewrite;
 }
 
 export const PLAYBACK_MODES = ['plain', 'control', 'menu'] as const;
@@ -104,17 +184,6 @@ export interface IPlaybackParams extends IMediaParams {
   digit?: string;
   /** @deprecated dual-read until 12-12 */
   digitExitDest?: string;
-}
-
-export interface ISetClidCustomParams {
-  callerid?: string;
-  name?: string;
-  mode?: string;
-}
-
-export interface ISetClidListParams {
-  list_uid?: string | number;
-  mode?: string;
 }
 
 export interface ISendMailParams {
@@ -143,8 +212,11 @@ export interface IText2SpeechParams {
   text?: string;
   /** Tenant TTS engine uid from the project catalog (D-30). */
   engine?: number | string;
-  voice?: string;
-  language?: string;
+  /**
+   * Per-step overrides on top of the engine settings — same contract as IVR
+   * phrases and synthesized prompts, merged server-side by mergePhraseSettings.
+   */
+  settings?: IIvrPhraseTtsSettings;
   options?: IMediaOptions | string;
   langoverride?: string;
   digittimeout?: number;
@@ -191,22 +263,20 @@ export interface ILabelParams {
 
 export interface IGotoParams {
   label_name?: string;
+  /** When set, the jump is conditional: true -> label_name, false -> false_label. */
+  condition?: IBranchCondition;
+  false_label?: string;
 }
 
 export interface IBranchCondition {
   source?: ConditionSourceKind;
-  values?: string[];
+  /** Single value or list — same shape as RouteConditionDto / dialstatus. */
+  values?: string | string[];
   device?: string;
   name?: string;
   op?: ConditionOp;
   value?: string;
   dialstatus?: string | string[];
-}
-
-export interface IBranchParams {
-  true_label?: string;
-  false_label?: string;
-  condition?: IBranchCondition;
 }
 
 export interface IScheduleParams {
@@ -234,16 +304,14 @@ export interface ICollectInputParams {
   mode?: CollectInputMode;
 }
 
-export interface IBusyParams {
-  timeout?: number | string;
-}
+/** Which tone/cause the caller gets before the channel is torn down. */
+export type HangupSignal = 'busy' | 'congestion' | 'hangup';
 
 export interface IHangupParams {
-  causecode?: string;
-}
-
-/** Same shape as Busy — optional timeout. Generator branch is added in 12-05. */
-export interface ICongestionParams {
+  signal?: HangupSignal;
+  /** Seconds to keep playing the tone — busy/congestion only. */
   timeout?: number | string;
+  /** Q.850 cause code — signal 'hangup' only. */
+  causecode?: string;
 }
 

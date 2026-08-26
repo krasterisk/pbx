@@ -1,5 +1,5 @@
 /**
- * Feature: Endpoints Management — Public API
+ * Feature: Endpoints Management - Public API
  */
 
 // Slice

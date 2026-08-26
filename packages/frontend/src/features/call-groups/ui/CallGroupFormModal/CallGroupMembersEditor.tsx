@@ -1,7 +1,25 @@
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronUp, ChevronDown, Trash2, Plus } from 'lucide-react';
-import { Button, Input, Select, Text, Label, InfoTooltip } from '@/shared/ui';
+import { GripVertical, Trash2, Plus } from 'lucide-react';
+import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type Announcements,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { Button, Input, Select, Text, Label, InfoTooltip, Tooltip } from '@/shared/ui';
 import { VStack, HStack, Flex } from '@/shared/ui/Stack';
 import type { CallGroupMemberType, RingStrategy } from '@krasterisk/shared';
 import { useGetEndpointsQuery } from '@/shared/api/endpoints/endpointApi';
@@ -33,7 +51,48 @@ function usesMemberRingTime(strategy: RingStrategy): boolean {
   return strategy === 'hunt' || strategy === 'memoryhunt' || strategy === 'random';
 }
 
-const withPositions = (list: LocalCallGroupMember[]): LocalCallGroupMember[] => list;
+function restrictToVerticalAxisLocal({
+  transform,
+}: {
+  transform: { x: number; y: number; scaleX: number; scaleY: number };
+}) {
+  return { ...transform, x: 0 };
+}
+
+function buildMemberDndAnnouncements(
+  t: (key: string, fallback?: string) => string,
+  lang: string,
+  getIndex?: (id: string | number) => number,
+): Announcements {
+  const isEn = lang.toLowerCase().startsWith('en');
+  const positionOf = (id?: string | number) => {
+    if (id == null) return 1;
+    return (getIndex?.(id) ?? 0) + 1;
+  };
+
+  return {
+    onDragStart: () =>
+      isEn
+        ? t('callGroups.dnd.picked', 'Member picked')
+        : t('callGroups.dnd.picked', 'Участник поднят'),
+    onDragOver: ({ over }) => {
+      const n = positionOf(over?.id);
+      return isEn
+        ? t('callGroups.dnd.moved', 'Moved to position {{n}}').replace('{{n}}', String(n))
+        : t('callGroups.dnd.moved', 'Перемещён на позицию {{n}}').replace('{{n}}', String(n));
+    },
+    onDragEnd: ({ over }) =>
+      over
+        ? isEn
+          ? t('callGroups.dnd.dropped', 'Member dropped')
+          : t('callGroups.dnd.dropped', 'Участник отпущен')
+        : undefined,
+    onDragCancel: () =>
+      isEn
+        ? t('callGroups.dnd.cancelled', 'Move cancelled')
+        : t('callGroups.dnd.cancelled', 'Перемещение отменено'),
+  };
+}
 
 function MemberValueField({
   memberType,
@@ -87,6 +146,96 @@ function MemberValueField({
   );
 }
 
+function SortableMemberRow({
+  member,
+  index,
+  showMemberRingTime,
+  endpoints,
+  endpointsLoading,
+  onUpdate,
+  onRemove,
+}: {
+  member: LocalCallGroupMember;
+  index: number;
+  showMemberRingTime: boolean;
+  endpoints: { id: string; extension: string; callerid?: string }[];
+  endpointsLoading: boolean;
+  onUpdate: (index: number, patch: Partial<LocalCallGroupMember>) => void;
+  onRemove: (index: number) => void;
+}) {
+  const { t } = useTranslation();
+  const sortable = useSortable({ id: member.id });
+  const style = {
+    transform: CSS.Transform.toString(sortable.transform),
+    transition: sortable.transition,
+    opacity: sortable.isDragging ? 0.6 : 1,
+  };
+
+  return (
+    <Flex
+      ref={sortable.setNodeRef}
+      style={style}
+      align="center"
+      wrap="wrap"
+      gap="8"
+      className={cls.memberItem}
+    >
+      <Tooltip content={t('routes.tooltips.dragHandle', 'Перетащите для изменения порядка')}>
+        <button
+          type="button"
+          className={cls.dragHandle}
+          aria-label={t('routes.tooltips.dragHandle', 'Перетащите для изменения порядка')}
+          {...sortable.attributes}
+          {...sortable.listeners}
+        >
+          <GripVertical size={18} />
+        </button>
+      </Tooltip>
+
+      <Text as="span" className={cls.memberIndex}>{index + 1}</Text>
+
+      <Select
+        className={cls.typeSelect}
+        value={member.member_type}
+        onChange={(e) => onUpdate(index, { member_type: e.target.value as CallGroupMemberType })}
+      >
+        <option value="internal">{t('callGroups.memberTypeInternal', 'Внутренний')}</option>
+        <option value="external">{t('callGroups.memberTypeExternal', 'Внешний')}</option>
+      </Select>
+
+      <MemberValueField
+        memberType={member.member_type}
+        value={member.value}
+        onChange={(value) => onUpdate(index, { value })}
+        endpoints={endpoints}
+        endpointsLoading={endpointsLoading}
+      />
+
+      {showMemberRingTime && (
+        <Input
+          className={cls.ringTimeInput}
+          type="number"
+          min={0}
+          value={member.ring_time}
+          onChange={(e) => onUpdate(index, { ring_time: e.target.value })}
+          placeholder={t('callGroups.ringTimeMember', 'Сек.')}
+          title={t('callGroups.ringTimeMemberDesc')}
+        />
+      )}
+
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        onClick={() => onRemove(index)}
+        title={t('common.delete', 'Удалить')}
+      >
+        <Trash2 size={16} />
+      </Button>
+    </Flex>
+  );
+}
+
 export const CallGroupMembersEditor = memo(({
   members,
   setMembers,
@@ -95,7 +244,7 @@ export const CallGroupMembersEditor = memo(({
   onExternalContextChange,
   contexts,
 }: CallGroupMembersEditorProps) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { data: endpoints = [], isLoading: endpointsLoading } = useGetEndpointsQuery();
   const [draftType, setDraftType] = useState<CallGroupMemberType>('internal');
   const [draftValue, setDraftValue] = useState('');
@@ -117,14 +266,26 @@ export const CallGroupMembersEditor = memo(({
     [endpoints],
   );
 
-  // Reset draft value when switching type (internal select vs external input)
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  const announcements = useMemo(
+    () =>
+      buildMemberDndAnnouncements(t, i18n?.language ?? 'ru', (id) =>
+        members.findIndex((item) => item.id === Number(id)),
+      ),
+    [i18n?.language, members, t],
+  );
+
   useEffect(() => {
     setDraftValue('');
   }, [draftType]);
 
   const handleAdd = useCallback(() => {
     if (!draftValue.trim()) return;
-    setMembers(withPositions([
+    setMembers([
       ...members,
       {
         id: Date.now(),
@@ -132,34 +293,28 @@ export const CallGroupMembersEditor = memo(({
         value: draftValue.trim(),
         ring_time: draftRingTime,
       },
-    ]));
+    ]);
     setDraftValue('');
     setDraftRingTime('');
   }, [draftType, draftValue, draftRingTime, members, setMembers]);
 
   const handleRemove = useCallback((index: number) => {
-    setMembers(withPositions(members.filter((_, i) => i !== index)));
+    setMembers(members.filter((_, i) => i !== index));
   }, [members, setMembers]);
 
-  const handleMoveUp = useCallback((index: number) => {
-    if (index === 0) return;
-    const copy = [...members];
-    [copy[index - 1], copy[index]] = [copy[index], copy[index - 1]];
-    setMembers(withPositions(copy));
-  }, [members, setMembers]);
-
-  const handleMoveDown = useCallback((index: number) => {
-    if (index >= members.length - 1) return;
-    const copy = [...members];
-    [copy[index], copy[index + 1]] = [copy[index + 1], copy[index]];
-    setMembers(withPositions(copy));
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const from = members.findIndex((item) => item.id === active.id);
+    const to = members.findIndex((item) => item.id === over.id);
+    if (from < 0 || to < 0) return;
+    setMembers(arrayMove(members, from, to));
   }, [members, setMembers]);
 
   const handleUpdate = useCallback((index: number, patch: Partial<LocalCallGroupMember>) => {
     setMembers(members.map((m, i) => {
       if (i !== index) return m;
       const next = { ...m, ...patch };
-      // Clear value when switching member type — formats differ
       if (patch.member_type && patch.member_type !== m.member_type) {
         next.value = '';
       }
@@ -173,6 +328,43 @@ export const CallGroupMembersEditor = memo(({
         <Text variant="small">{t('callGroups.members', 'Участники')}</Text>
         <InfoTooltip text={t('callGroups.membersDesc')} />
       </HStack>
+
+      <Flex align="center" wrap="wrap" gap="8" className={cls.addRow}>
+        <Select
+          className={cls.addTypeSelect}
+          value={draftType}
+          onChange={(e) => setDraftType(e.target.value as CallGroupMemberType)}
+          aria-label={t('callGroups.memberType', 'Тип участника')}
+        >
+          <option value="internal">{t('callGroups.memberTypeInternal', 'Внутренний')}</option>
+          <option value="external">{t('callGroups.memberTypeExternal', 'Внешний')}</option>
+        </Select>
+
+        <MemberValueField
+          memberType={draftType}
+          value={draftValue}
+          onChange={setDraftValue}
+          endpoints={endpointOptions}
+          endpointsLoading={endpointsLoading}
+        />
+
+        {showMemberRingTime && (
+          <Input
+            className={cls.addRingTimeInput}
+            type="number"
+            min={0}
+            value={draftRingTime}
+            onChange={(e) => setDraftRingTime(e.target.value)}
+            placeholder={t('callGroups.ringTimeMember', 'Сек.')}
+            title={t('callGroups.ringTimeMemberDesc')}
+          />
+        )}
+
+        <Button type="button" variant="outline" size="sm" onClick={handleAdd} disabled={!draftValue.trim()}>
+          <Plus size={14} />
+          {t('callGroups.addMember', 'Добавить участника')}
+        </Button>
+      </Flex>
 
       {needsExternalContext && (
         <div className={cls.externalContextField}>
@@ -213,112 +405,35 @@ export const CallGroupMembersEditor = memo(({
             </Text>
           </VStack>
         ) : (
-          <VStack gap="8" max>
-            {members.map((member, index) => (
-              <Flex key={member.id} align="center" wrap="wrap" gap="8" className={cls.memberItem}>
-                <Text as="span" className={cls.memberIndex}>{index + 1}</Text>
-
-                <Select
-                  className={cls.typeSelect}
-                  value={member.member_type}
-                  onChange={(e) => handleUpdate(index, { member_type: e.target.value as CallGroupMemberType })}
-                >
-                  <option value="internal">{t('callGroups.memberTypeInternal', 'Внутренний')}</option>
-                  <option value="external">{t('callGroups.memberTypeExternal', 'Внешний')}</option>
-                </Select>
-
-                <MemberValueField
-                  memberType={member.member_type}
-                  value={member.value}
-                  onChange={(value) => handleUpdate(index, { value })}
-                  endpoints={endpointOptions}
-                  endpointsLoading={endpointsLoading}
-                />
-
-                {showMemberRingTime && (
-                  <Input
-                    className={cls.ringTimeInput}
-                    type="number"
-                    min={0}
-                    value={member.ring_time}
-                    onChange={(e) => handleUpdate(index, { ring_time: e.target.value })}
-                    placeholder={t('callGroups.ringTimeMember', 'Сек.')}
-                    title={t('callGroups.ringTimeMemberDesc')}
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            modifiers={[restrictToVerticalAxisLocal]}
+            accessibility={{ announcements }}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={members.map((item) => item.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <VStack gap="8" max role="list">
+                {members.map((member, index) => (
+                  <SortableMemberRow
+                    key={member.id}
+                    member={member}
+                    index={index}
+                    showMemberRingTime={showMemberRingTime}
+                    endpoints={endpointOptions}
+                    endpointsLoading={endpointsLoading}
+                    onUpdate={handleUpdate}
+                    onRemove={handleRemove}
                   />
-                )}
-
-                <HStack gap="4">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleMoveUp(index)}
-                    disabled={index === 0}
-                    title={t('common.moveUp', 'Вверх')}
-                  >
-                    <ChevronUp size={16} />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleMoveDown(index)}
-                    disabled={index >= members.length - 1}
-                    title={t('common.moveDown', 'Вниз')}
-                  >
-                    <ChevronDown size={16} />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleRemove(index)}
-                    title={t('common.delete', 'Удалить')}
-                  >
-                    <Trash2 size={16} />
-                  </Button>
-                </HStack>
-              </Flex>
-            ))}
-          </VStack>
+                ))}
+              </VStack>
+            </SortableContext>
+          </DndContext>
         )}
       </VStack>
-
-      <Flex align="center" wrap="wrap" gap="8" className={cls.addRow}>
-        <Select
-          className={cls.addTypeSelect}
-          value={draftType}
-          onChange={(e) => setDraftType(e.target.value as CallGroupMemberType)}
-        >
-          <option value="internal">{t('callGroups.memberTypeInternal', 'Внутренний')}</option>
-          <option value="external">{t('callGroups.memberTypeExternal', 'Внешний')}</option>
-        </Select>
-
-        <MemberValueField
-          memberType={draftType}
-          value={draftValue}
-          onChange={setDraftValue}
-          endpoints={endpointOptions}
-          endpointsLoading={endpointsLoading}
-        />
-
-        {showMemberRingTime && (
-          <Input
-            className={cls.addRingTimeInput}
-            type="number"
-            min={0}
-            value={draftRingTime}
-            onChange={(e) => setDraftRingTime(e.target.value)}
-            placeholder={t('callGroups.ringTimeMember', 'Сек.')}
-            title={t('callGroups.ringTimeMemberDesc')}
-          />
-        )}
-
-        <Button type="button" variant="outline" size="sm" onClick={handleAdd} disabled={!draftValue.trim()}>
-          <Plus size={14} />
-          {t('callGroups.addMember', 'Добавить участника')}
-        </Button>
-      </Flex>
     </VStack>
   );
 });

@@ -47,6 +47,7 @@ describe('Hub modules Phase 8 seed', () => {
     const ccPages = HUB_MODULE_PAGES_SEED.filter((p) => p.hub_code === 'callcenter');
     expect(appsPages.some((p) => p.page_code === 'queues')).toBe(true);
     expect(ccPages.some((p) => p.page_code === 'service_requests')).toBe(true);
+    expect(ccPages.some((p) => p.page_code === 'komandor_claims')).toBe(true);
   });
 
   it('membership rows reference only seeded hub codes', () => {

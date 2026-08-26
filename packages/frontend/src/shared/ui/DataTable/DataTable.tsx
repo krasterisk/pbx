@@ -50,7 +50,7 @@ export interface DataTableProps<TData> {
   csvDelimiter?: string;
   /** CSV field enclosure character (default `"`) */
   csvEnclosure?: string;
-  /** Render slot above the table (header area) — receives the table instance */
+  /** Render slot above the table (header area) - receives the table instance */
   renderHeader?: (table: Table<TData>) => React.ReactNode;
   /** Custom row className based on row data */
   getRowClassName?: (row: TData) => string;
@@ -75,7 +75,7 @@ export interface DataTableRef {
 }
 
 // ---------------------------------------------------------------------------
-// Pagination Controls — Client-side
+// Pagination Controls - Client-side
 // ---------------------------------------------------------------------------
 
 function ClientPaginationControls<TData>({ table }: { table: Table<TData> }) {
@@ -137,7 +137,7 @@ function ClientPaginationControls<TData>({ table }: { table: Table<TData> }) {
 }
 
 // ---------------------------------------------------------------------------
-// Pagination Controls — Server-side
+// Pagination Controls - Server-side
 // ---------------------------------------------------------------------------
 
 interface ServerPaginationProps {

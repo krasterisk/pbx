@@ -3,24 +3,18 @@ import type { IRoutePhonebookBinding } from './phonebook.types';
 import type {
   ICallerIdActionParams,
   INotifyActionParams,
-  ITrunkCarouselActionParams,
 } from './notification.types';
 import type {
-  IBusyParams,
   ICmdParams,
   IConfBridgeParams,
-  ICongestionParams,
   ICollectInputParams,
   IGotoParams,
   IHangupParams,
   IHttpRequestParams,
   ILabelParams,
-  IBranchParams,
   IPlaybackParams,
   IScheduleParams,
   IQueueActionParams,
-  ISetClidCustomParams,
-  ISetClidListParams,
   IText2SpeechParams,
   IToExtenParams,
   IToGroupParams,
@@ -36,13 +30,12 @@ import type {
 export type ActionType =
   | 'totrunk' | 'toexten' | 'toqueue' | 'togroup' | 'tolist'
   | 'toivr' | 'toroute' | 'playback'
-  | 'setclid_custom' | 'setclid_list'
-  | 'notify' | 'callerid' | 'trunk_carousel'
+  | 'notify' | 'callerid'
   | 'voicemail' | 'text2speech' | 'voicerobot'
   | 'webhook' | 'confbridge' | 'cmd'
-  | 'label' | 'goto' | 'branch' | 'schedule'
+  | 'label' | 'goto' | 'schedule'
   | 'http_request' | 'collect_input'
-  | 'busy' | 'hangup' | 'congestion';
+  | 'hangup';
 
 /** Asterisk DIALSTATUS values — used as condition whitelist */
 export type DialStatus =
@@ -73,7 +66,6 @@ interface BaseRouteAction {
 }
 
 export type {
-  IBusyParams as IBusyActionParams,
   ICmdParams as ICmdActionParams,
   IConfBridgeParams as IConfbridgeActionParams,
   ICollectInputParams as ICollectInputActionParams,
@@ -81,11 +73,8 @@ export type {
   IHangupParams,
   IHttpRequestParams as IHttpRequestActionParams,
   ILabelParams as ILabelActionParams,
-  IBranchParams as IBranchActionParams,
   IScheduleParams as IScheduleActionParams,
   IQueueActionParams,
-  ISetClidCustomParams as ISetClidCustomActionParams,
-  ISetClidListParams as ISetClidListActionParams,
   IText2SpeechParams as IText2SpeechActionParams,
   IToExtenParams as IExtenActionParams,
   IToGroupParams as IGroupActionParams,
@@ -107,11 +96,8 @@ export type DialplanAction = BaseRouteAction & (
   | { type: 'toivr'; params: IToIvrParams }
   | { type: 'toroute'; params: IToRouteParams }
   | { type: 'playback'; params: IPlaybackParams }
-  | { type: 'setclid_custom'; params: ISetClidCustomParams }
-  | { type: 'setclid_list'; params: ISetClidListParams }
   | { type: 'notify'; params: INotifyActionParams }
   | { type: 'callerid'; params: ICallerIdActionParams }
-  | { type: 'trunk_carousel'; params: ITrunkCarouselActionParams }
   | { type: 'voicemail'; params: IVoicemailParams }
   | { type: 'text2speech'; params: IText2SpeechParams }
   | { type: 'voicerobot'; params: IVoiceRobotParams }
@@ -120,13 +106,10 @@ export type DialplanAction = BaseRouteAction & (
   | { type: 'cmd'; params: ICmdParams }
   | { type: 'label'; params: ILabelParams }
   | { type: 'goto'; params: IGotoParams }
-  | { type: 'branch'; params: IBranchParams }
   | { type: 'schedule'; params: IScheduleParams }
   | { type: 'http_request'; params: IHttpRequestParams }
   | { type: 'collect_input'; params: ICollectInputParams }
-  | { type: 'busy'; params: IBusyParams }
   | { type: 'hangup'; params: IHangupParams }
-  | { type: 'congestion'; params: ICongestionParams }
 );
 
 /** Exhaustiveness helper for `switch (action.type)` without `default` (D-08). */

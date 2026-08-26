@@ -59,13 +59,24 @@
   padding: 12px;
 }
 
+.statItemWide {
+  grid-column: 1 / -1;
+}
+
+.statLabelRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
 .statLabel {
   font-size: 0.7rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--color-muted-foreground);
-  margin-bottom: 4px;
+  margin-bottom: 0;
 }
 
 .statValue {

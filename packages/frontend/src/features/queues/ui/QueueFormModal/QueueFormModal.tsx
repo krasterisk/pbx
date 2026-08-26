@@ -5,7 +5,7 @@ import {
   X, Phone, Hash, Trash2, Pause, Play, Volume2,
   Users, Headphones,
 } from 'lucide-react';
-import { Button, Input, InfoTooltip, MultiSelect } from '@/shared/ui';
+import { Button, Input, InfoTooltip, MultiSelect, SegmentedControl } from '@/shared/ui';
 import type { MultiSelectOption } from '@/shared/ui';
 import { VStack, HStack } from '@/shared/ui/Stack';
 import { useAppSelector, useAppDispatch } from '@/shared/hooks/useAppStore';
@@ -27,6 +27,7 @@ import { useGetEndpointsQuery } from '@/shared/api/api';
 import { AdvancedSettingsBuilder } from '@/features/endpoints/ui/AdvancedSettingsBuilder';
 import { QUEUE_ADVANCED_FIELDS } from '../../config/queueAdvancedFields';
 import { IQueueMember } from '../../model/types/queuesSchema';
+import { extractExtension, interfaceToExtension, isWebrtcCompanion } from '@/features/endpoints/lib/endpointIds';
 import cls from './QueueFormModal.module.scss';
 
 // Strategy select options
@@ -181,8 +182,17 @@ export const QueueFormModal = () => {
         const isPjsip = m.interface.startsWith('PJSIP/');
         const isLocal = m.interface.startsWith('Local/');
         if (isPjsip) {
-          const ext = m.interface.replace('PJSIP/', '');
-          return { id: Date.now() + idx, type: 'endpoint' as const, interface: m.interface, membername: m.membername || ext, penalty: m.penalty || 0, paused: m.paused || 0, extension: ext };
+          const sipId = m.interface.replace(/^PJSIP\//i, '');
+          const ext = interfaceToExtension(m.interface) || extractExtension(sipId) || sipId;
+          return {
+            id: Date.now() + idx,
+            type: 'endpoint' as const,
+            interface: m.interface,
+            membername: m.membername || ext,
+            penalty: m.penalty || 0,
+            paused: m.paused || 0,
+            extension: ext,
+          };
         }
         let num = m.interface;
         let ctx = '';
@@ -207,7 +217,7 @@ export const QueueFormModal = () => {
       setExten(''); setDisplayName(''); setStrategy('ringall'); setTimeout('30'); setRetry('5');
       setWrapuptime('0'); setMaxlen('0'); setMusiconhold(''); setContext('');
       setWeight('0'); setServicelevel('60'); setJoinempty(''); setLeavewhenempty('');
-      setRinginuse(false); setAutofill(true);
+      setRinginuse(false); setAutofill(true); setPersistentmembers(true);
       setSetinterfacevar(true); setSetqueueentryvar(true); setSetqueuevar(true);
       setMembers([]);
       setAnnounceFrequency(''); setAnnounceHoldtime(''); setAnnouncePosition('');
@@ -223,19 +233,38 @@ export const QueueFormModal = () => {
 
   const handleClose = useCallback(() => dispatch(queuesPageActions.closeModal()), [dispatch]);
 
-  // Members logic
-  const addEndpointMember = useCallback((ext: string, displayName: string) => {
-    if (members.some(m => m.interface === `PJSIP/${ext}`)) return;
-    setMembers(prev => [...prev, { id: Date.now(), type: 'endpoint', interface: `PJSIP/${ext}`, membername: displayName || ext, penalty: 0, paused: 0, extension: ext }]);
+  // Members logic: always store tenant SIP id (PJSIP/e101_0), never bare PJSIP/101
+  const addEndpointMember = useCallback((sipId: string, displayName: string) => {
+    if (!sipId || isWebrtcCompanion(sipId)) return;
+    const iface = `PJSIP/${sipId}`;
+    if (members.some(m => m.interface === iface)) return;
+    const ext = extractExtension(sipId) || sipId;
+    setMembers(prev => [...prev, {
+      id: Date.now(),
+      type: 'endpoint',
+      interface: iface,
+      membername: displayName || ext,
+      penalty: 0,
+      paused: 0,
+      extension: ext,
+    }]);
     setSearchQuery('');
   }, [members]);
 
   const addCustomMember = useCallback(() => {
-    if (!customNumber.trim()) return;
-    const ctx = customContext || 'from-internal';
-    const iface = `Local/${customNumber.trim()}@${ctx}`;
+    if (!customNumber.trim() || !customContext.trim()) return;
+    const iface = `Local/${customNumber.trim()}@${customContext.trim()}`;
     if (members.some(m => m.interface === iface)) return;
-    setMembers(prev => [...prev, { id: Date.now(), type: 'custom', interface: iface, membername: customNumber.trim(), penalty: 0, paused: 0, extension: customNumber.trim(), context: ctx }]);
+    setMembers(prev => [...prev, {
+      id: Date.now(),
+      type: 'custom',
+      interface: iface,
+      membername: customNumber.trim(),
+      penalty: 0,
+      paused: 0,
+      extension: customNumber.trim(),
+      context: customContext.trim(),
+    }]);
     setCustomNumber('');
   }, [customNumber, customContext, members]);
 
@@ -248,16 +277,21 @@ export const QueueFormModal = () => {
     const q = searchQuery.toLowerCase();
     const addedInterfaces = new Set(members.filter(m => m.type === 'endpoint').map(m => m.interface));
     return endpoints
-      .filter((ep: any) => {
-        const ext = ep.extension || ep.id || '';
-        const callerid = ep.callerid || '';
-        return !addedInterfaces.has(`PJSIP/${ext}`) && (ext.toLowerCase().includes(q) || callerid.toLowerCase().includes(q));
+      .filter((ep: { id?: string; extension?: string; callerid?: string }) => {
+        const sipId = String(ep.id || '');
+        if (!sipId || isWebrtcCompanion(sipId)) return false;
+        const iface = `PJSIP/${sipId}`;
+        if (addedInterfaces.has(iface)) return false;
+        const ext = (ep.extension || extractExtension(sipId) || '').toLowerCase();
+        const callerid = (ep.callerid || '').toLowerCase();
+        return ext.includes(q) || callerid.includes(q) || sipId.toLowerCase().includes(q);
       })
       .slice(0, 8);
   }, [searchQuery, endpoints, members]);
 
   // Submit
   const handleSubmit = async () => {
+    const isCreateMode = mode === 'create' || mode === 'copy';
     const dto: any = {
       exten, display_name: displayName || null, strategy,
       timeout: Number(timeout) || 30, retry: Number(retry) || 5,
@@ -293,8 +327,6 @@ export const QueueFormModal = () => {
       members: members.map(m => ({ interface: m.interface, membername: m.membername, penalty: m.penalty, paused: m.paused })),
       advanced: advancedState,
     };
-
-    const isCreateMode = mode === 'create' || mode === 'copy';
 
     try {
       if (isCreateMode) await createQueue(dto).unwrap();
@@ -520,7 +552,7 @@ export const QueueFormModal = () => {
                   </VStack>
                 </div>
 
-                {/* joinempty / leavewhenempty — multi-selects */}
+                {/* joinempty / leavewhenempty: multi-selects */}
                 <VStack gap="4">
                   <HStack gap="4" align="center">
                     <label className="text-sm font-medium text-muted-foreground">{t('queues.joinempty')}</label>
@@ -554,8 +586,12 @@ export const QueueFormModal = () => {
                       <InfoTooltip text={t('queues.contextDesc')} />
                     </HStack>
                     <select value={context} onChange={e => setContext(e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-background/50 px-3 py-1 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary focus:border-transparent">
-                      <option value="">—</option>
-                      {contexts.map((c: any) => <option key={c.uid} value={c.name}>{c.name}</option>)}
+                      <option value="">{t('common.notSelected', 'Не выбрано')}</option>
+                      {contexts.map((c: { uid: number; name: string; comment?: string }) => (
+                        <option key={c.uid} value={c.name}>
+                          {c.comment?.trim() ? `${c.name} (${c.comment.trim()})` : c.name}
+                        </option>
+                      ))}
                     </select>
                   </VStack>
                 </div>
@@ -570,29 +606,38 @@ export const QueueFormModal = () => {
                     <span className="text-sm font-medium text-muted-foreground">{t('queues.addMember')}</span>
                   </HStack>
 
-                  <div className={cls.segmentedToggle}>
-                    <button type="button" className={`${cls.segmentBtn} ${memberMode === 'endpoint' ? cls.active : ''}`} onClick={() => setMemberMode('endpoint')}>
-                      <HStack gap="4" align="center"><Phone className="w-3.5 h-3.5" /><span>{t('queues.memberEndpoint')}</span></HStack>
-                    </button>
-                    <button type="button" className={`${cls.segmentBtn} ${memberMode === 'custom' ? cls.active : ''}`} onClick={() => setMemberMode('custom')}>
-                      <HStack gap="4" align="center"><Hash className="w-3.5 h-3.5" /><span>{t('queues.memberCustom')}</span></HStack>
-                    </button>
-                  </div>
+                  <SegmentedControl<'endpoint' | 'custom'>
+                    ariaLabel={t('queues.addMember')}
+                    value={memberMode}
+                    onChange={setMemberMode}
+                    options={[
+                      { value: 'endpoint', label: t('queues.memberEndpoint'), icon: Phone },
+                      { value: 'custom', label: t('queues.memberCustom'), icon: Hash },
+                    ]}
+                  />
 
                   {memberMode === 'endpoint' && (
                     <VStack gap="4">
                       <Input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder={t('queues.searchEndpoint')} />
                       {filteredEndpoints.length > 0 && (
                         <VStack gap="2" className="border border-border rounded-lg p-2 max-h-40 overflow-y-auto">
-                          {filteredEndpoints.map((ep: any) => {
-                            const ext = ep.extension || ep.id;
+                          {filteredEndpoints.map((ep: { id: string; extension?: string; callerid?: string }) => {
+                            const sipId = ep.id;
+                            const ext = ep.extension || extractExtension(sipId) || sipId;
                             const match = (ep.callerid || '').match(/^"(.+?)"/);
                             const displayName = match ? match[1] : ext;
                             return (
-                              <button key={ext} type="button" className="flex items-center gap-2 w-full px-2 py-1.5 rounded hover:bg-accent text-sm text-left" onClick={() => addEndpointMember(ext, displayName)}>
+                              <button
+                                key={sipId}
+                                type="button"
+                                className="flex items-center gap-2 w-full px-2 py-1.5 rounded hover:bg-accent text-sm text-left"
+                                onClick={() => addEndpointMember(sipId, displayName)}
+                              >
                                 <Phone className="w-3.5 h-3.5 text-primary" />
                                 <span className="font-mono">{ext}</span>
-                                <span className="text-muted-foreground">{displayName}</span>
+                                {displayName !== ext && (
+                                  <span className="text-muted-foreground">{displayName}</span>
+                                )}
                               </button>
                             );
                           })}
@@ -604,14 +649,34 @@ export const QueueFormModal = () => {
                   {memberMode === 'custom' && (
                     <VStack gap="4">
                       <HStack gap="8">
-                        <Input className="flex-1" value={customNumber} onChange={e => setCustomNumber(e.target.value)} placeholder={t('queues.customNumber')} onKeyDown={e => e.key === 'Enter' && addCustomMember()} />
-                        <select value={customContext} onChange={e => setCustomContext(e.target.value)} className="flex h-9 w-40 rounded-md border border-input bg-background/50 px-3 py-1 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary focus:border-transparent">
-                          <option value="">{t('queues.defaultContext')}</option>
-                          {contexts.map((c: any) => <option key={c.uid} value={c.name}>{c.name}</option>)}
+                        <Input
+                          className="flex-1"
+                          value={customNumber}
+                          onChange={e => setCustomNumber(e.target.value)}
+                          placeholder={t('queues.customNumber')}
+                          onKeyDown={e => e.key === 'Enter' && addCustomMember()}
+                        />
+                        <select
+                          value={customContext}
+                          onChange={e => setCustomContext(e.target.value)}
+                          className="flex h-9 w-40 rounded-md border border-input bg-background/50 px-3 py-1 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary focus:border-transparent"
+                        >
+                          <option value="">{t('queues.selectContext', 'Выберите контекст')}</option>
+                          {contexts.map((c: { uid: number; name: string; comment?: string }) => (
+                            <option key={c.uid} value={c.name}>
+                              {c.comment?.trim() ? `${c.name} (${c.comment.trim()})` : c.name}
+                            </option>
+                          ))}
                         </select>
-                        <Button variant="outline" size="sm" onClick={addCustomMember} disabled={!customNumber.trim()}>+</Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={addCustomMember}
+                          disabled={!customNumber.trim() || !customContext.trim()}
+                        >
+                          +
+                        </Button>
                       </HStack>
-                      {customNumber.trim() && <span className={cls.livePreview}>Local/{customNumber.trim()}@{customContext || 'from-internal'}</span>}
                     </VStack>
                   )}
                 </VStack>
@@ -620,24 +685,34 @@ export const QueueFormModal = () => {
                   <VStack gap="8">
                     <span className="text-sm font-medium text-muted-foreground">{t('queues.currentMembers')} ({members.length}):</span>
                     <VStack gap="4">
-                      {members.map(m => (
-                        <div key={m.id} className={cls.memberRow}>
-                          {m.type === 'endpoint' ? <Phone className={cls.memberIcon} /> : <Hash className="w-5 h-5 text-muted-foreground flex-shrink-0" />}
-                          <span className={cls.memberInfo}>
-                            {m.type === 'endpoint' ? `${m.extension} — ${m.membername}` : `${m.extension} → ${m.context || 'from-internal'}`}
-                          </span>
-                          <HStack gap="4" align="center">
-                            <span className="text-xs text-muted-foreground">P:</span>
-                            <Input className={cls.penaltyInput} type="number" min={0} value={m.penalty} onChange={e => updateMemberPenalty(m.id, Number(e.target.value) || 0)} />
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => toggleMemberPause(m.id)} title={m.paused ? t('queues.unpause') : t('queues.pause')}>
-                              {m.paused ? <Play className="w-3.5 h-3.5 text-green-500" /> : <Pause className="w-3.5 h-3.5 text-amber-500" />}
-                            </Button>
-                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeMember(m.id)}>
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </Button>
-                          </HStack>
-                        </div>
-                      ))}
+                      {members.map(m => {
+                        const ext = m.extension || (m.type === 'endpoint' ? interfaceToExtension(m.interface) : '');
+                        const name = (m.membername || '').trim();
+                        const endpointLabel = !name || name === ext
+                          ? ext
+                          : (name.includes(`(${ext})`) ? name : `${name} (${ext})`);
+                        const customLabel = m.context
+                          ? `${ext} (${m.context})`
+                          : ext;
+                        return (
+                          <div key={m.id} className={cls.memberRow}>
+                            {m.type === 'endpoint' ? <Phone className={cls.memberIcon} /> : <Hash className="w-5 h-5 text-muted-foreground flex-shrink-0" />}
+                            <span className={cls.memberInfo}>
+                              {m.type === 'endpoint' ? endpointLabel : customLabel}
+                            </span>
+                            <HStack gap="4" align="center">
+                              <span className="text-xs text-muted-foreground">P:</span>
+                              <Input className={cls.penaltyInput} type="number" min={0} value={m.penalty} onChange={e => updateMemberPenalty(m.id, Number(e.target.value) || 0)} />
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => toggleMemberPause(m.id)} title={m.paused ? t('queues.unpause') : t('queues.pause')}>
+                                {m.paused ? <Play className="w-3.5 h-3.5 text-green-500" /> : <Pause className="w-3.5 h-3.5 text-amber-500" />}
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeMember(m.id)}>
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </Button>
+                            </HStack>
+                          </div>
+                        );
+                      })}
                     </VStack>
                     <span className="text-xs text-muted-foreground">{t('queues.penaltyHint')}</span>
                   </VStack>
@@ -668,7 +743,7 @@ export const QueueFormModal = () => {
                             <InfoTooltip text={t('queues.announceHoldtimeDesc')} />
                           </HStack>
                           <select value={announceHoldtime} onChange={e => setAnnounceHoldtime(e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-background/50 px-3 py-1 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary focus:border-transparent">
-                            <option value="">—</option>
+                            <option value="">{t('common.notSelected', 'Не выбрано')}</option>
                             <option value="yes">{t('common.yes')}</option>
                             <option value="no">{t('common.no')}</option>
                             <option value="once">{t('queues.once')}</option>
@@ -691,7 +766,7 @@ export const QueueFormModal = () => {
                             <InfoTooltip text={t('queues.announcePositionDesc')} />
                           </HStack>
                           <select value={announcePosition} onChange={e => setAnnouncePosition(e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-background/50 px-3 py-1 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary focus:border-transparent">
-                            <option value="">—</option>
+                            <option value="">{t('common.notSelected', 'Не выбрано')}</option>
                             <option value="yes">{t('common.yes')}</option>
                             <option value="no">{t('common.no')}</option>
                             <option value="limit">{t('queues.posLimit')}</option>

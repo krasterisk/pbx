@@ -58,7 +58,7 @@ function resolveModuleNav(
 }
 
 /**
- * Phone chrome 004-B — Hub / PBX / Apps / System / More.
+ * Phone chrome 004-B - Hub / PBX / Apps / System / More.
  * Mounts only below useIsMobile(768); tablet keeps desktop ModuleShell.
  */
 export const MobileBottomBar = memo(function MobileBottomBar() {

@@ -8,13 +8,14 @@
  * Generated contexts:
  *   [krsk-on-answer]      — Called via Dial() U() option on caller channel when agent answers
  *   [krsk-hangup-handler] — Registered via CHANNEL(hangup_handler_push), runs on channel teardown
+ *   [krsk-click-to-call]  — AMI click-to-call / missed callback: strip UI CallerID after operator answers
  *
  * @see https://docs.asterisk.org/Asterisk_22_Documentation/API_Documentation/Dialplan_Applications/Dial — U() option
  * @see https://docs.asterisk.org/Asterisk_22_Documentation/API_Documentation/Dialplan_Applications/Hangup — hangup_handler
  */
 export class DialplanSubroutinesUtil {
   /**
-   * Generate the full [krsk-on-answer] + [krsk-hangup-handler] subroutine file content.
+   * Generate the full global subroutine file content.
    *
    * @param backendUrl  - Internal backend URL reachable from Asterisk (e.g. http://127.0.0.1:5010/api)
    * @param apiKey      - Optional API key for internal endpoint authentication
@@ -105,6 +106,27 @@ export class DialplanSubroutinesUtil {
     lines.push('same  => n,Set(CURLOPT(conntimeout)=)');
     lines.push('same  => n,Set(CURLOPT(timeout)=)');
     lines.push('same  => n,Return()');
+    lines.push('');
+
+    // --------------------------------------------------------
+    // [krsk-click-to-call]
+    // --------------------------------------------------------
+    // AMI Originate rings the operator with CallerID "click-to-call" <target>,
+    // then enters this context after answer. Strip the UI name (must not reach
+    // the callee) and restore the operator extension as CALLERID(num) before
+    // jumping into the real outbound/internal context.
+    //
+    // Channel vars from Originate Variable=:
+    //   ${KRSK_CTC_CONTEXT} — endpoint dialplan context (sip-outN / from-internalN)
+    //   ${KRSK_CTC_OP_NUM}  — operator short extension for outbound CID num
+    lines.push('[krsk-click-to-call]');
+    // Asterisk warns against `_!` (match-anything); `_X!` = leading digit + rest (numbers / extensions).
+    lines.push('exten => _X!,1,NoOp(Krasterisk click-to-call → ${EXTEN} via ${KRSK_CTC_CONTEXT})');
+    lines.push('same  => n,GotoIf($["${KRSK_CTC_CONTEXT}" = ""]?fail)');
+    lines.push('same  => n,Set(CALLERID(name)=)');
+    lines.push('same  => n,ExecIf($["${KRSK_CTC_OP_NUM}" != ""]?Set(CALLERID(num)=${KRSK_CTC_OP_NUM}))');
+    lines.push('same  => n,Goto(${KRSK_CTC_CONTEXT},${EXTEN},1)');
+    lines.push('same  => n(fail),Hangup()');
     lines.push('');
 
     return lines.join('\n');

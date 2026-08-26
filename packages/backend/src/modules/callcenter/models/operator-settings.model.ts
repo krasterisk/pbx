@@ -89,6 +89,13 @@ export class CcOperatorSettings extends Model {
   @Column({ type: DataType.JSON, allowNull: true, defaultValue: null })
   declare notification_matrix: NotificationMatrix | null;
 
+  /**
+   * Supervisor watchlist: normalized agent extensions the supervisor monitors
+   * (empty/null → none shown until they add agents).
+   */
+  @Column({ type: DataType.JSON, allowNull: true, defaultValue: null })
+  declare supervised_agent_extens: string[] | null;
+
   // Tenant isolation
   @Column({ type: DataType.INTEGER, allowNull: false, defaultValue: 0, field: 'vpbx_user_uid' })
   declare user_uid: number;

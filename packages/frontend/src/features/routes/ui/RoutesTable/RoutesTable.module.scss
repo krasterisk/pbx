@@ -1,16 +1,16 @@
 .priority {
-  color: var(--color-muted-foreground, hsl(240 5% 64.9%));
+  color: var(--color-muted-foreground);
   font-weight: 600;
   font-size: 0.75rem;
 }
 
 .badgeActive {
-  color: hsl(142 71% 45%);
+  color: var(--color-success);
   font-size: 1rem;
 }
 
 .badgeInactive {
-  color: var(--color-muted-foreground, hsl(240 5% 64.9%));
+  color: var(--color-muted-foreground);
   font-size: 1rem;
 }
 
@@ -22,16 +22,16 @@
 
 .extChip {
   padding: 2px 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 0.75rem;
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
-  background: rgba(99, 102, 241, 0.15);
-  color: var(--color-primary, hsl(239 84% 67%));
-  border: 1px solid rgba(99, 102, 241, 0.2);
+  background: color-mix(in srgb, var(--color-primary) 15%, transparent);
+  color: var(--color-primary);
+  border: 1px solid color-mix(in srgb, var(--color-primary) 20%, transparent);
 }
 
 .count {
-  color: var(--color-muted-foreground, hsl(240 5% 64.9%));
+  color: var(--color-muted-foreground);
   font-size: 0.8125rem;
 }
 
@@ -39,26 +39,4 @@
   font-size: 0.8125rem;
   font-weight: 500;
   color: var(--color-foreground);
-}
-
-.actionBtn {
-  background: none;
-  border: none;
-  color: var(--color-muted-foreground, hsl(240 5% 64.9%));
-  cursor: pointer;
-  padding: 4px;
-  border-radius: 4px;
-  transition: color 0.15s;
-
-  &:hover {
-    color: var(--color-foreground, hsl(0 0% 98%));
-  }
-}
-
-.actionBtnDanger {
-  composes: actionBtn;
-
-  &:hover {
-    color: hsl(0 62% 55%);
-  }
 }

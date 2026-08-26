@@ -26,6 +26,8 @@ export interface ICallGroup {
   user_uid: number;
   /** D-34: confirm only external members via Dial M(macro) */
   confirmExternal?: boolean;
+  /** DTMF key the external callee must press after answer (default `1`) */
+  confirmDigit?: string;
   /** D-34: drop busy internals via DEVICE_STATE before Dial */
   skipBusy?: boolean;
   /** Prompt file id played to the caller before ringing */

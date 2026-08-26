@@ -5,7 +5,7 @@ import { toast } from 'react-toastify';
 import {
   PhoneIncoming, PhoneOutgoing, Phone, PhoneMissed, PhoneCall, IdCard,
 } from 'lucide-react';
-import { Button, Text } from '@/shared/ui';
+import { Button, Text, Tooltip } from '@/shared/ui';
 import {
   useGetOperatorCallHistoryQuery,
   useGetTenantSettingsQuery,
@@ -98,7 +98,7 @@ function dispositionLabel(
 }
 
 /**
- * Softphone Journal tab (D-01..D-05) — blended personal call feed, N-capped,
+ * Softphone Journal tab (D-01..D-05) - blended personal call feed, N-capped,
  * callback + open-card only. Live prepend comes from 10-04 historyRow SSE
  * cache patch (no local SSE listener). Mounted by SoftphoneWidget in 10-08.
  */
@@ -160,7 +160,7 @@ export function SoftphoneJournal({ softphoneMode = 'webrtc' }: { softphoneMode?:
           status: 'DIALING',
         }));
       }
-    } catch { /* dial-initiation error — nothing more to do client-side */ }
+    } catch { /* dial-initiation error - nothing more to do client-side */ }
     finally { setPendingId(null); }
   };
 
@@ -202,16 +202,18 @@ export function SoftphoneJournal({ softphoneMode = 'webrtc' }: { softphoneMode?:
       <div className={styles.wrap} data-testid="softphone-journal">
         <div className={styles.errorCard}>
           <Text>{t('callcenter.journal.loadFailed', 'Could not load the journal')}</Text>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className={styles.retryBtn}
-            onClick={() => void refetch()}
-            aria-label={t('callcenter.settings.retry', 'Retry')}
-          >
-            {t('callcenter.settings.retry', 'Retry')}
-          </Button>
+          <Tooltip content={t('callcenter.settings.retry', 'Retry')}>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className={styles.retryBtn}
+              onClick={() => void refetch()}
+              aria-label={t('callcenter.settings.retry', 'Retry')}
+            >
+              {t('callcenter.settings.retry', 'Retry')}
+            </Button>
+          </Tooltip>
         </div>
       </div>
     );
@@ -278,48 +280,55 @@ export function SoftphoneJournal({ softphoneMode = 'webrtc' }: { softphoneMode?:
                   </div>
                 </div>
                 <div className={styles.rowActions}>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className={styles.actionBtn}
-                    disabled={!row.callerIdNum || sipClickBlocked || (isCalling && pendingId === row.uid)}
-                    title={sipClickBlocked
+                  <Tooltip
+                    content={sipClickBlocked
                       ? t(
                         'callcenter.settings.permissions.clickToCallDenied',
                         'Click-to-call is not granted for SIP mode',
                       )
-                      : undefined}
-                    aria-label={`${t('callcenter.softphone.callBack', 'Call back')} ${row.callerIdNum}`}
-                    onClick={() => void handleCallback(row)}
+                      : t('callcenter.softphone.callBack', 'Call back')}
                   >
-                    <PhoneCall className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className={styles.actionBtn}
-                    aria-label={`${t('callcenter.softphone.openCard', 'Open card')} ${row.callerIdNum}`}
-                    onClick={() => void handleOpenCard(row)}
-                  >
-                    <IdCard className="w-4 h-4" />
-                  </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className={styles.actionBtn}
+                      disabled={!row.callerIdNum || sipClickBlocked || (isCalling && pendingId === row.uid)}
+                      aria-label={`${t('callcenter.softphone.callBack', 'Call back')} ${row.callerIdNum}`}
+                      onClick={() => void handleCallback(row)}
+                    >
+                      <PhoneCall className="w-4 h-4" />
+                    </Button>
+                  </Tooltip>
+                  <Tooltip content={t('callcenter.softphone.openCard', 'Open card')}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className={styles.actionBtn}
+                      aria-label={`${t('callcenter.softphone.openCard', 'Open card')} ${row.callerIdNum}`}
+                      onClick={() => void handleOpenCard(row)}
+                    >
+                      <IdCard className="w-4 h-4" />
+                    </Button>
+                  </Tooltip>
                 </div>
               </div>
             );
           })}
           {hasMore && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className={styles.showMoreBtn}
-              data-testid="softphone-journal-show-more"
-              onClick={() => setVisibleCount((n) => Math.min(n + journalDepth, HISTORY_FETCH_CAP))}
-            >
-              {t('callcenter.journal.showMore', 'Show more')}
-            </Button>
+            <Tooltip content={t('callcenter.journal.showMore', 'Show more')}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className={styles.showMoreBtn}
+                data-testid="softphone-journal-show-more"
+                onClick={() => setVisibleCount((n) => Math.min(n + journalDepth, HISTORY_FETCH_CAP))}
+              >
+                {t('callcenter.journal.showMore', 'Show more')}
+              </Button>
+            </Tooltip>
           )}
         </div>
       )}

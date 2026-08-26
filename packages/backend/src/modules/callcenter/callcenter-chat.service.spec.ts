@@ -93,7 +93,7 @@ describe('CallCenterChatController (authorization)', () => {
   >>;
   let stateService: { emitEvent: jest.Mock };
 
-  const reqUser = { id: 5, level: 2, vpbx_user_uid: 7 };
+  const reqUser = { sub: 5, id: 5, level: 2, vpbx_user_uid: 7 };
 
   beforeEach(() => {
     chatService = {

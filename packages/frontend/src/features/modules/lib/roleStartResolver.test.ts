@@ -22,7 +22,7 @@ describe('resolveRoleStart (NAV-05 / D-16)', () => {
     expect(
       resolveRoleStart(UserLevel.SUPERVISOR, { callCenterEnabled: false }),
     ).toBe('/');
-    // ADMIN already Overview — unchanged
+    // ADMIN already Overview - unchanged
     expect(resolveRoleStart(UserLevel.ADMIN, { callCenterEnabled: false })).toBe('/');
   });
 

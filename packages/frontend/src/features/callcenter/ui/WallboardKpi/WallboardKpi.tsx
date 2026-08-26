@@ -11,7 +11,7 @@ export interface WallboardKpiProps {
 }
 
 /**
- * TV KPI card — giant tabular number with threshold tone + optional critical pulse.
+ * TV KPI card - giant tabular number with threshold tone + optional critical pulse.
  */
 export function WallboardKpi({
   label,

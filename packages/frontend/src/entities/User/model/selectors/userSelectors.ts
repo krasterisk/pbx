@@ -23,7 +23,7 @@ export const selectIsSupervisor = createSelector(
   (level) => level === UserLevel.SUPERVISOR,
 );
 
-/** Platform SuperAdmin (level 0) — may assign SUPERADMIN in Users UI. */
+/** Platform SuperAdmin (level 0) - may assign SUPERADMIN in Users UI. */
 export const selectIsSuperAdmin = createSelector(
   selectUserLevel,
   (level) => level === UserLevel.SUPERADMIN,

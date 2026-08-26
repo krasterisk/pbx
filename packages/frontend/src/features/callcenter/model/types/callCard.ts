@@ -1,4 +1,4 @@
-/** v1 field types (14) — 'file' excluded per D-11. */
+/** v1 field types (14) - 'file' excluded per D-11. */
 export type CardFieldType =
   | 'text'
   | 'textarea'

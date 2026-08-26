@@ -26,6 +26,10 @@ import { VoiceRobotsModule } from './modules/voice-robots/voice-robots.module';
 import { AriModule } from './modules/ari/ari.module';
 import { QueuesModule } from './modules/queues/queues.module';
 import { ServiceRequestsModule } from './modules/service-requests/service-requests.module';
+import { KomandorClaimsModule } from './modules/komandor-claims/komandor-claims.module';
+import { KomandorClaim } from './modules/komandor-claims/komandor-claim.model';
+import { KomandorStore } from './modules/komandor-claims/komandor-store.model';
+import { KomandorDict } from './modules/komandor-claims/komandor-dict.model';
 import { TimeGroupsModule } from './modules/time-groups/time-groups.module';
 import { PhonebooksModule } from './modules/phonebooks/phonebooks.module';
 import { CallGroupsModule } from './modules/call-groups/call-groups.module';
@@ -146,6 +150,7 @@ import * as path from 'path';
         SystemSetting, TenantSetting, Cdr, VoiceRobot, VoiceRobotKeywordGroup, VoiceRobotKeyword, VoiceRobotLog, VoiceRobotCdr, VoiceRobotDataList,
         Queue, QueueMember,
         ServiceRequest, CcSubject, CcDistrict,
+        KomandorClaim, KomandorStore, KomandorDict,
         CcPauseReason, CcAgentSession, CcAgentEvent, CcAgentQueue, CcMissedCall, CcContact, CcQueueCall,
         CcDailyQueueStats, CcDailyAgentStats, CcOperatorSettings, CcSettings,
         CcDisplayToken, CcAlertConfig,
@@ -203,6 +208,7 @@ import * as path from 'path';
     AriModule,
     QueuesModule,
     ServiceRequestsModule,
+    KomandorClaimsModule,
     SmsModule,
     TimeGroupsModule,
     PhonebooksModule,

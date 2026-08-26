@@ -10,8 +10,10 @@ import { Subject, Observable } from 'rxjs';
 import { filter, map } from 'rxjs/operators';
 import { companionIdOf, isWebrtcCompanion, primaryIdOf } from '../endpoints/endpoint-ids.util';
 import { CcEventBusEvent, mapCcEventToBusEvent } from './cc-event-bus.types';
+import type { AgentStatusOrigin } from './status-origin';
 
 export type { CcEventBusEvent } from './cc-event-bus.types';
+export type { AgentStatusOrigin } from './status-origin';
 
 // ─── Types ──────────────────────────────────────────────
 
@@ -52,11 +54,21 @@ export interface AgentState {
   loginTime?: Date;
   /** Wall-clock when the current `status` was entered (operator timer / auto-pause). */
   statusSince?: Date;
+  /**
+   * How the current status was established. Panel may override Asterisk pause
+   * only for trusted origins (manual / policy / login / restore).
+   */
+  statusOrigin?: AgentStatusOrigin;
   wrapupTimeout?: number;
   wrapupExtendStep?: number;
   wrapupAutosaveDraft?: boolean;
-  userUid: number;          // tenant
+  userUid: number;           // tenant
   userId: number;           // user id
+  /**
+   * True when an open DB session exists but Asterisk no longer lists the
+   * agent as a QueueMember (e.g. Asterisk restart). Operator must rejoin.
+   */
+  queuesDetached?: boolean;
 }
 
 export interface QueueState {
@@ -126,6 +138,11 @@ export class CallCenterStateService implements OnModuleInit {
   }
 
   // ─── Event Stream (for SSE) ─────────────────────────────
+
+  /** Unfiltered event stream (shift store / cross-tenant subscribers). */
+  getAllEventStream(): Observable<CcEvent> {
+    return this.eventSubject.asObservable();
+  }
 
   /**
    * Returns an Observable filtered by tenant.
@@ -267,8 +284,19 @@ export class CallCenterStateService implements OnModuleInit {
           : new Date(state.statusSince as unknown as string);
     } else if (!existing || existing.status !== updated.status) {
       updated.statusSince = new Date();
-    } else if (!updated.statusSince) {
-      updated.statusSince = existing?.statusSince ?? new Date();
+    } else {
+      // Same status: always keep the original stamp (ignore accidental clears).
+      updated.statusSince = existing.statusSince ?? new Date();
+    }
+    // Provenance: status transitions without an explicit origin are untrusted
+    // (must not drive Asterisk heal). Same-status patches keep prior origin
+    // unless the caller sets statusOrigin explicitly.
+    if (!existing || existing.status !== updated.status) {
+      updated.statusOrigin = state.statusOrigin ?? 'unknown';
+    } else if (Object.prototype.hasOwnProperty.call(state, 'statusOrigin')) {
+      updated.statusOrigin = state.statusOrigin;
+    } else {
+      updated.statusOrigin = existing.statusOrigin ?? 'unknown';
     }
     // Leaving PAUSED / OUTBOUND_WORK must clear reason — undefined is dropped by JSON.stringify (SSE).
     // Keep reason while DIALING so we can resume the prior pause/outbound-work mode after the dial.

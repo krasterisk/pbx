@@ -1,0 +1,43 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 560px;
+  padding: 4px 0;
+}
+
+.title {
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.hint,
+.fieldHint,
+.readOnly {
+  font-size: 0.8rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+}
+
+.switchLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 400;
+  cursor: pointer;
+}
+
+.footer {
+  display: flex;
+  gap: 8px;
+  padding-top: 8px;
+}

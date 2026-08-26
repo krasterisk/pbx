@@ -51,14 +51,14 @@ export const ServiceRequestsStats = memo(({ stats, isLoading }: ServiceRequestsS
     <div className="flex flex-wrap gap-4 w-full">
       <StatCard
         label={t('serviceRequests.stats.total', 'Всего заявок')}
-        value={isLoading ? '—' : total}
+        value={isLoading ? '-' : total}
         icon={ClipboardList}
         iconColor="text-indigo-500"
         iconBg="bg-indigo-500/10"
       />
       <StatCard
         label={t('serviceRequests.status.new', 'Новые')}
-        value={isLoading ? '—' : newCount}
+        value={isLoading ? '-' : newCount}
         icon={Inbox}
         iconColor="text-blue-500"
         iconBg="bg-blue-500/10"
@@ -66,7 +66,7 @@ export const ServiceRequestsStats = memo(({ stats, isLoading }: ServiceRequestsS
       />
       <StatCard
         label={t('serviceRequests.status.inProgress', 'В работе')}
-        value={isLoading ? '—' : inProgressCount}
+        value={isLoading ? '-' : inProgressCount}
         icon={Clock}
         iconColor="text-amber-500"
         iconBg="bg-amber-500/10"
@@ -74,7 +74,7 @@ export const ServiceRequestsStats = memo(({ stats, isLoading }: ServiceRequestsS
       />
       <StatCard
         label={t('serviceRequests.status.completed', 'Выполнено')}
-        value={isLoading ? '—' : completedCount}
+        value={isLoading ? '-' : completedCount}
         icon={CheckCircle2}
         iconColor="text-green-500"
         iconBg="bg-green-500/10"
@@ -82,7 +82,7 @@ export const ServiceRequestsStats = memo(({ stats, isLoading }: ServiceRequestsS
       />
       <StatCard
         label={t('serviceRequests.stats.other', 'Прочее')}
-        value={isLoading ? '—' : otherCount}
+        value={isLoading ? '-' : otherCount}
         icon={AlertTriangle}
         iconColor="text-orange-500"
         iconBg="bg-orange-500/10"

@@ -1,7 +1,7 @@
 /**
  * D-34: add per-group ring options with defaults matching current behaviour.
  *
- * Columns: confirm_external, skip_busy, greeting_prompt, moh_class,
+ * Columns: confirm_external, confirm_digit, skip_busy, greeting_prompt, moh_class,
  * use_moh_instead_of_ringback, dial_options.
  *
  * Live ALTER is not run by the executor (same as migrate-call-groups-exten).
@@ -9,7 +9,7 @@
  *   npx ts-node src/modules/call-groups/migrate-call-groups-ring-options.ts
  */
 import { Sequelize } from 'sequelize-typescript';
-import { DataTypes, QueryInterface } from 'sequelize';
+import { DataTypes, QueryInterface, type ModelAttributeColumnOptions } from 'sequelize';
 import * as path from 'path';
 import * as dotenv from 'dotenv';
 
@@ -19,17 +19,17 @@ export const CALL_GROUPS_TABLE = 'call_groups';
 
 export interface RingOptionColumn {
   name: string;
-  definition: {
-    type: ReturnType<typeof DataTypes.STRING> | ReturnType<typeof DataTypes.BOOLEAN>;
-    allowNull: boolean;
-    defaultValue?: string | boolean;
-  };
+  definition: ModelAttributeColumnOptions;
 }
 
 export const RING_OPTION_COLUMNS: RingOptionColumn[] = [
   {
     name: 'confirm_external',
     definition: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+  },
+  {
+    name: 'confirm_digit',
+    definition: { type: DataTypes.STRING(1), allowNull: false, defaultValue: '1' },
   },
   {
     name: 'skip_busy',

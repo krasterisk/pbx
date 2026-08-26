@@ -293,6 +293,7 @@ export const RouteFormModal = memo(() => {
               preCommand={preCommand} setPreCommand={setPreCommand}
               vpbxUserUid={vpbxUserUid}
               stepErrors={stepErrors}
+              previewPatterns={extensions}
             />
           )}
 

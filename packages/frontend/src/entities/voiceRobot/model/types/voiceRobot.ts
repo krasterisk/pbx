@@ -20,9 +20,9 @@ export interface IVoiceRobot {
   greeting_tts_text: string | null;
   initial_group_id: number | null;
   vad_config: IVoiceRobotVadConfig;
-  fallback_action: IRouteAction[];        // legacy — kept for backwards compat
+  fallback_action: IRouteAction[];        // legacy - kept for backwards compat
   fallback_bot_action: IVoiceRobotBotAction | null;  // new format
-  max_retries_action: IRouteAction[];      // legacy — kept for backwards compat
+  max_retries_action: IRouteAction[];      // legacy - kept for backwards compat
   max_retries_bot_action: IVoiceRobotBotAction | null; // new format
   max_conversation_steps: number;
   silence_timeout_seconds: number;
@@ -53,8 +53,8 @@ export interface IVoiceRobotKeyword {
   keywords: string;
   negative_keywords: string[];
   synonyms: string[];
-  actions: IRouteAction[];               // legacy — kept for backwards compat
-  bot_action: IVoiceRobotBotAction | null; // new — used by runtime engine
+  actions: IRouteAction[];               // legacy - kept for backwards compat
+  bot_action: IVoiceRobotBotAction | null; // new - used by runtime engine
   max_repeats: number;                    // how many times primary action fires before escalation (0 = unlimited)
   escalation_action: IVoiceRobotBotAction | null; // alternative action after max_repeats exceeded
   priority: number;

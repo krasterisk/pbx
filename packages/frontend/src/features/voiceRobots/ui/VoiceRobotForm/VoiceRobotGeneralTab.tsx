@@ -45,7 +45,7 @@ interface VoiceRobotGeneralTabProps {
 }
 
 /**
- * VoiceRobotGeneralTab — main settings tab for voice robot.
+ * VoiceRobotGeneralTab - main settings tab for voice robot.
  *
  * Contains: name, description, TTS/STT engines, language, greeting,
  * and error handling section (max steps, silence timeout, fallback action, max retries action).
@@ -104,7 +104,7 @@ export const VoiceRobotGeneralTab = memo(({
         />
       </VStack>
 
-      {/* TTS / STT Engines + Language — responsive 3-column row */}
+      {/* TTS / STT Engines + Language - responsive 3-column row */}
       <Flex className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <VStack gap="4">
           <HStack align="center" gap="4">

@@ -6,6 +6,7 @@
  *   /voice-robots/standalone.html#/voice-robots
  *   /voice-robots/standalone.html#/voice-robots/cdr
  *   /voice-robots/standalone.html#/service-requests
+ *   /voice-robots/standalone.html#/komandor-claims
  *   /voice-robots/standalone.html#/settings/stt-engines
  *   /voice-robots/standalone.html#/settings/tts-engines
  *
@@ -20,6 +21,7 @@ import { VoiceRobotsPage } from '@/pages/VoiceRobotsPage';
 import { VoiceRobotEditPage } from '@/pages/VoiceRobotEditPage';
 import { VoiceRobotCdrPage } from '@/pages/VoiceRobotCdrPage';
 import { ServiceRequestsPage } from '@/pages/ServiceRequestsPage';
+import { KomandorClaimsPage } from '@/pages/KomandorClaimsPage';
 import { SttEnginesPage } from '@/pages/SttEnginesPage';
 import { TtsEnginesPage } from '@/pages/TtsEnginesPage';
 import '@/app/styles/variables/design-system.scss';
@@ -36,6 +38,7 @@ const standaloneRouter = createHashRouter([
       { path: 'voice-robots/cdr', element: <VoiceRobotCdrPage /> },
       { path: 'voice-robots/:id', element: <VoiceRobotEditPage /> },
       { path: 'service-requests', element: <ServiceRequestsPage /> },
+      { path: 'komandor-claims', element: <KomandorClaimsPage /> },
       { path: 'settings/stt-engines', element: <SttEnginesPage /> },
       { path: 'settings/tts-engines', element: <TtsEnginesPage /> },
     ],

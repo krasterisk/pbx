@@ -206,6 +206,5 @@ describe('RoutePhonebooksTab', () => {
     const allowed = editor.getAttribute('data-allowed') ?? '';
     expect(allowed.length).toBeGreaterThan(0);
     expect(allowed.split(',')).not.toContain('cmd');
-    expect(allowed.split(',')).not.toContain('trunk_carousel');
   });
 });

@@ -21,49 +21,65 @@ import { RequiresModule } from '../../cloud-admin/requires-module.decorator';
 export class CdrController {
   constructor(private readonly cdrService: CdrService) {}
 
+  private viewer(req: { user?: { vpbx_user_uid: number; sub: number } }) {
+    return {
+      tenantId: req.user!.vpbx_user_uid,
+      userId: req.user!.sub as number,
+    };
+  }
+
   @Get()
   findAll(@Request() req: any, @Query() query: CdrQueryDto) {
-    return this.cdrService.findCalls(req.user.vpbx_user_uid, query);
+    const { tenantId, userId } = this.viewer(req);
+    return this.cdrService.findCalls(tenantId, query, userId);
   }
 
   @Get('stats')
   getStats(@Request() req: any, @Query() query: CdrQueryDto) {
-    return this.cdrService.getStats(req.user.vpbx_user_uid, query);
+    const { tenantId, userId } = this.viewer(req);
+    return this.cdrService.getStats(tenantId, query, userId);
   }
 
   @Get('charts/by-hour')
   getByHour(@Request() req: any, @Query() query: CdrQueryDto) {
-    return this.cdrService.getByHour(req.user.vpbx_user_uid, query);
+    const { tenantId, userId } = this.viewer(req);
+    return this.cdrService.getByHour(tenantId, query, userId);
   }
 
   @Get('charts/by-day')
   getByDay(@Request() req: any, @Query() query: CdrQueryDto) {
-    return this.cdrService.getByDay(req.user.vpbx_user_uid, query);
+    const { tenantId, userId } = this.viewer(req);
+    return this.cdrService.getByDay(tenantId, query, userId);
   }
 
   @Get('charts/by-extension')
   getByExtension(@Request() req: any, @Query() query: CdrQueryDto) {
-    return this.cdrService.getByExtension(req.user.vpbx_user_uid, query);
+    const { tenantId, userId } = this.viewer(req);
+    return this.cdrService.getByExtension(tenantId, query, userId);
   }
 
   @Get('charts/by-trunk')
   getByTrunk(@Request() req: any, @Query() query: CdrQueryDto) {
-    return this.cdrService.getByTrunk(req.user.vpbx_user_uid, query);
+    const { tenantId, userId } = this.viewer(req);
+    return this.cdrService.getByTrunk(tenantId, query, userId);
   }
 
   @Get('charts/by-disposition')
   getByDisposition(@Request() req: any, @Query() query: CdrQueryDto) {
-    return this.cdrService.getByDisposition(req.user.vpbx_user_uid, query);
+    const { tenantId, userId } = this.viewer(req);
+    return this.cdrService.getByDisposition(tenantId, query, userId);
   }
 
   @Get('charts/heatmap')
   getHeatmap(@Request() req: any, @Query() query: CdrQueryDto) {
-    return this.cdrService.getHeatmap(req.user.vpbx_user_uid, query);
+    const { tenantId, userId } = this.viewer(req);
+    return this.cdrService.getHeatmap(tenantId, query, userId);
   }
 
   @Get('export')
   async exportCsv(@Request() req: any, @Query() query: CdrQueryDto, @Res() res: Response) {
-    const rows = await this.cdrService.exportCalls(req.user.vpbx_user_uid, query);
+    const { tenantId, userId } = this.viewer(req);
+    const rows = await this.cdrService.exportCalls(tenantId, query, userId);
     const delimiter = ';';
     const esc = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
     const header = [
@@ -98,7 +114,8 @@ export class CdrController {
 
   @Get('by-uniqueid/:uniqueid')
   findByUniqueid(@Request() req: any, @Param('uniqueid') uniqueid: string) {
-    return this.cdrService.findByUniqueid(req.user.vpbx_user_uid, uniqueid);
+    const { tenantId, userId } = this.viewer(req);
+    return this.cdrService.findByUniqueid(tenantId, uniqueid, userId);
   }
 
   /** HTML player popup (v3 play.php); audio uses absolute …/:uniqueid/play URL. */
@@ -128,6 +145,7 @@ export class CdrController {
 
   @Get(':linkedid/legs')
   findLegs(@Request() req: any, @Param('linkedid') linkedid: string) {
-    return this.cdrService.findLegs(req.user.vpbx_user_uid, linkedid);
+    const { tenantId, userId } = this.viewer(req);
+    return this.cdrService.findLegs(tenantId, linkedid, userId);
   }
 }

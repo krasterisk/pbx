@@ -20,7 +20,7 @@ function baseAction(type: string, condition: Record<string, unknown> = {}) {
 
 describe('RouteActionDto', () => {
   describe('action types', () => {
-    it.each(['notify', 'callerid', 'trunk_carousel'])(
+    it.each(['notify', 'callerid'])(
       'accepts type "%s"',
       async (type) => {
         const errors = await validateAction(baseAction(type));

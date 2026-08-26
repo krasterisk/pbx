@@ -22,6 +22,7 @@ import type {
   SpyMode,
   UiVisibility,
 } from './models/cc-permissions.types';
+import { DEFAULT_SHIFT_POLICY, type ShiftPolicy } from './models/shift-policy.types';
 import {
   UpdateOperatorSettingsDto,
   UpdateCcSettingsDto,
@@ -96,6 +97,7 @@ export const DEFAULT_TENANT_SETTINGS = {
   autopause_enabled: true,
   /** D-15: empty → when enabled, engine fires only RONA. */
   autopause_rules: [] as AutoPauseRule[],
+  shift_policy: { ...DEFAULT_SHIFT_POLICY } as ShiftPolicy,
 };
 
 /** Soft cap for autopause_rules array (T-09-17-03). */
@@ -165,6 +167,39 @@ export function sanitizeAlertThresholds(
     if (Number.isFinite(n)) {
       base[key] = n;
     }
+  }
+  return base;
+}
+
+const EOD_TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
+
+/** Whitelist / coerce ShiftPolicy fields; unknown keys dropped. */
+export function sanitizeShiftPolicy(
+  raw: Record<string, unknown> | null | undefined,
+  existing?: ShiftPolicy | null,
+): ShiftPolicy {
+  const base: ShiftPolicy = { ...(existing ?? DEFAULT_SHIFT_POLICY) };
+  if (!raw || typeof raw !== 'object') return base;
+
+  if ('max_duration_min' in raw) {
+    const n = Number(raw.max_duration_min);
+    if (Number.isFinite(n) && n >= 0) base.max_duration_min = Math.trunc(n);
+  }
+  if ('close_at_eod' in raw) {
+    base.close_at_eod = Boolean(raw.close_at_eod);
+  }
+  if ('eod_time' in raw && typeof raw.eod_time === 'string' && EOD_TIME_RE.test(raw.eod_time)) {
+    base.eod_time = raw.eod_time;
+  }
+  if ('idle_timeout_min' in raw) {
+    const n = Number(raw.idle_timeout_min);
+    if (Number.isFinite(n) && n >= 0) base.idle_timeout_min = Math.trunc(n);
+  }
+  if ('idle_requires_unregistered' in raw) {
+    base.idle_requires_unregistered = Boolean(raw.idle_requires_unregistered);
+  }
+  if ('free_exten_on_close' in raw) {
+    base.free_exten_on_close = Boolean(raw.free_exten_on_close);
   }
   return base;
 }
@@ -318,7 +353,14 @@ export class CallCenterSettingsService {
         user_uid: userUid,
       };
     }
-    return row;
+    const plain = typeof (row as any).toJSON === 'function' ? (row as any).toJSON() : row;
+    return {
+      ...plain,
+      shift_policy: sanitizeShiftPolicy(
+        (plain.shift_policy as Record<string, unknown> | null) ?? null,
+        DEFAULT_SHIFT_POLICY,
+      ),
+    };
   }
 
   async updateTenantSettings(userUid: number, dto: UpdateCcSettingsDto) {
@@ -346,6 +388,10 @@ export class CallCenterSettingsService {
     if (dto.autopause_enabled !== undefined) {
       patch.autopause_enabled = Boolean(dto.autopause_enabled);
     }
+    if (dto.shift_policy !== undefined) {
+      const prev = (existing?.shift_policy as ShiftPolicy | null) ?? null;
+      patch.shift_policy = sanitizeShiftPolicy(dto.shift_policy, prev);
+    }
 
     if (existing) {
       await existing.update(patch);
@@ -364,6 +410,9 @@ export class CallCenterSettingsService {
       autopause_enabled:
         (patch.autopause_enabled as boolean | undefined) ??
         DEFAULT_TENANT_SETTINGS.autopause_enabled,
+      shift_policy:
+        (patch.shift_policy as ShiftPolicy | undefined)
+        ?? { ...DEFAULT_SHIFT_POLICY },
     });
   }
 

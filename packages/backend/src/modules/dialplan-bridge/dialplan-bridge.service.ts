@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
+import { InjectModel } from '@nestjs/sequelize';
 import * as path from 'path';
 import { MailerService } from '../mailer/mailer.service';
 import { TelegramService } from '../telegram/telegram.service';
@@ -7,8 +8,16 @@ import { NumbersService } from '../numbers/numbers.service';
 import { TtsEnginesService } from '../tts-engines/tts-engines.service';
 import { IvrTtsService } from '../ivrs/ivr-tts.service';
 import { IvrTtsCacheService } from '../ivrs/ivr-tts-cache.service';
+import { Route } from '../routes/route.model';
 import { AsteriskDialplanUtils } from '../../shared/utils/dialplan.util';
+import {
+  assertSafeHttpUrl,
+  HTTP_REQUEST_DEFAULT_TIMEOUT,
+  pickAllowedHttpHeaders,
+} from '../../shared/utils/dialplan-http.util';
+import type { IIvrPhraseTtsSettings } from '@krasterisk/shared';
 import type {
+  HttpRequestDialplanDto,
   SendmailPeerDialplanDto,
   SetclidDialplanDto,
   TelegramDialplanDto,
@@ -61,6 +70,7 @@ export class DialplanBridgeService {
     private readonly ttsEngines: TtsEnginesService,
     private readonly ivrTts: IvrTtsService,
     private readonly ttsCache: IvrTtsCacheService,
+    @InjectModel(Route) private readonly routeModel: typeof Route,
   ) {}
 
   async setclid(body: SetclidDialplanDto): Promise<{ callerid: string }> {
@@ -97,6 +107,60 @@ export class DialplanBridgeService {
       this.logger.error(`Dialplan webhook failed: ${e?.message ?? e}`);
       return { body: '', error: e?.message ?? 'webhook_failed' };
     }
+  }
+
+  async httpRequest(body: HttpRequestDialplanDto): Promise<string> {
+    const url = String(body.url ?? '').trim();
+    if (!url) return '';
+    try {
+      assertSafeHttpUrl(url);
+    } catch (e: any) {
+      this.logger.warn(`Dialplan http-request rejected URL: ${e?.message ?? e}`);
+      return '';
+    }
+
+    const method = String(body.method ?? 'GET').toUpperCase() === 'POST' ? 'POST' : 'GET';
+    const timeoutRaw = Number(body.timeout);
+    const timeoutMs = (Number.isFinite(timeoutRaw) && timeoutRaw > 0
+      ? Math.min(Math.floor(timeoutRaw), 60)
+      : HTTP_REQUEST_DEFAULT_TIMEOUT) * 1000;
+    const headers = await this.resolveHttpRequestHeaders(body);
+
+    try {
+      const response = await this.http.axiosRef.request({
+        url,
+        method,
+        data: method === 'POST' ? (body.body ?? '') : undefined,
+        timeout: timeoutMs,
+        maxRedirects: 0,
+        headers,
+        validateStatus: () => true,
+      });
+      const data = response?.data;
+      return typeof data === 'string' ? data : JSON.stringify(data ?? '');
+    } catch (e: any) {
+      this.logger.error(`Dialplan http-request failed: ${e?.message ?? e}`);
+      return '';
+    }
+  }
+
+  private async resolveHttpRequestHeaders(
+    body: HttpRequestDialplanDto,
+  ): Promise<Record<string, string>> {
+    const routeUid = String(body.route_uid ?? '').trim();
+    const actionId = String(body.action_id ?? '').trim();
+    const tenant = Number(body.vpbx_user_uid);
+    if (!routeUid || !actionId || !Number.isFinite(tenant)) {
+      return {};
+    }
+    const uid = parseInt(routeUid, 10);
+    if (!uid) return {};
+    const route = await this.routeModel.findOne({ where: { uid, user_uid: tenant } });
+    const actions = Array.isArray(route?.actions) ? route.actions : [];
+    const action = actions.find(
+      (item: { id?: string; type?: string }) => item?.id === actionId && item?.type === 'http_request',
+    );
+    return pickAllowedHttpHeaders(action?.params?.headers);
   }
 
   async sendmailpeer(body: SendmailPeerDialplanDto): Promise<{ accepted: true }> {
@@ -144,16 +208,19 @@ export class DialplanBridgeService {
     if (!engine) {
       throw new BadRequestException('Unknown TTS engine');
     }
+    const settings: IIvrPhraseTtsSettings = {};
+    if (body.voice) settings.voice = body.voice;
+    if (body.language_code) settings.language_code = body.language_code;
+    if (body.speed) settings.speed = body.speed;
+    if (body.speaking_rate) settings.speaking_rate = body.speaking_rate;
+    if (body.role) settings.role = body.role;
+    if (body.pitch_shift) settings.pitch_shift = body.pitch_shift;
     try {
-      const wav = await this.ivrTts.synthesizeToBuffer(engine, text, {
-        voice: body.voice,
-        language_code: body.language,
-      });
+      const wav = await this.ivrTts.synthesizeToBuffer(engine, text, settings);
       const cacheKey = IvrTtsCacheService.buildCacheKey({
         engine: engineUid,
         text,
-        voice: body.voice ?? '',
-        language: body.language ?? '',
+        settings,
       });
       const written = this.ttsCache.writeWav(tenant, cacheKey, wav);
       const file = AsteriskDialplanUtils.sanitizeFilePath(

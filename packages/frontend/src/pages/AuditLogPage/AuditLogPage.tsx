@@ -101,7 +101,7 @@ const AuditLogPage = memo(() => {
           </div>
         )}
 
-        {/* Table — D-29 page-level overflow hybrid */}
+        {/* Table - D-29 page-level overflow hybrid */}
         <div
           className={`${cls.tableWrap} overflow-x-auto`}
           data-testid="hybrid-table"

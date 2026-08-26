@@ -1,5 +1,5 @@
 /**
- * Entity: User — types
+ * Entity: User - types
  *
  * Re-exports shared types and defines frontend-specific additions.
  */

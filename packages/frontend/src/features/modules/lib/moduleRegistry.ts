@@ -13,6 +13,7 @@ import {
   Mic,
   Music,
   ClipboardList,
+  Store,
   Headphones,
   Monitor,
   BarChart3,
@@ -54,7 +55,7 @@ const CC_SUPERVISOR_LEVELS: UserLevel[] = [
 
 /**
  * Baseline Hub module → page mapping (D-15 / D-19 discretion table).
- * Wallboard TV (`/callcenter/wallboard`) stays outside ModuleShell — not listed here.
+ * Wallboard TV (`/callcenter/wallboard`) stays outside ModuleShell - not listed here.
  */
 export const BASELINE_MODULES: ModuleDef[] = [
   {
@@ -162,6 +163,12 @@ export const BASELINE_MODULES: ModuleDef[] = [
         path: '/service-requests',
         labelKey: 'nav.serviceRequests',
         icon: ClipboardList,
+      },
+      {
+        id: 'komandor-claims',
+        path: '/komandor-claims',
+        labelKey: 'nav.komandorClaims',
+        icon: Store,
       },
       {
         id: 'cc-agent',
@@ -317,7 +324,7 @@ export interface HubSections {
 
 /**
  * Split Hub rows into Active (active+disabled, favorites sorted to top)
- * and Marketplace (locked only — never disabled).
+ * and Marketplace (locked only - never disabled).
  */
 export function buildHubSections(
   rows: HubModuleRow[],

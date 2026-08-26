@@ -35,6 +35,12 @@ vi.mock('react-redux', () => ({
     sel({ callCenter: { queues: [] } }),
 }));
 
+vi.mock('@/shared/hooks/useAppStore', () => ({
+  useAppSelector: (sel: (s: unknown) => unknown) =>
+    sel({ callCenter: { myAgentInterface: 'PJSIP/101', queues: [] } }),
+  useAppDispatch: () => dispatch,
+}));
+
 vi.mock('react-toastify', () => ({
   toast: { info: vi.fn(), success: vi.fn(), error: vi.fn() },
 }));

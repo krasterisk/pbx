@@ -7,10 +7,12 @@ import { CdrPublicController } from './cdr-public.controller';
 import { SystemSettingsModule } from '../../system-settings/system-settings.module';
 import { CloudAdminModule } from '../../cloud-admin/cloud-admin.module';
 import { PsEndpoint } from '../../endpoints/ps-endpoint.model';
+import { User } from '../../users/user.model';
+import { NumberList } from '../../numbers/number-list.model';
 
 @Module({
   imports: [
-    SequelizeModule.forFeature([Cdr, PsEndpoint]),
+    SequelizeModule.forFeature([Cdr, PsEndpoint, User, NumberList]),
     SystemSettingsModule,
     CloudAdminModule,
   ],

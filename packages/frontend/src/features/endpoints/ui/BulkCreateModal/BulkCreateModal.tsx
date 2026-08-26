@@ -76,7 +76,7 @@ export const BulkCreateModal = () => {
     const status = (jobStatusError as { status?: number })?.status;
     if (status === 404) {
       setJobId(null);
-      setError('Задание не найдено. Возможно, сервер перезапускался. Проверьте список абонентов — они могли быть созданы.');
+      setError('Задание не найдено. Возможно, сервер перезапускался. Проверьте список абонентов - они могли быть созданы.');
     }
   }, [isJobStatusError, jobStatusError, jobId]);
 
@@ -253,7 +253,7 @@ export const BulkCreateModal = () => {
                   onChange={(e) => setContext(e.target.value)}
                   className="flex h-9 w-full rounded-md border border-input bg-background/50 px-3 py-1 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary focus:border-transparent"
                 >
-                  <option value="">— Default —</option>
+                  <option value="">- Default -</option>
                   {contexts.map((c) => (
                     <option key={c.uid} value={c.name}>
                       {c.name}

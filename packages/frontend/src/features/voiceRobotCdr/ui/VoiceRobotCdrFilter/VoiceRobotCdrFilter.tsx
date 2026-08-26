@@ -116,7 +116,7 @@ export const VoiceRobotCdrFilter = memo(({ filters, onChange, onExportCsv, isExp
           onChange={(e) => onChange({ dateFrom: e.target.value })}
           className="w-auto bg-background/50 border-muted-foreground/20 text-sm"
         />
-        <span className="text-muted-foreground text-sm">—</span>
+        <span className="text-muted-foreground text-sm">-</span>
         <Input
           type="date"
           value={filters.dateTo || ''}

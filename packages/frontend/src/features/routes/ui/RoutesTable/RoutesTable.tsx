@@ -2,7 +2,7 @@ import { memo, useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { createColumnHelper } from '@tanstack/react-table';
 import { Loader2, Route, Pencil, Copy, Trash2 } from 'lucide-react';
-import { Card, CardHeader, CardContent, Input, Button, DataTable, Text } from '@/shared/ui';
+import { Card, CardHeader, CardContent, Input, Button, DataTable, Text, TableRowActions, TableRowAction } from '@/shared/ui';
 import { HStack, Flex, VStack } from '@/shared/ui/Stack';
 import {
   useGetAllRoutesQuery,
@@ -95,17 +95,34 @@ export const RoutesTable = memo(() => {
       cell: (info) => {
         const route = info.row.original;
         return (
-          <HStack gap="4">
-            <Button variant="ghost" size="sm" className={styles.actionBtn} onClick={() => dispatch(routesActions.openEditModal(route))} title={t('common.edit')}>
-              <Pencil className="w-4 h-4" />
-            </Button>
-            <Button variant="ghost" size="sm" className={styles.actionBtn} onClick={() => dispatch(routesActions.openCopyModal(route))} title={t('common.copy', 'Копировать')}>
-              <Copy className="w-4 h-4" />
-            </Button>
-            <Button variant="ghost" size="sm" className={styles.actionBtnDanger} onClick={() => { if (window.confirm(t('routes.confirmDelete', `Удалить маршрут «${route.name}»?`))) deleteRoute(route.uid); }} title={t('common.delete')}>
-              <Trash2 className="w-4 h-4" />
-            </Button>
-          </HStack>
+          <TableRowActions>
+            <TableRowAction
+              title={t('common.edit')}
+              aria-label={t('common.edit')}
+              onClick={() => dispatch(routesActions.openEditModal(route))}
+            >
+              <Pencil />
+            </TableRowAction>
+            <TableRowAction
+              title={t('common.copy', 'Копировать')}
+              aria-label={t('common.copy', 'Копировать')}
+              onClick={() => dispatch(routesActions.openCopyModal(route))}
+            >
+              <Copy />
+            </TableRowAction>
+            <TableRowAction
+              danger
+              title={t('common.delete')}
+              aria-label={t('common.delete')}
+              onClick={() => {
+                if (window.confirm(t('routes.confirmDelete', `Удалить маршрут «${route.name}»?`))) {
+                  deleteRoute(route.uid);
+                }
+              }}
+            >
+              <Trash2 />
+            </TableRowAction>
+          </TableRowActions>
         );
       },
     }),
@@ -215,33 +232,34 @@ export const RoutesTable = memo(() => {
                         ))}
                       </HStack>
                     </VStack>
-                    <HStack gap="4">
-                      <button
-                        className="p-1.5 rounded-md hover:bg-white/5 text-muted-foreground"
+                    <TableRowActions>
+                      <TableRowAction
                         title={t('common.edit')}
+                        aria-label={t('common.edit')}
                         onClick={() => dispatch(routesActions.openEditModal(route))}
                       >
-                        <Pencil className="w-4 h-4" />
-                      </button>
-                      <button
-                        className="p-1.5 rounded-md hover:bg-white/5 text-muted-foreground"
+                        <Pencil />
+                      </TableRowAction>
+                      <TableRowAction
                         title={t('common.copy', 'Копировать')}
+                        aria-label={t('common.copy', 'Копировать')}
                         onClick={() => dispatch(routesActions.openCopyModal(route))}
                       >
-                        <Copy className="w-4 h-4" />
-                      </button>
-                      <button
-                        className="p-1.5 rounded-md hover:bg-red-500/10 text-muted-foreground hover:text-red-400"
+                        <Copy />
+                      </TableRowAction>
+                      <TableRowAction
+                        danger
                         title={t('common.delete')}
+                        aria-label={t('common.delete')}
                         onClick={() => {
                           if (window.confirm(t('routes.confirmDelete', `Удалить маршрут «${route.name}»?`))) {
                             deleteRoute(route.uid);
                           }
                         }}
                       >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </HStack>
+                        <Trash2 />
+                      </TableRowAction>
+                    </TableRowActions>
                   </HStack>
                 </div>
               ))

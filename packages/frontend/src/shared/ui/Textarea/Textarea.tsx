@@ -7,7 +7,7 @@ export interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElemen
 }
 
 /**
- * Textarea — multi-line text input component.
+ * Textarea - multi-line text input component.
  *
  * Shared UI component following the design system.
  * Uses the same visual style as Input but with multi-line support.

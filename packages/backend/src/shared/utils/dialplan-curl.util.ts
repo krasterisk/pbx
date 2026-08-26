@@ -10,6 +10,7 @@ export interface BuildCurlCallCtx {
   apiKey?: string;
   vpbxUserUid?: number;
   resultVar?: string;
+  timeoutSec?: number;
 }
 
 function sanitizeDialplanInput(input?: string): string {
@@ -71,6 +72,7 @@ export function buildCurlCall(
   ctx: BuildCurlCallCtx = {},
 ): string {
   const resultVar = ctx.resultVar ?? HTTP_RESULT_VAR;
+  const timeoutSec = ctx.timeoutSec ?? CURL_TIMEOUT_SEC;
   const safePath = path.replace(/^\/+/, '').replace(/[^a-z0-9/-]/gi, '');
   const url = `${resolveBaseUrl(ctx)}/internal/dialplan/${safePath}`;
   const parts: string[] = [];
@@ -96,7 +98,7 @@ export function buildCurlCall(
   }
 
   return [
-    `Set(CURLOPT(httptimeout)=${CURL_TIMEOUT_SEC})`,
+    `Set(CURLOPT(httptimeout)=${timeoutSec})`,
     `Set(${resultVar}=\${CURL(${url},${parts.join('&')})})`,
   ].join('\nsame => n,');
 }

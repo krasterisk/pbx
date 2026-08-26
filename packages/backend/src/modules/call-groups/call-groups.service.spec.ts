@@ -179,9 +179,17 @@ describe('CallGroupsService', () => {
       await expect(
         service.create({ name: 'Sales', exten: '6007', strategy: 'ringall' } as any, vpbx),
       ).rejects.toBeInstanceOf(ConflictException);
-      await expect(
-        service.create({ name: 'Sales', exten: '6007', strategy: 'ringall' } as any, vpbx),
-      ).rejects.toThrow(/already used by group "Other"/);
+
+      try {
+        await service.create({ name: 'Sales', exten: '6007', strategy: 'ringall' } as any, vpbx);
+        throw new Error('expected ConflictException');
+      } catch (err) {
+        expect(err).toBeInstanceOf(ConflictException);
+        expect((err as ConflictException).getResponse()).toMatchObject({
+          code: 'CALL_GROUP_EXTEN_USED_BY_GROUP',
+          params: { exten: '6007', name: 'Other', uid: 3 },
+        });
+      }
       expect(groupModel.create).not.toHaveBeenCalled();
     });
 

@@ -16,6 +16,28 @@
   justify-content: space-between;
 }
 
+/* Collapsed panel header — chips only, one row */
+.summaryBarInline {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow-x: auto;
+
+  .summaryChip {
+    flex: 0 0 auto;
+    padding: 2px 8px;
+    white-space: nowrap;
+    font-size: 0.8rem;
+  }
+
+  .summaryValue,
+  .summaryLabel {
+    font-size: 0.8rem;
+  }
+}
+
 .summaryStats {
   display: flex;
   flex-wrap: wrap;
@@ -61,10 +83,26 @@
   font-size: 0.95rem;
 }
 
+.periodHint {
+  font-size: 0.72rem;
+}
+
 /* Segment tabs (D-07) — TransferDirectory .filterRow shape */
 .filterRow {
   flex-shrink: 0;
   overflow-x: auto;
+}
+
+.filtersSecondary {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.statusSelect {
+  height: 36px;
+  font-size: 0.85rem;
 }
 
 /* Per-segment search (D-10) — TransferDirectory .searchRow shape */

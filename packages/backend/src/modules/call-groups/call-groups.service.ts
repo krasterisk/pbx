@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, ConflictException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ConflictException, Logger, HttpException, HttpStatus } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { Op, UniqueConstraintError } from 'sequelize';
@@ -14,6 +14,29 @@ import {
 } from './dto/call-group.dto';
 import type { ICallGroup, ICallGroupMember } from '@krasterisk/shared';
 import { EndpointsService } from '../endpoints/endpoints.service';
+
+/** Stable codes for frontend i18n (`callGroups.errors.<code>`). */
+export type CallGroupErrorCode =
+  | 'CALL_GROUP_EXTEN_REQUIRED'
+  | 'CALL_GROUP_EXTEN_USED_BY_GROUP'
+  | 'CALL_GROUP_EXTEN_USED_BY_QUEUE'
+  | 'CALL_GROUP_EXTEN_USED_BY_ENDPOINT'
+  | 'CALL_GROUP_EXTEN_USED_IN_TENANT'
+  | 'CALL_GROUP_UNKNOWN_EXTENSIONS'
+  | 'CALL_GROUP_NOT_FOUND';
+
+export function callGroupHttpError(
+  status: HttpStatus,
+  code: CallGroupErrorCode,
+  message: string,
+  params: Record<string, string | number> = {},
+): HttpException {
+  const body = { code, message, params };
+  if (status === HttpStatus.CONFLICT) return new ConflictException(body);
+  if (status === HttpStatus.BAD_REQUEST) return new BadRequestException(body);
+  if (status === HttpStatus.NOT_FOUND) return new NotFoundException(body);
+  return new HttpException(body, status);
+}
 
 @Injectable()
 export class CallGroupsService {
@@ -43,8 +66,11 @@ export class CallGroupsService {
       },
     });
     if (existing) {
-      throw new ConflictException(
+      throw callGroupHttpError(
+        HttpStatus.CONFLICT,
+        'CALL_GROUP_EXTEN_USED_BY_GROUP',
         `Call group extension "${exten}" is already used by group "${existing.name}" (uid ${existing.uid})`,
+        { exten, name: existing.name, uid: existing.uid },
       );
     }
 
@@ -53,12 +79,22 @@ export class CallGroupsService {
       { replacements: { name: `q${exten}_${vpbx}` } },
     );
     if (Array.isArray(queues) && queues.length > 0) {
-      throw new ConflictException(`Extension "${exten}" is already used by a queue`);
+      throw callGroupHttpError(
+        HttpStatus.CONFLICT,
+        'CALL_GROUP_EXTEN_USED_BY_QUEUE',
+        `Extension "${exten}" is already used by a queue`,
+        { exten },
+      );
     }
 
     const endpoints = await this.endpointsService.findAll(vpbx);
     if (endpoints.some((e) => String(e.extension) === exten)) {
-      throw new ConflictException(`Extension "${exten}" is already used by an internal number`);
+      throw callGroupHttpError(
+        HttpStatus.CONFLICT,
+        'CALL_GROUP_EXTEN_USED_BY_ENDPOINT',
+        `Extension "${exten}" is already used by an internal number`,
+        { exten },
+      );
     }
   }
 
@@ -81,8 +117,11 @@ export class CallGroupsService {
     const known = new Set(endpoints.map((e) => String(e.extension)));
     const missing = [...new Set(internals.filter((ext) => !known.has(ext)))];
     if (missing.length) {
-      throw new BadRequestException(
+      throw callGroupHttpError(
+        HttpStatus.BAD_REQUEST,
+        'CALL_GROUP_UNKNOWN_EXTENSIONS',
         `Unknown extensions for this tenant: ${missing.join(', ')}`,
+        { extensions: missing.join(', ') },
       );
     }
   }
@@ -113,6 +152,7 @@ export class CallGroupsService {
       webrtcExtensions,
       {
         confirmExternal: mapped.confirmExternal,
+        confirmDigit: mapped.confirmDigit,
         skipBusy: mapped.skipBusy,
         greetingPrompt: mapped.greetingPrompt,
         mohClass: mapped.mohClass,
@@ -163,7 +203,14 @@ export class CallGroupsService {
     const group = await this.groupModel.findOne({
       where: { uid, user_uid: vpbx },
     });
-    if (!group) throw new NotFoundException(`Call group ${uid} not found`);
+    if (!group) {
+      throw callGroupHttpError(
+        HttpStatus.NOT_FOUND,
+        'CALL_GROUP_NOT_FOUND',
+        `Call group ${uid} not found`,
+        { uid },
+      );
+    }
 
     const members = await this.memberModel.findAll({
       where: { call_group_uid: uid, user_uid: vpbx },
@@ -178,7 +225,11 @@ export class CallGroupsService {
 
   async create(dto: CreateCallGroupDto, vpbx: number) {
     if (!dto.exten) {
-      throw new BadRequestException('exten is required');
+      throw callGroupHttpError(
+        HttpStatus.BAD_REQUEST,
+        'CALL_GROUP_EXTEN_REQUIRED',
+        'exten is required',
+      );
     }
     const data = { ...dto } as CreateCallGroupDto & { user_uid?: number };
     delete data.user_uid;
@@ -218,8 +269,11 @@ export class CallGroupsService {
     } catch (e) {
       if (!committed) await transaction.rollback();
       if (e instanceof UniqueConstraintError || (e as { name?: string })?.name === 'SequelizeUniqueConstraintError') {
-        throw new ConflictException(
+        throw callGroupHttpError(
+          HttpStatus.CONFLICT,
+          'CALL_GROUP_EXTEN_USED_IN_TENANT',
           `Call group extension "${dto.exten}" is already used in this tenant`,
+          { exten: dto.exten ?? '' },
         );
       }
       throw e;
@@ -242,7 +296,14 @@ export class CallGroupsService {
     const group = await this.groupModel.findOne({
       where: { uid, user_uid: vpbx },
     });
-    if (!group) throw new NotFoundException(`Call group ${uid} not found`);
+    if (!group) {
+      throw callGroupHttpError(
+        HttpStatus.NOT_FOUND,
+        'CALL_GROUP_NOT_FOUND',
+        `Call group ${uid} not found`,
+        { uid },
+      );
+    }
 
     const data = { ...dto } as UpdateCallGroupDto & { user_uid?: number };
     delete data.user_uid;
@@ -299,8 +360,11 @@ export class CallGroupsService {
     } catch (e) {
       if (!committed) await transaction.rollback();
       if (e instanceof UniqueConstraintError || (e as { name?: string })?.name === 'SequelizeUniqueConstraintError') {
-        throw new ConflictException(
+        throw callGroupHttpError(
+          HttpStatus.CONFLICT,
+          'CALL_GROUP_EXTEN_USED_IN_TENANT',
           `Call group extension "${dto.exten}" is already used in this tenant`,
+          { exten: dto.exten ?? '' },
         );
       }
       throw e;
@@ -321,7 +385,14 @@ export class CallGroupsService {
     const group = await this.groupModel.findOne({
       where: { uid, user_uid: vpbx },
     });
-    if (!group) throw new NotFoundException(`Call group ${uid} not found`);
+    if (!group) {
+      throw callGroupHttpError(
+        HttpStatus.NOT_FOUND,
+        'CALL_GROUP_NOT_FOUND',
+        `Call group ${uid} not found`,
+        { uid },
+      );
+    }
 
     const transaction = await this.sequelize.transaction();
     let committed = false;

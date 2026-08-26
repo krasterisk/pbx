@@ -34,10 +34,76 @@ export interface SchemaFieldsProps {
   fieldErrors?: Record<string, string>;
   showErrors?: boolean;
   tenantUid?: number;
+  /** Route extensions for live dial-number preview (route_pattern dest). */
+  previewPatterns?: string[];
 }
 
 function assertNever(x: never): never {
   throw new Error(`Unknown field kind: ${String(x)}`);
+}
+
+function isRuleVisible(
+  rule: { key: string; equals: string | readonly string[] },
+  params: Record<string, unknown>,
+): boolean {
+  const actual = params[rule.key];
+  const expected = rule.equals;
+  return Array.isArray(expected)
+    ? expected.includes(String(actual ?? ''))
+    : String(actual ?? '') === expected;
+}
+
+function isFieldVisible(field: FieldSchema, params: Record<string, unknown>): boolean {
+  if (!field.visibleWhen) return true;
+  if (Array.isArray(field.visibleWhen)) {
+    return field.visibleWhen.every((rule) => isRuleVisible(rule, params));
+  }
+  return isRuleVisible(field.visibleWhen, params);
+}
+
+type SchemaChunk =
+  | { kind: 'single'; field: FieldSchema }
+  | { kind: 'row'; rowId: string; fields: FieldSchema[] };
+
+/** Group consecutive visible fields that share the same `row` id. */
+export function chunkSchemaFields(
+  schema: FieldSchema[],
+  params: Record<string, unknown>,
+): SchemaChunk[] {
+  const chunks: SchemaChunk[] = [];
+  let i = 0;
+  while (i < schema.length) {
+    const field = schema[i];
+    if (!isFieldVisible(field, params)) {
+      i += 1;
+      continue;
+    }
+    if (!field.row) {
+      chunks.push({ kind: 'single', field });
+      i += 1;
+      continue;
+    }
+    const rowId = field.row;
+    const fields: FieldSchema[] = [field];
+    let j = i + 1;
+    while (j < schema.length) {
+      const next = schema[j];
+      if (!isFieldVisible(next, params)) {
+        j += 1;
+        continue;
+      }
+      if (next.row !== rowId) break;
+      fields.push(next);
+      j += 1;
+    }
+    chunks.push(fields.length > 1 ? { kind: 'row', rowId, fields } : { kind: 'single', field });
+    i = j;
+  }
+  return chunks;
+}
+
+function rowColsCss(fields: FieldSchema[]): string {
+  return fields.map((f) => `minmax(0, ${f.rowWeight ?? 1}fr)`).join(' ');
 }
 
 function isEmptyValue(value: unknown): boolean {
@@ -55,7 +121,7 @@ const CATALOG_DEFAULTS: Record<
   queues: { href: '/queues', sectionKey: 'routes.chain.catalog.queuesSection', sectionFallback: 'Очереди' },
   trunks: { href: '/trunks', sectionKey: 'routes.chain.catalog.trunksSection', sectionFallback: 'Транки' },
   ivrs: { href: '/ivrs', sectionKey: 'routes.chain.catalog.ivrsSection', sectionFallback: 'IVR' },
-  prompts: { href: '/prompts', sectionKey: 'routes.chain.catalog.promptsSection', sectionFallback: 'Промпты' },
+  prompts: { href: '/prompts', sectionKey: 'routes.chain.catalog.promptsSection', sectionFallback: 'Записи' },
   phonebooks: {
     href: '/phonebooks',
     sectionKey: 'routes.chain.catalog.phonebooksSection',
@@ -66,6 +132,36 @@ const CATALOG_DEFAULTS: Record<
     sectionKey: 'routes.chain.catalog.ttsSection',
     sectionFallback: 'Движки синтеза',
   },
+  callGroups: {
+    href: '/call-groups',
+    sectionKey: 'routes.chain.catalog.callGroupsSection',
+    sectionFallback: 'Группы вызова',
+  },
+  voiceRobots: {
+    href: '/voice-robots',
+    sectionKey: 'routes.chain.catalog.voiceRobotsSection',
+    sectionFallback: 'Голосовые роботы',
+  },
+  contexts: {
+    href: '/contexts',
+    sectionKey: 'routes.chain.catalog.contextsSection',
+    sectionFallback: 'Контексты',
+  },
+  endpoints: {
+    href: '/endpoints',
+    sectionKey: 'routes.chain.catalog.endpointsSection',
+    sectionFallback: 'Абоненты',
+  },
+  numberLists: {
+    href: '/numbers',
+    sectionKey: 'routes.chain.catalog.numberListsSection',
+    sectionFallback: 'Списки доступа',
+  },
+  notifications: {
+    href: '/notifications',
+    sectionKey: 'routes.chain.catalog.notificationsSection',
+    sectionFallback: 'Интеграции уведомлений',
+  },
 };
 
 function FieldShell({
@@ -74,6 +170,7 @@ function FieldShell({
   required,
   hint,
   error,
+  hideLabel,
   children,
 }: {
   id: string;
@@ -81,18 +178,31 @@ function FieldShell({
   required?: boolean;
   hint?: string;
   error?: string;
+  hideLabel?: boolean;
   children: ReactNode;
 }) {
+  // With a hidden label the hint icon sits left of the control, not on a row of its own.
+  const inlineHint = Boolean(hideLabel && hint);
+
   return (
     <VStack gap="8" max className={styles.field}>
-      <HStack gap="4" align="center">
-        <Label htmlFor={id} className={styles.label}>
-          {label}
-          {required ? ' *' : ''}
-        </Label>
-        {hint ? <InfoTooltip text={hint} /> : null}
-      </HStack>
-      {children}
+      {!hideLabel ? (
+        <HStack gap="4" align="center">
+          <Label htmlFor={id} className={styles.label}>
+            {label}
+            {required ? ' *' : ''}
+          </Label>
+          {hint ? <InfoTooltip text={hint} /> : null}
+        </HStack>
+      ) : null}
+      {inlineHint ? (
+        <HStack gap="4" align="center" max className={styles.inlineHintRow}>
+          <InfoTooltip text={hint as string} />
+          {children}
+        </HStack>
+      ) : (
+        children
+      )}
       {error ? (
         <Text id={`${id}-error`} variant="muted" className={styles.error}>
           {error}
@@ -164,8 +274,8 @@ function RefSelect({
               sectionName,
             )}
           </Text>
-          <Text
-            as="a"
+          {/* catalogLink exception: cross-section link opens in a new tab, Text has no anchor props */}
+          <a
             href={catalog?.sectionHref ?? defaults.href}
             target="_blank"
             rel="noopener noreferrer"
@@ -175,7 +285,7 @@ function RefSelect({
               '{{section}}',
               sectionName,
             )}
-          </Text>
+          </a>
         </>
       ) : null}
     </VStack>
@@ -189,15 +299,17 @@ function renderControl(
   extras: {
     id: string;
     label: string;
+    hint?: string;
     readOnly?: boolean;
     invalid: boolean;
     errorId?: string;
     refs?: SchemaRefs;
     tenantUid: number;
     showErrors: boolean;
+    previewPatterns?: string[];
   },
 ): ReactNode {
-  const { id, label, readOnly, invalid, errorId, refs, tenantUid, showErrors } = extras;
+  const { id, label, hint, readOnly, invalid, errorId, refs, tenantUid, showErrors } = extras;
   const raw = params[field.key];
   const kind: FieldKind = field.kind;
 
@@ -355,20 +467,29 @@ function renderControl(
     case 'value-source':
       return (
         <ValueSourceField
-          value={raw as ValueSource | undefined}
+          value={raw as ValueSource | number | string | undefined}
           onChange={(next) => onChange({ [field.key]: next })}
           tenantUid={tenantUid}
           label={label}
-          hint={field.hintKey}
+          hint={hint}
           required={field.required}
+          hideLabel={field.hideLabel}
           optionsSource={field.optionsSource}
+          mode={field.valueSourceMode}
           readOnly={readOnly}
           showErrors={showErrors || invalid}
         />
       );
     case 'custom':
       if (typeof field.render === 'function') {
-        return field.render({ params, onChange, readOnly, field });
+        return field.render({
+          params,
+          onChange,
+          readOnly,
+          field,
+          previewPatterns: extras.previewPatterns,
+          tenantUid,
+        });
       }
       throw new Error(`custom field "${field.key}" is missing render`);
     default:
@@ -385,66 +506,101 @@ export function SchemaFields({
   fieldErrors,
   showErrors = false,
   tenantUid = 0,
+  previewPatterns,
 }: SchemaFieldsProps) {
   const { t } = useTranslation();
 
+  const renderField = (field: FieldSchema) => {
+    const label = t(field.labelKey, field.label ?? field.labelKey);
+    const hint = field.hintKey ? t(field.hintKey, field.hint ?? field.hintKey) : undefined;
+    const id = `schema-field-${field.key}`;
+    const empty = isEmptyValue(params[field.key]);
+    const error = fieldErrors?.[field.key];
+    const invalid = Boolean(error || (field.required && empty));
+    const errorId = error ? `${id}-error` : undefined;
+    const renderCtxExtras = { previewPatterns, tenantUid };
+
+    if (field.kind === 'value-source') {
+      return renderControl(field, params, onChange, {
+        id,
+        label,
+        hint,
+        readOnly,
+        invalid,
+        errorId,
+        refs,
+        tenantUid,
+        showErrors,
+        previewPatterns,
+      });
+    }
+
+    if (field.kind === 'custom' && typeof field.render === 'function') {
+      return (
+        <FieldShell
+          id={id}
+          label={label}
+          required={field.required}
+          hint={hint}
+          error={error}
+          hideLabel={field.hideLabel}
+        >
+          {field.render({ params, onChange, readOnly, field, ...renderCtxExtras })}
+        </FieldShell>
+      );
+    }
+
+    return (
+      <FieldShell
+        id={id}
+        label={label}
+        required={field.required}
+        hint={hint}
+        error={error}
+        hideLabel={field.hideLabel}
+      >
+        {renderControl(field, params, onChange, {
+          id,
+          label,
+          hint,
+          readOnly,
+          invalid,
+          errorId,
+          refs,
+          tenantUid,
+          showErrors,
+          previewPatterns,
+        })}
+      </FieldShell>
+    );
+  };
+
+  const chunks = chunkSchemaFields(schema, params);
+
   return (
     <VStack gap="12" max className={styles.fields}>
-      {schema.map((field) => {
-        if (field.visibleWhen) {
-          const actual = params[field.visibleWhen.key];
-          const expected = field.visibleWhen.equals;
-          const visible = Array.isArray(expected)
-            ? expected.includes(String(actual ?? ''))
-            : String(actual ?? '') === expected;
-          if (!visible) return null;
-        }
-        const label = t(field.labelKey, field.label ?? field.labelKey);
-        const hint = field.hintKey ? t(field.hintKey, field.hint ?? field.hintKey) : undefined;
-        const id = `schema-field-${field.key}`;
-        const empty = isEmptyValue(params[field.key]);
-        const error = fieldErrors?.[field.key];
-        const invalid = Boolean(error || (field.required && empty));
-        const errorId = error ? `${id}-error` : undefined;
-
-        if (field.kind === 'value-source') {
+      {chunks.map((chunk) => {
+        if (chunk.kind === 'single') {
           return (
-            <div key={field.key}>
-              {renderControl(field, params, onChange, {
-                id,
-                label,
-                readOnly,
-                invalid,
-                errorId,
-                refs,
-                tenantUid,
-                showErrors,
-              })}
-            </div>
+            <VStack key={chunk.field.key} gap="0" max className={styles.fieldCell}>
+              {renderField(chunk.field)}
+            </VStack>
           );
         }
-
-        if (field.kind === 'custom' && typeof field.render === 'function') {
-          return (
-            <FieldShell key={field.key} id={id} label={label} required={field.required} hint={hint} error={error}>
-              {field.render({ params, onChange, readOnly, field })}
-            </FieldShell>
-          );
-        }
-
         return (
-          <FieldShell key={field.key} id={id} label={label} required={field.required} hint={hint} error={error}>
-            {renderControl(field, params, onChange, {
-              id,
-              label,
-              readOnly,
-              invalid,
-              errorId,
-              refs,
-              tenantUid,
-              showErrors,
-            })}
-          </FieldShell>
+          <VStack
+            key={`row-${chunk.rowId}`}
+            gap="0"
+            max
+            className={styles.fieldRow}
+            style={{ ['--schema-row-cols' as string]: rowColsCss(chunk.fields) }}
+          >
+            {chunk.fields.map((field) => (
+              <VStack key={field.key} gap="0" max className={styles.fieldCell}>
+                {renderField(field)}
+              </VStack>
+            ))}
+          </VStack>
         );
       })}
     </VStack>

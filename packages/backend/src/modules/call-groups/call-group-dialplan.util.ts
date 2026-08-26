@@ -8,6 +8,7 @@ import {
   buildConfirmMacro,
   confirmOption,
   mergeDialOptions,
+  stripMohDialTokens,
 } from './call-group-confirm.util';
 
 export interface GeneratedDialplanCategory {
@@ -20,6 +21,7 @@ export interface GenerateGroupDialplanOptions {
   dialOpts?: string;
   rng?: () => number;
   confirmExternal?: boolean;
+  confirmDigit?: string;
   skipBusy?: boolean;
   greetingPrompt?: string;
   mohClass?: string;
@@ -298,12 +300,13 @@ export function generateGroupDialplan(
 ): GeneratedDialplanCategory {
   const rng = options?.rng ?? (Math as { random(): number }).random.bind(Math);
   const confirm = options?.confirmExternal ?? group.confirmExternal ?? false;
+  const confirmDigit = options?.confirmDigit ?? group.confirmDigit;
   const skipBusy = options?.skipBusy ?? group.skipBusy ?? false;
   const greetingPrompt = options?.greetingPrompt ?? group.greetingPrompt;
   const useMoh = options?.useMohInsteadOfRingback ?? group.useMohInsteadOfRingback ?? false;
   const mohClass = AsteriskDialplanUtils.sanitizeFilePath(options?.mohClass ?? group.mohClass);
   const rawOpts = options?.dialOpts ?? group.dialOptions ?? 'tT';
-  let dialOpts = serializeOptions(parseOptions(rawOpts));
+  let dialOpts = stripMohDialTokens(serializeOptions(parseOptions(rawOpts)));
   if (useMoh) {
     dialOpts = mergeDialOptions(dialOpts, mohClass ? `m(${mohClass})` : 'm');
   }
@@ -312,10 +315,6 @@ export function generateGroupDialplan(
   const lines: string[] = [];
 
   lines.push(`[${ctxName}]`);
-  const transitionalInclude = `include => group_${group.uid}_${vpbx}`;
-  if (transitionalInclude !== `include => ${ctxName}`) {
-    lines.push(transitionalInclude);
-  }
   lines.push(`exten => start,1,NoOp(Call group: ${group.name} [${group.strategy}])`);
 
   const ctx: EmitCtx = {
@@ -346,7 +345,7 @@ export function generateGroupDialplan(
 
   const extras: GeneratedDialplanCategory[] = [];
   if (confirm && sorted.some((m) => m.member_type === 'external')) {
-    extras.push(buildConfirmMacro({ name: CALL_GROUP_CONFIRM_MACRO }));
+    extras.push(buildConfirmMacro({ name: CALL_GROUP_CONFIRM_MACRO, digit: confirmDigit }));
   }
 
   return { name: ctxName, lines, extras };

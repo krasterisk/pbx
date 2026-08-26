@@ -1,9 +1,30 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Loader2 } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, Button, Input } from '@/shared/ui';
+import { Stars, Loader2, Upload, Trash2, ChevronDown } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  Button,
+  Input,
+  PasswordInput,
+  Label,
+  Select,
+  Text,
+  Avatar,
+  InfoTooltip,
+} from '@/shared/ui';
 import { VStack, HStack } from '@/shared/ui/Stack';
-import { useCreateUserMutation, useUpdateUserMutation, useGetNumbersQuery, useGetRolesQuery } from '@/shared/api/api';
+import {
+  useCreateUserMutation,
+  useUpdateUserMutation,
+  useGetNumbersQuery,
+  useGetRolesQuery,
+  useUploadUserAvatarMutation,
+  useDeleteUserAvatarMutation,
+} from '@/shared/api/api';
 import { useAppSelector, useAppDispatch } from '@/shared/hooks/useAppStore';
 import { selectIsModalOpen, selectSelectedUser } from '../../model/selectors/usersPageSelectors';
 import { usersPageActions } from '../../model/slice/usersPageSlice';
@@ -12,114 +33,154 @@ import {
   PLATFORM_LEVEL_OPTIONS,
   selectIsSuperAdmin,
 } from '@/entities/User';
-import type { IUser } from '@/entities/User';
+import { patchAuthUser } from '@/features/auth/model/authSlice';
+import { buildUserAvatarUrl } from '@/shared/lib/userAvatarUrl';
+import styles from './UserFormModal.module.scss';
+
+function generatePassword(): string {
+  const alphabet = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  const bytes = new Uint8Array(12);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => alphabet[b % alphabet.length]).join('');
+}
+
+/** Optional email: empty OK; otherwise local@domain.tld */
+function isValidEmail(value: string): boolean {
+  const email = value.trim();
+  if (!email) return true;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
 
 export const UserFormModal = () => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const isOpen = useAppSelector(selectIsModalOpen);
   const selectedUser = useAppSelector(selectSelectedUser);
   const isSuperAdmin = useAppSelector(selectIsSuperAdmin);
+  const accessToken = useAppSelector((s) => s.auth.accessToken);
+  const authUserId = useAppSelector((s) => s.auth.user?.uniqueid);
   const isEditing = !!selectedUser;
 
   const onClose = () => dispatch(usersPageActions.closeModal());
 
   const [createUser, { isLoading: isCreating }] = useCreateUserMutation();
   const [updateUser, { isLoading: isUpdating }] = useUpdateUserMutation();
+  const [uploadAvatar, { isLoading: isUploadingAvatar }] = useUploadUserAvatarMutation();
+  const [deleteAvatar, { isLoading: isDeletingAvatar }] = useDeleteUserAvatarMutation();
   const { data: numbersList = [] } = useGetNumbersQuery();
   const { data: roles = [] } = useGetRolesQuery();
 
   const isLoading = isCreating || isUpdating;
-
-  const [activeTab, setActiveTab] = useState<'general' | 'callcenter'>('general');
 
   const [formData, setFormData] = useState({
     login: '',
     name: '',
     passwd: '',
     email: '',
-    exten: '',
     level: 2,
     role: '',
-    permit_extens: '',
     numbers_id: '',
-    inactive_time: 0,
-    outbound_posttime: 0,
-    suspension_time: 0,
-    listbook_edit: 0,
-    oper_chanspy: 0,
   });
+  const [showPassword, setShowPassword] = useState(false);
+  const [avatarFilename, setAvatarFilename] = useState<string | null>(null);
+  const [accessExtrasOpen, setAccessExtrasOpen] = useState(false);
+  const [emailError, setEmailError] = useState('');
 
   useEffect(() => {
-    if (isOpen) {
-      setActiveTab('general');
-      if (selectedUser) {
-        setFormData({
-          login: selectedUser.login || '',
-          name: selectedUser.name || '',
-          passwd: '',
-          email: selectedUser.email || '',
-          exten: selectedUser.exten || '',
-          level: selectedUser.level || 2,
-          role: String(selectedUser.role || ''),
-          permit_extens: selectedUser.permit_extens || '',
-          numbers_id: String(selectedUser.numbers_id || ''),
-          inactive_time: selectedUser.inactive_time || 0,
-          outbound_posttime: selectedUser.outbound_posttime || 0,
-          suspension_time: selectedUser.suspension_time || 0,
-          listbook_edit: selectedUser.listbook_edit || 0,
-          oper_chanspy: selectedUser.oper_chanspy || 0,
-        });
-      } else {
-        setFormData({
-          login: '',
-          name: '',
-          passwd: '',
-          email: '',
-          exten: '',
-          level: 2,
-          role: '',
-          permit_extens: '',
-          numbers_id: '',
-          inactive_time: 0,
-          outbound_posttime: 0,
-          suspension_time: 0,
-          listbook_edit: 0,
-          oper_chanspy: 0,
-        });
-      }
+    if (!isOpen) return;
+    setShowPassword(false);
+    setEmailError('');
+    if (selectedUser) {
+      const role = String(selectedUser.role || '');
+      const numbersId = String(selectedUser.numbers_id || '');
+      setFormData({
+        login: selectedUser.login || '',
+        name: selectedUser.name || '',
+        passwd: '',
+        email: selectedUser.email || '',
+        level: selectedUser.level || 2,
+        role,
+        numbers_id: numbersId,
+      });
+      setAvatarFilename(selectedUser.avatar ?? null);
+      setAccessExtrasOpen(Boolean(role || numbersId));
+    } else {
+      setFormData({
+        login: '',
+        name: '',
+        passwd: '',
+        email: '',
+        level: 2,
+        role: '',
+        numbers_id: '',
+      });
+      setAvatarFilename(null);
+      setAccessExtrasOpen(false);
     }
   }, [isOpen, selectedUser]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const email = formData.email.trim();
+    if (!isValidEmail(email)) {
+      setEmailError(t('users.emailInvalid'));
+      return;
+    }
+    setEmailError('');
     try {
-      const payload: any = { ...formData };
-      
-      if (!payload.passwd) {
-        delete payload.passwd;
-      }
-      
-      const finalPayload = {
-        ...payload,
-        password: payload.passwd,
-        role: payload.role ? Number(payload.role) : undefined,
-        level: Number(payload.level),
-        numbers_id: payload.numbers_id ? Number(payload.numbers_id) : undefined,
-        inactive_time: Number(payload.inactive_time) || 0,
-        outbound_posttime: Number(payload.outbound_posttime) || 0,
-        suspension_time: Number(payload.suspension_time) || 0,
+      const payload: Record<string, unknown> = {
+        login: formData.login,
+        name: formData.name,
+        email,
+        level: Number(formData.level),
+        role: formData.role ? Number(formData.role) : undefined,
+        numbers_id: formData.numbers_id ? Number(formData.numbers_id) : undefined,
       };
 
+      if (formData.passwd) {
+        payload.password = formData.passwd;
+      }
+
       if (isEditing) {
-        await updateUser({ id: selectedUser!.uniqueid, data: finalPayload }).unwrap();
+        await updateUser({ id: selectedUser!.uniqueid, data: payload }).unwrap();
       } else {
-        await createUser(finalPayload).unwrap();
+        await createUser(payload).unwrap();
       }
       onClose();
     } catch (err) {
       console.error('Failed to save user:', err);
+    }
+  };
+
+  const syncAuthAvatar = (userId: number, avatar: string | null) => {
+    if (authUserId === userId) {
+      dispatch(patchAuthUser({ avatar }));
+    }
+  };
+
+  const handleAvatarPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || !selectedUser) return;
+    try {
+      const updated = await uploadAvatar({ id: selectedUser.uniqueid, file }).unwrap();
+      setAvatarFilename(updated.avatar ?? null);
+      syncAuthAvatar(selectedUser.uniqueid, updated.avatar ?? null);
+    } catch (err) {
+      console.error('Failed to upload avatar:', err);
+    }
+  };
+
+  const handleAvatarRemove = async () => {
+    if (!selectedUser) return;
+    try {
+      const updated = await deleteAvatar(selectedUser.uniqueid).unwrap();
+      setAvatarFilename(updated.avatar ?? null);
+      syncAuthAvatar(selectedUser.uniqueid, null);
+    } catch (err) {
+      console.error('Failed to remove avatar:', err);
     }
   };
 
@@ -129,46 +190,85 @@ export const UserFormModal = () => {
     label: t(opt.i18nKey),
   }));
 
+  const passwordLabel = isEditing
+    ? t('users.password')
+    : `${t('users.password')} *`;
+
+  const avatarSrc = isEditing && selectedUser
+    ? buildUserAvatarUrl(selectedUser.uniqueid, avatarFilename, accessToken)
+    : undefined;
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[550px]">
-        <DialogHeader>
+      <DialogContent
+        className={`flex flex-col gap-0 overflow-hidden max-h-[min(90vh,90dvh)] ${styles.dialogContent}`}
+      >
+        <DialogHeader className={`shrink-0 ${styles.header}`}>
           <DialogTitle>
             {isEditing ? t('users.edit') : t('users.add')}
           </DialogTitle>
         </DialogHeader>
 
-        <HStack className="border-b border-border mt-2" gap="0">
-          <button
-            type="button"
-            className={`px-4 py-2 text-sm font-medium transition-colors ${
-              activeTab === 'general'
-                ? 'border-b-2 border-primary text-primary'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-            onClick={() => setActiveTab('general')}
-          >
-            {t('users.tabGeneral')}
-          </button>
-          <button
-            type="button"
-            className={`px-4 py-2 text-sm font-medium transition-colors ${
-              activeTab === 'callcenter'
-                ? 'border-b-2 border-primary text-primary'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-            onClick={() => setActiveTab('callcenter')}
-          >
-            {t('users.tabCallCenter')}
-          </button>
-        </HStack>
-
-        <form onSubmit={handleSubmit} className="py-2" autoComplete="off">
-          {activeTab === 'general' && (
+        <form onSubmit={handleSubmit} className={styles.form} autoComplete="off">
+          <div className={styles.formBody}>
             <VStack gap="16" max>
-              <VStack gap="8" max>
-                <label className="text-sm font-medium text-muted-foreground">{t('auth.loginPlaceholder')} *</label>
+              {isEditing && selectedUser ? (
+                <VStack gap="12" align="center" max className={styles.avatarRow}>
+                  <Avatar name={formData.name || selectedUser.name} src={avatarSrc} size={72} />
+                  <HStack gap="8" align="center" className={styles.avatarActions}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={isUploadingAvatar}
+                      onClick={() => fileRef.current?.click()}
+                    >
+                      {isUploadingAvatar ? <Loader2 className={styles.iconSpin} /> : <Upload className={styles.icon} />}
+                      {t('users.avatarUpload')}
+                    </Button>
+                    <InfoTooltip text={t('users.avatarHint')} />
+                    {avatarFilename && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        disabled={isDeletingAvatar}
+                        onClick={() => void handleAvatarRemove()}
+                        title={t('users.avatarRemove')}
+                        aria-label={t('users.avatarRemove')}
+                      >
+                        <Trash2 className={styles.icon} />
+                      </Button>
+                    )}
+                  </HStack>
+                  <input
+                    ref={fileRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/gif"
+                    className={styles.hiddenFile}
+                    onChange={(e) => void handleAvatarPick(e)}
+                  />
+                </VStack>
+              ) : null}
+
+              <VStack gap="8" max className={styles.field}>
+                <Label htmlFor="user-name" className={styles.fieldLabel}>
+                  {t('users.name')} *
+                </Label>
                 <Input
+                  id="user-name"
+                  required
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                />
+              </VStack>
+
+              <VStack gap="8" max className={styles.field}>
+                <Label htmlFor="user-login" className={styles.fieldLabel}>
+                  {t('users.login')} *
+                </Label>
+                <Input
+                  id="user-login"
                   required
                   value={formData.login}
                   onChange={(e) => setFormData({ ...formData, login: e.target.value })}
@@ -176,211 +276,176 @@ export const UserFormModal = () => {
                   data-lpignore="true"
                 />
               </VStack>
-              
-              <VStack gap="8" max>
-                <label className="text-sm font-medium text-muted-foreground">{t('auth.passwordPlaceholder')} {isEditing ? t('users.passwordUnchanged') : '*'}</label>
-                <HStack gap="8" max>
-                  <Input
+
+              <VStack gap="8" max className={styles.field}>
+                <HStack gap="4" align="center">
+                  <Label htmlFor="user-password" className={styles.fieldLabel}>
+                    {passwordLabel}
+                  </Label>
+                  {isEditing && <InfoTooltip text={t('users.passwordUnchanged')} />}
+                </HStack>
+                <HStack gap="8" max className={styles.passwordRow}>
+                  <PasswordInput
+                    id="user-password"
                     required={!isEditing}
-                    type="password"
-                    className="flex-1"
                     value={formData.passwd}
+                    revealed={showPassword}
+                    onRevealedChange={setShowPassword}
                     onChange={(e) => setFormData({ ...formData, passwd: e.target.value })}
                     autoComplete="new-password"
                     data-lpignore="true"
                   />
-                  {!isEditing && (
-                    <Button 
-                      type="button" 
-                      variant="outline"
-                      onClick={() => setFormData({ ...formData, passwd: Math.random().toString(36).slice(-8) })}
-                      title={t('users.generatePassword')}
-                    >
-                      {t('users.generateShort')}
-                    </Button>
-                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className={styles.generateBtn}
+                    onClick={() => {
+                      setFormData({ ...formData, passwd: generatePassword() });
+                      setShowPassword(true);
+                    }}
+                    title={t('users.generatePassword')}
+                    aria-label={t('users.generatePassword')}
+                  >
+                    <Stars className={styles.icon} />
+                  </Button>
                 </HStack>
               </VStack>
 
-              <VStack gap="8" max>
-                <label className="text-sm font-medium text-muted-foreground">{t('peers.name')} *</label>
+              <VStack gap="8" max className={styles.field}>
+                <Label htmlFor="user-email" className={styles.fieldLabel}>
+                  {t('users.email')}
+                </Label>
                 <Input
-                  required
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  id="user-email"
+                  type="email"
+                  inputMode="email"
+                  value={formData.email}
+                  onChange={(e) => {
+                    setFormData({ ...formData, email: e.target.value });
+                    if (emailError) setEmailError('');
+                  }}
+                  onBlur={() => {
+                    if (!isValidEmail(formData.email)) {
+                      setEmailError(t('users.emailInvalid'));
+                    }
+                  }}
+                  onInvalid={(e) => {
+                    e.preventDefault();
+                    setEmailError(t('users.emailInvalid'));
+                  }}
+                  autoComplete="off"
+                  data-lpignore="true"
+                  aria-invalid={Boolean(emailError)}
+                  aria-describedby={emailError ? 'user-email-error' : undefined}
                 />
+                {emailError ? (
+                  <Text id="user-email-error" className={styles.fieldError}>
+                    {emailError}
+                  </Text>
+                ) : null}
               </VStack>
 
-              <HStack gap="16" max className="grid grid-cols-1 sm:flex">
-                <VStack gap="8" className="flex-1" max>
-                  <label className="text-sm font-medium text-muted-foreground">{t('peers.exten')}</label>
-                  <Input
-                    value={formData.exten}
-                    onChange={(e) => setFormData({ ...formData, exten: e.target.value })}
-                  />
-                </VStack>
-                <VStack gap="8" className="flex-1" max>
-                  <label className="text-sm font-medium text-muted-foreground">E-mail</label>
-                  <Input
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    autoComplete="off"
-                    data-lpignore="true"
-                  />
-                </VStack>
-              </HStack>
-
-              <HStack gap="16" max className="grid grid-cols-1 sm:flex">
-                <VStack gap="8" className="flex-1" max>
-                  <label className="text-sm font-medium text-muted-foreground">{t('users.level')}</label>
-                  <select
-                    className="flex h-9 w-full rounded-md border border-input bg-background/50 px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring focus-visible:border-transparent"
-                    value={formData.level}
-                    onChange={(e) => setFormData({ ...formData, level: Number(e.target.value) })}
-                  >
-                    {levelOptions.map((opt) => (
-                      <option key={opt.value} value={opt.value} className="bg-background text-foreground">
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                </VStack>
-
-                <VStack gap="8" className="flex-1" max>
-                  <label
-                    className="text-sm font-medium text-muted-foreground"
-                    title={t('users.roleHint')}
-                  >
-                    {t('users.role')}
-                  </label>
-                  <select
-                    className="flex h-9 w-full rounded-md border border-input bg-background/50 px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring focus-visible:border-transparent"
-                    value={formData.role}
-                    onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                    aria-describedby="user-role-hint"
-                  >
-                    <option value="" className="bg-background text-foreground">{t('users.roleNone')}</option>
-                    {roles.map((r: any) => (
-                      <option key={r.id} value={r.id} className="bg-background text-foreground">
-                        {r.name}
-                      </option>
-                    ))}
-                  </select>
-                  <span id="user-role-hint" className="text-xs text-muted-foreground">
-                    {t('users.roleHint')}
-                  </span>
-                </VStack>
-              </HStack>
-
-              <VStack gap="8" max>
-                <label
-                  className="text-sm font-medium text-muted-foreground"
-                  title={t('users.numbersIdLinkHint')}
+              <VStack gap="8" max className={styles.primaryField}>
+                <HStack gap="4" align="center">
+                  <Label htmlFor="user-level" className={styles.fieldLabel}>
+                    {t('users.level')}
+                  </Label>
+                  <InfoTooltip text={t('users.levelHint')} />
+                </HStack>
+                <Select
+                  id="user-level"
+                  value={formData.level}
+                  onChange={(e) => setFormData({ ...formData, level: Number(e.target.value) })}
                 >
-                  {t('users.numbersId')}
-                </label>
-                <select
-                  className="flex h-9 w-full rounded-md border border-input bg-background/50 px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                  value={formData.numbers_id}
-                  onChange={(e) => setFormData({ ...formData, numbers_id: e.target.value })}
-                  aria-describedby="user-numbers-hint"
-                >
-                  <option value="" className="bg-background text-foreground">{t('users.numbersIdNone')}</option>
-                  {numbersList.map((n: any) => (
-                    <option key={n.id} value={n.id} className="bg-background text-foreground">
-                      {n.name}
+                  {levelOptions.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
                     </option>
                   ))}
-                </select>
-                <span id="user-numbers-hint" className="text-xs text-muted-foreground">
-                  {t('users.numbersIdLinkHint')}
-                </span>
+                </Select>
+              </VStack>
+
+              <VStack
+                gap={accessExtrasOpen ? '12' : '0'}
+                max
+                className={styles.accessGroup}
+              >
+                <HStack gap="8" align="center" max className={styles.accessGroupTitleRow}>
+                  <button
+                    type="button"
+                    className={styles.accessGroupToggle}
+                    aria-expanded={accessExtrasOpen}
+                    aria-controls="user-access-extras"
+                    onClick={() => setAccessExtrasOpen((open) => !open)}
+                  >
+                    <HStack gap="8" align="center" max className={styles.accessGroupToggleInner}>
+                      <Text className={styles.accessGroupTitle}>{t('users.accessExtrasTitle')}</Text>
+                      <ChevronDown
+                        className={`${styles.accessGroupChevron}${accessExtrasOpen ? ` ${styles.accessGroupChevronOpen}` : ''}`}
+                        aria-hidden
+                      />
+                    </HStack>
+                  </button>
+                  <InfoTooltip text={t('users.accessExtrasHint')} />
+                </HStack>
+
+                {accessExtrasOpen && (
+                  <VStack gap="12" max id="user-access-extras">
+                    <VStack gap="8" max className={styles.field}>
+                      <HStack gap="4" align="center">
+                        <Label htmlFor="user-role" className={styles.fieldLabel}>
+                          {t('users.role')}
+                        </Label>
+                        <InfoTooltip text={t('users.roleHint')} />
+                      </HStack>
+                      <Select
+                        id="user-role"
+                        value={formData.role}
+                        onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                      >
+                        <option value="">{t('users.roleNone')}</option>
+                        {roles.map((r: { id: number; name: string }) => (
+                          <option key={r.id} value={r.id}>
+                            {r.name}
+                          </option>
+                        ))}
+                      </Select>
+                    </VStack>
+
+                    <VStack gap="8" max className={styles.field}>
+                      <HStack gap="4" align="center">
+                        <Label htmlFor="user-numbers" className={styles.fieldLabel}>
+                          {t('users.numbersId')}
+                        </Label>
+                        <InfoTooltip text={t('users.numbersIdLinkHint')} />
+                      </HStack>
+                      <Select
+                        id="user-numbers"
+                        value={formData.numbers_id}
+                        onChange={(e) => setFormData({ ...formData, numbers_id: e.target.value })}
+                      >
+                        <option value="">{t('users.numbersIdNone')}</option>
+                        {numbersList.map((n: { id: number; name: string }) => (
+                          <option key={n.id} value={n.id}>
+                            {n.name}
+                          </option>
+                        ))}
+                      </Select>
+                    </VStack>
+                  </VStack>
+                )}
               </VStack>
             </VStack>
-          )}
+          </div>
 
-          {activeTab === 'callcenter' && (
-            <VStack gap="16" max>
-              <VStack gap="8" max>
-                <label className="text-sm font-medium text-muted-foreground" title={t('users.permitExtensHint')}>
-                  {t('users.permitExtens')}
-                </label>
-                <Input
-                  value={formData.permit_extens}
-                  onChange={(e) => setFormData({ ...formData, permit_extens: e.target.value })}
-                  placeholder={t('users.permitExtensPlaceholder')}
-                />
-              </VStack>
-
-              <HStack gap="16" max className="grid grid-cols-1 sm:flex">
-                <VStack gap="8" className="flex-1" max>
-                  <label className="text-sm font-medium text-muted-foreground" title={t('users.inactiveTimeHint')}>
-                    {t('users.inactiveTime')}
-                  </label>
-                  <Input
-                    type="number"
-                    min="0"
-                    value={formData.inactive_time}
-                    onChange={(e) => setFormData({ ...formData, inactive_time: Number(e.target.value) })}
-                  />
-                </VStack>
-                <VStack gap="8" className="flex-1" max>
-                  <label className="text-sm font-medium text-muted-foreground" title={t('users.outboundPosttimeHint')}>
-                    {t('users.outboundPosttime')}
-                  </label>
-                  <Input
-                    type="number"
-                    min="0"
-                    value={formData.outbound_posttime}
-                    onChange={(e) => setFormData({ ...formData, outbound_posttime: Number(e.target.value) })}
-                  />
-                </VStack>
-              </HStack>
-
-              <VStack gap="8" max>
-                <label className="text-sm font-medium text-muted-foreground" title={t('users.suspensionTimeHint')}>
-                  {t('users.suspensionTime')}
-                </label>
-                <Input
-                  type="number"
-                  min="0"
-                  value={formData.suspension_time}
-                  onChange={(e) => setFormData({ ...formData, suspension_time: Number(e.target.value) })}
-                />
-              </VStack>
-
-              <VStack gap="12" max className="pt-2">
-                <label className="flex items-center gap-2 text-sm font-medium text-foreground cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="w-4 h-4 rounded border-gray-600 bg-background/50 text-primary focus:ring-primary focus:ring-offset-background"
-                    checked={formData.listbook_edit === 1}
-                    onChange={(e) => setFormData({ ...formData, listbook_edit: e.target.checked ? 1 : 0 })}
-                  />
-                  <span>{t('users.listbookEdit')}</span>
-                </label>
-                
-                <label className="flex items-center gap-2 text-sm font-medium text-foreground cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="w-4 h-4 rounded border-gray-600 bg-background/50 text-primary focus:ring-primary focus:ring-offset-background"
-                    checked={formData.oper_chanspy === 1}
-                    onChange={(e) => setFormData({ ...formData, oper_chanspy: e.target.checked ? 1 : 0 })}
-                  />
-                  <span>{t('users.operChanspy')}</span>
-                </label>
-              </VStack>
-            </VStack>
-          )}
-
-          <DialogFooter className="mt-6">
+          <DialogFooter className={styles.footer}>
             <HStack gap="8" justify="end" max>
               <Button type="button" variant="outline" onClick={onClose} disabled={isLoading}>
                 {t('common.cancel')}
               </Button>
               <Button type="submit" disabled={isLoading}>
-                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isLoading && <Loader2 className={styles.iconSpin} />}
                 {t('common.save')}
               </Button>
             </HStack>

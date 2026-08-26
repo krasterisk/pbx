@@ -26,6 +26,7 @@ import {
   agentDisplayName,
   agentStatusColorFamily,
   coworkerActivityLabel,
+  formatStatusElapsed,
 } from '@/features/callcenter/lib/displayLabels';
 import { resolveKpiTriple } from '@/features/callcenter/lib/kpiDisplay';
 import {
@@ -41,13 +42,13 @@ import type { SpyMode } from '@/shared/api/endpoints/callCenterApi';
 import styles from './CoworkersTab.module.scss';
 
 interface CoworkersTabProps {
-  /** Whether the operator has an active call — enables click/drag-to-transfer on rows (D-21). */
+  /** Whether the operator has an active call - enables click/drag-to-transfer on rows (D-21). */
   hasActiveCall: boolean;
-  /** Panel KPI period — same preference as status bar (Day / Shift / Both). */
+  /** Panel KPI period - same preference as status bar (Day / Shift / Both). */
   kpiDisplay?: KpiDisplayMode;
 }
 
-/** Presence follows shared status→color map — OUTBOUND_WORK is available (info), not busy-red. */
+/** Presence follows shared status→color map - OUTBOUND_WORK is available (info), not busy-red. */
 function presenceDotClass(status: AgentStatus): string {
   const family = agentStatusColorFamily(status);
   if (family === 'success') return styles.dotSuccess;
@@ -68,12 +69,6 @@ function activityToneClass(tone: string): string {
   return '';
 }
 
-function formatMmSs(totalSeconds: number): string {
-  const m = Math.floor(totalSeconds / 60);
-  const s = totalSeconds % 60;
-  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-}
-
 const SPY_MODES: { value: SpyMode; labelKey: string; fallback: string }[] = [
   { value: 'listen', labelKey: 'callcenter.coworkersTab.spy.listen', fallback: 'Listen' },
   { value: 'whisper', labelKey: 'callcenter.coworkersTab.spy.whisper', fallback: 'Whisper' },
@@ -81,7 +76,7 @@ const SPY_MODES: { value: SpyMode; labelKey: string; fallback: string }[] = [
 ];
 
 /**
- * Coworkers tab — self + callable peers; desktop table / mobile cards.
+ * Coworkers tab - self + callable peers; desktop table / mobile cards.
  * OFFLINE (Invalid / unreachable) peers are hidden; self is always listed.
  */
 export function CoworkersTab({ hasActiveCall, kpiDisplay: kpiDisplayProp }: CoworkersTabProps) {
@@ -150,7 +145,7 @@ export function CoworkersTab({ hasActiveCall, kpiDisplay: kpiDisplayProp }: Cowo
     });
     const visible = shared.filter((a) => {
       if (a.interface === myAgent.interface) return true;
-      // Invalid / unreachable endpoints cannot take calls — hide from list
+      // Invalid / unreachable endpoints cannot take calls - hide from list
       return a.status !== 'OFFLINE';
     });
     return visible.sort((a, b) => {
@@ -388,7 +383,7 @@ export function CoworkersTab({ hasActiveCall, kpiDisplay: kpiDisplayProp }: Cowo
                 <span className={styles.meta}>
                   <span className={activityToneClass(activity.tone)}>{activity.text}</span>
                   <span>·</span>
-                  <span className={styles.timer}>{formatMmSs(elapsed)}</span>
+                  <span className={styles.timer}>{formatStatusElapsed(elapsed)}</span>
                 </span>
                 <span className={styles.kpiLine} title={periodHint}>
                   <Tooltip content={`${t('callcenter.coworkersTab.answeredHint', 'Incoming answered')} (${periodHint})`}>
@@ -482,7 +477,7 @@ export function CoworkersTab({ hasActiveCall, kpiDisplay: kpiDisplayProp }: Cowo
                     ) : null}
                   </td>
                   <td className={activityToneClass(activity.tone)}>{activity.text}</td>
-                  <td className={styles.timer}>{formatMmSs(elapsed)}</td>
+                  <td className={styles.timer}>{formatStatusElapsed(elapsed)}</td>
                   <td className={styles.kpiCell}>{kpi.answered}</td>
                   <td className={styles.kpiCell}>{kpi.made}</td>
                   <td className={styles.kpiCell}>{kpi.missed}</td>

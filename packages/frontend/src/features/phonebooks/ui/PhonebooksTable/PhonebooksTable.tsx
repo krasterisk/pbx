@@ -125,7 +125,7 @@ export const PhonebooksTable = memo(() => {
                   <Text className="font-medium">{pb.name}</Text>
                 </TableCell>
                 <TableCell>
-                  <Text variant="muted">{pb.description || '—'}</Text>
+                  <Text variant="muted">{pb.description || '-'}</Text>
                 </TableCell>
                 <TableCell>
                   <Text variant="muted" className={cls.entriesCount}>

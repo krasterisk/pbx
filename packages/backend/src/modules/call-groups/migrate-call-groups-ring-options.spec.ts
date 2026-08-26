@@ -42,6 +42,7 @@ describe('runCallGroupsRingOptionsMigrate (D-34)', () => {
 
     const byName = Object.fromEntries(added.map((c) => [c.name, c.def]));
     expect(byName.confirm_external).toEqual(expect.objectContaining({ defaultValue: false }));
+    expect(byName.confirm_digit).toEqual(expect.objectContaining({ defaultValue: '1' }));
     expect(byName.skip_busy).toEqual(expect.objectContaining({ defaultValue: false }));
     expect(byName.use_moh_instead_of_ringback).toEqual(expect.objectContaining({ defaultValue: false }));
     expect(byName.dial_options).toEqual(expect.objectContaining({ defaultValue: 'tT' }));

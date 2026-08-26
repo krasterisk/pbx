@@ -71,16 +71,25 @@
   font-weight: 600;
   color: var(--color-foreground);
   margin-right: auto;
+  flex-shrink: 0;
 }
 
 .headerSummary {
-  display: none;
-  gap: 8px;
+  display: flex;
   align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
   margin-right: 4px;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 
-  @media (min-width: 900px) {
-    display: flex;
+  /* Collapse child wrappers so chips sit on the header row */
+  > * {
+    width: auto;
+    max-width: 100%;
+    min-width: 0;
   }
 }
 
@@ -108,8 +117,4 @@
   min-height: 0;
   padding: 12px;
   overflow-y: auto;
-}
-
-.collapsedBody {
-  padding: 10px 12px 12px;
 }

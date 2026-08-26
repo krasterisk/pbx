@@ -3,7 +3,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import React, { useState } from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, within } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import type { ActionType, IRouteAction } from '@krasterisk/shared';
 import { DialplanAppsEditor, restrictToVerticalAxisLocal, buildDndAnnouncements } from './DialplanAppsEditor';
@@ -45,6 +45,43 @@ vi.mock('@/shared/api/endpoints/promptsApi', () => ({
   useGetPromptsQuery: () => ({ data: [], isLoading: false }),
 }));
 
+// useSchemaRefs owns every catalog, so each one needs a stub here (no Redux store in this suite).
+vi.mock('@/shared/api/endpoints/callGroupApi', () => ({
+  useGetCallGroupsQuery: () => ({ data: [], isLoading: false }),
+}));
+
+vi.mock('@/shared/api/endpoints/trunkApi', () => ({
+  useGetTrunksQuery: () => ({ data: [], isLoading: false }),
+}));
+
+vi.mock('@/shared/api/endpoints/ivrsApi', () => ({
+  useGetIvrsQuery: () => ({ data: [], isLoading: false }),
+}));
+
+vi.mock('@/shared/api/endpoints/ttsEnginesApi', () => ({
+  useGetTtsEnginesQuery: () => ({ data: [], isLoading: false }),
+}));
+
+vi.mock('@/shared/api/endpoints/voiceRobotsApi', () => ({
+  useGetVoiceRobotsQuery: () => ({ data: [], isLoading: false }),
+}));
+
+vi.mock('@/shared/api/endpoints/contextApi', () => ({
+  useGetContextsQuery: () => ({ data: [], isLoading: false }),
+}));
+
+vi.mock('@/shared/api/endpoints/endpointApi', () => ({
+  useGetEndpointsQuery: () => ({ data: [], isLoading: false }),
+}));
+
+vi.mock('@/shared/api/endpoints/numberApi', () => ({
+  useGetNumbersQuery: () => ({ data: [], isLoading: false }),
+}));
+
+vi.mock('@/shared/api/endpoints/notificationApi', () => ({
+  useGetNotificationsQuery: () => ({ data: [], isLoading: false }),
+}));
+
 vi.mock('@dnd-kit/core', async () => {
   const actual = await vi.importActual<typeof import('@dnd-kit/core')>('@dnd-kit/core');
   return {
@@ -81,7 +118,7 @@ describe('DialplanAppsEditor', () => {
   it('disables add at maxSteps and shows n / max', () => {
     render(
       <Harness
-        actions={[step('a', 'hangup'), step('b', 'busy'), step('c', 'congestion')]}
+        actions={[step('a', 'hangup'), step('b', 'hangup', { params: { signal: 'busy' } }), step('c', 'hangup', { params: { signal: 'congestion' } })]}
         onChange={vi.fn()}
         maxSteps={3}
       />,
@@ -116,13 +153,14 @@ describe('DialplanAppsEditor', () => {
       <Harness
         actions={[step('a', '' as ActionType)]}
         onChange={vi.fn()}
-        allowedTypes={['hangup', 'busy']}
+        allowedTypes={['hangup']}
       />,
     );
     const select = screen.getAllByRole('combobox')[0] as HTMLSelectElement;
     const values = Array.from(select.options).map((o) => o.value).filter(Boolean);
-    expect(values).toEqual(expect.arrayContaining(['hangup', 'busy']));
+    expect(values).toEqual(expect.arrayContaining(['hangup']));
     expect(values).not.toContain('toqueue');
+    expect(values).not.toContain('busy');
   });
 
   it('warns about unreachable steps after hangup without blocking add', () => {

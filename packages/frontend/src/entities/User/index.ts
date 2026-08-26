@@ -1,5 +1,5 @@
 /**
- * Entity: User — Public API
+ * Entity: User - Public API
  *
  * All imports from entities/User must go through this file.
  */

@@ -33,11 +33,11 @@ export const useProvisionTemplatesTableColumns = () => {
       }),
       columnHelper.accessor('vendor', {
         header: t('provisionTemplates.vendor', 'Вендор'),
-        cell: (info) => info.getValue() || <span className="text-muted-foreground">—</span>,
+        cell: (info) => info.getValue() || <span className="text-muted-foreground">-</span>,
       }),
       columnHelper.accessor('model', {
         header: t('provisionTemplates.model', 'Модель'),
-        cell: (info) => info.getValue() || <span className="text-muted-foreground">—</span>,
+        cell: (info) => info.getValue() || <span className="text-muted-foreground">-</span>,
       }),
       columnHelper.display({
         id: 'actions',

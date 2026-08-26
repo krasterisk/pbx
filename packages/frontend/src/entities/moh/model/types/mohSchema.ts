@@ -5,7 +5,7 @@ export interface IMohEntry {
 }
 
 export interface IMohClass {
-  name: string;           // moh_{uid}_{slug} — Asterisk class name (PK)
+  name: string;           // moh_{uid}_{slug} - Asterisk class name (PK)
   displayName: string;    // human-readable name derived from class name
   mode: string;
   sort: 'alpha' | 'random' | 'randstart';

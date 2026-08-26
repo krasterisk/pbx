@@ -1,7 +1,7 @@
 import { memo, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Select, InfoTooltip } from '@/shared/ui';
-import { HStack } from '@/shared/ui/Stack';
+import { Label, Select, InfoTooltip } from '@/shared/ui';
+import { HStack, VStack } from '@/shared/ui/Stack';
 import { type ActionType } from '@krasterisk/shared';
 import { ACTION_TYPES_LIST } from '../../model/registry';
 import { IDialplanAppConfig } from '../../model/types';
@@ -18,7 +18,7 @@ export interface ActionTypeSelectProps {
 }
 
 /**
- * Grouped <Select> for choosing dialplan action type (Asterisk application).
+ * Grouped <Select> for choosing the step application.
  * Groups options by category (telephony, media, notification, system).
  * Uses shared Select + InfoTooltip. No raw HTML.
  *
@@ -42,10 +42,21 @@ export const ActionTypeSelect = memo(({ value, onChange, className, allowedTypes
   const isEmpty = !value;
 
   return (
-    <HStack gap="4" align="center" className={className}>
+    <VStack gap="4" max className={className}>
+      <HStack gap="4" align="center">
+        <Label htmlFor="step-action-type">{t('routes.stepAction', 'Действие шага')}</Label>
+        <InfoTooltip
+          text={t(
+            'routes.tooltips.actionType',
+            'Приложение Krasterisk, которое будет выполнено на данном шаге',
+          )}
+        />
+      </HStack>
       <Select
+        id="step-action-type"
         value={value}
         onChange={(e) => onChange(e.target.value as ActionType)}
+        aria-label={t('routes.stepAction', 'Действие шага')}
         className={`w-full ${isEmpty ? 'opacity-50' : ''}`}
       >
         <option value="" disabled>
@@ -61,8 +72,7 @@ export const ActionTypeSelect = memo(({ value, onChange, className, allowedTypes
           </optgroup>
         ))}
       </Select>
-      <InfoTooltip text={t('routes.tooltips.actionType', 'Тип dialplan-приложения Asterisk, которое будет выполнено на данном шаге')} />
-    </HStack>
+    </VStack>
   );
 });
 

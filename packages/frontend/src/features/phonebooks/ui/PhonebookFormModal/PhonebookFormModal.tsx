@@ -121,7 +121,7 @@ export const PhonebookFormModal = memo(() => {
     }));
   }, []);
 
-  // CSV import — supports columnar and vertical formats
+  // CSV import - supports columnar and vertical formats
   const handleFileImport = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -258,7 +258,7 @@ export const PhonebookFormModal = memo(() => {
         </DialogHeader>
 
         <VStack className={cls.scrollBody}>
-          {/* General fields — a phonebook is pure data: name, description, entries (D-04) */}
+          {/* General fields - a phonebook is pure data: name, description, entries (D-04) */}
           <VStack gap="16">
             <HStack className={cls.formGrid}>
               <VStack>
@@ -285,7 +285,7 @@ export const PhonebookFormModal = memo(() => {
             </HStack>
           </VStack>
 
-          {/* Demo lookup test (D-10) — only meaningful for an already-saved phonebook */}
+          {/* Demo lookup test (D-10) - only meaningful for an already-saved phonebook */}
           {!isCreateMode && editingItem && (
             <PhonebookLookupTest phonebookUid={editingItem.uid} />
           )}
@@ -432,7 +432,7 @@ export const PhonebookFormModal = memo(() => {
                 </Text>
               )}
 
-              {/* Bottom add button — always visible */}
+              {/* Bottom add button - always visible */}
               <Button variant="outline" size="sm" onClick={addEntry} className="self-start">
                 <Plus className={cls.removeEntryIcon} />
                 {t('phonebooks.addEntry', 'Добавить номер')}

@@ -1,5 +1,6 @@
-import { memo, useMemo } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import { cn } from '@/shared/ui/Dialog/Dialog';
+import styles from './Avatar.module.scss';
 
 const AVATAR_BG_TOKENS = [
   'var(--color-primary)',
@@ -27,32 +28,47 @@ function initialsFromName(name: string): string {
 
 export interface AvatarProps {
   name: string;
+  /** Image URL (e.g. authenticated avatar stream). Falls back to initials on error/missing. */
+  src?: string | null;
   size?: number;
   className?: string;
 }
 
-export const Avatar = memo(function Avatar({ name, size = 36, className }: AvatarProps) {
+export const Avatar = memo(function Avatar({ name, src, size = 36, className }: AvatarProps) {
+  const [imgFailed, setImgFailed] = useState(false);
   const initials = useMemo(() => initialsFromName(name), [name]);
   const bg = useMemo(
     () => AVATAR_BG_TOKENS[hashName(name) % AVATAR_BG_TOKENS.length],
     [name],
   );
 
+  useEffect(() => {
+    setImgFailed(false);
+  }, [src]);
+
+  const showImage = Boolean(src) && !imgFailed;
+
   return (
     <span
-      className={cn(
-        'inline-flex shrink-0 items-center justify-center rounded-full font-semibold text-white',
-        className,
-      )}
+      className={cn(styles.root, className)}
       style={{
         width: size,
         height: size,
         fontSize: Math.max(10, Math.round(size * 0.36)),
-        background: bg,
+        background: showImage ? 'transparent' : bg,
       }}
       aria-hidden
     >
-      {initials}
+      {showImage ? (
+        <img
+          src={src!}
+          alt=""
+          className={styles.image}
+          onError={() => setImgFailed(true)}
+        />
+      ) : (
+        initials
+      )}
     </span>
   );
 });

@@ -1,9 +1,9 @@
 /**
  * Operator ARM layout prefs (visibility, order, collapse, KPI mode).
- * localStorage — per-browser UX preference, same pattern as panel chips.
+ * localStorage - per-browser UX preference, same pattern as panel chips.
  */
 const STORAGE_KEY = 'cc.agent.panelPrefs.v2';
-/** Legacy keys — migrated on first read. */
+/** Legacy keys - migrated on first read. */
 const LEGACY_PREFS_KEY = 'cc.agent.panelPrefs.v1';
 const LEGACY_VISIBILITY_KEY = 'cc.agent.panelVisibility.v1';
 
@@ -57,7 +57,7 @@ function readRaw(): Partial<AgentPanelPrefs> {
       const parsed = JSON.parse(raw) as unknown;
       if (parsed && typeof parsed === 'object') return parsed as Partial<AgentPanelPrefs>;
     }
-    // Migrate v1 prefs — reset kpi to shift so status bar matches Coworkers
+    // Migrate v1 prefs - reset kpi to shift so status bar matches Coworkers
     const legacyPrefs = localStorage.getItem(LEGACY_PREFS_KEY);
     if (legacyPrefs) {
       const parsed = JSON.parse(legacyPrefs) as unknown;

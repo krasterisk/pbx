@@ -38,6 +38,7 @@ let mockState: Partial<RootState> = { ...baseState };
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, fallback?: string) => (typeof fallback === 'string' ? fallback : key),
+    i18n: { language: 'ru' },
   }),
 }));
 
@@ -179,9 +180,6 @@ describe('CallGroupFormModal', () => {
     fireEvent.change(endpointSelect, { target: { value: '202' } });
     fireEvent.click(screen.getByText('Добавить участника'));
 
-    const moveDownButtons = screen.getAllByTitle('Вниз');
-    fireEvent.click(moveDownButtons[0]);
-
     fireEvent.click(screen.getByText('Сохранить'));
 
     expect(mockCreate).toHaveBeenCalledTimes(1);
@@ -199,19 +197,19 @@ describe('CallGroupFormModal', () => {
     expect((payload as { exten?: string }).exten).toBe('6007');
     expect(payload!.members).toHaveLength(2);
     expect(payload!.members[0]).toMatchObject({
-      member_type: 'internal',
-      value: '202',
-      position: 0,
-    });
-    expect(payload!.members[1]).toMatchObject({
       member_type: 'external',
       value: '79001112233',
-      position: 1,
+      position: 0,
       ring_time: 15,
+    });
+    expect(payload!.members[1]).toMatchObject({
+      member_type: 'internal',
+      value: '202',
+      position: 1,
     });
   });
 
-  it('marks invalid Dial options and does not call the save mutation', () => {
+  it('marks invalid group Dial options and does not call the save mutation', () => {
     render(<CallGroupFormModal />);
 
     fireEvent.change(screen.getByLabelText('Название'), { target: { value: 'Sales ring' } });
@@ -224,11 +222,13 @@ describe('CallGroupFormModal', () => {
     fireEvent.change(selects[selects.length - 1] as HTMLSelectElement, { target: { value: '202' } });
     fireEvent.click(screen.getByText('Добавить участника'));
 
-    const optionsInput = screen.getByLabelText('Строка опций');
-    fireEvent.change(optionsInput, { target: { value: 'tTU(x' } });
+    fireEvent.click(screen.getByRole('button', { name: /Настройки обзвона/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Опции Dial/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Показать строку опций/i }));
+    fireEvent.change(screen.getByLabelText('Строка опций'), { target: { value: 'tTU(x' } });
 
-    expect(screen.getByText('Незакрытая скобка в строке опций')).toBeInTheDocument();
     fireEvent.click(screen.getByText('Сохранить'));
+    expect(screen.getAllByText('Незакрытая скобка в строке опций').length).toBeGreaterThan(0);
     expect(mockCreate).not.toHaveBeenCalled();
   });
 });

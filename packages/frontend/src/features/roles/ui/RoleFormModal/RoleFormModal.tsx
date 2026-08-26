@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Loader2 } from 'lucide-react';
+import { ChevronDown, Loader2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -9,7 +9,10 @@ import {
   DialogFooter,
   Button,
   Input,
+  Label,
   Text,
+  Checkbox,
+  InfoTooltip,
 } from '@/shared/ui';
 import { VStack, HStack } from '@/shared/ui/Stack';
 import { useCreateRoleMutation, useUpdateRoleMutation } from '@/shared/api/api';
@@ -29,7 +32,7 @@ import {
   isPageGranted,
   type HubRoleGrants,
 } from '../../lib/roleGrants';
-import cls from './RoleFormModal.module.scss';
+import styles from './RoleFormModal.module.scss';
 
 export const RoleFormModal = () => {
   const { t } = useTranslation();
@@ -49,9 +52,11 @@ export const RoleFormModal = () => {
   const [name, setName] = useState('');
   const [comment, setComment] = useState('');
   const [grants, setGrants] = useState<HubRoleGrants>({});
+  const [grantsOpen, setGrantsOpen] = useState(true);
 
   useEffect(() => {
     if (!isOpen) return;
+    setGrantsOpen(true);
     if (isEditing && selectedRole) {
       setName(selectedRole.name || '');
       setComment(selectedRole.comment || '');
@@ -84,120 +89,139 @@ export const RoleFormModal = () => {
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[640px]">
-        <DialogHeader>
+      <DialogContent
+        className={`flex flex-col gap-0 overflow-hidden max-h-[min(90vh,90dvh)] ${styles.dialogContent}`}
+      >
+        <DialogHeader className={`shrink-0 ${styles.header}`}>
           <DialogTitle>
             {isEditing ? t('roles.edit') : t('roles.add')}
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="py-2" autoComplete="off">
-          <VStack gap="16" max>
-            <VStack gap="8" max>
-              <label className="text-sm font-medium text-muted-foreground" htmlFor="role-name">
-                {t('roles.name')} *
-              </label>
-              <Input
-                id="role-name"
-                required
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-            </VStack>
+        <form onSubmit={handleSubmit} className={styles.form} autoComplete="off">
+          <div className={styles.formBody}>
+            <VStack gap="16" max>
+              <VStack gap="8" max className={styles.field}>
+                <Label htmlFor="role-name" className={styles.fieldLabel}>
+                  {t('roles.name')} *
+                </Label>
+                <Input
+                  id="role-name"
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
+              </VStack>
 
-            <VStack gap="8" max>
-              <label className="text-sm font-medium text-muted-foreground" htmlFor="role-comment">
-                {t('roles.comment')}
-              </label>
-              <Input
-                id="role-comment"
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
-              />
-            </VStack>
+              <VStack gap="8" max className={styles.field}>
+                <Label htmlFor="role-comment" className={styles.fieldLabel}>
+                  {t('roles.comment')}
+                </Label>
+                <Input
+                  id="role-comment"
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                />
+              </VStack>
 
-            <VStack gap="8" max>
-              <Text as="h3" className="text-sm font-medium">
-                {t('roles.grantsTitle')}
-              </Text>
-              <Text variant="muted" className="text-xs">
-                {t('roles.grantsHint')}
-              </Text>
-              <div className={cls.grantsScroll} data-testid="role-grants-editor">
-                <VStack gap="12" max>
-                  {BASELINE_MODULES.map((mod) => {
-                    const pageIds = mod.pages.map((p) => p.id);
-                    const allChecked =
-                      pageIds.length > 0 &&
-                      pageIds.every((id) => isPageGranted(grants, mod.code, id));
-                    return (
-                      <div key={mod.code} className={cls.moduleBlock} data-module={mod.code}>
-                        <HStack
-                          justify="between"
-                          align="center"
-                          className={cls.moduleHeader}
-                          max
-                        >
-                          <Text className="font-medium text-sm">
-                            {t(mod.labelKey)} ({mod.code})
-                          </Text>
-                          <label className={cls.pageRow}>
-                            <input
-                              type="checkbox"
-                              className={cls.checkbox}
-                              checked={allChecked}
-                              onChange={(e) =>
-                                setGrants(
-                                  toggleModuleGrant(
-                                    grants,
-                                    mod.code,
-                                    pageIds,
-                                    e.target.checked,
-                                  ),
-                                )
-                              }
-                              aria-label={t('roles.selectModule', { module: t(mod.labelKey) })}
-                            />
-                            <span>{t('roles.selectAll')}</span>
-                          </label>
-                        </HStack>
-                        <div className={cls.pageGrid}>
-                          {mod.pages.map((page) => (
-                            <label key={page.id} className={cls.pageRow}>
-                              <input
-                                type="checkbox"
-                                className={cls.checkbox}
-                                checked={isPageGranted(grants, mod.code, page.id)}
+              <VStack
+                gap={grantsOpen ? '12' : '0'}
+                max
+                className={styles.grantsGroup}
+              >
+                <HStack gap="8" align="center" max className={styles.grantsTitleRow}>
+                  <button
+                    type="button"
+                    className={styles.grantsToggle}
+                    aria-expanded={grantsOpen}
+                    aria-controls="role-grants-editor"
+                    onClick={() => setGrantsOpen((open) => !open)}
+                  >
+                    <HStack gap="8" align="center" max className={styles.grantsToggleInner}>
+                      <Text className={styles.grantsTitle}>{t('roles.grantsTitle')}</Text>
+                      <ChevronDown
+                        className={`${styles.grantsChevron}${grantsOpen ? ` ${styles.grantsChevronOpen}` : ''}`}
+                        aria-hidden
+                      />
+                    </HStack>
+                  </button>
+                  <InfoTooltip text={t('roles.grantsHint')} />
+                </HStack>
+
+                {grantsOpen && (
+                  <VStack gap="12" max id="role-grants-editor" data-testid="role-grants-editor">
+                    {BASELINE_MODULES.map((mod) => {
+                      const pageIds = mod.pages.map((p) => p.id);
+                      const allChecked =
+                        pageIds.length > 0 &&
+                        pageIds.every((id) => isPageGranted(grants, mod.code, id));
+                      return (
+                        <VStack key={mod.code} gap="8" max className={styles.moduleBlock} data-module={mod.code}>
+                          <HStack
+                            justify="between"
+                            align="center"
+                            className={styles.moduleHeader}
+                            max
+                          >
+                            <Text className={styles.moduleName}>
+                              {t(mod.labelKey)}
+                            </Text>
+                            <Label className={styles.pageRow}>
+                              <Checkbox
+                                className={styles.checkbox}
+                                checked={allChecked}
                                 onChange={(e) =>
                                   setGrants(
-                                    togglePageGrant(
+                                    toggleModuleGrant(
                                       grants,
                                       mod.code,
-                                      page.id,
+                                      pageIds,
                                       e.target.checked,
                                     ),
                                   )
                                 }
+                                aria-label={t('roles.selectModule', { module: t(mod.labelKey) })}
                               />
-                              <span>{t(page.labelKey)}</span>
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </VStack>
-              </div>
+                              <Text>{t('roles.selectAll')}</Text>
+                            </Label>
+                          </HStack>
+                          <div className={styles.pageGrid}>
+                            {mod.pages.map((page) => (
+                              <Label key={page.id} className={styles.pageRow}>
+                                <Checkbox
+                                  className={styles.checkbox}
+                                  checked={isPageGranted(grants, mod.code, page.id)}
+                                  onChange={(e) =>
+                                    setGrants(
+                                      togglePageGrant(
+                                        grants,
+                                        mod.code,
+                                        page.id,
+                                        e.target.checked,
+                                      ),
+                                    )
+                                  }
+                                />
+                                <Text>{t(page.labelKey)}</Text>
+                              </Label>
+                            ))}
+                          </div>
+                        </VStack>
+                      );
+                    })}
+                  </VStack>
+                )}
+              </VStack>
             </VStack>
-          </VStack>
+          </div>
 
-          <DialogFooter className="mt-6">
+          <DialogFooter className={styles.footer}>
             <HStack gap="8" justify="end" max>
               <Button type="button" variant="outline" onClick={onClose} disabled={isLoading}>
                 {t('common.cancel')}
               </Button>
               <Button type="submit" disabled={isLoading || !name.trim()}>
-                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isLoading && <Loader2 className={styles.iconSpin} />}
                 {t('common.save')}
               </Button>
             </HStack>

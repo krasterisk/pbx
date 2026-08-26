@@ -566,6 +566,7 @@ describe('CallCenterAmiService', () => {
       state.setAgent(0, 'PJSIP/ew112_0', {
         name: 'Иван',
         status: 'OUTBOUND_WORK',
+        statusOrigin: 'manual',
         pauseReason: 'outbound_work',
         userId: 58,
       });
@@ -579,11 +580,15 @@ describe('CallCenterAmiService', () => {
       expect(state.getAgent(0, 'PJSIP/ew112_0')?.status).toBe('OUTBOUND_WORK');
     });
 
-    it('maps pausedreason outbound_work to OUTBOUND_WORK even from READY', () => {
+    it('keeps panel READY when AMI reports pause — Asterisk is healed to match', async () => {
+      fakeAmi.isConnected = () => true;
+      fakeAmi.queuePause = jest.fn().mockResolvedValue(undefined);
       state.setAgent(0, 'PJSIP/ew112_0', {
         name: 'Иван',
         status: 'READY',
+        statusOrigin: 'manual',
         userId: 58,
+        queues: ['q700_0'],
       });
       service.handleAgentStatusEvent({
         queue: 'q700_0',
@@ -592,8 +597,57 @@ describe('CallCenterAmiService', () => {
         paused: '1',
         pausedreason: 'outbound_work',
       });
-      expect(state.getAgent(0, 'PJSIP/ew112_0')?.status).toBe('OUTBOUND_WORK');
-      expect(state.getAgent(0, 'PJSIP/ew112_0')?.pauseReason).toBe('outbound_work');
+      expect(state.getAgent(0, 'PJSIP/ew112_0')?.status).toBe('READY');
+      await flushMicrotasks();
+      expect(fakeAmi.queuePause).toHaveBeenCalledWith('q700_0', 'PJSIP/ew112_0', false, undefined);
+      fakeAmi.isConnected = () => false;
+    });
+
+    it('keeps panel PAUSED when AMI reports unpaused — Asterisk is healed to match', async () => {
+      fakeAmi.isConnected = () => true;
+      fakeAmi.queuePause = jest.fn().mockResolvedValue(undefined);
+      state.setAgent(0, 'PJSIP/ew112_0', {
+        name: 'Иван',
+        status: 'PAUSED',
+        statusOrigin: 'manual',
+        pauseReason: 'Обед',
+        userId: 58,
+        queues: ['q700_0'],
+      });
+      service.handleAgentStatusEvent({
+        queue: 'q700_0',
+        interface: 'PJSIP/ew112_0',
+        status: '1',
+        paused: '0',
+      });
+      expect(state.getAgent(0, 'PJSIP/ew112_0')?.status).toBe('PAUSED');
+      await flushMicrotasks();
+      expect(fakeAmi.queuePause).toHaveBeenCalledWith('q700_0', 'PJSIP/ew112_0', true, 'Обед');
+      fakeAmi.isConnected = () => false;
+    });
+
+    it('adopts AMI pause when panel READY has no trusted origin', async () => {
+      fakeAmi.isConnected = () => true;
+      fakeAmi.queuePause = jest.fn().mockResolvedValue(undefined);
+      state.setAgent(0, 'PJSIP/ew112_0', {
+        name: 'Иван',
+        status: 'READY',
+        statusOrigin: 'unknown',
+        userId: 58,
+        queues: ['q700_0'],
+      });
+      service.handleAgentStatusEvent({
+        queue: 'q700_0',
+        interface: 'PJSIP/ew112_0',
+        status: '1',
+        paused: '1',
+        pausedreason: 'Обед',
+      });
+      expect(state.getAgent(0, 'PJSIP/ew112_0')?.status).toBe('PAUSED');
+      expect(state.getAgent(0, 'PJSIP/ew112_0')?.statusOrigin).toBe('ami');
+      await flushMicrotasks();
+      expect(fakeAmi.queuePause).not.toHaveBeenCalled();
+      fakeAmi.isConnected = () => false;
     });
 
     it('evaluates auto-pause idle_time/status_duration rules on every status update (D-15)', () => {

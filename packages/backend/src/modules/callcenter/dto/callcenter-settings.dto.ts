@@ -91,6 +91,11 @@ export class UpdateCcSettingsDto {
   @IsOptional()
   @IsBoolean()
   autopause_enabled?: boolean;
+
+  /** Auto-close / extension-free policy for open agent shifts. */
+  @IsOptional()
+  @IsObject()
+  shift_policy?: Record<string, unknown>;
 }
 
 /** D-05: tab/panel visibility + softphone placement. Locked keys rejected server-side (D-06). */

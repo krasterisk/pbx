@@ -97,7 +97,7 @@ export class SystemSettingsController {
 
   /**
    * Regenerate and apply global Asterisk subroutines file.
-   * Writes [krsk-on-answer] and [krsk-hangup-handler] contexts
+   * Writes [krsk-on-answer], [krsk-hangup-handler] and [krsk-click-to-call] contexts
    * to krasterisk/subroutines/subroutines.conf via AMI and reloads dialplan.
    * Auto-picked up by: #include krasterisk/*\/*.conf (already in extensions.conf).
    *

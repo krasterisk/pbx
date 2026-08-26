@@ -15,6 +15,7 @@ export interface ILoginResponse {
     role: number;
     exten: string;
     vpbx_user_uid: number;
+    avatar?: string | null;
   };
 }
 

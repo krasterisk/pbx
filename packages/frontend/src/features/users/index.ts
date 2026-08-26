@@ -1,5 +1,5 @@
 /**
- * Feature: Users Management — Public API
+ * Feature: Users Management - Public API
  */
 
 // Slice

@@ -6,7 +6,7 @@ import { useLazyClientLookupQuery } from '@/shared/api/endpoints/callCenterApi';
 import styles from './ClientCard.module.scss';
 
 interface Props {
-  /** Caller's number (raw — backend normalizes by digits suffix). */
+  /** Caller's number (raw - backend normalizes by digits suffix). */
   callerIdNum?: string | null;
   /** Optional fallback display name from CallerID. */
   callerIdName?: string | null;

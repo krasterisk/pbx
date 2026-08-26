@@ -183,18 +183,18 @@ export function AiAgentModal({ agent, providers, toolsets, onClose }: Props) {
                 </Select>
                 <Text variant="muted" className="text-xs mt-1">
                   {mode === 'realtime'
-                    ? t('aiAgents.field.modeRealtimeHint', 'Single bidirectional connection — lowest latency. Pick a provider that supports the realtime capability.')
-                    : t('aiAgents.field.modeCascadeHint', 'STT and TTS are wired separately — pick all three profiles below.')}
+                    ? t('aiAgents.field.modeRealtimeHint', 'Single bidirectional connection - lowest latency. Pick a provider that supports the realtime capability.')
+                    : t('aiAgents.field.modeCascadeHint', 'STT and TTS are wired separately - pick all three profiles below.')}
                 </Text>
               </div>
 
               <div className={styles.row}>
                 <Label>{t('aiAgents.field.llm', 'LLM / Realtime')}</Label>
                 <Select value={modelProfileId} onChange={(e: any) => setModelProfileId(e.target.value ? Number(e.target.value) : '')}>
-                  <option value="">—</option>
+                  <option value="">-</option>
                   {llmProviders.map(p => (
                     <option key={p.uid} value={p.uid}>
-                      {p.name} ({p.vendor}) {p.user_uid === 0 ? '— template' : ''}
+                      {p.name} ({p.vendor}) {p.user_uid === 0 ? '- template' : ''}
                     </option>
                   ))}
                 </Select>
@@ -205,7 +205,7 @@ export function AiAgentModal({ agent, providers, toolsets, onClose }: Props) {
                   <div className={styles.row}>
                     <Label>{t('aiAgents.field.stt', 'STT (Speech → Text)')}</Label>
                     <Select value={sttProfileId} onChange={(e: any) => setSttProfileId(e.target.value ? Number(e.target.value) : '')}>
-                      <option value="">—</option>
+                      <option value="">-</option>
                       {sttProviders.map(p => (
                         <option key={p.uid} value={p.uid}>{p.name} ({p.vendor})</option>
                       ))}
@@ -214,7 +214,7 @@ export function AiAgentModal({ agent, providers, toolsets, onClose }: Props) {
                   <div className={styles.row}>
                     <Label>{t('aiAgents.field.tts', 'TTS (Text → Speech)')}</Label>
                     <Select value={ttsProfileId} onChange={(e: any) => setTtsProfileId(e.target.value ? Number(e.target.value) : '')}>
-                      <option value="">—</option>
+                      <option value="">-</option>
                       {ttsProviders.map(p => (
                         <option key={p.uid} value={p.uid}>{p.name} ({p.vendor})</option>
                       ))}
@@ -230,7 +230,7 @@ export function AiAgentModal({ agent, providers, toolsets, onClose }: Props) {
               <div className={styles.row}>
                 <Label>{t('aiAgents.field.toolset', 'Toolset (optional)')}</Label>
                 <Select value={toolsetId} onChange={(e: any) => setToolsetId(e.target.value ? Number(e.target.value) : '')}>
-                  <option value="">—</option>
+                  <option value="">-</option>
                   {toolsets.map(ts => (
                     <option key={ts.uid} value={ts.uid}>{ts.name}</option>
                   ))}
@@ -244,9 +244,9 @@ export function AiAgentModal({ agent, providers, toolsets, onClose }: Props) {
               <div className={styles.row}>
                 <Label>{t('aiAgents.field.channelKind', 'Channel kind')}</Label>
                 <Select value={channelKind} onChange={(e: any) => setChannelKind(e.target.value)}>
-                  <option value="local">local — Local/{'{unique_id}'}@ai-agents</option>
-                  <option value="pjsip">pjsip — PJSIP/{'{unique_id}'}</option>
-                  <option value="sip">sip — SIP/{'{unique_id}'}</option>
+                  <option value="local">local - Local/{'{unique_id}'}@ai-agents</option>
+                  <option value="pjsip">pjsip - PJSIP/{'{unique_id}'}</option>
+                  <option value="sip">sip - SIP/{'{unique_id}'}</option>
                 </Select>
                 <Text variant="muted" className="text-xs mt-1">
                   {t('aiAgents.field.channelKindHint', 'Used by Asterisk dialplan and queues to dial this agent. Most setups use "local".')}

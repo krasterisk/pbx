@@ -5,7 +5,7 @@ import { HStack } from '@/shared/ui/Stack';
 import { useOfflineBanner } from '@/shared/lib/capacitor/offlineBanner';
 import cls from './ModuleShell.module.scss';
 
-/** D-35: banner + retry only — no offline action queue. */
+/** D-35: banner + retry only - no offline action queue. */
 export const OfflineBanner = memo(function OfflineBanner() {
   const { t } = useTranslation();
   const { offline, retry } = useOfflineBanner();

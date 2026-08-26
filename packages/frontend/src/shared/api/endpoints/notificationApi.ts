@@ -5,7 +5,7 @@ export interface ICreateNotificationIntegration {
   name: string;
   channel: NotificationChannel;
   config?: Record<string, unknown>;
-  /** Secret credentials — sent on create/update, never returned in responses */
+  /** Secret credentials - sent on create/update, never returned in responses */
   credentials?: Record<string, unknown>;
 }
 
@@ -13,7 +13,7 @@ export interface IUpdateNotificationIntegration {
   name?: string;
   channel?: NotificationChannel;
   config?: Record<string, unknown>;
-  /** Secret credentials — sent on create/update, never returned in responses */
+  /** Secret credentials - sent on create/update, never returned in responses */
   credentials?: Record<string, unknown>;
 }
 

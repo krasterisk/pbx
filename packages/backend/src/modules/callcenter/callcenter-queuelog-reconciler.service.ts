@@ -149,6 +149,7 @@ function buildHistoryRow(entries: QueueLogEntry[]): Partial<CcQueueCall> | null 
   let disposition: CcQueueCall['disposition'] = 'other';
   let position = 0;
   let callerIdNum = '';
+  let transferDestination = '';
 
   for (const e of sorted) {
     const ev = e.event;
@@ -175,8 +176,10 @@ function buildHistoryRow(entries: QueueLogEntry[]): Partial<CcQueueCall> | null 
       endTime = e.timestamp;
       disposition = 'timeout';
     } else if (ev === 'TRANSFER') {
+      // QueueLog TRANSFER data: extension|context|holdtime|calltime|origposition
       endTime = e.timestamp;
       disposition = 'transferred';
+      transferDestination = (e.params[0] || '').trim();
       waitTime = parseInt(e.params[2] || '0', 10) || waitTime;
       talkTime = parseInt(e.params[3] || '0', 10) || talkTime;
       agent = e.agent && e.agent !== 'NONE' ? e.agent : agent;
@@ -209,6 +212,7 @@ function buildHistoryRow(entries: QueueLogEntry[]): Partial<CcQueueCall> | null 
     hold_time: 0,
     wrapup_time: 0,
     disposition,
+    transfer_destination: transferDestination,
     position,
   };
 }

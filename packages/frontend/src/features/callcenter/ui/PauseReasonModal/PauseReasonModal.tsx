@@ -32,7 +32,7 @@ interface Props {
   reasons: IPauseReason[];
   onSelect: (reason: string, maxDurationMin: number) => void;
   onClose: () => void;
-  /** Currently active pause reason — shows the running timer and alert. */
+  /** Currently active pause reason - shows the running timer and alert. */
   activeReason?: {
     name: string;
     startedAt: number; // epoch ms

@@ -152,6 +152,16 @@
   font-variant-numeric: tabular-nums;
 }
 
+.detachedBadge {
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, #e8c96a 18%, transparent);
+  color: color-mix(in srgb, #9a7a28 55%, var(--color-foreground));
+  white-space: nowrap;
+}
+
 .kpiGroup {
   display: flex;
   align-items: center;

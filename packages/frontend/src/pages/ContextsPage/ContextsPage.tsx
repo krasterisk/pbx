@@ -1,5 +1,5 @@
 /**
- * Page: ContextsPage — thin orchestrator
+ * Page: ContextsPage - thin orchestrator
  */
 import { useTranslation } from 'react-i18next';
 import { motion } from 'motion/react';
@@ -37,7 +37,7 @@ export const ContextsPage = () => {
         </HStack>
       </HStack>
 
-      {/* Table — D-29 page-level overflow hybrid */}
+      {/* Table - D-29 page-level overflow hybrid */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}

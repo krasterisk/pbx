@@ -29,7 +29,7 @@ export interface ProgressProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 /**
- * Progress — plain div progress bar (wrap-up countdown, SLA bars).
+ * Progress - plain div progress bar (wrap-up countdown, SLA bars).
  */
 export const Progress = memo(
   forwardRef<HTMLDivElement, ProgressProps>(function Progress(

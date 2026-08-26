@@ -120,7 +120,7 @@ export const VoiceRobotCdrTable = memo(({ data, isLoading, onRowClick }: VoiceRo
                     <span className="text-sm">{row.tags[row.tags.length - 1]}</span>
                   </Flex>
                 ) : (
-                  <span className="text-xs text-muted-foreground">—</span>
+                  <span className="text-xs text-muted-foreground">-</span>
                 )}
               </TableCell>
               <TableCell>
@@ -147,7 +147,7 @@ export const VoiceRobotCdrTable = memo(({ data, isLoading, onRowClick }: VoiceRo
                   {row.call_uniqueid ? (
                     <RecordingButton uniqueid={row.call_uniqueid} />
                   ) : (
-                    <span className="inline-flex h-7 w-7 items-center justify-center text-muted-foreground">—</span>
+                    <span className="inline-flex h-7 w-7 items-center justify-center text-muted-foreground">-</span>
                   )}
                   {onRowClick && (
                     <Button

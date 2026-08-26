@@ -68,5 +68,9 @@ export class User extends Model {
 
   @Column({ type: DataType.BOOLEAN, defaultValue: false })
   declare isActivated: boolean;
+
+  /** Filename under tenant avatars dir (e.g. u42_1739812.webp), not a full path */
+  @Column({ type: DataType.STRING, allowNull: true })
+  declare avatar: string | null;
 }
 

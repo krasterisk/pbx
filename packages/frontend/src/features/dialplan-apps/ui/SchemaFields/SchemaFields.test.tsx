@@ -18,6 +18,10 @@ vi.mock('@/shared/api/endpoints/queueApi', () => ({
   })),
 }));
 
+vi.mock('@/shared/api/endpoints/endpointApi', () => ({
+  useGetEndpointsQuery: vi.fn(() => ({ data: [], isLoading: false })),
+}));
+
 vi.mock('@/shared/api/endpoints/phonebookApi', () => ({
   useGetPhonebooksQuery: vi.fn(() => ({ data: [], isLoading: false })),
 }));
@@ -222,5 +226,105 @@ describe('SchemaFields', () => {
     expect(link).toHaveAttribute('target', '_blank');
     expect(link).toHaveAttribute('rel', 'noopener noreferrer');
     expect(link).toHaveAttribute('href', `/${source}`);
+  });
+
+  it('renders consecutive row fields side by side with weighted columns', () => {
+    const { container } = render(
+      <SchemaFields
+        schema={[
+          {
+            key: 'dest',
+            kind: 'text',
+            labelKey: 'routes.chain.fields.dest',
+            label: 'Назначение',
+            row: 'destTimeout',
+            rowWeight: 70,
+          },
+          {
+            key: 'timeout',
+            kind: 'duration',
+            labelKey: 'routes.chain.fields.timeout',
+            label: 'Таймаут, сек',
+            row: 'destTimeout',
+            rowWeight: 30,
+          },
+        ]}
+        params={{ dest: '7900', timeout: 60 }}
+        onChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByLabelText('Назначение')).toBeInTheDocument();
+    expect(screen.getByLabelText('Таймаут, сек')).toBeInTheDocument();
+    const row = container.querySelector('[style*="--schema-row-cols"]') as HTMLElement | null;
+    expect(row).toBeTruthy();
+    expect(row?.style.getPropertyValue('--schema-row-cols')).toContain('70fr');
+    expect(row?.style.getPropertyValue('--schema-row-cols')).toContain('30fr');
+  });
+
+  it('handles array of visibleWhen rules correctly', () => {
+    const schema: FieldSchema[] = [
+      { key: 'trunkMode', kind: 'mode', labelKey: 'trunkMode', options: KIND_OPTIONS },
+      { key: 'cid_mode', kind: 'mode', labelKey: 'cid_mode', options: KIND_OPTIONS },
+      {
+        key: 'callerid',
+        kind: 'text',
+        labelKey: 'callerid',
+        label: 'CallerID Number',
+        visibleWhen: [
+          { key: 'trunkMode', equals: ['single', ''] },
+          { key: 'cid_mode', equals: ['static', ''] },
+        ],
+      },
+    ];
+
+    const { rerender } = render(
+      <SchemaFields
+        schema={schema}
+        params={{ trunkMode: 'single', cid_mode: 'static' }}
+        onChange={vi.fn()}
+      />,
+    );
+    expect(screen.getByLabelText('CallerID Number')).toBeInTheDocument();
+
+    rerender(
+      <SchemaFields
+        schema={schema}
+        params={{ trunkMode: 'carousel', cid_mode: 'static' }}
+        onChange={vi.fn()}
+      />,
+    );
+    expect(screen.queryByLabelText('CallerID Number')).not.toBeInTheDocument();
+
+    rerender(
+      <SchemaFields
+        schema={schema}
+        params={{ trunkMode: 'single', cid_mode: 'phonebook' }}
+        onChange={vi.fn()}
+      />,
+    );
+    expect(screen.queryByLabelText('CallerID Number')).not.toBeInTheDocument();
+  });
+});
+
+describe('chunkSchemaFields', () => {
+  it('groups consecutive fields with the same row id', async () => {
+    const { chunkSchemaFields } = await import('./SchemaFields');
+    const chunks = chunkSchemaFields(
+      [
+        { key: 'trunk', kind: 'select', labelKey: 'trunk' },
+        { key: 'dest', kind: 'text', labelKey: 'dest', row: 'destTimeout', rowWeight: 70 },
+        { key: 'timeout', kind: 'duration', labelKey: 'timeout', row: 'destTimeout', rowWeight: 30 },
+        { key: 'rewrite', kind: 'custom', labelKey: 'rewrite', render: () => null },
+      ],
+      {},
+    );
+    expect(chunks).toHaveLength(3);
+    expect(chunks[0]).toMatchObject({ kind: 'single', field: { key: 'trunk' } });
+    expect(chunks[1]).toMatchObject({ kind: 'row', rowId: 'destTimeout' });
+    if (chunks[1].kind === 'row') {
+      expect(chunks[1].fields.map((f) => f.key)).toEqual(['dest', 'timeout']);
+    }
+    expect(chunks[2]).toMatchObject({ kind: 'single', field: { key: 'rewrite' } });
   });
 });

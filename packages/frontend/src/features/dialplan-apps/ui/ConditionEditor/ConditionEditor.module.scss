@@ -1,25 +1,12 @@
 .root {
   width: 100%;
-  padding: 0.75rem 1rem;
-  border-radius: var(--radius-md, 0.5rem);
-  background: color-mix(in srgb, var(--color-muted) 35%, transparent);
-  border: 1px solid var(--color-border);
 }
 
-.row {
+.field {
   width: 100%;
-  min-height: 44px;
+  min-width: 0;
 }
 
-.remove {
-  min-width: 44px;
-  min-height: 44px;
-}
-
-.zero {
-  color: var(--color-muted-foreground);
-}
-
-.connector {
+.fieldLabel {
   color: var(--color-muted-foreground);
 }

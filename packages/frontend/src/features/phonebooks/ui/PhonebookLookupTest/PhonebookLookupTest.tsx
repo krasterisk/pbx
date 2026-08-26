@@ -7,13 +7,13 @@ import { useLookupTestPhonebookMutation } from '@/shared/api/endpoints/phonebook
 import cls from './PhonebookLookupTest.module.scss';
 
 export interface PhonebookLookupTestProps {
-  /** Owning phonebook uid — only available for an already-saved phonebook */
+  /** Owning phonebook uid - only available for an already-saved phonebook */
   phonebookUid: number;
 }
 
 /**
  * Demo lookup test (D-10): user enters a number, sees whether it matches
- * and which PB_* vars would be set. Read-only — hits the tenant-checked
+ * and which PB_* vars would be set. Read-only - hits the tenant-checked
  * POST /phonebooks/:id/lookup-test endpoint (05-05).
  *
  * @layer features/phonebooks

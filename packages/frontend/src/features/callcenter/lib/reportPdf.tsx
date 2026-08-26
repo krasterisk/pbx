@@ -5,7 +5,7 @@ import {
 import { PDF_COLORS, PDF_FONTS } from '@/shared/lib/pdf/pdfTheme';
 import type { ReportColumn } from '@/shared/api/endpoints/callCenterReportsApi';
 
-/** T-07-18-01: client PDF DoS mitigation — cap rows rendered into the document. */
+/** T-07-18-01: client PDF DoS mitigation - cap rows rendered into the document. */
 export const REPORT_PDF_MAX_ROWS = 2000;
 
 export interface GenerateReportPdfParams {
@@ -114,7 +114,7 @@ function ReportPdfDocument({
 }: GenerateReportPdfParams & { truncated: boolean; totalRows: number }) {
   const metaParts: string[] = [];
   if (meta?.dateFrom || meta?.dateTo) {
-    metaParts.push(`${meta.dateFrom ?? '…'} — ${meta.dateTo ?? '…'}`);
+    metaParts.push(`${meta.dateFrom ?? '…'} - ${meta.dateTo ?? '…'}`);
   }
   if (meta?.queueName) metaParts.push(`Queue: ${meta.queueName}`);
   if (meta?.agentInterface) metaParts.push(`Agent: ${meta.agentInterface}`);

@@ -32,7 +32,7 @@ type PanelKey = (typeof PANEL_KEYS)[number];
 const DEFAULT_JOURNAL_DEPTH = 50;
 
 /**
- * Operator-facing "My panel" settings — UI visibility, KPI period, softphone journal depth, notifications.
+ * Operator-facing "My panel" settings - UI visibility, KPI period, softphone journal depth, notifications.
  * Softphone is docked in agent chrome (no placement setting).
  */
 export function CallCenterSettings() {

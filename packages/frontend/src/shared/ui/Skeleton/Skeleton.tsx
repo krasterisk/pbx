@@ -1,7 +1,7 @@
 import { memo } from 'react';
 
 /* ────────────────────────────────────────────────────────────── */
-/*  Skeleton — animated placeholder for loading content          */
+/*  Skeleton - animated placeholder for loading content          */
 /* ────────────────────────────────────────────────────────────── */
 
 interface SkeletonProps {
@@ -15,7 +15,7 @@ interface SkeletonProps {
 }
 
 /**
- * Skeleton — animated pulse placeholder.
+ * Skeleton - animated pulse placeholder.
  *
  * Usage:
  *   <Skeleton width="60%" height="1rem" />
@@ -37,7 +37,7 @@ export const Skeleton = memo(({ className, width, height, borderRadius }: Skelet
 Skeleton.displayName = 'Skeleton';
 
 /* ────────────────────────────────────────────────────────────── */
-/*  SkeletonText — multiple lines of skeleton text               */
+/*  SkeletonText - multiple lines of skeleton text               */
 /* ────────────────────────────────────────────────────────────── */
 
 interface SkeletonTextProps {
@@ -61,7 +61,7 @@ export const SkeletonText = memo(({ lines = 3, className }: SkeletonTextProps) =
 SkeletonText.displayName = 'SkeletonText';
 
 /* ────────────────────────────────────────────────────────────── */
-/*  SkeletonCard — card-shaped skeleton placeholder              */
+/*  SkeletonCard - card-shaped skeleton placeholder              */
 /* ────────────────────────────────────────────────────────────── */
 
 interface SkeletonCardProps {

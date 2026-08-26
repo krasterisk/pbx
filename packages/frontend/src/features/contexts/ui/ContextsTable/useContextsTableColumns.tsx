@@ -33,7 +33,7 @@ export const useContextsTableColumns = () => {
       }),
       columnHelper.accessor('comment', {
         header: t('contexts.description', 'Описание'),
-        cell: (info) => info.getValue() || <span className="text-muted-foreground">—</span>,
+        cell: (info) => info.getValue() || <span className="text-muted-foreground">-</span>,
       }),
       columnHelper.display({
         id: 'actions',

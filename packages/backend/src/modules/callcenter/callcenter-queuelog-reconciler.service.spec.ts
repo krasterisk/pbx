@@ -84,6 +84,51 @@ describe('CallCenterQueueLogReconcilerService', () => {
     );
   });
 
+  it('persists transfer destination from QueueLog TRANSFER data1', async () => {
+    const t0 = new Date(yesterday.getTime());
+    const t1 = new Date(yesterday.getTime() + 30_000);
+    const t2 = new Date(yesterday.getTime() + 90_000);
+    readEntries.mockResolvedValue([
+      {
+        timestamp: t0,
+        callId: 'U-xfer',
+        queueName: 'sales_7',
+        agent: 'NONE',
+        event: 'ENTERQUEUE',
+        params: ['1', '79001234567'],
+      },
+      {
+        timestamp: t1,
+        callId: 'U-xfer',
+        queueName: 'sales_7',
+        agent: 'PJSIP/101',
+        event: 'CONNECT',
+        params: ['10', 'bridge'],
+      },
+      {
+        timestamp: t2,
+        callId: 'U-xfer',
+        queueName: 'sales_7',
+        agent: 'PJSIP/101',
+        event: 'TRANSFER',
+        params: ['205', 'from-internal', '10', '45', '1'],
+      },
+    ]);
+    await service.reconcileRange(
+      new Date(yesterday.getTime() - 3600_000),
+      new Date(yesterday.getTime() + 3600_000),
+    );
+    const rows = bulkCreate.mock.calls[0][0];
+    expect(rows[0]).toEqual(
+      expect.objectContaining({
+        call_uniqueid: 'U-xfer',
+        disposition: 'transferred',
+        transfer_destination: '205',
+        talk_time: 45,
+      }),
+    );
+  });
+
   it('skips callId already present in cc_queue_calls', async () => {
     readEntries.mockResolvedValue(makeEntries('U-exist', 'sales_7'));
     findOne.mockResolvedValue({ uid: 1, call_uniqueid: 'U-exist' });

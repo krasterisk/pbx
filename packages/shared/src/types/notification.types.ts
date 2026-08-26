@@ -1,3 +1,5 @@
+import type { DialTargetRewrite, ValueSource } from './dialplan-params.types';
+
 export type NotificationChannel =
   | 'telegram'
   | 'email'
@@ -16,17 +18,18 @@ export interface INotificationIntegration {
   user_uid: number;
 }
 
-export type CallerIdMode = 'static' | 'phonebook' | 'setclid_list' | 'carousel';
+export type CallerIdMode = 'static' | 'phonebook' | 'number_list' | 'carousel';
 
+/**
+ * The channel is owned by the integration, not by the step: the dispatcher
+ * loads one integration and sends through it. `target` only overrides the
+ * recipient configured on that integration.
+ */
 export interface INotifyActionParams {
   integration_uid?: number;
-  message?: string;
-  target?: string;
-  preset?: string;
-  channels?: NotificationChannel[];
-  recipients?: Partial<Record<NotificationChannel, string>>;
-  subject?: string;
   body?: string;
+  target?: string;
+  subject?: string;
 }
 
 export interface ICallerIdActionParams {
@@ -48,10 +51,3 @@ export interface ITrunkCarouselItem {
   timeout?: number | string;
 }
 
-export interface ITrunkCarouselActionParams {
-  mode: 'random_then_failover' | 'sequential';
-  trunks: ITrunkCarouselItem[];
-  timeout?: number | string;
-  options?: string;
-  numberManipulation?: { strip?: number; prepend?: string };
-}

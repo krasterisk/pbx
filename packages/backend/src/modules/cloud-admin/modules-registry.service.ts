@@ -37,6 +37,7 @@ const MODULES_SEED: Partial<ModuleRegistry>[] = [
   // ── Paid ─────────────────────────────────────────────────────────────────
   { code: 'voice_robot',       name: 'Голосовые роботы',          category: 'calls',        is_core: false, is_paid: true,  price_monthly: 2500 },
   { code: 'service_requests',  name: 'Колл-центр CRM (Заявки)',   category: 'calls',        is_core: false, is_paid: true,  price_monthly: 1500 },
+  { code: 'komandor_claims',   name: 'Рекламации Командор',       category: 'calls',        is_core: false, is_paid: true,  price_monthly: 1500 },
   { code: 'tts_engines',       name: 'Синтез речи (TTS)',         category: 'integrations', is_core: false, is_paid: true,  price_monthly: 500 },
   { code: 'stt_engines',       name: 'Распознавание речи (STT)', category: 'integrations', is_core: false, is_paid: true,  price_monthly: 500 },
   { code: 'cc_ai_voice',       name: 'КЦ AI Voice (аналитика/транскрипция)', category: 'analytics', is_core: false, is_paid: true, price_monthly: 3000, is_published: true },
@@ -51,7 +52,7 @@ const CORE_CODES = MODULES_SEED
 
 /** Legacy page-level codes that imply Hub market license until remapped. */
 const LEGACY_HUB_LICENSE_CODES: Record<string, string[]> = {
-  callcenter: ['callcenter', 'service_requests'],
+  callcenter: ['callcenter', 'service_requests', 'komandor_claims'],
   analytics: ['analytics', 'cdr', 'cc_ai_voice'],
   ai: ['ai', 'voice_robot', 'cc_ai_voice'],
 };

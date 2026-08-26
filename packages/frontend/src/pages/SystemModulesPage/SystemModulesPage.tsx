@@ -10,7 +10,7 @@ import cls from './SystemModulesPage.module.scss';
 
 type SystemTab = 'modules' | 'role-start';
 
-/** System → Modules — tenant enable/disable + Buy (D-22) and role→start overrides (D-04). */
+/** System → Modules - tenant enable/disable + Buy (D-22) and role→start overrides (D-04). */
 export const SystemModulesPage = memo(function SystemModulesPage() {
   const { t } = useTranslation();
   const [tab, setTab] = useState<SystemTab>('modules');

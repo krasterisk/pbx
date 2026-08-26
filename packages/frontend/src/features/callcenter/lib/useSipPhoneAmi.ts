@@ -29,7 +29,7 @@ function sipPhoneStatus(
 
   // Click-to-call: operator handset ringing is still "dialing" chrome.
   // Synthetic / AMI RINGING must not show WebRTC Answer/Reject while dialTarget is set.
-  // After answer, dialTarget often remains — do not keep dialing chrome then.
+  // After answer, dialTarget often remains - do not keep dialing chrome then.
   if (
     !answered
     && (
@@ -40,7 +40,7 @@ function sipPhoneStatus(
     return 'dialing';
   }
 
-  // Call chrome must win over registration polls — online:false after Nest
+  // Call chrome must win over registration polls - online:false after Nest
   // restart must not hide an active SIP call as "no active call".
   if (activeCall?.status === 'RINGING' || agentStatus === 'RINGING') return 'ringing';
   if (answered) return 'in-call';
@@ -50,7 +50,7 @@ function sipPhoneStatus(
 
 /**
  * Shape-compatible AMI facade for SIP-mode softphone (D-31…D-35).
- * Wraps existing REST mutations + sendDtmf + registration-state — no sip.js.
+ * Wraps existing REST mutations + sendDtmf + registration-state - no sip.js.
  * Omits quality/device fields entirely (D-34).
  * Call chrome (ringing / in-call) follows Call Center SSE state, not DeviceState alone.
  * Recover / ensureConnected = refetch AMI DeviceState (not WebRTC re-REGISTER).
@@ -69,7 +69,7 @@ export function useSipPhoneAmi(
     pollingInterval: 5000,
   });
 
-  // Local mute only — AMI MuteAudio is follow-up DEF-07-MUTE-AMI.
+  // Local mute only - AMI MuteAudio is follow-up DEF-07-MUTE-AMI.
   const [isMuted, setIsMuted] = useState(false);
 
   const hangup = useCallback(() => {
@@ -77,7 +77,7 @@ export function useSipPhoneAmi(
   }, [agentHangup]);
 
   const hold = useCallback(() => {
-    // SIP hold is device-side only — AMI Redirect hold is not used.
+    // SIP hold is device-side only - AMI Redirect hold is not used.
   }, []);
 
   const unhold = useCallback(() => {

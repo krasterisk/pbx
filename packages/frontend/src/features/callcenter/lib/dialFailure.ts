@@ -1,7 +1,7 @@
 /**
  * Classifies outbound softphone failures for operator-facing messages.
  * Asterisk dialplan errors (invalid extension) often Answer then BYE immediately
- * — that surfaces as `ended_early`, not a SIP 4xx on INVITE.
+ * - that surfaces as `ended_early`, not a SIP 4xx on INVITE.
  */
 
 export type DialFailureKind =
@@ -32,7 +32,7 @@ export function dialFailureFromSipStatus(statusCode?: number): DialFailureKind {
 }
 
 /**
- * Outbound session ended (remote BYE / cancel) — report only when the attempt
+ * Outbound session ended (remote BYE / cancel) - report only when the attempt
  * never connected or dropped within earlyMs (dialplan Hangup / invalid ext).
  * Returns null for a normal completed call.
  */

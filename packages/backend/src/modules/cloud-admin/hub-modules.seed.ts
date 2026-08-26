@@ -74,6 +74,7 @@ export const HUB_MODULE_PAGES_SEED: HubModulePageSeed[] = [
 
   // Call Center (market) — service_requests under CC (D-19)
   { hub_code: 'callcenter', page_code: 'service_requests', path: '/service-requests', sort_order: 10 },
+  { hub_code: 'callcenter', page_code: 'komandor_claims', path: '/komandor-claims', sort_order: 15 },
   { hub_code: 'callcenter', page_code: 'cc_agent', path: '/callcenter/agent', sort_order: 20 },
   { hub_code: 'callcenter', page_code: 'cc_supervisor', path: '/callcenter/supervisor', sort_order: 30 },
   { hub_code: 'callcenter', page_code: 'cc_reports', path: '/callcenter/reports', sort_order: 40 },

@@ -154,7 +154,7 @@ export const TrunksTable = memo(() => {
                             <Text variant="muted" className="text-xs shrink-0">IP</Text>
                           )}
                         </HStack>
-                        <Text className="text-sm font-mono truncate">{trunk.host || '—'}</Text>
+                        <Text className="text-sm font-mono truncate">{trunk.host || '-'}</Text>
                         {trunk.context ? (
                           <Text variant="muted" className="text-xs font-mono">{trunk.context}</Text>
                         ) : null}

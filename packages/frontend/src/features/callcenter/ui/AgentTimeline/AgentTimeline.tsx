@@ -41,7 +41,7 @@ function formatHourLabel(h: number): string {
 }
 
 /**
- * Presentational agent day timeline (D-36 owner — segments built server-side).
+ * Presentational agent day timeline (D-36 owner - segments built server-side).
  * Reused by supervisor agent detail (07-09) and reports (07-18).
  */
 export const AgentTimeline = memo(function AgentTimeline({

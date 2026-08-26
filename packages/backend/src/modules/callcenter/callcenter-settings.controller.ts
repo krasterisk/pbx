@@ -21,11 +21,9 @@
  */
 import {
   Controller, Get, Put, Body, Param, Req, UseGuards, ParseIntPipe,
-  ForbiddenException,
 } from '@nestjs/common';
 import { Request } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { UserLevel } from '../users/user.model';
 import { CallCenterSettingsService } from './callcenter-settings.service';
 import {
   UpdateOperatorSettingsDto,
@@ -35,21 +33,7 @@ import {
   UpdateNotificationMatrixDto,
   UpdateRoleDefaultsDto,
 } from './dto/callcenter-settings.dto';
-
-/**
- * Supervisor/admin gate. UserLevel is inverted privilege (ADMIN=1, SUPERVISOR=3),
- * so numeric `level >= 3` would block ADMIN and allow READONLY — use set membership.
- */
-function assertSupervisor(user: any): void {
-  const allowed = new Set([
-    UserLevel.SUPERADMIN,
-    UserLevel.ADMIN,
-    UserLevel.SUPERVISOR,
-  ]);
-  if (!allowed.has(user.level)) {
-    throw new ForbiddenException('Supervisor access required (level >= 3)');
-  }
-}
+import { assertSupervisor } from './callcenter-rbac.util';
 
 @UseGuards(JwtAuthGuard)
 @Controller('callcenter/settings')

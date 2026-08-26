@@ -115,6 +115,8 @@
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 12px;
   min-width: 0;
+  font-size: 0.875rem;
+  line-height: 1.35;
 
   @media (max-width: 640px) {
     grid-template-columns: 1fr;
@@ -122,6 +124,7 @@
 }
 
 .agentCard {
+  position: relative;
   background: var(--color-card);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
@@ -138,10 +141,40 @@
   }
 }
 
+.agentCardClose {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-muted-foreground);
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
+
+  &:hover {
+    color: var(--color-foreground);
+    background: color-mix(in srgb, var(--color-muted) 55%, transparent);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 1px;
+  }
+}
+
 .agentCardHeader {
   display: flex;
   align-items: center;
   gap: 10px;
+  padding-right: 22px;
 }
 
 .agentStatusDot {
@@ -151,20 +184,55 @@
   flex-shrink: 0;
 }
 
-.agentStatusReady { background: var(--color-success); }
-.agentStatusInCall { background: var(--color-destructive); animation: pulse 2s infinite; }
-.agentStatusPaused { background: var(--color-warning); }
-.agentStatusOffline { background: var(--color-muted-foreground); }
-.agentStatusWrapup { background: var(--color-info); }
+/* Soft pastel status dots (grid + table) */
+.agentStatusWaiting {
+  background: color-mix(in srgb, var(--color-background) 70%, var(--color-border));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-border) 55%, transparent);
+}
+
+.agentStatusCalling {
+  background: color-mix(in srgb, #e8c96a 55%, var(--color-muted));
+  animation: pulse 2.5s ease-in-out infinite;
+}
+
+.agentStatusTalking {
+  background: color-mix(in srgb, #7cb896 55%, var(--color-muted));
+}
+
+.agentStatusDown {
+  background: color-mix(in srgb, #d09090 50%, var(--color-muted));
+}
 
 @keyframes pulse {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+  50% { opacity: 0.45; }
+}
+
+/* Soft pastel status pills (agents table) */
+.agentBadgeWaiting {
+  background: color-mix(in srgb, var(--color-background) 88%, var(--color-muted));
+  color: color-mix(in srgb, var(--color-foreground) 78%, var(--color-muted-foreground));
+  border: 1px solid color-mix(in srgb, var(--color-border) 65%, transparent);
+}
+
+.agentBadgeCalling {
+  background: color-mix(in srgb, #e8c96a 18%, transparent);
+  color: color-mix(in srgb, #9a7a28 55%, var(--color-foreground));
+}
+
+.agentBadgeTalking {
+  background: color-mix(in srgb, #7cb896 16%, transparent);
+  color: color-mix(in srgb, #3d7a55 55%, var(--color-foreground));
+}
+
+.agentBadgeDown {
+  background: color-mix(in srgb, #d09090 16%, transparent);
+  color: color-mix(in srgb, #a05050 50%, var(--color-foreground));
 }
 
 .agentName {
-  font-weight: 600;
-  font-size: 0.9rem;
+  font-weight: 500;
+  font-size: inherit;
   color: var(--color-foreground);
   flex: 1;
   white-space: nowrap;
@@ -173,12 +241,21 @@
 }
 
 .agentStatus {
-  font-size: 0.75rem;
+  font-size: inherit;
   font-weight: 500;
 }
 
+.statusTimer {
+  font-variant-numeric: tabular-nums;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: inherit;
+  font-weight: 400;
+  color: var(--color-muted-foreground);
+  white-space: nowrap;
+}
+
 .agentMeta {
-  font-size: 0.75rem;
+  font-size: inherit;
   color: var(--color-muted-foreground);
 }
 
@@ -248,6 +325,16 @@
   min-width: 0;
   -webkit-overflow-scrolling: touch;
   width: 100%;
+  font-size: 0.875rem;
+  line-height: 1.35;
+
+  /* Keep cell content (Text/badges) at the same size as DataTable text-sm */
+  :global(.text-base),
+  :global(.text-sm),
+  :global(.text-xs) {
+    font-size: inherit;
+    line-height: inherit;
+  }
 }
 
 /* 5. Live calls table */
@@ -290,7 +377,7 @@
   gap: 4px;
   padding: 2px 8px;
   border-radius: var(--radius-sm);
-  font-size: 0.75rem;
+  font-size: inherit;
   font-weight: 500;
 }
 
@@ -319,3 +406,119 @@
   color: var(--color-muted-foreground);
   gap: 8px;
 }
+
+/* Queue filter chips */
+.queueFilterRow {
+  padding: 0 2px;
+}
+
+.queueChip {
+  border: 1px solid var(--color-border);
+  background: var(--color-card);
+  color: var(--color-muted-foreground);
+  border-radius: var(--radius-md);
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  min-height: 32px;
+
+  &:hover {
+    color: var(--color-foreground);
+    border-color: color-mix(in srgb, var(--color-primary) 40%, var(--color-border));
+  }
+}
+
+.queueChipActive {
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+  border-color: color-mix(in srgb, var(--color-primary) 45%, transparent);
+  color: var(--color-foreground);
+  font-weight: 600;
+}
+
+/* Collapsible live calls */
+.callsPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.callsPanelHeader {
+  gap: 12px;
+  min-width: 0;
+}
+
+.callsSummary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.callsStat {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-muted) 55%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
+  font-size: 0.8rem;
+  color: var(--color-muted-foreground);
+}
+
+.callsStatValue {
+  font-weight: 700;
+  color: var(--color-foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+.callsStatDanger {
+  border-color: color-mix(in srgb, var(--color-destructive) 40%, transparent);
+  .callsStatValue { color: var(--color-destructive); }
+}
+
+.collapseBtn {
+  border: 1px solid var(--color-border);
+  background: var(--color-card);
+  border-radius: var(--radius-md);
+  padding: 6px 8px;
+  cursor: pointer;
+  color: var(--color-muted-foreground);
+  min-height: 36px;
+  min-width: 36px;
+
+  &:hover {
+    color: var(--color-foreground);
+  }
+}
+
+.watchlistList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 360px;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+.watchlistItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
+  cursor: pointer;
+  font-size: 0.9rem;
+
+  &:hover {
+    background: color-mix(in srgb, var(--color-muted) 40%, transparent);
+  }
+
+  input {
+    accent-color: var(--color-primary);
+  }
+}
+

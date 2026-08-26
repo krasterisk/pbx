@@ -29,7 +29,7 @@ function usePrefersReducedMotion(): boolean {
 }
 
 /**
- * Module Hub — sketch winner 002-E dense single-column list (not bento/dock).
+ * Module Hub - sketch winner 002-E dense single-column list (not bento/dock).
  * Active (active+disabled) then Marketplace (locked + Buy).
  */
 export const ModuleHub = memo(function ModuleHub() {

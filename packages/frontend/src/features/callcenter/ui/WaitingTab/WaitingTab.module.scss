@@ -16,6 +16,29 @@
   flex-shrink: 0;
 }
 
+/* Compact single-row chips for collapsed panel header */
+.statsInline {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow-x: auto;
+
+  .stat {
+    flex: 0 0 auto;
+    padding: 2px 8px;
+    gap: 4px;
+    font-size: 0.8rem;
+    white-space: nowrap;
+  }
+
+  .statValue,
+  .statLabel {
+    font-size: 0.8rem;
+  }
+}
+
 .stat {
   display: flex;
   align-items: center;

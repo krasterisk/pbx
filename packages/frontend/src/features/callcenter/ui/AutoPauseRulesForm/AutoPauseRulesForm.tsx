@@ -18,7 +18,7 @@ type RuleType = AutoPauseRule['type'];
 
 const RULE_TYPES: RuleType[] = ['missed_count', 'idle_time', 'status_duration'];
 
-/** Statuses offered for status_duration rules — same labels as the agent status bar. */
+/** Statuses offered for status_duration rules - same labels as the agent status bar. */
 const STATUS_DURATION_OPTIONS = Object.keys(AGENT_STATUS_LABEL_KEYS) as AgentStatus[];
 
 function defaultRule(type: RuleType = 'missed_count'): AutoPauseRule {

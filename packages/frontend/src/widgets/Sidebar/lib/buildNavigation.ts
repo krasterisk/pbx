@@ -22,6 +22,7 @@ import {
   Bot,
   Activity,
   ClipboardList,
+  Store,
   ClipboardCheck,
   Calendar,
   BookOpen,
@@ -49,6 +50,12 @@ function buildCallCenterBlock(t: TFunction, level: UserLevel | undefined): Sideb
     name: t('nav.serviceRequests', 'Заявки клиентов'),
     path: '/service-requests',
     icon: ClipboardList,
+  });
+
+  entries.push({
+    name: t('nav.komandorClaims', 'Рекламации Командор'),
+    path: '/komandor-claims',
+    icon: Store,
   });
 
   if (level === UserLevel.OPERATOR || level === UserLevel.SUPERVISOR || level === UserLevel.ADMIN) {

@@ -48,6 +48,7 @@ describe('moduleRegistry (NAV-01)', () => {
     expect(callcenter?.pages.map((p) => p.path)).toEqual(
       expect.arrayContaining([
         '/service-requests',
+        '/komandor-claims',
         '/callcenter/agent',
         '/callcenter/supervisor',
         '/callcenter/reports',
@@ -74,7 +75,7 @@ describe('moduleRegistry (NAV-01)', () => {
   it('filterModulesForLevel drops modules with no visible pages', () => {
     const forOperator = filterModulesForLevel(BASELINE_MODULES, UserLevel.OPERATOR);
     const system = forOperator.find((m) => m.code === 'system');
-    // System pages are ADMIN+ — operator should not see system module
+    // System pages are ADMIN+ - operator should not see system module
     expect(system).toBeUndefined();
     expect(forOperator.some((m) => m.code === 'callcenter')).toBe(true);
   });

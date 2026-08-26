@@ -7,6 +7,7 @@ import { RegisterPage } from '@/pages/RegisterPage/RegisterPage';
 import { ActivationPage } from '@/pages/ActivationPage/ActivationPage';
 import { DashboardPage } from '@/pages/DashboardPage/DashboardPage';
 import { UsersPage } from '@/pages/UsersPage/UsersPage';
+import { ProfilePage } from '@/pages/ProfilePage/ProfilePage';
 import {
   PlatformTenantsPage,
   PlatformModulesPage,
@@ -36,6 +37,7 @@ import { QueuesPage } from '@/features/queues';
 import { NotificationIntegrationsPage } from '@/features/notifications';
 import { CallGroupsPage } from '@/features/call-groups';
 import { ServiceRequestsPage } from '@/pages/ServiceRequestsPage';
+import { KomandorClaimsPage } from '@/pages/KomandorClaimsPage';
 import { SettingsPage } from '@/pages/SettingsPage';
 import { AuditLogPage } from '@/pages/AuditLogPage';
 import { ModulesHubPage } from '@/pages/ModulesHubPage';
@@ -61,12 +63,12 @@ export const router = createBrowserRouter([
     path: '/activate',
     element: <ActivationPage />,
   },
-  // Public TV wallboard — display-token auth only (no AppLayout / JWT) (D-18 / NAV-15)
+  // Public TV wallboard - display-token auth only (no AppLayout / JWT) (D-18 / NAV-15)
   {
     path: '/callcenter/wallboard',
     element: <CallCenterWallboardPage />,
   },
-  // Platform console (006-B) — outside tenant AppLayout; SUPERADMIN only (D-21)
+  // Platform console (006-B) - outside tenant AppLayout; SUPERADMIN only (D-21)
   {
     path: '/platform',
     element: (
@@ -87,6 +89,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <DashboardPage /> },
       { path: 'modules', element: <ModulesHubPage /> },
+      { path: 'profile', element: <ProfilePage /> },
       { path: 'users', element: <UsersPage /> },
       { path: 'endpoints', element: <EndpointsPage /> },
       { path: 'trunks', element: <TrunksPage /> },
@@ -105,7 +108,7 @@ export const router = createBrowserRouter([
       { path: 'roles', element: <RolesPage /> },
       { path: 'numbers', element: <NumbersPage /> },
       { path: 'provision-templates', element: <ProvisionTemplatesPage /> },
-      // Legacy transitional redirects (D-41) — page files kept on disk for now
+      // Legacy transitional redirects (D-41) - page files kept on disk for now
       { path: 'operator', element: <Navigate to="/callcenter/agent" replace /> },
       { path: 'supervisor', element: <Navigate to="/callcenter/supervisor" replace /> },
       // Hub browse for marketplace; System Modules for tenant enable/disable toggles
@@ -140,6 +143,7 @@ export const router = createBrowserRouter([
       },
       { path: 'ai-agents', element: <AiAgentsPage /> },
       { path: 'service-requests', element: <ServiceRequestsPage /> },
+      { path: 'komandor-claims', element: <KomandorClaimsPage /> },
       { path: 'reports', element: <PlaceholderPage title="Reports" /> },
       { path: 'reports/cdr', element: <CdrReportPage /> },
       { path: 'reports/voice-robot-cdr', element: <VoiceRobotCdrPage /> },
@@ -156,6 +160,7 @@ export const router = createBrowserRouter([
       { path: 'voice-robots', element: <VoiceRobotsPage /> },
       { path: 'voice-robots/edit/:id', element: <VoiceRobotEditPage /> },
       { path: 'voice-robots/cdr', element: <VoiceRobotCdrPage /> },
+      { path: 'komandor-claims', element: <KomandorClaimsPage /> },
     ],
   },
   {

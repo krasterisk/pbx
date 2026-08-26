@@ -2,7 +2,7 @@ import { Preferences } from '@capacitor/preferences';
 
 /**
  * Build flavors for API/WSS hosts (NAV-11 / D-34).
- * Runtime override is for on-prem/debug only — do not expose in production UI without ADMIN.
+ * Runtime override is for on-prem/debug only - do not expose in production UI without ADMIN.
  */
 export type UrlFlavor = 'dev' | 'staging' | 'prod';
 

@@ -1,5 +1,5 @@
 /**
- * Shared API — re-exports
+ * Shared API - re-exports
  *
  * All endpoints are defined in separate files under ./endpoints/
  * and injected into the base rtkApi instance via injectEndpoints.
@@ -9,7 +9,7 @@
 
 export { rtkApi } from './rtkApi';
 
-// Endpoint hooks — re-exported per entity
+// Endpoint hooks - re-exported per entity
 export {
   useGetUsersQuery,
   useGetUserByIdQuery,
@@ -17,6 +17,8 @@ export {
   useUpdateUserMutation,
   useDeleteUserMutation,
   useBulkDeleteUsersMutation,
+  useUploadUserAvatarMutation,
+  useDeleteUserAvatarMutation,
 } from './endpoints/userApi';
 
 export {

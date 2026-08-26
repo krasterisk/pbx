@@ -24,7 +24,7 @@ interface KeywordEditDialogProps {
 }
 
 /**
- * KeywordEditDialog — full-screen dialog for editing a keyword scenario.
+ * KeywordEditDialog - full-screen dialog for editing a keyword scenario.
  *
  * Contains: keyword phrase, synonyms (TagInput), negative keywords (TagInput),
  * comment, VoiceRobotActionEditor, and collapsible ConversationPreview.
@@ -265,7 +265,7 @@ export const KeywordEditDialog = memo(({
                     />
                   </VStack>
                   <Text variant="xs" className="text-muted-foreground pb-2">
-                    {t('voiceRobots.escalation.repeatsExplain', 'Основное действие сработает {{count}} раз, затем — альтернативное.', { count: maxRepeats })}
+                    {t('voiceRobots.escalation.repeatsExplain', 'Основное действие сработает {{count}} раз, затем - альтернативное.', { count: maxRepeats })}
                   </Text>
                 </HStack>
 

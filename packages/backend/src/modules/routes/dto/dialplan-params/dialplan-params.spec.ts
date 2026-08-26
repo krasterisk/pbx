@@ -32,15 +32,9 @@ function describeAction(action: DialplanAction): string {
       return action.params.context ?? '';
     case 'playback':
       return action.params.file ?? '';
-    case 'setclid_custom':
-      return action.params.callerid ?? '';
-    case 'setclid_list':
-      return String(action.params.list_uid ?? '');
     case 'notify':
-      return action.params.message ?? '';
+      return action.params.body ?? '';
     case 'callerid':
-      return action.params.mode;
-    case 'trunk_carousel':
       return action.params.mode;
     case 'voicemail':
       return action.params.target?.source ?? action.params.exten ?? '';
@@ -58,58 +52,61 @@ function describeAction(action: DialplanAction): string {
       return action.params.label_name ?? '';
     case 'goto':
       return action.params.label_name ?? '';
-    case 'branch':
-      return action.params.true_label ?? '';
     case 'schedule':
       return String(action.params.intervals?.length ?? '');
     case 'http_request':
       return action.params.url ?? '';
     case 'collect_input':
       return action.params.variableName ?? '';
-    case 'busy':
-      return String(action.params.timeout ?? '');
     case 'hangup':
-      return action.params.causecode ?? '';
-    case 'congestion':
-      return String(action.params.timeout ?? '');
+      return action.params.signal ?? '';
   }
   return assertNeverAction(action);
 }
 
-describe('D-08 DialplanAction union + D-24 meta + D-42 congestion', () => {
-  it('has 28 ActionTypesList values including http_request and collect_input after 12-16', () => {
-    expect(ActionTypesList).toHaveLength(28);
-    expect(ActionTypesList).toContain('congestion');
+describe('D-08 DialplanAction union + D-24 meta', () => {
+  it('has 22 ActionTypesList values after busy/congestion, branch, setclid_*, and trunk_carousel were merged away', () => {
+    expect(ActionTypesList).toHaveLength(22);
     expect(ActionTypesList).toContain('voicemail');
-    expect(ActionTypesList).not.toContain("tofax");
-    expect(ActionTypesList).not.toContain("playprompt");
+    expect(ActionTypesList).not.toContain('tofax');
+    expect(ActionTypesList).not.toContain('playprompt');
   });
+
+  it.each(['busy', 'congestion', 'branch', 'setclid_custom', 'setclid_list', 'trunk_carousel'])(
+    'no longer offers the merged-away type %s',
+    (type) => {
+      expect(ActionTypesList).not.toContain(type);
+      expect(Object.keys(DIALPLAN_ACTION_META)).not.toContain(type);
+    },
+  );
 
   it('DIALPLAN_ACTION_META keys match ActionTypesList', () => {
     const metaKeys = Object.keys(DIALPLAN_ACTION_META).sort();
     const listKeys = [...ActionTypesList].sort();
     expect(metaKeys).toEqual(listKeys);
-    expect(metaKeys).toHaveLength(28);
+    expect(metaKeys).toHaveLength(22);
   });
 
   it('declares terminal flags required by D-24 / D-42', () => {
     expect(DIALPLAN_ACTION_META.toivr.terminal).toBe('always');
     expect(DIALPLAN_ACTION_META.toroute.terminal).toBe('always');
     expect(DIALPLAN_ACTION_META.hangup.terminal).toBe('always');
-    expect(DIALPLAN_ACTION_META.busy.terminal).toBe('always');
-    expect(DIALPLAN_ACTION_META.congestion.terminal).toBe('always');
     expect(DIALPLAN_ACTION_META.playback.terminal).toBe('conditional');
-    expect(DIALPLAN_ACTION_META.setclid_custom.terminal).toBe('never');
+    expect(DIALPLAN_ACTION_META.callerid.terminal).toBe('never');
   });
 
-  it('exhaustiveness helper compiles and handles congestion', () => {
+  it('marks the unified goto as conditional so a fall-through tail stays reachable', () => {
+    expect(DIALPLAN_ACTION_META.goto.terminal).toBe('conditional');
+  });
+
+  it('exhaustiveness helper compiles and handles the unified hangup', () => {
     const action: DialplanAction = {
       id: 'c1',
       condition: {},
-      type: 'congestion',
-      params: { timeout: 10 },
+      type: 'hangup',
+      params: { signal: 'congestion', timeout: 10 },
     };
-    expect(describeAction(action)).toBe('10');
+    expect(describeAction(action)).toBe('congestion');
   });
 });
 
@@ -122,26 +119,24 @@ const VALID_PARAMS: Record<ActionType, Record<string, unknown>> = {
   toivr: { ivr_uid: 3 },
   toroute: { context: 'sip-in', extension: { source: 'route_pattern' } },
   playback: { file: 'welcome', options: { noanswer: true, skip: false }, langoverride: 'ru' },
-  setclid_custom: { callerid: '79001112233' },
-  setclid_list: { list_uid: 2 },
-  notify: { integration_uid: 1, message: 'hello' },
+  notify: { integration_uid: 1, body: 'hello' },
   callerid: { mode: 'static', callerid: '7900' },
-  trunk_carousel: { mode: 'random_then_failover', trunks: [{ trunk: 'PJSIP/t1', cid_mode: 'static' }] },
   voicemail: { target: { source: 'route_pattern' } },
-  text2speech: { text: 'hello', engine: 3 },
+  text2speech: { text: 'hello', engine: 3, settings: { voice: 'alena', speed: '1.0' } },
   voicerobot: { robot_uid: 5 },
   webhook: { url: 'https://example.com/hook' },
   confbridge: { room: { source: 'fixed', value: '100' } },
   cmd: { command: 'NoOp(ok)' },
   label: { label_name: 'retry' },
-  goto: { label_name: 'retry' },
-  branch: { true_label: 'ok', false_label: 'fail', condition: { source: 'dialstatus', values: ['ANSWER'] } },
+  goto: {
+    label_name: 'ok',
+    false_label: 'fail',
+    condition: { source: 'dialstatus', values: ['ANSWER'] },
+  },
   schedule: { intervals: [{ time_start: '09:00', time_end: '18:00', days_of_week: 'mon-fri', days_of_month: '*', months: '*' }] },
   http_request: { url: 'https://example.com/x', method: 'GET', timeout: 5 },
   collect_input: { variableName: 'PIN', digitsCount: 4, timeout: 5 },
-  busy: {},
-  hangup: {},
-  congestion: {},
+  hangup: { signal: 'busy', timeout: 10 },
 };
 
 const INVALID_PARAMS: Record<ActionType, Record<string, unknown>> = {
@@ -153,11 +148,8 @@ const INVALID_PARAMS: Record<ActionType, Record<string, unknown>> = {
   toivr: { ivr_uid: 'x' },
   toroute: { extension: { source: 'fixed', value: '' } },
   playback: { digittimeout: -1 },
-  setclid_custom: { callerid: 1 },
-  setclid_list: { list_uid: false },
-  notify: { integration_uid: 'x', message: '' },
+  notify: { integration_uid: 'x', body: '' },
   callerid: { mode: 'nope' },
-  trunk_carousel: { mode: 'random_then_failover', trunks: 'x' },
   voicemail: { target: { source: 'fixed', value: '' } },
   text2speech: { engine: 'nope' },
   voicerobot: { robot_uid: 'x' },
@@ -166,13 +158,10 @@ const INVALID_PARAMS: Record<ActionType, Record<string, unknown>> = {
   cmd: { command: 1 },
   label: { label_name: 1 },
   goto: { label_name: '' },
-  branch: { true_label: '', false_label: '' },
   schedule: { intervals: [] },
   http_request: { url: 'http://localhost/', method: 'GET', timeout: 5 },
   collect_input: { variableName: 'a b', digitsCount: 0, timeout: 5 },
-  busy: {},
-  hangup: {},
-  congestion: {},
+  hangup: { signal: 'nope' },
 };
 
 describe('D-09 ACTION_PARAM_DTO registry', () => {
@@ -312,23 +301,107 @@ describe('D-26 numberManipulation DTO', () => {
     }]);
     expect(errors.some((e) => e.path === 'numberManipulation.prepend')).toBe(true);
   });
-});
 
-describe('D-28 notify recipients', () => {
-  it('rejects an invalid email recipient for the email channel', () => {
+  it('accepts dest ${EXTEN} string as route_pattern', () => {
     const errors = validateActionParams([{
       id: 'n1',
-      type: 'notify',
-      params: { channels: ['email'], recipients: { email: 'not-an-email' }, body: 'hi' },
+      type: 'totrunk',
+      params: { trunk: 'PJSIP/t1', dest: '${EXTEN}' },
     }]);
-    expect(errors.length).toBeGreaterThan(0);
+    expect(errors).toEqual([]);
   });
 
-  it('accepts a valid email recipient for the email channel', () => {
+  it('accepts rewrite rules and rejects a bad regex kind value', () => {
+    const ok = validateActionParams([{
+      id: 'n1',
+      type: 'totrunk',
+      params: {
+        trunk: 'PJSIP/t1',
+        dest: { source: 'route_pattern' },
+        rewrite: {
+          noMatch: 'passthrough',
+          rules: [{
+            id: 'r1',
+            transform: { prefix: '8' },
+            conditions: [{ kind: 'startsWith', value: '7' }],
+          }],
+        },
+      },
+    }]);
+    expect(ok).toEqual([]);
+
+    const bad = validateActionParams([{
+      id: 'n1',
+      type: 'totrunk',
+      params: {
+        trunk: 'PJSIP/t1',
+        dest: { source: 'route_pattern' },
+        rewrite: { rules: [{ id: 'r1', transform: {}, conditions: [{ kind: 'nope' }] }] },
+      },
+    }]);
+    expect(bad.length).toBeGreaterThan(0);
+  });
+
+  it('accepts single mode totrunk with cid_mode static and callerid', () => {
+    const ok = validateActionParams([{
+      id: 't1',
+      type: 'totrunk',
+      params: {
+        trunkMode: 'single',
+        trunk: 'PJSIP/t1',
+        cid_mode: 'static',
+        callerid: '79001234567',
+        dest: { source: 'route_pattern' },
+      },
+    }]);
+    expect(ok).toEqual([]);
+  });
+
+  it('accepts single mode totrunk with cid_mode phonebook and phonebook_uid', () => {
+    const ok = validateActionParams([{
+      id: 't2',
+      type: 'totrunk',
+      params: {
+        trunkMode: 'single',
+        trunk: 'PJSIP/t1',
+        cid_mode: 'phonebook',
+        phonebook_uid: 12,
+        dest: { source: 'route_pattern' },
+      },
+    }]);
+    expect(ok).toEqual([]);
+  });
+});
+
+describe('notify routes through an integration', () => {
+  it('requires an integration because the channel is owned by it', () => {
     const errors = validateActionParams([{
       id: 'n1',
       type: 'notify',
-      params: { channels: ['email'], recipients: { email: 'ops@example.com' }, body: 'hi' },
+      params: { body: 'hi', target: 'ops@example.com' },
+    }]);
+    expect(errors.some((e) => e.path === 'integration_uid')).toBe(true);
+  });
+
+  it('accepts an integration, a body and a recipient override', () => {
+    const errors = validateActionParams([{
+      id: 'n1',
+      type: 'notify',
+      params: { integration_uid: 4, body: 'hi', target: 'ops@example.com' },
+    }]);
+    expect(errors).toEqual([]);
+  });
+
+  it('strips the removed per-channel fields instead of storing them', () => {
+    const errors = validateActionParams([{
+      id: 'n1',
+      type: 'notify',
+      params: {
+        integration_uid: 4,
+        body: 'hi',
+        channels: ['email'],
+        recipients: { email: 'ops@example.com' },
+      },
     }]);
     expect(errors).toEqual([]);
   });
@@ -347,11 +420,11 @@ describe('D-30 text2speech engine', () => {
 });
 
 describe('D-32 / D-39 / D-43 params whitelist', () => {
-  it('keeps setclid_custom name through the whitelist', () => {
+  it('keeps the static callerid name through the whitelist', () => {
     const errors = validateActionParams([{
       id: 'c1',
-      type: 'setclid_custom',
-      params: { callerid: '100', name: 'Sales' },
+      type: 'callerid',
+      params: { mode: 'static', callerid: '100', name: 'Sales' },
     }]);
     expect(errors).toEqual([]);
   });
@@ -379,6 +452,18 @@ describe('D-32 / D-39 / D-43 params whitelist', () => {
       id: 'q1',
       type: 'toqueue',
       params: { target: { source: 'fixed', value: 'sales' }, priority: 5, announceoverride: 'vip-welcome' },
+    }]);
+    expect(errors).toEqual([]);
+  });
+
+  it('accepts toqueue priority as ValueSource variable', () => {
+    const errors = validateActionParams([{
+      id: 'q1',
+      type: 'toqueue',
+      params: {
+        target: { source: 'fixed', value: 'sales' },
+        priority: { source: 'variable', name: 'VIP_PRIO' },
+      },
     }]);
     expect(errors).toEqual([]);
   });
@@ -429,17 +514,35 @@ describe('D-44 / D-45 new control params', () => {
     expect(errors).toEqual([]);
   });
 
-  it('accepts branch with both labels and a condition', () => {
+  it('accepts goto with a condition and an else-label', () => {
     const errors = validateActionParams([{
-      id: 'b1',
-      type: 'branch',
+      id: 'g1',
+      type: 'goto',
       params: {
-        true_label: 'ok',
+        label_name: 'ok',
         false_label: 'fail',
         condition: { source: 'dialstatus', values: ['ANSWER'] },
       },
     }]);
     expect(errors).toEqual([]);
+  });
+
+  it.each(['busy', 'congestion', 'hangup'])('accepts hangup with signal %s', (signal) => {
+    const errors = validateActionParams([{
+      id: 'h1',
+      type: 'hangup',
+      params: { signal },
+    }]);
+    expect(errors).toEqual([]);
+  });
+
+  it('rejects an unknown hangup signal', () => {
+    const errors = validateActionParams([{
+      id: 'h1',
+      type: 'hangup',
+      params: { signal: 'nope' },
+    }]);
+    expect(errors.length).toBeGreaterThan(0);
   });
 });
 

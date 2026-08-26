@@ -23,7 +23,7 @@ export interface OperatorPermissionsFormProps {
 }
 
 /**
- * D-40: per-operator permissions sheet — same rights as the bulk matrix.
+ * D-40: per-operator permissions sheet - same rights as the bulk matrix.
  */
 export function OperatorPermissionsForm({
   open,

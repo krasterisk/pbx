@@ -140,14 +140,14 @@ export const TenantDrawer = memo(() => {
           {tab === 'info' && (
             <VStack gap="16">
               <VStack gap="8" className={cls.infoGrid}>
-                <Row label={t('cloudAdmin.drawer.email', 'Email')} value={selectedTenant.email ?? '—'} />
-                <Row label={t('cloudAdmin.drawer.phone', 'Телефон')} value={selectedTenant.phone ?? '—'} />
-                <Row label={t('cloudAdmin.drawer.inn', 'ИНН')} value={selectedTenant.company_inn ?? '—'} />
+                <Row label={t('cloudAdmin.drawer.email', 'Email')} value={selectedTenant.email ?? '-'} />
+                <Row label={t('cloudAdmin.drawer.phone', 'Телефон')} value={selectedTenant.phone ?? '-'} />
+                <Row label={t('cloudAdmin.drawer.inn', 'ИНН')} value={selectedTenant.company_inn ?? '-'} />
                 <Row
                   label={t('cloudAdmin.drawer.trial', 'Пробный период до')}
                   value={selectedTenant.trial_ends_at
                     ? new Date(selectedTenant.trial_ends_at).toLocaleDateString('ru-RU')
-                    : '—'
+                    : '-'
                   }
                 />
                 <Row

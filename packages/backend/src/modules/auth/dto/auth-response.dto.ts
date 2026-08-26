@@ -9,6 +9,7 @@ export class AuthUserPayload {
   @ApiProperty() role!: number;
   @ApiProperty() exten!: string;
   @ApiProperty() vpbx_user_uid!: number;
+  @ApiProperty({ required: false, nullable: true }) avatar?: string | null;
 }
 
 export class AuthTokenResponse {

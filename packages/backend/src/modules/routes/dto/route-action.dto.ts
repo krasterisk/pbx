@@ -22,13 +22,12 @@ import { RouteConditionDto } from './route-condition.dto';
 export const ActionTypesList = [
   'totrunk', 'toexten', 'toqueue', 'togroup', 'tolist',
   'toivr', 'toroute', 'playback',
-  'setclid_custom', 'setclid_list',
-  'notify', 'callerid', 'trunk_carousel',
+  'notify', 'callerid',
   'voicemail', 'text2speech', 'voicerobot',
   'webhook', 'confbridge', 'cmd',
-  'label', 'goto', 'branch', 'schedule',
+  'label', 'goto', 'schedule',
   'http_request', 'collect_input',
-  'busy', 'hangup', 'congestion',
+  'hangup',
 ];
 
 const MatchModesList = ['on_match', 'on_no_match'];

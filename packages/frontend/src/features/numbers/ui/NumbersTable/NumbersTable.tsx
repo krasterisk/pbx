@@ -2,12 +2,23 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { type ColumnDef } from '@tanstack/react-table';
 import { Hash, Pencil, Trash2, Loader2, Search } from 'lucide-react';
-import { Card, CardHeader, CardContent, Input, DataTable, Button, Text } from '@/shared/ui';
+import {
+  Card,
+  CardHeader,
+  CardContent,
+  Input,
+  DataTable,
+  Button,
+  Text,
+  TableRowActions,
+  TableRowAction,
+} from '@/shared/ui';
 import { HStack, Flex, VStack } from '@/shared/ui/Stack';
 import { useGetNumbersQuery, useDeleteNumberMutation, useBulkDeleteNumbersMutation } from '@/shared/api/api';
 import { useAppDispatch } from '@/shared/hooks/useAppStore';
 import { useIsMobile } from '@/shared/hooks/useIsMobile';
 import { numbersPageActions } from '../../model/slice/numbersPageSlice';
+import styles from './NumbersTable.module.scss';
 
 export const NumbersTable = () => {
   const { t } = useTranslation();
@@ -35,7 +46,9 @@ export const NumbersTable = () => {
     {
       accessorKey: 'name',
       header: t('numbers.name'),
-      cell: (info) => <span className="font-medium text-white">{info.getValue() as string}</span>,
+      cell: (info) => (
+        <Text className={styles.nameCell}>{info.getValue() as string}</Text>
+      ),
     },
     {
       accessorKey: 'comment',
@@ -45,28 +58,32 @@ export const NumbersTable = () => {
     {
       id: 'actions',
       header: t('common.actions'),
-      cell: (info) => (
-        <HStack gap="4">
-          <button
-            className="p-1.5 rounded-md hover:bg-white/5 text-muted-foreground hover:text-white transition-colors"
-            title={t('common.edit')}
-            onClick={() => dispatch(numbersPageActions.openEditModal(info.row.original))}
-          >
-            <Pencil className="w-4 h-4" />
-          </button>
-          <button
-            className="p-1.5 rounded-md hover:bg-red-500/10 text-muted-foreground hover:text-red-400 transition-colors"
-            title={t('common.delete')}
-            onClick={() => {
-              if (window.confirm(t('common.confirmDelete', `Delete ${info.row.original.name}?`))) {
-                deleteNumber(info.row.original.id);
-              }
-            }}
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-        </HStack>
-      ),
+      cell: (info) => {
+        const row = info.row.original;
+        return (
+          <TableRowActions>
+            <TableRowAction
+              title={t('common.edit')}
+              aria-label={t('common.edit')}
+              onClick={() => dispatch(numbersPageActions.openEditModal(row))}
+            >
+              <Pencil />
+            </TableRowAction>
+            <TableRowAction
+              danger
+              title={t('common.delete')}
+              aria-label={t('common.delete')}
+              onClick={() => {
+                if (window.confirm(t('common.confirmDelete', `Delete ${row.name}?`))) {
+                  void deleteNumber(row.id);
+                }
+              }}
+            >
+              <Trash2 />
+            </TableRowAction>
+          </TableRowActions>
+        );
+      },
     },
   ], [t, deleteNumber, dispatch]);
 
@@ -83,33 +100,33 @@ export const NumbersTable = () => {
   };
 
   const toolbar = (
-    <HStack justify="between" align="center" className="flex-col sm:flex-row gap-4" max>
+    <HStack justify="between" align="center" className={styles.toolbar} max>
       <HStack gap="8" align="center">
-        <Hash className="w-5 h-5 text-primary" />
-        <span className="font-semibold text-lg">
+        <Hash className={styles.toolbarIcon} />
+        <Text className={styles.toolbarTitle}>
           {numbers.length} {t('nav.numbers')}
-        </span>
+        </Text>
       </HStack>
-      <HStack gap="12" align="center" className="w-full sm:w-auto">
+      <HStack gap="12" align="center" className={styles.toolbarActions}>
         {selectedCount > 0 && !isMobile && (
-          <Button variant="destructive" disabled={isDeleting} onClick={handleBulkDelete}>
+          <Button variant="destructive" disabled={isDeleting} onClick={() => void handleBulkDelete()}>
             {isDeleting ? (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              <Loader2 className={styles.iconSpin} />
             ) : (
-              <Trash2 className="w-4 h-4 mr-2" />
+              <Trash2 className={styles.actionIcon} />
             )}
             {t('common.deleteSelected')} ({selectedCount})
           </Button>
         )}
-        <div className="relative w-full sm:w-64">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <VStack className={styles.searchWrap}>
+          <Search className={styles.searchIcon} />
           <Input
             placeholder={t('common.search')}
             value={globalFilter}
             onChange={(e) => setGlobalFilter(e.target.value)}
-            className="pl-10 h-9"
+            className={styles.searchInput}
           />
-        </div>
+        </VStack>
       </HStack>
     </HStack>
   );
@@ -119,8 +136,8 @@ export const NumbersTable = () => {
       <Card>
         <CardHeader>{toolbar}</CardHeader>
         <CardContent>
-          <Flex align="center" justify="center" className="h-48">
-            <Loader2 className="w-6 h-6 animate-spin text-primary" />
+          <Flex align="center" justify="center" className={styles.loading}>
+            <Loader2 className={styles.loadingIcon} />
           </Flex>
         </CardContent>
       </Card>
@@ -135,44 +152,42 @@ export const NumbersTable = () => {
         <CardContent>
           <VStack gap="8" max>
             {filtered.length === 0 ? (
-              <Text variant="muted" className="py-8 text-center w-full">
+              <Text variant="muted" className={styles.emptyState}>
                 {t('common.noData')}
               </Text>
             ) : (
               filtered.map((row) => (
-                <div
-                  key={row.id}
-                  className="rounded-lg border border-border/60 bg-muted/10 p-3"
-                >
+                <VStack key={row.id} gap="0" max className={styles.mobileCard}>
                   <HStack justify="between" align="start" max>
                     <VStack gap="4">
-                      <Text className="font-medium">{row.name}</Text>
-                      <Text variant="muted" className="text-xs">
+                      <Text className={styles.nameCell}>{row.name}</Text>
+                      <Text variant="muted" className={styles.mobileComment}>
                         {(row as { comment?: string }).comment || row.description || '-'}
                       </Text>
                     </VStack>
-                    <HStack gap="4">
-                      <button
-                        className="p-1.5 rounded-md hover:bg-white/5 text-muted-foreground"
+                    <TableRowActions>
+                      <TableRowAction
                         title={t('common.edit')}
+                        aria-label={t('common.edit')}
                         onClick={() => dispatch(numbersPageActions.openEditModal(row))}
                       >
-                        <Pencil className="w-4 h-4" />
-                      </button>
-                      <button
-                        className="p-1.5 rounded-md hover:bg-red-500/10 text-muted-foreground hover:text-red-400"
+                        <Pencil />
+                      </TableRowAction>
+                      <TableRowAction
+                        danger
                         title={t('common.delete')}
+                        aria-label={t('common.delete')}
                         onClick={() => {
                           if (window.confirm(t('common.confirmDelete'))) {
-                            deleteNumber(row.id);
+                            void deleteNumber(row.id);
                           }
                         }}
                       >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </HStack>
+                        <Trash2 />
+                      </TableRowAction>
+                    </TableRowActions>
                   </HStack>
-                </div>
+                </VStack>
               ))
             )}
           </VStack>
@@ -184,8 +199,8 @@ export const NumbersTable = () => {
   return (
     <Card>
       <CardHeader>{toolbar}</CardHeader>
-      <CardContent className="p-0">
-        <div className="overflow-x-auto min-w-0" data-testid="numbers-table-scroll">
+      <CardContent className={styles.tableContent}>
+        <VStack className={styles.tableScroll} data-testid="numbers-table-scroll" max>
           <DataTable
             data={numbers}
             columns={columns}
@@ -198,7 +213,7 @@ export const NumbersTable = () => {
             emptyText={t('common.noData')}
             exportFilename="numbers_export"
           />
-        </div>
+        </VStack>
       </CardContent>
     </Card>
   );

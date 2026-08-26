@@ -1,15 +1,18 @@
 import { describe, it, expect } from 'vitest';
 import {
   agentDisplayName,
+  agentLabelWithExt,
   queueDisplayName,
   callerDisplayLabel,
   isRawAgentName,
+  operatorChoiceLabel,
   agentStatusLabel,
   agentStatusColorFamily,
   coworkerActivityLabel,
   formatPauseReason,
   AGENT_STATUS_LABEL_KEYS,
   AGENT_STATUS_COLOR_FAMILY,
+  formatStatusElapsed,
 } from './displayLabels';
 import type { AgentStatus } from '../model/types/callCenterSchema';
 
@@ -27,6 +30,24 @@ describe('displayLabels', () => {
     expect(agentDisplayName({ name: 'Alice', interface: 'PJSIP/ew112_0' })).toBe('Alice');
     expect(agentDisplayName({ name: 'PJSIP/ew112_0', interface: 'PJSIP/ew112_0' })).toBe('112');
     expect(agentDisplayName({ name: '201', interface: 'PJSIP/e201_0' })).toBe('201');
+  });
+
+    it('agentLabelWithExt appends normalized extension', () => {
+    expect(agentLabelWithExt({ name: 'Alice', interface: 'PJSIP/e201_0' })).toBe('Alice (201)');
+    expect(agentLabelWithExt({ name: 'PJSIP/e201_0', interface: 'PJSIP/e201_0' })).toBe('201');
+    expect(agentLabelWithExt({ name: 'Alice (201)', interface: 'PJSIP/e201_0' })).toBe('Alice (201)');
+    expect(agentLabelWithExt({ name: 'Alice', interface: 'user:42' })).toBe('Alice');
+  });
+
+  it('operatorChoiceLabel prefers human name over PJSIP/extension', () => {
+    expect(operatorChoiceLabel('201', [
+      { name: 'PJSIP/e201_0', interface: 'PJSIP/e201_0' },
+      { name: '201', interface: 'PJSIP/e201_0' },
+      { name: 'Иван', interface: 'PJSIP/e201_0' },
+    ])).toBe('Иван (201)');
+    expect(operatorChoiceLabel('201', [
+      { name: 'PJSIP/e201_0', interface: 'PJSIP/e201_0' },
+    ])).toBe('201');
   });
 
   it('queueDisplayName formats as Name (number)', () => {
@@ -68,6 +89,11 @@ describe('displayLabels', () => {
     it('relabels READY to the "Waiting for call" copy (D-13), not "Ready"', () => {
       expect(agentStatusLabel('READY', identityT)).toBe('Waiting for call');
       expect(AGENT_STATUS_LABEL_KEYS.READY.key).toBe('callcenter.status.ready');
+    });
+
+    it('maps OFFLINE to callcenter.status.offline key', () => {
+      expect(AGENT_STATUS_LABEL_KEYS.OFFLINE.key).toBe('callcenter.status.offline');
+      expect(agentStatusLabel('OFFLINE', identityT)).toBe('Offline');
     });
 
     it('resolves labels + i18n keys for the three new statuses', () => {
@@ -191,6 +217,20 @@ describe('displayLabels', () => {
       expect(result.text).toContain('Personal');
       expect(result.text).toContain('201');
       expect(result.text).not.toContain('Outbound');
+    });
+  });
+
+  describe('formatStatusElapsed', () => {
+    it('formats under one hour as mm:ss', () => {
+      expect(formatStatusElapsed(0)).toBe('00:00');
+      expect(formatStatusElapsed(65)).toBe('01:05');
+      expect(formatStatusElapsed(59 * 60 + 59)).toBe('59:59');
+    });
+
+    it('formats one hour and above as h:mm:ss', () => {
+      expect(formatStatusElapsed(3600)).toBe('1:00:00');
+      expect(formatStatusElapsed(977 * 60 + 13)).toBe('16:17:13');
+      expect(formatStatusElapsed(40 * 3600 + 17 * 60 + 13)).toBe('40:17:13');
     });
   });
 });

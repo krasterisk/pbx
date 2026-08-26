@@ -50,6 +50,29 @@
   flex-shrink: 0;
 }
 
+.dragHandle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-muted-foreground, #71717a);
+  cursor: grab;
+  flex-shrink: 0;
+}
+
+.dragHandle:active {
+  cursor: grabbing;
+}
+
+.dragHandle:hover {
+  color: var(--color-foreground);
+}
+
 .typeSelect {
   flex: 0 1 130px;
   min-width: 120px;

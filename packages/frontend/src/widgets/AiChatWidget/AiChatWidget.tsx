@@ -116,7 +116,7 @@ export const AiChatWidget = () => {
                 onClick={() => dispatch(aiChatActions.closeChat())}
             />
 
-            {/* Trigger button — hidden when panel is open (Send button overlap) */}
+            {/* Trigger button - hidden when panel is open (Send button overlap) */}
             {!isOpen && (
                 <button
                     id="ai-chat-trigger"

@@ -1,12 +1,27 @@
-import { Injectable } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { User } from './user.model';
+import { User, UserLevel } from './user.model';
+import { SystemSettingsService } from '../system-settings/system-settings.service';
 import * as crypto from 'crypto';
+import * as fs from 'fs/promises';
+import * as path from 'path';
+import {
+  sanitizeAvatarFilename,
+  avatarContentType,
+  avatarExtFromMime,
+  resolveUnderDir,
+} from './users-avatar.util';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectModel(User) private readonly userModel: typeof User,
+    private readonly systemSettings: SystemSettingsService,
   ) {}
 
   async findByLogin(login: string): Promise<User | null> {
@@ -48,10 +63,8 @@ export class UsersService {
     let finalPasswd: string;
 
     if (data.passwd) {
-      // Caller provides a pre-computed hash (bcrypt from AuthService)
       finalPasswd = data.passwd;
     } else if (data.password) {
-      // Legacy plain-text path — MD5 for backward compat with v3 users
       finalPasswd = crypto.createHash('md5').update(data.password).digest('hex');
     } else {
       finalPasswd = '';
@@ -86,27 +99,25 @@ export class UsersService {
     suspension_time: number;
     inactive_time: number;
     vpbx_user_uid: number;
+    avatar: string | null;
   }>): Promise<User | null> {
     const updateData: any = { ...data };
-    
-    // Front-end could send 'password' or 'passwd'
+
     const newPassword = data.password || data.passwd;
-    
+
     if (newPassword) {
-      // If already a bcrypt hash (from AuthService) — store as-is
       const isBcrypt = newPassword.startsWith('$2b$') || newPassword.startsWith('$2a$');
       updateData.passwd = isBcrypt
         ? newPassword
         : crypto.createHash('md5').update(newPassword).digest('hex');
       delete updateData.password;
     } else {
-      // If empty string is passed to passwd, delete it so we don't override with empty
       delete updateData.passwd;
       delete updateData.password;
     }
-    
+
     await this.userModel.update(updateData, { where: { uniqueid: id, vpbx_user_uid: vpbxUserUid } });
-    return this.findById(id);
+    return this.findById(id, vpbxUserUid);
   }
 
   async delete(id: number, vpbxUserUid: number): Promise<void> {
@@ -118,5 +129,119 @@ export class UsersService {
       where: { uniqueid: ids, vpbx_user_uid: vpbxUserUid },
     });
     return { deleted };
+  }
+
+  /** Admin (or platform) may edit any tenant user; others only themselves. */
+  assertCanManageAvatar(actor: { sub: number; level: number }, targetUserId: number): void {
+    const isAdmin =
+      actor.level === UserLevel.ADMIN ||
+      actor.level === UserLevel.SUPERADMIN;
+    if (!isAdmin && actor.sub !== targetUserId) {
+      throw new ForbiddenException('Cannot change another user avatar');
+    }
+  }
+
+  private async getAvatarsDir(vpbxUserUid: number): Promise<string> {
+    const cfg = await this.systemSettings.getServerConfigRaw();
+    const base = cfg.records_base_path || '/usr/records';
+    return path.resolve(base, String(vpbxUserUid), 'avatars');
+  }
+
+  async saveAvatar(
+    targetUserId: number,
+    vpbxUserUid: number,
+    file: Express.Multer.File,
+  ): Promise<User> {
+    const user = await this.findById(targetUserId, vpbxUserUid);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const ext = avatarExtFromMime(file.mimetype);
+    if (!ext) {
+      throw new BadRequestException('Unsupported image type');
+    }
+
+    const dir = await this.getAvatarsDir(vpbxUserUid);
+    await fs.mkdir(dir, { recursive: true });
+
+    const filename = `u${targetUserId}_${Date.now()}${ext}`;
+    const dest = resolveUnderDir(dir, filename);
+    if (!dest) {
+      throw new BadRequestException('Invalid avatar path');
+    }
+
+    if (user.avatar) {
+      await this.unlinkAvatarFile(vpbxUserUid, user.avatar);
+    }
+
+    await fs.writeFile(dest, file.buffer);
+    await this.userModel.update(
+      { avatar: filename },
+      { where: { uniqueid: targetUserId, vpbx_user_uid: vpbxUserUid } },
+    );
+
+    const updated = await this.findById(targetUserId, vpbxUserUid);
+    if (!updated) {
+      throw new NotFoundException('User not found');
+    }
+    return updated;
+  }
+
+  async removeAvatar(targetUserId: number, vpbxUserUid: number): Promise<User> {
+    const user = await this.findById(targetUserId, vpbxUserUid);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    if (user.avatar) {
+      await this.unlinkAvatarFile(vpbxUserUid, user.avatar);
+    }
+    await this.userModel.update(
+      { avatar: null },
+      { where: { uniqueid: targetUserId, vpbx_user_uid: vpbxUserUid } },
+    );
+    const updated = await this.findById(targetUserId, vpbxUserUid);
+    if (!updated) {
+      throw new NotFoundException('User not found');
+    }
+    return updated;
+  }
+
+  async openAvatarStream(
+    targetUserId: number,
+    vpbxUserUid: number,
+  ): Promise<{ absolutePath: string; contentType: string }> {
+    const user = await this.findById(targetUserId, vpbxUserUid);
+    if (!user?.avatar) {
+      throw new NotFoundException('Avatar not found');
+    }
+    const safe = sanitizeAvatarFilename(user.avatar);
+    if (!safe) {
+      throw new NotFoundException('Avatar not found');
+    }
+    const dir = await this.getAvatarsDir(vpbxUserUid);
+    const absolutePath = resolveUnderDir(dir, safe);
+    if (!absolutePath) {
+      throw new NotFoundException('Avatar not found');
+    }
+    try {
+      await fs.access(absolutePath);
+    } catch {
+      throw new NotFoundException('Avatar not found');
+    }
+    return { absolutePath, contentType: avatarContentType(absolutePath) };
+  }
+
+  private async unlinkAvatarFile(vpbxUserUid: number, filename: string): Promise<void> {
+    const safe = sanitizeAvatarFilename(filename);
+    if (!safe) return;
+    const dir = await this.getAvatarsDir(vpbxUserUid);
+    const absolutePath = resolveUnderDir(dir, safe);
+    if (!absolutePath) return;
+    try {
+      await fs.unlink(absolutePath);
+    } catch {
+      // ignore missing file
+    }
   }
 }

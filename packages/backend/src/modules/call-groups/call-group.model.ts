@@ -34,6 +34,10 @@ export class CallGroup extends Model {
   @Column({ type: DataType.BOOLEAN, allowNull: false, defaultValue: false, field: 'confirm_external' })
   declare confirmExternal: boolean;
 
+  /** DTMF digit the external callee must press after answer (default `1`). */
+  @Column({ type: DataType.STRING(1), allowNull: false, defaultValue: '1', field: 'confirm_digit' })
+  declare confirmDigit: string;
+
   @Column({ type: DataType.BOOLEAN, allowNull: false, defaultValue: false, field: 'skip_busy' })
   declare skipBusy: boolean;
 

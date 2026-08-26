@@ -48,7 +48,7 @@ export const useEndpointsTableColumns = () => {
       columnHelper.accessor('department', {
         header: () => t('endpoints.department', 'Отдел'),
         cell: (info) => (
-          <span className="text-sm">{info.getValue() || '—'}</span>
+          <span className="text-sm">{info.getValue() || '-'}</span>
         ),
       }),
 
@@ -108,7 +108,7 @@ export const useEndpointsTableColumns = () => {
               </span>
             ) : null}
             <span className="text-xs text-muted-foreground truncate max-w-[160px]" title={info.getValue() || ''}>
-              {info.getValue() || '—'}
+              {info.getValue() || '-'}
             </span>
           </div>
         ),

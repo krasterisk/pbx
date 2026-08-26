@@ -31,7 +31,7 @@ describe('shared/ui/Tabs', () => {
     const tabOne = screen.getByRole('tab', { name: 'Tab One' });
     const tabTwo = screen.getByRole('tab', { name: 'Tab Two' });
 
-    // Active trigger carries data-state="active" — this drives the primary-color
+    // Active trigger carries data-state="active" - this drives the primary-color
     // 2px underline in Tabs.module.scss; inactive triggers stay transparent.
     expect(tabOne).toHaveAttribute('data-state', 'active');
     expect(tabTwo).toHaveAttribute('data-state', 'inactive');

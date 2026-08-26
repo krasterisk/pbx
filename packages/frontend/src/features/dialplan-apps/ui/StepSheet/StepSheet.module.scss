@@ -6,7 +6,7 @@
 .panelBottom {
   width: 100% !important;
   max-width: 100% !important;
-  max-height: 85dvh;
+  max-height: min(85vh, 85dvh);
 }
 
 @media (max-width: 767px) {
@@ -16,26 +16,8 @@
     width: 100% !important;
     max-width: 100% !important;
     border-left: none;
-    max-height: 85dvh;
+    max-height: min(85vh, 85dvh);
   }
-}
-
-.collapsible {
-  width: 100%;
-}
-
-.groupToggle {
-  display: flex;
-  align-items: center;
-  min-height: 44px;
-  width: 100%;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--color-foreground);
-  font: inherit;
-  cursor: pointer;
-  text-align: left;
 }
 
 .body {
@@ -43,21 +25,9 @@
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-}
+  padding-right: 0.25rem;
 
-.paramsSection {
-  width: 100%;
-  padding: 1rem 1rem 1.25rem;
-  border-radius: var(--radius-md, 0.5rem);
-  background: color-mix(in srgb, var(--color-muted) 35%, transparent);
-  border: 1px solid var(--color-border, #27272a);
-}
-
-.params {
-  width: 100%;
-  padding-top: 0.25rem;
-}
-
-.field {
-  width: 100%;
+  > * {
+    flex-shrink: 0;
+  }
 }

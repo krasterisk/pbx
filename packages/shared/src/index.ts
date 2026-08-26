@@ -41,5 +41,16 @@ export type {
   IvrPromptsValidationEngine,
   ValidateIvrPromptsOptions,
 } from './utils/ivr-prompts';
+export {
+  coerceDestValueSource,
+  coerceDialTargetRewrite,
+  liftDialTargetRewrite,
+  evaluateDialTargetRewrite,
+  isAllowedRewriteRegex,
+  digitMaskToRegex,
+  matchesCharset,
+  rewriteHasWork,
+  createEmptyRewriteRule,
+} from './utils/dial-target-rewrite';
 export { ensureCdrVpbxUserUidInDialplan } from './utils/dialplan-vpbx';
 export { OPTIONS_ROUNDTRIP_STRINGS } from './fixtures/dialplan-options.roundtrip';

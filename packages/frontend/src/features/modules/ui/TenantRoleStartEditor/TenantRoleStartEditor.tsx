@@ -12,7 +12,7 @@ import { pathForPageCode, HUB_PAGE_OPTIONS } from '@/features/platform-admin/lib
 
 /**
  * Tenant ADMIN editor for tenant_role_start overrides (D-04).
- * Own tenant only — API binds tenant_id from JWT.
+ * Own tenant only - API binds tenant_id from JWT.
  */
 export function TenantRoleStartEditor() {
   const { t } = useTranslation();

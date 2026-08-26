@@ -1,5 +1,5 @@
 /**
- * NAT profile presets — must stay in sync with backend
+ * NAT profile presets - must stay in sync with backend
  * `packages/backend/src/modules/endpoints/endpoints.service.ts` NAT_PROFILES.
  *
  * Applied on create (via `natProfile` DTO) and on update (merged into endpoint fields,
@@ -8,7 +8,7 @@
 
 export type NatProfileId = 'lan' | 'nat' | 'webrtc';
 
-/** Primary endpoint NAT options — WebRTC profile lives only on the companion. */
+/** Primary endpoint NAT options - WebRTC profile lives only on the companion. */
 export type PrimaryNatProfileId = 'lan' | 'nat';
 
 export const NAT_PROFILE_OPTIONS: { value: NatProfileId; labelKey: string }[] = [
@@ -23,7 +23,7 @@ export const PRIMARY_NAT_PROFILE_OPTIONS: { value: PrimaryNatProfileId; labelKey
   { value: 'nat', labelKey: 'endpoints.natNat' },
 ];
 
-/** Fields that belong only to the WebRTC profile — cleared when switching away. */
+/** Fields that belong only to the WebRTC profile - cleared when switching away. */
 const WEBRTC_ONLY_KEYS = [
   'webrtc',
   'dtls_auto_generate_cert',

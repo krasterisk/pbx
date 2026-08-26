@@ -17,6 +17,7 @@ import {
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 import type {
+  IIvrPhraseTtsSettings,
   IMediaOptions,
   IMediaParams,
   IPlaybackParams,
@@ -125,17 +126,6 @@ class MediaParamsBase implements IMediaParams {
   @ValidateNested()
   @Type(() => MediaOptionsDto)
   options?: MediaOptionsDto | string;
-
-  @IsOptional()
-  @IsString()
-  @Matches(SAFE_TEXT)
-  langoverride?: string;
-
-  @IsOptional()
-  @Transform(({ value }) => (value === '' || value == null ? undefined : Number(value)))
-  @IsInt()
-  @Min(0)
-  digittimeout?: number;
 }
 
 export class PlayPromptParamsDto extends MediaParamsBase implements IMediaParams {}
@@ -206,6 +196,39 @@ export class PlaybackParamsDto extends MediaParamsBase implements IPlaybackParam
   digittimeout?: number;
 }
 
+/** Same override contract as IVR phrases and synthesized prompts. */
+export class TtsSettingsDto implements IIvrPhraseTtsSettings {
+  @IsOptional()
+  @IsString()
+  @Matches(SAFE_TEXT)
+  voice?: string;
+
+  @IsOptional()
+  @IsString()
+  @Matches(SAFE_TEXT)
+  language_code?: string;
+
+  @IsOptional()
+  @IsString()
+  @Matches(SAFE_TEXT)
+  speed?: string;
+
+  @IsOptional()
+  @IsString()
+  @Matches(SAFE_TEXT)
+  speaking_rate?: string;
+
+  @IsOptional()
+  @IsString()
+  @Matches(SAFE_TEXT)
+  role?: string;
+
+  @IsOptional()
+  @IsString()
+  @Matches(SAFE_TEXT)
+  pitch_shift?: string;
+}
+
 export class Text2SpeechParamsDto implements IText2SpeechParams {
   @IsOptional()
   @IsString()
@@ -223,14 +246,9 @@ export class Text2SpeechParamsDto implements IText2SpeechParams {
   engine?: number;
 
   @IsOptional()
-  @IsString()
-  @Matches(SAFE_TEXT)
-  voice?: string;
-
-  @IsOptional()
-  @IsString()
-  @Matches(SAFE_TEXT)
-  language?: string;
+  @ValidateNested()
+  @Type(() => TtsSettingsDto)
+  settings?: TtsSettingsDto;
 
   @IsOptional()
   @Transform(transformMediaOptions)

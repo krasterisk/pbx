@@ -1,0 +1,93 @@
+/* ─────────────────────────────────────────────────────
+   DialModifyField — basic number rewrite + live preview
+   Design tokens: var(--color-*) from globals.css @theme
+   ───────────────────────────────────────────────────── */
+
+/* 1. Layout */
+.root {
+  width: 100%;
+}
+
+.fieldRow {
+  width: 100%;
+}
+
+.fieldHalf {
+  flex: 1 1 calc(50% - 0.25rem);
+  min-width: 8rem;
+  max-width: 100%;
+
+  @media (max-width: 640px) {
+    flex: 1 1 100%;
+  }
+}
+
+.chips {
+  width: 100%;
+}
+
+.narrow {
+  width: 100%;
+}
+
+.expertHeader {
+  width: 100%;
+}
+
+.previewRow {
+  font-variant-numeric: tabular-nums;
+  flex-wrap: wrap;
+}
+
+/* 2. Visual */
+.card {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-muted) 25%, transparent);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+.preview {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-muted) 15%, transparent);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+.label {
+  color: var(--color-muted-foreground);
+}
+
+.sampleMeta {
+  word-break: break-word;
+}
+
+.previewFrom {
+  color: var(--color-muted-foreground);
+  text-decoration: line-through;
+}
+
+.previewArrow {
+  color: var(--color-muted-foreground);
+}
+
+.previewOut {
+  color: var(--color-foreground);
+  font-weight: 600;
+}
+
+.previewError {
+  color: var(--color-destructive);
+  font-weight: 600;
+}
+
+.chip {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

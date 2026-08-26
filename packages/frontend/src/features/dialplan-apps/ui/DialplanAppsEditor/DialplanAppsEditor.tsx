@@ -61,6 +61,8 @@ export interface DialplanAppsEditorProps {
   host?: DialplanHost;
   makeId?: () => string;
   stepErrors?: MappedStepErrors;
+  /** Route extensions for live dial-number preview (route_pattern dest). */
+  previewPatterns?: string[];
 }
 
 export function restrictToVerticalAxisLocal({
@@ -84,7 +86,7 @@ export function buildDndAnnouncements(
   };
 
   return {
-    onDragStart: ({ active }) =>
+    onDragStart: () =>
       isEn
         ? t('routes.chain.dnd.picked', 'Step picked')
         : t('routes.chain.dnd.picked', 'Шаг поднят'),
@@ -156,6 +158,7 @@ export const DialplanAppsEditor = memo(function DialplanAppsEditor({
   host = 'route',
   makeId = () => crypto.randomUUID(),
   stepErrors,
+  previewPatterns,
 }: DialplanAppsEditorProps) {
   const { t, i18n } = useTranslation();
   const currentUser = useAppSelector(selectCurrentUser);
@@ -513,6 +516,7 @@ export const DialplanAppsEditor = memo(function DialplanAppsEditor({
           action={selectedAction}
           tenantUid={tenantUid}
           stepIndex={selectedIndex}
+          previewPatterns={previewPatterns}
           onOpenChange={(next) => {
             if (!next) setSelectedStepId(null);
           }}

@@ -44,6 +44,10 @@ export class Queue extends Model {
   @Column({ type: DataType.BOOLEAN, allowNull: true })
   declare ringinuse: boolean;
 
+  /** Autofill — bridge multiple waiting callers at once (ENUM yes/no). */
+  @Column({ type: DataType.STRING(8), allowNull: true })
+  declare autofill: string;
+
   // Announcement fields
   @Column({ type: DataType.INTEGER, allowNull: true })
   declare announce_frequency: number;

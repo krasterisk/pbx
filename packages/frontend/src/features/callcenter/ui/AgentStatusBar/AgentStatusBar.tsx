@@ -8,6 +8,7 @@ import {
   agentStatusColorFamily,
   queueDisplayName,
   formatPauseReason,
+  formatStatusElapsed,
 } from '@/features/callcenter/lib/displayLabels';
 import { CallControlBar } from '@/features/callcenter/ui/CallControlBar/CallControlBar';
 import type { KpiDisplayMode } from '@/features/callcenter/lib/agentPanelPrefs';
@@ -65,12 +66,6 @@ export interface AgentStatusBarProps {
   /** Optional extra chrome on the right (kept for flexibility). */
   trailing?: ReactNode;
   className?: string;
-}
-
-function formatMmSs(totalSeconds: number): string {
-  const m = Math.floor(totalSeconds / 60);
-  const s = totalSeconds % 60;
-  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
 function KpiCounter({
@@ -253,7 +248,7 @@ export function AgentStatusBar({
         {agent && (
           <Text className={styles.statusTimer} title={t('callcenter.statusBar.statusDuration', 'Time in current status')}>
             <Clock className="w-3.5 h-3.5 inline mr-1" />
-            {formatMmSs(elapsed)}
+            {formatStatusElapsed(elapsed)}
           </Text>
         )}
 

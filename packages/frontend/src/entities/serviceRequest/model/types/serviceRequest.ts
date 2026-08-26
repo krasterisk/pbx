@@ -1,5 +1,5 @@
 /**
- * Service Request (Обращение) — frontend type mirror of backend model.
+ * Service Request (Обращение) - frontend type mirror of backend model.
  */
 
 export type CounterpartyType = 'individual' | 'legal';

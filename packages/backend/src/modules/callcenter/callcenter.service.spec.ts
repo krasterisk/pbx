@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Op } from 'sequelize';
 import { CallCenterService } from './callcenter.service';
 import { CallCenterStateService } from './callcenter-state.service';
@@ -51,6 +51,7 @@ describe('CallCenterService', () => {
       sinceLogin: { answered: 0, made: 0, missed: 0 },
       sinceMidnight: { answered: 0, made: 0, missed: 0 },
     }),
+    getAgentOccupancy: jest.fn().mockReturnValue(0),
     getAgentQueuesKpi: jest.fn().mockReturnValue({}),
   };
   const settingsService: any = {
@@ -81,6 +82,7 @@ describe('CallCenterService', () => {
     update: jest.fn().mockResolvedValue(undefined),
     findAll: jest.fn().mockResolvedValue([]),
     findOne: jest.fn().mockResolvedValue(null),
+    findByPk: jest.fn().mockResolvedValue(null),
   };
   const pauseReasonModel: any = {
     findAll: jest.fn().mockResolvedValue([]),
@@ -90,9 +92,11 @@ describe('CallCenterService', () => {
   const userModel: any = {
     findOne: jest.fn().mockResolvedValue({
       getDataValue: (k: string) =>
-        ({ name: 'Alice', login: 'alice', extension: '101' } as any)[k],
+        ({ name: 'Alice', login: 'alice', extension: '101', vpbx_user_uid: 7 } as any)[k],
+      update: jest.fn().mockResolvedValue(undefined),
     }),
     findAll: jest.fn().mockResolvedValue([]),
+    update: jest.fn().mockResolvedValue([1]),
   };
   const missedCallModel: any = {
     create: jest.fn().mockResolvedValue(undefined),
@@ -114,6 +118,7 @@ describe('CallCenterService', () => {
   };
   const queueCallModel: any = {
     findAll: jest.fn().mockResolvedValue([]),
+    update: jest.fn().mockResolvedValue([0]),
   };
   const queueModel: any = {
     findAll: jest.fn().mockResolvedValue([]),
@@ -137,6 +142,28 @@ describe('CallCenterService', () => {
     findOne: jest.fn(),
     create: jest.fn(),
   };
+  const operatorSettingsModel: any = {
+    findOne: jest.fn().mockResolvedValue(null),
+    create: jest.fn().mockResolvedValue({}),
+  };
+  const accessListService: any = {
+    resolveScope: jest.fn().mockResolvedValue({ operators: null, queues: null }),
+    isOperatorAllowed: jest.fn().mockReturnValue(true),
+    isOperatorUserAllowed: jest.fn().mockReturnValue(true),
+    isQueueAllowed: jest.fn().mockReturnValue(true),
+    listCandidateOperators: jest.fn().mockResolvedValue([]),
+    serializeScope: jest.fn().mockReturnValue({ operators: null, queues: null }),
+    normalizeExten: jest.fn((v: string) => String(v || '').replace(/^PJSIP\//i, '').replace(/^e(w?)/i, '').replace(/_\d+$/, '').toLowerCase()),
+    mapWatchlistToUserIds: jest.fn(async (_uid: number, raw: unknown) => {
+      if (!Array.isArray(raw)) return [];
+      return raw.map((x) => Number(x)).filter((n) => n > 0);
+    }),
+  };
+  const shiftRestore: any = {
+    restoreSession: jest.fn().mockResolvedValue(undefined),
+    restoreSessionByUserId: jest.fn().mockResolvedValue(false),
+    restoreAllOpenSessions: jest.fn().mockResolvedValue(0),
+  };
   const presenceService: any = {
     getPresence: jest.fn().mockReturnValue(undefined),
     handleDeviceStateChange: jest.fn(),
@@ -144,6 +171,11 @@ describe('CallCenterService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    sessionModel.findAll.mockResolvedValue([]);
+    sessionModel.findOne.mockResolvedValue(null);
+    sessionModel.findByPk.mockResolvedValue(null);
+    sessionModel.create.mockResolvedValue({ uid: 99 });
+    sessionModel.update.mockResolvedValue(undefined);
     settingsService.getOperatorSettings.mockResolvedValue({
       pickup_enabled: true,
       wrapup_timeout: 30,
@@ -155,6 +187,15 @@ describe('CallCenterService', () => {
     endpointModel.findByPk.mockResolvedValue({
       getDataValue: (k: string) => (k === 'context' ? 'from-internal7' : undefined),
       context: 'from-internal7',
+    });
+    accessListService.resolveScope.mockResolvedValue({ operators: null, queues: null });
+    accessListService.isOperatorAllowed.mockReturnValue(true);
+    accessListService.isOperatorUserAllowed.mockReturnValue(true);
+    accessListService.isQueueAllowed.mockReturnValue(true);
+    userModel.findOne.mockResolvedValue({
+      getDataValue: (k: string) =>
+        ({ name: 'Alice', login: 'alice', extension: '101', vpbx_user_uid: 7 } as any)[k],
+      update: jest.fn().mockResolvedValue(undefined),
     });
     state = new CallCenterStateService();
     service = new CallCenterService(
@@ -180,6 +221,9 @@ describe('CallCenterService', () => {
       callGroupMemberModel,
       presenceService,
       contactModel,
+      operatorSettingsModel,
+      accessListService,
+      shiftRestore,
     );
   });
 
@@ -201,6 +245,18 @@ describe('CallCenterService', () => {
       expect(ccAmi.logAgentEvent).toHaveBeenCalledWith(
         expect.objectContaining({ eventType: 'LOGIN', userUid: 7, userId: 42 }),
       );
+      const userRow = await userModel.findOne();
+      expect(userModel.update).toHaveBeenCalledWith(
+        { exten: '' },
+        expect.objectContaining({
+          where: expect.objectContaining({
+            uniqueid: expect.objectContaining({ [Op.ne]: 42 }),
+            exten: '101',
+          }),
+        }),
+      );
+      expect(userModel.update).toHaveBeenCalledWith({ exten: '101' }, { where: { uniqueid: 42 } });
+      expect(userRow).toBeTruthy();
     });
 
     it('resets sinceLogin KPI counters for a fresh shift (D-11)', async () => {
@@ -228,6 +284,120 @@ describe('CallCenterService', () => {
       expect(q?.displayName).toBe('Продажи');
       expect(q?.agents.total).toBe(1);
       expect(q?.agents.available).toBe(1);
+    });
+
+    it('rejects login when another operator already uses the same extension', async () => {
+      await service.agentLogin('PJSIP/e201_0', ['sales'], 7, 42);
+
+      await expect(
+        service.agentLogin('PJSIP/e201_0', ['sales'], 7, 99),
+      ).rejects.toBeInstanceOf(ConflictException);
+      expect(state.getAgent(7, 'PJSIP/e201_0')?.userId).toBe(42);
+    });
+
+    it('rejects login on WebRTC twin when primary is occupied by another operator', async () => {
+      await service.agentLogin('PJSIP/e201_0', ['sales'], 7, 42);
+
+      await expect(
+        service.agentLogin('PJSIP/ew201_0', ['sales'], 7, 99),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it('allows the same operator to re-login on the same extension', async () => {
+      await service.agentLogin('PJSIP/e201_0', ['sales'], 7, 42);
+      const res = await service.agentLogin('PJSIP/e201_0', ['support'], 7, 42);
+      expect(res.success).toBe(true);
+      expect(state.getAgent(7, 'PJSIP/e201_0')?.userId).toBe(42);
+    });
+
+    it('blocks login when another operator has an open DB session on the extension', async () => {
+      // assertExtensionAvailable runs before prior-session close
+      sessionModel.findAll.mockResolvedValueOnce([
+        {
+          user_id: 5,
+          agent_interface: 'PJSIP/e201_0',
+          getDataValue: (k: string) =>
+            ({ user_id: 5, agent_interface: 'PJSIP/e201_0' } as any)[k],
+        },
+      ]);
+      userModel.findOne.mockResolvedValueOnce({
+        getDataValue: (k: string) =>
+          ({ name: 'Bob', login: 'bob', uniqueid: 5 } as any)[k],
+      });
+
+      await expect(
+        service.agentLogin('PJSIP/e201_0', ['sales'], 7, 99),
+      ).rejects.toBeInstanceOf(ConflictException);
+      expect(state.getAgent(7, 'PJSIP/e201_0')).toBeUndefined();
+    });
+
+    it('endShift writes close_reason and frees extension', async () => {
+      await service.agentLogin('PJSIP/e201_0', ['sales'], 7, 42);
+      userModel.update.mockClear();
+      sessionModel.update.mockClear();
+
+      await service.endShift({
+        userUid: 7,
+        userId: 42,
+        agentInterface: 'PJSIP/e201_0',
+        sessionId: 99,
+        reason: 'SUPERVISOR',
+      });
+
+      expect(sessionModel.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          logout_time: expect.any(Date),
+          close_reason: 'SUPERVISOR',
+        }),
+        expect.objectContaining({ where: expect.objectContaining({ uid: 99 }) }),
+      );
+      expect(state.getAgent(7, 'PJSIP/e201_0')).toBeUndefined();
+      expect(userModel.update).toHaveBeenCalledWith(
+        { exten: '' },
+        { where: { uniqueid: 42, exten: '201' } },
+      );
+    });
+
+    it('clears users.exten on logout so the number can be reassigned', async () => {
+      await service.agentLogin('PJSIP/e201_0', ['sales'], 7, 42);
+      userModel.update.mockClear();
+
+      await service.agentLogout(7, 42);
+
+      expect(userModel.update).toHaveBeenCalledWith(
+        { exten: '' },
+        { where: { uniqueid: 42, exten: '201' } },
+      );
+    });
+
+    it('clears other users with the same exten when claiming a number', async () => {
+      userModel.update.mockClear();
+      await service.agentLogin('PJSIP/e201_0', ['sales'], 7, 99);
+
+      expect(userModel.update).toHaveBeenCalledWith(
+        { exten: '' },
+        expect.objectContaining({
+          where: expect.objectContaining({
+            vpbx_user_uid: 7,
+            uniqueid: expect.objectContaining({ [Op.ne]: 99 }),
+            exten: '201',
+          }),
+        }),
+      );
+      expect(userModel.update).toHaveBeenCalledWith({ exten: '201' }, { where: { uniqueid: 99 } });
+    });
+
+    it('does not treat OFFLINE stubs as occupying the extension', async () => {
+      state.setAgent(7, 'PJSIP/e201_0', {
+        status: 'OFFLINE',
+        name: 'Супервизор',
+        userId: 5,
+        queues: [],
+      });
+
+      const res = await service.agentLogin('PJSIP/e201_0', ['sales'], 7, 99);
+      expect(res.success).toBe(true);
+      expect(state.getAgent(7, 'PJSIP/e201_0')?.userId).toBe(99);
     });
   });
 
@@ -1302,15 +1472,14 @@ describe('CallCenterService', () => {
         expect.objectContaining({
           action: 'Originate',
           channel: 'PJSIP/101',
-          context: 'from-internal7',
+          // Operator ring shows target; [krsk-click-to-call] strips name after answer
+          context: 'krsk-click-to-call',
           exten: '79990001122',
-          // Callee must see operator extension, not "Click-to-call" / PJSIP/…
-          callerid: '"101" <101>',
-          variable: expect.stringMatching(/Call-Info:.*answer-after=0/),
+          callerid: '"click-to-call" <79990001122>',
+          variable: expect.stringMatching(
+            /KRSK_CTC_CONTEXT=from-internal7.*KRSK_CTC_OP_NUM=101.*Call-Info:.*answer-after=0/,
+          ),
         }),
-      );
-      expect(ami.action).not.toHaveBeenCalledWith(
-        expect.objectContaining({ callerid: expect.stringContaining('Click-to-call') }),
       );
       expect(ami.action).not.toHaveBeenCalledWith(
         expect.objectContaining({ callerid: expect.stringContaining('PJSIP/') }),
@@ -1339,13 +1508,20 @@ describe('CallCenterService', () => {
         expect.objectContaining({
           action: 'Originate',
           channel: 'PJSIP/101',
+          context: 'krsk-click-to-call',
           exten: '201',
+          callerid: '"click-to-call" <201>',
         }),
       );
       const originateArgs = ami.action.mock.calls.find(
         (c: any[]) => c[0]?.action === 'Originate',
-      )?.[0];
-      expect(originateArgs?.variable).toBeUndefined();
+      )?.[0] as { variable?: string } | undefined;
+      expect(originateArgs?.variable).toEqual(
+        expect.stringContaining('KRSK_CTC_CONTEXT=from-internal7'),
+      );
+      expect(originateArgs?.variable).not.toEqual(
+        expect.stringMatching(/Call-Info/),
+      );
     });
 
     it('uses endpoint dialplan context (sip-outN), never bare from-internal', async () => {
@@ -1364,9 +1540,10 @@ describe('CallCenterService', () => {
         expect.objectContaining({
           action: 'Originate',
           channel: 'PJSIP/e112_0',
-          context: 'sip-out0',
+          context: 'krsk-click-to-call',
           exten: '201',
-          callerid: '"112" <112>',
+          callerid: '"click-to-call" <201>',
+          variable: expect.stringContaining('KRSK_CTC_CONTEXT=sip-out0'),
         }),
       );
       expect(ami.action).not.toHaveBeenCalledWith(
@@ -1421,8 +1598,9 @@ describe('CallCenterService', () => {
         expect.objectContaining({
           action: 'Originate',
           channel: 'PJSIP/101',
-          context: 'from-internal7',
+          context: 'krsk-click-to-call',
           exten: '79990001122',
+          callerid: '"click-to-call" <79990001122>',
         }),
       );
     });
@@ -1541,6 +1719,7 @@ describe('CallCenterService', () => {
               direction: 'inbound',
               call_type: '',
               disposition: 'answered',
+              transfer_destination: '',
               enter_time: new Date('2026-07-15T08:00:00Z'),
               answer_time: new Date('2026-07-15T08:00:05Z'),
               end_time: new Date('2026-07-15T08:01:00Z'),
@@ -1566,6 +1745,77 @@ describe('CallCenterService', () => {
           disposition: 'answered',
           waitTime: 5,
           talkTime: 55,
+          transferDestination: null,
+          handledByName: null,
+        }),
+      );
+    });
+
+    it('attaches transfer destination and missed-handler for transferred / abandoned rows', async () => {
+      queueCallModel.findAll.mockResolvedValue([
+        {
+          getDataValue: (k: string) =>
+            ({
+              uid: 2,
+              call_uniqueid: 'U-miss',
+              queue_name: 'sales_7',
+              caller_id_num: '7900',
+              caller_id_name: '',
+              direction: 'inbound',
+              call_type: '',
+              disposition: 'abandoned',
+              transfer_destination: '',
+              enter_time: null,
+              answer_time: null,
+              end_time: new Date('2026-07-15T09:00:00Z'),
+              wait_time: 40,
+              talk_time: 0,
+            } as any)[k],
+        },
+        {
+          getDataValue: (k: string) =>
+            ({
+              uid: 3,
+              call_uniqueid: 'U-xfer',
+              queue_name: 'sales_7',
+              caller_id_num: '7901',
+              caller_id_name: '',
+              direction: 'inbound',
+              call_type: '',
+              disposition: 'transferred',
+              transfer_destination: '205',
+              enter_time: null,
+              answer_time: null,
+              end_time: new Date('2026-07-15T09:05:00Z'),
+              wait_time: 5,
+              talk_time: 20,
+            } as any)[k],
+        },
+      ]);
+      missedCallModel.findAll.mockResolvedValueOnce([
+        { call_uniqueid: 'U-miss', called_back_by: 42 },
+      ]);
+      userModel.findAll.mockResolvedValueOnce([
+        {
+          getDataValue: (k: string) =>
+            ({ uniqueid: 42, name: 'Alice Operator', login: 'alice', exten: '101' } as any)[k],
+        },
+      ]);
+
+      const rows = await service.getOperatorCallHistory(7, 42, 'day');
+
+      expect(rows[0]).toEqual(
+        expect.objectContaining({
+          callUniqueid: 'U-miss',
+          handledByName: 'Alice Operator',
+          handledByExten: '101',
+        }),
+      );
+      expect(rows[1]).toEqual(
+        expect.objectContaining({
+          callUniqueid: 'U-xfer',
+          transferDestination: '205',
+          handledByName: null,
         }),
       );
     });
@@ -1889,6 +2139,64 @@ describe('CallCenterService', () => {
       expect(state.getAgent(0, 'PJSIP/e201_0')?.status).toBe('DIALING');
       expect(state.getAgent(0, 'PJSIP/e201_0')?.dialTarget).toBe('201');
       expect(state.getAgent(58, 'PJSIP/e201_0')).toBeUndefined();
+    });
+  });
+
+  describe('setWatchedAgents', () => {
+    it('rejects operators outside the access list', async () => {
+      accessListService.resolveScope.mockResolvedValue({
+        operators: new Set([42]),
+        queues: null,
+      });
+      accessListService.isOperatorUserAllowed.mockImplementation((_scope: any, id: number) => id === 42);
+
+      await expect(service.setWatchedAgents(7, 1, [42, 99])).rejects.toBeInstanceOf(ForbiddenException);
+      expect(operatorSettingsModel.create).not.toHaveBeenCalled();
+    });
+
+    it('persists allowed user ids', async () => {
+      accessListService.resolveScope.mockResolvedValue({ operators: null, queues: null });
+      accessListService.isOperatorUserAllowed.mockReturnValue(true);
+      operatorSettingsModel.findOne.mockResolvedValue(null);
+
+      const res = await service.setWatchedAgents(7, 1, [42, 58]);
+      expect(res.userIds).toEqual([42, 58]);
+      expect(operatorSettingsModel.create).toHaveBeenCalled();
+    });
+  });
+
+  describe('supervisorStartShift', () => {
+    it('starts a shift for an allowed operator', async () => {
+      accessListService.isOperatorUserAllowed.mockReturnValue(true);
+      accessListService.isQueueAllowed.mockReturnValue(true);
+
+      const res = await service.supervisorStartShift(7, 1, 42, 'PJSIP/e201_0', ['sales']);
+      expect(res).toEqual({ success: true, sessionId: 99 });
+      expect(ami.queueAdd).toHaveBeenCalledWith('sales', 'PJSIP/e201_0');
+      expect(state.getAgent(7, 'PJSIP/e201_0')?.userId).toBe(42);
+    });
+
+    it('rejects an operator outside the access list', async () => {
+      accessListService.isOperatorUserAllowed.mockReturnValue(false);
+      await expect(
+        service.supervisorStartShift(7, 1, 99, 'PJSIP/e201_0', ['q700_0']),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(ami.queueAdd).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('supervisorQueueAdd access list', () => {
+    it('rejects queue outside access list', async () => {
+      accessListService.resolveScope.mockResolvedValue({
+        operators: null,
+        queues: new Set(['700']),
+      });
+      accessListService.isQueueAllowed.mockReturnValue(false);
+
+      await expect(
+        service.supervisorQueueAdd('PJSIP/e201_0', 'q999_0', 0, 7, 1),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(ami.queueAdd).not.toHaveBeenCalled();
     });
   });
 });

@@ -33,13 +33,5 @@ export class NotifyDialplanDto {
 
   @IsOptional()
   @IsString()
-  channels?: string;
-
-  @IsOptional()
-  @IsString()
-  recipients?: string;
-
-  @IsOptional()
-  @IsString()
   subject?: string;
 }

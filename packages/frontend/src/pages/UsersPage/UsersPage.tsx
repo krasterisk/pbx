@@ -1,5 +1,5 @@
 /**
- * Page: UsersPage — thin orchestrator (System module).
+ * Page: UsersPage - thin orchestrator (System module).
  */
 import { useTranslation } from 'react-i18next';
 import { motion } from 'motion/react';

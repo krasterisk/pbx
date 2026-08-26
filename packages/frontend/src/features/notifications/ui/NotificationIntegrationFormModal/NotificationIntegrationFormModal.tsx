@@ -83,7 +83,7 @@ export function buildIntegrationSubmitPayload(
 export function formatPayloadTemplateForEdit(raw: unknown): string {
   if (raw == null || raw === '') return '';
   if (typeof raw === 'string') {
-    // Already a string — pretty-print if valid JSON object
+    // Already a string - pretty-print if valid JSON object
     const parsed = parseWebhookPayloadTemplate(raw);
     if (parsed.ok && parsed.value) return JSON.stringify(parsed.value, null, 2);
     return raw;
@@ -105,7 +105,7 @@ export function formatPayloadTemplateForEdit(raw: unknown): string {
  *   so the form can restore the mode/keys on edit.
  * - The actual `headers` object (with secret values) goes into `credentials`,
  *   which the service encrypts and WebhookProvider applies on the outbound call.
- *   Secrets never touch the dialplan — the dialplan only sends `integration_uid`.
+ *   Secrets never touch the dialplan - the dialplan only sends `integration_uid`.
  *
  * Returns `credentials: undefined` to signal "keep existing" (blank secrets on edit).
  */
@@ -134,7 +134,7 @@ export function buildWebhookAuthPayload(
     return { config, credentials: { headers } };
   }
 
-  // none — explicitly clear stored headers only if the integration previously had auth
+  // none - explicitly clear stored headers only if the integration previously had auth
   return opts.hadAuth ? { config, credentials: {} } : { config };
 }
 

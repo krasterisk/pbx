@@ -43,7 +43,7 @@ describe('getEffectiveChannels', () => {
   });
 
   it('ignores the operator matrix entirely when the event is locked, using the default instead', () => {
-    // Stale operator override predating the lock — must never leak through.
+    // Stale operator override predating the lock - must never leak through.
     const matrix: NotificationMatrix = { incoming_call: ['chat', 'sound', 'popup'] };
     const locks: NotificationMatrix = { incoming_call: ['sound'] };
     expect(getEffectiveChannels('incoming_call', matrix, locks, defaults)).toEqual(['sound', 'popup']);
@@ -156,7 +156,7 @@ describe('useCallCenterNotifications', () => {
   it('never plays a sound cue for a locked-off event, even if the operator matrix requests it', () => {
     const store = makeStore();
     // Operator's own (stale) preference asks for sound, but the tenant lock forces the
-    // (empty) default — the effective channel set must be empty regardless.
+    // (empty) default - the effective channel set must be empty regardless.
     const matrix: NotificationMatrix = { incoming_call: ['sound'] };
     const locks: NotificationMatrix = { incoming_call: ['sound'] };
     const defaults: NotificationMatrix = {};

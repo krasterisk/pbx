@@ -8,11 +8,13 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { ModuleRef } from '@nestjs/core';
+import { Cron } from '@nestjs/schedule';
 import { AmiService } from '../ami/ami.service';
 import { CallCenterStateService, AgentStatus, AgentState } from './callcenter-state.service';
 import { CallCenterHistoryWriterService } from './callcenter-history-writer.service';
 import { CallCenterMetricsService } from './callcenter-metrics.service';
 import { CallCenterAutoPauseService } from './callcenter-autopause.service';
+import { CallCenterShiftRestoreService } from './callcenter-shift-restore.service';
 import { CcAgentEvent } from './models/agent-event.model';
 import { CcMissedCall } from './models/missed-call.model';
 import { CcAgentSession } from './models/agent-session.model';
@@ -23,6 +25,8 @@ import {
   isWebrtcCompanion,
   primaryIdOf,
 } from '../endpoints/endpoint-ids.util';
+import { canPanelOverrideAsteriskPause } from './status-origin';
+import type { AgentStatusOrigin } from './status-origin';
 
 @Injectable()
 export class CallCenterAmiService implements OnModuleInit {
@@ -65,6 +69,12 @@ export class CallCenterAmiService implements OnModuleInit {
 
   /** Warn only once if CallCenterService isn't resolvable via ModuleRef. */
   private warnedMissingCcService = false;
+
+  /** Guard overlapping QueueStatus membership syncs. */
+  private membershipSyncRunning = false;
+
+  /** Dedupe in-flight pause heals (AMI event storms after Asterisk restart). */
+  private readonly pauseHealInFlight = new Set<string>();
 
   /**
    * Open timed status journal rows awaiting exit (duration fill).
@@ -222,34 +232,10 @@ export class CallCenterAmiService implements OnModuleInit {
       });
     }
 
-    // Process collected QueueMembers ? initialize agent states
-    for (const m of members) {
-      const qName = m.queue;
-      const iface = m.interface || m.name;
-      if (!qName || !iface) continue;
-
-      const tenant = queueTenantMap.get(qName);
-      if (!tenant) continue;
-
-      const existingAgent = this.stateService.getAgent(tenant.userUid, iface);
-      const existingQueues = existingAgent?.queues || [];
-      if (!existingQueues.includes(qName)) existingQueues.push(qName);
-
-      this.stateService.setAgent(tenant.userUid, iface, {
-        queues: existingQueues,
-        name: this.pickAgentDisplayName(iface, m.name || m.membername, existingAgent?.name),
-        status: this.mapAsteriskStatus(m.status, m.paused),
-        pauseReason: m.paused === '1' ? (m.pausedreason || '') : undefined,
-        // Asterisk CallsTaken is cumulative ? keep session counter once operator is logged in
-        callsTaken:
-          existingAgent?.userId
-            ? (existingAgent.callsTaken ?? 0)
-            : (parseInt(m.callstaken, 10) || 0),
-        callsMissed: existingAgent?.callsMissed ?? 0,
-        callsMade: existingAgent?.callsMade ?? 0,
-        lastCallTime: m.lastcall && m.lastcall !== '0' ? new Date(parseInt(m.lastcall, 10) * 1000) : undefined,
-      });
-    }
+    // Process collected QueueMembers — REPLACE live membership (do not merge
+    // stale pre-Asterisk-restart queues onto the agent).
+    const membership = this.applyQueueMembers(members, queueTenantMap);
+    this.removePhantomAgentsMissingFromAsterisk(membership.queues);
 
     // Process collected QueueEntries ? initialize waiting calls
     for (const e of entries) {
@@ -279,6 +265,20 @@ export class CallCenterAmiService implements OnModuleInit {
     // Mid-call Nest restart: QueueMember shows In use but QueueEntry only has
     // WAITING — rebuild TALKING bindings from CoreShowChannels.
     await this.reconcileActiveAgentCalls();
+
+    // Bind open DB sessions (userId / loginTime / queues) onto AMI phantoms.
+    try {
+      const restore = this.moduleRef.get(CallCenterShiftRestoreService, { strict: false });
+      if (restore) {
+        await restore.restoreAllOpenSessions();
+      }
+    } catch (err: any) {
+      this.logger.warn(`Shift restore after AMI preload skipped: ${err?.message || err}`);
+    }
+
+    // Open shift + working status but missing QueueMember → QueueAdd from snapshot.
+    // Also align Asterisk pause with panel READY / PAUSED / OUTBOUND_WORK.
+    await this.autoRejoinOpenShiftsMissingFromAsterisk(membership.queues, membership.paused);
 
     this.logger.log(
       `? Initial state loaded: ${queueParams.length} queues, ${members.length} members, ${entries.length} waiting calls`,
@@ -491,9 +491,55 @@ export class CallCenterAmiService implements OnModuleInit {
       pauseReason = ''; // clear for SSE (setAgent > pauseReason: null)
     }
 
+    // Panel READY / PAUSED / OUTBOUND_WORK overrides Asterisk only when provenance
+    // is trusted (manual / policy / login / restore) — not ami/unknown ghosts.
+    let panelHeld = false;
+    if (
+      existing?.userId
+      && (existing.status === 'READY'
+        || existing.status === 'PAUSED'
+        || existing.status === 'OUTBOUND_WORK')
+      && status !== 'IN_CALL'
+      && status !== 'RINGING'
+      && status !== 'DIALING'
+    ) {
+      const trustPanel = canPanelOverrideAsteriskPause({
+        status: existing.status,
+        statusOrigin: existing.statusOrigin,
+        pauseReason: existing.pauseReason,
+      });
+      if (trustPanel) {
+        panelHeld = true;
+        const wantPaused =
+          existing.status === 'PAUSED' || existing.status === 'OUTBOUND_WORK';
+        if (wantPaused !== paused && (existing.queues?.length ?? 0) > 0) {
+          void this.healAgentPauseInAsterisk(
+            userUid,
+            agentIface,
+            wantPaused,
+            existing.pauseReason
+              || (existing.status === 'OUTBOUND_WORK' ? 'outbound_work' : ''),
+            existing.queues,
+          );
+        }
+        status = existing.status;
+        pauseReason = existing.status === 'READY'
+          ? ''
+          : (amiReason || existing.pauseReason || pauseReason || '');
+      }
+    }
+
+    const nextOrigin: AgentStatusOrigin =
+      status === 'IN_CALL' || status === 'RINGING' || status === 'DIALING'
+        ? 'call'
+        : panelHeld
+          ? ((existing?.statusOrigin as AgentStatusOrigin) || 'unknown')
+          : 'ami';
+
     const updated = this.stateService.setAgent(userUid, agentIface, {
       status,
       pauseReason,
+      statusOrigin: nextOrigin,
       // Clear outbound label when AMI reports Not in use after a failed dial.
       ...(releaseStaleDial ? { dialTarget: undefined, peerNumber: '' } : {}),
       // Session counter (agentLogin resets to 0); do not import Asterisk lifetime CallsTaken
@@ -784,6 +830,7 @@ export class CallCenterAmiService implements OnModuleInit {
       if (wrapupTime > 0 && wasAnswered) {
         this.stateService.setAgent(userUid, agentInterface, {
           status: 'WRAPUP',
+          statusOrigin: 'policy',
           currentCall: undefined,
           callsTaken: nextTaken,
           lastCallTime: new Date(),
@@ -808,7 +855,10 @@ export class CallCenterAmiService implements OnModuleInit {
           const currentAgent = this.stateService.getAgent(userUid, agentInterface);
           if (currentAgent?.status === 'WRAPUP') {
             void this.endTimedStatus(currentAgent);
-            this.stateService.setAgent(userUid, agentInterface, { status: 'READY' });
+            this.stateService.setAgent(userUid, agentInterface, {
+              status: 'READY',
+              statusOrigin: 'policy',
+            });
             this.metricsService.recordAgentStatus(userUid, agentInterface, 'READY');
             void this.logAgentEventForAgent(currentAgent, 'WRAPUP_END', 'timeout');
             this.stateService.emitEvent('wrapupEnd', userUid, {
@@ -822,6 +872,7 @@ export class CallCenterAmiService implements OnModuleInit {
       } else {
         this.stateService.setAgent(userUid, agentInterface, {
           status: 'READY',
+          statusOrigin: 'policy',
           currentCall: undefined,
           callsTaken: nextTaken,
           lastCallTime: wasAnswered ? new Date() : agentAfter.lastCallTime,
@@ -876,7 +927,10 @@ export class CallCenterAmiService implements OnModuleInit {
       this.wrapupDeadlines.delete(timerKey);
       const currentAgent = this.stateService.getAgent(userUid, agentInterface);
       if (currentAgent?.status === 'WRAPUP') {
-        this.stateService.setAgent(userUid, agentInterface, { status: 'READY' });
+        this.stateService.setAgent(userUid, agentInterface, {
+          status: 'READY',
+          statusOrigin: 'policy',
+        });
         this.metricsService.recordAgentStatus(userUid, agentInterface, 'READY');
         this.stateService.emitEvent('wrapupEnd', userUid, {
           agent: agentInterface,
@@ -1040,6 +1094,7 @@ export class CallCenterAmiService implements OnModuleInit {
       if (live.status === 'RINGING') {
         this.stateService.setAgent(userUid, agentInterface, {
           status: 'READY',
+          statusOrigin: 'policy',
           currentCall: undefined,
         });
         this.metricsService.recordAgentStatus(userUid, agentInterface, 'READY');
@@ -1141,6 +1196,7 @@ export class CallCenterAmiService implements OnModuleInit {
         if (live?.status === 'RINGING') {
           this.stateService.setAgent(userUid, agent.interface, {
             status: 'READY',
+            statusOrigin: 'policy',
             currentCall: undefined,
           });
           this.metricsService.recordAgentStatus(userUid, agent.interface, 'READY');
@@ -1237,6 +1293,8 @@ export class CallCenterAmiService implements OnModuleInit {
 
   /**
    * Handle QueueMemberRemoved ? agent removed from queue.
+   * Intentional supervisor/operator removes update queues_snapshot separately;
+   * Asterisk wipes are healed by auto-rejoin from the open-shift snapshot.
    */
   handleMemberRemoved(evt: any): void {
     const queueName = evt.queue;
@@ -1246,14 +1304,20 @@ export class CallCenterAmiService implements OnModuleInit {
     const userUid = this.resolveQueueTenant(queueName);
     if (userUid == null) return;
 
-    const agent = this.stateService.getAgent(userUid, iface);
-    if (agent) {
-      const queues = agent.queues.filter(q => q !== queueName);
-      if (queues.length === 0) {
-        this.stateService.removeAgent(userUid, iface);
-      } else {
-        this.stateService.setAgent(userUid, iface, { queues });
-      }
+    const agent = this.resolveMemberAgent(userUid, iface);
+    if (!agent) {
+      this.recalcQueueStats(userUid, queueName);
+      return;
+    }
+
+    const queues = (agent.queues || []).filter(q => q !== queueName);
+    if (queues.length === 0 && !(agent.userId > 0)) {
+      this.stateService.removeAgent(agent.userUid, agent.interface);
+    } else {
+      this.stateService.setAgent(agent.userUid, agent.interface, {
+        queues,
+        queuesDetached: false,
+      });
     }
 
     this.recalcQueueStats(userUid, queueName);
@@ -1839,6 +1903,454 @@ export class CallCenterAmiService implements OnModuleInit {
       payload.queueKpi = this.metricsService.getAgentQueueKpi(userUid, agentInterface, queueName);
     }
     this.stateService.emitEvent('agentKpiUpdate', userUid, payload);
+  }
+
+  /**
+   * Apply QueueMember rows as the source of truth for live membership.
+   * Returns maps `${userUid}:${agentInterface}` → live queues / paused flags.
+   */
+  private applyQueueMembers(
+    members: any[],
+    queueTenantMap: Map<string, { userUid: number; displayName: string }>,
+  ): { queues: Map<string, Set<string>>; paused: Map<string, boolean> } {
+    /** Aggregate queues per resolved agent before writing state. */
+    const queuesByKey = new Map<string, Set<string>>();
+    const pausedByKey = new Map<string, boolean>();
+    const metaByKey = new Map<string, {
+      userUid: number;
+      iface: string;
+      name?: string;
+      status: AgentStatus;
+      pauseReason?: string;
+      callsTakenAmi: number;
+      lastCallTime?: Date;
+    }>();
+
+    for (const m of members) {
+      const qName = m.queue;
+      const rawIface = m.interface || m.name;
+      if (!qName || !rawIface) continue;
+
+      const tenant = queueTenantMap.get(qName);
+      if (!tenant) continue;
+
+      const resolved = this.resolveMemberAgent(tenant.userUid, rawIface);
+      const iface = resolved?.interface || rawIface;
+      const key = `${tenant.userUid}:${iface}`;
+
+      let set = queuesByKey.get(key);
+      if (!set) {
+        set = new Set();
+        queuesByKey.set(key, set);
+      }
+      set.add(qName);
+
+      const memberPaused = m.paused === '1' || m.paused === 1 || m.paused === true;
+      pausedByKey.set(key, Boolean(pausedByKey.get(key)) || memberPaused);
+
+      const status = this.mapAsteriskStatus(m.status, m.paused);
+      const prev = metaByKey.get(key);
+      // Prefer PAUSED if any membership is paused; else keep IN_CALL/RINGING over READY.
+      let nextStatus = status;
+      if (prev) {
+        if (prev.status === 'PAUSED' || status === 'PAUSED') nextStatus = 'PAUSED';
+        else if (prev.status === 'IN_CALL' || status === 'IN_CALL') nextStatus = 'IN_CALL';
+        else if (prev.status === 'RINGING' || status === 'RINGING') nextStatus = 'RINGING';
+      }
+
+      metaByKey.set(key, {
+        userUid: tenant.userUid,
+        iface,
+        name: m.name || m.membername,
+        status: nextStatus,
+        pauseReason: (prev?.pauseReason)
+          || (memberPaused ? (m.pausedreason || '') : undefined),
+        callsTakenAmi: Math.max(
+          prev?.callsTakenAmi ?? 0,
+          parseInt(m.callstaken, 10) || 0,
+        ),
+        lastCallTime: (m.lastcall && m.lastcall !== '0')
+          ? new Date(parseInt(m.lastcall, 10) * 1000)
+          : prev?.lastCallTime,
+      });
+    }
+
+    for (const [key, queueSet] of queuesByKey) {
+      const meta = metaByKey.get(key)!;
+      const existingAgent = this.stateService.getAgent(meta.userUid, meta.iface);
+      const loggedIn = Boolean(existingAgent?.userId);
+
+      // Panel / softphone statuses stay authoritative for logged-in agents when
+      // provenance is trusted. Only allow live call elevation from Asterisk.
+      let status = meta.status;
+      let statusOrigin: AgentStatusOrigin = loggedIn ? (existingAgent?.statusOrigin || 'unknown') : 'ami';
+      if (loggedIn && existingAgent) {
+        const keep = existingAgent.status;
+        if (
+          keep === 'READY'
+          || keep === 'PAUSED'
+          || keep === 'OUTBOUND_WORK'
+          || keep === 'WRAPUP'
+          || keep === 'ACW'
+          || keep === 'DIALING'
+          || keep === 'CONSULT'
+        ) {
+          if (meta.status === 'IN_CALL' || meta.status === 'RINGING') {
+            status = meta.status;
+            statusOrigin = 'call';
+          } else if (
+            canPanelOverrideAsteriskPause({
+              status: keep,
+              statusOrigin: existingAgent.statusOrigin,
+              pauseReason: existingAgent.pauseReason,
+            })
+          ) {
+            status = keep;
+            statusOrigin = (existingAgent.statusOrigin as AgentStatusOrigin) || 'unknown';
+          } else {
+            statusOrigin = 'ami';
+          }
+        }
+      }
+
+      this.stateService.setAgent(meta.userUid, meta.iface, {
+        queues: [...queueSet],
+        queuesDetached: false,
+        name: this.pickAgentDisplayName(meta.iface, meta.name, existingAgent?.name),
+        status,
+        statusOrigin,
+        pauseReason: (status === 'PAUSED' || status === 'OUTBOUND_WORK')
+          ? (existingAgent?.pauseReason || meta.pauseReason)
+          : undefined,
+        callsTaken: loggedIn
+          ? (existingAgent?.callsTaken ?? 0)
+          : meta.callsTakenAmi,
+        callsMissed: existingAgent?.callsMissed ?? 0,
+        callsMade: existingAgent?.callsMade ?? 0,
+        lastCallTime: meta.lastCallTime,
+      });
+    }
+
+    return { queues: queuesByKey, paused: pausedByKey };
+  }
+
+  private agentHasTwinLive(
+    agent: { userUid: number; interface: string },
+    liveKeys: Iterable<string>,
+  ): boolean {
+    for (const liveKey of liveKeys) {
+      const sep = liveKey.indexOf(':');
+      if (sep < 0) continue;
+      const uid = Number(liveKey.slice(0, sep));
+      const iface = liveKey.slice(sep + 1);
+      if (uid !== agent.userUid) continue;
+      const resolved = this.resolveMemberAgent(agent.userUid, iface);
+      if (resolved?.interface === agent.interface) return true;
+    }
+    return false;
+  }
+
+  private liveQueuesForAgent(
+    userUid: number,
+    agentInterface: string,
+    liveByAgent: Map<string, Set<string>>,
+  ): Set<string> {
+    const merged = new Set<string>();
+    const self = liveByAgent.get(`${userUid}:${agentInterface}`);
+    if (self) for (const q of self) merged.add(q);
+
+    for (const [key, queues] of liveByAgent) {
+      const sep = key.indexOf(':');
+      if (sep < 0) continue;
+      if (Number(key.slice(0, sep)) !== userUid) continue;
+      const iface = key.slice(sep + 1);
+      if (iface === agentInterface) continue;
+      const resolved = this.resolveMemberAgent(userUid, iface);
+      if (resolved?.interface === agentInterface) {
+        for (const q of queues) merged.add(q);
+      }
+    }
+    return merged;
+  }
+
+  /** Drop AMI preload phantoms that Asterisk no longer lists. */
+  private removePhantomAgentsMissingFromAsterisk(liveByAgent: Map<string, Set<string>>): void {
+    const liveKeys = liveByAgent.keys();
+    for (const agent of this.stateService.getAllAgentsGlobal()) {
+      if (agent.userId > 0) continue;
+      const key = `${agent.userUid}:${agent.interface}`;
+      if (liveByAgent.has(key) || this.agentHasTwinLive(agent, liveKeys)) continue;
+      this.stateService.removeAgent(agent.userUid, agent.interface);
+    }
+  }
+
+  /**
+   * Open shift with a working status must stay in Asterisk queues from
+   * queues_snapshot — QueueAdd missing members and align pause with panel.
+   */
+  private async autoRejoinOpenShiftsMissingFromAsterisk(
+    liveByAgent: Map<string, Set<string>>,
+    pausedByAgent: Map<string, boolean>,
+  ): Promise<void> {
+    if (!this.amiService.isConnected()) return;
+
+    let sessions: CcAgentSession[] = [];
+    try {
+      sessions = await this.agentSessionModel.findAll({ where: { logout_time: null } });
+    } catch (err: any) {
+      this.logger.warn(`auto-rejoin session load failed: ${err?.message || err}`);
+      return;
+    }
+
+    for (const session of sessions) {
+      try {
+        await this.ensureSessionQueuesInAsterisk(session, liveByAgent, pausedByAgent);
+      } catch (err: any) {
+        this.logger.warn(
+          `auto-rejoin session=${session.uid} failed: ${err?.message || err}`,
+        );
+      }
+    }
+  }
+
+  private amiPausedForAgent(
+    userUid: number,
+    agentInterface: string,
+    pausedByAgent: Map<string, boolean>,
+  ): boolean | undefined {
+    const key = `${userUid}:${agentInterface}`;
+    if (pausedByAgent.has(key)) return pausedByAgent.get(key);
+
+    for (const [liveKey, paused] of pausedByAgent) {
+      const sep = liveKey.indexOf(':');
+      if (sep < 0) continue;
+      if (Number(liveKey.slice(0, sep)) !== userUid) continue;
+      const iface = liveKey.slice(sep + 1);
+      if (iface === agentInterface) continue;
+      const resolved = this.resolveMemberAgent(userUid, iface);
+      if (resolved?.interface === agentInterface) return paused;
+    }
+    return undefined;
+  }
+
+  private async ensureSessionQueuesInAsterisk(
+    session: CcAgentSession,
+    liveByAgent: Map<string, Set<string>>,
+    pausedByAgent: Map<string, boolean>,
+  ): Promise<void> {
+    const userUid = Number(session.user_uid);
+    const iface = session.agent_interface;
+    const userId = Number(session.user_id);
+    if (!userUid || !iface || !userId) return;
+
+    const agent =
+      this.resolveMemberAgent(userUid, iface)
+      || this.stateService.getAgent(userUid, iface);
+    const agentIface = agent?.interface || iface;
+    const status = (agent?.status
+      || (session.last_status as AgentStatus | null)
+      || 'READY') as AgentStatus;
+
+    // Only heal when the shift is in a working status (panel expects queue membership).
+    if (status === 'OFFLINE') return;
+
+    const snap = (session.getDataValue('queues_snapshot') as string[] | null) || [];
+    const desired = snap.length ? snap : (agent?.queues || []);
+    if (!desired.length) return;
+
+    const liveQueues = this.liveQueuesForAgent(userUid, agentIface, liveByAgent);
+    const missing = desired.filter((q) => !liveQueues.has(q));
+    const canSyncPause =
+      status === 'READY' || status === 'PAUSED' || status === 'OUTBOUND_WORK';
+    const wantPaused = status === 'PAUSED' || status === 'OUTBOUND_WORK';
+    const trustPanel = canSyncPause && canPanelOverrideAsteriskPause({
+      status,
+      statusOrigin: agent?.statusOrigin,
+      pauseReason: agent?.pauseReason || session.pause_reason,
+      sessionStatus: session.last_status,
+      sessionStatusOrigin: session.last_status_origin,
+    });
+    const amiPaused = this.amiPausedForAgent(userUid, agentIface, pausedByAgent);
+    // Unknown AMI pause (not in queues yet) → treat as mismatch only when we want paused
+    // after QueueAdd, or when present and different — and only if panel is trusted.
+    const pauseMismatch = trustPanel && (
+      (amiPaused === undefined && wantPaused && missing.length > 0)
+      || (amiPaused !== undefined && amiPaused !== wantPaused)
+    );
+
+    if (!missing.length && !pauseMismatch) {
+      if (agent?.queuesDetached || (agent && agent.queues?.join() !== desired.join())) {
+        this.stateService.setAgent(userUid, agentIface, {
+          queues: desired,
+          queuesDetached: false,
+          userId: agent?.userId || userId,
+        });
+      }
+      // Untrusted panel + AMI pause differs → adopt Asterisk pause into panel.
+      if (
+        canSyncPause
+        && !trustPanel
+        && amiPaused !== undefined
+        && amiPaused !== wantPaused
+      ) {
+        this.stateService.setAgent(userUid, agentIface, {
+          status: amiPaused ? 'PAUSED' : 'READY',
+          pauseReason: amiPaused
+            ? (agent?.pauseReason || session.pause_reason || 'Pause')
+            : '',
+          statusOrigin: 'ami',
+          userId: agent?.userId || userId,
+        });
+      }
+      return;
+    }
+
+    if (missing.length) {
+      this.logger.log(
+        `Auto-rejoin ${agentIface} to queues: ${missing.join(', ')} (status=${status})`,
+      );
+      for (const queue of missing) {
+        try {
+          await this.amiService.queueAdd(queue, agentIface);
+        } catch (err: any) {
+          this.logger.warn(`Auto-rejoin failed ${agentIface} → ${queue}: ${err.message}`);
+        }
+      }
+    }
+
+    if (trustPanel && (missing.length || pauseMismatch)) {
+      const reason = agent?.pauseReason
+        || session.pause_reason
+        || (status === 'OUTBOUND_WORK' ? 'outbound_work' : '');
+      if (pauseMismatch) {
+        this.logger.log(
+          `Auto-sync pause ${agentIface}: ami=${String(amiPaused)} → panel=${wantPaused} (${status}, origin=${agent?.statusOrigin || session.last_status_origin})`,
+        );
+      }
+      for (const queue of desired) {
+        try {
+          await this.amiService.queuePause(queue, agentIface, wantPaused, reason || undefined);
+        } catch { /* ignore */ }
+      }
+      pausedByAgent.set(`${userUid}:${agentIface}`, wantPaused);
+    } else if (
+      canSyncPause
+      && !trustPanel
+      && amiPaused !== undefined
+      && amiPaused !== wantPaused
+    ) {
+      this.stateService.setAgent(userUid, agentIface, {
+        status: amiPaused ? 'PAUSED' : 'READY',
+        pauseReason: amiPaused
+          ? (agent?.pauseReason || session.pause_reason || 'Pause')
+          : '',
+        statusOrigin: 'ami',
+        queues: desired,
+        queuesDetached: false,
+        userId: agent?.userId || userId,
+      });
+      return;
+    }
+
+    this.stateService.setAgent(userUid, agentIface, {
+      queues: desired,
+      queuesDetached: false,
+      userId: agent?.userId || userId,
+    });
+
+    // Reflect newly added members in the live map so a follow-up pass is a no-op.
+    const key = `${userUid}:${agentIface}`;
+    const set = liveByAgent.get(key) ?? new Set<string>();
+    for (const q of desired) set.add(q);
+    liveByAgent.set(key, set);
+  }
+
+  /** Push QueuePause to match panel READY / PAUSED / OUTBOUND_WORK. */
+  private async healAgentPauseInAsterisk(
+    userUid: number,
+    agentInterface: string,
+    wantPaused: boolean,
+    reason: string,
+    queues: string[],
+  ): Promise<void> {
+    if (!queues.length || !this.amiService.isConnected()) return;
+    const key = `${userUid}:${agentInterface}`;
+    if (this.pauseHealInFlight.has(key)) return;
+    this.pauseHealInFlight.add(key);
+    try {
+      this.logger.log(
+        `Heal Asterisk pause ${agentInterface}: paused=${wantPaused}`,
+      );
+      for (const queue of queues) {
+        try {
+          await this.amiService.queuePause(
+            queue,
+            agentInterface,
+            wantPaused,
+            reason || undefined,
+          );
+        } catch { /* ignore */ }
+      }
+    } finally {
+      this.pauseHealInFlight.delete(key);
+    }
+  }
+
+  /**
+   * Periodic safety net: Asterisk can lose queue members without Nest restart
+   * (reload / crash) while AMI stays up long enough that reconnect resync was missed.
+   */
+  @Cron('*/2 * * * *')
+  async periodicMembershipSync(): Promise<void> {
+    if (this.membershipSyncRunning) return;
+    if (!this.amiService.isConnected()) return;
+    this.membershipSyncRunning = true;
+    try {
+      await this.resyncMembershipFromAsterisk();
+    } catch (err: any) {
+      this.logger.warn(`periodic membership sync failed: ${err?.message || err}`);
+    } finally {
+      this.membershipSyncRunning = false;
+    }
+  }
+
+  /** Lightweight QueueStatus pass — membership + auto QueueAdd / pause sync. */
+  async resyncMembershipFromAsterisk(): Promise<void> {
+    if (!this.amiService.isConnected()) return;
+
+    const dbQueues = await this.queueModel.findAll({ attributes: ['name', 'user_uid', 'display_name'] });
+    const queueTenantMap = new Map<string, { userUid: number; displayName: string }>();
+    for (const q of dbQueues) {
+      queueTenantMap.set(q.getDataValue('name'), {
+        userUid: q.getDataValue('user_uid'),
+        displayName: q.getDataValue('display_name') || q.getDataValue('name'),
+      });
+    }
+    if (queueTenantMap.size === 0) return;
+
+    const ami = (this.amiService as any).ami;
+    if (!ami) return;
+
+    const members: any[] = [];
+    const onQueueMember = (evt: any) => members.push(evt);
+    ami.on('queuemember', onQueueMember);
+    try {
+      await this.amiService.queueStatus();
+      await new Promise(resolve => setTimeout(resolve, 1200));
+    } catch (err: any) {
+      this.logger.warn(`resync QueueStatus failed: ${err.message}`);
+      return;
+    } finally {
+      ami.removeListener('queuemember', onQueueMember);
+    }
+
+    const membership = this.applyQueueMembers(members, queueTenantMap);
+    this.removePhantomAgentsMissingFromAsterisk(membership.queues);
+    await this.autoRejoinOpenShiftsMissingFromAsterisk(membership.queues, membership.paused);
+
+    for (const [qName, tenant] of queueTenantMap) {
+      this.recalcQueueStats(tenant.userUid, qName);
+    }
   }
 
   // ??? Helpers ?????????????????????????????????????????????

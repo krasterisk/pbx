@@ -12,7 +12,7 @@ interface ModuleLockedPageProps {
 }
 
 /**
- * ModuleLockedPage — заглушка для разделов, требующих неактивного модуля.
+ * ModuleLockedPage - заглушка для разделов, требующих неактивного модуля.
  * Показывает кнопку "Перейти в Marketplace" и объяснение.
  */
 export const ModuleLockedPage = memo(({

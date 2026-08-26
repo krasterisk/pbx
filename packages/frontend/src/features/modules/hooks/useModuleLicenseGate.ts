@@ -10,7 +10,7 @@ import { useHubModules } from './useHubModules';
 
 /**
  * Deep-link guard: locked/disabled module → role-default/Overview + toast (D-17).
- * Mount inside ModuleShell / AppLayout (tenant shell only — wallboard untouched).
+ * Mount inside ModuleShell / AppLayout (tenant shell only - wallboard untouched).
  */
 export function useModuleLicenseGate() {
   const { t } = useTranslation();

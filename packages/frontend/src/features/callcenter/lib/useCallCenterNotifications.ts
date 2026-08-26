@@ -15,7 +15,7 @@ import type {
 } from '@/shared/api/endpoints/callCenterApi';
 
 /**
- * D-41/D-42/D-43: matrix-driven notification engine — event × channel gating extracted
+ * D-41/D-42/D-43: matrix-driven notification engine - event × channel gating extracted
  * as pure functions (below) so the "locked event never notifies regardless of operator
  * preference" contract is unit-testable without a DOM/Notification API.
  */
@@ -94,10 +94,10 @@ const EMPTY_MATRIX: NotificationMatrix = {};
  *
  * Known scope limit (09-14): `sla_threshold` and `spy_connected` have no live per-operator
  * SSE signal yet on the backend (alert routing exists for supervisors, not an operator-facing
- * SSE event; ChanSpy connect has no broadcast) — gating/persistence is fully wired end-to-end,
+ * SSE event; ChanSpy connect has no broadcast) - gating/persistence is fully wired end-to-end,
  * but nothing currently triggers those two events client-side. Tracked as a stub, not a bug in
  * this hook. The `chat` channel posts a `cc:notification-chat` window CustomEvent rather than
- * rendering inside the internal chat panel directly — that panel-side consumer is a follow-up.
+ * rendering inside the internal chat panel directly - that panel-side consumer is a follow-up.
  */
 export function useCallCenterNotifications(opts: UseCallCenterNotificationsOptions = {}) {
   const { t } = useTranslation();
@@ -152,7 +152,7 @@ export function useCallCenterNotifications(opts: UseCallCenterNotificationsOptio
         const n = new Notification(title, { body, tag, silent: true });
         setTimeout(() => n.close(), 8000);
         return;
-      } catch { /* iOS safari throws — fall through to toast */ }
+      } catch { /* iOS safari throws - fall through to toast */ }
     }
     toast.info(`${title}: ${body}`);
   }, [enabled, requestPermission]);
@@ -170,7 +170,7 @@ export function useCallCenterNotifications(opts: UseCallCenterNotificationsOptio
     if (channels.includes('chat')) dispatchChat(event, title, body);
   }, [matrix, locks, defaults, playCue, dispatchPopup, dispatchChat]);
 
-  // incoming_call — new waiting calls in one of my queues (same detection as the legacy hook).
+  // incoming_call - new waiting calls in one of my queues (same detection as the legacy hook).
   useEffect(() => {
     if (!enabled || !myAgent) return;
     waiting.forEach((call) => {
@@ -225,7 +225,7 @@ export function useCallCenterNotifications(opts: UseCallCenterNotificationsOptio
     return () => window.removeEventListener('cc:missed-call-new', onMissed);
   }, [enabled, myAgent, dispatchForEvent, t]);
 
-  // chat_message — skip messages the operator sent themselves.
+  // chat_message - skip messages the operator sent themselves.
   useEffect(() => {
     if (!enabled) return;
 
@@ -244,7 +244,7 @@ export function useCallCenterNotifications(opts: UseCallCenterNotificationsOptio
     return () => window.removeEventListener('cc:chat-message', onChat);
   }, [enabled, currentUserId, dispatchForEvent, t]);
 
-  // Hold-timeout watchdog — not part of the D-42 matrix, always-on sound+popup while enabled.
+  // Hold-timeout watchdog - not part of the D-42 matrix, always-on sound+popup while enabled.
   useEffect(() => {
     if (!enabled || !myAgent) return;
     const id = setInterval(() => {

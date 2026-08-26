@@ -11,7 +11,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { DIALPLAN_ACTION_META, type ActionType, type IRouteAction } from '@krasterisk/shared';
-import { Badge, Text, Tooltip } from '@/shared/ui';
+import { Badge, Text } from '@/shared/ui';
 import {
   DropdownMenu,
   DropdownMenuContent,

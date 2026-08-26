@@ -1,6 +1,6 @@
 import { rtkApi } from '../rtkApi';
 
-/** Access profile (roles table). `role` is TEXT JSON — Hub grants v2 or legacy table_module_*. */
+/** Access profile (roles table). `role` is TEXT JSON - Hub grants v2 or legacy table_module_*. */
 export interface IRole {
   id: number;
   name: string;

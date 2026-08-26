@@ -7,6 +7,7 @@ vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, fallback?: string | Record<string, unknown>) =>
       typeof fallback === 'string' ? fallback : key,
+    i18n: { language: 'ru' },
   }),
 }));
 
@@ -51,5 +52,14 @@ describe('OptionsEditor', () => {
     rerender(<OptionsEditor value="T" flags={['t', 'T']} onChange={vi.fn()} />);
     expect(screen.getByRole('checkbox', { name: /t -/ })).not.toBeChecked();
     expect(screen.getByRole('checkbox', { name: /T -/ })).toBeChecked();
+  });
+
+  it('hides the options string until the toggle is clicked', () => {
+    render(<OptionsEditor value="tT" flags={['t', 'T']} onChange={vi.fn()} />);
+    expect(screen.queryByRole('textbox', { name: /строк/i })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Показать строку опций/i }));
+    expect(screen.getByRole('textbox', { name: /строк/i })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Скрыть строку опций/i }));
+    expect(screen.queryByRole('textbox', { name: /строк/i })).not.toBeInTheDocument();
   });
 });

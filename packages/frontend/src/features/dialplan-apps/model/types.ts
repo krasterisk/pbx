@@ -1,26 +1,12 @@
 import { type ActionType, type ActionCategory } from '@krasterisk/shared';
 import type { FieldSchema } from './schema.types';
 
-/** Sheet / schema-driven contract (D-06). Apps do not receive their step id. */
-export interface IDialplanAppProps<P = Record<string, unknown>> {
-  params: P;
-  onChange: (patch: Partial<P>) => void;
-  readOnly?: boolean;
-  /** Discriminator for shared shells (GenericApp / CallerIdApp). Not the step id. */
-  actionType?: ActionType;
-}
-
-/** @deprecated use IDialplanAppProps */
-export type IDialplanAppParamsProps<P = Record<string, unknown>> = IDialplanAppProps<P>;
-
 export type DialplanHost = 'route' | 'phonebook' | 'ivr';
 
 export interface IDialplanAppConfig {
   type: ActionType;
   /** Translation key for the option, e.g. 'routes.action.totrunk' */
   labelKey: string;
-  /** Custom UI Component for this app */
-  component: React.FC<IDialplanAppProps>;
   /** Category for optgroup grouping */
   category: ActionCategory;
   /** Default params when this action is created */
@@ -38,4 +24,22 @@ export interface IDialplanAppConfig {
   optionFlags: ReadonlyArray<string>;
   /** When false, hidden from ActionTypeSelect on new steps (dual-read legacy). */
   offerOnCreate?: boolean;
+  /** Primary StepSheet block title / tooltip (defaults to «Параметры»). */
+  primarySection?: {
+    titleKey: string;
+    title?: string;
+    tooltipKey?: string;
+    tooltip?: string;
+    /** Hide labels on primary fields when the section title already names them. */
+    hideFieldLabels?: boolean;
+  };
+  /**
+   * Tooltip for the collapsible «Дополнительные параметры» block.
+   * Set it per app — the generic fallback cannot describe app-specific fields
+   * and a tooltip that lists fields the section does not contain is worse than none.
+   */
+  paramsSection?: {
+    tooltipKey?: string;
+    tooltip?: string;
+  };
 }

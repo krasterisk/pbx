@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { pushSample, bucketHourlyDeltas, type CallSample } from './wallboardChartData';
 
-/** Fixed timestamps: hour H on 2026-07-16 local — use UTC constructors for stability. */
+/** Fixed timestamps: hour H on 2026-07-16 local - use UTC constructors for stability. */
 function tsAtHour(hour: number, minute = 0): number {
   return Date.UTC(2026, 6, 16, hour, minute, 0);
 }
@@ -21,7 +21,7 @@ describe('wallboardChartData', () => {
         { t: tsAtHour(10, 30), total: 15 },
       ];
       const result = bucketHourlyDeltas(samples);
-      // Date.UTC hour maps to local getHours — assert relative: only one non-zero
+      // Date.UTC hour maps to local getHours - assert relative: only one non-zero
       const nonZero = result.filter((b) => b.calls > 0);
       expect(nonZero).toHaveLength(1);
       expect(nonZero[0].calls).toBe(5);

@@ -10,7 +10,6 @@ import {
   Req,
   UseGuards,
   ParseIntPipe,
-  ForbiddenException,
 } from '@nestjs/common';
 import { Request } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -21,14 +20,7 @@ import {
   SaveCardDto,
   UpdateCardDto,
 } from './dto/callcenter-cards.dto';
-
-const SUPERVISOR_LEVEL = 3;
-
-function assertSupervisor(user: any): void {
-  if (user.level < SUPERVISOR_LEVEL) {
-    throw new ForbiddenException('Supervisor access required (level >= 3)');
-  }
-}
+import { assertSupervisor } from './callcenter-rbac.util';
 
 @UseGuards(JwtAuthGuard)
 @Controller('callcenter')

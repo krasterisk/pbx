@@ -16,7 +16,7 @@ import { DialplanSubroutinesUtil } from '../../shared/utils/dialplan-subroutines
  * Applied automatically on backend startup (onModuleInit + 5s delay for AMI connect).
  * Can be re-applied manually via POST /api/system-settings/apply-subroutines.
  *
- * Contents: [krsk-on-answer] + [krsk-hangup-handler]
+ * Contents: [krsk-on-answer] + [krsk-hangup-handler] + [krsk-click-to-call]
  */
 @Injectable()
 export class DialplanSubroutinesService implements OnModuleInit {

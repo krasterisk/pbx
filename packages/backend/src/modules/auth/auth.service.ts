@@ -78,6 +78,7 @@ export class AuthService {
       role:         user.role ?? 0,
       exten:        user.exten ?? '',
       vpbx_user_uid: user.vpbx_user_uid ?? user.uniqueid,
+      avatar:       user.avatar ?? null,
     };
   }
 

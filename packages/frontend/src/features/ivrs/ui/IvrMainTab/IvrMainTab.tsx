@@ -106,7 +106,7 @@ export function IvrMainTab(props: IvrMainTabProps) {
             <InfoTooltip
               text={t(
                 'ivrs.tooltips.timeoutResponse',
-                'TIMEOUT(response): сколько секунд ждать первую DTMF-цифру — во время и после проигрывания фразы (Background). Важно при прямом донаборе',
+                'TIMEOUT(response): сколько секунд ждать первую DTMF-цифру - во время и после проигрывания фразы (Background). Важно при прямом донаборе',
               )}
             />
           </HStack>
@@ -151,7 +151,7 @@ export function IvrMainTab(props: IvrMainTabProps) {
           <InfoTooltip
             text={t(
               'ivrs.tooltips.maxCount',
-              'Максимальное количество ошибочных попыток ввода, после которого вызов будет обработан по маршруту ошибки. 0 — без ограничений',
+              'Максимальное количество ошибочных попыток ввода, после которого вызов будет обработан по маршруту ошибки. 0 - без ограничений',
             )}
           />
         </HStack>

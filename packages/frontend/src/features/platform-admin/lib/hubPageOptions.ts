@@ -26,6 +26,7 @@ export const HUB_PAGE_OPTIONS: MultiSelectOption[] = [
   { value: 'audit_log', label: 'audit_log (/audit-log)' },
   { value: 'tenant_modules', label: 'tenant_modules (/system/modules)' },
   { value: 'service_requests', label: 'service_requests (/service-requests)' },
+  { value: 'komandor_claims', label: 'komandor_claims (/komandor-claims)' },
   { value: 'cc_agent', label: 'cc_agent (/callcenter/agent)' },
   { value: 'cc_supervisor', label: 'cc_supervisor (/callcenter/supervisor)' },
   { value: 'cc_reports', label: 'cc_reports (/callcenter/reports)' },

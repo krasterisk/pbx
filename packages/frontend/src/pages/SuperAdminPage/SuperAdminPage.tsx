@@ -7,7 +7,7 @@ import cls from './SuperAdminPage.module.scss';
 
 type AdminTab = 'tenants' | 'settings';
 
-/** SuperAdmin dashboard — thin orchestrator page (FSD: pages are ≤50-70 lines) */
+/** SuperAdmin dashboard - thin orchestrator page (FSD: pages are ≤50-70 lines) */
 export const SuperAdminPage = () => {
   const [tab, setTab] = useState<AdminTab>('tenants');
 

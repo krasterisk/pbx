@@ -4,7 +4,14 @@
  * Implements agent/supervisor actions by calling AMI commands
  * and updating the in-memory state store.
  */
-import { Injectable, Logger, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+  ConflictException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { AmiService } from '../ami/ami.service';
 import { CallCenterStateService } from './callcenter-state.service';
@@ -19,9 +26,12 @@ import { CcAgentEvent } from './models/agent-event.model';
 import { CcQueueCall } from './models/queue-call.model';
 import { CcMissedCall } from './models/missed-call.model';
 import { CcContact } from './models/cc-contact.model';
+import { CcOperatorSettings } from './models/operator-settings.model';
 import { TransferDto } from './dto/callcenter.dto';
 import { CreateContactDto, SendDtmfDto, UpdateContactDto } from './dto/callcenter-contacts.dto';
 import { CallCenterSettingsService } from './callcenter-settings.service';
+import { CallCenterAccessListService } from './callcenter-access-list.service';
+import { CallCenterShiftRestoreService } from './callcenter-shift-restore.service';
 import { User } from '../users/user.model';
 import { PhonebookEntry } from '../phonebooks/phonebook-entry.model';
 import { RoutePhonebook } from '../phonebooks/phonebook.model';
@@ -33,6 +43,8 @@ import { Queue } from '../queues/queue.model';
 import { PsEndpoint } from '../endpoints/ps-endpoint.model';
 import { CallGroup } from '../call-groups/call-group.model';
 import { CallGroupMember } from '../call-groups/call-group-member.model';
+import { DEFAULT_OPERATOR_SETTINGS } from './callcenter-settings.service';
+import type { ShiftCloseReason, SoftphoneMode } from './models/shift-policy.types';
 
 @Injectable()
 export class CallCenterService {
@@ -40,6 +52,9 @@ export class CallCenterService {
 
   /** Maps userId → active session uid */
   private readonly activeSessions = new Map<string, number>();
+
+  /** Active SSE panel connections per operator userId (idle policy). */
+  private readonly panelConnections = new Map<number, number>();
 
   constructor(
     private readonly amiService: AmiService,
@@ -64,6 +79,9 @@ export class CallCenterService {
     @InjectModel(CallGroupMember) private readonly callGroupMemberModel: typeof CallGroupMember,
     private readonly presenceService: CallCenterPresenceService,
     @InjectModel(CcContact) private readonly contactModel: typeof CcContact,
+    @InjectModel(CcOperatorSettings) private readonly operatorSettingsModel: typeof CcOperatorSettings,
+    private readonly accessListService: CallCenterAccessListService,
+    private readonly shiftRestore: CallCenterShiftRestoreService,
   ) {}
 
   // ─── Helpers ─────────────────────────────────────────────
@@ -91,6 +109,219 @@ export class CallCenterService {
       related.add(`${tech}${twin}`);
     }
     return [...related];
+  }
+
+  /**
+   * Block shift start when another operator is actually online on this extension
+   * (same PJSIP id or primary↔WebRTC twin). Same user re-login is allowed.
+   *
+   * Open DB sessions of other users are NOT closed here — the supervisor must
+   * force-logout; absence from RAM after Nest restart is not a finished shift.
+   */
+  private async assertExtensionAvailable(
+    _stateUid: number,
+    agentInterface: string,
+    userId: number,
+  ): Promise<void> {
+    const related = new Set(CallCenterService.relatedQueueInterfaces(agentInterface));
+    const exten = interfaceToExtension(agentInterface) || extractExtension(agentInterface);
+
+    const isSameExtension = (iface: string): boolean => {
+      if (related.has(iface)) return true;
+      const otherRelated = CallCenterService.relatedQueueInterfaces(iface);
+      if (otherRelated.some((i) => related.has(i))) return true;
+      const otherExt = interfaceToExtension(iface);
+      return Boolean(exten && otherExt && otherExt === exten && !iface.startsWith('user:'));
+    };
+
+    const liveOccupant = this.stateService.getAllAgentsGlobal().find((agent) => {
+      if (!agent.userId || agent.userId === userId) return false;
+      if (agent.status === 'OFFLINE') return false;
+      if (!agent.interface || agent.interface.startsWith('user:')) return false;
+      return isSameExtension(agent.interface);
+    });
+
+    if (liveOccupant) {
+      const name = (liveOccupant.name || '').trim() || `#${liveOccupant.userId}`;
+      throw new ConflictException(
+        `Номер ${exten || agentInterface} уже занят оператором ${name}. Завершите его смену или выберите другой номер.`,
+      );
+    }
+
+    try {
+      const rows = await this.sessionModel.findAll({
+        where: {
+          logout_time: null,
+          user_id: { [Op.ne]: userId },
+          agent_interface: { [Op.in]: [...related] },
+        },
+        attributes: ['user_id', 'agent_interface'],
+      });
+      if (rows.length > 0) {
+        const otherId = Number(
+          (rows[0] as any).user_id ?? (rows[0] as any).getDataValue?.('user_id'),
+        );
+        let name = `#${otherId}`;
+        try {
+          const user = await this.userModel.findOne({ where: { uniqueid: otherId } });
+          if (user) {
+            name =
+              String(user.getDataValue('name') || '').trim()
+              || String(user.getDataValue('login') || '').trim()
+              || name;
+          }
+        } catch { /* ignore */ }
+        throw new ConflictException(
+          `Номер ${exten || agentInterface} занят открытой сменой оператора ${name}. `
+          + `Супервизор должен завершить эту смену (force-logout), прежде чем назначить номер другому.`,
+        );
+      }
+    } catch (err) {
+      if (err instanceof ConflictException) throw err;
+    }
+  }
+
+  /** Rebind in-memory session map after Nest restart / hydrate. */
+  bindActiveSession(userUid: number, userId: number, sessionId: number): void {
+    this.activeSessions.set(this.sessionKey(userUid, userId), sessionId);
+  }
+
+  /**
+   * Single exit for ending a shift — operator logout, supervisor force-logout,
+   * re-login close of prior session, or system janitor policy.
+   */
+  async endShift(opts: {
+    userUid: number;
+    userId: number;
+    agentInterface?: string | null;
+    sessionId?: number | null;
+    reason: ShiftCloseReason;
+    freeExten?: boolean;
+  }): Promise<{ success: true }> {
+    const { userId, reason, freeExten = true } = opts;
+    let userUid = opts.userUid;
+    let agentInterface = opts.agentInterface || null;
+    let sessionId = opts.sessionId ?? null;
+
+    if (!sessionId) {
+      const session = await this.sessionModel.findOne({
+        where: { user_id: userId, logout_time: null },
+        order: [['login_time', 'DESC']],
+      });
+      if (session) {
+        sessionId = session.uid;
+        userUid = Number(session.user_uid) || userUid;
+        agentInterface = agentInterface || session.agent_interface;
+      }
+    }
+
+    if (!agentInterface) {
+      agentInterface = await this.resolveAgentInterface(userUid, userId);
+    }
+    if (!agentInterface) {
+      if (sessionId) {
+        await this.sessionModel.update(
+          { logout_time: new Date(), close_reason: reason },
+          { where: { uid: sessionId, logout_time: null } },
+        );
+        this.activeSessions.delete(this.sessionKey(userUid, userId));
+      }
+      return { success: true };
+    }
+
+    const agent =
+      this.stateService.getAgent(userUid, agentInterface)
+      || this.stateService.getAllAgentsGlobal().find(
+        (a) => a.userId === userId && a.interface === agentInterface,
+      );
+
+    const stateUid = agent?.userUid ?? userUid;
+    let sessionQueues = agent?.queues?.length ? [...agent.queues] : [];
+    if (sessionQueues.length === 0 && sessionId) {
+      try {
+        const row = await this.sessionModel.findByPk(sessionId);
+        const snap = row?.getDataValue('queues_snapshot') as string[] | null;
+        if (Array.isArray(snap)) sessionQueues = snap;
+      } catch { /* ignore */ }
+    }
+
+    if (agent) {
+      await this.ccAmiService.endTimedStatus(agent);
+      if (agent.status === 'READY' && agent.statusSince) {
+        const idleSec = Math.max(
+          0,
+          Math.round((Date.now() - new Date(agent.statusSince).getTime()) / 1000),
+        );
+        if (idleSec > 0) {
+          await this.ccAmiService.incrementSessionTotals(userId, agentInterface, {
+            total_idle_time: idleSec,
+          });
+        }
+      }
+    }
+
+    await this.queueRemoveAll(sessionQueues, agentInterface);
+
+    if (sessionId) {
+      await this.sessionModel.update(
+        { logout_time: new Date(), close_reason: reason },
+        { where: { uid: sessionId, logout_time: null } },
+      );
+      this.activeSessions.delete(this.sessionKey(stateUid, userId));
+      this.activeSessions.delete(this.sessionKey(userUid, userId));
+
+      await this.ccAmiService.logAgentEvent({
+        sessionId,
+        userId,
+        eventType: 'LOGOUT',
+        userUid: stateUid,
+        reason,
+      });
+    }
+
+    this.stateService.removeAgent(stateUid, agentInterface);
+    if (stateUid !== userUid) {
+      this.stateService.removeAgent(userUid, agentInterface);
+    }
+
+    if (freeExten) {
+      await this.clearUserExtension(userId, agentInterface);
+    }
+
+    this.logger.log(
+      `Shift ended for user ${userId} (${agentInterface}): reason=${reason}`,
+    );
+    return { success: true };
+  }
+
+  /** Persist shift extension for CDR / directory; exclusive within the tenant. */
+  private async claimUserExtension(userId: number, tenantUid: number, exten: string): Promise<void> {
+    if (!exten) return;
+    // Free the number from anyone else in this tenant (stale assignments after crash/logout bugs).
+    await this.userModel.update(
+      { exten: '' },
+      {
+        where: {
+          vpbx_user_uid: tenantUid,
+          uniqueid: { [Op.ne]: userId },
+          exten,
+        },
+      },
+    );
+    await this.userModel.update({ exten }, { where: { uniqueid: userId } });
+  }
+
+  private async clearUserExtension(userId: number, agentInterface: string): Promise<void> {
+    const exten = interfaceToExtension(agentInterface);
+    if (!exten) return;
+    try {
+      await this.userModel.update(
+        { exten: '' },
+        { where: { uniqueid: userId, exten } },
+      );
+    } catch {
+      /* ignore */
+    }
   }
 
   private async queueRemoveAll(queues: string[], agentInterface: string): Promise<void> {
@@ -179,11 +410,26 @@ export class CallCenterService {
     // In-memory + AMI events use queue suffix (q700_0 → 0), not necessarily JWT vpbx.
     const stateUid = this.tenantFromQueues(queues) ?? userUid;
 
+    await this.assertExtensionAvailable(stateUid, agentInterface, userId);
+
     // Close any prior open sessions for this user (refresh / re-login)
-    await this.sessionModel.update(
-      { logout_time: new Date() },
-      { where: { user_id: userId, logout_time: null } },
-    );
+    const prior = await this.sessionModel.findAll({
+      where: { user_id: userId, logout_time: null },
+    });
+    for (const row of prior) {
+      await this.endShift({
+        userUid: Number(row.user_uid) || stateUid,
+        userId,
+        agentInterface: row.agent_interface,
+        sessionId: row.uid,
+        reason: 'RELOGIN',
+      });
+    }
+
+    const softphoneMode: SoftphoneMode =
+      isWebrtcCompanion(agentInterface.replace(/^PJSIP\//, '').replace(/^SIP\//, ''))
+        ? 'webrtc'
+        : 'sip';
 
     // Create a session record
     const session = await this.sessionModel.create({
@@ -191,17 +437,30 @@ export class CallCenterService {
       agent_interface: agentInterface,
       login_time: new Date(),
       user_uid: stateUid,
+      last_status: 'READY',
+      last_status_at: new Date(),
+      last_status_origin: 'login',
+      queues_snapshot: queues,
+      softphone_mode: softphoneMode,
+      panel_seen_at: new Date(),
     });
     this.activeSessions.set(this.sessionKey(stateUid, userId), session.uid);
 
     // Fresh shift — sinceLogin KPI counters start at 0 (sinceMidnight is untouched, D-11).
     this.metricsService.resetKpiSinceLogin(stateUid, agentInterface);
 
-    // Get user display name
+    // Get user display name; persist the shift extension for CDR / directory
     let displayName = agentInterface;
     try {
       const user = await this.userModel.findOne({ where: { uniqueid: userId } });
-      if (user) displayName = user.getDataValue('name') || user.getDataValue('login') || agentInterface;
+      if (user) {
+        displayName = user.getDataValue('name') || user.getDataValue('login') || agentInterface;
+        const exten = interfaceToExtension(agentInterface);
+        if (exten) {
+          const tenantForUsers = Number(user.getDataValue('vpbx_user_uid')) || stateUid;
+          await this.claimUserExtension(userId, tenantForUsers, exten);
+        }
+      }
     } catch { /* ignore */ }
 
     // Add agent to queues via AMI; drop primary↔webrtc twin so stale members don't linger
@@ -226,6 +485,7 @@ export class CallCenterService {
     // Update in-memory state (per-operator wrap-up timers loaded once at login)
     this.stateService.setAgent(stateUid, agentInterface, {
       status: 'READY',
+      statusOrigin: 'login',
       name: displayName,
       queues,
       loginTime: new Date(),
@@ -290,48 +550,22 @@ export class CallCenterService {
     const agent = this.stateService.getAgent(userUid, agentInterface);
     if (!agent) throw new NotFoundException('Agent state not found');
 
-    // Close any open timed status (PAUSE / CALL / WRAPUP) before logout
-    await this.ccAmiService.endTimedStatus(agent);
-
-    // Accumulate READY idle since last status change when ending the shift
-    if (agent.status === 'READY' && agent.statusSince) {
-      const idleSec = Math.max(
-        0,
-        Math.round((Date.now() - new Date(agent.statusSince).getTime()) / 1000),
-      );
-      if (idleSec > 0) {
-        await this.ccAmiService.incrementSessionTotals(userId, agentInterface, {
-          total_idle_time: idleSec,
-        });
-      }
-    }
-
-    // Remove from all queues via AMI (primary + WebRTC companion)
-    await this.queueRemoveAll(agent.queues, agentInterface);
-
-    // Close session
     const sessionKey = this.sessionKey(userUid, userId);
-    const sessionId = this.activeSessions.get(sessionKey);
-    if (sessionId) {
-      await this.sessionModel.update(
-        { logout_time: new Date() },
-        { where: { uid: sessionId } },
-      );
-      this.activeSessions.delete(sessionKey);
+    const sessionId = this.activeSessions.get(sessionKey)
+      ?? (
+        await this.sessionModel.findOne({
+          where: { user_id: userId, logout_time: null },
+          order: [['login_time', 'DESC']],
+        })
+      )?.uid;
 
-      await this.ccAmiService.logAgentEvent({
-        sessionId,
-        userId,
-        eventType: 'LOGOUT',
-        userUid,
-      });
-    }
-
-    // Remove from state
-    this.stateService.removeAgent(userUid, agentInterface);
-
-    this.logger.log(`Agent ${agent.name} (${agentInterface}) logged out`);
-    return { success: true };
+    return this.endShift({
+      userUid,
+      userId,
+      agentInterface,
+      sessionId: sessionId ?? null,
+      reason: 'OPERATOR',
+    });
   }
 
   async agentPause(userUid: number, userId: number, reason?: string, queue?: string) {
@@ -356,6 +590,7 @@ export class CallCenterService {
     this.stateService.setAgent(userUid, agentInterface, {
       status: 'PAUSED',
       pauseReason: reason || 'Pause',
+      statusOrigin: 'manual',
       dialTarget: undefined,
       peerNumber: '',
     });
@@ -389,6 +624,7 @@ export class CallCenterService {
     this.stateService.setAgent(userUid, agentInterface, {
       status: 'READY',
       pauseReason: '',
+      statusOrigin: 'manual',
       dialTarget: undefined,
       peerNumber: '',
     });
@@ -429,6 +665,7 @@ export class CallCenterService {
     this.stateService.setAgent(userUid, agentInterface, {
       status: 'OUTBOUND_WORK',
       pauseReason: reason,
+      statusOrigin: 'manual',
     });
 
     for (const q of agent.queues) {
@@ -617,9 +854,17 @@ export class CallCenterService {
       return { active: false as const };
     }
 
+    // Open session but no in-memory agent (Nest restart) — hydrate fully.
+    if (!agent) {
+      await this.shiftRestore.restoreSession(session);
+      agent =
+        this.stateService.getAgent(Number(session.user_uid), session.agent_interface)
+        || this.stateService.getAllAgents(Number(session.user_uid)).find((a) => a.userId === userId);
+    }
+
     // Recover shift queues lost after Nest restart / AMI twin remap
     // (QueuesTab + CoworkersTab both key off agent.queues).
-    if (agent && !(agent.queues?.length)) {
+    if (agent && !(agent.queues?.length) && !agent.queuesDetached) {
       const recovered = this.recoverAgentQueues(agent.userUid, agent.interface);
       if (recovered.length) {
         agent = this.stateService.setAgent(agent.userUid, agent.interface, { queues: recovered });
@@ -627,19 +872,19 @@ export class CallCenterService {
     }
 
     if (!agent) {
-      const recovered = this.recoverAgentQueues(Number(session.user_uid), session.agent_interface);
       return {
         active: true as const,
         interface: session.agent_interface,
-        queues: recovered,
-        status: 'OFFLINE' as const,
+        queues: (session.getDataValue('queues_snapshot') as string[] | null) || [],
+        status: 'READY' as const,
         name: session.agent_interface,
         sessionId: session.uid,
         loginTime: session.login_time,
-        pauseReason: undefined,
+        pauseReason: session.pause_reason || undefined,
         callsTaken: 0,
         callsMissed: 0,
         callsMade: 0,
+        queuesDetached: false,
       };
     }
 
@@ -656,6 +901,7 @@ export class CallCenterService {
       callsMissed: agent.callsMissed ?? 0,
       callsMade: agent.callsMade ?? 0,
       statusSince: agent.statusSince,
+      queuesDetached: Boolean(agent.queuesDetached),
     };
   }
 
@@ -882,6 +1128,19 @@ export class CallCenterService {
       }
     }
 
+    this.stateService.setCall(dto.uniqueid, { status: 'TRANSFERRED' });
+    try {
+      await this.queueCallModel.update(
+        {
+          disposition: 'transferred',
+          transfer_destination: dto.target,
+        },
+        { where: { call_uniqueid: dto.uniqueid, user_uid: userUid } },
+      );
+    } catch (err: any) {
+      this.logger.warn(`Failed to persist transfer destination for ${dto.uniqueid}: ${err.message}`);
+    }
+
     // Attended transfer would be handled by the SIP phone
     return { success: true };
   }
@@ -1050,6 +1309,7 @@ export class CallCenterService {
     this.stateService.setAgent(userUid, agentInterface, {
       status: 'PAUSED',
       pauseReason: reason || 'Forced by supervisor',
+      statusOrigin: 'manual',
     });
 
     const paused = this.stateService.getAgent(userUid, agentInterface);
@@ -1078,6 +1338,7 @@ export class CallCenterService {
     this.stateService.setAgent(userUid, agentInterface, {
       status: 'READY',
       pauseReason: '',
+      statusOrigin: 'manual',
     });
 
     const ready = this.stateService.getAgent(userUid, agentInterface);
@@ -1088,11 +1349,32 @@ export class CallCenterService {
     return { success: true };
   }
 
-  async supervisorQueueAdd(agentInterface: string, queue: string, penalty: number | undefined, userUid: number) {
+  async supervisorQueueAdd(
+    agentInterface: string,
+    queue: string,
+    penalty: number | undefined,
+    userUid: number,
+    supervisorUserId: number,
+  ) {
+    const scope = await this.accessListService.resolveScope(userUid, supervisorUserId);
+    if (!this.accessListService.isQueueAllowed(scope, queue)) {
+      throw new ForbiddenException('Queue is outside supervisor access list');
+    }
+
     try {
       await this.amiService.queueAdd(queue, agentInterface, penalty);
     } catch (err: any) {
       throw new BadRequestException(`Failed to add to queue: ${err.message}`);
+    }
+
+    const agent = this.stateService.getAgent(userUid, agentInterface)
+      || this.stateService.getAllAgentsGlobal().find((a) => a.interface === agentInterface);
+    if (agent) {
+      const queues = agent.queues.includes(queue) ? agent.queues : [...agent.queues, queue];
+      this.stateService.setAgent(agent.userUid, agent.interface, {
+        queues,
+        queuesDetached: false,
+      });
     }
 
     // State will be updated by AMI QueueMemberAdded event
@@ -1100,11 +1382,77 @@ export class CallCenterService {
     return { success: true };
   }
 
+  async supervisorStartShift(
+    userUid: number,
+    supervisorUserId: number,
+    operatorUserId: number,
+    agentInterface: string,
+    queues: string[],
+  ) {
+    const scope = await this.accessListService.resolveScope(userUid, supervisorUserId);
+    if (!this.accessListService.isOperatorUserAllowed(scope, operatorUserId)) {
+      throw new ForbiddenException('Operator is outside supervisor access list');
+    }
+    for (const queue of queues || []) {
+      if (!this.accessListService.isQueueAllowed(scope, queue)) {
+        throw new ForbiddenException(`Queue ${queue} is outside supervisor access list`);
+      }
+    }
+    if (!queues?.length) {
+      throw new BadRequestException('At least one queue is required');
+    }
+    if (!agentInterface || /^user:/i.test(agentInterface) || !/^(PJSIP|SIP)\//i.test(agentInterface)) {
+      throw new BadRequestException('A SIP interface is required to start a shift');
+    }
+    return this.agentLogin(agentInterface, queues, userUid, operatorUserId);
+  }
+
   async supervisorQueueRemove(agentInterface: string, queue: string, userUid: number) {
-    try {
-      await this.amiService.queueRemove(queue, agentInterface);
-    } catch (err: any) {
-      throw new BadRequestException(`Failed to remove from queue: ${err.message}`);
+    const ifaces = CallCenterService.relatedQueueInterfaces(agentInterface);
+    let removedSomewhere = false;
+    const errors: string[] = [];
+
+    for (const iface of ifaces) {
+      try {
+        await this.amiService.queueRemove(queue, iface);
+        removedSomewhere = true;
+      } catch (err: any) {
+        const msg = String(err?.message || err);
+        // Asterisk: member already gone (UI still had it / twin / Nest restart).
+        if (/not there/i.test(msg) || /not a member/i.test(msg)) {
+          removedSomewhere = true;
+          continue;
+        }
+        errors.push(`${iface}: ${msg}`);
+        this.logger.warn(`Supervisor queue-remove ${iface} from ${queue}: ${msg}`);
+      }
+    }
+
+    if (!removedSomewhere && errors.length > 0) {
+      throw new BadRequestException(`Failed to remove from queue: ${errors[0]}`);
+    }
+
+    const agent =
+      this.stateService.getAgent(userUid, agentInterface)
+      || this.stateService.getAllAgentsGlobal().find((a) =>
+        a.interface === agentInterface || ifaces.includes(a.interface),
+      );
+    if (agent) {
+      const queues = (agent.queues || []).filter((q) => q !== queue);
+      this.stateService.setAgent(agent.userUid, agent.interface, { queues });
+      if (agent.userId > 0) {
+        try {
+          const session = await this.sessionModel.findOne({
+            where: { user_id: agent.userId, logout_time: null },
+            order: [['login_time', 'DESC']],
+          });
+          if (session) {
+            const snap = (session.getDataValue('queues_snapshot') as string[] | null) || [];
+            const next = (snap.length ? snap : agent.queues || []).filter((q) => q !== queue);
+            await session.update({ queues_snapshot: next.length ? next : [] });
+          }
+        } catch { /* ignore */ }
+      }
     }
 
     this.logger.log(`Supervisor removed ${agentInterface} from queue ${queue}`);
@@ -1129,17 +1477,90 @@ export class CallCenterService {
 
   async supervisorForceLogout(agentInterface: string, userUid: number) {
     const agent = this.stateService.getAgent(userUid, agentInterface);
-    if (!agent) throw new NotFoundException('Agent not found');
-
-    await this.queueRemoveAll(agent.queues, agentInterface);
-
-    this.stateService.setAgent(userUid, agentInterface, {
-      status: 'OFFLINE',
-      queues: [],
+    const session = await this.sessionModel.findOne({
+      where: {
+        logout_time: null,
+        agent_interface: {
+          [Op.in]: CallCenterService.relatedQueueInterfaces(agentInterface),
+        },
+        ...(agent?.userId ? { user_id: agent.userId } : {}),
+      },
+      order: [['login_time', 'DESC']],
     });
 
-    this.logger.log(`Supervisor force-logout ${agentInterface}`);
-    return { success: true };
+    const userId = agent?.userId || Number(session?.user_id);
+    if (!userId) throw new NotFoundException('Agent not found');
+
+    const tenant = agent?.userUid || Number(session?.user_uid) || userUid;
+    return this.endShift({
+      userUid: tenant,
+      userId,
+      agentInterface: agent?.interface || session?.agent_interface || agentInterface,
+      sessionId: session?.uid ?? null,
+      reason: 'SUPERVISOR',
+    });
+  }
+
+  /** Re-add operator to queues from session snapshot after Asterisk restart. */
+  async agentRejoinQueues(userUid: number, userId: number) {
+    userUid = this.resolveTenant(userUid, userId);
+    const agentInterface = await this.resolveAgentInterface(userUid, userId);
+    if (!agentInterface) throw new NotFoundException('Agent not logged in');
+
+    const session = await this.sessionModel.findOne({
+      where: { user_id: userId, logout_time: null },
+      order: [['login_time', 'DESC']],
+    });
+    if (!session) throw new NotFoundException('No open shift');
+
+    const snap = (session.getDataValue('queues_snapshot') as string[] | null) || [];
+    const agent = this.stateService.getAgent(userUid, agentInterface);
+    const queues = snap.length ? snap : (agent?.queues || []);
+    if (!queues.length) {
+      throw new BadRequestException('No queues to rejoin');
+    }
+
+    for (const queue of queues) {
+      try {
+        await this.amiService.queueAdd(queue, agentInterface);
+      } catch (err: any) {
+        this.logger.warn(`Rejoin failed ${agentInterface} → ${queue}: ${err.message}`);
+      }
+    }
+
+    this.stateService.setAgent(userUid, agentInterface, {
+      queues,
+      queuesDetached: false,
+    });
+    await this.sessionModel.update(
+      { queues_snapshot: queues },
+      { where: { uid: session.uid } },
+    );
+
+    return { success: true, queues };
+  }
+
+  /** Mark operator panel as recently seen (SSE connect / activity). */
+  async touchPanelSeen(userId: number): Promise<void> {
+    if (!userId) return;
+    try {
+      await this.sessionModel.update(
+        { panel_seen_at: new Date() },
+        { where: { user_id: userId, logout_time: null } },
+      );
+    } catch { /* ignore */ }
+  }
+
+  bumpPanelConnection(userId: number, delta: number): number {
+    if (!userId) return 0;
+    const next = Math.max(0, (this.panelConnections.get(userId) || 0) + delta);
+    if (next === 0) this.panelConnections.delete(userId);
+    else this.panelConnections.set(userId, next);
+    return next;
+  }
+
+  getPanelConnectionCount(userId: number): number {
+    return this.panelConnections.get(userId) || 0;
   }
 
   async supervisorRedirectCall(uniqueid: string, target: string, userUid: number) {
@@ -1458,6 +1879,17 @@ export class CallCenterService {
     }
 
     this.stateService.setCall(uniqueid, { status: 'TRANSFERRED', queue });
+    try {
+      await this.queueCallModel.update(
+        {
+          disposition: 'transferred',
+          transfer_destination: queue,
+        },
+        { where: { call_uniqueid: uniqueid, user_uid: userUid } },
+      );
+    } catch (err: any) {
+      this.logger.warn(`Failed to persist warm-transfer destination for ${uniqueid}: ${err.message}`);
+    }
     this.logger.log(`Warm transfer of ${uniqueid} to queue ${queue} by ${agentInterface}`);
     return { success: true, uniqueid, queue };
   }
@@ -1537,26 +1969,33 @@ export class CallCenterService {
       || this.stateService.getAllAgentsGlobal().find((a) => a.interface === agentInterface);
     const stateUid = live?.userUid ?? userUid;
 
-    // Destination INVITE inherits Originate CallerID. Use the operator's short
-    // extension for both name and num — never PJSIP/e201_0 (agent.name after
-    // AMI preload) and never "Click-to-call" (confused callees).
+    // Destination INVITE inherits Originate CallerID after the operator answers.
+    // Operator ring: show "click-to-call" + target number on the SIP client.
+    // After answer, [krsk-click-to-call] clears the name and restores op CID num
+    // so the callee never sees the UI label.
     const opExt = interfaceToExtension(agentInterface) || extractExtension(sipId) || '';
-    const callerid = opExt ? `"${opExt}" <${opExt}>` : '"Operator"';
+    const callerid = `"click-to-call" <${dialTarget}>`;
+
+    const channelVars = [
+      `KRSK_CTC_CONTEXT=${context}`,
+      ...(opExt ? [`KRSK_CTC_OP_NUM=${opExt}`] : []),
+    ];
+    // Yealink / many PJSIP phones: Call-Info answer-after=0 forces auto-answer of the
+    // operator leg so click-to-call does not require a manual pickup.
+    if (autoAnswer) {
+      channelVars.push('SIPADDHEADER=Call-Info: sip:\\;answer-after=0');
+    }
 
     const originateParams: Record<string, string> = {
       action: 'Originate',
       channel: agentInterface,
-      context,
+      context: 'krsk-click-to-call',
       exten: dialTarget,
       priority: '1',
       callerid,
       async: 'true',
+      variable: channelVars.join(','),
     };
-    // Yealink / many PJSIP phones: Call-Info answer-after=0 forces auto-answer of the
-    // operator leg so click-to-call does not require a manual pickup.
-    if (autoAnswer) {
-      originateParams.variable = 'SIPADDHEADER=Call-Info: sip:\\;answer-after=0';
-    }
 
     try {
       await this.amiService.action(originateParams);
@@ -1691,12 +2130,18 @@ export class CallCenterService {
       },
     });
 
-    const callsHandled = queueCalls.filter(c => c.disposition === 'answered').length;
+    const answeredCalls = queueCalls.filter(c => c.disposition === 'answered');
+    const callsHandled = answeredCalls.length;
     const totalTalk = queueCalls.reduce((s, c) => s + (c.talk_time || 0), 0);
     const totalHold = queueCalls.reduce((s, c) => s + (c.hold_time || 0), 0);
     const aht = Math.round(totalTalk / Math.max(callsHandled, 1));
+    const asa = callsHandled > 0
+      ? Math.round(answeredCalls.reduce((s, c) => s + (c.wait_time || 0), 0) / callsHandled)
+      : 0;
 
     const liveAgent = this.stateService.getAgent(userUid, agentInterface);
+    const kpi = this.metricsService.getAgentKpi(userUid, agentInterface);
+    const occupancy = this.metricsService.getAgentOccupancy(userUid, agentInterface);
 
     const todaySessions = await this.sessionModel.findAll({
       where: {
@@ -1721,16 +2166,39 @@ export class CallCenterService {
     }
 
     const segments = this.buildAgentTimelineSegments(events);
+    const pauseTotalSec = segments
+      .filter(s => s.state === 'PAUSED')
+      .reduce((s, seg) => s + (seg.durationSec || 0), 0);
+    const wrapupTotalSec = segments
+      .filter(s => s.state === 'WRAPUP' || s.state === 'ACW')
+      .reduce((s, seg) => s + (seg.durationSec || 0), 0);
+    const loginDurationSec = liveAgent?.loginTime
+      ? Math.max(0, Math.round((Date.now() - liveAgent.loginTime.getTime()) / 1000))
+      : 0;
 
     return {
       stats: {
         status: liveAgent?.status || 'OFFLINE',
         pauseReason: liveAgent?.pauseReason,
         callsHandled,
-        callsTaken: liveAgent?.callsTaken ?? 0,
+        callsTaken: liveAgent?.callsTaken ?? kpi.sinceLogin.answered,
+        callsMade: liveAgent?.callsMade ?? kpi.sinceLogin.made,
+        callsMissed: liveAgent?.callsMissed ?? kpi.sinceLogin.missed,
+        shiftAnswered: kpi.sinceLogin.answered,
+        shiftMade: kpi.sinceLogin.made,
+        shiftMissed: kpi.sinceLogin.missed,
+        dayAnswered: kpi.sinceMidnight.answered,
+        dayMade: kpi.sinceMidnight.made,
+        dayMissed: kpi.sinceMidnight.missed,
         totalTalk,
         aht,
+        asa,
         totalHold,
+        occupancy,
+        loginDurationSec,
+        pauseTotalSec,
+        wrapupTotalSec,
+        queuesDetached: Boolean(liveAgent?.queuesDetached),
         queues: liveAgent?.queues ?? [],
       },
       segments,
@@ -2336,21 +2804,241 @@ export class CallCenterService {
       limit: 200,
     });
 
-    return rows.map((r) => ({
-      uid: r.getDataValue('uid'),
-      callUniqueid: r.getDataValue('call_uniqueid'),
-      queueName: r.getDataValue('queue_name'),
-      callerIdNum: r.getDataValue('caller_id_num'),
-      callerIdName: r.getDataValue('caller_id_name'),
-      direction: r.getDataValue('direction'),
-      callType: r.getDataValue('call_type'),
-      disposition: r.getDataValue('disposition'),
-      enterTime: r.getDataValue('enter_time'),
-      answerTime: r.getDataValue('answer_time'),
-      endTime: r.getDataValue('end_time'),
-      waitTime: r.getDataValue('wait_time'),
-      talkTime: r.getDataValue('talk_time'),
-    }));
+    // Enrich missed rows with the operator who later handled the callback.
+    const missedUniqueids = rows
+      .filter((r) => {
+        const d = r.getDataValue('disposition');
+        return d === 'abandoned' || d === 'timeout';
+      })
+      .map((r) => r.getDataValue('call_uniqueid') as string)
+      .filter(Boolean);
+
+    const handledBy = new Map<string, { name: string; exten: string | null }>();
+    if (missedUniqueids.length > 0) {
+      const missed = await this.missedCallModel.findAll({
+        where: {
+          user_uid: userUid,
+          call_uniqueid: { [Op.in]: missedUniqueids },
+          called_back: true,
+          called_back_by: { [Op.ne]: null },
+        },
+        attributes: ['call_uniqueid', 'called_back_by'],
+      });
+      const handlerIds = [
+        ...new Set(
+          missed
+            .map((m) => m.called_back_by)
+            .filter((id): id is number => id != null && id > 0),
+        ),
+      ];
+      const nameById = new Map<number, { name: string; exten: string | null }>();
+      if (handlerIds.length > 0) {
+        const users = await this.userModel.findAll({
+          where: { uniqueid: { [Op.in]: handlerIds }, vpbx_user_uid: userUid },
+          attributes: ['uniqueid', 'name', 'login', 'exten'],
+        });
+        for (const u of users) {
+          const id = u.getDataValue('uniqueid') as number;
+          const name =
+            (u.getDataValue('name') as string)
+            || (u.getDataValue('login') as string)
+            || `#${id}`;
+          const exten = (u.getDataValue('exten') as string) || null;
+          nameById.set(id, { name, exten });
+        }
+      }
+      for (const m of missed) {
+        const by = m.called_back_by;
+        if (by == null || by <= 0) continue;
+        const info = nameById.get(by) ?? { name: `#${by}`, exten: null };
+        handledBy.set(m.call_uniqueid, info);
+      }
+    }
+
+    return rows.map((r) => {
+      const uniqueid = r.getDataValue('call_uniqueid') as string;
+      const handler = handledBy.get(uniqueid);
+      return {
+        uid: r.getDataValue('uid'),
+        callUniqueid: uniqueid,
+        queueName: r.getDataValue('queue_name'),
+        callerIdNum: r.getDataValue('caller_id_num'),
+        callerIdName: r.getDataValue('caller_id_name'),
+        direction: r.getDataValue('direction'),
+        callType: r.getDataValue('call_type'),
+        disposition: r.getDataValue('disposition'),
+        transferDestination: (r.getDataValue('transfer_destination') as string) || null,
+        handledByName: handler?.name ?? null,
+        handledByExten: handler?.exten ?? null,
+        enterTime: r.getDataValue('enter_time'),
+        answerTime: r.getDataValue('answer_time'),
+        endTime: r.getDataValue('end_time'),
+        waitTime: r.getDataValue('wait_time'),
+        talkTime: r.getDataValue('talk_time'),
+      };
+    });
+  }
+
+  // ─── Supervisor access scope / watchlist / multi-agent history ──
+
+  async getSupervisorAccessScope(userUid: number, supervisorUserId: number) {
+    const scope = await this.accessListService.resolveScope(userUid, supervisorUserId);
+    const candidates = await this.accessListService.listCandidateOperators(userUid, scope);
+    return {
+      ...this.accessListService.serializeScope(scope),
+      candidates,
+    };
+  }
+
+  async getWatchedAgents(userUid: number, supervisorUserId: number): Promise<{ userIds: number[] }> {
+    const row = await this.operatorSettingsModel.findOne({
+      where: { user_uid: userUid, operator_user_id: supervisorUserId },
+      attributes: ['supervised_agent_extens'],
+    });
+    const raw = row?.getDataValue('supervised_agent_extens');
+    const userIds = await this.accessListService.mapWatchlistToUserIds(userUid, raw);
+    return { userIds };
+  }
+
+  async setWatchedAgents(
+    userUid: number,
+    supervisorUserId: number,
+    userIdsIn: number[],
+    legacyExtens?: string[],
+  ): Promise<{ userIds: number[] }> {
+    const scope = await this.accessListService.resolveScope(userUid, supervisorUserId);
+    let userIds = [...new Set((userIdsIn || []).map((id) => Number(id)).filter((id) => id > 0))];
+    if (userIds.length === 0 && legacyExtens?.length) {
+      userIds = await this.accessListService.mapWatchlistToUserIds(userUid, legacyExtens);
+    }
+
+    for (const id of userIds) {
+      if (!this.accessListService.isOperatorUserAllowed(scope, id)) {
+        throw new ForbiddenException(`Operator ${id} is outside supervisor access list`);
+      }
+    }
+
+    const existing = await this.operatorSettingsModel.findOne({
+      where: { user_uid: userUid, operator_user_id: supervisorUserId },
+    });
+    if (existing) {
+      await existing.update({
+        supervised_agent_extens: userIds.map(String),
+        updated_at: new Date(),
+      });
+    } else {
+      await this.operatorSettingsModel.create({
+        ...DEFAULT_OPERATOR_SETTINGS,
+        user_uid: userUid,
+        operator_user_id: supervisorUserId,
+        supervised_agent_extens: userIds.map(String),
+        updated_at: new Date(),
+      });
+    }
+
+    return { userIds };
+  }
+
+  /**
+   * Call history for all watched agents (same row shape as getOperatorCallHistory).
+   */
+  async getSupervisorCallHistory(
+    userUid: number,
+    supervisorUserId: number,
+    period: 'shift' | 'day' = 'day',
+  ) {
+    const { userIds } = await this.getWatchedAgents(userUid, supervisorUserId);
+    if (userIds.length === 0) return [];
+
+    const operatorIds = [...userIds];
+
+    const since = this.startOfToday();
+    // period=shift for supervisor aggregates to day (no single shared shift).
+    void period;
+
+    const rows = await this.queueCallModel.findAll({
+      where: {
+        user_uid: userUid,
+        agent_user_uid: { [Op.in]: operatorIds },
+        created_at: { [Op.gte]: since },
+      },
+      order: [['created_at', 'DESC']],
+      limit: 500,
+    });
+
+    const missedUniqueids = rows
+      .filter((r) => {
+        const d = r.getDataValue('disposition');
+        return d === 'abandoned' || d === 'timeout';
+      })
+      .map((r) => r.getDataValue('call_uniqueid') as string)
+      .filter(Boolean);
+
+    const handledBy = new Map<string, { name: string; exten: string | null }>();
+    if (missedUniqueids.length > 0) {
+      const missed = await this.missedCallModel.findAll({
+        where: {
+          user_uid: userUid,
+          call_uniqueid: { [Op.in]: missedUniqueids },
+          called_back: true,
+          called_back_by: { [Op.ne]: null },
+        },
+        attributes: ['call_uniqueid', 'called_back_by'],
+      });
+      const handlerIds = [
+        ...new Set(
+          missed
+            .map((m) => m.called_back_by)
+            .filter((id): id is number => id != null && id > 0),
+        ),
+      ];
+      const nameById = new Map<number, { name: string; exten: string | null }>();
+      if (handlerIds.length > 0) {
+        const handlerUsers = await this.userModel.findAll({
+          where: { uniqueid: { [Op.in]: handlerIds }, vpbx_user_uid: userUid },
+          attributes: ['uniqueid', 'name', 'login', 'exten'],
+        });
+        for (const u of handlerUsers) {
+          const id = u.getDataValue('uniqueid') as number;
+          const name =
+            (u.getDataValue('name') as string)
+            || (u.getDataValue('login') as string)
+            || `#${id}`;
+          const exten = (u.getDataValue('exten') as string) || null;
+          nameById.set(id, { name, exten });
+        }
+      }
+      for (const m of missed) {
+        const by = m.called_back_by;
+        if (by == null || by <= 0) continue;
+        const info = nameById.get(by) ?? { name: `#${by}`, exten: null };
+        handledBy.set(m.call_uniqueid, info);
+      }
+    }
+
+    return rows.map((r) => {
+      const uniqueid = r.getDataValue('call_uniqueid') as string;
+      const handler = handledBy.get(uniqueid);
+      return {
+        uid: r.getDataValue('uid'),
+        callUniqueid: uniqueid,
+        queueName: r.getDataValue('queue_name'),
+        callerIdNum: r.getDataValue('caller_id_num'),
+        callerIdName: r.getDataValue('caller_id_name'),
+        direction: r.getDataValue('direction'),
+        callType: r.getDataValue('call_type'),
+        disposition: r.getDataValue('disposition'),
+        transferDestination: (r.getDataValue('transfer_destination') as string) || null,
+        handledByName: handler?.name ?? null,
+        handledByExten: handler?.exten ?? null,
+        enterTime: r.getDataValue('enter_time'),
+        answerTime: r.getDataValue('answer_time'),
+        endTime: r.getDataValue('end_time'),
+        waitTime: r.getDataValue('wait_time'),
+        talkTime: r.getDataValue('talk_time'),
+        agentUserId: r.getDataValue('agent_user_uid'),
+      };
+    });
   }
 
   private startOfToday(): Date {

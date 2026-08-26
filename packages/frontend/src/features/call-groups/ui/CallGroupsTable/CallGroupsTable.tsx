@@ -53,7 +53,7 @@ export const CallGroupsTable = () => {
         const label = STRATEGY_KEYS.includes(strategy as typeof STRATEGY_KEYS[number])
           ? t(`callGroups.strategy.${strategy}`)
           : strategy;
-        return <span className="text-sm">{label || '—'}</span>;
+        return <span className="text-sm">{label || '-'}</span>;
       },
     },
     {

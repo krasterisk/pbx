@@ -1,4 +1,4 @@
-/** localStorage key for Hub favorites (RESEARCH A4 — per-user prefs). */
+/** localStorage key for Hub favorites (RESEARCH A4 - per-user prefs). */
 export const HUB_FAVORITES_KEY = 'krasterisk.hub.favorites';
 
 export function loadFavoriteCodes(): string[] {

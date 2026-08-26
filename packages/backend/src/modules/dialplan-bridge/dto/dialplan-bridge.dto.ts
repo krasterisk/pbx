@@ -38,6 +38,32 @@ export class WebhookDialplanDto extends DialplanBridgeBaseDto {
   url?: string;
 }
 
+export class HttpRequestDialplanDto extends DialplanBridgeBaseDto {
+  @IsOptional()
+  @IsString()
+  url?: string;
+
+  @IsOptional()
+  @IsString()
+  method?: string;
+
+  @IsOptional()
+  @IsString()
+  body?: string;
+
+  @IsOptional()
+  @IsString()
+  timeout?: string;
+
+  @IsOptional()
+  @IsString()
+  route_uid?: string;
+
+  @IsOptional()
+  @IsString()
+  action_id?: string;
+}
+
 export class SendmailPeerDialplanDto extends DialplanBridgeBaseDto {
   @IsOptional()
   @IsString()
@@ -63,11 +89,28 @@ export class TtsDialplanDto extends DialplanBridgeBaseDto {
   @IsString()
   engine?: string;
 
+  // Flattened IIvrPhraseTtsSettings — merged over the engine settings server-side.
   @IsOptional()
   @IsString()
   voice?: string;
 
   @IsOptional()
   @IsString()
-  language?: string;
+  language_code?: string;
+
+  @IsOptional()
+  @IsString()
+  speed?: string;
+
+  @IsOptional()
+  @IsString()
+  speaking_rate?: string;
+
+  @IsOptional()
+  @IsString()
+  role?: string;
+
+  @IsOptional()
+  @IsString()
+  pitch_shift?: string;
 }

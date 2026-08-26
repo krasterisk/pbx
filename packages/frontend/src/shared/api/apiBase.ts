@@ -1,7 +1,7 @@
 /** Optional runtime override (Capacitor Preferences / debug). */
 let runtimeApiOverride: string | null = null;
 
-/** Set after Preferences hydrate on native boot — wins over VITE_API_URL. */
+/** Set after Preferences hydrate on native boot - wins over VITE_API_URL. */
 export function setRuntimeApiBase(url: string | null | undefined): void {
   const trimmed = url?.trim();
   runtimeApiOverride = trimmed ? trimmed.replace(/\/$/, '') : null;
@@ -13,7 +13,7 @@ export function getApiBaseFromEnv(): string {
   return (import.meta.env.VITE_API_URL || '/api').replace(/\/$/, '');
 }
 
-/** Authenticated API — never `/api/public` (CDR, recordings, auth). */
+/** Authenticated API - never `/api/public` (CDR, recordings, auth). */
 export function getAuthApiBase(): string {
   return getApiBaseFromEnv().replace(/\/public$/, '');
 }

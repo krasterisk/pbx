@@ -6,6 +6,7 @@ import type {
   PermissionSet,
   UiVisibility,
 } from './cc-permissions.types';
+import type { ShiftPolicy } from './shift-policy.types';
 import type { UserLevel } from '../../users/user.model';
 
 /**
@@ -78,6 +79,13 @@ export class CcSettings extends Model {
    */
   @Column({ type: DataType.BOOLEAN, allowNull: false, defaultValue: true })
   declare autopause_enabled: boolean;
+
+  /**
+   * Auto-close / extension-free policy for open agent shifts.
+   * See ShiftPolicy / DEFAULT_SHIFT_POLICY.
+   */
+  @Column({ type: DataType.JSON, allowNull: true, defaultValue: null })
+  declare shift_policy: ShiftPolicy | null;
 
   @Column({ type: DataType.DATE, allowNull: false, defaultValue: DataType.NOW })
   declare updated_at: Date;

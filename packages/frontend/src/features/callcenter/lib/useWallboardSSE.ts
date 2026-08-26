@@ -15,7 +15,7 @@ const API_BASE = import.meta.env.VITE_API_URL || '/api';
 /**
  * SSE hook for the public TV wallboard (D-29).
  *
- * Token comes ONLY from the URL query (?token=) via the page argument —
+ * Token comes ONLY from the URL query (?token=) via the page argument -
  * never from localStorage / JWT. Connects to read-only
  * /callcenter/wallboard/events under DisplayTokenGuard.
  */
@@ -113,7 +113,7 @@ export function useWallboardSSE(token: string | null, enabled = true) {
     });
 
     es.addEventListener('heartbeat', () => {
-      // noop — keeps SSE alive through proxies
+      // noop - keeps SSE alive through proxies
     });
   }, [token, enabled, dispatch]);
 

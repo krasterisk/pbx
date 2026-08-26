@@ -17,7 +17,7 @@ import type { HubModuleRow } from '../types';
 export interface UseHubModulesResult {
   /** Active section rows (active + disabled); favorites first. */
   active: HubModuleRow[];
-  /** Marketplace section — locked modules only (never disabled). */
+  /** Marketplace section - locked modules only (never disabled). */
   marketplace: HubModuleRow[];
   isLoading: boolean;
   favoriteCodes: string[];

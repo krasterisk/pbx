@@ -13,7 +13,7 @@ import cls from './AiChatSettingsCard.module.scss';
 
 /**
  * AI Chat subsection (D-20) inside SellerSettingsForm: per-tenant confirmation
- * gate for destructive AI tool calls (D-25). Default OFF — a tenant with no
+ * gate for destructive AI tool calls (D-25). Default OFF - a tenant with no
  * settings row yet gets `confirmDestructive: false` from the backend.
  *
  * @layer features/cloud-admin

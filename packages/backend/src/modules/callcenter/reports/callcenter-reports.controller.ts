@@ -7,7 +7,6 @@
 import {
   BadRequestException,
   Controller,
-  ForbiddenException,
   Get,
   Param,
   Query,
@@ -22,14 +21,7 @@ import { ReportQueryDto } from './dto/report-query.dto';
 import { isCcReportId } from './callcenter-reports.types';
 import { buildReportCsv } from './exporters/csv-exporter';
 import { buildReportXlsx } from './exporters/xlsx-exporter';
-
-const SUPERVISOR_LEVEL = 3;
-
-function assertSupervisor(user: { level: number }): void {
-  if (user.level < SUPERVISOR_LEVEL) {
-    throw new ForbiddenException('Supervisor access required (level >= 3)');
-  }
-}
+import { assertSupervisor } from '../callcenter-rbac.util';
 
 @UseGuards(JwtAuthGuard)
 @Controller('callcenter/reports')

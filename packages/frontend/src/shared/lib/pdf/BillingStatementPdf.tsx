@@ -187,7 +187,7 @@ const StatementDocument: React.FC<StatementProps> = ({
 
   return (
     <Document
-      title={`Выписка по счёту — ${tenant.name}`}
+      title={`Выписка по счёту - ${tenant.name}`}
       author="KrAsterisk"
       creator="KrAsterisk Cloud Platform"
     >
@@ -206,7 +206,7 @@ const StatementDocument: React.FC<StatementProps> = ({
             <Text style={s.docNumber}>Дата формирования: {generatedAt}</Text>
             {(dateFrom || dateTo) && (
               <Text style={s.docNumber}>
-                Период: {dateFrom ? fmtDate(dateFrom) : '—'} — {dateTo ? fmtDate(dateTo) : '—'}
+                Период: {dateFrom ? fmtDate(dateFrom) : '-'} - {dateTo ? fmtDate(dateTo) : '-'}
               </Text>
             )}
           </View>
@@ -248,7 +248,7 @@ const StatementDocument: React.FC<StatementProps> = ({
           >
             <Text style={[s.col, s.colDate]}>{fmtDate(tx.created_at)}</Text>
             <Text style={[s.col, s.colType]}>{TYPE_LABEL[tx.type] ?? tx.type}</Text>
-            <Text style={[s.col, s.colDesc]}>{tx.description ?? '—'}</Text>
+            <Text style={[s.col, s.colDesc]}>{tx.description ?? '-'}</Text>
             <Text style={[s.col, s.colAmount]}>
               {(tx.type === 'deposit' || tx.type === 'refund') ? '+' : '−'}
               {fmtMoney(tx.amount_kopecks)}
@@ -291,7 +291,7 @@ const StatementDocument: React.FC<StatementProps> = ({
 
 /**
  * Генерирует и скачивает PDF выписку по лицевому счёту.
- * Вызывается прямо из компонента — никакого сервера не нужно.
+ * Вызывается прямо из компонента - никакого сервера не нужно.
  */
 export async function downloadStatement(params: StatementProps): Promise<void> {
   const blob = await pdf(<StatementDocument {...params} />).toBlob();

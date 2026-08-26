@@ -1,8 +1,8 @@
 /**
- * Page: EndpointsPage — thin orchestrator
+ * Page: EndpointsPage - thin orchestrator
  *
  * Composes feature-level components for PJSIP subscriber management.
- * No business logic — only layout and dispatch.
+ * No business logic - only layout and dispatch.
  */
 import { useTranslation } from 'react-i18next';
 import { motion } from 'motion/react';
@@ -58,7 +58,7 @@ export const EndpointsPage = () => {
         <EndpointsTable />
       </motion.div>
 
-      {/* Modals — reads state from Redux */}
+      {/* Modals - reads state from Redux */}
       <EndpointFormModal />
       <BulkCreateModal />
       <SipCredentialsModal />

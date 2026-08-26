@@ -1,0 +1,93 @@
+/* ─────────────────────────────────────────────────────
+   RolesTable — access profiles list
+   Design tokens: var(--color-*) from globals.css @theme
+   ───────────────────────────────────────────────────── */
+
+.toolbar {
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.toolbarIcon {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.toolbarTitle {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--color-foreground);
+}
+
+.toolbarActions {
+  width: 100%;
+
+  @media (min-width: 640px) {
+    width: auto;
+  }
+}
+
+.searchWrap {
+  position: relative;
+  width: 100%;
+
+  @media (min-width: 640px) {
+    width: 16rem;
+  }
+}
+
+.searchIcon {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1rem;
+  height: 1rem;
+  color: var(--color-muted-foreground);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.searchInput {
+  padding-left: 2.5rem;
+  height: 2.25rem;
+}
+
+.nameCell {
+  font-weight: 500;
+  color: var(--color-foreground);
+}
+
+.tableContent {
+  padding: 0;
+}
+
+.loading {
+  height: 12rem;
+}
+
+.loadingIcon {
+  width: 1.5rem;
+  height: 1.5rem;
+  color: var(--color-primary);
+  animation: spin 1s linear infinite;
+}
+
+.actionIcon {
+  width: 1rem;
+  height: 1rem;
+}
+
+.iconSpin {
+  width: 1rem;
+  height: 1rem;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

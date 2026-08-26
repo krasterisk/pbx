@@ -11,14 +11,7 @@ import {
   GetHistoryQueryDto,
 } from './dto/chat.dto';
 import type { CcChatChannelType } from './models/chat-message.model';
-
-const SUPERVISOR_LEVEL = 3;
-
-function assertSupervisor(user: { level: number }): void {
-  if (user.level < SUPERVISOR_LEVEL) {
-    throw new ForbiddenException('Supervisor access required (level >= 3)');
-  }
-}
+import { assertSupervisor } from './callcenter-rbac.util';
 
 @UseGuards(JwtAuthGuard)
 @Controller('callcenter/chat')

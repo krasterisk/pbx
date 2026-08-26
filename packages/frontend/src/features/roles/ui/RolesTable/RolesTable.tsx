@@ -2,20 +2,31 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { type ColumnDef } from '@tanstack/react-table';
 import { Shield, Pencil, Trash2, Loader2, Search } from 'lucide-react';
-import { Card, CardHeader, CardContent, Input, DataTable, Button } from '@/shared/ui';
-import { HStack, Flex } from '@/shared/ui/Stack';
+import {
+  Card,
+  CardHeader,
+  CardContent,
+  Input,
+  DataTable,
+  Button,
+  Text,
+  TableRowActions,
+  TableRowAction,
+} from '@/shared/ui';
+import { HStack, Flex, VStack } from '@/shared/ui/Stack';
 import { useGetRolesQuery, useDeleteRoleMutation, useBulkDeleteRolesMutation } from '@/shared/api/api';
-import { useAppDispatch, useAppSelector } from '@/shared/hooks/useAppStore';
+import { useAppDispatch } from '@/shared/hooks/useAppStore';
 import { rolesPageActions } from '../../model/slice/rolesPageSlice';
+import styles from './RolesTable.module.scss';
 
 export const RolesTable = () => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
-  
+
   const { data: roles = [], isLoading } = useGetRolesQuery();
   const [deleteRole] = useDeleteRoleMutation();
   const [bulkDelete, { isLoading: isDeleting }] = useBulkDeleteRolesMutation();
-  
+
   const [globalFilter, setGlobalFilter] = useState('');
   const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
 
@@ -23,7 +34,9 @@ export const RolesTable = () => {
     {
       accessorKey: 'name',
       header: t('roles.name'),
-      cell: (info) => <span className="font-medium text-white">{info.getValue() as string}</span>,
+      cell: (info) => (
+        <Text className={styles.nameCell}>{info.getValue() as string}</Text>
+      ),
     },
     {
       accessorKey: 'comment',
@@ -33,28 +46,32 @@ export const RolesTable = () => {
     {
       id: 'actions',
       header: t('common.actions'),
-      cell: (info) => (
-        <HStack gap="8" justify="end">
-          <button
-            className="p-1.5 rounded-md hover:bg-white/5 text-muted-foreground hover:text-white transition-colors"
-            title={t('common.edit')}
-            onClick={() => dispatch(rolesPageActions.openEditModal(info.row.original))}
-          >
-            <Pencil className="w-4 h-4" />
-          </button>
-          <button
-            className="p-1.5 rounded-md hover:bg-red-500/10 text-muted-foreground hover:text-red-400 transition-colors"
-            title={t('common.delete')}
-            onClick={() => {
-              if (window.confirm(t('common.confirmDelete', `Удалить роль ${info.row.original.name}?`))) {
-                deleteRole(info.row.original.id);
-              }
-            }}
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-        </HStack>
-      ),
+      cell: (info) => {
+        const role = info.row.original;
+        return (
+          <TableRowActions>
+            <TableRowAction
+              title={t('common.edit')}
+              aria-label={t('common.edit')}
+              onClick={() => dispatch(rolesPageActions.openEditModal(role))}
+            >
+              <Pencil />
+            </TableRowAction>
+            <TableRowAction
+              danger
+              title={t('common.delete')}
+              aria-label={t('common.delete')}
+              onClick={() => {
+                if (window.confirm(t('common.confirmDelete', `Удалить роль ${role.name}?`))) {
+                  void deleteRole(role.id);
+                }
+              }}
+            >
+              <Trash2 />
+            </TableRowAction>
+          </TableRowActions>
+        );
+      },
     },
   ], [t, deleteRole, dispatch]);
 
@@ -63,7 +80,7 @@ export const RolesTable = () => {
   const handleBulkDelete = async () => {
     const ids = Object.keys(rowSelection).map(Number);
     if (!ids.length) return;
-    
+
     if (window.confirm(t('common.confirmDelete', 'Вы уверены, что хотите удалить?'))) {
       await bulkDelete(ids).unwrap();
       setRowSelection({});
@@ -73,44 +90,44 @@ export const RolesTable = () => {
   return (
     <Card>
       <CardHeader>
-        <HStack justify="between" align="center" className="flex-col sm:flex-row gap-4" max>
+        <HStack justify="between" align="center" className={styles.toolbar} max>
           <HStack gap="8" align="center">
-            <Shield className="w-5 h-5 text-primary" />
-            <span className="font-semibold text-lg">
+            <Shield className={styles.toolbarIcon} />
+            <Text className={styles.toolbarTitle}>
               {roles.length} {t('nav.roles').toLowerCase()}
-            </span>
+            </Text>
           </HStack>
-          <HStack gap="12" align="center" className="w-full sm:w-auto">
+          <HStack gap="12" align="center" className={styles.toolbarActions}>
             {selectedCount > 0 && (
               <Button
                 variant="destructive"
                 disabled={isDeleting}
-                onClick={handleBulkDelete}
+                onClick={() => void handleBulkDelete()}
               >
                 {isDeleting ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  <Loader2 className={styles.iconSpin} />
                 ) : (
-                  <Trash2 className="w-4 h-4 mr-2" />
+                  <Trash2 className={styles.actionIcon} />
                 )}
                 {t('common.deleteSelected', 'Удалить выбранные')} ({selectedCount})
               </Button>
             )}
-            <div className="relative w-full sm:w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <VStack className={styles.searchWrap}>
+              <Search className={styles.searchIcon} />
               <Input
                 placeholder={t('common.search')}
                 value={globalFilter}
                 onChange={(e) => setGlobalFilter(e.target.value)}
-                className="pl-10 h-9"
+                className={styles.searchInput}
               />
-            </div>
+            </VStack>
           </HStack>
         </HStack>
       </CardHeader>
-      <CardContent className="p-0">
+      <CardContent className={styles.tableContent}>
         {isLoading ? (
-          <Flex align="center" justify="center" className="h-48">
-            <Loader2 className="w-6 h-6 animate-spin text-primary" />
+          <Flex align="center" justify="center" className={styles.loading}>
+            <Loader2 className={styles.loadingIcon} />
           </Flex>
         ) : (
           <DataTable

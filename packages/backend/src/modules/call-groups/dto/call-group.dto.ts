@@ -20,6 +20,9 @@ export const CALL_GROUP_EXTEN_PATTERN = /^\d{2,8}$/;
 /** Prompt / MOH class identifiers — no path separators (T-12-15-03) */
 export const CALL_GROUP_MEDIA_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 
+/** Single DTMF key for external answer confirmation */
+export const CALL_GROUP_CONFIRM_DIGIT_PATTERN = /^[0-9*#]$/;
+
 function optionsBalanced(input: string): boolean {
   let depth = 0;
   for (const ch of input) {
@@ -93,6 +96,11 @@ export class CreateCallGroupDto {
   confirmExternal?: boolean;
 
   @IsOptional()
+  @IsString()
+  @Matches(CALL_GROUP_CONFIRM_DIGIT_PATTERN, { message: 'confirmDigit must be a single DTMF key (0-9, *, #)' })
+  confirmDigit?: string;
+
+  @IsOptional()
   @IsBoolean()
   skipBusy?: boolean;
 
@@ -151,6 +159,11 @@ export class UpdateCallGroupDto {
   @IsOptional()
   @IsBoolean()
   confirmExternal?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @Matches(CALL_GROUP_CONFIRM_DIGIT_PATTERN, { message: 'confirmDigit must be a single DTMF key (0-9, *, #)' })
+  confirmDigit?: string;
 
   @IsOptional()
   @IsBoolean()

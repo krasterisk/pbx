@@ -125,7 +125,7 @@ const ActionFlow = memo(({ action, t, variant = 'bot', robotId }: {
               {action.slots!.map((slot, i) => (
                 <Text as="span" key={i} className="text-xs">
                   • <strong>{slot.name}</strong> ({slot.type})
-                  {slot.prompt?.value ? ` — «${slot.prompt.value}»` : ''}
+                  {slot.prompt?.value ? ` - «${slot.prompt.value}»` : ''}
                   {slot.maxRetries ? ` [${slot.maxRetries} ${t('voiceRobots.escalation.maxRepeats', 'попыток').toLowerCase()}]` : ''}
                 </Text>
               ))}
@@ -168,7 +168,7 @@ ActionFlow.displayName = 'ActionFlow';
 /* ──────────── Main Component ──────────── */
 
 /**
- * ConversationPreview — chat-style visualization of a keyword scenario.
+ * ConversationPreview - chat-style visualization of a keyword scenario.
  *
  * Shows the full dialogue flow including greeting, keyword match,
  * bot response, slot collection, next state, and escalation path.
