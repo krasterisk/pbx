@@ -25,6 +25,10 @@ export default defineConfig({
   build: {
     outDir: 'dist-standalone',
     emptyOutDir: true,
+    sourcemap: false,
+    // Skip gzip-size pass — extra memory on 2 GB PBX hosts.
+    reportCompressedSize: false,
+    minify: 'esbuild',
     rollupOptions: {
       input: {
         standalone: resolve(__dirname, 'standalone.html'),
