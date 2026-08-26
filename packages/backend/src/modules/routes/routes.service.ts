@@ -13,6 +13,7 @@ import {
   buildFfmpegPostprocess,
   getRecordingSourceExtension,
 } from './route-recording.util';
+import { shouldUseStoredRawDialplan } from './route-dialplan-source.util';
 
 /** Binding payload accepted from CreateRouteDto/UpdateRouteDto (bindings field). */
 export interface RouteBindingInput {
@@ -145,6 +146,8 @@ export class RoutesService {
     const payload = { ...rest } as Partial<Route>;
     if (payload.raw_dialplan?.trim()) {
       payload.raw_dialplan = ensureCdrVpbxUserUidInDialplan(payload.raw_dialplan, vpbxUserUid);
+    } else if (payload.raw_dialplan !== undefined && !payload.raw_dialplan?.trim()) {
+      payload.raw_dialplan = null;
     }
     await route.update(payload);
 
@@ -208,9 +211,8 @@ export class RoutesService {
     isAdmin: boolean = false,
     timeGroupIntervals: Map<number, string[]> = new Map(),
   ): string {
-    const raw = route.raw_dialplan?.trim();
-    if (raw) {
-      return ensureCdrVpbxUserUidInDialplan(raw, vpbxUserUid);
+    if (shouldUseStoredRawDialplan(route)) {
+      return ensureCdrVpbxUserUidInDialplan(route.raw_dialplan as string, vpbxUserUid);
     }
 
     const lines: string[] = [];

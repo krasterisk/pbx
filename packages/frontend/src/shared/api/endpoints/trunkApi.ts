@@ -13,6 +13,8 @@ export interface ITrunkListItem {
   fromDomain: string;
   contactUser: string;
   matchIp: string;
+  qualifyFrequency: number;
+  registrationExpiration: number | null;
   registrationStatus: string | null;
   serverUri: string;
   clientUri: string;
@@ -43,6 +45,8 @@ export interface ICreateTrunk {
   fromDomain?: string;
   contactUser?: string;
   matchIp?: string;
+  qualifyFrequency?: number;
+  registrationExpiration?: number;
   advanced?: Record<string, any>;
 }
 
@@ -58,6 +62,8 @@ export interface IUpdateTrunk {
   fromDomain?: string;
   contactUser?: string;
   matchIp?: string;
+  qualifyFrequency?: number;
+  registrationExpiration?: number;
   advanced?: Record<string, any>;
 }
 

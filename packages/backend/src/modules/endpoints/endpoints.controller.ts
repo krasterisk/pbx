@@ -43,8 +43,8 @@ export class EndpointsController {
 
   @SkipThrottle({ default: true, global: true })
   @Get('bulk/status/:jobId')
-  getBulkJobStatus(@Param('jobId') jobId: string) {
-    return this.endpointsService.getBulkJobStatus(jobId);
+  getBulkJobStatus(@Param('jobId') jobId: string, @Req() req: Request & { user: any }) {
+    return this.endpointsService.getBulkJobStatus(jobId, req.user.vpbx_user_uid);
   }
 
   @Post('bulk/delete')

@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios, { AxiosInstance, AxiosError } from 'axios';
+import { resolveAriAppName } from './ari-app-name';
 
 /**
  * Compact error thrown by ARI HTTP requests.
@@ -79,7 +80,7 @@ export class AriHttpClientService implements OnModuleInit {
     const password = this.configService.get<string>('ARI_PASSWORD', '');
     
     this.baseURL = `${protocol}://${host}:${port}/ari`;
-    this.appName = 'krasterisk_voicerobots'; // Can be fetched from config or dynamic
+    this.appName = resolveAriAppName(this.configService.get<string>('ARI_APP_NAME'));
 
     this.client = axios.create({
       baseURL: this.baseURL,

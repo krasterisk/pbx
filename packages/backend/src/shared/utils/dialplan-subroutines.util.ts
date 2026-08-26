@@ -122,13 +122,45 @@ export class DialplanSubroutinesUtil {
     lines.push('[krsk-click-to-call]');
     // Asterisk warns against `_!` (match-anything); `_X!` = leading digit + rest (numbers / extensions).
     lines.push('exten => _X!,1,NoOp(Krasterisk click-to-call → ${EXTEN} via ${KRSK_CTC_CONTEXT})');
-    lines.push('same  => n,GotoIf($["${KRSK_CTC_CONTEXT}" = ""]?fail)');
-    lines.push('same  => n,Set(CALLERID(name)=)');
-    lines.push('same  => n,ExecIf($["${KRSK_CTC_OP_NUM}" != ""]?Set(CALLERID(num)=${KRSK_CTC_OP_NUM}))');
-    lines.push('same  => n,Goto(${KRSK_CTC_CONTEXT},${EXTEN},1)');
-    lines.push('same  => n(fail),Hangup()');
+    lines.push('same => n,GotoIf($["${KRSK_CTC_CONTEXT}" = ""]?fail)');
+    lines.push('same => n,Set(CALLERID(name)=)');
+    lines.push('same => n,ExecIf($["${KRSK_CTC_OP_NUM}" != ""]?Set(CALLERID(num)=${KRSK_CTC_OP_NUM}))');
+    lines.push('same => n,Goto(${KRSK_CTC_CONTEXT},${EXTEN},1)');
+    lines.push('same => n(fail),Hangup()');
     lines.push('');
 
     return lines.join('\n');
+  }
+
+  /** Split generated text into AMI categories; skip comments/blanks; drop duplicate lines. */
+  static parseCategories(content: string): Array<{ name: string; lines: string[] }> {
+    const contexts: Array<{ name: string; lines: string[] }> = [];
+    let current: { name: string; lines: string[]; seen: Set<string> } | null = null;
+
+    const flush = () => {
+      if (!current) return;
+      contexts.push({ name: current.name, lines: current.lines });
+      current = null;
+    };
+
+    for (const raw of content.split('\n')) {
+      const line = raw.trim();
+      if (!line || line.startsWith(';')) continue;
+
+      const ctxMatch = line.match(/^\[([^\]]+)\]$/);
+      if (ctxMatch) {
+        flush();
+        current = { name: ctxMatch[1], lines: [], seen: new Set() };
+        continue;
+      }
+      if (!current) continue;
+
+      const key = line.replace(/\s+/g, ' ').replace(/=>\s+/g, '=> ');
+      if (current.seen.has(key)) continue;
+      current.seen.add(key);
+      current.lines.push(line);
+    }
+    flush();
+    return contexts;
   }
 }

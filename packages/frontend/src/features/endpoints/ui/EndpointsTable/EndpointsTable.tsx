@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { type RowSelectionState } from '@tanstack/react-table';
 import { Phone, Search, Loader2, Trash2, Download, Pencil, Key } from 'lucide-react';
 import { type DataTableRef } from '@/shared/ui/DataTable/DataTable';
-import { Card, CardHeader, CardContent, Input, Button, DataTable, Text } from '@/shared/ui';
+import { Card, CardHeader, CardContent, Input, Button, DataTable, Text, TableRowActions, TableRowAction } from '@/shared/ui';
 import { HStack, Flex, VStack } from '@/shared/ui/Stack';
 import {
   useGetEndpointsQuery,
@@ -62,7 +62,7 @@ export const EndpointsTable = memo(() => {
       })
       .join(', ');
 
-    if (!window.confirm(`Удалить ${sipIds.length} абонентов (${extensions})?`)) return;
+    if (!window.confirm(t('endpoints.confirmBulkDelete', { count: sipIds.length, extensions }))) return;
 
     try {
       await bulkDelete(sipIds).unwrap();
@@ -70,7 +70,7 @@ export const EndpointsTable = memo(() => {
     } catch (e) {
       console.error('Bulk delete failed:', e);
     }
-  }, [rowSelection, endpoints, bulkDelete]);
+  }, [rowSelection, endpoints, bulkDelete, t]);
 
   // Background bulk create progress
   const { data: activeJobData } = useGetActiveBulkJobQuery(undefined, { pollingInterval: 3000 });
@@ -106,7 +106,7 @@ export const EndpointsTable = memo(() => {
             disabled={isDeleting}
           >
             <Trash2 className="w-4 h-4" />
-            {isDeleting ? '...' : `Удалить (${selectedCount})`}
+            {isDeleting ? '...' : t('endpoints.deleteSelected', { count: selectedCount })}
           </Button>
         )}
         <div className="relative w-full sm:w-64 min-w-0">
@@ -199,33 +199,34 @@ export const EndpointsTable = memo(() => {
                           <Text variant="muted" className="text-xs">{ep.department}</Text>
                         ) : null}
                       </VStack>
-                      <HStack gap="4">
-                        <button
-                          className="p-1.5 rounded-md hover:bg-white/5 text-muted-foreground"
-                          title={t('endpoints.btnSip', 'SIP')}
+                      <TableRowActions>
+                        <TableRowAction
+                          title={t('endpoints.btnSip')}
+                          aria-label={t('endpoints.btnSip')}
                           onClick={() => dispatch(endpointsPageActions.openCredentialsModal(ep.id))}
                         >
-                          <Key className="w-4 h-4" />
-                        </button>
-                        <button
-                          className="p-1.5 rounded-md hover:bg-white/5 text-muted-foreground"
+                          <Key />
+                        </TableRowAction>
+                        <TableRowAction
                           title={t('common.edit')}
+                          aria-label={t('common.edit')}
                           onClick={() => dispatch(endpointsPageActions.openEditModal(ep))}
                         >
-                          <Pencil className="w-4 h-4" />
-                        </button>
-                        <button
-                          className="p-1.5 rounded-md hover:bg-red-500/10 text-muted-foreground hover:text-red-400"
+                          <Pencil />
+                        </TableRowAction>
+                        <TableRowAction
+                          danger
                           title={t('common.delete')}
+                          aria-label={t('common.delete')}
                           onClick={() => {
                             if (window.confirm(t('endpoints.confirmDelete', { ext: ep.extension }))) {
                               deleteEndpoint(ep.id);
                             }
                           }}
                         >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </HStack>
+                          <Trash2 />
+                        </TableRowAction>
+                      </TableRowActions>
                     </HStack>
                   </div>
                 );

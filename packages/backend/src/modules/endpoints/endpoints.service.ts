@@ -598,9 +598,11 @@ export class EndpointsService {
     }
   }
 
-  async getBulkJobStatus(jobId: string): Promise<BulkJob> {
+  async getBulkJobStatus(jobId: string, userUid: number): Promise<BulkJob> {
     const job = await this.resolveJob(jobId);
-    if (!job) throw new NotFoundException('Job not found');
+    if (!job || job.tenantId !== String(userUid)) {
+      throw new NotFoundException('Job not found');
+    }
     return job;
   }
 

@@ -182,6 +182,64 @@ describe('RoutesService', () => {
     });
   });
 
+  describe('generateRouteDialplan — action order vs raw_dialplan', () => {
+    it('emits actions in array order when raw_dialplan is empty', () => {
+      const route = baseRoute({
+        extensions: ['2236246'],
+        name: '2236246',
+        actions: [
+          { type: 'voicerobot', params: { robot_uid: 4 }, condition: {} },
+          { type: 'toexten', params: { target: { source: 'fixed', value: '201' }, webrtc: true }, condition: {} },
+        ],
+      });
+
+      const dp = service.generateRouteDialplan(route, 0, false);
+      const stasis = dp.indexOf('Stasis(');
+      const dial = dp.indexOf('Dial(');
+      expect(stasis).toBeGreaterThan(-1);
+      expect(dial).toBeGreaterThan(-1);
+      expect(stasis).toBeLessThan(dial);
+    });
+
+    it('ignores a leftover raw snapshot when the action chain is present', () => {
+      const route = baseRoute({
+        extensions: ['2236246'],
+        name: '2236246',
+        actions: [
+          { type: 'voicerobot', params: { robot_uid: 4 }, condition: {} },
+          { type: 'toexten', params: { target: { source: 'fixed', value: '201' }, webrtc: true }, condition: {} },
+        ],
+        raw_dialplan: [
+          'exten => 2236246,1,NoOp(Route: 2236246)',
+          'same => n,Dial(PJSIP/e201_0&PJSIP/ew201_0,60,tThH)',
+          'same => n,Stasis(krasterisk_robot_dev,4)',
+        ].join('\n'),
+      });
+
+      const dp = service.generateRouteDialplan(route, 0, false);
+      expect(dp.indexOf('Stasis(')).toBeLessThan(dp.indexOf('Dial('));
+    });
+
+    it('uses stored raw_dialplan when dialplan_source is raw', () => {
+      const route = baseRoute({
+        extensions: ['2236246'],
+        actions: [
+          { type: 'voicerobot', params: { robot_uid: 4 }, condition: {} },
+          { type: 'toexten', params: { target: { source: 'fixed', value: '201' }, webrtc: true }, condition: {} },
+        ],
+        options: { dialplan_source: 'raw' },
+        raw_dialplan: [
+          'exten => 2236246,1,NoOp(Route: 2236246)',
+          'same => n,Dial(PJSIP/e201_0&PJSIP/ew201_0,60,tThH)',
+          'same => n,Stasis(krasterisk_robot_dev,4)',
+        ].join('\n'),
+      });
+
+      const dp = service.generateRouteDialplan(route, 0, false);
+      expect(dp.indexOf('Dial(')).toBeLessThan(dp.indexOf('Stasis('));
+    });
+  });
+
   describe('generateRouteDialplan — binding Gosub emission', () => {
     it('emits one Gosub(pb_bind_{uid}_{vpbx}) per binding, ordered by position ASC', () => {
       const route: any = {

@@ -7,7 +7,7 @@
 import { useTranslation } from 'react-i18next';
 import { motion } from 'motion/react';
 import { Phone, Plus, Layers } from 'lucide-react';
-import { Button } from '@/shared/ui';
+import { Button, Text } from '@/shared/ui';
 import { VStack, HStack } from '@/shared/ui/Stack';
 import { useAppDispatch } from '@/shared/hooks/useAppStore';
 import {
@@ -28,7 +28,7 @@ export const EndpointsPage = () => {
       <HStack justify="between" align="center" className="flex-col sm:flex-row gap-4 min-w-0" max>
         <HStack gap="12" align="center">
           <Phone className="w-7 h-7 text-primary shrink-0" />
-          <h1 className="text-2xl font-bold">{t('endpoints.title')}</h1>
+          <Text as="h1" className="text-2xl font-bold">{t('endpoints.title')}</Text>
         </HStack>
         <HStack gap="8" className="w-full sm:w-auto flex-col sm:flex-row">
           <Button

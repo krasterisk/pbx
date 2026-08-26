@@ -31,6 +31,13 @@ const TRANSPORT_OPTIONS = [
   { value: 'transport-tls', label: 'TLS' },
 ];
 
+const parseOptionalInt = (value: string): number | undefined => {
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  const n = parseInt(trimmed, 10);
+  return Number.isFinite(n) ? n : undefined;
+};
+
 export const TrunkFormModal = () => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
@@ -78,6 +85,8 @@ export const TrunkFormModal = () => {
   const [fromDomain, setFromDomain] = useState('');
   const [contactUser, setContactUser] = useState('');
   const [matchIp, setMatchIp] = useState('');
+  const [qualifyFrequency, setQualifyFrequency] = useState('');
+  const [registrationExpiration, setRegistrationExpiration] = useState('');
   const [advancedState, setAdvancedState] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -97,6 +106,12 @@ export const TrunkFormModal = () => {
       setFromDomain(selected.fromDomain || '');
       setContactUser(selected.contactUser || '');
       setMatchIp(selected.matchIp || '');
+      setQualifyFrequency(
+        selected.qualifyFrequency != null ? String(selected.qualifyFrequency) : '120',
+      );
+      setRegistrationExpiration(
+        selected.registrationExpiration != null ? String(selected.registrationExpiration) : '600',
+      );
 
       const initAdv: Record<string, string> = {};
       ADVANCED_PJSIP_FIELDS.forEach((key) => {
@@ -121,6 +136,8 @@ export const TrunkFormModal = () => {
       setFromDomain('');
       setContactUser('');
       setMatchIp('');
+      setQualifyFrequency('120');
+      setRegistrationExpiration('600');
       setAdvancedState({});
     }
   }, [mode, selected, isOpen]);
@@ -148,6 +165,9 @@ export const TrunkFormModal = () => {
           fromDomain: fromDomain || undefined,
           contactUser: contactUser || undefined,
           matchIp: matchIp || undefined,
+          qualifyFrequency: parseOptionalInt(qualifyFrequency),
+          registrationExpiration:
+            trunkType === 'auth' ? parseOptionalInt(registrationExpiration) : undefined,
           advanced: Object.keys(advancedState).length > 0 ? advancedState : undefined,
         }).unwrap();
       } else if (selected) {
@@ -165,6 +185,9 @@ export const TrunkFormModal = () => {
             fromDomain: fromDomain || undefined,
             contactUser: contactUser || undefined,
             matchIp: matchIp || undefined,
+            qualifyFrequency: parseOptionalInt(qualifyFrequency),
+            registrationExpiration:
+              trunkType === 'auth' ? parseOptionalInt(registrationExpiration) : undefined,
             advanced: Object.keys(advancedState).length > 0 ? advancedState : undefined,
           },
         }).unwrap();
@@ -432,6 +455,22 @@ export const TrunkFormModal = () => {
                         />
                       </VStack>
                     </HStack>
+
+                    <VStack gap="4">
+                      <HStack gap="4" align="center">
+                        <label htmlFor="trunk-match-ip-auth" className="text-sm font-medium text-muted-foreground">
+                          {t('trunks.matchIp', 'IP / Подсеть провайдера')}
+                        </label>
+                        <InfoTooltip text={t('trunks.matchIpAuthDesc', '**Пусто** - берётся Хост\n**IP или подсети** - входящие с этих адресов идут на этот транк\nБез совпадения вызов не попадёт на транк')} />
+                      </HStack>
+                      <Input
+                        id="trunk-match-ip-auth"
+                        value={matchIp}
+                        onChange={(e) => setMatchIp(e.target.value)}
+                        placeholder={host || t('trunks.matchIpPlaceholder', '203.0.113.0/24')}
+                        className="font-mono"
+                      />
+                    </VStack>
                   </>
                 ) : (
                   <>
@@ -508,6 +547,48 @@ export const TrunkFormModal = () => {
                     ))}
                   </Flex>
                 </VStack>
+
+                <HStack gap="16" align="start">
+                  <VStack gap="4" className="flex-1 relative focus-within:z-10">
+                    <HStack gap="4" align="center">
+                      <label htmlFor="trunk-qualify" className="text-sm font-medium text-muted-foreground">
+                        {t('trunks.qualifyFrequency')}
+                      </label>
+                      <InfoTooltip text={t('trunks.qualifyFrequencyDesc')} />
+                    </HStack>
+                    <Input
+                      id="trunk-qualify"
+                      type="number"
+                      min={0}
+                      max={3600}
+                      value={qualifyFrequency}
+                      onChange={(e) => setQualifyFrequency(e.target.value)}
+                      placeholder={t('trunks.qualifyFrequencyPlaceholder')}
+                      className="font-mono"
+                    />
+                  </VStack>
+
+                  {trunkType === 'auth' && (
+                    <VStack gap="4" className="flex-1 relative focus-within:z-10">
+                      <HStack gap="4" align="center">
+                        <label htmlFor="trunk-reg-exp" className="text-sm font-medium text-muted-foreground">
+                          {t('trunks.registrationExpiration')}
+                        </label>
+                        <InfoTooltip text={t('trunks.registrationExpirationDesc')} />
+                      </HStack>
+                      <Input
+                        id="trunk-reg-exp"
+                        type="number"
+                        min={60}
+                        max={86400}
+                        value={registrationExpiration}
+                        onChange={(e) => setRegistrationExpiration(e.target.value)}
+                        placeholder={t('trunks.registrationExpirationPlaceholder')}
+                        className="font-mono"
+                      />
+                    </VStack>
+                  )}
+                </HStack>
               </VStack>
             )}
 

@@ -132,6 +132,8 @@ export interface IRouteOptions {
   record_stereo?: boolean;
   pre_command?: string;
   route_type?: number; // outbound type (1-5)
+  /** Table chain vs Dialplan tab. Missing + non-empty actions → generate from actions. */
+  dialplan_source?: 'actions' | 'raw';
 }
 
 export interface IRouteWebhooks {

@@ -663,11 +663,33 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
     });
 
     it('voicerobot with filled robot_uid emits Stasis', () => {
-      const dp = AsteriskDialplanUtils.actionToDialplan(
-        { type: 'voicerobot', params: { robot_uid: 9 }, condition: {} },
-        vpbx,
-      );
-      expect(dp).toBe('Stasis(krasterisk_voicerobots,9)');
+      const prev = process.env.ARI_APP_NAME;
+      delete process.env.ARI_APP_NAME;
+      try {
+        const dp = AsteriskDialplanUtils.actionToDialplan(
+          { type: 'voicerobot', params: { robot_uid: 9 }, condition: {} },
+          vpbx,
+        );
+        expect(dp).toBe('Stasis(krasterisk_voicerobots,9)');
+      } finally {
+        if (prev === undefined) delete process.env.ARI_APP_NAME;
+        else process.env.ARI_APP_NAME = prev;
+      }
+    });
+
+    it('voicerobot Stasis app name follows ARI_APP_NAME', () => {
+      const prev = process.env.ARI_APP_NAME;
+      process.env.ARI_APP_NAME = 'krasterisk_robot_dev';
+      try {
+        const dp = AsteriskDialplanUtils.actionToDialplan(
+          { type: 'voicerobot', params: { robot_uid: 9 }, condition: {} },
+          vpbx,
+        );
+        expect(dp).toBe('Stasis(krasterisk_robot_dev,9)');
+      } finally {
+        if (prev === undefined) delete process.env.ARI_APP_NAME;
+        else process.env.ARI_APP_NAME = prev;
+      }
     });
 
     it('voicerobot with empty params emits NoOp(Missing Robot UID)', () => {

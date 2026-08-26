@@ -38,6 +38,7 @@
   margin-left: -6px;
   color: var(--color-muted-foreground);
   cursor: grab;
+  touch-action: none;
 }
 
 .handle:active {

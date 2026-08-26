@@ -15,6 +15,7 @@ import { emitPlayback } from './dialplan-playback.util';
 import { buildCurlCall } from './dialplan-curl.util';
 import { emitHttpRequest } from './dialplan-http.util';
 import { buildTrunkCarousel } from './dialplan-trunk-carousel.util';
+import { resolveAriAppName } from '../../modules/ari/ari-app-name';
 
 function logCmdApply(action: { id?: number; uid?: number; params?: { command?: string } }, vpbxUserUid: number): void {
   const command = String(action?.params?.command ?? '');
@@ -361,7 +362,7 @@ export class AsteriskDialplanUtils {
       case 'voicerobot': {
         const robotUid = parseInt(params.robot_uid, 10);
         dp = robotUid
-          ? `Stasis(krasterisk_voicerobots,${robotUid})`
+          ? `Stasis(${resolveAriAppName()},${robotUid})`
           : `NoOp(Missing Robot UID)`;
         break;
       }

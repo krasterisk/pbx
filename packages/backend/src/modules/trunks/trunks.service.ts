@@ -8,6 +8,17 @@ import { PsRegistration } from './ps-registration.model';
 import { PsEndpointIdIp } from './ps-endpoint-id-ip.model';
 import { AmiService } from '../ami/ami.service';
 import { LoggerService } from '../logger/logger.service';
+import {
+  identifyNeedsSrvLookup,
+  identifyRowId,
+  parseIdentifyMatches,
+} from './trunk-identify.util';
+import {
+  DEFAULT_QUALIFY_FREQUENCY,
+  resolveQualifyFrequency,
+  resolveRegistrationExpiration,
+} from './trunk-timers.util';
+import { Transaction } from 'sequelize';
 
 export interface CreateTrunkDto {
   name: string;
@@ -23,6 +34,8 @@ export interface CreateTrunkDto {
   fromDomain?: string;
   contactUser?: string;
   matchIp?: string;
+  qualifyFrequency?: number;
+  registrationExpiration?: number;
   advanced?: Record<string, any>;
 }
 
@@ -38,6 +51,8 @@ export interface UpdateTrunkDto {
   fromDomain?: string;
   contactUser?: string;
   matchIp?: string;
+  qualifyFrequency?: number;
+  registrationExpiration?: number;
   advanced?: Record<string, any>;
 }
 
@@ -88,7 +103,7 @@ export class TrunksService {
     const trunkIds = trunkEndpoints.map((ep) => ep.id);
 
     // Load related data in parallel
-    const [auths, registrations, idIps] = await Promise.all([
+    const [auths, registrations, idIps, aors] = await Promise.all([
       trunkIds.length
         ? this.authModel.findAll({ where: { id: trunkIds } })
         : [],
@@ -98,11 +113,21 @@ export class TrunksService {
       trunkIds.length
         ? this.endpointIdIpModel.findAll({ where: { endpoint: trunkIds } })
         : [],
+      trunkIds.length
+        ? this.aorModel.findAll({ where: { id: trunkIds } })
+        : [],
     ]);
 
     const authMap = new Map(auths.map((a) => [a.id, a]));
     const regMap = new Map(registrations.map((r) => [r.id, r]));
-    const ipMap = new Map(idIps.map((ip) => [ip.endpoint, ip]));
+    const aorMap = new Map(aors.map((a) => [a.id, a]));
+    const ipMap = new Map<string, string[]>();
+    for (const ip of idIps) {
+      if (!ip.endpoint || !ip.match) continue;
+      const list = ipMap.get(ip.endpoint) ?? [];
+      list.push(ip.match);
+      ipMap.set(ip.endpoint, list);
+    }
 
     // Try to get live registration statuses from AMI
     let regStatuses = new Map<string, string>();
@@ -124,7 +149,6 @@ export class TrunksService {
     return trunkEndpoints.map((ep) => {
       const auth = authMap.get(ep.id);
       const reg = regMap.get(ep.id);
-      const idIp = ipMap.get(ep.id);
       const trunkType = reg ? 'auth' : 'ip';
       const liveStatus = regStatuses.get(ep.id) || null;
 
@@ -132,7 +156,7 @@ export class TrunksService {
         id: ep.id,
         name: this.extractTrunkName(ep.id, vpbxUserUid),
         trunkType,
-        host: reg?.server_uri?.replace('sip:', '').split('@').pop() || idIp?.match || '',
+        host: reg?.server_uri?.replace('sip:', '').split('@').pop() || ipMap.get(ep.id)?.[0] || '',
         context: this.stripContext(ep.context, vpbxUserUid),
         transport: ep.transport || '',
         codecs: ep.allow || '',
@@ -140,7 +164,9 @@ export class TrunksService {
         fromUser: ep.from_user || '',
         fromDomain: ep.from_domain || '',
         contactUser: reg?.contact_user || '',
-        matchIp: idIp?.match || '',
+        matchIp: (ipMap.get(ep.id) ?? []).join(', '),
+        qualifyFrequency: aorMap.get(ep.id)?.qualify_frequency ?? DEFAULT_QUALIFY_FREQUENCY,
+        registrationExpiration: reg?.expiration ?? null,
         registrationStatus: trunkType === 'auth' ? (liveStatus || 'unknown') : null,
         serverUri: reg?.server_uri || '',
         clientUri: reg?.client_uri || '',
@@ -210,7 +236,8 @@ export class TrunksService {
       await this.aorModel.create(
         {
           id: trunkId,
-          qualify_frequency: 60,
+          contact: this.buildAorContact(dto.host, dto.port),
+          qualify_frequency: resolveQualifyFrequency(dto.qualifyFrequency),
         },
         { transaction: t },
       );
@@ -227,19 +254,20 @@ export class TrunksService {
           endpoint: trunkId,
           retry_interval: 60,
           forbidden_retry_interval: 300,
-          expiration: 3600,
+          expiration: resolveRegistrationExpiration(dto.registrationExpiration),
           line: 'yes',
           type: 'registration',
         },
         { transaction: t },
       );
 
-      // 4. Endpoint
+      // 4. Endpoint — outbound_auth for REGISTER; inbound identify is by IP (not InAuth)
       await this.endpointModel.create(
         {
           id: trunkId,
           tenantid: String(vpbxUserUid),
-          auth: trunkId,
+          auth: null,
+          outbound_auth: trunkId,
           aors: trunkId,
           context,
           disallow: 'all',
@@ -247,21 +275,28 @@ export class TrunksService {
           transport: dto.transport || null,
           from_user: dto.fromUser || dto.username || '',
           from_domain: dto.fromDomain || dto.host || '',
+          identify_by: 'ip,username',
           direct_media: 'no',
+          force_rport: 'yes',
+          rewrite_contact: 'yes',
+          rtp_symmetric: 'yes',
+          ice_support: 'no',
+          webrtc: 'no',
           dtmf_mode: 'auto',
           language: 'ru',
           ...(dto.advanced || {}),
         },
         { transaction: t },
       );
+
+      await this.replaceIdentifyRows(trunkId, dto.matchIp || dto.host, t);
     });
 
-    // Trigger AMI registration
+    // Trigger AMI registration + IP identifier (inbound match)
     try {
       if (this.amiService.isConnected()) {
-        // Reload the registration module so Asterisk picks up the new record
         await this.amiService.moduleReload('res_pjsip_outbound_registration.so');
-        // Then register the specific trunk
+        await this.amiService.moduleReload('res_pjsip_endpoint_identifier_ip.so');
         await this.amiService.pjsipRegister(trunkId);
         this.logger.log(`✅ AMI PJSIPRegister sent for ${trunkId}`);
       }
@@ -296,7 +331,8 @@ export class TrunksService {
       await this.aorModel.create(
         {
           id: trunkId,
-          qualify_frequency: 60,
+          contact: this.buildAorContact(dto.host, dto.port),
+          qualify_frequency: resolveQualifyFrequency(dto.qualifyFrequency),
         },
         { transaction: t },
       );
@@ -321,16 +357,7 @@ export class TrunksService {
         { transaction: t },
       );
 
-      // 3. Identify by IP
-      await this.endpointIdIpModel.create(
-        {
-          id: `${trunkId}_identify`,
-          endpoint: trunkId,
-          match: matchIp,
-          type: 'identify',
-        },
-        { transaction: t },
-      );
+      await this.replaceIdentifyRows(trunkId, matchIp, t);
     });
 
     // Reload IP identifier module so Asterisk picks up changes
@@ -387,6 +414,13 @@ export class TrunksService {
       if (dto.fromUser !== undefined) endpointUpdate.from_user = dto.fromUser;
       if (dto.fromDomain !== undefined) endpointUpdate.from_domain = dto.fromDomain;
       if (dto.advanced) Object.assign(endpointUpdate, dto.advanced);
+      if (isAuth) {
+        endpointUpdate.outbound_auth = trunkId;
+        endpointUpdate.auth = null;
+        if (endpointUpdate.identify_by === undefined) {
+          endpointUpdate.identify_by = 'ip,username';
+        }
+      }
 
       if (Object.keys(endpointUpdate).length) {
         await this.endpointModel.update(endpointUpdate, {
@@ -396,7 +430,6 @@ export class TrunksService {
       }
 
       if (isAuth) {
-        // Update auth
         const authUpdate: any = {};
         if (dto.username) authUpdate.username = dto.username;
         if (dto.password) authUpdate.password = dto.password;
@@ -407,7 +440,6 @@ export class TrunksService {
           });
         }
 
-        // Update registration
         const regUpdate: any = {};
         
         const shouldUpdateUri = dto.host !== undefined || dto.port !== undefined || 
@@ -431,31 +463,48 @@ export class TrunksService {
         
         if (dto.contactUser) regUpdate.contact_user = dto.contactUser;
         if (dto.transport !== undefined) regUpdate.transport = dto.transport || null;
+        if (dto.registrationExpiration !== undefined) {
+          regUpdate.expiration = resolveRegistrationExpiration(dto.registrationExpiration);
+        }
         if (Object.keys(regUpdate).length) {
           await this.registrationModel.update(regUpdate, {
             where: { id: trunkId },
             transaction: t,
           });
         }
-      } else {
-        // Update identify
-        if (dto.matchIp || dto.host) {
-          await this.endpointIdIpModel.update(
-            { match: dto.matchIp || dto.host },
-            { where: { endpoint: trunkId }, transaction: t },
-          );
-        }
+      }
+
+      const identifySource = dto.matchIp
+        || dto.host
+        || (isAuth ? reg?.server_uri?.replace(/^sip:/i, '').split(':')[0] : null);
+      if (identifySource) {
+        await this.replaceIdentifyRows(trunkId, identifySource, t);
+      }
+
+      const aorUpdate: Record<string, unknown> = {};
+      if (dto.host) {
+        aorUpdate.contact = this.buildAorContact(dto.host, dto.port);
+      }
+      if (dto.qualifyFrequency !== undefined) {
+        aorUpdate.qualify_frequency = resolveQualifyFrequency(dto.qualifyFrequency);
+      }
+      if (Object.keys(aorUpdate).length) {
+        await this.aorModel.update(aorUpdate, {
+          where: { id: trunkId },
+          transaction: t,
+        });
       }
     });
 
-    // Trigger appropriate AMI reload
     try {
       if (this.amiService.isConnected()) {
+        await this.amiService.moduleReload('res_pjsip_endpoint_identifier_ip.so');
         if (isAuth) {
           await this.amiService.moduleReload('res_pjsip_outbound_registration.so');
           await this.amiService.pjsipRegister(trunkId);
-        } else {
-          await this.amiService.moduleReload('res_pjsip_endpoint_identifier_ip.so');
+        }
+        if (dto.qualifyFrequency !== undefined) {
+          await this.amiService.pjsipReload();
         }
       }
     } catch (e: any) {
@@ -566,5 +615,33 @@ export class TrunksService {
   private async ensureUnique(trunkId: string): Promise<void> {
     const exists = await this.endpointModel.findByPk(trunkId);
     if (exists) throw new ConflictException(`Trunk with this name already exists`);
+  }
+
+  private buildAorContact(host: string, port?: number): string {
+    const clean = host.replace(/^sip:/i, '').trim();
+    return port ? `sip:${clean}:${port}` : `sip:${clean}`;
+  }
+
+  /** Replace all identify rows so inbound INVITEs match this trunk (auth + IP). */
+  private async replaceIdentifyRows(
+    trunkId: string,
+    raw: string | undefined,
+    transaction: Transaction,
+  ): Promise<void> {
+    const matches = parseIdentifyMatches(raw);
+    await this.endpointIdIpModel.destroy({ where: { endpoint: trunkId }, transaction });
+    for (let i = 0; i < matches.length; i++) {
+      const match = matches[i];
+      await this.endpointIdIpModel.create(
+        {
+          id: identifyRowId(trunkId, i),
+          endpoint: trunkId,
+          match,
+          type: 'identify',
+          srv_lookups: identifyNeedsSrvLookup(match) ? 'yes' : 'no',
+        },
+        { transaction },
+      );
+    }
   }
 }

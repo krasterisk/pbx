@@ -54,28 +54,13 @@ export class DialplanSubroutinesService implements OnModuleInit {
     const recordsBase = this.config.get<string>('RECORDS_BASE_PATH') || '/usr/records';
 
     const content = DialplanSubroutinesUtil.generate(backendUrl, apiKey, recordsBase);
-
-    // Parse content into individual dialplan lines for AMI
-    // Strip comments and blank lines — AMI UpdateConfig doesn't support them
-    const allLines = content.split('\n');
-    const contexts: Array<{ name: string; lines: string[] }> = [];
-    let currentContext: { name: string; lines: string[] } | null = null;
-
-    for (const raw of allLines) {
-      const line = raw.trim();
-      if (!line || line.startsWith(';')) continue;
-
-      const ctxMatch = line.match(/^\[([^\]]+)\]$/);
-      if (ctxMatch) {
-        if (currentContext) contexts.push(currentContext);
-        currentContext = { name: ctxMatch[1], lines: [] };
-      } else if (currentContext) {
-        currentContext.lines.push(line);
-      }
-    }
-    if (currentContext) contexts.push(currentContext);
-
+    const contexts = DialplanSubroutinesUtil.parseCategories(content);
     const file = DialplanSubroutinesService.SUBROUTINES_FILE;
+
+    // A leftover [ctx] in the same file (failed DelCat) makes Asterisk merge
+    // two copies of the same extension. Purge each name twice, then rewrite.
+    const names = contexts.map((ctx) => ctx.name);
+    await this.dialplanApplyService.deleteCategories(file, [...names, ...names], { reload: false });
 
     const result = await this.dialplanApplyService.applyCategories(file, contexts, { reload: true });
 

@@ -259,7 +259,7 @@ export class VoiceRobotSession {
       //    The 'data' param passes our channelId so ChannelVarset events can be routed back
       this.externalChannel = await this.ariClient.externalMedia(
         null, // Asterisk assigns channel ID
-        'krasterisk_voicerobots',
+        this.ariClient.getAppName(),
         `${this.externalHost}:${this.rtpSession.port}`,
         'alaw',
         this.channelId, // data = parent channel ID for routing

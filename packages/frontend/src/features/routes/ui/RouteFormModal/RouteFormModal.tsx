@@ -13,6 +13,7 @@ import { useAppSelector, useAppDispatch } from '@/shared/hooks/useAppStore';
 import { selectCurrentUser } from '@/entities/User';
 import { ensureCdrVpbxUserUidInDialplan } from '@krasterisk/shared';
 import { routesActions } from '../../model/slice/routesSlice';
+import { resolveRouteRawDialplanPayload } from '../../model/lib/resolveRouteRawDialplanPayload';
 
 import { isValueSourceComplete } from '@/features/dialplan-apps/ui/ValueSourceField/ValueSourceField';
 import { useGetTenantSettingsQuery } from '@/entities/tenantSettings';
@@ -174,6 +175,7 @@ export const RouteFormModal = memo(() => {
       record_stereo: record && recordStereo ? true : undefined,
       pre_command: preCommand || undefined,
       route_type: routeType || undefined,
+      dialplan_source: showRawDialplan && editorMode === 'raw' ? 'raw' : 'actions',
     };
 
     const webhooksPayload: any = {};
@@ -213,13 +215,22 @@ export const RouteFormModal = memo(() => {
       actions: b.actions ? sanitizeActions(b.actions) : undefined,
     }));
 
+    const nextActions = sanitizeActions(actions);
+    const actionsChanged =
+      JSON.stringify(nextActions) !== JSON.stringify(sanitizeActions(selectedRoute?.actions));
+
     const data = {
       name, extensions, active: active ? 1 : 0,
-      options, webhooks: webhooksPayload, actions: sanitizeActions(actions),
+      options, webhooks: webhooksPayload, actions: nextActions,
       bindings: bindingsPayload,
-      raw_dialplan: showRawDialplan && editorMode === 'raw' && rawDialplan.trim()
-        ? ensureCdrVpbxUserUidInDialplan(rawDialplan, vpbxUserUid)
-        : rawDialplan || undefined,
+      raw_dialplan: resolveRouteRawDialplanPayload({
+        showRawDialplan,
+        editorMode,
+        rawDialplan,
+        loadedRawDialplan: selectedRoute?.raw_dialplan || '',
+        vpbxUserUid,
+        actionsChanged,
+      }),
       context_uid: contextUid,
     };
 

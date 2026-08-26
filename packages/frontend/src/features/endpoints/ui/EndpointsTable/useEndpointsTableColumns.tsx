@@ -1,12 +1,12 @@
-import { memo, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { createColumnHelper } from '@tanstack/react-table';
 import { Pencil, Trash2, Key } from 'lucide-react';
 import { HStack } from '@/shared/ui/Stack';
-import { Button } from '@/shared/ui';
+import { TableRowActions, TableRowAction } from '@/shared/ui';
 import { useAppDispatch } from '@/shared/hooks/useAppStore';
 import { endpointsPageActions } from '../../model/slice/endpointsPageSlice';
-import { useDeleteEndpointMutation, useLazyGetEndpointCredentialsQuery } from '@/shared/api/endpoints/endpointApi';
+import { useDeleteEndpointMutation } from '@/shared/api/endpoints/endpointApi';
 import type { IEndpointListItem } from '@/shared/api/endpoints/endpointApi';
 
 const columnHelper = createColumnHelper<IEndpointListItem>();
@@ -77,7 +77,9 @@ export const useEndpointsTableColumns = () => {
                 {isOnline ? t('endpoints.statusOnline') : t('endpoints.statusOffline')}
               </span>
               {webrtcEnabled && (
-                <span
+                <HStack
+                  gap="4"
+                  align="center"
                   className={`text-[10px] px-1.5 py-0.5 rounded border ${
                     webrtc?.status === 'online'
                       ? 'border-sky-500/40 text-sky-400 bg-sky-500/10'
@@ -85,8 +87,13 @@ export const useEndpointsTableColumns = () => {
                   }`}
                   title={webrtc?.id || 'WebRTC'}
                 >
-                  WebRTC {webrtc?.status === 'online' ? '●' : '○'}
-                </span>
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full ${
+                      webrtc?.status === 'online' ? 'bg-sky-400' : 'bg-zinc-500'
+                    }`}
+                  />
+                  WebRTC
+                </HStack>
               )}
               {lastReg && (
                 <span className="text-[10px] text-zinc-500 hidden sm:inline">
@@ -120,38 +127,34 @@ export const useEndpointsTableColumns = () => {
         cell: (info) => {
           const ep = info.row.original;
           return (
-            <HStack gap="4">
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 gap-2 text-xs font-semibold text-emerald-500 hover:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border-emerald-500/30"
+            <TableRowActions>
+              <TableRowAction
+                title={t('endpoints.btnSip')}
+                aria-label={t('endpoints.btnSip')}
                 onClick={() => dispatch(endpointsPageActions.openCredentialsModal(ep.id))}
               >
-                <Key className="w-3 h-3" />
-                <span className="hidden sm:inline">{t('endpoints.btnSip', 'SIP')}</span>
-                <span className="sm:hidden">SIP</span>
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
+                <Key />
+              </TableRowAction>
+              <TableRowAction
+                title={t('common.edit')}
+                aria-label={t('common.edit')}
                 onClick={() => dispatch(endpointsPageActions.openEditModal(ep))}
               >
-                <Pencil className="w-4 h-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-destructive hover:text-destructive"
+                <Pencil />
+              </TableRowAction>
+              <TableRowAction
+                danger
+                title={t('common.delete')}
+                aria-label={t('common.delete')}
                 onClick={() => {
                   if (window.confirm(t('endpoints.confirmDelete', { ext: ep.extension }))) {
                     deleteEndpoint(ep.id);
                   }
                 }}
               >
-                <Trash2 className="w-4 h-4" />
-              </Button>
-            </HStack>
+                <Trash2 />
+              </TableRowAction>
+            </TableRowActions>
           );
         },
       }),

@@ -426,7 +426,7 @@ export class VoiceRobotsService implements OnApplicationShutdown, OnModuleInit {
       lines.push(`; ===== Voice Robot: ${robot.name} (UID: ${robot.uid}) =====`);
       lines.push(`[voicerobot_${robot.uid}]`);
       lines.push(`exten => s,1,NoOp(Starting Voice Robot: ${robot.name})`);
-      lines.push(`same => n,Stasis(krasterisk_voicerobots, ${robot.uid})`);
+      lines.push(`same => n,Stasis(${this.ariClient.getAppName()}, ${robot.uid})`);
       lines.push(`same => n,GotoIf($["\${ROBOT_STATUS}" = "SUCCESS"]?end_robot)`);
 
       // Max retries handler
@@ -492,7 +492,7 @@ export class VoiceRobotsService implements OnApplicationShutdown, OnModuleInit {
   @OnEvent('ari.StasisStart')
   async handleStasisStart(event: any) {
     // Only handle events for our app
-    if (event.application !== 'krasterisk_voicerobots') return;
+    if (event.application !== this.ariClient.getAppName()) return;
 
     // Ignore second-leg channels (UnicastRTP/Snoop)
     if (event.channel?.name?.startsWith('UnicastRTP/')) return;

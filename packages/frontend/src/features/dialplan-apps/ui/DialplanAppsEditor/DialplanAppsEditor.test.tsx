@@ -82,16 +82,6 @@ vi.mock('@/shared/api/endpoints/notificationApi', () => ({
   useGetNotificationsQuery: () => ({ data: [], isLoading: false }),
 }));
 
-vi.mock('@dnd-kit/core', async () => {
-  const actual = await vi.importActual<typeof import('@dnd-kit/core')>('@dnd-kit/core');
-  return {
-    ...actual,
-    DragOverlay: ({ children }: { children?: React.ReactNode }) => (
-      <div data-testid="chain-drag-overlay">{children}</div>
-    ),
-  };
-});
-
 const specDir = dirname(fileURLToPath(import.meta.url));
 
 function step(id: string, type: ActionType = 'hangup', extras: Partial<IRouteAction> = {}): IRouteAction {
@@ -174,10 +164,12 @@ describe('DialplanAppsEditor', () => {
     expect(screen.getByRole('button', { name: /добавить действие/i })).not.toBeDisabled();
   });
 
-  it('mounts DragOverlay and exposes ru/en dnd announcements', () => {
-    render(<Harness actions={[step('a', 'hangup')]} onChange={vi.fn()} />);
-    expect(screen.getAllByTestId('chain-drag-overlay').length).toBeGreaterThan(0);
+  it('does not use DragOverlay (Radix dialog translate breaks overlay position)', () => {
+    const src = readFileSync(join(specDir, 'DialplanAppsEditor.tsx'), 'utf8');
+    expect(src).not.toMatch(/DragOverlay/);
+  });
 
+  it('exposes ru/en dnd announcements', () => {
     const ruT = (key: string, fallback?: string) => fallback ?? key;
     const enT = (key: string, fallback?: string) => fallback ?? key;
     const ruAnn = buildDndAnnouncements(ruT, 'ru');

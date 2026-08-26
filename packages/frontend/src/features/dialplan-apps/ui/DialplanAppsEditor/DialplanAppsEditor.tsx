@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import { AlertTriangle, ListPlus, Plus } from 'lucide-react';
 import {
   DndContext,
-  DragOverlay,
   KeyboardSensor,
   PointerSensor,
   closestCenter,
@@ -11,7 +10,6 @@ import {
   useSensors,
   type Announcements,
   type DragEndEvent,
-  type DragStartEvent,
 } from '@dnd-kit/core';
 import {
   SortableContext,
@@ -141,7 +139,9 @@ function SortableStepRow(
         ...style,
         transform: CSS.Transform.toString(sortable.transform),
         transition: sortable.transition,
-        opacity: sortable.isDragging ? 0.6 : 1,
+        opacity: sortable.isDragging ? 0.85 : 1,
+        zIndex: sortable.isDragging ? 2 : undefined,
+        position: sortable.isDragging ? 'relative' : undefined,
       }}
     />
   );
@@ -166,7 +166,6 @@ export const DialplanAppsEditor = memo(function DialplanAppsEditor({
   const [removedStack, setRemovedStack] = useState<RemovedEntry[]>([]);
   const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
   const [, setSelectedSection] = useState<StepSection>('params');
-  const [activeId, setActiveId] = useState<string | null>(null);
   const [undoVisible, setUndoVisible] = useState(false);
   const undoTimer = useRef<number | null>(null);
 
@@ -180,7 +179,7 @@ export const DialplanAppsEditor = memo(function DialplanAppsEditor({
     menuIndex >= 0 ? Math.max(0, actions.length - menuIndex - 1) : 0;
 
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     }),
@@ -233,13 +232,8 @@ export const DialplanAppsEditor = memo(function DialplanAppsEditor({
     [actions, i18n?.language, t],
   );
 
-  const handleDragStart = (event: DragStartEvent) => {
-    setActiveId(String(event.active.id));
-  };
-
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
-    setActiveId(null);
     if (!over || active.id === over.id) return;
     const from = actions.findIndex((item) => item.id === active.id);
     const to = actions.findIndex((item) => item.id === over.id);
@@ -251,7 +245,6 @@ export const DialplanAppsEditor = memo(function DialplanAppsEditor({
   const selectedIndex = selectedAction
     ? actions.findIndex((item) => item.id === selectedAction.id) + 1
     : 1;
-  const activeAction = actions.find((item) => item.id === activeId) ?? null;
   const addLabel = t('routes.addAction', 'Добавить действие');
   const limitTooltip = t('routes.chain.limitReached', 'Достигнут предел: {{max}} действий').replace(
     '{{max}}',
@@ -367,9 +360,7 @@ export const DialplanAppsEditor = memo(function DialplanAppsEditor({
           collisionDetection={closestCenter}
           modifiers={[restrictToVerticalAxisLocal]}
           accessibility={{ announcements }}
-          onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
-          onDragCancel={() => setActiveId(null)}
         >
           <SortableContext items={actions.map((item) => item.id)} strategy={verticalListSortingStrategy}>
             <VStack gap="8" className={styles.list} role="list">
@@ -433,20 +424,6 @@ export const DialplanAppsEditor = memo(function DialplanAppsEditor({
               ))}
             </VStack>
           </SortableContext>
-          <DragOverlay>
-            {activeAction ? (
-              <StepRow
-                action={activeAction}
-                index={actions.findIndex((item) => item.id === activeAction.id)}
-                density={density}
-                onOpenStep={() => undefined}
-                onDuplicate={() => undefined}
-                onToggleEnabled={() => undefined}
-                onRemove={() => undefined}
-                onCopy={() => undefined}
-              />
-            ) : null}
-          </DragOverlay>
         </DndContext>
       )}
 

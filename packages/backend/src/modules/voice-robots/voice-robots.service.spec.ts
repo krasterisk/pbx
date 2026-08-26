@@ -21,6 +21,7 @@ describe('VoiceRobotsService.generateAllVoiceRobotContexts (Wave 0 characterizat
     groupModel = { findAll: jest.fn().mockResolvedValue([]) };
     keywordModel = { findAll: jest.fn().mockResolvedValue([]) };
     const configService = { get: jest.fn().mockReturnValue('127.0.0.1') };
+    const ariClient = { getAppName: () => 'krasterisk_voicerobots' };
     service = new VoiceRobotsService(
       voiceRobotModel as any,
       groupModel as any,
@@ -30,7 +31,7 @@ describe('VoiceRobotsService.generateAllVoiceRobotContexts (Wave 0 characterizat
       {} as any,
       {} as any,
       {} as any,
-      {} as any,
+      ariClient as any,
       {} as any,
       {} as any,
       {} as any,
