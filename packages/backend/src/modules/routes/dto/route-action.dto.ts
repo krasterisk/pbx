@@ -179,6 +179,10 @@ export class CreateRouteDto {
   actions: RouteActionDto[];
 
   @IsOptional()
+  @IsString()
+  raw_dialplan?: string;
+
+  @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => RoutePhonebookBindingDto)

@@ -143,12 +143,11 @@ export const VoiceRobotForm = memo(({ initialRobot }: VoiceRobotFormProps) => {
     try {
       if (initialRobot) {
         await updateRobot({ uid: initialRobot.uid, data }).unwrap();
+        navigate('/voice-robots');
       } else {
         const result = await createRobot(data).unwrap();
-        // Option 1: navigate to edit if you want to stay
-        // navigate(`/voice-robots/${result.uid}`);
+        navigate(`/voice-robots/${result.uid}`);
       }
-      navigate('/voice-robots');
     } catch (err) {
       console.error('Failed to save voice robot:', err);
     }
@@ -201,7 +200,19 @@ export const VoiceRobotForm = memo(({ initialRobot }: VoiceRobotFormProps) => {
           )}
 
           {activeTab === 'dialogue' && (
-            <VoiceRobotDialogueTab selectedRobot={initialRobot ?? null} />
+            <VoiceRobotDialogueTab
+              selectedRobot={initialRobot ?? null}
+              onImportedRobotFields={(patch) => {
+                if (patch.greeting_tts_text !== undefined) setGreetingText(patch.greeting_tts_text || '');
+                if (patch.initial_group_id !== undefined) setInitialGroupId(patch.initial_group_id ?? null);
+                if (patch.fallback_bot_action !== undefined) {
+                  setFallbackBotAction(patch.fallback_bot_action ?? { ...DEFAULT_FALLBACK_ACTION });
+                }
+                if (patch.max_retries_bot_action !== undefined) {
+                  setMaxRetriesBotAction(patch.max_retries_bot_action ?? { ...DEFAULT_FALLBACK_ACTION });
+                }
+              }}
+            />
           )}
 
           {activeTab === 'settings' && (

@@ -2,21 +2,26 @@ import { memo, useMemo, useRef, useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Bot, User, ArrowRight, Globe, PhoneForwarded,
-  PhoneOff, Repeat, MessageSquare, Mic, FolderOpen, ShieldAlert, FileDown,
+  PhoneOff, Repeat, MessageSquare, Mic, FolderOpen, ShieldAlert, FileDown, FileText,
   Volume2, MinusCircle,
 } from 'lucide-react';
 import { VStack, HStack, Text, Button } from '@/shared/ui';
-import { IVoiceRobotKeywordGroup, IVoiceRobotKeyword, IVoiceRobotBotAction } from '@/entities/voiceRobot';
+import { IVoiceRobot, IVoiceRobotKeywordGroup, IVoiceRobotKeyword, IVoiceRobotBotAction } from '@/entities/voiceRobot';
 import {
   useGetVoiceRobotKeywordGroupsQuery,
   useGetVoiceRobotKeywordsQuery,
+  useGetVoiceRobotQuery,
+  useLazyGetVoiceRobotKeywordsQuery,
 } from '@/shared/api/endpoints/voiceRobotsApi';
 import { useGetVoiceRobotDataListsQuery } from '@/shared/api/endpoints/voiceRobotDataListsApi';
 import { useReactToPrint } from 'react-to-print';
+import { buildScenarioExport, downloadJsonFile } from '../../model/scenarioExport';
+import { ScenarioImportButton } from '../ScenarioImportButton/ScenarioImportButton';
 
 interface ScenarioTreePreviewProps {
   robotId: number;
   greetingText?: string;
+  onImportedRobotFields?: (patch: Partial<IVoiceRobot>) => void;
 }
 
 /** Wrapper that fetches keywords for a single group and renders its tree nodes */
@@ -239,11 +244,15 @@ ActionSummaryNode.displayName = 'ActionSummaryNode';
  * FSD layer: features/voiceRobots/ui
  */
 export const ScenarioTreePreview = memo(({
-  robotId, greetingText,
+  robotId, greetingText, onImportedRobotFields,
 }: ScenarioTreePreviewProps) => {
   const { t } = useTranslation();
 
+  const { data: robot } = useGetVoiceRobotQuery(robotId);
   const { data: groups = [] } = useGetVoiceRobotKeywordGroupsQuery(robotId);
+  const { data: dataLists = [] } = useGetVoiceRobotDataListsQuery(robotId);
+  const [getKeywords] = useLazyGetVoiceRobotKeywordsQuery();
+  const [exporting, setExporting] = useState(false);
   const activeGroups = useMemo(() => groups.filter(g => g.active), [groups]);
   const treeRef = useRef<HTMLDivElement>(null);
 
@@ -251,6 +260,27 @@ export const ScenarioTreePreview = memo(({
     contentRef: treeRef,
     documentTitle: t('voiceRobots.preview.treeTitle', 'Дерево сценариев') + `_ID${robotId}`,
   });
+
+  const handleExportJson = useCallback(async () => {
+    setExporting(true);
+    try {
+      const keywordsByGroupId: Record<number, IVoiceRobotKeyword[]> = {};
+      await Promise.all(
+        groups.map(async (group) => {
+          keywordsByGroupId[group.uid] = await getKeywords(group.uid).unwrap();
+        }),
+      );
+      const payload = buildScenarioExport({
+        robot,
+        groups,
+        keywordsByGroupId,
+        dataLists,
+      });
+      downloadJsonFile(payload, `voice-robot-scenario_${robotId}.json`);
+    } finally {
+      setExporting(false);
+    }
+  }, [dataLists, getKeywords, groups, robot, robotId]);
   return (
     <div ref={treeRef} className="tree-container print:p-8 print:bg-white">
       <style>{`
@@ -281,15 +311,28 @@ export const ScenarioTreePreview = memo(({
           <Text variant="xs" className="text-muted-foreground ml-auto">
           {t('voiceRobots.preview.groupsCount', '{{count}} групп', { count: activeGroups.length })}
         </Text>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => handleExportPdf()}
-          className="print:hidden ml-2"
-        >
-          <FileDown className="w-4 h-4 mr-1.5" />
-          {t('voiceRobots.preview.print', 'Печать')}
-        </Button>
+        <HStack gap="4" className="print:hidden ml-2">
+          <ScenarioImportButton robotId={robotId} onImportedRobotFields={onImportedRobotFields} />
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={exporting || groups.length === 0}
+            onClick={() => void handleExportJson()}
+          >
+            <FileText className="w-4 h-4 mr-1.5" />
+            {exporting
+              ? t('voiceRobots.preview.exporting', 'Экспорт…')
+              : t('voiceRobots.preview.exportJson', 'Экспорт JSON')}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleExportPdf()}
+          >
+            <FileDown className="w-4 h-4 mr-1.5" />
+            {t('voiceRobots.preview.print', 'Печать')}
+          </Button>
+        </HStack>
       </HStack>
       </div>
 

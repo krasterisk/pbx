@@ -9,6 +9,7 @@ import { IVoiceRobot, IVoiceRobotKeywordGroup, IVoiceRobotKeyword, IVoiceRobotBo
 import { KeywordEditDialog } from '../KeywordEditDialog/KeywordEditDialog';
 import { ConversationPreview } from '../ConversationPreview';
 import { ScenarioTreePreview } from '../ScenarioTreePreview';
+import { ScenarioImportButton } from '../ScenarioImportButton/ScenarioImportButton';
 import {
   useGetVoiceRobotKeywordGroupsQuery,
   useCreateVoiceRobotKeywordGroupMutation,
@@ -534,9 +535,10 @@ KeywordGroupPanel.displayName = 'KeywordGroupPanel';
 
 interface VoiceRobotDialogueTabProps {
   selectedRobot: IVoiceRobot | null;
+  onImportedRobotFields?: (patch: Partial<IVoiceRobot>) => void;
 }
 
-export const VoiceRobotDialogueTab = memo(({ selectedRobot }: VoiceRobotDialogueTabProps) => {
+export const VoiceRobotDialogueTab = memo(({ selectedRobot, onImportedRobotFields }: VoiceRobotDialogueTabProps) => {
   const { t } = useTranslation();
 
   const { data: groups = [], isLoading } = useGetVoiceRobotKeywordGroupsQuery(
@@ -620,15 +622,21 @@ export const VoiceRobotDialogueTab = memo(({ selectedRobot }: VoiceRobotDialogue
             {t('voiceRobots.dialogueScenariosDescription', 'Группа определяет «стадию» разговора. Ключевые слова внутри - это варианты фраз клиента, на которые реагирует робот на этой стадии.')}
           </Text>
         </VStack>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setShowTree(true)}
-          disabled={groups.length === 0}
-        >
-          <GitBranchPlus className="w-4 h-4 mr-2" />
-          {t('voiceRobots.preview.treeButton', 'Дерево сценариев')}
-        </Button>
+        <HStack gap="8">
+          <ScenarioImportButton
+            robotId={selectedRobot.uid}
+            onImportedRobotFields={onImportedRobotFields}
+          />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowTree(true)}
+            disabled={groups.length === 0}
+          >
+            <GitBranchPlus className="w-4 h-4 mr-2" />
+            {t('voiceRobots.preview.treeButton', 'Дерево сценариев')}
+          </Button>
+        </HStack>
       </HStack>
 
       {/* Tree Preview Dialog */}
@@ -640,6 +648,7 @@ export const VoiceRobotDialogueTab = memo(({ selectedRobot }: VoiceRobotDialogue
           <ScenarioTreePreview
             robotId={selectedRobot.uid}
             greetingText={selectedRobot.greeting_tts_text || undefined}
+            onImportedRobotFields={onImportedRobotFields}
           />
         </DialogContent>
       </Dialog>
@@ -662,7 +671,7 @@ export const VoiceRobotDialogueTab = memo(({ selectedRobot }: VoiceRobotDialogue
         <VStack align="center" justify="center" gap="8" className="py-10 border border-dashed border-border/50 rounded-lg bg-background/30">
           <FileText className="w-12 h-12 text-muted-foreground/50" />
           <Text variant="muted" className="text-center max-w-sm">
-            {t('voiceRobots.noDialogueGroups', 'Нет сценариев. Создайте первую группу для начала настройки робота.')}
+            {t('voiceRobots.noDialogueGroups', 'Нет сценариев. Создайте первую группу или импортируйте JSON с другого робота.')}
           </Text>
         </VStack>
       )}

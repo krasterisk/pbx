@@ -21,6 +21,7 @@ import { VoiceRobotCdr } from '../voice-robot-cdr.model';
 import { VoiceRobotDataList } from '../data-list.model';
 import { IVoiceRobotBotAction, ISlotDefinition } from '../interfaces/bot-action.types';
 import { DataListSearchService } from './data-list-search.service';
+import { abortTtsPipeline, createSerialQueue, isTtsPipelineAborted } from './tts-pipeline-abort';
 import { randomUUID } from 'crypto';
 
 /** Caller info passed from StasisStart event */
@@ -79,6 +80,8 @@ export class VoiceRobotSession {
   // Barge-in
   private pipelineAbort: AbortController | null = null;
   private isBotSpeaking = false;
+  /** One utterance/action at a time — overlapping STT finals used to double-fire nextState. */
+  private readonly enqueueUtterance = createSerialQueue();
 
   // Inactivity detection — repeat question if user is silent
   private inactivityTimer: NodeJS.Timeout | null = null;
@@ -474,7 +477,7 @@ export class VoiceRobotSession {
           this.logger.log(`[STT/stream] EOU → processing: "${text}"`);
           this.sttStreamFinalText = '';
           this.sttStreamPartialText = '';
-          this.handleStreamingSttResult(text);
+          void this.enqueueUtterance(() => this.handleStreamingSttResult(text));
         }
       });
 
@@ -510,6 +513,7 @@ export class VoiceRobotSession {
    * Same pipeline as batch mode: keyword match → bot action.
    */
   private async handleStreamingSttResult(text: string): Promise<void> {
+    if (this.cleanedUp) return;
     // Guard: ignore STT results while bot is speaking — these are TTS echo
     if (this.isBotSpeaking) {
       this.logger.debug(`[STT/stream] Ignoring result during TTS playback (echo): "${text.substring(0, 40)}..."`);
@@ -690,7 +694,9 @@ export class VoiceRobotSession {
         // Immediately recreate so we're listening during handleRecognizedText/TTS
         this.initStreamingStt();
 
-        await this.handleRecognizedText(textToProcess, { text: textToProcess, rawJson: { streaming: true } }, 0);
+        await this.enqueueUtterance(() =>
+          this.handleRecognizedText(textToProcess, { text: textToProcess, rawJson: { streaming: true } }, 0),
+        );
         if (this.stepCount >= this.maxSteps) {
           this.exitToFallback('MAX_RETRIES');
         }
@@ -727,7 +733,9 @@ export class VoiceRobotSession {
 
     if (sttResult.text) {
       this.logger.log(`[STT] Recognized: "${sttResult.text}" (${sttDurationMs}ms)`);
-      await this.handleRecognizedText(sttResult.text, sttResult, sttDurationMs);
+      await this.enqueueUtterance(() =>
+        this.handleRecognizedText(sttResult.text, sttResult, sttDurationMs),
+      );
     } else {
       this.logger.log(`[STT] No text recognized`);
       await this.writeLog(null, sttResult, sttDurationMs, null, 0);
@@ -749,6 +757,7 @@ export class VoiceRobotSession {
     sttResult: any,
     sttDurationMs: number,
   ): Promise<void> {
+    if (this.cleanedUp) return;
     // Reset inactivity timer repeats since user responded
     this.inactivityRepeatCount = 0;
     this.inactivityFallbackCycles = 0;
@@ -1784,7 +1793,7 @@ export class VoiceRobotSession {
             setTimeout(() => {
               if (this.cleanedUp) return;
               this.logger.log(`[TTS] Processing preserved user speech: "${textToProcess}"`);
-              this.handleStreamingSttResult(textToProcess).catch((err) => {
+              this.enqueueUtterance(() => this.handleStreamingSttResult(textToProcess)).catch((err) => {
                 this.logger.warn(`[TTS] Failed to process preserved speech: ${err.message}`);
               });
             }, 100);
@@ -1818,7 +1827,7 @@ export class VoiceRobotSession {
       this.ttsEngine!,
       text,
       (pcm16: Buffer) => {
-        if (this.pipelineAbort?.signal.aborted) return;
+        if (isTtsPipelineAborted(this.pipelineAbort)) return;
         const alaw = this.audioService.encodePcm16ToAlaw(pcm16);
         this.streamAudio.streamAudio(this.channelId, alaw);
       },
@@ -1843,7 +1852,7 @@ export class VoiceRobotSession {
     }
 
     for (const chunk of chunks) {
-      if (this.pipelineAbort?.signal.aborted) return;
+      if (isTtsPipelineAborted(this.pipelineAbort)) return;
 
       const settings = this.ttsEngine!.settings || {};
       const cacheKey = this.ttsCache.getCacheKey(
@@ -1868,7 +1877,9 @@ export class VoiceRobotSession {
         );
       }
 
+      if (isTtsPipelineAborted(this.pipelineAbort)) return;
       await this.streamAudio.streamAudio(this.channelId, alawBuffer);
+      if (isTtsPipelineAborted(this.pipelineAbort)) return;
     }
   }
 
@@ -1961,10 +1972,9 @@ export class VoiceRobotSession {
    * Abort current TTS/pipeline for barge-in.
    */
   private abortPipeline(): void {
-    if (this.pipelineAbort) {
-      this.pipelineAbort.abort();
-      this.pipelineAbort = null;
-    }
+    // Keep the aborted controller — speakBatch checks signal.aborted before
+    // the next chunk. Nulling it made leftover chunks play after barge-in.
+    abortTtsPipeline(this.pipelineAbort);
     this.isBotSpeaking = false;
   }
 

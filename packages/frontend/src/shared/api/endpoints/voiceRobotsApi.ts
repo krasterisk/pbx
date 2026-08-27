@@ -129,6 +129,7 @@ export const {
   useUpdateVoiceRobotKeywordGroupMutation,
   useDeleteVoiceRobotKeywordGroupMutation,
   useGetVoiceRobotKeywordsQuery,
+  useLazyGetVoiceRobotKeywordsQuery,
   useCreateVoiceRobotKeywordMutation,
   useUpdateVoiceRobotKeywordMutation,
   useDeleteVoiceRobotKeywordMutation,

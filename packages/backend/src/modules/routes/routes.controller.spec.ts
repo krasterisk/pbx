@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import { BadRequestException } from '@nestjs/common';
-import { createRoutesValidationPipe, UpdateRouteDto } from './dto/route-action.dto';
+import { ValidationPipe } from '@nestjs/common';
+import { CreateRouteDto, createRoutesValidationPipe, UpdateRouteDto } from './dto/route-action.dto';
 import { RoutesController } from './routes.controller';
 
 describe('RoutesController validation (toqueue actionId)', () => {
@@ -29,6 +30,37 @@ describe('RoutesController validation (toqueue actionId)', () => {
       const errors = response.errors ?? response.message?.errors ?? [];
       expect(errors.some((e) => e.actionId === 'step-queue-1')).toBe(true);
     }
+  });
+});
+
+describe('CreateRouteDto accepts raw_dialplan', () => {
+  it('does not reject an empty raw_dialplan on create (global forbidNonWhitelisted)', async () => {
+    const pipe = new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    });
+    const body = {
+      name: '614',
+      extensions: ['614'],
+      active: 1,
+      options: { dialplan_source: 'actions' },
+      webhooks: {},
+      actions: [
+        {
+          id: 'e3796838-a0e2-46dc-9ea6-cc904d0441cc',
+          type: 'toqueue',
+          params: { target: { source: 'fixed', value: '701' }, options: 'thH', timeout: 120 },
+          condition: { dialstatus: '' },
+        },
+      ],
+      bindings: [],
+      raw_dialplan: '',
+      context_uid: 1,
+    };
+    await expect(
+      pipe.transform(body, { type: 'body', metatype: CreateRouteDto } as any),
+    ).resolves.toMatchObject({ raw_dialplan: '', name: '614', context_uid: 1 });
   });
 });
 
