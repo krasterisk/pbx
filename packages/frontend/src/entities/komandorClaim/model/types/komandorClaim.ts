@@ -88,3 +88,9 @@ export const KOMANDOR_SENTIMENT_OPTIONS: { value: KomandorSentiment; label: stri
   { value: 'neutral', label: 'Нейтрально' },
   { value: 'positive', label: 'Позитив' },
 ];
+
+export const KOMANDOR_NOTIFY_STATUS_OPTIONS: { value: KomandorNotifyStatus; label: string }[] = [
+  { value: 'not_sent', label: 'Не отправлено' },
+  { value: 'sent', label: 'Отправлено' },
+  { value: 'failed', label: 'Ошибка' },
+];

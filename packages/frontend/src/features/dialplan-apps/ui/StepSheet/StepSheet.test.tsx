@@ -341,6 +341,46 @@ describe('StepSheet', () => {
     expect(screen.getByTestId('step-sheet-header')).not.toHaveStyle({ overflowY: 'auto' });
   });
 
+  it('does not move focus to the action type while editing a field', () => {
+    function Harness() {
+      const [action, setAction] = useState<IRouteAction>({
+        id: 'step-1',
+        type: 'toqueue',
+        params: { target: { source: 'fixed', value: 'sales' }, timeout: 30, options: 'thH' },
+        condition: {},
+      });
+      return (
+        <StepSheet
+          open
+          stepId="step-1"
+          tenantUid={42}
+          initialSection="params"
+          action={action}
+          onOpenChange={vi.fn()}
+          onChange={(patch) => {
+            setAction((prev) => ({ ...prev, params: { ...prev.params, ...patch } }));
+          }}
+          onTypeChange={vi.fn()}
+        />
+      );
+    }
+    render(<Harness />);
+
+    const timeout = screen.getByRole('spinbutton', { name: 'Таймаут, сек' });
+    timeout.focus();
+    fireEvent.change(timeout, { target: { value: '45' } });
+    expect(timeout).toHaveFocus();
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Приоритет' }), {
+      target: { value: '__src:fixed' },
+    });
+    const priority = screen.getByRole('spinbutton', { name: 'Приоритет' });
+    priority.focus();
+    fireEvent.change(priority, { target: { value: '5' } });
+    expect(priority).toHaveFocus();
+    expect(screen.getByLabelText('Действие шага')).not.toHaveFocus();
+  });
+
   it('focuses the first invalid field on open', () => {
     render(
       <StepSheet

@@ -9,8 +9,12 @@ import {
   useGetKomandorStoresQuery,
   useGetKomandorDictQuery,
 } from '@/shared/api/endpoints/komandorClaimApi';
-import type { IKomandorClaim, IKomandorPerson, KomandorSentiment } from '@/entities/komandorClaim';
-import { KOMANDOR_STATUS_OPTIONS, KOMANDOR_SENTIMENT_OPTIONS } from '@/entities/komandorClaim';
+import type { IKomandorClaim, IKomandorPerson, KomandorNotifyStatus, KomandorSentiment } from '@/entities/komandorClaim';
+import {
+  KOMANDOR_NOTIFY_STATUS_OPTIONS,
+  KOMANDOR_SENTIMENT_OPTIONS,
+  KOMANDOR_STATUS_OPTIONS,
+} from '@/entities/komandorClaim';
 import { toast } from 'react-toastify';
 import { Store, Users, FileText, MessageSquare, Phone } from 'lucide-react';
 
@@ -65,6 +69,16 @@ function formatPhoneInput(raw: string): string {
 function stripPhone(formatted: string): string {
   const digits = formatted.replace(/\D/g, '');
   return digits ? `+${digits}` : '';
+}
+
+function notifyStatusLabel(status?: KomandorNotifyStatus | null): string {
+  return KOMANDOR_NOTIFY_STATUS_OPTIONS.find((o) => o.value === status)?.label || status || '—';
+}
+
+function notifyStatusVariant(status?: KomandorNotifyStatus | null): 'default' | 'secondary' | 'destructive' | 'outline' {
+  if (status === 'sent') return 'default';
+  if (status === 'failed') return 'destructive';
+  return 'outline';
 }
 
 export function KomandorClaimModal({ isOpen, onClose, record }: Props) {
@@ -424,9 +438,15 @@ export function KomandorClaimModal({ isOpen, onClose, record }: Props) {
               </label>
               {isEdit && (
                 <HStack gap="8">
-                  <Badge variant="outline">СМС: {record?.sms_status}</Badge>
-                  <Badge variant="outline">Email: {record?.email_status}</Badge>
-                  <Badge variant="outline">Магазин: {record?.store_email_status}</Badge>
+                  <Badge variant={notifyStatusVariant(record?.sms_status)}>
+                    СМС: {notifyStatusLabel(record?.sms_status)}
+                  </Badge>
+                  <Badge variant={notifyStatusVariant(record?.email_status)}>
+                    Email: {notifyStatusLabel(record?.email_status)}
+                  </Badge>
+                  <Badge variant={notifyStatusVariant(record?.store_email_status)}>
+                    Магазин: {notifyStatusLabel(record?.store_email_status)}
+                  </Badge>
                 </HStack>
               )}
             </VStack>

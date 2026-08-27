@@ -135,6 +135,7 @@ export function StepSheet({
     }
   }, [open, stepId, initialSection]);
 
+  // Only on open / step / type — not on field edits (those recreate error maps).
   useEffect(() => {
     if (!open) return;
     const root = bodyRef.current;
@@ -145,7 +146,7 @@ export function StepSheet({
     );
     const target = invalid ?? editable;
     target?.focus();
-  }, [open, stepId, action?.type, mergedFieldErrors, primaryOpen, paramsOpen, optionsOpen, conditionsOpen]);
+  }, [open, stepId, action?.type]);
 
   const requestClose = (next: boolean) => {
     if (!next && !queueComplete) {

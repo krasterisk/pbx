@@ -6,6 +6,7 @@ import { KomandorStore } from './komandor-store.model';
 import { KomandorDict } from './komandor-dict.model';
 import { SmsService } from '../sms/sms.service';
 import { MailerService } from '../mailer/mailer.service';
+import { buildKomandorClientNotice, buildKomandorStoreEmail } from './komandor-claim-notify.util';
 
 const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -33,11 +34,6 @@ function collectStoreEmails(record: KomandorClaim): string[] {
     ...emailsFromPeople(record.extra_recipients),
     ...parseExtraEmails(record.extra_emails),
   ].filter((v, i, a) => a.indexOf(v) === i);
-}
-
-function peopleLabel(people?: KomandorPerson[] | null): string {
-  if (!Array.isArray(people) || !people.length) return '—';
-  return people.map((p) => [p.name, p.email].filter(Boolean).join(' <') + (p.email ? '>' : '')).join(', ');
 }
 
 @Injectable()
@@ -220,9 +216,7 @@ export class KomandorClaimsService {
     record: KomandorClaim,
     flags: { send_sms: boolean; send_email: boolean; send_to_store: boolean },
   ) {
-    const reply = (record.customer_response || '').trim();
-    const clientText = reply
-      || `По вашему обращению № ${record.request_number} принято в работу.`;
+    const clientText = buildKomandorClientNotice(record.request_number, record.customer_response);
 
     if (flags.send_sms && record.client_phone) {
       const result = await this.smsService.sendSms(record.client_phone, clientText);
@@ -244,7 +238,7 @@ export class KomandorClaimsService {
         const result = await this.mailer.sendNotification({
           to: to.join(','),
           subject: `Рекламация ${record.request_number} — ${record.store_name || record.store_code || 'магазин'}`,
-          text: this.buildStoreEmail(record),
+          text: buildKomandorStoreEmail(record),
         });
         await record.update({ store_email_status: result.success ? 'sent' : 'failed' });
       } else {
@@ -252,27 +246,6 @@ export class KomandorClaimsService {
         await record.update({ store_email_status: 'failed' });
       }
     }
-  }
-
-  private buildStoreEmail(r: KomandorClaim): string {
-    return [
-      `Номер: ${r.request_number}`,
-      `Дата: ${r.request_date}`,
-      `Магазин: ${[r.store_code, r.store_name].filter(Boolean).join(' ')}`,
-      `Адрес: ${r.store_address || '—'}`,
-      `Директор: ${peopleLabel(r.directors)}`,
-      `ЗДФ: ${peopleLabel(r.zdf)}`,
-      `Канал: ${r.channel || '—'}`,
-      `Тематика: ${r.topic || '—'}`,
-      `Подтема: ${r.subtopic || '—'}`,
-      `Тональность: ${r.sentiment}`,
-      '',
-      'Описание ситуации:',
-      r.description || '—',
-      '',
-      'Контакт клиента:',
-      r.contact_info || r.client_phone || r.client_email || '—',
-    ].join('\n');
   }
 
   private async generateRequestNumber(userUid: number): Promise<string> {
