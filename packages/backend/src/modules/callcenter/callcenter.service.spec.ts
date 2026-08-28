@@ -104,12 +104,6 @@ describe('CallCenterService', () => {
     findAll: jest.fn().mockResolvedValue([]),
     update: jest.fn().mockResolvedValue([0]),
   };
-  const phonebookEntryModel: any = {
-    findAll: jest.fn().mockResolvedValue([]),
-  };
-  const phonebookModel: any = {
-    findAll: jest.fn().mockResolvedValue([]),
-  };
   const serviceRequestModel: any = {
     findAll: jest.fn().mockResolvedValue([]),
   };
@@ -209,8 +203,6 @@ describe('CallCenterService', () => {
       queueCallModel,
       missedCallModel,
       userModel,
-      phonebookEntryModel,
-      phonebookModel,
       serviceRequestModel,
       settingsService,
       permissionsService,

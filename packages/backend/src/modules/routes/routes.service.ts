@@ -1,11 +1,11 @@
 import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { ensureCdrVpbxUserUidInDialplan, normalizePhonebookBehaviorType } from '@krasterisk/shared';
-import type { ITimeGroupInterval } from '@krasterisk/shared';
+import { ensureCdrVpbxUserUidInDialplan } from '@krasterisk/shared';
+import type { CallValueSource, IDirectoryBehaviorParams, ITimeGroupInterval } from '@krasterisk/shared';
 import { Route } from './route.model';
-import { RoutePhonebookBinding } from '../phonebooks/route-phonebook-binding.model';
-import { RoutePhonebook } from '../phonebooks/phonebook.model';
-import { PhonebookEntry } from '../phonebooks/phonebook-entry.model';
+import { RouteDirectoryBinding } from '../directories/route-directory-binding.model';
+import { Directory } from '../directories/directory.model';
+import { DirectoryField } from '../directories/directory-field.model';
 import { TimeGroupsService } from '../time-groups/time-groups.service';
 import { AsteriskDialplanUtils, formatTimeGroupInterval, prefixSamePriority, renderActionChain } from '../../shared/utils/dialplan.util';
 import {
@@ -17,27 +17,30 @@ import { shouldUseStoredRawDialplan } from './route-dialplan-source.util';
 
 /** Binding payload accepted from CreateRouteDto/UpdateRouteDto (bindings field). */
 export interface RouteBindingInput {
-  phonebook_uid: number;
+  directory_uid: number;
+  key_source: CallValueSource;
   match_mode?: string;
   behavior_type?: string;
-  behavior_params?: Record<string, any> | null;
+  behavior_params?: IDirectoryBehaviorParams | null;
   actions?: any[] | null;
 }
 
-// Bindings + their phonebook (with entries, for var-key based dialplan generation),
-// ordered by position ASC (Pitfall 8 — drop-on-match before VIP, etc.).
 const BINDING_INCLUDE = {
-  model: RoutePhonebookBinding,
+  model: RouteDirectoryBinding,
   as: 'bindings',
-  include: [
-    {
-      model: RoutePhonebook,
-      as: 'phonebook',
-      include: [{ model: PhonebookEntry, as: 'entries' }],
-    },
-  ],
+  include: [{ model: Directory, as: 'directory' }],
 };
-const BINDING_ORDER: any = [{ model: RoutePhonebookBinding, as: 'bindings' }, 'position', 'ASC'];
+const BINDING_ORDER: any = [{ model: RouteDirectoryBinding, as: 'bindings' }, 'position', 'ASC'];
+
+function collectBindingFieldUids(binding: RouteBindingInput): number[] {
+  const params = binding.behavior_params || {};
+  const uids: number[] = [];
+  if (typeof params.fieldUid === 'number') uids.push(params.fieldUid);
+  for (const mapping of params.mappings ?? []) {
+    if (typeof mapping.fieldUid === 'number') uids.push(mapping.fieldUid);
+  }
+  return Array.from(new Set(uids));
+}
 
 @Injectable()
 export class RoutesService {
@@ -45,8 +48,9 @@ export class RoutesService {
 
   constructor(
     @InjectModel(Route) private routeModel: typeof Route,
-    @InjectModel(RoutePhonebookBinding) private bindingModel: typeof RoutePhonebookBinding,
-    @InjectModel(RoutePhonebook) private phonebookModel: typeof RoutePhonebook,
+    @InjectModel(RouteDirectoryBinding) private bindingModel: typeof RouteDirectoryBinding,
+    @InjectModel(Directory) private directoryModel: typeof Directory,
+    @InjectModel(DirectoryField) private fieldModel: typeof DirectoryField,
     private timeGroupsService: TimeGroupsService,
   ) {}
 
@@ -80,19 +84,29 @@ export class RoutesService {
   }
 
   /**
-   * Ensure every referenced phonebook_uid belongs to this tenant — otherwise a route
-   * could bind (and read, via runtime lookup) another tenant's phonebook (T-05-03).
+   * Ensure every referenced directory and field belongs to this tenant
+   * and that field UIDs belong to the binding's directory.
    */
   private async validateBindingsOwnership(bindings: RouteBindingInput[], vpbxUserUid: number): Promise<void> {
-    const phonebookUids = Array.from(new Set(bindings.map((b) => b.phonebook_uid)));
-    if (phonebookUids.length === 0) return;
-    const count = await this.phonebookModel.count({ where: { uid: phonebookUids, user_uid: vpbxUserUid } });
-    if (count !== phonebookUids.length) {
-      throw new BadRequestException('One or more phonebooks are invalid or belong to another tenant');
+    const directoryUids = Array.from(new Set(bindings.map((b) => b.directory_uid)));
+    if (directoryUids.length === 0) return;
+    const count = await this.directoryModel.count({ where: { uid: directoryUids, user_uid: vpbxUserUid } });
+    if (count !== directoryUids.length) {
+      throw new BadRequestException('One or more directories are invalid or belong to another tenant');
+    }
+    for (const binding of bindings) {
+      const fieldUids = collectBindingFieldUids(binding);
+      if (fieldUids.length === 0) continue;
+      const fieldCount = await this.fieldModel.count({
+        where: { uid: fieldUids, directory_uid: binding.directory_uid },
+      });
+      if (fieldCount !== fieldUids.length) {
+        throw new BadRequestException('One or more directory fields are invalid or do not belong to the selected directory');
+      }
     }
   }
 
-  /** Replace-all strategy for a route's bindings (pattern: entries in PhonebooksService.update). */
+  /** Replace-all strategy for a route's directory policies. */
   private async replaceBindings(routeUid: number, bindings: RouteBindingInput[], vpbxUserUid: number): Promise<void> {
     await this.validateBindingsOwnership(bindings, vpbxUserUid);
     await this.bindingModel.destroy({ where: { route_uid: routeUid, user_uid: vpbxUserUid } });
@@ -100,10 +114,11 @@ export class RoutesService {
       await this.bindingModel.bulkCreate(
         bindings.map((b, index) => ({
           route_uid: routeUid,
-          phonebook_uid: b.phonebook_uid,
+          directory_uid: b.directory_uid,
           position: index,
+          key_source: b.key_source,
           match_mode: b.match_mode || 'on_match',
-          behavior_type: normalizePhonebookBehaviorType(b.behavior_type),
+          behavior_type: b.behavior_type,
           behavior_params: b.behavior_params ?? null,
           actions: b.actions ?? null,
           user_uid: vpbxUserUid,
@@ -175,7 +190,7 @@ export class RoutesService {
     await Promise.all(promises);
   }
 
-  /** Duplicate a route (bindings are copied — phonebook_uid/match_mode/behavior, not uid/route_uid) */
+  /** Duplicate a route (bindings are copied — directory_uid/key_source/behavior, not uid/route_uid) */
   async duplicate(uid: number, vpbxUserUid: number): Promise<Route> {
     const source = await this.findOne(uid, vpbxUserUid);
     const data = source.toJSON();
@@ -224,7 +239,7 @@ export class RoutesService {
     const apiKey = AsteriskDialplanUtils.dialplanApiKey;
     const keyParam = apiKey ? `&api_key=${encodeURIComponent(apiKey)}` : '';
 
-    const bindings = ((route as any).bindings as RoutePhonebookBinding[] | undefined) || [];
+    const bindings = ((route as any).bindings as RouteDirectoryBinding[] | undefined) || [];
     const orderedBindings = bindings.slice().sort((a, b) => a.position - b.position);
 
     for (const ext of extensions) {
@@ -234,6 +249,8 @@ export class RoutesService {
       lines.push('same => n,ExecIf($["${ORIGUNIQUEID}" = ""]?Set(__ORIGUNIQUEID=${UNIQUEID}))');
       lines.push('same => n,ExecIf($["${ORIGEXTEN}" = ""]?Set(__ORIGEXTEN=${EXTEN}))');
       lines.push('same => n,ExecIf($["${ORIGCLIDNUM}" = ""]?Set(__ORIGCLIDNUM=${CALLERID(num)}))');
+      lines.push('same => n,ExecIf($["${KRSK_ORIG_CALLER_CAPTURED}" != "1"]?Set(__KRSK_ORIG_CALLER_NUM=${CALLERID(num)}))');
+      lines.push('same => n,ExecIf($["${KRSK_ORIG_CALLER_CAPTURED}" != "1"]?Set(__KRSK_ORIG_CALLER_CAPTURED=1))');
       lines.push('same => n,Set(__CLIDNUM=${CALLERID(num)})');
       lines.push('same => n,Set(CDR(usrc)=${CLIDNUM})');
       lines.push('same => n,Set(__STARTTIME=${EPOCH})');
@@ -296,12 +313,12 @@ export class RoutesService {
         lines.push('same => n,Set(CHANNEL(hangup_handler_push)=krsk-hangup-handler,s,1)');
       }
 
-      // Phonebook binding chain (cascading Gosub/Return), ordered by position ASC (D-03, D-05)
+      // Directory policy chain (cascading Gosub/Return), ordered by position ASC
       for (const binding of orderedBindings) {
-        lines.push(`same => n,Gosub(pb_bind_${binding.uid}_${vpbxUserUid},s,1)`);
+        lines.push(`same => n,Gosub(dir_policy_${binding.uid}_${vpbxUserUid},s,1)`);
       }
 
-      // Legacy blacklist check (backward compat — only when no phonebook binding replaces it)
+      // Legacy blacklist check (backward compat — only when no directory policy replaces it)
       if (opts.check_blacklist && orderedBindings.length === 0) {
         lines.push(`same => n,ExecIf($["\${SHELL(/usr/scripts/check_blacklist.php "\${CALLERID(num)}" "${vpbxUserUid}")}" != ""]?hangup())`);
       }

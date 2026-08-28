@@ -14,17 +14,16 @@ import { WebhookQueueService } from './webhook-queue.service';
 import { AmiModule } from '../ami/ami.module';
 import { TimeGroupsModule } from '../time-groups/time-groups.module';
 import { Context } from '../contexts/context.model';
-import { RoutePhonebookBinding } from '../phonebooks/route-phonebook-binding.model';
-import { RoutePhonebook } from '../phonebooks/phonebook.model';
-import { PhonebookEntry } from '../phonebooks/phonebook-entry.model';
+import { RouteDirectoryBinding } from '../directories/route-directory-binding.model';
+import { Directory } from '../directories/directory.model';
+import { DirectoryField } from '../directories/directory-field.model';
 
-// RoutePhonebookBinding/RoutePhonebook/PhonebookEntry are registered here (in addition to
-// PhonebooksModule) so RoutesService/RouteApplyService can @InjectModel them directly —
-// without importing PhonebooksModule, which would create a module cycle
-// (PhonebooksModule already imports RoutesModule for RouteApplyService).
+// RouteDirectoryBinding/Directory/DirectoryField are registered here so
+// RoutesService/RouteApplyService can @InjectModel them without importing
+// DirectoriesModule (avoids a module cycle).
 @Module({
   imports: [
-    SequelizeModule.forFeature([Route, ContextInclude, WebhookFailure, Context, RoutePhonebookBinding, RoutePhonebook, PhonebookEntry]),
+    SequelizeModule.forFeature([Route, ContextInclude, WebhookFailure, Context, RouteDirectoryBinding, Directory, DirectoryField]),
     AmiModule,
     TimeGroupsModule,
   ],

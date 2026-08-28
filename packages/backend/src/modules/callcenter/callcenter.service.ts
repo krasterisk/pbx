@@ -33,8 +33,6 @@ import { CallCenterSettingsService } from './callcenter-settings.service';
 import { CallCenterAccessListService } from './callcenter-access-list.service';
 import { CallCenterShiftRestoreService } from './callcenter-shift-restore.service';
 import { User } from '../users/user.model';
-import { PhonebookEntry } from '../phonebooks/phonebook-entry.model';
-import { RoutePhonebook } from '../phonebooks/phonebook.model';
 import { ServiceRequest } from '../service-requests/service-request.model';
 import { companionIdOf, isWebrtcCompanion, primaryIdOf, extractExtension, interfaceToExtension } from '../endpoints/endpoint-ids.util';
 import { Op, fn, col, literal } from 'sequelize';
@@ -67,8 +65,6 @@ export class CallCenterService {
     @InjectModel(CcQueueCall) private readonly queueCallModel: typeof CcQueueCall,
     @InjectModel(CcMissedCall) private readonly missedCallModel: typeof CcMissedCall,
     @InjectModel(User) private readonly userModel: typeof User,
-    @InjectModel(PhonebookEntry) private readonly phonebookEntryModel: typeof PhonebookEntry,
-    @InjectModel(RoutePhonebook) private readonly phonebookModel: typeof RoutePhonebook,
     @InjectModel(ServiceRequest) private readonly serviceRequestModel: typeof ServiceRequest,
     private readonly settingsService: CallCenterSettingsService,
     private readonly permissionsService: CallCenterPermissionsService,
@@ -3050,14 +3046,8 @@ export class CallCenterService {
   // ─── Client Card (lookup by callerIdNum) ──────────────────
 
   /**
-   * Look up a caller across the tenant's phonebooks and pull the latest
-   * service-requests for that number. The result powers the operator's
-   * "Client Card" sidebar so they have context the moment the call lands.
-   *
-   * Matching strategy:
-   *   - Strip non-digits from the search number AND from each entry.
-   *   - Match on the suffix (last 10 digits) so +7/8/leading-zeroes
-   *     differences don't matter.
+   * Look up a caller and pull the latest service-requests for that number.
+   * Directory contacts replace the removed phonebook sidebar in a later task.
    */
   async lookupClient(rawNumber: string, userUid: number) {
     const digits = (rawNumber || '').replace(/\D/g, '');
@@ -3066,42 +3056,13 @@ export class CallCenterService {
     }
     const suffix = digits.slice(-10);
 
-    // Tenant's phonebooks
-    const phonebooks = await this.phonebookModel.findAll({
-      where: { user_uid: userUid },
-      attributes: ['uid', 'name'],
-    });
-    const pbUids = phonebooks.map(p => p.uid);
-    const pbMap = new Map(phonebooks.map(p => [p.uid, p.name]));
-
-    let contacts: Array<{
+    const contacts: Array<{
       phonebook_uid: number;
       phonebook_name: string;
       number: string;
       comment: string;
       vars: Record<string, string> | null;
     }> = [];
-
-    if (pbUids.length > 0) {
-      // Sequelize cannot easily strip non-digits in SQL portably,
-      // so we LIKE %suffix% and then filter in JS.
-      const candidates = await this.phonebookEntryModel.findAll({
-        where: {
-          phonebook_uid: { [Op.in]: pbUids },
-          number: { [Op.like]: `%${suffix.slice(-7)}%` }, // last 7 digits for the LIKE filter
-        },
-        limit: 50,
-      });
-      contacts = candidates
-        .filter(e => e.number.replace(/\D/g, '').endsWith(suffix))
-        .map(e => ({
-          phonebook_uid: e.phonebook_uid,
-          phonebook_name: pbMap.get(e.phonebook_uid) || '',
-          number: e.number,
-          comment: e.comment || '',
-          vars: e.vars,
-        }));
-    }
 
     // Recent service requests for this number
     const requests = await this.serviceRequestModel.findAll({

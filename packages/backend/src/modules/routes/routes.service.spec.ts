@@ -8,15 +8,16 @@ jest.mock('../logger/action-log.model', () => ({
 }));
 
 /**
- * Unit tests for RoutesService bindings CRUD (D-03, D-05, T-05-03).
+ * Unit tests for RoutesService directory-policy bindings.
  *
- * Tests: replace-all bindings strategy on update, tenant ownership validation
- * of phonebook_uid, bindings included + ordered by position ASC on reads.
+ * Tests: replace-all bindings, tenant ownership of directory/field UIDs,
+ * original-caller capture prelude, and ordered dir_policy Gosubs.
  */
 describe('RoutesService', () => {
   let routeModel: any;
   let bindingModel: any;
-  let phonebookModel: any;
+  let directoryModel: any;
+  let fieldModel: any;
   let timeGroupsService: any;
   let service: RoutesService;
 
@@ -34,13 +35,17 @@ describe('RoutesService', () => {
       bulkCreate: jest.fn().mockResolvedValue([]),
       findAll: jest.fn(),
     };
-    phonebookModel = {
+    directoryModel = {
       count: jest.fn(),
+    };
+    fieldModel = {
+      count: jest.fn(),
+      findAll: jest.fn(),
     };
     timeGroupsService = {
       findAll: jest.fn().mockResolvedValue([]),
     };
-    service = new RoutesService(routeModel, bindingModel, phonebookModel, timeGroupsService);
+    service = new RoutesService(routeModel, bindingModel, directoryModel, fieldModel, timeGroupsService);
   });
 
   const sampleInterval: ITimeGroupInterval = {
@@ -73,25 +78,36 @@ describe('RoutesService', () => {
     };
   }
 
+  const origCallerKey = { source: 'original_caller' as const };
+
   describe('update — bindings replace-all', () => {
-    it('destroys old bindings and bulkCreates new ones scoped to the tenant, positioned by array index', async () => {
+    it('destroys old bindings and bulkCreates directory policies scoped to the tenant, positioned by array index', async () => {
       const existingRoute = { uid: 5, context_uid: 1, update: jest.fn().mockResolvedValue(undefined) };
       routeModel.findOne
-        .mockResolvedValueOnce(existingRoute) // findOne() inside update() — pre-update fetch
-        .mockResolvedValueOnce({ uid: 5, bindings: [] }); // findOne() at the end — post-update refetch
-      phonebookModel.count.mockResolvedValueOnce(1);
+        .mockResolvedValueOnce(existingRoute)
+        .mockResolvedValueOnce({ uid: 5, bindings: [] });
+      directoryModel.count.mockResolvedValueOnce(1);
 
-      const bindings = [{ phonebook_uid: 10, match_mode: 'on_match', behavior_type: 'set_name' }];
+      const bindings = [{
+        directory_uid: 10,
+        key_source: origCallerKey,
+        match_mode: 'on_match',
+        behavior_type: 'set_name',
+        behavior_params: { fieldUid: 17 },
+      }];
+      fieldModel.count.mockResolvedValueOnce(1);
       await service.update(5, { name: 'R', bindings } as any, 100);
 
       expect(bindingModel.destroy).toHaveBeenCalledWith({ where: { route_uid: 5, user_uid: 100 } });
       expect(bindingModel.bulkCreate).toHaveBeenCalledWith([
         expect.objectContaining({
           route_uid: 5,
-          phonebook_uid: 10,
+          directory_uid: 10,
           position: 0,
+          key_source: origCallerKey,
           match_mode: 'on_match',
           behavior_type: 'set_name',
+          behavior_params: { fieldUid: 17 },
           user_uid: 100,
         }),
       ]);
@@ -102,41 +118,51 @@ describe('RoutesService', () => {
       routeModel.findOne
         .mockResolvedValueOnce(existingRoute)
         .mockResolvedValueOnce({ uid: 5, bindings: [] });
-      phonebookModel.count.mockResolvedValueOnce(2);
+      directoryModel.count.mockResolvedValueOnce(2);
 
       const bindings = [
-        { phonebook_uid: 10, match_mode: 'on_match', behavior_type: 'drop' },
-        { phonebook_uid: 20, match_mode: 'on_match', behavior_type: 'set_name' },
+        { directory_uid: 10, key_source: origCallerKey, match_mode: 'on_match', behavior_type: 'drop' },
+        { directory_uid: 20, key_source: origCallerKey, match_mode: 'on_match', behavior_type: 'set_name', behavior_params: { fieldUid: 18 } },
       ];
+      fieldModel.count.mockResolvedValueOnce(1);
       await service.update(5, { bindings } as any, 100);
 
       const created = bindingModel.bulkCreate.mock.calls[0][0];
       expect(created[0].position).toBe(0);
-      expect(created[0].phonebook_uid).toBe(10);
+      expect(created[0].directory_uid).toBe(10);
       expect(created[1].position).toBe(1);
-      expect(created[1].phonebook_uid).toBe(20);
+      expect(created[1].directory_uid).toBe(20);
     });
 
-    it('normalizes legacy blacklist/whitelist behavior_type to drop on save', async () => {
-      const existingRoute = { uid: 5, context_uid: 1, update: jest.fn().mockResolvedValue(undefined) };
-      routeModel.findOne
-        .mockResolvedValueOnce(existingRoute)
-        .mockResolvedValueOnce({ uid: 5, bindings: [] });
-      phonebookModel.count.mockResolvedValueOnce(1);
-
-      await service.update(5, {
-        bindings: [{ phonebook_uid: 10, match_mode: 'on_match', behavior_type: 'blacklist' }],
-      } as any, 100);
-
-      expect(bindingModel.bulkCreate.mock.calls[0][0][0].behavior_type).toBe('drop');
-    });
-
-    it('rejects bindings referencing a phonebook from another tenant, without touching bindingModel', async () => {
+    it('rejects bindings referencing a directory from another tenant, without touching bindingModel', async () => {
       const existingRoute = { uid: 5, context_uid: 1, update: jest.fn() };
       routeModel.findOne.mockResolvedValueOnce(existingRoute);
-      phonebookModel.count.mockResolvedValueOnce(0); // owned-count mismatch → foreign phonebook_uid
+      directoryModel.count.mockResolvedValueOnce(0);
 
-      const bindings = [{ phonebook_uid: 999, match_mode: 'on_match', behavior_type: 'vars_only' }];
+      const bindings = [{
+        directory_uid: 999,
+        key_source: origCallerKey,
+        match_mode: 'on_match',
+        behavior_type: 'drop',
+      }];
+      await expect(service.update(5, { bindings } as any, 100)).rejects.toThrow();
+      expect(bindingModel.destroy).not.toHaveBeenCalled();
+      expect(bindingModel.bulkCreate).not.toHaveBeenCalled();
+    });
+
+    it('rejects a field UID that does not belong to the binding directory', async () => {
+      const existingRoute = { uid: 5, context_uid: 1, update: jest.fn() };
+      routeModel.findOne.mockResolvedValueOnce(existingRoute);
+      directoryModel.count.mockResolvedValueOnce(1);
+      fieldModel.count.mockResolvedValueOnce(0);
+
+      const bindings = [{
+        directory_uid: 10,
+        key_source: origCallerKey,
+        match_mode: 'on_match',
+        behavior_type: 'set_name',
+        behavior_params: { fieldUid: 99 },
+      }];
       await expect(service.update(5, { bindings } as any, 100)).rejects.toThrow();
       expect(bindingModel.destroy).not.toHaveBeenCalled();
       expect(bindingModel.bulkCreate).not.toHaveBeenCalled();
@@ -240,8 +266,8 @@ describe('RoutesService', () => {
     });
   });
 
-  describe('generateRouteDialplan — binding Gosub emission', () => {
-    it('emits one Gosub(pb_bind_{uid}_{vpbx}) per binding, ordered by position ASC', () => {
+  describe('generateRouteDialplan — original caller capture and policy Gosubs', () => {
+    it('captures original CallerID before the first policy Gosub', () => {
       const route: any = {
         uid: 1,
         name: 'Test route',
@@ -256,11 +282,61 @@ describe('RoutesService', () => {
       };
 
       const dp = service.generateRouteDialplan(route, 100, false);
-      const gosubLines = dp.split('\n').filter((l) => l.includes('Gosub(pb_bind_'));
+      expect(dp.indexOf('Set(__KRSK_ORIG_CALLER_NUM=${CALLERID(num)})'))
+        .toBeLessThan(dp.indexOf('Gosub(dir_policy_'));
+      expect(dp).toContain('ExecIf($["${KRSK_ORIG_CALLER_CAPTURED}" != "1"]?Set(__KRSK_ORIG_CALLER_NUM=${CALLERID(num)}))');
+      expect(dp).toContain('ExecIf($["${KRSK_ORIG_CALLER_CAPTURED}" != "1"]?Set(__KRSK_ORIG_CALLER_CAPTURED=1))');
+    });
+
+    it('captures empty original CallerID once via the marker, not via CallerID emptiness', () => {
+      const route = baseRoute({ bindings: [{ uid: 3, position: 0 }] });
+      const dp = service.generateRouteDialplan(route, 100, false);
+      expect(dp).toContain('ExecIf($["${KRSK_ORIG_CALLER_CAPTURED}" != "1"]?Set(__KRSK_ORIG_CALLER_NUM=${CALLERID(num)}))');
+      expect(dp).not.toMatch(/KRSK_ORIG_CALLER_NUM.*= ""/);
+      expect(dp).not.toMatch(/CALLERID\(num\)" = ""\]\?Set\(__KRSK_ORIG_CALLER/);
+    });
+
+    it('nested generated routes keep the same inherited capture marker', () => {
+      const outer = baseRoute({ uid: 1, extensions: ['100'], bindings: [{ uid: 3, position: 0 }] });
+      const inner = baseRoute({ uid: 2, extensions: ['200'], bindings: [{ uid: 8, position: 0 }] });
+      const outerDp = service.generateRouteDialplan(outer, 100, false);
+      const innerDp = service.generateRouteDialplan(inner, 100, false);
+      const capture = 'ExecIf($["${KRSK_ORIG_CALLER_CAPTURED}" != "1"]?Set(__KRSK_ORIG_CALLER_CAPTURED=1))';
+      expect(outerDp).toContain(capture);
+      expect(innerDp).toContain(capture);
+    });
+
+    it('routes without directory policies still establish the capture invariant', () => {
+      const route = baseRoute({
+        bindings: [],
+        actions: [{ type: 'hangup', params: {}, condition: {} }],
+      });
+      const dp = service.generateRouteDialplan(route, 100, false);
+      expect(dp).toContain('ExecIf($["${KRSK_ORIG_CALLER_CAPTURED}" != "1"]?Set(__KRSK_ORIG_CALLER_NUM=${CALLERID(num)}))');
+      expect(dp).toContain('ExecIf($["${KRSK_ORIG_CALLER_CAPTURED}" != "1"]?Set(__KRSK_ORIG_CALLER_CAPTURED=1))');
+      expect(dp).not.toContain('Gosub(dir_policy_');
+    });
+
+    it('emits one Gosub(dir_policy_{uid}_{vpbx}) per binding, ordered by position ASC', () => {
+      const route: any = {
+        uid: 1,
+        name: 'Test route',
+        extensions: ['100'],
+        actions: [],
+        options: {},
+        webhooks: {},
+        bindings: [
+          { uid: 5, position: 1 },
+          { uid: 3, position: 0 },
+        ],
+      };
+
+      const dp = service.generateRouteDialplan(route, 100, false);
+      const gosubLines = dp.split('\n').filter((l) => l.includes('Gosub(dir_policy_'));
 
       expect(gosubLines).toEqual([
-        'same => n,Gosub(pb_bind_3_100,s,1)',
-        'same => n,Gosub(pb_bind_5_100,s,1)',
+        'same => n,Gosub(dir_policy_3_100,s,1)',
+        'same => n,Gosub(dir_policy_5_100,s,1)',
       ]);
     });
 

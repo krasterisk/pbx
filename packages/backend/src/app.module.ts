@@ -31,7 +31,6 @@ import { KomandorClaim } from './modules/komandor-claims/komandor-claim.model';
 import { KomandorStore } from './modules/komandor-claims/komandor-store.model';
 import { KomandorDict } from './modules/komandor-claims/komandor-dict.model';
 import { TimeGroupsModule } from './modules/time-groups/time-groups.module';
-import { PhonebooksModule } from './modules/phonebooks/phonebooks.module';
 import { DirectoriesModule } from './modules/directories/directories.module';
 import { CallGroupsModule } from './modules/call-groups/call-groups.module';
 import { CallGroup } from './modules/call-groups/call-group.model';
@@ -121,9 +120,6 @@ import { VoiceRobotCdr } from './modules/voice-robots/voice-robot-cdr.model';
 import { VoiceRobotDataList } from './modules/voice-robots/data-list.model';
 import { ServiceRequest } from './modules/service-requests/service-request.model';
 import { TimeGroup } from './modules/time-groups/time-group.model';
-import { RoutePhonebook } from './modules/phonebooks/phonebook.model';
-import { PhonebookEntry } from './modules/phonebooks/phonebook-entry.model';
-import { RoutePhonebookBinding } from './modules/phonebooks/route-phonebook-binding.model';
 import { Directory } from './modules/directories/directory.model';
 import { DirectoryField } from './modules/directories/directory-field.model';
 import { DirectoryRecord } from './modules/directories/directory-record.model';
@@ -164,7 +160,6 @@ import * as path from 'path';
         CcReportSchedule,
         CcAiAgent, CcAiProvider, CcAiToolset, CcAiCdr, CcAiBilling, CcAiInvoice, CcAiAuditLog,
         TimeGroup,
-        RoutePhonebook, PhonebookEntry, RoutePhonebookBinding,
         Directory, DirectoryField, DirectoryRecord, RouteDirectoryBinding,
         NotificationIntegration,
         CallGroup, CallGroupMember,
@@ -217,7 +212,6 @@ import * as path from 'path';
     KomandorClaimsModule,
     SmsModule,
     TimeGroupsModule,
-    PhonebooksModule,
     DirectoriesModule,
     CallGroupsModule,
     LoggerModule,

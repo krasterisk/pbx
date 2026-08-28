@@ -99,8 +99,9 @@ describe('RoutesController write-path params validation', () => {
       controller.update('9', {
         actions: [{ id: 'ok', type: 'hangup', params: {}, condition: {} }],
         bindings: [{
-          phonebook_uid: 1,
+          directory_uid: 1,
           position: 0,
+          key_source: { source: 'original_caller' },
           match_mode: 'on_match',
           behavior_type: 'custom',
           actions: [{ id: 'bind-bad', type: 'toexten', params: { target: { source: 'fixed', value: '' } } }],

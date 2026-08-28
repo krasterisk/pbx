@@ -1,7 +1,7 @@
 import 'reflect-metadata';
 import { plainToInstance } from 'class-transformer';
 import { validate, validateSync } from 'class-validator';
-import { RouteActionDto } from './route-action.dto';
+import { RouteActionDto, RouteDirectoryBindingDto } from './route-action.dto';
 import { ToQueueParamsDto } from './dialplan-params/toqueue.params.dto';
 
 async function validateAction(plain: Record<string, unknown>) {
@@ -95,25 +95,101 @@ describe('ToQueueParamsDto', () => {
     expect(validateSync(dto)).toHaveLength(0);
   });
 
-  it('rejects phonebookUid 0', () => {
-    const dto = plainToInstance(ToQueueParamsDto, {
-      target: { source: 'phonebook', phonebookUid: 0, varKey: 'queue' },
-    });
-    expect(validateSync(dto).length).toBeGreaterThan(0);
-  });
-
-  it('rejects phonebook without varKey', () => {
-    const dto = plainToInstance(ToQueueParamsDto, {
-      target: { source: 'phonebook', phonebookUid: 5 },
-    });
-    expect(validateSync(dto).length).toBeGreaterThan(0);
-  });
-
-  it('accepts phonebook with phonebookUid and varKey', () => {
+  it('rejects leftover phonebook ValueSource', () => {
     const dto = plainToInstance(ToQueueParamsDto, {
       target: { source: 'phonebook', phonebookUid: 5, varKey: 'queue' },
     });
+    expect(validateSync(dto).length).toBeGreaterThan(0);
+  });
+
+  it('rejects directory without valueFieldUid', () => {
+    const dto = plainToInstance(ToQueueParamsDto, {
+      target: {
+        source: 'directory',
+        directoryUid: 5,
+        keySource: { source: 'original_caller' },
+        onMissing: 'skip',
+      },
+    });
+    expect(validateSync(dto).length).toBeGreaterThan(0);
+  });
+
+  it('accepts directory with directoryUid, keySource, valueFieldUid, and onMissing', () => {
+    const dto = plainToInstance(ToQueueParamsDto, {
+      target: {
+        source: 'directory',
+        directoryUid: 5,
+        keySource: { source: 'original_caller' },
+        valueFieldUid: 17,
+        onMissing: 'skip',
+      },
+    });
     expect(validateSync(dto)).toHaveLength(0);
+  });
+});
+
+describe('RouteDirectoryBindingDto', () => {
+  async function validateBinding(plain: Record<string, unknown>) {
+    const dto = plainToInstance(RouteDirectoryBindingDto, plain);
+    return validate(dto);
+  }
+
+  const base = {
+    directory_uid: 7,
+    position: 0,
+    key_source: { source: 'original_caller' },
+    match_mode: 'on_match',
+    behavior_type: 'drop',
+  };
+
+  it('requires directory_uid and key_source', async () => {
+    const missingDir = await validateBinding({
+      position: 0,
+      key_source: { source: 'original_caller' },
+      match_mode: 'on_match',
+      behavior_type: 'drop',
+    });
+    expect(missingDir.some((e) => e.property === 'directory_uid')).toBe(true);
+
+    const missingKey = await validateBinding({
+      directory_uid: 7,
+      position: 0,
+      match_mode: 'on_match',
+      behavior_type: 'drop',
+    });
+    expect(missingKey.some((e) => e.property === 'key_source')).toBe(true);
+  });
+
+  it('accepts a valid drop policy', async () => {
+    const errors = await validateBinding(base);
+    expect(errors).toHaveLength(0);
+  });
+
+  it('requires fieldUid for set_name when fixed is absent', async () => {
+    const errors = await validateBinding({
+      ...base,
+      behavior_type: 'set_name',
+      behavior_params: {},
+    });
+    expect(errors.length).toBeGreaterThan(0);
+  });
+
+  it('accepts set_name with fieldUid', async () => {
+    const errors = await validateBinding({
+      ...base,
+      behavior_type: 'set_name',
+      behavior_params: { fieldUid: 17 },
+    });
+    expect(errors).toHaveLength(0);
+  });
+
+  it('requires mappings with fieldUid for map_fields', async () => {
+    const errors = await validateBinding({
+      ...base,
+      behavior_type: 'map_fields',
+      behavior_params: { mappings: [] },
+    });
+    expect(errors.length).toBeGreaterThan(0);
   });
 });
 

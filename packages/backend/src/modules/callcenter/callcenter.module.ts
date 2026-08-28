@@ -67,8 +67,6 @@ import { CcReportSchedule } from './models/report-schedule.model';
 import { Queue } from '../queues/queue.model';
 import { User } from '../users/user.model';
 import { NumberList } from '../numbers/number-list.model';
-import { PhonebookEntry } from '../phonebooks/phonebook-entry.model';
-import { RoutePhonebook } from '../phonebooks/phonebook.model';
 import { ServiceRequest } from '../service-requests/service-request.model';
 import { PsEndpoint } from '../endpoints/ps-endpoint.model';
 import { CallGroup } from '../call-groups/call-group.model';
@@ -102,8 +100,6 @@ import { queueLogReaderProvider } from './queuelog/queue-log-reader.factory';
       Queue,           // for tenant resolution from queue names
       User,            // for agent display names
       NumberList,      // supervisor access lists (numbers)
-      PhonebookEntry,  // Client Card sidebar lookup
-      RoutePhonebook,  // Client Card sidebar lookup
       ServiceRequest,  // Client Card sidebar — linked service requests
       PsEndpoint,      // Transfer directory — internal endpoints (D-36)
       CallGroup,       // Transfer directory — call groups (D-36)

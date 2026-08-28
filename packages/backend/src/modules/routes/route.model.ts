@@ -1,6 +1,6 @@
 import { Table, Column, Model, DataType, PrimaryKey, AutoIncrement, ForeignKey, BelongsTo, HasMany, Index } from 'sequelize-typescript';
 import { Context } from '../contexts/context.model';
-import { RoutePhonebookBinding } from '../phonebooks/route-phonebook-binding.model';
+import { RouteDirectoryBinding } from '../directories/route-directory-binding.model';
 
 @Table({ tableName: 'routes', timestamps: false, freezeTableName: true })
 export class Route extends Model {
@@ -49,6 +49,6 @@ export class Route extends Model {
   @BelongsTo(() => Context, 'context_uid')
   declare context: Context;
 
-  @HasMany(() => RoutePhonebookBinding, { foreignKey: 'route_uid', as: 'bindings' })
-  declare bindings: RoutePhonebookBinding[];
+  @HasMany(() => RouteDirectoryBinding, { foreignKey: 'route_uid', as: 'bindings' })
+  declare bindings: RouteDirectoryBinding[];
 }

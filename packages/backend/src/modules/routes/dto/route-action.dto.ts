@@ -18,6 +18,7 @@ import { plainToInstance, Type } from 'class-transformer';
 import { BadRequestException, ValidationPipe } from '@nestjs/common';
 import { ToQueueParamsDto } from './dialplan-params/toqueue.params.dto';
 import { DirectoryLookupParamsDto } from './dialplan-params/directory-lookup.params.dto';
+import { CallValueSourceDto } from './dialplan-params/value-source.dto';
 import { RouteConditionDto } from './route-condition.dto';
 
 export const ActionTypesList = [
@@ -35,9 +36,41 @@ const MatchModesList = ['on_match', 'on_no_match'];
 
 const BehaviorTypesList = [
   'set_name', 'set_number', 'drop',
-  'blacklist', 'whitelist', // legacy aliases accepted, normalized on save
-  'redirect', 'vars_only', 'custom',
+  'redirect', 'map_fields', 'custom',
 ];
+
+function directoryBehaviorParamsValid(
+  behaviorType: string,
+  params?: Record<string, any> | null,
+): boolean {
+  const p = params || {};
+  if (behaviorType === 'set_name' || behaviorType === 'set_number') {
+    if (typeof p.fixed === 'string' && p.fixed.length > 0) return true;
+    return Number.isInteger(p.fieldUid) && p.fieldUid > 0;
+  }
+  if (behaviorType === 'redirect') {
+    if (typeof p.fixedExten === 'string' && p.fixedExten.length > 0) return true;
+    return Number.isInteger(p.fieldUid) && p.fieldUid > 0;
+  }
+  if (behaviorType === 'map_fields') {
+    return Array.isArray(p.mappings)
+      && p.mappings.length > 0
+      && p.mappings.every((m: { fieldUid?: number }) => Number.isInteger(m?.fieldUid) && (m.fieldUid as number) > 0);
+  }
+  return true;
+}
+
+@ValidatorConstraint({ name: 'isDirectoryBindingBehavior', async: false })
+class IsDirectoryBindingBehaviorConstraint implements ValidatorConstraintInterface {
+  validate(_value: unknown, args: ValidationArguments): boolean {
+    const binding = args.object as RouteDirectoryBindingDto;
+    return directoryBehaviorParamsValid(binding.behavior_type, binding.behavior_params);
+  }
+
+  defaultMessage(): string {
+    return 'field-consuming behavior requires fieldUid (or fixed/fixedExten); map_fields requires mappings';
+  }
+}
 
 const toQueueParamErrors = new WeakMap<object, ValidationError[]>();
 
@@ -130,17 +163,24 @@ export class RouteActionDto {
 
 // Bindings sent by clients omit uid/route_uid — replace-all strategy assigns
 // route_uid and position (array index) server-side (RoutesService.replaceBindings).
-export class RoutePhonebookBindingDto {
+export class RouteDirectoryBindingDto {
   @IsNumber()
-  phonebook_uid: number;
+  directory_uid: number;
 
+  @IsOptional()
   @IsNumber()
-  position: number;
+  position?: number;
+
+  @IsObject()
+  @ValidateNested()
+  @Type(() => CallValueSourceDto)
+  key_source: CallValueSourceDto;
 
   @IsIn(MatchModesList)
   match_mode: string;
 
   @IsIn(BehaviorTypesList)
+  @Validate(IsDirectoryBindingBehaviorConstraint)
   behavior_type: string;
 
   @IsOptional()
@@ -191,8 +231,8 @@ export class CreateRouteDto {
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
-  @Type(() => RoutePhonebookBindingDto)
-  bindings?: RoutePhonebookBindingDto[];
+  @Type(() => RouteDirectoryBindingDto)
+  bindings?: RouteDirectoryBindingDto[];
 }
 
 export class UpdateRouteDto {
@@ -235,6 +275,6 @@ export class UpdateRouteDto {
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
-  @Type(() => RoutePhonebookBindingDto)
-  bindings?: RoutePhonebookBindingDto[];
+  @Type(() => RouteDirectoryBindingDto)
+  bindings?: RouteDirectoryBindingDto[];
 }
