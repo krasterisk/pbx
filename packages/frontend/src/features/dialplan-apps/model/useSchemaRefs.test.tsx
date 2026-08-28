@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { useSchemaRefs } from './useSchemaRefs';
 import * as directoryApi from '@/shared/api/endpoints/directoryApi';
+import * as trunkApi from '@/shared/api/endpoints/trunkApi';
 
 vi.mock('@/shared/api/endpoints/promptsApi', () => ({
   useGetPromptsQuery: () => ({ data: [], isLoading: false }),
@@ -11,7 +12,7 @@ vi.mock('@/shared/api/endpoints/callGroupApi', () => ({
   useGetCallGroupsQuery: () => ({ data: [], isLoading: false }),
 }));
 vi.mock('@/shared/api/endpoints/trunkApi', () => ({
-  useGetTrunksQuery: () => ({ data: [], isLoading: false }),
+  useGetTrunksQuery: vi.fn(() => ({ data: [], isLoading: false })),
 }));
 vi.mock('@/shared/api/endpoints/queueApi', () => ({
   useGetQueuesQuery: () => ({ data: [], isLoading: false }),
@@ -68,5 +69,45 @@ describe('useSchemaRefs', () => {
 
     expect(directoryApi.useGetDirectoriesQuery).toHaveBeenCalled();
     expect(screen.getByTestId('dirs').textContent).toBe('7:Customers,8:VIP');
+  });
+
+  it('maps trunks by name and trunkIds by ITrunkListItem.id', () => {
+    (trunkApi.useGetTrunksQuery as ReturnType<typeof vi.fn>).mockReturnValue({
+      data: [
+        { id: 't_alpha_100', name: 'Alpha' },
+        { id: 't_beta_100', name: 'Beta' },
+      ],
+      isLoading: false,
+    });
+
+    function TrunksProbe() {
+      const refs = useSchemaRefs();
+      return (
+        <>
+          <span data-testid="trunks">
+            {(refs.trunks?.items ?? []).map((item) => `${item.value}:${item.label}`).join(',')}
+          </span>
+          <span data-testid="trunk-ids">
+            {(refs.trunkIds?.items ?? []).map((item) => `${item.value}:${item.label}`).join(',')}
+          </span>
+        </>
+      );
+    }
+
+    render(<TrunksProbe />);
+    expect(screen.getByTestId('trunks').textContent).toBe('Alpha:Alpha,Beta:Beta');
+    expect(screen.getByTestId('trunk-ids').textContent).toBe('t_alpha_100:Alpha,t_beta_100:Beta');
+  });
+
+  it('fetches trunks when only trunkIds is requested', () => {
+    function IdsProbe() {
+      useSchemaRefs(['trunkIds']);
+      return null;
+    }
+    render(<IdsProbe />);
+    expect(trunkApi.useGetTrunksQuery).toHaveBeenCalledWith(
+      undefined,
+      expect.objectContaining({ skip: false }),
+    );
   });
 });

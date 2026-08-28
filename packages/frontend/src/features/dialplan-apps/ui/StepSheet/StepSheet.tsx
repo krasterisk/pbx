@@ -100,6 +100,9 @@ export function StepSheet({
     if (schema.some((field) => field.kind === 'value-source')) {
       sources.push('dialplanDirectories');
     }
+    if (schema.some((field) => field.kind === 'custom' && field.key === 'trunks')) {
+      sources.push('trunkIds');
+    }
     return Array.from(new Set(sources));
   }, [schema]);
   const schemaRefs = useSchemaRefs(catalogSources);

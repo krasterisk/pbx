@@ -7,6 +7,7 @@ import { DialplanAppsEditor } from '../DialplanAppsEditor/DialplanAppsEditor';
 import { StepSheet } from './StepSheet';
 import * as queueApiHooks from '@/shared/api/endpoints/queueApi';
 import * as directoryApi from '@/shared/api/endpoints/directoryApi';
+import * as schemaRefs from '../../model/useSchemaRefs';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -161,6 +162,29 @@ describe('StepSheet', () => {
       undefined,
       expect.objectContaining({ skip: false }),
     );
+  });
+
+  it('requests trunkIds through useSchemaRefs when the carousel field is present', () => {
+    const spy = vi.spyOn(schemaRefs, 'useSchemaRefs');
+    render(
+      <StepSheet
+        open
+        stepId="step-1"
+        tenantUid={42}
+        action={{
+          id: 'step-1',
+          type: 'totrunk',
+          params: { trunkMode: 'carousel', trunks: [] },
+          condition: {},
+        }}
+        onOpenChange={vi.fn()}
+        onChange={vi.fn()}
+        onTypeChange={vi.fn()}
+      />,
+    );
+
+    expect(spy).toHaveBeenCalledWith(expect.arrayContaining(['trunkIds']));
+    spy.mockRestore();
   });
 
   it('opens Sheet when toqueue is chosen on an empty row', () => {

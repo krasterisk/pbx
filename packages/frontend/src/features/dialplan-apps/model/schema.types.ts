@@ -18,6 +18,7 @@ export type FieldKind =
 export type OptionsSource =
   | 'queues'
   | 'trunks'
+  | 'trunkIds'
   | 'ivrs'
   | 'prompts'
   | 'dialplanDirectories'

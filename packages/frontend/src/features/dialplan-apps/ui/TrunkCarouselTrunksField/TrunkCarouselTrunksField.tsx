@@ -3,7 +3,6 @@ import type { ITrunkCarouselItem, TrunkCallerIdSource } from '@krasterisk/shared
 import { Button, Input, Label, Select, Text, InfoTooltip } from '@/shared/ui';
 import { HStack, VStack } from '@/shared/ui/Stack';
 import { Plus, Trash2 } from 'lucide-react';
-import { useGetTrunksQuery } from '@/shared/api/endpoints/trunkApi';
 import { useGetDirectoryQuery } from '@/shared/api/endpoints/directoryApi';
 import { useSchemaRefs } from '../../model/useSchemaRefs';
 import styles from './TrunkCarouselTrunksField.module.scss';
@@ -188,7 +187,9 @@ export function TrunkCarouselTrunksField({
   readOnly?: boolean;
 }) {
   const { t } = useTranslation();
-  const { data: trunks = [], isLoading: trunksLoading } = useGetTrunksQuery();
+  const refs = useSchemaRefs(['trunkIds']);
+  const trunks = refs.trunkIds?.items ?? [];
+  const trunksLoading = refs.trunkIds?.isLoading ?? false;
   const items: ITrunkCarouselItem[] = Array.isArray(params.trunks) ? params.trunks : [];
   const hint = t(
     'routes.apps.trunkCarousel.hint',
@@ -226,8 +227,8 @@ export function TrunkCarouselTrunksField({
                 >
                   <option value="">{t('routes.apps.trunkCarousel.selectTrunkOption', 'Выберите транк')}</option>
                   {trunks.map((trunk) => (
-                    <option key={trunk.id} value={trunk.id}>
-                      {trunk.name || trunk.id}
+                    <option key={trunk.value} value={trunk.value}>
+                      {trunk.label}
                     </option>
                   ))}
                 </Select>

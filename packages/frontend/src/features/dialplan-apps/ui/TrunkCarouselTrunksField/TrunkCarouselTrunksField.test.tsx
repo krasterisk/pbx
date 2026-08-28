@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { TrunkCarouselTrunksField } from './TrunkCarouselTrunksField';
@@ -12,26 +12,37 @@ vi.mock('react-i18next', () => ({
   }),
 }));
 
+const useGetTrunksQuery = vi.fn(() => ({
+  data: [
+    { id: 't_alpha_100', name: 'Alpha' },
+    { id: 't_beta_100', name: 'Beta' },
+  ],
+  isLoading: false,
+}));
+
 vi.mock('@/shared/api/endpoints/trunkApi', () => ({
-  useGetTrunksQuery: () => ({
-    data: [
-      { id: 't_alpha_100', name: 'Alpha' },
-      { id: 't_beta_100', name: 'Beta' },
+  useGetTrunksQuery: (...args: unknown[]) => useGetTrunksQuery(...args),
+}));
+
+const useSchemaRefs = vi.fn(() => ({
+  dialplanDirectories: {
+    items: [
+      { value: '7', label: 'Customers' },
+      { value: '8', label: 'VIP' },
     ],
     isLoading: false,
-  }),
+  },
+  trunkIds: {
+    items: [
+      { value: 't_alpha_100', label: 'Alpha' },
+      { value: 't_beta_100', label: 'Beta' },
+    ],
+    isLoading: false,
+  },
 }));
 
 vi.mock('../../model/useSchemaRefs', () => ({
-  useSchemaRefs: () => ({
-    dialplanDirectories: {
-      items: [
-        { value: '7', label: 'Customers' },
-        { value: '8', label: 'VIP' },
-      ],
-      isLoading: false,
-    },
-  }),
+  useSchemaRefs: (...args: unknown[]) => useSchemaRefs(...args),
 }));
 
 const DIRECTORY_7: IDirectory = {
@@ -55,6 +66,10 @@ vi.mock('@/shared/api/endpoints/directoryApi', () => ({
 }));
 
 describe('TrunkCarouselTrunksField', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it('adds a carousel row with trunkId and static callerId', () => {
     const onChange = vi.fn();
     render(<TrunkCarouselTrunksField params={{ trunks: [] }} onChange={onChange} />);
@@ -67,6 +82,13 @@ describe('TrunkCarouselTrunksField', () => {
         timeout: 60,
       }],
     });
+  });
+
+  it('requests trunkIds through useSchemaRefs and does not call useGetTrunksQuery', () => {
+    render(<TrunkCarouselTrunksField params={{ trunks: [] }} onChange={vi.fn()} />);
+
+    expect(useSchemaRefs).toHaveBeenCalledWith(expect.arrayContaining(['trunkIds']));
+    expect(useGetTrunksQuery).not.toHaveBeenCalled();
   });
 
   it('uses ITrunkListItem.id as the trunk option value', () => {

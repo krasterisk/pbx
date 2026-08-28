@@ -27,7 +27,7 @@ export function useSchemaRefs(sources?: readonly OptionsSource[]): SchemaRefs {
 
   const prompts = useGetPromptsQuery(undefined, { skip: !needs('prompts') });
   const callGroups = useGetCallGroupsQuery(undefined, { skip: !needs('callGroups') });
-  const trunks = useGetTrunksQuery(undefined, { skip: !needs('trunks') });
+  const trunks = useGetTrunksQuery(undefined, { skip: !needs('trunks') && !needs('trunkIds') });
   const queues = useGetQueuesQuery(undefined, { skip: !needs('queues') });
   const directories = useGetDirectoriesQuery(undefined, { skip: !needs('dialplanDirectories') });
   const ivrs = useGetIvrsQuery(undefined, { skip: !needs('ivrs') });
@@ -64,6 +64,16 @@ export function useSchemaRefs(sources?: readonly OptionsSource[]): SchemaRefs {
         items: (trunks.data ?? []).map((trunk) => ({
           value: trunk.name,
           label: trunk.name,
+        })),
+        isLoading: trunks.isLoading,
+        sectionHref: '/trunks',
+        sectionKey: 'routes.chain.catalog.trunksSection',
+        sectionFallback: 'Транки',
+      },
+      trunkIds: {
+        items: (trunks.data ?? []).map((trunk) => ({
+          value: trunk.id,
+          label: trunk.name || trunk.id,
         })),
         isLoading: trunks.isLoading,
         sectionHref: '/trunks',

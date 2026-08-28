@@ -1,3 +1,4 @@
+import { BadRequestException } from '@nestjs/common';
 import { RoutesService } from './routes.service';
 import type { ITimeGroupInterval } from '@krasterisk/shared';
 import { AsteriskDialplanUtils } from '../../shared/utils/dialplan.util';
@@ -176,6 +177,89 @@ describe('RoutesService', () => {
 
       await service.update(5, { name: 'R only' } as any, 100);
 
+      expect(bindingModel.destroy).not.toHaveBeenCalled();
+      expect(bindingModel.bulkCreate).not.toHaveBeenCalled();
+    });
+  });
+
+  const foreignLookupAction = {
+    type: 'directory_lookup',
+    params: {
+      directoryUid: 999,
+      keySource: { source: 'original_caller' },
+      outputs: [{ fieldUid: 17, targetVariable: 'CID_NUM' }],
+      onMissing: 'keep',
+    },
+    condition: {},
+  };
+
+  describe('create / update — action directory ownership', () => {
+    it('rejects create when a directory_lookup action references a foreign directoryUid', async () => {
+      directoryModel.count.mockResolvedValueOnce(0);
+
+      await expect(
+        service.create(
+          {
+            name: 'R',
+            context_uid: 1,
+            actions: [foreignLookupAction],
+          } as any,
+          100,
+        ),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(routeModel.create).not.toHaveBeenCalled();
+    });
+
+    it('rejects update when a directory ValueSource references a foreign directoryUid, before persist', async () => {
+      const existingRoute = { uid: 5, context_uid: 1, update: jest.fn() };
+      routeModel.findOne.mockResolvedValueOnce(existingRoute);
+      directoryModel.count.mockResolvedValueOnce(0);
+
+      await expect(
+        service.update(
+          5,
+          {
+            actions: [{
+              type: 'toexten',
+              params: {
+                target: {
+                  source: 'directory',
+                  directoryUid: 999,
+                  valueFieldUid: 17,
+                  keySource: { source: 'original_caller' },
+                  onMissing: 'keep',
+                },
+              },
+              condition: {},
+            }],
+          } as any,
+          100,
+        ),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(existingRoute.update).not.toHaveBeenCalled();
+    });
+
+    it('rejects custom policy actions with a foreign directoryUid, without touching bindings', async () => {
+      const existingRoute = { uid: 5, context_uid: 1, update: jest.fn() };
+      routeModel.findOne.mockResolvedValueOnce(existingRoute);
+      directoryModel.count.mockResolvedValueOnce(0);
+
+      await expect(
+        service.update(
+          5,
+          {
+            bindings: [{
+              directory_uid: 10,
+              key_source: origCallerKey,
+              match_mode: 'on_match',
+              behavior_type: 'custom',
+              actions: [foreignLookupAction],
+            }],
+          } as any,
+          100,
+        ),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(existingRoute.update).not.toHaveBeenCalled();
       expect(bindingModel.destroy).not.toHaveBeenCalled();
       expect(bindingModel.bulkCreate).not.toHaveBeenCalled();
     });

@@ -42,6 +42,54 @@ function collectBindingFieldUids(binding: RouteBindingInput): number[] {
   return Array.from(new Set(uids));
 }
 
+function asPositiveInt(value: unknown): number | undefined {
+  if (typeof value === 'number' && Number.isInteger(value) && value > 0) return value;
+  return undefined;
+}
+
+/** Directory/field UIDs nested in route or custom-policy action JSON. */
+function collectActionDirectoryRefs(nodes: unknown[]): {
+  directoryUids: number[];
+  fieldsByDirectory: Map<number, number[]>;
+} {
+  const directoryUids = new Set<number>();
+  const fieldsByDirectory = new Map<number, Set<number>>();
+
+  const addField = (directoryUid: number, fieldUid: number) => {
+    const set = fieldsByDirectory.get(directoryUid) ?? new Set<number>();
+    set.add(fieldUid);
+    fieldsByDirectory.set(directoryUid, set);
+  };
+
+  const walk = (node: unknown, nearestDir?: number): void => {
+    if (node == null) return;
+    if (Array.isArray(node)) {
+      for (const item of node) walk(item, nearestDir);
+      return;
+    }
+    if (typeof node !== 'object') return;
+    const rec = node as Record<string, unknown>;
+    const ownDir = asPositiveInt(rec.directoryUid) ?? asPositiveInt(rec.directory_uid);
+    const dir = ownDir ?? nearestDir;
+    if (ownDir != null) directoryUids.add(ownDir);
+
+    const fieldUid = asPositiveInt(rec.valueFieldUid) ?? asPositiveInt(rec.fieldUid);
+    if (fieldUid != null && dir != null) addField(dir, fieldUid);
+
+    for (const child of Object.values(rec)) {
+      if (child && typeof child === 'object') walk(child, dir);
+    }
+  };
+
+  for (const node of nodes) walk(node);
+  return {
+    directoryUids: Array.from(directoryUids),
+    fieldsByDirectory: new Map(
+      Array.from(fieldsByDirectory.entries()).map(([uid, fields]) => [uid, Array.from(fields)]),
+    ),
+  };
+}
+
 @Injectable()
 export class RoutesService {
   private readonly logger = new Logger(RoutesService.name);
@@ -106,6 +154,44 @@ export class RoutesService {
     }
   }
 
+  /**
+   * Spec §11: action save/apply validates directory and field UIDs on
+   * route.actions and custom policy actions (same ownership rules as bindings).
+   */
+  private async validateActionDirectoryOwnership(actions: unknown[], vpbxUserUid: number): Promise<void> {
+    const { directoryUids, fieldsByDirectory } = collectActionDirectoryRefs(actions);
+    if (directoryUids.length === 0) return;
+    const count = await this.directoryModel.count({ where: { uid: directoryUids, user_uid: vpbxUserUid } });
+    if (count !== directoryUids.length) {
+      throw new BadRequestException('One or more directories are invalid or belong to another tenant');
+    }
+    for (const [directoryUid, fieldUids] of fieldsByDirectory) {
+      if (fieldUids.length === 0) continue;
+      const fieldCount = await this.fieldModel.count({
+        where: { uid: fieldUids, directory_uid: directoryUid },
+      });
+      if (fieldCount !== fieldUids.length) {
+        throw new BadRequestException('One or more directory fields are invalid or do not belong to the selected directory');
+      }
+    }
+  }
+
+  private async validateSavedActionOwnership(
+    actions: unknown,
+    bindings: RouteBindingInput[] | undefined,
+    vpbxUserUid: number,
+  ): Promise<void> {
+    const chains: unknown[] = [];
+    if (Array.isArray(actions)) chains.push(...actions);
+    if (bindings) {
+      for (const binding of bindings) {
+        if (Array.isArray(binding.actions)) chains.push(...binding.actions);
+      }
+    }
+    if (chains.length === 0) return;
+    await this.validateActionDirectoryOwnership(chains, vpbxUserUid);
+  }
+
   /** Replace-all strategy for a route's directory policies. */
   private async replaceBindings(routeUid: number, bindings: RouteBindingInput[], vpbxUserUid: number): Promise<void> {
     await this.validateBindingsOwnership(bindings, vpbxUserUid);
@@ -130,6 +216,7 @@ export class RoutesService {
   /** Create a new route */
   async create(data: Partial<Route> & { bindings?: RouteBindingInput[] }, vpbxUserUid: number): Promise<Route> {
     const { bindings, ...rest } = data as any;
+    await this.validateSavedActionOwnership(rest.actions, bindings, vpbxUserUid);
 
     // Get the next priority
     const maxPriority = await this.routeModel.max('priority', {
@@ -158,6 +245,7 @@ export class RoutesService {
   async update(uid: number, data: Partial<Route> & { bindings?: RouteBindingInput[] }, vpbxUserUid: number): Promise<Route> {
     const route = await this.findOne(uid, vpbxUserUid);
     const { bindings, ...rest } = data as any;
+    await this.validateSavedActionOwnership(rest.actions, bindings, vpbxUserUid);
     const payload = { ...rest } as Partial<Route>;
     if (payload.raw_dialplan?.trim()) {
       payload.raw_dialplan = ensureCdrVpbxUserUidInDialplan(payload.raw_dialplan, vpbxUserUid);

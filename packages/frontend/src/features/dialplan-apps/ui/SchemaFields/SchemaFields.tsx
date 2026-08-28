@@ -123,6 +123,7 @@ const CATALOG_DEFAULTS: Record<
 > = {
   queues: { href: '/queues', sectionKey: 'routes.chain.catalog.queuesSection', sectionFallback: 'Очереди' },
   trunks: { href: '/trunks', sectionKey: 'routes.chain.catalog.trunksSection', sectionFallback: 'Транки' },
+  trunkIds: { href: '/trunks', sectionKey: 'routes.chain.catalog.trunksSection', sectionFallback: 'Транки' },
   ivrs: { href: '/ivrs', sectionKey: 'routes.chain.catalog.ivrsSection', sectionFallback: 'IVR' },
   prompts: { href: '/prompts', sectionKey: 'routes.chain.catalog.promptsSection', sectionFallback: 'Записи' },
   dialplanDirectories: {
