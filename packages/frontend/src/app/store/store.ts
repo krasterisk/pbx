@@ -24,6 +24,7 @@ import { notificationsPageReducer } from '@/features/notifications/model/slice/n
 import { callGroupsPageReducer } from '@/features/call-groups/model/slice/callGroupsPageSlice';
 import { timeGroupsReducer } from '@/features/timeGroups';
 import { phonebooksReducer } from '@/features/phonebooks';
+import { directoriesReducer } from '@/features/directories';
 import { tenantsPageReducer } from '@/features/cloud-admin';
 import { aiChatReducer } from '@/features/ai-chat/model/slice/aiChatSlice';
 import callCenterReducer from '@/features/callcenter/model/slice/callCenterSlice';
@@ -51,6 +52,7 @@ export const store = configureStore({
     callGroupsPage: callGroupsPageReducer,
     timeGroups: timeGroupsReducer,
     phonebooks: phonebooksReducer,
+    directories: directoriesReducer,
     tenantsPage: tenantsPageReducer,
     aiChat: aiChatReducer,
     callCenter: callCenterReducer,
