@@ -522,6 +522,94 @@ describe('DirectoriesService', () => {
         label: 'MSISDN',
       });
     });
+
+    it('reindexes exact keys when switching digits to none so lookup still finds the record', async () => {
+      const created = await service.create(
+        createDto({
+          name: 'DigitsToNone',
+          key_normalization: 'digits',
+          records: [
+            { match_kind: 'exact', priority: 1, values: { number: '+1-23', name: 'A' } },
+            { match_kind: 'asterisk_pattern', priority: 10, values: { number: '_1XX' } },
+          ],
+        }),
+        100,
+      );
+      const numberUid = created.fields!.find((f) => f.key === 'number')!.uid;
+
+      await service.update(created.uid, { key_normalization: 'none' }, 100);
+
+      await expect(
+        service.lookup({
+          directoryUid: created.uid,
+          userUid: 100,
+          key: '+1-23',
+          fieldUids: [numberUid],
+        }),
+      ).resolves.toEqual({ status: 'FOUND', matchKind: 'exact', values: ['+1-23'] });
+
+      const exact = store.records.find(
+        (r) => r.directory_uid === created.uid && r.match_kind === 'exact',
+      );
+      const pattern = store.records.find(
+        (r) => r.directory_uid === created.uid && r.match_kind === 'asterisk_pattern',
+      );
+      expect(exact!.normalized_lookup_value).toBe('+1-23');
+      expect(pattern).toMatchObject({ lookup_value: '_1XX', normalized_lookup_value: '_1XX' });
+    });
+
+    it('reindexes exact keys when switching none to digits so lookup still finds the record', async () => {
+      const created = await service.create(
+        createDto({
+          name: 'NoneToDigits',
+          key_normalization: 'none',
+          records: [
+            { match_kind: 'exact', priority: 1, values: { number: '+1-23', name: 'A' } },
+            { match_kind: 'asterisk_pattern', priority: 10, values: { number: '_1XX' } },
+          ],
+        }),
+        100,
+      );
+      const numberUid = created.fields!.find((f) => f.key === 'number')!.uid;
+
+      await service.update(created.uid, { key_normalization: 'digits' }, 100);
+
+      await expect(
+        service.lookup({
+          directoryUid: created.uid,
+          userUid: 100,
+          key: '+1-23',
+          fieldUids: [numberUid],
+        }),
+      ).resolves.toEqual({ status: 'FOUND', matchKind: 'exact', values: ['+1-23'] });
+
+      const exact = store.records.find(
+        (r) => r.directory_uid === created.uid && r.match_kind === 'exact',
+      );
+      const pattern = store.records.find(
+        (r) => r.directory_uid === created.uid && r.match_kind === 'asterisk_pattern',
+      );
+      expect(exact!.normalized_lookup_value).toBe('123');
+      expect(pattern).toMatchObject({ lookup_value: '_1XX', normalized_lookup_value: '_1XX' });
+    });
+
+    it('rejects a normalization change that would collide exact keys', async () => {
+      const created = await service.create(
+        createDto({
+          name: 'NormClash',
+          key_normalization: 'none',
+          records: [
+            { match_kind: 'exact', priority: 1, values: { number: '+1-23', name: 'A' } },
+            { match_kind: 'exact', priority: 1, values: { number: '123', name: 'B' } },
+          ],
+        }),
+        100,
+      );
+
+      await expect(
+        service.update(created.uid, { key_normalization: 'digits' }, 100),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
   });
 
   describe('references and deletion', () => {

@@ -135,6 +135,7 @@ export class DirectoriesService {
   async update(uid: number, dto: UpdateDirectoryDto, userUid: number): Promise<IDirectory> {
     const data = { ...dto } as UpdateDirectoryDto & { user_uid?: number };
     delete data.user_uid;
+    if (data.fields) this.assertFieldKeys(data.fields);
 
     const directory = await this.loadOwned(uid, userUid);
 
@@ -168,6 +169,11 @@ export class DirectoriesService {
           throw new BadRequestException('lookupFieldKey does not match a field');
         }
 
+        const prevMode = directory.key_normalization;
+        const nextMode = data.key_normalization ?? prevMode;
+        const normalizationChanged =
+          data.key_normalization !== undefined && data.key_normalization !== prevMode;
+
         await directory.update(
           {
             ...(data.name !== undefined ? { name: data.name } : {}),
@@ -188,10 +194,12 @@ export class DirectoriesService {
             data.records,
             fields,
             lookup,
-            data.key_normalization ?? directory.key_normalization,
+            nextMode,
             [],
             transaction,
           );
+        } else if (normalizationChanged) {
+          await this.reindexExactKeys(uid, nextMode, transaction);
         }
       });
     } catch (err) {
@@ -466,6 +474,28 @@ export class DirectoriesService {
       }
     }
     return result;
+  }
+
+  private async reindexExactKeys(
+    directoryUid: number,
+    nextMode: DirectoryKeyNormalization,
+    transaction: Transaction,
+  ): Promise<void> {
+    const rows = await this.recordModel.findAll({
+      where: { directory_uid: directoryUid },
+      transaction,
+    });
+
+    const seen = new Set<string>();
+    for (const row of rows) {
+      if (row.match_kind === 'asterisk_pattern') continue;
+      const nextNormalized = normalizeDirectoryKey(row.lookup_value, nextMode);
+      if (seen.has(nextNormalized)) {
+        throw new ConflictException('Duplicate directory record key');
+      }
+      seen.add(nextNormalized);
+      await row.update({ normalized_lookup_value: nextNormalized }, { transaction });
+    }
   }
 
   private async writeRecords(
