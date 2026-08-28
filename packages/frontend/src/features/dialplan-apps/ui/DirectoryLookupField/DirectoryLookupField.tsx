@@ -159,8 +159,10 @@ export function DirectoryLookupField({
 }: DirectoryLookupFieldProps) {
   const { t } = useTranslation();
   const [draftUid, setDraftUid] = useState<number | null>(null);
+  const [draftKeySource, setDraftKeySource] = useState<CallValueSource | null>(null);
   const lastEmitRef = useRef('');
   const directoryUid = draftUid ?? value?.directoryUid ?? 0;
+  const keySource = draftKeySource ?? value?.keySource;
   const query = useGetDirectoryQuery(directoryUid, { skip: directoryUid <= 0 });
   const fields = query.data?.fields ?? [];
 
@@ -169,6 +171,16 @@ export function DirectoryLookupField({
       setDraftUid(null);
     }
   }, [value?.directoryUid, draftUid]);
+
+  useEffect(() => {
+    if (
+      draftKeySource &&
+      value?.keySource &&
+      JSON.stringify(value.keySource) === JSON.stringify(draftKeySource)
+    ) {
+      setDraftKeySource(null);
+    }
+  }, [value?.keySource, draftKeySource]);
 
   useEffect(() => {
     if (!draftUid || query.data?.uid !== draftUid) return;
@@ -180,7 +192,7 @@ export function DirectoryLookupField({
     const next: DirectoryValueSource = {
       source: 'directory',
       directoryUid: draftUid,
-      keySource: value?.keySource ?? { source: 'original_caller' },
+      keySource: draftKeySource ?? value?.keySource ?? { source: 'original_caller' },
       valueFieldUid: nextFieldUid,
       onMissing: value?.onMissing ?? 'skip',
     };
@@ -189,7 +201,7 @@ export function DirectoryLookupField({
       lastEmitRef.current = token;
       onChange(next);
     }
-  }, [draftUid, expectedType, onChange, query.data, value]);
+  }, [draftUid, draftKeySource, expectedType, onChange, query.data, value]);
 
   const visibleFields = fields.filter(
     (field) => fieldMatchesType(field, expectedType) || field.uid === value?.valueFieldUid,
@@ -198,12 +210,15 @@ export function DirectoryLookupField({
   const emit = (patch: Partial<DirectoryValueSource>) => {
     const next: DirectoryValueSource = {
       source: 'directory',
-      directoryUid: patch.directoryUid ?? value?.directoryUid ?? 0,
-      keySource: patch.keySource ?? value?.keySource ?? { source: 'original_caller' },
+      directoryUid: patch.directoryUid ?? draftUid ?? value?.directoryUid ?? 0,
+      keySource: patch.keySource ?? draftKeySource ?? value?.keySource ?? { source: 'original_caller' },
       valueFieldUid: patch.valueFieldUid ?? value?.valueFieldUid ?? 0,
       onMissing: patch.onMissing ?? value?.onMissing ?? 'skip',
     };
-    if (isComplete(next)) onChange(next);
+    if (isComplete(next)) {
+      lastEmitRef.current = JSON.stringify(next);
+      onChange(next);
+    }
   };
 
   const directoryLabel = t('routes.chain.directoryLookup.directory', 'Справочник');
@@ -237,9 +252,12 @@ export function DirectoryLookupField({
       </VStack>
 
       <CallValueSourceField
-        value={value?.keySource}
+        value={keySource}
         readOnly={readOnly}
-        onChange={(keySource) => emit({ keySource })}
+        onChange={(nextKey) => {
+          setDraftKeySource(nextKey);
+          emit({ keySource: nextKey });
+        }}
       />
 
       {directoryUid > 0 ? (

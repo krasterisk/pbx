@@ -7,6 +7,7 @@ import { DialplanAppsEditor } from '../DialplanAppsEditor/DialplanAppsEditor';
 import { StepSheet } from './StepSheet';
 import * as queueApiHooks from '@/shared/api/endpoints/queueApi';
 import * as phonebookApiHooks from '@/shared/api/endpoints/phonebookApi';
+import * as directoryApi from '@/shared/api/endpoints/directoryApi';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -145,6 +146,30 @@ describe('StepSheet', () => {
       data: [],
       isLoading: false,
     });
+  });
+
+  it('loads the directory catalog when a value-source field is present', () => {
+    render(
+      <StepSheet
+        open
+        stepId="step-1"
+        tenantUid={42}
+        action={{
+          id: 'step-1',
+          type: 'toqueue',
+          params: { target: { source: 'fixed', value: 'sales' }, options: 'thH' },
+          condition: {},
+        }}
+        onOpenChange={vi.fn()}
+        onChange={vi.fn()}
+        onTypeChange={vi.fn()}
+      />,
+    );
+
+    expect(directoryApi.useGetDirectoriesQuery).toHaveBeenCalledWith(
+      undefined,
+      expect.objectContaining({ skip: false }),
+    );
   });
 
   it('opens Sheet when toqueue is chosen on an empty row', () => {

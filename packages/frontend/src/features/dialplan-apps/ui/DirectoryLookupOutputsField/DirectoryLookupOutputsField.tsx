@@ -4,6 +4,7 @@ import { Button, Input, Label, Select, Text, InfoTooltip } from '@/shared/ui';
 import { HStack, VStack } from '@/shared/ui/Stack';
 import { Plus, Trash2 } from 'lucide-react';
 import { useGetDirectoryQuery } from '@/shared/api/endpoints/directoryApi';
+import { validateDirectoryOutputTarget } from '../../model/schemas/directoryLookup';
 import styles from './DirectoryLookupOutputsField.module.scss';
 
 export interface DirectoryLookupOutputsFieldProps {
@@ -11,26 +12,6 @@ export interface DirectoryLookupOutputsFieldProps {
   value: DirectoryLookupOutput[];
   onChange: (next: DirectoryLookupOutput[]) => void;
   readOnly?: boolean;
-}
-
-const TARGET_VARIABLE_RE = /^[A-Z][A-Z0-9_]{1,63}$/;
-const RESERVED_TARGET_VARIABLES = new Set(['CALLERID', 'CALLERID(num)', 'EXTEN', 'UNIQUEID']);
-
-export function validateDirectoryOutputTarget(name: string, used: string[]): string | null {
-  if (!TARGET_VARIABLE_RE.test(name)) return 'invalid';
-  if (RESERVED_TARGET_VARIABLES.has(name) || name.startsWith('KRSK_')) return 'invalid';
-  if (used.includes(name)) return 'invalid';
-  return null;
-}
-
-export function directoryLookupFieldErrors(params: Record<string, unknown>): Record<string, string> {
-  const outputs = Array.isArray(params.outputs) ? (params.outputs as DirectoryLookupOutput[]) : [];
-  const names = outputs.map((row) => String(row?.targetVariable ?? '').trim());
-  const invalid = outputs.some((row, index) => {
-    const name = String(row?.targetVariable ?? '').trim();
-    return validateDirectoryOutputTarget(name, names.filter((_, i) => i !== index)) !== null;
-  });
-  return invalid ? { outputs: 'invalid' } : {};
 }
 
 export function DirectoryLookupOutputsField({

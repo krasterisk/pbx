@@ -2,10 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import type { IDirectory } from '@krasterisk/shared';
-import {
-  DirectoryLookupOutputsField,
-  validateDirectoryOutputTarget,
-} from './DirectoryLookupOutputsField';
+import { DirectoryLookupOutputsField } from './DirectoryLookupOutputsField';
+import { validateDirectoryOutputTarget } from '../../model/schemas/directoryLookup';
 import * as directoryApi from '@/shared/api/endpoints/directoryApi';
 
 vi.mock('react-i18next', () => ({

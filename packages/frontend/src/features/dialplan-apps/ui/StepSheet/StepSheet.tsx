@@ -93,17 +93,15 @@ export function StepSheet({
   const bodyRef = useRef<HTMLDivElement>(null);
   const config = action?.type ? dialplanAppsRegistry[action.type] : undefined;
   const schema = config?.schema ?? EMPTY_SCHEMA;
-  const catalogSources = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          schema
-            .map((field) => field.optionsSource)
-            .filter((source): source is OptionsSource => source != null),
-        ),
-      ),
-    [schema],
-  );
+  const catalogSources = useMemo(() => {
+    const sources = schema
+      .map((field) => field.optionsSource)
+      .filter((source): source is OptionsSource => source != null);
+    if (schema.some((field) => field.kind === 'value-source')) {
+      sources.push('dialplanDirectories');
+    }
+    return Array.from(new Set(sources));
+  }, [schema]);
   const schemaRefs = useSchemaRefs(catalogSources);
   const mergedFieldErrors = useMemo(() => {
     const client = clientStepFieldErrors(action);

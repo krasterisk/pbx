@@ -4,7 +4,7 @@ import { cmdFieldErrors } from './schemas/cmd';
 import { httpRequestFieldErrors } from './schemas/httpRequest';
 import { labelFieldErrors } from './schemas/label';
 import { webhookFieldErrors } from './schemas/webhook';
-import { directoryLookupFieldErrors } from '../ui/DirectoryLookupOutputsField';
+import { directoryLookupFieldErrors } from './schemas/directoryLookup';
 
 type TFn = TranslateFn;
 

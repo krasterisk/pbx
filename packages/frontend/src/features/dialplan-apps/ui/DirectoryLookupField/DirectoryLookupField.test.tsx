@@ -151,6 +151,38 @@ describe('DirectoryLookupField', () => {
     );
   });
 
+  it('emits one complete DirectoryValueSource after selecting fixed and typing a key', () => {
+    const onChange = vi.fn();
+    render(
+      <DirectoryLookupField
+        value={COMPLETE}
+        onChange={onChange}
+        directories={DIRECTORIES}
+      />,
+    );
+
+    fireEvent.change(screen.getByRole('combobox', { name: /ключ|key/i }), {
+      target: { value: 'fixed' },
+    });
+    expect(onChange).not.toHaveBeenCalled();
+    expect((screen.getByRole('combobox', { name: /ключ|key/i }) as HTMLSelectElement).value).toBe(
+      'fixed',
+    );
+
+    fireEvent.change(screen.getByRole('textbox', { name: /значение ключа|fixed key|ключ/i }), {
+      target: { value: '79001234567' },
+    });
+
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenCalledWith({
+      source: 'directory',
+      directoryUid: 7,
+      keySource: { source: 'fixed', value: '79001234567' },
+      valueFieldUid: 17,
+      onMissing: 'skip',
+    });
+  });
+
   it('emits only a complete DirectoryValueSource', () => {
     const onChange = vi.fn();
     render(
