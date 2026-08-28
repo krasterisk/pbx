@@ -1,10 +1,9 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { IRoutePhonebook, ValueSource } from '@krasterisk/shared';
+import type { ValueSource } from '@krasterisk/shared';
 import { Input, Label, Select, Text, InfoTooltip } from '@/shared/ui';
 import { HStack, VStack } from '@/shared/ui/Stack';
 import { useGetQueuesQuery } from '@/shared/api/endpoints/queueApi';
-import { useGetPhonebooksQuery } from '@/shared/api/endpoints/phonebookApi';
 import { useGetEndpointsQuery } from '@/shared/api/endpoints/endpointApi';
 import { extractExtension, interfaceToExtension } from '@/features/endpoints/lib/endpointIds';
 import type { OptionsSource, ValueSourceMode } from '../../model/schema.types';
@@ -22,7 +21,7 @@ export interface ValueSourceFieldProps {
   /** Hide the visible label row; aria-label on controls still uses `label`. */
   hideLabel?: boolean;
   optionsSource?: OptionsSource;
-  /** `queue` = catalog + route_pattern; `scalar` = number / variable / phonebook. */
+  /** `queue` = catalog + route_pattern; `scalar` = number / variable / directory. */
   mode?: ValueSourceMode;
   readOnly?: boolean;
   /** Highlight incomplete required fields after a failed close/save attempt */
@@ -34,7 +33,7 @@ export interface ValueSourceFieldProps {
 const SRC_ROUTE = '__src:route_pattern';
 const SRC_FIXED = '__src:fixed';
 const SRC_VARIABLE = '__src:variable';
-const SRC_PHONEBOOK = '__src:phonebook';
+const SRC_DIRECTORY = '__src:directory';
 /** Store bare extension — strip PJSIP/e101_42 or ew101_42 pasted by mistake. */
 export function normalizeBareExtension(raw: string): string {
   const trimmed = raw.trim();
@@ -42,14 +41,6 @@ export function normalizeBareExtension(raw: string): string {
   if (trimmed.includes('/')) return interfaceToExtension(trimmed);
   if (/^e(w?).+_\d+$/.test(trimmed)) return extractExtension(trimmed);
   return trimmed;
-}
-
-function collectPhonebookVarKeys(phonebook: IRoutePhonebook | undefined): string[] {
-  const keys = new Set<string>();
-  for (const entry of phonebook?.entries || []) {
-    if (entry.vars) Object.keys(entry.vars).forEach((k) => keys.add(k));
-  }
-  return Array.from(keys).sort();
 }
 
 /** Dual-read legacy number/string into ValueSource for editors. */
@@ -86,13 +77,7 @@ export function isValueSourceComplete(value: ValueSource | undefined): boolean {
       value.valueFieldUid > 0
     );
   }
-  const leftover = value as { phonebookUid?: number; varKey?: string };
-  return (
-    Number.isInteger(leftover.phonebookUid) &&
-    (leftover.phonebookUid ?? 0) > 0 &&
-    typeof leftover.varKey === 'string' &&
-    leftover.varKey.trim().length > 0
-  );
+  return false;
 }
 
 function asValueSource(value: ValueSource | undefined): ValueSource {
@@ -105,12 +90,6 @@ function sourceOf(value: ValueSource | undefined): string {
 
 function asDirectorySource(value: ValueSource | undefined): DirectoryValueSource | undefined {
   return sourceOf(value) === 'directory' ? (value as DirectoryValueSource) : undefined;
-}
-
-type LeftoverPhonebook = { source: 'phonebook'; phonebookUid: number; varKey: string };
-
-function asPhonebook(value: ValueSource | undefined): LeftoverPhonebook | undefined {
-  return sourceOf(value) === 'phonebook' ? (value as unknown as LeftoverPhonebook) : undefined;
 }
 
 function emptyDirectorySource(): DirectoryValueSource {
@@ -129,20 +108,20 @@ function selectValue(src: ValueSource, mode: ValueSourceMode): string {
     if (kind === 'route_pattern') return SRC_ROUTE;
     if (kind === 'fixed') return SRC_FIXED;
     if (kind === 'variable') return SRC_VARIABLE;
-    if (kind === 'phonebook' || kind === 'directory') return SRC_PHONEBOOK;
+    if (kind === 'directory') return SRC_DIRECTORY;
     return SRC_ROUTE;
   }
   if (mode === 'scalar') {
     if (!src || (src.source === 'fixed' && !src.value.trim())) return '';
     if (kind === 'fixed') return SRC_FIXED;
     if (kind === 'variable') return SRC_VARIABLE;
-    if (kind === 'phonebook' || kind === 'directory') return SRC_PHONEBOOK;
+    if (kind === 'directory') return SRC_DIRECTORY;
     return '';
   }
   if (kind === 'fixed') return src.source === 'fixed' ? src.value : '';
   if (kind === 'route_pattern') return SRC_ROUTE;
   if (kind === 'variable') return SRC_VARIABLE;
-  return SRC_PHONEBOOK;
+  return SRC_DIRECTORY;
 }
 
 export function ValueSourceField({
@@ -164,35 +143,18 @@ export function ValueSourceField({
   const coerced = coerceValueSource(value);
   const src = asValueSource(coerced);
   const queuesQuery = useGetQueuesQuery(undefined, { skip: mode !== 'queue' });
-  const leftoverPhonebook = asPhonebook(src);
   const directorySource = asDirectorySource(src);
-  const phonebooksQuery = useGetPhonebooksQuery(undefined, {
-    skip: mode === 'queue'
-      ? optionsSource !== 'queues' && !leftoverPhonebook
-      : !leftoverPhonebook,
-  });
   const endpointsQuery = useGetEndpointsQuery(undefined, {
     skip: optionsSource !== 'endpoints' || src.source !== 'fixed',
   });
   const queues = queuesQuery.data ?? [];
-  const phonebooks = phonebooksQuery.data ?? [];
   const endpoints = endpointsQuery.data ?? [];
-  const selectedPhonebook = leftoverPhonebook
-    ? phonebooks.find((pb) => pb.uid === leftoverPhonebook.phonebookUid)
-    : undefined;
-  const varKeys = collectPhonebookVarKeys(selectedPhonebook);
   const isLoading = mode === 'queue' && queuesQuery.isLoading;
   const isEmpty = mode === 'queue' && !isLoading && queues.length === 0;
   const complete = isValueSourceComplete(src);
   const markError = Boolean(required && showErrors && !complete && !isLoading);
   const queueEmptyError = markError && src.source === 'fixed' && !src.value.trim();
   const variableError = markError && src.source === 'variable';
-  const phonebookUidError =
-    markError && Boolean(leftoverPhonebook) && !(leftoverPhonebook && leftoverPhonebook.phonebookUid > 0);
-  const phonebookVarError =
-    markError &&
-    Boolean(leftoverPhonebook && leftoverPhonebook.phonebookUid > 0) &&
-    !(typeof leftoverPhonebook?.varKey === 'string' && leftoverPhonebook.varKey.trim());
   const loadingLabel = t('routes.chain.catalog.loading', 'Загружаем список');
   const emptyLabel = t('routes.chain.catalog.empty', 'Ничего не создано');
   const sectionName = t('routes.chain.catalog.queuesSection', 'Очереди');
@@ -229,17 +191,11 @@ export function ValueSourceField({
     }
     return base;
   }, [endpointFilter, endpoints, fixedExten, extenInCatalog]);
-  const varKeyLabel = isScalar
-    ? t('routes.chain.source.selectPriorityVarKey', 'Поле с приоритетом')
-    : isDial
-      ? t('routes.chain.source.selectDestVarKey', 'Поле с номером')
-      : t('routes.chain.source.selectVarKey', 'Поле с номером очереди');
-
   const handleQueueSelect = (raw: string) => {
     if (raw === SRC_ROUTE) onChange({ source: 'route_pattern' });
     else if (raw === SRC_VARIABLE) {
       onChange({ source: 'variable', name: src.source === 'variable' ? src.name : '' });
-    } else if (raw === SRC_PHONEBOOK) {
+    } else if (raw === SRC_DIRECTORY) {
       onChange(directorySource ?? emptyDirectorySource());
     } else if (raw === '') {
       onChange({ source: 'fixed', value: '' });
@@ -264,7 +220,7 @@ export function ValueSourceField({
       onChange({ source: 'variable', name: src.source === 'variable' ? src.name : '' });
       return;
     }
-    if (raw === SRC_PHONEBOOK) {
+    if (raw === SRC_DIRECTORY) {
       onChange(directorySource ?? emptyDirectorySource());
     }
   };
@@ -286,17 +242,6 @@ export function ValueSourceField({
       return;
     }
     onChange(directorySource ?? emptyDirectorySource());
-  };
-
-  const setPhonebookUid = (uid: number) => {
-    const pb = phonebooks.find((item) => item.uid === uid);
-    const keys = collectPhonebookVarKeys(pb);
-    const prevKey = leftoverPhonebook?.varKey ?? '';
-    onChange({
-      source: 'phonebook',
-      phonebookUid: uid,
-      varKey: keys.includes(prevKey) ? prevKey : '',
-    } as unknown as ValueSource);
   };
 
   // With a hidden label the hint icon sits left of the control.
@@ -341,7 +286,7 @@ export function ValueSourceField({
           <option value={SRC_VARIABLE}>
             {t('routes.chain.source.variable', 'Из переменной')}
           </option>
-          <option value={SRC_PHONEBOOK}>
+          <option value={SRC_DIRECTORY}>
             {t('routes.chain.source.phonebook', 'Из справочника')}
           </option>
         </Select>
@@ -361,7 +306,7 @@ export function ValueSourceField({
               <option value={SRC_ROUTE}>
                 {t('routes.chain.source.routeNumber', 'B-номер маршрута')}
               </option>
-              <option value={SRC_PHONEBOOK}>
+              <option value={SRC_DIRECTORY}>
                 {t('routes.chain.source.phonebook', 'Из справочника')}
               </option>
               <option value={SRC_VARIABLE}>
@@ -408,7 +353,7 @@ export function ValueSourceField({
           <option value={SRC_VARIABLE}>
             {t('routes.chain.source.variable', 'Из переменной')}
           </option>
-          <option value={SRC_PHONEBOOK}>
+          <option value={SRC_DIRECTORY}>
             {t('routes.chain.source.phonebook', 'Из справочника')}
           </option>
         </Select>
@@ -533,120 +478,6 @@ export function ValueSourceField({
             <Text id="queue-variable-error" variant="muted" className={styles.fieldError}>
               {t('routes.chain.source.variableRequired', 'Укажите имя переменной')}
             </Text>
-          ) : null}
-        </VStack>
-      ) : null}
-
-      {leftoverPhonebook ? (
-        <VStack gap="8" max className={styles.field}>
-          <HStack gap="4" align="center">
-            <Label className={styles.subLabel}>
-              {t('routes.chain.source.selectPhonebook', 'Выберите справочник')}
-              {required ? ' *' : ''}
-            </Label>
-            <InfoTooltip
-              text={t(
-                isScalar
-                  ? 'routes.chain.source.priorityPhonebookHint'
-                  : isDial
-                    ? 'routes.chain.source.dialPhonebookHint'
-                    : 'routes.chain.source.phonebookHint',
-                isScalar
-                  ? 'По **номеру звонящего** находим запись в справочнике\nБерём значение **выбранного поля**\nЭто значение становится **приоритетом** в очереди'
-                  : isDial
-                    ? 'По **номеру звонящего** находим запись в справочнике\nБерём значение **выбранного поля** записи\nЭто значение становится **номером для набора**'
-                    : 'По **номеру звонящего** находим запись в справочнике\nБерём значение **выбранного поля** записи\nЭто значение становится **номером очереди**',
-              )}
-            />
-          </HStack>
-          <Select
-            disabled={readOnly || phonebooksQuery.isLoading}
-            value={leftoverPhonebook.phonebookUid ? String(leftoverPhonebook.phonebookUid) : ''}
-            error={phonebookUidError}
-            aria-invalid={phonebookUidError || undefined}
-            aria-describedby={phonebookUidError ? 'queue-phonebook-error' : undefined}
-            aria-label={t('routes.chain.source.phonebook', 'Из справочника')}
-            onChange={(e) => setPhonebookUid(Number(e.target.value) || 0)}
-          >
-            <option value="">
-              {phonebooksQuery.isLoading
-                ? loadingLabel
-                : t('routes.chain.source.selectPhonebook', 'Выберите справочник')}
-            </option>
-            {phonebooks.map((pb) => (
-              <option key={pb.uid} value={String(pb.uid)}>
-                {pb.name}
-              </option>
-            ))}
-          </Select>
-          {phonebookUidError ? (
-            <Text id="queue-phonebook-error" variant="muted" className={styles.fieldError}>
-              {t('routes.chain.source.phonebookRequired', 'Выберите справочник')}
-            </Text>
-          ) : null}
-
-          {leftoverPhonebook.phonebookUid > 0 ? (
-            <VStack gap="8" max className={styles.field}>
-              <HStack gap="4" align="center">
-                <Label className={styles.subLabel}>
-                  {varKeyLabel}
-                  {required ? ' *' : ''}
-                </Label>
-                <InfoTooltip
-                  text={t(
-                    isScalar
-                      ? 'routes.chain.source.priorityVarKeyHint'
-                      : isDial
-                        ? 'routes.chain.source.dialVarKeyHint'
-                        : 'routes.chain.source.varKeyHint',
-                    isScalar
-                      ? 'Ключ из **переменных записи** справочника\n**Пример:** в записи prio=5 - выберите prio'
-                      : isDial
-                        ? 'Ключ из **переменных записи** справочника\n**Пример:** в записи trunk_num=84951234567 - выберите trunk_num'
-                        : 'Ключ из **переменных записи** справочника\n**Пример:** в записи queue=sales - выберите queue\nЗвонок пойдёт в очередь **sales**',
-                  )}
-                />
-              </HStack>
-              <Select
-                disabled={readOnly || varKeys.length === 0}
-                value={leftoverPhonebook.varKey || ''}
-                error={phonebookVarError}
-                aria-invalid={phonebookVarError || undefined}
-                aria-describedby={phonebookVarError ? 'queue-varkey-error' : undefined}
-                aria-label={varKeyLabel}
-                onChange={(e) =>
-                  onChange({
-                    source: 'phonebook',
-                    phonebookUid: leftoverPhonebook.phonebookUid,
-                    varKey: e.target.value,
-                  } as unknown as ValueSource)
-                }
-              >
-                <option value="">
-                  {varKeys.length === 0
-                    ? t('routes.chain.source.noVarKeys', 'В справочнике нет переменных')
-                    : t('routes.chain.source.selectVarKeyPlaceholder', 'Выберите поле')}
-                </option>
-                {varKeys.map((key) => (
-                  <option key={key} value={key}>
-                    {key}
-                  </option>
-                ))}
-              </Select>
-              {phonebookVarError ? (
-                <Text id="queue-varkey-error" variant="muted" className={styles.fieldError}>
-                  {t('routes.chain.source.varKeyRequired', 'Выберите поле')}
-                </Text>
-              ) : null}
-              {leftoverPhonebook.phonebookUid > 0 && varKeys.length === 0 ? (
-                <Text variant="muted" className={styles.fieldError}>
-                  {t(
-                    'routes.chain.source.noVarKeysHint',
-                    'Добавьте переменные в записи справочника, затем вернитесь сюда.',
-                  )}
-                </Text>
-              ) : null}
-            </VStack>
           ) : null}
         </VStack>
       ) : null}

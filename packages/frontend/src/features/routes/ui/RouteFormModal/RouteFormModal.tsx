@@ -8,7 +8,7 @@ import {
   type IRouteOptions,
 } from '@/shared/api/api';
 import { useGetContextsQuery } from '@/shared/api/endpoints/contextApi';
-import { type IRouteAction, type IRoutePhonebookBinding } from '@krasterisk/shared';
+import { type IRouteAction, type IRouteDirectoryBinding } from '@krasterisk/shared';
 import { useAppSelector, useAppDispatch } from '@/shared/hooks/useAppStore';
 import { selectCurrentUser } from '@/entities/User';
 import { ensureCdrVpbxUserUidInDialplan } from '@krasterisk/shared';
@@ -22,7 +22,7 @@ import { RouteWebhooksTab, WebhookItem } from './RouteWebhooksTab';
 import { RouteActionsTab } from './RouteActionsTab';
 import { mapStepErrors } from '@/features/dialplan-apps';
 import type { MappedStepErrors } from '@/features/dialplan-apps/model/stepErrors';
-import { RoutePhonebooksTab } from './RoutePhonebooksTab';
+import { RouteDirectoriesTab } from './RouteDirectoriesTab';
 
 function hasIncompleteQueueAction(list: IRouteAction[]): boolean {
   return list.some(
@@ -30,7 +30,7 @@ function hasIncompleteQueueAction(list: IRouteAction[]): boolean {
   );
 }
 
-const TABS = ['general', 'actions', 'phonebooks', 'webhooks'] as const;
+const TABS = ['general', 'actions', 'directories', 'webhooks'] as const;
 
 export const RouteFormModal = memo(() => {
   const { t } = useTranslation();
@@ -67,7 +67,7 @@ export const RouteFormModal = memo(() => {
   const [record, setRecord] = useState(false);
   const [recordAll, setRecordAll] = useState(false);
   const [recordStereo, setRecordStereo] = useState(false);
-  const [bindings, setBindings] = useState<IRoutePhonebookBinding[]>([]);
+  const [bindings, setBindings] = useState<IRouteDirectoryBinding[]>([]);
   const [preCommand, setPreCommand] = useState('');
   const [routeType, setRouteType] = useState(0);
 
@@ -207,8 +207,9 @@ export const RouteFormModal = memo(() => {
       }));
 
     const bindingsPayload = bindings.map((b, index) => ({
-      phonebook_uid: b.phonebook_uid,
+      directory_uid: b.directory_uid,
       position: index,
+      key_source: b.key_source,
       match_mode: b.match_mode,
       behavior_type: b.behavior_type,
       behavior_params: b.behavior_params ?? undefined,
@@ -308,8 +309,8 @@ export const RouteFormModal = memo(() => {
             />
           )}
 
-          {activeTab === 'phonebooks' && (
-            <RoutePhonebooksTab
+          {activeTab === 'directories' && (
+            <RouteDirectoriesTab
               bindings={bindings} setBindings={setBindings}
             />
           )}

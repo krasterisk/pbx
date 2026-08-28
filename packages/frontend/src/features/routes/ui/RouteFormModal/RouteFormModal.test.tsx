@@ -49,8 +49,8 @@ vi.mock('./RouteActionsTab', () => ({
   RouteActionsTab: () => <div data-testid="actions-tab" />,
 }));
 
-vi.mock('./RoutePhonebooksTab', () => ({
-  RoutePhonebooksTab: () => <div data-testid="phonebooks-tab" />,
+vi.mock('./RouteDirectoriesTab', () => ({
+  RouteDirectoriesTab: () => <div data-testid="directories-tab" />,
 }));
 
 vi.mock('./RouteWebhooksTab', () => ({
@@ -69,7 +69,17 @@ const selectedRoute = {
   raw_dialplan: RAW,
   options: {},
   webhooks: {},
-  bindings: [],
+  bindings: [
+    {
+      directory_uid: 7,
+      position: 0,
+      key_source: { source: 'original_caller' },
+      match_mode: 'on_match',
+      behavior_type: 'set_name',
+      behavior_params: { fieldUid: 18 },
+      actions: null,
+    },
+  ],
 };
 
 function renderModal() {
@@ -112,5 +122,30 @@ describe('RouteFormModal raw_dialplan payload (D-16)', () => {
     });
     const arg = updateRoute.mock.calls[0][0] as { data: { raw_dialplan?: string } };
     expect(arg.data.raw_dialplan).toEqual(loaded);
+  });
+
+  it('saves directory_uid, key_source, and field UIDs without phonebook properties', async () => {
+    renderModal();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
+
+    await waitFor(() => {
+      expect(updateRoute).toHaveBeenCalled();
+    });
+    const arg = updateRoute.mock.calls[0][0] as {
+      data: { bindings?: Array<Record<string, unknown>> };
+    };
+    expect(arg.data.bindings).toEqual([
+      {
+        directory_uid: 7,
+        position: 0,
+        key_source: { source: 'original_caller' },
+        match_mode: 'on_match',
+        behavior_type: 'set_name',
+        behavior_params: { fieldUid: 18 },
+        actions: undefined,
+      },
+    ]);
+    expect(JSON.stringify(arg.data.bindings)).not.toMatch(/phonebook/i);
   });
 });

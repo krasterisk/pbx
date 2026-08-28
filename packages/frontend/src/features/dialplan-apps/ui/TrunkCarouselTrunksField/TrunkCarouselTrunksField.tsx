@@ -1,13 +1,185 @@
 import { useTranslation } from 'react-i18next';
-import { Button, Input, Label, Select, InfoTooltip } from '@/shared/ui';
+import type { ITrunkCarouselItem, TrunkCallerIdSource } from '@krasterisk/shared';
+import { Button, Input, Label, Select, Text, InfoTooltip } from '@/shared/ui';
 import { HStack, VStack } from '@/shared/ui/Stack';
 import { Plus, Trash2 } from 'lucide-react';
 import { useGetTrunksQuery } from '@/shared/api/endpoints/trunkApi';
-import { useGetPhonebooksQuery } from '@/shared/api/endpoints/phonebookApi';
-import type { ITrunkCarouselItem } from '@krasterisk/shared';
+import { useGetDirectoryQuery } from '@/shared/api/endpoints/directoryApi';
+import { useSchemaRefs } from '../../model/useSchemaRefs';
 import styles from './TrunkCarouselTrunksField.module.scss';
 
 const DEFAULT_TRUNK_TIMEOUT = 60;
+
+type DirectoryCallerId = Extract<TrunkCallerIdSource, { mode: 'directory' }>;
+
+function isDirectoryCaller(value: TrunkCallerIdSource | undefined): value is DirectoryCallerId {
+  return value?.mode === 'directory';
+}
+
+function emptyStaticItem(): ITrunkCarouselItem {
+  return {
+    trunkId: '',
+    callerId: { mode: 'static', value: '' },
+    timeout: DEFAULT_TRUNK_TIMEOUT,
+  };
+}
+
+export function TrunkDirectoryCidField({
+  value,
+  onChange,
+  readOnly,
+}: {
+  value: DirectoryCallerId | undefined;
+  onChange: (next: DirectoryCallerId) => void;
+  readOnly?: boolean;
+}) {
+  const { t } = useTranslation();
+  const refs = useSchemaRefs(['dialplanDirectories']);
+  const directories = refs.dialplanDirectories?.items ?? [];
+  const directoryUid = value?.directoryUid ?? 0;
+  const query = useGetDirectoryQuery(directoryUid, { skip: directoryUid <= 0 });
+  const fields = (query.data?.fields ?? []).filter(
+    (field) => field.type === 'phone' || field.uid === value?.valueFieldUid,
+  );
+
+  const emit = (patch: Partial<DirectoryCallerId>) => {
+    onChange({
+      mode: 'directory',
+      directoryUid: patch.directoryUid ?? directoryUid,
+      valueFieldUid: patch.valueFieldUid ?? value?.valueFieldUid ?? 0,
+      keySource: { source: 'original_caller' },
+      onMissing: 'keep_original',
+    });
+  };
+
+  const directoryLabel = t('routes.apps.trunkCarousel.selectDirectory', 'Справочник');
+  const fieldLabel = t('routes.chain.directoryLookup.selectField', 'Поле записи');
+
+  return (
+    <VStack gap="8" max className={styles.cidValueCol}>
+      <VStack gap="4" max>
+        <Label>{directoryLabel}</Label>
+        <Select
+          disabled={readOnly || refs.dialplanDirectories?.isLoading}
+          value={directoryUid ? String(directoryUid) : ''}
+          aria-label={directoryLabel}
+          onChange={(e) => emit({ directoryUid: Number(e.target.value) || 0, valueFieldUid: 0 })}
+        >
+          <option value="">{t('routes.apps.trunkCarousel.selectDirectoryOption', 'Выберите справочник')}</option>
+          {directories.map((item) => (
+            <option key={item.value} value={item.value}>
+              {item.label}
+            </option>
+          ))}
+        </Select>
+      </VStack>
+      {directoryUid > 0 ? (
+        <VStack gap="4" max>
+          <Label>{fieldLabel}</Label>
+          <Select
+            disabled={readOnly || query.isLoading}
+            value={value?.valueFieldUid ? String(value.valueFieldUid) : ''}
+            aria-label={fieldLabel}
+            onChange={(e) => emit({ valueFieldUid: Number(e.target.value) || 0 })}
+          >
+            <option value="">{t('routes.chain.source.selectVarKeyPlaceholder', 'Выберите поле')}</option>
+            {fields.map((field) => (
+              <option key={field.uid} value={String(field.uid)}>
+                {field.label}
+              </option>
+            ))}
+          </Select>
+        </VStack>
+      ) : null}
+      <VStack gap="4" max className={styles.cidHint}>
+        <Text variant="small">
+          {t('routes.apps.trunkCarousel.directoryKeyHint', 'Ключ поиска: исходный CallerID')}
+        </Text>
+        <Text variant="small">
+          {t('routes.apps.trunkCarousel.directoryMissingHint', 'Если данных нет: сохранить исходный CallerID')}
+        </Text>
+      </VStack>
+    </VStack>
+  );
+}
+
+export function TrunkSingleCidField({
+  params,
+  onChange,
+  readOnly,
+}: {
+  params: Record<string, unknown>;
+  onChange: (patch: Record<string, unknown>) => void;
+  readOnly?: boolean;
+}) {
+  const { t } = useTranslation();
+  const callerId = params.callerId as TrunkCallerIdSource | undefined;
+  const directoryMode = isDirectoryCaller(callerId);
+  const staticValue = !directoryMode
+    ? (callerId?.mode === 'static' ? callerId.value : String(params.callerid ?? ''))
+    : '';
+
+  return (
+    <HStack gap="8" align="end" max className={styles.cidRow}>
+      <VStack gap="4" className={styles.cidModeCol}>
+        <Label>{t('routes.apps.trunkCarousel.cidMode', 'Источник CID')}</Label>
+        <Select
+          disabled={readOnly}
+          value={directoryMode ? 'directory' : 'static'}
+          aria-label={t('routes.apps.trunkCarousel.cidMode', 'Источник CID')}
+          onChange={(e) => {
+            if (e.target.value === 'directory') {
+              onChange({
+                cid_mode: undefined,
+                callerid: undefined,
+                callerId: {
+                  mode: 'directory',
+                  directoryUid: 0,
+                  valueFieldUid: 0,
+                  keySource: { source: 'original_caller' },
+                  onMissing: 'keep_original',
+                },
+              });
+              return;
+            }
+            onChange({
+              cid_mode: 'static',
+              callerid: staticValue ?? '',
+              callerId: { mode: 'static', value: staticValue ?? '' },
+            });
+          }}
+        >
+          <option value="static">{t('routes.apps.trunkCarousel.cidStatic', 'Статичный CID')}</option>
+          <option value="directory">{t('routes.apps.trunkCarousel.cidDirectory', 'CID из справочника')}</option>
+        </Select>
+      </VStack>
+      {directoryMode ? (
+        <TrunkDirectoryCidField
+          value={callerId}
+          readOnly={readOnly}
+          onChange={(next) => onChange({ callerId: next, cid_mode: undefined, callerid: undefined })}
+        />
+      ) : (
+        <VStack gap="4" className={styles.cidValueCol}>
+          <Label>{t('routes.apps.trunkCarousel.callerid', 'Номер CallerID (опц.)')}</Label>
+          <Input
+            disabled={readOnly}
+            value={staticValue ?? ''}
+            placeholder="79001234567"
+            aria-label={t('routes.apps.trunkCarousel.callerid', 'Номер CallerID')}
+            onChange={(e) =>
+              onChange({
+                cid_mode: 'static',
+                callerid: e.target.value,
+                callerId: { mode: 'static', value: e.target.value },
+              })
+            }
+          />
+        </VStack>
+      )}
+    </HStack>
+  );
+}
 
 export function TrunkCarouselTrunksField({
   params,
@@ -20,7 +192,6 @@ export function TrunkCarouselTrunksField({
 }) {
   const { t } = useTranslation();
   const { data: trunks = [], isLoading: trunksLoading } = useGetTrunksQuery();
-  const { data: phonebooks = [], isLoading: phonebooksLoading } = useGetPhonebooksQuery();
   const items: ITrunkCarouselItem[] = Array.isArray(params.trunks) ? params.trunks : [];
   const hint = t(
     'routes.apps.trunkCarousel.hint',
@@ -29,11 +200,7 @@ export function TrunkCarouselTrunksField({
 
   const patchItems = (next: ITrunkCarouselItem[]) => onChange({ trunks: next });
 
-  const addRow = () =>
-    patchItems([
-      ...items,
-      { trunk: '', cid_mode: 'static', callerid: '', timeout: DEFAULT_TRUNK_TIMEOUT },
-    ]);
+  const addRow = () => patchItems([...items, emptyStaticItem()]);
 
   const updateRow = (index: number, patch: Partial<ITrunkCarouselItem>) => {
     const next = items.map((row, i) => (i === index ? { ...row, ...patch } : row));
@@ -45,7 +212,7 @@ export function TrunkCarouselTrunksField({
   return (
     <VStack gap="12" max className={styles.container}>
       {items.map((row, index) => {
-        const cidMode = row.cid_mode ?? 'static';
+        const directoryMode = isDirectoryCaller(row.callerId);
         return (
           <VStack key={`trunk-row-${index}`} gap="8" max className={styles.trunkCard}>
             <HStack gap="8" align="end" max className={styles.trunkRow}>
@@ -56,14 +223,14 @@ export function TrunkCarouselTrunksField({
                 </HStack>
                 <Select
                   disabled={readOnly || trunksLoading}
-                  value={row.trunk}
+                  value={row.trunkId}
                   aria-label={t('routes.apps.trunkCarousel.selectTrunk', 'Транк')}
-                  onChange={(e) => updateRow(index, { trunk: e.target.value })}
+                  onChange={(e) => updateRow(index, { trunkId: e.target.value })}
                 >
                   <option value="">{t('routes.apps.trunkCarousel.selectTrunkOption', 'Выберите транк')}</option>
                   {trunks.map((trunk) => (
-                    <option key={trunk.name} value={trunk.name}>
-                      {trunk.name}
+                    <option key={trunk.id} value={trunk.id}>
+                      {trunk.name || trunk.id}
                     </option>
                   ))}
                 </Select>
@@ -101,48 +268,44 @@ export function TrunkCarouselTrunksField({
                 <Label>{t('routes.apps.trunkCarousel.cidMode', 'Источник CID')}</Label>
                 <Select
                   disabled={readOnly}
-                  value={cidMode}
+                  value={directoryMode ? 'directory' : 'static'}
                   aria-label={t('routes.apps.trunkCarousel.cidMode', 'Источник CID')}
                   onChange={(e) =>
                     updateRow(index, {
-                      cid_mode: e.target.value === 'phonebook' ? 'phonebook' : 'static',
+                      callerId:
+                        e.target.value === 'directory'
+                          ? {
+                              mode: 'directory',
+                              directoryUid: 0,
+                              valueFieldUid: 0,
+                              keySource: { source: 'original_caller' },
+                              onMissing: 'keep_original',
+                            }
+                          : { mode: 'static', value: '' },
                     })
                   }
                 >
                   <option value="static">{t('routes.apps.trunkCarousel.cidStatic', 'Статичный CID')}</option>
-                  <option value="phonebook">{t('routes.apps.trunkCarousel.cidPhonebook', 'CID из справочника')}</option>
+                  <option value="directory">{t('routes.apps.trunkCarousel.cidDirectory', 'CID из справочника')}</option>
                 </Select>
               </VStack>
-              {cidMode === 'phonebook' ? (
-                <VStack gap="4" className={styles.cidValueCol}>
-                  <Label>{t('routes.apps.trunkCarousel.selectPhonebook', 'Справочник')}</Label>
-                  <Select
-                    disabled={readOnly || phonebooksLoading}
-                    value={row.phonebook_uid ? String(row.phonebook_uid) : ''}
-                    aria-label={t('routes.apps.trunkCarousel.selectPhonebook', 'Справочник')}
-                    onChange={(e) =>
-                      updateRow(index, {
-                        phonebook_uid: e.target.value ? Number(e.target.value) : undefined,
-                      })
-                    }
-                  >
-                    <option value="">{t('routes.apps.trunkCarousel.selectPhonebookOption', 'Выберите справочник')}</option>
-                    {phonebooks.map((pb) => (
-                      <option key={pb.uid} value={String(pb.uid)}>
-                        {pb.name}
-                      </option>
-                    ))}
-                  </Select>
-                </VStack>
+              {directoryMode ? (
+                <TrunkDirectoryCidField
+                  value={row.callerId}
+                  readOnly={readOnly}
+                  onChange={(next) => updateRow(index, { callerId: next })}
+                />
               ) : (
                 <VStack gap="4" className={styles.cidValueCol}>
                   <Label>{t('routes.apps.trunkCarousel.callerid', 'Номер CallerID (опц.)')}</Label>
                   <Input
                     disabled={readOnly}
-                    value={row.callerid ?? ''}
+                    value={row.callerId.mode === 'static' ? (row.callerId.value ?? '') : ''}
                     placeholder="79001234567"
                     aria-label={t('routes.apps.trunkCarousel.callerid', 'Номер CallerID')}
-                    onChange={(e) => updateRow(index, { callerid: e.target.value })}
+                    onChange={(e) =>
+                      updateRow(index, { callerId: { mode: 'static', value: e.target.value } })
+                    }
                   />
                 </VStack>
               )}

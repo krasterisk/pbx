@@ -9,6 +9,7 @@ import type {
 import { Input, Label, Select, InfoTooltip } from '@/shared/ui';
 import { HStack, VStack } from '@/shared/ui/Stack';
 import { useGetDirectoryQuery } from '@/shared/api/endpoints/directoryApi';
+import { useSchemaRefs } from '../../model/useSchemaRefs';
 import styles from './DirectoryLookupField.module.scss';
 
 export interface DirectoryCatalogItem {
@@ -300,5 +301,32 @@ export function DirectoryLookupField({
         </VStack>
       ) : null}
     </VStack>
+  );
+}
+
+export function SchemaDirectoryLookupField({
+  value,
+  onChange,
+  readOnly,
+  expectedType,
+}: {
+  value: DirectoryValueSource | undefined;
+  onChange: (next: DirectoryValueSource) => void;
+  readOnly?: boolean;
+  expectedType?: DirectoryFieldType;
+}) {
+  const refs = useSchemaRefs(['dialplanDirectories']);
+  const directories = (refs.dialplanDirectories?.items ?? []).map((item) => ({
+    uid: Number(item.value),
+    name: item.label,
+  }));
+  return (
+    <DirectoryLookupField
+      value={value}
+      onChange={onChange}
+      directories={directories}
+      readOnly={readOnly}
+      expectedType={expectedType}
+    />
   );
 }

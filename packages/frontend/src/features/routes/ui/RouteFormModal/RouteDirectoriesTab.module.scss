@@ -1,4 +1,7 @@
-/* RoutePhonebooksTab — ordered list of route<->phonebook binding policies (D-08) */
+/* ─────────────────────────────────────────────────────
+   RouteDirectoriesTab — ordered directory policy bindings
+   Design tokens: var(--color-*) from globals.css @theme
+   ───────────────────────────────────────────────────── */
 
 .wrapper {
   width: 100%;
@@ -10,6 +13,7 @@
   background: color-mix(in srgb, var(--color-muted) 40%, transparent);
   padding: 0.75rem;
   min-height: 120px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
 }
 
 .emptyState {
@@ -65,16 +69,10 @@
   flex-shrink: 0;
 }
 
-.matchModeSelect {
+.matchModeSelect,
+.behaviorSelect {
   flex: 1 1 140px;
   min-width: 140px;
-  height: 2.25rem;
-  font-size: 0.8125rem;
-}
-
-.behaviorSelect {
-  flex: 1 1 160px;
-  min-width: 160px;
   height: 2.25rem;
   font-size: 0.8125rem;
 }
@@ -82,10 +80,6 @@
 .bindingActions {
   margin-left: auto;
   flex-shrink: 0;
-}
-
-.deleteBindingBtn:hover {
-  color: var(--color-destructive);
 }
 
 .paramsRow {
@@ -105,7 +99,8 @@
   font-size: 0.8125rem;
 }
 
-.paramsInput {
+.paramsInput,
+.fieldSelect {
   flex: 1 1 160px;
   min-width: 120px;
   height: 2.25rem;
@@ -124,7 +119,7 @@
   border-top: 1px solid var(--color-border);
 }
 
-.phonebookSelect {
+.directorySelect {
   flex: 1;
   min-width: 0;
   height: 2.25rem;
@@ -135,36 +130,6 @@
   flex-shrink: 0;
 }
 
-.varKeyWrapper {
-  flex: 1 1 160px;
-  min-width: 0;
-  max-width: 100%;
-}
-
-.varKeySelect {
-  width: 100%;
-  height: 2.25rem;
-  font-size: 0.8125rem;
-}
-
-.varKeyHintRow {
-  padding: 0 0.75rem 0.5rem;
-  border-top: none;
-  background: color-mix(in srgb, var(--color-muted) 20%, transparent);
-}
-
-.varKeyHint {
-  color: var(--color-muted-foreground);
-  font-size: 0.75rem;
-  line-height: 1.3;
-}
-
-.varKeyWarn {
-  color: var(--color-warning, #b45309);
-  font-size: 0.75rem;
-  line-height: 1.3;
-}
-
 .behaviorHint {
   padding: 0.5rem 0.75rem;
   border-top: 1px solid color-mix(in srgb, var(--color-border) 50%, transparent);
@@ -172,4 +137,25 @@
   color: var(--color-muted-foreground);
   font-size: 0.8125rem;
   line-height: 1.4;
+}
+
+.keySourceRow {
+  padding: 0.5rem 0.75rem;
+  border-top: 1px solid color-mix(in srgb, var(--color-border) 50%, transparent);
+  background: color-mix(in srgb, var(--color-muted) 20%, transparent);
+}
+
+@media (max-width: 640px) {
+  .bindingName {
+    max-width: 100%;
+  }
+
+  .matchModeSelect,
+  .behaviorSelect,
+  .paramsModeSelect,
+  .paramsInput,
+  .fieldSelect {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
 }

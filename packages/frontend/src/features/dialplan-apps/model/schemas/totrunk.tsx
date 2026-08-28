@@ -1,5 +1,9 @@
 import type { FieldSchema } from '../schema.types';
-import { TrunkCarouselTrunksField } from '../../ui/TrunkCarouselTrunksField/TrunkCarouselTrunksField';
+import type { TrunkCallerIdSource } from '@krasterisk/shared';
+import {
+  TrunkCarouselTrunksField,
+  TrunkSingleCidField,
+} from '../../ui/TrunkCarouselTrunksField/TrunkCarouselTrunksField';
 import { renderDialModifyDest } from '../../ui/DialModifyField/DialModifyField';
 
 type TFn = (key: string, fallback?: string) => string;
@@ -36,54 +40,16 @@ export function buildToTrunkSchema(t: TFn): FieldSchema[] {
       visibleWhen: { key: 'trunkMode', equals: ['single', ''] },
     },
     {
-      key: 'cid_mode',
-      kind: 'mode',
+      key: 'callerId',
+      kind: 'custom',
       group: 'primary',
+      hideLabel: true,
       labelKey: 'routes.apps.trunkCarousel.cidMode',
       label: t('routes.apps.trunkCarousel.cidMode', 'Источник CID'),
-      options: [
-        {
-          value: 'static',
-          labelKey: 'routes.apps.trunkCarousel.cidStatic',
-          label: t('routes.apps.trunkCarousel.cidStatic', 'Статичный CID'),
-        },
-        {
-          value: 'phonebook',
-          labelKey: 'routes.apps.trunkCarousel.cidPhonebook',
-          label: t('routes.apps.trunkCarousel.cidPhonebook', 'CID из справочника'),
-        },
-      ],
-      row: 'trunkCid',
-      rowWeight: 40,
+      render: ({ params, onChange, readOnly }) => (
+        <TrunkSingleCidField params={params} onChange={onChange} readOnly={readOnly} />
+      ),
       visibleWhen: { key: 'trunkMode', equals: ['single', ''] },
-    },
-    {
-      key: 'callerid',
-      kind: 'text',
-      group: 'primary',
-      labelKey: 'routes.apps.trunkCarousel.callerid',
-      label: t('routes.apps.trunkCarousel.callerid', 'Номер CallerID (опц.)'),
-      placeholder: '79001234567',
-      row: 'trunkCid',
-      rowWeight: 60,
-      visibleWhen: [
-        { key: 'trunkMode', equals: ['single', ''] },
-        { key: 'cid_mode', equals: ['static', ''] },
-      ],
-    },
-    {
-      key: 'phonebook_uid',
-      kind: 'select',
-      group: 'primary',
-      labelKey: 'routes.apps.trunkCarousel.selectPhonebook',
-      label: t('routes.apps.trunkCarousel.selectPhonebook', 'Справочник'),
-      optionsSource: 'phonebooks',
-      row: 'trunkCid',
-      rowWeight: 60,
-      visibleWhen: [
-        { key: 'trunkMode', equals: ['single', ''] },
-        { key: 'cid_mode', equals: 'phonebook' },
-      ],
     },
     {
       key: 'mode',
@@ -127,7 +93,7 @@ export function buildToTrunkSchema(t: TFn): FieldSchema[] {
       valueSourceMode: 'dial',
       hintKey: 'routes.chain.source.dialHint',
       hint:
-        '**B-номер маршрута** — набираем номер, который набрал звонящий\n**Фиксированное значение** — постоянный номер для набора\n**Из переменной** — номер из переменной канала\n**Из справочника** — номер из поля записи по CallerID',
+        '**B-номер маршрута** - набираем номер, который набрал звонящий\n**Фиксированное значение** - постоянный номер для набора\n**Из переменной** - номер из переменной канала\n**Из справочника** - номер из поля записи по CallerID',
       row: 'destTimeout',
       rowWeight: 70,
     },
@@ -167,11 +133,13 @@ export function summarizeToTrunk(params: Record<string, unknown>, t: TFn): strin
   }
   const trunk = String(params.trunk ?? '').trim() || '…';
   const base = t('routes.chain.totrunk.summary', 'Транк {{trunk}}').replace('{{trunk}}', trunk);
-  if (params.cid_mode === 'phonebook') {
-    return `${base} (CID: ${t('routes.apps.trunkCarousel.cidPhonebook', 'справочник')})`;
+  const callerId = params.callerId as TrunkCallerIdSource | undefined;
+  if (callerId?.mode === 'directory') {
+    return `${base} (CID: ${t('routes.apps.trunkCarousel.cidDirectory', 'справочник')})`;
   }
-  if (params.callerid) {
-    return `${base} (CID: ${String(params.callerid)})`;
+  const staticCid = callerId?.mode === 'static' ? callerId.value : params.callerid;
+  if (staticCid) {
+    return `${base} (CID: ${String(staticCid)})`;
   }
   return base;
 }

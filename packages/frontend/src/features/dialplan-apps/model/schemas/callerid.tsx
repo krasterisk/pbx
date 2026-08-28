@@ -1,7 +1,21 @@
 import { TagInput } from '@/shared/ui';
+import type { CallValueSource, DirectoryValueSource } from '@krasterisk/shared';
 import type { FieldSchema } from '../schema.types';
+import { SchemaDirectoryLookupField } from '../../ui/DirectoryLookupField/DirectoryLookupField';
 
 type TFn = (key: string, fallback?: string) => string;
+
+function asDirectoryValue(params: Record<string, unknown>): DirectoryValueSource | undefined {
+  const directoryUid = Number(params.directoryUid);
+  if (!Number.isInteger(directoryUid) || directoryUid <= 0) return undefined;
+  return {
+    source: 'directory',
+    directoryUid,
+    keySource: (params.keySource as CallValueSource) ?? { source: 'original_caller' },
+    valueFieldUid: Number(params.valueFieldUid) || 0,
+    onMissing: (params.onMissing as DirectoryValueSource['onMissing']) ?? 'keep',
+  };
+}
 
 export function buildCallerIdSchema(t: TFn): FieldSchema[] {
   return [
@@ -14,7 +28,7 @@ export function buildCallerIdSchema(t: TFn): FieldSchema[] {
       label: t('routes.apps.callerid.mode', 'Режим CallerID'),
       options: [
         { value: 'static', labelKey: 'routes.apps.callerid.modeStatic', label: t('routes.apps.callerid.modeStatic', 'Статичный номер') },
-        { value: 'phonebook', labelKey: 'routes.apps.callerid.modePhonebook', label: t('routes.apps.callerid.modePhonebook', 'Из справочника') },
+        { value: 'directory', labelKey: 'routes.apps.callerid.modeDirectory', label: t('routes.apps.callerid.modeDirectory', 'Из справочника') },
         { value: 'number_list', labelKey: 'routes.apps.callerid.modeNumberList', label: t('routes.apps.callerid.modeNumberList', 'Из списка номеров') },
         { value: 'carousel', labelKey: 'routes.apps.callerid.modeCarousel', label: t('routes.apps.callerid.modeCarousel', 'CID-карусель') },
       ],
@@ -37,14 +51,28 @@ export function buildCallerIdSchema(t: TFn): FieldSchema[] {
       visibleWhen: { key: 'mode', equals: 'static' },
     },
     {
-      key: 'phonebook_uid',
-      kind: 'select',
-      required: true,
+      key: 'directoryLookup',
+      kind: 'custom',
       group: 'primary',
-      labelKey: 'routes.apps.callerid.selectPhonebook',
-      label: t('routes.apps.callerid.selectPhonebook', 'Справочник'),
-      optionsSource: 'phonebooks',
-      visibleWhen: { key: 'mode', equals: 'phonebook' },
+      hideLabel: true,
+      labelKey: 'routes.apps.callerid.selectDirectory',
+      label: t('routes.apps.callerid.selectDirectory', 'Справочник'),
+      visibleWhen: { key: 'mode', equals: 'directory' },
+      render: ({ params, onChange, readOnly }) => (
+        <SchemaDirectoryLookupField
+          value={asDirectoryValue(params)}
+          readOnly={readOnly}
+          expectedType="phone"
+          onChange={(next) =>
+            onChange({
+              directoryUid: next.directoryUid,
+              valueFieldUid: next.valueFieldUid,
+              keySource: next.keySource,
+              onMissing: next.onMissing,
+            })
+          }
+        />
+      ),
     },
     {
       key: 'list_uid',
@@ -81,8 +109,8 @@ export function summarizeCallerId(params: Record<string, unknown>, t: TFn): stri
     const num = String(params.callerid ?? '').trim() || '…';
     return t('routes.chain.callerid.summaryStatic', 'CallerID: {{num}}').replace('{{num}}', num);
   }
-  if (mode === 'phonebook') {
-    return t('routes.chain.callerid.summaryPhonebook', 'CallerID из справочника');
+  if (mode === 'directory') {
+    return t('routes.chain.callerid.summaryDirectory', 'CallerID из справочника');
   }
   if (mode === 'number_list') {
     return t('routes.chain.callerid.summaryList', 'CallerID из списка номеров');
