@@ -20,6 +20,11 @@ vi.mock('@/shared/api/endpoints/promptsApi', () => ({
   useGetPromptsQuery: () => ({ data: [], isLoading: false }),
 }));
 
+vi.mock('@/shared/api/endpoints/directoryApi', () => ({
+  useGetDirectoriesQuery: () => ({ data: [], isLoading: false }),
+  useGetDirectoryQuery: () => ({ data: undefined, isLoading: false }),
+}));
+
 const noop = () => undefined;
 const t = (key: string, fallback?: string) => fallback ?? key;
 
@@ -122,4 +127,15 @@ describe('New action types UI (D-44 / D-45 / D-47 / D-49)', () => {
       expect(summary.trim().length).toBeGreaterThan(0);
     },
   );
+
+  it('registers directory_lookup in the system category with allowed hosts', () => {
+    const config = dialplanAppsRegistry.directory_lookup;
+    expect(config).toBeDefined();
+    expect(config.category).toBe('system');
+    expect(config.allowedIn).toEqual(['route', 'directory_policy', 'ivr']);
+    expect(config.schema.some((field) => field.key === 'directoryUid' && field.optionsSource === 'dialplanDirectories')).toBe(true);
+    expect(config.schema.some((field) => field.key === 'outputs' && field.kind === 'custom')).toBe(true);
+    expect(config.schema.some((field) => field.key === 'onMissing')).toBe(true);
+    expect(config.schema.some((field) => field.key === 'keySource')).toBe(true);
+  });
 });

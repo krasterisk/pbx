@@ -17,6 +17,7 @@ import { buildVoiceRobotSchema, summarizeVoiceRobot } from './schemas/voicerobot
 import { buildToTrunkSchema, summarizeToTrunk } from './schemas/totrunk';
 import { buildWebhookSchema, summarizeWebhook } from './schemas/webhook';
 import { buildCmdSchema, summarizeCmd } from './schemas/cmd';
+import { buildDirectoryLookupSchema, summarizeDirectoryLookup } from './schemas/directoryLookup';
 import { inferOptionFlags } from './inferOptionFlags';
 import {
   renderDialModifyTarget,
@@ -392,6 +393,27 @@ const registryDraft: Record<ActionType, Omit<IDialplanAppConfig, 'schema' | 'sum
     defaultParams: { signal: 'hangup', timeout: 10, causecode: '' },
     schema: buildHangupSchema((key, fallback) => fallback ?? key),
     summarize: summarizeHangup,
+  },
+  directory_lookup: {
+    type: 'directory_lookup',
+    labelKey: 'routes.action.directory_lookup',
+    category: 'system',
+    defaultParams: {
+      directoryUid: '',
+      keySource: { source: 'original_caller' },
+      outputs: [],
+      onMissing: 'keep',
+    },
+    primarySection: {
+      titleKey: 'routes.chain.section.params',
+      title: 'Параметры',
+      tooltipKey: 'routes.chain.directoryLookup.titleTooltip',
+      tooltip:
+        'Находит запись по выбранному ключу и записывает выбранные поля в переменные канала',
+    },
+    schema: buildDirectoryLookupSchema((key, fallback) => fallback ?? key),
+    summarize: summarizeDirectoryLookup,
+    optionFlags: [],
   },
 };
 

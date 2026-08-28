@@ -574,6 +574,37 @@ export const en = {
         endpointsSection: 'Extensions',
         numberListsSection: 'Access lists',
         notificationsSection: 'Notification integrations',
+        directoriesSection: 'Directories',
+      },
+      directoryLookup: {
+        title: 'Directory lookup',
+        titleTooltip: 'Finds a record by the selected key and writes chosen fields to channel variables',
+        directory: 'Directory',
+        keySource: 'Lookup key',
+        keySourceHint:
+          '**Original CallerID** - caller number captured at route entry\n**Current CallerID** - current caller number\n**Route pattern** - the dialed number\n**Fixed value** - a constant key\n**From variable** - channel variable name without ${}',
+        outputs: 'Fields to variables',
+        outputsHint:
+          'Channel variable name in **uppercase**\nNot allowed: CALLERID, KRSK_*, punctuation, duplicates',
+        onMissing: 'If no record',
+        onMissingHint:
+          '**Keep** - variables stay unchanged\n**Empty** - variables are cleared before lookup and stay empty',
+        onMissingKeep: 'Keep as is',
+        onMissingEmpty: 'Clear variables',
+        onMissingSkip: 'Skip',
+        valueOnMissingHint:
+          '**Skip** - the application is not executed\n**Keep** - the current value stays\n**Empty** - an empty value is used',
+        originalCaller: 'Original CallerID',
+        currentCaller: 'Current CallerID',
+        fixedKey: 'Key value',
+        addOutput: 'Add field',
+        removeOutput: 'Remove field',
+        targetVariable: 'Variable name',
+        selectField: 'Record field',
+        outputInvalid: 'Invalid variable name',
+        summaryEmpty: 'Directory: not selected',
+        summaryNoOutputs: 'Directory: no fields',
+        summary: 'Directory: {{count}} field(s)',
       },
       fields: {
         queue: 'Queue',
@@ -974,6 +1005,7 @@ export const en = {
       schedule: 'Schedule',
       http_request: 'HTTP request',
       collect_input: 'Prompt for input',
+      directory_lookup: 'Directory lookup',
     },
     apps: {
       exten: { select: 'Extension' },

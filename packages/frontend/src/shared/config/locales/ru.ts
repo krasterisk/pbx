@@ -577,6 +577,37 @@ export const ru = {
         endpointsSection: 'Абоненты',
         numberListsSection: 'Списки доступа',
         notificationsSection: 'Интеграции уведомлений',
+        directoriesSection: 'Справочники',
+      },
+      directoryLookup: {
+        title: 'Поиск в справочнике',
+        titleTooltip: 'Находит запись по выбранному ключу и записывает выбранные поля в переменные канала',
+        directory: 'Справочник',
+        keySource: 'Ключ поиска',
+        keySourceHint:
+          '**Исходный CallerID** - номер звонящего на входе в маршрут\n**Текущий CallerID** - текущий номер звонящего\n**B-номер маршрута** - набранный номер\n**Фиксированное значение** - постоянный ключ\n**Из переменной** - имя переменной канала без ${}',
+        outputs: 'Поля в переменные',
+        outputsHint:
+          'Имя переменной канала **заглавными буквами**\nНельзя: CALLERID, KRSK_*, знаки препинания, повторы',
+        onMissing: 'Если записи нет',
+        onMissingHint:
+          '**Оставить** - переменные не меняются\n**Очистить** - переменные очищаются до поиска и остаются пустыми',
+        onMissingKeep: 'Оставить как есть',
+        onMissingEmpty: 'Очистить переменные',
+        onMissingSkip: 'Пропустить',
+        valueOnMissingHint:
+          '**Пропустить** - приложение не выполняется\n**Оставить** - текущее значение не меняется\n**Очистить** - подставляется пустое значение',
+        originalCaller: 'Исходный CallerID',
+        currentCaller: 'Текущий CallerID',
+        fixedKey: 'Значение ключа',
+        addOutput: 'Добавить поле',
+        removeOutput: 'Удалить поле',
+        targetVariable: 'Имя переменной',
+        selectField: 'Поле записи',
+        outputInvalid: 'Недопустимое имя переменной',
+        summaryEmpty: 'Справочник: не выбран',
+        summaryNoOutputs: 'Справочник: нет полей',
+        summary: 'Справочник: {{count}} поле(й)',
       },
       fields: {
         queue: 'Очередь',
@@ -979,6 +1010,7 @@ export const ru = {
       schedule: 'Расписание',
       http_request: 'HTTP-запрос',
       collect_input: 'Запросить ввод',
+      directory_lookup: 'Поиск в справочнике',
     },
     apps: {
       exten: { select: 'Абонент' },

@@ -82,6 +82,11 @@ vi.mock('@/shared/api/endpoints/notificationApi', () => ({
   useGetNotificationsQuery: () => ({ data: [], isLoading: false }),
 }));
 
+vi.mock('@/shared/api/endpoints/directoryApi', () => ({
+  useGetDirectoriesQuery: () => ({ data: [], isLoading: false }),
+  useGetDirectoryQuery: () => ({ data: undefined, isLoading: false }),
+}));
+
 const specDir = dirname(fileURLToPath(import.meta.url));
 
 function step(id: string, type: ActionType = 'hangup', extras: Partial<IRouteAction> = {}): IRouteAction {

@@ -4,6 +4,7 @@ import { cmdFieldErrors } from './schemas/cmd';
 import { httpRequestFieldErrors } from './schemas/httpRequest';
 import { labelFieldErrors } from './schemas/label';
 import { webhookFieldErrors } from './schemas/webhook';
+import { directoryLookupFieldErrors } from '../ui/DirectoryLookupOutputsField';
 
 type TFn = TranslateFn;
 
@@ -31,6 +32,8 @@ export function clientStepFieldErrors(action: IRouteAction | null | undefined): 
       return webhookFieldErrors(params);
     case 'cmd':
       return cmdFieldErrors(params);
+    case 'directory_lookup':
+      return directoryLookupFieldErrors(params);
     default:
       return {};
   }

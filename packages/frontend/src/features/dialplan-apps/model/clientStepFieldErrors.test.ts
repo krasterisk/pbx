@@ -26,4 +26,25 @@ describe('clientStepFieldErrors', () => {
     });
     expect(errors).toEqual({});
   });
+
+  it('rejects reserved and duplicate directory lookup output names', () => {
+    const errors = clientStepFieldErrors({
+      id: '1',
+      type: 'directory_lookup',
+      params: {
+        directoryUid: 7,
+        keySource: { source: 'original_caller' },
+        onMissing: 'keep',
+        outputs: [
+          { fieldUid: 17, targetVariable: 'KRSK_NAME' },
+          { fieldUid: 18, targetVariable: 'customer' },
+          { fieldUid: 19, targetVariable: 'CALLERID' },
+          { fieldUid: 20, targetVariable: 'OK_VAR' },
+          { fieldUid: 21, targetVariable: 'OK_VAR' },
+        ],
+      },
+      condition: {},
+    });
+    expect(errors.outputs).toBe('invalid');
+  });
 });

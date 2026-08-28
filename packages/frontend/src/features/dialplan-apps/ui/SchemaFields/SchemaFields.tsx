@@ -130,6 +130,11 @@ const CATALOG_DEFAULTS: Record<
     sectionKey: 'routes.chain.catalog.phonebooksSection',
     sectionFallback: 'Справочники',
   },
+  dialplanDirectories: {
+    href: '/directories',
+    sectionKey: 'routes.chain.catalog.directoriesSection',
+    sectionFallback: 'Справочники',
+  },
   'tts-engines': {
     href: '/settings/tts-engines',
     sectionKey: 'routes.chain.catalog.ttsSection',
@@ -482,6 +487,10 @@ function renderControl(
           mode={field.valueSourceMode}
           readOnly={readOnly}
           showErrors={showErrors || invalid}
+          directories={(refs?.dialplanDirectories?.items ?? []).map((item) => ({
+            uid: Number(item.value),
+            name: item.label,
+          }))}
         />
       );
     case 'custom':

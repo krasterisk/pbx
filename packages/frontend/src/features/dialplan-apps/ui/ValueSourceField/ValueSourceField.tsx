@@ -8,6 +8,8 @@ import { useGetPhonebooksQuery } from '@/shared/api/endpoints/phonebookApi';
 import { useGetEndpointsQuery } from '@/shared/api/endpoints/endpointApi';
 import { extractExtension, interfaceToExtension } from '@/features/endpoints/lib/endpointIds';
 import type { OptionsSource, ValueSourceMode } from '../../model/schema.types';
+import type { DirectoryValueSource } from '@krasterisk/shared';
+import { DirectoryLookupField, type DirectoryCatalogItem } from '../DirectoryLookupField';
 import styles from './ValueSourceField.module.scss';
 
 export interface ValueSourceFieldProps {
@@ -25,6 +27,8 @@ export interface ValueSourceFieldProps {
   readOnly?: boolean;
   /** Highlight incomplete required fields after a failed close/save attempt */
   showErrors?: boolean;
+  /** Directory catalog from useSchemaRefs. DirectoryLookupField loads fields itself. */
+  directories?: DirectoryCatalogItem[];
 }
 
 const SRC_ROUTE = '__src:route_pattern';
@@ -73,11 +77,21 @@ export function isValueSourceComplete(value: ValueSource | undefined): boolean {
   if (value.source === 'fixed') return value.value.trim().length > 0;
   if (value.source === 'route_pattern') return true;
   if (value.source === 'variable') return value.name.trim().length > 0;
+  if (value.source === 'original_caller' || value.source === 'current_caller') return true;
+  if (value.source === 'directory') {
+    return (
+      Number.isInteger(value.directoryUid) &&
+      value.directoryUid > 0 &&
+      Number.isInteger(value.valueFieldUid) &&
+      value.valueFieldUid > 0
+    );
+  }
+  const leftover = value as { phonebookUid?: number; varKey?: string };
   return (
-    Number.isInteger(value.phonebookUid) &&
-    value.phonebookUid > 0 &&
-    typeof value.varKey === 'string' &&
-    value.varKey.trim().length > 0
+    Number.isInteger(leftover.phonebookUid) &&
+    (leftover.phonebookUid ?? 0) > 0 &&
+    typeof leftover.varKey === 'string' &&
+    leftover.varKey.trim().length > 0
   );
 }
 
@@ -85,24 +99,49 @@ function asValueSource(value: ValueSource | undefined): ValueSource {
   return value ?? { source: 'fixed', value: '' };
 }
 
+function sourceOf(value: ValueSource | undefined): string {
+  return value && typeof value === 'object' ? value.source : '';
+}
+
+function asDirectorySource(value: ValueSource | undefined): DirectoryValueSource | undefined {
+  return sourceOf(value) === 'directory' ? (value as DirectoryValueSource) : undefined;
+}
+
+type LeftoverPhonebook = { source: 'phonebook'; phonebookUid: number; varKey: string };
+
+function asPhonebook(value: ValueSource | undefined): LeftoverPhonebook | undefined {
+  return sourceOf(value) === 'phonebook' ? (value as unknown as LeftoverPhonebook) : undefined;
+}
+
+function emptyDirectorySource(): DirectoryValueSource {
+  return {
+    source: 'directory',
+    directoryUid: 0,
+    keySource: { source: 'original_caller' },
+    valueFieldUid: 0,
+    onMissing: 'skip',
+  };
+}
+
 function selectValue(src: ValueSource, mode: ValueSourceMode): string {
+  const kind = sourceOf(src);
   if (mode === 'dial') {
-    if (src.source === 'route_pattern') return SRC_ROUTE;
-    if (src.source === 'fixed') return SRC_FIXED;
-    if (src.source === 'variable') return SRC_VARIABLE;
-    if (src.source === 'phonebook') return SRC_PHONEBOOK;
+    if (kind === 'route_pattern') return SRC_ROUTE;
+    if (kind === 'fixed') return SRC_FIXED;
+    if (kind === 'variable') return SRC_VARIABLE;
+    if (kind === 'phonebook' || kind === 'directory') return SRC_PHONEBOOK;
     return SRC_ROUTE;
   }
   if (mode === 'scalar') {
     if (!src || (src.source === 'fixed' && !src.value.trim())) return '';
-    if (src.source === 'fixed') return SRC_FIXED;
-    if (src.source === 'variable') return SRC_VARIABLE;
-    if (src.source === 'phonebook') return SRC_PHONEBOOK;
+    if (kind === 'fixed') return SRC_FIXED;
+    if (kind === 'variable') return SRC_VARIABLE;
+    if (kind === 'phonebook' || kind === 'directory') return SRC_PHONEBOOK;
     return '';
   }
-  if (src.source === 'fixed') return src.value;
-  if (src.source === 'route_pattern') return SRC_ROUTE;
-  if (src.source === 'variable') return SRC_VARIABLE;
+  if (kind === 'fixed') return src.source === 'fixed' ? src.value : '';
+  if (kind === 'route_pattern') return SRC_ROUTE;
+  if (kind === 'variable') return SRC_VARIABLE;
   return SRC_PHONEBOOK;
 }
 
@@ -117,6 +156,7 @@ export function ValueSourceField({
   mode: modeProp,
   readOnly,
   showErrors = false,
+  directories = [],
 }: ValueSourceFieldProps) {
   const { t } = useTranslation();
   const mode: ValueSourceMode =
@@ -124,8 +164,12 @@ export function ValueSourceField({
   const coerced = coerceValueSource(value);
   const src = asValueSource(coerced);
   const queuesQuery = useGetQueuesQuery(undefined, { skip: mode !== 'queue' });
+  const leftoverPhonebook = asPhonebook(src);
+  const directorySource = asDirectorySource(src);
   const phonebooksQuery = useGetPhonebooksQuery(undefined, {
-    skip: mode === 'queue' ? optionsSource !== 'queues' && src.source !== 'phonebook' : src.source !== 'phonebook',
+    skip: mode === 'queue'
+      ? optionsSource !== 'queues' && !leftoverPhonebook
+      : !leftoverPhonebook,
   });
   const endpointsQuery = useGetEndpointsQuery(undefined, {
     skip: optionsSource !== 'endpoints' || src.source !== 'fixed',
@@ -133,10 +177,9 @@ export function ValueSourceField({
   const queues = queuesQuery.data ?? [];
   const phonebooks = phonebooksQuery.data ?? [];
   const endpoints = endpointsQuery.data ?? [];
-  const selectedPhonebook =
-    src.source === 'phonebook'
-      ? phonebooks.find((pb) => pb.uid === src.phonebookUid)
-      : undefined;
+  const selectedPhonebook = leftoverPhonebook
+    ? phonebooks.find((pb) => pb.uid === leftoverPhonebook.phonebookUid)
+    : undefined;
   const varKeys = collectPhonebookVarKeys(selectedPhonebook);
   const isLoading = mode === 'queue' && queuesQuery.isLoading;
   const isEmpty = mode === 'queue' && !isLoading && queues.length === 0;
@@ -145,12 +188,11 @@ export function ValueSourceField({
   const queueEmptyError = markError && src.source === 'fixed' && !src.value.trim();
   const variableError = markError && src.source === 'variable';
   const phonebookUidError =
-    markError && src.source === 'phonebook' && !(src.phonebookUid > 0);
+    markError && Boolean(leftoverPhonebook) && !(leftoverPhonebook && leftoverPhonebook.phonebookUid > 0);
   const phonebookVarError =
     markError &&
-    src.source === 'phonebook' &&
-    src.phonebookUid > 0 &&
-    !(typeof src.varKey === 'string' && src.varKey.trim());
+    Boolean(leftoverPhonebook && leftoverPhonebook.phonebookUid > 0) &&
+    !(typeof leftoverPhonebook?.varKey === 'string' && leftoverPhonebook.varKey.trim());
   const loadingLabel = t('routes.chain.catalog.loading', 'Загружаем список');
   const emptyLabel = t('routes.chain.catalog.empty', 'Ничего не создано');
   const sectionName = t('routes.chain.catalog.queuesSection', 'Очереди');
@@ -198,11 +240,7 @@ export function ValueSourceField({
     else if (raw === SRC_VARIABLE) {
       onChange({ source: 'variable', name: src.source === 'variable' ? src.name : '' });
     } else if (raw === SRC_PHONEBOOK) {
-      onChange({
-        source: 'phonebook',
-        phonebookUid: src.source === 'phonebook' ? src.phonebookUid : 0,
-        varKey: src.source === 'phonebook' ? src.varKey : '',
-      });
+      onChange(directorySource ?? emptyDirectorySource());
     } else if (raw === '') {
       onChange({ source: 'fixed', value: '' });
     } else {
@@ -227,11 +265,7 @@ export function ValueSourceField({
       return;
     }
     if (raw === SRC_PHONEBOOK) {
-      onChange({
-        source: 'phonebook',
-        phonebookUid: src.source === 'phonebook' ? src.phonebookUid : 0,
-        varKey: src.source === 'phonebook' ? src.varKey : '',
-      });
+      onChange(directorySource ?? emptyDirectorySource());
     }
   };
 
@@ -251,22 +285,18 @@ export function ValueSourceField({
       onChange({ source: 'variable', name: src.source === 'variable' ? src.name : '' });
       return;
     }
-    onChange({
-      source: 'phonebook',
-      phonebookUid: src.source === 'phonebook' ? src.phonebookUid : 0,
-      varKey: src.source === 'phonebook' ? src.varKey : '',
-    });
+    onChange(directorySource ?? emptyDirectorySource());
   };
 
   const setPhonebookUid = (uid: number) => {
     const pb = phonebooks.find((item) => item.uid === uid);
     const keys = collectPhonebookVarKeys(pb);
-    const prevKey = src.source === 'phonebook' ? src.varKey : '';
+    const prevKey = leftoverPhonebook?.varKey ?? '';
     onChange({
       source: 'phonebook',
       phonebookUid: uid,
       varKey: keys.includes(prevKey) ? prevKey : '',
-    });
+    } as unknown as ValueSource);
   };
 
   // With a hidden label the hint icon sits left of the control.
@@ -507,7 +537,7 @@ export function ValueSourceField({
         </VStack>
       ) : null}
 
-      {src.source === 'phonebook' ? (
+      {leftoverPhonebook ? (
         <VStack gap="8" max className={styles.field}>
           <HStack gap="4" align="center">
             <Label className={styles.subLabel}>
@@ -531,7 +561,7 @@ export function ValueSourceField({
           </HStack>
           <Select
             disabled={readOnly || phonebooksQuery.isLoading}
-            value={src.phonebookUid ? String(src.phonebookUid) : ''}
+            value={leftoverPhonebook.phonebookUid ? String(leftoverPhonebook.phonebookUid) : ''}
             error={phonebookUidError}
             aria-invalid={phonebookUidError || undefined}
             aria-describedby={phonebookUidError ? 'queue-phonebook-error' : undefined}
@@ -555,7 +585,7 @@ export function ValueSourceField({
             </Text>
           ) : null}
 
-          {src.phonebookUid > 0 ? (
+          {leftoverPhonebook.phonebookUid > 0 ? (
             <VStack gap="8" max className={styles.field}>
               <HStack gap="4" align="center">
                 <Label className={styles.subLabel}>
@@ -579,7 +609,7 @@ export function ValueSourceField({
               </HStack>
               <Select
                 disabled={readOnly || varKeys.length === 0}
-                value={src.varKey || ''}
+                value={leftoverPhonebook.varKey || ''}
                 error={phonebookVarError}
                 aria-invalid={phonebookVarError || undefined}
                 aria-describedby={phonebookVarError ? 'queue-varkey-error' : undefined}
@@ -587,9 +617,9 @@ export function ValueSourceField({
                 onChange={(e) =>
                   onChange({
                     source: 'phonebook',
-                    phonebookUid: src.phonebookUid,
+                    phonebookUid: leftoverPhonebook.phonebookUid,
                     varKey: e.target.value,
-                  })
+                  } as unknown as ValueSource)
                 }
               >
                 <option value="">
@@ -608,7 +638,7 @@ export function ValueSourceField({
                   {t('routes.chain.source.varKeyRequired', 'Выберите поле')}
                 </Text>
               ) : null}
-              {src.phonebookUid > 0 && varKeys.length === 0 ? (
+              {leftoverPhonebook.phonebookUid > 0 && varKeys.length === 0 ? (
                 <Text variant="muted" className={styles.fieldError}>
                   {t(
                     'routes.chain.source.noVarKeysHint',
@@ -619,6 +649,15 @@ export function ValueSourceField({
             </VStack>
           ) : null}
         </VStack>
+      ) : null}
+
+      {directorySource ? (
+        <DirectoryLookupField
+          value={directorySource.directoryUid > 0 ? directorySource : undefined}
+          onChange={onChange}
+          directories={directories}
+          readOnly={readOnly}
+        />
       ) : null}
     </VStack>
   );

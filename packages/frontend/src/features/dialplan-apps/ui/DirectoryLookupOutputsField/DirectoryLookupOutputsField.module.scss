@@ -1,0 +1,43 @@
+/* ─────────────────────────────────────────────────────
+   DirectoryLookupOutputsField — field to variable mappings
+   Design tokens: var(--color-*) from globals.css @theme
+   ───────────────────────────────────────────────────── */
+
+.container {
+  width: 100%;
+}
+
+.rowCard {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-muted) 35%, transparent);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+.outputRow {
+  width: 100%;
+  flex-wrap: wrap;
+}
+
+.fieldCol,
+.varCol {
+  flex: 1;
+  min-width: 140px;
+}
+
+.removeCol {
+  flex-shrink: 0;
+}
+
+.error {
+  color: var(--color-destructive);
+}
+
+@media (max-width: 640px) {
+  .fieldCol,
+  .varCol {
+    flex: 1 1 100%;
+  }
+}

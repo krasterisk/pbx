@@ -21,6 +21,7 @@ export type OptionsSource =
   | 'ivrs'
   | 'prompts'
   | 'phonebooks'
+  | 'dialplanDirectories'
   | 'tts-engines'
   | 'callGroups'
   | 'voiceRobots'

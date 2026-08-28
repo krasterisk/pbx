@@ -1,0 +1,14 @@
+/* ─────────────────────────────────────────────────────
+   DirectoryLookupField — reusable directory value source
+   Design tokens: var(--color-*) from globals.css @theme
+   ───────────────────────────────────────────────────── */
+
+.field {
+  width: 100%;
+}
+
+.label {
+  display: block;
+  margin: 0;
+  color: var(--color-muted-foreground);
+}

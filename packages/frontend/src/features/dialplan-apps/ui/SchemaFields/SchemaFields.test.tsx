@@ -26,6 +26,11 @@ vi.mock('@/shared/api/endpoints/phonebookApi', () => ({
   useGetPhonebooksQuery: vi.fn(() => ({ data: [], isLoading: false })),
 }));
 
+vi.mock('@/shared/api/endpoints/directoryApi', () => ({
+  useGetDirectoriesQuery: vi.fn(() => ({ data: [], isLoading: false })),
+  useGetDirectoryQuery: vi.fn(() => ({ data: undefined, isLoading: false })),
+}));
+
 const LABEL = 'routes.chain.fields.demo';
 
 const KIND_OPTIONS = [
