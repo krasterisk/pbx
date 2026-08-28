@@ -17,7 +17,6 @@ import { Transform, Type } from 'class-transformer';
 import type {
   IToIvrParams,
   IToListParams,
-  ITrunkCarouselItem,
 } from '@krasterisk/shared';
 import { coerceDestValueSource } from '@krasterisk/shared';
 import { IsValueSourceConstraint, IsQueuePrioritySourceConstraint, ValueSourceDto } from './value-source.dto';
@@ -310,7 +309,7 @@ export class ToRouteParamsDto {
   rewrite?: DialTargetRewriteDto;
 }
 
-class TrunkCarouselItemDto implements ITrunkCarouselItem {
+class TrunkCarouselItemDto {
   @IsString()
   @MinLength(1)
   @Matches(SAFE_DIAL)

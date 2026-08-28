@@ -1,5 +1,5 @@
 import type { ConditionOp, ConditionSourceKind } from './dialplan-condition.types';
-import type { IRoutePhonebookBinding } from './phonebook.types';
+import type { IDirectoryLookupParams, IRouteDirectoryBinding } from './directory.types';
 import type {
   ICallerIdActionParams,
   INotifyActionParams,
@@ -35,7 +35,7 @@ export type ActionType =
   | 'webhook' | 'confbridge' | 'cmd'
   | 'label' | 'goto' | 'schedule'
   | 'http_request' | 'collect_input'
-  | 'hangup';
+  | 'hangup' | 'directory_lookup';
 
 /** Asterisk DIALSTATUS values — used as condition whitelist */
 export type DialStatus =
@@ -110,6 +110,7 @@ export type DialplanAction = BaseRouteAction & (
   | { type: 'http_request'; params: IHttpRequestParams }
   | { type: 'collect_input'; params: ICollectInputParams }
   | { type: 'hangup'; params: IHangupParams }
+  | { type: 'directory_lookup'; params: IDirectoryLookupParams }
 );
 
 /** Exhaustiveness helper for `switch (action.type)` without `default` (D-08). */
@@ -153,8 +154,8 @@ export interface IRoute {
   options: IRouteOptions | null;
   webhooks: IRouteWebhooks | null;
   actions: IRouteAction[];
-  /** Ordered chain of phonebook-binding policies applied before actions (D-03, D-05) */
-  bindings?: IRoutePhonebookBinding[];
+  /** Ordered chain of directory-binding policies applied before actions */
+  bindings?: IRouteDirectoryBinding[];
   raw_dialplan: string | null;
   user_uid: number;
   created_at: string;

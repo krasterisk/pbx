@@ -1,13 +1,9 @@
 import type { ConditionOp, ConditionSourceKind } from './dialplan-condition.types';
+import type { CallValueSource, DirectoryValueSource, ITrunkCarouselItem } from './directory.types';
 import type { IIvrPhraseTtsSettings } from './ivr-phrase.types';
-import type { ITrunkCarouselItem } from './notification.types';
 import type { ITimeGroupInterval } from './timeGroup.types';
 
-export type ValueSource =
-  | { source: 'fixed'; value: string }
-  | { source: 'route_pattern' }
-  | { source: 'variable'; name: string }
-  | { source: 'phonebook'; phonebookUid: number; varKey: string };
+export type ValueSource = CallValueSource | DirectoryValueSource;
 
 export type MediaMixMode = 'say' | 'mix';
 
@@ -102,7 +98,7 @@ export interface IQueueActionParams {
   announceoverride?: string;
   /**
    * Caller priority before Queue() → Set(QUEUE_PRIO=…).
-   * Prefer ValueSource (`fixed` | `variable` | `phonebook`). Plain number is dual-read legacy.
+   * Prefer ValueSource (`fixed` | `variable` | `directory`). Plain number is dual-read legacy.
    */
   priority?: ValueSource | number;
 }

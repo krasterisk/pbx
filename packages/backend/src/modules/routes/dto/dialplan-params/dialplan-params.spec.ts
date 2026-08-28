@@ -3,6 +3,9 @@ import {
   DIALPLAN_ACTION_META,
   type ActionType,
   type DialplanAction,
+  type DirectoryValueSource,
+  type IDirectoryLookupParams,
+  type ITrunkCarouselItem,
 } from '@krasterisk/shared';
 import { ActionTypesList } from '../route-action.dto';
 import { ACTION_PARAM_DTO, resolveParamsDto } from './index';
@@ -60,14 +63,18 @@ function describeAction(action: DialplanAction): string {
       return action.params.variableName ?? '';
     case 'hangup':
       return action.params.signal ?? '';
+    case 'directory_lookup':
+      return String(action.params.directoryUid ?? '');
   }
   return assertNeverAction(action);
 }
 
 describe('D-08 DialplanAction union + D-24 meta', () => {
-  it('has 22 ActionTypesList values after busy/congestion, branch, setclid_*, and trunk_carousel were merged away', () => {
-    expect(ActionTypesList).toHaveLength(22);
+  it('has 23 ActionTypesList values including directory_lookup', () => {
+    expect(ActionTypesList).toHaveLength(23);
     expect(ActionTypesList).toContain('voicemail');
+    expect(ActionTypesList).toContain('directory_lookup');
+    expect(ActionTypesList).not.toContain('trunk_carousel');
     expect(ActionTypesList).not.toContain('tofax');
     expect(ActionTypesList).not.toContain('playprompt');
   });
@@ -84,7 +91,45 @@ describe('D-08 DialplanAction union + D-24 meta', () => {
     const metaKeys = Object.keys(DIALPLAN_ACTION_META).sort();
     const listKeys = [...ActionTypesList].sort();
     expect(metaKeys).toEqual(listKeys);
-    expect(metaKeys).toHaveLength(22);
+    expect(metaKeys).toHaveLength(23);
+  });
+
+  it('registers directory_lookup metadata for route, directory_policy, and ivr', () => {
+    expect(DIALPLAN_ACTION_META.directory_lookup).toEqual({
+      terminal: 'never',
+      allowedIn: ['route', 'directory_policy', 'ivr'],
+      family: 'integration',
+    });
+  });
+
+  it('accepts DirectoryValueSource and directory lookup fixtures', () => {
+    const directorySource: DirectoryValueSource = {
+      source: 'directory',
+      directoryUid: 7,
+      keySource: { source: 'original_caller' },
+      valueFieldUid: 17,
+      onMissing: 'skip',
+    };
+    const lookupParams: IDirectoryLookupParams = {
+      directoryUid: 7,
+      keySource: { source: 'original_caller' },
+      outputs: [{ fieldUid: 17, targetVariable: 'CRM_NAME' }],
+      onMissing: 'keep',
+    };
+    const carouselItem: ITrunkCarouselItem = {
+      trunkId: 't_beta_100',
+      callerId: {
+        mode: 'directory',
+        directoryUid: 7,
+        valueFieldUid: 18,
+        keySource: { source: 'original_caller' },
+        onMissing: 'keep_original',
+      },
+      timeout: 45,
+    };
+    expect(directorySource.source).toBe('directory');
+    expect(lookupParams.outputs).toHaveLength(1);
+    expect(carouselItem.trunkId).toBe('t_beta_100');
   });
 
   it('declares terminal flags required by D-24 / D-42', () => {
@@ -137,6 +182,7 @@ const VALID_PARAMS: Record<ActionType, Record<string, unknown>> = {
   http_request: { url: 'https://example.com/x', method: 'GET', timeout: 5 },
   collect_input: { variableName: 'PIN', digitsCount: 4, timeout: 5 },
   hangup: { signal: 'busy', timeout: 10 },
+  directory_lookup: {},
 };
 
 const INVALID_PARAMS: Record<ActionType, Record<string, unknown>> = {
@@ -162,6 +208,7 @@ const INVALID_PARAMS: Record<ActionType, Record<string, unknown>> = {
   http_request: { url: 'http://localhost/', method: 'GET', timeout: 5 },
   collect_input: { variableName: 'a b', digitsCount: 0, timeout: 5 },
   hangup: { signal: 'nope' },
+  directory_lookup: {},
 };
 
 describe('D-09 ACTION_PARAM_DTO registry', () => {

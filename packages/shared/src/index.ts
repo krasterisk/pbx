@@ -23,6 +23,7 @@ export * from './types/dialplan-action-meta';
 export * from './types/dialplan-condition.types';
 export * from './types/route.types';
 export * from './types/timeGroup.types';
+export * from './types/directory.types';
 export * from './types/phonebook.types';
 export * from './types/call-group.types';
 export * from './types/notification.types';

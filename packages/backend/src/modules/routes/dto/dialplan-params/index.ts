@@ -60,6 +60,7 @@ export const ACTION_PARAM_DTO: Record<ActionType, ParamsDtoClass | null> = {
   http_request: HttpRequestParamsDto,
   collect_input: CollectInputParamsDto,
   hangup: HangupParamsDto,
+  directory_lookup: null,
 };
 
 export function resolveParamsDto(type: ActionType): ParamsDtoClass | null {

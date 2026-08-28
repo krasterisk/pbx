@@ -1,5 +1,3 @@
-import type { DialTargetRewrite, ValueSource } from './dialplan-params.types';
-
 export type NotificationChannel =
   | 'telegram'
   | 'email'
@@ -40,14 +38,5 @@ export interface ICallerIdActionParams {
   list_uid?: number;
   /** CID pool for carousel mode */
   pool?: string[];
-}
-
-export interface ITrunkCarouselItem {
-  trunk: string;
-  cid_mode: 'static' | 'phonebook';
-  callerid?: string;
-  phonebook_uid?: number;
-  /** Per-trunk Dial timeout; falls back to action-level timeout (D-36). */
-  timeout?: number | string;
 }
 

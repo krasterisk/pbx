@@ -27,7 +27,7 @@ export const ActionTypesList = [
   'webhook', 'confbridge', 'cmd',
   'label', 'goto', 'schedule',
   'http_request', 'collect_input',
-  'hangup',
+  'hangup', 'directory_lookup',
 ];
 
 const MatchModesList = ['on_match', 'on_no_match'];
