@@ -1,5 +1,6 @@
 import {
   ArrayMinSize,
+  Equals,
   IsArray,
   IsIn,
   IsInt,
@@ -9,6 +10,7 @@ import {
   Matches,
   Min,
   MinLength,
+  ValidateIf,
   ValidateNested,
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
@@ -25,11 +27,13 @@ import type {
   IWebhookParams,
 } from '@krasterisk/shared';
 import { RouteConditionDto } from '../route-condition.dto';
+import { CallValueSourceDto } from './value-source.dto';
 
 const SAFE_DIAL = /^[^(),?\[\]{}$\\";\n\r]*$/;
 const SAFE_TEXT = /^[^\n\r;]*$/;
-const CALLERID_MODES: CallerIdMode[] = ['static', 'phonebook', 'number_list', 'carousel'];
+const CALLERID_MODES: CallerIdMode[] = ['static', 'directory', 'number_list', 'carousel'];
 const HANGUP_SIGNALS: HangupSignal[] = ['busy', 'congestion', 'hangup'];
+const CALLERID_ON_MISSING = ['keep', 'empty', 'skip'] as const;
 
 export class CallerIdParamsDto implements ICallerIdActionParams {
   @IsIn(CALLERID_MODES)
@@ -45,11 +49,30 @@ export class CallerIdParamsDto implements ICallerIdActionParams {
   @Matches(SAFE_DIAL)
   name?: string;
 
-  @IsOptional()
+  @ValidateIf((o) => o.mode === 'directory')
   @Transform(({ value }) => (value === '' || value == null ? undefined : Number(value)))
   @IsInt()
   @Min(1)
-  phonebook_uid?: number;
+  directoryUid?: number;
+
+  @ValidateIf((o) => o.mode === 'directory')
+  @Transform(({ value }) => (value === '' || value == null ? undefined : Number(value)))
+  @IsInt()
+  @Min(1)
+  valueFieldUid?: number;
+
+  @ValidateIf((o) => o.mode === 'directory')
+  @ValidateNested()
+  @Type(() => CallValueSourceDto)
+  keySource?: CallValueSourceDto;
+
+  @ValidateIf((o) => o.mode === 'directory')
+  @IsIn(CALLERID_ON_MISSING)
+  onMissing?: (typeof CALLERID_ON_MISSING)[number];
+
+  @ValidateIf((_, value) => value !== undefined)
+  @Equals(undefined, { message: 'phonebook_uid is not allowed' })
+  phonebook_uid?: never;
 
   @IsOptional()
   @Transform(({ value }) => (value === '' || value == null ? undefined : Number(value)))

@@ -1,3 +1,5 @@
+import type { CallValueSource } from './directory.types';
+
 export type NotificationChannel =
   | 'telegram'
   | 'email'
@@ -16,7 +18,7 @@ export interface INotificationIntegration {
   user_uid: number;
 }
 
-export type CallerIdMode = 'static' | 'phonebook' | 'number_list' | 'carousel';
+export type CallerIdMode = 'static' | 'directory' | 'number_list' | 'carousel';
 
 /**
  * The channel is owned by the integration, not by the step: the dispatcher
@@ -34,7 +36,10 @@ export interface ICallerIdActionParams {
   mode: CallerIdMode;
   callerid?: string;
   name?: string;
-  phonebook_uid?: number;
+  directoryUid?: number;
+  valueFieldUid?: number;
+  keySource?: CallValueSource;
+  onMissing?: 'keep' | 'empty' | 'skip';
   list_uid?: number;
   /** CID pool for carousel mode */
   pool?: string[];

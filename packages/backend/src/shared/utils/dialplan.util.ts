@@ -533,7 +533,7 @@ export class AsteriskDialplanUtils {
         dp = this.emitNotifyDialplan(params, vpbxUserUid);
         break;
       case 'callerid': {
-        // D-14: unified CallerID — static / phonebook / setclid_list / carousel
+        // D-14: unified CallerID — static / directory / setclid_list / carousel
         const mode = params.mode || 'static';
         if (mode === 'static') {
           const callerid = this.sanitizeDialplanInput(params.callerid);
@@ -541,8 +541,37 @@ export class AsteriskDialplanUtils {
           const lines = [`Set(CALLERID(num)=${callerid})`];
           if (name) lines.push(`Set(CALLERID(name)=${name})`);
           dp = lines.join('\nsame => n,');
-        } else if (mode === 'phonebook') {
-          dp = 'NoOp(CallerID phonebook mode removed)';
+        } else if (mode === 'directory') {
+          const fieldUid = Number(params.valueFieldUid);
+          const keySource = params.keySource && typeof params.keySource === 'object'
+            ? params.keySource
+            : { source: 'original_caller' };
+          const onMissing = params.onMissing === 'empty'
+            ? 'empty'
+            : params.onMissing === 'skip'
+              ? 'skip'
+              : 'keep';
+          const compiled = compileDirectoryLookup({
+            token: lookupToken(action.id ?? action.uid, 'CID'),
+            directoryUid: Number(params.directoryUid),
+            userUid: vpbxUserUid,
+            keySource,
+            fieldUids: [fieldUid],
+            onMissing,
+            backendBaseUrl: this.backendBaseUrl,
+            apiKey: this.dialplanApiKey,
+          });
+          const valueVar = compiled.valueVars.get(fieldUid);
+          const lines = [...compiled.lines];
+          if (onMissing === 'empty') {
+            lines.push('Set(CALLERID(num)=)');
+          }
+          if (valueVar) {
+            lines.push(
+              `ExecIf($["\${${compiled.statusVar}}" = "FOUND" & "\${${valueVar}}" != ""]?Set(CALLERID(num)=\${${valueVar}}))`,
+            );
+          }
+          dp = lines.join('\nsame => n,');
         } else if (mode === 'number_list') {
           const listUid = this.sanitizeDialplanInput(String(params.list_uid || ''));
           dp = this.emitSetclidCurl(listUid, vpbxUserUid);

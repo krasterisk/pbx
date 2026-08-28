@@ -275,17 +275,80 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       expect(dp).toContain('Set(CALLERID(name)=Sales)');
     });
 
-    it('mode phonebook does not emit the deleted phonebook-lookup endpoint', () => {
+    it('mode directory compiles via DirectoryLookupCompiler and sets CID only when FOUND', () => {
       const dp = AsteriskDialplanUtils.actionToDialplan(
         {
+          id: 'C1',
           type: 'callerid',
-          params: { mode: 'phonebook', phonebook_uid: 7 },
+          params: {
+            mode: 'directory',
+            directoryUid: 7,
+            valueFieldUid: 18,
+            keySource: { source: 'original_caller' },
+            onMissing: 'keep',
+          },
           condition: {},
         },
         vpbx,
       );
+      expect(dp).toContain('internal/dialplan/directory-lookup');
+      expect(dp).toContain('directory_uid=7');
+      expect(dp).toContain('field_uids=18');
+      expect(dp).toContain('key=${URIENCODE(${KRSK_ORIG_CALLER_NUM})}');
+      expect(dp).toContain('Set(KRSK_DL_C1CID_STATUS=ERROR)');
+      expect(dp).toContain(
+        'ExecIf($["${KRSK_DL_C1CID_STATUS}" = "FOUND" & "${KRSK_DL_C1CID_F18}" != ""]?Set(CALLERID(num)=${KRSK_DL_C1CID_F18}))',
+      );
+      expect(dp).not.toMatch(/Set\(CALLERID\(num\)=\)(?:\n|$)/);
       expect(dp).not.toContain('phonebook-lookup');
       expect(dp).not.toContain('PB_RAW');
+      expect((dp.match(/\$\{CURL\(/g) ?? []).length).toBe(1);
+    });
+
+    it('mode directory onMissing empty sets CID empty then applies FOUND value', () => {
+      const dp = AsteriskDialplanUtils.actionToDialplan(
+        {
+          id: 'C2',
+          type: 'callerid',
+          params: {
+            mode: 'directory',
+            directoryUid: 7,
+            valueFieldUid: 18,
+            keySource: { source: 'current_caller' },
+            onMissing: 'empty',
+          },
+          condition: {},
+        },
+        vpbx,
+      );
+      expect(dp).toContain('internal/dialplan/directory-lookup');
+      expect(dp).toMatch(/Set\(CALLERID\(num\)=\)(?:\n|$)/);
+      expect(dp).toContain(
+        'ExecIf($["${KRSK_DL_C2CID_STATUS}" = "FOUND" & "${KRSK_DL_C2CID_F18}" != ""]?Set(CALLERID(num)=${KRSK_DL_C2CID_F18}))',
+      );
+    });
+
+    it('mode directory onMissing skip does not Set empty CID', () => {
+      const dp = AsteriskDialplanUtils.actionToDialplan(
+        {
+          id: 'C3',
+          type: 'callerid',
+          params: {
+            mode: 'directory',
+            directoryUid: 7,
+            valueFieldUid: 18,
+            keySource: { source: 'original_caller' },
+            onMissing: 'skip',
+          },
+          condition: {},
+        },
+        vpbx,
+      );
+      expect(dp).toContain('internal/dialplan/directory-lookup');
+      expect(dp).not.toMatch(/Set\(CALLERID\(num\)=\)(?:\n|$)/);
+      expect(dp).toContain(
+        'ExecIf($["${KRSK_DL_C3CID_STATUS}" = "FOUND" & "${KRSK_DL_C3CID_F18}" != ""]?Set(CALLERID(num)=${KRSK_DL_C3CID_F18}))',
+      );
     });
 
     it('mode number_list emits CURL to internal setclid (D-31)', () => {
@@ -1768,11 +1831,12 @@ describe('D-37 / D-32 / D-39 / D-43 per-app generator fixes', () => {
     expect(dp).toContain('NoOp(');
   });
 
-  it('callerid phonebook leftover does not emit PB_RAW or phonebook-lookup', () => {
+  it('callerid leftover phonebook mode does not emit PB_RAW or phonebook-lookup', () => {
     const dp = AsteriskDialplanUtils.actionToDialplan(
       { type: 'callerid', params: { mode: 'phonebook', phonebook_uid: 7 }, condition: {} },
       vpbx,
     );
+    expect(dp).toBe('NoOp(Unknown callerid mode)');
     expect(dp).not.toContain('phonebook-lookup');
     expect(dp).not.toContain('PB_RAW');
   });

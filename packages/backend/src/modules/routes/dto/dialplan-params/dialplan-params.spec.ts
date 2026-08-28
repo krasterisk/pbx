@@ -571,6 +571,59 @@ describe('D-32 / D-39 / D-43 params whitelist', () => {
     expect(errors).toEqual([]);
   });
 
+  it('accepts standalone callerid mode=directory with lookup fields', () => {
+    const errors = validateActionParams([{
+      id: 'c2',
+      type: 'callerid',
+      params: {
+        mode: 'directory',
+        directoryUid: 7,
+        valueFieldUid: 18,
+        keySource: { source: 'original_caller' },
+        onMissing: 'keep',
+      },
+    }]);
+    expect(errors).toEqual([]);
+  });
+
+  it('rejects leftover phonebook mode on standalone callerid', () => {
+    const errors = validateActionParams([{
+      id: 'c3',
+      type: 'callerid',
+      params: { mode: 'phonebook', phonebook_uid: 7 },
+    }]);
+    expect(errors.length).toBeGreaterThan(0);
+    expect(errors.some((e) => e.path === 'mode' || e.path === 'phonebook_uid')).toBe(true);
+  });
+
+  it('rejects leftover phonebook_uid on directory callerid', () => {
+    const errors = validateActionParams([{
+      id: 'c4',
+      type: 'callerid',
+      params: {
+        mode: 'directory',
+        directoryUid: 7,
+        valueFieldUid: 18,
+        keySource: { source: 'original_caller' },
+        onMissing: 'keep',
+        phonebook_uid: 7,
+      },
+    }]);
+    expect(errors.length).toBeGreaterThan(0);
+    expect(errors.some((e) => e.path === 'phonebook_uid')).toBe(true);
+  });
+
+  it('rejects directory callerid missing lookup fields', () => {
+    const errors = validateActionParams([{
+      id: 'c5',
+      type: 'callerid',
+      params: { mode: 'directory' },
+    }]);
+    expect(errors.length).toBeGreaterThan(0);
+    expect(errors.some((e) => e.path === 'directoryUid')).toBe(true);
+    expect(errors.some((e) => e.path === 'valueFieldUid')).toBe(true);
+  });
+
   it('rejects empty toexten target (D-39)', () => {
     const errors = validateActionParams([{
       id: 'e1',
