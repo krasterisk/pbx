@@ -32,6 +32,7 @@ import { KomandorStore } from './modules/komandor-claims/komandor-store.model';
 import { KomandorDict } from './modules/komandor-claims/komandor-dict.model';
 import { TimeGroupsModule } from './modules/time-groups/time-groups.module';
 import { PhonebooksModule } from './modules/phonebooks/phonebooks.module';
+import { DirectoriesModule } from './modules/directories/directories.module';
 import { CallGroupsModule } from './modules/call-groups/call-groups.module';
 import { CallGroup } from './modules/call-groups/call-group.model';
 import { CallGroupMember } from './modules/call-groups/call-group-member.model';
@@ -123,6 +124,10 @@ import { TimeGroup } from './modules/time-groups/time-group.model';
 import { RoutePhonebook } from './modules/phonebooks/phonebook.model';
 import { PhonebookEntry } from './modules/phonebooks/phonebook-entry.model';
 import { RoutePhonebookBinding } from './modules/phonebooks/route-phonebook-binding.model';
+import { Directory } from './modules/directories/directory.model';
+import { DirectoryField } from './modules/directories/directory-field.model';
+import { DirectoryRecord } from './modules/directories/directory-record.model';
+import { RouteDirectoryBinding } from './modules/directories/route-directory-binding.model';
 import { CcSubject } from './modules/service-requests/cc-subject.model';
 import { CcDistrict } from './modules/service-requests/cc-district.model';
 import * as path from 'path';
@@ -160,6 +165,7 @@ import * as path from 'path';
         CcAiAgent, CcAiProvider, CcAiToolset, CcAiCdr, CcAiBilling, CcAiInvoice, CcAiAuditLog,
         TimeGroup,
         RoutePhonebook, PhonebookEntry, RoutePhonebookBinding,
+        Directory, DirectoryField, DirectoryRecord, RouteDirectoryBinding,
         NotificationIntegration,
         CallGroup, CallGroupMember,
         // Cloud-admin
@@ -212,6 +218,7 @@ import * as path from 'path';
     SmsModule,
     TimeGroupsModule,
     PhonebooksModule,
+    DirectoriesModule,
     CallGroupsModule,
     LoggerModule,
     MailerModule,
