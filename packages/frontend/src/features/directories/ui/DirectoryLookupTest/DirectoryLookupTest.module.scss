@@ -1,0 +1,48 @@
+.wrapper {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-muted) 30%, transparent);
+}
+
+.input {
+  min-width: 12rem;
+  flex: 1 1 12rem;
+}
+
+.icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+.resultBox {
+  width: 100%;
+}
+
+.badgeIcon {
+  width: 0.875rem;
+  height: 0.875rem;
+  margin-right: 0.25rem;
+}
+
+.foundBadge {
+  background: color-mix(in srgb, var(--color-success) 20%, transparent);
+  color: var(--color-success);
+  border-color: transparent;
+}
+
+.notFoundBadge {
+  background: color-mix(in srgb, var(--color-muted-foreground) 16%, transparent);
+  color: var(--color-muted-foreground);
+}
+
+.errorBadge {
+  background: color-mix(in srgb, var(--color-destructive) 20%, transparent);
+  color: var(--color-destructive);
+}
+
+.value {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: var(--color-foreground);
+}

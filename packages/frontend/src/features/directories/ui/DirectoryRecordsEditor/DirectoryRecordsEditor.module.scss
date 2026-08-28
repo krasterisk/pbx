@@ -1,0 +1,49 @@
+.editor {
+  width: 100%;
+  min-width: 0;
+}
+
+.icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+.scrollBody {
+  overflow-x: auto;
+  width: 100%;
+  min-width: 0;
+  -webkit-overflow-scrolling: touch;
+}
+
+.recordsInner {
+  min-width: 40rem;
+}
+
+.recordRow {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+  width: max-content;
+  min-width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-card) 80%, transparent);
+}
+
+.matchCell {
+  flex: 0 0 9rem;
+}
+
+.priorityCell {
+  flex: 0 0 6rem;
+}
+
+.valueCell {
+  flex: 0 0 9rem;
+}
+
+.commentCell {
+  flex: 0 0 10rem;
+}

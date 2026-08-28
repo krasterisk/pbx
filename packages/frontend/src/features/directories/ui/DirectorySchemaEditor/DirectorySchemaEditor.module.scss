@@ -1,0 +1,31 @@
+.editor {
+  width: 100%;
+  min-width: 0;
+}
+
+.icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+.fieldRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-muted) 25%, transparent);
+}
+
+.fieldCell {
+  flex: 1 1 8rem;
+  min-width: 0;
+}
+
+.flagCell {
+  flex: 0 0 auto;
+  min-width: 4.5rem;
+}
