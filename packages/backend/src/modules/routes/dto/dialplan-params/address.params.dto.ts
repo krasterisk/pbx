@@ -11,6 +11,7 @@ import {
   Min,
   MinLength,
   Validate,
+  ValidateIf,
   ValidateNested,
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
@@ -309,24 +310,49 @@ export class ToRouteParamsDto {
   rewrite?: DialTargetRewriteDto;
 }
 
+class OriginalCallerKeySourceDto {
+  @IsIn(['original_caller'])
+  source: 'original_caller';
+}
+
+class TrunkCallerIdDto {
+  @IsIn(['static', 'directory'])
+  mode: 'static' | 'directory';
+
+  @IsOptional()
+  @IsString()
+  @Matches(SAFE_DIAL)
+  value?: string;
+
+  @ValidateIf((o) => o.mode === 'directory')
+  @IsInt()
+  @Min(1)
+  directoryUid?: number;
+
+  @ValidateIf((o) => o.mode === 'directory')
+  @IsInt()
+  @Min(1)
+  valueFieldUid?: number;
+
+  @ValidateIf((o) => o.mode === 'directory')
+  @ValidateNested()
+  @Type(() => OriginalCallerKeySourceDto)
+  keySource?: OriginalCallerKeySourceDto;
+
+  @ValidateIf((o) => o.mode === 'directory')
+  @IsIn(['keep_original'])
+  onMissing?: 'keep_original';
+}
+
 class TrunkCarouselItemDto {
   @IsString()
   @MinLength(1)
   @Matches(SAFE_DIAL)
-  trunk: string;
+  trunkId: string;
 
-  @IsIn(['static', 'phonebook'])
-  cid_mode: 'static' | 'phonebook';
-
-  @IsOptional()
-  @IsString()
-  @Matches(SAFE_DIAL)
-  callerid?: string;
-
-  @IsOptional()
-  @IsInt()
-  @Min(1)
-  phonebook_uid?: number;
+  @ValidateNested()
+  @Type(() => TrunkCallerIdDto)
+  callerId: TrunkCallerIdDto;
 
   @IsOptional()
   @Transform(({ value }) => (value === '' || value == null ? undefined : Number(value)))
@@ -356,8 +382,8 @@ export class ToTrunkParamsDto {
   trunks?: TrunkCarouselItemDto[];
 
   @IsOptional()
-  @IsIn(['static', 'phonebook'])
-  cid_mode?: 'static' | 'phonebook';
+  @IsIn(['static'])
+  cid_mode?: 'static';
 
   @IsOptional()
   @IsString()
@@ -365,10 +391,9 @@ export class ToTrunkParamsDto {
   callerid?: string;
 
   @IsOptional()
-  @Transform(({ value }) => (value === '' || value == null ? undefined : Number(value)))
-  @IsInt()
-  @Min(1)
-  phonebook_uid?: number;
+  @ValidateNested()
+  @Type(() => TrunkCallerIdDto)
+  callerId?: TrunkCallerIdDto;
 
   @IsOptional()
   @Transform(({ value }) => {

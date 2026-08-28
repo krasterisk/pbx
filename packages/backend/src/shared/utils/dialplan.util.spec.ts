@@ -275,7 +275,7 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       expect(dp).toContain('Set(CALLERID(name)=Sales)');
     });
 
-    it('mode phonebook emits CURL lookup and CUT to set CALLERID(num)', () => {
+    it('mode phonebook does not emit the deleted phonebook-lookup endpoint', () => {
       const dp = AsteriskDialplanUtils.actionToDialplan(
         {
           type: 'callerid',
@@ -284,10 +284,8 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
         },
         vpbx,
       );
-      expect(dp).toContain('internal/dialplan/phonebook-lookup');
-      expect(dp).toContain('phonebook_uid=7');
-      expect(dp).toContain('CUT(');
-      expect(dp).toContain('Set(CALLERID(num)=');
+      expect(dp).not.toContain('phonebook-lookup');
+      expect(dp).not.toContain('PB_RAW');
     });
 
     it('mode number_list emits CURL to internal setclid (D-31)', () => {
@@ -355,8 +353,17 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
             trunkMode: 'carousel',
             mode: 'random_then_failover',
             trunks: [
-              { trunk: 'PJSIP/trunkA', cid_mode: 'static', callerid: '79001112233' },
-              { trunk: 'PJSIP/trunkB', cid_mode: 'phonebook', phonebook_uid: 3 },
+              { trunkId: 'trunkA', callerId: { mode: 'static', value: '79001112233' } },
+              {
+                trunkId: 'trunkB',
+                callerId: {
+                  mode: 'directory',
+                  directoryUid: 3,
+                  valueFieldUid: 17,
+                  keySource: { source: 'original_caller' },
+                  onMissing: 'keep_original',
+                },
+              },
             ],
             timeout: 60,
             options: 'tT',
@@ -368,10 +375,12 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       expect(dp).toContain('RAND');
       expect(dp).toContain('Return()');
       expect(dp).not.toContain('Hangup');
-      expect(dp).toContain('Set(TC_LIST=PJSIP/trunkA|PJSIP/trunkB)');
-      expect(dp).toContain('Dial(${TC_TRUNK}/${EXTEN},${TC_TO},tT)');
+      expect(dp).toContain('Set(TC_LIST=trunkA|trunkB)');
+      expect(dp).toContain('Dial(PJSIP/${TC_TRUNK_ID}/${EXTEN},${TC_TIMEOUT},tT)');
       expect(dp).toContain('79001112233');
-      expect(dp).toContain('phonebook-lookup');
+      expect(dp).toContain('directory-lookup');
+      expect(dp).toContain('key=${URIENCODE(${KRSK_ORIG_CALLER_NUM})}');
+      expect(dp).not.toContain('phonebook-lookup');
     });
   });
 
@@ -460,7 +469,7 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       expect(dp).toBe('Set(CALLERID(num)=79001234567)\nsame => n,Dial(PJSIP/out1/${EXTEN},60,tT)');
     });
 
-    it('totrunk single mode emits phonebook CallerID lookup when cid_mode is phonebook', () => {
+    it('totrunk single mode emits directory CallerID lookup keyed by original caller', () => {
       const prevKey = AsteriskDialplanUtils.dialplanApiKey;
       const prevUrl = AsteriskDialplanUtils.backendBaseUrl;
       AsteriskDialplanUtils.backendBaseUrl = 'http://backend.test/api';
@@ -473,8 +482,13 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
             params: {
               trunk: 'PJSIP/out1',
               dest: '${EXTEN}',
-              cid_mode: 'phonebook',
-              phonebook_uid: 42,
+              callerId: {
+                mode: 'directory',
+                directoryUid: 42,
+                valueFieldUid: 17,
+                keySource: { source: 'original_caller' },
+                onMissing: 'keep_original',
+              },
               timeout: 60,
               options: 'tT',
             },
@@ -482,9 +496,17 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
           },
           vpbx,
         );
-        expect(dp).toContain('Set(PB_RAW=${CURL(http://backend.test/api/internal/dialplan/phonebook-lookup?phonebook_uid=42&api_key=tc-key&number=${URIENCODE(${CALLERID(num)})})})');
-        expect(dp).toContain('ExecIf($["${CUT(PB_RAW,|,1)}" = "1"]?Set(CALLERID(num)=${CUT(PB_RAW,|,3)}))');
+        expect(dp).toContain('internal/dialplan/directory-lookup');
+        expect(dp).toContain('directory_uid=42');
+        expect(dp).toContain('key=${URIENCODE(${KRSK_ORIG_CALLER_NUM})}');
+        expect(dp).toContain('Set(CALLERID(num)=${KRSK_ORIG_CALLER_NUM})');
         expect(dp).toContain('Dial(PJSIP/out1/${EXTEN},60,tT)');
+        expect(dp).not.toContain('phonebook-lookup');
+        expect(dp).not.toContain('PB_RAW');
+        const curls = [...dp.matchAll(/\$\{CURL\(([^)]*)\)\}/g)].map((m) => m[1]);
+        for (const url of curls) {
+          expect(url).not.toContain('${CALLERID(num)}');
+        }
       } finally {
         AsteriskDialplanUtils.backendBaseUrl = prevUrl;
         AsteriskDialplanUtils.dialplanApiKey = prevKey;
@@ -504,8 +526,8 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
             trunkMode: 'carousel',
             mode: 'random_then_failover',
             trunks: [
-              { trunk: 'PJSIP/trunkA', cid_mode: 'static', callerid: '79001112233' },
-              { trunk: 'PJSIP/trunkB', cid_mode: 'static', callerid: '79004445566' },
+              { trunkId: 'trunkA', callerId: { mode: 'static', value: '79001112233' } },
+              { trunkId: 'trunkB', callerId: { mode: 'static', value: '79004445566' } },
             ],
             dest: { source: 'route_pattern' },
             timeout: 60,
@@ -520,8 +542,8 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       AsteriskDialplanUtils.dialplanApiKey = prevKey;
 
       expect(dp).toContain('RAND');
-      expect(dp).toContain('Set(TC_LIST=PJSIP/trunkA|PJSIP/trunkB)');
-      expect(dp).toContain('Dial(${TC_TRUNK}/${EXTEN},${TC_TO},tT)');
+      expect(dp).toContain('Set(TC_LIST=trunkA|trunkB)');
+      expect(dp).toContain('Dial(PJSIP/${TC_TRUNK_ID}/${EXTEN},${TC_TIMEOUT},tT)');
     });
 
     it('totrunk empty dest falls back to literal ${EXTEN}', () => {
@@ -1155,9 +1177,8 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
 
     it('totrunk carousel with five trunks emits one Dial() (D-36 linear)', () => {
       const trunks = [1, 2, 3, 4, 5].map((i) => ({
-        trunk: `PJSIP/t${i}`,
-        cid_mode: 'static',
-        callerid: `7900111000${i}`,
+        trunkId: `t${i}`,
+        callerId: { mode: 'static' as const, value: `7900111000${i}` },
       }));
       const dp = AsteriskDialplanUtils.actionToDialplan(
         {
@@ -1174,7 +1195,7 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
         vpbx,
       );
       expect(dp.split('Dial(').length - 1).toBe(1);
-      expect(dp).toContain('Set(TC_LIST=PJSIP/t1|PJSIP/t2|PJSIP/t3|PJSIP/t4|PJSIP/t5)');
+      expect(dp).toContain('Set(TC_LIST=t1|t2|t3|t4|t5)');
       expect(dp).toContain('Set(TC_I=${RAND(1,5)})');
       expect(dp).toContain('n(tc_try)');
       expect(dp).not.toMatch(/\bn\(t[1-5]\)/);
@@ -1277,8 +1298,8 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
             trunkMode: 'carousel',
             mode: 'random_then_failover',
             trunks: [
-              { trunk: 'PJSIP/t1', cid_mode: 'static', callerid: '79001110001' },
-              { trunk: 'PJSIP/t2', cid_mode: 'static', callerid: '79001110002' },
+              { trunkId: 't1', callerId: { mode: 'static', value: '79001110001' } },
+              { trunkId: 't2', callerId: { mode: 'static', value: '79001110002' } },
             ],
             timeout: 60,
             options: 'tT',
@@ -1294,7 +1315,7 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
         expect(line).toContain(g);
         expect(line).toMatch(/ExecIf\(\$\[|GotoIf\(\$\[/);
       }
-      expect(dp).toContain('Set(TC_LIST=PJSIP/t1|PJSIP/t2)');
+      expect(dp).toContain('Set(TC_LIST=t1|t2)');
       expect(dp).toMatch(/GotoIf\(\$\[\([^)]*\) & \(/);
     });
   });
@@ -1747,13 +1768,13 @@ describe('D-37 / D-32 / D-39 / D-43 per-app generator fixes', () => {
     expect(dp).toContain('NoOp(');
   });
 
-  it('callerid phonebook also sets CALLERID(name) from lookup field 5', () => {
+  it('callerid phonebook leftover does not emit PB_RAW or phonebook-lookup', () => {
     const dp = AsteriskDialplanUtils.actionToDialplan(
       { type: 'callerid', params: { mode: 'phonebook', phonebook_uid: 7 }, condition: {} },
       vpbx,
     );
-    expect(dp).toContain('CALLERID(name)');
-    expect(dp).toContain('CUT(PB_RAW,|,5)');
+    expect(dp).not.toContain('phonebook-lookup');
+    expect(dp).not.toContain('PB_RAW');
   });
 
   it('callerid carousel anti-repeats against the previous pick', () => {

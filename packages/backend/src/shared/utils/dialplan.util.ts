@@ -196,19 +196,23 @@ export class AsteriskDialplanUtils {
         const dialOpts = this.buildDialOptions(params.options || 'tT', wh);
 
         if (params.trunkMode === 'carousel') {
-          const trunks: Array<{
-            trunk?: string;
-            cid_mode?: string;
-            callerid?: string;
-            phonebook_uid?: number;
-            timeout?: number | string;
-          }> = Array.isArray(params.trunks) ? params.trunks : [];
+          const trunks = Array.isArray(params.trunks) ? params.trunks : [];
           const carousel = buildTrunkCarousel(
-            trunks.map((item) => ({
-              trunk: String(item.trunk ?? ''),
-              cid_mode: item.cid_mode === 'phonebook' ? 'phonebook' : 'static',
-              callerid: item.callerid,
-              phonebook_uid: item.phonebook_uid,
+            trunks.map((item: {
+              trunkId?: string;
+              callerId?: { mode?: string; value?: string; directoryUid?: number; valueFieldUid?: number };
+              timeout?: number | string;
+            }) => ({
+              trunkId: String(item.trunkId ?? ''),
+              callerId: item.callerId?.mode === 'directory'
+                ? {
+                    mode: 'directory' as const,
+                    directoryUid: Number(item.callerId.directoryUid),
+                    valueFieldUid: Number(item.callerId.valueFieldUid),
+                    keySource: { source: 'original_caller' as const },
+                    onMissing: 'keep_original' as const,
+                  }
+                : { mode: 'static' as const, value: item.callerId?.value },
               timeout: item.timeout,
             })),
             {
@@ -229,14 +233,30 @@ export class AsteriskDialplanUtils {
         const trunk = this.sanitizeDialplanInput(params.trunk) || '';
         const timeout = parseInt(params.timeout, 10) || 60;
         const dialLines: string[] = [];
-        if (params.cid_mode === 'phonebook') {
-          const pbUid = this.sanitizeDialplanInput(String(params.phonebook_uid ?? ''));
-          const keyParam = this.dialplanApiKey ? `&api_key=${encodeURIComponent(this.dialplanApiKey)}` : '';
-          const lookupUrl = `${this.backendBaseUrl}/internal/dialplan/phonebook-lookup?phonebook_uid=${pbUid}${keyParam}`;
-          dialLines.push(`Set(PB_RAW=\${CURL(${lookupUrl}&number=\${URIENCODE(\${CALLERID(num)})})})`);
-          dialLines.push(`ExecIf($["\${CUT(PB_RAW,|,1)}" = "1"]?Set(CALLERID(num)=\${CUT(PB_RAW,|,3)}))`);
-        } else {
-          const cid = this.sanitizeDialplanInput(params.callerid);
+        const callerId = params.callerId;
+        if (callerId?.mode === 'directory') {
+          const compiledCid = compileDirectoryLookup({
+            token: lookupToken(action.id ?? action.uid, 'TTCID'),
+            directoryUid: Number(callerId.directoryUid),
+            userUid: vpbxUserUid,
+            keySource: { source: 'original_caller' },
+            fieldUids: [Number(callerId.valueFieldUid)],
+            onMissing: 'keep',
+            backendBaseUrl: this.backendBaseUrl,
+            apiKey: this.dialplanApiKey,
+          });
+          const valueVar = compiledCid.valueVars.get(Number(callerId.valueFieldUid));
+          dialLines.push(...compiledCid.lines);
+          dialLines.push('Set(CALLERID(num)=${KRSK_ORIG_CALLER_NUM})');
+          if (valueVar) {
+            dialLines.push(
+              `ExecIf($["\${${compiledCid.statusVar}}" = "FOUND" & "\${${valueVar}}" != ""]?Set(CALLERID(num)=\${${valueVar}}))`,
+            );
+          }
+        } else if (params.cid_mode !== 'phonebook') {
+          const cid = this.sanitizeDialplanInput(
+            callerId?.mode === 'static' ? callerId.value : params.callerid,
+          );
           if (cid) dialLines.push(`Set(CALLERID(num)=${cid})`);
         }
         if (wh.custom?.url) {
@@ -522,15 +542,7 @@ export class AsteriskDialplanUtils {
           if (name) lines.push(`Set(CALLERID(name)=${name})`);
           dp = lines.join('\nsame => n,');
         } else if (mode === 'phonebook') {
-          const pbUid = this.sanitizeDialplanInput(String(params.phonebook_uid ?? ''));
-          const keyParam = this.dialplanApiKey ? `&api_key=${encodeURIComponent(this.dialplanApiKey)}` : '';
-          const lookupUrl = `${this.backendBaseUrl}/internal/dialplan/phonebook-lookup?phonebook_uid=${pbUid}${keyParam}`;
-          const lines = [
-            `Set(PB_RAW=\${CURL(${lookupUrl}&number=\${URIENCODE(\${CALLERID(num)})})})`,
-            `ExecIf($["\${CUT(PB_RAW,|,1)}" = "1"]?Set(CALLERID(num)=\${CUT(PB_RAW,|,3)}))`,
-            `ExecIf($["\${CUT(PB_RAW,|,1)}" = "1"]?Set(CALLERID(name)=\${CUT(PB_RAW,|,5)}))`,
-          ];
-          dp = lines.join('\nsame => n,');
+          dp = 'NoOp(CallerID phonebook mode removed)';
         } else if (mode === 'number_list') {
           const listUid = this.sanitizeDialplanInput(String(params.list_uid || ''));
           dp = this.emitSetclidCurl(listUid, vpbxUserUid);

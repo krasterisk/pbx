@@ -2,21 +2,18 @@
  * Linear trunk carousel (D-36).
  * One loop entry, channel-var index, CUT() over materialized lists.
  * Attempt order for random_then_failover matches the 12-01 wrap-around baseline.
+ * Directory CallerID is prefetched once per directory, keyed by original caller.
  */
+
+import type { ITrunkCarouselItem, TrunkCallerIdSource } from '@krasterisk/shared';
+import {
+  compileDirectoryLookup,
+  type CompiledDirectoryLookup,
+} from './directory-lookup-dialplan.util';
 
 const DIALPLAN_UNSAFE = /[(),?\[\]{}$\\";\n\r]/g;
 
 export type TrunkCarouselMode = 'random_then_failover' | 'sequential';
-
-export interface TrunkCarouselEntry {
-  trunk: string;
-  timeout?: number | string;
-  cid_mode?: 'static' | 'phonebook';
-  callerid?: string;
-  phonebook_uid?: number;
-}
-
-export type TrunkCarouselInput = string | TrunkCarouselEntry;
 
 export interface BuildTrunkCarouselCtx {
   mode?: string;
@@ -37,9 +34,12 @@ function sanitizeListField(input?: string): string {
   return sanitize(input).replace(/\|/g, '');
 }
 
-function asEntry(item: TrunkCarouselInput): TrunkCarouselEntry {
-  if (typeof item === 'string') return { trunk: item };
-  return item;
+function asEntry(item: ITrunkCarouselItem): ITrunkCarouselItem {
+  return {
+    trunkId: item?.trunkId ?? '',
+    timeout: item?.timeout,
+    callerId: item?.callerId ?? { mode: 'static' },
+  };
 }
 
 function resolveTimeout(value: number | string | undefined, fallback: number): number {
@@ -57,31 +57,91 @@ function joinDialplan(head: string, rest: string[]): string {
   return [head, ...rest.map((part) => `same => ${part}`)].join('\n');
 }
 
-function phonebookLookupUrl(ctx: BuildTrunkCarouselCtx, uidExpr: string): string {
-  const base = ctx.backendBaseUrl || 'http://127.0.0.1:5010/api';
-  const key = ctx.dialplanApiKey ? `&api_key=${encodeURIComponent(ctx.dialplanApiKey)}` : '';
-  return `${base}/internal/dialplan/phonebook-lookup?phonebook_uid=${uidExpr}${key}`;
+function isDirectoryCaller(
+  callerId: TrunkCallerIdSource,
+): callerId is Extract<TrunkCallerIdSource, { mode: 'directory' }> {
+  return callerId?.mode === 'directory';
 }
 
-function emitSingleTrunk(entry: TrunkCarouselEntry, ctx: BuildTrunkCarouselCtx): string {
-  const fallbackTimeout = resolveTimeout(ctx.timeout, 60);
-  const timeout = resolveTimeout(entry.timeout, fallbackTimeout);
-  const trunk = sanitizeListField(entry.trunk);
-  const dest = ctx.dest || '${EXTEN}';
-  const opts = sanitize(ctx.options || 'tT');
-  const apps: string[] = [];
-
-  if (entry.cid_mode === 'phonebook') {
-    const pbUid = sanitizeListField(String(entry.phonebook_uid ?? ''));
-    const lookupUrl = phonebookLookupUrl(ctx, pbUid);
-    apps.push(`Set(TC_PB=\${CURL(${lookupUrl}&number=\${URIENCODE(\${CALLERID(num)})})})`);
-    apps.push(`ExecIf($["\${CUT(TC_PB,|,1)}" = "1"]?Set(CALLERID(num)=\${CUT(TC_PB,|,3)}))`);
-  } else {
-    const cid = sanitizeListField(entry.callerid);
-    if (cid) apps.push(`Set(CALLERID(num)=${cid})`);
+function compileDirectoryGroups(
+  entries: ITrunkCarouselItem[],
+  ctx: BuildTrunkCarouselCtx,
+): Map<number, CompiledDirectoryLookup> {
+  const fieldsByDirectory = new Map<number, number[]>();
+  for (const entry of entries) {
+    if (!isDirectoryCaller(entry.callerId)) continue;
+    const directoryUid = Number(entry.callerId.directoryUid);
+    const fieldUid = Number(entry.callerId.valueFieldUid);
+    if (!Number.isInteger(directoryUid) || directoryUid < 1) continue;
+    const fields = fieldsByDirectory.get(directoryUid) ?? [];
+    fields.push(fieldUid);
+    fieldsByDirectory.set(directoryUid, fields);
   }
 
-  apps.push(`Dial(${trunk}/${dest},${timeout},${opts})`);
+  const compiled = new Map<number, CompiledDirectoryLookup>();
+  for (const [directoryUid, fieldUids] of fieldsByDirectory) {
+    const uniqueSorted = [...new Set(fieldUids)]
+      .filter((uid) => Number.isInteger(uid) && uid >= 1)
+      .sort((a, b) => a - b);
+    compiled.set(directoryUid, compileDirectoryLookup({
+      token: `TC${directoryUid}`,
+      directoryUid,
+      userUid: ctx.vpbxUserUid ?? 0,
+      keySource: { source: 'original_caller' },
+      fieldUids: uniqueSorted,
+      onMissing: 'keep',
+      backendBaseUrl: ctx.backendBaseUrl || 'http://127.0.0.1:5010/api',
+      apiKey: ctx.dialplanApiKey ?? '',
+    }));
+  }
+  return compiled;
+}
+
+function directorySlots(
+  callerId: TrunkCallerIdSource,
+  groups: Map<number, CompiledDirectoryLookup>,
+): { valueVar: string; statusVar: string } {
+  if (!isDirectoryCaller(callerId)) return { valueVar: '', statusVar: '' };
+  const compiled = groups.get(Number(callerId.directoryUid));
+  if (!compiled) return { valueVar: '', statusVar: '' };
+  return {
+    valueVar: compiled.valueVars.get(Number(callerId.valueFieldUid)) ?? '',
+    statusVar: compiled.statusVar,
+  };
+}
+
+function emitCallerIdApply(
+  callerId: TrunkCallerIdSource,
+  groups: Map<number, CompiledDirectoryLookup>,
+): string[] {
+  const apps = ['Set(CALLERID(num)=${KRSK_ORIG_CALLER_NUM})'];
+  if (isDirectoryCaller(callerId)) {
+    const { valueVar, statusVar } = directorySlots(callerId, groups);
+    if (valueVar && statusVar) {
+      apps.push(
+        `ExecIf($["\${${statusVar}}" = "FOUND" & "\${${valueVar}}" != ""]?Set(CALLERID(num)=\${${valueVar}}))`,
+      );
+    }
+    return apps;
+  }
+  const cid = sanitizeListField(callerId.mode === 'static' ? callerId.value : '');
+  if (cid) apps.push(`Set(CALLERID(num)=${cid})`);
+  return apps;
+}
+
+function emitSingleTrunk(entry: ITrunkCarouselItem, ctx: BuildTrunkCarouselCtx): string {
+  const fallbackTimeout = resolveTimeout(ctx.timeout, 60);
+  const timeout = resolveTimeout(entry.timeout, fallbackTimeout);
+  const trunkId = sanitizeListField(entry.trunkId);
+  const dest = ctx.dest || '${EXTEN}';
+  const opts = sanitize(ctx.options || 'tT');
+  const groups = compileDirectoryGroups([entry], ctx);
+  const apps: string[] = [];
+  for (const compiled of groups.values()) {
+    apps.push(...compiled.lines);
+  }
+  apps.push(...emitCallerIdApply(entry.callerId, groups));
+  apps.push(`Dial(PJSIP/${trunkId}/${dest},${timeout},${opts})`);
   apps.push('Return()');
   return joinDialplan(apps[0], apps.slice(1).map((app) => `n,${app}`));
 }
@@ -91,12 +151,12 @@ function emitSingleTrunk(entry: TrunkCarouselEntry, ctx: BuildTrunkCarouselCtx):
  * Empty list → diagnostic NoOp (next chain step still runs).
  */
 export function buildTrunkCarousel(
-  trunks: TrunkCarouselInput[],
+  trunks: ITrunkCarouselItem[],
   ctx: BuildTrunkCarouselCtx = {},
 ): string {
   const entries = (Array.isArray(trunks) ? trunks : []).map(asEntry)
-    .map((item) => ({ ...item, trunk: sanitizeListField(item.trunk) }))
-    .filter((item) => item.trunk);
+    .map((item) => ({ ...item, trunkId: sanitizeListField(item.trunkId) }))
+    .filter((item) => item.trunkId);
   if (!entries.length) {
     return 'NoOp(Empty trunk carousel)';
   }
@@ -109,41 +169,52 @@ export function buildTrunkCarousel(
   const dest = ctx.dest || '${EXTEN}';
   const opts = sanitize(ctx.options || 'tT');
   const n = entries.length;
+  const groups = compileDirectoryGroups(entries, ctx);
 
-  const list = entries.map((e) => e.trunk).join('|');
+  const list = entries.map((e) => e.trunkId).join('|');
   const timeouts = entries.map((e) => String(resolveTimeout(e.timeout, fallbackTimeout))).join('|');
-  const cidModes = entries.map((e) => (e.cid_mode === 'phonebook' ? 'phonebook' : 'static')).join('|');
-  const cids = entries.map((e) => sanitizeListField(e.callerid)).join('|');
-  const pbUids = entries.map((e) => sanitizeListField(String(e.phonebook_uid ?? ''))).join('|');
+  const cidModes = entries.map((e) => (isDirectoryCaller(e.callerId) ? 'directory' : 'static')).join('|');
+  const cids = entries.map((e) => (
+    isDirectoryCaller(e.callerId) ? '' : sanitizeListField(e.callerId.mode === 'static' ? e.callerId.value : '')
+  )).join('|');
+  const cidVars = entries.map((e) => directorySlots(e.callerId, groups).valueVar).join('|');
+  const cidStatus = entries.map((e) => directorySlots(e.callerId, groups).statusVar).join('|');
   const start = mode === 'sequential' ? 'Set(TC_I=1)' : `Set(TC_I=\${RAND(1,${n})})`;
-  const lookupUrl = phonebookLookupUrl(ctx, '${TC_PBU}');
 
-  const rest: string[] = [
+  const rest: string[] = [];
+  for (const compiled of groups.values()) {
+    for (const line of compiled.lines) {
+      rest.push(`n,${line}`);
+    }
+  }
+  rest.push(
     `n,Set(TC_TIMEOUTS=${timeouts})`,
     `n,Set(TC_CIDMODE=${cidModes})`,
     `n,Set(TC_CID=${cids})`,
-    `n,Set(TC_PBUID=${pbUids})`,
+    `n,Set(TC_CIDVAR=${cidVars})`,
+    `n,Set(TC_CIDST=${cidStatus})`,
     `n,Set(TC_N=${n})`,
     `n,${start}`,
     'n,Set(TC_TRIED=0)',
-    'n(tc_try),Set(TC_TRUNK=${CUT(TC_LIST,|,${TC_I})})',
-    'n,Set(TC_TO=${CUT(TC_TIMEOUTS,|,${TC_I})})',
+    'n(tc_try),Set(TC_TRUNK_ID=${CUT(TC_LIST,|,${TC_I})})',
+    'n,Set(TC_TIMEOUT=${CUT(TC_TIMEOUTS,|,${TC_I})})',
+    'n,Set(CALLERID(num)=${KRSK_ORIG_CALLER_NUM})',
     'n,Set(TC_CM=${CUT(TC_CIDMODE,|,${TC_I})})',
-    'n,GotoIf($["${TC_CM}" = "phonebook"]?tc_pb)',
+    'n,GotoIf($["${TC_CM}" = "directory"]?tc_dir)',
     'n,Set(TC_CIDV=${CUT(TC_CID,|,${TC_I})})',
     'n,ExecIf($["${TC_CIDV}" != ""]?Set(CALLERID(num)=${TC_CIDV}))',
     'n,Goto(tc_dial)',
-    'n(tc_pb),Set(TC_PBU=${CUT(TC_PBUID,|,${TC_I})})',
-    `n,Set(TC_PB=\${CURL(${lookupUrl}&number=\${URIENCODE(\${CALLERID(num)})})})`,
-    'n,ExecIf($["${CUT(TC_PB,|,1)}" = "1"]?Set(CALLERID(num)=${CUT(TC_PB,|,3)}))',
-    `n(tc_dial),Dial(\${TC_TRUNK}/${dest},\${TC_TO},${opts})`,
+    'n(tc_dir),Set(TC_VV=${CUT(TC_CIDVAR,|,${TC_I})})',
+    'n,Set(TC_ST=${CUT(TC_CIDST,|,${TC_I})})',
+    'n,ExecIf($["${${TC_ST}}" = "FOUND" & "${${TC_VV}}" != ""]?Set(CALLERID(num)=${${TC_VV}}))',
+    `n(tc_dial),Dial(PJSIP/\${TC_TRUNK_ID}/${dest},\${TC_TIMEOUT},${opts})`,
     'n,ExecIf($["${DIALSTATUS}" = "ANSWER"]?Return())',
     'n,Set(TC_I=$[${TC_I} + 1])',
     'n,ExecIf($[${TC_I} > ${TC_N}]?Set(TC_I=1))',
     'n,Set(TC_TRIED=$[${TC_TRIED} + 1])',
     'n,GotoIf($[${TC_TRIED} < ${TC_N}]?tc_try)',
     'n,Return()',
-  ];
+  );
 
   return joinDialplan(`Set(TC_LIST=${list})`, rest);
 }

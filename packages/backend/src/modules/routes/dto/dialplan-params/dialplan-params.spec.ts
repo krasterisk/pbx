@@ -448,19 +448,70 @@ describe('D-26 numberManipulation DTO', () => {
     expect(ok).toEqual([]);
   });
 
-  it('accepts single mode totrunk with cid_mode phonebook and phonebook_uid', () => {
+  it('accepts single mode totrunk with directory callerId', () => {
     const ok = validateActionParams([{
       id: 't2',
       type: 'totrunk',
       params: {
         trunkMode: 'single',
         trunk: 'PJSIP/t1',
-        cid_mode: 'phonebook',
-        phonebook_uid: 12,
+        callerId: {
+          mode: 'directory',
+          directoryUid: 12,
+          valueFieldUid: 17,
+          keySource: { source: 'original_caller' },
+          onMissing: 'keep_original',
+        },
         dest: { source: 'route_pattern' },
       },
     }]);
     expect(ok).toEqual([]);
+  });
+
+  it('accepts carousel ITrunkCarouselItem with trunkId and directory callerId', () => {
+    const ok = validateActionParams([{
+      id: 't3',
+      type: 'totrunk',
+      params: {
+        trunkMode: 'carousel',
+        mode: 'sequential',
+        trunks: [
+          {
+            trunkId: 't_alpha_100',
+            timeout: 20,
+            callerId: {
+              mode: 'directory',
+              directoryUid: 7,
+              valueFieldUid: 17,
+              keySource: { source: 'original_caller' },
+              onMissing: 'keep_original',
+            },
+          },
+          {
+            trunkId: 't_beta_100',
+            timeout: 30,
+            callerId: { mode: 'static', value: '79001112233' },
+          },
+        ],
+        dest: { source: 'route_pattern' },
+      },
+    }]);
+    expect(ok).toEqual([]);
+  });
+
+  it('rejects leftover trunk/cid_mode/phonebook_uid carousel items', () => {
+    const errors = validateActionParams([{
+      id: 't4',
+      type: 'totrunk',
+      params: {
+        trunkMode: 'carousel',
+        trunks: [
+          { trunk: 'PJSIP/t1', cid_mode: 'phonebook', phonebook_uid: 12 },
+        ],
+        dest: { source: 'route_pattern' },
+      },
+    }]);
+    expect(errors.length).toBeGreaterThan(0);
   });
 });
 
