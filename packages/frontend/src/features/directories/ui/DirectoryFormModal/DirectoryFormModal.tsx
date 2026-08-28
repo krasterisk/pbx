@@ -140,7 +140,7 @@ export const DirectoryFormModal = memo(() => {
 
   const [draft, setDraft] = useState<DirectoryDraft>(EMPTY_DRAFT);
   const [referenceLocations, setReferenceLocations] = useState<string[]>([]);
-  const fieldsBeforeDeleteRef = useRef<IDirectoryFieldDraft[] | null>(null);
+  const draftBeforeDeleteRef = useRef<Pick<DirectoryDraft, 'fields' | 'records' | 'lookupFieldKey'> | null>(null);
 
   const source = directoryDetails ?? editingItem ?? null;
 
@@ -148,7 +148,7 @@ export const DirectoryFormModal = memo(() => {
     if (!modalOpen) return;
     setDraft(toDraft(mode === 'create' ? null : source, mode));
     setReferenceLocations([]);
-    fieldsBeforeDeleteRef.current = null;
+    draftBeforeDeleteRef.current = null;
   }, [modalOpen, mode, source]);
 
   const lockedKeys = useMemo(() => {
@@ -163,7 +163,11 @@ export const DirectoryFormModal = memo(() => {
   const handleFieldsChange = useCallback((nextFields: IDirectoryFieldDraft[]) => {
     setDraft((prev) => {
       if (nextFields.length < prev.fields.length) {
-        fieldsBeforeDeleteRef.current = prev.fields;
+        draftBeforeDeleteRef.current = {
+          fields: prev.fields,
+          records: prev.records,
+          lookupFieldKey: prev.lookupFieldKey,
+        };
       }
       const lookupStillExists = nextFields.some((field) => field.key === prev.lookupFieldKey);
       const lookupType = nextFields.find((field) => field.key === prev.lookupFieldKey)?.type;
@@ -233,8 +237,14 @@ export const DirectoryFormModal = memo(() => {
       const references = extractReferences(error);
       if (references.length) {
         setReferenceLocations(references.map((ref) => ref.location));
-        if (fieldsBeforeDeleteRef.current) {
-          setDraft((prev) => ({ ...prev, fields: fieldsBeforeDeleteRef.current ?? prev.fields }));
+        if (draftBeforeDeleteRef.current) {
+          const snapshot = draftBeforeDeleteRef.current;
+          setDraft((prev) => ({
+            ...prev,
+            fields: snapshot.fields,
+            records: snapshot.records,
+            lookupFieldKey: snapshot.lookupFieldKey,
+          }));
         }
         return;
       }

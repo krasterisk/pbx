@@ -227,6 +227,7 @@ describe('DirectoryFormModal', () => {
 
     fireEvent.click(screen.getByTestId('field-delete-name'));
     expect(screen.queryByTestId('field-key-1')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('record-value-0-name')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId('directory-save'));
 
@@ -236,6 +237,22 @@ describe('DirectoryFormModal', () => {
     expect(screen.getByText('Route 5 binding 12')).toBeInTheDocument();
     expect(screen.getByText('Route 5 action act-9')).toBeInTheDocument();
     expect(screen.getByTestId('field-key-1')).toHaveValue('name');
-    expect(mockUpdate).toHaveBeenCalled();
+    expect(screen.getByTestId('record-value-0-name')).toHaveValue('Alice');
+    expect(screen.getByTestId('record-value-1-name')).toHaveValue('Pattern');
+    expect(mockUpdate).toHaveBeenCalledTimes(1);
+    expect(mockUpdate.mock.calls[0][0].data.records[0].values).not.toHaveProperty('name');
+
+    mockUpdate.mockReturnValue({ unwrap: () => Promise.resolve({ uid: 7 }) });
+    fireEvent.click(screen.getByTestId('directory-save'));
+
+    await waitFor(() => {
+      expect(mockUpdate).toHaveBeenCalledTimes(2);
+    });
+    expect(mockUpdate.mock.calls[1][0].data.records[0].values).toEqual(
+      expect.objectContaining({ phone: '100', name: 'Alice' }),
+    );
+    expect(mockUpdate.mock.calls[1][0].data.records[1].values).toEqual(
+      expect.objectContaining({ phone: '_1XX', name: 'Pattern' }),
+    );
   });
 });
