@@ -10,6 +10,7 @@ import {
   generateBindingDialplan as generateBindingDialplanUtil,
   GeneratedDialplanCategory,
 } from './phonebook-dialplan.util';
+import { matchesAsteriskPattern } from '../directories/directory-pattern.util';
 
 @Injectable()
 export class PhonebooksService {
@@ -345,7 +346,7 @@ export class PhonebooksService {
       });
 
       for (const patternEntry of patterns) {
-        if (this.matchAsteriskPattern(patternEntry.number, callerIdNumber)) {
+        if (matchesAsteriskPattern(patternEntry.number, callerIdNumber)) {
           entry = patternEntry;
           break; // First match wins (by uid ASC)
         }
@@ -375,86 +376,6 @@ export class PhonebooksService {
     }
 
     return parts.join('|');
-  }
-
-  /**
-   * Match a CallerID number against an Asterisk dialplan pattern.
-   *
-   * Asterisk pattern syntax:
-   *   _  — pattern indicator (must be first character)
-   *   X  — any digit 0-9
-   *   Z  — any digit 1-9
-   *   N  — any digit 2-9
-   *   [abc]  — character set
-   *   [a-z]  — character range
-   *   .  — one or more of any character (wildcard)
-   *   !  — zero or more of any character (wildcard, greedy)
-   *
-   * Examples:
-   *   _1XX     matches 100-199
-   *   _NXXX.   matches any 4+ digit number starting with 2-9
-   *   _[345]X. matches numbers starting with 3, 4, or 5
-   */
-  private matchAsteriskPattern(pattern: string, number: string): boolean {
-    // Not a pattern — do exact match
-    if (!pattern.startsWith('_')) {
-      return pattern === number;
-    }
-
-    const regex = this.asteriskPatternToRegex(pattern);
-    if (!regex) return false;
-
-    return regex.test(number);
-  }
-
-  /**
-   * Convert Asterisk dialplan pattern to JavaScript RegExp.
-   */
-  private asteriskPatternToRegex(pattern: string): RegExp | null {
-    try {
-      // Strip leading _
-      const body = pattern.substring(1);
-      let regexStr = '^';
-      let i = 0;
-
-      while (i < body.length) {
-        const ch = body[i];
-        switch (ch) {
-          case 'X':
-            regexStr += '[0-9]';
-            break;
-          case 'Z':
-            regexStr += '[1-9]';
-            break;
-          case 'N':
-            regexStr += '[2-9]';
-            break;
-          case '.':
-            regexStr += '.+';
-            break;
-          case '!':
-            regexStr += '.*';
-            break;
-          case '[': {
-            // Copy bracket expression as-is until ]
-            const closeBracket = body.indexOf(']', i);
-            if (closeBracket === -1) return null;
-            regexStr += body.substring(i, closeBracket + 1);
-            i = closeBracket;
-            break;
-          }
-          default:
-            // Escape regex special chars, treat as literal
-            regexStr += ch.replace(/[.*+?^${}()|\\]/g, '\\$&');
-        }
-        i++;
-      }
-
-      regexStr += '$';
-      return new RegExp(regexStr);
-    } catch {
-      return null;
-    }
   }
 
   /**

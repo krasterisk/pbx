@@ -1,6 +1,7 @@
 import { PhonebooksService } from './phonebooks.service';
 import { PhonebookEntry } from './phonebook-entry.model';
 import { RoutePhonebook } from './phonebook.model';
+import { matchesAsteriskPattern } from '../directories/directory-pattern.util';
 
 /**
  * Unit tests for PhonebooksService.
@@ -25,7 +26,7 @@ describe('PhonebooksService', () => {
 
   describe('matchAsteriskPattern', () => {
     const match = (pattern: string, number: string) =>
-      (service as any).matchAsteriskPattern(pattern, number);
+      matchesAsteriskPattern(pattern, number);
 
     // --- Exact match (no pattern) ---
     it('should exact-match when no _ prefix', () => {
@@ -115,44 +116,6 @@ describe('PhonebooksService', () => {
 
     it('should return false for invalid pattern', () => {
       expect(match('_[unclosed', '123')).toBe(false);
-    });
-  });
-
-  // ═══════════════════════════════════════════════════════════
-  // asteriskPatternToRegex
-  // ═══════════════════════════════════════════════════════════
-
-  describe('asteriskPatternToRegex', () => {
-    const toRegex = (pattern: string) =>
-      (service as any).asteriskPatternToRegex(pattern);
-
-    it('should convert _1XX to ^1[0-9][0-9]$', () => {
-      const re = toRegex('_1XX');
-      expect(re).not.toBeNull();
-      expect(re!.source).toBe('^1[0-9][0-9]$');
-    });
-
-    it('should convert _NXX to ^[2-9][0-9][0-9]$', () => {
-      const re = toRegex('_NXX');
-      expect(re).not.toBeNull();
-      expect(re!.source).toBe('^[2-9][0-9][0-9]$');
-    });
-
-    it('should convert _7. to ^7.+$', () => {
-      const re = toRegex('_7.');
-      expect(re).not.toBeNull();
-      expect(re!.source).toBe('^7.+$');
-    });
-
-    it('should convert _8! to ^8.*$', () => {
-      const re = toRegex('_8!');
-      expect(re).not.toBeNull();
-      expect(re!.source).toBe('^8.*$');
-    });
-
-    it('should return null for unclosed bracket', () => {
-      const re = toRegex('_[abc');
-      expect(re).toBeNull();
     });
   });
 
