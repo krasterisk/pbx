@@ -49,17 +49,38 @@ describe('resolveDialPreviewOptions', () => {
     ]);
   });
 
-  it('pulls real phonebook var values', () => {
+  it('pulls real directory field values', () => {
     const opts = resolveDialPreviewOptions(
-      { source: 'phonebook', phonebookUid: 1, varKey: 'trunk_num' },
       {
-        phonebooks: [
+        source: 'directory',
+        directoryUid: 1,
+        keySource: { source: 'original_caller' },
+        valueFieldUid: 3,
+        onMissing: 'keep',
+      },
+      {
+        directories: [
           {
             uid: 1,
             name: 'VIP',
             user_uid: 1,
-            entries: [
-              { uid: 10, phonebook_uid: 1, number: '79001112233', vars: { trunk_num: '84951234567' } },
+            lookup_field_uid: 2,
+            key_normalization: 'digits',
+            revision: 1,
+            fields: [
+              { uid: 2, directory_uid: 1, key: 'internal_number', label: 'Internal', type: 'phone', required: true, position: 0 },
+              { uid: 3, directory_uid: 1, key: 'trunk_num', label: 'Trunk', type: 'phone', required: false, position: 1 },
+            ],
+            records: [
+              {
+                uid: 10,
+                directory_uid: 1,
+                lookup_value: '79001112233',
+                normalized_lookup_value: '79001112233',
+                match_kind: 'exact',
+                priority: 1,
+                values: { trunk_num: '84951234567' },
+              },
             ],
           },
         ],

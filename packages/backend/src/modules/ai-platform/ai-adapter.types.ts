@@ -6,7 +6,7 @@
  *   - State:     AiStateProvider     — compact per-tenant summary aggregated into the system prompt
  *   - Knowledge: string              — compact static KB block aggregated into the system prompt
  *
- * Phonebooks is the reference implementation (D-15). The 5 existing domains
+ * Directories is the reference implementation (D-15). The 5 existing domains
  * (endpoints/trunks/ivrs/queues/routes) are NOT migrated onto this contract in
  * this phase — they keep their hand-written McpToolsService.regXxx() methods —
  * but the registry/dispatch plumbing here must not break them.
@@ -37,7 +37,7 @@ export interface AiToolDefinition {
 
 /** Per-tenant summary of a domain's state, folded into the AI system prompt (D-16). */
 export interface AiStateProvider {
-  /** Domain identifier, e.g. 'phonebooks' */
+  /** Domain identifier, e.g. 'directories' */
   domain: string;
   /** Compact text block — NOT full entity dumps (Pitfall 10 — context bloat) */
   buildSummary(vpbxUserUid: number): Promise<string>;

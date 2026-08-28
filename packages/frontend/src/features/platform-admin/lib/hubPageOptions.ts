@@ -8,7 +8,7 @@ export const HUB_PAGE_OPTIONS: MultiSelectOption[] = [
   { value: 'trunks', label: 'trunks (/trunks)' },
   { value: 'routes', label: 'routes (/routes)' },
   { value: 'time_groups', label: 'time_groups (/time-groups)' },
-  { value: 'phonebooks', label: 'phonebooks (/phonebooks)' },
+  { value: 'directories', label: 'directories (/directories)' },
   { value: 'provision', label: 'provision (/provision-templates)' },
   { value: 'ivr', label: 'ivr (/ivrs)' },
   { value: 'queues', label: 'queues (/queues)' },

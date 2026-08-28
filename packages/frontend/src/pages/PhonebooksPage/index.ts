@@ -1,1 +1,0 @@
-export { PhonebooksPage } from './PhonebooksPage';

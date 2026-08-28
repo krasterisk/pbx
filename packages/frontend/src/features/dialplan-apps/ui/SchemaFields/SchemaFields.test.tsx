@@ -22,10 +22,6 @@ vi.mock('@/shared/api/endpoints/endpointApi', () => ({
   useGetEndpointsQuery: vi.fn(() => ({ data: [], isLoading: false })),
 }));
 
-vi.mock('@/shared/api/endpoints/phonebookApi', () => ({
-  useGetPhonebooksQuery: vi.fn(() => ({ data: [], isLoading: false })),
-}));
-
 vi.mock('@/shared/api/endpoints/directoryApi', () => ({
   useGetDirectoriesQuery: vi.fn(() => ({ data: [], isLoading: false })),
   useGetDirectoryQuery: vi.fn(() => ({ data: undefined, isLoading: false })),
@@ -304,7 +300,7 @@ describe('SchemaFields', () => {
     rerender(
       <SchemaFields
         schema={schema}
-        params={{ trunkMode: 'single', cid_mode: 'phonebook' }}
+        params={{ trunkMode: 'single', cid_mode: 'directory' }}
         onChange={vi.fn()}
       />,
     );

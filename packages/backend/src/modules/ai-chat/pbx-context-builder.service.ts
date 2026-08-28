@@ -22,7 +22,7 @@ export interface PbxStateDto {
     contexts: Array<{ uid: number; name: string; comment: string }>;
     /** Per-tenant AI destructive-op confirmation setting (D-20, D-25) */
     confirmDestructive: boolean;
-    /** Compact per-domain summaries from Domain AI Adapters (D-16), e.g. phonebooks */
+    /** Compact per-domain summaries from Domain AI Adapters (D-16), e.g. directories */
     adapterSummaries: string[];
 }
 

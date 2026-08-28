@@ -88,6 +88,7 @@ export const ru = {
     sttEngines: 'Распознавание речи (STT)',
     timeGroups: 'Временные группы',
     phonebooks: 'Справочники',
+    directories: 'Справочники',
     cdr: 'Журнал звонков (CDR)',
     voiceRobotCdr: 'Журнал роботов (CDR)',
     serviceRequests: 'Заявки клиентов',
@@ -422,8 +423,8 @@ export const ru = {
         noVarsOption: 'Нет переменных в справочнике',
         noVarsHint: 'В справочнике нет переменных - добавьте их в записи справочника (колонка «Переменные»), затем выберите здесь',
         selectVarKey: 'Выберите переменную',
-        varKeyRequiredHint: 'Выберите переменную, иначе действие не сработает',
-        varKeyDynamicHint: 'Значение «{{key}}» берётся из записи справочника, найденной по номеру звонящего',
+        fieldRequiredHint: 'Выберите поле, иначе действие не сработает',
+        fieldDynamicHint: 'Значение «{{key}}» берётся из записи справочника по ключу поиска',
         dropHintOnMatch: 'Номер найден в справочнике - звонок сбрасывается. Остальные проходят дальше.',
         dropHintOnNoMatch: 'Номера нет в справочнике - звонок сбрасывается. Пропускаются только номера из списка.',
       },
@@ -544,7 +545,7 @@ export const ru = {
         required: 'Укажите очередь',
         variableRequired: 'Укажите имя переменной',
         phonebookRequired: 'Выберите справочник',
-        varKeyRequired: 'Выберите поле с номером очереди',
+        fieldRequired: 'Выберите поле с номером очереди',
         groupDynamic: 'Динамичная очередь',
         groupStatic: 'Статичная очередь',
         queueHint:
@@ -553,8 +554,8 @@ export const ru = {
           'Имя переменной канала **без ${}**\n**Пример:** MY_QUEUE или QUEUE_EXTEN\nЗначения переменной задаются ранее в цепочке маршрута, либо в webhook',
         phonebookHint:
           'По **номеру звонящего** находим запись в справочнике\nБерём значение **выбранного поля** записи\nЭто значение становится **номером очереди**',
-        varKeyHint:
-          'Ключ из **переменных записи** справочника\n**Пример:** в записи queue=sales - выберите queue\nЗвонок пойдёт в очередь **sales**',
+        fieldHint:
+          'Поле записи справочника\n**Пример:** в записи queue=sales - выберите queue\nЗвонок пойдёт в очередь **sales**',
         priorityNone: 'Не задан',
         priorityFixed: 'Число',
         selectPriorityVarKey: 'Поле с приоритетом',
@@ -1086,6 +1087,7 @@ export const ru = {
         callerid: 'Номер CallerID',
         name: 'Имя CallerID (опц.)',
         selectPhonebook: 'Выберите справочник',
+        selectDirectory: 'Справочник',
         listUid: 'ID списка',
         addNumber: 'Добавить номер в пул',
         addToPool: 'Добавить',
@@ -2390,14 +2392,13 @@ export const ru = {
     commentColumn: 'Описание',
     commentPlaceholder: 'Комментарий',
     noEntries: 'Нет номеров. Добавьте вручную или импортируйте из CSV.',
-    // Vars (PB_* channel variables)
-    varsLabel: 'Переменные (PB_*)',
+    varsLabel: 'Переменные канала',
     varsKey: 'Ключ',
     varsValue: 'Значение',
     varsKeyPlaceholder: 'name',
     varsValuePlaceholder: 'Иванов И.И.',
     addVar: 'Добавить переменную',
-    varsHint: 'Каждая переменная становится ${PB_<ключ>} в dialplan при совпадении CallerID.',
+    varsHint: 'Каждое поле записи становится именованной переменной канала при совпадении.',
     // CSV Import/Export
     importCsv: 'Импорт CSV',
     exportCsv: 'Экспорт CSV',
@@ -2405,7 +2406,7 @@ export const ru = {
     csvVerticalHint: 'Или вертикальный формат: number;var;value',
     // Actions
     actionsLabel: 'Действия при совпадении',
-    actionsTooltip: 'Произвольные действия dialplan при совпадении CallerID. В действиях доступны переменные ${PB_<ключ>} из записей справочника.',
+    actionsTooltip: 'Произвольные действия dialplan при совпадении CallerID. В действиях доступны поля найденной записи.',
     // Confirmations
     confirmDelete: 'Удалить справочник?',
     confirmBulkDelete: 'Удалить выбранные?',

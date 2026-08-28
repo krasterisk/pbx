@@ -50,7 +50,7 @@ export const HUB_MODULE_PAGES_SEED: HubModulePageSeed[] = [
   { hub_code: 'core', page_code: 'trunks', path: '/trunks', sort_order: 30 },
   { hub_code: 'core', page_code: 'routes', path: '/routes', sort_order: 40 },
   { hub_code: 'core', page_code: 'time_groups', path: '/time-groups', sort_order: 50 },
-  { hub_code: 'core', page_code: 'phonebooks', path: '/phonebooks', sort_order: 60 },
+  { hub_code: 'core', page_code: 'directories', path: '/directories', sort_order: 60 },
   { hub_code: 'core', page_code: 'provision', path: '/provision-templates', sort_order: 70 },
 
   // Apps (base) — queues stay in Apps (D-15)

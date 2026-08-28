@@ -45,7 +45,8 @@ function typeList(
   expected?: DirectoryFieldType | readonly DirectoryFieldType[],
 ): DirectoryFieldType[] {
   if (!expected) return [];
-  return Array.isArray(expected) ? [...expected] : [expected];
+  if (Array.isArray(expected)) return [...expected];
+  return [expected as DirectoryFieldType];
 }
 
 function fieldMatchesType(

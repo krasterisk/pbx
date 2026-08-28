@@ -88,6 +88,7 @@ export const en = {
     sttEngines: 'Speech Recognition (STT)',
     timeGroups: 'Time Groups',
     phonebooks: 'Phonebooks',
+    directories: 'Directories',
     cdr: 'Call log (CDR)',
     voiceRobotCdr: 'Voice robot log (CDR)',
     serviceRequests: 'Service requests',
@@ -421,8 +422,8 @@ export const en = {
         noVarsOption: 'No variables in this phonebook',
         noVarsHint: 'This phonebook has no variables - add them to the phonebook entries (the "Variables" column), then pick one here',
         selectVarKey: 'Select a variable',
-        varKeyRequiredHint: 'Select a variable, otherwise this action will do nothing',
-        varKeyDynamicHint: 'The "{{key}}" value is taken from the phonebook entry matched by the caller\'s number',
+        fieldRequiredHint: 'Select a field, otherwise this action will do nothing',
+        fieldDynamicHint: 'The "{{key}}" value is taken from the directory record matched by the lookup key',
         dropHintOnMatch: 'Number found in phonebook - call is hung up. Everyone else continues.',
         dropHintOnNoMatch: 'Number not in phonebook - call is hung up. Only listed numbers are allowed through.',
       },
@@ -541,7 +542,7 @@ export const en = {
         required: 'Choose a queue',
         variableRequired: 'Enter a variable name',
         phonebookRequired: 'Select a phonebook',
-        varKeyRequired: 'Select the field with the queue number',
+        fieldRequired: 'Select the field with the queue number',
         groupDynamic: 'Dynamic queue',
         groupStatic: 'Static queue',
         queueHint:
@@ -550,8 +551,8 @@ export const en = {
           'Channel variable name **without ${}**\n**Example:** MY_QUEUE or QUEUE_EXTEN\nVariable values are set earlier in the route chain, or in a webhook',
         phonebookHint:
           'Find the entry by **caller number**\nTake the value of the **selected field**\nThat value becomes the **queue number**',
-        varKeyHint:
-          'A key from the phonebook entry **variables**\n**Example:** entry has queue=sales - choose queue\nThe call goes to queue **sales**',
+        fieldHint:
+          'A field from the directory record\n**Example:** record has queue=sales - choose queue\nThe call goes to queue **sales**',
         priorityNone: 'Not set',
         priorityFixed: 'Number',
         selectPriorityVarKey: 'Priority field',
@@ -1081,6 +1082,7 @@ export const en = {
         callerid: 'CallerID number',
         name: 'CallerID name (optional)',
         selectPhonebook: 'Select phonebook',
+        selectDirectory: 'Directory',
         listUid: 'List ID',
         addNumber: 'Add number to pool',
         addToPool: 'Add',

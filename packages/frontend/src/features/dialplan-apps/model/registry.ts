@@ -102,10 +102,10 @@ const registryDraft: Record<ActionType, Omit<IDialplanAppConfig, 'schema' | 'sum
           String(target.name),
         );
       }
-      if (target?.source === 'phonebook' && target.phonebookUid && target.varKey) {
-        return t('routes.chain.summary.toexten.phonebook', 'Абонент из справочника ({{field}})').replace(
+      if (target?.source === 'directory' && target.directoryUid && target.valueFieldUid) {
+        return t('routes.chain.summary.toexten.directory', 'Абонент из справочника (поле {{field}})').replace(
           '{{field}}',
-          String(target.varKey),
+          String(target.valueFieldUid),
         );
       }
       const fixed = target?.source === 'fixed' ? String(target.value ?? '').trim() : '';
@@ -121,7 +121,7 @@ const registryDraft: Record<ActionType, Omit<IDialplanAppConfig, 'schema' | 'sum
     category: 'telephony',
     defaultParams: { target: { source: 'fixed', value: '' }, options: 'thH' },
     terminal: 'conditional',
-    allowedIn: ['route', 'phonebook', 'ivr'],
+    allowedIn: ['route', 'directory_policy', 'ivr'],
     primarySection: {
       titleKey: 'routes.chain.section.queue',
       title: 'Очередь',
@@ -177,10 +177,10 @@ const registryDraft: Record<ActionType, Omit<IDialplanAppConfig, 'schema' | 'sum
       if (target?.source === 'variable' && target.name) {
         return t('routes.chain.summary.toqueue.variable', 'Очередь из переменной');
       }
-      if (target?.source === 'phonebook' && target.phonebookUid && target.varKey) {
-        return t('routes.chain.summary.toqueue.phonebook', 'Очередь из справочника ({{field}})').replace(
+      if (target?.source === 'directory' && target.directoryUid && target.valueFieldUid) {
+        return t('routes.chain.summary.toqueue.directory', 'Очередь из справочника (поле {{field}})').replace(
           '{{field}}',
-          String(target.varKey),
+          String(target.valueFieldUid),
         );
       }
       const fixed = (target?.source === 'fixed' && target.value) || params?.queue;

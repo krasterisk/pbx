@@ -9,14 +9,12 @@ import type {
 import { coerceDialTargetRewrite, evaluateDialTargetRewrite, rewriteHasWork } from '@krasterisk/shared';
 import { Input, Label, Switch, Text, InfoTooltip, Button } from '@/shared/ui';
 import { HStack, VStack } from '@/shared/ui/Stack';
-import { useGetPhonebooksQuery } from '@/shared/api/endpoints/phonebookApi';
 import { AppCollapsibleSection } from '../AppCollapsibleSection/AppCollapsibleSection';
 import { DialTargetRewriteEditor } from '../DialTargetRewriteEditor/DialTargetRewriteEditor';
 import type { SchemaFieldRenderCtx } from '../../model/schema.types';
 import { DEFAULT_PHONE_MIN_LENGTH, resolveDialPreviewOptions } from './dialPreviewSample';
 import styles from './DialModifyField.module.scss';
 
-const EMPTY_PHONEBOOKS: never[] = [];
 const BASIC_RULE_ID = 'basic';
 
 /** Transform fields exposed in the simple UI (Asterisk-variable-like edits). */
@@ -71,12 +69,6 @@ function buildBasicRewrite(t: BasicTransform): DialTargetRewrite | undefined {
   };
 }
 
-function sourceKind(source: ValueSource | string | number | undefined): string {
-  if (source && typeof source === 'object' && 'source' in source) return source.source;
-  if (typeof source === 'string' || typeof source === 'number') return 'fixed';
-  return 'route_pattern';
-}
-
 export interface DialModifyFieldProps {
   rewrite?: DialTargetRewrite | unknown;
   onRewriteChange: (next: DialTargetRewrite | undefined) => void;
@@ -108,20 +100,15 @@ export function DialModifyField({
   const [expert, setExpert] = useState(!basicShape);
   const [open, setOpen] = useState(() => rewriteHasWork(rewrite));
 
-  const needsPhonebooks = sourceKind(source) === 'phonebook';
-  const { data: phonebooksData } = useGetPhonebooksQuery(undefined, { skip: !needsPhonebooks });
-  const phonebooks = phonebooksData ?? EMPTY_PHONEBOOKS;
-
   const options = useMemo(
     () =>
       resolveDialPreviewOptions(source, {
         routePatterns: previewPatterns,
-        phonebooks,
         fallback: charset === 'exten' ? '1001' : '79001234567',
         // Trunks dial external numbers — short route extens (e.g. 201) make a poor rewrite demo.
         minLength: charset === 'phone' ? DEFAULT_PHONE_MIN_LENGTH : undefined,
       }),
-    [source, previewPatterns, phonebooks, charset],
+    [source, previewPatterns, charset],
   );
 
   const [pickedValue, setPickedValue] = useState(options[0]?.value ?? '');

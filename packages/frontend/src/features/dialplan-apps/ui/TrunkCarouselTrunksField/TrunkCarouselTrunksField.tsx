@@ -130,7 +130,6 @@ export function TrunkSingleCidField({
           onChange={(e) => {
             if (e.target.value === 'directory') {
               onChange({
-                cid_mode: undefined,
                 callerid: undefined,
                 callerId: {
                   mode: 'directory',
@@ -143,7 +142,6 @@ export function TrunkSingleCidField({
               return;
             }
             onChange({
-              cid_mode: 'static',
               callerid: staticValue ?? '',
               callerId: { mode: 'static', value: staticValue ?? '' },
             });
@@ -155,9 +153,9 @@ export function TrunkSingleCidField({
       </VStack>
       {directoryMode ? (
         <TrunkDirectoryCidField
-          value={callerId}
+          value={directoryMode ? callerId : undefined}
           readOnly={readOnly}
-          onChange={(next) => onChange({ callerId: next, cid_mode: undefined, callerid: undefined })}
+          onChange={(next) => onChange({ callerId: next, callerid: undefined })}
         />
       ) : (
         <VStack gap="4" className={styles.cidValueCol}>
@@ -169,7 +167,6 @@ export function TrunkSingleCidField({
             aria-label={t('routes.apps.trunkCarousel.callerid', 'Номер CallerID')}
             onChange={(e) =>
               onChange({
-                cid_mode: 'static',
                 callerid: e.target.value,
                 callerId: { mode: 'static', value: e.target.value },
               })
@@ -291,7 +288,7 @@ export function TrunkCarouselTrunksField({
               </VStack>
               {directoryMode ? (
                 <TrunkDirectoryCidField
-                  value={row.callerId}
+                  value={isDirectoryCaller(row.callerId) ? row.callerId : undefined}
                   readOnly={readOnly}
                   onChange={(next) => updateRow(index, { callerId: next })}
                 />

@@ -30,7 +30,7 @@ const MODULES_SEED: Partial<ModuleRegistry>[] = [
   { code: 'ivr',               name: 'IVR',                        category: 'calls',        is_core: false, is_paid: false, price_monthly: 0 },
   { code: 'moh',               name: 'Музыка на удержании',       category: 'calls',        is_core: false, is_paid: false, price_monthly: 0 },
   { code: 'time_groups',       name: 'Временные группы',          category: 'pbx',          is_core: false, is_paid: false, price_monthly: 0 },
-  { code: 'phonebooks',        name: 'Телефонный справочник',     category: 'pbx',          is_core: false, is_paid: false, price_monthly: 0 },
+  { code: 'directories',       name: 'Справочники',               category: 'pbx',          is_core: false, is_paid: false, price_monthly: 0 },
   { code: 'cdr',               name: 'История звонков (CDR)',     category: 'analytics',    is_core: false, is_paid: false, price_monthly: 0 },
   { code: 'audit_log',         name: 'Журнал событий',            category: 'analytics',    is_core: false, is_paid: false, price_monthly: 0 },
   { code: 'provision',         name: 'Автонастройка телефонов',   category: 'pbx',          is_core: false, is_paid: false, price_monthly: 0 },

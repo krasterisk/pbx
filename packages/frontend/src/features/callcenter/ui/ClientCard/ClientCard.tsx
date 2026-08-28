@@ -51,7 +51,7 @@ export function ClientCard({ callerIdNum, callerIdName }: Props) {
     const req = data?.requests?.[0];
     if (req?.counterparty_name) return req.counterparty_name;
     const c = data?.contacts?.[0];
-    if (c?.vars?.name) return c.vars.name;
+    if (c?.values?.name) return c.values.name;
     return null;
   }, [callerIdName, data]);
 
@@ -95,10 +95,10 @@ export function ClientCard({ callerIdNum, callerIdName }: Props) {
           </Text>
           {data.contacts.map((c, i) => (
             <div key={i} className={styles.contactRow}>
-              <span className={styles.contactPb}>{c.phonebook_name}</span>
+              <span className={styles.contactPb}>{c.directory_name}</span>
               {c.comment && <span className={styles.contactNote}>{c.comment}</span>}
-              {c.vars &&
-                Object.entries(c.vars)
+              {c.values &&
+                Object.entries(c.values)
                   .slice(0, 4)
                   .map(([k, v]) => (
                     <span key={k} className={styles.contactVar}>

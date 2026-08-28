@@ -9,7 +9,6 @@ import {
   ValidatorConstraintInterface,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import type { IDirectoryLookupParams } from '@krasterisk/shared';
 import { validateAction } from '../../../../shared/utils/directory-lookup-dialplan.util';
 import { CallValueSourceDto } from './value-source.dto';
 
@@ -35,7 +34,7 @@ export class DirectoryLookupOutputDto {
   targetVariable: string;
 }
 
-export class DirectoryLookupParamsDto implements IDirectoryLookupParams {
+export class DirectoryLookupParamsDto {
   @IsInt()
   @Min(1)
   directoryUid: number;

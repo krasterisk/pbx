@@ -253,7 +253,7 @@ export class AsteriskDialplanUtils {
               `ExecIf($["\${${compiledCid.statusVar}}" = "FOUND" & "\${${valueVar}}" != ""]?Set(CALLERID(num)=\${${valueVar}}))`,
             );
           }
-        } else if (params.cid_mode !== 'phonebook') {
+        } else {
           const cid = this.sanitizeDialplanInput(
             callerId?.mode === 'static' ? callerId.value : params.callerid,
           );
@@ -761,7 +761,7 @@ function joinDialplanParts(parts: string[]): string {
   return parts.map((part, i) => (i === 0 ? part : prefixSamePriority(part))).join('\n');
 }
 
-export type ActionChainHost = 'route' | 'ivr' | 'phonebook' | 'robot';
+export type ActionChainHost = 'route' | 'ivr' | 'directory_policy' | 'robot';
 
 export interface RenderActionChainCtx {
   vpbxUserUid: number;

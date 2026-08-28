@@ -6,7 +6,6 @@ import type { IRouteAction } from '@krasterisk/shared';
 import { DialplanAppsEditor } from '../DialplanAppsEditor/DialplanAppsEditor';
 import { StepSheet } from './StepSheet';
 import * as queueApiHooks from '@/shared/api/endpoints/queueApi';
-import * as phonebookApiHooks from '@/shared/api/endpoints/phonebookApi';
 import * as directoryApi from '@/shared/api/endpoints/directoryApi';
 
 vi.mock('react-i18next', () => ({
@@ -29,10 +28,6 @@ vi.mock('@/entities/User', () => ({
 
 vi.mock('@/shared/api/endpoints/queueApi', () => ({
   useGetQueuesQuery: vi.fn(),
-}));
-
-vi.mock('@/shared/api/endpoints/phonebookApi', () => ({
-  useGetPhonebooksQuery: vi.fn(),
 }));
 
 vi.mock('@/shared/api/endpoints/timeGroupApi', () => ({
@@ -140,10 +135,6 @@ describe('StepSheet', () => {
     vi.clearAllMocks();
     (queueApiHooks.useGetQueuesQuery as ReturnType<typeof vi.fn>).mockReturnValue({
       data: [{ name: 'qsales_42', exten: 'sales', display_name: 'Sales' }],
-      isLoading: false,
-    });
-    (phonebookApiHooks.useGetPhonebooksQuery as ReturnType<typeof vi.fn>).mockReturnValue({
-      data: [],
       isLoading: false,
     });
   });

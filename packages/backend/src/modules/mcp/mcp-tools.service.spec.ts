@@ -4,7 +4,7 @@ import { McpToolsService } from './mcp-tools.service';
  * Unit tests for McpToolsService (D-23 cross-tenant fix, D-19 audit, D-14 registry integration).
  *
  * Plain-instantiation style (no NestJS TestingModule) — matches
- * route-apply.service.spec.ts / phonebooks.controller.spec.ts in this repo.
+ * route-apply.service.spec.ts / directories.controller.spec.ts in this repo.
  */
 describe('McpToolsService', () => {
   let endpointsService: any;
@@ -109,14 +109,14 @@ describe('McpToolsService', () => {
     it('exposes registry tools through getToolsList / callTool alongside legacy tools', async () => {
       const adapterHandler = jest.fn().mockResolvedValue({ ok: true });
       aiAdapterRegistry.getAllTools.mockReturnValue([
-        { name: 'list_phonebooks', description: 'lists phonebooks', inputSchema: {}, entityType: 'phonebook', handler: adapterHandler },
+        { name: 'list_directories', description: 'lists directories', inputSchema: {}, entityType: 'directory', handler: adapterHandler },
       ]);
 
       const tools = service.getToolsList(100);
-      expect(tools.map((t) => t.name)).toContain('list_phonebooks');
+      expect(tools.map((t) => t.name)).toContain('list_directories');
       expect(tools.map((t) => t.name)).toContain('create_trunk');
 
-      await service.callTool('list_phonebooks', { foo: 'bar' }, 100);
+      await service.callTool('list_directories', { foo: 'bar' }, 100);
       expect(adapterHandler).toHaveBeenCalledWith({ foo: 'bar' }, 100);
     });
 

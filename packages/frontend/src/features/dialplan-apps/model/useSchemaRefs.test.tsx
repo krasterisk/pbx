@@ -16,9 +16,6 @@ vi.mock('@/shared/api/endpoints/trunkApi', () => ({
 vi.mock('@/shared/api/endpoints/queueApi', () => ({
   useGetQueuesQuery: () => ({ data: [], isLoading: false }),
 }));
-vi.mock('@/shared/api/endpoints/phonebookApi', () => ({
-  useGetPhonebooksQuery: () => ({ data: [], isLoading: false }),
-}));
 vi.mock('@/shared/api/endpoints/ivrsApi', () => ({
   useGetIvrsQuery: () => ({ data: [], isLoading: false }),
 }));

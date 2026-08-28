@@ -83,7 +83,7 @@ export const BASELINE_MODULES: ModuleDef[] = [
       { id: 'trunks', path: '/trunks', labelKey: 'nav.trunks', icon: Waypoints },
       { id: 'routes', path: '/routes', labelKey: 'nav.routes', icon: Route },
       { id: 'time-groups', path: '/time-groups', labelKey: 'nav.timeGroups', icon: Calendar },
-      { id: 'phonebooks', path: '/phonebooks', labelKey: 'nav.phonebooks', icon: BookOpen },
+      { id: 'directories', path: '/directories', labelKey: 'nav.directories', icon: BookOpen },
       {
         id: 'provision-templates',
         path: '/provision-templates',

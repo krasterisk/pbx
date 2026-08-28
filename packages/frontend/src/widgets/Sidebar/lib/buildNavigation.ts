@@ -106,7 +106,7 @@ export function buildNavigation(t: TFunction, level: UserLevel | undefined): Sid
     { name: t('nav.trunks'), path: '/trunks', icon: Waypoints },
     { name: t('nav.routes'), path: '/routes', icon: Route },
     { name: t('nav.timeGroups', 'Временные группы'), path: '/time-groups', icon: Calendar },
-    { name: t('nav.phonebooks', 'Справочники'), path: '/phonebooks', icon: BookOpen },
+    { name: t('nav.directories', 'Справочники'), path: '/directories', icon: BookOpen },
     { type: 'divider', label: t('nav.apps', 'Приложения') },
     { name: t('nav.voiceRobots', 'Голосовые роботы'), path: '/voice-robots', icon: Bot },
     { name: t('nav.ivrs', 'IVR'), path: '/ivrs', icon: AppWindow },

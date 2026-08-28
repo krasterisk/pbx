@@ -34,6 +34,18 @@ export const SCENARIOS: ScenarioEntry[] = [
     command: 'scenarios/api/moh-crud.test.ts',
   },
   {
+    id: 'directories-crud',
+    tags: ['directories', 'api'],
+    kind: 'api',
+    command: 'scenarios/api/directories-crud.test.ts',
+  },
+  {
+    id: 'directory-carousel',
+    tags: ['directories', 'realtime'],
+    kind: 'realtime',
+    command: 'scenarios/realtime/directory-carousel.test.ts',
+  },
+  {
     id: 'agent-smoke',
     tags: ['ui', 'agent', 'smoke'],
     kind: 'ui',

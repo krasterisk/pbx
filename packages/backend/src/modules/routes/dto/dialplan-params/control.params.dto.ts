@@ -17,7 +17,6 @@ import { Transform, Type } from 'class-transformer';
 import type {
   CallerIdMode,
   HangupSignal,
-  ICallerIdActionParams,
   ICmdParams,
   IGotoParams,
   IHangupParams,
@@ -35,7 +34,7 @@ const CALLERID_MODES: CallerIdMode[] = ['static', 'directory', 'number_list', 'c
 const HANGUP_SIGNALS: HangupSignal[] = ['busy', 'congestion', 'hangup'];
 const CALLERID_ON_MISSING = ['keep', 'empty', 'skip'] as const;
 
-export class CallerIdParamsDto implements ICallerIdActionParams {
+export class CallerIdParamsDto {
   @IsIn(CALLERID_MODES)
   mode: CallerIdMode;
 

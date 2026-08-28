@@ -125,11 +125,6 @@ const CATALOG_DEFAULTS: Record<
   trunks: { href: '/trunks', sectionKey: 'routes.chain.catalog.trunksSection', sectionFallback: 'Транки' },
   ivrs: { href: '/ivrs', sectionKey: 'routes.chain.catalog.ivrsSection', sectionFallback: 'IVR' },
   prompts: { href: '/prompts', sectionKey: 'routes.chain.catalog.promptsSection', sectionFallback: 'Записи' },
-  phonebooks: {
-    href: '/phonebooks',
-    sectionKey: 'routes.chain.catalog.phonebooksSection',
-    sectionFallback: 'Справочники',
-  },
   dialplanDirectories: {
     href: '/directories',
     sectionKey: 'routes.chain.catalog.directoriesSection',

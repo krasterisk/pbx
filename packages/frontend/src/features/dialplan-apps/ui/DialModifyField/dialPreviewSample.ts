@@ -1,4 +1,4 @@
-import type { IRoutePhonebook, ValueSource } from '@krasterisk/shared';
+import type { IDirectory, ValueSource } from '@krasterisk/shared';
 
 export interface DialPreviewOption {
   /** Concrete dialable sample used by the evaluator. */
@@ -105,7 +105,7 @@ const DEFAULT_PHONE_MIN_LENGTH = 7;
 /**
  * Build interactive preview candidates from the destination ValueSource.
  * Prefer real configured values; fall back to expanded route patterns /
- * phonebook entry samples when the runtime value is not known yet.
+ * directory record samples when the runtime value is not known yet.
  *
  * `minLength` (used for trunk / phone charset): short route-pattern samples
  * like `201` are replaced with a long dialable fallback so prefix/strip
@@ -115,7 +115,7 @@ export function resolveDialPreviewOptions(
   source: ValueSource | string | number | undefined | null,
   opts: {
     routePatterns?: string[];
-    phonebooks?: IRoutePhonebook[];
+    directories?: IDirectory[];
     fallback?: string;
     /** Replace route_pattern samples shorter than this with `fallback`. */
     minLength?: number;
@@ -141,22 +141,23 @@ export function resolveDialPreviewOptions(
     return [{ value: fallback, label: `\${${name}}` }];
   }
 
-  if (src.source === 'phonebook') {
-    const pb = (opts.phonebooks ?? []).find((item) => item.uid === src.phonebookUid);
-    const key = String(src.varKey ?? '').trim();
+  if (src.source === 'directory') {
+    const directory = (opts.directories ?? []).find((item) => item.uid === src.directoryUid);
+    const field = directory?.fields?.find((item) => item.uid === src.valueFieldUid);
+    const key = field?.key ?? '';
     const samples: DialPreviewOption[] = [];
-    for (const entry of pb?.entries ?? []) {
-      const raw = key ? entry.vars?.[key] : undefined;
+    for (const record of directory?.records ?? []) {
+      const raw = key ? record.values?.[key] : undefined;
       const value = String(raw ?? '').trim();
       if (!value) continue;
-      const label = entry.number ? `${entry.number} → ${value}` : value;
+      const label = record.lookup_value ? `${record.lookup_value} → ${value}` : value;
       if (!samples.some((s) => s.value === value)) {
         samples.push({ value, label, exact: true });
       }
       if (samples.length >= 5) break;
     }
     if (samples.length) return samples;
-    return [{ value: fallback, label: key ? `PB_${key}` : fallback }];
+    return [{ value: fallback, label: key || fallback }];
   }
 
   // route_pattern — expand each route extension into a concrete sample

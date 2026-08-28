@@ -4,7 +4,7 @@ import { Table, Column, Model, DataType, PrimaryKey, AutoIncrement } from 'seque
  * Per-tenant AI Chat confirmation settings (D-25): NOT global cloud_settings —
  * each vpbx_user tenant controls its own destructive-operation confirmation gate.
  * Default OFF (confirm_destructive = 0). Table created by
- * phonebooks/migrate-phonebooks-phase5.ts.
+ * directories schema setup.
  */
 @Table({ tableName: 'ai_chat_settings', timestamps: false, freezeTableName: true })
 export class AiChatSettings extends Model {

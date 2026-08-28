@@ -20,7 +20,6 @@ export type OptionsSource =
   | 'trunks'
   | 'ivrs'
   | 'prompts'
-  | 'phonebooks'
   | 'dialplanDirectories'
   | 'tts-engines'
   | 'callGroups'
@@ -85,7 +84,7 @@ export interface FieldSchema {
    * Default heuristic: required → primary, else params (or all primary when nothing is required).
    */
   group?: 'primary' | 'params';
-  /** ValueSource UI mode: queue catalog vs scalar (fixed number / variable / phonebook). */
+  /** ValueSource UI mode: queue catalog vs scalar (fixed number / variable / directory). */
   valueSourceMode?: ValueSourceMode;
   hintKey?: string;
   hint?: string;

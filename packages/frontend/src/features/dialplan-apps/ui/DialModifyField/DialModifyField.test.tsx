@@ -10,9 +10,6 @@ vi.mock('react-i18next', () => ({
   }),
 }));
 
-vi.mock('@/shared/api/endpoints/phonebookApi', () => ({
-  useGetPhonebooksQuery: () => ({ data: [], isLoading: false }),
-}));
 
 vi.mock('@/shared/api/endpoints/queueApi', () => ({
   useGetQueuesQuery: () => ({ data: [], isLoading: false }),

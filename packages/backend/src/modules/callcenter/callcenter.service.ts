@@ -3057,11 +3057,11 @@ export class CallCenterService {
     const suffix = digits.slice(-10);
 
     const contacts: Array<{
-      phonebook_uid: number;
-      phonebook_name: string;
+      directory_uid: number;
+      directory_name: string;
       number: string;
       comment: string;
-      vars: Record<string, string> | null;
+      values: Record<string, string> | null;
     }> = [];
 
     // Recent service requests for this number

@@ -3,7 +3,6 @@ import { useGetPromptsQuery } from '@/shared/api/endpoints/promptsApi';
 import { useGetCallGroupsQuery } from '@/shared/api/endpoints/callGroupApi';
 import { useGetTrunksQuery } from '@/shared/api/endpoints/trunkApi';
 import { useGetQueuesQuery } from '@/shared/api/endpoints/queueApi';
-import { useGetPhonebooksQuery } from '@/shared/api/endpoints/phonebookApi';
 import { useGetDirectoriesQuery } from '@/shared/api/endpoints/directoryApi';
 import { useGetIvrsQuery } from '@/shared/api/endpoints/ivrsApi';
 import { useGetTtsEnginesQuery } from '@/shared/api/endpoints/ttsEnginesApi';
@@ -30,7 +29,6 @@ export function useSchemaRefs(sources?: readonly OptionsSource[]): SchemaRefs {
   const callGroups = useGetCallGroupsQuery(undefined, { skip: !needs('callGroups') });
   const trunks = useGetTrunksQuery(undefined, { skip: !needs('trunks') });
   const queues = useGetQueuesQuery(undefined, { skip: !needs('queues') });
-  const phonebooks = useGetPhonebooksQuery(undefined, { skip: !needs('phonebooks') });
   const directories = useGetDirectoriesQuery(undefined, { skip: !needs('dialplanDirectories') });
   const ivrs = useGetIvrsQuery(undefined, { skip: !needs('ivrs') });
   const ttsEngines = useGetTtsEnginesQuery(undefined, { skip: !needs('tts-engines') });
@@ -81,16 +79,6 @@ export function useSchemaRefs(sources?: readonly OptionsSource[]): SchemaRefs {
         sectionHref: '/queues',
         sectionKey: 'routes.chain.catalog.queuesSection',
         sectionFallback: 'Очереди',
-      },
-      phonebooks: {
-        items: (phonebooks.data ?? []).map((phonebook) => ({
-          value: String(phonebook.uid),
-          label: phonebook.name,
-        })),
-        isLoading: phonebooks.isLoading,
-        sectionHref: '/phonebooks',
-        sectionKey: 'routes.chain.catalog.phonebooksSection',
-        sectionFallback: 'Справочники',
       },
       dialplanDirectories: {
         items: (directories.data ?? []).map((directory) => ({
@@ -182,8 +170,6 @@ export function useSchemaRefs(sources?: readonly OptionsSource[]): SchemaRefs {
       trunks.isLoading,
       queues.data,
       queues.isLoading,
-      phonebooks.data,
-      phonebooks.isLoading,
       directories.data,
       directories.isLoading,
       ivrs.data,

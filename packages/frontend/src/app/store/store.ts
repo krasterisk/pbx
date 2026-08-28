@@ -23,7 +23,6 @@ import { queuesPageReducer } from '@/features/queues/model/slice/queuesPageSlice
 import { notificationsPageReducer } from '@/features/notifications/model/slice/notificationsPageSlice';
 import { callGroupsPageReducer } from '@/features/call-groups/model/slice/callGroupsPageSlice';
 import { timeGroupsReducer } from '@/features/timeGroups';
-import { phonebooksReducer } from '@/features/phonebooks';
 import { directoriesReducer } from '@/features/directories';
 import { tenantsPageReducer } from '@/features/cloud-admin';
 import { aiChatReducer } from '@/features/ai-chat/model/slice/aiChatSlice';
@@ -51,7 +50,6 @@ export const store = configureStore({
     notificationsPage: notificationsPageReducer,
     callGroupsPage: callGroupsPageReducer,
     timeGroups: timeGroupsReducer,
-    phonebooks: phonebooksReducer,
     directories: directoriesReducer,
     tenantsPage: tenantsPageReducer,
     aiChat: aiChatReducer,

@@ -6,11 +6,11 @@ import { toast } from 'react-toastify';
 import i18n from '@/shared/config/i18n';
 
 export interface IClientLookupContact {
-  phonebook_uid: number;
-  phonebook_name: string;
+  directory_uid: number;
+  directory_name: string;
   number: string;
   comment: string;
-  vars: Record<string, string> | null;
+  values: Record<string, string> | null;
 }
 
 export interface IClientLookupRequest {

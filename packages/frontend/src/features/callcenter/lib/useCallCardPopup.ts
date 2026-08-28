@@ -106,8 +106,8 @@ export function useCallCardPopup() {
         const result = await triggerLookup(call.callerId).unwrap();
         vip = result.matched && result.contacts.length > 0;
         phonebookName = result.contacts[0]?.comment || result.contacts[0]?.number || '';
-        if (result.contacts[0]?.vars?.name) {
-          phonebookName = result.contacts[0].vars.name;
+        if (result.contacts[0]?.values?.name) {
+          phonebookName = result.contacts[0].values.name;
         }
       }
     } catch {

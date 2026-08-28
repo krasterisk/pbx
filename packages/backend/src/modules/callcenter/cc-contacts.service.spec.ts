@@ -37,8 +37,6 @@ describe('CallCenterService contacts (D-11…D-15)', () => {
       emptyModel,
       emptyModel,
       emptyModel,
-      emptyModel,
-      emptyModel,
       settingsService,
       permissionsService,
       loggerService,
@@ -48,6 +46,9 @@ describe('CallCenterService contacts (D-11…D-15)', () => {
       emptyModel,
       { getPresence: jest.fn() } as any,
       contactModel,
+      emptyModel,
+      {} as any,
+      {} as any,
     );
   });
 

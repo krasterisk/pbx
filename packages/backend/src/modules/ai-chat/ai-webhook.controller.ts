@@ -255,7 +255,7 @@ export class AiWebhookController {
     /**
      * POST /api/ai-tools/call/:toolName
      * Generic dispatch for any tool registered via a Domain AI Adapter
-     * (AiAdapterRegistryService) — e.g. phonebooks' list_phonebooks, update_route.
+     * (AiAdapterRegistryService) — e.g. directories list_directories.
      * The 7 existing hand-written endpoints above are untouched.
      *
      * Applies the same per-tenant confirmation gate (D-20, D-25) and audit

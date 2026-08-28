@@ -37,12 +37,12 @@ describe('IvrMenuItemsEditor host wiring', () => {
 
   it('keeps host allowedTypes distinct where DIALPLAN_ACTION_META differs', () => {
     const route = allowedTypesForHost('route');
-    const phonebook = allowedTypesForHost('phonebook');
+    const directoryPolicy = allowedTypesForHost('directory_policy');
     const ivr = allowedTypesForHost('ivr');
-    expect(route).not.toEqual(phonebook);
+    expect(route).not.toEqual(directoryPolicy);
     expect(route).not.toEqual(ivr);
     expect(route).toContain('cmd');
-    expect(phonebook).not.toContain('cmd');
+    expect(directoryPolicy).not.toContain('cmd');
     expect(ivr).not.toContain('cmd');
   });
 });

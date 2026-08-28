@@ -79,13 +79,14 @@ class IsTypedActionParamsConstraint implements ValidatorConstraintInterface {
   validate(params: unknown, args: ValidationArguments): boolean {
     if (!params || typeof params !== 'object' || Array.isArray(params)) return false;
     const action = args.object as RouteActionDto;
-    const Dto = action.type === 'toqueue'
-      ? ToQueueParamsDto
-      : action.type === 'directory_lookup'
-        ? DirectoryLookupParamsDto
-        : null;
-    if (!Dto) return true;
-    const dto = plainToInstance(Dto, params);
+    if (action.type === 'toqueue') {
+      const dto = plainToInstance(ToQueueParamsDto, params);
+      const errors = validateSync(dto);
+      toQueueParamErrors.set(action, errors);
+      return errors.length === 0;
+    }
+    if (action.type !== 'directory_lookup') return true;
+    const dto = plainToInstance(DirectoryLookupParamsDto, params);
     const errors = validateSync(dto);
     toQueueParamErrors.set(action, errors);
     return errors.length === 0;

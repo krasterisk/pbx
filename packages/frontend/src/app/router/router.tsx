@@ -24,7 +24,7 @@ import { TrunksPage } from '@/features/trunks/ui/TrunksPage/TrunksPage';
 import { RoutesPage } from '@/pages/RoutesPage';
 import { IvrsPage } from '@/pages/IvrsPage';
 import { TimeGroupsPage } from '@/pages/TimeGroupsPage';
-import { PhonebooksPage } from '@/pages/PhonebooksPage';
+import { DirectoriesPage } from '@/pages/DirectoriesPage';
 import { PromptsPage } from '@/pages/PromptsPage';
 import { MohPage } from '@/pages/MohPage';
 import { TtsEnginesPage } from '@/pages/TtsEnginesPage';
@@ -97,7 +97,7 @@ export const router = createBrowserRouter([
       { path: 'routes', element: <RoutesPage /> },
       { path: 'ivrs', element: <IvrsPage /> },
       { path: 'time-groups', element: <TimeGroupsPage /> },
-      { path: 'phonebooks', element: <PhonebooksPage /> },
+      { path: 'directories', element: <DirectoriesPage /> },
       { path: 'prompts', element: <PromptsPage /> },
       { path: 'voice-robots', element: <VoiceRobotsPage /> },
       { path: 'voice-robots/:id', element: <VoiceRobotEditPage /> },

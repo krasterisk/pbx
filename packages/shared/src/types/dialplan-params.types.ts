@@ -110,10 +110,9 @@ export interface IToTrunkParams {
   /** Carousel traversal order when `trunkMode` is `carousel` */
   mode?: 'random_then_failover' | 'sequential';
   trunks?: ITrunkCarouselItem[];
-  /** CallerID mode in single trunk mode: static number or lookup from phonebook */
-  cid_mode?: 'static' | 'phonebook';
+  /** CallerID mode in single trunk mode: static number */
+  cid_mode?: 'static';
   callerid?: string;
-  phonebook_uid?: number;
   dest?: ValueSource;
   timeout?: number | string;
   options?: string;
