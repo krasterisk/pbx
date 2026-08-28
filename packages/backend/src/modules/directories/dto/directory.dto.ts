@@ -10,7 +10,11 @@ import {
   MaxLength,
   Min,
   MinLength,
+  Validate,
+  ValidateIf,
   ValidateNested,
+  ValidatorConstraint,
+  ValidatorConstraintInterface,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import type {
@@ -115,16 +119,40 @@ export class DirectoryBehaviorParamsDto {
   mappings?: DirectoryFieldMappingDto[];
 }
 
+@ValidatorConstraint({ name: 'isCallValueSource', async: false })
+export class IsCallValueSourceConstraint implements ValidatorConstraintInterface {
+  validate(value: unknown): boolean {
+    if (!value || typeof value !== 'object') return false;
+    const src = value as Record<string, unknown>;
+    if (!CALL_VALUE_SOURCES.includes(src.source as (typeof CALL_VALUE_SOURCES)[number])) {
+      return false;
+    }
+    if (src.source === 'fixed') {
+      return typeof src.value === 'string' && src.value.trim().length > 0 && src.name === undefined;
+    }
+    if (src.source === 'variable') {
+      return typeof src.name === 'string' && src.name.trim().length > 0 && src.value === undefined;
+    }
+    return src.value === undefined && src.name === undefined;
+  }
+
+  defaultMessage(): string {
+    return 'key_source must be fixed (non-empty value), route_pattern, variable (non-empty name), original_caller, or current_caller';
+  }
+}
+
 export class CallValueSourceDto {
   @IsIn(CALL_VALUE_SOURCES)
   source: (typeof CALL_VALUE_SOURCES)[number];
 
-  @IsOptional()
+  @ValidateIf((o) => o.source === 'fixed')
   @IsString()
+  @MinLength(1)
   value?: string;
 
-  @IsOptional()
+  @ValidateIf((o) => o.source === 'variable')
   @IsString()
+  @MinLength(1)
   name?: string;
 }
 
@@ -206,6 +234,7 @@ export class RouteDirectoryBindingDto {
   @IsObject()
   @ValidateNested()
   @Type(() => CallValueSourceDto)
+  @Validate(IsCallValueSourceConstraint)
   key_source: CallValueSourceDto;
 
   @IsIn(MATCH_MODES)
