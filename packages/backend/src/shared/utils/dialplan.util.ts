@@ -439,13 +439,7 @@ export class AsteriskDialplanUtils {
         // Room stays without a tenant suffix (accepted risk T-12-03-05 / T-12-13-03).
         const roomSrc = resolveValueSource(params, 'room');
         const destLookup = compileDirectorySrc(roomSrc, lookupToken(action.id ?? action.uid, 'CB'), vpbxUserUid);
-        const room = roomSrc.source === 'fixed'
-          ? (this.sanitizeDialplanInput(roomSrc.value) || '${EXTEN}')
-          : roomSrc.source === 'variable'
-            ? `\${${this.sanitizeDialplanInput(roomSrc.name)}}`
-            : roomSrc.source === 'directory' && destLookup.valueVar
-              ? `\${${destLookup.valueVar}}`
-              : '${EXTEN}';
+        const room = sourceExprFromValueSource(roomSrc, destLookup.valueVar) || '${EXTEN}';
         const roomOpts = this.sanitizeDialplanInput(params.options);
         const app = roomOpts ? `ConfBridge(${room},${roomOpts})` : `ConfBridge(${room})`;
         dp = [...destLookup.lines, gateSkip(destLookup.skip, destLookup.canExecuteExpr, app)].join('\nsame => n,');

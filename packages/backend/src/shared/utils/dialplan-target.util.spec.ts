@@ -1,4 +1,4 @@
-import { normalizeTarget, resolveValueSource } from './dialplan-target.util';
+import { normalizeTarget, resolveQueuePriority, resolveQueueValueSource, resolveValueSource } from './dialplan-target.util';
 import type { ValueSource } from '@krasterisk/shared';
 
 describe('normalizeTarget', () => {
@@ -78,6 +78,15 @@ describe('normalizeTarget', () => {
       .toEqual({ source: 'fixed', value: '101' });
     expect(resolveValueSource({ useExten: true }, 'target', { stringField: 'exten', useExtenField: 'useExten' }))
       .toEqual({ source: 'route_pattern' });
+  });
+
+  it('leftover phonebook objects are not remapped to route_pattern', () => {
+    const leftover = { source: 'phonebook', phonebookUid: 3, varKey: 'bnum' };
+    expect(resolveValueSource({ dest: leftover }, 'dest')).toEqual(leftover);
+    expect(resolveValueSource({ dest: leftover }, 'dest')).not.toEqual({ source: 'route_pattern' });
+    expect(resolveQueueValueSource({ target: leftover })).toEqual(leftover);
+    expect(resolveQueueValueSource({ target: leftover })).not.toEqual({ source: 'route_pattern' });
+    expect(resolveQueuePriority({ priority: leftover })).toBeUndefined();
   });
 
   it('context concatenates uid with endsWith guard', () => {

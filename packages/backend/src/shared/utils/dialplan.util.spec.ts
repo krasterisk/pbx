@@ -953,6 +953,22 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       expect(dp).toBe('ConfBridge(${EXTEN})');
     });
 
+    it('confbridge room original_caller emits ${KRSK_ORIG_CALLER_NUM}', () => {
+      const dp = AsteriskDialplanUtils.actionToDialplan(
+        { type: 'confbridge', params: { room: { source: 'original_caller' } }, condition: {} },
+        vpbx,
+      );
+      expect(dp).toBe('ConfBridge(${KRSK_ORIG_CALLER_NUM})');
+    });
+
+    it('confbridge room current_caller emits ${CALLERID(num)}', () => {
+      const dp = AsteriskDialplanUtils.actionToDialplan(
+        { type: 'confbridge', params: { room: { source: 'current_caller' } }, condition: {} },
+        vpbx,
+      );
+      expect(dp).toBe('ConfBridge(${CALLERID(num)})');
+    });
+
     it('cmd with isAdmin=true emits the raw command (D-42 baseline)', () => {
       const dp = AsteriskDialplanUtils.actionToDialplan(
         { type: 'cmd', params: { command: 'NoOp(hello)' }, condition: {} },

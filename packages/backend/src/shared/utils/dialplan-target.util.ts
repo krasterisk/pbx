@@ -11,9 +11,6 @@ export function resolveValueSource(
   const p = params ?? {};
   const nested = p[field];
   if (nested && typeof nested === 'object' && typeof nested.source === 'string') {
-    if (nested.source === 'phonebook') {
-      return { source: 'route_pattern' };
-    }
     return nested as ValueSource;
   }
   if (legacy?.useExtenField && p[legacy.useExtenField]) {
@@ -38,9 +35,6 @@ export function resolveValueSource(
 export function resolveQueueValueSource(params: Record<string, any> | undefined): ValueSource {
   const p = params ?? {};
   if (p.target && typeof p.target === 'object' && typeof p.target.source === 'string') {
-    if (p.target.source === 'phonebook') {
-      return { source: 'route_pattern' };
-    }
     return p.target as ValueSource;
   }
   const queue = typeof p.queue === 'string' ? p.queue : '';
@@ -66,7 +60,7 @@ export function resolveQueuePriority(
     return { source: 'fixed', value: String(n) };
   }
   if (raw && typeof raw === 'object' && typeof raw.source === 'string') {
-    if (raw.source === 'route_pattern' || raw.source === 'phonebook') return undefined;
+    if (raw.source === 'route_pattern') return undefined;
     const src = raw as ValueSource;
     if (src.source === 'fixed') {
       if (!String(src.value ?? '').trim()) return undefined;
