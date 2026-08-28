@@ -1,17 +1,52 @@
 import {
   IsIn,
   IsInt,
-  IsOptional,
   IsString,
   Min,
   MinLength,
-  Validate,
   ValidateIf,
+  ValidateNested,
   ValidatorConstraint,
   ValidatorConstraintInterface,
 } from 'class-validator';
-const VALUE_SOURCES = ['fixed', 'route_pattern', 'variable', 'phonebook'] as const;
-const PRIORITY_SOURCES = ['fixed', 'variable', 'phonebook'] as const;
+import { Type } from 'class-transformer';
+
+export const CALL_VALUE_SOURCES = [
+  'fixed',
+  'route_pattern',
+  'variable',
+  'original_caller',
+  'current_caller',
+] as const;
+export const VALUE_SOURCES = [...CALL_VALUE_SOURCES, 'directory'] as const;
+export const PRIORITY_SOURCES = ['fixed', 'variable', 'directory'] as const;
+const ON_MISSING = ['keep', 'empty', 'skip'] as const;
+
+function isCallValueSource(value: unknown): boolean {
+  if (!value || typeof value !== 'object') return false;
+  const src = value as Record<string, unknown>;
+  if (!CALL_VALUE_SOURCES.includes(src.source as (typeof CALL_VALUE_SOURCES)[number])) {
+    return false;
+  }
+  if (src.source === 'fixed') {
+    return typeof src.value === 'string' && src.value.trim().length > 0;
+  }
+  if (src.source === 'variable') {
+    return typeof src.name === 'string' && src.name.trim().length > 0;
+  }
+  return true;
+}
+
+function isDirectorySource(src: Record<string, unknown>): boolean {
+  return (
+    Number.isInteger(src.directoryUid) &&
+    Number(src.directoryUid) > 0 &&
+    Number.isInteger(src.valueFieldUid) &&
+    Number(src.valueFieldUid) > 0 &&
+    ON_MISSING.includes(src.onMissing as (typeof ON_MISSING)[number]) &&
+    isCallValueSource(src.keySource)
+  );
+}
 
 @ValidatorConstraint({ name: 'isValueSource', async: false })
 export class IsValueSourceConstraint implements ValidatorConstraintInterface {
@@ -25,19 +60,14 @@ export class IsValueSourceConstraint implements ValidatorConstraintInterface {
     if (src.source === 'variable') {
       return typeof src.name === 'string' && src.name.trim().length > 0;
     }
-    if (src.source === 'phonebook') {
-      return (
-        Number.isInteger(src.phonebookUid) &&
-        Number(src.phonebookUid) > 0 &&
-        typeof src.varKey === 'string' &&
-        src.varKey.trim().length > 0
-      );
+    if (src.source === 'directory') {
+      return isDirectorySource(src);
     }
     return true;
   }
 
   defaultMessage(): string {
-    return 'target.source must be fixed, route_pattern, variable, or phonebook; phonebook requires phonebookUid and varKey';
+    return 'target.source must be fixed, route_pattern, variable, original_caller, current_caller, or directory; directory requires directoryUid, keySource, valueFieldUid, and onMissing';
   }
 }
 
@@ -56,17 +86,27 @@ export class IsQueuePrioritySourceConstraint implements ValidatorConstraintInter
     if (src.source === 'variable') {
       return typeof src.name === 'string' && src.name.trim().length > 0;
     }
-    return (
-      Number.isInteger(src.phonebookUid) &&
-      Number(src.phonebookUid) > 0 &&
-      typeof src.varKey === 'string' &&
-      src.varKey.trim().length > 0
-    );
+    return isDirectorySource(src);
   }
 
   defaultMessage(): string {
-    return 'priority must be fixed (0-20), variable, or phonebook';
+    return 'priority must be fixed (0-20), variable, or directory';
   }
+}
+
+export class CallValueSourceDto {
+  @IsIn(CALL_VALUE_SOURCES)
+  source: (typeof CALL_VALUE_SOURCES)[number];
+
+  @ValidateIf((o) => o.source === 'fixed')
+  @IsString()
+  @MinLength(1)
+  value?: string;
+
+  @ValidateIf((o) => o.source === 'variable')
+  @IsString()
+  @MinLength(1)
+  name?: string;
 }
 
 export class ValueSourceDto {
@@ -83,15 +123,22 @@ export class ValueSourceDto {
   @MinLength(1)
   name?: string;
 
-  @ValidateIf((o) => o.source === 'phonebook')
+  @ValidateIf((o) => o.source === 'directory')
   @IsInt()
   @Min(1)
-  phonebookUid?: number;
+  directoryUid?: number;
 
-  @ValidateIf((o) => o.source === 'phonebook')
-  @IsString()
-  @MinLength(1)
-  varKey?: string;
+  @ValidateIf((o) => o.source === 'directory')
+  @ValidateNested()
+  @Type(() => CallValueSourceDto)
+  keySource?: CallValueSourceDto;
+
+  @ValidateIf((o) => o.source === 'directory')
+  @IsInt()
+  @Min(1)
+  valueFieldUid?: number;
+
+  @ValidateIf((o) => o.source === 'directory')
+  @IsIn(ON_MISSING)
+  onMissing?: (typeof ON_MISSING)[number];
 }
-
-export { VALUE_SOURCES, PRIORITY_SOURCES };

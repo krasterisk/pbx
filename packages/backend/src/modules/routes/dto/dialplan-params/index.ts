@@ -29,6 +29,7 @@ import {
   Text2SpeechParamsDto,
   VoiceRobotParamsDto,
 } from './media.params.dto';
+import { DirectoryLookupParamsDto } from './directory-lookup.params.dto';
 
 export type ParamsDtoClass = new (...args: any[]) => object;
 
@@ -60,7 +61,7 @@ export const ACTION_PARAM_DTO: Record<ActionType, ParamsDtoClass | null> = {
   http_request: HttpRequestParamsDto,
   collect_input: CollectInputParamsDto,
   hangup: HangupParamsDto,
-  directory_lookup: null,
+  directory_lookup: DirectoryLookupParamsDto,
 };
 
 export function resolveParamsDto(type: ActionType): ParamsDtoClass | null {
@@ -71,5 +72,6 @@ export function resolveParamsDto(type: ActionType): ParamsDtoClass | null {
 }
 
 export { ToQueueParamsDto } from './address.params.dto';
-export { ValueSourceDto, IsValueSourceConstraint } from './value-source.dto';
+export { ValueSourceDto, IsValueSourceConstraint, CallValueSourceDto } from './value-source.dto';
+export { DirectoryLookupParamsDto, validateAction } from './directory-lookup.params.dto';
 export { MediaOptionsDto, serializeMediaOptions, parseMediaOptions } from './media.params.dto';

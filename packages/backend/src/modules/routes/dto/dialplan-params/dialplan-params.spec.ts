@@ -11,6 +11,7 @@ import { ActionTypesList } from '../route-action.dto';
 import { ACTION_PARAM_DTO, resolveParamsDto } from './index';
 import { MediaOptionsDto, serializeMediaOptions } from './media.params.dto';
 import { validateActionParams } from '../../../../shared/pipes/action-params-validation.util';
+import { validateAction } from './directory-lookup.params.dto';
 
 /**
  * Compile-time exhaustiveness: a switch over DialplanAction['type'] without
@@ -182,7 +183,12 @@ const VALID_PARAMS: Record<ActionType, Record<string, unknown>> = {
   http_request: { url: 'https://example.com/x', method: 'GET', timeout: 5 },
   collect_input: { variableName: 'PIN', digitsCount: 4, timeout: 5 },
   hangup: { signal: 'busy', timeout: 10 },
-  directory_lookup: {},
+  directory_lookup: {
+    directoryUid: 7,
+    keySource: { source: 'original_caller' },
+    outputs: [{ fieldUid: 17, targetVariable: 'CUSTOMER_NAME' }],
+    onMissing: 'keep',
+  },
 };
 
 const INVALID_PARAMS: Record<ActionType, Record<string, unknown>> = {
@@ -208,8 +214,46 @@ const INVALID_PARAMS: Record<ActionType, Record<string, unknown>> = {
   http_request: { url: 'http://localhost/', method: 'GET', timeout: 5 },
   collect_input: { variableName: 'a b', digitsCount: 0, timeout: 5 },
   hangup: { signal: 'nope' },
-  directory_lookup: {},
+  directory_lookup: { targetVariable: 'bad-name' },
 };
+
+describe('directory_lookup action DTO', () => {
+  it('validates target variable names', () => {
+    expect(validateAction({ targetVariable: 'CUSTOMER_NAME' })).toHaveLength(0);
+    expect(validateAction({ targetVariable: 'CALLERID' })).not.toHaveLength(0);
+    expect(validateAction({ targetVariable: 'bad-name' })).not.toHaveLength(0);
+  });
+
+  it('rejects phonebook leftover fields on a directory ValueSource', () => {
+    const errors = validateActionParams([{
+      id: 't1',
+      type: 'totrunk',
+      params: {
+        trunk: 'PJSIP/t1',
+        dest: { source: 'phonebook', phonebookUid: 3, varKey: 'bnum' },
+      },
+    }]);
+    expect(errors.length).toBeGreaterThan(0);
+  });
+
+  it('accepts a directory dest ValueSource', () => {
+    const errors = validateActionParams([{
+      id: 't1',
+      type: 'totrunk',
+      params: {
+        trunk: 'PJSIP/t1',
+        dest: {
+          source: 'directory',
+          directoryUid: 7,
+          keySource: { source: 'original_caller' },
+          valueFieldUid: 17,
+          onMissing: 'skip',
+        },
+      },
+    }]);
+    expect(errors).toEqual([]);
+  });
+});
 
 describe('D-09 ACTION_PARAM_DTO registry', () => {
   it.each([...ActionTypesList] as ActionType[])('has an ACTION_PARAM_DTO entry for %s', (type) => {

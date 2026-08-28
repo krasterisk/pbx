@@ -1,13 +1,7 @@
-import type { ValueSource } from '@krasterisk/shared';
+import type { DirectoryValueSource, ValueSource } from '@krasterisk/shared';
 import { AsteriskDialplanUtils } from './dialplan.util';
 
 export type TargetKind = 'queue' | 'exten' | 'group' | 'context';
-
-/** Channel var set by toqueue phonebook lookup CURL (value-only response). */
-export const PHONEBOOK_TARGET_VAR = 'PB_TARGET';
-
-/** Channel var for toqueue priority phonebook lookup (separate from queue name). */
-export const PHONEBOOK_PRIO_VAR = 'PB_PRIO';
 
 export function resolveValueSource(
   params: Record<string, any> | undefined,
@@ -17,6 +11,9 @@ export function resolveValueSource(
   const p = params ?? {};
   const nested = p[field];
   if (nested && typeof nested === 'object' && typeof nested.source === 'string') {
+    if (nested.source === 'phonebook') {
+      return { source: 'route_pattern' };
+    }
     return nested as ValueSource;
   }
   if (legacy?.useExtenField && p[legacy.useExtenField]) {
@@ -41,6 +38,9 @@ export function resolveValueSource(
 export function resolveQueueValueSource(params: Record<string, any> | undefined): ValueSource {
   const p = params ?? {};
   if (p.target && typeof p.target === 'object' && typeof p.target.source === 'string') {
+    if (p.target.source === 'phonebook') {
+      return { source: 'route_pattern' };
+    }
     return p.target as ValueSource;
   }
   const queue = typeof p.queue === 'string' ? p.queue : '';
@@ -66,8 +66,8 @@ export function resolveQueuePriority(
     return { source: 'fixed', value: String(n) };
   }
   if (raw && typeof raw === 'object' && typeof raw.source === 'string') {
+    if (raw.source === 'route_pattern' || raw.source === 'phonebook') return undefined;
     const src = raw as ValueSource;
-    if (src.source === 'route_pattern') return undefined;
     if (src.source === 'fixed') {
       if (!String(src.value ?? '').trim()) return undefined;
       return src;
@@ -76,8 +76,9 @@ export function resolveQueuePriority(
       if (!String(src.name ?? '').trim()) return undefined;
       return src;
     }
-    if (src.source === 'phonebook') {
-      if (!(Number(src.phonebookUid) > 0) || !String(src.varKey ?? '').trim()) return undefined;
+    if (src.source === 'directory') {
+      const dir = src as DirectoryValueSource;
+      if (!(Number(dir.directoryUid) > 0) || !(Number(dir.valueFieldUid) > 0)) return undefined;
       return src;
     }
   }
@@ -85,7 +86,7 @@ export function resolveQueuePriority(
 }
 
 /** Right-hand side of Set(QUEUE_PRIO=…). */
-export function queuePriorityExpr(src: ValueSource): string | undefined {
+export function queuePriorityExpr(src: ValueSource, directoryValueVar?: string): string | undefined {
   if (src.source === 'fixed') {
     const n = parseInt(String(src.value), 10);
     if (!Number.isFinite(n)) return undefined;
@@ -95,31 +96,17 @@ export function queuePriorityExpr(src: ValueSource): string | undefined {
     const name = AsteriskDialplanUtils.sanitizeDialplanInput(src.name);
     return name ? `\${${name}}` : undefined;
   }
-  if (src.source === 'phonebook') {
-    return `\${${PHONEBOOK_PRIO_VAR}}`;
+  if (src.source === 'directory') {
+    return directoryValueVar ? `\${${directoryValueVar}}` : undefined;
   }
   return undefined;
-}
-
-export function buildPhonebookLookupSet(
-  channelVar: string,
-  phonebookUid: string,
-  varKey: string,
-  backendBaseUrl: string,
-  dialplanApiKey: string,
-): string {
-  const keyParam = dialplanApiKey ? `&api_key=${encodeURIComponent(dialplanApiKey)}` : '';
-  const lookupUrl =
-    `${backendBaseUrl}/internal/dialplan/phonebook-lookup` +
-    `?phonebook_uid=${phonebookUid}&var_key=${encodeURIComponent(varKey)}${keyParam}`;
-  return `Set(${channelVar}=\${CURL(${lookupUrl}&number=\${URIENCODE(\${CALLERID(num)})})})`;
 }
 
 export function normalizeTarget(
   kind: TargetKind,
   src: ValueSource,
   uid: number,
-  opts?: { webrtc?: boolean },
+  opts?: { webrtc?: boolean; directoryValueVar?: string },
 ): string {
   const raw =
     src.source === 'fixed'
@@ -128,7 +115,13 @@ export function normalizeTarget(
         ? '${EXTEN}'
         : src.source === 'variable'
           ? `\${${AsteriskDialplanUtils.sanitizeDialplanInput(src.name)}}`
-          : `\${${PHONEBOOK_TARGET_VAR}}`;
+          : src.source === 'original_caller'
+            ? '${KRSK_ORIG_CALLER_NUM}'
+            : src.source === 'current_caller'
+              ? '${CALLERID(num)}'
+              : src.source === 'directory' && opts?.directoryValueVar
+                ? `\${${opts.directoryValueVar}}`
+                : '${EXTEN}';
 
   switch (kind) {
     case 'queue': {

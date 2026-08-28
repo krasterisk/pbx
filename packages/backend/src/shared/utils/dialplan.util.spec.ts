@@ -25,7 +25,7 @@ const ACTION_TYPES = [
   'webhook', 'confbridge', 'cmd',
   'label', 'goto', 'schedule',
   'http_request', 'collect_input',
-  'hangup',
+  'hangup', 'directory_lookup',
 ] as const satisfies readonly ActionType[];
 
 type MissingActionType = Exclude<ActionType, (typeof ACTION_TYPES)[number]>;
@@ -44,7 +44,7 @@ const CHARACTERIZED_TYPES: readonly ActionType[] = [
   'webhook', 'confbridge', 'cmd',
   'label', 'goto', 'schedule',
   'http_request', 'collect_input',
-  'hangup',
+  'hangup', 'directory_lookup',
 ];
 
 describe('AsteriskDialplanUtils.actionToDialplan', () => {
@@ -600,12 +600,22 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       expect(dp).toContain('Queue(q${EXTEN}_42,');
     });
 
-    it('toqueue with phonebook target emits lookup by var_key then Queue(q${PB_TARGET}_{uid})', () => {
+    it('toqueue with directory target emits KDL1 lookup then Queue(q${KRSK_DL_*}_{uid})', () => {
+      const prevUrl = AsteriskDialplanUtils.backendBaseUrl;
+      const prevKey = AsteriskDialplanUtils.dialplanApiKey;
+      AsteriskDialplanUtils.backendBaseUrl = 'http://backend.test/api';
+      AsteriskDialplanUtils.dialplanApiKey = 'wave0-key';
       const dp = AsteriskDialplanUtils.actionToDialplan(
         {
           type: 'toqueue',
           params: {
-            target: { source: 'phonebook', phonebookUid: 7, varKey: 'queue' },
+            target: {
+              source: 'directory',
+              directoryUid: 7,
+              keySource: { source: 'original_caller' },
+              valueFieldUid: 17,
+              onMissing: 'skip',
+            },
             timeout: 30,
             options: 'thH',
           },
@@ -613,11 +623,14 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
         },
         vpbx,
       );
-      expect(dp).toContain('internal/dialplan/phonebook-lookup');
-      expect(dp).toContain('phonebook_uid=7');
-      expect(dp).toContain('var_key=queue');
-      expect(dp).toContain('Set(PB_TARGET=${CURL(');
-      expect(dp).toContain('ExecIf($["${PB_TARGET}" != ""]?Queue(q${PB_TARGET}_42,thH,,,30))');
+      AsteriskDialplanUtils.backendBaseUrl = prevUrl;
+      AsteriskDialplanUtils.dialplanApiKey = prevKey;
+      expect(dp).toContain('internal/dialplan/directory-lookup');
+      expect(dp).toContain('directory_uid=7');
+      expect(dp).toContain('field_uids=17');
+      expect(dp).toContain('BASE64_DECODE');
+      expect(dp).not.toContain('PB_');
+      expect(dp).toMatch(/ExecIf\(\$\["\$\{KRSK_DL_[A-Z0-9]+_STATUS\}" = "FOUND"\]\?Queue\(q\$\{KRSK_DL_[A-Z0-9]+_F17\}_42,thH,,,30\)\)/);
     });
 
     it('toqueue with empty params no longer emits raw ${EXTEN} (D-21, replaces 12-01 baseline)', () => {
@@ -1183,6 +1196,36 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       expect(dp).toBe('NoOp(Unknown callerid mode)');
     });
 
+    it('directory_lookup emits one KDL1 CURL and maps outputs without PB_', () => {
+      const prevUrl = AsteriskDialplanUtils.backendBaseUrl;
+      const prevKey = AsteriskDialplanUtils.dialplanApiKey;
+      AsteriskDialplanUtils.backendBaseUrl = 'http://backend.test/api';
+      AsteriskDialplanUtils.dialplanApiKey = 'wave0-key';
+      const dp = AsteriskDialplanUtils.actionToDialplan(
+        {
+          id: 'A3',
+          type: 'directory_lookup',
+          params: {
+            directoryUid: 7,
+            keySource: { source: 'original_caller' },
+            outputs: [{ fieldUid: 17, targetVariable: 'CUSTOMER_NAME' }],
+            onMissing: 'keep',
+          },
+          condition: {},
+        },
+        vpbx,
+      );
+      AsteriskDialplanUtils.backendBaseUrl = prevUrl;
+      AsteriskDialplanUtils.dialplanApiKey = prevKey;
+      expect(dp).toContain('internal/dialplan/directory-lookup');
+      expect(dp).toContain('Set(CURLOPT(conntimeout)=1)');
+      expect(dp).toContain('Set(CURLOPT(httptimeout)=2)');
+      expect(dp).toContain('Set(KRSK_DL_A3_F17=');
+      expect(dp).toContain('Set(CUSTOMER_NAME=${KRSK_DL_A3_F17})');
+      expect(dp).not.toContain('PB_');
+      expect((dp.match(/\$\{CURL\(/g) ?? []).length).toBe(1);
+    });
+
     it('unknown ActionType hits default NoOp', () => {
       const dp = AsteriskDialplanUtils.actionToDialplan(
         { type: 'not-a-real-type', params: {}, condition: {} },
@@ -1336,7 +1379,13 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
         { source: 'fixed' as const, value: '101' },
         { source: 'route_pattern' as const },
         { source: 'variable' as const, name: 'MYVAR' },
-        { source: 'phonebook' as const, phonebookUid: 7, varKey: 'n' },
+        {
+          source: 'directory' as const,
+          directoryUid: 7,
+          keySource: { source: 'original_caller' as const },
+          valueFieldUid: 17,
+          onMissing: 'skip' as const,
+        },
       ];
       const cases: Array<{ type: string; params: (src: (typeof sources)[number]) => Record<string, unknown> }> = [
         { type: 'toexten', params: (src) => ({ target: src, timeout: 30 }) },
@@ -1385,7 +1434,7 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       expect(dp).toContain('ExecIf($["${KRSK_DIAL_OK}" = "1"]?Dial(PJSIP/out1/${KRSK_DIAL_NUM},60,tT))');
     });
 
-    it('totrunk phonebook dest looks up before rewrite', () => {
+    it('totrunk directory dest looks up before Dial', () => {
       AsteriskDialplanUtils.backendBaseUrl = 'http://backend.test/api';
       AsteriskDialplanUtils.dialplanApiKey = 'wave0-key';
       const dp = AsteriskDialplanUtils.actionToDialplan(
@@ -1393,7 +1442,13 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
           type: 'totrunk',
           params: {
             trunk: 'PJSIP/out1',
-            dest: { source: 'phonebook', phonebookUid: 3, varKey: 'bnum' },
+            dest: {
+              source: 'directory',
+              directoryUid: 3,
+              keySource: { source: 'original_caller' },
+              valueFieldUid: 17,
+              onMissing: 'keep',
+            },
             timeout: 60,
             options: 'tT',
           },
@@ -1401,10 +1456,11 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
         },
         vpbx,
       );
-      expect(dp).toContain('phonebook-lookup');
-      expect(dp).toContain('phonebook_uid=3');
-      expect(dp).toContain('Set(PB_TARGET=');
-      expect(dp).toContain('Dial(PJSIP/out1/${PB_TARGET},60,tT)');
+      expect(dp).toContain('directory-lookup');
+      expect(dp).toContain('directory_uid=3');
+      expect(dp).toContain('BASE64_DECODE');
+      expect(dp).not.toContain('PB_');
+      expect(dp).toMatch(/Dial\(PJSIP\/out1\/\$\{KRSK_DL_[A-Z0-9]+_F17\},60,tT\)/);
     });
 
     it('totrunk rewrite reject leaves Dial gated', () => {
@@ -1603,22 +1659,36 @@ describe('D-37 / D-32 / D-39 / D-43 per-app generator fixes', () => {
     expect(dp.indexOf('Set(QUEUE_PRIO=')).toBeLessThan(dp.indexOf('Queue('));
   });
 
-  it('toqueue priority from phonebook looks up PB_PRIO before QUEUE_PRIO', () => {
+  it('toqueue priority from directory looks up before QUEUE_PRIO', () => {
+    const prevUrl = AsteriskDialplanUtils.backendBaseUrl;
+    const prevKey = AsteriskDialplanUtils.dialplanApiKey;
+    AsteriskDialplanUtils.backendBaseUrl = 'http://backend.test/api';
+    AsteriskDialplanUtils.dialplanApiKey = 'wave0-key';
     const dp = AsteriskDialplanUtils.actionToDialplan(
       {
         type: 'toqueue',
         params: {
           target: { source: 'fixed', value: 'sales' },
-          priority: { source: 'phonebook', phonebookUid: 9, varKey: 'prio' },
+          priority: {
+            source: 'directory',
+            directoryUid: 9,
+            keySource: { source: 'original_caller' },
+            valueFieldUid: 18,
+            onMissing: 'keep',
+          },
         },
         condition: {},
       },
       vpbx,
     );
-    expect(dp).toContain('Set(PB_PRIO=${CURL(');
-    expect(dp).toContain('var_key=prio');
-    expect(dp).toContain('Set(QUEUE_PRIO=${PB_PRIO})');
-    expect(dp.indexOf('Set(PB_PRIO=')).toBeLessThan(dp.indexOf('Set(QUEUE_PRIO='));
+    AsteriskDialplanUtils.backendBaseUrl = prevUrl;
+    AsteriskDialplanUtils.dialplanApiKey = prevKey;
+    expect(dp).toContain('directory-lookup');
+    expect(dp).toContain('directory_uid=9');
+    expect(dp).toContain('field_uids=18');
+    expect(dp).not.toContain('PB_');
+    expect(dp).toMatch(/Set\(QUEUE_PRIO=\$\{KRSK_DL_[A-Z0-9]+_F18\}\)/);
+    expect(dp.indexOf('directory-lookup')).toBeLessThan(dp.indexOf('Set(QUEUE_PRIO='));
     expect(dp.indexOf('Set(QUEUE_PRIO=')).toBeLessThan(dp.indexOf('Queue('));
   });
 

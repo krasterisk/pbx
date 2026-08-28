@@ -21,10 +21,21 @@ describe('normalizeTarget', () => {
     expect(out).toBe('qabexten_42');
   });
 
-  it('queue + phonebook returns q${PB_TARGET}_{uid}', () => {
+  it('queue + directory returns q${KRSK_DL_A3_F17}_{uid}', () => {
     expect(
-      normalizeTarget('queue', { source: 'phonebook', phonebookUid: 7, varKey: 'queue' }, 42),
-    ).toBe('q${PB_TARGET}_42');
+      normalizeTarget(
+        'queue',
+        {
+          source: 'directory',
+          directoryUid: 7,
+          keySource: { source: 'original_caller' },
+          valueFieldUid: 17,
+          onMissing: 'skip',
+        },
+        42,
+        { directoryValueVar: 'KRSK_DL_A3_F17' },
+      ),
+    ).toBe('q${KRSK_DL_A3_F17}_42');
   });
 
   it('queue result always carries the tenant suffix for every ValueSource', () => {
@@ -32,10 +43,16 @@ describe('normalizeTarget', () => {
       { source: 'fixed', value: 'sales' },
       { source: 'route_pattern' },
       { source: 'variable', name: 'MYVAR' },
-      { source: 'phonebook', phonebookUid: 7, varKey: 'queue' },
+      {
+        source: 'directory',
+        directoryUid: 7,
+        keySource: { source: 'original_caller' },
+        valueFieldUid: 17,
+        onMissing: 'skip',
+      },
     ];
     for (const src of sources) {
-      expect(normalizeTarget('queue', src, 42)).toMatch(/^q.+_42$/);
+      expect(normalizeTarget('queue', src, 42, { directoryValueVar: 'KRSK_DL_A3_F17' })).toMatch(/^q.+_42$/);
     }
   });
 

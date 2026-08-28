@@ -1,6 +1,12 @@
-import { DIALPLAN_ACTION_META, HTTP_RESULT_VAR, evaluateDialTargetRewrite, type ActionType, type ITimeGroupInterval } from '@krasterisk/shared';
+import { DIALPLAN_ACTION_META, HTTP_RESULT_VAR, evaluateDialTargetRewrite, type ActionType, type ITimeGroupInterval, type ValueSource } from '@krasterisk/shared';
 import { ActionLog } from '../../modules/logger/action-log.model';
-import { normalizeTarget, resolveQueueValueSource, resolveQueuePriority, queuePriorityExpr, buildPhonebookLookupSet, resolveValueSource, PHONEBOOK_TARGET_VAR, PHONEBOOK_PRIO_VAR } from './dialplan-target.util';
+import { normalizeTarget, resolveQueueValueSource, resolveQueuePriority, queuePriorityExpr, resolveValueSource } from './dialplan-target.util';
+import {
+  compileDirectoryLookup,
+  compileDirectoryValueSource,
+  lookupToken,
+  sanitizeLookupToken,
+} from './directory-lookup-dialplan.util';
 import {
   applyNumberManipulation,
   compileDialTargetRewrite,
@@ -16,6 +22,33 @@ import { buildCurlCall } from './dialplan-curl.util';
 import { emitHttpRequest } from './dialplan-http.util';
 import { buildTrunkCarousel } from './dialplan-trunk-carousel.util';
 import { resolveAriAppName } from '../../modules/ari/ari-app-name';
+
+function compileDirectorySrc(
+  src: ValueSource,
+  token: string,
+  userUid: number,
+): { lines: string[]; valueVar?: string; canExecuteExpr: string; skip: boolean } {
+  if (src.source !== 'directory') {
+    return { lines: [], canExecuteExpr: '$[1]', skip: false };
+  }
+  const compiled = compileDirectoryValueSource(
+    src,
+    token,
+    userUid,
+    AsteriskDialplanUtils.backendBaseUrl,
+    AsteriskDialplanUtils.dialplanApiKey,
+  );
+  return {
+    lines: compiled.lines,
+    valueVar: compiled.valueVars.get(src.valueFieldUid),
+    canExecuteExpr: compiled.canExecuteExpr,
+    skip: src.onMissing === 'skip',
+  };
+}
+
+function gateSkip(skip: boolean, expr: string, app: string): string {
+  return skip ? `ExecIf(${expr}?${app})` : app;
+}
 
 function logCmdApply(action: { id?: number; uid?: number; params?: { command?: string } }, vpbxUserUid: number): void {
   const command = String(action?.params?.command ?? '');
@@ -153,22 +186,10 @@ export class AsteriskDialplanUtils {
     switch (type) {
       case 'totrunk': {
         const destSrc = resolveValueSource(params, 'dest');
-        const prelude: string[] = [];
-        if (destSrc.source === 'phonebook') {
-          const pbUid = this.sanitizeDialplanInput(String(destSrc.phonebookUid ?? ''));
-          const varKey = this.sanitizeDialplanInput(String(destSrc.varKey ?? ''));
-          if (pbUid && varKey) {
-            prelude.push(buildPhonebookLookupSet(
-              PHONEBOOK_TARGET_VAR,
-              pbUid,
-              varKey,
-              this.backendBaseUrl,
-              this.dialplanApiKey,
-            ));
-          }
-        }
+        const destLookup = compileDirectorySrc(destSrc, lookupToken(action.id ?? action.uid, 'TT'), vpbxUserUid);
+        const prelude: string[] = [...destLookup.lines];
         const compiled = compileDialTargetRewrite(
-          sourceExprFromValueSource(destSrc) || '${EXTEN}',
+          sourceExprFromValueSource(destSrc, destLookup.valueVar) || '${EXTEN}',
           rewriteFromParams(params),
           'phone',
         );
@@ -222,7 +243,11 @@ export class AsteriskDialplanUtils {
           dialLines.push(`ExecIf($["\${DIALTO}" != ""]?Dial(${trunk}/\${DIALTO},15,${dialOpts}))`);
           dialLines.push(`ExecIf($["\${DIALSTATUS}" = "ANSWER"]?Return())`);
         }
-        dialLines.push(wrapIfRewriteOk(compiled.usedRewrite, `Dial(${trunk}/${dest},${timeout},${dialOpts})`));
+        dialLines.push(gateSkip(
+          destLookup.skip,
+          destLookup.canExecuteExpr,
+          wrapIfRewriteOk(compiled.usedRewrite, `Dial(${trunk}/${dest},${timeout},${dialOpts})`),
+        ));
         dp = [...prelude, ...compiled.lines, ...dialLines].join('\nsame => n,');
         break;
       }
@@ -238,27 +263,15 @@ export class AsteriskDialplanUtils {
           break;
         }
         const src = resolveValueSource(params, 'target', { stringField: 'exten', useExtenField: 'useExten' });
-        const prelude: string[] = [];
-        if (src.source === 'phonebook') {
-          const pbUid = this.sanitizeDialplanInput(String(src.phonebookUid ?? ''));
-          const varKey = this.sanitizeDialplanInput(String(src.varKey ?? ''));
-          if (pbUid && varKey) {
-            prelude.push(buildPhonebookLookupSet(
-              PHONEBOOK_TARGET_VAR,
-              pbUid,
-              varKey,
-              this.backendBaseUrl,
-              this.dialplanApiKey,
-            ));
-          }
-        }
+        const destLookup = compileDirectorySrc(src, lookupToken(action.id ?? action.uid, 'TE'), vpbxUserUid);
+        const prelude: string[] = [...destLookup.lines];
         let dialTarget: string;
         let compiled = compileDialTargetRewrite('', undefined, 'exten');
         if (src.source === 'fixed' && this.sanitizeDialplanInput(src.value).includes('/')) {
           dialTarget = this.sanitizeDialplanInput(src.value);
         } else {
           compiled = compileDialTargetRewrite(
-            sourceExprFromValueSource(src) || '${EXTEN}',
+            sourceExprFromValueSource(src, destLookup.valueVar) || '${EXTEN}',
             rewriteFromParams(params),
             'exten',
           );
@@ -272,7 +285,7 @@ export class AsteriskDialplanUtils {
             }
             dialTarget = normalizeTarget('exten', { source: 'fixed', value: manipulated }, vpbxUserUid, { webrtc });
           } else {
-            dialTarget = normalizeTarget('exten', src, vpbxUserUid, { webrtc });
+            dialTarget = normalizeTarget('exten', src, vpbxUserUid, { webrtc, directoryValueVar: destLookup.valueVar });
           }
         }
         const dialLines: string[] = [];
@@ -281,7 +294,11 @@ export class AsteriskDialplanUtils {
           dialLines.push(`ExecIf($["\${DIALTO}" != ""]?Dial(${dialToTarget},15,${dialOpts}))`);
           dialLines.push(`ExecIf($["\${DIALSTATUS}" = "ANSWER"]?Return())`);
         }
-        dialLines.push(wrapIfRewriteOk(compiled.usedRewrite, `Dial(${dialTarget},${timeout},${dialOpts})`));
+        dialLines.push(gateSkip(
+          destLookup.skip,
+          destLookup.canExecuteExpr,
+          wrapIfRewriteOk(compiled.usedRewrite, `Dial(${dialTarget},${timeout},${dialOpts})`),
+        ));
         dp = [...prelude, ...compiled.lines, ...dialLines].join('\nsame => n,');
         break;
       }
@@ -290,61 +307,27 @@ export class AsteriskDialplanUtils {
         const timeout = params.timeout ? parseInt(params.timeout, 10) : '';
         const options = this.sanitizeDialplanInput(params.options) || 'thH';
         const announce = this.sanitizeFilePath(String(params.announceoverride ?? ''));
+        const destLookup = compileDirectorySrc(src, lookupToken(action.id ?? action.uid, 'TQ'), vpbxUserUid);
         const prioSrc = resolveQueuePriority(params);
-        const prioExpr = prioSrc ? queuePriorityExpr(prioSrc) : undefined;
-        const prioLine = prioExpr !== undefined ? `Set(QUEUE_PRIO=${prioExpr})` : '';
-        const prioLookup =
-          prioSrc?.source === 'phonebook'
-            ? (() => {
-                const pbUid = this.sanitizeDialplanInput(String(prioSrc.phonebookUid ?? ''));
-                const varKey = this.sanitizeDialplanInput(String(prioSrc.varKey ?? ''));
-                if (!pbUid || !varKey) return '';
-                return buildPhonebookLookupSet(
-                  PHONEBOOK_PRIO_VAR,
-                  pbUid,
-                  varKey,
-                  this.backendBaseUrl,
-                  this.dialplanApiKey,
-                );
-              })()
-            : '';
+        const prioLookup = prioSrc?.source === 'directory'
+          ? compileDirectorySrc(prioSrc, lookupToken(action.id ?? action.uid, 'TQP'), vpbxUserUid)
+          : { lines: [] as string[], valueVar: undefined as string | undefined };
+        const prioExpr = prioSrc ? queuePriorityExpr(prioSrc, prioLookup.valueVar) : undefined;
         // Queue on_answer: Asterisk docs confirm gosub runs on the AGENT's channel, not caller's.
         // Variable bridging from caller → agent channel is limited.
         // on_answer for Queue is handled by AMI AgentConnect event in ami.service.ts.
         // We still pass gosub param to capture MEMBERINTERFACE for the AMI handler to correlate.
         // Queue(name,options,URL,announceoverride,timeout,AGI,gosub,...)
         // D-32: QUEUE_PRIO must be set BEFORE Queue() or it has no effect.
-        if (src.source === 'phonebook') {
-          const pbUid = this.sanitizeDialplanInput(String(src.phonebookUid ?? ''));
-          const varKey = this.sanitizeDialplanInput(String(src.varKey ?? ''));
-          if (!pbUid || !varKey) {
-            dp = `NoOp(Missing phonebook queue target)`;
-            break;
-          }
-          const queue = normalizeTarget('queue', src, vpbxUserUid);
-          const lines = [
-            buildPhonebookLookupSet(
-              PHONEBOOK_TARGET_VAR,
-              pbUid,
-              varKey,
-              this.backendBaseUrl,
-              this.dialplanApiKey,
-            ),
-          ];
-          if (prioLookup) lines.push(prioLookup);
-          if (prioLine) lines.push(prioLine);
-          lines.push(
-            `ExecIf($["\${${PHONEBOOK_TARGET_VAR}}" != ""]?Queue(${queue},${options},,${announce},${timeout}))`,
-          );
-          dp = lines.join('\nsame => n,');
-        } else {
-          const queue = normalizeTarget('queue', src, vpbxUserUid);
-          const lines: string[] = [];
-          if (prioLookup) lines.push(prioLookup);
-          if (prioLine) lines.push(prioLine);
-          lines.push(`Queue(${queue},${options},,${announce},${timeout})`);
-          dp = lines.join('\nsame => n,');
-        }
+        const queue = normalizeTarget('queue', src, vpbxUserUid, { directoryValueVar: destLookup.valueVar });
+        const lines = [...destLookup.lines, ...prioLookup.lines];
+        if (prioExpr !== undefined) lines.push(`Set(QUEUE_PRIO=${prioExpr})`);
+        lines.push(gateSkip(
+          destLookup.skip,
+          destLookup.canExecuteExpr,
+          `Queue(${queue},${options},,${announce},${timeout})`,
+        ));
+        dp = lines.join('\nsame => n,');
         break;
       }
       case 'toivr': {
@@ -356,7 +339,9 @@ export class AsteriskDialplanUtils {
       }
       case 'togroup': {
         const src = resolveValueSource(params, 'target', { stringField: 'group' });
-        dp = `Gosub(${normalizeTarget('group', src, vpbxUserUid)},start,1)`;
+        const destLookup = compileDirectorySrc(src, lookupToken(action.id ?? action.uid, 'TG'), vpbxUserUid);
+        const gosub = `Gosub(${normalizeTarget('group', src, vpbxUserUid, { directoryValueVar: destLookup.valueVar })},start,1)`;
+        dp = [...destLookup.lines, gateSkip(destLookup.skip, destLookup.canExecuteExpr, gosub)].join('\nsame => n,');
         break;
       }
       case 'voicerobot': {
@@ -404,30 +389,19 @@ export class AsteriskDialplanUtils {
           vpbxUserUid,
         );
         const destSrc = resolveValueSource(params, 'extension');
-        const prelude: string[] = [];
-        if (destSrc.source === 'phonebook') {
-          const pbUid = this.sanitizeDialplanInput(String(destSrc.phonebookUid ?? ''));
-          const varKey = this.sanitizeDialplanInput(String(destSrc.varKey ?? ''));
-          if (pbUid && varKey) {
-            prelude.push(buildPhonebookLookupSet(
-              PHONEBOOK_TARGET_VAR,
-              pbUid,
-              varKey,
-              this.backendBaseUrl,
-              this.dialplanApiKey,
-            ));
-          }
-        }
+        const destLookup = compileDirectorySrc(destSrc, lookupToken(action.id ?? action.uid, 'TR'), vpbxUserUid);
+        const prelude: string[] = [...destLookup.lines];
         const compiled = compileDialTargetRewrite(
-          sourceExprFromValueSource(destSrc) || '${EXTEN}',
+          sourceExprFromValueSource(destSrc, destLookup.valueVar) || '${EXTEN}',
           rewriteFromParams(params),
           'exten',
         );
         const dest = compiled.destExpr || '${EXTEN}';
         const hop = emitHopPrologue(`${ctx},${dest},1`, { routeId: ctx });
-        const gate = compiled.usedRewrite
+        const rewriteGate = compiled.usedRewrite
           ? `ExecIf($["\${${DIAL_OK_VAR}}" = "1"]?${hop.split('\nsame => n,')[0]})`
           : hop.split('\nsame => n,')[0];
+        const gate = gateSkip(destLookup.skip, destLookup.canExecuteExpr, rewriteGate);
         const rest = hop.split('\nsame => n,').slice(1);
         dp = [...prelude, ...compiled.lines, gate, ...rest].join('\nsame => n,');
         break;
@@ -464,15 +438,17 @@ export class AsteriskDialplanUtils {
       case 'confbridge': {
         // Room stays without a tenant suffix (accepted risk T-12-03-05 / T-12-13-03).
         const roomSrc = resolveValueSource(params, 'room');
+        const destLookup = compileDirectorySrc(roomSrc, lookupToken(action.id ?? action.uid, 'CB'), vpbxUserUid);
         const room = roomSrc.source === 'fixed'
           ? (this.sanitizeDialplanInput(roomSrc.value) || '${EXTEN}')
           : roomSrc.source === 'variable'
             ? `\${${this.sanitizeDialplanInput(roomSrc.name)}}`
-            : roomSrc.source === 'phonebook'
-              ? `\${${PHONEBOOK_TARGET_VAR}}`
+            : roomSrc.source === 'directory' && destLookup.valueVar
+              ? `\${${destLookup.valueVar}}`
               : '${EXTEN}';
         const roomOpts = this.sanitizeDialplanInput(params.options);
-        dp = roomOpts ? `ConfBridge(${room},${roomOpts})` : `ConfBridge(${room})`;
+        const app = roomOpts ? `ConfBridge(${room},${roomOpts})` : `ConfBridge(${room})`;
+        dp = [...destLookup.lines, gateSkip(destLookup.skip, destLookup.canExecuteExpr, app)].join('\nsame => n,');
         break;
       }
       case 'cmd':
@@ -590,7 +566,26 @@ export class AsteriskDialplanUtils {
     }
     break;
   }
-  case 'hangup': {
+      case 'directory_lookup': {
+        const keySource = params.keySource && typeof params.keySource === 'object'
+          ? params.keySource
+          : { source: 'original_caller' };
+        const outputs = Array.isArray(params.outputs) ? params.outputs : [];
+        const compiled = compileDirectoryLookup({
+          token: sanitizeLookupToken(String(action.id ?? action.uid ?? 'DL')),
+          directoryUid: Number(params.directoryUid),
+          userUid: vpbxUserUid,
+          keySource,
+          fieldUids: outputs.map((output: { fieldUid?: number }) => Number(output.fieldUid)),
+          outputs,
+          onMissing: params.onMissing === 'empty' ? 'empty' : 'keep',
+          backendBaseUrl: this.backendBaseUrl,
+          apiKey: this.dialplanApiKey,
+        });
+        dp = compiled.lines.join('\nsame => n,');
+        break;
+      }
+      case 'hangup': {
         const signal = params.signal === 'busy' || params.signal === 'congestion'
           ? params.signal
           : 'hangup';

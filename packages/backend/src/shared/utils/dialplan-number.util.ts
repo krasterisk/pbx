@@ -215,7 +215,7 @@ export function compileDialTargetRewrite(
   };
 }
 
-export function sourceExprFromValueSource(src: ValueSource): string {
+export function sourceExprFromValueSource(src: ValueSource, directoryValueVar?: string): string {
   if (src.source === 'fixed') {
     return sanitizeDialValue(src.value);
   }
@@ -223,8 +223,14 @@ export function sourceExprFromValueSource(src: ValueSource): string {
     const name = sanitizeDialValue(src.name);
     return name ? `\${${name}}` : '';
   }
-  if (src.source === 'phonebook') {
-    return '${PB_TARGET}';
+  if (src.source === 'original_caller') {
+    return '${KRSK_ORIG_CALLER_NUM}';
+  }
+  if (src.source === 'current_caller') {
+    return '${CALLERID(num)}';
+  }
+  if (src.source === 'directory') {
+    return directoryValueVar ? `\${${directoryValueVar}}` : '';
   }
   return '${EXTEN}';
 }

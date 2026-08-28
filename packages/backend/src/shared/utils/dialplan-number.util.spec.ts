@@ -1,5 +1,5 @@
 import { evaluateDialTargetRewrite } from '@krasterisk/shared';
-import { applyNumberManipulation, compileDialTargetRewrite } from './dialplan-number.util';
+import { applyNumberManipulation, compileDialTargetRewrite, sourceExprFromValueSource } from './dialplan-number.util';
 
 describe('applyNumberManipulation (D-26)', () => {
   it('strips first, then prepends', () => {
@@ -38,6 +38,20 @@ describe('compileDialTargetRewrite', () => {
     expect(compiled.lines.join('\n')).toContain('Set(KRSK_DIAL_SRC=${EXTEN})');
     expect(compiled.lines.join('\n')).toContain('"${KRSK_DIAL_SRC:0:1}" = "7"');
     expect(compiled.lines.join('\n')).toContain('FILTER(0-9+*#');
+  });
+});
+
+describe('sourceExprFromValueSource', () => {
+  it('uses the compiled directory var and never PB_', () => {
+    expect(sourceExprFromValueSource({
+      source: 'directory',
+      directoryUid: 7,
+      keySource: { source: 'original_caller' },
+      valueFieldUid: 17,
+      onMissing: 'skip',
+    }, 'KRSK_DL_A3_F17')).toBe('${KRSK_DL_A3_F17}');
+    expect(sourceExprFromValueSource({ source: 'original_caller' })).toBe('${KRSK_ORIG_CALLER_NUM}');
+    expect(sourceExprFromValueSource({ source: 'current_caller' })).toBe('${CALLERID(num)}');
   });
 });
 

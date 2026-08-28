@@ -17,6 +17,7 @@ import {
 import { plainToInstance, Type } from 'class-transformer';
 import { BadRequestException, ValidationPipe } from '@nestjs/common';
 import { ToQueueParamsDto } from './dialplan-params/toqueue.params.dto';
+import { DirectoryLookupParamsDto } from './dialplan-params/directory-lookup.params.dto';
 import { RouteConditionDto } from './route-condition.dto';
 
 export const ActionTypesList = [
@@ -45,8 +46,13 @@ class IsTypedActionParamsConstraint implements ValidatorConstraintInterface {
   validate(params: unknown, args: ValidationArguments): boolean {
     if (!params || typeof params !== 'object' || Array.isArray(params)) return false;
     const action = args.object as RouteActionDto;
-    if (action.type !== 'toqueue') return true;
-    const dto = plainToInstance(ToQueueParamsDto, params);
+    const Dto = action.type === 'toqueue'
+      ? ToQueueParamsDto
+      : action.type === 'directory_lookup'
+        ? DirectoryLookupParamsDto
+        : null;
+    if (!Dto) return true;
+    const dto = plainToInstance(Dto, params);
     const errors = validateSync(dto);
     toQueueParamErrors.set(action, errors);
     return errors.length === 0;
