@@ -1,4 +1,5 @@
 # Pre-Asterisk MVP CI gate (D-09/D-24). Evolved from e2e.yml — Node 22, harness working-directory.
+# e2e.yml is superseded by this workflow (Phase 11, 2026-08). Remove e2e.yml only after this job is green.
 name: harness
 
 on:
@@ -82,3 +83,13 @@ jobs:
           JWT_SECRET: ci-test-secret
           CC_AI_KEY_SECRET: ci-test-ai-secret
         run: npm test
+
+      - name: Upload harness reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: harness-reports
+          path: |
+            harness/playwright-report
+            harness/reports
+          retention-days: 14

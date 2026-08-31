@@ -55,6 +55,21 @@ npm run test -- --tag health --parallel   # opt-in parallelism (D-19)
 - `--parallel` — allow Vitest file parallelism (default: sequential, D-19)
 - `--list` — print matched scenarios without executing
 
+## CI
+
+| Workflow | When | What |
+|----------|------|------|
+| `.github/workflows/harness.yml` | push/PR to `main`/`develop`, plus `workflow_dispatch` | Pre-Asterisk MVP: MySQL service, migrate, wait on `/api/health` + frontend, `npm test` in `harness/` (Node 22) |
+| `.github/workflows/harness-asterisk.yml` | `workflow_dispatch` + nightly cron | Lab Asterisk originate (D-10); requires repo secrets |
+
+CI Playwright uses `workers: 1` and no sharding (D-12). Do not pass `--parallel` in the default CI job.
+
+Default lab credentials for the isolated CI MySQL (D-13): `PW_USER=admin`, `PW_PASS=admin`. Override via GitHub secrets for non-default test DBs. Do not point local `npm run harness` at a production tenant — API scenarios include MOH CRUD.
+
+**Phase gate (AGENTS.md):** `npm run lint && npm run test:backend && npm run test:frontend && npm run harness`
+
+`.github/workflows/e2e.yml` and `e2e/` stay until `harness.yml` is green on CI (D-H01/D-23). Then retire them.
+
 ## Black-box rule
 
 **Do not** add `@krasterisk/shared` or import from `packages/backend/src` / `packages/frontend/src`. Inline minimal types when needed.
@@ -72,7 +87,7 @@ Each harness run writes aggregated reports under `harness/reports/`:
 
 Playwright HTML traces live in `harness/playwright-report/`. Generated artifacts are gitignored; only `reports/.gitkeep` is tracked.
 
-**CI upload (plan 08):** the harness workflow should upload `harness/reports/` (summary + JUnit) and `harness/playwright-report/` as build artifacts alongside trace zips from `harness/test-results/`.
+**CI upload:** `.github/workflows/harness.yml` uploads artifact `harness-reports` (`harness/playwright-report` + `harness/reports`, retention 14 days) on every run (`if: always()`).
 
 Per-scenario duration metrics are collected in-process (no RSS sampling in MVP).
 
