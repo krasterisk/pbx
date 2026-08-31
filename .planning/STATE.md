@@ -1,25 +1,26 @@
 ---
 gsd_state_version: 1.0
 milestone: v1.0
-milestone_name: milestone
-current_phase: 12
-current_phase_name: dialplan-apps-editor-refactor-reusable-route-chain-builder
-status: executing
-stopped_at: Paused 12-17 Task 2 checkpoint M4-M7; Task 1 M1/M9 recorded, M12 baseline 0 pending post-deploy
-last_updated: "2026-08-20T04:19:00.566Z"
+current_phase: 11
+current_phase_name: harness-layer-external-scenario-runner-environment-observabi
+status: ready_to_plan
+stopped_at: Phase 12 complete; next is 12b voicemail (then 13)
+last_updated: "2026-08-31T08:10:13.980Z"
+state_head: 1ef655c81ace58bcca204d54af2ec2bd371a1598
 progress:
   total_phases: 12
-  completed_phases: 8
-  total_plans: 120
-  completed_plans: 116
+  completed_phases: 2
+  total_plans: 118
+  completed_plans: 117
+milestone_name: milestone
 ---
 
 # State
 
 ## Current position
 
-Phase: 12 (dialplan-apps-editor-refactor-reusable-route-chain-builder) — EXECUTING
-Plan 12-01 (Wave 0 characterization) complete: 3/3 tasks. Plan 12-02 (queue-by-route-mask tracer) complete: 2/2 tasks (human-approved). Plan 12-03 (per-type DTO expansion) complete: 3/3 tasks. Plan 12-04 (tenant-settings module) complete: 3/3 tasks. Plan 12-05 (generator core / Congestion()) complete: 3/3 tasks. Plan 12-06 (ConditionSource / hops / unreachable-tail) complete: 3/3 tasks. Plan 12-07 (FE editor core) complete: 4/4 tasks. Plan 12-08 (Sheet schema/options/conditions/host wiring) complete: 3/3 tasks. Plan 12-09 (tenant settings UI) complete: 2/2 tasks. Plan 12-10 (unified Playback) complete: 3/3 tasks (dual-read). Plan 12-11 (legacy PHP cleanup / notify / TTS) complete: 3/3 tasks. Plan 12-12 (params migration + legacy hard-remove) complete: 3/3 tasks (live write confirmed, second dry-run rowsChanged=0). Plan 12-13 (per-app generator/schema UI) complete: 3/3 tasks (TDD). Wave 9 done. Plan 12-14 (call-group exten + unified context) complete: 4/4 tasks (TDD; live ALTER deferred). Wave 10 done. Plan 12-15 (Ring Group options D-34) complete: 3/3 tasks (TDD; live ALTER deferred). Wave 11 done. Plan 12-16 (new action types D-44/D-45/D-47/D-49) complete: 3/3 tasks (TDD). Wave 12 done. Next sequential: 12-17.
+Phase: 11 (harness-layer-external-scenario-runner-environment-observabi) — EXECUTING
+12-17 closed 2026-08-31: M1/M6/M7/M8/M9 approved; M4/M5/M12 deferred (live voice later). Call-group ALTERs already on prod.
 Migrations applied (2026-07-24): `cc_contacts` table + `cc_settings.journal_depth`. Live Asterisk A1/A3 checkpoint still deferred in WINDOWS.md.
 
 Also Phase 9 (complete, verify/UAT open):
@@ -275,7 +276,7 @@ Phase 1 — MOH: pending verify.
 
 ## Next GSD command
 
-**Phase 12:** 12-01…12-16 complete (wave 12 new action types). Next sequential: **12-17** final gate. Live `migrate-call-groups-exten.ts` and `migrate-call-groups-ring-options.ts` still need a human run.
+**Phase 12 complete.** Next: **`/gsd-discuss-phase 12b`** (custom voicemail). Then Phase 13 (flowchart / MCP). M4/M5/M12 live-voice deferred.
 
 Also open: Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 verify; Phase 8 / 08-11 Android smoke.
 
@@ -382,6 +383,6 @@ Also open: Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 veri
 
 ## Session
 
-**Last session:** 2026-08-20T04:19:00.457Z
-**Stopped at:** Paused 12-17 Task 2 checkpoint M4-M7; Task 1 M1/M9 recorded, M12 baseline 0 pending post-deploy
-**Resume file:** .planning/phases/12-dialplan-apps-editor-refactor-reusable-route-chain-builder/12-17-PLAN.md
+**Last session:** 2026-08-31
+**Stopped at:** Phase 12 complete — all phases complete
+**Resume file:** .planning/phases/12-dialplan-apps-editor-refactor-reusable-route-chain-builder/12-17-SUMMARY.md

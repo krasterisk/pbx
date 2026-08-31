@@ -666,7 +666,7 @@ Plans:
 
 **Status:** Planned (2026-08-04) — plan-checker PASSED; ready to execute  
 
-**Plans:** 6/8 plans executed
+**Plans:** 8/8 plans executed
 
 Plans:
 
@@ -676,8 +676,8 @@ Plans:
 - [x] 11-04-PLAN.md — PR-4 Frontend absorb: e2e→harness UI + SSE heartbeat; keep e2e/ until CI green (D-H01, D-03, D-04)
 - [x] 11-05-PLAN.md — PR-5 Metrics + Reporter: md/json/junit triad (D-11)
 - [x] 11-06-PLAN.md — PR-6 Observability: harness-side OTel + structured logs (D-H05)
-- [ ] 11-07-PLAN.md — PR-7 Asterisk/realtime: gated originate, ami-events, sql opt-in, harness-asterisk.yml (D-05–D-07, D-H03)
-- [ ] 11-08-PLAN.md — PR-8 CI harden: harness.yml Node 22, workers=1, artifacts; then delete e2e/ (D-09, D-12, D-23, D-24)
+- [x] 11-07-PLAN.md — PR-7 Asterisk/realtime: gated originate, ami-events, sql opt-in, harness-asterisk.yml (D-05–D-07, D-H03)
+- [x] 11-08-PLAN.md — PR-8 CI harden: harness.yml Node 22, workers=1, artifacts; then delete e2e/ (D-09, D-12, D-23, D-24)
 
 **Waves:** W1 {11-01} · W2 {11-02} · W3 {11-03} · W4 {11-04} · W5 {11-05} · W6 {11-06} · W7 {11-07} · W8 {11-08}
 
@@ -698,8 +698,8 @@ Plans:
 - `packages/frontend/src/features/routes/ui/RouteFormModal/` — эталон табов/модалок (Phase 3)
 - Предыдущая фаза по этой области: Phase 6 (`06-13`/`06-14`/`06-16` — apps + registry + inline group editor)
 
-**Status:** In Progress — 17 планов, waves 0…13 (`12-01`…`12-17`)
-**Plans:** 16/17 plans executed
+**Status:** Complete — 2026-08-31 — 17 планов, waves 0…13 (`12-01`…`12-17`)
+**Plans:** 17/17 plans complete
 
 - [x] 12-01-PLAN.md
 - [x] 12-02-PLAN.md
@@ -717,7 +717,7 @@ Plans:
 - [x] 12-14-PLAN.md
 - [x] 12-15-PLAN.md
 - [x] 12-16-PLAN.md
-- [ ] 12-17-PLAN.md
+- [x] 12-17-PLAN.md
 
 **Depends on:** Phase 6 (registry + apps + call groups / notifications стабилизированы) — brownfield, не блокируется verify Phases 1–11
 
@@ -823,7 +823,7 @@ Plans:
 - [x] `12-14-PLAN.md` — `exten` у групп вызова + единая схема контекста с переходным `include`
 - [x] `12-15-PLAN.md` — группы вызова уровня Ring Group: подтверждение, пропуск занятых, MOH
 - [x] `12-16-PLAN.md` — новые типы действий: метка/переход/ветвление, расписание, HTTP, сбор ввода
-- [ ] `12-17-PLAN.md` — финальный гейт: ручные проверки M1, M4…M9, M12 + полный прогон
+- [x] `12-17-PLAN.md` — финальный гейт: ручные проверки M1, M4…M9, M12 + полный прогон
 
 **GSD workflow (рекомендуемый порядок):**
 
