@@ -1,0 +1,84 @@
+# Pre-Asterisk MVP CI gate (D-09/D-24). Evolved from e2e.yml — Node 22, harness working-directory.
+name: harness
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+jobs:
+  harness:
+    name: Harness (API + Playwright Chromium)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: krasterisk
+          MYSQL_DATABASE: krasterisk
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -p$MYSQL_ROOT_PASSWORD"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install workspace deps
+        run: npm ci
+
+      - name: Build shared + backend + frontend
+        run: npm run build
+
+      - name: Run database migrations
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_USER: root
+          DB_PASS: krasterisk
+          DB_NAME: krasterisk
+        run: npm run db:migrate
+
+      - name: Start backend
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_USER: root
+          DB_PASS: krasterisk
+          DB_NAME: krasterisk
+          JWT_SECRET: ci-test-secret
+          CC_AI_KEY_SECRET: ci-test-ai-secret
+        run: |
+          npm run dev:backend &
+          npx wait-on -t 60000 http://localhost:5010/api/health
+
+      - name: Start frontend
+        run: |
+          npm run dev:frontend &
+          npx wait-on -t 60000 http://localhost:3010
+
+      - name: Install Playwright browsers
+        working-directory: harness
+        run: npx playwright install --with-deps chromium
+
+      - name: Run harness suite
+        working-directory: harness
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:3010
+          HARNESS_API_URL: http://localhost:5010
+          PW_USER: admin
+          PW_PASS: admin
+          JWT_SECRET: ci-test-secret
+          CC_AI_KEY_SECRET: ci-test-ai-secret
+        run: npm test
