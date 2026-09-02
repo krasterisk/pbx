@@ -856,7 +856,24 @@ Plans:
 - `packages/backend/src/modules/reports/cdr/` — `hasRecording`/`streamRecording`/access-scope, на которые садится вкладка сообщений
 - `packages/backend/src/modules/stt-engines/`, `packages/backend/src/modules/ai-agents/`
 
-**Status:** Context gathered (2026-09-02) — ready for `/gsd-plan-phase 13`
+**Status:** Planned (2026-09-02) — 12 plans / 8 waves; checker PASSED; ready for `/gsd-execute-phase 13`
+
+**Plans:**
+
+- [ ] 13-01-PLAN.md — Wave 0: RED D-55 spec + RECORD_STATUS + parseWavPcm16
+- [ ] 13-02-PLAN.md — Wave 1: D-72 path gate + types + generator (push/pop/`k`)
+- [ ] 13-03-PLAN.md — Wave 1: 7 RECORD_STATUS presets including OPERATOR
+- [ ] 13-04-PLAN.md — Wave 2: step schema/DTO, max_duration=120
+- [ ] 13-11-PLAN.md — Wave 2: module + migrate + ingest + JWT list
+- [ ] 13-05-PLAN.md — Wave 3: opaque 7d token + wav resolver
+- [ ] 13-09-PLAN.md — Wave 3: migrate 6 JSON columns
+- [ ] 13-12-PLAN.md — Wave 3: CDR tab + shared filter
+- [ ] 13-06-PLAN.md — Wave 4: attach &lt; 2 MiB / link fallback
+- [ ] 13-07-PLAN.md — Wave 5: @Interval scanner, two status axes, STT/LLM
+- [ ] 13-08-PLAN.md — Wave 6: JWT stream + Surface L details
+- [ ] 13-10-PLAN.md — Wave 7: VoicemailAiAdapter (read-only)
+
+**Waves:** W0 {13-01} · W1 {13-02, 13-03} · W2 {13-04, 13-11} · W3 {13-05, 13-09, 13-12} · W4 {13-06} · W5 {13-07} · W6 {13-08} · W7 {13-10}
 **Depends on:** Phase 12 (типизация `params`, `RECORD_STATUS` в расширенных условиях D-22, слияние notify D-28)
 
 **Goal:** Заменить приложение Asterisk `VoiceMail()` собственной голосовой почтой: опциональное приветствие → `Record()` → уведомление через `notify` → расшифровка и саммаризация через `stt-engines` + LLM. Доступ к сообщениям — вкладка/фильтр в CDR-отчёте с кнопкой «Детализация» и плеером. Старый тип действия `voicemail` — hard-remove с миграцией существующих шагов.
