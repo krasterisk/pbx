@@ -856,7 +856,7 @@ Plans:
 - `packages/backend/src/modules/reports/cdr/` — `hasRecording`/`streamRecording`/access-scope, на которые садится вкладка сообщений
 - `packages/backend/src/modules/stt-engines/`, `packages/backend/src/modules/ai-agents/`
 
-**Status:** Pending (вынесено из Phase 12 при планировании 2026-08-18)
+**Status:** Context gathered (2026-09-02) — ready for `/gsd-plan-phase 13`
 **Depends on:** Phase 12 (типизация `params`, `RECORD_STATUS` в расширенных условиях D-22, слияние notify D-28)
 
 **Goal:** Заменить приложение Asterisk `VoiceMail()` собственной голосовой почтой: опциональное приветствие → `Record()` → уведомление через `notify` → расшифровка и саммаризация через `stt-engines` + LLM. Доступ к сообщениям — вкладка/фильтр в CDR-отчёте с кнопкой «Детализация» и плеером. Старый тип действия `voicemail` — hard-remove с миграцией существующих шагов.
