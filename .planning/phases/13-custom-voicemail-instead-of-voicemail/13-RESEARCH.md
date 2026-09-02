@@ -488,7 +488,7 @@ This phase hard-removes `VoiceMail()` emission and migrates stored `type: 'voice
 
 | Category | Items Found | Action Required |
 |----------|-------------|-----------------|
-| Stored data | Six JSON action columns still hold `type: 'voicemail'` with `{target\|exten}`: `routes.actions`, `route_phonebook_bindings.actions`, `ivrs.menu_items[].actions`, `vr_keywords.actions`, `voice_robots.fallback_action`, `voice_robots.max_retries_action` (12-RESEARCH inventory; `dialplan-actions-migration.util.ts` already lists `voicemail` in `KNOWN_TYPES` and maps `exten`→`target`) | **Data migration:** rewrite params to new shape (keep `type: 'voicemail'`); fill defaults `max_duration=120`, empty greeting, no notify/STT. `raw_dialplan` containing `VoiceMail(` — **log only**, do not rewrite (user text, Phase 12 rule) |
+| Stored data | Six JSON action columns still hold `type: 'voicemail'` with `{target\|exten}`: `routes.actions`, `route_phonebook_bindings.actions`, `ivrs.menu_items[].actions`, `voice_robot_keywords.actions`, `voice_robots.fallback_action`, `voice_robots.max_retries_action` (12-RESEARCH inventory; `dialplan-actions-migration.util.ts` already lists `voicemail` in `KNOWN_TYPES` and maps `exten`→`target`) | **Data migration:** rewrite params to new shape (keep `type: 'voicemail'`); fill defaults `max_duration=120`, empty greeting, no notify/STT. `raw_dialplan` containing `VoiceMail(` — **log only**, do not rewrite (user text, Phase 12 rule) |
 | Live service config | Host `voicemail.conf` still unused by this repo (passive PJSIP `mailboxes` / `incoming_mwi_mailbox`) | Docs note only: after deploy, `VoiceMail()` is no longer generated. No code change |
 | OS-registered state | None verified this session | None |
 | Secrets/env vars | `DIALPLAN_API_KEY`, `RECORDS_BASE_PATH`, `CC_AI_KEY_SECRET`, `APP_URL` (`mailer.service.ts:114`) | Code reads existing names; add `APP_URL` to token links. Do not invent new secret names |
@@ -707,24 +707,24 @@ async tick() {
 
 **If this table is empty:** N/A — six assumptions remain.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Default STT engine when step omits `stt_engine_uid`**
+1. **RESOLVED: Default STT engine when step omits `stt_engine_uid`**
    - What we know: `SttEnginesService.findAll` only; no “default” flag.
    - What's unclear: first engine vs require explicit uid vs D-63.
    - Recommendation: explicit uid in the step; if empty, first tenant engine; if none, D-63.
 
-2. **Which `CcAiProvider` to pick when several have `llm`**
+2. **RESOLVED: Which `CcAiProvider` to pick when several have `llm`**
    - What we know: seed has Realtime (wss, skip) and Cascade (HTTP).
    - What's unclear: no “default for voicemail” column.
    - Recommendation: optional `llm_provider_uid` on the step; else first `enabled` HTTP `llm` for tenant+global; none → transcript without summary (not failed).
 
-3. **Live Asterisk: hangup during Record() + `k` + handler**
+3. **RESOLVED: Live Asterisk: hangup during Record() + `k` + handler**
    - What we know: official docs + Phase 12 research; prod is certified-22.8-cert2 (ARCHITECTURE §8).
    - What's unclear: this host’s `Record()` `k` + handler order not re-proven this session.
    - Recommendation: manual gate M2/M3 (same as 12-RESEARCH) in `/gsd-verify-work 13` / `/gsd-secure-phase 13`.
 
-4. **MySQL `FOR UPDATE SKIP LOCKED`**
+4. **RESOLVED: MySQL `FOR UPDATE SKIP LOCKED`**
    - What we know: project uses MySQL via Sequelize; version not pinned in RESEARCH this session.
    - What's unclear: if SKIP LOCKED is available.
    - Recommendation: lease column (`scan_locked_until`) works on all versions; prefer it over SKIP LOCKED.
