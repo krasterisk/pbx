@@ -2,6 +2,7 @@ import {
   CONDITION_SOURCES,
   HTTP_RESULT_VAR,
   QUEUESTATUS_VALUES,
+  RECORD_STATUS_VALUES,
 } from '@krasterisk/shared';
 import { buildConditionExpr, wrapEachLine } from './dialplan-condition.util';
 
@@ -63,6 +64,22 @@ describe('buildConditionExpr ConditionSource (D-22)', () => {
       'CONTINUE',
     ]);
     expect(QUEUESTATUS_VALUES).toHaveLength(5);
+  });
+
+  it('RECORD_STATUS_VALUES is the D-56 set of 7 including OPERATOR', () => {
+    expect(RECORD_STATUS_VALUES).toEqual([
+      'DTMF',
+      'SILENCE',
+      'SKIP',
+      'TIMEOUT',
+      'HANGUP',
+      'ERROR',
+      'OPERATOR',
+    ]);
+    expect(RECORD_STATUS_VALUES).toHaveLength(7);
+    expect(RECORD_STATUS_VALUES).toContain('OPERATOR');
+    expect(CONDITION_SOURCES).toHaveLength(5);
+    expect(CONDITION_SOURCES).not.toContain('record_status');
   });
 
   it('source dialstatus matches the legacy DIALSTATUS expression (regression)', () => {

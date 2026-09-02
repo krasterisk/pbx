@@ -42,6 +42,22 @@ export const QUEUESTATUS_VALUES = [
 
 export type QueuestatusValue = (typeof QUEUESTATUS_VALUES)[number];
 
+/**
+ * D-56: full Asterisk RECORD_STATUS set including OPERATOR (option `o`).
+ * Do not add `record_status` to CONDITION_SOURCES here — 13-03 owns the union.
+ */
+export const RECORD_STATUS_VALUES = [
+  'DTMF',
+  'SILENCE',
+  'SKIP',
+  'TIMEOUT',
+  'HANGUP',
+  'ERROR',
+  'OPERATOR',
+] as const;
+
+export type RecordStatusValue = (typeof RECORD_STATUS_VALUES)[number];
+
 /** Asterisk DEVICE_STATE() return values. */
 export const DEVICE_STATE_VALUES = [
   'UNKNOWN',
