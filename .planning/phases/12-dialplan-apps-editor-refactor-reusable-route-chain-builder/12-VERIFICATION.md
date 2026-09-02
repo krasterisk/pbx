@@ -14,7 +14,7 @@ human_verification: []
 
 # Phase 12: DialplanAppsEditor / route-chain builder Verification Report
 
-**Phase Goal:** Reusable route-chain builder — typed `params` through the stack, tenant-scoped dial targets, generator fixes, schema-driven StepSheet, tenant settings, unified Playback, legacy PHP cleanup, call-group exten/ring options, new action types. Voicemail stays in Phase 12b.
+**Phase Goal:** Reusable route-chain builder — typed `params` through the stack, tenant-scoped dial targets, generator fixes, schema-driven StepSheet, tenant settings, unified Playback, legacy PHP cleanup, call-group exten/ring options, new action types. Voicemail stays in Phase 13 (was 12b).
 
 **Verified:** 2026-08-31  
 **Status:** passed
@@ -45,8 +45,8 @@ Plans **12-01…12-17** each have a SUMMARY. `uat.classify-coverage` auto-passes
 
 ## Acknowledged Gaps
 
-- Live trunk early media (M4), queue overflow (M5), and post-deploy PHP-script counter (M12) — operator deferred to a later voice pass. Not Phase 12b (voicemail).
+- Live trunk early media (M4), queue overflow (M5), and post-deploy PHP-script counter (M12) — operator deferred to a later voice pass. Not Phase 13 (voicemail).
 
 ## Next
 
-Phase 12b (custom voicemail) or Phase 13 (flowchart / MCP).
+Phase 13 (custom voicemail, was 12b) or Phase 14 (flowchart / MCP).
