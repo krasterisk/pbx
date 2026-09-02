@@ -967,20 +967,58 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       AsteriskDialplanUtils.dialplanApiKey = prevKey;
     });
 
-    it('voicemail with filled exten emits VoiceMail(exten@default,u)', () => {
-      const dp = AsteriskDialplanUtils.actionToDialplan(
-        { type: 'voicemail', params: { exten: '101' }, condition: {} },
-        vpbx,
-      );
-      expect(dp).toBe('VoiceMail(101@default,u)');
-    });
+    describe('voicemail D-55', () => {
+      const recordCall = (dp: string): string => {
+        const start = dp.indexOf('Record(');
+        if (start < 0) return '';
+        const end = dp.indexOf(')', start);
+        return end < 0 ? dp.slice(start) : dp.slice(start, end + 1);
+      };
 
-    it('voicemail with empty params substitutes ${EXTEN} (D-21 baseline)', () => {
-      const dp = AsteriskDialplanUtils.actionToDialplan(
-        { type: 'voicemail', params: {}, condition: {} },
-        vpbx,
-      );
-      expect(dp).toBe('VoiceMail(${EXTEN}@default,u)');
+      const recordOptions = (dp: string): string => {
+        const call = recordCall(dp);
+        if (!call) return '';
+        const inner = call.slice('Record('.length, -1);
+        return inner.split(',')[3] ?? '';
+      };
+
+      it('pushes hangup handler before Record, keeps k, pops before Goto, and emits wav path', () => {
+        const dp = AsteriskDialplanUtils.actionToDialplan(
+          { type: 'voicemail', params: { max_duration: 120 }, condition: {} },
+          vpbx,
+        );
+        const pushAt = dp.indexOf('hangup_handler_push');
+        const recordAt = dp.indexOf('Record(');
+        const popAt = dp.indexOf('hangup_handler_pop');
+        const gotoAt = dp.indexOf('Goto(');
+        expect(pushAt).toBeGreaterThanOrEqual(0);
+        expect(pushAt).toBeLessThan(recordAt);
+        expect(recordOptions(dp)).toContain('k');
+        expect(popAt).toBeGreaterThan(recordAt);
+        expect(popAt).toBeLessThan(gotoAt);
+        expect(dp).toContain('krsk-vm-done-42');
+        const handlerIdx = dp.indexOf('krsk-vm-done-42');
+        const handlerBlock = dp.slice(handlerIdx);
+        expect(handlerBlock).toContain('Return()');
+        const rec = recordCall(dp);
+        expect(rec).toContain('/voicemail/');
+        expect(rec).toContain('.wav');
+      });
+
+      it('plays greeting Playback before hangup_handler_push (Pitfall 11)', () => {
+        const dp = AsteriskDialplanUtils.actionToDialplan(
+          {
+            type: 'voicemail',
+            params: { max_duration: 120, greeting: 'vm-greeting' },
+            condition: {},
+          },
+          vpbx,
+        );
+        const playbackAt = dp.indexOf('Playback(');
+        const pushAt = dp.indexOf('hangup_handler_push');
+        expect(playbackAt).toBeGreaterThanOrEqual(0);
+        expect(playbackAt).toBeLessThan(pushAt);
+      });
     });
 
     it('text2speech emits CURL to internal tts then Playback of the result (D-30)', () => {
