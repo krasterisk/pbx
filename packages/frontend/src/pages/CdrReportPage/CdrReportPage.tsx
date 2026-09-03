@@ -1,7 +1,7 @@
 import { memo, useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
-import { PhoneCall, BarChart3, List } from 'lucide-react';
+import { PhoneCall, BarChart3, List, Voicemail } from 'lucide-react';
 import {
   Card,
   CardContent,
@@ -17,6 +17,7 @@ import {
   useGetCdrStatsQuery,
   useLazyExportCdrQuery,
 } from '@/shared/api/endpoints/cdrApi';
+import { useGetVoicemailMessagesQuery } from '@/shared/api/endpoints/voicemailApi';
 import {
   CdrFilter,
   CdrStats,
@@ -35,15 +36,23 @@ import cls from './CdrReportPage.module.scss';
 
 const PAGE_SIZE = 50;
 
+type CdrReportTab = 'journal' | 'analytics' | 'voicemail';
+
 const CdrReportPage = memo(() => {
   const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState<'journal' | 'analytics'>('journal');
+  const [activeTab, setActiveTab] = useState<CdrReportTab>('journal');
   const [legsLinkedid, setLegsLinkedid] = useState<string | null>(null);
   const [drilldown, setDrilldown] = useState<{ title: string; patch: Partial<CdrUiFilters> } | null>(null);
 
   const page = parseInt(searchParams.get('page') || '1', 10);
   const filters = useMemo(() => parseFiltersFromSearchParams(searchParams), [searchParams]);
+  const voicemailOn = filters.voicemail === '1';
+  const currentTab: CdrReportTab = voicemailOn
+    ? 'voicemail'
+    : activeTab === 'voicemail'
+      ? 'journal'
+      : activeTab;
 
   const queryParams = filtersToQueryParams(filters, page, PAGE_SIZE);
   const { data: listData, isLoading: listLoading, isFetching } = useGetCdrListQuery(queryParams);
@@ -55,6 +64,10 @@ const CdrReportPage = memo(() => {
     search: filters.search,
   });
   const [triggerExport, { isFetching: isExporting }] = useLazyExportCdrQuery();
+  const { data: voicemailMessages, isLoading: voicemailLoading } = useGetVoicemailMessagesQuery(
+    undefined,
+    { skip: !voicemailOn },
+  );
 
   const handleFilterChange = useCallback((patch: Partial<CdrUiFilters>) => {
     const next = new URLSearchParams(searchParams);
@@ -98,6 +111,11 @@ const CdrReportPage = memo(() => {
     setDrilldown({ title, patch });
   }, []);
 
+  const selectTab = useCallback((tab: CdrReportTab) => {
+    setActiveTab(tab);
+    handleFilterChange({ voicemail: tab === 'voicemail' ? '1' : undefined });
+  }, [handleFilterChange]);
+
   return (
     <VStack gap="24" max className={`${cls.page} flex-1`} data-testid="cdr-report-page-responsive">
       <Flex justify="between" align="center" className="px-2 min-w-0">
@@ -121,25 +139,38 @@ const CdrReportPage = memo(() => {
           <Flex justify="between" align="center" className="mb-4 flex-wrap gap-2">
             <Flex gap="8" className="flex-wrap">
               <Button
-                variant={activeTab === 'journal' ? 'default' : 'outline'}
+                variant={currentTab === 'journal' ? 'default' : 'outline'}
                 size="sm"
-                onClick={() => setActiveTab('journal')}
+                onClick={() => selectTab('journal')}
               >
                 <List className="w-4 h-4 mr-2" />
                 {t('cdr.tabs.journal', 'Журнал')}
               </Button>
               <Button
-                variant={activeTab === 'analytics' ? 'default' : 'outline'}
+                variant={currentTab === 'analytics' ? 'default' : 'outline'}
                 size="sm"
-                onClick={() => setActiveTab('analytics')}
+                onClick={() => selectTab('analytics')}
               >
                 <BarChart3 className="w-4 h-4 mr-2" />
                 {t('cdr.tabs.analytics', 'Аналитика')}
               </Button>
+              <Button
+                variant={currentTab === 'voicemail' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => selectTab('voicemail')}
+              >
+                <Voicemail className="w-4 h-4 mr-2" />
+                {t('cdr.tabs.voicemail', 'Голосовые сообщения')}
+              </Button>
             </Flex>
-            {listData && activeTab === 'journal' && (
+            {listData && currentTab === 'journal' && (
               <Text variant="muted" className="text-sm">
                 ({listData.count})
+              </Text>
+            )}
+            {currentTab === 'voicemail' && (
+              <Text variant="muted" className="text-sm">
+                ({voicemailMessages?.length ?? 0})
               </Text>
             )}
           </Flex>
@@ -153,7 +184,7 @@ const CdrReportPage = memo(() => {
           </div>
         </CardHeader>
         <CardContent className="p-0 flex-1 min-w-0">
-          {activeTab === 'journal' ? (
+          {currentTab === 'journal' ? (
             <div
               className={`${cls.tableScroll} overflow-x-auto`}
               data-testid="hybrid-table"
@@ -169,9 +200,26 @@ const CdrReportPage = memo(() => {
                 onLegsClick={(call: ICdrCall) => setLegsLinkedid(call.linkedid)}
               />
             </div>
-          ) : (
+          ) : currentTab === 'analytics' ? (
             <VStack className="p-4 min-w-0">
               <CdrCharts filters={filters} onDrilldown={handleDrilldown} />
+            </VStack>
+          ) : (
+            <VStack gap="12" className="p-4 min-w-0">
+              {voicemailLoading ? (
+                <Text variant="muted">{t('common.loading', 'Загрузка...')}</Text>
+              ) : (voicemailMessages ?? []).length === 0 ? (
+                <Text variant="muted">{t('cdr.voicemail.empty', 'Нет голосовых сообщений')}</Text>
+              ) : (
+                (voicemailMessages ?? []).map((msg) => (
+                  <Flex key={msg.uid} justify="between" align="center" gap="12">
+                    <Text>{msg.caller_id}</Text>
+                    <Text>{msg.exten}</Text>
+                    <Text variant="muted">{msg.duration_sec ?? 0}s</Text>
+                    <Text variant="muted">{msg.transcript_status}</Text>
+                  </Flex>
+                ))
+              )}
             </VStack>
           )}
         </CardContent>
