@@ -78,8 +78,29 @@ describe('buildConditionExpr ConditionSource (D-22)', () => {
     ]);
     expect(RECORD_STATUS_VALUES).toHaveLength(7);
     expect(RECORD_STATUS_VALUES).toContain('OPERATOR');
-    expect(CONDITION_SOURCES).toHaveLength(5);
-    expect(CONDITION_SOURCES).not.toContain('record_status');
+    expect(CONDITION_SOURCES).toHaveLength(6);
+    expect(CONDITION_SOURCES).toContain('record_status');
+  });
+
+  it('source record_status emits RECORD_STATUS comparison (D-56)', () => {
+    expect(buildConditionExpr({ source: 'record_status', values: ['OPERATOR'] })).toBe(
+      '"${RECORD_STATUS}" = "OPERATOR"',
+    );
+    expect(buildConditionExpr({ source: 'record_status', values: ['DTMF'] })).toBe(
+      '"${RECORD_STATUS}" = "DTMF"',
+    );
+    const operator = buildConditionExpr({ source: 'record_status', values: ['OPERATOR'] });
+    const dtmf = buildConditionExpr({ source: 'record_status', values: ['DTMF'] });
+    expect(operator).not.toBe(dtmf);
+    expect(operator).toContain('${RECORD_STATUS}');
+    expect(dtmf).toContain('${RECORD_STATUS}');
+  });
+
+  it('source record_status drops values not in RECORD_STATUS_VALUES', () => {
+    expect(
+      buildConditionExpr({ source: 'record_status', values: ['OPERATOR', 'BOGUS', 'DTMF'] }),
+    ).toBe('"${RECORD_STATUS}" = "OPERATOR" | "${RECORD_STATUS}" = "DTMF"');
+    expect(buildConditionExpr({ source: 'record_status', values: ['BOGUS'] })).toBe('');
   });
 
   it('source dialstatus matches the legacy DIALSTATUS expression (regression)', () => {
@@ -139,6 +160,7 @@ describe('buildConditionExpr ConditionSource (D-22)', () => {
     [{ source: 'device_state' as const, device: 'PJSIP/e101_42', values: ['BUSY'] }],
     [{ source: 'variable' as const, name: 'MY_VAR', op: 'eq' as const, value: '1' }],
     [{ source: 'http_result' as const, op: 'eq' as const, value: 'ok' }],
+    [{ source: 'record_status' as const, values: ['OPERATOR'] }],
   ])('source %j yields a nonempty expression', (cond) => {
     expect(CONDITION_SOURCES).toContain(cond.source);
     expect(buildConditionExpr(cond).length).toBeGreaterThan(0);

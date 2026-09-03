@@ -1,8 +1,8 @@
 import 'reflect-metadata';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
-import { QUEUESTATUS_VALUES } from '@krasterisk/shared';
-import { RouteConditionDto } from './route-condition.dto';
+import { QUEUESTATUS_VALUES, RECORD_STATUS_VALUES } from '@krasterisk/shared';
+import { CONDITION_SOURCE_DTO, RouteConditionDto } from './route-condition.dto';
 
 async function validateCondition(plain: Record<string, unknown>) {
   const dto = plainToInstance(RouteConditionDto, plain);
@@ -56,6 +56,19 @@ describe('RouteConditionDto (D-22)', () => {
       values: ['BUSY'],
     });
     expect(ok).toHaveLength(0);
+  });
+
+  it('CONDITION_SOURCE_DTO.record_status accepts OPERATOR and rejects unknown values', async () => {
+    expect(CONDITION_SOURCE_DTO).toHaveProperty('record_status');
+    expect(RECORD_STATUS_VALUES).toContain('OPERATOR');
+    const ok = await validateCondition({ source: 'record_status', values: ['OPERATOR'] });
+    expect(ok).toHaveLength(0);
+
+    const dtmf = await validateCondition({ source: 'record_status', values: ['DTMF'] });
+    expect(dtmf).toHaveLength(0);
+
+    const bad = await validateCondition({ source: 'record_status', values: ['NOANSWER'] });
+    expect(bad.length).toBeGreaterThan(0);
   });
 
   it('accepts http_result with a comparison value', async () => {
