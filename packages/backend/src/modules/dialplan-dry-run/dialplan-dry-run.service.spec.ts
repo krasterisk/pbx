@@ -53,6 +53,29 @@ describe('DialplanDryRunService (D-29 linear)', () => {
     });
     expect(result.ivrInputs?.available).toEqual(expect.arrayContaining(['t', 'i', '1']));
   });
+
+  it('returns reask with askedAfterRun when QUEUESTATUS is missing (D-47)', async () => {
+    const result = await service.run(1, {
+      host: 'route',
+      scenario: {},
+      actions: [
+        {
+          id: 'after-queue',
+          type: 'hangup',
+          params: {},
+          condition: { source: 'queuestatus', values: ['TIMEOUT'] },
+        },
+      ],
+    });
+
+    expect(result.reask).toEqual({
+      source: 'queuestatus',
+      keys: ['queuestatus'],
+      askedAfterRun: true,
+      label: 'queuestatus',
+    });
+    expect(result.outcome.kind).toBe('incomplete');
+  });
 });
 
 describe('DialplanDryRunService (D-44 D-46 D-48 cross-entity)', () => {
