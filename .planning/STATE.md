@@ -5,12 +5,12 @@ current_phase: 13
 current_phase_name: custom-voicemail-instead-of-voicemail
 status: executing
 stopped_at: Completed 13-10-PLAN.md
-last_updated: "2026-09-03T04:22:21.354Z"
-state_head: 13044dd85a7e5e3a1a3a0464fab1f9f4b1d7439e
+last_updated: "2026-09-03T05:04:05.864Z"
+state_head: c39d67bb562bf57757195d94a723d54a7b2e88ae
 progress:
   total_phases: 13
   completed_phases: 3
-  total_plans: 130
+  total_plans: 131
   completed_plans: 130
 milestone_name: milestone
 ---
@@ -19,8 +19,8 @@ milestone_name: milestone
 
 ## Current position
 
-Phase: 13 (custom-voicemail-instead-of-voicemail) — EXECUTING
-Plan 13-10 complete: VoicemailAiAdapter read tools (list/get) + AiPlatformModule wire. All 12 phase plans have SUMMARYs. Next: `/gsd-verify-work 13`.
+Phase: 13 (custom-voicemail-instead-of-voicemail) — READY TO EXECUTE
+Gap-closure plan 13-13 ready (D-62 hangup CURL notify + CR-01 token play route). Next: `/gsd-execute-phase 13 --gaps-only`. After that: re-verify, then `/gsd-secure-phase 13`.
 12-17 closed 2026-08-31: M1/M6/M7/M8/M9 approved; M4/M5/M12 deferred (live voice later). Call-group ALTERs already on prod.
 Migrations applied (2026-07-24): `cc_contacts` table + `cc_settings.journal_depth`. Live Asterisk A1/A3 checkpoint still deferred in WINDOWS.md.
 
@@ -313,7 +313,7 @@ Phase 1 — MOH: pending verify.
 
 ## Next GSD command
 
-**Phase 13 plans 13-01…13-12 complete.** Next: **`/gsd-verify-work 13`**. M4/M5/M12 live-voice deferred.
+**Phase 13 gap-closure 13-13 planned.** Next: **`/gsd-execute-phase 13 --gaps-only`**. After execute: re-verify, then `/gsd-secure-phase 13`.
 
 Also open: Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 verify; Phase 8 / 08-11 Android smoke.
 

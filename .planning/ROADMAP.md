@@ -856,7 +856,7 @@ Plans:
 - `packages/backend/src/modules/reports/cdr/` — `hasRecording`/`streamRecording`/access-scope, на которые садится вкладка сообщений
 - `packages/backend/src/modules/stt-engines/`, `packages/backend/src/modules/ai-agents/`
 
-**Status:** In Progress (2026-09-03) — 12/12 plans executed (13-01…13-12 SUMMARY); ready for `/gsd-verify-work 13`; 12 plans / 8 waves; checker PASSED
+**Status:** Ready to execute (2026-09-03) — 12/12 executed; gap-closure **13-13** planned (D-62 + CR-01); next `/gsd-execute-phase 13 --gaps-only`; 13 plans / 9 waves; checker PASSED
 
 **Plans:**
 
@@ -872,8 +872,9 @@ Plans:
 - [x] 13-07-PLAN.md — Wave 5: @Interval scanner, two status axes, STT/LLM
 - [x] 13-08-PLAN.md — Wave 6: JWT stream + Surface L details
 - [x] 13-10-PLAN.md — Wave 7: VoicemailAiAdapter (read-only)
+- [ ] 13-13-PLAN.md — Wave 8: gap-closure D-62 hangup CURL notify + CR-01 `/voicemail/play` route order
 
-**Waves:** W0 {13-01} · W1 {13-02, 13-03} · W2 {13-04, 13-11} · W3 {13-05, 13-09, 13-12} · W4 {13-06} · W5 {13-07} · W6 {13-08} · W7 {13-10}
+**Waves:** W0 {13-01} · W1 {13-02, 13-03} · W2 {13-04, 13-11} · W3 {13-05, 13-09, 13-12} · W4 {13-06} · W5 {13-07} · W6 {13-08} · W7 {13-10} · W8 {13-13}
 **Depends on:** Phase 12 (типизация `params`, `RECORD_STATUS` в расширенных условиях D-22, слияние notify D-28)
 
 **Goal:** Заменить приложение Asterisk `VoiceMail()` собственной голосовой почтой: опциональное приветствие → `Record()` → уведомление через `notify` → расшифровка и саммаризация через `stt-engines` + LLM. Доступ к сообщениям — вкладка/фильтр в CDR-отчёте с кнопкой «Детализация» и плеером. Старый тип действия `voicemail` — hard-remove с миграцией существующих шагов.
