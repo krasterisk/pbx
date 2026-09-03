@@ -920,7 +920,7 @@ Plans:
 
 **Depends on:** Phase 12 (типизированный контракт редактора и корректный генератор `actionToDialplan` — основание и для схемы, и для симуляции)
 
-**Plans:** 7/10 plans executed
+**Plans:** 8/10 plans executed
 
 Plans:
 
@@ -933,7 +933,7 @@ Plans:
 - [ ] 14-07-PLAN.md
 - [x] 14-08-PLAN.md
 - [ ] 14-09-PLAN.md
-- [ ] 14-10-PLAN.md
+- [x] 14-10-PLAN.md
 - [x] `14-01-PLAN.md` — Wave 0: specs walk/hop/reask + action-reference scaffold
 - [ ] `14-02-PLAN.md` — Wave 1: индекс ссылок backend + delete 409 (tracer IVR)
 - [x] `14-03-PLAN.md` — Wave 2: блок-схема route+IVR + react-to-print (tracer Schema tab)
@@ -943,7 +943,7 @@ Plans:
 - [ ] `14-07-PLAN.md` — Wave 5: шаблоны FE — footer, dialogs, `/route-templates` + RouteTemplateFormModal (depends 14-06 i18n)
 - [x] `14-08-PLAN.md` — Wave 3: callback ActionType + scanner + cc_settings + operator REST list/claim/cancel
 - [ ] `14-09-PLAN.md` — Wave 6: callback UI — настройки CC, operator/supervisor chrome (depends 14-06/14-07 i18n + 14-08 API)
-- [ ] `14-10-PLAN.md` — Wave 4: вкладки «Где используется» + delete precheck
+- [x] `14-10-PLAN.md` — Wave 4: вкладки «Где используется» + delete precheck
 
 **GSD workflow:** `/gsd-discuss-phase 14` ✅ → `/gsd-ui-phase 14` ✅ (`14-UI-SPEC.md`: схема на двух хостах, сквозной прогон сегментами, раздел шаблонов, настройки и заявки callback, «Где используется») → `/gsd-plan-phase 14` ✅ → `/gsd-execute-phase 14` → `/gsd-verify-work 14`
 
