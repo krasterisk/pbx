@@ -4,14 +4,14 @@ milestone: v1.0
 current_phase: 13
 current_phase_name: custom-voicemail-instead-of-voicemail
 status: executing
-stopped_at: Completed 13-12-PLAN.md
-last_updated: "2026-09-03T02:59:46.490Z"
-state_head: c21ba472088c951d276c97a05887aef02f4a6670
+stopped_at: Completed 13-06-PLAN.md
+last_updated: "2026-09-03T03:16:49.227Z"
+state_head: d0fc1f069b8e90dbdd083d3478619ff09d97203e
 progress:
   total_phases: 13
   completed_phases: 3
   total_plans: 130
-  completed_plans: 126
+  completed_plans: 127
 milestone_name: milestone
 ---
 
@@ -20,7 +20,7 @@ milestone_name: milestone
 ## Current position
 
 Phase: 13 (custom-voicemail-instead-of-voicemail) — EXECUTING
-Plan 13-12 complete: Surface L CDR tab + shared voicemail filter (D-58 chrome). Wave 3 done. Remaining: 13-06 notify, 13-07 STT, 13-08 details, 13-10 adapter.
+Plan 13-06 complete: Nest-side first notify attach under 2 MiB / token link + D-66 fallback. Remaining: 13-07 STT, 13-08 details, 13-10 adapter.
 12-17 closed 2026-08-31: M1/M6/M7/M8/M9 approved; M4/M5/M12 deferred (live voice later). Call-group ALTERs already on prod.
 Migrations applied (2026-07-24): `cc_contacts` table + `cc_settings.journal_depth`. Live Asterisk A1/A3 checkpoint still deferred in WINDOWS.md.
 
@@ -267,6 +267,10 @@ Phase 1 — MOH: pending verify.
 - [Phase 13]: Tab and checkbox share search-param voicemail=1; journal/analytics delete the key
 - [Phase 13]: t(key, fallback) — dirty ru.ts/en.ts not staged
 - [Phase 13]: Chrome list only: no VoicemailDetailsModal, no play-by-token URL (T-13-26)
+- [Phase 13]: Telegram WAV is sendDocument, not sendVoice/sendAudio
+- [Phase 13]: Attach iff fs.stat size is strictly less than 2 MiB; 2 MiB exactly is link-only
+- [Phase 13]: Transport fail sets notify_attempts=1; D-66 success leaves attempts at 0
+- [Phase 13]: Notify params come from ingest body — no new voicemail_messages columns in 13-06
 
 ## Roadmap Evolution
 
@@ -300,7 +304,7 @@ Phase 1 — MOH: pending verify.
 
 ## Next GSD command
 
-**Phase 13 plan 13-12 complete.** Next: **`/gsd-execute-phase 13`** (remaining: 13-06 / 13-07 / 13-08 / 13-10). M4/M5/M12 live-voice deferred.
+**Phase 13 plan 13-06 complete.** Next: **`/gsd-execute-phase 13`** (remaining: 13-07 / 13-08 / 13-10). M4/M5/M12 live-voice deferred.
 
 Also open: Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 verify; Phase 8 / 08-11 Android smoke.
 
@@ -412,9 +416,10 @@ Also open: Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 veri
 | Phase 13 P05 | 9min | 2 tasks | 10 files |
 | Phase 13 P09 | 8 min | 2 tasks | 3 files |
 | Phase 13-custom-voicemail-instead-of-voicemail P12 | 8 min | 2 tasks | 5 files |
+| Phase 13-custom-voicemail-instead-of-voicemail P06 | 12 min | 3 tasks | 17 files |
 
 ## Session
 
-**Last session:** 2026-09-03T02:59:44.110Z
-**Stopped at:** Completed 13-12-PLAN.md
+**Last session:** 2026-09-03T03:16:48.447Z
+**Stopped at:** Completed 13-06-PLAN.md
 **Resume file:** None
