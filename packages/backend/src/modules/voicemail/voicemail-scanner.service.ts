@@ -152,9 +152,25 @@ export class VoicemailScannerService {
     }
   }
 
+  private readStepEngineUids(row: VoicemailMessage): { stt?: number; llm?: number } {
+    const raw = row.notify_dispatch;
+    if (!raw) return {};
+    try {
+      const parsed = JSON.parse(raw) as { stt_engine_uid?: unknown; llm_provider_uid?: unknown };
+      const stt = Number(parsed.stt_engine_uid);
+      const llm = Number(parsed.llm_provider_uid);
+      return {
+        stt: Number.isInteger(stt) && stt > 0 ? stt : undefined,
+        llm: Number.isInteger(llm) && llm > 0 ? llm : undefined,
+      };
+    } catch {
+      return {};
+    }
+  }
+
   private async resolveEngine(row: VoicemailMessage) {
-    const stepUid = Number((row as VoicemailMessage & { stt_engine_uid?: number }).stt_engine_uid);
-    if (Number.isInteger(stepUid) && stepUid > 0) {
+    const stepUid = this.readStepEngineUids(row).stt;
+    if (stepUid != null) {
       try {
         return await this.sttEngines!.findOne(stepUid, row.user_uid);
       } catch {
@@ -167,7 +183,7 @@ export class VoicemailScannerService {
 
   private async pickLlm(row: VoicemailMessage): Promise<CcAiProvider | null> {
     if (!this.aiProviders || !this.llm) return null;
-    const stepUid = Number((row as VoicemailMessage & { llm_provider_uid?: number }).llm_provider_uid);
+    const stepUid = this.readStepEngineUids(row).llm;
     const all = await this.aiProviders.findAll(row.user_uid);
     const httpLlm = all.filter((p) => (
       p.enabled

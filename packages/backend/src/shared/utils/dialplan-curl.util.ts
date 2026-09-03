@@ -38,8 +38,20 @@ export function encodeCurlPayloadValue(value: string): string {
 }
 
 export function extractCurlInvocation(dialplan: string): string {
-  const match = dialplan.match(/\$\{CURL\([^]*?\)\}/);
-  return match?.[0] ?? '';
+  const start = dialplan.indexOf('${CURL(');
+  if (start < 0) return '';
+  let depth = 0;
+  for (let i = start + 2; i < dialplan.length; i++) {
+    const ch = dialplan[i];
+    if (ch === '(') depth += 1;
+    else if (ch === ')') {
+      depth -= 1;
+      if (depth === 0 && dialplan[i + 1] === '}') {
+        return dialplan.slice(start, i + 2);
+      }
+    }
+  }
+  return '';
 }
 
 export function decodeCurlPostData(curlInvocation: string): Record<string, string> {

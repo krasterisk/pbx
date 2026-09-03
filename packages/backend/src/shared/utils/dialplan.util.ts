@@ -704,13 +704,29 @@ export class AsteriskDialplanUtils {
     lines.push('Set(CHANNEL(hangup_handler_pop)=)');
     lines.push(`Goto(${doneCtx},s,1)`);
 
-    const curl = buildCurlCall('voicemail', {
+    const curlPayload: Record<string, string> = {
       uniqueid: '${UNIQUEID}',
       file: '${RECORDED_FILE}',
       status: '${RECORD_STATUS}',
       clid: '${CALLERID(num)}',
       exten: '${EXTEN}',
-    }, this.curlCtx(vpbxUserUid));
+    };
+    const notify = params.notify && typeof params.notify === 'object' && !Array.isArray(params.notify)
+      ? params.notify as Record<string, unknown>
+      : {};
+    if (notify.integration_uid) {
+      curlPayload.integration_uid = this.sanitizeDialplanInput(String(notify.integration_uid));
+    }
+    if (notify.body) curlPayload.body = this.sanitizeDialplanInput(String(notify.body));
+    if (notify.target) curlPayload.target = this.sanitizeDialplanInput(String(notify.target));
+    if (notify.subject) curlPayload.subject = this.sanitizeDialplanInput(String(notify.subject));
+    if (params.stt_engine_uid) {
+      curlPayload.stt_engine_uid = this.sanitizeDialplanInput(String(params.stt_engine_uid));
+    }
+    if (params.llm_provider_uid) {
+      curlPayload.llm_provider_uid = this.sanitizeDialplanInput(String(params.llm_provider_uid));
+    }
+    const curl = buildCurlCall('voicemail', curlPayload, this.curlCtx(vpbxUserUid));
 
     const extra = [
       `[${doneCtx}]`,

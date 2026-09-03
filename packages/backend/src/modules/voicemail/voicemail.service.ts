@@ -30,12 +30,14 @@ const FIRST_NOTIFY_RETRY_MS = 60_000;
 export const UNIQUEID_ALLOW = /^[A-Za-z0-9._-]{1,128}$/;
 
 export type NotifyDispatchCtx = {
-  integration_uid: number;
+  integration_uid?: number;
   body?: string;
   target?: string;
   subject?: string;
   clid?: string;
   exten?: string;
+  stt_engine_uid?: number;
+  llm_provider_uid?: number;
 };
 
 export type VoicemailIngestBody = {
@@ -51,6 +53,8 @@ export type VoicemailIngestBody = {
   body?: string;
   target?: string;
   subject?: string;
+  stt_engine_uid?: string | number;
+  llm_provider_uid?: string | number;
 };
 
 export function sanitizeUniqueid(raw?: string): string | null {
@@ -269,16 +273,21 @@ export class VoicemailService {
     }
 
     const integrationUid = parseTenantUid(body.integration_uid);
-    const notifyDispatch = integrationUid == null
-      ? null
-      : JSON.stringify({
-          integration_uid: integrationUid,
-          body: body.body,
-          target: body.target,
-          subject: body.subject,
-          clid: body.clid,
-          exten: body.exten,
-        } satisfies NotifyDispatchCtx);
+    const sttEngineUid = parseTenantUid(body.stt_engine_uid);
+    const llmProviderUid = parseTenantUid(body.llm_provider_uid);
+    const snapshot: NotifyDispatchCtx = {
+      ...(integrationUid != null ? { integration_uid: integrationUid } : {}),
+      body: body.body,
+      target: body.target,
+      subject: body.subject,
+      clid: body.clid,
+      exten: body.exten,
+      ...(sttEngineUid != null ? { stt_engine_uid: sttEngineUid } : {}),
+      ...(llmProviderUid != null ? { llm_provider_uid: llmProviderUid } : {}),
+    };
+    const notifyDispatch = (integrationUid != null || sttEngineUid != null || llmProviderUid != null)
+      ? JSON.stringify(snapshot)
+      : null;
 
     const row = await this.messages.create({
       user_uid: userUid,
@@ -288,7 +297,7 @@ export class VoicemailService {
       transcript_status: 'pending',
       notify_attempts: 0,
       transcript_attempts: 0,
-      next_notify_at: null,
+      next_notify_at: integrationUid != null ? new Date() : null,
       scan_locked_until: null,
       notify_dispatch: notifyDispatch,
     });

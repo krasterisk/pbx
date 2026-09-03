@@ -1,6 +1,8 @@
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
+import { AsteriskDialplanUtils } from '../../shared/utils/dialplan.util';
+import { decodeCurlPostData, extractCurlInvocation } from '../../shared/utils/dialplan-curl.util';
 import { VoicemailService, safeVoicemailFilePath } from './voicemail.service';
 
 describe('safeVoicemailFilePath', () => {
@@ -223,6 +225,62 @@ describe('VoicemailService.ingest first notify (D-62 / D-64 / D-65 / D-66)', () 
     await service.ingest(ingestBody);
     expect((service as any).transcribe).toBeUndefined();
     expect((service as any).summarize).toBeUndefined();
+  });
+
+  it('persists notify_dispatch from generated hangup CURL and sets next_notify_at', async () => {
+    writeWav(100);
+    const dp = AsteriskDialplanUtils.actionToDialplan(
+      {
+        type: 'voicemail',
+        params: {
+          notify: {
+            integration_uid: 15,
+            body: 'New voicemail',
+            target: 'ops',
+            subject: 'VM',
+          },
+          stt_engine_uid: 3,
+          llm_provider_uid: 8,
+        },
+        condition: {},
+      },
+      42,
+    );
+    const handlerIdx = dp.indexOf('krsk-vm-done-42');
+    const decoded = decodeCurlPostData(extractCurlInvocation(dp.slice(handlerIdx)));
+    const before = Date.now();
+    await service.ingest({
+      uniqueid,
+      file: fileRel,
+      status: 'HANGUP',
+      clid: '79001234567',
+      exten: '100',
+      vpbx_user_uid: 42,
+      integration_uid: decoded.integration_uid,
+      body: decoded.body,
+      target: decoded.target,
+      subject: decoded.subject,
+      stt_engine_uid: decoded.stt_engine_uid,
+      llm_provider_uid: decoded.llm_provider_uid,
+    });
+    const after = Date.now();
+
+    expect(decoded.integration_uid).toBe('15');
+    const createdRow = messages.create.mock.calls[0][0];
+    expect(createdRow.next_notify_at).toBeInstanceOf(Date);
+    expect(createdRow.next_notify_at.getTime()).toBeGreaterThanOrEqual(before - 50);
+    expect(createdRow.next_notify_at.getTime()).toBeLessThanOrEqual(after + 50);
+    const snap = JSON.parse(createdRow.notify_dispatch);
+    expect(snap).toEqual(expect.objectContaining({
+      integration_uid: 15,
+      body: 'New voicemail',
+      target: 'ops',
+      subject: 'VM',
+      stt_engine_uid: 3,
+      llm_provider_uid: 8,
+    }));
+    expect(dispatcher.dispatch).toHaveBeenCalled();
+    expect((service as any).transcribe).toBeUndefined();
   });
 });
 

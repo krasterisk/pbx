@@ -45,4 +45,19 @@ describe('buildCurlCall', () => {
     const payload = decodeCurlPostData(curl);
     expect(payload.note).toBe('a"b\nc;d');
   });
+
+  it('extracts the full CURL when payload contains nested URIENCODE(${VAR})', () => {
+    const line = buildCurlCall(
+      'voicemail',
+      {
+        uniqueid: '${UNIQUEID}',
+        integration_uid: '15',
+      },
+      ctx,
+    );
+    const curl = extractCurlInvocation(line);
+    const payload = decodeCurlPostData(curl);
+    expect(payload.uniqueid).toBe('${URIENCODE(${UNIQUEID})}');
+    expect(payload.integration_uid).toBe('15');
+  });
 });

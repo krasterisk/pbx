@@ -1021,6 +1021,42 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       });
     });
 
+    describe('voicemail D-62 hangup notify fields', () => {
+      const handlerPayload = (params: Record<string, unknown>) => {
+        const dp = AsteriskDialplanUtils.actionToDialplan(
+          { type: 'voicemail', params, condition: {} },
+          vpbx,
+        );
+        const handlerIdx = dp.indexOf(`krsk-vm-done-${vpbx}`);
+        expect(handlerIdx).toBeGreaterThanOrEqual(0);
+        return decodeCurlPostData(extractCurlInvocation(dp.slice(handlerIdx)));
+      };
+
+      it('stamps notify and step engine uids onto the hangup-handler CURL', () => {
+        const payload = handlerPayload({
+          notify: {
+            integration_uid: 15,
+            body: 'New voicemail',
+            target: 'ops',
+            subject: 'VM',
+          },
+          stt_engine_uid: 3,
+          llm_provider_uid: 8,
+        });
+        expect(payload.integration_uid).toBe('15');
+        expect(payload.body).toBe('New voicemail');
+        expect(payload.target).toBe('ops');
+        expect(payload.subject).toBe('VM');
+        expect(payload.stt_engine_uid).toBe('3');
+        expect(payload.llm_provider_uid).toBe('8');
+      });
+
+      it('omits integration_uid when notify is missing', () => {
+        const payload = handlerPayload({ max_duration: 120 });
+        expect(payload).not.toHaveProperty('integration_uid');
+      });
+    });
+
     it('text2speech emits CURL to internal tts then Playback of the result (D-30)', () => {
       const prevUrl = AsteriskDialplanUtils.backendBaseUrl;
       const prevKey = AsteriskDialplanUtils.dialplanApiKey;

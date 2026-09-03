@@ -278,4 +278,21 @@ describe('VoicemailScannerService transcript axis (D-60 / D-63 / D-70 / D-71)', 
     expect(row.transcript_attempts).toBe(0);
     expect(row.notify_status).toBe('sent');
   });
+
+  it('uses stt_engine_uid from notify_dispatch before tenant default (D-63)', async () => {
+    row.notify_dispatch = JSON.stringify({ stt_engine_uid: 3 });
+    sttEngines.findOne.mockResolvedValue({ uid: 3, type: 'custom', user_uid: 42 });
+    sttEngines.findAll.mockResolvedValue([{ uid: 9, type: 'custom', user_uid: 42 }]);
+    writeWav(buildWav({}));
+    sttFactory.transcribe.mockResolvedValue({ text: 'ok' });
+
+    await scanner.scanOnce();
+
+    expect(sttEngines.findOne).toHaveBeenCalledWith(3, 42);
+    expect(sttFactory.transcribe).toHaveBeenCalledWith(
+      expect.objectContaining({ uid: 3 }),
+      expect.any(Buffer),
+      'ru-RU',
+    );
+  });
 });
