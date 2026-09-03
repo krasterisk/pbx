@@ -65,9 +65,9 @@ TableRowActions, Tabs, TagInput, Text, Textarea, Tooltip, WebhookAuthConfig.
 | Панель агента | custom fixed panel + overlay (как сейчас) **или** `Sheet` side=right | Не модальный `Dialog` на весь экран. Шире текущего 420px — см. Surface B |
 | Список тредов | `ScrollArea` + строки (`Button`/`HStack`) | Не `DataTable` — список диалогов, без сортировки колонок |
 | Сообщения | существующий `features/ai-chat/ui/ChatMessage` + markdown | Расширить: встроенная DiffConfirmCard |
-| Карточка диффа | `Card` + `Badge` + `Button` | Primary «Применить», ghost/outline «Отклонить» |
-| Прогресс шагов | `Progress` (опционально) + строка текста Label | D-09: прогресс строкой + Стоп |
-| Стоп / Отправить | `Button` `size="icon"` | Во время стрима — Стоп (не Send) |
+| Карточка диффа | `Card` + `Badge` + `Button` | Primary «Применить изменения», ghost/outline «Отклонить изменения» |
+| Прогресс шагов | `Progress` (опционально) + строка текста Label | D-09: прогресс строкой + «Остановить ответ» |
+| Стоп / Отправить | `Button` `size="icon"` | Во время стрима — «Остановить ответ» (не Send) |
 | Budget cue (admin) | `Text variant="muted"` + опционально `Badge` | Только админ; не акцентная CTA |
 | Загрузка тредов | `Skeleton` / `Loader` | |
 | Подтверждение очистки / отклонения | `Dialog` при destructive clear thread | |
@@ -134,8 +134,8 @@ Exceptions:
 |------|-------|-------|
 | Dominant (60%) | `var(--color-background)` `#09090b` | Затемнение overlay; фон страницы за панелью |
 | Secondary (30%) | `var(--color-card)` `#0a0a0f` + `var(--color-border)` `#27272a` | Панель агента, thread rail, bubble user (muted mix), карточка диффа в покое |
-| Accent (10%) | `var(--color-primary)` `#6366f1` | **Только:** активный триггер агента (открыт / focus), primary CTA «Применить» и «Отправить», focus-ring, индикатор стриминга (точка/полоска), выбранный тред (левая 2px полоса или фон `color-mix(primary 12%)`) |
-| Destructive | `var(--color-destructive)` `#ef4444` | «Отклонить» (текст/outline), ошибка стрима, удаление треда, баннер ошибки |
+| Accent (10%) | `var(--color-primary)` `#6366f1` | **Только:** активный триггер агента (открыт / focus), primary CTA «Применить изменения» и «Отправить сообщение», focus-ring, индикатор стриминга (точка/полоска), выбранный тред (левая 2px полоса или фон `color-mix(primary 12%)`) |
+| Destructive | `var(--color-destructive)` `#ef4444` | «Отклонить изменения» (текст/outline), ошибка стрима, удаление треда, баннер ошибки |
 | Warning | `var(--color-warning)` `#f59e0b` | Бейдж «Ожидает подтверждения» на дифф-карточке; приближение к soft budget cue у админа (**не** hard limit) |
 | Success | `var(--color-success)` `#22c55e` | Дифф применён; tool_result ok; статус «Готов» в header |
 | Info | `var(--color-info)` `#3b82f6` | Нейтральные tool-call chips в процессе (опционально); не для CTA |
@@ -163,12 +163,13 @@ Accent **зарезервирован** и не протекает в: idle topb
 | Статус idle | Готов | Ready |
 | Статус streaming | Думаю… | Thinking… |
 | Статус tools | Выполняю шаг {{current}} из {{max}}… | Running step {{current}} of {{max}}… |
-| Закрыть | Закрыть | Close |
-| Новый тред | Новый разговор | New chat |
+| Закрыть панель | Закрыть панель | Close panel |
+| Новый тред | Новый разговор | New conversation |
 | Список тредов (heading) | Разговоры | Conversations |
+| Threads toggle aria/tooltip | Список разговоров | Conversation list |
 | Input placeholder | Спросите о настройке АТС… | Ask about PBX setup… |
-| Send | Отправить | Send |
-| **Stop** | Стоп | Stop |
+| Send message | Отправить сообщение | Send message |
+| **Stop generating** | Остановить ответ | Stop generating |
 | Disclaimer | AI может ошибаться. Проверяйте критические изменения. | AI can make mistakes. Review critical changes. |
 | Welcome (empty thread) | Привет! Я помогу настроить АТС: абоненты, транки, IVR, маршруты, справочники и очереди. Опишите задачу своими словами. | Hi! I can help set up the PBX: extensions, trunks, IVR, routes, directories, and queues. Describe the task in your own words. |
 
@@ -186,12 +187,12 @@ Suggestions (empty thread chips) — i18n keys, не хардкод RU в ком
 | Element | ru | en |
 |---------|----|-----|
 | Empty state heading | Пока нет разговоров | No conversations yet |
-| Empty state body | Начните новый разговор — история сохранится и будет доступна после перезагрузки. | Start a new chat — history is saved and available after reload. |
+| Empty state body | Начните новый разговор. История сохранится и будет доступна после перезагрузки. | Start a new chat. History is saved and available after reload. |
 | Thread untitled | Без названия | Untitled |
 | Delete thread | Удалить разговор | Delete conversation |
 | Destructive confirmation | Удалить разговор? Сообщения этого разговора будут удалены. | Delete this conversation? Its messages will be removed. |
-| Confirm delete | Удалить | Delete |
-| Cancel | Отмена | Cancel |
+| Confirm delete | Удалить разговор | Delete conversation |
+| Keep conversation | Оставить разговор | Keep conversation |
 | Loading threads | Загрузка разговоров… | Loading conversations… |
 | Error threads | Не удалось загрузить разговоры. Попробуйте ещё раз. | Could not load conversations. Try again. |
 
@@ -205,10 +206,10 @@ Suggestions (empty thread chips) — i18n keys, не хардкод RU в ком
 | Badge rejected | Отклонено | Rejected |
 | Badge denied | Недостаточно прав | Permission denied |
 | Summary lead | Вот что изменится: | Here is what will change: |
-| Apply CTA | Применить | Apply |
+| Apply CTA | Применить изменения | Apply changes |
 | Apply hint (tooltip) | Сохранит в базу и применит на АТС | Saves to the database and applies on the PBX |
-| Reject CTA | Отклонить | Reject |
-| Applying | Применяю… | Applying… |
+| Reject CTA | Отклонить изменения | Reject changes |
+| Applying | Применяю изменения… | Applying changes… |
 | Apply success | Изменения применены | Changes applied |
 | Apply error | Не удалось применить. {{reason}} | Could not apply. {{reason}} |
 | Empty diff (should not ship) | Нет изменений для применения | Nothing to apply |
@@ -218,7 +219,7 @@ Suggestions (empty thread chips) — i18n keys, не хардкод RU в ком
 | Element | ru | en |
 |---------|----|-----|
 | Error state | Не удалось получить ответ. Проверьте сеть и повторите. | Could not get a reply. Check the network and retry. |
-| Retry | Повторить | Retry |
+| Retry request | Повторить запрос | Retry request |
 | Stopped by user | Остановлено | Stopped |
 | Step ceiling reached | Достигнут лимит шагов. Уточните задачу или начните новый разговор. | Step limit reached. Narrow the task or start a new chat. |
 | Permission denied (agent=human RBAC) | У вас нет прав на это действие. | You do not have permission for this action. |
@@ -263,6 +264,8 @@ Suggestions (empty thread chips) — i18n keys, не хардкод RU в ком
 
 ### Surface B — Agent panel redesign (D-23, D-25)
 
+**Focal point (primary screen):** лента сообщений + поле ввода. Когда в ленте есть pending diff-карточка, фокус внимания и клавиатурный tab-stop смещаются на карточку «Применить изменения» (не на Send).
+
 **Layout desktop (≥768):** fixed right sheet-panel, width **520px** (подтверждено), full viewport height under (or including) topbar — панель может начинаться от `top: 0` как сейчас. Внутри:
 
 ```
@@ -275,13 +278,15 @@ Suggestions (empty thread chips) — i18n keys, не хардкод RU в ком
 [ Admin usage strip — only if platform admin ]
 ```
 
+**threads-toggle:** icon-only `Button`; обязательны `aria-label` и `Tooltip` из строки «Список разговоров» / «Conversation list».
+
+**Dismiss / a11y:** `Escape` закрывает панель (и не удаляет тред). Пока панель открыта — **focus trap** внутри панели (Tab циклит header → messages → input → footer). Overlay click закрывает панель (как сейчас), не сбрасывает тред. Softphone поверх панели по z-index остаётся достижим кликом вне trap только через toast layer — входящий звонок не блокируется.
+
 **Убрать из tenant header:** `Select` модели (D-07 / D-25). Модель — только platform admin settings (существующие `/ai-agents` providers + расширение `AiChatSettingsCard` / platform console — plan выбирает точный mount; UI-контракт: **в панели чата модели нет**).
 
 **Overlaps:** header controls не должны наезжать друг на друга: min gaps sm (8px); на узкой панели secondary actions в `DropdownMenu` «⋯».
 
 **Mobile (<768):** panel `width: 100vw`; thread list — полноэкранный subview или Sheet поверх панели (не две колонки). Input выше bottom-nav inset.
-
-**Overlay click:** закрывает панель (как сейчас), не сбрасывает тред.
 
 ### Surface C — Conversational threads (D-26)
 
@@ -303,9 +308,9 @@ Suggestions (empty thread chips) — i18n keys, не хардкод RU в ком
 - Заголовок + badge статуса
 - 3–8 bullet summary на языке пользователя (что создаётся / меняется / удаляется) — **не** raw JSON dump
 - Опционально `<details>` «Подробности» с моно id/полей для power users
-- Кнопки **Применить** | **Отклонить**
+- Кнопки **Применить изменения** | **Отклонить изменения**
 
-**Apply:** один confirm → DB write + Asterisk/Krasterisk reload path (D-20). Кнопка disabled + «Применяю…» на время мутации. Успех → badge Applied, кнопки скрыть. Ошибка → banner + Retry apply.
+**Apply:** один confirm → DB write + Asterisk/Krasterisk reload path (D-20). Кнопка disabled + «Применяю изменения…» на время мутации. Успех → badge Applied, кнопки скрыть. Ошибка → banner + «Повторить запрос».
 
 **Reject:** статус Rejected, кнопки скрыть; агент может предложить альтернативу в следующем сообщении.
 
@@ -319,7 +324,7 @@ Suggestions (empty thread chips) — i18n keys, не хардкод RU в ком
 - Thinking dots пока нет текста и нет tools
 - Tool rows: человекочитаемый label + spinner / check / alert
 - **Progress line:** «Выполняю шаг N из M…» (M = step ceiling; точное M — discretion backend, UI показывает оба числа когда известны)
-- **Стоп** заменяет Send на время стрима; abort через существующий `AbortController`
+- **«Остановить ответ»** заменяет Send на время стрима; abort через существующий `AbortController`
 - После stop — частичный ответ остаётся; статус Stopped
 
 ### Surface F — Admin budget / usage cues (D-08)
