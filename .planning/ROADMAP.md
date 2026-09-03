@@ -856,9 +856,11 @@ Plans:
 - `packages/backend/src/modules/reports/cdr/` — `hasRecording`/`streamRecording`/access-scope, на которые садится вкладка сообщений
 - `packages/backend/src/modules/stt-engines/`, `packages/backend/src/modules/ai-agents/`
 
-**Status:** Executed (2026-09-03) — 13/13 plans complete including gap-closure **13-13** (D-62 + CR-01/D-59); next `/gsd-verify-work 13` then `/gsd-secure-phase 13`; 13 plans / 9 waves
+**Status:** Complete (2026-09-03) — 13/13 plans; verify `passed` 19/19; security SECURED 28/28; live Asterisk notify deferred (как Phase 12 M4/M5/M12)
 
 **Plans:**
+
+13/13 plans complete
 
 - [x] 13-01-PLAN.md — Wave 0: RED D-55 spec + RECORD_STATUS + parseWavPcm16
 - [x] 13-02-PLAN.md — Wave 1: D-72 path gate + types + generator (push/pop/`k`)

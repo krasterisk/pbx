@@ -36,6 +36,7 @@ Brownfield: код и модули уже существуют; GSD-планы �
 |----------|-----------|---------|
 | ARCHITECTURE.md в `packages/*/\.idea/` | Раздельные правила FE/BE | ✓ Good |
 | GSD canonical refs в `.planning/` | discuss-phase читает PROJECT + ROADMAP | ✓ Good |
+| Кастомная голосовая почта вместо `VoiceMail()` | Record + hangup CURL + Nest notify/STT/LLM; ActionType остаётся `voicemail` | ✓ Phase 13 |
 
 ---
-*Last updated: 2026-06-04 — canonical architecture refs for GSD*
+*Last updated: 2026-09-03 — Phase 13 custom voicemail shipped*
