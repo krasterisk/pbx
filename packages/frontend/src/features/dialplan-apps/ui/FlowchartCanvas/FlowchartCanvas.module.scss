@@ -1,0 +1,240 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.counter {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--color-muted-foreground);
+}
+
+.printButton {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.canvas {
+  max-height: 60vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  margin: 0;
+  padding: 12px;
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md, 8px);
+}
+
+.caption {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: minmax(240px, 360px) 32px 1fr;
+  align-items: start;
+  row-gap: 0;
+}
+
+.spineCell {
+  min-width: 0;
+}
+
+.gutter {
+  position: relative;
+  min-height: 8px;
+}
+
+.branchCell {
+  min-width: 0;
+  padding-top: 8px;
+}
+
+.node {
+  position: relative;
+  padding: 12px 14px;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md, 8px);
+  color: var(--color-foreground);
+}
+
+.nodeConditional {
+  border-style: dashed;
+  border-color: var(--color-warning, var(--color-primary));
+}
+
+.stepNumber {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--color-muted-foreground);
+}
+
+.nodeTitle {
+  margin: 4px 0 0;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.nodeSummary {
+  margin: 4px 0 0;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.4;
+  color: var(--color-muted-foreground);
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.connector {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 4px 0 4px 20px;
+}
+
+.spineLine {
+  width: 2px;
+  min-height: 20px;
+  margin-left: 7px;
+  background: var(--color-border);
+}
+
+.edgeLabel {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--color-muted-foreground);
+}
+
+.branchLane {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 12px;
+  border-left: 2px dashed var(--color-border);
+}
+
+.branchNode {
+  composes: node;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--color-info, var(--color-primary));
+  background: var(--color-muted);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+}
+
+.empty {
+  padding: 24px 12px;
+  text-align: center;
+}
+
+.emptyTitle {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.emptyBody {
+  margin: 8px 0 0;
+  font-size: 14px;
+  color: var(--color-muted-foreground);
+}
+
+.printHidden {
+  /* screen-only chrome; print rules hide this */
+}
+
+@media (max-width: 640px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .gutter {
+    display: none;
+  }
+
+  .branchCell {
+    padding-left: 32px;
+    padding-top: 0;
+    padding-bottom: 12px;
+  }
+}
+
+@media print {
+  @page {
+    margin: 12mm;
+  }
+
+  .printHidden {
+    display: none !important;
+  }
+
+  .canvas {
+    --color-background: #ffffff;
+    --color-card: #ffffff;
+    --color-foreground: #09090b;
+    --color-muted: #f4f4f5;
+    --color-border: #e4e4e7;
+    max-height: none;
+    overflow: visible;
+    border: none;
+    padding: 0;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .caption {
+    position: static;
+    width: auto;
+    height: auto;
+    margin: 0 0 12px;
+    overflow: visible;
+    clip: auto;
+    white-space: normal;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--color-foreground);
+  }
+
+  .node,
+  .branchNode,
+  .branchLane {
+    break-inside: avoid;
+  }
+}

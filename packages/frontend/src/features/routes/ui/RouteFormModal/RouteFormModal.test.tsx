@@ -57,6 +57,10 @@ vi.mock('./RouteWebhooksTab', () => ({
   RouteWebhooksTab: () => <div data-testid="webhooks-tab" />,
 }));
 
+vi.mock('./RouteFlowchartTab', () => ({
+  RouteFlowchartTab: () => <div data-testid="flowchart-tab" />,
+}));
+
 import { RouteFormModal } from './RouteFormModal';
 
 const selectedRoute = {
@@ -147,5 +151,17 @@ describe('RouteFormModal raw_dialplan payload (D-16)', () => {
       },
     ]);
     expect(JSON.stringify(arg.data.bindings)).not.toMatch(/phonebook/i);
+  });
+
+  it('shows the Schema tab last when routes.show_flowchart is on', () => {
+    renderModal();
+    const schema = screen.getByRole('button', { name: 'Схема' });
+    expect(schema).toBeInTheDocument();
+    const tabLabels = ['Основные', 'Действия', 'Справочники', 'Вебхуки', 'Схема'];
+    const tabButtons = tabLabels.map((label) => screen.getByRole('button', { name: label }));
+    const order = tabButtons.map((btn) => (
+      btn.compareDocumentPosition(tabButtons[tabButtons.length - 1])
+    ));
+    expect(order.slice(0, -1).every((pos) => pos & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
   });
 });

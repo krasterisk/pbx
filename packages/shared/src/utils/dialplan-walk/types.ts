@@ -37,8 +37,15 @@ export interface WalkResolvedIvr {
   menu_items: WalkMenuItem[];
 }
 
+export interface WalkResolvedRoute {
+  uid: number;
+  name?: string;
+  actions: WalkAction[];
+}
+
 export type WalkResolveIvr = (ivrUid: number) => WalkResolvedIvr | undefined;
 export type WalkResolveRoutesInContext = (contextName: string) => ExactRouteCandidate[];
+export type WalkResolveRoute = (routeUid: number) => WalkResolvedRoute | undefined;
 
 /** ConditionSource kind → preset value supplied by the dry-run form. */
 export type WalkScenarioValues = Partial<Record<ConditionSourceKind | string, string>>;
@@ -50,8 +57,11 @@ export interface WalkDialplanOptions {
   scenario?: WalkScenarioValues;
   /** Digit chosen on the IVR host (and on each entered IVR segment unless overridden). */
   ivrChoice?: string;
+  /** Caller number for ValueSource current_caller / original_caller / route_pattern. */
+  callerNumber?: string;
   resolveIvr?: WalkResolveIvr;
   resolveRoutesInContext?: WalkResolveRoutesInContext;
+  resolveRoute?: WalkResolveRoute;
 }
 
 export interface WalkNode {
@@ -89,6 +99,10 @@ export interface WalkOutcome {
   kind: WalkOutcomeKind;
   reason?: ExactRouteResolveResult['kind'];
   actionType?: string;
+  /** UI-SPEC dry-run copy (e.g. callback_requested). */
+  label?: string;
+  /** Specific D-46 reason string, never a generic "failed". */
+  message?: string;
 }
 
 export interface WalkReask {

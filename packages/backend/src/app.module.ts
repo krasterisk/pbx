@@ -33,6 +33,7 @@ import { KomandorDict } from './modules/komandor-claims/komandor-dict.model';
 import { TimeGroupsModule } from './modules/time-groups/time-groups.module';
 import { DirectoriesModule } from './modules/directories/directories.module';
 import { RouteReferencesModule } from './modules/route-references/route-references.module';
+import { DialplanDryRunModule } from './modules/dialplan-dry-run/dialplan-dry-run.module';
 import { RouteTemplatesModule } from './modules/route-templates/route-templates.module';
 import { RouteTemplate } from './modules/route-templates/route-template.model';
 import { VoicemailModule } from './modules/voicemail/voicemail.module';
@@ -222,6 +223,7 @@ import * as path from 'path';
     TimeGroupsModule,
     DirectoriesModule,
     RouteReferencesModule,
+    DialplanDryRunModule,
     RouteTemplatesModule,
     VoicemailModule,
     CallGroupsModule,

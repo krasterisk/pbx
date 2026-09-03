@@ -62,6 +62,8 @@ export {
   walkDialplanGraph,
   resolveExactRoute,
   isAsteriskPatternExtension,
+  CALLBACK_REQUESTED_LABEL,
+  TOROUTE_REASON_MESSAGES,
 } from './utils/dialplan-walk';
 export type { HopDecision } from './utils/dialplan-walk';
 export type {
@@ -79,8 +81,10 @@ export type {
   WalkOutcomeKind,
   WalkReask,
   WalkResolveIvr,
+  WalkResolveRoute,
   WalkResolveRoutesInContext,
   WalkResolvedIvr,
+  WalkResolvedRoute,
   WalkScenarioValues,
   WalkSegment,
 } from './utils/dialplan-walk';

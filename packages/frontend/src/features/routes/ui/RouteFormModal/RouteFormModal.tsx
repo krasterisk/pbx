@@ -23,6 +23,7 @@ import { RouteActionsTab } from './RouteActionsTab';
 import { mapStepErrors } from '@/features/dialplan-apps';
 import type { MappedStepErrors } from '@/features/dialplan-apps/model/stepErrors';
 import { RouteDirectoriesTab } from './RouteDirectoriesTab';
+import { RouteFlowchartTab } from './RouteFlowchartTab';
 
 function hasIncompleteQueueAction(list: IRouteAction[]): boolean {
   return list.some(
@@ -30,7 +31,15 @@ function hasIncompleteQueueAction(list: IRouteAction[]): boolean {
   );
 }
 
-const TABS = ['general', 'actions', 'directories', 'webhooks'] as const;
+const BASE_TABS = ['general', 'actions', 'directories', 'webhooks'] as const;
+type RouteTab = typeof BASE_TABS[number] | 'flowchart';
+const TAB_FALLBACKS: Record<RouteTab, string> = {
+  general: 'Основные',
+  actions: 'Действия',
+  directories: 'Справочники',
+  webhooks: 'Вебхуки',
+  flowchart: 'Схема',
+};
 
 export const RouteFormModal = memo(() => {
   const { t } = useTranslation();
@@ -38,15 +47,17 @@ export const RouteFormModal = memo(() => {
   const { isModalOpen, selectedRoute, selectedContextUids, modalMode, editorMode } = useAppSelector((s) => s.routes);
   const currentUser = useAppSelector(selectCurrentUser);
   const vpbxUserUid = currentUser?.vpbx_user_uid ?? 0;
-  const { data: tenantSettings } = useGetTenantSettingsQuery();
+  const { data: tenantSettings, isLoading: tenantSettingsLoading } = useGetTenantSettingsQuery();
   const showRawDialplan = tenantSettings?.['routes.show_raw_dialplan'] ?? true;
+  const showFlowchart = !tenantSettingsLoading && (tenantSettings?.['routes.show_flowchart'] ?? true);
 
   const isCreateMode = modalMode === 'create' || modalMode === 'copy';
 
   const [createRoute, { isLoading: isCreating }] = useCreateRouteMutation();
   const [updateRoute, { isLoading: isUpdating }] = useUpdateRouteMutation();
 
-  const [activeTab, setActiveTab] = useState<typeof TABS[number]>('general');
+  const [activeTab, setActiveTab] = useState<RouteTab>('general');
+  const tabs: RouteTab[] = showFlowchart ? [...BASE_TABS, 'flowchart'] : [...BASE_TABS];
   const [contextUid, setContextUid] = useState<number | null>(null);
   const [name, setName] = useState('');
   const [extensions, setExtensions] = useState<string[]>([]);
@@ -265,7 +276,7 @@ export const RouteFormModal = memo(() => {
         {/* Tabs */}
         <VStack className="border-b border-border/50 mb-6 shrink-0" max>
           <HStack gap="8" className="-mb-[1px] flex overflow-x-auto flex-nowrap [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-            {TABS.map((tab) => (
+            {tabs.map((tab) => (
               <Button
                 key={tab}
                 variant="ghost"
@@ -274,7 +285,7 @@ export const RouteFormModal = memo(() => {
                     activeTab === tab ? 'text-primary bg-transparent hover:bg-transparent hover:text-primary' : 'text-muted-foreground bg-transparent hover:text-foreground hover:bg-transparent'
                 }`}
               >
-                {t(`routes.tab.${tab}`, tab)}
+                {t(`routes.tab.${tab}`, TAB_FALLBACKS[tab])}
                 {activeTab === tab && (
                   <VStack className="absolute left-0 right-0 bottom-0 h-[2px] bg-primary rounded-t-[1px]">{''}</VStack>
                 )}
@@ -319,6 +330,14 @@ export const RouteFormModal = memo(() => {
             <RouteWebhooksTab
               webhooksList={webhooksList}
               setWebhooksList={setWebhooksList}
+            />
+          )}
+
+          {activeTab === 'flowchart' && showFlowchart && (
+            <RouteFlowchartTab
+              actions={actions}
+              routeName={name}
+              extensions={extensions}
             />
           )}
         </VStack>

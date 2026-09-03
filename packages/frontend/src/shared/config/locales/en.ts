@@ -393,6 +393,53 @@ export const en = {
       actions: 'Actions (Dialplan)',
       phonebooks: 'Phonebooks',
       directories: 'Directories',
+      flowchart: 'Diagram',
+    },
+    flowchart: {
+      viewOnly: 'The diagram is view only. Actions are edited on the "Actions" tab',
+      draftNote: 'The diagram reflects the current draft, including unsaved changes',
+      print: 'Print',
+      printHint: 'In the print dialog choose "Save as PDF" to get a file',
+      printTitle: 'Diagram of route "{{name}}"',
+      printTitleIvr: 'Diagram of IVR menu "{{name}}"',
+      printedOn: 'Printed on {{date}}',
+      counter: 'Actions: {{count}}',
+      root: {
+        incoming: 'Incoming call',
+        ivr: 'IVR menu "{{name}}"',
+      },
+      edge: {
+        conditionMet: 'Condition met',
+        otherwise: 'Otherwise',
+        next: 'Next',
+        key: 'Key {{digit}}',
+        pattern: 'Dialled matching {{pattern}}',
+        timeout: 'No key pressed',
+        invalid: 'Wrong key pressed',
+        max: 'Menu retries exhausted',
+      },
+      chip: {
+        route: 'Route "{{name}}"',
+        ivr: 'IVR menu "{{name}}"',
+        label: 'Label "{{name}}"',
+        hint: 'The call continues there, this diagram does not follow it further',
+        nested: 'Nested branch',
+      },
+      badge: {
+        endsChain: 'Ends the chain',
+        mayExit: 'May exit the chain',
+        disabled: 'Disabled',
+        unknown: 'Unknown action',
+      },
+      error: {
+        incomplete: 'Fill in the required parameters on the "Actions" tab',
+      },
+      empty: {
+        heading: 'The route has no actions',
+        body: 'Add actions on the "Actions" tab and the diagram will appear here',
+        ivrHeading: 'The menu has no items',
+        ivrBody: 'Add menu items on the "Items" tab and the diagram will appear here',
+      },
     },
     // Phonebook bindings tab (D-08, D-24, D-26)
     phonebooks: {
