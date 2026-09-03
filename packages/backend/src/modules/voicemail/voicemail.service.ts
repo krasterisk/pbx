@@ -87,10 +87,13 @@ export function toRelativeFileRel(userUid: number, uniqueid: string, file?: stri
  */
 export function safeVoicemailFilePath(base: string, rel: string): string | null {
   const cleaned = String(rel ?? '').replace(/^\/+/, '').replace(/\\/g, '/');
-  if (!cleaned || cleaned.includes('..')) return null;
+  if (!cleaned || cleaned.includes('..') || path.isAbsolute(cleaned) || /^[A-Za-z]:/.test(cleaned)) {
+    return null;
+  }
   const baseResolved = path.resolve(base);
   const fileResolved = path.resolve(baseResolved, cleaned);
-  if (!fileResolved.startsWith(baseResolved)) return null;
+  const prefix = baseResolved.endsWith(path.sep) ? baseResolved : baseResolved + path.sep;
+  if (fileResolved !== baseResolved && !fileResolved.startsWith(prefix)) return null;
   return fs.existsSync(fileResolved) ? fileResolved : null;
 }
 

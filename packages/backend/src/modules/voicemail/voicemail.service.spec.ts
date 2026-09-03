@@ -39,6 +39,25 @@ describe('safeVoicemailFilePath', () => {
   it('returns null when the wav file is missing', () => {
     expect(safeVoicemailFilePath(base, '7/voicemail/missing.wav')).toBeNull();
   });
+
+  it('rejects absolute and drive-letter relative paths', () => {
+    const dest = path.join(base, '7', 'voicemail');
+    fs.mkdirSync(dest, { recursive: true });
+    const wav = path.join(dest, 'ok.wav');
+    fs.writeFileSync(wav, 'RIFF');
+    expect(safeVoicemailFilePath(base, wav.replace(/\\/g, '/'))).toBeNull();
+    expect(safeVoicemailFilePath(base, 'C:/usr/records-evil/x.wav')).toBeNull();
+    expect(safeVoicemailFilePath(base, 'C:foo/bar.wav')).toBeNull();
+  });
+
+  it('does not treat a sibling prefix path as inside the base', () => {
+    const sibling = `${base}-evil`;
+    fs.mkdirSync(sibling, { recursive: true });
+    const evil = path.join(sibling, 'x.wav');
+    fs.writeFileSync(evil, 'RIFF');
+    expect(safeVoicemailFilePath(base, evil)).toBeNull();
+    fs.rmSync(sibling, { recursive: true, force: true });
+  });
 });
 
 describe('VoicemailService.mintPlayToken', () => {
