@@ -84,6 +84,11 @@ vi.mock('@/shared/api/endpoints/directoryApi', () => ({
   useGetDirectoryQuery: () => ({ data: undefined, isLoading: false }),
 }));
 
+vi.mock('@/shared/api/endpoints/routeTemplateApi', () => ({
+  useGetRouteTemplatesQuery: () => ({ data: [], isLoading: false }),
+  useApplyRouteTemplateMutation: () => [vi.fn(), { isLoading: false }],
+}));
+
 const specDir = dirname(fileURLToPath(import.meta.url));
 
 function step(id: string, type: ActionType = 'hangup', extras: Partial<IRouteAction> = {}): IRouteAction {
@@ -212,6 +217,35 @@ describe('DialplanAppsEditor', () => {
     const editorSrc = readFileSync(join(specDir, 'DialplanAppsEditor.tsx'), 'utf8');
     expect(editorSrc).not.toMatch(['@dnd-kit', 'modifiers'].join('/'));
     expect(editorSrc).toMatch(/restrictToVerticalAxisLocal/);
+  });
+
+  it('shows template footer buttons only for the route host', () => {
+    const { rerender } = render(
+      <Harness
+        actions={[step('a', 'hangup')]}
+        onChange={vi.fn()}
+        host="route"
+        showTemplateActions
+      />,
+    );
+    expect(screen.getByRole('button', { name: /из шаблона/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /сохранить как шаблон/i })).toBeInTheDocument();
+
+    rerender(
+      <Harness
+        actions={[step('a', 'hangup')]}
+        onChange={vi.fn()}
+        host="ivr"
+        showTemplateActions
+      />,
+    );
+    expect(screen.queryByRole('button', { name: /из шаблона/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /сохранить как шаблон/i })).toBeNull();
+  });
+
+  it('offers From a template in the empty state only for the route host', () => {
+    render(<Harness actions={[]} onChange={vi.fn()} host="route" showTemplateActions />);
+    expect(screen.getByRole('button', { name: /из шаблона/i })).toBeInTheDocument();
   });
 
   it('round-trips an unknown action type without rewriting params', () => {

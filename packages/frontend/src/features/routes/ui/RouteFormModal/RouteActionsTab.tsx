@@ -90,6 +90,7 @@ export const RouteActionsTab = memo(({ actions, setActions, rawDialplan, setRawD
         <>
           <DialplanAppsEditor
             host="route"
+            showTemplateActions
             labels={{ namespace: 'routes.chain' }}
             allowedTypes={allowedTypesForHost('route')}
             actions={actions}

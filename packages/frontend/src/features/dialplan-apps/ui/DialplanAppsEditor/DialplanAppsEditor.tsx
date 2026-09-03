@@ -1,6 +1,6 @@
 import { memo, useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AlertTriangle, ListPlus, Plus } from 'lucide-react';
+import { AlertTriangle, LayoutTemplate, ListPlus, MoreVertical, Plus, Save } from 'lucide-react';
 import {
   DndContext,
   KeyboardSensor,
@@ -23,7 +23,19 @@ import {
   type ActionType,
   type IRouteAction,
 } from '@krasterisk/shared';
-import { Button, Sheet, SheetContent, SheetHeader, SheetTitle, Text, Tooltip } from '@/shared/ui';
+import {
+  Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  Text,
+  Tooltip,
+} from '@/shared/ui';
 import { Flex, VStack } from '@/shared/ui/Stack';
 import { selectCurrentUser } from '@/entities/User';
 import { useAppSelector } from '@/shared/hooks/useAppStore';
@@ -42,6 +54,8 @@ import { StepSheet } from '../StepSheet/StepSheet';
 import { allowedTypesForHost } from '../../model/hostTypes';
 import type { MappedStepErrors } from '../../model/stepErrors';
 import { UnknownActionCard } from '../UnknownActionCard/UnknownActionCard';
+import { ApplyTemplateDialog } from '@/features/route-templates/ui/ApplyTemplateDialog';
+import { useIsMobile } from '@/shared/hooks/useIsMobile';
 import styles from './DialplanAppsEditor.module.scss';
 
 export interface DialplanAppsEditorProps {
@@ -61,6 +75,8 @@ export interface DialplanAppsEditorProps {
   stepErrors?: MappedStepErrors;
   /** Route extensions for live dial-number preview (route_pattern dest). */
   previewPatterns?: string[];
+  /** Template footer CTAs — only RouteActionsTab (host route) sets this. */
+  showTemplateActions?: boolean;
 }
 
 export function restrictToVerticalAxisLocal({
@@ -159,6 +175,7 @@ export const DialplanAppsEditor = memo(function DialplanAppsEditor({
   makeId = () => crypto.randomUUID(),
   stepErrors,
   previewPatterns,
+  showTemplateActions = false,
 }: DialplanAppsEditorProps) {
   const { t, i18n } = useTranslation();
   const currentUser = useAppSelector(selectCurrentUser);
@@ -167,7 +184,11 @@ export const DialplanAppsEditor = memo(function DialplanAppsEditor({
   const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
   const [, setSelectedSection] = useState<StepSection>('params');
   const [undoVisible, setUndoVisible] = useState(false);
+  const [applyOpen, setApplyOpen] = useState(false);
+  const [saveAsOpen, setSaveAsOpen] = useState(false);
   const undoTimer = useRef<number | null>(null);
+  const isMobile = useIsMobile(768);
+  const templateActionsEnabled = showTemplateActions && host === 'route' && !readOnly;
 
   const resolvedAllowed = allowedTypes ?? typesForHost(host);
   const atLimit = maxSteps != null && actions.length >= maxSteps;
@@ -347,9 +368,24 @@ export const DialplanAppsEditor = memo(function DialplanAppsEditor({
               )}
           </Text>
           {!readOnly ? (
-            <Button type="button" onClick={addAction}>
-              {addLabel}
-            </Button>
+            <VStack gap="8" align="center">
+              <Button type="button" onClick={addAction}>
+                {addLabel}
+              </Button>
+              {templateActionsEnabled ? (
+                <Tooltip content={atLimit ? limitTooltip : undefined}>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    disabled={atLimit}
+                    onClick={() => setApplyOpen(true)}
+                  >
+                    <LayoutTemplate size={16} />
+                    {t('routes.templates.fromTemplate', 'Из шаблона')}
+                  </Button>
+                </Tooltip>
+              ) : null}
+            </VStack>
           ) : (
             <Text variant="muted">{t('routes.chain.empty.readOnly', 'Действий нет')}</Text>
           )}
@@ -445,16 +481,72 @@ export const DialplanAppsEditor = memo(function DialplanAppsEditor({
           {maxSteps != null ? (
             <Text className={styles.counter}>{`${actions.length} / ${maxSteps}`}</Text>
           ) : null}
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            disabled={!hasStep() || atLimit}
-            title={t('routes.chain.pasteCopied', 'Вставить скопированный шаг')}
-            onClick={() => apply({ type: 'paste', index: actions.length })}
-          >
-            {t('routes.chain.pasteCopied', 'Вставить скопированный шаг')}
-          </Button>
+          {isMobile && templateActionsEnabled ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  aria-label={t('common.actions', 'Действия')}
+                >
+                  <MoreVertical size={16} />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  disabled={!hasStep() || atLimit}
+                  onClick={() => apply({ type: 'paste', index: actions.length })}
+                >
+                  {t('routes.chain.pasteCopied', 'Вставить скопированный шаг')}
+                </DropdownMenuItem>
+                <DropdownMenuItem disabled={atLimit} onClick={() => setApplyOpen(true)}>
+                  {t('routes.templates.fromTemplate', 'Из шаблона')}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setSaveAsOpen(true)}>
+                  {t('routes.templates.saveAsTemplate', 'Сохранить как шаблон')}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={!hasStep() || atLimit}
+                title={t('routes.chain.pasteCopied', 'Вставить скопированный шаг')}
+                onClick={() => apply({ type: 'paste', index: actions.length })}
+              >
+                {t('routes.chain.pasteCopied', 'Вставить скопированный шаг')}
+              </Button>
+              {templateActionsEnabled ? (
+                <>
+                  <Tooltip content={atLimit ? limitTooltip : undefined}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={atLimit}
+                      onClick={() => setApplyOpen(true)}
+                    >
+                      <LayoutTemplate size={16} />
+                      {t('routes.templates.fromTemplate', 'Из шаблона')}
+                    </Button>
+                  </Tooltip>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSaveAsOpen(true)}
+                  >
+                    <Save size={16} />
+                    {t('routes.templates.saveAsTemplate', 'Сохранить как шаблон')}
+                  </Button>
+                </>
+              ) : null}
+            </>
+          )}
         </Flex>
       ) : null}
 
@@ -514,6 +606,16 @@ export const DialplanAppsEditor = memo(function DialplanAppsEditor({
           }}
         />
       )}
+      {templateActionsEnabled ? (
+        <ApplyTemplateDialog
+          open={applyOpen}
+          onOpenChange={setApplyOpen}
+          currentActionCount={actions.length}
+          onApply={(next, mode) => {
+            onChange(mode === 'replace' ? next : [...actions, ...next]);
+          }}
+        />
+      ) : null}
     </VStack>
     </ChainLabelsProvider>
   );
