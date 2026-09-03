@@ -1,14 +1,22 @@
-import { NotFoundException } from '@nestjs/common';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 import { IvrsService } from './ivrs.service';
 import { Ivr } from './ivr.model';
 import { DialplanApplyService } from '../ami/dialplan-apply.service';
+import { RouteReferencesService } from '../route-references/route-references.service';
+
+function makeRouteReferences(routes: Array<{ uid: number; actions?: unknown; raw_dialplan?: string | null }> = []) {
+  return new RouteReferencesService(
+    { findAll: jest.fn().mockResolvedValue(routes) } as any,
+    { findAll: jest.fn().mockResolvedValue([]) } as any,
+  );
+}
 
 describe('IvrsService.generateIvrDialplan', () => {
   const dialplanApplyService = {
     applyCategories: jest.fn(),
     deleteCategories: jest.fn(),
   };
-  const service = new IvrsService(null as any, null as any, dialplanApplyService as any);
+  const service = new IvrsService(null as any, null as any, dialplanApplyService as any, makeRouteReferences());
 
   const baseIvr = {
     uid: 5,
@@ -214,6 +222,7 @@ describe('IvrsService dialplan sync', () => {
       ivrModel,
       ttsEnginesService,
       dialplanApplyService as unknown as DialplanApplyService,
+      makeRouteReferences(),
     );
   });
 
@@ -284,6 +293,65 @@ describe('IvrsService dialplan sync', () => {
       ['ivr_4'],
       { reload: true },
     );
+  });
+
+  it('remove throws 409 with references when a route action points at the IVR', async () => {
+    const existing = ivrRow({ uid: 4 });
+    ivrModel.findOne.mockResolvedValueOnce(existing);
+    service = new IvrsService(
+      ivrModel,
+      ttsEnginesService,
+      dialplanApplyService as unknown as DialplanApplyService,
+      makeRouteReferences([
+        {
+          uid: 5,
+          actions: [{ id: 'to-ivr-4', type: 'toivr', params: { ivr_uid: 4 } }],
+        },
+      ]),
+    );
+
+    try {
+      await service.remove(4, vpbx);
+      throw new Error('expected remove to reject');
+    } catch (err) {
+      expect(err).toBeInstanceOf(ConflictException);
+      const body = (err as ConflictException).getResponse() as {
+        message?: string;
+        references?: Array<{ routeUid: unknown; actionOrBindingId: unknown; location: unknown }>;
+      };
+      expect(body.message).toBe('IVR is referenced and cannot be deleted');
+      expect(body.references?.[0]).toEqual(
+        expect.objectContaining({
+          routeUid: 5,
+          actionOrBindingId: 'to-ivr-4',
+          location: expect.any(String),
+        }),
+      );
+    }
+    expect(existing.destroy).not.toHaveBeenCalled();
+    expect(dialplanApplyService.deleteCategories).not.toHaveBeenCalled();
+  });
+
+  it('getUsage returns tenant-scoped references for GET /ivrs/:uid/usage', async () => {
+    ivrModel.findOne.mockResolvedValueOnce(ivrRow({ uid: 4 }));
+    service = new IvrsService(
+      ivrModel,
+      ttsEnginesService,
+      dialplanApplyService as unknown as DialplanApplyService,
+      makeRouteReferences([
+        {
+          uid: 5,
+          actions: [{ id: 'to-ivr-4', type: 'toivr', params: { ivr_uid: 4 } }],
+          raw_dialplan: null,
+        },
+      ]),
+    );
+
+    const usage = await service.getUsage(4, vpbx);
+    expect(usage.references).toEqual([
+      expect.objectContaining({ routeUid: 5, actionOrBindingId: 'to-ivr-4' }),
+    ]);
+    expect(usage.meta.hasRawDialplanRoutes).toBe(false);
   });
 
   it('remove throws when IVR not found', async () => {

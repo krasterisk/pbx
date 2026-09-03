@@ -1,4 +1,5 @@
 import { Injectable, Logger, NotFoundException, ForbiddenException, OnApplicationShutdown, OnModuleInit } from '@nestjs/common';
+import { RouteReferencesService } from '../route-references/route-references.service';
 import { InjectModel } from '@nestjs/sequelize';
 import { ConfigService } from '@nestjs/config';
 import { OnEvent } from '@nestjs/event-emitter';
@@ -53,6 +54,7 @@ export class VoiceRobotsService implements OnApplicationShutdown, OnModuleInit {
     private readonly slotExtractorService: SlotExtractorService,
     private readonly ttsCacheService: TtsCacheService,
     private readonly dataListSearchService: DataListSearchService,
+    private readonly routeReferencesService: RouteReferencesService,
   ) {
     // Default: 127.0.0.1 (assumes Asterisk and Node.js are on the same host).
     // If Asterisk is on a remote server, set `external_host` per-robot
@@ -131,7 +133,17 @@ export class VoiceRobotsService implements OnApplicationShutdown, OnModuleInit {
       where: { uid, user_uid: userUid },
     });
     if (!robot) throw new NotFoundException(`Robot ${uid} not found`);
+    await this.routeReferencesService.assertNotReferenced(
+      'voicerobot',
+      uid,
+      userUid,
+      'Voice robot is referenced and cannot be deleted',
+    );
     await robot.destroy();
+  }
+
+  async remove(uid: number, userUid: number): Promise<void> {
+    return this.deleteRobot(userUid, uid);
   }
 
   // ─── Keyword Groups CRUD ──────────────────────────────

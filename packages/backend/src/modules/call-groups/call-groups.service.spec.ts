@@ -4,7 +4,15 @@ import { plainToInstance } from 'class-transformer';
 import { CallGroupsService } from './call-groups.service';
 import { DialplanApplyService } from '../ami/dialplan-apply.service';
 import { EndpointsService } from '../endpoints/endpoints.service';
+import { RouteReferencesService } from '../route-references/route-references.service';
 import { CreateCallGroupDto } from './dto/call-group.dto';
+
+function makeRouteReferences(routes: Array<{ uid: number; actions?: unknown }> = []) {
+  return new RouteReferencesService(
+    { findAll: jest.fn().mockResolvedValue(routes) } as any,
+    { findAll: jest.fn().mockResolvedValue([]) } as any,
+  );
+}
 
 describe('CallGroupsService', () => {
   let groupModel: any;
@@ -86,6 +94,7 @@ describe('CallGroupsService', () => {
       sequelize,
       dialplanApplyService as unknown as DialplanApplyService,
       endpointsService as unknown as EndpointsService,
+      makeRouteReferences(),
     );
   });
 
@@ -313,6 +322,27 @@ describe('CallGroupsService', () => {
         [`group_6007_${vpbx}`, `group_7_${vpbx}`],
         { reload: true },
       );
+    });
+
+    it('throws 409 with references when a route togroup action points at the group', async () => {
+      const existing = groupRow();
+      groupModel.findOne.mockResolvedValueOnce(existing);
+      service = new CallGroupsService(
+        groupModel,
+        memberModel,
+        sequelize,
+        dialplanApplyService as unknown as DialplanApplyService,
+        endpointsService as unknown as EndpointsService,
+        makeRouteReferences([
+          {
+            uid: 3,
+            actions: [{ id: 'to-g7', type: 'togroup', params: { target: { source: 'fixed', value: 7 } } }],
+          },
+        ]),
+      );
+
+      await expect(service.remove(7, vpbx)).rejects.toBeInstanceOf(ConflictException);
+      expect(existing.destroy).not.toHaveBeenCalled();
     });
 
     it('does not rollback when deleteCategories fails after commit; returns success', async () => {

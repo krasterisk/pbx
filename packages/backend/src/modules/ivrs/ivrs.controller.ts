@@ -39,6 +39,11 @@ export class IvrsController {
     return this.ivrsService.findAll(req.user.vpbx_user_uid);
   }
 
+  @Get(':id/usage')
+  async usage(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+    return this.ivrsService.getUsage(id, req.user.vpbx_user_uid);
+  }
+
   @Get(':id')
   async findOne(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
     return this.ivrsService.findOne(id, req.user.vpbx_user_uid);

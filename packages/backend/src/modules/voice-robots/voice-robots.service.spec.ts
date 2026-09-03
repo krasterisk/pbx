@@ -1,4 +1,47 @@
+import { ConflictException } from '@nestjs/common';
 import { VoiceRobotsService } from './voice-robots.service';
+import { RouteReferencesService } from '../route-references/route-references.service';
+
+function makeRouteReferences(routes: Array<{ uid: number; actions?: unknown }> = []) {
+  return new RouteReferencesService(
+    { findAll: jest.fn().mockResolvedValue(routes) } as any,
+    { findAll: jest.fn().mockResolvedValue([]) } as any,
+  );
+}
+
+function buildVoiceRobotsService(
+  voiceRobotModel: any,
+  groupModel: any,
+  keywordModel: any,
+  routes: Array<{ uid: number; actions?: unknown }> = [],
+) {
+  const configService = { get: jest.fn().mockReturnValue('127.0.0.1') };
+  const ariClient = { getAppName: () => 'krasterisk_voicerobots' };
+  return new VoiceRobotsService(
+    voiceRobotModel as any,
+    groupModel as any,
+    keywordModel as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    ariClient as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    configService as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    makeRouteReferences(routes),
+  );
+}
 
 /**
  * Wave 0 characterization of the three actionToDialplan call sites in
@@ -20,31 +63,7 @@ describe('VoiceRobotsService.generateAllVoiceRobotContexts (Wave 0 characterizat
     voiceRobotModel = { findAll: jest.fn() };
     groupModel = { findAll: jest.fn().mockResolvedValue([]) };
     keywordModel = { findAll: jest.fn().mockResolvedValue([]) };
-    const configService = { get: jest.fn().mockReturnValue('127.0.0.1') };
-    const ariClient = { getAppName: () => 'krasterisk_voicerobots' };
-    service = new VoiceRobotsService(
-      voiceRobotModel as any,
-      groupModel as any,
-      keywordModel as any,
-      {} as any,
-      {} as any,
-      {} as any,
-      {} as any,
-      {} as any,
-      ariClient as any,
-      {} as any,
-      {} as any,
-      {} as any,
-      {} as any,
-      {} as any,
-      {} as any,
-      configService as any,
-      {} as any,
-      {} as any,
-      {} as any,
-      {} as any,
-      {} as any,
-    );
+    service = buildVoiceRobotsService(voiceRobotModel, groupModel, keywordModel);
   });
 
   /**
@@ -226,3 +245,32 @@ describe('VoiceRobotsService.generateAllVoiceRobotContexts (Wave 0 characterizat
     );
   });
 });
+
+describe('VoiceRobotsService.deleteRobot (D-48)', () => {
+  it('throws 409 with references when a route voicerobot action points at the robot', async () => {
+    const destroy = jest.fn();
+    const voiceRobotModel = {
+      findAll: jest.fn(),
+      findOne: jest.fn().mockResolvedValue({ uid: 9, user_uid: 42, destroy }),
+    };
+    const service = buildVoiceRobotsService(
+      voiceRobotModel,
+      { findAll: jest.fn() },
+      { findAll: jest.fn() },
+      [{ uid: 3, actions: [{ id: 'vr1', type: 'voicerobot', params: { robot_uid: 9 } }] }],
+    );
+
+    try {
+      await service.deleteRobot(42, 9);
+      throw new Error('expected deleteRobot to reject');
+    } catch (err) {
+      expect(err).toBeInstanceOf(ConflictException);
+      const body = (err as ConflictException).getResponse() as {
+        references?: Array<{ routeUid: unknown }>;
+      };
+      expect(body.references?.[0]).toEqual(expect.objectContaining({ routeUid: 3 }));
+    }
+    expect(destroy).not.toHaveBeenCalled();
+  });
+});
+

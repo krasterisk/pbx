@@ -22,7 +22,11 @@ describe('NotificationsService', () => {
       findOne: jest.fn(),
       create: jest.fn(),
     };
-    service = new NotificationsService(model);
+    service = new NotificationsService(model, {
+      assertNotReferenced: jest.fn().mockResolvedValue(undefined),
+      findReferences: jest.fn().mockResolvedValue([]),
+      findUsage: jest.fn(),
+    } as any);
   });
 
   describe('create', () => {

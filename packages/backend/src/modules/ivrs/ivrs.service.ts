@@ -4,6 +4,7 @@ import type { IIvrPhrase, IvrPromptsValidationEngine } from '@krasterisk/shared'
 import { Ivr } from './ivr.model';
 import { TtsEnginesService } from '../tts-engines/tts-engines.service';
 import { DialplanApplyService } from '../ami/dialplan-apply.service';
+import { RouteReferencesService } from '../route-references/route-references.service';
 import { AsteriskDialplanUtils, prefixSamePriority, renderActionChain } from '../../shared/utils/dialplan.util';
 import {
   normalizeIvrPrompts,
@@ -20,6 +21,7 @@ export class IvrsService {
     @InjectModel(Ivr) private ivrModel: typeof Ivr,
     private readonly ttsEnginesService: TtsEnginesService,
     private readonly dialplanApplyService: DialplanApplyService,
+    private readonly routeReferencesService: RouteReferencesService,
   ) {}
 
   /** Per-tenant IVR dialplan file under krasterisk/ivrs/ (two levels deep for Asterisk include glob). */
@@ -172,11 +174,22 @@ export class IvrsService {
     return this.mapIvrForResponse(ivr);
   }
 
+  async getUsage(uid: number, vpbxUserUid: number) {
+    await this.findOne(uid, vpbxUserUid);
+    return this.routeReferencesService.findUsage('ivr', uid, vpbxUserUid);
+  }
+
   async remove(uid: number, vpbxUserUid: number): Promise<void> {
     const ivr = await this.ivrModel.findOne({
       where: { uid, user_uid: vpbxUserUid },
     });
     if (!ivr) throw new NotFoundException('IVR not found');
+    await this.routeReferencesService.assertNotReferenced(
+      'ivr',
+      uid,
+      vpbxUserUid,
+      'IVR is referenced and cannot be deleted',
+    );
     await ivr.destroy();
     await this.removeIvrDialplan(uid, vpbxUserUid);
   }
@@ -261,6 +274,12 @@ export class IvrsService {
   }
 
   async bulkRemove(uids: number[], vpbxUserUid: number): Promise<{ deleted: number }> {
+    await this.routeReferencesService.assertNotReferenced(
+      'ivr',
+      uids,
+      vpbxUserUid,
+      'IVR is referenced and cannot be deleted',
+    );
     const deleted = await this.ivrModel.destroy({
       where: { uid: uids, user_uid: vpbxUserUid },
     });

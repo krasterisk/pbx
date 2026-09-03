@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { HttpModule } from '@nestjs/axios';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { MailerModule } from '../mailer/mailer.module';
+import { RouteReferencesModule } from '../route-references/route-references.module';
 import { NotificationIntegration } from './notification-integration.model';
 import { NotificationsController } from './notifications.controller';
 import { NotificationsService } from './notifications.service';
@@ -19,6 +20,7 @@ import { VkProvider } from './providers/vk.provider';
     SequelizeModule.forFeature([NotificationIntegration]),
     HttpModule.register({ timeout: 10_000 }),
     MailerModule,
+    RouteReferencesModule,
   ],
   controllers: [NotificationsController, DialplanNotifyController],
   providers: [

@@ -5,11 +5,13 @@ import { QueueMember } from './queue-member.model';
 import { QueuesService } from './queues.service';
 import { QueuesController } from './queues.controller';
 import { AmiModule } from '../ami/ami.module';
+import { RouteReferencesModule } from '../route-references/route-references.module';
 
 @Module({
   imports: [
     SequelizeModule.forFeature([Queue, QueueMember]),
     AmiModule,
+    RouteReferencesModule,
   ],
   providers: [QueuesService],
   controllers: [QueuesController],

@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { NotificationIntegration } from './notification-integration.model';
+import { RouteReferencesService } from '../route-references/route-references.service';
 import {
   CreateNotificationIntegrationDto,
   UpdateNotificationIntegrationDto,
@@ -14,6 +15,7 @@ export class NotificationsService {
   constructor(
     @InjectModel(NotificationIntegration)
     private readonly model: typeof NotificationIntegration,
+    private readonly routeReferencesService: RouteReferencesService,
   ) {}
 
   /** Strip encrypted_credentials before returning to HTTP clients. */
@@ -82,6 +84,12 @@ export class NotificationsService {
   async remove(uid: number, vpbx: number) {
     const row = await this.model.findOne({ where: { uid, user_uid: vpbx } });
     if (!row) throw new NotFoundException('Notification integration not found');
+    await this.routeReferencesService.assertNotReferenced(
+      'integration',
+      uid,
+      vpbx,
+      'Notification integration is referenced and cannot be deleted',
+    );
     await row.destroy();
     return { success: true };
   }

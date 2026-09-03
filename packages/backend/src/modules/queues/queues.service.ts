@@ -5,6 +5,7 @@ import { Queue } from './queue.model';
 import { QueueMember } from './queue-member.model';
 import { AmiService } from '../ami/ami.service';
 import { buildSipId } from '../endpoints/endpoint-ids.util';
+import { RouteReferencesService } from '../route-references/route-references.service';
 
 export interface CreateQueueDto {
   exten: string;
@@ -64,6 +65,7 @@ export class QueuesService {
     @InjectModel(QueueMember) private memberModel: typeof QueueMember,
     private sequelize: Sequelize,
     private amiService: AmiService,
+    private readonly routeReferencesService: RouteReferencesService,
   ) {}
 
   /** Build globally unique queue name: q{exten}_{vpbxUserUid} */
@@ -257,6 +259,13 @@ export class QueuesService {
       where: { name, user_uid: vpbxUserUid },
     });
     if (!queue) throw new NotFoundException(`Queue "${name}" not found`);
+    const exten = this.extractExten(name);
+    await this.routeReferencesService.assertNotReferenced(
+      'queue',
+      [name, exten, `q${exten}`],
+      vpbxUserUid,
+      'Queue is referenced and cannot be deleted',
+    );
 
     const transaction = await this.sequelize.transaction();
     try {

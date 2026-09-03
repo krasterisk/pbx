@@ -6,12 +6,14 @@ import { CallGroupsController } from './call-groups.controller';
 import { CallGroupsService } from './call-groups.service';
 import { AmiModule } from '../ami/ami.module';
 import { EndpointsModule } from '../endpoints/endpoints.module';
+import { RouteReferencesModule } from '../route-references/route-references.module';
 
 @Module({
   imports: [
     SequelizeModule.forFeature([CallGroup, CallGroupMember]),
     AmiModule,
     EndpointsModule,
+    RouteReferencesModule,
   ],
   controllers: [CallGroupsController],
   providers: [CallGroupsService],

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ConflictException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Route } from '../routes/route.model';
 import { RouteDirectoryBinding } from '../directories/route-directory-binding.model';
@@ -61,5 +61,30 @@ export class RouteReferencesService {
       hasRawDialplanRoutes,
       meta: { hasRawDialplanRoutes },
     };
+  }
+
+  /**
+   * Server-side delete backstop (D-48 / T-14-04). Same 409 shape as DirectoriesService.remove.
+   */
+  async assertNotReferenced(
+    kind: ActionReferenceKind,
+    uid: number | string | Array<number | string>,
+    vpbxUserUid: number,
+    message: string,
+  ): Promise<void> {
+    const ids = Array.isArray(uid) ? uid : [uid];
+    const seen = new Set<string>();
+    const references: ActionReference[] = [];
+    for (const id of ids) {
+      for (const hit of await this.findReferences(kind, id, vpbxUserUid)) {
+        const key = `${hit.routeUid}:${hit.actionOrBindingId}:${hit.location}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        references.push(hit);
+      }
+    }
+    if (references.length) {
+      throw new ConflictException({ message, references });
+    }
   }
 }

@@ -14,6 +14,7 @@ import {
 } from './dto/call-group.dto';
 import type { ICallGroup, ICallGroupMember } from '@krasterisk/shared';
 import { EndpointsService } from '../endpoints/endpoints.service';
+import { RouteReferencesService } from '../route-references/route-references.service';
 
 /** Stable codes for frontend i18n (`callGroups.errors.<code>`). */
 export type CallGroupErrorCode =
@@ -48,6 +49,7 @@ export class CallGroupsService {
     private readonly sequelize: Sequelize,
     private readonly dialplanApplyService: DialplanApplyService,
     private readonly endpointsService: EndpointsService,
+    private readonly routeReferencesService: RouteReferencesService,
   ) {}
 
   private groupFile(vpbx: number): string {
@@ -393,6 +395,12 @@ export class CallGroupsService {
         { uid },
       );
     }
+    await this.routeReferencesService.assertNotReferenced(
+      'group',
+      [uid, group.exten].filter((value) => value != null && value !== ''),
+      vpbx,
+      'Call group is referenced and cannot be deleted',
+    );
 
     const transaction = await this.sequelize.transaction();
     let committed = false;
