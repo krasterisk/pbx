@@ -65,6 +65,8 @@ Phase 1 — MOH: pending verify.
 
 ## Decisions
 
+- [Phase 14]: 14-03 CSS-grid FlowchartCanvas, Schema tabs last, react-to-print on figure, no graph libs
+- [Phase 14]: 14-03 IVR canvas uses draft menu_items only; direct_dial is never drawn
 - [Phase 12]: Wave 0 froze current generator output only — no production files changed
 - [Phase 12]: ActionType (shared) and ActionTypesList (DTO) already match at Wave 0; completeness test is green
 - [Phase 12]: voice-robots.service.ts:444 is max_retries_action and :456 is fallback_action (PLAN.md labels were swapped)
@@ -336,7 +338,7 @@ Phase 1 — MOH: pending verify.
 
 ## Next GSD command
 
-**Phase 14 в исполнении** (Wave 0 `14-01` + Wave 1 `14-02` готовы). **Phase 15 запланирована** (24 плана, plan-checker PASS). Next: продолжить `/gsd-execute-phase 14` (14-03+), затем `/gsd-execute-phase 15` → обязательный `/gsd-secure-phase 15`.
+**Phase 14 в исполнении** (14-01…14-05 + 14-08; 14-03 SUMMARY written). **Phase 15 запланирована** (24 плана, plan-checker PASS). Next: продолжить `/gsd-execute-phase 14` (14-06+), затем `/gsd-execute-phase 15` → обязательный `/gsd-secure-phase 15`.
 
 Also open: Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 verify; Phase 8 / 08-11 Android smoke.
 
@@ -455,6 +457,7 @@ Also open: Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 veri
 | Phase 13 P13 | 6 | 3 tasks | 10 files |
 | Phase 14 P01 | 11 | 2 tasks | 13 files |
 | Phase 14 P02 | 57 | 3 tasks | 26 files |
+| Phase 14 P03 | 28min | 3 tasks | 16 files |
 | Phase 14 P05 | 22min | 3 tasks | 18 files |
 | Phase 14-visual-route-builder-and-automation P04 | 26 | 3 tasks | 15 files |
 | Phase 14 P08 | 26 | 4 tasks | 37 files |

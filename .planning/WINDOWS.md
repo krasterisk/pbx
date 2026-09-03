@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 10
+open_count: 11
 waived_count: 0
 fixed_count: 7
-total_count: 17
-last_updated: 2026-09-03T19:37:35.166Z
+total_count: 18
+last_updated: 2026-09-04T02:06:36Z
 ---
 
 # Broken Windows Ledger
@@ -32,6 +32,7 @@ last_updated: 2026-09-03T19:37:35.166Z
 | 15 | 14 | deviation | packages/backend/src/modules/directories/directories.service.spec.ts |  | lookup/csv suites fail on uncommitted normalizeDirectoryKey re-export WIP; 14-02 left them untouched | open |  | 2026-09-03T18:34:09.708Z |  |
 | 16 | 14 | stub | packages/backend/src/modules/route-templates/route-templates.service.ts | 137 | buildFromDescription returns empty actions/slots — Intentional D-34 stub; Phase 15 fills via LLM | open |  | 2026-09-03T19:00:27.146Z |  |
 | 17 | 14 | stub | packages/frontend/src/features/dialplan-apps/model/registry.ts | 444 | schema: [] completeness stub; 14-09 CallbackSettingsForm / action card fields | open |  | 2026-09-03T19:37:35.166Z |  |
+| 18 | 14 | deviation | packages/backend/src/modules/dialplan-dry-run/dialplan-dry-run.service.ts |  | Task 1 commit 014f316 also captured parallel 14-04 dry-run/walker files that were already staged | open |  | 2026-09-04T02:06:36Z |  |
 
 ````json
 [
