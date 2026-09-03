@@ -1,6 +1,7 @@
 import type { ConditionOp, ConditionSourceKind } from './dialplan-condition.types';
 import type { CallValueSource, DirectoryValueSource, ITrunkCarouselItem } from './directory.types';
 import type { IIvrPhraseTtsSettings } from './ivr-phrase.types';
+import type { INotifyActionParams } from './notification.types';
 import type { ITimeGroupInterval } from './timeGroup.types';
 
 export type ValueSource = CallValueSource | DirectoryValueSource;
@@ -197,10 +198,29 @@ export interface ITelegramParams {
   text?: string;
 }
 
+/** Record() user flags for voicemail. `k` is always emitted by the generator (D-55). */
+export interface IVoicemailRecordOptions {
+  q?: boolean;
+  o?: boolean;
+  x?: boolean;
+  y?: boolean;
+  n?: boolean;
+  s?: boolean;
+  u?: boolean;
+}
+
 export interface IVoicemailParams {
   target?: ValueSource;
   /** @deprecated Wave 0 — read when `target` is absent */
   exten?: string;
+  greeting?: string;
+  /** Default 120 (D-74). */
+  max_duration?: number;
+  silence_timeout?: number;
+  record_options?: IVoicemailRecordOptions;
+  notify?: INotifyActionParams;
+  stt_engine_uid?: number | string;
+  llm_provider_uid?: number | string;
 }
 
 export interface IText2SpeechParams {

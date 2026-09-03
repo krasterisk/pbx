@@ -85,6 +85,12 @@ export class AsteriskDialplanUtils {
 
   /** API key for internal dialplan requests (matches DIALPLAN_API_KEY env) */
   static dialplanApiKey = process.env.DIALPLAN_API_KEY || '';
+
+  /**
+   * Conversation-recording volume (D-72). Callers may inject system_settings
+   * before generate; otherwise RECORDS_BASE_PATH then `/usr/records`.
+   */
+  static recordsBasePath = process.env.RECORDS_BASE_PATH || '/usr/records';
   /**
    * Sanitize input to prevent OS shell injection.
    * Strips: ; | & $ ` \ " ' \n \r
@@ -430,8 +436,7 @@ export class AsteriskDialplanUtils {
         dp = emitPlayback(params, { vpbxUserUid });
         break;
       case 'voicemail': {
-        const vmExten = this.sanitizeDialplanInput(params.exten) || '${EXTEN}';
-        dp = `VoiceMail(${vmExten}@default,u)`;
+        dp = this.emitVoicemailDialplan(params, vpbxUserUid);
         break;
       }
       case 'text2speech': {
@@ -639,7 +644,8 @@ export class AsteriskDialplanUtils {
     }
 
     // D-43: condition wraps every line; branches must not concatenate ExecIf themselves.
-    return wrapEachLine(buildConditionExpr(action.condition), dp);
+    // Extra `[context]` sections (voicemail hangup handler) stay unwrapped.
+    return wrapStepKeepExtraContext(buildConditionExpr(action.condition), dp);
   }
 
   private static curlCtx(vpbxUserUid: number) {
@@ -648,6 +654,71 @@ export class AsteriskDialplanUtils {
       apiKey: this.dialplanApiKey,
       vpbxUserUid,
     };
+  }
+
+  private static voicemailRecordsBase(): string {
+    const raw = this.recordsBasePath || process.env.RECORDS_BASE_PATH || '/usr/records';
+    const trimmed = raw.replace(/\/+$/, '');
+    return this.sanitizeDialplanInput(trimmed) || '/usr/records';
+  }
+
+  /**
+   * D-54 / D-55 / D-72: greeting → hangup_handler_push → Record(.wav,k) →
+   * hangup_handler_pop → Goto(done). Handler context ends with fire-and-forget
+   * CURL + Return(). Deprecated exten/target are still read (dual-read).
+   */
+  private static emitVoicemailDialplan(params: Record<string, any>, vpbxUserUid: number): string {
+    // D-54: keep deprecated exten / target reads until 13-11 migrate.
+    const legacyExten = this.sanitizeDialplanInput(
+      typeof params.exten === 'string' ? params.exten : '',
+    );
+    if (params.target && typeof params.target === 'object') {
+      void params.target;
+    } else if (typeof params.target === 'string') {
+      void this.sanitizeDialplanInput(params.target);
+    }
+    void legacyExten;
+
+    const doneCtx = `krsk-vm-done-${vpbxUserUid}`;
+    const recordPath = `${this.voicemailRecordsBase()}/${vpbxUserUid}/voicemail/\${UNIQUEID}-%d.wav`;
+    const maxRaw = Number(params.max_duration);
+    const maxDuration = Number.isFinite(maxRaw) && maxRaw > 0 ? String(Math.trunc(maxRaw)) : '120';
+    const silenceRaw = params.silence_timeout;
+    const silence = silenceRaw == null || silenceRaw === ''
+      ? ''
+      : String(parseInt(String(silenceRaw), 10) || '');
+    const flagKeys = ['q', 'o', 'x', 'y', 'n', 's', 'u'] as const;
+    const opts = params.record_options && typeof params.record_options === 'object'
+      ? params.record_options
+      : {};
+    const userFlags = flagKeys.filter((flag) => opts[flag]).join('');
+    const recordOpts = `k${userFlags}`;
+
+    const lines: string[] = [];
+    const greeting = typeof params.greeting === 'string' ? params.greeting.trim() : '';
+    if (greeting) {
+      lines.push(emitPlayback({ mode: 'plain', files: greeting }, { vpbxUserUid }));
+    }
+    lines.push(`Set(CHANNEL(hangup_handler_push)=${doneCtx},s,1)`);
+    lines.push(`Record(${recordPath},${silence},${maxDuration},${recordOpts})`);
+    lines.push('Set(CHANNEL(hangup_handler_pop)=)');
+    lines.push(`Goto(${doneCtx},s,1)`);
+
+    const curl = buildCurlCall('voicemail', {
+      uniqueid: '${UNIQUEID}',
+      file: '${RECORDED_FILE}',
+      status: '${RECORD_STATUS}',
+      clid: '${CALLERID(num)}',
+      exten: '${EXTEN}',
+    }, this.curlCtx(vpbxUserUid));
+
+    const extra = [
+      `[${doneCtx}]`,
+      `exten => s,1,${curl}`,
+      'same => n,Return()',
+    ].join('\n');
+
+    return `${lines.join('\nsame => n,')}\n${extra}`;
   }
 
   /**
@@ -761,6 +832,13 @@ function joinDialplanParts(parts: string[]): string {
   return parts.map((part, i) => (i === 0 ? part : prefixSamePriority(part))).join('\n');
 }
 
+/** Wrap step lines only; leave appended `[context]` sections (D-55 handler) intact. */
+function wrapStepKeepExtraContext(expr: string, dp: string): string {
+  const extraIdx = dp.indexOf('\n[');
+  if (extraIdx < 0) return wrapEachLine(expr, dp);
+  return `${wrapEachLine(expr, dp.slice(0, extraIdx))}${dp.slice(extraIdx)}`;
+}
+
 export type ActionChainHost = 'route' | 'ivr' | 'directory_policy' | 'robot';
 
 export interface RenderActionChainCtx {
@@ -792,7 +870,7 @@ export function renderActionChain(
       ?? (typeof action?.condition?.time_group_uid === 'number'
         ? `"\${WT_${action.condition.time_group_uid}}"="1"`
         : '');
-    if (tgExpr) dp = wrapEachLine(tgExpr, dp);
+    if (tgExpr) dp = wrapStepKeepExtraContext(tgExpr, dp);
     if (action?.type === 'label') {
       const name = AsteriskDialplanUtils.sanitizeDialplanInput(action.params?.label_name);
       if (name) dp = `(${name}),${dp}`;

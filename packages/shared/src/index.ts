@@ -26,6 +26,7 @@ export * from './types/timeGroup.types';
 export * from './types/directory.types';
 export * from './types/call-group.types';
 export * from './types/notification.types';
+export * from './types/voicemail.types';
 export * from './types/ivr-phrase.types';
 export * from './types/prompt.types';
 export {
