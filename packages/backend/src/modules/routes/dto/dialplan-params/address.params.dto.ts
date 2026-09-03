@@ -21,9 +21,12 @@ import type {
 } from '@krasterisk/shared';
 import { coerceDestValueSource } from '@krasterisk/shared';
 import { IsValueSourceConstraint, IsQueuePrioritySourceConstraint, ValueSourceDto } from './value-source.dto';
+import { NotifyParamsDto } from './integration.params.dto';
 
 const SAFE_DIAL = /^[^(),?\[\]{}$\\";\n\r]*$/;
 const PREPEND_DIGITS = /^[0-9+]*$/;
+/** Prompt identifier only — no path, no absolute file (T-13-09). */
+const SAFE_GREETING = /^[A-Za-z0-9._-]*$/;
 
 export class NumberManipulationDto {
   @IsOptional()
@@ -426,6 +429,37 @@ export class ToTrunkParamsDto {
   rewrite?: DialTargetRewriteDto;
 }
 
+/** Record() user flags. `k` is generator-only (D-56) — do not add it here. */
+export class RecordOptionsDto {
+  @IsOptional()
+  @IsBoolean()
+  q?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  o?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  x?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  y?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  n?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  s?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  u?: boolean;
+}
+
 export class VoicemailParamsDto {
   @IsOptional()
   @ValidateNested()
@@ -436,5 +470,44 @@ export class VoicemailParamsDto {
   @IsString()
   @Matches(SAFE_DIAL)
   exten?: string;
+
+  @IsOptional()
+  @IsString()
+  @Matches(SAFE_GREETING)
+  greeting?: string;
+
+  @IsOptional()
+  @Transform(({ value }) => (value === '' || value == null ? undefined : Number(value)))
+  @IsInt()
+  @Min(1)
+  max_duration?: number;
+
+  @IsOptional()
+  @Transform(({ value }) => (value === '' || value == null ? undefined : Number(value)))
+  @IsInt()
+  @Min(1)
+  silence_timeout?: number;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => RecordOptionsDto)
+  record_options?: RecordOptionsDto;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => NotifyParamsDto)
+  notify?: NotifyParamsDto;
+
+  @IsOptional()
+  @Transform(({ value }) => (value === '' || value == null ? undefined : Number(value)))
+  @IsInt()
+  @Min(1)
+  stt_engine_uid?: number;
+
+  @IsOptional()
+  @Transform(({ value }) => (value === '' || value == null ? undefined : Number(value)))
+  @IsInt()
+  @Min(1)
+  llm_provider_uid?: number;
 }
 
