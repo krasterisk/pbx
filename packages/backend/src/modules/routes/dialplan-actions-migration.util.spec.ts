@@ -1,4 +1,4 @@
-import { migrateAction } from './dialplan-actions-migration.util';
+import { migrateAction, migrateVoicemailParams } from './dialplan-actions-migration.util';
 
 const SENTINEL = '__USE_EXTEN__';
 
@@ -228,5 +228,75 @@ describe('migrateAction', () => {
     expect(result.action).toEqual(input);
     expect(result.changed).toBe(false);
     expect(result.unmapped).toBe('custom_future');
+  });
+});
+
+describe('migrateVoicemailParams (D-54)', () => {
+  it('empty params keep type voicemail and gain max_duration 120', () => {
+    const result = migrateVoicemailParams({ type: 'voicemail', params: {} });
+    expect(result.changed).toBe(true);
+    expect(result.action).toEqual({
+      type: 'voicemail',
+      params: { max_duration: 120 },
+    });
+  });
+
+  it('exten-only maps to target and adds max_duration 120 without renaming type', () => {
+    const result = migrateVoicemailParams({
+      type: 'voicemail',
+      params: { exten: '101' },
+    });
+    expect(result.changed).toBe(true);
+    expect(result.action).toEqual({
+      type: 'voicemail',
+      params: {
+        target: { source: 'fixed', value: '101' },
+        max_duration: 120,
+      },
+    });
+  });
+
+  it('already-new shape is idempotent', () => {
+    const already = {
+      type: 'voicemail',
+      params: {
+        target: { source: 'fixed', value: '101' },
+        max_duration: 120,
+      },
+    };
+    const first = migrateVoicemailParams(already);
+    expect(first).toEqual({ action: already, changed: false });
+    expect(migrateVoicemailParams(first.action)).toEqual({ action: already, changed: false });
+  });
+
+  it('keeps leftover keys including telegram channel string', () => {
+    const result = migrateVoicemailParams({
+      type: 'voicemail',
+      params: { exten: '101', telegram: '-100123', leftover: true },
+    });
+    expect(result.action).toEqual({
+      type: 'voicemail',
+      params: {
+        target: { source: 'fixed', value: '101' },
+        max_duration: 120,
+        telegram: '-100123',
+        leftover: true,
+      },
+    });
+  });
+
+  it('passes non-voicemail actions through unchanged', () => {
+    const input = { type: 'toqueue', params: { queue: 'sales' } };
+    expect(migrateVoicemailParams(input)).toEqual({ action: input, changed: false });
+  });
+
+  it('second apply after empty or exten-only equals first (idempotent)', () => {
+    for (const input of [
+      { type: 'voicemail', params: {} },
+      { type: 'voicemail', params: { exten: '101' } },
+    ]) {
+      const first = migrateVoicemailParams(input).action;
+      expect(migrateVoicemailParams(first).action).toEqual(first);
+    }
   });
 });
