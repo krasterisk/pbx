@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 status: executing
-stopped_at: Completed 14-01-PLAN.md
-last_updated: "2026-09-03T17:31:44.312Z"
-state_head: c0db85036aac5600c1658652916083b28318cff9
+stopped_at: Completed 14-02-PLAN.md
+last_updated: "2026-09-03T18:34:04.174Z"
+state_head: f9916b67cc452e1fc585bb1137a1e0c4674fad73
 progress:
   total_phases: 15
   completed_phases: 4
   total_plans: 165
-  completed_plans: 132
+  completed_plans: 133
 milestone_name: milestone
 current_phase: 14
 current_phase_name: visual-route-builder-and-automation
@@ -19,7 +19,7 @@ current_phase_name: visual-route-builder-and-automation
 
 ## Current position
 
-Phase 14 (visual-route-builder-and-automation) — EXECUTING. 14-01 Wave 0 RED specs committed (`54f0051`, `c0db850`). Next: 14-02 reference index (do not start from 14-01 executor). 10 планов, волны 0…6.
+Phase 14 (visual-route-builder-and-automation) — EXECUTING. 14-01 Wave 0 + 14-02 reference index/409 done (`f1b06d3`, `22a03f7`, `f9916b6`). Next: 14-03. 10 планов, волны 0…6.
 
 Phase 15 (universal-pbx-ai-agent) — PLANNED (2026-09-04). 24 плана, волны 1…7, `15-VALIDATION.md` есть, plan-checker PASS после ревизии `43f8ae8` (справочники через proposal). Next: `/gsd-execute-phase 15` (после Phase 14), затем обязательный `/gsd-secure-phase 15`.
 
@@ -288,6 +288,9 @@ Phase 1 — MOH: pending verify.
 - [Phase 14]: Mirrored DEFAULT_HOP_LIMIT into packages/shared/src/utils/dialplan-hops.ts because shared cannot import backend
 - [Phase 14]: Added Jest to @krasterisk/shared via hoisted workspace jest — no new npm package
 - [Phase 14]: Marked notify/voicerobot and directory collectActionReferences cases it.failing until 14-02
+- [Phase 14]: 14-02: polymorphic GET /route-references/:kind/:uid plus GET /ivrs/:uid/usage; tenant from JWT only
+- [Phase 14]: 14-02: delete 409 shape matches DirectoriesService { message, references }; no force-delete
+- [Phase 14]: 14-02: collectDirectoryReferences is a thin wrapper over collectActionReferences
 
 ## Roadmap Evolution
 
@@ -323,7 +326,7 @@ Phase 1 — MOH: pending verify.
 
 ## Next GSD command
 
-**Phase 14 в исполнении** (Wave 0 `14-01` готов; Wave 1 `14-02` идёт). **Phase 15 запланирована** (24 плана, plan-checker PASS). Next: дождаться конца `/gsd-execute-phase 14`, затем `/gsd-execute-phase 15` → обязательный `/gsd-secure-phase 15`.
+**Phase 14 в исполнении** (Wave 0 `14-01` + Wave 1 `14-02` готовы). **Phase 15 запланирована** (24 плана, plan-checker PASS). Next: продолжить `/gsd-execute-phase 14` (14-03+), затем `/gsd-execute-phase 15` → обязательный `/gsd-secure-phase 15`.
 
 Also open: Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 verify; Phase 8 / 08-11 Android smoke.
 
@@ -441,10 +444,11 @@ Also open: Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 veri
 | Phase 13-custom-voicemail-instead-of-voicemail P10 | 8 min | 2 tasks | 3 files |
 | Phase 13 P13 | 6 | 3 tasks | 10 files |
 | Phase 14 P01 | 11 | 2 tasks | 13 files |
+| Phase 14 P02 | 57 | 3 tasks | 26 files |
 
 ## Session
 
-**Last session:** 2026-09-03T17:31:42.665Z
-**Stopped at:** Completed 14-01-PLAN.md
+**Last session:** 2026-09-03T18:34:01.623Z
+**Stopped at:** Completed 14-02-PLAN.md
 **Resume file:** None
 **Also ready:** .planning/phases/15-universal-pbx-ai-agent/15-CONTEXT.md

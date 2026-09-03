@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 10
+open_count: 8
 waived_count: 0
-fixed_count: 4
-total_count: 14
-last_updated: 2026-09-03T17:30:55.825Z
+fixed_count: 7
+total_count: 15
+last_updated: 2026-09-03T18:35:14.544Z
 ---
 
 # Broken Windows Ledger
@@ -25,10 +25,11 @@ last_updated: 2026-09-03T17:30:55.825Z
 | 8 | 12 | unrun-verify | packages/backend/src/modules/call-groups/migrate-call-groups-ring-options.ts |  | Live ALTER not run; unit tests mock QI. Human must run migrate-call-groups-ring-options.ts twice. | fixed |  | 2026-08-20T03:04:02.403Z | 2026-08-31T06:28:24.216Z |
 | 9 | 14 | stub | packages/shared/src/utils/dialplan-walk/walkDialplanGraph.ts | 14 | Returns outcome.kind stub / hopsUsed -1 so specs compile and stay RED | open |  | 2026-09-03T17:30:38.927Z |  |
 | 10 | 14 | stub | packages/shared/src/utils/dialplan-walk/exactRouteResolver.ts | 16 | Always returns ambiguous with empty matches | open |  | 2026-09-03T17:30:42.097Z |  |
-| 11 | 14 | stub | packages/backend/src/modules/route-references/action-reference.util.ts | 53 | Only ivr and queue kinds match; remaining kinds reserved for 14-02 | open |  | 2026-09-03T17:30:48.046Z |  |
-| 12 | 14 | skipped-test | packages/backend/src/modules/route-references/action-reference.util.spec.ts | 85 | it.failing notify.integration_uid and voicerobot.robot_uid until 14-02 | open |  | 2026-09-03T17:30:50.848Z |  |
-| 13 | 14 | skipped-test | packages/backend/src/modules/route-references/action-reference.util.spec.ts | 104 | it.failing directory field scan until 14-02 | open |  | 2026-09-03T17:30:54.506Z |  |
+| 11 | 14 | stub | packages/backend/src/modules/route-references/action-reference.util.ts | 53 | Only ivr and queue kinds match; remaining kinds reserved for 14-02 | fixed |  | 2026-09-03T17:30:48.046Z | 2026-09-03T18:35:13.510Z |
+| 12 | 14 | skipped-test | packages/backend/src/modules/route-references/action-reference.util.spec.ts | 85 | it.failing notify.integration_uid and voicerobot.robot_uid until 14-02 | fixed |  | 2026-09-03T17:30:50.848Z | 2026-09-03T18:35:14.027Z |
+| 13 | 14 | skipped-test | packages/backend/src/modules/route-references/action-reference.util.spec.ts | 104 | it.failing directory field scan until 14-02 | fixed |  | 2026-09-03T17:30:54.506Z | 2026-09-03T18:35:14.544Z |
 | 14 | 14 | deviation | packages/shared/package.json |  | Added Jest test script to @krasterisk/shared so Wave 0 verify can run | open |  | 2026-09-03T17:30:55.825Z |  |
+| 15 | 14 | deviation | packages/backend/src/modules/directories/directories.service.spec.ts |  | lookup/csv suites fail on uncommitted normalizeDirectoryKey re-export WIP; 14-02 left them untouched | open |  | 2026-09-03T18:34:09.708Z |  |
 
 ````json
 [
@@ -159,10 +160,10 @@ last_updated: 2026-09-03T17:30:55.825Z
     "file": "packages/backend/src/modules/route-references/action-reference.util.ts",
     "line": 53,
     "description": "Only ivr and queue kinds match; remaining kinds reserved for 14-02",
-    "status": "open",
+    "status": "fixed",
     "reason": "",
     "recorded_at": "2026-09-03T17:30:48.046Z",
-    "resolved_at": null
+    "resolved_at": "2026-09-03T18:35:13.510Z"
   },
   {
     "id": 12,
@@ -171,10 +172,10 @@ last_updated: 2026-09-03T17:30:55.825Z
     "file": "packages/backend/src/modules/route-references/action-reference.util.spec.ts",
     "line": 85,
     "description": "it.failing notify.integration_uid and voicerobot.robot_uid until 14-02",
-    "status": "open",
+    "status": "fixed",
     "reason": "",
     "recorded_at": "2026-09-03T17:30:50.848Z",
-    "resolved_at": null
+    "resolved_at": "2026-09-03T18:35:14.027Z"
   },
   {
     "id": 13,
@@ -183,10 +184,10 @@ last_updated: 2026-09-03T17:30:55.825Z
     "file": "packages/backend/src/modules/route-references/action-reference.util.spec.ts",
     "line": 104,
     "description": "it.failing directory field scan until 14-02",
-    "status": "open",
+    "status": "fixed",
     "reason": "",
     "recorded_at": "2026-09-03T17:30:54.506Z",
-    "resolved_at": null
+    "resolved_at": "2026-09-03T18:35:14.544Z"
   },
   {
     "id": 14,
@@ -198,6 +199,18 @@ last_updated: 2026-09-03T17:30:55.825Z
     "status": "open",
     "reason": "",
     "recorded_at": "2026-09-03T17:30:55.825Z",
+    "resolved_at": null
+  },
+  {
+    "id": 15,
+    "kind": "deviation",
+    "phase": "14",
+    "file": "packages/backend/src/modules/directories/directories.service.spec.ts",
+    "line": null,
+    "description": "lookup/csv suites fail on uncommitted normalizeDirectoryKey re-export WIP; 14-02 left them untouched",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-09-03T18:34:09.708Z",
     "resolved_at": null
   }
 ]

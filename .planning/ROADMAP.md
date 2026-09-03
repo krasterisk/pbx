@@ -920,9 +920,20 @@ Plans:
 
 **Depends on:** Phase 12 (типизированный контракт редактора и корректный генератор `actionToDialplan` — основание и для схемы, и для симуляции)
 
-**Plans:** 10 plans
+**Plans:** 2/10 plans executed
 
 Plans:
+
+- [x] 14-01-PLAN.md
+- [x] 14-02-PLAN.md
+- [ ] 14-03-PLAN.md
+- [ ] 14-04-PLAN.md
+- [ ] 14-05-PLAN.md
+- [ ] 14-06-PLAN.md
+- [ ] 14-07-PLAN.md
+- [ ] 14-08-PLAN.md
+- [ ] 14-09-PLAN.md
+- [ ] 14-10-PLAN.md
 - [x] `14-01-PLAN.md` — Wave 0: specs walk/hop/reask + action-reference scaffold
 - [ ] `14-02-PLAN.md` — Wave 1: индекс ссылок backend + delete 409 (tracer IVR)
 - [ ] `14-03-PLAN.md` — Wave 2: блок-схема route+IVR + react-to-print (tracer Schema tab)
@@ -966,6 +977,7 @@ Plans:
 **Plans:** 24 plans, волны 1…7 (`15-VALIDATION.md` — Nyquist-контракт фазы)
 
 Plans:
+
 - [ ] `15-01-PLAN.md` — Wave 1: единая точка диспатча, зачистка тенантных аргументов, контракт реестра
 - [ ] `15-02-PLAN.md` — Wave 1: подсистема скилов (каталог + `read_skill`, скилы в сборке)
 - [ ] `15-03-PLAN.md` — Wave 1: персистентные треды, сообщения, proposals, миграция
