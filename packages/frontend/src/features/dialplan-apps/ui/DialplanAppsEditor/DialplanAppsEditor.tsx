@@ -55,6 +55,7 @@ import { allowedTypesForHost } from '../../model/hostTypes';
 import type { MappedStepErrors } from '../../model/stepErrors';
 import { UnknownActionCard } from '../UnknownActionCard/UnknownActionCard';
 import { ApplyTemplateDialog } from '@/features/route-templates/ui/ApplyTemplateDialog';
+import { SaveAsTemplateDialog } from '@/features/route-templates/ui/SaveAsTemplateDialog';
 import { useIsMobile } from '@/shared/hooks/useIsMobile';
 import styles from './DialplanAppsEditor.module.scss';
 
@@ -607,14 +608,21 @@ export const DialplanAppsEditor = memo(function DialplanAppsEditor({
         />
       )}
       {templateActionsEnabled ? (
-        <ApplyTemplateDialog
-          open={applyOpen}
-          onOpenChange={setApplyOpen}
-          currentActionCount={actions.length}
-          onApply={(next, mode) => {
-            onChange(mode === 'replace' ? next : [...actions, ...next]);
-          }}
-        />
+        <>
+          <ApplyTemplateDialog
+            open={applyOpen}
+            onOpenChange={setApplyOpen}
+            currentActionCount={actions.length}
+            onApply={(next, mode) => {
+              onChange(mode === 'replace' ? next : [...actions, ...next]);
+            }}
+          />
+          <SaveAsTemplateDialog
+            open={saveAsOpen}
+            onOpenChange={setSaveAsOpen}
+            actions={actions}
+          />
+        </>
       ) : null}
     </VStack>
     </ChainLabelsProvider>

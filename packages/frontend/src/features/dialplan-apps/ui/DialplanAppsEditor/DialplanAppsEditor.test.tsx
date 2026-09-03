@@ -87,6 +87,7 @@ vi.mock('@/shared/api/endpoints/directoryApi', () => ({
 vi.mock('@/shared/api/endpoints/routeTemplateApi', () => ({
   useGetRouteTemplatesQuery: () => ({ data: [], isLoading: false }),
   useApplyRouteTemplateMutation: () => [vi.fn(), { isLoading: false }],
+  useCreateRouteTemplateMutation: () => [vi.fn(), { isLoading: false }],
 }));
 
 const specDir = dirname(fileURLToPath(import.meta.url));
