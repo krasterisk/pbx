@@ -391,3 +391,43 @@ describe('VoicemailService JWT detail / play / retry-stt (D-58)', () => {
     expect(scanner.retryTranscript).not.toHaveBeenCalled();
   });
 });
+
+describe('VoicemailService.list DTO (WR-01)', () => {
+  it('maps through toDetailDto and omits notify_dispatch', async () => {
+    const row = {
+      uid: 1,
+      user_uid: 100,
+      uniqueid: '1693731234.12',
+      file_rel: '100/voicemail/1693731234.12.wav',
+      record_status: 'OK',
+      caller_id: '7900',
+      exten: '100',
+      duration_sec: 4,
+      notify_status: 'sent',
+      transcript_status: 'ready',
+      notify_attempts: 0,
+      transcript_attempts: 0,
+      next_notify_at: null,
+      scan_locked_until: null,
+      transcript: 'hello',
+      summary: 'sum',
+      notify_error: null,
+      created_at: new Date('2026-09-01T00:00:00.000Z'),
+      notify_dispatch: JSON.stringify({ integration_uid: 15, target: 'secret-ops' }),
+    };
+    const service = new VoicemailService(
+      { findAll: jest.fn().mockResolvedValue([row]) } as any,
+      { create: jest.fn() } as any,
+      { get: jest.fn() } as any,
+      { getServerConfigRaw: jest.fn().mockResolvedValue({ records_base_path: '/usr/records' }) } as any,
+    );
+    const result = await service.list(100);
+    expect(result).toHaveLength(1);
+    expect(result[0]).not.toHaveProperty('notify_dispatch');
+    expect(result[0]).not.toHaveProperty('user_uid');
+    expect(result[0].vpbx_user_uid).toBe(100);
+    expect(result[0].uniqueid).toBe('1693731234.12');
+    expect(JSON.stringify(result)).not.toContain('secret-ops');
+    expect(JSON.stringify(result)).not.toContain('notify_dispatch');
+  });
+});

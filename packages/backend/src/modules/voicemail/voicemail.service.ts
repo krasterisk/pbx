@@ -438,11 +438,12 @@ export class VoicemailService {
     });
   }
 
-  list(vpbxUserUid: number) {
-    return this.messages.findAll({
+  async list(vpbxUserUid: number) {
+    const rows = await this.messages.findAll({
       where: { user_uid: vpbxUserUid },
       order: [['created_at', 'DESC']],
     });
+    return rows.map((row) => this.toDetailDto(row));
   }
 
   async findByUniqueid(tenantId: number, uniqueid: string, viewerUserId?: number) {
