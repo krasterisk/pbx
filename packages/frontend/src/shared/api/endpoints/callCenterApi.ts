@@ -1,3 +1,4 @@
+import type { ICallbackPolicy } from '@krasterisk/shared';
 import { rtkApi } from '../rtkApi';
 import type { IPauseReason, ICcSnapshot, IAgentDetail } from '@/features/callcenter/model/types/callCenterSchema';
 import type { ICardTemplate, ICardData } from '@/features/callcenter/model/types/callCard';
@@ -111,6 +112,7 @@ export interface ICcSettings {
   /** D-15: empty/null → when enabled, engine fires only RONA. */
   autopause_rules?: AutoPauseRule[] | null;
   shift_policy?: IShiftPolicy | null;
+  callback_policy?: ICallbackPolicy | null;
 }
 
 /** Softphone shared contact book row (Phase 10 D-11…D-15). */

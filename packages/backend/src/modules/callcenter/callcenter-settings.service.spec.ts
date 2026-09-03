@@ -132,6 +132,11 @@ describe('CallCenterSettingsService', () => {
         user_uid: 7,
       });
       expect(result.alert_thresholds).toEqual(DEFAULT_ALERT_THRESHOLDS);
+      expect(result.callback_policy).toEqual({
+        order_mode: 'both',
+        dtmf_digit: '1',
+        dial_order: 'agent_first',
+      });
     });
   });
 
@@ -187,6 +192,23 @@ describe('CallCenterSettingsService', () => {
       await service.updateTenantSettings(7, { journal_depth: 100 });
       const created = ccSettingsModel.create.mock.calls[0][0];
       expect(created.journal_depth).toBe(100);
+    });
+
+    it('persists sanitized callback_policy (D-49)', async () => {
+      await service.updateTenantSettings(7, {
+        callback_policy: {
+          order_mode: 'subscriber',
+          dtmf_digit: '9',
+          dial_order: 'caller_first',
+          extra: 'drop',
+        } as any,
+      });
+      const created = ccSettingsModel.create.mock.calls[0][0];
+      expect(created.callback_policy).toEqual({
+        order_mode: 'subscriber',
+        dtmf_digit: '9',
+        dial_order: 'caller_first',
+      });
     });
   });
 

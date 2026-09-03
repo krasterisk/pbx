@@ -7,6 +7,7 @@ import type {
   UiVisibility,
 } from './cc-permissions.types';
 import type { ShiftPolicy } from './shift-policy.types';
+import type { ICallbackPolicy } from '@krasterisk/shared';
 import type { UserLevel } from '../../users/user.model';
 
 /**
@@ -86,6 +87,10 @@ export class CcSettings extends Model {
    */
   @Column({ type: DataType.JSON, allowNull: true, defaultValue: null })
   declare shift_policy: ShiftPolicy | null;
+
+  /** D-49: tenant callback order / DTMF / dial order. Window/attempts stay on the step. */
+  @Column({ type: DataType.JSON, allowNull: true, defaultValue: null })
+  declare callback_policy: ICallbackPolicy | null;
 
   @Column({ type: DataType.DATE, allowNull: false, defaultValue: DataType.NOW })
   declare updated_at: Date;

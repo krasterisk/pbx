@@ -100,6 +100,16 @@ async function main() {
     console.log('[migration] idx_cc_callback_queue:', (e as Error).message);
   }
 
+  try {
+    await qi.addColumn('cc_settings', 'callback_policy', {
+      type: DataTypes.JSON,
+      allowNull: true,
+      defaultValue: null,
+    });
+  } catch (e) {
+    console.log('[migration] cc_settings.callback_policy:', (e as Error).message);
+  }
+
   console.log('[migration] Phase 14 cc_callback_requests migration complete.');
   await sequelize.close();
 }

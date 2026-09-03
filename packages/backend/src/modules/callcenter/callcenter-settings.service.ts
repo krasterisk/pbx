@@ -24,6 +24,13 @@ import type {
 } from './models/cc-permissions.types';
 import { DEFAULT_SHIFT_POLICY, type ShiftPolicy } from './models/shift-policy.types';
 import {
+  CALLBACK_DIAL_ORDERS,
+  CALLBACK_ORDER_MODES,
+  DEFAULT_CALLBACK_POLICY,
+  type ICallbackPolicy,
+} from '@krasterisk/shared';
+import { AsteriskDialplanUtils } from '../../shared/utils/dialplan.util';
+import {
   UpdateOperatorSettingsDto,
   UpdateCcSettingsDto,
   UpdateUiCustomizationDto,
@@ -98,6 +105,7 @@ export const DEFAULT_TENANT_SETTINGS = {
   /** D-15: empty → when enabled, engine fires only RONA. */
   autopause_rules: [] as AutoPauseRule[],
   shift_policy: { ...DEFAULT_SHIFT_POLICY } as ShiftPolicy,
+  callback_policy: { ...DEFAULT_CALLBACK_POLICY } as ICallbackPolicy,
 };
 
 /** Soft cap for autopause_rules array (T-09-17-03). */
@@ -200,6 +208,34 @@ export function sanitizeShiftPolicy(
   }
   if ('free_exten_on_close' in raw) {
     base.free_exten_on_close = Boolean(raw.free_exten_on_close);
+  }
+  return base;
+}
+
+/** Whitelist / coerce ICallbackPolicy; unknown keys dropped (D-49). */
+export function sanitizeCallbackPolicy(
+  raw: Record<string, unknown> | null | undefined,
+  existing?: ICallbackPolicy | null,
+): ICallbackPolicy {
+  const base: ICallbackPolicy = { ...(existing ?? DEFAULT_CALLBACK_POLICY) };
+  if (!raw || typeof raw !== 'object') return base;
+  if (
+    typeof raw.order_mode === 'string'
+    && (CALLBACK_ORDER_MODES as readonly string[]).includes(raw.order_mode)
+  ) {
+    base.order_mode = raw.order_mode as ICallbackPolicy['order_mode'];
+  }
+  if (typeof raw.dtmf_digit === 'string' && /^[0-9*#]$/.test(raw.dtmf_digit)) {
+    base.dtmf_digit = raw.dtmf_digit;
+  }
+  if (
+    typeof raw.dial_order === 'string'
+    && (CALLBACK_DIAL_ORDERS as readonly string[]).includes(raw.dial_order)
+  ) {
+    base.dial_order = raw.dial_order as ICallbackPolicy['dial_order'];
+  }
+  if (base.order_mode === 'queue_abandon') {
+    delete base.dtmf_digit;
   }
   return base;
 }
@@ -360,6 +396,10 @@ export class CallCenterSettingsService {
         (plain.shift_policy as Record<string, unknown> | null) ?? null,
         DEFAULT_SHIFT_POLICY,
       ),
+      callback_policy: sanitizeCallbackPolicy(
+        (plain.callback_policy as Record<string, unknown> | null) ?? null,
+        DEFAULT_CALLBACK_POLICY,
+      ),
     };
   }
 
@@ -392,6 +432,14 @@ export class CallCenterSettingsService {
       const prev = (existing?.shift_policy as ShiftPolicy | null) ?? null;
       patch.shift_policy = sanitizeShiftPolicy(dto.shift_policy, prev);
     }
+    if (dto.callback_policy !== undefined) {
+      const prev = (existing?.callback_policy as ICallbackPolicy | null) ?? null;
+      patch.callback_policy = sanitizeCallbackPolicy(
+        dto.callback_policy as unknown as Record<string, unknown>,
+        prev,
+      );
+      AsteriskDialplanUtils.callbackPolicy = patch.callback_policy as ICallbackPolicy;
+    }
 
     if (existing) {
       await existing.update(patch);
@@ -413,6 +461,9 @@ export class CallCenterSettingsService {
       shift_policy:
         (patch.shift_policy as ShiftPolicy | undefined)
         ?? { ...DEFAULT_SHIFT_POLICY },
+      callback_policy:
+        (patch.callback_policy as ICallbackPolicy | undefined)
+        ?? { ...DEFAULT_CALLBACK_POLICY },
     });
   }
 

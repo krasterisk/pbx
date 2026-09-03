@@ -367,3 +367,9 @@ export interface ICallbackPolicy {
   dial_order?: CallbackDialOrder;
 }
 
+export const DEFAULT_CALLBACK_POLICY: ICallbackPolicy = {
+  order_mode: 'both',
+  dtmf_digit: '1',
+  dial_order: 'agent_first',
+};
+

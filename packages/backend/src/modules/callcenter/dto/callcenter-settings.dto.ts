@@ -4,8 +4,11 @@
  * Intentionally omit operator_user_id / user_uid — IDs come from session (IDOR mitigation).
  */
 import {
-  ArrayUnique, IsArray, IsBoolean, IsIn, IsInt, IsObject, IsOptional, Min, Max,
+  ArrayUnique, IsArray, IsBoolean, IsIn, IsInt, IsObject, IsOptional, Matches, Min, Max,
+  ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer';
+import { CALLBACK_DIAL_ORDERS, CALLBACK_ORDER_MODES } from '@krasterisk/shared';
 import type { SoftphonePlacement, SpyMode } from '../models/cc-permissions.types';
 
 const SOFTPHONE_PLACEMENTS: SoftphonePlacement[] = ['bottom-right', 'bottom-left', 'hidden'];
@@ -96,6 +99,26 @@ export class UpdateCcSettingsDto {
   @IsOptional()
   @IsObject()
   shift_policy?: Record<string, unknown>;
+
+  /** D-49: callback order_mode / dtmf_digit / dial_order. */
+  @IsOptional()
+  @IsObject()
+  @ValidateNested()
+  @Type(() => CallbackPolicyDto)
+  callback_policy?: CallbackPolicyDto;
+}
+
+export class CallbackPolicyDto {
+  @IsIn([...CALLBACK_ORDER_MODES])
+  order_mode: (typeof CALLBACK_ORDER_MODES)[number];
+
+  @IsOptional()
+  @Matches(/^[0-9*#]$/)
+  dtmf_digit?: string;
+
+  @IsOptional()
+  @IsIn([...CALLBACK_DIAL_ORDERS])
+  dial_order?: (typeof CALLBACK_DIAL_ORDERS)[number];
 }
 
 /** D-05: tab/panel visibility + softphone placement. Locked keys rejected server-side (D-06). */
