@@ -75,6 +75,10 @@ vi.mock('@/features/callcenter/ui/MissedCallsPanel/MissedCallsPanel', () => ({
   MissedCallsPanel: () => null,
 }));
 
+vi.mock('@/features/callcenter/ui/CallbackRequestsIndicator/CallbackRequestsIndicator', () => ({
+  CallbackRequestsIndicator: () => null,
+}));
+
 vi.mock('@/features/callcenter/ui/ParkedCallsIndicator/ParkedCallsIndicator', () => ({
   ParkedCallsIndicator: () => null,
 }));

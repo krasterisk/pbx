@@ -26,6 +26,7 @@ import { ClientCard } from '@/features/callcenter/ui/ClientCard/ClientCard';
 import { CallCardPopup } from '@/features/callcenter/ui/CallCardPopup';
 import { useCallCardPopup } from '@/features/callcenter/lib/useCallCardPopup';
 import { MissedCallsPanel } from '@/features/callcenter/ui/MissedCallsPanel/MissedCallsPanel';
+import { CallbackRequestsIndicator } from '@/features/callcenter/ui/CallbackRequestsIndicator/CallbackRequestsIndicator';
 import { ChatPanelHost } from '@/features/callcenter/ui/ChatPanel/ChatPanel';
 import { WrapupBar } from '@/features/callcenter/ui/WrapupBar/WrapupBar';
 import {
@@ -1149,6 +1150,7 @@ export function CallCenterAgentPage() {
 
             <HStack gap="8" className={styles.headerTools}>
               <MissedCallsPanel />
+              <CallbackRequestsIndicator />
               <ParkedCallsIndicator showLabel />
               {(isWebrtc || isSip) && (
                 <SoftphoneWidget

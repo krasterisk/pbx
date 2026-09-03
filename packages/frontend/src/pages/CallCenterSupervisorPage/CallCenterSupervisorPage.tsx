@@ -6,7 +6,7 @@ import {
   Monitor, Users, Phone, PhoneIncoming, TrendingDown,
   Eye, MessageSquare, Megaphone, Pause, Play,
   Clock, BarChart3, Headphones, LayoutGrid, Table2,
-  PhoneForwarded, PhoneOff, Info, ListPlus, History,
+  PhoneForwarded, PhoneOff, Info, ListPlus, History, PhoneOutgoing,
   ChevronDown, ChevronUp, UserPlus, X, LogIn, Trash2,
 } from 'lucide-react';
 import {
@@ -42,6 +42,12 @@ import {
   useSupervisorStartShiftMutation,
 } from '@/shared/api/endpoints/callCenterApi';
 import { ShiftLoginModal } from '@/features/callcenter/ui/ShiftLoginModal/ShiftLoginModal';
+import {
+  useCancelCallbackRequestMutation,
+  useGetCallbackRequestsQuery,
+  type ICallbackRequest,
+} from '@/shared/api/endpoints/callbackRequestsApi';
+import { filterCallbackRowsByQueue } from './callbackQueueFilter';
 import type { ShiftLoginResult } from '@/features/callcenter/ui/ShiftLoginModal/ShiftLoginModal';
 import {
   agentLabelWithExt,
@@ -55,7 +61,7 @@ import { buildUserAvatarUrl } from '@/shared/lib/userAvatarUrl';
 import type { IAgent, ICall, IQueueStats } from '@/features/callcenter/model/types/callCenterSchema';
 import styles from './CallCenterSupervisorPage.module.scss';
 
-type TabId = 'agents' | 'calls' | 'queues' | 'history';
+type TabId = 'agents' | 'calls' | 'queues' | 'history' | 'callbacks';
 type AgentView = 'grid' | 'table';
 
 const VIEW_STORAGE_KEY = 'cc:supervisor:view';
@@ -137,6 +143,7 @@ export function CallCenterSupervisorPage() {
   const [watchlistOpen, setWatchlistOpen] = useState(false);
   const [draftUserIds, setDraftUserIds] = useState<number[]>([]);
   const [shiftAgent, setShiftAgent] = useState<IAgent | null>(null);
+  const [callbackView, setCallbackView] = useState<'active' | 'completed'>('active');
 
   useCallCenterSSE(true);
 
@@ -155,6 +162,15 @@ export function CallCenterSupervisorPage() {
   const { data: watched } = useGetSupervisorWatchedAgentsQuery();
   const [setWatchedAgents, { isLoading: savingWatchlist }] = useSetSupervisorWatchedAgentsMutation();
   const [supervisorStartShift] = useSupervisorStartShiftMutation();
+  const { data: callbackRows = [], isFetching: callbacksLoading } = useGetCallbackRequestsQuery(
+    callbackView,
+    { skip: activeTab !== 'callbacks' },
+  );
+  const [cancelCallback] = useCancelCallbackRequestMutation();
+  const filteredCallbacks = useMemo(
+    () => filterCallbackRowsByQueue(callbackRows, queueFilter),
+    [callbackRows, queueFilter],
+  );
 
   const [supervisorSpy] = useSupervisorSpyMutation();
   const [supervisorForcePause] = useSupervisorForcePauseMutation();
@@ -686,11 +702,61 @@ export function CallCenterSupervisorPage() {
     },
   ], [t, renderAgentActions, removeFromWatchlist, agentActivity, agentStatusElapsed, agentAvatarSrc, queues, agentStatusDotFor]);
 
+  const callbackColumns = useMemo<ColumnDef<ICallbackRequest>[]>(() => [
+    {
+      accessorKey: 'caller',
+      header: t('callcenter.callback.number', 'Number'),
+    },
+    {
+      id: 'requested',
+      header: t('callcenter.callback.requested', 'Requested'),
+      cell: ({ row }) => new Date(row.original.created_at).toLocaleString(),
+    },
+    {
+      id: 'source',
+      header: t('callcenter.callback.source', 'Source'),
+      cell: ({ row }) => row.original.queue_label || row.original.route_label || row.original.source,
+    },
+    {
+      accessorKey: 'status',
+      header: t('callcenter.callback.status', 'Status'),
+    },
+    {
+      id: 'attempts',
+      header: t('callcenter.callback.attempts', 'Attempts'),
+      cell: ({ row }) => `${row.original.attempt_count}/${row.original.max_attempts}`,
+    },
+    {
+      id: 'actions',
+      header: '',
+      cell: ({ row }) => (
+        (row.original.status === 'pending' || row.original.status === 'dialing') ? (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              const ok = window.confirm(
+                t(
+                  'callcenter.callback.cancelConfirm',
+                  'Cancel the request: nobody will call {{number}} back. Continue?',
+                ).replace('{{number}}', row.original.caller),
+              );
+              if (ok) void cancelCallback(row.original.id);
+            }}
+          >
+            {t('callcenter.callback.cancel', 'Cancel the request')}
+          </Button>
+        ) : null
+      ),
+    },
+  ], [t, cancelCallback]);
+
   const tabs: { id: TabId; label: string; icon: typeof Users }[] = [
     { id: 'agents', label: t('callcenter.supervisor.tabAgents', 'Agents'), icon: Users },
     { id: 'calls', label: t('callcenter.supervisor.tabCalls', 'Live Calls'), icon: Phone },
     { id: 'queues', label: t('callcenter.supervisor.tabQueues', 'Queues'), icon: BarChart3 },
     { id: 'history', label: t('callcenter.supervisor.tabHistory', 'History'), icon: History },
+    { id: 'callbacks', label: t('callcenter.supervisor.tabCallbacks', 'Callbacks'), icon: PhoneOutgoing },
   ];
 
   const kpiCards = [
@@ -1175,6 +1241,38 @@ export function CallCenterSupervisorPage() {
 
       {activeTab === 'history' && (
         <CallHistoryPanel source="supervisor" kpiDisplay="day" />
+      )}
+
+      {activeTab === 'callbacks' && (
+        <div data-testid="supervisor-callbacks-tab">
+          <Flex justify="between" align="center" wrap="wrap" gap="8" className="mb-3">
+            <SegmentedControl<'active' | 'completed'>
+              ariaLabel={t('callcenter.callback.title', 'Callbacks')}
+              value={callbackView}
+              onChange={setCallbackView}
+              options={[
+                { value: 'active', label: t('callcenter.callback.active', 'Active') },
+                { value: 'completed', label: t('callcenter.callback.completed', 'Completed') },
+              ]}
+            />
+            {!callbacksLoading && (
+              <Text variant="muted">{filteredCallbacks.length}</Text>
+            )}
+          </Flex>
+          {callbacksLoading ? (
+            <Text variant="muted">{t('common.loading', 'Loading…')}</Text>
+          ) : filteredCallbacks.length === 0 ? (
+            <Text variant="muted">{t('callcenter.callback.emptyTitle', 'No callback requests')}</Text>
+          ) : (
+            <div className={`${styles.tableScroll} overflow-x-auto`}>
+              <DataTable<ICallbackRequest>
+                data={filteredCallbacks}
+                columns={callbackColumns}
+                getRowId={(row) => String(row.id)}
+              />
+            </div>
+          )}
+        </div>
       )}
 
       <AgentDetailModal
