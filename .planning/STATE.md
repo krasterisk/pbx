@@ -4,14 +4,14 @@ milestone: v1.0
 current_phase: 13
 current_phase_name: custom-voicemail-instead-of-voicemail
 status: executing
-stopped_at: Completed 13-11-PLAN.md
-last_updated: "2026-09-03T02:19:55.515Z"
-state_head: df37604d90df2f592420f233ece6b886eb95e173
+stopped_at: Completed 13-05-PLAN.md
+last_updated: "2026-09-03T02:34:58.161Z"
+state_head: d7dd96bebad5b4cbf381f4dae27c4068236dbeae
 progress:
   total_phases: 13
   completed_phases: 3
   total_plans: 130
-  completed_plans: 123
+  completed_plans: 124
 milestone_name: milestone
 ---
 
@@ -20,7 +20,7 @@ milestone_name: milestone
 ## Current position
 
 Phase: 13 (custom-voicemail-instead-of-voicemail) — EXECUTING
-Plan 13-11 complete: ingest tracer + JWT list (D-60/D-62/D-72/D-73). Wave 2 closed (13-04 + 13-11). Next: 13-05 opaque token / wav resolver, 13-09 migrate, or 13-12 CDR tab (Wave 3).
+Plan 13-05 complete: opaque 7d tokens + wav play (D-59/D-67). Wave 2 closed; Wave 3 remaining: 13-09 migrate, 13-12 CDR tab.
 12-17 closed 2026-08-31: M1/M6/M7/M8/M9 approved; M4/M5/M12 deferred (live voice later). Call-group ALTERs already on prod.
 Migrations applied (2026-07-24): `cc_contacts` table + `cc_settings.journal_depth`. Live Asterisk A1/A3 checkpoint still deferred in WINDOWS.md.
 
@@ -257,6 +257,9 @@ Phase 1 — MOH: pending verify.
 - [Phase 13]: Ingest tenant accepts vpbx_user_uid (buildCurlCall) or user_uid
 - [Phase 13]: file_rel is relative {uid}/voicemail/{uniqueid}[-n].wav — never store caller absolute path
 - [Phase 13]: GET /voicemail where uses req.user.vpbx_user_uid only; query tenant ignored
+- [Phase 13]: Play tokens live in vm_access_tokens, not cc_display_tokens
+- [Phase 13]: Expired voicemail play tokens return 401 matching DisplayTokenGuard
+- [Phase 13]: Token play uses SystemSettingsService records_base_path like CDR
 
 ## Roadmap Evolution
 
@@ -290,7 +293,7 @@ Phase 1 — MOH: pending verify.
 
 ## Next GSD command
 
-**Phase 13 plan 13-11 complete.** Next: **`/gsd-execute-phase 13`** (Wave 3: 13-05 / 13-09 / 13-12). M4/M5/M12 live-voice deferred.
+**Phase 13 plan 13-05 complete.** Next: **`/gsd-execute-phase 13`** (Wave 3 remaining: 13-09 / 13-12). M4/M5/M12 live-voice deferred.
 
 Also open: Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 verify; Phase 8 / 08-11 Android smoke.
 
@@ -399,9 +402,10 @@ Also open: Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 veri
 | Phase 13 P03 | 11min | 2 tasks | 8 files |
 | Phase 13 P04 | 21 min | 2 tasks | 7 files |
 | Phase 13-custom-voicemail-instead-of-voicemail P11 | 8min | 2 tasks | 12 files |
+| Phase 13 P05 | 9min | 2 tasks | 10 files |
 
 ## Session
 
-**Last session:** 2026-09-03T02:19:54.399Z
-**Stopped at:** Completed 13-11-PLAN.md
+**Last session:** 2026-09-03T02:34:57.208Z
+**Stopped at:** Completed 13-05-PLAN.md
 **Resume file:** None
