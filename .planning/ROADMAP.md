@@ -902,7 +902,7 @@ Plans:
 
 ## Phase 14: Визуальный конструктор маршрутов и автоматизация
 
-**Status:** Pending (собирает отложенное из Phase 12; discuss выполнен 2026-09-03)
+**Status:** In Progress — 1/10 plans (14-01 Wave 0 RED specs)
 
 **Goal:** Визуальное представление, симуляция и автоматизация построения маршрутов поверх редактора, доведённого в Phase 12.
 
@@ -923,7 +923,7 @@ Plans:
 **Plans:** 10 plans
 
 Plans:
-- [ ] `14-01-PLAN.md` — Wave 0: specs walk/hop/reask + action-reference scaffold
+- [x] `14-01-PLAN.md` — Wave 0: specs walk/hop/reask + action-reference scaffold
 - [ ] `14-02-PLAN.md` — Wave 1: индекс ссылок backend + delete 409 (tracer IVR)
 - [ ] `14-03-PLAN.md` — Wave 2: блок-схема route+IVR + react-to-print (tracer Schema tab)
 - [ ] `14-04-PLAN.md` — Wave 2: dry-run walker + HTTP + AI tool (tracer linear POST)

@@ -1,15 +1,15 @@
 ---
 gsd_state_version: 1.0
 milestone: v1.0
-status: ready_to_plan
-stopped_at: Phase 14 UI-SPEC approved
-last_updated: "2026-09-03T12:27:47.872Z"
-state_head: e4d731d0746038039997d2c89408d055eb2a25d7
+status: executing
+stopped_at: Completed 14-01-PLAN.md
+last_updated: "2026-09-03T17:31:44.312Z"
+state_head: c0db85036aac5600c1658652916083b28318cff9
 progress:
   total_phases: 15
   completed_phases: 4
-  total_plans: 131
-  completed_plans: 131
+  total_plans: 165
+  completed_plans: 132
 milestone_name: milestone
 current_phase: 14
 current_phase_name: visual-route-builder-and-automation
@@ -19,7 +19,7 @@ current_phase_name: visual-route-builder-and-automation
 
 ## Current position
 
-Phase 14 (visual-route-builder-and-automation) — PLANNED (2026-09-03). 10 планов, волны 0…6, `14-VALIDATION.md` есть, plan-checker PASS после двух ревизий (`feffc9d`, `03ca016`, `6d1fc07`, `4ec3615`). Локали `en.ts`/`ru.ts` сериализованы: 14-03 → 14-06 → 14-07 → 14-09. Next: `/gsd-execute-phase 14`.
+Phase 14 (visual-route-builder-and-automation) — EXECUTING. 14-01 Wave 0 RED specs committed (`54f0051`, `c0db850`). Next: 14-02 reference index (do not start from 14-01 executor). 10 планов, волны 0…6.
 
 Phase 15 (universal-pbx-ai-agent) — SPEC READY (2026-09-03). `15-CONTEXT.md`, `15-UI-SPEC.md` approved, `15-AI-SPEC.md` закоммичен (`e244aa6`): фреймворк — собственный Nest agent loop (DomainAiAdapter + MCP + подключаемые `CcAiProvider`), домен PBX/VoIP, 11 dimension оценки, 7 guardrails. Next: `/gsd-plan-phase 15`, затем обязательный `/gsd-secure-phase 15`.
 
@@ -285,6 +285,9 @@ Phase 1 — MOH: pending verify.
 - [Phase 13]: get_voicemail_message maps NotFoundException to { found: false }; toSafeMessage omits token/play URL
 - [Phase 13]: 13-13 closed via --fix commits 99b7bd3/a6a4aba (no re-implement)
 - [Phase 13]: Hangup CURL carries notify + engine uids; LinkController before JWT :uniqueid
+- [Phase 14]: Mirrored DEFAULT_HOP_LIMIT into packages/shared/src/utils/dialplan-hops.ts because shared cannot import backend
+- [Phase 14]: Added Jest to @krasterisk/shared via hoisted workspace jest — no new npm package
+- [Phase 14]: Marked notify/voicerobot and directory collectActionReferences cases it.failing until 14-02
 
 ## Roadmap Evolution
 
@@ -437,10 +440,11 @@ Also open: Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 veri
 | Phase 13-custom-voicemail-instead-of-voicemail P08 | 29 min | 3 tasks | 19 files |
 | Phase 13-custom-voicemail-instead-of-voicemail P10 | 8 min | 2 tasks | 3 files |
 | Phase 13 P13 | 6 | 3 tasks | 10 files |
+| Phase 14 P01 | 11 | 2 tasks | 13 files |
 
 ## Session
 
-**Last session:** 2026-09-03T12:27:21.056Z
-**Stopped at:** Phase 14 UI-SPEC approved
-**Resume file:** .planning/phases/14-visual-route-builder-and-automation/14-UI-SPEC.md
+**Last session:** 2026-09-03T17:31:42.665Z
+**Stopped at:** Completed 14-01-PLAN.md
+**Resume file:** None
 **Also ready:** .planning/phases/15-universal-pbx-ai-agent/15-CONTEXT.md
