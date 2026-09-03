@@ -1316,12 +1316,11 @@ try {
 | A9 | `promptfoo` не вносить в baseline | Stack | Если eval-аудит потребует prompt-регрессию как гейт, пакет придётся ставить — с `checkpoint:human-verify` и legitimacy-гейтом |
 | A10 | Приватность треда на уровне автора (`user_uid` в scope) | Q8 | Если ожидание было «админ тенанта видит все треды тенанта», понадобится роль-зависимый scope — читается без миграции, но UI-контракт меняется |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Кто и когда координирует поломку интеграции aiPBX (D-28)?** — **NOT RESOLVED (внешняя зависимость).**
+1. **Кто и когда координирует поломку интеграции aiPBX (D-28)?** — **RESOLVED: 15-15 checkpoint:human-action before header-path removal.**
    - Что известно: aiPBX держит `mcpServers` с `X-Vpbx-User-Uid` у себя; `AIPBX_CHAT_ID` указывает на созданный вручную чат. Конфигурация вне этого репо.
-   - Что неясно: нужна ли aiPBX'у продолжающая работать интеграция после Phase 15, или он остаётся только провайдером моделей.
-   - Рекомендация: единственный вопрос фазы, который нельзя решить изнутри. План обязан вынести это в `checkpoint:human-verify` **перед** удалением сервис-токенной ветки.
+   - Решение: `15-15-PLAN.md` Task 1 is `checkpoint:human-action` (blocking) and must complete before the task that removes the service-token branch and the tenant-header read. The developer records whether the external tool-server entry is being repointed at a per-tenant user token or switched off deliberately.
 
 2. **Судьба `ai_chat_settings.confirm_destructive` после D-19.** — **RESOLVED: планировщик решает, research рекомендует.**
    - Рекомендация: оставить колонку и переосмыслить как «спрашивать подтверждение даже для не-деструктивных операций» (карточка диффа теперь показывается **всегда** для мутаций; флаг расширяет её на чтение с побочными эффектами). Так не нужна миграция данных и не теряется тенантная настройка, за которую уже есть UI (`AiChatSettingsCard`). Альтернатива — удалить колонку и карточку — тоже допустима, но требует удаления рабочего UI.
@@ -1358,7 +1357,7 @@ try {
 | `@krasterisk/harness` | E2E (`npm run harness`) | ✓ (workspace существует) | — | Не обязателен для Phase 15 |
 
 **Missing dependencies with no fallback:**
-- Координация с aiPBX по D-28 — внешняя, не решается инструментами (Open Question 1).
+- Координация с aiPBX по D-28 — внешняя; закрывается `15-15` `checkpoint:human-action` до снятия header-path.
 
 **Missing dependencies with fallback:**
 - `run-migrations.js` → ts-node миграция.
