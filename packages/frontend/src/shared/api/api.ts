@@ -119,4 +119,9 @@ export {
 
 export type { IContextInclude } from './endpoints/contextIncludeApi';
 
-export { useGetVoicemailMessagesQuery } from './endpoints/voicemailApi';
+export {
+  useGetVoicemailMessagesQuery,
+  useGetVoicemailByUniqueidQuery,
+  useRetryVoicemailSttMutation,
+  voicemailPlayUrl,
+} from './endpoints/voicemailApi';

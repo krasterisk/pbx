@@ -1,4 +1,4 @@
-import { Injectable, Logger, Optional } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional, forwardRef } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
 import { InjectModel } from '@nestjs/sequelize';
 import * as fs from 'fs';
@@ -34,6 +34,7 @@ export class VoicemailScannerService {
 
   constructor(
     @InjectModel(VoicemailMessage) private readonly messages: typeof VoicemailMessage,
+    @Inject(forwardRef(() => VoicemailService))
     private readonly voicemail: VoicemailService,
     @Optional() private readonly sttEngines?: SttEnginesService,
     @Optional() private readonly sttFactory?: SttProviderFactory,

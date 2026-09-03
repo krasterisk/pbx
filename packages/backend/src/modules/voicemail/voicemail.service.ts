@@ -1,4 +1,12 @@
-import { Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  Logger,
+  NotFoundException,
+  Optional,
+  forwardRef,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/sequelize';
 import { randomBytes } from 'crypto';
@@ -7,9 +15,11 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { NotificationDispatcherService } from '../notifications/notification-dispatcher.service';
 import { ATTACHMENT_REJECTED } from '../notifications/providers/notification-provider.interface';
+import { CdrService } from '../reports/cdr/cdr.service';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
 import { VoicemailAccessToken } from './voicemail-access-token.model';
 import { VoicemailMessage } from './voicemail-message.model';
+import { VoicemailScannerService } from './voicemail-scanner.service';
 
 export const PLAY_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 /** D-64/D-65: attach iff size is strictly less than 2 MiB. */
@@ -90,6 +100,10 @@ export class VoicemailService {
     private readonly config: ConfigService,
     private readonly systemSettings: SystemSettingsService,
     @Optional() private readonly dispatcher?: NotificationDispatcherService,
+    @Optional()
+    @Inject(forwardRef(() => VoicemailScannerService))
+    private readonly scanner?: VoicemailScannerService,
+    @Optional() private readonly cdrService?: CdrService,
   ) {}
 
   /**
@@ -420,5 +434,79 @@ export class VoicemailService {
       where: { user_uid: vpbxUserUid },
       order: [['created_at', 'DESC']],
     });
+  }
+
+  async findByUniqueid(tenantId: number, uniqueid: string, viewerUserId?: number) {
+    const row = await this.requireVisibleRow(tenantId, uniqueid, viewerUserId);
+    return this.toDetailDto(row);
+  }
+
+  async streamByUniqueid(
+    tenantId: number,
+    uniqueid: string,
+    res: Response,
+    req: Request,
+    viewerUserId?: number,
+  ): Promise<void> {
+    const row = await this.requireVisibleRow(tenantId, uniqueid, viewerUserId);
+    const cfg = await this.systemSettings.getServerConfigRaw();
+    const basePath = cfg.records_base_path || '/usr/records';
+    const filePath = safeVoicemailFilePath(basePath, row.file_rel);
+    if (!filePath) {
+      throw new NotFoundException('Voicemail file not found');
+    }
+    await this.streamWavFile(filePath, row.uniqueid, req, res);
+  }
+
+  async retryStt(tenantId: number, uniqueid: string, viewerUserId?: number) {
+    const row = await this.requireVisibleRow(tenantId, uniqueid, viewerUserId);
+    if (row.transcript_status !== 'failed') {
+      throw new BadRequestException('Voicemail transcript retry is only allowed when status is failed');
+    }
+    if (!this.scanner) {
+      throw new BadRequestException('Voicemail scanner is unavailable');
+    }
+    await this.scanner.retryTranscript(uniqueid);
+    return { ok: true };
+  }
+
+  private async requireVisibleRow(
+    tenantId: number,
+    uniqueid: string,
+    viewerUserId?: number,
+  ): Promise<VoicemailMessage> {
+    const row = await this.messages.findOne({
+      where: { user_uid: tenantId, uniqueid },
+    });
+    if (!row) {
+      throw new NotFoundException('Voicemail message not found');
+    }
+    if (this.cdrService && viewerUserId) {
+      await this.cdrService.findByUniqueid(tenantId, uniqueid, viewerUserId);
+    }
+    return row;
+  }
+
+  private toDetailDto(row: VoicemailMessage) {
+    return {
+      uid: row.uid,
+      vpbx_user_uid: row.user_uid,
+      uniqueid: row.uniqueid,
+      file_rel: row.file_rel,
+      record_status: row.record_status ?? '',
+      caller_id: row.caller_id ?? '',
+      exten: row.exten ?? '',
+      duration_sec: row.duration_sec ?? undefined,
+      notify_status: row.notify_status,
+      transcript_status: row.transcript_status,
+      notify_attempts: row.notify_attempts ?? 0,
+      transcript_attempts: row.transcript_attempts ?? 0,
+      next_notify_at: row.next_notify_at ?? null,
+      scan_locked_until: row.scan_locked_until ?? null,
+      transcript: row.transcript ?? undefined,
+      summary: row.summary ?? undefined,
+      notify_error: row.notify_error ?? undefined,
+      created_at: row.created_at,
+    };
   }
 }

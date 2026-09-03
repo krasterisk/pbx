@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { AiAgentsModule } from '../ai-agents/ai-agents.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { ReportsCdrModule } from '../reports/cdr/reports-cdr.module';
 import { SttEnginesModule } from '../stt-engines/stt-engines.module';
 import { SystemSettingsModule } from '../system-settings/system-settings.module';
 import { VoiceRobotsModule } from '../voice-robots/voice-robots.module';
@@ -20,6 +21,7 @@ import { VoicemailService } from './voicemail.service';
     SequelizeModule.forFeature([VoicemailMessage, VoicemailAccessToken]),
     SystemSettingsModule,
     NotificationsModule,
+    ReportsCdrModule,
     SttEnginesModule,
     VoiceRobotsModule,
     AiAgentsModule,
