@@ -10,6 +10,8 @@ export interface CdrUiFilters {
   trunk?: string;
   bucket?: string;
   bucketValue?: string;
+  /** UI-only shared filter for Surface L tab + checkbox. Not a CDR list API param. */
+  voicemail?: '1';
 }
 
 export function filtersToQueryParams(
@@ -43,5 +45,6 @@ export function parseFiltersFromSearchParams(params: URLSearchParams): CdrUiFilt
     trunk: params.get('trunk') || undefined,
     bucket: params.get('bucket') || undefined,
     bucketValue: params.get('bucketValue') || undefined,
+    voicemail: params.get('voicemail') === '1' ? '1' : undefined,
   };
 }

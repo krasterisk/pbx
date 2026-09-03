@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Search, X, Download } from 'lucide-react';
-import { Button, Flex, Input, Select, Text } from '@/shared/ui';
+import { Button, Checkbox, Flex, Input, Label, Select, Text } from '@/shared/ui';
 import type { CdrUiFilters } from '@/features/cdr/model/lib/cdrFiltersToParams';
 import cls from './CdrFilter.module.scss';
 
@@ -44,12 +44,14 @@ export const CdrFilter = memo(({ filters, onChange, onExportCsv, isExporting }: 
       trunk: undefined,
       bucket: undefined,
       bucketValue: undefined,
+      voicemail: undefined,
     });
   }, [onChange]);
 
   const hasFilters = Boolean(
     filters.search || filters.direction || filters.disposition ||
-    filters.dateFrom || filters.dateTo || filters.bucket,
+    filters.dateFrom || filters.dateTo || filters.bucket ||
+    filters.voicemail,
   );
 
   return (
@@ -100,6 +102,17 @@ export const CdrFilter = memo(({ filters, onChange, onExportCsv, isExporting }: 
         value={filters.dateTo || ''}
         onChange={(e) => onChange({ dateTo: e.target.value || undefined })}
       />
+
+      <Flex align="center" gap="8">
+        <Checkbox
+          id="cdr-filter-voicemail"
+          checked={filters.voicemail === '1'}
+          onChange={(e) => onChange({ voicemail: e.target.checked ? '1' : undefined })}
+        />
+        <Label htmlFor="cdr-filter-voicemail">
+          {t('cdr.filter.voicemail', 'Голосовые сообщения')}
+        </Label>
+      </Flex>
 
       {hasFilters && (
         <Button variant="ghost" size="sm" onClick={clearAll}>
