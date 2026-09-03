@@ -4,14 +4,14 @@ milestone: v1.0
 current_phase: 13
 current_phase_name: custom-voicemail-instead-of-voicemail
 status: executing
-stopped_at: Completed 13-05-PLAN.md
-last_updated: "2026-09-03T02:34:58.161Z"
-state_head: d7dd96bebad5b4cbf381f4dae27c4068236dbeae
+stopped_at: Completed 13-09-PLAN.md
+last_updated: "2026-09-03T02:48:27.609Z"
+state_head: a6f5db5d9f1b39221b461c291447f33b6f25ca6b
 progress:
   total_phases: 13
   completed_phases: 3
   total_plans: 130
-  completed_plans: 124
+  completed_plans: 125
 milestone_name: milestone
 ---
 
@@ -20,7 +20,7 @@ milestone_name: milestone
 ## Current position
 
 Phase: 13 (custom-voicemail-instead-of-voicemail) — EXECUTING
-Plan 13-05 complete: opaque 7d tokens + wav play (D-59/D-67). Wave 2 closed; Wave 3 remaining: 13-09 migrate, 13-12 CDR tab.
+Plan 13-09 complete: migrateVoicemailParams + six-column --dry-run script (D-54). Wave 3 remaining: 13-12 CDR tab.
 12-17 closed 2026-08-31: M1/M6/M7/M8/M9 approved; M4/M5/M12 deferred (live voice later). Call-group ALTERs already on prod.
 Migrations applied (2026-07-24): `cc_contacts` table + `cc_settings.journal_depth`. Live Asterisk A1/A3 checkpoint still deferred in WINDOWS.md.
 
@@ -260,6 +260,9 @@ Phase 1 — MOH: pending verify.
 - [Phase 13]: Play tokens live in vm_access_tokens, not cc_display_tokens
 - [Phase 13]: Expired voicemail play tokens return 401 matching DisplayTokenGuard
 - [Phase 13]: Token play uses SystemSettingsService records_base_path like CDR
+- [Phase 13]: migrateVoicemailParams is a dedicated export; migrateAction Phase 12 folds stay untouched
+- [Phase 13]: Script walks PHASE12_ACTION_TARGETS only; backup is phase13-voicemail-actions timestamp json
+- [Phase 13]: raw_dialplan VoiceMail hits are logged, never rewritten
 
 ## Roadmap Evolution
 
@@ -403,9 +406,10 @@ Also open: Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 veri
 | Phase 13 P04 | 21 min | 2 tasks | 7 files |
 | Phase 13-custom-voicemail-instead-of-voicemail P11 | 8min | 2 tasks | 12 files |
 | Phase 13 P05 | 9min | 2 tasks | 10 files |
+| Phase 13 P09 | 8 min | 2 tasks | 3 files |
 
 ## Session
 
-**Last session:** 2026-09-03T02:34:57.208Z
-**Stopped at:** Completed 13-05-PLAN.md
+**Last session:** 2026-09-03T02:47:13.897Z
+**Stopped at:** Completed 13-09-PLAN.md
 **Resume file:** None
