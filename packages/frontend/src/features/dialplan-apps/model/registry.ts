@@ -20,6 +20,7 @@ import { buildWebhookSchema, summarizeWebhook } from './schemas/webhook';
 import { buildCmdSchema, summarizeCmd } from './schemas/cmd';
 import { buildDirectoryLookupSchema, summarizeDirectoryLookup } from './schemas/directoryLookup';
 import { inferOptionFlags } from './inferOptionFlags';
+import { buildCallbackSchema, summarizeCallback } from '../apps/CallbackApp/CallbackApp';
 import {
   renderDialModifyTarget,
   renderDialModifyExtension,
@@ -441,8 +442,15 @@ const registryDraft: Record<ActionType, Omit<IDialplanAppConfig, 'schema' | 'sum
       max_attempts: 3,
       pause_minutes: 30,
     },
-    schema: [],
-    summarize: (_params, t) => t('routes.action.callback', 'Обратный звонок'),
+    primarySection: {
+      titleKey: 'routes.chain.section.params',
+      title: 'Параметры',
+      tooltipKey: 'routes.apps.callback.settingsHint',
+      tooltip:
+        'Режим заказа, кнопка и порядок набора - общие для тенанта, они в настройках колл-центра, на вкладке "Обратный звонок"',
+    },
+    schema: buildCallbackSchema((key, fallback) => fallback ?? key),
+    summarize: summarizeCallback,
     optionFlags: [],
   },
 };
