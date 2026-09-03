@@ -935,17 +935,17 @@ Plans:
 - [x] 14-09-PLAN.md
 - [x] 14-10-PLAN.md
 - [x] `14-01-PLAN.md` — Wave 0: specs walk/hop/reask + action-reference scaffold
-- [ ] `14-02-PLAN.md` — Wave 1: индекс ссылок backend + delete 409 (tracer IVR)
+- [x] `14-02-PLAN.md` — Wave 1: индекс ссылок backend + delete 409 (tracer IVR)
 - [x] `14-03-PLAN.md` — Wave 2: блок-схема route+IVR + react-to-print (tracer Schema tab)
-- [ ] `14-04-PLAN.md` — Wave 2: dry-run walker + HTTP + AI tool (tracer linear POST)
-- [ ] `14-05-PLAN.md` — Wave 2: шаблоны CRUD + seed + apply (tracer CRUD)
+- [x] `14-04-PLAN.md` — Wave 2: dry-run walker + HTTP + AI tool (tracer linear POST)
+- [x] `14-05-PLAN.md` — Wave 2: шаблоны CRUD + seed + apply (tracer CRUD)
 - [x] `14-06-PLAN.md` — Wave 4: dry-run UI + подсветка на Schema tab (depends 14-08 for callback outcome)
-- [ ] `14-07-PLAN.md` — Wave 5: шаблоны FE — footer, dialogs, `/route-templates` + RouteTemplateFormModal (depends 14-06 i18n)
+- [x] `14-07-PLAN.md` — Wave 5: шаблоны FE — footer, dialogs, `/route-templates` + RouteTemplateFormModal (depends 14-06 i18n)
 - [x] `14-08-PLAN.md` — Wave 3: callback ActionType + scanner + cc_settings + operator REST list/claim/cancel
 - [x] `14-09-PLAN.md` — Wave 6: callback UI — настройки CC, operator/supervisor chrome (depends 14-06/14-07 i18n + 14-08 API)
 - [x] `14-10-PLAN.md` — Wave 4: вкладки «Где используется» + delete precheck
 
-**GSD workflow:** `/gsd-discuss-phase 14` ✅ → `/gsd-ui-phase 14` ✅ (`14-UI-SPEC.md`: схема на двух хостах, сквозной прогон сегментами, раздел шаблонов, настройки и заявки callback, «Где используется») → `/gsd-plan-phase 14` ✅ → `/gsd-execute-phase 14` → `/gsd-verify-work 14`
+**GSD workflow:** `/gsd-discuss-phase 14` ✅ → `/gsd-ui-phase 14` ✅ (`14-UI-SPEC.md`: схема на двух хостах, сквозной прогон сегментами, раздел шаблонов, настройки и заявки callback, «Где используется») → `/gsd-plan-phase 14` ✅ → `/gsd-execute-phase 14` ✅ → `/gsd-verify-work 14`
 
 ---
 
