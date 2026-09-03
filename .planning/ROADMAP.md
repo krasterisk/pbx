@@ -928,7 +928,7 @@ Plans:
 - [ ] `14-03-PLAN.md` — Wave 2: блок-схема route+IVR + react-to-print (tracer Schema tab)
 - [ ] `14-04-PLAN.md` — Wave 2: dry-run walker + HTTP + AI tool (tracer linear POST)
 - [ ] `14-05-PLAN.md` — Wave 2: шаблоны CRUD + seed + apply (tracer CRUD)
-- [ ] `14-06-PLAN.md` — Wave 3: dry-run UI + подсветка на Schema tab
+- [ ] `14-06-PLAN.md` — Wave 4: dry-run UI + подсветка на Schema tab (depends 14-08 for callback outcome)
 - [ ] `14-07-PLAN.md` — Wave 3: шаблоны FE — footer, dialogs, `/route-templates`
 - [ ] `14-08-PLAN.md` — Wave 3: callback ActionType + scanner + cc_settings
 - [ ] `14-09-PLAN.md` — Wave 4: callback UI — настройки CC, operator/supervisor chrome

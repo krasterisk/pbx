@@ -529,15 +529,14 @@ Tab `callback` after `shifts` on `CallCenterSettingsPage`; component `CallbackSe
 | A5 | Pure walk lives in `packages/shared` | Dry-run | Could be backend-only if FE never imports |
 | A6 | `tolist`/`confbridge` stay out of reference index | References | If product later adds list/room entities |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Callback dialplan emission detail** (CURL internal vs AMI Originate from scanner only)
-   - What we know: scanner will dial; step must create the request somehow.
-   - Recommendation: step emits CURL to authenticated internal endpoint (Phase 12 bridge pattern); scanner owns retries — planner should confirm in Wave 0 spike if needed.
-2. **Built-in template catalog content**
-   - Recommendation: minimal seed (queue+failover, IVR handoff, business hours) — copy can iterate.
-3. **Whether dry-run HTTP is required for FE**
-   - Recommendation: yes for cross-entity (tenant loads); pure function for unit tests.
+1. **Callback dialplan emission detail** (CURL internal vs AMI Originate from scanner only) — **RESOLVED → `14-08-PLAN.md` Task 1**
+   - **Decision:** шаг `callback` в цепочке маршрута эмитит **CURL** на аутентифицированный внутренний `POST /internal/callback-requests/enqueue` (паттерн Phase 12 internal bridge, как voicemail ingest). Сканер `@Interval` владеет повторными попытками и `originateDial`; dialplan не крутит retry-loop.
+2. **Built-in template catalog content** — **RESOLVED → `14-05-PLAN.md` Task 1 (tracer)**
+   - **Decision:** seed migration вставляет **3 встроенных шаблона**: queue+failover, IVR handoff, business hours (минимальные цепочки со слотами). Копия и детали actions итерируются post-ship; состав зафиксирован в плане.
+3. **Whether dry-run HTTP is required for FE** — **RESOLVED → `14-04-PLAN.md` tracer + `14-06-PLAN.md`**
+   - **Decision:** **да** — кросс-сущностный прогон требует tenant-scoped загрузки сущностей на backend. `POST /dialplan/dry-run` (JWT) + RTK `postDryRun` на FE; чистая функция `walkDialplanGraph` остаётся в `packages/shared` для unit-тестов без HTTP.
 
 ## Environment Availability
 
