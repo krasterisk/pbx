@@ -11,6 +11,7 @@ import {
 import { RoutesService } from '../routes/routes.service';
 import { IvrsService } from '../ivrs/ivrs.service';
 import { ContextsService } from '../contexts/contexts.service';
+import { RouteReferencesService } from '../route-references/route-references.service';
 import { DryRunRequestDto, DryRunResultDto } from './dto/dry-run.dto';
 
 function asActions(raw: unknown): WalkAction[] {
@@ -25,22 +26,41 @@ function asMenuItems(raw: unknown): WalkMenuItem[] {
   }));
 }
 
+function collectToivrUids(actions: WalkAction[] | undefined, menuItems: WalkMenuItem[] | undefined): number[] {
+  const uids = new Set<number>();
+  const walk = (nodes: WalkAction[] | undefined) => {
+    for (const action of nodes ?? []) {
+      if (action.type === 'toivr') {
+        const uid = Number(action.params?.ivr_uid);
+        if (Number.isFinite(uid)) uids.add(uid);
+      }
+    }
+  };
+  walk(actions);
+  for (const item of menuItems ?? []) walk(item.actions);
+  return Array.from(uids);
+}
+
 @Injectable()
 export class DialplanDryRunService {
   constructor(
     private readonly routesService: RoutesService,
     private readonly ivrsService: IvrsService,
     private readonly contextsService: ContextsService,
+    private readonly routeReferencesService: RouteReferencesService,
   ) {}
 
   /**
    * Deterministic dry-run (D-29). `vpbxUserUid` MUST come from JWT / AI tool arg — never the body.
    */
   async run(vpbxUserUid: number, input: DryRunRequestDto): Promise<DryRunResultDto> {
+    const toivrUids = collectToivrUids(input.actions, input.menu_items);
     const [ivrs, routes, contexts] = await Promise.all([
       this.ivrsService.findAll(vpbxUserUid),
       this.routesService.findAll(vpbxUserUid),
       this.contextsService.findAll(vpbxUserUid),
+      // D-48 / T-14-06: inverse index is tenant-scoped the same way as IVR fetch.
+      ...toivrUids.map((uid) => this.routeReferencesService.findReferences('ivr', uid, vpbxUserUid)),
     ]);
 
     const ivrByUid = new Map(ivrs.map((ivr) => [ivr.uid, ivr]));
