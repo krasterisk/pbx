@@ -1,9 +1,9 @@
-# Roadmap
+﻿# Roadmap
 
 **Canonical refs (все фазы):** см. `.planning/CANONICAL_REFS.md`  
 Обязательно: `packages/frontend/.idea/ARCHITECTURE.md`, `packages/backend/.idea/ARCHITECTURE.md`
 
-## Phase 1 — MOH playlist migration
+## Phase 1: MOH playlist migration
 
 **Canonical refs (фаза):** `.docs/MOH_MODULE.md` (локально), `.idea/MOH_MODERN_DELTA_PRD.md`, `packages/backend/src/modules/moh/`, `packages/frontend/src/features/moh/`
 
@@ -13,7 +13,7 @@
 
 ---
 
-## Phase 2 — Redesign MohPage UI
+## Phase 2: Redesign MohPage UI
 
 **Canonical refs (фаза):**
 
@@ -61,7 +61,7 @@
 
 ---
 
-## Phase 3 — IVR page & form modal UI alignment
+## Phase 3: IVR page & form modal UI alignment
 
 **Canonical refs (фаза):**
 
@@ -111,7 +111,7 @@
 
 ---
 
-## Phase 4 — IVR «Фразы»: TTS-текст с движком и голосом на фразу
+## Phase 4: IVR «Фразы»: TTS-текст с движком и голосом на фразу
 
 **Canonical refs (фаза):**
 
@@ -165,7 +165,7 @@
 
 ---
 
-## Phase 5 — Phonebooks AI: универсальные справочники, MCP tools, chat-bot
+## Phase 5: Phonebooks AI: универсальные справочники, MCP tools, chat-bot
 
 **Canonical refs (фаза):**
 
@@ -226,7 +226,7 @@ Plans:
 
 ---
 
-## Phase 6 — Dialplan Apps: ring groups, multi-channel notifications, UX overhaul
+## Phase 6: Dialplan Apps: ring groups, multi-channel notifications, UX overhaul
 
 **Canonical refs (фаза):**
 
@@ -308,7 +308,7 @@ Plans:
 
 ---
 
-## Phase 7 — Call Center overhaul: корпоративный колл-центр (workspaces, wallboard, call cards, отчётность, AI-ready)
+## Phase 7: Call Center overhaul: корпоративный колл-центр (workspaces, wallboard, call cards, отчётность, AI-ready)
 
 **Canonical refs (фаза):**
 
@@ -381,7 +381,7 @@ Plans:
 
 ---
 
-## Phase 8 — Navigation redesign & Android port foundation
+## Phase 8: Navigation redesign & Android port foundation
 
 **Canonical refs (фаза):**
 
@@ -467,7 +467,7 @@ Plans:
 
 ---
 
-## Phase 9 — Call Center Agent Panel: softphone widget & professional call control
+## Phase 9: Call Center Agent Panel: softphone widget & professional call control
 
 **Canonical refs (фаза):**
 
@@ -537,7 +537,7 @@ Plans:
 
 ---
 
-## Phase 10 — Full Softphone (WebRTC dial / journal / contacts)
+## Phase 10: Full Softphone (WebRTC dial / journal / contacts)
 
 **Canonical refs (фаза):**
 
@@ -615,7 +615,7 @@ Plans:
 
 ---
 
-## Phase 11 — Harness Layer (external black-box infrastructure)
+## Phase 11: Harness Layer (external black-box infrastructure)
 
 **Canonical refs (фаза):**
 
@@ -683,7 +683,7 @@ Plans:
 
 ---
 
-## Phase 12 — DialplanAppsEditor refactor: reusable route-chain builder
+## Phase 12: DialplanAppsEditor refactor: reusable route-chain builder
 
 **Canonical refs (фаза):**
 
@@ -845,7 +845,7 @@ Plans:
 
 ---
 
-## Phase 13 — Кастомная голосовая почта вместо `VoiceMail()`
+## Phase 13: Кастомная голосовая почта вместо `VoiceMail()`
 
 **Canonical refs (фаза):**
 
@@ -900,22 +900,52 @@ Plans:
 
 ---
 
-## Phase 14 — Визуальный конструктор маршрутов и автоматизация
+## Phase 14: Визуальный конструктор маршрутов и автоматизация
 
-**Status:** Pending (собирает отложенное из Phase 12)
+**Status:** Pending (собирает отложенное из Phase 12; discuss выполнен 2026-09-03)
 
-**Goal:** Визуальное представление и автоматизация построения маршрутов поверх редактора, доведённого в Phase 12.
+**Goal:** Визуальное представление, симуляция и автоматизация построения маршрутов поверх редактора, доведённого в Phase 12.
 
 **Scope (in):**
 
-1. **Блок-схема dialplan** — визуальное отображение цепочки с печатью и экспортом в PDF (в Phase 12 сделан только флаг видимости, D-18)
-2. **MCP-сервер + построение и редактирование маршрутов с помощью LLM** — анализ и развитие действующего MCP на бэкенде
-3. **Шаблоны цепочек маршрутов** (D-46) — самостоятельная поверхность, отсутствует в `12-UI-SPEC.md`
-4. **Dry-run / тест маршрута без реального звонка** (D-48) — самостоятельная поверхность результата
-5. **Обратный звонок (callback) как действие маршрута** (D-50) — требует своего экрана настройки
+1. **Блок-схема dialplan** (D-46 → D-01…D-05) — просмотр цепочки с ветвлением отдельной вкладкой «Схема» в модалке маршрута и в IVR-меню, печать и PDF через браузер, по существующему флагу `routes.show_flowchart` (в Phase 12 сделан только флаг видимости, D-18)
+2. **Dry-run маршрута** (D-48 → D-29…D-32) — детерминированная симуляция цепочки без обращения к Asterisk, вход «номер + пресеты сценариев», пройденный путь подсвечивается на вкладке «Схема»
+3. **Шаблоны цепочек маршрутов** (D-46 → D-33…D-37) — встроенные и тенантные, с местами подстановки; кнопки в редакторе действий плюс свой раздел с полным CRUD
+4. **Обратный звонок (callback) как действие маршрута** (D-50 → D-38…D-42) — заявки, `@Interval` сканер повторов, настройки окна и попыток на шаге маршрута, вкладка в панелях оператора и супервизора
 
-**Requirements:** D-46, D-48, D-50 из `12-CONTEXT.md` + решения собственного discuss.
+**Scope (out):** **универсальный LLM-агент по АТС вынесен в Phase 15.** В discuss граница пункта «MCP + построение маршрутов с помощью LLM» разрослась до отдельной подсистемы (23 решения против 18 здесь, другой слой кода, своя тема безопасности), поэтому фазы разделены. Зависимость односторонняя: Phase 14 готовит агенту инструменты — dry-run как tool (D-32) и сборку шаблона из описания (D-34) агент подхватывает уже готовыми.
 
-**Depends on:** Phase 12 (типизированный контракт редактора и корректный генератор — основание и для схемы, и для LLM-построения)
+**Requirements:** D-46, D-48, D-50 из `12-CONTEXT.md` + решения `14-CONTEXT.md` (D-01…D-05, D-29…D-42).
 
-**GSD workflow:** `/gsd-discuss-phase 14` → `/gsd-ui-phase 14` (три новых поверхности) → `/gsd-plan-phase 14`
+**Depends on:** Phase 12 (типизированный контракт редактора и корректный генератор `actionToDialplan` — основание и для схемы, и для симуляции)
+
+**GSD workflow:** `/gsd-discuss-phase 14` ✅ → `/gsd-ui-phase 14` (схема с результатом dry-run, раздел шаблонов, вкладка callback) → `/gsd-plan-phase 14` → `/gsd-execute-phase 14` → `/gsd-verify-work 14`
+
+---
+
+## Phase 15: Универсальный AI-агент по АТС
+
+**Status:** Pending (discuss выполнен 2026-09-03 вместе с Phase 14, решения — в `15-CONTEXT.md`)
+
+**Goal:** Свой агентный цикл в Nest вместо внешнего проксирования: агент, который видит всю АТС, отвечает человеческим языком на любые связанные с ней вопросы и правит настройки во всех модулях через подтверждаемые диффы — с тенантной изоляцией, доказанной тестами.
+
+**Scope (in):**
+
+1. **Свой агентный цикл + подключаемые провайдеры моделей** (D-06…D-09) — внешний aiPBX становится одним из провайдеров, а не мозгом; провайдеры и ключи заводит только админ платформы; расход по тенанту считается и показывается админу; потолок шагов, прогресс строкой и кнопка «Стоп»
+2. **Скилы как в GSD** (D-10…D-14) — progressive disclosure (в промпте список, тело читается тулом), скилы файлами в репо рядом с кодом вместо gitignore-папки `.docs/`, знания = скилы + живое состояние АТС и CDR + диагностические tools, ответ на языке заданного вопроса
+3. **Покрытие модулей и архитектурная конвенция** (D-15…D-17) — чтение все модули, запись приоритетные домены (маршруты, 7 существующих, справочники, группы и MOH); новый модуль обязан поставляться с AI-адаптером и актуальным скилом; конвенция держится падающим тестом
+4. **Правки, права, тенантность** (D-18…D-22) — черновик-дифф с карточкой подтверждения в чате, применение в БД и reload Asterisk одним шагом, права ровно те же, что у человека в UI, `vpbxUserUid` только из JWT и только параметром вызова + тест кросс-тенантности на каждый tool
+5. **Поверхность UI и история** (D-23…D-26) — кнопка вызова переезжает в топбар шелла рядом с ⌘K (нижний правый угол остаётся софтфону из Phase 9), панель переделывается шире и без наложений, выбор модели уезжает в админские настройки, треды персистятся в БД
+6. **Hard-migrate старого MCP** (D-27, D-28) — 18 рукописных `reg*()` переезжают на реестр адаптеров и скилы, старое удаляется; внешний вход `/api/mcp` остаётся, но тенант определяется только из JWT
+
+**Scope (out):**
+
+- **Ограничения агента и защита от инъекций** («что не должен делать агент») — вынесено отдельной темой, обязательно к закрытию через `/gsd-secure-phase 15` до ship
+- Запись в тенантные настройки и параметры АТС через агента (чтение — да, запись — нет)
+- Жёсткие лимиты токенов и биллинг AI по тенантам (только учёт расхода)
+
+**Requirements:** решения `15-CONTEXT.md` (D-06…D-28).
+
+**Depends on:** Phase 12 (типизированная цепочка — то, что агент правит), Phase 14 (dry-run как tool D-32 и шаблоны из описания D-34 — агент использует готовыми), Phase 5 (эталонный адаптер справочников как форма для остальных)
+
+**GSD workflow:** `/gsd-discuss-phase 15` ✅ → `/gsd-ui-phase 15` (панель агента, карточка диффа, треды) → `/gsd-plan-phase 15` → `/gsd-execute-phase 15` → `/gsd-secure-phase 15` (обязательно) → `/gsd-verify-work 15`

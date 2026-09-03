@@ -2,9 +2,11 @@
 
 > **Audit trail only.** Do not use as input to planning, research, or execution agents.
 > Decisions are captured in CONTEXT.md — this log preserves the alternatives considered.
+>
+> **Этот лог покрывает две фазы.** Обсуждение шло единым discuss, после чего агент был выделен в отдельную Phase 15. Области про агента (LLM-агент и MCP, провайдеры моделей, поведение в длинных задачах, судьба старого кода, язык агента, права и тенантность, UI и история) относятся к решениям D-06…D-28 и живут в `.planning/phases/15-universal-pbx-ai-agent/15-CONTEXT.md`. Области про схему, dry-run, шаблоны и callback — это D-01…D-05 и D-29…D-42 в `14-CONTEXT.md`.
 
 **Date:** 2026-09-03
-**Phase:** 14-visual-route-builder-and-automation
+**Phase:** 14-visual-route-builder-and-automation (+ 15-universal-pbx-ai-agent, выделена из этого обсуждения)
 **Areas discussed:** Блок-схема, LLM-агент и MCP, Dry-run, Шаблоны цепочек, Обратный звонок, Провайдеры моделей, Поведение в длинных задачах, Хосты схемы, Судьба старого кода, Язык агента
 
 ---
