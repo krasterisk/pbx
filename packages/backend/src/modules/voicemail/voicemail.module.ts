@@ -29,7 +29,7 @@ import { VoicemailService } from './voicemail.service';
     AiAgentsModule,
     AiPlatformModule,
   ],
-  controllers: [VoicemailDialplanController, VoicemailController, VoicemailLinkController],
+  controllers: [VoicemailDialplanController, VoicemailLinkController, VoicemailController],
   providers: [
     VoicemailService,
     VoicemailLinkGuard,

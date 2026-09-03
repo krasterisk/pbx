@@ -100,4 +100,13 @@ describe('voicemail module isolation', () => {
   it('does not import cdr-public.controller', () => {
     expect(src).not.toMatch(/cdr-public/);
   });
+
+  it('registers VoicemailLinkController before JWT VoicemailController', () => {
+    const match = src.match(/controllers:\s*\[([\s\S]*?)\]/);
+    expect(match).toBeTruthy();
+    const list = match![1];
+    expect(list.indexOf('VoicemailLinkController')).toBeGreaterThanOrEqual(0);
+    expect(list.indexOf('VoicemailController')).toBeGreaterThanOrEqual(0);
+    expect(list.indexOf('VoicemailLinkController')).toBeLessThan(list.indexOf('VoicemailController'));
+  });
 });
