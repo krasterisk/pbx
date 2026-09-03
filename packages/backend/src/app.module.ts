@@ -32,6 +32,7 @@ import { KomandorStore } from './modules/komandor-claims/komandor-store.model';
 import { KomandorDict } from './modules/komandor-claims/komandor-dict.model';
 import { TimeGroupsModule } from './modules/time-groups/time-groups.module';
 import { DirectoriesModule } from './modules/directories/directories.module';
+import { VoicemailModule } from './modules/voicemail/voicemail.module';
 import { CallGroupsModule } from './modules/call-groups/call-groups.module';
 import { CallGroup } from './modules/call-groups/call-group.model';
 import { CallGroupMember } from './modules/call-groups/call-group-member.model';
@@ -124,6 +125,7 @@ import { Directory } from './modules/directories/directory.model';
 import { DirectoryField } from './modules/directories/directory-field.model';
 import { DirectoryRecord } from './modules/directories/directory-record.model';
 import { RouteDirectoryBinding } from './modules/directories/route-directory-binding.model';
+import { VoicemailMessage } from './modules/voicemail/voicemail-message.model';
 import { CcSubject } from './modules/service-requests/cc-subject.model';
 import { CcDistrict } from './modules/service-requests/cc-district.model';
 import * as path from 'path';
@@ -161,6 +163,7 @@ import * as path from 'path';
         CcAiAgent, CcAiProvider, CcAiToolset, CcAiCdr, CcAiBilling, CcAiInvoice, CcAiAuditLog,
         TimeGroup,
         Directory, DirectoryField, DirectoryRecord, RouteDirectoryBinding,
+        VoicemailMessage,
         NotificationIntegration,
         CallGroup, CallGroupMember,
         // Cloud-admin
@@ -213,6 +216,7 @@ import * as path from 'path';
     SmsModule,
     TimeGroupsModule,
     DirectoriesModule,
+    VoicemailModule,
     CallGroupsModule,
     LoggerModule,
     MailerModule,
