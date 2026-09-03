@@ -856,7 +856,7 @@ Plans:
 - `packages/backend/src/modules/reports/cdr/` — `hasRecording`/`streamRecording`/access-scope, на которые садится вкладка сообщений
 - `packages/backend/src/modules/stt-engines/`, `packages/backend/src/modules/ai-agents/`
 
-**Status:** In Progress (2026-09-03) — 9/12 plans executed (13-01…13-06, 13-09, 13-11, 13-12 SUMMARY); 12 plans / 8 waves; checker PASSED
+**Status:** In Progress (2026-09-03) — 10/12 plans executed (13-01…13-07, 13-09, 13-11, 13-12 SUMMARY); remaining 13-08 / 13-10; 12 plans / 8 waves; checker PASSED
 
 **Plans:**
 
@@ -869,7 +869,7 @@ Plans:
 - [x] 13-09-PLAN.md — Wave 3: migrate 6 JSON columns
 - [x] 13-12-PLAN.md — Wave 3: CDR tab + shared filter
 - [x] 13-06-PLAN.md — Wave 4: attach &lt; 2 MiB / link fallback
-- [ ] 13-07-PLAN.md — Wave 5: @Interval scanner, two status axes, STT/LLM
+- [x] 13-07-PLAN.md — Wave 5: @Interval scanner, two status axes, STT/LLM
 - [ ] 13-08-PLAN.md — Wave 6: JWT stream + Surface L details
 - [ ] 13-10-PLAN.md — Wave 7: VoicemailAiAdapter (read-only)
 

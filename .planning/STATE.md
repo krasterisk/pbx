@@ -4,14 +4,14 @@ milestone: v1.0
 current_phase: 13
 current_phase_name: custom-voicemail-instead-of-voicemail
 status: executing
-stopped_at: Completed 13-06-PLAN.md
-last_updated: "2026-09-03T03:16:49.227Z"
-state_head: d0fc1f069b8e90dbdd083d3478619ff09d97203e
+stopped_at: Completed 13-07-PLAN.md
+last_updated: "2026-09-03T03:35:34.902Z"
+state_head: aa5a6ccd3275c8ea6b3669ab84856e974e268445
 progress:
   total_phases: 13
   completed_phases: 3
   total_plans: 130
-  completed_plans: 127
+  completed_plans: 128
 milestone_name: milestone
 ---
 
@@ -20,7 +20,7 @@ milestone_name: milestone
 ## Current position
 
 Phase: 13 (custom-voicemail-instead-of-voicemail) — EXECUTING
-Plan 13-06 complete: Nest-side first notify attach under 2 MiB / token link + D-66 fallback. Remaining: 13-07 STT, 13-08 details, 13-10 adapter.
+Plan 13-07 complete: interval scanner + thin LLM client (two-axis notify/STT). Remaining: 13-08 details, 13-10 adapter.
 12-17 closed 2026-08-31: M1/M6/M7/M8/M9 approved; M4/M5/M12 deferred (live voice later). Call-group ALTERs already on prod.
 Migrations applied (2026-07-24): `cc_contacts` table + `cc_settings.journal_depth`. Live Asterisk A1/A3 checkpoint still deferred in WINDOWS.md.
 
@@ -271,6 +271,10 @@ Phase 1 — MOH: pending verify.
 - [Phase 13]: Attach iff fs.stat size is strictly less than 2 MiB; 2 MiB exactly is link-only
 - [Phase 13]: Transport fail sets notify_attempts=1; D-66 success leaves attempts at 0
 - [Phase 13]: Notify params come from ingest body — no new voicemail_messages columns in 13-06
+- [Phase 13]: SttProviderFactory exported from VoiceRobotsModule so the scanner reuses batch transcribe
+- [Phase 13]: LLM is axios + decryptSecret; wss and /api/chat skip return empty summary, not transcript failure
+- [Phase 13]: Notify retries persist ingest params as notify_dispatch JSON so scanOnce can reuse 13-06 attach/link after Nest restart
+- [Phase 13]: STT/LLM failures increment transcript_attempts only; notify_status is never written from the transcript path
 
 ## Roadmap Evolution
 
@@ -304,7 +308,7 @@ Phase 1 — MOH: pending verify.
 
 ## Next GSD command
 
-**Phase 13 plan 13-06 complete.** Next: **`/gsd-execute-phase 13`** (remaining: 13-07 / 13-08 / 13-10). M4/M5/M12 live-voice deferred.
+**Phase 13 plan 13-07 complete.** Next: **`/gsd-execute-phase 13`** (remaining: 13-08 / 13-10). M4/M5/M12 live-voice deferred.
 
 Also open: Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 verify; Phase 8 / 08-11 Android smoke.
 
@@ -417,9 +421,10 @@ Also open: Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 veri
 | Phase 13 P09 | 8 min | 2 tasks | 3 files |
 | Phase 13-custom-voicemail-instead-of-voicemail P12 | 8 min | 2 tasks | 5 files |
 | Phase 13-custom-voicemail-instead-of-voicemail P06 | 12 min | 3 tasks | 17 files |
+| Phase 13 P07 | 13 min | 3 tasks | 9 files |
 
 ## Session
 
-**Last session:** 2026-09-03T03:16:48.447Z
-**Stopped at:** Completed 13-06-PLAN.md
+**Last session:** 2026-09-03T03:35:04.918Z
+**Stopped at:** Completed 13-07-PLAN.md
 **Resume file:** None
