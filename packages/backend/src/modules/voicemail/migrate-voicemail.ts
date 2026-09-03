@@ -48,8 +48,19 @@ async function main() {
     transcript: { type: DataTypes.TEXT, allowNull: true, defaultValue: null },
     summary: { type: DataTypes.TEXT, allowNull: true, defaultValue: null },
     notify_error: { type: DataTypes.TEXT, allowNull: true, defaultValue: null },
+    notify_dispatch: { type: DataTypes.TEXT, allowNull: true, defaultValue: null },
     created_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
   }, { ifNotExists: true } as any);
+
+  try {
+    await qi.addColumn('voicemail_messages', 'notify_dispatch', {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      defaultValue: null,
+    });
+  } catch (e) {
+    console.log('[migration] notify_dispatch:', (e as Error).message);
+  }
 
   try {
     await qi.addIndex('voicemail_messages', ['vpbx_user_uid', 'uniqueid'], {

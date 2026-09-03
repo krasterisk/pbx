@@ -19,6 +19,15 @@ const FIRST_NOTIFY_RETRY_MS = 60_000;
 /** Asterisk UNIQUEID / safe filename stem: digits, letters, dot, underscore, hyphen. */
 export const UNIQUEID_ALLOW = /^[A-Za-z0-9._-]{1,128}$/;
 
+export type NotifyDispatchCtx = {
+  integration_uid: number;
+  body?: string;
+  target?: string;
+  subject?: string;
+  clid?: string;
+  exten?: string;
+};
+
 export type VoicemailIngestBody = {
   uniqueid?: string;
   file?: string;
@@ -245,6 +254,18 @@ export class VoicemailService {
       return;
     }
 
+    const integrationUid = parseTenantUid(body.integration_uid);
+    const notifyDispatch = integrationUid == null
+      ? null
+      : JSON.stringify({
+          integration_uid: integrationUid,
+          body: body.body,
+          target: body.target,
+          subject: body.subject,
+          clid: body.clid,
+          exten: body.exten,
+        } satisfies NotifyDispatchCtx);
+
     const row = await this.messages.create({
       user_uid: userUid,
       uniqueid,
@@ -255,8 +276,22 @@ export class VoicemailService {
       transcript_attempts: 0,
       next_notify_at: null,
       scan_locked_until: null,
+      notify_dispatch: notifyDispatch,
     });
     await this.sendFirstNotify(row, body);
+  }
+
+  /**
+   * Scanner retry (13-07). Reuses the 13-06 attach/link dispatch from the stored snapshot.
+   * Throws on transport failure so the scanner owns backoff / D-68.
+   */
+  async retryNotify(row: VoicemailMessage): Promise<void> {
+    const ctx = this.readNotifyDispatch(row);
+    if (!ctx || !this.dispatcher) {
+      throw new Error('notify_dispatch_missing');
+    }
+    const result = await this.dispatchStoredNotify(row, ctx);
+    if (!result.sent) throw new Error(result.error);
   }
 
   /**
@@ -271,74 +306,98 @@ export class VoicemailService {
     if (integrationUid == null || !this.dispatcher) return;
 
     try {
-      const cfg = await this.systemSettings.getServerConfigRaw();
-      const basePath = cfg.records_base_path || '/usr/records';
-      const filePath = safeVoicemailFilePath(basePath, row.file_rel);
-      if (!filePath) {
-        await this.markNotifyTransportFail(row, 'file_missing');
-        return;
+      const result = await this.dispatchStoredNotify(row, {
+        integration_uid: integrationUid,
+        body: body.body,
+        target: body.target,
+        subject: body.subject,
+        clid: body.clid,
+        exten: body.exten,
+      });
+      if (!result.sent) {
+        await this.markNotifyTransportFail(row, result.error);
       }
-
-      const stat = await fs.promises.stat(filePath);
-      const filename = path.posix.basename(row.file_rel.replace(/\\/g, '/')) || `${row.uniqueid}.wav`;
-
-      if (stat.size < VOICEMAIL_ATTACH_MAX_BYTES) {
-        const content = await fs.promises.readFile(filePath);
-        const message = this.buildNotifyBody(body.body, row.file_rel);
-        const first = await this.dispatcher.dispatch({
-          integration_uid: integrationUid,
-          message,
-          target: body.target,
-          subject: body.subject,
-          clid: body.clid,
-          exten: body.exten,
-          uniqueid: row.uniqueid,
-          attach: { filename, content, contentType: 'audio/wav' },
-        });
-
-        if (first?.success) {
-          await row.update({ notify_status: 'sent', notify_error: null });
-          return;
-        }
-
-        if (first?.error === ATTACHMENT_REJECTED) {
-          await this.dispatchLinkNotify(row, body, integrationUid);
-          return;
-        }
-
-        await this.markNotifyTransportFail(row, first?.error ?? 'transport_error');
-        return;
-      }
-
-      await this.dispatchLinkNotify(row, body, integrationUid);
     } catch (e: any) {
       this.logger.error(`voicemail first notify failed: ${e?.message ?? e}`);
       await this.markNotifyTransportFail(row, e?.message ?? 'transport_error');
     }
   }
 
+  private readNotifyDispatch(row: VoicemailMessage): NotifyDispatchCtx | null {
+    const raw = row.notify_dispatch;
+    if (!raw) return null;
+    try {
+      const parsed = JSON.parse(raw) as NotifyDispatchCtx;
+      return parsed?.integration_uid ? parsed : null;
+    } catch {
+      return null;
+    }
+  }
+
+  private async dispatchStoredNotify(
+    row: VoicemailMessage,
+    ctx: NotifyDispatchCtx,
+  ): Promise<{ sent: true } | { sent: false; error: string }> {
+    const cfg = await this.systemSettings.getServerConfigRaw();
+    const basePath = cfg.records_base_path || '/usr/records';
+    const filePath = safeVoicemailFilePath(basePath, row.file_rel);
+    if (!filePath) {
+      return { sent: false, error: 'file_missing' };
+    }
+
+    const stat = await fs.promises.stat(filePath);
+    const filename = path.posix.basename(row.file_rel.replace(/\\/g, '/')) || `${row.uniqueid}.wav`;
+
+    if (stat.size < VOICEMAIL_ATTACH_MAX_BYTES) {
+      const content = await fs.promises.readFile(filePath);
+      const message = this.buildNotifyBody(ctx.body, row.file_rel);
+      const first = await this.dispatcher!.dispatch({
+        integration_uid: ctx.integration_uid,
+        message,
+        target: ctx.target,
+        subject: ctx.subject,
+        clid: ctx.clid,
+        exten: ctx.exten,
+        uniqueid: row.uniqueid,
+        attach: { filename, content, contentType: 'audio/wav' },
+      });
+
+      if (first?.success) {
+        await row.update({ notify_status: 'sent', notify_error: null });
+        return { sent: true };
+      }
+
+      if (first?.error === ATTACHMENT_REJECTED) {
+        return this.dispatchLinkNotify(row, ctx);
+      }
+
+      return { sent: false, error: first?.error ?? 'transport_error' };
+    }
+
+    return this.dispatchLinkNotify(row, ctx);
+  }
+
   private async dispatchLinkNotify(
     row: VoicemailMessage,
-    body: VoicemailIngestBody,
-    integrationUid: number,
-  ): Promise<void> {
+    ctx: NotifyDispatchCtx,
+  ): Promise<{ sent: true } | { sent: false; error: string }> {
     const playUrl = await this.mintPlayToken(row);
-    const message = this.buildNotifyBody(body.body, row.file_rel, playUrl);
+    const message = this.buildNotifyBody(ctx.body, row.file_rel, playUrl);
     const result = await this.dispatcher!.dispatch({
-      integration_uid: integrationUid,
+      integration_uid: ctx.integration_uid,
       message,
-      target: body.target,
-      subject: body.subject,
-      clid: body.clid,
-      exten: body.exten,
+      target: ctx.target,
+      subject: ctx.subject,
+      clid: ctx.clid,
+      exten: ctx.exten,
       uniqueid: row.uniqueid,
     });
 
     if (result?.success) {
       await row.update({ notify_status: 'sent', notify_error: null });
-      return;
+      return { sent: true };
     }
-    await this.markNotifyTransportFail(row, result?.error ?? 'transport_error');
+    return { sent: false, error: result?.error ?? 'transport_error' };
   }
 
   private buildNotifyBody(base: string | undefined, fileRel: string, playUrl?: string): string {

@@ -54,6 +54,10 @@ export class VoicemailMessage extends Model {
   @Column({ type: DataType.TEXT, allowNull: true })
   declare notify_error: string | null;
 
+  /** JSON snapshot of ingest notify params for scanner retries (13-07). */
+  @Column({ type: DataType.TEXT, allowNull: true })
+  declare notify_dispatch: string | null;
+
   @Column({ type: DataType.DATE, allowNull: false, defaultValue: DataType.NOW })
   declare created_at: Date;
 }
