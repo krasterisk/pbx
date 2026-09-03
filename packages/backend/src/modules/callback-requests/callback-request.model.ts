@@ -18,6 +18,10 @@ export class CallbackRequest extends Model {
   @Column({ type: DataType.INTEGER, allowNull: true })
   declare queue_uid: number | null;
 
+  /** Queue name for operator membership filter (queue_table has no numeric PK). */
+  @Column({ type: DataType.STRING(64), allowNull: true })
+  declare queue_name: string | null;
+
   @Column({ type: DataType.STRING(64), allowNull: true })
   declare step_id: string | null;
 

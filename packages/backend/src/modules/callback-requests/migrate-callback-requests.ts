@@ -22,6 +22,7 @@ export const CALLBACK_REQUEST_SCHEMA_STATEMENTS = [
     caller VARCHAR(64) NOT NULL DEFAULT '',
     route_uid INT NULL,
     queue_uid INT NULL,
+    queue_name VARCHAR(64) NULL,
     step_id VARCHAR(64) NULL,
     uniqueid VARCHAR(128) NULL,
     status ENUM('pending','dialing','completed','failed','cancelled','expired') NOT NULL DEFAULT 'pending',
@@ -61,6 +62,7 @@ async function main() {
     caller: { type: DataTypes.STRING(64), allowNull: false, defaultValue: '' },
     route_uid: { type: DataTypes.INTEGER, allowNull: true, defaultValue: null },
     queue_uid: { type: DataTypes.INTEGER, allowNull: true, defaultValue: null },
+    queue_name: { type: DataTypes.STRING(64), allowNull: true, defaultValue: null },
     step_id: { type: DataTypes.STRING(64), allowNull: true, defaultValue: null },
     uniqueid: { type: DataTypes.STRING(128), allowNull: true, defaultValue: null },
     status: {
@@ -108,6 +110,16 @@ async function main() {
     });
   } catch (e) {
     console.log('[migration] cc_settings.callback_policy:', (e as Error).message);
+  }
+
+  try {
+    await qi.addColumn('cc_callback_requests', 'queue_name', {
+      type: DataTypes.STRING(64),
+      allowNull: true,
+      defaultValue: null,
+    });
+  } catch (e) {
+    console.log('[migration] cc_callback_requests.queue_name:', (e as Error).message);
   }
 
   console.log('[migration] Phase 14 cc_callback_requests migration complete.');
