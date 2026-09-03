@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { AppLayout } from '@/app/layouts/AppLayout';
 import { StandaloneLayout } from '@/app/layouts/StandaloneLayout';
@@ -50,6 +51,10 @@ import { AiAgentsPage } from '@/pages/AiAgentsPage';
 import { RequireRole } from '@/app/router/RequireRole';
 import { UserLevel } from '@/entities/User';
 
+const RouteTemplatesPage = lazy(() =>
+  import('@/pages/RouteTemplatesPage').then((mod) => ({ default: mod.RouteTemplatesPage })),
+);
+
 export const router = createBrowserRouter([
   {
     path: '/login',
@@ -95,6 +100,14 @@ export const router = createBrowserRouter([
       { path: 'trunks', element: <TrunksPage /> },
       { path: 'contexts', element: <ContextsPage /> },
       { path: 'routes', element: <RoutesPage /> },
+      {
+        path: 'route-templates',
+        element: (
+          <Suspense fallback={null}>
+            <RouteTemplatesPage />
+          </Suspense>
+        ),
+      },
       { path: 'ivrs', element: <IvrsPage /> },
       { path: 'time-groups', element: <TimeGroupsPage /> },
       { path: 'directories', element: <DirectoriesPage /> },

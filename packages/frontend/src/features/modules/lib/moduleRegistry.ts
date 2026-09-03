@@ -5,6 +5,7 @@ import {
   Waypoints,
   Route,
   Calendar,
+  LayoutTemplate,
   BookOpen,
   FileCode,
   Bot,
@@ -82,6 +83,7 @@ export const BASELINE_MODULES: ModuleDef[] = [
       { id: 'contexts', path: '/contexts', labelKey: 'contexts.title', icon: Network },
       { id: 'trunks', path: '/trunks', labelKey: 'nav.trunks', icon: Waypoints },
       { id: 'routes', path: '/routes', labelKey: 'nav.routes', icon: Route },
+      { id: 'route-templates', path: '/route-templates', labelKey: 'nav.routeTemplates', icon: LayoutTemplate },
       { id: 'time-groups', path: '/time-groups', labelKey: 'nav.timeGroups', icon: Calendar },
       { id: 'directories', path: '/directories', labelKey: 'nav.directories', icon: BookOpen },
       {

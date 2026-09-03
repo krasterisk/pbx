@@ -1,0 +1,53 @@
+.page {
+  flex: 1;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.header {
+  flex-wrap: wrap;
+  gap: 1rem;
+
+  @media (max-width: 640px) {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+.iconBadge {
+  padding: 0.625rem;
+  border-radius: var(--radius-xl);
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.title {
+  min-width: 0;
+}
+
+.createBtn {
+  @media (max-width: 640px) {
+    width: 100%;
+  }
+}
+
+.card {
+  border: 1px solid color-mix(in srgb, var(--color-border) 50%, transparent);
+}
+
+.cardContent {
+  padding: 0;
+  min-width: 0;
+}
+
+.clip {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 24rem;
+}
+
+.mobileCard {
+  width: 100%;
+}

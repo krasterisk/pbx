@@ -1,0 +1,20 @@
+.dialog {
+  width: min(880px, calc(100vw - 1rem));
+  max-width: min(880px, calc(100vw - 1rem));
+}
+
+.header {
+  flex-shrink: 0;
+}
+
+.scrollBody {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-block: 0.75rem;
+}
+
+.footer {
+  flex-shrink: 0;
+}
