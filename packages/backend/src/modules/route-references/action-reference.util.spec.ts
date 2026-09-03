@@ -14,6 +14,13 @@ const toQueue = {
   condition: {},
 };
 
+const toGroup = {
+  id: 'to-g12',
+  type: 'togroup',
+  params: { target: { source: 'fixed', value: 12 } },
+  condition: {},
+};
+
 const notify = {
   id: 'n1',
   type: 'notify',
@@ -82,7 +89,19 @@ describe('collectActionReferences (D-48)', () => {
     ]);
   });
 
-  it.failing('scans notify.integration_uid and voicerobot.robot_uid', () => {
+  it('returns a hit for togroup target 12', () => {
+    const hits = collectActionReferences('group', 12, [
+      { uid: 2, actions: [toGroup] },
+    ]);
+    expect(hits).toEqual([
+      expect.objectContaining({
+        routeUid: 2,
+        actionOrBindingId: 'to-g12',
+      }),
+    ]);
+  });
+
+  it('scans notify.integration_uid and voicerobot.robot_uid', () => {
     const routes = [{ uid: 3, actions: [notify, voiceRobot] }];
     const integrations = collectActionReferences('integration', 22, routes);
     const robots = collectActionReferences('voicerobot', 9, routes);
@@ -101,7 +120,7 @@ describe('collectActionReferences (D-48)', () => {
     expect(collectActionReferences('ivr', 4, routes)).toEqual([]);
   });
 
-  it.failing('still scans directory field keys migrated from directory-reference.util', () => {
+  it('still scans directory field keys migrated from directory-reference.util', () => {
     const hits = collectActionReferences(
       'directory',
       7,

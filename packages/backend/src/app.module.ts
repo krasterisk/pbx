@@ -32,6 +32,7 @@ import { KomandorStore } from './modules/komandor-claims/komandor-store.model';
 import { KomandorDict } from './modules/komandor-claims/komandor-dict.model';
 import { TimeGroupsModule } from './modules/time-groups/time-groups.module';
 import { DirectoriesModule } from './modules/directories/directories.module';
+import { RouteReferencesModule } from './modules/route-references/route-references.module';
 import { VoicemailModule } from './modules/voicemail/voicemail.module';
 import { CallGroupsModule } from './modules/call-groups/call-groups.module';
 import { CallGroup } from './modules/call-groups/call-group.model';
@@ -217,6 +218,7 @@ import * as path from 'path';
     SmsModule,
     TimeGroupsModule,
     DirectoriesModule,
+    RouteReferencesModule,
     VoicemailModule,
     CallGroupsModule,
     LoggerModule,
