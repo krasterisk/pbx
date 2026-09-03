@@ -225,3 +225,111 @@ describe('VoicemailService.ingest first notify (D-62 / D-64 / D-65 / D-66)', () 
     expect((service as any).summarize).toBeUndefined();
   });
 });
+
+describe('VoicemailService JWT detail / play / retry-stt (D-58)', () => {
+  const uniqueid = '1693731234.12';
+  const fileRel = `100/voicemail/${uniqueid}.wav`;
+  let base: string;
+  let messages: { findOne: jest.Mock };
+  let scanner: { retryTranscript: jest.Mock };
+  let cdrService: { findByUniqueid: jest.Mock };
+  let service: VoicemailService;
+  let row: {
+    uid: number;
+    user_uid: number;
+    uniqueid: string;
+    file_rel: string;
+    transcript_status: string;
+    notify_status: string;
+    toJSON?: () => Record<string, unknown>;
+  };
+
+  beforeEach(() => {
+    base = fs.mkdtempSync(path.join(os.tmpdir(), 'vm-jwt-'));
+    const dest = path.join(base, '100', 'voicemail');
+    fs.mkdirSync(dest, { recursive: true });
+    fs.writeFileSync(path.join(dest, `${uniqueid}.wav`), Buffer.from('RIFF....WAVEfmt '));
+    row = {
+      uid: 3,
+      user_uid: 100,
+      uniqueid,
+      file_rel: fileRel,
+      transcript_status: 'failed',
+      notify_status: 'sent',
+      toJSON() {
+        return { ...this, token: undefined };
+      },
+    };
+    messages = { findOne: jest.fn().mockResolvedValue(row) };
+    scanner = { retryTranscript: jest.fn().mockResolvedValue(undefined) };
+    cdrService = { findByUniqueid: jest.fn().mockResolvedValue({ uniqueid }) };
+    service = new VoicemailService(
+      messages as any,
+      { create: jest.fn() } as any,
+      { get: jest.fn() } as any,
+      { getServerConfigRaw: jest.fn().mockResolvedValue({ records_base_path: base }) } as any,
+      undefined,
+      scanner as any,
+      cdrService as any,
+    );
+  });
+
+  afterEach(() => {
+    fs.rmSync(base, { recursive: true, force: true });
+  });
+
+  it('findByUniqueid 404s when the row belongs to another tenant', async () => {
+    messages.findOne.mockResolvedValue(null);
+    await expect(service.findByUniqueid(100, uniqueid, 7)).rejects.toThrow('Voicemail message not found');
+    expect(messages.findOne).toHaveBeenCalledWith({ where: { user_uid: 100, uniqueid } });
+  });
+
+  it('findByUniqueid 404s when CDR access-scope hides the call', async () => {
+    const { NotFoundException } = await import('@nestjs/common');
+    cdrService.findByUniqueid.mockRejectedValue(new NotFoundException('Call not found'));
+    await expect(service.findByUniqueid(100, uniqueid, 7)).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('detail DTO has no token or play-by-token URL field', async () => {
+    const detail = await service.findByUniqueid(100, uniqueid, 7);
+    expect(detail).not.toHaveProperty('token');
+    expect(detail).not.toHaveProperty('token_url');
+    expect(detail).not.toHaveProperty('playUrl');
+    expect(detail).not.toHaveProperty('play_url');
+    expect(JSON.stringify(detail)).not.toMatch(/\/voicemail\/play\?token=/);
+  });
+
+  it('play sets audio/wav, supports Range, and download=1 sets .wav disposition', async () => {
+    const { PassThrough } = await import('stream');
+    const headers: Record<string, string | number> = {};
+    const res = Object.assign(new PassThrough(), {
+      setHeader: jest.fn((k: string, v: string | number) => {
+        headers[k] = v;
+      }),
+      status: jest.fn().mockReturnThis(),
+      headersSent: false,
+    });
+    const req = {
+      query: { download: '1' },
+      headers: { range: 'bytes=0-3' },
+      user: { vpbx_user_uid: 100, sub: 7 },
+    };
+
+    await service.streamByUniqueid(100, uniqueid, res as any, req as any, 7);
+
+    expect(headers['Content-Type']).toBe('audio/wav');
+    expect(String(headers['Content-Disposition'])).toMatch(/attachment; filename="[^"]+\.wav"/);
+    expect(res.status).toHaveBeenCalledWith(206);
+  });
+
+  it('retryStt calls scanner.retryTranscript only when transcript_status is failed', async () => {
+    await service.retryStt(100, uniqueid, 7);
+    expect(scanner.retryTranscript).toHaveBeenCalledWith(uniqueid);
+  });
+
+  it('retryStt rejects not_configured and does not retry', async () => {
+    row.transcript_status = 'not_configured';
+    await expect(service.retryStt(100, uniqueid, 7)).rejects.toThrow();
+    expect(scanner.retryTranscript).not.toHaveBeenCalled();
+  });
+});
