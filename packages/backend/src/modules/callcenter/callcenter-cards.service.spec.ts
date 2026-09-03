@@ -120,13 +120,15 @@ describe('CallCenterCardsService webhook dispatch', () => {
         expect.objectContaining({ uid: 55, channel: 'webhook' }),
         undefined,
         '',
-        expect.objectContaining({
-          customer_name: 'Alice',
-          age: '30',
-          caller_id: '1001',
-          queue_name: 'sales',
-          call_uniqueid: 'abc.123',
-        }),
+        {
+          extraVars: expect.objectContaining({
+            customer_name: 'Alice',
+            age: '30',
+            caller_id: '1001',
+            queue_name: 'sales',
+            call_uniqueid: 'abc.123',
+          }),
+        },
       );
     });
 

@@ -3,6 +3,7 @@ import { MailerService } from '../../mailer/mailer.service';
 import {
   DecryptedNotificationIntegration,
   INotificationProvider,
+  NotificationSendOptions,
   NotificationSendResult,
   trimNotificationMessage,
 } from './notification-provider.interface';
@@ -17,6 +18,7 @@ export class EmailProvider implements INotificationProvider {
     integration: DecryptedNotificationIntegration,
     target: string | undefined,
     message: string,
+    options?: NotificationSendOptions,
   ): Promise<NotificationSendResult> {
     const to = target || integration.config?.to;
     if (!to) {
@@ -29,6 +31,17 @@ export class EmailProvider implements INotificationProvider {
         to,
         subject: integration.config?.subject,
         text: trimNotificationMessage(message),
+        ...(options?.attach
+          ? {
+              attachments: [
+                {
+                  filename: options.attach.filename,
+                  content: options.attach.content,
+                  contentType: options.attach.contentType,
+                },
+              ],
+            }
+          : {}),
       });
       return { success: !!result?.success };
     } catch (e: any) {

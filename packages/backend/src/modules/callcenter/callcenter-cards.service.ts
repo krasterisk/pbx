@@ -209,7 +209,7 @@ export class CallCenterCardsService {
       }
 
       const extraVars = this.buildWebhookExtraVars(template, card);
-      const result = await this.webhook.send(integ, undefined, '', extraVars);
+      const result = await this.webhook.send(integ, undefined, '', { extraVars });
 
       if (!result.success) {
         this.logger.warn(`dispatchWebhook failed: ${result.error ?? 'unknown'}`);

@@ -3,6 +3,7 @@ import axios from 'axios';
 import {
   DecryptedNotificationIntegration,
   INotificationProvider,
+  NotificationSendOptions,
   NotificationSendResult,
   trimNotificationMessage,
 } from './notification-provider.interface';
@@ -17,6 +18,7 @@ export class MaxProvider implements INotificationProvider {
     integration: DecryptedNotificationIntegration,
     target: string | undefined,
     message: string,
+    _options?: NotificationSendOptions,
   ): Promise<NotificationSendResult> {
     const accessToken =
       integration.credentials?.access_token ?? integration.credentials?.token;

@@ -3,6 +3,7 @@ import axios from 'axios';
 import {
   DecryptedNotificationIntegration,
   INotificationProvider,
+  NotificationSendOptions,
   NotificationSendResult,
   trimNotificationMessage,
 } from './notification-provider.interface';
@@ -66,7 +67,7 @@ export class WebhookProvider implements INotificationProvider {
     integration: DecryptedNotificationIntegration,
     target: string | undefined,
     message: string,
-    extraVars?: Record<string, string>,
+    options?: NotificationSendOptions,
   ): Promise<NotificationSendResult> {
     const url =
       integration.config?.url ??
@@ -78,6 +79,7 @@ export class WebhookProvider implements INotificationProvider {
       return { success: false, error: 'invalid_url' };
     }
 
+    const extraVars = options?.extraVars;
     const text = trimNotificationMessage(message);
     const vars: Record<string, string> = {
       message: text,

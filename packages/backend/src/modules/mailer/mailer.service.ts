@@ -6,6 +6,11 @@ export interface SendNotificationDto {
   to: string;
   subject?: string;
   text?: string;
+  attachments?: Array<{
+    filename: string;
+    content: Buffer | string;
+    contentType: string;
+  }>;
 }
 
 @Injectable()
@@ -50,7 +55,7 @@ export class MailerService {
    * Called via the internal dialplan webhook endpoint.
    */
   async sendNotification(dto: SendNotificationDto): Promise<{ success: boolean }> {
-    const { to, subject, text } = dto;
+    const { to, subject, text, attachments } = dto;
 
     try {
       await this.transporter.sendMail({
@@ -58,6 +63,7 @@ export class MailerService {
         to,
         subject: subject || 'Krasterisk — Уведомление о звонке',
         text: text || '',
+        ...(attachments?.length ? { attachments } : {}),
       });
       this.logger.log(`Notification sent to ${to}`);
       return { success: true };

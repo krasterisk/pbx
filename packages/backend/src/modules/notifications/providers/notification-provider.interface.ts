@@ -17,6 +17,20 @@ export interface NotificationSendResult {
   error?: string;
 }
 
+/** Telegram payload/format rejection (4xx). Distinct from transport/5xx. */
+export const ATTACHMENT_REJECTED = 'attachment_rejected';
+
+export interface NotificationAttachment {
+  filename: string;
+  content: Buffer | string;
+  contentType: string;
+}
+
+export interface NotificationSendOptions {
+  attach?: NotificationAttachment;
+  extraVars?: Record<string, string>;
+}
+
 export const NOTIFICATION_MESSAGE_MAX_LEN = 4096;
 
 export function trimNotificationMessage(message: string): string {
@@ -35,5 +49,6 @@ export interface INotificationProvider {
     integration: DecryptedNotificationIntegration,
     target: string | undefined,
     message: string,
+    options?: NotificationSendOptions,
   ): Promise<NotificationSendResult>;
 }
