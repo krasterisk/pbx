@@ -55,3 +55,32 @@ export {
 } from './utils/dial-target-rewrite';
 export { ensureCdrVpbxUserUidInDialplan } from './utils/dialplan-vpbx';
 export { OPTIONS_ROUNDTRIP_STRINGS } from './fixtures/dialplan-options.roundtrip';
+export {
+  DEFAULT_HOP_LIMIT,
+  resolveHopDecision,
+  walkDialplanGraph,
+  resolveExactRoute,
+  isAsteriskPatternExtension,
+} from './utils/dialplan-walk';
+export type { HopDecision } from './utils/dialplan-walk';
+export type {
+  ExactRouteCandidate,
+  ExactRouteResolveResult,
+  WalkAction,
+  WalkBreadcrumb,
+  WalkDialplanOptions,
+  WalkDialplanResult,
+  WalkHostKind,
+  WalkIvrInputs,
+  WalkMenuItem,
+  WalkNode,
+  WalkOutcome,
+  WalkOutcomeKind,
+  WalkReask,
+  WalkResolveIvr,
+  WalkResolveRoutesInContext,
+  WalkResolvedIvr,
+  WalkScenarioValues,
+  WalkSegment,
+} from './utils/dialplan-walk';
+
