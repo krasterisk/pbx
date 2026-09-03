@@ -122,4 +122,68 @@ describe('DryRunForm', () => {
       expect.objectContaining({ outcome: expect.objectContaining({ kind: 'callback_requested' }) }),
     );
   });
+
+  it('renders IVR digit options plus always-present timeout and invalid, and a pass input when max_count > 0', () => {
+    render(
+      <DryRunForm
+        host="ivr"
+        maxCount={3}
+        menuItems={[
+          { digit: '1', actions: [action({ id: 'h1', type: 'hangup' })] },
+          { digit: '_XXX', actions: [action({ id: 'h2', type: 'hangup' })] },
+        ]}
+      />,
+    );
+    fireEvent.click(screen.getByTestId('dry-run-toggle'));
+    const choice = screen.getByTestId('dry-run-ivr-choice');
+    expect(choice).toHaveTextContent('Нажал кнопку 1');
+    expect(choice).toHaveTextContent('Набрал номер по шаблону _XXX');
+    expect(choice).toHaveTextContent('Ничего не нажал');
+    expect(choice).toHaveTextContent('Нажал кнопку, которой нет в меню');
+    expect(screen.getByTestId('dry-run-ivr-pass')).toBeInTheDocument();
+  });
+
+  it('renders stacked segment cards and hop-limit copy, never tabs', async () => {
+    const multi: IDryRunResult = {
+      segments: [
+        {
+          index: 0,
+          entityKind: 'ivr',
+          entityName: 'Main',
+          nodes: [{ order: '1.1', actionId: 'a1', type: 'toivr' }],
+        },
+        {
+          index: 1,
+          entityKind: 'route',
+          entityName: 'Night',
+          nodes: [{ order: '2.1', actionId: 'b1', type: 'hangup' }],
+        },
+      ],
+      breadcrumbs: [
+        { entityKind: 'ivr', entityName: 'Main' },
+        { entityKind: 'route', entityName: 'Night' },
+      ],
+      hopsUsed: 10,
+      hopLimit: 10,
+      outcome: { kind: 'congestion' },
+    };
+    postDryRun.mockReturnValue({ unwrap: () => Promise.resolve(multi) });
+
+    render(
+      <DryRunForm
+        host="ivr"
+        menuItems={[{ digit: '1', actions: [action({ id: 'a1', type: 'toivr' })] }]}
+      />,
+    );
+    fireEvent.click(screen.getByTestId('dry-run-toggle'));
+    fireEvent.change(screen.getByTestId('dry-run-ivr-choice'), { target: { value: '1' } });
+    fireEvent.click(screen.getByTestId('dry-run-run'));
+
+    expect(await screen.findByTestId('dry-run-segments')).toBeInTheDocument();
+    expect(screen.getAllByTestId('dry-run-segment')).toHaveLength(2);
+    expect(screen.getByTestId('dry-run-breadcrumbs')).toBeInTheDocument();
+    expect(screen.getByTestId('dry-run-hop-limit')).toHaveTextContent('10');
+    expect(screen.queryByRole('tablist', { name: /segment/i })).toBeNull();
+    expect(screen.getByText('2.1')).toBeInTheDocument();
+  });
 });

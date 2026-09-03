@@ -13,6 +13,10 @@ vi.mock('react-to-print', () => ({
   useReactToPrint: () => vi.fn(),
 }));
 
+vi.mock('@/shared/api/endpoints/dryRunApi', () => ({
+  usePostDryRunMutation: () => [vi.fn(), { isLoading: false, isError: false }],
+}));
+
 const hangup = { id: 'h1', type: 'hangup' as const, params: {}, condition: {} };
 
 describe('IvrFlowchartTab', () => {
@@ -33,6 +37,7 @@ describe('IvrFlowchartTab', () => {
     );
 
     expect(screen.getByTestId('ivr-flowchart-tab')).toBeInTheDocument();
+    expect(screen.getByTestId('dry-run-form')).toBeInTheDocument();
     expect(screen.getByTestId('flowchart-canvas')).toHaveAttribute('data-host', 'ivr');
     const edges = screen.getAllByTestId('flowchart-ivr-edge').map((el) => el.textContent);
     expect(edges).toContain('Кнопка 1');

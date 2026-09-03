@@ -32,6 +32,10 @@ vi.mock('react-to-print', () => ({
   useReactToPrint: () => vi.fn(),
 }));
 
+vi.mock('@/shared/api/endpoints/dryRunApi', () => ({
+  usePostDryRunMutation: () => [vi.fn(), { isLoading: false, isError: false }],
+}));
+
 vi.mock('../IvrMainTab', () => ({
   IvrMainTab: () => <div data-testid="ivr-main-tab" />,
 }));
