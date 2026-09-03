@@ -1,10 +1,11 @@
 ---
 phase: 15
 slug: universal-pbx-ai-agent
-status: draft
+status: approved
 shadcn_initialized: false
 preset: none
 created: 2026-09-03
+reviewed_at: 2026-09-03
 ---
 
 # Phase 15 — UI Design Contract
@@ -380,7 +381,7 @@ Applicable state considerations resolved: **14 covered, 2 backstop, 0 unresolved
 | empty | message list (new thread) | ✅ covered | Welcome message + suggestion chips (i18n) |
 | loading | thread list | ✅ covered | Skeleton rows (3) in rail / subview |
 | loading | messages reopen | ✅ covered | Skeleton bubbles until RTK resolve |
-| loading | Apply in flight | ✅ covered | Apply disabled + «Применяю…»; Reject disabled |
+| loading | Apply in flight | ✅ covered | Apply disabled + «Применяю изменения…»; Reject disabled |
 | error | thread list | ✅ covered | Inline error + Retry (copy Error threads) |
 | error | stream failure | ✅ covered | Error banner + Retry last user message |
 | error | Apply failure | ✅ covered | Card stays pending; error text + retry Apply |
@@ -429,12 +430,12 @@ Applicable state considerations resolved: **14 covered, 2 backstop, 0 unresolved
 
 ## Checker Sign-Off
 
-- [ ] Dimension 1 Copywriting: PASS
-- [ ] Dimension 2 Visuals: PASS
-- [ ] Dimension 3 Color: PASS
-- [ ] Dimension 4 Typography: PASS
-- [ ] Dimension 5 Spacing: PASS
-- [ ] Dimension 6 Registry Safety: PASS
-- [ ] Dimension 7 Inventory Provenance: PASS
+- [x] Dimension 1 Copywriting: PASS
+- [x] Dimension 2 Visuals: PASS
+- [x] Dimension 3 Color: PASS
+- [x] Dimension 4 Typography: PASS
+- [x] Dimension 5 Spacing: PASS
+- [x] Dimension 6 Registry Safety: PASS
+- [x] Dimension 7 Inventory Provenance: PASS
 
-**Approval:** pending
+**Approval:** approved 2026-09-03 (revision 1 after Cancel BLOCK fix)

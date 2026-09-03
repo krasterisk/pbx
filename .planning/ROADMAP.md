@@ -949,4 +949,4 @@ Plans:
 
 **Depends on:** Phase 12 (типизированная цепочка — то, что агент правит), Phase 14 (dry-run как tool D-32 и шаблоны из описания D-34 — агент использует готовыми), Phase 5 (эталонный адаптер справочников как форма для остальных)
 
-**GSD workflow:** `/gsd-discuss-phase 15` ✅ → `/gsd-ui-phase 15` (панель агента, карточка диффа, треды) → `/gsd-plan-phase 15` → `/gsd-execute-phase 15` → `/gsd-secure-phase 15` (обязательно) → `/gsd-verify-work 15`
+**GSD workflow:** `/gsd-discuss-phase 15` ✅ → `/gsd-ui-phase 15` ✅ (`15-UI-SPEC.md`: триггер в топбаре, панель 520px, треды, diff-карточка, стриминг) → `/gsd-ai-integration-phase 15` → `/gsd-plan-phase 15` → `/gsd-execute-phase 15` → `/gsd-secure-phase 15` (обязательно) → `/gsd-verify-work 15`
