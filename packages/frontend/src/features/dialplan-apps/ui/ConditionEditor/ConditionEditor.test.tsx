@@ -1,6 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
+import { RECORD_STATUS_VALUES } from '@krasterisk/shared';
+import { toConditionSource, toRouteCondition } from '../../model/conditionMap';
 import { ConditionEditor, selectionToSource, sourceToSelection } from './ConditionEditor';
 
 vi.mock('react-i18next', () => ({
@@ -25,6 +27,32 @@ describe('ConditionEditor helpers', () => {
       'dial:NOANSWER',
     ]);
     expect(sourceToSelection({ source: 'queuestatus', values: ['FULL'] })).toEqual(['queue:FULL']);
+  });
+
+  it('encodes record_status OPERATOR distinctly from DTMF (D-56)', () => {
+    const operator = sourceToSelection({ source: 'record_status', values: ['OPERATOR'] });
+    const dtmf = sourceToSelection({ source: 'record_status', values: ['DTMF'] });
+    expect(operator).toEqual(['record:OPERATOR']);
+    expect(dtmf).toEqual(['record:DTMF']);
+    expect(operator).not.toEqual(dtmf);
+
+    const all = sourceToSelection({
+      source: 'record_status',
+      values: [...RECORD_STATUS_VALUES],
+    });
+    expect(all).toEqual(RECORD_STATUS_VALUES.map((value) => `record:${value}`));
+    expect(all).toHaveLength(7);
+  });
+
+  it('round-trips record_status through selection and conditionMap', () => {
+    const encoded = sourceToSelection({ source: 'record_status', values: ['OPERATOR'] });
+    const source = selectionToSource(encoded, []);
+    expect(source).toEqual({ source: 'record_status', values: ['OPERATOR'] });
+    expect(toRouteCondition(source)).toEqual({ source: 'record_status', values: ['OPERATOR'] });
+    expect(toConditionSource({ source: 'record_status', values: ['OPERATOR'] })).toEqual({
+      source: 'record_status',
+      values: ['OPERATOR'],
+    });
   });
 
   it('keeps multiple dial statuses and drops the other group when mixed', () => {
