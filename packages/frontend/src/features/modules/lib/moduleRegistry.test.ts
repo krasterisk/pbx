@@ -35,8 +35,10 @@ describe('moduleRegistry (NAV-01)', () => {
   it('maps Hub modules to expected page paths', () => {
     const core = getBaselineModule('core');
     expect(core?.pages.map((p) => p.path)).toEqual(
-      expect.arrayContaining(['/endpoints', '/trunks', '/routes', '/directories']),
+      expect.arrayContaining(['/endpoints', '/trunks', '/routes', '/route-templates', '/directories']),
     );
+    const corePaths = core?.pages.map((p) => p.path) ?? [];
+    expect(corePaths.indexOf('/route-templates')).toBe(corePaths.indexOf('/routes') + 1);
 
     const apps = getBaselineModule('apps');
     expect(apps?.pages.map((p) => p.path)).toEqual(
