@@ -920,7 +920,21 @@ Plans:
 
 **Depends on:** Phase 12 (типизированный контракт редактора и корректный генератор `actionToDialplan` — основание и для схемы, и для симуляции)
 
-**GSD workflow:** `/gsd-discuss-phase 14` ✅ → `/gsd-ui-phase 14` ✅ (`14-UI-SPEC.md`: схема на двух хостах, сквозной прогон сегментами, раздел шаблонов, настройки и заявки callback, «Где используется») → `/gsd-plan-phase 14` → `/gsd-execute-phase 14` → `/gsd-verify-work 14`
+**Plans:** 10 plans
+
+Plans:
+- [ ] `14-01-PLAN.md` — Wave 0: specs walk/hop/reask + action-reference scaffold
+- [ ] `14-02-PLAN.md` — Wave 1: индекс ссылок backend + delete 409 (tracer IVR)
+- [ ] `14-03-PLAN.md` — Wave 2: блок-схема route+IVR + react-to-print (tracer Schema tab)
+- [ ] `14-04-PLAN.md` — Wave 2: dry-run walker + HTTP + AI tool (tracer linear POST)
+- [ ] `14-05-PLAN.md` — Wave 2: шаблоны CRUD + seed + apply (tracer CRUD)
+- [ ] `14-06-PLAN.md` — Wave 3: dry-run UI + подсветка на Schema tab
+- [ ] `14-07-PLAN.md` — Wave 3: шаблоны FE — footer, dialogs, `/route-templates`
+- [ ] `14-08-PLAN.md` — Wave 3: callback ActionType + scanner + cc_settings
+- [ ] `14-09-PLAN.md` — Wave 4: callback UI — настройки CC, operator/supervisor chrome
+- [ ] `14-10-PLAN.md` — Wave 4: вкладки «Где используется» + delete precheck
+
+**GSD workflow:** `/gsd-discuss-phase 14` ✅ → `/gsd-ui-phase 14` ✅ (`14-UI-SPEC.md`: схема на двух хостах, сквозной прогон сегментами, раздел шаблонов, настройки и заявки callback, «Где используется») → `/gsd-plan-phase 14` ✅ → `/gsd-execute-phase 14` → `/gsd-verify-work 14`
 
 ---
 
