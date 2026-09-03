@@ -20,6 +20,7 @@ import {
   WebhookParamsDto,
 } from './control.params.dto';
 import {
+  CallbackParamsDto,
   CollectInputParamsDto,
   HttpRequestParamsDto,
   NotifyParamsDto,
@@ -62,6 +63,7 @@ export const ACTION_PARAM_DTO: Record<ActionType, ParamsDtoClass | null> = {
   collect_input: CollectInputParamsDto,
   hangup: HangupParamsDto,
   directory_lookup: DirectoryLookupParamsDto,
+  callback: CallbackParamsDto,
 };
 
 export function resolveParamsDto(type: ActionType): ParamsDtoClass | null {

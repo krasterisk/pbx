@@ -67,15 +67,18 @@ function describeAction(action: DialplanAction): string {
       return action.params.signal ?? '';
     case 'directory_lookup':
       return String(action.params.directoryUid ?? '');
+    case 'callback':
+      return action.params.window_start ?? '';
   }
   return assertNeverAction(action);
 }
 
 describe('D-08 DialplanAction union + D-24 meta', () => {
-  it('has 23 ActionTypesList values including directory_lookup', () => {
-    expect(ActionTypesList).toHaveLength(23);
+  it('has 24 ActionTypesList values including callback', () => {
+    expect(ActionTypesList).toHaveLength(24);
     expect(ActionTypesList).toContain('voicemail');
     expect(ActionTypesList).toContain('directory_lookup');
+    expect(ActionTypesList).toContain('callback');
     expect(ActionTypesList).not.toContain('trunk_carousel');
     expect(ActionTypesList).not.toContain('tofax');
     expect(ActionTypesList).not.toContain('playprompt');
@@ -93,7 +96,7 @@ describe('D-08 DialplanAction union + D-24 meta', () => {
     const metaKeys = Object.keys(DIALPLAN_ACTION_META).sort();
     const listKeys = [...ActionTypesList].sort();
     expect(metaKeys).toEqual(listKeys);
-    expect(metaKeys).toHaveLength(23);
+    expect(metaKeys).toHaveLength(24);
   });
 
   it('registers directory_lookup metadata for route, directory_policy, and ivr', () => {
@@ -199,6 +202,12 @@ const VALID_PARAMS: Record<ActionType, Record<string, unknown>> = {
     outputs: [{ fieldUid: 17, targetVariable: 'CUSTOMER_NAME' }],
     onMissing: 'keep',
   },
+  callback: {
+    window_start: '09:00',
+    window_end: '21:00',
+    max_attempts: 3,
+    pause_minutes: 30,
+  },
 };
 
 const INVALID_PARAMS: Record<ActionType, Record<string, unknown>> = {
@@ -225,6 +234,7 @@ const INVALID_PARAMS: Record<ActionType, Record<string, unknown>> = {
   collect_input: { variableName: 'a b', digitsCount: 0, timeout: 5 },
   hangup: { signal: 'nope' },
   directory_lookup: { targetVariable: 'bad-name' },
+  callback: { max_attempts: 0 },
 };
 
 describe('directory_lookup action DTO', () => {

@@ -330,3 +330,26 @@ export interface IHangupParams {
   causecode?: string;
 }
 
+/** Callback step window/attempts (D-41 Surface K). Order/DTMF live on tenant callback_policy. */
+export interface ICallbackParams {
+  /** Local time HH:MM — earliest originate in the tenant day. */
+  window_start?: string;
+  /** Local time HH:MM — latest originate in the tenant day. */
+  window_end?: string;
+  max_attempts?: number;
+  pause_minutes?: number;
+}
+
+export const CALLBACK_SOURCES = ['route_step', 'queue_dtmf', 'queue_abandon'] as const;
+export type CallbackSource = (typeof CALLBACK_SOURCES)[number];
+
+export const CALLBACK_STATUSES = [
+  'pending',
+  'dialing',
+  'completed',
+  'failed',
+  'cancelled',
+  'expired',
+] as const;
+export type CallbackStatus = (typeof CALLBACK_STATUSES)[number];
+

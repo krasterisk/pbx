@@ -26,6 +26,7 @@ const ACTION_TYPES = [
   'label', 'goto', 'schedule',
   'http_request', 'collect_input',
   'hangup', 'directory_lookup',
+  'callback',
 ] as const satisfies readonly ActionType[];
 
 type MissingActionType = Exclude<ActionType, (typeof ACTION_TYPES)[number]>;
@@ -45,6 +46,7 @@ const CHARACTERIZED_TYPES: readonly ActionType[] = [
   'label', 'goto', 'schedule',
   'http_request', 'collect_input',
   'hangup', 'directory_lookup',
+  'callback',
 ];
 
 describe('AsteriskDialplanUtils.actionToDialplan', () => {
@@ -1400,6 +1402,43 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       expect((dp.match(/\$\{CURL\(/g) ?? []).length).toBe(1);
     });
 
+    it('callback emits CURL to internal enqueue with caller and window (D-38 D-41)', () => {
+      const prevUrl = AsteriskDialplanUtils.backendBaseUrl;
+      const prevKey = AsteriskDialplanUtils.dialplanApiKey;
+      AsteriskDialplanUtils.backendBaseUrl = 'http://backend.test/api';
+      AsteriskDialplanUtils.dialplanApiKey = 'wave3-key';
+      const dp = AsteriskDialplanUtils.actionToDialplan(
+        {
+          id: 'cb-1',
+          type: 'callback',
+          params: {
+            window_start: '10:00',
+            window_end: '18:00',
+            max_attempts: 5,
+            pause_minutes: 15,
+          },
+          condition: {},
+        },
+        vpbx,
+      );
+      AsteriskDialplanUtils.backendBaseUrl = prevUrl;
+      AsteriskDialplanUtils.dialplanApiKey = prevKey;
+      expect(dp).toContain('internal/callback-requests/enqueue');
+      expect(dp).toContain('${CURL(');
+      const payload = decodeCurlPostData(extractCurlInvocation(dp));
+      expect(payload.caller).toContain('CALLERID');
+      expect(payload.route_uid).toContain('HH_ROUTE_UID');
+      expect(payload.source).toBe('route_step');
+      expect(payload.window_start).toBe('10:00');
+      expect(payload.window_end).toBe('18:00');
+      expect(payload.max_attempts).toBe('5');
+      expect(payload.pause_minutes).toBe('15');
+      expect(payload.step_id).toBe('cb-1');
+      expect(payload.vpbx_user_uid).toBe(String(vpbx));
+      expect(dp).not.toContain('While(');
+      expect(dp).not.toContain('Goto(');
+    });
+
     it('unknown ActionType hits default NoOp', () => {
       const dp = AsteriskDialplanUtils.actionToDialplan(
         { type: 'not-a-real-type', params: {}, condition: {} },
@@ -1485,6 +1524,7 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       http_request: { url: 'https://example.com/x', method: 'GET', timeout: 5 },
       collect_input: { variableName: 'PIN', digitsCount: 4, timeout: 5 },
       hangup: { signal: 'busy', timeout: 10 },
+      callback: { window_start: '09:00', window_end: '21:00', max_attempts: 3, pause_minutes: 30 },
     };
 
     it.each([...ActionTypesList])('emits balanced parentheses for %s', (type) => {

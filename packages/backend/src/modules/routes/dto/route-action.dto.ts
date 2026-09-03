@@ -30,6 +30,7 @@ export const ActionTypesList = [
   'label', 'goto', 'schedule',
   'http_request', 'collect_input',
   'hangup', 'directory_lookup',
+  'callback',
 ];
 
 const MatchModesList = ['on_match', 'on_no_match'];

@@ -1089,6 +1089,7 @@ export const ru = {
       http_request: 'HTTP-запрос',
       collect_input: 'Запросить ввод',
       directory_lookup: 'Поиск в справочнике',
+      callback: 'Обратный звонок',
     },
     apps: {
       exten: { select: 'Абонент' },

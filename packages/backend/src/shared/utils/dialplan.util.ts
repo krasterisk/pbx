@@ -639,6 +639,10 @@ export class AsteriskDialplanUtils {
         dp = timeout ? `${app}(${timeout})` : `${app}()`;
         break;
       }
+      case 'callback': {
+        dp = this.emitCallbackEnqueue(action, params, vpbxUserUid);
+        break;
+      }
       default:
         dp = `NoOp(Unknown action: ${this.sanitizeDialplanInput(type)})`;
     }
@@ -648,12 +652,40 @@ export class AsteriskDialplanUtils {
     return wrapStepKeepExtraContext(buildConditionExpr(action.condition), dp);
   }
 
-  private static curlCtx(vpbxUserUid: number) {
+  private static curlCtx(vpbxUserUid: number, extra: { endpoint?: string } = {}) {
     return {
       baseUrl: this.backendBaseUrl,
       apiKey: this.dialplanApiKey,
       vpbxUserUid,
+      ...extra,
     };
+  }
+
+  /**
+   * D-38 / D-41: enqueue a callback request via authenticated internal CURL.
+   * Scanner owns retries — dialplan does not loop.
+   */
+  private static emitCallbackEnqueue(
+    action: { id?: string },
+    params: Record<string, any>,
+    vpbxUserUid: number,
+  ): string {
+    const windowStart = this.sanitizeDialplanInput(String(params.window_start ?? '09:00'));
+    const windowEnd = this.sanitizeDialplanInput(String(params.window_end ?? '21:00'));
+    const maxAttempts = parseInt(String(params.max_attempts ?? 3), 10);
+    const pauseMinutes = parseInt(String(params.pause_minutes ?? 30), 10);
+    const stepId = this.sanitizeDialplanInput(String(action?.id ?? ''));
+    return buildCurlCall('enqueue', {
+      caller: '${CALLERID(num)}',
+      uniqueid: '${UNIQUEID}',
+      route_uid: '${HH_ROUTE_UID}',
+      step_id: stepId,
+      source: 'route_step',
+      window_start: windowStart || '09:00',
+      window_end: windowEnd || '21:00',
+      max_attempts: String(Number.isFinite(maxAttempts) && maxAttempts > 0 ? maxAttempts : 3),
+      pause_minutes: String(Number.isFinite(pauseMinutes) && pauseMinutes > 0 ? pauseMinutes : 30),
+    }, this.curlCtx(vpbxUserUid, { endpoint: 'internal/callback-requests/enqueue' }));
   }
 
   private static voicemailRecordsBase(): string {

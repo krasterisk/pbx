@@ -5,6 +5,7 @@ import {
   IsOptional,
   IsString,
   Matches,
+  Max,
   Min,
   MinLength,
   Validate,
@@ -13,6 +14,7 @@ import {
 } from 'class-validator';
 import { Transform } from 'class-transformer';
 import type {
+  ICallbackParams,
   ICollectInputParams,
   IHttpRequestParams,
   INotifyActionParams,
@@ -130,4 +132,31 @@ export class CollectInputParamsDto implements ICollectInputParams {
   @IsOptional()
   @IsIn(['digits', 'extension'])
   mode?: 'digits' | 'extension';
+}
+
+const WINDOW_HH_MM = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+/** D-41 Surface K — window and attempts on the route step. */
+export class CallbackParamsDto implements ICallbackParams {
+  @IsOptional()
+  @IsString()
+  @Matches(WINDOW_HH_MM)
+  window_start?: string;
+
+  @IsOptional()
+  @IsString()
+  @Matches(WINDOW_HH_MM)
+  window_end?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(20)
+  max_attempts?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(1440)
+  pause_minutes?: number;
 }

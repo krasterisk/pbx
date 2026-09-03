@@ -25,6 +25,7 @@ import type {
   IVoiceRobotParams,
   IVoicemailParams,
   IWebhookParams,
+  ICallbackParams,
 } from './dialplan-params.types';
 
 export type ActionType =
@@ -35,7 +36,8 @@ export type ActionType =
   | 'webhook' | 'confbridge' | 'cmd'
   | 'label' | 'goto' | 'schedule'
   | 'http_request' | 'collect_input'
-  | 'hangup' | 'directory_lookup';
+  | 'hangup' | 'directory_lookup'
+  | 'callback';
 
 /** Asterisk DIALSTATUS values — used as condition whitelist */
 export type DialStatus =
@@ -111,6 +113,7 @@ export type DialplanAction = BaseRouteAction & (
   | { type: 'collect_input'; params: ICollectInputParams }
   | { type: 'hangup'; params: IHangupParams }
   | { type: 'directory_lookup'; params: IDirectoryLookupParams }
+  | { type: 'callback'; params: ICallbackParams }
 );
 
 /** Exhaustiveness helper for `switch (action.type)` without `default` (D-08). */

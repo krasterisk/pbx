@@ -1084,6 +1084,7 @@ export const en = {
       http_request: 'HTTP request',
       collect_input: 'Prompt for input',
       directory_lookup: 'Directory lookup',
+      callback: 'Callback',
     },
     apps: {
       exten: { select: 'Extension' },

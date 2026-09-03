@@ -431,6 +431,20 @@ const registryDraft: Record<ActionType, Omit<IDialplanAppConfig, 'schema' | 'sum
     summarize: summarizeDirectoryLookup,
     optionFlags: [],
   },
+  callback: {
+    type: 'callback',
+    labelKey: 'routes.action.callback',
+    category: 'telephony',
+    defaultParams: {
+      window_start: '09:00',
+      window_end: '21:00',
+      max_attempts: 3,
+      pause_minutes: 30,
+    },
+    schema: [],
+    summarize: (_params, t) => t('routes.action.callback', 'Обратный звонок'),
+    optionFlags: [],
+  },
 };
 
 function withRequiredFields(

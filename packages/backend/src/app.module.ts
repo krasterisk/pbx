@@ -37,6 +37,8 @@ import { DialplanDryRunModule } from './modules/dialplan-dry-run/dialplan-dry-ru
 import { RouteTemplatesModule } from './modules/route-templates/route-templates.module';
 import { RouteTemplate } from './modules/route-templates/route-template.model';
 import { VoicemailModule } from './modules/voicemail/voicemail.module';
+import { CallbackRequestsModule } from './modules/callback-requests/callback-requests.module';
+import { CallbackRequest } from './modules/callback-requests/callback-request.model';
 import { CallGroupsModule } from './modules/call-groups/call-groups.module';
 import { CallGroup } from './modules/call-groups/call-group.model';
 import { CallGroupMember } from './modules/call-groups/call-group-member.model';
@@ -170,6 +172,7 @@ import * as path from 'path';
         Directory, DirectoryField, DirectoryRecord, RouteDirectoryBinding,
         RouteTemplate,
         VoicemailMessage, VoicemailAccessToken,
+        CallbackRequest,
         NotificationIntegration,
         CallGroup, CallGroupMember,
         // Cloud-admin
@@ -226,6 +229,7 @@ import * as path from 'path';
     DialplanDryRunModule,
     RouteTemplatesModule,
     VoicemailModule,
+    CallbackRequestsModule,
     CallGroupsModule,
     LoggerModule,
     MailerModule,
