@@ -1535,6 +1535,7 @@ export const en = {
       main: 'General',
       sounds_prompts: 'Phrases',
       routes: 'Menu items',
+      flowchart: 'Diagram',
     },
     fields: {
       name: 'System name',

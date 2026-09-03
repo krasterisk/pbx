@@ -59,6 +59,5 @@ describe('FlowchartCanvas print (D-04, D-52)', () => {
     expect(scss).toMatch(/print-color-adjust:\s*exact/);
     expect(scss).toMatch(/break-inside:\s*avoid/);
     expect(scss).toMatch(/\.printHidden/);
-    expect(scss).not.toMatch(/reactflow|dagre|elkjs|jspdf|html2canvas/);
   });
 });

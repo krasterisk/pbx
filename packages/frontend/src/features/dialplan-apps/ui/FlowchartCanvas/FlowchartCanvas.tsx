@@ -1,7 +1,7 @@
 import { memo, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useReactToPrint } from 'react-to-print';
-import { CornerDownRight, PhoneIncoming, Printer } from 'lucide-react';
+import { AppWindow, CornerDownRight, PhoneIncoming, Printer } from 'lucide-react';
 import { type ActionType, type IRouteAction } from '@krasterisk/shared';
 import { Badge, Button, Text } from '@/shared/ui';
 import { InfoTooltip } from '@/shared/ui/Tooltip/Tooltip';
@@ -41,6 +41,32 @@ export function hasActionCondition(action: IRouteAction | undefined): boolean {
 
 function interpolate(template: string, vars: Record<string, string | number>): string {
   return template.replace(/\{\{(\w+)\}\}/g, (_, key: string) => String(vars[key] ?? ''));
+}
+
+const SPECIAL_DIGIT_ORDER: Record<string, number> = { t: 1, i: 2, max: 3 };
+
+export function ivrDigitLabel(digit: string, t: (key: string, fallback?: string) => string): string {
+  if (digit === 't') return t('routes.flowchart.edge.timeout', 'Не нажали кнопку');
+  if (digit === 'i') return t('routes.flowchart.edge.invalid', 'Нажали неверную кнопку');
+  if (digit === 'max') return t('routes.flowchart.edge.max', 'Исчерпаны проходы по меню');
+  if (digit.length === 1) {
+    return interpolate(t('routes.flowchart.edge.key', 'Кнопка {{digit}}'), { digit });
+  }
+  return interpolate(t('routes.flowchart.edge.pattern', 'Набор по шаблону {{pattern}}'), {
+    pattern: digit,
+  });
+}
+
+export function sortIvrMenuItems(items: FlowchartMenuItem[]): FlowchartMenuItem[] {
+  return items
+    .map((item, index) => ({ item, index }))
+    .sort((a, b) => {
+      const aSpecial = SPECIAL_DIGIT_ORDER[a.item.digit] ?? 0;
+      const bSpecial = SPECIAL_DIGIT_ORDER[b.item.digit] ?? 0;
+      if (aSpecial !== bSpecial) return aSpecial - bSpecial;
+      return a.index - b.index;
+    })
+    .map(({ item }) => item);
 }
 
 function FlowchartNode({
@@ -247,12 +273,99 @@ function RouteActionRow({
   );
 }
 
+function IvrCanvasBody({
+  title,
+  menuItems,
+  ivrTimeout,
+  ivrTimeoutResponse,
+  ivrTimeoutDigit,
+  ivrMaxCount,
+  t,
+}: {
+  title?: string;
+  menuItems: FlowchartMenuItem[];
+  ivrTimeout?: string | null;
+  ivrTimeoutResponse?: string | null;
+  ivrTimeoutDigit?: string | null;
+  ivrMaxCount?: number;
+  t: (key: string, fallback?: string) => string;
+}) {
+  const sorted = sortIvrMenuItems(menuItems);
+  const hasMaxItem = menuItems.some((item) => item.digit === 'max');
+  const showMaxFallback = (ivrMaxCount ?? 0) > 0 && !hasMaxItem;
+  const rootTitle = interpolate(
+    t('routes.flowchart.root.ivr', 'Меню IVR "{{name}}"'),
+    { name: title || '' },
+  );
+
+  return (
+    <div className={cls.ivrTree} data-testid="flowchart-ivr-tree">
+      <div className={cls.node} role="listitem" data-testid="flowchart-root">
+        <AppWindow size={16} aria-hidden />
+        <h3 className={cls.nodeTitle}>{rootTitle}</h3>
+        <p className={cls.nodeSummary}>
+          {[
+            ivrTimeout && `Wait ${ivrTimeout}`,
+            ivrTimeoutResponse && `Resp ${ivrTimeoutResponse}`,
+            ivrTimeoutDigit && `Digit ${ivrTimeoutDigit}`,
+            (ivrMaxCount ?? 0) > 0 && `max ${ivrMaxCount}`,
+          ].filter(Boolean).join(' · ')}
+        </p>
+      </div>
+      {sorted.map((item) => (
+        <div
+          key={item.digit}
+          className={cls.ivrBranch}
+          data-testid="flowchart-ivr-branch"
+          data-digit={item.digit}
+        >
+          <span className={cls.edgeLabel} data-testid="flowchart-ivr-edge">
+            {ivrDigitLabel(item.digit, t)}
+          </span>
+          {item.actions.map((action, index) => (
+            <FlowchartNode
+              key={action.id || `${item.digit}-${index}`}
+              action={action}
+              index={index}
+              t={t}
+            />
+          ))}
+        </div>
+      ))}
+      {showMaxFallback && (
+        <div
+          className={cls.ivrBranch}
+          data-testid="flowchart-ivr-max-fallback"
+          data-digit="max"
+        >
+          <span className={cls.edgeLabel}>{ivrDigitLabel('max', t)}</span>
+          <div className={cls.node} role="listitem">
+            <h3 className={cls.nodeTitle}>{ivrDigitLabel('max', t)}</h3>
+            <p className={cls.nodeSummary}>
+              {t('routes.flowchart.badge.endsChain', 'Завершает цепочку')}
+            </p>
+            <div className={cls.badges}>
+              <Badge variant="outline">
+                {t('routes.flowchart.badge.endsChain', 'Завершает цепочку')}
+              </Badge>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export const FlowchartCanvas = memo(function FlowchartCanvas({
   host = 'route',
   actions = [],
   menuItems = [],
   title,
   patterns,
+  ivrTimeout,
+  ivrTimeoutResponse,
+  ivrTimeoutDigit,
+  ivrMaxCount,
 }: FlowchartCanvasProps) {
   const { t } = useTranslation();
   const figureRef = useRef<HTMLFigureElement>(null);
@@ -330,6 +443,17 @@ export const FlowchartCanvas = memo(function FlowchartCanvas({
           <div role="list">
             {!isIvr && (
               <RouteCanvasBody actions={actions} title={title} patterns={patterns} t={t} />
+            )}
+            {isIvr && (
+              <IvrCanvasBody
+                title={title}
+                menuItems={menuItems}
+                ivrTimeout={ivrTimeout}
+                ivrTimeoutResponse={ivrTimeoutResponse}
+                ivrTimeoutDigit={ivrTimeoutDigit}
+                ivrMaxCount={ivrMaxCount}
+                t={t}
+              />
             )}
           </div>
         )}

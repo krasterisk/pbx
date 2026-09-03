@@ -18,6 +18,8 @@ import { getPhraseValidationMessage } from '../../lib/ivrPromptsValidation';
 import { IvrMenuItemsEditor } from '../IvrMenuItemsEditor/IvrMenuItemsEditor';
 import { IvrPromptsEditor } from '../IvrPromptsEditor/IvrPromptsEditor';
 import { IvrMainTab } from '../IvrMainTab';
+import { useGetTenantSettingsQuery } from '@/entities/tenantSettings';
+import { IvrFlowchartTab } from './IvrFlowchartTab';
 import cls from './IvrFormModal.module.scss';
 
 interface IvrFormModalProps {
@@ -31,6 +33,8 @@ export function IvrFormModal({ isOpen, onClose, ivr, mode = ivr ? 'edit' : 'crea
   const { t } = useTranslation();
   const [createIvr] = useCreateIvrMutation();
   const [updateIvr] = useUpdateIvrMutation();
+  const { data: tenantSettings, isLoading: tenantSettingsLoading } = useGetTenantSettingsQuery();
+  const showFlowchart = !tenantSettingsLoading && (tenantSettings?.['routes.show_flowchart'] ?? true);
 
   const [activeTab, setActiveTab] = useState('main');
   const [name, setName] = useState('');
@@ -137,6 +141,9 @@ export function IvrFormModal({ isOpen, onClose, ivr, mode = ivr ? 'edit' : 'crea
     { id: 'main', label: t('ivrs.tabs.main', 'Основные') },
     { id: 'sounds_prompts', label: t('ivrs.tabs.sounds_prompts', 'Фразы') },
     { id: 'routes', label: t('ivrs.tabs.routes', 'Пункты') },
+    ...(showFlowchart
+      ? [{ id: 'flowchart', label: t('ivrs.tabs.flowchart', 'Схема') }]
+      : []),
   ];
 
   const title =
@@ -204,6 +211,17 @@ export function IvrFormModal({ isOpen, onClose, ivr, mode = ivr ? 'edit' : 'crea
 
           {activeTab === 'routes' && (
             <IvrMenuItemsEditor menuItems={menuItems} onChange={setMenuItems} />
+          )}
+
+          {activeTab === 'flowchart' && showFlowchart && (
+            <IvrFlowchartTab
+              name={name}
+              menuItems={menuItems}
+              timeout={waitExten}
+              timeoutResponse={timeoutResponse}
+              timeoutDigit={timeoutDigit}
+              maxCount={maxCount}
+            />
           )}
         </VStack>
 

@@ -1296,6 +1296,7 @@ export const ru = {
       main: 'Основные',
       sounds_prompts: 'Фразы',
       routes: 'Пункты',
+      flowchart: 'Схема',
     },
     fields: {
       name: 'Системное имя',
