@@ -102,8 +102,8 @@ Exceptions:
 - **56px** — высота shell topbar (Phase 8) — не менять. Триггер агента вписывается в topbar, не увеличивает высоту.
 - **12px** — только существующий topbar `gap="12"` / header density (как Phase 8 exception). Не размножать 12px в теле чата.
 - **60px** — mobile bottom-nav height (Phase 8). Панель агента на phone: `padding-bottom` / safe-area так, чтобы input не уходил под bottom bar; **триггер агента не** в нижнем правом углу.
-- **520px** — ширина панели на desktop (**ASSUMED — confirm**; было 420px). `max-width: 100vw`. На `<768px` — full viewport width.
-- **240px** — ширина thread rail внутри панели на desktop ≥1024 (**ASSUMED — confirm**). На 768–1023 thread list — collapsible overlay поверх сообщений, не постоянная колонка.
+- **520px** — ширина панели на desktop (подтверждено 2026-09-03; было 420px). `max-width: 100vw`. На `<768px` — full viewport width.
+- **240px** — ширина thread rail внутри панели на desktop ≥1024 (подтверждено 2026-09-03). На 768–1023 thread list — collapsible overlay поверх сообщений, не постоянная колонка.
 - **1px** — границы панели, карточки диффа, разделители header/input.
 - Softphone FAB / chrome (Phase 9/10) остаётся в нижнем правом; агент **не** занимает этот угол.
 
@@ -246,7 +246,7 @@ Suggestions (empty thread chips) — i18n keys, не хардкод RU в ком
 
 **Вид:** `Button` ghost icon (`Sparkles` или `Bot`, 16–18px). `aria-label` + `Tooltip` с hotkey. Когда панель открыта — `aria-pressed="true"` и лёгкий accent tint (`color-mix(primary 12%)`), не второй FAB.
 
-**Hotkey:** **ASSUMED — confirm:** `Ctrl+Shift+J` / `Meta+Shift+J`. Не `Ctrl/Cmd+K` (занято CommandPalette). Не перехватывать, когда фокус в `input`/`textarea`/`contenteditable` **другого** поля, кроме как toggle по явному chord (как ⌘K сейчас). Документировать в tooltip.
+**Hotkey:** `Ctrl+Shift+J` / `Meta+Shift+J` (подтверждено 2026-09-03). Не `Ctrl/Cmd+K` (занято CommandPalette). Не перехватывать, когда фокус в `input`/`textarea`/`contenteditable` **другого** поля, кроме как toggle по явному chord (как ⌘K сейчас). Документировать в tooltip.
 
 **Mobile:** тот же topbar trigger. **Не** дублировать в bottom nav (Phase 8). Не перекрывать softphone sticky bar.
 
@@ -263,7 +263,7 @@ Suggestions (empty thread chips) — i18n keys, не хардкод RU в ком
 
 ### Surface B — Agent panel redesign (D-23, D-25)
 
-**Layout desktop (≥768):** fixed right sheet-panel, width **520px** (ASSUMED), full viewport height under (or including) topbar — панель может начинаться от `top: 0` как сейчас. Внутри:
+**Layout desktop (≥768):** fixed right sheet-panel, width **520px** (подтверждено), full viewport height under (or including) topbar — панель может начинаться от `top: 0` как сейчас. Внутри:
 
 ```
 [ Header: avatar | title+status | new-thread | threads-toggle | close ]
@@ -329,10 +329,10 @@ Suggestions (empty thread chips) — i18n keys, не хардкод RU в ком
 | Роль | Видит usage strip в панели | Видит имя модели в панели | Настраивает провайдеров |
 |------|----------------------------|---------------------------|-------------------------|
 | Ordinary tenant user | Нет | Нет | Нет |
-| Tenant admin | Нет в chat (**ASSUMED — confirm**: usage только platform) | Нет | Нет |
+| Tenant admin | Нет в chat (usage только platform; подтверждено 2026-09-03) | Нет | Нет |
 | Platform admin / SUPERADMIN | Да, footer strip | Нет в chat (смотрит в settings) | Да, platform AI settings |
 
-**ASSUMED — confirm:** usage strip только для platform-level admin; tenant admin смотрит агрегаты (если появятся) в platform/console, не в chat chrome. Цель D-08 — «показывается админу», без засорения tenant UX.
+Usage strip только для platform-level admin (подтверждено 2026-09-03); tenant admin смотрит агрегаты (если появятся) в platform/console, не в chat chrome. Цель D-08 — «показывается админу», без засорения tenant UX.
 
 Hard token limits / billing UI — out of scope (deferred).
 
@@ -380,7 +380,7 @@ Applicable state considerations resolved: **14 covered, 2 backstop, 0 unresolved
 | error | stream failure | ✅ covered | Error banner + Retry last user message |
 | error | Apply failure | ✅ covered | Card stays pending; error text + retry Apply |
 | populated | thread list | ✅ covered | Newest-first titles + relative time; selected accent marker |
-| populated | messages | ✅ covered | Scrollable list; auto-scroll on new chunks unless user scrolled up (**ASSUMED — confirm** stick-to-bottom unless user scroll) |
+| populated | messages | ✅ covered | Scrollable list; auto-scroll on new chunks unless user scrolled up (подтверждено 2026-09-03: stick-to-bottom unless user scroll) |
 | partial | streaming assistant | ✅ covered | Partial markdown + tool rows + progress line; Stop available |
 | partial | diff without details | ✅ covered | Summary bullets required; details optional collapse |
 | overflow | thread titles | ✅ covered | Single-line ellipsis |
@@ -412,15 +412,13 @@ Applicable state considerations resolved: **14 covered, 2 backstop, 0 unresolved
 
 ---
 
-## Open questions (ASSUMED — confirm)
+## Решения (подтверждено пользователем 2026-09-03)
 
-Нет hard-blocker. Материальное, но закрыто рекомендацией:
-
-1. **Hotkey chord** — options: (a) Ctrl/Meta+Shift+J ← **recommended**, (b) Ctrl/Meta+Shift+A, (c) Ctrl/Meta+.; avoid Ctrl/Meta+K.
-2. **Desktop panel width** — (a) 520px ← **recommended**, (b) 480px, (c) 560px; mobile always 100vw.
-3. **Thread rail** — (a) 240px column ≥1024 + toggle 768–1023 ← **recommended**, (b) always dropdown only, (c) always dual-column ≥768.
-4. **Usage strip audience** — (a) platform admin only in chat footer ← **recommended**, (b) tenant admin also, (c) usage only on platform settings page (no chat chrome).
-5. **Stick-to-bottom while streaming** — (a) auto-scroll unless user scrolled up ← **recommended**, (b) always force scroll.
+1. **Hotkey** — Ctrl/Meta+Shift+J (не пересекается с ⌘K).
+2. **Desktop panel width** — 520px; mobile always 100vw.
+3. **Thread rail** — 240px column ≥1024 + toggle/overlay 768–1023.
+4. **Usage strip** — только platform admin в футере чата.
+5. **Stick-to-bottom while streaming** — auto-scroll unless user scrolled up.
 
 ---
 
