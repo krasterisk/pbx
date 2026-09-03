@@ -43,6 +43,11 @@ vi.mock('@/features/cdr', () => ({
   CdrLegsModal: () => null,
   CdrDrilldownModal: () => null,
   CdrCharts: () => <div data-testid="cdr-charts-stub">charts</div>,
+  VoicemailDetailsModal: ({
+    uniqueid,
+    isOpen,
+  }: { uniqueid: string | null; isOpen: boolean }) =>
+    (isOpen ? <div role="dialog" data-testid="vm-details">{uniqueid}</div> : null),
 }));
 
 import CdrReportPage from './CdrReportPage';
@@ -105,5 +110,75 @@ describe('CdrReportPage voicemail tab (D-58)', () => {
       undefined,
       expect.objectContaining({ skip: false }),
     );
+  });
+
+  it('voicemail tab lists datetime, caller, dest, duration, transcript, status, details', () => {
+    vi.mocked(useGetVoicemailMessagesQuery).mockReturnValue({
+      data: [{
+        uid: 1,
+        vpbx_user_uid: 100,
+        uniqueid: '1693731234.12',
+        file_rel: '100/voicemail/1693731234.12.wav',
+        record_status: 'ANSWERED',
+        caller_id: '79001234567',
+        exten: '100',
+        duration_sec: 12,
+        notify_status: 'sent',
+        transcript_status: 'ready',
+        notify_attempts: 0,
+        transcript_attempts: 0,
+        next_notify_at: null,
+        scan_locked_until: null,
+        transcript: 'Однострочная расшифровка которая может быть длинной',
+        created_at: '2026-09-03T10:00:00Z',
+      }],
+      isLoading: false,
+    } as ReturnType<typeof useGetVoicemailMessagesQuery>);
+    setCurrentSearch('voicemail=1');
+    render(<CdrReportPage />);
+
+    expect(screen.getByText('Дата')).toBeInTheDocument();
+    expect(screen.getByText('Кто звонил')).toBeInTheDocument();
+    expect(screen.getByText('Куда')).toBeInTheDocument();
+    expect(screen.getByText('Длительность')).toBeInTheDocument();
+    expect(screen.getByText('Расшифровка')).toBeInTheDocument();
+    expect(screen.getByText('Статус обработки')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Детали сообщения' })).toHaveAttribute(
+      'title',
+      'Детали сообщения',
+    );
+    expect(screen.getByText('79001234567')).toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/\/voicemail\/play\?token=/);
+  });
+
+  it('details action opens VoicemailDetailsModal without a token URL', () => {
+    vi.mocked(useGetVoicemailMessagesQuery).mockReturnValue({
+      data: [{
+        uid: 1,
+        vpbx_user_uid: 100,
+        uniqueid: '1693731234.12',
+        file_rel: '100/voicemail/1693731234.12.wav',
+        record_status: 'ANSWERED',
+        caller_id: '7900',
+        exten: '100',
+        notify_status: 'sent',
+        transcript_status: 'pending',
+        notify_attempts: 0,
+        transcript_attempts: 0,
+        next_notify_at: null,
+        scan_locked_until: null,
+        created_at: '2026-09-03T10:00:00Z',
+      }],
+      isLoading: false,
+    } as ReturnType<typeof useGetVoicemailMessagesQuery>);
+    setCurrentSearch('voicemail=1');
+    render(<CdrReportPage />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Детали сообщения' }));
+    expect(screen.getByTestId('vm-details')).toHaveTextContent('1693731234.12');
+    expect(document.body.textContent).not.toMatch(/\/voicemail\/play\?token=/);
+    expect(screen.getByRole('button', { name: 'Голосовые сообщения' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Журнал' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Аналитика' })).toBeInTheDocument();
   });
 });
