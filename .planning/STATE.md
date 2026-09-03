@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 status: executing
-stopped_at: Completed 14-05-PLAN.md
-last_updated: "2026-09-03T19:00:52.534Z"
-state_head: 2a80abc0224cad9489eed81b18201e811c6aecf4
+stopped_at: Completed 14-04-PLAN.md
+last_updated: "2026-09-03T19:06:42.417Z"
+state_head: 89ee0b4e63c8fa9d4774151c6a3537d0c50885fe
 progress:
   total_phases: 15
   completed_phases: 4
   total_plans: 165
-  completed_plans: 134
+  completed_plans: 135
 milestone_name: milestone
 current_phase: 14
 current_phase_name: visual-route-builder-and-automation
@@ -19,7 +19,7 @@ current_phase_name: visual-route-builder-and-automation
 
 ## Current position
 
-Phase 14 (visual-route-builder-and-automation) — EXECUTING. 14-01 Wave 0 + 14-02 reference index/409 done (`f1b06d3`, `22a03f7`, `f9916b6`). Next: 14-03. 10 планов, волны 0…6.
+Phase 14 (visual-route-builder-and-automation) — EXECUTING. 14-01 Wave 0 + 14-02 reference index/409 + 14-04 dry-run walker/HTTP/AI tool done (`2a80abc`, `a770473`; Task 1 in `014f316`). Next: remaining Wave 2/3+ plans (14-03/14-05 may already be in parallel). 10 планов, волны 0…6.
 
 Phase 15 (universal-pbx-ai-agent) — PLANNED (2026-09-04). 24 плана, волны 1…7, `15-VALIDATION.md` есть, plan-checker PASS после ревизии `43f8ae8` (справочники через proposal). Next: `/gsd-execute-phase 15` (после Phase 14), затем обязательный `/gsd-secure-phase 15`.
 
@@ -294,6 +294,9 @@ Phase 1 — MOH: pending verify.
 - [Phase 14]: PK is uid to match Directory/Route; plan said id
 - [Phase 14]: Schema lives in setup-route-templates-schema.ts because **/migrations/ is gitignored
 - [Phase 14]: buildFromDescription returns an empty named draft, not NotImplementedException
+- [Phase 14]: 14-04: walker is sync; service preloads tenant IVRs/routes/contexts then injects resolve callbacks
+- [Phase 14]: 14-04: toivr uses IvrsService.findAll plus RouteReferencesService.findReferences with JWT uid
+- [Phase 14]: 14-04: Task 1 files landed in sibling 014f316; Task 2/3 are 2a80abc and a770473
 
 ## Roadmap Evolution
 
@@ -449,10 +452,11 @@ Also open: Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 veri
 | Phase 14 P01 | 11 | 2 tasks | 13 files |
 | Phase 14 P02 | 57 | 3 tasks | 26 files |
 | Phase 14 P05 | 22min | 3 tasks | 18 files |
+| Phase 14-visual-route-builder-and-automation P04 | 26 | 3 tasks | 15 files |
 
 ## Session
 
-**Last session:** 2026-09-03T19:00:46.469Z
-**Stopped at:** Completed 14-05-PLAN.md
+**Last session:** 2026-09-03T19:06:41.300Z
+**Stopped at:** Completed 14-04-PLAN.md
 **Resume file:** None
 **Also ready:** .planning/phases/15-universal-pbx-ai-agent/15-CONTEXT.md
