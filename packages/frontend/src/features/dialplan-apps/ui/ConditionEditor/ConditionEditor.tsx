@@ -3,10 +3,12 @@ import { useTranslation } from 'react-i18next';
 import {
   DIALSTATUS_VALUES,
   QUEUESTATUS_VALUES,
+  RECORD_STATUS_VALUES,
   type ConditionSource,
   type DialstatusValue,
   type IRouteActionCondition,
   type QueuestatusValue,
+  type RecordStatusValue,
 } from '@krasterisk/shared';
 import { InfoTooltip, Label, MultiSelect, type MultiSelectOption } from '@/shared/ui';
 import { HStack, VStack } from '@/shared/ui/Stack';
@@ -16,6 +18,7 @@ import styles from './ConditionEditor.module.scss';
 
 const DIAL_PREFIX = 'dial:';
 const QUEUE_PREFIX = 'queue:';
+const RECORD_PREFIX = 'record:';
 
 const DIAL_LABELS: Record<string, string> = {
   CHANUNAVAIL: 'Недоступен',
@@ -37,6 +40,16 @@ const QUEUE_LABELS: Record<string, string> = {
   CONTINUE: 'Продолжить',
 };
 
+const RECORD_LABELS: Record<string, string> = {
+  DTMF: 'Нажата #',
+  SILENCE: 'Тишина',
+  SKIP: 'Пропуск',
+  TIMEOUT: 'Таймаут записи',
+  HANGUP: 'Абонент повесил трубку',
+  ERROR: 'Ошибка записи',
+  OPERATOR: 'Оператор (0)',
+};
+
 function encodeDial(value: string) {
   return `${DIAL_PREFIX}${value}`;
 }
@@ -45,10 +58,15 @@ function encodeQueue(value: string) {
   return `${QUEUE_PREFIX}${value}`;
 }
 
+function encodeRecord(value: string) {
+  return `${RECORD_PREFIX}${value}`;
+}
+
 export function sourceToSelection(source: ConditionSource | undefined): string[] {
   if (!source) return [];
   if (source.source === 'dialstatus') return source.values.map(encodeDial);
   if (source.source === 'queuestatus') return source.values.map(encodeQueue);
+  if (source.source === 'record_status') return source.values.map(encodeRecord);
   return [];
 }
 
@@ -61,14 +79,23 @@ export function selectionToSource(
 
   const added = values.filter((item) => !previous.includes(item));
   const pivot = added[added.length - 1] ?? values[values.length - 1];
-  const preferQueue = pivot.startsWith(QUEUE_PREFIX);
-  const filtered = values.filter((item) =>
-    (preferQueue ? item.startsWith(QUEUE_PREFIX) : item.startsWith(DIAL_PREFIX)),
-  );
+  const prefix = pivot.startsWith(RECORD_PREFIX)
+    ? RECORD_PREFIX
+    : pivot.startsWith(QUEUE_PREFIX)
+      ? QUEUE_PREFIX
+      : DIAL_PREFIX;
+  const filtered = values.filter((item) => item.startsWith(prefix));
 
   if (!filtered.length) return undefined;
 
-  if (preferQueue) {
+  if (prefix === RECORD_PREFIX) {
+    return {
+      source: 'record_status',
+      values: filtered.map((item) => item.slice(RECORD_PREFIX.length) as RecordStatusValue),
+    };
+  }
+
+  if (prefix === QUEUE_PREFIX) {
     return {
       source: 'queuestatus',
       values: filtered.map((item) => item.slice(QUEUE_PREFIX.length) as QueuestatusValue),
@@ -112,7 +139,15 @@ export function ConditionEditor({ condition, onChange, readOnly }: ConditionEdit
         `${QUEUE_LABELS[value] ?? value} (очередь)`,
       ),
     }));
-    return [...dialOpts, ...queueOpts];
+    const recordGroup = t('routes.chain.conditions.record.group', 'Запись сообщения');
+    const recordOpts = RECORD_STATUS_VALUES.map((value) => ({
+      value: encodeRecord(value),
+      label: t(
+        `routes.chain.conditions.record.${value.toLowerCase()}`,
+        `${RECORD_LABELS[value] ?? value} (${recordGroup})`,
+      ),
+    }));
+    return [...dialOpts, ...queueOpts, ...recordOpts];
   }, [t]);
 
   const handleStatusesChange = (nextEncoded: string[]) => {

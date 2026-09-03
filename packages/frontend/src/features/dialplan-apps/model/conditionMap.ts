@@ -3,6 +3,7 @@ import type {
   DialstatusValue,
   IRouteActionCondition,
   QueuestatusValue,
+  RecordStatusValue,
 } from '@krasterisk/shared';
 
 export function toConditionSource(condition?: IRouteActionCondition): ConditionSource | undefined {
@@ -22,6 +23,9 @@ export function toConditionSource(condition?: IRouteActionCondition): ConditionS
   }
   if (condition.source === 'variable' && condition.name && condition.op != null) {
     return { source: 'variable', name: condition.name, op: condition.op, value: condition.value ?? '' };
+  }
+  if (condition.source === 'record_status' && condition.values?.length) {
+    return { source: 'record_status', values: condition.values as RecordStatusValue[] };
   }
   if (condition.source === 'http_result' && condition.op != null) {
     return { source: 'http_result', op: condition.op, value: condition.value ?? '' };
@@ -48,6 +52,9 @@ export function toRouteCondition(source: ConditionSource | undefined): IRouteAct
   }
   if (source.source === 'variable') {
     return { source: 'variable', name: source.name, op: source.op, value: source.value };
+  }
+  if (source.source === 'record_status') {
+    return { source: 'record_status', values: source.values };
   }
   return { source: 'http_result', op: source.op, value: source.value };
 }
