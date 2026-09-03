@@ -22,6 +22,8 @@ import { buildCurlCall } from './dialplan-curl.util';
 import { emitHttpRequest } from './dialplan-http.util';
 import { buildTrunkCarousel } from './dialplan-trunk-carousel.util';
 import { resolveAriAppName } from '../../modules/ari/ari-app-name';
+import { emitQueueCallbackDialplan, wrapQueueWithCallbackHooks } from '../../modules/queues/queue-dialplan.util';
+import type { ICallbackPolicy } from '@krasterisk/shared';
 
 function compileDirectorySrc(
   src: ValueSource,
@@ -85,6 +87,10 @@ export class AsteriskDialplanUtils {
 
   /** API key for internal dialplan requests (matches DIALPLAN_API_KEY env) */
   static dialplanApiKey = process.env.DIALPLAN_API_KEY || '';
+
+  /** Tenant callback_policy applied during route regen (D-38). */
+  static callbackPolicy: ICallbackPolicy | null = null;
+  static hasCallbackStep = false;
 
   /**
    * Conversation-recording volume (D-72). Callers may inject system_settings
@@ -348,12 +354,25 @@ export class AsteriskDialplanUtils {
         const queue = normalizeTarget('queue', src, vpbxUserUid, { directoryValueVar: destLookup.valueVar });
         const lines = [...destLookup.lines, ...prioLookup.lines];
         if (prioExpr !== undefined) lines.push(`Set(QUEUE_PRIO=${prioExpr})`);
+        const queueApp = `Queue(${queue},${options},,${announce},${timeout})`;
+        const policy = (wh?.callback_policy ?? this.callbackPolicy) as ICallbackPolicy | null;
+        const hooks = emitQueueCallbackDialplan({
+          policy,
+          queueName: queue,
+          queueUid: Number(wh?.callback_queue_uid) || undefined,
+          vpbxUserUid,
+          hasCallbackStep: wh?.has_callback_step === true || this.hasCallbackStep,
+          window_start: wh?.callback_window_start,
+          window_end: wh?.callback_window_end,
+          max_attempts: wh?.callback_max_attempts,
+          pause_minutes: wh?.callback_pause_minutes,
+        });
         lines.push(gateSkip(
           destLookup.skip,
           destLookup.canExecuteExpr,
-          `Queue(${queue},${options},,${announce},${timeout})`,
+          wrapQueueWithCallbackHooks(queueApp, { ...hooks, extraContexts: '' }),
         ));
-        dp = lines.join('\nsame => n,');
+        dp = `${lines.join('\nsame => n,')}${hooks.extraContexts}`;
         break;
       }
       case 'toivr': {

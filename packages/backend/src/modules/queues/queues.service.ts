@@ -6,6 +6,11 @@ import { QueueMember } from './queue-member.model';
 import { AmiService } from '../ami/ami.service';
 import { buildSipId } from '../endpoints/endpoint-ids.util';
 import { RouteReferencesService } from '../route-references/route-references.service';
+import { AsteriskDialplanUtils } from '../../shared/utils/dialplan.util';
+import {
+  callbackDtmfContextName,
+  wantsCallbackDtmf,
+} from './queue-dialplan.util';
 
 export interface CreateQueueDto {
   exten: string;
@@ -96,6 +101,17 @@ export class QueuesService {
     return `PJSIP/${id}`;
   }
 
+  /** D-38: Queue.context breakout for DTMF-while-waiting when policy allows. */
+  private applyCallbackBreakoutContext(data: Record<string, any>, vpbxUserUid: number): void {
+    if (data.context) return;
+    if (
+      wantsCallbackDtmf(AsteriskDialplanUtils.callbackPolicy)
+      && AsteriskDialplanUtils.hasCallbackStep
+    ) {
+      data.context = callbackDtmfContextName(vpbxUserUid);
+    }
+  }
+
   private mapMembersForSave(members: MemberDto[] | undefined, queueName: string, vpbxUserUid: number) {
     if (!members?.length) return [];
     return members.map((m) => ({
@@ -167,6 +183,7 @@ export class QueuesService {
         name: queueName,
         user_uid: vpbxUserUid,
       };
+      this.applyCallbackBreakoutContext(fullData, vpbxUserUid);
 
       const queue = await this.queueModel.create(fullData, { transaction });
 
@@ -221,6 +238,7 @@ export class QueuesService {
       Object.keys(updateData).forEach(k => {
         if (updateData[k] === undefined) delete updateData[k];
       });
+      this.applyCallbackBreakoutContext(updateData, vpbxUserUid);
 
       await queue.update(updateData, { transaction });
 

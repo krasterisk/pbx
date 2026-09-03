@@ -353,3 +353,17 @@ export const CALLBACK_STATUSES = [
 ] as const;
 export type CallbackStatus = (typeof CALLBACK_STATUSES)[number];
 
+export const CALLBACK_ORDER_MODES = ['subscriber', 'queue_abandon', 'both'] as const;
+export type CallbackOrderMode = (typeof CALLBACK_ORDER_MODES)[number];
+
+export const CALLBACK_DIAL_ORDERS = ['agent_first', 'caller_first'] as const;
+export type CallbackDialOrder = (typeof CALLBACK_DIAL_ORDERS)[number];
+
+/** Tenant-level callback settings (D-38 / D-49). Window/attempts stay on the step. */
+export interface ICallbackPolicy {
+  order_mode: CallbackOrderMode;
+  /** Single DTMF digit; ignored when order_mode is queue_abandon. */
+  dtmf_digit?: string;
+  dial_order?: CallbackDialOrder;
+}
+

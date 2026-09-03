@@ -322,7 +322,17 @@ export class RoutesService {
     const extensions = route.extensions || [];
     const actions = route.actions || [];
     const opts = route.options || {};
-    const wh = route.webhooks || {};
+    const callbackStep = actions.find((action: { type?: string }) => action.type === 'callback');
+    AsteriskDialplanUtils.hasCallbackStep = !!callbackStep;
+    const wh = {
+      ...(route.webhooks || {}),
+      has_callback_step: !!callbackStep,
+      callback_policy: AsteriskDialplanUtils.callbackPolicy,
+      callback_window_start: callbackStep?.params?.window_start,
+      callback_window_end: callbackStep?.params?.window_end,
+      callback_max_attempts: callbackStep?.params?.max_attempts,
+      callback_pause_minutes: callbackStep?.params?.pause_minutes,
+    };
     const backendUrl = AsteriskDialplanUtils.backendBaseUrl;
     const apiKey = AsteriskDialplanUtils.dialplanApiKey;
     const keyParam = apiKey ? `&api_key=${encodeURIComponent(apiKey)}` : '';
