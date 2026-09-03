@@ -11,6 +11,14 @@ vi.mock('react-i18next', () => ({
   }),
 }));
 
+vi.mock('react-to-print', () => ({
+  useReactToPrint: () => vi.fn(),
+}));
+
+if (!Element.prototype.scrollIntoView) {
+  Element.prototype.scrollIntoView = vi.fn();
+}
+
 function makeAction(
   type: ActionType,
   overrides: Partial<IRouteAction> = {},
@@ -111,5 +119,31 @@ describe('FlowchartCanvas', () => {
   it('shows the empty state when the draft has no actions', () => {
     render(<FlowchartCanvas actions={[]} />);
     expect(screen.getByTestId('flowchart-empty')).toHaveTextContent('В маршруте нет действий');
+  });
+
+  it('applies five-channel highlight and Success on callback_requested', () => {
+    const taken = makeAction('callback', { id: 'cb1' });
+    const skipped = makeAction('hangup', { id: 'h1' });
+    render(
+      <FlowchartCanvas
+        actions={[taken, skipped]}
+        highlight={{
+          segments: [
+            {
+              index: 0,
+              entityKind: 'route',
+              nodes: [{ order: '1.1', actionId: 'cb1', type: 'callback' }],
+            },
+          ],
+          outcome: { kind: 'callback_requested', actionType: 'callback' },
+        }}
+      />,
+    );
+
+    const nodes = screen.getAllByTestId('flowchart-node');
+    expect(nodes[0]).toHaveAttribute('data-highlight', 'success');
+    expect(nodes[1]).toHaveAttribute('data-highlight', 'skipped');
+    expect(screen.getByTestId('flowchart-order-chip')).toHaveTextContent('1.1');
+    expect(screen.getByTestId('flowchart-not-taken')).toHaveTextContent('Не выполнялось');
   });
 });

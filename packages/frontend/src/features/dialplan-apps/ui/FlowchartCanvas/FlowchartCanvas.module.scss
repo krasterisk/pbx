@@ -83,6 +83,43 @@
   color: var(--color-foreground);
 }
 
+.nodeTaken {
+  border-width: 2px;
+  border-color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 6%, transparent);
+}
+
+.nodeSkipped {
+  color: var(--color-muted-foreground);
+}
+
+.nodeSuccess {
+  border-width: 2px;
+  border-color: var(--color-success, #22c55e);
+  background: color-mix(in srgb, var(--color-success, #22c55e) 8%, transparent);
+}
+
+.nodeMuted {
+  color: var(--color-muted-foreground);
+}
+
+.orderChip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 4px;
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-primary-foreground, #fff);
+  background: var(--color-primary);
+  border-radius: 999px;
+}
+
 .nodeConditional {
   border-style: dashed;
   border-color: var(--color-warning, var(--color-primary));
@@ -129,6 +166,17 @@
   min-height: 20px;
   margin-left: 7px;
   background: var(--color-border);
+}
+
+.edgeTaken {
+  width: 2px;
+  background: var(--color-primary);
+}
+
+.edgeSkipped {
+  width: 1px;
+  background: transparent;
+  border-left: 1px dashed var(--color-muted-foreground);
 }
 
 .edgeLabel {

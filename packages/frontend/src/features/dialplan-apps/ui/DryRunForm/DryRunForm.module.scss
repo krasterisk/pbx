@@ -1,0 +1,207 @@
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 14px;
+  background: color-mix(in srgb, var(--color-muted) 35%, transparent);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md, 8px);
+}
+
+.toggleRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  flex: 1;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-foreground);
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.toggleIcon {
+  flex-shrink: 0;
+  color: var(--color-muted-foreground);
+}
+
+.toggleLabel {
+  flex: 1;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fieldLabel {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.hint {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--color-muted-foreground);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.outcome {
+  padding: 10px 12px;
+  border-radius: var(--radius-md, 8px);
+  border: 2px solid var(--color-border);
+  background: var(--color-card);
+}
+
+.outcomeSuccess {
+  border-color: var(--color-success, #22c55e);
+  background: color-mix(in srgb, var(--color-success, #22c55e) 8%, transparent);
+}
+
+.outcomeWarning {
+  border-color: var(--color-warning, #eab308);
+  background: color-mix(in srgb, var(--color-warning, #eab308) 8%, transparent);
+}
+
+.outcomeDestructive {
+  border-color: var(--color-destructive, #ef4444);
+  background: color-mix(in srgb, var(--color-destructive, #ef4444) 8%, transparent);
+}
+
+.outcomeTitle {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.outcomeBody {
+  margin: 4px 0 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.pathHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pathTitle {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.breadcrumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.crumbBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.segments {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.segment {
+  padding: 0;
+  overflow: hidden;
+}
+
+.segmentHeader {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: var(--color-card);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.segmentForeign {
+  border-left: 2px solid var(--color-border);
+  padding-left: 16px;
+}
+
+.segmentTitle {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.reaskBadge {
+  margin-left: 8px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toggleIcon {
+    transition: none;
+  }
+}
+
+@media print {
+  .form {
+    display: none !important;
+  }
+}

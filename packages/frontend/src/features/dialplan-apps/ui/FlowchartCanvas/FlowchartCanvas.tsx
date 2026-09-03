@@ -1,8 +1,8 @@
-import { memo, useMemo, useRef } from 'react';
+import { memo, useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useReactToPrint } from 'react-to-print';
 import { AppWindow, CornerDownRight, PhoneIncoming, Printer } from 'lucide-react';
-import { type ActionType, type IRouteAction } from '@krasterisk/shared';
+import { type ActionType, type IRouteAction, type WalkOutcome, type WalkSegment } from '@krasterisk/shared';
 import { Badge, Button, Text } from '@/shared/ui';
 import { InfoTooltip } from '@/shared/ui/Tooltip/Tooltip';
 import { dialplanAppsRegistry } from '../../model/registry';
@@ -15,6 +15,12 @@ export interface FlowchartMenuItem {
   actions: IRouteAction[];
 }
 
+export interface FlowchartHighlight {
+  segments?: WalkSegment[];
+  outcome?: WalkOutcome;
+  muted?: boolean;
+}
+
 export interface FlowchartCanvasProps {
   host?: FlowchartHost;
   actions?: IRouteAction[];
@@ -25,6 +31,7 @@ export interface FlowchartCanvasProps {
   ivrTimeoutResponse?: string | null;
   ivrTimeoutDigit?: string | null;
   ivrMaxCount?: number;
+  highlight?: FlowchartHighlight | null;
 }
 
 const JUMP_TYPES = new Set<ActionType>(['toivr', 'toroute', 'goto']);
@@ -69,14 +76,34 @@ export function sortIvrMenuItems(items: FlowchartMenuItem[]): FlowchartMenuItem[
     .map(({ item }) => item);
 }
 
+function nodeHighlightState(
+  actionId: string,
+  actionType: string | undefined,
+  highlight: FlowchartHighlight | null | undefined,
+): { taken: boolean; order?: string; success: boolean; skipped: boolean } {
+  if (!highlight?.segments?.length) {
+    return { taken: false, success: false, skipped: false };
+  }
+  const match = highlight.segments
+    .flatMap((segment) => segment.nodes)
+    .find((node) => node.actionId === actionId);
+  const taken = Boolean(match);
+  const success = taken && highlight.outcome?.kind === 'callback_requested' && actionType === 'callback';
+  return { taken, order: match?.order, success, skipped: !taken };
+}
+
 function FlowchartNode({
   action,
   index,
   t,
+  highlight,
+  entityName,
 }: {
   action: IRouteAction;
   index: number;
   t: (key: string, fallback?: string) => string;
+  highlight?: FlowchartHighlight | null;
+  entityName?: string;
 }) {
   const config = action.type ? dialplanAppsRegistry[action.type] : undefined;
   const title = config
@@ -91,18 +118,42 @@ function FlowchartNode({
   const terminal = config?.terminal;
   const enabled = (action as { enabled?: boolean }).enabled ?? true;
   const isJump = action.type ? JUMP_TYPES.has(action.type) : false;
+  const state = nodeHighlightState(action.id, action.type, highlight);
+  const [segmentPart, stepPart] = (state.order ?? '').split('.');
 
   return (
     <div
       className={[
         cls.node,
         terminal === 'conditional' ? cls.nodeConditional : '',
+        state.taken ? cls.nodeTaken : '',
+        state.skipped && highlight?.segments?.length ? cls.nodeSkipped : '',
+        state.success ? cls.nodeSuccess : '',
+        highlight?.muted ? cls.nodeMuted : '',
       ].filter(Boolean).join(' ')}
       role="listitem"
       data-testid="flowchart-node"
       data-action-type={action.type || 'unknown'}
+      data-action-id={action.id}
+      data-highlight={state.success ? 'success' : state.taken ? 'taken' : highlight?.segments?.length ? 'skipped' : undefined}
     >
       <div className={cls.stepNumber}>{index + 1}</div>
+      {state.order && (
+        <span
+          className={cls.orderChip}
+          data-testid="flowchart-order-chip"
+          aria-label={interpolate(
+            t('routes.dryRun.orderChip', 'Шаг {{step}}, сегмент {{segment}}, {{entity}}'),
+            {
+              step: stepPart || state.order,
+              segment: segmentPart || '1',
+              entity: entityName || title,
+            },
+          )}
+        >
+          {state.order}
+        </span>
+      )}
       <h3 className={cls.nodeTitle}>{title}</h3>
       <p className={cls.nodeSummary}>{summary}</p>
       <div className={cls.badges}>
@@ -126,6 +177,11 @@ function FlowchartNode({
             {t('routes.flowchart.badge.unknown', 'Неизвестное действие')}
           </Badge>
         )}
+        {state.skipped && highlight?.segments?.length ? (
+          <Badge variant="outline" data-testid="flowchart-not-taken">
+            {t('routes.dryRun.notTaken', 'Не выполнялось')}
+          </Badge>
+        ) : null}
       </div>
       {isJump && (
         <div className={cls.chip} data-testid="flowchart-jump-chip">
@@ -148,11 +204,13 @@ function RouteCanvasBody({
   title,
   patterns,
   t,
+  highlight,
 }: {
   actions: IRouteAction[];
   title?: string;
   patterns?: string[];
   t: (key: string, fallback?: string) => string;
+  highlight?: FlowchartHighlight | null;
 }) {
   const mask = (patterns ?? []).filter(Boolean).join(', ');
   const incomingLabel = t('routes.flowchart.root.incoming', 'Входящий звонок');
@@ -190,6 +248,8 @@ function RouteCanvasBody({
             nestedElse={Boolean(nestedElse)}
             isLast={index === actions.length - 1}
             t={t}
+            highlight={highlight}
+            entityName={title}
           />
         );
       })}
@@ -205,6 +265,8 @@ function RouteActionRow({
   nestedElse,
   isLast,
   t,
+  highlight,
+  entityName,
 }: {
   action: IRouteAction;
   index: number;
@@ -213,12 +275,18 @@ function RouteActionRow({
   nestedElse: boolean;
   isLast: boolean;
   t: (key: string, fallback?: string) => string;
+  highlight?: FlowchartHighlight | null;
+  entityName?: string;
 }) {
+  const state = nodeHighlightState(action.id, action.type, highlight);
+  const nextTaken = next ? nodeHighlightState(next.id, next.type, highlight).taken : false;
+  const edgeTaken = Boolean(highlight?.segments?.length) && state.taken && nextTaken;
+  const edgeSkipped = Boolean(highlight?.segments?.length) && !edgeTaken;
   return (
     <>
       <div className={cls.spineCell}>
         <div role="list">
-          <FlowchartNode action={action} index={index} t={t} />
+          <FlowchartNode action={action} index={index} t={t} highlight={highlight} entityName={entityName} />
         </div>
         {!isLast && (
           <div className={cls.connector}>
@@ -232,7 +300,13 @@ function RouteActionRow({
                 {t('routes.flowchart.edge.next', 'Далее')}
               </span>
             )}
-            <div className={cls.spineLine} />
+            <div
+              className={[
+                cls.spineLine,
+                edgeTaken ? cls.edgeTaken : '',
+                edgeSkipped ? cls.edgeSkipped : '',
+              ].filter(Boolean).join(' ')}
+            />
           </div>
         )}
       </div>
@@ -281,6 +355,7 @@ function IvrCanvasBody({
   ivrTimeoutDigit,
   ivrMaxCount,
   t,
+  highlight,
 }: {
   title?: string;
   menuItems: FlowchartMenuItem[];
@@ -289,6 +364,7 @@ function IvrCanvasBody({
   ivrTimeoutDigit?: string | null;
   ivrMaxCount?: number;
   t: (key: string, fallback?: string) => string;
+  highlight?: FlowchartHighlight | null;
 }) {
   const sorted = sortIvrMenuItems(menuItems);
   const hasMaxItem = menuItems.some((item) => item.digit === 'max');
@@ -328,6 +404,8 @@ function IvrCanvasBody({
               action={action}
               index={index}
               t={t}
+              highlight={highlight}
+              entityName={title}
             />
           ))}
         </div>
@@ -366,6 +444,7 @@ export const FlowchartCanvas = memo(function FlowchartCanvas({
   ivrTimeoutResponse,
   ivrTimeoutDigit,
   ivrMaxCount,
+  highlight,
 }: FlowchartCanvasProps) {
   const { t } = useTranslation();
   const figureRef = useRef<HTMLFigureElement>(null);
@@ -386,6 +465,13 @@ export const FlowchartCanvas = memo(function FlowchartCanvas({
     contentRef: figureRef,
     documentTitle: printTitle,
   });
+
+  const firstTakenId = highlight?.segments?.[0]?.nodes[0]?.actionId;
+  useEffect(() => {
+    if (!firstTakenId || !figureRef.current) return;
+    const node = figureRef.current.querySelector(`[data-action-id="${firstTakenId}"]`);
+    node?.scrollIntoView({ block: 'nearest' });
+  }, [firstTakenId]);
 
   return (
     <div className={cls.wrap}>
@@ -418,6 +504,7 @@ export const FlowchartCanvas = memo(function FlowchartCanvas({
         className={cls.canvas}
         data-testid="flowchart-canvas"
         data-host={host}
+        data-highlight={highlight?.segments?.length ? 'on' : undefined}
       >
         <figcaption className={cls.caption}>{printTitle}</figcaption>
         {empty ? (
@@ -442,7 +529,13 @@ export const FlowchartCanvas = memo(function FlowchartCanvas({
         ) : (
           <div role="list">
             {!isIvr && (
-              <RouteCanvasBody actions={actions} title={title} patterns={patterns} t={t} />
+              <RouteCanvasBody
+                actions={actions}
+                title={title}
+                patterns={patterns}
+                t={t}
+                highlight={highlight}
+              />
             )}
             {isIvr && (
               <IvrCanvasBody
@@ -453,6 +546,7 @@ export const FlowchartCanvas = memo(function FlowchartCanvas({
                 ivrTimeoutDigit={ivrTimeoutDigit}
                 ivrMaxCount={ivrMaxCount}
                 t={t}
+                highlight={highlight}
               />
             )}
           </div>
