@@ -4,14 +4,14 @@ milestone: v1.0
 current_phase: 13
 current_phase_name: custom-voicemail-instead-of-voicemail
 status: executing
-stopped_at: Completed 13-03-PLAN.md
-last_updated: "2026-09-03T01:44:19.345Z"
-state_head: 0429bcd8ce4300b32b6cdeb561c91add230c8b4f
+stopped_at: Completed 13-04-PLAN.md
+last_updated: "2026-09-03T02:06:50.082Z"
+state_head: 7abd84adedd1fee1a396dacf13c285ccd5acc500
 progress:
   total_phases: 13
   completed_phases: 3
   total_plans: 130
-  completed_plans: 121
+  completed_plans: 122
 milestone_name: milestone
 ---
 
@@ -20,7 +20,7 @@ milestone_name: milestone
 ## Current position
 
 Phase: 13 (custom-voicemail-instead-of-voicemail) — EXECUTING
-Plan 13-03 complete: record_status CONDITION_SOURCES + ConditionEditor record: presets (OPERATOR ≠ DTMF). Next: 13-04 voicemail step schema/DTO.
+Plan 13-04 complete: voicemail step schema + VoicemailParamsDto (D-56/D-74, max_duration 120, no k). Next: 13-05 opaque token / wav resolver (Wave 3) or 13-11 ingest (Wave 2).
 12-17 closed 2026-08-31: M1/M6/M7/M8/M9 approved; M4/M5/M12 deferred (live voice later). Call-group ALTERs already on prod.
 Migrations applied (2026-07-24): `cc_contacts` table + `cc_settings.journal_depth`. Live Asterisk A1/A3 checkpoint still deferred in WINDOWS.md.
 
@@ -252,6 +252,8 @@ Phase 1 — MOH: pending verify.
 - [Phase 13]: CONDITION_SOURCE_DTO.record_status spreads RECORD_STATUS_VALUES — no second array in the DTO
 - [Phase 13]: t(key, fallback) for record group/labels; dirty locale files not staged
 - [Phase 13]: MultiSelect has no native optgroup; record group string is the option suffix via t('routes.chain.conditions.record.group')
+- [Phase 13]: greeting is a SAFE prompt id; k is not a DTO/schema field (D-56) — T-13-09 + D-56: generator always emits k
+- [Phase 13]: Surgical routes.apps.voicemail.* locale keys; directory/csv WIP not staged — registryI18n.test.ts required keys; dirty-tree guard
 
 ## Roadmap Evolution
 
@@ -285,7 +287,7 @@ Phase 1 — MOH: pending verify.
 
 ## Next GSD command
 
-**Phase 13 plan 13-03 complete.** Next: **`/gsd-execute-phase 13`** (13-04 voicemail step schema/DTO). M4/M5/M12 live-voice deferred.
+**Phase 13 plan 13-04 complete.** Next: **`/gsd-execute-phase 13`** (13-05 or 13-11). M4/M5/M12 live-voice deferred.
 
 Also open: Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 verify; Phase 8 / 08-11 Android smoke.
 
@@ -392,9 +394,10 @@ Also open: Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 veri
 | Phase 13 P01 | 7min | 2 tasks | 5 files |
 | Phase 13 P02 | 12min | 2 tasks | 4 files |
 | Phase 13 P03 | 11min | 2 tasks | 8 files |
+| Phase 13 P04 | 21 min | 2 tasks | 7 files |
 
 ## Session
 
-**Last session:** 2026-09-03T01:44:18.639Z
-**Stopped at:** Completed 13-03-PLAN.md
+**Last session:** 2026-09-03T02:06:49.007Z
+**Stopped at:** Completed 13-04-PLAN.md
 **Resume file:** None
