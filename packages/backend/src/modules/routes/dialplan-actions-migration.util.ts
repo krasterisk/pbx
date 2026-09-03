@@ -44,6 +44,9 @@ export interface MigrateActionResult {
   unmapped?: string;
 }
 
+/** D-54 default Record() max seconds when a stored voicemail step has no duration. */
+export const VOICEMAIL_DEFAULT_MAX_DURATION = 120;
+
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -184,6 +187,33 @@ function liftQueuePriority(
     };
   }
   return { params, changed: false };
+}
+
+/**
+ * D-54: expand stored `type: 'voicemail'` params without renaming the ActionType.
+ * Reuses the existing exten→target lift. Non-voicemail actions pass through.
+ * Leftover keys (including a telegram channel string) are kept.
+ */
+export function migrateVoicemailParams(action: unknown): MigrateActionResult {
+  if (!isPlainObject(action) || action.type !== 'voicemail') {
+    return { action, changed: false };
+  }
+
+  const params = isPlainObject(action.params) ? { ...action.params } : {};
+  const lifted = liftAddressFields('voicemail', params);
+  let nextParams = lifted.params;
+  let changed = lifted.changed;
+
+  if (nextParams.max_duration == null) {
+    nextParams = { ...nextParams, max_duration: VOICEMAIL_DEFAULT_MAX_DURATION };
+    changed = true;
+  }
+
+  if (!changed) {
+    return { action, changed: false };
+  }
+
+  return { action: { ...action, type: 'voicemail', params: nextParams }, changed: true };
 }
 
 /**
