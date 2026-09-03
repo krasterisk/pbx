@@ -491,7 +491,7 @@ export class VoicemailService {
     if (!this.scanner) {
       throw new BadRequestException('Voicemail scanner is unavailable');
     }
-    await this.scanner.retryTranscript(uniqueid);
+    await this.scanner.retryTranscript(uniqueid, tenantId);
     return { ok: true };
   }
 

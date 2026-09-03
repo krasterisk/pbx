@@ -273,7 +273,8 @@ describe('VoicemailScannerService transcript axis (D-60 / D-63 / D-70 / D-71)', 
   it('retryTranscript resets attempts and sets pending without touching notify', async () => {
     row.transcript_status = 'failed';
     row.transcript_attempts = 3;
-    await scanner.retryTranscript(uniqueid);
+    await scanner.retryTranscript(uniqueid, 42);
+    expect(messages.findOne).toHaveBeenCalledWith({ where: { uniqueid, user_uid: 42 } });
     expect(row.transcript_status).toBe('pending');
     expect(row.transcript_attempts).toBe(0);
     expect(row.notify_status).toBe('sent');

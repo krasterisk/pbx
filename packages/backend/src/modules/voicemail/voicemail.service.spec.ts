@@ -401,7 +401,7 @@ describe('VoicemailService JWT detail / play / retry-stt (D-58)', () => {
 
   it('retryStt calls scanner.retryTranscript only when transcript_status is failed', async () => {
     await service.retryStt(100, uniqueid, 7);
-    expect(scanner.retryTranscript).toHaveBeenCalledWith(uniqueid);
+    expect(scanner.retryTranscript).toHaveBeenCalledWith(uniqueid, 100);
   });
 
   it('retryStt rejects not_configured and does not retry', async () => {

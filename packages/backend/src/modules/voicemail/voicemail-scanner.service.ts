@@ -98,8 +98,8 @@ export class VoicemailScannerService {
     }
   }
 
-  async retryTranscript(uniqueid: string): Promise<void> {
-    const row = await this.messages.findOne({ where: { uniqueid } });
+  async retryTranscript(uniqueid: string, userUid: number): Promise<void> {
+    const row = await this.messages.findOne({ where: { uniqueid, user_uid: userUid } });
     if (!row) return;
     await row.update({
       transcript_status: 'pending',
