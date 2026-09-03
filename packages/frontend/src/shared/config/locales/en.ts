@@ -1067,6 +1067,23 @@ export const en = {
           hungupCall: 'Call ended',
         },
       },
+      voicemail: {
+        greeting: 'Greeting',
+        greetingHint: 'A file from the recordings catalog, not a disk path',
+        maxDuration: 'Max duration, sec',
+        silenceTimeout: 'Silence timeout, sec',
+        sttEngine: 'STT engine (optional)',
+        llmProvider: 'LLM provider (optional)',
+        flag: {
+          q: 'q — no beep before recording',
+          o: 'o — stop recording on 0',
+          x: 'x — ignore terminating #',
+          y: 'y — allow recording after timeout',
+          n: 'n — do not answer the channel',
+          s: 's — skip if the channel is unanswered',
+          u: 'u — unique file name',
+        },
+      },
       callerid: {
         mode: 'CallerID mode',
         modeStatic: 'Static number',

@@ -11,6 +11,7 @@ import { buildCollectInputSchema, summarizeCollectInput } from './schemas/collec
 import { buildHangupSchema, summarizeHangup } from './schemas/hangup';
 import { buildCallerIdSchema, summarizeCallerId } from './schemas/callerid';
 import { buildNotifySchema, summarizeNotify } from './schemas/notify';
+import { buildVoicemailSchema, summarizeVoicemail } from './schemas/voicemail';
 import { buildToListSchema, summarizeToList } from './schemas/tolist';
 import { buildToIvrSchema, summarizeToIvr } from './schemas/toivr';
 import { buildVoiceRobotSchema, summarizeVoiceRobot } from './schemas/voicerobot';
@@ -328,7 +329,22 @@ const registryDraft: Record<ActionType, Omit<IDialplanAppConfig, 'schema' | 'sum
     schema: buildNotifySchema((key, fallback) => fallback ?? key),
     summarize: summarizeNotify,
   },
-  voicemail: { type: 'voicemail', labelKey: 'routes.action.voicemail', category: 'notification' },
+  voicemail: {
+    type: 'voicemail',
+    labelKey: 'routes.action.voicemail',
+    category: 'notification',
+    defaultParams: {
+      greeting: '',
+      max_duration: 120,
+      silence_timeout: '',
+      record_options: { q: false, o: false, x: false, y: false, n: false, s: false, u: false },
+      notify: { integration_uid: '', body: '', target: '', subject: '' },
+      stt_engine_uid: '',
+      llm_provider_uid: '',
+    },
+    schema: buildVoicemailSchema((key, fallback) => fallback ?? key),
+    summarize: summarizeVoicemail,
+  },
   webhook: {
     type: 'webhook',
     labelKey: 'routes.action.webhook',
