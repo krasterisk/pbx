@@ -53,6 +53,7 @@ describe('NotificationDispatcherService', () => {
       expect.objectContaining({ channel: 'telegram' }),
       'chat-1',
       'hi',
+      expect.objectContaining({ extraVars: expect.any(Object) }),
     );
     expect(email.send).not.toHaveBeenCalled();
   });
@@ -73,6 +74,7 @@ describe('NotificationDispatcherService', () => {
       expect.objectContaining({ channel }),
       't',
       'm',
+      expect.objectContaining({ extraVars: expect.any(Object) }),
     );
   });
 
@@ -90,7 +92,9 @@ describe('NotificationDispatcherService', () => {
       expect.objectContaining({ channel: 'webhook' }),
       't',
       'm',
-      { clid: '7900', exten: '100', uniqueid: 'u1' },
+      {
+        extraVars: { clid: '7900', exten: '100', uniqueid: 'u1' },
+      },
     );
   });
 
@@ -101,7 +105,54 @@ describe('NotificationDispatcherService', () => {
       expect.any(Object),
       undefined,
       '',
+      expect.objectContaining({ extraVars: expect.any(Object) }),
     );
+  });
+
+  it('forwards attach to telegram and email', async () => {
+    const attach = {
+      filename: 'vm.wav',
+      content: Buffer.from('RIFF'),
+      contentType: 'audio/wav',
+    };
+    mockInteg('telegram');
+    await dispatcher.dispatch({
+      integration_uid: 15,
+      message: 'hi',
+      target: 'chat-1',
+      attach,
+    });
+    expect(telegram.send).toHaveBeenCalledWith(
+      expect.objectContaining({ channel: 'telegram' }),
+      'chat-1',
+      'hi',
+      expect.objectContaining({ attach }),
+    );
+
+    mockInteg('email');
+    await dispatcher.dispatch({
+      integration_uid: 3,
+      message: 'm',
+      target: 'a@b.c',
+      attach,
+    });
+    expect(email.send).toHaveBeenCalledWith(
+      expect.objectContaining({ channel: 'email' }),
+      'a@b.c',
+      'm',
+      expect.objectContaining({ attach }),
+    );
+  });
+
+  it('sends text only when attach is omitted', async () => {
+    mockInteg('telegram');
+    await dispatcher.dispatch({
+      integration_uid: 15,
+      message: 'hi',
+      target: 'chat-1',
+    });
+    const opts = telegram.send.mock.calls[0][3];
+    expect(opts.attach).toBeUndefined();
   });
 
   it('handles unknown channel without throwing', async () => {

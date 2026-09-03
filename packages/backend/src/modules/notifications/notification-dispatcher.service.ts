@@ -6,6 +6,11 @@ import { WhatsAppProvider } from './providers/whatsapp.provider';
 import { WebhookProvider } from './providers/webhook.provider';
 import { MaxProvider } from './providers/max.provider';
 import { VkProvider } from './providers/vk.provider';
+import type {
+  NotificationAttachment,
+  NotificationSendOptions,
+  NotificationSendResult,
+} from './providers/notification-provider.interface';
 
 /** Dialplan notify payload (DTO formalized in 06-09). */
 export interface NotifyDialplanBody {
@@ -17,6 +22,7 @@ export interface NotifyDialplanBody {
   exten?: string;
   uniqueid?: string;
   api_key?: string;
+  attach?: NotificationAttachment;
 }
 
 /**
@@ -37,7 +43,7 @@ export class NotificationDispatcherService {
     private readonly vk: VkProvider,
   ) {}
 
-  async dispatch(body: NotifyDialplanBody): Promise<void> {
+  async dispatch(body: NotifyDialplanBody): Promise<NotificationSendResult | void> {
     try {
       if (!body.integration_uid) {
         this.logger.warn('notify dispatch skipped: no integration_uid');
@@ -48,30 +54,28 @@ export class NotificationDispatcherService {
       );
       const msg = body.message ?? '';
       const target = body.target;
+      const options: NotificationSendOptions = {
+        extraVars: {
+          clid: body.clid ?? '',
+          exten: body.exten ?? '',
+          uniqueid: body.uniqueid ?? '',
+        },
+        ...(body.attach ? { attach: body.attach } : {}),
+      };
 
       switch (integ.channel) {
         case 'telegram':
-          await this.telegram.send(integ, target, msg);
-          break;
+          return await this.telegram.send(integ, target, msg, options);
         case 'email':
-          await this.email.send(integ, target, msg);
-          break;
+          return await this.email.send(integ, target, msg, options);
         case 'whatsapp':
-          await this.whatsapp.send(integ, target, msg);
-          break;
+          return await this.whatsapp.send(integ, target, msg, options);
         case 'webhook':
-          await this.webhook.send(integ, target, msg, {
-            clid: body.clid ?? '',
-            exten: body.exten ?? '',
-            uniqueid: body.uniqueid ?? '',
-          });
-          break;
+          return await this.webhook.send(integ, target, msg, options);
         case 'max':
-          await this.max.send(integ, target, msg);
-          break;
+          return await this.max.send(integ, target, msg, options);
         case 'vk':
-          await this.vk.send(integ, target, msg);
-          break;
+          return await this.vk.send(integ, target, msg, options);
         default:
           this.logger.warn(
             `Unknown notification channel: ${String((integ as { channel?: string }).channel)}`,
