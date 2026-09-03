@@ -103,4 +103,11 @@ export class VoicemailService {
       scan_locked_until: null,
     });
   }
+
+  list(vpbxUserUid: number) {
+    return this.messages.findAll({
+      where: { user_uid: vpbxUserUid },
+      order: [['created_at', 'DESC']],
+    });
+  }
 }

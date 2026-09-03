@@ -118,3 +118,5 @@ export {
 } from './endpoints/contextIncludeApi';
 
 export type { IContextInclude } from './endpoints/contextIncludeApi';
+
+export { useGetVoicemailMessagesQuery } from './endpoints/voicemailApi';
