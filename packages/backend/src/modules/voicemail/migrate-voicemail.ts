@@ -60,7 +60,27 @@ async function main() {
     console.log('[migration] uq_voicemail_messages_tenant_uniqueid:', (e as Error).message);
   }
 
-  console.log('[migration] Phase 13 voicemail_messages migration complete.');
+  console.log('[migration] Creating vm_access_tokens...');
+  await qi.createTable('vm_access_tokens', {
+    uid: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+    token: { type: DataTypes.STRING(64), allowNull: false },
+    message_uid: { type: DataTypes.INTEGER, allowNull: false },
+    vpbx_user_uid: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
+    expires_at: { type: DataTypes.DATE, allowNull: false },
+    revoked_at: { type: DataTypes.DATE, allowNull: true, defaultValue: null },
+    created_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+  }, { ifNotExists: true } as any);
+
+  try {
+    await qi.addIndex('vm_access_tokens', ['token'], {
+      name: 'uq_vm_access_tokens_token',
+      unique: true,
+    });
+  } catch (e) {
+    console.log('[migration] uq_vm_access_tokens_token:', (e as Error).message);
+  }
+
+  console.log('[migration] Phase 13 voicemail_messages + vm_access_tokens migration complete.');
   await sequelize.close();
 }
 

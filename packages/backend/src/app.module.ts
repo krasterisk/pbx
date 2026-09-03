@@ -126,6 +126,7 @@ import { DirectoryField } from './modules/directories/directory-field.model';
 import { DirectoryRecord } from './modules/directories/directory-record.model';
 import { RouteDirectoryBinding } from './modules/directories/route-directory-binding.model';
 import { VoicemailMessage } from './modules/voicemail/voicemail-message.model';
+import { VoicemailAccessToken } from './modules/voicemail/voicemail-access-token.model';
 import { CcSubject } from './modules/service-requests/cc-subject.model';
 import { CcDistrict } from './modules/service-requests/cc-district.model';
 import * as path from 'path';
@@ -163,7 +164,7 @@ import * as path from 'path';
         CcAiAgent, CcAiProvider, CcAiToolset, CcAiCdr, CcAiBilling, CcAiInvoice, CcAiAuditLog,
         TimeGroup,
         Directory, DirectoryField, DirectoryRecord, RouteDirectoryBinding,
-        VoicemailMessage,
+        VoicemailMessage, VoicemailAccessToken,
         NotificationIntegration,
         CallGroup, CallGroupMember,
         // Cloud-admin
