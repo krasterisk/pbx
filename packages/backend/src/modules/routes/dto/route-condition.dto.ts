@@ -21,6 +21,7 @@ import {
   DIALSTATUS_VALUES,
   DEVICE_STATE_VALUES,
   QUEUESTATUS_VALUES,
+  RECORD_STATUS_VALUES,
   type ConditionSourceKind,
 } from '@krasterisk/shared';
 
@@ -103,6 +104,15 @@ class HttpResultSourceDto {
   value: string;
 }
 
+class RecordStatusSourceDto {
+  @IsIn(['record_status'])
+  source: 'record_status';
+
+  @IsArray()
+  @IsIn([...RECORD_STATUS_VALUES], { each: true })
+  values: string[];
+}
+
 type SourceDtoClass = new (...args: any[]) => object;
 
 /** ACTION_PARAM_DTO-style registry: one DTO per ConditionSource (12-03 form). */
@@ -112,6 +122,7 @@ export const CONDITION_SOURCE_DTO: Record<ConditionSourceKind, SourceDtoClass> =
   device_state: DeviceStateSourceDto,
   variable: VariableSourceDto,
   http_result: HttpResultSourceDto,
+  record_status: RecordStatusSourceDto,
 };
 
 @ValidatorConstraint({ name: 'isTypedConditionSource', async: false })

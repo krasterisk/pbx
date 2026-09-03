@@ -12,6 +12,7 @@ import {
   DEVICE_STATE_VALUES,
   HTTP_RESULT_VAR,
   QUEUESTATUS_VALUES,
+  RECORD_STATUS_VALUES,
   assertNeverCondition,
   type ConditionOp,
   type ConditionSource,
@@ -79,7 +80,8 @@ function isConditionSourceKind(value: unknown): value is ConditionSourceKind {
     || value === 'queuestatus'
     || value === 'device_state'
     || value === 'variable'
-    || value === 'http_result';
+    || value === 'http_result'
+    || value === 'record_status';
 }
 
 function asStringArray(value: unknown): string[] {
@@ -114,6 +116,12 @@ function buildFromSource(cond: ConditionSource): string {
     }
     case 'http_result':
       return buildOpExpr(`\${${HTTP_RESULT_VAR}}`, cond.op, cond.value);
+    case 'record_status': {
+      const valid = asStringArray(cond.values).filter((s) =>
+        (RECORD_STATUS_VALUES as readonly string[]).includes(s),
+      );
+      return orJoinEq('${RECORD_STATUS}', valid);
+    }
     default:
       return assertNeverCondition(cond);
   }

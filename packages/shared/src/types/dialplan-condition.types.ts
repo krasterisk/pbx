@@ -9,6 +9,7 @@ export const CONDITION_SOURCES = [
   'device_state',
   'variable',
   'http_result',
+  'record_status',
 ] as const;
 
 export type ConditionSourceKind = (typeof CONDITION_SOURCES)[number];
@@ -44,7 +45,7 @@ export type QueuestatusValue = (typeof QUEUESTATUS_VALUES)[number];
 
 /**
  * D-56: full Asterisk RECORD_STATUS set including OPERATOR (option `o`).
- * Do not add `record_status` to CONDITION_SOURCES here — 13-03 owns the union.
+ * Single source for generator, DTO, and ConditionEditor presets.
  */
 export const RECORD_STATUS_VALUES = [
   'DTMF',
@@ -96,7 +97,8 @@ export type ConditionSource =
   | { source: 'queuestatus'; values: QueuestatusValue[] }
   | { source: 'device_state'; device: string; values: DeviceStateValue[] }
   | { source: 'variable'; name: string; op: ConditionOp; value: string }
-  | { source: 'http_result'; op: ConditionOp; value: string };
+  | { source: 'http_result'; op: ConditionOp; value: string }
+  | { source: 'record_status'; values: RecordStatusValue[] };
 
 export function assertNeverCondition(x: never): never {
   throw new Error(`Unexpected condition source: ${JSON.stringify(x)}`);
