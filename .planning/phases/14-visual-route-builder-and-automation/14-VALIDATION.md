@@ -75,7 +75,7 @@ created: 2026-09-03
 | 14-08-T3 | 14-08 | 3 | D-40/D-39 scanner + dial_order | T-14-13 | mutex + caps | unit | `npm run test -w @krasterisk/backend -- --testPathPattern="callback-scanner\|callback-requests" --no-coverage` | ❌ W0 | ⬜ pending |
 | 14-08-T3 | 14-08 | 3 | D-49 callback_policy | — | ShiftPolicyForm pattern | unit | `npm run test -w @krasterisk/backend -- --testPathPattern="cc-settings\|callcenter-settings" --no-coverage` | ❌ W0 | ⬜ pending |
 | 14-08-T4 | 14-08 | 3 | D-42 operator REST list/claim/cancel | T-14-14 | JWT queue scope | unit | `npm run test -w @krasterisk/backend -- --testPathPattern="callback-requests.controller" --no-coverage` | ❌ W0 | ⬜ pending |
-| 14-09-T* | 14-09 | 4 | D-42/D-49/D-50 callback UI | — | Badge not segment | component | vitest callcenter callback | ❌ W0 | ⬜ pending |
+| 14-09-T* | 14-09 | 6 | D-42/D-49/D-50 callback UI | — | Badge not segment | component | vitest callcenter callback | ❌ W0 | ⬜ pending |
 | 14-10-T* | 14-10 | 4 | D-48 Usage + delete precheck | T-14-16 | 409 keeps modal | component | `npm run test -w @krasterisk/frontend -- src/features/route-references` | ❌ W0 | ⬜ pending |
 | * | * | * | ActionType callback completeness | — | META/DTO/registry parity | unit | `npm run test -w @krasterisk/backend -- --testPathPattern="dialplan-params" --no-coverage` | ✅ extend | ⬜ pending |
 
