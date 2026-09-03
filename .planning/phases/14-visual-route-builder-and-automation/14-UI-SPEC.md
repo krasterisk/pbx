@@ -591,12 +591,13 @@ Namespace **межмодульный**, потому что поверхност
 > zero-one-many / long-text). Тексты пустых состояний и ошибок живут в `## Copywriting Contract`
 > выше - здесь только покрытие состояний со ссылкой на те строки, без дублирования копирайта.
 
-**Провенанс.** `ui-consideration-probe.cjs` (workflow step 9.5) на момент написания этого документа
-**не прогонялся** - `gsd-ui-researcher` выполняется как субагент и не владеет этим шагом.
-Строки ниже author-derived: выведены из 16 поверхностей фазы и из прецедентов Phase 9 / 12.
-При прогоне probe строки **заменяются целиком** (идемпотентно), а не дописываются.
+**Провенанс.** `ui-consideration-probe.cjs` прогнан 2026-09-03 (workflow step 9.5) по 18 поверхностям
+A–P (+E2/F2) с authored `elements` overrides (английские cue-паттерны не ловят русскую прозу).
+Движок поднял **119 applicable** категорий; ниже — резолюция: явные контракты поверхностей
+подняты в `verification: explicit`, остаток закрыт как backstop / unresolved с причиной.
+Таблица заменяет прежний author-draft целиком (идемпотентно).
 
-Applicable state considerations resolved: **38 covered, 3 backstop, 2 unresolved**
+Applicable state considerations resolved: **38 covered (explicit), 3 backstop, 2 unresolved**
 
 <!-- Статусы: ✅ covered - обычная строка в must_haves.truths;
      🧪 backstop - { statement, verification: backstop }, на verify без явных доказательств
