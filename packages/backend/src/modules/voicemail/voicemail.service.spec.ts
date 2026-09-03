@@ -76,3 +76,152 @@ describe('VoicemailService.mintPlayToken', () => {
     expect(ttl).toBeLessThanOrEqual(SEVEN_DAYS_MS + (after - before) + 1000);
   });
 });
+
+describe('VoicemailService.ingest first notify (D-62 / D-64 / D-65 / D-66)', () => {
+  const ATTACH_MAX = 2 * 1024 * 1024;
+  const uniqueid = '1693731234.12';
+  const fileRel = `42/voicemail/${uniqueid}.wav`;
+
+  let base: string;
+  let messages: { findOne: jest.Mock; create: jest.Mock };
+  let tokens: { create: jest.Mock };
+  let config: { get: jest.Mock };
+  let systemSettings: { getServerConfigRaw: jest.Mock };
+  let dispatcher: { dispatch: jest.Mock };
+  let created: { uid: number; user_uid: number; uniqueid: string; file_rel: string; notify_attempts: number; update: jest.Mock };
+  let service: VoicemailService;
+
+  function writeWav(size: number) {
+    const dest = path.join(base, '42', 'voicemail');
+    fs.mkdirSync(dest, { recursive: true });
+    fs.writeFileSync(path.join(dest, `${uniqueid}.wav`), Buffer.alloc(size));
+  }
+
+  beforeEach(() => {
+    base = fs.mkdtempSync(path.join(os.tmpdir(), 'vm-notify-'));
+    created = {
+      uid: 9,
+      user_uid: 42,
+      uniqueid,
+      file_rel: fileRel,
+      notify_attempts: 0,
+      update: jest.fn().mockResolvedValue(undefined),
+    };
+    messages = {
+      findOne: jest.fn().mockResolvedValue(null),
+      create: jest.fn().mockResolvedValue(created),
+    };
+    tokens = { create: jest.fn().mockResolvedValue({}) };
+    config = { get: jest.fn().mockReturnValue('https://pbx.example.test') };
+    systemSettings = {
+      getServerConfigRaw: jest.fn().mockResolvedValue({ records_base_path: base }),
+    };
+    dispatcher = { dispatch: jest.fn().mockResolvedValue({ success: true }) };
+    service = new VoicemailService(
+      messages as any,
+      tokens as any,
+      config as any,
+      systemSettings as any,
+      dispatcher as any,
+    );
+  });
+
+  afterEach(() => {
+    fs.rmSync(base, { recursive: true, force: true });
+  });
+
+  const ingestBody = {
+    uniqueid,
+    file: fileRel,
+    status: 'HANGUP',
+    clid: '79001234567',
+    exten: '100',
+    vpbx_user_uid: 42,
+    integration_uid: 15,
+    body: 'Новое сообщение',
+    target: 'ops',
+  };
+
+  it('size 2MiB-1 takes the attach path', async () => {
+    writeWav(ATTACH_MAX - 1);
+    await service.ingest(ingestBody);
+
+    expect(dispatcher.dispatch).toHaveBeenCalledTimes(1);
+    const payload = dispatcher.dispatch.mock.calls[0][0];
+    expect(payload.integration_uid).toBe(15);
+    expect(payload.attach).toEqual(
+      expect.objectContaining({
+        filename: expect.stringMatching(/\.wav$/),
+        contentType: 'audio/wav',
+      }),
+    );
+    expect(Buffer.isBuffer(payload.attach.content)).toBe(true);
+    expect(payload.attach.content.length).toBe(ATTACH_MAX - 1);
+    expect(payload.message).toMatch(/RECORDED_FILE/);
+    expect(tokens.create).not.toHaveBeenCalled();
+    expect(created.update).toHaveBeenCalledWith(
+      expect.objectContaining({ notify_status: 'sent' }),
+    );
+  });
+
+  it('size 2MiB takes the link path (no attach)', async () => {
+    writeWav(ATTACH_MAX);
+    await service.ingest(ingestBody);
+
+    expect(dispatcher.dispatch).toHaveBeenCalledTimes(1);
+    const payload = dispatcher.dispatch.mock.calls[0][0];
+    expect(payload.attach).toBeUndefined();
+    expect(payload.message).toMatch(/\/api\/voicemail\/play\?token=/);
+    expect(payload.message).toMatch(/RECORDED_FILE/);
+    expect(tokens.create).toHaveBeenCalledTimes(1);
+    expect(created.update).toHaveBeenCalledWith(
+      expect.objectContaining({ notify_status: 'sent' }),
+    );
+  });
+
+  it('attachment_rejected resends text+link and leaves notify_attempts unchanged', async () => {
+    writeWav(ATTACH_MAX - 1);
+    dispatcher.dispatch
+      .mockResolvedValueOnce({ success: false, error: 'attachment_rejected' })
+      .mockResolvedValueOnce({ success: true });
+
+    await service.ingest(ingestBody);
+
+    expect(dispatcher.dispatch).toHaveBeenCalledTimes(2);
+    expect(dispatcher.dispatch.mock.calls[1][0].attach).toBeUndefined();
+    expect(dispatcher.dispatch.mock.calls[1][0].message).toMatch(
+      /\/api\/voicemail\/play\?token=/,
+    );
+    expect(tokens.create).toHaveBeenCalledTimes(1);
+    const updates = created.update.mock.calls.map((c) => c[0]);
+    expect(updates.some((u) => u.notify_attempts !== undefined && u.notify_attempts !== 0)).toBe(
+      false,
+    );
+    expect(updates[updates.length - 1]).toEqual(
+      expect.objectContaining({ notify_status: 'sent' }),
+    );
+  });
+
+  it('transport fail sets pending + attempts=1 + next_notify_at ~ now+1min', async () => {
+    writeWav(ATTACH_MAX - 1);
+    dispatcher.dispatch.mockResolvedValue({ success: false, error: 'network' });
+    const before = Date.now();
+    await service.ingest(ingestBody);
+    const after = Date.now();
+
+    const patch = created.update.mock.calls[0][0];
+    expect(patch.notify_status).toBe('pending');
+    expect(patch.notify_attempts).toBe(1);
+    expect(patch.notify_error).toBe('network');
+    const eta = patch.next_notify_at.getTime();
+    expect(eta).toBeGreaterThanOrEqual(before + 60_000 - 50);
+    expect(eta).toBeLessThanOrEqual(after + 60_000 + 50);
+  });
+
+  it('does not start STT on the ingest path', async () => {
+    writeWav(100);
+    await service.ingest(ingestBody);
+    expect((service as any).transcribe).toBeUndefined();
+    expect((service as any).summarize).toBeUndefined();
+  });
+});
