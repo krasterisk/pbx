@@ -9,6 +9,7 @@ import {
 } from '@krasterisk/shared';
 import { ActionTypesList } from '../route-action.dto';
 import { ACTION_PARAM_DTO, resolveParamsDto } from './index';
+import { RecordOptionsDto, VoicemailParamsDto } from './address.params.dto';
 import { MediaOptionsDto, serializeMediaOptions } from './media.params.dto';
 import { validateActionParams } from '../../../../shared/pipes/action-params-validation.util';
 import { validateAction } from './directory-lookup.params.dto';
@@ -167,7 +168,16 @@ const VALID_PARAMS: Record<ActionType, Record<string, unknown>> = {
   playback: { file: 'welcome', options: { noanswer: true, skip: false }, langoverride: 'ru' },
   notify: { integration_uid: 1, body: 'hello' },
   callerid: { mode: 'static', callerid: '7900' },
-  voicemail: { target: { source: 'route_pattern' } },
+  voicemail: {
+    target: { source: 'route_pattern' },
+    greeting: 'vm-greeting',
+    max_duration: 120,
+    silence_timeout: 5,
+    record_options: { o: true, q: false },
+    notify: { integration_uid: 4, body: 'new voicemail', target: 'ops@example.com', subject: 'VM' },
+    stt_engine_uid: 2,
+    llm_provider_uid: 3,
+  },
   text2speech: { text: 'hello', engine: 3, settings: { voice: 'alena', speed: '1.0' } },
   voicerobot: { robot_uid: 5 },
   webhook: { url: 'https://example.com/hook' },
@@ -202,7 +212,7 @@ const INVALID_PARAMS: Record<ActionType, Record<string, unknown>> = {
   playback: { digittimeout: -1 },
   notify: { integration_uid: 'x', body: '' },
   callerid: { mode: 'nope' },
-  voicemail: { target: { source: 'fixed', value: '' } },
+  voicemail: { max_duration: 0 },
   text2speech: { engine: 'nope' },
   voicerobot: { robot_uid: 'x' },
   webhook: { url: 1 },
@@ -546,6 +556,79 @@ describe('notify routes through an integration', () => {
       },
     }]);
     expect(errors).toEqual([]);
+  });
+});
+
+describe('voicemail D-56 / D-74 DTO', () => {
+  it('accepts max_duration 120 with record_options.o', () => {
+    const errors = validateActionParams([{
+      id: 'v1',
+      type: 'voicemail',
+      params: { max_duration: 120, record_options: { o: true } },
+    }]);
+    expect(errors).toEqual([]);
+  });
+
+  it('rejects max_duration below 1 or non-numeric', () => {
+    const below = validateActionParams([{
+      id: 'v1',
+      type: 'voicemail',
+      params: { max_duration: 0 },
+    }]);
+    const nonNumeric = validateActionParams([{
+      id: 'v1',
+      type: 'voicemail',
+      params: { max_duration: 'nope' },
+    }]);
+    expect(below.length).toBeGreaterThan(0);
+    expect(below.some((e) => e.path === 'max_duration')).toBe(true);
+    expect(nonNumeric.length).toBeGreaterThan(0);
+    expect(nonNumeric.some((e) => e.path === 'max_duration')).toBe(true);
+  });
+
+  it('validates nested notify via NotifyParamsDto', () => {
+    const ok = validateActionParams([{
+      id: 'v1',
+      type: 'voicemail',
+      params: {
+        notify: { integration_uid: 4, body: 'hi', target: 'ops@example.com', subject: 'VM' },
+      },
+    }]);
+    const missingUid = validateActionParams([{
+      id: 'v1',
+      type: 'voicemail',
+      params: { notify: { body: 'hi' } },
+    }]);
+    expect(ok).toEqual([]);
+    expect(missingUid.some((e) => e.path === 'notify.integration_uid')).toBe(true);
+  });
+
+  it('ignores record_options.k and does not declare k on RecordOptionsDto', () => {
+    const errors = validateActionParams([{
+      id: 'v1',
+      type: 'voicemail',
+      params: { record_options: { o: true, k: true } },
+    }]);
+    expect(errors).toEqual([]);
+    expect(errors.some((e) => e.path.includes('.k') || e.path.endsWith('k'))).toBe(false);
+    expect(new RecordOptionsDto()).not.toHaveProperty('k');
+    const dto = new VoicemailParamsDto();
+    dto.max_duration = 120;
+    dto.record_options = { o: true };
+    dto.notify = { integration_uid: 4, body: 'hi' };
+    expect(dto.max_duration).toBe(120);
+    expect(dto.record_options).toEqual({ o: true });
+    expect(dto.notify).toEqual({ integration_uid: 4, body: 'hi' });
+  });
+
+  it('rejects a path-like greeting', () => {
+    const errors = validateActionParams([{
+      id: 'v1',
+      type: 'voicemail',
+      params: { greeting: '../etc/passwd' },
+    }]);
+    expect(errors.length).toBeGreaterThan(0);
+    expect(errors.some((e) => e.path === 'greeting')).toBe(true);
   });
 });
 
