@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.0
 status: ready_to_plan
-stopped_at: Phase 14 context gathered; Phase 15 split out (agent)
-last_updated: "2026-09-03T08:43:53.299Z"
-state_head: d1117198e78ee3159e47e18ce6c373607c7f11cf
+stopped_at: Phase 14 UI-SPEC approved
+last_updated: "2026-09-03T12:27:47.872Z"
+state_head: e4d731d0746038039997d2c89408d055eb2a25d7
 progress:
   total_phases: 15
   completed_phases: 4
@@ -19,7 +19,9 @@ current_phase_name: visual-route-builder-and-automation
 
 ## Current position
 
-Phase 14 (visual-route-builder-and-automation) — CONTEXT READY (2026-09-03). Discuss закрыт, агент выделен в **Phase 15 (universal-pbx-ai-agent)**, её `15-CONTEXT.md` тоже готов. ROADMAP обновлён под разделение, формат заголовков фаз починен (см. Roadmap Evolution). Next: `/gsd-ui-phase 14` или `/gsd-plan-phase 14`.
+Phase 14 (visual-route-builder-and-automation) — PLANNED (2026-09-03). 10 планов, волны 0…6, `14-VALIDATION.md` есть, plan-checker PASS после двух ревизий (`feffc9d`, `03ca016`, `6d1fc07`, `4ec3615`). Локали `en.ts`/`ru.ts` сериализованы: 14-03 → 14-06 → 14-07 → 14-09. Next: `/gsd-execute-phase 14`.
+
+Phase 15 (universal-pbx-ai-agent) — SPEC READY (2026-09-03). `15-CONTEXT.md`, `15-UI-SPEC.md` approved, `15-AI-SPEC.md` закоммичен (`e244aa6`): фреймворк — собственный Nest agent loop (DomainAiAdapter + MCP + подключаемые `CcAiProvider`), домен PBX/VoIP, 11 dimension оценки, 7 guardrails. Next: `/gsd-plan-phase 15`, затем обязательный `/gsd-secure-phase 15`.
 
 Phase 13 (custom-voicemail-instead-of-voicemail) — COMPLETE (2026-09-03). 13/13 plans, verify passed 19/19, security SECURED. Live greeting→Record→notify deferred.
 12-17 closed 2026-08-31: M1/M6/M7/M8/M9 approved; M4/M5/M12 deferred (live voice later). Call-group ALTERs already on prod.
@@ -318,7 +320,7 @@ Phase 1 — MOH: pending verify.
 
 ## Next GSD command
 
-**Phase 14 context gathered; агент выделен в Phase 15 (её контекст тоже готов).** Next: **`/gsd-ui-phase 14`** (схема с результатом dry-run, раздел шаблонов, вкладка callback) или сразу **`/gsd-plan-phase 14`**. Phase 15 ждёт своей очереди: `/gsd-ui-phase 15` → `/gsd-plan-phase 15` → обязательный `/gsd-secure-phase 15`.
+**Phase 14 запланирована (10 планов, plan-checker PASS).** Next: **`/gsd-execute-phase 14`**. Phase 15: UI-SPEC и AI-SPEC готовы → `/gsd-plan-phase 15` → обязательный `/gsd-secure-phase 15`.
 
 Also open: Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 verify; Phase 8 / 08-11 Android smoke.
 
@@ -438,7 +440,7 @@ Also open: Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 veri
 
 ## Session
 
-**Last session:** 2026-09-03T08:43:50.993Z
-**Stopped at:** Phase 14 context gathered; Phase 15 (AI agent) split out with its own context
-**Resume file:** .planning/phases/14-visual-route-builder-and-automation/14-CONTEXT.md
+**Last session:** 2026-09-03T12:27:21.056Z
+**Stopped at:** Phase 14 UI-SPEC approved
+**Resume file:** .planning/phases/14-visual-route-builder-and-automation/14-UI-SPEC.md
 **Also ready:** .planning/phases/15-universal-pbx-ai-agent/15-CONTEXT.md
