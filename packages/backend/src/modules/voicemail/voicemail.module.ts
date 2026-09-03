@@ -1,7 +1,11 @@
 import { Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
+import { AiAgentsModule } from '../ai-agents/ai-agents.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { SttEnginesModule } from '../stt-engines/stt-engines.module';
 import { SystemSettingsModule } from '../system-settings/system-settings.module';
+import { VoiceRobotsModule } from '../voice-robots/voice-robots.module';
+import { LlmSummaryService } from './llm-summary.service';
 import { VoicemailAccessToken } from './voicemail-access-token.model';
 import { VoicemailController } from './voicemail.controller';
 import { VoicemailDialplanController } from './voicemail-dialplan.controller';
@@ -16,9 +20,12 @@ import { VoicemailService } from './voicemail.service';
     SequelizeModule.forFeature([VoicemailMessage, VoicemailAccessToken]),
     SystemSettingsModule,
     NotificationsModule,
+    SttEnginesModule,
+    VoiceRobotsModule,
+    AiAgentsModule,
   ],
   controllers: [VoicemailDialplanController, VoicemailController, VoicemailLinkController],
-  providers: [VoicemailService, VoicemailLinkGuard, VoicemailScannerService],
-  exports: [VoicemailService],
+  providers: [VoicemailService, VoicemailLinkGuard, VoicemailScannerService, LlmSummaryService],
+  exports: [VoicemailService, VoicemailScannerService],
 })
 export class VoicemailModule {}
