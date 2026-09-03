@@ -1,15 +1,20 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/sequelize';
 import { randomBytes } from 'crypto';
 import type { Request, Response } from 'express';
 import * as fs from 'fs';
 import * as path from 'path';
+import { NotificationDispatcherService } from '../notifications/notification-dispatcher.service';
+import { ATTACHMENT_REJECTED } from '../notifications/providers/notification-provider.interface';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
 import { VoicemailAccessToken } from './voicemail-access-token.model';
 import { VoicemailMessage } from './voicemail-message.model';
 
 export const PLAY_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+/** D-64/D-65: attach iff size is strictly less than 2 MiB. */
+export const VOICEMAIL_ATTACH_MAX_BYTES = 2 * 1024 * 1024;
+const FIRST_NOTIFY_RETRY_MS = 60_000;
 
 /** Asterisk UNIQUEID / safe filename stem: digits, letters, dot, underscore, hyphen. */
 export const UNIQUEID_ALLOW = /^[A-Za-z0-9._-]{1,128}$/;
@@ -23,6 +28,10 @@ export type VoicemailIngestBody = {
   user_uid?: string | number;
   vpbx_user_uid?: string | number;
   duration_sec?: string | number;
+  integration_uid?: string | number;
+  body?: string;
+  target?: string;
+  subject?: string;
 };
 
 export function sanitizeUniqueid(raw?: string): string | null {
@@ -71,6 +80,7 @@ export class VoicemailService {
     @InjectModel(VoicemailAccessToken) private readonly tokens: typeof VoicemailAccessToken,
     private readonly config: ConfigService,
     private readonly systemSettings: SystemSettingsService,
+    @Optional() private readonly dispatcher?: NotificationDispatcherService,
   ) {}
 
   /**
@@ -193,8 +203,8 @@ export class VoicemailService {
   }
 
   /**
-   * Hangup-handler ingest (D-60 / D-62 / D-72). Upserts the row only.
-   * Does not call STT, LLM, or notify.
+   * Hangup-handler ingest (D-60 / D-62 / D-72). Upserts the row, then first notify.
+   * Does not call STT or LLM (D-60). Controller returns `{accepted:true}` before this settles.
    */
   async ingest(body: VoicemailIngestBody): Promise<void> {
     const uniqueid = sanitizeUniqueid(body.uniqueid);
@@ -235,7 +245,7 @@ export class VoicemailService {
       return;
     }
 
-    await this.messages.create({
+    const row = await this.messages.create({
       user_uid: userUid,
       uniqueid,
       ...patch,
@@ -245,6 +255,104 @@ export class VoicemailService {
       transcript_attempts: 0,
       next_notify_at: null,
       scan_locked_until: null,
+    });
+    await this.sendFirstNotify(row, body);
+  }
+
+  /**
+   * First notify after insert (D-62). Byte-gated attach (D-64/D-65).
+   * `attachment_rejected` same-channel link fallback does not increment attempts (D-66).
+   */
+  private async sendFirstNotify(
+    row: VoicemailMessage,
+    body: VoicemailIngestBody,
+  ): Promise<void> {
+    const integrationUid = parseTenantUid(body.integration_uid);
+    if (integrationUid == null || !this.dispatcher) return;
+
+    try {
+      const cfg = await this.systemSettings.getServerConfigRaw();
+      const basePath = cfg.records_base_path || '/usr/records';
+      const filePath = safeVoicemailFilePath(basePath, row.file_rel);
+      if (!filePath) {
+        await this.markNotifyTransportFail(row, 'file_missing');
+        return;
+      }
+
+      const stat = await fs.promises.stat(filePath);
+      const filename = path.posix.basename(row.file_rel.replace(/\\/g, '/')) || `${row.uniqueid}.wav`;
+
+      if (stat.size < VOICEMAIL_ATTACH_MAX_BYTES) {
+        const content = await fs.promises.readFile(filePath);
+        const message = this.buildNotifyBody(body.body, row.file_rel);
+        const first = await this.dispatcher.dispatch({
+          integration_uid: integrationUid,
+          message,
+          target: body.target,
+          subject: body.subject,
+          clid: body.clid,
+          exten: body.exten,
+          uniqueid: row.uniqueid,
+          attach: { filename, content, contentType: 'audio/wav' },
+        });
+
+        if (first?.success) {
+          await row.update({ notify_status: 'sent', notify_error: null });
+          return;
+        }
+
+        if (first?.error === ATTACHMENT_REJECTED) {
+          await this.dispatchLinkNotify(row, body, integrationUid);
+          return;
+        }
+
+        await this.markNotifyTransportFail(row, first?.error ?? 'transport_error');
+        return;
+      }
+
+      await this.dispatchLinkNotify(row, body, integrationUid);
+    } catch (e: any) {
+      this.logger.error(`voicemail first notify failed: ${e?.message ?? e}`);
+      await this.markNotifyTransportFail(row, e?.message ?? 'transport_error');
+    }
+  }
+
+  private async dispatchLinkNotify(
+    row: VoicemailMessage,
+    body: VoicemailIngestBody,
+    integrationUid: number,
+  ): Promise<void> {
+    const playUrl = await this.mintPlayToken(row);
+    const message = this.buildNotifyBody(body.body, row.file_rel, playUrl);
+    const result = await this.dispatcher!.dispatch({
+      integration_uid: integrationUid,
+      message,
+      target: body.target,
+      subject: body.subject,
+      clid: body.clid,
+      exten: body.exten,
+      uniqueid: row.uniqueid,
+    });
+
+    if (result?.success) {
+      await row.update({ notify_status: 'sent', notify_error: null });
+      return;
+    }
+    await this.markNotifyTransportFail(row, result?.error ?? 'transport_error');
+  }
+
+  private buildNotifyBody(base: string | undefined, fileRel: string, playUrl?: string): string {
+    const parts = [String(base ?? '').trim() || 'New voicemail', `RECORDED_FILE=${fileRel}`];
+    if (playUrl) parts.push(playUrl);
+    return parts.join('\n');
+  }
+
+  private async markNotifyTransportFail(row: VoicemailMessage, error: string): Promise<void> {
+    await row.update({
+      notify_status: 'pending',
+      notify_attempts: 1,
+      notify_error: String(error).slice(0, 2000),
+      next_notify_at: new Date(Date.now() + FIRST_NOTIFY_RETRY_MS),
     });
   }
 

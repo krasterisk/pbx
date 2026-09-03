@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { SystemSettingsModule } from '../system-settings/system-settings.module';
 import { VoicemailAccessToken } from './voicemail-access-token.model';
 import { VoicemailController } from './voicemail.controller';
@@ -13,6 +14,7 @@ import { VoicemailService } from './voicemail.service';
   imports: [
     SequelizeModule.forFeature([VoicemailMessage, VoicemailAccessToken]),
     SystemSettingsModule,
+    NotificationsModule,
   ],
   controllers: [VoicemailDialplanController, VoicemailController, VoicemailLinkController],
   providers: [VoicemailService, VoicemailLinkGuard],
