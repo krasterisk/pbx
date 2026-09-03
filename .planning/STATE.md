@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 status: executing
-stopped_at: Completed 14-08-PLAN.md
-last_updated: "2026-09-03T19:38:27.319Z"
-state_head: ca856d8d2216d6a5b51cb043ae6bc248f02c1c7e
+stopped_at: Completed 14-06-PLAN.md
+last_updated: "2026-09-03T20:01:48.713Z"
+state_head: 72f71139da3e66b670db92533219fb44a7b6deb0
 progress:
   total_phases: 15
   completed_phases: 4
   total_plans: 165
-  completed_plans: 137
+  completed_plans: 138
 milestone_name: milestone
 current_phase: 14
 current_phase_name: visual-route-builder-and-automation
@@ -19,7 +19,7 @@ current_phase_name: visual-route-builder-and-automation
 
 ## Current position
 
-Phase 14 (visual-route-builder-and-automation) — EXECUTING. 14-01…14-05 + 14-08 done (callback ActionType, scanner, operator REST `ca856d8`). Next: Wave 4/5/6 — 14-06 dry-run UI, 14-07 templates FE, 14-09 callback UI, 14-10 usage tab. 10 планов, волны 0…6.
+Phase 14 (visual-route-builder-and-automation) — EXECUTING. 14-01…14-06 + 14-08 done (dry-run UI + highlight `72f7113`). Next: Wave 5/6 — 14-07 templates FE, 14-09 callback UI, 14-10 usage tab. 10 планов, волны 0…6.
 
 Phase 15 (universal-pbx-ai-agent) — PLANNED (2026-09-04). 24 плана, волны 1…7, `15-VALIDATION.md` есть, plan-checker PASS после ревизии `43f8ae8` (справочники через proposal). Next: `/gsd-execute-phase 15` (после Phase 14), затем обязательный `/gsd-secure-phase 15`.
 
@@ -303,6 +303,8 @@ Phase 1 — MOH: pending verify.
 - [Phase 14]: queue_name persisted because queue_table has no numeric PK; operator filter uses cc_agent_queues names
 - [Phase 14]: Supervisor list is tenant-wide; 14-09 applies cc:supervisor:queueFilter client-side (no queues query param)
 - [Phase 14]: Scanner originates via AMI krsk-click-to-call; CallCenterService.originateDial stays private to avoid a module cycle
+- [Phase 14]: 14-06: Dry-run posts draft actions; callback_requested uses Success highlight and routes.dryRun.outcome.callback
+- [Phase 14]: 14-06: Foreign walk segments are Card stacks with WalkSegment order chips (API has no remote action lists)
 
 ## Roadmap Evolution
 
@@ -461,10 +463,11 @@ Also open: Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 veri
 | Phase 14 P05 | 22min | 3 tasks | 18 files |
 | Phase 14-visual-route-builder-and-automation P04 | 26 | 3 tasks | 15 files |
 | Phase 14 P08 | 26 | 4 tasks | 37 files |
+| Phase 14 P06 | 23 | 3 tasks | 15 files |
 
 ## Session
 
-**Last session:** 2026-09-03T19:38:25.870Z
-**Stopped at:** Completed 14-08-PLAN.md
+**Last session:** 2026-09-03T20:01:46.669Z
+**Stopped at:** Completed 14-06-PLAN.md
 **Resume file:** None
 **Also ready:** .planning/phases/15-universal-pbx-ai-agent/15-CONTEXT.md
