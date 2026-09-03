@@ -29,6 +29,7 @@ import {
 } from '@/shared/api/endpoints/notificationApi';
 import { CHANNEL_FIELDS, NOTIFICATION_CHANNELS } from '../../config/channelFields';
 import { WebhookAuthConfig, type AuthMode, type WebhookHeader } from '@/shared/ui/WebhookAuthConfig/WebhookAuthConfig';
+import { UsageTab } from '@/features/route-references/ui/UsageTab';
 import cls from './NotificationIntegrationFormModal.module.scss';
 
 /**
@@ -151,6 +152,7 @@ export const NotificationIntegrationFormModal = () => {
   const [createIntegration, { isLoading: isCreating }] = useCreateNotificationMutation();
   const [updateIntegration, { isLoading: isUpdating }] = useUpdateNotificationMutation();
 
+  const [activeTab, setActiveTab] = useState<'general' | 'usage'>('general');
   const [name, setName] = useState('');
   const [channel, setChannel] = useState<NotificationChannel>('telegram');
   const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
@@ -160,6 +162,7 @@ export const NotificationIntegrationFormModal = () => {
 
   useEffect(() => {
     if (!isOpen) return;
+    setActiveTab('general');
 
     if (mode === 'create') {
       setName('');
@@ -297,6 +300,34 @@ export const NotificationIntegrationFormModal = () => {
           <DialogTitle>{modalTitle}</DialogTitle>
         </DialogHeader>
 
+        {mode === 'edit' && selectedUid != null && (
+          <div className="border-b border-border/50 mb-6">
+            <HStack gap="8" className="-mb-[1px] flex overflow-x-auto flex-nowrap [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+              {[
+                { id: 'general' as const, label: t('common.general', 'Основные') },
+                { id: 'usage' as const, label: t('references.tab', 'Где используется') },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`relative py-3 text-sm font-medium transition-colors whitespace-nowrap shrink-0 bg-transparent outline-none ${
+                    activeTab === tab.id ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {tab.label}
+                  {activeTab === tab.id && (
+                    <div className="absolute left-0 right-0 bottom-0 h-[2px] bg-primary rounded-t-[1px]" />
+                  )}
+                </button>
+              ))}
+            </HStack>
+          </div>
+        )}
+
+        {activeTab === 'usage' && mode === 'edit' && selectedUid != null ? (
+          <UsageTab kind="integration" uid={selectedUid} />
+        ) : (
         <VStack gap="16" className="py-2">
           <VStack gap="4">
             <Label>{t('notifications.name')}</Label>
@@ -375,6 +406,7 @@ export const NotificationIntegrationFormModal = () => {
             </VStack>
           )}
         </VStack>
+        )}
 
         <DialogFooter className="mt-4">
           <HStack gap="8" justify="end">

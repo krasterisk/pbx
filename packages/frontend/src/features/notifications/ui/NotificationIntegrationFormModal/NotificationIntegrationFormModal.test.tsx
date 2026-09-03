@@ -46,6 +46,10 @@ vi.mock('@/shared/ui/Tooltip/Tooltip', () => ({
   ),
 }));
 
+vi.mock('@/features/route-references/ui/UsageTab', () => ({
+  UsageTab: () => <div data-testid="usage-tab" />,
+}));
+
 vi.mock('@/shared/api/endpoints/notificationApi', () => ({
   useGetNotificationQuery: vi.fn(),
   useCreateNotificationMutation: vi.fn(),
@@ -238,5 +242,19 @@ describe('NotificationIntegrationFormModal', () => {
       config: { chat_id: '-10099' },
       credentials: { bot_token: 'secret-token' },
     });
+  });
+
+  it('shows variant B Usage tab last only in edit mode', () => {
+    renderModal();
+    expect(screen.queryByText('Где используется')).toBeNull();
+
+    (notificationApiHooks.useGetNotificationQuery as ReturnType<typeof vi.fn>).mockReturnValue({
+      data: { uid: 3, name: 'Sales', channel: 'telegram', config: { chat_id: '1' } },
+      isFetching: false,
+    });
+    renderModal({ modalMode: 'edit', selectedIntegrationUid: 3 });
+    const usage = screen.getByText('Где используется');
+    fireEvent.click(usage);
+    expect(screen.getByTestId('usage-tab')).toBeInTheDocument();
   });
 });

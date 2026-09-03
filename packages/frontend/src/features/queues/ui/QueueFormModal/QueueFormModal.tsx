@@ -28,6 +28,7 @@ import { AdvancedSettingsBuilder } from '@/features/endpoints/ui/AdvancedSetting
 import { QUEUE_ADVANCED_FIELDS } from '../../config/queueAdvancedFields';
 import { IQueueMember } from '../../model/types/queuesSchema';
 import { extractExtension, interfaceToExtension, isWebrtcCompanion } from '@/features/endpoints/lib/endpointIds';
+import { UsageTab } from '@/features/route-references/ui/UsageTab';
 import cls from './QueueFormModal.module.scss';
 
 // Strategy select options
@@ -59,7 +60,7 @@ export const QueueFormModal = () => {
   const { data: mohClasses = [] } = useGetMohClassesQuery(undefined, { skip: !isOpen });
   const { data: endpoints = [] } = useGetEndpointsQuery();
 
-  const [activeTab, setActiveTab] = useState<'general' | 'members' | 'announcements' | 'advanced'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'members' | 'announcements' | 'advanced' | 'usage'>('general');
 
   // === General ===
   const [exten, setExten] = useState('');
@@ -446,6 +447,9 @@ export const QueueFormModal = () => {
                 { id: 'members', label: `${t('queues.tabMembers')} (${members.length})` },
                 { id: 'announcements', label: t('queues.tabAnnouncements') },
                 { id: 'advanced', label: t('queues.tabAdvanced') },
+                ...(mode === 'edit' && selectedName
+                  ? [{ id: 'usage', label: t('references.tab', 'Где используется') }]
+                  : []),
               ].map(tab => (
                 <button
                   key={tab.id}
@@ -861,6 +865,10 @@ export const QueueFormModal = () => {
             )}
 
             {/* ═══════════ ADVANCED TAB ═══════════ */}
+            {activeTab === 'usage' && mode === 'edit' && selectedName && (
+              <UsageTab kind="queue" uid={selectedName} />
+            )}
+
             {activeTab === 'advanced' && (
               <VStack gap="16">
                 {/* Toggles moved from General */}

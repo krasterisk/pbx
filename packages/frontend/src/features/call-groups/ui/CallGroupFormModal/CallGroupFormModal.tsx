@@ -33,6 +33,7 @@ import { CallGroupMembersEditor, type LocalCallGroupMember } from './CallGroupMe
 import { CallGroupRingOptions, type CallGroupRingOptionsValue, stripMohDialOption } from './CallGroupRingOptions';
 import { isOptionsParseError } from '@/features/dialplan-apps/model/optionsSync';
 import { resolveCallGroupApiError } from '../../lib/resolveCallGroupApiError';
+import { UsageTab } from '@/features/route-references/ui/UsageTab';
 import cls from './CallGroupFormModal.module.scss';
 
 const DEFAULT_RING: CallGroupRingOptionsValue = {
@@ -75,6 +76,7 @@ export const CallGroupFormModal = memo(({ onSaved }: CallGroupFormModalProps) =>
   const [updateCallGroup, { isLoading: isUpdating }] = useUpdateCallGroupMutation();
   const { data: contexts = [] } = useGetContextsQuery(undefined, { skip: !isOpen });
 
+  const [activeTab, setActiveTab] = useState<'general' | 'usage'>('general');
   const [name, setName] = useState('');
   const [exten, setExten] = useState('');
   const [strategy, setStrategy] = useState<RingStrategy>('ringall');
@@ -95,6 +97,7 @@ export const CallGroupFormModal = memo(({ onSaved }: CallGroupFormModalProps) =>
 
   useEffect(() => {
     if (!isOpen) return;
+    setActiveTab('general');
 
     if ((mode === 'edit' || mode === 'copy') && groupData) {
       setName(mode === 'copy' ? `${groupData.name} (${t('common.copy', 'копия')})` : groupData.name);
@@ -235,7 +238,35 @@ export const CallGroupFormModal = memo(({ onSaved }: CallGroupFormModalProps) =>
           <DialogTitle>{modalTitle}</DialogTitle>
         </DialogHeader>
 
+        {mode === 'edit' && selectedUid != null && (
+          <div className="border-b border-border/50 mb-6">
+            <HStack gap="8" className="-mb-[1px] flex overflow-x-auto flex-nowrap [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+              {[
+                { id: 'general' as const, label: t('common.general', 'Основные') },
+                { id: 'usage' as const, label: t('references.tab', 'Где используется') },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`relative py-3 text-sm font-medium transition-colors whitespace-nowrap shrink-0 bg-transparent outline-none ${
+                    activeTab === tab.id ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {tab.label}
+                  {activeTab === tab.id && (
+                    <div className="absolute left-0 right-0 bottom-0 h-[2px] bg-primary rounded-t-[1px]" />
+                  )}
+                </button>
+              ))}
+            </HStack>
+          </div>
+        )}
+
         <form className={cls.form} onSubmit={handleSubmit}>
+          {activeTab === 'usage' && mode === 'edit' && selectedUid != null ? (
+            <UsageTab kind="group" uid={selectedUid} />
+          ) : (
           <VStack gap="12" max>
             <div className={cls.field}>
               <HStack gap="4" align="center">
@@ -335,6 +366,7 @@ export const CallGroupFormModal = memo(({ onSaved }: CallGroupFormModalProps) =>
               <Text variant="small" className={cls.errorText}>{submitError}</Text>
             )}
           </VStack>
+          )}
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={handleClose}>

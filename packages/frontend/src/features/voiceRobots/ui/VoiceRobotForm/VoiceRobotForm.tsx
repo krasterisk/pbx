@@ -14,9 +14,11 @@ import { VoiceRobotDialogueTab } from './VoiceRobotKeywordsTab';
 import { VoiceRobotSettingsTab } from './VoiceRobotSettingsTab';
 import { TestMatchPanel } from '../TestMatchPanel/TestMatchPanel';
 import { DataListEditor } from '../DataListEditor';
+import { UsageTab } from '@/features/route-references/ui/UsageTab';
 
-/** 5 tabs: Основные / Диалог / Справочники / Настройки / Тест */
+/** 5 tabs: Основные / Диалог / Справочники / Настройки / Тест; Usage last in edit */
 const TABS = ['general', 'dialogue', 'data_lists', 'settings', 'test'] as const;
+type VoiceRobotTab = typeof TABS[number] | 'usage';
 
 const DEFAULT_FALLBACK_ACTION: IVoiceRobotBotAction = {
   response: { type: 'tts', value: '' },
@@ -37,7 +39,8 @@ export const VoiceRobotForm = memo(({ initialRobot }: VoiceRobotFormProps) => {
   const { data: sttEngines } = useGetSttEnginesQuery();
   const { data: ttsEngines } = useGetTtsEnginesQuery();
 
-  const [activeTab, setActiveTab] = useState<typeof TABS[number]>('general');
+  const [activeTab, setActiveTab] = useState<VoiceRobotTab>('general');
+  const tabs: VoiceRobotTab[] = initialRobot ? [...TABS, 'usage'] : [...TABS];
 
   // ─── Form State ────────────────────────────────────────
   const [name, setName] = useState('');
@@ -159,7 +162,7 @@ export const VoiceRobotForm = memo(({ initialRobot }: VoiceRobotFormProps) => {
         {/* Tabs Bar */}
         <VStack className="border-b border-border/50 shrink-0 bg-muted/10 px-6 pt-4" max>
           <HStack gap="8" className="-mb-[1px] flex overflow-x-auto flex-nowrap [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-            {TABS.map((tab) => (
+            {tabs.map((tab) => (
               <Button
                 key={tab}
                 variant="ghost"
@@ -168,7 +171,9 @@ export const VoiceRobotForm = memo(({ initialRobot }: VoiceRobotFormProps) => {
                     activeTab === tab ? 'text-primary bg-transparent hover:bg-transparent hover:text-primary' : 'text-muted-foreground bg-transparent hover:text-foreground hover:bg-transparent'
                 }`}
               >
-                {t(`voiceRobots.tabs.${tab}`, tab)}
+                {tab === 'usage'
+                  ? t('references.tab', 'Где используется')
+                  : t(`voiceRobots.tabs.${tab}`, tab)}
                 {activeTab === tab && (
                   <VStack className="absolute left-0 right-0 bottom-0 h-[2px] bg-primary rounded-t-[1px]">{''}</VStack>
                 )}
@@ -237,6 +242,10 @@ export const VoiceRobotForm = memo(({ initialRobot }: VoiceRobotFormProps) => {
                 </Text>
               </VStack>
             )
+          )}
+
+          {activeTab === 'usage' && initialRobot && (
+            <UsageTab kind="voicerobot" uid={initialRobot.uid} />
           )}
 
           {activeTab === 'test' && (

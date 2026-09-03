@@ -61,6 +61,10 @@ vi.mock('./RouteFlowchartTab', () => ({
   RouteFlowchartTab: () => <div data-testid="flowchart-tab" />,
 }));
 
+vi.mock('@/features/route-references/ui/UsageTab', () => ({
+  UsageTab: () => <div data-testid="usage-tab" />,
+}));
+
 import { RouteFormModal } from './RouteFormModal';
 
 const selectedRoute = {
@@ -153,15 +157,16 @@ describe('RouteFormModal raw_dialplan payload (D-16)', () => {
     expect(JSON.stringify(arg.data.bindings)).not.toMatch(/phonebook/i);
   });
 
-  it('shows the Schema tab last when routes.show_flowchart is on', () => {
+  it('shows Usage last after Schema when editing', () => {
     renderModal();
     const schema = screen.getByRole('button', { name: 'Схема' });
     expect(schema).toBeInTheDocument();
-    const tabLabels = ['Основные', 'Действия', 'Справочники', 'Вебхуки', 'Схема'];
+    const tabLabels = ['Основные', 'Действия', 'Справочники', 'Вебхуки', 'Схема', 'Где используется'];
     const tabButtons = tabLabels.map((label) => screen.getByRole('button', { name: label }));
-    const order = tabButtons.map((btn) => (
-      btn.compareDocumentPosition(tabButtons[tabButtons.length - 1])
-    ));
-    expect(order.slice(0, -1).every((pos) => pos & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
+    const last = tabButtons[tabButtons.length - 1];
+    expect(last).toHaveTextContent('Где используется');
+    expect(tabButtons.slice(0, -1).every((btn) => btn.compareDocumentPosition(last) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
+    fireEvent.click(last);
+    expect(screen.getByTestId('usage-tab')).toBeInTheDocument();
   });
 });

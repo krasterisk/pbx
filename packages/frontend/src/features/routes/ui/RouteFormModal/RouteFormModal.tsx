@@ -24,6 +24,7 @@ import { mapStepErrors } from '@/features/dialplan-apps';
 import type { MappedStepErrors } from '@/features/dialplan-apps/model/stepErrors';
 import { RouteDirectoriesTab } from './RouteDirectoriesTab';
 import { RouteFlowchartTab } from './RouteFlowchartTab';
+import { UsageTab } from '@/features/route-references/ui/UsageTab';
 
 function hasIncompleteQueueAction(list: IRouteAction[]): boolean {
   return list.some(
@@ -32,13 +33,14 @@ function hasIncompleteQueueAction(list: IRouteAction[]): boolean {
 }
 
 const BASE_TABS = ['general', 'actions', 'directories', 'webhooks'] as const;
-type RouteTab = typeof BASE_TABS[number] | 'flowchart';
+type RouteTab = typeof BASE_TABS[number] | 'flowchart' | 'usage';
 const TAB_FALLBACKS: Record<RouteTab, string> = {
   general: 'Основные',
   actions: 'Действия',
   directories: 'Справочники',
   webhooks: 'Вебхуки',
   flowchart: 'Схема',
+  usage: 'Где используется',
 };
 
 export const RouteFormModal = memo(() => {
@@ -57,7 +59,11 @@ export const RouteFormModal = memo(() => {
   const [updateRoute, { isLoading: isUpdating }] = useUpdateRouteMutation();
 
   const [activeTab, setActiveTab] = useState<RouteTab>('general');
-  const tabs: RouteTab[] = showFlowchart ? [...BASE_TABS, 'flowchart'] : [...BASE_TABS];
+  const tabs: RouteTab[] = [
+    ...BASE_TABS,
+    ...(showFlowchart ? (['flowchart'] as const) : []),
+    ...(!isCreateMode && selectedRoute ? (['usage'] as const) : []),
+  ];
   const [contextUid, setContextUid] = useState<number | null>(null);
   const [name, setName] = useState('');
   const [extensions, setExtensions] = useState<string[]>([]);
@@ -339,6 +345,10 @@ export const RouteFormModal = memo(() => {
               routeName={name}
               extensions={extensions}
             />
+          )}
+
+          {activeTab === 'usage' && !isCreateMode && selectedRoute && (
+            <UsageTab kind="route" uid={selectedRoute.uid} showTorouteCaveat />
           )}
         </VStack>
 

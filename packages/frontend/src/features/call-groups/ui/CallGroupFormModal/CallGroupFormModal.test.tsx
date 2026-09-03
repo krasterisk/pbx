@@ -89,6 +89,10 @@ vi.mock('@/shared/api/endpoints/mohApi', async (importOriginal) => {
   };
 });
 
+vi.mock('@/features/route-references/ui/UsageTab', () => ({
+  UsageTab: () => <div data-testid="usage-tab" />,
+}));
+
 vi.mock('@/shared/ui', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/shared/ui')>();
   return {
@@ -230,5 +234,35 @@ describe('CallGroupFormModal', () => {
     fireEvent.click(screen.getByText('Сохранить'));
     expect(screen.getAllByText('Незакрытая скобка в строке опций').length).toBeGreaterThan(0);
     expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  it('shows variant B Usage tab last only in edit mode', () => {
+    render(<CallGroupFormModal />);
+    expect(screen.queryByText('Где используется')).toBeNull();
+
+    mockState = {
+      ...baseState,
+      callGroupsPage: {
+        isModalOpen: true,
+        modalMode: 'edit',
+        selectedCallGroupUid: 9,
+      },
+    };
+    (callGroupApiHooks.useGetCallGroupQuery as ReturnType<typeof vi.fn>).mockReturnValue({
+      data: {
+        uid: 9,
+        name: 'Sales',
+        exten: '800',
+        strategy: 'ringall',
+        ring_time: 30,
+        members: [],
+      },
+      isFetching: false,
+    });
+    render(<CallGroupFormModal />);
+    const usage = screen.getByText('Где используется');
+    expect(usage).toBeInTheDocument();
+    fireEvent.click(usage);
+    expect(screen.getByTestId('usage-tab')).toBeInTheDocument();
   });
 });
