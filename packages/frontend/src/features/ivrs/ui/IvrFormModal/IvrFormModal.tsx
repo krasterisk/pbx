@@ -7,12 +7,14 @@ import {
   DialogTitle,
   DialogFooter,
   Button,
+  Tooltip,
 } from '@/shared/ui';
 import { VStack } from '@/shared/ui/Stack';
 import { getIvrPromptsValidationIssues, normalizeIvrPrompts, type IIvrPhrase } from '@krasterisk/shared';
 import { IIvr, IIvrMenuItem } from '@/entities/ivr';
 import { toast } from 'react-toastify';
-import { useCreateIvrMutation, useUpdateIvrMutation } from '@/shared/api/endpoints/ivrsApi';
+import { useCreateIvrMutation, useDeleteIvrMutation, useUpdateIvrMutation } from '@/shared/api/endpoints/ivrsApi';
+import { extractRouteReferences, useGetUsageQuery } from '@/shared/api/endpoints/routeReferencesApi';
 import { useGetTtsEnginesQuery } from '@/shared/api/endpoints/ttsEnginesApi';
 import { getPhraseValidationMessage } from '../../lib/ivrPromptsValidation';
 import { IvrMenuItemsEditor } from '../IvrMenuItemsEditor/IvrMenuItemsEditor';
@@ -21,6 +23,7 @@ import { IvrMainTab } from '../IvrMainTab';
 import { useGetTenantSettingsQuery } from '@/entities/tenantSettings';
 import { IvrFlowchartTab } from './IvrFlowchartTab';
 import { UsageTab } from '@/features/route-references/ui/UsageTab';
+import { DeleteBlockedDialog } from '@/features/route-references/ui/DeleteBlockedDialog';
 import cls from './IvrFormModal.module.scss';
 
 interface IvrFormModalProps {
@@ -34,6 +37,13 @@ export function IvrFormModal({ isOpen, onClose, ivr, mode = ivr ? 'edit' : 'crea
   const { t } = useTranslation();
   const [createIvr] = useCreateIvrMutation();
   const [updateIvr] = useUpdateIvrMutation();
+  const [deleteIvr, { isLoading: isDeleting }] = useDeleteIvrMutation();
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [conflictRefs, setConflictRefs] = useState<ReturnType<typeof extractRouteReferences>>([]);
+  const usageQuery = useGetUsageQuery(
+    { kind: 'ivr', uid: ivr?.uid ?? 0 },
+    { skip: mode !== 'edit' || !ivr },
+  );
   const { data: tenantSettings, isLoading: tenantSettingsLoading } = useGetTenantSettingsQuery();
   const showFlowchart = !tenantSettingsLoading && (tenantSettings?.['routes.show_flowchart'] ?? true);
 
@@ -138,6 +148,35 @@ export function IvrFormModal({ isOpen, onClose, ivr, mode = ivr ? 'edit' : 'crea
     }
   };
 
+  const usageRefs = conflictRefs.length ? conflictRefs : (usageQuery.data?.references ?? []);
+  const deleteBlocked = Boolean(
+    mode === 'edit'
+    && ivr
+    && (usageQuery.isLoading || usageQuery.isError || usageRefs.length > 0),
+  );
+  const deleteHint = usageQuery.isLoading || usageQuery.isError
+    ? t('references.errorHint', 'Пока проверка не прошла, удаление недоступно')
+    : usageRefs.length > 0
+      ? t('references.deleteBlockedTitle', 'Сначала уберите ссылки')
+      : undefined;
+
+  const onDelete = async () => {
+    if (!ivr || deleteBlocked) return;
+    try {
+      await deleteIvr(ivr.uid).unwrap();
+      setDeleteOpen(false);
+      onClose();
+    } catch (err: unknown) {
+      const refs = extractRouteReferences(err);
+      if (refs.length) {
+        setConflictRefs(refs);
+        setDeleteOpen(true);
+        return;
+      }
+      toast.error(t('common.error', 'Ошибка сохранения'));
+    }
+  };
+
   const tabs = [
     { id: 'main', label: t('ivrs.tabs.main', 'Основные') },
     { id: 'sounds_prompts', label: t('ivrs.tabs.sounds_prompts', 'Фразы') },
@@ -234,6 +273,25 @@ export function IvrFormModal({ isOpen, onClose, ivr, mode = ivr ? 'edit' : 'crea
         </VStack>
 
         <DialogFooter className={cls.footer}>
+          {mode === 'edit' && ivr && (
+            <Tooltip content={deleteHint}>
+              <span>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  disabled={deleteBlocked || isDeleting}
+                  aria-describedby={deleteBlocked ? 'ivr-delete-blocked' : undefined}
+                  data-testid="ivr-delete"
+                  onClick={() => {
+                    setConflictRefs([]);
+                    setDeleteOpen(true);
+                  }}
+                >
+                  {t('common.delete', 'Удалить')}
+                </Button>
+              </span>
+            </Tooltip>
+          )}
           <Button variant="outline" onClick={onClose}>
             {t('common.cancel', 'Отмена')}
           </Button>
@@ -242,6 +300,16 @@ export function IvrFormModal({ isOpen, onClose, ivr, mode = ivr ? 'edit' : 'crea
           </Button>
         </DialogFooter>
       </DialogContent>
+      {mode === 'edit' && ivr && (
+        <DeleteBlockedDialog
+          open={deleteOpen}
+          onOpenChange={setDeleteOpen}
+          entityName={name || ivr.name}
+          references={usageRefs}
+          onConfirm={() => void onDelete()}
+          isDeleting={isDeleting}
+        />
+      )}
     </Dialog>
   );
 }

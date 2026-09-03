@@ -15,6 +15,16 @@ vi.mock('react-toastify', () => ({ toast: { warning: vi.fn(), error: vi.fn() } }
 vi.mock('@/shared/api/endpoints/ivrsApi', () => ({
   useCreateIvrMutation: () => [vi.fn(), {}],
   useUpdateIvrMutation: () => [vi.fn(), {}],
+  useDeleteIvrMutation: () => [vi.fn(), { isLoading: false }],
+}));
+
+vi.mock('@/shared/api/endpoints/routeReferencesApi', () => ({
+  useGetUsageQuery: () => ({
+    data: { references: [], hasRawDialplanRoutes: false, meta: { hasRawDialplanRoutes: false } },
+    isLoading: false,
+    isError: false,
+  }),
+  extractRouteReferences: () => [],
 }));
 
 vi.mock('@/shared/api/endpoints/ttsEnginesApi', () => ({
@@ -50,6 +60,10 @@ vi.mock('../IvrMenuItemsEditor/IvrMenuItemsEditor', () => ({
 
 vi.mock('@/features/route-references/ui/UsageTab', () => ({
   UsageTab: () => <div data-testid="usage-tab" />,
+}));
+
+vi.mock('@/features/route-references/ui/DeleteBlockedDialog', () => ({
+  DeleteBlockedDialog: () => null,
 }));
 
 const ivr: IIvr = {

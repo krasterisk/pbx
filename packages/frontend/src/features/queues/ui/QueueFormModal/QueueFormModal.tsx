@@ -5,7 +5,7 @@ import {
   X, Phone, Hash, Trash2, Pause, Play, Volume2,
   Users, Headphones,
 } from 'lucide-react';
-import { Button, Input, InfoTooltip, MultiSelect, SegmentedControl } from '@/shared/ui';
+import { Button, Input, InfoTooltip, MultiSelect, SegmentedControl, Tooltip } from '@/shared/ui';
 import type { MultiSelectOption } from '@/shared/ui';
 import { VStack, HStack } from '@/shared/ui/Stack';
 import { useAppSelector, useAppDispatch } from '@/shared/hooks/useAppStore';
@@ -19,7 +19,9 @@ import {
   useGetQueueQuery,
   useCreateQueueMutation,
   useUpdateQueueMutation,
+  useDeleteQueueMutation,
 } from '@/shared/api/endpoints/queueApi';
+import { extractRouteReferences, useGetUsageQuery } from '@/shared/api/endpoints/routeReferencesApi';
 import { useGetContextsQuery } from '@/shared/api/endpoints/contextApi';
 import { useGetPromptsQuery } from '@/shared/api/endpoints/promptsApi';
 import { useGetMohClassesQuery } from '@/shared/api/endpoints/mohApi';
@@ -29,6 +31,7 @@ import { QUEUE_ADVANCED_FIELDS } from '../../config/queueAdvancedFields';
 import { IQueueMember } from '../../model/types/queuesSchema';
 import { extractExtension, interfaceToExtension, isWebrtcCompanion } from '@/features/endpoints/lib/endpointIds';
 import { UsageTab } from '@/features/route-references/ui/UsageTab';
+import { DeleteBlockedDialog } from '@/features/route-references/ui/DeleteBlockedDialog';
 import cls from './QueueFormModal.module.scss';
 
 // Strategy select options
@@ -55,6 +58,13 @@ export const QueueFormModal = () => {
   const { data: queueData, isFetching } = useGetQueueQuery(selectedName!, { skip: !selectedName || mode === 'create' });
   const [createQueue, { isLoading: isCreating }] = useCreateQueueMutation();
   const [updateQueue, { isLoading: isUpdating }] = useUpdateQueueMutation();
+  const [deleteQueue, { isLoading: isDeleting }] = useDeleteQueueMutation();
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [conflictRefs, setConflictRefs] = useState<ReturnType<typeof extractRouteReferences>>([]);
+  const usageQuery = useGetUsageQuery(
+    { kind: 'queue', uid: selectedName ?? '' },
+    { skip: mode !== 'edit' || !selectedName },
+  );
   const { data: contexts = [] } = useGetContextsQuery();
   const { data: prompts = [] } = useGetPromptsQuery();
   const { data: mohClasses = [] } = useGetMohClassesQuery(undefined, { skip: !isOpen });
@@ -233,6 +243,34 @@ export const QueueFormModal = () => {
   }, [isOpen, mode, queueData]);
 
   const handleClose = useCallback(() => dispatch(queuesPageActions.closeModal()), [dispatch]);
+
+  const usageRefs = conflictRefs.length ? conflictRefs : (usageQuery.data?.references ?? []);
+  const deleteBlocked = Boolean(
+    mode === 'edit'
+    && selectedName
+    && (usageQuery.isLoading || usageQuery.isError || usageRefs.length > 0),
+  );
+  const deleteHint = usageQuery.isLoading || usageQuery.isError
+    ? t('references.errorHint', 'Пока проверка не прошла, удаление недоступно')
+    : usageRefs.length > 0
+      ? t('references.deleteBlockedTitle', 'Сначала уберите ссылки')
+      : undefined;
+
+  const handleDelete = async () => {
+    if (!selectedName || deleteBlocked) return;
+    try {
+      await deleteQueue(selectedName).unwrap();
+      setDeleteOpen(false);
+      handleClose();
+    } catch (err: unknown) {
+      const refs = extractRouteReferences(err);
+      if (refs.length) {
+        setConflictRefs(refs);
+        setDeleteOpen(true);
+        return;
+      }
+    }
+  };
 
   // Members logic: always store tenant SIP id (PJSIP/e101_0), never bare PJSIP/101
   const addEndpointMember = useCallback((sipId: string, displayName: string) => {
@@ -889,12 +927,40 @@ export const QueueFormModal = () => {
 
           {/* Actions */}
           <HStack gap="8" justify="end" className="mt-8 pt-4 border-t border-border shrink-0">
+            {mode === 'edit' && selectedName && (
+              <Tooltip content={deleteHint}>
+                <span>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    disabled={deleteBlocked || isDeleting || isLoading}
+                    data-testid="queue-delete"
+                    onClick={() => {
+                      setConflictRefs([]);
+                      setDeleteOpen(true);
+                    }}
+                  >
+                    {t('common.delete', 'Удалить')}
+                  </Button>
+                </span>
+              </Tooltip>
+            )}
             <Button variant="outline" onClick={handleClose} disabled={isLoading}>{t('common.cancel')}</Button>
             <Button onClick={handleSubmit} disabled={isLoading || !exten.trim()}>
               {isLoading ? t('common.loading') : t('common.save')}
             </Button>
           </HStack>
         </Dialog.Content>
+      {mode === 'edit' && selectedName && (
+        <DeleteBlockedDialog
+          open={deleteOpen}
+          onOpenChange={setDeleteOpen}
+          entityName={displayName || selectedName}
+          references={usageRefs}
+          onConfirm={() => void handleDelete()}
+          isDeleting={isDeleting}
+        />
+      )}
       </Dialog.Portal>
     </Dialog.Root>
   );

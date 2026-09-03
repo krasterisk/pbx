@@ -68,11 +68,8 @@ export function TenantSettingsSection() {
             <Text className={cls.label}>
               {t('settings.tenant.showFlowchart', 'Показывать блок-схему маршрута')}
             </Text>
-            <InfoTooltip text={pending ? loadingHint : t('settings.tenant.showFlowchartHint', 'Появится позже')} />
+            <InfoTooltip text={pending ? loadingHint : t('settings.tenant.showFlowchartHint', 'Показывает вкладку "Схема" в маршруте и в меню IVR')} />
           </HStack>
-          <Text variant="small" className={cls.hint}>
-            {t('settings.tenant.showFlowchartHint', 'Появится позже')}
-          </Text>
         </VStack>
         <Switch
           id="tenant-setting-show-flowchart"

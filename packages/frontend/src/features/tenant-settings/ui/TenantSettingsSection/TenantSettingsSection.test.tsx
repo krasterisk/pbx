@@ -103,9 +103,10 @@ describe('TenantSettingsSection (Surface K / D-17 / D-18)', () => {
     expect(capturedSwitches[0].checked).toBe(true);
   });
 
-  it('flowchart switch has a later-availability hint and no flowchart component', () => {
+  it('flowchart switch hint is tooltip-only and no longer says coming later', () => {
     render(<TenantSettingsSection />);
-    expect(screen.getByText('Появится позже')).toBeInTheDocument();
+    expect(screen.queryByText('Появится позже')).toBeNull();
+    expect(screen.getByText('Показывать блок-схему маршрута')).toBeInTheDocument();
     expect(screen.queryByTestId('route-flowchart')).toBeNull();
   });
 });
