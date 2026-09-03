@@ -4,14 +4,14 @@ milestone: v1.0
 current_phase: 13
 current_phase_name: custom-voicemail-instead-of-voicemail
 status: executing
-stopped_at: Completed 13-07-PLAN.md
-last_updated: "2026-09-03T03:35:34.902Z"
-state_head: aa5a6ccd3275c8ea6b3669ab84856e974e268445
+stopped_at: Completed 13-08-PLAN.md
+last_updated: "2026-09-03T04:11:43.228Z"
+state_head: d08976c8a91f5fc516e9337e94bc177c890c8f68
 progress:
   total_phases: 13
   completed_phases: 3
   total_plans: 130
-  completed_plans: 128
+  completed_plans: 129
 milestone_name: milestone
 ---
 
@@ -20,7 +20,7 @@ milestone_name: milestone
 ## Current position
 
 Phase: 13 (custom-voicemail-instead-of-voicemail) — EXECUTING
-Plan 13-07 complete: interval scanner + thin LLM client (two-axis notify/STT). Remaining: 13-08 details, 13-10 adapter.
+Plan 13-08 complete: JWT play/detail/retry-stt + Surface L Dialog + journal icons. Remaining: 13-10 adapter.
 12-17 closed 2026-08-31: M1/M6/M7/M8/M9 approved; M4/M5/M12 deferred (live voice later). Call-group ALTERs already on prod.
 Migrations applied (2026-07-24): `cc_contacts` table + `cc_settings.journal_depth`. Live Asterisk A1/A3 checkpoint still deferred in WINDOWS.md.
 
@@ -275,6 +275,9 @@ Phase 1 — MOH: pending verify.
 - [Phase 13]: LLM is axios + decryptSecret; wss and /api/chat skip return empty summary, not transcript failure
 - [Phase 13]: Notify retries persist ingest params as notify_dispatch JSON so scanOnce can reuse 13-06 attach/link after Nest restart
 - [Phase 13]: STT/LLM failures increment transcript_attempts only; notify_status is never written from the transcript path
+- [Phase 13]: JWT play is /voicemail/:uniqueid/play; notify token URL is never rendered in Dialog or table
+- [Phase 13]: retry-stt only when transcript_status=failed; not_configured has no retry
+- [Phase 13]: Journal hasVoicemail is a uniqueid join against the JWT list; list query skips only on analytics
 
 ## Roadmap Evolution
 
@@ -308,7 +311,7 @@ Phase 1 — MOH: pending verify.
 
 ## Next GSD command
 
-**Phase 13 plan 13-07 complete.** Next: **`/gsd-execute-phase 13`** (remaining: 13-08 / 13-10). M4/M5/M12 live-voice deferred.
+**Phase 13 plan 13-08 complete.** Next: **`/gsd-execute-phase 13`** (remaining: 13-10). M4/M5/M12 live-voice deferred.
 
 Also open: Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 verify; Phase 8 / 08-11 Android smoke.
 
@@ -422,9 +425,10 @@ Also open: Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 veri
 | Phase 13-custom-voicemail-instead-of-voicemail P12 | 8 min | 2 tasks | 5 files |
 | Phase 13-custom-voicemail-instead-of-voicemail P06 | 12 min | 3 tasks | 17 files |
 | Phase 13 P07 | 13 min | 3 tasks | 9 files |
+| Phase 13-custom-voicemail-instead-of-voicemail P08 | 29 min | 3 tasks | 19 files |
 
 ## Session
 
-**Last session:** 2026-09-03T03:35:04.918Z
-**Stopped at:** Completed 13-07-PLAN.md
+**Last session:** 2026-09-03T04:10:20.515Z
+**Stopped at:** Completed 13-08-PLAN.md
 **Resume file:** None
