@@ -856,7 +856,7 @@ Plans:
 - `packages/backend/src/modules/reports/cdr/` — `hasRecording`/`streamRecording`/access-scope, на которые садится вкладка сообщений
 - `packages/backend/src/modules/stt-engines/`, `packages/backend/src/modules/ai-agents/`
 
-**Status:** Ready to execute (2026-09-03) — 12/12 executed; gap-closure **13-13** planned (D-62 + CR-01); next `/gsd-execute-phase 13 --gaps-only`; 13 plans / 9 waves; checker PASSED
+**Status:** Executed (2026-09-03) — 13/13 plans complete including gap-closure **13-13** (D-62 + CR-01/D-59); next `/gsd-verify-work 13` then `/gsd-secure-phase 13`; 13 plans / 9 waves
 
 **Plans:**
 
@@ -872,7 +872,7 @@ Plans:
 - [x] 13-07-PLAN.md — Wave 5: @Interval scanner, two status axes, STT/LLM
 - [x] 13-08-PLAN.md — Wave 6: JWT stream + Surface L details
 - [x] 13-10-PLAN.md — Wave 7: VoicemailAiAdapter (read-only)
-- [ ] 13-13-PLAN.md — Wave 8: gap-closure D-62 hangup CURL notify + CR-01 `/voicemail/play` route order
+- [x] 13-13-PLAN.md — Wave 8: gap-closure D-62 hangup CURL notify + CR-01 `/voicemail/play` route order
 
 **Waves:** W0 {13-01} · W1 {13-02, 13-03} · W2 {13-04, 13-11} · W3 {13-05, 13-09, 13-12} · W4 {13-06} · W5 {13-07} · W6 {13-08} · W7 {13-10} · W8 {13-13}
 **Depends on:** Phase 12 (типизация `params`, `RECORD_STATUS` в расширенных условиях D-22, слияние notify D-28)
