@@ -7,6 +7,7 @@ import { AlertThresholdsForm } from '@/features/callcenter/ui/AlertThresholdsFor
 import { AlertRoutingForm } from '@/features/callcenter/ui/AlertRoutingForm/AlertRoutingForm';
 import { AutoPauseRulesForm } from '@/features/callcenter/ui/AutoPauseRulesForm/AutoPauseRulesForm';
 import { ShiftPolicyForm } from '@/features/callcenter/ui/ShiftPolicyForm/ShiftPolicyForm';
+import { CallbackSettingsForm } from '@/features/callcenter/ui/CallbackSettingsForm/CallbackSettingsForm';
 import { DisplayTokensManager } from '@/features/callcenter/ui/DisplayTokensManager/DisplayTokensManager';
 import { ReportSchedulesManager } from '@/features/callcenter/ui/ReportSchedulesManager/ReportSchedulesManager';
 import { PauseReasonsManager } from '@/features/callcenter/ui/PauseReasonsManager/PauseReasonsManager';
@@ -21,6 +22,7 @@ export type CcSettingsTabId =
   | 'pauseReasons'
   | 'autoPause'
   | 'shifts'
+  | 'callback'
   | 'alertThresholds'
   | 'operatorSettings'
   | 'myPanel'
@@ -33,6 +35,7 @@ const TAB_IDS: CcSettingsTabId[] = [
   'pauseReasons',
   'autoPause',
   'shifts',
+  'callback',
   'alertThresholds',
   'operatorSettings',
   'myPanel',
@@ -79,6 +82,9 @@ export function CallCenterSettingsPage() {
     if (activeTab === 'shifts') {
       return <ShiftPolicyForm />;
     }
+    if (activeTab === 'callback') {
+      return <CallbackSettingsForm />;
+    }
     if (activeTab === 'displayTokens') {
       return <DisplayTokensManager />;
     }
@@ -108,7 +114,7 @@ export function CallCenterSettingsPage() {
             className={`${styles.tab} ${activeTab === tabId ? styles.tabActive : ''}`}
             onClick={() => setActiveTab(tabId)}
           >
-            {t(`callcenter.settings.tabs.${tabId}`)}
+            {t(`callcenter.settings.tabs.${tabId}`, tabId === 'callback' ? 'Callback' : undefined)}
           </button>
         ))}
       </div>
