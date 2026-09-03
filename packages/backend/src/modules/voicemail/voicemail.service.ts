@@ -1,6 +1,15 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/sequelize';
+import { randomBytes } from 'crypto';
+import type { Request, Response } from 'express';
+import * as fs from 'fs';
+import * as path from 'path';
+import { SystemSettingsService } from '../system-settings/system-settings.service';
+import { VoicemailAccessToken } from './voicemail-access-token.model';
 import { VoicemailMessage } from './voicemail-message.model';
+
+export const PLAY_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 /** Asterisk UNIQUEID / safe filename stem: digits, letters, dot, underscore, hyphen. */
 export const UNIQUEID_ALLOW = /^[A-Za-z0-9._-]{1,128}$/;
@@ -40,13 +49,148 @@ export function toRelativeFileRel(userUid: number, uniqueid: string, file?: stri
   return `${userUid}/voicemail/${name}`;
 }
 
+/**
+ * Resolve a voicemail wav under records_base_path (T-13-12).
+ * Same `..` / startsWith guards as CDR; uses the DB relative path as-is (never appends .mp3).
+ */
+export function safeVoicemailFilePath(base: string, rel: string): string | null {
+  const cleaned = String(rel ?? '').replace(/^\/+/, '').replace(/\\/g, '/');
+  if (!cleaned || cleaned.includes('..')) return null;
+  const baseResolved = path.resolve(base);
+  const fileResolved = path.resolve(baseResolved, cleaned);
+  if (!fileResolved.startsWith(baseResolved)) return null;
+  return fs.existsSync(fileResolved) ? fileResolved : null;
+}
+
 @Injectable()
 export class VoicemailService {
   private readonly logger = new Logger(VoicemailService.name);
 
   constructor(
     @InjectModel(VoicemailMessage) private readonly messages: typeof VoicemailMessage,
+    @InjectModel(VoicemailAccessToken) private readonly tokens: typeof VoicemailAccessToken,
+    private readonly config: ConfigService,
+    private readonly systemSettings: SystemSettingsService,
   ) {}
+
+  /**
+   * Mint a 7-day opaque play URL for notify links (D-59 / D-67).
+   * Never attached to JWT list/detail JSON.
+   */
+  async mintPlayToken(message: Pick<VoicemailMessage, 'uid' | 'user_uid'>): Promise<string> {
+    const token = randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + PLAY_TOKEN_TTL_MS);
+    await this.tokens.create({
+      token,
+      message_uid: message.uid,
+      vpbx_user_uid: message.user_uid,
+      expires_at: expiresAt,
+      revoked_at: null,
+    });
+    const appUrl = (this.config.get<string>('APP_URL') ?? 'https://pbx.krasterisk.ru').replace(/\/$/, '');
+    return `${appUrl}/api/voicemail/play?token=${encodeURIComponent(token)}`;
+  }
+
+  async streamByPlayToken(
+    token: string,
+    vpbxUserUid: number,
+    req: Request,
+    res: Response,
+  ): Promise<void> {
+    const row = await this.tokens.findOne({ where: { token } });
+    if (!row || row.vpbx_user_uid !== vpbxUserUid) {
+      throw new NotFoundException('Voicemail message not found');
+    }
+
+    const message = await this.messages.findOne({
+      where: { uid: row.message_uid, user_uid: vpbxUserUid },
+    });
+    if (!message) {
+      throw new NotFoundException('Voicemail message not found');
+    }
+
+    const cfg = await this.systemSettings.getServerConfigRaw();
+    const basePath = cfg.records_base_path || '/usr/records';
+    const filePath = safeVoicemailFilePath(basePath, message.file_rel);
+    if (!filePath) {
+      throw new NotFoundException('Voicemail file not found');
+    }
+
+    await this.streamWavFile(filePath, message.uniqueid, req, res);
+  }
+
+  private async streamWavFile(
+    filePath: string,
+    uniqueid: string,
+    req: Request,
+    res: Response,
+  ): Promise<void> {
+    let fileSize: number;
+    try {
+      fileSize = (await fs.promises.stat(filePath)).size;
+    } catch {
+      throw new NotFoundException('Voicemail file not found');
+    }
+
+    const download = req?.query?.download === '1' || req?.query?.download === 'true';
+    const safeName = String(uniqueid).replace(/[^\w.-]+/g, '_');
+    const disposition = download
+      ? `attachment; filename="${safeName}.wav"`
+      : 'inline';
+
+    res.setHeader('Content-Type', 'audio/wav');
+    res.setHeader('Content-Disposition', disposition);
+    res.setHeader('Accept-Ranges', 'bytes');
+
+    const rangeHeader = req?.headers?.range;
+    if (rangeHeader) {
+      const match = /^bytes=(\d*)-(\d*)$/i.exec(rangeHeader.trim());
+      if (!match) {
+        res.status(416).setHeader('Content-Range', `bytes */${fileSize}`);
+        res.end();
+        return;
+      }
+
+      let start: number;
+      let end: number;
+
+      if (match[1] === '' && match[2]) {
+        const suffix = parseInt(match[2], 10);
+        start = Math.max(fileSize - suffix, 0);
+        end = fileSize - 1;
+      } else {
+        start = match[1] ? parseInt(match[1], 10) : 0;
+        end = match[2] ? parseInt(match[2], 10) : fileSize - 1;
+      }
+
+      if (Number.isNaN(start) || Number.isNaN(end) || start > end || start >= fileSize) {
+        res.status(416).setHeader('Content-Range', `bytes */${fileSize}`);
+        res.end();
+        return;
+      }
+
+      end = Math.min(end, fileSize - 1);
+      const chunkSize = end - start + 1;
+
+      res.status(206);
+      res.setHeader('Content-Range', `bytes ${start}-${end}/${fileSize}`);
+      res.setHeader('Content-Length', chunkSize);
+
+      const stream = fs.createReadStream(filePath, { start, end });
+      stream.on('error', () => {
+        if (!res.headersSent) res.status(404).end();
+      });
+      stream.pipe(res);
+      return;
+    }
+
+    res.setHeader('Content-Length', fileSize);
+    const stream = fs.createReadStream(filePath);
+    stream.on('error', () => {
+      if (!res.headersSent) res.status(404).end();
+    });
+    stream.pipe(res);
+  }
 
   /**
    * Hangup-handler ingest (D-60 / D-62 / D-72). Upserts the row only.
