@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { AiAgentsModule } from '../ai-agents/ai-agents.module';
+import { AiPlatformModule } from '../ai-platform/ai-platform.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { ReportsCdrModule } from '../reports/cdr/reports-cdr.module';
 import { SttEnginesModule } from '../stt-engines/stt-engines.module';
@@ -8,6 +9,7 @@ import { SystemSettingsModule } from '../system-settings/system-settings.module'
 import { VoiceRobotsModule } from '../voice-robots/voice-robots.module';
 import { LlmSummaryService } from './llm-summary.service';
 import { VoicemailAccessToken } from './voicemail-access-token.model';
+import { VoicemailAiAdapter } from './voicemail-ai.adapter';
 import { VoicemailController } from './voicemail.controller';
 import { VoicemailDialplanController } from './voicemail-dialplan.controller';
 import { VoicemailLinkController } from './voicemail-link.controller';
@@ -25,9 +27,16 @@ import { VoicemailService } from './voicemail.service';
     SttEnginesModule,
     VoiceRobotsModule,
     AiAgentsModule,
+    AiPlatformModule,
   ],
   controllers: [VoicemailDialplanController, VoicemailController, VoicemailLinkController],
-  providers: [VoicemailService, VoicemailLinkGuard, VoicemailScannerService, LlmSummaryService],
+  providers: [
+    VoicemailService,
+    VoicemailLinkGuard,
+    VoicemailScannerService,
+    LlmSummaryService,
+    VoicemailAiAdapter,
+  ],
   exports: [VoicemailService, VoicemailScannerService],
 })
 export class VoicemailModule {}
