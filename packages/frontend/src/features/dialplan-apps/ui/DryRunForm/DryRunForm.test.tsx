@@ -186,4 +186,70 @@ describe('DryRunForm', () => {
     expect(screen.queryByRole('tablist', { name: /segment/i })).toBeNull();
     expect(screen.getByText('2.1')).toBeInTheDocument();
   });
+
+  it('appends a reask QUEUESTATUS control, disables Run until filled, then completes the path', async () => {
+    const reaskResult: IDryRunResult = {
+      segments: [
+        {
+          index: 0,
+          entityKind: 'route',
+          nodes: [{ order: '1.1', actionId: 'q1', type: 'toqueue' }],
+        },
+      ],
+      breadcrumbs: [{ entityKind: 'route' }],
+      hopsUsed: 0,
+      hopLimit: 10,
+      outcome: { kind: 'incomplete' },
+      reask: { source: 'queuestatus', keys: ['queuestatus'], askedAfterRun: true, label: 'QUEUESTATUS' },
+    };
+    const doneResult: IDryRunResult = {
+      segments: [
+        {
+          index: 0,
+          entityKind: 'route',
+          nodes: [
+            { order: '1.1', actionId: 'q1', type: 'toqueue' },
+            { order: '1.2', actionId: 'h1', type: 'hangup' },
+          ],
+        },
+      ],
+      breadcrumbs: [{ entityKind: 'route' }],
+      hopsUsed: 0,
+      hopLimit: 10,
+      outcome: { kind: 'terminal', actionType: 'hangup' },
+    };
+
+    postDryRun
+      .mockReturnValueOnce({ unwrap: () => Promise.resolve(reaskResult) })
+      .mockReturnValueOnce({ unwrap: () => Promise.resolve(doneResult) });
+
+    render(
+      <DryRunForm
+        host="route"
+        actions={[
+          action({ id: 'q1', type: 'toqueue' }),
+          action({ id: 'h1', type: 'hangup' }),
+        ]}
+      />,
+    );
+    fireEvent.click(screen.getByTestId('dry-run-toggle'));
+    fireEvent.click(screen.getByTestId('dry-run-run'));
+
+    expect(await screen.findByTestId('dry-run-reask')).toBeInTheDocument();
+    expect(screen.getByText('спросили после прогона')).toBeInTheDocument();
+    expect(screen.getByTestId('dry-run-run')).toBeDisabled();
+
+    fireEvent.change(screen.getByTestId('dry-run-reask-input'), { target: { value: 'TIMEOUT' } });
+    expect(screen.getByTestId('dry-run-run')).not.toBeDisabled();
+    fireEvent.click(screen.getByTestId('dry-run-run'));
+
+    await waitFor(() => {
+      expect(postDryRun).toHaveBeenCalledTimes(2);
+    });
+    expect(postDryRun.mock.calls[1][0].scenario).toEqual(
+      expect.objectContaining({ queuestatus: 'TIMEOUT' }),
+    );
+    expect(await screen.findByTestId('dry-run-outcome')).toHaveTextContent('Итог: звонок завершён');
+    expect(screen.queryByTestId('dry-run-reask')).not.toBeInTheDocument();
+  });
 });
