@@ -36,6 +36,10 @@ export interface ITemplateSlotValue {
 
 export type ApplyTemplateMode = 'replace' | 'append';
 
+export interface IApplyRouteTemplateResult {
+  actions: IRouteAction[];
+}
+
 export const TEMPLATE_SLOT_MARKER_RE = /^__slot:(.+)__$/;
 
 export function templateSlotMarker(slotId: string): string {

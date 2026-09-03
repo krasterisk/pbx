@@ -1,5 +1,6 @@
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Op } from 'sequelize';
+import { templateSlotMarker } from '@krasterisk/shared';
 import { RouteTemplatesService } from './route-templates.service';
 import { BUILTIN_ROUTE_TEMPLATES } from './builtin-route-templates';
 import { builtInSeedStatements, ROUTE_TEMPLATE_SCHEMA_STATEMENTS } from './setup-route-templates-schema';
@@ -119,14 +120,36 @@ describe('BUILTIN_ROUTE_TEMPLATES', () => {
   });
 });
 
+function ownedFinders(hits: Partial<Record<string, unknown>> = {}) {
+  const found = { uid: 1, name: 'ok', ...hits };
+  return {
+    queue: { findOne: jest.fn().mockResolvedValue(found) },
+    group: { findOne: jest.fn().mockResolvedValue(found) },
+    ivr: { findOne: jest.fn().mockResolvedValue(found) },
+    trunk: { findOne: jest.fn().mockResolvedValue(found) },
+    prompt: { findOne: jest.fn().mockResolvedValue(found) },
+    directory: { findOne: jest.fn().mockResolvedValue(found) },
+  };
+}
+
 describe('RouteTemplatesService', () => {
   let service: RouteTemplatesService;
   let store: ReturnType<typeof createStore>;
+  let finders: ReturnType<typeof ownedFinders>;
 
   beforeEach(() => {
     store = createStore();
     store.seedBuiltins();
-    service = new RouteTemplatesService(store.templateModel as any);
+    finders = ownedFinders();
+    service = new RouteTemplatesService(
+      store.templateModel as any,
+      finders.queue as any,
+      finders.group as any,
+      finders.ivr as any,
+      finders.trunk as any,
+      finders.prompt as any,
+      finders.directory as any,
+    );
   });
 
   it('lists built-ins plus the calling tenant rows only', async () => {
@@ -233,6 +256,74 @@ describe('RouteTemplatesService', () => {
             { id: 'q', kind: 'ivr', label: 'B' },
           ],
         },
+        100,
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('applies a template by cloning actions and substituting tenant slot values', async () => {
+    const created = await service.create(
+      {
+        name: 'Apply me',
+        actions: [
+          {
+            id: 'fixed-id',
+            type: 'toqueue',
+            params: { target: { source: 'fixed', value: templateSlotMarker('queue') } },
+            condition: {},
+          },
+        ],
+        slots: [{ id: 'queue', kind: 'queue', label: 'Queue' }],
+      },
+      100,
+    );
+
+    const result = await service.apply(
+      created.uid,
+      { slotValues: { queue: { uid: 'sales_100', name: 'sales_100' } }, mode: 'replace' },
+      100,
+    );
+
+    expect(result.actions).toHaveLength(1);
+    expect(result.actions[0].id).not.toBe('fixed-id');
+    expect(result.actions[0].params).toEqual({
+      target: { source: 'fixed', value: 'sales_100' },
+    });
+    expect(finders.queue.findOne).toHaveBeenCalledWith({
+      where: { name: 'sales_100', user_uid: 100 },
+    });
+  });
+
+  it('buildFromDescription returns a callable empty draft for Phase 15', async () => {
+    await expect(service.buildFromDescription(100, '  Night IVR for sales  ')).resolves.toEqual({
+      actions: [],
+      slots: [],
+      name: 'Night IVR for sales',
+    });
+  });
+
+  it('rejects apply when the slot target is not owned by the tenant', async () => {
+    finders.queue.findOne.mockResolvedValue(null);
+    const created = await service.create(
+      {
+        name: 'Foreign queue',
+        actions: [
+          {
+            id: 'q',
+            type: 'toqueue',
+            params: { target: { source: 'fixed', value: templateSlotMarker('queue') } },
+            condition: {},
+          },
+        ],
+        slots: [{ id: 'queue', kind: 'queue', label: 'Queue' }],
+      },
+      100,
+    );
+
+    await expect(
+      service.apply(
+        created.uid,
+        { slotValues: { queue: { uid: 'other', name: 'other' } } },
         100,
       ),
     ).rejects.toBeInstanceOf(BadRequestException);

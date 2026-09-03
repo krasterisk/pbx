@@ -7,6 +7,7 @@ describe('RouteTemplatesController', () => {
     create: jest.Mock;
     update: jest.Mock;
     remove: jest.Mock;
+    apply: jest.Mock;
   };
   let controller: RouteTemplatesController;
   const req = { user: { vpbx_user_uid: 100 } };
@@ -18,6 +19,7 @@ describe('RouteTemplatesController', () => {
       create: jest.fn().mockResolvedValue({ uid: 1 }),
       update: jest.fn().mockResolvedValue({ uid: 1 }),
       remove: jest.fn().mockResolvedValue(undefined),
+      apply: jest.fn().mockResolvedValue({ actions: [] }),
     };
     controller = new RouteTemplatesController(service as any);
   });
@@ -39,5 +41,8 @@ describe('RouteTemplatesController', () => {
 
     await controller.remove(7, req);
     expect(service.remove).toHaveBeenCalledWith(7, 100);
+
+    await controller.apply(7, { slotValues: {}, mode: 'append' }, req);
+    expect(service.apply).toHaveBeenCalledWith(7, { slotValues: {}, mode: 'append' }, 100);
   });
 });

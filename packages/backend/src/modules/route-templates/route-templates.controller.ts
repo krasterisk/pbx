@@ -5,7 +5,11 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RouteTemplatesService } from './route-templates.service';
-import { CreateRouteTemplateDto, UpdateRouteTemplateDto } from './dto/route-template.dto';
+import {
+  ApplyRouteTemplateDto,
+  CreateRouteTemplateDto,
+  UpdateRouteTemplateDto,
+} from './dto/route-template.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('route-templates')
@@ -23,6 +27,15 @@ export class RouteTemplatesController {
     @Req() req: { user: { vpbx_user_uid: number } },
   ) {
     return this.routeTemplatesService.create(body, req.user.vpbx_user_uid);
+  }
+
+  @Post(':id/apply')
+  apply(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: ApplyRouteTemplateDto,
+    @Req() req: { user: { vpbx_user_uid: number } },
+  ) {
+    return this.routeTemplatesService.apply(id, body, req.user.vpbx_user_uid);
   }
 
   @Get(':id')

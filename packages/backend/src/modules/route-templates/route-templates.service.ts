@@ -6,15 +6,39 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Op } from 'sequelize';
-import type { IRouteAction, IRouteTemplate, ITemplateSlot } from '@krasterisk/shared';
+import type {
+  IApplyRouteTemplateResult,
+  IRouteAction,
+  IRouteTemplate,
+  ITemplateSlot,
+  ITemplateSlotValue,
+  TemplateSlotKind,
+} from '@krasterisk/shared';
 import { TEMPLATE_SLOT_KINDS } from '@krasterisk/shared';
 import { RouteTemplate } from './route-template.model';
-import { CreateRouteTemplateDto, UpdateRouteTemplateDto } from './dto/route-template.dto';
+import { Queue } from '../queues/queue.model';
+import { CallGroup } from '../call-groups/call-group.model';
+import { Ivr } from '../ivrs/ivr.model';
+import { PsEndpoint } from '../endpoints/ps-endpoint.model';
+import { Prompt } from '../prompts/prompt.model';
+import { Directory } from '../directories/directory.model';
+import {
+  ApplyRouteTemplateDto,
+  CreateRouteTemplateDto,
+  UpdateRouteTemplateDto,
+} from './dto/route-template.dto';
+import { applyTemplateActions } from './apply-template.util';
 
 @Injectable()
 export class RouteTemplatesService {
   constructor(
     @InjectModel(RouteTemplate) private readonly templateModel: typeof RouteTemplate,
+    @InjectModel(Queue) private readonly queueModel: typeof Queue,
+    @InjectModel(CallGroup) private readonly callGroupModel: typeof CallGroup,
+    @InjectModel(Ivr) private readonly ivrModel: typeof Ivr,
+    @InjectModel(PsEndpoint) private readonly endpointModel: typeof PsEndpoint,
+    @InjectModel(Prompt) private readonly promptModel: typeof Prompt,
+    @InjectModel(Directory) private readonly directoryModel: typeof Directory,
   ) {}
 
   async findAll(vpbxUserUid: number): Promise<IRouteTemplate[]> {
@@ -86,6 +110,33 @@ export class RouteTemplatesService {
     await row.destroy();
   }
 
+  /**
+   * Resolve a template into a new actions array. Does not write routes or apply dialplan (D-35).
+   * `mode` is accepted for the FE confirm contract and is not applied here.
+   */
+  async apply(
+    uid: number,
+    dto: ApplyRouteTemplateDto,
+    vpbxUserUid: number,
+  ): Promise<IApplyRouteTemplateResult> {
+    const template = await this.findOne(uid, vpbxUserUid);
+    const slotValues = dto.slotValues ?? {};
+    await this.assertSlotEntities(template.slots, slotValues, vpbxUserUid);
+    return { actions: applyTemplateActions(template.actions, template.slots, slotValues) };
+  }
+
+  /**
+   * Phase 15 callable stub (D-34). Returns an empty draft so the method signature is stable.
+   * LLM fill is out of scope for this phase.
+   */
+  async buildFromDescription(
+    _vpbxUserUid: number,
+    description: string,
+  ): Promise<{ actions: IRouteAction[]; slots: ITemplateSlot[]; name: string }> {
+    const name = description.trim().slice(0, 80) || 'Untitled template';
+    return { actions: [], slots: [], name };
+  }
+
   private async loadVisible(uid: number, vpbxUserUid: number): Promise<RouteTemplate> {
     const row = await this.templateModel.findOne({
       where: {
@@ -109,6 +160,63 @@ export class RouteTemplatesService {
       throw new NotFoundException('Route template not found');
     }
     return row;
+  }
+
+  private async assertSlotEntities(
+    slots: ITemplateSlot[],
+    slotValues: Record<string, ITemplateSlotValue>,
+    vpbxUserUid: number,
+  ): Promise<void> {
+    for (const slot of slots) {
+      const value = slotValues[slot.id];
+      if (!value || value.uid === undefined || value.uid === null || value.uid === '') {
+        throw new BadRequestException(`Missing value for slot "${slot.id}"`);
+      }
+      const found = await this.findTenantSlotTarget(slot.kind, value, vpbxUserUid);
+      if (!found) {
+        throw new BadRequestException(
+          `Slot "${slot.id}" does not reference a ${slot.kind} owned by this tenant`,
+        );
+      }
+    }
+  }
+
+  private async findTenantSlotTarget(
+    kind: TemplateSlotKind,
+    value: ITemplateSlotValue,
+    vpbxUserUid: number,
+  ): Promise<unknown> {
+    const uid = value.uid;
+    switch (kind) {
+      case 'queue':
+        return this.queueModel.findOne({
+          where: { name: String(value.name ?? uid), user_uid: vpbxUserUid },
+        });
+      case 'group':
+        return this.callGroupModel.findOne({
+          where: { uid: Number(uid), user_uid: vpbxUserUid },
+        });
+      case 'ivr':
+        return this.ivrModel.findOne({
+          where: { uid: Number(uid), user_uid: vpbxUserUid },
+        });
+      case 'trunk':
+        return this.endpointModel.findOne({
+          where: { id: String(uid), tenantid: String(vpbxUserUid) },
+        });
+      case 'recording':
+        return this.promptModel.findOne({
+          where: { uid: Number(uid), user_uid: vpbxUserUid },
+        });
+      case 'directory':
+        return this.directoryModel.findOne({
+          where: { uid: Number(uid), user_uid: vpbxUserUid },
+        });
+      default: {
+        const _never: never = kind;
+        throw new BadRequestException(`Unknown slot kind "${String(_never)}"`);
+      }
+    }
   }
 
   private assertSlots(slots: unknown): ITemplateSlot[] {
