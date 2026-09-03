@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 status: executing
-stopped_at: Completed 14-07-PLAN.md
-last_updated: "2026-09-03T21:29:27.958Z"
-state_head: 76537192547adfcf0f5d33914bd810ce070c2a45
+stopped_at: Completed 14-09-PLAN.md
+last_updated: "2026-09-03T21:53:20.251Z"
+state_head: be74c0d3594fc6efd0d6442d11e472d83ba9d13d
 progress:
   total_phases: 15
   completed_phases: 4
   total_plans: 165
-  completed_plans: 140
+  completed_plans: 141
 milestone_name: milestone
 current_phase: 14
 current_phase_name: visual-route-builder-and-automation
@@ -19,7 +19,7 @@ current_phase_name: visual-route-builder-and-automation
 
 ## Current position
 
-Phase 14 (visual-route-builder-and-automation) — EXECUTING. 14-01…14-08 + 14-10 done (templates FE `7653719`). Next: Wave 6 — 14-09 callback UI. 10 планов, волны 0…6.
+Phase 14 (visual-route-builder-and-automation) — EXECUTING. 10/10 plans executed (14-09 callback UI `be74c0d`). Next: `/gsd-verify-work 14`.
 
 Phase 15 (universal-pbx-ai-agent) — PLANNED (2026-09-04). 24 плана, волны 1…7, `15-VALIDATION.md` есть, plan-checker PASS после ревизии `43f8ae8` (справочники через proposal). Next: `/gsd-execute-phase 15` (после Phase 14), затем обязательный `/gsd-secure-phase 15`.
 
@@ -311,6 +311,9 @@ Phase 1 — MOH: pending verify.
 - [Phase 14]: Template buttons only when showTemplateActions and host is route
 - [Phase 14]: Apply mode is client-side merge; backend apply returns cloned actions only
 - [Phase 14]: Appended routes.templates locale keys only; dryRun strings untouched
+- [Phase 14]: Mounted CallbackRequestsIndicator on CallCenterAgentPage headerTools (Missed then Callback then Parked) because SoftphoneJournal has no those tools
+- [Phase 14]: Appended callback locale keys only; dry-run and template strings untouched
+- [Phase 14]: Call now reuses missed-callback originate (claim then callbackMissedCall + requestOutboundDial)
 
 ## Roadmap Evolution
 
@@ -346,7 +349,7 @@ Phase 1 — MOH: pending verify.
 
 ## Next GSD command
 
-**Phase 14 в исполнении** (14-01…14-05 + 14-08; 14-03 SUMMARY written). **Phase 15 запланирована** (24 плана, plan-checker PASS). Next: продолжить `/gsd-execute-phase 14` (14-06+), затем `/gsd-execute-phase 15` → обязательный `/gsd-secure-phase 15`.
+**Phase 14 executed** (14-01…14-10, including 14-09 callback UI). **Phase 15 запланирована** (24 плана, plan-checker PASS). Next: `/gsd-verify-work 14`, затем `/gsd-execute-phase 15` → обязательный `/gsd-secure-phase 15`.
 
 Also open: Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 verify; Phase 8 / 08-11 Android smoke.
 
@@ -472,10 +475,11 @@ Also open: Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 veri
 | Phase 14 P06 | 23 | 3 tasks | 15 files |
 | Phase 14-visual-route-builder-and-automation P10 | 27 | 3 tasks | 21 files |
 | Phase 14 P07 | 35min | 3 tasks | 32 files |
+| Phase 14 P09 | 20 | 3 tasks | 21 files |
 
 ## Session
 
-**Last session:** 2026-09-03T21:29:26.293Z
-**Stopped at:** Completed 14-07-PLAN.md
+**Last session:** 2026-09-03T21:53:18.846Z
+**Stopped at:** Completed 14-09-PLAN.md
 **Resume file:** None
 **Also ready:** .planning/phases/15-universal-pbx-ai-agent/15-CONTEXT.md
