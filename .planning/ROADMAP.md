@@ -920,18 +920,18 @@ Plans:
 
 **Depends on:** Phase 12 (типизированный контракт редактора и корректный генератор `actionToDialplan` — основание и для схемы, и для симуляции)
 
-**Plans:** 4/10 plans executed
+**Plans:** 6/10 plans executed
 
 Plans:
 
 - [x] 14-01-PLAN.md
 - [x] 14-02-PLAN.md
-- [ ] 14-03-PLAN.md
+- [x] 14-03-PLAN.md
 - [x] 14-04-PLAN.md
 - [x] 14-05-PLAN.md
 - [ ] 14-06-PLAN.md
 - [ ] 14-07-PLAN.md
-- [ ] 14-08-PLAN.md
+- [x] 14-08-PLAN.md
 - [ ] 14-09-PLAN.md
 - [ ] 14-10-PLAN.md
 - [x] `14-01-PLAN.md` — Wave 0: specs walk/hop/reask + action-reference scaffold
@@ -941,7 +941,7 @@ Plans:
 - [ ] `14-05-PLAN.md` — Wave 2: шаблоны CRUD + seed + apply (tracer CRUD)
 - [ ] `14-06-PLAN.md` — Wave 4: dry-run UI + подсветка на Schema tab (depends 14-08 for callback outcome)
 - [ ] `14-07-PLAN.md` — Wave 5: шаблоны FE — footer, dialogs, `/route-templates` + RouteTemplateFormModal (depends 14-06 i18n)
-- [ ] `14-08-PLAN.md` — Wave 3: callback ActionType + scanner + cc_settings + operator REST list/claim/cancel
+- [x] `14-08-PLAN.md` — Wave 3: callback ActionType + scanner + cc_settings + operator REST list/claim/cancel
 - [ ] `14-09-PLAN.md` — Wave 6: callback UI — настройки CC, operator/supervisor chrome (depends 14-06/14-07 i18n + 14-08 API)
 - [ ] `14-10-PLAN.md` — Wave 4: вкладки «Где используется» + delete precheck
 
