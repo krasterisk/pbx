@@ -69,11 +69,12 @@ created: 2026-09-03
 | 14-06-T1 | 14-06 | 4 | callback outcome highlight | D-38 | Success channel + i18n | component | same as above | ❌ W0 | ⬜ pending |
 | 14-06-T2 | 14-06 | 4 | D-43/D-44 IVR + segments | — | No tabs/accordion | component | `npm run test -w @krasterisk/frontend -- src/features/dialplan-apps/ui/DryRunForm src/features/ivrs/ui/IvrFormModal` | ❌ W0 | ⬜ pending |
 | 14-06-T3 | 14-06 | 4 | D-47 reask loop | — | Single control | component | `npm run test -w @krasterisk/frontend -- src/features/dialplan-apps/ui/DryRunForm/DryRunForm.test.tsx` | ❌ W0 | ⬜ pending |
-| 14-07-T* | 14-07 | 3 | D-36/D-37/D-51 templates FE | — | Route host only | component | vitest route-templates + DialplanAppsEditor | ❌ W0 | ⬜ pending |
+| 14-07-T* | 14-07 | 5 | D-36/D-37/D-51 templates FE + RouteTemplateFormModal | — | Route host only; create/edit/copy | component | vitest route-templates + RouteTemplateFormModal + DialplanAppsEditor | ❌ W0 | ⬜ pending |
 | 14-08-T1 | 14-08 | 3 | D-38 route callback CURL enqueue | T-14-14 | Internal auth | unit | `npm run test -w @krasterisk/backend -- --testPathPattern="dialplan.util\|callback" --no-coverage` | ❌ W0 | ⬜ pending |
 | 14-08-T2 | 14-08 | 3 | D-38 queue DTMF + abandon paths | — | order_mode/dtmf_digit wired | unit | `npm run test -w @krasterisk/backend -- --testPathPattern="callback-queue\|queues.service\|dialplan.util" --no-coverage` | ❌ W0 | ⬜ pending |
 | 14-08-T3 | 14-08 | 3 | D-40/D-39 scanner + dial_order | T-14-13 | mutex + caps | unit | `npm run test -w @krasterisk/backend -- --testPathPattern="callback-scanner\|callback-requests" --no-coverage` | ❌ W0 | ⬜ pending |
 | 14-08-T3 | 14-08 | 3 | D-49 callback_policy | — | ShiftPolicyForm pattern | unit | `npm run test -w @krasterisk/backend -- --testPathPattern="cc-settings\|callcenter-settings" --no-coverage` | ❌ W0 | ⬜ pending |
+| 14-08-T4 | 14-08 | 3 | D-42 operator REST list/claim/cancel | T-14-14 | JWT queue scope | unit | `npm run test -w @krasterisk/backend -- --testPathPattern="callback-requests.controller" --no-coverage` | ❌ W0 | ⬜ pending |
 | 14-09-T* | 14-09 | 4 | D-42/D-49/D-50 callback UI | — | Badge not segment | component | vitest callcenter callback | ❌ W0 | ⬜ pending |
 | 14-10-T* | 14-10 | 4 | D-48 Usage + delete precheck | T-14-16 | 409 keeps modal | component | `npm run test -w @krasterisk/frontend -- src/features/route-references` | ❌ W0 | ⬜ pending |
 | * | * | * | ActionType callback completeness | — | META/DTO/registry parity | unit | `npm run test -w @krasterisk/backend -- --testPathPattern="dialplan-params" --no-coverage` | ✅ extend | ⬜ pending |
