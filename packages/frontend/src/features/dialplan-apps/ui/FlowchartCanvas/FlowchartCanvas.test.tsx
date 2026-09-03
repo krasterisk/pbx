@@ -76,7 +76,9 @@ describe('FlowchartCanvas', () => {
       expect(node).not.toHaveAttribute('tabindex');
       expect(node).not.toHaveAttribute('tabIndex');
     }
-    expect(screen.queryByRole('button')).toBeNull();
+    expect(screen.getByTestId('flowchart-print')).toBeInTheDocument();
+    const nodeButtons = nodes.filter((node) => node.getAttribute('role') === 'button');
+    expect(nodeButtons).toHaveLength(0);
   });
 
   it('uses registry summarize() for node body text', () => {

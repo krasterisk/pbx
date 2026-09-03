@@ -1,8 +1,9 @@
-import { memo, useMemo, type Ref } from 'react';
+import { memo, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CornerDownRight, PhoneIncoming } from 'lucide-react';
+import { useReactToPrint } from 'react-to-print';
+import { CornerDownRight, PhoneIncoming, Printer } from 'lucide-react';
 import { type ActionType, type IRouteAction } from '@krasterisk/shared';
-import { Badge, Text } from '@/shared/ui';
+import { Badge, Button, Text } from '@/shared/ui';
 import { InfoTooltip } from '@/shared/ui/Tooltip/Tooltip';
 import { dialplanAppsRegistry } from '../../model/registry';
 import cls from './FlowchartCanvas.module.scss';
@@ -24,7 +25,6 @@ export interface FlowchartCanvasProps {
   ivrTimeoutResponse?: string | null;
   ivrTimeoutDigit?: string | null;
   ivrMaxCount?: number;
-  canvasRef?: Ref<HTMLElement>;
 }
 
 const JUMP_TYPES = new Set<ActionType>(['toivr', 'toroute', 'goto']);
@@ -253,9 +253,9 @@ export const FlowchartCanvas = memo(function FlowchartCanvas({
   menuItems = [],
   title,
   patterns,
-  canvasRef,
 }: FlowchartCanvasProps) {
   const { t } = useTranslation();
+  const figureRef = useRef<HTMLFigureElement>(null);
   const isIvr = host === 'ivr';
   const count = isIvr
     ? menuItems.reduce((sum, item) => sum + (item.actions?.length ?? 0), 0)
@@ -269,15 +269,39 @@ export const FlowchartCanvas = memo(function FlowchartCanvas({
     return interpolate(template, { name: title || '' });
   }, [isIvr, t, title]);
 
+  const handlePrint = useReactToPrint({
+    contentRef: figureRef,
+    documentTitle: printTitle,
+  });
+
   return (
     <div className={cls.wrap}>
-      <div className={`${cls.toolbar} ${cls.printHidden}`}>
+      <div className={`${cls.toolbar} ${cls.printHidden}`} data-testid="flowchart-toolbar">
         <span className={cls.counter} data-testid="flowchart-counter">
           {interpolate(t('routes.flowchart.counter', 'Действий: {{count}}'), { count })}
         </span>
+        <div className={cls.printGroup}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className={cls.printButton}
+            onClick={() => handlePrint()}
+            data-testid="flowchart-print"
+          >
+            <Printer size={16} aria-hidden />
+            {t('routes.flowchart.print', 'Печать')}
+          </Button>
+          <InfoTooltip
+            text={t(
+              'routes.flowchart.printHint',
+              'В окне печати выберите "Сохранить как PDF", чтобы получить файл',
+            )}
+          />
+        </div>
       </div>
       <figure
-        ref={canvasRef as Ref<HTMLElement>}
+        ref={figureRef}
         className={cls.canvas}
         data-testid="flowchart-canvas"
         data-host={host}
