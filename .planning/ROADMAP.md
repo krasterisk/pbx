@@ -920,7 +920,7 @@ Plans:
 
 **Depends on:** Phase 12 (типизированный контракт редактора и корректный генератор `actionToDialplan` — основание и для схемы, и для симуляции)
 
-**Plans:** 2/10 plans executed
+**Plans:** 3/10 plans executed
 
 Plans:
 
@@ -928,7 +928,7 @@ Plans:
 - [x] 14-02-PLAN.md
 - [ ] 14-03-PLAN.md
 - [ ] 14-04-PLAN.md
-- [ ] 14-05-PLAN.md
+- [x] 14-05-PLAN.md
 - [ ] 14-06-PLAN.md
 - [ ] 14-07-PLAN.md
 - [ ] 14-08-PLAN.md

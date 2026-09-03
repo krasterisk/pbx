@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 status: executing
-stopped_at: Completed 14-02-PLAN.md
-last_updated: "2026-09-03T18:34:04.174Z"
-state_head: f9916b67cc452e1fc585bb1137a1e0c4674fad73
+stopped_at: Completed 14-05-PLAN.md
+last_updated: "2026-09-03T19:00:52.534Z"
+state_head: 2a80abc0224cad9489eed81b18201e811c6aecf4
 progress:
   total_phases: 15
   completed_phases: 4
   total_plans: 165
-  completed_plans: 133
+  completed_plans: 134
 milestone_name: milestone
 current_phase: 14
 current_phase_name: visual-route-builder-and-automation
@@ -291,6 +291,9 @@ Phase 1 — MOH: pending verify.
 - [Phase 14]: 14-02: polymorphic GET /route-references/:kind/:uid plus GET /ivrs/:uid/usage; tenant from JWT only
 - [Phase 14]: 14-02: delete 409 shape matches DirectoriesService { message, references }; no force-delete
 - [Phase 14]: 14-02: collectDirectoryReferences is a thin wrapper over collectActionReferences
+- [Phase 14]: PK is uid to match Directory/Route; plan said id
+- [Phase 14]: Schema lives in setup-route-templates-schema.ts because **/migrations/ is gitignored
+- [Phase 14]: buildFromDescription returns an empty named draft, not NotImplementedException
 
 ## Roadmap Evolution
 
@@ -445,10 +448,11 @@ Also open: Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 veri
 | Phase 13 P13 | 6 | 3 tasks | 10 files |
 | Phase 14 P01 | 11 | 2 tasks | 13 files |
 | Phase 14 P02 | 57 | 3 tasks | 26 files |
+| Phase 14 P05 | 22min | 3 tasks | 18 files |
 
 ## Session
 
-**Last session:** 2026-09-03T18:34:01.623Z
-**Stopped at:** Completed 14-02-PLAN.md
+**Last session:** 2026-09-03T19:00:46.469Z
+**Stopped at:** Completed 14-05-PLAN.md
 **Resume file:** None
 **Also ready:** .planning/phases/15-universal-pbx-ai-agent/15-CONTEXT.md

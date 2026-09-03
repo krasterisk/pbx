@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 8
+open_count: 9
 waived_count: 0
 fixed_count: 7
-total_count: 15
-last_updated: 2026-09-03T18:35:14.544Z
+total_count: 16
+last_updated: 2026-09-03T19:00:27.146Z
 ---
 
 # Broken Windows Ledger
@@ -30,6 +30,7 @@ last_updated: 2026-09-03T18:35:14.544Z
 | 13 | 14 | skipped-test | packages/backend/src/modules/route-references/action-reference.util.spec.ts | 104 | it.failing directory field scan until 14-02 | fixed |  | 2026-09-03T17:30:54.506Z | 2026-09-03T18:35:14.544Z |
 | 14 | 14 | deviation | packages/shared/package.json |  | Added Jest test script to @krasterisk/shared so Wave 0 verify can run | open |  | 2026-09-03T17:30:55.825Z |  |
 | 15 | 14 | deviation | packages/backend/src/modules/directories/directories.service.spec.ts |  | lookup/csv suites fail on uncommitted normalizeDirectoryKey re-export WIP; 14-02 left them untouched | open |  | 2026-09-03T18:34:09.708Z |  |
+| 16 | 14 | stub | packages/backend/src/modules/route-templates/route-templates.service.ts | 137 | buildFromDescription returns empty actions/slots — Intentional D-34 stub; Phase 15 fills via LLM | open |  | 2026-09-03T19:00:27.146Z |  |
 
 ````json
 [
@@ -211,6 +212,18 @@ last_updated: 2026-09-03T18:35:14.544Z
     "status": "open",
     "reason": "",
     "recorded_at": "2026-09-03T18:34:09.708Z",
+    "resolved_at": null
+  },
+  {
+    "id": 16,
+    "kind": "stub",
+    "phase": "14",
+    "file": "packages/backend/src/modules/route-templates/route-templates.service.ts",
+    "line": 137,
+    "description": "buildFromDescription returns empty actions/slots — Intentional D-34 stub; Phase 15 fills via LLM",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-09-03T19:00:27.146Z",
     "resolved_at": null
   }
 ]
