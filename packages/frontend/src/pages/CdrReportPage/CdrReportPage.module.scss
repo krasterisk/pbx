@@ -42,3 +42,35 @@
   -webkit-overflow-scrolling: touch;
   width: 100%;
 }
+
+.vmTable {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 720px;
+}
+
+.vmTh,
+.vmTd {
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-foreground);
+  font-size: 0.875rem;
+}
+
+.vmTh {
+  color: var(--color-muted-foreground);
+  font-weight: 600;
+  font-size: 0.75rem;
+}
+
+.vmTranscript {
+  max-width: 16rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vmDetailsBtn {
+  color: var(--color-info);
+}

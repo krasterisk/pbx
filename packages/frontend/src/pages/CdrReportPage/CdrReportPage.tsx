@@ -25,6 +25,7 @@ import {
   CdrLegsModal,
   CdrDrilldownModal,
   CdrCharts,
+  VoicemailDetailsModal,
   type CdrUiFilters,
 } from '@/features/cdr';
 import {
@@ -43,6 +44,7 @@ const CdrReportPage = memo(() => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<CdrReportTab>('journal');
   const [legsLinkedid, setLegsLinkedid] = useState<string | null>(null);
+  const [detailsUniqueid, setDetailsUniqueid] = useState<string | null>(null);
   const [drilldown, setDrilldown] = useState<{ title: string; patch: Partial<CdrUiFilters> } | null>(null);
 
   const page = parseInt(searchParams.get('page') || '1', 10);
@@ -66,7 +68,19 @@ const CdrReportPage = memo(() => {
   const [triggerExport, { isFetching: isExporting }] = useLazyExportCdrQuery();
   const { data: voicemailMessages, isLoading: voicemailLoading } = useGetVoicemailMessagesQuery(
     undefined,
-    { skip: !voicemailOn },
+    { skip: currentTab === 'analytics' },
+  );
+
+  const voicemailIds = useMemo(
+    () => new Set((voicemailMessages ?? []).map((msg) => msg.uniqueid)),
+    [voicemailMessages],
+  );
+  const journalRows = useMemo(
+    () => (listData?.rows ?? []).map((row) => ({
+      ...row,
+      hasVoicemail: voicemailIds.has(row.uniqueid),
+    })),
+    [listData?.rows, voicemailIds],
   );
 
   const handleFilterChange = useCallback((patch: Partial<CdrUiFilters>) => {
@@ -191,13 +205,14 @@ const CdrReportPage = memo(() => {
               data-hybrid="overflow-x-auto"
             >
               <CdrTable
-                data={listData?.rows || []}
+                data={journalRows}
                 isLoading={listLoading || isFetching}
                 totalRows={listData?.count || 0}
                 currentPage={page - 1}
                 pageSize={PAGE_SIZE}
                 onPageChange={(p) => handlePageChange(p + 1)}
                 onLegsClick={(call: ICdrCall) => setLegsLinkedid(call.linkedid)}
+                onVoicemailClick={(uniqueid) => setDetailsUniqueid(uniqueid)}
               />
             </div>
           ) : currentTab === 'analytics' ? (
@@ -205,22 +220,58 @@ const CdrReportPage = memo(() => {
               <CdrCharts filters={filters} onDrilldown={handleDrilldown} />
             </VStack>
           ) : (
-            <VStack gap="12" className="p-4 min-w-0">
+            <div className={`${cls.tableScroll} overflow-x-auto`}>
               {voicemailLoading ? (
-                <Text variant="muted">{t('common.loading', 'Загрузка...')}</Text>
+                <Text variant="muted" className="p-4">{t('common.loading', 'Загрузка...')}</Text>
               ) : (voicemailMessages ?? []).length === 0 ? (
-                <Text variant="muted">{t('cdr.voicemail.empty', 'Нет голосовых сообщений')}</Text>
+                <Text variant="muted" className="p-4">{t('cdr.voicemail.empty', 'Нет голосовых сообщений')}</Text>
               ) : (
-                (voicemailMessages ?? []).map((msg) => (
-                  <Flex key={msg.uid} justify="between" align="center" gap="12">
-                    <Text>{msg.caller_id}</Text>
-                    <Text>{msg.exten}</Text>
-                    <Text variant="muted">{msg.duration_sec ?? 0}s</Text>
-                    <Text variant="muted">{msg.transcript_status}</Text>
-                  </Flex>
-                ))
+                <table className={cls.vmTable}>
+                  <thead>
+                    <tr>
+                      <th className={cls.vmTh}>{t('cdr.table.date', 'Дата')}</th>
+                      <th className={cls.vmTh}>{t('cdr.table.src', 'Кто звонил')}</th>
+                      <th className={cls.vmTh}>{t('cdr.table.dst', 'Куда')}</th>
+                      <th className={cls.vmTh}>{t('cdr.table.duration', 'Длительность')}</th>
+                      <th className={cls.vmTh}>{t('cdr.voicemail.transcript', 'Расшифровка')}</th>
+                      <th className={cls.vmTh}>{t('cdr.voicemail.processingStatus', 'Статус обработки')}</th>
+                      <th className={cls.vmTh}>{t('cdr.voicemail.detailsTitle', 'Детали сообщения')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(voicemailMessages ?? []).map((msg) => (
+                      <tr key={msg.uid}>
+                        <td className={cls.vmTd}>
+                          {msg.created_at
+                            ? new Date(msg.created_at).toLocaleString('ru-RU')
+                            : ''}
+                        </td>
+                        <td className={cls.vmTd}>{msg.caller_id}</td>
+                        <td className={cls.vmTd}>{msg.exten}</td>
+                        <td className={cls.vmTd}>{msg.duration_sec ?? 0}s</td>
+                        <td className={`${cls.vmTd} ${cls.vmTranscript}`}>
+                          {msg.transcript || ''}
+                        </td>
+                        <td className={cls.vmTd}>{msg.transcript_status}</td>
+                        <td className={cls.vmTd}>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className={`h-7 w-7 ${cls.vmDetailsBtn}`}
+                            title={t('cdr.voicemail.detailsTitle', 'Детали сообщения')}
+                            aria-label={t('cdr.voicemail.detailsTitle', 'Детали сообщения')}
+                            onClick={() => setDetailsUniqueid(msg.uniqueid)}
+                          >
+                            <Voicemail className="w-3.5 h-3.5" />
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               )}
-            </VStack>
+            </div>
           )}
         </CardContent>
       </Card>
@@ -229,6 +280,12 @@ const CdrReportPage = memo(() => {
         linkedid={legsLinkedid}
         isOpen={legsLinkedid !== null}
         onClose={() => setLegsLinkedid(null)}
+      />
+
+      <VoicemailDetailsModal
+        uniqueid={detailsUniqueid}
+        isOpen={detailsUniqueid !== null}
+        onClose={() => setDetailsUniqueid(null)}
       />
 
       <CdrDrilldownModal

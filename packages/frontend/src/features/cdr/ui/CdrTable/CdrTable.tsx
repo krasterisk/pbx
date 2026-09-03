@@ -11,16 +11,20 @@ import {
   Button,
 } from '@/shared/ui';
 import { CDR_DISPOSITION_LABELS, type ICdrCall } from '@/shared/api/endpoints/cdrApi';
-import { PhoneForwarded } from 'lucide-react';
+import { PhoneForwarded, Voicemail } from 'lucide-react';
+import cls from './CdrTable.module.scss';
+
+export type CdrTableRow = ICdrCall & { hasVoicemail?: boolean };
 
 interface CdrTableProps {
-  data: ICdrCall[];
+  data: CdrTableRow[];
   isLoading: boolean;
   totalRows: number;
   currentPage: number;
   pageSize: number;
   onPageChange: (page: number) => void;
   onLegsClick?: (call: ICdrCall) => void;
+  onVoicemailClick?: (uniqueid: string) => void;
 }
 
 function formatDuration(sec: number) {
@@ -37,10 +41,11 @@ export const CdrTable = memo(({
   pageSize,
   onPageChange,
   onLegsClick,
+  onVoicemailClick,
 }: CdrTableProps) => {
   const { t } = useTranslation();
 
-  const columns = useMemo<ColumnDef<ICdrCall>[]>(() => [
+  const columns = useMemo<ColumnDef<CdrTableRow>[]>(() => [
     {
       accessorKey: 'calldate',
       header: t('cdr.table.date', 'Дата'),
@@ -89,11 +94,29 @@ export const CdrTable = memo(({
       id: 'recording',
       header: t('cdr.table.recording', 'Запись'),
       cell: ({ row }) => (
-        <RecordingButton
-          uniqueid={row.original.uniqueid}
-          record={row.original.record}
-          recordingUrl={row.original.recordingUrl}
-        />
+        <div className={cls.recordingCell}>
+          <RecordingButton
+            uniqueid={row.original.uniqueid}
+            record={row.original.record}
+            recordingUrl={row.original.recordingUrl}
+          />
+          {row.original.hasVoicemail ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className={`h-7 w-7 ${cls.voicemailBtn}`}
+              title={t('cdr.voicemail.detailsTitle', 'Детали сообщения')}
+              aria-label={t('cdr.voicemail.detailsTitle', 'Детали сообщения')}
+              onClick={(e) => {
+                e.stopPropagation();
+                onVoicemailClick?.(row.original.uniqueid);
+              }}
+            >
+              <Voicemail className={cls.voicemailIcon} />
+            </Button>
+          ) : null}
+        </div>
       ),
     },
     {
@@ -113,7 +136,7 @@ export const CdrTable = memo(({
           </Button>
         ) : null,
     },
-  ], [t, onLegsClick]);
+  ], [t, onLegsClick, onVoicemailClick]);
 
   if (isLoading && !data.length) {
     return (

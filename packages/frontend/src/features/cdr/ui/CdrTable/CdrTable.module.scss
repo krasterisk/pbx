@@ -1,0 +1,15 @@
+.recordingCell {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.voicemailBtn {
+  color: var(--color-info);
+}
+
+.voicemailIcon {
+  width: 0.875rem;
+  height: 0.875rem;
+  color: var(--color-info);
+}
