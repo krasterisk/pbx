@@ -55,7 +55,7 @@ describe('WebhookProvider extraVars', () => {
       webhookInteg(),
       undefined,
       '',
-      { customer_name: 'Alice Corp' },
+      { extraVars: { customer_name: 'Alice Corp' } },
     );
 
     expect(mockedAxios.post).toHaveBeenCalledWith(
@@ -75,7 +75,7 @@ describe('WebhookProvider extraVars', () => {
       }),
       undefined,
       '',
-      {},
+      { extraVars: {} },
     );
 
     expect(mockedAxios.post).toHaveBeenCalledWith(
@@ -95,7 +95,7 @@ describe('WebhookProvider extraVars', () => {
       }),
       undefined,
       'hi',
-      { clid: '7900' },
+      { extraVars: { clid: '7900' } },
     );
 
     expect(mockedAxios.post).toHaveBeenCalledWith(
@@ -112,7 +112,7 @@ describe('WebhookProvider extraVars', () => {
       }),
       undefined,
       'hello',
-      { clid: '1', exten: '100', uniqueid: 'u1' },
+      { extraVars: { clid: '1', exten: '100', uniqueid: 'u1' } },
     );
 
     expect(mockedAxios.post).toHaveBeenCalledWith(

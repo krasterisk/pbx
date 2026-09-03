@@ -6,6 +6,7 @@ import { WebhookProvider } from './webhook.provider';
 import { MaxProvider } from './max.provider';
 import { VkProvider } from './vk.provider';
 import {
+  ATTACHMENT_REJECTED,
   DecryptedNotificationIntegration,
   NOTIFICATION_MESSAGE_MAX_LEN,
 } from './notification-provider.interface';
@@ -86,6 +87,80 @@ describe('notification providers', () => {
       const body = mockedAxios.post.mock.calls[0][1] as { text: string };
       expect(body.text).toHaveLength(NOTIFICATION_MESSAGE_MAX_LEN);
     });
+
+    it('POSTs multipart sendDocument when attach is present (not sendVoice/sendAudio)', async () => {
+      const content = Buffer.from('RIFF');
+      const result = await provider.send(
+        integ('telegram', {
+          credentials: { bot_token: 'BOT123' },
+          config: { chat_id: '999' },
+        }),
+        undefined,
+        'voicemail',
+        {
+          attach: {
+            filename: 'vm.wav',
+            content,
+            contentType: 'audio/wav',
+          },
+        },
+      );
+
+      expect(result.success).toBe(true);
+      const [url, body] = mockedAxios.post.mock.calls[0];
+      expect(url).toBe('https://api.telegram.org/botBOT123/sendDocument');
+      expect(String(url)).not.toMatch(/sendVoice|sendAudio|sendMessage/);
+      expect(body).toBeInstanceOf(FormData);
+    });
+
+    it('returns attachment_rejected on Telegram payload/format rejection', async () => {
+      mockedAxios.post.mockRejectedValueOnce({
+        message: 'Request failed with status code 400',
+        response: { status: 400, data: { description: 'Bad Request' } },
+      });
+      const result = await provider.send(
+        integ('telegram', {
+          credentials: { bot_token: 'T' },
+          config: { chat_id: '1' },
+        }),
+        undefined,
+        'caption',
+        {
+          attach: {
+            filename: 'vm.wav',
+            content: Buffer.from('wav'),
+            contentType: 'audio/wav',
+          },
+        },
+      );
+      expect(result.success).toBe(false);
+      expect(result.error).toBe(ATTACHMENT_REJECTED);
+      expect(result.error).toBe('attachment_rejected');
+    });
+
+    it('returns a different error on Telegram 5xx transport failure', async () => {
+      mockedAxios.post.mockRejectedValueOnce({
+        message: 'Request failed with status code 502',
+        response: { status: 502, data: {} },
+      });
+      const result = await provider.send(
+        integ('telegram', {
+          credentials: { bot_token: 'T' },
+          config: { chat_id: '1' },
+        }),
+        undefined,
+        'caption',
+        {
+          attach: {
+            filename: 'vm.wav',
+            content: Buffer.from('wav'),
+            contentType: 'audio/wav',
+          },
+        },
+      );
+      expect(result.success).toBe(false);
+      expect(result.error).not.toBe(ATTACHMENT_REJECTED);
+    });
   });
 
   describe('EmailProvider', () => {
@@ -122,6 +197,37 @@ describe('notification providers', () => {
       );
       expect(result.success).toBe(false);
     });
+
+    it('passes attachments[] into mailer when attach is set', async () => {
+      const mailer = {
+        sendNotification: jest.fn().mockResolvedValue({ success: true }),
+      };
+      const provider = new EmailProvider(mailer as any);
+      const content = Buffer.from('wav-bytes');
+
+      const result = await provider.send(
+        integ('email', { config: { to: 'a@b.c', subject: 'VM' } }),
+        undefined,
+        'new voicemail',
+        {
+          attach: {
+            filename: 'msg.wav',
+            content,
+            contentType: 'audio/wav',
+          },
+        },
+      );
+
+      expect(result.success).toBe(true);
+      expect(mailer.sendNotification).toHaveBeenCalledWith({
+        to: 'a@b.c',
+        subject: 'VM',
+        text: 'new voicemail',
+        attachments: [
+          { filename: 'msg.wav', content, contentType: 'audio/wav' },
+        ],
+      });
+    });
   });
 
   describe('WhatsAppProvider', () => {
@@ -152,6 +258,31 @@ describe('notification providers', () => {
           headers: { Authorization: 'Bearer WATOKEN' },
           timeout: expect.any(Number),
         }),
+      );
+    });
+
+    it('ignores attach and still POSTs text only', async () => {
+      await provider.send(
+        integ('whatsapp', {
+          credentials: {
+            access_token: 'WATOKEN',
+            phone_number_id: 'PNID99',
+          },
+        }),
+        '79001234567',
+        'wa body',
+        {
+          attach: {
+            filename: 'vm.wav',
+            content: Buffer.from('x'),
+            contentType: 'audio/wav',
+          },
+        },
+      );
+      expect(mockedAxios.post).toHaveBeenCalledWith(
+        'https://graph.facebook.com/v22.0/PNID99/messages',
+        expect.objectContaining({ type: 'text', text: { body: 'wa body' } }),
+        expect.any(Object),
       );
     });
   });
@@ -204,6 +335,30 @@ describe('notification providers', () => {
       expect(result.success).toBe(false);
       expect(mockedAxios.post).not.toHaveBeenCalled();
     });
+
+    it('ignores attach and still POSTs JSON text (link-only)', async () => {
+      const result = await provider.send(
+        integ('webhook', {
+          config: { url: 'https://hooks.example.com/notify' },
+        }),
+        undefined,
+        'hello hook',
+        {
+          attach: {
+            filename: 'vm.wav',
+            content: Buffer.from('x'),
+            contentType: 'audio/wav',
+          },
+          extraVars: { clid: '1', exten: '100', uniqueid: 'u1' },
+        },
+      );
+      expect(result.success).toBe(true);
+      expect(mockedAxios.post).toHaveBeenCalledWith(
+        'https://hooks.example.com/notify',
+        { message: 'hello hook', clid: '1', exten: '100', uniqueid: 'u1' },
+        expect.any(Object),
+      );
+    });
   });
 
   describe('MaxProvider', () => {
@@ -227,6 +382,29 @@ describe('notification providers', () => {
           headers: { Authorization: 'MAXTOKEN' },
           timeout: expect.any(Number),
         }),
+      );
+    });
+
+    it('ignores attach and still POSTs text only', async () => {
+      await provider.send(
+        integ('max', {
+          credentials: { access_token: 'MAXTOKEN' },
+          config: { user_id: 'u42' },
+        }),
+        undefined,
+        'max text',
+        {
+          attach: {
+            filename: 'vm.wav',
+            content: Buffer.from('x'),
+            contentType: 'audio/wav',
+          },
+        },
+      );
+      expect(mockedAxios.post).toHaveBeenCalledWith(
+        'https://platform-api2.max.ru/messages?user_id=u42',
+        { text: 'max text' },
+        expect.any(Object),
       );
     });
   });
@@ -272,6 +450,28 @@ describe('notification providers', () => {
         mockedAxios.post.mock.calls[0][1] as string,
       );
       expect(params.get('peer_id')).toBe('77');
+    });
+
+    it('ignores attach and still POSTs text only', async () => {
+      await provider.send(
+        integ('vk', {
+          credentials: { access_token: 'VKTOKEN' },
+          config: { peer_id: '200' },
+        }),
+        undefined,
+        'vk msg',
+        {
+          attach: {
+            filename: 'vm.wav',
+            content: Buffer.from('x'),
+            contentType: 'audio/wav',
+          },
+        },
+      );
+      const [url, body] = mockedAxios.post.mock.calls[0];
+      expect(url).toContain('messages.send');
+      const params = new URLSearchParams(body as string);
+      expect(params.get('message')).toBe('vk msg');
     });
   });
 });
