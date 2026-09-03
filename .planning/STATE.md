@@ -21,7 +21,7 @@ current_phase_name: visual-route-builder-and-automation
 
 Phase 14 (visual-route-builder-and-automation) — EXECUTING. 14-01 Wave 0 RED specs committed (`54f0051`, `c0db850`). Next: 14-02 reference index (do not start from 14-01 executor). 10 планов, волны 0…6.
 
-Phase 15 (universal-pbx-ai-agent) — SPEC READY (2026-09-03). `15-CONTEXT.md`, `15-UI-SPEC.md` approved, `15-AI-SPEC.md` закоммичен (`e244aa6`): фреймворк — собственный Nest agent loop (DomainAiAdapter + MCP + подключаемые `CcAiProvider`), домен PBX/VoIP, 11 dimension оценки, 7 guardrails. Next: `/gsd-plan-phase 15`, затем обязательный `/gsd-secure-phase 15`.
+Phase 15 (universal-pbx-ai-agent) — PLANNED (2026-09-04). 24 плана, волны 1…7, `15-VALIDATION.md` есть, plan-checker PASS после ревизии `43f8ae8` (справочники через proposal). Next: `/gsd-execute-phase 15` (после Phase 14), затем обязательный `/gsd-secure-phase 15`.
 
 Phase 13 (custom-voicemail-instead-of-voicemail) — COMPLETE (2026-09-03). 13/13 plans, verify passed 19/19, security SECURED. Live greeting→Record→notify deferred.
 12-17 closed 2026-08-31: M1/M6/M7/M8/M9 approved; M4/M5/M12 deferred (live voice later). Call-group ALTERs already on prod.
@@ -323,7 +323,7 @@ Phase 1 — MOH: pending verify.
 
 ## Next GSD command
 
-**Phase 14 запланирована (10 планов, plan-checker PASS).** Next: **`/gsd-execute-phase 14`**. Phase 15: UI-SPEC и AI-SPEC готовы → `/gsd-plan-phase 15` → обязательный `/gsd-secure-phase 15`.
+**Phase 14 в исполнении** (Wave 0 `14-01` готов; Wave 1 `14-02` идёт). **Phase 15 запланирована** (24 плана, plan-checker PASS). Next: дождаться конца `/gsd-execute-phase 14`, затем `/gsd-execute-phase 15` → обязательный `/gsd-secure-phase 15`.
 
 Also open: Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 verify; Phase 8 / 08-11 Android smoke.
 
