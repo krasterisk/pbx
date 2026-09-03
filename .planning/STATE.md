@@ -4,14 +4,14 @@ milestone: v1.0
 current_phase: 13
 current_phase_name: custom-voicemail-instead-of-voicemail
 status: executing
-stopped_at: Completed 13-02-PLAN.md
-last_updated: "2026-09-03T01:29:10.263Z"
-state_head: 7057a081fe120cbeaba6c08a7f7e54f507bed492
+stopped_at: Completed 13-03-PLAN.md
+last_updated: "2026-09-03T01:44:19.345Z"
+state_head: 0429bcd8ce4300b32b6cdeb561c91add230c8b4f
 progress:
   total_phases: 13
   completed_phases: 3
   total_plans: 130
-  completed_plans: 120
+  completed_plans: 121
 milestone_name: milestone
 ---
 
@@ -20,7 +20,7 @@ milestone_name: milestone
 ## Current position
 
 Phase: 13 (custom-voicemail-instead-of-voicemail) — EXECUTING
-Plan 13-02 complete: D-72 proceed-locked-path + D-55 green generator + IVoicemailMessage. Next: 13-03 RECORD_STATUS presets.
+Plan 13-03 complete: record_status CONDITION_SOURCES + ConditionEditor record: presets (OPERATOR ≠ DTMF). Next: 13-04 voicemail step schema/DTO.
 12-17 closed 2026-08-31: M1/M6/M7/M8/M9 approved; M4/M5/M12 deferred (live voice later). Call-group ALTERs already on prod.
 Migrations applied (2026-07-24): `cc_contacts` table + `cc_settings.journal_depth`. Live Asterisk A1/A3 checkpoint still deferred in WINDOWS.md.
 
@@ -249,6 +249,9 @@ Phase 1 — MOH: pending verify.
 - [Phase 13]: parseWavPcm16 implemented as 13-RESEARCH chunk walk; sampleRate returned from fmt, not assumed 8000
 - [Phase 13]: D-72 proceed-locked-path: {records_base_path}/{vpbx_user_uid}/voicemail/{UNIQUEID}-%d.wav — User chose proceed-locked-path at the blocking-human checkpoint. Path is one-way after first ingest.
 - [Phase 13]: ActionType stays voicemail (D-54); VoiceMail() emission removed; IVoicemailMessage uses notify_status + transcript_status — Locked D-54/D-55/two-axis status from 13-RESEARCH Pattern 2.
+- [Phase 13]: CONDITION_SOURCE_DTO.record_status spreads RECORD_STATUS_VALUES — no second array in the DTO
+- [Phase 13]: t(key, fallback) for record group/labels; dirty locale files not staged
+- [Phase 13]: MultiSelect has no native optgroup; record group string is the option suffix via t('routes.chain.conditions.record.group')
 
 ## Roadmap Evolution
 
@@ -282,7 +285,7 @@ Phase 1 — MOH: pending verify.
 
 ## Next GSD command
 
-**Phase 13 plan 13-02 complete.** Next: **`/gsd-execute-phase 13`** (13-03 RECORD_STATUS presets). M4/M5/M12 live-voice deferred.
+**Phase 13 plan 13-03 complete.** Next: **`/gsd-execute-phase 13`** (13-04 voicemail step schema/DTO). M4/M5/M12 live-voice deferred.
 
 Also open: Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 verify; Phase 8 / 08-11 Android smoke.
 
@@ -388,9 +391,10 @@ Also open: Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 veri
 | Phase 12 P16 | 23min | 3 tasks | 32 files |
 | Phase 13 P01 | 7min | 2 tasks | 5 files |
 | Phase 13 P02 | 12min | 2 tasks | 4 files |
+| Phase 13 P03 | 11min | 2 tasks | 8 files |
 
 ## Session
 
-**Last session:** 2026-09-03T01:27:43.197Z
-**Stopped at:** Completed 13-02-PLAN.md
+**Last session:** 2026-09-03T01:44:18.639Z
+**Stopped at:** Completed 13-03-PLAN.md
 **Resume file:** None
