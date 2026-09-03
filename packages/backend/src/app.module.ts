@@ -33,6 +33,8 @@ import { KomandorDict } from './modules/komandor-claims/komandor-dict.model';
 import { TimeGroupsModule } from './modules/time-groups/time-groups.module';
 import { DirectoriesModule } from './modules/directories/directories.module';
 import { RouteReferencesModule } from './modules/route-references/route-references.module';
+import { RouteTemplatesModule } from './modules/route-templates/route-templates.module';
+import { RouteTemplate } from './modules/route-templates/route-template.model';
 import { VoicemailModule } from './modules/voicemail/voicemail.module';
 import { CallGroupsModule } from './modules/call-groups/call-groups.module';
 import { CallGroup } from './modules/call-groups/call-group.model';
@@ -165,6 +167,7 @@ import * as path from 'path';
         CcAiAgent, CcAiProvider, CcAiToolset, CcAiCdr, CcAiBilling, CcAiInvoice, CcAiAuditLog,
         TimeGroup,
         Directory, DirectoryField, DirectoryRecord, RouteDirectoryBinding,
+        RouteTemplate,
         VoicemailMessage, VoicemailAccessToken,
         NotificationIntegration,
         CallGroup, CallGroupMember,
@@ -219,6 +222,7 @@ import * as path from 'path';
     TimeGroupsModule,
     DirectoriesModule,
     RouteReferencesModule,
+    RouteTemplatesModule,
     VoicemailModule,
     CallGroupsModule,
     LoggerModule,
