@@ -23,12 +23,12 @@ describe('VoicemailController', () => {
 
   it('lists only rows for req.user.vpbx_user_uid', async () => {
     await controller.list(req, {});
-    expect(service.list).toHaveBeenCalledWith(100);
+    expect(service.list).toHaveBeenCalledWith(100, 7);
   });
 
   it('ignores a different tenant id in the query string', async () => {
     await controller.list(req, { tenant: '999', user_uid: '999', vpbx_user_uid: '999' });
-    expect(service.list).toHaveBeenCalledWith(100);
+    expect(service.list).toHaveBeenCalledWith(100, 7);
     expect(service.list).not.toHaveBeenCalledWith(999);
   });
 

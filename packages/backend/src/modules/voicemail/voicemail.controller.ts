@@ -16,9 +16,10 @@ export class VoicemailController {
   }
 
   @Get()
-  list(@Req() req: { user?: { vpbx_user_uid: number } }, @Query() _query: Record<string, unknown>) {
+  list(@Req() req: { user?: { vpbx_user_uid: number; sub: number } }, @Query() _query: Record<string, unknown>) {
     void _query;
-    return this.service.list(req.user!.vpbx_user_uid);
+    const { tenantId, userId } = this.viewer(req);
+    return this.service.list(tenantId, userId);
   }
 
   @Get(':uniqueid/play')

@@ -441,12 +441,24 @@ export class VoicemailService {
     });
   }
 
-  async list(vpbxUserUid: number) {
+  async list(vpbxUserUid: number, viewerUserId?: number) {
     const rows = await this.messages.findAll({
       where: { user_uid: vpbxUserUid },
       order: [['created_at', 'DESC']],
     });
-    return rows.map((row) => this.toDetailDto(row));
+    if (!this.cdrService || !viewerUserId) {
+      return rows.map((row) => this.toDetailDto(row));
+    }
+    const visible = [];
+    for (const row of rows) {
+      try {
+        await this.cdrService.findByUniqueid(vpbxUserUid, row.uniqueid, viewerUserId);
+        visible.push(this.toDetailDto(row));
+      } catch {
+        // Same CDR access-scope as play/detail: hidden calls are omitted.
+      }
+    }
+    return visible;
   }
 
   async findByUniqueid(tenantId: number, uniqueid: string, viewerUserId?: number) {

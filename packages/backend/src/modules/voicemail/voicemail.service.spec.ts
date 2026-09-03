@@ -412,6 +412,50 @@ describe('VoicemailService JWT detail / play / retry-stt (D-58)', () => {
 });
 
 describe('VoicemailService.list DTO (WR-01)', () => {
+  it('omits rows the viewer cannot play via CDR access-scope', async () => {
+    const visible = {
+      uid: 1,
+      user_uid: 100,
+      uniqueid: 'visible.1',
+      file_rel: '100/voicemail/visible.1.wav',
+      notify_status: 'sent',
+      transcript_status: 'ready',
+      transcript: 'visible-transcript',
+      created_at: new Date(),
+    };
+    const hidden = {
+      uid: 2,
+      user_uid: 100,
+      uniqueid: 'hidden.2',
+      file_rel: '100/voicemail/hidden.2.wav',
+      notify_status: 'sent',
+      transcript_status: 'ready',
+      transcript: 'secret-transcript',
+      created_at: new Date(),
+    };
+    const cdrService = {
+      findByUniqueid: jest.fn(async (_tenant: number, uniqueid: string) => {
+        if (uniqueid === 'hidden.2') throw new Error('Call not found');
+        return { uniqueid };
+      }),
+    };
+    const service = new VoicemailService(
+      { findAll: jest.fn().mockResolvedValue([visible, hidden]) } as any,
+      { create: jest.fn() } as any,
+      { get: jest.fn() } as any,
+      { getServerConfigRaw: jest.fn().mockResolvedValue({ records_base_path: '/usr/records' }) } as any,
+      undefined,
+      undefined,
+      cdrService as any,
+    );
+    const result = await service.list(100, 7);
+    expect(cdrService.findByUniqueid).toHaveBeenCalledWith(100, 'visible.1', 7);
+    expect(cdrService.findByUniqueid).toHaveBeenCalledWith(100, 'hidden.2', 7);
+    expect(result).toHaveLength(1);
+    expect(result[0].uniqueid).toBe('visible.1');
+    expect(JSON.stringify(result)).not.toContain('secret-transcript');
+  });
+
   it('maps through toDetailDto and omits notify_dispatch', async () => {
     const row = {
       uid: 1,
