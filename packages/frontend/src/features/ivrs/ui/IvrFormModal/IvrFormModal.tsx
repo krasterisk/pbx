@@ -20,6 +20,7 @@ import { IvrPromptsEditor } from '../IvrPromptsEditor/IvrPromptsEditor';
 import { IvrMainTab } from '../IvrMainTab';
 import { useGetTenantSettingsQuery } from '@/entities/tenantSettings';
 import { IvrFlowchartTab } from './IvrFlowchartTab';
+import { UsageTab } from '@/features/route-references/ui/UsageTab';
 import cls from './IvrFormModal.module.scss';
 
 interface IvrFormModalProps {
@@ -144,6 +145,9 @@ export function IvrFormModal({ isOpen, onClose, ivr, mode = ivr ? 'edit' : 'crea
     ...(showFlowchart
       ? [{ id: 'flowchart', label: t('ivrs.tabs.flowchart', 'Схема') }]
       : []),
+    ...(mode === 'edit' && ivr
+      ? [{ id: 'usage', label: t('references.tab', 'Где используется') }]
+      : []),
   ];
 
   const title =
@@ -222,6 +226,10 @@ export function IvrFormModal({ isOpen, onClose, ivr, mode = ivr ? 'edit' : 'crea
               timeoutDigit={timeoutDigit}
               maxCount={maxCount}
             />
+          )}
+
+          {activeTab === 'usage' && mode === 'edit' && ivr && (
+            <UsageTab kind="ivr" uid={ivr.uid} />
           )}
         </VStack>
 

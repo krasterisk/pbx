@@ -44,6 +44,10 @@ vi.mock('../IvrMenuItemsEditor/IvrMenuItemsEditor', () => ({
   IvrMenuItemsEditor: () => <div data-testid="ivr-items-tab" />,
 }));
 
+vi.mock('@/features/route-references/ui/UsageTab', () => ({
+  UsageTab: () => <div data-testid="usage-tab" />,
+}));
+
 const ivr: IIvr = {
   uid: 7,
   name: 'Main menu',
@@ -62,7 +66,7 @@ const ivr: IIvr = {
 };
 
 describe('IvrFormModal flowchart tab (D-05)', () => {
-  it('appends Schema last and shows digit branches from the draft', () => {
+  it('appends Schema before Usage and shows digit branches from the draft', () => {
     render(<IvrFormModal isOpen onClose={vi.fn()} ivr={ivr} mode="edit" />);
 
     const schema = screen.getByRole('tab', { name: 'Схема' });
@@ -75,5 +79,19 @@ describe('IvrFormModal flowchart tab (D-05)', () => {
     expect(screen.getByText('Не нажали кнопку')).toBeInTheDocument();
     expect(screen.queryByText(/direct.?dial/i)).toBeNull();
     expect(document.body.textContent).not.toMatch(/Набрали номер напрямую/i);
+  });
+});
+
+describe('IvrFormModal usage tab (D-48 / Surface O)', () => {
+  it('appends Usage last in edit mode only', () => {
+    const { rerender } = render(<IvrFormModal isOpen onClose={vi.fn()} ivr={ivr} mode="edit" />);
+
+    const tabs = screen.getAllByRole('tab');
+    expect(tabs[tabs.length - 1]).toHaveTextContent('Где используется');
+    fireEvent.click(tabs[tabs.length - 1]);
+    expect(screen.getByTestId('usage-tab')).toBeInTheDocument();
+
+    rerender(<IvrFormModal isOpen onClose={vi.fn()} ivr={null} mode="create" />);
+    expect(screen.queryByRole('tab', { name: 'Где используется' })).toBeNull();
   });
 });
