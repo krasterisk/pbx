@@ -98,9 +98,11 @@ describe('DiffConfirmCard', () => {
 
         fireEvent.click(screen.getByRole('button', { name: 'aiChat.card.apply' }));
 
-        await vi.waitFor(() => expect(confirmCalls).toEqual([PROPOSAL_ID]));
+        await vi.waitFor(() => {
+            expect(screen.getByText('aiChat.card.badge.applied')).toBeInTheDocument();
+        });
+        expect(confirmCalls).toEqual([PROPOSAL_ID]);
         expect(rejectCalls).toHaveLength(0);
-        expect(screen.getByText('aiChat.card.badge.applied')).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'aiChat.card.apply' })).toBeNull();
         expect(screen.queryByRole('button', { name: 'aiChat.card.reject' })).toBeNull();
     });
@@ -110,9 +112,11 @@ describe('DiffConfirmCard', () => {
 
         fireEvent.click(screen.getByRole('button', { name: 'aiChat.card.reject' }));
 
-        await vi.waitFor(() => expect(rejectCalls).toEqual([PROPOSAL_ID]));
+        await vi.waitFor(() => {
+            expect(screen.getByText('aiChat.card.badge.rejected')).toBeInTheDocument();
+        });
+        expect(rejectCalls).toEqual([PROPOSAL_ID]);
         expect(confirmCalls).toHaveLength(0);
-        expect(screen.getByText('aiChat.card.badge.rejected')).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'aiChat.card.apply' })).toBeNull();
     });
 
@@ -149,8 +153,11 @@ describe('DiffConfirmCard', () => {
         expect(src).toMatch(/rejectAiChatProposal/);
         expect(src).toMatch(/url:\s*`\/ai-chat\/proposals\/\$\{proposalId\}\/apply`/);
         expect(src).toMatch(/url:\s*`\/ai-chat\/proposals\/\$\{proposalId\}\/reject`/);
-        expect(src).not.toMatch(/applyPayload|apply_payload/);
-        expect(src).not.toMatch(/confirm:\s*true/);
+        const confirmBlock = src.slice(src.indexOf('confirmAiChatProposal'), src.indexOf('rejectAiChatProposal'));
+        const rejectBlock = src.slice(src.indexOf('rejectAiChatProposal'), src.indexOf('export { aiChatApi }'));
+        expect(confirmBlock).not.toMatch(/body:/);
+        expect(rejectBlock).not.toMatch(/body:/);
+        expect(confirmBlock).not.toMatch(/confirm:\s*true/);
         expect(src).not.toMatch(/entityId|entity_id/);
     });
 });

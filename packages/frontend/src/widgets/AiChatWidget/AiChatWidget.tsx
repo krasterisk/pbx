@@ -11,12 +11,15 @@ import {
     selectAiChatIsStreaming,
 } from '@/features/ai-chat/model/selectors/aiChatSelectors';
 import {
+    isProposalClientView,
     streamAiChatMessage,
     useGetAiChatThreadQuery,
+    type IAgentProposalView,
     type IAiChatThreadMessage,
 } from '@/shared/api/endpoints/aiChatApi';
 import type { AiChatMessage } from '@/features/ai-chat/model/types/AiChatSchema';
 import { ChatMessage } from '@/features/ai-chat/ui/ChatMessage/ChatMessage';
+import { DiffConfirmCard } from '@/features/ai-chat/ui/DiffConfirmCard';
 import { ThreadList } from '@/features/ai-chat/ui/ThreadList';
 import cls from './AiChatWidget.module.scss';
 
@@ -35,6 +38,15 @@ function toChatMessage(message: IAiChatThreadMessage): AiChatMessage {
         createdAt: new Date(message.created_at).getTime(),
         toolCalls: Array.isArray(message.tool_calls) ? message.tool_calls : undefined,
     };
+}
+
+function extractProposal(message: IAiChatThreadMessage): IAgentProposalView | undefined {
+    if (isProposalClientView(message.proposal)) return message.proposal;
+    if (isProposalClientView(message.tool_calls)) return message.tool_calls;
+    if (Array.isArray(message.tool_calls)) {
+        return message.tool_calls.find(isProposalClientView);
+    }
+    return undefined;
 }
 
 const FOCUSABLE_SELECTOR =
@@ -64,16 +76,29 @@ export const AiChatWidget = ({ open, onClose }: AiChatWidgetProps) => {
         skip: selectedThreadUid == null,
     });
 
-    const committedMessages = useMemo(
+    const committedItems = useMemo(
         () =>
             (threadDetail?.messages ?? [])
                 .filter((message) => message.role === 'user' || message.role === 'assistant')
-                .map(toChatMessage),
+                .map((message) => ({
+                    message: toChatMessage(message),
+                    proposal: extractProposal(message),
+                })),
         [threadDetail],
     );
-    const messages = selectedThreadUid == null
+    const items = selectedThreadUid == null
         ? []
-        : [...committedMessages, ...inFlightMessages];
+        : [
+            ...committedItems,
+            ...inFlightMessages.map((message, index, list) => ({
+                message,
+                proposal:
+                    index === list.length - 1 && message.role === 'assistant'
+                        ? streamProposal ?? undefined
+                        : undefined,
+            })),
+        ];
+    const messages = items.map((item) => item.message);
 
     const panelRef = useRef<HTMLDivElement>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -81,11 +106,13 @@ export const AiChatWidget = ({ open, onClose }: AiChatWidgetProps) => {
     const abortRef = useRef<AbortController | null>(null);
     const lastMessageRef = useRef<string>('');
     const [lastError, setLastError] = useState<string | null>(null);
+    const [streamProposal, setStreamProposal] = useState<IAgentProposalView | null>(null);
 
     const handleSelectThread = useCallback((uid: number) => {
         setSelectedThreadUid(uid);
         dispatch(aiChatActions.clearMessages());
         setLastError(null);
+        setStreamProposal(null);
     }, [dispatch]);
 
     const handleDeletedThread = useCallback((uid: number) => {
@@ -93,6 +120,7 @@ export const AiChatWidget = ({ open, onClose }: AiChatWidgetProps) => {
             setSelectedThreadUid(null);
             dispatch(aiChatActions.clearMessages());
             setLastError(null);
+            setStreamProposal(null);
         }
     }, [dispatch, selectedThreadUid]);
 
@@ -140,6 +168,7 @@ export const AiChatWidget = ({ open, onClose }: AiChatWidgetProps) => {
         if (textarea && !overrideText) textarea.value = '';
         lastMessageRef.current = text;
         setLastError(null);
+        setStreamProposal(null);
 
         const history = messages
             .filter((m) => !m.isStreaming)
@@ -154,6 +183,7 @@ export const AiChatWidget = ({ open, onClose }: AiChatWidgetProps) => {
             onText: (chunk) => dispatch(aiChatActions.appendTextChunk(chunk)),
             onToolCall: (data) => dispatch(aiChatActions.addToolCall({ ...data })),
             onToolResult: (data) => dispatch(aiChatActions.updateToolResult(data)),
+            onProposal: (view) => setStreamProposal(view),
             onDone: () => dispatch(aiChatActions.finishStreaming()),
             onError: (msg) => {
                 dispatch(aiChatActions.appendTextChunk(`\n\n*${t('aiChat.error')}: ${msg}*`));
@@ -295,8 +325,13 @@ export const AiChatWidget = ({ open, onClose }: AiChatWidgetProps) => {
                                     }}
                                 />
                             )}
-                            {messages.map((msg) => (
-                                <ChatMessage key={msg.id} message={msg} />
+                            {items.map((item) => (
+                                <VStack key={item.message.id} gap="8" align="stretch">
+                                    <ChatMessage message={item.message} />
+                                    {item.proposal && (
+                                        <DiffConfirmCard proposal={item.proposal} />
+                                    )}
+                                </VStack>
                             ))}
                             <Flex ref={messagesEndRef} aria-hidden direction="column">{null}</Flex>
                         </VStack>

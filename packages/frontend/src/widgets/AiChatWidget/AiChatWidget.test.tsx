@@ -122,6 +122,13 @@ vi.mock('@/shared/api/endpoints/aiChatApi', () => ({
     { isLoading: false },
   ],
   streamAiChatMessage: vi.fn(),
+  isProposalClientView: (value: unknown) =>
+    !!value &&
+    typeof value === 'object' &&
+    !Array.isArray(value) &&
+    'proposalId' in value &&
+    !('applyPayload' in value) &&
+    !('apply_payload' in value),
 }));
 
 vi.mock('react-i18next', () => ({

@@ -19,6 +19,27 @@ export interface IAiChatThread {
 }
 
 /** Stored message from GET /ai-chat/threads/:uid. */
+/** Client-facing proposal view — apply payload omitted by type (T-15-61). */
+export type AgentProposalStatus = 'pending' | 'applied' | 'rejected' | 'denied' | 'expired';
+
+export interface IAgentProposalView {
+    proposalId: string;
+    entityType: string;
+    entityLabel: string;
+    summary: string[];
+    status: AgentProposalStatus | string;
+    expiresAt: string;
+    error?: string | null;
+    appliedAt?: string | null;
+}
+
+export interface IAgentProposalActionResult {
+    ok: boolean;
+    reason?: string;
+    error?: string;
+    proposal?: IAgentProposalView;
+}
+
 export interface IAiChatThreadMessage {
     uid: number;
     thread_uid: number;
@@ -27,6 +48,7 @@ export interface IAiChatThreadMessage {
     tool_name?: string | null;
     tool_calls?: unknown;
     proposal_id?: string | null;
+    proposal?: IAgentProposalView | null;
     created_at: string;
 }
 
@@ -86,6 +108,20 @@ const aiChatApi = rtkApi.injectEndpoints({
                 { type: 'AiChatThreads', id: 'LIST' },
             ],
         }),
+        confirmAiChatProposal: builder.mutation<IAgentProposalActionResult, string>({
+            query: (proposalId) => ({
+                url: `/ai-chat/proposals/${proposalId}/apply`,
+                method: 'POST',
+            }),
+            invalidatesTags: ['AiChatThreads'],
+        }),
+        rejectAiChatProposal: builder.mutation<IAgentProposalActionResult, string>({
+            query: (proposalId) => ({
+                url: `/ai-chat/proposals/${proposalId}/reject`,
+                method: 'POST',
+            }),
+            invalidatesTags: ['AiChatThreads'],
+        }),
     }),
 });
 
@@ -100,6 +136,8 @@ export const {
     useGetAiChatThreadQuery,
     useCreateAiChatThreadMutation,
     useDeleteAiChatThreadMutation,
+    useConfirmAiChatProposalMutation,
+    useRejectAiChatProposalMutation,
 } = aiChatApi;
 
 /**
@@ -112,6 +150,7 @@ export function streamAiChatMessage(params: {
     onText: (chunk: string) => void;
     onToolCall: (data: { name: string; arguments: string }) => void;
     onToolResult: (data: { name: string; result: string }) => void;
+    onProposal?: (data: IAgentProposalView) => void;
     onDone: () => void;
     onError: (msg: string) => void;
 }): AbortController {
@@ -160,6 +199,9 @@ export function streamAiChatMessage(params: {
                             if (eventType === 'text') params.onText(data);
                             else if (eventType === 'tool_call') params.onToolCall(data);
                             else if (eventType === 'tool_result') params.onToolResult(data);
+                            else if (eventType === 'proposal' && params.onProposal && isProposalClientView(data)) {
+                                params.onProposal(data);
+                            }
                             else if (eventType === 'done') { params.onDone(); return; }
                             else if (eventType === 'error') { params.onError(data); return; }
                         } catch {
@@ -178,4 +220,16 @@ export function streamAiChatMessage(params: {
     })();
 
     return ac;
+}
+
+export function isProposalClientView(value: unknown): value is IAgentProposalView {
+    return (
+        !!value &&
+        typeof value === 'object' &&
+        !Array.isArray(value) &&
+        'proposalId' in value &&
+        typeof (value as IAgentProposalView).proposalId === 'string' &&
+        !('applyPayload' in value) &&
+        !('apply_payload' in value)
+    );
 }
