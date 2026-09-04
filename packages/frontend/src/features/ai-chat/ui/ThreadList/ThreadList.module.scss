@@ -17,11 +17,29 @@
 
 .row {
     width: 100%;
-    height: auto;
-    justify-content: flex-start;
+    min-width: 0;
     padding: 8px;
     border-radius: var(--radius-md);
-    white-space: normal;
+    cursor: pointer;
+}
+
+.row:focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: -2px;
+}
+
+.skeleton {
+    width: 100%;
+}
+
+.state {
+    min-width: 0;
+}
+
+.emptyTitle {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-foreground);
 }
 
 .selected {

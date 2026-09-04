@@ -88,6 +88,14 @@ export const AiChatWidget = ({ open, onClose }: AiChatWidgetProps) => {
         setLastError(null);
     }, [dispatch]);
 
+    const handleDeletedThread = useCallback((uid: number) => {
+        if (selectedThreadUid === uid) {
+            setSelectedThreadUid(null);
+            dispatch(aiChatActions.clearMessages());
+            setLastError(null);
+        }
+    }, [dispatch, selectedThreadUid]);
+
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView?.({ behavior: 'smooth' });
     }, [messages]);
@@ -246,6 +254,7 @@ export const AiChatWidget = ({ open, onClose }: AiChatWidgetProps) => {
                             <ThreadList
                                 selectedUid={selectedThreadUid}
                                 onSelect={handleSelectThread}
+                                onDeleted={handleDeletedThread}
                             />
                         </VStack>
                     )}

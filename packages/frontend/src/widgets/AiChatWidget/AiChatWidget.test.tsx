@@ -85,7 +85,10 @@ vi.mock('@/shared/api/endpoints/aiChatApi', () => ({
     () => ({ unwrap: async () => storedThreads[0] }),
     { isLoading: false },
   ],
-  useDeleteAiChatThreadMutation: () => [vi.fn(), { isLoading: false }],
+  useDeleteAiChatThreadMutation: () => [
+    () => ({ unwrap: async () => undefined }),
+    { isLoading: false },
+  ],
   streamAiChatMessage: vi.fn(),
 }));
 

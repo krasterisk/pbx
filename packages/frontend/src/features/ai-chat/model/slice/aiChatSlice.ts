@@ -6,40 +6,13 @@ import type {
     AiToolCallEvent,
 } from '../types/AiChatSchema';
 
-// ─── SessionStorage persistence ───────────────────────────────────────────────
-const STORAGE_KEY = 'krasterisk_ai_chat_history';
-const MAX_STORED_MESSAGES = 50;
-
-function loadMessages(): AiChatMessage[] {
-    try {
-        const raw = sessionStorage.getItem(STORAGE_KEY);
-        if (!raw) return [];
-        const parsed = JSON.parse(raw) as AiChatMessage[];
-        // Reset isStreaming on reload (in case of crash during stream)
-        return parsed.map(m => ({ ...m, isStreaming: false }));
-    } catch {
-        return [];
-    }
-}
-
-function saveMessages(messages: AiChatMessage[]) {
-    try {
-        // Keep only last N messages to avoid storage overflow
-        const toStore = messages
-            .filter(m => !m.isStreaming)
-            .slice(-MAX_STORED_MESSAGES);
-        sessionStorage.setItem(STORAGE_KEY, JSON.stringify(toStore));
-    } catch {
-        // Storage quota exceeded - clear it
-        sessionStorage.removeItem(STORAGE_KEY);
-    }
-}
-
 // ─── Initial state ────────────────────────────────────────────────────────────
+// Committed messages live on the server (thread detail query). This store
+// holds only the in-flight turn so a reload cannot diverge from the rail.
 
 const initialState: AiChatSchema = {
     isOpen: false,
-    messages: loadMessages(),
+    messages: [],
     isStreaming: false,
     selectedModel: '',
     availableModels: [],
@@ -81,7 +54,6 @@ export const aiChatSlice = createSlice({
                 createdAt: Date.now(),
             };
             state.messages.push(msg);
-            saveMessages(state.messages);
         },
 
         startAssistantMessage(state) {
@@ -127,13 +99,10 @@ export const aiChatSlice = createSlice({
             const last = state.messages[state.messages.length - 1];
             if (last) last.isStreaming = false;
             state.isStreaming = false;
-            // Persist after stream completes
-            saveMessages(state.messages);
         },
 
         clearMessages(state) {
             state.messages = [];
-            sessionStorage.removeItem(STORAGE_KEY);
         },
 
         /** Remove the last (incomplete) assistant message on error */

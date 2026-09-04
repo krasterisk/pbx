@@ -1,10 +1,23 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus } from 'lucide-react';
-import { Button, Text } from '@/shared/ui';
+import { Plus, Trash2 } from 'lucide-react';
+import {
+    Button,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    Skeleton,
+    TableRowAction,
+    TableRowActions,
+    Text,
+} from '@/shared/ui';
 import { HStack, VStack } from '@/shared/ui/Stack';
 import {
     useCreateAiChatThreadMutation,
+    useDeleteAiChatThreadMutation,
     useGetAiChatThreadsQuery,
     type IAiChatThread,
 } from '@/shared/api/endpoints/aiChatApi';
@@ -13,6 +26,7 @@ import cls from './ThreadList.module.scss';
 export interface ThreadListProps {
     selectedUid: number | null;
     onSelect: (uid: number) => void;
+    onDeleted?: (uid: number) => void;
 }
 
 function threadTime(thread: IAiChatThread): number {
@@ -37,10 +51,12 @@ export function formatRelativeTime(
     return t('aiChat.relative.days', { count: Math.floor(hours / 24) });
 }
 
-export const ThreadList = ({ selectedUid, onSelect }: ThreadListProps) => {
+export const ThreadList = ({ selectedUid, onSelect, onDeleted }: ThreadListProps) => {
     const { t } = useTranslation();
-    const { data } = useGetAiChatThreadsQuery();
+    const { data, isLoading, isError, refetch } = useGetAiChatThreadsQuery();
     const [createThread] = useCreateAiChatThreadMutation();
+    const [deleteThread] = useDeleteAiChatThreadMutation();
+    const [pendingDeleteUid, setPendingDeleteUid] = useState<number | null>(null);
 
     const threads = useMemo(
         () => [...(data ?? [])].sort((a, b) => threadTime(b) - threadTime(a)),
@@ -50,6 +66,14 @@ export const ThreadList = ({ selectedUid, onSelect }: ThreadListProps) => {
     const handleCreate = async () => {
         const created = await createThread().unwrap();
         onSelect(created.uid);
+    };
+
+    const handleConfirmDelete = async () => {
+        if (pendingDeleteUid == null) return;
+        const uid = pendingDeleteUid;
+        await deleteThread(uid).unwrap();
+        setPendingDeleteUid(null);
+        onDeleted?.(uid);
     };
 
     return (
@@ -68,36 +92,114 @@ export const ThreadList = ({ selectedUid, onSelect }: ThreadListProps) => {
                 </Button>
             </HStack>
 
-            <VStack
-                className={cls.list}
-                gap="4"
-                align="stretch"
-                role="listbox"
-                aria-label={t('aiChat.threadsHeading')}
+            {isLoading && (
+                <VStack gap="8" align="stretch" aria-busy aria-label={t('aiChat.loadingThreads')}>
+                    {[0, 1, 2].map((index) => (
+                        <VStack key={index} data-testid="ai-agent-thread-skeleton" align="stretch">
+                            <Skeleton className={cls.skeleton} height={48} />
+                        </VStack>
+                    ))}
+                </VStack>
+            )}
+
+            {!isLoading && isError && (
+                <VStack className={cls.state} gap="8" align="stretch">
+                    <Text variant="muted">{t('aiChat.errorThreads')}</Text>
+                    <Button type="button" variant="outline" size="sm" onClick={() => void refetch()}>
+                        {t('aiChat.retry')}
+                    </Button>
+                </VStack>
+            )}
+
+            {!isLoading && !isError && threads.length === 0 && (
+                <VStack className={cls.state} gap="8" align="stretch">
+                    <Text as="span" className={cls.emptyTitle}>{t('aiChat.emptyTitle')}</Text>
+                    <Text variant="muted">{t('aiChat.emptyBody')}</Text>
+                </VStack>
+            )}
+
+            {!isLoading && !isError && threads.length > 0 && (
+                <VStack
+                    className={cls.list}
+                    gap="4"
+                    align="stretch"
+                    role="listbox"
+                    aria-label={t('aiChat.threadsHeading')}
+                >
+                    {threads.map((thread) => {
+                        const selected = thread.uid === selectedUid;
+                        const title = thread.title.trim() || t('aiChat.untitled');
+                        return (
+                            <HStack
+                                key={thread.uid}
+                                role="option"
+                                aria-selected={selected}
+                                tabIndex={0}
+                                className={`${cls.row} ${selected ? cls.selected : ''}`}
+                                align="center"
+                                gap="8"
+                                onClick={() => onSelect(thread.uid)}
+                                onKeyDown={(event) => {
+                                    if (event.key === 'Enter' || event.key === ' ') {
+                                        event.preventDefault();
+                                        onSelect(thread.uid);
+                                    }
+                                }}
+                            >
+                                <VStack gap="0" align="start" max>
+                                    <Text as="span" className={cls.title}>{title}</Text>
+                                    <Text as="span" className={cls.time}>
+                                        {formatRelativeTime(thread.last_message_at, t)}
+                                    </Text>
+                                </VStack>
+                                <TableRowActions>
+                                    <TableRowAction
+                                        danger
+                                        title={t('aiChat.deleteConversation')}
+                                        aria-label={t('aiChat.deleteConversation')}
+                                        onClick={(event) => {
+                                            event.stopPropagation();
+                                            setPendingDeleteUid(thread.uid);
+                                        }}
+                                    >
+                                        <Trash2 size={14} />
+                                    </TableRowAction>
+                                </TableRowActions>
+                            </HStack>
+                        );
+                    })}
+                </VStack>
+            )}
+
+            <Dialog
+                open={pendingDeleteUid != null}
+                onOpenChange={(open) => {
+                    if (!open) setPendingDeleteUid(null);
+                }}
             >
-                {threads.map((thread) => {
-                    const selected = thread.uid === selectedUid;
-                    const title = thread.title.trim() || t('aiChat.untitled');
-                    return (
+                <DialogContent data-testid="ai-agent-delete-dialog">
+                    <DialogHeader>
+                        <DialogTitle>{t('aiChat.deleteConfirmTitle')}</DialogTitle>
+                        <DialogDescription>{t('aiChat.deleteConfirmBody')}</DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
                         <Button
-                            key={thread.uid}
                             type="button"
-                            variant="ghost"
-                            role="option"
-                            aria-selected={selected}
-                            className={`${cls.row} ${selected ? cls.selected : ''}`}
-                            onClick={() => onSelect(thread.uid)}
+                            variant="outline"
+                            onClick={() => setPendingDeleteUid(null)}
                         >
-                            <VStack gap="0" align="start" max>
-                                <Text as="span" className={cls.title}>{title}</Text>
-                                <Text as="span" className={cls.time}>
-                                    {formatRelativeTime(thread.last_message_at, t)}
-                                </Text>
-                            </VStack>
+                            {t('aiChat.keepConversation')}
                         </Button>
-                    );
-                })}
-            </VStack>
+                        <Button
+                            type="button"
+                            variant="destructive"
+                            onClick={() => void handleConfirmDelete()}
+                        >
+                            {t('aiChat.deleteConfirm')}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </VStack>
     );
 };
