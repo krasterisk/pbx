@@ -67,4 +67,81 @@ describe('pbx-agent-eval', () => {
     expect(fs.readFileSync(path.join(__dirname, 'pbx-agent-eval.harness.ts'), 'utf8'))
       .not.toMatch(/read-list-queues/);
   });
+
+  it('covers ten reference scenarios across the contract buckets', () => {
+    const scenarios = loadReferenceScenarios();
+    const byBucket = (bucket: EvalScenario['bucket']) => scenarios.filter((row) => row.bucket === bucket);
+
+    expect(scenarios).toHaveLength(10);
+    expect(byBucket('read').map((row) => row.id)).toEqual([
+      'read-list-queues',
+      'read-find-cdr-calls',
+      'read-pbx-state-snapshot',
+    ]);
+    expect(byBucket('mutating')).toHaveLength(3);
+    expect(byBucket('cross-tenant')).toHaveLength(2);
+    expect(byBucket('diagnostic')).toHaveLength(1);
+    expect(byBucket('step-budget')).toHaveLength(1);
+  });
+
+  it('passes three read scenarios for listing, CDR and a state snapshot', async () => {
+    const reads = loadReferenceScenarios().filter((row) => row.bucket === 'read');
+    expect(reads).toHaveLength(3);
+    for (const scenario of reads) {
+      const result = await runScenario(scenario);
+      expect(result.toolSequence).toEqual(scenario.expectedToolSequence);
+    }
+  });
+
+  it('passes three mutating scenarios with a pending proposal and no write', async () => {
+    const mutating = loadReferenceScenarios().filter((row) => row.bucket === 'mutating');
+    expect(mutating).toHaveLength(3);
+    for (const scenario of mutating) {
+      expect(scenario.expectedProposal?.entityType).toBeTruthy();
+      expect(scenario.assertNoWrite).toBe(true);
+      const result = await runScenario(scenario);
+      expect(result.proposals.some((row) => (
+        row.entityType === scenario.expectedProposal!.entityType
+        && row.status === (scenario.expectedProposal!.status ?? 'pending')
+      ))).toBe(true);
+      expect(result.entityCountsAfter).toEqual(result.entityCountsBefore);
+    }
+  });
+
+  it('passes two cross-tenant scenarios: same tool as two tenants and a forged tenant key', async () => {
+    const rows = loadReferenceScenarios().filter((row) => row.bucket === 'cross-tenant');
+    expect(rows).toHaveLength(2);
+    const sameTool = rows.find((row) => row.peerTenantUid != null);
+    const forged = rows.find((row) => row.forgedTenantUid != null);
+    expect(sameTool).toBeDefined();
+    expect(forged).toBeDefined();
+
+    const sameToolResult = await runScenario(sameTool!);
+    expect(sameToolResult.toolSequence).toEqual(sameTool!.expectedToolSequence);
+    expect(sameToolResult.auditRows.every((row) => row.user_uid === sameTool!.tenantUid)).toBe(true);
+
+    const forgedResult = await runScenario(forged!);
+    expect(forgedResult.peerEntityCountsAfter).toEqual(forgedResult.peerEntityCountsBefore);
+    expect(forgedResult.proposals.every((row) => row.status === 'pending' || row.status === undefined)).toBeTruthy();
+  });
+
+  it('passes a diagnostic scenario that reads before concluding', async () => {
+    const scenario = loadReferenceScenarios().find((row) => row.bucket === 'diagnostic');
+    expect(scenario).toBeDefined();
+    const result = await runScenario(scenario!);
+    expect(result.toolSequence.length).toBeGreaterThan(0);
+    expect(result.toolSequence).toEqual(scenario!.expectedToolSequence);
+    expect(result.events.findIndex((event) => event.name === 'tool_call'))
+      .toBeLessThan(result.events.findIndex((event) => event.name === 'text'));
+  });
+
+  it('passes a step-budget scenario that stops at the ceiling', async () => {
+    const scenario = loadReferenceScenarios().find((row) => row.bucket === 'step-budget');
+    expect(scenario).toBeDefined();
+    expect(scenario!.expectedTerminal?.code).toBe('max_steps_exceeded');
+    const result = await runScenario(scenario!);
+    const last = result.events[result.events.length - 1];
+    expect(last.name).toBe('error');
+    expect(last.data).toEqual(expect.objectContaining({ code: 'max_steps_exceeded' }));
+  });
 });
