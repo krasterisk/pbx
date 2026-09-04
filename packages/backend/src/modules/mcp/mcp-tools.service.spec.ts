@@ -195,6 +195,59 @@ describe('McpToolsService', () => {
     });
   });
 
+  describe('model-visible confirmation flag removed (D-18 prep)', () => {
+    it('exposes no boolean confirmation property in any getToolsList schema', () => {
+      const tools = service.getToolsList(100);
+      expect(tools.length).toBeGreaterThan(0);
+      for (const tool of tools) {
+        const props = tool.inputSchema?.properties ?? tool.inputSchema ?? {};
+        for (const [key, schema] of Object.entries(props)) {
+          const type = (schema as { type?: string } | undefined)?.type;
+          const looksLikeConfirm =
+            /confirm/i.test(key) ||
+            (type === 'boolean' && /confirm|подтвержд/i.test(JSON.stringify(schema)));
+          expect({ name: tool.name, key, looksLikeConfirm }).toEqual({
+            name: tool.name,
+            key,
+            looksLikeConfirm: false,
+          });
+        }
+      }
+    });
+
+    it('refuses a destructive tool with any argument shape and does not invoke the domain handler', async () => {
+      const shapes = [
+        {},
+        { trunkId: 't_x_1' },
+        { trunkId: 't_x_1', confirm: true },
+        { confirm: false },
+      ];
+      for (const args of shapes) {
+        trunksService.remove.mockClear();
+        const result = await service.callTool('delete_trunk', args, 100);
+        expect(trunksService.remove).not.toHaveBeenCalled();
+        expect(result[0].text).toMatch(/proposal|карточки изменений|подтвержд/i);
+        expect(result[0].text).not.toMatch(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u);
+      }
+    });
+  });
+
+  describe('bootstrap-built registry (Pitfall 2, Pitfall 5)', () => {
+    it('does not lazy-register: getToolsList is empty until onApplicationBootstrap', () => {
+      expect(service.getToolsList(100)).toHaveLength(0);
+    });
+
+    it('onApplicationBootstrap builds the registry and registerAll is idempotent', () => {
+      const bootable = service as McpToolsService & { onApplicationBootstrap: () => void };
+      expect(typeof bootable.onApplicationBootstrap).toBe('function');
+      bootable.onApplicationBootstrap();
+      const first = bootable.getToolsList(100).map((t) => t.name);
+      expect(first.length).toBeGreaterThan(0);
+      bootable.onApplicationBootstrap();
+      expect(bootable.getToolsList(100).map((t) => t.name)).toEqual(first);
+    });
+  });
+
   describe('forged tenant argument is stripped (D-22 tracer)', () => {
     const injectListContextsStub = () => {
       const stubHandler = jest.fn().mockResolvedValue({ ok: true });
