@@ -33,8 +33,59 @@ vi.mock('@/shared/hooks/useAppStore', () => ({
   useAppDispatch: () => vi.fn(),
 }));
 
+const storedThreads = [
+  {
+    uid: 7,
+    title: "Yesterday's call",
+    status: 'active' as const,
+    last_message_at: '2026-09-03T12:00:00.000Z',
+    created_at: '2026-09-03T12:00:00.000Z',
+    updated_at: '2026-09-03T12:00:00.000Z',
+  },
+];
+
+const storedThreadDetail = {
+  uid: 7,
+  title: "Yesterday's call",
+  status: 'active' as const,
+  last_message_at: '2026-09-03T12:00:00.000Z',
+  created_at: '2026-09-03T12:00:00.000Z',
+  updated_at: '2026-09-03T12:00:00.000Z',
+  messages: [
+    {
+      uid: 71,
+      thread_uid: 7,
+      role: 'user' as const,
+      content: 'Stored user message from yesterday',
+      created_at: '2026-09-03T12:00:00.000Z',
+    },
+    {
+      uid: 72,
+      thread_uid: 7,
+      role: 'assistant' as const,
+      content: 'Stored assistant reply',
+      created_at: '2026-09-03T12:01:00.000Z',
+    },
+  ],
+};
+
 vi.mock('@/shared/api/endpoints/aiChatApi', () => ({
   useGetAiChatModelsQuery: () => ({ data: undefined }),
+  useGetAiChatThreadsQuery: () => ({
+    data: storedThreads,
+    isLoading: false,
+    isError: false,
+    refetch: vi.fn(),
+  }),
+  useGetAiChatThreadQuery: (uid: number | undefined, options?: { skip?: boolean }) => {
+    if (options?.skip || uid == null) return { data: undefined, isFetching: false };
+    return { data: storedThreadDetail, isFetching: false };
+  },
+  useCreateAiChatThreadMutation: () => [
+    () => ({ unwrap: async () => storedThreads[0] }),
+    { isLoading: false },
+  ],
+  useDeleteAiChatThreadMutation: () => [vi.fn(), { isLoading: false }],
   streamAiChatMessage: vi.fn(),
 }));
 
@@ -141,6 +192,14 @@ describe('AiChatWidget', () => {
     mockViewport(800);
     render(<AiChatWidget open onClose={vi.fn()} />);
     expect(screen.queryByTestId('ai-agent-thread-rail')).toBeNull();
+  });
+
+  it('loads stored messages when a conversation is selected from the rail', () => {
+    render(<AiChatWidget open onClose={vi.fn()} />);
+    expect(screen.queryByText('Stored user message from yesterday')).toBeNull();
+    fireEvent.click(screen.getByRole('option', { name: /Yesterday's call/ }));
+    expect(screen.getByText('Stored user message from yesterday')).toBeInTheDocument();
+    expect(screen.getByText('Stored assistant reply')).toBeInTheDocument();
   });
 
   it('renders as a full-height sheet with no horizontal offset below the tablet breakpoint', () => {
