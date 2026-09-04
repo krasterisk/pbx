@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { TimeGroupsAiAdapter } from '../time-groups/time-groups-ai.adapter';
+import { NumbersAiAdapter } from '../numbers/numbers-ai.adapter';
 
 const TENANT_A = 100;
 const TENANT_B = 200;
@@ -162,5 +163,151 @@ describe('read-adapters-schedule-identity — time groups (D-12, D-15, D-22)', (
     expect(raw).toMatch(/^---\r?\nname: time-groups\r?\ndescription: .+\r?\n---/);
     expect(raw).toMatch(/маршрут|route|voicemail|голос/i);
     expect(raw).toMatch(/час|time.?zone|timezone|пояс/i);
+  });
+});
+
+const DID_A = {
+  id: 1,
+  name: 'Moscow DID',
+  number: '74951234567',
+  status: 'active',
+  user_uid: TENANT_A,
+};
+
+const DID_A_SPARE = {
+  id: 2,
+  name: 'Spare DID',
+  number: '74950000000',
+  status: 'spare',
+  user_uid: TENANT_A,
+};
+
+const DID_B = {
+  id: 9,
+  name: 'Other DID',
+  number: '78125550000',
+  status: 'active',
+  user_uid: TENANT_B,
+};
+
+const ROUTE_A = {
+  uid: 21,
+  name: 'Inbound Sales',
+  extensions: ['74951234567'],
+  actions: [{ type: 'toexten', params: { target: { source: 'fixed', value: '201' } } }],
+  user_uid: TENANT_A,
+};
+
+const ROUTE_B = {
+  uid: 88,
+  name: 'Other Inbound',
+  extensions: ['78125550000'],
+  actions: [{ type: 'toqueue', params: { queue: 'other' } }],
+  user_uid: TENANT_B,
+};
+
+describe('read-adapters-schedule-identity — numbers (D-12, D-15, D-22)', () => {
+  let numbersService: { findAll: jest.Mock; findById: jest.Mock };
+  let routesService: { findAll: jest.Mock };
+  let registry: { register: jest.Mock };
+  let adapter: NumbersAiAdapter;
+
+  beforeEach(() => {
+    numbersService = {
+      findAll: jest.fn(async (uid: number) => {
+        if (uid === TENANT_A) return [{ ...DID_A }, { ...DID_A_SPARE }];
+        if (uid === TENANT_B) return [{ ...DID_B }];
+        return [];
+      }),
+      findById: jest.fn(async (id: number, uid: number) => {
+        const rows = uid === TENANT_A ? [DID_A, DID_A_SPARE] : uid === TENANT_B ? [DID_B] : [];
+        return rows.find((row) => row.id === id) ?? null;
+      }),
+    };
+    routesService = {
+      findAll: jest.fn(async (uid: number) => {
+        if (uid === TENANT_A) return [{ ...ROUTE_A, extensions: [...ROUTE_A.extensions] }];
+        if (uid === TENANT_B) return [{ ...ROUTE_B, extensions: [...ROUTE_B.extensions] }];
+        return [];
+      }),
+    };
+    registry = { register: jest.fn() };
+    adapter = new NumbersAiAdapter(numbersService as any, registry as any, routesService as any);
+  });
+
+  it('lists the tenant numbers with status and assignment', async () => {
+    const result = (await getTool(adapter, 'list_numbers').handler({}, TENANT_A)) as {
+      numbers: Array<{ number: string; status: string; assignment: string | null }>;
+    };
+    expect(result.numbers).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          number: '74951234567',
+          status: 'active',
+          assignment: 'Inbound Sales',
+        }),
+        expect.objectContaining({
+          number: '74950000000',
+          status: 'spare',
+          assignment: null,
+        }),
+      ]),
+    );
+    expect(JSON.stringify(result)).not.toContain('78125550000');
+  });
+
+  it('describes a number with the route and destination it currently reaches', async () => {
+    const result = (await getTool(adapter, 'describe_number').handler(
+      { number: '74951234567' },
+      TENANT_A,
+    )) as {
+      number: string;
+      routed: boolean;
+      route: { name: string };
+      destination: string;
+    };
+    expect(result.number).toBe('74951234567');
+    expect(result.routed).toBe(true);
+    expect(result.route.name).toBe('Inbound Sales');
+    expect(result.destination).toMatch(/toexten/);
+    expect(result.destination).toMatch(/201/);
+  });
+
+  it('reports an unrouted number as unrouted rather than omitting it', async () => {
+    const result = (await getTool(adapter, 'describe_number').handler(
+      { number: '74950000000' },
+      TENANT_A,
+    )) as { number: string; routed: boolean; destination: string; route: unknown };
+    expect(result.number).toBe('74950000000');
+    expect(result.routed).toBe(false);
+    expect(result.destination).toMatch(/unrouted/i);
+    expect(result.route).toBeNull();
+  });
+
+  it('declares no mutating tool', () => {
+    expect(adapter.getTools().length).toBeGreaterThan(0);
+    for (const tool of adapter.getTools()) {
+      expect(isMutating(tool)).toBe(false);
+    }
+  });
+
+  it('returns none of another tenant numbers', async () => {
+    const result = (await getTool(adapter, 'list_numbers').handler({}, TENANT_A)) as {
+      numbers: Array<{ number: string }>;
+    };
+    expect(result.numbers.map((row) => row.number).sort()).toEqual(['74950000000', '74951234567']);
+    expect(numbersService.findAll).toHaveBeenCalledWith(TENANT_A);
+    expect(numbersService.findAll).not.toHaveBeenCalledWith(TENANT_B);
+    expect(routesService.findAll).toHaveBeenCalledWith(TENANT_A);
+    expect(routesService.findAll).not.toHaveBeenCalledWith(TENANT_B);
+  });
+
+  it('ships a numbers skill covering format, status and resolved destination', () => {
+    const skillPath = path.join(__dirname, '../../skills/numbers/SKILL.md');
+    const raw = fs.readFileSync(skillPath, 'utf8');
+    expect(raw).toMatch(/^---\r?\nname: numbers\r?\ndescription: .+\r?\n---/);
+    expect(raw).toMatch(/маршрут|route/i);
+    expect(raw).toMatch(/unrouted|не маршрут|не назнач/i);
+    expect(raw).toMatch(/describe_number|назначени/i);
   });
 });
