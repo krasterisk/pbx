@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { NotFoundException } from '@nestjs/common';
+import { TENANT_ARG_KEYS } from './ai-adapter.types';
 import { VoiceRobotsAiAdapter } from '../voice-robots/voice-robots-ai.adapter';
 import {
   STT_ENGINE_ALLOW_LIST,
@@ -492,5 +493,136 @@ describe('read-adapters-speech — stt engines (D-15, secret boundary)', () => {
     expect(blob).not.toContain('stt-secret-tenant-b');
     expect(sttEngines.findAll).toHaveBeenCalledWith(TENANT_A);
     expect(sttEngines.findAll).not.toHaveBeenCalledWith(TENANT_B);
+  });
+});
+
+/** 15-23 completeness must accept this shared skill instead of per-module stubs. */
+const SHARED_SPEECH_SKILL_DOMAINS = ['tts-engines', 'stt-engines'] as const;
+
+describe('read-adapters-speech — speech-engines skill and D-22 (D-12)', () => {
+  it('ships one shared skill that parses and covers both engine domains', () => {
+    const skillPath = path.join(__dirname, '../../skills/speech-engines/SKILL.md');
+    const raw = fs.readFileSync(skillPath, 'utf8');
+    expect(raw).toMatch(/^---\r?\nname: speech-engines\r?\ndescription: .+\r?\n---/);
+    expect(raw).toMatch(/tts-engines/);
+    expect(raw).toMatch(/stt-engines/);
+    expect(raw).toMatch(/shared-skill|общий файл|один скил/i);
+    expect(raw).toMatch(/configured/);
+    expect(raw).toMatch(/enabled/);
+    expect(raw).toMatch(/робот|robot/i);
+    expect(raw).toMatch(/не настра|не вызывает|cannot configure|синтез|транскрип/i);
+    for (const domain of SHARED_SPEECH_SKILL_DOMAINS) {
+      expect(raw).toContain(domain);
+    }
+  });
+});
+
+describe('read-adapters-speech — per-tool and registry-enumerated isolation (D-22)', () => {
+  let robots: VoiceRobotsAiAdapter;
+  let tts: TtsEnginesAiAdapter;
+  let stt: SttEnginesAiAdapter;
+  let voiceRobots: {
+    findAll: jest.Mock;
+    findOne: jest.Mock;
+    getKeywordGroups: jest.Mock;
+  };
+  let ttsEngines: { findAll: jest.Mock; findOne: jest.Mock };
+  let sttEngines: { findAll: jest.Mock; findOne: jest.Mock };
+
+  beforeEach(() => {
+    voiceRobots = {
+      findAll: jest.fn(async (uid: number) => {
+        if (uid === TENANT_A) return [{ ...ROBOT_A }];
+        if (uid === TENANT_B) return [{ ...ROBOT_B }];
+        return [];
+      }),
+      findOne: jest.fn(async (uid: number, robotUid: number) => {
+        const row = uid === TENANT_A ? ROBOT_A : uid === TENANT_B ? ROBOT_B : null;
+        if (!row || row.uid !== robotUid) throw new NotFoundException(`Robot ${robotUid} not found`);
+        return { ...row };
+      }),
+      getKeywordGroups: jest.fn(async () => []),
+    };
+    ttsEngines = {
+      findAll: jest.fn(async (uid: number) => (uid === TENANT_A ? [{ ...TTS_A }] : uid === TENANT_B ? [{ ...TTS_B }] : [])),
+      findOne: jest.fn(async (engineUid: number, uid: number) => {
+        const row = uid === TENANT_A ? TTS_A : uid === TENANT_B ? TTS_B : null;
+        if (!row || row.uid !== engineUid) throw new NotFoundException('TTS Engine not found');
+        return { ...row };
+      }),
+    };
+    sttEngines = {
+      findAll: jest.fn(async (uid: number) => (uid === TENANT_A ? [{ ...STT_A }] : uid === TENANT_B ? [{ ...STT_B }] : [])),
+      findOne: jest.fn(async (engineUid: number, uid: number) => {
+        const row = uid === TENANT_A ? STT_A : uid === TENANT_B ? STT_B : null;
+        if (!row || row.uid !== engineUid) throw new NotFoundException('STT Engine not found');
+        return { ...row };
+      }),
+    };
+    const registry = { register: jest.fn() };
+    const routeReferences = {
+      findReferences: jest.fn(async (_kind: string, _robotUid: number, uid: number) =>
+        uid === TENANT_A ? [{ ...ENTRY_A }] : [],
+      ),
+    };
+    robots = new VoiceRobotsAiAdapter(
+      voiceRobots as any,
+      ttsEngines as any,
+      sttEngines as any,
+      registry as any,
+      routeReferences as any,
+    );
+    tts = new TtsEnginesAiAdapter(ttsEngines as any, registry as any);
+    stt = new SttEnginesAiAdapter(sttEngines as any, registry as any);
+  });
+
+  it('describe_voice_robot returns none of another tenant robot or engines', async () => {
+    const result = await getTool(robots, 'describe_voice_robot').handler({ uid: 1 }, TENANT_A);
+    const blob = JSON.stringify(result);
+    expect(blob).toContain('sales-bot');
+    expect(blob).not.toContain('other-tenant-bot');
+    expect(blob).not.toContain('other-tts');
+    expect(blob).not.toContain('Tenant B greeting');
+    expect(voiceRobots.findOne).toHaveBeenCalledWith(TENANT_A, 1);
+    expect(voiceRobots.findOne).not.toHaveBeenCalledWith(TENANT_B, expect.anything());
+  });
+
+  it('proves per-tool cross-tenant isolation and forged-key ignore for every speech adapter tool', async () => {
+    const tools = [...robots.getTools(), ...tts.getTools(), ...stt.getTools()];
+    expect(tools.map((tool) => tool.name).sort()).toEqual(
+      ['describe_voice_robot', 'list_stt_engines', 'list_tts_engines', 'list_voice_robots'].sort(),
+    );
+
+    const foreignA = ['other-tenant-bot', 'other-tts', 'other-stt', 'Tenant B greeting', 'google-secret', 'stt-secret-tenant-b'];
+    const foreignB = ['sales-bot', 'yandex-alena', 'yandex-stt', 'Здравствуйте', 'ya-secret', 'stt-secret-tenant-a'];
+
+    for (const tool of tools) {
+      const argsA = tool.name === 'describe_voice_robot' ? { uid: ROBOT_A.uid } : {};
+      const argsB = tool.name === 'describe_voice_robot' ? { uid: ROBOT_B.uid } : {};
+      const forged = { ...argsA } as Record<string, unknown>;
+      for (const key of TENANT_ARG_KEYS) {
+        forged[key] = TENANT_B;
+      }
+
+      const resultA = await tool.handler(argsA, TENANT_A);
+      const forgedResult = await tool.handler(forged, TENANT_A);
+      const resultB = await tool.handler(argsB, TENANT_B);
+
+      const blobA = JSON.stringify(resultA);
+      const blobB = JSON.stringify(resultB);
+      try {
+        expect(JSON.stringify(forgedResult)).toEqual(blobA);
+        for (const token of foreignA) {
+          expect(blobA).not.toContain(token);
+        }
+        for (const token of foreignB) {
+          expect(blobB).not.toContain(token);
+        }
+        expect(blobA).not.toEqual(blobB);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        throw new Error(`${tool.name}: ${message}`);
+      }
+    }
   });
 });
