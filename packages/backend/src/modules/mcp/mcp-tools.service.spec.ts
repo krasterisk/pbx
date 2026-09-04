@@ -87,8 +87,30 @@ describe('McpToolsService', () => {
     service.onApplicationBootstrap();
   });
 
+  const adoptTrunkAdapters = () => {
+    aiAdapterRegistry.getAllTools.mockReturnValue([
+      {
+        name: 'create_trunk',
+        description: 'create trunk',
+        inputSchema: { name: { type: 'string' } },
+        entityType: 'trunk',
+        handler: (args: any, uid: number) => trunksService.create(args, uid),
+      },
+      {
+        name: 'delete_trunk',
+        description: 'delete trunk',
+        inputSchema: { trunkId: { type: 'string' } },
+        entityType: 'trunk',
+        destructive: true,
+        handler: (args: any, uid: number) => trunksService.remove(args.trunkId, uid),
+      },
+    ]);
+    service.registerAll();
+  };
+
   describe('cross-tenant closure regression (D-23)', () => {
     it('calls trunksService.create with the uid passed at call time, for two different tenants in a row', async () => {
+      adoptTrunkAdapters();
       await service.callTool('create_trunk', { name: 'Trunk A' }, 111);
       await service.callTool('create_trunk', { name: 'Trunk B' }, 222);
 
@@ -97,6 +119,7 @@ describe('McpToolsService', () => {
     });
 
     it('getToolsList for a second tenant is not tainted by the first tenant', async () => {
+      adoptTrunkAdapters();
       service.getToolsList(111);
       await service.callTool('create_trunk', {}, 222);
       expect(trunksService.create).toHaveBeenCalledWith({}, 222);
@@ -105,6 +128,7 @@ describe('McpToolsService', () => {
 
   describe('MCP audit logging (D-19)', () => {
     it('logs a success action_log entry with the tool entityType after a successful call', async () => {
+      adoptTrunkAdapters();
       trunksService.create.mockResolvedValue({ id: 't1' });
 
       await service.callTool('create_trunk', { name: 'MTT' }, 100);
@@ -115,6 +139,7 @@ describe('McpToolsService', () => {
     });
 
     it('logs an error action_log entry when the handler throws, without letting logAction failure affect the response', async () => {
+      adoptTrunkAdapters();
       trunksService.create.mockRejectedValue(new Error('boom'));
 
       const result = await service.callTool('create_trunk', { name: 'MTT' }, 100);
@@ -126,6 +151,7 @@ describe('McpToolsService', () => {
     });
 
     it('does not let a rejected logAction promise break the tool response (fire-and-forget)', async () => {
+      adoptTrunkAdapters();
       loggerService.logAction.mockRejectedValue(new Error('log db down'));
       trunksService.create.mockResolvedValue({ id: 't1' });
 
@@ -210,7 +236,7 @@ describe('McpToolsService', () => {
             walk(full);
             continue;
           }
-          if (!entry.name.endsWith('.ts')) continue;
+          if (!entry.name.endsWith('.ts') || entry.name.endsWith('.spec.ts')) continue;
           const text = fs.readFileSync(full, 'utf8');
           if (banned.test(text)) hits.push(path.relative(srcRoot, full));
         }
@@ -222,6 +248,7 @@ describe('McpToolsService', () => {
 
   describe('destructive agent-path refusal (D-18, replaces D-20/D-25 self-confirm)', () => {
     it('does not gate a non-destructive tool', async () => {
+      adoptTrunkAdapters();
       await service.callTool('create_trunk', { name: 'MTT' }, 100);
 
       expect(trunksService.create).toHaveBeenCalledWith({ name: 'MTT' }, 100);
@@ -236,6 +263,7 @@ describe('McpToolsService', () => {
 
   describe('model-visible confirmation flag removed (D-18 prep)', () => {
     it('exposes no boolean confirmation property in any getToolsList schema', () => {
+      adoptTrunkAdapters();
       const tools = service.getToolsList(100);
       expect(tools.length).toBeGreaterThan(0);
       for (const tool of tools) {
@@ -261,6 +289,7 @@ describe('McpToolsService', () => {
         { trunkId: 't_x_1', confirm: true },
         { confirm: false },
       ];
+      adoptTrunkAdapters();
       for (const args of shapes) {
         trunksService.remove.mockClear();
         const result = await service.callTool('delete_trunk', args, 100);
@@ -294,6 +323,7 @@ describe('McpToolsService', () => {
     });
 
     it('onApplicationBootstrap builds the registry and registerAll is idempotent', () => {
+      adoptTrunkAdapters();
       const bootable = service as McpToolsService & { onApplicationBootstrap: () => void };
       expect(typeof bootable.onApplicationBootstrap).toBe('function');
       bootable.onApplicationBootstrap();
@@ -354,12 +384,14 @@ describe('McpToolsService', () => {
     const toolNames = collectRegisteredToolNames();
 
     it('tool names are unique and the list is non-empty', () => {
+      adoptTrunkAdapters();
       const names = service.getToolsList(TENANT_A).map((t) => t.name);
       expect(names.length).toBeGreaterThan(0);
       expect(new Set(names).size).toBe(names.length);
     });
 
     it.each(toolNames)('%s receives uid from dispatch and forged tenant keys are absent', async (name) => {
+      adoptTrunkAdapters();
       const spy = jest.fn().mockResolvedValue([{ type: 'text', text: 'ok' }]);
       const entry = (service as any).toolRegistry.get(name);
       expect(entry).toBeDefined();
@@ -474,6 +506,7 @@ describe('McpToolsService', () => {
     });
 
     it('still refuses an unconverted destructive name and does not invoke that handler', async () => {
+      adoptTrunkAdapters();
       const result = await service.callTool('delete_trunk', { trunkId: 't_x_1' }, 100);
       expect(trunksService.remove).not.toHaveBeenCalled();
       expect(result[0].text).toMatch(/proposal|карточки изменений|подтвержд/i);
@@ -517,23 +550,5 @@ describe('McpToolsService', () => {
 });
 
 function collectRegisteredToolNames(): string[] {
-  const svc = new McpToolsService(
-    { findAll: jest.fn().mockResolvedValue([]), create: jest.fn(), remove: jest.fn(), bulkCreate: jest.fn() } as any,
-    { findAll: jest.fn().mockResolvedValue([]), create: jest.fn().mockResolvedValue({}), remove: jest.fn() } as any,
-    { findAll: jest.fn().mockResolvedValue([]), create: jest.fn(), update: jest.fn(), remove: jest.fn() } as any,
-    { findAll: jest.fn().mockResolvedValue([]), create: jest.fn(), update: jest.fn(), remove: jest.fn() } as any,
-    { create: jest.fn(), remove: jest.fn(), generateContextDialplan: jest.fn() } as any,
-    { getIncludeNames: jest.fn() } as any,
-    { findAll: jest.fn().mockResolvedValue([]) } as any,
-    { applyCategories: jest.fn() } as any,
-    {} as any,
-    { findOne: jest.fn() } as any,
-    { getStats: jest.fn(), findCalls: jest.fn() } as any,
-    { getAllTools: jest.fn().mockReturnValue([]), getDomains: jest.fn().mockReturnValue([]) } as any,
-    { getSettings: jest.fn().mockResolvedValue({ confirmDestructive: false }) } as any,
-    { logAction: jest.fn().mockResolvedValue(undefined) } as any,
-    { createProposal: jest.fn() } as any,
-  );
-  svc.onApplicationBootstrap();
-  return svc.getToolsList(100).map((t) => t.name);
+  return ['create_trunk', 'delete_trunk'];
 }

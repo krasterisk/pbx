@@ -38,7 +38,7 @@ function isCreateConfigFileExistsError(message: string): boolean {
  * krasterisk/{groups,routes,phonebooks,subroutines,ivrs} under AST_CONFIG_DIR.
  *
  * Консолидирует батч-логику, ранее продублированную в routes.controller,
- * ai-webhook.controller, mcp-tools.service и dialplan-subroutines.service (D-22).
+ * mcp-tools.service и dialplan-subroutines.service (D-22).
  *
  * Интерфейс — шов на будущий FS-writer (альтернативная реализация за env-флагом),
  * без изменения вызывающих.

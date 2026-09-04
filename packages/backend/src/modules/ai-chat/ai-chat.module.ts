@@ -4,8 +4,6 @@ import { ConfigModule } from '@nestjs/config';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { AiChatController } from './ai-chat.controller';
 import { PbxContextBuilderService } from './pbx-context-builder.service';
-import { KnowledgeBaseService } from './knowledge-base.service';
-import { AiWebhookController } from './ai-webhook.controller';
 import { AiChatSettings } from './ai-chat-settings.model';
 import { AiChatSettingsService } from './ai-chat-settings.service';
 import { AgentThread } from './models/agent-thread.model';
@@ -45,11 +43,10 @@ import { McpModule } from '../mcp/mcp.module';
         AiAgentsModule,
         forwardRef(() => McpModule),
     ],
-    controllers: [AiChatController, AiWebhookController],
+    controllers: [AiChatController],
     providers: [
         PbxAgentLoopService,
         PbxContextBuilderService,
-        KnowledgeBaseService,
         AiChatSettingsService,
         PbxAgentThreadService,
         PbxAgentLlmClient,
@@ -57,7 +54,7 @@ import { McpModule } from '../mcp/mcp.module';
         JwtOrServiceTokenGuard,
         ServiceTokenGuard,
     ],
-    exports: [PbxContextBuilderService, KnowledgeBaseService, AiChatSettingsService, PbxAgentThreadService, PbxAgentLlmClient, PbxAgentLoopService],
+    exports: [PbxContextBuilderService, AiChatSettingsService, PbxAgentThreadService, PbxAgentLlmClient, PbxAgentLoopService],
 })
 export class AiChatModule {}
 
