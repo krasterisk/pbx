@@ -40,6 +40,38 @@ const OTHER_TENANT_TOKENS: Record<number, string[]> = {
   [TENANT_B]: ['ctx-a', 'dir-a', 'Tenant A inbound', 'cdr-a-summary', 'cdr-a-call'],
 };
 
+/** Eighteen handwritten MCP tools. Cutover in 15-15 flips handwritten rows to a failure. */
+const LEGACY_TOOL_INVENTORY: ReadonlyArray<{
+  name: string;
+  domain: string;
+  fate: 'migrate' | 'retired';
+  reason?: string;
+}> = [
+  { name: 'get_pbx_state', domain: 'pbx', fate: 'migrate' },
+  { name: 'create_endpoints_bulk', domain: 'endpoints', fate: 'migrate' },
+  { name: 'create_endpoint', domain: 'endpoints', fate: 'migrate' },
+  { name: 'delete_endpoint', domain: 'endpoints', fate: 'migrate' },
+  { name: 'create_trunk', domain: 'trunks', fate: 'migrate' },
+  { name: 'delete_trunk', domain: 'trunks', fate: 'migrate' },
+  { name: 'create_ivr', domain: 'ivrs', fate: 'migrate' },
+  { name: 'update_ivr', domain: 'ivrs', fate: 'migrate' },
+  { name: 'delete_ivr', domain: 'ivrs', fate: 'migrate' },
+  { name: 'create_queue', domain: 'queues', fate: 'migrate' },
+  { name: 'update_queue', domain: 'queues', fate: 'migrate' },
+  { name: 'delete_queue', domain: 'queues', fate: 'migrate' },
+  { name: 'create_route', domain: 'routes', fate: 'migrate' },
+  { name: 'delete_route', domain: 'routes', fate: 'migrate' },
+  {
+    name: 'apply_dialplan',
+    domain: 'routes',
+    fate: 'retired',
+    reason: 'Applying becomes part of confirming a change in 15-11; not replaced as a standalone tool',
+  },
+  { name: 'list_contexts', domain: 'contexts', fate: 'migrate' },
+  { name: 'get_cdr_summary', domain: 'reports', fate: 'migrate' },
+  { name: 'find_cdr_calls', domain: 'reports', fate: 'migrate' },
+];
+
 describe('legacy-tool-migration (D-22, D-27)', () => {
   let registry: AiAdapterRegistryService;
   let contextsService: { findAll: jest.Mock };
@@ -287,6 +319,42 @@ describe('legacy-tool-migration (D-22, D-27)', () => {
     });
   });
 });
+
+function reportLegacyMigrationState(
+  registry: AiAdapterRegistryService,
+  mcp: McpToolsService,
+): Array<{ name: string; domain: string; state: 'adapter-served' | 'handwritten' | 'retired' }> {
+  const mcpNames = mcp.getToolsList(TENANT_A).map((tool) => tool.name);
+  if (new Set(mcpNames).size !== mcpNames.length) {
+    throw new Error(`Duplicate tool names in MCP registry: ${mcpNames.join(', ')}`);
+  }
+
+  const adapterNames = new Set(registry.getAllTools().map((tool) => tool.name));
+  const mcpSet = new Set(mcpNames);
+  const domains = registry.getDomains();
+
+  return LEGACY_TOOL_INVENTORY.map((entry) => {
+    const inAdapter = adapterNames.has(entry.name);
+    const inMcp = mcpSet.has(entry.name);
+
+    if (inAdapter && inMcp) {
+      return { name: entry.name, domain: entry.domain, state: 'adapter-served' as const };
+    }
+    if (inAdapter && !inMcp) {
+      throw new Error(`"${entry.name}" is adapter-owned but missing from the MCP registry`);
+    }
+    if (!inAdapter && inMcp) {
+      if (entry.fate === 'retired' && domains.includes(entry.domain)) {
+        throw new Error(`Retired "${entry.name}" is still registered after domain "${entry.domain}" migrated`);
+      }
+      return { name: entry.name, domain: entry.domain, state: 'handwritten' as const };
+    }
+    if (entry.fate === 'retired') {
+      return { name: entry.name, domain: entry.domain, state: 'retired' as const };
+    }
+    throw new Error(`"${entry.name}" is in neither the adapter registry nor the MCP registry`);
+  });
+}
 
 function parseToolJson(result: Array<{ type: string; text: string }>): Record<string, any> {
   expect(result[0]?.text).toEqual(expect.any(String));
