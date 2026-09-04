@@ -7,8 +7,11 @@ import { PsRegistration } from './ps-registration.model';
 import { PsEndpointIdIp } from './ps-endpoint-id-ip.model';
 import { TrunksService } from './trunks.service';
 import { TrunksController } from './trunks.controller';
+import { TrunksAiAdapter } from './trunks-ai.adapter';
 import { AmiModule } from '../ami/ami.module';
 import { LoggerModule } from '../logger/logger.module';
+import { RoutesModule } from '../routes/routes.module';
+import { AiPlatformModule } from '../ai-platform/ai-platform.module';
 
 @Module({
   imports: [
@@ -18,8 +21,10 @@ import { LoggerModule } from '../logger/logger.module';
     ]),
     AmiModule,
     LoggerModule,
+    RoutesModule,
+    AiPlatformModule,
   ],
-  providers: [TrunksService],
+  providers: [TrunksService, TrunksAiAdapter],
   controllers: [TrunksController],
   exports: [TrunksService],
 })

@@ -7,6 +7,9 @@ import { RouteApplyService } from '../routes/route-apply.service';
 import { RoutesService } from '../routes/routes.service';
 import { DirectoriesService } from '../directories/directories.service';
 import type { DirectoryRecordDto } from '../directories/dto/directory.dto';
+import { EndpointsService } from '../endpoints/endpoints.service';
+import { TrunksService } from '../trunks/trunks.service';
+import { confirmTrunkDelete } from '../trunks/trunks-ai.adapter';
 import { LoggerService } from '../logger/logger.service';
 import { CcAiAuditLog } from '../ai-agents/models/ai-audit-log.model';
 import { AgentProposal } from './models/agent-proposal.model';
@@ -42,6 +45,8 @@ export class PbxAgentDiffService {
     private readonly routeApplyService: RouteApplyService,
     private readonly directoriesService: DirectoriesService,
     private readonly routesService: RoutesService,
+    private readonly endpointsService: EndpointsService,
+    private readonly trunksService: TrunksService,
     private readonly loggerService: LoggerService,
     @InjectModel(CcAiAuditLog) private readonly auditModel: typeof CcAiAuditLog,
   ) {}
@@ -274,6 +279,31 @@ export class PbxAgentDiffService {
       case 'delete_route':
         await this.routesService.remove(Number(args.id), uid);
         return;
+      case 'create_endpoint':
+        await this.endpointsService.createWithGeneratedCredentials(args as any, uid);
+        return;
+      case 'create_endpoints_bulk':
+        await this.endpointsService.bulkCreate(args as any, uid);
+        return;
+      case 'delete_endpoint':
+        await this.endpointsService.remove(String(args.sipId), uid);
+        return;
+      case 'create_trunk':
+        await this.trunksService.create(args as any, uid);
+        return;
+      case 'delete_trunk': {
+        const result = await confirmTrunkDelete(
+          this.trunksService,
+          this.routesService,
+          String(args.trunkId),
+          uid,
+        );
+        if (!result.ok) {
+          const names = (result.references ?? []).map((row) => row.name).join(', ');
+          throw new Error(`Trunk is referenced by routes: ${names}`);
+        }
+        return;
+      }
       default:
         throw new Error(`Unsupported apply tool: ${payload.tool}`);
     }

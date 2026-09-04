@@ -134,6 +134,8 @@ describe('PbxAgentDiffService', () => {
       routeApplyService as any,
       directoriesService as any,
       routesService as any,
+      { createWithGeneratedCredentials: jest.fn(), bulkCreate: jest.fn(), remove: jest.fn() } as any,
+      { create: jest.fn(), remove: jest.fn() } as any,
       loggerService as any,
       auditModel as any,
     );

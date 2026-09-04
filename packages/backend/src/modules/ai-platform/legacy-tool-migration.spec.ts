@@ -6,6 +6,8 @@ import { AiAdapterRegistryService } from './ai-adapter-registry.service';
 import { ContextsAiAdapter } from '../contexts/contexts-ai.adapter';
 import { DirectoriesAiAdapter } from '../directories/directories-ai.adapter';
 import { ReportsAiAdapter } from '../reports/reports-ai.adapter';
+import { EndpointsAiAdapter } from '../endpoints/endpoints-ai.adapter';
+import { TrunksAiAdapter } from '../trunks/trunks-ai.adapter';
 import { McpToolsService } from '../mcp/mcp-tools.service';
 
 const TENANT_A = 100;
@@ -36,8 +38,8 @@ const STATS_A = { totalCalls: 3, asr: 50, avgBillsec: 12, avgPdd: 1, byDispositi
 const STATS_B = { totalCalls: 9, asr: 10, avgBillsec: 40, avgPdd: 8, byDisposition: { NOANSWER: 7 }, mark: 'cdr-b-summary' };
 
 const OTHER_TENANT_TOKENS: Record<number, string[]> = {
-  [TENANT_A]: ['ctx-b', 'dir-b', 'Tenant B inbound', 'cdr-b-summary', 'cdr-b-call'],
-  [TENANT_B]: ['ctx-a', 'dir-a', 'Tenant A inbound', 'cdr-a-summary', 'cdr-a-call'],
+  [TENANT_A]: ['ctx-b', 'dir-b', 'Tenant B inbound', 'cdr-b-summary', 'cdr-b-call', 'sip.other.test', 't_other_200', 'e500_200'],
+  [TENANT_B]: ['ctx-a', 'dir-a', 'Tenant A inbound', 'cdr-a-summary', 'cdr-a-call', 'sip.mtt.ru', 't_mtt_100', 'e201_100'],
 };
 
 /** Eighteen handwritten MCP tools. Cutover in 15-15 flips handwritten rows to a failure. */
@@ -83,6 +85,16 @@ describe('legacy-tool-migration (D-22, D-27)', () => {
     remove: jest.Mock;
   };
   let cdrService: { getStats: jest.Mock; findCalls: jest.Mock };
+  let endpointsService: {
+    findAll: jest.Mock;
+    findOne: jest.Mock;
+    create: jest.Mock;
+    createWithGeneratedCredentials: jest.Mock;
+    bulkCreate: jest.Mock;
+    remove: jest.Mock;
+  };
+  let trunksService: { findAll: jest.Mock; findOne: jest.Mock; create: jest.Mock; remove: jest.Mock };
+  let routesService: { findAll: jest.Mock };
   let mcp: McpToolsService;
   let warnSpy: jest.SpyInstance;
 
@@ -122,9 +134,63 @@ describe('legacy-tool-migration (D-22, D-27)', () => {
       }),
     };
 
+    endpointsService = {
+      findAll: jest.fn(async (uid: number) => {
+        if (uid === TENANT_A) {
+          return [{ extension: '201', context: 'from-internal', sipUsername: 'e201_100', callerid: '"Alice" <201>' }];
+        }
+        if (uid === TENANT_B) {
+          return [{ extension: '500', context: 'sip-out', sipUsername: 'e500_200', callerid: '"Other" <500>' }];
+        }
+        return [];
+      }),
+      findOne: jest.fn(async (sipId: string, uid: number) => {
+        const rows = uid === TENANT_A
+          ? [{ extension: '201', sipUsername: 'e201_100', endpoint: { callerid: '"Alice" <201>' } }]
+          : uid === TENANT_B
+            ? [{ extension: '500', sipUsername: 'e500_200', endpoint: { callerid: '"Other" <500>' } }]
+            : [];
+        const found = rows.find((row) => row.sipUsername === sipId);
+        if (!found) throw new Error('Endpoint not found');
+        return found;
+      }),
+      create: jest.fn(),
+      createWithGeneratedCredentials: jest.fn(),
+      bulkCreate: jest.fn(),
+      remove: jest.fn(),
+    };
+    trunksService = {
+      findAll: jest.fn(async (uid: number) => {
+        if (uid === TENANT_A) return [{ id: 't_mtt_100', name: 'MTT', host: 'sip.mtt.ru', trunkType: 'auth' }];
+        if (uid === TENANT_B) return [{ id: 't_other_200', name: 'Other', host: 'sip.other.test', trunkType: 'ip' }];
+        return [];
+      }),
+      findOne: jest.fn(async (trunkId: string, uid: number) => {
+        const rows = await trunksService.findAll(uid);
+        const found = rows.find((row) => row.id === trunkId);
+        if (!found) throw new Error('Trunk not found');
+        return found;
+      }),
+      create: jest.fn(),
+      remove: jest.fn(),
+    };
+    routesService = {
+      findAll: jest.fn(async (uid: number) => {
+        if (uid === TENANT_A) {
+          return [{ uid: 11, name: 'Inbound A', actions: [{ type: 'totrunk', params: { trunk: 'PJSIP/t_mtt_100' } }] }];
+        }
+        if (uid === TENANT_B) {
+          return [{ uid: 22, name: 'Inbound B', actions: [{ type: 'totrunk', params: { trunk: 'PJSIP/t_other_200' } }] }];
+        }
+        return [];
+      }),
+    };
+
     new ContextsAiAdapter(contextsService as any, registry).onModuleInit();
     new DirectoriesAiAdapter(directoriesService as any, registry).onModuleInit();
     new ReportsAiAdapter(cdrService as any, registry).onModuleInit();
+    new EndpointsAiAdapter(endpointsService as any, registry).onModuleInit();
+    new TrunksAiAdapter(trunksService as any, routesService as any, registry).onModuleInit();
 
     mcp = createMcp(registry, contextsService, directoriesService, cdrService);
     warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
@@ -152,8 +218,8 @@ describe('legacy-tool-migration (D-22, D-27)', () => {
 
     it('still registers a handwritten name that no adapter claims', () => {
       const names = mcp.getToolsList(TENANT_A).map((tool) => tool.name);
-      expect(names).toContain('create_trunk');
-      expect(registry.getToolByName('create_trunk')).toBeUndefined();
+      expect(names).toContain('create_ivr');
+      expect(registry.getToolByName('create_ivr')).toBeUndefined();
     });
 
     it('contains no duplicate tool names', () => {
@@ -192,7 +258,18 @@ describe('legacy-tool-migration (D-22, D-27)', () => {
     it('proves adapter ownership, cross-tenant isolation and forged-key ignore for each registered adapter tool', async () => {
       const adapterTools = registry.getAllTools();
       expect(adapterTools.map((tool) => tool.name)).toEqual(
-        expect.arrayContaining(['list_contexts', 'list_directories', 'get_cdr_summary', 'find_cdr_calls']),
+        expect.arrayContaining([
+          'list_contexts',
+          'list_directories',
+          'get_cdr_summary',
+          'find_cdr_calls',
+          'create_endpoint',
+          'create_endpoints_bulk',
+          'delete_endpoint',
+          'create_trunk',
+          'delete_trunk',
+          'list_trunks',
+        ]),
       );
       expect(new Set(adapterTools.map((tool) => tool.name)).size).toBe(adapterTools.length);
 
@@ -221,6 +298,12 @@ describe('legacy-tool-migration (D-22, D-27)', () => {
           expect(directoriesService.create).not.toHaveBeenCalled();
           expect(directoriesService.update).not.toHaveBeenCalled();
           expect(directoriesService.remove).not.toHaveBeenCalled();
+          expect(endpointsService.create).not.toHaveBeenCalled();
+          expect(endpointsService.createWithGeneratedCredentials).not.toHaveBeenCalled();
+          expect(endpointsService.bulkCreate).not.toHaveBeenCalled();
+          expect(endpointsService.remove).not.toHaveBeenCalled();
+          expect(trunksService.create).not.toHaveBeenCalled();
+          expect(trunksService.remove).not.toHaveBeenCalled();
         }
       }
     });
@@ -307,7 +390,12 @@ describe('legacy-tool-migration (D-22, D-27)', () => {
       expect(byName.list_contexts).toBe('adapter-served');
       expect(byName.get_cdr_summary).toBe('adapter-served');
       expect(byName.find_cdr_calls).toBe('adapter-served');
-      expect(byName.create_trunk).toBe('handwritten');
+      expect(byName.create_endpoint).toBe('adapter-served');
+      expect(byName.create_endpoints_bulk).toBe('adapter-served');
+      expect(byName.delete_endpoint).toBe('adapter-served');
+      expect(byName.create_trunk).toBe('adapter-served');
+      expect(byName.delete_trunk).toBe('adapter-served');
+      expect(byName.create_ivr).toBe('handwritten');
       expect(['handwritten', 'retired']).toContain(byName.apply_dialplan);
 
       const mcpNames = mcp.getToolsList(TENANT_A).map((tool) => tool.name);
@@ -389,10 +477,20 @@ async function minimalArgs(
       args[key] = uid === TENANT_A ? 'dir-a-new' : 'dir-b-new';
     } else if (key === 'lookupFieldKey' || key === 'key_normalization') {
       args[key] = 'digits';
+    } else if (key === 'sipId') {
+      args[key] = uid === TENANT_A ? 'e201_100' : 'e500_200';
+    } else if (key === 'trunkId') {
+      args[key] = uid === TENANT_A ? 't_mtt_100' : 't_other_200';
+    } else if (key === 'host') {
+      args[key] = uid === TENANT_A ? 'sip.a-new.test' : 'sip.b-new.test';
+    } else if (key === 'extension') {
+      args[key] = uid === TENANT_A ? '210' : '610';
+    } else if (key === 'extensionsPattern') {
+      args[key] = uid === TENANT_A ? '210-211' : '610-611';
     } else if (type === 'array') {
       args[key] = [];
     } else if (type === 'number') {
-      args[key] = listedUid ?? 1;
+      args[key] = key === 'count' ? 2 : listedUid ?? 1;
     } else if (type === 'string') {
       args[key] = 'x';
     }
