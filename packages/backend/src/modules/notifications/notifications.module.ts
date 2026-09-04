@@ -3,7 +3,9 @@ import { HttpModule } from '@nestjs/axios';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { MailerModule } from '../mailer/mailer.module';
 import { RouteReferencesModule } from '../route-references/route-references.module';
+import { AiPlatformModule } from '../ai-platform/ai-platform.module';
 import { NotificationIntegration } from './notification-integration.model';
+import { NotificationsAiAdapter } from './notifications-ai.adapter';
 import { NotificationsController } from './notifications.controller';
 import { NotificationsService } from './notifications.service';
 import { DialplanNotifyController } from './dialplan-notify.controller';
@@ -21,10 +23,12 @@ import { VkProvider } from './providers/vk.provider';
     HttpModule.register({ timeout: 10_000 }),
     MailerModule,
     RouteReferencesModule,
+    AiPlatformModule,
   ],
   controllers: [NotificationsController, DialplanNotifyController],
   providers: [
     NotificationsService,
+    NotificationsAiAdapter,
     NotificationDispatcherService,
     TelegramProvider,
     EmailProvider,
