@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 status: executing
-stopped_at: Completed 15-12-PLAN.md
-last_updated: "2026-09-04T11:35:00.000Z"
-state_head: 6d3c7fc13a2bc1b53b8e605bf949a5d57d107378
+stopped_at: Completed 15-07-PLAN.md
+last_updated: "2026-09-04T11:49:13.172Z"
+state_head: 771b1e85fe53ac4d730e6a23944e91b08742b0d4
 progress:
   total_phases: 15
   completed_phases: 4
   total_plans: 166
-  completed_plans: 147
+  completed_plans: 150
 milestone_name: milestone
 current_phase: 15
 current_phase_name: universal-pbx-ai-agent
@@ -21,7 +21,7 @@ current_phase_name: universal-pbx-ai-agent
 
 Phase 14 (visual-route-builder-and-automation) — COMPLETE (2026-09-04). 11/11 plans (incl. gap 14-11); verify 27/27; G-14-2 resolved.
 
-Phase 15 (universal-pbx-ai-agent) — EXECUTING (2026-09-04). Sequential next: 15-07 of 24. 15-01 complete (sanitized dispatch, AgentDiffProposal, bootstrap registry, D-22 table, getDomains). 15-02 complete (skill catalog, read_skill, nest-cli assets, four seed skills). 15-03 complete (persistent threads / messages / proposals, D-08 counters, audit thread_uid). 15-04 complete (PbxAgentLlmClient, findDefaultLlm, catalog-only prompt, get_pbx_state snapshot). 15-05 complete (propose-then-apply, directory drafts, live-ops exception, READONLY deny, precedence check). 15-06 complete (topbar trigger, Ctrl+Shift+J, 520px grid panel, no FAB). 15-12 complete (thread rail, restore from detail query, four rail states, keep-first delete). Next sequential: 15-07. After all 24: обязательный `/gsd-secure-phase 15`.
+Phase 15 (universal-pbx-ai-agent) — EXECUTING (2026-09-04). Sequential next: 15-08 of 24. 15-01 complete (sanitized dispatch, AgentDiffProposal, bootstrap registry, D-22 table, getDomains). 15-02 complete (skill catalog, read_skill, nest-cli assets, four seed skills). 15-03 complete (persistent threads / messages / proposals, D-08 counters, audit thread_uid). 15-04 complete (PbxAgentLlmClient, findDefaultLlm, catalog-only prompt, get_pbx_state snapshot). 15-05 complete (propose-then-apply, directory drafts, live-ops exception, READONLY deny, precedence check). 15-06 complete (topbar trigger, Ctrl+Shift+J, 520px grid panel, no FAB). 15-07 complete (adapter precedence, contexts + CDR adapters, eighteen-name inventory). 15-12 complete (thread rail, restore from detail query, four rail states, keep-first delete). Next sequential: 15-08. After all 24: обязательный `/gsd-secure-phase 15`.
 
 Phase 13 (custom-voicemail-instead-of-voicemail) — COMPLETE (2026-09-03). 13/13 plans, verify passed 19/19, security SECURED. Live greeting→Record→notify deferred.
 12-17 closed 2026-08-31: M1/M6/M7/M8/M9 approved; M4/M5/M12 deferred (live voice later). Call-group ALTERs already on prod.
@@ -343,6 +343,10 @@ Phase 1 — MOH: pending verify.
 - [Phase 15]: Panel owns selectedThreadUid; ThreadList is controlled and reports
 - [Phase 15]: Thread types live in aiChatApi.ts; shared has no AgentThread contract
 - [Phase 15]: AiChatThreads tag on rtkApi; slice is in-flight only (no sessionStorage)
+- [Phase 15]: Skip list is derived from aiAdapterRegistry.getAllTools, never a hardcoded migrated-name list
+- [Phase 15]: find_cdr_calls keeps Math.min(limit || 20, 50) from the handwritten tool
+- [Phase 15]: apply_dialplan is inventoried as retired for 15-11, reported handwritten until routes migrate
+- [Phase 15]: ReportsAiAdapter is provided by ReportsCdrModule so bootstrap registers it without a new AppModule import
 
 ## Roadmap Evolution
 
@@ -378,7 +382,7 @@ Phase 1 — MOH: pending verify.
 
 ## Next GSD command
 
-**Phase 15 executing** (2026-09-04): 15-01, 15-02, 15-03, 15-04, 15-05, 15-06, 15-12 complete. Next: `/gsd-execute-phase 15` (continues at 15-07) → after all plans, обязательный `/gsd-secure-phase 15`.
+**Phase 15 executing** (2026-09-04): 15-01, 15-02, 15-03, 15-04, 15-05, 15-06, 15-07, 15-12 complete. Next: `/gsd-execute-phase 15` (continues at 15-08) → after all plans, обязательный `/gsd-secure-phase 15`.
 
 Also open: Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 verify; Phase 8 / 08-11 Android smoke.
 
@@ -512,10 +516,11 @@ Also open: Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 veri
 | Phase 15 P04 | 22min | 3 tasks | 9 files |
 | Phase 15 P05 | 39min | 3 tasks | 14 files |
 | Phase 15 P12 | 24min | 3 tasks | 11 files |
+| Phase 15-universal-pbx-ai-agent P07 | 22 | 3 tasks | 9 files |
 
 ## Session
 
-**Last session:** 2026-09-04T11:35:00.000Z
-**Stopped at:** Completed 15-12-PLAN.md
+**Last session:** 2026-09-04T11:49:12.000Z
+**Stopped at:** Completed 15-07-PLAN.md
 **Resume file:** None
 **Also ready:** .planning/phases/15-universal-pbx-ai-agent/15-CONTEXT.md

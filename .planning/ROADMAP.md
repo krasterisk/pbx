@@ -952,7 +952,7 @@ Plans:
 
 ## Phase 15: Универсальный AI-агент по АТС
 
-**Status:** In Progress (2026-09-04) — 6/24 plans executed (15-01, 15-02, 15-03, 15-04, 15-05, 15-06); next 15-07 → after all plans, обязательный `/gsd-secure-phase 15`
+**Status:** In Progress (2026-09-04) — 8/24 plans executed (15-01…15-07, 15-12); next 15-08 → after all plans, обязательный `/gsd-secure-phase 15`
 
 **Goal:** Свой агентный цикл в Nest вместо внешнего проксирования: агент, который видит всю АТС, отвечает человеческим языком на любые связанные с ней вопросы и правит настройки во всех модулях через подтверждаемые диффы — с тенантной изоляцией, доказанной тестами.
 
@@ -975,7 +975,7 @@ Plans:
 
 **Depends on:** Phase 12 (типизированная цепочка — то, что агент правит), Phase 14 (dry-run как tool D-32 и шаблоны из описания D-34 — агент использует готовыми), Phase 5 (эталонный адаптер справочников как форма для остальных)
 
-**Plans:** 7/24 plans executed, волны 1…7 (`15-VALIDATION.md` — Nyquist-контракт фазы)
+**Plans:** 8/24 plans executed, волны 1…7 (`15-VALIDATION.md` — Nyquist-контракт фазы)
 
 Plans:
 
@@ -985,7 +985,7 @@ Plans:
 - [x] 15-04-PLAN.md
 - [x] 15-05-PLAN.md
 - [x] 15-06-PLAN.md
-- [ ] 15-07-PLAN.md
+- [x] 15-07-PLAN.md
 - [ ] 15-08-PLAN.md
 - [ ] 15-09-PLAN.md
 - [ ] 15-10-PLAN.md
@@ -1010,7 +1010,7 @@ Plans:
 - [x] `15-04-PLAN.md` — Wave 2: клиент модели, системный промпт, один компактный снимок состояния
 - [x] `15-05-PLAN.md` — Wave 2: proposals + callTool persist + directory mutations + Apply/Reject + прецедентность
 - [x] `15-06-PLAN.md` — Wave 1: триггер в топбаре, хоткей, панель 520px (первый писатель локалей)
-- [ ] `15-07-PLAN.md` — Wave 3: legacy read-only (contexts, CDR) + правило приоритета адаптеров + инвентарь 18
+- [x] `15-07-PLAN.md` — Wave 3: legacy read-only (contexts, CDR) + правило приоритета адаптеров + инвентарь 18
 - [ ] `15-08-PLAN.md` — Wave 4: агентный цикл, SSE, потолок шагов, отмена, удаление прокси
 - [ ] `15-09-PLAN.md` — Wave 4: миграция абонентов и транков (5 tools) на proposals
 - [ ] `15-10-PLAN.md` — Wave 4: миграция IVR и очередей (6 tools) на proposals
