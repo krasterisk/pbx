@@ -2,6 +2,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { TimeGroupsAiAdapter } from '../time-groups/time-groups-ai.adapter';
 import { NumbersAiAdapter } from '../numbers/numbers-ai.adapter';
+import { PORTAL_USER_FIELDS, UsersAiAdapter, toPortalUserView } from '../users/users-ai.adapter';
+import { UserLevel } from '../users/user.model';
 
 const TENANT_A = 100;
 const TENANT_B = 200;
@@ -309,5 +311,140 @@ describe('read-adapters-schedule-identity — numbers (D-12, D-15, D-22)', () =>
     expect(raw).toMatch(/маршрут|route/i);
     expect(raw).toMatch(/unrouted|не маршрут|не назнач/i);
     expect(raw).toMatch(/describe_number|назначени/i);
+  });
+});
+
+const USER_A = {
+  uniqueid: 1,
+  name: 'Alice Admin',
+  login: 'alice',
+  level: UserLevel.ADMIN,
+  role: 1,
+  last_activity: '2026-09-01T10:00:00.000Z',
+  passwd: 'should-never-leak',
+  activationCode: '654321',
+  refreshToken: 'refresh-a',
+};
+
+const USER_A2 = {
+  uniqueid: 2,
+  name: 'Omar Operator',
+  login: 'omar',
+  level: UserLevel.OPERATOR,
+  role: 0,
+  last_activity: '2026-09-02T08:00:00.000Z',
+  passwd: 'hash-a2',
+};
+
+const USER_B = {
+  uniqueid: 9,
+  name: 'Bob Other',
+  login: 'bob',
+  level: UserLevel.SUPERVISOR,
+  role: 3,
+  last_activity: '2026-08-01T00:00:00.000Z',
+  passwd: 'hash-b',
+  sessionId: 'sess-b',
+};
+
+describe('read-adapters-schedule-identity — portal users (D-15, D-22)', () => {
+  let usersService: { findAll: jest.Mock; findById: jest.Mock };
+  let registry: { register: jest.Mock };
+  let adapter: UsersAiAdapter;
+
+  beforeEach(() => {
+    usersService = {
+      findAll: jest.fn(async (uid: number) => {
+        if (uid === TENANT_A) return [{ ...USER_A }, { ...USER_A2 }];
+        if (uid === TENANT_B) return [{ ...USER_B }];
+        return [];
+      }),
+      findById: jest.fn(async (id: number, uid: number) => {
+        const rows = uid === TENANT_A ? [USER_A, USER_A2] : uid === TENANT_B ? [USER_B] : [];
+        return rows.find((row) => row.uniqueid === id) ?? null;
+      }),
+    };
+    registry = { register: jest.fn() };
+    adapter = new UsersAiAdapter(usersService as any, registry as any);
+  });
+
+  it('lists portal users with display name, role and last activity', async () => {
+    const result = (await getTool(adapter, 'list_portal_users').handler({}, TENANT_A)) as {
+      users: Array<{ name: string; role: string; last_activity: string }>;
+    };
+    expect(result.users).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: 'Alice Admin',
+          role: 'ADMIN',
+          last_activity: '2026-09-01T10:00:00.000Z',
+        }),
+        expect.objectContaining({
+          name: 'Omar Operator',
+          role: 'OPERATOR',
+        }),
+      ]),
+    );
+  });
+
+  it('never returns a password hash, token, secret or session identifier', async () => {
+    const listed = await getTool(adapter, 'list_portal_users').handler({}, TENANT_A);
+    const described = await getTool(adapter, 'describe_portal_user').handler({ uid: 1 }, TENANT_A);
+    const blob = JSON.stringify(listed) + JSON.stringify(described);
+    expect(blob).not.toMatch(/should-never-leak|hash-a2|refresh-a|654321|sess-b|passwd|refreshToken|sessionId|activationCode/i);
+  });
+
+  it('declares no mutating tool', () => {
+    expect(adapter.getTools().length).toBeGreaterThan(0);
+    for (const tool of adapter.getTools()) {
+      expect(isMutating(tool)).toBe(false);
+    }
+  });
+
+  it('returns none of another tenant users including no aggregate count of them', async () => {
+    const result = (await getTool(adapter, 'list_portal_users').handler({}, TENANT_A)) as {
+      users: Array<{ name: string }>;
+      count?: number;
+      total?: number;
+    };
+    expect(result.users.map((row) => row.name).sort()).toEqual(['Alice Admin', 'Omar Operator']);
+    expect(JSON.stringify(result)).not.toContain('Bob Other');
+    expect(result.count).toBeUndefined();
+    expect(result.total).toBeUndefined();
+    expect(result.users).toHaveLength(2);
+    expect(usersService.findAll).toHaveBeenCalledWith(TENANT_A);
+    expect(usersService.findAll).not.toHaveBeenCalledWith(TENANT_B);
+  });
+
+  it('asserts secret absence against the declared output shape, not only fixtures', () => {
+    expect([...PORTAL_USER_FIELDS].sort()).toEqual(['last_activity', 'name', 'role', 'uid']);
+    for (const field of PORTAL_USER_FIELDS) {
+      expect(field).not.toMatch(/password|passwd|token|secret|session|hash|activation|refresh/i);
+    }
+    const fat = {
+      uniqueid: 7,
+      name: 'Fat User',
+      level: UserLevel.READONLY,
+      last_activity: '2026-01-01T00:00:00.000Z',
+      passwd: 'hash',
+      password: 'plain',
+      refreshToken: 'tok',
+      sessionId: 'sid',
+      activationCode: 'code',
+      secret: 'sek',
+      login: 'fat',
+      email: 'fat@example.test',
+    };
+    const view = toPortalUserView(fat);
+    expect(Object.keys(view).sort()).toEqual([...PORTAL_USER_FIELDS].sort());
+    expect(JSON.stringify(view)).not.toMatch(/hash|plain|tok|sid|code|sek|fat@|login/i);
+  });
+
+  it('ships a users skill covering roles and the read-only access boundary', () => {
+    const skillPath = path.join(__dirname, '../../skills/users/SKILL.md');
+    const raw = fs.readFileSync(skillPath, 'utf8');
+    expect(raw).toMatch(/^---\r?\nname: users\r?\ndescription: .+\r?\n---/);
+    expect(raw).toMatch(/ADMIN|OPERATOR|READONLY/i);
+    expect(raw).toMatch(/не меня|never change|только чтен|read-only/i);
   });
 });
