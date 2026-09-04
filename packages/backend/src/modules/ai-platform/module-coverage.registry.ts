@@ -23,11 +23,103 @@ export type ReasonedModule = {
 
 export type ModuleCoverageEntry = CoveredModule | ReasonedModule;
 
-/**
- * Populated in the GREEN step. An empty map makes the live completeness
- * test red until every on-disk module directory is classified.
- */
-export const MODULE_COVERAGE: Record<string, ModuleCoverageEntry> = {};
+export const MODULE_COVERAGE: Record<string, ModuleCoverageEntry> = {
+  'ai-agents': {
+    kind: 'infrastructure',
+    reason:
+      'Platform provider catalog, toolsets and billing (D-07); tenants never operate this module.',
+  },
+  'ai-chat': { kind: 'covered', domain: 'pbx', sharedSkill: 'diagnostics' },
+  'ai-platform': { kind: 'covered', domain: 'skills', sharedSkill: 'developer-convention' },
+  ami: {
+    kind: 'infrastructure',
+    reason: 'Asterisk AMI connection and dialplan-apply transport, not a tenant catalog.',
+  },
+  ari: {
+    kind: 'infrastructure',
+    reason: 'Asterisk ARI session transport; the tenant domain is voice-robots.',
+  },
+  auth: {
+    kind: 'infrastructure',
+    reason: 'JWT and RBAC entry; tenant identity is the users domain.',
+  },
+  'call-groups': { kind: 'covered' },
+  'callback-requests': {
+    kind: 'excluded',
+    reason:
+      'Callback queue is driven by the AMI scanner and call-center UI; live queue mutation has no confirmable agent diff this phase.',
+  },
+  callcenter: { kind: 'covered' },
+  'cloud-admin': {
+    kind: 'excluded',
+    reason:
+      'Platform SuperAdmin hub, marketplace and tenant provisioning — not a tenant PBX domain the agent serves.',
+  },
+  config: {
+    kind: 'infrastructure',
+    reason: 'Nest ConfigModule wrapper, not a PBX product surface.',
+  },
+  contexts: { kind: 'covered' },
+  diagnostics: { kind: 'covered' },
+  'dialplan-bridge': {
+    kind: 'infrastructure',
+    reason: 'Internal Asterisk/API bridge, not a tenant-facing catalog.',
+  },
+  'dialplan-dry-run': { kind: 'covered', domain: 'dialplan_dry_run', sharedSkill: 'routes' },
+  directories: { kind: 'covered' },
+  endpoints: { kind: 'covered' },
+  health: {
+    kind: 'infrastructure',
+    reason: 'Process health probes with no tenant data.',
+  },
+  ivrs: { kind: 'covered' },
+  'komandor-claims': { kind: 'covered', sharedSkill: 'operations' },
+  logger: {
+    kind: 'infrastructure',
+    reason: 'Audit writer used by mutating paths; not a tenant catalog the agent lists.',
+  },
+  mailer: {
+    kind: 'infrastructure',
+    reason: 'SMTP transport; outbound history belongs to the notifications domain.',
+  },
+  mcp: {
+    kind: 'infrastructure',
+    reason: 'External JSON-RPC transport; tools come from adapters, not this module.',
+  },
+  moh: { kind: 'covered' },
+  notifications: { kind: 'covered', sharedSkill: 'operations' },
+  numbers: { kind: 'covered' },
+  prompts: { kind: 'covered', sharedSkill: 'operations' },
+  queues: { kind: 'covered' },
+  redis: {
+    kind: 'infrastructure',
+    reason: 'Cache and pub/sub infrastructure, not a tenant entity.',
+  },
+  reports: { kind: 'covered' },
+  roles: {
+    kind: 'infrastructure',
+    reason: 'RBAC guard plumbing; tenant people are the users domain.',
+  },
+  'route-references': {
+    kind: 'excluded',
+    reason:
+      'Read model for the route-builder picker; routes, IVRs and directories already have adapters.',
+  },
+  'route-templates': { kind: 'covered', domain: 'route_templates', sharedSkill: 'routes' },
+  routes: { kind: 'covered' },
+  'service-requests': { kind: 'covered', sharedSkill: 'operations' },
+  sms: { kind: 'covered', sharedSkill: 'messaging' },
+  'stt-engines': { kind: 'covered', sharedSkill: 'speech-engines' },
+  'system-settings': { kind: 'covered', sharedSkill: 'settings' },
+  telegram: { kind: 'covered', sharedSkill: 'messaging' },
+  'tenant-settings': { kind: 'covered', sharedSkill: 'settings' },
+  'time-groups': { kind: 'covered' },
+  trunks: { kind: 'covered' },
+  'tts-engines': { kind: 'covered', sharedSkill: 'speech-engines' },
+  users: { kind: 'covered' },
+  'voice-robots': { kind: 'covered' },
+  voicemail: { kind: 'covered' },
+};
 
 export const BACKEND_MODULES_DIR = path.resolve(__dirname, '..');
 
