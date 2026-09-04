@@ -6,16 +6,32 @@ import type {
     AiToolCallEvent,
 } from '../types/AiChatSchema';
 
+export type AgentTurnOutcome =
+    | 'idle'
+    | 'streaming'
+    | 'done'
+    | 'stopped'
+    | 'ceiling'
+    | 'failed'
+    | 'disconnected';
+
+export type AgentChatState = AiChatSchema & {
+    progressLines: string[];
+    turnOutcome: AgentTurnOutcome;
+};
+
 // ─── Initial state ────────────────────────────────────────────────────────────
 // Committed messages live on the server (thread detail query). This store
 // holds only the in-flight turn so a reload cannot diverge from the rail.
 
-const initialState: AiChatSchema = {
+const initialState: AgentChatState = {
     isOpen: false,
     messages: [],
     isStreaming: false,
     selectedModel: '',
     availableModels: [],
+    progressLines: [],
+    turnOutcome: 'idle',
 };
 
 // ─── Slice ────────────────────────────────────────────────────────────────────
@@ -67,6 +83,16 @@ export const aiChatSlice = createSlice({
             };
             state.messages.push(msg);
             state.isStreaming = true;
+            state.progressLines = [];
+            state.turnOutcome = 'streaming';
+        },
+
+        addProgressLine(state, action: PayloadAction<string>) {
+            state.progressLines.push(action.payload);
+        },
+
+        setTurnOutcome(state, action: PayloadAction<AgentTurnOutcome>) {
+            state.turnOutcome = action.payload;
         },
 
         appendTextChunk(state, action: PayloadAction<string>) {
@@ -99,10 +125,15 @@ export const aiChatSlice = createSlice({
             const last = state.messages[state.messages.length - 1];
             if (last) last.isStreaming = false;
             state.isStreaming = false;
+            if (state.turnOutcome === 'streaming') {
+                state.turnOutcome = 'done';
+            }
         },
 
         clearMessages(state) {
             state.messages = [];
+            state.progressLines = [];
+            state.turnOutcome = 'idle';
         },
 
         /** Remove the last (incomplete) assistant message on error */

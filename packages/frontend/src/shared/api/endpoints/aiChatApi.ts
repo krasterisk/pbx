@@ -144,21 +144,32 @@ export const {
  * Stream AI chat message via SSE.
  * Returns AbortController so the caller can cancel.
  */
+export type AgentProgressEvent = {
+    tool?: string;
+    label?: string;
+    step?: number;
+    maxSteps?: number;
+};
+
 export function streamAiChatMessage(params: {
     message: string;
     history: Array<{ role: string; content: string }>;
+    threadUid?: number;
     onText: (chunk: string) => void;
-    onToolCall: (data: { name: string; arguments: string }) => void;
-    onToolResult: (data: { name: string; result: string }) => void;
+    onToolCall?: (data: { name: string; arguments: string }) => void;
+    onToolResult?: (data: { name: string; result: string }) => void;
+    onProgress?: (data: AgentProgressEvent) => void;
     onProposal?: (data: IAgentProposalView) => void;
     onDone: () => void;
-    onError: (msg: string) => void;
+    onError: (msg: string, code?: string) => void;
+    onDisconnect?: () => void;
 }): AbortController {
     const ac = new AbortController();
     const token = localStorage.getItem('accessToken');
     const apiBase = import.meta.env.VITE_API_URL || '/api';
 
     (async () => {
+        let reachedTerminal = false;
         try {
             const response = await fetch(`${apiBase}/ai-chat/message`, {
                 method: 'POST',
@@ -166,7 +177,11 @@ export function streamAiChatMessage(params: {
                     'Content-Type': 'application/json',
                     ...(token ? { Authorization: `Bearer ${token}` } : {}),
                 },
-                body: JSON.stringify({ message: params.message, history: params.history }),
+                body: JSON.stringify({
+                    message: params.message,
+                    history: params.history,
+                    ...(params.threadUid != null ? { threadUid: params.threadUid } : {}),
+                }),
                 signal: ac.signal,
             });
 
@@ -190,20 +205,40 @@ export function streamAiChatMessage(params: {
 
                 let eventType = '';
                 for (const line of lines) {
+                    if (ac.signal.aborted) return;
                     if (line.startsWith('event: ')) {
                         eventType = line.slice(7).trim();
                     } else if (line.startsWith('data: ')) {
                         const raw = line.slice(6).trim();
                         try {
                             const data = JSON.parse(raw);
-                            if (eventType === 'text') params.onText(data);
-                            else if (eventType === 'tool_call') params.onToolCall(data);
-                            else if (eventType === 'tool_result') params.onToolResult(data);
-                            else if (eventType === 'proposal' && params.onProposal && isProposalClientView(data)) {
+                            if (eventType === 'text') {
+                                params.onText(typeof data === 'string' ? data : String(data ?? ''));
+                            } else if (eventType === 'tool_call') {
+                                params.onToolCall?.(data);
+                            } else if (eventType === 'tool_result') {
+                                params.onToolResult?.(data);
+                            } else if (eventType === 'progress') {
+                                params.onProgress?.(data);
+                            } else if (eventType === 'proposal' && params.onProposal && isProposalClientView(data)) {
                                 params.onProposal(data);
+                            } else if (eventType === 'done') {
+                                reachedTerminal = true;
+                                params.onDone();
+                                return;
+                            } else if (eventType === 'error') {
+                                reachedTerminal = true;
+                                const code = typeof data === 'object' && data && 'code' in data
+                                    ? String((data as { code: unknown }).code)
+                                    : undefined;
+                                const message = typeof data === 'string'
+                                    ? data
+                                    : (data && typeof data === 'object' && 'message' in data
+                                        ? String((data as { message: unknown }).message)
+                                        : 'Stream error');
+                                params.onError(message, code);
+                                return;
                             }
-                            else if (eventType === 'done') { params.onDone(); return; }
-                            else if (eventType === 'error') { params.onError(data); return; }
                         } catch {
                             // ignore parse errors
                         }
@@ -211,11 +246,17 @@ export function streamAiChatMessage(params: {
                     }
                 }
             }
-            params.onDone();
-        } catch (err: any) {
-            if (err?.name !== 'AbortError') {
-                params.onError(err?.message ?? 'Stream error');
+            if (!reachedTerminal && !ac.signal.aborted) {
+                if (params.onDisconnect) params.onDisconnect();
+                else params.onDone();
             }
+        } catch (err: any) {
+            if (err?.name === 'AbortError' || ac.signal.aborted) return;
+            if (params.onDisconnect && (err?.name === 'TypeError' || /network|fetch/i.test(String(err?.message)))) {
+                params.onDisconnect();
+                return;
+            }
+            params.onError(err?.message ?? 'Stream error');
         }
     })();
 
