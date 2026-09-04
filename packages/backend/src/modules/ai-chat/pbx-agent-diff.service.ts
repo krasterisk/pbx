@@ -15,6 +15,7 @@ import {
   toProposalView,
   type AgentProposalView,
 } from './dto/agent-diff.dto';
+import { checkRoutePrecedence, patternsFromProposal } from './route-precedence.util';
 
 const PROPOSAL_TTL_MS = 24 * 60 * 60 * 1000;
 const ACTION_LOG_TRUNCATE = 200;
@@ -103,6 +104,17 @@ export class PbxAgentDiffService {
       const result = { ok: false, reason: 'denied', proposal: toProposalView(row) };
       await this.writeApplyAudit(ctx, this.toolNameOf(row), row.apply_payload, result, 'denied', startedAt);
       return result;
+    }
+
+    if (row.entity_type === 'route') {
+      const precedence = checkRoutePrecedence(patternsFromProposal(row));
+      if (!precedence.safe) {
+        const reason = `precedence: catch-all ${precedence.catchAll} would shadow ${precedence.shadowed}`;
+        await row.update({ error: reason });
+        const result = { ok: false, reason, proposal: toProposalView(row) };
+        await this.writeApplyAudit(ctx, this.toolNameOf(row), row.apply_payload, result, 'denied', startedAt);
+        return result;
+      }
     }
 
     try {
