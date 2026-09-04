@@ -167,12 +167,66 @@ describe('DirectoriesAiAdapter', () => {
     });
   });
 
+  describe('mutating tools return proposals (D-15/D-18)', () => {
+    const WRITE_TOOLS = [
+      'create_directory',
+      'update_directory',
+      'delete_directory',
+      'add_directory_records',
+      'remove_directory_records',
+    ] as const;
+
+    beforeEach(() => {
+      directoriesService.findOne.mockResolvedValue({
+        uid: 5,
+        name: 'VIP',
+        description: '',
+        lookup_field_uid: 1,
+        key_normalization: 'digits',
+        fields: [{ key: 'internal_number', uid: 1 }],
+        records: [{ uid: 9, lookup_value: '100', values: { internal_number: '100' } }],
+      });
+    });
+
+    it('marks the five write tools as proposes', () => {
+      for (const name of WRITE_TOOLS) {
+        expect(getTool(name).proposes).toBe(true);
+      }
+    });
+
+    it.each(WRITE_TOOLS)('%s returns a proposal object and does not write', async (name) => {
+      const args =
+        name === 'create_directory'
+          ? { name: 'VIP', lookupFieldKey: 'internal_number', fields: [] }
+          : name === 'update_directory'
+            ? { uid: 5, name: 'VIP-2' }
+            : name === 'delete_directory'
+              ? { uid: 5 }
+              : name === 'add_directory_records'
+                ? { uid: 5, records: [{ values: { internal_number: '200' } }] }
+                : { uid: 5, lookup_values: ['100'] };
+
+      const result = await getTool(name).handler(args, 42);
+
+      expect(result).toEqual(
+        expect.objectContaining({
+          entityType: 'directory',
+          applyPayload: expect.objectContaining({ tool: name }),
+          includesDialplanReload: false,
+        }),
+      );
+      expect(directoriesService.create).not.toHaveBeenCalled();
+      expect(directoriesService.update).not.toHaveBeenCalled();
+      expect(directoriesService.remove).not.toHaveBeenCalled();
+    });
+  });
+
   describe('getKnowledgeBlock', () => {
     it('explains explicit key sources, exact-before-pattern, field UIDs, and ERROR fail-open', () => {
       const kb = adapter.getKnowledgeBlock();
       expect(kb).toMatch(/key.?source|источник ключа/i);
-      expect(kb).toMatch(/exact/i);
-      expect(kb).toMatch(/pattern|паттерн/i);
+      expect(kb).toMatch(/exact|точн/i);
+      expect(kb).toMatch(/pattern|шаблон|паттерн/i);
       expect(kb).toMatch(/field.?uid|UID поля/i);
       expect(kb).toMatch(/ERROR/);
       expect(kb).toMatch(/fail-open|исходн/i);

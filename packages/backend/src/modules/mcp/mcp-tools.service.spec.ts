@@ -23,6 +23,7 @@ describe('McpToolsService', () => {
   let aiAdapterRegistry: any;
   let aiChatSettingsService: any;
   let loggerService: any;
+  let pbxAgentDiffService: any;
   let service: McpToolsService;
 
   beforeEach(() => {
@@ -43,6 +44,18 @@ describe('McpToolsService', () => {
     };
     aiChatSettingsService = { getSettings: jest.fn().mockResolvedValue({ confirmDestructive: false }) };
     loggerService = { logAction: jest.fn().mockResolvedValue(undefined) };
+    pbxAgentDiffService = {
+      createProposal: jest.fn(async (proposal: any) => ({
+        proposalId: '11111111-1111-4111-8111-111111111111',
+        entityType: proposal.entityType,
+        entityLabel: proposal.entityLabel,
+        summary: proposal.summary,
+        before: proposal.before ?? null,
+        after: proposal.after ?? null,
+        includesDialplanReload: !!proposal.includesDialplanReload,
+        status: 'pending',
+      })),
+    };
 
     service = new McpToolsService(
       endpointsService,
@@ -59,6 +72,7 @@ describe('McpToolsService', () => {
       aiAdapterRegistry,
       aiChatSettingsService,
       loggerService,
+      pbxAgentDiffService,
     );
     service.onApplicationBootstrap();
   });
@@ -209,6 +223,7 @@ describe('McpToolsService', () => {
         aiAdapterRegistry,
         aiChatSettingsService,
         loggerService,
+        pbxAgentDiffService,
       );
       expect(fresh.getToolsList(100)).toHaveLength(0);
     });
@@ -305,6 +320,135 @@ describe('McpToolsService', () => {
       }
     });
   });
+
+  describe('proposes persist and live-ops (D-18)', () => {
+    const proposal = {
+      entityType: 'directory',
+      entityLabel: 'VIP',
+      summary: ['Create directory VIP'],
+      before: null,
+      after: { name: 'VIP' },
+      applyPayload: { tool: 'create_directory', args: { name: 'VIP' } },
+      includesDialplanReload: false,
+    };
+
+    const registerAdapterTools = (tools: any[]) => {
+      aiAdapterRegistry.getAllTools.mockReturnValue(tools);
+      service.registerAll();
+    };
+
+    it('persists create_directory as a pending proposal and inserts no directory row', async () => {
+      const handler = jest.fn().mockResolvedValue(proposal);
+      const create = jest.fn();
+      registerAdapterTools([
+        {
+          name: 'create_directory',
+          description: 'create',
+          inputSchema: {},
+          entityType: 'directory',
+          proposes: true,
+          handler,
+        },
+      ]);
+
+      const result = await service.callTool('create_directory', { name: 'VIP' }, 100);
+      const body = JSON.parse(result[0].text);
+
+      expect(handler).toHaveBeenCalledWith({ name: 'VIP' }, 100);
+      expect(pbxAgentDiffService.createProposal).toHaveBeenCalledWith(
+        expect.objectContaining({ applyPayload: proposal.applyPayload }),
+        expect.objectContaining({ vpbxUserUid: 100 }),
+      );
+      expect(create).not.toHaveBeenCalled();
+      expect(body.proposalId).toBeDefined();
+      expect(JSON.stringify(body)).not.toMatch(/applyPayload|apply_payload/);
+    });
+
+    it('persists delete_directory as a pending proposal', async () => {
+      const handler = jest.fn().mockResolvedValue({
+        ...proposal,
+        applyPayload: { tool: 'delete_directory', args: { uid: 5 } },
+      });
+      registerAdapterTools([
+        {
+          name: 'delete_directory',
+          description: 'delete',
+          inputSchema: {},
+          entityType: 'directory',
+          destructive: true,
+          proposes: true,
+          handler,
+        },
+      ]);
+
+      await service.callTool('delete_directory', { uid: 5 }, 100);
+      expect(handler).toHaveBeenCalled();
+      expect(pbxAgentDiffService.createProposal).toHaveBeenCalled();
+    });
+
+    it('persists remove_directory_records as a pending proposal', async () => {
+      const handler = jest.fn().mockResolvedValue({
+        ...proposal,
+        applyPayload: { tool: 'remove_directory_records', args: { uid: 5, lookup_values: ['100'] } },
+      });
+      registerAdapterTools([
+        {
+          name: 'remove_directory_records',
+          description: 'remove records',
+          inputSchema: {},
+          entityType: 'directory',
+          destructive: true,
+          proposes: true,
+          handler,
+        },
+      ]);
+
+      await service.callTool('remove_directory_records', { uid: 5, lookup_values: ['100'] }, 100);
+      expect(handler).toHaveBeenCalled();
+      expect(pbxAgentDiffService.createProposal).toHaveBeenCalled();
+    });
+
+    it('still refuses an unconverted destructive name and does not invoke that handler', async () => {
+      const result = await service.callTool('delete_trunk', { trunkId: 't_x_1' }, 100);
+      expect(trunksService.remove).not.toHaveBeenCalled();
+      expect(result[0].text).toMatch(/proposal|карточки изменений|подтвержд/i);
+    });
+
+    it('invokes cc_force_pause_agent as a live-ops exception', async () => {
+      const handler = jest.fn().mockResolvedValue({ paused: true });
+      registerAdapterTools([
+        {
+          name: 'cc_force_pause_agent',
+          description: 'pause',
+          inputSchema: {},
+          entityType: 'callcenter_agent',
+          destructive: true,
+          handler,
+        },
+      ]);
+
+      await service.callTool('cc_force_pause_agent', { interface: 'PJSIP/e201' }, 100);
+      expect(handler).toHaveBeenCalledWith({ interface: 'PJSIP/e201' }, 100);
+      expect(pbxAgentDiffService.createProposal).not.toHaveBeenCalled();
+    });
+
+    it('invokes cc_force_unpause_agent as a live-ops exception', async () => {
+      const handler = jest.fn().mockResolvedValue({ paused: false });
+      registerAdapterTools([
+        {
+          name: 'cc_force_unpause_agent',
+          description: 'unpause',
+          inputSchema: {},
+          entityType: 'callcenter_agent',
+          destructive: true,
+          handler,
+        },
+      ]);
+
+      await service.callTool('cc_force_unpause_agent', { interface: 'PJSIP/e201' }, 100);
+      expect(handler).toHaveBeenCalledWith({ interface: 'PJSIP/e201' }, 100);
+    });
+  });
 });
 
 function collectRegisteredToolNames(): string[] {
@@ -323,6 +467,7 @@ function collectRegisteredToolNames(): string[] {
     { getAllTools: jest.fn().mockReturnValue([]), getDomains: jest.fn().mockReturnValue([]) } as any,
     { getSettings: jest.fn().mockResolvedValue({ confirmDestructive: false }) } as any,
     { logAction: jest.fn().mockResolvedValue(undefined) } as any,
+    { createProposal: jest.fn() } as any,
   );
   svc.onApplicationBootstrap();
   return svc.getToolsList(100).map((t) => t.name);
