@@ -5,6 +5,35 @@ export interface IAiChatSettings {
     confirmDestructive: boolean;
 }
 
+export type AiChatThreadStatus = 'active' | 'archived';
+export type AiChatThreadMessageRole = 'user' | 'assistant' | 'tool' | 'system';
+
+/** Conversation row returned by GET /ai-chat/threads (15-03 persistence). */
+export interface IAiChatThread {
+    uid: number;
+    title: string;
+    status: AiChatThreadStatus;
+    last_message_at: string | null;
+    created_at: string;
+    updated_at: string;
+}
+
+/** Stored message from GET /ai-chat/threads/:uid. */
+export interface IAiChatThreadMessage {
+    uid: number;
+    thread_uid: number;
+    role: AiChatThreadMessageRole;
+    content: string | null;
+    tool_name?: string | null;
+    tool_calls?: unknown;
+    proposal_id?: string | null;
+    created_at: string;
+}
+
+export interface IAiChatThreadDetail extends IAiChatThread {
+    messages: IAiChatThreadMessage[];
+}
+
 const aiChatApi = rtkApi.injectEndpoints({
     endpoints: (builder) => ({
         getAiChatModels: builder.query<AiModel[], void>({
@@ -26,14 +55,51 @@ const aiChatApi = rtkApi.injectEndpoints({
             }),
             invalidatesTags: ['AiChatSettings'],
         }),
+        getAiChatThreads: builder.query<IAiChatThread[], void>({
+            query: () => '/ai-chat/threads',
+            providesTags: (result) =>
+                result
+                    ? [
+                          ...result.map((thread) => ({ type: 'AiChatThreads' as const, id: thread.uid })),
+                          { type: 'AiChatThreads' as const, id: 'LIST' },
+                      ]
+                    : [{ type: 'AiChatThreads' as const, id: 'LIST' }],
+        }),
+        getAiChatThread: builder.query<IAiChatThreadDetail, number>({
+            query: (uid) => `/ai-chat/threads/${uid}`,
+            providesTags: (_result, _err, uid) => [{ type: 'AiChatThreads', id: uid }],
+        }),
+        createAiChatThread: builder.mutation<IAiChatThread, void>({
+            query: () => ({
+                url: '/ai-chat/threads',
+                method: 'POST',
+            }),
+            invalidatesTags: [{ type: 'AiChatThreads', id: 'LIST' }],
+        }),
+        deleteAiChatThread: builder.mutation<void, number>({
+            query: (uid) => ({
+                url: `/ai-chat/threads/${uid}`,
+                method: 'DELETE',
+            }),
+            invalidatesTags: (_result, _err, uid) => [
+                { type: 'AiChatThreads', id: uid },
+                { type: 'AiChatThreads', id: 'LIST' },
+            ],
+        }),
     }),
 });
+
+export { aiChatApi };
 
 export const {
     useGetAiChatModelsQuery,
     useGetAiChatStateQuery,
     useGetAiChatSettingsQuery,
     useUpdateAiChatSettingsMutation,
+    useGetAiChatThreadsQuery,
+    useGetAiChatThreadQuery,
+    useCreateAiChatThreadMutation,
+    useDeleteAiChatThreadMutation,
 } = aiChatApi;
 
 /**

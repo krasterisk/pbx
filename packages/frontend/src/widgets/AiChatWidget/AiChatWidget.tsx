@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback, useState } from 'react';
+import { useEffect, useRef, useCallback, useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Bot, X, Send, Trash2, RotateCcw } from 'lucide-react';
 import { Button, Text, Textarea } from '@/shared/ui';
@@ -10,8 +10,14 @@ import {
     selectAiChatMessages,
     selectAiChatIsStreaming,
 } from '@/features/ai-chat/model/selectors/aiChatSelectors';
-import { streamAiChatMessage } from '@/shared/api/endpoints/aiChatApi';
+import {
+    streamAiChatMessage,
+    useGetAiChatThreadQuery,
+    type IAiChatThreadMessage,
+} from '@/shared/api/endpoints/aiChatApi';
+import type { AiChatMessage } from '@/features/ai-chat/model/types/AiChatSchema';
 import { ChatMessage } from '@/features/ai-chat/ui/ChatMessage/ChatMessage';
+import { ThreadList } from '@/features/ai-chat/ui/ThreadList';
 import cls from './AiChatWidget.module.scss';
 
 const SUGGESTION_KEYS = [
@@ -20,6 +26,16 @@ const SUGGESTION_KEYS = [
     'aiChat.suggestions.addTrunk',
     'aiChat.suggestions.setupIvr',
 ] as const;
+
+function toChatMessage(message: IAiChatThreadMessage): AiChatMessage {
+    return {
+        id: String(message.uid),
+        role: message.role === 'assistant' ? 'assistant' : 'user',
+        content: message.content ?? '',
+        createdAt: new Date(message.created_at).getTime(),
+        toolCalls: Array.isArray(message.tool_calls) ? message.tool_calls : undefined,
+    };
+}
 
 const FOCUSABLE_SELECTOR =
     'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -38,11 +54,26 @@ export interface AiChatWidgetProps {
 export const AiChatWidget = ({ open, onClose }: AiChatWidgetProps) => {
     const { t } = useTranslation();
     const dispatch = useAppDispatch();
-    const messages = useAppSelector(selectAiChatMessages);
+    const inFlightMessages = useAppSelector(selectAiChatMessages);
     const isStreaming = useAppSelector(selectAiChatIsStreaming);
     const isBelowTablet = useIsMobile(768);
     const isBelowWide = useIsMobile(1024);
     const showRail = !isBelowWide;
+    const [selectedThreadUid, setSelectedThreadUid] = useState<number | null>(null);
+    const { data: threadDetail } = useGetAiChatThreadQuery(selectedThreadUid ?? 0, {
+        skip: selectedThreadUid == null,
+    });
+
+    const committedMessages = useMemo(
+        () =>
+            (threadDetail?.messages ?? [])
+                .filter((message) => message.role === 'user' || message.role === 'assistant')
+                .map(toChatMessage),
+        [threadDetail],
+    );
+    const messages = selectedThreadUid == null
+        ? []
+        : [...committedMessages, ...inFlightMessages];
 
     const panelRef = useRef<HTMLDivElement>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -50,6 +81,12 @@ export const AiChatWidget = ({ open, onClose }: AiChatWidgetProps) => {
     const abortRef = useRef<AbortController | null>(null);
     const lastMessageRef = useRef<string>('');
     const [lastError, setLastError] = useState<string | null>(null);
+
+    const handleSelectThread = useCallback((uid: number) => {
+        setSelectedThreadUid(uid);
+        dispatch(aiChatActions.clearMessages());
+        setLastError(null);
+    }, [dispatch]);
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView?.({ behavior: 'smooth' });
@@ -206,10 +243,10 @@ export const AiChatWidget = ({ open, onClose }: AiChatWidgetProps) => {
                             data-testid="ai-agent-thread-rail"
                             aria-label={t('aiChat.threadsHeading')}
                         >
-                            <Text as="span" className={cls.headerTitle}>
-                                {t('aiChat.threadsHeading')}
-                            </Text>
-                            <Text variant="muted">{t('aiChat.railPlaceholder')}</Text>
+                            <ThreadList
+                                selectedUid={selectedThreadUid}
+                                onSelect={handleSelectThread}
+                            />
                         </VStack>
                     )}
 
