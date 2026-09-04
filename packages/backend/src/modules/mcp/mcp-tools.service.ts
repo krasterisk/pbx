@@ -285,6 +285,12 @@ export class McpToolsService implements OnApplicationBootstrap {
             );
             return;
         }
+        if (name === 'apply_dialplan' && this.aiAdapterRegistry.getDomains().includes('routes')) {
+            this.logger.warn(
+                'Skipping handwritten registration of "apply_dialplan" — applying is part of confirming a route change',
+            );
+            return;
+        }
         this.toolRegistry.set(name, { description, inputSchema, entityType, destructive, proposes, handler });
     }
 

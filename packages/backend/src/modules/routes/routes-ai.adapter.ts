@@ -17,6 +17,12 @@ import {
   validateRouteChainDraft,
   type TenantEntityRefs,
 } from './route-chain-draft.util';
+import {
+  checkRoutePrecedence,
+  isCatchAllPattern,
+  isEmergencyPattern,
+  isSpecificNumericPattern,
+} from '../ai-chat/route-precedence.util';
 import type { DialplanAction } from '@krasterisk/shared';
 
 /**
@@ -154,6 +160,23 @@ export class RoutesAiAdapter implements DomainAiAdapter, OnModuleInit {
             message: `Шаг ${draft.stepIndex}: ${draft.reason}`,
           };
         }
+        const existing = await this.routesService.findAllByContext(contextUid, uid);
+        const resulting = [
+          ...existing
+            .slice()
+            .sort((a, b) => (a.priority ?? 0) - (b.priority ?? 0))
+            .flatMap((row) => row.extensions ?? []),
+          ...extensions,
+        ];
+        const precedence = checkRoutePrecedence(resulting);
+        if (!precedence.safe) {
+          return {
+            refused: true,
+            catchAll: precedence.catchAll,
+            shadowed: precedence.shadowed,
+            message: `Порядок шаблонов небезопасен: catch-all ${precedence.catchAll} окажется выше ${precedence.shadowed}`,
+          };
+        }
         const name = String(args.name || extensions[0] || 'route');
         const applyArgs = {
           context_uid: contextUid,
@@ -166,8 +189,8 @@ export class RoutesAiAdapter implements DomainAiAdapter, OnModuleInit {
           name,
           applyArgs,
           null,
-          { context_uid: contextUid, pattern: extensions[0], patterns: extensions, actions: draft.chain },
-          this.createSummary(extensions, draft.chain),
+          { context_uid: contextUid, pattern: extensions[0], patterns: resulting, actions: draft.chain },
+          this.createSummary(extensions, draft.chain, resulting),
         );
       },
     };
@@ -188,6 +211,17 @@ export class RoutesAiAdapter implements DomainAiAdapter, OnModuleInit {
         const current = await this.routesService.findOne(id, uid);
         const extensions = current.extensions ?? [];
         const destination = destinationOf(current.actions);
+        const siblings = await this.routesService.findAllByContext(current.context_uid, uid);
+        const remaining = siblings
+          .filter((row) => row.uid !== current.uid)
+          .slice()
+          .sort((a, b) => (a.priority ?? 0) - (b.priority ?? 0))
+          .flatMap((row) => row.extensions ?? []);
+        const summary = [
+          `Удалить маршрут ${extensions.join(', ') || id} → ${destination}; назначение перестанет работать`,
+        ];
+        const impact = impactNote(extensions, [...remaining, ...extensions]);
+        if (impact) summary.push(impact);
         return this.proposal(
           'delete_route',
           String(current.name || extensions[0] || id),
@@ -198,25 +232,26 @@ export class RoutesAiAdapter implements DomainAiAdapter, OnModuleInit {
             extensions,
             destination,
           },
-          null,
-          [
-            `Удалить маршрут ${extensions.join(', ') || id} → ${destination}; назначение перестанет работать`,
-          ],
+          { patterns: remaining },
+          summary,
         );
       },
     };
   }
 
-  private createSummary(extensions: string[], chain: DialplanAction[]): string[] {
+  private createSummary(extensions: string[], chain: DialplanAction[], resulting: string[]): string[] {
     const steps = chain.map((action, index) => {
       const dest = destinationOf([action]);
       return `${index + 1}. ${action.type}${dest !== action.type ? ` → ${dest}` : ''}`;
     });
-    return [
+    const lines = [
       `Создать маршрут ${extensions.join(', ')}`,
       ...steps,
       'После подтверждения диалплан будет перезагружен',
     ];
+    const impact = impactNote(extensions, resulting);
+    if (impact) lines.push(impact);
+    return lines;
   }
 
   private readExtensions(args: Record<string, unknown>): string[] {
@@ -327,4 +362,24 @@ function readTarget(params: Record<string, unknown>): string | null {
     if (rec.value != null) return String(rec.value);
   }
   return null;
+}
+
+function impactNote(proposed: string[], resulting: string[]): string | null {
+  const touchesSensitive = proposed.some(
+    (pattern) => isCatchAllPattern(pattern) || isEmergencyPattern(pattern) || isInboundPattern(pattern),
+  );
+  if (!touchesSensitive) return null;
+  const inbound = resulting.filter((pattern) => isInboundPattern(pattern) || isSpecificNumericPattern(pattern));
+  const emergency = resulting.filter((pattern) => isEmergencyPattern(pattern));
+  const parts = ['Влияние: входящий или catch-all шаблон.'];
+  if (inbound.length) parts.push(`Входящие: ${inbound.join(', ')}.`);
+  if (emergency.length) parts.push(`Аварийные: ${emergency.join(', ')}.`);
+  return parts.join(' ');
+}
+
+function isInboundPattern(pattern: string): boolean {
+  if (isCatchAllPattern(pattern) || isEmergencyPattern(pattern)) return false;
+  if (!isSpecificNumericPattern(pattern)) return false;
+  const digits = pattern.replace(/\D/g, '');
+  return digits.length >= 7;
 }
