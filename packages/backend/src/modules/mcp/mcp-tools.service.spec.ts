@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import { McpToolsService } from './mcp-tools.service';
 
 /**
@@ -191,6 +192,49 @@ describe('McpToolsService', () => {
   describe('callTool error handling', () => {
     it('throws for an unknown tool name', async () => {
       await expect(service.callTool('does_not_exist', {}, 100)).rejects.toThrow('Tool not found');
+    });
+  });
+
+  describe('forged tenant argument is stripped (D-22 tracer)', () => {
+    const injectListContextsStub = () => {
+      const stubHandler = jest.fn().mockResolvedValue({ ok: true });
+      aiAdapterRegistry.getAllTools.mockReturnValue([
+        {
+          name: 'list_contexts',
+          description: 'stub list_contexts',
+          inputSchema: {},
+          entityType: 'context',
+          handler: stubHandler,
+        },
+      ]);
+      return stubHandler;
+    };
+
+    it('invokes list_contexts with dispatch uid 100 and no tenant key left in args', async () => {
+      const stubHandler = injectListContextsStub();
+      const warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+
+      await service.callTool('list_contexts', { vpbxUserUid: 200 }, 100);
+
+      expect(stubHandler).toHaveBeenCalledTimes(1);
+      expect(stubHandler).toHaveBeenCalledWith({}, 100);
+      expect(stubHandler.mock.calls[0][0]).not.toHaveProperty('vpbxUserUid');
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringMatching(/list_contexts/),
+      );
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringMatching(/100/),
+      );
+
+      warnSpy.mockRestore();
+    });
+
+    it('passes a non-tenant argument through untouched', async () => {
+      const stubHandler = injectListContextsStub();
+
+      await service.callTool('list_contexts', { pattern: '_X.' }, 100);
+
+      expect(stubHandler).toHaveBeenCalledWith({ pattern: '_X.' }, 100);
     });
   });
 });
