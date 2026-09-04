@@ -975,7 +975,7 @@ Plans:
 
 **Depends on:** Phase 12 (типизированная цепочка — то, что агент правит), Phase 14 (dry-run как tool D-32 и шаблоны из описания D-34 — агент использует готовыми), Phase 5 (эталонный адаптер справочников как форма для остальных)
 
-**Plans:** 24/24 plans executed, волны 1…7 (`15-VALIDATION.md` — Nyquist-контракт фазы)
+**Plans:** 24/24 plans complete
 
 Plans:
 
