@@ -1,7 +1,8 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import { ConflictException, Injectable, Optional } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Route } from '../routes/route.model';
 import { RouteDirectoryBinding } from '../directories/route-directory-binding.model';
+import { Ivr } from '../ivrs/ivr.model';
 import {
   collectActionReferences,
   type ActionReference,
@@ -23,6 +24,7 @@ export class RouteReferencesService {
   constructor(
     @InjectModel(Route) private readonly routeModel: typeof Route,
     @InjectModel(RouteDirectoryBinding) private readonly bindingModel: typeof RouteDirectoryBinding,
+    @Optional() @InjectModel(Ivr) private readonly ivrModel?: typeof Ivr,
   ) {}
 
   /**
@@ -44,17 +46,23 @@ export class RouteReferencesService {
     vpbxUserUid: number,
     fieldUid?: number,
   ): Promise<RouteUsageResponse> {
-    const [routes, bindings] = await Promise.all([
+    const [routes, bindings, ivrs] = await Promise.all([
       this.routeModel.findAll({
         where: { user_uid: vpbxUserUid },
-        attributes: ['uid', 'actions', 'raw_dialplan'],
+        attributes: ['uid', 'name', 'extensions', 'active', 'actions', 'raw_dialplan'],
       }),
       kind === 'directory'
         ? this.bindingModel.findAll({ where: { user_uid: vpbxUserUid } })
         : Promise.resolve([]),
+      this.ivrModel
+        ? this.ivrModel.findAll({
+            where: { user_uid: vpbxUserUid },
+            attributes: ['uid', 'name', 'menu_items'],
+          })
+        : Promise.resolve([]),
     ]);
 
-    const references = collectActionReferences(kind, uid, routes, bindings, fieldUid);
+    const references = collectActionReferences(kind, uid, routes, bindings, fieldUid, ivrs);
     const hasRawDialplanRoutes = routes.some((route) => isNonEmptyRawDialplan(route.raw_dialplan));
     return {
       references,

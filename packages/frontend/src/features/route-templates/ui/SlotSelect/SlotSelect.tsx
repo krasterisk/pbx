@@ -50,7 +50,7 @@ export function SlotSelect({ kind, slotId, label, value, onChange }: SlotSelectP
         aria-label={loading ? loadingLabel : empty ? emptyLabel : fieldLabel}
         onChange={(e) => {
           const next = items.find((item) => item.value === e.target.value);
-          onChange({ uid: e.target.value, name: next?.label ?? e.target.value });
+          onChange({ uid: e.target.value, name: next?.value ?? e.target.value });
         }}
       >
         <option value="">{placeholder}</option>

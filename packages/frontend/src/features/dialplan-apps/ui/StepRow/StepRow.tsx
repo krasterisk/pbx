@@ -10,7 +10,7 @@ import {
   SlidersHorizontal,
   Trash2,
 } from 'lucide-react';
-import { DIALPLAN_ACTION_META, type ActionType, type IRouteAction } from '@krasterisk/shared';
+import { DIALPLAN_ACTION_META, type ActionType, type IRouteAction, type ITemplateSlot } from '@krasterisk/shared';
 import { Badge, Text } from '@/shared/ui';
 import {
   DropdownMenu,
@@ -23,6 +23,8 @@ import { TableRowAction, TableRowActions } from '@/shared/ui/TableRowActions';
 import { ActionTypeSelect } from '../ActionTypeSelect';
 import { dialplanAppsRegistry } from '../../model/registry';
 import type { ChainAction } from '../../model/editorReducer';
+import { sanitizeParamsForPreview } from '@/features/route-templates/model/sanitizeParamsForPreview';
+import { stripActionTitleFromSummary } from '../../model/stripActionTitleFromSummary';
 import styles from './StepRow.module.scss';
 
 export type StepSection = 'params' | 'conditions' | 'options';
@@ -34,6 +36,7 @@ export interface StepRowProps {
   readOnly?: boolean;
   unreachable?: boolean;
   refs?: Record<string, unknown>;
+  slots?: ITemplateSlot[];
   allowedTypes?: ActionType[];
   dragListeners?: Record<string, unknown>;
   dragAttributes?: Record<string, unknown>;
@@ -63,6 +66,7 @@ export const StepRow = memo(function StepRow({
   readOnly = false,
   unreachable = false,
   refs,
+  slots = [],
   allowedTypes,
   dragListeners,
   dragAttributes,
@@ -81,12 +85,13 @@ export const StepRow = memo(function StepRow({
   const title = config
     ? t(config.labelKey, action.type)
     : action.type || t('routes.chain.placeholder', 'Выберите действие');
-  const summary = config?.summarize
-    ? config.summarize(action.params ?? {}, t, refs)
+  const rawSummary = config?.summarize
+    ? config.summarize(sanitizeParamsForPreview(action.params ?? {}, slots), t, refs)
     : t(
         'routes.chain.unknown.summary',
         'Неизвестный тип действия. Параметры сохранены и не будут потеряны',
       );
+  const summary = stripActionTitleFromSummary(title, rawSummary);
   const cond = conditionLabel(action);
   const enabled = action.enabled ?? true;
   const minHeight = density === 'compact' ? '44px' : '56px';
@@ -169,9 +174,11 @@ export const StepRow = memo(function StepRow({
               {isUnknown ? <FileQuestion size={16} /> : null}
               <Text className={isUnknown ? styles.unknownType : styles.title}>{title}</Text>
             </Flex>
-            <Text data-testid="step-row-summary" className={styles.summary}>
-              {summary}
-            </Text>
+            {summary ? (
+              <Text data-testid="step-row-summary" className={styles.summary}>
+                {summary}
+              </Text>
+            ) : null}
           </>
         )}
       </VStack>

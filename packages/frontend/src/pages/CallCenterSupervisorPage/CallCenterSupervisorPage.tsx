@@ -924,6 +924,7 @@ export function CallCenterSupervisorPage() {
             key={tab.id}
             type="button"
             className={`${styles.tab} ${activeTab === tab.id ? styles.tabActive : ''}`}
+            data-testid={`supervisor-tab-${tab.id}`}
             onClick={() => setActiveTab(tab.id)}
           >
             <tab.icon className="w-4 h-4 inline mr-1.5" />

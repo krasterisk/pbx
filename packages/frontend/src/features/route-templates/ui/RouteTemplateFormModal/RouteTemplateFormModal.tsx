@@ -153,6 +153,7 @@ export function RouteTemplateFormModal({
             allowedTypes={allowedTypesForHost('route')}
             actions={actions}
             onChange={setActions}
+            slots={existingSlots}
           />
 
           {showSlots ? (

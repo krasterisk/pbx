@@ -5,14 +5,16 @@ import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import { DIALPLAN_ACTION_META, type IRouteAction } from '@krasterisk/shared';
+import { DIALPLAN_ACTION_META, templateSlotMarker, type IRouteAction } from '@krasterisk/shared';
 import { StepRow } from './StepRow';
 import { dialplanAppsRegistry } from '../../model/registry';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string, fallback?: string | Record<string, unknown>) =>
-      typeof fallback === 'string' ? fallback : key,
+    t: (key: string, fallback?: string | Record<string, unknown>) => {
+      if (key === 'routes.action.toqueue') return 'Очередь';
+      return typeof fallback === 'string' ? fallback : key;
+    },
   }),
 }));
 
@@ -46,8 +48,51 @@ describe('StepRow', () => {
     );
 
     const text = screen.getByTestId('step-row-summary').textContent ?? '';
-    expect(text).toMatch(/очеред/i);
+    expect(text).toMatch(/B-номер|routePattern/i);
+    expect(text).not.toMatch(/Очередь/);
     expect(text).not.toMatch(/target=/);
+  });
+
+  it('shows a bare queue number instead of the tenant realtime name', () => {
+    render(
+      <StepRow
+        action={action({
+          params: { target: { source: 'fixed', value: 'q700_0' } },
+        })}
+        index={0}
+        onOpenStep={noop}
+        onDuplicate={noop}
+        onToggleEnabled={noop}
+        onRemove={noop}
+        onCopy={noop}
+      />,
+    );
+
+    expect(screen.getByTestId('step-row-summary')).toHaveTextContent('700');
+    expect(screen.getByTestId('step-row-summary').textContent).not.toContain('q700_0');
+    expect(screen.getByTestId('step-row-summary').textContent).not.toContain('Очередь');
+  });
+
+  it('replaces a template slot marker with the slot label in the summary', () => {
+    const slotId = 'queue-a_1778039515670_snrw-target.value';
+    render(
+      <StepRow
+        action={action({
+          params: { target: { source: 'fixed', value: templateSlotMarker(slotId) } },
+        })}
+        index={0}
+        slots={[{ id: slotId, kind: 'queue', label: '700' }]}
+        onOpenStep={noop}
+        onDuplicate={noop}
+        onToggleEnabled={noop}
+        onRemove={noop}
+        onCopy={noop}
+      />,
+    );
+
+    expect(screen.getByTestId('step-row-summary')).toHaveTextContent('700');
+    expect(screen.getByTestId('step-row-summary').textContent).not.toContain('Очередь');
+    expect(screen.getByTestId('step-row-summary').textContent).not.toContain('__slot:');
   });
 
   it.each(Object.keys(DIALPLAN_ACTION_META))(

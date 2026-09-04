@@ -3,6 +3,7 @@ import { parseTemplateSlotMarker, type IRouteAction, type ITemplateSlot } from '
 import { Text } from '@/shared/ui';
 import { HStack, VStack } from '@/shared/ui/Stack';
 import { dialplanAppsRegistry } from '@/features/dialplan-apps/model/registry';
+import { sanitizeParamsForPreview } from '../../model/sanitizeParamsForPreview';
 import styles from './TemplateActionPreview.module.scss';
 
 export interface TemplateActionPreviewProps {
@@ -33,8 +34,9 @@ export function TemplateActionPreview({ actions, slots = [] }: TemplateActionPre
     <VStack gap="8" className={styles.list} role="list">
       {actions.map((action, index) => {
         const config = action.type ? dialplanAppsRegistry[action.type] : undefined;
+        const displayParams = sanitizeParamsForPreview(action.params ?? {}, slots);
         const summary = config?.summarize
-          ? config.summarize(action.params ?? {}, t)
+          ? config.summarize(displayParams, t)
           : action.type || t('routes.selectAction', 'Выберите действие');
         const markers: string[] = [];
         collectMarkers(action.params, markers);

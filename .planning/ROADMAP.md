@@ -902,7 +902,7 @@ Plans:
 
 ## Phase 14: Визуальный конструктор маршрутов и автоматизация
 
-**Status:** In Progress — 1/10 plans (14-01 Wave 0 RED specs)
+**Status:** Complete (2026-09-04) — 11/11 plans (incl. gap 14-11); verify 27/27
 
 **Goal:** Визуальное представление, симуляция и автоматизация построения маршрутов поверх редактора, доведённого в Phase 12.
 
@@ -934,7 +934,7 @@ Plans:
 - [x] 14-08-PLAN.md
 - [x] 14-09-PLAN.md
 - [x] 14-10-PLAN.md
-- [ ] 14-11-PLAN.md — Gap G-14-2: template preview slot chips (Surface H / D-33 / D-35)
+- [x] 14-11-PLAN.md — Gap G-14-2: template preview slot chips (Surface H / D-33 / D-35)
 - [x] `14-01-PLAN.md` — Wave 0: specs walk/hop/reask + action-reference scaffold
 - [x] `14-02-PLAN.md` — Wave 1: индекс ссылок backend + delete 409 (tracer IVR)
 - [x] `14-03-PLAN.md` — Wave 2: блок-схема route+IVR + react-to-print (tracer Schema tab)
@@ -946,13 +946,13 @@ Plans:
 - [x] `14-09-PLAN.md` — Wave 6: callback UI — настройки CC, operator/supervisor chrome (depends 14-06/14-07 i18n + 14-08 API)
 - [x] `14-10-PLAN.md` — Wave 4: вкладки «Где используется» + delete precheck
 
-**GSD workflow:** `/gsd-discuss-phase 14` ✅ → `/gsd-ui-phase 14` ✅ (`14-UI-SPEC.md`: схема на двух хостах, сквозной прогон сегментами, раздел шаблонов, настройки и заявки callback, «Где используется») → `/gsd-plan-phase 14` ✅ → `/gsd-execute-phase 14` ✅ → `/gsd-verify-work 14`
+**GSD workflow:** `/gsd-discuss-phase 14` ✅ → `/gsd-ui-phase 14` ✅ (`14-UI-SPEC.md`: схема на двух хостах, сквозной прогон сегментами, раздел шаблонов, настройки и заявки callback, «Где используется») → `/gsd-plan-phase 14` ✅ → `/gsd-execute-phase 14` ✅ → `/gsd-verify-work 14` ✅
 
 ---
 
 ## Phase 15: Универсальный AI-агент по АТС
 
-**Status:** Pending (discuss выполнен 2026-09-03 вместе с Phase 14, решения — в `15-CONTEXT.md`)
+**Status:** Planned (2026-09-04) — 24 плана, plan-checker PASS; next `/gsd-execute-phase 15` → обязательный `/gsd-secure-phase 15`
 
 **Goal:** Свой агентный цикл в Nest вместо внешнего проксирования: агент, который видит всю АТС, отвечает человеческим языком на любые связанные с ней вопросы и правит настройки во всех модулях через подтверждаемые диффы — с тенантной изоляцией, доказанной тестами.
 

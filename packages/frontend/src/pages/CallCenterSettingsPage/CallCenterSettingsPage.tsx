@@ -112,6 +112,7 @@ export function CallCenterSettingsPage() {
             key={tabId}
             type="button"
             className={`${styles.tab} ${activeTab === tabId ? styles.tabActive : ''}`}
+            data-testid={`cc-settings-tab-${tabId}`}
             onClick={() => setActiveTab(tabId)}
           >
             {t(`callcenter.settings.tabs.${tabId}`, tabId === 'callback' ? 'Callback' : undefined)}

@@ -188,10 +188,15 @@ export class RouteTemplatesService {
   ): Promise<unknown> {
     const uid = value.uid;
     switch (kind) {
-      case 'queue':
+      case 'queue': {
+        // Catalog value is the user-facing exten (701). Realtime PK is q{exten}_{tenant}.
+        // Never look up by SlotSelect display label ("701 - Поддержка").
+        const token = String(uid).trim();
+        const names = Array.from(new Set([token, `q${token}_${vpbxUserUid}`]));
         return this.queueModel.findOne({
-          where: { name: String(value.name ?? uid), user_uid: vpbxUserUid },
+          where: { name: { [Op.in]: names }, user_uid: vpbxUserUid },
         });
+      }
       case 'group':
         return this.callGroupModel.findOne({
           where: { uid: Number(uid), user_uid: vpbxUserUid },

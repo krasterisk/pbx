@@ -4,6 +4,7 @@ import {
   type ITemplateSlot,
   type TemplateSlotKind,
 } from '@krasterisk/shared';
+import { normalizeTenantDisplayValue } from '@/features/dialplan-apps/model/normalizeTenantDisplayValue';
 
 export interface SlotCandidate {
   id: string;
@@ -24,9 +25,9 @@ function pushCandidate(
   const text = String(value ?? '').trim();
   if (!text || text.startsWith('__slot:')) return;
   out.push({
-    id: `${kind}-${action.id}-${path.join('.')}`,
+    id: `${kind}-${action.id}-${path.join('_')}`,
     kind,
-    label: text,
+    label: kind === 'queue' ? normalizeTenantDisplayValue(text) : text,
     actionId: action.id,
     path,
     value: text,

@@ -290,7 +290,7 @@ describe('RouteTemplatesService', () => {
       target: { source: 'fixed', value: 'sales_100' },
     });
     expect(finders.queue.findOne).toHaveBeenCalledWith({
-      where: { name: 'sales_100', user_uid: 100 },
+      where: { name: { [Op.in]: ['sales_100', 'qsales_100_100'] }, user_uid: 100 },
     });
   });
 
@@ -299,6 +299,43 @@ describe('RouteTemplatesService', () => {
       actions: [],
       slots: [],
       name: 'Night IVR for sales',
+    });
+  });
+
+  it('applies a queue slot by catalog exten even when name is a display label', async () => {
+    const slotId = 'queue-a_1778039515670_snrw-target.value';
+    const created = await service.create(
+      {
+        name: 'Exten queue',
+        actions: [
+          {
+            id: 'q',
+            type: 'toqueue',
+            params: { target: { source: 'fixed', value: templateSlotMarker(slotId) } },
+            condition: {},
+          },
+        ],
+        slots: [{ id: slotId, kind: 'queue', label: '700' }],
+      },
+      100,
+    );
+
+    const result = await service.apply(
+      created.uid,
+      {
+        slotValues: {
+          [slotId]: { uid: '701', name: '701 - Поддержка' },
+        },
+        mode: 'append',
+      },
+      100,
+    );
+
+    expect(finders.queue.findOne).toHaveBeenCalledWith({
+      where: { name: { [Op.in]: ['701', 'q701_100'] }, user_uid: 100 },
+    });
+    expect(result.actions[0].params).toEqual({
+      target: { source: 'fixed', value: '701' },
     });
   });
 

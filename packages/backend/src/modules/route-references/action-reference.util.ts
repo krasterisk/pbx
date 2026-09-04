@@ -19,15 +19,35 @@ export function isActionReferenceKind(value: string): value is ActionReferenceKi
   return (ACTION_REFERENCE_KINDS as readonly string[]).includes(value);
 }
 
+export type ActionReferenceHost = 'route' | 'ivr' | 'binding';
+
 export interface ActionReference {
   routeUid: number;
   actionOrBindingId: string;
   location: string;
+  host?: ActionReferenceHost;
+  routeName?: string;
+  extensions?: string[];
+  routeActive?: number;
+  actionType?: string;
+  actionIndex?: number;
+  ivrUid?: number;
+  ivrName?: string;
+  menuDigit?: string;
 }
 
 export interface ActionReferenceScanRoute {
   uid: number;
+  name?: string;
+  extensions?: unknown;
+  active?: number;
   actions?: unknown;
+}
+
+export interface ActionReferenceScanIvr {
+  uid: number;
+  name?: string;
+  menu_items?: unknown;
 }
 
 export interface ActionReferenceScanBinding {
@@ -93,6 +113,11 @@ export function nodeMatches(
   return Object.values(rec).some((child) => nodeMatches(child, directoryUid, fieldUid));
 }
 
+function asStringList(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => String(item ?? '').trim()).filter(Boolean);
+}
+
 function pushUnique(hits: ActionReference[], hit: ActionReference): void {
   if (hits.some((existing) =>
     existing.routeUid === hit.routeUid
@@ -151,8 +176,50 @@ function scanRouteActions(
         routeUid: route.uid,
         actionOrBindingId: id,
         location: `Route ${route.uid} action ${id}`,
+        host: 'route',
+        routeName: typeof route.name === 'string' ? route.name.trim() : undefined,
+        extensions: asStringList(route.extensions),
+        routeActive: typeof route.active === 'number' ? route.active : undefined,
+        actionType: typeof rec.type === 'string' ? rec.type : undefined,
+        actionIndex: index + 1,
       });
     });
+  }
+}
+
+function scanIvrMenus(
+  ivrs: ActionReferenceScanIvr[],
+  kind: ActionReferenceKind,
+  uid: number | string,
+  fieldUid: number | undefined,
+  hits: ActionReference[],
+): void {
+  for (const ivr of ivrs) {
+    const items = Array.isArray(ivr.menu_items) ? ivr.menu_items : [];
+    for (const item of items) {
+      const rec = asRecord(item);
+      if (!rec) continue;
+      const digit = String(rec.digit ?? '').trim();
+      const actions = Array.isArray(rec.actions) ? rec.actions : [];
+      actions.forEach((action, index) => {
+        const actionRec = asRecord(action);
+        if (!actionRec) return;
+        const params = asRecord(actionRec.params);
+        if (!actionMatchesKind(actionRec, params, kind, uid, fieldUid)) return;
+        const id = actionId(action, String(index));
+        pushUnique(hits, {
+          routeUid: 0,
+          actionOrBindingId: id,
+          location: `IVR ${ivr.uid} digit ${digit || '?'} action ${id}`,
+          host: 'ivr',
+          ivrUid: ivr.uid,
+          ivrName: typeof ivr.name === 'string' ? ivr.name.trim() : undefined,
+          menuDigit: digit || undefined,
+          actionType: typeof actionRec.type === 'string' ? actionRec.type : undefined,
+          actionIndex: index + 1,
+        });
+      });
+    }
   }
 }
 
@@ -174,17 +241,22 @@ function scanBindings(
         routeUid: binding.route_uid,
         actionOrBindingId: String(binding.uid),
         location: bindingLocation,
+        host: 'binding',
       });
     }
 
     if (!Array.isArray(binding.actions)) continue;
     binding.actions.forEach((action, index) => {
       if (!nodeMatches(action, uid, fieldUid)) return;
+      const rec = asRecord(action);
       const id = actionId(action, String(index));
       pushUnique(hits, {
         routeUid: binding.route_uid,
         actionOrBindingId: id,
         location: `${bindingLocation} action ${id}`,
+        host: 'binding',
+        actionType: typeof rec?.type === 'string' ? rec.type : undefined,
+        actionIndex: index + 1,
       });
     });
   }
@@ -200,11 +272,15 @@ export function collectActionReferences(
   routes: ActionReferenceScanRoute[],
   bindings?: ActionReferenceScanBinding[],
   fieldUid?: number,
+  ivrs?: ActionReferenceScanIvr[],
 ): ActionReference[] {
   const hits: ActionReference[] = [];
   scanRouteActions(routes, kind, uid, fieldUid, hits);
   if (kind === 'directory' && bindings?.length) {
     scanBindings(bindings, uid, fieldUid, hits);
+  }
+  if (ivrs?.length) {
+    scanIvrMenus(ivrs, kind, uid, fieldUid, hits);
   }
   return hits;
 }

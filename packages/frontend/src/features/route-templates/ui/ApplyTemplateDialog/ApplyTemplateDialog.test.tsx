@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import type { IRouteTemplate } from '@krasterisk/shared';
 import { ApplyTemplateDialog } from './ApplyTemplateDialog';
+import styles from './ApplyTemplateDialog.module.scss';
 
 const applyMock = vi.fn();
 
@@ -78,6 +79,25 @@ vi.mock('@/features/dialplan-apps/model/useSchemaRefs', () => ({
 describe('ApplyTemplateDialog', () => {
   beforeEach(() => {
     applyMock.mockClear();
+  });
+
+  it('keeps a fixed dialog height class across choose and fill steps', () => {
+    render(
+      <ApplyTemplateDialog
+        open
+        onOpenChange={vi.fn()}
+        currentActionCount={2}
+        onApply={vi.fn()}
+      />,
+    );
+
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toHaveClass(styles.dialog);
+
+    fireEvent.click(screen.getByRole('button', { name: /Queue \+ failover/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Применить шаблон/i }));
+
+    expect(screen.getByRole('dialog')).toHaveClass(styles.dialog);
   });
 
   it('lists templates and applies with append by default after filling slots', async () => {

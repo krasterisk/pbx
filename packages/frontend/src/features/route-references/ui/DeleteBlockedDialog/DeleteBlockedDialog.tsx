@@ -13,6 +13,7 @@ import {
 } from '@/shared/ui';
 import { VStack } from '@/shared/ui/Stack';
 import type { RouteReference } from '@/shared/api/endpoints/routeReferencesApi';
+import { describeUsageReference } from '../../model/describeUsageReference';
 
 export interface DeleteBlockedDialogProps {
   open: boolean;
@@ -62,11 +63,18 @@ export function DeleteBlockedDialog({
 
         {blocked && (
           <VStack gap="8" max data-testid="delete-blocked-references">
-            {references.map((ref) => (
-              <Text key={`${ref.routeUid}:${ref.actionOrBindingId}:${ref.location}`} variant="small">
-                {ref.location}
-              </Text>
-            ))}
+            {references.map((ref) => {
+              const view = describeUsageReference(ref, undefined, t);
+              return (
+                <Text
+                  key={`${ref.host ?? 'route'}:${ref.routeUid}:${ref.ivrUid ?? ''}:${ref.actionOrBindingId}:${ref.location}`}
+                  variant="small"
+                >
+                  {view.title}
+                  {view.location ? ` — ${view.location}` : ''}
+                </Text>
+              );
+            })}
           </VStack>
         )}
 

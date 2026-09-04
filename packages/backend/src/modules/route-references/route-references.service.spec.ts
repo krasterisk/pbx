@@ -36,7 +36,7 @@ describe('RouteReferencesService (D-48, T-14-03)', () => {
 
     expect(routeModel.findAll).toHaveBeenCalledWith({
       where: { user_uid: 100 },
-      attributes: ['uid', 'actions', 'raw_dialplan'],
+      attributes: ['uid', 'name', 'extensions', 'active', 'actions', 'raw_dialplan'],
     });
     expect(usage.references).toEqual([
       expect.objectContaining({ routeUid: 5, actionOrBindingId: 'to-ivr-7' }),

@@ -3,7 +3,7 @@ status: complete
 phase: 14-visual-route-builder-and-automation
 source: 14-01-SUMMARY.md, 14-02-SUMMARY.md, 14-03-SUMMARY.md, 14-04-SUMMARY.md, 14-05-SUMMARY.md, 14-06-SUMMARY.md, 14-07-SUMMARY.md, 14-08-SUMMARY.md, 14-09-SUMMARY.md, 14-10-SUMMARY.md
 started: 2026-09-04T00:53:00Z
-updated: 2026-09-04T03:24:00Z
+updated: 2026-09-04T05:24:00Z
 ---
 
 ## Current Test
@@ -20,9 +20,8 @@ reason: cold-start — 14-05/14-08 touched schema setup / migrations
 ### 2. Подтверждение автопокрытых поверхностей
 expected: |
   После логина как тенант-админ: у маршрута и IVR вкладка «Схема» последняя (если `routes.show_flowchart`), печать из схемы, dry-run по черновику с подсветкой и исходом callback. На маршруте кнопки «Из шаблона» / «Сохранить как шаблон»; страница `/route-templates` с формой create/edit/copy. У IVR/очереди/группы/робота/интеграции вкладка «Где используется» последняя в edit; удаление с ссылками блокируется. В настройках КЦ вкладка Callback с явным «Сохранить»; у оператора бейдж заявок после «Пропущенные»; у супервизора вкладка заявок с тем же фильтром очередей.
-result: issue
-reported: "при сохранении шаблона, всесто очередь 700, вижу: Очередь __slot:queue-a_1778039515670_snrw-target.value__"
-severity: major
+result: pass
+reason: live confirmation after preview sanitizer, tenant-id display, usage labels, and callback chrome
 rationale: all_auto_covered confirmation — unit/component tests already green; human confirms the live product
 
 ### 3. 20 passthrough playback consume zero hops (D-45)
@@ -185,8 +184,8 @@ coverage_id: 14-10-D1-D4
 ## Summary
 
 total: 27
-passed: 26
-issues: 1
+passed: 27
+issues: 0
 pending: 0
 skipped: 0
 blocked: 0
@@ -195,19 +194,7 @@ blocked: 0
 
 - gap_id: G-14-2
   truth: "При сохранении шаблона preview шага toqueue показывает человекочитаемое имя очереди (например «Очередь 700»), а место подстановки в summary — моно-чип с именем слота, не сырой маркер __slot:…__ (14-UI-SPEC Surface H)."
-  status: failed
-  reason: "User reported: при сохранении шаблона, всесто очередь 700, вижу: Очередь __slot:queue-a_1778039515670_snrw-target.value__"
-  severity: major
+  status: resolved
   test: 2
-  root_cause: "TemplateActionPreview вызывает dialplanAppsRegistry.toqueue.summarize() на params, где target.value уже заменён на __slot:{kind}-{actionId}-target.value__. summarize интерполирует сырой маркер в «Очередь {{queue}}». UI-SPEC H требует моно-чип с именем слота в summary, не токен. Чипы ниже есть, но заголовок шага уже испорчен."
-  artifacts:
-    - path: "packages/frontend/src/features/route-templates/ui/TemplateActionPreview/TemplateActionPreview.tsx"
-      issue: "summarize(params) before stripping/replacing slot markers; chip is additive, not a substitute"
-    - path: "packages/frontend/src/features/dialplan-apps/model/registry.ts"
-      issue: "toqueue.summarize treats any non-empty target.value as a display name"
-    - path: "packages/frontend/src/features/route-templates/model/detectTemplateSlots.ts"
-      issue: "buildTemplatePayload writes templateSlotMarker(hit.id); SaveAsTemplateDialog previews selected.actions"
-  missing:
-    - "Before summarize, replace __slot:id__ with slot.label (or omit value so summary is «Очередь» + mono chip)"
-    - "Unit test: preview of slotted toqueue shows «Очередь 700» or chip «700», never raw __slot:…__"
-  debug_session: .planning/debug/template-preview-slot-marker.md
+  resolved: 2026-09-04
+  note: "User confirmed Test 2 after sanitizeParamsForPreview, tenant display normalize, usage labels, and callback chrome."

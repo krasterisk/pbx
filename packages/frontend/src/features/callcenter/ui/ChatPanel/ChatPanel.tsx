@@ -51,10 +51,11 @@ export function ChatPanelToggle({ onClick, unreadTotal, active, showLabel = fals
       aria-label={t('callcenter.chat.title')}
       aria-expanded={active}
     >
-      <MessageSquare className={showLabel ? 'w-5 h-5' : 'w-4 h-4'} />
-      {showLabel ? <span className={styles.toggleLabel}>{t('callcenter.chat.title')}</span> : null}
+      <MessageSquare className="w-4 h-4" />
       {unreadTotal > 0 && (
-        <span className={styles.toggleBadge}>{unreadTotal > 99 ? '99+' : unreadTotal}</span>
+        <span className={styles.toggleBadge} data-testid="chat-unread-count">
+          {unreadTotal > 99 ? '99+' : unreadTotal}
+        </span>
       )}
     </button>
   );

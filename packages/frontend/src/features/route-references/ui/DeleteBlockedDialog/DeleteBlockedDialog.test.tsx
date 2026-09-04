@@ -6,6 +6,7 @@ import { DeleteBlockedDialog } from './DeleteBlockedDialog';
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, fallback?: string, options?: Record<string, unknown>) => {
+      if (key === 'routes.action.toivr') return 'IVR';
       if (typeof fallback !== 'string') return key;
       if (!options) return fallback;
       return fallback.replace(/\{\{(\w+)\}\}/g, (_, name: string) => String(options[name] ?? ''));
@@ -21,7 +22,17 @@ describe('DeleteBlockedDialog (D-48 / Surface P)', () => {
         open
         onOpenChange={vi.fn()}
         entityName="Main menu"
-        references={[{ routeUid: 5, actionOrBindingId: 'a1', location: 'Route 5 action a1' }]}
+        references={[
+          {
+            routeUid: 5,
+            actionOrBindingId: 'a1',
+            location: 'Route 5 action a1',
+            host: 'route',
+            routeName: 'Очередь',
+            actionType: 'toivr',
+            actionIndex: 1,
+          },
+        ]}
         onConfirm={onConfirm}
       />,
     );
@@ -29,7 +40,9 @@ describe('DeleteBlockedDialog (D-48 / Surface P)', () => {
     expect(screen.getByTestId('delete-blocked-dialog')).toBeInTheDocument();
     expect(screen.getByText('Сначала уберите ссылки')).toBeInTheDocument();
     expect(screen.getByText(/ссылается 1 маршрут/)).toBeInTheDocument();
-    expect(screen.getByTestId('delete-blocked-references')).toHaveTextContent('Route 5 action a1');
+    expect(screen.getByTestId('delete-blocked-references')).toHaveTextContent('Маршрут «Очередь»');
+    expect(screen.getByTestId('delete-blocked-references')).toHaveTextContent('Действие 1 — IVR');
+    expect(screen.getByTestId('delete-blocked-references').textContent).not.toContain('toivr');
     const confirm = screen.getByTestId('delete-blocked-confirm');
     expect(confirm).toBeDisabled();
     fireEvent.click(confirm);

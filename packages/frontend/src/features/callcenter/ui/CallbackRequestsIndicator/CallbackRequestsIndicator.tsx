@@ -27,21 +27,19 @@ export function CallbackRequestsIndicator() {
 
   return (
     <div className={styles.wrap} data-testid="callback-requests-indicator">
-      {count > 0 && (
-        <button
-          type="button"
-          className={`${styles.badge}${urgent ? ` ${styles.badgeWarning}` : ''}`}
-          onClick={() => setOpen((o) => !o)}
-          title={t('callcenter.callback.title', 'Callbacks')}
-          aria-label={`${t('callcenter.callback.title', 'Callbacks')}: ${count}`}
-          aria-expanded={open}
-          data-testid="callback-requests-badge"
-          data-urgent={urgent ? 'true' : 'false'}
-        >
-          <PhoneOutgoing className="w-4 h-4" />
-          <span className={styles.count}>{count}</span>
-        </button>
-      )}
+      <button
+        type="button"
+        className={`${styles.badge}${urgent ? ` ${styles.badgeWarning}` : ''}`}
+        onClick={() => setOpen((o) => !o)}
+        title={t('callcenter.callback.title', 'Callbacks')}
+        aria-label={`${t('callcenter.callback.title', 'Callbacks')}: ${count}`}
+        aria-expanded={open}
+        data-testid="callback-requests-badge"
+        data-urgent={urgent ? 'true' : 'false'}
+      >
+        <PhoneOutgoing className="w-4 h-4" />
+        <span className={styles.count}>{count}</span>
+      </button>
 
       {open && (
         <div className={styles.dropdown}>

@@ -12,11 +12,10 @@
 
 .tabsRow {
   display: flex;
+  flex-wrap: wrap;
   gap: 0;
   border-bottom: 1px solid var(--color-border);
-  overflow-x: auto;
   min-width: 0;
-  -webkit-overflow-scrolling: touch;
 }
 
 .tab {

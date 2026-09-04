@@ -6,6 +6,7 @@ import { type ActionType, type IRouteAction, type WalkOutcome, type WalkSegment 
 import { Badge, Button, Text } from '@/shared/ui';
 import { InfoTooltip } from '@/shared/ui/Tooltip/Tooltip';
 import { dialplanAppsRegistry } from '../../model/registry';
+import { stripActionTitleFromSummary } from '../../model/stripActionTitleFromSummary';
 import cls from './FlowchartCanvas.module.scss';
 
 export type FlowchartHost = 'route' | 'ivr';
@@ -109,12 +110,13 @@ function FlowchartNode({
   const title = config
     ? t(config.labelKey, action.type)
     : t('routes.flowchart.badge.unknown', 'Неизвестное действие');
-  const summary = config?.summarize
+  const rawSummary = config?.summarize
     ? config.summarize(action.params ?? {}, t)
     : t(
         'routes.flowchart.error.incomplete',
         'Заполните обязательные параметры на вкладке "Действия"',
       );
+  const summary = stripActionTitleFromSummary(title, rawSummary);
   const terminal = config?.terminal;
   const enabled = (action as { enabled?: boolean }).enabled ?? true;
   const isJump = action.type ? JUMP_TYPES.has(action.type) : false;

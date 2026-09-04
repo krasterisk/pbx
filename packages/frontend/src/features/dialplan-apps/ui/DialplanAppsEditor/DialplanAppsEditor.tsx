@@ -22,6 +22,7 @@ import {
   DIALPLAN_ACTION_META,
   type ActionType,
   type IRouteAction,
+  type ITemplateSlot,
 } from '@krasterisk/shared';
 import {
   Button,
@@ -78,6 +79,8 @@ export interface DialplanAppsEditorProps {
   previewPatterns?: string[];
   /** Template footer CTAs — only RouteActionsTab (host route) sets this. */
   showTemplateActions?: boolean;
+  /** Template slot labels for display — do not mutate stored markers. */
+  slots?: ITemplateSlot[];
 }
 
 export function restrictToVerticalAxisLocal({
@@ -177,6 +180,7 @@ export const DialplanAppsEditor = memo(function DialplanAppsEditor({
   stepErrors,
   previewPatterns,
   showTemplateActions = false,
+  slots = [],
 }: DialplanAppsEditorProps) {
   const { t, i18n } = useTranslation();
   const currentUser = useAppSelector(selectCurrentUser);
@@ -409,6 +413,7 @@ export const DialplanAppsEditor = memo(function DialplanAppsEditor({
                     index={idx}
                     density={density}
                     readOnly={readOnly}
+                    slots={slots}
                     unreachable={terminalIndex >= 0 && idx > terminalIndex}
                     allowedTypes={resolvedAllowed}
                     onOpenStep={(id, section) => {

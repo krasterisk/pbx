@@ -42,9 +42,8 @@ function replaceMarkers(
   return value;
 }
 
-export function resolveSlotFill(slot: ITemplateSlot, value: ITemplateSlotValue): string {
-  if (slot.kind === 'ivr' || slot.kind === 'directory') {
-    return String(value.uid);
-  }
-  return String(value.name ?? value.uid);
+export function resolveSlotFill(_slot: ITemplateSlot, value: ITemplateSlotValue): string {
+  // Catalog `uid` is the value the route editor stores (queue exten, prompt filename, …).
+  // `name` is a display label and must not be written into params.
+  return String(value.uid);
 }

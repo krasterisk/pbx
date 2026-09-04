@@ -24,7 +24,7 @@ describe('applyTemplateActions', () => {
       ],
       {
         ivr: { uid: 7 },
-        greeting: { uid: 3, name: 'welcome' },
+        greeting: { uid: 'welcome', name: 'Welcome prompt' },
       },
     );
 

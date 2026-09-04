@@ -1,6 +1,12 @@
 .dialog {
+  display: flex;
+  flex-direction: column;
   width: min(880px, calc(100vw - 1rem));
   max-width: min(880px, calc(100vw - 1rem));
+  height: min(85vh, 85dvh);
+  max-height: min(85vh, 85dvh);
+  overflow: hidden;
+  min-height: 0;
 }
 
 .header {

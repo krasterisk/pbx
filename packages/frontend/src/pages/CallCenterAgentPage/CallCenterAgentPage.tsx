@@ -1151,12 +1151,11 @@ export function CallCenterAgentPage() {
             <HStack gap="8" className={styles.headerTools}>
               <MissedCallsPanel />
               <CallbackRequestsIndicator />
-              <ParkedCallsIndicator showLabel />
+              <ParkedCallsIndicator />
               {(isWebrtc || isSip) && (
                 <SoftphoneWidget
                   phone={isWebrtc ? phone : sipPhone}
                   mode={isWebrtc ? 'webrtc' : 'sip'}
-                  showLabel
                   callerName={activeCallLabel}
                   queueLabel={activeCallQueueLabel}
                   callSeconds={callTimer}
@@ -1187,7 +1186,7 @@ export function CallCenterAgentPage() {
                   ) : undefined}
                 />
               )}
-              <ChatPanelHost showLabel />
+              <ChatPanelHost />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
@@ -1197,9 +1196,6 @@ export function CallCenterAgentPage() {
                     title={t('callcenter.agent.panelSettingsHint', 'Show or hide workspace panels')}
                   >
                     <Settings className="w-5 h-5" />
-                    <span className={styles.panelSettingsLabel}>
-                      {t('callcenter.agent.panelSettings', 'Panels')}
-                    </span>
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="min-w-[220px]">

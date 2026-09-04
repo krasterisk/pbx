@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import type { IRouteAction } from '@krasterisk/shared';
 import { SaveAsTemplateDialog } from './SaveAsTemplateDialog';
+import styles from './SaveAsTemplateDialog.module.scss';
 
 const createMock = vi.fn();
 
@@ -66,6 +67,14 @@ describe('SaveAsTemplateDialog', () => {
     });
     const body = createMock.mock.calls[0][0];
     expect(body.actions[0].params.target.value).toMatch(/^__slot:/);
+  });
+
+  it('uses a fixed-height dialog shell', () => {
+    render(
+      <SaveAsTemplateDialog open onOpenChange={vi.fn()} actions={actions} />,
+    );
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toHaveClass(styles.dialog);
   });
 
   it('hides the slots section when the chain has no entity refs', () => {

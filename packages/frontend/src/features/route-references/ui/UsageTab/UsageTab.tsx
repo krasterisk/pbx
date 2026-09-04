@@ -7,50 +7,19 @@ import { HStack, VStack } from '@/shared/ui/Stack';
 import {
   isRouteReferenceApiKind,
   useGetUsageQuery,
-  type RouteReference,
   type RouteReferenceKind,
 } from '@/shared/api/endpoints/routeReferencesApi';
 import { useGetAllRoutesQuery } from '@/shared/api/endpoints/routeApi';
+import { describeUsageReference } from '../../model/describeUsageReference';
 import cls from './UsageTab.module.scss';
+
+export { formatReferenceLocation } from '../../model/describeUsageReference';
 
 export interface UsageTabProps {
   kind: RouteReferenceKind;
   uid: number | string | undefined;
   /** D-48: route host always admits address-pattern refs the index cannot list. */
   showTorouteCaveat?: boolean;
-}
-
-export function formatReferenceLocation(
-  ref: RouteReference,
-  route: IRoute | undefined,
-  t: (key: string, fallback: string, options?: Record<string, unknown>) => string,
-): string {
-  if (ref.location.includes('binding')) {
-    return t('references.locationBinding', 'Справочники маршрута');
-  }
-
-  const actions = route?.actions ?? [];
-  const actionIndex = actions.findIndex((action) => action.id === ref.actionOrBindingId);
-  if (actionIndex >= 0) {
-    const type = actions[actionIndex]?.type ?? ref.actionOrBindingId;
-    return t('references.locationAction', 'Действие {{index}}, {{type}}', {
-      index: actionIndex + 1,
-      type,
-    });
-  }
-
-  const actionMatch = /action\s+(\S+)/i.exec(ref.location);
-  if (actionMatch) {
-    return t('references.locationAction', 'Действие {{index}}, {{type}}', {
-      index: actionMatch[1],
-      type: actionMatch[1],
-    });
-  }
-
-  return t('references.locationAction', 'Действие {{index}}, {{type}}', {
-    index: ref.actionOrBindingId,
-    type: ref.actionOrBindingId,
-  });
 }
 
 export function UsageTab({ kind, uid, showTorouteCaveat = kind === 'route' }: UsageTabProps) {
@@ -69,9 +38,21 @@ export function UsageTab({ kind, uid, showTorouteCaveat = kind === 'route' }: Us
   }, [routes]);
 
   const references = data?.references ?? [];
+  const hasIvrHits = references.some((ref) => ref.host === 'ivr' || /^IVR\s/i.test(ref.location));
+  const hasRouteHits = references.some((ref) => ref.host !== 'ivr' && !/^IVR\s/i.test(ref.location));
   const hasRawDialplanRoutes = Boolean(data?.meta?.hasRawDialplanRoutes ?? data?.hasRawDialplanRoutes);
   const loading = !skip && isLoading;
   const empty = !loading && !isError && references.length === 0;
+  const listHeading = hasIvrHits && hasRouteHits
+    ? t('references.listHeadingMixed', 'Ссылаются маршруты и меню IVR')
+    : hasIvrHits
+      ? t('references.listHeadingIvr', 'Ссылаются меню IVR')
+      : t('references.listHeading', 'Ссылаются маршруты');
+  const listCount = hasIvrHits && hasRouteHits
+    ? t('references.countMixed', 'Ссылок: {{count}}', { count: references.length })
+    : hasIvrHits
+      ? t('references.countIvr', 'Меню: {{count}}', { count: references.length })
+      : t('references.count', 'Маршрутов: {{count}}', { count: references.length });
 
   return (
     <VStack gap="16" max className={cls.root} data-testid="usage-tab">
@@ -114,37 +95,37 @@ export function UsageTab({ kind, uid, showTorouteCaveat = kind === 'route' }: Us
         <VStack gap="12" max data-testid="usage-tab-list">
           <HStack gap="8" align="center" justify="between" max>
             <Text as="h3" className={cls.heading}>
-              {t('references.listHeading', 'Ссылаются маршруты')}
+              {listHeading}
             </Text>
-            <Text variant="muted">
-              {t('references.count', 'Маршрутов: {{count}}', { count: references.length })}
-            </Text>
+            <Text variant="muted">{listCount}</Text>
           </HStack>
           <VStack gap="8" max>
             {references.map((ref) => {
               const route = routesByUid.get(ref.routeUid);
-              const disabled = route != null && route.active === 0;
-              const name = route?.name?.trim() || `#${ref.routeUid}`;
+              const view = describeUsageReference(ref, route, t);
               return (
                 <Card
-                  key={`${ref.routeUid}:${ref.actionOrBindingId}:${ref.location}`}
+                  key={`${ref.host ?? 'route'}:${ref.routeUid}:${ref.ivrUid ?? ''}:${ref.actionOrBindingId}:${ref.location}`}
                   className={cls.row}
                   data-testid="usage-tab-row"
                 >
                   <HStack gap="8" align="center" justify="between" max>
                     <VStack gap="4">
-                      <Text className={cls.routeName}>{name}</Text>
+                      <Text className={cls.routeName}>{view.title}</Text>
+                      {view.subtitle ? (
+                        <Text variant="muted" className={cls.subtitle}>{view.subtitle}</Text>
+                      ) : null}
                       <Badge variant="outline" className={cls.location}>
-                        {formatReferenceLocation(ref, route, t)}
+                        {view.location}
                       </Badge>
                     </VStack>
                     <HStack gap="8" align="center">
-                      {disabled && (
+                      {view.disabled && (
                         <Badge variant="secondary">{t('references.disabled', 'Выключен')}</Badge>
                       )}
                       <a
                         className={cls.link}
-                        href="/routes"
+                        href={view.href}
                         target="_blank"
                         rel="noreferrer"
                         title={t(

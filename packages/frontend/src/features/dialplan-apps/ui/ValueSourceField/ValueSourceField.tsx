@@ -5,11 +5,13 @@ import { Input, Label, Select, Text, InfoTooltip } from '@/shared/ui';
 import { HStack, VStack } from '@/shared/ui/Stack';
 import { useGetQueuesQuery } from '@/shared/api/endpoints/queueApi';
 import { useGetEndpointsQuery } from '@/shared/api/endpoints/endpointApi';
-import { extractExtension, interfaceToExtension } from '@/features/endpoints/lib/endpointIds';
 import type { OptionsSource, ValueSourceMode } from '../../model/schema.types';
 import type { DirectoryValueSource } from '@krasterisk/shared';
+import { normalizeBareExtension, stripTenantQueueName } from '../../model/normalizeTenantDisplayValue';
 import { DirectoryLookupField, type DirectoryCatalogItem } from '../DirectoryLookupField';
 import styles from './ValueSourceField.module.scss';
+
+export { normalizeBareExtension } from '../../model/normalizeTenantDisplayValue';
 
 export interface ValueSourceFieldProps {
   value: ValueSource | number | string | undefined;
@@ -34,14 +36,6 @@ const SRC_ROUTE = '__src:route_pattern';
 const SRC_FIXED = '__src:fixed';
 const SRC_VARIABLE = '__src:variable';
 const SRC_DIRECTORY = '__src:directory';
-/** Store bare extension — strip PJSIP/e101_42 or ew101_42 pasted by mistake. */
-export function normalizeBareExtension(raw: string): string {
-  const trimmed = raw.trim();
-  if (!trimmed) return '';
-  if (trimmed.includes('/')) return interfaceToExtension(trimmed);
-  if (/^e(w?).+_\d+$/.test(trimmed)) return extractExtension(trimmed);
-  return trimmed;
-}
 
 /** Dual-read legacy number/string into ValueSource for editors. */
 export function coerceValueSource(
@@ -149,6 +143,14 @@ export function ValueSourceField({
   });
   const queues = queuesQuery.data ?? [];
   const endpoints = endpointsQuery.data ?? [];
+  const queueCatalogValue = (q: (typeof queues)[number]) => q.exten || stripTenantQueueName(q.name);
+  const queueSelectValue =
+    mode === 'queue' && src.source === 'fixed' ? stripTenantQueueName(src.value) : selectValue(src, mode);
+  const queueInCatalog =
+    mode !== 'queue' ||
+    src.source !== 'fixed' ||
+    !queueSelectValue ||
+    queues.some((q) => queueCatalogValue(q) === queueSelectValue);
   const isLoading = mode === 'queue' && queuesQuery.isLoading;
   const isEmpty = mode === 'queue' && !isLoading && queues.length === 0;
   const complete = isValueSourceComplete(src);
@@ -294,7 +296,7 @@ export function ValueSourceField({
         <VStack gap="8" max>
           <Select
             disabled={readOnly || isLoading || isEmpty}
-            value={selectValue(src, mode)}
+            value={queueSelectValue}
             error={queueEmptyError || (markError && src.source !== 'fixed' && !complete)}
             aria-invalid={markError || undefined}
             aria-describedby={queueEmptyError ? 'queue-source-error' : undefined}
@@ -314,9 +316,17 @@ export function ValueSourceField({
               </option>
             </optgroup>
             <optgroup label={staticGroup}>
+              {!queueInCatalog ? (
+                <option value={queueSelectValue}>
+                  {t('routes.chain.source.queueOrphan', '{{queue}} (нет в списке)').replace(
+                    '{{queue}}',
+                    queueSelectValue,
+                  )}
+                </option>
+              ) : null}
               {queues.map((q) => (
-                <option key={q.name} value={q.exten || q.name}>
-                  {q.exten || q.name}
+                <option key={q.name} value={queueCatalogValue(q)}>
+                  {queueCatalogValue(q)}
                   {q.display_name ? ` - ${q.display_name}` : ''}
                 </option>
               ))}

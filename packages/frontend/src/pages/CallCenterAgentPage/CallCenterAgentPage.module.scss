@@ -43,15 +43,13 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  min-width: 44px;
   min-height: 44px;
-  padding: 8px 14px;
+  padding: 0 12px;
   border-radius: var(--radius-lg);
   border: 1px solid var(--color-border);
   background: var(--color-card);
   color: var(--color-foreground);
-  font-size: 0.875rem;
-  font-weight: 600;
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease;
 
@@ -63,14 +61,6 @@
     border-color: color-mix(in srgb, var(--color-primary) 40%, transparent);
     background: color-mix(in srgb, var(--color-primary) 12%, var(--color-card));
     color: var(--color-primary);
-  }
-}
-
-.panelSettingsLabel {
-  white-space: nowrap;
-
-  @media (max-width: 640px) {
-    display: none;
   }
 }
 

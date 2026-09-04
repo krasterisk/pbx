@@ -1,8 +1,17 @@
 .dialog {
+  display: flex;
+  flex-direction: column;
   width: min(720px, calc(100vw - 1rem));
   max-width: min(720px, calc(100vw - 1rem));
-  height: auto;
+  height: min(85vh, 40rem);
   max-height: min(85vh, 40rem);
+  overflow: hidden;
+  min-height: 0;
+
+  @media (max-width: 640px) {
+    height: min(90dvh, 40rem);
+    max-height: min(90dvh, 40rem);
+  }
 }
 
 .header {
@@ -10,6 +19,8 @@
 }
 
 .scrollBody {
+  display: flex;
+  flex-direction: column;
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
@@ -26,8 +37,9 @@
   grid-template-columns: 280px 1fr;
   gap: 1rem;
   width: 100%;
+  flex: 1 1 auto;
   min-height: 16rem;
-  align-items: start;
+  align-items: stretch;
 
   @media (max-width: 640px) {
     grid-template-columns: 1fr;
@@ -36,12 +48,14 @@
 
 .listPane {
   min-width: 0;
-  max-height: 22rem;
+  min-height: 0;
   overflow-y: auto;
 }
 
 .previewPane {
   min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .listRow {

@@ -20,6 +20,8 @@ const routesState: { data: IRoute[] } = { data: [] };
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, fallback?: string, options?: Record<string, unknown>) => {
+      if (key === 'routes.action.toivr') return 'IVR';
+      if (key === 'routes.action.toqueue') return 'Очередь';
       if (typeof fallback !== 'string') return key;
       if (!options) return fallback;
       return fallback.replace(/\{\{(\w+)\}\}/g, (_, name: string) => String(options[name] ?? ''));
@@ -78,8 +80,10 @@ describe('UsageTab (D-48 / Surface O)', () => {
     render(<UsageTab kind="ivr" uid={7} />);
 
     expect(screen.getByTestId('usage-tab')).toBeInTheDocument();
-    expect(screen.getByText('Inbound')).toBeInTheDocument();
-    expect(screen.getByText('Действие 1, toivr')).toBeInTheDocument();
+    expect(screen.getByText('Маршрут «Inbound»')).toBeInTheDocument();
+    expect(screen.getByText('Номера: 100')).toBeInTheDocument();
+    expect(screen.getByText('Действие 1 — IVR')).toBeInTheDocument();
+    expect(screen.queryByText(/toivr/)).toBeNull();
     const link = screen.getByRole('link', { name: 'Открыть в новой вкладке' });
     expect(link).toHaveAttribute('target', '_blank');
     expect(link).toHaveAttribute('href', '/routes');
@@ -133,6 +137,31 @@ describe('UsageTab (D-48 / Surface O)', () => {
     routesState.data = [{ ...inbound, active: 0 }];
     render(<UsageTab kind="ivr" uid={7} />);
     expect(screen.getByText('Выключен')).toBeInTheDocument();
+  });
+
+  it('renders an IVR menu hit with the menu name and digit', () => {
+    usageState.data = {
+      references: [{
+        routeUid: 0,
+        actionOrBindingId: 'q1',
+        location: 'IVR 4 digit 1 action q1',
+        host: 'ivr',
+        ivrUid: 4,
+        ivrName: 'Главное меню',
+        menuDigit: '1',
+        actionType: 'toqueue',
+        actionIndex: 1,
+      }],
+      hasRawDialplanRoutes: false,
+      meta: { hasRawDialplanRoutes: false },
+    };
+
+    render(<UsageTab kind="queue" uid="q100" />);
+
+    expect(screen.getByText('Ссылаются меню IVR')).toBeInTheDocument();
+    expect(screen.getByText('IVR «Главное меню»')).toBeInTheDocument();
+    expect(screen.getByText('Кнопка 1 · Действие 1 — Очередь')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Открыть в новой вкладке' })).toHaveAttribute('href', '/ivrs');
   });
 
   it('formats a directory binding as Route directories', () => {

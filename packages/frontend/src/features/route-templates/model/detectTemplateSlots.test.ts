@@ -48,10 +48,24 @@ describe('detectTemplateSlots', () => {
     const queue = candidates.find((item) => item.kind === 'queue')!;
     const payload = buildTemplatePayload(actions, [queue.id], candidates);
 
+    expect(queue.id).not.toContain('.');
     expect(payload.slots).toEqual([{ id: queue.id, kind: 'queue', label: 'sales' }]);
     expect(payload.actions[0].params).toEqual({
       target: { source: 'fixed', value: templateSlotMarker(queue.id) },
     });
     expect(payload.actions[1].params).toEqual({ group: '12' });
+  });
+
+  it('labels a tenant queue id with the bare exten and keeps the stored value', () => {
+    const found = detectTemplateSlots([
+      action({
+        id: 'q',
+        type: 'toqueue',
+        params: { target: { source: 'fixed', value: 'q700_0' } },
+      }),
+    ]);
+    const queue = found.find((item) => item.kind === 'queue');
+    expect(queue?.label).toBe('700');
+    expect(queue?.value).toBe('q700_0');
   });
 });

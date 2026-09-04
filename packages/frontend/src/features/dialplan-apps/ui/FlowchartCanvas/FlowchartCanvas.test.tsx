@@ -100,6 +100,40 @@ describe('FlowchartCanvas', () => {
     expect(screen.getByTestId('flowchart-node')).toHaveTextContent(summary);
   });
 
+  it('shows bare queue and extension numbers instead of tenant realtime ids', () => {
+    render(
+      <FlowchartCanvas
+        host="ivr"
+        menuItems={[
+          {
+            digit: '1',
+            actions: [
+              makeAction('toqueue', {
+                id: 'q1',
+                params: { target: { source: 'fixed', value: 'q700_0' } },
+              }),
+            ],
+          },
+          {
+            digit: '2',
+            actions: [
+              makeAction('toexten', {
+                id: 'e1',
+                params: { target: { source: 'fixed', value: 'e101_0' } },
+              }),
+            ],
+          },
+        ]}
+      />,
+    );
+
+    const nodes = screen.getAllByTestId('flowchart-node');
+    expect(nodes[0]).toHaveTextContent('700');
+    expect(nodes[0].textContent).not.toContain('q700_0');
+    expect(nodes[1]).toHaveTextContent('101');
+    expect(nodes[1].textContent).not.toContain('e101_0');
+  });
+
   it('renders every ActionType as a node (completeness)', () => {
     const actions = ACTION_TYPES_LIST.map((config, index) =>
       makeAction(config.type, { id: `all-${index}` }),

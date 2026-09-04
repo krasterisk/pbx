@@ -33,6 +33,13 @@
   color: var(--color-foreground);
 }
 
+.subtitle {
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.4;
+  color: var(--color-muted-foreground);
+}
+
 .location {
   font-size: 14px;
   font-weight: 400;

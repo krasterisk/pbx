@@ -25,10 +25,21 @@ export function isRouteReferenceApiKind(
   return (ROUTE_REFERENCE_API_KINDS as readonly string[]).includes(kind);
 }
 
+export type RouteReferenceHost = 'route' | 'ivr' | 'binding';
+
 export interface RouteReference {
   routeUid: number;
   actionOrBindingId: string;
   location: string;
+  host?: RouteReferenceHost;
+  routeName?: string;
+  extensions?: string[];
+  routeActive?: number;
+  actionType?: string;
+  actionIndex?: number;
+  ivrUid?: number;
+  ivrName?: string;
+  menuDigit?: string;
 }
 
 export interface RouteUsageResponse {

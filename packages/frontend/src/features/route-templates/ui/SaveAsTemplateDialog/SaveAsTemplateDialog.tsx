@@ -75,7 +75,7 @@ export function SaveAsTemplateDialog({ open, onOpenChange, actions }: SaveAsTemp
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={styles.dialog} aria-describedby={undefined}>
+      <DialogContent size="large" className={styles.dialog} aria-describedby={undefined}>
         <DialogHeader className={styles.header}>
           <DialogTitle>
             <HStack gap="8" align="center">

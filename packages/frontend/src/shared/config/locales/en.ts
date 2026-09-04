@@ -706,6 +706,7 @@ export const en = {
         searchEndpointPlaceholder: 'Number or name…',
         endpointNoMatch: 'No matches',
         endpointOrphan: '{{exten}} (not in list)',
+        queueOrphan: '{{queue}} (not in list)',
       },
       catalog: {
         loading: 'Loading the list',
@@ -3236,6 +3237,7 @@ export const en = {
     },
     callback: {
       title: 'Callbacks',
+      badge: 'Requests',
       emptyTitle: 'No callback requests',
       emptyBody: 'Requests appear here once a caller asks for a callback',
       disabledTitle: 'Callback is not set up',

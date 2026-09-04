@@ -31,12 +31,18 @@ vi.mock('@/shared/api/endpoints/routeTemplateApi', () => ({
 }));
 
 vi.mock('@/features/dialplan-apps', () => ({
-  DialplanAppsEditor: (props: { readOnly?: boolean; density?: string; host?: string }) => (
+  DialplanAppsEditor: (props: {
+    readOnly?: boolean;
+    density?: string;
+    host?: string;
+    slots?: Array<{ id: string }>;
+  }) => (
     <div
       data-testid="template-chain-editor"
       data-readonly={String(!!props.readOnly)}
       data-density={props.density}
       data-host={props.host}
+      data-slot-count={String(props.slots?.length ?? 0)}
     />
   ),
   allowedTypesForHost: () => ['toqueue', 'hangup'],
@@ -89,6 +95,7 @@ describe('RouteTemplateFormModal', () => {
     expect(editor).toHaveAttribute('data-readonly', 'false');
     expect(editor).toHaveAttribute('data-density', 'comfortable');
     expect(screen.getByText(/Что спрашивать при применении/i)).toBeInTheDocument();
+    expect(screen.getByTestId('template-chain-editor')).toHaveAttribute('data-slot-count', '1');
   });
 
   it('saves a create payload through routeTemplateApi', async () => {

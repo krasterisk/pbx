@@ -74,6 +74,56 @@ describe('collectActionReferences (D-48)', () => {
     ]);
     expect(hits[0].location).toMatch(/route\s*5/i);
     expect(hits[0].location.toLowerCase()).toMatch(/action/);
+    expect(hits[0]).toEqual(
+      expect.objectContaining({
+        host: 'route',
+        actionType: 'toivr',
+        actionIndex: 1,
+      }),
+    );
+  });
+
+  it('includes the route name and extensions on a hit', () => {
+    const hits = collectActionReferences('ivr', 7, [
+      { uid: 5, name: 'Очередь', extensions: ['700'], actions: [toIvr] },
+    ]);
+    expect(hits[0]).toEqual(
+      expect.objectContaining({
+        routeUid: 5,
+        routeName: 'Очередь',
+        extensions: ['700'],
+        actionType: 'toivr',
+        actionIndex: 1,
+      }),
+    );
+  });
+
+  it('returns an IVR menu hit with the menu name and digit', () => {
+    const hits = collectActionReferences(
+      'queue',
+      'q100',
+      [],
+      [],
+      undefined,
+      [
+        {
+          uid: 4,
+          name: 'Главное меню',
+          menu_items: [{ digit: '1', actions: [toQueue] }],
+        },
+      ],
+    );
+    expect(hits).toEqual([
+      expect.objectContaining({
+        host: 'ivr',
+        ivrUid: 4,
+        ivrName: 'Главное меню',
+        menuDigit: '1',
+        actionType: 'toqueue',
+        actionIndex: 1,
+        actionOrBindingId: 'to-q100',
+      }),
+    ]);
   });
 
   it('returns a hit for toqueue target q100', () => {

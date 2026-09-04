@@ -16,6 +16,7 @@ import {
   InfoTooltip,
 } from '@/shared/ui';
 import { HStack, VStack } from '@/shared/ui/Stack';
+import { matchCatalogValue } from '../../model/normalizeTenantDisplayValue';
 import { ValueSourceField } from '../ValueSourceField/ValueSourceField';
 import type {
   FieldKind,
@@ -250,13 +251,14 @@ function RefSelect({
   );
   const aria = loading ? loadingLabel : empty ? emptyLabel : label;
   const placeholder = loading ? loadingLabel : empty ? emptyLabel : t('routes.chain.catalog.choose', 'Выберите');
+  const selected = matchCatalogValue(value, items);
 
   return (
     <VStack gap="8" max>
       <Select
         id={id}
         disabled={readOnly || loading || empty}
-        value={value}
+        value={selected}
         aria-label={aria}
         aria-invalid={invalid || undefined}
         aria-describedby={errorId}

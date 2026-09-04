@@ -709,6 +709,7 @@ export const ru = {
         searchEndpointPlaceholder: 'Номер или имя…',
         endpointNoMatch: 'Ничего не найдено',
         endpointOrphan: '{{exten}} (нет в списке)',
+        queueOrphan: '{{queue}} (нет в списке)',
       },
       catalog: {
         loading: 'Загружаем список',
@@ -3281,6 +3282,7 @@ export const ru = {
     },
     callback: {
       title: 'Обратные звонки',
+      badge: 'Заявки',
       emptyTitle: 'Заявок на обратный звонок нет',
       emptyBody: 'Заявки появятся здесь, когда абонент попросит перезвонить',
       disabledTitle: 'Обратный звонок не настроен',

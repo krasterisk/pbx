@@ -25,6 +25,7 @@ import {
   renderDialModifyTarget,
   renderDialModifyExtension,
 } from '../ui/DialModifyField/DialModifyField';
+import { normalizeTenantDisplayValue } from './normalizeTenantDisplayValue';
 
 const registryDraft: Record<ActionType, Omit<IDialplanAppConfig, 'schema' | 'summarize' | 'terminal' | 'allowedIn' | 'optionFlags'> & Partial<IDialplanAppConfig>> = {
   // --- TELEPHONY & MEDIA ---
@@ -112,7 +113,10 @@ const registryDraft: Record<ActionType, Omit<IDialplanAppConfig, 'schema' | 'sum
       }
       const fixed = target?.source === 'fixed' ? String(target.value ?? '').trim() : '';
       if (fixed) {
-        return t('routes.chain.summary.toexten.fixed', 'Абонент {{exten}}').replace('{{exten}}', fixed);
+        return t('routes.chain.summary.toexten.fixed', 'Абонент {{exten}}').replace(
+          '{{exten}}',
+          normalizeTenantDisplayValue(fixed),
+        );
       }
       return t('routes.chain.summary.toexten.empty', 'Абонент: не выбран');
     },
@@ -187,7 +191,10 @@ const registryDraft: Record<ActionType, Omit<IDialplanAppConfig, 'schema' | 'sum
       }
       const fixed = (target?.source === 'fixed' && target.value) || params?.queue;
       if (fixed) {
-        return t('routes.chain.summary.toqueue.fixed', 'Очередь {{queue}}').replace('{{queue}}', String(fixed));
+        return t('routes.chain.summary.toqueue.fixed', 'Очередь {{queue}}').replace(
+          '{{queue}}',
+          normalizeTenantDisplayValue(String(fixed)),
+        );
       }
       return t('routes.chain.summary.toqueue.empty', 'Очередь: не выбрана');
     },
