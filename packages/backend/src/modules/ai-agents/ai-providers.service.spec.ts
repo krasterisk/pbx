@@ -9,6 +9,7 @@ import { decryptSecret } from './util/secret-cipher.util';
  */
 describe('AiProvidersService', () => {
   let model: any;
+  let config: { get: jest.Mock };
   let service: AiProvidersService;
 
   beforeEach(() => {
@@ -17,7 +18,8 @@ describe('AiProvidersService', () => {
       findOne: jest.fn(),
       create: jest.fn(),
     };
-    service = new AiProvidersService(model);
+    config = { get: jest.fn().mockReturnValue(undefined) };
+    service = new AiProvidersService(model, config as any);
   });
 
   describe('findAll', () => {
@@ -161,6 +163,75 @@ describe('AiProvidersService', () => {
       model.findOne.mockResolvedValueOnce(null);
       await expect(service.cloneTemplate(5, 7))
         .rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
+  describe('findDefaultLlm', () => {
+    const tenantLlm = {
+      uid: 11,
+      name: 'Tenant LLM',
+      enabled: true,
+      user_uid: 7,
+      capabilities: ['llm'],
+    };
+    const globalLlm = {
+      uid: 1,
+      name: 'Global template',
+      enabled: true,
+      user_uid: 0,
+      capabilities: ['llm'],
+    };
+    const sttOnly = {
+      uid: 3,
+      name: 'STT',
+      enabled: true,
+      user_uid: 7,
+      capabilities: ['stt'],
+    };
+
+    it('returns the configured default provider when it is enabled and has the language-model capability', async () => {
+      config.get.mockReturnValue('11');
+      model.findOne.mockResolvedValueOnce(tenantLlm);
+
+      await expect(service.findDefaultLlm()).resolves.toEqual(tenantLlm);
+      expect(config.get).toHaveBeenCalledWith('CC_AI_DEFAULT_PROVIDER_UID');
+      expect(model.findOne).toHaveBeenCalledWith({
+        where: { uid: 11, enabled: true },
+      });
+    });
+
+    it('falls back to the first enabled language-model row, preferring a tenant row over the global template', async () => {
+      model.findAll.mockResolvedValueOnce([tenantLlm, globalLlm, sttOnly]);
+
+      await expect(service.findDefaultLlm()).resolves.toEqual(tenantLlm);
+      expect(model.findAll).toHaveBeenCalledWith(expect.objectContaining({
+        where: { enabled: true },
+      }));
+      const order = model.findAll.mock.calls[0][0].order;
+      expect(order[0][0]).toBe('user_uid');
+      expect(order[0][1]).toMatch(/desc/i);
+    });
+
+    it('skips a configured default that is missing the language-model capability', async () => {
+      config.get.mockReturnValue('3');
+      model.findOne.mockResolvedValueOnce(sttOnly);
+      model.findAll.mockResolvedValueOnce([tenantLlm]);
+
+      await expect(service.findDefaultLlm()).resolves.toEqual(tenantLlm);
+    });
+
+    it('caches the resolved row for sixty seconds', async () => {
+      jest.useFakeTimers();
+      model.findAll.mockResolvedValue([tenantLlm]);
+
+      await service.findDefaultLlm();
+      await service.findDefaultLlm();
+      expect(model.findAll).toHaveBeenCalledTimes(1);
+
+      jest.advanceTimersByTime(60_000);
+      await service.findDefaultLlm();
+      expect(model.findAll).toHaveBeenCalledTimes(2);
+      jest.useRealTimers();
     });
   });
 });

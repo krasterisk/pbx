@@ -1,0 +1,66 @@
+/**
+ * Shared agent-loop types (D-06). ChatMessage is copied verbatim from
+ * AiChatService so 15-08 can delete that file without a type break.
+ */
+
+export interface ChatMessage {
+    role: 'user' | 'assistant' | 'system';
+    content: string;
+}
+
+export interface AgentToolCall {
+    id: string;
+    name: string;
+    arguments: Record<string, unknown>;
+}
+
+export interface AgentTokenUsage {
+    promptTokens: number;
+    completionTokens: number;
+}
+
+export interface AgentLlmError {
+    code: string;
+    message: string;
+    status?: number;
+}
+
+export interface AgentCompletion {
+    text: string;
+    toolCalls: AgentToolCall[];
+    usage?: AgentTokenUsage;
+    error?: AgentLlmError;
+}
+
+export type AgentSseEventName =
+    | 'text'
+    | 'tool_call'
+    | 'tool_result'
+    | 'progress'
+    | 'diff_proposal'
+    | 'done'
+    | 'error';
+
+export interface AgentToolSpec {
+    name: string;
+    description: string;
+    inputSchema: Record<string, unknown>;
+}
+
+export interface AgentChatParams {
+    provider: {
+        uid?: number;
+        name?: string;
+        endpoint: string;
+        auth_type?: 'bearer' | 'api_key_header' | 'none' | 'custom';
+        encrypted_api_key?: string;
+        capabilities?: string[];
+        defaults?: Record<string, unknown> | null;
+        vendor?: string;
+    };
+    messages: ChatMessage[];
+    tools?: AgentToolSpec[];
+    signal?: AbortSignal;
+    stream?: boolean;
+    onToken?: (chunk: string) => void;
+}
