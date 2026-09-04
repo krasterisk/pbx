@@ -1,13 +1,16 @@
 import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
 import { AiAdapterRegistryService } from './ai-adapter-registry.service';
 import { AiToolDefinition } from './ai-adapter.types';
 import {
   BACKEND_MODULES_DIR,
+  BACKEND_SKILLS_DIR,
   MODULE_COVERAGE,
   ModuleCoverageEntry,
   adapterDomainOf,
   collectCoverageFailures,
+  collectSkillFailures,
   listModuleDirectories,
 } from './module-coverage.registry';
 
@@ -148,5 +151,136 @@ describe('D-17 AI adapter completeness', () => {
       'route_templates',
     );
     expect(adapterDomainOf('endpoints', { kind: 'covered' })).toBe('endpoints');
+  });
+});
+
+function writeSkill(root: string, name: string, raw: string): string {
+  const dir = path.join(root, name);
+  fs.mkdirSync(dir, { recursive: true });
+  const filePath = path.join(dir, 'SKILL.md');
+  fs.writeFileSync(filePath, raw, 'utf8');
+  return filePath;
+}
+
+function discoverToolsFromAdapterSources(modulesDir: string): Array<{ name: string; domain: string }> {
+  const tools: Array<{ name: string; domain: string }> = [];
+  const visit = (dir: string) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        visit(full);
+        continue;
+      }
+      const isAdapter = entry.name.endsWith('-ai.adapter.ts');
+      const isSkillRegistry = entry.name === 'agent-skill-registry.service.ts';
+      if (!isAdapter && !isSkillRegistry) {
+        continue;
+      }
+      const src = fs.readFileSync(full, 'utf8');
+      const domainMatch = /readonly domain = '([^']+)'/.exec(src);
+      if (!domainMatch) {
+        continue;
+      }
+      const domain = domainMatch[1];
+      const nameRe = /name:\s*'([a-z][a-z0-9_]*)'/g;
+      let match: RegExpExecArray | null;
+      while ((match = nameRe.exec(src))) {
+        tools.push({ name: match[1], domain });
+      }
+    }
+  };
+  visit(modulesDir);
+  return tools;
+}
+
+describe('D-16/D-17 skill currency', () => {
+  let skillsRoot: string;
+
+  beforeEach(() => {
+    skillsRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'krasterisk-coverage-skills-'));
+  });
+
+  afterEach(() => {
+    fs.rmSync(skillsRoot, { recursive: true, force: true });
+  });
+
+  it('names a covered domain that has neither its own nor a shared skill', () => {
+    const coverage: Record<string, ModuleCoverageEntry> = {
+      endpoints: { kind: 'covered' },
+    };
+    const failures = collectSkillFailures({
+      coverage,
+      skillsRoot,
+      tools: [{ name: 'list_endpoints', domain: 'endpoints' }],
+    });
+    expect(failures.some((line) => line.includes('endpoints'))).toBe(true);
+  });
+
+  it('names the skill file when frontmatter does not parse', () => {
+    const broken = writeSkill(skillsRoot, 'endpoints', 'this is not frontmatter\n');
+    const coverage: Record<string, ModuleCoverageEntry> = {
+      endpoints: { kind: 'covered' },
+    };
+    const failures = collectSkillFailures({
+      coverage,
+      skillsRoot,
+      tools: [{ name: 'list_endpoints', domain: 'endpoints' }],
+    });
+    expect(failures.some((line) => line.includes(broken) || line.includes('endpoints'))).toBe(true);
+    expect(failures.some((line) => /frontmatter|parse/i.test(line) && line.includes('SKILL.md'))).toBe(
+      true,
+    );
+  });
+
+  it('accepts one declared shared skill for several covered domains', () => {
+    writeSkill(
+      skillsRoot,
+      'speech-engines',
+      '---\nname: speech-engines\ndescription: Shared TTS and STT conventions.\n---\n\nbody\n',
+    );
+    const coverage: Record<string, ModuleCoverageEntry> = {
+      'tts-engines': { kind: 'covered', sharedSkill: 'speech-engines' },
+      'stt-engines': { kind: 'covered', sharedSkill: 'speech-engines' },
+    };
+    const failures = collectSkillFailures({
+      coverage,
+      skillsRoot,
+      tools: [
+        { name: 'list_tts_engines', domain: 'tts-engines' },
+        { name: 'list_stt_engines', domain: 'stt-engines' },
+      ],
+    });
+    expect(failures).toEqual([]);
+  });
+
+  it('names a tool whose domain does not resolve to a skill', () => {
+    writeSkill(
+      skillsRoot,
+      'endpoints',
+      '---\nname: endpoints\ndescription: Extensions.\n---\n\nbody\n',
+    );
+    const coverage: Record<string, ModuleCoverageEntry> = {
+      endpoints: { kind: 'covered' },
+      undocumented: { kind: 'covered' },
+    };
+    const failures = collectSkillFailures({
+      coverage,
+      skillsRoot,
+      tools: [
+        { name: 'list_endpoints', domain: 'endpoints' },
+        { name: 'invent_convention', domain: 'undocumented' },
+      ],
+    });
+    expect(failures.some((line) => line.includes('invent_convention'))).toBe(true);
+  });
+
+  it('live covered domains and registered tools resolve to a parseable skill', () => {
+    const tools = discoverToolsFromAdapterSources(BACKEND_MODULES_DIR);
+    const failures = collectSkillFailures({
+      coverage: MODULE_COVERAGE,
+      skillsRoot: BACKEND_SKILLS_DIR,
+      tools,
+    });
+    expect(failures).toEqual([]);
   });
 });

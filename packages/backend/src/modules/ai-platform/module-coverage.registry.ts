@@ -178,3 +178,64 @@ export function collectCoverageFailures(input: {
 
   return failures;
 }
+
+export const BACKEND_SKILLS_DIR = path.resolve(__dirname, '../../skills');
+
+const SKILL_FRONTMATTER = /^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/;
+
+export function parseSkillFrontmatterStrict(
+  raw: string,
+): { name: string; description: string } | null {
+  const match = SKILL_FRONTMATTER.exec(raw);
+  if (!match) {
+    return null;
+  }
+  const name = (new RegExp(`^name:\\s*(.+)$`, 'm').exec(match[1])?.[1] ?? '')
+    .trim()
+    .replace(/^["']|["']$/g, '');
+  const description = (new RegExp(`^description:\\s*(.+)$`, 'm').exec(match[1])?.[1] ?? '')
+    .trim()
+    .replace(/^["']|["']$/g, '');
+  if (!name || !description) {
+    return null;
+  }
+  return { name, description };
+}
+
+export function resolveSkillTarget(
+  dir: string,
+  entry: ModuleCoverageEntry,
+  skillsRoot: string,
+): { domain: string; skillName: string; filePath: string } | null {
+  if (entry.kind !== 'covered') {
+    return null;
+  }
+  const domain = adapterDomainOf(dir, entry);
+  if (entry.sharedSkill) {
+    return {
+      domain,
+      skillName: entry.sharedSkill,
+      filePath: path.join(skillsRoot, entry.sharedSkill, 'SKILL.md'),
+    };
+  }
+  const ownNames = [domain, dir].filter((name, index, all) => all.indexOf(name) === index);
+  for (const skillName of ownNames) {
+    const filePath = path.join(skillsRoot, skillName, 'SKILL.md');
+    if (fs.existsSync(filePath)) {
+      return { domain, skillName, filePath };
+    }
+  }
+  return {
+    domain,
+    skillName: domain,
+    filePath: path.join(skillsRoot, domain, 'SKILL.md'),
+  };
+}
+
+export function collectSkillFailures(_input: {
+  coverage: Record<string, ModuleCoverageEntry>;
+  skillsRoot: string;
+  tools: Array<{ name: string; domain: string }>;
+}): string[] {
+  return ['skill check not implemented'];
+}
