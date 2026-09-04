@@ -12,6 +12,7 @@ import { InjectModel } from '@nestjs/sequelize';
 import { Context } from '../contexts/context.model';
 import { CdrService } from '../reports/cdr/cdr.service';
 import { AiAdapterRegistryService } from '../ai-platform/ai-adapter-registry.service';
+import { TENANT_ARG_KEYS } from '../ai-platform/ai-adapter.types';
 import { AiChatSettingsService } from '../ai-chat/ai-chat-settings.service';
 import { LoggerService } from '../logger/logger.service';
 
@@ -122,8 +123,10 @@ export class McpToolsService {
             throw new Error(`Tool not found: "${name}". Available: ${available}`);
         }
 
+        const cleanArgs = this.sanitizeArgs(name, args, vpbxUserUid);
+
         // Per-tenant confirmation gate for destructive tools (D-20, D-25) — default OFF.
-        if (tool.destructive && args?.confirm !== true) {
+        if (tool.destructive && cleanArgs?.confirm !== true) {
             const settings = await this.aiChatSettingsService.getSettings(vpbxUserUid);
             if (settings.confirmDestructive) {
                 return [{ type: 'text', text:
@@ -134,14 +137,30 @@ export class McpToolsService {
         }
 
         try {
-            const result = await tool.handler(args, vpbxUserUid);
-            this.loggerService.logAction(0, 'ai_tool', tool.entityType, null, vpbxUserUid, this.buildLogDetails(name, args), 'success').catch(() => {});
+            const result = await tool.handler(cleanArgs, vpbxUserUid);
+            this.loggerService.logAction(0, 'ai_tool', tool.entityType, null, vpbxUserUid, this.buildLogDetails(name, cleanArgs), 'success').catch(() => {});
             return result;
         } catch (err: any) {
             this.logger.error(`Tool "${name}" failed for tenant ${vpbxUserUid}: ${err.message}`);
-            this.loggerService.logAction(0, 'ai_tool', tool.entityType, null, vpbxUserUid, this.buildLogDetails(name, args), 'error').catch(() => {});
+            this.loggerService.logAction(0, 'ai_tool', tool.entityType, null, vpbxUserUid, this.buildLogDetails(name, cleanArgs), 'error').catch(() => {});
             return [{ type: 'text', text: `❌ Ошибка: ${err.message}` }];
         }
+    }
+
+    /**
+     * D-22: copy args entry-by-entry, dropping any model-supplied tenant key.
+     * The dispatch uid stays the second positional parameter and is never merged into args.
+     */
+    private sanitizeArgs(name: string, args: Record<string, any>, uid: number): Record<string, any> {
+        const clean: Record<string, any> = {};
+        for (const [key, value] of Object.entries(args ?? {})) {
+            if ((TENANT_ARG_KEYS as readonly string[]).includes(key)) {
+                this.logger.warn(`Tool "${name}" tenant=${uid}: stripped model-supplied "${key}"`);
+                continue;
+            }
+            clean[key] = value;
+        }
+        return clean;
     }
 
     /** Compact, truncated audit message — avoids writing huge entry payloads into action_logs (D-19). */

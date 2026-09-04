@@ -32,7 +32,37 @@ export interface AiToolDefinition {
   /** Marks the tool as subject to the per-tenant confirmation gate (D-20/D-25) */
   destructive?: boolean;
   /** vpbxUserUid is passed as a call parameter — never closed over at registration */
-  handler: (args: Record<string, any>, vpbxUserUid: number) => Promise<string | Record<string, any>>;
+  handler: (args: Record<string, any>, vpbxUserUid: number) => Promise<string | Record<string, any> | AgentDiffProposal>;
+}
+
+/**
+ * Keys a model must never be allowed to supply as tool arguments (D-22).
+ * Stripped in McpToolsService.sanitizeArgs before any handler runs.
+ */
+export const TENANT_ARG_KEYS = [
+  'vpbxUserUid',
+  'vpbx_user_uid',
+  'userUid',
+  'user_uid',
+  'tenantId',
+  'tenant_uid',
+] as const;
+
+/**
+ * Server-side draft of a mutating tool result (D-18). Consumed by 15-05.
+ *
+ * `applyPayload` is server-side only and must never reach the model or the browser.
+ */
+export interface AgentDiffProposal {
+  proposalId: string;
+  entityType: string;
+  entityLabel: string;
+  summary: string[];
+  before: Record<string, unknown> | null;
+  after: Record<string, unknown> | null;
+  /** Server-side only — must never reach the model or the browser. */
+  applyPayload: { tool: string; args: Record<string, unknown> };
+  includesDialplanReload: boolean;
 }
 
 /** Per-tenant summary of a domain's state, folded into the AI system prompt (D-16). */
