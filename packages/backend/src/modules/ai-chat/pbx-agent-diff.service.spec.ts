@@ -242,6 +242,29 @@ describe('PbxAgentDiffService', () => {
     });
   });
 
+  describe('route precedence (Pitfall 10)', () => {
+    it('refuses an unsafe route proposal, leaves it pending and records the audit', async () => {
+      const view = await service.createProposal(
+        routeCreateProposal({
+          after: { patterns: ['_X.', '112'] },
+          applyPayload: { tool: 'create_route', args: { context_uid: 7, pattern: '_X.', patterns: ['_X.', '112'] } },
+        }),
+        ctxA,
+      );
+
+      const result = await service.apply(view.proposalId, ctxA);
+
+      expect(result.ok).toBe(false);
+      expect(result.reason).toMatch(/precedence|catch-all|112|_X\./i);
+      expect(rows[0].status).toBe('pending');
+      expect(routesService.create).not.toHaveBeenCalled();
+      expect(routeApplyService.applyContext).not.toHaveBeenCalled();
+      expect(auditModel.create).toHaveBeenCalledWith(expect.objectContaining({
+        status: 'denied',
+      }));
+    });
+  });
+
   describe('permission and audit (D-21)', () => {
     it('denies a read-only role, writes a denied audit row and performs no domain write', async () => {
       const view = await service.createProposal(directoryCreateProposal(), ctxA);
