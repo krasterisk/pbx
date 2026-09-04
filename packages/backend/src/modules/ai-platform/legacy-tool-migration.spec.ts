@@ -5,6 +5,7 @@ import { TENANT_ARG_KEYS } from './ai-adapter.types';
 import { AiAdapterRegistryService } from './ai-adapter-registry.service';
 import { ContextsAiAdapter } from '../contexts/contexts-ai.adapter';
 import { DirectoriesAiAdapter } from '../directories/directories-ai.adapter';
+import { ReportsAiAdapter } from '../reports/reports-ai.adapter';
 import { McpToolsService } from '../mcp/mcp-tools.service';
 
 const TENANT_A = 100;
@@ -31,9 +32,12 @@ const DIR_B = {
   records: [],
 };
 
+const STATS_A = { totalCalls: 3, asr: 50, avgBillsec: 12, avgPdd: 1, byDisposition: { ANSWERED: 2 }, mark: 'cdr-a-summary' };
+const STATS_B = { totalCalls: 9, asr: 10, avgBillsec: 40, avgPdd: 8, byDisposition: { NOANSWER: 7 }, mark: 'cdr-b-summary' };
+
 const OTHER_TENANT_TOKENS: Record<number, string[]> = {
-  [TENANT_A]: ['ctx-b', 'dir-b', 'Tenant B inbound'],
-  [TENANT_B]: ['ctx-a', 'dir-a', 'Tenant A inbound'],
+  [TENANT_A]: ['ctx-b', 'dir-b', 'Tenant B inbound', 'cdr-b-summary', 'cdr-b-call'],
+  [TENANT_B]: ['ctx-a', 'dir-a', 'Tenant A inbound', 'cdr-a-summary', 'cdr-a-call'],
 };
 
 describe('legacy-tool-migration (D-22, D-27)', () => {
@@ -46,6 +50,7 @@ describe('legacy-tool-migration (D-22, D-27)', () => {
     update: jest.Mock;
     remove: jest.Mock;
   };
+  let cdrService: { getStats: jest.Mock; findCalls: jest.Mock };
   let mcp: McpToolsService;
   let warnSpy: jest.SpyInstance;
 
@@ -75,10 +80,21 @@ describe('legacy-tool-migration (D-22, D-27)', () => {
       remove: jest.fn(),
     };
 
+    cdrService = {
+      getStats: jest.fn(async (uid: number) => (uid === TENANT_A ? { ...STATS_A } : uid === TENANT_B ? { ...STATS_B } : {})),
+      findCalls: jest.fn(async (uid: number, filters: { limit?: number }) => {
+        const mark = uid === TENANT_A ? 'cdr-a-call' : uid === TENANT_B ? 'cdr-b-call' : 'cdr-other';
+        const rows = Array.from({ length: 80 }, (_, index) => ({ linkedid: `${mark}-${index}`, src: mark }));
+        const limit = filters.limit ?? 50;
+        return { rows: rows.slice(0, limit), count: rows.length };
+      }),
+    };
+
     new ContextsAiAdapter(contextsService as any, registry).onModuleInit();
     new DirectoriesAiAdapter(directoriesService as any, registry).onModuleInit();
+    new ReportsAiAdapter(cdrService as any, registry).onModuleInit();
 
-    mcp = createMcp(registry, contextsService, directoriesService);
+    mcp = createMcp(registry, contextsService, directoriesService, cdrService);
     warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
     mcp.registerAll();
   });
@@ -143,8 +159,8 @@ describe('legacy-tool-migration (D-22, D-27)', () => {
   describe('registry-enumerated isolation for every adapter tool (D-22)', () => {
     it('proves adapter ownership, cross-tenant isolation and forged-key ignore for each registered adapter tool', async () => {
       const adapterTools = registry.getAllTools();
-      expect(adapterTools.map((tool) => tool.name).sort()).toEqual(
-        expect.arrayContaining(['list_contexts', 'list_directories']),
+      expect(adapterTools.map((tool) => tool.name)).toEqual(
+        expect.arrayContaining(['list_contexts', 'list_directories', 'get_cdr_summary', 'find_cdr_calls']),
       );
       expect(new Set(adapterTools.map((tool) => tool.name)).size).toBe(adapterTools.length);
 
@@ -178,6 +194,38 @@ describe('legacy-tool-migration (D-22, D-27)', () => {
     });
   });
 
+  describe('call-records adapter (D-12, D-15, D-22)', () => {
+    it('forwards the date range to getStats and returns that result unchanged', async () => {
+      const result = await mcp.callTool(
+        'get_cdr_summary',
+        { dateFrom: '2026-01-01', dateTo: '2026-01-31' },
+        TENANT_A,
+      );
+      expect(cdrService.getStats).toHaveBeenCalledWith(TENANT_A, {
+        dateFrom: '2026-01-01',
+        dateTo: '2026-01-31',
+      });
+      expect(parseToolJson(result)).toEqual(STATS_A);
+    });
+
+    it('clamps find_cdr_calls limit to 50 and defaults to 20', async () => {
+      await mcp.callTool('find_cdr_calls', { limit: 999 }, TENANT_A);
+      expect(cdrService.findCalls).toHaveBeenCalledWith(TENANT_A, expect.objectContaining({ limit: 50, offset: 0 }));
+
+      cdrService.findCalls.mockClear();
+      await mcp.callTool('find_cdr_calls', {}, TENANT_A);
+      expect(cdrService.findCalls).toHaveBeenCalledWith(TENANT_A, expect.objectContaining({ limit: 20, offset: 0 }));
+
+      const oversize = await mcp.callTool('find_cdr_calls', { limit: 999 }, TENANT_A);
+      expect(parseToolJson(oversize).rows).toHaveLength(50);
+    });
+
+    it('does not mark either call-record tool as destructive', () => {
+      expect(registry.getToolByName('get_cdr_summary')?.destructive).toBeFalsy();
+      expect(registry.getToolByName('find_cdr_calls')?.destructive).toBeFalsy();
+    });
+  });
+
   describe('contexts domain skill (D-12)', () => {
     it('ships two-field frontmatter the skill registry can parse', () => {
       const skillPath = path.join(__dirname, '../../skills/contexts/SKILL.md');
@@ -185,6 +233,16 @@ describe('legacy-tool-migration (D-22, D-27)', () => {
       expect(raw).toMatch(/^---\r?\nname: contexts\r?\ndescription: .+\r?\n---/);
       expect(raw).toMatch(/маршрут|route/i);
       expect(raw).toMatch(/тенант|tenant/i);
+    });
+  });
+
+  describe('reports domain skill (D-12)', () => {
+    it('ships two-field frontmatter covering dispositions and the search cap', () => {
+      const skillPath = path.join(__dirname, '../../skills/reports/SKILL.md');
+      const raw = fs.readFileSync(skillPath, 'utf8');
+      expect(raw).toMatch(/^---\r?\nname: reports\r?\ndescription: .+\r?\n---/);
+      expect(raw).toMatch(/disposition/i);
+      expect(raw).toMatch(/50|лимит|cap/i);
     });
   });
 });
@@ -237,6 +295,7 @@ function createMcp(
   registry: AiAdapterRegistryService,
   contextsService: { findAll: jest.Mock },
   directoriesService: object,
+  cdrService: object,
 ): McpToolsService {
   return new McpToolsService(
     { findAll: jest.fn().mockResolvedValue([]), create: jest.fn(), remove: jest.fn(), bulkCreate: jest.fn() } as any,
@@ -249,7 +308,7 @@ function createMcp(
     { applyCategories: jest.fn() } as any,
     {} as any,
     { findOne: jest.fn() } as any,
-    { getStats: jest.fn(), findCalls: jest.fn() } as any,
+    cdrService as any,
     registry,
     { getSettings: jest.fn().mockResolvedValue({ confirmDestructive: false }) } as any,
     { logAction: jest.fn().mockResolvedValue(undefined) } as any,
