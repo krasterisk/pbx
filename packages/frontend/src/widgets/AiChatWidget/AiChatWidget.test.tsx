@@ -202,6 +202,20 @@ describe('AiChatWidget', () => {
     expect(screen.getByText('Stored assistant reply')).toBeInTheDocument();
   });
 
+  it('clears the conversation column after deleting the selected conversation', async () => {
+    render(<AiChatWidget open onClose={vi.fn()} />);
+    fireEvent.click(screen.getByRole('option', { name: /Yesterday's call/ }));
+    expect(screen.getByText('Stored user message from yesterday')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'aiChat.deleteConversation' }));
+    fireEvent.click(screen.getByRole('button', { name: 'aiChat.deleteConfirm' }));
+
+    await vi.waitFor(() => {
+      expect(screen.queryByText('Stored user message from yesterday')).toBeNull();
+    });
+    expect(screen.getByText('aiChat.welcome')).toBeInTheDocument();
+  });
+
   it('renders as a full-height sheet with no horizontal offset below the tablet breakpoint', () => {
     mockViewport(600);
     render(<AiChatWidget open onClose={vi.fn()} />);

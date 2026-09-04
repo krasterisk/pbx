@@ -146,6 +146,62 @@ describe('ThreadList', () => {
     expect(options[1]).toHaveTextContent('Previous chat');
   });
 
+  it('shows skeleton rows while the list is loading and hides empty copy', () => {
+    listState.isLoading = true;
+
+    render(<ThreadList selectedUid={null} onSelect={vi.fn()} />);
+
+    expect(screen.getAllByTestId('ai-agent-thread-skeleton')).toHaveLength(3);
+    expect(screen.queryByText('aiChat.emptyTitle')).toBeNull();
+    expect(screen.queryByText('aiChat.emptyBody')).toBeNull();
+    expect(screen.queryByRole('option')).toBeNull();
+  });
+
+  it('shows empty-state copy and the new-conversation action when there are no threads', () => {
+    render(<ThreadList selectedUid={null} onSelect={vi.fn()} />);
+
+    expect(screen.getByText('aiChat.emptyTitle')).toBeInTheDocument();
+    expect(screen.getByText('aiChat.emptyBody')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'aiChat.newConversation' })).toBeInTheDocument();
+    expect(screen.queryByTestId('ai-agent-thread-skeleton')).toBeNull();
+  });
+
+  it('shows error copy and a retry that refires the list query', () => {
+    listState.isError = true;
+
+    render(<ThreadList selectedUid={null} onSelect={vi.fn()} />);
+
+    expect(screen.getByText('aiChat.errorThreads')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'aiChat.retry' }));
+    expect(listState.refetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('asks for confirmation before deleting and keeps the conversation on dismiss', () => {
+    listState.threads = [thread({ uid: 4, title: 'Keep me' })];
+
+    render(<ThreadList selectedUid={4} onSelect={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'aiChat.deleteConversation' }));
+
+    expect(screen.getByText('aiChat.deleteConfirmTitle')).toBeInTheDocument();
+    expect(screen.getByText('aiChat.deleteConfirmBody')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'aiChat.keepConversation' }));
+
+    expect(deleteThread).not.toHaveBeenCalled();
+    expect(screen.getByRole('option', { name: /Keep me/ })).toBeInTheDocument();
+  });
+
+  it('removes the conversation after the confirm action', async () => {
+    const onDeleted = vi.fn();
+    listState.threads = [thread({ uid: 4, title: 'Remove me' })];
+
+    render(<ThreadList selectedUid={4} onSelect={vi.fn()} onDeleted={onDeleted} />);
+    fireEvent.click(screen.getByRole('button', { name: 'aiChat.deleteConversation' }));
+    fireEvent.click(screen.getByRole('button', { name: 'aiChat.deleteConfirm' }));
+
+    await vi.waitFor(() => expect(deleteThread).toHaveBeenCalledWith(4));
+    expect(onDeleted).toHaveBeenCalledWith(4);
+  });
+
   it('defines list, detail, create and delete queries with tag invalidation', () => {
     const src = readFileSync(
       join(process.cwd(), 'src/shared/api/endpoints/aiChatApi.ts'),
