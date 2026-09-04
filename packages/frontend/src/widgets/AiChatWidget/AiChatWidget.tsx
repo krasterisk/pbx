@@ -14,12 +14,12 @@ import { streamAiChatMessage } from '@/shared/api/endpoints/aiChatApi';
 import { ChatMessage } from '@/features/ai-chat/ui/ChatMessage/ChatMessage';
 import cls from './AiChatWidget.module.scss';
 
-const SUGGESTIONS = [
-    'Показать конфигурацию АТС',
-    'Создать 10 абонентов',
-    'Добавить транк',
-    'Настроить IVR меню',
-];
+const SUGGESTION_KEYS = [
+    'aiChat.suggestions.config',
+    'aiChat.suggestions.createEndpoints',
+    'aiChat.suggestions.addTrunk',
+    'aiChat.suggestions.setupIvr',
+] as const;
 
 const FOCUSABLE_SELECTOR =
     'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -220,18 +220,19 @@ export const AiChatWidget = ({ open, onClose }: AiChatWidgetProps) => {
                     >
                         {messages.length === 0 && (
                             <HStack className={cls.suggestions} gap="8" wrap="wrap">
-                                {SUGGESTIONS.map((s) => (
+                                {SUGGESTION_KEYS.map((key) => (
                                     <Button
-                                        key={s}
+                                        key={key}
                                         type="button"
                                         variant="ghost"
                                         className={cls.suggestionChip}
                                         onClick={() => {
-                                            if (textareaRef.current) textareaRef.current.value = s;
-                                            handleSend();
+                                            const label = t(key);
+                                            if (textareaRef.current) textareaRef.current.value = label;
+                                            handleSend(label);
                                         }}
                                     >
-                                        {s}
+                                        {t(key)}
                                     </Button>
                                 ))}
                             </HStack>

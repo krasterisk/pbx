@@ -46,6 +46,15 @@ vi.mock('react-i18next', () => ({
 }));
 
 import { AiChatWidget } from './AiChatWidget';
+import { en } from '@/shared/config/locales/en';
+import { ru } from '@/shared/config/locales/ru';
+
+function localeKeys(value: unknown, prefix = ''): string[] {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return [prefix];
+  const entries = Object.entries(value as Record<string, unknown>);
+  if (!entries.length) return [prefix];
+  return entries.flatMap(([key, child]) => localeKeys(child, prefix ? `${prefix}.${key}` : key));
+}
 
 function getFocusable(root: HTMLElement): HTMLElement[] {
   return Array.from(
@@ -160,6 +169,14 @@ describe('AiChatWidget', () => {
     );
     expect(scss).toMatch(/grid-template-areas:[\s\S]*header[\s\S]*body[\s\S]*composer[\s\S]*footer/);
     expect(panel.getAttribute('style') ?? '').not.toMatch(/grid|display/);
+  });
+
+  it('keeps matching aiChat locale keys in ru and en', () => {
+    expect(localeKeys(ru.aiChat)).toEqual(localeKeys(en.aiChat));
+    expect(ru.aiChat.title).toBe('AI-ассистент');
+    expect(en.aiChat.title).toBe('AI Assistant');
+    expect(ru.aiChat.closePanel).toBe('Закрыть панель');
+    expect(en.aiChat.shortcutHint).toBe('{{mod}}+Shift+J');
   });
 
   it('does not render a model selector in the tenant panel', () => {

@@ -2815,19 +2815,30 @@ export const ru = {
 
   // AI Chat Widget
   aiChat: {
-    title: 'AI Ассистент',
-    ready: 'Готов к работе',
-    openAssistant: 'Открыть AI ассистента',
+    title: 'AI-ассистент',
+    ready: 'Готов',
+    openAssistant: 'Открыть AI-ассистента',
     selectModel: 'Модель',
     clearChat: 'Очистить чат',
     close: 'Закрыть',
+    closePanel: 'Закрыть панель',
     inputPlaceholder: 'Спросите о настройке АТС...',
     send: 'Отправить',
     stop: 'Остановить',
     error: 'Ошибка',
     retry: 'Повторить',
     disclaimer: 'AI может ошибаться. Проверяйте критические изменения.',
-    welcome: 'Привет! Я AI-ассистент KrAsterisk.\n\nМогу помочь с настройкой АТС: создать абонентов, настроить транки, IVR-меню, маршрутизацию и очереди.\n\nОпишите задачу в свободной форме.',
+    welcome: 'Привет! Я помогу настроить АТС: абоненты, транки, IVR, маршруты, справочники и очереди. Опишите задачу своими словами.',
+    shortcutHint: '{{mod}}+Shift+J',
+    threadsHeading: 'Разговоры',
+    railPlaceholder: 'История разговоров появится здесь.',
+    trigger: 'AI-ассистент',
+    suggestions: {
+      config: 'Показать конфигурацию АТС',
+      createEndpoints: 'Создать абонентов',
+      addTrunk: 'Добавить транк',
+      setupIvr: 'Настроить IVR-меню',
+    },
   },
 
   // Call Center Module
