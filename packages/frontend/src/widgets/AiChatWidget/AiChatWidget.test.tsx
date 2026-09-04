@@ -9,28 +9,43 @@ vi.mock('@/shared/hooks/useIsMobile', () => ({
   useIsMobile: (bp?: number) => useIsMobileMock(bp),
 }));
 
+const aiChatState = {
+  isOpen: false,
+  messages: [] as Array<{
+    id: string;
+    role: 'user' | 'assistant';
+    content: string;
+    createdAt: number;
+    isStreaming?: boolean;
+  }>,
+  isStreaming: false,
+  selectedModel: 'gpt-test',
+  availableModels: [{ name: 'gpt-test', displayName: 'Test Model' }],
+  progressLines: [] as string[],
+  turnOutcome: 'idle' as string,
+};
+
+const streamApi = {
+  send: vi.fn(),
+  stop: vi.fn(),
+  abort: vi.fn(),
+  retry: vi.fn(),
+  lastMessage: '',
+  progressLines: [] as string[],
+  answerText: '',
+  isStreaming: false,
+  outcome: 'idle' as string,
+};
+
 vi.mock('@/shared/hooks/useAppStore', () => ({
   useAppSelector: (
-    sel: (s: {
-      aiChat: {
-        isOpen: boolean;
-        messages: [];
-        isStreaming: boolean;
-        selectedModel: string;
-        availableModels: { name: string; displayName: string }[];
-      };
-    }) => unknown,
-  ) =>
-    sel({
-      aiChat: {
-        isOpen: false,
-        messages: [],
-        isStreaming: false,
-        selectedModel: 'gpt-test',
-        availableModels: [{ name: 'gpt-test', displayName: 'Test Model' }],
-      },
-    }),
+    sel: (s: { aiChat: typeof aiChatState }) => unknown,
+  ) => sel({ aiChat: aiChatState }),
   useAppDispatch: () => vi.fn(),
+}));
+
+vi.mock('@/features/ai-chat/model/useAgentStream', () => ({
+  useAgentStream: () => streamApi,
 }));
 
 const storedThreads = [
@@ -166,6 +181,18 @@ describe('AiChatWidget', () => {
     vi.clearAllMocks();
     mockViewport(1280);
     Element.prototype.scrollIntoView = vi.fn();
+    aiChatState.messages = [];
+    aiChatState.isStreaming = false;
+    aiChatState.progressLines = [];
+    aiChatState.turnOutcome = 'idle';
+    streamApi.send.mockReset();
+    streamApi.stop.mockReset();
+    streamApi.abort.mockReset();
+    streamApi.retry.mockReset();
+    streamApi.progressLines = [];
+    streamApi.answerText = '';
+    streamApi.isStreaming = false;
+    streamApi.outcome = 'idle';
   });
 
   it('does not render the former floating trigger', () => {
@@ -315,5 +342,67 @@ describe('AiChatWidget', () => {
     expect(screen.queryByTitle('aiChat.selectModel')).toBeNull();
     expect(screen.queryByRole('combobox')).toBeNull();
     expect(document.querySelector('select')).toBeNull();
+  });
+
+  it('replaces send with stop while a turn is in flight and returns to send after', () => {
+    aiChatState.isStreaming = true;
+    streamApi.isStreaming = true;
+    const { rerender } = render(<AiChatWidget open onClose={vi.fn()} />);
+    expect(screen.getByRole('button', { name: 'aiChat.stop' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'aiChat.send' })).toBeNull();
+
+    aiChatState.isStreaming = false;
+    streamApi.isStreaming = false;
+    rerender(<AiChatWidget open onClose={vi.fn()} />);
+    expect(screen.getByRole('button', { name: 'aiChat.send' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'aiChat.stop' })).toBeNull();
+  });
+
+  it('pressing stop calls the stream abort and shows the stopped outcome', () => {
+    aiChatState.isStreaming = true;
+    streamApi.isStreaming = true;
+    const { rerender } = render(<AiChatWidget open onClose={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'aiChat.stop' }));
+    expect(streamApi.stop).toHaveBeenCalledTimes(1);
+
+    streamApi.isStreaming = false;
+    streamApi.outcome = 'stopped';
+    aiChatState.isStreaming = false;
+    aiChatState.turnOutcome = 'stopped';
+    rerender(<AiChatWidget open onClose={vi.fn()} />);
+    expect(screen.getByText('aiChat.stopped')).toBeInTheDocument();
+  });
+
+  it('renders ceiling, failure and disconnect as distinct outcomes', () => {
+    streamApi.outcome = 'ceiling';
+    const { rerender } = render(<AiChatWidget open onClose={vi.fn()} />);
+    expect(screen.getByText('aiChat.ceiling')).toBeInTheDocument();
+    expect(screen.queryByText('aiChat.stopped')).toBeNull();
+    expect(screen.queryByText('aiChat.failed')).toBeNull();
+
+    streamApi.outcome = 'failed';
+    rerender(<AiChatWidget open onClose={vi.fn()} />);
+    expect(screen.getByText('aiChat.failed')).toBeInTheDocument();
+    expect(screen.queryByText('aiChat.ceiling')).toBeNull();
+
+    streamApi.outcome = 'disconnected';
+    streamApi.answerText = 'partial so far';
+    aiChatState.messages = [
+      { id: 'a1', role: 'assistant', content: 'partial so far', createdAt: Date.now() },
+    ];
+    rerender(<AiChatWidget open onClose={vi.fn()} />);
+    expect(screen.getByText('aiChat.disconnected')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'aiChat.reconnect' })).toBeInTheDocument();
+    expect(screen.getByText('partial so far')).toBeInTheDocument();
+    expect(screen.queryByText('aiChat.ceiling')).toBeNull();
+    expect(screen.queryByText('aiChat.failed')).toBeNull();
+  });
+
+  it('aborts the in-flight request when the panel closes', () => {
+    streamApi.isStreaming = true;
+    aiChatState.isStreaming = true;
+    const { rerender } = render(<AiChatWidget open onClose={vi.fn()} />);
+    rerender(<AiChatWidget open={false} onClose={vi.fn()} />);
+    expect(streamApi.abort).toHaveBeenCalledTimes(1);
   });
 });

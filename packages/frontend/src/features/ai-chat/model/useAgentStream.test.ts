@@ -203,4 +203,101 @@ describe('useAgentStream', () => {
     expect(dumped).not.toContain('SHOULD_NOT_RENDER_RAW_QUEUE_DUMP');
     expect(dumped).not.toContain(BULKY_TOOL_RESULT);
   });
+
+  it('ignores further stream events after stop', async () => {
+    let releaseSecond: ((value: { done: boolean; value?: Uint8Array }) => void) | undefined;
+    const secondRead = new Promise<{ done: boolean; value?: Uint8Array }>((resolve) => {
+      releaseSecond = resolve;
+    });
+    let reads = 0;
+    const reader = {
+      read: vi.fn(async () => {
+        reads += 1;
+        if (reads === 1) {
+          return { done: false, value: encodeSse([{ event: 'text', data: 'partial ' }]) };
+        }
+        return secondRead;
+      }),
+    };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: true,
+        status: 200,
+        body: { getReader: () => reader },
+      })),
+    );
+
+    const store = makeStore();
+    const { result } = renderHook(() => useAgentStream(), { wrapper: wrapperFor(store) });
+
+    await act(async () => {
+      result.current.send('long turn');
+    });
+
+    await waitFor(() => {
+      expect(result.current.answerText).toBe('partial ');
+    });
+
+    await act(async () => {
+      result.current.stop();
+    });
+
+    expect(result.current.outcome).toBe('stopped');
+    expect(result.current.isStreaming).toBe(false);
+
+    await act(async () => {
+      releaseSecond?.({
+        done: false,
+        value: encodeSse([{ event: 'text', data: 'should not appear' }, { event: 'done', data: {} }]),
+      });
+    });
+
+    expect(result.current.answerText).toBe('partial ');
+    expect(result.current.answerText).not.toContain('should not appear');
+    expect(result.current.outcome).toBe('stopped');
+  });
+
+  it('marks the ceiling as its own outcome, distinct from stop and failure', async () => {
+    mockFetchStream([
+      encodeSse([
+        { event: 'text', data: 'I looked at three tools' },
+        { event: 'error', data: { code: 'max_steps_exceeded', message: 'Step ceiling reached', maxSteps: 12 } },
+      ]),
+    ]);
+    const store = makeStore();
+    const { result } = renderHook(() => useAgentStream(), { wrapper: wrapperFor(store) });
+
+    await act(async () => {
+      result.current.send('do everything');
+    });
+
+    await waitFor(() => {
+      expect(result.current.outcome).toBe('ceiling');
+    });
+
+    expect(result.current.outcome).not.toBe('stopped');
+    expect(result.current.outcome).not.toBe('failed');
+    expect(result.current.answerText).toContain('I looked at three tools');
+    expect(result.current.isStreaming).toBe(false);
+  });
+
+  it('keeps the partial answer and reports disconnect when the stream drops', async () => {
+    mockFetchStream([encodeSse([{ event: 'text', data: 'partial answer so far' }])], { failAfter: 1 });
+    const store = makeStore();
+    const { result } = renderHook(() => useAgentStream(), { wrapper: wrapperFor(store) });
+
+    await act(async () => {
+      result.current.send('status');
+    });
+
+    await waitFor(() => {
+      expect(result.current.outcome).toBe('disconnected');
+    });
+
+    expect(result.current.answerText).toBe('partial answer so far');
+    expect(result.current.isStreaming).toBe(false);
+    expect(result.current.outcome).not.toBe('done');
+    expect(result.current.outcome).not.toBe('failed');
+  });
 });
