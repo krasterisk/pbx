@@ -1,4 +1,5 @@
-import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy, UnauthorizedException } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import { Request, Response } from 'express';
 import { McpToolsService } from './mcp-tools.service';
 
@@ -6,8 +7,9 @@ import { McpToolsService } from './mcp-tools.service';
  * McpSessionService — прямой JSON-RPC обработчик без MCP SDK state machine.
  *
  * Причина: SDK требует полный initialize handshake даже в stateless режиме.
- * aiPBX использует ephemeral подключения: каждый tools/list и tools/call —
- * отдельный HTTP запрос без sessionId.
+ * Внешние клиенты могут слать tools/list и tools/call без предварительного handshake.
+ *
+ * Сессия (Mcp-Session-Id) привязана к тенанту, который её создал (D-28).
  *
  * Поддерживаемые методы:
  *   initialize   → capabilities
@@ -17,6 +19,7 @@ import { McpToolsService } from './mcp-tools.service';
 @Injectable()
 export class McpSessionService implements OnModuleDestroy {
     private readonly logger = new Logger(McpSessionService.name);
+    private readonly sessions = new Map<string, number>();
 
     constructor(private readonly toolsService: McpToolsService) {}
 
@@ -24,7 +27,18 @@ export class McpSessionService implements OnModuleDestroy {
         const method = req.method.toUpperCase();
         this.logger.debug(`MCP ${method} for tenant ${vpbxUserUid}`);
 
+        const incomingSessionId = this.readSessionId(req);
+        if (incomingSessionId) {
+            const owner = this.sessions.get(incomingSessionId);
+            if (owner !== undefined && owner !== vpbxUserUid) {
+                throw new UnauthorizedException('MCP session belongs to another tenant');
+            }
+        }
+
         if (method === 'DELETE' || method === 'GET') {
+            if (incomingSessionId) {
+                this.sessions.delete(incomingSessionId);
+            }
             res.status(200).json({ ok: true });
             return;
         }
@@ -33,6 +47,12 @@ export class McpSessionService implements OnModuleDestroy {
         if (!body?.method) {
             res.status(400).json({ jsonrpc: '2.0', id: null, error: { code: -32600, message: 'Invalid Request' } });
             return;
+        }
+
+        if (body.method === 'initialize') {
+            const sessionId = incomingSessionId || randomUUID();
+            this.sessions.set(sessionId, vpbxUserUid);
+            res.setHeader('Mcp-Session-Id', sessionId);
         }
 
         res.setHeader('Content-Type', 'application/json');
@@ -48,6 +68,12 @@ export class McpSessionService implements OnModuleDestroy {
                 error: { code: -32000, message: err.message },
             });
         }
+    }
+
+    private readSessionId(req: Request): string {
+        const raw = req.headers['mcp-session-id'];
+        const value = Array.isArray(raw) ? raw[0] : raw;
+        return typeof value === 'string' ? value.trim() : '';
     }
 
     private async dispatch(method: string, params: any, id: any, uid: number): Promise<object> {
@@ -92,10 +118,11 @@ export class McpSessionService implements OnModuleDestroy {
     }
 
     getActiveSessions() {
-        return [{ info: 'Stateless direct JSON-RPC mode — no persistent sessions' }];
+        return Array.from(this.sessions.entries()).map(([id, tenant]) => ({ id, tenant }));
     }
 
     onModuleDestroy() {
+        this.sessions.clear();
         this.logger.log('McpSessionService destroyed');
     }
 }

@@ -2,7 +2,7 @@ import { Controller, All, Get, Req, Res, UseGuards, Logger } from '@nestjs/commo
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { Request, Response } from 'express';
 import { McpSessionService } from './mcp-session.service';
-import { JwtOrServiceTokenGuard } from '../auth/jwt-or-service-token.guard';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 /**
  * McpController — HTTP endpoint для MCP Streamable HTTP транспорта.
@@ -15,10 +15,9 @@ import { JwtOrServiceTokenGuard } from '../auth/jwt-or-service-token.guard';
  *
  * SessionId передаётся в заголовке `Mcp-Session-Id` (не в query params).
  * Первый POST без заголовка создаёт новую сессию и возвращает sessionId
- * в ответном заголовке.
+ * в ответном заголовке. Сессия привязана к тенанту из JWT (D-28).
  *
- * Аутентификация: JWT пользователя ИЛИ service token
- * (Authorization: Bearer <KRASTERISK_SERVICE_TOKEN> + X-Vpbx-User-Uid: <uid>)
+ * Аутентификация: только пользовательский JWT. Тенант берётся из токена.
  */
 @ApiTags('MCP Server')
 @ApiBearerAuth()
@@ -35,7 +34,7 @@ export class McpController {
      * Transport сам определяет тип по методу и заголовкам.
      */
     @ApiOperation({ summary: 'MCP Streamable HTTP endpoint (GET/POST/DELETE)' })
-    @UseGuards(JwtOrServiceTokenGuard)
+    @UseGuards(JwtAuthGuard)
     @All()
     async handleMcp(
         @Req() req: Request & { user: any },
@@ -50,7 +49,7 @@ export class McpController {
      * GET /api/mcp/sessions — список активных MCP сессий (debug).
      */
     @ApiOperation({ summary: 'List active MCP sessions (debug)' })
-    @UseGuards(JwtOrServiceTokenGuard)
+    @UseGuards(JwtAuthGuard)
     @Get('sessions')
     getSessions(@Req() req: Request & { user: any }) {
         const sessions = this.sessionService.getActiveSessions();
