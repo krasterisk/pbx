@@ -10,6 +10,13 @@ import {
   SystemSettingsAiAdapter,
   toPlatformSettingsView,
 } from '../system-settings/system-settings-ai.adapter';
+import {
+  DELIVERY_BODY_PREVIEW_LENGTH,
+  SmsAiAdapter,
+  toChannelStatus,
+  toDeliveryViews,
+} from '../sms/sms-ai.adapter';
+import { TelegramAiAdapter } from '../telegram/telegram-ai.adapter';
 
 const TENANT_A = 100;
 const TENANT_B = 200;
@@ -288,4 +295,205 @@ describe('read-adapters-settings-messaging — platform settings projection (D-1
     }
   });
 });
+
+const SMS_A = {
+  id: 'sms-a-1',
+  status: 'delivered',
+  timestamp: '2026-09-01T10:00:00.000Z',
+  body: 'Customer PIN 4455 do not share',
+  message: 'Customer PIN 4455 do not share',
+  token: 'SMS-TOKEN-A',
+};
+
+const SMS_B = {
+  id: 'sms-b-9',
+  status: 'failed',
+  timestamp: '2026-09-02T11:00:00.000Z',
+  body: 'Other tenant secret body',
+  token: 'SMS-TOKEN-B',
+};
+
+const TG_A = {
+  id: 'tg-a-1',
+  status: 'delivered',
+  timestamp: '2026-09-01T12:00:00.000Z',
+  text: 'Please call me back at 79001112233',
+  body: 'Please call me back at 79001112233',
+  bot_token: '123:AA-tenant-a',
+  webhook_secret: 'tg-hook-a',
+};
+
+const TG_B = {
+  id: 'tg-b-2',
+  status: 'pending',
+  timestamp: '2026-09-02T13:00:00.000Z',
+  text: 'Tenant B private note',
+  bot_token: '456:BB-tenant-b',
+};
+
+function expectNoSendTools(adapter: { getTools: () => Array<{ name: string; proposes?: boolean; destructive?: boolean }> }) {
+  expect(adapter.getTools().length).toBeGreaterThan(0);
+  for (const tool of adapter.getTools()) {
+    expect(tool.name).not.toMatch(/send|resend|dispatch/i);
+    expect(isMutating(tool)).toBe(false);
+  }
+}
+
+describe('read-adapters-settings-messaging — sms (D-12, D-15)', () => {
+  let sms: { getChannelStatus: jest.Mock; listDeliveries: jest.Mock; sendSms: jest.Mock };
+  let registry: { register: jest.Mock };
+  let adapter: SmsAiAdapter;
+
+  beforeEach(() => {
+    sms = {
+      getChannelStatus: jest.fn(async (uid: number) => ({
+        configured: uid === TENANT_A,
+        enabled: uid === TENANT_A,
+        token: uid === TENANT_A ? 'SMS-TOKEN-A' : 'SMS-TOKEN-B',
+      })),
+      listDeliveries: jest.fn(async (uid: number) => (uid === TENANT_A ? [{ ...SMS_A }] : uid === TENANT_B ? [{ ...SMS_B }] : [])),
+      sendSms: jest.fn(),
+    };
+    registry = { register: jest.fn() };
+    adapter = new SmsAiAdapter(sms as any, registry as any);
+  });
+
+  it('reports whether the sms channel is configured and enabled without its token', async () => {
+    const result = (await getTool(adapter, 'get_sms_channel').handler({}, TENANT_A)) as {
+      configured: boolean;
+      enabled: boolean;
+    };
+    expect(result).toEqual({ configured: true, enabled: true });
+    expect(JSON.stringify(result)).not.toMatch(/SMS-TOKEN|token|secret/i);
+  });
+
+  it('returns recent sms deliveries with status and timestamp for the calling tenant', async () => {
+    const result = (await getTool(adapter, 'list_sms_deliveries').handler({}, TENANT_A)) as {
+      deliveries: Array<{ id: string; status: string; timestamp: string }>;
+    };
+    expect(result.deliveries).toEqual([
+      expect.objectContaining({
+        id: 'sms-a-1',
+        status: 'delivered',
+        timestamp: '2026-09-01T10:00:00.000Z',
+      }),
+    ]);
+  });
+
+  it('excludes message bodies from delivery results or truncates to the documented preview length', async () => {
+    const result = await getTool(adapter, 'list_sms_deliveries').handler({}, TENANT_A);
+    const blob = JSON.stringify(result);
+    expect(blob).not.toMatch(/PIN 4455|do not share|SMS-TOKEN-A/);
+    expect(DELIVERY_BODY_PREVIEW_LENGTH).toBe(0);
+    expect(result).not.toEqual(expect.objectContaining({ body: expect.anything() }));
+    const views = toDeliveryViews([{ ...SMS_A, body: 'x'.repeat(200) }]);
+    expect(JSON.stringify(views)).not.toContain('x'.repeat(20));
+    expect(views[0]).not.toHaveProperty('body');
+    expect(views[0]).not.toHaveProperty('preview');
+  });
+
+  it('declares no tool that sends a message', () => {
+    expectNoSendTools(adapter);
+    expect(sms.sendSms).not.toHaveBeenCalled();
+  });
+
+  it('returns none of another tenant sms channel state or deliveries', async () => {
+    const channel = await getTool(adapter, 'get_sms_channel').handler({}, TENANT_A);
+    const deliveries = await getTool(adapter, 'list_sms_deliveries').handler({}, TENANT_A);
+    const blob = JSON.stringify(channel) + JSON.stringify(deliveries);
+    expect(blob).not.toContain('sms-b-9');
+    expect(blob).not.toContain('SMS-TOKEN-B');
+    expect(blob).not.toContain('Other tenant');
+    expect(sms.getChannelStatus).toHaveBeenCalledWith(TENANT_A);
+    expect(sms.listDeliveries).toHaveBeenCalledWith(TENANT_A);
+    expect(sms.getChannelStatus).not.toHaveBeenCalledWith(TENANT_B);
+    expect(sms.listDeliveries).not.toHaveBeenCalledWith(TENANT_B);
+
+    const other = (await getTool(adapter, 'list_sms_deliveries').handler({}, TENANT_B)) as {
+      deliveries: Array<{ id: string }>;
+    };
+    expect(other.deliveries.map((row) => row.id)).toEqual(['sms-b-9']);
+  });
+});
+
+describe('read-adapters-settings-messaging — telegram (D-12, D-15)', () => {
+  let telegram: { getChannelStatus: jest.Mock; listDeliveries: jest.Mock; sendMessage: jest.Mock };
+  let registry: { register: jest.Mock };
+  let adapter: TelegramAiAdapter;
+
+  beforeEach(() => {
+    telegram = {
+      getChannelStatus: jest.fn(async (uid: number) => ({
+        configured: uid === TENANT_A,
+        enabled: uid === TENANT_A,
+        token: '123:AA-tenant-a',
+        webhook_secret: 'tg-hook-a',
+      })),
+      listDeliveries: jest.fn(async (uid: number) => (uid === TENANT_A ? [{ ...TG_A }] : uid === TENANT_B ? [{ ...TG_B }] : [])),
+      sendMessage: jest.fn(),
+    };
+    registry = { register: jest.fn() };
+    adapter = new TelegramAiAdapter(telegram as any, registry as any);
+  });
+
+  it('reports whether the telegram channel is configured and enabled without its token or webhook secret', async () => {
+    const result = (await getTool(adapter, 'get_telegram_channel').handler({}, TENANT_A)) as {
+      configured: boolean;
+      enabled: boolean;
+    };
+    expect(result).toEqual({ configured: true, enabled: true });
+    expect(JSON.stringify(result)).not.toMatch(/123:AA|tg-hook|token|webhook/i);
+  });
+
+  it('returns recent telegram deliveries with status and timestamp for the calling tenant', async () => {
+    const result = (await getTool(adapter, 'list_telegram_deliveries').handler({}, TENANT_A)) as {
+      deliveries: Array<{ id: string; status: string; timestamp: string }>;
+    };
+    expect(result.deliveries[0]).toEqual(
+      expect.objectContaining({
+        id: 'tg-a-1',
+        status: 'delivered',
+        timestamp: '2026-09-01T12:00:00.000Z',
+      }),
+    );
+  });
+
+  it('excludes telegram message bodies from delivery results', async () => {
+    const result = await getTool(adapter, 'list_telegram_deliveries').handler({}, TENANT_A);
+    const blob = JSON.stringify(result);
+    expect(blob).not.toMatch(/79001112233|call me back|123:AA|tg-hook-a/i);
+  });
+
+  it('declares no tool that sends a telegram message', () => {
+    expectNoSendTools(adapter);
+    expect(telegram.sendMessage).not.toHaveBeenCalled();
+  });
+
+  it('returns none of another tenant telegram channel state or deliveries', async () => {
+    const result = await getTool(adapter, 'list_telegram_deliveries').handler({}, TENANT_A);
+    expect(JSON.stringify(result)).not.toContain('tg-b-2');
+    expect(JSON.stringify(result)).not.toContain('Tenant B');
+    expect(telegram.listDeliveries).toHaveBeenCalledWith(TENANT_A);
+    expect(telegram.listDeliveries).not.toHaveBeenCalledWith(TENANT_B);
+  });
+
+  it('asserts channel status shape never includes credentials', () => {
+    expect(toChannelStatus({ configured: true, enabled: false, token: 'leak', webhook_secret: 'hook' })).toEqual({
+      configured: true,
+      enabled: false,
+    });
+  });
+
+  it('ships a messaging skill covering both channels, delivery status, hidden bodies and no send', () => {
+    const skillPath = path.join(__dirname, '../../skills/messaging/SKILL.md');
+    const raw = fs.readFileSync(skillPath, 'utf8');
+    expect(raw).toMatch(/^---\r?\nname: messaging\r?\ndescription: .+\r?\n---/);
+    expect(raw).toMatch(/sms|SMS/i);
+    expect(raw).toMatch(/telegram|Telegram/i);
+    expect(raw).toMatch(/delivered|доставле|failed|ошиб/i);
+    expect(raw).toMatch(/тел|body|текст/i);
+    expect(raw).toMatch(/не отправ|cannot send|нельзя отправ|resend/i);
+  });
+});
+
 
