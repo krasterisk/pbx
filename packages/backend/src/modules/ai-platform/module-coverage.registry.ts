@@ -232,10 +232,37 @@ export function resolveSkillTarget(
   };
 }
 
-export function collectSkillFailures(_input: {
+export function collectSkillFailures(input: {
   coverage: Record<string, ModuleCoverageEntry>;
   skillsRoot: string;
   tools: Array<{ name: string; domain: string }>;
 }): string[] {
-  return ['skill check not implemented'];
+  const { coverage, skillsRoot, tools } = input;
+  const failures: string[] = [];
+  const resolvedOk = new Set<string>();
+
+  for (const [dir, entry] of Object.entries(coverage)) {
+    const target = resolveSkillTarget(dir, entry, skillsRoot);
+    if (!target) {
+      continue;
+    }
+    if (!fs.existsSync(target.filePath)) {
+      failures.push(`covered domain missing skill: ${target.domain}`);
+      continue;
+    }
+    const parsed = parseSkillFrontmatterStrict(fs.readFileSync(target.filePath, 'utf8'));
+    if (!parsed) {
+      failures.push(`skill frontmatter does not parse: ${target.filePath}`);
+      continue;
+    }
+    resolvedOk.add(target.domain);
+  }
+
+  for (const tool of tools) {
+    if (!resolvedOk.has(tool.domain)) {
+      failures.push(`tool ${tool.name} domain ${tool.domain} has no skill`);
+    }
+  }
+
+  return failures;
 }
