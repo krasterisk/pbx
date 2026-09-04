@@ -178,15 +178,22 @@ GET    /api/mcp/sessions — debug: активные сессии
 
 `AIPBX_URL` / `AIPBX_CHAT_ID` / `AIPBX_TOKEN` больше не читаются — in-process loop (15-08) заменил chat proxy. aiPBX и прочие внешние API остаются **провайдерами модели** (`cc_ai_providers`), не оркестраторами инструментов.
 
-### 🔴 ОБЯЗАТЕЛЬНОЕ ПРАВИЛО (D-16): новый модуль → адаптер + skill
+### 🔴 ОБЯЗАТЕЛЬНОЕ ПРАВИЛО (D-16): новый модуль → адаптер + skill + классификация
 
-> **Новая сущность АТС, с которой работает агент, поставляется вместе с Domain AI Adapter рядом с модулем и актуальным `src/skills/<domain>/SKILL.md`. Не добавлять инструменты в `McpToolsService` и не замыкать `vpbxUserUid` на регистрации (D-23).**
+Норматив. Модуль без этой пары считается недоделанным. Проверка — не ревью, а падающий тест.
 
-**Реестр:** `AiAdapterRegistryService`  
-**Dispatch:** `McpToolsService.callTool(name, args, vpbxUserUid)` — uid всегда параметр вызова  
-**Промпт:** блоки знаний адаптера + каталог скилов (`read_skill`), не `.docs/`
+1. Рядом с сервисом модуля — `<module>-ai.adapter.ts`, который регистрируется в `AiAdapterRegistryService`. Инструменты **не** добавляются в `McpToolsService`.
+2. Каждый tool принимает `vpbxUserUid` параметром вызова и не захватывает его замыканием и не объявляет в `inputSchema` (D-22 / D-23).
+3. Мутирующий tool возвращает `AgentDiffProposal` (`proposes: true`) и не пишет в АТС сам.
+4. Рядом с модулем — актуальный `src/skills/<domain>/SKILL.md` (или явный `sharedSkill` в классификации, если несколько доменов честно делят один файл).
+5. Каталог модуля занесён в `src/modules/ai-platform/module-coverage.registry.ts`: `covered`, либо `infrastructure` / `excluded` с непустой причиной.
 
-Полная формулировка конвенции и coverage-тест — план 15-23.
+**Где проверяется:** `ai-adapter-completeness.spec.ts` (D-17). Новый каталог в `src/modules/` без строки в реестре, covered без адаптера, covered без скила, битый frontmatter скила, tool вне классифицированного домена — красный прогон. Молча вычеркнуть домен нельзя: у `infrastructure` и `excluded` обязана быть причина.
+
+**Реестр:** `AiAdapterRegistryService` (`getDomains()` — ключи для сверки).  
+**Dispatch:** `McpToolsService.callTool(name, args, vpbxUserUid)` — uid всегда параметр вызова.  
+**Промпт:** блоки знаний адаптера + каталог скилов (`read_skill`), не `.docs/`.  
+**Пояснение для агента:** `src/skills/developer-convention/SKILL.md`.
 
 ### Инвентарь инструментов
 
