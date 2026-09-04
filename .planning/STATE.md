@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 status: executing
-stopped_at: Completed 15-07-PLAN.md
-last_updated: "2026-09-04T11:49:13.172Z"
-state_head: 771b1e85fe53ac4d730e6a23944e91b08742b0d4
+stopped_at: Completed 15-14-PLAN.md
+last_updated: "2026-09-04T12:00:42.707Z"
+state_head: 0c4464f0f5aa85c63dea62ba9b6f2a8500360ba6
 progress:
   total_phases: 15
   completed_phases: 4
   total_plans: 166
-  completed_plans: 150
+  completed_plans: 151
 milestone_name: milestone
 current_phase: 15
 current_phase_name: universal-pbx-ai-agent
@@ -347,6 +347,9 @@ Phase 1 — MOH: pending verify.
 - [Phase 15]: find_cdr_calls keeps Math.min(limit || 20, 50) from the handwritten tool
 - [Phase 15]: apply_dialplan is inventoried as retired for 15-11, reported handwritten until routes migrate
 - [Phase 15]: ReportsAiAdapter is provided by ReportsCdrModule so bootstrap registers it without a new AppModule import
+- [Phase 15]: Agreement is a button on the card; confirm/reject send only the proposal identifier
+- [Phase 15]: Settled cards hide actions; failed apply stays pending with retry
+- [Phase 15]: Denied copy comes from locale keys (role limit), not the raw server reason
 
 ## Roadmap Evolution
 
@@ -517,10 +520,11 @@ Also open: Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 veri
 | Phase 15 P05 | 39min | 3 tasks | 14 files |
 | Phase 15 P12 | 24min | 3 tasks | 11 files |
 | Phase 15-universal-pbx-ai-agent P07 | 22 | 3 tasks | 9 files |
+| Phase 15-universal-pbx-ai-agent P14 | 18 | 3 tasks | 8 files |
 
 ## Session
 
-**Last session:** 2026-09-04T11:49:12.000Z
-**Stopped at:** Completed 15-07-PLAN.md
+**Last session:** 2026-09-04T12:00:41.464Z
+**Stopped at:** Completed 15-14-PLAN.md
 **Resume file:** None
 **Also ready:** .planning/phases/15-universal-pbx-ai-agent/15-CONTEXT.md
