@@ -12,6 +12,7 @@ import { ContextsModule } from './modules/contexts/contexts.module';
 import { RolesModule } from './modules/roles/roles.module';
 import { NumbersModule } from './modules/numbers/numbers.module';
 import { AmiModule } from './modules/ami/ami.module';
+import { DiagnosticsModule } from './modules/diagnostics/diagnostics.module';
 import { TrunksModule } from './modules/trunks/trunks.module';
 import { RoutesModule } from './modules/routes/routes.module';
 import { IvrsModule } from './modules/ivrs/ivrs.module';
@@ -212,6 +213,7 @@ import * as path from 'path';
     RolesModule,
     NumbersModule,
     AmiModule,
+    DiagnosticsModule,
     TrunksModule,
     RoutesModule,
     IvrsModule,
