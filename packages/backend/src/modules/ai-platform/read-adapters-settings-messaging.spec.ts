@@ -5,6 +5,11 @@ import {
   TenantSettingsAiAdapter,
   toTenantSettingsView,
 } from '../tenant-settings/tenant-settings-ai.adapter';
+import {
+  PLATFORM_TENANT_PROJECTION,
+  SystemSettingsAiAdapter,
+  toPlatformSettingsView,
+} from '../system-settings/system-settings-ai.adapter';
 
 const TENANT_A = 100;
 const TENANT_B = 200;
@@ -166,3 +171,121 @@ function resultKeys(result: unknown): string[] {
   const areas = (result as { areas?: Array<{ settings?: Array<{ key: string }> }> }).areas ?? [];
   return areas.flatMap((group) => (group.settings ?? []).map((row) => row.key));
 }
+
+const SERVER_CONFIG_A = {
+  records_base_path: '/usr/records',
+  records_base_url: 'https://records.example.test',
+  webhook_secret: '••••••••',
+};
+
+const SERVER_CONFIG_B = {
+  records_base_path: '/usr/records',
+  records_base_url: '',
+  webhook_secret: '',
+};
+
+const RAW_PLATFORM_ROWS = [
+  { key: 'records_base_path', value: '/usr/records' },
+  { key: 'records_base_url', value: 'https://records.example.test' },
+  { key: 'webhook_secret', value: 'whsec-live-should-never-leak' },
+  { key: 'smtp_password', value: 'smtp-secret' },
+  { key: 'new_platform_flag', value: 'next-year' },
+];
+
+describe('read-adapters-settings-messaging — platform settings projection (D-15, D-22)', () => {
+  let systemSettings: {
+    getServerConfig: jest.Mock;
+    getServerConfigRaw: jest.Mock;
+    findAll: jest.Mock;
+    updateServerConfig: jest.Mock;
+  };
+  let registry: { register: jest.Mock };
+  let adapter: SystemSettingsAiAdapter;
+
+  beforeEach(() => {
+    systemSettings = {
+      getServerConfig: jest.fn(async () => ({ ...SERVER_CONFIG_A })),
+      getServerConfigRaw: jest.fn(async () => ({
+        records_base_path: '/usr/records',
+        records_base_url: 'https://records.example.test',
+        webhook_secret: 'whsec-live-should-never-leak',
+      })),
+      findAll: jest.fn(async () => RAW_PLATFORM_ROWS.map((row) => ({ ...row }))),
+      updateServerConfig: jest.fn(),
+    };
+    registry = { register: jest.fn() };
+    adapter = new SystemSettingsAiAdapter(systemSettings as any, registry as any);
+  });
+
+  it('returns only the platform settings that describe the calling tenant limits and capabilities', async () => {
+    const result = (await getTool(adapter, 'get_platform_settings').handler({}, TENANT_A)) as {
+      settings: Array<{ key: string; value?: unknown; configured?: boolean }>;
+    };
+    const keys = result.settings.map((row) => row.key).sort();
+    expect(keys).toEqual([...PLATFORM_TENANT_PROJECTION.map((entry) => entry.key)].sort());
+    expect(result.settings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ key: 'recordings_available', value: true }),
+        expect.objectContaining({ key: 'recordings_tenant_prefix', value: `${TENANT_A}/` }),
+        expect.objectContaining({ key: 'webhook_configured', configured: true }),
+      ]),
+    );
+  });
+
+  it('omits platform-wide operational values, provider configuration and other tenants allocations', async () => {
+    const result = await getTool(adapter, 'get_platform_settings').handler({}, TENANT_A);
+    const blob = JSON.stringify(result);
+    expect(blob).not.toMatch(/\/usr\/records|records\.example\.test|whsec-live|smtp-secret|new_platform_flag|••••/i);
+    expect(systemSettings.getServerConfigRaw).not.toHaveBeenCalled();
+    expect(systemSettings.findAll).not.toHaveBeenCalled();
+  });
+
+  it('returns each tenant its own projection', async () => {
+    const a = (await getTool(adapter, 'get_platform_settings').handler({}, TENANT_A)) as {
+      settings: Array<{ key: string; value?: unknown; configured?: boolean }>;
+    };
+    systemSettings.getServerConfig.mockResolvedValueOnce({ ...SERVER_CONFIG_B });
+    const b = (await getTool(adapter, 'get_platform_settings').handler({}, TENANT_B)) as {
+      settings: Array<{ key: string; value?: unknown; configured?: boolean }>;
+    };
+
+    const prefixA = a.settings.find((row) => row.key === 'recordings_tenant_prefix');
+    const prefixB = b.settings.find((row) => row.key === 'recordings_tenant_prefix');
+    expect(prefixA?.value).toBe(`${TENANT_A}/`);
+    expect(prefixB?.value).toBe(`${TENANT_B}/`);
+    expect(prefixA?.value).not.toBe(prefixB?.value);
+
+    expect(a.settings.find((row) => row.key === 'recordings_available')?.value).toBe(true);
+    expect(b.settings.find((row) => row.key === 'recordings_available')?.value).toBe(false);
+    expect(a.settings.find((row) => row.key === 'webhook_configured')?.configured).toBe(true);
+    expect(b.settings.find((row) => row.key === 'webhook_configured')?.configured).toBe(false);
+    expect(JSON.stringify(a)).not.toContain(`${TENANT_B}/`);
+    expect(JSON.stringify(b)).not.toContain(`${TENANT_A}/`);
+  });
+
+  it('declares no mutating tool', () => {
+    expect(adapter.getTools().length).toBeGreaterThan(0);
+    for (const tool of adapter.getTools()) {
+      expect(isMutating(tool)).toBe(false);
+    }
+    expect(systemSettings.updateServerConfig).not.toHaveBeenCalled();
+  });
+
+  it('does not include a platform setting absent from the explicit projection', () => {
+    const extra = {
+      records_base_path: '/var/spool',
+      records_base_url: 'https://cdn.example',
+      webhook_secret: '••••••••',
+      smtp_password: 'new-secret',
+      brand_new_quota: 99,
+    };
+    const view = toPlatformSettingsView(extra, TENANT_A);
+    const keys = view.settings.map((row) => row.key).sort();
+    expect(keys).toEqual([...PLATFORM_TENANT_PROJECTION.map((entry) => entry.key)].sort());
+    expect(JSON.stringify(view)).not.toMatch(/smtp_password|brand_new_quota|new-secret|\/var\/spool|cdn\.example|••••/i);
+    for (const entry of PLATFORM_TENANT_PROJECTION) {
+      expect(entry.explanation.length).toBeGreaterThan(0);
+    }
+  });
+});
+
