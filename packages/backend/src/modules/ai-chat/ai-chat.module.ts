@@ -26,6 +26,7 @@ import { Context } from '../contexts/context.model';
 import { LoggerModule } from '../logger/logger.module';
 import { AiAgentsModule } from '../ai-agents/ai-agents.module';
 import { PbxAgentLlmClient } from './pbx-agent-llm.client';
+import { PbxStateAiAdapter } from './pbx-state-ai.adapter';
 
 @Module({
     imports: [
@@ -50,6 +51,7 @@ import { PbxAgentLlmClient } from './pbx-agent-llm.client';
         AiChatSettingsService,
         PbxAgentThreadService,
         PbxAgentLlmClient,
+        PbxStateAiAdapter,
         JwtOrServiceTokenGuard,
         ServiceTokenGuard,
     ],
