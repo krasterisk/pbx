@@ -35,6 +35,15 @@ const streamApi = {
   answerText: '',
   isStreaming: false,
   outcome: 'idle' as string,
+  proposal: null as {
+    proposalId: string;
+    entityType: string;
+    entityLabel: string;
+    summary: string[];
+    status: string;
+    expiresAt: string;
+    error: string | null;
+  } | null,
 };
 
 vi.mock('@/shared/hooks/useAppStore', () => ({
@@ -193,6 +202,7 @@ describe('AiChatWidget', () => {
     streamApi.answerText = '';
     streamApi.isStreaming = false;
     streamApi.outcome = 'idle';
+    streamApi.proposal = null;
   });
 
   it('does not render the former floating trigger', () => {
@@ -404,5 +414,134 @@ describe('AiChatWidget', () => {
     const { rerender } = render(<AiChatWidget open onClose={vi.fn()} />);
     rerender(<AiChatWidget open={false} onClose={vi.fn()} />);
     expect(streamApi.abort).toHaveBeenCalledTimes(1);
+  });
+
+  function mockScroller(el: HTMLElement, metrics: { scrollTop: number; clientHeight: number; scrollHeight: number }) {
+    Object.defineProperty(el, 'scrollTop', { configurable: true, writable: true, value: metrics.scrollTop });
+    Object.defineProperty(el, 'clientHeight', { configurable: true, value: metrics.clientHeight });
+    Object.defineProperty(el, 'scrollHeight', { configurable: true, value: metrics.scrollHeight });
+  }
+
+  it('keeps the conversation at the bottom while the reader is already there', () => {
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    aiChatState.messages = [
+      { id: 'a1', role: 'assistant', content: 'first', createdAt: Date.now() },
+    ];
+    const { rerender } = render(<AiChatWidget open onClose={vi.fn()} />);
+    const scroller = screen.getByTestId('ai-agent-messages');
+    mockScroller(scroller, { scrollTop: 400, clientHeight: 200, scrollHeight: 600 });
+    fireEvent.scroll(scroller);
+
+    scrollIntoView.mockClear();
+    aiChatState.messages = [
+      { id: 'a1', role: 'assistant', content: 'first then more', createdAt: Date.now() },
+    ];
+    rerender(<AiChatWidget open onClose={vi.fn()} />);
+    expect(scrollIntoView).toHaveBeenCalled();
+  });
+
+  it('stops following after the user scrolls up and shows jump-to-latest', () => {
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    aiChatState.messages = [
+      { id: 'a1', role: 'assistant', content: 'first', createdAt: Date.now() },
+    ];
+    const { rerender } = render(<AiChatWidget open onClose={vi.fn()} />);
+    const scroller = screen.getByTestId('ai-agent-messages');
+    mockScroller(scroller, { scrollTop: 40, clientHeight: 200, scrollHeight: 800 });
+    fireEvent.scroll(scroller);
+
+    expect(screen.getByRole('button', { name: 'aiChat.jumpToLatest' })).toBeInTheDocument();
+
+    scrollIntoView.mockClear();
+    aiChatState.messages = [
+      { id: 'a1', role: 'assistant', content: 'first then more', createdAt: Date.now() },
+    ];
+    rerender(<AiChatWidget open onClose={vi.fn()} />);
+    expect(scrollIntoView).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'aiChat.jumpToLatest' })).toBeInTheDocument();
+  });
+
+  it('resumes following when the reader returns to the bottom', () => {
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    aiChatState.messages = [
+      { id: 'a1', role: 'assistant', content: 'first', createdAt: Date.now() },
+    ];
+    const { rerender } = render(<AiChatWidget open onClose={vi.fn()} />);
+    const scroller = screen.getByTestId('ai-agent-messages');
+    mockScroller(scroller, { scrollTop: 40, clientHeight: 200, scrollHeight: 800 });
+    fireEvent.scroll(scroller);
+    expect(screen.getByRole('button', { name: 'aiChat.jumpToLatest' })).toBeInTheDocument();
+
+    mockScroller(scroller, { scrollTop: 600, clientHeight: 200, scrollHeight: 800 });
+    fireEvent.scroll(scroller);
+    expect(screen.queryByRole('button', { name: 'aiChat.jumpToLatest' })).toBeNull();
+
+    scrollIntoView.mockClear();
+    aiChatState.messages = [
+      { id: 'a1', role: 'assistant', content: 'first then more', createdAt: Date.now() },
+    ];
+    rerender(<AiChatWidget open onClose={vi.fn()} />);
+    expect(scrollIntoView).toHaveBeenCalled();
+  });
+
+  it('renders a mid-stream change card in place and continues the text below it', () => {
+    streamApi.proposal = {
+      proposalId: '22222222-2222-4222-8222-222222222222',
+      entityType: 'trunk',
+      entityLabel: 'SIP-1',
+      summary: ['Add a SIP trunk'],
+      status: 'pending',
+      expiresAt: '2026-09-05T12:00:00.000Z',
+      error: null,
+    };
+    streamApi.isStreaming = true;
+    aiChatState.isStreaming = true;
+    aiChatState.messages = [
+      { id: 'u1', role: 'user', content: 'Add a trunk please', createdAt: Date.now() },
+      { id: 'a1', role: 'assistant', content: 'Here is the change, then I continue.', createdAt: Date.now(), isStreaming: true },
+    ];
+    render(<AiChatWidget open onClose={vi.fn()} />);
+
+    const conversation = screen.getByTestId('ai-agent-conversation');
+    const text = conversation.textContent ?? '';
+    const userAt = text.indexOf('Add a trunk please');
+    const cardAt = text.indexOf('SIP-1');
+    const afterAt = text.indexOf('Here is the change, then I continue.');
+    expect(userAt).toBeGreaterThan(-1);
+    expect(cardAt).toBeGreaterThan(userAt);
+    expect(afterAt).toBeGreaterThan(cardAt);
+    expect(screen.getByRole('button', { name: 'aiChat.card.apply' })).toBeInTheDocument();
+  });
+
+  it('keeps streaming copy keys in both locale files', () => {
+    const streamingKeys = [
+      'aiChat.progress.working',
+      'aiChat.progress.tools.get_pbx_state',
+      'aiChat.stopped',
+      'aiChat.ceiling',
+      'aiChat.failed',
+      'aiChat.disconnected',
+      'aiChat.reconnect',
+      'aiChat.jumpToLatest',
+    ];
+    for (const key of streamingKeys) {
+      const path = key.replace(/^aiChat\./, '').split('.');
+      let enNode: unknown = en.aiChat;
+      let ruNode: unknown = ru.aiChat;
+      for (const part of path) {
+        enNode = (enNode as Record<string, unknown>)[part];
+        ruNode = (ruNode as Record<string, unknown>)[part];
+      }
+      expect(typeof enNode).toBe('string');
+      expect(typeof ruNode).toBe('string');
+      expect(enNode).not.toBe(ruNode);
+    }
+    expect(en.aiChat.stopped).toBe('Stopped');
+    expect(ru.aiChat.stopped).toBe('Остановлено');
+    expect(en.aiChat.ceiling).toBe('Step limit reached. Narrow the task or start a new chat.');
+    expect(ru.aiChat.jumpToLatest).toBe('К последним сообщениям');
   });
 });
