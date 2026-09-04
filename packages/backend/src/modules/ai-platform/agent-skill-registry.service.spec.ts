@@ -116,7 +116,14 @@ describe('AgentSkillRegistryService', () => {
 
   it('loads a non-empty catalog from the repository skills root', () => {
     const { service } = createService();
-    expect(service.getCatalog().length).toBeGreaterThan(0);
+    const catalog = service.getCatalog();
+    expect(catalog.length).toBeGreaterThan(0);
+
+    const byName = Object.fromEntries(catalog.map((entry) => [entry.name, entry.description]));
+    for (const name of ['developer-convention', 'directories', 'voicemail', 'callcenter']) {
+      expect(byName[name]).toEqual(expect.any(String));
+      expect(byName[name].length).toBeGreaterThan(0);
+    }
   });
 });
 
