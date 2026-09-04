@@ -1,10 +1,16 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { Interval } from '@nestjs/schedule';
 import { InjectModel } from '@nestjs/sequelize';
 import { Op } from 'sequelize';
 import { CcAiProvider } from '../ai-agents/models/ai-provider.model';
+import { CcAiAuditLog } from '../ai-agents/models/ai-audit-log.model';
 import { AgentThread } from './models/agent-thread.model';
 import { AgentProposal } from './models/agent-proposal.model';
-import { CcAiAuditLog } from '../ai-agents/models/ai-audit-log.model';
+
+const SILENT_WRITE_INTERVAL_MS = 60 * 60 * 1000;
+const SILENT_WRITE_WINDOW_MS = 24 * 60 * 60 * 1000;
+const MUTATING_TOOL = /^(create_|update_|delete_|remove_|add_|assign_|apply_)/;
+const LIVE_OPS = new Set(['cc_force_pause_agent', 'cc_force_unpause_agent']);
 
 export interface TenantUsageRow {
   tenantUid: number;
@@ -54,6 +60,14 @@ function hasTokenPricing(pricing: unknown): pricing is { inputTokenUsd: number; 
   return typeof row.inputTokenUsd === 'number' && typeof row.outputTokenUsd === 'number';
 }
 
+function inRange(field: string, from: Date, to: Date) {
+  return { [field]: { [Op.between]: [from, to] } };
+}
+
+function isMutatingTool(name: string): boolean {
+  return !LIVE_OPS.has(name) && MUTATING_TOOL.test(name);
+}
+
 /**
  * Aggregates conversation-row token counters into per-tenant spend (D-08).
  * Reads `ai_agent_threads` only. The voice CDR table is left untouched.
@@ -61,12 +75,13 @@ function hasTokenPricing(pricing: unknown): pricing is { inputTokenUsd: number; 
 @Injectable()
 export class AgentUsageService {
   private readonly logger = new Logger(AgentUsageService.name);
+  private runningSilent = false;
 
   constructor(
     @InjectModel(AgentThread) private readonly threads: typeof AgentThread,
     @InjectModel(CcAiProvider) private readonly providers: typeof CcAiProvider,
-    @InjectModel(AgentProposal) private readonly proposals?: typeof AgentProposal,
-    @InjectModel(CcAiAuditLog) private readonly audit?: typeof CcAiAuditLog,
+    @InjectModel(AgentProposal) private readonly proposals: typeof AgentProposal,
+    @InjectModel(CcAiAuditLog) private readonly audit: typeof CcAiAuditLog,
   ) {}
 
   async queryTenantUsage(from: Date, to: Date): Promise<TenantUsageRow[]> {
@@ -116,15 +131,96 @@ export class AgentUsageService {
       }));
   }
 
-  async queryProposalFunnel(_from: Date, _to: Date): Promise<ProposalFunnelRow[]> {
-    throw new Error('not implemented');
+  async queryProposalFunnel(from: Date, to: Date): Promise<ProposalFunnelRow[]> {
+    const rows = await this.proposals.findAll({
+      where: inRange('created_at', from, to),
+      attributes: ['vpbx_user_uid', 'status'],
+    });
+    const grouped = new Map<number, ProposalFunnelRow>();
+    for (const row of rows) {
+      const tenantUid = Number(row.vpbx_user_uid);
+      const current = grouped.get(tenantUid) ?? {
+        tenantUid,
+        pending: 0,
+        applied: 0,
+        rejected: 0,
+        denied: 0,
+      };
+      if (row.status === 'pending') current.pending += 1;
+      else if (row.status === 'applied') current.applied += 1;
+      else if (row.status === 'rejected') current.rejected += 1;
+      else if (row.status === 'denied') current.denied += 1;
+      grouped.set(tenantUid, current);
+    }
+    return [...grouped.values()].sort((a, b) => a.tenantUid - b.tenantUid);
   }
 
-  async queryToolErrors(_from: Date, _to: Date): Promise<ToolErrorRow[]> {
-    throw new Error('not implemented');
+  async queryToolErrors(from: Date, to: Date): Promise<ToolErrorRow[]> {
+    const rows = await this.audit.findAll({
+      where: inRange('created_at', from, to),
+      attributes: ['user_uid', 'tool_name', 'status'],
+    });
+    const grouped = new Map<string, ToolErrorRow>();
+    for (const row of rows) {
+      const tenantUid = Number(row.user_uid);
+      const key = `${tenantUid}\0${row.tool_name}\0${row.status}`;
+      const current = grouped.get(key) ?? {
+        tenantUid,
+        toolName: row.tool_name,
+        status: row.status,
+        count: 0,
+      };
+      current.count += 1;
+      grouped.set(key, current);
+    }
+    return [...grouped.values()].sort((a, b) => a.tenantUid - b.tenantUid || a.toolName.localeCompare(b.toolName));
   }
 
-  async detectSilentWrites(_from: Date, _to: Date): Promise<SilentWriteHit[]> {
-    throw new Error('not implemented');
+  async detectSilentWrites(from: Date, to: Date): Promise<SilentWriteHit[]> {
+    const auditRows = await this.audit.findAll({
+      where: inRange('created_at', from, to),
+      attributes: ['uid', 'user_uid', 'thread_uid', 'tool_name', 'created_at'],
+    });
+    const applied = await this.proposals.findAll({
+      where: { status: 'applied' },
+      attributes: ['vpbx_user_uid', 'thread_uid', 'status', 'applied_at'],
+    });
+
+    const hits: SilentWriteHit[] = [];
+    for (const row of auditRows) {
+      if (!isMutatingTool(row.tool_name)) continue;
+      const matched = applied.some(
+        (proposal) =>
+          proposal.status === 'applied' &&
+          Number(proposal.vpbx_user_uid) === Number(row.user_uid) &&
+          (row.thread_uid == null || Number(proposal.thread_uid) === Number(row.thread_uid)),
+      );
+      if (matched) continue;
+      const hit = {
+        tenantUid: Number(row.user_uid),
+        toolName: row.tool_name,
+        auditUid: Number(row.uid),
+      };
+      hits.push(hit);
+      this.logger.error(
+        `silent write: tenant=${hit.tenantUid} tool=${hit.toolName} audit=${hit.auditUid}`,
+      );
+    }
+    return hits;
+  }
+
+  @Interval('agent-silent-write', SILENT_WRITE_INTERVAL_MS)
+  async tickSilentWrites(): Promise<void> {
+    if (this.runningSilent) return;
+    this.runningSilent = true;
+    try {
+      const to = new Date();
+      const from = new Date(to.getTime() - SILENT_WRITE_WINDOW_MS);
+      await this.detectSilentWrites(from, to);
+    } catch (error) {
+      this.logger.warn(`silent-write scan: ${(error as Error).message}`);
+    } finally {
+      this.runningSilent = false;
+    }
   }
 }

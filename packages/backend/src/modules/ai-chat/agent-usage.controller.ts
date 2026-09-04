@@ -20,4 +20,16 @@ export class AgentUsageController {
   async getUsage(@Query('from') from: string, @Query('to') to: string) {
     return this.usage.queryTenantUsage(new Date(from), new Date(to));
   }
+
+  @ApiOperation({ summary: 'Per-tenant proposal funnel (platform admin)' })
+  @Get('funnel')
+  async getFunnel(@Query('from') from: string, @Query('to') to: string) {
+    return this.usage.queryProposalFunnel(new Date(from), new Date(to));
+  }
+
+  @ApiOperation({ summary: 'Per-tenant tool invocation counts (platform admin)' })
+  @Get('errors')
+  async getErrors(@Query('from') from: string, @Query('to') to: string) {
+    return this.usage.queryToolErrors(new Date(from), new Date(to));
+  }
 }

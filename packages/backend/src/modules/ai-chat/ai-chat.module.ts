@@ -10,6 +10,7 @@ import { AgentThread } from './models/agent-thread.model';
 import { AgentThreadMessage } from './models/agent-thread-message.model';
 import { AgentProposal } from './models/agent-proposal.model';
 import { CcAiProvider } from '../ai-agents/models/ai-provider.model';
+import { CcAiAuditLog } from '../ai-agents/models/ai-audit-log.model';
 import { PbxAgentThreadService } from './pbx-agent-thread.service';
 import { AgentUsageService } from './agent-usage.service';
 import { AgentUsageController } from './agent-usage.controller';
@@ -34,7 +35,7 @@ import { McpModule } from '../mcp/mcp.module';
     imports: [
         ConfigModule,
         HttpModule.register({ timeout: 60_000 }),
-        SequelizeModule.forFeature([Context, AiChatSettings, AgentThread, AgentThreadMessage, AgentProposal, CcAiProvider]),
+        SequelizeModule.forFeature([Context, AiChatSettings, AgentThread, AgentThreadMessage, AgentProposal, CcAiProvider, CcAiAuditLog]),
         EndpointsModule,
         TrunksModule,
         IvrsModule,
