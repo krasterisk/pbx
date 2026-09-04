@@ -12,7 +12,7 @@ import { InjectModel } from '@nestjs/sequelize';
 import { Context } from '../contexts/context.model';
 import { CdrService } from '../reports/cdr/cdr.service';
 import { AiAdapterRegistryService } from '../ai-platform/ai-adapter-registry.service';
-import { TENANT_ARG_KEYS } from '../ai-platform/ai-adapter.types';
+import { TENANT_ARG_KEYS, type AiToolDefinition } from '../ai-platform/ai-adapter.types';
 import { AiChatSettingsService } from '../ai-chat/ai-chat-settings.service';
 import { PbxAgentDiffService, type ProposalContext } from '../ai-chat/pbx-agent-diff.service';
 import { isAgentDiffProposal, isProposalClientView } from '../ai-chat/dto/agent-diff.dto';
@@ -102,16 +102,10 @@ export class McpToolsService implements OnApplicationBootstrap {
         this.regFindCdrCalls();
 
         // Domain AI Adapter tools (D-14/D-15) — dispatched through the same registry,
-        // same audit/confirmation pipeline as legacy tools.
+        // same audit/confirmation pipeline as legacy tools. Always adopted: an
+        // adapter name already skipped the handwritten twin in reg() (D-27).
         for (const t of this.aiAdapterRegistry.getAllTools()) {
-            this.reg(t.name, t.description, t.inputSchema, async (args, uid) => {
-                const result = await t.handler(args, uid);
-                if (t.proposes && (isAgentDiffProposal(result) || isProposalClientView(result))) {
-                    return result;
-                }
-                const text = typeof result === 'string' ? result : JSON.stringify(result, null, 2);
-                return [{ type: 'text', text }];
-            }, t.entityType, !!t.destructive, !!t.proposes);
+            this.adoptAdapterTool(t);
         }
 
         this.logger.log(`Registered ${this.toolRegistry.size} MCP tools`);
@@ -254,6 +248,28 @@ export class McpToolsService implements OnApplicationBootstrap {
         return `mcp:${name}: ${truncated}`;
     }
 
+    private adapterProvidedNames(): Set<string> {
+        return new Set(this.aiAdapterRegistry.getAllTools().map((tool) => tool.name));
+    }
+
+    private adoptAdapterTool(tool: AiToolDefinition): void {
+        this.toolRegistry.set(tool.name, {
+            description: tool.description,
+            inputSchema: tool.inputSchema,
+            entityType: tool.entityType,
+            destructive: !!tool.destructive,
+            proposes: !!tool.proposes,
+            handler: async (args, uid) => {
+                const result = await tool.handler(args, uid);
+                if (tool.proposes && (isAgentDiffProposal(result) || isProposalClientView(result))) {
+                    return result;
+                }
+                const text = typeof result === 'string' ? result : JSON.stringify(result, null, 2);
+                return [{ type: 'text', text }];
+            },
+        });
+    }
+
     private reg(
         name: string,
         description: string,
@@ -263,6 +279,12 @@ export class McpToolsService implements OnApplicationBootstrap {
         destructive: boolean = false,
         proposes: boolean = false,
     ): void {
+        if (this.adapterProvidedNames().has(name)) {
+            this.logger.warn(
+                `Skipping handwritten registration of "${name}" — adapter already provides this name`,
+            );
+            return;
+        }
         this.toolRegistry.set(name, { description, inputSchema, entityType, destructive, proposes, handler });
     }
 
