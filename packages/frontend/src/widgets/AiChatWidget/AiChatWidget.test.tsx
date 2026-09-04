@@ -65,6 +65,30 @@ const storedThreadDetail = {
       role: 'assistant' as const,
       content: 'Stored assistant reply',
       created_at: '2026-09-03T12:01:00.000Z',
+      proposal_id: '11111111-1111-4111-8111-111111111111',
+      proposal: {
+        proposalId: '11111111-1111-4111-8111-111111111111',
+        entityType: 'directory',
+        entityLabel: 'VIP',
+        summary: ['Добавить поле num'],
+        status: 'pending',
+        expiresAt: '2026-09-05T12:00:00.000Z',
+        error: null,
+      },
+    },
+    {
+      uid: 73,
+      thread_uid: 7,
+      role: 'user' as const,
+      content: 'And also add a trunk',
+      created_at: '2026-09-03T12:02:00.000Z',
+    },
+    {
+      uid: 74,
+      thread_uid: 7,
+      role: 'assistant' as const,
+      content: 'I will propose a trunk next',
+      created_at: '2026-09-03T12:03:00.000Z',
     },
   ],
 };
@@ -87,6 +111,14 @@ vi.mock('@/shared/api/endpoints/aiChatApi', () => ({
   ],
   useDeleteAiChatThreadMutation: () => [
     () => ({ unwrap: async () => undefined }),
+    { isLoading: false },
+  ],
+  useConfirmAiChatProposalMutation: () => [
+    () => ({ unwrap: async () => ({ ok: true }) }),
+    { isLoading: false },
+  ],
+  useRejectAiChatProposalMutation: () => [
+    () => ({ unwrap: async () => ({ ok: true }) }),
     { isLoading: false },
   ],
   streamAiChatMessage: vi.fn(),
@@ -203,6 +235,22 @@ describe('AiChatWidget', () => {
     fireEvent.click(screen.getByRole('option', { name: /Yesterday's call/ }));
     expect(screen.getByText('Stored user message from yesterday')).toBeInTheDocument();
     expect(screen.getByText('Stored assistant reply')).toBeInTheDocument();
+  });
+
+  it('places a stored change card at the turn that produced it', () => {
+    render(<AiChatWidget open onClose={vi.fn()} />);
+    fireEvent.click(screen.getByRole('option', { name: /Yesterday's call/ }));
+
+    const conversation = screen.getByTestId('ai-agent-conversation');
+    const text = conversation.textContent ?? '';
+    const cardAt = text.indexOf('VIP');
+    const laterUserAt = text.indexOf('And also add a trunk');
+    const laterAssistantAt = text.indexOf('I will propose a trunk next');
+    expect(cardAt).toBeGreaterThan(-1);
+    expect(text.indexOf('Добавить поле num')).toBeGreaterThan(-1);
+    expect(screen.getByRole('button', { name: 'aiChat.card.apply' })).toBeInTheDocument();
+    expect(laterUserAt).toBeGreaterThan(cardAt);
+    expect(laterAssistantAt).toBeGreaterThan(laterUserAt);
   });
 
   it('clears the conversation column after deleting the selected conversation', async () => {
