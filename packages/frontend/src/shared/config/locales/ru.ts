@@ -2839,6 +2839,23 @@ export const ru = {
       addTrunk: 'Добавить транк',
       setupIvr: 'Настроить IVR-меню',
     },
+    newConversation: 'Новый разговор',
+    emptyTitle: 'Пока нет разговоров',
+    emptyBody: 'Начните новый разговор. История сохранится и будет доступна после перезагрузки.',
+    untitled: 'Без названия',
+    deleteConversation: 'Удалить разговор',
+    deleteConfirmTitle: 'Удалить разговор?',
+    deleteConfirmBody: 'Удалить разговор? Сообщения этого разговора будут удалены.',
+    deleteConfirm: 'Удалить разговор',
+    keepConversation: 'Оставить разговор',
+    loadingThreads: 'Загрузка разговоров…',
+    errorThreads: 'Не удалось загрузить разговоры. Попробуйте ещё раз.',
+    relative: {
+      justNow: 'Только что',
+      minutes: '{{count}} мин. назад',
+      hours: '{{count}} ч. назад',
+      days: '{{count}} дн. назад',
+    },
   },
 
   // Call Center Module

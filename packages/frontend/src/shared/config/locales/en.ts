@@ -2802,6 +2802,23 @@ export const en = {
       addTrunk: 'Add a trunk',
       setupIvr: 'Set up an IVR menu',
     },
+    newConversation: 'New conversation',
+    emptyTitle: 'No conversations yet',
+    emptyBody: 'Start a new chat. History is saved and available after reload.',
+    untitled: 'Untitled',
+    deleteConversation: 'Delete conversation',
+    deleteConfirmTitle: 'Delete this conversation?',
+    deleteConfirmBody: 'Delete this conversation? Its messages will be removed.',
+    deleteConfirm: 'Delete conversation',
+    keepConversation: 'Keep conversation',
+    loadingThreads: 'Loading conversations…',
+    errorThreads: 'Could not load conversations. Try again.',
+    relative: {
+      justNow: 'Just now',
+      minutes: '{{count}} min ago',
+      hours: '{{count}} h ago',
+      days: '{{count}} d ago',
+    },
   },
 
   // Call Center Module
