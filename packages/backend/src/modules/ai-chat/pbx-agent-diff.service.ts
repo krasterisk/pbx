@@ -7,6 +7,8 @@ import { RouteApplyService } from '../routes/route-apply.service';
 import { RoutesService } from '../routes/routes.service';
 import { DirectoriesService } from '../directories/directories.service';
 import type { DirectoryRecordDto } from '../directories/dto/directory.dto';
+import { LoggerService } from '../logger/logger.service';
+import { CcAiAuditLog } from '../ai-agents/models/ai-audit-log.model';
 import { AgentProposal } from './models/agent-proposal.model';
 import {
   parseAgentDiffProposal,
@@ -15,6 +17,8 @@ import {
 } from './dto/agent-diff.dto';
 
 const PROPOSAL_TTL_MS = 24 * 60 * 60 * 1000;
+const ACTION_LOG_TRUNCATE = 200;
+const AUDIT_TRUNCATE = 4000;
 
 export interface ProposalContext {
   vpbxUserUid: number;
@@ -37,6 +41,8 @@ export class PbxAgentDiffService {
     private readonly routeApplyService: RouteApplyService,
     private readonly directoriesService: DirectoriesService,
     private readonly routesService: RoutesService,
+    private readonly loggerService: LoggerService,
+    @InjectModel(CcAiAuditLog) private readonly auditModel: typeof CcAiAuditLog,
   ) {}
 
   async createProposal(proposal: unknown, ctx: ProposalContext): Promise<AgentProposalView> {
@@ -79,19 +85,33 @@ export class PbxAgentDiffService {
   }
 
   async apply(proposalId: string, ctx: ProposalContext): Promise<ProposalActionResult> {
+    const startedAt = Date.now();
     const row = await this.findOwnedPending(proposalId, ctx);
     if (!row) {
-      return { ok: false, reason: 'not_pending' };
+      const result = { ok: false, reason: 'not_pending' };
+      await this.writeApplyAudit(ctx, 'apply', {}, result, 'error', startedAt);
+      return result;
     }
     if (new Date(row.expires_at).getTime() <= Date.now()) {
-      return { ok: false, reason: 'expired' };
+      const result = { ok: false, reason: 'expired' };
+      await this.writeApplyAudit(ctx, this.toolNameOf(row), row.apply_payload, result, 'error', startedAt);
+      return result;
+    }
+
+    if (!this.canMutate(ctx)) {
+      await row.update({ status: 'denied' });
+      const result = { ok: false, reason: 'denied', proposal: toProposalView(row) };
+      await this.writeApplyAudit(ctx, this.toolNameOf(row), row.apply_payload, result, 'denied', startedAt);
+      return result;
     }
 
     try {
       await this.executePayload(row.apply_payload as { tool: string; args: Record<string, unknown> }, ctx);
     } catch (err: any) {
       await row.update({ error: err?.message ?? String(err) });
-      return { ok: false, reason: 'write_failed', error: err?.message ?? String(err) };
+      const result = { ok: false, reason: 'write_failed', error: err?.message ?? String(err) };
+      await this.writeApplyAudit(ctx, this.toolNameOf(row), row.apply_payload, result, 'error', startedAt);
+      return result;
     }
 
     if (row.includes_dialplan_reload) {
@@ -104,12 +124,16 @@ export class PbxAgentDiffService {
         );
       } catch (err: any) {
         await row.update({ error: err?.message ?? String(err) });
-        return { ok: false, reason: 'switch_failed', error: err?.message ?? String(err) };
+        const result = { ok: false, reason: 'switch_failed', error: err?.message ?? String(err) };
+        await this.writeApplyAudit(ctx, this.toolNameOf(row), row.apply_payload, result, 'error', startedAt);
+        return result;
       }
     }
 
     await row.update({ status: 'applied', applied_at: new Date(), error: null });
-    return { ok: true, proposal: toProposalView(row) };
+    const result = { ok: true, proposal: toProposalView(row) };
+    await this.writeApplyAudit(ctx, this.toolNameOf(row), row.apply_payload, result, 'ok', startedAt);
+    return result;
   }
 
   async reject(proposalId: string, ctx: ProposalContext): Promise<ProposalActionResult> {
@@ -119,6 +143,57 @@ export class PbxAgentDiffService {
     }
     await row.update({ status: 'rejected' });
     return { ok: true, proposal: toProposalView(row) };
+  }
+
+  private canMutate(ctx: ProposalContext): boolean {
+    return ctx.role !== UserLevel.READONLY;
+  }
+
+  private toolNameOf(row: AgentProposal): string {
+    const payload = row.apply_payload as { tool?: string } | null;
+    return payload?.tool || 'apply';
+  }
+
+  private async writeApplyAudit(
+    ctx: ProposalContext,
+    toolName: string,
+    args: unknown,
+    result: unknown,
+    status: 'ok' | 'error' | 'denied',
+    startedAt: number,
+  ): Promise<void> {
+    const duration = Date.now() - startedAt;
+    const actionDetails = this.truncate(this.safeJson(args), ACTION_LOG_TRUNCATE);
+    await this.loggerService.logAction(
+      ctx.userUid,
+      'ai_apply',
+      toolName,
+      null,
+      ctx.vpbxUserUid,
+      actionDetails,
+      status === 'ok' ? 'success' : 'error',
+    );
+    await this.auditModel.create({
+      thread_uid: ctx.threadUid ?? 0,
+      user_uid: ctx.vpbxUserUid,
+      tool_name: toolName,
+      args: this.truncate(this.safeJson(args), AUDIT_TRUNCATE),
+      result: this.truncate(this.safeJson(result), AUDIT_TRUNCATE),
+      duration_ms: duration,
+      status,
+    });
+  }
+
+  private safeJson(value: unknown): string {
+    try {
+      return JSON.stringify(value ?? {});
+    } catch {
+      return String(value);
+    }
+  }
+
+  private truncate(text: string, max: number): string {
+    return text.length > max ? `${text.slice(0, max)}...` : text;
   }
 
   private findOwnedPending(proposalId: string, ctx: ProposalContext): Promise<AgentProposal | null> {
