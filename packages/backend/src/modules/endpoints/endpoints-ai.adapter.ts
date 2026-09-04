@@ -9,6 +9,8 @@ import {
 } from '../ai-platform/ai-adapter.types';
 
 const DEFAULT_EXTENSION_START = 200;
+/** Documented AI bulk ceiling — refused at tool time (T-15-38). */
+export const BULK_CREATE_CEILING = 50;
 const CREDENTIALS_NOTE =
   'Учётные данные доступны на экране абонента — пароль в переписку не попадает.';
 
@@ -32,7 +34,7 @@ export class EndpointsAiAdapter implements DomainAiAdapter, OnModuleInit {
   }
 
   getTools(): AiToolDefinition[] {
-    return [this.toolCreateEndpoint()];
+    return [this.toolCreateEndpoint(), this.toolCreateEndpointsBulk(), this.toolDeleteEndpoint()];
   }
 
   getStateProvider(): AiStateProvider {
@@ -97,6 +99,106 @@ export class EndpointsAiAdapter implements DomainAiAdapter, OnModuleInit {
     };
   }
 
+  private toolCreateEndpointsBulk(): AiToolDefinition {
+    return {
+      name: 'create_endpoints_bulk',
+      description:
+        `Предлагает создать пачку SIP-абонентов по паттерну или count+startExtension. Один proposal на всю пачку. Потолок ${BULK_CREATE_CEILING}.`,
+      inputSchema: {
+        extensionsPattern: { type: 'string', description: 'Паттерн: "200-220" или "201,205,210-215"' },
+        startExtension: { type: 'string', description: 'Стартовый номер, если задан count' },
+        count: { type: 'number', description: `Сколько абонентов создать от startExtension. Максимум ${BULK_CREATE_CEILING}.` },
+        context: { type: 'string' },
+        displayNamePattern: { type: 'string', description: 'Шаблон имени: "Абонент {N}"' },
+        codecs: { type: 'string' },
+        natProfile: { type: 'string', enum: ['lan', 'nat', 'webrtc'] },
+      },
+      entityType: 'endpoint',
+      proposes: true,
+      handler: async (args, uid) => {
+        const existing = await this.endpointsService.findAll(uid);
+        const context = String(args.context ?? this.defaultContext(existing));
+        const pattern = this.bulkPatternFrom(args);
+        const extensions = parseBulkExtensions(pattern);
+        if (extensions.length > BULK_CREATE_CEILING) {
+          return {
+            refused: true,
+            ceiling: BULK_CREATE_CEILING,
+            message: `Пакет больше ${BULK_CREATE_CEILING} абонентов. Потолок: ${BULK_CREATE_CEILING}.`,
+          };
+        }
+        if (extensions.length === 0) {
+          return { refused: true, message: 'Пустой или некорректный паттерн абонентов.' };
+        }
+
+        const namePattern = String(args.displayNamePattern ?? 'Абонент {N}');
+        const perItem = extensions.map((extension) => {
+          const displayName = namePattern.replace(/\{N\}/g, extension);
+          return `${extension} — ${displayName}`;
+        });
+        const applyArgs: Record<string, unknown> = {
+          extensionsPattern: pattern,
+          context,
+          passwordPattern: 'auto',
+          displayNamePattern: namePattern,
+        };
+        if (args.codecs) applyArgs.codecs = args.codecs;
+        if (args.natProfile) applyArgs.natProfile = args.natProfile;
+
+        return this.proposal(
+          'create_endpoints_bulk',
+          `${extensions.length} абонентов`,
+          applyArgs,
+          null,
+          { total: extensions.length, extensions, context },
+          [
+            `Создать ${extensions.length} абонентов (всего ${extensions.length}) в контексте ${context}`,
+            ...perItem,
+            CREDENTIALS_NOTE,
+          ],
+        );
+      },
+    };
+  }
+
+  private toolDeleteEndpoint(): AiToolDefinition {
+    return {
+      name: 'delete_endpoint',
+      description: 'Предлагает удалить SIP-абонента по SIP-ID. Деструктивная операция, только внутри тенанта.',
+      inputSchema: {
+        sipId: { type: 'string', description: 'SIP ID абонента (e{extension}_{tenantId})' },
+      },
+      entityType: 'endpoint',
+      destructive: true,
+      proposes: true,
+      handler: async (args, uid) => {
+        const sipId = String(args.sipId);
+        const current = await this.endpointsService.findOne(sipId, uid);
+        const extension = String(current.extension ?? sipId);
+        const displayName = displayNameFrom(current) || extension;
+        return this.proposal(
+          'delete_endpoint',
+          displayName,
+          { sipId },
+          { extension, displayName, sipId },
+          null,
+          [`Удалить абонента ${extension} (${displayName})`],
+        );
+      },
+    };
+  }
+
+  private bulkPatternFrom(args: Record<string, unknown>): string {
+    if (args.extensionsPattern) return String(args.extensionsPattern);
+    const start = parseInt(String(args.startExtension ?? ''), 10);
+    const count = Number(args.count);
+    if (!Number.isNaN(start) && Number.isFinite(count) && count > 0) {
+      const end = start + Math.trunc(count) - 1;
+      return `${start}-${end}`;
+    }
+    return '';
+  }
+
   private nextFreeExtension(existing: Array<{ extension?: string }>): string {
     let max = DEFAULT_EXTENSION_START - 1;
     for (const row of existing) {
@@ -129,4 +231,37 @@ export class EndpointsAiAdapter implements DomainAiAdapter, OnModuleInit {
       includesDialplanReload: false,
     };
   }
+}
+
+export function parseBulkExtensions(pattern: string): string[] {
+  const parsed = new Set<number>();
+  const parts = (pattern || '').split(',').map((part) => part.trim());
+  for (const part of parts) {
+    if (!part) continue;
+    if (part.includes('-')) {
+      const [startStr, endStr] = part.split('-');
+      const start = parseInt(startStr, 10);
+      const end = parseInt(endStr, 10);
+      if (!Number.isNaN(start) && !Number.isNaN(end) && start <= end) {
+        for (let i = start; i <= end; i += 1) parsed.add(i);
+      }
+    } else {
+      const num = parseInt(part, 10);
+      if (!Number.isNaN(num)) parsed.add(num);
+    }
+  }
+  return Array.from(parsed)
+    .sort((a, b) => a - b)
+    .map(String);
+}
+
+function displayNameFrom(current: {
+  extension?: string;
+  endpoint?: { callerid?: string };
+  callerid?: string;
+}): string {
+  const callerid = current.endpoint?.callerid ?? current.callerid ?? '';
+  const quoted = callerid.match(/"([^"]+)"/);
+  if (quoted?.[1]) return quoted[1];
+  return String(current.extension ?? '');
 }
