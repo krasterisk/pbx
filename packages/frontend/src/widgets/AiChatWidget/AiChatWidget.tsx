@@ -12,7 +12,6 @@ import {
 } from '@/features/ai-chat/model/selectors/aiChatSelectors';
 import {
     isProposalClientView,
-    streamAiChatMessage,
     useGetAiChatThreadQuery,
     type IAgentProposalView,
     type IAiChatThreadMessage,
@@ -21,6 +20,7 @@ import type { AiChatMessage } from '@/features/ai-chat/model/types/AiChatSchema'
 import { ChatMessage } from '@/features/ai-chat/ui/ChatMessage/ChatMessage';
 import { DiffConfirmCard } from '@/features/ai-chat/ui/DiffConfirmCard';
 import { ThreadList } from '@/features/ai-chat/ui/ThreadList';
+import { useAgentStream } from '@/features/ai-chat/model/useAgentStream';
 import cls from './AiChatWidget.module.scss';
 
 const SUGGESTION_KEYS = [
@@ -76,6 +76,22 @@ export const AiChatWidget = ({ open, onClose }: AiChatWidgetProps) => {
         skip: selectedThreadUid == null,
     });
 
+    const [lastError, setLastError] = useState<string | null>(null);
+    const [streamProposal, setStreamProposal] = useState<IAgentProposalView | null>(null);
+    const {
+        send,
+        stop,
+        abort,
+        retry,
+        progressLines,
+        isStreaming: turnStreaming,
+        outcome,
+    } = useAgentStream({
+        threadUid: selectedThreadUid,
+        onProposal: setStreamProposal,
+    });
+    const streaming = isStreaming || turnStreaming;
+
     const committedItems = useMemo(
         () =>
             (threadDetail?.messages ?? [])
@@ -86,27 +102,22 @@ export const AiChatWidget = ({ open, onClose }: AiChatWidgetProps) => {
                 })),
         [threadDetail],
     );
-    const items = selectedThreadUid == null
-        ? []
-        : [
-            ...committedItems,
-            ...inFlightMessages.map((message, index, list) => ({
-                message,
-                proposal:
-                    index === list.length - 1 && message.role === 'assistant'
-                        ? streamProposal ?? undefined
-                        : undefined,
-            })),
-        ];
+    const items = [
+        ...(selectedThreadUid == null ? [] : committedItems),
+        ...inFlightMessages.map((message, index, list) => ({
+            message,
+            proposal:
+                index === list.length - 1 && message.role === 'assistant'
+                    ? streamProposal ?? undefined
+                    : undefined,
+        })),
+    ];
     const messages = items.map((item) => item.message);
 
     const panelRef = useRef<HTMLDivElement>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
-    const abortRef = useRef<AbortController | null>(null);
     const lastMessageRef = useRef<string>('');
-    const [lastError, setLastError] = useState<string | null>(null);
-    const [streamProposal, setStreamProposal] = useState<IAgentProposalView | null>(null);
 
     const handleSelectThread = useCallback((uid: number) => {
         setSelectedThreadUid(uid);
@@ -160,56 +171,32 @@ export const AiChatWidget = ({ open, onClose }: AiChatWidgetProps) => {
         return () => window.removeEventListener('keydown', onKeyDown);
     }, [open, onClose]);
 
+    useEffect(() => {
+        if (!open) abort();
+    }, [open, abort]);
+
     const handleSend = useCallback((overrideText?: string) => {
         const textarea = textareaRef.current;
         const text = overrideText ?? textarea?.value.trim();
-        if (!text || isStreaming) return;
+        if (!text || streaming) return;
 
         if (textarea && !overrideText) textarea.value = '';
         lastMessageRef.current = text;
         setLastError(null);
         setStreamProposal(null);
-
-        const history = messages
-            .filter((m) => !m.isStreaming)
-            .map((m) => ({ role: m.role as string, content: m.content }));
-
-        dispatch(aiChatActions.addUserMessage(text));
-        dispatch(aiChatActions.startAssistantMessage());
-
-        abortRef.current = streamAiChatMessage({
-            message: text,
-            history,
-            onText: (chunk) => dispatch(aiChatActions.appendTextChunk(chunk)),
-            onToolCall: (data) => dispatch(aiChatActions.addToolCall({ ...data })),
-            onToolResult: (data) => dispatch(aiChatActions.updateToolResult(data)),
-            onProposal: (view) => setStreamProposal(view),
-            onDone: () => dispatch(aiChatActions.finishStreaming()),
-            onError: (msg) => {
-                dispatch(aiChatActions.appendTextChunk(`\n\n*${t('aiChat.error')}: ${msg}*`));
-                dispatch(aiChatActions.finishStreaming());
-                setLastError(msg);
-            },
-        });
-    }, [dispatch, isStreaming, messages, t]);
+        send(text);
+    }, [send, streaming]);
 
     const handleRetry = useCallback(() => {
-        if (!lastMessageRef.current || isStreaming) return;
-        dispatch(aiChatActions.removeLastAssistantMessage());
-        handleSend(lastMessageRef.current);
-    }, [dispatch, isStreaming, handleSend]);
+        if (streaming) return;
+        retry();
+    }, [retry, streaming]);
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             handleSend();
         }
-    };
-
-    const handleStop = () => {
-        abortRef.current?.abort();
-        dispatch(aiChatActions.finishStreaming());
-        setLastError(null);
     };
 
     return (
@@ -333,6 +320,52 @@ export const AiChatWidget = ({ open, onClose }: AiChatWidgetProps) => {
                                     )}
                                 </VStack>
                             ))}
+                            {progressLines.length > 0 && (
+                                <VStack
+                                    className={cls.progress}
+                                    gap="4"
+                                    align="stretch"
+                                    data-testid="ai-agent-progress"
+                                    aria-live="polite"
+                                >
+                                    {progressLines.map((line, index) => (
+                                        <Text as="p" key={`${line}-${index}`} className={cls.progressLine}>
+                                            {line}
+                                        </Text>
+                                    ))}
+                                </VStack>
+                            )}
+                            {outcome === 'stopped' && (
+                                <Text as="p" className={cls.outcome} data-testid="ai-agent-outcome">
+                                    {t('aiChat.stopped')}
+                                </Text>
+                            )}
+                            {outcome === 'ceiling' && (
+                                <Text as="p" className={cls.outcome} data-testid="ai-agent-outcome">
+                                    {t('aiChat.ceiling')}
+                                </Text>
+                            )}
+                            {outcome === 'failed' && (
+                                <Text as="p" className={cls.outcome} data-testid="ai-agent-outcome">
+                                    {t('aiChat.failed')}
+                                </Text>
+                            )}
+                            {outcome === 'disconnected' && (
+                                <HStack className={cls.outcomeRow} gap="8" align="center">
+                                    <Text as="p" className={cls.outcome} data-testid="ai-agent-outcome">
+                                        {t('aiChat.disconnected')}
+                                    </Text>
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        className={cls.retryBtn}
+                                        onClick={handleRetry}
+                                        aria-label={t('aiChat.reconnect')}
+                                    >
+                                        {t('aiChat.reconnect')}
+                                    </Button>
+                                </HStack>
+                            )}
                             <Flex ref={messagesEndRef} aria-hidden direction="column">{null}</Flex>
                         </VStack>
                     </VStack>
@@ -344,7 +377,7 @@ export const AiChatWidget = ({ open, onClose }: AiChatWidgetProps) => {
                     align="stretch"
                     data-testid="ai-agent-composer"
                 >
-                    {lastError && !isStreaming && (
+                    {lastError && !streaming && (
                         <HStack className={cls.errorBanner} gap="8" align="center">
                             <Text as="span" className={cls.errorText}>{lastError.slice(0, 80)}</Text>
                             <Button
@@ -365,16 +398,17 @@ export const AiChatWidget = ({ open, onClose }: AiChatWidgetProps) => {
                             placeholder={t('aiChat.inputPlaceholder')}
                             rows={1}
                             onKeyDown={handleKeyDown}
-                            disabled={isStreaming}
+                            disabled={streaming}
                         />
                         <Button
                             id="ai-chat-send"
-                            variant={isStreaming ? 'ghost' : 'default'}
+                            variant={streaming ? 'ghost' : 'default'}
                             size="icon"
-                            onClick={isStreaming ? handleStop : () => handleSend()}
-                            title={isStreaming ? t('aiChat.stop') : t('aiChat.send')}
+                            onClick={streaming ? stop : () => handleSend()}
+                            title={streaming ? t('aiChat.stop') : t('aiChat.send')}
+                            aria-label={streaming ? t('aiChat.stop') : t('aiChat.send')}
                         >
-                            {isStreaming ? <X size={16} /> : <Send size={16} />}
+                            {streaming ? <X size={16} /> : <Send size={16} />}
                         </Button>
                     </HStack>
                 </VStack>

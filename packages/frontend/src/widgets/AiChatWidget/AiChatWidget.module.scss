@@ -225,6 +225,27 @@
     padding: 4px 10px;
 }
 
+.progress {
+    padding: 0 4px;
+}
+
+.progressLine {
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--color-muted-foreground);
+}
+
+.outcome,
+.outcomeRow {
+    padding: 0 4px;
+}
+
+.outcome {
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--color-muted-foreground);
+}
+
 @media (max-width: 767px) {
     .overlay {
         right: 0;
