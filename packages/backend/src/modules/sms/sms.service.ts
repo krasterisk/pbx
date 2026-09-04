@@ -60,6 +60,21 @@ export class SmsService {
   }
 
   /**
+   * Read-only channel presence for the AI adapter. Never returns the token (T-15-77).
+   */
+  async getChannelStatus(_vpbxUserUid: number): Promise<{ configured: boolean; enabled: boolean }> {
+    const configured = Boolean(this.configService.get<string>('SMS_BEELINE_TOKEN'));
+    return { configured, enabled: configured };
+  }
+
+  /**
+   * Tenant-scoped delivery history. No store exists yet — empty until a log is added.
+   */
+  async listDeliveries(_vpbxUserUid: number): Promise<Array<{ id: string; status: string; timestamp: string }>> {
+    return [];
+  }
+
+  /**
    * Проверить статус СМС
    */
   async checkStatus(smsId: string): Promise<any> {

@@ -24,6 +24,21 @@ export class TelegramService {
     }
   }
 
+  /**
+   * Read-only channel presence for the AI adapter. Never returns the token (T-15-77).
+   */
+  async getChannelStatus(_vpbxUserUid: number): Promise<{ configured: boolean; enabled: boolean }> {
+    const configured = this.bot !== null;
+    return { configured, enabled: configured && Boolean(this.chatId) };
+  }
+
+  /**
+   * Tenant-scoped delivery history. No store exists yet — empty until a log is added.
+   */
+  async listDeliveries(_vpbxUserUid: number): Promise<Array<{ id: string; status: string; timestamp: string }>> {
+    return [];
+  }
+
   async sendMessage(message: string, options?: TelegramBot.SendMessageOptions) {
     if (!this.bot) {
       return;
