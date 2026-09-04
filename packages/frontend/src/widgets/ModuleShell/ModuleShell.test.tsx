@@ -19,9 +19,34 @@ vi.mock('@/features/modules/hooks/useModuleLicenseGate', () => ({
 }));
 
 vi.mock('@/shared/hooks/useAppStore', () => ({
-  useAppSelector: (sel: (s: { auth: { user: { name: string; level: number } } }) => unknown) =>
-    sel({ auth: { user: { name: 'Admin', level: 1 } } }),
+  useAppSelector: (
+    sel: (s: {
+      auth: { user: { name: string; level: number } };
+      aiChat: {
+        isOpen: boolean;
+        messages: [];
+        isStreaming: boolean;
+        selectedModel: string;
+        availableModels: [];
+      };
+    }) => unknown,
+  ) =>
+    sel({
+      auth: { user: { name: 'Admin', level: 1 } },
+      aiChat: {
+        isOpen: false,
+        messages: [],
+        isStreaming: false,
+        selectedModel: '',
+        availableModels: [],
+      },
+    }),
   useAppDispatch: () => vi.fn(),
+}));
+
+vi.mock('@/shared/api/endpoints/aiChatApi', () => ({
+  useGetAiChatModelsQuery: () => ({ data: undefined }),
+  streamAiChatMessage: vi.fn(),
 }));
 
 vi.mock('react-i18next', () => ({
@@ -59,6 +84,7 @@ const appsRow: HubModuleRow = {
 
 describe('ModuleShell (A+C hybrid)', () => {
   beforeEach(() => {
+    Element.prototype.scrollIntoView = vi.fn();
     useIsMobileMock.mockReturnValue(false);
     vi.mocked(useHubModules).mockReturnValue({
       active: [coreRow, appsRow],
@@ -186,6 +212,62 @@ describe('ModuleShell (A+C hybrid)', () => {
     );
     fireEvent.keyDown(window, { key: 'k', ctrlKey: true });
     expect(screen.getByTestId('command-palette')).toBeInTheDocument();
+  });
+
+  it('places the agent trigger immediately before the command-palette trigger', () => {
+    render(
+      <MemoryRouter initialEntries={['/endpoints']}>
+        <ModuleShell />
+      </MemoryRouter>,
+    );
+    const agentTrigger = document.getElementById('shell-agent-trigger');
+    const cmdkTrigger = document.getElementById('shell-cmdk-trigger');
+    expect(agentTrigger).toBeTruthy();
+    expect(cmdkTrigger).toBeTruthy();
+    expect(agentTrigger?.nextElementSibling).toBe(cmdkTrigger);
+  });
+
+  it('does not render the former floating agent trigger anywhere in the shell', () => {
+    render(
+      <MemoryRouter initialEntries={['/endpoints']}>
+        <ModuleShell />
+      </MemoryRouter>,
+    );
+    expect(document.getElementById('ai-chat-trigger')).toBeNull();
+    expect(document.querySelector('[class*="triggerBtn"]')).toBeNull();
+  });
+
+  it('toggles the agent panel with Ctrl+Shift+J and leaves Ctrl+K for the palette', () => {
+    render(
+      <MemoryRouter initialEntries={['/endpoints']}>
+        <ModuleShell />
+      </MemoryRouter>,
+    );
+
+    fireEvent.keyDown(window, { key: 'j', ctrlKey: true, shiftKey: true });
+    expect(screen.getByTestId('ai-agent-panel')).toHaveAttribute('data-open', 'true');
+
+    fireEvent.keyDown(window, { key: 'j', ctrlKey: true, shiftKey: true });
+    expect(screen.getByTestId('ai-agent-panel')).toHaveAttribute('data-open', 'false');
+
+    fireEvent.keyDown(window, { key: 'k', ctrlKey: true });
+    expect(screen.getByTestId('command-palette')).toBeInTheDocument();
+    expect(screen.getByTestId('ai-agent-panel')).toHaveAttribute('data-open', 'false');
+  });
+
+  it('closes the agent panel on Escape and returns focus to the trigger', () => {
+    render(
+      <MemoryRouter initialEntries={['/endpoints']}>
+        <ModuleShell />
+      </MemoryRouter>,
+    );
+    const trigger = document.getElementById('shell-agent-trigger');
+    fireEvent.click(trigger!);
+    expect(screen.getByTestId('ai-agent-panel')).toHaveAttribute('data-open', 'true');
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.getByTestId('ai-agent-panel')).toHaveAttribute('data-open', 'false');
+    expect(trigger).toHaveFocus();
   });
 
   it('mounts offline banner', () => {
