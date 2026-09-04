@@ -366,7 +366,7 @@ Phase 1 — MOH: pending verify.
 
 ## Next GSD command
 
-**Phase 15 executing** (2026-09-04): 15-01, 15-02, 15-03 complete. Next: `/gsd-execute-phase 15` (continues at 15-04) → after all plans, обязательный `/gsd-secure-phase 15`.
+**Phase 15 executing** (2026-09-04): 15-01, 15-02, 15-03, 15-06 complete. Next: `/gsd-execute-phase 15` (continues at 15-04) → after all plans, обязательный `/gsd-secure-phase 15`.
 
 Also open: Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 verify; Phase 8 / 08-11 Android smoke.
 

@@ -144,7 +144,7 @@ Each task was committed atomically:
 4. **Task 2 GREEN: 520px grid, rail slot, no model selector** - `11813e6` (feat)
 5. **Task 3: agent locale keys** - `6d3c7fc` (feat)
 
-**Plan metadata:** pending docs commit
+**Plan metadata:** `46c46f6` (docs: complete plan)
 
 _Note: TDD tasks produced RED then GREEN commits_
 
