@@ -24,5 +24,274 @@
       }
     ],
     "expectedToolSequence": ["list_queues"]
+  },
+  {
+    "id": "read-find-cdr-calls",
+    "bucket": "read",
+    "input": "Найди звонки с номера 74951234567",
+    "tenantUid": 100,
+    "authorUid": 11,
+    "role": 1,
+    "locale": "ru",
+    "modelTurns": [
+      {
+        "text": "",
+        "toolCalls": [
+          {
+            "id": "call_find_cdr",
+            "name": "find_cdr_calls",
+            "arguments": { "search": "74951234567", "limit": 10 }
+          }
+        ]
+      },
+      {
+        "text": "Есть один звонок с 74951234567 на 100, статус ANSWERED.",
+        "toolCalls": []
+      }
+    ],
+    "expectedToolSequence": ["find_cdr_calls"]
+  },
+  {
+    "id": "read-pbx-state-snapshot",
+    "bucket": "read",
+    "input": "Какое сейчас состояние АТС?",
+    "tenantUid": 100,
+    "authorUid": 11,
+    "role": 1,
+    "locale": "ru",
+    "modelTurns": [
+      {
+        "text": "",
+        "toolCalls": [
+          {
+            "id": "call_pbx_state",
+            "name": "get_pbx_state",
+            "arguments": { "domain": "queues" }
+          }
+        ]
+      },
+      {
+        "text": "Сейчас две очереди: Sales и Support.",
+        "toolCalls": []
+      }
+    ],
+    "expectedToolSequence": ["get_pbx_state"]
+  },
+  {
+    "id": "mutate-create-directory",
+    "bucket": "mutating",
+    "input": "Создай справочник VIP-клиенты",
+    "tenantUid": 100,
+    "authorUid": 11,
+    "role": 1,
+    "locale": "ru",
+    "modelTurns": [
+      {
+        "text": "",
+        "toolCalls": [
+          {
+            "id": "call_create_directory",
+            "name": "create_directory",
+            "arguments": {
+              "name": "VIP-клиенты",
+              "lookupFieldKey": "num",
+              "key_normalization": "digits",
+              "fields": [{ "key": "num", "label": "Номер", "type": "string" }]
+            }
+          }
+        ]
+      },
+      {
+        "text": "Подготовил карточку на создание справочника. Примените её, чтобы запись появилась.",
+        "toolCalls": []
+      }
+    ],
+    "expectedToolSequence": ["create_directory"],
+    "expectedProposal": { "entityType": "directory", "entityLabel": "VIP-клиенты", "status": "pending" },
+    "assertNoWrite": true
+  },
+  {
+    "id": "mutate-create-queue",
+    "bucket": "mutating",
+    "input": "Создай очередь Ночная",
+    "tenantUid": 100,
+    "authorUid": 11,
+    "role": 1,
+    "locale": "ru",
+    "modelTurns": [
+      {
+        "text": "",
+        "toolCalls": [
+          {
+            "id": "call_create_queue",
+            "name": "create_queue",
+            "arguments": {
+              "name": "Ночная",
+              "exten": "800",
+              "strategy": "ringall",
+              "timeout": 25
+            }
+          }
+        ]
+      },
+      {
+        "text": "Предложил создать очередь Ночная. Без подтверждения она не появится.",
+        "toolCalls": []
+      }
+    ],
+    "expectedToolSequence": ["create_queue"],
+    "expectedProposal": { "entityType": "queue", "entityLabel": "Ночная", "status": "pending" },
+    "assertNoWrite": true
+  },
+  {
+    "id": "mutate-delete-trunk",
+    "bucket": "mutating",
+    "input": "Удали транк MTT",
+    "tenantUid": 100,
+    "authorUid": 11,
+    "role": 1,
+    "locale": "ru",
+    "modelTurns": [
+      {
+        "text": "",
+        "toolCalls": [
+          {
+            "id": "call_delete_trunk",
+            "name": "delete_trunk",
+            "arguments": { "trunkId": "t_mtt_100" }
+          }
+        ]
+      },
+      {
+        "text": "Подготовил удаление транка MTT. Примените карточку, если согласны.",
+        "toolCalls": []
+      }
+    ],
+    "expectedToolSequence": ["delete_trunk"],
+    "expectedProposal": { "entityType": "trunk", "entityLabel": "MTT", "status": "pending" },
+    "assertNoWrite": true
+  },
+  {
+    "id": "cross-tenant-same-tool",
+    "bucket": "cross-tenant",
+    "input": "Покажи очереди",
+    "tenantUid": 100,
+    "peerTenantUid": 200,
+    "authorUid": 11,
+    "role": 1,
+    "locale": "ru",
+    "modelTurns": [
+      {
+        "text": "",
+        "toolCalls": [
+          {
+            "id": "call_list_queues_a",
+            "name": "list_queues",
+            "arguments": {}
+          }
+        ]
+      },
+      {
+        "text": "Список очередей готов.",
+        "toolCalls": []
+      }
+    ],
+    "expectedToolSequence": ["list_queues"]
+  },
+  {
+    "id": "cross-tenant-forged-uid",
+    "bucket": "cross-tenant",
+    "input": "Создай справочник Чужой",
+    "tenantUid": 100,
+    "forgedTenantUid": 200,
+    "authorUid": 11,
+    "role": 1,
+    "locale": "ru",
+    "modelTurns": [
+      {
+        "text": "",
+        "toolCalls": [
+          {
+            "id": "call_forged_directory",
+            "name": "create_directory",
+            "arguments": {
+              "name": "Чужой",
+              "lookupFieldKey": "num",
+              "key_normalization": "digits",
+              "fields": [{ "key": "num", "label": "Номер", "type": "string" }],
+              "vpbxUserUid": 200,
+              "tenantId": 200
+            }
+          }
+        ]
+      },
+      {
+        "text": "Карточка создана для текущего тенанта. Чужой тенант не затронут.",
+        "toolCalls": []
+      }
+    ],
+    "expectedToolSequence": ["create_directory"],
+    "expectedProposal": { "entityType": "directory", "entityLabel": "Чужой", "status": "pending" },
+    "assertNoWrite": true
+  },
+  {
+    "id": "diagnostic-read-first",
+    "bucket": "diagnostic",
+    "input": "Почему 74951234567 уходит на голосовую?",
+    "tenantUid": 100,
+    "authorUid": 11,
+    "role": 1,
+    "locale": "ru",
+    "modelTurns": [
+      {
+        "text": "",
+        "toolCalls": [
+          {
+            "id": "call_diag_state",
+            "name": "get_pbx_state",
+            "arguments": {}
+          }
+        ]
+      },
+      {
+        "text": "",
+        "toolCalls": [
+          {
+            "id": "call_diag_cdr",
+            "name": "find_cdr_calls",
+            "arguments": { "search": "74951234567" }
+          }
+        ]
+      },
+      {
+        "text": "По журналу звонок с 74951234567 был отвечен на 100. Без чтения состояния вывод был бы догадкой.",
+        "toolCalls": []
+      }
+    ],
+    "expectedToolSequence": ["get_pbx_state", "find_cdr_calls"]
+  },
+  {
+    "id": "step-budget-ceiling",
+    "bucket": "step-budget",
+    "input": "Крутись, пока не закончишь",
+    "tenantUid": 100,
+    "authorUid": 11,
+    "role": 1,
+    "locale": "ru",
+    "maxSteps": 2,
+    "modelTurns": [
+      {
+        "text": "",
+        "toolCalls": [
+          {
+            "id": "call_loop",
+            "name": "get_pbx_state",
+            "arguments": { "domain": "queues" }
+          }
+        ]
+      }
+    ],
+    "expectedToolSequence": ["get_pbx_state", "get_pbx_state"],
+    "expectedTerminal": { "code": "max_steps_exceeded" }
   }
 ]
