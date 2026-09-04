@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppDispatch, useAppSelector } from '@/shared/hooks/useAppStore';
 import { streamAiChatMessage, type IAgentProposalView } from '@/shared/api/endpoints/aiChatApi';
@@ -35,6 +35,7 @@ export function useAgentStream(options: UseAgentStreamOptions = {}) {
     const abortRef = useRef<AbortController | null>(null);
     const stoppedRef = useRef(false);
     const lastMessageRef = useRef('');
+    const [proposal, setProposal] = useState<IAgentProposalView | null>(null);
 
     const answerText = [...messages].reverse().find((message) => message.role === 'assistant')?.content ?? '';
 
@@ -46,6 +47,7 @@ export function useAgentStream(options: UseAgentStreamOptions = {}) {
 
         lastMessageRef.current = text;
         stoppedRef.current = false;
+        setProposal(null);
 
         const history = messages
             .filter((item) => !item.isStreaming)
@@ -68,6 +70,7 @@ export function useAgentStream(options: UseAgentStreamOptions = {}) {
             },
             onProposal: (view) => {
                 if (ignoreAfterStop()) return;
+                setProposal(view);
                 options.onProposal?.(view);
             },
             onDone: () => {
@@ -132,5 +135,6 @@ export function useAgentStream(options: UseAgentStreamOptions = {}) {
         answerText,
         isStreaming,
         outcome,
+        proposal,
     };
 }

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback, useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Bot, X, Send, Trash2, RotateCcw } from 'lucide-react';
+import { Bot, X, Send, Trash2, RotateCcw, ArrowDown } from 'lucide-react';
 import { Button, Text, Textarea } from '@/shared/ui';
 import { Flex, HStack, VStack } from '@/shared/ui/Stack';
 import { useAppDispatch, useAppSelector } from '@/shared/hooks/useAppStore';
@@ -86,11 +86,13 @@ export const AiChatWidget = ({ open, onClose }: AiChatWidgetProps) => {
         progressLines,
         isStreaming: turnStreaming,
         outcome,
+        proposal: hookProposal,
     } = useAgentStream({
         threadUid: selectedThreadUid,
         onProposal: setStreamProposal,
     });
     const streaming = isStreaming || turnStreaming;
+    const activeProposal = streamProposal ?? hookProposal;
 
     const committedItems = useMemo(
         () =>
@@ -108,7 +110,7 @@ export const AiChatWidget = ({ open, onClose }: AiChatWidgetProps) => {
             message,
             proposal:
                 index === list.length - 1 && message.role === 'assistant'
-                    ? streamProposal ?? undefined
+                    ? activeProposal ?? undefined
                     : undefined,
         })),
     ];
@@ -116,8 +118,24 @@ export const AiChatWidget = ({ open, onClose }: AiChatWidgetProps) => {
 
     const panelRef = useRef<HTMLDivElement>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const messagesRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const lastMessageRef = useRef<string>('');
+    const [following, setFollowing] = useState(true);
+
+    const FOLLOW_TOLERANCE_PX = 48;
+
+    const handleMessagesScroll = useCallback(() => {
+        const node = messagesRef.current;
+        if (!node) return;
+        const distance = node.scrollHeight - node.scrollTop - node.clientHeight;
+        setFollowing(distance <= FOLLOW_TOLERANCE_PX);
+    }, []);
+
+    const jumpToLatest = useCallback(() => {
+        setFollowing(true);
+        messagesEndRef.current?.scrollIntoView?.({ behavior: 'smooth' });
+    }, []);
 
     const handleSelectThread = useCallback((uid: number) => {
         setSelectedThreadUid(uid);
@@ -136,8 +154,9 @@ export const AiChatWidget = ({ open, onClose }: AiChatWidgetProps) => {
     }, [dispatch, selectedThreadUid]);
 
     useEffect(() => {
+        if (!following) return;
         messagesEndRef.current?.scrollIntoView?.({ behavior: 'smooth' });
-    }, [messages]);
+    }, [messages, progressLines, outcome, following]);
 
     useEffect(() => {
         if (!open) return;
@@ -301,7 +320,15 @@ export const AiChatWidget = ({ open, onClose }: AiChatWidgetProps) => {
                             </HStack>
                         )}
 
-                        <VStack className={cls.messages} gap="12" align="stretch">
+                        <Flex
+                            ref={messagesRef}
+                            direction="column"
+                            className={cls.messages}
+                            gap="12"
+                            align="stretch"
+                            data-testid="ai-agent-messages"
+                            onScroll={handleMessagesScroll}
+                        >
                             {messages.length === 0 && (
                                 <ChatMessage
                                     message={{
@@ -314,9 +341,18 @@ export const AiChatWidget = ({ open, onClose }: AiChatWidgetProps) => {
                             )}
                             {items.map((item) => (
                                 <VStack key={item.message.id} gap="8" align="stretch">
-                                    <ChatMessage message={item.message} />
-                                    {item.proposal && (
-                                        <DiffConfirmCard proposal={item.proposal} />
+                                    {item.proposal && item.message.role === 'assistant' && item.message.isStreaming ? (
+                                        <>
+                                            <DiffConfirmCard proposal={item.proposal} />
+                                            <ChatMessage message={item.message} />
+                                        </>
+                                    ) : (
+                                        <>
+                                            <ChatMessage message={item.message} />
+                                            {item.proposal && (
+                                                <DiffConfirmCard proposal={item.proposal} />
+                                            )}
+                                        </>
                                     )}
                                 </VStack>
                             ))}
@@ -367,7 +403,19 @@ export const AiChatWidget = ({ open, onClose }: AiChatWidgetProps) => {
                                 </HStack>
                             )}
                             <Flex ref={messagesEndRef} aria-hidden direction="column">{null}</Flex>
-                        </VStack>
+                        </Flex>
+                        {!following && (
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                className={cls.jumpLatest}
+                                onClick={jumpToLatest}
+                                aria-label={t('aiChat.jumpToLatest')}
+                            >
+                                <ArrowDown size={14} aria-hidden />
+                                {t('aiChat.jumpToLatest')}
+                            </Button>
+                        )}
                     </VStack>
                 </HStack>
 

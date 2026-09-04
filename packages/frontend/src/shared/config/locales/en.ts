@@ -2839,6 +2839,22 @@ export const en = {
         expired: 'Expired',
       },
     },
+    progress: {
+      working: 'Working on the next step',
+      tools: {
+        get_pbx_state: 'Reading the PBX state',
+        read_skill: 'Reading a skill',
+        find_cdr_calls: 'Looking up call records',
+        evaluate_time_group: 'Checking the schedule',
+        describe_number: 'Looking up the number',
+      },
+    },
+    stopped: 'Stopped',
+    ceiling: 'Step limit reached. Narrow the task or start a new chat.',
+    failed: 'Could not get a reply. Check the network and retry.',
+    disconnected: 'Connection lost. Reconnect to continue.',
+    reconnect: 'Reconnect',
+    jumpToLatest: 'Jump to latest',
   },
 
   // Call Center Module
