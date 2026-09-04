@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { ConfigModule } from '@nestjs/config';
 import { McpController } from './mcp.controller';
@@ -45,7 +45,7 @@ import { LoggerModule } from '../logger/logger.module';
         ContextsModule,
         RoutesModule,
         AmiModule,
-        AiChatModule,
+        forwardRef(() => AiChatModule),
         AgentProposalsModule,
         ReportsCdrModule,
         AiPlatformModule,

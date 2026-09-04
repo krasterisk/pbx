@@ -1,9 +1,8 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { HttpModule } from '@nestjs/axios';
 import { ConfigModule } from '@nestjs/config';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { AiChatController } from './ai-chat.controller';
-import { AiChatService } from './ai-chat.service';
 import { PbxContextBuilderService } from './pbx-context-builder.service';
 import { KnowledgeBaseService } from './knowledge-base.service';
 import { AiWebhookController } from './ai-webhook.controller';
@@ -27,6 +26,8 @@ import { LoggerModule } from '../logger/logger.module';
 import { AiAgentsModule } from '../ai-agents/ai-agents.module';
 import { PbxAgentLlmClient } from './pbx-agent-llm.client';
 import { PbxStateAiAdapter } from './pbx-state-ai.adapter';
+import { PbxAgentLoopService } from './pbx-agent-loop.service';
+import { McpModule } from '../mcp/mcp.module';
 
 @Module({
     imports: [
@@ -42,10 +43,11 @@ import { PbxStateAiAdapter } from './pbx-state-ai.adapter';
         AmiModule,
         LoggerModule,
         AiAgentsModule,
+        forwardRef(() => McpModule),
     ],
     controllers: [AiChatController, AiWebhookController],
     providers: [
-        AiChatService,
+        PbxAgentLoopService,
         PbxContextBuilderService,
         KnowledgeBaseService,
         AiChatSettingsService,
@@ -55,7 +57,7 @@ import { PbxStateAiAdapter } from './pbx-state-ai.adapter';
         JwtOrServiceTokenGuard,
         ServiceTokenGuard,
     ],
-    exports: [PbxContextBuilderService, KnowledgeBaseService, AiChatSettingsService, PbxAgentThreadService, PbxAgentLlmClient],
+    exports: [PbxContextBuilderService, KnowledgeBaseService, AiChatSettingsService, PbxAgentThreadService, PbxAgentLlmClient, PbxAgentLoopService],
 })
 export class AiChatModule {}
 
