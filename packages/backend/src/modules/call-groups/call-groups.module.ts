@@ -7,6 +7,8 @@ import { CallGroupsService } from './call-groups.service';
 import { AmiModule } from '../ami/ami.module';
 import { EndpointsModule } from '../endpoints/endpoints.module';
 import { RouteReferencesModule } from '../route-references/route-references.module';
+import { AiPlatformModule } from '../ai-platform/ai-platform.module';
+import { CallGroupsAiAdapter } from './call-groups-ai.adapter';
 
 @Module({
   imports: [
@@ -14,9 +16,10 @@ import { RouteReferencesModule } from '../route-references/route-references.modu
     AmiModule,
     EndpointsModule,
     RouteReferencesModule,
+    AiPlatformModule,
   ],
   controllers: [CallGroupsController],
-  providers: [CallGroupsService],
+  providers: [CallGroupsService, CallGroupsAiAdapter],
   exports: [CallGroupsService],
 })
 export class CallGroupsModule {}
