@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { EndpointsService } from '../endpoints/endpoints.service';
 import { TrunksService } from '../trunks/trunks.service';
 import { IvrsService } from '../ivrs/ivrs.service';
@@ -20,16 +20,13 @@ interface McpToolEntry {
     description: string;
     inputSchema: Record<string, any>;
     entityType: string;
-    /** Subject to the per-tenant confirmation gate (D-20, D-25) */
+    /** Destructive tools refuse on the agent path until 15-05 proposal persist (D-18) */
     destructive: boolean;
     /** vpbxUserUid is ALWAYS a call parameter — never captured via closure (D-23) */
     handler: (args: any, vpbxUserUid: number) => Promise<Array<{ type: string; text: string }>>;
 }
 
-const CONFIRM_SCHEMA_PROP = {
-    type: 'boolean',
-    description: 'Подтверждение деструктивной операции — передай confirm=true только после явного согласия пользователя',
-};
+const EMOJI_RE = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu;
 
 /**
  * McpToolsService — регистрирует все инструменты KrAsterisk в локальном реестре.
@@ -48,7 +45,7 @@ const CONFIRM_SCHEMA_PROP = {
  * обратившегося к пустому реестру — все последующие тенанты исполняли чужой uid).
  */
 @Injectable()
-export class McpToolsService {
+export class McpToolsService implements OnApplicationBootstrap {
     private readonly logger = new Logger(McpToolsService.name);
 
     /** Tool registry для прямого JSON-RPC dispatch (без MCP SDK session). uid-независим. */
@@ -71,7 +68,11 @@ export class McpToolsService {
         private readonly loggerService: LoggerService,
     ) {}
 
-    /** Builds/rebuilds the uid-independent tool registry. Safe to call once, lazily or eagerly. */
+    onApplicationBootstrap(): void {
+        this.registerAll();
+    }
+
+    /** Builds/rebuilds the uid-independent tool registry. Idempotent: clears then re-registers. */
     registerAll(): void {
         this.toolRegistry.clear();
         this.regGetPbxState();
@@ -104,10 +105,11 @@ export class McpToolsService {
         }
 
         this.logger.log(`Registered ${this.toolRegistry.size} MCP tools`);
+        const domains = this.readAdapterDomains();
+        this.logger.log(`AI adapter domains: ${domains.join(', ') || '(none)'}`);
     }
 
-    getToolsList(vpbxUserUid: number): Array<{ name: string; description: string; inputSchema: any }> {
-        if (this.toolRegistry.size === 0) this.registerAll();
+    getToolsList(_vpbxUserUid: number): Array<{ name: string; description: string; inputSchema: any }> {
         return Array.from(this.toolRegistry.entries()).map(([name, def]) => ({
             name,
             description: def.description,
@@ -116,7 +118,6 @@ export class McpToolsService {
     }
 
     async callTool(name: string, args: Record<string, any>, vpbxUserUid: number): Promise<Array<{ type: string; text: string }>> {
-        if (this.toolRegistry.size === 0) this.registerAll();
         const tool = this.toolRegistry.get(name);
         if (!tool) {
             const available = Array.from(this.toolRegistry.keys()).join(', ');
@@ -125,25 +126,22 @@ export class McpToolsService {
 
         const cleanArgs = this.sanitizeArgs(name, args, vpbxUserUid);
 
-        // Per-tenant confirmation gate for destructive tools (D-20, D-25) — default OFF.
-        if (tool.destructive && cleanArgs?.confirm !== true) {
-            const settings = await this.aiChatSettingsService.getSettings(vpbxUserUid);
-            if (settings.confirmDestructive) {
-                return [{ type: 'text', text:
-                    `⚠️ Требуется подтверждение: операция "${name}" деструктивна. ` +
-                    `Повтори вызов с confirm=true после явного согласия пользователя.`,
-                }];
-            }
+        // D-18/D-19: agent-path destructive dispatch always refuses until 15-05
+        // replaces this blanket with proposal persist + live-ops exceptions.
+        if (tool.destructive) {
+            return this.plainText(
+                `Операция "${name}" должна быть подтверждена через карточку изменений (proposal endpoint). Вызов из агентного пути отклонён.`,
+            );
         }
 
         try {
             const result = await tool.handler(cleanArgs, vpbxUserUid);
             this.loggerService.logAction(0, 'ai_tool', tool.entityType, null, vpbxUserUid, this.buildLogDetails(name, cleanArgs), 'success').catch(() => {});
-            return result;
+            return this.stripEmojiFromParts(result);
         } catch (err: any) {
             this.logger.error(`Tool "${name}" failed for tenant ${vpbxUserUid}: ${err.message}`);
             this.loggerService.logAction(0, 'ai_tool', tool.entityType, null, vpbxUserUid, this.buildLogDetails(name, cleanArgs), 'error').catch(() => {});
-            return [{ type: 'text', text: `❌ Ошибка: ${err.message}` }];
+            return this.plainText(`Ошибка: ${err.message}`);
         }
     }
 
@@ -161,6 +159,24 @@ export class McpToolsService {
             clean[key] = value;
         }
         return clean;
+    }
+
+    private readAdapterDomains(): string[] {
+        const registry = this.aiAdapterRegistry as AiAdapterRegistryService & { getDomains?: () => string[] };
+        if (typeof registry.getDomains !== 'function') return [];
+        return [...registry.getDomains()].sort();
+    }
+
+    private stripEmoji(text: string): string {
+        return text.replace(EMOJI_RE, '').replace(/[ \t]{2,}/g, ' ').trim();
+    }
+
+    private stripEmojiFromParts(parts: Array<{ type: string; text: string }>): Array<{ type: string; text: string }> {
+        return parts.map((part) => ({ ...part, text: this.stripEmoji(part.text) }));
+    }
+
+    private plainText(text: string): Array<{ type: string; text: string }> {
+        return [{ type: 'text', text: this.stripEmoji(text) }];
     }
 
     /** Compact, truncated audit message — avoids writing huge entry payloads into action_logs (D-19). */
@@ -183,8 +199,7 @@ export class McpToolsService {
         entityType: string = 'pbx',
         destructive: boolean = false,
     ): void {
-        const schema = destructive ? { ...inputSchema, confirm: CONFIRM_SCHEMA_PROP } : inputSchema;
-        this.toolRegistry.set(name, { description, inputSchema: schema, entityType, destructive, handler });
+        this.toolRegistry.set(name, { description, inputSchema, entityType, destructive, handler });
     }
 
     /** Генерирует криптостойкий SIP-пароль */

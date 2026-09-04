@@ -36,7 +36,10 @@ describe('McpToolsService', () => {
     contextBuilder = {};
     contextModel = { findOne: jest.fn() };
     cdrService = { getStats: jest.fn(), findCalls: jest.fn() };
-    aiAdapterRegistry = { getAllTools: jest.fn().mockReturnValue([]) };
+    aiAdapterRegistry = {
+      getAllTools: jest.fn().mockReturnValue([]),
+      getDomains: jest.fn().mockReturnValue([]),
+    };
     aiChatSettingsService = { getSettings: jest.fn().mockResolvedValue({ confirmDestructive: false }) };
     loggerService = { logAction: jest.fn().mockResolvedValue(undefined) };
 
@@ -56,6 +59,7 @@ describe('McpToolsService', () => {
       aiChatSettingsService,
       loggerService,
     );
+    service.onApplicationBootstrap();
   });
 
   describe('cross-tenant closure regression (D-23)', () => {
@@ -67,7 +71,7 @@ describe('McpToolsService', () => {
       expect(trunksService.create).toHaveBeenNthCalledWith(2, expect.objectContaining({ name: 'Trunk B' }), 222);
     });
 
-    it('getToolsList for a second tenant is not tainted by the first tenant that triggered lazy registration', async () => {
+    it('getToolsList for a second tenant is not tainted by the first tenant', async () => {
       service.getToolsList(111);
       await service.callTool('create_trunk', {}, 222);
       expect(trunksService.create).toHaveBeenCalledWith({}, 222);
@@ -112,6 +116,7 @@ describe('McpToolsService', () => {
       aiAdapterRegistry.getAllTools.mockReturnValue([
         { name: 'list_directories', description: 'lists directories', inputSchema: {}, entityType: 'directory', handler: adapterHandler },
       ]);
+      service.registerAll();
 
       const tools = service.getToolsList(100);
       expect(tools.map((t) => t.name)).toContain('list_directories');
@@ -135,54 +140,8 @@ describe('McpToolsService', () => {
     });
   });
 
-  describe('per-tenant confirmation gate for destructive tools (D-20, D-25)', () => {
-    it('blocks a destructive tool without confirm=true when the tenant has confirmations enabled', async () => {
-      aiChatSettingsService.getSettings.mockResolvedValue({ confirmDestructive: true });
-
-      const result = await service.callTool('delete_trunk', { trunkId: 't_x_1' }, 100);
-
-      expect(trunksService.remove).not.toHaveBeenCalled();
-      expect(result[0].text).toContain('Требуется подтверждение');
-    });
-
-    it('executes a destructive tool when confirm=true is passed, with confirmations enabled', async () => {
-      aiChatSettingsService.getSettings.mockResolvedValue({ confirmDestructive: true });
-
-      await service.callTool('delete_trunk', { trunkId: 't_x_1', confirm: true }, 100);
-
-      expect(trunksService.remove).toHaveBeenCalledWith('t_x_1', 100);
-    });
-
-    it('executes a destructive tool immediately without confirm when confirmations are disabled (default OFF)', async () => {
-      aiChatSettingsService.getSettings.mockResolvedValue({ confirmDestructive: false });
-
-      await service.callTool('delete_trunk', { trunkId: 't_x_1' }, 100);
-
-      expect(trunksService.remove).toHaveBeenCalledWith('t_x_1', 100);
-    });
-
-    it("tenant A's confirmation setting does not block tenant B's call to the same destructive tool", async () => {
-      aiChatSettingsService.getSettings.mockImplementation(async (uid: number) =>
-        uid === 100 ? { confirmDestructive: true } : { confirmDestructive: false },
-      );
-
-      const blockedForA = await service.callTool('delete_trunk', { trunkId: 't_a' }, 100);
-      expect(trunksService.remove).not.toHaveBeenCalled();
-      expect(blockedForA[0].text).toContain('Требуется подтверждение');
-
-      await service.callTool('delete_trunk', { trunkId: 't_b' }, 200);
-      expect(trunksService.remove).toHaveBeenCalledWith('t_b', 200);
-    });
-
-    it('adds a confirm boolean property to the inputSchema of destructive tools', () => {
-      const tools = service.getToolsList(100);
-      const deleteTrunk = tools.find((t) => t.name === 'delete_trunk')!;
-      expect(deleteTrunk.inputSchema.properties.confirm).toEqual(expect.objectContaining({ type: 'boolean' }));
-    });
-
-    it('does not gate a non-destructive tool even when confirmations are enabled', async () => {
-      aiChatSettingsService.getSettings.mockResolvedValue({ confirmDestructive: true });
-
+  describe('destructive agent-path refusal (D-18, replaces D-20/D-25 self-confirm)', () => {
+    it('does not gate a non-destructive tool', async () => {
       await service.callTool('create_trunk', { name: 'MTT' }, 100);
 
       expect(trunksService.create).toHaveBeenCalledWith({ name: 'MTT' }, 100);
@@ -234,7 +193,23 @@ describe('McpToolsService', () => {
 
   describe('bootstrap-built registry (Pitfall 2, Pitfall 5)', () => {
     it('does not lazy-register: getToolsList is empty until onApplicationBootstrap', () => {
-      expect(service.getToolsList(100)).toHaveLength(0);
+      const fresh = new McpToolsService(
+        endpointsService,
+        trunksService,
+        ivrsService,
+        queuesService,
+        routesService,
+        contextIncludesService,
+        contextsService,
+        dialplanApplyService,
+        contextBuilder,
+        contextModel,
+        cdrService,
+        aiAdapterRegistry,
+        aiChatSettingsService,
+        loggerService,
+      );
+      expect(fresh.getToolsList(100)).toHaveLength(0);
     });
 
     it('onApplicationBootstrap builds the registry and registerAll is idempotent', () => {
@@ -260,6 +235,7 @@ describe('McpToolsService', () => {
           handler: stubHandler,
         },
       ]);
+      service.registerAll();
       return stubHandler;
     };
 
