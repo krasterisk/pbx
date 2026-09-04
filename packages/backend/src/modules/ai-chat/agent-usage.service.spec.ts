@@ -153,3 +153,107 @@ describe('AgentUsageController administrator gate (D-07 / T-15-108)', () => {
     expect(result[0].tenantUid).toBe(10);
   });
 });
+
+describe('AgentUsageService monitoring (15-24 Task 2)', () => {
+  let threads: { findAll: jest.Mock };
+  let providers: { findAll: jest.Mock };
+  let proposals: { findAll: jest.Mock };
+  let audit: { findAll: jest.Mock };
+  let service: AgentUsageService;
+  let errorSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    threads = { findAll: jest.fn() };
+    providers = { findAll: jest.fn() };
+    proposals = { findAll: jest.fn() };
+    audit = { findAll: jest.fn() };
+    service = new AgentUsageService(threads as any, providers as any, proposals as any, audit as any);
+    errorSpy = jest.spyOn((service as any).logger, 'error').mockImplementation(() => undefined);
+  });
+
+  afterEach(() => {
+    errorSpy.mockRestore();
+  });
+
+  it('returns pending, applied, rejected and denied proposal counts per tenant', async () => {
+    proposals.findAll.mockResolvedValue([
+      { vpbx_user_uid: 10, status: 'pending' },
+      { vpbx_user_uid: 10, status: 'applied' },
+      { vpbx_user_uid: 10, status: 'applied' },
+      { vpbx_user_uid: 10, status: 'rejected' },
+      { vpbx_user_uid: 10, status: 'denied' },
+      { vpbx_user_uid: 20, status: 'pending' },
+    ]);
+
+    const rows = await service.queryProposalFunnel(FROM, TO);
+
+    expect(proposals.findAll).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ created_at: expect.anything() }) }),
+    );
+    expect(rows.find((row) => row.tenantUid === 10)).toEqual({
+      tenantUid: 10,
+      pending: 1,
+      applied: 2,
+      rejected: 1,
+      denied: 1,
+    });
+    expect(rows.find((row) => row.tenantUid === 20)).toEqual({
+      tenantUid: 20,
+      pending: 1,
+      applied: 0,
+      rejected: 0,
+      denied: 0,
+    });
+  });
+
+  it('returns tool invocation counts by status and tool name per tenant', async () => {
+    audit.findAll.mockResolvedValue([
+      { user_uid: 10, tool_name: 'create_route', status: 'ok' },
+      { user_uid: 10, tool_name: 'create_route', status: 'error' },
+      { user_uid: 10, tool_name: 'get_pbx_state', status: 'ok' },
+      { user_uid: 20, tool_name: 'create_route', status: 'error' },
+    ]);
+
+    const rows = await service.queryToolErrors(FROM, TO);
+
+    expect(audit.findAll).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ created_at: expect.anything() }) }),
+    );
+    expect(rows).toEqual(expect.arrayContaining([
+      { tenantUid: 10, toolName: 'create_route', status: 'ok', count: 1 },
+      { tenantUid: 10, toolName: 'create_route', status: 'error', count: 1 },
+      { tenantUid: 10, toolName: 'get_pbx_state', status: 'ok', count: 1 },
+      { tenantUid: 20, toolName: 'create_route', status: 'error', count: 1 },
+    ]));
+  });
+
+  it('reports a mutating audit row with no matching applied proposal', async () => {
+    audit.findAll.mockResolvedValue([
+      { uid: 77, user_uid: 10, thread_uid: 3, tool_name: 'create_route', created_at: FROM },
+    ]);
+    proposals.findAll.mockResolvedValue([]);
+
+    const hits = await service.detectSilentWrites(FROM, TO);
+
+    expect(hits).toEqual([
+      expect.objectContaining({ tenantUid: 10, toolName: 'create_route', auditUid: 77 }),
+    ]);
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringMatching(/10/));
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringMatching(/create_route/));
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringMatching(/77/));
+  });
+
+  it('yields an empty detector result when every mutation has an applied proposal', async () => {
+    audit.findAll.mockResolvedValue([
+      { uid: 77, user_uid: 10, thread_uid: 3, tool_name: 'create_route', created_at: FROM },
+    ]);
+    proposals.findAll.mockResolvedValue([
+      { vpbx_user_uid: 10, thread_uid: 3, status: 'applied', applied_at: FROM },
+    ]);
+
+    const hits = await service.detectSilentWrites(FROM, TO);
+
+    expect(hits).toEqual([]);
+    expect(errorSpy).not.toHaveBeenCalled();
+  });
+});

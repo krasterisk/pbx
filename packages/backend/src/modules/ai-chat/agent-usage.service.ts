@@ -1,8 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Op } from 'sequelize';
 import { CcAiProvider } from '../ai-agents/models/ai-provider.model';
 import { AgentThread } from './models/agent-thread.model';
+import { AgentProposal } from './models/agent-proposal.model';
+import { CcAiAuditLog } from '../ai-agents/models/ai-audit-log.model';
 
 export interface TenantUsageRow {
   tenantUid: number;
@@ -11,6 +13,27 @@ export interface TenantUsageRow {
   turns: number;
   spendUsd: number | null;
   spendAvailable: boolean;
+}
+
+export interface ProposalFunnelRow {
+  tenantUid: number;
+  pending: number;
+  applied: number;
+  rejected: number;
+  denied: number;
+}
+
+export interface ToolErrorRow {
+  tenantUid: number;
+  toolName: string;
+  status: string;
+  count: number;
+}
+
+export interface SilentWriteHit {
+  tenantUid: number;
+  toolName: string;
+  auditUid: number;
 }
 
 type ThreadUsageRow = {
@@ -37,9 +60,13 @@ function hasTokenPricing(pricing: unknown): pricing is { inputTokenUsd: number; 
  */
 @Injectable()
 export class AgentUsageService {
+  private readonly logger = new Logger(AgentUsageService.name);
+
   constructor(
     @InjectModel(AgentThread) private readonly threads: typeof AgentThread,
     @InjectModel(CcAiProvider) private readonly providers: typeof CcAiProvider,
+    @InjectModel(AgentProposal) private readonly proposals?: typeof AgentProposal,
+    @InjectModel(CcAiAuditLog) private readonly audit?: typeof CcAiAuditLog,
   ) {}
 
   async queryTenantUsage(from: Date, to: Date): Promise<TenantUsageRow[]> {
@@ -87,5 +114,17 @@ export class AgentUsageService {
         spendUsd: value.unpriced ? null : value.priced,
         spendAvailable: !value.unpriced,
       }));
+  }
+
+  async queryProposalFunnel(_from: Date, _to: Date): Promise<ProposalFunnelRow[]> {
+    throw new Error('not implemented');
+  }
+
+  async queryToolErrors(_from: Date, _to: Date): Promise<ToolErrorRow[]> {
+    throw new Error('not implemented');
+  }
+
+  async detectSilentWrites(_from: Date, _to: Date): Promise<SilentWriteHit[]> {
+    throw new Error('not implemented');
   }
 }
