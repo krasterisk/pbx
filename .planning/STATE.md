@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 status: executing
-stopped_at: Completed 15-01-PLAN.md
-last_updated: "2026-09-04T06:55:59.857Z"
-state_head: cf70d9a05fc6d735593f8b9e0fb96a9efa1a55d2
+stopped_at: Completed 15-02-PLAN.md
+last_updated: "2026-09-04T07:13:40.300Z"
+state_head: 97acee54600ba430bc9e96bacd6013e07b776bf8
 progress:
   total_phases: 15
   completed_phases: 4
   total_plans: 166
-  completed_plans: 143
+  completed_plans: 144
 milestone_name: milestone
 current_phase: 15
 current_phase_name: universal-pbx-ai-agent
@@ -21,7 +21,7 @@ current_phase_name: universal-pbx-ai-agent
 
 Phase 14 (visual-route-builder-and-automation) — COMPLETE (2026-09-04). 11/11 plans (incl. gap 14-11); verify 27/27; G-14-2 resolved.
 
-Phase 15 (universal-pbx-ai-agent) — EXECUTING (2026-09-04). Current Plan: 2 of 24. 15-01 complete (sanitized dispatch, AgentDiffProposal, bootstrap registry, D-22 table, getDomains). Next: 15-02 (skills catalog + read_skill). After all 24: обязательный `/gsd-secure-phase 15`.
+Phase 15 (universal-pbx-ai-agent) — EXECUTING (2026-09-04). Current Plan: 3 of 24. 15-01 complete (sanitized dispatch, AgentDiffProposal, bootstrap registry, D-22 table, getDomains). 15-02 complete (skill catalog, read_skill, nest-cli assets, four seed skills). Next: 15-03 (persistent threads / messages / proposals). After all 24: обязательный `/gsd-secure-phase 15`.
 
 Phase 13 (custom-voicemail-instead-of-voicemail) — COMPLETE (2026-09-03). 13/13 plans, verify passed 19/19, security SECURED. Live greeting→Record→notify deferred.
 12-17 closed 2026-08-31: M1/M6/M7/M8/M9 approved; M4/M5/M12 deferred (live voice later). Call-group ALTERs already on prod.
@@ -319,6 +319,10 @@ Phase 1 — MOH: pending verify.
 - [Phase 15]: Registry builds on OnApplicationBootstrap; registerAll clears then rebuilds (no lazy size===0 guard)
 - [Phase 15]: getDomains() returns adapter map keys for the 15-23 completeness gate
 - [Phase 15]: applyPayload on AgentDiffProposal is documented server-side only
+- [Phase 15]: Skills live in src/skills/<name>/SKILL.md and are versioned with the tools they describe
+- [Phase 15]: Frontmatter is exactly two single-line fields, hand-parsed; Phase 15 adds no YAML package
+- [Phase 15]: Primary resolver candidate is relative to the compiled module directory so production finds dist/skills
+- [Phase 15]: Skill markdown is a nest-cli asset glob only — no second postbuild copy path
 
 ## Roadmap Evolution
 
@@ -354,7 +358,7 @@ Phase 1 — MOH: pending verify.
 
 ## Next GSD command
 
-**Phase 15 executing** (2026-09-04): 15-01 complete. Next: `/gsd-execute-phase 15` (continues at 15-02) → after all plans, обязательный `/gsd-secure-phase 15`.
+**Phase 15 executing** (2026-09-04): 15-01 and 15-02 complete. Next: `/gsd-execute-phase 15` (continues at 15-03) → after all plans, обязательный `/gsd-secure-phase 15`.
 
 Also open: Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 verify; Phase 8 / 08-11 Android smoke.
 
@@ -482,10 +486,11 @@ Also open: Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 veri
 | Phase 14 P07 | 35min | 3 tasks | 32 files |
 | Phase 14 P09 | 20 | 3 tasks | 21 files |
 | Phase 15 P01 | 64min | 3 tasks | 5 files |
+| Phase 15-universal-pbx-ai-agent P02 | 11min | 3 tasks | 8 files |
 
 ## Session
 
-**Last session:** 2026-09-04T06:55:58.655Z
-**Stopped at:** Completed 15-01-PLAN.md
+**Last session:** 2026-09-04T07:13:38.208Z
+**Stopped at:** Completed 15-02-PLAN.md
 **Resume file:** None
 **Also ready:** .planning/phases/15-universal-pbx-ai-agent/15-CONTEXT.md
