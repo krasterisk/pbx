@@ -975,7 +975,7 @@ Plans:
 
 **Depends on:** Phase 12 (типизированная цепочка — то, что агент правит), Phase 14 (dry-run как tool D-32 и шаблоны из описания D-34 — агент использует готовыми), Phase 5 (эталонный адаптер справочников как форма для остальных)
 
-**Plans:** 3/24 plans executed, волны 1…7 (`15-VALIDATION.md` — Nyquist-контракт фазы)
+**Plans:** 4/24 plans executed, волны 1…7 (`15-VALIDATION.md` — Nyquist-контракт фазы)
 
 Plans:
 
@@ -984,7 +984,7 @@ Plans:
 - [x] 15-03-PLAN.md
 - [ ] 15-04-PLAN.md
 - [ ] 15-05-PLAN.md
-- [ ] 15-06-PLAN.md
+- [x] 15-06-PLAN.md
 - [ ] 15-07-PLAN.md
 - [ ] 15-08-PLAN.md
 - [ ] 15-09-PLAN.md
@@ -1009,7 +1009,7 @@ Plans:
 - [x] `15-03-PLAN.md` — Wave 1: персистентные треды, сообщения, proposals, миграция
 - [ ] `15-04-PLAN.md` — Wave 2: клиент модели, системный промпт, один компактный снимок состояния
 - [ ] `15-05-PLAN.md` — Wave 2: proposals + callTool persist + directory mutations + Apply/Reject + прецедентность
-- [ ] `15-06-PLAN.md` — Wave 1: триггер в топбаре, хоткей, панель 520px (первый писатель локалей)
+- [x] `15-06-PLAN.md` — Wave 1: триггер в топбаре, хоткей, панель 520px (первый писатель локалей)
 - [ ] `15-07-PLAN.md` — Wave 3: legacy read-only (contexts, CDR) + правило приоритета адаптеров + инвентарь 18
 - [ ] `15-08-PLAN.md` — Wave 4: агентный цикл, SSE, потолок шагов, отмена, удаление прокси
 - [ ] `15-09-PLAN.md` — Wave 4: миграция абонентов и транков (5 tools) на proposals

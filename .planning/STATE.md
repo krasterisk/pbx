@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 status: executing
-stopped_at: Completed 15-03-PLAN.md
-last_updated: "2026-09-04T08:16:20.449Z"
-state_head: eca0e7064e841a73c055fdb1be2d1db41e4fd294
+stopped_at: Completed 15-06-PLAN.md
+last_updated: "2026-09-04T09:41:03.506Z"
+state_head: 6d3c7fc13a2bc1b53b8e605bf949a5d57d107378
 progress:
   total_phases: 15
   completed_phases: 4
   total_plans: 166
-  completed_plans: 145
+  completed_plans: 146
 milestone_name: milestone
 current_phase: 15
 current_phase_name: universal-pbx-ai-agent
@@ -21,7 +21,7 @@ current_phase_name: universal-pbx-ai-agent
 
 Phase 14 (visual-route-builder-and-automation) — COMPLETE (2026-09-04). 11/11 plans (incl. gap 14-11); verify 27/27; G-14-2 resolved.
 
-Phase 15 (universal-pbx-ai-agent) — EXECUTING (2026-09-04). Current Plan: 4 of 24. 15-01 complete (sanitized dispatch, AgentDiffProposal, bootstrap registry, D-22 table, getDomains). 15-02 complete (skill catalog, read_skill, nest-cli assets, four seed skills). 15-03 complete (persistent threads / messages / proposals, D-08 counters, audit thread_uid). Next: 15-04 (model client / system prompt / state snapshot). After all 24: обязательный `/gsd-secure-phase 15`.
+Phase 15 (universal-pbx-ai-agent) — EXECUTING (2026-09-04). Sequential next: 15-04 of 24. 15-01 complete (sanitized dispatch, AgentDiffProposal, bootstrap registry, D-22 table, getDomains). 15-02 complete (skill catalog, read_skill, nest-cli assets, four seed skills). 15-03 complete (persistent threads / messages / proposals, D-08 counters, audit thread_uid). 15-06 complete (topbar trigger, Ctrl+Shift+J, 520px grid panel, no FAB). Next sequential: 15-04 (model client / system prompt / state snapshot). After all 24: обязательный `/gsd-secure-phase 15`.
 
 Phase 13 (custom-voicemail-instead-of-voicemail) — COMPLETE (2026-09-03). 13/13 plans, verify passed 19/19, security SECURED. Live greeting→Record→notify deferred.
 12-17 closed 2026-08-31: M1/M6/M7/M8/M9 approved; M4/M5/M12 deferred (live voice later). Call-group ALTERs already on prod.
@@ -327,6 +327,10 @@ Phase 1 — MOH: pending verify.
 - [Phase 15]: proposal_id is crypto.randomUUID(), not the outdated uuid package
 - [Phase 15]: Audit conversation ref is a new thread_uid column, not call_uniqueid reuse
 - [Phase 15]: test:ai regex covers ai-agents, ai-platform, and ai-chat — there is no tool-registry module path
+- [Phase 15]: Agent trigger sits immediately left of #shell-cmdk-trigger; open state is held by ModuleShell
+- [Phase 15]: Ctrl/Meta+Shift+J toggles the panel; Ctrl/Cmd+K stays the palette shortcut
+- [Phase 15]: Floating corner FAB deleted so the softphone owns bottom-right; panel is a 520px stylesheet column
+- [Phase 15]: AppLayout no longer mounts AiChatWidget - the shell owns the overlay so D-23 survives route changes
 
 ## Roadmap Evolution
 
@@ -492,10 +496,11 @@ Also open: Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 veri
 | Phase 15 P01 | 64min | 3 tasks | 5 files |
 | Phase 15-universal-pbx-ai-agent P02 | 11min | 3 tasks | 8 files |
 | Phase 15-universal-pbx-ai-agent P03 | 35min | 3 tasks | 10 files |
+| Phase 15 P06 | 37min | 3 tasks | 9 files |
 
 ## Session
 
-**Last session:** 2026-09-04T08:16:15.692Z
-**Stopped at:** Completed 15-03-PLAN.md
+**Last session:** 2026-09-04T09:41:00.657Z
+**Stopped at:** Completed 15-06-PLAN.md
 **Resume file:** None
 **Also ready:** .planning/phases/15-universal-pbx-ai-agent/15-CONTEXT.md
