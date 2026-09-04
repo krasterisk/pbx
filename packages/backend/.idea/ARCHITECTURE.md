@@ -10,7 +10,7 @@
 4. [Интеграция с внешними сервисами](#4-интеграция-с-внешними-сервисами)
 5. [Bulk-операции и Async Jobs](#5-bulk-операции-и-async-jobs)
 6. [MCP Server (AI Tool Protocol)](#6-mcp-server-ai-tool-protocol)
-7. [AI Webhook Controller](#7-ai-webhook-controller)
+7. [Альтернативный tool-dispatch снят](#7-альтернативный-tool-dispatch-снят)
 8. [Версии Asterisk](#8-версии-asterisk)
 9. [Боевые факты фазы 12 (M9, M12)](#9-боевые-факты-фазы-12-m9-m12)
 
@@ -155,9 +155,9 @@ Asterisk настроен на автоматическое чтение дан�
 
 ## 6. MCP Server (AI Tool Protocol)
 
-Модуль `McpModule` реализует **Model Context Protocol Server** для интеграции с AI-агентами (aiPBX и другими клиентами).
+Модуль `McpModule` — внешняя JSON-RPC точка (`/api/mcp`) и единый dispatch `McpToolsService.callTool`. Инструменты **не** регистрируются вручную в этом сервисе.
 
-### Транспорт: Streamable HTTP (актуальный стандарт MCP SDK 1.x)
+### Транспорт: Streamable HTTP
 
 ```
 POST   /api/mcp  — JSON-RPC запросы (инициализация + tool calls)
@@ -166,85 +166,43 @@ DELETE /api/mcp  — закрыть сессию
 GET    /api/mcp/sessions — debug: активные сессии
 ```
 
-Единый endpoint `/api/mcp` обслуживает весь протокол. `SessionId` передаётся в заголовке `Mcp-Session-Id`. Первый POST без заголовка создаёт сессию.
+`SessionId` — заголовок `Mcp-Session-Id`. Сессия привязана к тенанту, который её создал; resume с чужим JWT отклоняется.
 
-> **Примечание:** `SSEServerTransport` (legacy GET+POST раздельно) — deprecated в SDK 1.x. Используем `StreamableHTTPServerTransport`.
+### Аутентификация (D-28)
 
-Каждое подключение создаёт изолированный `McpServer` с инструментами конкретного тенанта. Тенант идентифицируется через JWT или Service Token (`X-Vpbx-User-Uid` header).
+Только пользовательский JWT (`JwtAuthGuard`). Тенант берётся из `req.user.vpbx_user_uid`.
 
-### Аутентификация
+Больше не читаются на `/api/mcp`:
+- `KRASTERISK_SERVICE_TOKEN` + `X-Vpbx-User-Uid` — service-token ветка снята
+- заголовок тенанта при валидном JWT игнорируется, не ошибка
 
-Используется `JwtOrServiceTokenGuard`:
-- **JWT** — обычный пользователь браузера
-- **Service Token** — `Authorization: Bearer <KRASTERISK_SERVICE_TOKEN>` + `X-Vpbx-User-Uid: <uid>` — для aiPBX и других внешних агентов
+`AIPBX_URL` / `AIPBX_CHAT_ID` / `AIPBX_TOKEN` больше не читаются — in-process loop (15-08) заменил chat proxy. aiPBX и прочие внешние API остаются **провайдерами модели** (`cc_ai_providers`), не оркестраторами инструментов.
 
-### 🔴 ОБЯЗАТЕЛЬНОЕ ПРАВИЛО: Новые сущности → Новые MCP инструменты
+### 🔴 ОБЯЗАТЕЛЬНОЕ ПРАВИЛО (D-16): новый модуль → адаптер + skill
 
-> **При создании любой новой сущности АТС, с которой могут работать пользователи (абоненты, транки, IVR, очереди, контексты маршрутизации, группы перехвата, голосовые роботы и т.д.) — ОБЯЗАТЕЛЬНО добавить соответствующий инструмент(ы) в `McpToolsService`.**
+> **Новая сущность АТС, с которой работает агент, поставляется вместе с Domain AI Adapter рядом с модулем и актуальным `src/skills/<domain>/SKILL.md`. Не добавлять инструменты в `McpToolsService` и не замыкать `vpbxUserUid` на регистрации (D-23).**
 
-**Файл:** `src/modules/mcp/mcp-tools.service.ts`  
-**Метод:** `registerAll(server, vpbxUserUid)`
+**Реестр:** `AiAdapterRegistryService`  
+**Dispatch:** `McpToolsService.callTool(name, args, vpbxUserUid)` — uid всегда параметр вызова  
+**Промпт:** блоки знаний адаптера + каталог скилов (`read_skill`), не `.docs/`
 
-Шаблон для нового инструмента:
-```typescript
-private registerMyNewEntity(server: McpServer, uid: number) {
-    server.registerTool(
-        'create_my_entity',      // snake_case имя инструмента
-        {
-            title: 'Человекочитаемое название',
-            description: 'Подробное описание: когда использовать, что делает, важные ограничения.',
-            inputSchema: {
-                name: z.string().describe('Описание параметра для LLM'),
-                // ... остальные поля с z.string(), z.number(), z.enum(), z.array()
-            },
-        },
-        async (args) => {
-            const result = await this.myEntityService.create(args, uid);
-            return {
-                content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
-            };
-        },
-    );
-}
-```
+Полная формулировка конвенции и coverage-тест — план 15-23.
 
-Минимальный набор инструментов для новой сущности:
-- `create_{entity}` — создание
-- `delete_{entity}` — удаление  
-- `update_{entity}` — обновление (если нужно)
+### Инвентарь инструментов
 
-Необязательно, но желательно — документировать в `registerAll()` общее количество зарегистрированных инструментов.
+Число и имена — живой реестр адаптеров (`getAllTools()`), не таблица в этом файле. Рукописные 18 имён фазы 1 сняты (15-15). `apply_dialplan` снят как standalone (применение — часть confirm маршрута, 15-11).
 
-### Текущие инструменты (16 шт.)
+### Аудит до миграции (T-15-72)
 
-| Инструмент | Сущность | Операция |
-|---|---|---|
-| `get_pbx_state` | Все | Получить snapshot |
-| `create_endpoints_bulk` | Абоненты | Массовое создание |
-| `create_endpoint` | Абонент | Создание одного |
-| `delete_endpoint` | Абонент | Удаление |
-| `create_trunk` | Транк | Создание |
-| `delete_trunk` | Транк | Удаление |
-| `create_ivr` | IVR | Создание |
-| `update_ivr` | IVR | Обновление |
-| `delete_ivr` | IVR | Удаление |
-| `create_queue` | Очередь | Создание |
-| `update_queue` | Очередь | Обновление |
-| `delete_queue` | Очередь | Удаление |
-| `create_route` | Маршрут | Создание |
-| `delete_route` | Маршрут | Удаление |
-| `apply_dialplan` | Диалплан | Применить в Asterisk |
-| `list_contexts` | Контексты | Список |
+Две локации, данные не сливали:
+- `action_logs` — `LoggerService.logAction`, action `ai_tool` (handwritten MCP и текущий `callTool`)
+- `cc_ai_audit_log` — записи AI-агентов; колонка `thread_uid` с 15-03
 
 ---
 
-## 7. AI Webhook Controller
+## 7. Альтернативный tool-dispatch снят
 
-Для обратной совместимости (Фаза 1 webhook tools в aiPBX) существует `AiWebhookController` (`src/modules/ai-chat/ai-webhook.controller.ts`).
-
-Все endpoints доступны по `/api/ai-tools/*` и защищены `JwtOrServiceTokenGuard`.
-
-> **ПРАВИЛО:** При добавлении новой сущности — также добавить соответствующий endpoint в `AiWebhookController`, чтобы поддерживать webhook-режим работы (для aiPBX).
+`AiWebhookController` (`/api/ai-tools/*`) удалён в 15-15 (D-27). Confirmation gate больше нельзя обойти вторым контроллером. Единственный dispatch — `McpToolsService.callTool`.
 
 ---
 
