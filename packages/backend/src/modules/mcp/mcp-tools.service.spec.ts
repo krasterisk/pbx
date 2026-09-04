@@ -1,4 +1,5 @@
 import { Logger } from '@nestjs/common';
+import { TENANT_ARG_KEYS } from '../ai-platform/ai-adapter.types';
 import { McpToolsService } from './mcp-tools.service';
 
 /**
@@ -266,4 +267,63 @@ describe('McpToolsService', () => {
       expect(stubHandler).toHaveBeenCalledWith({ pattern: '_X.' }, 100);
     });
   });
+
+  describe('D-22 per-tool tenancy (dispatch mechanics)', () => {
+    const TENANT_A = 100;
+    const TENANT_B = 200;
+    const toolNames = collectRegisteredToolNames();
+
+    it('tool names are unique and the list is non-empty', () => {
+      const names = service.getToolsList(TENANT_A).map((t) => t.name);
+      expect(names.length).toBeGreaterThan(0);
+      expect(new Set(names).size).toBe(names.length);
+    });
+
+    it.each(toolNames)('%s receives uid from dispatch and forged tenant keys are absent', async (name) => {
+      const spy = jest.fn().mockResolvedValue([{ type: 'text', text: 'ok' }]);
+      const entry = (service as any).toolRegistry.get(name);
+      expect(entry).toBeDefined();
+      entry.destructive = false;
+      entry.handler = spy;
+
+      await service.callTool(name, { vpbxUserUid: TENANT_B }, TENANT_A);
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy.mock.calls[0][1]).toBe(TENANT_A);
+      expect(spy.mock.calls[0][0]).not.toHaveProperty('vpbxUserUid');
+      for (const key of TENANT_ARG_KEYS) {
+        expect(spy.mock.calls[0][0]).not.toHaveProperty(key);
+      }
+    });
+
+    it('no tool schema declares a tenant key as an input property', () => {
+      for (const tool of service.getToolsList(TENANT_A)) {
+        const keys = Object.keys(tool.inputSchema?.properties ?? {});
+        for (const key of keys) {
+          expect(TENANT_ARG_KEYS as readonly string[]).not.toContain(key);
+        }
+      }
+    });
+  });
 });
+
+function collectRegisteredToolNames(): string[] {
+  const svc = new McpToolsService(
+    { findAll: jest.fn().mockResolvedValue([]), create: jest.fn(), remove: jest.fn(), bulkCreate: jest.fn() } as any,
+    { findAll: jest.fn().mockResolvedValue([]), create: jest.fn().mockResolvedValue({}), remove: jest.fn() } as any,
+    { findAll: jest.fn().mockResolvedValue([]), create: jest.fn(), update: jest.fn(), remove: jest.fn() } as any,
+    { findAll: jest.fn().mockResolvedValue([]), create: jest.fn(), update: jest.fn(), remove: jest.fn() } as any,
+    { create: jest.fn(), remove: jest.fn(), generateContextDialplan: jest.fn() } as any,
+    { getIncludeNames: jest.fn() } as any,
+    { findAll: jest.fn().mockResolvedValue([]) } as any,
+    { applyCategories: jest.fn() } as any,
+    {} as any,
+    { findOne: jest.fn() } as any,
+    { getStats: jest.fn(), findCalls: jest.fn() } as any,
+    { getAllTools: jest.fn().mockReturnValue([]), getDomains: jest.fn().mockReturnValue([]) } as any,
+    { getSettings: jest.fn().mockResolvedValue({ confirmDestructive: false }) } as any,
+    { logAction: jest.fn().mockResolvedValue(undefined) } as any,
+  );
+  svc.onApplicationBootstrap();
+  return svc.getToolsList(100).map((t) => t.name);
+}

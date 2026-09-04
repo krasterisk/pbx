@@ -68,6 +68,13 @@ describe('AiAdapterRegistryService', () => {
     expect(service.getToolByName('missing_tool')).toBeUndefined();
   });
 
+  it('getDomains returns the registered domain keys for two stub adapters', () => {
+    service.register({ domain: 'alpha', getTools: () => [makeTool('tool_alpha')] });
+    service.register({ domain: 'beta', getTools: () => [makeTool('tool_beta')] });
+
+    expect(service.getDomains().sort()).toEqual(['alpha', 'beta']);
+  });
+
   it('register overwrites a previous registration for the same domain', () => {
     const first: DomainAiAdapter = { domain: 'dup', getTools: () => [makeTool('first_tool')] };
     const second: DomainAiAdapter = { domain: 'dup', getTools: () => [makeTool('second_tool')] };
