@@ -14,25 +14,53 @@ export interface DiffConfirmCardProps {
     onAskAgain?: () => void;
 }
 
-export const DiffConfirmCard = ({ proposal }: DiffConfirmCardProps) => {
+function formatAppliedAt(iso?: string | null): string | null {
+    if (!iso) return null;
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) return null;
+    return date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+}
+
+function isExpired(view: IAgentProposalView): boolean {
+    if (view.status === 'expired') return true;
+    if (view.status !== 'pending' || !view.expiresAt) return false;
+    const expires = new Date(view.expiresAt).getTime();
+    return !Number.isNaN(expires) && expires <= Date.now();
+}
+
+export const DiffConfirmCard = ({ proposal, onAskAgain }: DiffConfirmCardProps) => {
     const { t } = useTranslation();
     const [view, setView] = useState(proposal);
+    const [applyError, setApplyError] = useState<string | null>(
+        proposal.status === 'pending' ? proposal.error ?? null : null,
+    );
     const [confirmProposal, confirmState] = useConfirmAiChatProposalMutation();
     const [rejectProposal, rejectState] = useRejectAiChatProposalMutation();
 
     useEffect(() => {
         setView(proposal);
+        setApplyError(proposal.status === 'pending' ? proposal.error ?? null : null);
     }, [proposal]);
 
     const busy = confirmState.isLoading || rejectState.isLoading;
-    const showActions = view.status === 'pending';
+    const expired = isExpired(view);
+    const settled = view.status === 'applied' || view.status === 'rejected' || view.status === 'denied';
+    const showActions = view.status === 'pending' && !expired && !settled;
 
     const handleConfirm = async () => {
         if (busy || !showActions) return;
         const result = await confirmProposal(view.proposalId).unwrap();
         if (result.ok && result.proposal) {
             setView(result.proposal);
+            setApplyError(null);
+            return;
         }
+        if (result.proposal?.status === 'denied') {
+            setView(result.proposal);
+            setApplyError(null);
+            return;
+        }
+        setApplyError(result.error ?? result.reason ?? 'apply_failed');
     };
 
     const handleReject = async () => {
@@ -40,8 +68,11 @@ export const DiffConfirmCard = ({ proposal }: DiffConfirmCardProps) => {
         const result = await rejectProposal(view.proposalId).unwrap();
         if (result.ok && result.proposal) {
             setView(result.proposal);
+            setApplyError(null);
         }
     };
+
+    const appliedAt = view.status === 'applied' ? formatAppliedAt(view.appliedAt) : null;
 
     return (
         <VStack
@@ -49,17 +80,28 @@ export const DiffConfirmCard = ({ proposal }: DiffConfirmCardProps) => {
             gap="8"
             align="stretch"
             data-testid="ai-agent-diff-card"
-            data-status={view.status}
+            data-status={expired && view.status === 'pending' ? 'expired' : view.status}
         >
             <HStack className={cls.header} gap="8" align="center" justify="between">
                 <Text as="span" className={cls.heading}>{t('aiChat.card.heading')}</Text>
                 {view.status === 'applied' && (
-                    <Badge variant="secondary">{t('aiChat.card.badge.applied')}</Badge>
+                    <HStack gap="8" align="center">
+                        <Badge variant="secondary">{t('aiChat.card.badge.applied')}</Badge>
+                        {appliedAt && (
+                            <Text as="span" className={cls.appliedAt}>{appliedAt}</Text>
+                        )}
+                    </HStack>
                 )}
                 {view.status === 'rejected' && (
                     <Badge variant="outline">{t('aiChat.card.badge.rejected')}</Badge>
                 )}
-                {view.status === 'pending' && (
+                {view.status === 'denied' && (
+                    <Badge variant="destructive">{t('aiChat.card.badge.denied')}</Badge>
+                )}
+                {expired && !settled && (
+                    <Badge variant="outline">{t('aiChat.card.badge.expired')}</Badge>
+                )}
+                {view.status === 'pending' && !expired && (
                     <Badge variant="default">{t('aiChat.card.badge.pending')}</Badge>
                 )}
             </HStack>
@@ -75,6 +117,16 @@ export const DiffConfirmCard = ({ proposal }: DiffConfirmCardProps) => {
                 ))}
             </VStack>
 
+            {view.status === 'denied' && (
+                <Text as="p" className={cls.denied}>{t('aiChat.card.deniedExplanation')}</Text>
+            )}
+
+            {view.status === 'pending' && !expired && applyError && (
+                <Text as="p" className={cls.failedText}>
+                    {t('aiChat.card.applyFailed', { reason: applyError })}
+                </Text>
+            )}
+
             {busy && (
                 <Text as="span" className={cls.busy} aria-live="polite">
                     {t('aiChat.card.busy')}
@@ -89,7 +141,7 @@ export const DiffConfirmCard = ({ proposal }: DiffConfirmCardProps) => {
                         title={t('aiChat.card.applyHint')}
                         onClick={handleConfirm}
                     >
-                        {t('aiChat.card.apply')}
+                        {applyError ? t('aiChat.card.retry') : t('aiChat.card.apply')}
                     </Button>
                     <Button
                         type="button"
@@ -100,6 +152,12 @@ export const DiffConfirmCard = ({ proposal }: DiffConfirmCardProps) => {
                         {t('aiChat.card.reject')}
                     </Button>
                 </HStack>
+            )}
+
+            {expired && !settled && (
+                <Button type="button" variant="ghost" onClick={onAskAgain}>
+                    {t('aiChat.card.askAgain')}
+                </Button>
             )}
         </VStack>
     );

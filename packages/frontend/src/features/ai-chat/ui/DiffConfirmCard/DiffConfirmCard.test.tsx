@@ -155,7 +155,12 @@ describe('DiffConfirmCard', () => {
         );
 
         expect(screen.getByText('aiChat.card.badge.applied')).toBeInTheDocument();
-        expect(screen.getByText(/15:42|3:42/)).toBeInTheDocument();
+        expect(screen.getByText(
+            new Date('2026-09-04T15:42:00.000Z').toLocaleTimeString(undefined, {
+                hour: '2-digit',
+                minute: '2-digit',
+            }),
+        )).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'aiChat.card.apply' })).toBeNull();
         expect(screen.queryByRole('button', { name: 'aiChat.card.reject' })).toBeNull();
     });
