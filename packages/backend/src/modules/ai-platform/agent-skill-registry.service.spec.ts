@@ -2,7 +2,11 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { AiAdapterRegistryService } from './ai-adapter-registry.service';
-import { AgentSkillRegistryService, SKILL_BODY_MAX_CHARS } from './agent-skill-registry.service';
+import {
+  AgentSkillRegistryService,
+  resolveSkillsRootCandidates,
+  SKILL_BODY_MAX_CHARS,
+} from './agent-skill-registry.service';
 
 function writeSkill(root: string, dirName: string, name: string, description: string, body: string): void {
   const dir = path.join(root, dirName);
@@ -108,5 +112,22 @@ describe('AgentSkillRegistryService', () => {
     expect(registry.getDomains()).toEqual(['skills']);
     expect(registry.getToolByName('read_skill')).toBeDefined();
     expect(registry.getToolByName('list_skills')).toBeDefined();
+  });
+
+  it('loads a non-empty catalog from the repository skills root', () => {
+    const { service } = createService();
+    expect(service.getCatalog().length).toBeGreaterThan(0);
+  });
+});
+
+describe('resolveSkillsRootCandidates', () => {
+  it('derives the primary candidate from the compiled module directory', () => {
+    const moduleDir = path.join(path.sep, 'compiled', 'modules', 'ai-platform');
+    const candidates = resolveSkillsRootCandidates(moduleDir);
+    const cwdFallback = path.resolve(process.cwd(), 'src/skills');
+
+    expect(candidates[0]).toBe(path.resolve(moduleDir, '../../skills'));
+    expect(candidates).toContain(cwdFallback);
+    expect(candidates[0]).not.toBe(cwdFallback);
   });
 });

@@ -6,7 +6,8 @@
     "tsConfigPath": "tsconfig.build.json",
     "deleteOutDir": true,
     "assets": [
-      "**/*.proto"
+      "**/*.proto",
+      "skills/**/*.md"
     ],
     "watchAssets": true
   }
