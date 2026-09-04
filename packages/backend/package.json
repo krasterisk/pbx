@@ -20,6 +20,7 @@
     "test:cc:watch": "jest --testPathPattern=\"modules/callcenter\" --watch --no-coverage",
     "test:ai": "jest --testPathPattern=\"modules/(ai-agents|ai-platform|ai-chat|mcp)\" --no-coverage",
     "test:ai:watch": "jest --testPathPattern=\"modules/(ai-agents|ai-platform|ai-chat|mcp)\" --watch --no-coverage",
+    "test:pbx-agent-eval": "jest --testPathPattern=\"pbx-agent-eval\" --no-coverage",
     "db:migrate": "node migrations/run-migrations.js",
     "db:migrate:list": "node migrations/run-migrations.js --list",
     "db:migrate:rollback": "node migrations/run-migrations.js --rollback",
