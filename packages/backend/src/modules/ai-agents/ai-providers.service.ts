@@ -1,9 +1,12 @@
 import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/sequelize';
 import { Op } from 'sequelize';
 import { CcAiProvider } from './models/ai-provider.model';
 import { CreateAiProviderDto, UpdateAiProviderDto } from './dto/ai-provider.dto';
 import { encryptSecret } from './util/secret-cipher.util';
+
+const DEFAULT_LLM_CACHE_MS = 60_000;
 
 /**
  * Provider Registry — CRUD over `cc_ai_providers`.
@@ -16,10 +19,57 @@ import { encryptSecret } from './util/secret-cipher.util';
 @Injectable()
 export class AiProvidersService {
   private readonly logger = new Logger(AiProvidersService.name);
+  private defaultLlmCache: CcAiProvider | null = null;
+  private defaultLlmCachedAt = 0;
 
   constructor(
     @InjectModel(CcAiProvider) private readonly model: typeof CcAiProvider,
+    private readonly config: ConfigService,
   ) {}
+
+  /**
+   * Platform default language-model provider (D-07). Tenants never call this.
+   * Prefers CC_AI_DEFAULT_PROVIDER_UID when that row is enabled and advertises
+   * `llm`; otherwise the first enabled llm row, with global templates last.
+   */
+  async findDefaultLlm(): Promise<CcAiProvider | null> {
+    const now = Date.now();
+    if (now - this.defaultLlmCachedAt < DEFAULT_LLM_CACHE_MS) {
+      return this.defaultLlmCache;
+    }
+
+    const configuredUid = Number(this.config.get('CC_AI_DEFAULT_PROVIDER_UID'));
+    let row: CcAiProvider | null = null;
+    if (Number.isFinite(configuredUid) && configuredUid > 0) {
+      const preferred = await this.model.findOne({
+        where: { uid: configuredUid, enabled: true },
+      });
+      if (preferred && this.hasLlm(preferred)) {
+        row = preferred;
+      }
+    }
+
+    if (!row) {
+      const candidates = await this.model.findAll({
+        where: { enabled: true },
+        order: [['user_uid', 'DESC'], ['uid', 'ASC']],
+      });
+      row = candidates.find((candidate) => this.hasLlm(candidate)) ?? null;
+    }
+
+    this.defaultLlmCache = row;
+    this.defaultLlmCachedAt = now;
+    return row;
+  }
+
+  private hasLlm(row: { capabilities?: string[] }): boolean {
+    return Array.isArray(row.capabilities) && row.capabilities.includes('llm');
+  }
+
+  private invalidateDefaultLlmCache(): void {
+    this.defaultLlmCache = null;
+    this.defaultLlmCachedAt = 0;
+  }
 
   /** List providers visible to the tenant: own rows + global templates. */
   async findAll(userUid: number) {
@@ -45,6 +95,7 @@ export class AiProvidersService {
       throw new BadRequestException('Pricing config is required');
     }
     const encrypted_api_key = dto.apiKey ? encryptSecret(dto.apiKey) : '';
+    this.invalidateDefaultLlmCache();
     return this.model.create({
       name: dto.name,
       kind: dto.kind,
@@ -74,6 +125,7 @@ export class AiProvidersService {
     }
 
     await row.update(patch);
+    this.invalidateDefaultLlmCache();
     return row;
   }
 
@@ -81,6 +133,7 @@ export class AiProvidersService {
     const row = await this.model.findOne({ where: { uid: id, user_uid: userUid } });
     if (!row) throw new NotFoundException('Provider not found (or read-only global template)');
     await row.destroy();
+    this.invalidateDefaultLlmCache();
     return { success: true };
   }
 

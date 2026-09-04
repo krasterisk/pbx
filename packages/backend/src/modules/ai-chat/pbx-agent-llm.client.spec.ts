@@ -8,7 +8,7 @@ function provider(overrides: AgentChatParams['provider'] = {} as AgentChatParams
     return {
         uid: 1,
         name: 'Cascade',
-        endpoint: 'https://api.openai.com/v1',
+        endpoint: 'https://api.openai.com',
         auth_type: 'bearer',
         encrypted_api_key: encryptSecret(PLAIN_KEY),
         capabilities: ['llm', 'tools'],
@@ -22,19 +22,26 @@ function ssePayload(delta: Record<string, unknown>, extra: Record<string, unknow
     return `data: ${JSON.stringify({ choices: [{ index: 0, delta }], ...extra })}\n\n`;
 }
 
-function streamResponse(chunks: string[], status = 200): Response {
-    const encoder = new TextEncoder();
+function streamResponse(chunks: string[], status = 200) {
+    const encoded = chunks.map((chunk) => new TextEncoder().encode(chunk));
     let i = 0;
-    const body = new ReadableStream<Uint8Array>({
-        pull(controller) {
-            if (i >= chunks.length) {
-                controller.close();
-                return;
-            }
-            controller.enqueue(encoder.encode(chunks[i++]));
+    return {
+        ok: status >= 200 && status < 400,
+        status,
+        body: {
+            getReader() {
+                return {
+                    async read() {
+                        if (i >= encoded.length) return { done: true as const, value: undefined };
+                        return { done: false as const, value: encoded[i++] };
+                    },
+                    async cancel() {
+                        i = encoded.length;
+                    },
+                };
+            },
         },
-    });
-    return new Response(body, { status, headers: { 'Content-Type': 'text/event-stream' } });
+    };
 }
 
 describe('PbxAgentLlmClient', () => {
@@ -171,21 +178,11 @@ describe('PbxAgentLlmClient', () => {
 
     it('stops reading when the signal aborts mid-stream and issues no further request', async () => {
         const abort = new AbortController();
-        let pulls = 0;
-        const encoder = new TextEncoder();
-        const body = new ReadableStream<Uint8Array>({
-            pull(controller) {
-                pulls += 1;
-                if (pulls === 1) {
-                    controller.enqueue(encoder.encode(ssePayload({ content: 'partial' })));
-                    abort.abort();
-                    return;
-                }
-                controller.enqueue(encoder.encode(ssePayload({ content: 'more' })));
-                controller.close();
-            },
-        });
-        fetchMock.mockResolvedValueOnce(new Response(body, { status: 200 }));
+        fetchMock.mockResolvedValueOnce(streamResponse([
+            ssePayload({ content: 'partial' }),
+            ssePayload({ content: 'more' }),
+            'data: [DONE]\n\n',
+        ]));
 
         const tokens: string[] = [];
         const result = await client.chat({
@@ -193,7 +190,10 @@ describe('PbxAgentLlmClient', () => {
             messages: [{ role: 'user', content: 'hi' }],
             signal: abort.signal,
             stream: true,
-            onToken: (chunk) => tokens.push(chunk),
+            onToken: (chunk) => {
+                tokens.push(chunk);
+                abort.abort();
+            },
         });
 
         expect(tokens).toEqual(['partial']);

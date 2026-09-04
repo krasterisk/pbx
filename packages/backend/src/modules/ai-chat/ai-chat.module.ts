@@ -24,6 +24,8 @@ import { RoutesModule } from '../routes/routes.module';
 import { AmiModule } from '../ami/ami.module';
 import { Context } from '../contexts/context.model';
 import { LoggerModule } from '../logger/logger.module';
+import { AiAgentsModule } from '../ai-agents/ai-agents.module';
+import { PbxAgentLlmClient } from './pbx-agent-llm.client';
 
 @Module({
     imports: [
@@ -38,6 +40,7 @@ import { LoggerModule } from '../logger/logger.module';
         RoutesModule,
         AmiModule,
         LoggerModule,
+        AiAgentsModule,
     ],
     controllers: [AiChatController, AiWebhookController],
     providers: [
@@ -46,10 +49,11 @@ import { LoggerModule } from '../logger/logger.module';
         KnowledgeBaseService,
         AiChatSettingsService,
         PbxAgentThreadService,
+        PbxAgentLlmClient,
         JwtOrServiceTokenGuard,
         ServiceTokenGuard,
     ],
-    exports: [PbxContextBuilderService, KnowledgeBaseService, AiChatSettingsService, PbxAgentThreadService],
+    exports: [PbxContextBuilderService, KnowledgeBaseService, AiChatSettingsService, PbxAgentThreadService, PbxAgentLlmClient],
 })
 export class AiChatModule {}
 
