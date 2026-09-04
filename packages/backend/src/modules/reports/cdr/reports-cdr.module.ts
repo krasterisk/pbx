@@ -9,15 +9,18 @@ import { CloudAdminModule } from '../../cloud-admin/cloud-admin.module';
 import { PsEndpoint } from '../../endpoints/ps-endpoint.model';
 import { User } from '../../users/user.model';
 import { NumberList } from '../../numbers/number-list.model';
+import { AiPlatformModule } from '../../ai-platform/ai-platform.module';
+import { ReportsAiAdapter } from '../reports-ai.adapter';
 
 @Module({
   imports: [
     SequelizeModule.forFeature([Cdr, PsEndpoint, User, NumberList]),
     SystemSettingsModule,
     CloudAdminModule,
+    AiPlatformModule,
   ],
   controllers: [CdrController, CdrPublicController],
-  providers: [CdrService],
+  providers: [CdrService, ReportsAiAdapter],
   exports: [CdrService],
 })
 export class ReportsCdrModule {}
