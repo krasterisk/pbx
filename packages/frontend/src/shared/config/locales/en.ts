@@ -2819,6 +2819,26 @@ export const en = {
       hours: '{{count}} h ago',
       days: '{{count}} d ago',
     },
+    card: {
+      heading: 'Proposed changes',
+      entityPrefix: 'Entity:',
+      summaryLead: 'Here is what will change:',
+      apply: 'Apply changes',
+      applyHint: 'Saves to the database and applies on the PBX',
+      reject: 'Reject changes',
+      busy: 'Applying changes…',
+      retry: 'Retry',
+      askAgain: 'Ask the agent again',
+      applyFailed: 'Could not apply. {{reason}}',
+      deniedExplanation: 'You do not have permission for this action.',
+      badge: {
+        pending: 'Needs confirmation',
+        applied: 'Applied',
+        rejected: 'Rejected',
+        denied: 'Permission denied',
+        expired: 'Expired',
+      },
+    },
   },
 
   // Call Center Module

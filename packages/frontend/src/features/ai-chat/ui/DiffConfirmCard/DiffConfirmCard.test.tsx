@@ -240,4 +240,14 @@ describe('DiffConfirmCard', () => {
         expect(confirmBlock).not.toMatch(/confirm:\s*true/);
         expect(src).not.toMatch(/entityId|entity_id/);
     });
+
+    it('uses locale keys for card copy instead of hardcoded strings', () => {
+        const src = readFileSync(join(__dirname, 'DiffConfirmCard.tsx'), 'utf8');
+        expect(src).toMatch(/t\('aiChat\.card\.apply'\)/);
+        expect(src).toMatch(/t\('aiChat\.card\.reject'\)/);
+        expect(src).toMatch(/t\('aiChat\.card\.deniedExplanation'\)/);
+        expect(src).not.toMatch(/Применить изменения/);
+        expect(src).not.toMatch(/Отклонить изменения/);
+        expect(src).not.toMatch(/У вас нет прав/);
+    });
 });

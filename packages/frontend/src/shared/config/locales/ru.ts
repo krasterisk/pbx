@@ -2856,6 +2856,26 @@ export const ru = {
       hours: '{{count}} ч. назад',
       days: '{{count}} дн. назад',
     },
+    card: {
+      heading: 'Предлагаемые изменения',
+      entityPrefix: 'Объект:',
+      summaryLead: 'Вот что изменится:',
+      apply: 'Применить изменения',
+      applyHint: 'Сохранит в базу и применит на АТС',
+      reject: 'Отклонить изменения',
+      busy: 'Применяю изменения…',
+      retry: 'Повторить',
+      askAgain: 'Попросить агента ещё раз',
+      applyFailed: 'Не удалось применить. {{reason}}',
+      deniedExplanation: 'У вас нет прав на это действие.',
+      badge: {
+        pending: 'Нужно подтверждение',
+        applied: 'Применено',
+        rejected: 'Отклонено',
+        denied: 'Недостаточно прав',
+        expired: 'Срок истёк',
+      },
+    },
   },
 
   // Call Center Module
