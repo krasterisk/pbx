@@ -1,4 +1,5 @@
 import { Global, Module } from '@nestjs/common';
+import { AgentSkillRegistryService } from './agent-skill-registry.service';
 import { AiAdapterRegistryService } from './ai-adapter-registry.service';
 
 /**
@@ -11,7 +12,7 @@ import { AiAdapterRegistryService } from './ai-adapter-registry.service';
  */
 @Global()
 @Module({
-  providers: [AiAdapterRegistryService],
-  exports: [AiAdapterRegistryService],
+  providers: [AiAdapterRegistryService, AgentSkillRegistryService],
+  exports: [AiAdapterRegistryService, AgentSkillRegistryService],
 })
 export class AiPlatformModule {}
