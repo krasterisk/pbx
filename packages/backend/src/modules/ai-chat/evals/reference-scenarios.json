@@ -1,0 +1,28 @@
+[
+  {
+    "id": "read-list-queues",
+    "bucket": "read",
+    "input": "Покажи очереди",
+    "tenantUid": 100,
+    "authorUid": 11,
+    "role": 1,
+    "locale": "ru",
+    "modelTurns": [
+      {
+        "text": "",
+        "toolCalls": [
+          {
+            "id": "call_list_queues",
+            "name": "list_queues",
+            "arguments": {}
+          }
+        ]
+      },
+      {
+        "text": "У вас две очереди: Sales и Support.",
+        "toolCalls": []
+      }
+    ],
+    "expectedToolSequence": ["list_queues"]
+  }
+]
