@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { wrapUntrustedData } from '../../shared/utils/prompt-injection.util';
 import { AiProvidersService } from '../ai-agents/ai-providers.service';
 import { McpToolsService } from '../mcp/mcp-tools.service';
 import { PbxAgentLlmClient } from './pbx-agent-llm.client';
@@ -186,7 +187,7 @@ export class PbxAgentLoopService {
             });
             messages.push({
               role: 'tool',
-              content: errorText,
+              content: this.toModelToolContent(call.name, errorText),
               tool_call_id: call.id,
               name: call.name,
             });
@@ -217,7 +218,7 @@ export class PbxAgentLoopService {
           });
           messages.push({
             role: 'tool',
-            content: proposal ? persisted : resultText,
+            content: this.toModelToolContent(call.name, proposal ? persisted : resultText),
             tool_call_id: call.id,
             name: call.name,
           });
@@ -288,7 +289,7 @@ export class PbxAgentLoopService {
     if (row.role === 'tool') {
       return {
         role: 'tool' as LoopChatMessage['role'],
-        content: row.content ?? '',
+        content: this.toModelToolContent(row.tool_name ?? 'unknown', row.content ?? ''),
         name: row.tool_name ?? undefined,
       };
     }
@@ -309,6 +310,10 @@ export class PbxAgentLoopService {
         function: { name: call.name, arguments: JSON.stringify(call.arguments) },
       })),
     };
+  }
+
+  private toModelToolContent(toolName: string, content: string): string {
+    return wrapUntrustedData(`tool:${toolName}`, content);
   }
 
   private progressLabel(tool: string, locale?: string): string {

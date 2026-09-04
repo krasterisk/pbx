@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
+import { wrapUntrustedData } from '../../shared/utils/prompt-injection.util';
 import { AiAdapterRegistryService } from './ai-adapter-registry.service';
 import { AiToolDefinition, DomainAiAdapter } from './ai-adapter.types';
 
@@ -75,10 +76,10 @@ export class AgentSkillRegistryService implements DomainAiAdapter, OnModuleInit 
     if (!skill) {
       return `Skill "${name}" not found.`;
     }
-    if (skill.body.length <= SKILL_BODY_MAX_CHARS) {
-      return skill.body;
-    }
-    return `${skill.body.slice(0, SKILL_BODY_MAX_CHARS)}${TRUNCATION_NOTE}`;
+    const body = skill.body.length <= SKILL_BODY_MAX_CHARS
+      ? skill.body
+      : `${skill.body.slice(0, SKILL_BODY_MAX_CHARS)}${TRUNCATION_NOTE}`;
+    return wrapUntrustedData(`skill:${name}`, body);
   }
 
   getTools(): AiToolDefinition[] {
