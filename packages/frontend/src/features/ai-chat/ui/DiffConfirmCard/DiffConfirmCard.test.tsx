@@ -144,6 +144,81 @@ describe('DiffConfirmCard', () => {
         expect(document.querySelector('script')).toBeNull();
     });
 
+    it('shows the applied badge and time and hides both actions', () => {
+        render(
+            <DiffConfirmCard
+                proposal={pendingView({
+                    status: 'applied',
+                    appliedAt: '2026-09-04T15:42:00.000Z',
+                })}
+            />,
+        );
+
+        expect(screen.getByText('aiChat.card.badge.applied')).toBeInTheDocument();
+        expect(screen.getByText(/15:42|3:42/)).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'aiChat.card.apply' })).toBeNull();
+        expect(screen.queryByRole('button', { name: 'aiChat.card.reject' })).toBeNull();
+    });
+
+    it('shows the rejected badge and hides both actions', () => {
+        render(<DiffConfirmCard proposal={pendingView({ status: 'rejected' })} />);
+
+        expect(screen.getByText('aiChat.card.badge.rejected')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'aiChat.card.apply' })).toBeNull();
+        expect(screen.queryByRole('button', { name: 'aiChat.card.reject' })).toBeNull();
+    });
+
+    it('shows the permission explanation on a denied card and hides both actions', () => {
+        render(<DiffConfirmCard proposal={pendingView({ status: 'denied' })} />);
+
+        expect(screen.getByText('aiChat.card.badge.denied')).toBeInTheDocument();
+        expect(screen.getByText('aiChat.card.deniedExplanation')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'aiChat.card.apply' })).toBeNull();
+        expect(screen.queryByRole('button', { name: 'aiChat.card.reject' })).toBeNull();
+    });
+
+    it('keeps a failed apply pending with the error and a retry', async () => {
+        confirmResult = { ok: false, error: 'switch reload failed', reason: 'switch_failed' };
+        render(<DiffConfirmCard proposal={pendingView()} />);
+
+        fireEvent.click(screen.getByRole('button', { name: 'aiChat.card.apply' }));
+
+        await vi.waitFor(() => {
+            expect(screen.getByText('aiChat.card.applyFailed:switch reload failed')).toBeInTheDocument();
+        });
+        expect(screen.getByTestId('ai-agent-diff-card')).toHaveAttribute('data-status', 'pending');
+        expect(screen.getByRole('button', { name: 'aiChat.card.retry' })).toBeInTheDocument();
+        expect(screen.queryByText('aiChat.card.badge.applied')).toBeNull();
+    });
+
+    it('shows an expired card cannot be applied and offers to ask again', () => {
+        const onAskAgain = vi.fn();
+        render(
+            <DiffConfirmCard
+                proposal={pendingView({
+                    status: 'expired',
+                    expiresAt: '2026-09-01T12:00:00.000Z',
+                })}
+                onAskAgain={onAskAgain}
+            />,
+        );
+
+        expect(screen.getByText('aiChat.card.badge.expired')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'aiChat.card.apply' })).toBeNull();
+        fireEvent.click(screen.getByRole('button', { name: 'aiChat.card.askAgain' }));
+        expect(onAskAgain).toHaveBeenCalledTimes(1);
+    });
+
+    it('cannot confirm a denied or already settled card again', async () => {
+        const { rerender } = render(<DiffConfirmCard proposal={pendingView({ status: 'denied' })} />);
+        expect(screen.queryByRole('button', { name: 'aiChat.card.apply' })).toBeNull();
+        expect(confirmCalls).toHaveLength(0);
+
+        rerender(<DiffConfirmCard proposal={pendingView({ status: 'applied' })} />);
+        expect(screen.queryByRole('button', { name: 'aiChat.card.apply' })).toBeNull();
+        expect(confirmCalls).toHaveLength(0);
+    });
+
     it('confirm and reject mutations send only the proposal identifier', () => {
         const src = readFileSync(
             join(process.cwd(), 'src/shared/api/endpoints/aiChatApi.ts'),
