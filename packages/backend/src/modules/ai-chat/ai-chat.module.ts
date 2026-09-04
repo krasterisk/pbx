@@ -9,7 +9,10 @@ import { AiChatSettingsService } from './ai-chat-settings.service';
 import { AgentThread } from './models/agent-thread.model';
 import { AgentThreadMessage } from './models/agent-thread-message.model';
 import { AgentProposal } from './models/agent-proposal.model';
+import { CcAiProvider } from '../ai-agents/models/ai-provider.model';
 import { PbxAgentThreadService } from './pbx-agent-thread.service';
+import { AgentUsageService } from './agent-usage.service';
+import { AgentUsageController } from './agent-usage.controller';
 import { JwtOrServiceTokenGuard } from '../auth/jwt-or-service-token.guard';
 import { ServiceTokenGuard } from '../auth/service-token.guard';
 import { EndpointsModule } from '../endpoints/endpoints.module';
@@ -31,7 +34,7 @@ import { McpModule } from '../mcp/mcp.module';
     imports: [
         ConfigModule,
         HttpModule.register({ timeout: 60_000 }),
-        SequelizeModule.forFeature([Context, AiChatSettings, AgentThread, AgentThreadMessage, AgentProposal]),
+        SequelizeModule.forFeature([Context, AiChatSettings, AgentThread, AgentThreadMessage, AgentProposal, CcAiProvider]),
         EndpointsModule,
         TrunksModule,
         IvrsModule,
@@ -43,8 +46,9 @@ import { McpModule } from '../mcp/mcp.module';
         AiAgentsModule,
         forwardRef(() => McpModule),
     ],
-    controllers: [AiChatController],
+    controllers: [AiChatController, AgentUsageController],
     providers: [
+        AgentUsageService,
         PbxAgentLoopService,
         PbxContextBuilderService,
         AiChatSettingsService,
