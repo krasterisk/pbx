@@ -29,6 +29,11 @@ type LoopChatMessage = ChatMessage & {
   tool_calls?: unknown;
 };
 
+interface RegisteredTool {
+  spec: AgentToolSpec;
+  required: string[];
+}
+
 @Injectable()
 export class PbxAgentLoopService {
   constructor(
@@ -51,6 +56,9 @@ export class PbxAgentLoopService {
   ): AsyncGenerator<AgentStreamEvent> {
     const threadUid = conversation.uid;
     const { tenantUid, authorUid, role } = ctx;
+    const maxSteps = this.readInt('CC_AI_MAX_AGENT_STEPS', DEFAULT_MAX_AGENT_STEPS);
+    const argRetries = this.readInt('CC_AI_TOOL_ARG_RETRIES', DEFAULT_TOOL_ARG_RETRIES);
+    const argFailures = new Map<string, number>();
 
     await this.threads.appendMessage(threadUid, tenantUid, authorUid, {
       role: 'user',
@@ -73,9 +81,24 @@ export class PbxAgentLoopService {
         .map((row) => this.toLoopMessage(row)),
     ];
 
-    const tools = this.toAgentTools(this.mcpTools.getToolsList(tenantUid));
+    const registered = this.registerTools(this.mcpTools.getToolsList(tenantUid));
+    const tools = registered.map((tool) => tool.spec);
+    let steps = 0;
 
     while (true) {
+      if (ctx.signal?.aborted) {
+        yield this.cancelled();
+        return;
+      }
+      if (steps >= maxSteps) {
+        yield {
+          name: 'error',
+          data: { code: 'max_steps_exceeded', message: 'Step ceiling reached', maxSteps },
+        };
+        return;
+      }
+      steps += 1;
+
       const completion = await this.llm.chat({
         provider: {
           uid: provider.uid,
@@ -100,6 +123,11 @@ export class PbxAgentLoopService {
         });
       }
 
+      if (ctx.signal?.aborted || completion.error?.code === 'aborted') {
+        yield this.cancelled();
+        return;
+      }
+
       if (completion.error) {
         yield { name: 'error', data: completion.error };
         return;
@@ -115,6 +143,11 @@ export class PbxAgentLoopService {
         messages.push(this.assistantToolMessage(completion.text, toolCalls));
 
         for (const call of toolCalls) {
+          if (ctx.signal?.aborted) {
+            yield this.cancelled();
+            return;
+          }
+
           yield {
             name: 'progress',
             data: {
@@ -124,23 +157,67 @@ export class PbxAgentLoopService {
           };
           yield { name: 'tool_call', data: { name: call.name, arguments: call.arguments } };
 
+          const invalidFields = this.invalidArgFields(call, registered);
+          if (invalidFields.length) {
+            const failures = (argFailures.get(call.name) ?? 0) + 1;
+            argFailures.set(call.name, failures);
+            if (failures > argRetries) {
+              yield {
+                name: 'error',
+                data: {
+                  code: 'tool_arg_retries_exceeded',
+                  message: `Invalid arguments for ${call.name}`,
+                  fields: invalidFields,
+                  tool: call.name,
+                },
+              };
+              return;
+            }
+            const errorText = JSON.stringify({
+              error: 'invalid_arguments',
+              fields: invalidFields,
+              tool: call.name,
+            });
+            yield { name: 'tool_result', data: { name: call.name, result: errorText } };
+            await this.threads.appendMessage(threadUid, tenantUid, authorUid, {
+              role: 'tool',
+              content: errorText,
+              tool_name: call.name,
+            });
+            messages.push({
+              role: 'tool',
+              content: errorText,
+              tool_call_id: call.id,
+              name: call.name,
+            });
+            continue;
+          }
+
           const parts = await this.mcpTools.callTool(call.name, call.arguments, tenantUid, {
             userUid: authorUid,
             role,
             threadUid,
           });
           const resultText = parts.map((part) => part.text).join('\n');
+          const proposal = this.asProposalView(resultText);
 
           yield { name: 'tool_result', data: { name: call.name, result: resultText } };
+          if (proposal) {
+            yield { name: 'proposal', data: proposal };
+          }
 
+          const persisted = proposal
+            ? `Pending proposal ${proposal.proposalId}`
+            : resultText;
           await this.threads.appendMessage(threadUid, tenantUid, authorUid, {
             role: 'tool',
-            content: resultText,
+            content: persisted,
             tool_name: call.name,
+            proposal_id: proposal?.proposalId ?? null,
           });
           messages.push({
             role: 'tool',
-            content: resultText,
+            content: proposal ? persisted : resultText,
             tool_call_id: call.id,
             name: call.name,
           });
@@ -159,14 +236,47 @@ export class PbxAgentLoopService {
     }
   }
 
-  private toAgentTools(
+  private readInt(key: string, fallback: number): number {
+    const raw = this.config.get<number>(key, fallback);
+    const value = Number(raw);
+    return Number.isFinite(value) && value > 0 ? value : fallback;
+  }
+
+  private cancelled(): AgentStreamEvent {
+    return { name: 'error', data: { code: 'cancelled', message: 'Turn cancelled' } };
+  }
+
+  private registerTools(
     list: Array<{ name: string; description: string; inputSchema: Record<string, unknown> }>,
-  ): AgentToolSpec[] {
+  ): RegisteredTool[] {
     return list.map((tool) => {
       const schema = tool.inputSchema ?? {};
       const properties = (schema.properties ?? schema) as Record<string, unknown>;
-      return { name: tool.name, description: tool.description, inputSchema: properties };
+      const required = Array.isArray(schema.required) ? schema.required.filter((key): key is string => typeof key === 'string') : [];
+      return {
+        spec: { name: tool.name, description: tool.description, inputSchema: properties },
+        required,
+      };
     });
+  }
+
+  private invalidArgFields(call: AgentToolCall, tools: RegisteredTool[]): string[] {
+    const found = tools.find((tool) => tool.spec.name === call.name);
+    if (!found) return [];
+    const args = call.arguments ?? {};
+    return found.required.filter((field) => args[field] === undefined || args[field] === null || args[field] === '');
+  }
+
+  private asProposalView(resultText: string): { proposalId: string; status?: string } | null {
+    try {
+      const parsed = JSON.parse(resultText) as Record<string, unknown>;
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+      if (typeof parsed.proposalId !== 'string') return null;
+      if ('applyPayload' in parsed || 'apply_payload' in parsed) return null;
+      return parsed as { proposalId: string; status?: string };
+    } catch {
+      return null;
+    }
   }
 
   private toLoopMessage(row: {

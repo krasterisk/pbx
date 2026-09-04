@@ -186,7 +186,12 @@ describe('PbxAgentLoopService', () => {
   it('aborts the in-flight model request and emits cancelled without further tools', async () => {
     const abort = new AbortController();
     const { service, llm, mcpTools } = createHarness([]);
+    let releaseStarted!: () => void;
+    const chatStarted = new Promise<void>((resolve) => {
+      releaseStarted = resolve;
+    });
     llm.chat.mockImplementation(async (params: { signal?: AbortSignal }) => {
+      releaseStarted();
       const signal = params.signal;
       if (!signal?.aborted) {
         await new Promise<void>((resolve) => {
@@ -201,8 +206,7 @@ describe('PbxAgentLoopService', () => {
     });
 
     const pending = collect(service.runTurn('stop', { uid: THREAD }, turnContext({ signal: abort.signal })));
-    await Promise.resolve();
-    await Promise.resolve();
+    await chatStarted;
     abort.abort();
     const events = await pending;
     const terminal = events[events.length - 1];
