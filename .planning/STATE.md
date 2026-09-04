@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 status: executing
-stopped_at: Completed 15-24-PLAN.md
-last_updated: "2026-09-04T16:40:00.000Z"
-state_head: fcbeb9ca3fbd53927b2e6741c876afad3e15ed74
+stopped_at: Completed 15-23-PLAN.md
+last_updated: "2026-09-04T16:49:47.591Z"
+state_head: 9fc5a8cb28566a6e2da3f5e2ec4010d86447e4f2
 progress:
   total_phases: 15
   completed_phases: 4
   total_plans: 166
-  completed_plans: 164
+  completed_plans: 166
 milestone_name: milestone
 current_phase: 15
 current_phase_name: universal-pbx-ai-agent
@@ -21,7 +21,7 @@ current_phase_name: universal-pbx-ai-agent
 
 Phase 14 (visual-route-builder-and-automation) — COMPLETE (2026-09-04). 11/11 plans (incl. gap 14-11); verify 27/27; G-14-2 resolved.
 
-Phase 15 (universal-pbx-ai-agent) — EXECUTING (2026-09-04). 15-01…15-24 complete. 15-24: platform-admin usage API and card (conversation-row spend, honest missing pricing, proposal funnel, silent-write detector); tenants do not choose or see the model. Next: обязательный `/gsd-secure-phase 15`.
+Phase 15 (universal-pbx-ai-agent) — EXECUTING (2026-09-04). 15-01…15-24 complete. 15-23: D-17 completeness suite over every `src/modules` directory plus D-16 convention in ARCHITECTURE and `developer-convention`. 15-24: platform-admin usage API and card (conversation-row spend, honest missing pricing, proposal funnel, silent-write detector); tenants do not choose or see the model. Next: обязательный `/gsd-secure-phase 15`.
 
 Phase 13 (custom-voicemail-instead-of-voicemail) — COMPLETE (2026-09-03). 13/13 plans, verify passed 19/19, security SECURED. Live greeting→Record→notify deferred.
 12-17 closed 2026-08-31: M1/M6/M7/M8/M9 approved; M4/M5/M12 deferred (live voice later). Call-group ALTERs already on prod.
@@ -387,6 +387,9 @@ Phase 1 — MOH: pending verify.
 - [Phase 15]: Only the model client is a fixture; registry, sanitizeArgs, callTool, proposals and audit stay real
 - [Phase 15]: Mutating evals assert both a pending proposal and unchanged entity counts
 - [Phase 15]: Adversarial slots 19-20 stay in this suite for /gsd-secure-phase 15
+- [Phase 15]: Classification keys are module directories; adapter domain is an override when it differs (pbx, skills, route_templates, dialplan_dry_run)
+- [Phase 15]: Shared skills are declared on the covered entry so stub SKILL.md files are not required
+- [Phase 15]: callback-requests, cloud-admin and route-references are excluded with written reasons
 
 ## Roadmap Evolution
 
@@ -571,10 +574,11 @@ Also open: Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 veri
 | Phase 15 P19 | 16min | 3 tasks | 7 files |
 | Phase 15-universal-pbx-ai-agent P22 | 18min | 3 tasks | 5 files |
 | Phase 15 P24 | 16min | 3 tasks | 10 files |
+| Phase 15-universal-pbx-ai-agent P23 | 18min | 3 tasks | 4 files |
 
 ## Session
 
-**Last session:** 2026-09-04T16:40:00.000Z
-**Stopped at:** Completed 15-24-PLAN.md
+**Last session:** 2026-09-04T16:49:45.949Z
+**Stopped at:** Completed 15-23-PLAN.md
 **Resume file:** None
 **Also ready:** .planning/phases/15-universal-pbx-ai-agent/15-CONTEXT.md
