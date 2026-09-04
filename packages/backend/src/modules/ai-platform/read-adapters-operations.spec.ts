@@ -1,3 +1,6 @@
+import * as fs from 'fs';
+import * as path from 'path';
+import { TENANT_ARG_KEYS } from './ai-adapter.types';
 import {
   OPERATIONS_PREVIEW_LENGTH,
   OPERATIONS_RESULT_CEILING,
@@ -7,6 +10,13 @@ import {
 import { PromptsAiAdapter } from '../prompts/prompts-ai.adapter';
 import { ServiceRequestsAiAdapter } from '../service-requests/service-requests-ai.adapter';
 import { KomandorClaimsAiAdapter } from '../komandor-claims/komandor-claims-ai.adapter';
+
+export const SHARED_OPERATIONS_SKILL_DOMAINS = [
+  'notifications',
+  'prompts',
+  'service-requests',
+  'komandor-claims',
+] as const;
 
 const TENANT_A = 100;
 const TENANT_B = 200;
@@ -418,4 +428,128 @@ describe('read-adapters-operations — claims (D-15, content boundary)', () => {
     expect(claims.findAll).not.toHaveBeenCalledWith(TENANT_B, expect.anything());
   });
 });
+
+describe('read-adapters-operations — shared skill (D-12, D-16)', () => {
+  it('ships one operations skill covering all four domains, preview and the read-only boundary', () => {
+    const skillPath = path.join(__dirname, '../../skills/operations/SKILL.md');
+    const raw = fs.readFileSync(skillPath, 'utf8');
+    expect(raw).toMatch(/^---\r?\nname: operations\r?\ndescription: .+\r?\n---/);
+    for (const domain of SHARED_OPERATIONS_SKILL_DOMAINS) {
+      expect(raw).toContain(domain);
+    }
+    expect(raw).toMatch(/превью|preview/i);
+    expect(raw).toMatch(/статус/i);
+    expect(raw).toMatch(/не отправ|не созда|не меня|cannot create|cannot send/i);
+    expect(raw).toMatch(/15-23|shared-skill|общий файл/i);
+  });
+});
+
+describe('read-adapters-operations — per-tool and registry-enumerated isolation (D-22)', () => {
+  let notificationsAdapter: NotificationsAiAdapter;
+  let promptsAdapter: PromptsAiAdapter;
+  let requestsAdapter: ServiceRequestsAiAdapter;
+  let claimsAdapter: KomandorClaimsAiAdapter;
+
+  beforeEach(() => {
+    const registry = { register: jest.fn() };
+    notificationsAdapter = new NotificationsAiAdapter(
+      {
+        findAll: jest.fn(async (uid: number) =>
+          uid === TENANT_A ? [{ ...NOTE_A }] : uid === TENANT_B ? [{ ...NOTE_B }] : [],
+        ),
+      } as any,
+      registry as any,
+    );
+    promptsAdapter = new PromptsAiAdapter(
+      {
+        findAll: jest.fn(async (uid: number) =>
+          uid === TENANT_A ? [{ ...PROMPT_A }] : uid === TENANT_B ? [{ ...PROMPT_B }] : [],
+        ),
+      } as any,
+      registry as any,
+      {
+        findAll: jest.fn(async (uid: number) =>
+          uid === TENANT_A ? [{ ...IVR_A }] : uid === TENANT_B ? [{ ...IVR_B }] : [],
+        ),
+      } as any,
+    );
+    requestsAdapter = new ServiceRequestsAiAdapter(
+      {
+        findAll: jest.fn(async (uid: number) => ({
+          rows: uid === TENANT_A ? [{ ...REQUEST_A }] : uid === TENANT_B ? [{ ...REQUEST_B }] : [],
+          count: 1,
+        })),
+      } as any,
+      registry as any,
+    );
+    claimsAdapter = new KomandorClaimsAiAdapter(
+      {
+        findAll: jest.fn(async (uid: number) => ({
+          rows: uid === TENANT_A ? [{ ...CLAIM_A }] : uid === TENANT_B ? [{ ...CLAIM_B }] : [],
+          count: 1,
+        })),
+      } as any,
+      registry as any,
+    );
+  });
+
+  it('proves per-tool cross-tenant isolation and forged-key ignore for every operations adapter tool', async () => {
+    const tools = [
+      ...notificationsAdapter.getTools(),
+      ...promptsAdapter.getTools(),
+      ...requestsAdapter.getTools(),
+      ...claimsAdapter.getTools(),
+    ];
+    expect(tools.map((tool) => tool.name).sort()).toEqual(
+      ['list_audio_prompts', 'list_claims', 'list_notifications', 'list_service_requests'].sort(),
+    );
+
+    const foreignA = [
+      'Tenant B',
+      'other-menu',
+      'SR-B-22',
+      'CL-B-42',
+      'Tenant B greeting',
+      'Tenant B private',
+      'Tenant B request',
+      'Tenant B claim',
+    ];
+    const foreignB = [
+      'PIN 4455',
+      'main-menu',
+      'Welcome greeting',
+      'SR-A-11',
+      'CL-A-41',
+      'secret street',
+    ];
+
+    for (const tool of tools) {
+      const forged = { limit: 10 } as Record<string, unknown>;
+      for (const key of TENANT_ARG_KEYS) {
+        forged[key] = TENANT_B;
+      }
+
+      const resultA = await tool.handler({ limit: 10 }, TENANT_A);
+      const forgedResult = await tool.handler(forged, TENANT_A);
+      const resultB = await tool.handler({ limit: 10 }, TENANT_B);
+
+      const blobA = JSON.stringify(resultA);
+      const blobB = JSON.stringify(resultB);
+      try {
+        expect(JSON.stringify(forgedResult)).toEqual(blobA);
+        for (const token of foreignA) {
+          expect(blobA).not.toContain(token);
+        }
+        for (const token of foreignB) {
+          expect(blobB).not.toContain(token);
+        }
+        expect(blobA).not.toEqual(blobB);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        throw new Error(`${tool.name}: ${message}`);
+      }
+    }
+  });
+});
+
 
