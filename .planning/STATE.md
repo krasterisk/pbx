@@ -2,8 +2,8 @@
 gsd_state_version: 1.0
 milestone: v1.0
 status: executing
-stopped_at: Completed 15-22-PLAN.md
-last_updated: "2026-09-04T16:22:31.858Z"
+stopped_at: Completed 15-24-PLAN.md
+last_updated: "2026-09-04T16:40:00.000Z"
 state_head: fcbeb9ca3fbd53927b2e6741c876afad3e15ed74
 progress:
   total_phases: 15
@@ -21,7 +21,7 @@ current_phase_name: universal-pbx-ai-agent
 
 Phase 14 (visual-route-builder-and-automation) — COMPLETE (2026-09-04). 11/11 plans (incl. gap 14-11); verify 27/27; G-14-2 resolved.
 
-Phase 15 (universal-pbx-ai-agent) — EXECUTING (2026-09-04). Sequential next: 15-23 of 24. 15-01 complete (sanitized dispatch, AgentDiffProposal, bootstrap registry, D-22 table, getDomains). 15-02 complete (skill catalog, read_skill, nest-cli assets, four seed skills). 15-03 complete (persistent threads / messages / proposals, D-08 counters, audit thread_uid). 15-04 complete (PbxAgentLlmClient, findDefaultLlm, catalog-only prompt, get_pbx_state snapshot). 15-05 complete (propose-then-apply, directory drafts, live-ops exception, READONLY deny, precedence check). 15-06 complete (topbar trigger, Ctrl+Shift+J, 520px grid panel, no FAB). 15-07 complete (adapter precedence, contexts + CDR adapters, eighteen-name inventory). 15-08 complete (in-process agent turn, SSE heartbeat, step ceiling, cancel, proxy deleted). 15-09 complete (subscriber + trunk mutations as proposals, credentials in EndpointsService, bulk ceiling 50). 15-10 complete (IVR + queue mutations as proposals, digit/overflow checks, skipped handwritten twins). 15-11 complete (typed route chains, RouteApplyService confirm, apply_dialplan retired). 15-12 complete (thread rail, restore from detail query, four rail states, keep-first delete). 15-13 complete (call-group + hold-music adapters, membership/class validation, collision-free names). 15-14 complete. 15-16 complete (schedule evaluate in tenant zone, number destination or unrouted, portal users allow-listed). 15-17 complete (tenant/platform settings read-only, SMS/Telegram channel+delivery, no secrets or send). 15-18 complete (localised per-step progress, stop/ceiling/disconnect, follow-scroll). 15-20 complete (voice robot describe resolves TTS/STT configured vs missing; engine allow lists; no synth/transcribe). 15-21 complete (notifications, prompts, service-requests, claims read-only with shared ceiling/preview; operations skill). 15-15 complete (handwritten cutover, JWT-only /api/mcp, CC_AI_KEY_SECRET fail-fast; aiPBX MCP callback switched off). 15-19 complete (allow-listed tenant-filtered channels, bounded events, owned compiled dialplan, evidence-order skill). 15-22 complete (fixture-replay harness, ten bucket scenarios, test:pbx-agent-eval). Next sequential: 15-23. After all 24: обязательный `/gsd-secure-phase 15`.
+Phase 15 (universal-pbx-ai-agent) — EXECUTING (2026-09-04). 15-01…15-24 complete. 15-24: platform-admin usage API and card (conversation-row spend, honest missing pricing, proposal funnel, silent-write detector); tenants do not choose or see the model. Next: обязательный `/gsd-secure-phase 15`.
 
 Phase 13 (custom-voicemail-instead-of-voicemail) — COMPLETE (2026-09-03). 13/13 plans, verify passed 19/19, security SECURED. Live greeting→Record→notify deferred.
 12-17 closed 2026-08-31: M1/M6/M7/M8/M9 approved; M4/M5/M12 deferred (live voice later). Call-group ALTERs already on prod.
@@ -380,6 +380,8 @@ Phase 1 — MOH: pending verify.
 - [Phase 15]: Stop, ceiling, failure and disconnect keep distinct outcomes and copy
 - [Phase 15]: Follow only while the reader is at the bottom; jump-to-latest resumes it
 - [Phase 15]: aiPBX mcpServers callback (KRASTERISK_SERVICE_TOKEN + X-Vpbx-User-Uid) is deliberately switched off. Krasterisk now runs its own in-process agent loop (D-06 / 15-08). aiPBX and other external APIs remain LLM providers via cc_ai_providers / OpenAI-compatible chat completions — they are not tool orchestrators. Breaking the header path is expected. /api/mcp stays for future JWT callers. User confirmed 2026-09-04: will use various external LLM APIs including aiPBX as model providers, not as MCP brains. — Human checkpoint 2026-09-04: external tool-server integration switched off; JWT-only /api/mcp.
+- [Phase 15]: 15-24 spend unavailable is distinct from zero; default provider uid stored on ai_chat_settings user_uid=0; findDefaultLlm still prefers CC_AI_DEFAULT_PROVIDER_UID
+- [Phase 15]: 15-24 silent-write detector matches mutating audit rows to applied proposals by tenant and thread; SuperAdmin-only /ai-chat/usage
 - [Phase 15]: Named diagnostic reads only; AmiService.command never receives a caller-supplied string
 - [Phase 15]: Tenant filter is derived from contexts and endpoint ids because switch state has no tenant column
 - [Phase 15]: Only the model client is a fixture; registry, sanitizeArgs, callTool, proposals and audit stay real
@@ -420,7 +422,7 @@ Phase 1 — MOH: pending verify.
 
 ## Next GSD command
 
-**Phase 15 executing** (2026-09-04): 15-01…15-22 complete. Next: `/gsd-execute-phase 15` (continues at 15-23) → after all plans, обязательный `/gsd-secure-phase 15`.
+**Phase 15 plans complete** (2026-09-04): 15-01…15-24 done. Next: `/gsd-secure-phase 15`.
 
 Also open: Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 verify; Phase 8 / 08-11 Android smoke.
 
@@ -568,10 +570,11 @@ Also open: Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 veri
 | Phase 15-universal-pbx-ai-agent P15 | 75min | 4 tasks | 14 files |
 | Phase 15 P19 | 16min | 3 tasks | 7 files |
 | Phase 15-universal-pbx-ai-agent P22 | 18min | 3 tasks | 5 files |
+| Phase 15 P24 | 16min | 3 tasks | 10 files |
 
 ## Session
 
-**Last session:** 2026-09-04T16:22:30.665Z
-**Stopped at:** Completed 15-22-PLAN.md
+**Last session:** 2026-09-04T16:40:00.000Z
+**Stopped at:** Completed 15-24-PLAN.md
 **Resume file:** None
 **Also ready:** .planning/phases/15-universal-pbx-ai-agent/15-CONTEXT.md
