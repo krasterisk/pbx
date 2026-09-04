@@ -6,6 +6,7 @@ import { CcAiProvider } from '../ai-agents/models/ai-provider.model';
 import { CcAiAuditLog } from '../ai-agents/models/ai-audit-log.model';
 import { AgentThread } from './models/agent-thread.model';
 import { AgentProposal } from './models/agent-proposal.model';
+import { AiChatSettings } from './ai-chat-settings.model';
 
 const SILENT_WRITE_INTERVAL_MS = 60 * 60 * 1000;
 const SILENT_WRITE_WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -40,6 +41,17 @@ export interface SilentWriteHit {
   tenantUid: number;
   toolName: string;
   auditUid: number;
+}
+
+export interface DefaultModelProvider {
+  uid: number;
+  name: string;
+  model: string | null;
+}
+
+export interface DefaultModelView {
+  providerUid: number | null;
+  providers: DefaultModelProvider[];
 }
 
 type ThreadUsageRow = {
@@ -82,6 +94,7 @@ export class AgentUsageService {
     @InjectModel(CcAiProvider) private readonly providers: typeof CcAiProvider,
     @InjectModel(AgentProposal) private readonly proposals: typeof AgentProposal,
     @InjectModel(CcAiAuditLog) private readonly audit: typeof CcAiAuditLog,
+    @InjectModel(AiChatSettings) private readonly settings: typeof AiChatSettings,
   ) {}
 
   async queryTenantUsage(from: Date, to: Date): Promise<TenantUsageRow[]> {
@@ -207,6 +220,35 @@ export class AgentUsageService {
       );
     }
     return hits;
+  }
+
+  async getDefaultModel(): Promise<DefaultModelView> {
+    const rows = await this.providers.findAll({
+      attributes: ['uid', 'name', 'defaults', 'capabilities', 'enabled'],
+    });
+    const providers = rows
+      .filter((row) => row.enabled && Array.isArray(row.capabilities) && row.capabilities.includes('llm'))
+      .map((row) => ({
+        uid: row.uid,
+        name: row.name,
+        model: typeof row.defaults?.model === 'string' ? row.defaults.model : null,
+      }));
+    const stored = this.settings
+      ? await this.settings.findOne({ where: { user_uid: 0 } })
+      : null;
+    const raw = stored?.settings?.defaultProviderUid;
+    const providerUid = typeof raw === 'number' ? raw : null;
+    return { providerUid, providers };
+  }
+
+  async setDefaultModel(providerUid: number): Promise<DefaultModelView> {
+    const [row] = await this.settings.findOrCreate({
+      where: { user_uid: 0 },
+      defaults: { user_uid: 0, confirm_destructive: 0, settings: {} } as any,
+    });
+    const next = { ...(row.settings ?? {}), defaultProviderUid: providerUid };
+    await row.update({ settings: next });
+    return this.getDefaultModel();
   }
 
   @Interval('agent-silent-write', SILENT_WRITE_INTERVAL_MS)

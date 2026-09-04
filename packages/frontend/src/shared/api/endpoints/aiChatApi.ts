@@ -5,6 +5,34 @@ export interface IAiChatSettings {
     confirmDestructive: boolean;
 }
 
+export interface IAgentUsageRow {
+    tenantUid: number;
+    tokensIn: number;
+    tokensOut: number;
+    turns: number;
+    spendUsd: number | null;
+    spendAvailable: boolean;
+}
+
+export interface IAgentUsageFunnelRow {
+    tenantUid: number;
+    pending: number;
+    applied: number;
+    rejected: number;
+    denied: number;
+}
+
+export interface IAgentDefaultModelProvider {
+    uid: number;
+    name: string;
+    model: string | null;
+}
+
+export interface IAgentDefaultModel {
+    providerUid: number | null;
+    providers: IAgentDefaultModelProvider[];
+}
+
 export type AiChatThreadStatus = 'active' | 'archived';
 export type AiChatThreadMessageRole = 'user' | 'assistant' | 'tool' | 'system';
 
@@ -77,6 +105,26 @@ const aiChatApi = rtkApi.injectEndpoints({
             }),
             invalidatesTags: ['AiChatSettings'],
         }),
+        getAgentUsage: builder.query<IAgentUsageRow[], { from: string; to: string }>({
+            query: ({ from, to }) => `/ai-chat/usage?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
+            providesTags: ['AiChatSettings'],
+        }),
+        getAgentUsageFunnel: builder.query<IAgentUsageFunnelRow[], { from: string; to: string }>({
+            query: ({ from, to }) => `/ai-chat/usage/funnel?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
+            providesTags: ['AiChatSettings'],
+        }),
+        getAgentDefaultModel: builder.query<IAgentDefaultModel, void>({
+            query: () => '/ai-chat/usage/default-model',
+            providesTags: ['AiChatSettings'],
+        }),
+        updateAgentDefaultModel: builder.mutation<IAgentDefaultModel, { providerUid: number }>({
+            query: (body) => ({
+                url: '/ai-chat/usage/default-model',
+                method: 'PUT',
+                body,
+            }),
+            invalidatesTags: ['AiChatSettings'],
+        }),
         getAiChatThreads: builder.query<IAiChatThread[], void>({
             query: () => '/ai-chat/threads',
             providesTags: (result) =>
@@ -132,6 +180,10 @@ export const {
     useGetAiChatStateQuery,
     useGetAiChatSettingsQuery,
     useUpdateAiChatSettingsMutation,
+    useGetAgentUsageQuery,
+    useGetAgentUsageFunnelQuery,
+    useGetAgentDefaultModelQuery,
+    useUpdateAgentDefaultModelMutation,
     useGetAiChatThreadsQuery,
     useGetAiChatThreadQuery,
     useCreateAiChatThreadMutation,

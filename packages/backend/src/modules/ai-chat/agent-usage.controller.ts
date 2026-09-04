@@ -1,8 +1,14 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Put, Query, UseGuards } from '@nestjs/common';
+import { IsInt } from 'class-validator';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { SuperAdminGuard } from '../auth/superadmin.guard';
 import { AgentUsageService } from './agent-usage.service';
+
+class UpdateDefaultModelDto {
+  @IsInt()
+  providerUid: number;
+}
 
 /**
  * Platform-administrator usage endpoints (D-07 / D-08).
@@ -31,5 +37,17 @@ export class AgentUsageController {
   @Get('errors')
   async getErrors(@Query('from') from: string, @Query('to') to: string) {
     return this.usage.queryToolErrors(new Date(from), new Date(to));
+  }
+
+  @ApiOperation({ summary: 'Platform default LLM provider (D-07)' })
+  @Get('default-model')
+  async getDefaultModel() {
+    return this.usage.getDefaultModel();
+  }
+
+  @ApiOperation({ summary: 'Save platform default LLM provider (D-07)' })
+  @Put('default-model')
+  async setDefaultModel(@Body() dto: UpdateDefaultModelDto) {
+    return this.usage.setDefaultModel(dto.providerUid);
   }
 }
