@@ -10,6 +10,8 @@ import { KomandorClaimsPublicController } from './komandor-claims-public.control
 import { SmsModule } from '../sms/sms.module';
 import { MailerModule } from '../mailer/mailer.module';
 import { CloudAdminModule } from '../cloud-admin/cloud-admin.module';
+import { AiPlatformModule } from '../ai-platform/ai-platform.module';
+import { KomandorClaimsAiAdapter } from './komandor-claims-ai.adapter';
 
 @Module({
   imports: [
@@ -18,9 +20,10 @@ import { CloudAdminModule } from '../cloud-admin/cloud-admin.module';
     SmsModule,
     MailerModule,
     CloudAdminModule,
+    AiPlatformModule,
   ],
   controllers: [KomandorClaimsController, KomandorClaimsPublicController],
-  providers: [KomandorClaimsService],
+  providers: [KomandorClaimsService, KomandorClaimsAiAdapter],
   exports: [KomandorClaimsService],
 })
 export class KomandorClaimsModule {}

@@ -9,6 +9,8 @@ import { ServiceRequestsController } from './service-requests.controller';
 import { ServiceRequestsPublicController } from './service-requests-public.controller';
 import { SmsModule } from '../sms/sms.module';
 import { CloudAdminModule } from '../cloud-admin/cloud-admin.module';
+import { AiPlatformModule } from '../ai-platform/ai-platform.module';
+import { ServiceRequestsAiAdapter } from './service-requests-ai.adapter';
 
 @Module({
   imports: [
@@ -16,9 +18,10 @@ import { CloudAdminModule } from '../cloud-admin/cloud-admin.module';
     SequelizeModule.forFeature([ServiceRequest, CcSubject, CcDistrict]),
     SmsModule,
     CloudAdminModule,
+    AiPlatformModule,
   ],
   controllers: [ServiceRequestsController, ServiceRequestsPublicController],
-  providers: [ServiceRequestsService],
+  providers: [ServiceRequestsService, ServiceRequestsAiAdapter],
   exports: [ServiceRequestsService],
 })
 export class ServiceRequestsModule {}

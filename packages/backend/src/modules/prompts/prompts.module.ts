@@ -6,6 +6,8 @@ import { PromptsController } from './prompts.controller';
 import { AmiModule } from '../ami/ami.module';
 import { IvrsModule } from '../ivrs/ivrs.module';
 import { SystemSettingsModule } from '../system-settings/system-settings.module';
+import { AiPlatformModule } from '../ai-platform/ai-platform.module';
+import { PromptsAiAdapter } from './prompts-ai.adapter';
 
 @Module({
   imports: [
@@ -13,9 +15,10 @@ import { SystemSettingsModule } from '../system-settings/system-settings.module'
     AmiModule,
     IvrsModule,
     SystemSettingsModule,
+    AiPlatformModule,
   ],
   controllers: [PromptsController],
-  providers: [PromptsService],
+  providers: [PromptsService, PromptsAiAdapter],
   exports: [PromptsService],
 })
 export class PromptsModule {}
