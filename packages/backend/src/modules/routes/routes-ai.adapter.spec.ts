@@ -268,7 +268,7 @@ describe('RoutesAiAdapter', () => {
     it('returns a pending proposal whose summary lists steps and states the dialplan will be reloaded', async () => {
       const result = await getTool('create_route').handler(
         {
-          context_uid: 3,
+          context_uid: 5,
           pattern: '74950001111',
           actions: [QUEUE_ACTION],
         },
@@ -280,7 +280,7 @@ describe('RoutesAiAdapter', () => {
         expect.objectContaining({
           tool: 'create_route',
           args: expect.objectContaining({
-            context_uid: 3,
+            context_uid: 5,
             extensions: ['74950001111'],
             actions: expect.arrayContaining([expect.objectContaining({ type: 'toqueue' })]),
           }),
@@ -332,7 +332,7 @@ describe('RoutesAiAdapter', () => {
     it('writes the route and calls the orchestrator exactly once, never the low-level applier', async () => {
       const proposal = await getTool('create_route').handler(
         {
-          context_uid: 3,
+          context_uid: 5,
           pattern: '74950001111',
           actions: [QUEUE_ACTION],
         },
@@ -346,14 +346,125 @@ describe('RoutesAiAdapter', () => {
       expect(routesService.create).toHaveBeenCalledTimes(1);
       expect(routesService.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          context_uid: 3,
+          context_uid: 5,
           extensions: ['74950001111'],
         }),
         TENANT_A,
       );
       expect(routeApplyService.applyContext).toHaveBeenCalledTimes(1);
-      expect(routeApplyService.applyContext).toHaveBeenCalledWith(3, TENANT_A, expect.anything());
+      expect(routeApplyService.applyContext).toHaveBeenCalledWith(5, TENANT_A, expect.anything());
       expect(dialplanApplyService.applyCategories).not.toHaveBeenCalled();
     });
   });
+
+  describe('precedence and impact at proposal time (D-19, D-20)', () => {
+    it('refuses a catch-all above a specific or emergency pattern and names both', async () => {
+      const result = await getTool('create_route').handler(
+        {
+          context_uid: 3,
+          pattern: '112',
+          actions: [QUEUE_ACTION],
+        },
+        TENANT_A,
+      );
+
+      expect(result.applyPayload).toBeUndefined();
+      expect(result.refused).toBe(true);
+      expect(JSON.stringify(result)).toMatch(/_X\./);
+      expect(JSON.stringify(result)).toMatch(/112/);
+    });
+
+    it('adds an impact note for inbound or catch-all proposals', async () => {
+      const result = await getTool('create_route').handler(
+        {
+          context_uid: 5,
+          pattern: '_X.',
+          actions: [QUEUE_ACTION],
+        },
+        TENANT_A,
+      );
+
+      expect(result.applyPayload).toBeDefined();
+      const card = (result.summary as string[]).join(' ');
+      expect(card).toMatch(/impact|входящ|catch-all|авар/i);
+    });
+  });
+
+  describe('delete_route (D-19)', () => {
+    it('names the pattern and the destination that will stop working', async () => {
+      const result = await getTool('delete_route').handler({ id: 11 }, TENANT_A);
+
+      expect(routesService.remove).not.toHaveBeenCalled();
+      const card = (result.summary as string[]).join(' ');
+      expect(card).toMatch(/74951234567/);
+      expect(card).toMatch(/sales/);
+    });
+  });
+
+  describe('failed reload (D-20)', () => {
+    it('leaves the proposal pending with the error after the route write is visible', async () => {
+      routeApplyService.applyContext.mockRejectedValueOnce(new Error('AMI reload failed'));
+      const proposal = await getTool('create_route').handler(
+        {
+          context_uid: 5,
+          pattern: '74950002222',
+          actions: [QUEUE_ACTION],
+        },
+        TENANT_A,
+      );
+
+      const view = await diffService.createProposal(proposal, ctxA);
+      const result = await diffService.apply(view.proposalId, ctxA);
+
+      expect(result.ok).toBe(false);
+      expect(routesService.create).toHaveBeenCalledTimes(1);
+      expect(proposalRows[0].status).toBe('pending');
+      expect(proposalRows[0].error).toMatch(/AMI reload failed/);
+    });
+  });
+
+  describe('no standalone apply tool (D-20)', () => {
+    it('does not register a model-callable apply_dialplan after the routes adapter is adopted', () => {
+      const live = new AiAdapterRegistryService();
+      const wired = new RoutesAiAdapter(
+        routesService as any,
+        contextsService as any,
+        queuesService as any,
+        endpointsService as any,
+        trunksService as any,
+        ivrsService as any,
+        directoriesService as any,
+        live,
+      );
+      wired.onModuleInit();
+      const warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+      const mcp = createMcp(live);
+      mcp.registerAll();
+
+      expect(live.getDomains()).toContain('routes');
+      expect(mcp.getToolsList(TENANT_A).some((tool) => tool.name === 'apply_dialplan')).toBe(false);
+      expect(wired.getTools().some((tool) => tool.name === 'apply_dialplan')).toBe(false);
+      warnSpy.mockRestore();
+    });
+  });
 });
+
+function createMcp(registry: AiAdapterRegistryService): McpToolsService {
+  return new McpToolsService(
+    { findAll: jest.fn().mockResolvedValue([]), create: jest.fn(), remove: jest.fn(), bulkCreate: jest.fn() } as any,
+    { findAll: jest.fn().mockResolvedValue([]), create: jest.fn(), remove: jest.fn() } as any,
+    { findAll: jest.fn().mockResolvedValue([]), create: jest.fn(), update: jest.fn(), remove: jest.fn() } as any,
+    { findAll: jest.fn().mockResolvedValue([]), create: jest.fn(), update: jest.fn(), remove: jest.fn() } as any,
+    { create: jest.fn(), remove: jest.fn(), generateContextDialplan: jest.fn() } as any,
+    { getIncludeNames: jest.fn() } as any,
+    { findAll: jest.fn().mockResolvedValue([]) } as any,
+    { applyCategories: jest.fn() } as any,
+    {} as any,
+    { findOne: jest.fn() } as any,
+    { getStats: jest.fn(), findCalls: jest.fn() } as any,
+    registry,
+    { getSettings: jest.fn().mockResolvedValue({ confirmDestructive: false }) } as any,
+    { logAction: jest.fn().mockResolvedValue(undefined) } as any,
+    { createProposal: jest.fn(async (proposal: any) => ({ ...proposal, status: 'pending' })) } as any,
+  );
+}
