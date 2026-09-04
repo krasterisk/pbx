@@ -74,20 +74,16 @@ describe('DirectoriesAiAdapter', () => {
       expect(directoriesService.findAll).toHaveBeenNthCalledWith(2, 222);
     });
 
-    it('create_directory passes the call-time uid for two tenants in a row', async () => {
-      directoriesService.create.mockResolvedValue({ uid: 1, name: 'A', records: [] });
-      await getTool('create_directory').handler({ name: 'A', lookupFieldKey: 'internal_number' }, 111);
-      await getTool('create_directory').handler({ name: 'B', lookupFieldKey: 'internal_number' }, 222);
-      expect(directoriesService.create).toHaveBeenNthCalledWith(
-        1,
-        expect.objectContaining({ name: 'A' }),
-        111,
-      );
-      expect(directoriesService.create).toHaveBeenNthCalledWith(
-        2,
-        expect.objectContaining({ name: 'B' }),
-        222,
-      );
+    it('create_directory returns a proposal and does not write for two tenants in a row', async () => {
+      const first = await getTool('create_directory').handler({ name: 'A', lookupFieldKey: 'internal_number' }, 111);
+      const second = await getTool('create_directory').handler({ name: 'B', lookupFieldKey: 'internal_number' }, 222);
+      expect(directoriesService.create).not.toHaveBeenCalled();
+      expect(first).toEqual(expect.objectContaining({
+        applyPayload: expect.objectContaining({ tool: 'create_directory', args: expect.objectContaining({ name: 'A' }) }),
+      }));
+      expect(second).toEqual(expect.objectContaining({
+        applyPayload: expect.objectContaining({ tool: 'create_directory', args: expect.objectContaining({ name: 'B' }) }),
+      }));
     });
   });
 
@@ -105,7 +101,7 @@ describe('DirectoriesAiAdapter', () => {
       }));
     });
 
-    it('add_directory_records appends records through update', async () => {
+    it('add_directory_records proposes an append and does not write', async () => {
       directoriesService.findOne.mockResolvedValue({
         uid: 5,
         name: 'VIP',
@@ -115,9 +111,8 @@ describe('DirectoriesAiAdapter', () => {
         fields: [{ key: 'internal_number', uid: 1 }],
         records: [{ match_kind: 'exact', priority: 1, values: { internal_number: '100' } }],
       });
-      directoriesService.update.mockResolvedValue({ uid: 5, records: [] });
 
-      await getTool('add_directory_records').handler(
+      const result = await getTool('add_directory_records').handler(
         {
           uid: 5,
           records: [{ match_kind: 'exact', priority: 2, values: { internal_number: '200' } }],
@@ -125,19 +120,15 @@ describe('DirectoriesAiAdapter', () => {
         42,
       );
 
-      expect(directoriesService.update).toHaveBeenCalledWith(
-        5,
-        expect.objectContaining({
-          records: [
-            expect.objectContaining({ values: { internal_number: '100' } }),
-            expect.objectContaining({ values: { internal_number: '200' } }),
-          ],
-        }),
-        42,
-      );
+      expect(directoriesService.findOne).toHaveBeenCalledWith(5, 42);
+      expect(directoriesService.update).not.toHaveBeenCalled();
+      expect(result).toEqual(expect.objectContaining({
+        applyPayload: expect.objectContaining({ tool: 'add_directory_records' }),
+        after: { recordsCount: 2 },
+      }));
     });
 
-    it('remove_directory_records drops matching lookup values through update', async () => {
+    it('remove_directory_records proposes a drop and does not write', async () => {
       directoriesService.findOne.mockResolvedValue({
         uid: 5,
         name: 'VIP',
@@ -150,20 +141,18 @@ describe('DirectoriesAiAdapter', () => {
           { uid: 10, lookup_value: '200', values: { internal_number: '200' } },
         ],
       });
-      directoriesService.update.mockResolvedValue({ uid: 5, records: [] });
 
-      await getTool('remove_directory_records').handler(
+      const result = await getTool('remove_directory_records').handler(
         { uid: 5, lookup_values: ['100'] },
         42,
       );
 
-      expect(directoriesService.update).toHaveBeenCalledWith(
-        5,
-        expect.objectContaining({
-          records: [expect.objectContaining({ values: { internal_number: '200' } })],
-        }),
-        42,
-      );
+      expect(directoriesService.findOne).toHaveBeenCalledWith(5, 42);
+      expect(directoriesService.update).not.toHaveBeenCalled();
+      expect(result).toEqual(expect.objectContaining({
+        applyPayload: expect.objectContaining({ tool: 'remove_directory_records' }),
+        after: { recordsCount: 1 },
+      }));
     });
   });
 

@@ -6,8 +6,9 @@ import {
   AiToolDefinition,
   AiStateProvider,
   DomainAiAdapter,
+  AgentDiffProposal,
 } from '../ai-platform/ai-adapter.types';
-import type { DirectoryRecordDto, UpdateDirectoryDto } from './dto/directory.dto';
+import type { DirectoryRecordDto } from './dto/directory.dto';
 
 /**
  * DirectoriesAiAdapter — Domain AI Adapter for universal dialplan directories.
@@ -115,9 +116,12 @@ export class DirectoriesAiAdapter implements DomainAiAdapter, OnModuleInit {
         records: { type: 'array', description: '[{match_kind, priority, values, comment?}]' },
       },
       entityType: 'directory',
-      handler: async (args, uid) => {
-        const directory = await this.directoriesService.create(args as any, uid);
-        return this.summary(directory);
+      proposes: true,
+      handler: async (args) => {
+        return this.proposal('create_directory', args.name ?? 'directory', args, null, {
+          name: args.name,
+          lookupFieldKey: args.lookupFieldKey,
+        }, [`Создать справочник «${args.name}»`]);
       },
     };
   }
@@ -137,14 +141,19 @@ export class DirectoriesAiAdapter implements DomainAiAdapter, OnModuleInit {
         records: { type: 'array' },
       },
       entityType: 'directory',
+      proposes: true,
       handler: async (args, uid) => {
-        const { uid: directoryUid, ...rest } = args;
-        const directory = await this.directoriesService.update(
-          Number(directoryUid),
-          rest as UpdateDirectoryDto,
-          uid,
+        const directoryUid = Number(args.uid);
+        const current = await this.directoriesService.findOne(directoryUid, uid);
+        const { uid: _ignored, ...rest } = args;
+        return this.proposal(
+          'update_directory',
+          current.name,
+          args,
+          this.summary(current),
+          { ...this.summary(current), ...rest },
+          [`Изменить справочник «${current.name}»`],
         );
-        return this.summary(directory);
       },
     };
   }
@@ -157,10 +166,18 @@ export class DirectoriesAiAdapter implements DomainAiAdapter, OnModuleInit {
       inputSchema: { uid: { type: 'number', description: 'UID справочника' } },
       entityType: 'directory',
       destructive: true,
+      proposes: true,
       handler: async (args, uid) => {
         const directoryUid = Number(args.uid);
-        await this.directoriesService.remove(directoryUid, uid);
-        return { deleted: directoryUid };
+        const current = await this.directoriesService.findOne(directoryUid, uid);
+        return this.proposal(
+          'delete_directory',
+          current.name,
+          args,
+          this.summary(current),
+          null,
+          [`Удалить справочник «${current.name}»`],
+        );
       },
     };
   }
@@ -187,17 +204,20 @@ export class DirectoriesAiAdapter implements DomainAiAdapter, OnModuleInit {
         records: { type: 'array', description: '[{match_kind, priority, values, comment?}]' },
       },
       entityType: 'directory',
+      proposes: true,
       handler: async (args, uid) => {
         const directoryUid = Number(args.uid);
         const incoming = (args.records ?? []) as DirectoryRecordDto[];
         const current = await this.directoriesService.findOne(directoryUid, uid);
         const merged = [...this.toRecordDtos(current.records ?? []), ...incoming];
-        const directory = await this.directoriesService.update(
-          directoryUid,
-          { records: merged },
-          uid,
+        return this.proposal(
+          'add_directory_records',
+          current.name,
+          args,
+          { recordsCount: (current.records ?? []).length },
+          { recordsCount: merged.length },
+          [`Добавить ${incoming.length} записей в «${current.name}»`],
         );
-        return this.summary(directory);
       },
     };
   }
@@ -214,6 +234,7 @@ export class DirectoriesAiAdapter implements DomainAiAdapter, OnModuleInit {
       },
       entityType: 'directory',
       destructive: true,
+      proposes: true,
       handler: async (args, uid) => {
         const directoryUid = Number(args.uid);
         const lookupValues = new Set((args.lookup_values ?? []).map((value: unknown) => String(value)));
@@ -224,12 +245,14 @@ export class DirectoriesAiAdapter implements DomainAiAdapter, OnModuleInit {
           if (lookupValues.has(String(record.lookup_value))) return false;
           return true;
         });
-        const directory = await this.directoriesService.update(
-          directoryUid,
-          { records: this.toRecordDtos(remaining) },
-          uid,
+        return this.proposal(
+          'remove_directory_records',
+          current.name,
+          args,
+          { recordsCount: (current.records ?? []).length },
+          { recordsCount: remaining.length },
+          [`Удалить записи из «${current.name}»`],
         );
-        return this.summary(directory);
       },
     };
   }
@@ -249,6 +272,25 @@ export class DirectoriesAiAdapter implements DomainAiAdapter, OnModuleInit {
       name: directory.name,
       fieldsCount: (directory.fields || []).length,
       recordsCount: (directory.records || []).length,
+    };
+  }
+
+  private proposal(
+    tool: string,
+    label: string,
+    args: Record<string, unknown>,
+    before: Record<string, unknown> | null,
+    after: Record<string, unknown> | null,
+    summary: string[],
+  ): AgentDiffProposal {
+    return {
+      entityType: 'directory',
+      entityLabel: label,
+      summary,
+      before,
+      after,
+      applyPayload: { tool, args },
+      includesDialplanReload: false,
     };
   }
 }

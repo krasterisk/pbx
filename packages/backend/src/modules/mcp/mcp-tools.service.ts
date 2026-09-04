@@ -14,16 +14,22 @@ import { CdrService } from '../reports/cdr/cdr.service';
 import { AiAdapterRegistryService } from '../ai-platform/ai-adapter-registry.service';
 import { TENANT_ARG_KEYS } from '../ai-platform/ai-adapter.types';
 import { AiChatSettingsService } from '../ai-chat/ai-chat-settings.service';
+import { PbxAgentDiffService, type ProposalContext } from '../ai-chat/pbx-agent-diff.service';
+import { isAgentDiffProposal, isProposalClientView } from '../ai-chat/dto/agent-diff.dto';
 import { LoggerService } from '../logger/logger.service';
+
+const LIVE_OPS_TOOLS = new Set(['cc_force_pause_agent', 'cc_force_unpause_agent']);
 
 interface McpToolEntry {
     description: string;
     inputSchema: Record<string, any>;
     entityType: string;
-    /** Destructive tools refuse on the agent path until 15-05 proposal persist (D-18) */
+    /** Destructive tools refuse on the agent path unless proposes or live-ops (D-18) */
     destructive: boolean;
+    /** Handler result is persisted as a proposal instead of writing (D-18) */
+    proposes: boolean;
     /** vpbxUserUid is ALWAYS a call parameter — never captured via closure (D-23) */
-    handler: (args: any, vpbxUserUid: number) => Promise<Array<{ type: string; text: string }>>;
+    handler: (args: any, vpbxUserUid: number) => Promise<any>;
 }
 
 const EMOJI_RE = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu;
@@ -66,6 +72,7 @@ export class McpToolsService implements OnApplicationBootstrap {
         private readonly aiAdapterRegistry: AiAdapterRegistryService,
         private readonly aiChatSettingsService: AiChatSettingsService,
         private readonly loggerService: LoggerService,
+        private readonly pbxAgentDiffService: PbxAgentDiffService,
     ) {}
 
     onApplicationBootstrap(): void {
@@ -99,9 +106,12 @@ export class McpToolsService implements OnApplicationBootstrap {
         for (const t of this.aiAdapterRegistry.getAllTools()) {
             this.reg(t.name, t.description, t.inputSchema, async (args, uid) => {
                 const result = await t.handler(args, uid);
+                if (t.proposes && (isAgentDiffProposal(result) || isProposalClientView(result))) {
+                    return result;
+                }
                 const text = typeof result === 'string' ? result : JSON.stringify(result, null, 2);
                 return [{ type: 'text', text }];
-            }, t.entityType, !!t.destructive);
+            }, t.entityType, !!t.destructive, !!t.proposes);
         }
 
         this.logger.log(`Registered ${this.toolRegistry.size} MCP tools`);
@@ -117,7 +127,12 @@ export class McpToolsService implements OnApplicationBootstrap {
         }));
     }
 
-    async callTool(name: string, args: Record<string, any>, vpbxUserUid: number): Promise<Array<{ type: string; text: string }>> {
+    async callTool(
+        name: string,
+        args: Record<string, any>,
+        vpbxUserUid: number,
+        ctx?: Partial<ProposalContext>,
+    ): Promise<Array<{ type: string; text: string }>> {
         const tool = this.toolRegistry.get(name);
         if (!tool) {
             const available = Array.from(this.toolRegistry.keys()).join(', ');
@@ -125,9 +140,37 @@ export class McpToolsService implements OnApplicationBootstrap {
         }
 
         const cleanArgs = this.sanitizeArgs(name, args, vpbxUserUid);
+        const proposalCtx: ProposalContext = {
+            vpbxUserUid,
+            userUid: ctx?.userUid ?? 0,
+            role: ctx?.role ?? 1,
+            threadUid: ctx?.threadUid ?? 0,
+        };
 
-        // D-18/D-19: agent-path destructive dispatch always refuses until 15-05
-        // replaces this blanket with proposal persist + live-ops exceptions.
+        if (tool.proposes) {
+            try {
+                const result = await tool.handler(cleanArgs, vpbxUserUid);
+                this.loggerService.logAction(0, 'ai_tool', tool.entityType, null, vpbxUserUid, this.buildLogDetails(name, cleanArgs), 'success').catch(() => {});
+                return await this.finishProposalResult(result, proposalCtx);
+            } catch (err: any) {
+                this.logger.error(`Tool "${name}" failed for tenant ${vpbxUserUid}: ${err.message}`);
+                this.loggerService.logAction(0, 'ai_tool', tool.entityType, null, vpbxUserUid, this.buildLogDetails(name, cleanArgs), 'error').catch(() => {});
+                return this.plainText(`Ошибка: ${err.message}`);
+            }
+        }
+
+        if (LIVE_OPS_TOOLS.has(name)) {
+            try {
+                const result = await tool.handler(cleanArgs, vpbxUserUid);
+                this.loggerService.logAction(0, 'ai_tool', tool.entityType, null, vpbxUserUid, this.buildLogDetails(name, cleanArgs), 'success').catch(() => {});
+                return this.asTextParts(result);
+            } catch (err: any) {
+                this.logger.error(`Tool "${name}" failed for tenant ${vpbxUserUid}: ${err.message}`);
+                this.loggerService.logAction(0, 'ai_tool', tool.entityType, null, vpbxUserUid, this.buildLogDetails(name, cleanArgs), 'error').catch(() => {});
+                return this.plainText(`Ошибка: ${err.message}`);
+            }
+        }
+
         if (tool.destructive) {
             return this.plainText(
                 `Операция "${name}" должна быть подтверждена через карточку изменений (proposal endpoint). Вызов из агентного пути отклонён.`,
@@ -137,7 +180,7 @@ export class McpToolsService implements OnApplicationBootstrap {
         try {
             const result = await tool.handler(cleanArgs, vpbxUserUid);
             this.loggerService.logAction(0, 'ai_tool', tool.entityType, null, vpbxUserUid, this.buildLogDetails(name, cleanArgs), 'success').catch(() => {});
-            return this.stripEmojiFromParts(result);
+            return this.asTextParts(result);
         } catch (err: any) {
             this.logger.error(`Tool "${name}" failed for tenant ${vpbxUserUid}: ${err.message}`);
             this.loggerService.logAction(0, 'ai_tool', tool.entityType, null, vpbxUserUid, this.buildLogDetails(name, cleanArgs), 'error').catch(() => {});
@@ -177,6 +220,28 @@ export class McpToolsService implements OnApplicationBootstrap {
         return [{ type: 'text', text: this.stripEmoji(text) }];
     }
 
+    private asTextParts(result: any): Array<{ type: string; text: string }> {
+        if (Array.isArray(result)) {
+            return this.stripEmojiFromParts(result);
+        }
+        const text = typeof result === 'string' ? result : JSON.stringify(result, null, 2);
+        return this.plainText(text);
+    }
+
+    private async finishProposalResult(
+        result: unknown,
+        ctx: ProposalContext,
+    ): Promise<Array<{ type: string; text: string }>> {
+        if (isAgentDiffProposal(result)) {
+            const view = await this.pbxAgentDiffService.createProposal(result, ctx);
+            return this.plainText(JSON.stringify(view));
+        }
+        if (isProposalClientView(result)) {
+            return this.plainText(JSON.stringify(result));
+        }
+        return this.asTextParts(result);
+    }
+
     /** Compact, truncated audit message — avoids writing huge entry payloads into action_logs (D-19). */
     private buildLogDetails(name: string, args: Record<string, any>): string {
         let argsStr: string;
@@ -193,11 +258,12 @@ export class McpToolsService implements OnApplicationBootstrap {
         name: string,
         description: string,
         inputSchema: Record<string, any>,
-        handler: (args: any, vpbxUserUid: number) => Promise<Array<{ type: string; text: string }>>,
+        handler: (args: any, vpbxUserUid: number) => Promise<any>,
         entityType: string = 'pbx',
         destructive: boolean = false,
+        proposes: boolean = false,
     ): void {
-        this.toolRegistry.set(name, { description, inputSchema, entityType, destructive, handler });
+        this.toolRegistry.set(name, { description, inputSchema, entityType, destructive, proposes, handler });
     }
 
     /** Генерирует криптостойкий SIP-пароль */

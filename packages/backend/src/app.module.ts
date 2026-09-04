@@ -45,6 +45,7 @@ import { CallGroupMember } from './modules/call-groups/call-group-member.model';
 import { SmsModule } from './modules/sms/sms.module';
 import { CloudAdminModule } from './modules/cloud-admin/cloud-admin.module';
 import { AiChatModule } from './modules/ai-chat/ai-chat.module';
+import { AgentProposalsModule } from './modules/ai-chat/agent-proposals.module';
 import { McpModule } from './modules/mcp/mcp.module';
 import { HealthModule } from './modules/health/health.module';
 import { CallCenterModule } from './modules/callcenter/callcenter.module';
@@ -242,6 +243,7 @@ import * as path from 'path';
     TelegramModule,
     CloudAdminModule,
     AiChatModule,
+    AgentProposalsModule,
     McpModule,
     CallCenterModule,
     AiAgentsModule,

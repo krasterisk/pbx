@@ -31,6 +31,8 @@ export interface AiToolDefinition {
   entityType: string;
   /** Marks the tool as subject to the per-tenant confirmation gate (D-20/D-25) */
   destructive?: boolean;
+  /** Handler returns an AgentDiffProposal; callTool persists it instead of writing (D-18) */
+  proposes?: boolean;
   /** vpbxUserUid is passed as a call parameter — never closed over at registration */
   handler: (args: Record<string, any>, vpbxUserUid: number) => Promise<string | Record<string, any> | AgentDiffProposal>;
 }
@@ -54,7 +56,7 @@ export const TENANT_ARG_KEYS = [
  * `applyPayload` is server-side only and must never reach the model or the browser.
  */
 export interface AgentDiffProposal {
-  proposalId: string;
+  proposalId?: string;
   entityType: string;
   entityLabel: string;
   summary: string[];
