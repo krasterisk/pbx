@@ -975,7 +975,7 @@ Plans:
 
 **Depends on:** Phase 12 (типизированная цепочка — то, что агент правит), Phase 14 (dry-run как tool D-32 и шаблоны из описания D-34 — агент использует готовыми), Phase 5 (эталонный адаптер справочников как форма для остальных)
 
-**Plans:** 12/24 plans executed, волны 1…7 (`15-VALIDATION.md` — Nyquist-контракт фазы)
+**Plans:** 13/24 plans executed, волны 1…7 (`15-VALIDATION.md` — Nyquist-контракт фазы)
 
 Plans:
 
@@ -989,7 +989,7 @@ Plans:
 - [x] 15-08-PLAN.md
 - [x] 15-09-PLAN.md
 - [x] 15-10-PLAN.md
-- [ ] 15-11-PLAN.md
+- [x] 15-11-PLAN.md
 - [x] 15-12-PLAN.md
 - [ ] 15-13-PLAN.md
 - [x] 15-14-PLAN.md
@@ -1014,7 +1014,7 @@ Plans:
 - [x] `15-08-PLAN.md` — Wave 4: агентный цикл, SSE, потолок шагов, отмена, удаление прокси
 - [ ] `15-09-PLAN.md` — Wave 4: миграция абонентов и транков (5 tools) на proposals
 - [x] `15-10-PLAN.md` — Wave 4: миграция IVR и очередей (6 tools) на proposals
-- [ ] `15-11-PLAN.md` — Wave 4: маршруты типизированной цепочкой + apply через RouteApplyService (3 tools)
+- [x] `15-11-PLAN.md` — Wave 4: маршруты типизированной цепочкой + apply через RouteApplyService (3 tools)
 - [x] `15-12-PLAN.md` — Wave 2: рельса тредов, состояния, удаление с подтверждением (второй писатель локалей)
 - [ ] `15-13-PLAN.md` — Wave 4: адаптеры групп вызова и MOH (запись по D-15)
 - [ ] `15-14-PLAN.md` — Wave 3: карточка изменений, пять состояний (третий писатель локалей)
