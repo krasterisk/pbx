@@ -40,4 +40,9 @@ export class AiAdapterRegistryService {
   getToolByName(name: string): AiToolDefinition | undefined {
     return this.getAllTools().find((t) => t.name === name);
   }
+
+  /** Domain keys for the D-16/D-17 completeness gate (15-23). */
+  getDomains(): string[] {
+    return Array.from(this.adapters.keys());
+  }
 }

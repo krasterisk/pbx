@@ -162,9 +162,7 @@ export class McpToolsService implements OnApplicationBootstrap {
     }
 
     private readAdapterDomains(): string[] {
-        const registry = this.aiAdapterRegistry as AiAdapterRegistryService & { getDomains?: () => string[] };
-        if (typeof registry.getDomains !== 'function') return [];
-        return [...registry.getDomains()].sort();
+        return [...this.aiAdapterRegistry.getDomains()].sort();
     }
 
     private stripEmoji(text: string): string {
