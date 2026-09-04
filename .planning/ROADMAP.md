@@ -920,7 +920,7 @@ Plans:
 
 **Depends on:** Phase 12 (типизированный контракт редактора и корректный генератор `actionToDialplan` — основание и для схемы, и для симуляции)
 
-**Plans:** 10/10 plans executed
+**Plans:** 11 plans (10 executed + 1 gap closure)
 
 Plans:
 
@@ -934,6 +934,7 @@ Plans:
 - [x] 14-08-PLAN.md
 - [x] 14-09-PLAN.md
 - [x] 14-10-PLAN.md
+- [ ] 14-11-PLAN.md — Gap G-14-2: template preview slot chips (Surface H / D-33 / D-35)
 - [x] `14-01-PLAN.md` — Wave 0: specs walk/hop/reask + action-reference scaffold
 - [x] `14-02-PLAN.md` — Wave 1: индекс ссылок backend + delete 409 (tracer IVR)
 - [x] `14-03-PLAN.md` — Wave 2: блок-схема route+IVR + react-to-print (tracer Schema tab)
