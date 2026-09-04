@@ -245,6 +245,47 @@ describe('legacy-tool-migration (D-22, D-27)', () => {
       expect(raw).toMatch(/50|лимит|cap/i);
     });
   });
+
+  describe('eighteen-name migration inventory (D-27)', () => {
+    it('declares all eighteen handwritten names with a target domain', () => {
+      expect(LEGACY_TOOL_INVENTORY).toHaveLength(18);
+      expect(new Set(LEGACY_TOOL_INVENTORY.map((row) => row.name)).size).toBe(18);
+      for (const row of LEGACY_TOOL_INVENTORY) {
+        expect(row.domain.length).toBeGreaterThan(0);
+      }
+    });
+
+    it('records apply_dialplan as retired with a reason and keeps it absent after routes migrate', () => {
+      const retired = LEGACY_TOOL_INVENTORY.find((row) => row.name === 'apply_dialplan');
+      expect(retired).toMatchObject({ domain: 'routes', fate: 'retired' });
+      expect(retired?.reason).toMatch(/15-11|confirm/i);
+
+      const routesMigrated = registry.getDomains().includes('routes');
+      const inMcp = mcp.getToolsList(TENANT_A).some((tool) => tool.name === 'apply_dialplan');
+      if (routesMigrated) {
+        expect(inMcp).toBe(false);
+      }
+    });
+
+    it('reports adapter-served, handwritten, or retired and fails on a duplicate or a vanished tool', () => {
+      const report = reportLegacyMigrationState(registry, mcp);
+      expect(report).toHaveLength(18);
+
+      const byName = Object.fromEntries(report.map((row) => [row.name, row.state]));
+      expect(byName.list_contexts).toBe('adapter-served');
+      expect(byName.get_cdr_summary).toBe('adapter-served');
+      expect(byName.find_cdr_calls).toBe('adapter-served');
+      expect(byName.create_trunk).toBe('handwritten');
+      expect(['handwritten', 'retired']).toContain(byName.apply_dialplan);
+
+      const mcpNames = mcp.getToolsList(TENANT_A).map((tool) => tool.name);
+      expect(new Set(mcpNames).size).toBe(mcpNames.length);
+
+      for (const row of report) {
+        expect(['adapter-served', 'handwritten', 'retired']).toContain(row.state);
+      }
+    });
+  });
 });
 
 function parseToolJson(result: Array<{ type: string; text: string }>): Record<string, any> {
