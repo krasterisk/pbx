@@ -1,6 +1,11 @@
+import { Logger } from '@nestjs/common';
+import axios from 'axios';
 import { encryptSecret } from '../ai-agents/util/secret-cipher.util';
 import { PbxAgentLlmClient } from './pbx-agent-llm.client';
 import type { AgentChatParams } from './pbx-agent.types';
+
+jest.mock('axios');
+const mockedAxios = axios as jest.Mocked<typeof axios>;
 
 const PLAIN_KEY = 'sk-agent-secret';
 
@@ -52,6 +57,7 @@ describe('PbxAgentLlmClient', () => {
         client = new PbxAgentLlmClient();
         fetchMock = jest.fn();
         global.fetch = fetchMock as unknown as typeof fetch;
+        mockedAxios.post.mockReset();
     });
 
     afterEach(() => {
@@ -214,5 +220,100 @@ describe('PbxAgentLlmClient', () => {
             code: expect.any(String),
             message: expect.stringMatching(/endpoint|url|normalize|websocket/i),
         }));
+    });
+
+    it('returns a structured error naming a provider that lacks the language-model capability', async () => {
+        const result = await client.chat({
+            provider: provider({ name: 'Yandex STT', capabilities: ['stt'] }),
+            messages: [{ role: 'user', content: 'hi' }],
+            stream: true,
+        });
+
+        expect(fetchMock).not.toHaveBeenCalled();
+        expect(result.error).toEqual(expect.objectContaining({
+            code: expect.any(String),
+            message: expect.stringMatching(/Yandex STT|missing|llm|language-model/i),
+        }));
+    });
+
+    it('falls back to in-message tool instructions when the provider does not advertise tool calling', async () => {
+        const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+        fetchMock.mockResolvedValueOnce(streamResponse([
+            ssePayload({ content: '{"name":"list_queues","arguments":{"limit":2}}' }),
+            'data: [DONE]\n\n',
+        ]));
+
+        const result = await client.chat({
+            provider: provider({ capabilities: ['llm'] }),
+            messages: [{ role: 'system', content: 'You are helpful.' }, { role: 'user', content: 'queues?' }],
+            tools: [{ name: 'list_queues', description: 'List queues', inputSchema: { limit: { type: 'number' } } }],
+            stream: true,
+        });
+
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+        const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+        expect(body.tools).toBeUndefined();
+        expect(body.messages[0].content).toMatch(/list_queues/);
+        expect(warn.mock.calls.some((call) => /tools|degraded|fallback/i.test(String(call[0])))).toBe(true);
+        expect(result.error).toBeUndefined();
+        expect(result.toolCalls).toEqual([
+            expect.objectContaining({ name: 'list_queues', arguments: { limit: 2 } }),
+        ]);
+        warn.mockRestore();
+    });
+
+    it('returns a structured error carrying the HTTP status on a non-success response', async () => {
+        fetchMock.mockResolvedValueOnce({
+            ok: false,
+            status: 429,
+            body: { getReader: () => ({ read: async () => ({ done: true }), cancel: async () => undefined }) },
+        });
+
+        const result = await client.chat({
+            provider: provider(),
+            messages: [{ role: 'user', content: 'hi' }],
+            stream: true,
+        });
+
+        expect(result.error).toEqual(expect.objectContaining({
+            code: expect.any(String),
+            status: 429,
+        }));
+    });
+
+    it('issues no request when the signal is already aborted', async () => {
+        const abort = new AbortController();
+        abort.abort();
+
+        const result = await client.chat({
+            provider: provider(),
+            messages: [{ role: 'user', content: 'hi' }],
+            signal: abort.signal,
+            stream: true,
+        });
+
+        expect(fetchMock).not.toHaveBeenCalled();
+        expect(mockedAxios.post).not.toHaveBeenCalled();
+        expect(result.error?.code).toBe('aborted');
+    });
+
+    it('uses axios with a non-throwing status validator for a non-streaming completion', async () => {
+        mockedAxios.post.mockResolvedValueOnce({
+            status: 503,
+            data: { error: { message: 'busy' } },
+        });
+
+        const result = await client.chat({
+            provider: provider(),
+            messages: [{ role: 'user', content: 'summarize the thread' }],
+            stream: false,
+        });
+
+        expect(mockedAxios.post).toHaveBeenCalledTimes(1);
+        expect(fetchMock).not.toHaveBeenCalled();
+        const config = mockedAxios.post.mock.calls[0][2] as { validateStatus: (s: number) => boolean; timeout: number };
+        expect(config.validateStatus(503)).toBe(true);
+        expect(config.timeout).toEqual(expect.any(Number));
+        expect(result.error).toEqual(expect.objectContaining({ status: 503 }));
     });
 });
