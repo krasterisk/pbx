@@ -1,9 +1,10 @@
-import { memo, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Phone, Search, Languages, Moon, Sun } from 'lucide-react';
-import { Button, Text } from '@/shared/ui';
+import { Phone, Search, Languages, Moon, Sun, Sparkles } from 'lucide-react';
+import { Button, Text, Tooltip } from '@/shared/ui';
 import { HStack } from '@/shared/ui/Stack';
+import { AiChatWidget } from '@/widgets/AiChatWidget';
 import {
   CommandPalette,
   buildPaletteItems,
@@ -51,6 +52,10 @@ export const ModuleShell = memo(function ModuleShell({ children }: ModuleShellPr
 
   const [isDark, setIsDark] = useState(() => localStorage.getItem('theme') !== 'light');
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [agentOpen, setAgentOpen] = useState(false);
+  const agentTriggerRef = useRef<HTMLButtonElement>(null);
+  const shortcutMod = /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl';
+  const agentShortcutHint = t('aiChat.shortcutHint', { mod: shortcutMod });
   const [collapsed, setCollapsed] = useState(() => {
     try {
       return localStorage.getItem(COLLAPSE_KEY) === '1';
@@ -142,6 +147,22 @@ export const ModuleShell = memo(function ModuleShell({ children }: ModuleShellPr
     return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() !== 'j') return;
+      if (!(e.metaKey || e.ctrlKey) || !e.shiftKey) return;
+      e.preventDefault();
+      setAgentOpen((open) => !open);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
+  const closeAgent = useCallback(() => {
+    setAgentOpen(false);
+    agentTriggerRef.current?.focus();
+  }, []);
+
   const handleCollapsedChange = (next: boolean) => {
     setCollapsed(next);
     try {
@@ -195,6 +216,24 @@ export const ModuleShell = memo(function ModuleShell({ children }: ModuleShellPr
         )}
 
         <div className={cls.spacer} />
+
+        <Tooltip content={agentShortcutHint}>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            id="shell-agent-trigger"
+            ref={agentTriggerRef}
+            className={agentOpen ? cls.agentTriggerActive : undefined}
+            onClick={() => setAgentOpen((open) => !open)}
+            aria-label={t('aiChat.openAssistant')}
+            aria-pressed={agentOpen}
+            title={agentShortcutHint}
+          >
+            <Sparkles size={16} aria-hidden />
+            <span className={cls.cmdHint}>{agentShortcutHint}</span>
+          </Button>
+        </Tooltip>
 
         <Button
           type="button"
@@ -253,6 +292,8 @@ export const ModuleShell = memo(function ModuleShell({ children }: ModuleShellPr
         onOpenChange={setPaletteOpen}
         items={paletteItems}
       />
+
+      <AiChatWidget open={agentOpen} onClose={closeAgent} />
     </div>
   );
 });

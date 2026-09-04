@@ -201,6 +201,11 @@
   padding: 2px 6px;
 }
 
+.agentTriggerActive {
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+  color: var(--color-primary);
+}
+
 /* Full-height sidebar — A+C hybrid (sketch 003) */
 .sidebar {
   width: 240px;

@@ -48,48 +48,6 @@
     transform: translateX(0);
 }
 
-/* Trigger button */
-.triggerBtn {
-    position: fixed;
-    bottom: 28px;
-    right: 28px;
-    width: 52px;
-    height: 52px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, var(--color-primary), color-mix(in srgb, var(--color-primary) 70%, #8b5cf6));
-    border: none;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: var(--z-index-popover); /* 60, above panel */
-    box-shadow: 0 8px 24px color-mix(in srgb, var(--color-primary) 50%, transparent);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-    color: #fff;
-}
-
-.triggerBtn:hover {
-    transform: scale(1.08);
-    box-shadow: 0 12px 32px color-mix(in srgb, var(--color-primary) 60%, transparent);
-}
-
-.triggerPulse {
-    position: absolute;
-    top: 2px;
-    right: 2px;
-    width: 12px;
-    height: 12px;
-    background: var(--color-success);
-    border-radius: 50%;
-    border: 2px solid var(--color-background);
-    animation: pulse 2.5s ease-in-out infinite;
-}
-
-@keyframes pulse {
-    0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-success) 50%, transparent); }
-    50% { box-shadow: 0 0 0 6px transparent; }
-}
-
 /* 2. Header */
 .header {
     display: flex;
@@ -224,10 +182,6 @@
         border-left: none;
     }
 
-    .triggerBtn {
-        bottom: 20px;
-        right: 16px;
-    }
 }
 
 /* Error banner + retry */

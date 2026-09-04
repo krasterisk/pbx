@@ -2,7 +2,6 @@ import { Outlet, Navigate } from 'react-router-dom';
 import { Flex } from '@/shared/ui/Stack';
 import { useAppSelector } from '@/shared/hooks/useAppStore';
 import { useIsMobile } from '@/shared/hooks/useIsMobile';
-import { AiChatWidget } from '@/widgets/AiChatWidget';
 import { ModuleShell } from '@/widgets/ModuleShell';
 import { MobileBottomBar } from '@/widgets/MobileBottomBar';
 import { useRoleStartRedirect } from '@/features/modules/hooks/useRoleStartRedirect';
@@ -34,7 +33,6 @@ export const AppLayout = () => {
         <Outlet />
       </ModuleShell>
       <MobileBottomBar />
-      <AiChatWidget />
     </Flex>
   );
 };

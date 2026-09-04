@@ -1,11 +1,11 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Bot, Sparkles, X, Send, Trash2, RotateCcw } from 'lucide-react';
-import { Button, Select, Textarea } from '@/shared/ui';
+import { Bot, X, Send, Trash2, RotateCcw } from 'lucide-react';
+import { Button, Select, Text, Textarea } from '@/shared/ui';
+import { Flex, HStack, VStack } from '@/shared/ui/Stack';
 import { useAppDispatch, useAppSelector } from '@/shared/hooks/useAppStore';
 import { aiChatActions } from '@/features/ai-chat/model/slice/aiChatSlice';
 import {
-    selectAiChatIsOpen,
     selectAiChatMessages,
     selectAiChatIsStreaming,
     selectAiChatSelectedModel,
@@ -22,34 +22,78 @@ const SUGGESTIONS = [
     'Настроить IVR меню',
 ];
 
-export const AiChatWidget = () => {
+const FOCUSABLE_SELECTOR =
+    'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+function getFocusable(root: HTMLElement): HTMLElement[] {
+    return Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
+        (el) => !el.hasAttribute('disabled') && el.tabIndex !== -1,
+    );
+}
+
+export interface AiChatWidgetProps {
+    open: boolean;
+    onClose: () => void;
+}
+
+export const AiChatWidget = ({ open, onClose }: AiChatWidgetProps) => {
     const { t } = useTranslation();
     const dispatch = useAppDispatch();
-    const isOpen = useAppSelector(selectAiChatIsOpen);
     const messages = useAppSelector(selectAiChatMessages);
     const isStreaming = useAppSelector(selectAiChatIsStreaming);
     const selectedModel = useAppSelector(selectAiChatSelectedModel);
     const availableModels = useAppSelector(selectAiChatAvailableModels);
 
+    const panelRef = useRef<HTMLDivElement>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const abortRef = useRef<AbortController | null>(null);
     const lastMessageRef = useRef<string>('');
     const [lastError, setLastError] = useState<string | null>(null);
 
-    const { data: modelsData } = useGetAiChatModelsQuery(undefined, { skip: !isOpen });
+    const { data: modelsData } = useGetAiChatModelsQuery(undefined, { skip: !open });
 
-    // Load models into store when fetched
     useEffect(() => {
         if (modelsData) {
             dispatch(aiChatActions.setModels(modelsData));
         }
     }, [modelsData, dispatch]);
 
-    // Scroll to bottom on new messages
     useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        messagesEndRef.current?.scrollIntoView?.({ behavior: 'smooth' });
     }, [messages]);
+
+    useEffect(() => {
+        if (!open) return;
+        const panel = panelRef.current;
+        if (!panel) return;
+
+        const focusable = getFocusable(panel);
+        focusable[0]?.focus();
+
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                onClose();
+                return;
+            }
+            if (event.key !== 'Tab') return;
+            const items = getFocusable(panel);
+            if (items.length === 0) return;
+            const first = items[0];
+            const last = items[items.length - 1];
+            if (event.shiftKey && document.activeElement === first) {
+                event.preventDefault();
+                last.focus();
+            } else if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault();
+                first.focus();
+            }
+        };
+
+        window.addEventListener('keydown', onKeyDown);
+        return () => window.removeEventListener('keydown', onKeyDown);
+    }, [open, onClose]);
 
     const handleSend = useCallback((overrideText?: string) => {
         const textarea = textareaRef.current;
@@ -60,10 +104,9 @@ export const AiChatWidget = () => {
         lastMessageRef.current = text;
         setLastError(null);
 
-        // Build history from existing messages
         const history = messages
-            .filter(m => !m.isStreaming)
-            .map(m => ({ role: m.role as string, content: m.content }));
+            .filter((m) => !m.isStreaming)
+            .map((m) => ({ role: m.role as string, content: m.content }));
 
         dispatch(aiChatActions.addUserMessage(text));
         dispatch(aiChatActions.startAssistantMessage());
@@ -85,7 +128,6 @@ export const AiChatWidget = () => {
 
     const handleRetry = useCallback(() => {
         if (!lastMessageRef.current || isStreaming) return;
-        // Remove last user + assistant messages to retry cleanly
         dispatch(aiChatActions.removeLastAssistantMessage());
         handleSend(lastMessageRef.current);
     }, [dispatch, isStreaming, handleSend]);
@@ -103,47 +145,40 @@ export const AiChatWidget = () => {
         setLastError(null);
     };
 
-    const modelOptions = availableModels.map(m => ({
+    const modelOptions = availableModels.map((m) => ({
         value: m.name,
         label: m.displayName,
     }));
 
     return (
         <>
-            {/* Overlay */}
-            <div
-                className={`${cls.overlay} ${isOpen ? cls.overlayVisible : ''}`}
-                onClick={() => dispatch(aiChatActions.closeChat())}
-            />
+            <VStack
+                className={`${cls.overlay} ${open ? cls.overlayVisible : ''}`}
+                onClick={onClose}
+                aria-hidden
+            >
+                {null}
+            </VStack>
 
-            {/* Trigger button - hidden when panel is open (Send button overlap) */}
-            {!isOpen && (
-                <button
-                    id="ai-chat-trigger"
-                    className={cls.triggerBtn}
-                    onClick={() => dispatch(aiChatActions.toggleChat())}
-                    title={t('aiChat.openAssistant')}
-                >
-                    <Sparkles size={22} />
-                    <span className={cls.triggerPulse} />
-                </button>
-            )}
-
-            {/* Chat panel */}
-            <div
+            <Flex
+                ref={panelRef}
+                direction="column"
+                align="stretch"
                 role="dialog"
                 aria-label={t('aiChat.title')}
-                className={`${cls.panel} ${isOpen ? cls.panelOpen : ''}`}
+                aria-modal={open}
+                data-testid="ai-agent-panel"
+                data-open={open ? 'true' : 'false'}
+                className={`${cls.panel} ${open ? cls.panelOpen : ''}`}
             >
-                {/* Header */}
-                <div className={cls.header}>
-                    <div className={cls.avatar}>
-                        <Bot size={18} />
-                    </div>
-                    <div className={cls.headerInfo}>
-                        <div className={cls.headerTitle}>{t('aiChat.title')}</div>
-                        <div className={cls.headerStatus}>{t('aiChat.ready')}</div>
-                    </div>
+                <HStack className={cls.header} gap="8" align="center">
+                    <VStack className={cls.avatar} align="center" justify="center">
+                        <Bot size={18} aria-hidden />
+                    </VStack>
+                    <VStack className={cls.headerInfo} gap="0" align="start">
+                        <Text as="span" className={cls.headerTitle}>{t('aiChat.title')}</Text>
+                        <Text as="span" className={cls.headerStatus}>{t('aiChat.ready')}</Text>
+                    </VStack>
 
                     {modelOptions.length > 0 && (
                         <Select
@@ -152,7 +187,7 @@ export const AiChatWidget = () => {
                             title={t('aiChat.selectModel')}
                             style={{ width: 'auto', minWidth: '120px', height: '32px', fontSize: '12px' }}
                         >
-                            {modelOptions.map(m => (
+                            {modelOptions.map((m) => (
                                 <option key={m.value} value={m.value}>{m.label}</option>
                             ))}
                         </Select>
@@ -170,19 +205,21 @@ export const AiChatWidget = () => {
                     <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => dispatch(aiChatActions.closeChat())}
+                        onClick={onClose}
                         title={t('aiChat.close')}
+                        aria-label={t('aiChat.close')}
                     >
                         <X size={16} />
                     </Button>
-                </div>
+                </HStack>
 
-                {/* Suggestions (shown when no messages) */}
                 {messages.length === 0 && (
-                    <div className={cls.suggestions}>
+                    <HStack className={cls.suggestions} gap="8" wrap="wrap">
                         {SUGGESTIONS.map((s) => (
-                            <button
+                            <Button
                                 key={s}
+                                type="button"
+                                variant="ghost"
                                 className={cls.suggestionChip}
                                 onClick={() => {
                                     if (textareaRef.current) textareaRef.current.value = s;
@@ -190,13 +227,12 @@ export const AiChatWidget = () => {
                                 }}
                             >
                                 {s}
-                            </button>
+                            </Button>
                         ))}
-                    </div>
+                    </HStack>
                 )}
 
-                {/* Messages */}
-                <div className={cls.messages}>
+                <VStack className={cls.messages} gap="12" align="stretch">
                     {messages.length === 0 && (
                         <ChatMessage
                             message={{
@@ -210,21 +246,25 @@ export const AiChatWidget = () => {
                     {messages.map((msg) => (
                         <ChatMessage key={msg.id} message={msg} />
                     ))}
-                    <div ref={messagesEndRef} />
-                </div>
+                    <Flex ref={messagesEndRef} aria-hidden direction="column">{null}</Flex>
+                </VStack>
 
-                {/* Input area */}
-                <div className={cls.inputArea}>
-                    {/* Error banner with retry */}
+                <VStack className={cls.inputArea} gap="8" align="stretch">
                     {lastError && !isStreaming && (
-                        <div className={cls.errorBanner}>
-                            <span className={cls.errorText}>⚠ {lastError.slice(0, 80)}</span>
-                            <button className={cls.retryBtn} onClick={handleRetry} title={t('aiChat.retry')}>
+                        <HStack className={cls.errorBanner} gap="8" align="center">
+                            <Text as="span" className={cls.errorText}>{lastError.slice(0, 80)}</Text>
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                className={cls.retryBtn}
+                                onClick={handleRetry}
+                                title={t('aiChat.retry')}
+                            >
                                 <RotateCcw size={12} /> {t('aiChat.retry')}
-                            </button>
-                        </div>
+                            </Button>
+                        </HStack>
                     )}
-                    <div className={cls.inputRow}>
+                    <HStack className={cls.inputRow} gap="8" align="end">
                         <Textarea
                             ref={textareaRef}
                             id="ai-chat-input"
@@ -242,10 +282,10 @@ export const AiChatWidget = () => {
                         >
                             {isStreaming ? <X size={16} /> : <Send size={16} />}
                         </Button>
-                    </div>
-                    <p className={cls.disclaimer}>{t('aiChat.disclaimer')}</p>
-                </div>
-            </div>
+                    </HStack>
+                    <Text as="p" className={cls.disclaimer}>{t('aiChat.disclaimer')}</Text>
+                </VStack>
+            </Flex>
         </>
     );
 };
