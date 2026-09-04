@@ -13,8 +13,10 @@ import { ProvisionTemplatesController } from './provision-templates.controller';
 import { ProvisionController } from './provision.controller';
 import { EndpointsService } from './endpoints.service';
 import { EndpointsController } from './endpoints.controller';
+import { EndpointsAiAdapter } from './endpoints-ai.adapter';
 import { ContextsModule } from '../contexts/contexts.module';
 import { LoggerModule } from '../logger/logger.module';
+import { AiPlatformModule } from '../ai-platform/ai-platform.module';
 
 @Module({
   imports: [
@@ -24,8 +26,9 @@ import { LoggerModule } from '../logger/logger.module';
     ]),
     ContextsModule,
     LoggerModule,
+    AiPlatformModule,
   ],
-  providers: [EndpointsService, PickupGroupsService, ProvisionTemplatesService],
+  providers: [EndpointsService, PickupGroupsService, ProvisionTemplatesService, EndpointsAiAdapter],
   controllers: [EndpointsController, PickupGroupsController, ProvisionTemplatesController, ProvisionController],
   exports: [EndpointsService],
 })

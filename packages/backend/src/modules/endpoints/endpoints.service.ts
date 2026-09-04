@@ -104,6 +104,52 @@ export class EndpointsService {
     return Array.from(bytes, (b) => chars[b % chars.length]).join('');
   }
 
+  /**
+   * Public SIP credential generator — one source for the interface and the agent.
+   * Uses the same crypto.randomBytes alphabet as generatePassword.
+   */
+  generateSipPassword(length = 16): string {
+    return this.generatePassword(length);
+  }
+
+  /**
+   * Create a subscriber, generating a SIP password when missing or weak.
+   * Returns the created row without the secret so agent transcripts cannot leak it.
+   */
+  async createWithGeneratedCredentials(
+    dto: Omit<CreateEndpointDto, 'password'> & { password?: string },
+    vpbxUserUid: number,
+    userId?: number,
+  ) {
+    const password = this.needsGeneratedPassword(dto.password)
+      ? this.generateSipPassword()
+      : dto.password;
+    const created = await this.create({ ...dto, password } as CreateEndpointDto, vpbxUserUid, userId);
+    return this.omitSecret(created as Record<string, unknown>);
+  }
+
+  private needsGeneratedPassword(raw?: string): boolean {
+    if (!raw || raw.length < 6) return true;
+    return EndpointsService.WEAK_SIP_PASSWORDS.has(raw.toLowerCase());
+  }
+
+  private omitSecret<T extends Record<string, unknown>>(row: T): Omit<T, 'password'> {
+    const { password: _password, ...rest } = row as T & { password?: string };
+    return rest;
+  }
+
+  private static readonly WEAK_SIP_PASSWORDS = new Set([
+    'defaultpassword',
+    'password',
+    '1234',
+    '12345',
+    '123456',
+    'pass',
+    'qwerty',
+    'sip',
+    '',
+  ]);
+
   private resolvePrimaryNatProfile(natProfile?: string): Partial<PsEndpoint> {
     // WebRTC profile must not land on the primary (desk-phone) endpoint
     if (!natProfile || natProfile === 'webrtc') return NAT_PROFILES.nat;
