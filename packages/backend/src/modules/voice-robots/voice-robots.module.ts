@@ -23,6 +23,10 @@ import { TtsCacheService } from './services/tts-cache.service';
 import { AriModule } from '../ari/ari.module';
 import { CloudAdminModule } from '../cloud-admin/cloud-admin.module';
 import { RouteReferencesModule } from '../route-references/route-references.module';
+import { AiPlatformModule } from '../ai-platform/ai-platform.module';
+import { TtsEnginesModule } from '../tts-engines/tts-engines.module';
+import { SttEnginesModule } from '../stt-engines/stt-engines.module';
+import { VoiceRobotsAiAdapter } from './voice-robots-ai.adapter';
 // STT/TTS Providers (Phase 1)
 import { YandexStreamingSttProvider } from './providers/yandex-streaming-stt.provider';
 import { YandexStreamingTtsProvider } from './providers/yandex-streaming-tts.provider';
@@ -48,6 +52,9 @@ import { TtsEngine } from '../tts-engines/tts-engine.model';
     AriModule,
     CloudAdminModule,
     RouteReferencesModule,
+    AiPlatformModule,
+    TtsEnginesModule,
+    SttEnginesModule,
   ],
   controllers: [VoiceRobotsController, VoiceRobotsPublicController],
   providers: [
@@ -72,6 +79,7 @@ import { TtsEngine } from '../tts-engines/tts-engine.model';
     YandexStreamingTtsProvider,
     TtsProviderFactory,
     TtsCacheService,
+    VoiceRobotsAiAdapter,
   ],
   exports: [VoiceRobotsService, RtpUdpServerService, SttProviderFactory],
 })
