@@ -36,7 +36,13 @@ async function collect(iter: AsyncIterable<AgentStreamEvent>): Promise<AgentStre
   return events;
 }
 
-function createHarness(completions: AgentCompletion[]) {
+function createHarness(
+  completions: AgentCompletion[],
+  options: {
+    maxSteps?: number;
+    tools?: Array<{ name: string; description: string; inputSchema: Record<string, unknown> }>;
+  } = {},
+) {
   const stored: Array<{ role: string; content?: string | null; tool_name?: string | null; tool_calls?: unknown }> = [];
   let chatCalls = 0;
 
@@ -67,7 +73,7 @@ function createHarness(completions: AgentCompletion[]) {
   };
 
   const mcpTools = {
-    getToolsList: jest.fn(() => [
+    getToolsList: jest.fn(() => options.tools ?? [
       {
         name: 'get_pbx_state',
         description: 'Compact PBX snapshot',
@@ -79,7 +85,7 @@ function createHarness(completions: AgentCompletion[]) {
 
   const config = {
     get: jest.fn((key: string, fallback?: unknown) => {
-      if (key === 'CC_AI_MAX_AGENT_STEPS') return fallback ?? 12;
+      if (key === 'CC_AI_MAX_AGENT_STEPS') return options.maxSteps ?? fallback ?? 12;
       if (key === 'CC_AI_TOOL_ARG_RETRIES') return fallback ?? 1;
       return fallback;
     }),
@@ -156,5 +162,157 @@ describe('PbxAgentLoopService', () => {
     expect(threads.appendMessage.mock.calls[3][3].content).toBe('У вас три очереди.');
     expect(threads.addUsage).toHaveBeenCalledWith(THREAD, TENANT, AUTHOR, { in: 10, out: 4 });
     expect(threads.addUsage).toHaveBeenCalledWith(THREAD, TENANT, AUTHOR, { in: 20, out: 8 });
+  });
+
+  it('stops at the configured step ceiling and makes no further model call', async () => {
+    const endless: AgentCompletion = {
+      text: '',
+      toolCalls: [{ id: 'loop', name: 'get_pbx_state', arguments: { domain: 'queues' } }],
+      usage: { promptTokens: 1, completionTokens: 1 },
+    };
+    const { service, llm } = createHarness(
+      [endless, endless, endless, { text: 'should not reach', toolCalls: [] }],
+      { maxSteps: 2 },
+    );
+
+    const events = await collect(service.runTurn('крутись', { uid: THREAD }, turnContext()));
+    const terminal = events[events.length - 1];
+
+    expect(llm.chat).toHaveBeenCalledTimes(2);
+    expect(terminal.name).toBe('error');
+    expect(terminal.data).toEqual(expect.objectContaining({ code: 'max_steps_exceeded' }));
+  });
+
+  it('aborts the in-flight model request and emits cancelled without further tools', async () => {
+    const abort = new AbortController();
+    const { service, llm, mcpTools } = createHarness([]);
+    llm.chat.mockImplementation(async (params: { signal?: AbortSignal }) => {
+      const signal = params.signal;
+      if (!signal?.aborted) {
+        await new Promise<void>((resolve) => {
+          const timer = setTimeout(resolve, 50);
+          signal?.addEventListener('abort', () => {
+            clearTimeout(timer);
+            resolve();
+          }, { once: true });
+        });
+      }
+      return { text: '', toolCalls: [], error: { code: 'aborted', message: 'Request aborted' } };
+    });
+
+    const pending = collect(service.runTurn('stop', { uid: THREAD }, turnContext({ signal: abort.signal })));
+    await Promise.resolve();
+    await Promise.resolve();
+    abort.abort();
+    const events = await pending;
+    const terminal = events[events.length - 1];
+
+    expect(llm.chat.mock.calls[0][0].signal).toBe(abort.signal);
+    expect(mcpTools.callTool).not.toHaveBeenCalled();
+    expect(terminal.name).toBe('error');
+    expect(terminal.data).toEqual(expect.objectContaining({ code: 'cancelled' }));
+  });
+
+  it('skips remaining tool calls of a batch when aborted between them', async () => {
+    const abort = new AbortController();
+    const { service, mcpTools } = createHarness([
+      {
+        text: '',
+        toolCalls: [
+          { id: 'c1', name: 'get_pbx_state', arguments: { domain: 'queues' } },
+          { id: 'c2', name: 'list_queues', arguments: {} },
+        ],
+      },
+      { text: 'should not reach if cancelled', toolCalls: [] },
+    ]);
+    mcpTools.getToolsList.mockReturnValue([
+      { name: 'get_pbx_state', description: 'state', inputSchema: { type: 'object', properties: {} } },
+      { name: 'list_queues', description: 'queues', inputSchema: { type: 'object', properties: {} } },
+    ]);
+    mcpTools.callTool.mockImplementation(async (name: string) => {
+      if (name === 'get_pbx_state') abort.abort();
+      return [{ type: 'text', text: '{}' }];
+    });
+
+    const events = await collect(service.runTurn('два тула', { uid: THREAD }, turnContext({ signal: abort.signal })));
+    const names = mcpTools.callTool.mock.calls.map((call) => call[0]);
+
+    expect(names).toEqual(['get_pbx_state']);
+    expect(events[events.length - 1]).toEqual(
+      expect.objectContaining({ name: 'error', data: expect.objectContaining({ code: 'cancelled' }) }),
+    );
+  });
+
+  it('emits a pending proposal event and continues the turn without a write', async () => {
+    const view = {
+      proposalId: '11111111-1111-1111-1111-111111111111',
+      entityType: 'directory',
+      entityLabel: 'Customers',
+      summary: ['create directory'],
+      before: null,
+      after: { name: 'Customers' },
+      includesDialplanReload: false,
+      status: 'pending',
+      expiresAt: new Date().toISOString(),
+    };
+    const { service, mcpTools, llm } = createHarness([
+      {
+        text: '',
+        toolCalls: [{ id: 'c1', name: 'create_directory', arguments: { name: 'Customers' } }],
+      },
+      { text: 'Предложил создать справочник.', toolCalls: [] },
+    ]);
+    mcpTools.getToolsList.mockReturnValue([
+      { name: 'create_directory', description: 'Create', inputSchema: { type: 'object', properties: { name: { type: 'string' } } } },
+    ]);
+    mcpTools.callTool.mockResolvedValue([{ type: 'text', text: JSON.stringify(view) }]);
+
+    const events = await collect(service.runTurn('создай справочник', { uid: THREAD }, turnContext()));
+    const names = events.map((event) => event.name);
+
+    expect(names).toContain('proposal');
+    expect(events.find((event) => event.name === 'proposal')?.data).toEqual(expect.objectContaining({
+      proposalId: view.proposalId,
+      status: 'pending',
+    }));
+    expect(events.find((event) => event.name === 'proposal')?.data).not.toEqual(
+      expect.objectContaining({ applyPayload: expect.anything() }),
+    );
+    expect(names[names.length - 1]).toBe('done');
+    expect(llm.chat).toHaveBeenCalledTimes(2);
+    expect(mcpTools.callTool).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns a structured tool error for invalid args and ends after a second failure on the same tool', async () => {
+    const invalid: AgentCompletion = {
+      text: '',
+      toolCalls: [{ id: 'bad', name: 'get_pbx_state', arguments: {} }],
+    };
+    const { service, llm, mcpTools } = createHarness([
+      invalid,
+      invalid,
+      { text: 'should not run', toolCalls: [] },
+    ], {
+      tools: [{
+        name: 'get_pbx_state',
+        description: 'state',
+        inputSchema: {
+          type: 'object',
+          properties: { domain: { type: 'string' } },
+          required: ['domain'],
+        },
+      }],
+    });
+
+    const events = await collect(service.runTurn('состояние', { uid: THREAD }, turnContext()));
+    const toolResults = events.filter((event) => event.name === 'tool_result');
+
+    expect(llm.chat).toHaveBeenCalledTimes(2);
+    expect(mcpTools.callTool).not.toHaveBeenCalled();
+    expect(toolResults).toHaveLength(1);
+    expect(JSON.stringify(toolResults[0].data)).toMatch(/domain/);
+    expect(events[events.length - 1]).toEqual(
+      expect.objectContaining({ name: 'error', data: expect.objectContaining({ code: 'tool_arg_retries_exceeded' }) }),
+    );
   });
 });
