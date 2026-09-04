@@ -18,12 +18,13 @@
     "test:cov": "jest --coverage",
     "test:cc": "jest --testPathPattern=\"modules/callcenter\" --no-coverage",
     "test:cc:watch": "jest --testPathPattern=\"modules/callcenter\" --watch --no-coverage",
-    "test:ai": "jest --testPathPattern=\"modules/ai-agents\" --no-coverage",
-    "test:ai:watch": "jest --testPathPattern=\"modules/ai-agents\" --watch --no-coverage",
+    "test:ai": "jest --testPathPattern=\"modules/(ai-agents|ai-platform|ai-chat)\" --no-coverage",
+    "test:ai:watch": "jest --testPathPattern=\"modules/(ai-agents|ai-platform|ai-chat)\" --watch --no-coverage",
     "db:migrate": "node migrations/run-migrations.js",
     "db:migrate:list": "node migrations/run-migrations.js --list",
     "db:migrate:rollback": "node migrations/run-migrations.js --rollback",
-    "db:setup:directories": "ts-node -r tsconfig-paths/register src/modules/directories/setup-directories-schema.ts"
+    "db:setup:directories": "ts-node -r tsconfig-paths/register src/modules/directories/setup-directories-schema.ts",
+    "db:setup:agent-threads": "ts-node -r tsconfig-paths/register src/modules/ai-chat/migrate-agent-threads.ts"
   },
   "dependencies": {
     "@grpc/grpc-js": "^1.14.3",
