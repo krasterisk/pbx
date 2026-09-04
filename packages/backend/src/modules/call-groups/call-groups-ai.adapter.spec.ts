@@ -1,6 +1,9 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { NotFoundException } from '@nestjs/common';
+import { UserLevel } from '../users/user.model';
+import { AiAdapterRegistryService } from '../ai-platform/ai-adapter-registry.service';
+import { McpToolsService } from '../mcp/mcp-tools.service';
 import { CallGroupsAiAdapter } from './call-groups-ai.adapter';
 
 const TENANT_A = 100;
@@ -24,6 +27,16 @@ const GROUP_B = {
   strategy: 'hunt',
   members: [{ member_type: 'internal' as const, value: '500', position: 0, ring_time: 20 }],
 };
+
+function confirmAs<T>(
+  role: UserLevel,
+  apply: () => Promise<T>,
+): Promise<{ ok: boolean; reason?: string; result?: T }> {
+  if (role === UserLevel.READONLY) {
+    return Promise.resolve({ ok: false, reason: 'denied' });
+  }
+  return apply().then((result) => ({ ok: true, result }));
+}
 
 describe('CallGroupsAiAdapter', () => {
   let callGroupsService: {
@@ -248,4 +261,136 @@ describe('CallGroupsAiAdapter', () => {
       expect(raw).toMatch(/номер|exten|нумерац/i);
     });
   });
+
+  describe('role fixtures on confirmation (D-21)', () => {
+    const mutating = [
+      {
+        name: 'create_call_group',
+        args: {
+          name: 'Support',
+          exten: '610',
+          strategy: 'hunt',
+          members: [{ member_type: 'internal', value: '201', position: 0 }],
+        },
+        apply: (proposal: any) => callGroupsService.create(proposal.applyPayload.args, TENANT_A),
+        written: () => callGroupsService.create,
+      },
+      {
+        name: 'update_call_group_members',
+        args: {
+          uid: 11,
+          members: [
+            { member_type: 'internal', value: '201', position: 0 },
+            { member_type: 'internal', value: '205', position: 1 },
+          ],
+        },
+        apply: (proposal: any) => {
+          const { uid, ...rest } = proposal.applyPayload.args;
+          return callGroupsService.update(Number(uid), rest, TENANT_A);
+        },
+        written: () => callGroupsService.update,
+      },
+      {
+        name: 'delete_call_group',
+        args: { uid: 11 },
+        apply: (proposal: any) => callGroupsService.remove(proposal.applyPayload.args.uid, TENANT_A),
+        written: () => callGroupsService.remove,
+      },
+    ] as const;
+
+    it.each(mutating)('$name denies a read-only role and leaves records untouched', async (row) => {
+      const proposal = await getTool(row.name).handler(row.args, TENANT_A);
+      const denied = await confirmAs(UserLevel.READONLY, () => row.apply(proposal));
+
+      expect(denied).toEqual({ ok: false, reason: 'denied' });
+      expect(row.written()).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('tenant isolation (D-22)', () => {
+    it('never returns or changes another tenant group or member', async () => {
+      const listed = await getTool('list_call_groups').handler({}, TENANT_A);
+      expect(JSON.stringify(listed)).not.toContain('Other');
+      expect(JSON.stringify(listed)).not.toContain('800');
+      expect(JSON.stringify(listed)).not.toContain('500');
+
+      await expect(
+        getTool('update_call_group_members').handler(
+          { uid: 99, members: [{ member_type: 'internal', value: '201', position: 0 }] },
+          TENANT_A,
+        ),
+      ).rejects.toThrow(/not found/i);
+      await expect(getTool('delete_call_group').handler({ uid: 99 }, TENANT_A)).rejects.toThrow(/not found/i);
+      expect(callGroupsService.update).not.toHaveBeenCalled();
+      expect(callGroupsService.remove).not.toHaveBeenCalled();
+    });
+
+    it('ignores a forged tenant key in tool arguments', async () => {
+      await getTool('update_call_group_members').handler(
+        {
+          uid: 11,
+          members: [
+            { member_type: 'internal', value: '201', position: 0 },
+            { member_type: 'internal', value: '205', position: 1 },
+          ],
+          vpbxUserUid: TENANT_B,
+          tenantId: TENANT_B,
+        },
+        TENANT_A,
+      );
+      expect(callGroupsService.findOne).toHaveBeenCalledWith(11, TENANT_A);
+      expect(callGroupsService.findOne).not.toHaveBeenCalledWith(11, TENANT_B);
+      expect(endpointsService.findAll).toHaveBeenCalledWith(TENANT_A);
+      expect(endpointsService.findAll).not.toHaveBeenCalledWith(TENANT_B);
+    });
+  });
+
+  describe('registry collision (T-15-60)', () => {
+    it('appears in the registry with unique names that do not shadow existing tools', () => {
+      const live = new AiAdapterRegistryService();
+      const wired = new CallGroupsAiAdapter(
+        callGroupsService as any,
+        live,
+        endpointsService as any,
+        routeReferencesService as any,
+      );
+      const declared = wired.getTools().map((tool) => tool.name);
+      const mcp = createMcp(new AiAdapterRegistryService());
+      mcp.registerAll();
+      const existing = mcp.getToolsList(TENANT_A).map((tool) => tool.name);
+      for (const name of declared) {
+        expect(existing).not.toContain(name);
+      }
+
+      wired.onModuleInit();
+      const adopted = createMcp(live);
+      adopted.registerAll();
+      const names = adopted.getToolsList(TENANT_A).map((tool) => tool.name);
+      expect(new Set(names).size).toBe(names.length);
+      for (const name of declared) {
+        expect(names.filter((entry) => entry === name)).toHaveLength(1);
+      }
+      expect(live.getDomains()).toContain('call-groups');
+    });
+  });
 });
+
+function createMcp(registry: AiAdapterRegistryService): McpToolsService {
+  return new McpToolsService(
+    { findAll: jest.fn().mockResolvedValue([]), create: jest.fn(), remove: jest.fn(), bulkCreate: jest.fn() } as any,
+    { findAll: jest.fn().mockResolvedValue([]), create: jest.fn(), remove: jest.fn() } as any,
+    { findAll: jest.fn().mockResolvedValue([]), create: jest.fn(), update: jest.fn(), remove: jest.fn() } as any,
+    { findAll: jest.fn().mockResolvedValue([]) } as any,
+    { create: jest.fn(), remove: jest.fn(), generateContextDialplan: jest.fn() } as any,
+    { getIncludeNames: jest.fn() } as any,
+    { findAll: jest.fn().mockResolvedValue([]) } as any,
+    { applyCategories: jest.fn() } as any,
+    {} as any,
+    { findOne: jest.fn() } as any,
+    { getStats: jest.fn(), findCalls: jest.fn() } as any,
+    registry,
+    { getSettings: jest.fn().mockResolvedValue({ confirmDestructive: false }) } as any,
+    { logAction: jest.fn().mockResolvedValue(undefined) } as any,
+    { createProposal: jest.fn(async (proposal: any) => ({ ...proposal, status: 'pending' })) } as any,
+  );
+}

@@ -1,6 +1,9 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { NotFoundException } from '@nestjs/common';
+import { UserLevel } from '../users/user.model';
+import { AiAdapterRegistryService } from '../ai-platform/ai-adapter-registry.service';
+import { McpToolsService } from '../mcp/mcp-tools.service';
 import { MohAiAdapter } from './moh-ai.adapter';
 
 const TENANT_A = 100;
@@ -40,6 +43,16 @@ const ROUTE_A = {
   name: 'Inbound Sales',
   options: { musiconhold: 'moh_100_default' },
 };
+
+function confirmAs<T>(
+  role: UserLevel,
+  apply: () => Promise<T>,
+): Promise<{ ok: boolean; reason?: string; result?: T }> {
+  if (role === UserLevel.READONLY) {
+    return Promise.resolve({ ok: false, reason: 'denied' });
+  }
+  return apply().then((result) => ({ ok: true, result }));
+}
 
 describe('MohAiAdapter', () => {
   let mohService: { findAll: jest.Mock; findOne: jest.Mock; create: jest.Mock; update: jest.Mock; remove: jest.Mock };
@@ -204,4 +217,107 @@ describe('MohAiAdapter', () => {
       expect(raw).toMatch(/не загруж|does not upload|не залива/i);
     });
   });
+
+  describe('role fixtures on confirmation (D-21)', () => {
+    it('assign_moh_class denies a read-only role and leaves records untouched', async () => {
+      const proposal = await getTool('assign_moh_class').handler(
+        { target_type: 'queue', target: 'q100_100', class_name: 'moh_100_sales' },
+        TENANT_A,
+      );
+      const denied = await confirmAs(UserLevel.READONLY, () =>
+        queuesService.update('q100_100', { musiconhold: proposal.applyPayload.args.class_name }, TENANT_A),
+      );
+
+      expect(denied).toEqual({ ok: false, reason: 'denied' });
+      expect(queuesService.update).not.toHaveBeenCalled();
+      expect(routesService.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('tenant isolation (D-22)', () => {
+    it('never returns another tenant class, file or assignment target', async () => {
+      const listed = await getTool('list_moh_classes').handler({}, TENANT_A);
+      expect(JSON.stringify(listed)).not.toContain('moh_200_other');
+      expect(JSON.stringify(listed)).not.toContain('secret.wav');
+
+      await expect(getTool('describe_moh_class').handler({ name: 'moh_200_other' }, TENANT_A)).rejects.toThrow(
+        /not found/i,
+      );
+      const refused = await getTool('assign_moh_class').handler(
+        { target_type: 'queue', target: 'q100_100', class_name: 'moh_200_other' },
+        TENANT_A,
+      );
+      expect(refused.refused).toBe(true);
+      expect(queuesService.update).not.toHaveBeenCalled();
+    });
+
+    it('ignores a forged tenant key in tool arguments', async () => {
+      await getTool('list_moh_classes').handler({ vpbxUserUid: TENANT_B, tenantId: TENANT_B }, TENANT_A);
+      expect(mohService.findAll).toHaveBeenCalledWith(TENANT_A);
+      expect(mohService.findAll).not.toHaveBeenCalledWith(TENANT_B);
+
+      await getTool('assign_moh_class').handler(
+        {
+          target_type: 'queue',
+          target: 'q100_100',
+          class_name: 'moh_100_sales',
+          vpbxUserUid: TENANT_B,
+          tenantId: TENANT_B,
+        },
+        TENANT_A,
+      );
+      expect(mohService.findOne).toHaveBeenCalledWith('moh_100_sales', TENANT_A);
+      expect(mohService.findOne).not.toHaveBeenCalledWith('moh_100_sales', TENANT_B);
+      expect(queuesService.findOne).toHaveBeenCalledWith('q100_100', TENANT_A);
+    });
+  });
+
+  describe('registry collision (T-15-60)', () => {
+    it('appears in the registry with unique names that do not shadow existing tools', () => {
+      const live = new AiAdapterRegistryService();
+      const wired = new MohAiAdapter(
+        mohService as any,
+        live,
+        queuesService as any,
+        routesService as any,
+      );
+      const declared = wired.getTools().map((tool) => tool.name);
+      const mcp = createMcp(new AiAdapterRegistryService());
+      mcp.registerAll();
+      const existing = mcp.getToolsList(TENANT_A).map((tool) => tool.name);
+      for (const name of declared) {
+        expect(existing).not.toContain(name);
+      }
+
+      wired.onModuleInit();
+      const adopted = createMcp(live);
+      adopted.registerAll();
+      const names = adopted.getToolsList(TENANT_A).map((tool) => tool.name);
+      expect(new Set(names).size).toBe(names.length);
+      for (const name of declared) {
+        expect(names.filter((entry) => entry === name)).toHaveLength(1);
+      }
+      expect(live.getDomains()).toContain('moh');
+    });
+  });
 });
+
+function createMcp(registry: AiAdapterRegistryService): McpToolsService {
+  return new McpToolsService(
+    { findAll: jest.fn().mockResolvedValue([]), create: jest.fn(), remove: jest.fn(), bulkCreate: jest.fn() } as any,
+    { findAll: jest.fn().mockResolvedValue([]), create: jest.fn(), remove: jest.fn() } as any,
+    { findAll: jest.fn().mockResolvedValue([]), create: jest.fn(), update: jest.fn(), remove: jest.fn() } as any,
+    { findAll: jest.fn().mockResolvedValue([]) } as any,
+    { create: jest.fn(), remove: jest.fn(), generateContextDialplan: jest.fn() } as any,
+    { getIncludeNames: jest.fn() } as any,
+    { findAll: jest.fn().mockResolvedValue([]) } as any,
+    { applyCategories: jest.fn() } as any,
+    {} as any,
+    { findOne: jest.fn() } as any,
+    { getStats: jest.fn(), findCalls: jest.fn() } as any,
+    registry,
+    { getSettings: jest.fn().mockResolvedValue({ confirmDestructive: false }) } as any,
+    { logAction: jest.fn().mockResolvedValue(undefined) } as any,
+    { createProposal: jest.fn(async (proposal: any) => ({ ...proposal, status: 'pending' })) } as any,
+  );
+}
