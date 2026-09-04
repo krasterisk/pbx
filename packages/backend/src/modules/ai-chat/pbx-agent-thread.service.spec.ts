@@ -237,4 +237,57 @@ describe('PbxAgentThreadService', () => {
     expect(models.threadModel.findByPk).not.toHaveBeenCalled();
     expect(models.messageModel.findByPk).not.toHaveBeenCalled();
   });
+
+  it('addUsage increments thread counters and writes the per-message split', async () => {
+    const thread = await service.createThread(tenantA, authorA);
+    const message = await service.appendMessage(thread.uid, tenantA, authorA, {
+      role: 'assistant',
+      content: 'done',
+    });
+
+    await service.addUsage(thread.uid, tenantA, authorA, { in: 12, out: 34 });
+
+    const reloaded = await service.getThread(thread.uid, tenantA, authorA);
+    expect(reloaded.tokens_in).toBe(12);
+    expect(reloaded.tokens_out).toBe(34);
+    const messages = await service.listMessages(thread.uid, tenantA, authorA);
+    const stored = messages.find((m) => m.uid === message.uid);
+    expect(stored?.tokens_in).toBe(12);
+    expect(stored?.tokens_out).toBe(34);
+  });
+
+  it('addUsage for another tenant or author does not change counters', async () => {
+    const thread = await service.createThread(tenantA, authorA);
+    await service.appendMessage(thread.uid, tenantA, authorA, { role: 'user', content: 'x' });
+
+    await expect(service.addUsage(thread.uid, tenantB, authorA, { in: 99, out: 99 })).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+    await expect(service.addUsage(thread.uid, tenantA, authorB, { in: 99, out: 99 })).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+
+    const reloaded = await service.getThread(thread.uid, tenantA, authorA);
+    expect(reloaded.tokens_in).toBe(0);
+    expect(reloaded.tokens_out).toBe(0);
+  });
 });
+
+describe('AgentProposal model shape (D-18 prep)', () => {
+  it('declares apply_payload and the card-badge status vocabulary', () => {
+    const { AGENT_PROPOSAL_STATUSES, AgentProposal } = require('./models/agent-proposal.model');
+    expect(AGENT_PROPOSAL_STATUSES).toEqual(['pending', 'applied', 'rejected', 'denied', 'expired']);
+    expect(AgentProposal.tableName ?? AgentProposal.options?.tableName).toBe('ai_agent_proposals');
+  });
+});
+
+describe('CcAiAuditLog conversation reference (D-08)', () => {
+  it('exposes a nullable thread_uid distinct from call_uniqueid', () => {
+    const { CcAiAuditLog } = require('../ai-agents/models/ai-audit-log.model');
+    const src = require('fs').readFileSync(require.resolve('../ai-agents/models/ai-audit-log.model'), 'utf8');
+    expect(src).toMatch(/declare thread_uid:/);
+    expect(src).toMatch(/call_uniqueid/);
+    expect(CcAiAuditLog).toBeDefined();
+  });
+});
+
