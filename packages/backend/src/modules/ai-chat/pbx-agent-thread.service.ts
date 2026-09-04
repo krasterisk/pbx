@@ -146,6 +146,16 @@ export class PbxAgentThreadService {
       { tokens_in: usage.in, tokens_out: usage.out },
       { where: { uid: threadUid, vpbx_user_uid: vpbxUserUid, user_uid: userUid } },
     );
+    const latest = await this.messageModel.findOne({
+      where: { thread_uid: threadUid, vpbx_user_uid: vpbxUserUid },
+      order: [['uid', 'DESC']],
+    });
+    if (latest) {
+      await this.messageModel.update(
+        { tokens_in: usage.in, tokens_out: usage.out },
+        { where: { uid: latest.uid, thread_uid: threadUid, vpbx_user_uid: vpbxUserUid } },
+      );
+    }
   }
 
   private async findOwnedThread(

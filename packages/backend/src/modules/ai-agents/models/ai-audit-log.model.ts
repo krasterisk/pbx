@@ -12,6 +12,13 @@ export class CcAiAuditLog extends Model {
   @Column({ type: DataType.STRING(64), allowNull: true })
   declare call_uniqueid: string;
 
+  /**
+   * Chat conversation that produced this tool call (D-08 / D-26).
+   * Distinct from `call_uniqueid` (voice-agent CDR) and `agent_uid` (voice agent).
+   */
+  @Column({ type: DataType.INTEGER, allowNull: true, defaultValue: null })
+  declare thread_uid: number | null;
+
   @Column({ type: DataType.INTEGER, allowNull: true })
   declare agent_uid: number;
 

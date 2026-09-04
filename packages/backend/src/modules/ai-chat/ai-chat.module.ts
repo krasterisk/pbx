@@ -11,6 +11,7 @@ import { AiChatSettings } from './ai-chat-settings.model';
 import { AiChatSettingsService } from './ai-chat-settings.service';
 import { AgentThread } from './models/agent-thread.model';
 import { AgentThreadMessage } from './models/agent-thread-message.model';
+import { AgentProposal } from './models/agent-proposal.model';
 import { PbxAgentThreadService } from './pbx-agent-thread.service';
 import { JwtOrServiceTokenGuard } from '../auth/jwt-or-service-token.guard';
 import { ServiceTokenGuard } from '../auth/service-token.guard';
@@ -28,7 +29,7 @@ import { LoggerModule } from '../logger/logger.module';
     imports: [
         ConfigModule,
         HttpModule.register({ timeout: 60_000 }),
-        SequelizeModule.forFeature([Context, AiChatSettings, AgentThread, AgentThreadMessage]),
+        SequelizeModule.forFeature([Context, AiChatSettings, AgentThread, AgentThreadMessage, AgentProposal]),
         EndpointsModule,
         TrunksModule,
         IvrsModule,

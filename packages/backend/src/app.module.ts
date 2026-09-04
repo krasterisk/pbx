@@ -58,6 +58,7 @@ import { CcAiInvoice } from './modules/ai-agents/models/ai-invoice.model';
 import { CcAiAuditLog } from './modules/ai-agents/models/ai-audit-log.model';
 import { AgentThread } from './modules/ai-chat/models/agent-thread.model';
 import { AgentThreadMessage } from './modules/ai-chat/models/agent-thread-message.model';
+import { AgentProposal } from './modules/ai-chat/models/agent-proposal.model';
 import { CcPauseReason } from './modules/callcenter/models/pause-reason.model';
 import { CcAgentSession } from './modules/callcenter/models/agent-session.model';
 import { CcAgentEvent } from './modules/callcenter/models/agent-event.model';
@@ -170,7 +171,7 @@ import * as path from 'path';
         CcCardTemplate, CcCardField, CcCardData,
         CcReportSchedule,
         CcAiAgent, CcAiProvider, CcAiToolset, CcAiCdr, CcAiBilling, CcAiInvoice, CcAiAuditLog,
-        AgentThread, AgentThreadMessage,
+        AgentThread, AgentThreadMessage, AgentProposal,
         TimeGroup,
         Directory, DirectoryField, DirectoryRecord, RouteDirectoryBinding,
         RouteTemplate,
