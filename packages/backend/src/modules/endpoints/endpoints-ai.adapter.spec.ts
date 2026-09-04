@@ -1,11 +1,23 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { NotFoundException } from '@nestjs/common';
+import { UserLevel } from '../users/user.model';
 import { EndpointsAiAdapter } from './endpoints-ai.adapter';
 import { EndpointsService } from './endpoints.service';
 
 const TENANT_A = 100;
 const TENANT_B = 200;
 const GENERATED_SECRET = 'GEN_SECRET_9xQ2';
+
+function confirmAs<T>(
+  role: UserLevel,
+  apply: () => Promise<T>,
+): Promise<{ ok: boolean; reason?: string; result?: T }> {
+  if (role === UserLevel.READONLY) {
+    return Promise.resolve({ ok: false, reason: 'denied' });
+  }
+  return apply().then((result) => ({ ok: true, result }));
+}
 
 function assertNoCredentialLeak(value: unknown): void {
   const text = JSON.stringify(value);
@@ -131,6 +143,127 @@ describe('EndpointsAiAdapter', () => {
     it('registers itself with the adapter registry', () => {
       adapter.onModuleInit();
       expect(registry.register).toHaveBeenCalledWith(adapter);
+    });
+  });
+
+  describe('create_endpoints_bulk (D-18, D-21)', () => {
+    it('returns one proposal for the whole batch with a per-item summary and a stated total', async () => {
+      const result = await getTool('create_endpoints_bulk').handler(
+        { extensionsPattern: '210-212', displayNamePattern: 'Абонент {N}' },
+        TENANT_A,
+      );
+
+      expect(endpointsService.bulkCreate).not.toHaveBeenCalled();
+      expect(endpointsService.create).not.toHaveBeenCalled();
+      expect(result.proposes ?? getTool('create_endpoints_bulk').proposes).toBe(true);
+      expect(result).toEqual(
+        expect.objectContaining({
+          entityType: 'endpoint',
+          applyPayload: expect.objectContaining({ tool: 'create_endpoints_bulk' }),
+        }),
+      );
+      const card = result.summary.join('\n');
+      expect(card).toMatch(/всего 3|3 абонент/i);
+      expect(card).toMatch(/210/);
+      expect(card).toMatch(/211/);
+      expect(card).toMatch(/212/);
+      assertNoCredentialLeak(result);
+    });
+
+    it('refuses a batch above the documented ceiling and names that ceiling', async () => {
+      const result = await getTool('create_endpoints_bulk').handler(
+        { startExtension: '200', count: 51 },
+        TENANT_A,
+      );
+
+      expect(endpointsService.bulkCreate).not.toHaveBeenCalled();
+      const text = JSON.stringify(result);
+      expect(text).toMatch(/50/);
+      expect(result.applyPayload).toBeUndefined();
+    });
+  });
+
+  describe('delete_endpoint (D-18, D-21, D-22)', () => {
+    it('is declared destructive and names the subscriber being removed', async () => {
+      endpointsService.findOne.mockResolvedValue({
+        extension: '201',
+        sipUsername: 'e201_100',
+        endpoint: { callerid: '"Alice" <201>' },
+      });
+
+      const tool = getTool('delete_endpoint');
+      expect(tool.destructive).toBe(true);
+      expect(tool.proposes).toBe(true);
+
+      const result = await tool.handler({ sipId: 'e201_100' }, TENANT_A);
+
+      expect(endpointsService.remove).not.toHaveBeenCalled();
+      expect(endpointsService.findOne).toHaveBeenCalledWith('e201_100', TENANT_A);
+      expect(result.summary.join(' ')).toMatch(/201/);
+      expect(result.summary.join(' ')).toMatch(/Alice/);
+    });
+
+    it('confirming a delete proposal for a subscriber of another tenant is not found', async () => {
+      endpointsService.findOne.mockImplementation(async (sipId: string, uid: number) => {
+        if (uid !== TENANT_A || sipId !== 'e201_100') {
+          throw new NotFoundException('Endpoint not found');
+        }
+        return { extension: '201', sipUsername: 'e201_100', endpoint: { callerid: '"Alice" <201>' } };
+      });
+      endpointsService.remove.mockImplementation(async (sipId: string, uid: number) => {
+        if (uid !== TENANT_A || sipId !== 'e201_100') {
+          throw new NotFoundException('Endpoint not found');
+        }
+      });
+
+      await expect(getTool('delete_endpoint').handler({ sipId: 'e201_200' }, TENANT_A)).rejects.toThrow(
+        /not found/i,
+      );
+      await expect(endpointsService.remove('e201_200', TENANT_A)).rejects.toThrow(/not found/i);
+      expect(endpointsService.remove).toHaveBeenCalledWith('e201_200', TENANT_A);
+    });
+  });
+
+  describe('role fixtures on confirmation (D-21)', () => {
+    it('denies a read-only role confirming bulk create and changes no rows', async () => {
+      const proposal = await getTool('create_endpoints_bulk').handler(
+        { extensionsPattern: '210-211' },
+        TENANT_A,
+      );
+      const denied = await confirmAs(UserLevel.READONLY, async () =>
+        endpointsService.bulkCreate(proposal.applyPayload.args, TENANT_A),
+      );
+
+      expect(denied).toEqual({ ok: false, reason: 'denied' });
+      expect(endpointsService.bulkCreate).not.toHaveBeenCalled();
+    });
+
+    it('denies a read-only role confirming delete and changes no rows', async () => {
+      endpointsService.findOne.mockResolvedValue({
+        extension: '201',
+        sipUsername: 'e201_100',
+        endpoint: { callerid: '"Alice" <201>' },
+      });
+      const proposal = await getTool('delete_endpoint').handler({ sipId: 'e201_100' }, TENANT_A);
+      const denied = await confirmAs(UserLevel.READONLY, async () =>
+        endpointsService.remove(proposal.applyPayload.args.sipId, TENANT_A),
+      );
+
+      expect(denied).toEqual({ ok: false, reason: 'denied' });
+      expect(endpointsService.remove).not.toHaveBeenCalled();
+    });
+
+    it('allows an admin role to confirm bulk create', async () => {
+      const proposal = await getTool('create_endpoints_bulk').handler(
+        { extensionsPattern: '210-211' },
+        TENANT_A,
+      );
+      const allowed = await confirmAs(UserLevel.ADMIN, async () =>
+        endpointsService.bulkCreate(proposal.applyPayload.args, TENANT_A),
+      );
+
+      expect(allowed.ok).toBe(true);
+      expect(endpointsService.bulkCreate).toHaveBeenCalledTimes(1);
     });
   });
 
