@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 status: executing
-stopped_at: Completed 15-16-PLAN.md
-last_updated: "2026-09-04T13:12:42.278Z"
-state_head: 9cfb34652b3683308c2c248f7296881abd2b0b3b
+stopped_at: Completed 15-17-PLAN.md
+last_updated: "2026-09-04T13:24:06.974Z"
+state_head: 0fa0f36364f3c340cab80546a2edcf9778125949
 progress:
   total_phases: 15
   completed_phases: 4
   total_plans: 166
-  completed_plans: 157
+  completed_plans: 158
 milestone_name: milestone
 current_phase: 15
 current_phase_name: universal-pbx-ai-agent
@@ -21,7 +21,7 @@ current_phase_name: universal-pbx-ai-agent
 
 Phase 14 (visual-route-builder-and-automation) — COMPLETE (2026-09-04). 11/11 plans (incl. gap 14-11); verify 27/27; G-14-2 resolved.
 
-Phase 15 (universal-pbx-ai-agent) — EXECUTING (2026-09-04). Sequential next: 15-15 of 24. 15-01 complete (sanitized dispatch, AgentDiffProposal, bootstrap registry, D-22 table, getDomains). 15-02 complete (skill catalog, read_skill, nest-cli assets, four seed skills). 15-03 complete (persistent threads / messages / proposals, D-08 counters, audit thread_uid). 15-04 complete (PbxAgentLlmClient, findDefaultLlm, catalog-only prompt, get_pbx_state snapshot). 15-05 complete (propose-then-apply, directory drafts, live-ops exception, READONLY deny, precedence check). 15-06 complete (topbar trigger, Ctrl+Shift+J, 520px grid panel, no FAB). 15-07 complete (adapter precedence, contexts + CDR adapters, eighteen-name inventory). 15-08 complete (in-process agent turn, SSE heartbeat, step ceiling, cancel, proxy deleted). 15-09 complete (subscriber + trunk mutations as proposals, credentials in EndpointsService, bulk ceiling 50). 15-10 complete (IVR + queue mutations as proposals, digit/overflow checks, skipped handwritten twins). 15-11 complete (typed route chains, RouteApplyService confirm, apply_dialplan retired). 15-12 complete (thread rail, restore from detail query, four rail states, keep-first delete). 15-13 complete (call-group + hold-music adapters, membership/class validation, collision-free names). 15-14 complete. 15-16 complete (schedule evaluate in tenant zone, number destination or unrouted, portal users allow-listed). Next sequential: 15-15. After all 24: обязательный `/gsd-secure-phase 15`.
+Phase 15 (universal-pbx-ai-agent) — EXECUTING (2026-09-04). Sequential next: 15-15 of 24. 15-01 complete (sanitized dispatch, AgentDiffProposal, bootstrap registry, D-22 table, getDomains). 15-02 complete (skill catalog, read_skill, nest-cli assets, four seed skills). 15-03 complete (persistent threads / messages / proposals, D-08 counters, audit thread_uid). 15-04 complete (PbxAgentLlmClient, findDefaultLlm, catalog-only prompt, get_pbx_state snapshot). 15-05 complete (propose-then-apply, directory drafts, live-ops exception, READONLY deny, precedence check). 15-06 complete (topbar trigger, Ctrl+Shift+J, 520px grid panel, no FAB). 15-07 complete (adapter precedence, contexts + CDR adapters, eighteen-name inventory). 15-08 complete (in-process agent turn, SSE heartbeat, step ceiling, cancel, proxy deleted). 15-09 complete (subscriber + trunk mutations as proposals, credentials in EndpointsService, bulk ceiling 50). 15-10 complete (IVR + queue mutations as proposals, digit/overflow checks, skipped handwritten twins). 15-11 complete (typed route chains, RouteApplyService confirm, apply_dialplan retired). 15-12 complete (thread rail, restore from detail query, four rail states, keep-first delete). 15-13 complete (call-group + hold-music adapters, membership/class validation, collision-free names). 15-14 complete. 15-16 complete (schedule evaluate in tenant zone, number destination or unrouted, portal users allow-listed). 15-17 complete (tenant/platform settings read-only, SMS/Telegram channel+delivery, no secrets or send). Next sequential: 15-15. After all 24: обязательный `/gsd-secure-phase 15`.
 
 Phase 13 (custom-voicemail-instead-of-voicemail) — COMPLETE (2026-09-03). 13/13 plans, verify passed 19/19, security SECURED. Live greeting→Record→notify deferred.
 12-17 closed 2026-08-31: M1/M6/M7/M8/M9 approved; M4/M5/M12 deferred (live voice later). Call-group ALTERs already on prod.
@@ -368,6 +368,9 @@ Phase 1 — MOH: pending verify.
 - [Phase 15]: evaluate_time_group answers inside/outside and the next boundary in the tenant timezone
 - [Phase 15]: describe_number names the matching route destination or unrouted
 - [Phase 15]: Portal user fields are an allow list of uid, name, role, last_activity
+- [Phase 15]: Tenant settings are an allow list grouped by area; secret keys report presence only
+- [Phase 15]: Platform settings are a default-excluding per-tenant projection, never findAll or getServerConfigRaw
+- [Phase 15]: Messaging tools never send; delivery bodies are excluded (preview length 0)
 
 ## Roadmap Evolution
 
@@ -403,7 +406,7 @@ Phase 1 — MOH: pending verify.
 
 ## Next GSD command
 
-**Phase 15 executing** (2026-09-04): 15-01, 15-02, 15-03, 15-04, 15-05, 15-06, 15-07, 15-08, 15-09, 15-10, 15-11, 15-12, 15-13, 15-14 complete. Next: `/gsd-execute-phase 15` (continues at 15-15) → after all plans, обязательный `/gsd-secure-phase 15`.
+**Phase 15 executing** (2026-09-04): 15-01…15-14, 15-16, 15-17 complete. Next: `/gsd-execute-phase 15` (continues at 15-15) → after all plans, обязательный `/gsd-secure-phase 15`.
 
 Also open: Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 verify; Phase 8 / 08-11 Android smoke.
 
@@ -545,10 +548,11 @@ Also open: Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 veri
 | Phase 15-universal-pbx-ai-agent P11 | 18 | 3 tasks | 7 files |
 | Phase 15 P13 | 12 | 3 tasks | 8 files |
 | Phase 15 P16 | 16 | 3 tasks | 10 files |
+| Phase 15-universal-pbx-ai-agent P17 | 12 | 3 tasks | 13 files |
 
 ## Session
 
-**Last session:** 2026-09-04T13:12:41.103Z
-**Stopped at:** Completed 15-16-PLAN.md
+**Last session:** 2026-09-04T13:24:05.717Z
+**Stopped at:** Completed 15-17-PLAN.md
 **Resume file:** None
 **Also ready:** .planning/phases/15-universal-pbx-ai-agent/15-CONTEXT.md
