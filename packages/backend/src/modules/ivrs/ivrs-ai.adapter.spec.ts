@@ -1,7 +1,9 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { NotFoundException } from '@nestjs/common';
+import { Logger, NotFoundException } from '@nestjs/common';
 import { UserLevel } from '../users/user.model';
+import { AiAdapterRegistryService } from '../ai-platform/ai-adapter-registry.service';
+import { McpToolsService } from '../mcp/mcp-tools.service';
 import { IvrsAiAdapter } from './ivrs-ai.adapter';
 
 const TENANT_A = 100;
@@ -249,6 +251,93 @@ describe('IvrsAiAdapter', () => {
     });
   });
 
+  describe('role fixtures on confirmation (D-21)', () => {
+    const mutating = [
+      {
+        name: 'create_ivr',
+        args: {
+          name: 'Sales',
+          menu_items: [
+            { digit: '1', actions: [{ type: 'toqueue', params: { target: { source: 'fixed', value: 'q100_100' } } }] },
+          ],
+        },
+        apply: (proposal: any) => ivrsService.create(proposal.applyPayload.args, TENANT_A),
+        written: () => ivrsService.create,
+      },
+      {
+        name: 'update_ivr',
+        args: { id: 7, digit: '1', destination: { kind: 'extension', target: '201' } },
+        apply: (proposal: any) => {
+          const { id, ...rest } = proposal.applyPayload.args;
+          return ivrsService.update(Number(id), rest, TENANT_A);
+        },
+        written: () => ivrsService.update,
+      },
+      {
+        name: 'delete_ivr',
+        args: { id: 7 },
+        apply: (proposal: any) => ivrsService.remove(proposal.applyPayload.args.id, TENANT_A),
+        written: () => ivrsService.remove,
+      },
+    ] as const;
+
+    it.each(mutating)('$name denies a read-only role and leaves records untouched', async (row) => {
+      const proposal = await getTool(row.name).handler(row.args, TENANT_A);
+      const denied = await confirmAs(UserLevel.READONLY, () => row.apply(proposal));
+
+      expect(denied).toEqual({ ok: false, reason: 'denied' });
+      expect(row.written()).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('tenant isolation (D-22)', () => {
+    it('never returns or changes another tenant voice menu', async () => {
+      const listed = await getTool('list_ivrs').handler({}, TENANT_A);
+      expect(JSON.stringify(listed)).not.toContain('Other');
+      expect(JSON.stringify(listed)).not.toContain('q500_200');
+
+      await expect(getTool('update_ivr').handler({ id: 9, digit: '1', destination: { kind: 'queue', target: 'q100_100' } }, TENANT_A))
+        .rejects.toThrow(/not found/i);
+      await expect(getTool('delete_ivr').handler({ id: 9 }, TENANT_A)).rejects.toThrow(/not found/i);
+      expect(ivrsService.update).not.toHaveBeenCalled();
+      expect(ivrsService.remove).not.toHaveBeenCalled();
+    });
+
+    it('ignores a forged tenant key in tool arguments', async () => {
+      await getTool('update_ivr').handler(
+        { id: 7, digit: '1', destination: { kind: 'extension', target: '201' }, vpbxUserUid: TENANT_B, tenantId: TENANT_B },
+        TENANT_A,
+      );
+      expect(ivrsService.findOne).toHaveBeenCalledWith(7, TENANT_A);
+      expect(ivrsService.findOne).not.toHaveBeenCalledWith(7, TENANT_B);
+    });
+  });
+
+  describe('adapter precedence (D-27)', () => {
+    it('serves create_ivr, update_ivr and delete_ivr from the adapter and skips the handwritten twin', () => {
+      const live = new AiAdapterRegistryService();
+      const wired = new IvrsAiAdapter(
+        ivrsService as any,
+        live,
+        contextsService as any,
+        endpointsService as any,
+        queuesService as any,
+      );
+      wired.onModuleInit();
+      const warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+      const mcp = createMcp(live, ivrsService);
+      mcp.registerAll();
+
+      for (const name of ['create_ivr', 'update_ivr', 'delete_ivr']) {
+        expect(live.getToolByName(name)).toBeDefined();
+        expect(mcp.getToolsList(TENANT_A).filter((tool) => tool.name === name)).toHaveLength(1);
+        expect(warnSpy).toHaveBeenCalledWith(expect.stringMatching(new RegExp(`Skipping handwritten.*${name}`)));
+      }
+      expect(new Set(live.getAllTools().map((tool) => tool.name)).size).toBe(live.getAllTools().length);
+      warnSpy.mockRestore();
+    });
+  });
+
   describe('voice-menu domain skill', () => {
     it('ships two-field frontmatter covering digit maps, destination kinds, timeout and inbound reach', () => {
       const skillPath = path.join(__dirname, '../../skills/ivrs/SKILL.md');
@@ -261,3 +350,23 @@ describe('IvrsAiAdapter', () => {
     });
   });
 });
+
+function createMcp(registry: AiAdapterRegistryService, ivrsService: object): McpToolsService {
+  return new McpToolsService(
+    { findAll: jest.fn().mockResolvedValue([]), create: jest.fn(), remove: jest.fn(), bulkCreate: jest.fn() } as any,
+    { findAll: jest.fn().mockResolvedValue([]), create: jest.fn(), remove: jest.fn() } as any,
+    ivrsService as any,
+    { findAll: jest.fn().mockResolvedValue([]), create: jest.fn(), update: jest.fn(), remove: jest.fn() } as any,
+    { create: jest.fn(), remove: jest.fn(), generateContextDialplan: jest.fn() } as any,
+    { getIncludeNames: jest.fn() } as any,
+    { findAll: jest.fn().mockResolvedValue([]) } as any,
+    { applyCategories: jest.fn() } as any,
+    {} as any,
+    { findOne: jest.fn() } as any,
+    { getStats: jest.fn(), findCalls: jest.fn() } as any,
+    registry,
+    { getSettings: jest.fn().mockResolvedValue({ confirmDestructive: false }) } as any,
+    { logAction: jest.fn().mockResolvedValue(undefined) } as any,
+    { createProposal: jest.fn(async (proposal: any) => ({ ...proposal, status: 'pending' })) } as any,
+  );
+}

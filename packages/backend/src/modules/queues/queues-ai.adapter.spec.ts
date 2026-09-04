@@ -1,7 +1,9 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { NotFoundException } from '@nestjs/common';
+import { Logger, NotFoundException } from '@nestjs/common';
 import { UserLevel } from '../users/user.model';
+import { AiAdapterRegistryService } from '../ai-platform/ai-adapter-registry.service';
+import { McpToolsService } from '../mcp/mcp-tools.service';
 import { QueuesAiAdapter } from './queues-ai.adapter';
 
 const TENANT_A = 100;
@@ -241,6 +243,88 @@ describe('QueuesAiAdapter', () => {
     });
   });
 
+  describe('role fixtures on confirmation (D-21)', () => {
+    const mutating = [
+      {
+        name: 'create_queue',
+        args: { name: 'Support', exten: '200', strategy: 'ringall', timeout: 20, overflow: 'from-internal' },
+        apply: (proposal: any) => queuesService.create(proposal.applyPayload.args, TENANT_A),
+        written: () => queuesService.create,
+      },
+      {
+        name: 'update_queue',
+        args: { name: 'q100_100', timeout: 45 },
+        apply: (proposal: any) => {
+          const { name, ...rest } = proposal.applyPayload.args;
+          return queuesService.update(String(name), rest, TENANT_A);
+        },
+        written: () => queuesService.update,
+      },
+      {
+        name: 'delete_queue',
+        args: { name: 'q100_100' },
+        apply: (proposal: any) => queuesService.remove(proposal.applyPayload.args.name, TENANT_A),
+        written: () => queuesService.remove,
+      },
+    ] as const;
+
+    it.each(mutating)('$name denies a read-only role and leaves records untouched', async (row) => {
+      const proposal = await getTool(row.name).handler(row.args, TENANT_A);
+      const denied = await confirmAs(UserLevel.READONLY, () => row.apply(proposal));
+
+      expect(denied).toEqual({ ok: false, reason: 'denied' });
+      expect(row.written()).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('tenant isolation (D-22)', () => {
+    it('never returns or changes another tenant queue', async () => {
+      const listed = await getTool('list_queues').handler({}, TENANT_A);
+      expect(JSON.stringify(listed)).not.toContain('q500_200');
+      expect(JSON.stringify(listed)).not.toContain('Other');
+
+      await expect(getTool('update_queue').handler({ name: 'q500_200', timeout: 10 }, TENANT_A))
+        .rejects.toThrow(/not found/i);
+      await expect(getTool('delete_queue').handler({ name: 'q500_200' }, TENANT_A)).rejects.toThrow(/not found/i);
+      expect(queuesService.update).not.toHaveBeenCalled();
+      expect(queuesService.remove).not.toHaveBeenCalled();
+    });
+
+    it('ignores a forged tenant key in tool arguments', async () => {
+      await getTool('update_queue').handler(
+        { name: 'q100_100', timeout: 45, vpbxUserUid: TENANT_B, tenantId: TENANT_B },
+        TENANT_A,
+      );
+      expect(queuesService.findOne).toHaveBeenCalledWith('q100_100', TENANT_A);
+      expect(queuesService.findOne).not.toHaveBeenCalledWith('q100_100', TENANT_B);
+    });
+  });
+
+  describe('adapter precedence (D-27)', () => {
+    it('serves create_queue, update_queue and delete_queue from the adapter and skips the handwritten twin', () => {
+      const live = new AiAdapterRegistryService();
+      const wired = new QueuesAiAdapter(
+        queuesService as any,
+        live,
+        contextsService as any,
+        endpointsService as any,
+        routeReferencesService as any,
+      );
+      wired.onModuleInit();
+      const warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+      const mcp = createMcp(live, queuesService);
+      mcp.registerAll();
+
+      for (const name of ['create_queue', 'update_queue', 'delete_queue']) {
+        expect(live.getToolByName(name)).toBeDefined();
+        expect(mcp.getToolsList(TENANT_A).filter((tool) => tool.name === name)).toHaveLength(1);
+        expect(warnSpy).toHaveBeenCalledWith(expect.stringMatching(new RegExp(`Skipping handwritten.*${name}`)));
+      }
+      expect(new Set(live.getAllTools().map((tool) => tool.name)).size).toBe(live.getAllTools().length);
+      warnSpy.mockRestore();
+    });
+  });
+
   describe('queue domain skill', () => {
     it('ships two-field frontmatter covering strategies, timeout, overflow, membership and live state', () => {
       const skillPath = path.join(__dirname, '../../skills/queues/SKILL.md');
@@ -254,3 +338,23 @@ describe('QueuesAiAdapter', () => {
     });
   });
 });
+
+function createMcp(registry: AiAdapterRegistryService, queuesService: object): McpToolsService {
+  return new McpToolsService(
+    { findAll: jest.fn().mockResolvedValue([]), create: jest.fn(), remove: jest.fn(), bulkCreate: jest.fn() } as any,
+    { findAll: jest.fn().mockResolvedValue([]), create: jest.fn(), remove: jest.fn() } as any,
+    { findAll: jest.fn().mockResolvedValue([]), create: jest.fn(), update: jest.fn(), remove: jest.fn() } as any,
+    queuesService as any,
+    { create: jest.fn(), remove: jest.fn(), generateContextDialplan: jest.fn() } as any,
+    { getIncludeNames: jest.fn() } as any,
+    { findAll: jest.fn().mockResolvedValue([]) } as any,
+    { applyCategories: jest.fn() } as any,
+    {} as any,
+    { findOne: jest.fn() } as any,
+    { getStats: jest.fn(), findCalls: jest.fn() } as any,
+    registry,
+    { getSettings: jest.fn().mockResolvedValue({ confirmDestructive: false }) } as any,
+    { logAction: jest.fn().mockResolvedValue(undefined) } as any,
+    { createProposal: jest.fn(async (proposal: any) => ({ ...proposal, status: 'pending' })) } as any,
+  );
+}
