@@ -1,4 +1,6 @@
 import {
+  DIAGNOSTIC_EVENT_CAP,
+  DIAGNOSTIC_EVENT_WINDOW_MS,
   DIAGNOSTIC_READ_COMMANDS,
   DiagnosticsService,
   LIVE_CHANNEL_CAP,
@@ -17,11 +19,14 @@ function createService(overrides?: {
   command?: jest.Mock;
   contexts?: unknown[];
   endpoints?: unknown[];
+  findCalls?: jest.Mock;
 }): {
   service: DiagnosticsService;
   ami: { command: jest.Mock };
+  cdr: { findCalls: jest.Mock };
 } {
   const ami = { command: overrides?.command ?? jest.fn() };
+  const cdr = { findCalls: overrides?.findCalls ?? jest.fn().mockResolvedValue({ rows: [], count: 0 }) };
   const contextsService = {
     findAll: jest.fn(async (uid: number) => {
       if (overrides?.contexts) return overrides.contexts;
@@ -42,8 +47,9 @@ function createService(overrides?: {
     ami as any,
     contextsService as any,
     endpointsService as any,
+    cdr as any,
   );
-  return { service, ami };
+  return { service, ami, cdr };
 }
 
 describe('DiagnosticsService — live channels (D-12, D-22)', () => {
@@ -132,3 +138,96 @@ describe('DiagnosticsService — live channels (D-12, D-22)', () => {
     expect(result.cap).toBe(LIVE_CHANNEL_CAP);
   });
 });
+
+const DIALPLAN_SHOW_CTX12 = [
+  "[ Context 'ctx-12' created by 'pbx_config' ]",
+  "  '100' =>          1. NoOp(tenant-a-first)                 [extensions]",
+  '                    2. Dial(PJSIP/e100_12)                  [extensions]',
+  "  '_2XX' =>        1. Goto(ctx-12,${EXTEN},1)               [extensions]",
+].join('\n');
+
+describe('DiagnosticsService — events and compiled dialplan (D-12, D-13)', () => {
+  it('returns recent call events for the tenant within the bounded window and count', async () => {
+    const now = Date.now();
+    const inside = new Date(now - 60_000).toISOString();
+    const findCalls = jest.fn().mockResolvedValue({
+      rows: [
+        { uniqueid: 'a-1', calldate: inside, src: '100', dst: '200', disposition: 'ANSWERED', dcontext: 'ctx-12' },
+        { uniqueid: 'a-2', calldate: inside, src: '101', dst: '201', disposition: 'NO ANSWER', dcontext: 'ctx-12' },
+      ],
+      count: 2,
+    });
+    const { service, cdr, ami } = createService({ findCalls });
+
+    const result = await service.readRecentEvents(TENANT_A);
+
+    expect(ami.command).not.toHaveBeenCalled();
+    expect(cdr.findCalls).toHaveBeenCalledWith(
+      TENANT_A,
+      expect.objectContaining({
+        limit: DIAGNOSTIC_EVENT_CAP,
+      }),
+    );
+    const filters = cdr.findCalls.mock.calls[0][1] as { dateFrom: string };
+    const windowStart = Date.parse(filters.dateFrom);
+    expect(now - windowStart).toBeGreaterThanOrEqual(DIAGNOSTIC_EVENT_WINDOW_MS - 5_000);
+    expect(now - windowStart).toBeLessThanOrEqual(DIAGNOSTIC_EVENT_WINDOW_MS + 5_000);
+    expect(result.events).toHaveLength(2);
+    expect(result.events[0].uniqueid).toBe('a-1');
+    expect(result.windowMs).toBe(DIAGNOSTIC_EVENT_WINDOW_MS);
+    expect(result.cap).toBe(DIAGNOSTIC_EVENT_CAP);
+    expect(result.truncated).toBe(false);
+  });
+
+  it('caps event history and reports truncation', async () => {
+    const rows = Array.from({ length: DIAGNOSTIC_EVENT_CAP + 3 }, (_, i) => ({
+      uniqueid: `evt-${i}`,
+      calldate: new Date().toISOString(),
+      src: '100',
+      dst: '200',
+      disposition: 'ANSWERED',
+      dcontext: 'ctx-12',
+    }));
+    const { service } = createService({
+      findCalls: jest.fn().mockResolvedValue({ rows, count: rows.length }),
+    });
+
+    const result = await service.readRecentEvents(TENANT_A);
+
+    expect(result.events).toHaveLength(DIAGNOSTIC_EVENT_CAP);
+    expect(result.truncated).toBe(true);
+    expect(result.matched).toBe(DIAGNOSTIC_EVENT_CAP + 3);
+  });
+
+  it('returns compiled dialplan rules for a tenant-owned context in evaluation order', async () => {
+    const { service, ami } = createService({
+      command: jest.fn().mockResolvedValue({ output: DIALPLAN_SHOW_CTX12 }),
+    });
+
+    const result = await service.readCompiledDialplan(TENANT_A, 'ctx-12');
+
+    expect(ami.command).toHaveBeenCalledTimes(1);
+    expect(ami.command.mock.calls[0][0]).toBe(`${DIAGNOSTIC_READ_COMMANDS.compiled_dialplan} ctx-12`);
+    expect(result.context).toBe('ctx-12');
+    expect(result.evaluationOrder).toBe(true);
+    expect(result.orderNote).toMatch(/evaluation order/i);
+    expect(result.rules.map((r) => r.application)).toEqual([
+      'NoOp(tenant-a-first)',
+      'Dial(PJSIP/e100_12)',
+      'Goto(ctx-12,${EXTEN},1)',
+    ]);
+    expect(result.rules.map((r) => r.priority)).toEqual([1, 2, 1]);
+    expect(result.rules[0].exten).toBe('100');
+    expect(result.rules[2].exten).toBe('_2XX');
+  });
+
+  it('refuses a compiled dialplan read for a context the tenant does not own', async () => {
+    const { service, ami } = createService({
+      command: jest.fn().mockResolvedValue({ output: DIALPLAN_SHOW_CTX12 }),
+    });
+
+    await expect(service.readCompiledDialplan(TENANT_A, 'ctx-34')).rejects.toThrow(/not own|refused/i);
+    expect(ami.command).not.toHaveBeenCalled();
+  });
+});
+
