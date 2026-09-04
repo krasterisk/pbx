@@ -1,3 +1,4 @@
+import { UserLevel } from '../users/user.model';
 import { PbxAgentDiffService } from './pbx-agent-diff.service';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -68,8 +69,10 @@ describe('PbxAgentDiffService', () => {
   let routeApplyService: { applyContext: jest.Mock };
   let directoriesService: { create: jest.Mock; update: jest.Mock; remove: jest.Mock; findOne: jest.Mock };
   let routesService: { create: jest.Mock; update: jest.Mock; remove: jest.Mock };
+  let loggerService: { logAction: jest.Mock };
+  let auditModel: { create: jest.Mock };
   let service: PbxAgentDiffService;
-  const ctxA = { vpbxUserUid: TENANT_A, userUid: AUTHOR_A, role: 1, threadUid: 3 };
+  const ctxA = { vpbxUserUid: TENANT_A, userUid: AUTHOR_A, role: UserLevel.ADMIN, threadUid: 3 };
 
   beforeEach(() => {
     rows = [];
@@ -124,11 +127,15 @@ describe('PbxAgentDiffService', () => {
       update: jest.fn(),
       remove: jest.fn(),
     };
+    loggerService = { logAction: jest.fn().mockResolvedValue(undefined) };
+    auditModel = { create: jest.fn().mockResolvedValue({ uid: 1 }) };
     service = new PbxAgentDiffService(
       proposalModel as any,
       routeApplyService as any,
       directoriesService as any,
       routesService as any,
+      loggerService as any,
+      auditModel as any,
     );
   });
 
@@ -232,6 +239,62 @@ describe('PbxAgentDiffService', () => {
         TENANT_A,
       );
       assertNoApplyPayload(result);
+    });
+  });
+
+  describe('permission and audit (D-21)', () => {
+    it('denies a read-only role, writes a denied audit row and performs no domain write', async () => {
+      const view = await service.createProposal(directoryCreateProposal(), ctxA);
+      const result = await service.apply(view.proposalId, { ...ctxA, role: UserLevel.READONLY });
+
+      expect(result.ok).toBe(false);
+      expect(result.reason).toBe('denied');
+      expect(rows[0].status).toBe('denied');
+      expect(directoriesService.create).not.toHaveBeenCalled();
+      expect(auditModel.create).toHaveBeenCalledWith(expect.objectContaining({
+        status: 'denied',
+        thread_uid: 3,
+        user_uid: TENANT_A,
+      }));
+      expect(loggerService.logAction).toHaveBeenCalled();
+    });
+
+    it('allows a permitted role and writes a successful audit row', async () => {
+      const view = await service.createProposal(directoryCreateProposal(), ctxA);
+      const result = await service.apply(view.proposalId, ctxA);
+
+      expect(result.ok).toBe(true);
+      expect(directoriesService.create).toHaveBeenCalledTimes(1);
+      expect(auditModel.create).toHaveBeenCalledWith(expect.objectContaining({
+        status: 'ok',
+        thread_uid: 3,
+        user_uid: TENANT_A,
+        tool_name: 'create_directory',
+      }));
+    });
+
+    it('writes the audit row before the response is produced', async () => {
+      const order: string[] = [];
+      auditModel.create.mockImplementation(async () => {
+        order.push('audit');
+        return { uid: 1 };
+      });
+      const view = await service.createProposal(directoryCreateProposal(), ctxA);
+      const result = await service.apply(view.proposalId, ctxA);
+      order.push('response');
+
+      expect(result.ok).toBe(true);
+      expect(order).toEqual(['audit', 'response']);
+    });
+
+    it('carries the conversation reference and the calling tenant on the audit row', async () => {
+      const view = await service.createProposal(directoryCreateProposal(), ctxA);
+      await service.apply(view.proposalId, { ...ctxA, threadUid: 99 });
+
+      expect(auditModel.create).toHaveBeenCalledWith(expect.objectContaining({
+        thread_uid: 99,
+        user_uid: TENANT_A,
+      }));
     });
   });
 
