@@ -202,10 +202,10 @@ describe('legacy-tool-migration (D-22, D-27)', () => {
   });
 
   describe('adapter precedence over handwritten twins (D-27)', () => {
-    it('serves list_contexts from the adapter and skips the handwritten twin', async () => {
+    it('serves list_contexts from the adapter with no handwritten skip shim', async () => {
       expect(registry.getToolByName('list_contexts')).toBeDefined();
-      expect(warnSpy).toHaveBeenCalledWith(
-        expect.stringMatching(/handwritten[\s\S]*list_contexts[\s\S]*adapter|adapter[\s\S]*list_contexts[\s\S]*handwritten/i),
+      expect(warnSpy).not.toHaveBeenCalledWith(
+        expect.stringMatching(/Skipping handwritten/i),
       );
 
       const result = await mcp.callTool('list_contexts', {}, TENANT_A);
@@ -216,9 +216,9 @@ describe('legacy-tool-migration (D-22, D-27)', () => {
       expect(contextsService.findAll).toHaveBeenCalledWith(TENANT_A);
     });
 
-    it('still registers a handwritten name that no adapter claims', () => {
+    it('does not register a name that no adapter claims', () => {
       const names = mcp.getToolsList(TENANT_A).map((tool) => tool.name);
-      expect(names).toContain('create_ivr');
+      expect(names).not.toContain('create_ivr');
       expect(registry.getToolByName('create_ivr')).toBeUndefined();
     });
 
@@ -375,14 +375,11 @@ describe('legacy-tool-migration (D-22, D-27)', () => {
       expect(retired).toMatchObject({ domain: 'routes', fate: 'retired' });
       expect(retired?.reason).toMatch(/15-11|confirm/i);
 
-      const routesMigrated = registry.getDomains().includes('routes');
       const inMcp = mcp.getToolsList(TENANT_A).some((tool) => tool.name === 'apply_dialplan');
-      if (routesMigrated) {
-        expect(inMcp).toBe(false);
-      }
+      expect(inMcp).toBe(false);
     });
 
-    it('reports adapter-served, handwritten, or retired and fails on a duplicate or a vanished tool', () => {
+    it('reports adapter-served or retired and fails on a leftover handwritten name', () => {
       const report = reportLegacyMigrationState(registry, mcp);
       expect(report).toHaveLength(18);
 
@@ -395,14 +392,17 @@ describe('legacy-tool-migration (D-22, D-27)', () => {
       expect(byName.delete_endpoint).toBe('adapter-served');
       expect(byName.create_trunk).toBe('adapter-served');
       expect(byName.delete_trunk).toBe('adapter-served');
-      expect(byName.create_ivr).toBe('handwritten');
-      expect(['handwritten', 'retired']).toContain(byName.apply_dialplan);
+      expect(byName.create_ivr).toBe('absent');
+      expect(byName.apply_dialplan).toBe('retired');
 
       const mcpNames = mcp.getToolsList(TENANT_A).map((tool) => tool.name);
       expect(new Set(mcpNames).size).toBe(mcpNames.length);
+      expect(mcpNames).not.toContain('apply_dialplan');
+      expect(mcpNames).not.toContain('create_ivr');
 
       for (const row of report) {
-        expect(['adapter-served', 'handwritten', 'retired']).toContain(row.state);
+        expect(['adapter-served', 'retired', 'absent']).toContain(row.state);
+        expect(row.state).not.toBe('handwritten');
       }
     });
   });
@@ -411,7 +411,7 @@ describe('legacy-tool-migration (D-22, D-27)', () => {
 function reportLegacyMigrationState(
   registry: AiAdapterRegistryService,
   mcp: McpToolsService,
-): Array<{ name: string; domain: string; state: 'adapter-served' | 'handwritten' | 'retired' }> {
+): Array<{ name: string; domain: string; state: 'adapter-served' | 'retired' | 'absent' }> {
   const mcpNames = mcp.getToolsList(TENANT_A).map((tool) => tool.name);
   if (new Set(mcpNames).size !== mcpNames.length) {
     throw new Error(`Duplicate tool names in MCP registry: ${mcpNames.join(', ')}`);
@@ -419,7 +419,6 @@ function reportLegacyMigrationState(
 
   const adapterNames = new Set(registry.getAllTools().map((tool) => tool.name));
   const mcpSet = new Set(mcpNames);
-  const domains = registry.getDomains();
 
   return LEGACY_TOOL_INVENTORY.map((entry) => {
     const inAdapter = adapterNames.has(entry.name);
@@ -432,15 +431,12 @@ function reportLegacyMigrationState(
       throw new Error(`"${entry.name}" is adapter-owned but missing from the MCP registry`);
     }
     if (!inAdapter && inMcp) {
-      if (entry.fate === 'retired' && domains.includes(entry.domain)) {
-        throw new Error(`Retired "${entry.name}" is still registered after domain "${entry.domain}" migrated`);
-      }
-      return { name: entry.name, domain: entry.domain, state: 'handwritten' as const };
+      throw new Error(`Leftover handwritten tool "${entry.name}" is still in the MCP registry`);
     }
     if (entry.fate === 'retired') {
       return { name: entry.name, domain: entry.domain, state: 'retired' as const };
     }
-    throw new Error(`"${entry.name}" is in neither the adapter registry nor the MCP registry`);
+    return { name: entry.name, domain: entry.domain, state: 'absent' as const };
   });
 }
 

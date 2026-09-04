@@ -1,6 +1,16 @@
+import * as fs from 'fs';
+import * as path from 'path';
 import { Logger } from '@nestjs/common';
 import { TENANT_ARG_KEYS } from '../ai-platform/ai-adapter.types';
 import { McpToolsService } from './mcp-tools.service';
+
+const FORMER_HANDWRITTEN_NAMES = [
+  'get_pbx_state', 'create_endpoints_bulk', 'create_endpoint', 'delete_endpoint',
+  'create_trunk', 'delete_trunk', 'create_ivr', 'update_ivr', 'delete_ivr',
+  'create_queue', 'update_queue', 'delete_queue', 'create_route', 'delete_route',
+  'apply_dialplan', 'list_contexts', 'get_cdr_summary', 'find_cdr_calls',
+] as const;
+const RETIRED_APPLY_TOOL = 'apply_dialplan';
 
 /**
  * Unit tests for McpToolsService (D-23 cross-tenant fix, D-19 audit, D-14 registry integration).
@@ -126,7 +136,7 @@ describe('McpToolsService', () => {
   });
 
   describe('Domain AI Adapter registry integration (D-14)', () => {
-    it('exposes registry tools through getToolsList / callTool alongside legacy tools', async () => {
+    it('exposes only registry tools through getToolsList / callTool', async () => {
       const adapterHandler = jest.fn().mockResolvedValue({ ok: true });
       aiAdapterRegistry.getAllTools.mockReturnValue([
         { name: 'list_directories', description: 'lists directories', inputSchema: {}, entityType: 'directory', handler: adapterHandler },
@@ -134,24 +144,79 @@ describe('McpToolsService', () => {
       service.registerAll();
 
       const tools = service.getToolsList(100);
-      expect(tools.map((t) => t.name)).toContain('list_directories');
-      expect(tools.map((t) => t.name)).toContain('create_trunk');
+      expect(tools.map((t) => t.name)).toEqual(['list_directories']);
+      expect(tools.map((t) => t.name)).not.toContain('create_trunk');
 
       await service.callTool('list_directories', { foo: 'bar' }, 100);
       expect(adapterHandler).toHaveBeenCalledWith({ foo: 'bar' }, 100);
     });
+  });
 
-    it('does not change the composition of the 18 legacy tools', () => {
-      const tools = service.getToolsList(100);
-      const legacyNames = [
-        'get_pbx_state', 'create_endpoints_bulk', 'create_endpoint', 'delete_endpoint',
-        'create_trunk', 'delete_trunk', 'create_ivr', 'update_ivr', 'delete_ivr',
-        'create_queue', 'update_queue', 'delete_queue', 'create_route', 'delete_route',
-        'apply_dialplan', 'list_contexts', 'get_cdr_summary', 'find_cdr_calls',
+  describe('hard cutover — no handwritten registrations (D-11, D-27)', () => {
+    it('registers no tools of its own: registry count equals adapter declarations', () => {
+      expect(service.getToolsList(100)).toHaveLength(0);
+
+      const tools = [
+        { name: 'list_directories', description: 'x', inputSchema: {}, entityType: 'directory', handler: jest.fn() },
+        { name: 'list_contexts', description: 'x', inputSchema: {}, entityType: 'context', handler: jest.fn() },
       ];
-      for (const name of legacyNames) {
-        expect(tools.map((t) => t.name)).toContain(name);
+      aiAdapterRegistry.getAllTools.mockReturnValue(tools);
+      service.registerAll();
+      expect(service.getToolsList(100)).toHaveLength(tools.length);
+    });
+
+    it('resolves every former handwritten name to an adapter handler except retired apply_dialplan', async () => {
+      const migrateNames = FORMER_HANDWRITTEN_NAMES.filter((name) => name !== RETIRED_APPLY_TOOL);
+      const handlers = Object.fromEntries(
+        migrateNames.map((name) => [name, jest.fn().mockResolvedValue({ ok: name })]),
+      );
+      aiAdapterRegistry.getAllTools.mockReturnValue(
+        Object.entries(handlers).map(([name, handler]) => ({
+          name,
+          description: name,
+          inputSchema: {},
+          entityType: 'pbx',
+          handler,
+        })),
+      );
+      service.registerAll();
+
+      for (const [name, handler] of Object.entries(handlers)) {
+        await service.callTool(name, {}, 100);
+        expect(handler).toHaveBeenCalled();
       }
+      await expect(service.callTool(RETIRED_APPLY_TOOL, {}, 100)).rejects.toThrow('Tool not found');
+      expect(service.getToolsList(100).map((t) => t.name)).not.toContain(RETIRED_APPLY_TOOL);
+    });
+
+    it('has no handwritten registration methods or precedence shim in source', () => {
+      const src = fs.readFileSync(path.join(__dirname, 'mcp-tools.service.ts'), 'utf8');
+      expect(src).not.toMatch(/regGetPbxState|private reg\(|adapterProvidedNames|Skipping handwritten/);
+    });
+
+    it('no source file imports deleted knowledge or webhook symbols', () => {
+      const srcRoot = path.resolve(__dirname, '../..');
+      const webhookPath = path.join(srcRoot, 'modules/ai-chat/ai-webhook.controller.ts');
+      const knowledgePath = path.join(srcRoot, 'modules/ai-chat/knowledge-base.service.ts');
+      expect(fs.existsSync(webhookPath)).toBe(false);
+      expect(fs.existsSync(knowledgePath)).toBe(false);
+
+      const banned = /KnowledgeBaseService|AiWebhookController|knowledge-base\.service|ai-webhook\.controller/;
+      const hits: string[] = [];
+      const walk = (dir: string) => {
+        for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+          const full = path.join(dir, entry.name);
+          if (entry.isDirectory()) {
+            walk(full);
+            continue;
+          }
+          if (!entry.name.endsWith('.ts')) continue;
+          const text = fs.readFileSync(full, 'utf8');
+          if (banned.test(text)) hits.push(path.relative(srcRoot, full));
+        }
+      };
+      walk(srcRoot);
+      expect(hits).toEqual([]);
     });
   });
 
