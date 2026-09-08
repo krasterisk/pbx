@@ -1,3 +1,4 @@
+import type { AgentTimelineItem } from '@krasterisk/shared';
 import { rtkApi } from '../rtkApi';
 import type { AiModel } from '@/features/ai-chat/model/types/AiChatSchema';
 
@@ -7,6 +8,7 @@ export interface IAiChatSettings {
 
 export interface IAgentUsageRow {
     tenantUid: number;
+    tenantName: string | null;
     tokensIn: number;
     tokensOut: number;
     turns: number;
@@ -34,7 +36,6 @@ export interface IAgentDefaultModel {
 }
 
 export type AiChatThreadStatus = 'active' | 'archived';
-export type AiChatThreadMessageRole = 'user' | 'assistant' | 'tool' | 'system';
 
 /** Conversation row returned by GET /ai-chat/threads (15-03 persistence). */
 export interface IAiChatThread {
@@ -55,10 +56,47 @@ export interface IAgentProposalView {
     entityType: string;
     entityLabel: string;
     summary: string[];
+    before?: Record<string, unknown> | null;
+    after?: Record<string, unknown> | null;
     status: AgentProposalStatus | string;
     expiresAt: string;
     error?: string | null;
     appliedAt?: string | null;
+    /** Optional multi-step plan attached to the same HITL card. */
+    workflowId?: string | null;
+    steps?: IAgentWorkflowStepView[];
+}
+
+export type AgentWorkflowStatus =
+    | 'pending'
+    | 'applying'
+    | 'applied'
+    | 'failed'
+    | 'rejected'
+    | 'denied'
+    | 'expired';
+
+export interface IAgentWorkflowStepView {
+    stepKey: string;
+    stepIndex: number;
+    tool: string;
+    entityType: string;
+    entityLabel: string;
+    status: string;
+    error: string | null;
+    dependsOn: string[];
+    requiresSecureInput: boolean;
+}
+
+export interface IAgentWorkflowPlanView {
+    workflowId: string;
+    title: string;
+    summary: string[];
+    status: AgentWorkflowStatus | string;
+    error: string | null;
+    expiresAt: string;
+    appliedAt: string | null;
+    steps: IAgentWorkflowStepView[];
 }
 
 export interface IAgentProposalActionResult {
@@ -68,20 +106,13 @@ export interface IAgentProposalActionResult {
     proposal?: IAgentProposalView;
 }
 
-export interface IAiChatThreadMessage {
-    uid: number;
-    thread_uid: number;
-    role: AiChatThreadMessageRole;
-    content: string | null;
-    tool_name?: string | null;
-    tool_calls?: unknown;
-    proposal_id?: string | null;
-    proposal?: IAgentProposalView | null;
-    created_at: string;
-}
+export type IAiChatCard =
+    | { card: 'single'; proposal: IAgentProposalView }
+    | { card: 'workflow'; workflow: IAgentWorkflowPlanView };
 
 export interface IAiChatThreadDetail extends IAiChatThread {
-    messages: IAiChatThreadMessage[];
+    timeline: AgentTimelineItem[];
+    cards: Record<string, IAiChatCard>;
 }
 
 const aiChatApi = rtkApi.injectEndpoints({
@@ -100,6 +131,18 @@ const aiChatApi = rtkApi.injectEndpoints({
         updateAiChatSettings: builder.mutation<IAiChatSettings, Partial<IAiChatSettings>>({
             query: (body) => ({
                 url: '/ai-chat/settings',
+                method: 'PUT',
+                body,
+            }),
+            invalidatesTags: ['AiChatSettings'],
+        }),
+        getAiChatDefaultProvider: builder.query<{ providerUid: number | null }, void>({
+            query: () => '/ai-chat/default-provider',
+            providesTags: ['AiChatSettings'],
+        }),
+        updateAiChatDefaultProvider: builder.mutation<{ providerUid: number }, { providerUid: number }>({
+            query: (body) => ({
+                url: '/ai-chat/default-provider',
                 method: 'PUT',
                 body,
             }),
@@ -161,11 +204,25 @@ const aiChatApi = rtkApi.injectEndpoints({
                 url: `/ai-chat/proposals/${proposalId}/apply`,
                 method: 'POST',
             }),
-            invalidatesTags: ['AiChatThreads'],
+            invalidatesTags: ['AiChatThreads', 'Ivrs', 'CallGroups', 'Endpoints'],
         }),
         rejectAiChatProposal: builder.mutation<IAgentProposalActionResult, string>({
             query: (proposalId) => ({
                 url: `/ai-chat/proposals/${proposalId}/reject`,
+                method: 'POST',
+            }),
+            invalidatesTags: ['AiChatThreads'],
+        }),
+        confirmAiChatWorkflow: builder.mutation<IAgentWorkflowPlanView, string>({
+            query: (workflowId) => ({
+                url: `/ai-chat/workflows/${workflowId}/apply`,
+                method: 'POST',
+            }),
+            invalidatesTags: ['AiChatThreads', 'Ivrs', 'CallGroups', 'Endpoints'],
+        }),
+        rejectAiChatWorkflow: builder.mutation<IAgentWorkflowPlanView, string>({
+            query: (workflowId) => ({
+                url: `/ai-chat/workflows/${workflowId}/reject`,
                 method: 'POST',
             }),
             invalidatesTags: ['AiChatThreads'],
@@ -180,6 +237,8 @@ export const {
     useGetAiChatStateQuery,
     useGetAiChatSettingsQuery,
     useUpdateAiChatSettingsMutation,
+    useGetAiChatDefaultProviderQuery,
+    useUpdateAiChatDefaultProviderMutation,
     useGetAgentUsageQuery,
     useGetAgentUsageFunnelQuery,
     useGetAgentDefaultModelQuery,
@@ -190,130 +249,9 @@ export const {
     useDeleteAiChatThreadMutation,
     useConfirmAiChatProposalMutation,
     useRejectAiChatProposalMutation,
+    useConfirmAiChatWorkflowMutation,
+    useRejectAiChatWorkflowMutation,
 } = aiChatApi;
-
-/**
- * Stream AI chat message via SSE.
- * Returns AbortController so the caller can cancel.
- */
-export type AgentProgressEvent = {
-    tool?: string;
-    label?: string;
-    step?: number;
-    maxSteps?: number;
-};
-
-export function streamAiChatMessage(params: {
-    message: string;
-    history: Array<{ role: string; content: string }>;
-    threadUid?: number;
-    onText: (chunk: string) => void;
-    onToolCall?: (data: { name: string; arguments: string }) => void;
-    onToolResult?: (data: { name: string; result: string }) => void;
-    onProgress?: (data: AgentProgressEvent) => void;
-    onProposal?: (data: IAgentProposalView) => void;
-    onDone: () => void;
-    onError: (msg: string, code?: string) => void;
-    onDisconnect?: () => void;
-}): AbortController {
-    const ac = new AbortController();
-    const token = localStorage.getItem('accessToken');
-    const apiBase = import.meta.env.VITE_API_URL || '/api';
-
-    (async () => {
-        let reachedTerminal = false;
-        try {
-            const response = await fetch(`${apiBase}/ai-chat/message`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-                },
-                body: JSON.stringify({
-                    message: params.message,
-                    history: params.history,
-                    ...(params.threadUid != null ? { threadUid: params.threadUid } : {}),
-                }),
-                signal: ac.signal,
-            });
-
-            if (!response.ok || !response.body) {
-                params.onError(`HTTP ${response.status}`);
-                return;
-            }
-
-            const reader = response.body.getReader();
-            const decoder = new TextDecoder();
-            let buffer = '';
-
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-                buffer += decoder.decode(value, { stream: true });
-
-                // Parse SSE lines
-                const lines = buffer.split('\n');
-                buffer = lines.pop() ?? '';
-
-                let eventType = '';
-                for (const line of lines) {
-                    if (ac.signal.aborted) return;
-                    if (line.startsWith('event: ')) {
-                        eventType = line.slice(7).trim();
-                    } else if (line.startsWith('data: ')) {
-                        const raw = line.slice(6).trim();
-                        try {
-                            const data = JSON.parse(raw);
-                            if (eventType === 'text') {
-                                params.onText(typeof data === 'string' ? data : String(data ?? ''));
-                            } else if (eventType === 'tool_call') {
-                                params.onToolCall?.(data);
-                            } else if (eventType === 'tool_result') {
-                                params.onToolResult?.(data);
-                            } else if (eventType === 'progress') {
-                                params.onProgress?.(data);
-                            } else if (eventType === 'proposal' && params.onProposal && isProposalClientView(data)) {
-                                params.onProposal(data);
-                            } else if (eventType === 'done') {
-                                reachedTerminal = true;
-                                params.onDone();
-                                return;
-                            } else if (eventType === 'error') {
-                                reachedTerminal = true;
-                                const code = typeof data === 'object' && data && 'code' in data
-                                    ? String((data as { code: unknown }).code)
-                                    : undefined;
-                                const message = typeof data === 'string'
-                                    ? data
-                                    : (data && typeof data === 'object' && 'message' in data
-                                        ? String((data as { message: unknown }).message)
-                                        : 'Stream error');
-                                params.onError(message, code);
-                                return;
-                            }
-                        } catch {
-                            // ignore parse errors
-                        }
-                        eventType = '';
-                    }
-                }
-            }
-            if (!reachedTerminal && !ac.signal.aborted) {
-                if (params.onDisconnect) params.onDisconnect();
-                else params.onDone();
-            }
-        } catch (err: any) {
-            if (err?.name === 'AbortError' || ac.signal.aborted) return;
-            if (params.onDisconnect && (err?.name === 'TypeError' || /network|fetch/i.test(String(err?.message)))) {
-                params.onDisconnect();
-                return;
-            }
-            params.onError(err?.message ?? 'Stream error');
-        }
-    })();
-
-    return ac;
-}
 
 export function isProposalClientView(value: unknown): value is IAgentProposalView {
     return (

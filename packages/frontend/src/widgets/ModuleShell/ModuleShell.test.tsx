@@ -24,7 +24,6 @@ vi.mock('@/shared/hooks/useAppStore', () => ({
       auth: { user: { name: string; level: number } };
       aiChat: {
         isOpen: boolean;
-        messages: [];
         isStreaming: boolean;
         selectedModel: string;
         availableModels: [];
@@ -35,7 +34,6 @@ vi.mock('@/shared/hooks/useAppStore', () => ({
       auth: { user: { name: 'Admin', level: 1 } },
       aiChat: {
         isOpen: false,
-        messages: [],
         isStreaming: false,
         selectedModel: '',
         availableModels: [],
@@ -44,9 +42,33 @@ vi.mock('@/shared/hooks/useAppStore', () => ({
   useAppDispatch: () => vi.fn(),
 }));
 
+vi.mock('@/features/ai-chat/model/useAgentTurn', () => ({
+  useAgentTurn: () => ({
+    send: vi.fn(),
+    continueAfterApply: vi.fn(),
+    stop: vi.fn(),
+    abort: vi.fn(),
+    retry: vi.fn(),
+    isStreaming: false,
+    outcome: 'idle',
+  }),
+}));
+
 vi.mock('@/shared/api/endpoints/aiChatApi', () => ({
   useGetAiChatModelsQuery: () => ({ data: undefined }),
-  streamAiChatMessage: vi.fn(),
+  useGetAiChatThreadsQuery: () => ({
+    data: [],
+    isLoading: false,
+    isError: false,
+    refetch: vi.fn(),
+  }),
+  useGetAiChatThreadQuery: () => ({ data: undefined, isFetching: false }),
+  useCreateAiChatThreadMutation: () => [vi.fn(), { isLoading: false }],
+  useDeleteAiChatThreadMutation: () => [vi.fn(), { isLoading: false }],
+  useConfirmAiChatProposalMutation: () => [vi.fn(), { isLoading: false }],
+  useRejectAiChatProposalMutation: () => [vi.fn(), { isLoading: false }],
+  useConfirmAiChatWorkflowMutation: () => [vi.fn(), { isLoading: false }],
+  useRejectAiChatWorkflowMutation: () => [vi.fn(), { isLoading: false }],
 }));
 
 vi.mock('react-i18next', () => ({

@@ -1,26 +1,15 @@
-import { useEffect, useRef, useCallback, useState, useMemo } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Bot, X, Send, Trash2, RotateCcw, ArrowDown } from 'lucide-react';
 import { Button, Text, Textarea } from '@/shared/ui';
 import { Flex, HStack, VStack } from '@/shared/ui/Stack';
-import { useAppDispatch, useAppSelector } from '@/shared/hooks/useAppStore';
+import { useAppDispatch } from '@/shared/hooks/useAppStore';
 import { useIsMobile } from '@/shared/hooks/useIsMobile';
 import { aiChatActions } from '@/features/ai-chat/model/slice/aiChatSlice';
-import {
-    selectAiChatMessages,
-    selectAiChatIsStreaming,
-} from '@/features/ai-chat/model/selectors/aiChatSelectors';
-import {
-    isProposalClientView,
-    useGetAiChatThreadQuery,
-    type IAgentProposalView,
-    type IAiChatThreadMessage,
-} from '@/shared/api/endpoints/aiChatApi';
-import type { AiChatMessage } from '@/features/ai-chat/model/types/AiChatSchema';
-import { ChatMessage } from '@/features/ai-chat/ui/ChatMessage/ChatMessage';
-import { DiffConfirmCard } from '@/features/ai-chat/ui/DiffConfirmCard';
+import { useGetAiChatThreadQuery } from '@/shared/api/endpoints/aiChatApi';
+import { TimelineList } from '@/features/ai-chat/ui/Timeline';
 import { ThreadList } from '@/features/ai-chat/ui/ThreadList';
-import { useAgentStream } from '@/features/ai-chat/model/useAgentStream';
+import { useAgentTurn } from '@/features/ai-chat/model/useAgentTurn';
 import cls from './AiChatWidget.module.scss';
 
 const SUGGESTION_KEYS = [
@@ -29,25 +18,6 @@ const SUGGESTION_KEYS = [
     'aiChat.suggestions.addTrunk',
     'aiChat.suggestions.setupIvr',
 ] as const;
-
-function toChatMessage(message: IAiChatThreadMessage): AiChatMessage {
-    return {
-        id: String(message.uid),
-        role: message.role === 'assistant' ? 'assistant' : 'user',
-        content: message.content ?? '',
-        createdAt: new Date(message.created_at).getTime(),
-        toolCalls: Array.isArray(message.tool_calls) ? message.tool_calls : undefined,
-    };
-}
-
-function extractProposal(message: IAiChatThreadMessage): IAgentProposalView | undefined {
-    if (isProposalClientView(message.proposal)) return message.proposal;
-    if (isProposalClientView(message.tool_calls)) return message.tool_calls;
-    if (Array.isArray(message.tool_calls)) {
-        return message.tool_calls.find(isProposalClientView);
-    }
-    return undefined;
-}
 
 const FOCUSABLE_SELECTOR =
     'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -66,61 +36,28 @@ export interface AiChatWidgetProps {
 export const AiChatWidget = ({ open, onClose }: AiChatWidgetProps) => {
     const { t } = useTranslation();
     const dispatch = useAppDispatch();
-    const inFlightMessages = useAppSelector(selectAiChatMessages);
-    const isStreaming = useAppSelector(selectAiChatIsStreaming);
     const isBelowTablet = useIsMobile(768);
     const isBelowWide = useIsMobile(1024);
     const showRail = !isBelowWide;
     const [selectedThreadUid, setSelectedThreadUid] = useState<number | null>(null);
-    const { data: threadDetail } = useGetAiChatThreadQuery(selectedThreadUid ?? 0, {
+    const { data: detail } = useGetAiChatThreadQuery(selectedThreadUid ?? 0, {
         skip: selectedThreadUid == null,
     });
 
     const [lastError, setLastError] = useState<string | null>(null);
-    const [streamProposal, setStreamProposal] = useState<IAgentProposalView | null>(null);
-    const {
-        send,
-        stop,
-        abort,
-        retry,
-        progressLines,
-        isStreaming: turnStreaming,
-        outcome,
-        proposal: hookProposal,
-    } = useAgentStream({
+    const { send, continueAfterApply, stop, abort, retry, isStreaming, outcome } = useAgentTurn({
         threadUid: selectedThreadUid,
-        onProposal: setStreamProposal,
+        onThreadCreated: setSelectedThreadUid,
     });
-    const streaming = isStreaming || turnStreaming;
-    const activeProposal = streamProposal ?? hookProposal;
 
-    const committedItems = useMemo(
-        () =>
-            (threadDetail?.messages ?? [])
-                .filter((message) => message.role === 'user' || message.role === 'assistant')
-                .map((message) => ({
-                    message: toChatMessage(message),
-                    proposal: extractProposal(message),
-                })),
-        [threadDetail],
-    );
-    const items = [
-        ...(selectedThreadUid == null ? [] : committedItems),
-        ...inFlightMessages.map((message, index, list) => ({
-            message,
-            proposal:
-                index === list.length - 1 && message.role === 'assistant'
-                    ? activeProposal ?? undefined
-                    : undefined,
-        })),
-    ];
-    const messages = items.map((item) => item.message);
+    const timeline = detail?.timeline ?? [];
+    const cards = detail?.cards ?? {};
+    const showWelcome = !detail?.timeline.length;
 
     const panelRef = useRef<HTMLDivElement>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const messagesRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
-    const lastMessageRef = useRef<string>('');
     const [following, setFollowing] = useState(true);
 
     const FOLLOW_TOLERANCE_PX = 48;
@@ -139,24 +76,22 @@ export const AiChatWidget = ({ open, onClose }: AiChatWidgetProps) => {
 
     const handleSelectThread = useCallback((uid: number) => {
         setSelectedThreadUid(uid);
-        dispatch(aiChatActions.clearMessages());
+        dispatch(aiChatActions.resetTurn());
         setLastError(null);
-        setStreamProposal(null);
     }, [dispatch]);
 
     const handleDeletedThread = useCallback((uid: number) => {
         if (selectedThreadUid === uid) {
             setSelectedThreadUid(null);
-            dispatch(aiChatActions.clearMessages());
+            dispatch(aiChatActions.resetTurn());
             setLastError(null);
-            setStreamProposal(null);
         }
     }, [dispatch, selectedThreadUid]);
 
     useEffect(() => {
         if (!following) return;
         messagesEndRef.current?.scrollIntoView?.({ behavior: 'smooth' });
-    }, [messages, progressLines, outcome, following]);
+    }, [detail?.timeline, outcome, following]);
 
     useEffect(() => {
         if (!open) return;
@@ -197,19 +132,17 @@ export const AiChatWidget = ({ open, onClose }: AiChatWidgetProps) => {
     const handleSend = useCallback((overrideText?: string) => {
         const textarea = textareaRef.current;
         const text = overrideText ?? textarea?.value.trim();
-        if (!text || streaming) return;
+        if (!text || isStreaming) return;
 
         if (textarea && !overrideText) textarea.value = '';
-        lastMessageRef.current = text;
         setLastError(null);
-        setStreamProposal(null);
         send(text);
-    }, [send, streaming]);
+    }, [send, isStreaming]);
 
     const handleRetry = useCallback(() => {
-        if (streaming) return;
+        if (isStreaming) return;
         retry();
-    }, [retry, streaming]);
+    }, [retry, isStreaming]);
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === 'Enter' && !e.shiftKey) {
@@ -257,7 +190,7 @@ export const AiChatWidget = ({ open, onClose }: AiChatWidgetProps) => {
                     <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => dispatch(aiChatActions.clearMessages())}
+                        onClick={() => dispatch(aiChatActions.resetTurn())}
                         title={t('aiChat.clearChat')}
                     >
                         <Trash2 size={14} />
@@ -300,7 +233,7 @@ export const AiChatWidget = ({ open, onClose }: AiChatWidgetProps) => {
                         align="stretch"
                         data-testid="ai-agent-conversation"
                     >
-                        {messages.length === 0 && (
+                        {showWelcome && (
                             <HStack className={cls.suggestions} gap="8" wrap="wrap">
                                 {SUGGESTION_KEYS.map((key) => (
                                     <Button
@@ -329,48 +262,16 @@ export const AiChatWidget = ({ open, onClose }: AiChatWidgetProps) => {
                             data-testid="ai-agent-messages"
                             onScroll={handleMessagesScroll}
                         >
-                            {messages.length === 0 && (
-                                <ChatMessage
-                                    message={{
-                                        id: 'welcome',
-                                        role: 'assistant',
-                                        content: t('aiChat.welcome'),
-                                        createdAt: Date.now(),
-                                    }}
-                                />
+                            {showWelcome && (
+                                <Text as="p">{t('aiChat.welcome')}</Text>
                             )}
-                            {items.map((item) => (
-                                <VStack key={item.message.id} gap="8" align="stretch">
-                                    {item.proposal && item.message.role === 'assistant' && item.message.isStreaming ? (
-                                        <>
-                                            <DiffConfirmCard proposal={item.proposal} />
-                                            <ChatMessage message={item.message} />
-                                        </>
-                                    ) : (
-                                        <>
-                                            <ChatMessage message={item.message} />
-                                            {item.proposal && (
-                                                <DiffConfirmCard proposal={item.proposal} />
-                                            )}
-                                        </>
-                                    )}
-                                </VStack>
-                            ))}
-                            {progressLines.length > 0 && (
-                                <VStack
-                                    className={cls.progress}
-                                    gap="4"
-                                    align="stretch"
-                                    data-testid="ai-agent-progress"
-                                    aria-live="polite"
-                                >
-                                    {progressLines.map((line, index) => (
-                                        <Text as="p" key={`${line}-${index}`} className={cls.progressLine}>
-                                            {line}
-                                        </Text>
-                                    ))}
-                                </VStack>
-                            )}
+                            <TimelineList
+                                items={timeline}
+                                cards={cards}
+                                onCardSettled={() => {
+                                    if (!isStreaming) continueAfterApply();
+                                }}
+                            />
                             {outcome === 'stopped' && (
                                 <Text as="p" className={cls.outcome} data-testid="ai-agent-outcome">
                                     {t('aiChat.stopped')}
@@ -425,7 +326,7 @@ export const AiChatWidget = ({ open, onClose }: AiChatWidgetProps) => {
                     align="stretch"
                     data-testid="ai-agent-composer"
                 >
-                    {lastError && !streaming && (
+                    {lastError && !isStreaming && (
                         <HStack className={cls.errorBanner} gap="8" align="center">
                             <Text as="span" className={cls.errorText}>{lastError.slice(0, 80)}</Text>
                             <Button
@@ -446,17 +347,17 @@ export const AiChatWidget = ({ open, onClose }: AiChatWidgetProps) => {
                             placeholder={t('aiChat.inputPlaceholder')}
                             rows={1}
                             onKeyDown={handleKeyDown}
-                            disabled={streaming}
+                            disabled={isStreaming}
                         />
                         <Button
                             id="ai-chat-send"
-                            variant={streaming ? 'ghost' : 'default'}
+                            variant={isStreaming ? 'ghost' : 'default'}
                             size="icon"
-                            onClick={streaming ? stop : () => handleSend()}
-                            title={streaming ? t('aiChat.stop') : t('aiChat.send')}
-                            aria-label={streaming ? t('aiChat.stop') : t('aiChat.send')}
+                            onClick={isStreaming ? stop : () => handleSend()}
+                            title={isStreaming ? t('aiChat.stop') : t('aiChat.send')}
+                            aria-label={isStreaming ? t('aiChat.stop') : t('aiChat.send')}
                         >
-                            {streaming ? <X size={16} /> : <Send size={16} />}
+                            {isStreaming ? <X size={16} /> : <Send size={16} />}
                         </Button>
                     </HStack>
                 </VStack>

@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import type { AgentTimelineItem } from '@krasterisk/shared';
 
 const useIsMobileMock = vi.fn((_bp?: number) => false);
 
@@ -11,39 +12,20 @@ vi.mock('@/shared/hooks/useIsMobile', () => ({
 
 const aiChatState = {
   isOpen: false,
-  messages: [] as Array<{
-    id: string;
-    role: 'user' | 'assistant';
-    content: string;
-    createdAt: number;
-    isStreaming?: boolean;
-  }>,
   isStreaming: false,
   selectedModel: 'gpt-test',
   availableModels: [{ name: 'gpt-test', displayName: 'Test Model' }],
-  progressLines: [] as string[],
   turnOutcome: 'idle' as string,
 };
 
-const streamApi = {
+const turnApi = {
   send: vi.fn(),
+  continueAfterApply: vi.fn(),
   stop: vi.fn(),
   abort: vi.fn(),
   retry: vi.fn(),
-  lastMessage: '',
-  progressLines: [] as string[],
-  answerText: '',
   isStreaming: false,
   outcome: 'idle' as string,
-  proposal: null as {
-    proposalId: string;
-    entityType: string;
-    entityLabel: string;
-    summary: string[];
-    status: string;
-    expiresAt: string;
-    error: string | null;
-  } | null,
 };
 
 vi.mock('@/shared/hooks/useAppStore', () => ({
@@ -53,68 +35,70 @@ vi.mock('@/shared/hooks/useAppStore', () => ({
   useAppDispatch: () => vi.fn(),
 }));
 
-vi.mock('@/features/ai-chat/model/useAgentStream', () => ({
-  useAgentStream: () => streamApi,
+vi.mock('@/features/ai-chat/model/useAgentTurn', () => ({
+  useAgentTurn: () => turnApi,
 }));
+
+const AT = '2026-09-03T12:00:00.000Z';
+const PROPOSAL_ID = '11111111-1111-4111-8111-111111111111';
 
 const storedThreads = [
   {
     uid: 7,
     title: "Yesterday's call",
     status: 'active' as const,
-    last_message_at: '2026-09-03T12:00:00.000Z',
-    created_at: '2026-09-03T12:00:00.000Z',
-    updated_at: '2026-09-03T12:00:00.000Z',
+    last_message_at: AT,
+    created_at: AT,
+    updated_at: AT,
   },
 ];
 
-const storedThreadDetail = {
+const storedThreadDetail: {
+  uid: number;
+  title: string;
+  status: 'active';
+  last_message_at: string;
+  created_at: string;
+  updated_at: string;
+  timeline: AgentTimelineItem[];
+  cards: Record<string, { card: 'single'; proposal: {
+    proposalId: string;
+    entityType: string;
+    entityLabel: string;
+    summary: string[];
+    status: string;
+    expiresAt: string;
+    error: string | null;
+  } }>;
+} = {
   uid: 7,
   title: "Yesterday's call",
-  status: 'active' as const,
-  last_message_at: '2026-09-03T12:00:00.000Z',
-  created_at: '2026-09-03T12:00:00.000Z',
-  updated_at: '2026-09-03T12:00:00.000Z',
-  messages: [
-    {
-      uid: 71,
-      thread_uid: 7,
-      role: 'user' as const,
-      content: 'Stored user message from yesterday',
-      created_at: '2026-09-03T12:00:00.000Z',
-    },
-    {
-      uid: 72,
-      thread_uid: 7,
-      role: 'assistant' as const,
-      content: 'Stored assistant reply',
-      created_at: '2026-09-03T12:01:00.000Z',
-      proposal_id: '11111111-1111-4111-8111-111111111111',
+  status: 'active',
+  last_message_at: AT,
+  created_at: AT,
+  updated_at: AT,
+  timeline: [
+    { kind: 'user', id: 'm1', text: 'Stored user message from yesterday', createdAt: AT },
+    { kind: 'step', id: 's1', labelKey: 'aiChat.progress.tools.create_directory', labelFallback: 'create_directory', done: true, createdAt: AT },
+    { kind: 'proposal', id: 'p1', card: 'single', createdAt: AT },
+    { kind: 'assistant', id: 'm4', text: 'Stored assistant reply', closeKind: 'wait_confirm', createdAt: AT },
+    { kind: 'user', id: 'm5', text: 'And also add a trunk', createdAt: AT },
+    { kind: 'assistant', id: 'm6', text: 'I will propose a trunk next', closeKind: 'complete', createdAt: AT },
+  ],
+  cards: {
+    p1: {
+      card: 'single',
       proposal: {
-        proposalId: '11111111-1111-4111-8111-111111111111',
+        proposalId: PROPOSAL_ID,
         entityType: 'directory',
         entityLabel: 'VIP',
         summary: ['Добавить поле num'],
         status: 'pending',
-        expiresAt: '2026-09-05T12:00:00.000Z',
+        expiresAt: '2027-09-05T12:00:00.000Z',
         error: null,
       },
     },
-    {
-      uid: 73,
-      thread_uid: 7,
-      role: 'user' as const,
-      content: 'And also add a trunk',
-      created_at: '2026-09-03T12:02:00.000Z',
-    },
-    {
-      uid: 74,
-      thread_uid: 7,
-      role: 'assistant' as const,
-      content: 'I will propose a trunk next',
-      created_at: '2026-09-03T12:03:00.000Z',
-    },
-  ],
+  },
 };
 
 vi.mock('@/shared/api/endpoints/aiChatApi', () => ({
@@ -138,21 +122,35 @@ vi.mock('@/shared/api/endpoints/aiChatApi', () => ({
     { isLoading: false },
   ],
   useConfirmAiChatProposalMutation: () => [
-    () => ({ unwrap: async () => ({ ok: true }) }),
+    () => ({
+      unwrap: async () => ({
+        ok: true,
+        proposal: {
+          proposalId: PROPOSAL_ID,
+          entityType: 'directory',
+          entityLabel: 'VIP',
+          summary: ['Добавить поле num'],
+          status: 'applied',
+          expiresAt: '2027-09-05T12:00:00.000Z',
+          appliedAt: '2026-09-07T15:30:33.000Z',
+          error: null,
+        },
+      }),
+    }),
     { isLoading: false },
   ],
   useRejectAiChatProposalMutation: () => [
     () => ({ unwrap: async () => ({ ok: true }) }),
     { isLoading: false },
   ],
-  streamAiChatMessage: vi.fn(),
-  isProposalClientView: (value: unknown) =>
-    !!value &&
-    typeof value === 'object' &&
-    !Array.isArray(value) &&
-    'proposalId' in value &&
-    !('applyPayload' in value) &&
-    !('apply_payload' in value),
+  useConfirmAiChatWorkflowMutation: () => [
+    () => ({ unwrap: async () => ({ status: 'applied', steps: [] }) }),
+    { isLoading: false },
+  ],
+  useRejectAiChatWorkflowMutation: () => [
+    () => ({ unwrap: async () => ({ status: 'rejected', steps: [] }) }),
+    { isLoading: false },
+  ],
 }));
 
 vi.mock('react-i18next', () => ({
@@ -185,24 +183,32 @@ function mockViewport(width: number) {
   useIsMobileMock.mockImplementation((bp = 768) => width < bp);
 }
 
+function selectStoredThread() {
+  fireEvent.click(screen.getByRole('option', { name: /Yesterday's call/ }));
+}
+
 describe('AiChatWidget', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockViewport(1280);
     Element.prototype.scrollIntoView = vi.fn();
-    aiChatState.messages = [];
     aiChatState.isStreaming = false;
-    aiChatState.progressLines = [];
     aiChatState.turnOutcome = 'idle';
-    streamApi.send.mockReset();
-    streamApi.stop.mockReset();
-    streamApi.abort.mockReset();
-    streamApi.retry.mockReset();
-    streamApi.progressLines = [];
-    streamApi.answerText = '';
-    streamApi.isStreaming = false;
-    streamApi.outcome = 'idle';
-    streamApi.proposal = null;
+    storedThreadDetail.timeline = [
+      { kind: 'user', id: 'm1', text: 'Stored user message from yesterday', createdAt: AT },
+      { kind: 'step', id: 's1', labelKey: 'aiChat.progress.tools.create_directory', labelFallback: 'create_directory', done: true, createdAt: AT },
+      { kind: 'proposal', id: 'p1', card: 'single', createdAt: AT },
+      { kind: 'assistant', id: 'm4', text: 'Stored assistant reply', closeKind: 'wait_confirm', createdAt: AT },
+      { kind: 'user', id: 'm5', text: 'And also add a trunk', createdAt: AT },
+      { kind: 'assistant', id: 'm6', text: 'I will propose a trunk next', closeKind: 'complete', createdAt: AT },
+    ];
+    turnApi.send.mockReset();
+    turnApi.continueAfterApply.mockReset();
+    turnApi.stop.mockReset();
+    turnApi.abort.mockReset();
+    turnApi.retry.mockReset();
+    turnApi.isStreaming = false;
+    turnApi.outcome = 'idle';
   });
 
   it('does not render the former floating trigger', () => {
@@ -256,8 +262,9 @@ describe('AiChatWidget', () => {
       join(process.cwd(), 'src/widgets/AiChatWidget/AiChatWidget.module.scss'),
       'utf8',
     );
-    expect(scss).toMatch(/--ai-agent-panel-width:\s*520px/);
+    expect(scss).toMatch(/--ai-agent-panel-width:\s*60vw/);
     expect(scss).toMatch(/width:\s*var\(--ai-agent-panel-width\)/);
+    expect(scss).toMatch(/max-width:\s*1023px[\s\S]*--ai-agent-panel-width:\s*520px/);
   });
 
   it('renders a thread rail beside the conversation above the wide breakpoint', () => {
@@ -273,33 +280,60 @@ describe('AiChatWidget', () => {
     expect(screen.queryByTestId('ai-agent-thread-rail')).toBeNull();
   });
 
-  it('loads stored messages when a conversation is selected from the rail', () => {
+  it('renders the thread timeline from the cache, not from a local list', () => {
     render(<AiChatWidget open onClose={vi.fn()} />);
     expect(screen.queryByText('Stored user message from yesterday')).toBeNull();
-    fireEvent.click(screen.getByRole('option', { name: /Yesterday's call/ }));
+    selectStoredThread();
+    expect(screen.getByTestId('ai-agent-timeline')).toBeInTheDocument();
     expect(screen.getByText('Stored user message from yesterday')).toBeInTheDocument();
     expect(screen.getByText('Stored assistant reply')).toBeInTheDocument();
   });
 
-  it('places a stored change card at the turn that produced it', () => {
+  it('places a card at the item that produced it', () => {
     render(<AiChatWidget open onClose={vi.fn()} />);
-    fireEvent.click(screen.getByRole('option', { name: /Yesterday's call/ }));
+    selectStoredThread();
 
     const conversation = screen.getByTestId('ai-agent-conversation');
     const text = conversation.textContent ?? '';
+    const userAt = text.indexOf('Stored user message from yesterday');
     const cardAt = text.indexOf('VIP');
     const laterUserAt = text.indexOf('And also add a trunk');
     const laterAssistantAt = text.indexOf('I will propose a trunk next');
     expect(cardAt).toBeGreaterThan(-1);
     expect(text.indexOf('Добавить поле num')).toBeGreaterThan(-1);
     expect(screen.getByRole('button', { name: 'aiChat.card.apply' })).toBeInTheDocument();
+    expect(cardAt).toBeGreaterThan(userAt);
     expect(laterUserAt).toBeGreaterThan(cardAt);
     expect(laterAssistantAt).toBeGreaterThan(laterUserAt);
   });
 
+  it('continues the conversation through the continue endpoint after apply', async () => {
+    render(<AiChatWidget open onClose={vi.fn()} />);
+    selectStoredThread();
+    fireEvent.click(screen.getByRole('button', { name: 'aiChat.card.apply' }));
+    await vi.waitFor(() => expect(turnApi.continueAfterApply).toHaveBeenCalledTimes(1));
+    expect(turnApi.send).not.toHaveBeenCalled();
+  });
+
+  it('leaves no technical data in the panel markup', () => {
+    render(<AiChatWidget open onClose={vi.fn()} />);
+    selectStoredThread();
+    const html = screen.getByTestId('ai-agent-panel').innerHTML;
+    expect(html).not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}/i);
+    expect(html).not.toMatch(/\b(e|ew)\d+_\d+\b/);
+    expect(html).not.toMatch(/\bq\w+_\d+\b/);
+    expect(html).not.toMatch(/"proposalId"|applyPayload|tool_call/);
+  });
+
+  it('does not render a tool plan block', () => {
+    render(<AiChatWidget open onClose={vi.fn()} />);
+    selectStoredThread();
+    expect(screen.queryByText(/План выполнения|Execution plan/i)).toBeNull();
+  });
+
   it('clears the conversation column after deleting the selected conversation', async () => {
     render(<AiChatWidget open onClose={vi.fn()} />);
-    fireEvent.click(screen.getByRole('option', { name: /Yesterday's call/ }));
+    selectStoredThread();
     expect(screen.getByText('Stored user message from yesterday')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'aiChat.deleteConversation' }));
@@ -345,6 +379,8 @@ describe('AiChatWidget', () => {
     expect(en.aiChat.title).toBe('AI Assistant');
     expect(ru.aiChat.closePanel).toBe('Закрыть панель');
     expect(en.aiChat.shortcutHint).toBe('{{mod}}+Shift+J');
+    expect(ru.aiChat).not.toHaveProperty('continueAfterApply');
+    expect(en.aiChat).not.toHaveProperty('continueAfterApply');
   });
 
   it('does not render a model selector in the tenant panel', () => {
@@ -355,52 +391,47 @@ describe('AiChatWidget', () => {
   });
 
   it('replaces send with stop while a turn is in flight and returns to send after', () => {
-    aiChatState.isStreaming = true;
-    streamApi.isStreaming = true;
+    turnApi.isStreaming = true;
     const { rerender } = render(<AiChatWidget open onClose={vi.fn()} />);
     expect(screen.getByRole('button', { name: 'aiChat.stop' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'aiChat.send' })).toBeNull();
 
-    aiChatState.isStreaming = false;
-    streamApi.isStreaming = false;
+    turnApi.isStreaming = false;
     rerender(<AiChatWidget open onClose={vi.fn()} />);
     expect(screen.getByRole('button', { name: 'aiChat.send' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'aiChat.stop' })).toBeNull();
   });
 
   it('pressing stop calls the stream abort and shows the stopped outcome', () => {
-    aiChatState.isStreaming = true;
-    streamApi.isStreaming = true;
+    turnApi.isStreaming = true;
     const { rerender } = render(<AiChatWidget open onClose={vi.fn()} />);
     fireEvent.click(screen.getByRole('button', { name: 'aiChat.stop' }));
-    expect(streamApi.stop).toHaveBeenCalledTimes(1);
+    expect(turnApi.stop).toHaveBeenCalledTimes(1);
 
-    streamApi.isStreaming = false;
-    streamApi.outcome = 'stopped';
-    aiChatState.isStreaming = false;
-    aiChatState.turnOutcome = 'stopped';
+    turnApi.isStreaming = false;
+    turnApi.outcome = 'stopped';
     rerender(<AiChatWidget open onClose={vi.fn()} />);
     expect(screen.getByText('aiChat.stopped')).toBeInTheDocument();
   });
 
   it('renders ceiling, failure and disconnect as distinct outcomes', () => {
-    streamApi.outcome = 'ceiling';
+    turnApi.outcome = 'ceiling';
     const { rerender } = render(<AiChatWidget open onClose={vi.fn()} />);
     expect(screen.getByText('aiChat.ceiling')).toBeInTheDocument();
     expect(screen.queryByText('aiChat.stopped')).toBeNull();
     expect(screen.queryByText('aiChat.failed')).toBeNull();
 
-    streamApi.outcome = 'failed';
+    turnApi.outcome = 'failed';
     rerender(<AiChatWidget open onClose={vi.fn()} />);
     expect(screen.getByText('aiChat.failed')).toBeInTheDocument();
     expect(screen.queryByText('aiChat.ceiling')).toBeNull();
 
-    streamApi.outcome = 'disconnected';
-    streamApi.answerText = 'partial so far';
-    aiChatState.messages = [
-      { id: 'a1', role: 'assistant', content: 'partial so far', createdAt: Date.now() },
+    turnApi.outcome = 'disconnected';
+    storedThreadDetail.timeline = [
+      { kind: 'assistant', id: 'a1', text: 'partial so far', closeKind: 'complete', createdAt: AT },
     ];
     rerender(<AiChatWidget open onClose={vi.fn()} />);
+    selectStoredThread();
     expect(screen.getByText('aiChat.disconnected')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'aiChat.reconnect' })).toBeInTheDocument();
     expect(screen.getByText('partial so far')).toBeInTheDocument();
@@ -409,11 +440,10 @@ describe('AiChatWidget', () => {
   });
 
   it('aborts the in-flight request when the panel closes', () => {
-    streamApi.isStreaming = true;
-    aiChatState.isStreaming = true;
+    turnApi.isStreaming = true;
     const { rerender } = render(<AiChatWidget open onClose={vi.fn()} />);
     rerender(<AiChatWidget open={false} onClose={vi.fn()} />);
-    expect(streamApi.abort).toHaveBeenCalledTimes(1);
+    expect(turnApi.abort).toHaveBeenCalledTimes(1);
   });
 
   function mockScroller(el: HTMLElement, metrics: { scrollTop: number; clientHeight: number; scrollHeight: number }) {
@@ -425,17 +455,16 @@ describe('AiChatWidget', () => {
   it('keeps the conversation at the bottom while the reader is already there', () => {
     const scrollIntoView = vi.fn();
     Element.prototype.scrollIntoView = scrollIntoView;
-    aiChatState.messages = [
-      { id: 'a1', role: 'assistant', content: 'first', createdAt: Date.now() },
-    ];
     const { rerender } = render(<AiChatWidget open onClose={vi.fn()} />);
+    selectStoredThread();
     const scroller = screen.getByTestId('ai-agent-messages');
     mockScroller(scroller, { scrollTop: 400, clientHeight: 200, scrollHeight: 600 });
     fireEvent.scroll(scroller);
 
     scrollIntoView.mockClear();
-    aiChatState.messages = [
-      { id: 'a1', role: 'assistant', content: 'first then more', createdAt: Date.now() },
+    storedThreadDetail.timeline = [
+      ...storedThreadDetail.timeline,
+      { kind: 'assistant', id: 'm7', text: 'first then more', closeKind: 'complete', createdAt: AT },
     ];
     rerender(<AiChatWidget open onClose={vi.fn()} />);
     expect(scrollIntoView).toHaveBeenCalled();
@@ -444,10 +473,8 @@ describe('AiChatWidget', () => {
   it('stops following after the user scrolls up and shows jump-to-latest', () => {
     const scrollIntoView = vi.fn();
     Element.prototype.scrollIntoView = scrollIntoView;
-    aiChatState.messages = [
-      { id: 'a1', role: 'assistant', content: 'first', createdAt: Date.now() },
-    ];
     const { rerender } = render(<AiChatWidget open onClose={vi.fn()} />);
+    selectStoredThread();
     const scroller = screen.getByTestId('ai-agent-messages');
     mockScroller(scroller, { scrollTop: 40, clientHeight: 200, scrollHeight: 800 });
     fireEvent.scroll(scroller);
@@ -455,8 +482,9 @@ describe('AiChatWidget', () => {
     expect(screen.getByRole('button', { name: 'aiChat.jumpToLatest' })).toBeInTheDocument();
 
     scrollIntoView.mockClear();
-    aiChatState.messages = [
-      { id: 'a1', role: 'assistant', content: 'first then more', createdAt: Date.now() },
+    storedThreadDetail.timeline = [
+      ...storedThreadDetail.timeline,
+      { kind: 'assistant', id: 'm7', text: 'first then more', closeKind: 'complete', createdAt: AT },
     ];
     rerender(<AiChatWidget open onClose={vi.fn()} />);
     expect(scrollIntoView).not.toHaveBeenCalled();
@@ -466,10 +494,8 @@ describe('AiChatWidget', () => {
   it('resumes following when the reader returns to the bottom', () => {
     const scrollIntoView = vi.fn();
     Element.prototype.scrollIntoView = scrollIntoView;
-    aiChatState.messages = [
-      { id: 'a1', role: 'assistant', content: 'first', createdAt: Date.now() },
-    ];
     const { rerender } = render(<AiChatWidget open onClose={vi.fn()} />);
+    selectStoredThread();
     const scroller = screen.getByTestId('ai-agent-messages');
     mockScroller(scroller, { scrollTop: 40, clientHeight: 200, scrollHeight: 800 });
     fireEvent.scroll(scroller);
@@ -480,40 +506,12 @@ describe('AiChatWidget', () => {
     expect(screen.queryByRole('button', { name: 'aiChat.jumpToLatest' })).toBeNull();
 
     scrollIntoView.mockClear();
-    aiChatState.messages = [
-      { id: 'a1', role: 'assistant', content: 'first then more', createdAt: Date.now() },
+    storedThreadDetail.timeline = [
+      ...storedThreadDetail.timeline,
+      { kind: 'assistant', id: 'm7', text: 'first then more', closeKind: 'complete', createdAt: AT },
     ];
     rerender(<AiChatWidget open onClose={vi.fn()} />);
     expect(scrollIntoView).toHaveBeenCalled();
-  });
-
-  it('renders a mid-stream change card in place and continues the text below it', () => {
-    streamApi.proposal = {
-      proposalId: '22222222-2222-4222-8222-222222222222',
-      entityType: 'trunk',
-      entityLabel: 'SIP-1',
-      summary: ['Add a SIP trunk'],
-      status: 'pending',
-      expiresAt: '2026-09-05T12:00:00.000Z',
-      error: null,
-    };
-    streamApi.isStreaming = true;
-    aiChatState.isStreaming = true;
-    aiChatState.messages = [
-      { id: 'u1', role: 'user', content: 'Add a trunk please', createdAt: Date.now() },
-      { id: 'a1', role: 'assistant', content: 'Here is the change, then I continue.', createdAt: Date.now(), isStreaming: true },
-    ];
-    render(<AiChatWidget open onClose={vi.fn()} />);
-
-    const conversation = screen.getByTestId('ai-agent-conversation');
-    const text = conversation.textContent ?? '';
-    const userAt = text.indexOf('Add a trunk please');
-    const cardAt = text.indexOf('SIP-1');
-    const afterAt = text.indexOf('Here is the change, then I continue.');
-    expect(userAt).toBeGreaterThan(-1);
-    expect(cardAt).toBeGreaterThan(userAt);
-    expect(afterAt).toBeGreaterThan(cardAt);
-    expect(screen.getByRole('button', { name: 'aiChat.card.apply' })).toBeInTheDocument();
   });
 
   it('keeps streaming copy keys in both locale files', () => {
