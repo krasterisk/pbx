@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import type { AgentTimelineItem } from '@krasterisk/shared';
 
@@ -160,7 +160,7 @@ vi.mock('react-i18next', () => ({
   }),
 }));
 
-import { AiChatWidget } from './AiChatWidget';
+import { AssistantPanel } from './AssistantPanel';
 import { en } from '@/shared/config/locales/en';
 import { ru } from '@/shared/config/locales/ru';
 
@@ -187,7 +187,18 @@ function selectStoredThread() {
   fireEvent.click(screen.getByRole('option', { name: /Yesterday's call/ }));
 }
 
-describe('AiChatWidget', () => {
+const dockProps = {
+  mode: 'dock' as const,
+  onModeChange: vi.fn(),
+};
+
+const originalMatchMedia = window.matchMedia;
+
+describe('AssistantPanel', () => {
+  afterEach(() => {
+    window.matchMedia = originalMatchMedia;
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     mockViewport(1280);
@@ -212,31 +223,30 @@ describe('AiChatWidget', () => {
   });
 
   it('does not render the former floating trigger', () => {
-    render(<AiChatWidget open={false} onClose={vi.fn()} />);
+    render(<AssistantPanel open={false} {...dockProps} onClose={vi.fn()} />);
     expect(document.getElementById('ai-chat-trigger')).toBeNull();
     expect(document.querySelector('[class*="triggerBtn"]')).toBeNull();
   });
 
   it('exposes the panel with a stable test id and open state', () => {
-    const { rerender } = render(<AiChatWidget open={false} onClose={vi.fn()} />);
+    const { rerender } = render(<AssistantPanel open={false} {...dockProps} onClose={vi.fn()} />);
     expect(screen.getByTestId('ai-agent-panel')).toHaveAttribute('data-open', 'false');
-    rerender(<AiChatWidget open onClose={vi.fn()} />);
+    rerender(<AssistantPanel open {...dockProps} onClose={vi.fn()} />);
     expect(screen.getByTestId('ai-agent-panel')).toHaveAttribute('data-open', 'true');
   });
 
   it('calls onClose when Escape is pressed while open', () => {
     const onClose = vi.fn();
-    render(<AiChatWidget open onClose={onClose} />);
+    render(<AssistantPanel open {...dockProps} onClose={onClose} />);
     fireEvent.keyDown(screen.getByTestId('ai-agent-panel'), { key: 'Escape' });
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it('traps Tab inside the open panel and never reaches the page behind', async () => {
-    const user = (await import('@testing-library/user-event')).default.setup();
+  it('traps Tab inside the open panel and never reaches the page behind', () => {
     render(
       <div>
         <button type="button">page-behind</button>
-        <AiChatWidget open onClose={vi.fn()} />
+        <AssistantPanel open {...dockProps} onClose={vi.fn()} />
       </div>,
     );
 
@@ -245,42 +255,42 @@ describe('AiChatWidget', () => {
     expect(focusable.length).toBeGreaterThan(1);
 
     focusable[focusable.length - 1].focus();
-    await user.tab();
+    fireEvent.keyDown(window, { key: 'Tab' });
     expect(document.activeElement).toBe(focusable[0]);
     expect(screen.getByRole('button', { name: 'page-behind' })).not.toHaveFocus();
 
-    await user.tab({ shift: true });
+    fireEvent.keyDown(window, { key: 'Tab', shiftKey: true });
     expect(document.activeElement).toBe(focusable[focusable.length - 1]);
     expect(screen.getByRole('button', { name: 'page-behind' })).not.toHaveFocus();
   });
 
   it('takes panel width from the stylesheet and never from an inline style', () => {
-    render(<AiChatWidget open onClose={vi.fn()} />);
+    render(<AssistantPanel open {...dockProps} onClose={vi.fn()} />);
     const panel = screen.getByTestId('ai-agent-panel');
     expect(panel.getAttribute('style') ?? '').not.toMatch(/width|height|left|right|top|bottom/);
     const scss = readFileSync(
-      join(process.cwd(), 'src/widgets/AiChatWidget/AiChatWidget.module.scss'),
+      join(process.cwd(), 'src/widgets/AssistantPanel/AssistantPanel.module.scss'),
       'utf8',
     );
-    expect(scss).toMatch(/--ai-agent-panel-width:\s*520px/);
+    expect(scss).toMatch(/--ai-agent-panel-width:\s*60vw/);
     expect(scss).toMatch(/width:\s*var\(--ai-agent-panel-width\)/);
   });
 
   it('renders a thread rail beside the conversation above the wide breakpoint', () => {
     mockViewport(1280);
-    render(<AiChatWidget open onClose={vi.fn()} />);
+    render(<AssistantPanel open {...dockProps} onClose={vi.fn()} />);
     expect(screen.getByTestId('ai-agent-thread-rail')).toBeInTheDocument();
     expect(screen.getByTestId('ai-agent-conversation')).toBeInTheDocument();
   });
 
   it('omits the thread rail below the wide breakpoint', () => {
     mockViewport(800);
-    render(<AiChatWidget open onClose={vi.fn()} />);
+    render(<AssistantPanel open {...dockProps} onClose={vi.fn()} />);
     expect(screen.queryByTestId('ai-agent-thread-rail')).toBeNull();
   });
 
   it('renders the thread timeline from the cache, not from a local list', () => {
-    render(<AiChatWidget open onClose={vi.fn()} />);
+    render(<AssistantPanel open {...dockProps} onClose={vi.fn()} />);
     expect(screen.queryByText('Stored user message from yesterday')).toBeNull();
     selectStoredThread();
     expect(screen.getByTestId('ai-agent-timeline')).toBeInTheDocument();
@@ -289,7 +299,7 @@ describe('AiChatWidget', () => {
   });
 
   it('places a card at the item that produced it', () => {
-    render(<AiChatWidget open onClose={vi.fn()} />);
+    render(<AssistantPanel open {...dockProps} onClose={vi.fn()} />);
     selectStoredThread();
 
     const conversation = screen.getByTestId('ai-agent-conversation');
@@ -307,7 +317,7 @@ describe('AiChatWidget', () => {
   });
 
   it('continues the conversation through the continue endpoint after apply', async () => {
-    render(<AiChatWidget open onClose={vi.fn()} />);
+    render(<AssistantPanel open {...dockProps} onClose={vi.fn()} />);
     selectStoredThread();
     fireEvent.click(screen.getByRole('button', { name: 'aiChat.card.apply' }));
     await vi.waitFor(() => expect(turnApi.continueAfterApply).toHaveBeenCalledTimes(1));
@@ -315,7 +325,7 @@ describe('AiChatWidget', () => {
   });
 
   it('leaves no technical data in the panel markup', () => {
-    render(<AiChatWidget open onClose={vi.fn()} />);
+    render(<AssistantPanel open {...dockProps} onClose={vi.fn()} />);
     selectStoredThread();
     const html = screen.getByTestId('ai-agent-panel').innerHTML;
     expect(html).not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}/i);
@@ -325,13 +335,13 @@ describe('AiChatWidget', () => {
   });
 
   it('does not render a tool plan block', () => {
-    render(<AiChatWidget open onClose={vi.fn()} />);
+    render(<AssistantPanel open {...dockProps} onClose={vi.fn()} />);
     selectStoredThread();
     expect(screen.queryByText(/План выполнения|Execution plan/i)).toBeNull();
   });
 
   it('clears the visible conversation when the header clear control is used', () => {
-    render(<AiChatWidget open onClose={vi.fn()} />);
+    render(<AssistantPanel open {...dockProps} onClose={vi.fn()} />);
     selectStoredThread();
     expect(screen.getByText('Stored user message from yesterday')).toBeInTheDocument();
 
@@ -343,7 +353,7 @@ describe('AiChatWidget', () => {
   });
 
   it('clears the conversation column after deleting the selected conversation', async () => {
-    render(<AiChatWidget open onClose={vi.fn()} />);
+    render(<AssistantPanel open {...dockProps} onClose={vi.fn()} />);
     selectStoredThread();
     expect(screen.getByText('Stored user message from yesterday')).toBeInTheDocument();
 
@@ -358,11 +368,11 @@ describe('AiChatWidget', () => {
 
   it('renders as a full-height sheet with no horizontal offset below the tablet breakpoint', () => {
     mockViewport(600);
-    render(<AiChatWidget open onClose={vi.fn()} />);
+    render(<AssistantPanel open {...dockProps} onClose={vi.fn()} />);
     const panel = screen.getByTestId('ai-agent-panel');
     expect(panel).toHaveAttribute('data-sheet', 'true');
     const scss = readFileSync(
-      join(process.cwd(), 'src/widgets/AiChatWidget/AiChatWidget.module.scss'),
+      join(process.cwd(), 'src/widgets/AssistantPanel/AssistantPanel.module.scss'),
       'utf8',
     );
     expect(scss).toMatch(/max-width:\s*767px[\s\S]*width:\s*100vw/);
@@ -370,14 +380,14 @@ describe('AiChatWidget', () => {
   });
 
   it('lays header, body, composer and footer out as separate grid rows', () => {
-    render(<AiChatWidget open onClose={vi.fn()} />);
+    render(<AssistantPanel open {...dockProps} onClose={vi.fn()} />);
     const panel = screen.getByTestId('ai-agent-panel');
     expect(screen.getByTestId('ai-agent-header')).toBeInTheDocument();
     expect(screen.getByTestId('ai-agent-body')).toBeInTheDocument();
     expect(screen.getByTestId('ai-agent-composer')).toBeInTheDocument();
     expect(screen.getByTestId('ai-agent-footer')).toBeInTheDocument();
     const scss = readFileSync(
-      join(process.cwd(), 'src/widgets/AiChatWidget/AiChatWidget.module.scss'),
+      join(process.cwd(), 'src/widgets/AssistantPanel/AssistantPanel.module.scss'),
       'utf8',
     );
     expect(scss).toMatch(/grid-template-areas:[\s\S]*header[\s\S]*body[\s\S]*composer[\s\S]*footer/);
@@ -389,13 +399,19 @@ describe('AiChatWidget', () => {
     expect(ru.aiChat.title).toBe('AI-ассистент');
     expect(en.aiChat.title).toBe('AI Assistant');
     expect(ru.aiChat.closePanel).toBe('Закрыть панель');
+    expect(typeof ru.aiChat.expand).toBe('string');
+    expect(typeof en.aiChat.expand).toBe('string');
+    expect(typeof ru.aiChat.collapse).toBe('string');
+    expect(typeof en.aiChat.collapse).toBe('string');
+    expect(ru.aiChat.expand).not.toBe(en.aiChat.expand);
+    expect(ru.aiChat.collapse).not.toBe(en.aiChat.collapse);
     expect(en.aiChat.shortcutHint).toBe('{{mod}}+Shift+J');
     expect(ru.aiChat).not.toHaveProperty('continueAfterApply');
     expect(en.aiChat).not.toHaveProperty('continueAfterApply');
   });
 
   it('does not render a model selector in the tenant panel', () => {
-    render(<AiChatWidget open onClose={vi.fn()} />);
+    render(<AssistantPanel open {...dockProps} onClose={vi.fn()} />);
     expect(screen.queryByTitle('aiChat.selectModel')).toBeNull();
     expect(screen.queryByRole('combobox')).toBeNull();
     expect(document.querySelector('select')).toBeNull();
@@ -403,37 +419,37 @@ describe('AiChatWidget', () => {
 
   it('replaces send with stop while a turn is in flight and returns to send after', () => {
     turnApi.isStreaming = true;
-    const { rerender } = render(<AiChatWidget open onClose={vi.fn()} />);
+    const { rerender } = render(<AssistantPanel open {...dockProps} onClose={vi.fn()} />);
     expect(screen.getByRole('button', { name: 'aiChat.stop' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'aiChat.send' })).toBeNull();
 
     turnApi.isStreaming = false;
-    rerender(<AiChatWidget open onClose={vi.fn()} />);
+    rerender(<AssistantPanel open {...dockProps} onClose={vi.fn()} />);
     expect(screen.getByRole('button', { name: 'aiChat.send' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'aiChat.stop' })).toBeNull();
   });
 
   it('pressing stop calls the stream abort and shows the stopped outcome', () => {
     turnApi.isStreaming = true;
-    const { rerender } = render(<AiChatWidget open onClose={vi.fn()} />);
+    const { rerender } = render(<AssistantPanel open {...dockProps} onClose={vi.fn()} />);
     fireEvent.click(screen.getByRole('button', { name: 'aiChat.stop' }));
     expect(turnApi.stop).toHaveBeenCalledTimes(1);
 
     turnApi.isStreaming = false;
     turnApi.outcome = 'stopped';
-    rerender(<AiChatWidget open onClose={vi.fn()} />);
+    rerender(<AssistantPanel open {...dockProps} onClose={vi.fn()} />);
     expect(screen.getByText('aiChat.stopped')).toBeInTheDocument();
   });
 
   it('renders ceiling, failure and disconnect as distinct outcomes', () => {
     turnApi.outcome = 'ceiling';
-    const { rerender } = render(<AiChatWidget open onClose={vi.fn()} />);
+    const { rerender } = render(<AssistantPanel open {...dockProps} onClose={vi.fn()} />);
     expect(screen.getByText('aiChat.ceiling')).toBeInTheDocument();
     expect(screen.queryByText('aiChat.stopped')).toBeNull();
     expect(screen.queryByText('aiChat.failed')).toBeNull();
 
     turnApi.outcome = 'failed';
-    rerender(<AiChatWidget open onClose={vi.fn()} />);
+    rerender(<AssistantPanel open {...dockProps} onClose={vi.fn()} />);
     expect(screen.getByText('aiChat.failed')).toBeInTheDocument();
     expect(screen.queryByText('aiChat.ceiling')).toBeNull();
 
@@ -441,7 +457,7 @@ describe('AiChatWidget', () => {
     storedThreadDetail.timeline = [
       { kind: 'assistant', id: 'a1', text: 'partial so far', closeKind: 'complete', createdAt: AT },
     ];
-    rerender(<AiChatWidget open onClose={vi.fn()} />);
+    rerender(<AssistantPanel open {...dockProps} onClose={vi.fn()} />);
     selectStoredThread();
     expect(screen.getByText('aiChat.disconnected')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'aiChat.reconnect' })).toBeInTheDocument();
@@ -452,8 +468,8 @@ describe('AiChatWidget', () => {
 
   it('aborts the in-flight request when the panel closes', () => {
     turnApi.isStreaming = true;
-    const { rerender } = render(<AiChatWidget open onClose={vi.fn()} />);
-    rerender(<AiChatWidget open={false} onClose={vi.fn()} />);
+    const { rerender } = render(<AssistantPanel open {...dockProps} onClose={vi.fn()} />);
+    rerender(<AssistantPanel open={false} {...dockProps} onClose={vi.fn()} />);
     expect(turnApi.abort).toHaveBeenCalledTimes(1);
   });
 
@@ -466,7 +482,7 @@ describe('AiChatWidget', () => {
   it('keeps the conversation at the bottom while the reader is already there', () => {
     const scrollIntoView = vi.fn();
     Element.prototype.scrollIntoView = scrollIntoView;
-    const { rerender } = render(<AiChatWidget open onClose={vi.fn()} />);
+    const { rerender } = render(<AssistantPanel open {...dockProps} onClose={vi.fn()} />);
     selectStoredThread();
     const scroller = screen.getByTestId('ai-agent-messages');
     mockScroller(scroller, { scrollTop: 400, clientHeight: 200, scrollHeight: 600 });
@@ -477,14 +493,14 @@ describe('AiChatWidget', () => {
       ...storedThreadDetail.timeline,
       { kind: 'assistant', id: 'm7', text: 'first then more', closeKind: 'complete', createdAt: AT },
     ];
-    rerender(<AiChatWidget open onClose={vi.fn()} />);
+    rerender(<AssistantPanel open {...dockProps} onClose={vi.fn()} />);
     expect(scrollIntoView).toHaveBeenCalled();
   });
 
   it('stops following after the user scrolls up and shows jump-to-latest', () => {
     const scrollIntoView = vi.fn();
     Element.prototype.scrollIntoView = scrollIntoView;
-    const { rerender } = render(<AiChatWidget open onClose={vi.fn()} />);
+    const { rerender } = render(<AssistantPanel open {...dockProps} onClose={vi.fn()} />);
     selectStoredThread();
     const scroller = screen.getByTestId('ai-agent-messages');
     mockScroller(scroller, { scrollTop: 40, clientHeight: 200, scrollHeight: 800 });
@@ -497,7 +513,7 @@ describe('AiChatWidget', () => {
       ...storedThreadDetail.timeline,
       { kind: 'assistant', id: 'm7', text: 'first then more', closeKind: 'complete', createdAt: AT },
     ];
-    rerender(<AiChatWidget open onClose={vi.fn()} />);
+    rerender(<AssistantPanel open {...dockProps} onClose={vi.fn()} />);
     expect(scrollIntoView).not.toHaveBeenCalled();
     expect(screen.getByRole('button', { name: 'aiChat.jumpToLatest' })).toBeInTheDocument();
   });
@@ -505,7 +521,7 @@ describe('AiChatWidget', () => {
   it('resumes following when the reader returns to the bottom', () => {
     const scrollIntoView = vi.fn();
     Element.prototype.scrollIntoView = scrollIntoView;
-    const { rerender } = render(<AiChatWidget open onClose={vi.fn()} />);
+    const { rerender } = render(<AssistantPanel open {...dockProps} onClose={vi.fn()} />);
     selectStoredThread();
     const scroller = screen.getByTestId('ai-agent-messages');
     mockScroller(scroller, { scrollTop: 40, clientHeight: 200, scrollHeight: 800 });
@@ -521,7 +537,7 @@ describe('AiChatWidget', () => {
       ...storedThreadDetail.timeline,
       { kind: 'assistant', id: 'm7', text: 'first then more', closeKind: 'complete', createdAt: AT },
     ];
-    rerender(<AiChatWidget open onClose={vi.fn()} />);
+    rerender(<AssistantPanel open {...dockProps} onClose={vi.fn()} />);
     expect(scrollIntoView).toHaveBeenCalled();
   });
 
@@ -552,5 +568,102 @@ describe('AiChatWidget', () => {
     expect(ru.aiChat.stopped).toBe('Остановлено');
     expect(en.aiChat.ceiling).toBe('Step limit reached. Narrow the task or start a new chat.');
     expect(ru.aiChat.jumpToLatest).toBe('К последним сообщениям');
+  });
+
+  it('is a modal drawer in dock mode', () => {
+    render(<AssistantPanel open {...dockProps} onClose={vi.fn()} />);
+    expect(screen.getByTestId('ai-agent-panel')).toHaveAttribute('aria-modal', 'true');
+    expect(screen.getByTestId('ai-agent-panel')).toHaveAttribute('data-mode', 'dock');
+  });
+
+  it('does not trap focus or dim the shell in workspace mode', () => {
+    const onModeChange = vi.fn();
+    render(
+      <div>
+        <button type="button">page-behind</button>
+        <AssistantPanel
+          open
+          mode="workspace"
+          onModeChange={onModeChange}
+          onClose={vi.fn()}
+        />
+      </div>,
+    );
+
+    const panel = screen.getByTestId('ai-agent-panel');
+    expect(panel).not.toHaveAttribute('aria-modal');
+    expect(panel).toHaveAttribute('data-mode', 'workspace');
+    expect(document.querySelector('[class*="overlayVisible"]')).toBeNull();
+
+    const focusable = getFocusable(panel);
+    expect(focusable.length).toBeGreaterThan(1);
+    focusable[focusable.length - 1].focus();
+    fireEvent.keyDown(window, { key: 'Tab' });
+    expect(document.activeElement).toBe(focusable[focusable.length - 1]);
+
+    const behind = screen.getByRole('button', { name: 'page-behind' });
+    behind.focus();
+    expect(behind).toHaveFocus();
+  });
+
+  it('escape returns workspace to dock instead of closing', () => {
+    const onClose = vi.fn();
+    const onModeChange = vi.fn();
+    render(
+      <AssistantPanel
+        open
+        mode="workspace"
+        onModeChange={onModeChange}
+        onClose={onClose}
+      />,
+    );
+    fireEvent.keyDown(screen.getByTestId('ai-agent-panel'), { key: 'Escape' });
+    expect(onModeChange).toHaveBeenCalledWith('dock');
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('takes workspace geometry from the shell variables, never from inline styles', () => {
+    render(
+      <AssistantPanel
+        open
+        mode="workspace"
+        onModeChange={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+    const panel = screen.getByTestId('ai-agent-panel');
+    const scss = readFileSync(
+      join(process.cwd(), 'src/widgets/AssistantPanel/AssistantPanel.module.scss'),
+      'utf8',
+    );
+    expect(scss).toMatch(/--shell-topbar-height/);
+    expect(scss).toMatch(/--shell-sidebar-width/);
+    expect(panel.getAttribute('style') ?? '').not.toMatch(/width|left|top/);
+  });
+
+  it('keeps the sidebar width variable overridden when the shell collapses', () => {
+    const scss = readFileSync(
+      join(process.cwd(), 'src/widgets/ModuleShell/ModuleShell.module.scss'),
+      'utf8',
+    );
+    expect(scss.match(/--shell-sidebar-width:/g) ?? []).toHaveLength(2);
+  });
+
+  it('falls back to dock on a narrow viewport', () => {
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+      matches: query.includes('max-width: 640px'),
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }));
+    render(
+      <AssistantPanel
+        open
+        mode="workspace"
+        onModeChange={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+    expect(screen.getByTestId('ai-agent-panel')).toHaveAttribute('data-mode', 'dock');
   });
 });

@@ -4,12 +4,13 @@ import { useTranslation } from 'react-i18next';
 import { Phone, Search, Languages, Moon, Sun, Sparkles } from 'lucide-react';
 import { Button, Text, Tooltip } from '@/shared/ui';
 import { HStack } from '@/shared/ui/Stack';
-import { AiChatWidget } from '@/widgets/AiChatWidget';
+import { AssistantPanel, type AssistantPanelMode } from '@/widgets/AssistantPanel';
+import { useAppDispatch, useAppSelector } from '@/shared/hooks/useAppStore';
+import { aiChatActions } from '@/features/ai-chat/model/slice/aiChatSlice';
 import {
   CommandPalette,
   buildPaletteItems,
 } from '@/shared/ui/CommandPalette';
-import { useAppSelector } from '@/shared/hooks/useAppStore';
 import { useIsMobile } from '@/shared/hooks/useIsMobile';
 import { selectMyAgent } from '@/features/callcenter/model/selectors/callCenterSelectors';
 import { agentDisplayName } from '@/features/callcenter/lib/displayLabels';
@@ -43,8 +44,10 @@ export const ModuleShell = memo(function ModuleShell({ children }: ModuleShellPr
   const { t, i18n } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
   const isMobile = useIsMobile(768);
   const user = useAppSelector((s) => s.auth.user);
+  const panelMode = useAppSelector((s) => s.aiChat.panelMode) ?? 'dock';
   const ccAgent = useAppSelector(selectMyAgent);
   const level = user?.level as UserLevel | undefined;
   const { active } = useHubModules();
@@ -163,6 +166,10 @@ export const ModuleShell = memo(function ModuleShell({ children }: ModuleShellPr
     agentTriggerRef.current?.focus();
   }, []);
 
+  const handlePanelModeChange = useCallback((next: AssistantPanelMode) => {
+    dispatch(aiChatActions.setPanelMode(next));
+  }, [dispatch]);
+
   const handleCollapsedChange = (next: boolean) => {
     setCollapsed(next);
     try {
@@ -191,7 +198,11 @@ export const ModuleShell = memo(function ModuleShell({ children }: ModuleShellPr
   };
 
   return (
-    <div className={cls.shellRoot} data-testid="module-shell">
+    <div
+      className={cls.shellRoot}
+      data-testid="module-shell"
+      data-sidebar-collapsed={isMobile || collapsed ? 'true' : 'false'}
+    >
       <OfflineBanner />
 
       <header className={cls.topbar}>
@@ -293,7 +304,12 @@ export const ModuleShell = memo(function ModuleShell({ children }: ModuleShellPr
         items={paletteItems}
       />
 
-      <AiChatWidget open={agentOpen} onClose={closeAgent} />
+      <AssistantPanel
+        open={agentOpen}
+        mode={panelMode}
+        onModeChange={handlePanelModeChange}
+        onClose={closeAgent}
+      />
     </div>
   );
 });

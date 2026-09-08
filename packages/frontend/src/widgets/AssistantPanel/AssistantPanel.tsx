@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Bot, X, Send, Trash2, RotateCcw, ArrowDown } from 'lucide-react';
+import { Bot, X, Send, Trash2, RotateCcw, ArrowDown, Maximize2, Minimize2 } from 'lucide-react';
 import { Button, Text, Textarea } from '@/shared/ui';
 import { Flex, HStack, VStack } from '@/shared/ui/Stack';
 import { useAppDispatch } from '@/shared/hooks/useAppStore';
@@ -10,7 +10,28 @@ import { useGetAiChatThreadQuery } from '@/shared/api/endpoints/aiChatApi';
 import { TimelineList } from '@/features/ai-chat/ui/Timeline';
 import { ThreadList } from '@/features/ai-chat/ui/ThreadList';
 import { useAgentTurn } from '@/features/ai-chat/model/useAgentTurn';
-import cls from './AiChatWidget.module.scss';
+import cls from './AssistantPanel.module.scss';
+
+export type AssistantPanelMode = 'dock' | 'workspace';
+
+function useNarrowViewport(): boolean {
+    const [narrow, setNarrow] = useState(() => {
+        if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+            return false;
+        }
+        return window.matchMedia('(max-width: 640px)').matches;
+    });
+
+    useEffect(() => {
+        if (typeof window.matchMedia !== 'function') return;
+        const mq = window.matchMedia('(max-width: 640px)');
+        const onChange = () => setNarrow(mq.matches);
+        mq.addEventListener('change', onChange);
+        return () => mq.removeEventListener('change', onChange);
+    }, []);
+
+    return narrow;
+}
 
 const SUGGESTION_KEYS = [
     'aiChat.suggestions.config',
@@ -28,14 +49,19 @@ function getFocusable(root: HTMLElement): HTMLElement[] {
     );
 }
 
-export interface AiChatWidgetProps {
+export interface AssistantPanelProps {
     open: boolean;
+    mode: AssistantPanelMode;
+    onModeChange: (mode: AssistantPanelMode) => void;
     onClose: () => void;
 }
 
-export const AiChatWidget = ({ open, onClose }: AiChatWidgetProps) => {
+export const AssistantPanel = ({ open, mode, onModeChange, onClose }: AssistantPanelProps) => {
     const { t } = useTranslation();
     const dispatch = useAppDispatch();
+    const isNarrow = useNarrowViewport();
+    const effectiveMode: AssistantPanelMode = isNarrow ? 'dock' : mode;
+    const isDock = effectiveMode === 'dock';
     const isBelowTablet = useIsMobile(768);
     const isBelowWide = useIsMobile(1024);
     const showRail = !isBelowWide;
@@ -105,16 +131,22 @@ export const AiChatWidget = ({ open, onClose }: AiChatWidgetProps) => {
         const panel = panelRef.current;
         if (!panel) return;
 
-        const focusable = getFocusable(panel);
-        focusable[0]?.focus();
+        if (isDock) {
+            const focusable = getFocusable(panel);
+            focusable[0]?.focus();
+        }
 
         const onKeyDown = (event: KeyboardEvent) => {
             if (event.key === 'Escape') {
                 event.preventDefault();
-                onClose();
+                if (isDock) {
+                    onClose();
+                } else {
+                    onModeChange('dock');
+                }
                 return;
             }
-            if (event.key !== 'Tab') return;
+            if (!isDock || event.key !== 'Tab') return;
             const items = getFocusable(panel);
             if (items.length === 0) return;
             const first = items[0];
@@ -130,7 +162,7 @@ export const AiChatWidget = ({ open, onClose }: AiChatWidgetProps) => {
 
         window.addEventListener('keydown', onKeyDown);
         return () => window.removeEventListener('keydown', onKeyDown);
-    }, [open, onClose]);
+    }, [open, isDock, onClose, onModeChange]);
 
     useEffect(() => {
         if (!open) abort();
@@ -160,13 +192,15 @@ export const AiChatWidget = ({ open, onClose }: AiChatWidgetProps) => {
 
     return (
         <>
-            <VStack
-                className={`${cls.overlay} ${open ? cls.overlayVisible : ''}`}
-                onClick={onClose}
-                aria-hidden
-            >
-                {null}
-            </VStack>
+            {isDock && (
+                <VStack
+                    className={`${cls.overlay} ${open ? cls.overlayVisible : ''}`}
+                    onClick={onClose}
+                    aria-hidden
+                >
+                    {null}
+                </VStack>
+            )}
 
             <Flex
                 ref={panelRef}
@@ -174,11 +208,12 @@ export const AiChatWidget = ({ open, onClose }: AiChatWidgetProps) => {
                 align="stretch"
                 role="dialog"
                 aria-label={t('aiChat.title')}
-                aria-modal={open}
+                aria-modal={isDock && open ? true : undefined}
                 data-testid="ai-agent-panel"
                 data-open={open ? 'true' : 'false'}
+                data-mode={effectiveMode}
                 data-sheet={isBelowTablet ? 'true' : 'false'}
-                className={`${cls.panel} ${open ? cls.panelOpen : ''}`}
+                className={`${cls.panel} ${isDock ? cls.panelDock : cls.panelWorkspace} ${open ? cls.panelOpen : ''}`}
             >
                 <HStack
                     className={cls.header}
@@ -202,6 +237,16 @@ export const AiChatWidget = ({ open, onClose }: AiChatWidgetProps) => {
                         aria-label={t('aiChat.clearChat')}
                     >
                         <Trash2 size={14} />
+                    </Button>
+
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => onModeChange(effectiveMode === 'workspace' ? 'dock' : 'workspace')}
+                        title={effectiveMode === 'workspace' ? t('aiChat.collapse') : t('aiChat.expand')}
+                        aria-label={effectiveMode === 'workspace' ? t('aiChat.collapse') : t('aiChat.expand')}
+                    >
+                        {effectiveMode === 'workspace' ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
                     </Button>
 
                     <Button

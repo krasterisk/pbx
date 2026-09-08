@@ -27,6 +27,7 @@ vi.mock('@/shared/hooks/useAppStore', () => ({
         isStreaming: boolean;
         selectedModel: string;
         availableModels: [];
+        panelMode: 'dock' | 'workspace';
       };
     }) => unknown,
   ) =>
@@ -37,6 +38,7 @@ vi.mock('@/shared/hooks/useAppStore', () => ({
         isStreaming: false,
         selectedModel: '',
         availableModels: [],
+        panelMode: 'dock',
       },
     }),
   useAppDispatch: () => vi.fn(),

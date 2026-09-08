@@ -1,4 +1,6 @@
 .shellRoot {
+  --shell-topbar-height: 56px;
+  --shell-sidebar-width: 240px;
   flex: 1 1 0;
   width: 100%;
   min-height: 0;
@@ -44,7 +46,7 @@
 }
 
 .topbar {
-  height: 56px;
+  height: var(--shell-topbar-height);
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -208,8 +210,8 @@
 
 /* Full-height sidebar — A+C hybrid (sketch 003) */
 .sidebar {
-  width: 240px;
-  flex: 0 0 240px;
+  width: var(--shell-sidebar-width);
+  flex: 0 0 var(--shell-sidebar-width);
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -219,9 +221,14 @@
   transition: width 0.2s ease, flex-basis 0.2s ease;
 }
 
+.shellRoot[data-sidebar-collapsed='true'],
 .sidebarCollapsed {
-  width: 64px;
-  flex-basis: 64px;
+  --shell-sidebar-width: 64px;
+}
+
+.sidebarCollapsed {
+  width: var(--shell-sidebar-width);
+  flex-basis: var(--shell-sidebar-width);
 
   .sidebarText {
     display: none;

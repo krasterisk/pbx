@@ -2804,6 +2804,8 @@ export const en = {
     clearChat: 'Clear Chat',
     close: 'Close',
     closePanel: 'Close panel',
+    expand: 'Expand to workspace',
+    collapse: 'Collapse to dock',
     inputPlaceholder: 'Ask about PBX setup...',
     send: 'Send',
     stop: 'Stop',

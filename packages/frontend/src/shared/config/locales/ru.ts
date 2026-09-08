@@ -2841,6 +2841,8 @@ export const ru = {
     clearChat: 'Очистить чат',
     close: 'Закрыть',
     closePanel: 'Закрыть панель',
+    expand: 'Развернуть на рабочую область',
+    collapse: 'Свернуть в док',
     inputPlaceholder: 'Спросите о настройке АТС...',
     send: 'Отправить',
     stop: 'Остановить',

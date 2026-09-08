@@ -1,12 +1,12 @@
 /* ─────────────────────────────────────────────────────────────────────────────
-   AiChatWidget — topbar-driven agent panel (D-23, D-24, D-25)
+   AssistantPanel — dock drawer and workspace modes
    Design tokens: var(--color-*) from globals.css @theme
    Local geometry tokens live on the panel so later plans reuse them.
    ───────────────────────────────────────────────────────────────────────────── */
 
 .overlay,
 .panel {
-    --ai-agent-panel-width: 520px;
+    --ai-agent-panel-width: 60vw;
     --ai-agent-rail-width: 240px;
 }
 
@@ -29,11 +29,6 @@
 
 .panel {
     position: fixed;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    left: auto;
-    width: var(--ai-agent-panel-width);
     max-width: 100vw;
     display: grid !important;
     grid-template-areas:
@@ -44,11 +39,28 @@
     grid-template-rows: auto minmax(0, 1fr) auto auto;
     grid-template-columns: minmax(0, 1fr);
     background: var(--color-card);
-    border-left: 1px solid var(--color-border);
     z-index: var(--z-index-modal);
     transform: translateX(100%);
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     box-shadow: -8px 0 32px color-mix(in srgb, var(--color-background) 30%, transparent);
+}
+
+.panelDock {
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: auto;
+    width: var(--ai-agent-panel-width);
+    border-left: 1px solid var(--color-border);
+}
+
+.panelWorkspace {
+    top: var(--shell-topbar-height);
+    left: var(--shell-sidebar-width);
+    right: 0;
+    bottom: 0;
+    width: auto;
+    border-left: 1px solid var(--color-border);
 }
 
 :global(.light) .panel {

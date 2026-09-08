@@ -1,5 +1,25 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import type { AiChatSchema, AiModel } from '../types/AiChatSchema';
+import type { AiChatSchema, AiModel, AssistantPanelMode } from '../types/AiChatSchema';
+
+export const ASSISTANT_PANEL_MODE_KEY = 'assistant-panel-mode';
+
+function readStoredPanelMode(): AssistantPanelMode {
+    try {
+        return localStorage.getItem(ASSISTANT_PANEL_MODE_KEY) === 'workspace'
+            ? 'workspace'
+            : 'dock';
+    } catch {
+        return 'dock';
+    }
+}
+
+function persistPanelMode(mode: AssistantPanelMode) {
+    try {
+        localStorage.setItem(ASSISTANT_PANEL_MODE_KEY, mode);
+    } catch {
+        /* ignore */
+    }
+}
 
 export type AgentTurnOutcome =
     | 'idle'
@@ -20,6 +40,7 @@ const initialState: AgentChatState = {
     selectedModel: '',
     availableModels: [],
     turnOutcome: 'idle',
+    panelMode: readStoredPanelMode(),
 };
 
 export const aiChatSlice = createSlice({
@@ -65,6 +86,11 @@ export const aiChatSlice = createSlice({
         resetTurn(state) {
             state.isStreaming = false;
             state.turnOutcome = 'idle';
+        },
+
+        setPanelMode(state, action: PayloadAction<AssistantPanelMode>) {
+            state.panelMode = action.payload;
+            persistPanelMode(action.payload);
         },
     },
 });

@@ -8,9 +8,12 @@ export interface AiModel {
     displayName: string;
 }
 
+export type AssistantPanelMode = 'dock' | 'workspace';
+
 export interface AiChatSchema {
     isOpen: boolean;
     isStreaming: boolean;
     selectedModel: string;
     availableModels: AiModel[];
+    panelMode: AssistantPanelMode;
 }
