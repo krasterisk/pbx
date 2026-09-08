@@ -91,6 +91,17 @@ const storedThreads = [
   },
 ];
 
+const sharedThreads: Array<{
+  uid: number;
+  title: string;
+  status: 'active';
+  last_message_at: string;
+  created_at: string;
+  updated_at: string;
+  ownerName: string;
+  readOnly: true;
+}> = [];
+
 const storedThreadDetail: {
   uid: number;
   title: string;
@@ -147,8 +158,20 @@ vi.mock('@/shared/api/endpoints/aiChatApi', () => ({
     isError: false,
     refetch: vi.fn(),
   }),
+  useGetSharedAiChatThreadsQuery: () => ({
+    data: sharedThreads,
+    isLoading: false,
+    isError: false,
+    refetch: vi.fn(),
+  }),
   useGetAiChatThreadQuery: (uid: number | undefined, options?: { skip?: boolean }) => {
     if (options?.skip || uid == null) return { data: undefined, isFetching: false };
+    if (uid === 8) {
+      return {
+        data: { ...storedThreadDetail, uid: 8, title: 'Boss chat', readOnly: true, ownerName: 'Anna' },
+        isFetching: false,
+      };
+    }
     return { data: storedThreadDetail, isFetching: false };
   },
   useCreateAiChatThreadMutation: () => [
@@ -263,6 +286,30 @@ describe('AssistantPanel', () => {
     turnApi.retry.mockReset();
     turnApi.isStreaming = false;
     turnApi.outcome = 'idle';
+    sharedThreads.length = 0;
+  });
+
+  it('hides the composer and shows a read-only hint for a shared thread', async () => {
+    sharedThreads.push({
+      uid: 8,
+      title: 'Boss chat',
+      status: 'active',
+      last_message_at: AT,
+      created_at: AT,
+      updated_at: AT,
+      ownerName: 'Anna',
+      readOnly: true,
+    });
+
+    render(<AssistantPanel open {...dockProps} onClose={vi.fn()} />);
+    const user = (await import('@testing-library/user-event')).default.setup();
+    await user.click(screen.getByRole('tab', { name: 'aiChat.threadsShared' }));
+    await user.click(screen.getByRole('option', { name: /Boss chat/ }));
+
+    expect(screen.getAllByText('aiChat.timeline.readOnlyHint').length).toBeGreaterThan(0);
+    expect(screen.queryByTestId('ai-agent-composer')).toBeNull();
+    expect(screen.queryByRole('textbox')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'aiChat.send' })).toBeNull();
   });
 
   it('does not render the former floating trigger', () => {

@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 
 type ThreadRow = {
   uid: number;
@@ -17,6 +18,12 @@ const listState = {
   isLoading: false,
   isError: false,
   refetch: vi.fn(),
+};
+
+const sharedState = {
+  threads: [] as Array<ThreadRow & { ownerName?: string; readOnly?: boolean }>,
+  isLoading: false,
+  isError: false,
 };
 
 const createThread = vi.fn();
@@ -46,6 +53,12 @@ vi.mock('@/shared/api/endpoints/aiChatApi', () => ({
     isLoading: listState.isLoading,
     isError: listState.isError,
     refetch: listState.refetch,
+  }),
+  useGetSharedAiChatThreadsQuery: () => ({
+    data: sharedState.threads,
+    isLoading: sharedState.isLoading,
+    isError: sharedState.isError,
+    refetch: vi.fn(),
   }),
   useCreateAiChatThreadMutation: () => [
     (...args: unknown[]) => {
@@ -83,6 +96,9 @@ describe('ThreadList', () => {
     listState.isLoading = false;
     listState.isError = false;
     listState.refetch.mockReset();
+    sharedState.threads = [];
+    sharedState.isLoading = false;
+    sharedState.isError = false;
     createThread.mockReset();
     deleteThread.mockReset();
   });
@@ -127,7 +143,7 @@ describe('ThreadList', () => {
     render(<ThreadList selectedUid={null} onSelect={onSelect} />);
     fireEvent.click(screen.getByRole('option', { name: /Yesterday's call/ }));
 
-    expect(onSelect).toHaveBeenCalledWith(4);
+    expect(onSelect).toHaveBeenCalledWith({ uid: 4, readOnly: false });
   });
 
   it('creates a conversation and selects it so it appears at the top without a refresh', async () => {
@@ -138,7 +154,7 @@ describe('ThreadList', () => {
     fireEvent.click(screen.getByRole('button', { name: 'aiChat.newConversation' }));
 
     expect(createThread).toHaveBeenCalled();
-    await vi.waitFor(() => expect(onSelect).toHaveBeenCalledWith(99));
+    await vi.waitFor(() => expect(onSelect).toHaveBeenCalledWith({ uid: 99, readOnly: false }));
 
     rerender(<ThreadList selectedUid={99} onSelect={onSelect} />);
     const options = screen.getAllByRole('option');
@@ -202,6 +218,55 @@ describe('ThreadList', () => {
     expect(onDeleted).toHaveBeenCalledWith(4);
   });
 
+  it('shows the shared tab only when the shared list is not empty', () => {
+    listState.threads = [thread({ uid: 1, title: 'Mine' })];
+
+    const { rerender } = render(<ThreadList selectedUid={null} onSelect={vi.fn()} />);
+    expect(screen.queryByRole('tab', { name: 'aiChat.threadsShared' })).toBeNull();
+
+    sharedState.threads = [
+      thread({ uid: 8, title: 'Boss chat', last_message_at: new Date().toISOString() }),
+    ];
+    rerender(<ThreadList selectedUid={null} onSelect={vi.fn()} />);
+
+    expect(screen.getByRole('tab', { name: 'aiChat.threadsShared' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'aiChat.threadsMine' })).toBeInTheDocument();
+  });
+
+  it('shows the owner name on a shared row and hides delete', async () => {
+    sharedState.threads = [
+      {
+        ...thread({ uid: 8, title: 'Boss chat', last_message_at: new Date().toISOString() }),
+        ownerName: 'Anna',
+        readOnly: true,
+      },
+    ];
+
+    render(<ThreadList selectedUid={null} onSelect={vi.fn()} />);
+    await userEvent.setup().click(screen.getByRole('tab', { name: 'aiChat.threadsShared' }));
+
+    const option = screen.getByRole('option', { name: /Boss chat/ });
+    expect(option).toHaveTextContent('Anna');
+    expect(screen.queryByRole('button', { name: 'aiChat.deleteConversation' })).toBeNull();
+  });
+
+  it('reports a shared conversation as read-only', async () => {
+    const onSelect = vi.fn();
+    sharedState.threads = [
+      {
+        ...thread({ uid: 8, title: 'Boss chat', last_message_at: new Date().toISOString() }),
+        ownerName: 'Anna',
+        readOnly: true,
+      },
+    ];
+
+    render(<ThreadList selectedUid={null} onSelect={onSelect} />);
+    await userEvent.setup().click(screen.getByRole('tab', { name: 'aiChat.threadsShared' }));
+    fireEvent.click(screen.getByRole('option', { name: /Boss chat/ }));
+
+    expect(onSelect).toHaveBeenCalledWith({ uid: 8, readOnly: true });
+  });
+
   it('defines list, detail, create and delete queries with tag invalidation', () => {
     const src = readFileSync(
       join(process.cwd(), 'src/shared/api/endpoints/aiChatApi.ts'),
@@ -216,5 +281,8 @@ describe('ThreadList', () => {
     expect(src).toMatch(/providesTags:[\s\S]*AiChatThreads/);
     expect(src).toMatch(/createAiChatThread[\s\S]*invalidatesTags/);
     expect(src).toMatch(/deleteAiChatThread[\s\S]*invalidatesTags/);
+    expect(src).toMatch(/getSharedAiChatThreads/);
+    expect(src).toMatch(/\/ai-chat\/threads\/shared/);
+    expect(src).toMatch(/id:\s*['"]SHARED['"]/);
   });
 });

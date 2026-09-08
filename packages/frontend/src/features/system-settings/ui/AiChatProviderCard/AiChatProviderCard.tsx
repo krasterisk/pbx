@@ -3,20 +3,29 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'motion/react';
 import { CheckCircle2, XCircle } from 'lucide-react';
-import { Text, Button, Select } from '@/shared/ui';
+import { Text, Button, Select, Switch, InfoTooltip } from '@/shared/ui';
 import { VStack, HStack } from '@/shared/ui/Stack';
+import { useAppSelector } from '@/shared/hooks/useAppStore';
+import { selectIsAdmin, selectIsSuperAdmin } from '@/entities/User';
 import { useGetAiProvidersQuery } from '@/shared/api/endpoints/aiAgentsApi';
 import {
   useGetAiChatDefaultProviderQuery,
   useUpdateAiChatDefaultProviderMutation,
+  useGetAiChatSettingsQuery,
+  useUpdateAiChatSettingsMutation,
 } from '@/shared/api/endpoints/aiChatApi';
 import cls from './AiChatProviderCard.module.scss';
 
 export const AiChatProviderCard = memo(() => {
   const { t } = useTranslation();
+  const isAdmin = useAppSelector(selectIsAdmin);
+  const isSuperAdmin = useAppSelector(selectIsSuperAdmin);
+  const canSeeAllThreads = isAdmin || isSuperAdmin;
   const { data: providers = [], isLoading } = useGetAiProvidersQuery();
   const { data: defaultProvider } = useGetAiChatDefaultProviderQuery();
   const [saveDefaultProvider] = useUpdateAiChatDefaultProviderMutation();
+  const { data: settings } = useGetAiChatSettingsQuery(undefined, { skip: !canSeeAllThreads });
+  const [updateSettings] = useUpdateAiChatSettingsMutation();
 
   const [chatProviderUid, setChatProviderUid] = useState<number | ''>('');
   const [result, setResult] = useState<{ ok: boolean; msg: string } | null>(null);
@@ -86,6 +95,27 @@ export const AiChatProviderCard = memo(() => {
             >
               {t('systemSettings.recordingsSaveBtn')}
             </Button>
+          </HStack>
+        )}
+        {canSeeAllThreads && (
+          <HStack gap="16" align="start" justify="between" max className={cls.seeAllRow}>
+            <VStack gap="4">
+              <HStack gap="4" align="center">
+                <Text>{t('systemSettings.aiChatSeeAllThreads')}</Text>
+                <InfoTooltip text={t('systemSettings.aiChatSeeAllThreadsHint')} />
+              </HStack>
+            </VStack>
+            <Switch
+              id="ai-chat-see-all-threads"
+              disabled={settings === undefined}
+              checked={settings?.seeAllThreads ?? false}
+              onCheckedChange={(next) => {
+                void updateSettings({ seeAllThreads: next })
+                  .unwrap()
+                  .catch(() => showFeedback(false, t('systemSettings.aiPbxSaveError')));
+              }}
+              aria-label={t('systemSettings.aiChatSeeAllThreads')}
+            />
           </HStack>
         )}
         <HStack gap="12" align="center" justify="between" max>

@@ -5,6 +5,7 @@ import { getLiveTimeline, mergeTimelines, setLiveTimeline } from './aiChatLiveTi
 
 export interface IAiChatSettings {
     confirmDestructive: boolean;
+    seeAllThreads: boolean;
 }
 
 export interface IAgentUsageRow {
@@ -46,6 +47,8 @@ export interface IAiChatThread {
     last_message_at: string | null;
     created_at: string;
     updated_at: string;
+    ownerName?: string;
+    readOnly?: boolean;
 }
 
 /** Stored message from GET /ai-chat/threads/:uid. */
@@ -135,6 +138,22 @@ const aiChatApi = rtkApi.injectEndpoints({
                 method: 'PUT',
                 body,
             }),
+            async onQueryStarted(body, { dispatch, queryFulfilled }) {
+                const patch = dispatch(
+                    aiChatApi.util.updateQueryData('getAiChatSettings', undefined, (draft) => {
+                        if (body.seeAllThreads !== undefined) draft.seeAllThreads = body.seeAllThreads;
+                        if (body.confirmDestructive !== undefined) {
+                            draft.confirmDestructive = body.confirmDestructive;
+                        }
+                    }),
+                );
+                try {
+                    const { data } = await queryFulfilled;
+                    dispatch(aiChatApi.util.updateQueryData('getAiChatSettings', undefined, () => data));
+                } catch {
+                    patch.undo();
+                }
+            },
             invalidatesTags: ['AiChatSettings'],
         }),
         getAiChatDefaultProvider: builder.query<{ providerUid: number | null }, void>({
@@ -178,6 +197,10 @@ const aiChatApi = rtkApi.injectEndpoints({
                           { type: 'AiChatThreads' as const, id: 'LIST' },
                       ]
                     : [{ type: 'AiChatThreads' as const, id: 'LIST' }],
+        }),
+        getSharedAiChatThreads: builder.query<IAiChatThread[], void>({
+            query: () => '/ai-chat/threads/shared',
+            providesTags: [{ type: 'AiChatThreads', id: 'SHARED' }],
         }),
         getAiChatThread: builder.query<IAiChatThreadDetail, number>({
             query: (uid) => `/ai-chat/threads/${uid}`,
@@ -266,6 +289,7 @@ export const {
     useGetAgentDefaultModelQuery,
     useUpdateAgentDefaultModelMutation,
     useGetAiChatThreadsQuery,
+    useGetSharedAiChatThreadsQuery,
     useGetAiChatThreadQuery,
     useCreateAiChatThreadMutation,
     useDeleteAiChatThreadMutation,

@@ -40,6 +40,7 @@ export interface AccessListNumbers {
   routes: string[];
   cdrOperators: string[];
   cdrQueues: string[];
+  aiThreadUsers: string[];
 }
 
 const EMPTY_NUMBERS: AccessListNumbers = {
@@ -48,6 +49,7 @@ const EMPTY_NUMBERS: AccessListNumbers = {
   routes: [],
   cdrOperators: [],
   cdrQueues: [],
+  aiThreadUsers: [],
 };
 
 const TENANT_RAW_RE = /^(e(w)?.+_\d+|q.+_\d+)$/i;
@@ -123,12 +125,16 @@ function parseNumbersBlob(value: unknown): AccessListNumbers & { operatorsAreUse
   const cdrObj = raw.cdr && typeof raw.cdr === 'object' && !Array.isArray(raw.cdr)
     ? raw.cdr as { operatorUserIds?: unknown }
     : null;
+  const aiThreads = raw.aiThreads && typeof raw.aiThreads === 'object' && !Array.isArray(raw.aiThreads)
+    ? raw.aiThreads as { userIds?: unknown }
+    : null;
   return {
     operators: operatorsAreUserIds ? asIdStrings(raw.operatorUserIds) : asNormalized(raw.operators),
     queues: asNormalized(raw.queues),
     routes: asStrings(raw.routes),
     cdrOperators: cdr.operators,
     cdrQueues: cdr.queues,
+    aiThreadUsers: asIdStrings(aiThreads?.userIds),
     operatorsAreUserIds,
     cdrOperatorsAreUserIds: Boolean(cdrObj && Array.isArray(cdrObj.operatorUserIds)),
   };
@@ -234,6 +240,7 @@ export const NumberFormModal = () => {
         routes: parsed.routes,
         cdrOperators: parsed.cdrOperators,
         cdrQueues: parsed.cdrQueues,
+        aiThreadUsers: parsed.aiThreadUsers,
       });
       setOperatorsAreUserIds(parsed.operatorsAreUserIds);
       setCdrOperatorsAreUserIds(parsed.cdrOperatorsAreUserIds);
@@ -281,6 +288,28 @@ export const NumberFormModal = () => {
     }
     return opts.sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }));
   }, [users, numbers.operators, numbers.cdrOperators]);
+
+  const threadUserOptions = useMemo(() => {
+    const opts = users.map((u) => {
+      const exten = normalizeStoredToken(
+        (u.exten || '').trim() || (/^\d+$/.test(u.login || '') ? u.login : ''),
+      );
+      return {
+        value: String(u.uniqueid),
+        label: userOperatorLabel(u.name, u.login, exten) || String(u.uniqueid),
+      };
+    });
+    for (const id of numbers.aiThreadUsers) {
+      if (!opts.some((o) => o.value === id)) {
+        const u = users.find((usr) => String(usr.uniqueid) === id);
+        opts.push({
+          value: id,
+          label: u ? userOperatorLabel(u.name, u.login, u.exten) : id,
+        });
+      }
+    }
+    return opts.sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }));
+  }, [users, numbers.aiThreadUsers]);
 
   const queueOptions = useMemo(() => {
     const opts = queues.map((q) => ({
@@ -334,6 +363,9 @@ export const NumberFormModal = () => {
         cdr: {
           operatorUserIds: numbers.cdrOperators.map((id) => Number(id)).filter((n) => n > 0),
           queues: numbers.cdrQueues,
+        },
+        aiThreads: {
+          userIds: numbers.aiThreadUsers.map(Number).filter((n) => n > 0),
         },
       },
     };
@@ -426,6 +458,10 @@ export const NumberFormModal = () => {
                           ? ` (${numbers.cdrOperators.length + numbers.cdrQueues.length})`
                           : ''}
                       </TabsTrigger>
+                      <TabsTrigger value="ai-threads" className={styles.tab}>
+                        {t('numbers.tabAiThreads')}
+                        {numbers.aiThreadUsers.length > 0 ? ` (${numbers.aiThreadUsers.length})` : ''}
+                      </TabsTrigger>
                     </TabsList>
                   </VStack>
 
@@ -488,6 +524,24 @@ export const NumberFormModal = () => {
                         onChange={(cdrQueues) => patchNumbers({ cdrQueues })}
                         options={queueOptions}
                         placeholder={t('numbers.pickQueues', 'Выберите очереди…')}
+                      />
+                    </VStack>
+                  </TabsContent>
+
+                  <TabsContent value="ai-threads" className={styles.tabPanel}>
+                    <VStack gap="12" max>
+                      <HStack gap="4" align="center">
+                        <Text className={styles.subFieldLabel}>
+                          {t('numbers.pickThreadUsers')}
+                        </Text>
+                        <InfoTooltip text={t('numbers.aiThreadsHint')} />
+                      </HStack>
+                      <MultiSelect
+                        {...selectProps}
+                        value={numbers.aiThreadUsers}
+                        onChange={(aiThreadUsers) => patchNumbers({ aiThreadUsers })}
+                        options={threadUserOptions}
+                        placeholder={t('numbers.pickThreadUsers')}
                       />
                     </VStack>
                   </TabsContent>

@@ -68,6 +68,7 @@ export const AssistantPanel = ({ open, mode, onModeChange, onClose }: AssistantP
     const showRail = !isBelowWide;
     const showPlanRail = !isDock;
     const [selectedThreadUid, setSelectedThreadUid] = useState<number | null>(null);
+    const [selectedReadOnly, setSelectedReadOnly] = useState(false);
     const { data: detail } = useGetAiChatThreadQuery(selectedThreadUid ?? 0, {
         skip: selectedThreadUid == null,
     });
@@ -78,8 +79,12 @@ export const AssistantPanel = ({ open, mode, onModeChange, onClose }: AssistantP
     const [lastError, setLastError] = useState<string | null>(null);
     const { send, continueAfterApply, stop, abort, retry, isStreaming, outcome } = useAgentTurn({
         threadUid: selectedThreadUid,
-        onThreadCreated: setSelectedThreadUid,
+        onThreadCreated: (uid) => {
+            setSelectedThreadUid(uid);
+            setSelectedReadOnly(false);
+        },
     });
+    const readOnly = selectedReadOnly || detail?.readOnly === true;
 
     const timeline = detail?.timeline ?? [];
     const cards = detail?.cards ?? {};
@@ -105,8 +110,9 @@ export const AssistantPanel = ({ open, mode, onModeChange, onClose }: AssistantP
         messagesEndRef.current?.scrollIntoView?.({ behavior: 'smooth' });
     }, []);
 
-    const handleSelectThread = useCallback((uid: number) => {
-        setSelectedThreadUid(uid);
+    const handleSelectThread = useCallback((selection: { uid: number; readOnly: boolean }) => {
+        setSelectedThreadUid(selection.uid);
+        setSelectedReadOnly(selection.readOnly);
         dispatch(aiChatActions.resetTurn());
         setLastError(null);
     }, [dispatch]);
@@ -114,6 +120,7 @@ export const AssistantPanel = ({ open, mode, onModeChange, onClose }: AssistantP
     const handleDeletedThread = useCallback((uid: number) => {
         if (selectedThreadUid === uid) {
             setSelectedThreadUid(null);
+            setSelectedReadOnly(false);
             dispatch(aiChatActions.resetTurn());
             setLastError(null);
         }
@@ -122,6 +129,7 @@ export const AssistantPanel = ({ open, mode, onModeChange, onClose }: AssistantP
     const handleClearChat = useCallback(() => {
         abort();
         setSelectedThreadUid(null);
+        setSelectedReadOnly(false);
         dispatch(aiChatActions.resetTurn());
         setLastError(null);
     }, [abort, dispatch]);
@@ -291,7 +299,7 @@ export const AssistantPanel = ({ open, mode, onModeChange, onClose }: AssistantP
                         align="stretch"
                         data-testid="ai-agent-conversation"
                     >
-                        {showWelcome && (
+                        {showWelcome && !readOnly && (
                             <HStack className={cls.suggestions} gap="8" wrap="wrap">
                                 {SUGGESTION_KEYS.map((key) => (
                                     <Button
@@ -326,6 +334,7 @@ export const AssistantPanel = ({ open, mode, onModeChange, onClose }: AssistantP
                             <TimelineList
                                 items={timeline}
                                 cards={cards}
+                                readOnly={readOnly}
                                 onCardSettled={() => {
                                     if (!isStreaming) continueAfterApply();
                                 }}
@@ -389,6 +398,11 @@ export const AssistantPanel = ({ open, mode, onModeChange, onClose }: AssistantP
                     )}
                 </HStack>
 
+                {readOnly ? (
+                    <VStack className={cls.composer} gap="8" align="stretch">
+                        <Text as="p">{t('aiChat.timeline.readOnlyHint')}</Text>
+                    </VStack>
+                ) : (
                 <VStack
                     className={cls.composer}
                     gap="8"
@@ -430,6 +444,7 @@ export const AssistantPanel = ({ open, mode, onModeChange, onClose }: AssistantP
                         </Button>
                     </HStack>
                 </VStack>
+                )}
 
                 <VStack
                     className={cls.footer}
