@@ -40,6 +40,21 @@ export class AiChatSettingsService {
     return providerUid;
   }
 
+  async getSeeAllThreads(tenantUid: number): Promise<boolean> {
+    const row = await this.model.findOne({ where: { user_uid: tenantUid } });
+    return row?.settings?.adminSeesAllThreads === true;
+  }
+
+  async setSeeAllThreads(tenantUid: number, enabled: boolean): Promise<boolean> {
+    const [row] = await this.model.findOrCreate({
+      where: { user_uid: tenantUid },
+      defaults: { user_uid: tenantUid, confirm_destructive: 0, settings: {} } as any,
+    });
+    const next = { ...(row.settings ?? {}), adminSeesAllThreads: enabled };
+    await row.update({ settings: next });
+    return enabled;
+  }
+
   async updateSettings(vpbxUserUid: number, partial: Partial<AiChatSettingsDto>): Promise<AiChatSettingsDto> {
     const [row] = await this.model.findOrCreate({
       where: { user_uid: vpbxUserUid },

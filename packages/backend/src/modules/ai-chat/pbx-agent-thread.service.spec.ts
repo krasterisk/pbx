@@ -1,4 +1,5 @@
 import { NotFoundException } from '@nestjs/common';
+import { Op } from 'sequelize';
 import { PbxAgentThreadService } from './pbx-agent-thread.service';
 
 type ThreadRow = {
@@ -32,7 +33,19 @@ type MessageRow = {
 
 function matchesWhere<T extends Record<string, unknown>>(row: T, where: Record<string, unknown> | undefined): boolean {
   if (!where) return true;
-  return Object.entries(where).every(([key, value]) => row[key] === value);
+  return Object.entries(where).every(([key, value]) => {
+    if (value != null && typeof value === 'object' && !Array.isArray(value)) {
+      const ops = value as Record<PropertyKey, unknown>;
+      if (Op.in in ops) {
+        const list = ops[Op.in];
+        return Array.isArray(list) && list.includes(row[key]);
+      }
+      if (Op.ne in ops) {
+        return row[key] !== ops[Op.ne];
+      }
+    }
+    return row[key] === value;
+  });
 }
 
 function createModels() {
@@ -303,6 +316,71 @@ describe('PbxAgentThreadService', () => {
 
     expect(replay.map((row) => row.role)).toEqual(['assistant', 'tool', 'user']);
     expect(replay[1]).toMatchObject({ role: 'tool', tool_call_id: 'call_x' });
+  });
+
+  it('reads a foreign thread only when the scope allows its author', async () => {
+    const thread = await service.createThread(tenantA, authorA);
+    await service.appendMessage(thread.uid, tenantA, authorA, { role: 'user', content: 'shared' });
+    const scope = { readableAuthors: [authorA], allTenantThreads: false };
+
+    const listed = await service.listReadableThreads(tenantA, scope, authorB);
+    expect(listed.map((t) => t.uid)).toEqual([thread.uid]);
+    expect(listed.every((t) => t.user_uid !== authorB)).toBe(true);
+
+    const read = await service.getReadableThread(thread.uid, tenantA, authorB, scope);
+    expect(read.uid).toBe(thread.uid);
+
+    const messages = await service.listReadableMessages(thread.uid, tenantA, authorB, scope);
+    expect(messages.map((m) => m.content)).toEqual(['shared']);
+  });
+
+  it('refuses a foreign thread of the same tenant when the scope is empty', async () => {
+    const thread = await service.createThread(tenantA, authorA);
+    const empty = { readableAuthors: null, allTenantThreads: false };
+
+    expect(await service.listReadableThreads(tenantA, empty, authorB)).toEqual([]);
+    await expect(service.getReadableThread(thread.uid, tenantA, authorB, empty)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+    await expect(service.listReadableMessages(thread.uid, tenantA, authorB, empty)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+  });
+
+  it('never crosses the tenant boundary, even with allTenantThreads', async () => {
+    const t = await service.createThread(tenantA, authorA);
+
+    await expect(
+      service.getReadableThread(t.uid, tenantB, authorB, { readableAuthors: null, allTenantThreads: true }),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(await service.listReadableThreads(tenantB, { readableAuthors: null, allTenantThreads: true }, authorB)).toEqual(
+      [],
+    );
+  });
+
+  it('keeps write paths author-scoped', async () => {
+    const thread = await service.createThread(tenantA, authorA);
+
+    await expect(
+      service.appendMessage(thread.uid, tenantA, authorB, { role: 'user', content: 'nope' }),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.deleteThread(thread.uid, tenantA, authorB)).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.getThread(thread.uid, tenantA, authorB)).rejects.toBeInstanceOf(NotFoundException);
+    expect(models.messages).toHaveLength(0);
+    expect(models.threads).toHaveLength(1);
+  });
+
+  it('still forbids primary-key lookups on the read path', async () => {
+    const thread = await service.createThread(tenantA, authorA);
+    const scope = { readableAuthors: [authorA], allTenantThreads: false };
+
+    await service.listReadableThreads(tenantA, scope, authorB);
+    await service.getReadableThread(thread.uid, tenantA, authorB, scope);
+    await service.listReadableMessages(thread.uid, tenantA, authorB, scope);
+    await service.getReadableThread(thread.uid, tenantA, authorA, { readableAuthors: null, allTenantThreads: false });
+
+    expect(models.threadModel.findByPk).not.toHaveBeenCalled();
+    expect(models.messageModel.findByPk).not.toHaveBeenCalled();
   });
 });
 

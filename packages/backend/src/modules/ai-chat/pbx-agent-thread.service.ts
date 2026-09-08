@@ -1,9 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
+import { Op } from 'sequelize';
 import type { AgentItemVisibility, AgentTurnCloseKind } from '@krasterisk/shared';
 import { AgentThread } from './models/agent-thread.model';
 import { AgentThreadMessage, AgentThreadMessageRole } from './models/agent-thread-message.model';
 import type { ConversationBrief } from './conversation-brief.types';
+import type { ThreadVisibilityScope } from './thread-visibility.service';
 
 const TITLE_FROM_MESSAGE_MAX = 80;
 
@@ -79,6 +81,55 @@ export class PbxAgentThreadService {
       throw new NotFoundException('Thread not found');
     }
     return thread;
+  }
+
+  /** Треды других авторов тенанта, доступные на чтение. Пишущих операций не даёт. */
+  async listReadableThreads(
+    vpbxUserUid: number,
+    scope: ThreadVisibilityScope,
+    selfUid: number,
+  ): Promise<AgentThread[]> {
+    const authorWhere = this.readableAuthorWhere(scope, selfUid);
+    if (!authorWhere) {
+      return [];
+    }
+    return this.threadModel.findAll({
+      where: { vpbx_user_uid: vpbxUserUid, user_uid: authorWhere },
+      order: [['last_message_at', 'DESC']],
+    });
+  }
+
+  /** Тред на чтение: свой или разрешённый scope. Бросает NotFound, если ни то ни другое. */
+  async getReadableThread(
+    threadUid: number,
+    vpbxUserUid: number,
+    userUid: number,
+    scope: ThreadVisibilityScope,
+  ): Promise<AgentThread> {
+    const thread = await this.threadModel.findOne({
+      where: { uid: threadUid, vpbx_user_uid: vpbxUserUid },
+    });
+    if (!thread) {
+      throw new NotFoundException('Thread not found');
+    }
+    if (this.canReadThread(thread.user_uid, userUid, scope)) {
+      return thread;
+    }
+    throw new NotFoundException('Thread not found');
+  }
+
+  /** Строки треда на чтение. Тенант в where обязателен, автор — из найденного треда. */
+  async listReadableMessages(
+    threadUid: number,
+    vpbxUserUid: number,
+    userUid: number,
+    scope: ThreadVisibilityScope,
+  ): Promise<AgentThreadMessage[]> {
+    await this.getReadableThread(threadUid, vpbxUserUid, userUid, scope);
+    return this.messageModel.findAll({
+      where: { thread_uid: threadUid, vpbx_user_uid: vpbxUserUid },
+      order: [['uid', 'ASC']],
+    });
   }
 
   async listMessages(
@@ -303,5 +354,25 @@ export class PbxAgentThreadService {
     return this.threadModel.findOne({
       where: { uid: threadUid, vpbx_user_uid: vpbxUserUid, user_uid: userUid },
     });
+  }
+
+  private canReadThread(authorUid: number, callerUid: number, scope: ThreadVisibilityScope): boolean {
+    if (authorUid === callerUid) return true;
+    if (scope.allTenantThreads) return true;
+    return Boolean(scope.readableAuthors?.includes(authorUid));
+  }
+
+  private readableAuthorWhere(
+    scope: ThreadVisibilityScope,
+    selfUid: number,
+  ): { [Op.ne]: number } | { [Op.in]: number[] } | null {
+    if (scope.allTenantThreads) {
+      return { [Op.ne]: selfUid };
+    }
+    const authors = (scope.readableAuthors ?? []).filter((id) => id !== selfUid);
+    if (authors.length === 0) {
+      return null;
+    }
+    return { [Op.in]: authors };
   }
 }

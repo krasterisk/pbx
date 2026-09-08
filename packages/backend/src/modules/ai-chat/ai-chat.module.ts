@@ -38,6 +38,9 @@ import { PbxConversationBriefService } from './pbx-conversation-brief.service';
 import { AgentIntentClassifierService } from './agent-intent-classifier.service';
 import { AiPlatformModule } from '../ai-platform/ai-platform.module';
 import { PlanAiAdapter } from './plan-ai.adapter';
+import { ThreadVisibilityService } from './thread-visibility.service';
+import { User } from '../users/user.model';
+import { NumberList } from '../numbers/number-list.model';
 
 @Module({
     imports: [
@@ -55,6 +58,8 @@ import { PlanAiAdapter } from './plan-ai.adapter';
             CcAiAuditLog,
             Tenant,
             CloudSetting,
+            User,
+            NumberList,
         ]),
         EndpointsModule,
         TrunksModule,
@@ -81,6 +86,7 @@ import { PlanAiAdapter } from './plan-ai.adapter';
         PlanAiAdapter,
         PbxConversationBriefService,
         AgentIntentClassifierService,
+        ThreadVisibilityService,
         JwtOrServiceTokenGuard,
         ServiceTokenGuard,
     ],

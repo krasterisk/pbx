@@ -68,6 +68,37 @@ describe('AiChatSettingsService', () => {
     });
   });
 
+  describe('see-all-threads flag', () => {
+    it('returns false when the tenant has no adminSeesAllThreads flag', async () => {
+      model.findOne.mockResolvedValue(null);
+      await expect(service.getSeeAllThreads(100)).resolves.toBe(false);
+      expect(model.findOne).toHaveBeenCalledWith({ where: { user_uid: 100 } });
+    });
+
+    it('returns true only when adminSeesAllThreads is exactly true', async () => {
+      model.findOne.mockResolvedValue({ settings: { adminSeesAllThreads: true } });
+      await expect(service.getSeeAllThreads(100)).resolves.toBe(true);
+
+      model.findOne.mockResolvedValue({ settings: { adminSeesAllThreads: 1 } });
+      await expect(service.getSeeAllThreads(100)).resolves.toBe(false);
+    });
+
+    it('merges adminSeesAllThreads onto the tenant settings row', async () => {
+      const row = { settings: { defaultProviderUid: 21 }, update: jest.fn() };
+      row.update.mockImplementation(async (patch: any) => {
+        row.settings = patch.settings;
+      });
+      model.findOrCreate.mockResolvedValue([row, false]);
+
+      await expect(service.setSeeAllThreads(100, true)).resolves.toBe(true);
+      expect(model.findOrCreate).toHaveBeenCalledWith({
+        where: { user_uid: 100 },
+        defaults: { user_uid: 100, confirm_destructive: 0, settings: {} },
+      });
+      expect(row.settings).toEqual({ defaultProviderUid: 21, adminSeesAllThreads: true });
+    });
+  });
+
   describe('updateSettings', () => {
     it('creates a row for a tenant with no prior settings and applies the update', async () => {
       const row = { confirm_destructive: 0, update: jest.fn() };
