@@ -4,7 +4,7 @@ export default defineConfig({
   test: {
     globals: false,
     environment: 'node',
-    include: ['scenarios/**/*.test.ts'],
+    include: ['scenarios/**/*.test.ts', 'llm-stub/**/*.test.ts'],
     fileParallelism: false,
     reporters: ['default', ['junit', { outputFile: 'reports/junit-api.xml' }]],
   },
