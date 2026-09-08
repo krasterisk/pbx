@@ -56,6 +56,7 @@ export {
   createEmptyRewriteRule,
 } from './utils/dial-target-rewrite';
 export { ensureCdrVpbxUserUidInDialplan } from './utils/dialplan-vpbx';
+export { normalizeDirectoryKey } from './utils/directory-key';
 export { OPTIONS_ROUNDTRIP_STRINGS } from './fixtures/dialplan-options.roundtrip';
 export {
   DEFAULT_HOP_LIMIT,
