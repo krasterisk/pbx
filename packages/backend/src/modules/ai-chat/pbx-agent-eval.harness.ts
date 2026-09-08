@@ -1,7 +1,9 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { AgentSkillRegistryService } from '../ai-platform/agent-skill-registry.service';
 import { AiAdapterRegistryService } from '../ai-platform/ai-adapter-registry.service';
 import { DirectoriesAiAdapter } from '../directories/directories-ai.adapter';
+import { EndpointsAiAdapter } from '../endpoints/endpoints-ai.adapter';
 import { McpToolsService } from '../mcp/mcp-tools.service';
 import { QueuesAiAdapter } from '../queues/queues-ai.adapter';
 import { ReportsAiAdapter } from '../reports/reports-ai.adapter';
@@ -17,7 +19,10 @@ export type EvalBucket =
   | 'mutating'
   | 'cross-tenant'
   | 'diagnostic'
-  | 'step-budget';
+  | 'step-budget'
+  | 'playbook'
+  | 'failure'
+  | 'adversarial';
 
 export interface EvalModelTurn {
   text?: string;
@@ -406,7 +411,8 @@ async function replayOnce(scenario: EvalScenario, world: EvalWorld): Promise<Eva
   const contextsService = {
     findAll: async (uid: number) => world.contexts.filter((row) => row.vpbx_user_uid === uid),
   };
-  const ivrsService = { findAll: async () => [] };
+  const ivrsService = { findAll: async () => [], create: async () => undefined, update: async () => undefined, remove: async () => undefined };
+  const callGroupsService = { findAll: async () => [], create: async () => undefined, update: async () => undefined, remove: async () => undefined };
   const cdrService = {
     getStats: async (uid: number) => ({
       totalCalls: world.cdr.filter((row) => row.vpbx_user_uid === uid).length,
@@ -439,6 +445,8 @@ async function replayOnce(scenario: EvalScenario, world: EvalWorld): Promise<Eva
   );
 
   const routeReferencesService = { findUsage: async () => ({ references: [] }) };
+  new AgentSkillRegistryService(registry).onModuleInit();
+  new EndpointsAiAdapter(endpointsService as never, registry).onModuleInit();
   new DirectoriesAiAdapter(directoriesService as never, registry).onModuleInit();
   new QueuesAiAdapter(
     queuesService as never,
@@ -454,28 +462,13 @@ async function replayOnce(scenario: EvalScenario, world: EvalWorld): Promise<Eva
   const diff = new PbxAgentDiffService(
     proposalModel as never,
     { applyContext: async () => ({ success: true }) } as never,
-    directoriesService as never,
-    routesService as never,
-    { createWithGeneratedCredentials: async () => undefined, bulkCreate: async () => undefined, remove: async () => undefined } as never,
-    trunksService as never,
     loggerService as never,
     auditModel as never,
+    registry,
   );
 
   const mcp = new McpToolsService(
-    endpointsService as never,
-    trunksService as never,
-    ivrsService as never,
-    queuesService as never,
-    routesService as never,
-    {} as never,
-    contextsService as never,
-    {} as never,
-    builder,
-    {} as never,
-    cdrService as never,
     registry,
-    settings as never,
     loggerService as never,
     diff,
   );
@@ -484,6 +477,10 @@ async function replayOnce(scenario: EvalScenario, world: EvalWorld): Promise<Eva
   const stored: Array<{ role: string; content?: string | null; tool_name?: string | null; tool_calls?: unknown }> = [];
   const threads = {
     listMessages: async () => stored.map((row, index) => ({ uid: index + 1, ...row })),
+    listMessagesForReplay: async () => stored.map((row, index) => ({ uid: index + 1, ...row })),
+    getThread: async () => ({ uid: 900 + scenario.tenantUid, brief_json: null, brief_version: 0 }),
+    saveBrief: async () => undefined,
+    setProviderUid: async () => undefined,
     appendMessage: async (
       _threadUid: number,
       _tenant: number,
@@ -491,7 +488,10 @@ async function replayOnce(scenario: EvalScenario, world: EvalWorld): Promise<Eva
       input: (typeof stored)[number],
     ) => {
       stored.push(input);
-      return { uid: stored.length, ...input };
+      return { uid: stored.length, created_at: new Date('2026-09-08T05:00:00.000Z'), ...input };
+    },
+    findByPk: async () => {
+      throw new Error('findByPk is forbidden for tenant-owned rows');
     },
     addUsage: async () => undefined,
   };
@@ -517,6 +517,20 @@ async function replayOnce(scenario: EvalScenario, world: EvalWorld): Promise<Eva
     },
   };
 
+  const briefService = {
+    compile: (_brief: unknown, messageUid: number, text: string) => ({
+      anchor: text,
+      anchorMessageUid: messageUid,
+      goal: 'general',
+      facts: [],
+      replacements: [],
+      missingFacts: [],
+      workflowProgress: { status: 'idle' as const },
+      version: 1,
+      updatedThroughMessageUid: messageUid,
+    }),
+  };
+
   const loop = new PbxAgentLoopService(
     llm as never,
     providers as never,
@@ -524,6 +538,19 @@ async function replayOnce(scenario: EvalScenario, world: EvalWorld): Promise<Eva
     threads as never,
     mcp,
     config as never,
+    { getDefaultProviderUid: async () => null } as never,
+    briefService as never,
+    {
+      classify: () => ({
+        intents: ['general'],
+        skillNames: [],
+        domains: [],
+        confidence: 0.2,
+        source: 'fallback' as const,
+      }),
+      filterToolNames: (names: string[]) => names,
+    } as never,
+    { readSkillsForPrompt: () => [] } as never,
   );
 
   const entityCountsBefore = countEntities(world, scenario.tenantUid);
@@ -547,8 +574,12 @@ async function replayOnce(scenario: EvalScenario, world: EvalWorld): Promise<Eva
   return {
     events,
     toolSequence: events
-      .filter((event) => event.name === 'tool_call')
-      .map((event) => String((event.data as { name?: string }).name ?? '')),
+      .filter((event) => (
+        event.name === 'item'
+        && (event.data as { kind?: string }).kind === 'step'
+        && (event.data as { done?: boolean }).done === false
+      ))
+      .map((event) => String((event.data as { labelFallback?: string }).labelFallback ?? '')),
     auditRows,
     proposals: proposalRows.map((row) => ({
       entityType: row.entity_type,
@@ -623,6 +654,7 @@ function countEntities(world: EvalWorld, tenantUid: number): Record<string, numb
     trunks: world.trunks.filter((row) => row.vpbx_user_uid === tenantUid).length,
     cdr: world.cdr.filter((row) => row.vpbx_user_uid === tenantUid).length,
     routes: world.routes.filter((row) => row.vpbx_user_uid === tenantUid).length,
+    endpoints: world.endpoints.filter((row) => row.vpbx_user_uid === tenantUid).length,
   };
 }
 

@@ -39,13 +39,10 @@ export interface AgentCompletion {
 }
 
 export type AgentSseEventName =
-    | 'text'
-    | 'tool_call'
-    | 'tool_result'
-    | 'progress'
-    | 'diff_proposal'
-    | 'done'
-    | 'error';
+    | 'thread'   // { uid } — первым эвентом, чтобы фронт знал тред до первого элемента
+    | 'item'     // AgentTimelineItem — новый элемент или обновление существующего по id
+    | 'done'     // { closeKind }
+    | 'error';   // { code, message, ... }
 
 export interface AgentToolSpec {
     name: string;

@@ -23,7 +23,7 @@ describe('pbx-agent-eval', () => {
 
     expect(result.toolSequence).toEqual(scenario!.expectedToolSequence);
     expect(result.events.map((event) => event.name)).toEqual(
-      expect.arrayContaining(['progress', 'tool_call', 'tool_result', 'text', 'done']),
+      expect.arrayContaining(['thread', 'item', 'done']),
     );
   });
 
@@ -68,20 +68,26 @@ describe('pbx-agent-eval', () => {
       .not.toMatch(/read-list-queues/);
   });
 
-  it('covers ten reference scenarios across the contract buckets', () => {
+  it('covers the reference scenarios across the contract buckets', () => {
     const scenarios = loadReferenceScenarios();
     const byBucket = (bucket: EvalScenario['bucket']) => scenarios.filter((row) => row.bucket === bucket);
 
-    expect(scenarios).toHaveLength(10);
+    expect(scenarios).toHaveLength(14);
     expect(byBucket('read').map((row) => row.id)).toEqual([
       'read-list-queues',
       'read-find-cdr-calls',
       'read-pbx-state-snapshot',
     ]);
-    expect(byBucket('mutating')).toHaveLength(3);
+    expect(byBucket('mutating')).toHaveLength(4);
+    expect(byBucket('mutating').map((row) => row.id)).toEqual(expect.arrayContaining([
+      'mutate-ivr-sales-bulk-first',
+    ]));
     expect(byBucket('cross-tenant')).toHaveLength(2);
     expect(byBucket('diagnostic')).toHaveLength(1);
     expect(byBucket('step-budget')).toHaveLength(1);
+    expect(byBucket('playbook')).toHaveLength(1);
+    expect(byBucket('failure')).toHaveLength(1);
+    expect(byBucket('adversarial')).toHaveLength(1);
   });
 
   it('passes three read scenarios for listing, CDR and a state snapshot', async () => {
@@ -93,9 +99,9 @@ describe('pbx-agent-eval', () => {
     }
   });
 
-  it('passes three mutating scenarios with a pending proposal and no write', async () => {
+  it('passes mutating scenarios with a pending proposal and no write', async () => {
     const mutating = loadReferenceScenarios().filter((row) => row.bucket === 'mutating');
-    expect(mutating).toHaveLength(3);
+    expect(mutating).toHaveLength(4);
     for (const scenario of mutating) {
       expect(scenario.expectedProposal?.entityType).toBeTruthy();
       expect(scenario.assertNoWrite).toBe(true);
@@ -106,6 +112,24 @@ describe('pbx-agent-eval', () => {
       ))).toBe(true);
       expect(result.entityCountsAfter).toEqual(result.entityCountsBefore);
     }
+  });
+
+  it('replays IVR Продажи as bulk-first with a confirm ask and no invented groups', async () => {
+    const scenario = loadReferenceScenarios().find((row) => row.id === 'mutate-ivr-sales-bulk-first');
+    const result = await runScenario(scenario!);
+    const modelFacing = result.events
+      .filter((event) => event.name === 'item')
+      .map((event) => JSON.stringify(event.data))
+      .join('\n');
+
+    expect(result.toolSequence).toEqual(['read_skill', 'list_endpoints', 'create_endpoints_bulk']);
+    expect(result.proposals[0]).toEqual(expect.objectContaining({
+      entityType: 'endpoint',
+      status: 'pending',
+    }));
+    expect(modelFacing).toMatch(/подтвердите/i);
+    expect(modelFacing).not.toMatch(/q701_0/);
+    expect(result.toolSequence).not.toEqual(expect.arrayContaining(['create_call_group']));
   });
 
   it('passes two cross-tenant scenarios: same tool as two tenants and a forged tenant key', async () => {
@@ -131,8 +155,10 @@ describe('pbx-agent-eval', () => {
     const result = await runScenario(scenario!);
     expect(result.toolSequence.length).toBeGreaterThan(0);
     expect(result.toolSequence).toEqual(scenario!.expectedToolSequence);
-    expect(result.events.findIndex((event) => event.name === 'tool_call'))
-      .toBeLessThan(result.events.findIndex((event) => event.name === 'text'));
+    const itemKinds = result.events
+      .filter((event) => event.name === 'item')
+      .map((event) => (event.data as { kind?: string }).kind);
+    expect(itemKinds.indexOf('step')).toBeLessThan(itemKinds.indexOf('assistant'));
   });
 
   it('passes a step-budget scenario that stops at the ceiling', async () => {
