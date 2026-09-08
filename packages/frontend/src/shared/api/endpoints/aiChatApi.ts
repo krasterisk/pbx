@@ -202,6 +202,25 @@ const aiChatApi = rtkApi.injectEndpoints({
             query: () => '/ai-chat/threads/shared',
             providesTags: [{ type: 'AiChatThreads', id: 'SHARED' }],
         }),
+        getPlatformAiChatThreads: builder.query<IAiChatThread[], number>({
+            query: (tenantUid) => `/cloud-admin/ai-chat/tenants/${tenantUid}/threads`,
+            providesTags: (result, _err, tenantUid) =>
+                result
+                    ? [
+                          ...result.map((thread) => ({
+                              type: 'AiChatThreads' as const,
+                              id: `platform-${tenantUid}-${thread.uid}`,
+                          })),
+                          { type: 'AiChatThreads' as const, id: `PLATFORM-${tenantUid}` },
+                      ]
+                    : [{ type: 'AiChatThreads' as const, id: `PLATFORM-${tenantUid}` }],
+        }),
+        getPlatformAiChatThread: builder.query<IAiChatThreadDetail, { tenantUid: number; uid: number }>({
+            query: ({ tenantUid, uid }) => `/cloud-admin/ai-chat/tenants/${tenantUid}/threads/${uid}`,
+            providesTags: (_result, _err, { tenantUid, uid }) => [
+                { type: 'AiChatThreads', id: `platform-${tenantUid}-${uid}` },
+            ],
+        }),
         getAiChatThread: builder.query<IAiChatThreadDetail, number>({
             query: (uid) => `/ai-chat/threads/${uid}`,
             providesTags: (_result, _err, uid) => [{ type: 'AiChatThreads', id: uid }],
@@ -290,6 +309,8 @@ export const {
     useUpdateAgentDefaultModelMutation,
     useGetAiChatThreadsQuery,
     useGetSharedAiChatThreadsQuery,
+    useGetPlatformAiChatThreadsQuery,
+    useGetPlatformAiChatThreadQuery,
     useGetAiChatThreadQuery,
     useCreateAiChatThreadMutation,
     useDeleteAiChatThreadMutation,

@@ -118,6 +118,25 @@ export class PbxAgentThreadService {
     throw new NotFoundException('Thread not found');
   }
 
+  /** Только для платформенного read-only просмотра. Тенант обязателен, автор — нет. */
+  async listTenantThreads(vpbxUserUid: number): Promise<AgentThread[]> {
+    return this.threadModel.findAll({
+      where: { vpbx_user_uid: vpbxUserUid },
+      order: [['last_message_at', 'DESC']],
+    });
+  }
+
+  /** Только для платформенного read-only просмотра. Тенант обязателен, автор — нет. */
+  async getTenantThread(threadUid: number, vpbxUserUid: number): Promise<AgentThread> {
+    const thread = await this.threadModel.findOne({
+      where: { uid: threadUid, vpbx_user_uid: vpbxUserUid },
+    });
+    if (!thread) {
+      throw new NotFoundException('Thread not found');
+    }
+    return thread;
+  }
+
   /** Строки треда на чтение. Тенант в where обязателен, автор — из найденного треда. */
   async listReadableMessages(
     threadUid: number,

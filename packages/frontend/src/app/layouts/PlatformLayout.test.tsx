@@ -70,4 +70,12 @@ describe('PlatformLayout (NAV-06 / 006-B)', () => {
     expect(screen.queryByTestId('module-shell')).not.toBeInTheDocument();
     expect(screen.getByRole('navigation', { name: 'Platform console' })).toBeInTheDocument();
   });
+
+  it('links to the read-only tenant threads page', () => {
+    renderPlatform(UserLevel.SUPERADMIN);
+    expect(screen.getByRole('link', { name: 'platform.navAiThreads' })).toHaveAttribute(
+      'href',
+      '/platform/ai-threads',
+    );
+  });
 });

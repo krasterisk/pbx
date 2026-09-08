@@ -382,6 +382,28 @@ describe('PbxAgentThreadService', () => {
     expect(models.threadModel.findByPk).not.toHaveBeenCalled();
     expect(models.messageModel.findByPk).not.toHaveBeenCalled();
   });
+
+  it('lists every thread of a tenant without an author filter', async () => {
+    const a = await service.createThread(tenantA, authorA);
+    const b = await service.createThread(tenantA, authorB);
+    await service.createThread(tenantB, authorA);
+
+    const listed = await service.listTenantThreads(tenantA);
+
+    expect(listed.map((t) => t.uid).sort()).toEqual([a.uid, b.uid].sort());
+    expect(listed.every((t) => t.vpbx_user_uid === tenantA)).toBe(true);
+    expect(models.threadModel.findByPk).not.toHaveBeenCalled();
+  });
+
+  it('reads a tenant thread without an author and refuses a foreign tenant', async () => {
+    const thread = await service.createThread(tenantA, authorA);
+
+    const found = await service.getTenantThread(thread.uid, tenantA);
+    expect(found.uid).toBe(thread.uid);
+
+    await expect(service.getTenantThread(thread.uid, tenantB)).rejects.toBeInstanceOf(NotFoundException);
+    expect(models.threadModel.findByPk).not.toHaveBeenCalled();
+  });
 });
 
 describe('AgentProposal model shape (D-18 prep)', () => {

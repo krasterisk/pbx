@@ -13,6 +13,7 @@ import {
   PlatformTenantsPage,
   PlatformModulesPage,
   PlatformRoleStartPage,
+  PlatformAiThreadsPage,
 } from '@/pages/platform';
 import { SystemModulesPage } from '@/pages/SystemModulesPage';
 
@@ -87,6 +88,7 @@ export const router = createBrowserRouter([
       { path: 'tenants', element: <PlatformTenantsPage /> },
       { path: 'modules', element: <PlatformModulesPage /> },
       { path: 'role-start', element: <PlatformRoleStartPage /> },
+      { path: 'ai-threads', element: <PlatformAiThreadsPage /> },
     ],
   },
   {

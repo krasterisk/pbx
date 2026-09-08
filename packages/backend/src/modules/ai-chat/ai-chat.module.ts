@@ -3,6 +3,7 @@ import { HttpModule } from '@nestjs/axios';
 import { ConfigModule } from '@nestjs/config';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { AiChatController } from './ai-chat.controller';
+import { PlatformAiThreadsController } from './platform-threads.controller';
 import { PbxContextBuilderService } from './pbx-context-builder.service';
 import { AiChatSettings } from './ai-chat-settings.model';
 import { AiChatSettingsService } from './ai-chat-settings.service';
@@ -74,7 +75,7 @@ import { NumberList } from '../numbers/number-list.model';
         AgentProposalsModule,
         forwardRef(() => McpModule),
     ],
-    controllers: [AiChatController, AgentUsageController],
+    controllers: [AiChatController, AgentUsageController, PlatformAiThreadsController],
     providers: [
         AgentUsageService,
         PbxAgentLoopService,
