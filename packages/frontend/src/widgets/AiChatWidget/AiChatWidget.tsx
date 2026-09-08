@@ -52,7 +52,7 @@ export const AiChatWidget = ({ open, onClose }: AiChatWidgetProps) => {
 
     const timeline = detail?.timeline ?? [];
     const cards = detail?.cards ?? {};
-    const showWelcome = !detail?.timeline.length;
+    const showWelcome = timeline.length === 0;
 
     const panelRef = useRef<HTMLDivElement>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
