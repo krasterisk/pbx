@@ -1,0 +1,4 @@
+feat(15-10): implement queue adapter with overflow check
+
+- Serve list/create/update/delete as proposing tools
+- Validate overflow and members; name agents and feeding routes on the card

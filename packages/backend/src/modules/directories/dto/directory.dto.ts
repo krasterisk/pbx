@@ -24,10 +24,11 @@ import type {
   DirectoryMatchKind,
   DirectoryMatchMode,
 } from '@krasterisk/shared';
+import { DIRECTORY_CSV_MAX_BYTES, DIRECTORY_KEY_NORMALIZATIONS } from '@krasterisk/shared';
 
 const FIELD_TYPES: DirectoryFieldType[] = ['string', 'phone', 'number', 'boolean'];
 const MATCH_KINDS: DirectoryMatchKind[] = ['exact', 'asterisk_pattern'];
-const KEY_NORMALIZATIONS: DirectoryKeyNormalization[] = ['none', 'digits'];
+const KEY_NORMALIZATIONS: DirectoryKeyNormalization[] = [...DIRECTORY_KEY_NORMALIZATIONS];
 const MATCH_MODES: DirectoryMatchMode[] = ['on_match', 'on_no_match'];
 const BEHAVIOR_TYPES: DirectoryBehaviorType[] = [
   'set_name',
@@ -68,12 +69,16 @@ export class DirectoryFieldDto {
 }
 
 export class DirectoryRecordDto {
+  /** Derived from a leading `_` on the lookup value. Accepted and ignored if sent. */
+  @IsOptional()
   @IsIn(MATCH_KINDS)
-  match_kind: DirectoryMatchKind;
+  match_kind?: DirectoryMatchKind;
 
+  /** Unused for matching. Accepted and ignored if sent. */
+  @IsOptional()
   @IsInt()
   @Min(1)
-  priority: number;
+  priority?: number;
 
   @IsObject()
   values: Record<string, string | number | boolean>;
@@ -220,6 +225,13 @@ export class UpdateDirectoryDto {
   @ValidateNested({ each: true })
   @Type(() => DirectoryRecordDto)
   records?: DirectoryRecordDto[];
+}
+
+export class ImportDirectoryCsvDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(DIRECTORY_CSV_MAX_BYTES)
+  csv: string;
 }
 
 export class RouteDirectoryBindingDto {

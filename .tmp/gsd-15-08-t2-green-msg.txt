@@ -1,0 +1,5 @@
+feat(15-08): enforce step ceiling, cancel and proposal events
+
+- Stop before the next model call at CC_AI_MAX_AGENT_STEPS
+- Thread AbortSignal into the model request and skip remaining tools
+- Emit pending proposals in the stream; bound invalid-arg retries

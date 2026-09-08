@@ -1,4 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { z } from 'zod';
+import { toPublicExten, toPublicMemberInterface } from '../../shared/utils/tenant-public-id.util';
 import { QueuesService } from './queues.service';
 import { ContextsService } from '../contexts/contexts.service';
 import { EndpointsService } from '../endpoints/endpoints.service';
@@ -10,12 +12,89 @@ import {
   DomainAiAdapter,
   AgentDiffProposal,
 } from '../ai-platform/ai-adapter.types';
+import {
+  defineMutationTool,
+  type AiMutationContext,
+  type AiToolRefusal,
+  type MutationRevalidation,
+} from '../ai-platform/ai-mutation.contract';
 
 const STRATEGIES = ['ringall', 'leastrecent', 'fewestcalls', 'random', 'rrmemory'] as const;
+const SCHEMA_VERSION = 'queues-1';
+
+const memberSchema = z.strictObject({
+  interface: z.string().min(1).describe('Интерфейс агента, например PJSIP/201'),
+  membername: z.string().optional(),
+  penalty: z.number().int().min(0).optional(),
+});
+
+const createInput = z.strictObject({
+  name: z.string().min(1).describe('Отображаемое имя'),
+  exten: z.string().min(1).describe('Номер очереди, 2–8 цифр'),
+  strategy: z.enum(STRATEGIES).optional().describe(STRATEGIES.join(', ')),
+  timeout: z.number().int().positive().optional(),
+  overflow: z.string().optional().describe('Контекст overflow / Queue.context'),
+  context: z.string().optional(),
+  members: z.array(memberSchema).optional().describe('[{interface, membername, penalty}]'),
+});
+
+const createArgs = z.strictObject({
+  exten: z.string().min(1),
+  display_name: z.string().min(1),
+  strategy: z.enum(STRATEGIES).default('ringall'),
+  timeout: z.number().int().positive().optional(),
+  context: z.string().optional(),
+  members: z.array(memberSchema).optional(),
+});
+
+const updateInput = z.strictObject({
+  name: z.string().optional().describe('Отображаемое имя или номер очереди'),
+  exten: z.string().optional().describe('Номер очереди, 2–8 цифр'),
+  strategy: z.enum(STRATEGIES).optional(),
+  timeout: z.number().int().positive().optional(),
+  overflow: z.string().optional().describe('Новый overflow-контекст'),
+  context: z.string().optional(),
+  members: z.array(memberSchema).optional(),
+});
+
+const updateArgs = z.strictObject({
+  name: z.string().min(1),
+  strategy: z.enum(STRATEGIES).optional(),
+  timeout: z.number().int().positive().optional(),
+  context: z.string().optional(),
+  members: z.array(memberSchema).optional(),
+});
+
+const deleteInput = z.strictObject({
+  name: z.string().optional().describe('Отображаемое имя или номер очереди'),
+  exten: z.string().optional().describe('Номер очереди, 2–8 цифр'),
+});
+
+const deleteArgs = z.strictObject({ name: z.string().min(1) });
+
+type CreateInput = z.infer<typeof createInput>;
+type CreateArgs = z.infer<typeof createArgs>;
+type UpdateInput = z.infer<typeof updateInput>;
+type UpdateArgs = z.infer<typeof updateArgs>;
+type DeleteInput = z.infer<typeof deleteInput>;
+type DeleteArgs = z.infer<typeof deleteArgs>;
+type MemberView = z.infer<typeof memberSchema>;
+
+interface QueueView {
+  name: string;
+  display_name?: string;
+  strategy?: string;
+  timeout?: number;
+  context?: string;
+  exten?: string;
+  members?: MemberView[];
+}
 
 /**
  * QueuesAiAdapter — queue mutations as proposals (D-15, D-18, D-27).
  * Name and tenant are passed separately; a name from one tenant never addresses another.
+ * The canonical args store the resolved queue name, so a confirmation cannot be
+ * re-pointed by renaming a queue after the card was built.
  */
 @Injectable()
 export class QueuesAiAdapter implements DomainAiAdapter, OnModuleInit {
@@ -80,103 +159,116 @@ export class QueuesAiAdapter implements DomainAiAdapter, OnModuleInit {
   }
 
   private toolCreateQueue(): AiToolDefinition {
-    return {
+    return defineMutationTool<CreateInput, CreateArgs>({
       name: 'create_queue',
       description: 'Предлагает создать очередь. overflow и члены проверяются по сущностям тенанта.',
-      inputSchema: {
-        name: { type: 'string', description: 'Отображаемое имя' },
-        exten: { type: 'string', description: 'Номер очереди (q{exten}_{tenant})' },
-        strategy: { type: 'string', description: STRATEGIES.join(', ') },
-        timeout: { type: 'number' },
-        overflow: { type: 'string', description: 'Контекст overflow / Queue.context' },
-        context: { type: 'string' },
-        members: { type: 'array', description: '[{interface, membername, penalty}]' },
-      },
       entityType: 'queue',
-      proposes: true,
-      handler: async (args, uid) => {
-        const overflow = overflowOf(args);
-        const members = asMembers(args.members);
-        const refused = await this.refuseBadRefs(overflow, members, uid);
+      schemaVersion: SCHEMA_VERSION,
+      input: createInput,
+      args: createArgs,
+      reload: { kind: 'none' },
+      propose: async (input, ctx) => {
+        const overflow = overflowOf(input);
+        const members = this.publicMembers(input.members, ctx.vpbxUserUid);
+        const refused = await this.refuseBadRefs(overflow, members, ctx.vpbxUserUid);
         if (refused) return refused;
 
-        const applyArgs: Record<string, unknown> = {
-          exten: String(args.exten ?? args.name ?? ''),
-          display_name: args.name != null ? String(args.name) : undefined,
-          strategy: args.strategy != null ? String(args.strategy) : 'ringall',
+        const applyArgs: CreateArgs = {
+          exten: toPublicExten(input.exten, ctx.vpbxUserUid),
+          display_name: input.name,
+          strategy: input.strategy ?? 'ringall',
         };
-        if (args.timeout != null) applyArgs.timeout = Number(args.timeout);
+        if (input.timeout != null) applyArgs.timeout = input.timeout;
         if (overflow) applyArgs.context = overflow;
         if (members.length) applyArgs.members = members;
 
         return this.proposal(
           'create_queue',
-          String(args.name || applyArgs.exten),
+          input.name || applyArgs.exten,
           applyArgs,
           null,
           { ...applyArgs, overflow: overflow ?? null },
           [`Создать очередь ${applyArgs.display_name || applyArgs.exten}`],
         );
       },
-    };
+      revalidate: (args, ctx) => this.revalidateRefs(args, args.context ?? null, args.members, ctx),
+      apply: async (args, ctx) => {
+        await this.queuesService.create(
+          {
+            ...args,
+            exten: toPublicExten(args.exten, ctx.vpbxUserUid),
+            members: this.publicMembers(args.members, ctx.vpbxUserUid),
+          } as never,
+          ctx.vpbxUserUid,
+        );
+      },
+    });
   }
 
   private toolUpdateQueue(): AiToolDefinition {
-    return {
+    return defineMutationTool<UpdateInput, UpdateArgs>({
       name: 'update_queue',
       description:
         'Предлагает изменить очередь. Смена стратегии, состава или overflow — маршрутизация, не безопасная правка.',
-      inputSchema: {
-        name: { type: 'string', description: 'Имя очереди в БД (q{exten}_{tenant})' },
-        strategy: { type: 'string' },
-        timeout: { type: 'number' },
-        overflow: { type: 'string', description: 'Новый overflow-контекст' },
-        context: { type: 'string' },
-        members: { type: 'array' },
-      },
       entityType: 'queue',
-      proposes: true,
-      handler: async (args, uid) => {
-        const name = String(args.name);
-        const current = await this.queuesService.findOne(name, uid);
-        const overflow = overflowOf(args);
-        const members = args.members !== undefined ? asMembers(args.members) : undefined;
-        const refused = await this.refuseBadRefs(overflow, members, uid);
+      schemaVersion: SCHEMA_VERSION,
+      input: updateInput,
+      args: updateArgs,
+      reload: { kind: 'none' },
+      propose: async (input, ctx) => {
+        const name = await this.resolveQueueName(input, ctx.vpbxUserUid);
+        const current = await this.queuesService.findOne(name, ctx.vpbxUserUid);
+        const overflow = overflowOf(input);
+        const members = input.members !== undefined
+          ? this.publicMembers(input.members, ctx.vpbxUserUid)
+          : undefined;
+        const refused = await this.refuseBadRefs(overflow, members, ctx.vpbxUserUid);
         if (refused) return refused;
 
-        const applyArgs: Record<string, unknown> = { name };
-        if (args.strategy != null) applyArgs.strategy = String(args.strategy);
-        if (args.timeout != null) applyArgs.timeout = Number(args.timeout);
+        const applyArgs: UpdateArgs = { name };
+        if (input.strategy != null) applyArgs.strategy = input.strategy;
+        if (input.timeout != null) applyArgs.timeout = input.timeout;
         if (overflow) applyArgs.context = overflow;
         if (members) applyArgs.members = members;
 
-        const summary = this.updateSummary(current, applyArgs);
         return this.proposal(
           'update_queue',
           String(current.display_name || current.name),
           applyArgs,
           this.snapshot(current),
           this.snapshot({ ...current, ...applyArgs, context: overflow ?? current.context }),
-          summary,
+          this.updateSummary(current, applyArgs),
         );
       },
-    };
+      revalidate: async (args, ctx) => {
+        const owned = await this.requireQueue(args, args.name, ctx);
+        if (!owned.ok) return owned;
+        return this.revalidateRefs(args, args.context ?? null, args.members, ctx);
+      },
+      apply: async (args, ctx) => {
+        const { name, ...rest } = args;
+        const dto = rest.members
+          ? { ...rest, members: this.publicMembers(rest.members, ctx.vpbxUserUid) }
+          : rest;
+        await this.queuesService.update(name, dto as never, ctx.vpbxUserUid);
+      },
+    });
   }
 
   private toolDeleteQueue(): AiToolDefinition {
-    return {
+    return defineMutationTool<DeleteInput, DeleteArgs>({
       name: 'delete_queue',
       description: 'Предлагает удалить очередь по имени. В карточке — маршруты и меню, которые на неё шлют.',
-      inputSchema: {
-        name: { type: 'string', description: 'Имя очереди (q{exten}_{tenant})' },
-      },
       entityType: 'queue',
       destructive: true,
-      proposes: true,
-      handler: async (args, uid) => {
-        const name = String(args.name);
-        const current = await this.queuesService.findOne(name, uid);
-        const feeders = await this.feederNames(name, current.exten, uid);
+      schemaVersion: SCHEMA_VERSION,
+      input: deleteInput,
+      args: deleteArgs,
+      reload: { kind: 'none' },
+      propose: async (input, ctx) => {
+        const name = await this.resolveQueueName(input, ctx.vpbxUserUid);
+        const current = await this.queuesService.findOne(name, ctx.vpbxUserUid);
+        const feeders = await this.feederNames(name, current.exten, ctx.vpbxUserUid);
         const summary = [
           `Удалить очередь ${current.display_name || name}`,
           ...feeders.routes.map((route) => `Маршрут: ${route}`),
@@ -191,10 +283,45 @@ export class QueuesAiAdapter implements DomainAiAdapter, OnModuleInit {
           summary,
         );
       },
-    };
+      revalidate: (args, ctx) => this.requireQueue(args, args.name, ctx),
+      apply: async (args, ctx) => {
+        await this.queuesService.remove(args.name, ctx.vpbxUserUid);
+      },
+    });
   }
 
-  private updateSummary(current: QueueView, applyArgs: Record<string, unknown>): string[] {
+  private publicMembers(members: MemberView[] | undefined, uid: number): MemberView[] {
+    return (members ?? []).map((member) => ({
+      ...member,
+      interface: toPublicMemberInterface(member.interface, uid),
+    }));
+  }
+
+  private async requireQueue<T>(
+    args: T,
+    name: string,
+    ctx: AiMutationContext,
+  ): Promise<MutationRevalidation<T>> {
+    try {
+      await this.queuesService.findOne(name, ctx.vpbxUserUid);
+      return { ok: true, args };
+    } catch {
+      return { ok: false, reason: `Очередь ${name} не найдена у тенанта` };
+    }
+  }
+
+  private async revalidateRefs<T>(
+    args: T,
+    overflow: string | null,
+    members: MemberView[] | undefined,
+    ctx: AiMutationContext,
+  ): Promise<MutationRevalidation<T>> {
+    const refused = await this.refuseBadRefs(overflow, members, ctx.vpbxUserUid);
+    if (refused) return { ok: false, reason: String(refused.message) };
+    return { ok: true, args };
+  }
+
+  private updateSummary(current: QueueView, applyArgs: UpdateArgs): string[] {
     const lines: string[] = [];
     if (applyArgs.timeout != null && Number(applyArgs.timeout) !== Number(current.timeout)) {
       lines.push(`timeout: ${current.timeout ?? '—'} → ${applyArgs.timeout}`);
@@ -223,7 +350,7 @@ export class QueuesAiAdapter implements DomainAiAdapter, OnModuleInit {
     overflow: string | null,
     members: MemberView[] | undefined,
     uid: number,
-  ): Promise<Record<string, unknown> | null> {
+  ): Promise<AiToolRefusal | null> {
     if (overflow) {
       const contexts = await this.contextsService.findAll(uid);
       const ok = contexts.some((context) => context.name === overflow || String(context.uid) === overflow);
@@ -277,18 +404,42 @@ export class QueuesAiAdapter implements DomainAiAdapter, OnModuleInit {
   }
 
   private toListRow(row: QueueView): Record<string, unknown> {
+    const exten = row.exten || toPublicExten(row.name);
     return {
-      name: row.name,
-      display_name: row.display_name,
+      name: row.display_name || exten,
+      exten,
       strategy: row.strategy,
       timeout: row.timeout,
       overflow: row.context ?? null,
       members: (row.members ?? []).map((member) => ({
-        interface: member.interface,
+        extension: toPublicExten(member.interface.split('/').pop() ?? member.interface),
         membername: member.membername,
         penalty: member.penalty,
       })),
     };
+  }
+
+  private async resolveQueueName(
+    args: { name?: string; exten?: string },
+    uid: number,
+  ): Promise<string> {
+    const rows = await this.queuesService.findAll(uid);
+    const exten = toPublicExten(args.exten ?? '', uid);
+    const label = (args.name ?? '').trim();
+    const byExten = exten
+      ? rows.find((row) => toPublicExten(row.name, uid) === exten || row.exten === exten)
+      : undefined;
+    if (byExten) return byExten.name;
+    const byLabel = label
+      ? rows.find((row) =>
+          row.name === label
+          || row.display_name === label
+          || toPublicExten(row.name, uid) === toPublicExten(label, uid),
+        )
+      : undefined;
+    if (byLabel) return byLabel.name;
+    if (label) return label;
+    throw new Error('Очередь не найдена у тенанта');
   }
 
   private snapshot(row: QueueView): Record<string, unknown> {
@@ -321,46 +472,16 @@ export class QueuesAiAdapter implements DomainAiAdapter, OnModuleInit {
   }
 }
 
-interface MemberView {
-  interface: string;
-  membername?: string;
-  penalty?: number;
-}
-
-interface QueueView {
-  name: string;
-  display_name?: string;
-  strategy?: string;
-  timeout?: number;
-  context?: string;
-  exten?: string;
-  members?: MemberView[];
-}
-
-function overflowOf(args: Record<string, unknown>): string | null {
-  if (args.overflow != null && String(args.overflow).trim()) return String(args.overflow);
-  if (args.context != null && String(args.context).trim()) return String(args.context);
+function overflowOf(input: { overflow?: string; context?: string }): string | null {
+  if (input.overflow != null && input.overflow.trim()) return input.overflow;
+  if (input.context != null && input.context.trim()) return input.context;
   return null;
-}
-
-function asMembers(value: unknown): MemberView[] {
-  if (!Array.isArray(value)) return [];
-  return value
-    .filter((row) => row && typeof row === 'object')
-    .map((row) => {
-      const rec = row as Record<string, unknown>;
-      return {
-        interface: String(rec.interface ?? ''),
-        membername: rec.membername != null ? String(rec.membername) : undefined,
-        penalty: rec.penalty != null ? Number(rec.penalty) : undefined,
-      };
-    });
 }
 
 function memberNames(members: MemberView[] | undefined): string[] {
   return (members ?? [])
     .map((member) => member.membername || member.interface)
-    .filter(Boolean);
+    .filter(Boolean) as string[];
 }
 
 function memberResolves(
@@ -368,10 +489,11 @@ function memberResolves(
   endpoints: Array<{ extension?: string; sipUsername?: string }>,
 ): boolean {
   const raw = String(iface || '');
-  const id = raw.replace(/^(PJSIP|SIP)\//i, '');
+  const id = toPublicExten(raw.replace(/^(PJSIP|SIP)\//i, ''));
   return endpoints.some((row) =>
     String(row.sipUsername) === id
     || String(row.extension) === id
+    || toPublicExten(row.sipUsername) === id
     || raw.endsWith(`/${row.sipUsername}`)
     || raw.endsWith(`/${row.extension}`),
   );

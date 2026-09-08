@@ -1,0 +1,4 @@
+test(15-10): add role and tenant fixtures for menu and queue tools
+
+- Deny READONLY confirm on all six mutations
+- Prove adapter ownership and skip of the handwritten twin

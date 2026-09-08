@@ -317,7 +317,7 @@ describe('DirectoriesService', () => {
       expect(result).toEqual({ status: 'FOUND', matchKind: 'exact', values: ['700'] });
     });
 
-    it('picks the lowest pattern priority after an exact miss', async () => {
+    it('picks the more specific Asterisk pattern after an exact miss', async () => {
       await expect(
         service.lookup({
           directoryUid: 7,
@@ -328,7 +328,61 @@ describe('DirectoriesService', () => {
       ).resolves.toEqual({
         status: 'FOUND',
         matchKind: 'asterisk_pattern',
-        values: ['pattern-low', 'P10'],
+        values: ['pattern-high', 'P20'],
+      });
+    });
+
+    it('picks the narrower CallerID range without a stored priority', async () => {
+      const created = await service.create(
+        createDto({
+          name: 'CallerNames',
+          key_normalization: 'digits',
+          records: [
+            { values: { number: '79001234568', name: 'Иван' } },
+            { values: { number: '_7900123XXXX', name: 'Билайн' } },
+            { values: { number: '_7900XXXXXXX', name: 'Ростелеком' } },
+          ],
+        }),
+        100,
+      );
+
+      const nameUid = created.fields!.find((field) => field.key === 'name')!.uid;
+      await expect(
+        service.lookup({
+          directoryUid: created.uid,
+          userUid: 100,
+          key: '+79001234567',
+          fieldUids: [nameUid],
+        }),
+      ).resolves.toEqual({
+        status: 'FOUND',
+        matchKind: 'asterisk_pattern',
+        values: ['Билайн'],
+      });
+    });
+
+    it('finds an exact 7-number when the incoming key is written with a leading 8', async () => {
+      const created = await service.create(
+        createDto({
+          name: 'RuTrunk',
+          key_normalization: 'ru_8_to_7',
+          records: [{ values: { number: '+7 (900) 123-45-67', name: 'Alice' } }],
+        }),
+        100,
+      );
+      const nameUid = created.fields!.find((field) => field.key === 'name')!.uid;
+
+      await expect(
+        service.lookup({
+          directoryUid: created.uid,
+          userUid: 100,
+          key: '8-900-123-45-67',
+          fieldUids: [nameUid],
+        }),
+      ).resolves.toEqual({
+        status: 'FOUND',
+        matchKind: 'exact',
+        values: ['Alice'],
       });
     });
 
@@ -672,6 +726,23 @@ describe('DirectoriesService', () => {
   });
 
   describe('csv', () => {
+    function csvErrors(err: unknown): Array<{ row: number; column?: string; code: string }> {
+      expect(err).toBeInstanceOf(BadRequestException);
+      const body = (err as BadRequestException).getResponse() as {
+        errors?: Array<{ row: number; column?: string; code: string }>;
+      };
+      return body.errors ?? [];
+    }
+
+    async function importErrors(uid: number, csv: string) {
+      try {
+        await service.importCsv(uid, csv, 100);
+      } catch (err) {
+        return csvErrors(err);
+      }
+      throw new Error('import was expected to fail');
+    }
+
     it('rejects unknown and duplicate headers', async () => {
       await expect(
         service.importCsv(7, 'number,name,unknown,match_kind,priority\n1,A,x,exact,1\n', 100),
@@ -680,6 +751,224 @@ describe('DirectoriesService', () => {
       await expect(
         service.importCsv(7, 'number,number,comment,match_kind,priority\n1,2,,exact,1\n', 100),
       ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('reports unknown, duplicate and missing columns with codes', async () => {
+      expect(
+        await importErrors(7, 'number,unknown,match_kind,priority\n1,x,exact,1\n'),
+      ).toContainEqual(expect.objectContaining({ row: 1, column: 'unknown', code: 'unknown_column' }));
+
+      expect(
+        await importErrors(7, 'number,number,match_kind,priority\n1,2,exact,1\n'),
+      ).toContainEqual(expect.objectContaining({ column: 'number', code: 'duplicate_column' }));
+
+      expect(await importErrors(7, 'name,match_kind,priority\nA,exact,1\n')).toContainEqual(
+        expect.objectContaining({ column: 'number', code: 'missing_column' }),
+      );
+    });
+
+    it('replaces every existing record and bumps the revision once', async () => {
+      const before = store.records.filter((r) => r.directory_uid === 7).length;
+      expect(before).toBe(3);
+
+      await expect(
+        service.importCsv(7, 'number;name;match_kind;priority\n555;Alice;exact;1\n', 100),
+      ).resolves.toEqual({ imported: 1, replaced: 3, errors: [] });
+
+      const after = store.records.filter((r) => r.directory_uid === 7);
+      expect(after).toHaveLength(1);
+      expect(after[0].lookup_value).toBe('555');
+      expect(store.directories.find((d) => d.uid === 7)?.revision).toBe(1);
+    });
+
+    it('leaves records and revision untouched when a row is invalid', async () => {
+      const errors = await importErrors(
+        7,
+        'number;name\n555;Alice\n;Bob\n',
+      );
+      expect(errors).toContainEqual(
+        expect.objectContaining({ row: 3, column: 'number', code: 'required_empty' }),
+      );
+      expect(store.records.filter((r) => r.directory_uid === 7)).toHaveLength(3);
+      expect(store.directories.find((d) => d.uid === 7)?.revision).toBe(0);
+    });
+
+    it('ignores legacy match_kind and priority columns including invalid values', async () => {
+      await expect(
+        service.importCsv(7, 'number;name;match_kind;priority\n555;Alice;exact;0\n', 100),
+      ).resolves.toEqual({ imported: 1, replaced: 3, errors: [] });
+
+      const after = store.records.filter((r) => r.directory_uid === 7);
+      expect(after).toHaveLength(1);
+      expect(after[0]).toMatchObject({
+        lookup_value: '555',
+        match_kind: 'exact',
+        priority: 1,
+      });
+    });
+
+    it('keeps leading zeros, a leading plus, dates and long numeric strings as text', async () => {
+      const created = await service.create(createDto({ name: 'TextDir' }), 100);
+      await service.importCsv(
+        created.uid,
+        [
+          'number;name;match_kind;priority',
+          '0712345;2024-01-15;exact;1',
+          '+79001234567;12345678901234567890;exact;1',
+        ].join('\n'),
+        100,
+      );
+
+      const loaded = await service.findOne(created.uid, 100);
+      expect(loaded.records?.map((record) => record.values)).toEqual([
+        expect.objectContaining({ number: '0712345', name: '2024-01-15' }),
+        expect.objectContaining({ number: '+79001234567', name: '12345678901234567890' }),
+      ]);
+    });
+
+    it('accepts a UTF-8 BOM and both delimiters', async () => {
+      const created = await service.create(createDto({ name: 'BomDir' }), 100);
+      await service.importCsv(
+        created.uid,
+        '\ufeffnumber;name;match_kind;priority\r\n555;Alice;exact;1\r\n',
+        100,
+      );
+      await expect(service.findOne(created.uid, 100)).resolves.toMatchObject({
+        records: [expect.objectContaining({ lookup_value: '555' })],
+      });
+
+      await service.importCsv(
+        created.uid,
+        'number,name,match_kind,priority\n556,Bob,exact,1\n',
+        100,
+      );
+      await expect(service.findOne(created.uid, 100)).resolves.toMatchObject({
+        records: [expect.objectContaining({ lookup_value: '556' })],
+      });
+    });
+
+    it('keeps quoted newlines and reports the physical file line', async () => {
+      const created = await service.create(createDto({ name: 'MultilineDir' }), 100);
+      await service.importCsv(
+        created.uid,
+        'number;name;match_kind;priority\n555;"first\nsecond";exact;1\n',
+        100,
+      );
+      const loaded = await service.findOne(created.uid, 100);
+      expect(loaded.records?.[0].values).toEqual(
+        expect.objectContaining({ name: 'first\nsecond' }),
+      );
+
+      const errors = await importErrors(
+        created.uid,
+        'number;name\n555;"first\nsecond"\n;Bob\n',
+      );
+      expect(errors).toContainEqual(
+        expect.objectContaining({ row: 4, column: 'number', code: 'required_empty' }),
+      );
+    });
+
+    it('rejects an empty cell in a required column instead of coercing it', async () => {
+      const errors = await importErrors(7, 'number;name;match_kind;priority\n;Alice;exact;1\n');
+      expect(errors).toEqual([
+        expect.objectContaining({ row: 2, column: 'number', code: 'required_empty' }),
+      ]);
+    });
+
+    it('rejects a non-numeric cell in a number column', async () => {
+      const created = await service.create(
+        createDto({
+          name: 'NumberDir',
+          fields: [
+            { key: 'number', label: 'Number', type: 'phone', required: true, position: 0 },
+            { key: 'weight', label: 'Weight', type: 'number', required: false, position: 1 },
+          ],
+        }),
+        100,
+      );
+      const errors = await importErrors(
+        created.uid,
+        'number;weight;match_kind;priority\n555;heavy;exact;1\n',
+      );
+      expect(errors).toEqual([
+        expect.objectContaining({ row: 2, column: 'weight', code: 'invalid_number' }),
+      ]);
+    });
+
+    it('reports duplicate lookup values by row', async () => {
+      const created = await service.create(createDto({ name: 'DupeDir' }), 100);
+      const errors = await importErrors(
+        created.uid,
+        'number;name;match_kind;priority\n555;Alice;exact;1\n555;Bob;exact;1\n',
+      );
+      expect(errors).toEqual([
+        expect.objectContaining({ row: 3, column: 'number', code: 'duplicate_key' }),
+      ]);
+    });
+
+    it('rejects two identical Asterisk patterns on import', async () => {
+      const created = await service.create(createDto({ name: 'DupePatternCsv' }), 100);
+      const errors = await importErrors(
+        created.uid,
+        'number;name\n_7900XXXXXXX;A\n_7900XXXXXXX;B\n',
+      );
+      expect(errors).toEqual([
+        expect.objectContaining({ row: 3, column: 'number', code: 'duplicate_key' }),
+      ]);
+    });
+
+    it('exports with a BOM, a semicolon delimiter and a deterministic order', async () => {
+      const created = await service.create(createDto({ name: 'ExportDir' }), 100);
+      await service.importCsv(
+        created.uid,
+        [
+          'number;name;match_kind;priority',
+          '777;Carol;exact;2',
+          '555;Alice;exact;1',
+        ].join('\n'),
+        100,
+      );
+
+      const exported = await service.exportCsv(created.uid, 100);
+      expect(exported.charCodeAt(0)).toBe(0xfeff);
+      expect(exported.slice(1).split('\r\n')).toEqual([
+        'number;name;comment',
+        '555;Alice;',
+        '777;Carol;',
+        '',
+      ]);
+    });
+
+    it('survives an export then import round trip', async () => {
+      const source = await service.create(createDto({ name: 'RoundSource' }), 100);
+      await service.importCsv(
+        source.uid,
+        [
+          'number;name;comment;match_kind;priority',
+          '0712345;"Alice; Bob";"note\nline";exact;1',
+          '+79001234567;Carol;;exact;2',
+        ].join('\n'),
+        100,
+      );
+      const exported = await service.exportCsv(source.uid, 100);
+
+      const target = await service.create(createDto({ name: 'RoundTarget' }), 100);
+      await service.importCsv(target.uid, exported, 100);
+
+      const sourceLoaded = await service.findOne(source.uid, 100);
+      const targetLoaded = await service.findOne(target.uid, 100);
+      const strip = (directory: typeof sourceLoaded) =>
+        (directory.records ?? [])
+          .map((record) => ({
+            lookup_value: record.lookup_value,
+            match_kind: record.match_kind,
+            priority: record.priority,
+            comment: record.comment,
+            values: record.values,
+          }))
+          .sort((a, b) => a.lookup_value.localeCompare(b.lookup_value));
+
+      expect(strip(targetLoaded)).toEqual(strip(sourceLoaded));
     });
 
     it('preserves quoted delimiters on import and export', async () => {
@@ -704,8 +993,8 @@ describe('DirectoriesService', () => {
       const exported = await service.exportCsv(created.uid, 100);
       expect(exported).toMatch(/Alice,\s*Bob/);
       expect(exported.split('\n')[0]).toMatch(/number/);
-      expect(exported.split('\n')[0]).toMatch(/match_kind/);
-      expect(exported.split('\n')[0]).toMatch(/priority/);
+      expect(exported.split('\n')[0]).not.toMatch(/match_kind/);
+      expect(exported.split('\n')[0]).not.toMatch(/priority/);
     });
   });
 });

@@ -1,0 +1,4 @@
+feat(15-15): delete handwritten tools and bypass paths
+
+- Drop handwritten registrations and the 15-07 precedence shim
+- Delete alternative dispatch controller and ignored-docs knowledge reader

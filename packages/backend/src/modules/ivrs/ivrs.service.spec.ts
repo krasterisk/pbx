@@ -1,4 +1,4 @@
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { IvrsService } from './ivrs.service';
 import { Ivr } from './ivr.model';
 import { DialplanApplyService } from '../ami/dialplan-apply.service';
@@ -171,6 +171,47 @@ describe('IvrsService.generateIvrDialplan', () => {
     expect(dp).toContain('same => n,Hangup()');
     expect(dp).not.toMatch(/ExecIfTime|WT_/);
   });
+
+  it('renders toexten as a tenant PJSIP Dial, not an unknown app', () => {
+    const dp = service.generateIvrDialplan(
+      {
+        ...baseIvr,
+        prompts: [],
+        menu_items: [
+          {
+            digit: '1',
+            actions: [{ type: 'toexten', params: { target: { source: 'fixed', value: '101' }, webrtc: true } }],
+          },
+        ],
+      } as Ivr,
+      42,
+    );
+    expect(dp).toContain('PJSIP/e101_42');
+    expect(dp).not.toContain('Unknown action');
+  });
+
+  it('heals persisted dial / legacy togroup.group at render time', () => {
+    const dp = service.generateIvrDialplan(
+      {
+        ...baseIvr,
+        prompts: [],
+        menu_items: [
+          {
+            digit: '1',
+            actions: [{ type: 'dial', params: { target: { source: 'fixed', value: '101' } } }],
+          },
+          {
+            digit: 't',
+            actions: [{ type: 'togroup', params: { group: '3' } }],
+          },
+        ],
+      } as Ivr,
+      42,
+    );
+    expect(dp).toContain('PJSIP/e101_42');
+    expect(dp).toContain('Gosub(group_3_42,start,1)');
+    expect(dp).not.toContain('Unknown action');
+  });
 });
 
 describe('IvrsService dialplan sync', () => {
@@ -241,6 +282,39 @@ describe('IvrsService dialplan sync', () => {
       { reload: true },
     );
     expect(result.uid).toBe(7);
+  });
+
+  it('create stores the JWT tenant and rewrites dial actions to toexten', async () => {
+    const created = ivrRow({ uid: 11, name: 'Sales' });
+    ivrModel.create.mockResolvedValueOnce(created);
+
+    await service.create({
+      name: 'Sales',
+      user_uid: 0,
+      menu_items: [
+        { digit: '1', actions: [{ type: 'dial', params: { target: { source: 'fixed', value: '101' } } }] },
+      ],
+    } as any, vpbx);
+
+    const saved = ivrModel.create.mock.calls[0][0];
+    expect(saved.user_uid).toBe(vpbx);
+    expect(saved.menu_items).toEqual([
+      expect.objectContaining({
+        digit: '1',
+        actions: [expect.objectContaining({
+          type: 'toexten',
+          params: expect.objectContaining({ target: { source: 'fixed', value: '101' } }),
+        })],
+      }),
+    ]);
+  });
+
+  it('create refuses an action type that cannot be rewritten', async () => {
+    await expect(service.create({
+      name: 'Bad',
+      menu_items: [{ digit: '1', actions: [{ type: 'not-an-app', params: {} }] }],
+    } as any, vpbx)).rejects.toBeInstanceOf(BadRequestException);
+    expect(ivrModel.create).not.toHaveBeenCalled();
   });
 
   it('create removes dialplan when IVR is inactive', async () => {

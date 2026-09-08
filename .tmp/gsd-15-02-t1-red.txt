@@ -1,0 +1,5 @@
+test(15-02): add failing test for skill catalog and read_skill
+
+- Catalog exposes name and description only, never the skill body
+- readSkill returns body, not-found text, and 8000-char truncation
+- list_skills and read_skill accept vpbxUserUid as a call parameter

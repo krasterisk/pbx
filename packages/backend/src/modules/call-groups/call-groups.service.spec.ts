@@ -202,6 +202,26 @@ describe('CallGroupsService', () => {
       expect(groupModel.create).not.toHaveBeenCalled();
     });
 
+    it('rejects an exten already used by an internal number', async () => {
+      groupModel.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.create({ name: 'Timeout', exten: '101', strategy: 'ringall' } as any, vpbx),
+      ).rejects.toBeInstanceOf(ConflictException);
+
+      try {
+        await service.create({ name: 'Timeout', exten: '101', strategy: 'ringall' } as any, vpbx);
+        throw new Error('expected ConflictException');
+      } catch (err) {
+        expect(err).toBeInstanceOf(ConflictException);
+        expect((err as ConflictException).getResponse()).toMatchObject({
+          code: 'CALL_GROUP_EXTEN_USED_BY_ENDPOINT',
+          params: { exten: '101' },
+        });
+      }
+      expect(groupModel.create).not.toHaveBeenCalled();
+    });
+
     it('allows the same exten in another tenant', async () => {
       const created = groupRow({ uid: 8, name: 'Sales', exten: '6007', user_uid: 99 });
       groupModel.findOne
@@ -229,6 +249,33 @@ describe('CallGroupsService', () => {
       expect(transaction.commit).not.toHaveBeenCalled();
       expect(transaction.rollback).toHaveBeenCalled();
       expect(dialplanApplyService.applyCategories).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('checkExtenConflict / suggestFreeExten', () => {
+    it('reports an internal number as occupied', async () => {
+      groupModel.findOne.mockResolvedValue(null);
+      const conflict = await service.checkExtenConflict('101', vpbx);
+      expect(conflict).toEqual(
+        expect.objectContaining({
+          code: 'CALL_GROUP_EXTEN_USED_BY_ENDPOINT',
+          reason: 'абонент 101',
+        }),
+      );
+    });
+
+    it('returns null when the number is free', async () => {
+      groupModel.findOne.mockResolvedValue(null);
+      await expect(service.checkExtenConflict('6001', vpbx)).resolves.toBeNull();
+    });
+
+    it('skips occupied 6xxx numbers and returns the next free one', async () => {
+      groupModel.findOne.mockImplementation(async ({ where }: { where: { exten?: string } }) => {
+        if (where.exten === '6000') return groupRow({ exten: '6000', name: 'Taken' });
+        return null;
+      });
+
+      await expect(service.suggestFreeExten(vpbx)).resolves.toBe('6001');
     });
   });
 

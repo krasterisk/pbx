@@ -1,0 +1,4 @@
+docs(15-08): complete in-process agent turn plan
+
+- SUMMARY for the loop, SSE framing, and proxy deletion
+- STATE/ROADMAP advanced to 15-09

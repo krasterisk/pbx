@@ -22,6 +22,8 @@ export interface TenantEntityRefs {
   routes: Array<{ uid?: number | string; name?: string }>;
   contexts: Array<{ uid?: number | string; name?: string }>;
   directories: Array<{ uid?: number | string }>;
+  /** Call-group UID / public exten / display name — used to tenant-resolve `togroup`. */
+  groups?: Array<{ uid?: number | string; name?: string; exten?: string }>;
 }
 
 export type RouteChainDraftOk = { ok: true; chain: DialplanAction[] };
@@ -204,6 +206,21 @@ function unresolvedEntity(
     const dir = String(params.directoryUid ?? '');
     if (dir && !refs.directories.some((row) => String(row.uid) === dir)) {
       return `directory "${dir}" does not exist for this tenant`;
+    }
+  }
+  if (type === 'togroup') {
+    const group = valueSourceOrString(params.target) || stringOf(params.group);
+    const groups = refs.groups ?? [];
+    if (
+      group
+      && !groups.some(
+        (row) =>
+          String(row.uid) === group
+          || String(row.exten) === group
+          || String(row.name) === group,
+      )
+    ) {
+      return `call group "${group}" does not exist for this tenant`;
     }
   }
   return null;

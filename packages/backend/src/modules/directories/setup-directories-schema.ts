@@ -83,6 +83,10 @@ export async function setupDirectoriesSchema(sequelize: {
 }
 
 async function main(): Promise<void> {
+  const path = await import('path');
+  const dotenv = await import('dotenv');
+  dotenv.config({ path: path.resolve(__dirname, '../../../../../.env') });
+
   const { Sequelize } = await import('sequelize-typescript');
   const sequelize = new Sequelize({
     dialect: 'mysql',

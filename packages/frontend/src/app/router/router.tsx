@@ -48,6 +48,7 @@ import { CallCenterSettingsPage } from '@/pages/CallCenterSettingsPage';
 import { CallCenterWallboardPage } from '@/pages/CallCenterWallboardPage';
 import { CallCenterReportsPage } from '@/pages/CallCenterReportsPage';
 import { AiAgentsPage } from '@/pages/AiAgentsPage';
+import { AiProvidersPage } from '@/pages/AiProvidersPage';
 import { RequireRole } from '@/app/router/RequireRole';
 import { UserLevel } from '@/entities/User';
 
@@ -154,6 +155,7 @@ export const router = createBrowserRouter([
           </RequireRole>
         ),
       },
+      { path: 'ai-providers', element: <AiProvidersPage /> },
       { path: 'ai-agents', element: <AiAgentsPage /> },
       { path: 'service-requests', element: <ServiceRequestsPage /> },
       { path: 'komandor-claims', element: <KomandorClaimsPage /> },

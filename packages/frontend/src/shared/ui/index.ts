@@ -49,3 +49,5 @@ export { AudioPlayer } from './AudioPlayer';
 export type { AudioPlayerProps } from './AudioPlayer';
 export { RecordingButton } from './RecordingButton';
 export type { RecordingButtonProps } from './RecordingButton';
+export { FileImportButton } from './FileImportButton';
+export type { FileImportButtonProps } from './FileImportButton';

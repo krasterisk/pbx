@@ -12,7 +12,7 @@ vi.mock('react-i18next', () => ({
   }),
 }));
 
-const useGetTrunksQuery = vi.fn(() => ({
+const useGetTrunksQuery = vi.fn((..._args: unknown[]) => ({
   data: [
     { id: 't_alpha_100', name: 'Alpha' },
     { id: 't_beta_100', name: 'Beta' },
@@ -24,7 +24,7 @@ vi.mock('@/shared/api/endpoints/trunkApi', () => ({
   useGetTrunksQuery: (...args: unknown[]) => useGetTrunksQuery(...args),
 }));
 
-const useSchemaRefs = vi.fn(() => ({
+const useSchemaRefs = vi.fn((..._args: unknown[]) => ({
   dialplanDirectories: {
     items: [
       { value: '7', label: 'Customers' },

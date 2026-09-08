@@ -191,7 +191,7 @@ export class VoicemailScannerService {
       && p.capabilities.includes('llm')
       && resolveChatCompletionsUrl(p.endpoint)
     ));
-    if (Number.isInteger(stepUid) && stepUid > 0) {
+    if (stepUid != null && stepUid > 0) {
       const match = httpLlm.find((p) => p.uid === stepUid);
       if (match) return match;
     }

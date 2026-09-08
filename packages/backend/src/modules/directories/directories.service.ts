@@ -7,16 +7,22 @@ import {
 import { InjectModel } from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { UniqueConstraintError, type Transaction } from 'sequelize';
-import ExcelJS from 'exceljs';
-import { Readable } from 'stream';
 import type {
   DirectoryFieldType,
   DirectoryKeyNormalization,
   DirectoryLookupStatus,
   DirectoryMatchKind,
   IDirectory,
+  IDirectoryCsvError,
+  IDirectoryCsvImportResult,
   IDirectoryField,
   IDirectoryRecord,
+} from '@krasterisk/shared';
+import {
+  DIRECTORY_CSV_DELIMITER,
+  DIRECTORY_CSV_IGNORED_COLUMNS,
+  DIRECTORY_CSV_MAX_BYTES,
+  DIRECTORY_CSV_RESERVED_COLUMNS,
 } from '@krasterisk/shared';
 import { Directory } from './directory.model';
 import { DirectoryField } from './directory-field.model';
@@ -30,13 +36,17 @@ import {
   UpdateDirectoryDto,
 } from './dto/directory.dto';
 import { normalizeDirectoryKey } from './directory-normalization.util';
-import { matchesAsteriskPattern } from './directory-pattern.util';
+import {
+  compareAsteriskExten,
+  isAsteriskPattern,
+  pickBestAsteriskMatch,
+} from './directory-pattern.util';
 import {
   collectDirectoryReferences,
   type DirectoryReference,
 } from './directory-reference.util';
 
-const RESERVED_CSV_HEADERS = ['comment', 'match_kind', 'priority'] as const;
+const RESERVED_CSV_HEADERS = DIRECTORY_CSV_RESERVED_COLUMNS;
 
 export interface DirectoryLookupRequest {
   directoryUid: number;
@@ -51,9 +61,7 @@ export interface DirectoryLookupResult {
   values: string[];
 }
 
-export interface DirectoryCsvImportResult {
-  imported: number;
-}
+export type DirectoryCsvImportResult = IDirectoryCsvImportResult;
 
 @Injectable()
 export class DirectoriesService {
@@ -221,6 +229,11 @@ export class DirectoriesService {
     await directory.destroy();
   }
 
+  /**
+   * Replaces every record of the directory with the CSV contents.
+   * The whole file is parsed and validated first, so a rejected file leaves
+   * the stored records and the revision untouched.
+   */
   async importCsv(uid: number, csv: string, userUid: number): Promise<DirectoryCsvImportResult> {
     const directory = await this.loadOwned(uid, userUid);
     const fields = await this.fieldModel.findAll({ where: { directory_uid: uid } });
@@ -229,82 +242,145 @@ export class DirectoriesService {
       throw new BadRequestException('Directory must have a lookup field');
     }
 
-    const rows = await readCsvRows(csv);
-    if (rows.length === 0) return { imported: 0 };
-
-    const headers = rows[0].map((header) => header.trim());
-    this.assertCsvHeaders(headers, fields, lookup.key);
-
-    const index = new Map(headers.map((header, i) => [header, i]));
-    const existing = await this.recordModel.findAll({ where: { directory_uid: uid } });
-    const records: DirectoryRecordDto[] = [];
-
-    for (let i = 1; i < rows.length; i++) {
-      const row = rows[i];
-      if (row.every((cell) => String(cell ?? '').trim() === '')) continue;
-
-      const matchKind = String(row[index.get('match_kind')!] ?? '').trim() as DirectoryMatchKind;
-      if (matchKind !== 'exact' && matchKind !== 'asterisk_pattern') {
-        throw new BadRequestException(`Invalid match_kind on CSV row ${i + 1}`);
-      }
-      const priority = Number(row[index.get('priority')!]);
-      if (!Number.isInteger(priority) || priority < 1) {
-        throw new BadRequestException(`Invalid priority on CSV row ${i + 1}`);
-      }
-
-      const values: Record<string, string | number | boolean> = {};
-      for (const field of fields) {
-        const col = index.get(field.key);
-        if (col == null) {
-          if (field.required) {
-            throw new BadRequestException(`CSV is missing required field "${field.key}"`);
-          }
-          continue;
-        }
-        const raw = row[col] ?? '';
-        if (String(raw).trim() === '' && !field.required) continue;
-        values[field.key] = coerceCsvValue(field, raw, i + 1);
-      }
-
-      const commentCol = index.get('comment');
-      records.push({
-        match_kind: matchKind,
-        priority,
-        values,
-        comment: commentCol == null ? '' : String(row[commentCol] ?? ''),
-      });
+    const text = typeof csv === 'string' ? csv : '';
+    if (Buffer.byteLength(text, 'utf8') > DIRECTORY_CSV_MAX_BYTES) {
+      throw csvBadRequest([
+        {
+          row: 0,
+          code: 'file_too_large',
+          message: `CSV must not exceed ${DIRECTORY_CSV_MAX_BYTES} bytes`,
+        },
+      ]);
     }
 
-    await this.sequelize.transaction(async (transaction) => {
+    const rows = parseCsvRows(text);
+    if (!rows.length) {
+      throw csvBadRequest([{ row: 0, code: 'empty_file', message: 'CSV is empty' }]);
+    }
+
+    const headers = rows[0].cells.map((header) => header.trim());
+    const headerErrors = collectCsvHeaderErrors(headers, fields, lookup.key);
+    if (headerErrors.length) throw csvBadRequest(headerErrors);
+
+    const index = new Map(headers.map((header, i) => [header, i]));
+    const fieldByKey = new Map(fields.map((field) => [field.key, field]));
+    const errors: IDirectoryCsvError[] = [];
+    const records: DirectoryRecordDto[] = [];
+    const seenKeys = new Set<string>();
+
+    for (let i = 1; i < rows.length; i++) {
+      const { cells, line } = rows[i];
+      if (cells.every((cell) => cell.trim() === '')) continue;
+
+      const record = this.readCsvRecord(cells, line, index, fields, errors);
+      if (!record) continue;
+
+      try {
+        const prepared = this.prepareRecord(record, fieldByKey, lookup, directory.key_normalization);
+        const dupeKey = `${prepared.match_kind}\0${prepared.normalized_lookup_value}`;
+        if (seenKeys.has(dupeKey)) {
+          errors.push({
+            row: line,
+            column: lookup.key,
+            code: 'duplicate_key',
+            message: `Duplicate lookup value "${prepared.lookup_value}"`,
+          });
+          continue;
+        }
+        seenKeys.add(dupeKey);
+      } catch (err) {
+        errors.push({
+          row: line,
+          code: 'invalid_pattern',
+          message: err instanceof Error ? err.message : 'Invalid record',
+        });
+        continue;
+      }
+
+      records.push(record);
+    }
+
+    if (errors.length) throw csvBadRequest(errors);
+
+    const replaced = await this.sequelize.transaction(async (transaction) => {
+      const removed = await this.recordModel.destroy({
+        where: { directory_uid: uid },
+        transaction,
+      });
       await this.writeRecords(
         uid,
         records,
         fields,
         lookup,
         directory.key_normalization,
-        existing,
+        [],
         transaction,
       );
       await directory.update({ revision: (directory.revision ?? 0) + 1 }, { transaction });
+      return removed;
     });
 
-    return { imported: records.length };
+    return { imported: records.length, replaced, errors: [] };
   }
 
   async exportCsv(uid: number, userUid: number): Promise<string> {
     const directory = await this.findOne(uid, userUid);
     const fields = [...(directory.fields ?? [])].sort((a, b) => a.position - b.position);
     const header = [...fields.map((field) => field.key), ...RESERVED_CSV_HEADERS];
-    const rows: Array<Array<string | number | boolean>> = [header];
-    for (const record of directory.records ?? []) {
+    const rows: string[][] = [header];
+    const records = [...(directory.records ?? [])].sort((a, b) =>
+      compareAsteriskExten(a.lookup_value, b.lookup_value)
+      || a.lookup_value.localeCompare(b.lookup_value),
+    );
+    for (const record of records) {
       rows.push([
-        ...fields.map((field) => (record.values?.[field.key] as string | number | boolean | undefined) ?? ''),
+        ...fields.map((field) => csvCell(record.values?.[field.key])),
         record.comment ?? '',
-        record.match_kind,
-        record.priority,
       ]);
     }
     return writeCsvRows(rows);
+  }
+
+  private readCsvRecord(
+    cells: string[],
+    line: number,
+    index: Map<string, number>,
+    fields: DirectoryField[],
+    errors: IDirectoryCsvError[],
+  ): DirectoryRecordDto | null {
+    const before = errors.length;
+
+    const values: Record<string, string | number | boolean> = {};
+    for (const field of fields) {
+      const col = index.get(field.key);
+      if (col == null) continue;
+      const raw = cells[col] ?? '';
+      if (raw.trim() === '') {
+        if (field.required) {
+          errors.push({
+            row: line,
+            column: field.key,
+            code: 'required_empty',
+            message: `Column "${field.key}" must not be empty`,
+          });
+        }
+        continue;
+      }
+      const coerced = coerceCsvValue(field, raw);
+      if (coerced.error) {
+        errors.push({ row: line, column: field.key, ...coerced.error });
+        continue;
+      }
+      values[field.key] = coerced.value!;
+    }
+
+    if (errors.length !== before) return null;
+
+    const commentCol = index.get('comment');
+    return {
+      values,
+      comment: commentCol == null ? '' : (cells[commentCol] ?? ''),
+    };
   }
 
   async lookup(request: DirectoryLookupRequest): Promise<DirectoryLookupResult> {
@@ -338,11 +414,8 @@ export class DirectoriesService {
       if (lookupField?.type === 'phone') {
         const patterns = await this.recordModel.findAll({
           where: { directory_uid: directory.uid, match_kind: 'asterisk_pattern' },
-          order: [['priority', 'ASC'], ['uid', 'ASC']],
         });
-        record = patterns.find((item) =>
-          matchesAsteriskPattern(item.lookup_value, normalized),
-        ) ?? null;
+        record = pickBestAsteriskMatch(patterns, (item) => item.lookup_value, normalized) ?? null;
         matchKind = 'asterisk_pattern';
       }
     }
@@ -548,18 +621,17 @@ export class DirectoriesService {
     values: Record<string, string | number | boolean>;
     comment: string;
   } {
-    if (record.priority < 1 || !Number.isInteger(record.priority)) {
-      throw new BadRequestException('Record priority must be a positive integer');
-    }
-
     const rawLookup = record.values?.[lookup.key];
     if (rawLookup == null || rawLookup === '') {
       throw new BadRequestException('Record is missing the lookup field value');
     }
 
-    let lookupValue = String(rawLookup).trim();
+    const lookupValue = String(rawLookup).trim();
+    const matchKind: DirectoryMatchKind = isAsteriskPattern(lookupValue)
+      ? 'asterisk_pattern'
+      : 'exact';
     let normalized = lookupValue;
-    if (record.match_kind === 'asterisk_pattern') {
+    if (matchKind === 'asterisk_pattern') {
       if (lookup.type !== 'phone') {
         throw new BadRequestException('Pattern matching is only allowed for a phone lookup field');
       }
@@ -583,15 +655,15 @@ export class DirectoriesService {
       }
     }
 
-    values[String(lookup.uid)] = record.match_kind === 'asterisk_pattern'
+    values[String(lookup.uid)] = matchKind === 'asterisk_pattern'
       ? lookupValue
       : this.validateRecordValue(lookup, rawLookup);
 
     return {
       lookup_value: lookupValue,
       normalized_lookup_value: normalized,
-      match_kind: record.match_kind,
-      priority: record.priority,
+      match_kind: matchKind,
+      priority: 1,
       values,
       comment: record.comment ?? '',
     };
@@ -620,31 +692,6 @@ export class DirectoriesService {
         return value;
       default:
         throw new BadRequestException(`Unsupported field type "${field.type}"`);
-    }
-  }
-
-  private assertCsvHeaders(
-    headers: string[],
-    fields: DirectoryField[],
-    lookupKey: string,
-  ): void {
-    const allowed = new Set<string>([...fields.map((field) => field.key), ...RESERVED_CSV_HEADERS]);
-    const seen = new Set<string>();
-    for (const header of headers) {
-      if (!header) continue;
-      if (seen.has(header)) {
-        throw new BadRequestException('Duplicate CSV header');
-      }
-      seen.add(header);
-      if (!allowed.has(header)) {
-        throw new BadRequestException(`Unknown CSV header "${header}"`);
-      }
-    }
-    if (!seen.has('match_kind') || !seen.has('priority')) {
-      throw new BadRequestException('CSV must include match_kind and priority');
-    }
-    if (!seen.has(lookupKey)) {
-      throw new BadRequestException('CSV must include the lookup field column');
     }
   }
 
@@ -680,45 +727,207 @@ function assertAsteriskPattern(pattern: string): void {
   }
 }
 
-function coerceCsvValue(
-  field: DirectoryField,
-  raw: unknown,
-  rowNumber: number,
-): string | number | boolean {
-  const text = String(raw ?? '');
-  if (field.type === 'boolean') {
-    const normalized = text.trim().toLowerCase();
-    if (normalized === 'true' || normalized === '1') return true;
-    if (normalized === 'false' || normalized === '0') return false;
-    throw new BadRequestException(`Field "${field.key}" must be a boolean on CSV row ${rowNumber}`);
-  }
-  if (field.type === 'number') {
-    const parsed = Number(text);
-    if (!Number.isFinite(parsed)) {
-      throw new BadRequestException(`Field "${field.key}" must be a number on CSV row ${rowNumber}`);
-    }
-    return parsed;
-  }
-  return text;
+function csvBadRequest(errors: IDirectoryCsvError[]): BadRequestException {
+  return new BadRequestException({
+    message: errors[0]?.message ?? 'Invalid CSV',
+    code: 'csv_invalid',
+    errors,
+  });
 }
 
-async function readCsvRows(csv: string): Promise<string[][]> {
-  const workbook = new ExcelJS.Workbook();
-  const worksheet = await workbook.csv.read(Readable.from([csv]));
-  const rows: string[][] = [];
-  worksheet.eachRow((row) => {
-    const values = row.values as unknown[];
-    rows.push(values.slice(1).map((cell) => (cell == null ? '' : String(cell))));
-  });
+function collectCsvHeaderErrors(
+  headers: string[],
+  fields: DirectoryField[],
+  lookupKey: string,
+): IDirectoryCsvError[] {
+  const errors: IDirectoryCsvError[] = [];
+  const allowed = new Set<string>([
+    ...fields.map((field) => field.key),
+    ...RESERVED_CSV_HEADERS,
+    ...DIRECTORY_CSV_IGNORED_COLUMNS,
+  ]);
+  const seen = new Set<string>();
+
+  for (const header of headers) {
+    if (!header) continue;
+    if (seen.has(header)) {
+      errors.push({
+        row: 1,
+        column: header,
+        code: 'duplicate_column',
+        message: `Duplicate CSV column "${header}"`,
+      });
+      continue;
+    }
+    seen.add(header);
+    if (!allowed.has(header)) {
+      errors.push({
+        row: 1,
+        column: header,
+        code: 'unknown_column',
+        message: `Unknown CSV column "${header}"`,
+      });
+    }
+  }
+
+  const required = new Set<string>([
+    lookupKey,
+    ...fields.filter((field) => field.required).map((field) => field.key),
+  ]);
+  for (const column of required) {
+    if (seen.has(column)) continue;
+    errors.push({
+      row: 1,
+      column,
+      code: 'missing_column',
+      message: `CSV must include the "${column}" column`,
+    });
+  }
+
+  return errors;
+}
+
+/** CSV cells stay raw text so leading zeros, a leading plus and dates survive. */
+function coerceCsvValue(
+  field: DirectoryField,
+  raw: string,
+): { value?: string | number | boolean; error?: Pick<IDirectoryCsvError, 'code' | 'message'> } {
+  if (field.type === 'boolean') {
+    const normalized = raw.trim().toLowerCase();
+    if (normalized === 'true' || normalized === '1') return { value: true };
+    if (normalized === 'false' || normalized === '0') return { value: false };
+    return {
+      error: {
+        code: 'invalid_boolean',
+        message: `Column "${field.key}" must be true, false, 1 or 0`,
+      },
+    };
+  }
+  if (field.type === 'number') {
+    const parsed = Number(raw.trim());
+    if (!Number.isFinite(parsed)) {
+      return {
+        error: { code: 'invalid_number', message: `Column "${field.key}" must be a number` },
+      };
+    }
+    return { value: parsed };
+  }
+  return { value: raw };
+}
+
+function csvCell(value: unknown): string {
+  if (value == null) return '';
+  return String(value);
+}
+
+interface CsvRow {
+  cells: string[];
+  /** Physical 1-based line where the row starts. */
+  line: number;
+}
+
+function detectCsvDelimiter(text: string): string {
+  let inQuotes = false;
+  let semicolons = 0;
+  let commas = 0;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (ch === '"') {
+      if (inQuotes && text[i + 1] === '"') {
+        i += 1;
+        continue;
+      }
+      inQuotes = !inQuotes;
+      continue;
+    }
+    if (inQuotes) continue;
+    if (ch === '\n' || ch === '\r') break;
+    if (ch === ';') semicolons += 1;
+    if (ch === ',') commas += 1;
+  }
+  return commas > semicolons ? ',' : DIRECTORY_CSV_DELIMITER;
+}
+
+/**
+ * RFC 4180 reader that keeps every cell as text and reports the physical line
+ * of each row so quoted newlines do not shift error positions.
+ */
+function parseCsvRows(csv: string): CsvRow[] {
+  const text = csv.charCodeAt(0) === 0xfeff ? csv.slice(1) : csv;
+  const delimiter = detectCsvDelimiter(text);
+  const rows: CsvRow[] = [];
+  let cells: string[] = [];
+  let cell = '';
+  let line = 1;
+  let rowLine = 1;
+  let inQuotes = false;
+
+  const endRow = (): void => {
+    cells.push(cell);
+    rows.push({ cells, line: rowLine });
+    cells = [];
+    cell = '';
+    line += 1;
+    rowLine = line;
+  };
+
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+
+    if (inQuotes) {
+      if (ch === '"') {
+        if (text[i + 1] === '"') {
+          cell += '"';
+          i += 1;
+          continue;
+        }
+        inQuotes = false;
+        continue;
+      }
+      if (ch === '\n') line += 1;
+      cell += ch;
+      continue;
+    }
+
+    if (ch === '"') {
+      inQuotes = true;
+      continue;
+    }
+    if (ch === delimiter) {
+      cells.push(cell);
+      cell = '';
+      continue;
+    }
+    if (ch === '\r') {
+      if (text[i + 1] === '\n') i += 1;
+      endRow();
+      continue;
+    }
+    if (ch === '\n') {
+      endRow();
+      continue;
+    }
+    cell += ch;
+  }
+
+  if (cell !== '' || cells.length > 0) {
+    cells.push(cell);
+    rows.push({ cells, line: rowLine });
+  }
+
   return rows;
 }
 
-async function writeCsvRows(rows: Array<Array<string | number | boolean>>): Promise<string> {
-  const workbook = new ExcelJS.Workbook();
-  const sheet = workbook.addWorksheet('directory');
-  for (const row of rows) {
-    sheet.addRow(row);
-  }
-  const buffer = await workbook.csv.writeBuffer();
-  return Buffer.from(buffer).toString('utf8');
+function escapeCsvCell(value: string): string {
+  return /["\r\n]/.test(value) || value.includes(DIRECTORY_CSV_DELIMITER)
+    ? `"${value.replace(/"/g, '""')}"`
+    : value;
+}
+
+/** UTF-8 BOM plus a fixed delimiter keeps Excel RU from mangling the export. */
+function writeCsvRows(rows: string[][]): string {
+  const body = rows
+    .map((row) => row.map(escapeCsvCell).join(DIRECTORY_CSV_DELIMITER))
+    .join('\r\n');
+  return `\ufeff${body}\r\n`;
 }

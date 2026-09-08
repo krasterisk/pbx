@@ -1,0 +1,5 @@
+test(15-08): add failing test for turn endpoint and proxy removal
+
+- Stream loop events with abort from the request
+- Reject body-supplied tenant/author/role; foreign thread is not found
+- Assert the proxy file and AIPBX env reads are gone

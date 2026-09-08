@@ -1,0 +1,4 @@
+feat(15-16): implement portal user read without secret fields
+
+- Allow-listed uid/name/role/last_activity; secrets never projected
+- List and describe stay read-only; skill forbids role changes through the agent

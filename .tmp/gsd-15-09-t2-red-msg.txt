@@ -1,0 +1,4 @@
+test(15-09): add failing test for bulk and delete subscriber proposals
+
+- Assert one batch proposal with a per-item summary and a named ceiling
+- Assert delete is destructive, tenant-scoped and role-checked on confirm

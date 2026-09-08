@@ -12,6 +12,8 @@ import {
   IvrPromptsValidationError,
 } from './ivr-prompts.util';
 import { resolveIvrTimeouts } from './ivr-timeouts.util';
+import { throwIfInvalidActionPayload } from '../../shared/pipes/action-params-validation.util';
+import { normalizeIvrMenuItems, summarizeIvrMenu } from './ivr-menu-actions.util';
 
 @Injectable()
 export class IvrsService {
@@ -139,16 +141,30 @@ export class IvrsService {
     vpbxUserUid: number,
     isAdmin: boolean = false,
   ): Promise<Ivr> {
-    const prompts = data.prompts !== undefined
-      ? await this.normalizeAndValidatePrompts(data.prompts, vpbxUserUid)
+    const { user_uid: incomingUserUid, menu_items: rawMenu, prompts: rawPrompts, ...rest } = data as Partial<Ivr> & {
+      user_uid?: number;
+    };
+    if (incomingUserUid != null && Number(incomingUserUid) !== Number(vpbxUserUid)) {
+      this.logger.warn(`IVR create ignored payload user_uid=${incomingUserUid}, using tenant=${vpbxUserUid}`);
+    }
+
+    const prompts = rawPrompts !== undefined
+      ? await this.normalizeAndValidatePrompts(rawPrompts, vpbxUserUid)
       : [];
+    const menuItems = rawMenu !== undefined
+      ? this.normalizeMenuForWrite(rawMenu, vpbxUserUid, 'create')
+      : undefined;
 
     const created = await this.ivrModel.create({
-      ...data,
+      ...rest,
+      ...(menuItems !== undefined ? { menu_items: menuItems } : {}),
       prompts,
       user_uid: vpbxUserUid,
     } as any);
 
+    this.logger.log(
+      `IVR created uid=${created.uid} tenant=${vpbxUserUid} active=${created.active} menu=${summarizeIvrMenu(created.menu_items)}`,
+    );
     await this.syncIvrDialplan(created, vpbxUserUid, isAdmin);
     return this.mapIvrForResponse(created);
   }
@@ -164,9 +180,17 @@ export class IvrsService {
     });
     if (!ivr) throw new NotFoundException('IVR not found');
 
-    const patch = { ...data } as Partial<Ivr>;
+    const { user_uid: incomingUserUid, ...safe } = data as Partial<Ivr> & { user_uid?: number };
+    if (incomingUserUid != null && Number(incomingUserUid) !== Number(vpbxUserUid)) {
+      this.logger.warn(`IVR update uid=${uid} ignored payload user_uid=${incomingUserUid}, tenant=${vpbxUserUid}`);
+    }
+
+    const patch = { ...safe } as Partial<Ivr>;
     if (data.prompts !== undefined) {
       patch.prompts = await this.normalizeAndValidatePrompts(data.prompts, vpbxUserUid) as any;
+    }
+    if (data.menu_items !== undefined) {
+      patch.menu_items = this.normalizeMenuForWrite(data.menu_items, vpbxUserUid, `update uid=${uid}`) as any;
     }
 
     await ivr.update(patch);
@@ -249,7 +273,19 @@ export class IvrsService {
 
     lines.push('');
 
-    const menuItems = ivr.menu_items || [];
+    const healed = normalizeIvrMenuItems(ivr.menu_items, vpbxUserUid);
+    if (healed.aliases.length) {
+      this.logger.warn(
+        `IVR ${ivr.uid} tenant=${vpbxUserUid} healed action aliases at dialplan render: ${JSON.stringify(healed.aliases)}`,
+      );
+    }
+    if (healed.unmapped.length) {
+      this.logger.warn(
+        `IVR ${ivr.uid} tenant=${vpbxUserUid} unknown action types at dialplan render: ${JSON.stringify(healed.unmapped)}`,
+      );
+    }
+
+    const menuItems = healed.items;
     const menuExtens = new Set<string>();
     for (const item of menuItems) {
       const rawDigit = String(item.digit ?? 'i');
@@ -270,7 +306,31 @@ export class IvrsService {
       lines.push('');
     }
 
-    return lines.join('\n');
+    const rendered = lines.join('\n');
+    this.logger.debug(
+      `IVR ${ivr.uid} tenant=${vpbxUserUid} dialplan ${lines.length} lines menu=${summarizeIvrMenu(menuItems)}`,
+    );
+    return rendered;
+  }
+
+  private normalizeMenuForWrite(raw: unknown, vpbxUserUid: number, context: string) {
+    const normalized = normalizeIvrMenuItems(raw, vpbxUserUid);
+    if (normalized.aliases.length) {
+      this.logger.warn(
+        `IVR ${context} tenant=${vpbxUserUid} rewritten action types: ${JSON.stringify(normalized.aliases)}`,
+      );
+    }
+    if (normalized.unmapped.length) {
+      this.logger.warn(
+        `IVR ${context} tenant=${vpbxUserUid} refused unknown action types: ${JSON.stringify(normalized.unmapped)}`,
+      );
+      throw new BadRequestException(
+        `Unknown IVR action type: ${normalized.unmapped.map((row) => row.type).join(', ')}. Use toexten / togroup / toqueue / toivr / toroute.`,
+      );
+    }
+    throwIfInvalidActionPayload({ menu_items: normalized.items });
+    this.logger.log(`IVR ${context} tenant=${vpbxUserUid} menu=${summarizeIvrMenu(normalized.items)}`);
+    return normalized.items;
   }
 
   async bulkRemove(uids: number[], vpbxUserUid: number): Promise<{ deleted: number }> {

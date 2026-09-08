@@ -1,8 +1,12 @@
 ---
 name: developer-convention
 description: D-16 — каждый новый модуль поставляется с AI-адаптером, скилом и строкой в coverage-реестре.
+domains: ["developer-convention"]
+intents: ["developer"]
+aliases: ["конвенция"]
+related: []
+risk: low
 ---
-
 # Конвенция разработчика (D-16)
 
 Норматив — в `packages/backend/.idea/ARCHITECTURE.md` §6. Этот скил объясняет, *зачем* каждое правило, чтобы его не выкинули в занятую неделю. Держит конвенцию `ai-adapter-completeness.spec.ts`: красный тест, не ревью.

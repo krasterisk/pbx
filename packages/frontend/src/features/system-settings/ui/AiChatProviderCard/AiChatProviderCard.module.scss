@@ -1,0 +1,53 @@
+.card {
+  background: var(--color-surface, hsl(var(--card)));
+  border: 1px solid var(--color-border, hsl(var(--border)));
+  border-radius: 12px;
+  padding: 20px 24px;
+  width: 100%;
+}
+
+.desc {
+  color: hsl(var(--muted-foreground));
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.input {
+  min-width: 0;
+  flex: 1;
+}
+
+.saveBtn {
+  flex-shrink: 0;
+}
+
+.result {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.iconOk {
+  width: 15px;
+  height: 15px;
+  color: hsl(142 71% 45%);
+  flex-shrink: 0;
+}
+
+.iconErr {
+  width: 15px;
+  height: 15px;
+  color: hsl(0 84% 60%);
+  flex-shrink: 0;
+}
+
+.link {
+  font-size: 0.8125rem;
+  color: var(--color-primary, #6366f1);
+  text-decoration: none;
+  margin-left: auto;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}

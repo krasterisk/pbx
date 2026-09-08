@@ -1,0 +1,5 @@
+feat(15-13): implement hold-music read and assign tools
+
+- List and describe return metadata and track names only, never paths or audio
+- Assign proposes queue or route binding and refuses a class the tenant does not own
+- Register adapter and domain skill

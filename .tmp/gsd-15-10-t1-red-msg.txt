@@ -1,0 +1,4 @@
+test(15-10): add failing test for voice-menu digit proposal
+
+- Cover list/create/update/delete as adapter-served tools
+- Assert update is proposal-gated with before-and-after digit destinations

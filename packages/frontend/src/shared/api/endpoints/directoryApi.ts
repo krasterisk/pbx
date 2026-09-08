@@ -5,6 +5,7 @@ import type {
   DirectoryLookupStatus,
   DirectoryMatchKind,
   IDirectory,
+  IDirectoryCsvImportResult,
 } from '@krasterisk/shared';
 
 export interface ICreateDirectoryDto {
@@ -20,8 +21,6 @@ export interface ICreateDirectoryDto {
     position: number;
   }>;
   records?: Array<{
-    match_kind: DirectoryMatchKind;
-    priority: number;
     values: Record<string, string | number | boolean>;
     comment?: string;
   }>;
@@ -42,9 +41,7 @@ export interface IDirectoryLookupTestResult {
   values: string[];
 }
 
-export interface IDirectoryCsvImportResult {
-  imported: number;
-}
+export type { IDirectoryCsvError, IDirectoryCsvImportResult } from '@krasterisk/shared';
 
 export const directoryApi = rtkApi.injectEndpoints({
   endpoints: (builder) => ({
@@ -82,6 +79,7 @@ export const directoryApi = rtkApi.injectEndpoints({
       invalidatesTags: [{ type: 'DialplanDirectories', id: 'LIST' }],
     }),
 
+    /** Replaces every record of the directory. The caller confirms this beforehand. */
     importDirectoryCsv: builder.mutation<IDirectoryCsvImportResult, { uid: number; csv: string }>({
       query: ({ uid, csv }) => ({
         url: `/directories/${uid}/import-csv`,
@@ -92,6 +90,14 @@ export const directoryApi = rtkApi.injectEndpoints({
         { type: 'DialplanDirectories', id: uid },
         { type: 'DialplanDirectories', id: 'LIST' },
       ],
+    }),
+
+    /** Authenticated download; the response never goes through a plain anchor href. */
+    exportDirectoryCsv: builder.query<Blob, number>({
+      query: (uid) => ({
+        url: `/directories/${uid}/export-csv`,
+        responseHandler: (response) => response.blob(),
+      }),
     }),
 
     lookupTestDirectory: builder.mutation<
@@ -114,5 +120,6 @@ export const {
   useUpdateDirectoryMutation,
   useDeleteDirectoryMutation,
   useImportDirectoryCsvMutation,
+  useLazyExportDirectoryCsvQuery,
   useLookupTestDirectoryMutation,
 } = directoryApi;

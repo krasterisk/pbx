@@ -58,6 +58,12 @@ export const SCENARIOS: ScenarioEntry[] = [
     command: 'scenarios/ui/supervisor-smoke.spec.ts',
   },
   {
+    id: 'ai-agent-ivr',
+    tags: ['ui', 'ai-chat', 'ivr', 'live-llm'],
+    kind: 'ui',
+    command: 'scenarios/ui/ai-agent-ivr.spec.ts',
+  },
+  {
     id: 'sse-heartbeat',
     tags: ['sse', 'realtime'],
     kind: 'realtime',

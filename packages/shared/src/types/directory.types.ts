@@ -2,7 +2,8 @@ import type { IRouteAction } from './route.types';
 
 export type DirectoryFieldType = 'string' | 'phone' | 'number' | 'boolean';
 export type DirectoryMatchKind = 'exact' | 'asterisk_pattern';
-export type DirectoryKeyNormalization = 'none' | 'digits';
+export const DIRECTORY_KEY_NORMALIZATIONS = ['none', 'digits', 'ru_8_to_7'] as const;
+export type DirectoryKeyNormalization = (typeof DIRECTORY_KEY_NORMALIZATIONS)[number];
 export type DirectoryLookupStatus = 'FOUND' | 'NOT_FOUND' | 'ERROR';
 export type DirectoryMatchMode = 'on_match' | 'on_no_match';
 export type DirectoryBehaviorType =
@@ -93,6 +94,45 @@ export interface IDirectory {
   fields?: IDirectoryField[];
   records?: IDirectoryRecord[];
 }
+
+export type DirectoryCsvErrorCode =
+  | 'empty_file'
+  | 'file_too_large'
+  | 'unknown_column'
+  | 'duplicate_column'
+  | 'missing_column'
+  | 'invalid_match_kind'
+  | 'invalid_priority'
+  | 'invalid_boolean'
+  | 'invalid_number'
+  | 'required_empty'
+  | 'invalid_pattern'
+  | 'duplicate_key';
+
+export interface IDirectoryCsvError {
+  /** Physical line in the uploaded file, 1-based. `0` when the error is not row-bound. */
+  row: number;
+  column?: string;
+  code: DirectoryCsvErrorCode;
+  message: string;
+}
+
+/** Import replaces every record of the directory; `replaced` counts the removed ones. */
+export interface IDirectoryCsvImportResult {
+  imported: number;
+  replaced: number;
+  errors: IDirectoryCsvError[];
+}
+
+/** Reserved CSV columns appended after the schema field keys. */
+export const DIRECTORY_CSV_RESERVED_COLUMNS = ['comment'] as const;
+
+/** Legacy columns from earlier imports. Accepted and ignored. */
+export const DIRECTORY_CSV_IGNORED_COLUMNS = ['match_kind', 'priority'] as const;
+
+export const DIRECTORY_CSV_DELIMITER = ';';
+
+export const DIRECTORY_CSV_MAX_BYTES = 5 * 1024 * 1024;
 
 export interface DirectoryFieldMapping {
   fieldUid: number;

@@ -1,0 +1,4 @@
+feat(15-22): add ten fixture-replay scenarios across eval buckets
+
+- Cover read, mutating HITL, cross-tenant, diagnostic and step-budget paths
+- Mutating cases assert a pending proposal and unchanged entity counts

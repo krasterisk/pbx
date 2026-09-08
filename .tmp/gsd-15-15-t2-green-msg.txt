@@ -1,0 +1,4 @@
+feat(15-15): take MCP tenant only from the JWT
+
+- Replace service-token guard with JwtAuthGuard on the external entry
+- Bind Mcp-Session-Id to the establishing tenant and reject cross-tenant resume

@@ -1,0 +1,114 @@
+/* ─────────────────────────────────────────────────────
+   AiProviderModal — create/edit LLM provider
+   Design tokens: var(--color-*) from globals.css @theme
+   ───────────────────────────────────────────────────── */
+
+.dialogContent {
+  max-width: min(640px, calc(100vw - 1rem));
+  gap: 0;
+}
+
+.header {
+  flex-shrink: 0;
+  padding-right: 1.5rem;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  gap: 0;
+}
+
+.formBody {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-block: 0.75rem 0.5rem;
+  padding-right: 0.25rem;
+}
+
+.field {
+  min-width: 0;
+}
+
+.fieldLabel {
+  color: var(--color-muted-foreground);
+}
+
+.fieldError {
+  color: var(--color-destructive);
+  font-size: 0.8125rem;
+}
+
+.row {
+  flex-wrap: wrap;
+  width: 100%;
+
+  > * {
+    flex: 1 1 calc(50% - 0.5rem);
+    min-width: min(100%, 12rem);
+  }
+
+  @media (max-width: 640px) {
+    flex-direction: column;
+
+    > * {
+      flex: 1 1 auto;
+      min-width: 0;
+      width: 100%;
+    }
+  }
+}
+
+.caps {
+  flex-wrap: wrap;
+}
+
+.extra {
+  width: 100%;
+  padding: 0.875rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-muted) 35%, transparent);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+.extraTitle {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-foreground);
+}
+
+.chevron,
+.chevronOpen {
+  width: 1rem;
+  height: 1rem;
+  color: var(--color-muted-foreground);
+  transition: transform 0.15s ease;
+}
+
+.chevronOpen {
+  transform: rotate(180deg);
+}
+
+.footer {
+  flex-shrink: 0;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.spin {
+  width: 1rem;
+  height: 1rem;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

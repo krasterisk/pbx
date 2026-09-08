@@ -14,6 +14,7 @@ import {
   getRecordingSourceExtension,
 } from './route-recording.util';
 import { shouldUseStoredRawDialplan } from './route-dialplan-source.util';
+import { throwIfInvalidActionPayload } from '../../shared/pipes/action-params-validation.util';
 
 /** Binding payload accepted from CreateRouteDto/UpdateRouteDto (bindings field). */
 export interface RouteBindingInput {
@@ -216,6 +217,7 @@ export class RoutesService {
   /** Create a new route */
   async create(data: Partial<Route> & { bindings?: RouteBindingInput[] }, vpbxUserUid: number): Promise<Route> {
     const { bindings, ...rest } = data as any;
+    throwIfInvalidActionPayload({ actions: rest.actions });
     await this.validateSavedActionOwnership(rest.actions, bindings, vpbxUserUid);
 
     // Get the next priority
@@ -245,6 +247,9 @@ export class RoutesService {
   async update(uid: number, data: Partial<Route> & { bindings?: RouteBindingInput[] }, vpbxUserUid: number): Promise<Route> {
     const route = await this.findOne(uid, vpbxUserUid);
     const { bindings, ...rest } = data as any;
+    if (rest.actions !== undefined) {
+      throwIfInvalidActionPayload({ actions: rest.actions });
+    }
     await this.validateSavedActionOwnership(rest.actions, bindings, vpbxUserUid);
     const payload = { ...rest } as Partial<Route>;
     if (payload.raw_dialplan?.trim()) {
@@ -324,8 +329,14 @@ export class RoutesService {
     const opts = route.options || {};
     const callbackStep = actions.find((action: { type?: string }) => action.type === 'callback');
     AsteriskDialplanUtils.hasCallbackStep = !!callbackStep;
+    const routeWebhooks = (route.webhooks || {}) as {
+      before_dial?: { url?: string };
+      on_answer?: { url?: string };
+      on_hangup?: { url?: string };
+      custom?: { url?: string };
+    };
     const wh = {
-      ...(route.webhooks || {}),
+      ...routeWebhooks,
       has_callback_step: !!callbackStep,
       callback_policy: AsteriskDialplanUtils.callbackPolicy,
       callback_window_start: callbackStep?.params?.window_start,

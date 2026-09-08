@@ -34,6 +34,7 @@ export const HUB_PAGE_OPTIONS: MultiSelectOption[] = [
   { value: 'reports', label: 'reports (/reports)' },
   { value: 'cdr', label: 'cdr (/reports/cdr)' },
   { value: 'voice_robot_cdr', label: 'voice_robot_cdr (/reports/voice-robot-cdr)' },
+  { value: 'ai_providers', label: 'ai_providers (/ai-providers)' },
   { value: 'ai_agents', label: 'ai_agents (/ai-agents)' },
 ];
 

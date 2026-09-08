@@ -1,8 +1,12 @@
 ---
 name: operations
 description: Уведомления, аудиоподсказки, обращения и претензии — превью вместо полного текста, агент читает и никогда не создаёт и не меняет записи.
+domains: ["operations"]
+intents: ["operate"]
+aliases: ["операции", "reload"]
+related: ["diagnostics"]
+risk: high
 ---
-
 # Операционные домены
 
 Один скил на четыре каталога: `notifications`, `prompts`, `service-requests`, `komandor-claims`. У каждого домена мало инструментов и общая форма: что хранится, что значат статусы, текст отдаётся превью, агент только читает. Правило покрытия 15-23 должно принять этот общий файл (shared-skill), а не требовать stub `src/skills/notifications`, `src/skills/prompts`, `src/skills/service-requests` и `src/skills/komandor-claims`.

@@ -3,13 +3,11 @@ import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { decryptSecret } from './util/secret-cipher.util';
 
 /**
- * Provider Registry tests — exercise encryption, template cloning,
- * and validation. The Sequelize model is mocked with jest.fn so we
- * assert on the persisted shape rather than reimplementing Op.in.
+ * Tenant-owned provider registry — encryption, tenant scoping, and
+ * chat-completions default resolution. No global templates.
  */
 describe('AiProvidersService', () => {
   let model: any;
-  let config: { get: jest.Mock };
   let service: AiProvidersService;
 
   beforeEach(() => {
@@ -18,21 +16,18 @@ describe('AiProvidersService', () => {
       findOne: jest.fn(),
       create: jest.fn(),
     };
-    config = { get: jest.fn().mockReturnValue(undefined) };
-    service = new AiProvidersService(model, config as any);
+    service = new AiProvidersService(model);
   });
 
   describe('findAll', () => {
-    it('queries with Op.in covering globals and the tenant', async () => {
+    it('lists only the calling tenant rows', async () => {
       model.findAll.mockResolvedValueOnce([]);
       await service.findAll(7);
 
-      expect(model.findAll).toHaveBeenCalled();
-      const arg = model.findAll.mock.calls[0][0];
-      const opInValues = Object.getOwnPropertySymbols(arg.where.user_uid).map(
-        s => arg.where.user_uid[s],
-      );
-      expect(opInValues[0]).toEqual([0, 7]);
+      expect(model.findAll).toHaveBeenCalledWith({
+        where: { user_uid: 7 },
+        order: [['name', 'ASC']],
+      });
     });
   });
 
@@ -48,7 +43,7 @@ describe('AiProvidersService', () => {
         name: 'OpenAI',
         kind: 'online',
         vendor: 'openai',
-        endpoint: 'wss://api.openai.com/v1/realtime',
+        endpoint: 'https://api.openai.com/v1/chat/completions',
         capabilities: ['llm', 'realtime'],
         pricing: { audioMinuteUsd: 0.06 },
         apiKey: 'sk-secret',
@@ -70,7 +65,7 @@ describe('AiProvidersService', () => {
 
       await service.create({
         name: 'Ollama', kind: 'local', vendor: 'ollama',
-        endpoint: 'http://127.0.0.1:11434',
+        endpoint: 'http://127.0.0.1:11434/v1/chat/completions',
         capabilities: ['llm'], pricing: { inputTokenUsd: 0 },
       } as any, 7);
 
@@ -80,7 +75,7 @@ describe('AiProvidersService', () => {
     it('rejects when capabilities are empty', async () => {
       await expect(
         service.create({
-          name: 'X', kind: 'online', vendor: 'x', endpoint: 'wss://x',
+          name: 'X', kind: 'online', vendor: 'x', endpoint: 'https://x',
           capabilities: [], pricing: {},
         } as any, 7),
       ).rejects.toBeInstanceOf(BadRequestException);
@@ -89,7 +84,7 @@ describe('AiProvidersService', () => {
     it('rejects when pricing is missing', async () => {
       await expect(
         service.create({
-          name: 'X', kind: 'online', vendor: 'x', endpoint: 'wss://x',
+          name: 'X', kind: 'online', vendor: 'x', endpoint: 'https://x',
           capabilities: ['llm'],
         } as any, 7),
       ).rejects.toBeInstanceOf(BadRequestException);
@@ -97,11 +92,10 @@ describe('AiProvidersService', () => {
   });
 
   describe('update', () => {
-    it('throws NotFoundException when row is missing or belongs to another tenant (incl. globals)', async () => {
+    it('throws NotFoundException when row is missing or belongs to another tenant', async () => {
       model.findOne.mockResolvedValueOnce(null);
       await expect(service.update(1, { name: 'changed' } as any, 7))
         .rejects.toBeInstanceOf(NotFoundException);
-      // The where clause must scope to the tenant explicitly — globals are not editable
       expect(model.findOne).toHaveBeenCalledWith({ where: { uid: 1, user_uid: 7 } });
     });
 
@@ -114,7 +108,6 @@ describe('AiProvidersService', () => {
       const patch = update.mock.calls[0][0];
       expect(patch.encrypted_api_key).toBeDefined();
       expect(decryptSecret(patch.encrypted_api_key)).toBe('sk-new');
-      // apiKey shouldn't leak through to model.update
       expect(patch.apiKey).toBeUndefined();
     });
 
@@ -130,42 +123,6 @@ describe('AiProvidersService', () => {
     });
   });
 
-  describe('cloneTemplate', () => {
-    it('copies the template into the tenant rows, disabled by default and with blank key', async () => {
-      model.findOne.mockResolvedValueOnce({
-        uid: 5,
-        name: 'OpenAI',
-        kind: 'online',
-        vendor: 'openai',
-        endpoint: 'wss://api.openai.com',
-        auth_type: 'bearer',
-        capabilities: ['llm', 'realtime'],
-        defaults: { model: 'x' },
-        pricing: { audioMinuteUsd: 0.06 },
-      });
-      let persisted: any;
-      model.create.mockImplementation((row: any) => {
-        persisted = row;
-        return Promise.resolve({ uid: 99, ...row });
-      });
-
-      await service.cloneTemplate(5, 7);
-
-      expect(persisted.user_uid).toBe(7);
-      expect(persisted.enabled).toBe(false);
-      expect(persisted.encrypted_api_key).toBe('');
-      expect(persisted.name).toBe('OpenAI (copy)');
-      // Make sure we queried specifically for a global template
-      expect(model.findOne).toHaveBeenCalledWith({ where: { uid: 5, user_uid: 0 } });
-    });
-
-    it('throws NotFoundException when template uid is not a global row', async () => {
-      model.findOne.mockResolvedValueOnce(null);
-      await expect(service.cloneTemplate(5, 7))
-        .rejects.toBeInstanceOf(NotFoundException);
-    });
-  });
-
   describe('findDefaultLlm', () => {
     const tenantLlm = {
       uid: 11,
@@ -173,13 +130,15 @@ describe('AiProvidersService', () => {
       enabled: true,
       user_uid: 7,
       capabilities: ['llm'],
+      endpoint: 'https://api.openai.com/v1/chat/completions',
     };
-    const globalLlm = {
-      uid: 1,
-      name: 'Global template',
+    const otherTenantLlm = {
+      uid: 99,
+      name: 'Other tenant',
       enabled: true,
-      user_uid: 0,
+      user_uid: 8,
       capabilities: ['llm'],
+      endpoint: 'https://api.openai.com/v1/chat/completions',
     };
     const sttOnly = {
       uid: 3,
@@ -187,49 +146,60 @@ describe('AiProvidersService', () => {
       enabled: true,
       user_uid: 7,
       capabilities: ['stt'],
+      endpoint: 'https://stt.example/recognize',
+    };
+    const realtimeOnly = {
+      uid: 2,
+      name: 'Custom WebSocket',
+      enabled: true,
+      user_uid: 7,
+      capabilities: ['llm', 'realtime'],
+      endpoint: 'wss://example.com/voice-ai/realtime',
     };
 
-    it('returns the configured default provider when it is enabled and has the language-model capability', async () => {
-      config.get.mockReturnValue('11');
+    it('honours a preferred provider that belongs to the tenant and is a chat LLM', async () => {
       model.findOne.mockResolvedValueOnce(tenantLlm);
 
-      await expect(service.findDefaultLlm()).resolves.toEqual(tenantLlm);
-      expect(config.get).toHaveBeenCalledWith('CC_AI_DEFAULT_PROVIDER_UID');
+      await expect(service.findDefaultLlm(7, 11)).resolves.toEqual(tenantLlm);
       expect(model.findOne).toHaveBeenCalledWith({
-        where: { uid: 11, enabled: true },
+        where: { uid: 11, user_uid: 7, enabled: true },
+      });
+      expect(model.findAll).not.toHaveBeenCalled();
+    });
+
+    it('falls back to the first enabled chat LLM owned by the tenant', async () => {
+      model.findAll.mockResolvedValueOnce([tenantLlm, otherTenantLlm, sttOnly]);
+
+      await expect(service.findDefaultLlm(7)).resolves.toEqual(tenantLlm);
+      expect(model.findAll).toHaveBeenCalledWith({
+        where: { user_uid: 7, enabled: true },
+        order: [['uid', 'ASC']],
       });
     });
 
-    it('falls back to the first enabled language-model row, preferring a tenant row over the global template', async () => {
-      model.findAll.mockResolvedValueOnce([tenantLlm, globalLlm, sttOnly]);
-
-      await expect(service.findDefaultLlm()).resolves.toEqual(tenantLlm);
-      expect(model.findAll).toHaveBeenCalledWith(expect.objectContaining({
-        where: { enabled: true },
-      }));
-      const order = model.findAll.mock.calls[0][0].order;
-      expect(order[0][0]).toBe('user_uid');
-      expect(order[0][1]).toMatch(/desc/i);
-    });
-
-    it('skips a configured default that is missing the language-model capability', async () => {
-      config.get.mockReturnValue('3');
+    it('skips a preferred row that is not a chat-completions LLM', async () => {
       model.findOne.mockResolvedValueOnce(sttOnly);
       model.findAll.mockResolvedValueOnce([tenantLlm]);
 
-      await expect(service.findDefaultLlm()).resolves.toEqual(tenantLlm);
+      await expect(service.findDefaultLlm(7, 3)).resolves.toEqual(tenantLlm);
     });
 
-    it('caches the resolved row for sixty seconds', async () => {
+    it('skips a language-model row whose endpoint cannot become a chat-completions URL', async () => {
+      model.findAll.mockResolvedValueOnce([realtimeOnly, tenantLlm]);
+
+      await expect(service.findDefaultLlm(7)).resolves.toEqual(tenantLlm);
+    });
+
+    it('caches the resolved row per tenant for sixty seconds', async () => {
       jest.useFakeTimers();
       model.findAll.mockResolvedValue([tenantLlm]);
 
-      await service.findDefaultLlm();
-      await service.findDefaultLlm();
+      await service.findDefaultLlm(7);
+      await service.findDefaultLlm(7);
       expect(model.findAll).toHaveBeenCalledTimes(1);
 
       jest.advanceTimersByTime(60_000);
-      await service.findDefaultLlm();
+      await service.findDefaultLlm(7);
       expect(model.findAll).toHaveBeenCalledTimes(2);
       jest.useRealTimers();
     });

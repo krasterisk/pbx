@@ -1,0 +1,5 @@
+feat(15-07): implement call-records adapter with search clamp
+
+- get_cdr_summary forwards the date range; find_cdr_calls clamps to 50
+- Adapter registers from ReportsCdrModule so bootstrap picks it up
+- Reports skill covers dispositions and the search cap

@@ -1,0 +1,4 @@
+feat(15-07): add eighteen-name migration inventory
+
+- Per-name adapter-served / handwritten / retired report
+- apply_dialplan is retired with a 15-11 reason; vanished or duplicate names fail

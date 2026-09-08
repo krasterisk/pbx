@@ -8,7 +8,6 @@ import {
   Label,
   Select,
   Checkbox,
-  Switch,
   Text,
   InfoTooltip,
   TableRowActions,
@@ -18,6 +17,8 @@ import { VStack, HStack, Flex } from '@/shared/ui/Stack';
 import cls from './DirectorySchemaEditor.module.scss';
 
 export interface IDirectoryFieldDraft {
+  /** Stable row identity. Must not change when the user edits `key`. */
+  rowId?: string;
   key: string;
   label: string;
   type: DirectoryFieldType;
@@ -26,6 +27,13 @@ export interface IDirectoryFieldDraft {
 }
 
 const FIELD_TYPES: DirectoryFieldType[] = ['string', 'phone', 'number', 'boolean'];
+
+let nextRowSeq = 0;
+
+function nextRowId(): string {
+  nextRowSeq += 1;
+  return `field-row-${nextRowSeq}`;
+}
 
 function nextFieldKey(fields: IDirectoryFieldDraft[]): string {
   let n = fields.length + 1;
@@ -63,7 +71,7 @@ export const DirectorySchemaEditor = memo(({
     const key = nextFieldKey(fields);
     emitFields([
       ...fields,
-      { key, label: '', type: 'string', required: false, position: fields.length },
+      { rowId: nextRowId(), key, label: '', type: 'string', required: false, position: fields.length },
     ]);
   }, [fields, emitFields]);
 
@@ -86,19 +94,11 @@ export const DirectorySchemaEditor = memo(({
     }
   }, [fields, emitFields, lookupFieldKey, onLookupFieldKeyChange]);
 
-  const setLookup = useCallback((key: string, checked: boolean) => {
-    if (checked) {
-      onLookupFieldKeyChange(key);
-      return;
-    }
-    if (lookupFieldKey === key) {
-      onLookupFieldKeyChange('');
-    }
-  }, [lookupFieldKey, onLookupFieldKeyChange]);
+  const lookupOptions = fields.filter((field) => field.key.trim() !== '');
 
   return (
     <VStack gap="12" max className={cls.editor}>
-      <HStack justify="between" align="center" max>
+      <HStack justify="between" align="center" max className={cls.head}>
         <HStack gap="4" align="center">
           <Text variant="h4">{t('directories.schemaTitle', 'Schema')}</Text>
           <InfoTooltip text={t('directories.schemaHint', 'Declare fields first. Records use these keys, not inferred columns.')} />
@@ -115,29 +115,57 @@ export const DirectorySchemaEditor = memo(({
         </Button>
       </HStack>
 
+      <VStack gap="4" className={cls.lookupPicker}>
+        <HStack gap="4" align="center">
+          <Label htmlFor="directory-lookup-field">{t('directories.lookupField', 'Lookup field')} *</Label>
+          <InfoTooltip text={t('directories.lookupFieldHint', 'Exactly one field is used as the lookup key.')} />
+        </HStack>
+        <Select
+          id="directory-lookup-field"
+          data-testid="directory-lookup-field"
+          value={lookupFieldKey}
+          disabled={lookupOptions.length === 0}
+          onChange={(e) => onLookupFieldKeyChange(e.target.value)}
+        >
+          <option value="">{t('directories.lookupFieldPlaceholder', 'Not selected')}</option>
+          {lookupOptions.map((field) => (
+            <option key={field.rowId ?? field.key} value={field.key}>
+              {field.label ? `${field.label} (${field.key})` : field.key}
+            </option>
+          ))}
+        </Select>
+      </VStack>
+
       {fields.length === 0 ? (
-        <Text variant="muted">{t('directories.noFields', 'Add at least one field and mark it as the lookup field.')}</Text>
+        <Text variant="muted">{t('directories.noFields', 'Add at least one field and pick the lookup field.')}</Text>
       ) : (
         <VStack gap="8" max>
           {fields.map((field, index) => {
             const keyLocked = Boolean(lockedKeys?.has(field.key));
             return (
-              <Flex key={`${field.key}-${index}`} align="start" className={cls.fieldRow}>
+              <Flex key={field.rowId ?? `field-row-${index}`} align="end" className={cls.fieldRow}>
                 <VStack gap="4" className={cls.fieldCell}>
                   <HStack gap="4" align="center">
                     <Label htmlFor={`field-key-${index}`}>{t('directories.fieldKey', 'Key')}</Label>
-                    <InfoTooltip text={t('directories.fieldKeyHint', 'Immutable after save. Used in CSV headers and record values.')} />
+                    <InfoTooltip text={t('directories.fieldKeyHint', 'Technical name used for storage and integrations. Immutable after save.')} />
                   </HStack>
                   <Input
                     id={`field-key-${index}`}
                     data-testid={`field-key-${index}`}
                     value={field.key}
                     readOnly={keyLocked}
-                    onChange={(e) => updateField(index, { key: e.target.value.trim() })}
+                    onChange={(e) => updateField(index, { key: e.target.value })}
+                    onBlur={(e) => {
+                      const trimmed = e.target.value.trim();
+                      if (trimmed !== field.key) updateField(index, { key: trimmed });
+                    }}
                   />
                 </VStack>
                 <VStack gap="4" className={cls.fieldCell}>
-                  <Label htmlFor={`field-label-${index}`}>{t('directories.fieldLabel', 'Label')}</Label>
+                  <HStack gap="4" align="center">
+                    <Label htmlFor={`field-label-${index}`}>{t('directories.fieldLabel', 'Display name')}</Label>
+                    <InfoTooltip text={t('directories.fieldLabelHint', 'The text a user sees in the records table.')} />
+                  </HStack>
                   <Input
                     id={`field-label-${index}`}
                     data-testid={`field-label-${index}`}
@@ -162,25 +190,13 @@ export const DirectorySchemaEditor = memo(({
                 </VStack>
                 <VStack gap="4" className={cls.flagCell}>
                   <Label htmlFor={`field-required-${index}`}>{t('directories.fieldRequired', 'Required')}</Label>
-                  <Checkbox
-                    id={`field-required-${index}`}
-                    checked={field.required}
-                    onChange={(e) => updateField(index, { required: e.target.checked })}
-                  />
-                </VStack>
-                <VStack gap="4" className={cls.flagCell}>
-                  <HStack gap="4" align="center">
-                    <Label htmlFor={`field-lookup-${field.key}`}>{t('directories.lookupField', 'Lookup')}</Label>
-                    <InfoTooltip text={t('directories.lookupFieldHint', 'Exactly one field is used as the lookup key.')} />
-                  </HStack>
-                  <Switch
-                    id={`field-lookup-${field.key}`}
-                    data-testid={`field-lookup-${field.key}`}
-                    checked={lookupFieldKey === field.key}
-                    onCheckedChange={(checked) => setLookup(field.key, checked)}
-                    disabled={!field.key}
-                    aria-label={t('directories.lookupField', 'Lookup')}
-                  />
+                  <div className={cls.flagControl}>
+                    <Checkbox
+                      id={`field-required-${index}`}
+                      checked={field.required}
+                      onChange={(e) => updateField(index, { required: e.target.checked })}
+                    />
+                  </div>
                 </VStack>
                 <TableRowActions>
                   <TableRowAction

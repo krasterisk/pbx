@@ -62,6 +62,7 @@ describe('IvrsAiAdapter', () => {
   let contextsService: { findAll: jest.Mock };
   let endpointsService: { findAll: jest.Mock };
   let queuesService: { findAll: jest.Mock };
+  let callGroupsService: { findAll: jest.Mock };
   let registry: { register: jest.Mock };
   let adapter: IvrsAiAdapter;
   const updatedRows: Array<{ uid: number; dto: Record<string, unknown>; tenant: number }> = [];
@@ -111,6 +112,12 @@ describe('IvrsAiAdapter', () => {
         return [];
       }),
     };
+    callGroupsService = {
+      findAll: jest.fn(async (uid: number) => {
+        if (uid === TENANT_A) return [{ uid: 44, name: 'Timeout', exten: '600' }];
+        return [];
+      }),
+    };
     registry = { register: jest.fn() };
     adapter = new IvrsAiAdapter(
       ivrsService as any,
@@ -118,6 +125,7 @@ describe('IvrsAiAdapter', () => {
       contextsService as any,
       endpointsService as any,
       queuesService as any,
+      callGroupsService as any,
     );
   });
 
@@ -234,6 +242,45 @@ describe('IvrsAiAdapter', () => {
       expect(result.applyPayload).toEqual(expect.objectContaining({ tool: 'create_ivr' }));
     });
 
+    it('stores TTS greeting and resolves timeout digit t to a call group', async () => {
+      const result = await getTool('create_ivr').handler(
+        {
+          name: 'Продажи',
+          text: 'Вы позвонили в компанию Рога и Копыта.',
+          menu_items: [
+            { digit: '1', destination: { kind: 'extension', target: '201' } },
+            { digit: 't', destination: { kind: 'group', target: 'Timeout' } },
+          ],
+        },
+        TENANT_A,
+      );
+
+      expect(result.applyPayload.args.prompts).toEqual([
+        expect.objectContaining({ kind: 'tts', text: 'Вы позвонили в компанию Рога и Копыта.' }),
+      ]);
+      expect(result.summary.join('\n')).toMatch(/Приветствие/);
+      expect(result.summary.join('\n')).toMatch(/1 → extension 201/);
+      expect(result.summary.join('\n')).toMatch(/t → group/);
+      expect(result.applyPayload.args.menu_items).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            digit: '1',
+            actions: [expect.objectContaining({
+              type: 'toexten',
+              params: { target: { source: 'fixed', value: '201' }, webrtc: true },
+            })],
+          }),
+          expect.objectContaining({
+            digit: 't',
+            actions: [expect.objectContaining({
+              type: 'togroup',
+              params: { target: { source: 'fixed', value: '44' } },
+            })],
+          }),
+        ]),
+      );
+    });
+
     it('delete_ivr is destructive, names the menu and does not delete until confirm', async () => {
       const result = await getTool('delete_ivr').handler({ id: 7 }, TENANT_A);
 
@@ -322,6 +369,7 @@ describe('IvrsAiAdapter', () => {
         contextsService as any,
         endpointsService as any,
         queuesService as any,
+        callGroupsService as any,
       );
       wired.onModuleInit();
       const warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
@@ -347,6 +395,16 @@ describe('IvrsAiAdapter', () => {
       expect(raw).toMatch(/context|extension|queue|меню|menu/i);
       expect(raw).toMatch(/timeout|t\b|неверн|invalid/i);
       expect(raw).toMatch(/маршрут|route|входящ/i);
+      expect(raw).toMatch(/чеклист|план|read_skill/i);
+      expect(raw).toMatch(/одн(а|у) групп/i);
+      expect(raw).toMatch(/list_endpoints/);
+      expect(raw).toMatch(/prompts|tts/i);
+      expect(raw).toMatch(/togroup|kind:\s*group|kind group/i);
+      expect(raw).toMatch(/toexten/);
+      expect(raw).toMatch(/любой.*реплик|не только из последней/i);
+      expect(raw).toMatch(/не переспрашив/i);
+      expect(raw).toMatch(/что настроить/i);
+      expect(raw).not.toMatch(/цифру `t` ведёт на номер этой группы как `extension`/i);
     });
   });
 });

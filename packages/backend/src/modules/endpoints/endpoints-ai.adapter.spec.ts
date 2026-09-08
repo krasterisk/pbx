@@ -69,6 +69,21 @@ describe('EndpointsAiAdapter', () => {
     adapter = new EndpointsAiAdapter(endpointsService as any, registry as any);
   });
 
+  describe('list_endpoints', () => {
+    it('returns public extensions without SIP ids and can filter 101-103 style ranges', async () => {
+      const listed = await getTool('list_endpoints').handler({}, TENANT_A);
+      expect(listed.endpoints).toEqual([
+        expect.objectContaining({ extension: '201', context: 'from-internal' }),
+        expect.objectContaining({ extension: '203' }),
+      ]);
+      expect(JSON.stringify(listed)).not.toMatch(/e201_100|sipUsername/);
+
+      const filtered = await getTool('list_endpoints').handler({ extensions: '201' }, TENANT_A);
+      expect(filtered.endpoints).toHaveLength(1);
+      expect(filtered.endpoints[0].extension).toBe('201');
+    });
+  });
+
   describe('create_endpoint (D-18, D-27)', () => {
     it('marks create_endpoint as a proposing tool', () => {
       const tool = getTool('create_endpoint');
@@ -99,6 +114,16 @@ describe('EndpointsAiAdapter', () => {
       );
       expect(result.summary.join(' ')).toMatch(/210/);
       expect(result.summary.join(' ')).toMatch(/from-internal/);
+    });
+
+    it('normalizes a tenant-scoped SIP id to the public extension of the dispatch tenant', async () => {
+      const result = await getTool('create_endpoint').handler(
+        { extension: 'e210_100', name: 'Desk' },
+        TENANT_A,
+      );
+
+      expect(result.applyPayload.args).toEqual(expect.objectContaining({ extension: '210' }));
+      expect(JSON.stringify(result.applyPayload.args)).not.toMatch(/e210_100|vpbxUserUid|tenantId/);
     });
 
     it('never places a generated credential in the proposal summary or the tool result', async () => {
@@ -275,6 +300,9 @@ describe('EndpointsAiAdapter', () => {
       expect(raw).toMatch(/extension|внутренн/i);
       expect(raw).toMatch(/context|контекст/i);
       expect(raw).toMatch(/спроси|ask|не угад/i);
+      expect(raw).toMatch(/назвал|указал|exact/i);
+      expect(raw).toMatch(/list_endpoints/);
+      expect(raw).toMatch(/чеклист|рецепт/i);
     });
   });
 });

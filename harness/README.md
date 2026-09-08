@@ -60,7 +60,7 @@ npm run test -- --tag health --parallel   # opt-in parallelism (D-19)
 | Workflow | When | What |
 |----------|------|------|
 | `.github/workflows/harness.yml` | push/PR to `main`/`develop`, plus `workflow_dispatch` | Pre-Asterisk MVP: MySQL service, migrate, wait on `/api/health` + frontend, `npm test` in `harness/` (Node 22) |
-| `.github/workflows/harness-asterisk.yml` | `workflow_dispatch` + nightly cron | Lab Asterisk originate (D-10); requires repo secrets |
+| `.github/workflows/harness-asterisk.yml` | `workflow_dispatch` only | Lab Asterisk originate (D-10); requires repo secrets |
 
 CI Playwright uses `workers: 1` and no sharding (D-12). Do not pass `--parallel` in the default CI job.
 

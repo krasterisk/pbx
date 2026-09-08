@@ -116,6 +116,21 @@ describe('PbxContextBuilderService', () => {
         expect(prompt.split(UNTRUSTED_FENCE_CLOSE).length).toBeGreaterThan(2);
     });
 
+    it('requires a checklist, tool follow-through and a clarifying question when blocked', async () => {
+        const { builder } = makeBuilder();
+        const prompt = builder.buildSystemPrompt(await builder.buildState(111));
+
+        expect(prompt).toMatch(/Turn contract|question|wait_confirm|complete/i);
+        expect(prompt).toMatch(/read_skill/i);
+        expect(prompt).toMatch(/уточн|clarifying question|question/i);
+        expect(prompt).toMatch(/не выдумывай|do not invent|лишн/i);
+        expect(prompt).toMatch(/EVERY user message|не только (из )?последн/i);
+        expect(prompt).toMatch(/do not re-ask|не переспрашив/i);
+        expect(prompt).toMatch(/меню|menu question|IVR, группа или абоненты/i);
+        expect(prompt).toMatch(/list_tts_engines|engine_uid/i);
+        expect(prompt).toMatch(/exactly the named set|точн/i);
+    });
+
     it('states the confirmation-card policy instead of a textual destructive warning alone', async () => {
         const { builder } = makeBuilder();
         const prompt = builder.buildSystemPrompt(await builder.buildState(111));
@@ -185,6 +200,7 @@ describe('PbxStateAiAdapter get_pbx_state', () => {
         expect(text).toMatch(/Alice|101/);
         expect(text).not.toContain('OtherTenant');
         expect(text).not.toContain('999');
+        expect(text).not.toMatch(/e101_111|sipUsername/);
     });
 
     it('accepts an optional domain filter and returns only that domain', async () => {

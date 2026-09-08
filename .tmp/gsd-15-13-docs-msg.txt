@@ -1,0 +1,4 @@
+docs(15-13): complete call groups and hold music plan
+
+- Summarize adapters, validation, isolation fixtures and TDD commits
+- Advance STATE and mark 15-13 complete on the roadmap

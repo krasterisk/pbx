@@ -46,7 +46,17 @@ describe('AgentSkillRegistryService', () => {
     const { service } = createService(tmpRoot);
     const catalog = service.getCatalog();
 
-    expect(catalog).toEqual([{ name: 'fixture-skill', description: 'One-line fixture description' }]);
+    expect(catalog).toEqual([
+      expect.objectContaining({
+        name: 'fixture-skill',
+        description: 'One-line fixture description',
+        domains: ['fixture-skill'],
+        intents: [],
+        aliases: [],
+        related: [],
+        risk: 'medium',
+      }),
+    ]);
     expect(JSON.stringify(catalog)).not.toContain(body);
   });
 
@@ -123,7 +133,9 @@ describe('AgentSkillRegistryService', () => {
     expect(read?.destructive).toBeFalsy();
 
     const listed = await list!.handler({}, 42);
-    expect(listed).toEqual([{ name: 'fixture-skill', description: 'Fixture description' }]);
+    expect(listed).toEqual([
+      expect.objectContaining({ name: 'fixture-skill', description: 'Fixture description' }),
+    ]);
 
     const body = await read!.handler({ name: 'fixture-skill' }, 99);
     expect(body).toContain('fixture body text');
@@ -145,11 +157,32 @@ describe('AgentSkillRegistryService', () => {
     const catalog = service.getCatalog();
     expect(catalog.length).toBeGreaterThan(0);
 
-    const byName = Object.fromEntries(catalog.map((entry) => [entry.name, entry.description]));
+    const byName = Object.fromEntries(catalog.map((entry) => [entry.name, entry]));
     for (const name of ['developer-convention', 'directories', 'voicemail', 'callcenter']) {
-      expect(byName[name]).toEqual(expect.any(String));
-      expect(byName[name].length).toBeGreaterThan(0);
+      expect(byName[name]?.description).toEqual(expect.any(String));
+      expect(byName[name].description.length).toBeGreaterThan(0);
+      expect(byName[name].domains.length).toBeGreaterThan(0);
+      expect(['low', 'medium', 'high']).toContain(byName[name].risk);
     }
+  });
+
+  it('readSkillsForPrompt returns trusted procedural bodies without untrusted fences', () => {
+    writeSkill(
+      tmpRoot,
+      'ivrs',
+      'ivrs',
+      'IVR skill',
+      'Trusted IVR procedure',
+    );
+    fs.writeFileSync(
+      path.join(tmpRoot, 'ivrs', 'SKILL.md'),
+      `---\nname: ivrs\ndescription: IVR skill\ndomains: ["ivrs"]\nintents: ["configure_ivr"]\naliases: ["ivr"]\nrelated: ["endpoints"]\nrisk: medium\n---\n\nTrusted IVR procedure`,
+    );
+    const { service } = createService(tmpRoot);
+    const bodies = service.readSkillsForPrompt(['ivrs', 'missing']);
+    expect(bodies).toHaveLength(1);
+    expect(bodies[0]).toContain('Trusted IVR procedure');
+    expect(bodies[0]).not.toContain(UNTRUSTED_FENCE_OPEN);
   });
 });
 

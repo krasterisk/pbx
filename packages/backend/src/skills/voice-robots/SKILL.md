@@ -1,8 +1,12 @@
 ---
 name: voice-robots
 description: Голосовой робот тенанта — как его достигают, какие TTS/STT он использует и что describe уже сообщает о состоянии движков.
+domains: ["voice-robots"]
+intents: ["configure_robot"]
+aliases: ["робот", "voice robot"]
+related: ["speech-engines"]
+risk: high
 ---
-
 # Голосовые роботы
 
 Робот в этом продукте ведёт диалог на входящем звонке: приветствие, группы ключевых слов, затем TTS и STT. Его вызывают действием `voicerobot` на маршруте — это точка входа, не сам номер.

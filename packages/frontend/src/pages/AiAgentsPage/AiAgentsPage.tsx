@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Bot, Plug, Plus, Wrench, Pencil, Trash2, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Bot, Plus, Wrench, Pencil, Trash2, ToggleLeft, ToggleRight } from 'lucide-react';
 import { Button, Text } from '@/shared/ui';
 import { VStack, HStack } from '@/shared/ui/Stack';
 import {
@@ -8,17 +8,13 @@ import {
   useGetAiProvidersQuery,
   useGetAiToolsetsQuery,
   useDeleteAiAgentMutation,
-  useDeleteAiProviderMutation,
-  useCloneAiProviderMutation,
   useUpdateAiAgentMutation,
   type IAiAgent,
-  type IAiProvider,
 } from '@/shared/api/endpoints/aiAgentsApi';
 import { AiAgentModal } from '@/features/ai-agents/ui/AiAgentModal/AiAgentModal';
-import { AiProviderModal } from '@/features/ai-agents/ui/AiProviderModal/AiProviderModal';
 import styles from './AiAgentsPage.module.scss';
 
-type Tab = 'agents' | 'providers' | 'toolsets';
+type Tab = 'agents' | 'toolsets';
 
 export function AiAgentsPage() {
   const { t } = useTranslation();
@@ -29,16 +25,11 @@ export function AiAgentsPage() {
   const { data: toolsets = [] } = useGetAiToolsetsQuery();
 
   const [deleteAgent] = useDeleteAiAgentMutation();
-  const [deleteProvider] = useDeleteAiProviderMutation();
-  const [cloneProvider] = useCloneAiProviderMutation();
   const [updateAgent] = useUpdateAiAgentMutation();
 
   const [editingAgent, setEditingAgent] = useState<IAiAgent | null>(null);
   const [agentModalOpen, setAgentModalOpen] = useState(false);
-  const [editingProvider, setEditingProvider] = useState<IAiProvider | null>(null);
-  const [providerModalOpen, setProviderModalOpen] = useState(false);
 
-  // Resolve provider name by uid for the agents table
   const providerName = (id: number | null) => {
     if (!id) return '-';
     const p = providers.find(x => x.uid === id);
@@ -58,7 +49,7 @@ export function AiAgentsPage() {
             </h1>
           </HStack>
           <p className="text-muted-foreground text-sm">
-            {t('aiAgents.subtitle', 'LLM-based operators, providers, and toolsets')}
+            {t('aiAgents.subtitle', 'Voice AI agents for inbound calls')}
           </p>
         </VStack>
 
@@ -69,16 +60,9 @@ export function AiAgentsPage() {
               {t('aiAgents.newAgent', 'New AI Agent')}
             </Button>
           )}
-          {tab === 'providers' && (
-            <Button className={styles.createBtn} onClick={() => { setEditingProvider(null); setProviderModalOpen(true); }}>
-              <Plus className="w-4 h-4 mr-2" />
-              {t('aiAgents.newProvider', 'New Provider')}
-            </Button>
-          )}
         </HStack>
       </HStack>
 
-      {/* Tabs */}
       <div className={styles.tabs}>
         <button
           type="button"
@@ -91,15 +75,6 @@ export function AiAgentsPage() {
         </button>
         <button
           type="button"
-          className={`${styles.tab} ${tab === 'providers' ? styles.tabActive : ''}`}
-          onClick={() => setTab('providers')}
-        >
-          <Plug className="w-4 h-4 mr-1.5 inline" />
-          {t('aiAgents.tabProviders', 'Providers')}
-          <span className={styles.tabBadge}>{providers.length}</span>
-        </button>
-        <button
-          type="button"
           className={`${styles.tab} ${tab === 'toolsets' ? styles.tabActive : ''}`}
           onClick={() => setTab('toolsets')}
         >
@@ -109,7 +84,6 @@ export function AiAgentsPage() {
         </button>
       </div>
 
-      {/* ─── Agents - D-29 page-level overflow hybrid ─── */}
       {tab === 'agents' && (
         <div
           className={`${styles.tableWrap} overflow-x-auto`}
@@ -192,93 +166,6 @@ export function AiAgentsPage() {
         </div>
       )}
 
-      {/* ─── Providers ─── */}
-      {tab === 'providers' && (
-        <div
-          className={`${styles.tableWrap} overflow-x-auto`}
-          data-testid="hybrid-table"
-          data-hybrid="overflow-x-auto"
-        >
-          {providers.length === 0 ? (
-            <EmptyState
-              icon={<Plug className="w-12 h-12 opacity-50" />}
-              title={t('aiAgents.empty.providers', 'No providers configured')}
-              hint={t('aiAgents.empty.providersHint', 'Built-in templates are seeded automatically; clone one to attach your API key.')}
-            />
-          ) : (
-            <table className={styles.table}>
-              <thead>
-                <tr>
-                  <th>{t('aiAgents.col.name', 'Name')}</th>
-                  <th>{t('aiAgents.col.vendor', 'Vendor')}</th>
-                  <th>{t('aiAgents.col.kind', 'Kind')}</th>
-                  <th>{t('aiAgents.col.capabilities', 'Capabilities')}</th>
-                  <th>{t('aiAgents.col.enabled', 'Enabled')}</th>
-                  <th />
-                </tr>
-              </thead>
-              <tbody>
-                {providers.map(p => {
-                  const isGlobal = p.user_uid === 0;
-                  return (
-                    <tr key={p.uid} className={isGlobal ? styles.rowGlobal : ''}>
-                      <td>
-                        <Text className={styles.bold}>{p.name}</Text>
-                        {isGlobal && (
-                          <span className={`${styles.chip} ${styles.chipGlobal}`}>
-                            {t('aiAgents.template', 'template')}
-                          </span>
-                        )}
-                      </td>
-                      <td>{p.vendor}</td>
-                      <td>{p.kind}</td>
-                      <td>
-                        <HStack gap="4">
-                          {p.capabilities.map(c => (
-                            <span key={c} className={styles.cap}>{c}</span>
-                          ))}
-                        </HStack>
-                      </td>
-                      <td>{p.enabled
-                        ? <span className={styles.statusOk}>●</span>
-                        : <span className={styles.statusOff}>●</span>}
-                      </td>
-                      <td>
-                        <HStack gap="4">
-                          {isGlobal ? (
-                            <Button variant="outline" size="sm" onClick={() => cloneProvider(p.uid)}>
-                              {t('aiAgents.cloneTemplate', 'Clone')}
-                            </Button>
-                          ) : (
-                            <>
-                              <Button variant="outline" size="sm" onClick={() => { setEditingProvider(p); setProviderModalOpen(true); }}>
-                                <Pencil className="w-3.5 h-3.5" />
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  if (window.confirm(t('aiAgents.confirmDeleteProvider', 'Delete provider "{{name}}"?', { name: p.name }))) {
-                                    deleteProvider(p.uid);
-                                  }
-                                }}
-                              >
-                                <Trash2 className="w-3.5 h-3.5 text-destructive" />
-                              </Button>
-                            </>
-                          )}
-                        </HStack>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
-        </div>
-      )}
-
-      {/* ─── Toolsets (placeholder for AI-1) ─── */}
       {tab === 'toolsets' && (
         <EmptyState
           icon={<Wrench className="w-12 h-12 opacity-50" />}
@@ -287,7 +174,6 @@ export function AiAgentsPage() {
         />
       )}
 
-      {/* Modals */}
       {agentModalOpen && (
         <AiAgentModal
           agent={editingAgent}
@@ -296,17 +182,9 @@ export function AiAgentsPage() {
           onClose={() => setAgentModalOpen(false)}
         />
       )}
-      {providerModalOpen && (
-        <AiProviderModal
-          provider={editingProvider}
-          onClose={() => setProviderModalOpen(false)}
-        />
-      )}
     </VStack>
   );
 }
-
-// ─── Tiny inline helpers ───────────────────────────────────
 
 function EmptyState({ icon, title, hint }: { icon: React.ReactNode; title: string; hint: string }) {
   return (

@@ -10,6 +10,7 @@ const updateSettings = vi.fn();
 let usageRows = [
   {
     tenantUid: 10,
+    tenantName: 'Acme PBX',
     tokensIn: 120,
     tokensOut: 50,
     turns: 2,
@@ -18,6 +19,7 @@ let usageRows = [
   },
   {
     tenantUid: 20,
+    tenantName: null,
     tokensIn: 5,
     tokensOut: 1,
     turns: 1,
@@ -35,6 +37,11 @@ vi.mock('react-i18next', () => ({
     t: (key: string, fallbackOrOpts?: string | Record<string, unknown>) =>
       typeof fallbackOrOpts === 'string' ? fallbackOrOpts : key,
   }),
+}));
+
+vi.mock('@/shared/api/endpoints/cloudAdminApi', () => ({
+  useGetTenantsQuery: () => ({ data: undefined }),
+  useGetSellerInfoQuery: () => ({ data: undefined }),
 }));
 
 vi.mock('@/shared/api/endpoints/aiChatApi', () => ({
@@ -90,7 +97,7 @@ describe('AiChatSettingsCard (15-24 / D-07 / D-08)', () => {
     renderCard(UserLevel.SUPERADMIN);
     const select = screen.getByTestId('ai-chat-default-model');
     expect(select).toBeTruthy();
-    expect(screen.getByText('gpt-4o')).toBeTruthy();
+    expect(screen.getByText('OpenAI')).toBeTruthy();
     fireEvent.change(select, { target: { value: '1' } });
     fireEvent.click(screen.getByTestId('ai-chat-default-model-save'));
     expect(updateDefaultModel).toHaveBeenCalledWith({ providerUid: 1 });
@@ -99,11 +106,13 @@ describe('AiChatSettingsCard (15-24 / D-07 / D-08)', () => {
   it('shows per-tenant tokens, spend and the proposal funnel', () => {
     renderCard(UserLevel.SUPERADMIN);
     const usage = screen.getByTestId('ai-chat-usage');
+    expect(usage.textContent).toContain('Acme PBX');
     expect(usage.textContent).toContain('120');
     expect(usage.textContent).toContain('50');
     expect(usage.textContent).toContain('0.75');
     expect(usage.textContent).toContain('2');
     expect(usage.textContent).toMatch(/pending|applied|rejected/i);
+    expect(screen.getByTestId('ai-chat-usage-row-10').textContent).toContain('10');
   });
 
   it('renders unavailable spend instead of a zero amount', () => {

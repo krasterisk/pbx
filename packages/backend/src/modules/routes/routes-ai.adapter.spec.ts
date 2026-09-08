@@ -1,3 +1,5 @@
+import * as fs from 'fs';
+import * as path from 'path';
 import { Logger, NotFoundException } from '@nestjs/common';
 import { UserLevel } from '../users/user.model';
 import { PbxAgentDiffService } from '../ai-chat/pbx-agent-diff.service';
@@ -167,11 +169,18 @@ describe('RoutesAiAdapter', () => {
         return [];
       }),
     };
+    const callGroupsService = {
+      findAll: jest.fn(async (uid: number) => {
+        if (uid === TENANT_A) return [{ uid: 5, name: 'Sales', exten: '701' }];
+        return [];
+      }),
+    };
     routeApplyService = {
       applyContext: jest.fn().mockResolvedValue({ success: true, filename: 'x', linesApplied: 1 }),
     };
     dialplanApplyService = { applyCategories: jest.fn() };
-    registry = { register: jest.fn() };
+    const liveRegistry = new AiAdapterRegistryService();
+    registry = liveRegistry;
     adapter = new RoutesAiAdapter(
       routesService as any,
       contextsService as any,
@@ -180,8 +189,10 @@ describe('RoutesAiAdapter', () => {
       trunksService as any,
       ivrsService as any,
       directoriesService as any,
-      registry as any,
+      callGroupsService as any,
+      liveRegistry,
     );
+    adapter.onModuleInit();
 
     proposalRows = [];
     const proposalModel = {
@@ -217,17 +228,18 @@ describe('RoutesAiAdapter', () => {
       findAll: jest.fn(async (opts: { where?: Record<string, unknown> } = {}) => {
         return proposalRows.filter((row) => matchesWhere(row, opts.where));
       }),
-      update: jest.fn(),
+      update: jest.fn(async (values: Partial<ProposalRow>, opts: { where?: Record<string, unknown> } = {}) => {
+        const matched = proposalRows.filter((row) => matchesWhere(row, opts.where));
+        matched.forEach((row) => Object.assign(row, values));
+        return [matched.length];
+      }),
     };
     diffService = new PbxAgentDiffService(
       proposalModel as any,
       routeApplyService as any,
-      directoriesService as any,
-      routesService as any,
-      { createWithGeneratedCredentials: jest.fn(), bulkCreate: jest.fn(), remove: jest.fn() } as any,
-      { create: jest.fn(), remove: jest.fn() } as any,
       { logAction: jest.fn().mockResolvedValue(undefined) } as any,
       { create: jest.fn().mockResolvedValue({ uid: 1 }) } as any,
+      liveRegistry,
     );
   });
 
@@ -426,6 +438,9 @@ describe('RoutesAiAdapter', () => {
   describe('no standalone apply tool (D-20)', () => {
     it('does not register a model-callable apply_dialplan after the routes adapter is adopted', () => {
       const live = new AiAdapterRegistryService();
+      const callGroupsService = {
+        findAll: jest.fn(async () => [{ uid: 5, name: 'Sales', exten: '701' }]),
+      };
       const wired = new RoutesAiAdapter(
         routesService as any,
         contextsService as any,
@@ -434,6 +449,7 @@ describe('RoutesAiAdapter', () => {
         trunksService as any,
         ivrsService as any,
         directoriesService as any,
+        callGroupsService as any,
         live,
       );
       wired.onModuleInit();
@@ -447,24 +463,24 @@ describe('RoutesAiAdapter', () => {
       warnSpy.mockRestore();
     });
   });
+
+  describe('routes domain skill', () => {
+    it('ships a playbook with list tools, checklist, pending card and when to ask', () => {
+      const skillPath = path.join(__dirname, '../../skills/routes/SKILL.md');
+      const raw = fs.readFileSync(skillPath, 'utf8');
+      expect(raw).toMatch(/^---\r?\nname: routes\r?\ndescription: .+\r?\n---/);
+      expect(raw).toMatch(/list_routes|list_contexts/);
+      expect(raw).toMatch(/чеклист|рецепт/i);
+      expect(raw).toMatch(/карточка|подтверд/i);
+      expect(raw).toMatch(/вопрос|останови/i);
+    });
+  });
 });
 
 function createMcp(registry: AiAdapterRegistryService): McpToolsService {
   return new McpToolsService(
-    { findAll: jest.fn().mockResolvedValue([]), create: jest.fn(), remove: jest.fn(), bulkCreate: jest.fn() } as any,
-    { findAll: jest.fn().mockResolvedValue([]), create: jest.fn(), remove: jest.fn() } as any,
-    { findAll: jest.fn().mockResolvedValue([]), create: jest.fn(), update: jest.fn(), remove: jest.fn() } as any,
-    { findAll: jest.fn().mockResolvedValue([]), create: jest.fn(), update: jest.fn(), remove: jest.fn() } as any,
-    { create: jest.fn(), remove: jest.fn(), generateContextDialplan: jest.fn() } as any,
-    { getIncludeNames: jest.fn() } as any,
-    { findAll: jest.fn().mockResolvedValue([]) } as any,
-    { applyCategories: jest.fn() } as any,
-    {} as any,
-    { findOne: jest.fn() } as any,
-    { getStats: jest.fn(), findCalls: jest.fn() } as any,
     registry,
-    { getSettings: jest.fn().mockResolvedValue({ confirmDestructive: false }) } as any,
     { logAction: jest.fn().mockResolvedValue(undefined) } as any,
-    { createProposal: jest.fn(async (proposal: any) => ({ ...proposal, status: 'pending' })) } as any,
+    { createProposal: jest.fn(async (proposal: any) => ({ ...proposal, proposalId: 'p1', status: 'pending' })) } as any,
   );
 }

@@ -60,6 +60,19 @@ export class UpdateOperatorSettingsDto {
   volume?: number;
 }
 
+export class CallbackPolicyDto {
+  @IsIn([...CALLBACK_ORDER_MODES])
+  order_mode: (typeof CALLBACK_ORDER_MODES)[number];
+
+  @IsOptional()
+  @Matches(/^[0-9*#]$/)
+  dtmf_digit?: string;
+
+  @IsOptional()
+  @IsIn([...CALLBACK_DIAL_ORDERS])
+  dial_order?: (typeof CALLBACK_DIAL_ORDERS)[number];
+}
+
 export class UpdateCcSettingsDto {
   @IsOptional()
   @IsInt()
@@ -106,19 +119,6 @@ export class UpdateCcSettingsDto {
   @ValidateNested()
   @Type(() => CallbackPolicyDto)
   callback_policy?: CallbackPolicyDto;
-}
-
-export class CallbackPolicyDto {
-  @IsIn([...CALLBACK_ORDER_MODES])
-  order_mode: (typeof CALLBACK_ORDER_MODES)[number];
-
-  @IsOptional()
-  @Matches(/^[0-9*#]$/)
-  dtmf_digit?: string;
-
-  @IsOptional()
-  @IsIn([...CALLBACK_DIAL_ORDERS])
-  dial_order?: (typeof CALLBACK_DIAL_ORDERS)[number];
 }
 
 /** D-05: tab/panel visibility + softphone placement. Locked keys rejected server-side (D-06). */

@@ -1,7 +1,6 @@
 /**
- * Built-in provider templates. Installed as `user_uid = 0` rows on first
- * boot of the AI Agents module — tenants clone them to enter their own
- * API keys.
+ * Historical vendor presets. Not seeded — each tenant creates their own
+ * providers. Kept as a reference for default endpoints and pricing.
  *
  * Pricing is taken from public vendor docs at the time of writing
  * (May 2026) and is intended to be edited by admins per agreement.
@@ -40,9 +39,19 @@ export const BUILTIN_PROVIDER_TEMPLATES: ProviderTemplate[] = [
     vendor: 'openai',
     endpoint: 'https://api.openai.com/v1/chat/completions',
     auth_type: 'bearer',
-    capabilities: ['llm'],
+    capabilities: ['llm', 'tools'],
     defaults: { model: 'gpt-4o-mini', temperature: 0.3 },
     pricing: { inputTokenUsd: 0.15e-6, outputTokenUsd: 0.6e-6, currency: 'USD' },
+  },
+  {
+    name: 'aiPBX',
+    kind: 'online',
+    vendor: 'aipbx',
+    endpoint: 'https://aipbx.net/api/v1/chat/completions',
+    auth_type: 'bearer',
+    capabilities: ['llm', 'tools'],
+    defaults: { model: 'gemma4:e4b', temperature: 0.2 },
+    pricing: { inputTokenUsd: 0, outputTokenUsd: 0, currency: 'USD' },
   },
   {
     name: 'Qwen Realtime',

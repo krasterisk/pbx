@@ -1,8 +1,12 @@
 ---
 name: reports
 description: Сводка и поиск CDR, disposition при разборе жалобы, потолок выдачи поиска.
+domains: ["reports"]
+intents: ["report"]
+aliases: ["отчет", "cdr"]
+related: ["diagnostics"]
+risk: low
 ---
-
 # Журнал звонков
 
 Запись CDR в этом продукте — один звонок (`linkedid`), не нога канала. Агент читает сводку и ищет вызовы; писать журнал нельзя.

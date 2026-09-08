@@ -136,6 +136,8 @@ describe('TrunksAiAdapter', () => {
       expect(raw).toMatch(/регистрац|registration|auth/i);
       expect(raw).toMatch(/пир|peer|ip/i);
       expect(raw).toMatch(/живые|live|звонк/i);
+      expect(raw).toMatch(/list_trunks/);
+      expect(raw).toMatch(/чеклист|рецепт/i);
     });
   });
 });

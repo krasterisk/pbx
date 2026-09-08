@@ -11,11 +11,10 @@ import { CreateAiAgentDto, UpdateAiAgentDto } from './dto/ai-agent.dto';
 import { CreateAiProviderDto, UpdateAiProviderDto } from './dto/ai-provider.dto';
 import { CreateAiToolsetDto, UpdateAiToolsetDto } from './dto/ai-toolset.dto';
 
-const ADMIN_LEVEL = 1;
+const ADMIN_LEVELS = new Set([0, 1]); // SUPERADMIN, ADMIN
 
 function assertAdmin(user: any): void {
-  // Krasterisk role levels: 1 = admin, 2 = operator, 3 = supervisor
-  if (user.level !== ADMIN_LEVEL) {
+  if (!ADMIN_LEVELS.has(Number(user?.level))) {
     throw new ForbiddenException('Admin access required for AI Agents management');
   }
 }
@@ -93,12 +92,6 @@ export class AiAgentsController {
   removeProvider(@Param('id', ParseIntPipe) id: number, @Req() req: Request & { user: any }) {
     assertAdmin(req.user);
     return this.providers.remove(id, req.user.vpbx_user_uid);
-  }
-
-  @Post('providers/:id/clone')
-  cloneProvider(@Param('id', ParseIntPipe) id: number, @Req() req: Request & { user: any }) {
-    assertAdmin(req.user);
-    return this.providers.cloneTemplate(id, req.user.vpbx_user_uid);
   }
 
   // ─── Toolsets (sub-route) ───────────────────────────────

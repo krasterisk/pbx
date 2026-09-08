@@ -1,0 +1,4 @@
+docs(15-09): complete subscriber and trunk proposal plan
+
+- Record five adapter-served mutations, credential move, and apply dispatch
+- Advance STATE and ROADMAP to 15-10

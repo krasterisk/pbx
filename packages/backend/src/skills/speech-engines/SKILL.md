@@ -1,8 +1,12 @@
 ---
 name: speech-engines
 description: TTS и STT тенанта — configured против enabled, capabilities без ключей, робот зависит от движка, агент описывает и не вызывает синтез или распознавание.
+domains: ["speech-engines"]
+intents: ["configure_speech"]
+aliases: ["tts", "speech"]
+related: ["ivrs", "voice-robots"]
+risk: medium
 ---
-
 # Речевые движки
 
 Один скил на оба домена: `tts-engines` и `stt-engines`. Диагностическая история общая — робот молчит, потому что движок не настроен или ссылка битая. Правило покрытия 15-23 должно принять этот общий файл (shared-skill), а не требовать stub `src/skills/tts-engines` и `src/skills/stt-engines`.

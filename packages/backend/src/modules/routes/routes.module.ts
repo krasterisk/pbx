@@ -25,6 +25,7 @@ import { QueuesModule } from '../queues/queues.module';
 import { IvrsModule } from '../ivrs/ivrs.module';
 import { DirectoriesModule } from '../directories/directories.module';
 import { TrunksModule } from '../trunks/trunks.module';
+import { CallGroupsModule } from '../call-groups/call-groups.module';
 
 // RouteDirectoryBinding/Directory/DirectoryField are registered here so
 // RoutesService/RouteApplyService can @InjectModel them without importing
@@ -40,6 +41,7 @@ import { TrunksModule } from '../trunks/trunks.module';
     QueuesModule,
     IvrsModule,
     DirectoriesModule,
+    CallGroupsModule,
     forwardRef(() => TrunksModule),
   ],
   controllers: [RoutesController, ContextIncludesController, DialplanWebhooksController],

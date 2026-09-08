@@ -1064,4 +1064,10 @@ Node.js **22+** is required for Capacitor 8 CLI/sync.
 
 ---
 
-*Last updated: 2026-08-24 (implicit-field InfoTooltip pattern / dialHint)*
+## Phase 12 — nested overlays (M8)
+
+Three-level stack `RouteFormModal` → `RoutePhonebooksTab` → step `Sheet` was verified live (2026-08-20). Radix portal order is enough: overlap, focus, Esc-on-top, and stacked dimming all work **without** applying `.layer-modal-nested`. Token `--z-index-modal-nested: 55` stays in `globals.css` as a sanctioned fallback only.
+
+---
+
+*Last updated: 2026-08-31 (Phase 12 M8 overlay note)*

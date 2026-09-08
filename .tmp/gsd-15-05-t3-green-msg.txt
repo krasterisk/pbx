@@ -1,0 +1,4 @@
+feat(15-05): refuse catch-all above specific or emergency routes
+
+- Add a Nest-free precedence check naming the offending pair
+- Apply leaves an unsafe route proposal pending and audits the refusal

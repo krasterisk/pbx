@@ -1,0 +1,5 @@
+feat(15-09): implement trunk create and delete as proposals
+
+- Adapter-serve create_trunk, delete_trunk and list_trunks with named route dependents
+- Enrol the five subscriber/trunk tools in the registry isolation suite
+- Dispatch endpoint and trunk apply payloads so confirm is the only writer

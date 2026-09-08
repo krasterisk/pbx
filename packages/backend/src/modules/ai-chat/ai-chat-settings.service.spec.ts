@@ -47,6 +47,27 @@ describe('AiChatSettingsService', () => {
     });
   });
 
+  describe('tenant default provider', () => {
+    it('returns null when the tenant has no settings row', async () => {
+      model.findOne.mockResolvedValue(null);
+      await expect(service.getDefaultProviderUid(100)).resolves.toBeNull();
+      expect(model.findOne).toHaveBeenCalledWith({ where: { user_uid: 100 } });
+    });
+
+    it('stores defaultProviderUid on the tenant settings row', async () => {
+      const row = { settings: {}, update: jest.fn() };
+      row.update.mockImplementation(async (patch: any) => { row.settings = patch.settings; });
+      model.findOrCreate.mockResolvedValue([row, true]);
+
+      await expect(service.setDefaultProviderUid(100, 21)).resolves.toBe(21);
+      expect(model.findOrCreate).toHaveBeenCalledWith({
+        where: { user_uid: 100 },
+        defaults: { user_uid: 100, confirm_destructive: 0, settings: {} },
+      });
+      expect(row.settings).toEqual({ defaultProviderUid: 21 });
+    });
+  });
+
   describe('updateSettings', () => {
     it('creates a row for a tenant with no prior settings and applies the update', async () => {
       const row = { confirm_destructive: 0, update: jest.fn() };

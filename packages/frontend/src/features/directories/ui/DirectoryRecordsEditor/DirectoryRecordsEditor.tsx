@@ -1,12 +1,11 @@
-import { memo, useCallback } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Trash2 } from 'lucide-react';
-import type { DirectoryFieldType, DirectoryMatchKind } from '@krasterisk/shared';
+import { ChevronLeft, ChevronRight, Plus, Trash2 } from 'lucide-react';
+import type { DirectoryFieldType, DirectoryKeyNormalization } from '@krasterisk/shared';
 import {
   Button,
   Input,
   Label,
-  Select,
   Checkbox,
   Text,
   InfoTooltip,
@@ -15,11 +14,10 @@ import {
 } from '@/shared/ui';
 import { VStack, HStack, Flex } from '@/shared/ui/Stack';
 import type { IDirectoryFieldDraft } from '../DirectorySchemaEditor/DirectorySchemaEditor';
+import { findDuplicateRecordIndexes } from '../../model/directoryRecordLookup';
 import cls from './DirectoryRecordsEditor.module.scss';
 
 export interface IDirectoryRecordDraft {
-  match_kind: DirectoryMatchKind;
-  priority: number;
   values: Record<string, string | number | boolean>;
   comment?: string;
 }
@@ -27,9 +25,13 @@ export interface IDirectoryRecordDraft {
 export interface DirectoryRecordsEditorProps {
   fields: IDirectoryFieldDraft[];
   lookupFieldKey: string;
+  keyNormalization: DirectoryKeyNormalization;
   records: IDirectoryRecordDraft[];
   onRecordsChange: (records: IDirectoryRecordDraft[]) => void;
 }
+
+/** Keeps an imported file of hundreds of rows from mounting thousands of controls. */
+const PAGE_SIZE = 25;
 
 function coerceValue(type: DirectoryFieldType, raw: string): string | number | boolean {
   if (type === 'number') {
@@ -43,18 +45,35 @@ function coerceValue(type: DirectoryFieldType, raw: string): string | number | b
 export const DirectoryRecordsEditor = memo(({
   fields,
   lookupFieldKey,
+  keyNormalization,
   records,
   onRecordsChange,
 }: DirectoryRecordsEditorProps) => {
   const { t } = useTranslation();
   const lookupField = fields.find((field) => field.key === lookupFieldKey);
   const patternAllowed = lookupField?.type === 'phone';
+  const duplicateIndexes = useMemo(
+    () => findDuplicateRecordIndexes(records, lookupFieldKey, keyNormalization),
+    [records, lookupFieldKey, keyNormalization],
+  );
+
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(records.length / PAGE_SIZE));
+
+  useEffect(() => {
+    setPage((prev) => Math.min(Math.max(prev, 1), totalPages));
+  }, [totalPages]);
+
+  const pageStart = (Math.min(page, totalPages) - 1) * PAGE_SIZE;
+  const visible = useMemo(
+    () => records.slice(pageStart, pageStart + PAGE_SIZE),
+    [records, pageStart],
+  );
 
   const addRecord = useCallback(() => {
-    onRecordsChange([
-      ...records,
-      { match_kind: 'exact', priority: 1, values: {} },
-    ]);
+    const next = [...records, { values: {} }];
+    onRecordsChange(next);
+    setPage(Math.ceil(next.length / PAGE_SIZE));
   }, [records, onRecordsChange]);
 
   const updateRecord = useCallback((index: number, patch: Partial<IDirectoryRecordDraft>) => {
@@ -74,10 +93,13 @@ export const DirectoryRecordsEditor = memo(({
 
   return (
     <VStack gap="12" max className={cls.editor}>
-      <HStack justify="between" align="center" max>
+      <HStack justify="between" align="center" max className={cls.head}>
         <HStack gap="4" align="center">
           <Text variant="h4">{t('directories.recordsTitle', 'Records')}</Text>
-          <InfoTooltip text={t('directories.recordsHint', 'Columns follow the schema keys. CSV headers use the same keys plus comment, match_kind, and priority.')} />
+          <InfoTooltip text={t('directories.recordsHint', 'Record columns follow the schema fields.')} />
+          <Text variant="muted" data-testid="directory-records-total">
+            {`${t('directories.recordsTotal', 'Records total')}: ${records.length}`}
+          </Text>
         </HStack>
         <Button
           type="button"
@@ -96,69 +118,62 @@ export const DirectoryRecordsEditor = memo(({
         className={cls.scrollBody}
         data-testid="directory-records-scroll"
         data-hybrid="overflow-x-auto"
-        data-viewport="360"
+        data-viewport="360,768,1440"
+        data-mobile-layout="card"
+        data-desktop-layout="table"
       >
         <VStack gap="8" max className={cls.recordsInner}>
           {records.length === 0 ? (
-            <Text variant="muted">{t('directories.noRecords', 'No records yet. Add a row or import CSV after saving.')}</Text>
+            <Text variant="muted">{t('directories.noRecords', 'No records yet. Add a row or import CSV.')}</Text>
           ) : (
-            records.map((record, index) => (
-              <Flex key={`record-${index}`} align="start" className={cls.recordRow}>
-                <VStack gap="4" className={cls.matchCell}>
-                  <HStack gap="4" align="center">
-                    <Label htmlFor={`record-match-${index}`}>{t('directories.matchKind', 'Match')}</Label>
-                    <InfoTooltip text={t('directories.matchKindHint', 'Pattern match is available only when the lookup field type is phone.')} />
-                  </HStack>
-                  <Select
-                    id={`record-match-${index}`}
-                    data-testid={`record-match-${index}`}
-                    value={record.match_kind}
-                    onChange={(e) => updateRecord(index, { match_kind: e.target.value as DirectoryMatchKind })}
-                  >
-                    <option value="exact">{t('directories.matchExact', 'Exact')}</option>
-                    <option
-                      value="asterisk_pattern"
-                      data-testid={`record-pattern-${index}`}
-                      disabled={!patternAllowed}
-                    >
-                      {t('directories.matchPattern', 'Pattern')}
-                    </option>
-                  </Select>
-                </VStack>
-                <VStack gap="4" className={cls.priorityCell}>
-                  <Label htmlFor={`record-priority-${index}`}>{t('directories.priority', 'Priority')}</Label>
-                  <Input
-                    id={`record-priority-${index}`}
-                    data-testid={`record-priority-${index}`}
-                    type="number"
-                    min={1}
-                    value={String(record.priority)}
-                    onChange={(e) => updateRecord(index, { priority: Number(e.target.value) || 1 })}
-                  />
-                </VStack>
-                {fields.map((field) => (
-                  <VStack key={field.key} gap="4" className={cls.valueCell}>
-                    <Label htmlFor={`record-value-${index}-${field.key}`}>
-                      {field.label || field.key}
-                    </Label>
-                    {field.type === 'boolean' ? (
-                      <Checkbox
-                        id={`record-value-${index}-${field.key}`}
-                        data-testid={`record-value-${index}-${field.key}`}
-                        checked={Boolean(record.values[field.key])}
-                        onChange={(e) => updateValue(index, field.key, field.type, e.target.checked)}
-                      />
-                    ) : (
-                      <Input
-                        id={`record-value-${index}-${field.key}`}
-                        data-testid={`record-value-${index}-${field.key}`}
-                        type={field.type === 'number' ? 'number' : 'text'}
-                        value={record.values[field.key] == null ? '' : String(record.values[field.key])}
-                        onChange={(e) => updateValue(index, field.key, field.type, e.target.value)}
-                      />
-                    )}
-                  </VStack>
-                ))}
+            visible.map((record, offset) => {
+              const index = pageStart + offset;
+              const isDuplicate = duplicateIndexes.has(index);
+              return (
+              <Flex
+                key={`record-${index}`}
+                align="start"
+                max
+                className={cls.recordRow}
+                data-testid={`record-row-${index}`}
+              >
+                {fields.map((field) => {
+                  const isLookup = field.key === lookupFieldKey;
+                  return (
+                    <VStack key={field.key} gap="4" className={cls.valueCell}>
+                      <HStack gap="4" align="center">
+                        <Label htmlFor={`record-value-${index}-${field.key}`}>
+                          {field.label || field.key}
+                        </Label>
+                        {isLookup && patternAllowed && (
+                          <InfoTooltip text={t('directories.lookupPatternHint', 'If the value starts with _, it is a pattern such as _7900123XXXX. The more specific matching pattern wins. The same number or pattern cannot be added twice.')} />
+                        )}
+                      </HStack>
+                      {field.type === 'boolean' ? (
+                        <Checkbox
+                          id={`record-value-${index}-${field.key}`}
+                          data-testid={`record-value-${index}-${field.key}`}
+                          checked={Boolean(record.values[field.key])}
+                          onChange={(e) => updateValue(index, field.key, field.type, e.target.checked)}
+                        />
+                      ) : (
+                        <Input
+                          id={`record-value-${index}-${field.key}`}
+                          data-testid={`record-value-${index}-${field.key}`}
+                          type={field.type === 'number' ? 'number' : 'text'}
+                          value={record.values[field.key] == null ? '' : String(record.values[field.key])}
+                          onChange={(e) => updateValue(index, field.key, field.type, e.target.value)}
+                          aria-invalid={isLookup && isDuplicate}
+                        />
+                      )}
+                      {isLookup && isDuplicate && (
+                        <Text variant="error" data-testid={`record-duplicate-${index}`}>
+                          {t('directories.duplicateLookup', 'This number or pattern is already in the directory.')}
+                        </Text>
+                      )}
+                    </VStack>
+                  );
+                })}
                 <VStack gap="4" className={cls.commentCell}>
                   <Label htmlFor={`record-comment-${index}`}>{t('directories.comment', 'Comment')}</Label>
                   <Input
@@ -167,6 +182,7 @@ export const DirectoryRecordsEditor = memo(({
                     onChange={(e) => updateRecord(index, { comment: e.target.value })}
                   />
                 </VStack>
+                <div className={cls.rowActions}>
                 <TableRowActions>
                   <TableRowAction
                     danger
@@ -177,11 +193,43 @@ export const DirectoryRecordsEditor = memo(({
                     <Trash2 />
                   </TableRowAction>
                 </TableRowActions>
+                </div>
               </Flex>
-            ))
+              );
+            })
           )}
         </VStack>
       </Flex>
+
+      {totalPages > 1 && (
+        <HStack gap="8" align="center" justify="center" max className={cls.pager} data-testid="directory-records-pager">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={page <= 1}
+            aria-label={t('directories.prevPage', 'Previous page')}
+            data-testid="directory-records-prev"
+            onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+          >
+            <ChevronLeft className={cls.icon} />
+          </Button>
+          <Text variant="small" data-testid="directory-records-page">
+            {`${t('directories.recordsPage', 'Page')} ${Math.min(page, totalPages)} / ${totalPages}`}
+          </Text>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={page >= totalPages}
+            aria-label={t('directories.nextPage', 'Next page')}
+            data-testid="directory-records-next"
+            onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+          >
+            <ChevronRight className={cls.icon} />
+          </Button>
+        </HStack>
+      )}
     </VStack>
   );
 });

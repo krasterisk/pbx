@@ -114,11 +114,10 @@ describe('read-adapters-settings-messaging — tenant settings (D-15, secret bou
     expect(absent).toEqual({ key: 'integrations.provider_token', configured: false });
   });
 
-  it('declares no mutating tool', () => {
+  it('exposes only allowlisted value mutations (not secrets or identity)', () => {
     expect(adapter.getTools().length).toBeGreaterThan(0);
-    for (const tool of adapter.getTools()) {
-      expect(isMutating(tool)).toBe(false);
-    }
+    const mutating = adapter.getTools().filter((tool) => isMutating(tool));
+    expect(mutating.map((tool) => tool.name)).toEqual(['update_tenant_setting']);
     expect(tenantSettings.setMany).not.toHaveBeenCalled();
   });
 
@@ -167,10 +166,11 @@ describe('read-adapters-settings-messaging — tenant settings (D-15, secret bou
   it('ships a settings skill covering diagnosis, presence-only secrets and the read-only boundary', () => {
     const skillPath = path.join(__dirname, '../../skills/settings/SKILL.md');
     const raw = fs.readFileSync(skillPath, 'utf8');
-    expect(raw).toMatch(/^---\r?\nname: settings\r?\ndescription: .+\r?\n---/);
+    expect(raw).toMatch(/^---\r?\nname: settings\r?\ndescription: .+/m);
+    expect(raw).toMatch(/\nrisk: high\r?\n---/);
     expect(raw).toMatch(/лимит|flag|флаг|маршрут|route/i);
     expect(raw).toMatch(/configured|присутств|наличие|не значен/i);
-    expect(raw).toMatch(/не меня|cannot change|нельзя измен|settings screen|экран настро/i);
+    expect(raw).toMatch(/allowlist|update_tenant_setting|нельзя.*секрет|identity|billing/i);
   });
 });
 
@@ -487,7 +487,8 @@ describe('read-adapters-settings-messaging — telegram (D-12, D-15)', () => {
   it('ships a messaging skill covering both channels, delivery status, hidden bodies and no send', () => {
     const skillPath = path.join(__dirname, '../../skills/messaging/SKILL.md');
     const raw = fs.readFileSync(skillPath, 'utf8');
-    expect(raw).toMatch(/^---\r?\nname: messaging\r?\ndescription: .+\r?\n---/);
+    expect(raw).toMatch(/^---\r?\nname: messaging\r?\ndescription: .+/m);
+    expect(raw).toMatch(/\nrisk: medium\r?\n---/);
     expect(raw).toMatch(/sms|SMS/i);
     expect(raw).toMatch(/telegram|Telegram/i);
     expect(raw).toMatch(/delivered|доставле|failed|ошиб/i);

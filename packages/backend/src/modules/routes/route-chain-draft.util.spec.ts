@@ -8,6 +8,7 @@ const REFS: TenantEntityRefs = {
   routes: [{ uid: 11, name: 'Inbound' }],
   contexts: [{ uid: 3, name: 'from-internal' }],
   directories: [{ uid: 4 }],
+  groups: [{ uid: 5, name: 'Sales', exten: '701' }],
 };
 
 describe('validateRouteChainDraft', () => {
@@ -93,5 +94,21 @@ describe('validateRouteChainDraft', () => {
     if (result.ok) return;
     expect(result.stepIndex).toBe(0);
     expect(result.reason).toMatch(/type|kind|app/i);
+  });
+
+  it('accepts a tenant call group for togroup and refuses a foreign group id', () => {
+    const ok = validateRouteChainDraft(
+      [{ type: 'togroup', params: { target: { source: 'fixed', value: '5' } }, condition: {} }],
+      REFS,
+    );
+    expect(ok.ok).toBe(true);
+
+    const refused = validateRouteChainDraft(
+      [{ type: 'togroup', params: { target: { source: 'fixed', value: '99' } }, condition: {} }],
+      REFS,
+    );
+    expect(refused.ok).toBe(false);
+    if (refused.ok) return;
+    expect(refused.reason).toMatch(/99|group|exist/i);
   });
 });

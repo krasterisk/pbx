@@ -1,8 +1,12 @@
 ---
 name: voicemail
 description: Сообщения голосовой почты, две оси статуса; домен для агента только на чтение.
+domains: ["voicemail"]
+intents: ["configure_voicemail"]
+aliases: ["голосовая почта", "voicemail"]
+related: ["endpoints"]
+risk: medium
 ---
-
 # Голосовая почта
 
 Сообщение — WAV после `Record()`, не mailbox Asterisk. `VoiceMail()`, MWI и `VoiceMailMain` в продукте нет.

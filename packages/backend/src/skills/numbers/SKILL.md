@@ -1,8 +1,12 @@
 ---
 name: numbers
 description: Номера тенанта, статусы, связь с входящим маршрутом, describe_number уже решает назначение.
+domains: ["numbers"]
+intents: ["configure_numbers"]
+aliases: ["номера", "access list"]
+related: []
+risk: medium
 ---
-
 # Номера
 
 Номер в этом домене — DID или маска, которую тенант считает своим входящим номером. Это не список доступа оператора и не внутренний extension абонента.

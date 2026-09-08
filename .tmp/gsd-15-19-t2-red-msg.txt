@@ -1,0 +1,4 @@
+test(15-19): add failing tests for events, dialplan and read-only adapter
+
+- Event window/count bounds and compiled-dialplan ownership refusal
+- Adapter must declare three reads and no mutating tool

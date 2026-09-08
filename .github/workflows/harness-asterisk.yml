@@ -1,11 +1,9 @@
-# Asterisk lab harness — workflow_dispatch + optional nightly (D-10).
+# Asterisk lab harness — workflow_dispatch only (D-10). Nightly cron removed.
 # Separate from default PR CI (D-06/D-09). Requires lab secrets in repo settings.
 name: harness-asterisk
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '0 3 * * *'
 
 jobs:
   asterisk:

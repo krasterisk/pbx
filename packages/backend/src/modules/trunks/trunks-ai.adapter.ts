@@ -1,4 +1,5 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { z } from 'zod';
 import { TrunksService } from './trunks.service';
 import { RoutesService } from '../routes/routes.service';
 import { AiAdapterRegistryService } from '../ai-platform/ai-adapter-registry.service';
@@ -8,6 +9,37 @@ import {
   DomainAiAdapter,
   AgentDiffProposal,
 } from '../ai-platform/ai-adapter.types';
+import { defineMutationTool } from '../ai-platform/ai-mutation.contract';
+
+const SCHEMA_VERSION = 'trunks-1';
+
+const trunkType = z.enum(['auth', 'ip']);
+
+/** No `password` key anywhere: a provider secret is set on the trunk screen, not by the model. */
+const createTrunkShape = {
+  name: z.string().min(1).describe('Имя транка ("МТТ", "Ростелеком")'),
+  trunkType: trunkType.optional(),
+  host: z.string().min(1).describe('Адрес SIP-сервера провайдера'),
+  port: z.number().int().positive().optional(),
+  username: z.string().optional(),
+  context: z.string().optional().describe('Контекст для входящих (from-trunk)'),
+  codecs: z.string().optional(),
+  fromDomain: z.string().optional(),
+};
+
+const createTrunkInput = z.strictObject(createTrunkShape);
+const createTrunkArgs = z.strictObject({
+  ...createTrunkShape,
+  trunkType: trunkType.default('ip'),
+});
+
+const deleteTrunkInput = z.strictObject({
+  trunkId: z.string().min(1).describe('ID транка (t_{name}_{tenantId})'),
+});
+
+type CreateTrunkInput = z.infer<typeof createTrunkInput>;
+type CreateTrunkArgs = z.infer<typeof createTrunkArgs>;
+type DeleteTrunkArgs = z.infer<typeof deleteTrunkInput>;
 
 export interface TrunkRouteRef {
   uid: number;
@@ -77,6 +109,18 @@ function matchesTrunk(value: unknown, trunkId: string): boolean {
   return text === trunkId || text.endsWith(`/${trunkId}`) || text.includes(trunkId);
 }
 
+/** findAll exposes host; findOne nests it under registration / identify. */
+function resolveTrunkHost(current: {
+  host?: unknown;
+  registration?: { server_uri?: string } | null;
+  identify?: { match?: string } | null;
+}): string {
+  if (typeof current.host === 'string' && current.host) return current.host;
+  const fromReg = current.registration?.server_uri?.replace(/^sip:/i, '').split('@').pop();
+  if (fromReg) return fromReg;
+  return current.identify?.match ?? '';
+}
+
 /**
  * TrunksAiAdapter — trunk mutations as proposals plus a read listing (D-15).
  */
@@ -138,63 +182,91 @@ export class TrunksAiAdapter implements DomainAiAdapter, OnModuleInit {
   }
 
   private toolCreateTrunk(): AiToolDefinition {
-    return {
+    return defineMutationTool<CreateTrunkInput, CreateTrunkArgs>({
       name: 'create_trunk',
       description: 'Предлагает создать исходящий SIP-транк. Тип auth — регистрация, ip — пиринг.',
-      inputSchema: {
-        name: { type: 'string', description: 'Имя транка ("МТТ", "Ростелеком")' },
-        trunkType: { type: 'string', enum: ['auth', 'ip'] },
-        host: { type: 'string', description: 'Адрес SIP-сервера провайдера' },
-        port: { type: 'number' },
-        username: { type: 'string' },
-        context: { type: 'string', description: 'Контекст для входящих (from-trunk)' },
-        codecs: { type: 'string' },
-        fromDomain: { type: 'string' },
-      },
       entityType: 'trunk',
-      proposes: true,
-      handler: async (args) => {
-        const name = String(args.name ?? 'trunk');
-        const host = String(args.host ?? '');
-        const trunkType = String(args.trunkType ?? 'ip');
-        const applyArgs: Record<string, unknown> = { ...args, name, host, trunkType };
-        delete applyArgs.password;
+      schemaVersion: SCHEMA_VERSION,
+      input: createTrunkInput,
+      args: createTrunkArgs,
+      reload: { kind: 'none' },
+      propose: async (input) => {
+        const kind = input.trunkType ?? 'ip';
         return this.proposal(
           'create_trunk',
-          name,
-          applyArgs,
+          input.name,
+          { ...input, trunkType: kind },
           null,
-          { name, host, trunkType },
-          [`Создать транк «${name}» на хосте ${host} (${trunkType})`],
+          { name: input.name, host: input.host, trunkType: kind },
+          [`Создать транк «${input.name}» на хосте ${input.host} (${kind})`],
         );
       },
-    };
+      revalidate: async (args, ctx) => {
+        const existing = await this.trunksService.findAll(ctx.vpbxUserUid);
+        if (existing.some((trunk) => trunk.name === args.name)) {
+          return { ok: false, reason: `Транк «${args.name}» уже есть у тенанта` };
+        }
+        return { ok: true, args };
+      },
+      apply: async (args, ctx) => {
+        await this.trunksService.create(args as never, ctx.vpbxUserUid);
+      },
+    });
   }
 
   private toolDeleteTrunk(): AiToolDefinition {
-    return {
+    return defineMutationTool<DeleteTrunkArgs, DeleteTrunkArgs>({
       name: 'delete_trunk',
       description: 'Предлагает удалить транк. В карточке — маршруты, которые на него ссылаются. Деструктивно.',
-      inputSchema: { trunkId: { type: 'string', description: 'ID транка (t_{name}_{tenantId})' } },
       entityType: 'trunk',
       destructive: true,
-      proposes: true,
-      handler: async (args, uid) => {
-        const trunkId = String(args.trunkId);
-        const current = await this.trunksService.findOne(trunkId, uid);
-        const routes = await this.routesService.findAll(uid);
-        const references = collectTrunkRouteRefs(routes, trunkId);
+      schemaVersion: SCHEMA_VERSION,
+      input: deleteTrunkInput,
+      args: deleteTrunkInput,
+      reload: { kind: 'none' },
+      propose: async (input, ctx) => {
+        const current = await this.trunksService.findOne(input.trunkId, ctx.vpbxUserUid);
+        const routes = await this.routesService.findAll(ctx.vpbxUserUid);
+        const references = collectTrunkRouteRefs(routes, input.trunkId);
         const refNames = references.map((row) => row.name).join(', ') || 'нет ссылающихся маршрутов';
         return this.proposal(
           'delete_trunk',
           current.name,
-          { trunkId },
-          { id: current.id, name: current.name, host: current.host },
+          { trunkId: input.trunkId },
+          { id: current.id, name: current.name, host: resolveTrunkHost(current) },
           { referencedRoutes: references },
-          [`Удалить транк «${current.name}» (${trunkId})`, `Маршруты, которые ссылаются: ${refNames}`],
+          [`Удалить транк «${current.name}» (${input.trunkId})`, `Маршруты, которые ссылаются: ${refNames}`],
         );
       },
-    };
+      revalidate: async (args, ctx) => {
+        try {
+          await this.trunksService.findOne(args.trunkId, ctx.vpbxUserUid);
+        } catch {
+          return { ok: false, reason: `Транк ${args.trunkId} не найден у тенанта` };
+        }
+        const routes = await this.routesService.findAll(ctx.vpbxUserUid);
+        const references = collectTrunkRouteRefs(routes, args.trunkId);
+        if (references.length) {
+          return {
+            ok: false,
+            reason: `На транк ссылаются маршруты: ${references.map((row) => row.name).join(', ')}`,
+          };
+        }
+        return { ok: true, args };
+      },
+      apply: async (args, ctx) => {
+        const result = await confirmTrunkDelete(
+          this.trunksService,
+          this.routesService,
+          args.trunkId,
+          ctx.vpbxUserUid,
+        );
+        if (!result.ok) {
+          const names = (result.references ?? []).map((row) => row.name).join(', ');
+          throw new Error(`Trunk is referenced by routes: ${names}`);
+        }
+      },
+    });
   }
 
   private proposal(

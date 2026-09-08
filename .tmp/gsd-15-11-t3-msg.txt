@@ -1,0 +1,3 @@
+docs(15-11): add routes domain skill
+
+- Teach typed chains, precedence inversion, tenant context naming, and optional Phase 14 tools

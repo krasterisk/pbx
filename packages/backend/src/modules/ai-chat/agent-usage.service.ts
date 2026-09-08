@@ -7,6 +7,8 @@ import { CcAiAuditLog } from '../ai-agents/models/ai-audit-log.model';
 import { AgentThread } from './models/agent-thread.model';
 import { AgentProposal } from './models/agent-proposal.model';
 import { AiChatSettings } from './ai-chat-settings.model';
+import { Tenant } from '../cloud-admin/tenant.model';
+import { CloudSetting } from '../cloud-admin/cloud-setting.model';
 
 const SILENT_WRITE_INTERVAL_MS = 60 * 60 * 1000;
 const SILENT_WRITE_WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -15,6 +17,7 @@ const LIVE_OPS = new Set(['cc_force_pause_agent', 'cc_force_unpause_agent']);
 
 export interface TenantUsageRow {
   tenantUid: number;
+  tenantName: string | null;
   tokensIn: number;
   tokensOut: number;
   turns: number;
@@ -95,6 +98,8 @@ export class AgentUsageService {
     @InjectModel(AgentProposal) private readonly proposals: typeof AgentProposal,
     @InjectModel(CcAiAuditLog) private readonly audit: typeof CcAiAuditLog,
     @InjectModel(AiChatSettings) private readonly settings: typeof AiChatSettings,
+    @InjectModel(Tenant) private readonly tenants?: typeof Tenant,
+    @InjectModel(CloudSetting) private readonly cloudSettings?: typeof CloudSetting,
   ) {}
 
   async queryTenantUsage(from: Date, to: Date): Promise<TenantUsageRow[]> {
@@ -132,16 +137,53 @@ export class AgentUsageService {
       grouped.set(row.vpbx_user_uid, current);
     }
 
+    const names = await this.resolveTenantNames([...grouped.keys()]);
+
     return [...grouped.entries()]
       .sort(([a], [b]) => a - b)
       .map(([tenantUid, value]) => ({
         tenantUid,
+        tenantName: names.get(tenantUid) ?? null,
         tokensIn: value.tokensIn,
         tokensOut: value.tokensOut,
         turns: value.turns,
         spendUsd: value.unpriced ? null : value.priced,
         spendAvailable: !value.unpriced,
       }));
+  }
+
+  private async resolveTenantNames(uids: number[]): Promise<Map<number, string>> {
+    const names = new Map<number, string>();
+    if (uids.length === 0) return names;
+
+    if (this.tenants) {
+      try {
+        const rows = await this.tenants.findAll({
+          where: { vpbx_user_uid: { [Op.in]: uids } },
+          attributes: ['name', 'vpbx_user_uid'],
+        });
+        for (const row of rows) {
+          const name = typeof row.name === 'string' ? row.name.trim() : '';
+          if (name) names.set(Number(row.vpbx_user_uid), name);
+        }
+      } catch (error) {
+        this.logger.warn(`tenant names unavailable: ${(error as Error).message}`);
+      }
+    }
+
+    if (uids.includes(0) && !names.has(0) && this.cloudSettings) {
+      try {
+        const seller = await this.cloudSettings.findOne({
+          where: { key: 'billing.seller.name' },
+        });
+        const sellerName = seller?.value?.trim();
+        if (sellerName) names.set(0, sellerName);
+      } catch (error) {
+        this.logger.warn(`seller name unavailable: ${(error as Error).message}`);
+      }
+    }
+
+    return names;
   }
 
   async queryProposalFunnel(from: Date, to: Date): Promise<ProposalFunnelRow[]> {

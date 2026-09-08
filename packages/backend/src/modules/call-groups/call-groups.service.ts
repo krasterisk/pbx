@@ -58,8 +58,13 @@ export class CallGroupsService {
 
   /**
    * Tenant-unique group number must not collide with another group, a queue, or an internal.
+   * Public so propose/revalidate can refuse or swap the number before Apply.
    */
-  private async assertExtenFree(exten: string, vpbx: number, excludeUid?: number): Promise<void> {
+  async checkExtenConflict(
+    exten: string,
+    vpbx: number,
+    excludeUid?: number,
+  ): Promise<{ code: CallGroupErrorCode; reason: string; params: Record<string, string | number> } | null> {
     const existing = await this.groupModel.findOne({
       where: {
         user_uid: vpbx,
@@ -68,12 +73,11 @@ export class CallGroupsService {
       },
     });
     if (existing) {
-      throw callGroupHttpError(
-        HttpStatus.CONFLICT,
-        'CALL_GROUP_EXTEN_USED_BY_GROUP',
-        `Call group extension "${exten}" is already used by group "${existing.name}" (uid ${existing.uid})`,
-        { exten, name: existing.name, uid: existing.uid },
-      );
+      return {
+        code: 'CALL_GROUP_EXTEN_USED_BY_GROUP',
+        reason: `группа «${existing.name}»`,
+        params: { exten, name: existing.name, uid: existing.uid },
+      };
     }
 
     const [queues] = await this.sequelize.query(
@@ -81,23 +85,50 @@ export class CallGroupsService {
       { replacements: { name: `q${exten}_${vpbx}` } },
     );
     if (Array.isArray(queues) && queues.length > 0) {
-      throw callGroupHttpError(
-        HttpStatus.CONFLICT,
-        'CALL_GROUP_EXTEN_USED_BY_QUEUE',
-        `Extension "${exten}" is already used by a queue`,
-        { exten },
-      );
+      return {
+        code: 'CALL_GROUP_EXTEN_USED_BY_QUEUE',
+        reason: 'очередь',
+        params: { exten },
+      };
     }
 
     const endpoints = await this.endpointsService.findAll(vpbx);
     if (endpoints.some((e) => String(e.extension) === exten)) {
-      throw callGroupHttpError(
-        HttpStatus.CONFLICT,
-        'CALL_GROUP_EXTEN_USED_BY_ENDPOINT',
-        `Extension "${exten}" is already used by an internal number`,
-        { exten },
-      );
+      return {
+        code: 'CALL_GROUP_EXTEN_USED_BY_ENDPOINT',
+        reason: `абонент ${exten}`,
+        params: { exten },
+      };
     }
+
+    return null;
+  }
+
+  /**
+   * Next free group number in the product 6xxx range (D-33: `6` + 3-digit uid → 6007).
+   * Not 90xx — that band was never reserved for groups.
+   */
+  async suggestFreeExten(vpbx: number): Promise<string> {
+    for (let n = 6000; n <= 6999; n += 1) {
+      const candidate = String(n);
+      if (!(await this.checkExtenConflict(candidate, vpbx))) return candidate;
+    }
+    throw callGroupHttpError(
+      HttpStatus.BAD_REQUEST,
+      'CALL_GROUP_EXTEN_USED_IN_TENANT',
+      'Нет свободного номера группы в диапазоне 6000–6999',
+    );
+  }
+
+  private async assertExtenFree(exten: string, vpbx: number, excludeUid?: number): Promise<void> {
+    const conflict = await this.checkExtenConflict(exten, vpbx, excludeUid);
+    if (!conflict) return;
+    throw callGroupHttpError(
+      HttpStatus.CONFLICT,
+      conflict.code,
+      `Номер «${exten}» уже занят: ${conflict.reason}`,
+      conflict.params,
+    );
   }
 
   /**

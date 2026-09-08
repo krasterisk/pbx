@@ -140,7 +140,7 @@ Each task was committed atomically:
 3. **Task 3 RED: failing CRUD page tests** - `94e7ed0` (test)
 4. **Task 3 GREEN: route templates CRUD page** - `7653719` (feat)
 
-**Plan metadata:** pending docs commit
+**Plan metadata:** `f81315b` (docs: complete plan)
 
 ## Files Created/Modified
 

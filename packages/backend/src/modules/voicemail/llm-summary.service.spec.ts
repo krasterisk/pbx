@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { encryptSecret } from '../ai-agents/util/secret-cipher.util';
 import type { CcAiProvider } from '../ai-agents/models/ai-provider.model';
-import { LlmSummaryService } from './llm-summary.service';
+import { LlmSummaryService, resolveChatCompletionsUrl, chatTokenLimitParams } from './llm-summary.service';
 
 jest.mock('axios');
 
@@ -25,6 +25,72 @@ function provider(overrides: Partial<CcAiProvider> = {}): CcAiProvider {
     ...overrides,
   } as CcAiProvider;
 }
+
+describe('resolveChatCompletionsUrl', () => {
+  it('keeps an already-normalized chat-completions URL', () => {
+    expect(resolveChatCompletionsUrl('https://api.openai.com/v1/chat/completions/')).toBe(
+      'https://api.openai.com/v1/chat/completions',
+    );
+  });
+
+  it('maps OpenAI realtime, Ollama native chat, and DashScope realtime', () => {
+    expect(
+      resolveChatCompletionsUrl('wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview'),
+    ).toBe('https://api.openai.com/v1/chat/completions');
+    expect(resolveChatCompletionsUrl('http://127.0.0.1:11434/api/chat')).toBe(
+      'http://127.0.0.1:11434/v1/chat/completions',
+    );
+    expect(resolveChatCompletionsUrl('wss://dashscope.aliyuncs.com/api/v1/realtime')).toBe(
+      'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
+    );
+  });
+
+  it('maps any aipbx.net path to the OpenAI-compatible completions URL', () => {
+    expect(resolveChatCompletionsUrl('https://aipbx.net/api/chats/12/message')).toBe(
+      'https://aipbx.net/api/v1/chat/completions',
+    );
+    expect(resolveChatCompletionsUrl('https://aipbx.net')).toBe(
+      'https://aipbx.net/api/v1/chat/completions',
+    );
+    expect(resolveChatCompletionsUrl('https://aipbx.net/api/v1/chat/completions')).toBe(
+      'https://aipbx.net/api/v1/chat/completions',
+    );
+    expect(resolveChatCompletionsUrl('http://gpu.aipbx.net:11434/api/chat')).toBe(
+      'https://aipbx.net/api/v1/chat/completions',
+    );
+    expect(resolveChatCompletionsUrl('https://aipbx.ru')).toBe(
+      'https://aipbx.net/api/v1/chat/completions',
+    );
+  });
+
+  it('rejects an unknown websocket and an empty value', () => {
+    expect(resolveChatCompletionsUrl('wss://example.com/voice-ai/realtime')).toBeNull();
+    expect(resolveChatCompletionsUrl('')).toBeNull();
+  });
+
+  it('repairs typoed OpenAI completions paths instead of double-appending', () => {
+    expect(resolveChatCompletionsUrl('https://api.openai.com/v1/chat/comletions')).toBe(
+      'https://api.openai.com/v1/chat/completions',
+    );
+    expect(
+      resolveChatCompletionsUrl('https://api.openai.com/v1/chat/comletions/v1/chat/completions'),
+    ).toBe('https://api.openai.com/v1/chat/completions');
+    expect(resolveChatCompletionsUrl('https://api.openai.com')).toBe(
+      'https://api.openai.com/v1/chat/completions',
+    );
+  });
+});
+
+describe('chatTokenLimitParams', () => {
+  it('uses max_completion_tokens for gpt-5 and o-series', () => {
+    expect(chatTokenLimitParams('gpt-5-nano', 100)).toEqual({ max_completion_tokens: 100 });
+    expect(chatTokenLimitParams('o3-mini', 50)).toEqual({ max_completion_tokens: 50 });
+  });
+
+  it('keeps max_tokens for classic chat models', () => {
+    expect(chatTokenLimitParams('gpt-4o-mini', 100)).toEqual({ max_tokens: 100 });
+  });
+});
 
 describe('LlmSummaryService', () => {
   const service = new LlmSummaryService();
@@ -54,9 +120,19 @@ describe('LlmSummaryService', () => {
     expect(config?.headers?.Authorization).toBeUndefined();
   });
 
-  it('skips wss endpoints without fetching and returns empty summary', async () => {
-    const summary = await service.summarize(
+  it('maps OpenAI realtime websocket to chat completions', async () => {
+    await service.summarize(
       provider({ endpoint: 'wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview' }),
+      'перезвоните',
+    );
+
+    expect(mockedAxios.post).toHaveBeenCalledTimes(1);
+    expect(mockedAxios.post.mock.calls[0][0]).toBe('https://api.openai.com/v1/chat/completions');
+  });
+
+  it('skips unknown websocket endpoints without fetching and returns empty summary', async () => {
+    const summary = await service.summarize(
+      provider({ endpoint: 'wss://example.com/voice-ai/realtime' }),
       'перезвоните',
     );
 

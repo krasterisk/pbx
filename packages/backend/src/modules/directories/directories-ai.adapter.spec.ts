@@ -1,3 +1,5 @@
+import * as fs from 'fs';
+import * as path from 'path';
 import { DirectoriesAiAdapter } from './directories-ai.adapter';
 
 /**
@@ -207,6 +209,18 @@ describe('DirectoriesAiAdapter', () => {
       expect(directoriesService.create).not.toHaveBeenCalled();
       expect(directoriesService.update).not.toHaveBeenCalled();
       expect(directoriesService.remove).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('directory domain skill', () => {
+    it('ships a playbook with list tools, checklist, pending card and when to ask', () => {
+      const skillPath = path.join(__dirname, '../../skills/directories/SKILL.md');
+      const raw = fs.readFileSync(skillPath, 'utf8');
+      expect(raw).toMatch(/^---\r?\nname: directories\r?\ndescription: .+\r?\n---/);
+      expect(raw).toMatch(/list_directories/);
+      expect(raw).toMatch(/чеклист|рецепт/i);
+      expect(raw).toMatch(/карточка|подтверд/i);
+      expect(raw).toMatch(/вопрос|останови/i);
     });
   });
 

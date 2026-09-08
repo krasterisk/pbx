@@ -1,0 +1,4 @@
+test(15-17): add failing test for platform settings projection
+
+- Assert tenant-scoped capabilities and default-excluding list
+- Raw table, secrets and other tenants allocations stay out

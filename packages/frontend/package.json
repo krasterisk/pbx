@@ -1,6 +1,6 @@
 {
   "name": "@krasterisk/frontend",
-  "version": "4.4.3",
+  "version": "4.4.5",
   "description": "Krasterisk v4 Frontend",
   "private": true,
   "type": "module",
@@ -19,8 +19,8 @@
     "test:cov": "vitest run --coverage",
     "test:cc": "vitest run src/features/callcenter",
     "test:cc:watch": "vitest src/features/callcenter",
-    "test:ai": "vitest run src/features/ai-agents src/pages/AiAgentsPage",
-    "test:ai:watch": "vitest src/features/ai-agents src/pages/AiAgentsPage",
+    "test:ai": "vitest run src/features/ai-agents src/features/ai-providers src/pages/AiAgentsPage src/pages/AiProvidersPage",
+    "test:ai:watch": "vitest src/features/ai-agents src/features/ai-providers src/pages/AiAgentsPage src/pages/AiProvidersPage",
     "cap:sync": "npm run build && npx cap sync",
     "cap:sync:android": "npm run build && npx cap sync android",
     "cap:open:android": "npx cap open android"

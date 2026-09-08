@@ -5,6 +5,8 @@ import { HStack, VStack } from '@/shared/ui/Stack';
 import {
     useConfirmAiChatProposalMutation,
     useRejectAiChatProposalMutation,
+    useConfirmAiChatWorkflowMutation,
+    useRejectAiChatWorkflowMutation,
     type IAgentProposalView,
 } from '@/shared/api/endpoints/aiChatApi';
 import cls from './DiffConfirmCard.module.scss';
@@ -12,6 +14,28 @@ import cls from './DiffConfirmCard.module.scss';
 export interface DiffConfirmCardProps {
     proposal: IAgentProposalView;
     onAskAgain?: () => void;
+    onSettled?: (proposal: IAgentProposalView) => void;
+    readOnly?: boolean;
+}
+
+function formatAfterLines(after: Record<string, unknown> | null | undefined): string[] {
+    if (!after) return [];
+    const lines: string[] = [];
+    const greeting = typeof after.greeting === 'string' ? after.greeting.trim() : '';
+    if (greeting) lines.push(greeting);
+    const digits = after.digits;
+    if (digits && typeof digits === 'object' && !Array.isArray(digits)) {
+        for (const [digit, raw] of Object.entries(digits as Record<string, unknown>)) {
+            const dest = raw && typeof raw === 'object' && !Array.isArray(raw)
+                ? raw as { kind?: unknown; target?: unknown }
+                : {};
+            const kind = dest.kind != null ? String(dest.kind) : '';
+            const target = dest.target != null ? String(dest.target) : '';
+            if (!kind && !target) continue;
+            lines.push(`${digit} → ${[kind, target].filter(Boolean).join(' ')}`);
+        }
+    }
+    return lines;
 }
 
 function formatAppliedAt(iso?: string | null): string | null {
@@ -28,47 +52,109 @@ function isExpired(view: IAgentProposalView): boolean {
     return !Number.isNaN(expires) && expires <= Date.now();
 }
 
-export const DiffConfirmCard = ({ proposal, onAskAgain }: DiffConfirmCardProps) => {
+const SETTLED_STATUSES = new Set(['applied', 'rejected', 'denied']);
+
+export const DiffConfirmCard = ({ proposal, onAskAgain, onSettled, readOnly }: DiffConfirmCardProps) => {
     const { t } = useTranslation();
     const [view, setView] = useState(proposal);
     const [applyError, setApplyError] = useState<string | null>(
-        proposal.status === 'pending' ? proposal.error ?? null : null,
+        proposal.status === 'pending' || proposal.status === 'failed' ? proposal.error ?? null : null,
     );
     const [confirmProposal, confirmState] = useConfirmAiChatProposalMutation();
     const [rejectProposal, rejectState] = useRejectAiChatProposalMutation();
+    const [confirmWorkflow, confirmWorkflowState] = useConfirmAiChatWorkflowMutation();
+    const [rejectWorkflow, rejectWorkflowState] = useRejectAiChatWorkflowMutation();
 
     useEffect(() => {
-        setView(proposal);
-        setApplyError(proposal.status === 'pending' ? proposal.error ?? null : null);
+        // Stream/parent often re-sends the original pending snapshot after Apply succeeds.
+        // Never downgrade a settled local card back to pending for the same id.
+        setView((prev) => {
+            const keepSettled =
+                prev.proposalId === proposal.proposalId &&
+                SETTLED_STATUSES.has(prev.status) &&
+                !SETTLED_STATUSES.has(proposal.status);
+            const next = keepSettled ? prev : proposal;
+            setApplyError(
+                SETTLED_STATUSES.has(next.status)
+                    ? null
+                    : next.status === 'pending' || next.status === 'failed'
+                      ? next.error ?? null
+                      : null,
+            );
+            return next;
+        });
     }, [proposal]);
 
-    const busy = confirmState.isLoading || rejectState.isLoading;
+    const busy =
+        confirmState.isLoading ||
+        rejectState.isLoading ||
+        confirmWorkflowState.isLoading ||
+        rejectWorkflowState.isLoading;
     const expired = isExpired(view);
     const settled = view.status === 'applied' || view.status === 'rejected' || view.status === 'denied';
-    const showActions = view.status === 'pending' && !expired && !settled;
+    const showActions =
+        !readOnly && (view.status === 'pending' || view.status === 'failed') && !expired && !settled;
+    const workflowId = view.workflowId;
 
     const handleConfirm = async () => {
         if (busy || !showActions) return;
+        if (workflowId) {
+            const result = await confirmWorkflow(workflowId).unwrap();
+            const next = {
+                ...view,
+                status: result.status,
+                error: result.error,
+                appliedAt: result.appliedAt,
+                steps: result.steps,
+                summary: result.summary,
+            };
+            setView(next);
+            setApplyError(result.status === 'failed' ? result.error : null);
+            if (SETTLED_STATUSES.has(result.status)) onSettled?.(next);
+            return;
+        }
         const result = await confirmProposal(view.proposalId).unwrap();
         if (result.ok && result.proposal) {
             setView(result.proposal);
             setApplyError(null);
+            if (SETTLED_STATUSES.has(result.proposal.status)) onSettled?.(result.proposal);
             return;
         }
         if (result.proposal?.status === 'denied') {
             setView(result.proposal);
             setApplyError(null);
+            onSettled?.(result.proposal);
             return;
         }
-        setApplyError(result.error ?? result.reason ?? 'apply_failed');
+        if (result.proposal && SETTLED_STATUSES.has(result.proposal.status)) {
+            setView(result.proposal);
+            setApplyError(null);
+            onSettled?.(result.proposal);
+            return;
+        }
+        setApplyError(result.error ?? result.reason ?? result.proposal?.error ?? 'apply_failed');
     };
 
     const handleReject = async () => {
         if (busy || !showActions) return;
+        if (workflowId) {
+            const result = await rejectWorkflow(workflowId).unwrap();
+            const next = {
+                ...view,
+                status: result.status,
+                error: result.error,
+                steps: result.steps,
+            };
+            setView(next);
+            setApplyError(null);
+            if (SETTLED_STATUSES.has(result.status)) onSettled?.(next);
+            return;
+        }
         const result = await rejectProposal(view.proposalId).unwrap();
         if (result.ok && result.proposal) {
             setView(result.proposal);
             setApplyError(null);
+            onSettled?.(result.proposal);
         }
     };
 
@@ -110,11 +196,29 @@ export const DiffConfirmCard = ({ proposal, onAskAgain }: DiffConfirmCardProps) 
                 {t('aiChat.card.entityPrefix')} {view.entityLabel}
             </Text>
 
+            {Array.isArray(view.steps) && view.steps.length > 0 && (
+                <VStack className={cls.summary} gap="4" align="stretch" data-testid="ai-agent-workflow-steps">
+                    {view.steps.map((step) => (
+                        <HStack key={step.stepKey} gap="8" align="center" justify="between">
+                            <Text as="span">{step.entityLabel || step.tool}</Text>
+                            <Badge variant={step.status === 'failed' ? 'destructive' : 'outline'}>
+                                {step.status}
+                            </Badge>
+                        </HStack>
+                    ))}
+                </VStack>
+            )}
+
             <VStack className={cls.summary} gap="4" align="stretch">
                 <Text as="p" className={cls.summaryLead}>{t('aiChat.card.summaryLead')}</Text>
                 {view.summary.map((line) => (
                     <Text as="p" key={line} className={cls.summaryLine}>{line}</Text>
                 ))}
+                {formatAfterLines(view.after)
+                    .filter((line) => !view.summary.some((row) => row.includes(line)))
+                    .map((line) => (
+                        <Text as="p" key={`after:${line}`} className={cls.summaryLine}>{line}</Text>
+                    ))}
             </VStack>
 
             {view.status === 'denied' && (
@@ -154,7 +258,7 @@ export const DiffConfirmCard = ({ proposal, onAskAgain }: DiffConfirmCardProps) 
                 </HStack>
             )}
 
-            {expired && !settled && (
+            {expired && !settled && !readOnly && (
                 <Button type="button" variant="ghost" onClick={onAskAgain}>
                     {t('aiChat.card.askAgain')}
                 </Button>

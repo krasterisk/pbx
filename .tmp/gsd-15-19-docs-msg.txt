@@ -1,0 +1,4 @@
+docs(15-19): complete diagnostics evidence plan
+
+- SUMMARY for tenant-filtered reads, three tools, evidence-order skill
+- STATE/ROADMAP advanced to 15-22

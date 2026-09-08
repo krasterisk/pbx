@@ -9,6 +9,7 @@ import {
   useUpdateDirectoryMutation,
   useDeleteDirectoryMutation,
   useImportDirectoryCsvMutation,
+  useLazyExportDirectoryCsvQuery,
   useLookupTestDirectoryMutation,
 } from '@/shared/api/endpoints/directoryApi';
 
@@ -34,6 +35,7 @@ describe('directoryApi hooks', () => {
     expect(typeof useUpdateDirectoryMutation).toBe('function');
     expect(typeof useDeleteDirectoryMutation).toBe('function');
     expect(typeof useImportDirectoryCsvMutation).toBe('function');
+    expect(typeof useLazyExportDirectoryCsvQuery).toBe('function');
     expect(typeof useLookupTestDirectoryMutation).toBe('function');
   });
 });
@@ -52,7 +54,13 @@ describe('directoryApi contracts', () => {
         }));
       }
       if (url.includes('/import-csv')) {
-        return Promise.resolve(jsonResponse({ imported: 1 }));
+        return Promise.resolve(jsonResponse({ imported: 1, replaced: 3, errors: [] }));
+      }
+      if (url.includes('/export-csv')) {
+        return Promise.resolve(new Response('\ufeffphone;name;comment\r\n', {
+          status: 200,
+          headers: { 'Content-Type': 'text/csv; charset=utf-8' },
+        }));
       }
       if (url.match(/\/directories\/\d+$/) && (init?.method ?? 'GET') === 'GET') {
         return Promise.resolve(jsonResponse({
@@ -144,16 +152,25 @@ describe('directoryApi contracts', () => {
     expect(call.url).toMatch(/\/directories\/7$/);
   });
 
+  it('exports CSV as an authenticated blob at GET /directories/:id/export-csv', async () => {
+    const store = createStore();
+    const result = await store.dispatch(directoryApi.endpoints.exportDirectoryCsv.initiate(7)).unwrap();
+    const call = await lastCall();
+    expect(call.method).toBe('GET');
+    expect(call.url).toMatch(/\/directories\/7\/export-csv$/);
+    expect(result).toBeInstanceOf(Blob);
+  });
+
   it('imports CSV at POST /directories/:id/import-csv', async () => {
     const store = createStore();
     await store.dispatch(directoryApi.endpoints.importDirectoryCsv.initiate({
       uid: 7,
-      csv: 'phone,comment,match_kind,priority\n100,Alice,exact,1\n',
+      csv: 'phone,comment\n100,Alice\n',
     }));
     const call = await lastCall();
     expect(call.method).toBe('POST');
     expect(call.url).toMatch(/\/directories\/7\/import-csv$/);
-    expect(call.body).toEqual({ csv: 'phone,comment,match_kind,priority\n100,Alice,exact,1\n' });
+    expect(call.body).toEqual({ csv: 'phone,comment\n100,Alice\n' });
   });
 
   it('lookup-test posts { key, fieldUids } and returns directory lookup result', async () => {

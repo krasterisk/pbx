@@ -28,6 +28,11 @@
   flex: 1 1 12rem;
 }
 
+.normalization {
+  width: 100%;
+  align-items: flex-start;
+}
+
 .referenceError {
   width: 100%;
   padding: 0.75rem;
@@ -36,9 +41,21 @@
   background: color-mix(in srgb, var(--color-destructive) 8%, transparent);
 }
 
+.tabs {
+  width: 100%;
+  min-width: 0;
+}
+
 .footer {
   flex-shrink: 0;
+  flex-direction: column;
+  align-items: stretch;
   margin-top: 0;
   padding-top: 0.75rem;
   border-top: 1px solid var(--color-border);
+}
+
+.footerActions {
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }

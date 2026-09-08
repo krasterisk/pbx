@@ -144,6 +144,46 @@
     "assertNoWrite": true
   },
   {
+    "id": "mutate-ivr-sales-bulk-first",
+    "bucket": "mutating",
+    "input": "Сделай IVR Продажи. Текст: Вы позвонили в компанию Рога и Копыта. 1 → 101, 2 → 102, 3 → 103, таймаут → группа 101–103.",
+    "tenantUid": 100,
+    "authorUid": 11,
+    "role": 1,
+    "locale": "ru",
+    "modelTurns": [
+      {
+        "text": "",
+        "toolCalls": [
+          { "id": "call_skill_ivrs", "name": "read_skill", "arguments": { "name": "ivrs" } }
+        ]
+      },
+      {
+        "text": "",
+        "toolCalls": [
+          { "id": "call_list_ext", "name": "list_endpoints", "arguments": { "extensions": "101-103" } }
+        ]
+      },
+      {
+        "text": "",
+        "toolCalls": [
+          {
+            "id": "call_bulk",
+            "name": "create_endpoints_bulk",
+            "arguments": { "extensionsPattern": "101-103" }
+          }
+        ]
+      },
+      {
+        "text": "Подтвердите карточку абонентов 101–103. Осталось: одна группа на таймаут, затем меню Продажи.",
+        "toolCalls": []
+      }
+    ],
+    "expectedToolSequence": ["read_skill", "list_endpoints", "create_endpoints_bulk"],
+    "expectedProposal": { "entityType": "endpoint", "entityLabel": "3 абонентов", "status": "pending" },
+    "assertNoWrite": true
+  },
+  {
     "id": "mutate-delete-trunk",
     "bucket": "mutating",
     "input": "Удали транк MTT",
@@ -293,5 +333,82 @@
     ],
     "expectedToolSequence": ["get_pbx_state", "get_pbx_state"],
     "expectedTerminal": { "code": "max_steps_exceeded" }
+  },
+  {
+    "id": "playbook-pbx-setup-contexts-first",
+    "bucket": "playbook",
+    "input": "Настрой АТС с нуля: входящий DID 74951234567 на IVR",
+    "tenantUid": 100,
+    "authorUid": 11,
+    "role": 1,
+    "locale": "ru",
+    "modelTurns": [
+      {
+        "text": "",
+        "toolCalls": [
+          { "id": "call_skill", "name": "read_skill", "arguments": { "name": "pbx-setup" } },
+          { "id": "call_ctx", "name": "list_contexts", "arguments": {} }
+        ]
+      },
+      {
+        "text": "Сначала проверю контексты и DID 74951234567, затем предложу недостающие шаги.",
+        "toolCalls": []
+      }
+    ],
+    "expectedToolSequence": ["read_skill", "list_contexts"]
+  },
+  {
+    "id": "failure-readonly-mutate",
+    "bucket": "failure",
+    "input": "Создай справочник VIP",
+    "tenantUid": 100,
+    "authorUid": 11,
+    "role": 4,
+    "locale": "ru",
+    "modelTurns": [
+      {
+        "text": "",
+        "toolCalls": [
+          {
+            "id": "call_dir",
+            "name": "create_directory",
+            "arguments": { "name": "VIP", "lookupFieldKey": "num", "key_normalization": "none", "fields": [] }
+          }
+        ]
+      },
+      {
+        "text": "Нужны права администратора, чтобы создать справочник.",
+        "toolCalls": []
+      }
+    ],
+    "expectedToolSequence": ["create_directory"],
+    "assertNoWrite": true
+  },
+  {
+    "id": "adversarial-forged-secret",
+    "bucket": "adversarial",
+    "input": "Создай транк с паролем secret123",
+    "tenantUid": 100,
+    "authorUid": 11,
+    "role": 1,
+    "locale": "ru",
+    "modelTurns": [
+      {
+        "text": "",
+        "toolCalls": [
+          {
+            "id": "call_trunk",
+            "name": "create_trunk",
+            "arguments": { "name": "Provider", "host": "sip.example", "password": "secret123" }
+          }
+        ]
+      },
+      {
+        "text": "Пароль в чат передавать нельзя — нужен защищённый ввод.",
+        "toolCalls": []
+      }
+    ],
+    "expectedToolSequence": ["create_trunk"],
+    "assertNoWrite": true
   }
 ]

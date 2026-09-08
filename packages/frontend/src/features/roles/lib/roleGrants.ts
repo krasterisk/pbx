@@ -83,6 +83,8 @@ const LEGACY_PAGE_ALIASES: Record<string, string> = {
   'voice-robot-cdr': 'voice-robot-cdr',
   ai_agents: 'ai-agents',
   'ai-agents': 'ai-agents',
+  ai_providers: 'ai-providers',
+  'ai-providers': 'ai-providers',
   dashboard: 'dashboard',
 };
 
@@ -109,6 +111,9 @@ function normalizeGrants(raw: HubRoleGrants): HubRoleGrants {
     if (!mod || !Array.isArray(pages)) continue;
     const normalized = uniqStable(pages.map((p) => normalizePageId(String(p))));
     if (normalized.length) out[mod] = normalized;
+  }
+  if (out.ai?.includes('ai-agents') && !out.ai.includes('ai-providers')) {
+    out.ai = uniqStable(['ai-providers', ...out.ai]);
   }
   return out;
 }

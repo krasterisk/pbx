@@ -1,0 +1,4 @@
+test(15-16): add failing test for number destination adapter
+
+- Assert list/describe tools, unrouted numbers, read-only and isolation
+- Numbers skill must say describe already resolves the destination

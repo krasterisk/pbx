@@ -1,0 +1,4 @@
+test(15-07): add failing test for contexts adapter precedence
+
+- Registry-enumerated isolation, skip-log, and contexts skill frontmatter
+- Fails until ContextsAiAdapter and handwritten skip land

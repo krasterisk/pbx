@@ -1,8 +1,12 @@
 ---
 name: callcenter
 description: Снимок очередей и статусы агентов; KPI только за сегодня; live pause/unpause.
+domains: ["callcenter"]
+intents: ["configure_callcenter"]
+aliases: ["колл-центр", "callcenter"]
+related: ["queues"]
+risk: high
 ---
-
 # Колл-центр
 
 Агент = SIP-интерфейс (если PJSIP — `e{exten}_{tenant}`) плюс статус: `OFFLINE` | `READY` | `IN_CALL` | `RINGING` | `PAUSED` | `WRAPUP`. Очередь = `name` + strategy + waiting/talking. Активный звонок = `uniqueid` + queue + agent + `callerChannel`. История — `cc_queue_calls`. AI-агент как оператор очереди не поддерживается.

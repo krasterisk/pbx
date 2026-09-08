@@ -1,0 +1,32 @@
+/* ─────────────────────────────────────────────────────
+   AiProvidersTable — tenant LLM provider list
+   Design tokens: var(--color-*) from globals.css @theme
+   ───────────────────────────────────────────────────── */
+
+.content {
+  padding: 0;
+  min-width: 0;
+}
+
+.caps {
+  flex-wrap: wrap;
+}
+
+.cap {
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 0.7rem;
+  font-weight: 500;
+  background: var(--color-accent);
+  color: var(--color-foreground);
+}
+
+.statusOn {
+  color: var(--color-success);
+  font-weight: 600;
+}
+
+.statusOff {
+  color: var(--color-muted-foreground);
+  font-weight: 600;
+}

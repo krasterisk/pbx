@@ -12,6 +12,7 @@ type IAgentProposalView = {
     expiresAt: string;
     error?: string | null;
     appliedAt?: string | null;
+    after?: Record<string, unknown> | null;
 };
 
 const confirmCalls: unknown[] = [];
@@ -49,6 +50,14 @@ vi.mock('@/shared/api/endpoints/aiChatApi', () => ({
         },
         { isLoading: rejectLoading },
     ],
+    useConfirmAiChatWorkflowMutation: () => [
+        async () => ({ unwrap: async () => ({ status: 'applied', steps: [] }) }),
+        { isLoading: false },
+    ],
+    useRejectAiChatWorkflowMutation: () => [
+        async () => ({ unwrap: async () => ({ status: 'rejected', steps: [] }) }),
+        { isLoading: false },
+    ],
 }));
 
 import { DiffConfirmCard } from './DiffConfirmCard';
@@ -62,7 +71,7 @@ function pendingView(partial: Partial<IAgentProposalView> = {}): IAgentProposalV
         entityLabel: 'VIP',
         summary: ['Добавить поле num', 'Сохранить справочник'],
         status: 'pending',
-        expiresAt: '2026-09-05T12:00:00.000Z',
+        expiresAt: '2027-09-05T12:00:00.000Z',
         error: null,
         ...partial,
     };
@@ -80,6 +89,28 @@ describe('DiffConfirmCard', () => {
         };
         rejectResult = { ok: true, proposal: pendingView({ status: 'rejected' }) };
         confirmUnwrap = async () => confirmResult;
+    });
+
+    it('shows greeting and digit map from after when the summary is a single line', () => {
+        render(
+            <DiffConfirmCard
+                proposal={pendingView({
+                    entityLabel: 'Сервис',
+                    summary: ['Создать голосовое меню Сервис'],
+                    after: {
+                        greeting: 'Здравствуйте, вы позвонили в службу сервиса.',
+                        digits: {
+                            '1': { kind: 'extension', target: '201' },
+                            t: { kind: 'group', target: '1' },
+                        },
+                    },
+                })}
+            />,
+        );
+
+        expect(screen.getByText('Здравствуйте, вы позвонили в службу сервиса.')).toBeInTheDocument();
+        expect(screen.getByText('1 → extension 201')).toBeInTheDocument();
+        expect(screen.getByText('t → group 1')).toBeInTheDocument();
     });
 
     it('renders the entity label, every change line and both actions', () => {
@@ -105,6 +136,21 @@ describe('DiffConfirmCard', () => {
         expect(rejectCalls).toHaveLength(0);
         expect(screen.queryByRole('button', { name: 'aiChat.card.apply' })).toBeNull();
         expect(screen.queryByRole('button', { name: 'aiChat.card.reject' })).toBeNull();
+    });
+
+    it('keeps applied state when parent re-sends a stale pending snapshot', async () => {
+        const { rerender } = render(<DiffConfirmCard proposal={pendingView()} />);
+
+        fireEvent.click(screen.getByRole('button', { name: 'aiChat.card.apply' }));
+        await vi.waitFor(() => {
+            expect(screen.getByText('aiChat.card.badge.applied')).toBeInTheDocument();
+        });
+
+        rerender(<DiffConfirmCard proposal={pendingView()} />);
+
+        expect(screen.getByText('aiChat.card.badge.applied')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'aiChat.card.apply' })).toBeNull();
+        expect(screen.queryByText(/not_pending|applyFailed/i)).toBeNull();
     });
 
     it('moves the card to rejected without sending an apply', async () => {

@@ -12,10 +12,6 @@ export type AgentProposalStatus = (typeof AGENT_PROPOSAL_STATUSES)[number];
  */
 @Table({ tableName: 'ai_agent_proposals', timestamps: false, freezeTableName: true })
 export class AgentProposal extends Model {
-  static override get tableName(): string {
-    return 'ai_agent_proposals';
-  }
-
   /** Platform crypto UUID — not the outdated `uuid` package. */
   @Column({ primaryKey: true, type: DataType.CHAR(36), defaultValue: () => randomUUID() })
   declare proposal_id: string;

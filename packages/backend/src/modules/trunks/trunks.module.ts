@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { PsEndpoint } from '../endpoints/ps-endpoint.model';
 import { PsAuth } from '../endpoints/ps-auth.model';
@@ -21,7 +21,7 @@ import { AiPlatformModule } from '../ai-platform/ai-platform.module';
     ]),
     AmiModule,
     LoggerModule,
-    RoutesModule,
+    forwardRef(() => RoutesModule),
     AiPlatformModule,
   ],
   providers: [TrunksService, TrunksAiAdapter],

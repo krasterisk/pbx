@@ -7,6 +7,7 @@ import { Response } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { DirectoriesService } from './directories.service';
 import type { DirectoryLookupResult } from './directories.service';
+import { ImportDirectoryCsvDto } from './dto/directory.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('directories')
@@ -23,10 +24,11 @@ export class DirectoriesController {
     return this.directoriesService.create(body, req.user.vpbx_user_uid);
   }
 
+  /** Replaces every record of the directory; the caller confirms this beforehand. */
   @Post(':id/import-csv')
   importCsv(
     @Param('id', ParseIntPipe) id: number,
-    @Body() body: { csv: string },
+    @Body() body: ImportDirectoryCsvDto,
     @Req() req: any,
   ) {
     return this.directoriesService.importCsv(id, body.csv, req.user.vpbx_user_uid);

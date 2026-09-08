@@ -1,0 +1,4 @@
+test(15-11): add failing test for precedence and retired apply
+
+- Catch-all above specific or emergency must be refused at proposal time
+- apply_dialplan must be absent from the registry after routes migrate

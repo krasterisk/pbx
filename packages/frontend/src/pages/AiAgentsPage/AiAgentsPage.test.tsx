@@ -13,17 +13,11 @@ vi.mock('@/shared/api/endpoints/aiAgentsApi', () => ({
   useGetAiProvidersQuery: () => ({ data: [] }),
   useGetAiToolsetsQuery: () => ({ data: [] }),
   useDeleteAiAgentMutation: () => [vi.fn()],
-  useDeleteAiProviderMutation: () => [vi.fn()],
-  useCloneAiProviderMutation: () => [vi.fn()],
   useUpdateAiAgentMutation: () => [vi.fn()],
 }));
 
 vi.mock('@/features/ai-agents/ui/AiAgentModal/AiAgentModal', () => ({
   AiAgentModal: () => null,
-}));
-
-vi.mock('@/features/ai-agents/ui/AiProviderModal/AiProviderModal', () => ({
-  AiProviderModal: () => null,
 }));
 
 import { AiAgentsPage } from './AiAgentsPage';

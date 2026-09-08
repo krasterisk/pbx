@@ -1,0 +1,39 @@
+.panel {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-muted);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.icon {
+  width: 1rem;
+  height: 1rem;
+  margin-right: 0.375rem;
+}
+
+.preview {
+  padding: 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-background);
+}
+
+.summary {
+  width: 100%;
+  word-break: break-word;
+}
+
+.errors {
+  padding: 0.75rem;
+  border: 1px solid var(--color-destructive);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-destructive) 8%, transparent);
+}

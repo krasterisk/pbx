@@ -8,6 +8,14 @@ import {
 } from './roleGrants';
 
 describe('roleGrants (NAV-16 / D-20)', () => {
+  it('grants ai-providers when a role already has ai-agents', () => {
+    const grants = parseRoleGrants({
+      version: 2,
+      hub: { ai: ['ai-agents'] },
+    });
+    expect(grants.ai).toEqual(['ai-providers', 'ai-agents']);
+  });
+
   it('parses hub v2 JSON into module→page grants', () => {
     const raw = JSON.stringify({
       version: 2,

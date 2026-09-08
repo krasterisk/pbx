@@ -86,5 +86,6 @@ export const HUB_MODULE_PAGES_SEED: HubModulePageSeed[] = [
   { hub_code: 'analytics', page_code: 'voice_robot_cdr', path: '/reports/voice-robot-cdr', sort_order: 30 },
 
   // AI (market)
-  { hub_code: 'ai', page_code: 'ai_agents', path: '/ai-agents', sort_order: 10 },
+  { hub_code: 'ai', page_code: 'ai_providers', path: '/ai-providers', sort_order: 10 },
+  { hub_code: 'ai', page_code: 'ai_agents', path: '/ai-agents', sort_order: 20 },
 ];

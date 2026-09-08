@@ -44,7 +44,7 @@ function SchemaHarness({
 }
 
 describe('DirectorySchemaEditor', () => {
-  it('marking a field as lookup unmarks the previous field', () => {
+  it('picks the lookup field through one selector instead of per-field switches', () => {
     render(
       <SchemaHarness
         initialFields={[
@@ -55,14 +55,38 @@ describe('DirectorySchemaEditor', () => {
       />,
     );
 
-    const phoneSwitch = screen.getByTestId('field-lookup-phone');
-    const nameSwitch = screen.getByTestId('field-lookup-name');
-    expect(phoneSwitch).toHaveAttribute('data-state', 'checked');
-    expect(nameSwitch).toHaveAttribute('data-state', 'unchecked');
+    expect(screen.queryByTestId('field-lookup-phone')).not.toBeInTheDocument();
 
-    fireEvent.click(nameSwitch);
+    const selector = screen.getByTestId('directory-lookup-field') as HTMLSelectElement;
+    expect(selector).toHaveValue('phone');
+    expect([...selector.options].map((option) => option.value)).toEqual(['', 'phone', 'name']);
 
-    expect(nameSwitch).toHaveAttribute('data-state', 'checked');
-    expect(phoneSwitch).toHaveAttribute('data-state', 'unchecked');
+    fireEvent.change(selector, { target: { value: 'name' } });
+
+    expect(screen.getByTestId('directory-lookup-field')).toHaveValue('name');
+  });
+
+  it('disables the lookup selector until a field key exists', () => {
+    render(<SchemaHarness initialFields={[]} initialLookup="" />);
+
+    expect(screen.getByTestId('directory-lookup-field')).toBeDisabled();
+
+    fireEvent.click(screen.getByTestId('directory-add-field'));
+
+    expect(screen.getByTestId('directory-lookup-field')).not.toBeDisabled();
+  });
+
+  it('keeps focus on the key input while typing', () => {
+    render(<SchemaHarness initialFields={[]} initialLookup="" />);
+
+    fireEvent.click(screen.getByTestId('directory-add-field'));
+    const input = screen.getByTestId('field-key-0');
+    input.focus();
+    expect(input).toHaveFocus();
+
+    fireEvent.change(input, { target: { value: 'aaa' } });
+
+    expect(screen.getByTestId('field-key-0')).toHaveFocus();
+    expect(screen.getByTestId('field-key-0')).toHaveValue('aaa');
   });
 });

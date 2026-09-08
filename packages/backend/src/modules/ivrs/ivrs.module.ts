@@ -9,6 +9,7 @@ import { RouteReferencesModule } from '../route-references/route-references.modu
 import { ContextsModule } from '../contexts/contexts.module';
 import { EndpointsModule } from '../endpoints/endpoints.module';
 import { QueuesModule } from '../queues/queues.module';
+import { CallGroupsModule } from '../call-groups/call-groups.module';
 import { AiPlatformModule } from '../ai-platform/ai-platform.module';
 import { IvrsController } from './ivrs.controller';
 import { IvrsInternalController } from './ivrs-internal.controller';
@@ -30,6 +31,7 @@ import { YandexStreamingTtsProvider } from '../voice-robots/providers/yandex-str
     ContextsModule,
     EndpointsModule,
     QueuesModule,
+    CallGroupsModule,
     AiPlatformModule,
   ],
   controllers: [IvrsController, IvrsInternalController],

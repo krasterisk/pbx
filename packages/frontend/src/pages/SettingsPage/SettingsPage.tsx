@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { motion } from 'motion/react';
-import { Settings, Terminal, Mic2, Shield, Cpu, Database, Route } from 'lucide-react';
+import { Settings, Terminal, Mic2, Shield, Cpu, Database, Route, Bot } from 'lucide-react';
 import { Text } from '@/shared/ui';
 import { VStack, HStack } from '@/shared/ui/Stack';
 import { DialplanSubroutinesCard } from '@/features/system-settings/ui/DialplanSubroutinesCard';
@@ -9,6 +9,7 @@ import { WebhookSecurityCard } from '@/features/system-settings/ui/WebhookSecuri
 import { FfmpegStatusCard } from '@/features/system-settings/ui/FfmpegStatusCard';
 import { RedisStatusCard } from '@/features/system-settings/ui/RedisStatusCard';
 import { TenantSettingsSection } from '@/features/tenant-settings/ui/TenantSettingsSection';
+import { AiChatProviderCard } from '@/features/system-settings/ui/AiChatProviderCard';
 import cls from './SettingsPage.module.scss';
 
 const SECTIONS = [
@@ -46,6 +47,13 @@ const SECTIONS = [
     titleKey: 'systemSettings.sectionRedis',
     descKey: 'systemSettings.sectionRedisDesc',
     content: <RedisStatusCard />,
+  },
+  {
+    key: 'aiChat',
+    icon: Bot,
+    titleKey: 'systemSettings.sectionAiAgent',
+    descKey: 'systemSettings.sectionAiAgentDesc',
+    content: <AiChatProviderCard />,
   },
   {
     key: 'tenant',

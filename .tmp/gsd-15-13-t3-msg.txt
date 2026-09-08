@@ -1,0 +1,5 @@
+test(15-13): add role and tenant isolation fixtures
+
+- Per-mutating-tool READONLY deny leaves records untouched
+- Per-tool cross-tenant and forged-key assertions for call groups and hold music
+- Registry collision check so new names cannot shadow existing tools

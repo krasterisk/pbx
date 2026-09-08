@@ -29,3 +29,19 @@
   flex: 0 0 auto;
   min-width: 4.5rem;
 }
+
+.flagControl {
+  display: flex;
+  align-items: center;
+  min-height: 2.5rem;
+}
+
+.head {
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.lookupPicker {
+  width: 100%;
+  max-width: 24rem;
+}

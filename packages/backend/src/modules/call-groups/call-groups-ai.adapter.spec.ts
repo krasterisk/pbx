@@ -45,6 +45,8 @@ describe('CallGroupsAiAdapter', () => {
     create: jest.Mock;
     update: jest.Mock;
     remove: jest.Mock;
+    checkExtenConflict: jest.Mock;
+    suggestFreeExten: jest.Mock;
   };
   let endpointsService: { findAll: jest.Mock };
   let routeReferencesService: { findUsage: jest.Mock };
@@ -72,6 +74,8 @@ describe('CallGroupsAiAdapter', () => {
         throw new NotFoundException(`Call group ${groupUid} not found`);
       }),
       create: jest.fn(),
+      checkExtenConflict: jest.fn(async () => null),
+      suggestFreeExten: jest.fn(async () => '6001'),
       update: jest.fn(async (groupUid: number, dto: Record<string, unknown>, uid: number) => {
         await callGroupsService.findOne(groupUid, uid);
         updatedRows.push({ uid: groupUid, dto, tenant: uid });
@@ -242,6 +246,85 @@ describe('CallGroupsAiAdapter', () => {
       expect(callGroupsService.create).not.toHaveBeenCalled();
       expect(result.applyPayload).toEqual(expect.objectContaining({ tool: 'create_call_group' }));
     });
+
+    it('normalizes tenant-scoped numbers so create stays in the dispatch tenant', async () => {
+      const result = await getTool('create_call_group').handler(
+        {
+          name: 'Support',
+          exten: 'q610_100',
+          strategy: 'hunt',
+          members: [{ member_type: 'internal', value: 'e201_100', position: 0 }],
+        },
+        TENANT_A,
+      );
+
+      expect(result.applyPayload.args).toEqual(expect.objectContaining({
+        exten: '610',
+        members: [expect.objectContaining({ value: '201' })],
+      }));
+      expect(JSON.stringify(result.applyPayload.args)).not.toMatch(/vpbxUserUid|user_uid|tenantId/);
+    });
+
+    it('lists name, number, strategy and members on the card', async () => {
+      const result = await getTool('create_call_group').handler(
+        {
+          name: 'Сервис таймаут',
+          exten: '610',
+          strategy: 'ringall',
+          members: [
+            { member_type: 'internal', value: '201', position: 0 },
+            { member_type: 'internal', value: '203', position: 1 },
+          ],
+        },
+        TENANT_A,
+      );
+
+      const card = result.summary.join('\n');
+      expect(card).toMatch(/Сервис таймаут/);
+      expect(card).toMatch(/610/);
+      expect(card).toMatch(/ringall/);
+      expect(card).toMatch(/201/);
+      expect(card).toMatch(/203/);
+    });
+
+    it('replaces an occupied group number with a free 6xxx before the card', async () => {
+      callGroupsService.checkExtenConflict.mockImplementation(async (exten: string) =>
+        exten === '110' ? { reason: 'абонент 110' } : null,
+      );
+      callGroupsService.suggestFreeExten.mockResolvedValue('6001');
+
+      const result = await getTool('create_call_group').handler(
+        {
+          name: 'Сервис таймаут',
+          exten: '110',
+          strategy: 'ringall',
+          members: [{ member_type: 'internal', value: '201', position: 0 }],
+        },
+        TENANT_A,
+      );
+
+      expect(result.refused).toBeUndefined();
+      expect(result.applyPayload.args.exten).toBe('6001');
+      expect(result.summary.join('\n')).toMatch(/6001/);
+      expect(result.summary.join('\n')).toMatch(/110/);
+      expect(callGroupsService.create).not.toHaveBeenCalled();
+    });
+
+    it('revalidate refuses when the chosen group number became occupied', async () => {
+      callGroupsService.checkExtenConflict.mockResolvedValue({ reason: 'абонент 6001' });
+      const result = await getTool('create_call_group').mutation!.revalidate(
+        {
+          name: 'Сервис таймаут',
+          exten: '6001',
+          strategy: 'ringall',
+          members: [{ member_type: 'internal', value: '201', position: 0 }],
+        },
+        { vpbxUserUid: TENANT_A, userUid: 1, role: 1, isAdmin: true },
+      );
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.reason).toMatch(/6001/);
+    });
   });
 
   describe('onModuleInit', () => {
@@ -259,6 +342,10 @@ describe('CallGroupsAiAdapter', () => {
       expect(raw).toMatch(/ringall|hunt|memoryhunt|random/i);
       expect(raw).toMatch(/очеред|queue/i);
       expect(raw).toMatch(/номер|exten|нумерац/i);
+      expect(raw).toMatch(/одн(а|у) групп|не три/i);
+      expect(raw).toMatch(/list_call_groups/);
+      expect(raw).toMatch(/чеклист|рецепт/i);
+      expect(raw).toMatch(/не переспрашив|любой.*реплик/i);
     });
   });
 

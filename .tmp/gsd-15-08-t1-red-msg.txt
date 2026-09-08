@@ -1,0 +1,4 @@
+test(15-08): add failing test for in-process agent turn
+
+- Fixture turn expects progress, tool call, tool result, text, done
+- Stream helper must frame events and heartbeat when idle

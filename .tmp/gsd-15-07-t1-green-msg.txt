@@ -1,0 +1,5 @@
+feat(15-07): implement contexts adapter and handwritten skip
+
+- Adapter list_contexts takes tenant as a call parameter
+- Handwritten twin is skipped when the adapter already owns the name
+- Contexts skill documents naming, tenant scope, and route relation

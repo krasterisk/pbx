@@ -8,4 +8,8 @@ describe('normalizeDirectoryKey', () => {
   it('trims only in none mode', () => {
     expect(normalizeDirectoryKey(' AbC ', 'none')).toBe('AbC');
   });
+
+  it('maps an 11-digit 8 prefix to 7', () => {
+    expect(normalizeDirectoryKey('8-900-123-45-67', 'ru_8_to_7')).toBe('79001234567');
+  });
 });

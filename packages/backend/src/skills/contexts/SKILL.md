@@ -1,8 +1,12 @@
 ---
 name: contexts
 description: Контексты маршрутизации тенанта, uid для create_route, изоляция по тенанту.
+domains: ["contexts"]
+intents: ["configure_context"]
+aliases: ["контекст", "context"]
+related: ["routes"]
+risk: high
 ---
-
 # Контексты
 
 Контекст — именованный контейнер маршрутов одного тенанта. Это не общий диалплан Asterisk и не теория телефонии: агент выбирает контекст, в который кладёт маршрут.

@@ -28,6 +28,7 @@ vi.mock('@/features/system-settings/ui/WebhookSecurityCard', () => ({
   WebhookSecurityCard: () => <div data-testid="webhook-card-stub">webhook</div>,
 }));
 
+
 vi.mock('@/features/system-settings/ui/FfmpegStatusCard', () => ({
   FfmpegStatusCard: () => <div data-testid="ffmpeg-card-stub">ffmpeg</div>,
 }));
@@ -38,6 +39,10 @@ vi.mock('@/features/system-settings/ui/RedisStatusCard', () => ({
 
 vi.mock('@/features/tenant-settings/ui/TenantSettingsSection', () => ({
   TenantSettingsSection: () => <div data-testid="tenant-settings-section-stub">tenant</div>,
+}));
+
+vi.mock('@/features/system-settings/ui/AiChatProviderCard', () => ({
+  AiChatProviderCard: () => <div data-testid="ai-chat-card-stub">ai-chat</div>,
 }));
 
 import { SettingsPage } from './SettingsPage';
@@ -52,13 +57,14 @@ describe('SettingsPage stacked forms (D-29 / D-27 wave D)', () => {
     expect(screen.getByTestId('dialplan-card-stub')).toBeInTheDocument();
   });
 
-  it('renders six sections including the tenant settings stub', () => {
+  it('renders seven sections including the tenant settings stub and chat provider card', () => {
     render(<SettingsPage />);
     expect(screen.getByTestId('dialplan-card-stub')).toBeInTheDocument();
     expect(screen.getByTestId('recordings-card-stub')).toBeInTheDocument();
     expect(screen.getByTestId('webhook-card-stub')).toBeInTheDocument();
     expect(screen.getByTestId('ffmpeg-card-stub')).toBeInTheDocument();
     expect(screen.getByTestId('redis-card-stub')).toBeInTheDocument();
+    expect(screen.getByTestId('ai-chat-card-stub')).toBeInTheDocument();
     expect(screen.getByTestId('tenant-settings-section-stub')).toBeInTheDocument();
   });
 

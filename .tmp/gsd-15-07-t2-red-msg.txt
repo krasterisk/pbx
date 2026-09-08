@@ -1,0 +1,4 @@
+test(15-07): add failing test for call-records adapter
+
+- Summary shape, result-count clamp, and reports skill frontmatter
+- Fails until ReportsAiAdapter registers get_cdr_summary and find_cdr_calls

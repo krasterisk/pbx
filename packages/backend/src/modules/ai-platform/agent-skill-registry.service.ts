@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Inject, Injectable, Logger, OnModuleInit, Optional } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
 import { wrapUntrustedData } from '../../shared/utils/prompt-injection.util';
@@ -6,13 +6,22 @@ import { AiAdapterRegistryService } from './ai-adapter-registry.service';
 import { AiToolDefinition, DomainAiAdapter } from './ai-adapter.types';
 
 export const SKILL_BODY_MAX_CHARS = 8000;
+export const SKILL_BULK_READ_MAX = 4;
+export const SKILLS_ROOT = 'SKILLS_ROOT';
 
 const FRONTMATTER = /^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/;
 const TRUNCATION_NOTE = '\n\n[truncated]';
 
+export type SkillRisk = 'low' | 'medium' | 'high';
+
 export interface SkillCatalogEntry {
   name: string;
   description: string;
+  domains: string[];
+  intents: string[];
+  aliases: string[];
+  related: string[];
+  risk: SkillRisk;
 }
 
 interface LoadedSkill extends SkillCatalogEntry {
@@ -23,19 +32,58 @@ export function resolveSkillsRootCandidates(moduleDir: string = __dirname): stri
   return [path.resolve(moduleDir, '../../skills'), path.resolve(process.cwd(), 'src/skills')];
 }
 
-function pickFrontmatterField(head: string, key: string): string {
+function pickScalar(head: string, key: string): string {
   const match = new RegExp(`^${key}:\\s*(.+)$`, 'm').exec(head);
   return (match?.[1] ?? '').trim().replace(/^["']|["']$/g, '');
 }
 
-function parseSkill(raw: string, fallbackName: string): LoadedSkill {
+function pickList(head: string, key: string): string[] {
+  const inline = new RegExp(`^${key}:\\s*\\[(.*)\\]\\s*$`, 'm').exec(head);
+  if (inline) {
+    return inline[1]
+      .split(',')
+      .map((part) => part.trim().replace(/^["']|["']$/g, ''))
+      .filter(Boolean);
+  }
+  const block = new RegExp(`^${key}:\\s*\\r?\\n((?:\\s*-\\s*.+\\r?\\n?)+)`, 'm').exec(head);
+  if (block) {
+    return block[1]
+      .split(/\r?\n/)
+      .map((line) => line.replace(/^\s*-\s*/, '').trim().replace(/^["']|["']$/g, ''))
+      .filter(Boolean);
+  }
+  const scalar = pickScalar(head, key);
+  return scalar ? [scalar] : [];
+}
+
+export function parseSkill(raw: string, fallbackName: string): LoadedSkill {
   const match = FRONTMATTER.exec(raw);
   if (!match) {
-    return { name: fallbackName, description: '', body: raw };
+    return {
+      name: fallbackName,
+      description: '',
+      domains: [fallbackName],
+      intents: [],
+      aliases: [],
+      related: [],
+      risk: 'medium',
+      body: raw,
+    };
   }
+  const head = match[1];
+  const name = pickScalar(head, 'name') || fallbackName;
+  const domains = pickList(head, 'domains');
+  const riskRaw = pickScalar(head, 'risk').toLowerCase();
+  const risk: SkillRisk =
+    riskRaw === 'low' || riskRaw === 'high' || riskRaw === 'medium' ? riskRaw : 'medium';
   return {
-    name: pickFrontmatterField(match[1], 'name') || fallbackName,
-    description: pickFrontmatterField(match[1], 'description'),
+    name,
+    description: pickScalar(head, 'description'),
+    domains: domains.length ? domains : [name],
+    intents: pickList(head, 'intents'),
+    aliases: pickList(head, 'aliases'),
+    related: pickList(head, 'related'),
+    risk,
     body: match[2].trim(),
   };
 }
@@ -44,7 +92,8 @@ function parseSkill(raw: string, fallbackName: string): LoadedSkill {
  * Repository-hosted skills with progressive disclosure (D-10, D-11).
  *
  * The system prompt carries the catalog (name + one-line description).
- * Bodies are loaded on demand through `read_skill` and never merged into the prompt.
+ * Selected skill bodies are injected by the server for the turn; `read_skill`
+ * remains a fallback. Only bundled repository skills are trusted procedural text.
  */
 @Injectable()
 export class AgentSkillRegistryService implements DomainAiAdapter, OnModuleInit {
@@ -54,7 +103,7 @@ export class AgentSkillRegistryService implements DomainAiAdapter, OnModuleInit 
 
   constructor(
     private readonly registry: AiAdapterRegistryService,
-    skillsRootOverride?: string,
+    @Optional() @Inject(SKILLS_ROOT) skillsRootOverride?: string,
   ) {
     const skillsRoot = skillsRootOverride ?? this.resolveExistingRoot();
     this.loadSkills(skillsRoot);
@@ -67,8 +116,15 @@ export class AgentSkillRegistryService implements DomainAiAdapter, OnModuleInit 
 
   getCatalog(): SkillCatalogEntry[] {
     return Array.from(this.skills.values())
-      .map(({ name, description }) => ({ name, description }))
+      .map(({ body: _body, ...entry }) => entry)
       .sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  getSkill(name: string): SkillCatalogEntry | undefined {
+    const skill = this.skills.get(name);
+    if (!skill) return undefined;
+    const { body: _body, ...entry } = skill;
+    return entry;
   }
 
   readSkill(name: string): string {
@@ -76,14 +132,45 @@ export class AgentSkillRegistryService implements DomainAiAdapter, OnModuleInit 
     if (!skill) {
       return `Skill "${name}" not found.`;
     }
-    const body = skill.body.length <= SKILL_BODY_MAX_CHARS
-      ? skill.body
-      : `${skill.body.slice(0, SKILL_BODY_MAX_CHARS)}${TRUNCATION_NOTE}`;
-    return wrapUntrustedData(`skill:${name}`, body);
+    return this.formatBody(name, skill.body);
+  }
+
+  /**
+   * Budgeted bulk-read for server-side progressive disclosure (1–4 skills).
+   * Bodies are returned as trusted procedural text for system-prompt injection
+   * — still length-capped, but not wrapped as untrusted tool data.
+   */
+  readSkillsForPrompt(names: string[], max = SKILL_BULK_READ_MAX): string[] {
+    const unique = [...new Set(names.map((name) => name.trim()).filter(Boolean))].slice(0, max);
+    return unique
+      .map((name) => {
+        const skill = this.skills.get(name);
+        if (!skill) return '';
+        const body =
+          skill.body.length <= SKILL_BODY_MAX_CHARS
+            ? skill.body
+            : `${skill.body.slice(0, SKILL_BODY_MAX_CHARS)}${TRUNCATION_NOTE}`;
+        return `### skill:${name}\n${body}`;
+      })
+      .filter(Boolean);
+  }
+
+  findByDomain(domain: string): SkillCatalogEntry[] {
+    return this.getCatalog().filter(
+      (skill) => skill.domains.includes(domain) || skill.name === domain,
+    );
   }
 
   getTools(): AiToolDefinition[] {
     return [this.toolListSkills(), this.toolReadSkill()];
+  }
+
+  private formatBody(name: string, body: string): string {
+    const clipped =
+      body.length <= SKILL_BODY_MAX_CHARS
+        ? body
+        : `${body.slice(0, SKILL_BODY_MAX_CHARS)}${TRUNCATION_NOTE}`;
+    return wrapUntrustedData(`skill:${name}`, clipped);
   }
 
   private resolveExistingRoot(): string | null {

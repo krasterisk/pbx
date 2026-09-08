@@ -1,0 +1,5 @@
+feat(15-19): implement tenant-filtered live channel read
+
+- Named live_channels maps to a fixed CLI command; unknown names refused
+- Filter derived from tenant contexts and endpoints; cap reported on truncate
+- Register DiagnosticsModule in the application module

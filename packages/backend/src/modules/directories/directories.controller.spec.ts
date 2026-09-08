@@ -22,8 +22,8 @@ describe('DirectoriesController', () => {
       create: jest.fn().mockResolvedValue({ uid: 7 }),
       update: jest.fn().mockResolvedValue({ uid: 7 }),
       remove: jest.fn().mockResolvedValue(undefined),
-      importCsv: jest.fn().mockResolvedValue({ imported: 1 }),
-      exportCsv: jest.fn().mockResolvedValue('phone,name,comment,match_kind,priority\n'),
+      importCsv: jest.fn().mockResolvedValue({ imported: 1, replaced: 0, errors: [] }),
+      exportCsv: jest.fn().mockResolvedValue('\ufeffphone;name;comment\r\n'),
       lookup: jest.fn().mockResolvedValue({
         status: 'FOUND',
         matchKind: 'exact',
@@ -91,27 +91,60 @@ describe('DirectoriesController', () => {
   it('CSV import/export uses declared field keys and rejects unknown columns', async () => {
     service.importCsv.mockImplementation(async (_uid: number, csv: string) => {
       if (csv.includes('unknown_col')) {
-        throw new BadRequestException('Unknown CSV header "unknown_col"');
+        throw new BadRequestException({
+          message: 'Unknown CSV column "unknown_col"',
+          code: 'csv_invalid',
+          errors: [
+            {
+              row: 1,
+              column: 'unknown_col',
+              code: 'unknown_column',
+              message: 'Unknown CSV column "unknown_col"',
+            },
+          ],
+        });
       }
-      return { imported: 1 };
+      return { imported: 1, replaced: 3, errors: [] };
     });
 
     await expect(
-      controller.importCsv(7, { csv: 'phone,name,comment,match_kind,priority\n100,Alice,,exact,1\n' }, req),
-    ).resolves.toEqual({ imported: 1 });
+      controller.importCsv(7, { csv: 'phone;name;comment\n100;Alice;\n' }, req),
+    ).resolves.toEqual({ imported: 1, replaced: 3, errors: [] });
     expect(service.importCsv).toHaveBeenCalledWith(
       7,
-      'phone,name,comment,match_kind,priority\n100,Alice,,exact,1\n',
+      'phone;name;comment\n100;Alice;\n',
       100,
     );
 
     await expect(
-      controller.importCsv(7, { csv: 'unknown_col,match_kind,priority\n' }, req),
+      controller.importCsv(7, { csv: 'unknown_col;match_kind;priority\n' }, req),
     ).rejects.toBeInstanceOf(BadRequestException);
 
     const res = { setHeader: jest.fn(), send: jest.fn() };
     await controller.exportCsv(7, req, res as any);
     expect(service.exportCsv).toHaveBeenCalledWith(7, 100);
-    expect(res.send).toHaveBeenCalledWith('phone,name,comment,match_kind,priority\n');
+    expect(res.setHeader).toHaveBeenCalledWith('Content-Type', 'text/csv; charset=utf-8');
+    expect(res.send).toHaveBeenCalledWith('\ufeffphone;name;comment\r\n');
+  });
+
+  it('surfaces row-addressed CSV errors to the caller', async () => {
+    service.importCsv.mockRejectedValue(
+      new BadRequestException({
+        message: 'Duplicate lookup value "_7900XXXXXXX"',
+        code: 'csv_invalid',
+        errors: [
+          { row: 3, column: 'phone', code: 'duplicate_key', message: 'Duplicate lookup value "_7900XXXXXXX"' },
+        ],
+      }),
+    );
+
+    await expect(
+      controller.importCsv(7, { csv: 'phone\n_7900XXXXXXX\n_7900XXXXXXX\n' }, req),
+    ).rejects.toMatchObject({
+      response: {
+        code: 'csv_invalid',
+        errors: [expect.objectContaining({ row: 3, code: 'duplicate_key' })],
+      },
+    });
   });
 });

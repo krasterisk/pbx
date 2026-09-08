@@ -3,7 +3,7 @@ import { rtkApi } from '../rtkApi';
 // ─── Types ────────────────────────────────────────────────
 
 export type AiProviderKind = 'online' | 'local' | 'custom';
-export type AiCapability = 'llm' | 'stt' | 'tts' | 'realtime';
+export type AiCapability = 'llm' | 'stt' | 'tts' | 'realtime' | 'tools' | 'function_calling';
 export type AiPipelineMode = 'realtime' | 'cascade';
 
 export interface IAiProvider {
@@ -124,10 +124,6 @@ const aiAgentsApi = rtkApi.injectEndpoints({
       query: (id) => ({ url: `/ai-agents/providers/${id}`, method: 'DELETE' }),
       invalidatesTags: ['AiProviders'],
     }),
-    cloneAiProvider: build.mutation<IAiProvider, number>({
-      query: (id) => ({ url: `/ai-agents/providers/${id}/clone`, method: 'POST' }),
-      invalidatesTags: ['AiProviders'],
-    }),
 
     // Toolsets
     getAiToolsets: build.query<IAiToolset[], void>({
@@ -158,7 +154,6 @@ export const {
   useCreateAiProviderMutation,
   useUpdateAiProviderMutation,
   useDeleteAiProviderMutation,
-  useCloneAiProviderMutation,
   useGetAiToolsetsQuery,
   useCreateAiToolsetMutation,
   useUpdateAiToolsetMutation,

@@ -256,7 +256,18 @@ describe('MohAiAdapter', () => {
       expect(mohService.findAll).toHaveBeenCalledWith(TENANT_A);
       expect(mohService.findAll).not.toHaveBeenCalledWith(TENANT_B);
 
-      await getTool('assign_moh_class').handler(
+      const live = new AiAdapterRegistryService();
+      const wired = new MohAiAdapter(
+        mohService as any,
+        live,
+        queuesService as any,
+        routesService as any,
+      );
+      wired.onModuleInit();
+      const mcp = createMcp(live);
+      mcp.registerAll();
+      await mcp.callTool(
+        'assign_moh_class',
         {
           target_type: 'queue',
           target: 'q100_100',
@@ -304,20 +315,8 @@ describe('MohAiAdapter', () => {
 
 function createMcp(registry: AiAdapterRegistryService): McpToolsService {
   return new McpToolsService(
-    { findAll: jest.fn().mockResolvedValue([]), create: jest.fn(), remove: jest.fn(), bulkCreate: jest.fn() } as any,
-    { findAll: jest.fn().mockResolvedValue([]), create: jest.fn(), remove: jest.fn() } as any,
-    { findAll: jest.fn().mockResolvedValue([]), create: jest.fn(), update: jest.fn(), remove: jest.fn() } as any,
-    { findAll: jest.fn().mockResolvedValue([]) } as any,
-    { create: jest.fn(), remove: jest.fn(), generateContextDialplan: jest.fn() } as any,
-    { getIncludeNames: jest.fn() } as any,
-    { findAll: jest.fn().mockResolvedValue([]) } as any,
-    { applyCategories: jest.fn() } as any,
-    {} as any,
-    { findOne: jest.fn() } as any,
-    { getStats: jest.fn(), findCalls: jest.fn() } as any,
     registry,
-    { getSettings: jest.fn().mockResolvedValue({ confirmDestructive: false }) } as any,
     { logAction: jest.fn().mockResolvedValue(undefined) } as any,
-    { createProposal: jest.fn(async (proposal: any) => ({ ...proposal, status: 'pending' })) } as any,
+    { createProposal: jest.fn(async (proposal: any) => ({ ...proposal, proposalId: 'p1', status: 'pending' })) } as any,
   );
 }

@@ -50,11 +50,43 @@ describe('AgentUsageService (15-24 / D-07 / D-08)', () => {
     const tenant10 = rows.find((row) => row.tenantUid === 10);
     const tenant20 = rows.find((row) => row.tenantUid === 20);
     expect(tenant10).toEqual(
-      expect.objectContaining({ tenantUid: 10, tokensIn: 120, tokensOut: 50, turns: 2 }),
+      expect.objectContaining({
+        tenantUid: 10,
+        tenantName: null,
+        tokensIn: 120,
+        tokensOut: 50,
+        turns: 2,
+      }),
     );
     expect(tenant20).toEqual(
-      expect.objectContaining({ tenantUid: 20, tokensIn: 5, tokensOut: 1, turns: 1 }),
+      expect.objectContaining({ tenantUid: 20, tenantName: null, tokensIn: 5, tokensOut: 1, turns: 1 }),
     );
+  });
+
+  it('attaches tenant names from the tenants table and seller fallback for uid 0', async () => {
+    const tenants = { findAll: jest.fn().mockResolvedValue([{ vpbx_user_uid: 10, name: 'Acme PBX' }]) };
+    const cloudSettings = {
+      findOne: jest.fn().mockResolvedValue({ key: 'billing.seller.name', value: 'Локальный офис' }),
+    };
+    service = new AgentUsageService(
+      threads as any,
+      providers as any,
+      undefined as any,
+      undefined as any,
+      undefined as any,
+      tenants as any,
+      cloudSettings as any,
+    );
+    threads.findAll.mockResolvedValue([
+      { vpbx_user_uid: 10, provider_uid: 1, tokens_in: 10, tokens_out: 2 },
+      { vpbx_user_uid: 0, provider_uid: 1, tokens_in: 1, tokens_out: 1 },
+    ]);
+    providers.findAll.mockResolvedValue([{ uid: 1, pricing: { currency: 'USD' } }]);
+
+    const rows = await service.queryTenantUsage(FROM, TO);
+
+    expect(rows.find((row) => row.tenantUid === 10)?.tenantName).toBe('Acme PBX');
+    expect(rows.find((row) => row.tenantUid === 0)?.tenantName).toBe('Локальный офис');
   });
 
   it('computes spend from the provider pricing fields', async () => {

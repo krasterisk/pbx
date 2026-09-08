@@ -1,0 +1,4 @@
+test(15-13): add failing test for call-group membership proposals
+
+- Cover list, membership add/remove summary, missing subscriber refusal, confirm-one-group and delete dependents
+- Stub adapter registers with an empty tool set so RED assertions fail

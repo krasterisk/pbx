@@ -145,15 +145,17 @@ describe('QueuesAiAdapter', () => {
       expect(result.queues).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            name: 'q100_100',
+            name: 'Sales',
+            exten: '100',
             strategy: 'ringall',
             timeout: 30,
             members: expect.arrayContaining([
-              expect.objectContaining({ membername: 'Alice' }),
+              expect.objectContaining({ membername: 'Alice', extension: '201' }),
             ]),
           }),
         ]),
       );
+      expect(JSON.stringify(result.queues)).not.toMatch(/q100_100|e201_100/);
     });
   });
 
@@ -233,6 +235,26 @@ describe('QueuesAiAdapter', () => {
 
       expect(queuesService.create).not.toHaveBeenCalled();
       expect(result.applyPayload).toEqual(expect.objectContaining({ tool: 'create_queue' }));
+    });
+
+    it('normalizes tenant-scoped numbers so create stays in the dispatch tenant', async () => {
+      const result = await getTool('create_queue').handler(
+        {
+          name: 'Support',
+          exten: 'q200_100',
+          strategy: 'ringall',
+          timeout: 20,
+          overflow: 'from-internal',
+          members: [{ interface: 'PJSIP/e201_100', membername: 'Alice' }],
+        },
+        TENANT_A,
+      );
+
+      expect(result.applyPayload.args).toEqual(expect.objectContaining({
+        exten: '200',
+        members: [expect.objectContaining({ interface: 'PJSIP/201' })],
+      }));
+      expect(JSON.stringify(result.applyPayload.args)).not.toMatch(/vpbxUserUid|user_uid|tenantId|q200_100|e201_100/);
     });
   });
 
@@ -335,6 +357,8 @@ describe('QueuesAiAdapter', () => {
       expect(raw).toMatch(/overflow|переполн|context/i);
       expect(raw).toMatch(/member|агент|член/i);
       expect(raw).toMatch(/get_pbx_state|live|состояни/i);
+      expect(raw).toMatch(/list_queues/);
+      expect(raw).toMatch(/чеклист|рецепт/i);
     });
   });
 });

@@ -29,6 +29,7 @@ import {
   Activity,
   Sparkles,
   Package,
+  Plug,
 } from 'lucide-react';
 import { UserLevel } from '@krasterisk/shared';
 import type { HubModuleRow, LicenseStatus, ModuleDef, ModulePageDef } from '../types';
@@ -224,6 +225,7 @@ export const BASELINE_MODULES: ModuleDef[] = [
     navVariant: 'sidebar',
     labelKey: 'nav.ai',
     pages: [
+      { id: 'ai-providers', path: '/ai-providers', labelKey: 'nav.aiProviders', icon: Plug },
       { id: 'ai-agents', path: '/ai-agents', labelKey: 'nav.aiAgents', icon: Sparkles },
     ],
   },

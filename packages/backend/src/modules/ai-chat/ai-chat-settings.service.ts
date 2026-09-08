@@ -24,6 +24,22 @@ export class AiChatSettingsService {
     return { confirmDestructive: !!row?.confirm_destructive };
   }
 
+  async getDefaultProviderUid(tenantUid: number): Promise<number | null> {
+    const row = await this.model.findOne({ where: { user_uid: tenantUid } });
+    const raw = row?.settings?.defaultProviderUid;
+    return typeof raw === 'number' && raw > 0 ? raw : null;
+  }
+
+  async setDefaultProviderUid(tenantUid: number, providerUid: number): Promise<number> {
+    const [row] = await this.model.findOrCreate({
+      where: { user_uid: tenantUid },
+      defaults: { user_uid: tenantUid, confirm_destructive: 0, settings: {} } as any,
+    });
+    const next = { ...(row.settings ?? {}), defaultProviderUid: providerUid };
+    await row.update({ settings: next });
+    return providerUid;
+  }
+
   async updateSettings(vpbxUserUid: number, partial: Partial<AiChatSettingsDto>): Promise<AiChatSettingsDto> {
     const [row] = await this.model.findOrCreate({
       where: { user_uid: vpbxUserUid },
