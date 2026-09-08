@@ -19,40 +19,18 @@ const RETIRED_APPLY_TOOL = 'apply_dialplan';
  * route-apply.service.spec.ts / directories.controller.spec.ts in this repo.
  */
 describe('McpToolsService', () => {
-  let endpointsService: any;
   let trunksService: any;
-  let ivrsService: any;
-  let queuesService: any;
-  let routesService: any;
-  let contextIncludesService: any;
-  let contextsService: any;
-  let dialplanApplyService: any;
-  let contextBuilder: any;
-  let contextModel: any;
-  let cdrService: any;
   let aiAdapterRegistry: any;
-  let aiChatSettingsService: any;
   let loggerService: any;
   let pbxAgentDiffService: any;
   let service: McpToolsService;
 
   beforeEach(() => {
-    endpointsService = { findAll: jest.fn().mockResolvedValue([]), create: jest.fn(), remove: jest.fn(), bulkCreate: jest.fn() };
     trunksService = { findAll: jest.fn().mockResolvedValue([]), create: jest.fn().mockResolvedValue({}), remove: jest.fn() };
-    ivrsService = { findAll: jest.fn().mockResolvedValue([]), create: jest.fn(), update: jest.fn(), remove: jest.fn() };
-    queuesService = { findAll: jest.fn().mockResolvedValue([]), create: jest.fn(), update: jest.fn(), remove: jest.fn() };
-    routesService = { create: jest.fn(), remove: jest.fn(), generateContextDialplan: jest.fn() };
-    contextIncludesService = { getIncludeNames: jest.fn() };
-    contextsService = { findAll: jest.fn().mockResolvedValue([]) };
-    dialplanApplyService = { applyCategories: jest.fn() };
-    contextBuilder = {};
-    contextModel = { findOne: jest.fn() };
-    cdrService = { getStats: jest.fn(), findCalls: jest.fn() };
     aiAdapterRegistry = {
       getAllTools: jest.fn().mockReturnValue([]),
       getDomains: jest.fn().mockReturnValue([]),
     };
-    aiChatSettingsService = { getSettings: jest.fn().mockResolvedValue({ confirmDestructive: false }) };
     loggerService = { logAction: jest.fn().mockResolvedValue(undefined) };
     pbxAgentDiffService = {
       createProposal: jest.fn(async (proposal: any) => ({
@@ -68,19 +46,7 @@ describe('McpToolsService', () => {
     };
 
     service = new McpToolsService(
-      endpointsService,
-      trunksService,
-      ivrsService,
-      queuesService,
-      routesService,
-      contextIncludesService,
-      contextsService,
-      dialplanApplyService,
-      contextBuilder,
-      contextModel,
-      cdrService,
       aiAdapterRegistry,
-      aiChatSettingsService,
       loggerService,
       pbxAgentDiffService,
     );
@@ -303,19 +269,7 @@ describe('McpToolsService', () => {
   describe('bootstrap-built registry (Pitfall 2, Pitfall 5)', () => {
     it('does not lazy-register: getToolsList is empty until onApplicationBootstrap', () => {
       const fresh = new McpToolsService(
-        endpointsService,
-        trunksService,
-        ivrsService,
-        queuesService,
-        routesService,
-        contextIncludesService,
-        contextsService,
-        dialplanApplyService,
-        contextBuilder,
-        contextModel,
-        cdrService,
         aiAdapterRegistry,
-        aiChatSettingsService,
         loggerService,
         pbxAgentDiffService,
       );
@@ -451,7 +405,11 @@ describe('McpToolsService', () => {
       const result = await service.callTool('create_directory', { name: 'VIP' }, 100);
       const body = JSON.parse(result[0].text);
 
-      expect(handler).toHaveBeenCalledWith({ name: 'VIP' }, 100);
+      expect(handler).toHaveBeenCalledWith(
+        { name: 'VIP' },
+        100,
+        expect.objectContaining({ userUid: 0, role: 1, threadUid: 0 }),
+      );
       expect(pbxAgentDiffService.createProposal).toHaveBeenCalledWith(
         expect.objectContaining({ applyPayload: proposal.applyPayload }),
         expect.objectContaining({ vpbxUserUid: 100 }),
@@ -545,6 +503,43 @@ describe('McpToolsService', () => {
 
       await service.callTool('cc_force_unpause_agent', { interface: 'PJSIP/e201' }, 100);
       expect(handler).toHaveBeenCalledWith({ interface: 'PJSIP/e201' }, 100);
+    });
+
+    it('returns a workflow plan view as a card payload, not as prose', async () => {
+      const plan = {
+        workflowId: 'w-plan-1',
+        title: 'x',
+        summary: ['step'],
+        status: 'pending',
+        error: null,
+        expiresAt: new Date().toISOString(),
+        appliedAt: null,
+        steps: [{ stepKey: 's1', tool: 'create_ivr' }],
+      };
+      registerAdapterTools([
+        {
+          name: 'propose_plan',
+          description: 'plan',
+          inputSchema: {},
+          entityType: 'workflow',
+          proposes: true,
+          handler: async () => plan,
+        },
+      ]);
+
+      const parts = await service.callTool(
+        'propose_plan',
+        {
+          title: 'x',
+          steps: [{ id: 's1', tool: 'create_ivr', args: { name: 'IVR' } }],
+        },
+        100,
+        { userUid: 11, role: 1, threadUid: 5 },
+      );
+
+      expect(parts[0].text).not.toMatch(/черновик|подготовлен|подтверд/i);
+      expect(JSON.parse(parts[0].text)).toEqual(expect.objectContaining({ workflowId: expect.any(String) }));
+      expect(pbxAgentDiffService.createProposal).not.toHaveBeenCalled();
     });
   });
 });

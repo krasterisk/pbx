@@ -12,6 +12,10 @@
  * but the registry/dispatch plumbing here must not break them.
  */
 
+// Type-only: erased at compile time, so ai-mutation.contract stays the only
+// runtime importer of this file and there is no module cycle.
+import type { AiMutationContract } from './ai-mutation.contract';
+
 /**
  * A single AI-callable tool, dispatched identically through MCP `tools/call`
  * and the generic webhook `POST /api/ai-tools/call/:toolName`.
@@ -25,7 +29,11 @@ export interface AiToolDefinition {
   name: string;
   /** Tool description, in the style of the 18 existing MCP tools (D-13) */
   description: string;
-  /** Flat JSON-schema `properties` object — no separate metadata layer (D-13) */
+  /**
+   * Flat JSON-schema `properties` object — no separate metadata layer (D-13).
+   * Read-only tools write this by hand. Mutating tools have it generated from
+   * `mutation.input` by defineMutationTool, so the two cannot drift.
+   */
   inputSchema: Record<string, any>;
   /** Entity type recorded in action_logs for this tool's calls (D-19) */
   entityType: string;
@@ -33,8 +41,18 @@ export interface AiToolDefinition {
   destructive?: boolean;
   /** Handler returns an AgentDiffProposal; callTool persists it instead of writing (D-18) */
   proposes?: boolean;
+  /**
+   * Executable mutation contract. Present on every proposing tool: the strict
+   * argument schemas, the revalidate/apply pair the confirmation path runs, and
+   * the adapter-owned dialplan reload policy. Read-only tools leave it unset.
+   */
+  mutation?: AiMutationContract;
   /** vpbxUserUid is passed as a call parameter — never closed over at registration */
-  handler: (args: Record<string, any>, vpbxUserUid: number) => Promise<string | Record<string, any> | AgentDiffProposal>;
+  handler: (
+    args: Record<string, any>,
+    vpbxUserUid: number,
+    ctx?: { userUid: number; role: number; threadUid: number },
+  ) => Promise<string | Record<string, any> | AgentDiffProposal>;
 }
 
 /**
@@ -62,8 +80,13 @@ export interface AgentDiffProposal {
   summary: string[];
   before: Record<string, unknown> | null;
   after: Record<string, unknown> | null;
-  /** Server-side only — must never reach the model or the browser. */
-  applyPayload: { tool: string; args: Record<string, unknown> };
+  /**
+   * Server-side only — must never reach the model or the browser.
+   * `schemaVersion` is stamped by the dispatch layer from the registered
+   * mutation, so a payload stored before a schema change is refused instead of
+   * being applied against the new shape.
+   */
+  applyPayload: { tool: string; args: Record<string, unknown>; schemaVersion?: string };
   includesDialplanReload: boolean;
 }
 

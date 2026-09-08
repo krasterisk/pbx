@@ -37,6 +37,7 @@ import { CloudSetting } from '../cloud-admin/cloud-setting.model';
 import { PbxConversationBriefService } from './pbx-conversation-brief.service';
 import { AgentIntentClassifierService } from './agent-intent-classifier.service';
 import { AiPlatformModule } from '../ai-platform/ai-platform.module';
+import { PlanAiAdapter } from './plan-ai.adapter';
 
 @Module({
     imports: [
@@ -77,6 +78,7 @@ import { AiPlatformModule } from '../ai-platform/ai-platform.module';
         PbxAgentThreadService,
         PbxAgentLlmClient,
         PbxStateAiAdapter,
+        PlanAiAdapter,
         PbxConversationBriefService,
         AgentIntentClassifierService,
         JwtOrServiceTokenGuard,

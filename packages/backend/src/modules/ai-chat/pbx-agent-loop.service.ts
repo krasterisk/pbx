@@ -21,6 +21,7 @@ import {
   looksLikePlanningNarration,
   looksTruncated,
 } from './turn-outcome.util';
+import { isWorkflowPlanView } from './dto/agent-diff.dto';
 
 export const DEFAULT_MAX_AGENT_STEPS = 12;
 export const DEFAULT_TOOL_ARG_RETRIES = 1;
@@ -361,7 +362,7 @@ export class PbxAgentLoopService {
             content: persisted,
             tool_name: normalizedCall.name,
             tool_call_id: normalizedCall.id,
-            proposal_id: proposal?.proposalId ?? null,
+            proposal_id: proposal?.id ?? null,
             provider_model: providerModel,
           });
           if (proposal) {
@@ -371,7 +372,7 @@ export class PbxAgentLoopService {
               data: {
                 kind: 'proposal',
                 id: `p${toolRow.uid}`,
-                card: 'single' as const,
+                card: proposal.card,
                 createdAt: this.createdAtIso(toolRow.created_at),
               },
             };
@@ -649,7 +650,7 @@ export class PbxAgentLoopService {
 
   private pendingProposalForModel(
     toolName: string,
-    proposal: { proposalId: string; entityLabel?: string },
+    proposal: { proposalId?: string; entityLabel?: string },
   ): string {
     const label = typeof proposal.entityLabel === 'string' && proposal.entityLabel.trim()
       ? proposal.entityLabel.trim()
@@ -657,13 +658,28 @@ export class PbxAgentLoopService {
     return `Черновик изменения подготовлен: ${label}. Попроси пользователя подтвердить карточку. Назови, что ещё осталось после подтверждения. Не останавливайся молча. Не упоминай proposal, UUID, apply tool и тенантные идентификаторы вроде q701_0.`;
   }
 
-  private asProposalView(resultText: string): { proposalId: string; status?: string; entityLabel?: string } | null {
+  private asProposalView(resultText: string): {
+    id: string;
+    card: 'single' | 'workflow';
+    proposalId?: string;
+    status?: string;
+    entityLabel?: string;
+  } | null {
     try {
       const parsed = JSON.parse(resultText) as Record<string, unknown>;
       if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+      if (isWorkflowPlanView(parsed)) {
+        return { id: parsed.workflowId, card: 'workflow' };
+      }
       if (typeof parsed.proposalId !== 'string') return null;
       if ('applyPayload' in parsed || 'apply_payload' in parsed) return null;
-      return parsed as { proposalId: string; status?: string; entityLabel?: string };
+      return {
+        id: parsed.proposalId,
+        card: 'single',
+        proposalId: parsed.proposalId,
+        status: typeof parsed.status === 'string' ? parsed.status : undefined,
+        entityLabel: typeof parsed.entityLabel === 'string' ? parsed.entityLabel : undefined,
+      };
     } catch {
       return null;
     }

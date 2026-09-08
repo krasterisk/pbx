@@ -818,6 +818,41 @@ describe('PbxAgentLoopService', () => {
       expect(JSON.stringify(events)).not.toContain('SECRET_QUEUE_DUMP');
     });
 
+    it('persists a plan card so it survives a reload', async () => {
+      const plan = {
+        workflowId: 'w-1',
+        title: 'Приёмная',
+        summary: ['группа', 'IVR', 'маршрут'],
+        status: 'pending',
+        steps: [
+          { stepKey: 'group', tool: 'create_call_group' },
+          { stepKey: 'ivr', tool: 'create_ivr' },
+          { stepKey: 'route', tool: 'create_route' },
+        ],
+      };
+      const { service, mcpTools, threads } = createHarness([
+        {
+          text: '',
+          toolCalls: [{
+            id: 'c1',
+            name: 'propose_plan',
+            arguments: { title: 'Приёмная', steps: plan.steps },
+          }],
+        },
+        { text: 'Подтвердите план приёмной.', toolCalls: [] },
+      ]);
+      mcpTools.getToolsList.mockReturnValue([
+        { name: 'propose_plan', description: 'plan', inputSchema: { type: 'object', properties: {} } },
+      ]);
+      mcpTools.callTool.mockResolvedValue([{ type: 'text', text: JSON.stringify(plan) }]);
+
+      const events = await collect(service.runTurn('собери приёмную', { uid: THREAD }, turnContext()));
+      const toolRow = threads.appendMessage.mock.calls.find((c) => c[3].role === 'tool');
+      expect(toolRow?.[3].proposal_id).toBe('w-1');
+      const item = events.find((e) => e.name === 'item' && (e.data as { kind?: string }).kind === 'proposal');
+      expect((item?.data as { card?: string }).card).toBe('workflow');
+    });
+
     it('emits a proposal item without the proposal identifier', async () => {
       const view = {
         proposalId: '11111111-1111-1111-1111-111111111111',

@@ -18,6 +18,11 @@ export class AgentApplyPayloadDto {
 
   @IsObject()
   args!: Record<string, unknown>;
+
+  /** Adapter schema version stamped server-side; stale stored payloads refuse at confirm. */
+  @IsOptional()
+  @IsString()
+  schemaVersion?: string;
 }
 
 /**
@@ -62,6 +67,7 @@ export type AgentProposalView = Omit<AgentDiffProposal, 'applyPayload'> & {
   proposalId: string;
   status: string;
   expiresAt: string;
+  appliedAt?: string | null;
   error?: string | null;
 };
 
@@ -84,6 +90,7 @@ export function toProposalView(row: {
   includes_dialplan_reload: boolean;
   status: string;
   expires_at: Date;
+  applied_at?: Date | null;
   error?: string | null;
 }): AgentProposalView {
   return {
@@ -96,6 +103,11 @@ export function toProposalView(row: {
     includesDialplanReload: row.includes_dialplan_reload,
     status: row.status,
     expiresAt: row.expires_at instanceof Date ? row.expires_at.toISOString() : String(row.expires_at),
+    appliedAt: row.applied_at
+      ? row.applied_at instanceof Date
+        ? row.applied_at.toISOString()
+        : String(row.applied_at)
+      : null,
     error: row.error ?? null,
   };
 }
@@ -117,5 +129,13 @@ export function isProposalClientView(value: unknown): value is AgentProposalView
     !Array.isArray(value) &&
     'proposalId' in value &&
     !('applyPayload' in value)
+  );
+}
+
+export function isWorkflowPlanView(value: unknown): value is { workflowId: string; steps: unknown[] } {
+  return (
+    !!value && typeof value === 'object' && !Array.isArray(value) &&
+    'workflowId' in value && typeof (value as { workflowId: unknown }).workflowId === 'string' &&
+    Array.isArray((value as { steps?: unknown }).steps)
   );
 }

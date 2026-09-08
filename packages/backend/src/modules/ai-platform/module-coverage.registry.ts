@@ -14,6 +14,14 @@ export type CoveredModule = {
   domain?: string;
   /** Catalog skill name when the domain has no own `src/skills/<dir>/SKILL.md`. */
   sharedSkill?: string;
+  /**
+   * Agent capability surface:
+   * - read: list/get only
+   * - configure: propose/apply mutations allowed for tenant UI
+   * - operation: live-ops without durable config (pause/reload)
+   * - immutable: must never become tenant-agent writes
+   */
+  capability?: 'read' | 'configure' | 'operation' | 'immutable';
 };
 
 export type ReasonedModule = {
@@ -29,8 +37,8 @@ export const MODULE_COVERAGE: Record<string, ModuleCoverageEntry> = {
     reason:
       'Platform provider catalog, toolsets and billing (D-07); tenants never operate this module.',
   },
-  'ai-chat': { kind: 'covered', domain: 'pbx', sharedSkill: 'diagnostics' },
-  'ai-platform': { kind: 'covered', domain: 'skills', sharedSkill: 'developer-convention' },
+  'ai-chat': { kind: 'covered', domain: 'pbx', sharedSkill: 'diagnostics', capability: 'read' },
+  'ai-platform': { kind: 'covered', domain: 'skills', sharedSkill: 'developer-convention', capability: 'read' },
   ami: {
     kind: 'infrastructure',
     reason: 'Asterisk AMI connection and dialplan-apply transport, not a tenant catalog.',
@@ -43,37 +51,37 @@ export const MODULE_COVERAGE: Record<string, ModuleCoverageEntry> = {
     kind: 'infrastructure',
     reason: 'JWT and RBAC entry; tenant identity is the users domain.',
   },
-  'call-groups': { kind: 'covered' },
+  'call-groups': { kind: 'covered', capability: 'configure' },
   'callback-requests': {
     kind: 'excluded',
     reason:
       'Callback queue is driven by the AMI scanner and call-center UI; live queue mutation has no confirmable agent diff this phase.',
   },
-  callcenter: { kind: 'covered' },
+  callcenter: { kind: 'covered', capability: 'operation' },
   'cloud-admin': {
     kind: 'excluded',
     reason:
-      'Platform SuperAdmin hub, marketplace and tenant provisioning — not a tenant PBX domain the agent serves.',
+      'Platform SuperAdmin hub, marketplace and tenant provisioning — not a tenant PBX domain the agent serves (immutable).',
   },
   config: {
     kind: 'infrastructure',
     reason: 'Nest ConfigModule wrapper, not a PBX product surface.',
   },
-  contexts: { kind: 'covered' },
-  diagnostics: { kind: 'covered' },
+  contexts: { kind: 'covered', capability: 'configure' },
+  diagnostics: { kind: 'covered', capability: 'read' },
   'dialplan-bridge': {
     kind: 'infrastructure',
     reason: 'Internal Asterisk/API bridge, not a tenant-facing catalog.',
   },
-  'dialplan-dry-run': { kind: 'covered', domain: 'dialplan_dry_run', sharedSkill: 'routes' },
-  directories: { kind: 'covered' },
-  endpoints: { kind: 'covered' },
+  'dialplan-dry-run': { kind: 'covered', domain: 'dialplan_dry_run', sharedSkill: 'routes', capability: 'operation' },
+  directories: { kind: 'covered', capability: 'configure' },
+  endpoints: { kind: 'covered', capability: 'configure' },
   health: {
     kind: 'infrastructure',
     reason: 'Process health probes with no tenant data.',
   },
-  ivrs: { kind: 'covered' },
-  'komandor-claims': { kind: 'covered', sharedSkill: 'operations' },
+  ivrs: { kind: 'covered', capability: 'configure' },
+  'komandor-claims': { kind: 'covered', sharedSkill: 'operations', capability: 'operation' },
   logger: {
     kind: 'infrastructure',
     reason: 'Audit writer used by mutating paths; not a tenant catalog the agent lists.',
@@ -86,16 +94,17 @@ export const MODULE_COVERAGE: Record<string, ModuleCoverageEntry> = {
     kind: 'infrastructure',
     reason: 'External JSON-RPC transport; tools come from adapters, not this module.',
   },
-  moh: { kind: 'covered' },
-  notifications: { kind: 'covered', sharedSkill: 'operations' },
-  numbers: { kind: 'covered' },
-  prompts: { kind: 'covered', sharedSkill: 'operations' },
-  queues: { kind: 'covered' },
+  moh: { kind: 'covered', capability: 'configure' },
+  notifications: { kind: 'covered', sharedSkill: 'operations', capability: 'configure' },
+  numbers: { kind: 'covered', capability: 'read' },
+  plan: { kind: 'covered', domain: 'plan', sharedSkill: 'pbx-setup', capability: 'configure' },
+  prompts: { kind: 'covered', sharedSkill: 'operations', capability: 'configure' },
+  queues: { kind: 'covered', capability: 'configure' },
   redis: {
     kind: 'infrastructure',
     reason: 'Cache and pub/sub infrastructure, not a tenant entity.',
   },
-  reports: { kind: 'covered' },
+  reports: { kind: 'covered', capability: 'read' },
   roles: {
     kind: 'infrastructure',
     reason: 'RBAC guard plumbing; tenant people are the users domain.',
@@ -105,20 +114,20 @@ export const MODULE_COVERAGE: Record<string, ModuleCoverageEntry> = {
     reason:
       'Read model for the route-builder picker; routes, IVRs and directories already have adapters.',
   },
-  'route-templates': { kind: 'covered', domain: 'route_templates', sharedSkill: 'routes' },
-  routes: { kind: 'covered' },
-  'service-requests': { kind: 'covered', sharedSkill: 'operations' },
-  sms: { kind: 'covered', sharedSkill: 'messaging' },
-  'stt-engines': { kind: 'covered', sharedSkill: 'speech-engines' },
-  'system-settings': { kind: 'covered', sharedSkill: 'settings' },
-  telegram: { kind: 'covered', sharedSkill: 'messaging' },
-  'tenant-settings': { kind: 'covered', sharedSkill: 'settings' },
-  'time-groups': { kind: 'covered' },
-  trunks: { kind: 'covered' },
-  'tts-engines': { kind: 'covered', sharedSkill: 'speech-engines' },
-  users: { kind: 'covered' },
-  'voice-robots': { kind: 'covered' },
-  voicemail: { kind: 'covered' },
+  'route-templates': { kind: 'covered', domain: 'route_templates', sharedSkill: 'routes', capability: 'read' },
+  routes: { kind: 'covered', capability: 'configure' },
+  'service-requests': { kind: 'covered', sharedSkill: 'operations', capability: 'operation' },
+  sms: { kind: 'covered', sharedSkill: 'messaging', capability: 'configure' },
+  'stt-engines': { kind: 'covered', sharedSkill: 'speech-engines', capability: 'configure' },
+  'system-settings': { kind: 'covered', sharedSkill: 'settings', capability: 'immutable' },
+  telegram: { kind: 'covered', sharedSkill: 'messaging', capability: 'configure' },
+  'tenant-settings': { kind: 'covered', sharedSkill: 'settings', capability: 'configure' },
+  'time-groups': { kind: 'covered', capability: 'read' },
+  trunks: { kind: 'covered', capability: 'configure' },
+  'tts-engines': { kind: 'covered', sharedSkill: 'speech-engines', capability: 'configure' },
+  users: { kind: 'covered', capability: 'immutable' },
+  'voice-robots': { kind: 'covered', capability: 'configure' },
+  voicemail: { kind: 'covered', capability: 'configure' },
 };
 
 export const BACKEND_MODULES_DIR = path.resolve(__dirname, '..');
