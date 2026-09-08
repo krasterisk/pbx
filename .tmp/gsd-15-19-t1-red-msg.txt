@@ -1,4 +1,0 @@
-test(15-19): add failing test for live channel tenant filter
-
-- Allow-listed Core CLI command only; unknown names refused before AMI
-- Two-tenant fixture and documented channel cap with truncation

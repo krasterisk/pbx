@@ -1,5 +1,0 @@
-feat(15-21): implement prompts requests and claims read adapters
-
-- Prompt reads return metadata and IVR references, never audio or paths
-- Request and claim lists reuse the shared ceiling and preview length
-- No mutating tools on any of the three adapters

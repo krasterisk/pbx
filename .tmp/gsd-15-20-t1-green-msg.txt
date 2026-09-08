@@ -1,4 +1,0 @@
-feat(15-20): implement voice robot read with engine dependency state
-
-- List robots with status and route entry points
-- Describe resolves TTS/STT configured vs missing, no writes

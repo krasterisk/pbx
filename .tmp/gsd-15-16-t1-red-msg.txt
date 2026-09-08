@@ -1,4 +1,0 @@
-test(15-16): add failing test for schedule read adapter
-
-- Assert list/evaluate tools, tenant timezone, read-only and isolation
-- Time-groups skill must cover timezone-sensitive routing questions

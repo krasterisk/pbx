@@ -1,3 +1,0 @@
-test(15-08): add failing test for ceiling cancel and proposals
-
-- Ceiling, abort in two positions, pending proposal event, bounded arg retries

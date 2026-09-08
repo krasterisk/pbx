@@ -1,4 +1,0 @@
-feat(15-05): persist proposals and apply confirmed writes
-
-- Add PbxAgentDiffService, apply/reject endpoints and callTool persist
-- Convert directory write tools to AgentDiffProposal drafts

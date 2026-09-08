@@ -1,5 +1,0 @@
-test(15-09): add failing test for create subscriber proposal
-
-- Assert create_endpoint returns a pending proposal and writes nothing
-- Assert credentials never appear in the proposal or tool result
-- Assert next free extension and context come from the calling tenant

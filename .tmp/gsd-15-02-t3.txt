@@ -1,4 +1,0 @@
-feat(15-02): seed directories, voicemail, and callcenter skills
-
-- Domain skills describe our model and conventions, not general telephony
-- Catalog lists all four seed skills with non-empty descriptions

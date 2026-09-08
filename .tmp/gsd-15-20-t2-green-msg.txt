@@ -1,3 +1,0 @@
-feat(15-20): implement speech engine reads without credentials
-
-- TTS/STT allow-list views; no synth, transcribe or secret fields

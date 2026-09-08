@@ -1,5 +1,0 @@
-feat(15-16): implement number read with resolved destination
-
-- List tenant numbers with status and route assignment
-- Describe resolves the current destination; unrouted numbers are named
-- Domain stays read-only; skill tells the model not to match patterns by hand

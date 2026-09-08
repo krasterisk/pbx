@@ -1,4 +1,0 @@
-test(15-15): add failing tests for token-only MCP tenant
-
-- Require JwtAuthGuard and reject service-token plus tenant header
-- Bind MCP session to the establishing tenant

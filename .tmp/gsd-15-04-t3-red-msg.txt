@@ -1,3 +1,0 @@
-test(15-04): add failing test for provider errors and cancellation
-
-- Cover missing llm capability, tools fallback, HTTP status, and pre-request abort

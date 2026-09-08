@@ -1,5 +1,0 @@
-feat(15-13): implement call-group proposal-gated tools
-
-- List, create, membership update and delete return drafts with added/removed sets
-- Refuse unknown tenant subscribers by extension before confirm
-- Delete card names routes and menus; register adapter and domain skill

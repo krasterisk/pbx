@@ -1,4 +1,0 @@
-docs(15-21): complete operational read adapters plan
-
-- Record four remaining tenant-facing domains as readable and bounded
-- Handoff coverage set to 15-23 with shared operations skill

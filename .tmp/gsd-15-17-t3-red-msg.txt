@@ -1,4 +1,0 @@
-test(15-17): add failing test for messaging channel read adapters
-
-- SMS and Telegram config without tokens
-- Delivery history without bodies or send tools

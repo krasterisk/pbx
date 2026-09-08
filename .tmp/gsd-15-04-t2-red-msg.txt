@@ -1,4 +1,0 @@
-test(15-04): add failing test for system prompt and state snapshot
-
-- Assert catalog-only skills, adapter knowledge, language and HITL rules
-- Assert get_pbx_state counts, tenant isolation, filter, and char budget

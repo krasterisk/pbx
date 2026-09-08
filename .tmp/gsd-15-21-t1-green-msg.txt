@@ -1,4 +1,0 @@
-feat(15-21): implement notifications read adapter
-
-- List tool clamps count and truncates bodies via shared operational constants
-- No send/create surface; tenant is a handler parameter

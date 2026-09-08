@@ -1,5 +1,0 @@
-feat(15-08): rewire turn endpoint and delete the chat proxy
-
-- Stream in-process loop events and abort on client disconnect
-- Tenant, author and role come from the token; foreign threads are not found
-- Remove AiChatService and AIPBX environment reads (D-06, D-27)

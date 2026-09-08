@@ -1,4 +1,0 @@
-test(15-16): add failing test for portal user read adapter
-
-- Assert allow-listed name/role/activity, no secrets, read-only and isolation
-- Secret absence is checked on the declared shape, not only fixtures

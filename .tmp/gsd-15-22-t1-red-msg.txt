@@ -1,4 +1,0 @@
-test(15-22): add failing eval replay for one read scenario
-
-- Assert tool sequence, no network, per-row tenant, and data-driven scenarios
-- Harness stub throws until the real loop fixture is wired

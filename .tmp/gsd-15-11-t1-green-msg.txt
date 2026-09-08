@@ -1,4 +1,0 @@
-feat(15-11): implement typed route chain proposals
-
-- Validate model drafts against the shared action contract before a card exists
-- Propose create/delete with includesDialplanReload; confirmation uses RouteApplyService

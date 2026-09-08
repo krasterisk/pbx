@@ -1,4 +1,0 @@
-docs(15-22): add named eval script and remaining-ten guide
-
-- Expose npm run test:pbx-agent-eval so the suite runs before review
-- Document scenario fields, matchers and the ten phase-gate slots

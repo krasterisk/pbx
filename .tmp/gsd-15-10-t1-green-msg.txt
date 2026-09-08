@@ -1,4 +1,0 @@
-feat(15-10): implement voice-menu adapter with destination check
-
-- Serve list/create/update/delete as proposing tools
-- Refuse a digit whose destination does not exist for the tenant

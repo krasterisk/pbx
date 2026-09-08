@@ -1,5 +1,0 @@
-feat(15-17): implement tenant settings read without secret values
-
-- Allow-listed settings grouped by area
-- Secret keys report configured/not configured only
-- No write tool; settings skill documents the boundary

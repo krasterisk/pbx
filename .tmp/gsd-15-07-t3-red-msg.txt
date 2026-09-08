@@ -1,4 +1,0 @@
-test(15-07): add failing test for eighteen-name inventory
-
-- Expects per-name adapter-served / handwritten / retired reporting
-- Fails until the inventory constant and state reporter land

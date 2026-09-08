@@ -1,4 +1,0 @@
-feat(15-17): implement tenant-scoped platform settings projection
-
-- Explicit default-excluding capability list
-- No raw table, webhook secret or server store path

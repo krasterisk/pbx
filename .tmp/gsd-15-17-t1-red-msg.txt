@@ -1,5 +1,0 @@
-test(15-17): add failing test for tenant settings read adapter
-
-- Assert allow-listed settings grouped by area
-- Secret-valued keys report presence only
-- No mutating tool and no cross-tenant leak

@@ -1,4 +1,0 @@
-feat(15-11): refuse unsafe precedence and retire apply_dialplan
-
-- Check catch-all-over-specific at proposal time and add inbound/catch-all impact notes
-- Skip handwritten apply_dialplan once the routes adapter is registered

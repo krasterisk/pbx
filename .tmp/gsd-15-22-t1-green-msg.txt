@@ -1,4 +1,0 @@
-feat(15-22): replay canned model turns through the real agent loop
-
-- Substitute only the fixture model client; dispatch, sanitise, proposals and audit stay real
-- Assert tool sequence and per-row tenant from data-driven scenarios

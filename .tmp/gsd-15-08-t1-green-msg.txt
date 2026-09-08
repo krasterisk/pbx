@@ -1,5 +1,0 @@
-feat(15-08): implement in-process agent turn and SSE framing
-
-- Loop calls the model, dispatches tools through callTool with token tenant
-- Persist user, tool exchange and answer as they happen; accumulate tokens
-- Frame SSE events by name with a heartbeat on idle connections

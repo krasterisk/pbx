@@ -1,4 +1,0 @@
-test(15-15): add failing tests for handwritten cutover
-
-- Assert registry count equals adapter declarations and apply_dialplan is gone
-- Fail leftover handwritten names and deleted webhook/knowledge symbols

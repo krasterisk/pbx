@@ -1,4 +1,0 @@
-feat(15-15): fail-fast provider secret and correct architecture notes
-
-- Abort startup outside development when CC_AI_KEY_SECRET is missing
-- Widen test:ai to mcp and replace handwritten tool-inventory docs

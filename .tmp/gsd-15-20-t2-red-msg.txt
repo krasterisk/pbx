@@ -1,3 +1,0 @@
-test(15-20): add failing test for speech engine reads without credentials
-
-- TTS/STT allow-list shape, no keys or billable synth/transcribe tools

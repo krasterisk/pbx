@@ -1,9 +1,0 @@
-{
-  "ecosystem": "npm",
-  "config": { "exa_search": false, "brave_search": false, "firecrawl": false, "tavily_search": false },
-  "questions": [
-    { "text": "react-to-print useReactToPrint contentRef API print Dialog subtree", "kind": "docs", "library": "react-to-print", "version": "3.3.0" },
-    { "text": "CSS grid break-inside avoid print page flow document layout flowchart without canvas", "kind": "web" },
-    { "text": "NestJS @Interval background scanner pattern mutex lease", "kind": "docs", "library": "@nestjs/schedule", "version": "4" }
-  ]
-}

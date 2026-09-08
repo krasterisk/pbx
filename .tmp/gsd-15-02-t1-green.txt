@@ -1,5 +1,0 @@
-feat(15-02): implement skill catalog and on-demand read_skill
-
-- Repository-hosted skills with hand-parsed two-field frontmatter
-- Catalog stays cheap; bodies load through read_skill with an 8000-char cap
-- Self-registers as the skills platform adapter

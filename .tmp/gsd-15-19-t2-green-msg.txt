@@ -1,4 +1,0 @@
-feat(15-19): add event history, compiled dialplan and read-only adapter
-
-- Bounded CDR events and owned-context dialplan show in evaluation order
-- Three diagnostic tools; no mutating surface; tenant stays a handler argument

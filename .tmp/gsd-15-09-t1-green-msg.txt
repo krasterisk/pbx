@@ -1,5 +1,0 @@
-feat(15-09): implement create subscriber as a proposal
-
-- Move SIP credential generation into EndpointsService.createWithGeneratedCredentials
-- Return a pending create_endpoint proposal without writing or leaking the password
-- Derive the next free extension and default context from the tenant's subscribers

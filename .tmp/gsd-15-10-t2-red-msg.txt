@@ -1,3 +1,0 @@
-test(15-10): add failing test for queue adapter proposals
-
-- Cover list/create/update/delete with overflow check and named dependents

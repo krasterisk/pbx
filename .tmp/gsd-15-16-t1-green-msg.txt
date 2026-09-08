@@ -1,5 +1,0 @@
-feat(15-16): implement schedule read and evaluation tools
-
-- List tenant time groups with readable intervals
-- Evaluate inside/outside in the tenant timezone and name the next boundary
-- Domain stays read-only; skill covers timezone-sensitive routing questions

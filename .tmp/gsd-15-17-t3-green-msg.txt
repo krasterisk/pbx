@@ -1,5 +1,0 @@
-feat(15-17): implement messaging channel reads without send or secrets
-
-- SMS and Telegram config as configured/enabled only
-- Delivery history without bodies; no send tool
-- Read methods on services so adapters never touch tokens

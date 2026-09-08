@@ -1,3 +1,0 @@
-docs(15-04): complete model client and system prompt plan
-
-- Record SUMMARY, advance Phase 15 to 15-05, mark 15-04 done on ROADMAP

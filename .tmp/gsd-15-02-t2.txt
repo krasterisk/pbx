@@ -1,4 +1,0 @@
-feat(15-02): ship skill markdown as a nest build asset
-
-- Copy src/skills/**/*.md into the compiled output next to proto assets
-- Prove the catalog is non-empty and the resolver prefers the module directory

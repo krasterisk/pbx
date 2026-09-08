@@ -1,4 +1,0 @@
-test(15-11): add failing test for typed route proposal
-
-- Draft validator must accept a typed chain and refuse unknown kind, missing params, and missing entities
-- Adapter must propose create_route with dialplan reload and refuse invalid or cross-tenant drafts

@@ -1,4 +1,0 @@
-test(15-05): add failing test for propose-then-apply
-
-- Cover proposal persist, apply refusals, route orchestrator and directory writes
-- Cover callTool proposes persist, destructive refusal and live-ops exceptions

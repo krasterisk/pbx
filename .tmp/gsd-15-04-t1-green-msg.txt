@@ -1,4 +1,0 @@
-feat(15-04): implement LLM client and default provider resolution
-
-- Resolve CC_AI_DEFAULT_PROVIDER_UID then first enabled llm row
-- Stream OpenAI-compatible completions with tools, abort, and structured errors

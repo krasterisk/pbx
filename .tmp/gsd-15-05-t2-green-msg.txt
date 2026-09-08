@@ -1,4 +1,0 @@
-feat(15-05): deny read-only apply and write audit rows
-
-- Mirror interface permission: READONLY sets denied and mutates nothing
-- Write action_log plus cc_ai_audit_log before every apply response

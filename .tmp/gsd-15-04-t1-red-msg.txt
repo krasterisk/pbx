@@ -1,4 +1,0 @@
-test(15-04): add failing test for LLM client and default provider
-
-- Cover findDefaultLlm resolution, cache, and tenant-over-global order
-- Cover chat() URL, auth, streamed tool calls, abort, and bad endpoints

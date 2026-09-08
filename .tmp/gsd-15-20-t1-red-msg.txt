@@ -1,4 +1,0 @@
-test(15-20): add failing test for voice robot read with engine state
-
-- List/describe robots, missing engine refs, no mutating tools
-- Skill file and tenant isolation asserted

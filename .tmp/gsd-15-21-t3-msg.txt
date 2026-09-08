@@ -1,4 +1,0 @@
-feat(15-21): add shared operations skill and cross-tenant coverage
-
-- One skill covers notifications, prompts, service-requests and claims
-- Per-tool isolation and forged-key ignore for all four list tools

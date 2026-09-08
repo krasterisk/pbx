@@ -1,4 +1,0 @@
-feat(15-04): rebuild system prompt and compact state snapshot
-
-- Compose state, adapter knowledge, skill catalog and behavioural rules
-- Expose the same snapshot as get_pbx_state with an optional domain filter

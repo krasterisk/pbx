@@ -1,4 +1,0 @@
-test(15-13): add failing test for hold-music assign proposals
-
-- Cover list/describe metadata, assign before/after class names, foreign-class refusal
-- Stub adapter registers with an empty tool set so RED assertions fail

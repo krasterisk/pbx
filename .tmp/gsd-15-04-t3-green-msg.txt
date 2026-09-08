@@ -1,4 +1,0 @@
-feat(15-04): add provider failure and cancellation contracts
-
-- Structured errors for missing llm, HTTP status, and pre-request abort
-- Tools-unsupported fallback plus axios non-streaming path

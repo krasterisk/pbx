@@ -1,4 +1,0 @@
-feat(15-09): implement bulk and delete subscriber proposals
-
-- One confirmation card per batch with a named 50-item ceiling
-- Delete is destructive, names the subscriber, and resolves inside the tenant

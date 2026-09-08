@@ -1,4 +1,0 @@
-test(15-09): add failing test for trunk create and delete proposals
-
-- Assert create names the trunk and host without writing
-- Assert delete names referencing routes and confirm surfaces them

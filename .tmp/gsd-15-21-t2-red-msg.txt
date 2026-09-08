@@ -1,3 +1,0 @@
-test(15-21): add failing tests for prompts requests and claims reads
-
-- Assert metadata-only prompts, bounded request/claim subjects, no writes, tenant isolation
