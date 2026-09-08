@@ -28,8 +28,10 @@ export * from './types/route-template.types';
 export * from './types/call-group.types';
 export * from './types/notification.types';
 export * from './types/voicemail.types';
+export * from './types/callcenter.types';
 export * from './types/ivr-phrase.types';
 export * from './types/prompt.types';
+export * from './types/ai-chat-timeline.types';
 export {
   normalizeIvrPrompts,
   assertIvrPromptsForSave,
@@ -55,6 +57,7 @@ export {
   createEmptyRewriteRule,
 } from './utils/dial-target-rewrite';
 export { ensureCdrVpbxUserUidInDialplan } from './utils/dialplan-vpbx';
+export { normalizeDirectoryKey } from './utils/directory-key';
 export { OPTIONS_ROUNDTRIP_STRINGS } from './fixtures/dialplan-options.roundtrip';
 export {
   DEFAULT_HOP_LIMIT,
