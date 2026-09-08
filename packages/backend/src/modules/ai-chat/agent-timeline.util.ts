@@ -36,6 +36,9 @@ export function buildTimeline(rows: TimelineSourceRow[], opts: BuildTimelineOpti
     }
 
     if (source.role === 'user') {
+      if (source.visibility === 'internal') {
+        continue;
+      }
       items.push({
         kind: 'user',
         id: `m${source.uid}`,

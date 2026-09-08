@@ -9,6 +9,8 @@ import { AiChatSettingsService } from './ai-chat-settings.service';
 import { AgentThread } from './models/agent-thread.model';
 import { AgentThreadMessage } from './models/agent-thread-message.model';
 import { AgentProposal } from './models/agent-proposal.model';
+import { AgentWorkflow, AgentWorkflowStep } from './models/agent-workflow.model';
+import { AgentProposalsModule } from './agent-proposals.module';
 import { CcAiProvider } from '../ai-agents/models/ai-provider.model';
 import { CcAiAuditLog } from '../ai-agents/models/ai-audit-log.model';
 import { PbxAgentThreadService } from './pbx-agent-thread.service';
@@ -30,12 +32,29 @@ import { PbxAgentLlmClient } from './pbx-agent-llm.client';
 import { PbxStateAiAdapter } from './pbx-state-ai.adapter';
 import { PbxAgentLoopService } from './pbx-agent-loop.service';
 import { McpModule } from '../mcp/mcp.module';
+import { Tenant } from '../cloud-admin/tenant.model';
+import { CloudSetting } from '../cloud-admin/cloud-setting.model';
+import { PbxConversationBriefService } from './pbx-conversation-brief.service';
+import { AgentIntentClassifierService } from './agent-intent-classifier.service';
+import { AiPlatformModule } from '../ai-platform/ai-platform.module';
 
 @Module({
     imports: [
         ConfigModule,
         HttpModule.register({ timeout: 60_000 }),
-        SequelizeModule.forFeature([Context, AiChatSettings, AgentThread, AgentThreadMessage, AgentProposal, CcAiProvider, CcAiAuditLog]),
+        SequelizeModule.forFeature([
+            Context,
+            AiChatSettings,
+            AgentThread,
+            AgentThreadMessage,
+            AgentProposal,
+            AgentWorkflow,
+            AgentWorkflowStep,
+            CcAiProvider,
+            CcAiAuditLog,
+            Tenant,
+            CloudSetting,
+        ]),
         EndpointsModule,
         TrunksModule,
         IvrsModule,
@@ -45,6 +64,8 @@ import { McpModule } from '../mcp/mcp.module';
         AmiModule,
         LoggerModule,
         AiAgentsModule,
+        AiPlatformModule,
+        AgentProposalsModule,
         forwardRef(() => McpModule),
     ],
     controllers: [AiChatController, AgentUsageController],
@@ -56,10 +77,20 @@ import { McpModule } from '../mcp/mcp.module';
         PbxAgentThreadService,
         PbxAgentLlmClient,
         PbxStateAiAdapter,
+        PbxConversationBriefService,
+        AgentIntentClassifierService,
         JwtOrServiceTokenGuard,
         ServiceTokenGuard,
     ],
-    exports: [PbxContextBuilderService, AiChatSettingsService, PbxAgentThreadService, PbxAgentLlmClient, PbxAgentLoopService],
+    exports: [
+        PbxContextBuilderService,
+        AiChatSettingsService,
+        PbxAgentThreadService,
+        PbxAgentLlmClient,
+        PbxAgentLoopService,
+        PbxConversationBriefService,
+        AgentIntentClassifierService,
+    ],
 })
 export class AiChatModule {}
 

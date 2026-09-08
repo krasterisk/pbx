@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { AgentTimelineStepItem, AgentTurnCloseKind } from '@krasterisk/shared';
+import type { AgentItemVisibility, AgentTimelineStepItem, AgentTurnCloseKind } from '@krasterisk/shared';
 import { wrapUntrustedData } from '../../shared/utils/prompt-injection.util';
 import { AiProvidersService } from '../ai-agents/ai-providers.service';
 import { McpToolsService } from '../mcp/mcp-tools.service';
@@ -28,12 +28,17 @@ export const TOOL_RESULT_MAX_CHARS = 4000;
 export const ASSISTANT_OUTPUT_BUDGET_CHARS = 8000;
 export const PROMPT_TOTAL_BUDGET_CHARS = 48_000;
 
+export const CONTINUE_AFTER_APPLY_PROMPT =
+  'Карточка применена. Продолжи исходный запрос: создай недостающие сущности инструментами. ' +
+  'Не переспрашивай TTS и номер группы.';
+
 export interface AgentTurnContext {
   tenantUid: number;
   authorUid: number;
   role: number;
   locale?: string;
   signal?: AbortSignal;
+  userVisibility?: AgentItemVisibility;
 }
 
 export interface AgentStreamEvent {
@@ -82,20 +87,24 @@ export class PbxAgentLoopService {
     const argRetries = this.readInt('CC_AI_TOOL_ARG_RETRIES', DEFAULT_TOOL_ARG_RETRIES);
     const argFailures = new Map<string, number>();
 
+    const userVisibility = ctx.userVisibility ?? 'public';
     const userRow = await this.threads.appendMessage(threadUid, tenantUid, authorUid, {
       role: 'user',
       content: message,
+      visibility: userVisibility,
     });
     yield { name: 'thread', data: { uid: threadUid } };
-    yield {
-      name: 'item',
-      data: {
-        kind: 'user',
-        id: `m${userRow.uid}`,
-        text: message,
-        createdAt: this.createdAtIso(userRow.created_at),
-      },
-    };
+    if (userVisibility !== 'internal') {
+      yield {
+        name: 'item',
+        data: {
+          kind: 'user',
+          id: `m${userRow.uid}`,
+          text: message,
+          createdAt: this.createdAtIso(userRow.created_at),
+        },
+      };
+    }
 
     const preferredUid = await this.chatSettings.getDefaultProviderUid(tenantUid);
     const provider = await this.providers.findDefaultLlm(tenantUid, preferredUid);
