@@ -358,6 +358,68 @@
     "expectedToolSequence": ["read_skill", "list_contexts"]
   },
   {
+    "id": "plan-ivr-full",
+    "bucket": "playbook",
+    "input": "Сделай IVR Продажи: абоненты 101–103, группа на таймаут, меню 1→101, 2→102, 3→103.",
+    "tenantUid": 100,
+    "authorUid": 11,
+    "role": 1,
+    "locale": "ru",
+    "modelTurns": [
+      {
+        "text": "",
+        "toolCalls": [
+          {
+            "id": "call_propose_plan",
+            "name": "propose_plan",
+            "arguments": {
+              "title": "IVR Продажи",
+              "steps": [
+                {
+                  "id": "endpoints",
+                  "tool": "create_endpoints_bulk",
+                  "args": { "extensionsPattern": "101-103" }
+                },
+                {
+                  "id": "group",
+                  "tool": "create_call_group",
+                  "dependsOn": ["endpoints"],
+                  "args": {
+                    "name": "Продажи",
+                    "exten": "6010",
+                    "members": [
+                      { "member_type": "internal", "value": "steps.endpoints.result.extensions" }
+                    ]
+                  }
+                },
+                {
+                  "id": "ivr",
+                  "tool": "create_ivr",
+                  "dependsOn": ["group"],
+                  "args": {
+                    "name": "Продажи",
+                    "menu_items": [
+                      { "digit": "1", "destination": { "kind": "extension", "target": "101" } },
+                      { "digit": "2", "destination": { "kind": "extension", "target": "102" } },
+                      { "digit": "3", "destination": { "kind": "extension", "target": "103" } },
+                      { "digit": "t", "destination": { "kind": "group", "target": "steps.group.result.uid" } }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "text": "Подтвердите план: абоненты 101–103, группа на таймаут, меню Продажи.",
+        "toolCalls": []
+      }
+    ],
+    "expectedToolSequence": ["propose_plan"],
+    "assertNoWrite": true
+  },
+  {
     "id": "failure-readonly-mutate",
     "bucket": "failure",
     "input": "Создай справочник VIP",

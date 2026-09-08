@@ -2,8 +2,10 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { AgentSkillRegistryService } from '../ai-platform/agent-skill-registry.service';
 import { AiAdapterRegistryService } from '../ai-platform/ai-adapter-registry.service';
+import { CallGroupsAiAdapter } from '../call-groups/call-groups-ai.adapter';
 import { DirectoriesAiAdapter } from '../directories/directories-ai.adapter';
 import { EndpointsAiAdapter } from '../endpoints/endpoints-ai.adapter';
+import { IvrsAiAdapter } from '../ivrs/ivrs-ai.adapter';
 import { McpToolsService } from '../mcp/mcp-tools.service';
 import { QueuesAiAdapter } from '../queues/queues-ai.adapter';
 import { ReportsAiAdapter } from '../reports/reports-ai.adapter';
@@ -11,7 +13,9 @@ import { TrunksAiAdapter } from '../trunks/trunks-ai.adapter';
 import { PbxAgentDiffService } from './pbx-agent-diff.service';
 import { PbxAgentLoopService, type AgentStreamEvent } from './pbx-agent-loop.service';
 import { PbxContextBuilderService } from './pbx-context-builder.service';
+import { PlanAiAdapter } from './plan-ai.adapter';
 import { PbxStateAiAdapter } from './pbx-state-ai.adapter';
+import type { PbxWorkflowRunnerService, WorkflowPlanView } from './pbx-workflow-runner.service';
 import type { AgentCompletion, AgentToolCall } from './pbx-agent.types';
 
 export type EvalBucket =
@@ -458,6 +462,33 @@ async function replayOnce(scenario: EvalScenario, world: EvalWorld): Promise<Eva
   new ReportsAiAdapter(cdrService as never, registry).onModuleInit();
   new PbxStateAiAdapter(builder, registry).onModuleInit();
   new TrunksAiAdapter(trunksService as never, routesService as never, registry).onModuleInit();
+  new CallGroupsAiAdapter(
+    callGroupsService as never,
+    registry,
+    endpointsService as never,
+    routeReferencesService as never,
+  ).onModuleInit();
+  new IvrsAiAdapter(
+    ivrsService as never,
+    registry,
+    contextsService as never,
+    endpointsService as never,
+    queuesService as never,
+    callGroupsService as never,
+  ).onModuleInit();
+  const workflows = {
+    createFromDraft: async (draft: { title?: string; steps: unknown[] }): Promise<WorkflowPlanView> => ({
+      workflowId: 'wf_eval',
+      title: draft.title ?? '',
+      summary: [],
+      status: 'pending',
+      error: null,
+      expiresAt: new Date().toISOString(),
+      appliedAt: null,
+      steps: (draft.steps ?? []) as WorkflowPlanView['steps'],
+    }),
+  };
+  new PlanAiAdapter(registry, workflows as unknown as PbxWorkflowRunnerService).onModuleInit();
 
   const diff = new PbxAgentDiffService(
     proposalModel as never,

@@ -72,7 +72,7 @@ describe('pbx-agent-eval', () => {
     const scenarios = loadReferenceScenarios();
     const byBucket = (bucket: EvalScenario['bucket']) => scenarios.filter((row) => row.bucket === bucket);
 
-    expect(scenarios).toHaveLength(14);
+    expect(scenarios).toHaveLength(15);
     expect(byBucket('read').map((row) => row.id)).toEqual([
       'read-list-queues',
       'read-find-cdr-calls',
@@ -85,7 +85,7 @@ describe('pbx-agent-eval', () => {
     expect(byBucket('cross-tenant')).toHaveLength(2);
     expect(byBucket('diagnostic')).toHaveLength(1);
     expect(byBucket('step-budget')).toHaveLength(1);
-    expect(byBucket('playbook')).toHaveLength(1);
+    expect(byBucket('playbook')).toHaveLength(2);
     expect(byBucket('failure')).toHaveLength(1);
     expect(byBucket('adversarial')).toHaveLength(1);
   });
@@ -159,6 +159,13 @@ describe('pbx-agent-eval', () => {
       .filter((event) => event.name === 'item')
       .map((event) => (event.data as { kind?: string }).kind);
     expect(itemKinds.indexOf('step')).toBeLessThan(itemKinds.indexOf('assistant'));
+  });
+
+  it('replays a three-step plan as one card', async () => {
+    const scenario = loadReferenceScenarios().find((row) => row.id === 'plan-ivr-full');
+    const result = await runScenario(scenario!);
+    expect(result.toolSequence).toEqual(['propose_plan']);
+    expect(result.entityCountsAfter).toEqual(result.entityCountsBefore);
   });
 
   it('passes a step-budget scenario that stops at the ceiling', async () => {

@@ -20,6 +20,8 @@ risk: medium
 
 Исполняемый чеклист для «IVR Продажи, 1→101, 2→102, 3→103, таймаут → группа 101–103»:
 
+Если не хватает и абонентов, и группы, и меню — это один `propose_plan` из трёх шагов (`create_endpoints_bulk` → `create_call_group` → `create_ivr`), а не три хода.
+
 1. `list_endpoints` с фильтром `101-103`. Если номеров нет — одна карточка `create_endpoints_bulk` `101-103`, попроси подтвердить, чеклист: группа → меню.
 2. `list_call_groups`. Одна группа с членами 101–103. Если `exten` группы не назван — один вопрос (не выдумывай 702/703/704).
 3. `list_tts_engines`. Затем `create_ivr` с текстом приветствия в `prompts` (`kind: tts`, `text`, `engine_uid`) и цифрой `t` → `{ kind: group, target: <uid группы> }`. Это `togroup` с `target.fixed`, не `extension`. Цифра → абонент — `kind: extension` (persist `toexten`, не `dial`).

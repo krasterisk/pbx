@@ -1,6 +1,6 @@
 import { Logger } from '@nestjs/common';
 import { UNTRUSTED_FENCE_CLOSE, UNTRUSTED_FENCE_OPEN } from '../../shared/utils/prompt-injection.util';
-import { PbxContextBuilderService } from './pbx-context-builder.service';
+import { PbxContextBuilderService, PROMPT_TOKEN_CEILING } from './pbx-context-builder.service';
 import { PbxStateAiAdapter } from './pbx-state-ai.adapter';
 
 const DIRECTORY_KNOWLEDGE = '## Справочники (Directories) — модель данных\n- Справочник = схема полей + записи.';
@@ -129,6 +129,20 @@ describe('PbxContextBuilderService', () => {
         expect(prompt).toMatch(/меню|menu question|IVR, группа или абоненты/i);
         expect(prompt).toMatch(/list_tts_engines|engine_uid/i);
         expect(prompt).toMatch(/exactly the named set|точн/i);
+    });
+
+    it('tells the model to batch three or more changes into one plan', async () => {
+        const { builder } = makeBuilder();
+        const state = await builder.buildState(111);
+        const prompt = builder.buildSystemPrompt(state);
+        expect(prompt).toMatch(/propose_plan/);
+        expect(prompt).toMatch(/Три и более/);
+    });
+
+    it('keeps the system prompt under the token ceiling', async () => {
+        const { builder } = makeBuilder();
+        const state = await builder.buildState(111);
+        expect(Math.ceil(builder.buildSystemPrompt(state).length / 4)).toBeLessThanOrEqual(PROMPT_TOKEN_CEILING);
     });
 
     it('states the confirmation-card policy instead of a textual destructive warning alone', async () => {
