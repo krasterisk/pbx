@@ -1,6 +1,7 @@
 import type { AgentTimelineItem } from '@krasterisk/shared';
 import { rtkApi } from '../rtkApi';
 import type { AiModel } from '@/features/ai-chat/model/types/AiChatSchema';
+import { getLiveTimeline, mergeTimelines, setLiveTimeline } from './aiChatLiveTimeline';
 
 export interface IAiChatSettings {
     confirmDestructive: boolean;
@@ -181,6 +182,23 @@ const aiChatApi = rtkApi.injectEndpoints({
         getAiChatThread: builder.query<IAiChatThreadDetail, number>({
             query: (uid) => `/ai-chat/threads/${uid}`,
             providesTags: (_result, _err, uid) => [{ type: 'AiChatThreads', id: uid }],
+            async onQueryStarted(uid, { dispatch, queryFulfilled }) {
+                try {
+                    const { data } = await queryFulfilled;
+                    const live = getLiveTimeline(uid);
+                    if (live && live.length > data.timeline.length) {
+                        const merged = mergeTimelines(data.timeline, live);
+                        dispatch(aiChatApi.util.updateQueryData('getAiChatThread', uid, (draft) => {
+                            draft.timeline = merged;
+                        }));
+                        setLiveTimeline(uid, merged);
+                        return;
+                    }
+                    if (data.timeline) setLiveTimeline(uid, data.timeline);
+                } catch {
+                    // refetch failed — keep the live timeline
+                }
+            },
         }),
         createAiChatThread: builder.mutation<IAiChatThread, void>({
             query: () => ({

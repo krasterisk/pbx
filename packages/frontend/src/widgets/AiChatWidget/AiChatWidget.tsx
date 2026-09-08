@@ -88,6 +88,13 @@ export const AiChatWidget = ({ open, onClose }: AiChatWidgetProps) => {
         }
     }, [dispatch, selectedThreadUid]);
 
+    const handleClearChat = useCallback(() => {
+        abort();
+        setSelectedThreadUid(null);
+        dispatch(aiChatActions.resetTurn());
+        setLastError(null);
+    }, [abort, dispatch]);
+
     useEffect(() => {
         if (!following) return;
         messagesEndRef.current?.scrollIntoView?.({ behavior: 'smooth' });
@@ -190,8 +197,9 @@ export const AiChatWidget = ({ open, onClose }: AiChatWidgetProps) => {
                     <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => dispatch(aiChatActions.resetTurn())}
+                        onClick={handleClearChat}
                         title={t('aiChat.clearChat')}
+                        aria-label={t('aiChat.clearChat')}
                     >
                         <Trash2 size={14} />
                     </Button>

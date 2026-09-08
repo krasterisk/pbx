@@ -7,6 +7,7 @@ import { configureStore } from '@reduxjs/toolkit';
 import React from 'react';
 import { rtkApi } from '@/shared/api/rtkApi';
 import { aiChatApi } from '@/shared/api/endpoints/aiChatApi';
+import { clearLiveTimelines } from '@/shared/api/endpoints/aiChatLiveTimeline';
 import { aiChatReducer } from './slice/aiChatSlice';
 import { useAgentTurn } from './useAgentTurn';
 
@@ -104,6 +105,7 @@ describe('useAgentTurn', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     localStorage.clear();
+    clearLiveTimelines();
   });
 
   it('upserts items into the thread cache instead of a local list', async () => {
@@ -258,6 +260,80 @@ describe('useAgentTurn', () => {
     expect(assistants[0]).toMatchObject({ text: 'partial ' });
     expect(JSON.stringify(selectTimeline(store, 7))).not.toContain('should not appear');
     expect(result.current.outcome).toBe('stopped');
+  });
+
+  it('keeps continue upserts when a shorter GET replaces the thread cache', async () => {
+    const prior = [
+      { kind: 'user' as const, id: 'm1', text: 'apply this', createdAt: AT },
+      { kind: 'proposal' as const, id: 'p1', card: 'single' as const, createdAt: AT },
+    ];
+    const staleThread = { ...emptyThread(7), timeline: prior };
+    const continueChunk = encodeSse([
+      { event: 'item', data: { kind: 'assistant', id: 'a-live', text: 'applied, next step', closeKind: 'complete', streaming: false, createdAt: AT } },
+      { event: 'done', data: { closeKind: 'complete' } },
+    ]);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init?: { method?: string }) => {
+        if (init?.method === 'POST') {
+          let index = 0;
+          return {
+            ok: true,
+            status: 200,
+            body: {
+              getReader: () => ({
+                read: async () => {
+                  if (index >= 1) return { done: true, value: undefined };
+                  index += 1;
+                  return { done: false, value: continueChunk };
+                },
+              }),
+            },
+          };
+        }
+        const body = JSON.stringify(staleThread);
+        return {
+          ok: true,
+          status: 200,
+          headers: new Headers({ 'content-type': 'application/json' }),
+          json: async () => staleThread,
+          text: async () => body,
+          clone() {
+            return this;
+          },
+        };
+      }),
+    );
+
+    const store = configureStore({
+      reducer: {
+        aiChat: aiChatReducer,
+        [rtkApi.reducerPath]: rtkApi.reducer,
+      },
+      middleware: (getDefault) => getDefault({ serializableCheck: false }).concat(rtkApi.middleware),
+    });
+    store.dispatch(aiChatApi.endpoints.getAiChatThread.initiate(7));
+    await waitFor(() => {
+      expect(selectTimeline(store, 7).map((row) => row.id)).toEqual(['m1', 'p1']);
+    });
+
+    const { result } = renderHook(() => useAgentTurn({ threadUid: 7 }), { wrapper: wrapperFor(store) });
+
+    await act(async () => {
+      result.current.continueAfterApply();
+    });
+
+    await waitFor(() => {
+      expect(selectTimeline(store, 7).map((row) => row.id)).toEqual(['m1', 'p1', 'a-live']);
+    });
+
+    await act(async () => {
+      store.dispatch(aiChatApi.util.invalidateTags([{ type: 'AiChatThreads', id: 7 }]));
+    });
+
+    await waitFor(() => {
+      expect(selectTimeline(store, 7).map((row) => row.id)).toEqual(['m1', 'p1', 'a-live']);
+    });
   });
 
   it('continueAfterApply posts to the continue endpoint with an empty body', async () => {

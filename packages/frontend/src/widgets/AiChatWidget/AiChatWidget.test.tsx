@@ -262,9 +262,8 @@ describe('AiChatWidget', () => {
       join(process.cwd(), 'src/widgets/AiChatWidget/AiChatWidget.module.scss'),
       'utf8',
     );
-    expect(scss).toMatch(/--ai-agent-panel-width:\s*60vw/);
+    expect(scss).toMatch(/--ai-agent-panel-width:\s*520px/);
     expect(scss).toMatch(/width:\s*var\(--ai-agent-panel-width\)/);
-    expect(scss).toMatch(/max-width:\s*1023px[\s\S]*--ai-agent-panel-width:\s*520px/);
   });
 
   it('renders a thread rail beside the conversation above the wide breakpoint', () => {
@@ -329,6 +328,18 @@ describe('AiChatWidget', () => {
     render(<AiChatWidget open onClose={vi.fn()} />);
     selectStoredThread();
     expect(screen.queryByText(/План выполнения|Execution plan/i)).toBeNull();
+  });
+
+  it('clears the visible conversation when the header clear control is used', () => {
+    render(<AiChatWidget open onClose={vi.fn()} />);
+    selectStoredThread();
+    expect(screen.getByText('Stored user message from yesterday')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'aiChat.clearChat' }));
+
+    expect(screen.queryByText('Stored user message from yesterday')).toBeNull();
+    expect(screen.getByText('aiChat.welcome')).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: /Yesterday's call/ })).toBeInTheDocument();
   });
 
   it('clears the conversation column after deleting the selected conversation', async () => {

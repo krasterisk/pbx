@@ -3,6 +3,7 @@ import { useStore } from 'react-redux';
 import type { AgentTimelineItem } from '@krasterisk/shared';
 import { useAppDispatch, useAppSelector } from '@/shared/hooks/useAppStore';
 import { aiChatApi, type IAiChatThreadDetail } from '@/shared/api/endpoints/aiChatApi';
+import { setLiveTimeline } from '@/shared/api/endpoints/aiChatLiveTimeline';
 import { aiChatActions, type AgentTurnOutcome } from './slice/aiChatSlice';
 import { selectAiChatIsStreaming } from './selectors/aiChatSelectors';
 
@@ -169,6 +170,12 @@ export function useAgentTurn(options: UseAgentTurnOptions): UseAgentTurnApi {
     threadUidRef.current = options.threadUid;
     onThreadCreatedRef.current = options.onThreadCreated;
 
+    const resetLiveTimeline = useCallback((uid: number | null) => {
+        if (uid == null) return;
+        delete timelineRef.current[uid];
+        setLiveTimeline(uid, null);
+    }, []);
+
     const upsertItem = useCallback((item: AgentTimelineItem) => {
         const threadUid = threadUidRef.current;
         if (threadUid == null) return;
@@ -179,6 +186,7 @@ export function useAgentTurn(options: UseAgentTurnOptions): UseAgentTurnApi {
         if (index >= 0) next[index] = item;
         else next.push(item);
         timelineRef.current[threadUid] = next;
+        setLiveTimeline(threadUid, next);
         dispatch(
             aiChatApi.util.updateQueryData('getAiChatThread', threadUid, (draft) => {
                 draft.timeline = next;
@@ -244,6 +252,7 @@ export function useAgentTurn(options: UseAgentTurnOptions): UseAgentTurnApi {
         lastMessageRef.current = message;
         stoppedRef.current = false;
         sawProposalRef.current = false;
+        resetLiveTimeline(threadUidRef.current);
         dispatch(aiChatActions.startTurn());
 
         const apiBase = import.meta.env.VITE_API_URL || '/api';
@@ -251,7 +260,7 @@ export function useAgentTurn(options: UseAgentTurnOptions): UseAgentTurnApi {
             message,
             ...(threadUidRef.current != null ? { threadUid: threadUidRef.current } : {}),
         });
-    }, [bindStream, dispatch, isStreaming]);
+    }, [bindStream, dispatch, isStreaming, resetLiveTimeline]);
 
     const continueAfterApply = useCallback(() => {
         const uid = threadUidRef.current;
@@ -259,11 +268,12 @@ export function useAgentTurn(options: UseAgentTurnOptions): UseAgentTurnApi {
 
         stoppedRef.current = false;
         sawProposalRef.current = false;
+        resetLiveTimeline(uid);
         dispatch(aiChatActions.startTurn());
 
         const apiBase = import.meta.env.VITE_API_URL || '/api';
         bindStream(`${apiBase}/ai-chat/threads/${uid}/continue`, {});
-    }, [bindStream, dispatch, isStreaming]);
+    }, [bindStream, dispatch, isStreaming, resetLiveTimeline]);
 
     const stop = useCallback(() => {
         stoppedRef.current = true;
