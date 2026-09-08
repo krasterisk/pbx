@@ -4,6 +4,7 @@ import { AiChatSettings } from './ai-chat-settings.model';
 
 export interface AiChatSettingsDto {
   confirmDestructive: boolean;
+  seeAllThreads: boolean;
 }
 
 /**
@@ -21,7 +22,10 @@ export class AiChatSettingsService {
 
   async getSettings(vpbxUserUid: number): Promise<AiChatSettingsDto> {
     const row = await this.model.findOne({ where: { user_uid: vpbxUserUid } });
-    return { confirmDestructive: !!row?.confirm_destructive };
+    return {
+      confirmDestructive: !!row?.confirm_destructive,
+      seeAllThreads: await this.getSeeAllThreads(vpbxUserUid),
+    };
   }
 
   async getDefaultProviderUid(tenantUid: number): Promise<number | null> {
@@ -65,6 +69,13 @@ export class AiChatSettingsService {
       await row.update({ confirm_destructive: partial.confirmDestructive ? 1 : 0 });
     }
 
-    return { confirmDestructive: !!row.confirm_destructive };
+    if (partial.seeAllThreads !== undefined) {
+      await this.setSeeAllThreads(vpbxUserUid, partial.seeAllThreads);
+    }
+
+    return {
+      confirmDestructive: !!row.confirm_destructive,
+      seeAllThreads: await this.getSeeAllThreads(vpbxUserUid),
+    };
   }
 }

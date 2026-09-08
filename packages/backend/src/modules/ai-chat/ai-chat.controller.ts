@@ -37,6 +37,8 @@ import { AgentThreadMessage } from './models/agent-thread-message.model';
 import { DEFAULT_SSE_HEARTBEAT_MS, SseStreamSession } from './agent-sse.util';
 import { buildTimeline, type TimelineProposalRef } from './agent-timeline.util';
 import { PbxWorkflowRunnerService, type WorkflowPlanView } from './pbx-workflow-runner.service';
+import { ThreadVisibilityService } from './thread-visibility.service';
+import { User } from '../users/user.model';
 
 const BODY_IDENTITY_KEYS = [
     'tenantUid',
@@ -63,8 +65,13 @@ class SendMessageDto {
 }
 
 class UpdateAiChatSettingsDto {
+    @IsOptional()
     @IsBoolean()
-    confirmDestructive: boolean;
+    confirmDestructive?: boolean;
+
+    @IsOptional()
+    @IsBoolean()
+    seeAllThreads?: boolean;
 }
 
 class UpdateDefaultProviderDto {
@@ -97,6 +104,8 @@ export class AiChatController {
         private readonly loggerService: LoggerService,
         @InjectModel(AgentProposal) private readonly proposals: typeof AgentProposal,
         private readonly workflows: PbxWorkflowRunnerService,
+        private readonly visibility: ThreadVisibilityService,
+        @InjectModel(User) private readonly users: typeof User,
     ) {}
 
     @ApiOperation({ summary: 'List the caller\'s conversations (tenant + author)' })
@@ -116,18 +125,35 @@ export class AiChatController {
         return this.toThreadJson(row);
     }
 
+    @ApiOperation({ summary: 'Threads of other users the caller may read' })
+    @SkipThrottle({ default: true, global: true })
+    @Get('threads/shared')
+    async listSharedThreads(@Req() req: any) {
+        const { tenantUid, authorUid, role } = this.identityFromToken(req);
+        const scope = await this.visibility.resolve(tenantUid, authorUid, role);
+        const rows = await this.threads.listReadableThreads(tenantUid, scope, authorUid);
+        const names = await this.ownerNamesByUid(rows.map((row) => row.user_uid), tenantUid);
+        return rows.map((row) => ({
+            ...this.toThreadJson(row),
+            ownerName: names.get(row.user_uid) ?? '',
+            readOnly: true as const,
+        }));
+    }
+
     @ApiOperation({ summary: 'Get one conversation and its timeline' })
     @SkipThrottle({ default: true, global: true })
     @Get('threads/:uid')
     async getThread(@Param('uid', ParseIntPipe) uid: number, @Req() req: any) {
         const { tenantUid, authorUid, role } = this.identityFromToken(req);
-        const thread = await this.threads.getThread(uid, tenantUid, authorUid);
-        const messages = await this.threads.listMessages(uid, tenantUid, authorUid);
-        const proposalById = await this.proposalViewsFor(messages, tenantUid, authorUid);
+        const scope = await this.visibility.resolve(tenantUid, authorUid, role);
+        const thread = await this.threads.getReadableThread(uid, tenantUid, authorUid, scope);
+        const messages = await this.threads.listReadableMessages(uid, tenantUid, authorUid, scope);
+        const threadAuthorUid = thread.user_uid;
+        const proposalById = await this.proposalViewsFor(messages, tenantUid, threadAuthorUid);
         const workflowById = await this.workflowViewsFor(
             messages,
             tenantUid,
-            authorUid,
+            threadAuthorUid,
             role,
             new Set(proposalById.keys()),
         );
@@ -142,8 +168,14 @@ export class AiChatController {
             messages.filter((row) => row.visibility !== 'internal'),
             { proposals: proposalRefs },
         );
+        const isOwn = threadAuthorUid === authorUid;
+        const ownerName = isOwn
+            ? undefined
+            : (await this.ownerNamesByUid([threadAuthorUid], tenantUid)).get(threadAuthorUid) ?? '';
         return {
             ...this.toThreadJson(thread),
+            ...(isOwn ? {} : { ownerName }),
+            readOnly: !isOwn,
             timeline,
             cards: this.cardsFor(messages, proposalById, workflowById),
         };
@@ -199,6 +231,9 @@ export class AiChatController {
     @SkipThrottle({ default: true, global: true })
     @Put('settings')
     async updateSettings(@Body() dto: UpdateAiChatSettingsDto, @Req() req: any) {
+        if (dto.seeAllThreads !== undefined) {
+            this.assertAdmin(req);
+        }
         return this.aiChatSettingsService.updateSettings(req.user.vpbx_user_uid, dto);
     }
 
@@ -270,6 +305,16 @@ export class AiChatController {
             created_at: this.toIso(thread.created_at) ?? '',
             updated_at: this.toIso(thread.updated_at) ?? '',
         };
+    }
+
+    private async ownerNamesByUid(authorUids: number[], tenantUid: number): Promise<Map<number, string>> {
+        const unique = [...new Set(authorUids.filter((id) => Number(id) > 0))];
+        if (!unique.length) return new Map();
+        const rows = await this.users.findAll({
+            where: { uniqueid: unique, vpbx_user_uid: tenantUid },
+            attributes: ['uniqueid', 'name', 'login'],
+        });
+        return new Map(rows.map((row) => [row.uniqueid, row.name || row.login || '']));
     }
 
     private async streamTurn(

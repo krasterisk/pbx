@@ -1,4 +1,4 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
 import { AiChatController } from './ai-chat.controller';
@@ -32,19 +32,30 @@ describe('AiChatController', () => {
     createThread: jest.fn(),
     listThreads: jest.fn(),
     listMessages: jest.fn(),
+    listReadableThreads: jest.fn(),
+    getReadableThread: jest.fn(),
+    listReadableMessages: jest.fn(),
     deleteThread: jest.fn(),
     appendMessage: jest.fn(),
   };
   const contextBuilder = { buildState: jest.fn() };
-  const settings = { getSettings: jest.fn(), updateSettings: jest.fn() };
+  const settings = {
+    getSettings: jest.fn(),
+    updateSettings: jest.fn(),
+    getSeeAllThreads: jest.fn(),
+    setSeeAllThreads: jest.fn(),
+  };
   const providers = { findOne: jest.fn() };
   const loggerService = { logAction: jest.fn().mockResolvedValue(undefined) };
   const proposals = { findAll: jest.fn() };
   const workflows = { getOwned: jest.fn() };
+  const visibility = { resolve: jest.fn() };
+  const users = { findAll: jest.fn() };
   let controller: AiChatController;
 
   const threadRow = {
     uid: 7,
+    user_uid: 7,
     title: 'IVR',
     status: 'active' as const,
     last_message_at: new Date('2026-09-08T10:00:00Z'),
@@ -95,6 +106,11 @@ describe('AiChatController', () => {
     jest.clearAllMocks();
     proposals.findAll.mockResolvedValue([]);
     workflows.getOwned.mockRejectedValue(new NotFoundException('Workflow not found'));
+    visibility.resolve.mockResolvedValue({ readableAuthors: null, allTenantThreads: false });
+    users.findAll.mockResolvedValue([]);
+    threads.listReadableThreads.mockResolvedValue([]);
+    threads.getReadableThread.mockImplementation((...args: unknown[]) => threads.getThread(...args));
+    threads.listReadableMessages.mockImplementation((...args: unknown[]) => threads.listMessages(...args));
     controller = new AiChatController(
       loop as any,
       threads as any,
@@ -104,6 +120,8 @@ describe('AiChatController', () => {
       loggerService as any,
       proposals as any,
       workflows as any,
+      visibility as any,
+      users as any,
     );
   });
 
@@ -225,6 +243,8 @@ describe('AiChatController', () => {
     const req = { user: { vpbx_user_uid: 42, sub: 7, level: 3 } };
 
     const detail = await controller.getThread(7, req);
+    expect(detail.readOnly).toBe(false);
+    expect(detail).not.toHaveProperty('ownerName');
     expect(detail).toHaveProperty('timeline');
     expect(detail).not.toHaveProperty('messages');
     expect(JSON.stringify(detail.timeline)).not.toMatch(/proposalId|apply_payload|tool_calls/);
@@ -285,6 +305,84 @@ describe('AiChatController', () => {
     };
 
     await expect(controller.continueThread(99, req, res as any)).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('lists shared threads with an owner name and a read-only flag', async () => {
+    visibility.resolve.mockResolvedValue({ readableAuthors: [8], allTenantThreads: false });
+    threads.listReadableThreads.mockResolvedValue([
+      {
+        uid: 3,
+        title: 'Queues',
+        status: 'active',
+        last_message_at: new Date('2026-09-05T01:00:00Z'),
+        created_at: new Date('2026-09-05T00:00:00Z'),
+        updated_at: new Date('2026-09-05T01:00:00Z'),
+        vpbx_user_uid: 42,
+        user_uid: 8,
+      },
+    ]);
+    users.findAll.mockResolvedValue([{ uniqueid: 8, name: 'Пётр', login: 'petr' }]);
+    const req = { user: { vpbx_user_uid: 42, sub: 7, level: 3 } };
+
+    const rows = await controller.listSharedThreads(req);
+
+    expect(visibility.resolve).toHaveBeenCalledWith(42, 7, 3);
+    expect(threads.listReadableThreads).toHaveBeenCalledWith(
+      42,
+      { readableAuthors: [8], allTenantThreads: false },
+      7,
+    );
+    expect(users.findAll).toHaveBeenCalledTimes(1);
+    expect(rows[0]).toEqual(expect.objectContaining({ ownerName: 'Пётр', readOnly: true }));
+    expect(JSON.stringify(rows)).not.toMatch(/vpbx_user_uid|user_uid/);
+  });
+
+  it('returns an empty shared list when nothing is shared', async () => {
+    visibility.resolve.mockResolvedValue({ readableAuthors: null, allTenantThreads: false });
+    threads.listReadableThreads.mockResolvedValue([]);
+    const req = { user: { vpbx_user_uid: 42, sub: 7, level: 3 } };
+
+    await expect(controller.listSharedThreads(req)).resolves.toEqual([]);
+    expect(users.findAll).not.toHaveBeenCalled();
+  });
+
+  it('reads a shared thread detail as read-only', async () => {
+    const sharedThread = { ...threadRow, user_uid: 8 };
+    threads.getThread.mockResolvedValue(sharedThread);
+    threads.listMessages.mockResolvedValue(threadMessages);
+    users.findAll.mockResolvedValue([{ uniqueid: 8, name: 'Пётр', login: 'petr' }]);
+    proposals.findAll.mockResolvedValue([proposalRow]);
+    const req = { user: { vpbx_user_uid: 42, sub: 7, level: 3 } };
+
+    const detail = await controller.getThread(7, req);
+
+    expect(detail.readOnly).toBe(true);
+    expect(detail.ownerName).toBe('Пётр');
+    expect(detail.timeline).toEqual(expect.any(Array));
+    expect(proposals.findAll).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ user_uid: 8, vpbx_user_uid: 42 }),
+      }),
+    );
+  });
+
+  it('does not resolve threads/shared as a thread id', async () => {
+    const src = fs.readFileSync(path.join(__dirname, 'ai-chat.controller.ts'), 'utf8');
+    const sharedIdx = src.indexOf("@Get('threads/shared')");
+    const uidIdx = src.indexOf("@Get('threads/:uid')");
+    expect(sharedIdx).toBeGreaterThan(-1);
+    expect(sharedIdx).toBeLessThan(uidIdx);
+
+    visibility.resolve.mockResolvedValue({ readableAuthors: null, allTenantThreads: false });
+    await expect(controller.listSharedThreads({ user: { vpbx_user_uid: 42, sub: 7, level: 3 } })).resolves.toEqual([]);
+  });
+
+  it('lets only an admin switch the see-all-threads flag', async () => {
+    await expect(
+      controller.updateSettings({ seeAllThreads: true }, { user: { level: 3, vpbx_user_uid: 42 } }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(settings.updateSettings).not.toHaveBeenCalled();
+    expect(settings.setSeeAllThreads).not.toHaveBeenCalled();
   });
 
   it('does not keep the proxy service or read external chat environment variables', () => {

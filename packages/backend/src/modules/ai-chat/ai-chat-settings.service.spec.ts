@@ -23,7 +23,7 @@ describe('AiChatSettingsService', () => {
       const result = await service.getSettings(100);
 
       expect(model.findOne).toHaveBeenCalledWith({ where: { user_uid: 100 } });
-      expect(result).toEqual({ confirmDestructive: false });
+      expect(result).toEqual({ confirmDestructive: false, seeAllThreads: false });
     });
 
     it('returns confirmDestructive=true when the tenant row has confirm_destructive=1', async () => {
@@ -31,7 +31,15 @@ describe('AiChatSettingsService', () => {
 
       const result = await service.getSettings(100);
 
-      expect(result).toEqual({ confirmDestructive: true });
+      expect(result).toEqual({ confirmDestructive: true, seeAllThreads: false });
+    });
+
+    it('returns seeAllThreads from getSeeAllThreads', async () => {
+      model.findOne.mockResolvedValue({ confirm_destructive: 0, settings: { adminSeesAllThreads: true } });
+
+      const result = await service.getSettings(100);
+
+      expect(result).toEqual({ confirmDestructive: false, seeAllThreads: true });
     });
 
     it('settings for one tenant do not affect another tenant (isolation)', async () => {
@@ -42,8 +50,8 @@ describe('AiChatSettingsService', () => {
       const tenantA = await service.getSettings(100);
       const tenantB = await service.getSettings(200);
 
-      expect(tenantA).toEqual({ confirmDestructive: true });
-      expect(tenantB).toEqual({ confirmDestructive: false });
+      expect(tenantA).toEqual({ confirmDestructive: true, seeAllThreads: false });
+      expect(tenantB).toEqual({ confirmDestructive: false, seeAllThreads: false });
     });
   });
 
@@ -112,7 +120,7 @@ describe('AiChatSettingsService', () => {
         defaults: { user_uid: 100, confirm_destructive: 0 },
       });
       expect(row.update).toHaveBeenCalledWith({ confirm_destructive: 1 });
-      expect(result).toEqual({ confirmDestructive: true });
+      expect(result).toEqual({ confirmDestructive: true, seeAllThreads: false });
     });
 
     it('updates an existing row without touching other tenants', async () => {
@@ -123,7 +131,20 @@ describe('AiChatSettingsService', () => {
       const result = await service.updateSettings(100, { confirmDestructive: false });
 
       expect(row.update).toHaveBeenCalledWith({ confirm_destructive: 0 });
-      expect(result).toEqual({ confirmDestructive: false });
+      expect(result).toEqual({ confirmDestructive: false, seeAllThreads: false });
+    });
+
+    it('persists seeAllThreads through updateSettings', async () => {
+      const row = { confirm_destructive: 0, settings: {}, update: jest.fn() };
+      row.update.mockImplementation(async (patch: any) => {
+        Object.assign(row, patch);
+      });
+      model.findOrCreate.mockResolvedValue([row, false]);
+      model.findOne.mockResolvedValue(row);
+
+      const result = await service.updateSettings(100, { seeAllThreads: true });
+
+      expect(result).toEqual({ confirmDestructive: false, seeAllThreads: true });
     });
   });
 });
