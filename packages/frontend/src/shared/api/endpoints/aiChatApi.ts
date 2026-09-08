@@ -154,7 +154,7 @@ const aiChatApi = rtkApi.injectEndpoints({
                     patch.undo();
                 }
             },
-            invalidatesTags: ['AiChatSettings'],
+            invalidatesTags: ['AiChatSettings', { type: 'AiChatThreads', id: 'SHARED' }],
         }),
         getAiChatDefaultProvider: builder.query<{ providerUid: number | null }, void>({
             query: () => '/ai-chat/default-provider',
