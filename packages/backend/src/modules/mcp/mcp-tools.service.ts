@@ -91,6 +91,10 @@ export class McpToolsService implements OnApplicationBootstrap {
         }));
     }
 
+    isMutationTool(name: string): boolean {
+        return !!this.toolRegistry.get(name)?.mutation;
+    }
+
     async callTool(
         name: string,
         args: Record<string, any>,

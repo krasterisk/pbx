@@ -97,6 +97,7 @@ function createHarness(
       },
     ]),
     callTool: jest.fn(async () => [{ type: 'text', text: '{"queues":3}' }]),
+    isMutationTool: jest.fn((_name: string) => false),
   };
 
   const config = {
@@ -778,6 +779,136 @@ describe('PbxAgentLoopService', () => {
     expect(JSON.stringify(events)).not.toMatch(/AMI timeout/);
     expect(llm.chat).toHaveBeenCalledTimes(2);
     expect(events[events.length - 1].name).toBe('done');
+  });
+
+  describe('second mutation in one turn', () => {
+    const endpointCard = {
+      proposalId: 'ep-101',
+      entityType: 'endpoint',
+      entityLabel: '101',
+      status: 'pending',
+    };
+    const endpointTools = [
+      { name: 'create_endpoint', description: 'endpoint', inputSchema: { type: 'object', properties: {} } },
+      { name: 'propose_plan', description: 'plan', inputSchema: { type: 'object', properties: {} } },
+    ];
+
+    function twoEndpointsThenAnswer(): AgentCompletion[] {
+      return [
+        {
+          text: '',
+          toolCalls: [
+            { id: 'e1', name: 'create_endpoint', arguments: { extension: '101' } },
+            { id: 'e2', name: 'create_endpoint', arguments: { extension: '102' } },
+          ],
+        },
+        { text: 'Соберите оставшееся в один план.', toolCalls: [] },
+      ];
+    }
+
+    it('refuses the second mutating tool call in one turn and demands a plan', async () => {
+      const { service, threads, mcpTools } = createHarness(twoEndpointsThenAnswer(), { tools: endpointTools });
+      mcpTools.isMutationTool.mockImplementation((name: string) => name === 'create_endpoint');
+      mcpTools.callTool.mockResolvedValue([{ type: 'text', text: JSON.stringify(endpointCard) }]);
+
+      await collect(service.runTurn('создай 101 и 102', { uid: THREAD }, turnContext()));
+
+      const toolRows = threads.appendMessage.mock.calls.filter((c) => c[3].role === 'tool');
+      expect(JSON.parse(toolRows[1][3].content)).toEqual(expect.objectContaining({ error: 'batch_required' }));
+      expect(toolRows[1][3].visibility).toBe('internal');
+      expect(mcpTools.callTool).toHaveBeenCalledTimes(1);
+    });
+
+    it('lets a single mutation through unchanged', async () => {
+      const { service, threads, mcpTools } = createHarness([
+        {
+          text: '',
+          toolCalls: [{ id: 'e1', name: 'create_endpoint', arguments: { extension: '101' } }],
+        },
+        { text: 'Подтвердите карточку абонента 101.', toolCalls: [] },
+      ], { tools: endpointTools });
+      mcpTools.isMutationTool.mockImplementation((name: string) => name === 'create_endpoint');
+      mcpTools.callTool.mockResolvedValue([{ type: 'text', text: JSON.stringify(endpointCard) }]);
+
+      const events = await collect(service.runTurn('создай 101', { uid: THREAD }, turnContext()));
+      const toolRows = threads.appendMessage.mock.calls.filter((c) => c[3].role === 'tool');
+
+      expect(events.some((event) => event.name === 'item' && (event.data as { kind?: string }).kind === 'proposal')).toBe(true);
+      expect(toolRows.every((row) => {
+        try { return JSON.parse(String(row[3].content)).error !== 'batch_required'; } catch { return true; }
+      })).toBe(true);
+      expect(mcpTools.callTool).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not count propose_plan as a mutation', async () => {
+      const plan = {
+        workflowId: 'w-1',
+        title: 'Абоненты',
+        summary: ['101', 'план'],
+        status: 'pending',
+        steps: [{ stepKey: 'ep', tool: 'create_endpoint' }],
+      };
+      const { service, threads, mcpTools } = createHarness([
+        {
+          text: '',
+          toolCalls: [
+            { id: 'e1', name: 'create_endpoint', arguments: { extension: '101' } },
+            { id: 'p1', name: 'propose_plan', arguments: { title: 'Абоненты', steps: plan.steps } },
+          ],
+        },
+        { text: 'Подтвердите карточку и план.', toolCalls: [] },
+      ], { tools: endpointTools });
+      mcpTools.isMutationTool.mockImplementation((name: string) => name === 'create_endpoint');
+      mcpTools.callTool.mockImplementation(async (name: string) => {
+        if (name === 'propose_plan') return [{ type: 'text', text: JSON.stringify(plan) }];
+        return [{ type: 'text', text: JSON.stringify(endpointCard) }];
+      });
+
+      await collect(service.runTurn('создай 101 и план', { uid: THREAD }, turnContext()));
+      const toolRows = threads.appendMessage.mock.calls.filter((c) => c[3].role === 'tool');
+
+      expect(toolRows.every((row) => {
+        try { return JSON.parse(String(row[3].content)).error !== 'batch_required'; } catch { return true; }
+      })).toBe(true);
+      expect(mcpTools.callTool).toHaveBeenCalledTimes(2);
+      expect(mcpTools.callTool).toHaveBeenCalledWith('propose_plan', expect.anything(), TENANT, expect.anything());
+    });
+
+    it('keeps the openai message order after a refusal', async () => {
+      const { service, llm, mcpTools } = createHarness(twoEndpointsThenAnswer(), { tools: endpointTools });
+      mcpTools.isMutationTool.mockImplementation((name: string) => name === 'create_endpoint');
+      mcpTools.callTool.mockResolvedValue([{ type: 'text', text: JSON.stringify(endpointCard) }]);
+
+      await collect(service.runTurn('создай 101 и 102', { uid: THREAD }, turnContext()));
+
+      const second = llm.chat.mock.calls[1][0] as {
+        messages: Array<{ role: string; tool_call_id?: string; tool_calls?: Array<{ id: string }> }>;
+      };
+      const assistantWithCalls = [...second.messages].reverse().find((row) => (
+        row.role === 'assistant' && Array.isArray(row.tool_calls) && row.tool_calls.length
+      ));
+      const callIds = (assistantWithCalls?.tool_calls ?? []).map((call) => call.id);
+      const toolReplyIds = second.messages
+        .filter((row) => row.role === 'tool')
+        .map((row) => row.tool_call_id);
+
+      expect(callIds).toEqual(['e1', 'e2']);
+      expect(toolReplyIds).toEqual(expect.arrayContaining(callIds));
+      expect(new Set(toolReplyIds.filter((id) => callIds.includes(id as string))).size).toBe(callIds.length);
+    });
+
+    it('keeps the refusal out of the timeline', async () => {
+      const { service, mcpTools } = createHarness(twoEndpointsThenAnswer(), { tools: endpointTools });
+      mcpTools.isMutationTool.mockImplementation((name: string) => name === 'create_endpoint');
+      mcpTools.callTool.mockResolvedValue([{ type: 'text', text: JSON.stringify(endpointCard) }]);
+
+      const events = await collect(service.runTurn('создай 101 и 102', { uid: THREAD }, turnContext()));
+      const items = events.filter((event) => event.name === 'item');
+      const steps = items.filter((event) => (event.data as { kind?: string }).kind === 'step');
+
+      expect(JSON.stringify(items)).not.toContain('batch_required');
+      expect(steps.filter((event) => (event.data as { done?: boolean }).done === true).length).toBeGreaterThanOrEqual(2);
+    });
   });
 
   describe('timeline events', () => {

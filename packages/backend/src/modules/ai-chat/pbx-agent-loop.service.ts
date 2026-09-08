@@ -151,6 +151,7 @@ export class PbxAgentLoopService {
     let forceToolChoice = false;
     let calledToolThisTurn = false;
     let hadProposal = false;
+    let mutationsThisTurn = 0;
     let lastAssistant = '';
     const providerModel =
       typeof (provider.defaults as Record<string, unknown> | null)?.model === 'string'
@@ -273,6 +274,28 @@ export class PbxAgentLoopService {
           const stepId = `s${threadUid}_${steps}_${callIndex}`;
           yield { name: 'item', data: this.stepItem(call.name, stepId, false) };
           const normalizedCall = this.normalizeToolCallArgs(call);
+
+          if (this.mcpTools.isMutationTool(normalizedCall.name)) {
+            mutationsThisTurn += 1;
+            if (mutationsThisTurn >= 2) {
+              const refusal = JSON.stringify({
+                error: 'batch_required',
+                tool: normalizedCall.name,
+                hint: 'Вторая мутация за ход запрещена. Собери оставшиеся изменения в один propose_plan '
+                    + '(шаги ссылаются друг на друга через steps.<id>.result.<поле>) и вызови его вместо серии create_*.',
+              });
+              // tool-строка обязательна: OpenAI требует ответ на каждый tool_call_id
+              yield { name: 'item', data: this.stepItem(normalizedCall.name, stepId, true) };
+              await this.threads.appendMessage(threadUid, tenantUid, authorUid, {
+                role: 'tool', content: refusal, tool_name: normalizedCall.name,
+                tool_call_id: normalizedCall.id, provider_model: providerModel, visibility: 'internal',
+              });
+              messages.push({ role: 'tool', content: this.toModelToolContent(normalizedCall.name, refusal), tool_call_id: normalizedCall.id, name: normalizedCall.name });
+              answeredToolCallIds.add(normalizedCall.id);
+              forceToolChoice = true;
+              continue;
+            }
+          }
 
           const invalidFields = this.invalidArgFields(normalizedCall, registered);
           if (invalidFields.length) {
