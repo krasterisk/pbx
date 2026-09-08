@@ -1,4 +1,5 @@
 import { Column, DataType, Model, Table } from 'sequelize-typescript';
+import type { AgentItemVisibility, AgentTurnCloseKind } from '@krasterisk/shared';
 
 export type AgentThreadMessageRole = 'user' | 'assistant' | 'tool' | 'system';
 
@@ -31,6 +32,24 @@ export class AgentThreadMessage extends Model {
 
   @Column({ type: DataType.CHAR(36), allowNull: true, defaultValue: null })
   declare proposal_id: string | null;
+
+  /** Provider tool_call_id so assistant/tool pairs replay correctly. */
+  @Column({ type: DataType.STRING(128), allowNull: true, defaultValue: null })
+  declare tool_call_id: string | null;
+
+  @Column({ type: DataType.STRING(128), allowNull: true, defaultValue: null })
+  declare provider_model: string | null;
+
+  /** Чем ассистент закрыл ход. NULL у user/tool-строк и у internal-шагов. */
+  @Column({ type: DataType.STRING(16), allowNull: true, defaultValue: null })
+  declare close_kind: AgentTurnCloseKind | null;
+
+  @Column({ type: DataType.STRING(16), allowNull: false, defaultValue: 'public' })
+  declare visibility: AgentItemVisibility;
+
+  /** Внутренние размышления модели. Никогда не покидают сервер. */
+  @Column({ type: DataType.TEXT, allowNull: true, defaultValue: null })
+  declare reasoning: string | null;
 
   @Column({ type: DataType.INTEGER, allowNull: false, defaultValue: 0 })
   declare tokens_in: number;

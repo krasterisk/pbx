@@ -25,7 +25,10 @@
     "db:migrate:list": "node migrations/run-migrations.js --list",
     "db:migrate:rollback": "node migrations/run-migrations.js --rollback",
     "db:setup:directories": "ts-node -r tsconfig-paths/register src/modules/directories/setup-directories-schema.ts",
-    "db:setup:agent-threads": "ts-node -r tsconfig-paths/register src/modules/ai-chat/migrate-agent-threads.ts"
+    "db:setup:agent-threads": "ts-node -r tsconfig-paths/register src/modules/ai-chat/migrate-agent-threads.ts",
+    "db:setup:agent-brief": "ts-node -r tsconfig-paths/register src/modules/ai-chat/migrate-agent-brief.ts",
+    "db:setup:agent-workflows": "ts-node -r tsconfig-paths/register src/modules/ai-chat/migrate-agent-workflows.ts",
+    "db:setup:agent-timeline": "ts-node -r tsconfig-paths/register src/modules/ai-chat/migrate-agent-timeline.ts"
   },
   "dependencies": {
     "@grpc/grpc-js": "^1.14.3",

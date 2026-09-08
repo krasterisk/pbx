@@ -23,6 +23,7 @@ type MessageRow = {
   content: string | null;
   tool_name: string | null;
   tool_calls: unknown;
+  tool_call_id: string | null;
   proposal_id: string | null;
   tokens_in: number;
   tokens_out: number;
@@ -122,6 +123,7 @@ function createModels() {
         content: values.content ?? null,
         tool_name: values.tool_name ?? null,
         tool_calls: values.tool_calls ?? null,
+        tool_call_id: values.tool_call_id ?? null,
         proposal_id: values.proposal_id ?? null,
         tokens_in: values.tokens_in ?? 0,
         tokens_out: values.tokens_out ?? 0,
@@ -271,13 +273,46 @@ describe('PbxAgentThreadService', () => {
     expect(reloaded.tokens_in).toBe(0);
     expect(reloaded.tokens_out).toBe(0);
   });
+
+  it('listMessagesForReplay keeps assistant tool_calls with their tool replies', async () => {
+    const thread = await service.createThread(tenantA, authorA);
+    await service.appendMessage(thread.uid, tenantA, authorA, { role: 'user', content: 'start' });
+    await service.appendMessage(thread.uid, tenantA, authorA, {
+      role: 'assistant',
+      content: '',
+      tool_calls: [{ id: 'call_x', name: 'create_call_group', arguments: {} }],
+    });
+    await service.appendMessage(thread.uid, tenantA, authorA, {
+      role: 'tool',
+      content: '{"error":"invalid_arguments"}',
+      tool_name: 'create_call_group',
+      tool_call_id: 'call_x',
+    });
+    await service.appendMessage(thread.uid, tenantA, authorA, { role: 'user', content: 'again' });
+
+    const all = await service.listMessages(thread.uid, tenantA, authorA);
+    expect(all.find((row) => row.role === 'tool')).toMatchObject({
+      tool_name: 'create_call_group',
+      tool_call_id: 'call_x',
+    });
+
+    const replay = await service.listMessagesForReplay(thread.uid, tenantA, authorA, {
+      limit: 2,
+      tokenBudget: 10_000,
+    });
+
+    expect(replay.map((row) => row.role)).toEqual(['assistant', 'tool', 'user']);
+    expect(replay[1]).toMatchObject({ role: 'tool', tool_call_id: 'call_x' });
+  });
 });
 
 describe('AgentProposal model shape (D-18 prep)', () => {
   it('declares apply_payload and the card-badge status vocabulary', () => {
     const { AGENT_PROPOSAL_STATUSES, AgentProposal } = require('./models/agent-proposal.model');
     expect(AGENT_PROPOSAL_STATUSES).toEqual(['pending', 'applied', 'rejected', 'denied', 'expired']);
-    expect(AgentProposal.tableName ?? AgentProposal.options?.tableName).toBe('ai_agent_proposals');
+    expect(AgentProposal.name).toBe('AgentProposal');
+    const source = require('fs').readFileSync(require('path').join(__dirname, 'models/agent-proposal.model.ts'), 'utf8');
+    expect(source).toMatch(/tableName:\s*'ai_agent_proposals'/);
   });
 });
 
@@ -288,6 +323,29 @@ describe('CcAiAuditLog conversation reference (D-08)', () => {
     expect(src).toMatch(/declare thread_uid:/);
     expect(src).toMatch(/call_uniqueid/);
     expect(CcAiAuditLog).toBeDefined();
+  });
+});
+
+describe('AgentThreadMessage timeline columns', () => {
+  it('declares close_kind, visibility and reasoning', () => {
+    const source = require('fs').readFileSync(
+      require('path').join(__dirname, 'models/agent-thread-message.model.ts'),
+      'utf8',
+    );
+    expect(source).toMatch(/declare close_kind:/);
+    expect(source).toMatch(/declare visibility:/);
+    expect(source).toMatch(/declare reasoning:/);
+  });
+
+  it('ships an idempotent migration for the three columns', () => {
+    const migration = require('fs').readFileSync(
+      require('path').join(__dirname, 'migrate-agent-timeline.ts'),
+      'utf8',
+    );
+    for (const column of ['close_kind', 'visibility', 'reasoning']) {
+      expect(migration).toContain(`'${column}'`);
+    }
+    expect(migration).toMatch(/addColumnGuarded/);
   });
 });
 
