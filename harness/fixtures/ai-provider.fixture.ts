@@ -1,5 +1,4 @@
-import { test as base } from './auth.fixture';
-import { startLlmStub, type LlmStubHandle } from '../llm-stub';
+import { test as base } from './llm-stub.fixture';
 
 const API = (process.env.HARNESS_API_URL || 'http://localhost:5010').replace(/\/$/, '');
 
@@ -18,14 +17,7 @@ async function apiJson<T>(token: string, path: string, init?: RequestInit): Prom
   return res.json() as Promise<T>;
 }
 
-export const test = base.extend<{ llmStub: LlmStubHandle; stubProvider: { uid: number } }>({
-  llmStub: [async ({}, use) => {
-    const port = Number(process.env.HARNESS_LLM_STUB_PORT || 5099);
-    const handle = await startLlmStub({ port });
-    await use(handle);
-    await handle.close();
-  }, { scope: 'worker' }],
-
+export const test = base.extend<{ stubProvider: { uid: number } }>({
   stubProvider: [async ({ authSession, llmStub }, use) => {
     const previous = await apiJson<{ providerUid: number | null }>(
       authSession.accessToken,
@@ -52,11 +44,20 @@ export const test = base.extend<{ llmStub: LlmStubHandle; stubProvider: { uid: n
     await use({ uid });
     try {
       const previousUid = previous.providerUid;
-      if (typeof previousUid === 'number' && previousUid > 0) {
-        await apiJson(authSession.accessToken, '/ai-chat/default-provider', {
-          method: 'PUT',
-          body: JSON.stringify({ providerUid: previousUid }),
+      // True restore of “no default” needs a backend clear path (out of D2).
+      // Skip-when-null leaves settings.defaultProviderUid pointing at the deleted stub.
+      // Next teardown would PUT that ghost uid and findOne 404s. Guard: never PUT the
+      // stub we are about to DELETE, and skip restore if the previous provider is gone.
+      if (typeof previousUid === 'number' && previousUid > 0 && previousUid !== uid) {
+        const probe = await fetch(`${API}/api/ai-agents/providers/${previousUid}`, {
+          headers: authHeaders(authSession.accessToken),
         });
+        if (probe.ok) {
+          await apiJson(authSession.accessToken, '/ai-chat/default-provider', {
+            method: 'PUT',
+            body: JSON.stringify({ providerUid: previousUid }),
+          });
+        }
       }
     } finally {
       await apiJson(authSession.accessToken, `/ai-agents/providers/${uid}`, { method: 'DELETE' });
