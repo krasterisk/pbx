@@ -4,8 +4,11 @@
  */
 
 export interface ChatMessage {
-    role: 'user' | 'assistant' | 'system';
+    role: 'user' | 'assistant' | 'system' | 'tool';
     content: string;
+    name?: string;
+    tool_call_id?: string;
+    tool_calls?: unknown;
 }
 
 export interface AgentToolCall {
@@ -27,8 +30,11 @@ export interface AgentLlmError {
 
 export interface AgentCompletion {
     text: string;
+    /** Внутренние размышления модели (reasoning_content / reasoning / thinking). Не для UI. */
+    reasoning?: string;
     toolCalls: AgentToolCall[];
     usage?: AgentTokenUsage;
+    finishReason?: string;
     error?: AgentLlmError;
 }
 
@@ -60,6 +66,8 @@ export interface AgentChatParams {
     };
     messages: ChatMessage[];
     tools?: AgentToolSpec[];
+    /** OpenAI-compatible tool_choice. Use `required` after empty/no-tool incomplete turns. */
+    toolChoice?: 'auto' | 'required' | 'none';
     signal?: AbortSignal;
     stream?: boolean;
     onToken?: (chunk: string) => void;
