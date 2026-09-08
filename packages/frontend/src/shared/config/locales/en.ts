@@ -2849,6 +2849,11 @@ export const en = {
         describe_number: 'Looking up the number',
       },
     },
+    timeline: {
+      stepPending: 'Working',
+      stepDone: 'Done',
+      readOnlyHint: 'Someone else’s conversation — view only',
+    },
     stopped: 'Stopped',
     ceiling: 'Step limit reached. Narrow the task or start a new chat.',
     failed: 'Could not get a reply. Check the network and retry.',

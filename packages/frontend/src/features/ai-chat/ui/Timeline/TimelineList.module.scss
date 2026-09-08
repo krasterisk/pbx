@@ -1,0 +1,127 @@
+.root {
+    min-width: 0;
+}
+
+.item {
+    min-width: 0;
+    animation: fadeSlideIn 0.2s ease-out;
+}
+
+@keyframes fadeSlideIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.readOnlyHint {
+    font-size: 12px;
+    color: var(--color-muted-foreground);
+}
+
+.user {
+    min-width: 0;
+}
+
+.userBubble {
+    max-width: 88%;
+    padding: 10px 14px;
+    border-radius: var(--radius-lg) var(--radius-lg) var(--radius-sm) var(--radius-lg);
+    font-size: 13px;
+    line-height: 1.65;
+    word-break: break-word;
+    background: linear-gradient(135deg, var(--color-primary), color-mix(in srgb, var(--color-primary) 60%, #8b5cf6));
+    color: var(--color-primary-foreground);
+}
+
+.assistant {
+    min-width: 0;
+}
+
+.assistantBubble {
+    max-width: 88%;
+    padding: 10px 14px;
+    border-radius: var(--radius-sm) var(--radius-lg) var(--radius-lg) var(--radius-lg);
+    font-size: 13px;
+    line-height: 1.65;
+    word-break: break-word;
+    background: var(--color-muted);
+    color: var(--color-foreground);
+    border: 1px solid var(--color-border);
+}
+
+.mdParagraph { margin: 0 0 6px; &:last-child { margin-bottom: 0; } }
+.mdList      { margin: 4px 0 6px 16px; padding: 0; }
+.mdListItem  { margin-bottom: 2px; }
+.mdStrong    { font-weight: 700; }
+.mdHeading   {
+    font-size: 13px;
+    font-weight: 700;
+    margin: 8px 0 4px;
+    padding-bottom: 3px;
+    border-bottom: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent);
+}
+
+.codeBlock {
+    background: color-mix(in srgb, var(--color-muted) 80%, #000 20%);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: 8px 10px;
+    font-size: 11.5px;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    overflow-x: auto;
+    margin: 6px 0;
+    line-height: 1.5;
+    white-space: pre;
+
+    code { background: none; padding: 0; border: none; }
+}
+
+.inlineCode {
+    background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+    color: color-mix(in srgb, var(--color-primary) 90%, var(--color-foreground));
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px;
+    padding: 1px 5px;
+    border-radius: 4px;
+    border: 1px solid color-mix(in srgb, var(--color-primary) 20%, transparent);
+}
+
+.cursor {
+    display: inline-block;
+    width: 2px;
+    height: 1em;
+    background: var(--color-primary);
+    margin-left: 2px;
+    vertical-align: text-bottom;
+    animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0; }
+}
+
+.step {
+    min-width: 0;
+    color: var(--color-muted-foreground);
+}
+
+.stepDone {
+    color: var(--color-success);
+}
+
+.stepLabel {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--color-foreground);
+}
+
+.spinIcon { animation: spin 1s linear infinite; }
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+}
+
+.proposal {
+    min-width: 0;
+}
