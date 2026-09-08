@@ -197,9 +197,9 @@ export const DiffConfirmCard = ({ proposal, onAskAgain, onSettled, readOnly }: D
             </Text>
 
             {Array.isArray(view.steps) && view.steps.length > 0 && (
-                <VStack className={cls.summary} gap="4" align="stretch" data-testid="ai-agent-workflow-steps">
+                <VStack className={cls.summary} gap="4" align="stretch" data-testid="ai-agent-workflow-steps" role="list">
                     {view.steps.map((step) => (
-                        <HStack key={step.stepKey} gap="8" align="center" justify="between">
+                        <HStack key={step.stepKey} gap="8" align="center" justify="between" role="listitem">
                             <Text as="span">{step.entityLabel || step.tool}</Text>
                             <Badge variant={step.status === 'failed' ? 'destructive' : 'outline'}>
                                 {step.status}

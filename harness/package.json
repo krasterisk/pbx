@@ -4,7 +4,8 @@
   "private": true,
   "description": "Black-box harness layer for Krasterisk v4",
   "scripts": {
-    "test": "vitest run scenarios/api scenarios/realtime && playwright test",
+    "test": "vitest run scenarios/api scenarios/realtime llm-stub && playwright test",
+    "test:ai-chat": "tsx runner/index.ts --tag ai-chat",
     "test:directories": "vitest run scenarios/api/directories-crud.test.ts scenarios/realtime/directory-carousel.test.ts",
     "test:api": "tsx runner/index.ts --kind api",
     "test:asterisk": "tsx runner/index.ts --tag asterisk",

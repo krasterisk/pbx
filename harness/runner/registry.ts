@@ -64,6 +64,24 @@ export const SCENARIOS: ScenarioEntry[] = [
     command: 'scenarios/ui/ai-agent-ivr.spec.ts',
   },
   {
+    id: 'ai-chat-plan',
+    tags: ['ui', 'ai-chat', 'plan'],
+    kind: 'ui',
+    command: 'scenarios/ui/ai-chat-plan.spec.ts',
+  },
+  {
+    id: 'ai-chat-question',
+    tags: ['ui', 'ai-chat'],
+    kind: 'ui',
+    command: 'scenarios/ui/ai-chat-question.spec.ts',
+  },
+  {
+    id: 'ai-chat-history-parity',
+    tags: ['ui', 'ai-chat', 'history'],
+    kind: 'ui',
+    command: 'scenarios/ui/ai-chat-history-parity.spec.ts',
+  },
+  {
     id: 'sse-heartbeat',
     tags: ['sse', 'realtime'],
     kind: 'realtime',

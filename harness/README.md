@@ -8,9 +8,14 @@ Black-box harness layer for Krasterisk v4. Uses **only public interfaces** (HTTP
 harness/
 ├── runner/           # CLI orchestrator (--scenario, --tag)
 │   ├── index.ts
-│   └── registry.ts # Scenario metadata
+│   └── registry.ts   # Scenario metadata
+├── fixtures/         # Playwright auth, llm-stub, stub-provider
+├── pages/            # UI page-objects (AiChatPage)
+├── llm-stub/         # OpenAI-compatible stub + fixture scenarios
 ├── scenarios/
-│   └── api/        # Vitest API scenarios
+│   ├── api/          # Vitest API scenarios
+│   ├── realtime/     # Vitest SSE / Asterisk lab
+│   └── ui/           # Playwright UI scenarios
 ├── vitest.config.ts
 └── README.md
 ```
@@ -35,16 +40,18 @@ npm run dev:backend   # from repo root, port 5010
 Run from repo root:
 
 ```bash
-npm run harness              # all registered scenarios (sequential)
-npm run harness:api          # api kind only
+npm run harness              # harness/package.json "test": vitest (api + realtime + llm-stub) && playwright
+npm run harness:api          # runner --kind api
+npm run harness:ai-chat      # runner --tag ai-chat (stub-backed UI specs + registry matches)
 ```
 
-Or from this package:
+`npm run test -- --tag` from this package does **not** reach the runner: `test` is `vitest && playwright`. Use the runner scripts instead:
 
 ```bash
-npm run test -- --tag health
-npm run test -- --scenario health-smoke
-npm run test -- --tag health --parallel   # opt-in parallelism (D-19)
+npm run test:api -- --tag health
+npm run test:ai-chat
+npx tsx runner/index.ts --scenario health-smoke
+npx tsx runner/index.ts --tag health --parallel   # opt-in parallelism (D-19)
 ```
 
 ### Filters
@@ -91,10 +98,37 @@ Playwright HTML traces live in `harness/playwright-report/`. Generated artifacts
 
 Per-scenario duration metrics are collected in-process (no RSS sampling in MVP).
 
+## Stub LLM
+
+The OpenAI-compatible stub (`harness/llm-stub`) serves `/v1/chat/completions` as SSE. UI specs that talk to the assistant must import `test`/`expect` from `fixtures/ai-provider.fixture.ts` and request `stubProvider` so the default chat provider points at the stub.
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `HARNESS_LLM_STUB_PORT` | `5099` | Base listen port; worker `n` uses `base + n` |
+| `HARNESS_API_URL` | `http://localhost:5010` | Backend used to register the stub provider |
+| `HARNESS_LIVE_LLM` | unset | Set to `1` to run the live `ai-agent-ivr` apply flow |
+
+```bash
+npm run harness:ai-chat      # from repo root — tag ai-chat, no live-llm required
+```
+
+Fixture scenarios in `llm-stub/scenarios.ts`: D1 `two-turns` / `with-reasoning` / `with-tools`, plus D3 `plan-ivr`, `question-order`, `steps-then-answer`.
+
 ## Current scenarios
 
 | id | tags | kind | command |
 |----|------|------|---------|
 | health-smoke | health, smoke | api | `scenarios/api/health-smoke.test.ts` |
-
-More scenarios arrive in plans 02–08 (auth, MOH CRUD, UI smoke, SSE, Asterisk lab).
+| auth-login | auth, api | api | `scenarios/api/auth.test.ts` |
+| moh-crud | moh, api | api | `scenarios/api/moh-crud.test.ts` |
+| directories-crud | directories, api | api | `scenarios/api/directories-crud.test.ts` |
+| directory-carousel | directories, realtime | realtime | `scenarios/realtime/directory-carousel.test.ts` |
+| agent-smoke | ui, agent, smoke | ui | `scenarios/ui/agent-smoke.spec.ts` |
+| supervisor-smoke | ui, supervisor, smoke | ui | `scenarios/ui/supervisor-smoke.spec.ts` |
+| ai-agent-ivr | ui, ai-chat, ivr, live-llm | ui | `scenarios/ui/ai-agent-ivr.spec.ts` |
+| ai-chat-plan | ui, ai-chat, plan | ui | `scenarios/ui/ai-chat-plan.spec.ts` |
+| ai-chat-question | ui, ai-chat | ui | `scenarios/ui/ai-chat-question.spec.ts` |
+| ai-chat-history-parity | ui, ai-chat, history | ui | `scenarios/ui/ai-chat-history-parity.spec.ts` |
+| sse-heartbeat | sse, realtime | realtime | `scenarios/realtime/sse-heartbeat.test.ts` |
+| asterisk-originate | asterisk, realtime | realtime | `scenarios/realtime/asterisk-originate.test.ts` |
+| ami-events | asterisk, ami-events, realtime | realtime | `scenarios/realtime/ami-events.test.ts` |
