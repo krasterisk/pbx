@@ -6,9 +6,10 @@ import { Flex, HStack, VStack } from '@/shared/ui/Stack';
 import { useAppDispatch } from '@/shared/hooks/useAppStore';
 import { useIsMobile } from '@/shared/hooks/useIsMobile';
 import { aiChatActions } from '@/features/ai-chat/model/slice/aiChatSlice';
-import { useGetAiChatThreadQuery } from '@/shared/api/endpoints/aiChatApi';
+import { useGetAiChatThreadQuery, useGetPendingAiChatWorkflowsQuery } from '@/shared/api/endpoints/aiChatApi';
 import { TimelineList } from '@/features/ai-chat/ui/Timeline';
 import { ThreadList } from '@/features/ai-chat/ui/ThreadList';
+import { PlanRail } from '@/features/ai-chat/ui/PlanRail';
 import { useAgentTurn } from '@/features/ai-chat/model/useAgentTurn';
 import cls from './AssistantPanel.module.scss';
 
@@ -65,9 +66,13 @@ export const AssistantPanel = ({ open, mode, onModeChange, onClose }: AssistantP
     const isBelowTablet = useIsMobile(768);
     const isBelowWide = useIsMobile(1024);
     const showRail = !isBelowWide;
+    const showPlanRail = !isDock;
     const [selectedThreadUid, setSelectedThreadUid] = useState<number | null>(null);
     const { data: detail } = useGetAiChatThreadQuery(selectedThreadUid ?? 0, {
         skip: selectedThreadUid == null,
+    });
+    const { data: pendingWorkflows } = useGetPendingAiChatWorkflowsQuery(undefined, {
+        skip: !showPlanRail,
     });
 
     const [lastError, setLastError] = useState<string | null>(null);
@@ -261,7 +266,7 @@ export const AssistantPanel = ({ open, mode, onModeChange, onClose }: AssistantP
                 </HStack>
 
                 <HStack
-                    className={`${cls.body} ${showRail ? cls.bodyWithRail : ''}`}
+                    className={`${cls.body} ${showRail ? cls.bodyWithRail : ''} ${showPlanRail ? cls.bodyWithPlan : ''}`}
                     align="stretch"
                     data-testid="ai-agent-body"
                 >
@@ -371,6 +376,17 @@ export const AssistantPanel = ({ open, mode, onModeChange, onClose }: AssistantP
                             </Button>
                         )}
                     </VStack>
+
+                    {showPlanRail && (
+                        <VStack
+                            className={cls.planRail}
+                            gap="8"
+                            align="stretch"
+                            aria-label={t('aiChat.plansHeading')}
+                        >
+                            <PlanRail workflows={pendingWorkflows ?? []} />
+                        </VStack>
+                    )}
                 </HStack>
 
                 <VStack

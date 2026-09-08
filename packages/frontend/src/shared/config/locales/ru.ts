@@ -2852,6 +2852,9 @@ export const ru = {
     welcome: 'Привет! Я помогу настроить АТС: абоненты, транки, IVR, маршруты, справочники и очереди. Опишите задачу своими словами.',
     shortcutHint: '{{mod}}+Shift+J',
     threadsHeading: 'Разговоры',
+    plansHeading: 'Незавершённые планы',
+    emptyPlans: 'Нет незавершённых планов',
+    planSteps: '{{applied}}/{{total}}',
     railPlaceholder: 'История разговоров появится здесь.',
     trigger: 'AI-ассистент',
     suggestions: {
@@ -2891,7 +2894,9 @@ export const ru = {
       deniedExplanation: 'У вас нет прав на это действие.',
       badge: {
         pending: 'Нужно подтверждение',
+        applying: 'Применяется',
         applied: 'Применено',
+        failed: 'Ошибка',
         rejected: 'Отклонено',
         denied: 'Недостаточно прав',
         expired: 'Срок истёк',

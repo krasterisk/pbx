@@ -231,6 +231,10 @@ const aiChatApi = rtkApi.injectEndpoints({
             }),
             invalidatesTags: ['AiChatThreads'],
         }),
+        getPendingAiChatWorkflows: builder.query<IAgentWorkflowPlanView[], void>({
+            query: () => '/ai-chat/workflows/pending',
+            providesTags: ['AiChatThreads'],
+        }),
         confirmAiChatWorkflow: builder.mutation<IAgentWorkflowPlanView, string>({
             query: (workflowId) => ({
                 url: `/ai-chat/workflows/${workflowId}/apply`,
@@ -267,6 +271,7 @@ export const {
     useDeleteAiChatThreadMutation,
     useConfirmAiChatProposalMutation,
     useRejectAiChatProposalMutation,
+    useGetPendingAiChatWorkflowsQuery,
     useConfirmAiChatWorkflowMutation,
     useRejectAiChatWorkflowMutation,
 } = aiChatApi;

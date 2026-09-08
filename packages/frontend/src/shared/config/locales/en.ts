@@ -2815,6 +2815,9 @@ export const en = {
     welcome: 'Hi! I can help set up the PBX: extensions, trunks, IVR, routes, directories, and queues. Describe the task in your own words.',
     shortcutHint: '{{mod}}+Shift+J',
     threadsHeading: 'Conversations',
+    plansHeading: 'Open plans',
+    emptyPlans: 'No unfinished plans',
+    planSteps: '{{applied}}/{{total}}',
     railPlaceholder: 'Conversation history will appear here.',
     trigger: 'AI Assistant',
     suggestions: {
@@ -2854,7 +2857,9 @@ export const en = {
       deniedExplanation: 'You do not have permission for this action.',
       badge: {
         pending: 'Needs confirmation',
+        applying: 'Applying',
         applied: 'Applied',
+        failed: 'Failed',
         rejected: 'Rejected',
         denied: 'Permission denied',
         expired: 'Expired',

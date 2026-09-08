@@ -42,6 +42,44 @@ vi.mock('@/features/ai-chat/model/useAgentTurn', () => ({
 const AT = '2026-09-03T12:00:00.000Z';
 const PROPOSAL_ID = '11111111-1111-4111-8111-111111111111';
 
+const WORKFLOW_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+
+const pendingWorkflows = [
+  {
+    workflowId: WORKFLOW_ID,
+    title: 'Open a sales queue',
+    summary: ['Create queue'],
+    status: 'pending',
+    error: null,
+    expiresAt: '2027-09-05T12:00:00.000Z',
+    appliedAt: null,
+    steps: [
+      {
+        stepKey: 'step-1',
+        stepIndex: 0,
+        tool: 'create_queue',
+        entityType: 'queue',
+        entityLabel: 'Sales',
+        status: 'applied',
+        error: null,
+        dependsOn: [],
+        requiresSecureInput: false,
+      },
+      {
+        stepKey: 'step-2',
+        stepIndex: 1,
+        tool: 'create_queue',
+        entityType: 'queue',
+        entityLabel: 'Members',
+        status: 'pending',
+        error: null,
+        dependsOn: [],
+        requiresSecureInput: false,
+      },
+    ],
+  },
+];
+
 const storedThreads = [
   {
     uid: 7,
@@ -143,6 +181,11 @@ vi.mock('@/shared/api/endpoints/aiChatApi', () => ({
     () => ({ unwrap: async () => ({ ok: true }) }),
     { isLoading: false },
   ],
+  useGetPendingAiChatWorkflowsQuery: () => ({
+    data: pendingWorkflows,
+    isLoading: false,
+    isError: false,
+  }),
   useConfirmAiChatWorkflowMutation: () => [
     () => ({ unwrap: async () => ({ status: 'applied', steps: [] }) }),
     { isLoading: false },
@@ -647,6 +690,31 @@ describe('AssistantPanel', () => {
       'utf8',
     );
     expect(scss.match(/--shell-sidebar-width:/g) ?? []).toHaveLength(2);
+  });
+
+  it('shows the plan rail in workspace and hides it in dock', () => {
+    const { rerender } = render(
+      <AssistantPanel
+        open
+        mode="workspace"
+        onModeChange={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+    expect(screen.getByTestId('ai-agent-plan-rail')).toBeInTheDocument();
+    expect(screen.getByText('Open a sales queue')).toBeInTheDocument();
+    expect(screen.getByTestId('ai-agent-panel').innerHTML).not.toContain(WORKFLOW_ID);
+    const scss = readFileSync(
+      join(process.cwd(), 'src/widgets/AssistantPanel/AssistantPanel.module.scss'),
+      'utf8',
+    );
+    expect(scss).toMatch(
+      /grid-template-columns:\s*var\(--ai-agent-rail-width\)\s+minmax\(0,\s*1fr\)\s+var\(--ai-agent-plan-width\)/,
+    );
+
+    rerender(<AssistantPanel open {...dockProps} onClose={vi.fn()} />);
+    expect(screen.queryByTestId('ai-agent-plan-rail')).toBeNull();
+    expect(screen.queryByText('Open a sales queue')).toBeNull();
   });
 
   it('falls back to dock on a narrow viewport', () => {

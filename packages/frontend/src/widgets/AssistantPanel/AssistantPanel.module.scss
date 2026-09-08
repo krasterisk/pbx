@@ -8,6 +8,7 @@
 .panel {
     --ai-agent-panel-width: 60vw;
     --ai-agent-rail-width: 240px;
+    --ai-agent-plan-width: 240px;
 }
 
 /* 1. Layout */
@@ -90,11 +91,28 @@
     grid-template-columns: var(--ai-agent-rail-width) minmax(0, 1fr);
 }
 
+.bodyWithPlan {
+    grid-template-columns: minmax(0, 1fr) var(--ai-agent-plan-width);
+}
+
+.bodyWithRail.bodyWithPlan {
+    grid-template-columns: var(--ai-agent-rail-width) minmax(0, 1fr) var(--ai-agent-plan-width);
+}
+
 .rail {
     min-width: 0;
     min-height: 0;
     padding: 16px;
     border-right: 1px solid var(--color-border);
+    background: color-mix(in srgb, var(--color-muted) 35%, transparent);
+    overflow-y: auto;
+}
+
+.planRail {
+    min-width: 0;
+    min-height: 0;
+    padding: 16px;
+    border-left: 1px solid var(--color-border);
     background: color-mix(in srgb, var(--color-muted) 35%, transparent);
     overflow-y: auto;
 }
