@@ -242,6 +242,40 @@ describe('IvrsAiAdapter', () => {
       expect(result.applyPayload).toEqual(expect.objectContaining({ tool: 'create_ivr' }));
     });
 
+    it('keeps totrunk and hangup after resolving the timeout group', async () => {
+      const result = await getTool('create_ivr').handler(
+        {
+          name: 'Рога и копыта',
+          menu_items: [{
+            digit: 't',
+            actions: [
+              { type: 'togroup', params: { target: { source: 'fixed', value: 'Timeout' } } },
+              { type: 'totrunk', params: { trunk: 'PJSIP/t_mtt_100', dest: { source: 'fixed', value: '79001234567' } } },
+              { type: 'hangup', params: {} },
+            ],
+          }],
+        },
+        TENANT_A,
+      );
+
+      expect(result.applyPayload.args.menu_items).toEqual([
+        expect.objectContaining({
+          digit: 't',
+          actions: [
+            expect.objectContaining({
+              type: 'togroup',
+              params: { target: { source: 'fixed', value: '44' } },
+            }),
+            expect.objectContaining({
+              type: 'totrunk',
+              params: expect.objectContaining({ trunk: 'PJSIP/t_mtt_100' }),
+            }),
+            expect.objectContaining({ type: 'hangup' }),
+          ],
+        }),
+      ]);
+    });
+
     it('stores TTS greeting and resolves timeout digit t to a call group', async () => {
       const result = await getTool('create_ivr').handler(
         {
@@ -258,9 +292,11 @@ describe('IvrsAiAdapter', () => {
       expect(result.applyPayload.args.prompts).toEqual([
         expect.objectContaining({ kind: 'tts', text: 'Вы позвонили в компанию Рога и Копыта.' }),
       ]);
+      expect(JSON.stringify(result.applyPayload.args.prompts)).not.toContain('engineName');
       expect(result.summary.join('\n')).toMatch(/Приветствие/);
-      expect(result.summary.join('\n')).toMatch(/1 → extension 201/);
-      expect(result.summary.join('\n')).toMatch(/t → group/);
+      expect(result.summary.join('\n')).toMatch(/1 → абонент 201/);
+      expect(result.summary.join('\n')).toMatch(/таймаут → группа/);
+      expect(result.summary.join('\n')).not.toMatch(/engine_uid|1 → extension/);
       expect(result.applyPayload.args.menu_items).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
@@ -390,7 +426,7 @@ describe('IvrsAiAdapter', () => {
     it('ships two-field frontmatter covering digit maps, destination kinds, timeout and inbound reach', () => {
       const skillPath = path.join(__dirname, '../../skills/ivrs/SKILL.md');
       const raw = fs.readFileSync(skillPath, 'utf8');
-      expect(raw).toMatch(/^---\r?\nname: ivrs\r?\ndescription: .+\r?\n---/);
+      expect(raw).toMatch(/^---\r?\nname: ivrs\r?\ndescription: .+/);
       expect(raw).toMatch(/digit|цифр/i);
       expect(raw).toMatch(/context|extension|queue|меню|menu/i);
       expect(raw).toMatch(/timeout|t\b|неверн|invalid/i);
@@ -401,6 +437,10 @@ describe('IvrsAiAdapter', () => {
       expect(raw).toMatch(/prompts|tts/i);
       expect(raw).toMatch(/togroup|kind:\s*group|kind group/i);
       expect(raw).toMatch(/toexten/);
+      expect(raw).toMatch(/totrunk|цепочк/i);
+      expect(raw).toMatch(/list_dialplan_apps/);
+      expect(raw).toMatch(/DialplanAppsEditor|редактор маршрутов/i);
+      expect(raw).toMatch(/не подменяй группу очередью|не предлагай.*очередь вместо/i);
       expect(raw).toMatch(/любой.*реплик|не только из последней/i);
       expect(raw).toMatch(/не переспрашив/i);
       expect(raw).toMatch(/что настроить/i);

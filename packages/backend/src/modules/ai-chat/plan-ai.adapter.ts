@@ -19,8 +19,9 @@ export class PlanAiAdapter implements DomainAiAdapter, OnModuleInit {
 
   getKnowledgeBlock(): string {
     return `## План изменений
-- Три и более мутации за один запрос — это один propose_plan, а не серия create_*.
-- Вторая мутация за ход отклоняется: собери план целиком.
+- Две и более сущности в одном запросе — это один propose_plan, а не серия create_*.
+- Отдельный create_* по такому запросу отклоняется: собери план целиком.
+- Если факты изменились, вызови propose_plan снова — новая карточка заменяет незакрытую.
 - Шаг ссылается на результат предыдущего строкой steps.<id>.result.<поле>.`;
   }
 
@@ -28,7 +29,7 @@ export class PlanAiAdapter implements DomainAiAdapter, OnModuleInit {
     return {
       name: 'propose_plan',
       description:
-        'Собрать несколько мутаций в один план (одна карточка). Три и более изменения за запрос — этот инструмент, не серия create_*.',
+        'Собрать несколько мутаций в один план (одна карточка). Две и более сущности в одном запросе — этот инструмент, не серия create_*.',
       inputSchema: {
         title: { type: 'string', description: 'Заголовок плана для карточки' },
         steps: {

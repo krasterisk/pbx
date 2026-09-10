@@ -23,13 +23,13 @@ export class AiChatPage {
     await expect(this.page.getByRole('option', { selected: true })).toBeVisible({ timeout: 15_000 });
   }
 
-  async send(text: string): Promise<void> {
+  async send(text: string, timeouts: { startMs?: number; idleMs?: number } = {}): Promise<void> {
     await expect(this.input).toBeEnabled({ timeout: 15_000 });
     await this.input.fill(text);
     await this.input.press('Enter');
     await expect.poll(async () => {
       const label = await this.sendButton.getAttribute('aria-label').catch(() => null);
-      const progress = await this.page.getByTestId('ai-agent-progress').count();
+      const progress = await this.busyCount();
       const cards = await this.cards.count();
       const steps = await this.steps.count();
       const kinds = await this.timeline.locator('[data-kind]').count();
@@ -38,23 +38,34 @@ export class AiChatPage {
         || cards > 0
         || steps > 0
         || kinds > 0;
-    }, { timeout: 30_000 }).toBeTruthy();
-    await this.waitForIdle();
+    }, { timeout: timeouts.startMs ?? 30_000 }).toBeTruthy();
+    await this.waitForIdle(timeouts.idleMs);
   }
 
-  async waitForIdle(): Promise<void> {
+  async waitForIdle(timeoutMs = 60_000): Promise<void> {
     await expect.poll(async () => {
       const label = await this.sendButton.getAttribute('aria-label').catch(() => null);
-      const progress = await this.page.getByTestId('ai-agent-progress').count();
-      return /Отправить|Send/i.test(label || '') && progress === 0;
-    }, { timeout: 60_000 }).toBeTruthy();
+      return /Отправить|Send/i.test(label || '') && (await this.busyCount()) === 0;
+    }, { timeout: timeoutMs }).toBeTruthy();
+  }
+
+  async outcomeText(): Promise<string> {
+    const node = this.page.getByTestId('ai-agent-outcome');
+    if (await node.count() === 0) return '';
+    return (await node.innerText()).trim();
+  }
+
+  private async busyCount(): Promise<number> {
+    const progress = await this.page.getByTestId('ai-agent-progress').count();
+    const working = await this.page.getByTestId('ai-agent-working').count();
+    return progress + working;
   }
 
   async applyFirstCard(): Promise<void> {
     const card = this.cards.first();
     await card.getByRole('button', { name: /Применить изменения|Повторить|Apply|Retry/i }).click();
-    await expect(card).toHaveAttribute('data-status', /applied|denied|rejected|pending|failed|expired/, {
-      timeout: 30_000,
+    await expect(card).toHaveAttribute('data-status', /applied|denied|rejected|failed|expired/, {
+      timeout: 60_000,
     });
   }
 
@@ -66,5 +77,15 @@ export class AiChatPage {
 
   async markup(): Promise<string> {
     return this.panel.innerHTML();
+  }
+
+  async stepLabels(): Promise<string[]> {
+    return (await this.steps.getByTestId('ai-agent-step-label').allTextContents())
+      .map((label) => label.trim())
+      .filter(Boolean);
+  }
+
+  async visibleText(): Promise<string> {
+    return (await this.panel.innerText()).trim();
   }
 }

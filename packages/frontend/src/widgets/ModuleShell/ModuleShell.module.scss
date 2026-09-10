@@ -216,6 +216,8 @@
   flex-direction: column;
   min-height: 0;
   align-self: stretch;
+  position: relative;
+  z-index: var(--z-index-sidebar);
   border-right: 1px solid var(--color-border);
   background: var(--color-card);
   transition: width 0.2s ease, flex-basis 0.2s ease;

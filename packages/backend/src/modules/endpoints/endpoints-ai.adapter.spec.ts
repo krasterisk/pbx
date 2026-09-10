@@ -72,15 +72,16 @@ describe('EndpointsAiAdapter', () => {
   describe('list_endpoints', () => {
     it('returns public extensions without SIP ids and can filter 101-103 style ranges', async () => {
       const listed = await getTool('list_endpoints').handler({}, TENANT_A);
+      expect(listed.total).toBe(2);
       expect(listed.endpoints).toEqual([
         expect.objectContaining({ extension: '201', context: 'from-internal' }),
         expect.objectContaining({ extension: '203' }),
       ]);
       expect(JSON.stringify(listed)).not.toMatch(/e201_100|sipUsername/);
 
-      const filtered = await getTool('list_endpoints').handler({ extensions: '201' }, TENANT_A);
-      expect(filtered.endpoints).toHaveLength(1);
-      expect(filtered.endpoints[0].extension).toBe('201');
+      const filtered = await getTool('list_endpoints').handler({ extensions: '201-204' }, TENANT_A);
+      expect(filtered.endpoints.map((row: { extension: string }) => row.extension)).toEqual(['201', '203']);
+      expect(filtered.missing).toEqual(['202', '204']);
     });
   });
 
@@ -188,11 +189,32 @@ describe('EndpointsAiAdapter', () => {
         }),
       );
       const card = result.summary.join('\n');
-      expect(card).toMatch(/всего 3|3 абонент/i);
+      expect(card).toMatch(/3 абонент/i);
       expect(card).toMatch(/210/);
       expect(card).toMatch(/211/);
       expect(card).toMatch(/212/);
       assertNoCredentialLeak(result);
+    });
+
+    it('proposes only missing extensions and skips a batch that already exists', async () => {
+      const partial = await getTool('create_endpoints_bulk').handler(
+        { extensionsPattern: '201-203' },
+        TENANT_A,
+      );
+      expect(partial.skipped).toBeUndefined();
+      expect(partial.applyPayload.args.extensionsPattern).toBe('202');
+      expect(partial.summary.join('\n')).toMatch(/202/);
+      expect(partial.summary.join('\n')).toMatch(/Уже есть, пропускаю: 201, 203/);
+
+      const existing = await getTool('create_endpoints_bulk').handler(
+        { extensionsPattern: '201,203' },
+        TENANT_A,
+      );
+      expect(existing).toEqual(expect.objectContaining({
+        skipped: true,
+        already: ['201', '203'],
+      }));
+      expect(existing.applyPayload).toBeUndefined();
     });
 
     it('refuses a batch above the documented ceiling and names that ceiling', async () => {

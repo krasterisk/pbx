@@ -1,6 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { AgentItemVisibility, AgentTimelineStepItem, AgentTurnCloseKind } from '@krasterisk/shared';
+import {
+  looksLikeUserConfirm,
+  scrubToolIdsFromPublicText,
+  type AgentItemVisibility,
+  type AgentTimelineStepItem,
+  type AgentTurnCloseKind,
+} from '@krasterisk/shared';
 import { wrapUntrustedData } from '../../shared/utils/prompt-injection.util';
 import { AiProvidersService } from '../ai-agents/ai-providers.service';
 import { McpToolsService } from '../mcp/mcp-tools.service';
@@ -12,26 +18,36 @@ import { AgentIntentClassifierService } from './agent-intent-classifier.service'
 import { AgentSkillRegistryService } from '../ai-platform/agent-skill-registry.service';
 import { renderBriefForPrompt } from './conversation-brief.types';
 import { AiChatSettingsService } from './ai-chat-settings.service';
-import { progressLabelKey } from './agent-timeline.util';
+import { humanStepDetail, isToolErrorContent, progressLabelKey } from './agent-timeline.util';
 import type { AgentSseEventName, AgentToolCall, AgentToolSpec, ChatMessage } from './pbx-agent.types';
 import {
   classifyTurnClose,
   forcedTurnStatus,
   incompleteReminder,
+  looksLikeMultiEntitySetup,
   looksLikePlanningNarration,
   looksTruncated,
 } from './turn-outcome.util';
 import { isWorkflowPlanView } from './dto/agent-diff.dto';
+import { PbxWorkflowRunnerService } from './pbx-workflow-runner.service';
+import { buildIvrSetupDraft } from './ivr-setup-draft';
 
 export const DEFAULT_MAX_AGENT_STEPS = 12;
 export const DEFAULT_TOOL_ARG_RETRIES = 1;
 export const TOOL_RESULT_MAX_CHARS = 4000;
 export const ASSISTANT_OUTPUT_BUDGET_CHARS = 8000;
+const PLAN_CHECKLIST_TOOLS = new Set([
+  'list_tts_engines',
+  'list_endpoints',
+  'list_call_groups',
+  'list_ivrs',
+  'list_dialplan_apps',
+]);
 export const PROMPT_TOTAL_BUDGET_CHARS = 48_000;
 
 export const CONTINUE_AFTER_APPLY_PROMPT =
-  'Карточка применена. Продолжи исходный запрос: создай недостающие сущности инструментами. ' +
-  'Не переспрашивай TTS и номер группы.';
+  'Карточка уже применена. Не создавай те же абонентов, группу или меню снова. ' +
+  'Коротко скажи, что готово. list_* — только если нужно проверить факт.';
 
 export interface AgentTurnContext {
   tenantUid: number;
@@ -71,6 +87,7 @@ export class PbxAgentLoopService {
     private readonly briefService: PbxConversationBriefService,
     private readonly intentClassifier: AgentIntentClassifierService,
     private readonly skillRegistry: AgentSkillRegistryService,
+    private readonly workflows: PbxWorkflowRunnerService,
   ) {}
 
   /**
@@ -150,6 +167,9 @@ export class PbxAgentLoopService {
     let incompleteContinues = 0;
     let forceToolChoice = false;
     let calledToolThisTurn = false;
+    let checklistReads = 0;
+    let proposePlanAttempts = 0;
+    let providerTimeoutRetries = 0;
     let hadProposal = false;
     let mutationsThisTurn = 0;
     let lastAssistant = '';
@@ -158,7 +178,50 @@ export class PbxAgentLoopService {
         ? String((provider.defaults as Record<string, unknown>).model)
         : provider.name;
 
-    if (this.looksLikeUserConfirm(message)) {
+    const proposalCtx = {
+      vpbxUserUid: tenantUid,
+      userUid: authorUid,
+      role,
+      threadUid,
+    };
+    const pendingWorkflow = await this.workflows.findLatestPendingForThread(threadUid, proposalCtx);
+
+    if (looksLikeUserConfirm(message) && pendingWorkflow) {
+      try {
+        const applied = await this.workflows.apply(pendingWorkflow.workflowId, proposalCtx);
+        const closing = applied.status === 'applied'
+          ? 'План применён. Сущности из карточки созданы.'
+          : applied.error
+            ? `Не удалось применить план: ${scrubToolIdsFromPublicText(applied.error)}`
+            : 'Карточка не применена.';
+        const closeKind: AgentTurnCloseKind = applied.status === 'applied' ? 'complete' : 'question';
+        const row = await this.threads.appendMessage(threadUid, tenantUid, authorUid, {
+          role: 'assistant',
+          content: closing,
+          close_kind: closeKind,
+          visibility: 'public',
+        });
+        yield {
+          name: 'item',
+          data: {
+            kind: 'assistant',
+            id: `m${row.uid}`,
+            text: closing,
+            closeKind,
+            createdAt: this.createdAtIso(row.created_at),
+          },
+        };
+        yield { name: 'done', data: { closeKind } };
+        return;
+      } catch (err) {
+        const reason = err instanceof Error ? err.message : String(err);
+        messages.push({
+          role: 'system',
+          content: `Пользователь подтвердил, но применить карточку не удалось (${reason}). Обнови план через propose_plan или скажи, что сломалось.`,
+        });
+        forceToolChoice = true;
+      }
+    } else if (looksLikeUserConfirm(message)) {
       messages.push({
         role: 'system',
         content:
@@ -167,6 +230,25 @@ export class PbxAgentLoopService {
           'Карточку в UI подтверждает пользователь — не придумывай apply tool.',
       });
       forceToolChoice = true;
+    } else {
+      const compiled = yield* this.tryServerIvrPlan({
+        message,
+        threadUid,
+        tenantUid,
+        authorUid,
+        role,
+        locale: ctx.locale,
+        providerModel,
+      });
+      if (compiled) return;
+      if (pendingWorkflow) {
+        messages.push({
+          role: 'system',
+          content:
+            'На треде уже есть незакрытая карточка. Короткое уточнение (номер группы, абонент, цифра, таймаут) — не новый бриф: вызови propose_plan с полным актуальным чеклистом, применив правку к последнему плану. Новая карточка заменит старую. Не проси подтвердить устаревший план.',
+        });
+        forceToolChoice = true;
+      }
     }
 
     // Clear multi-domain configure briefs should start by calling tools, not narrating.
@@ -231,6 +313,20 @@ export class PbxAgentLoopService {
       }
 
       if (completion.error) {
+        if (
+          completion.error.code === 'provider_timeout'
+          && calledToolThisTurn
+          && !hadProposal
+          && providerTimeoutRetries < 1
+        ) {
+          providerTimeoutRetries += 1;
+          messages.push({
+            role: 'system',
+            content: this.proposePlanNowReminder(ctx.locale),
+          });
+          forceToolChoice = true;
+          continue;
+        }
         yield { name: 'error', data: completion.error };
         return;
       }
@@ -240,6 +336,9 @@ export class PbxAgentLoopService {
 
       if (toolCalls.length) {
         calledToolThisTurn = true;
+        if (toolCalls.some((call) => PLAN_CHECKLIST_TOOLS.has(call.name))) {
+          checklistReads += toolCalls.filter((call) => PLAN_CHECKLIST_TOOLS.has(call.name)).length;
+        }
         forceToolChoice = false;
         if (completion.text) {
           lastAssistant = completion.text;
@@ -275,17 +374,56 @@ export class PbxAgentLoopService {
           yield { name: 'item', data: this.stepItem(call.name, stepId, false) };
           const normalizedCall = this.normalizeToolCallArgs(call);
 
+          if (normalizedCall.name === 'propose_plan') {
+            proposePlanAttempts += 1;
+            const shapeHint = this.proposePlanShapeHint(normalizedCall.arguments ?? {});
+            if (shapeHint) {
+              const errorText = JSON.stringify({
+                error: 'invalid_arguments',
+                tool: 'propose_plan',
+                received: Object.keys(normalizedCall.arguments ?? {}),
+                hint: shapeHint,
+              });
+              yield { name: 'item', data: this.stepItem(normalizedCall.name, stepId, true, humanStepDetail(normalizedCall.name, errorText)) };
+              await this.threads.appendMessage(threadUid, tenantUid, authorUid, {
+                role: 'tool',
+                content: errorText,
+                tool_name: normalizedCall.name,
+                tool_call_id: normalizedCall.id,
+                provider_model: providerModel,
+                visibility: 'internal',
+              });
+              messages.push({
+                role: 'tool',
+                content: this.toModelToolContent(normalizedCall.name, errorText),
+                tool_call_id: normalizedCall.id,
+                name: normalizedCall.name,
+              });
+              answeredToolCallIds.add(normalizedCall.id);
+              if (proposePlanAttempts < 2) {
+                messages.push({ role: 'system', content: this.proposePlanNowReminder(ctx.locale) });
+                forceToolChoice = true;
+              }
+              continue;
+            }
+          }
+
           if (this.mcpTools.isMutationTool(normalizedCall.name)) {
+            const batchFirst = looksLikeMultiEntitySetup(message);
             mutationsThisTurn += 1;
-            if (mutationsThisTurn >= 2) {
+            if (batchFirst || mutationsThisTurn >= 2) {
               const refusal = JSON.stringify({
                 error: 'batch_required',
                 tool: normalizedCall.name,
-                hint: 'Вторая мутация за ход запрещена. Собери оставшиеся изменения в один propose_plan '
+                hint: batchFirst
+                  ? 'Этот запрос меняет несколько сущностей. Не вызывай create_* по отдельности. '
+                    + 'Собери всё в один propose_plan (title + steps[]): абоненты, группа таймаута, меню. '
+                    + 'Шаги ссылаются друг на друга через steps.<id>.result.<поле>.'
+                  : 'Вторая мутация за ход запрещена. Собери оставшиеся изменения в один propose_plan '
                     + '(шаги ссылаются друг на друга через steps.<id>.result.<поле>) и вызови его вместо серии create_*.',
               });
               // tool-строка обязательна: OpenAI требует ответ на каждый tool_call_id
-              yield { name: 'item', data: this.stepItem(normalizedCall.name, stepId, true) };
+              yield { name: 'item', data: this.stepItem(normalizedCall.name, stepId, true, humanStepDetail(normalizedCall.name, refusal)) };
               await this.threads.appendMessage(threadUid, tenantUid, authorUid, {
                 role: 'tool', content: refusal, tool_name: normalizedCall.name,
                 tool_call_id: normalizedCall.id, provider_model: providerModel, visibility: 'internal',
@@ -308,7 +446,7 @@ export class PbxAgentLoopService {
               received: Object.keys(normalizedCall.arguments ?? {}),
               hint: this.missingArgsHint(normalizedCall.name, invalidFields),
             });
-            yield { name: 'item', data: this.stepItem(normalizedCall.name, stepId, true) };
+            yield { name: 'item', data: this.stepItem(normalizedCall.name, stepId, true, humanStepDetail(normalizedCall.name, errorText)) };
             await this.threads.appendMessage(threadUid, tenantUid, authorUid, {
               role: 'tool',
               content: errorText,
@@ -375,7 +513,7 @@ export class PbxAgentLoopService {
           const proposal = this.asProposalView(resultText);
           resultText = this.truncateToolResult(resultText);
 
-          yield { name: 'item', data: this.stepItem(normalizedCall.name, stepId, true) };
+          yield { name: 'item', data: this.stepItem(normalizedCall.name, stepId, true, humanStepDetail(normalizedCall.name, resultText)) };
 
           const persisted = proposal
             ? this.pendingProposalForModel(normalizedCall.name, proposal)
@@ -399,6 +537,8 @@ export class PbxAgentLoopService {
                 createdAt: this.createdAtIso(toolRow.created_at),
               },
             };
+          } else if (normalizedCall.name === 'propose_plan' && isToolErrorContent(resultText)) {
+            if (proposePlanAttempts < 2) forceToolChoice = true;
           }
           messages.push({
             role: 'tool',
@@ -407,6 +547,45 @@ export class PbxAgentLoopService {
             name: normalizedCall.name,
           });
           answeredToolCallIds.add(normalizedCall.id);
+        }
+        if (hadProposal && !forceToolChoice) {
+          yield* this.closeAfterProposal({
+            threadUid,
+            tenantUid,
+            authorUid,
+            locale: ctx.locale,
+            providerModel,
+          });
+          return;
+        }
+        if (!hadProposal && checklistReads >= 2) {
+          const compiled = yield* this.tryServerIvrPlan({
+            message,
+            threadUid,
+            tenantUid,
+            authorUid,
+            role,
+            locale: ctx.locale,
+            providerModel,
+          });
+          if (compiled) return;
+        }
+        if (!hadProposal && proposePlanAttempts >= 2) {
+          const status = forcedTurnStatus({ locale: ctx.locale, hadProposal, lastAssistant });
+          await this.threads.appendMessage(threadUid, tenantUid, authorUid, {
+            role: 'assistant',
+            content: status,
+            visibility: 'internal',
+          });
+          yield { name: 'done', data: { closeKind: 'complete' } };
+          return;
+        }
+        if (!hadProposal && checklistReads >= 2 && proposePlanAttempts < 2) {
+          messages.push({
+            role: 'system',
+            content: this.proposePlanNowReminder(ctx.locale),
+          });
+          forceToolChoice = true;
         }
         continue;
       }
@@ -448,10 +627,34 @@ export class PbxAgentLoopService {
         return;
       }
 
+      if (close === 'wait_confirm' && pendingWorkflow && !hadProposal) {
+        incompleteContinues += 1;
+        lastAssistant = text || lastAssistant;
+        if (text) {
+          await this.threads.appendMessage(threadUid, tenantUid, authorUid, {
+            role: 'assistant',
+            content: text,
+            visibility: 'internal',
+            reasoning: completion.reasoning ?? null,
+          });
+        }
+        if (incompleteContinues <= 2) {
+          messages.push({
+            role: 'system',
+            content:
+              'Нельзя просить подтвердить старую карточку. Вызови propose_plan с актуальными шагами — она заменит прежнюю.',
+          });
+          forceToolChoice = true;
+          continue;
+        }
+      }
+
       forceToolChoice = false;
 
       const closeKind: AgentTurnCloseKind = close;
-      const closing = text || forcedTurnStatus({ locale: ctx.locale, hadProposal, lastAssistant });
+      const closing = scrubToolIdsFromPublicText(
+        text || forcedTurnStatus({ locale: ctx.locale, hadProposal, lastAssistant }),
+      );
       await this.threads.appendMessage(threadUid, tenantUid, authorUid, {
         role: 'assistant',
         content: closing,
@@ -526,30 +729,20 @@ export class PbxAgentLoopService {
   /** Map common model aliases so strict schemas do not fail on the first try. */
   private normalizeToolCallArgs(call: AgentToolCall): AgentToolCall {
     const args = { ...(call.arguments ?? {}) } as Record<string, unknown>;
+    if (call.name === 'propose_plan' && Array.isArray(args.steps)) {
+      args.steps = args.steps.map((step) => {
+        if (!step || typeof step !== 'object' || Array.isArray(step)) return step;
+        const row = { ...(step as Record<string, unknown>) };
+        const tool = typeof row.tool === 'string' ? row.tool : '';
+        if (tool !== 'create_call_group' && tool !== 'update_call_group') return row;
+        const stepArgs = row.args && typeof row.args === 'object' && !Array.isArray(row.args)
+          ? { ...(row.args as Record<string, unknown>) }
+          : {};
+        return { ...row, args: this.normalizeCallGroupArgs(stepArgs) };
+      });
+    }
     if (call.name === 'create_call_group' || call.name === 'update_call_group') {
-      if (this.isBlank(args.exten)) {
-        const alias = args.extension ?? args.number ?? args.group_exten ?? args.groupExten;
-        if (typeof alias === 'string' && alias.trim()) args.exten = alias.trim();
-      }
-      if (this.isBlank(args.name)) {
-        const alias = args.title ?? args.label ?? args.group_name ?? args.groupName;
-        if (typeof alias === 'string' && alias.trim()) args.name = alias.trim();
-      }
-      if (args.members != null) {
-        args.members = this.normalizeCallGroupMembers(args.members);
-      }
-      for (const key of [
-        'extension',
-        'number',
-        'group_exten',
-        'groupExten',
-        'title',
-        'label',
-        'group_name',
-        'groupName',
-      ]) {
-        delete args[key];
-      }
+      return { ...call, arguments: this.normalizeCallGroupArgs(args) };
     }
     if (call.name === 'create_ivr' || call.name === 'update_ivr') {
       if (this.isBlank(args.name)) {
@@ -574,6 +767,38 @@ export class PbxAgentLoopService {
       }
     }
     return { ...call, arguments: args };
+  }
+
+  private normalizeCallGroupArgs(raw: Record<string, unknown>): Record<string, unknown> {
+    const args = { ...raw };
+    if (typeof args.exten === 'number' && Number.isFinite(args.exten)) {
+      args.exten = String(Math.trunc(args.exten));
+    }
+    if (this.isBlank(args.exten)) {
+      const alias = args.extension ?? args.number ?? args.group_exten ?? args.groupExten;
+      if (typeof alias === 'number' && Number.isFinite(alias)) args.exten = String(Math.trunc(alias));
+      else if (typeof alias === 'string' && alias.trim()) args.exten = alias.trim();
+    }
+    if (this.isBlank(args.name)) {
+      const alias = args.title ?? args.label ?? args.group_name ?? args.groupName;
+      if (typeof alias === 'string' && alias.trim()) args.name = alias.trim();
+    }
+    if (args.members != null) {
+      args.members = this.normalizeCallGroupMembers(args.members);
+    }
+    for (const key of [
+      'extension',
+      'number',
+      'group_exten',
+      'groupExten',
+      'title',
+      'label',
+      'group_name',
+      'groupName',
+    ]) {
+      delete args[key];
+    }
+    return args;
   }
 
   private normalizeCallGroupMembers(raw: unknown): unknown {
@@ -664,11 +889,137 @@ export class PbxAgentLoopService {
     );
   }
 
-  private looksLikeUserConfirm(message: string): boolean {
-    const text = String(message ?? '').trim().toLowerCase();
-    if (!text) return false;
-    return /^(да[,!.\s]*)?(подтверждаю|подтверждаю|согласен|ок[,!.\s]+делай|делай|применяй|apply)\b/.test(text)
-      || /подтверждаю[,!.\s]+делай/.test(text);
+  private async *closeAfterProposal(opts: {
+    threadUid: number;
+    tenantUid: number;
+    authorUid: number;
+    locale?: string;
+    providerModel: string;
+  }): AsyncGenerator<AgentStreamEvent> {
+    const closeKind: AgentTurnCloseKind = 'wait_confirm';
+    const closing = '';
+    await this.threads.appendMessage(opts.threadUid, opts.tenantUid, opts.authorUid, {
+      role: 'assistant',
+      content: closing,
+      close_kind: closeKind,
+      visibility: 'public',
+      provider_model: opts.providerModel,
+    });
+    yield {
+      name: 'item',
+      data: {
+        kind: 'assistant',
+        id: `a${opts.threadUid}_plan`,
+        text: closing,
+        closeKind,
+        streaming: false,
+        createdAt: new Date().toISOString(),
+      },
+    };
+    yield { name: 'done', data: { closeKind } };
+  }
+
+  private async *tryServerIvrPlan(opts: {
+    message: string;
+    threadUid: number;
+    tenantUid: number;
+    authorUid: number;
+    role: number;
+    locale?: string;
+    providerModel: string;
+  }): AsyncGenerator<AgentStreamEvent, boolean> {
+    const draft = buildIvrSetupDraft(opts.message);
+    if (!draft) return false;
+    const stepId = `s${opts.threadUid}_plan`;
+    yield { name: 'item', data: this.stepItem('propose_plan', stepId, false) };
+    let resultText: string;
+    try {
+      const parts = await this.mcpTools.callTool('propose_plan', draft as unknown as Record<string, unknown>, opts.tenantUid, {
+        userUid: opts.authorUid,
+        role: opts.role,
+        threadUid: opts.threadUid,
+      });
+      resultText = parts.map((part) => part.text).join('\n');
+    } catch (err) {
+      resultText = JSON.stringify({
+        error: 'tool_failed',
+        tool: 'propose_plan',
+        message: err instanceof Error ? err.message : String(err),
+      });
+    }
+    yield {
+      name: 'item',
+      data: this.stepItem('propose_plan', stepId, true, humanStepDetail('propose_plan', resultText)),
+    };
+    const proposal = this.asProposalView(resultText);
+    if (!proposal) {
+      await this.threads.appendMessage(opts.threadUid, opts.tenantUid, opts.authorUid, {
+        role: 'assistant',
+        content: scrubToolIdsFromPublicText(resultText).slice(0, 400) || 'Не удалось собрать план.',
+        visibility: 'public',
+        provider_model: opts.providerModel,
+      });
+      yield { name: 'error', data: { code: 'plan_compile_failed', message: resultText.slice(0, 400) } };
+      yield { name: 'done', data: { closeKind: 'incomplete' } };
+      return true;
+    }
+    const toolRow = await this.threads.appendMessage(opts.threadUid, opts.tenantUid, opts.authorUid, {
+      role: 'tool',
+      content: this.pendingProposalForModel('propose_plan', proposal),
+      tool_name: 'propose_plan',
+      proposal_id: proposal.id,
+      provider_model: opts.providerModel,
+    });
+    yield {
+      name: 'item',
+      data: {
+        kind: 'proposal',
+        id: `p${toolRow.uid}`,
+        card: proposal.card,
+        createdAt: this.createdAtIso(toolRow.created_at),
+      },
+    };
+    yield* this.closeAfterProposal({
+      threadUid: opts.threadUid,
+      tenantUid: opts.tenantUid,
+      authorUid: opts.authorUid,
+      locale: opts.locale,
+      providerModel: opts.providerModel,
+    });
+    return true;
+  }
+
+  private proposePlanShapeHint(args: Record<string, unknown>): string | null {
+    if (Array.isArray(args.steps) && args.steps.length) return null;
+    const keys = Object.keys(args);
+    const looksLikeGroup = keys.includes('exten') || keys.includes('members') || keys.includes('strategy');
+    const looksLikeIvr = keys.includes('menu_items') || keys.includes('prompts') || keys.includes('text');
+    if (!looksLikeGroup && !looksLikeIvr && typeof args.title === 'string') {
+      return 'propose_plan требует steps[] — массив шагов {id, tool, args}, не пустой план.';
+    }
+    if (!looksLikeGroup && !looksLikeIvr) return null;
+    return (
+      'Это поля одной сущности, не план. propose_plan принимает только {title, steps[]}. Пример: '
+      + '{"title":"IVR Рога и копыта","steps":['
+      + '{"id":"g","tool":"create_call_group","args":{"name":"Рога и копыта","exten":"6001","strategy":"ringall",'
+      + '"members":[{"member_type":"internal","value":"101"},{"member_type":"internal","value":"102"},{"member_type":"internal","value":"103"}]}},'
+      + '{"id":"i","tool":"create_ivr","dependsOn":["g"],"args":{"name":"Рога и копыта","text":"<приветствие>",'
+      + '"menu_items":[{"digit":"1","destination":{"kind":"extension","target":"101"}},'
+      + '{"digit":"2","destination":{"kind":"extension","target":"102"}},'
+      + '{"digit":"3","destination":{"kind":"extension","target":"103"}},'
+      + '{"digit":"t","destination":{"kind":"group","target":"6001"}}]}}]}'
+    );
+  }
+
+  private proposePlanNowReminder(locale?: string): string {
+    const ru = (locale ?? 'ru').toLowerCase().startsWith('ru');
+    return ru
+      ? 'Факты уже собраны. Сразу вызови propose_plan одним объектом {title, steps[]}. '
+        + 'Корень — не name/exten/members. Шаги: create_call_group (если группы ещё нет) и create_ivr с text/menu_items. '
+        + 'Не вызывай list_* снова.'
+      : 'Facts are already collected. Call propose_plan as {title, steps[]}. '
+        + 'Do not put name/exten/members at the root. Steps: create_call_group if missing, then create_ivr with text/menu_items. '
+        + 'Do not call list_* again.';
   }
 
   private pendingProposalForModel(
@@ -678,7 +1029,7 @@ export class PbxAgentLoopService {
     const label = typeof proposal.entityLabel === 'string' && proposal.entityLabel.trim()
       ? proposal.entityLabel.trim()
       : toolName;
-    return `Черновик изменения подготовлен: ${label}. Попроси пользователя подтвердить карточку. Назови, что ещё осталось после подтверждения. Не останавливайся молча. Не упоминай proposal, UUID, apply tool и тенантные идентификаторы вроде q701_0.`;
+    return `Черновик изменения подготовлен: ${label}. Карточка уже на экране — не пересказывай её и не называй, что осталось. Не пиши имена инструментов (create_endpoints_bulk, create_ivr, propose_plan), proposal, UUID, apply и тенантные идентификаторы вроде q701_0.`;
   }
 
   private asProposalView(resultText: string): {
@@ -861,12 +1212,19 @@ export class PbxAgentLoopService {
     }
   }
 
-  private stepItem(tool: string, id: string, done: boolean): AgentTimelineStepItem {
+  private stepItem(
+    tool: string,
+    id: string,
+    done: boolean,
+    detail?: { detailKey?: string; detailFallback?: string } | null,
+  ): AgentTimelineStepItem {
     return {
       kind: 'step',
       id,
       labelKey: progressLabelKey(tool),
       labelFallback: tool,
+      ...(detail?.detailKey ? { detailKey: detail.detailKey } : {}),
+      ...(detail?.detailFallback ? { detailFallback: detail.detailFallback } : {}),
       done,
       createdAt: new Date().toISOString(),
     };

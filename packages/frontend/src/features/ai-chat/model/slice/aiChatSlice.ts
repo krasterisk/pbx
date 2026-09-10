@@ -28,6 +28,7 @@ export type AgentTurnOutcome =
     | 'stopped'
     | 'ceiling'
     | 'failed'
+    | 'timeout'
     | 'disconnected';
 
 export type AgentChatState = AiChatSchema & {

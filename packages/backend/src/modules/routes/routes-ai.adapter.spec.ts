@@ -159,7 +159,13 @@ describe('RoutesAiAdapter', () => {
     };
     ivrsService = {
       findAll: jest.fn(async (uid: number) => {
-        if (uid === TENANT_A) return [{ uid: 7, name: 'Main' }];
+        if (uid === TENANT_A) {
+          return [{
+            uid: 7,
+            name: 'Main',
+            menu_items: [{ digit: 't', actions: [{ type: 'togroup' }, { type: 'totrunk' }] }],
+          }];
+        }
         return [];
       }),
     };
@@ -247,6 +253,7 @@ describe('RoutesAiAdapter', () => {
     it('exposes list, describe-chain, create and delete and does not expose apply_dialplan', () => {
       expect(adapter.getTools().map((tool) => tool.name)).toEqual([
         'list_routes',
+        'list_dialplan_apps',
         'describe_route_chain',
         'create_route',
         'delete_route',
@@ -273,6 +280,27 @@ describe('RoutesAiAdapter', () => {
       expect(JSON.stringify(listed)).toMatch(/74951234567/);
       expect(JSON.stringify(listed)).not.toMatch(/74959990000/);
       expect(JSON.stringify(described)).toMatch(/toqueue|sales/);
+    });
+
+    it('lists product editor apps with copy and tenant usage', async () => {
+      const listed = await getTool('list_dialplan_apps').handler({ host: 'ivr' }, TENANT_A) as {
+        host: string;
+        apps: Array<{ type: string; need: string[]; usedIn?: { routes: number; ivrs: number } }>;
+      };
+
+      expect(listed.host).toBe('ivr');
+      expect(listed.apps.map((app) => app.type)).toEqual(
+        expect.arrayContaining(['totrunk', 'togroup', 'hangup', 'voicemail']),
+      );
+      expect(listed.apps.map((app) => app.type)).not.toEqual(
+        expect.arrayContaining(['cmd', 'callback']),
+      );
+      const trunk = listed.apps.find((app) => app.type === 'totrunk');
+      expect(trunk?.need).toEqual(['trunk', 'dest']);
+      expect(trunk?.usedIn).toEqual({ routes: 0, ivrs: 1 });
+      expect(listed.apps.find((app) => app.type === 'toqueue')?.usedIn).toEqual({ routes: 1, ivrs: 0 });
+      expect(listed.apps.find((app) => app.type === 'hangup')?.usedIn).toEqual({ routes: 1, ivrs: 0 });
+      expect(listed.apps.find((app) => app.type === 'togroup')?.usedIn).toEqual({ routes: 0, ivrs: 1 });
     });
   });
 
@@ -468,11 +496,13 @@ describe('RoutesAiAdapter', () => {
     it('ships a playbook with list tools, checklist, pending card and when to ask', () => {
       const skillPath = path.join(__dirname, '../../skills/routes/SKILL.md');
       const raw = fs.readFileSync(skillPath, 'utf8');
-      expect(raw).toMatch(/^---\r?\nname: routes\r?\ndescription: .+\r?\n---/);
+      expect(raw).toMatch(/^---\r?\nname: routes\r?\ndescription: .+/);
       expect(raw).toMatch(/list_routes|list_contexts/);
       expect(raw).toMatch(/чеклист|рецепт/i);
       expect(raw).toMatch(/карточка|подтверд/i);
       expect(raw).toMatch(/вопрос|останови/i);
+      expect(raw).toMatch(/totrunk|DialplanAppsEditor|редактор/i);
+      expect(raw).toMatch(/list_dialplan_apps/);
     });
   });
 });

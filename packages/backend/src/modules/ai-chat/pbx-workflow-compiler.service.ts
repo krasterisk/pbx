@@ -1,10 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { AiAdapterRegistryService } from '../ai-platform/ai-adapter-registry.service';
 import {
+  isToolSkip,
   parseMutationArgs,
   parseMutationInput,
   stripTenantAliasesDeep,
+  type PlannedWorkflowEntities,
 } from '../ai-platform/ai-mutation.contract';
+import { parseBulkExtensions } from '../endpoints/endpoints-ai.adapter';
 import { UserLevel } from '../users/user.model';
 
 export interface DeclarativeWorkflowStep {
@@ -76,8 +79,9 @@ export class PbxWorkflowCompilerService {
 
     const compiled: CompiledWorkflowStep[] = [];
     const summary: string[] = [];
+    const skippedIds = new Set<string>();
 
-    for (const step of draft.steps) {
+    for (const [index, step] of draft.steps.entries()) {
       const tool = this.registry.getMutationTool(step.tool);
       if (!tool) throw new Error(`WORKFLOW_UNKNOWN_TOOL:${step.tool}`);
 
@@ -87,7 +91,12 @@ export class PbxWorkflowCompilerService {
         userUid: ctx.userUid,
         role: ctx.role,
         isAdmin: ctx.role === UserLevel.ADMIN,
+        planned: plannedEntitiesFromSteps(draft.steps.slice(0, index)),
       });
+      if (isToolSkip(proposed)) {
+        skippedIds.add(step.id);
+        continue;
+      }
       if ((proposed as { refused?: boolean }).refused) {
         throw new Error(`WORKFLOW_REFUSED:${step.tool}:${(proposed as any).message ?? 'refused'}`);
       }
@@ -109,7 +118,7 @@ export class PbxWorkflowCompilerService {
         tool: step.tool,
         entityType: proposal.entityType || tool.entityType,
         entityLabel: step.label || proposal.entityLabel || step.tool,
-        dependsOn: [...(step.dependsOn ?? [])],
+        dependsOn: [...(step.dependsOn ?? [])].filter((id) => !skippedIds.has(id)),
         canonicalArgs,
         schemaVersion: tool.mutation.schemaVersion,
         before: proposal.before ?? null,
@@ -118,6 +127,10 @@ export class PbxWorkflowCompilerService {
         requiresSecureInput: !!(canonicalArgs as any).requiresSecureInput,
       });
       summary.push(...(proposal.summary ?? [`${step.tool}`]));
+    }
+
+    if (compiled.length === 0) {
+      throw new Error('WORKFLOW_EMPTY');
     }
 
     this.logger.log(`compiled workflow steps=${compiled.length} tenant=${ctx.vpbxUserUid}`);
@@ -148,4 +161,36 @@ export class PbxWorkflowCompilerService {
 
     for (const step of steps) walk(step.id);
   }
+}
+
+export function plannedEntitiesFromSteps(steps: DeclarativeWorkflowStep[]): PlannedWorkflowEntities {
+  const extensions = new Set<string>();
+  const groups: PlannedWorkflowEntities['groups'] = [];
+  const queues: PlannedWorkflowEntities['queues'] = [];
+
+  for (const step of steps) {
+    const args = step.args ?? {};
+    if (step.tool === 'create_endpoints_bulk' && typeof args.extensionsPattern === 'string') {
+      for (const extension of parseBulkExtensions(args.extensionsPattern)) {
+        extensions.add(extension);
+      }
+    }
+    if (step.tool === 'create_endpoint' && args.extension != null) {
+      extensions.add(String(args.extension));
+    }
+    if (step.tool === 'create_call_group') {
+      groups.push({
+        name: typeof args.name === 'string' ? args.name : undefined,
+        exten: args.exten != null ? String(args.exten) : undefined,
+      });
+    }
+    if (step.tool === 'create_queue') {
+      queues.push({
+        name: typeof args.name === 'string' ? args.name : undefined,
+        exten: args.exten != null ? String(args.exten) : undefined,
+      });
+    }
+  }
+
+  return { extensions: [...extensions], groups, queues };
 }

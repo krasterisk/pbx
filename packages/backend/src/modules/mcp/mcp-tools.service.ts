@@ -4,6 +4,7 @@ import { AiAdapterRegistryService } from '../ai-platform/ai-adapter-registry.ser
 import { TENANT_ARG_KEYS, type AgentDiffProposal, type AiToolDefinition } from '../ai-platform/ai-adapter.types';
 import {
     isToolRefusal,
+    isToolSkip,
     jsonSchemaOf,
     parseMutationArgs,
     parseMutationInput,
@@ -126,7 +127,11 @@ export class McpToolsService implements OnApplicationBootstrap {
 
         if (tool.proposes) {
             try {
-                const result = await tool.handler(cleanArgs, vpbxUserUid, proposalCtx);
+                const result = await tool.handler(cleanArgs, vpbxUserUid, {
+                    userUid: proposalCtx.userUid,
+                    role: proposalCtx.role,
+                    threadUid: proposalCtx.threadUid ?? 0,
+                });
                 this.logToolCall(name, tool, cleanArgs, vpbxUserUid, 'success');
                 return await this.finishProposalResult(result, proposalCtx);
             } catch (err: any) {
@@ -180,7 +185,7 @@ export class McpToolsService implements OnApplicationBootstrap {
                 isAdmin: ctx.role === UserLevel.ADMIN,
             });
             this.logToolCall(name, tool, args, ctx.vpbxUserUid, 'success');
-            if (isToolRefusal(proposed)) {
+            if (isToolRefusal(proposed) || isToolSkip(proposed)) {
                 return this.asTextParts(proposed);
             }
             const view = await this.pbxAgentDiffService.createProposal(

@@ -17,9 +17,9 @@ risk: high
 1. **Собрать DID / provider requirements.** Нужны: точный DID pattern входящего маршрута (это `route.extensions` / pattern, **не** модуль `numbers`), тип транка (IP-peering или auth), имена контекстов, диапазон абонентов, IVR/группа.
 2. **Контексты.** `list_contexts` → при отсутствии создать internal и inbound через `create_context`. Не выдумывай UID.
 3. **Транк.** `list_trunks` → `create_trunk`. Для auth-trunk остановись на secure-input (пароль не принимай в chat/tool args). IP-peering проходит полностью диалогом.
-4. **Абоненты.** `list_endpoints` → `create_endpoints_bulk` только для недостающих номеров.
-5. **Группа.** Одна call-group на таймаут/очередь ожидания. `exten` группы не выдумывай — спроси, если не назван.
-6. **IVR.** `create_ivr` с typed destinations (`extension` / `group`), greeting из brief.
+4. **Абоненты.** `list_endpoints` только с фильтром названных номеров. `create_endpoints_bulk` сам оставит лишь отсутствующие; уже существующие в план не попадают.
+5. **Группа.** Одна call-group на таймаут/очередь ожидания. Свободный `exten` 6xxx подставь сам — не спрашивай.
+6. **IVR.** Перед цепочкой цифр — `list_dialplan_apps(host=ivr)`. `create_ivr`: цифры — типы из этого каталога (`destination` = первый шаг; после группы на `t` при необходимости `totrunk` / `hangup`). Greeting из brief.
 7. **Входящий DID route.** Exact-DID inbound route с typed `toivr` на созданное меню. Pattern = точный DID, не catch-all `_X.` выше emergency.
 8. **Проверка.** Route/dialplan dry-run → compiled dialplan / lab verification если доступно.
 
@@ -29,7 +29,7 @@ risk: high
 
 ## Обязательные факты
 
-Не придумывай: context UID, group extension, TTS engine, tenant suffix. Отсутствующий обязательный факт → **один** точный вопрос до карточки.
+Не придумывай: context UID, tenant suffix. Group extension и TTS-движок выбери сам (6xxx / Yandex или первый из списка). Отсутствующий обязательный факт, который нельзя выбрать, → **один** точный вопрос **без** карточки.
 
 ## HITL
 

@@ -36,6 +36,7 @@ function step(partial: Partial<IAgentWorkflowStepView> = {}): IAgentWorkflowStep
 function workflow(partial: Partial<IAgentWorkflowPlanView> = {}): IAgentWorkflowPlanView {
   return {
     workflowId: WORKFLOW_A,
+    threadUid: 7,
     title: 'Open a sales queue',
     summary: ['Create queue', 'Add members'],
     status: 'pending',

@@ -21,16 +21,18 @@ import {
 const STRATEGIES = ['ringall', 'hunt', 'memoryhunt', 'random'] as const;
 const SCHEMA_VERSION = 'call-groups-1';
 
+const digitish = z.union([z.string().min(1), z.number()]).transform((value) => String(value));
+
 const memberSchema = z.strictObject({
   member_type: z.enum(['internal', 'external']).default('internal'),
-  value: z.string().min(1).describe('Внутренний номер абонента или внешний номер'),
+  value: digitish.describe('Внутренний номер абонента или внешний номер'),
   position: z.number().int().min(0).optional(),
   ring_time: z.number().int().positive().optional(),
 });
 
 const createInput = z.strictObject({
   name: z.string().min(1).describe('Название группы'),
-  exten: z.string().min(1).describe('Номер группы, 2–8 цифр'),
+  exten: digitish.describe('Номер группы, 2–8 цифр'),
   strategy: z.enum(STRATEGIES).optional().describe(STRATEGIES.join(', ')),
   members: z.array(memberSchema).optional().describe('[{member_type, value, position, ring_time}]'),
 });
@@ -105,6 +107,7 @@ export class CallGroupsAiAdapter implements DomainAiAdapter, OnModuleInit {
     return `## Группы вызова
 - Стратегии: ${STRATEGIES.join(', ')}. Группа звонит фиксированному списку, очередь ставит в ожидание.
 - Номер группы — 2–8 цифр, уникален среди групп, очередей и внутренних номеров тенанта. Занятый номер (например внутренний 110) адаптер сам меняет на свободный 6xxx в карточке — не спрашивай пользователя.
+- У группы нет overflow. После ring_time управление возвращается в пункт IVR / маршрут: следующий шаг цепочки (totrunk, voicemail, hangup). Типы — list_dialplan_apps. Не «замени группу очередью».
 - Член internal — extension абонента этого тенанта. Несуществующий extension отвергается до карточки.
 - «группа 201-203» = одна новая группа с точно этими членами. Не подставляй чужой uid, даже если в нём есть один из номеров.`;
   }
@@ -140,7 +143,7 @@ export class CallGroupsAiAdapter implements DomainAiAdapter, OnModuleInit {
       reload: { kind: 'none' },
       propose: async (input, ctx) => {
         const members = this.publicMembers(input.members, ctx.vpbxUserUid);
-        const refused = await this.refuseUnknownMembers(members, ctx.vpbxUserUid);
+        const refused = await this.refuseUnknownMembers(members, ctx);
         if (refused) return refused;
 
         let exten = toPublicExten(input.exten, ctx.vpbxUserUid);
@@ -160,7 +163,7 @@ export class CallGroupsAiAdapter implements DomainAiAdapter, OnModuleInit {
 
         return this.proposal(
           'create_call_group',
-          applyArgs.name || applyArgs.exten,
+          `Группа «${applyArgs.name || applyArgs.exten}»`,
           applyArgs,
           null,
           applyArgs,
@@ -194,7 +197,7 @@ export class CallGroupsAiAdapter implements DomainAiAdapter, OnModuleInit {
       propose: async (input, ctx) => {
         const current = await this.callGroupsService.findOne(input.uid, ctx.vpbxUserUid);
         const members = this.publicMembers(input.members, ctx.vpbxUserUid);
-        const refused = await this.refuseUnknownMembers(members, ctx.vpbxUserUid);
+        const refused = await this.refuseUnknownMembers(members, ctx);
         if (refused) return refused;
 
         const beforeValues = memberValues(current.members);
@@ -301,7 +304,7 @@ export class CallGroupsAiAdapter implements DomainAiAdapter, OnModuleInit {
   ): Promise<MutationRevalidation<T>> {
     const refused = await this.refuseUnknownMembers(
       this.publicMembers(members, ctx.vpbxUserUid),
-      ctx.vpbxUserUid,
+      ctx,
     );
     if (refused) return { ok: false, reason: String(refused.message) };
     return { ok: true, args };
@@ -330,7 +333,7 @@ export class CallGroupsAiAdapter implements DomainAiAdapter, OnModuleInit {
 
   private async refuseUnknownMembers(
     members: MemberView[],
-    uid: number,
+    ctx: AiMutationContext,
   ): Promise<AiToolRefusal | null> {
     const internals = members
       .filter((member) => member.member_type === 'internal')
@@ -338,8 +341,11 @@ export class CallGroupsAiAdapter implements DomainAiAdapter, OnModuleInit {
       .filter(Boolean);
     if (!internals.length) return null;
 
-    const endpoints = await this.endpointsService.findAll(uid);
-    const known = new Set(endpoints.map((row) => String(row.extension)));
+    const endpoints = await this.endpointsService.findAll(ctx.vpbxUserUid);
+    const known = new Set([
+      ...endpoints.map((row) => String(row.extension)),
+      ...(ctx.planned?.extensions ?? []),
+    ]);
     const missing = [...new Set(internals.filter((exten) => !known.has(exten)))];
     if (!missing.length) return null;
 

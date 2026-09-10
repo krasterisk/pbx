@@ -79,6 +79,7 @@ function runPlaywright(paths: string[]): number {
     cwd: harnessRoot,
     stdio: 'inherit',
     shell: true,
+    env: process.env,
   });
   return result.status ?? 1;
 }
@@ -109,6 +110,9 @@ async function runScenario(scenario: ScenarioEntry, parallel: boolean): Promise<
 async function mainAsync(): Promise<number> {
   initTracing();
   const opts = parseArgs(process.argv.slice(2));
+  if (opts.tag === 'live-llm' && process.env.HARNESS_LIVE_LLM !== '0') {
+    process.env.HARNESS_LIVE_LLM = '1';
+  }
   const selected = filterScenarios({
     scenarioId: opts.scenarioId,
     tag: opts.tag,

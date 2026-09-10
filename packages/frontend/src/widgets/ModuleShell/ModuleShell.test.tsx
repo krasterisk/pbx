@@ -65,6 +65,17 @@ vi.mock('@/shared/api/endpoints/aiChatApi', () => ({
     refetch: vi.fn(),
   }),
   useGetAiChatThreadQuery: () => ({ data: undefined, isFetching: false }),
+  useGetSharedAiChatThreadsQuery: () => ({
+    data: [],
+    isLoading: false,
+    isError: false,
+    refetch: vi.fn(),
+  }),
+  useGetPendingAiChatWorkflowsQuery: () => ({
+    data: [],
+    isLoading: false,
+    isError: false,
+  }),
   useCreateAiChatThreadMutation: () => [vi.fn(), { isLoading: false }],
   useDeleteAiChatThreadMutation: () => [vi.fn(), { isLoading: false }],
   useConfirmAiChatProposalMutation: () => [vi.fn(), { isLoading: false }],

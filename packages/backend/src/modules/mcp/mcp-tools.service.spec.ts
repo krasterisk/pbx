@@ -508,6 +508,7 @@ describe('McpToolsService', () => {
     it('returns a workflow plan view as a card payload, not as prose', async () => {
       const plan = {
         workflowId: 'w-plan-1',
+        threadUid: 5,
         title: 'x',
         summary: ['step'],
         status: 'pending',

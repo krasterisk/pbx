@@ -116,7 +116,7 @@ export class EndpointsAiAdapter implements DomainAiAdapter, OnModuleInit {
 
   getKnowledgeBlock(): string {
     return `## Абоненты (Endpoints)
-- Сначала list_endpoints. Не утверждай, что номера нет, по sample снимка.
+- Сначала list_endpoints с фильтром названных номеров (101-103). Не выгружай весь список. Не утверждай, что номера нет, по sample снимка. create_endpoints_bulk сам пропустит уже существующие.
 - В инструментах только публичный номер (101), не SIP id.
 - Пароль на экране абонента, не в чате.`;
   }
@@ -130,22 +130,36 @@ export class EndpointsAiAdapter implements DomainAiAdapter, OnModuleInit {
   private toolListEndpoints(): AiToolDefinition {
     return {
       name: 'list_endpoints',
-      description: 'Список абонентов тенанта: публичный номер, имя, контекст. Без SIP id и без изменений.',
+      description:
+        'Точечная проверка абонентов: всегда передавай extensions ("101-103" или "101,102"). '
+        + 'Без фильтра вернётся только счётчик и короткий образец, не весь список. Без SIP id и без изменений.',
       inputSchema: {
-        extensions: { type: 'string', description: 'Необязательный фильтр: "101-103" или "101,102"' },
+        extensions: { type: 'string', description: 'Обязателен, если номера названы: "101-103" или "101,102"' },
       },
       entityType: 'endpoint',
       handler: async (args, uid) => {
         const rows = await this.endpointsService.findAll(uid);
-        const wanted = args.extensions ? new Set(parseBulkExtensions(String(args.extensions))) : null;
-        const endpoints = rows
-          .map((row) => ({
-            extension: toPublicExten(row.extension ?? '', uid),
-            name: displayNameFrom(row) || toPublicExten(row.extension ?? '', uid),
-            context: row.context ?? null,
-          }))
-          .filter((row) => !wanted || wanted.has(row.extension));
-        return { endpoints };
+        const mapped = rows.map((row) => ({
+          extension: toPublicExten(row.extension ?? '', uid),
+          name: displayNameFrom(row) || toPublicExten(row.extension ?? '', uid),
+          context: row.context ?? null,
+        }));
+        const wanted = args.extensions
+          ? parseBulkExtensions(String(args.extensions))
+          : null;
+        if (wanted) {
+          const found = new Set(mapped.map((row) => row.extension));
+          return {
+            endpoints: mapped.filter((row) => wanted.includes(row.extension)),
+            missing: wanted.filter((extension) => !found.has(extension)),
+          };
+        }
+        const limit = 15;
+        return {
+          total: mapped.length,
+          endpoints: mapped.slice(0, limit),
+          truncated: mapped.length > limit,
+        };
       },
     };
   }
@@ -213,10 +227,20 @@ export class EndpointsAiAdapter implements DomainAiAdapter, OnModuleInit {
         const refused = this.refuseBadBatch(extensions);
         if (refused) return refused;
 
+        const taken = await this.takenExtensions(ctx);
+        const missing = extensions.filter((extension) => !taken.has(extension));
+        if (missing.length === 0) {
+          return {
+            skipped: true,
+            message: `Абоненты ${extensions.join(', ')} уже есть — создавать не нужно.`,
+            already: extensions,
+          };
+        }
+
         const namePattern = input.displayNamePattern ?? 'Абонент {N}';
-        const perItem = extensions.map((extension) => `${extension} — ${namePattern.replace(/\{N\}/g, extension)}`);
+        const perItem = missing.map((extension) => `${extension} — ${namePattern.replace(/\{N\}/g, extension)}`);
         const applyArgs: BulkArgs = {
-          extensionsPattern: pattern,
+          extensionsPattern: toExtensionsPattern(missing),
           context,
           passwordPattern: 'auto',
           displayNamePattern: namePattern,
@@ -224,17 +248,23 @@ export class EndpointsAiAdapter implements DomainAiAdapter, OnModuleInit {
         if (input.codecs) applyArgs.codecs = input.codecs;
         if (input.natProfile) applyArgs.natProfile = input.natProfile;
 
+        const already = extensions.filter((extension) => taken.has(extension));
+        const summary = [
+          `Создать ${missing.length} абонентов в контексте ${context}`,
+          ...perItem,
+        ];
+        if (already.length) {
+          summary.push(`Уже есть, пропускаю: ${already.join(', ')}`);
+        }
+        summary.push(CREDENTIALS_NOTE);
+
         return this.proposal(
           'create_endpoints_bulk',
-          `${extensions.length} абонентов`,
+          missing.join(', '),
           applyArgs,
           null,
-          { total: extensions.length, extensions, context },
-          [
-            `Создать ${extensions.length} абонентов (всего ${extensions.length}) в контексте ${context}`,
-            ...perItem,
-            CREDENTIALS_NOTE,
-          ],
+          { total: missing.length, extensions: missing, context, already },
+          summary,
         );
       },
       revalidate: async (args, ctx) => {
@@ -364,6 +394,26 @@ export class EndpointsAiAdapter implements DomainAiAdapter, OnModuleInit {
       includesDialplanReload: false,
     };
   }
+}
+
+export function toExtensionsPattern(extensions: string[]): string {
+  const nums = [...new Set(extensions.map((value) => parseInt(value, 10)).filter((n) => !Number.isNaN(n)))]
+    .sort((a, b) => a - b);
+  if (nums.length === 0) return '';
+  const parts: string[] = [];
+  let start = nums[0];
+  let prev = nums[0];
+  for (let i = 1; i <= nums.length; i += 1) {
+    const current = nums[i];
+    if (current === prev + 1) {
+      prev = current;
+      continue;
+    }
+    parts.push(start === prev ? String(start) : `${start}-${prev}`);
+    start = current;
+    prev = current;
+  }
+  return parts.join(',');
 }
 
 export function parseBulkExtensions(pattern: string): string[] {

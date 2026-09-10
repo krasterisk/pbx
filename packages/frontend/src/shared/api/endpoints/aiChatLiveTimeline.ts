@@ -1,4 +1,4 @@
-import type { AgentTimelineItem } from '@krasterisk/shared';
+import { collapseDuplicateAgentSteps, type AgentTimelineItem } from '@krasterisk/shared';
 
 const liveTimelines = new Map<number, AgentTimelineItem[]>();
 
@@ -9,7 +9,7 @@ export function mergeTimelines(incoming: AgentTimelineItem[], live: AgentTimelin
     for (const item of live) {
         if (!incomingIds.has(item.id)) merged.push(item);
     }
-    return merged;
+    return collapseDuplicateAgentSteps(merged);
 }
 
 export function getLiveTimeline(uid: number): AgentTimelineItem[] | undefined {

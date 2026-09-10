@@ -6,8 +6,11 @@ import { defineConfig, devices } from '@playwright/test';
  * Targets the local dev stack (frontend on :3010, backend on :5010).
  * UI scenarios live in `harness/scenarios/ui/` and share fixtures from `harness/fixtures/`.
  */
+const liveLlm = process.env.HARNESS_LIVE_LLM === '1';
+
 export default defineConfig({
   testDir: './scenarios/ui',
+  testIgnore: liveLlm ? [] : ['**/*.live.spec.ts'],
   timeout: 60_000,
   expect: { timeout: 10_000 },
   retries: process.env.CI ? 2 : 0,

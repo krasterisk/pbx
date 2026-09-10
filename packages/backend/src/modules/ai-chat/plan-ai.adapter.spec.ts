@@ -27,6 +27,7 @@ describe('PlanAiAdapter', () => {
         }
         return {
           workflowId: 'w-plan-1',
+          threadUid: 5,
           title: draft.title ?? '',
           summary: [],
           status: 'pending',

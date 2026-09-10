@@ -479,6 +479,7 @@ async function replayOnce(scenario: EvalScenario, world: EvalWorld): Promise<Eva
   const workflows = {
     createFromDraft: async (draft: { title?: string; steps: unknown[] }): Promise<WorkflowPlanView> => ({
       workflowId: 'wf_eval',
+      threadUid: 0,
       title: draft.title ?? '',
       summary: [],
       status: 'pending',
@@ -582,6 +583,12 @@ async function replayOnce(scenario: EvalScenario, world: EvalWorld): Promise<Eva
       filterToolNames: (names: string[]) => names,
     } as never,
     { readSkillsForPrompt: () => [] } as never,
+    {
+      findLatestPendingForThread: async () => null,
+      apply: async () => {
+        throw new Error('unexpected apply');
+      },
+    } as never,
   );
 
   const entityCountsBefore = countEntities(world, scenario.tenantUid);

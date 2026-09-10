@@ -1,6 +1,6 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useStore } from 'react-redux';
-import type { AgentTimelineItem } from '@krasterisk/shared';
+import { collapseDuplicateAgentSteps, type AgentTimelineItem } from '@krasterisk/shared';
 import { useAppDispatch, useAppSelector } from '@/shared/hooks/useAppStore';
 import { aiChatApi, type IAiChatThreadDetail } from '@/shared/api/endpoints/aiChatApi';
 import { setLiveTimeline } from '@/shared/api/endpoints/aiChatLiveTimeline';
@@ -167,8 +167,13 @@ export function useAgentTurn(options: UseAgentTurnOptions): UseAgentTurnApi {
     const onThreadCreatedRef = useRef(options.onThreadCreated);
     const timelineRef = useRef<Record<number, AgentTimelineItem[]>>({});
     const sawProposalRef = useRef(false);
-    threadUidRef.current = options.threadUid;
     onThreadCreatedRef.current = options.onThreadCreated;
+    // Sync from props only when the selected thread changes. Assigning on every
+    // render clobbers the uid from the SSE `thread` event while the parent
+    // still has `null`, so the next send creates another conversation.
+    useEffect(() => {
+        threadUidRef.current = options.threadUid;
+    }, [options.threadUid]);
 
     const resetLiveTimeline = useCallback((uid: number | null) => {
         if (uid == null) return;
@@ -185,17 +190,18 @@ export function useAgentTurn(options: UseAgentTurnOptions): UseAgentTurnApi {
         const index = next.findIndex((row) => row.id === item.id);
         if (index >= 0) next[index] = item;
         else next.push(item);
-        timelineRef.current[threadUid] = next;
-        setLiveTimeline(threadUid, next);
+        const collapsed = collapseDuplicateAgentSteps(next);
+        timelineRef.current[threadUid] = collapsed;
+        setLiveTimeline(threadUid, collapsed);
         dispatch(
             aiChatApi.util.updateQueryData('getAiChatThread', threadUid, (draft) => {
-                draft.timeline = next;
+                draft.timeline = collapsed;
             }),
         );
         if (!cached) {
             dispatch(aiChatApi.util.upsertQueryData('getAiChatThread', threadUid, {
                 ...emptyThreadDetail(threadUid, item.createdAt),
-                timeline: next,
+                timeline: collapsed,
             }));
         }
     }, [dispatch, store]);
@@ -208,6 +214,7 @@ export function useAgentTurn(options: UseAgentTurnOptions): UseAgentTurnApi {
                 if (stoppedRef.current) return;
                 threadUidRef.current = uid;
                 onThreadCreatedRef.current?.(uid);
+                dispatch(aiChatApi.util.invalidateTags([{ type: 'AiChatThreads', id: 'LIST' }]));
             },
             onItem: (item) => {
                 if (stoppedRef.current) return;
@@ -231,6 +238,11 @@ export function useAgentTurn(options: UseAgentTurnOptions): UseAgentTurnApi {
                 }
                 if (code === 'max_steps_exceeded') {
                     dispatch(aiChatActions.setTurnOutcome('ceiling'));
+                    dispatch(aiChatActions.finishStreaming());
+                    return;
+                }
+                if (code === 'provider_timeout') {
+                    dispatch(aiChatActions.setTurnOutcome('timeout'));
                     dispatch(aiChatActions.finishStreaming());
                     return;
                 }

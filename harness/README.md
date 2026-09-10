@@ -42,7 +42,8 @@ Run from repo root:
 ```bash
 npm run harness              # harness/package.json "test": vitest (api + realtime + llm-stub) && playwright
 npm run harness:api          # runner --kind api
-npm run harness:ai-chat      # runner --tag ai-chat (stub-backed UI specs + registry matches)
+npm run harness:ai-chat      # runner --tag ai-chat (stub-backed UI specs; live-llm excluded)
+npm run harness:ai-chat:live # HARNESS_LIVE_LLM=1 — real tenant model, «Рога и копыта»
 ```
 
 `npm run test -- --tag` from this package does **not** reach the runner: `test` is `vitest && playwright`. Use the runner scripts instead:
@@ -106,11 +107,14 @@ The OpenAI-compatible stub (`harness/llm-stub`) serves `/v1/chat/completions` as
 |----------|---------|---------|
 | `HARNESS_LLM_STUB_PORT` | `5099` | Base listen port; worker `n` uses `base + n` |
 | `HARNESS_API_URL` | `http://localhost:5010` | Backend used to register the stub provider |
-| `HARNESS_LIVE_LLM` | unset | Set to `1` to run the live `ai-agent-ivr` apply flow |
+| `HARNESS_LIVE_LLM` | unset | Set to `1` to run `*.live.spec.ts` (real tenant model). CI leaves this unset. |
 
 ```bash
-npm run harness:ai-chat      # from repo root — tag ai-chat, no live-llm required
+npm run harness:ai-chat       # stub specs only (CI)
+npm run harness:ai-chat:live  # real tenant model + real chat — local gate
 ```
+
+`harness:ai-chat:live` uses the cabinet default provider (or `HARNESS_AI_PROVIDER_UID`). A complete IVR brief compiles on the server (no model JSON). Five cases: hangup timeout, ringall group, queue digit, voicemail/playback, mixed chain. It fails on «лимит шагов», missing card, or a failed apply. CI never sets `HARNESS_LIVE_LLM`.
 
 Fixture scenarios in `llm-stub/scenarios.ts`: D1 `two-turns` / `with-reasoning` / `with-tools`, plus D3 `plan-ivr`, `question-order`, `steps-then-answer`.
 
@@ -125,7 +129,9 @@ Fixture scenarios in `llm-stub/scenarios.ts`: D1 `two-turns` / `with-reasoning` 
 | directory-carousel | directories, realtime | realtime | `scenarios/realtime/directory-carousel.test.ts` |
 | agent-smoke | ui, agent, smoke | ui | `scenarios/ui/agent-smoke.spec.ts` |
 | supervisor-smoke | ui, supervisor, smoke | ui | `scenarios/ui/supervisor-smoke.spec.ts` |
-| ai-agent-ivr | ui, ai-chat, ivr, live-llm | ui | `scenarios/ui/ai-agent-ivr.spec.ts` |
+| ai-agent-ivr | ui, ai-chat, ivr | ui | `scenarios/ui/ai-agent-ivr.spec.ts` |
+| ai-chat-horns-hooves | ui, ai-chat, ivr | ui | `scenarios/ui/ai-chat-horns-hooves.spec.ts` |
+| ai-chat-horns-hooves-live | ui, ai-chat, ivr, live-llm | ui | `scenarios/ui/ai-chat-horns-hooves.live.spec.ts` |
 | ai-chat-plan | ui, ai-chat, plan | ui | `scenarios/ui/ai-chat-plan.spec.ts` |
 | ai-chat-question | ui, ai-chat | ui | `scenarios/ui/ai-chat-question.spec.ts` |
 | ai-chat-history-parity | ui, ai-chat, history | ui | `scenarios/ui/ai-chat-history-parity.spec.ts` |

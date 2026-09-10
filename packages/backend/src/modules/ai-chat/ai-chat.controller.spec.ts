@@ -47,8 +47,8 @@ describe('AiChatController', () => {
   };
   const providers = { findOne: jest.fn() };
   const loggerService = { logAction: jest.fn().mockResolvedValue(undefined) };
-  const proposals = { findAll: jest.fn() };
-  const workflows = { getOwned: jest.fn() };
+  const proposals = { findAll: jest.fn(), destroy: jest.fn() };
+  const workflows = { getOwned: jest.fn(), deleteForThread: jest.fn() };
   const visibility = { resolve: jest.fn() };
   const users = { findAll: jest.fn() };
   let controller: AiChatController;
@@ -234,6 +234,14 @@ describe('AiChatController', () => {
     expect(created.uid).toBe(4);
     expect(threads.createThread).toHaveBeenCalledWith(42, 7);
     expect(threads.deleteThread).toHaveBeenCalledWith(4, 42, 7);
+    expect(workflows.deleteForThread).toHaveBeenCalledWith(4, { vpbxUserUid: 42, userUid: 7, role: 3 });
+    expect(proposals.destroy).toHaveBeenCalledWith({
+      where: { thread_uid: 4, vpbx_user_uid: 42, user_uid: 7 },
+    });
+
+    const src = fs.readFileSync(path.join(__dirname, 'ai-chat.controller.ts'), 'utf8');
+    expect(src).toMatch(/@SkipThrottle\(\{ default: true, global: true \}\)\s*\n\s*@HttpCode\(HttpStatus\.NO_CONTENT\)\s*\n\s*@Delete\('threads\/:uid'\)/);
+    expect(src).toMatch(/@SkipThrottle\(\{ default: true, global: true \}\)\s*\n\s*@Post\('threads'\)/);
   });
 
   it('returns a timeline and a card map instead of raw messages', async () => {

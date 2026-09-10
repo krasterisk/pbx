@@ -162,6 +162,61 @@ describe('llm stub', () => {
     expect(contentFromEvents(events)).toEqual(['ответ']);
   });
 
+  it('exposes the horns-and-hooves IVR lookup-then-plan scenario', async () => {
+    handle = await startLlmStub();
+    handle.useScenario('plan-horns-hooves');
+    const names: string[] = [];
+    for (let i = 0; i < 5; i += 1) {
+      const response = await postCompletions(handle.url, {
+        messages: [{ role: 'user', content: `turn ${i}` }],
+        tools: [
+          { type: 'function', function: { name: 'list_tts_engines' } },
+          { type: 'function', function: { name: 'list_endpoints' } },
+          { type: 'function', function: { name: 'propose_plan' } },
+        ],
+      });
+      const events = parseSseData(await response.text()).filter((event) => event !== '[DONE]') as Array<{
+        choices?: Array<{ delta?: { content?: string; tool_calls?: Array<{ function: { name: string } }> } }>;
+      }>;
+      const tool = events.find((event) => event.choices?.[0]?.delta?.tool_calls?.length)
+        ?.choices?.[0]?.delta?.tool_calls?.[0]?.function.name;
+      const text = events.find((event) => event.choices?.[0]?.delta?.content)?.choices?.[0]?.delta?.content;
+      names.push(tool ?? text ?? '');
+    }
+    expect(names).toEqual([
+      'list_tts_engines',
+      'list_endpoints',
+      'list_endpoints',
+      'propose_plan',
+      'Подтвердите план: меню «Рога и копыта», кнопки 1–3 на 101–103, таймаут — группа ringall.',
+    ]);
+  });
+
+  it('exposes the three basic PBX setup scenarios', async () => {
+    handle = await startLlmStub();
+    for (const id of ['plan-reception', 'plan-queues', 'plan-trunk'] as const) {
+      handle.useScenario(id);
+      const response = await postCompletions(handle.url, {
+        messages: [{ role: 'user', content: id }],
+        tools: [{ type: 'function', function: { name: 'propose_plan' } }],
+      });
+      const events = parseSseData(await response.text()).filter((event) => event !== '[DONE]') as Array<{
+        choices?: Array<{ delta?: { tool_calls?: Array<{ function: { name: string; arguments: string } }> } }>;
+      }>;
+      const call = events.find((event) => event.choices?.[0]?.delta?.tool_calls?.length)
+        ?.choices?.[0]?.delta?.tool_calls?.[0];
+      expect(call?.function.name).toBe('propose_plan');
+      const args = JSON.parse(call?.function.arguments ?? '{}') as { steps?: Array<{ tool?: string }> };
+      expect(args.steps?.map((step) => step.tool)).toEqual(
+        id === 'plan-reception'
+          ? ['create_endpoints_bulk', 'create_call_group', 'create_ivr']
+          : id === 'plan-queues'
+            ? ['create_queue', 'create_queue', 'create_ivr']
+            : ['create_directory', 'create_trunk', 'create_endpoints_bulk'],
+      );
+    }
+  });
+
   it('answers the health probe', async () => {
     handle = await startLlmStub();
 

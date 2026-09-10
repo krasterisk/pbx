@@ -30,7 +30,8 @@ import {
   isEmergencyPattern,
   isSpecificNumericPattern,
 } from '../ai-chat/route-precedence.util';
-import type { DialplanAction } from '@krasterisk/shared';
+import type { DialplanAction, DialplanHost } from '@krasterisk/shared';
+import { countDialplanAppUsage, listDialplanAppCatalog } from './dialplan-app-catalog';
 
 const SCHEMA_VERSION = 'routes-1';
 
@@ -96,6 +97,7 @@ export class RoutesAiAdapter implements DomainAiAdapter, OnModuleInit {
   getTools(): AiToolDefinition[] {
     return [
       this.toolListRoutes(),
+      this.toolListDialplanApps(),
       this.toolDescribeChain(),
       this.toolCreateRoute(),
       this.toolDeleteRoute(),
@@ -109,6 +111,7 @@ export class RoutesAiAdapter implements DomainAiAdapter, OnModuleInit {
   getKnowledgeBlock(): string {
     return `## Маршруты
 - Маршрут = шаблон в контексте + типизированная цепочка действий, не сырое имя приложения Asterisk.
+- Пункты IVR — тот же редактор. Перед цепочкой вызови list_dialplan_apps (host=ivr|route): там типы, зачем шаг и что уже есть у тенанта. Не выдумывай приложения Asterisk.
 - Сначала list_routes / describe_route_chain / list_contexts, затем proposal. Применение диалплана — шаг подтверждения, не отдельный инструмент.`;
   }
 
@@ -136,6 +139,45 @@ export class RoutesAiAdapter implements DomainAiAdapter, OnModuleInit {
           : await this.routesService.findAll(uid);
         return {
           routes: rows.map((row) => compactRoute(row)),
+        };
+      },
+    };
+  }
+
+  private toolListDialplanApps(): AiToolDefinition {
+    return {
+      name: 'list_dialplan_apps',
+      description:
+        'Каталог приложений редактора маршрутов/IVR: тип, зачем, обязательные поля, сколько раз уже есть у тенанта. Не сырые приложения Asterisk.',
+      inputSchema: {
+        host: {
+          type: 'string',
+          enum: ['route', 'ivr', 'directory_policy'],
+          description: 'Где собирается цепочка. ivr — пункт меню, route — маршрут.',
+        },
+        include_usage: {
+          type: 'boolean',
+          description: 'Счётчики usedIn.routes / usedIn.ivrs. По умолчанию true.',
+        },
+      },
+      entityType: 'route',
+      handler: async (args, uid) => {
+        const host = parseDialplanHost(args.host);
+        const includeUsage = args.include_usage !== false;
+        const apps = listDialplanAppCatalog(host);
+        const [routes, ivrs] = includeUsage
+          ? await Promise.all([
+              this.routesService.findAll(uid).catch(() => []),
+              this.ivrsService.findAll(uid).catch(() => []),
+            ])
+          : [[], []];
+        const usage = includeUsage ? countDialplanAppUsage(routes, ivrs) : {};
+        return {
+          host: host ?? 'all',
+          apps: apps.map((app) => ({
+            ...app,
+            ...(includeUsage ? { usedIn: usage[app.type] ?? { routes: 0, ivrs: 0 } } : {}),
+          })),
         };
       },
     };
@@ -449,6 +491,11 @@ function compactRoute(row: {
     priority: row.priority,
     destination: destinationOf(row.actions),
   };
+}
+
+function parseDialplanHost(value: unknown): DialplanHost | undefined {
+  if (value === 'route' || value === 'ivr' || value === 'directory_policy') return value;
+  return undefined;
 }
 
 function destinationOf(actions: unknown): string {

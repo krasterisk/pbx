@@ -42,6 +42,8 @@ function createHarness(
   options: {
     maxSteps?: number;
     tools?: Array<{ name: string; description: string; inputSchema: Record<string, unknown> }>;
+    pendingWorkflow?: Record<string, unknown> | null;
+    skillNames?: string[];
   } = {},
 ) {
   const stored: Array<{
@@ -126,6 +128,17 @@ function createHarness(
     })),
   };
 
+  const workflows = {
+    findLatestPendingForThread: jest.fn(async () => options.pendingWorkflow ?? null),
+    apply: jest.fn(async (workflowId: string) => ({
+      ...(options.pendingWorkflow ?? {}),
+      workflowId,
+      status: 'applied',
+      appliedAt: '2026-09-09T00:00:00.000Z',
+      error: null,
+    })),
+  };
+
   const service = new PbxAgentLoopService(
     llm as any,
     providers as any,
@@ -138,9 +151,9 @@ function createHarness(
     {
       classify: jest.fn(() => ({
         intents: ['general'],
-        skillNames: [],
+        skillNames: options.skillNames ?? [],
         domains: [],
-        confidence: 0.2,
+        confidence: options.skillNames?.length ? 0.8 : 0.2,
         source: 'fallback',
       })),
       filterToolNames: jest.fn((names: string[]) => names),
@@ -148,9 +161,10 @@ function createHarness(
     {
       readSkillsForPrompt: jest.fn(() => []),
     } as any,
+    workflows as any,
   );
 
-  return { service, llm, providers, contextBuilder, threads, mcpTools, config, chatSettings, stored };
+  return { service, llm, providers, contextBuilder, threads, mcpTools, config, chatSettings, stored, workflows };
 }
 
 describe('PbxAgentLoopService', () => {
@@ -334,13 +348,13 @@ describe('PbxAgentLoopService', () => {
     expect(JSON.stringify(proposalItem)).not.toContain(view.proposalId);
     expect(JSON.stringify(proposalItem)).not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}/);
     expect(names[names.length - 1]).toBe('done');
-    expect(llm.chat).toHaveBeenCalledTimes(2);
+    expect(llm.chat).toHaveBeenCalledTimes(1);
     expect(mcpTools.callTool).toHaveBeenCalledTimes(1);
-    const secondMessages = (llm.chat.mock.calls[1][0] as { messages: Array<{ role: string; content: string }> }).messages;
-    const modelTool = secondMessages.find((row) => row.role === 'tool')?.content ?? '';
-    expect(modelTool).toMatch(/Черновик изменения подготовлен: Customers/);
-    expect(modelTool).toMatch(/подтверд/i);
-    expect(modelTool).not.toContain(view.proposalId);
+    expect(events.at(-1)).toEqual(expect.objectContaining({ name: 'done', data: { closeKind: 'wait_confirm' } }));
+    const assistant = events
+      .map((event) => event.data as { kind?: string; text?: string })
+      .find((item) => item.kind === 'assistant');
+    expect(assistant?.text ?? '').toBe('');
   });
 
   it('returns a structured tool error for invalid args and ends after a second failure on the same tool', async () => {
@@ -444,6 +458,43 @@ describe('PbxAgentLoopService', () => {
     );
     expect(llm.chat.mock.calls.length).toBeGreaterThanOrEqual(3);
     expect(events.some((event) => event.name === 'item' && (event.data as { kind?: string }).kind === 'proposal')).toBe(true);
+  });
+
+  it('applies the pending workflow when the user confirms in chat', async () => {
+    const { service, llm, workflows } = createHarness(
+      [{ text: 'should not run', toolCalls: [] }],
+      {
+        pendingWorkflow: {
+          workflowId: 'wf-pending',
+          threadUid: THREAD,
+          title: 'IVR',
+          summary: ['menu'],
+          status: 'pending',
+          error: null,
+          expiresAt: '2027-01-01T00:00:00.000Z',
+          appliedAt: null,
+          steps: [],
+        },
+      },
+    );
+
+    const events = await collect(service.runTurn('подтверждаю', { uid: THREAD }, turnContext()));
+
+    expect(workflows.findLatestPendingForThread.mock.calls).toEqual([
+      [THREAD, expect.objectContaining({ vpbxUserUid: TENANT })],
+    ]);
+    expect(workflows.apply).toHaveBeenCalledWith(
+      'wf-pending',
+      expect.objectContaining({ vpbxUserUid: TENANT, threadUid: THREAD }),
+    );
+    expect(llm.chat).not.toHaveBeenCalled();
+    const assistant = events.find((event) => event.name === 'item' && (event.data as { kind?: string }).kind === 'assistant');
+    expect(assistant?.data).toEqual(expect.objectContaining({
+      kind: 'assistant',
+      text: expect.stringMatching(/примен/i),
+      closeKind: 'complete',
+    }));
+    expect(events.some((event) => event.name === 'done')).toBe(true);
   });
 
   it('after create_ivr menu-item fragments continues instead of aborting the turn', async () => {
@@ -634,7 +685,7 @@ describe('PbxAgentLoopService', () => {
     expect(kinds).toEqual(['user', 'step', 'step', 'assistant']);
   });
 
-  it('does not close after "группа создана, теперь создам" — continues to create_ivr', async () => {
+  it('stops on the group card instead of narrating the next create_ivr', async () => {
     const proposalJson = JSON.stringify({
       proposalId: 'prop-group-1',
       entityType: 'call_group',
@@ -651,26 +702,12 @@ describe('PbxAgentLoopService', () => {
         }],
       },
       { text: 'Отлично! Группа создана. Теперь создам сам', toolCalls: [] },
-      {
-        text: '',
-        toolCalls: [{
-          id: 'i1',
-          name: 'create_ivr',
-          arguments: { name: 'Продажи', text: 'Вы позвонили.', menu_items: [] },
-        }],
-      },
-      { text: 'Подтвердите карточку группы, затем меню. Таймаут — в эту группу, не в очередь.', toolCalls: [] },
     ]);
     mcpTools.getToolsList.mockReturnValue([
       { name: 'create_call_group', description: 'group', inputSchema: { type: 'object', properties: {} } },
       { name: 'create_ivr', description: 'ivr', inputSchema: { type: 'object', properties: {} } },
     ]);
-    mcpTools.callTool.mockImplementation(async (name: string) => {
-      if (name === 'create_call_group' || name === 'create_ivr') {
-        return [{ type: 'text', text: proposalJson }];
-      }
-      return [{ type: 'text', text: '{}' }];
-    });
+    mcpTools.callTool.mockResolvedValue([{ type: 'text', text: proposalJson }]);
 
     const events = await collect(service.runTurn(
       '101, 102, 103 — абоненты. Только группа на таймаут, без очереди.',
@@ -678,19 +715,16 @@ describe('PbxAgentLoopService', () => {
       turnContext(),
     ));
 
-    expect(mcpTools.callTool).toHaveBeenCalledWith(
-      'create_ivr',
-      expect.anything(),
-      TENANT,
-      expect.anything(),
-    );
+    expect(mcpTools.callTool).toHaveBeenCalledTimes(1);
+    expect(mcpTools.callTool).toHaveBeenCalledWith('create_call_group', expect.anything(), TENANT, expect.anything());
+    expect(llm.chat).toHaveBeenCalledTimes(1);
     expect(events.filter((event) => event.name === 'done')).toHaveLength(1);
-    expect(events.some((event) => (
-      event.name === 'item'
-      && (event.data as { kind?: string; text?: string }).kind === 'assistant'
-      && /подтвердите/i.test(String((event.data as { text?: string }).text ?? ''))
-    ))).toBe(true);
-    expect(llm.chat.mock.calls.length).toBeGreaterThanOrEqual(3);
+    expect(events.some((event) => event.name === 'item' && (event.data as { kind?: string }).kind === 'proposal')).toBe(true);
+    const assistant = events
+      .map((event) => event.data as { kind?: string; text?: string; closeKind?: string })
+      .find((item) => item.kind === 'assistant');
+    expect(assistant?.closeKind).toBe('wait_confirm');
+    expect(assistant?.text ?? '').toBe('');
   });
 
   it('after two incomplete replies forces a user-visible status instead of a silent done', async () => {
@@ -747,6 +781,475 @@ describe('PbxAgentLoopService', () => {
     expect(mcpTools.callTool).not.toHaveBeenCalled();
     expect(events.map((event) => event.name)).toEqual(['thread', 'item', 'item', 'done']);
     expect(events[2].data).toEqual(expect.objectContaining({ kind: 'assistant', closeKind: 'question' }));
+  });
+
+  it('after two checklist reads forces propose_plan instead of a free-think turn', async () => {
+    const { service, llm, mcpTools } = createHarness(
+      [
+        {
+          text: '',
+          toolCalls: [{ id: 't1', name: 'list_tts_engines', arguments: { name: 'ivrs' } }],
+        },
+        {
+          text: '',
+          toolCalls: [{ id: 'e1', name: 'list_endpoints', arguments: { extensions: '101-103' } }],
+        },
+        {
+          text: '',
+          toolCalls: [{
+            id: 'p1',
+            name: 'propose_plan',
+            arguments: { title: 'IVR', steps: [{ id: 'i', tool: 'create_ivr', args: { name: 'Рога' } }] },
+          }],
+        },
+        { text: 'Подтвердите карточку меню.', toolCalls: [] },
+      ],
+      {
+        skillNames: ['ivrs', 'endpoints', 'call-groups'],
+        tools: [
+          { name: 'list_tts_engines', description: 'tts', inputSchema: { type: 'object', properties: {} } },
+          { name: 'list_endpoints', description: 'eps', inputSchema: { type: 'object', properties: {} } },
+          { name: 'propose_plan', description: 'plan', inputSchema: { type: 'object', properties: {} } },
+        ],
+      },
+    );
+    mcpTools.callTool.mockImplementation(async (name: string) => {
+      if (name === 'propose_plan') {
+        return [{ type: 'text', text: JSON.stringify({
+          workflowId: 'wf-1',
+          threadUid: THREAD,
+          title: 'IVR',
+          summary: ['меню'],
+          status: 'pending',
+          error: null,
+          expiresAt: '2027-01-01T00:00:00.000Z',
+          appliedAt: null,
+          steps: [],
+        }) }];
+      }
+      return [{ type: 'text', text: '{"ok":true}' }];
+    });
+
+    const events = await collect(service.runTurn('Создай IVR Рога и копыта', { uid: THREAD }, turnContext()));
+
+    expect(llm.chat.mock.calls[2][0]).toEqual(expect.objectContaining({ toolChoice: 'required' }));
+    expect(llm.chat.mock.calls[2][0].messages.some(
+      (row: { role?: string; content?: string }) =>
+        row.role === 'system' && /propose_plan/i.test(String(row.content ?? '')),
+    )).toBe(true);
+    expect(mcpTools.callTool).toHaveBeenCalledWith('propose_plan', expect.anything(), TENANT, expect.any(Object));
+    expect(events.some((event) => event.name === 'item' && (event.data as { kind?: string }).kind === 'proposal')).toBe(true);
+  });
+
+  it('compiles a complete IVR brief immediately without a model turn', async () => {
+    const { service, llm, mcpTools } = createHarness(
+      [
+        { text: '', toolCalls: [{ id: 'e1', name: 'list_endpoints', arguments: { extensions: '101-103' } }] },
+        { text: '', toolCalls: [{ id: 'g1', name: 'list_call_groups', arguments: {} }] },
+        { text: 'should not run', toolCalls: [] },
+      ],
+      {
+        skillNames: ['ivrs', 'endpoints', 'call-groups'],
+        tools: [
+          { name: 'list_endpoints', description: 'eps', inputSchema: { type: 'object', properties: {} } },
+          { name: 'list_call_groups', description: 'groups', inputSchema: { type: 'object', properties: {} } },
+          { name: 'propose_plan', description: 'plan', inputSchema: { type: 'object', properties: {} } },
+        ],
+      },
+    );
+    mcpTools.callTool.mockImplementation(async (name: string) => {
+      if (name === 'propose_plan') {
+        return [{ type: 'text', text: JSON.stringify({
+          workflowId: 'wf-server',
+          threadUid: THREAD,
+          title: 'IVR «Рога и копыта»',
+          summary: ['меню'],
+          status: 'pending',
+          steps: [],
+        }) }];
+      }
+      return [{ type: 'text', text: '{"ok":true}' }];
+    });
+
+    const events = await collect(service.runTurn(
+      [
+        'Создай IVR - Рога и копыта',
+        'текст: "Здравствуйте, вы позвонили в Рога и копыта. Нажмите 1 для консультации, 2 для ремонта, 3 для гарантии, или оставайтесь на линии"',
+        'Пункты: 1 - Абонент 101 2 - 102 3 - 103 ничего не нажали - звонят все одновременно (группа вызова)',
+      ].join('\n'),
+      { uid: THREAD },
+      turnContext(),
+    ));
+
+    expect(llm.chat).not.toHaveBeenCalled();
+    expect(mcpTools.callTool).toHaveBeenCalledWith(
+      'propose_plan',
+      expect.objectContaining({
+        title: expect.stringMatching(/Рога и копыта/),
+        steps: expect.arrayContaining([
+          expect.objectContaining({ tool: 'create_ivr' }),
+        ]),
+      }),
+      TENANT,
+      expect.any(Object),
+    );
+    expect(events.some((event) => event.name === 'item' && (event.data as { kind?: string }).kind === 'proposal')).toBe(true);
+    expect(events.at(-1)).toEqual(expect.objectContaining({ name: 'done', data: { closeKind: 'wait_confirm' } }));
+  });
+
+  it('sends a short revision on a pending card to the model instead of replaying the last brief', async () => {
+    const prior = [
+      'Создай IVR - Рога и копыта',
+      'текст: "Здравствуйте, вы позвонили в Рога и копыта. Нажмите 1 для консультации, 2 для ремонта, 3 для гарантии, или оставайтесь на линии"',
+      'Пункты: 1 - Абонент 101 2 - 102 3 - 103 ничего не нажали - звонят все одновременно (группа вызова)',
+    ].join('\n');
+    const { service, llm, mcpTools, stored } = createHarness(
+      [
+        {
+          text: '',
+          toolCalls: [{
+            id: 'p1',
+            name: 'propose_plan',
+            arguments: {
+              title: 'IVR «Рога и копыта»',
+              steps: [{ id: 'i', tool: 'create_ivr', args: { name: 'Рога' } }],
+            },
+          }],
+        },
+      ],
+      {
+        pendingWorkflow: { workflowId: 'wf-old', status: 'pending' },
+        tools: [
+          { name: 'propose_plan', description: 'plan', inputSchema: { type: 'object', properties: {} } },
+        ],
+      },
+    );
+    stored.push({ role: 'user', content: prior });
+    mcpTools.callTool.mockImplementation(async (name: string) => {
+      if (name === 'propose_plan') {
+        return [{ type: 'text', text: JSON.stringify({
+          workflowId: 'wf-rev',
+          threadUid: THREAD,
+          title: 'IVR «Рога и копыта»',
+          summary: ['меню'],
+          status: 'pending',
+          steps: [],
+        }) }];
+      }
+      return [{ type: 'text', text: '{"ok":true}' }];
+    });
+
+    await collect(service.runTurn('Абонента 101 измени на 111', { uid: THREAD }, turnContext()));
+
+    expect(llm.chat).toHaveBeenCalled();
+    expect(mcpTools.callTool).toHaveBeenCalledWith(
+      'propose_plan',
+      expect.objectContaining({
+        steps: [expect.objectContaining({ tool: 'create_ivr' })],
+      }),
+      TENANT,
+      expect.any(Object),
+    );
+    expect(mcpTools.callTool).not.toHaveBeenCalledWith(
+      'propose_plan',
+      expect.objectContaining({
+        steps: expect.arrayContaining([
+          expect.objectContaining({ tool: 'create_endpoints_bulk' }),
+        ]),
+      }),
+      TENANT,
+      expect.any(Object),
+    );
+  });
+
+  it('closes after the first successful propose_plan instead of regenerating the same card', async () => {
+    const plan = {
+      workflowId: 'wf-1',
+      threadUid: THREAD,
+      title: 'IVR',
+      summary: ['меню'],
+      status: 'pending',
+      error: null,
+      expiresAt: '2027-01-01T00:00:00.000Z',
+      appliedAt: null,
+      steps: [],
+    };
+    const { service, llm, mcpTools } = createHarness(
+      [
+        {
+          text: '',
+          toolCalls: [{ id: 'e1', name: 'list_endpoints', arguments: { extensions: '101,102,103' } }],
+        },
+        {
+          text: '',
+          toolCalls: [{ id: 'g1', name: 'list_call_groups', arguments: {} }],
+        },
+        {
+          text: '',
+          toolCalls: [{
+            id: 'p1',
+            name: 'propose_plan',
+            arguments: { title: 'IVR «Рога и копыта» + абоненты 102,103 + группа таймаута', steps: [{ id: 'i', tool: 'create_ivr', args: { name: 'Рога' } }] },
+          }],
+        },
+        { text: '', toolCalls: [] },
+        {
+          text: '',
+          toolCalls: [{
+            id: 'p2',
+            name: 'propose_plan',
+            arguments: { title: 'IVR «Рога и копыта» + абоненты 102,103 + группа таймаута', steps: [{ id: 'i', tool: 'create_ivr', args: { name: 'Рога' } }] },
+          }],
+        },
+        { text: '', toolCalls: [] },
+        {
+          text: '',
+          toolCalls: [{
+            id: 'p3',
+            name: 'propose_plan',
+            arguments: { title: 'IVR «Рога и копыта» + абоненты 102,103 + группа таймаута', steps: [{ id: 'i', tool: 'create_ivr', args: { name: 'Рога' } }] },
+          }],
+        },
+      ],
+      {
+        skillNames: ['ivrs', 'endpoints', 'call-groups'],
+        tools: [
+          { name: 'list_endpoints', description: 'eps', inputSchema: { type: 'object', properties: {} } },
+          { name: 'list_call_groups', description: 'groups', inputSchema: { type: 'object', properties: {} } },
+          { name: 'propose_plan', description: 'plan', inputSchema: { type: 'object', properties: {} } },
+        ],
+      },
+    );
+    mcpTools.callTool.mockImplementation(async (name: string) => {
+      if (name === 'propose_plan') {
+        return [{ type: 'text', text: JSON.stringify(plan) }];
+      }
+      return [{ type: 'text', text: '{"ok":true}' }];
+    });
+
+    const events = await collect(service.runTurn('Создай IVR Рога и копыта', { uid: THREAD }, turnContext()));
+    const assistant = events
+      .map((event) => event.data as { kind?: string; text?: string; closeKind?: string })
+      .find((item) => item.kind === 'assistant');
+
+    expect(mcpTools.callTool.mock.calls.filter((call) => call[0] === 'propose_plan')).toHaveLength(1);
+    expect(llm.chat).toHaveBeenCalledTimes(3);
+    expect(events.some((event) => event.name === 'item' && (event.data as { kind?: string }).kind === 'proposal')).toBe(true);
+    expect(assistant?.closeKind).toBe('wait_confirm');
+    expect(assistant?.text ?? '').toBe('');
+    expect(events.at(-1)).toEqual(expect.objectContaining({ name: 'done', data: { closeKind: 'wait_confirm' } }));
+  });
+
+  it('stops after two empty propose_plan calls instead of burning the step ceiling', async () => {
+    const groupShaped = {
+      name: 'Группа Рога и копыта',
+      exten: '6001',
+      strategy: 'ringall',
+      members: [
+        { member_type: 'internal', value: '101' },
+        { member_type: 'internal', value: '102' },
+        { member_type: 'internal', value: '103' },
+      ],
+    };
+    const emptyPlan = { text: JSON.stringify({ refused: true, message: 'План пуст: укажите хотя бы один шаг.' }) };
+    const { service, llm, mcpTools } = createHarness(
+      [
+        { text: '', toolCalls: [{ id: 'e1', name: 'list_endpoints', arguments: { extensions: '101-103' } }] },
+        { text: '', toolCalls: [{ id: 'g1', name: 'list_call_groups', arguments: {} }] },
+        { text: '', toolCalls: [{ id: 'p1', name: 'propose_plan', arguments: groupShaped }] },
+        { text: '', toolCalls: [{ id: 'p2', name: 'propose_plan', arguments: groupShaped }] },
+        { text: '', toolCalls: [{ id: 'p3', name: 'propose_plan', arguments: groupShaped }] },
+        { text: '', toolCalls: [{ id: 'p4', name: 'propose_plan', arguments: groupShaped }] },
+      ],
+      {
+        maxSteps: 12,
+        skillNames: ['ivrs', 'endpoints', 'call-groups'],
+        tools: [
+          { name: 'list_endpoints', description: 'eps', inputSchema: { type: 'object', properties: {} } },
+          { name: 'list_call_groups', description: 'groups', inputSchema: { type: 'object', properties: {} } },
+          { name: 'propose_plan', description: 'plan', inputSchema: { type: 'object', properties: {} } },
+        ],
+      },
+    );
+    mcpTools.callTool.mockImplementation(async (name: string) => {
+      if (name === 'propose_plan') return [{ type: 'text', text: emptyPlan.text }];
+      return [{ type: 'text', text: '{"ok":true}' }];
+    });
+
+    const events = await collect(service.runTurn(
+      'Создай IVR - Рога и копыта. 1 — абонент 101, ничего не нажали — группа вызова.',
+      { uid: THREAD },
+      turnContext(),
+    ));
+
+    expect(mcpTools.callTool.mock.calls.filter((call) => call[0] === 'propose_plan').length).toBeLessThanOrEqual(2);
+    expect(llm.chat.mock.calls.length).toBeLessThanOrEqual(5);
+    expect(events.some((event) => event.name === 'error' && (event.data as { code?: string }).code === 'max_steps_exceeded')).toBe(false);
+    expect(events.at(-1)?.name).toBe('done');
+  });
+
+  it('retries once after a provider timeout on the plan step', async () => {
+    const { service, llm, mcpTools } = createHarness(
+      [
+        {
+          text: '',
+          toolCalls: [{ id: 't1', name: 'list_tts_engines', arguments: {} }],
+        },
+        {
+          text: '',
+          toolCalls: [{ id: 'e1', name: 'list_endpoints', arguments: { extensions: '101-103' } }],
+        },
+        { text: '', toolCalls: [], error: { code: 'provider_timeout', message: 'timed out' } },
+        {
+          text: '',
+          toolCalls: [{
+            id: 'p1',
+            name: 'propose_plan',
+            arguments: { title: 'IVR', steps: [{ id: 'i', tool: 'create_ivr', args: { name: 'Рога' } }] },
+          }],
+        },
+        { text: 'Подтвердите карточку меню.', toolCalls: [] },
+      ],
+      {
+        skillNames: ['ivrs'],
+        tools: [
+          { name: 'list_tts_engines', description: 'tts', inputSchema: { type: 'object', properties: {} } },
+          { name: 'list_endpoints', description: 'eps', inputSchema: { type: 'object', properties: {} } },
+          { name: 'propose_plan', description: 'plan', inputSchema: { type: 'object', properties: {} } },
+        ],
+      },
+    );
+    mcpTools.callTool.mockImplementation(async (name: string) => {
+      if (name === 'propose_plan') {
+        return [{ type: 'text', text: JSON.stringify({
+          workflowId: 'wf-1',
+          threadUid: THREAD,
+          title: 'IVR',
+          summary: ['меню'],
+          status: 'pending',
+          error: null,
+          expiresAt: '2027-01-01T00:00:00.000Z',
+          appliedAt: null,
+          steps: [],
+        }) }];
+      }
+      return [{ type: 'text', text: '{"ok":true}' }];
+    });
+
+    const events = await collect(service.runTurn('Создай IVR Рога и копыта', { uid: THREAD }, turnContext()));
+
+    expect(llm.chat).toHaveBeenCalledTimes(4);
+    expect(events.some((event) => event.name === 'error')).toBe(false);
+    expect(mcpTools.callTool).toHaveBeenCalledWith('propose_plan', expect.anything(), TENANT, expect.any(Object));
+  });
+
+  it('strips tool identifiers from a public confirm ask', async () => {
+    const { service } = createHarness([
+      {
+        text: 'Отлично! create_endpoints_bulk подготовил черновик. Подтвердите карточку абонентов.',
+        toolCalls: [],
+      },
+    ]);
+
+    const events = await collect(service.runTurn('создай IVR', { uid: THREAD }, turnContext()));
+    const assistant = events
+      .map((event) => event.data as { kind?: string; text?: string })
+      .find((item) => item.kind === 'assistant');
+
+    expect(assistant?.text).toMatch(/черновик/);
+    expect(assistant?.text).not.toMatch(/create_endpoints_bulk/);
+  });
+
+  it('does not show schema reasoning as a public reply', async () => {
+    const dump =
+      'Ой, в create_call_group параметр exten должен быть строкой (2–8 цифр), а не число. '
+      + 'Исправлю на "6001". В описании update_ivr target может быть string or number.';
+    const { service, llm } = createHarness([
+      { text: dump, toolCalls: [] },
+      { text: 'Какой номер дать группе на таймаут?', toolCalls: [] },
+    ]);
+
+    const events = await collect(service.runTurn('создай IVR', { uid: THREAD }, turnContext()));
+    const assistants = events
+      .filter((event) => event.name === 'item')
+      .map((event) => event.data as { kind?: string; text?: string })
+      .filter((item) => item.kind === 'assistant');
+
+    expect(llm.chat).toHaveBeenCalledTimes(2);
+    expect(assistants.some((item) => item.text === dump)).toBe(false);
+    expect(assistants.some((item) => item.text?.includes('create_call_group'))).toBe(false);
+    expect(assistants.at(-1)?.text).toMatch(/Какой номер/);
+  });
+
+  it('stringifies a numeric call-group exten inside propose_plan', async () => {
+    const { service, mcpTools } = createHarness([
+      {
+        text: '',
+        toolCalls: [{
+          id: 'p1',
+          name: 'propose_plan',
+          arguments: {
+            title: 'IVR',
+            steps: [{ id: 'g', tool: 'create_call_group', args: { name: 'Timeout', exten: 6001 } }],
+          },
+        }],
+      },
+      { text: 'Подтвердите карточку плана.', toolCalls: [] },
+    ], {
+      tools: [{ name: 'propose_plan', description: 'plan', inputSchema: { type: 'object', properties: {} } }],
+    });
+    mcpTools.callTool.mockResolvedValue([{
+      type: 'text',
+      text: JSON.stringify({ workflowId: 'w-1', title: 'IVR', status: 'pending', steps: [] }),
+    }]);
+
+    await collect(service.runTurn('создай IVR', { uid: THREAD }, turnContext()));
+
+    expect(mcpTools.callTool).toHaveBeenCalledWith(
+      'propose_plan',
+      expect.objectContaining({
+        steps: [expect.objectContaining({
+          args: expect.objectContaining({ name: 'Timeout', exten: '6001' }),
+        })],
+      }),
+      TENANT,
+      expect.anything(),
+    );
+  });
+
+  it('requires another tool call after propose_plan fails', async () => {
+    const { service, llm, mcpTools } = createHarness([
+      {
+        text: '',
+        toolCalls: [{
+          id: 'p1',
+          name: 'propose_plan',
+          arguments: { title: 'IVR', steps: [{ id: 'g', tool: 'create_call_group', args: { name: 'G', exten: '6001' } }] },
+        }],
+      },
+      {
+        text: '',
+        toolCalls: [{
+          id: 'p2',
+          name: 'propose_plan',
+          arguments: { title: 'IVR', steps: [{ id: 'g', tool: 'create_call_group', args: { name: 'G', exten: '6001' } }] },
+        }],
+      },
+      { text: 'Подтвердите карточку плана.', toolCalls: [] },
+    ], {
+      tools: [{ name: 'propose_plan', description: 'plan', inputSchema: { type: 'object', properties: {} } }],
+    });
+    mcpTools.callTool
+      .mockRejectedValueOnce(new Error('ARGS_INVALID: exten: Expected string, received number'))
+      .mockResolvedValueOnce([{
+        type: 'text',
+        text: JSON.stringify({ workflowId: 'w-1', title: 'IVR', status: 'pending', steps: [] }),
+      }]);
+
+    await collect(service.runTurn('создай IVR', { uid: THREAD }, turnContext()));
+
+    expect(llm.chat.mock.calls[1][0]).toEqual(expect.objectContaining({ toolChoice: 'required' }));
+    expect(mcpTools.callTool).toHaveBeenCalledTimes(2);
   });
 
   it('does not nudge a factual answer that is not a plan', async () => {
@@ -817,6 +1320,70 @@ describe('PbxAgentLoopService', () => {
       expect(JSON.parse(toolRows[1][3].content)).toEqual(expect.objectContaining({ error: 'batch_required' }));
       expect(toolRows[1][3].visibility).toBe('internal');
       expect(mcpTools.callTool).toHaveBeenCalledTimes(1);
+    });
+
+    it('refuses the first create_* on a multi-entity IVR brief and demands one plan', async () => {
+      const { service, threads, mcpTools, llm } = createHarness(
+        [
+          {
+            text: '',
+            toolCalls: [{
+              id: 'e1',
+              name: 'create_endpoints_bulk',
+              arguments: { extensionsPattern: '101-103' },
+            }],
+          },
+          {
+            text: '',
+            toolCalls: [{
+              id: 'p1',
+              name: 'propose_plan',
+              arguments: {
+                title: 'IVR Рога и копыта',
+                steps: [
+                  { id: 'ep', tool: 'create_endpoints_bulk', args: { extensionsPattern: '102-103' } },
+                  { id: 'g', tool: 'create_call_group', args: { name: 'Timeout', exten: '6001' } },
+                  { id: 'i', tool: 'create_ivr', args: { name: 'Рога и копыта' } },
+                ],
+              },
+            }],
+          },
+        ],
+        {
+          skillNames: ['ivrs', 'endpoints', 'call-groups'],
+          tools: [
+            { name: 'create_endpoints_bulk', description: 'bulk', inputSchema: { type: 'object', properties: {} } },
+            { name: 'propose_plan', description: 'plan', inputSchema: { type: 'object', properties: {} } },
+          ],
+        },
+      );
+      mcpTools.isMutationTool.mockImplementation((name: string) => name === 'create_endpoints_bulk');
+      mcpTools.callTool.mockImplementation(async (name: string) => {
+        if (name === 'propose_plan') {
+          return [{ type: 'text', text: JSON.stringify({
+            workflowId: 'wf-1',
+            threadUid: THREAD,
+            title: 'IVR',
+            summary: ['абоненты', 'группа', 'меню'],
+            status: 'pending',
+            steps: [],
+          }) }];
+        }
+        return [{ type: 'text', text: JSON.stringify({ proposalId: 'ep', entityType: 'endpoint', status: 'pending' }) }];
+      });
+
+      const events = await collect(service.runTurn(
+        'Создай IVR - Рога и копыта. 1 — абонент 101, 2 — 102, 3 — 103, ничего не нажали — звонят все (группа вызова).',
+        { uid: THREAD },
+        turnContext(),
+      ));
+      const toolRows = threads.appendMessage.mock.calls.filter((c) => c[3].role === 'tool');
+
+      expect(JSON.parse(String(toolRows[0][3].content))).toEqual(expect.objectContaining({ error: 'batch_required' }));
+      expect(mcpTools.callTool).toHaveBeenCalledWith('propose_plan', expect.anything(), TENANT, expect.any(Object));
+      expect(mcpTools.callTool).not.toHaveBeenCalledWith('create_endpoints_bulk', expect.anything(), expect.anything(), expect.anything());
+      expect(llm.chat.mock.calls[1][0]).toEqual(expect.objectContaining({ toolChoice: 'required' }));
+      expect(events.some((event) => event.name === 'item' && (event.data as { kind?: string }).kind === 'proposal')).toBe(true);
     });
 
     it('lets a single mutation through unchanged', async () => {

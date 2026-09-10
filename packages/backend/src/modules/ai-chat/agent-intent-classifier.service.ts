@@ -22,14 +22,15 @@ const ALWAYS_AVAILABLE_TOOLS = new Set([
   'get_cdr_summary',
   'find_cdr_calls',
   'propose_plan',
+  'list_dialplan_apps',
 ]);
 
 const DOMAIN_TOOL_PREFIX: Record<string, string[]> = {
-  ivrs: ['list_ivrs', 'create_ivr', 'update_ivr', 'delete_ivr', 'list_tts_engines'],
+  ivrs: ['list_ivrs', 'create_ivr', 'update_ivr', 'delete_ivr', 'list_tts_engines', 'list_dialplan_apps'],
   endpoints: ['list_endpoints', 'create_endpoint', 'create_endpoints_bulk', 'delete_endpoint', 'update_endpoint'],
   'call-groups': ['list_call_groups', 'create_call_group', 'update_call_group', 'delete_call_group'],
   queues: ['list_queues', 'create_queue', 'update_queue', 'delete_queue'],
-  routes: ['list_routes', 'create_route', 'delete_route', 'update_route'],
+  routes: ['list_routes', 'describe_route_chain', 'list_dialplan_apps', 'create_route', 'delete_route', 'update_route'],
   trunks: ['list_trunks', 'create_trunk', 'delete_trunk', 'update_trunk'],
   contexts: ['list_contexts', 'create_context', 'update_context', 'delete_context'],
   directories: ['list_directories', 'create_directory', 'delete_directory', 'remove_directory_records'],

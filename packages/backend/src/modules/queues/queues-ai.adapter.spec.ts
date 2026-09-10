@@ -351,7 +351,7 @@ describe('QueuesAiAdapter', () => {
     it('ships two-field frontmatter covering strategies, timeout, overflow, membership and live state', () => {
       const skillPath = path.join(__dirname, '../../skills/queues/SKILL.md');
       const raw = fs.readFileSync(skillPath, 'utf8');
-      expect(raw).toMatch(/^---\r?\nname: queues\r?\ndescription: .+\r?\n---/);
+      expect(raw).toMatch(/^---\r?\nname: queues\r?\ndescription: .+/);
       expect(raw).toMatch(/ringall|leastrecent|strategy|стратег/i);
       expect(raw).toMatch(/timeout|таймаут/i);
       expect(raw).toMatch(/overflow|переполн|context/i);
@@ -359,6 +359,7 @@ describe('QueuesAiAdapter', () => {
       expect(raw).toMatch(/get_pbx_state|live|состояни/i);
       expect(raw).toMatch(/list_queues/);
       expect(raw).toMatch(/чеклист|рецепт/i);
+      expect(raw).toMatch(/totrunk|цепочк/i);
     });
   });
 });

@@ -20,17 +20,32 @@ import { AgentDiffProposal, AiToolDefinition, TENANT_ARG_KEYS } from './ai-adapt
  *   - `reload` — dialplan reload policy, owned by the adapter, never by the model.
  */
 
+/** Entities promised by earlier steps of the same workflow draft. */
+export interface PlannedWorkflowEntities {
+  extensions: string[];
+  groups: Array<{ name?: string; exten?: string }>;
+  queues: Array<{ name?: string; exten?: string }>;
+}
+
 /** Tenant identity for a mutation. Always derived from JWT/dispatch, never from arguments. */
 export interface AiMutationContext {
   vpbxUserUid: number;
   userUid: number;
   role: number;
   isAdmin: boolean;
+  planned?: PlannedWorkflowEntities;
 }
 
 /** Refusal shape adapters already return from propose (rendered as text, no card). */
 export interface AiToolRefusal {
   refused: true;
+  [key: string]: unknown;
+}
+
+/** Step is a no-op (e.g. all named subscribers already exist). No card, workflow continues. */
+export interface AiToolSkip {
+  skipped: true;
+  message?: string;
   [key: string]: unknown;
 }
 
@@ -52,7 +67,7 @@ export interface AiMutationContract<TInput = any, TArgs = any> {
   input: z.ZodType<TInput>;
   args: z.ZodType<TArgs>;
   reload: MutationReloadPolicy;
-  propose(input: TInput, ctx: AiMutationContext): Promise<AgentDiffProposal | AiToolRefusal>;
+  propose(input: TInput, ctx: AiMutationContext): Promise<AgentDiffProposal | AiToolRefusal | AiToolSkip>;
   revalidate(args: TArgs, ctx: AiMutationContext): Promise<MutationRevalidation<TArgs>>;
   apply(args: TArgs, ctx: AiMutationContext): Promise<void>;
 }
@@ -168,6 +183,10 @@ export function parseMutationArgs<TArgs>(
 
 export function isToolRefusal(value: unknown): value is AiToolRefusal {
   return isPlainObject(value) && value.refused === true;
+}
+
+export function isToolSkip(value: unknown): value is AiToolSkip {
+  return isPlainObject(value) && value.skipped === true;
 }
 
 /**

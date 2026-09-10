@@ -171,6 +171,27 @@ describe('useAgentTurn', () => {
     expect(result.current.isStreaming).toBe(false);
   });
 
+  it('marks a provider timeout as its own outcome', async () => {
+    mockFetchStream([
+      encodeSse([
+        { event: 'thread', data: { uid: 7 } },
+        { event: 'error', data: { code: 'provider_timeout', message: 'Provider request timed out after 180000ms' } },
+      ]),
+    ]);
+    const store = makeStore();
+    const { result } = renderHook(() => useAgentTurn({ threadUid: 7 }), { wrapper: wrapperFor(store) });
+
+    await act(async () => {
+      result.current.send('Создай IVR');
+    });
+
+    await waitFor(() => {
+      expect(result.current.outcome).toBe('timeout');
+    });
+    expect(result.current.outcome).not.toBe('stopped');
+    expect(result.current.outcome).not.toBe('failed');
+  });
+
   it('keeps the partial timeline and reports disconnect when the stream drops', async () => {
     mockFetchStream(
       [encodeSse([
@@ -334,6 +355,67 @@ describe('useAgentTurn', () => {
     await waitFor(() => {
       expect(selectTimeline(store, 7).map((row) => row.id)).toEqual(['m1', 'p1', 'a-live']);
     });
+  });
+
+  it('posts the selected threadUid so the backend appends instead of creating a conversation', async () => {
+    mockFetchStream([encodeSse(FIXTURE_TURN)]);
+    const store = makeStore();
+    const { result } = renderHook(() => useAgentTurn({ threadUid: 7 }), { wrapper: wrapperFor(store) });
+
+    await act(async () => {
+      result.current.send('Как очереди?');
+    });
+
+    const body = JSON.parse(String((fetch as ReturnType<typeof vi.fn>).mock.calls[0][1].body ?? '{}'));
+    expect(body).toEqual({ message: 'Как очереди?', threadUid: 7 });
+  });
+
+  it('keeps the streamed thread across a parent re-render that still passes null', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        const chunks = [encodeSse(FIXTURE_TURN)];
+        let index = 0;
+        return {
+          ok: true,
+          status: 200,
+          body: {
+            getReader: () => ({
+              read: async () => {
+                if (index >= chunks.length) return { done: true, value: undefined };
+                const value = chunks[index];
+                index += 1;
+                return { done: false, value };
+              },
+            }),
+          },
+        };
+      }),
+    );
+    const store = makeStore();
+    const { result, rerender } = renderHook(
+      ({ threadUid }) => useAgentTurn({ threadUid }),
+      { wrapper: wrapperFor(store), initialProps: { threadUid: null as number | null } },
+    );
+
+    await act(async () => {
+      result.current.send('first');
+    });
+    await waitFor(() => {
+      expect(result.current.outcome).toBe('done');
+    });
+
+    rerender({ threadUid: null });
+
+    await act(async () => {
+      result.current.send('second');
+    });
+
+    const bodies = (fetch as ReturnType<typeof vi.fn>).mock.calls.map((call) =>
+      JSON.parse(String(call[1].body ?? '{}')),
+    );
+    expect(bodies[0].threadUid).toBeUndefined();
+    expect(bodies[1]).toEqual({ message: 'second', threadUid: 7 });
   });
 
   it('continueAfterApply posts to the continue endpoint with an empty body', async () => {

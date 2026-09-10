@@ -28,8 +28,21 @@ let confirmUnwrap: () => Promise<typeof confirmResult> = async () => confirmResu
 
 vi.mock('react-i18next', () => ({
     useTranslation: () => ({
-        t: (key: string, options?: { reason?: string }) =>
-            options?.reason != null ? `${key}:${options.reason}` : key,
+        t: (key: string, options?: string | { reason?: string }) => {
+            if (options && typeof options === 'object' && options.reason != null) {
+                return `${key}:${options.reason}`;
+            }
+            const catalog: Record<string, string> = {
+                'aiChat.card.dest.extension': 'абонент',
+                'aiChat.card.dest.group': 'группа',
+                'aiChat.card.dest.timeout': 'таймаут',
+                'aiChat.card.dest.voice': 'Голос',
+                'aiChat.progress.tools.create_ivr': 'Готовлю голосовое меню',
+                'aiChat.progress.tools.create_call_group': 'Готовлю группу вызова',
+                'aiChat.card.badge.pending': 'Нужно подтверждение',
+            };
+            return catalog[key] ?? (typeof options === 'string' ? options : key);
+        },
     }),
 }));
 
@@ -109,8 +122,37 @@ describe('DiffConfirmCard', () => {
         );
 
         expect(screen.getByText('Здравствуйте, вы позвонили в службу сервиса.')).toBeInTheDocument();
-        expect(screen.getByText('1 → extension 201')).toBeInTheDocument();
-        expect(screen.getByText('t → group 1')).toBeInTheDocument();
+        expect(screen.getByText('1 → абонент 201')).toBeInTheDocument();
+        expect(screen.getByText('таймаут → группа 1')).toBeInTheDocument();
+        expect(screen.queryByText(/extension|engine_uid/i)).toBeNull();
+    });
+
+    it('shows human plan step names and statuses instead of tool ids', () => {
+        render(
+            <DiffConfirmCard
+                proposal={pendingView({
+                    entityLabel: 'Рога и копыта',
+                    summary: ['Собрать меню и группу'],
+                    steps: [
+                        {
+                            stepKey: 'ivr',
+                            stepIndex: 0,
+                            tool: 'create_ivr',
+                            entityType: 'ivr',
+                            entityLabel: 'Рога и копыта',
+                            status: 'pending',
+                            error: null,
+                            dependsOn: [],
+                            requiresSecureInput: false,
+                        },
+                    ],
+                } as IAgentProposalView)}
+            />,
+        );
+        expect(screen.getByText('Готовлю голосовое меню: Рога и копыта')).toBeInTheDocument();
+        expect(screen.getAllByText('Нужно подтверждение').length).toBeGreaterThan(0);
+        expect(screen.queryByText('create_ivr')).toBeNull();
+        expect(screen.queryByText(/^pending$/)).toBeNull();
     });
 
     it('renders the entity label, every change line and both actions', () => {

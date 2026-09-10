@@ -1,4 +1,10 @@
-import type { AgentTimelineItem, AgentTurnCloseKind } from '@krasterisk/shared';
+import {
+  collapseDuplicateAgentSteps,
+  scrubToolIdsFromPublicText,
+  type AgentTimelineItem,
+  type AgentTurnCloseKind,
+} from '@krasterisk/shared';
+import { looksLikePlanningNarration } from './turn-outcome.util';
 
 export interface TimelineSourceRow {
   uid: number;
@@ -27,6 +33,64 @@ export function progressLabelKey(toolName: string): string {
   return `aiChat.progress.tools.${toolName}`;
 }
 
+export function isToolErrorContent(content: string | null | undefined): boolean {
+  if (!content) return false;
+  return (
+    content.startsWith('Ошибка:')
+    || /"error"\s*:/.test(content)
+    || /WORKFLOW_/.test(content)
+    || content.includes('batch_required')
+    || /"refused"\s*:\s*true/.test(content)
+  );
+}
+
+export function humanStepDetail(
+  toolName: string,
+  content: string | null | undefined,
+): { detailKey?: string; detailFallback?: string } | null {
+  if (isToolErrorContent(content)) {
+    if (toolName === 'propose_plan' || /WORKFLOW_/.test(content ?? '')) {
+      return { detailKey: 'aiChat.progress.detail.planFailed' };
+    }
+    return { detailKey: 'aiChat.progress.detail.stepFailed' };
+  }
+  const parsed = parseJsonObject(content);
+  if (!parsed) return null;
+  if (toolName === 'list_endpoints') {
+    const numbers = namesFrom(parsed.endpoints ?? parsed.items, ['extension', 'name']);
+    const missing = Array.isArray(parsed.missing)
+      ? parsed.missing.map((value) => String(value)).filter(Boolean)
+      : [];
+    if (numbers.length && missing.length) {
+      return { detailFallback: `Есть: ${numbers.slice(0, 8).join(', ')}. Нет: ${missing.slice(0, 8).join(', ')}` };
+    }
+    if (numbers.length) {
+      return { detailFallback: `Абоненты: ${numbers.slice(0, 8).join(', ')}` };
+    }
+    if (missing.length) {
+      return { detailFallback: `Абонентов нет: ${missing.slice(0, 8).join(', ')}` };
+    }
+    return { detailFallback: 'Абонентов с такими номерами нет' };
+  }
+  if (toolName === 'list_tts_engines') {
+    const names = namesFrom(parsed.engines, ['name']);
+    return names.length
+      ? { detailFallback: `Движки: ${names.slice(0, 5).join(', ')}` }
+      : { detailFallback: 'Голосовых движков нет' };
+  }
+  if (toolName === 'list_call_groups') {
+    const names = namesFrom(parsed.groups ?? parsed.items, ['name', 'exten']);
+    return names.length ? { detailFallback: `Группы: ${names.slice(0, 6).join(', ')}` } : null;
+  }
+  if (toolName === 'list_dialplan_apps') {
+    const types = namesFrom(parsed.apps, ['type']);
+    return types.length
+      ? { detailFallback: `Приложения: ${types.slice(0, 8).join(', ')}` }
+      : { detailFallback: 'Приложений маршрутизации нет' };
+  }
+  return null;
+}
+
 export function buildTimeline(rows: TimelineSourceRow[], opts: BuildTimelineOptions): AgentTimelineItem[] {
   const items: AgentTimelineItem[] = [];
 
@@ -52,8 +116,8 @@ export function buildTimeline(rows: TimelineSourceRow[], opts: BuildTimelineOpti
       if (source.visibility === 'internal') {
         continue;
       }
-      const text = source.content ?? '';
-      if (!text.trim()) {
+      const text = scrubToolIdsFromPublicText(source.content ?? '');
+      if (!text.trim() || looksLikePlanningNarration(text)) {
         continue;
       }
       items.push({
@@ -71,11 +135,14 @@ export function buildTimeline(rows: TimelineSourceRow[], opts: BuildTimelineOpti
     }
 
     const toolName = source.tool_name ?? '';
+    const detail = humanStepDetail(toolName, source.content);
     items.push({
       kind: 'step',
       id: `m${source.uid}`,
       labelKey: progressLabelKey(toolName),
       labelFallback: toolName,
+      ...(detail?.detailKey ? { detailKey: detail.detailKey } : {}),
+      ...(detail?.detailFallback ? { detailFallback: detail.detailFallback } : {}),
       done: true,
       createdAt: toCreatedAtIso(source.created_at),
     });
@@ -96,7 +163,40 @@ export function buildTimeline(rows: TimelineSourceRow[], opts: BuildTimelineOpti
     });
   }
 
-  return items;
+  return collapseDuplicateAgentSteps(items);
+}
+
+function parseJsonObject(content: string | null | undefined): Record<string, unknown> | null {
+  if (!content) return null;
+  try {
+    const parsed = JSON.parse(content) as unknown;
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? parsed as Record<string, unknown>
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function namesFrom(value: unknown, keys: string[]): string[] {
+  if (!Array.isArray(value)) return [];
+  const names: string[] = [];
+  for (const row of value) {
+    if (!row || typeof row !== 'object') continue;
+    const rec = row as Record<string, unknown>;
+    for (const key of keys) {
+      const text = rec[key];
+      if (typeof text === 'string' && text.trim() && !/^\d+$/.test(key === 'uid' ? text : '')) {
+        names.push(text.trim());
+        break;
+      }
+      if ((key === 'extension' || key === 'exten') && (typeof text === 'string' || typeof text === 'number')) {
+        names.push(String(text));
+        break;
+      }
+    }
+  }
+  return names;
 }
 
 function toCreatedAtIso(createdAt: Date | string): string {

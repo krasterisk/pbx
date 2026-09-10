@@ -59,9 +59,21 @@ export const SCENARIOS: ScenarioEntry[] = [
   },
   {
     id: 'ai-agent-ivr',
-    tags: ['ui', 'ai-chat', 'ivr', 'live-llm'],
+    tags: ['ui', 'ai-chat', 'ivr'],
     kind: 'ui',
     command: 'scenarios/ui/ai-agent-ivr.spec.ts',
+  },
+  {
+    id: 'ai-chat-horns-hooves',
+    tags: ['ui', 'ai-chat', 'ivr'],
+    kind: 'ui',
+    command: 'scenarios/ui/ai-chat-horns-hooves.spec.ts',
+  },
+  {
+    id: 'ai-chat-horns-hooves-live',
+    tags: ['ui', 'ai-chat', 'ivr', 'live-llm'],
+    kind: 'ui',
+    command: 'scenarios/ui/ai-chat-horns-hooves.live.spec.ts',
   },
   {
     id: 'ai-chat-plan',
@@ -122,6 +134,10 @@ export function filterScenarios(options: {
 
   if (options.tag) {
     list = list.filter((s) => s.tags.includes(options.tag));
+  }
+
+  if (process.env.HARNESS_LIVE_LLM !== '1') {
+    list = list.filter((s) => !s.tags.includes('live-llm'));
   }
 
   return list;

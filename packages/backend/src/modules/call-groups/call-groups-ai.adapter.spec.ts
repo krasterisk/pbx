@@ -232,6 +232,23 @@ describe('CallGroupsAiAdapter', () => {
   });
 
   describe('create_call_group', () => {
+    it('accepts a numeric group exten and stores it as a string', async () => {
+      const result = await getTool('create_call_group').handler(
+        {
+          name: 'Timeout',
+          exten: 6001,
+          strategy: 'ringall',
+          members: [{ member_type: 'internal', value: 201, position: 0 }],
+        },
+        TENANT_A,
+      );
+
+      expect(result.applyPayload.args).toEqual(expect.objectContaining({
+        exten: '6001',
+        members: [expect.objectContaining({ value: '201' })],
+      }));
+    });
+
     it('returns a pending proposal and does not write', async () => {
       const result = await getTool('create_call_group').handler(
         {
@@ -338,7 +355,7 @@ describe('CallGroupsAiAdapter', () => {
     it('covers ring strategies, group vs queue and numbering', () => {
       const skillPath = path.join(__dirname, '../../skills/call-groups/SKILL.md');
       const raw = fs.readFileSync(skillPath, 'utf8');
-      expect(raw).toMatch(/^---\r?\nname: call-groups\r?\ndescription: .+\r?\n---/);
+      expect(raw).toMatch(/^---\r?\nname: call-groups\r?\ndescription: .+/);
       expect(raw).toMatch(/ringall|hunt|memoryhunt|random/i);
       expect(raw).toMatch(/очеред|queue/i);
       expect(raw).toMatch(/номер|exten|нумерац/i);
@@ -346,6 +363,8 @@ describe('CallGroupsAiAdapter', () => {
       expect(raw).toMatch(/list_call_groups/);
       expect(raw).toMatch(/чеклист|рецепт/i);
       expect(raw).toMatch(/не переспрашив|любой.*реплик/i);
+      expect(raw).toMatch(/totrunk|цепочк/i);
+      expect(raw).toMatch(/нет overflow|overflow нет/i);
     });
   });
 

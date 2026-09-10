@@ -129,6 +129,9 @@ describe('PbxContextBuilderService', () => {
         expect(prompt).toMatch(/меню|menu question|IVR, группа или абоненты/i);
         expect(prompt).toMatch(/list_tts_engines|engine_uid/i);
         expect(prompt).toMatch(/exactly the named set|точн/i);
+        expect(prompt).toMatch(/DialplanAppsEditor|totrunk/i);
+        expect(prompt).toMatch(/list_dialplan_apps/);
+        expect(prompt).toMatch(/do not say the group has no overflow|не говори.*overflow/i);
     });
 
     it('tells the model to batch three or more changes into one plan', async () => {
@@ -136,7 +139,7 @@ describe('PbxContextBuilderService', () => {
         const state = await builder.buildState(111);
         const prompt = builder.buildSystemPrompt(state);
         expect(prompt).toMatch(/propose_plan/);
-        expect(prompt).toMatch(/Три и более/);
+        expect(prompt).toMatch(/Две и более|один propose_plan/i);
     });
 
     it('keeps the system prompt under the token ceiling', async () => {

@@ -94,6 +94,7 @@ export interface IAgentWorkflowStepView {
 
 export interface IAgentWorkflowPlanView {
     workflowId: string;
+    threadUid: number;
     title: string;
     summary: string[];
     status: AgentWorkflowStatus | string;
@@ -257,6 +258,7 @@ const aiChatApi = rtkApi.injectEndpoints({
             invalidatesTags: (_result, _err, uid) => [
                 { type: 'AiChatThreads', id: uid },
                 { type: 'AiChatThreads', id: 'LIST' },
+                'AiChatThreads',
             ],
         }),
         confirmAiChatProposal: builder.mutation<IAgentProposalActionResult, string>({

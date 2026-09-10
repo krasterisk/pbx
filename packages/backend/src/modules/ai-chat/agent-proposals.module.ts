@@ -7,6 +7,7 @@ import { AiPlatformModule } from '../ai-platform/ai-platform.module';
 import { AgentProposalsController } from './agent-proposals.controller';
 import { AgentWorkflowsController } from './agent-workflows.controller';
 import { AgentProposal } from './models/agent-proposal.model';
+import { AgentThread } from './models/agent-thread.model';
 import { AgentWorkflow, AgentWorkflowStep } from './models/agent-workflow.model';
 import { PbxAgentDiffService } from './pbx-agent-diff.service';
 import { PbxWorkflowCompilerService } from './pbx-workflow-compiler.service';
@@ -20,7 +21,7 @@ import { PbxWorkflowRunnerService } from './pbx-workflow-runner.service';
  */
 @Module({
   imports: [
-    SequelizeModule.forFeature([AgentProposal, AgentWorkflow, AgentWorkflowStep, CcAiAuditLog]),
+    SequelizeModule.forFeature([AgentProposal, AgentThread, AgentWorkflow, AgentWorkflowStep, CcAiAuditLog]),
     RoutesModule,
     LoggerModule,
     AiPlatformModule,

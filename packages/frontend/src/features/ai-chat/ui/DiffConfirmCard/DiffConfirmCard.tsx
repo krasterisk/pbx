@@ -9,6 +9,7 @@ import {
     useRejectAiChatWorkflowMutation,
     type IAgentProposalView,
 } from '@/shared/api/endpoints/aiChatApi';
+import { isRawToolId, resolveCardStatusLabel, resolveWorkflowStepLabel } from '../../model/agentToolLabels';
 import cls from './DiffConfirmCard.module.scss';
 
 export interface DiffConfirmCardProps {
@@ -18,11 +19,34 @@ export interface DiffConfirmCardProps {
     readOnly?: boolean;
 }
 
-function formatAfterLines(after: Record<string, unknown> | null | undefined): string[] {
+function formatDigitLabel(
+    digit: string,
+    t: (key: string, fallback?: string) => string,
+): string {
+    if (digit === 't') return t('aiChat.card.dest.timeout', 'таймаут');
+    if (digit === 'i') return t('aiChat.card.dest.invalid', 'ошибка ввода');
+    return digit;
+}
+
+function formatDestKind(
+    kind: string,
+    t: (key: string, fallback?: string) => string,
+): string {
+    const key = `aiChat.card.dest.${kind}`;
+    const translated = t(key, kind);
+    return isRawToolId(translated) ? kind : translated;
+}
+
+function formatAfterLines(
+    after: Record<string, unknown> | null | undefined,
+    t: (key: string, fallback?: string) => string,
+): string[] {
     if (!after) return [];
     const lines: string[] = [];
     const greeting = typeof after.greeting === 'string' ? after.greeting.trim() : '';
     if (greeting) lines.push(greeting);
+    const voice = typeof after.voice === 'string' ? after.voice.trim() : '';
+    if (voice) lines.push(`${t('aiChat.card.dest.voice', 'Голос')}: ${voice}`);
     const digits = after.digits;
     if (digits && typeof digits === 'object' && !Array.isArray(digits)) {
         for (const [digit, raw] of Object.entries(digits as Record<string, unknown>)) {
@@ -32,7 +56,10 @@ function formatAfterLines(after: Record<string, unknown> | null | undefined): st
             const kind = dest.kind != null ? String(dest.kind) : '';
             const target = dest.target != null ? String(dest.target) : '';
             if (!kind && !target) continue;
-            lines.push(`${digit} → ${[kind, target].filter(Boolean).join(' ')}`);
+            if (kind === 'none') continue;
+            const left = formatDigitLabel(digit, t);
+            const right = [formatDestKind(kind, t), target].filter(Boolean).join(' ');
+            lines.push(`${left} → ${right}`);
         }
     }
     return lines;
@@ -200,9 +227,9 @@ export const DiffConfirmCard = ({ proposal, onAskAgain, onSettled, readOnly }: D
                 <VStack className={cls.summary} gap="4" align="stretch" data-testid="ai-agent-workflow-steps" role="list">
                     {view.steps.map((step) => (
                         <HStack key={step.stepKey} gap="8" align="center" justify="between" role="listitem">
-                            <Text as="span">{step.entityLabel || step.tool}</Text>
+                            <Text as="span">{resolveWorkflowStepLabel(t, step)}</Text>
                             <Badge variant={step.status === 'failed' ? 'destructive' : 'outline'}>
-                                {step.status}
+                                {resolveCardStatusLabel(t, step.status)}
                             </Badge>
                         </HStack>
                     ))}
@@ -214,7 +241,7 @@ export const DiffConfirmCard = ({ proposal, onAskAgain, onSettled, readOnly }: D
                 {view.summary.map((line) => (
                     <Text as="p" key={line} className={cls.summaryLine}>{line}</Text>
                 ))}
-                {formatAfterLines(view.after)
+                {formatAfterLines(view.after, t)
                     .filter((line) => !view.summary.some((row) => row.includes(line)))
                     .map((line) => (
                         <Text as="p" key={`after:${line}`} className={cls.summaryLine}>{line}</Text>

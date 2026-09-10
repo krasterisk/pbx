@@ -325,7 +325,7 @@ export class IvrsService {
         `IVR ${context} tenant=${vpbxUserUid} refused unknown action types: ${JSON.stringify(normalized.unmapped)}`,
       );
       throw new BadRequestException(
-        `Unknown IVR action type: ${normalized.unmapped.map((row) => row.type).join(', ')}. Use toexten / togroup / toqueue / toivr / toroute.`,
+        `Unknown IVR action type: ${normalized.unmapped.map((row) => row.type).join(', ')}. Use DialplanAppsEditor types: toexten, togroup, toqueue, toivr, toroute, totrunk, voicemail, hangup, playback.`,
       );
     }
     throwIfInvalidActionPayload({ menu_items: normalized.items });

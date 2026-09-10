@@ -39,6 +39,19 @@ describe('AgentIntentClassifierService', () => {
     expect(filtered).not.toContain('create_trunk');
   });
 
+  it('keeps list_dialplan_apps on an IVR turn', () => {
+    const classification = classifier.classify({
+      message: 'Создай IVR Продажи с таймаутом в группу 101-103',
+    });
+    const filtered = classifier.filterToolNames(
+      ['list_skills', 'create_ivr', 'list_dialplan_apps', 'create_trunk'],
+      { ...classification, confidence: 0.9 },
+    );
+    expect(classifier.isAlwaysAvailableTool('list_dialplan_apps')).toBe(true);
+    expect(filtered).toContain('list_dialplan_apps');
+    expect(filtered).not.toContain('create_trunk');
+  });
+
   it('selects ivrs, endpoints and call-groups for «ничего не нажали» without the word таймаут', () => {
     const result = classifier.classify({
       message:

@@ -11,6 +11,7 @@ import {
   AgentWorkflowStep,
   type AgentWorkflowStatus,
 } from './models/agent-workflow.model';
+import { AgentThread } from './models/agent-thread.model';
 import {
   PbxWorkflowCompilerService,
   type CompiledWorkflow,
@@ -34,6 +35,7 @@ export interface WorkflowStepView {
 
 export interface WorkflowPlanView {
   workflowId: string;
+  threadUid: number;
   title: string;
   summary: string[];
   status: AgentWorkflowStatus;
@@ -54,7 +56,30 @@ export class PbxWorkflowRunnerService {
     private readonly compiler: PbxWorkflowCompilerService,
     private readonly registry: AiAdapterRegistryService,
     private readonly routeApply: RouteApplyService,
+    @InjectModel(AgentThread) private readonly threadModel: typeof AgentThread,
   ) {}
+
+  async findLatestPendingForThread(
+    threadUid: number,
+    ctx: ProposalContext,
+  ): Promise<WorkflowPlanView | null> {
+    if (threadUid <= 0) return null;
+    const row = await this.workflowModel.findOne({
+      where: {
+        thread_uid: threadUid,
+        vpbx_user_uid: ctx.vpbxUserUid,
+        user_uid: ctx.userUid,
+        status: { [Op.in]: ['pending', 'failed'] },
+      },
+      order: [['created_at', 'DESC']],
+    });
+    if (!row) return null;
+    const steps = await this.stepModel.findAll({
+      where: { workflow_uid: row.uid },
+      order: [['step_index', 'ASC']],
+    });
+    return this.toView(row, steps);
+  }
 
   async createFromDraft(
     draft: { title?: string; steps: DeclarativeWorkflowStep[] },
@@ -217,6 +242,20 @@ export class PbxWorkflowRunnerService {
     ctx: ProposalContext & { briefVersion?: number },
   ): Promise<WorkflowPlanView> {
     const now = new Date();
+    const threadUid = ctx.threadUid ?? 0;
+    if (threadUid > 0) {
+      await this.workflowModel.update(
+        { status: 'rejected', error: 'superseded', updated_at: now },
+        {
+          where: {
+            thread_uid: threadUid,
+            vpbx_user_uid: ctx.vpbxUserUid,
+            user_uid: ctx.userUid,
+            status: { [Op.in]: ['pending', 'failed'] },
+          },
+        },
+      );
+    }
     const workflow = await this.workflowModel.create({
       workflow_id: randomUUID(),
       thread_uid: ctx.threadUid ?? 0,
@@ -305,6 +344,7 @@ export class PbxWorkflowRunnerService {
   private toView(row: AgentWorkflow, steps: AgentWorkflowStep[]): WorkflowPlanView {
     return {
       workflowId: row.workflow_id,
+      threadUid: Number(row.thread_uid),
       title: row.title,
       summary: row.summary ?? [],
       status: row.status,
@@ -335,8 +375,28 @@ export class PbxWorkflowRunnerService {
       },
       order: [['created_at', 'DESC']],
     });
+    const threadUids = [...new Set(rows.map((row) => Number(row.thread_uid)).filter((uid) => uid > 0))];
+    const living = threadUids.length
+      ? await this.threadModel.findAll({
+          where: {
+            uid: { [Op.in]: threadUids },
+            vpbx_user_uid: ctx.vpbxUserUid,
+            user_uid: ctx.userUid,
+          },
+          attributes: ['uid'],
+        })
+      : [];
+    const livingSet = new Set(living.map((row) => Number(row.uid)));
+    const orphanUids = rows
+      .filter((row) => !livingSet.has(Number(row.thread_uid)))
+      .map((row) => row.uid);
+    if (orphanUids.length) {
+      await this.stepModel.destroy({ where: { workflow_uid: { [Op.in]: orphanUids } } });
+      await this.workflowModel.destroy({ where: { uid: { [Op.in]: orphanUids } } });
+    }
     const views: WorkflowPlanView[] = [];
     for (const row of rows) {
+      if (!livingSet.has(Number(row.thread_uid))) continue;
       const steps = await this.stepModel.findAll({
         where: { workflow_uid: row.uid },
         order: [['step_index', 'ASC']],
@@ -344,5 +404,19 @@ export class PbxWorkflowRunnerService {
       views.push(this.toView(row, steps));
     }
     return views;
+  }
+
+  async deleteForThread(threadUid: number, ctx: ProposalContext): Promise<void> {
+    const rows = await this.workflowModel.findAll({
+      where: {
+        thread_uid: threadUid,
+        vpbx_user_uid: ctx.vpbxUserUid,
+        user_uid: ctx.userUid,
+      },
+    });
+    const uids = rows.map((row) => row.uid);
+    if (!uids.length) return;
+    await this.stepModel.destroy({ where: { workflow_uid: { [Op.in]: uids } } });
+    await this.workflowModel.destroy({ where: { uid: { [Op.in]: uids } } });
   }
 }

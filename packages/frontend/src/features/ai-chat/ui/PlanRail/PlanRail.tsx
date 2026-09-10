@@ -45,7 +45,7 @@ export const PlanRail = ({ workflows, onFocusWorkflow }: PlanRailProps) => {
                     {workflows.map((workflow) => {
                         const applied = appliedStepCount(workflow);
                         const total = workflow.steps.length;
-                        const focusable = Boolean(onFocusWorkflow);
+                        const focusable = Boolean(onFocusWorkflow) && workflow.threadUid > 0;
                         return (
                             <VStack
                                 key={workflow.workflowId}
@@ -54,13 +54,14 @@ export const PlanRail = ({ workflows, onFocusWorkflow }: PlanRailProps) => {
                                 align="stretch"
                                 role={focusable ? 'button' : 'listitem'}
                                 tabIndex={focusable ? 0 : undefined}
+                                title={focusable ? t('aiChat.openPlanThread') : undefined}
                                 onClick={
-                                    onFocusWorkflow
+                                    focusable && onFocusWorkflow
                                         ? () => onFocusWorkflow(workflow.workflowId)
                                         : undefined
                                 }
                                 onKeyDown={
-                                    onFocusWorkflow
+                                    focusable && onFocusWorkflow
                                         ? (event) => {
                                             if (event.key === 'Enter' || event.key === ' ') {
                                                 event.preventDefault();

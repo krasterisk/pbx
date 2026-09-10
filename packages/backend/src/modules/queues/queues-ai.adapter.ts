@@ -129,7 +129,7 @@ export class QueuesAiAdapter implements DomainAiAdapter, OnModuleInit {
 
   getKnowledgeBlock(): string {
     return `## Очереди
-- Стратегии: ${STRATEGIES.join(', ')}. timeout — сколько звонящий ждёт агента; overflow (context) — куда он уходит, если очередь не взяла.
+- Стратегии: ${STRATEGIES.join(', ')}. timeout — сколько звонящий ждёт агента; overflow (context) — куда он уходит, если очередь не взяла. Overflow очереди не заменяет цепочку пункта IVR после группы (totrunk / hangup).
 - Членство — interface абонента тенанта. Перед выводом о проблеме очереди читай live-состояние (get_pbx_state), не только конфиг.`;
   }
 

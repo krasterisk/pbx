@@ -85,8 +85,8 @@ const ADMIN_LEVELS = new Set([0, 1]);
  * AiChatController — in-process agent turn (D-06).
  *
  * Rate limits:
- *   - GET/settings: skip app-wide throttles
- *   - POST /message: 10 requests/minute
+ *   - GET/settings and thread create/delete: skip app-wide throttles
+ *   - POST /message and /continue: 10 requests/minute
  */
 @ApiTags('AI Chat')
 @ApiBearerAuth()
@@ -118,6 +118,7 @@ export class AiChatController {
     }
 
     @ApiOperation({ summary: 'Create an empty conversation' })
+    @SkipThrottle({ default: true, global: true })
     @Post('threads')
     async createThread(@Req() req: any) {
         const { tenantUid, authorUid } = this.identityFromToken(req);
@@ -192,11 +193,16 @@ export class AiChatController {
     }
 
     @ApiOperation({ summary: 'Delete a conversation the caller owns' })
+    @SkipThrottle({ default: true, global: true })
     @HttpCode(HttpStatus.NO_CONTENT)
     @Delete('threads/:uid')
     async deleteThread(@Param('uid', ParseIntPipe) uid: number, @Req() req: any) {
-        const { tenantUid, authorUid } = this.identityFromToken(req);
+        const { tenantUid, authorUid, role } = this.identityFromToken(req);
         await this.threads.deleteThread(uid, tenantUid, authorUid);
+        await this.workflows.deleteForThread(uid, { vpbxUserUid: tenantUid, userUid: authorUid, role });
+        await this.proposals.destroy({
+            where: { thread_uid: uid, vpbx_user_uid: tenantUid, user_uid: authorUid },
+        });
     }
 
     @ApiOperation({ summary: 'Provider the chat agent uses (admin)' })

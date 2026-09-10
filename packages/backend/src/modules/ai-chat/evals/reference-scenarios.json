@@ -145,7 +145,7 @@
   },
   {
     "id": "mutate-ivr-sales-bulk-first",
-    "bucket": "mutating",
+    "bucket": "playbook",
     "input": "Сделай IVR Продажи. Текст: Вы позвонили в компанию Рога и Копыта. 1 → 101, 2 → 102, 3 → 103, таймаут → группа 101–103.",
     "tenantUid": 100,
     "authorUid": 11,
@@ -168,19 +168,21 @@
         "text": "",
         "toolCalls": [
           {
-            "id": "call_bulk",
-            "name": "create_endpoints_bulk",
-            "arguments": { "extensionsPattern": "101-103" }
+            "id": "call_propose_plan",
+            "name": "propose_plan",
+            "arguments": {
+              "title": "IVR Продажи",
+              "steps": [
+                { "id": "endpoints", "tool": "create_endpoints_bulk", "args": { "extensionsPattern": "101-103" } },
+                { "id": "group", "tool": "create_call_group", "dependsOn": ["endpoints"], "args": { "name": "Продажи", "exten": "6010" } },
+                { "id": "ivr", "tool": "create_ivr", "dependsOn": ["group"], "args": { "name": "Продажи" } }
+              ]
+            }
           }
         ]
-      },
-      {
-        "text": "Подтвердите карточку абонентов 101–103. Осталось: одна группа на таймаут, затем меню Продажи.",
-        "toolCalls": []
       }
     ],
-    "expectedToolSequence": ["read_skill", "list_endpoints", "create_endpoints_bulk"],
-    "expectedProposal": { "entityType": "endpoint", "entityLabel": "3 абонентов", "status": "pending" },
+    "expectedToolSequence": ["read_skill", "list_endpoints", "propose_plan"],
     "assertNoWrite": true
   },
   {

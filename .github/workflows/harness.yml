@@ -82,6 +82,7 @@ jobs:
           PW_PASS: admin
           JWT_SECRET: ci-test-secret
           CC_AI_KEY_SECRET: ci-test-ai-secret
+          # HARNESS_LIVE_LLM stays unset — CI uses the OpenAI stub, not a paid/local model
         run: npm test
 
       - name: Upload harness reports

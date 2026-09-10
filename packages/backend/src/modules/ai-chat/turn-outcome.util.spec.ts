@@ -1,4 +1,19 @@
-import { classifyTurnClose, forcedTurnStatus } from './turn-outcome.util';
+import { classifyTurnClose, forcedTurnStatus, looksLikeMultiEntitySetup } from './turn-outcome.util';
+
+describe('looksLikeMultiEntitySetup', () => {
+  it('treats the horns-hooves IVR brief as one batched plan', () => {
+    expect(looksLikeMultiEntitySetup(
+      'Создай IVR - Рога и копыта\n'
+      + 'текст: "Здравствуйте, вы позвонили в Рога и копыта. Нажмите 1 для консультации, 2 для ремонта, 3 для гарантии, или оставайтесь на линии"\n'
+      + 'Пункты:\n1 - Абонент 101\n2 - 102\n3 - 103 ничего не нажали - звонят все одновременно (группа вызова)',
+    )).toBe(true);
+  });
+
+  it('leaves a single-entity create on the ordinary card path', () => {
+    expect(looksLikeMultiEntitySetup('создай абонента 104')).toBe(false);
+    expect(looksLikeMultiEntitySetup('создай IVR Продажи')).toBe(false);
+  });
+});
 
 describe('classifyTurnClose', () => {
   it('treats the bulk-create narration as incomplete so the turn cannot go silent', () => {
@@ -37,6 +52,18 @@ describe('classifyTurnClose', () => {
     expect(classifyTurnClose('У вас три очереди.')).toBe('complete');
   });
 
+  it('treats a schema-dump after a failed plan as incomplete', () => {
+    const dump =
+      'Ой, в create_call_group параметр exten должен быть строкой (2–8 цифр), а не число. '
+      + 'Исправлю на "6001". Также проверю: в меню items для цифры t нужно указать destination.kind:"group". '
+      + 'В описании update_ivr: "target" может быть string or number. Для группы лучше указать exten="6001".';
+    expect(classifyTurnClose(dump)).toBe('incomplete');
+  });
+
+  it('keeps a short user-facing summary complete', () => {
+    expect(classifyTurnClose('Исправлю план и попробую снова.')).toBe('complete');
+  });
+
   it('treats the live hang replica after a group card as incomplete', () => {
     const text = 'Отлично! Группа создана. Теперь создам сам';
     expect(classifyTurnClose(text)).toBe('incomplete');
@@ -55,5 +82,15 @@ describe('forcedTurnStatus', () => {
     const text = forcedTurnStatus({ locale: 'ru', hadProposal: true, lastAssistant: 'Создадим через bulk' });
     expect(text).toMatch(/Подтвердить|подтвержд/i);
     expect(text.length).toBeGreaterThan(20);
+  });
+
+  it('does not quote schema reasoning in the forced status', () => {
+    const text = forcedTurnStatus({
+      locale: 'ru',
+      lastAssistant:
+        'Ой, в create_call_group параметр exten должен быть строкой. В описании update_ivr target — string or number.',
+    });
+    expect(text).not.toMatch(/create_call_group|string or number|должен быть строк/i);
+    expect(text).toMatch(/Повторите запрос|уточните/i);
   });
 });

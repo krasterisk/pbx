@@ -28,6 +28,8 @@
     font-size: 13px;
     line-height: 1.65;
     word-break: break-word;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
     background: linear-gradient(135deg, var(--color-primary), color-mix(in srgb, var(--color-primary) 60%, #8b5cf6));
     color: var(--color-primary-foreground);
 }
@@ -43,9 +45,10 @@
     font-size: 13px;
     line-height: 1.65;
     word-break: break-word;
-    background: var(--color-muted);
+    background: color-mix(in srgb, var(--color-card) 55%, color-mix(in srgb, var(--color-primary) 10%, transparent));
     color: var(--color-foreground);
-    border: 1px solid var(--color-border);
+    border: 1px solid color-mix(in srgb, var(--color-primary) 28%, var(--color-border));
+    box-shadow: 0 8px 20px color-mix(in srgb, var(--color-primary) 10%, transparent);
 }
 
 .mdParagraph { margin: 0 0 6px; &:last-child { margin-bottom: 0; } }
@@ -115,6 +118,32 @@
     color: var(--color-foreground);
 }
 
+.stepToggle {
+    width: 100%;
+    height: auto;
+    justify-content: flex-start;
+    padding: 2px 0;
+    color: inherit;
+}
+
+.stepChevron {
+    margin-left: auto;
+    opacity: 0.6;
+    transition: transform 0.15s ease;
+}
+
+.stepChevronOpen {
+    transform: rotate(180deg);
+}
+
+.stepDetail {
+    padding: 0 0 2px 21px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--color-muted-foreground);
+    white-space: pre-wrap;
+}
+
 .spinIcon { animation: spin 1s linear infinite; }
 
 @keyframes spin {
@@ -124,4 +153,10 @@
 
 .proposal {
     min-width: 0;
+}
+
+.proposalFocused {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+    border-radius: var(--radius-md);
 }

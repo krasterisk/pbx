@@ -44,9 +44,26 @@ const PROPOSAL_ID = '11111111-1111-4111-8111-111111111111';
 
 const WORKFLOW_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 
+const confirmProposalMock = vi.fn(() => ({
+  unwrap: async () => ({
+    ok: true,
+    proposal: {
+      proposalId: PROPOSAL_ID,
+      entityType: 'directory',
+      entityLabel: 'VIP',
+      summary: ['Добавить поле num'],
+      status: 'applied',
+      expiresAt: '2027-09-05T12:00:00.000Z',
+      appliedAt: '2026-09-07T15:30:33.000Z',
+      error: null,
+    },
+  }),
+}));
+
 const pendingWorkflows = [
   {
     workflowId: WORKFLOW_ID,
+    threadUid: 7,
     title: 'Open a sales queue',
     summary: ['Create queue'],
     status: 'pending',
@@ -130,7 +147,7 @@ const storedThreadDetail: {
     { kind: 'user', id: 'm1', text: 'Stored user message from yesterday', createdAt: AT },
     { kind: 'step', id: 's1', labelKey: 'aiChat.progress.tools.create_directory', labelFallback: 'create_directory', done: true, createdAt: AT },
     { kind: 'proposal', id: 'p1', card: 'single', createdAt: AT },
-    { kind: 'assistant', id: 'm4', text: 'Stored assistant reply', closeKind: 'wait_confirm', createdAt: AT },
+    { kind: 'assistant', id: 'm4', text: 'Stored assistant reply', closeKind: 'complete', createdAt: AT },
     { kind: 'user', id: 'm5', text: 'And also add a trunk', createdAt: AT },
     { kind: 'assistant', id: 'm6', text: 'I will propose a trunk next', closeKind: 'complete', createdAt: AT },
   ],
@@ -150,6 +167,8 @@ const storedThreadDetail: {
   },
 };
 
+let lastThreadDetail: typeof storedThreadDetail | { uid: number; title: string; readOnly: boolean; ownerName: string } | undefined;
+
 vi.mock('@/shared/api/endpoints/aiChatApi', () => ({
   useGetAiChatModelsQuery: () => ({ data: undefined }),
   useGetAiChatThreadsQuery: () => ({
@@ -165,14 +184,14 @@ vi.mock('@/shared/api/endpoints/aiChatApi', () => ({
     refetch: vi.fn(),
   }),
   useGetAiChatThreadQuery: (uid: number | undefined, options?: { skip?: boolean }) => {
-    if (options?.skip || uid == null) return { data: undefined, isFetching: false };
-    if (uid === 8) {
-      return {
-        data: { ...storedThreadDetail, uid: 8, title: 'Boss chat', readOnly: true, ownerName: 'Anna' },
-        isFetching: false,
-      };
+    if (options?.skip || uid == null) {
+      return { data: lastThreadDetail, currentData: undefined, isFetching: false };
     }
-    return { data: storedThreadDetail, isFetching: false };
+    const data = uid === 8
+      ? { ...storedThreadDetail, uid: 8, title: 'Boss chat', readOnly: true, ownerName: 'Anna' }
+      : storedThreadDetail;
+    lastThreadDetail = data;
+    return { data, currentData: data, isFetching: false };
   },
   useCreateAiChatThreadMutation: () => [
     () => ({ unwrap: async () => storedThreads[0] }),
@@ -183,25 +202,16 @@ vi.mock('@/shared/api/endpoints/aiChatApi', () => ({
     { isLoading: false },
   ],
   useConfirmAiChatProposalMutation: () => [
-    () => ({
-      unwrap: async () => ({
-        ok: true,
-        proposal: {
-          proposalId: PROPOSAL_ID,
-          entityType: 'directory',
-          entityLabel: 'VIP',
-          summary: ['Добавить поле num'],
-          status: 'applied',
-          expiresAt: '2027-09-05T12:00:00.000Z',
-          appliedAt: '2026-09-07T15:30:33.000Z',
-          error: null,
-        },
-      }),
-    }),
+    confirmProposalMock,
     { isLoading: false },
   ],
   useRejectAiChatProposalMutation: () => [
-    () => ({ unwrap: async () => ({ ok: true }) }),
+    () => ({
+      unwrap: async () => ({
+        ok: true,
+        proposal: { ...storedThreadDetail.cards.p1.proposal, status: 'rejected' },
+      }),
+    }),
     { isLoading: false },
   ],
   useGetPendingAiChatWorkflowsQuery: () => ({
@@ -247,6 +257,7 @@ function getFocusable(root: HTMLElement): HTMLElement[] {
 
 function mockViewport(width: number) {
   useIsMobileMock.mockImplementation((bp = 768) => width < bp);
+  Object.defineProperty(window, 'innerWidth', { configurable: true, value: width });
 }
 
 function selectStoredThread() {
@@ -267,6 +278,9 @@ describe('AssistantPanel', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    lastThreadDetail = undefined;
+    sessionStorage.clear();
+    localStorage.removeItem('assistant-panel-layout');
     mockViewport(1280);
     Element.prototype.scrollIntoView = vi.fn();
     aiChatState.isStreaming = false;
@@ -275,11 +289,12 @@ describe('AssistantPanel', () => {
       { kind: 'user', id: 'm1', text: 'Stored user message from yesterday', createdAt: AT },
       { kind: 'step', id: 's1', labelKey: 'aiChat.progress.tools.create_directory', labelFallback: 'create_directory', done: true, createdAt: AT },
       { kind: 'proposal', id: 'p1', card: 'single', createdAt: AT },
-      { kind: 'assistant', id: 'm4', text: 'Stored assistant reply', closeKind: 'wait_confirm', createdAt: AT },
+      { kind: 'assistant', id: 'm4', text: 'Stored assistant reply', closeKind: 'complete', createdAt: AT },
       { kind: 'user', id: 'm5', text: 'And also add a trunk', createdAt: AT },
       { kind: 'assistant', id: 'm6', text: 'I will propose a trunk next', closeKind: 'complete', createdAt: AT },
     ];
     turnApi.send.mockReset();
+    confirmProposalMock.mockClear();
     turnApi.continueAfterApply.mockReset();
     turnApi.stop.mockReset();
     turnApi.abort.mockReset();
@@ -332,38 +347,78 @@ describe('AssistantPanel', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it('traps Tab inside the open panel and never reaches the page behind', () => {
+  it('keeps the shell clickable in dock mode so other modules stay reachable', () => {
     render(
       <div>
-        <button type="button">page-behind</button>
+        <button type="button">module-nav</button>
         <AssistantPanel open {...dockProps} onClose={vi.fn()} />
       </div>,
     );
 
     const panel = screen.getByTestId('ai-agent-panel');
-    const focusable = getFocusable(panel);
-    expect(focusable.length).toBeGreaterThan(1);
+    expect(panel).not.toHaveAttribute('aria-modal');
+    expect(panel).toHaveAttribute('data-mode', 'dock');
+    expect(document.querySelector('[class*="overlayVisible"]')).toBeNull();
 
+    const nav = screen.getByRole('button', { name: 'module-nav' });
+    nav.focus();
+    expect(nav).toHaveFocus();
+
+    const focusable = getFocusable(panel);
     focusable[focusable.length - 1].focus();
     fireEvent.keyDown(window, { key: 'Tab' });
-    expect(document.activeElement).toBe(focusable[0]);
-    expect(screen.getByRole('button', { name: 'page-behind' })).not.toHaveFocus();
-
-    fireEvent.keyDown(window, { key: 'Tab', shiftKey: true });
     expect(document.activeElement).toBe(focusable[focusable.length - 1]);
-    expect(screen.getByRole('button', { name: 'page-behind' })).not.toHaveFocus();
   });
 
-  it('takes panel width from the stylesheet and never from an inline style', () => {
+  it('applies a remembered dock width through the panel CSS variable', () => {
+    localStorage.setItem(
+      'assistant-panel-layout',
+      JSON.stringify({ dockWidth: 640, railWidth: 240, planWidth: 240 }),
+    );
     render(<AssistantPanel open {...dockProps} onClose={vi.fn()} />);
     const panel = screen.getByTestId('ai-agent-panel');
-    expect(panel.getAttribute('style') ?? '').not.toMatch(/width|height|left|right|top|bottom/);
+    expect(panel.style.getPropertyValue('--ai-agent-panel-width')).toBe('640px');
+    expect(panel.style.width).toBe('');
     const scss = readFileSync(
       join(process.cwd(), 'src/widgets/AssistantPanel/AssistantPanel.module.scss'),
       'utf8',
     );
-    expect(scss).toMatch(/--ai-agent-panel-width:\s*60vw/);
     expect(scss).toMatch(/width:\s*var\(--ai-agent-panel-width\)/);
+  });
+
+  it('keeps the dock edge above the panel body so the outer sheet can be dragged', () => {
+    const scss = readFileSync(
+      join(process.cwd(), 'src/widgets/AssistantPanel/AssistantPanel.module.scss'),
+      'utf8',
+    );
+    expect(scss).toMatch(/\.resizeHandle[\s\S]*z-index:\s*[1-9]/);
+    expect(scss).toMatch(/\.resizeDock[\s\S]*grid-area:\s*1\s*\/\s*1\s*\/\s*-1\s*\/\s*1/);
+  });
+
+  it('lets the user drag the dock edge and remembers the width', () => {
+    render(<AssistantPanel open {...dockProps} onClose={vi.fn()} />);
+    fireEvent.pointerDown(screen.getByTestId('ai-agent-resize-dock'), { clientX: 500 });
+    fireEvent.pointerMove(window, { clientX: 420 });
+    fireEvent.pointerUp(window);
+    const panel = screen.getByTestId('ai-agent-panel');
+    expect(panel.style.getPropertyValue('--ai-agent-panel-width')).toBe('848px');
+    expect(JSON.parse(localStorage.getItem('assistant-panel-layout') ?? '{}').dockWidth).toBe(848);
+  });
+
+  it('hides resize handles on the mobile sheet', () => {
+    mockViewport(600);
+    render(<AssistantPanel open {...dockProps} onClose={vi.fn()} />);
+    expect(screen.queryByTestId('ai-agent-resize-dock')).toBeNull();
+  });
+
+  it('paints the agent on its own surface instead of the platform card token', () => {
+    const scss = readFileSync(
+      join(process.cwd(), 'src/widgets/AssistantPanel/AssistantPanel.module.scss'),
+      'utf8',
+    );
+    expect(scss).toMatch(/--ai-agent-surface/);
+    expect(scss).toMatch(/--ai-agent-accent/);
+    expect(scss).not.toMatch(/\.panel \{[^}]*background:\s*var\(--color-card\);/s);
   });
 
   it('renders a thread rail beside the conversation above the wide breakpoint', () => {
@@ -406,11 +461,34 @@ describe('AssistantPanel', () => {
     expect(laterAssistantAt).toBeGreaterThan(laterUserAt);
   });
 
+  it.each(['подтверждаю', 'подтвердить', 'да, подтверждаю'])(
+    'applies the pending card when the user types %s in the composer',
+    async (phrase) => {
+      render(<AssistantPanel open {...dockProps} onClose={vi.fn()} />);
+      selectStoredThread();
+      const input = document.getElementById('ai-chat-input') as HTMLTextAreaElement;
+      input.value = phrase;
+      fireEvent.click(screen.getByLabelText('aiChat.send'));
+      await vi.waitFor(() => expect(confirmProposalMock).toHaveBeenCalledWith(PROPOSAL_ID));
+      expect(turnApi.continueAfterApply).toHaveBeenCalledTimes(1);
+      expect(turnApi.send).not.toHaveBeenCalled();
+    },
+  );
+
   it('continues the conversation through the continue endpoint after apply', async () => {
     render(<AssistantPanel open {...dockProps} onClose={vi.fn()} />);
     selectStoredThread();
     fireEvent.click(screen.getByRole('button', { name: 'aiChat.card.apply' }));
     await vi.waitFor(() => expect(turnApi.continueAfterApply).toHaveBeenCalledTimes(1));
+    expect(turnApi.send).not.toHaveBeenCalled();
+  });
+
+  it('does not continue after reject as if the card was applied', async () => {
+    render(<AssistantPanel open {...dockProps} onClose={vi.fn()} />);
+    selectStoredThread();
+    fireEvent.click(screen.getByRole('button', { name: 'aiChat.card.reject' }));
+    await vi.waitFor(() => expect(screen.getByText('aiChat.card.badge.rejected')).toBeInTheDocument());
+    expect(turnApi.continueAfterApply).not.toHaveBeenCalled();
     expect(turnApi.send).not.toHaveBeenCalled();
   });
 
@@ -434,12 +512,21 @@ describe('AssistantPanel', () => {
     render(<AssistantPanel open {...dockProps} onClose={vi.fn()} />);
     selectStoredThread();
     expect(screen.getByText('Stored user message from yesterday')).toBeInTheDocument();
+    expect(sessionStorage.getItem('assistant-selected-thread')).toBe('7');
 
     fireEvent.click(screen.getByRole('button', { name: 'aiChat.clearChat' }));
 
     expect(screen.queryByText('Stored user message from yesterday')).toBeNull();
     expect(screen.getByText('aiChat.welcome')).toBeInTheDocument();
     expect(screen.getByRole('option', { name: /Yesterday's call/ })).toBeInTheDocument();
+    expect(sessionStorage.getItem('assistant-selected-thread')).toBeNull();
+  });
+
+  it('restores the last selected conversation after remount', () => {
+    sessionStorage.setItem('assistant-selected-thread', '7');
+    render(<AssistantPanel open {...dockProps} onClose={vi.fn()} />);
+    expect(screen.getByRole('option', { selected: true })).toHaveTextContent(/Yesterday's call/);
+    expect(screen.getByText('Stored user message from yesterday')).toBeInTheDocument();
   });
 
   it('clears the conversation column after deleting the selected conversation', async () => {
@@ -500,11 +587,39 @@ describe('AssistantPanel', () => {
     expect(en.aiChat).not.toHaveProperty('continueAfterApply');
   });
 
+  it('keeps send inside a one-line growing composer', () => {
+    render(<AssistantPanel open {...dockProps} onClose={vi.fn()} />);
+    const shell = screen.getByTestId('ai-agent-input-shell');
+    const input = document.getElementById('ai-chat-input');
+    const send = screen.getByRole('button', { name: 'aiChat.send' });
+    expect(input).not.toBeNull();
+    expect(shell.contains(input)).toBe(true);
+    expect(shell.contains(send)).toBe(true);
+    expect((input as HTMLTextAreaElement).rows).toBe(1);
+    const scss = readFileSync(
+      join(process.cwd(), 'src/widgets/AssistantPanel/AssistantPanel.module.scss'),
+      'utf8',
+    );
+    expect(scss).toMatch(/\.composerInput[\s\S]*min-height:\s*44px/);
+    expect(scss).toMatch(/\.composerInput[\s\S]*max-height:\s*168px/);
+    expect(scss).toMatch(/\.composerInput[\s\S]*resize:\s*none/);
+    expect(scss).toMatch(/\.sendBtn[\s\S]*position:\s*absolute/);
+    expect(scss).toMatch(/\.sendBtn[\s\S]*right:\s*6px/);
+    expect(scss).toMatch(/\.sendBtn[\s\S]*bottom:\s*6px/);
+  });
+
   it('does not render a model selector in the tenant panel', () => {
     render(<AssistantPanel open {...dockProps} onClose={vi.fn()} />);
     expect(screen.queryByTitle('aiChat.selectModel')).toBeNull();
     expect(screen.queryByRole('combobox')).toBeNull();
     expect(document.querySelector('select')).toBeNull();
+  });
+
+  it('shows a working status while a turn is in flight', () => {
+    turnApi.isStreaming = true;
+    render(<AssistantPanel open {...dockProps} onClose={vi.fn()} />);
+    expect(screen.getByTestId('ai-agent-header-status')).toHaveTextContent('aiChat.progress.working');
+    expect(screen.getByTestId('ai-agent-working')).toBeInTheDocument();
   });
 
   it('replaces send with stop while a turn is in flight and returns to send after', () => {
@@ -635,9 +750,14 @@ describe('AssistantPanel', () => {
     const streamingKeys = [
       'aiChat.progress.working',
       'aiChat.progress.tools.get_pbx_state',
+      'aiChat.progress.tools.list_tts_engines',
+      'aiChat.progress.tools.propose_plan',
+      'aiChat.progress.unknownStep',
+      'aiChat.progress.detail.planFailed',
       'aiChat.stopped',
       'aiChat.ceiling',
       'aiChat.failed',
+      'aiChat.timeout',
       'aiChat.disconnected',
       'aiChat.reconnect',
       'aiChat.jumpToLatest',
@@ -660,40 +780,24 @@ describe('AssistantPanel', () => {
     expect(ru.aiChat.jumpToLatest).toBe('К последним сообщениям');
   });
 
-  it('is a modal drawer in dock mode', () => {
-    render(<AssistantPanel open {...dockProps} onClose={vi.fn()} />);
-    expect(screen.getByTestId('ai-agent-panel')).toHaveAttribute('aria-modal', 'true');
-    expect(screen.getByTestId('ai-agent-panel')).toHaveAttribute('data-mode', 'dock');
-  });
-
-  it('does not trap focus or dim the shell in workspace mode', () => {
-    const onModeChange = vi.fn();
+  it('covers the full viewport in workspace mode so leftover shell chrome is not shown', () => {
     render(
-      <div>
-        <button type="button">page-behind</button>
-        <AssistantPanel
-          open
-          mode="workspace"
-          onModeChange={onModeChange}
-          onClose={vi.fn()}
-        />
-      </div>,
+      <AssistantPanel
+        open
+        mode="workspace"
+        onModeChange={vi.fn()}
+        onClose={vi.fn()}
+      />,
     );
-
     const panel = screen.getByTestId('ai-agent-panel');
     expect(panel).not.toHaveAttribute('aria-modal');
     expect(panel).toHaveAttribute('data-mode', 'workspace');
-    expect(document.querySelector('[class*="overlayVisible"]')).toBeNull();
-
-    const focusable = getFocusable(panel);
-    expect(focusable.length).toBeGreaterThan(1);
-    focusable[focusable.length - 1].focus();
-    fireEvent.keyDown(window, { key: 'Tab' });
-    expect(document.activeElement).toBe(focusable[focusable.length - 1]);
-
-    const behind = screen.getByRole('button', { name: 'page-behind' });
-    behind.focus();
-    expect(behind).toHaveFocus();
+    const scss = readFileSync(
+      join(process.cwd(), 'src/widgets/AssistantPanel/AssistantPanel.module.scss'),
+      'utf8',
+    );
+    expect(scss).toMatch(/\.panelWorkspace\s*\{[^}]*inset:\s*0/s);
+    expect(scss).not.toMatch(/\.panelWorkspace\s*\{[^}]*--shell-sidebar-width/s);
   });
 
   it('escape returns workspace to dock instead of closing', () => {
@@ -712,7 +816,7 @@ describe('AssistantPanel', () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
-  it('takes workspace geometry from the shell variables, never from inline styles', () => {
+  it('does not pin workspace geometry to the leftover main column', () => {
     render(
       <AssistantPanel
         open
@@ -722,13 +826,9 @@ describe('AssistantPanel', () => {
       />,
     );
     const panel = screen.getByTestId('ai-agent-panel');
-    const scss = readFileSync(
-      join(process.cwd(), 'src/widgets/AssistantPanel/AssistantPanel.module.scss'),
-      'utf8',
-    );
-    expect(scss).toMatch(/--shell-topbar-height/);
-    expect(scss).toMatch(/--shell-sidebar-width/);
-    expect(panel.getAttribute('style') ?? '').not.toMatch(/width|left|top/);
+    expect(panel.style.left).toBe('');
+    expect(panel.style.top).toBe('');
+    expect(panel.style.width).toBe('');
   });
 
   it('keeps the sidebar width variable overridden when the shell collapses', () => {
@@ -739,7 +839,7 @@ describe('AssistantPanel', () => {
     expect(scss.match(/--shell-sidebar-width:/g) ?? []).toHaveLength(2);
   });
 
-  it('shows the plan rail in workspace and hides it in dock', () => {
+  it('shows the plan rail in workspace and opens it from the header in dock', () => {
     const { rerender } = render(
       <AssistantPanel
         open
@@ -750,7 +850,14 @@ describe('AssistantPanel', () => {
     );
     expect(screen.getByTestId('ai-agent-plan-rail')).toBeInTheDocument();
     expect(screen.getByText('Open a sales queue')).toBeInTheDocument();
+    const workspaceToggle = screen.getByRole('button', { name: 'aiChat.openPlans' });
+    expect(workspaceToggle).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByTestId('ai-agent-panel').innerHTML).not.toContain(WORKFLOW_ID);
+    fireEvent.click(workspaceToggle);
+    expect(screen.queryByTestId('ai-agent-plan-rail')).toBeNull();
+    expect(screen.getByRole('button', { name: 'aiChat.openPlans' })).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(screen.getByRole('button', { name: 'aiChat.openPlans' }));
+    expect(screen.getByTestId('ai-agent-plan-rail')).toBeInTheDocument();
     const scss = readFileSync(
       join(process.cwd(), 'src/widgets/AssistantPanel/AssistantPanel.module.scss'),
       'utf8',
@@ -762,6 +869,51 @@ describe('AssistantPanel', () => {
     rerender(<AssistantPanel open {...dockProps} onClose={vi.fn()} />);
     expect(screen.queryByTestId('ai-agent-plan-rail')).toBeNull();
     expect(screen.queryByText('Open a sales queue')).toBeNull();
+
+    const toggle = screen.getByRole('button', { name: 'aiChat.openPlans' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(toggle).toHaveAttribute('aria-pressed', 'false');
+    expect(toggle).toHaveTextContent('1');
+    fireEvent.click(toggle);
+
+    expect(screen.getByTestId('ai-agent-plan-rail')).toBeInTheDocument();
+    expect(screen.getByText('Open a sales queue')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'aiChat.openPlans' })).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('button', { name: 'aiChat.openPlans' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'aiChat.openPlans' })).toHaveAttribute('data-active', 'true');
+    expect(screen.getByRole('button', { name: 'aiChat.backToChat' })).toBeInTheDocument();
+  });
+
+  it('returns to the chat from the plans overlay back control', () => {
+    render(<AssistantPanel open {...dockProps} onClose={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'aiChat.openPlans' }));
+    fireEvent.click(screen.getByRole('button', { name: 'aiChat.backToChat' }));
+
+    expect(screen.queryByTestId('ai-agent-plan-rail')).toBeNull();
+    expect(screen.getByRole('button', { name: 'aiChat.openPlans' })).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('closes the dock plans overlay on escape without closing the panel', () => {
+    const onClose = vi.fn();
+    render(<AssistantPanel open {...dockProps} onClose={onClose} />);
+    fireEvent.click(screen.getByRole('button', { name: 'aiChat.openPlans' }));
+    expect(screen.getByTestId('ai-agent-plan-rail')).toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+
+    expect(screen.queryByTestId('ai-agent-plan-rail')).toBeNull();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('opens the conversation from a dock plan card', () => {
+    render(<AssistantPanel open {...dockProps} onClose={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'aiChat.openPlans' }));
+    fireEvent.click(screen.getByText('Open a sales queue'));
+
+    expect(screen.queryByTestId('ai-agent-plan-rail')).toBeNull();
+    expect(screen.getByText('Stored user message from yesterday')).toBeInTheDocument();
+    expect(sessionStorage.getItem('assistant-selected-thread')).toBe('7');
+    expect(screen.getByTestId('ai-agent-panel').innerHTML).not.toContain(WORKFLOW_ID);
   });
 
   it('falls back to dock on a narrow viewport', () => {

@@ -70,6 +70,21 @@ describe('ivr-menu-actions.util', () => {
     }));
   });
 
+  it('keeps totrunk in a timeout chain', () => {
+    const result = normalizeIvrMenuItems([
+      {
+        digit: 't',
+        actions: [
+          { type: 'togroup', params: { target: { source: 'fixed', value: '9010' } } },
+          { type: 'totrunk', params: { trunk: 'PJSIP/out', dest: { source: 'fixed', value: '7900' } } },
+          { type: 'hangup', params: {} },
+        ],
+      },
+    ]);
+    expect(result.unmapped).toEqual([]);
+    expect(result.items[0].actions.map((action) => action.type)).toEqual(['togroup', 'totrunk', 'hangup']);
+  });
+
   it('leaves an unknown action type unmapped so the write path can refuse it', () => {
     const result = normalizeIvrMenuItems([
       { digit: '1', actions: [{ type: 'not-an-app', params: {} }] },

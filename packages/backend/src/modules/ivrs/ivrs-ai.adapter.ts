@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, Optional } from '@nestjs/common';
 import { z } from 'zod';
 import { toPublicExten } from '../../shared/utils/tenant-public-id.util';
 import { IvrsService } from './ivrs.service';
@@ -6,6 +6,8 @@ import { ContextsService } from '../contexts/contexts.service';
 import { EndpointsService } from '../endpoints/endpoints.service';
 import { QueuesService } from '../queues/queues.service';
 import { CallGroupsService } from '../call-groups/call-groups.service';
+import { TtsEnginesService } from '../tts-engines/tts-engines.service';
+import { isSpeechEngineConfigured, toSpeechEngineView } from '../tts-engines/tts-engines-ai.adapter';
 import { AiAdapterRegistryService } from '../ai-platform/ai-adapter-registry.service';
 import {
   AiToolDefinition,
@@ -71,11 +73,12 @@ const createInput = z.strictObject({
   name: z.string().min(1).describe('Имя меню'),
   prompts: z.array(promptInput).optional().describe('Приветствие [{kind: tts, text, engine_uid}]'),
   text: z.string().optional().describe('Текст TTS-приветствия, если prompts не переданы'),
-  engine_uid: z.number().int().min(0).optional().describe('UID TTS-движка из list_tts_engines'),
+  engine_uid: z.number().int().min(0).optional().describe('Не передавай: сервер сам выберет движок по имени'),
+  engine: z.string().optional().describe('Имя TTS-движка из list_tts_engines, не uid'),
   menu_items: z
     .array(menuItemInput)
     .optional()
-    .describe('[{digit, actions|destination}] карта цифр; t → group'),
+    .describe('[{digit, actions|destination}] цепочка пункта как в редакторе маршрутов; destination = первый шаг; t часто togroup затем totrunk/hangup'),
   steps: z.array(menuItemInput).optional().describe('Псевдоним menu_items'),
 });
 
@@ -131,6 +134,7 @@ export class IvrsAiAdapter implements DomainAiAdapter, OnModuleInit {
     private readonly endpointsService: EndpointsService,
     private readonly queuesService: QueuesService,
     private readonly callGroupsService: CallGroupsService,
+    @Optional() private readonly ttsEngines?: TtsEnginesService,
   ) {}
 
   onModuleInit(): void {
@@ -148,7 +152,8 @@ export class IvrsAiAdapter implements DomainAiAdapter, OnModuleInit {
 
   getKnowledgeBlock(): string {
     return `## Голосовые меню (IVR)
-- Цифра → context / extension / queue / menu / group. Абонент — kind extension (persist toexten, не dial). Таймаут (t) в группу — kind group (togroup + target), не extension.
+- Цифра — цепочка действий того же редактора, что у маршрутов (DialplanAppsEditor). destination {kind,target} = только первый шаг. Абонент — kind extension (toexten). Таймаут t обычно начинается с kind group (togroup).
+- После группы внешний номер / почта / сброс — следующие actions (totrunk, voicemail, hangup), не overflow группы и не «замени группу очередью». Перед нетривиальной цепочкой — list_dialplan_apps(host=ivr).
 - «группа 101-103» = одна группа с членами 101–103. Приветствие — prompts TTS, не description. Текст и карту цифр из любой реплики треда не переспрашивай.`;
   }
 
@@ -190,7 +195,7 @@ export class IvrsAiAdapter implements DomainAiAdapter, OnModuleInit {
       reload: { kind: 'none' },
       propose: async (input, ctx) => {
         const uid = ctx.vpbxUserUid;
-        const catalog = await this.loadCatalog(uid);
+        const catalog = this.mergePlanned(await this.loadCatalog(uid), ctx.planned);
         const normalized = this.normalizeProposedMenu(
           input.menu_items ?? input.steps,
           catalog,
@@ -200,21 +205,31 @@ export class IvrsAiAdapter implements DomainAiAdapter, OnModuleInit {
         if (normalized.refused) return normalized.refused;
         const menuItems = normalized.items;
 
-        const prompts = asPrompts(input as Record<string, unknown>);
+        const prompts = await this.resolvePrompts(input as Record<string, unknown>, uid);
         const applyArgs: CreateArgs = {
           name: input.name,
           menu_items: menuItems as CreateArgs['menu_items'],
         };
-        if (prompts.length) applyArgs.prompts = prompts as CreateArgs['prompts'];
+        if (prompts.length) applyArgs.prompts = toApplyPrompts(prompts);
 
-        const summary = summarizeCreateIvr(applyArgs.name, prompts, menuItems);
+        const summary = summarizeCreateIvr(
+          applyArgs.name,
+          prompts,
+          menuItems,
+          catalog,
+        );
 
         return this.proposal(
           'create_ivr',
-          String(input.name || 'IVR'),
+          `Меню «${input.name || 'IVR'}»`,
           applyArgs as unknown as Record<string, unknown>,
           null,
-          { name: applyArgs.name, digits: digitMapOf(menuItems), greeting: prompts[0]?.text ?? null },
+          {
+            name: applyArgs.name,
+            digits: publicDigitMapOf(menuItems, catalog),
+            greeting: prompts[0]?.text ?? null,
+            voice: prompts[0]?.engineName ?? null,
+          },
           summary,
         );
       },
@@ -239,7 +254,7 @@ export class IvrsAiAdapter implements DomainAiAdapter, OnModuleInit {
         const uid = ctx.vpbxUserUid;
         const id = input.id;
         const current = await this.ivrsService.findOne(id, uid);
-        const catalog = await this.loadCatalog(uid);
+        const catalog = this.mergePlanned(await this.loadCatalog(uid), ctx.planned);
         const currentItems = asIvrMenuItems(current.menu_items);
         const normalized = this.normalizeProposedMenu(
           this.nextMenuItems(currentItems, input as Record<string, unknown>),
@@ -252,8 +267,8 @@ export class IvrsAiAdapter implements DomainAiAdapter, OnModuleInit {
 
         const applyArgs: UpdateArgs = { id, menu_items: nextItems as UpdateArgs['menu_items'] };
         if (input.name) applyArgs.name = input.name;
-        const prompts = asPrompts(input as Record<string, unknown>);
-        if (prompts.length) applyArgs.prompts = prompts as UpdateArgs['prompts'];
+        const prompts = await this.resolvePrompts(input as Record<string, unknown>, uid);
+        if (prompts.length) applyArgs.prompts = toApplyPrompts(prompts);
 
         const digit = input.digit != null ? String(input.digit) : changedDigit(currentItems, nextItems);
         const oldDest = digit ? destinationOfDigit(currentItems, digit) : null;
@@ -385,7 +400,7 @@ export class IvrsAiAdapter implements DomainAiAdapter, OnModuleInit {
         items: normalized.items,
         refused: {
           refused: true,
-          message: `Неизвестный тип действия диалплана: ${normalized.unmapped.map((row) => row.type).join(', ')}. Нужны toexten / togroup / toqueue / toivr / toroute.`,
+          message: `Неизвестный тип действия диалплана: ${normalized.unmapped.map((row) => row.type).join(', ')}. Нужны типы редактора маршрутов: toexten, togroup, toqueue, toivr, toroute, totrunk, voicemail, hangup, playback.`,
         },
       };
     }
@@ -393,6 +408,67 @@ export class IvrsAiAdapter implements DomainAiAdapter, OnModuleInit {
     if (refused) return { items: normalized.items, refused };
     this.logger.log(`${tool} tenant=${uid} menu=${summarizeIvrMenu(normalized.items)}`);
     return { items: normalized.items };
+  }
+
+  private async resolvePrompts(args: Record<string, unknown>, uid: number): Promise<PromptPhrase[]> {
+    const prompts = asPrompts(args);
+    if (!prompts.length) return prompts;
+    const picked = await this.pickTtsEngine(uid, args);
+    return prompts.map((prompt) => {
+      if (Number(prompt.engine_uid) > 0 && !args.engine) {
+        return { ...prompt, engineName: picked?.name };
+      }
+      if (!picked) return prompt;
+      return { ...prompt, engine_uid: picked.uid, engineName: picked.name };
+    });
+  }
+
+  private async pickTtsEngine(
+    uid: number,
+    args: Record<string, unknown>,
+  ): Promise<{ uid: number; name: string } | null> {
+    if (!this.ttsEngines) return null;
+    const rows = await this.ttsEngines.findAll(uid);
+    const views = rows
+      .map((row) => ({ row, view: toSpeechEngineView(row) }))
+      .filter((item) => item.view.enabled && isSpeechEngineConfigured(item.row));
+    const named = typeof args.engine === 'string' ? args.engine.trim().toLowerCase() : '';
+    if (named) {
+      const hit = views.find((item) => item.view.name.trim().toLowerCase() === named)
+        ?? rows.find((row) => String(row.name ?? '').trim().toLowerCase() === named);
+      if (hit && 'view' in hit) return { uid: Number(hit.row.uid), name: hit.view.name };
+      if (hit && 'uid' in hit) return { uid: Number(hit.uid), name: String(hit.name ?? '') };
+    }
+    const requested = Number(args.engine_uid);
+    if (requested > 0) {
+      const hit = views.find((item) => Number(item.row.uid) === requested);
+      if (hit) return { uid: requested, name: hit.view.name };
+    }
+    if (views.length === 0) return null;
+    const yandex = views.find((item) =>
+      /yandex/i.test(item.view.name) || /yandex/i.test(String(item.view.vendor ?? '')),
+    );
+    const chosen = yandex ?? views[0];
+    return { uid: Number(chosen.row.uid), name: chosen.view.name };
+  }
+
+  private mergePlanned(catalog: DestCatalog, planned?: AiMutationContext['planned']): DestCatalog {
+    if (!planned) return catalog;
+    return {
+      ...catalog,
+      endpoints: [
+        ...catalog.endpoints,
+        ...planned.extensions.map((extension) => ({ extension })),
+      ],
+      groups: [
+        ...catalog.groups,
+        ...planned.groups.map((group) => ({ name: group.name, exten: group.exten })),
+      ],
+      queues: [
+        ...catalog.queues,
+        ...planned.queues.map((queue) => ({ name: queue.name, exten: queue.exten })),
+      ],
+    };
   }
 
   private async loadCatalog(uid: number): Promise<DestCatalog> {
@@ -438,6 +514,7 @@ interface PromptPhrase {
   kind: string;
   text?: string;
   engine_uid?: number;
+  engineName?: string;
 }
 
 function asPrompts(args: Record<string, unknown>): PromptPhrase[] {
@@ -458,16 +535,30 @@ function asPrompts(args: Record<string, unknown>): PromptPhrase[] {
   return [{ kind: 'tts', text, engine_uid: args.engine_uid != null ? Number(args.engine_uid) : 0 }];
 }
 
+function toApplyPrompts(prompts: PromptPhrase[]): Array<{ kind: string; text?: string; engine_uid: number }> {
+  return prompts.map((prompt) => ({
+    kind: prompt.kind,
+    ...(prompt.text != null ? { text: prompt.text } : {}),
+    engine_uid: Number(prompt.engine_uid ?? 0),
+  }));
+}
+
 function resolveMenuItems(items: IvrMenuItem[], catalog: DestCatalog): IvrMenuItem[] {
   return items.map((item) => {
     const dest = destinationFromIvrActions(item.actions);
     if (!dest || dest.kind !== 'group') return item;
     const group = resolveGroup(catalog, dest.target);
     if (!group?.uid) return item;
-    return {
-      digit: item.digit,
-      actions: [actionFromIvrDestination({ kind: 'group', target: String(group.uid) }, { digit: item.digit })],
-    };
+    let replaced = false;
+    const actions = item.actions.map((action, index) => {
+      if (replaced || String(action.type ?? '') !== 'togroup') return action;
+      replaced = true;
+      return actionFromIvrDestination(
+        { kind: 'group', target: String(group.uid) },
+        { digit: item.digit, index },
+      );
+    });
+    return { digit: item.digit, actions };
   });
 }
 
@@ -561,24 +652,67 @@ function changedDigit(before: IvrMenuItem[], after: IvrMenuItem[]): string | nul
 
 function formatDest(dest: DigitDestination | null): string {
   if (!dest) return 'нет';
-  return dest.target;
+  return formatIvrRoute(dest.kind, dest.target);
+}
+
+function kindLabel(kind: string): string {
+  if (kind === 'extension') return 'абонент';
+  if (kind === 'group') return 'группа';
+  if (kind === 'queue') return 'очередь';
+  if (kind === 'menu') return 'меню';
+  if (kind === 'context') return 'контекст';
+  return kind;
+}
+
+function formatIvrRoute(kind: string, target: string): string {
+  return `${kindLabel(kind)} ${target}`.trim();
+}
+
+function digitLabel(digit: string): string {
+  if (digit === 't') return 'таймаут';
+  if (digit === 'i') return 'ошибка ввода';
+  return digit;
+}
+
+function publicDest(dest: DigitDestination, catalog?: DestCatalog): DigitDestination {
+  if (dest.kind === 'group' && catalog) {
+    const group = resolveGroup(catalog, dest.target);
+    return { kind: 'group', target: String(group?.exten || group?.name || dest.target) };
+  }
+  if (dest.kind === 'extension') {
+    return { kind: 'extension', target: toPublicExten(dest.target) };
+  }
+  return dest;
+}
+
+function publicDigitMapOf(items: unknown, catalog: DestCatalog): Record<string, DigitDestination | { kind: 'none' }> {
+  const map: Record<string, DigitDestination | { kind: 'none' }> = {};
+  for (const item of asIvrMenuItems(items)) {
+    const dest = destinationFromIvrActions(item.actions);
+    map[item.digit] = dest ? publicDest(dest, catalog) : { kind: 'none' };
+  }
+  return map;
 }
 
 function summarizeCreateIvr(
   name: string,
-  prompts: Array<{ text?: string; engine_uid?: number }>,
+  prompts: Array<{ text?: string; engine_uid?: number; engineName?: string }>,
   items: IvrMenuItem[],
+  catalog?: DestCatalog,
 ): string[] {
   const lines = [`Создать голосовое меню ${name}`];
   const greeting = prompts[0]?.text?.trim();
   if (greeting) lines.push(`Приветствие: ${greeting}`);
-  if (prompts[0] && !Number(prompts[0].engine_uid)) {
-    lines.push('Движок TTS не выбран — фразу повесьте на экране меню или назовите engine_uid.');
+  if (prompts[0]?.engineName) {
+    lines.push(`Голос: ${prompts[0].engineName}`);
+  } else if (prompts[0] && !Number(prompts[0].engine_uid)) {
+    lines.push('Голосовой движок не настроен в кабинете — фразу можно повесить на экране меню.');
   }
   for (const item of items) {
     const dest = destinationFromIvrActions(item.actions);
     if (!dest) continue;
-    lines.push(`${item.digit} → ${dest.kind} ${dest.target}`);
+    const shown = publicDest(dest, catalog);
+    lines.push(`${digitLabel(item.digit)} → ${formatIvrRoute(shown.kind, shown.target)}`);
   }
   return lines;
 }
