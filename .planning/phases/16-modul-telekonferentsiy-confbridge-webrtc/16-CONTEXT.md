@@ -198,6 +198,7 @@
 - `packages/backend/src/modules/callcenter/callcenter.service.ts` (`addToConference`, ~строка 1738) — поглощается по D-03
 - `packages/backend/src/modules/callcenter/guards/display-token.guard.ts` и `packages/backend/src/modules/voicemail/voicemail-access-token.model.ts` — прецеденты opaque-токена с TTL и отзывом для D-12
 - `packages/backend/src/modules/callcenter/callcenter-webrtc.controller.ts` — `GET /callcenter/webrtc/config`, `ASTERISK_WSS_URL`, ICE/TURN; клиент `sip.js@0.21.2`, `UserAgent` + `Registerer`
+- `.planning/spikes/002-confbridge-sfu-video-grid/public/` — **работающий черновой клиент комнаты** из спайка: сетка плиток из `ontrack`, обход `setRemoteTrack`, индикаторы потоков. Как дизайн сырой, но как проверенный референс раскладки и состояний — годится; рецепты в skill `spike-findings-krasterisk-v4`
 - `packages/backend/src/modules/ai-platform/module-coverage.registry.ts` — сюда обязана лечь запись модуля (D-41)
 - `packages/backend/src/modules/cloud-admin/hub-modules.seed.ts` — каталог Module Hub, `kind: base` против `kind: market` (D-27)
 - `packages/backend/src/shared/utils/dialplan-curl.util.ts` — `buildCurlCall` для рантайм-лукапа из D-05

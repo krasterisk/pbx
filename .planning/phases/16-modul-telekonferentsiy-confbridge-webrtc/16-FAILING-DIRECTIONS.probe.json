@@ -1,0 +1,275 @@
+{
+  "status": "ok",
+  "commands": [
+    {
+      "command": "npm run test -w @krasterisk/backend -- --testPathPattern=\"conference-spine|confbridge-static-profile\" --no-coverage",
+      "statement": "non-zero exit, or \"0 passed\" in the Jest summary line, or the \"Test Suites:\" line reports fewer than 2 passed (the widened pattern must execute both conference-spine.spec.ts and confbridge-static-profile.service.spec.ts — a silently skipped static-profile spec leaves R-PROFILE unverified), or \"Cannot find module\" in the output",
+      "status": "ok",
+      "severity": "none",
+      "plan": "16-01-PLAN.md",
+      "task": "Task 1: Спина end-to-end — комната → диалплан → AMI → SSE, один путь"
+    },
+    {
+      "command": "npm run test -w @krasterisk/backend -- --testPathPattern=\"dialplan-target\" --no-coverage",
+      "statement": "non-zero exit, or the run reports fewer than the pre-existing number of passing tests in dialplan-target.util.spec.ts",
+      "status": "ok",
+      "severity": "none",
+      "plan": "16-01-PLAN.md",
+      "task": "Task 1: Спина end-to-end — комната → диалплан → AMI → SSE, один путь"
+    },
+    {
+      "command": "npm run test -w @krasterisk/backend -- --testPathPattern=\"conference-schema\" --no-coverage",
+      "statement": "non-zero exit, or \"0 passed\" in the Jest summary line",
+      "status": "ok",
+      "severity": "none",
+      "plan": "16-01-PLAN.md",
+      "task": "Task 3: Дочерние модели домена и скрипт развёртывания схемы"
+    },
+    {
+      "command": "npm run lint",
+      "statement": "non-zero exit, or any line matching \"error\" in the ESLint output",
+      "status": "ok",
+      "severity": "none",
+      "plan": "16-01-PLAN.md",
+      "task": "Task 3: Дочерние модели домена и скрипт развёртывания схемы"
+    },
+    {
+      "command": "npm run test -w @krasterisk/backend -- --testPathPattern=\"conference-rooms.service\" --no-coverage",
+      "statement": "non-zero exit, or \"0 passed\" in the Jest summary line",
+      "status": "ok",
+      "severity": "none",
+      "plan": "16-02-PLAN.md",
+      "task": "Task 1: Полный CRUD комнаты с удалением контекста и переприменением на каждой мутации"
+    },
+    {
+      "command": "npm run test -w @krasterisk/backend -- --testPathPattern=\"conference-ephemeral\" --no-coverage",
+      "statement": "non-zero exit, or \"0 passed\" in the Jest summary line",
+      "status": "ok",
+      "severity": "none",
+      "plan": "16-02-PLAN.md",
+      "task": "Task 2: Эфемерные комнаты — создание кодом и угасание после встречи"
+    },
+    {
+      "command": "npm run test -w @krasterisk/backend -- --testPathPattern=\"conference-rooms.service\" --no-coverage",
+      "statement": "non-zero exit, or \"0 passed\" in the Jest summary line",
+      "status": "ok",
+      "severity": "none",
+      "plan": "16-02-PLAN.md",
+      "task": "Task 3: Поглощение ad hoc конференции колл-центра и аудит входа админа"
+    },
+    {
+      "command": "npm run test -w @krasterisk/backend -- --testPathPattern=\"callcenter\" --no-coverage",
+      "statement": "non-zero exit, or any line matching \"✕\" in the Jest output (a pre-existing call-center test regressed)",
+      "status": "ok",
+      "severity": "none",
+      "plan": "16-02-PLAN.md",
+      "task": "Task 3: Поглощение ad hoc конференции колл-центра и аудит входа админа"
+    },
+    {
+      "command": "npm run test -w @krasterisk/backend -- --testPathPattern=\"conference-dialplan\" --no-coverage",
+      "statement": "non-zero exit, or \"0 passed\" in the Jest summary line",
+      "status": "ok",
+      "severity": "none",
+      "plan": "16-03-PLAN.md",
+      "task": "Task 1: Тенантный mask-index и его пересборка на каждой мутации комнаты"
+    },
+    {
+      "command": "npm run test -w @krasterisk/backend -- --testPathPattern=\"conference-rooms.service\" --no-coverage",
+      "statement": "non-zero exit, or any line matching \"✕\" in the Jest output",
+      "status": "ok",
+      "severity": "none",
+      "plan": "16-03-PLAN.md",
+      "task": "Task 1: Тенантный mask-index и его пересборка на каждой мутации комнаты"
+    },
+    {
+      "command": "npm run test -w @krasterisk/backend -- --testPathPattern=\"dialplan.util\" --no-coverage",
+      "statement": "non-zero exit, or \"0 passed\" in the Jest summary line",
+      "status": "ok",
+      "severity": "none",
+      "plan": "16-03-PLAN.md",
+      "task": "Task 2: Шаг маршрута — переход в комнату вместо голого имени, параметры без `options`"
+    },
+    {
+      "command": "npm run test -w @krasterisk/backend -- --testPathPattern=\"dialplan-params\" --no-coverage",
+      "statement": "non-zero exit, or any line matching \"✕\" in the Jest output",
+      "status": "ok",
+      "severity": "none",
+      "plan": "16-03-PLAN.md",
+      "task": "Task 2: Шаг маршрута — переход в комнату вместо голого имени, параметры без `options`"
+    },
+    {
+      "command": "npm run test -w @krasterisk/backend -- --testPathPattern=\"legacy-confbridge-steps\" --no-coverage",
+      "statement": "non-zero exit, or \"0 passed\" in the Jest summary line",
+      "status": "ok",
+      "severity": "none",
+      "plan": "16-03-PLAN.md",
+      "task": "Task 3: Отчёт по унаследованным шагам `confbridge` и запись модуля в реестре покрытия AI"
+    },
+    {
+      "command": "npm run test -w @krasterisk/backend -- --testPathPattern=\"ai-adapter-completeness\" --no-coverage",
+      "statement": "non-zero exit, or the output contains \"unclassified module directory: conferences\"",
+      "status": "ok",
+      "severity": "none",
+      "plan": "16-03-PLAN.md",
+      "task": "Task 3: Отчёт по унаследованным шагам `confbridge` и запись модуля в реестре покрытия AI"
+    },
+    {
+      "command": "npm run test -w @krasterisk/frontend -- src/features/dialplan-apps/model/useSchemaRefs.test.tsx",
+      "statement": "non-zero exit, or \"0 passed\" in the Vitest summary line",
+      "status": "ok",
+      "severity": "none",
+      "plan": "16-04-PLAN.md",
+      "task": "Task 1: Каталог комнат — RTK-эндпоинт и обязательная тройка регистрации"
+    },
+    {
+      "command": "npm run test -w @krasterisk/frontend -- src/features/dialplan-apps",
+      "statement": "non-zero exit, or \"0 passed\" in the Vitest summary line",
+      "status": "ok",
+      "severity": "none",
+      "plan": "16-04-PLAN.md",
+      "task": "Task 2: Контрол выбора комнаты, схема шага и копирайтинг"
+    },
+    {
+      "command": "npm run test:frontend",
+      "statement": "non-zero exit, or any line matching \"✕\" in the Vitest output (задача правит общие поверхности — `ValueSourceField`, `SchemaFields`, `registry.ts` и оба словаря локалей, поэтому её регрессии видны за пределами `dialplan-apps`; узкий прогон выше их не поймает)",
+      "status": "ok",
+      "severity": "none",
+      "plan": "16-04-PLAN.md",
+      "task": "Task 2: Контрол выбора комнаты, схема шага и копирайтинг"
+    },
+    {
+      "command": "npm run test -w @krasterisk/frontend -- src/features/dialplan-apps/ui/ValueSourceField",
+      "statement": "non-zero exit, or \"0 passed\" in the Vitest summary line",
+      "status": "ok",
+      "severity": "none",
+      "plan": "16-04-PLAN.md",
+      "task": "Task 3: UI-state тесты селектора комнаты"
+    },
+    {
+      "command": "npm run test -w @krasterisk/backend -- --testPathPattern=\"conference-roles\" --no-coverage",
+      "statement": "non-zero exit, or \"0 passed\" in the Jest summary line",
+      "status": "ok",
+      "severity": "none",
+      "plan": "16-05-PLAN.md",
+      "task": "Task 1: Таблица ролей, колонка роли у постоянных модераторов и персональные строки прав в контексте комнаты"
+    },
+    {
+      "command": "npm run test -w @krasterisk/backend -- --testPathPattern=\"conference-dialplan|conference-state\" --no-coverage",
+      "statement": "non-zero exit, or any line matching \"✕\" in the Jest output, or the \"Test Suites:\" line reports fewer than 2 passed (обе половины шаблона обязаны реально исполниться: `conference-dialplan.util.spec.ts` существует с 16-03, `conference-state.spec.ts` создаётся этой же задачей — при одной пройденной сюите половина утверждений не выполнялась)",
+      "status": "ok",
+      "severity": "none",
+      "plan": "16-05-PLAN.md",
+      "task": "Task 1: Таблица ролей, колонка роли у постоянных модераторов и персональные строки прав в контексте комнаты"
+    },
+    {
+      "command": "npm run test -w @krasterisk/backend -- --testPathPattern=\"conference-rooms.service\" --no-coverage",
+      "statement": "non-zero exit, or \"0 passed\" in the Jest summary line",
+      "status": "ok",
+      "severity": "none",
+      "plan": "16-05-PLAN.md",
+      "task": "Task 2: Постоянные владелец и модераторы комнаты — CRUD с переприменением диалплана"
+    },
+    {
+      "command": "npm run test -w @krasterisk/backend -- --testPathPattern=\"conference-moderation\" --no-coverage",
+      "statement": "non-zero exit, or \"0 passed\" in the Jest summary line",
+      "status": "ok",
+      "severity": "none",
+      "plan": "16-05-PLAN.md",
+      "task": "Task 3: Живые модераторские действия и разовая выдача роли"
+    },
+    {
+      "command": "npm run test -w @krasterisk/backend -- --testPathPattern=\"conference-state\" --no-coverage",
+      "statement": "non-zero exit, or \"0 passed\" in the Jest summary line, or any line matching \"✕\" in the Jest output (регрессионный прогон `conference-state.spec.ts`, созданного Task 1: разовые выдачи меняют тот же сервис, и ноль исполненных тестов здесь означает, что проверка не состоялась)",
+      "status": "ok",
+      "severity": "none",
+      "plan": "16-05-PLAN.md",
+      "task": "Task 3: Живые модераторские действия и разовая выдача роли"
+    },
+    {
+      "command": "npm run lint",
+      "statement": "non-zero exit, or any line matching \"error\" in the ESLint output (закрывающий прогон плана: 16-05 — единственный план фазы, у которого линта не было ни в одной задаче, при том что именно он расширяет сигнатуру генератора и заводит новую зависимость модуля на модель пользователя)",
+      "status": "ok",
+      "severity": "none",
+      "plan": "16-05-PLAN.md",
+      "task": "Task 3: Живые модераторские действия и разовая выдача роли"
+    },
+    {
+      "command": "npm run test -w @krasterisk/backend -- --testPathPattern=\"conference-entry-policy\" --no-coverage",
+      "statement": "non-zero exit, or \"0 passed\" in the Jest summary line",
+      "status": "ok",
+      "severity": "none",
+      "plan": "16-06-PLAN.md",
+      "task": "Task 1: Политика входа как чистая функция и её строки в контексте комнаты"
+    },
+    {
+      "command": "npm run test -w @krasterisk/backend -- --testPathPattern=\"conference-dialplan\" --no-coverage",
+      "statement": "non-zero exit, or any line matching \"✕\" in the Jest output",
+      "status": "ok",
+      "severity": "none",
+      "plan": "16-06-PLAN.md",
+      "task": "Task 1: Политика входа как чистая функция и её строки в контексте комнаты"
+    },
+    {
+      "command": "npm run test -w @krasterisk/backend -- --testPathPattern=\"conference-rooms.service\" --no-coverage",
+      "statement": "non-zero exit, or \"0 passed\" in the Jest summary line",
+      "status": "ok",
+      "severity": "none",
+      "plan": "16-06-PLAN.md",
+      "task": "Task 2: Согласованность уровня строгости и PIN на записи комнаты"
+    },
+    {
+      "command": "npm run test -w @krasterisk/backend -- --testPathPattern=\"conference-state\" --no-coverage",
+      "statement": "non-zero exit, or \"0 passed\" in the Jest summary line",
+      "status": "ok",
+      "severity": "none",
+      "plan": "16-06-PLAN.md",
+      "task": "Task 3: Состояние «ждём модератора» на уровне комнаты в живом снимке"
+    },
+    {
+      "command": "npm run test -w @krasterisk/backend -- --testPathPattern=\"conference-participant\" --no-coverage",
+      "statement": "non-zero exit, or \"0 passed\" in the Jest summary line",
+      "status": "ok",
+      "severity": "none",
+      "plan": "16-07-PLAN.md",
+      "task": "Task 1: Единый DTO-маппер состояния комнаты для своих и гостей"
+    },
+    {
+      "command": "npm run test -w @krasterisk/backend -- --testPathPattern=\"conference-spine\" --no-coverage",
+      "statement": "non-zero exit, or any line matching \"✕\" in the Jest output",
+      "status": "ok",
+      "severity": "none",
+      "plan": "16-07-PLAN.md",
+      "task": "Task 1: Единый DTO-маппер состояния комнаты для своих и гостей"
+    },
+    {
+      "command": "npm run test -w @krasterisk/backend -- --testPathPattern=\"conference-state\" --no-coverage",
+      "statement": "non-zero exit, or \"0 passed\" in the Jest summary line",
+      "status": "ok",
+      "severity": "none",
+      "plan": "16-07-PLAN.md",
+      "task": "Task 2: Признак видео от самого участника"
+    },
+    {
+      "command": "npm run test -w @krasterisk/backend -- --testPathPattern=\"conference-stale-channel\" --no-coverage",
+      "statement": "non-zero exit, or \"0 passed\" in the Jest summary line",
+      "status": "ok",
+      "severity": "none",
+      "plan": "16-07-PLAN.md",
+      "task": "Task 3: Подметальщик зависших каналов конференции"
+    },
+    {
+      "command": "npm run test:frontend",
+      "statement": "non-zero exit, or \"0 passed\" in the Vitest summary line (закрывающая задача фазы: без этого прогона фаза закрывается на двух третях обязательной триады `AGENTS.md`, а фронтенд-половина контракта шага маршрута из 16-04 остаётся непроверенной на момент закрытия)",
+      "status": "ok",
+      "severity": "none",
+      "plan": "16-07-PLAN.md",
+      "task": "Task 3: Подметальщик зависших каналов конференции"
+    }
+  ],
+  "counts": {
+    "blocker": 0,
+    "warning": 0,
+    "total": 33
+  },
+  "readError": null
+}

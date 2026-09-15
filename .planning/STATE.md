@@ -3,21 +3,23 @@ gsd_state_version: 1.0
 milestone: v1.0
 status: executing
 stopped_at: Phase 16 UI-SPEC approved
-last_updated: "2026-09-15T12:57:19.313Z"
-state_head: d231429433cc04ddb7d17cadb6632b9b8b058628
+last_updated: "2026-09-15T15:31:21.242Z"
+state_head: 1fee80b9ab08bbc2777dcac5d93ea8897e961aeb
 progress:
   total_phases: 19
   completed_phases: 5
-  total_plans: 168
+  total_plans: 173
   completed_plans: 166
 milestone_name: milestone
+current_phase_name: modul-telekonferentsiy-confbridge-webrtc
 current_phase: 15
-current_phase_name: universal-pbx-ai-agent
 ---
 
 # State
 
 ## Current position
+
+Phase 16 (modul-telekonferentsiy-confbridge-webrtc) — PLANNED (2026-09-15). 7/7 core plans (`16-01`…`16-07`, waves 1–6). Verification passed (targeted close of the ownership split). Ready for `/gsd-execute-phase 16`. Sub-phases 16.1 / 16.2 / 16.3 remain unplanned. `16-VALIDATION.md` is still a seeded draft — run `/gsd-validate-phase 16` before or in parallel with execute if Nyquist sampling must match the seven plans.
 
 Phase 14 (visual-route-builder-and-automation) — COMPLETE (2026-09-04). 11/11 plans (incl. gap 14-11); verify 27/27; G-14-2 resolved.
 
@@ -65,6 +67,7 @@ Phase 1 — MOH: pending verify.
 
 ## Decisions
 
+- [Phase 16]: Decision-coverage gate override at plan close (2026-09-15). Gate reported 23/41 CONTEXT decisions covered and listed 18 as uncovered: D-10, D-12, D-18…D-21, D-23, D-24, D-26, D-27, D-29…D-33, D-38…D-40. These are not dropped — they are the exact partition assigned to Phase 16.1 (видео, ёмкость, гостевой вход, приглашения), 16.2 (запись) and 16.3 (фронтенд живой комнаты, гостевая поверхность). Phase 16 core covers D-01…D-09, D-11, D-13…D-17, D-22, D-25, D-34…D-37 plus R-PROFILE and R-STALE. Verify-phase should re-surface this override only if a later `/gsd-plan-phase 16.1|16.2|16.3` fails to claim its slice.
 - [Phase 16]: Эфемерная комната колл-центра получает `created_by` от оператора, который вызвал `addToConference`: `userId` (`req.user.sub`) протягивается через `ensureRoomForCall` в `create`. «Чужая встреча» для аудита D-17 покрывает и ad hoc конференцию. `created_by = NULL` остаётся только защитным утверждением на синтетической комнате без создателя, а не штатным путём `addToConference`. Решение принято после точечной проверки коммита `284db53`.
 - [Phase 16]: Создатель комнаты как пользователь портала (`created_by`) не становится владельцем моста автоматически. Строка `conference_room_moderators` с ролью `owner` заводится только явным `PUT /conferences/:uid/moderators`. До этого вызова у комнаты нет `admin`/`marked`-участника и некому выдать роль. Это следствие разделения сущностей D-17 / D-14, а не упущение: мостик `resolveCallerRef` появляется только в 16-05, и автовыдача смешала бы две личности обратно.
 - [Phase 16]: Владелец комнаты — две раздельные сущности, а не одна. Создатель комнаты как пользователь портала персистится в `conference_rooms` и обслуживает аудит D-17 («чужая встреча» = созданная не этим `sub`). Роль `owner` внутри моста остаётся `ownerRef` по короткому номеру абонента и обслуживает флаги ConfBridge D-14. Решение принято на планировании после того, как третий проход plan-checker показал: планы схлопнули обе личности в слово «владелец», из-за чего `16-02` Task 3 (wave 2) читал признак, появляющийся только в `16-05` (wave 4), и сравнивал владельца с `sub`, тогда как единственное хранилище владельца в фазе — короткий номер.

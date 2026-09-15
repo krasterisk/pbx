@@ -1,0 +1,805 @@
+{
+  "items": [
+    {
+      "requirement_id": "D-02",
+      "category": "adjacency",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "When two things are exactly equal or just touch, do they merge, collide, or separate?"
+    },
+    {
+      "requirement_id": "D-02",
+      "category": "empty",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "What is the result for empty, single-element, or null input?"
+    },
+    {
+      "requirement_id": "D-02",
+      "category": "ordering",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "When elements compare equal, is output order specified and stable?"
+    },
+    {
+      "requirement_id": "D-03",
+      "category": "empty",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "What is the result for empty, single-element, or null input?"
+    },
+    {
+      "requirement_id": "D-03",
+      "category": "encoding",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "Whose definition of length/equality applies — bytes, code points, grapheme clusters, or normalized form?"
+    },
+    {
+      "requirement_id": "D-04",
+      "category": "unclassified",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "unclassified — review manually"
+    },
+    {
+      "requirement_id": "D-05",
+      "category": "unclassified",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "unclassified — review manually"
+    },
+    {
+      "requirement_id": "D-06",
+      "category": "boundary",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "What happens exactly at each min/max/threshold — and one step either side?"
+    },
+    {
+      "requirement_id": "D-06",
+      "category": "empty",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "What is the result for empty, single-element, or null input?"
+    },
+    {
+      "requirement_id": "D-06",
+      "category": "encoding",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "Whose definition of length/equality applies — bytes, code points, grapheme clusters, or normalized form?"
+    },
+    {
+      "requirement_id": "D-06",
+      "category": "precision",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "Where can precision loss, overflow, or rounding/tie-breaking occur — and what is the exact contract (e.g. half-up vs half-to-even, ceil/floor/truncate)?"
+    },
+    {
+      "requirement_id": "D-07",
+      "category": "boundary",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "What happens exactly at each min/max/threshold — and one step either side?"
+    },
+    {
+      "requirement_id": "D-07",
+      "category": "precision",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "Where can precision loss, overflow, or rounding/tie-breaking occur — and what is the exact contract (e.g. half-up vs half-to-even, ceil/floor/truncate)?"
+    },
+    {
+      "requirement_id": "D-08",
+      "category": "boundary",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "What happens exactly at each min/max/threshold — and one step either side?"
+    },
+    {
+      "requirement_id": "D-08",
+      "category": "precision",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "Where can precision loss, overflow, or rounding/tie-breaking occur — and what is the exact contract (e.g. half-up vs half-to-even, ceil/floor/truncate)?"
+    },
+    {
+      "requirement_id": "D-08",
+      "category": "idempotency",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "What happens if this runs twice on the same input?"
+    },
+    {
+      "requirement_id": "D-08",
+      "category": "concurrency",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "If interrupted or run in parallel, what is guaranteed?"
+    },
+    {
+      "requirement_id": "D-09",
+      "category": "unclassified",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "unclassified — review manually"
+    },
+    {
+      "requirement_id": "D-10",
+      "category": "boundary",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "What happens exactly at each min/max/threshold — and one step either side?"
+    },
+    {
+      "requirement_id": "D-10",
+      "category": "precision",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "Where can precision loss, overflow, or rounding/tie-breaking occur — and what is the exact contract (e.g. half-up vs half-to-even, ceil/floor/truncate)?"
+    },
+    {
+      "requirement_id": "D-10",
+      "category": "concurrency",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "If interrupted or run in parallel, what is guaranteed?"
+    },
+    {
+      "requirement_id": "D-11",
+      "category": "empty",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "What is the result for empty, single-element, or null input?"
+    },
+    {
+      "requirement_id": "D-11",
+      "category": "encoding",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "Whose definition of length/equality applies — bytes, code points, grapheme clusters, or normalized form?"
+    },
+    {
+      "requirement_id": "D-12",
+      "category": "unclassified",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "unclassified — review manually"
+    },
+    {
+      "requirement_id": "D-13",
+      "category": "unclassified",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "unclassified — review manually"
+    },
+    {
+      "requirement_id": "D-14",
+      "category": "adjacency",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "When two things are exactly equal or just touch, do they merge, collide, or separate?"
+    },
+    {
+      "requirement_id": "D-14",
+      "category": "empty",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "What is the result for empty, single-element, or null input?"
+    },
+    {
+      "requirement_id": "D-14",
+      "category": "ordering",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "When elements compare equal, is output order specified and stable?"
+    },
+    {
+      "requirement_id": "D-15",
+      "category": "unclassified",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "unclassified — review manually"
+    },
+    {
+      "requirement_id": "D-16",
+      "category": "unclassified",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "unclassified — review manually"
+    },
+    {
+      "requirement_id": "D-17",
+      "category": "adjacency",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "When two things are exactly equal or just touch, do they merge, collide, or separate?"
+    },
+    {
+      "requirement_id": "D-17",
+      "category": "empty",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "What is the result for empty, single-element, or null input?"
+    },
+    {
+      "requirement_id": "D-17",
+      "category": "ordering",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "When elements compare equal, is output order specified and stable?"
+    },
+    {
+      "requirement_id": "D-18",
+      "category": "boundary",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "What happens exactly at each min/max/threshold — and one step either side?"
+    },
+    {
+      "requirement_id": "D-18",
+      "category": "precision",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "Where can precision loss, overflow, or rounding/tie-breaking occur — and what is the exact contract (e.g. half-up vs half-to-even, ceil/floor/truncate)?"
+    },
+    {
+      "requirement_id": "D-19",
+      "category": "unclassified",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "unclassified — review manually"
+    },
+    {
+      "requirement_id": "D-20",
+      "category": "boundary",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "What happens exactly at each min/max/threshold — and one step either side?"
+    },
+    {
+      "requirement_id": "D-20",
+      "category": "empty",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "What is the result for empty, single-element, or null input?"
+    },
+    {
+      "requirement_id": "D-20",
+      "category": "encoding",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "Whose definition of length/equality applies — bytes, code points, grapheme clusters, or normalized form?"
+    },
+    {
+      "requirement_id": "D-20",
+      "category": "precision",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "Where can precision loss, overflow, or rounding/tie-breaking occur — and what is the exact contract (e.g. half-up vs half-to-even, ceil/floor/truncate)?"
+    },
+    {
+      "requirement_id": "D-21",
+      "category": "boundary",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "What happens exactly at each min/max/threshold — and one step either side?"
+    },
+    {
+      "requirement_id": "D-21",
+      "category": "precision",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "Where can precision loss, overflow, or rounding/tie-breaking occur — and what is the exact contract (e.g. half-up vs half-to-even, ceil/floor/truncate)?"
+    },
+    {
+      "requirement_id": "D-22",
+      "category": "unclassified",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "unclassified — review manually"
+    },
+    {
+      "requirement_id": "D-23",
+      "category": "adjacency",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "When two things are exactly equal or just touch, do they merge, collide, or separate?"
+    },
+    {
+      "requirement_id": "D-23",
+      "category": "empty",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "What is the result for empty, single-element, or null input?"
+    },
+    {
+      "requirement_id": "D-23",
+      "category": "ordering",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "When elements compare equal, is output order specified and stable?"
+    },
+    {
+      "requirement_id": "D-23",
+      "category": "concurrency",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "If interrupted or run in parallel, what is guaranteed?"
+    },
+    {
+      "requirement_id": "D-24",
+      "category": "adjacency",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "When two things are exactly equal or just touch, do they merge, collide, or separate?"
+    },
+    {
+      "requirement_id": "D-24",
+      "category": "empty",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "What is the result for empty, single-element, or null input?"
+    },
+    {
+      "requirement_id": "D-24",
+      "category": "ordering",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "When elements compare equal, is output order specified and stable?"
+    },
+    {
+      "requirement_id": "D-25",
+      "category": "adjacency",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "When two things are exactly equal or just touch, do they merge, collide, or separate?"
+    },
+    {
+      "requirement_id": "D-25",
+      "category": "empty",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "What is the result for empty, single-element, or null input?"
+    },
+    {
+      "requirement_id": "D-25",
+      "category": "ordering",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "When elements compare equal, is output order specified and stable?"
+    },
+    {
+      "requirement_id": "D-26",
+      "category": "unclassified",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "unclassified — review manually"
+    },
+    {
+      "requirement_id": "D-27",
+      "category": "unclassified",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "unclassified — review manually"
+    },
+    {
+      "requirement_id": "D-28",
+      "category": "unclassified",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "unclassified — review manually"
+    },
+    {
+      "requirement_id": "D-29",
+      "category": "unclassified",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "unclassified — review manually"
+    },
+    {
+      "requirement_id": "D-30",
+      "category": "adjacency",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "When two things are exactly equal or just touch, do they merge, collide, or separate?"
+    },
+    {
+      "requirement_id": "D-30",
+      "category": "empty",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "What is the result for empty, single-element, or null input?"
+    },
+    {
+      "requirement_id": "D-30",
+      "category": "ordering",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "When elements compare equal, is output order specified and stable?"
+    },
+    {
+      "requirement_id": "D-31",
+      "category": "unclassified",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "unclassified — review manually"
+    },
+    {
+      "requirement_id": "D-32",
+      "category": "unclassified",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "unclassified — review manually"
+    },
+    {
+      "requirement_id": "D-33",
+      "category": "adjacency",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "When two things are exactly equal or just touch, do they merge, collide, or separate?"
+    },
+    {
+      "requirement_id": "D-33",
+      "category": "empty",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "What is the result for empty, single-element, or null input?"
+    },
+    {
+      "requirement_id": "D-33",
+      "category": "ordering",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "When elements compare equal, is output order specified and stable?"
+    },
+    {
+      "requirement_id": "D-34",
+      "category": "adjacency",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "When two things are exactly equal or just touch, do they merge, collide, or separate?"
+    },
+    {
+      "requirement_id": "D-34",
+      "category": "empty",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "What is the result for empty, single-element, or null input?"
+    },
+    {
+      "requirement_id": "D-34",
+      "category": "ordering",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "When elements compare equal, is output order specified and stable?"
+    },
+    {
+      "requirement_id": "D-34",
+      "category": "concurrency",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "If interrupted or run in parallel, what is guaranteed?"
+    },
+    {
+      "requirement_id": "D-35",
+      "category": "unclassified",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "unclassified — review manually"
+    },
+    {
+      "requirement_id": "D-36",
+      "category": "empty",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "What is the result for empty, single-element, or null input?"
+    },
+    {
+      "requirement_id": "D-36",
+      "category": "encoding",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "Whose definition of length/equality applies — bytes, code points, grapheme clusters, or normalized form?"
+    },
+    {
+      "requirement_id": "D-37",
+      "category": "unclassified",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "unclassified — review manually"
+    },
+    {
+      "requirement_id": "D-38",
+      "category": "unclassified",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "unclassified — review manually"
+    },
+    {
+      "requirement_id": "D-39",
+      "category": "boundary",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "What happens exactly at each min/max/threshold — and one step either side?"
+    },
+    {
+      "requirement_id": "D-39",
+      "category": "precision",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "Where can precision loss, overflow, or rounding/tie-breaking occur — and what is the exact contract (e.g. half-up vs half-to-even, ceil/floor/truncate)?"
+    },
+    {
+      "requirement_id": "D-40",
+      "category": "empty",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "What is the result for empty, single-element, or null input?"
+    },
+    {
+      "requirement_id": "D-40",
+      "category": "encoding",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "Whose definition of length/equality applies — bytes, code points, grapheme clusters, or normalized form?"
+    },
+    {
+      "requirement_id": "D-41",
+      "category": "unclassified",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "unclassified — review manually"
+    },
+    {
+      "requirement_id": "R-STALE",
+      "category": "unclassified",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "unclassified — review manually"
+    },
+    {
+      "requirement_id": "R-PROFILE",
+      "category": "adjacency",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "When two things are exactly equal or just touch, do they merge, collide, or separate?"
+    },
+    {
+      "requirement_id": "R-PROFILE",
+      "category": "empty",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "What is the result for empty, single-element, or null input?"
+    },
+    {
+      "requirement_id": "R-PROFILE",
+      "category": "ordering",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "When elements compare equal, is output order specified and stable?"
+    },
+    {
+      "requirement_id": "R-TELEMETRY",
+      "category": "unclassified",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "unclassified — review manually"
+    },
+    {
+      "requirement_id": "R-SDH",
+      "category": "adjacency",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "When two things are exactly equal or just touch, do they merge, collide, or separate?"
+    },
+    {
+      "requirement_id": "R-SDH",
+      "category": "empty",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "What is the result for empty, single-element, or null input?"
+    },
+    {
+      "requirement_id": "R-SDH",
+      "category": "ordering",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "When elements compare equal, is output order specified and stable?"
+    },
+    {
+      "requirement_id": "R-RENEG",
+      "category": "unclassified",
+      "status": "unresolved",
+      "verification": null,
+      "resolution": null,
+      "reason": null,
+      "probe": "unclassified — review manually"
+    }
+  ],
+  "coverage": {
+    "applicable": 88,
+    "resolved": 0,
+    "unresolved": 88,
+    "byVerification": {
+      "explicit": 0,
+      "backstop": 0
+    }
+  }
+}
