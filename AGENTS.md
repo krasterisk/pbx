@@ -23,6 +23,8 @@
 
 **Sketch findings:** UI для `/moh` (Phase 2) и Module Hub / shell / marketplace / platform admin (Phase 8) — читать skill `sketch-findings-krasterisk-v4` (`.cursor/skills/sketch-findings-krasterisk-v4/SKILL.md`).
 
+**Spike findings:** телеконференции (Phase 16) — ConfBridge, сетка видео SFU, браузерный клиент, гибрид с SIP-абонентами — читать skill `spike-findings-krasterisk-v4` (`.cursor/skills/spike-findings-krasterisk-v4/SKILL.md`).
+
 ## Verify перед «готово»
 
 ```bash
