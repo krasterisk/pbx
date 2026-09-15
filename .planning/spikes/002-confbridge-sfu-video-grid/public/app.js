@@ -187,6 +187,14 @@ function sdhFactory(sess, options) {
   const pc = sdh.peerConnection;
   window.__pc = pc; // diagnostics hook
 
+  // sip.js keeps exactly one remote video track: every ontrack calls stop() on the
+  // previous one (session-description-handler.js:592-601), and it runs before the
+  // delegate. With an SFU that kills every tile but the newest. We render straight
+  // from the transceivers, so remoteMediaStream is dead weight — neutralise it.
+  sdh.setRemoteTrack = function (track) {
+    if (!this._remoteMediaStream.getTrackById(track.id)) this._remoteMediaStream.addTrack(track);
+  };
+
   // recvonly, not sendrecv: addTrack only reuses a transceiver whose direction is
   // recvonly/inactive, so this is what lets sip.js put the camera on the first one.
   const audio = pc.addTransceiver('audio', { direction: 'recvonly' });
@@ -325,6 +333,10 @@ $('cam').onclick = () => {
   $('cam').textContent = track.enabled ? 'Выключить камеру' : 'Включить камеру';
   log('ui', `камера ${track.enabled ? 'включена' : 'выключена'}`);
 };
+
+// Closing or reloading the tab kills the socket without a BYE, and Asterisk keeps the
+// channel in the conference — dead members hold SFU slots and starve live participants.
+window.addEventListener('pagehide', () => { try { session?.bye(); } catch { /* best effort */ } });
 
 $('who').textContent = USER;
 log('ui', `клиент готов, слотов под видео: ${VIDEO_SLOTS}`);

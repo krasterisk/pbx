@@ -1,0 +1,24 @@
+{
+  "captured": "2026-09-15T08:18:00Z",
+  "room": "9004",
+  "bridge": "conf9004_0",
+  "profile": "динамический CONFBRIDGE(bridge,template)=spike_sfu_bridge, video_mode=sfu в статике",
+  "participants": ["spike002a", "spike002b"],
+  "verdict": "сетка работает: каждый участник получает отдельный видеопоток соседа",
+  "note": "Скриншоты обеих сторон: часы удалённой плитки отстают от локальных на ~60 мс — поток живой.",
+  "participantA": {
+    "rtp": [
+      { "type": "inbound-rtp", "kind": "audio", "mid": "0", "codec": "audio/opus", "bytes": 304701 },
+      { "type": "inbound-rtp", "kind": "video", "mid": "video-7", "codec": "video/VP8", "bytes": 607069, "frames": 454, "w": 640, "h": 480 },
+      { "type": "outbound-rtp", "kind": "audio", "mid": "0", "codec": "audio/opus", "bytes": 195830 },
+      { "type": "outbound-rtp", "kind": "video", "mid": "1", "codec": "video/VP8", "bytes": 613340, "frames": 469, "w": 640, "h": 480 }
+    ],
+    "renderingTiles": ["я (локально) 640px", "удалённый · m-line video-7 640px"],
+    "idleTiles": ["m-line 2..6", "video-8..10"]
+  },
+  "findings": {
+    "sfuAllocatesOneMlinePerSender": "Второй участник приехал на mid=video-7 — Asterisk не занимает предзаготовленные recvonly m-lines 2..6, а добавляет свои через re-INVITE.",
+    "sipJsStopsPreviousVideoTrack": "session-description-handler.js:592-601 — setRemoteTrack() вызывает track.stop() для всех прежних видеотреков и отрабатывает ДО делегата. Со стоковым SDH сетка невозможна в принципе.",
+    "staleChannelsStarveSfu": "Мёртвые каналы остаются участниками конференции и держат слоты SFU: живые участники перестают получать видео, пока их не снять."
+  }
+}
