@@ -31,10 +31,20 @@
   с `no video` (спайк 001)
 - Индикатор «говорит сейчас» (D-37) требует `talk_detection_events` в user-профиле — стоковый
   `default_user` идёт с выключенными событиями (спайк 001)
+- **`video_mode` нельзя задать динамически.** Платформа обязана держать статический bridge-профиль
+  в `confbridge.conf`; тенантные настройки едут динамикой через `Set(CONFBRIDGE(bridge,template)=…)`.
+  Остальные опции (проверено на `max_members`) динамике поддаются (спайк 002)
+- **Каждый видеопоток в оффере несёт ровно один кодек.** Полный список кодеков на шести видео-m-lines
+  даёт INVITE в 37 КБ, который PJSIP отбрасывает молча — без ответа, лога и события (спайк 002)
+- Видеокодек платформы — **VP8** (проверен в бою), H.264 как альтернатива
+- WebRTC-эндпоинту нужны `max_video_streams` > 1 и видеокодеки в `allow`; сегодняшний
+  `NAT_PROFILES.webrtc` не даёт ни того, ни другого (спайк 002)
+- Рендер сетки идёт из `RTCPeerConnection.ontrack`, а не из `remoteMediaStream` библиотеки:
+  `sip.js` выбрасывает предыдущий видеотрек при каждом новом (спайк 002)
 
 ## Spikes
 
 | # | Idea | Name | Type | Validates | Verdict | Tags |
 |---|------|------|------|-----------|---------|------|
 | 001 | tenant-teleconference-rooms | asterisk-recon | standard | Дан тестовый Asterisk; опрашиваем через ARI и AMI → знаем версию, наличие `app_confbridge`, доступные видеокодеки и поддержку `video_mode=sfu` | **VALIDATED** ✓ | asterisk, ami, ari, recon, sfu, webrtc |
-| 002 | tenant-teleconference-rooms | confbridge-sfu-video-grid | standard | Даны два браузерных участника в комнате с динамическим профилем и `video_mode=sfu`; оба включают камеру → каждый видит всех одновременно сеткой | PENDING | confbridge, video, sfu, webrtc |
+| 002 | tenant-teleconference-rooms | confbridge-sfu-video-grid | standard | Даны два браузерных участника в комнате с динамическим профилем и `video_mode=sfu`; оба включают камеру → каждый видит всех одновременно сеткой | **VALIDATED** ✓ (с поправкой к D-02) | confbridge, video, sfu, webrtc, sip.js |
