@@ -1,0 +1,1987 @@
+{
+  "startedAt": "2026-09-15T07:39:42.758Z",
+  "target": "ipbx.krasterisk.ru",
+  "ari": {
+    "info": {
+      "data": {
+        "build": {
+          "os": "Linux",
+          "kernel": "6.8.0-90-generic",
+          "machine": "x86_64",
+          "options": "OPTIONAL_API",
+          "date": "2026-04-11 06:47:19 UTC",
+          "user": "root"
+        },
+        "system": {
+          "version": "certified-22.8-cert2",
+          "entity_id": "52:54:00:18:3c:be"
+        },
+        "config": {
+          "name": "",
+          "default_language": "ru",
+          "setid": {
+            "user": "",
+            "group": ""
+          }
+        },
+        "status": {
+          "startup_time": "2026-08-31T07:01:37.368+0300",
+          "last_reload_time": "2026-08-31T07:01:37.368+0300"
+        }
+      }
+    },
+    "modules": {
+      "data": [
+        {
+          "name": "acl",
+          "description": "Named ACL system",
+          "use_count": 2,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "app_agent_pool.so",
+          "description": "Call center agent pool applications",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "app_authenticate.so",
+          "description": "Authentication Application",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "app_bridgeaddchan.so",
+          "description": "Bridge Add Channel Application",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "app_bridgewait.so",
+          "description": "Place the channel into a holding bridge application",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "app_cdr.so",
+          "description": "Tell Asterisk to not maintain a CDR for the current call",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "app_celgenuserevent.so",
+          "description": "Generate an User-Defined CEL event",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "app_channelredirect.so",
+          "description": "Redirects a given channel to a dialplan target",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "app_chanspy.so",
+          "description": "Listen to the audio of an active channel",
+          "use_count": 1,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "app_confbridge.so",
+          "description": "Conference Bridge Application",
+          "use_count": 1,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "app_controlplayback.so",
+          "description": "Control Playback Application",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "app_db.so",
+          "description": "Database Access Functions",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "app_dial.so",
+          "description": "Dialing Application",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "app_directed_pickup.so",
+          "description": "Directed Call Pickup Application",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "app_directory.so",
+          "description": "Extension Directory",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "app_disa.so",
+          "description": "DISA (Direct Inward System Access) Application",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "app_dumpchan.so",
+          "description": "Dump Info About The Calling Channel",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "app_echo.so",
+          "description": "Simple Echo Application",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "app_exec.so",
+          "description": "Executes dialplan applications",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "app_followme.so",
+          "description": "Find-Me/Follow-Me Application",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "app_forkcdr.so",
+          "description": "Fork The CDR into 2 separate entities",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "app_milliwatt.so",
+          "description": "Digital Milliwatt (mu-law) Test Application",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "app_mixmonitor.so",
+          "description": "Mixed Audio Monitoring Application",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "app_originate.so",
+          "description": "Originate call",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "app_page.so",
+          "description": "Page Multiple Phones",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "app_playback.so",
+          "description": "Sound File Playback Application",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "app_playtones.so",
+          "description": "Playtones Application",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "app_privacy.so",
+          "description": "Require phone number to be entered, if no CallerID sent",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "app_queue.so",
+          "description": "True Call Queueing",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "app_read.so",
+          "description": "Read Variable Application",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "app_readexten.so",
+          "description": "Read and evaluate extension validity",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "app_record.so",
+          "description": "Trivial Record Application",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "app_sayunixtime.so",
+          "description": "Say time",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "app_senddtmf.so",
+          "description": "Send DTMF digits Application",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "app_sendtext.so",
+          "description": "Send and Receive Text Applications",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "app_softhangup.so",
+          "description": "Hangs up the requested channel",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "app_speech_utils.so",
+          "description": "Dialplan Speech Applications",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "app_stack.so",
+          "description": "Dialplan subroutines (Gosub, Return, etc)",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "app_stasis.so",
+          "description": "Stasis dialplan application",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "app_stream_echo.so",
+          "description": "Stream Echo Application",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "app_system.so",
+          "description": "Generic System() application",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "app_talkdetect.so",
+          "description": "Playback with Talk Detection",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "app_transfer.so",
+          "description": "Transfers a caller to another extension",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "app_userevent.so",
+          "description": "Custom User Event Application",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "app_verbose.so",
+          "description": "Send verbose output",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "app_voicemail.so",
+          "description": "Comedian Mail (Voicemail System)",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "app_waituntil.so",
+          "description": "Wait until specified time",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "app_while.so",
+          "description": "While Loops and Conditional Execution",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "bridge_builtin_features.so",
+          "description": "Built in bridging features",
+          "use_count": 1,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "bridge_builtin_interval_features.so",
+          "description": "Built in bridging interval features",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "bridge_holding.so",
+          "description": "Holding bridge module",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "bridge_native_rtp.so",
+          "description": "Native RTP bridging module",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "bridge_simple.so",
+          "description": "Simple two channel bridging module",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "bridge_softmix.so",
+          "description": "Multi-party software based channel mixing",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "ccss",
+          "description": "Call Completion Supplementary Services",
+          "use_count": 2,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "cdr",
+          "description": "CDR Engine",
+          "use_count": 6,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "cdr_adaptive_odbc.so",
+          "description": "Adaptive ODBC CDR backend",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "cdr_custom.so",
+          "description": "Customizable Comma Separated Values CDR Backend",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "cdr_manager.so",
+          "description": "Asterisk Manager Interface CDR Backend",
+          "use_count": 0,
+          "status": "Not Running",
+          "support_level": "core"
+        },
+        {
+          "name": "cel",
+          "description": "CEL Engine",
+          "use_count": 5,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "cel_custom.so",
+          "description": "Customizable Comma Separated Values CEL Backend",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "cel_manager.so",
+          "description": "Asterisk Manager Interface CEL Backend",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "cel_odbc.so",
+          "description": "ODBC CEL backend",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "chan_bridge_media.so",
+          "description": "Bridge Media Channel Driver",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "chan_pjsip.so",
+          "description": "PJSIP Channel Driver",
+          "use_count": 1,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "chan_rtp.so",
+          "description": "RTP Media Channel",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "chan_websocket.so",
+          "description": "Websocket Media Channel",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "codec_a_mu.so",
+          "description": "A-law and Mulaw direct Coder/Decoder",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "codec_adpcm.so",
+          "description": "Adaptive Differential PCM Coder/Decoder",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "codec_alaw.so",
+          "description": "A-law Coder/Decoder",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "codec_g722.so",
+          "description": "ITU G.722-64kbps G722 Transcoder",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "codec_g726.so",
+          "description": "ITU G.726-32kbps G726 Transcoder",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "codec_gsm.so",
+          "description": "GSM Coder/Decoder",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "codec_ilbc.so",
+          "description": "iLBC Coder/Decoder",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "codec_opus.so",
+          "description": "OPUS Coder/Decoder",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "extended"
+        },
+        {
+          "name": "codec_resample.so",
+          "description": "SLIN Resampling Codec",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "codec_speex.so",
+          "description": "Speex Coder/Decoder",
+          "use_count": 1,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "codec_ulaw.so",
+          "description": "mu-Law Coder/Decoder",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "dnsmgr",
+          "description": "DNS Manager",
+          "use_count": 2,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "dsp",
+          "description": "DSP",
+          "use_count": 1,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "enum",
+          "description": "ENUM Support",
+          "use_count": 2,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "extconfig",
+          "description": "Configuration",
+          "use_count": 14,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "features",
+          "description": "Call Features",
+          "use_count": 1,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "format_g719.so",
+          "description": "ITU G.719",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "format_g723.so",
+          "description": "G.723.1 Simple Timestamp File Format",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "format_g726.so",
+          "description": "Raw G.726 (16/24/32/40kbps) data",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "format_g729.so",
+          "description": "Raw G.729 data",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "format_gsm.so",
+          "description": "Raw GSM data",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "format_h263.so",
+          "description": "Raw H.263 data",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "format_h264.so",
+          "description": "Raw H.264 data",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "format_ilbc.so",
+          "description": "Raw iLBC data",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "format_ogg_opus.so",
+          "description": "OGG/Opus audio",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "format_ogg_vorbis.so",
+          "description": "OGG/Vorbis audio",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "format_pcm.so",
+          "description": "Raw/Sun uLaw/ALaw 8KHz (PCM,PCMA,AU), G.722 16Khz",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "format_siren14.so",
+          "description": "ITU G.722.1 Annex C (Siren14, licensed from Polycom)",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "format_siren7.so",
+          "description": "ITU G.722.1 (Siren7, licensed from Polycom)",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "format_sln.so",
+          "description": "Raw Signed Linear Audio support (SLN) 8khz-192khz",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "format_wav.so",
+          "description": "Microsoft WAV/WAV16 format (8kHz/16kHz Signed Linear)",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "format_wav_gsm.so",
+          "description": "Microsoft WAV format (Proprietary GSM)",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "func_aes.so",
+          "description": "AES dialplan functions",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "func_base64.so",
+          "description": "base64 encode/decode dialplan functions",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "func_blacklist.so",
+          "description": "Look up Caller*ID name/number from blacklist database",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "func_callcompletion.so",
+          "description": "Call Control Configuration Function",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "func_callerid.so",
+          "description": "Party ID related dialplan functions (Caller-ID, Connected-line, Redirecting)",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "func_cdr.so",
+          "description": "Call Detail Record (CDR) dialplan functions",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "func_channel.so",
+          "description": "Channel information dialplan functions",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "func_config.so",
+          "description": "Asterisk configuration file variable access",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "func_curl.so",
+          "description": "Load external URL",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "func_cut.so",
+          "description": "Cut out information from a string",
+          "use_count": 1,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "func_db.so",
+          "description": "Database (astdb) related dialplan functions",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "func_devstate.so",
+          "description": "Gets or sets a device state in the dialplan",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "func_dialgroup.so",
+          "description": "Dialgroup dialplan function",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "func_dialplan.so",
+          "description": "Dialplan Context/Extension/Priority Checking Functions",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "func_enum.so",
+          "description": "ENUM related dialplan functions",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "func_env.so",
+          "description": "Environment/filesystem dialplan functions",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "func_extstate.so",
+          "description": "Gets an extension's state in the dialplan",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "func_global.so",
+          "description": "Variable dialplan functions",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "func_groupcount.so",
+          "description": "Channel group dialplan functions",
+          "use_count": 1,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "func_hangupcause.so",
+          "description": "HANGUPCAUSE related functions and applications",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "func_holdintercept.so",
+          "description": "Hold interception dialplan function",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "func_iconv.so",
+          "description": "Charset conversions",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "func_jitterbuffer.so",
+          "description": "Jitter buffer for read side of channel.",
+          "use_count": 1,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "func_lock.so",
+          "description": "Dialplan mutexes",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "func_logic.so",
+          "description": "Logical dialplan functions",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "func_math.so",
+          "description": "Mathematical dialplan function",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "func_md5.so",
+          "description": "MD5 digest dialplan functions",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "func_module.so",
+          "description": "Checks if Asterisk module is loaded in memory",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "func_odbc.so",
+          "description": "ODBC lookups",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "func_periodic_hook.so",
+          "description": "Periodic dialplan hooks.",
+          "use_count": 1,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "func_pjsip_aor.so",
+          "description": "Get information about a PJSIP AOR",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "func_pjsip_contact.so",
+          "description": "Get information about a PJSIP contact",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "func_pjsip_endpoint.so",
+          "description": "Get information about a PJSIP endpoint",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "func_presencestate.so",
+          "description": "Gets or sets a presence state in the dialplan",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "func_rand.so",
+          "description": "Random number dialplan function",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "func_realtime.so",
+          "description": "Read/Write/Store/Destroy values from a RealTime repository",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "func_sha1.so",
+          "description": "SHA-1 computation dialplan function",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "func_shell.so",
+          "description": "Collects the output generated by a command executed by the system shell",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "func_sorcery.so",
+          "description": "Get a field from a sorcery object",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "func_speex.so",
+          "description": "Noise reduction and Automatic Gain Control (AGC)",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "func_sprintf.so",
+          "description": "SPRINTF dialplan function",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "func_srv.so",
+          "description": "SRV related dialplan functions",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "func_strings.so",
+          "description": "String handling dialplan functions",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "func_sysinfo.so",
+          "description": "System information related functions",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "func_talkdetect.so",
+          "description": "Talk detection dialplan function",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "func_timeout.so",
+          "description": "Channel timeout dialplan functions",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "func_uri.so",
+          "description": "URI encode/decode dialplan functions",
+          "use_count": 1,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "func_version.so",
+          "description": "Get Asterisk Version/Build Info",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "func_vmcount.so",
+          "description": "Indicator for whether a voice mailbox has messages in a given folder.",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "func_volume.so",
+          "description": "Technology independent volume control",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "http",
+          "description": "Built-in HTTP Server",
+          "use_count": 5,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "indications",
+          "description": "Indication Tone Handling",
+          "use_count": 1,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "logger",
+          "description": "Logger",
+          "use_count": 1,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "manager",
+          "description": "Asterisk Manager Interface",
+          "use_count": 1,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "pbx_config.so",
+          "description": "Text Extension Configuration",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "pbx_loopback.so",
+          "description": "Loopback Switch",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "pbx_spool.so",
+          "description": "Outgoing Spool Support",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "plc",
+          "description": "PLC",
+          "use_count": 1,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_aeap.so",
+          "description": "Asterisk External Application Protocol Module for Asterisk",
+          "use_count": 1,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_ari.so",
+          "description": "Asterisk RESTful Interface",
+          "use_count": 11,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_ari_applications.so",
+          "description": "RESTful API module - Stasis application resources",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_ari_asterisk.so",
+          "description": "RESTful API module - Asterisk resources",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_ari_bridges.so",
+          "description": "RESTful API module - Bridge resources",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_ari_channels.so",
+          "description": "RESTful API module - Channel resources",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_ari_device_states.so",
+          "description": "RESTful API module - Device state resources",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_ari_endpoints.so",
+          "description": "RESTful API module - Endpoint resources",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_ari_events.so",
+          "description": "RESTful API module - WebSocket resource",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_ari_model.so",
+          "description": "ARI Model validators",
+          "use_count": 10,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_ari_playbacks.so",
+          "description": "RESTful API module - Playback control resources",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_ari_recordings.so",
+          "description": "RESTful API module - Recording resources",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_ari_sounds.so",
+          "description": "RESTful API module - Sound resources",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_clialiases.so",
+          "description": "CLI Aliases",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_clioriginate.so",
+          "description": "Call origination and redirection from the CLI",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_config_odbc.so",
+          "description": "Realtime ODBC configuration",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_convert.so",
+          "description": "File format conversion CLI command",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_crypto.so",
+          "description": "Cryptographic Digital Signatures",
+          "use_count": 1,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_curl.so",
+          "description": "cURL Resource Module",
+          "use_count": 2,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_format_attr_celt.so",
+          "description": "CELT Format Attribute Module",
+          "use_count": 1,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_format_attr_g729.so",
+          "description": "G.729 Format Attribute Module",
+          "use_count": 1,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_format_attr_h263.so",
+          "description": "H.263 Format Attribute Module",
+          "use_count": 1,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_format_attr_h264.so",
+          "description": "H.264 Format Attribute Module",
+          "use_count": 1,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_format_attr_ilbc.so",
+          "description": "iLBC Format Attribute Module",
+          "use_count": 1,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_format_attr_opus.so",
+          "description": "Opus Format Attribute Module",
+          "use_count": 1,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_format_attr_silk.so",
+          "description": "SILK Format Attribute Module",
+          "use_count": 1,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_format_attr_siren14.so",
+          "description": "Siren14 Format Attribute Module",
+          "use_count": 1,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_format_attr_siren7.so",
+          "description": "Siren7 Format Attribute Module",
+          "use_count": 1,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_format_attr_vp8.so",
+          "description": "VP8 Format Attribute Module",
+          "use_count": 1,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_geolocation.so",
+          "description": "res_geolocation Module for Asterisk",
+          "use_count": 2,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_http_media_cache.so",
+          "description": "HTTP Media Cache Backend",
+          "use_count": 1,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_http_post.so",
+          "description": "HTTP POST support",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_http_websocket.so",
+          "description": "HTTP WebSocket Support",
+          "use_count": 10,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_limit.so",
+          "description": "Resource limits",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_manager_devicestate.so",
+          "description": "Manager Device State Topic Forwarder",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_manager_presencestate.so",
+          "description": "Manager Presence State Topic Forwarder",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_musiconhold.so",
+          "description": "Music On Hold Resource",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_mutestream.so",
+          "description": "Mute audio stream resources",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_mwi_devstate.so",
+          "description": "MWI Device State Subscriptions",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_odbc.so",
+          "description": "ODBC resource",
+          "use_count": 5,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_odbc_transaction.so",
+          "description": "ODBC transaction resource",
+          "use_count": 1,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_parking.so",
+          "description": "Call Parking Resource",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_pjproject.so",
+          "description": "PJPROJECT Log and Utility Support",
+          "use_count": 4,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_pjsip.so",
+          "description": "Basic SIP resource",
+          "use_count": 45,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_pjsip_acl.so",
+          "description": "PJSIP ACL Resource",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_pjsip_authenticator_digest.so",
+          "description": "PJSIP authentication resource",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_pjsip_caller_id.so",
+          "description": "PJSIP Caller ID Support",
+          "use_count": 1,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_pjsip_config_wizard.so",
+          "description": "PJSIP Config Wizard",
+          "use_count": 1,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_pjsip_dialog_info_body_generator.so",
+          "description": "PJSIP Extension State Dialog Info+XML Provider",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_pjsip_diversion.so",
+          "description": "PJSIP Add Diversion Header Support",
+          "use_count": 1,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_pjsip_dlg_options.so",
+          "description": "SIP OPTIONS in dialog handler",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_pjsip_dtmf_info.so",
+          "description": "PJSIP DTMF INFO Support",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_pjsip_empty_info.so",
+          "description": "PJSIP Empty INFO Support",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_pjsip_endpoint_identifier_anonymous.so",
+          "description": "PJSIP Anonymous endpoint identifier",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_pjsip_endpoint_identifier_ip.so",
+          "description": "PJSIP IP endpoint identifier",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_pjsip_endpoint_identifier_user.so",
+          "description": "PJSIP username endpoint identifier",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_pjsip_exten_state.so",
+          "description": "PJSIP Extension State Notifications",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_pjsip_geolocation.so",
+          "description": "res_pjsip_geolocation Module for Asterisk",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_pjsip_header_funcs.so",
+          "description": "PJSIP Header Functions",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_pjsip_logger.so",
+          "description": "PJSIP Packet Logger",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_pjsip_messaging.so",
+          "description": "PJSIP Messaging Support",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_pjsip_mwi.so",
+          "description": "PJSIP MWI resource",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_pjsip_mwi_body_generator.so",
+          "description": "PJSIP MWI resource",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_pjsip_nat.so",
+          "description": "PJSIP NAT Support",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_pjsip_notify.so",
+          "description": "CLI/AMI PJSIP NOTIFY Support",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_pjsip_one_touch_record_info.so",
+          "description": "PJSIP INFO One Touch Recording Support",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_pjsip_outbound_authenticator_digest.so",
+          "description": "PJSIP authentication resource",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_pjsip_outbound_publish.so",
+          "description": "PJSIP Outbound Publish Support",
+          "use_count": 2,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_pjsip_outbound_registration.so",
+          "description": "PJSIP Outbound Registration Support",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_pjsip_path.so",
+          "description": "PJSIP Path Header Support",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_pjsip_pidf_body_generator.so",
+          "description": "PJSIP Extension State PIDF Provider",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_pjsip_pidf_digium_body_supplement.so",
+          "description": "PJSIP PIDF Sangoma presence supplement",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_pjsip_pidf_eyebeam_body_supplement.so",
+          "description": "PJSIP PIDF Eyebeam supplement",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_pjsip_publish_asterisk.so",
+          "description": "PJSIP Asterisk Event PUBLISH Support",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_pjsip_pubsub.so",
+          "description": "PJSIP event resource",
+          "use_count": 12,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_pjsip_refer.so",
+          "description": "PJSIP Blind and Attended Transfer Support",
+          "use_count": 1,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_pjsip_registrar.so",
+          "description": "PJSIP Registrar Support",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_pjsip_rfc3326.so",
+          "description": "PJSIP RFC3326 Support",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_pjsip_rfc3329.so",
+          "description": "PJSIP RFC3329 Support (partial)",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_pjsip_sdp_rtp.so",
+          "description": "PJSIP SDP RTP/AVP stream handler",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_pjsip_send_to_voicemail.so",
+          "description": "PJSIP REFER Send to Voicemail Support",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_pjsip_session.so",
+          "description": "PJSIP Session resource",
+          "use_count": 19,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_pjsip_sips_contact.so",
+          "description": "UAC SIPS Contact support",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_pjsip_t38.so",
+          "description": "PJSIP T.38 UDPTL Support",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_pjsip_transport_websocket.so",
+          "description": "PJSIP WebSocket Transport Support",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_pjsip_xpidf_body_generator.so",
+          "description": "PJSIP Extension State PIDF Provider",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_realtime.so",
+          "description": "Realtime Data Lookup/Rewrite",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_resolver_unbound.so",
+          "description": "Unbound DNS Resolver Support",
+          "use_count": 1,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_rtp_asterisk.so",
+          "description": "Asterisk RTP Stack",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_rtp_multicast.so",
+          "description": "Multicast RTP Engine",
+          "use_count": 1,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_security_log.so",
+          "description": "Security Event Logging",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_sorcery_astdb.so",
+          "description": "Sorcery Astdb Object Wizard",
+          "use_count": 2,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_sorcery_config.so",
+          "description": "Sorcery Configuration File Object Wizard",
+          "use_count": 19,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_sorcery_memory.so",
+          "description": "Sorcery In-Memory Object Wizard",
+          "use_count": 8,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_sorcery_memory_cache.so",
+          "description": "Sorcery Memory Cache Object Wizard",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_sorcery_realtime.so",
+          "description": "Sorcery Realtime Object Wizard",
+          "use_count": 9,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_speech.so",
+          "description": "Generic Speech Recognition API",
+          "use_count": 2,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_speech_aeap.so",
+          "description": "Asterisk External Application Speech Engine",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_srtp.so",
+          "description": "Secure RTP (SRTP)",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_stasis.so",
+          "description": "Stasis application support",
+          "use_count": 17,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_stasis_answer.so",
+          "description": "Stasis application answer support",
+          "use_count": 1,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_stasis_device_state.so",
+          "description": "Stasis application device state support",
+          "use_count": 1,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_stasis_playback.so",
+          "description": "Stasis application playback support",
+          "use_count": 3,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_stasis_recording.so",
+          "description": "Stasis application recording support",
+          "use_count": 4,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_stasis_snoop.so",
+          "description": "Stasis application snoop support",
+          "use_count": 1,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_stun_monitor.so",
+          "description": "STUN Network Monitor",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_timing_timerfd.so",
+          "description": "Timerfd Timing Interface",
+          "use_count": 0,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "res_websocket_client.so",
+          "description": "WebSocket Client Support",
+          "use_count": 2,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "sounds",
+          "description": "Sounds Index",
+          "use_count": 1,
+          "status": "Running",
+          "support_level": "core"
+        },
+        {
+          "name": "udptl",
+          "description": "UDPTL",
+          "use_count": 2,
+          "status": "Running",
+          "support_level": "core"
+        }
+      ]
+    }
+  },
+  "ami": {
+    "commands": {
+      "core show version": {
+        "output": "Asterisk certified-22.8-cert2 built by root @ ipbx.krasterisk.ru on a x86_64 running Linux on 2026-04-11 06:47:19 UTC"
+      },
+      "core show settings": {
+        "output": "\nPBX Core settings\n-----------------\n  Version:                     certified-22.8-cert2\n  ABI related Build Options:   OPTIONAL_API\n  All Build Options:           BUILD_NATIVE, OPTIONAL_API\n  Maximum calls:               Not set\n  Maximum open file handles:   1024\n  Root console verbosity:      0\n  Current console verbosity:   0\n  Debug level:                 0\n  Trace level:                 0\n  Dump core on crash:          No\n  Core dump file:              |/usr/share/apport/apport -p%p -s%s -c%c -d%d -P%P -u%u -g%g -F%F -- %E\n  Maximum load average:        0.000000\n  Minimum free memory:         0 MB\n  Startup time:                07:01:37\n  Last reload time:            07:01:37\n  System:                      Linux/6.8.0-90-generic built by root on x86_64 2026-04-11 06:47:19 UTC\n  System name:                 \n  Entity ID:                   52:54:00:18:3c:be\n  PBX UUID:                    f5781078-9148-45e6-8a76-1d51a9f1a1c5\n  Default language:            ru\n  Language prefix:             Enabled\n  User name and group:         /\n  Running directory:           /\n  Executable includes:         Disabled\n  Transcode via SLIN:          Enabled\n  Transmit silence during rec: Disabled\n  Generic PLC:                 Disabled\n  Generic PLC on equal codecs: Disabled\n  Hide Msg Chan AMI events:    Disabled\n  Sounds search custom dir:    Disabled\n  Min DTMF duration::          80\n  Cache media frames:          Enabled\n  RTP use dynamic payloads:    1\n  RTP dynamic payload types:   35-63,96-127\n  Channel storage backend:     ao2_legacy\n  Shell on remote consoles:    Enabled\n\n* Subsystems\n  -------------\n  Manager (AMI):               Enabled\n  Web Manager (AMI/HTTP):      Disabled\n  Call data records:           Enabled\n  Realtime Architecture (ARA): Enabled\n\n* Directories\n  -------------\n  Configuration file:          /etc/asterisk/asterisk.conf\n  Configuration directory:     /etc/asterisk\n  Module directory:            /usr/lib/asterisk/modules\n  Spool directory:             /var/spool/asterisk\n  Log directory:               /var/log/asterisk\n  Run/Sockets directory:       /var/run/asterisk\n  PID file:                    /var/run/asterisk/asterisk.pid\n  VarLib directory:            /var/lib/asterisk\n  Data directory:              /var/lib/asterisk\n  ASTDB:                       /var/lib/asterisk/astdb\n  IAX2 Keys directory:         /var/lib/asterisk/keys\n  AGI Scripts directory:       /var/lib/asterisk/agi-bin\n  Cache directory:             /var/cache/asterisk\n\n"
+      },
+      "module show like confbridge": {
+        "output": "Module                         Description                              Use Count  Status      Support Level\napp_confbridge.so              Conference Bridge Application            1          Running              core\n1 modules loaded"
+      },
+      "confbridge show profile bridges": {
+        "output": "--------- Bridge Profiles -----------\ndefault_bridge"
+      },
+      "confbridge show profile bridge default_bridge": {
+        "output": "--------------------------------------------\nName:                 default_bridge\nLanguage:             en\nInternal Sample Rate: auto\nMaximum Sample Rate: none\nMixing Interval:      20\nRecord Conference:    no\nRecord File Append:    yes\nRecord File Timestamp: yes\nRecord File:          Auto Generated\nRecord Options:       \nRecord Command:       \nMax Members:          No Limit\nRegistration context: \nVideo Mode:           no video\nVideo Update Discard: 2000\nREMB Send Interval: 0\nREMB Behavior:           average\nEnable Events:             no\nsound_only_person:    conf-onlyperson\nsound_only_one:       conf-onlyone\nsound_has_joined:     conf-hasjoin\nsound_has_left:       conf-hasleft\nsound_kicked:         conf-kicked\nsound_muted:          conf-muted\nsound_unmuted:        conf-unmuted\nsound_binaural_on:    confbridge-binaural-on\nsound_binaural_off:   confbridge-binaural-off\nsound_there_are:      conf-thereare\nsound_other_in_party: conf-otherinparty\nsound_place_into_conference: conf-placeintoconf\nsound_wait_for_leader:       conf-waitforleader\nsound_leader_has_left:       conf-leaderhasleft\nsound_get_pin:        conf-getpin\nsound_invalid_pin:    conf-invalidpin\nsound_locked:         conf-locked\nsound_unlocked_now:   conf-unlockednow\nsound_lockednow:      conf-lockednow\nsound_error_menu:     conf-errormenu\nsound_join:           confbridge-join\nsound_leave:          confbridge-leave\nsound_participants_muted:     conf-now-muted\nsound_participants_unmuted:     conf-now-unmuted\nsound_begin:          confbridge-conf-begin\n"
+      },
+      "confbridge show menus": {
+        "output": "--------- Menus -----------\ndefault_menu"
+      },
+      "confbridge list": {
+        "output": "Conference Bridge Name           Users  Marked Locked Muted\n================================ ====== ====== ====== ====="
+      },
+      "module show like res_ari": {
+        "output": "Module                         Description                              Use Count  Status      Support Level\nres_ari.so                     Asterisk RESTful Interface               11         Running              core\nres_ari_applications.so        RESTful API module - Stasis application  0          Running              core\nres_ari_asterisk.so            RESTful API module - Asterisk resources  0          Running              core\nres_ari_bridges.so             RESTful API module - Bridge resources    0          Running              core\nres_ari_channels.so            RESTful API module - Channel resources   0          Running              core\nres_ari_device_states.so       RESTful API module - Device state resour 0          Running              core\nres_ari_endpoints.so           RESTful API module - Endpoint resources  0          Running              core\nres_ari_events.so              RESTful API module - WebSocket resource  0          Running              core\nres_ari_model.so               ARI Model validators                     10         Running              core\nres_ari_playbacks.so           RESTful API module - Playback control re 0          Running              core\nres_ari_recordings.so          RESTful API module - Recording resources 0          Running              core\nres_ari_sounds.so              RESTful API module - Sound resources     0          Running              core\n12 modules loaded"
+      },
+      "ari show apps": {
+        "output": "Application Name         \n=========================\naiPBXBot\naiPBXRUBot\nkrasterisk_robot_dev\nkrasterisk_voicerobots"
+      },
+      "core show codecs video": {
+        "output": "Disclaimer: this command is for informational purposes only.\n\tIt does not indicate anything about your configuration.\n      ID TYPE  NAME         FORMAT           QUALITY DESCRIPTION\n------------------------------------------------------------------------------------------------\n      31 video h261         h261                   0 (H.261 video)\n      32 video h263         h263                   0 (H.263 video)\n      35 video h265         h265                   0 (H.265 video)\n      33 video h263p        h263p                  0 (H.263+ video)\n      34 video h264         h264                   0 (H.264 video)\n      38 video vp9          vp9                    0 (VP9 video)\n      37 video vp8          vp8                    0 (VP8 video)\n      36 video mpeg4        mpeg4                  0 (MPEG4 video)"
+      },
+      "module show like res_pjsip_sdp_rtp": {
+        "output": "Module                         Description                              Use Count  Status      Support Level\nres_pjsip_sdp_rtp.so           PJSIP SDP RTP/AVP stream handler         0          Running              core\n1 modules loaded"
+      },
+      "module show like res_rtp": {
+        "output": "Module                         Description                              Use Count  Status      Support Level\nres_rtp_asterisk.so            Asterisk RTP Stack                       0          Running              core\nres_rtp_multicast.so           Multicast RTP Engine                     1          Running              core\n2 modules loaded"
+      },
+      "core show sysinfo": {
+        "output": "\nSystem Statistics\n-----------------\n  System Uptime:             475 hours\n  Total RAM:                 2014860 KiB\n  Free RAM:                  307172 KiB\n  Buffer RAM:                77864 KiB\n  Total Swap Space:          2097148 KiB\n  Free Swap Space:           1729572 KiB\n\n  Number of Processes:       344 \n"
+      },
+      "core show channels count": {
+        "output": "0 active channels\n0 active calls\n10 calls processed"
+      }
+    },
+    "connected": true
+  },
+  "summary": {
+    "version": "Asterisk certified-22.8-cert2 built by root @ ipbx.krasterisk.ru on a x86_64 running Linux on 2026-04-11 06:47:19 UTC",
+    "majorVersion": null,
+    "sfuSupportedByVersion": null,
+    "appConfbridgeLoaded": true,
+    "ariReachable": true,
+    "ariVersion": "certified-22.8-cert2",
+    "ariModulesLoaded": [
+      "res_ari_applications.so",
+      "res_ari_asterisk.so",
+      "res_ari_bridges.so",
+      "res_ari_channels.so",
+      "res_ari_device_states.so",
+      "res_ari_endpoints.so",
+      "res_ari_events.so",
+      "res_ari_model.so",
+      "res_ari_playbacks.so",
+      "res_ari_recordings.so",
+      "res_ari_sounds.so"
+    ],
+    "defaultBridgeVideoMode": "Video Mode:           no video",
+    "videoCodecsKnown": [
+      "31 video h261         h261                   0 (H.261 video)",
+      "32 video h263         h263                   0 (H.263 video)",
+      "35 video h265         h265                   0 (H.265 video)",
+      "33 video h263p        h263p                  0 (H.263+ video)",
+      "34 video h264         h264                   0 (H.264 video)",
+      "38 video vp9          vp9                    0 (VP9 video)",
+      "37 video vp8          vp8                    0 (VP8 video)",
+      "36 video mpeg4        mpeg4                  0 (MPEG4 video)"
+    ]
+  },
+  "finishedAt": "2026-09-15T07:39:45.752Z"
+}

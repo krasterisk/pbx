@@ -1,0 +1,100 @@
+{
+  "startedAt": "2026-09-15T07:41:14.955Z",
+  "target": "ipbx.krasterisk.ru",
+  "cli": {
+    "module show like res_srtp": {
+      "output": "Module                         Description                              Use Count  Status      Support Level\nres_srtp.so                    Secure RTP (SRTP)                        0          Running              core\n1 modules loaded"
+    },
+    "module show like res_http_websocket": {
+      "output": "Module                         Description                              Use Count  Status      Support Level\nres_http_websocket.so          HTTP WebSocket Support                   10         Running              core\n1 modules loaded"
+    },
+    "module show like res_pjsip_transport_websocket": {
+      "output": "Module                         Description                              Use Count  Status      Support Level\nres_pjsip_transport_websocket.so PJSIP WebSocket Transport Support        0          Running              core\n1 modules loaded"
+    },
+    "module show like res_rtp_asterisk": {
+      "output": "Module                         Description                              Use Count  Status      Support Level\nres_rtp_asterisk.so            Asterisk RTP Stack                       0          Running              core\n1 modules loaded"
+    },
+    "module show like res_format_attr": {
+      "output": "Module                         Description                              Use Count  Status      Support Level\nres_format_attr_celt.so        CELT Format Attribute Module             1          Running              core\nres_format_attr_g729.so        G.729 Format Attribute Module            1          Running              core\nres_format_attr_h263.so        H.263 Format Attribute Module            1          Running              core\nres_format_attr_h264.so        H.264 Format Attribute Module            1          Running              core\nres_format_attr_ilbc.so        iLBC Format Attribute Module             1          Running              core\nres_format_attr_opus.so        Opus Format Attribute Module             1          Running              core\nres_format_attr_silk.so        SILK Format Attribute Module             1          Running              core\nres_format_attr_siren14.so     Siren14 Format Attribute Module          1          Running              core\nres_format_attr_siren7.so      Siren7 Format Attribute Module           1          Running              core\nres_format_attr_vp8.so         VP8 Format Attribute Module              1          Running              core\n10 modules loaded"
+    },
+    "module show like res_timing": {
+      "output": "Module                         Description                              Use Count  Status      Support Level\nres_timing_timerfd.so          Timerfd Timing Interface                 0          Running              core\n1 modules loaded"
+    },
+    "timing test": {
+      "output": "Attempting to test a timer with 50 ticks per second.\nUsing the 'timerfd' timing module for this test.\nIt has been 1000 milliseconds, and we got 50 timer ticks"
+    },
+    "core show codecs audio": {
+      "output": "Disclaimer: this command is for informational purposes only.\n\tIt does not indicate anything about your configuration.\n      ID TYPE  NAME         FORMAT           QUALITY DESCRIPTION\n------------------------------------------------------------------------------------------------\n       6 audio g726         g726                  85 (G.726 RFC3551)\n       4 audio alaw         alaw                 100 (G.711 a-law)\n       2 audio g723         g723                  20 (G.723.1)\n      20 audio speex        speex                 40 (SpeeX)\n      21 audio speex        speex16               40 (SpeeX 16khz)\n      22 audio speex        speex32               40 (SpeeX 32khz)\n      24 audio g722         g722                 110 (G722)\n      25 audio siren7       siren7                85 (ITU G.722.1 (Siren7, licensed from Polycom))\n       8 audio adpcm        adpcm                 80 (Dialogic ADPCM)\n      43 audio silk         silk8                  0 (SILK Codec (8 KHz))\n      44 audio silk         silk12                 0 (SILK Codec (12 KHz))\n      45 audio silk         silk16                 0 (SILK Codec (16 KHz))\n      46 audio silk         silk24                 0 (SILK Codec (24 KHz))\n      27 audio g719         g719                  95 (ITU G.719)\n      19 audio g729         g729                  45 (G.729A)\n       9 audio slin         slin                 115 (16 bit Signed Linear PCM)\n      10 audio slin         slin12               116 (16 bit Signed Linear PCM (12kHz))\n      11 audio slin         slin16               117 (16 bit Signed Linear PCM (16kHz))\n      12 audio slin         slin24               118 (16 bit Signed Linear PCM (24kHz))\n      13 audio slin         slin32               119 (16 bit Signed Linear PCM (32kHz))\n      14 audio slin         slin44               120 (16 bit Signed Linear PCM (44kHz))\n      15 audio slin         slin48               121 (16 bit Signed Linear PCM (48kHz))\n      16 audio slin         slin96               122 (16 bit Signed Linear PCM (96kHz))\n      17 audio slin         slin192              123 (16 bit Signed Linear PCM (192kHz))\n       3 audio ulaw         ulaw                 100 (G.711 u-law)\n      18 audio lpc10        lpc10                  8 (LPC10)\n      42 audio none         none                   0 (<Null> codec)\n       5 audio gsm          gsm                   40 (GSM)\n      23 audio ilbc         ilbc                  35 (iLBC)\n      28 audio opus         opus                  75 (Opus Codec)\n       7 audio g726aal2     g726aal2              85 (G.726 AAL2)\n       1 audio codec2       codec2                 0 (Codec 2)\n      26 audio siren14      siren14               90 (ITU G.722.1 Annex C, (Siren14, licensed from Polycom))"
+    },
+    "module show like codec_opus": {
+      "output": "Module                         Description                              Use Count  Status      Support Level\ncodec_opus.so                  OPUS Coder/Decoder                       0          Running          extended\n1 modules loaded"
+    },
+    "pjsip show transports": {
+      "output": "\nTransport:  <TransportId........>  <Type>  <cos>  <tos>  <BindAddress....................>\n==========================================================================================\n\nTransport:  transport-udp             udp      0      0  0.0.0.0:5060\nTransport:  transport-wss             wss      0      0  0.0.0.0:46782\n\nObjects found: 2\n"
+    },
+    "confbridge show profile users": {
+      "output": "--------- User Profiles -----------\ndefault_user"
+    },
+    "confbridge show profile user default_user": {
+      "output": "--------------------------------------------\nName:                    default_user\nAdmin:                   false\nSend Events:             false\nEcho Events:             false\nMarked User:             false\nStart Muted:             false\nMOH When Empty:          disabled\nMOH Class:               default\nAnnouncement:            \nQuiet:                   disabled\nHear Join:               enabled\nWait Marked:             disabled\nEND Marked (All):        disabled\nEND Marked (Any):        disabled\nDrop_silence:            disabled\nSilence Threshold:       2500ms\nTalking Threshold:       160\nDenoise:                 disabled\nJitterbuffer:            disabled\nTalk Detect Events:      disabled\nDTMF Pass Through:       disabled\nPIN:                     None\nAnnounce User Count:     disabled\nAnnounce join/leave:     disabled\nAnnounce User Count all: disabled\nText Messaging:          enabled\nAnswer Channel:          true\n"
+    }
+  },
+  "sfuProbe": {
+    "create": {
+      "status": 200,
+      "data": {
+        "id": "spike001-sfu-probe",
+        "technology": "softmix",
+        "bridge_type": "mixing",
+        "bridge_class": "stasis",
+        "creator": "Stasis",
+        "name": "spike001-sfu-probe",
+        "channels": [],
+        "creationtime": "2026-09-15T10:41:15.447+0300",
+        "video_mode": "sfu"
+      }
+    },
+    "read": {
+      "status": 200,
+      "data": {
+        "id": "spike001-sfu-probe",
+        "technology": "softmix",
+        "bridge_type": "mixing",
+        "bridge_class": "stasis",
+        "creator": "Stasis",
+        "name": "spike001-sfu-probe",
+        "channels": [],
+        "creationtime": "2026-09-15T10:41:15.447+0300",
+        "video_mode": "sfu"
+      }
+    },
+    "deleted": {
+      "status": 204,
+      "data": null,
+      "raw": ""
+    }
+  },
+  "summary": {
+    "sfuBridgeAccepted": true,
+    "sfuBridgeVideoMode": "sfu",
+    "srtp": true,
+    "httpWebsocket": true,
+    "pjsipWebsocketTransport": true,
+    "rtpAsterisk": true,
+    "timing": true,
+    "opus": true,
+    "formatAttrModules": [
+      "res_format_attr_celt.so        CELT Format Attribute Module             1          Running              core",
+      "res_format_attr_g729.so        G.729 Format Attribute Module            1          Running              core",
+      "res_format_attr_h263.so        H.263 Format Attribute Module            1          Running              core",
+      "res_format_attr_h264.so        H.264 Format Attribute Module            1          Running              core",
+      "res_format_attr_ilbc.so        iLBC Format Attribute Module             1          Running              core",
+      "res_format_attr_opus.so        Opus Format Attribute Module             1          Running              core",
+      "res_format_attr_silk.so        SILK Format Attribute Module             1          Running              core",
+      "res_format_attr_siren14.so     Siren14 Format Attribute Module          1          Running              core",
+      "res_format_attr_siren7.so      Siren7 Format Attribute Module           1          Running              core",
+      "res_format_attr_vp8.so         VP8 Format Attribute Module              1          Running              core"
+    ]
+  },
+  "finishedAt": "2026-09-15T07:41:17.251Z"
+}
