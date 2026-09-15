@@ -30,6 +30,7 @@ export class AmiService implements OnModuleInit, OnModuleDestroy {
   private warnedMissingCcAmi = false;
   private warnedMissingCcReconciler = false;
   private warnedMissingCcPresence = false;
+  private warnedMissingConferenceState = false;
 
   /** Lazily resolve DialplanWebhooksService to avoid circular module dependency. */
   private getWebhooksService() {
@@ -71,6 +72,21 @@ export class AmiService implements OnModuleInit, OnModuleDestroy {
         this.warnedMissingCcPresence = true;
         this.logger.warn(
           'CallCenterPresenceService not resolvable via ModuleRef — BLF presence disabled',
+        );
+      }
+      return null;
+    }
+  }
+
+  /** Lazily resolve ConferenceStateService to avoid circular module dependency. */
+  private getConferenceStateService() {
+    try {
+      return this.moduleRef.get('ConferenceStateService', { strict: false });
+    } catch {
+      if (!this.warnedMissingConferenceState) {
+        this.warnedMissingConferenceState = true;
+        this.logger.warn(
+          'ConferenceStateService not resolvable via ModuleRef — conference live state disabled',
         );
       }
       return null;
@@ -427,6 +443,23 @@ export class AmiService implements OnModuleInit, OnModuleDestroy {
 
       this.ami.on('extensionstatus', (evt: any) => {
         this.getCcPresenceService()?.handleExtensionStatus(evt);
+      });
+
+      // ─── Conference ConfBridge events (D-34) ─────────────
+      this.ami.on('confbridgejoin', (evt: any) => {
+        this.getConferenceStateService()?.handleJoin(evt);
+      });
+      this.ami.on('confbridgeleave', (evt: any) => {
+        this.getConferenceStateService()?.handleLeave(evt);
+      });
+      this.ami.on('confbridgetalking', (evt: any) => {
+        this.getConferenceStateService()?.handleTalking(evt);
+      });
+      this.ami.on('confbridgemute', (evt: any) => {
+        this.getConferenceStateService()?.handleMute(evt);
+      });
+      this.ami.on('confbridgeunmute', (evt: any) => {
+        this.getConferenceStateService()?.handleUnmute(evt);
       });
 
       // Reconnection is now managed manually via scheduleReconnect() with exponential backoff.

@@ -1,7 +1,7 @@
 import type { DirectoryValueSource, ValueSource } from '@krasterisk/shared';
 import { AsteriskDialplanUtils } from './dialplan.util';
 
-export type TargetKind = 'queue' | 'exten' | 'group' | 'context';
+export type TargetKind = 'queue' | 'exten' | 'group' | 'context' | 'conference';
 
 export function resolveValueSource(
   params: Record<string, any> | undefined,
@@ -130,6 +130,10 @@ export function normalizeTarget(
     case 'context': {
       const suffix = String(uid);
       return raw.endsWith(suffix) ? raw : `${raw}${suffix}`;
+    }
+    case 'conference': {
+      if (new RegExp(`^conf.+_${uid}$`).test(raw)) return raw;
+      return `conf${raw}_${uid}`;
     }
     default: {
       const _never: never = kind;

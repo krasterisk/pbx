@@ -43,6 +43,8 @@ import { CallbackRequest } from './modules/callback-requests/callback-request.mo
 import { CallGroupsModule } from './modules/call-groups/call-groups.module';
 import { CallGroup } from './modules/call-groups/call-group.model';
 import { CallGroupMember } from './modules/call-groups/call-group-member.model';
+import { ConferencesModule } from './modules/conferences/conferences.module';
+import { ConferenceRoom } from './modules/conferences/models/conference-room.model';
 import { SmsModule } from './modules/sms/sms.module';
 import { CloudAdminModule } from './modules/cloud-admin/cloud-admin.module';
 import { AiChatModule } from './modules/ai-chat/ai-chat.module';
@@ -183,6 +185,7 @@ import * as path from 'path';
         CallbackRequest,
         NotificationIntegration,
         CallGroup, CallGroupMember,
+        ConferenceRoom,
         // Cloud-admin
         Tenant, ModuleRegistry, TenantModule, CloudSetting,
         HubModule, HubModulePage,
@@ -240,6 +243,7 @@ import * as path from 'path';
     VoicemailModule,
     CallbackRequestsModule,
     CallGroupsModule,
+    ConferencesModule,
     LoggerModule,
     MailerModule,
     NotificationsModule,

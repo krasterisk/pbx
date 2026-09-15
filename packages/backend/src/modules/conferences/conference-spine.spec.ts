@@ -5,6 +5,7 @@ import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import { firstValueFrom } from 'rxjs';
+import { Sequelize } from 'sequelize-typescript';
 import { ConferenceRoomsService } from './conference-rooms.service';
 import { ConferenceRoomsController } from './conference-rooms.controller';
 import { ConferenceSseController } from './conference-sse.controller';
@@ -159,8 +160,18 @@ describe('conference spine (16-01)', () => {
     });
 
     it('exposes created_by on the Sequelize model', () => {
+      const sequelize = new Sequelize({
+        dialect: 'mysql',
+        host: '127.0.0.1',
+        username: 'x',
+        password: 'x',
+        database: 'x',
+        logging: false,
+        models: [ConferenceRoom],
+      });
       const attrs = ConferenceRoom.getAttributes();
       expect(attrs).toHaveProperty('created_by');
+      void sequelize.close();
     });
   });
 
