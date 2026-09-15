@@ -2,11 +2,11 @@
 gsd_state_version: 1.0
 milestone: v1.0
 status: executing
-stopped_at: Phase 15 complete — all phases complete
-last_updated: "2026-09-04T16:59:17.892Z"
-state_head: 4570622549e1e06128d91899285c68d59b1c59de
+stopped_at: Phase 16 context gathered
+last_updated: "2026-09-15T06:37:44.350Z"
+state_head: c2e1d83518063b75a27d2ab4ca23d7b9518eb13d
 progress:
-  total_phases: 15
+  total_phases: 16
   completed_phases: 5
   total_plans: 166
   completed_plans: 166
@@ -393,6 +393,8 @@ Phase 1 — MOH: pending verify.
 
 ## Roadmap Evolution
 
+- **Phase 16 context gathered (2026-09-15).** 41 решение (D-01…D-41) в `16-CONTEXT.md`. **Три решения сознательно не зафиксированы и вынесены в обязательный ресёрч:** R-ENGINE (ConfBridge + AMI против собственного ARI-бриджа — от него зависят D-02, D-10, D-34, D-38), R-VIDEO (нативный `video_mode=sfu` против внешнего SFU; гибрид «веб + абоненты Asterisk с видео»), R-CAPACITY (метрики нагрузки и вес участника). Проверено на discuss и изменило объём фазы: **у ConfBridge нет realtime-бэкенда**, поэтому настройки комнаты едут динамическим профилем `CONFBRIDGE()` через генерацию тенантного диалплана, а не записью `confbridge.conf` (D-02) — ловушки ROADMAP №1 (`module reload app_confbridge.so`) и №2 (операционный `mkdir`) сняты, ловушка №5 (миграция) снята по D-09, потому что маршрутов с `confbridge` в проде нет. Найден переиспользуемый актив, меняющий развилку: живой ARI-клиент `modules/ari/` уже умеет `createBridge` / `addChannelToBridge` / `snoopChannel` / `externalMedia`. Ad hoc конференция колл-центра (`addToConference`) поглощается модулем (D-03). Видео обязательно в v1 вплоть до внешнего SFU, раскладка — сетка, веб в приоритете (D-22…D-25). Next: `/gsd-spike` по R-ENGINE / R-VIDEO / R-CAPACITY, затем `/gsd-ui-phase 16`.
+- **Phase 16 added (2026-09-15).** Модуль телеконференций (ConfBridge + WebRTC). Отложенная тема «ConfBridge-модуль» из discuss Phase 12 наконец получает свою фазу. Семь требований R-01…R-07: CRUD комнат с генерацией `confbridge.conf` через `DialplanApplyService`, тенантный префикс комнаты (закрывает принятый риск **T-12-03-05 / T-12-13-03**), выбор комнаты вместо свободного поля `room` в `DialplanAppsEditor`, живая веб-комната с ролями и визуализацией участников, видео, гостевой вход по внешней ссылке через WebRTC, плюс обязательные AI-адаптер и скил по конвенции D-16/D-17. Три вопроса вынесены в обязательный ресёрч до планирования: ёмкость и качество звука (R-A), видео в ConfBridge против внешнего SFU (R-B), схема браузерного входа гостя (R-C). Пять ловушек зафиксированы в ROADMAP — главная: `applyCategories` всегда делает `dialplan reload`, а `confbridge.conf` требует `module reload app_confbridge.so`.
 - **Phase 14 split → Phase 15 added (2026-09-03).** Discuss фазы 14 расширил пункт «MCP + построение маршрутов с помощью LLM» до универсального LLM-агента по всей АТС; по объёму это оказалась отдельная подсистема (23 решения против 18, другой слой кода, своя тема безопасности), и решением пользователя агент вынесен в **Phase 15 «Универсальный AI-агент по АТС»** (D-06…D-28 → `15-CONTEXT.md`). Phase 14 сохраняет имя и держит четыре поверхности редактора: блок-схема (D-01…D-05), dry-run (D-29…D-32), шаблоны цепочек (D-33…D-37), обратный звонок (D-38…D-42). Зависимость односторонняя: Phase 14 отдаёт агенту dry-run как tool (D-32) и сборку шаблона из описания (D-34). Отложенная тема ограничений и инъекций переехала на `/gsd-secure-phase 15`.
 - **ROADMAP heading format fixed (2026-09-03).** `gsd-tools` не видел ни одной фазы этого ROADMAP (`roadmap.analyze` → `phase_count: 0`, `roadmap.get-phase N` → `found: false`): парсер требует двоеточие после номера (`## Phase 14: …`), а заголовки были написаны с длинным тире (`## Phase 14 — …`). Уровень заголовка (`##` против `###`) значения не имеет — проверено перебором на копии `.planning`. Разделители заменены во всех 14 заголовках; `phase_count` теперь 14 (15 с новой фазой), `get-phase` резолвит имя, цель и секцию. **Правило на будущее: заголовок фазы в ROADMAP — только `## Phase N: Название`.**
 - Phase 12 context extended (2026-08-18): +D-51…D-59. Единое приложение «Воспроизведение» складывает `Playback`/`BackGround`/`ControlPlayback` (приложение Asterisk выбирается по режиму; `Read`/`MusicOnHold`/`Say*` остаются отдельными типами) — попутно снимает инверсию имён `playprompt`/`playback`. `VoiceMail()` заменяется кастомной голосовой почтой целиком: обоснование — MWI/папки/`VoiceMailMain` в проекте никогда не были подключены (`mailboxes` и `incoming_mwi_mailbox` — пассивные колонки PJSIP, никем не заполняются). Критично: опция `Record()` `k` обязательна, иначе при отбое абонента теряются все сообщения. Расшифровка и саммаризация — в Phase 12 через существующие `stt-engines` + `ai-agents`. Доступ к сообщениям — вкладка/фильтр в CDR-отчёте поверх существующих `hasRecording`/`streamRecording`/access-scope; ссылка в уведомлении обязана быть с истекающим токеном (`cdr-public.controller.ts` без JWT переиспользовать нельзя). Отложенная фаза тенантности voicemail снята как ненужная. Sizing risk обновлён: голосовая почта — отдельный workstream и главный кандидат на вынос.
@@ -578,7 +580,7 @@ Also open: Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 veri
 
 ## Session
 
-**Last session:** 2026-09-04T16:49:45.949Z
-**Stopped at:** Phase 15 complete — all phases complete
-**Resume file:** None
+**Last session:** 2026-09-15T06:37:41.384Z
+**Stopped at:** Phase 16 context gathered
+**Resume file:** .planning/phases/16-modul-telekonferentsiy-confbridge-webrtc/16-CONTEXT.md
 **Also ready:** .planning/phases/15-universal-pbx-ai-agent/15-CONTEXT.md
