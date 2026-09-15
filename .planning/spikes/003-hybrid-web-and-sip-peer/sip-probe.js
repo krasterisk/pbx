@@ -117,14 +117,13 @@ function parse(raw) {
 
 /** One socket per stream: classic SIP has no BUNDLE, every m-line gets its own port. */
 const media = []; // { kind, socket, port, packets, bySsrc: Map, remote }
-let nextPort = 40000 + Math.floor(Math.random() * 2000) * 2;
 
 function openStream(kind) {
   return new Promise((resolve) => {
     const socket = dgram.createSocket('udp4');
-    const port = nextPort;
-    nextPort += 2;
-    const entry = { kind, socket, port, packets: 0, bytes: 0, bySsrc: new Map(), firstAt: null };
+    // Port 0 and read back what we got: picking numbers ourselves collides as soon
+    // as several probes run at once, and a failed bind never resolves this promise.
+    const entry = { kind, socket, port: 0, packets: 0, bytes: 0, bySsrc: new Map(), firstAt: null };
     socket.on('message', (buf) => {
       if (buf.length < 12) return;
       const pt = buf[1] & 0x7f;
@@ -135,7 +134,8 @@ function openStream(kind) {
       const key = `${ssrc}/pt${pt}`;
       entry.bySsrc.set(key, (entry.bySsrc.get(key) || 0) + 1);
     });
-    socket.bind(port, () => { media.push(entry); resolve(entry); });
+    socket.on('error', () => { entry.port = 0; resolve(entry); });
+    socket.bind(0, () => { entry.port = socket.address().port; media.push(entry); resolve(entry); });
   });
 }
 

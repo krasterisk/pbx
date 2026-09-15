@@ -1,0 +1,174 @@
+{
+  "exten": "9004",
+  "endpoint": "spike003p",
+  "localIp": "10.8.0.3",
+  "established": true,
+  "offers": [
+    {
+      "at": "answer",
+      "kinds": [
+        "audio",
+        "video"
+      ]
+    },
+    {
+      "at": "re-invite",
+      "kinds": [
+        "audio",
+        "video",
+        "video",
+        "video",
+        "video",
+        "video"
+      ]
+    },
+    {
+      "at": "re-invite",
+      "kinds": [
+        "audio",
+        "video",
+        "video",
+        "video",
+        "video",
+        "video",
+        "video"
+      ]
+    }
+  ],
+  "streams": [
+    {
+      "kind": "audio",
+      "port": 40358,
+      "packets": 2453,
+      "bytes": 421916,
+      "sources": {
+        "665573245/pt0": 2453
+      }
+    },
+    {
+      "kind": "video",
+      "port": 40360,
+      "packets": 0,
+      "bytes": 0,
+      "sources": {}
+    },
+    {
+      "kind": "video",
+      "port": 40362,
+      "packets": 732,
+      "bytes": 581289,
+      "sources": {
+        "1873946125/pt96": 732
+      }
+    },
+    {
+      "kind": "video",
+      "port": 40364,
+      "packets": 695,
+      "bytes": 545924,
+      "sources": {
+        "395278756/pt96": 695
+      }
+    },
+    {
+      "kind": "video",
+      "port": 40366,
+      "packets": 648,
+      "bytes": 527470,
+      "sources": {
+        "1049983000/pt96": 648
+      }
+    },
+    {
+      "kind": "video",
+      "port": 40368,
+      "packets": 0,
+      "bytes": 0,
+      "sources": {}
+    },
+    {
+      "kind": "video",
+      "port": 40370,
+      "packets": 0,
+      "bytes": 0,
+      "sources": {}
+    }
+  ],
+  "sip": [
+    {
+      "dir": "out",
+      "first": "INVITE sip:9004@ipbx.krasterisk.ru SIP/2.0",
+      "bytes": 644
+    },
+    {
+      "dir": "in",
+      "first": "SIP/2.0 401 Unauthorized",
+      "bytes": 484
+    },
+    {
+      "dir": "out",
+      "first": "ACK sip:9004@ipbx.krasterisk.ru SIP/2.0",
+      "bytes": 313
+    },
+    {
+      "dir": "out",
+      "first": "INVITE sip:9004@ipbx.krasterisk.ru SIP/2.0",
+      "bytes": 904
+    },
+    {
+      "dir": "in",
+      "first": "SIP/2.0 100 Trying",
+      "bytes": 308
+    },
+    {
+      "dir": "in",
+      "first": "SIP/2.0 200 OK",
+      "bytes": 875
+    },
+    {
+      "dir": "out",
+      "first": "ACK sip:spike003p@ipbx.krasterisk.ru SIP/2.0",
+      "bytes": 335
+    },
+    {
+      "dir": "in",
+      "first": "INVITE sip:spike003p@192.168.2.37:57562 SIP/2.0",
+      "bytes": 1230
+    },
+    {
+      "dir": "out",
+      "first": "SIP/2.0 200 OK",
+      "bytes": 888
+    },
+    {
+      "dir": "in",
+      "first": "ACK sip:spike003p@192.168.2.37:57562 SIP/2.0",
+      "bytes": 398
+    },
+    {
+      "dir": "in",
+      "first": "INVITE sip:spike003p@192.168.2.37:57562 SIP/2.0",
+      "bytes": 1252
+    },
+    {
+      "dir": "out",
+      "first": "SIP/2.0 200 OK",
+      "bytes": 949
+    },
+    {
+      "dir": "in",
+      "first": "ACK sip:spike003p@192.168.2.37:57562 SIP/2.0",
+      "bytes": 398
+    },
+    {
+      "dir": "out",
+      "first": "BYE sip:spike003p@ipbx.krasterisk.ru SIP/2.0",
+      "bytes": 670
+    },
+    {
+      "dir": "in",
+      "first": "SIP/2.0 200 OK",
+      "bytes": 342
+    }
+  ]
+}

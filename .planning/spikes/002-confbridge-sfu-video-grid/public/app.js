@@ -25,6 +25,7 @@ const USER = params.get('user') || 'spike002a';
 // 1 slot for our own camera + N inbound. Bundled pjproject caps total streams at 16.
 const VIDEO_SLOTS = Number(params.get('slots') || 6);
 const FAKE = params.get('fake') === '1';
+const HEAVY = params.get('heavy') === '1';
 const VIDEO_CODEC = (params.get('codec') || 'VP8').toUpperCase();
 // 'none' keeps the browser's full codec list — kept as a switch because that is what
 // produced the 37 KB INVITE that PJSIP silently discarded
@@ -150,14 +151,23 @@ function makeSyntheticStream() {
   setInterval(() => {
     ctx.fillStyle = `hsl(${hue} 55% 22%)`;
     ctx.fillRect(0, 0, 640, 480);
+    // A near-static picture compresses to almost nothing, which makes capacity
+    // measurements flattering. HEAVY sprays changing detail so the encoder has to
+    // spend a camera-like bitrate.
+    if (HEAVY) {
+      for (let i = 0; i < 400; i++) {
+        ctx.fillStyle = `hsl(${Math.random() * 360} 70% ${20 + Math.random() * 60}%)`;
+        ctx.fillRect(Math.random() * 640, Math.random() * 480, 24, 24);
+      }
+    }
     ctx.fillStyle = `hsl(${hue} 80% 70%)`;
     ctx.font = 'bold 54px system-ui';
     ctx.fillText(USER, 40, 220);
     ctx.font = '40px ui-monospace, monospace';
     ctx.fillText(new Date().toISOString().slice(11, 23), 40, 300);
-  }, 100);
+  }, HEAVY ? 33 : 100);
 
-  const stream = canvas.captureStream(15);
+  const stream = canvas.captureStream(HEAVY ? 30 : 15);
   const audioCtx = new AudioContext();
   const osc = audioCtx.createOscillator();
   const gain = audioCtx.createGain();
@@ -292,6 +302,12 @@ async function join() {
       log('sip', `m-lines: offer=${localM}, answer=${remoteM}`);
       const sender = pc.getSenders().find((x) => x.track?.kind === 'video');
       if (sender) {
+        if (HEAVY) {
+          const p = sender.getParameters();
+          p.encodings = [{ ...(p.encodings?.[0] || {}), maxBitrate: 800_000, maxFramerate: 30 }];
+          sender.setParameters(p).then(() => log('rtc', 'поток нагружен: до 800 кбит/с, 30 к/с'))
+            .catch((e) => log('err', `setParameters: ${e.message}`));
+        }
         localStream = new MediaStream([sender.track]);
         $('localVideo').srcObject = localStream;
       }
