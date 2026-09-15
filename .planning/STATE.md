@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.0
 status: executing
-stopped_at: Phase 16 context gathered
-last_updated: "2026-09-15T06:37:44.350Z"
-state_head: c2e1d83518063b75a27d2ab4ca23d7b9518eb13d
+stopped_at: Phase 16 UI-SPEC approved
+last_updated: "2026-09-15T12:57:19.313Z"
+state_head: d231429433cc04ddb7d17cadb6632b9b8b058628
 progress:
-  total_phases: 16
+  total_phases: 19
   completed_phases: 5
-  total_plans: 166
+  total_plans: 168
   completed_plans: 166
 milestone_name: milestone
 current_phase: 15
@@ -65,6 +65,8 @@ Phase 1 — MOH: pending verify.
 
 ## Decisions
 
+- [Phase 16]: Владелец комнаты — две раздельные сущности, а не одна. Создатель комнаты как пользователь портала персистится в `conference_rooms` и обслуживает аудит D-17 («чужая встреча» = созданная не этим `sub`). Роль `owner` внутри моста остаётся `ownerRef` по короткому номеру абонента и обслуживает флаги ConfBridge D-14. Решение принято на планировании после того, как третий проход plan-checker показал: планы схлопнули обе личности в слово «владелец», из-за чего `16-02` Task 3 (wave 2) читал признак, появляющийся только в `16-05` (wave 4), и сравнивал владельца с `sub`, тогда как единственное хранилище владельца в фазе — короткий номер.
+- [Phase 16]: Гейт необратимых решений D-01/D-02/D-06 (`16-01` Task 2) намеренно стоит ПОСЛЕ трассирующей задачи, а не перед ней: внутри плана спина существует как коммит, а не как отгрузка, и чекпоинт показывает фактически сгенерированную категорию диалплана вместо обещания. `verify plan-structure` даёт на это ожидаемое предупреждение — оно согласовано, а не упущено.
 - [Phase 15]: aiPBX mcpServers callback (KRASTERISK_SERVICE_TOKEN + X-Vpbx-User-Uid) is deliberately switched off. Krasterisk now runs its own in-process agent loop (D-06 / 15-08). aiPBX and other external APIs remain LLM providers via cc_ai_providers / OpenAI-compatible chat completions — they are not tool orchestrators. Breaking the header path is expected. /api/mcp stays for future JWT callers. User confirmed 2026-09-04: will use various external LLM APIs including aiPBX as model providers, not as MCP brains.
 - [Phase 15]: 15-21 four operational domains share ceiling 20 / preview 120 and skills/operations; no send/create/mutate
 - [Phase 14]: 14-03 CSS-grid FlowchartCanvas, Schema tabs last, react-to-print on figure, no graph libs
@@ -580,7 +582,15 @@ Also open: Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 veri
 
 ## Session
 
-**Last session:** 2026-09-15T06:37:41.384Z
-**Stopped at:** Phase 16 context gathered
-**Resume file:** .planning/phases/16-modul-telekonferentsiy-confbridge-webrtc/16-CONTEXT.md
+**Last session:** 2026-09-15T11:05:57.211Z
+**Stopped at:** Phase 16 UI-SPEC approved
+**Resume file:** .planning/phases/16-modul-telekonferentsiy-confbridge-webrtc/16-UI-SPEC.md
 **Also ready:** .planning/phases/15-universal-pbx-ai-agent/15-CONTEXT.md
+
+## Accumulated Context
+
+### Roadmap Evolution
+
+- Phase 16.1 inserted after Phase 16: Phase 16 split: видео, ёмкость, гостевой вход и приглашения (backend)
+- Phase 16.2 inserted after Phase 16: Phase 16 split: запись встреч и отчётность
+- Phase 16.3 inserted after Phase 16: Phase 16 split: фронтенд живой комнаты, гостевая поверхность и AI-адаптер
