@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { rtkApi } from '@/shared/api/rtkApi';
 import {
   conferenceRoomApi,
+  type ConferenceGuestMeta,
   type ConferenceRoom,
 } from '@/shared/api/endpoints/conferenceRoomApi';
 
@@ -162,5 +163,63 @@ describe('useConferenceSse (16.3-02)', () => {
     expect(draft.participants?.[0].ref).toBe('ew101');
     expect(draft.recording).toBe(true);
     expect(store.getState().conferenceSession.roomUid).toBeNull();
+    expect(updateSpy.mock.calls.some((call) => call[0] === 'guestGet')).toBe(false);
+  });
+
+  it('patches guestGet by token in guest mode and never writes getConferenceRoom', () => {
+    const store = makeStore();
+    const updateSpy = vi.spyOn(conferenceRoomApi.util, 'updateQueryData');
+    store.dispatch(
+      conferenceRoomApi.util.upsertQueryData('guestGet', 'guest-opaque', {
+        name: 'Standup',
+        entry_strictness: 'token_name',
+        requiresPin: false,
+      }),
+    );
+    store.dispatch(
+      conferenceRoomApi.util.upsertQueryData('getConferenceRoom', 77, roomStub()),
+    );
+
+    renderHook(
+      () => useConferenceSse({ mode: 'guest', roomUid: 77, token: 'guest-opaque' }),
+      { wrapper: wrapper(store) },
+    );
+
+    act(() => {
+      MockEventSource.instances[0].emit('fullSnapshot', {
+        participants: [
+          {
+            ref: 'gst-alice',
+            displayName: 'Алиса',
+            role: 'participant',
+            speaking: false,
+            muted: false,
+            video: true,
+          },
+        ],
+        waitingForModerator: true,
+        recording: false,
+      });
+    });
+
+    expect(updateSpy).toHaveBeenCalledWith(
+      'guestGet',
+      'guest-opaque',
+      expect.any(Function),
+    );
+    expect(updateSpy.mock.calls.some((call) => call[0] === 'getConferenceRoom')).toBe(false);
+    const recipe = updateSpy.mock.calls.find(
+      (call) => call[0] === 'guestGet' && call[1] === 'guest-opaque',
+    )?.[2] as (draft: ConferenceGuestMeta) => void;
+    const draft: ConferenceGuestMeta = {
+      name: 'Standup',
+      entry_strictness: 'token_name',
+      requiresPin: false,
+    };
+    recipe(draft);
+    expect(draft.participants).toHaveLength(1);
+    expect(draft.participants?.[0].displayName).toBe('Алиса');
+    expect(draft.waitingForModerator).toBe(true);
+    expect(draft.recording).toBe(false);
   });
 });

@@ -21,9 +21,23 @@ const guestJoin = vi.fn(() => ({ unwrap: joinUnwrap }));
 let roomStatus: 'idle' | 'connecting' | 'registered' | 'in-call' | 'error' = 'idle';
 let conferenceRoomArgs: Record<string, unknown> = {};
 let webrtcToken: string | undefined;
-let guestMeta = {
+let guestMeta: {
+  name: string;
+  entry_strictness: string;
+  requiresPin: boolean;
+  participants?: Array<{
+    ref: string;
+    displayName: string;
+    role: 'owner' | 'moderator' | 'participant';
+    speaking: boolean;
+    muted: boolean;
+    video: boolean;
+  }>;
+  waitingForModerator?: boolean;
+  recording?: boolean;
+} = {
   name: 'Standup',
-  entry_strictness: 'token_name' as string,
+  entry_strictness: 'token_name',
   requiresPin: false,
 };
 let metaError: unknown;
@@ -170,6 +184,32 @@ describe('ConferenceGuestPage (16.3-07 D-28)', () => {
     expect(conferenceRoomArgs.sipPassword).toBe('join-secret');
     expect(webrtcToken).toBe('guest-token-1');
     expect(JSON.stringify(conferenceRoomArgs.iceServers ?? [])).not.toContain('join-secret');
+  });
+
+  it('feeds LiveRoom participants from guestGet instead of a compile-time empty array', async () => {
+    guestMeta = {
+      ...guestMeta,
+      participants: [
+        {
+          ref: 'gst-alice',
+          displayName: 'Алиса',
+          role: 'participant',
+          speaking: false,
+          muted: false,
+          video: false,
+        },
+      ],
+    };
+    roomStatus = 'in-call';
+    const source = readFileSync(resolve(here, './ConferenceGuestPage.tsx'), 'utf8');
+    expect(source).not.toMatch(/participants=\{\[\]\}/);
+    expect(source).toMatch(/participants=\{meta\?\.participants/);
+    expect(source).toMatch(/videoFailedMids=\{room\.videoFailedMids\}/);
+    render(<ConferenceGuestPage />);
+    await joinAsGuest();
+    expect(await screen.findByTestId('live-room-header')).toBeInTheDocument();
+    expect(screen.getByText('Алиса')).toBeInTheDocument();
+    expect(screen.queryByText('В комнате пока никого нет')).not.toBeInTheDocument();
   });
 
   it('shows guest.left after the participant leaves', async () => {

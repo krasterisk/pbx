@@ -144,4 +144,17 @@ describe('conferenceRoomApi (16.3-02)', () => {
     });
     expect(JSON.stringify(picked)).not.toMatch(/password|sip-secret/);
   });
+
+  it('lets ConferenceGuestMeta carry live snapshot fields for guest SSE', () => {
+    const src = readFileSync(join(ENDPOINT_DIR, 'conferenceRoomApi.ts'), 'utf8');
+    expect(src).toMatch(
+      /export interface ConferenceGuestMeta[\s\S]*?participants\?:\s*ConferenceParticipant\[\]/,
+    );
+    expect(src).toMatch(
+      /export interface ConferenceGuestMeta[\s\S]*?waitingForModerator\?:\s*boolean/,
+    );
+    expect(src).toMatch(
+      /export interface ConferenceGuestMeta[\s\S]*?recording\?:\s*boolean/,
+    );
+  });
 });
