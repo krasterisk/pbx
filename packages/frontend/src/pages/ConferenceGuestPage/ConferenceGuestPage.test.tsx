@@ -75,27 +75,21 @@ vi.mock('@/features/conferences/lib/useConferenceRoom', () => ({
   },
 }));
 
-vi.mock('@/shared/api/endpoints/conferenceRoomApi', async () => {
-  const actual = await vi.importActual<typeof import('@/shared/api/endpoints/conferenceRoomApi')>(
-    '@/shared/api/endpoints/conferenceRoomApi',
-  );
-  return {
-    ...actual,
-    useGuestGetQuery: () => ({ data: guestMeta, error: metaError }),
-    useGuestWebrtcConfigQuery: (token: string) => {
-      webrtcToken = token;
-      return { data: { wssUrl: 'wss://pbx.example/ws', iceServers: [] } };
-    },
-    useGuestJoinMutation: () => [guestJoin, { isLoading: false, error: undefined }],
-    useGuestLeaveMutation: () => [guestLeave],
-    useSetConferenceMeVideoMutation: () => [vi.fn(), { isLoading: false }],
-    useMuteConferenceParticipantMutation: () => [vi.fn(), { isLoading: false }],
-    useUnmuteConferenceParticipantMutation: () => [vi.fn(), { isLoading: false }],
-    useKickConferenceParticipantMutation: () => [vi.fn(), { isLoading: false }],
-    useSetConferenceParticipantRoleMutation: () => [vi.fn(), { isLoading: false }],
-    useInviteConferenceMutation: () => [vi.fn(), { isPending: false }],
-  };
-});
+vi.mock('@/shared/api/endpoints/conferenceRoomApi', () => ({
+  useGuestGetQuery: () => ({ data: guestMeta, error: metaError }),
+  useGuestWebrtcConfigQuery: (token: string) => {
+    webrtcToken = token;
+    return { data: { wssUrl: 'wss://pbx.example/ws', iceServers: [] } };
+  },
+  useGuestJoinMutation: () => [guestJoin, { isLoading: false, error: undefined }],
+  useGuestLeaveMutation: () => [guestLeave],
+  useSetConferenceMeVideoMutation: () => [vi.fn(), { isLoading: false }],
+  useMuteConferenceParticipantMutation: () => [vi.fn(), { isLoading: false }],
+  useUnmuteConferenceParticipantMutation: () => [vi.fn(), { isLoading: false }],
+  useKickConferenceParticipantMutation: () => [vi.fn(), { isLoading: false }],
+  useSetConferenceParticipantRoleMutation: () => [vi.fn(), { isLoading: false }],
+  useInviteConferenceMutation: () => [vi.fn(), { isPending: false }],
+}));
 
 vi.mock('@/shared/api/endpoints/conferenceMeetingsApi', () => ({
   useStartConferenceRecordingMutation: () => [vi.fn(), { isPending: false }],
