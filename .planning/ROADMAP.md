@@ -1257,19 +1257,20 @@ Plans:
 ## Phase 16.3: Телеконференции — фронтенд живой комнаты, гостевая поверхность и AI-адаптер
 
 **Status:** Planned
-**Plans:** 7 plans
+**Plans:** 8 plans
 
 Plans:
 
 - [ ] 16.3-01-PLAN.md — Tracer R-SDH: VideoSurface + factory + LiveRoom на двух треках
 - [ ] 16.3-02-PLAN.md — useConferenceRoom, session slice, RTK extend, R-RENEG
 - [ ] 16.3-03-PLAN.md — AI-адаптер + SKILL.md + covered/configure (D-41)
-- [ ] 16.3-04-PLAN.md — Hub apps 65, список, форма, локали (D-27)
+- [ ] 16.3-04-PLAN.md — Hub apps 65 + полный словарь ru/en (D-27)
 - [ ] 16.3-05-PLAN.md — Полная staff LiveRoom + ConferenceRoomPage (D-26/D-29)
 - [ ] 16.3-06-PLAN.md — Мини-панель add-alongside (D-26/D-29)
 - [ ] 16.3-07-PLAN.md — Гостевой шелл /conf/:token (D-28/D-29)
+- [ ] 16.3-08-PLAN.md — Список, форма, stub ConferenceRoomPage (D-27)
 
-**Waves:** W1 {16.3-01} · W2 {16.3-02, 16.3-03} · W3 {16.3-04} · W4 {16.3-05} · W5 {16.3-06, 16.3-07}
+**Waves:** W1 {16.3-01} · W2 {16.3-02, 16.3-03} · W3 {16.3-04} · W4 {16.3-08} · W5 {16.3-05} · W6 {16.3-06, 16.3-07}
 
 **Goal:** Собрать поверхность модуля: живую комнату с сеткой видео и ролевым управлением, минимальный гостевой шелл, полноценную комнату на телефоне, место модуля в Module Hub и обязательный AI-адаптер со скилом.
 
