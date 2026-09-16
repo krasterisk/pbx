@@ -49,6 +49,7 @@ import { CallCenterAgentPage } from '@/pages/CallCenterAgentPage';
 import { CallCenterSupervisorPage } from '@/pages/CallCenterSupervisorPage';
 import { CallCenterSettingsPage } from '@/pages/CallCenterSettingsPage';
 import { CallCenterWallboardPage } from '@/pages/CallCenterWallboardPage';
+import { ConferenceGuestPage } from '@/pages/ConferenceGuestPage';
 import { CallCenterReportsPage } from '@/pages/CallCenterReportsPage';
 import { AiAgentsPage } from '@/pages/AiAgentsPage';
 import { AiProvidersPage } from '@/pages/AiProvidersPage';
@@ -76,6 +77,11 @@ export const router = createBrowserRouter([
   {
     path: '/callcenter/wallboard',
     element: <CallCenterWallboardPage />,
+  },
+  // Public guest conference - opaque token only (no AppLayout / JWT) (D-28)
+  {
+    path: '/conf/:token',
+    element: <ConferenceGuestPage />,
   },
   // Platform console (006-B) - outside tenant AppLayout; SUPERADMIN only (D-21)
   {
