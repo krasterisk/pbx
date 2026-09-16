@@ -14,6 +14,7 @@ import { Request } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ConferenceRoomsService } from './conference-rooms.service';
 import { CreateConferenceRoomDto } from './dto/create-conference-room.dto';
+import { SetConferenceModeratorsDto } from './dto/conference-moderator.dto';
 import { UpdateConferenceRoomDto } from './dto/update-conference-room.dto';
 
 @UseGuards(JwtAuthGuard)
@@ -24,6 +25,27 @@ export class ConferenceRoomsController {
   @Get()
   findAll(@Req() req: Request & { user: any }) {
     return this.conferenceRoomsService.findAll(req.user.vpbx_user_uid);
+  }
+
+  @Get(':uid/moderators')
+  getModerators(
+    @Param('uid', ParseIntPipe) uid: number,
+    @Req() req: Request & { user: any },
+  ) {
+    return this.conferenceRoomsService.getRoomModerators(uid, req.user.vpbx_user_uid);
+  }
+
+  @Put(':uid/moderators')
+  setModerators(
+    @Param('uid', ParseIntPipe) uid: number,
+    @Body() dto: SetConferenceModeratorsDto,
+    @Req() req: Request & { user: any },
+  ) {
+    return this.conferenceRoomsService.setRoomModerators(
+      uid,
+      dto,
+      req.user.vpbx_user_uid,
+    );
   }
 
   @Get(':uid')

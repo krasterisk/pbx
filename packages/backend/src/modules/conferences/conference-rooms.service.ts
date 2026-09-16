@@ -19,12 +19,20 @@ import {
 import { ConferenceStateService } from './conference-state.service';
 import { CreateConferenceRoomDto } from './dto/create-conference-room.dto';
 import { UpdateConferenceRoomDto } from './dto/update-conference-room.dto';
+import {
+  ConferenceModeratorDto,
+  SetConferenceModeratorsDto,
+} from './dto/conference-moderator.dto';
 import { ConferenceRoom } from './models/conference-room.model';
+import { ConferenceRoomModerator } from './models/conference-room-moderator.model';
+import type { ConferencePermanentRight } from './conference-dialplan.util';
 
 export type ConferenceRoomErrorCode =
   | 'CONFERENCE_ROOM_NOT_FOUND'
   | 'CONFERENCE_NUMBER_TAKEN'
-  | 'CONFERENCE_NUMBER_INVALID';
+  | 'CONFERENCE_NUMBER_INVALID'
+  | 'CONFERENCE_OWNER_DUPLICATE'
+  | 'CONFERENCE_MODERATOR_DUPLICATE';
 
 export function conferenceRoomHttpError(
   status: HttpStatus,
@@ -49,6 +57,8 @@ export class ConferenceRoomsService {
     private readonly dialplanApplyService: DialplanApplyService,
     private readonly stateService: ConferenceStateService,
     private readonly loggerService: LoggerService,
+    @InjectModel(ConferenceRoomModerator)
+    private readonly moderatorModel?: typeof ConferenceRoomModerator,
   ) {}
 
   private roomFile(vpbx: number): string {
@@ -281,6 +291,132 @@ export class ConferenceRoomsService {
     return room.toJSON ? room.toJSON() : room;
   }
 
+  async getRoomModerators(roomUid: number, vpbx: number) {
+    await this.requireTenantRoom(roomUid, vpbx);
+    const rows = await this.loadModeratorRows(roomUid);
+    return rows.map((row) => ({
+      endpointRef: String(row.endpoint_ref),
+      role: row.role,
+    }));
+  }
+
+  async setRoomModerators(
+    roomUid: number,
+    dto: SetConferenceModeratorsDto,
+    vpbx: number,
+  ) {
+    const room = await this.requireTenantRoom(roomUid, vpbx);
+    const moderators = dto.moderators ?? [];
+    this.assertModeratorList(moderators);
+
+    if (!this.moderatorModel) {
+      throw new Error('ConferenceRoomModerator model is not wired');
+    }
+
+    const transaction = await this.sequelize.transaction();
+    let committed = false;
+    try {
+      await this.moderatorModel.destroy({
+        where: { room_uid: roomUid },
+        transaction,
+      });
+      if (moderators.length) {
+        await this.moderatorModel.bulkCreate(
+          moderators.map((item) => ({
+            room_uid: roomUid,
+            endpoint_ref: item.endpointRef,
+            role: item.role,
+          })),
+          { transaction },
+        );
+      }
+      await transaction.commit();
+      committed = true;
+    } catch (e) {
+      if (!committed) await transaction.rollback();
+      throw e;
+    }
+
+    try {
+      await this.applyRoom(room, vpbx);
+    } catch (e: any) {
+      this.logger.error(
+        `Dialplan apply failed for conference room ${roomUid} (${this.roomFile(vpbx)}); DB saved — retry/re-save may be needed: ${e?.message || e}`,
+      );
+    }
+
+    return this.getRoomModerators(roomUid, vpbx);
+  }
+
+  private async requireTenantRoom(roomUid: number, vpbx: number): Promise<ConferenceRoom> {
+    const room = await this.roomModel.findOne({
+      where: { uid: roomUid, user_uid: vpbx },
+    });
+    if (!room) {
+      throw conferenceRoomHttpError(
+        HttpStatus.NOT_FOUND,
+        'CONFERENCE_ROOM_NOT_FOUND',
+        `Conference room ${roomUid} not found`,
+        { uid: roomUid },
+      );
+    }
+    return room;
+  }
+
+  private assertModeratorList(moderators: ConferenceModeratorDto[]): void {
+    const owners = moderators.filter((item) => item.role === 'owner');
+    if (owners.length > 1) {
+      throw conferenceRoomHttpError(
+        HttpStatus.BAD_REQUEST,
+        'CONFERENCE_OWNER_DUPLICATE',
+        'A conference room can have only one owner',
+      );
+    }
+    const seen = new Set<string>();
+    for (const item of moderators) {
+      if (seen.has(item.endpointRef)) {
+        throw conferenceRoomHttpError(
+          HttpStatus.BAD_REQUEST,
+          'CONFERENCE_MODERATOR_DUPLICATE',
+          `Duplicate moderator endpoint ${item.endpointRef}`,
+          { endpointRef: item.endpointRef },
+        );
+      }
+      seen.add(item.endpointRef);
+    }
+  }
+
+  private async loadModeratorRows(roomUid: number): Promise<
+    Array<{ endpoint_ref: string; role: 'owner' | 'moderator' }>
+  > {
+    if (!this.moderatorModel) return [];
+    const rows = await this.moderatorModel.findAll({
+      where: { room_uid: roomUid },
+    });
+    return rows.map((row) => ({
+      endpoint_ref: row.endpoint_ref,
+      role: row.role,
+    }));
+  }
+
+  private toPermanentRights(
+    rows: Array<{ endpoint_ref: string; role: 'owner' | 'moderator' }>,
+  ): ConferencePermanentRight[] {
+    return rows.map((row) => ({
+      endpointRef: row.endpoint_ref,
+      role: row.role,
+    }));
+  }
+
+  private syncRoomRights(roomUid: number, rights: ConferencePermanentRight[]): void {
+    this.stateService.setRoomRights(roomUid, {
+      ownerRef: rights.find((item) => item.role === 'owner')?.endpointRef ?? null,
+      moderatorRefs: rights
+        .filter((item) => item.role === 'moderator')
+        .map((item) => item.endpointRef),
+    });
+  }
+
   private async buildMaskIndex(vpbx: number) {
     const rooms = (await this.roomModel.findAll({
       where: { user_uid: vpbx },
@@ -293,9 +429,11 @@ export class ConferenceRoomsService {
   }
 
   private async applyRoom(room: ConferenceRoom, vpbx: number): Promise<void> {
+    const rights = this.toPermanentRights(await this.loadModeratorRows(room.uid));
+    this.syncRoomRights(room.uid, rights);
     await this.dialplanApplyService.applyCategories(
       this.roomFile(vpbx),
-      [generateConferenceDialplan(room, vpbx), await this.buildMaskIndex(vpbx)],
+      [generateConferenceDialplan(room, vpbx, rights), await this.buildMaskIndex(vpbx)],
       { reload: true },
     );
   }
