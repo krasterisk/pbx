@@ -730,6 +730,7 @@ export const en = {
         numberListsSection: 'Access lists',
         notificationsSection: 'Notification integrations',
         directoriesSection: 'Directories',
+        conferencesSection: 'Conferences',
       },
       directoryLookup: {
         title: 'Directory lookup',
@@ -1017,7 +1018,7 @@ export const en = {
       confbridge: {
         room: 'Room',
         roomHint:
-          'Conference room number.\nNote: the room is not tenant-scoped - two tenants using the same number join the same conference.',
+          '**Room from the list** - settings, roles and the limit come from the selected room\n**Route B-number** - the number the caller dialed picks the room with that number\n**From a variable** - room number from a channel variable\nThe room must be created first in the "Conferences" section.',
       },
       label: {
         name: 'Label name',
@@ -1411,6 +1412,10 @@ export const en = {
     },
   },
 
+  conferences: {
+    orphanRoom: '{{room}} (not in the list)',
+    selectRoom: 'Select a room',
+  },
   callGroups: {
     title: 'Call Groups',
     create: 'Create Group',

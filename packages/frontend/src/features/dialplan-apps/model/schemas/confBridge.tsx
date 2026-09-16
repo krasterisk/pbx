@@ -3,15 +3,11 @@ import type { FieldSchema } from '../schema.types';
 type TFn = (key: string, fallback?: string) => string;
 
 /**
- * ConfBridge on the D-07 schema surface (D-41).
+ * ConfBridge on the D-08 schema surface.
  *
- * Only the room is editable here. The former options field wrote a flag string
- * into ConfBridge's second argument, which Asterisk reads as a bridge profile
- * name — the flags never took effect. Profiles, PIN, admin users, recording and
- * the DTMF menu belong to the conferences module.
- *
- * Accepted risk T-12-03-05 / T-12-13-03: the room argument is NOT tenant-scoped.
- * Two tenants that pick the same room number join the same conference.
+ * Only the room is editable here. Profiles, PIN, admin users, recording and
+ * the DTMF menu belong to the conferences module. A fixed value is the room
+ * uid as a decimal string; dynamic sources resolve through the tenant mask-index.
  */
 export function buildConfBridgeSchema(t: TFn): FieldSchema[] {
   return [
@@ -19,13 +15,43 @@ export function buildConfBridgeSchema(t: TFn): FieldSchema[] {
       key: 'room',
       kind: 'value-source',
       required: true,
+      group: 'primary',
       labelKey: 'routes.chain.confbridge.room',
       label: t('routes.chain.confbridge.room', 'Комната'),
+      optionsSource: 'conferenceRooms',
+      valueSourceMode: 'queue',
       hintKey: 'routes.chain.confbridge.roomHint',
       hint: t(
         'routes.chain.confbridge.roomHint',
-        'Номер комнаты. Два тенанта с одинаковым номером попадут в одну конференцию.',
+        '**Комната из списка** - настройки, роли и лимит берутся из выбранной комнаты\n**B-номер маршрута** - номер, который набрал абонент, подбирает комнату с таким номером\n**Из переменной** - номер комнаты из переменной канала\nКомната должна быть создана заранее в разделе "Конференции".',
       ),
     },
   ];
+}
+
+export function summarizeConfBridge(
+  params: Record<string, any>,
+  t: (key: string, fallback?: any) => string,
+  refs?: Record<string, unknown>,
+): string {
+  const room = params?.room;
+  if (room?.source === 'route_pattern') {
+    return t('routes.chain.summary.confbridge.routePattern', 'Комната: B-номер маршрута');
+  }
+  if (room?.source === 'variable') {
+    return t('routes.chain.summary.confbridge.variable', 'Комната из переменной');
+  }
+  if (room?.source === 'directory') {
+    return t('routes.chain.summary.confbridge.directory', 'Комната из справочника');
+  }
+  const uid = room?.source === 'fixed' ? String(room.value ?? '').trim() : '';
+  if (uid) {
+    const catalog = refs?.conferenceRooms as { items?: Array<{ value: string; label: string }> } | undefined;
+    const item = catalog?.items?.find((entry) => entry.value === uid);
+    return t('routes.chain.summary.confbridge.fixed', 'Комната {{room}}').replace(
+      '{{room}}',
+      item?.label ?? uid,
+    );
+  }
+  return t('routes.chain.summary.confbridge.empty', 'Комната: не выбрана');
 }

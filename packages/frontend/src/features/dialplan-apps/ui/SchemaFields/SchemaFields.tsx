@@ -490,6 +490,7 @@ function renderControl(
           mode={field.valueSourceMode}
           readOnly={readOnly}
           showErrors={showErrors || invalid}
+          catalog={field.optionsSource ? refs?.[field.optionsSource] : undefined}
           directories={(refs?.dialplanDirectories?.items ?? []).map((item) => ({
             uid: Number(item.value),
             name: item.label,

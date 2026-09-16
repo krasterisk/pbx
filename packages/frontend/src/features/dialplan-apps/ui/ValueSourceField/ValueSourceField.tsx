@@ -5,7 +5,7 @@ import { Input, Label, Select, Text, InfoTooltip } from '@/shared/ui';
 import { HStack, VStack } from '@/shared/ui/Stack';
 import { useGetQueuesQuery } from '@/shared/api/endpoints/queueApi';
 import { useGetEndpointsQuery } from '@/shared/api/endpoints/endpointApi';
-import type { OptionsSource, ValueSourceMode } from '../../model/schema.types';
+import type { OptionsSource, SchemaCatalogRef, ValueSourceMode } from '../../model/schema.types';
 import type { DirectoryValueSource } from '@krasterisk/shared';
 import { normalizeBareExtension, stripTenantQueueName } from '../../model/normalizeTenantDisplayValue';
 import { DirectoryLookupField, type DirectoryCatalogItem } from '../DirectoryLookupField';
@@ -30,6 +30,8 @@ export interface ValueSourceFieldProps {
   showErrors?: boolean;
   /** Directory catalog from useSchemaRefs. DirectoryLookupField loads fields itself. */
   directories?: DirectoryCatalogItem[];
+  /** Catalog from useSchemaRefs for queue-mode sources (queues, conference rooms). */
+  catalog?: SchemaCatalogRef;
 }
 
 const SRC_ROUTE = '__src:route_pattern';
@@ -130,13 +132,14 @@ export function ValueSourceField({
   readOnly,
   showErrors = false,
   directories = [],
+  catalog: catalogProp,
 }: ValueSourceFieldProps) {
   const { t } = useTranslation();
   const mode: ValueSourceMode =
     modeProp ?? (optionsSource === 'queues' ? 'queue' : 'scalar');
   const coerced = coerceValueSource(value);
   const src = asValueSource(coerced);
-  const queuesQuery = useGetQueuesQuery(undefined, { skip: mode !== 'queue' });
+  const queuesQuery = useGetQueuesQuery(undefined, { skip: optionsSource !== 'queues' });
   const directorySource = asDirectorySource(src);
   const endpointsQuery = useGetEndpointsQuery(undefined, {
     skip: optionsSource !== 'endpoints' || src.source !== 'fixed',
@@ -144,29 +147,52 @@ export function ValueSourceField({
   const queues = queuesQuery.data ?? [];
   const endpoints = endpointsQuery.data ?? [];
   const queueCatalogValue = (q: (typeof queues)[number]) => q.exten || stripTenantQueueName(q.name);
+  const queueItems = queues.map((q) => {
+    const value = queueCatalogValue(q);
+    return {
+      value,
+      label: q.display_name ? `${value} - ${q.display_name}` : value,
+    };
+  });
+  const catalogItems = catalogProp?.items ?? (optionsSource === 'queues' ? queueItems : []);
+  const catalogLoading = catalogProp?.isLoading ?? (optionsSource === 'queues' && queuesQuery.isLoading);
+  const catalogHref = catalogProp?.sectionHref ?? (optionsSource === 'queues' ? '/queues' : '/conferences');
+  const isConferenceCatalog = optionsSource === 'conferenceRooms';
+  const fixedSelectValue =
+    mode === 'queue' && src.source === 'fixed'
+      ? (optionsSource === 'queues' ? stripTenantQueueName(src.value) : src.value)
+      : '';
   const queueSelectValue =
-    mode === 'queue' && src.source === 'fixed' ? stripTenantQueueName(src.value) : selectValue(src, mode);
+    mode === 'queue' && src.source === 'fixed' ? fixedSelectValue : selectValue(src, mode);
   const queueInCatalog =
     mode !== 'queue' ||
     src.source !== 'fixed' ||
     !queueSelectValue ||
-    queues.some((q) => queueCatalogValue(q) === queueSelectValue);
-  const isLoading = mode === 'queue' && queuesQuery.isLoading;
-  const isEmpty = mode === 'queue' && !isLoading && queues.length === 0;
+    catalogItems.some((item) => item.value === queueSelectValue);
+  const isLoading = mode === 'queue' && catalogLoading;
+  const isEmpty = mode === 'queue' && !isLoading && catalogItems.length === 0;
   const complete = isValueSourceComplete(src);
   const markError = Boolean(required && showErrors && !complete && !isLoading);
   const queueEmptyError = markError && src.source === 'fixed' && !src.value.trim();
   const variableError = markError && src.source === 'variable';
   const loadingLabel = t('routes.chain.catalog.loading', 'Загружаем список');
   const emptyLabel = t('routes.chain.catalog.empty', 'Ничего не создано');
-  const sectionName = t('routes.chain.catalog.queuesSection', 'Очереди');
+  const sectionName = t(
+    catalogProp?.sectionKey
+      ?? (isConferenceCatalog ? 'routes.chain.catalog.conferencesSection' : 'routes.chain.catalog.queuesSection'),
+    catalogProp?.sectionFallback ?? (isConferenceCatalog ? 'Конференции' : 'Очереди'),
+  );
   const placeholder = isLoading
     ? loadingLabel
     : isEmpty
       ? emptyLabel
-      : t('routes.apps.queue.selectQueue', 'Выберите очередь');
+      : isConferenceCatalog
+        ? t('conferences.selectRoom', 'Выберите комнату')
+        : t('routes.apps.queue.selectQueue', 'Выберите очередь');
   const dynamicGroup = t('routes.chain.source.groupDynamic', 'Динамичная очередь');
-  const staticGroup = t('routes.chain.source.groupStatic', 'Статичная очередь');
+  const staticGroup = isConferenceCatalog
+    ? sectionName
+    : t('routes.chain.source.groupStatic', 'Статичная очередь');
   const isScalar = mode === 'scalar';
   const isDial = mode === 'dial';
   const isEndpointPicker = optionsSource === 'endpoints' && isDial;
@@ -318,16 +344,15 @@ export function ValueSourceField({
             <optgroup label={staticGroup}>
               {!queueInCatalog ? (
                 <option value={queueSelectValue}>
-                  {t('routes.chain.source.queueOrphan', '{{queue}} (нет в списке)').replace(
-                    '{{queue}}',
-                    queueSelectValue,
-                  )}
+                  {(isConferenceCatalog
+                    ? t('conferences.orphanRoom', '{{room}} (нет в списке)')
+                    : t('routes.chain.source.queueOrphan', '{{queue}} (нет в списке)')
+                  ).replace(isConferenceCatalog ? '{{room}}' : '{{queue}}', queueSelectValue)}
                 </option>
               ) : null}
-              {queues.map((q) => (
-                <option key={q.name} value={queueCatalogValue(q)}>
-                  {queueCatalogValue(q)}
-                  {q.display_name ? ` - ${q.display_name}` : ''}
+              {catalogItems.map((item) => (
+                <option key={item.value} value={item.value}>
+                  {item.label}
                 </option>
               ))}
             </optgroup>
@@ -339,7 +364,7 @@ export function ValueSourceField({
           ) : null}
           {isEmpty ? (
             /* catalogLink exception: opens in a new tab, Text has no anchor props */
-            <a href="/queues" target="_blank" rel="noopener noreferrer" className={styles.catalogLink}>
+            <a href={catalogHref} target="_blank" rel="noopener noreferrer" className={styles.catalogLink}>
               {t('routes.chain.catalog.openSection', 'Открыть раздел «{{section}}»').replace(
                 '{{section}}',
                 sectionName,

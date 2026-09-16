@@ -82,6 +82,10 @@ vi.mock('@/shared/api/endpoints/notificationApi', () => ({
   useGetNotificationsQuery: vi.fn(() => ({ data: [], isLoading: false })),
 }));
 
+vi.mock('@/shared/api/endpoints/conferenceRoomApi', () => ({
+  useGetConferenceRoomsQuery: vi.fn(() => ({ data: [], isLoading: false })),
+}));
+
 vi.mock('@/shared/api/endpoints/directoryApi', () => ({
   useGetDirectoriesQuery: vi.fn(() => ({ data: [], isLoading: false })),
   useGetDirectoryQuery: vi.fn(() => ({ data: undefined, isLoading: false })),

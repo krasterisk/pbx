@@ -2,7 +2,7 @@ import { DIALPLAN_ACTION_META, type ActionType } from '@krasterisk/shared';
 import { IDialplanAppConfig } from './types';
 import { buildPlaybackSchema, summarizePlayback } from './schemas/playback';
 import { buildText2SpeechSchema, summarizeText2Speech } from './schemas/text2speech';
-import { buildConfBridgeSchema } from './schemas/confBridge';
+import { buildConfBridgeSchema, summarizeConfBridge } from './schemas/confBridge';
 import { buildLabelSchema, summarizeLabel } from './schemas/label';
 import { buildGotoSchema, summarizeGoto } from './schemas/goto';
 import { buildScheduleSchema, summarizeSchedule } from './schemas/schedule';
@@ -317,6 +317,7 @@ const registryDraft: Record<ActionType, Omit<IDialplanAppConfig, 'schema' | 'sum
     category: 'media',
     defaultParams: { room: { source: 'fixed', value: '' } },
     schema: buildConfBridgeSchema((key, fallback) => fallback ?? key),
+    summarize: summarizeConfBridge,
     optionFlags: [],
   },
 
