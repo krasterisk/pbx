@@ -1256,7 +1256,20 @@ Plans:
 
 ## Phase 16.3: Телеконференции — фронтенд живой комнаты, гостевая поверхность и AI-адаптер
 
-**Status:** Not planned
+**Status:** Planned
+**Plans:** 7 plans
+
+Plans:
+
+- [ ] 16.3-01-PLAN.md — Tracer R-SDH: VideoSurface + factory + LiveRoom на двух треках
+- [ ] 16.3-02-PLAN.md — useConferenceRoom, session slice, RTK extend, R-RENEG
+- [ ] 16.3-03-PLAN.md — AI-адаптер + SKILL.md + covered/configure (D-41)
+- [ ] 16.3-04-PLAN.md — Hub apps 65, список, форма, локали (D-27)
+- [ ] 16.3-05-PLAN.md — Полная staff LiveRoom + ConferenceRoomPage (D-26/D-29)
+- [ ] 16.3-06-PLAN.md — Мини-панель add-alongside (D-26/D-29)
+- [ ] 16.3-07-PLAN.md — Гостевой шелл /conf/:token (D-28/D-29)
+
+**Waves:** W1 {16.3-01} · W2 {16.3-02, 16.3-03} · W3 {16.3-04} · W4 {16.3-05} · W5 {16.3-06, 16.3-07}
 
 **Goal:** Собрать поверхность модуля: живую комнату с сеткой видео и ролевым управлением, минимальный гостевой шелл, полноценную комнату на телефоне, место модуля в Module Hub и обязательный AI-адаптер со скилом.
 
@@ -1278,4 +1291,4 @@ Plans:
 
 **Depends on:** Phase 16, 16.1, 16.2 (REST- и SSE-контракты всех трёх).
 
-**GSD workflow:** `/gsd-plan-phase 16.3` → `/gsd-execute-phase 16.3` → `/gsd-secure-phase 16.3` (гостевая поверхность) → `/gsd-verify-work 16.3`
+**GSD workflow:** `/gsd-plan-phase 16.3` ✅ → `/gsd-execute-phase 16.3` → `/gsd-secure-phase 16.3` (гостевая поверхность) → `/gsd-verify-work 16.3`
