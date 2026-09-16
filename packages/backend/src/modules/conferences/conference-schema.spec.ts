@@ -143,6 +143,32 @@ describe('conference schema (16-01 Task 3)', () => {
       expect(token.allowNull).toBe(false);
       expect(String(token.type)).toMatch(/VARCHAR\(64\)|STRING\(64\)/i);
     });
+
+    it('declares ConferenceGuestToken.display_name and sip_id as nullable STRING(64)', () => {
+      const attrs = ConferenceGuestToken.getAttributes();
+      expect(attrs).toHaveProperty('display_name');
+      expect(attrs).toHaveProperty('sip_id');
+      const displayName = attrs.display_name as {
+        allowNull?: boolean;
+        type?: { toString: () => string };
+      };
+      const sipId = attrs.sip_id as {
+        allowNull?: boolean;
+        type?: { toString: () => string };
+      };
+      expect(displayName.allowNull).toBe(true);
+      expect(sipId.allowNull).toBe(true);
+      expect(String(displayName.type)).toMatch(/VARCHAR\(64\)|STRING\(64\)/i);
+      expect(String(sipId.type)).toMatch(/VARCHAR\(64\)|STRING\(64\)/i);
+    });
+  });
+
+  describe('guest token DDL (16.1-01 Task 3)', () => {
+    it('CREATE TABLE conference_guest_tokens includes display_name and sip_id VARCHAR(64) NULL', () => {
+      const sql = statementForTable('conference_guest_tokens');
+      expect(sql).toMatch(/`display_name`\s+VARCHAR\(64\)\s+NULL/i);
+      expect(sql).toMatch(/`sip_id`\s+VARCHAR\(64\)\s+NULL/i);
+    });
   });
 
   describe('wiring', () => {
