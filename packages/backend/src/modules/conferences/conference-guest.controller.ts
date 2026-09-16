@@ -73,6 +73,16 @@ export class ConferenceGuestController {
 
   @UseGuards(ConferenceGuestTokenGuard)
   @SkipThrottle({ default: true, global: true })
+  @Post(':token/telemetry')
+  ingestTelemetry(
+    @Req() req: Request & { user: ConferenceGuestUser },
+    @Body() body: Record<string, unknown>,
+  ) {
+    return this.guestService.ingestTelemetry(req.user, body ?? {});
+  }
+
+  @UseGuards(ConferenceGuestTokenGuard)
+  @SkipThrottle({ default: true, global: true })
   @Sse(':token/events')
   events(@Req() req: Request & { user: ConferenceGuestUser }): Observable<MessageEvent> {
     const roomUid = req.user.roomUid;

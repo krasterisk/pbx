@@ -21,6 +21,7 @@ import { ConferenceRoomsService } from './conference-rooms.service';
 import { ConferenceSseController } from './conference-sse.controller';
 import { ConferenceStaleChannelSweeperService } from './conference-stale-channel-sweeper.service';
 import { ConferenceStateService } from './conference-state.service';
+import { ConferenceTelemetryService } from './conference-telemetry.service';
 import { ConferenceGuestToken } from './models/conference-guest-token.model';
 import { ConferenceMeetingParticipant } from './models/conference-meeting-participant.model';
 import { ConferenceMeeting } from './models/conference-meeting.model';
@@ -62,6 +63,7 @@ import { ConferenceRoom } from './models/conference-room.model';
       provide: 'ConferenceStateService',
       useExisting: ConferenceStateService,
     },
+    ConferenceTelemetryService,
     ConferenceEphemeralService,
     {
       provide: 'ConferenceEphemeralService',

@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   HttpCode,
   HttpStatus,
@@ -18,6 +19,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ConferenceCapacityService } from './conference-capacity.service';
 import { ConferenceInviteService } from './conference-invite.service';
 import { ConferenceRoomsService } from './conference-rooms.service';
+import { ConferenceTelemetryService } from './conference-telemetry.service';
 import { CreateConferenceGuestTokenDto } from './dto/conference-guest-token.dto';
 import { ConferenceInviteDto } from './dto/conference-invite.dto';
 import { CreateConferenceRoomDto } from './dto/create-conference-room.dto';
@@ -31,6 +33,7 @@ export class ConferenceRoomsController {
     private readonly conferenceRoomsService: ConferenceRoomsService,
     private readonly capacityService: ConferenceCapacityService,
     private readonly inviteService: ConferenceInviteService,
+    private readonly telemetryService: ConferenceTelemetryService,
   ) {}
 
   @Get()
@@ -72,6 +75,21 @@ export class ConferenceRoomsController {
     @Req() req: Request & { user: any },
   ) {
     return this.inviteService.invite(uid, req.user, dto);
+  }
+
+  @SkipThrottle({ default: true, global: true })
+  @Post(':uid/telemetry')
+  async ingestTelemetry(
+    @Param('uid', ParseIntPipe) uid: number,
+    @Body() body: Record<string, unknown>,
+    @Req() req: Request & { user: any },
+  ) {
+    await this.conferenceRoomsService.assertLiveRoomAccess(uid, req.user);
+    const callerRef = await this.conferenceRoomsService.resolveCallerRef(req.user);
+    if (!callerRef) {
+      throw new ForbiddenException('Caller identity is not a room participant number');
+    }
+    return this.telemetryService.ingest(uid, callerRef, body ?? {});
   }
 
   @SkipThrottle({ default: true, global: true })

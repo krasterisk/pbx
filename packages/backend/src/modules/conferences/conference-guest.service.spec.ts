@@ -282,6 +282,7 @@ describe('ConferenceGuestService (16.1-01)', () => {
         endpointsService as any,
         tokenModel as any,
         capacity as any,
+        { ingest: jest.fn() } as any,
         amiService as any,
       );
     });

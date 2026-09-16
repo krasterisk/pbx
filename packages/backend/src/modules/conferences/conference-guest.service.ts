@@ -11,6 +11,7 @@ import type { ConferenceGuestUser } from './conference-guest-token.guard';
 import { conferenceRoomHttpError } from './conference-rooms.service';
 import { ConferenceRoomsService } from './conference-rooms.service';
 import { ConferenceStateService } from './conference-state.service';
+import { ConferenceTelemetryService } from './conference-telemetry.service';
 import type { ConferenceDisplayNameDto } from './dto/conference-display-name.dto';
 import type { ConferenceGuestJoinDto } from './dto/conference-guest-join.dto';
 import type { CreateConferenceGuestTokenDto } from './dto/conference-guest-token.dto';
@@ -29,6 +30,7 @@ export class ConferenceGuestService {
     @InjectModel(ConferenceGuestToken)
     private readonly tokenModel: typeof ConferenceGuestToken,
     private readonly capacityService: ConferenceCapacityService,
+    private readonly telemetryService: ConferenceTelemetryService,
     private readonly amiService?: AmiService,
   ) {}
 
@@ -238,5 +240,19 @@ export class ConferenceGuestService {
       this.stateService.rememberDisplayName(user.roomUid, token.sip_id, displayName);
       this.stateService.setDisplayName(user.roomUid, token.sip_id, displayName);
     }
+  }
+
+  async ingestTelemetry(user: ConferenceGuestUser, raw: Record<string, unknown>) {
+    const token = await this.tokenModel.findByPk(user.guestTokenUid);
+    if (!token) {
+      throw conferenceRoomHttpError(
+        HttpStatus.UNAUTHORIZED,
+        'CONFERENCE_GUEST_TOKEN_INVALID',
+        'Guest token invalid',
+      );
+    }
+    const ref = token.sip_id;
+    if (!ref) return {};
+    return this.telemetryService.ingest(user.roomUid, ref, raw ?? {});
   }
 }
