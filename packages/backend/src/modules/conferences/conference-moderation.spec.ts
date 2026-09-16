@@ -162,6 +162,21 @@ describe('ConferenceModerationService (16-05)', () => {
     });
   });
 
+  describe('assertCanModerate (16.2-02)', () => {
+    it('is a public method and still forbids a non-moderator', async () => {
+      expect(typeof service.assertCanModerate).toBe('function');
+      userModel.findOne.mockResolvedValue({ uniqueid: 5, vpbx_user_uid: VPBX, exten: '777' });
+      await expect(service.assertCanModerate(ROOM_UID, user(), 'moderator')).rejects.toMatchObject({
+        message: 'Moderator role required',
+      });
+    });
+
+    it('allows a permanent moderator', async () => {
+      userModel.findOne.mockResolvedValue({ uniqueid: 5, vpbx_user_uid: VPBX, exten: '602' });
+      await expect(service.assertCanModerate(ROOM_UID, user(), 'moderator')).resolves.toBeUndefined();
+    });
+  });
+
   describe('kickParticipant', () => {
     it('kicks via AMI and writes audit for a moderator', async () => {
       userModel.findOne.mockResolvedValue({ uniqueid: 5, vpbx_user_uid: VPBX, exten: '602' });

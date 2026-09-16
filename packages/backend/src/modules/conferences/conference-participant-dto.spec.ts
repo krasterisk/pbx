@@ -124,6 +124,20 @@ describe('conference participant DTO mapper (16-07)', () => {
     expect(typeof dto.waitingForModerator).toBe('boolean');
   });
 
+  it('adds boolean recording on the room DTO without filesystem paths', () => {
+    const dto = toConferenceRoomStateDto(
+      snapshot({
+        recording: true,
+        conference: 'conf6007_42',
+        participants: [participant()],
+      }),
+    );
+    expect(dto.recording).toBe(true);
+    expect(Object.keys(dto).sort()).toEqual(['participants', 'recording', 'waitingForModerator']);
+    expect(allStringValues(dto).some((value) => /[/\\]|\.wav|\.mp3/.test(value))).toBe(false);
+    expect(Object.keys(dto.participants[0]).sort()).toEqual(PARTICIPANT_KEYS);
+  });
+
   it('keeps snapshot participant order', () => {
     const dto = toConferenceRoomStateDto(
       snapshot({
@@ -173,7 +187,7 @@ describe('conference participant DTO mapper (16-07)', () => {
     );
     expect(first.type).toBe('fullSnapshot');
     const payload = typeof first.data === 'string' ? JSON.parse(first.data) : first.data;
-    expect(Object.keys(payload).sort()).toEqual(['participants', 'waitingForModerator']);
+    expect(Object.keys(payload).sort()).toEqual(['participants', 'recording', 'waitingForModerator']);
     expect(Object.keys(payload.participants[0]).sort()).toEqual(PARTICIPANT_KEYS);
     expect(allStringValues(payload)).not.toContain('conf6007_42');
     expect(allStringValues(payload).some((value) => value.includes('PJSIP/'))).toBe(false);

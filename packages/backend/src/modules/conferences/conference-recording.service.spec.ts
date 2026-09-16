@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
+import { ForbiddenException } from '@nestjs/common';
 import { PassThrough } from 'stream';
 import { ConferenceRecordingService } from './conference-recording.service';
 import { ConferenceStateService } from './conference-state.service';
@@ -144,5 +145,129 @@ describe('ConferenceRecordingService.streamMeeting (16.2-01 D-30)', () => {
     expect(res.status).toHaveBeenCalledWith(206);
     expect(headers['Content-Type']).toBe('audio/wav');
     expect(headers['Accept-Ranges']).toBe('bytes');
+  });
+});
+
+describe('ConferenceRecordingService start/stop by moderator (16.2-02 D-31)', () => {
+  let base: string;
+  let ami: { action: jest.Mock };
+  let settings: { getServerConfigRaw: jest.Mock };
+  let state: ConferenceStateService;
+  let rooms: { findOne: jest.Mock };
+  let meetings: {
+    currentMeeting: jest.Mock;
+    beginMeeting: jest.Mock;
+    markParticipantLeft: jest.Mock;
+    endMeeting: jest.Mock;
+  };
+  let logger: { logAction: jest.Mock };
+  let moderation: { assertCanModerate: jest.Mock };
+  let service: ConferenceRecordingService;
+  const user = { sub: 5, vpbx_user_uid: VPBX };
+
+  beforeEach(() => {
+    base = fs.mkdtempSync(path.join(os.tmpdir(), 'conf-rec-mod-'));
+    ami = { action: jest.fn().mockResolvedValue({ response: 'Success' }) };
+    settings = {
+      getServerConfigRaw: jest.fn().mockResolvedValue({ records_base_path: base }),
+    };
+    state = new ConferenceStateService();
+    state.registerRoom({ uid: ROOM_UID, number: '6007', user_uid: VPBX });
+    rooms = { findOne: jest.fn().mockResolvedValue(room({ record_mode: 'button' })) };
+    meetings = {
+      currentMeeting: jest.fn().mockResolvedValue(meeting()),
+      beginMeeting: jest.fn(),
+      markParticipantLeft: jest.fn(),
+      endMeeting: jest.fn(),
+    };
+    logger = { logAction: jest.fn().mockResolvedValue(undefined) };
+    moderation = { assertCanModerate: jest.fn().mockResolvedValue(undefined) };
+    service = new ConferenceRecordingService(
+      ami as never,
+      settings as never,
+      state,
+      rooms as never,
+      meetings as never,
+      logger as never,
+      moderation as never,
+    );
+  });
+
+  afterEach(() => {
+    fs.rmSync(base, { recursive: true, force: true });
+  });
+
+  it('record_mode button + startByModerator sends exactly one ConfbridgeStartRecord', async () => {
+    await service.startByModerator(ROOM_UID, user);
+    expect(ami.action).toHaveBeenCalledTimes(1);
+    expect(ami.action.mock.calls[0][0]).toEqual({
+      action: 'ConfbridgeStartRecord',
+      conference: 'conf6007_42',
+      recordFile: path.join(base, '42/conferences/77/15.wav'),
+    });
+    expect(state.getSnapshot(ROOM_UID).recording).toBe(true);
+    expect(logger.logAction).toHaveBeenCalledWith(
+      5,
+      'conference_record_start',
+      'conference_room',
+      ROOM_UID,
+      VPBX,
+      '',
+    );
+  });
+
+  it('forbids start when record_mode is off or auto', async () => {
+    rooms.findOne.mockResolvedValue(room({ record_mode: 'off' }));
+    await expect(service.startByModerator(ROOM_UID, user)).rejects.toBeInstanceOf(ForbiddenException);
+    rooms.findOne.mockResolvedValue(room({ record_mode: 'auto' }));
+    await expect(service.startByModerator(ROOM_UID, user)).rejects.toBeInstanceOf(ForbiddenException);
+    expect(ami.action).not.toHaveBeenCalled();
+  });
+
+  it('forbids start when assertCanModerate rejects with Moderator role required', async () => {
+    moderation.assertCanModerate.mockRejectedValue(new ForbiddenException('Moderator role required'));
+    await expect(service.startByModerator(ROOM_UID, user)).rejects.toMatchObject({
+      message: 'Moderator role required',
+    });
+    expect(ami.action).not.toHaveBeenCalled();
+  });
+
+  it('returns without a new AMI when snapshot.recording is already true', async () => {
+    state.setRecording(ROOM_UID, true);
+    await service.startByModerator(ROOM_UID, user);
+    expect(ami.action).not.toHaveBeenCalled();
+  });
+
+  it('ignores a client path body and still uses the server-built recordFile', async () => {
+    await service.startByModerator(ROOM_UID, user, { path: '/tmp/evil.wav', recordFile: '/tmp/evil.wav' });
+    expect(ami.action.mock.calls[0][0].recordFile).toBe(path.join(base, '42/conferences/77/15.wav'));
+    expect(JSON.stringify(ami.action.mock.calls[0][0])).not.toContain('evil');
+  });
+
+  it('stopByModerator sends ConfbridgeStopRecord without a path and audits', async () => {
+    state.setRecording(ROOM_UID, true);
+    await service.stopByModerator(ROOM_UID, user);
+    expect(ami.action).toHaveBeenCalledTimes(1);
+    expect(ami.action.mock.calls[0][0]).toEqual({
+      action: 'ConfbridgeStopRecord',
+      conference: 'conf6007_42',
+    });
+    expect(Object.keys(ami.action.mock.calls[0][0])).not.toContain('recordFile');
+    expect(Object.keys(ami.action.mock.calls[0][0])).not.toContain('RecordFile');
+    expect(state.getSnapshot(ROOM_UID).recording).toBe(false);
+    expect(logger.logAction).toHaveBeenCalledWith(
+      5,
+      'conference_record_stop',
+      'conference_room',
+      ROOM_UID,
+      VPBX,
+      '',
+    );
+  });
+
+  it('repeated stop when already false succeeds without a second AMI', async () => {
+    await service.stopByModerator(ROOM_UID, user);
+    await service.stopByModerator(ROOM_UID, user);
+    expect(ami.action).not.toHaveBeenCalled();
   });
 });
