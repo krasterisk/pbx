@@ -341,21 +341,23 @@ export function ValueSourceField({
                 {t('routes.chain.source.variable', 'Из переменной')}
               </option>
             </optgroup>
-            <optgroup label={staticGroup}>
-              {!queueInCatalog ? (
-                <option value={queueSelectValue}>
-                  {(isConferenceCatalog
-                    ? t('conferences.orphanRoom', '{{room}} (нет в списке)')
-                    : t('routes.chain.source.queueOrphan', '{{queue}} (нет в списке)')
-                  ).replace(isConferenceCatalog ? '{{room}}' : '{{queue}}', queueSelectValue)}
-                </option>
-              ) : null}
-              {catalogItems.map((item) => (
-                <option key={item.value} value={item.value}>
-                  {item.label}
-                </option>
-              ))}
-            </optgroup>
+            {catalogItems.length > 0 || !queueInCatalog ? (
+              <optgroup label={staticGroup}>
+                {!queueInCatalog ? (
+                  <option value={queueSelectValue}>
+                    {(isConferenceCatalog
+                      ? t('conferences.orphanRoom', '{{room}} (нет в списке)')
+                      : t('routes.chain.source.queueOrphan', '{{queue}} (нет в списке)')
+                    ).replace(isConferenceCatalog ? '{{room}}' : '{{queue}}', queueSelectValue)}
+                  </option>
+                ) : null}
+                {catalogItems.map((item) => (
+                  <option key={item.value} value={item.value}>
+                    {item.label}
+                  </option>
+                ))}
+              </optgroup>
+            ) : null}
           </Select>
           {queueEmptyError ? (
             <Text id="queue-source-error" variant="muted" className={styles.fieldError}>
