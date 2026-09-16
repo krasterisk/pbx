@@ -368,6 +368,75 @@ describe('ConferenceGuestService (16.1-01)', () => {
       );
     });
 
+    it('rejects empty pin when requiresPin as CONFERENCE_PIN_REQUIRED and does not create', async () => {
+      roomsService.findOne.mockResolvedValue(
+        roomJson({ number: '6007', entry_strictness: 'token_name_pin', pin: '1234' }),
+      );
+      try {
+        await service.join(guestUser(), { pin: '' });
+        throw new Error('expected CONFERENCE_PIN_REQUIRED');
+      } catch (err) {
+        expect(err).toBeInstanceOf(HttpException);
+        expect((err as HttpException).getStatus()).toBe(HttpStatus.BAD_REQUEST);
+        expect((err as HttpException).getResponse()).toMatchObject({
+          code: 'CONFERENCE_PIN_REQUIRED',
+        });
+      }
+      expect(endpointsService.createEphemeralGuestEndpoint).not.toHaveBeenCalled();
+    });
+
+    it('rejects a wrong pin as CONFERENCE_PIN_WRONG', async () => {
+      roomsService.findOne.mockResolvedValue(
+        roomJson({ number: '6007', entry_strictness: 'token_name_pin', pin: '1234' }),
+      );
+      try {
+        await service.join(guestUser(), { pin: '9999' });
+        throw new Error('expected CONFERENCE_PIN_WRONG');
+      } catch (err) {
+        expect(err).toBeInstanceOf(HttpException);
+        expect((err as HttpException).getResponse()).toMatchObject({
+          code: 'CONFERENCE_PIN_WRONG',
+        });
+      }
+      expect(endpointsService.createEphemeralGuestEndpoint).not.toHaveBeenCalled();
+    });
+
+    it('creates once when requiresPin and pin matches', async () => {
+      const fs = require('fs') as typeof import('fs');
+      const path = require('path') as typeof import('path');
+      const src = fs.readFileSync(
+        path.resolve(__dirname, 'conference-guest.service.ts'),
+        'utf8',
+      );
+      expect(src).toMatch(/CONFERENCE_PIN_REQUIRED/);
+      expect(src).toMatch(/CONFERENCE_PIN_WRONG/);
+      expect(src.indexOf('CONFERENCE_PIN_REQUIRED')).toBeLessThan(
+        src.indexOf('createEphemeralGuestEndpoint'),
+      );
+      roomsService.findOne.mockResolvedValue(
+        roomJson({ number: '6007', entry_strictness: 'token_name_pin', pin: '1234' }),
+      );
+      tokenModel.findByPk.mockResolvedValue({
+        uid: 9,
+        sip_id: null,
+        display_name: 'Гость',
+        update: jest.fn().mockResolvedValue(undefined),
+      });
+      await service.join(guestUser(), { pin: '1234' });
+      expect(endpointsService.createEphemeralGuestEndpoint).toHaveBeenCalledTimes(1);
+    });
+
+    it('ignores dto.pin when the room does not require a PIN', async () => {
+      tokenModel.findByPk.mockResolvedValue({
+        uid: 9,
+        sip_id: null,
+        display_name: 'Гость',
+        update: jest.fn().mockResolvedValue(undefined),
+      });
+      await service.join(guestUser(), { pin: '9999' });
+      expect(endpointsService.createEphemeralGuestEndpoint).toHaveBeenCalledTimes(1);
+    });
+
     it('exposes POST :token/leave on ConferenceGuestController without JwtAuthGuard', () => {
       const fs = require('fs') as typeof import('fs');
       const path = require('path') as typeof import('path');

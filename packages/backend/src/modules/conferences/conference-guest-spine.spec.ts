@@ -127,4 +127,62 @@ describe('conference guest spine (16.1-01)', () => {
     expect(rooms).not.toMatch(/conferences\/guest/);
     expect(rooms).not.toMatch(/ConferenceGuestTokenGuard/);
   });
+
+  it('guest events first snapshot uses toConferenceRoomStateDto and omits conference', async () => {
+    const { ConferenceGuestController } = require('./conference-guest.controller');
+    const { EMPTY, firstValueFrom } = require('rxjs');
+    const state = {
+      getSnapshot: jest.fn().mockReturnValue({
+        roomUid: ROOM_UID,
+        participants: [],
+        waitingForModerator: false,
+        conference: 'conf6007_42',
+      }),
+      getEventStream: jest.fn().mockReturnValue(EMPTY),
+      streamObserverCount: jest.fn().mockReturnValue(0),
+    };
+    const controller = new ConferenceGuestController({} as any, state as any);
+    const req = {
+      user: guestUser(),
+      on: jest.fn(),
+      off: jest.fn(),
+    };
+    const first = await firstValueFrom(controller.events(req));
+    expect(first.type).toBe('fullSnapshot');
+    const data = JSON.parse(first.data as string);
+    expect(Object.keys(data).sort()).toEqual(['participants', 'waitingForModerator']);
+    expect(data).not.toHaveProperty('conference');
+    expect(JSON.stringify(data)).not.toMatch(/conf6007_42/);
+  });
+
+  it('ConferenceGuestJoinDto pin matches CONFERENCE_PIN_PATTERN', async () => {
+    const { plainToInstance } = require('class-transformer');
+    const { validate } = require('class-validator');
+    const { ConferenceGuestJoinDto } = require('./dto/conference-guest-join.dto');
+    const { CONFERENCE_PIN_PATTERN } = require('./dto/create-conference-room.dto');
+    const src = fs.readFileSync(
+      path.resolve(__dirname, './dto/conference-guest-join.dto.ts'),
+      'utf8',
+    );
+    expect(src).toMatch(/CONFERENCE_PIN_PATTERN/);
+    expect(String(CONFERENCE_PIN_PATTERN)).toBe(String(/^\d{4,32}$/));
+    const bad = plainToInstance(ConferenceGuestJoinDto, { pin: '12' });
+    expect((await validate(bad)).some((e: { property: string }) => e.property === 'pin')).toBe(
+      true,
+    );
+    const ok = plainToInstance(ConferenceGuestJoinDto, { pin: '1234' });
+    expect(await validate(ok)).toHaveLength(0);
+  });
+
+  it('guest events skip throttle and reuse toConferenceRoomStateDto', () => {
+    const guest = fs.readFileSync(
+      path.resolve(__dirname, './conference-guest.controller.ts'),
+      'utf8',
+    );
+    expect(guest).toMatch(/@SkipThrottle\(\{ default: true, global: true \}\)/);
+    expect(guest).toMatch(/toConferenceRoomStateDto/);
+    expect(guest).toMatch(/:token\/events/);
+    expect(guest).toMatch(/req\.user\.roomUid/);
+    expect(guest).not.toMatch(/ParseIntPipe/);
+  });
 });
