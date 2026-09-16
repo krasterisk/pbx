@@ -1218,13 +1218,13 @@ Plans:
 
 **Requirements:** D-30, D-31, D-32, D-33.
 
-**Plans:** 2/4 plans executed
+**Plans:** 3/4 plans executed
 
 Plans:
 
 - [x] 16.2-01-PLAN.md — Спина: путь D-30, встреча → AMI StartRecord → WAV play, ALTER uniqueid
 - [x] 16.2-02-PLAN.md — Кнопка модератора, leftover диалплана, announcement, last-leave, list/CDR-join API
-- [ ] 16.2-03-PLAN.md — CDR-бейдж + модалка WAV
+- [x] 16.2-03-PLAN.md — CDR-бейдж + модалка WAV
 - [ ] 16.2-04-PLAN.md — Фрагмент History tab
 
 **Wave 1**
@@ -1237,7 +1237,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] `16.2-03-PLAN.md` — Wave 3: CDR surface (RTK + badge + modal)
+- [x] `16.2-03-PLAN.md` — Wave 3: CDR surface (RTK + badge + modal)
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
