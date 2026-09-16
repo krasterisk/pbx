@@ -86,6 +86,7 @@ export class ConferenceMeetingsService {
         left_at: null,
         uniqueid,
         caller_id_num: callerIdNum || null,
+        channel: channel || null,
       });
       return { meeting, room, isFirstJoin };
     });
@@ -93,7 +94,7 @@ export class ConferenceMeetingsService {
 
   async markParticipantLeft(
     roomUid: number,
-    keys: { uniqueid?: string | null; channel?: string | null },
+    keys: { uniqueid?: string | null; channel?: string | null; callerIdNum?: string | null },
   ): Promise<void> {
     const meeting = await this.currentMeeting(roomUid);
     if (!meeting) return;
@@ -102,11 +103,17 @@ export class ConferenceMeetingsService {
     });
     const uniqueid = keys.uniqueid?.trim() || '';
     const channel = keys.channel?.trim() || '';
+    const callerIdNum = keys.callerIdNum?.trim() || '';
     for (const row of rows) {
       if (row.left_at) continue;
-      const rowUnique = String((row as { uniqueid?: string | null }).uniqueid ?? '').trim();
-      const rowChannel = String((row as { channel?: string | null }).channel ?? '').trim();
-      if ((uniqueid && rowUnique === uniqueid) || (channel && rowChannel === channel)) {
+      const rowUnique = String(row.uniqueid ?? '').trim();
+      const rowChannel = String(row.channel ?? '').trim();
+      const rowCaller = String(row.caller_id_num ?? '').trim();
+      if (
+        (uniqueid && rowUnique === uniqueid) ||
+        (channel && rowChannel === channel) ||
+        (callerIdNum && rowCaller === callerIdNum)
+      ) {
         await row.update({ left_at: new Date() });
       }
     }

@@ -165,16 +165,18 @@ describe('conference schema (16-01 Task 3)', () => {
   });
 
   describe('meeting participant uniqueid (16.2-01 Task 3)', () => {
-    it('CREATE TABLE conference_meeting_participants includes caller_id_num and uniqueid VARCHAR(64) NULL', () => {
+    it('CREATE TABLE conference_meeting_participants includes caller_id_num, uniqueid, and channel VARCHAR(64) NULL', () => {
       const sql = statementForTable('conference_meeting_participants');
       expect(sql).toMatch(/`caller_id_num`\s+VARCHAR\(64\)\s+NULL/i);
       expect(sql).toMatch(/`uniqueid`\s+VARCHAR\(64\)\s+NULL/i);
+      expect(sql).toMatch(/`channel`\s+VARCHAR\(64\)\s+NULL/i);
     });
 
-    it('declares ConferenceMeetingParticipant.caller_id_num and uniqueid as nullable STRING(64)', () => {
+    it('declares ConferenceMeetingParticipant.caller_id_num, uniqueid, and channel as nullable STRING(64)', () => {
       const attrs = ConferenceMeetingParticipant.getAttributes();
       expect(attrs).toHaveProperty('caller_id_num');
       expect(attrs).toHaveProperty('uniqueid');
+      expect(attrs).toHaveProperty('channel');
       const caller = attrs.caller_id_num as {
         allowNull?: boolean;
         type?: { toString: () => string };
@@ -183,10 +185,16 @@ describe('conference schema (16-01 Task 3)', () => {
         allowNull?: boolean;
         type?: { toString: () => string };
       };
+      const channel = attrs.channel as {
+        allowNull?: boolean;
+        type?: { toString: () => string };
+      };
       expect(caller.allowNull).toBe(true);
       expect(uniqueid.allowNull).toBe(true);
+      expect(channel.allowNull).toBe(true);
       expect(String(caller.type)).toMatch(/VARCHAR\(64\)|STRING\(64\)/i);
       expect(String(uniqueid.type)).toMatch(/VARCHAR\(64\)|STRING\(64\)/i);
+      expect(String(channel.type)).toMatch(/VARCHAR\(64\)|STRING\(64\)/i);
     });
 
     it('setupConferencesSchema alters both columns and swallows a repeat Duplicate column', async () => {
@@ -207,6 +215,7 @@ describe('conference schema (16-01 Task 3)', () => {
         true,
       );
       expect(alters.some((sql) => /conference_meeting_participants/.test(sql) && /uniqueid/.test(sql))).toBe(true);
+      expect(alters.some((sql) => /conference_meeting_participants/.test(sql) && /`channel`/.test(sql))).toBe(true);
       repeats += 1;
       await expect(setupConferencesSchema(sequelize)).resolves.toBeUndefined();
     });

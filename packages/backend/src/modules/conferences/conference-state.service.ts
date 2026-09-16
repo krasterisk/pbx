@@ -344,13 +344,14 @@ export class ConferenceStateService {
       const meetings = this.moduleRef.get<{
         markParticipantLeft?: (
           roomUid: number,
-          keys: { uniqueid?: string; channel?: string },
+          keys: { uniqueid?: string; channel?: string; callerIdNum?: string },
         ) => Promise<void>;
         endMeeting?: (roomUid: number) => Promise<unknown>;
       }>('ConferenceMeetingsService', { strict: false });
       const uniqueid = evt ? amiString(evt, 'Uniqueid', 'uniqueid') : '';
+      const callerIdNum = evt ? amiString(evt, 'CallerIDNum') : '';
       if (meetings?.markParticipantLeft) {
-        await meetings.markParticipantLeft(resolved.roomUid, { uniqueid, channel });
+        await meetings.markParticipantLeft(resolved.roomUid, { uniqueid, channel, callerIdNum });
       }
       if (!emptied) return;
       if (meetings?.endMeeting) {

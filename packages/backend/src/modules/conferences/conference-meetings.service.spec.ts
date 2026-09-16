@@ -120,6 +120,35 @@ describe('ConferenceMeetingsService last-leave (16.2-02 D-33)', () => {
     const secondEnd = await service.endMeeting(ROOM_UID);
     expect(secondEnd?.ended_at).toBe(endedAt);
   });
+
+  it('marks left_at by persisted channel or caller_id_num when Uniqueid is missing', async () => {
+    await service.beginMeeting(ROOM_UID, VPBX, {
+      Conference: CONFERENCE,
+      Channel: 'PJSIP/601-00000001',
+      CallerIDNum: '601',
+    });
+    expect(participantModel.rows[0].channel).toBe('PJSIP/601-00000001');
+    expect(participantModel.rows[0].uniqueid).toBeNull();
+
+    await service.markParticipantLeft(ROOM_UID, {
+      uniqueid: '',
+      channel: 'PJSIP/601-00000001',
+    });
+    expect(participantModel.rows[0].left_at).toBeInstanceOf(Date);
+
+    await service.beginMeeting(ROOM_UID, VPBX, {
+      Conference: CONFERENCE,
+      Channel: 'PJSIP/602-00000002',
+      CallerIDNum: '602',
+    });
+    participantModel.rows[1].channel = null;
+    await service.markParticipantLeft(ROOM_UID, {
+      uniqueid: '',
+      channel: 'PJSIP/other',
+      callerIdNum: '602',
+    });
+    expect(participantModel.rows[1].left_at).toBeInstanceOf(Date);
+  });
 });
 
 describe('applyLeave last-leave stop (16.2-02 D-31/D-33)', () => {
@@ -234,6 +263,7 @@ describe('ConferenceMeetingsService list and CDR-join (16.2-02 D-33)', () => {
     });
     expect(participantModel.rows[0].uniqueid).toBe('1693731234.12');
     expect(participantModel.rows[0].caller_id_num).toBe('601');
+    expect(participantModel.rows[0].channel).toBe('PJSIP/601-00000001');
     await service.beginMeeting(ROOM_UID, VPBX, {
       Conference: CONFERENCE,
       Channel: 'PJSIP/602-00000002',

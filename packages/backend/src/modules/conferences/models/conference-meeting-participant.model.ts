@@ -38,4 +38,7 @@ export class ConferenceMeetingParticipant extends Model {
 
   @Column({ type: DataType.STRING(64), allowNull: true })
   declare uniqueid: string | null;
+
+  @Column({ type: DataType.STRING(64), allowNull: true })
+  declare channel: string | null;
 }
