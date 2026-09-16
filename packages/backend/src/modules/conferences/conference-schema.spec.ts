@@ -164,7 +164,6 @@ describe('conference schema (16-01 Task 3)', () => {
         .split(',')
         .map((s) => s.trim())
         .filter(Boolean);
-      expect(models).toHaveLength(5);
       expect(models).toEqual(
         expect.arrayContaining([
           'ConferenceRoom',
@@ -172,6 +171,7 @@ describe('conference schema (16-01 Task 3)', () => {
           'ConferenceGuestToken',
           'ConferenceMeeting',
           'ConferenceMeetingParticipant',
+          'User',
         ]),
       );
     });

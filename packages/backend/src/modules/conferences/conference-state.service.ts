@@ -64,6 +64,7 @@ export class ConferenceStateService {
   private readonly conferenceByName = new Map<string, RoomCacheEntry>();
   private readonly conferenceByRoom = new Map<number, RoomCacheEntry>();
   private readonly roomRights = new Map<number, ConferenceRoomRights>();
+  private readonly liveGrants = new Map<number, Map<string, ConferenceRole>>();
 
   registerRoom(room: { uid: number; number: string; user_uid: number }): void {
     const conference = `conf${room.number}_${room.user_uid}`;
@@ -82,6 +83,50 @@ export class ConferenceStateService {
       ownerRef: rights.ownerRef,
       moderatorRefs: [...rights.moderatorRefs],
     });
+  }
+
+  grantRole(roomUid: number, participantRef: string, role: ConferenceRole): void {
+    const participant = this.findLiveParticipant(roomUid, participantRef);
+    if (!participant) return;
+    if (participant.role === 'owner' || role === 'participant') return;
+    const grants = this.grantsFor(roomUid);
+    grants.set(participant.channel, role);
+    if (participant.callerIdNum) grants.set(participant.callerIdNum, role);
+    grants.set(participantRef, role);
+    participant.role = role;
+    this.emit(roomUid, 'roleGrant');
+  }
+
+  revokeRole(roomUid: number, participantRef: string): void {
+    const participant = this.findLiveParticipant(roomUid, participantRef);
+    const grants = this.liveGrants.get(roomUid);
+    grants?.delete(participantRef);
+    if (participant) {
+      grants?.delete(participant.channel);
+      if (participant.callerIdNum) grants?.delete(participant.callerIdNum);
+      participant.role = this.roleFromSettings(roomUid, participant.callerIdNum);
+      this.emit(roomUid, 'roleRevoke');
+    }
+  }
+
+  getGrantedRole(roomUid: number, participantRef: string): ConferenceRole | undefined {
+    return this.liveGrants.get(roomUid)?.get(participantRef);
+  }
+
+  getLiveGrants(roomUid: number): Array<{ participantRef: string; role: ConferenceRole }> {
+    return [...(this.liveGrants.get(roomUid)?.entries() ?? [])].map(([participantRef, role]) => ({
+      participantRef,
+      role,
+    }));
+  }
+
+  findLiveParticipant(
+    roomUid: number,
+    participantRef: string,
+  ): ConferenceParticipantState | undefined {
+    return this.getSnapshot(roomUid).participants.find(
+      (item) => item.channel === participantRef || item.callerIdNum === participantRef,
+    );
   }
 
   getSnapshot(roomUid: number): ConferenceRoomSnapshot {
@@ -134,7 +179,10 @@ export class ConferenceStateService {
     members.delete(channel);
     this.lastSignalAt.delete(channel);
     const emptied = members.size === 0;
-    if (emptied) this.rooms.delete(resolved.roomUid);
+    if (emptied) {
+      this.rooms.delete(resolved.roomUid);
+      this.liveGrants.delete(resolved.roomUid);
+    }
     this.emit(resolved.roomUid, 'participantLeave');
     if (emptied) this.scheduleCollectIfEmpty(resolved.roomUid);
   }
@@ -166,11 +214,28 @@ export class ConferenceStateService {
 
   private resolveJoinRole(roomUid: number, evt: ConferenceAmiEvent): ConferenceParticipantRole {
     const callerRef = String(evt.CallerIDNum ?? '').trim();
+    const channel = String(evt.Channel ?? '');
     if (callerRef) {
-      const rights = this.roomRights.get(roomUid) ?? { ownerRef: null, moderatorRefs: [] };
-      return resolveRoleForCaller(callerRef, rights);
+      return this.roleFromSettings(roomUid, callerRef);
     }
-    return roleFromConfbridgeFlags(evt);
+    return this.getGrantedRole(roomUid, channel) ?? roleFromConfbridgeFlags(evt);
+  }
+
+  private roleFromSettings(roomUid: number, callerRef: string): ConferenceParticipantRole {
+    const rights = this.roomRights.get(roomUid) ?? { ownerRef: null, moderatorRefs: [] };
+    return resolveRoleForCaller(callerRef, {
+      ...rights,
+      liveGrants: this.getLiveGrants(roomUid),
+    });
+  }
+
+  private grantsFor(roomUid: number): Map<string, ConferenceRole> {
+    let grants = this.liveGrants.get(roomUid);
+    if (!grants) {
+      grants = new Map();
+      this.liveGrants.set(roomUid, grants);
+    }
+    return grants;
   }
 
   private resolveRoom(evt: ConferenceAmiEvent): RoomCacheEntry | null {

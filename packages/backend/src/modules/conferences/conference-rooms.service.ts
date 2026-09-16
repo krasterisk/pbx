@@ -10,7 +10,9 @@ import { InjectModel } from '@nestjs/sequelize';
 import { UniqueConstraintError } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { DialplanApplyService } from '../ami/dialplan-apply.service';
+import { normalizeAccessToken } from '../callcenter/callcenter-access-list.util';
 import { LoggerService } from '../logger/logger.service';
+import { User } from '../users/user.model';
 import {
   conferenceRoomContextName,
   generateConferenceDialplan,
@@ -59,6 +61,8 @@ export class ConferenceRoomsService {
     private readonly loggerService: LoggerService,
     @InjectModel(ConferenceRoomModerator)
     private readonly moderatorModel?: typeof ConferenceRoomModerator,
+    @InjectModel(User)
+    private readonly userModel?: typeof User,
   ) {}
 
   private roomFile(vpbx: number): string {
@@ -289,6 +293,21 @@ export class ConferenceRoomsService {
     }
 
     return room.toJSON ? room.toJSON() : room;
+  }
+
+  async resolveCallerRef(user: { sub: number; vpbx_user_uid: number }): Promise<string | null> {
+    if (!this.userModel) return null;
+    const row = await this.userModel.findOne({
+      where: { uniqueid: user.sub, vpbx_user_uid: user.vpbx_user_uid },
+      attributes: ['uniqueid', 'exten', 'login'],
+    });
+    if (!row) return null;
+    const rawExten = (row as { exten?: string }).exten ?? row.getDataValue?.('exten');
+    const exten = normalizeAccessToken(rawExten);
+    if (exten) return exten;
+    const login = String((row as { login?: string }).login ?? row.getDataValue?.('login') ?? '');
+    if (/^\d+$/.test(login)) return login;
+    return null;
   }
 
   async getRoomModerators(roomUid: number, vpbx: number) {
