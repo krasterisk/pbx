@@ -341,10 +341,11 @@ describe('ConferenceRoomsService CRUD (16-02)', () => {
         path.resolve(__dirname, 'conference-sse.controller.ts'),
         'utf8',
       );
-      expect(src).toContain('assertLiveRoomAccess');
-      expect(src.indexOf('assertLiveRoomAccess')).toBeLessThan(src.indexOf('startWith'));
-      expect(src).toContain('startWith');
-      expect(src).toMatch(/heartbeat/);
+      const body = src.slice(src.indexOf('events('));
+      expect(body).toContain('assertLiveRoomAccess');
+      expect(body.indexOf('assertLiveRoomAccess')).toBeLessThan(body.indexOf('startWith'));
+      expect(body).toContain('startWith');
+      expect(body).toMatch(/heartbeat/);
     });
 
     it('addToConference takes the room name from ensureRoomForCall, not uniqueid', () => {
@@ -355,9 +356,13 @@ describe('ConferenceRoomsService CRUD (16-02)', () => {
       const start = src.indexOf('async addToConference');
       const end = src.indexOf('async resetZombieCall');
       const method = src.slice(start, end);
-      expect(method).toMatch(/ensureRoomForCall\(\s*uniqueid\s*,\s*userUid\s*,\s*userId\s*\)/);
+      expect(method).toMatch(
+        /ensureRoomForCall\(\s*uniqueid\s*,\s*userUid\s*,\s*userId,?\s*\)/,
+      );
       expect(method).not.toMatch(/uniqueid\.replace/);
-      expect(method).toMatch(/addToConference\(\s*uniqueid:\s*string,\s*target:\s*string,\s*userUid:\s*number,\s*userId:\s*number\s*\)/);
+      expect(method).toMatch(
+        /addToConference\(\s*uniqueid:\s*string,\s*target:\s*string,\s*userUid:\s*number,\s*userId:\s*number\s*\)/,
+      );
     });
   });
 });

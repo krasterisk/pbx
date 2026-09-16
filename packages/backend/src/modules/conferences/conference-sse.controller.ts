@@ -31,7 +31,7 @@ export class ConferenceSseController {
     @Req() req: Request & { user: any },
     @Param('room_uid', ParseIntPipe) roomUid: number,
   ): Observable<MessageEvent> {
-    return from(this.roomsService.findOne(roomUid, req.user.vpbx_user_uid)).pipe(
+    return from(this.roomsService.assertLiveRoomAccess(roomUid, req.user)).pipe(
       switchMap(() => {
         this.logger.log(
           `Conference SSE opened: room ${roomUid} tenant ${req.user.vpbx_user_uid}`,

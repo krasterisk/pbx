@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { AmiModule } from '../ami/ami.module';
+import { LoggerModule } from '../logger/logger.module';
 import { ConfbridgeStaticProfileService } from './confbridge-static-profile.service';
 import { ConferenceEphemeralService } from './conference-ephemeral.service';
 import { ConferenceRoomsController } from './conference-rooms.controller';
@@ -23,6 +24,7 @@ import { ConferenceRoom } from './models/conference-room.model';
       ConferenceMeetingParticipant,
     ]),
     AmiModule,
+    LoggerModule,
   ],
   controllers: [ConferenceRoomsController, ConferenceSseController],
   providers: [

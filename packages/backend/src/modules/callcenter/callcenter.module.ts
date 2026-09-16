@@ -9,6 +9,7 @@ import { AriModule } from '../ari/ari.module';
 import { VoiceRobotsModule } from '../voice-robots/voice-robots.module';
 import { CloudAdminModule } from '../cloud-admin/cloud-admin.module';
 import { LoggerModule } from '../logger/logger.module';
+import { ConferencesModule } from '../conferences/conferences.module';
 import { CallCenterStateService } from './callcenter-state.service';
 import { CallCenterAmiService } from './callcenter-ami.service';
 import { CallCenterService } from './callcenter.service';
@@ -114,6 +115,7 @@ import { queueLogReaderProvider } from './queuelog/queue-log-reader.factory';
     CloudAdminModule,
     ConfigModule,
     LoggerModule,
+    ConferencesModule,
   ],
   providers: [
     CallCenterStateService,

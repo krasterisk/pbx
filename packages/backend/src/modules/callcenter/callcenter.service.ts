@@ -32,6 +32,7 @@ import { CreateContactDto, SendDtmfDto, UpdateContactDto } from './dto/callcente
 import { CallCenterSettingsService } from './callcenter-settings.service';
 import { CallCenterAccessListService } from './callcenter-access-list.service';
 import { CallCenterShiftRestoreService } from './callcenter-shift-restore.service';
+import { ConferenceEphemeralService } from '../conferences/conference-ephemeral.service';
 import { User } from '../users/user.model';
 import { ServiceRequest } from '../service-requests/service-request.model';
 import { companionIdOf, isWebrtcCompanion, primaryIdOf, extractExtension, interfaceToExtension } from '../endpoints/endpoint-ids.util';
@@ -78,6 +79,7 @@ export class CallCenterService {
     @InjectModel(CcOperatorSettings) private readonly operatorSettingsModel: typeof CcOperatorSettings,
     private readonly accessListService: CallCenterAccessListService,
     private readonly shiftRestore: CallCenterShiftRestoreService,
+    private readonly conferenceEphemeralService: ConferenceEphemeralService,
   ) {}
 
   // ─── Helpers ─────────────────────────────────────────────
@@ -1755,35 +1757,38 @@ export class CallCenterService {
       throw new BadRequestException('Conference target is required');
     }
 
-    const room = uniqueid.replace(/[^A-Za-z0-9_-]/g, '');
+    const { contextName } = await this.conferenceEphemeralService.ensureRoomForCall(
+      uniqueid,
+      userUid,
+      userId,
+    );
     const exten = target.replace(/^PJSIP\//, '').replace(/^SIP\//, '');
-    const { context } = await this.resolveAgentRedirectTarget(userUid, agentInterface);
 
     try {
       await this.amiService.action({
         action: 'Redirect',
         channel: call.callerChannel,
-        context,
-        exten: `ConfBridge(${room})`,
+        context: contextName,
+        exten: 's',
         priority: '1',
         extrachannel: call.agentChannel,
-        extracontext: context,
-        extraexten: `ConfBridge(${room})`,
+        extracontext: contextName,
+        extraexten: 's',
         extrapriority: '1',
       });
       await this.amiService.originate(
         `PJSIP/${exten}`,
-        `Conference ${room}`,
-        context,
-        `ConfBridge(${room})`,
+        `Conference ${contextName}`,
+        contextName,
+        's',
       );
     } catch (err: any) {
       throw new BadRequestException(`Conference failed: ${err.message}`);
     }
 
     this.stateService.setCall(uniqueid, { status: 'TALKING' });
-    this.logger.log(`Conference ${room} started by ${agentInterface} with ${exten}`);
-    return { success: true, room, target: exten };
+    this.logger.log(`Conference ${contextName} started by ${agentInterface} with ${exten}`);
+    return { success: true, room: contextName, target: exten };
   }
 
   /**

@@ -10,6 +10,7 @@ import { InjectModel } from '@nestjs/sequelize';
 import { UniqueConstraintError } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { DialplanApplyService } from '../ami/dialplan-apply.service';
+import { LoggerService } from '../logger/logger.service';
 import { conferenceRoomContextName, generateConferenceDialplan } from './conference-dialplan.util';
 import { ConferenceStateService } from './conference-state.service';
 import { CreateConferenceRoomDto } from './dto/create-conference-room.dto';
@@ -43,6 +44,7 @@ export class ConferenceRoomsService {
     private readonly sequelize: Sequelize,
     private readonly dialplanApplyService: DialplanApplyService,
     private readonly stateService: ConferenceStateService,
+    private readonly loggerService: LoggerService,
   ) {}
 
   private roomFile(vpbx: number): string {
@@ -230,6 +232,37 @@ export class ConferenceRoomsService {
     }
 
     return { success: true };
+  }
+
+  async assertLiveRoomAccess(
+    roomUid: number,
+    user: { sub: number; vpbx_user_uid: number },
+  ) {
+    const room = await this.roomModel.findOne({
+      where: { uid: roomUid, user_uid: user.vpbx_user_uid },
+    });
+    if (!room) {
+      throw conferenceRoomHttpError(
+        HttpStatus.NOT_FOUND,
+        'CONFERENCE_ROOM_NOT_FOUND',
+        `Conference room ${roomUid} not found`,
+        { uid: roomUid },
+      );
+    }
+
+    const createdBy = room.created_by;
+    if (createdBy != null && createdBy !== user.sub) {
+      await this.loggerService.logAction(
+        user.sub,
+        'conference_live_room_enter',
+        'conference_room',
+        roomUid,
+        user.vpbx_user_uid,
+        `created_by=${createdBy}`,
+      );
+    }
+
+    return room.toJSON ? room.toJSON() : room;
   }
 
   private async applyRoom(room: ConferenceRoom, vpbx: number): Promise<void> {
