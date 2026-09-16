@@ -38,8 +38,8 @@ type RoomSnapshotPatch = {
 
 /**
  * Native EventSource for the live room. JWT / guest token goes in the query
- * (EventSource cannot set headers). Patches the same getConferenceRoom cache
- * entry that GET provides — no parallel in-memory participant list.
+ * (EventSource cannot set headers). Staff patches getConferenceRoom; guest
+ * patches the token-keyed guestGet cache the page already subscribed to.
  */
 export function useConferenceSse(args: UseConferenceSseArgs): ConferenceSseStatus {
   const dispatch = useAppDispatch();
@@ -75,6 +75,20 @@ export function useConferenceSse(args: UseConferenceSseArgs): ConferenceSseStatu
         const data = JSON.parse(e.data) as RoomSnapshotPatch;
         if (!data || !Array.isArray(data.participants)) return;
         setStatus('open');
+        if (mode === 'guest') {
+          dispatch(
+            conferenceRoomApi.util.updateQueryData('guestGet', explicitToken as string, (draft) => {
+              draft.participants = data.participants;
+              if (data.waitingForModerator !== undefined) {
+                draft.waitingForModerator = data.waitingForModerator;
+              }
+              if (data.recording !== undefined) {
+                draft.recording = data.recording;
+              }
+            }),
+          );
+          return;
+        }
         dispatch(
           conferenceRoomApi.util.updateQueryData('getConferenceRoom', roomUid, (draft) => {
             draft.participants = data.participants;

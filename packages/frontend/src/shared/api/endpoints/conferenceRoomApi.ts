@@ -71,6 +71,9 @@ export interface ConferenceGuestMeta {
   name: string;
   entry_strictness: ConferenceEntryStrictness;
   requiresPin: boolean;
+  participants?: ConferenceParticipant[];
+  waitingForModerator?: boolean;
+  recording?: boolean;
 }
 
 export interface ConferenceGuestJoinResult {

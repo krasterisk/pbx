@@ -208,7 +208,8 @@ describe('ConferenceGuestPage (16.3-07 D-28)', () => {
     render(<ConferenceGuestPage />);
     await joinAsGuest();
     expect(await screen.findByTestId('live-room-header')).toBeInTheDocument();
-    expect(screen.getByText('Алиса')).toBeInTheDocument();
+    expect(screen.getByTestId('conference-video-grid')).toBeInTheDocument();
+    expect(screen.getAllByText('Алиса').length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText('В комнате пока никого нет')).not.toBeInTheDocument();
   });
 
