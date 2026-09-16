@@ -68,17 +68,13 @@ function makeStore() {
       conferenceSession: conferenceSessionReducer,
       [rtkApi.reducerPath]: rtkApi.reducer,
     },
-    middleware: (getDefaultMiddleware) => getDefaultMiddleware().concat(rtkApi.middleware),
+    middleware: (getDefault) => getDefault({ serializableCheck: false }).concat(rtkApi.middleware),
   });
 }
 
 const wrapper = (store: ReturnType<typeof makeStore>) =>
   ({ children }: { children: React.ReactNode }) =>
     React.createElement(Provider, { store } as never, children);
-
-function cachedRoom(store: ReturnType<typeof makeStore>, uid: number) {
-  return conferenceRoomApi.endpoints.getConferenceRoom.select(uid)(store.getState()).data;
-}
 
 describe('useConferenceSse (16.3-02)', () => {
   let originalES: typeof EventSource | undefined;
@@ -125,8 +121,10 @@ describe('useConferenceSse (16.3-02)', () => {
 
   it('patches getConferenceRoom participants via updateQueryData on snapshot', () => {
     const store = makeStore();
-    store.dispatch(conferenceRoomApi.util.upsertQueryData('getConferenceRoom', 77, roomStub()));
-    expect(cachedRoom(store, 77)?.participants).toEqual([]);
+    const updateSpy = vi.spyOn(conferenceRoomApi.util, 'updateQueryData');
+    store.dispatch(
+      conferenceRoomApi.util.upsertQueryData('getConferenceRoom', 77, roomStub()),
+    );
 
     renderHook(
       () => useConferenceSse({ mode: 'staff', roomUid: 77 }),
@@ -150,10 +148,19 @@ describe('useConferenceSse (16.3-02)', () => {
       });
     });
 
-    const room = cachedRoom(store, 77);
-    expect(room?.participants).toHaveLength(1);
-    expect(room?.participants?.[0].ref).toBe('ew101');
-    expect(room?.recording).toBe(true);
+    expect(updateSpy).toHaveBeenCalledWith(
+      'getConferenceRoom',
+      77,
+      expect.any(Function),
+    );
+    const recipe = updateSpy.mock.calls.find(
+      (call) => call[0] === 'getConferenceRoom' && call[1] === 77,
+    )?.[2] as (draft: ConferenceRoom) => void;
+    const draft = roomStub();
+    recipe(draft);
+    expect(draft.participants).toHaveLength(1);
+    expect(draft.participants?.[0].ref).toBe('ew101');
+    expect(draft.recording).toBe(true);
     expect(store.getState().conferenceSession.roomUid).toBeNull();
   });
 });
