@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { AmiModule } from '../ami/ami.module';
 import { ConfbridgeStaticProfileService } from './confbridge-static-profile.service';
+import { ConferenceEphemeralService } from './conference-ephemeral.service';
 import { ConferenceRoomsController } from './conference-rooms.controller';
 import { ConferenceRoomsService } from './conference-rooms.service';
 import { ConferenceSseController } from './conference-sse.controller';
@@ -31,8 +32,13 @@ import { ConferenceRoom } from './models/conference-room.model';
       provide: 'ConferenceStateService',
       useExisting: ConferenceStateService,
     },
+    ConferenceEphemeralService,
+    {
+      provide: 'ConferenceEphemeralService',
+      useExisting: ConferenceEphemeralService,
+    },
     ConfbridgeStaticProfileService,
   ],
-  exports: [ConferenceRoomsService, ConferenceStateService],
+  exports: [ConferenceRoomsService, ConferenceStateService, ConferenceEphemeralService],
 })
 export class ConferencesModule {}

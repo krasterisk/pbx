@@ -1,4 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
+import { ModuleRef } from '@nestjs/core';
 import { Observable, Subject } from 'rxjs';
 
 export type ConferenceParticipantRole = 'owner' | 'moderator' | 'participant';
@@ -43,6 +44,8 @@ interface RoomCacheEntry {
 @Injectable()
 export class ConferenceStateService {
   private readonly logger = new Logger(ConferenceStateService.name);
+
+  constructor(@Optional() private readonly moduleRef?: ModuleRef) {}
 
   private readonly rooms = new Map<number, Map<string, ConferenceParticipantState>>();
   private readonly streams = new Map<number, Subject<ConferenceEvent>>();
@@ -107,8 +110,10 @@ export class ConferenceStateService {
     if (!members?.has(channel)) return;
     members.delete(channel);
     this.lastSignalAt.delete(channel);
-    if (members.size === 0) this.rooms.delete(resolved.roomUid);
+    const emptied = members.size === 0;
+    if (emptied) this.rooms.delete(resolved.roomUid);
     this.emit(resolved.roomUid, 'participantLeave');
+    if (emptied) this.scheduleCollectIfEmpty(resolved.roomUid);
   }
 
   handleTalking(evt: ConferenceAmiEvent): void {
@@ -209,5 +214,23 @@ export class ConferenceStateService {
 
   private touch(channel: string): void {
     this.lastSignalAt.set(channel, Date.now());
+  }
+
+  private scheduleCollectIfEmpty(roomUid: number): void {
+    void this.invokeCollectIfEmpty(roomUid);
+  }
+
+  private async invokeCollectIfEmpty(roomUid: number): Promise<void> {
+    try {
+      const ephemeral = this.moduleRef?.get<{ collectIfEmpty: (uid: number) => Promise<void> }>(
+        'ConferenceEphemeralService',
+        { strict: false },
+      );
+      await ephemeral?.collectIfEmpty(roomUid);
+    } catch (e: any) {
+      this.logger.error(
+        `Ephemeral collect failed for room ${roomUid}: ${e?.message || e}`,
+      );
+    }
   }
 }
