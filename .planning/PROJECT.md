@@ -37,6 +37,9 @@ Brownfield: код и модули уже существуют; GSD-планы �
 | ARCHITECTURE.md в `packages/*/\.idea/` | Раздельные правила FE/BE | ✓ Good |
 | GSD canonical refs в `.planning/` | discuss-phase читает PROJECT + ROADMAP | ✓ Good |
 | Кастомная голосовая почта вместо `VoiceMail()` | Record + hangup CURL + Nest notify/STT/LLM; ActionType остаётся `voicemail` | ✓ Phase 13 |
+| Гость конференции — ephemeral PJSIP в `krsk-conf-{uid}` | Скомпрометированный токен не даёт выход в тенантный `from-internal` | ✓ Phase 16.1 |
+| Ёмкость комнаты = `min(тариф, бюджет потоков)` одним числом | Отказ 409, без «пустить без видео» | ✓ Phase 16.1 |
+| Revoke гостя = stamp + ConfbridgeKick + destroy triple | Не только `revoked_at` | ✓ Phase 16.1 |
 
 ---
-*Last updated: 2026-09-03 — Phase 13 custom voicemail shipped*
+*Last updated: 2026-09-16 after Phase 16.1*

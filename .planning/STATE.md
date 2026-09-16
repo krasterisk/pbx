@@ -21,7 +21,7 @@ milestone_name: milestone
 
 Phase 16 (modul-telekonferentsiy-confbridge-webrtc) — CORE PLANS COMPLETE (2026-09-16). 16-01…16-07 complete (3/3 tasks each). Next: `/gsd-verify-work 16`.
 
-Phase 16.1 (telekonferentsii-video-emkost-komnaty-gostevoy-vhod-i-prigla) — PLANS COMPLETE (2026-09-16). 16.1-01…16.1-06 complete. Next: `/gsd-verify-work 16.1`. Do not mark the phase complete until verify.
+Phase 16.1 (telekonferentsii-video-emkost-komnaty-gostevoy-vhod-i-prigla) — COMPLETE (2026-09-16). 16.1-01…16.1-06; verify passed 16/16. Next: обязательный `/gsd-secure-phase 16.1`. Advisory: `/gsd-code-review 16.1 --fix` (4 critical in 16.1-REVIEW.md). Then `/gsd-execute-phase 16.2`.
 
 Phase 16.2 (telekonferentsii-zapis-vstrech-i-otchetnost) — PLANNED (2026-09-16). 4 plans in 4 waves. Status: Ready to execute. Next: `/gsd-execute-phase 16.2`. Sub-phase 16.3 remains unplanned.
 
@@ -68,6 +68,7 @@ Phase 1 — MOH: pending verify.
 ## Blockers
 
 - [Phase 08 / 08-11 Task 3]: Human Android device/emulator smoke (FCM registration + softphone foreground audio). Requires `google-services.json` (see `08-USER-SETUP.md`).
+- [Phase 16.1]: Code review `issues_found` — join after revoke without lock, Kick skipped without snapshot channel, `max_members` omitted at capacity 0 (Asterisk = unlimited), invite callerid interpolates unsanitized room name. See `16.1-REVIEW.md`.
 
 ## Decisions
 
@@ -641,8 +642,8 @@ Also open: `/gsd-secure-phase 15`; Phase 11 harness verify; Phase 10 `/gsd-verif
 
 ## Session
 
-**Last session:** 2026-09-16T08:04:26.421Z
-**Stopped at:** Completed 16.1-06-PLAN.md
+**Last session:** 2026-09-16T08:25:00.000Z
+**Stopped at:** Phase 16.1 complete (verify passed). Next: `/gsd-secure-phase 16.1`, then `/gsd-execute-phase 16.2`
 **Resume file:** None
 **Also ready:** .planning/phases/15-universal-pbx-ai-agent/15-CONTEXT.md
 

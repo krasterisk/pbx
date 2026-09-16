@@ -42,3 +42,22 @@
 - **REQ-308:** Ошибки синтеза/сохранения видны пользователю (не только `console.error`).
 - **REQ-309:** Unit/integration tests: парсинг prompts, dialplan lines, editor state (минимум).
 - **REQ-310:** Документировать контракт в `.docs/IVR_MODULE.md` или дополнение MOH/IVR docs.
+
+---
+
+## Phase 16.1 — Conferences video, capacity, guest, invites (backend)
+
+Validated in `16.1-VERIFICATION.md` (16/16). IDs live in `16-CONTEXT.md` / ROADMAP Phase 16.1.
+
+- **D-10:** Гость — ephemeral PJSIP в контексте `krsk-conf-{uid}`.
+- **D-12:** Два kind ссылок (`shared_link` + `named_invite`); revoke = `ConfbridgeKick` + destroy triple.
+- **D-18:** Ёмкость из бюджета потоков (`maxParticipantsForBudget`).
+- **D-19:** Вес входа `2n`; `effectiveMax = min(tariff, budget)`.
+- **D-20:** `GET /capacity` отвечает ровно `{ maxParticipants }`.
+- **D-21:** Участник сверх лимита — отказ (`CONFERENCE_ROOM_FULL`); без деградации «без видео».
+- **D-23:** Провижининг `max_video_streams` + VP8 для WebRTC / `ew*`.
+- **D-24:** Сетка на native `video_mode=sfu`.
+- **D-38:** Внутренний invite через AMI `Originate` в `krsk-conf-{uid}`.
+- **D-39:** Внешний invite gated `invite_external_scope`.
+- **D-40:** Имя гостя на токене; своих — только in-memory встречи.
+- **R-TELEMETRY:** Ingest allow-list; HTTP 200; не доверять `body.roomUid`.
