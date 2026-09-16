@@ -3,8 +3,10 @@ import { SequelizeModule } from '@nestjs/sequelize';
 import { AmiModule } from '../ami/ami.module';
 import { EndpointsModule } from '../endpoints/endpoints.module';
 import { LoggerModule } from '../logger/logger.module';
+import { PsEndpoint } from '../endpoints/ps-endpoint.model';
 import { User } from '../users/user.model';
 import { ConferenceCapacityService } from './conference-capacity.service';
+import { ConferenceInviteService } from './conference-invite.service';
 import { ConfbridgeStaticProfileService } from './confbridge-static-profile.service';
 import { ConferenceEphemeralService } from './conference-ephemeral.service';
 import { ConferenceGuestController } from './conference-guest.controller';
@@ -34,6 +36,7 @@ import { ConferenceRoom } from './models/conference-room.model';
       ConferenceMeeting,
       ConferenceMeetingParticipant,
       User,
+      PsEndpoint,
     ]),
     AmiModule,
     LoggerModule,
@@ -50,6 +53,7 @@ import { ConferenceRoom } from './models/conference-room.model';
   providers: [
     ConferenceRoomsService,
     ConferenceCapacityService,
+    ConferenceInviteService,
     ConferenceGuestService,
     ConferenceGuestTokenGuard,
     ConferenceModerationService,

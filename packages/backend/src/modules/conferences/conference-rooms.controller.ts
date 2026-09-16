@@ -3,6 +3,8 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   ParseIntPipe,
   Post,
@@ -14,8 +16,10 @@ import { Request } from 'express';
 import { SkipThrottle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ConferenceCapacityService } from './conference-capacity.service';
+import { ConferenceInviteService } from './conference-invite.service';
 import { ConferenceRoomsService } from './conference-rooms.service';
 import { CreateConferenceGuestTokenDto } from './dto/conference-guest-token.dto';
+import { ConferenceInviteDto } from './dto/conference-invite.dto';
 import { CreateConferenceRoomDto } from './dto/create-conference-room.dto';
 import { SetConferenceModeratorsDto } from './dto/conference-moderator.dto';
 import { UpdateConferenceRoomDto } from './dto/update-conference-room.dto';
@@ -26,6 +30,7 @@ export class ConferenceRoomsController {
   constructor(
     private readonly conferenceRoomsService: ConferenceRoomsService,
     private readonly capacityService: ConferenceCapacityService,
+    private readonly inviteService: ConferenceInviteService,
   ) {}
 
   @Get()
@@ -57,6 +62,16 @@ export class ConferenceRoomsController {
     @Req() req: Request & { user: any },
   ) {
     return this.conferenceRoomsService.revokeGuestToken(uid, tokenUid, req.user.vpbx_user_uid);
+  }
+
+  @HttpCode(HttpStatus.ACCEPTED)
+  @Post(':uid/invite')
+  invite(
+    @Param('uid', ParseIntPipe) uid: number,
+    @Body() dto: ConferenceInviteDto,
+    @Req() req: Request & { user: any },
+  ) {
+    return this.inviteService.invite(uid, req.user, dto);
   }
 
   @SkipThrottle({ default: true, global: true })
