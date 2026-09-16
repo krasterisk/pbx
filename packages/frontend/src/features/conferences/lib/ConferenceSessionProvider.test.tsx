@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import { enterSession, leaveSession } from '@/features/conferences/model/slice/conferenceSessionSlice';
@@ -208,10 +208,12 @@ describe('ConferenceSessionProvider (16.3-09 G-16.3-1)', () => {
       totalFreezesDuration?: number;
     }) => void;
     expect(typeof onTelemetry).toBe('function');
-    onTelemetry({
-      qualityLimitationReason: 'cpu',
-      packetsLost: 2,
-      totalFreezesDuration: 1,
+    act(() => {
+      onTelemetry({
+        qualityLimitationReason: 'cpu',
+        packetsLost: 2,
+        totalFreezesDuration: 1,
+      });
     });
     expect(postTelemetry).toHaveBeenCalledWith({
       uid: 7,

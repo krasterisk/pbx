@@ -10,7 +10,7 @@ import { useConferenceRoom } from '@/features/conferences/lib/useConferenceRoom'
 import { useConferenceSse } from '@/features/conferences/lib/useConferenceSse';
 import {
   useGuestGetQuery, useGuestJoinMutation, useGuestLeaveMutation, useGuestWebrtcConfigQuery,
-  type ConferenceGuestJoinResult,
+  useGuestPostTelemetryMutation, type ConferenceGuestJoinResult,
 } from '@/shared/api/endpoints/conferenceRoomApi';
 import cls from './ConferenceGuestPage.module.scss';
 
@@ -21,6 +21,7 @@ export const ConferenceGuestPage = memo(() => {
   const { data: rtc } = useGuestWebrtcConfigQuery(token, { skip: !token });
   const [guestJoin, joinState] = useGuestJoinMutation();
   const [guestLeave] = useGuestLeaveMutation();
+  const [guestPostTelemetry] = useGuestPostTelemetryMutation();
   const [creds, setCreds] = useState<ConferenceGuestJoinResult | null>(null);
   const [left, setLeft] = useState(false);
   const [displayName, setDisplayName] = useState('');
@@ -29,6 +30,7 @@ export const ConferenceGuestPage = memo(() => {
     roomUid: creds?.roomUid ?? 0, roomNumber: '', displayName,
     sipId: ready ? creds?.sipId : null, sipPassword: ready ? creds?.password : null,
     sipDomain: ready ? creds?.sipDomain : null, wssUrl: rtc?.wssUrl, iceServers: rtc?.iceServers,
+    onTelemetry: (body) => { if (token) void guestPostTelemetry({ token, body }); },
   });
   useConferenceSse({ mode: 'guest', roomUid: creds?.roomUid ?? 0, token });
   const lobby = Boolean(creds) && meta?.entry_strictness === 'token_name_pin_moderator' && room.status !== 'in-call';

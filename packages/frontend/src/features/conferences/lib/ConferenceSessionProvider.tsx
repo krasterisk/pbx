@@ -16,7 +16,10 @@ import { loadActiveShift } from '@/features/callcenter/lib/shiftSession';
 import { useGetWebrtcConfigQuery } from '@/shared/api/endpoints/callCenterApi';
 import { useGetEndpointCredentialsQuery } from '@/shared/api/endpoints/endpointApi';
 import { useAppDispatch } from '@/shared/hooks/useAppStore';
-import type { ConferenceRole } from '@/shared/api/endpoints/conferenceRoomApi';
+import {
+  usePostConferenceTelemetryMutation,
+  type ConferenceRole,
+} from '@/shared/api/endpoints/conferenceRoomApi';
 
 export interface ConferenceStartMediaArgs {
   roomUid: number;
@@ -52,6 +55,7 @@ export function ConferenceSessionProvider({ children }: { children: ReactNode })
   const sip = creds?.webrtc ?? creds;
   const [media, setMedia] = useState<ConferenceStartMediaArgs | null>(null);
   const [weakLink, setWeakLink] = useState(false);
+  const [postTelemetry] = usePostConferenceTelemetryMutation();
   const active = Boolean(media && sip?.password && sip?.domain && rtc?.wssUrl);
 
   const room = useConferenceRoom({
@@ -66,9 +70,14 @@ export function ConferenceSessionProvider({ children }: { children: ReactNode })
     liveSoftphoneAor: shift?.sipId,
     unregisterSoftphone: unregisterLiveSoftphone,
     restoreSoftphone: restoreLiveSoftphone,
-    onTelemetry: (body) => setWeakLink(
-      body.qualityLimitationReason === 'cpu' || body.qualityLimitationReason === 'bandwidth',
-    ),
+    onTelemetry: (body) => {
+      setWeakLink(
+        body.qualityLimitationReason === 'cpu' || body.qualityLimitationReason === 'bandwidth',
+      );
+      if (media?.roomUid) {
+        void postTelemetry({ uid: media.roomUid, body });
+      }
+    },
   });
 
   const startMedia = useCallback((args: ConferenceStartMediaArgs) => {
