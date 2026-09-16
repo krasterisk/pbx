@@ -1,6 +1,7 @@
 import { NotFoundException } from '@nestjs/common';
 import { ConferenceParticipantController } from './conference-participant.controller';
 import { ConferenceStateService } from './conference-state.service';
+import { toConferenceParticipantDto } from './dto/conference-participant.dto';
 
 const ROOM_UID = 77;
 const CONFERENCE = 'conf6007_42';
@@ -289,6 +290,70 @@ describe('ConferenceStateService video flag (16-07)', () => {
     state.setVideoState(ROOM_UID, '601', true);
     expect(events).toHaveLength(0);
     sub.unsubscribe();
+  });
+});
+
+describe('ConferenceStateService display name overlay (16.1-06 D-40)', () => {
+  let state: ConferenceStateService;
+
+  beforeEach(() => {
+    state = new ConferenceStateService();
+    state.registerRoom({ uid: ROOM_UID, number: '6007', user_uid: 42 });
+  });
+
+  it('setDisplayName writes overlay onto the live participant and DTO', () => {
+    state.handleJoin(joinEvt({ Channel: 'PJSIP/601-00000001', CallerIDNum: '601' }));
+    state.setDisplayName(ROOM_UID, '601', 'Мария');
+    const live = state.getSnapshot(ROOM_UID).participants[0];
+    expect(live.displayName).toBe('Мария');
+    expect(toConferenceParticipantDto(live).displayName).toBe('Мария');
+  });
+
+  it('rememberDisplayName is copied onto the participant at Join', () => {
+    state.rememberDisplayName(ROOM_UID, 'gstabc123', 'Гость Иван');
+    state.handleJoin(joinEvt({ Channel: 'PJSIP/gstabc123-00000001', CallerIDNum: 'gstabc123' }));
+    expect(state.getSnapshot(ROOM_UID).participants[0].displayName).toBe('Гость Иван');
+  });
+
+  it('forgets staff overlay after the last leave empties the room', () => {
+    state.handleJoin(joinEvt({ Channel: 'PJSIP/601-00000001', CallerIDNum: '601' }));
+    state.setDisplayName(ROOM_UID, '601', 'Мария');
+    state.handleLeave({ Conference: CONFERENCE, Channel: 'PJSIP/601-00000001' });
+    state.handleJoin(joinEvt({ Channel: 'PJSIP/601-00000001', CallerIDNum: '601' }));
+    const live = state.getSnapshot(ROOM_UID).participants[0];
+    expect(live.displayName).toBeUndefined();
+    expect(toConferenceParticipantDto(live).displayName).toBe('601');
+  });
+});
+
+describe('ConferenceParticipantController self display name (16.1-06 D-40)', () => {
+  const caller = { sub: 5, vpbx_user_uid: 42 };
+
+  function controllerWith(
+    rooms: {
+      assertLiveRoomAccess: jest.Mock;
+      resolveCallerRef: jest.Mock;
+    },
+    state: ConferenceStateService,
+  ) {
+    return new ConferenceParticipantController(rooms as any, state);
+  }
+
+  it('writes in-memory overlay and never calls endpoint or user update', async () => {
+    const state = new ConferenceStateService();
+    state.registerRoom({ uid: ROOM_UID, number: '6007', user_uid: 42 });
+    state.handleJoin(joinEvt({ Channel: 'PJSIP/601-00000001', CallerIDNum: '601' }));
+    const endpointModel = { update: jest.fn() };
+    const userModel = { update: jest.fn() };
+    const rooms = {
+      assertLiveRoomAccess: jest.fn().mockResolvedValue({ uid: ROOM_UID }),
+      resolveCallerRef: jest.fn().mockResolvedValue('601'),
+    };
+    const controller = controllerWith(rooms, state);
+    await controller.setMyDisplayName(ROOM_UID, { displayName: 'Мария' }, { user: caller } as any);
+    expect(state.getSnapshot(ROOM_UID).participants[0].displayName).toBe('Мария');
+    expect(endpointModel.update).not.toHaveBeenCalled();
+    expect(userModel.update).not.toHaveBeenCalled();
   });
 });
 

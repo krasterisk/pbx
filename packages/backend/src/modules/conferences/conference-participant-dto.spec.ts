@@ -6,6 +6,7 @@ import {
   DISPLAY_NAME_MAX_LENGTH,
   toConferenceParticipantDto,
   toConferenceRoomStateDto,
+  truncateDisplayName,
 } from './dto/conference-participant.dto';
 
 const PARTICIPANT_KEYS = ['displayName', 'muted', 'ref', 'role', 'speaking', 'video'];
@@ -134,6 +135,20 @@ describe('conference participant DTO mapper (16-07)', () => {
       }),
     );
     expect(dto.participants.map((item) => item.ref)).toEqual(['602', '601']);
+  });
+
+  it('truncates ё × 70 to 64 graphemes', () => {
+    expect([...truncateDisplayName('ё'.repeat(70))].length).toBe(64);
+  });
+
+  it('prefers state.displayName over callerIdName and callerIdNum', () => {
+    const dto = toConferenceParticipantDto(
+      participant({
+        displayName: 'Гость Иван',
+        callerIdNum: '601',
+      } as ConferenceParticipantState),
+    );
+    expect(dto.displayName).toBe('Гость Иван');
   });
 
   it('does not accept a guest-vs-staff argument', () => {

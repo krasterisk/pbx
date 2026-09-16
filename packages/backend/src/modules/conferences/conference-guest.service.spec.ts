@@ -561,3 +561,88 @@ describe('ConferenceGuestService.join capacityForRoom (16.1-04 D-21)', () => {
     expect(src).not.toMatch(/STREAM_KBPS/);
   });
 });
+
+describe('ConferenceGuestService display name (16.1-06 D-40)', () => {
+  let roomsService: { findOne: jest.Mock };
+  let stateService: {
+    getSnapshot: jest.Mock;
+    getActiveRoomUids: jest.Mock;
+    rememberDisplayName: jest.Mock;
+    setDisplayName: jest.Mock;
+  };
+  let endpointsService: {
+    generateSipPassword: jest.Mock;
+    createEphemeralGuestEndpoint: jest.Mock;
+    destroyEphemeralGuestEndpoint: jest.Mock;
+  };
+  let tokenModel: { findByPk: jest.Mock };
+  let capacity: { capacityForRoom: jest.Mock };
+  let service: ConferenceGuestService;
+
+  function tokenRow(overrides: Record<string, unknown> = {}) {
+    return {
+      uid: 9,
+      sip_id: null,
+      display_name: null,
+      update: jest.fn().mockResolvedValue(undefined),
+      ...overrides,
+    };
+  }
+
+  beforeEach(() => {
+    roomsService = { findOne: jest.fn().mockResolvedValue(roomJson()) };
+    stateService = {
+      getSnapshot: jest.fn().mockReturnValue({ participants: [] }),
+      getActiveRoomUids: jest.fn().mockReturnValue([]),
+      rememberDisplayName: jest.fn(),
+      setDisplayName: jest.fn(),
+    };
+    endpointsService = {
+      generateSipPassword: jest.fn().mockReturnValue('sip-secret'),
+      createEphemeralGuestEndpoint: jest.fn().mockResolvedValue(undefined),
+      destroyEphemeralGuestEndpoint: jest.fn().mockResolvedValue(undefined),
+    };
+    tokenModel = { findByPk: jest.fn().mockResolvedValue(tokenRow()) };
+    capacity = { capacityForRoom: jest.fn().mockReturnValue(2) };
+    service = new ConferenceGuestService(
+      roomsService as any,
+      stateService as any,
+      endpointsService as any,
+      tokenModel as any,
+      capacity as any,
+    );
+  });
+
+  it('rejects whitespace displayName without a saved token name as CONFERENCE_DISPLAY_NAME_REQUIRED', async () => {
+    try {
+      await service.join(guestUser(), { displayName: '  ' });
+      throw new Error('expected CONFERENCE_DISPLAY_NAME_REQUIRED');
+    } catch (err) {
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.BAD_REQUEST);
+      expect((err as HttpException).getResponse()).toMatchObject({
+        code: 'CONFERENCE_DISPLAY_NAME_REQUIRED',
+      });
+    }
+    expect(endpointsService.createEphemeralGuestEndpoint).not.toHaveBeenCalled();
+  });
+
+  it('truncates a 70-grapheme join name to 64 on the token', async () => {
+    const token = tokenRow();
+    tokenModel.findByPk.mockResolvedValue(token);
+    const longName = 'ё'.repeat(70);
+    await service.join(guestUser(), { displayName: longName });
+    expect(token.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        display_name: expect.any(String),
+      }),
+    );
+    const written = (token.update as jest.Mock).mock.calls[0][0].display_name as string;
+    expect([...written].length).toBe(64);
+    expect(stateService.rememberDisplayName).toHaveBeenCalledWith(
+      ROOM_UID,
+      expect.stringMatching(/^gst[0-9a-f]{8}$/),
+      written,
+    );
+  });
+});
