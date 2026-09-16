@@ -1153,7 +1153,7 @@ Plans:
 - [ ] 16.1-01-PLAN.md — Спина: токен → ephemeral PJSIP → admit/refuse + ALTER display_name/sip_id
 - [ ] 16.1-02-PLAN.md — D-12: два kind, revoke=Kick+destroy, PIN, гостевой SSE
 - [ ] 16.1-03-PLAN.md — D-23/D-24: max_video_streams + VP8, backfill ew*, guest webrtc-config
-- [ ] 16.1-04-PLAN.md — D-18…D-21: GET capacity одно поле, max_members из бюджета, cron
+- [ ] 16.1-04-PLAN.md — D-18…D-21: GET capacity одно поле, max_members из бюджета, cron, join→capacityForRoom
 - [ ] 16.1-05-PLAN.md — D-38/D-39: AMI Originate + invite_external_scope
 - [ ] 16.1-06-PLAN.md — D-40 overlay имён + R-TELEMETRY ingest
 
@@ -1168,7 +1168,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] `16.1-04-PLAN.md` — Wave 3: capacity REST + dialplan max_members
+- [ ] `16.1-04-PLAN.md` — Wave 3: capacity REST + dialplan max_members + join→capacityForRoom
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
