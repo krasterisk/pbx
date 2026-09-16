@@ -32,6 +32,7 @@ function joinEvt(channel: string, caller = '601') {
     Conference: CONFERENCE,
     Channel: channel,
     CallerIDNum: caller,
+    Uniqueid: `${caller}.1`,
   };
 }
 
@@ -73,6 +74,13 @@ function memoryParticipants() {
       const row = { uid: next++, ...data };
       rows.push(row);
       return row;
+    }),
+    findAll: jest.fn(async ({ where }: { where: Record<string, unknown> }) => {
+      return rows.filter((row) => {
+        if (where.meeting_uid != null && row.meeting_uid !== where.meeting_uid) return false;
+        if (where.uniqueid != null && row.uniqueid !== where.uniqueid) return false;
+        return true;
+      });
     }),
   };
 }
@@ -117,6 +125,9 @@ describe('conference recording spine (16.2-01)', () => {
       state,
       rooms as never,
       meetings,
+      undefined,
+      undefined,
+      { findByUniqueid: jest.fn().mockResolvedValue({ uniqueid: '601.1' }) } as never,
     );
     moduleRef.get.mockImplementation(resolveToken);
     controller = new ConferenceRecordingController(rooms as never, recording);

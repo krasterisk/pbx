@@ -98,6 +98,8 @@ describe('ConferenceRecordingService.startForMeeting (16.2-01 D-31)', () => {
 describe('ConferenceRecordingService.streamMeeting (16.2-01 D-30)', () => {
   let base: string;
   let service: ConferenceRecordingService;
+  let cdr: { findByUniqueid: jest.Mock };
+  let meetings: { getByRoom: jest.Mock; listParticipantUniqueids: jest.Mock };
 
   beforeEach(() => {
     base = fs.mkdtempSync(path.join(os.tmpdir(), 'conf-rec-play-'));
@@ -107,32 +109,7 @@ describe('ConferenceRecordingService.streamMeeting (16.2-01 D-30)', () => {
     const rooms = {
       findOne: jest.fn().mockResolvedValue(room()),
     };
-    const meetings = {
-      getByRoom: jest.fn().mockResolvedValue({
-        uid: MEETING_UID,
-        room_uid: ROOM_UID,
-        recording_file_rel: '42/conferences/77/15.wav',
-      }),
-    };
-    const state = new ConferenceStateService();
-    service = new ConferenceRecordingService(
-      { action: jest.fn() } as never,
-      { getServerConfigRaw: jest.fn().mockResolvedValue({ records_base_path: base }) } as never,
-      state,
-      rooms as never,
-      meetings as never,
-    );
-  });
-
-  afterEach(() => {
-    fs.rmSync(base, { recursive: true, force: true });
-  });
-
-  it('does not stream the file when findByUniqueid throws for a participant uniqueid', async () => {
-    const cdr = {
-      findByUniqueid: jest.fn().mockRejectedValue(new NotFoundException('CDR record not found')),
-    };
-    const meetings = {
+    meetings = {
       getByRoom: jest.fn().mockResolvedValue({
         uid: MEETING_UID,
         room_uid: ROOM_UID,
@@ -140,9 +117,11 @@ describe('ConferenceRecordingService.streamMeeting (16.2-01 D-30)', () => {
       }),
       listParticipantUniqueids: jest.fn().mockResolvedValue(['1693731234.12']),
     };
-    const rooms = { findOne: jest.fn().mockResolvedValue(room()) };
+    cdr = {
+      findByUniqueid: jest.fn().mockResolvedValue({ uniqueid: '1693731234.12' }),
+    };
     const state = new ConferenceStateService();
-    const blocked = new ConferenceRecordingService(
+    service = new ConferenceRecordingService(
       { action: jest.fn() } as never,
       { getServerConfigRaw: jest.fn().mockResolvedValue({ records_base_path: base }) } as never,
       state,
@@ -152,6 +131,14 @@ describe('ConferenceRecordingService.streamMeeting (16.2-01 D-30)', () => {
       undefined,
       cdr as never,
     );
+  });
+
+  afterEach(() => {
+    fs.rmSync(base, { recursive: true, force: true });
+  });
+
+  it('does not stream the file when findByUniqueid throws for a participant uniqueid', async () => {
+    cdr.findByUniqueid.mockRejectedValue(new NotFoundException('CDR record not found'));
     const res = Object.assign(new PassThrough(), {
       setHeader: jest.fn(),
       status: jest.fn().mockReturnThis(),
@@ -159,10 +146,49 @@ describe('ConferenceRecordingService.streamMeeting (16.2-01 D-30)', () => {
       end: jest.fn(),
     });
     await expect(
-      blocked.streamMeeting(ROOM_UID, MEETING_UID, VPBX, { headers: {}, query: {} } as never, res as never, 5),
+      service.streamMeeting(ROOM_UID, MEETING_UID, VPBX, { headers: {}, query: {} } as never, res as never, 5),
     ).rejects.toBeInstanceOf(NotFoundException);
     expect(res.status).not.toHaveBeenCalled();
     expect(cdr.findByUniqueid).toHaveBeenCalledWith(VPBX, '1693731234.12', 5);
+  });
+
+  it('fails closed when the meeting has no stored participant uniqueids', async () => {
+    meetings.listParticipantUniqueids.mockResolvedValue([]);
+    const res = Object.assign(new PassThrough(), {
+      setHeader: jest.fn(),
+      status: jest.fn().mockReturnThis(),
+      headersSent: false,
+      end: jest.fn(),
+    });
+    await expect(
+      service.streamMeeting(ROOM_UID, MEETING_UID, VPBX, { headers: {}, query: {} } as never, res as never, 5),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(res.status).not.toHaveBeenCalled();
+    expect(cdr.findByUniqueid).not.toHaveBeenCalled();
+  });
+
+  it('fails closed when viewer or CDR scope is missing', async () => {
+    const rooms = { findOne: jest.fn().mockResolvedValue(room()) };
+    const open = new ConferenceRecordingService(
+      { action: jest.fn() } as never,
+      { getServerConfigRaw: jest.fn().mockResolvedValue({ records_base_path: base }) } as never,
+      new ConferenceStateService(),
+      rooms as never,
+      meetings as never,
+    );
+    const res = Object.assign(new PassThrough(), {
+      setHeader: jest.fn(),
+      status: jest.fn().mockReturnThis(),
+      headersSent: false,
+      end: jest.fn(),
+    });
+    await expect(
+      open.streamMeeting(ROOM_UID, MEETING_UID, VPBX, { headers: {}, query: {} } as never, res as never, 5),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    await expect(
+      service.streamMeeting(ROOM_UID, MEETING_UID, VPBX, { headers: {}, query: {} } as never, res as never),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(res.status).not.toHaveBeenCalled();
   });
 
   it('Range bytes=0-1 returns 206 with Content-Type audio/wav', async () => {
@@ -177,11 +203,12 @@ describe('ConferenceRecordingService.streamMeeting (16.2-01 D-30)', () => {
     });
     const req = { headers: { range: 'bytes=0-1' }, query: {} };
 
-    await service.streamMeeting(ROOM_UID, MEETING_UID, VPBX, req as never, res as never);
+    await service.streamMeeting(ROOM_UID, MEETING_UID, VPBX, req as never, res as never, 5);
 
     expect(res.status).toHaveBeenCalledWith(206);
     expect(headers['Content-Type']).toBe('audio/wav');
     expect(headers['Accept-Ranges']).toBe('bytes');
+    expect(cdr.findByUniqueid).toHaveBeenCalledWith(VPBX, '1693731234.12', 5);
   });
 });
 

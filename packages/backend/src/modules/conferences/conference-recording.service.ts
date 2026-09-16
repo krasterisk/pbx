@@ -151,23 +151,22 @@ export class ConferenceRecordingService {
   ): Promise<void> {
     await this.roomsService.findOne(roomUid, vpbx);
     const meeting = await this.meetingsService.getByRoom(roomUid, meetingUid);
-    if (viewerUserId && this.cdrService && this.meetingsService.listParticipantUniqueids) {
-      const uniqueids = await this.meetingsService.listParticipantUniqueids(meeting.uid);
-      if (uniqueids.length > 0) {
-        let visible = false;
-        for (const uniqueid of uniqueids) {
-          try {
-            await this.cdrService.findByUniqueid(vpbx, uniqueid, viewerUserId);
-            visible = true;
-            break;
-          } catch {
-            // Same voicemail requireVisibleRow: hidden uniqueid is not a leak.
-          }
-        }
-        if (!visible) {
-          throw new NotFoundException('Conference recording not found');
-        }
+    if (!viewerUserId || !this.cdrService) {
+      throw new NotFoundException('Conference recording not found');
+    }
+    const uniqueids = await this.meetingsService.listParticipantUniqueids(meeting.uid);
+    let visible = false;
+    for (const uniqueid of uniqueids) {
+      try {
+        await this.cdrService.findByUniqueid(vpbx, uniqueid, viewerUserId);
+        visible = true;
+        break;
+      } catch {
+        // Same voicemail requireVisibleRow: hidden uniqueid is not a leak.
       }
+    }
+    if (!visible) {
+      throw new NotFoundException('Conference recording not found');
     }
     const cfg = await this.systemSettings.getServerConfigRaw();
     const base = cfg.records_base_path || '/usr/records';
