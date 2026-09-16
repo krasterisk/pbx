@@ -13,7 +13,7 @@ export function VideoGrid({ participants, remoteTracks }: VideoGridProps) {
   const single = participants.length === 1;
 
   return (
-    <Flex role="list" className={cls.grid} align="stretch">
+    <Flex role="list" className={cls.grid} align="stretch" data-testid="conference-video-grid">
       {participants.map((participant, index) => {
         const mid = mids[index] ?? participant.ref;
         return (
