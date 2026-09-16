@@ -33,6 +33,7 @@ export const CONFERENCE_SCHEMA_STATEMENTS: string[] = [
     \`uid\` INT NOT NULL AUTO_INCREMENT,
     \`room_uid\` INT NOT NULL,
     \`endpoint_ref\` VARCHAR(64) NOT NULL,
+    \`role\` ENUM('owner','moderator') NOT NULL DEFAULT 'moderator',
     PRIMARY KEY (\`uid\`),
     CONSTRAINT \`fk_conference_room_moderators_room\`
       FOREIGN KEY (\`room_uid\`) REFERENCES \`conference_rooms\` (\`uid\`) ON DELETE CASCADE
@@ -80,15 +81,46 @@ export const CONFERENCE_SCHEMA_STATEMENTS: string[] = [
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 ];
 
+async function alterIdempotent(
+  exec: (sql: string) => Promise<unknown>,
+  label: string,
+  sql: string,
+): Promise<void> {
+  try {
+    await exec(sql);
+    console.log(`[conferences] ${label}: applied`);
+  } catch (err: any) {
+    const msg = String(err?.message || err);
+    if (
+      msg.includes('Duplicate column name')
+      || msg.includes('already exists')
+      || msg.includes('Duplicate')
+      || msg.includes('check that column/key exists')
+      || msg.includes("Can't DROP")
+      || msg.includes('Unknown column')
+    ) {
+      console.log(`[conferences] ${label}: already applied / absent — ok`);
+      return;
+    }
+    throw err;
+  }
+}
+
 export async function setupConferencesSchema(sequelize: {
   query: (sql: string) => Promise<unknown>;
   getQueryInterface?: () => { sequelize?: { query: (sql: string) => Promise<unknown> } };
 }): Promise<void> {
   const qi = sequelize.getQueryInterface?.();
-  const exec = qi?.sequelize?.query ?? sequelize.query;
+  const target = qi?.sequelize ?? sequelize;
+  const exec = (sql: string) => (qi?.sequelize?.query ?? sequelize.query).call(target, sql);
   for (const statement of CONFERENCE_SCHEMA_STATEMENTS) {
-    await exec.call(qi?.sequelize ?? sequelize, statement);
+    await exec(statement);
   }
+  await alterIdempotent(
+    exec,
+    'conference_room_moderators.role',
+    `ALTER TABLE \`conference_room_moderators\` ADD COLUMN \`role\` ENUM('owner','moderator') NOT NULL DEFAULT 'moderator'`,
+  );
 }
 
 async function main(): Promise<void> {

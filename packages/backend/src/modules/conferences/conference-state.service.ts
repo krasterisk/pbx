@@ -1,8 +1,13 @@
 import { Injectable, Logger, Optional } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
 import { Observable, Subject } from 'rxjs';
+import {
+  resolveRoleForCaller,
+  roleFromConfbridgeFlags,
+  type ConferenceRole,
+} from './conference-roles.util';
 
-export type ConferenceParticipantRole = 'owner' | 'moderator' | 'participant';
+export type ConferenceParticipantRole = ConferenceRole;
 
 export interface ConferenceParticipantState {
   channel: string;
@@ -10,6 +15,12 @@ export interface ConferenceParticipantState {
   role: ConferenceParticipantRole;
   talking: boolean;
   muted: boolean;
+  joinedAt: number;
+}
+
+export interface ConferenceRoomRights {
+  ownerRef: string | null;
+  moderatorRefs: string[];
 }
 
 export interface ConferenceRoomSnapshot {
@@ -52,6 +63,7 @@ export class ConferenceStateService {
   private readonly lastSignalAt = new Map<string, number>();
   private readonly conferenceByName = new Map<string, RoomCacheEntry>();
   private readonly conferenceByRoom = new Map<number, RoomCacheEntry>();
+  private readonly roomRights = new Map<number, ConferenceRoomRights>();
 
   registerRoom(room: { uid: number; number: string; user_uid: number }): void {
     const conference = `conf${room.number}_${room.user_uid}`;
@@ -65,8 +77,18 @@ export class ConferenceStateService {
     this.conferenceByRoom.set(room.uid, entry);
   }
 
+  setRoomRights(roomUid: number, rights: ConferenceRoomRights): void {
+    this.roomRights.set(roomUid, {
+      ownerRef: rights.ownerRef,
+      moderatorRefs: [...rights.moderatorRefs],
+    });
+  }
+
   getSnapshot(roomUid: number): ConferenceRoomSnapshot {
-    const participants = [...(this.rooms.get(roomUid)?.values() ?? [])];
+    const participants = [...(this.rooms.get(roomUid)?.values() ?? [])].sort((a, b) => {
+      if (a.joinedAt !== b.joinedAt) return a.joinedAt - b.joinedAt;
+      return a.channel.localeCompare(b.channel);
+    });
     return {
       roomUid,
       conference: this.conferenceByRoom.get(roomUid)?.conference ?? null,
@@ -93,9 +115,10 @@ export class ConferenceStateService {
     members.set(channel, {
       channel,
       callerIdNum: String(evt.CallerIDNum ?? ''),
-      role: this.roleFromEvent(evt),
+      role: this.resolveJoinRole(resolved.roomUid, evt),
       talking: false,
       muted: false,
+      joinedAt: Date.now(),
     });
     this.touch(channel);
     this.emit(resolved.roomUid, 'participantJoin');
@@ -141,14 +164,13 @@ export class ConferenceStateService {
     this.emit(participant.roomUid, 'participantUnmute');
   }
 
-  private roleFromEvent(evt: ConferenceAmiEvent): ConferenceParticipantRole {
-    if (this.isYes(evt.Admin)) return 'moderator';
-    if (this.isYes(evt.MarkedUser)) return 'owner';
-    return 'participant';
-  }
-
-  private isYes(value: unknown): boolean {
-    return String(value ?? '').toLowerCase() === 'yes';
+  private resolveJoinRole(roomUid: number, evt: ConferenceAmiEvent): ConferenceParticipantRole {
+    const callerRef = String(evt.CallerIDNum ?? '').trim();
+    if (callerRef) {
+      const rights = this.roomRights.get(roomUid) ?? { ownerRef: null, moderatorRefs: [] };
+      return resolveRoleForCaller(callerRef, rights);
+    }
+    return roleFromConfbridgeFlags(evt);
   }
 
   private resolveRoom(evt: ConferenceAmiEvent): RoomCacheEntry | null {

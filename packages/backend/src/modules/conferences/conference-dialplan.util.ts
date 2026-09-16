@@ -1,6 +1,7 @@
 import { AsteriskDialplanUtils } from '../../shared/utils/dialplan.util';
 import { normalizeTarget } from '../../shared/utils/dialplan-target.util';
 import type { GeneratedDialplanCategory } from '../call-groups/call-group-dialplan.util';
+import { CONFBRIDGE_ROLE_FLAGS, type ConferenceRole } from './conference-roles.util';
 
 export const CONFBRIDGE_BRIDGE_PROFILE = 'krsk_conf_sfu';
 
@@ -113,9 +114,40 @@ function emitFilledSettings(room: ConferenceDialplanRoom): string[] {
   return lines;
 }
 
+export type ConferencePermanentRight = {
+  endpointRef: string;
+  role: Extract<ConferenceRole, 'owner' | 'moderator'>;
+};
+
+function emitPermanentRights(rights: ConferencePermanentRight[]): string[] {
+  if (rights.length === 0) return [];
+
+  const lines: string[] = ['same => n,Set(CONF_ROLE=participant)'];
+  for (const right of rights) {
+    const endpointRef = AsteriskDialplanUtils.sanitizeDialplanInput(right.endpointRef);
+    if (!endpointRef) continue;
+    lines.push(
+      `same => n,ExecIf($["\${CALLERID(num)}" = "${endpointRef}"]?Set(CONF_ROLE=${right.role}))`,
+    );
+  }
+  const elevated = CONFBRIDGE_ROLE_FLAGS.moderator;
+  if (elevated.admin) {
+    lines.push(
+      'same => n,ExecIf($["${CONF_ROLE}" != "participant"]?Set(CONFBRIDGE(user,admin)=yes))',
+    );
+  }
+  if (elevated.marked) {
+    lines.push(
+      'same => n,ExecIf($["${CONF_ROLE}" != "participant"]?Set(CONFBRIDGE(user,marked)=yes))',
+    );
+  }
+  return lines;
+}
+
 export function generateConferenceDialplan(
   room: ConferenceDialplanRoom,
   vpbx: number,
+  permanentRights: ConferencePermanentRight[] = [],
 ): GeneratedDialplanCategory {
   const name = conferenceRoomContextName(room.uid);
   const conference = normalizeTarget('conference', { source: 'fixed', value: room.number }, vpbx);
@@ -126,6 +158,7 @@ export function generateConferenceDialplan(
     'same => n,Answer()',
     `same => n,Set(CONFBRIDGE(bridge,template)=${CONFBRIDGE_BRIDGE_PROFILE})`,
     ...emitFilledSettings(room),
+    ...emitPermanentRights(permanentRights),
     `same => n,ConfBridge(${conference},${CONFBRIDGE_BRIDGE_PROFILE})`,
     'same => n,Hangup()',
   ];

@@ -10,4 +10,11 @@ export class ConferenceRoomModerator extends Model {
 
   @Column({ type: DataType.STRING(64), allowNull: false })
   declare endpoint_ref: string;
+
+  @Column({
+    type: DataType.ENUM('owner', 'moderator'),
+    allowNull: false,
+    defaultValue: 'moderator',
+  })
+  declare role: 'owner' | 'moderator';
 }
