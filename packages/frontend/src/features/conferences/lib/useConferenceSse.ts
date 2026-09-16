@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { useAppDispatch } from '@/shared/hooks/useAppStore';
 import {
@@ -24,6 +24,8 @@ const ROOM_EVENT_TYPES = [
   'recording',
 ] as const;
 
+export type ConferenceSseStatus = 'loading' | 'open' | 'disconnected';
+
 export type UseConferenceSseArgs =
   | { mode: 'staff'; roomUid: number; token?: string }
   | { mode: 'guest'; roomUid: number; token: string };
@@ -39,27 +41,40 @@ type RoomSnapshotPatch = {
  * (EventSource cannot set headers). Patches the same getConferenceRoom cache
  * entry that GET provides — no parallel in-memory participant list.
  */
-export function useConferenceSse(args: UseConferenceSseArgs): void {
+export function useConferenceSse(args: UseConferenceSseArgs): ConferenceSseStatus {
   const dispatch = useAppDispatch();
   const esRef = useRef<EventSource | null>(null);
   const roomUid = args.roomUid;
   const mode = args.mode;
   const explicitToken = args.token;
+  const [status, setStatus] = useState<ConferenceSseStatus>('loading');
 
   useEffect(() => {
+    if (!roomUid) {
+      setStatus('loading');
+      return undefined;
+    }
     const token =
       mode === 'guest' ? explicitToken : (explicitToken ?? localStorage.getItem('accessToken'));
-    if (!token) return;
+    if (!token) {
+      setStatus('loading');
+      return undefined;
+    }
 
     const path =
       mode === 'guest' ? guestEventsUrl(explicitToken as string, token) : staffEventsUrl(roomUid, token);
     const es = new EventSource(`${API_BASE}${path}`);
     esRef.current = es;
+    setStatus('loading');
+
+    es.onopen = () => setStatus('open');
+    es.onerror = () => setStatus('disconnected');
 
     const patchRoom = (e: MessageEvent) => {
       try {
         const data = JSON.parse(e.data) as RoomSnapshotPatch;
         if (!data || !Array.isArray(data.participants)) return;
+        setStatus('open');
         dispatch(
           conferenceRoomApi.util.updateQueryData('getConferenceRoom', roomUid, (draft) => {
             draft.participants = data.participants;
@@ -85,4 +100,6 @@ export function useConferenceSse(args: UseConferenceSseArgs): void {
       esRef.current = null;
     };
   }, [dispatch, explicitToken, mode, roomUid]);
+
+  return status;
 }

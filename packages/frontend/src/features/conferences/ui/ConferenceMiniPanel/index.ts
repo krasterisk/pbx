@@ -1,0 +1,1 @@
+export { ConferenceMiniPanel } from './ConferenceMiniPanel';

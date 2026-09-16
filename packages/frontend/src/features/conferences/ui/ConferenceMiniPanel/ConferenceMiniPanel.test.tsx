@@ -185,14 +185,16 @@ describe('ConferenceMiniPanel (16.3-06 D-26 / D-29)', () => {
     });
   });
 
-  it('keeps the timer at 0:00, hides the count, shows a warning dot and disables mic/cam while SSE is loading', () => {
+  it('keeps the timer at 0:00, hides the count, shows a warning dot and disables mic/cam while SSE is loading', async () => {
+    const user = userEvent.setup();
     sseStatus = 'loading';
     roomQuery = { data: undefined, isFetching: true, isError: false, isSuccess: false };
     renderPanel('/endpoints');
 
+    expect(screen.getByTestId('conference-mini-dot')).toHaveAttribute('data-state', 'warning');
+    await user.click(screen.getByTestId('conference-mini-trigger'));
     expect(screen.getByTestId('conference-mini-timer')).toHaveTextContent('0:00');
     expect(screen.queryByTestId('conference-mini-count')).toBeNull();
-    expect(screen.getByTestId('conference-mini-dot')).toHaveAttribute('data-state', 'warning');
     expect(screen.getByRole('button', { name: 'Выключить микрофон' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Выключить камеру' })).toBeDisabled();
   });
