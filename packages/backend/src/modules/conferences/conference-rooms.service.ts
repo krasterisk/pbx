@@ -10,9 +10,10 @@ import { InjectModel } from '@nestjs/sequelize';
 import { UniqueConstraintError } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { DialplanApplyService } from '../ami/dialplan-apply.service';
-import { generateConferenceDialplan } from './conference-dialplan.util';
+import { conferenceRoomContextName, generateConferenceDialplan } from './conference-dialplan.util';
 import { ConferenceStateService } from './conference-state.service';
 import { CreateConferenceRoomDto } from './dto/create-conference-room.dto';
+import { UpdateConferenceRoomDto } from './dto/update-conference-room.dto';
 import { ConferenceRoom } from './models/conference-room.model';
 
 export type ConferenceRoomErrorCode =
@@ -128,6 +129,107 @@ export class ConferenceRoomsService {
     }
 
     return room.toJSON ? room.toJSON() : room;
+  }
+
+  async update(uid: number, dto: UpdateConferenceRoomDto, vpbx: number) {
+    const room = await this.roomModel.findOne({
+      where: { uid, user_uid: vpbx },
+    });
+    if (!room) {
+      throw conferenceRoomHttpError(
+        HttpStatus.NOT_FOUND,
+        'CONFERENCE_ROOM_NOT_FOUND',
+        `Conference room ${uid} not found`,
+        { uid },
+      );
+    }
+
+    const data = { ...dto } as UpdateConferenceRoomDto & {
+      user_uid?: number;
+      vpbx_user_uid?: number;
+    };
+    delete data.user_uid;
+    delete data.vpbx_user_uid;
+    const updateData: Record<string, unknown> = { ...data };
+    Object.keys(updateData).forEach((k) => {
+      if (updateData[k] === undefined) delete updateData[k];
+    });
+
+    const transaction = await this.sequelize.transaction();
+    let committed = false;
+    try {
+      if (Object.keys(updateData).length) {
+        await room.update(updateData, { transaction });
+      }
+      await transaction.commit();
+      committed = true;
+    } catch (e) {
+      if (!committed) await transaction.rollback();
+      if (
+        e instanceof UniqueConstraintError ||
+        (e as { name?: string })?.name === 'SequelizeUniqueConstraintError'
+      ) {
+        throw conferenceRoomHttpError(
+          HttpStatus.CONFLICT,
+          'CONFERENCE_NUMBER_TAKEN',
+          `Conference number "${dto.number}" is already used in this tenant`,
+          { number: dto.number ?? '' },
+        );
+      }
+      throw e;
+    }
+
+    this.stateService.registerRoom(room);
+
+    try {
+      await this.applyRoom(room, vpbx);
+    } catch (e: any) {
+      this.logger.error(
+        `Dialplan apply failed for conference room ${uid} (${this.roomFile(vpbx)}); DB saved — retry/re-save may be needed: ${e?.message || e}`,
+      );
+    }
+
+    return room.toJSON ? room.toJSON() : room;
+  }
+
+  async remove(uid: number, vpbx: number) {
+    const room = await this.roomModel.findOne({
+      where: { uid, user_uid: vpbx },
+    });
+    if (!room) {
+      throw conferenceRoomHttpError(
+        HttpStatus.NOT_FOUND,
+        'CONFERENCE_ROOM_NOT_FOUND',
+        `Conference room ${uid} not found`,
+        { uid },
+      );
+    }
+
+    const roomUid = room.uid;
+    const transaction = await this.sequelize.transaction();
+    let committed = false;
+    try {
+      await room.destroy({ transaction });
+      await transaction.commit();
+      committed = true;
+    } catch (e) {
+      if (!committed) await transaction.rollback();
+      throw e;
+    }
+
+    try {
+      await this.dialplanApplyService.deleteCategories(
+        this.roomFile(vpbx),
+        [conferenceRoomContextName(roomUid)],
+        { reload: true },
+      );
+    } catch (e: any) {
+      this.logger.error(
+        `Dialplan remove failed for conference room ${uid} (${this.roomFile(vpbx)}); DB deleted — dialplan may need cleanup: ${e?.message || e}`,
+      );
+    }
+
+    return { success: true };
   }
 
   private async applyRoom(room: ConferenceRoom, vpbx: number): Promise<void> {
