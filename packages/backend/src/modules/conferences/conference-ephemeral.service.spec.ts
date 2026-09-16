@@ -33,6 +33,7 @@ describe('ConferenceEphemeralService (16-02)', () => {
     remove: jest.Mock;
   };
   let roomModel: { findOne: jest.Mock };
+  let meetingModel: { count: jest.Mock };
   let stateService: {
     getSnapshot: jest.Mock;
   };
@@ -47,7 +48,7 @@ describe('ConferenceEphemeralService (16-02)', () => {
 
   function loadService() {
     const { ConferenceEphemeralService } = require('./conference-ephemeral.service');
-    service = new ConferenceEphemeralService(roomsService, roomModel, stateService);
+    service = new ConferenceEphemeralService(roomsService, roomModel, meetingModel, stateService);
   }
 
   beforeEach(() => {
@@ -57,6 +58,9 @@ describe('ConferenceEphemeralService (16-02)', () => {
     };
     roomModel = {
       findOne: jest.fn(),
+    };
+    meetingModel = {
+      count: jest.fn().mockResolvedValue(0),
     };
     stateService = {
       getSnapshot: jest.fn().mockReturnValue({ roomUid: ROOM_UID, conference: null, participants: [] }),
@@ -190,6 +194,17 @@ describe('ConferenceEphemeralService (16-02)', () => {
 
       expect(roomsService.remove).not.toHaveBeenCalled();
     });
+
+    it('does not remove an empty ephemeral room that still has a meeting journal', async () => {
+      roomModel.findOne.mockResolvedValue(createdRoom({ kind: 'ephemeral', user_uid: VPBX }));
+      meetingModel.count.mockResolvedValue(1);
+      loadService();
+
+      await service.collectIfEmpty(ROOM_UID);
+
+      expect(meetingModel.count).toHaveBeenCalledWith({ where: { room_uid: ROOM_UID } });
+      expect(roomsService.remove).not.toHaveBeenCalled();
+    });
   });
 });
 
@@ -210,13 +225,12 @@ describe('ConferenceStateService handleLeave → collectIfEmpty', () => {
     });
     expect(state.getSnapshot(ROOM_UID).participants).toHaveLength(1);
 
-    state.handleLeave({
+    await state.handleLeave({
       Conference: `conf${EPHEMERAL_NUMBER}_${VPBX}`,
       Channel: 'PJSIP/gst-0001',
     });
 
     expect(state.getSnapshot(ROOM_UID).participants).toHaveLength(0);
-    await Promise.resolve();
     expect(collectIfEmpty).toHaveBeenCalledWith(ROOM_UID);
     expect(moduleRef.get).toHaveBeenCalledWith('ConferenceEphemeralService', { strict: false });
   });

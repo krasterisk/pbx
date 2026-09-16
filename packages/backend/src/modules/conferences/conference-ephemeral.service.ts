@@ -5,6 +5,7 @@ import { normalizeTarget } from '../../shared/utils/dialplan-target.util';
 import { conferenceRoomContextName } from './conference-dialplan.util';
 import { ConferenceRoomsService, conferenceRoomHttpError } from './conference-rooms.service';
 import { ConferenceStateService } from './conference-state.service';
+import { ConferenceMeeting } from './models/conference-meeting.model';
 import { ConferenceRoom } from './models/conference-room.model';
 
 export interface EphemeralRoomHandle {
@@ -18,6 +19,7 @@ export class ConferenceEphemeralService {
   constructor(
     private readonly roomsService: ConferenceRoomsService,
     @InjectModel(ConferenceRoom) private readonly roomModel: typeof ConferenceRoom,
+    @InjectModel(ConferenceMeeting) private readonly meetingModel: typeof ConferenceMeeting,
     private readonly stateService: ConferenceStateService,
   ) {}
 
@@ -70,6 +72,8 @@ export class ConferenceEphemeralService {
     const room = await this.roomModel.findOne({ where: { uid: roomUid } });
     if (!room || room.kind !== 'ephemeral') return;
     if (this.stateService.getSnapshot(roomUid).participants.length > 0) return;
+    const journalCount = await this.meetingModel.count({ where: { room_uid: roomUid } });
+    if (journalCount > 0) return;
     await this.roomsService.remove(roomUid, room.user_uid);
   }
 

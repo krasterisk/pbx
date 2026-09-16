@@ -66,7 +66,7 @@ export const CONFERENCE_SCHEMA_STATEMENTS: string[] = [
     \`recording_file_rel\` VARCHAR(512) NULL,
     PRIMARY KEY (\`uid\`),
     CONSTRAINT \`fk_conference_meetings_room\`
-      FOREIGN KEY (\`room_uid\`) REFERENCES \`conference_rooms\` (\`uid\`) ON DELETE CASCADE
+      FOREIGN KEY (\`room_uid\`) REFERENCES \`conference_rooms\` (\`uid\`) ON DELETE RESTRICT
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 
   `CREATE TABLE IF NOT EXISTS \`conference_meeting_participants\` (
@@ -144,6 +144,16 @@ export async function setupConferencesSchema(sequelize: {
     exec,
     'conference_meeting_participants.uniqueid',
     `ALTER TABLE \`conference_meeting_participants\` ADD COLUMN \`uniqueid\` VARCHAR(64) NULL`,
+  );
+  await alterIdempotent(
+    exec,
+    'conference_meetings.fk drop cascade',
+    `ALTER TABLE \`conference_meetings\` DROP FOREIGN KEY \`fk_conference_meetings_room\``,
+  );
+  await alterIdempotent(
+    exec,
+    'conference_meetings.fk restrict',
+    `ALTER TABLE \`conference_meetings\` ADD CONSTRAINT \`fk_conference_meetings_room\` FOREIGN KEY (\`room_uid\`) REFERENCES \`conference_rooms\` (\`uid\`) ON DELETE RESTRICT`,
   );
 }
 

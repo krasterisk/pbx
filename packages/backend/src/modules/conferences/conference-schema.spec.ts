@@ -68,16 +68,17 @@ describe('conference schema (16-01 Task 3)', () => {
       expect(withTenant[0]).toMatch(/conference_rooms/);
     });
 
-    it('cascades FK deletes on every child table', () => {
-      const childTables = [
+    it('cascades FK deletes on live children and restricts meetings journal', () => {
+      const cascadeTables = [
         'conference_room_moderators',
         'conference_guest_tokens',
-        'conference_meetings',
         'conference_meeting_participants',
       ];
-      for (const table of childTables) {
+      for (const table of cascadeTables) {
         expect(statementForTable(table)).toContain('ON DELETE CASCADE');
       }
+      expect(statementForTable('conference_meetings')).toContain('ON DELETE RESTRICT');
+      expect(statementForTable('conference_meetings')).not.toContain('ON DELETE CASCADE');
     });
   });
 
@@ -208,6 +209,22 @@ describe('conference schema (16-01 Task 3)', () => {
       expect(alters.some((sql) => /conference_meeting_participants/.test(sql) && /uniqueid/.test(sql))).toBe(true);
       repeats += 1;
       await expect(setupConferencesSchema(sequelize)).resolves.toBeUndefined();
+    });
+
+    it('setupConferencesSchema rewrites meetings FK from CASCADE to RESTRICT', async () => {
+      const alters: string[] = [];
+      const sequelize = {
+        query: jest.fn(async (sql: string) => {
+          if (/^ALTER TABLE/i.test(sql.trim())) alters.push(sql);
+        }),
+      };
+      await setupConferencesSchema(sequelize);
+      expect(
+        alters.some((sql) => /DROP FOREIGN KEY/.test(sql) && /fk_conference_meetings_room/.test(sql)),
+      ).toBe(true);
+      expect(
+        alters.some((sql) => /fk_conference_meetings_room/.test(sql) && /ON DELETE RESTRICT/.test(sql)),
+      ).toBe(true);
     });
   });
 

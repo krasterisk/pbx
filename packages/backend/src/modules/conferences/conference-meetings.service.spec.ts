@@ -141,10 +141,14 @@ describe('applyLeave last-leave stop (16.2-02 D-31/D-33)', () => {
     );
     const ami = { action: jest.fn().mockResolvedValue({ response: 'Success' }) };
     let recording: ConferenceRecordingService;
+    const collectIfEmpty = jest.fn(async () => {
+      expect(meetingModel.rows[0].ended_at).toBeInstanceOf(Date);
+    });
     const resolveToken = (token: { name?: string } | string) => {
       const name = typeof token === 'function' ? token.name : String(token);
       if (name === 'ConferenceMeetingsService') return meetings;
       if (name === 'ConferenceRecordingService') return recording;
+      if (name === 'ConferenceEphemeralService') return { collectIfEmpty };
       return undefined;
     };
     const moduleRef = { get: jest.fn(resolveToken) };
@@ -180,6 +184,7 @@ describe('applyLeave last-leave stop (16.2-02 D-31/D-33)', () => {
     });
     expect(meetingModel.rows[0].ended_at).toBeInstanceOf(Date);
     expect(participantModel.rows[0].left_at).toBeInstanceOf(Date);
+    expect(collectIfEmpty).toHaveBeenCalledWith(ROOM_UID);
     const endedAt = meetingModel.rows[0].ended_at;
 
     await state.handleLeave({

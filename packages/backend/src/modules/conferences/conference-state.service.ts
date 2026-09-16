@@ -326,8 +326,11 @@ export class ConferenceStateService {
       this.rememberedNames.delete(resolved.roomUid);
     }
     this.emit(resolved.roomUid, 'participantLeave');
-    if (emptied) this.scheduleCollectIfEmpty(resolved.roomUid);
-    return this.persistLeave(resolved, channel, evt, emptied);
+    const persist = this.persistLeave(resolved, channel, evt, emptied);
+    if (emptied) {
+      return persist.then(() => this.invokeCollectIfEmpty(resolved.roomUid));
+    }
+    return persist;
   }
 
   private async persistLeave(
@@ -557,10 +560,6 @@ export class ConferenceStateService {
 
   private touch(channel: string): void {
     this.lastSignalAt.set(channel, Date.now());
-  }
-
-  private scheduleCollectIfEmpty(roomUid: number): void {
-    void this.invokeCollectIfEmpty(roomUid);
   }
 
   private async invokeCollectIfEmpty(roomUid: number): Promise<void> {
