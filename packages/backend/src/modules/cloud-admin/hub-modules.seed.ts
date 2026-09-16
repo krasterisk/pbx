@@ -60,6 +60,7 @@ export const HUB_MODULE_PAGES_SEED: HubModulePageSeed[] = [
   { hub_code: 'apps', page_code: 'moh', path: '/moh', sort_order: 40 },
   { hub_code: 'apps', page_code: 'voice_robot', path: '/voice-robots', sort_order: 50 },
   { hub_code: 'apps', page_code: 'call_groups', path: '/call-groups', sort_order: 60 },
+  { hub_code: 'apps', page_code: 'conferences', path: '/conferences', sort_order: 65 },
   { hub_code: 'apps', page_code: 'integrations', path: '/integrations', sort_order: 70 },
 
   // System (base)
@@ -72,9 +73,7 @@ export const HUB_MODULE_PAGES_SEED: HubModulePageSeed[] = [
   { hub_code: 'system', page_code: 'audit_log', path: '/audit-log', sort_order: 70 },
   { hub_code: 'system', page_code: 'tenant_modules', path: '/my-modules', sort_order: 80 },
 
-  // Call Center (market) — service_requests under CC (D-19)
-  { hub_code: 'callcenter', page_code: 'service_requests', path: '/service-requests', sort_order: 10 },
-  { hub_code: 'callcenter', page_code: 'komandor_claims', path: '/komandor-claims', sort_order: 15 },
+  // Call Center (market) — custom robot tables stay off the general menu
   { hub_code: 'callcenter', page_code: 'cc_agent', path: '/callcenter/agent', sort_order: 20 },
   { hub_code: 'callcenter', page_code: 'cc_supervisor', path: '/callcenter/supervisor', sort_order: 30 },
   { hub_code: 'callcenter', page_code: 'cc_reports', path: '/callcenter/reports', sort_order: 40 },

@@ -13,8 +13,6 @@ import {
   ListOrdered,
   Mic,
   Music,
-  ClipboardList,
-  Store,
   Headphones,
   Monitor,
   BarChart3,
@@ -30,6 +28,7 @@ import {
   Sparkles,
   Package,
   Plug,
+  Video,
 } from 'lucide-react';
 import { UserLevel } from '@krasterisk/shared';
 import type { HubModuleRow, LicenseStatus, ModuleDef, ModulePageDef } from '../types';
@@ -107,6 +106,7 @@ export const BASELINE_MODULES: ModuleDef[] = [
       { id: 'moh', path: '/moh', labelKey: 'moh.title', icon: Music },
       { id: 'voice-robots', path: '/voice-robots', labelKey: 'nav.voiceRobots', icon: Bot },
       { id: 'call-groups', path: '/call-groups', labelKey: 'nav.callGroups', icon: Phone },
+      { id: 'conferences', path: '/conferences', labelKey: 'nav.conferences', icon: Video },
       {
         id: 'integrations',
         path: '/integrations',
@@ -161,18 +161,6 @@ export const BASELINE_MODULES: ModuleDef[] = [
     navVariant: 'sidebar',
     labelKey: 'nav.callcenter',
     pages: [
-      {
-        id: 'service-requests',
-        path: '/service-requests',
-        labelKey: 'nav.serviceRequests',
-        icon: ClipboardList,
-      },
-      {
-        id: 'komandor-claims',
-        path: '/komandor-claims',
-        labelKey: 'nav.komandorClaims',
-        icon: Store,
-      },
       {
         id: 'cc-agent',
         path: '/callcenter/agent',
