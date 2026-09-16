@@ -451,3 +451,109 @@ describe('ConferenceGuestService (16.1-01)', () => {
     });
   });
 });
+
+describe('ConferenceGuestService.join capacityForRoom (16.1-04 D-21)', () => {
+  let roomsService: { findOne: jest.Mock };
+  let stateService: { getSnapshot: jest.Mock; getActiveRoomUids: jest.Mock };
+  let endpointsService: {
+    generateSipPassword: jest.Mock;
+    createEphemeralGuestEndpoint: jest.Mock;
+    destroyEphemeralGuestEndpoint: jest.Mock;
+  };
+  let tokenModel: { findByPk: jest.Mock };
+  let capacity: { capacityForRoom: jest.Mock };
+  let service: ConferenceGuestService;
+
+  function tokenRow() {
+    return {
+      uid: 9,
+      sip_id: null,
+      display_name: null,
+      update: jest.fn().mockResolvedValue(undefined),
+    };
+  }
+
+  beforeEach(() => {
+    roomsService = { findOne: jest.fn().mockResolvedValue(roomJson()) };
+    stateService = {
+      getSnapshot: jest.fn().mockReturnValue({ participants: [] }),
+      getActiveRoomUids: jest.fn(),
+    };
+    endpointsService = {
+      generateSipPassword: jest.fn().mockReturnValue('sip-secret'),
+      createEphemeralGuestEndpoint: jest.fn().mockResolvedValue(undefined),
+      destroyEphemeralGuestEndpoint: jest.fn().mockResolvedValue(undefined),
+    };
+    tokenModel = { findByPk: jest.fn().mockResolvedValue(tokenRow()) };
+    capacity = { capacityForRoom: jest.fn().mockReturnValue(2) };
+    service = new ConferenceGuestService(
+      roomsService as any,
+      stateService as any,
+      endpointsService as any,
+      tokenModel as any,
+      capacity as any,
+    );
+  });
+
+  it('calls capacityForRoom once before createEphemeralGuestEndpoint', async () => {
+    await service.join(guestUser(), {});
+    expect(capacity.capacityForRoom).toHaveBeenCalledTimes(1);
+    expect(capacity.capacityForRoom).toHaveBeenCalledWith(expect.objectContaining({ uid: ROOM_UID }));
+    expect(stateService.getActiveRoomUids).not.toHaveBeenCalled();
+    const capacityOrder = capacity.capacityForRoom.mock.invocationCallOrder[0];
+    const createOrder = endpointsService.createEphemeralGuestEndpoint.mock.invocationCallOrder[0];
+    expect(capacityOrder).toBeLessThan(createOrder);
+  });
+
+  it('rejects a participant when n === N with CONFERENCE_ROOM_FULL and zero creates', async () => {
+    capacity.capacityForRoom.mockReturnValue(2);
+    stateService.getSnapshot.mockReturnValue({
+      participants: [{ channel: 'PJSIP/a' }, { channel: 'PJSIP/b' }],
+    });
+    try {
+      await service.join(guestUser(), {});
+      throw new Error('expected CONFERENCE_ROOM_FULL');
+    } catch (err) {
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.CONFLICT);
+      expect((err as HttpException).getResponse()).toMatchObject({
+        code: 'CONFERENCE_ROOM_FULL',
+        message: 'Conference room is full',
+      });
+    }
+    expect(endpointsService.createEphemeralGuestEndpoint).not.toHaveBeenCalled();
+    expect(tokenModel.findByPk).not.toHaveBeenCalled();
+  });
+
+  it('creates once for a participant when n === N - 1', async () => {
+    capacity.capacityForRoom.mockReturnValue(2);
+    stateService.getSnapshot.mockReturnValue({
+      participants: [{ channel: 'PJSIP/a' }],
+    });
+    await service.join(guestUser(), {});
+    expect(endpointsService.createEphemeralGuestEndpoint).toHaveBeenCalledTimes(1);
+    expect(endpointsService.createEphemeralGuestEndpoint.mock.calls[0][0].maxVideoStreams).toBe(2);
+  });
+
+  it.each(['owner', 'moderator'] as const)(
+    'lets %s join when n >= N (admin-bypass)',
+    async (role) => {
+      capacity.capacityForRoom.mockReturnValue(2);
+      stateService.getSnapshot.mockReturnValue({
+        participants: [{ channel: 'PJSIP/a' }, { channel: 'PJSIP/b' }],
+      });
+      await service.join({ ...guestUser(), role }, {});
+      expect(endpointsService.createEphemeralGuestEndpoint).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it('does not copy remaining/budget math inside GuestService', () => {
+    const fs = require('fs') as typeof import('fs');
+    const path = require('path') as typeof import('path');
+    const src = fs.readFileSync(path.resolve(__dirname, 'conference-guest.service.ts'), 'utf8');
+    expect(src).toMatch(/capacityForRoom/);
+    expect(src).not.toMatch(/maxParticipantsForBudget/);
+    expect(src).not.toMatch(/streamsForParticipants/);
+    expect(src).not.toMatch(/STREAM_KBPS/);
+  });
+});
