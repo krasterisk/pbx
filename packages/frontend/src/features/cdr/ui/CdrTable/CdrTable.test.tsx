@@ -22,7 +22,9 @@ vi.mock('@/shared/ui', async (importOriginal) => {
   };
 });
 
-function call(overrides: Partial<ICdrCall> & { hasVoicemail?: boolean } = {}): ICdrCall & { hasVoicemail?: boolean } {
+function call(
+  overrides: Partial<ICdrCall> & { hasVoicemail?: boolean; hasConferenceRecording?: boolean } = {},
+): ICdrCall & { hasVoicemail?: boolean; hasConferenceRecording?: boolean } {
   return {
     linkedid: 'lid-1',
     uniqueid: '1693731234.12',
@@ -86,5 +88,46 @@ describe('CdrTable journal voicemail icon (Surface L)', () => {
     );
     expect(screen.getByRole('button', { name: 'Прослушать запись' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Детали сообщения' })).not.toBeInTheDocument();
+  });
+});
+
+describe('CdrTable conference recording icon (16.2-03 D-33)', () => {
+  it('shows the conference button only when hasConferenceRecording and click skips voicemail', () => {
+    const onVoicemailClick = vi.fn();
+    const onConferenceClick = vi.fn();
+    render(
+      <CdrTable
+        data={[call({ hasVoicemail: true, hasConferenceRecording: true })]}
+        isLoading={false}
+        totalRows={1}
+        currentPage={0}
+        pageSize={50}
+        onPageChange={vi.fn()}
+        onVoicemailClick={onVoicemailClick}
+        onConferenceClick={onConferenceClick}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: 'Прослушать запись' })).toBeInTheDocument();
+    const conference = screen.getByRole('button', { name: 'Запись конференции' });
+    expect(conference).toHaveAttribute('title', 'Запись конференции');
+    fireEvent.click(conference);
+    expect(onConferenceClick).toHaveBeenCalledWith('1693731234.12');
+    expect(onVoicemailClick).not.toHaveBeenCalled();
+  });
+
+  it('does not show the conference button when the flag is false', () => {
+    render(
+      <CdrTable
+        data={[call({ hasConferenceRecording: false })]}
+        isLoading={false}
+        totalRows={1}
+        currentPage={0}
+        pageSize={50}
+        onPageChange={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole('button', { name: 'Прослушать запись' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Запись конференции' })).not.toBeInTheDocument();
   });
 });

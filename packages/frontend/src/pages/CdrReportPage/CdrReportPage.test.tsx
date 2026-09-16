@@ -27,7 +27,7 @@ vi.mock('react-router-dom', () => ({
 }));
 
 vi.mock('@/shared/api/endpoints/cdrApi', () => ({
-  useGetCdrListQuery: () => ({ data: { rows: [], count: 0 }, isLoading: false, isFetching: false }),
+  useGetCdrListQuery: vi.fn(() => ({ data: { rows: [], count: 0 }, isLoading: false, isFetching: false })),
   useGetCdrStatsQuery: () => ({ data: undefined, isLoading: false }),
   useLazyExportCdrQuery: () => [vi.fn(), { isFetching: false }],
 }));
@@ -36,10 +36,35 @@ vi.mock('@/shared/api/endpoints/voicemailApi', () => ({
   useGetVoicemailMessagesQuery: vi.fn(() => ({ data: [], isLoading: false })),
 }));
 
+vi.mock('@/shared/api/endpoints/conferenceMeetingsApi', () => ({
+  useGetConferenceRecordingsByUniqueidQuery: vi.fn(() => ({ data: [], isLoading: false })),
+}));
+
 vi.mock('@/features/cdr', () => ({
   CdrFilter: () => <div data-testid="cdr-filter-stub">filter</div>,
   CdrStats: () => <div data-testid="cdr-stats-stub">stats</div>,
-  CdrTable: () => <div data-testid="cdr-table-stub">table</div>,
+  CdrTable: ({
+    data,
+    onConferenceClick,
+  }: {
+    data?: Array<{ uniqueid: string; hasConferenceRecording?: boolean }>;
+    onConferenceClick?: (uniqueid: string) => void;
+  }) => (
+    <div data-testid="cdr-table-stub">
+      {(data ?? []).map((row) =>
+        row.hasConferenceRecording ? (
+          <button
+            key={row.uniqueid}
+            type="button"
+            aria-label="Запись конференции"
+            onClick={() => onConferenceClick?.(row.uniqueid)}
+          >
+            conference
+          </button>
+        ) : null,
+      )}
+    </div>
+  ),
   CdrLegsModal: () => null,
   CdrDrilldownModal: () => null,
   CdrCharts: () => <div data-testid="cdr-charts-stub">charts</div>,
@@ -48,10 +73,17 @@ vi.mock('@/features/cdr', () => ({
     isOpen,
   }: { uniqueid: string | null; isOpen: boolean }) =>
     (isOpen ? <div role="dialog" data-testid="vm-details">{uniqueid}</div> : null),
+  ConferenceRecordingModal: ({
+    uniqueid,
+    isOpen,
+  }: { uniqueid: string | null; isOpen: boolean }) =>
+    (isOpen ? <div role="dialog" data-testid="conf-details">{uniqueid}</div> : null),
 }));
 
 import CdrReportPage from './CdrReportPage';
+import { useGetCdrListQuery } from '@/shared/api/endpoints/cdrApi';
 import { useGetVoicemailMessagesQuery } from '@/shared/api/endpoints/voicemailApi';
+import { useGetConferenceRecordingsByUniqueidQuery } from '@/shared/api/endpoints/conferenceMeetingsApi';
 
 describe('CdrReportPage hybrid overflow (D-29 / D-27 wave E)', () => {
   beforeEach(() => {
@@ -180,5 +212,44 @@ describe('CdrReportPage voicemail tab (D-58)', () => {
     expect(screen.getByRole('button', { name: 'Голосовые сообщения' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Журнал' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Аналитика' })).toBeInTheDocument();
+  });
+});
+
+describe('CdrReportPage conference journal join (16.2-03 D-33)', () => {
+  beforeEach(() => {
+    setCurrentSearch('');
+    setSearchParams.mockClear();
+    vi.mocked(useGetCdrListQuery).mockReturnValue({
+      data: {
+        rows: [{ uniqueid: '1693731234.12' }],
+        count: 1,
+      },
+      isLoading: false,
+      isFetching: false,
+    } as ReturnType<typeof useGetCdrListQuery>);
+    vi.mocked(useGetConferenceRecordingsByUniqueidQuery).mockReturnValue({
+      data: [{
+        uniqueid: '1693731234.12',
+        meetingUid: 15,
+        roomUid: 77,
+        playPath: '/conferences/77/meetings/15/play',
+      }],
+      isLoading: false,
+    } as ReturnType<typeof useGetConferenceRecordingsByUniqueidQuery>);
+  });
+
+  it('marks the journal row and opens ConferenceRecordingModal without a fourth tab', () => {
+    render(<CdrReportPage />);
+    expect(useGetConferenceRecordingsByUniqueidQuery).toHaveBeenCalledWith(
+      ['1693731234.12'],
+      expect.objectContaining({ skip: false }),
+    );
+    const badge = screen.getByRole('button', { name: 'Запись конференции' });
+    fireEvent.click(badge);
+    expect(screen.getByTestId('conf-details')).toHaveTextContent('1693731234.12');
+    expect(screen.getByRole('button', { name: 'Журнал' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Аналитика' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Голосовые сообщения' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Конференция' })).not.toBeInTheDocument();
   });
 });
