@@ -187,6 +187,40 @@ describe('ConferenceRoomsService CRUD (16-02)', () => {
       expect(transaction.rollback).not.toHaveBeenCalled();
       expect(result.name).toBe('Still saved');
     });
+
+    it('applies the room category and rebuilt mask-index in one call', async () => {
+      const room = roomRow();
+      roomModel.findOne.mockResolvedValue(room);
+      roomModel.findAll.mockResolvedValue([room]);
+
+      await service.update(ROOM_UID, { name: 'Renamed' }, VPBX);
+
+      expect(dialplanApplyService.applyCategories).toHaveBeenCalledTimes(1);
+      const [, categories] = dialplanApplyService.applyCategories.mock.calls[0];
+      expect(categories).toHaveLength(2);
+      expect(categories.map((c: { name: string }) => c.name)).toEqual([
+        `krsk-conf-${ROOM_UID}`,
+        `krsk-conf-mask-${VPBX}`,
+      ]);
+    });
+  });
+
+  describe('create', () => {
+    it('applies the room category and rebuilt mask-index in one call', async () => {
+      const created = roomRow();
+      roomModel.create.mockResolvedValue(created);
+      roomModel.findAll.mockResolvedValue([created]);
+
+      await service.create({ number: ROOM_NUMBER, name: 'Sales conf' } as any, VPBX);
+
+      expect(dialplanApplyService.applyCategories).toHaveBeenCalledTimes(1);
+      const [, categories] = dialplanApplyService.applyCategories.mock.calls[0];
+      expect(categories).toHaveLength(2);
+      expect(categories.map((c: { name: string }) => c.name)).toEqual([
+        `krsk-conf-${ROOM_UID}`,
+        `krsk-conf-mask-${VPBX}`,
+      ]);
+    });
   });
 
   describe('remove', () => {
@@ -223,6 +257,24 @@ describe('ConferenceRoomsService CRUD (16-02)', () => {
       expect(transaction.commit).toHaveBeenCalled();
       expect(transaction.rollback).not.toHaveBeenCalled();
       expect(result).toEqual({ success: true });
+    });
+
+    it('rebuilds mask-index without the deleted room number', async () => {
+      const room = roomRow({ uid: ROOM_UID });
+      const leftover = roomRow({ uid: 81, number: '6008' });
+      roomModel.findOne.mockResolvedValue(room);
+      roomModel.findAll.mockResolvedValue([leftover]);
+
+      await service.remove(ROOM_UID, VPBX);
+
+      expect(dialplanApplyService.deleteCategories).toHaveBeenCalledTimes(1);
+      expect(dialplanApplyService.applyCategories).toHaveBeenCalledTimes(1);
+      const [, categories] = dialplanApplyService.applyCategories.mock.calls[0];
+      expect(categories).toHaveLength(1);
+      expect(categories[0].name).toBe(`krsk-conf-mask-${VPBX}`);
+      const joined = categories[0].lines.join('\n');
+      expect(joined).not.toMatch(/exten => 6007,/);
+      expect(joined).toMatch(/exten => 6008,/);
     });
   });
 
