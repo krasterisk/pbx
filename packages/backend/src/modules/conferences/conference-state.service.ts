@@ -178,7 +178,8 @@ export class ConferenceStateService {
   }
 
   setRecording(roomUid: number, value: boolean): void {
-    this.recordingByRoom.set(roomUid, value);
+    if (value) this.recordingByRoom.set(roomUid, true);
+    else this.recordingByRoom.delete(roomUid);
     this.emit(roomUid, 'recording');
   }
 

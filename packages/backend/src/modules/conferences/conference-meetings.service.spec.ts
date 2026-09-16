@@ -149,6 +149,43 @@ describe('ConferenceMeetingsService last-leave (16.2-02 D-33)', () => {
     });
     expect(participantModel.rows[1].left_at).toBeInstanceOf(Date);
   });
+
+  it('serializes markParticipantLeft and endMeeting behind beginMeeting', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    meetingModel.create.mockImplementation(async (data: Record<string, unknown>) => {
+      await gate;
+      const row = {
+        uid: meetingModel.rows.length + 1,
+        ...data,
+        update: jest.fn(async (patch: Record<string, unknown>) => Object.assign(row, patch)),
+      };
+      meetingModel.rows.push(row);
+      return row;
+    });
+
+    const join = service.beginMeeting(ROOM_UID, VPBX, {
+      Conference: CONFERENCE,
+      Channel: 'PJSIP/601-00000001',
+      CallerIDNum: '601',
+      Uniqueid: '1693731234.12',
+    });
+    await Promise.resolve();
+    const leave = service
+      .markParticipantLeft(ROOM_UID, {
+        uniqueid: '1693731234.12',
+        channel: 'PJSIP/601-00000001',
+      })
+      .then(() => service.endMeeting(ROOM_UID));
+
+    release();
+    await join;
+    const ended = await leave;
+    expect(ended?.ended_at).toBeInstanceOf(Date);
+    expect(participantModel.rows[0].left_at).toBeInstanceOf(Date);
+  });
 });
 
 describe('applyLeave last-leave stop (16.2-02 D-31/D-33)', () => {

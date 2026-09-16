@@ -378,6 +378,12 @@ describe('ConferenceStateService recording flag (16.2-01)', () => {
     sub.unsubscribe();
   });
 
+  it('setRecording(false) clears a stale recording flag so the next auto-start can run', () => {
+    state.setRecording(ROOM_UID, true);
+    state.setRecording(ROOM_UID, false);
+    expect(state.getSnapshot(ROOM_UID).recording).toBe(false);
+  });
+
   it('first auto join persist calls beginMeeting then startForMeeting via ModuleRef', async () => {
     const meetings = {
       beginMeeting: jest.fn().mockResolvedValue({

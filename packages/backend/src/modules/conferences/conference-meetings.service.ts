@@ -96,27 +96,29 @@ export class ConferenceMeetingsService {
     roomUid: number,
     keys: { uniqueid?: string | null; channel?: string | null; callerIdNum?: string | null },
   ): Promise<void> {
-    const meeting = await this.currentMeeting(roomUid);
-    if (!meeting) return;
-    const rows = await this.participants.findAll({
-      where: { meeting_uid: meeting.uid },
-    });
-    const uniqueid = keys.uniqueid?.trim() || '';
-    const channel = keys.channel?.trim() || '';
-    const callerIdNum = keys.callerIdNum?.trim() || '';
-    for (const row of rows) {
-      if (row.left_at) continue;
-      const rowUnique = String(row.uniqueid ?? '').trim();
-      const rowChannel = String(row.channel ?? '').trim();
-      const rowCaller = String(row.caller_id_num ?? '').trim();
-      if (
-        (uniqueid && rowUnique === uniqueid) ||
-        (channel && rowChannel === channel) ||
-        (callerIdNum && rowCaller === callerIdNum)
-      ) {
-        await row.update({ left_at: new Date() });
+    return this.enqueue(roomUid, async () => {
+      const meeting = await this.currentMeeting(roomUid);
+      if (!meeting) return;
+      const rows = await this.participants.findAll({
+        where: { meeting_uid: meeting.uid },
+      });
+      const uniqueid = keys.uniqueid?.trim() || '';
+      const channel = keys.channel?.trim() || '';
+      const callerIdNum = keys.callerIdNum?.trim() || '';
+      for (const row of rows) {
+        if (row.left_at) continue;
+        const rowUnique = String(row.uniqueid ?? '').trim();
+        const rowChannel = String(row.channel ?? '').trim();
+        const rowCaller = String(row.caller_id_num ?? '').trim();
+        if (
+          (uniqueid && rowUnique === uniqueid) ||
+          (channel && rowChannel === channel) ||
+          (callerIdNum && rowCaller === callerIdNum)
+        ) {
+          await row.update({ left_at: new Date() });
+        }
       }
-    }
+    });
   }
 
   async listParticipantUniqueids(meetingUid: number): Promise<string[]> {
@@ -203,16 +205,18 @@ export class ConferenceMeetingsService {
   }
 
   async endMeeting(roomUid: number): Promise<ConferenceMeeting | null> {
-    const open = await this.currentMeeting(roomUid);
-    if (open) {
-      if (!open.ended_at) {
-        await open.update({ ended_at: new Date() });
+    return this.enqueue(roomUid, async () => {
+      const open = await this.currentMeeting(roomUid);
+      if (open) {
+        if (!open.ended_at) {
+          await open.update({ ended_at: new Date() });
+        }
+        return open;
       }
-      return open;
-    }
-    return this.meetings.findOne({
-      where: { room_uid: roomUid },
-      order: [['uid', 'DESC']],
+      return this.meetings.findOne({
+        where: { room_uid: roomUid },
+        order: [['uid', 'DESC']],
+      });
     });
   }
 
