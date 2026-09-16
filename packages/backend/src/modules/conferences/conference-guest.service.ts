@@ -74,6 +74,24 @@ export class ConferenceGuestService {
 
   async join(user: ConferenceGuestUser, dto: ConferenceGuestJoinDto = {}) {
     const room = await this.roomsService.findOne(user.roomUid, user.guestVpbxUserUid);
+    const policy = conferenceEntryPolicy(room);
+    if (policy.requiresPin) {
+      const pin = String(dto.pin ?? '').trim();
+      if (!pin) {
+        throw conferenceRoomHttpError(
+          HttpStatus.BAD_REQUEST,
+          'CONFERENCE_PIN_REQUIRED',
+          'Conference PIN is required',
+        );
+      }
+      if (pin !== policy.pin) {
+        throw conferenceRoomHttpError(
+          HttpStatus.BAD_REQUEST,
+          'CONFERENCE_PIN_WRONG',
+          'Conference PIN is wrong',
+        );
+      }
+    }
     const snapshot = this.stateService.getSnapshot(room.uid);
     const nThis = snapshot.participants.length;
     const used = this.stateService
