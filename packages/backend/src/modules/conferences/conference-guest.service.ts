@@ -1,4 +1,4 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Inject, Injectable, forwardRef } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import * as crypto from 'crypto';
 import { EndpointsService } from '../endpoints/endpoints.service';
@@ -15,17 +15,47 @@ import { conferenceRoomHttpError } from './conference-rooms.service';
 import { ConferenceRoomsService } from './conference-rooms.service';
 import { ConferenceStateService } from './conference-state.service';
 import type { ConferenceGuestJoinDto } from './dto/conference-guest-join.dto';
+import type { CreateConferenceGuestTokenDto } from './dto/conference-guest-token.dto';
 import { ConferenceGuestToken } from './models/conference-guest-token.model';
 
 @Injectable()
 export class ConferenceGuestService {
   constructor(
+    @Inject(forwardRef(() => ConferenceRoomsService))
     private readonly roomsService: ConferenceRoomsService,
     private readonly stateService: ConferenceStateService,
     private readonly endpointsService: EndpointsService,
     @InjectModel(ConferenceGuestToken)
     private readonly tokenModel: typeof ConferenceGuestToken,
   ) {}
+
+  async createToken(roomUid: number, vpbx: number, dto: CreateConferenceGuestTokenDto) {
+    await this.roomsService.findOne(roomUid, vpbx);
+    if (dto.kind === 'named_invite' && !String(dto.inviteName ?? '').trim()) {
+      throw new HttpException({ message: 'Invite name is required' }, HttpStatus.BAD_REQUEST);
+    }
+    const token = crypto.randomBytes(32).toString('hex');
+    const expires_at =
+      dto.ttlSec != null ? new Date(Date.now() + dto.ttlSec * 1000) : null;
+    return this.tokenModel.create({
+      room_uid: roomUid,
+      token,
+      kind: dto.kind,
+      invite_name: dto.kind === 'named_invite' ? String(dto.inviteName).trim() : null,
+      expires_at,
+    });
+  }
+
+  async listTokens(roomUid: number, vpbx: number) {
+    await this.roomsService.findOne(roomUid, vpbx);
+    return this.tokenModel.findAll({
+      where: { room_uid: roomUid },
+      order: [
+        ['created_at', 'ASC'],
+        ['uid', 'ASC'],
+      ],
+    });
+  }
 
   async getMeta(user: ConferenceGuestUser) {
     const room = await this.roomsService.findOne(user.roomUid, user.guestVpbxUserUid);

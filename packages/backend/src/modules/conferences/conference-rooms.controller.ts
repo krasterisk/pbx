@@ -13,6 +13,7 @@ import {
 import { Request } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ConferenceRoomsService } from './conference-rooms.service';
+import { CreateConferenceGuestTokenDto } from './dto/conference-guest-token.dto';
 import { CreateConferenceRoomDto } from './dto/create-conference-room.dto';
 import { SetConferenceModeratorsDto } from './dto/conference-moderator.dto';
 import { UpdateConferenceRoomDto } from './dto/update-conference-room.dto';
@@ -25,6 +26,23 @@ export class ConferenceRoomsController {
   @Get()
   findAll(@Req() req: Request & { user: any }) {
     return this.conferenceRoomsService.findAll(req.user.vpbx_user_uid);
+  }
+
+  @Post(':uid/guest-tokens')
+  createGuestToken(
+    @Param('uid', ParseIntPipe) uid: number,
+    @Body() dto: CreateConferenceGuestTokenDto,
+    @Req() req: Request & { user: any },
+  ) {
+    return this.conferenceRoomsService.createGuestToken(uid, dto, req.user.vpbx_user_uid);
+  }
+
+  @Get(':uid/guest-tokens')
+  listGuestTokens(
+    @Param('uid', ParseIntPipe) uid: number,
+    @Req() req: Request & { user: any },
+  ) {
+    return this.conferenceRoomsService.listGuestTokens(uid, req.user.vpbx_user_uid);
   }
 
   @Get(':uid/moderators')

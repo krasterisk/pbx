@@ -2,10 +2,13 @@ import {
   ConflictException,
   HttpException,
   HttpStatus,
+  Inject,
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
   UnauthorizedException,
+  forwardRef,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { UniqueConstraintError } from 'sequelize';
@@ -21,7 +24,9 @@ import {
 } from './conference-dialplan.util';
 import { ConferenceStateService } from './conference-state.service';
 import { CreateConferenceRoomDto } from './dto/create-conference-room.dto';
+import type { CreateConferenceGuestTokenDto } from './dto/conference-guest-token.dto';
 import { UpdateConferenceRoomDto } from './dto/update-conference-room.dto';
+import { ConferenceGuestService } from './conference-guest.service';
 import {
   ConferenceModeratorDto,
   SetConferenceModeratorsDto,
@@ -78,7 +83,18 @@ export class ConferenceRoomsService {
     private readonly moderatorModel?: typeof ConferenceRoomModerator,
     @InjectModel(User)
     private readonly userModel?: typeof User,
+    @Optional()
+    @Inject(forwardRef(() => ConferenceGuestService))
+    private readonly guestService?: ConferenceGuestService,
   ) {}
+
+  createGuestToken(roomUid: number, dto: CreateConferenceGuestTokenDto, vpbx: number) {
+    return this.guestService!.createToken(roomUid, vpbx, dto);
+  }
+
+  listGuestTokens(roomUid: number, vpbx: number) {
+    return this.guestService!.listTokens(roomUid, vpbx);
+  }
 
   private roomFile(vpbx: number): string {
     return `krasterisk/conferences/conf_${vpbx}.conf`;
