@@ -9,6 +9,7 @@ import { Sequelize } from 'sequelize-typescript';
 import { DialplanApplyService } from '../ami/dialplan-apply.service';
 import { ConferenceRoomsService } from './conference-rooms.service';
 import { ConferenceStateService } from './conference-state.service';
+import { CreateConferenceRoomDto } from './dto/create-conference-room.dto';
 import { ConferenceRoom } from './models/conference-room.model';
 import { CONFERENCE_SCHEMA_STATEMENTS } from './setup-conferences-schema';
 
@@ -586,5 +587,118 @@ describe('ConferenceRoomsService CRUD (16-02)', () => {
       expect(callerLines[0]).toContain('601');
     });
   });
+
+  describe('entry policy consistency (16-06)', () => {
+    async function pinDtoErrors(pin: string) {
+      const dto = plainToInstance(CreateConferenceRoomDto, {
+        number: '6007',
+        name: 'X',
+        pin,
+      });
+      return validate(dto);
+    }
+
+    it('rejects create without PIN when strictness requires it', async () => {
+      try {
+        await service.create(
+          { number: '6007', name: 'X', entry_strictness: 'token_name_pin' } as any,
+          VPBX,
+        );
+        throw new Error('expected CONFERENCE_PIN_REQUIRED');
+      } catch (err) {
+        expect(err).toBeInstanceOf(HttpException);
+        expect((err as HttpException).getStatus()).toBe(HttpStatus.BAD_REQUEST);
+        expect((err as HttpException).getResponse()).toMatchObject({
+          code: 'CONFERENCE_PIN_REQUIRED',
+        });
+      }
+      expect(roomModel.create).not.toHaveBeenCalled();
+    });
+
+    it('creates a PIN-required room when PIN is 1234 and applies once', async () => {
+      const created = roomRow({
+        number: '6007',
+        name: 'X',
+        entry_strictness: 'token_name_pin',
+        pin: '1234',
+      });
+      roomModel.create.mockResolvedValue(created);
+      roomModel.findAll.mockResolvedValue([created]);
+
+      await service.create(
+        { number: '6007', name: 'X', entry_strictness: 'token_name_pin', pin: '1234' } as any,
+        VPBX,
+      );
+
+      expect(roomModel.create).toHaveBeenCalledTimes(1);
+      expect(dialplanApplyService.applyCategories).toHaveBeenCalledTimes(1);
+    });
+
+    it('rejects update that raises strictness on a room without PIN', async () => {
+      const room = roomRow({ pin: null, entry_strictness: 'token_name' });
+      roomModel.findOne.mockResolvedValue(room);
+
+      try {
+        await service.update(ROOM_UID, { entry_strictness: 'token_name_pin' }, VPBX);
+        throw new Error('expected CONFERENCE_PIN_REQUIRED');
+      } catch (err) {
+        expect(err).toBeInstanceOf(HttpException);
+        expect((err as HttpException).getResponse()).toMatchObject({
+          code: 'CONFERENCE_PIN_REQUIRED',
+        });
+      }
+      expect(dialplanApplyService.applyCategories).not.toHaveBeenCalled();
+    });
+
+    it('rejects clearing PIN on a PIN-required room', async () => {
+      const room = roomRow({ entry_strictness: 'token_name_pin', pin: '1234' });
+      roomModel.findOne.mockResolvedValue(room);
+
+      try {
+        await service.update(ROOM_UID, { pin: '' }, VPBX);
+        throw new Error('expected CONFERENCE_PIN_REQUIRED');
+      } catch (err) {
+        expect(err).toBeInstanceOf(HttpException);
+        expect((err as HttpException).getResponse()).toMatchObject({
+          code: 'CONFERENCE_PIN_REQUIRED',
+        });
+      }
+    });
+
+    it('rejects PIN shorter than 4 digits on the DTO', async () => {
+      const errors = await pinDtoErrors('123');
+      expect(errors.some((error) => error.property === 'pin')).toBe(true);
+    });
+
+    it('rejects a non-digit PIN on the DTO', async () => {
+      const errors = await pinDtoErrors('12a4');
+      expect(errors.some((error) => error.property === 'pin')).toBe(true);
+    });
+
+    it('rejects Arabic-Indic digits on the DTO', async () => {
+      const errors = await pinDtoErrors('١٢٣٤');
+      expect(errors.some((error) => error.property === 'pin')).toBe(true);
+    });
+
+    it('creates a token_name room that still stores a PIN', async () => {
+      const created = roomRow({
+        number: '6007',
+        name: 'X',
+        entry_strictness: 'token_name',
+        pin: '1234',
+      });
+      roomModel.create.mockResolvedValue(created);
+      roomModel.findAll.mockResolvedValue([created]);
+
+      await service.create(
+        { number: '6007', name: 'X', entry_strictness: 'token_name', pin: '1234' } as any,
+        VPBX,
+      );
+
+      expect(roomModel.create).toHaveBeenCalledTimes(1);
+      expect(dialplanApplyService.applyCategories).toHaveBeenCalledTimes(1);
+    });
+  });
 });
+
 
