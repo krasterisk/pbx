@@ -22,13 +22,15 @@ import { NumbersPage } from '@/pages/NumbersPage/NumbersPage';
 import { EndpointsPage } from '@/pages/EndpointsPage';
 import ContextsPage from '@/pages/ContextsPage';
 import ProvisionTemplatesPage from '@/pages/ProvisionTemplatesPage';
-import { TrunksPage } from '@/features/trunks/ui/TrunksPage/TrunksPage';
+import { TrunksPage } from '@/features/trunks/ui/TrunksPage';
 import { RoutesPage } from '@/pages/RoutesPage';
 import { IvrsPage } from '@/pages/IvrsPage';
 import { TimeGroupsPage } from '@/pages/TimeGroupsPage';
 import { DirectoriesPage } from '@/pages/DirectoriesPage';
 import { PromptsPage } from '@/pages/PromptsPage';
 import { MohPage } from '@/pages/MohPage';
+import { ConferencesPage } from '@/pages/ConferencesPage';
+import { ConferenceRoomPage } from '@/pages/ConferenceRoomPage';
 import { TtsEnginesPage } from '@/pages/TtsEnginesPage';
 import { SttEnginesPage } from '@/pages/SttEnginesPage';
 import { VoiceRobotsPage } from '@/pages/VoiceRobotsPage';
@@ -121,6 +123,8 @@ export const router = createBrowserRouter([
       { path: 'queues', element: <QueuesPage /> },
       { path: 'integrations', element: <NotificationIntegrationsPage /> },
       { path: 'call-groups', element: <CallGroupsPage /> },
+      { path: 'conferences', element: <ConferencesPage /> },
+      { path: 'conferences/:uid/room', element: <ConferenceRoomPage /> },
       { path: 'roles', element: <RolesPage /> },
       { path: 'numbers', element: <NumbersPage /> },
       { path: 'provision-templates', element: <ProvisionTemplatesPage /> },

@@ -28,6 +28,7 @@ import { tenantsPageReducer } from '@/features/cloud-admin';
 import { aiChatReducer } from '@/features/ai-chat/model/slice/aiChatSlice';
 import callCenterReducer from '@/features/callcenter/model/slice/callCenterSlice';
 import conferenceSessionReducer from '@/features/conferences/model/slice/conferenceSessionSlice';
+import { conferencesPageReducer } from '@/features/conferences/model/slice/conferencesPageSlice';
 import '@/shared/api/endpoints/cdrApi';
 
 export const store = configureStore({
@@ -56,6 +57,7 @@ export const store = configureStore({
     aiChat: aiChatReducer,
     callCenter: callCenterReducer,
     conferenceSession: conferenceSessionReducer,
+    conferencesPage: conferencesPageReducer,
     [rtkApi.reducerPath]: rtkApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
