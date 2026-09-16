@@ -10,6 +10,9 @@ import { CONFBRIDGE_ROLE_FLAGS, type ConferenceRole } from './conference-roles.u
 
 export const CONFBRIDGE_BRIDGE_PROFILE = 'krsk_conf_sfu';
 
+/** Stock sound already used by call-group confirm; join-time notice when notify_recording is on. */
+export const CONFERENCE_RECORDING_ANNOUNCEMENT_PROMPT = 'beep';
+
 /** Shared platform codec list — used by static profile bootstrap and later provisioning. */
 export const CONFERENCE_PLATFORM_CODECS: string[] = ['opus', 'ulaw', 'vp8'];
 
@@ -74,6 +77,7 @@ export interface ConferenceDialplanRoom {
   tariff_max_participants?: number | null;
   effective_max_participants?: number | null;
   record_mode?: string | null;
+  notify_recording?: boolean | number | null;
 }
 
 function isFilledFlag(value: boolean | number | null | undefined): boolean {
@@ -95,12 +99,6 @@ function emitFilledSettings(room: ConferenceDialplanRoom): string[] {
   if (typeof maxMembers === 'number' && Number.isFinite(maxMembers) && maxMembers > 0) {
     lines.push(`same => n,Set(CONFBRIDGE(bridge,max_members)=${Math.trunc(maxMembers)})`);
   }
-  if (room.record_mode && room.record_mode !== 'off') {
-    const mode = filledText(room.record_mode);
-    if (mode) {
-      lines.push(`same => n,Set(CONFBRIDGE(bridge,record_conference)=${mode === 'auto' || mode === 'both' ? 'yes' : mode})`);
-    }
-  }
   const policy = conferenceEntryPolicy(room);
   const pin = policy.requiresPin ? filledText(policy.pin) : '';
   if (pin) {
@@ -112,6 +110,11 @@ function emitFilledSettings(room: ConferenceDialplanRoom): string[] {
   }
   if (isFilledFlag(room.announce_join_leave)) {
     lines.push('same => n,Set(CONFBRIDGE(user,announce_join_leave)=yes)');
+  }
+  if (isFilledFlag(room.notify_recording)) {
+    lines.push(
+      `same => n,Set(CONFBRIDGE(user,announcement)=${filledText(CONFERENCE_RECORDING_ANNOUNCEMENT_PROMPT)})`,
+    );
   }
   return lines;
 }
