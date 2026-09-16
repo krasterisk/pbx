@@ -133,10 +133,6 @@ export class ConferenceRecordingService {
       String(room.uid),
     );
     await fs.promises.mkdir(dir, { recursive: true });
-    await meeting.update({
-      recording_file_rel: rel,
-      has_recording: true,
-    });
 
     const conference = normalizeTarget(
       'conference',
@@ -153,6 +149,10 @@ export class ConferenceRecordingService {
       const msg = err instanceof Error ? err.message : String(err ?? '');
       if (!/already recording/i.test(msg)) throw err;
     }
+    await meeting.update({
+      recording_file_rel: rel,
+      has_recording: true,
+    });
     this.stateService.setRecording(room.uid, true);
   }
 

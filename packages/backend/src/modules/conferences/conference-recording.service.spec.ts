@@ -90,8 +90,22 @@ describe('ConferenceRecordingService.startForMeeting (16.2-01 D-31)', () => {
 
   it('treats an already-recording AMI error as success and sets the flag', async () => {
     ami.action.mockRejectedValue(new Error('Conference already recording'));
-    await service.startForMeeting(room() as never, meeting() as never, { vpbx_user_uid: VPBX });
+    const row = meeting();
+    await service.startForMeeting(room() as never, row as never, { vpbx_user_uid: VPBX });
     expect(state.getSnapshot(ROOM_UID).recording).toBe(true);
+    expect(row.has_recording).toBe(true);
+    expect(row.recording_file_rel).toBe('42/conferences/77/15.wav');
+  });
+
+  it('leaves has_recording false when StartRecord fails', async () => {
+    ami.action.mockRejectedValue(new Error('AMI timeout'));
+    const row = meeting();
+    await expect(
+      service.startForMeeting(room() as never, row as never, { vpbx_user_uid: VPBX }),
+    ).rejects.toThrow('AMI timeout');
+    expect(row.has_recording).toBe(false);
+    expect(row.recording_file_rel).toBeNull();
+    expect(state.getSnapshot(ROOM_UID).recording).toBe(false);
   });
 });
 
