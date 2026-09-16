@@ -77,6 +77,8 @@ export const CONFERENCE_SCHEMA_STATEMENTS: string[] = [
     \`is_guest\` TINYINT(1) NOT NULL DEFAULT 0,
     \`joined_at\` DATETIME NOT NULL,
     \`left_at\` DATETIME NULL,
+    \`caller_id_num\` VARCHAR(64) NULL,
+    \`uniqueid\` VARCHAR(64) NULL,
     PRIMARY KEY (\`uid\`),
     CONSTRAINT \`fk_conference_meeting_participants_meeting\`
       FOREIGN KEY (\`meeting_uid\`) REFERENCES \`conference_meetings\` (\`uid\`) ON DELETE CASCADE
@@ -132,6 +134,16 @@ export async function setupConferencesSchema(sequelize: {
     exec,
     'conference_guest_tokens.sip_id',
     `ALTER TABLE \`conference_guest_tokens\` ADD COLUMN \`sip_id\` VARCHAR(64) NULL`,
+  );
+  await alterIdempotent(
+    exec,
+    'conference_meeting_participants.caller_id_num',
+    `ALTER TABLE \`conference_meeting_participants\` ADD COLUMN \`caller_id_num\` VARCHAR(64) NULL`,
+  );
+  await alterIdempotent(
+    exec,
+    'conference_meeting_participants.uniqueid',
+    `ALTER TABLE \`conference_meeting_participants\` ADD COLUMN \`uniqueid\` VARCHAR(64) NULL`,
   );
 }
 

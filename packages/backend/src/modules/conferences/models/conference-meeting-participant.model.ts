@@ -32,4 +32,10 @@ export class ConferenceMeetingParticipant extends Model {
 
   @Column({ type: DataType.DATE, allowNull: true })
   declare left_at: Date | null;
+
+  @Column({ type: DataType.STRING(64), allowNull: true })
+  declare caller_id_num: string | null;
+
+  @Column({ type: DataType.STRING(64), allowNull: true })
+  declare uniqueid: string | null;
 }
