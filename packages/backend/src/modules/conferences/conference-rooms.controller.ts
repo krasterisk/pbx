@@ -45,6 +45,15 @@ export class ConferenceRoomsController {
     return this.conferenceRoomsService.listGuestTokens(uid, req.user.vpbx_user_uid);
   }
 
+  @Delete(':uid/guest-tokens/:tokenUid')
+  revokeGuestToken(
+    @Param('uid', ParseIntPipe) uid: number,
+    @Param('tokenUid', ParseIntPipe) tokenUid: number,
+    @Req() req: Request & { user: any },
+  ) {
+    return this.conferenceRoomsService.revokeGuestToken(uid, tokenUid, req.user.vpbx_user_uid);
+  }
+
   @Get(':uid/moderators')
   getModerators(
     @Param('uid', ParseIntPipe) uid: number,

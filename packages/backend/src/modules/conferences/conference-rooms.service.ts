@@ -96,6 +96,10 @@ export class ConferenceRoomsService {
     return this.guestService!.listTokens(roomUid, vpbx);
   }
 
+  revokeGuestToken(roomUid: number, tokenUid: number, vpbx: number) {
+    return this.guestService!.revoke(roomUid, tokenUid, vpbx);
+  }
+
   private roomFile(vpbx: number): string {
     return `krasterisk/conferences/conf_${vpbx}.conf`;
   }

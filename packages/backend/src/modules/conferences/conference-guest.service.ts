@@ -1,7 +1,9 @@
-import { HttpException, HttpStatus, Inject, Injectable, forwardRef } from '@nestjs/common';
+import { HttpException, HttpStatus, Inject, Injectable, Logger, forwardRef } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import * as crypto from 'crypto';
+import { AmiService } from '../ami/ami.service';
 import { EndpointsService } from '../endpoints/endpoints.service';
+import { normalizeTarget } from '../../shared/utils/dialplan-target.util';
 import {
   STREAM_KBPS,
   effectiveMax,
@@ -20,6 +22,8 @@ import { ConferenceGuestToken } from './models/conference-guest-token.model';
 
 @Injectable()
 export class ConferenceGuestService {
+  private readonly logger = new Logger(ConferenceGuestService.name);
+
   constructor(
     @Inject(forwardRef(() => ConferenceRoomsService))
     private readonly roomsService: ConferenceRoomsService,
@@ -27,6 +31,7 @@ export class ConferenceGuestService {
     private readonly endpointsService: EndpointsService,
     @InjectModel(ConferenceGuestToken)
     private readonly tokenModel: typeof ConferenceGuestToken,
+    private readonly amiService?: AmiService,
   ) {}
 
   async createToken(roomUid: number, vpbx: number, dto: CreateConferenceGuestTokenDto) {
@@ -121,5 +126,70 @@ export class ConferenceGuestService {
       sipDomain: process.env.SIP_DOMAIN || null,
       roomUid: room.uid,
     };
+  }
+
+  async revoke(roomUid: number, tokenUid: number, vpbx: number) {
+    const room = await this.roomsService.findOne(roomUid, vpbx);
+    const token = await this.tokenModel.findOne({
+      where: { uid: tokenUid, room_uid: roomUid },
+    });
+    if (!token) {
+      throw conferenceRoomHttpError(
+        HttpStatus.NOT_FOUND,
+        'CONFERENCE_GUEST_TOKEN_INVALID',
+        'Guest token not found',
+        { tokenUid },
+      );
+    }
+    await token.update({ revoked_at: new Date() });
+    const sipId = token.sip_id;
+    if (!sipId) return;
+
+    const conference = normalizeTarget(
+      'conference',
+      { source: 'fixed', value: String(room.number) },
+      vpbx,
+    );
+    const channel = this.stateService.findLiveParticipant(roomUid, sipId)?.channel;
+    if (channel && this.amiService) {
+      try {
+        await this.amiService.action({
+          action: 'ConfbridgeKick',
+          conference,
+          channel,
+        });
+      } catch (err: any) {
+        this.logger.warn(`ConfbridgeKick failed during revoke: ${err?.message || err}`);
+      }
+    }
+    try {
+      await this.endpointsService.destroyEphemeralGuestEndpoint(sipId, vpbx);
+    } catch (err: any) {
+      this.logger.warn(
+        `destroyEphemeralGuestEndpoint failed during revoke: ${err?.message || err}`,
+      );
+    }
+    await token.update({ sip_id: null });
+  }
+
+  async leave(user: ConferenceGuestUser) {
+    const token = await this.tokenModel.findByPk(user.guestTokenUid);
+    if (!token) {
+      throw conferenceRoomHttpError(
+        HttpStatus.UNAUTHORIZED,
+        'CONFERENCE_GUEST_TOKEN_INVALID',
+        'Guest token invalid',
+      );
+    }
+    const sipId = token.sip_id;
+    if (!sipId) return;
+    try {
+      await this.endpointsService.destroyEphemeralGuestEndpoint(sipId, user.guestVpbxUserUid);
+    } catch (err: any) {
+      this.logger.warn(
+        `destroyEphemeralGuestEndpoint failed during leave: ${err?.message || err}`,
+      );
+    }
+    await token.update({ sip_id: null });
   }
 }

@@ -25,4 +25,10 @@ export class ConferenceGuestController {
   ) {
     return this.guestService.join(req.user, dto);
   }
+
+  @UseGuards(ConferenceGuestTokenGuard)
+  @Post(':token/leave')
+  leave(@Req() req: Request & { user: ConferenceGuestUser }) {
+    return this.guestService.leave(req.user);
+  }
 }
