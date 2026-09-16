@@ -13,6 +13,7 @@ import { Observable, from, interval, map, merge, startWith, switchMap } from 'rx
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ConferenceRoomsService } from './conference-rooms.service';
 import { ConferenceStateService } from './conference-state.service';
+import { toConferenceRoomStateDto } from './dto/conference-participant.dto';
 
 const SSE_HEARTBEAT_MS = 15_000;
 
@@ -44,7 +45,7 @@ export class ConferenceSseController {
             data: snapshot,
           }),
           map((event) => ({
-            data: JSON.stringify(event.data),
+            data: JSON.stringify(toConferenceRoomStateDto(event.data)),
             type: event.type,
             id: String(Date.now()),
           })),
