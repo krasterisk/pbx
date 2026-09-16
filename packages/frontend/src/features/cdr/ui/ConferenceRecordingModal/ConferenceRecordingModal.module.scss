@@ -1,0 +1,30 @@
+/* ─────────────────────────────────────────────────────
+   ConferenceRecordingModal — JWT WAV player for a meeting
+   Design tokens: var(--color-*) from globals.css @theme
+   ───────────────────────────────────────────────────── */
+
+.scrollBody {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+
+  > * {
+    flex-shrink: 0;
+  }
+}
+
+.playerRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.download {
+  color: var(--color-foreground);
+}
+
+.empty {
+  color: var(--color-muted-foreground);
+}

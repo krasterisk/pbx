@@ -1415,6 +1415,12 @@ export const en = {
   conferences: {
     orphanRoom: '{{room}} (not in the list)',
     selectRoom: 'Select a room',
+    cdr: {
+      detailsTitle: 'Conference recording',
+      badge: 'Conference',
+      empty: 'Conference recording is not available',
+      download: 'Download',
+    },
   },
   callGroups: {
     title: 'Call Groups',

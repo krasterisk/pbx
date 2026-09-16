@@ -1671,6 +1671,12 @@ export const ru = {
   conferences: {
     orphanRoom: '{{room}} (нет в списке)',
     selectRoom: 'Выберите комнату',
+    cdr: {
+      detailsTitle: 'Запись конференции',
+      badge: 'Конференция',
+      empty: 'Запись конференции недоступна',
+      download: 'Скачать',
+    },
   },
   callGroups: {
     title: 'Группы вызовов',
