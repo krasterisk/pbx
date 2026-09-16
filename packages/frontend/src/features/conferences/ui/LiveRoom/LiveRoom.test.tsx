@@ -40,6 +40,13 @@ vi.mock('@/shared/api/endpoints/conferenceRoomApi', () => ({
   useUnmuteConferenceParticipantMutation: () => [unmuteParticipant, { isLoading: false }],
   useKickConferenceParticipantMutation: () => [kickParticipant, { isLoading: false }],
   useSetConferenceParticipantRoleMutation: () => [setRole, { isLoading: false }],
+  useSetConferenceMeVideoMutation: () => [vi.fn(), { isLoading: false }],
+  useInviteConferenceMutation: () => [vi.fn(), { isPending: false }],
+}));
+
+vi.mock('@/shared/api/endpoints/conferenceMeetingsApi', () => ({
+  useStartConferenceRecordingMutation: () => [vi.fn(), { isPending: false }],
+  useStopConferenceRecordingMutation: () => [vi.fn(), { isPending: false }],
 }));
 
 vi.mock('sip.js', () => ({
@@ -318,5 +325,64 @@ describe('LiveRoom participant rail (16.3-05 D-26 / D-37)', () => {
     ].join('\n');
     expect(sources).not.toMatch(/raised-hand|raisedHand|handRaise/i);
     expect(sources).not.toMatch(/dangerouslySetInnerHTML/);
+  });
+
+  it('shows a 56px header, join CTA, banners over the stage, and a hidden audio element', () => {
+    render(
+      <LiveRoom
+        roomUid={7}
+        selfRole="owner"
+        roomName="Standup"
+        roomNumber="8001"
+        recording
+        startedAt="2026-09-16T12:00:00.000Z"
+        status="idle"
+        onJoin={vi.fn()}
+        onLeave={vi.fn()}
+        onEnd={vi.fn()}
+        waitingForModerator={false}
+        reconnecting
+        weakLink
+        disconnected
+        adminJoinNotice
+        inviteExternalScope="moderator"
+        canRecord
+        isMuted={false}
+        isCameraOff={false}
+        participants={[participant({ ref: 'a', displayName: 'Alice' })]}
+        remoteTracks={{ '0': fakeVideoTrack('mid-0') }}
+      />,
+    );
+
+    const header = screen.getByTestId('live-room-header');
+    expect(header).toHaveStyle({ height: '56px' });
+    expect(header).toHaveTextContent('Standup');
+    expect(header).toHaveTextContent('8001');
+    expect(header).toHaveTextContent('Идёт запись');
+    expect(screen.getByRole('button', { name: 'Войти в конференцию' })).toBeInTheDocument();
+    expect(screen.getByTestId('live-room-stage').querySelector('[data-banner="reconnecting"]')).toBeTruthy();
+    expect(screen.getByTestId('live-room-stage').querySelector('[data-banner="weakLink"]')).toBeTruthy();
+    const disconnected = screen.getByTestId('live-room-stage').querySelector('[data-banner="disconnected"]');
+    expect(disconnected).toHaveAttribute('aria-live', 'assertive');
+    expect(screen.getByText('Вход администратора в эту встречу записывается в журнал событий.')).toBeInTheDocument();
+    const audio = document.querySelector('audio');
+    expect(audio).toHaveAttribute('aria-hidden', 'true');
+    expect(screen.getByTestId('conference-video-grid')).toBeInTheDocument();
+  });
+
+  it('blocks UA start copy and does not render join when noWebrtcCompanion', () => {
+    render(
+      <LiveRoom
+        roomUid={7}
+        error="noWebrtcCompanion"
+        status="error"
+        onJoin={vi.fn()}
+        onLeave={vi.fn()}
+        participants={[]}
+        remoteTracks={{}}
+      />,
+    );
+    expect(screen.getByText(/нет WebRTC-абонента/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Войти в конференцию' })).not.toBeInTheDocument();
   });
 });
