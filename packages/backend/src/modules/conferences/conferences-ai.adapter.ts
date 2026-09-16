@@ -1,5 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { z } from 'zod';
+import { ConferenceModerationService } from './conference-moderation.service';
 import { ConferenceRoomsService } from './conference-rooms.service';
 import { AiAdapterRegistryService } from '../ai-platform/ai-adapter-registry.service';
 import {
@@ -54,6 +55,7 @@ export class ConferencesAiAdapter implements DomainAiAdapter, OnModuleInit {
 
   constructor(
     private readonly roomsService: ConferenceRoomsService,
+    private readonly moderationService: ConferenceModerationService,
     private readonly registry: AiAdapterRegistryService,
   ) {}
 
@@ -63,7 +65,12 @@ export class ConferencesAiAdapter implements DomainAiAdapter, OnModuleInit {
   }
 
   getTools(): AiToolDefinition[] {
-    return [this.toolListConferenceRooms(), this.toolUpdateConferenceRoom()];
+    return [
+      this.toolListConferenceRooms(),
+      this.toolUpdateConferenceRoom(),
+      this.toolForceMuteParticipant(),
+      this.toolForceKickParticipant(),
+    ];
   }
 
   getStateProvider(): AiStateProvider {
@@ -120,6 +127,52 @@ export class ConferencesAiAdapter implements DomainAiAdapter, OnModuleInit {
       revalidate: async (args, ctx) => this.revalidateUpdate(args, ctx),
       apply: async (args, ctx) => this.applyUpdate(args, ctx),
     });
+  }
+
+  private toolForceMuteParticipant(): AiToolDefinition {
+    return {
+      name: 'cf_force_mute_participant',
+      description:
+        'Заглушить участника живой комнаты. Деструктивная операция — confirm/dispatch, не draft.',
+      inputSchema: {
+        room_uid: { type: 'number', description: 'UID комнаты из list_conference_rooms' },
+        ref: { type: 'string', description: 'DTO ref участника, не Asterisk channel' },
+      },
+      entityType: 'conference_participant',
+      destructive: true,
+      handler: async (args, vpbxUserUid) => {
+        const roomUid = Number(args.room_uid);
+        const ref = String(args.ref ?? '');
+        await this.moderationService.muteParticipant(roomUid, ref, {
+          sub: 0,
+          vpbx_user_uid: vpbxUserUid,
+        });
+        return { ok: true, room_uid: roomUid, ref };
+      },
+    };
+  }
+
+  private toolForceKickParticipant(): AiToolDefinition {
+    return {
+      name: 'cf_force_kick_participant',
+      description:
+        'Исключить участника из живой комнаты. Деструктивная операция — confirm/dispatch, не draft.',
+      inputSchema: {
+        room_uid: { type: 'number', description: 'UID комнаты из list_conference_rooms' },
+        ref: { type: 'string', description: 'DTO ref участника, не Asterisk channel' },
+      },
+      entityType: 'conference_participant',
+      destructive: true,
+      handler: async (args, vpbxUserUid) => {
+        const roomUid = Number(args.room_uid);
+        const ref = String(args.ref ?? '');
+        await this.moderationService.kickParticipant(roomUid, ref, {
+          sub: 0,
+          vpbx_user_uid: vpbxUserUid,
+        });
+        return { ok: true, room_uid: roomUid, ref };
+      },
+    };
   }
 
   private async proposeUpdate(
