@@ -37,6 +37,7 @@ describe('ConferenceGuestService (16.1-01)', () => {
     destroyEphemeralGuestEndpoint: jest.Mock;
   };
   let tokenModel: { findByPk: jest.Mock; create: jest.Mock; findAll: jest.Mock; findOne: jest.Mock };
+  let capacity: { capacityForRoom: jest.Mock };
   let service: ConferenceGuestService;
   const prevUplink = process.env.CONFERENCE_UPLINK_KBPS;
 
@@ -53,11 +54,13 @@ describe('ConferenceGuestService (16.1-01)', () => {
       destroyEphemeralGuestEndpoint: jest.fn().mockResolvedValue(undefined),
     };
     tokenModel = { findByPk: jest.fn(), create: jest.fn(), findAll: jest.fn(), findOne: jest.fn() };
+    capacity = { capacityForRoom: jest.fn().mockReturnValue(2) };
     service = new ConferenceGuestService(
       roomsService as any,
       stateService as any,
       endpointsService as any,
       tokenModel as any,
+      capacity as any,
     );
   });
 
@@ -275,6 +278,7 @@ describe('ConferenceGuestService (16.1-01)', () => {
         state as any,
         endpointsService as any,
         tokenModel as any,
+        capacity as any,
         amiService as any,
       );
     });

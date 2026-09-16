@@ -55,6 +55,7 @@ describe('conference guest spine (16.1-01)', () => {
       stateService as any,
       endpointsService as any,
       tokenModel as any,
+      { capacityForRoom: jest.fn().mockReturnValue(2) } as any,
     );
   });
 
@@ -107,7 +108,12 @@ describe('conference guest spine (16.1-01)', () => {
       .split(',')
       .map((s) => s.trim())
       .filter(Boolean);
-    expect(names[0]).toBe('ConferenceGuestController');
+    expect(names).toEqual(
+      expect.arrayContaining(['ConferenceGuestWebrtcController', 'ConferenceGuestController']),
+    );
+    expect(names.indexOf('ConferenceGuestController')).toBeLessThan(
+      names.indexOf('ConferenceRoomsController'),
+    );
     expect(src).toMatch(/ConferenceGuestService/);
     expect(src).toMatch(/ConferenceGuestTokenGuard/);
   });

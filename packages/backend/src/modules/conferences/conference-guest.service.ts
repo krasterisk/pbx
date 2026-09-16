@@ -4,12 +4,7 @@ import * as crypto from 'crypto';
 import { AmiService } from '../ami/ami.service';
 import { EndpointsService } from '../endpoints/endpoints.service';
 import { normalizeTarget } from '../../shared/utils/dialplan-target.util';
-import {
-  STREAM_KBPS,
-  effectiveMax,
-  maxParticipantsForBudget,
-  streamsForParticipants,
-} from './conference-capacity.util';
+import { ConferenceCapacityService } from './conference-capacity.service';
 import { conferenceRoomContextName } from './conference-dialplan.util';
 import { conferenceEntryPolicy } from './conference-entry-policy.util';
 import type { ConferenceGuestUser } from './conference-guest-token.guard';
@@ -31,6 +26,7 @@ export class ConferenceGuestService {
     private readonly endpointsService: EndpointsService,
     @InjectModel(ConferenceGuestToken)
     private readonly tokenModel: typeof ConferenceGuestToken,
+    private readonly capacityService: ConferenceCapacityService,
     private readonly amiService?: AmiService,
   ) {}
 
@@ -72,7 +68,10 @@ export class ConferenceGuestService {
     };
   }
 
-  async join(user: ConferenceGuestUser, dto: ConferenceGuestJoinDto = {}) {
+  async join(
+    user: ConferenceGuestUser & { role?: 'owner' | 'moderator' | 'participant' },
+    dto: ConferenceGuestJoinDto = {},
+  ) {
     const room = await this.roomsService.findOne(user.roomUid, user.guestVpbxUserUid);
     const policy = conferenceEntryPolicy(room);
     if (policy.requiresPin) {
@@ -92,17 +91,10 @@ export class ConferenceGuestService {
         );
       }
     }
-    const snapshot = this.stateService.getSnapshot(room.uid);
-    const nThis = snapshot.participants.length;
-    const used = this.stateService
-      .getActiveRoomUids()
-      .reduce((sum, uid) => sum + streamsForParticipants(this.stateService.getSnapshot(uid).participants.length), 0);
-    const uplinkKbps = Number(process.env.CONFERENCE_UPLINK_KBPS) || 100000;
-    const remaining = Math.floor(uplinkKbps / STREAM_KBPS) - used;
-    const budgetMax = maxParticipantsForBudget(remaining + streamsForParticipants(nThis));
-    const max = effectiveMax(room.tariff_max_participants ?? null, budgetMax);
-
-    if (nThis + 1 > max) {
+    const nThis = this.stateService.getSnapshot(room.uid).participants.length;
+    const max = this.capacityService.capacityForRoom(room);
+    const adminBypass = user.role === 'owner' || user.role === 'moderator';
+    if (!adminBypass && nThis + 1 > max) {
       throw conferenceRoomHttpError(
         HttpStatus.CONFLICT,
         'CONFERENCE_ROOM_FULL',
