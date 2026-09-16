@@ -21,6 +21,7 @@ export interface ConferenceParticipantState {
   role: ConferenceParticipantRole;
   talking: boolean;
   muted: boolean;
+  video: boolean;
   joinedAt: number;
 }
 
@@ -175,6 +176,7 @@ export class ConferenceStateService {
       role: this.resolveJoinRole(resolved.roomUid, evt),
       talking: false,
       muted: false,
+      video: false,
       joinedAt: Date.now(),
     });
     this.touch(channel);
@@ -222,6 +224,14 @@ export class ConferenceStateService {
     participant.state.muted = false;
     this.touch(participant.state.channel);
     this.emit(participant.roomUid, 'participantUnmute');
+  }
+
+  setVideoState(roomUid: number, participantRef: string, enabled: boolean): void {
+    const participant = this.findLiveParticipant(roomUid, participantRef);
+    if (!participant) return;
+    if (participant.video === enabled) return;
+    participant.video = enabled;
+    this.emit(roomUid, 'participantVideo');
   }
 
   private resolveJoinRole(roomUid: number, evt: ConferenceAmiEvent): ConferenceParticipantRole {

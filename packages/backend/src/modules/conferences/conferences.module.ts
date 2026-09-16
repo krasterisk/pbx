@@ -7,6 +7,7 @@ import { ConfbridgeStaticProfileService } from './confbridge-static-profile.serv
 import { ConferenceEphemeralService } from './conference-ephemeral.service';
 import { ConferenceModerationController } from './conference-moderation.controller';
 import { ConferenceModerationService } from './conference-moderation.service';
+import { ConferenceParticipantController } from './conference-participant.controller';
 import { ConferenceRoomsController } from './conference-rooms.controller';
 import { ConferenceRoomsService } from './conference-rooms.service';
 import { ConferenceSseController } from './conference-sse.controller';
@@ -33,6 +34,7 @@ import { ConferenceRoom } from './models/conference-room.model';
   controllers: [
     ConferenceRoomsController,
     ConferenceModerationController,
+    ConferenceParticipantController,
     ConferenceSseController,
   ],
   providers: [
