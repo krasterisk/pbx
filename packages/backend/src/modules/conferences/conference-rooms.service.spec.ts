@@ -224,6 +224,28 @@ describe('ConferenceRoomsService CRUD (16-02)', () => {
         `krsk-conf-mask-${VPBX}`,
       ]);
     });
+
+    it('rebuilds a mask-index containing both room numbers after a second create (D-08)', async () => {
+      const first = roomRow({ uid: 77, number: '6007' });
+      const second = roomRow({ uid: 78, number: '6008' });
+      roomModel.create.mockResolvedValueOnce(first).mockResolvedValueOnce(second);
+      roomModel.findAll
+        .mockResolvedValueOnce([first])
+        .mockResolvedValueOnce([first, second]);
+
+      await service.create({ number: '6007', name: 'Sales conf' } as any, VPBX);
+      await service.create({ number: '6008', name: 'Sales conf 2' } as any, VPBX);
+
+      expect(dialplanApplyService.applyCategories).toHaveBeenCalledTimes(2);
+      const [, secondCategories] = dialplanApplyService.applyCategories.mock.calls[1];
+      const maskCategory = secondCategories.find(
+        (c: { name: string }) => c.name === `krsk-conf-mask-${VPBX}`,
+      );
+      expect(maskCategory).toBeDefined();
+      const joined = maskCategory.lines.join('\n');
+      expect(joined).toMatch(/exten => 6007,/);
+      expect(joined).toMatch(/exten => 6008,/);
+    });
   });
 
   describe('remove', () => {
@@ -388,6 +410,16 @@ describe('ConferenceRoomsService CRUD (16-02)', () => {
       ).rejects.toBeInstanceOf(NotFoundException);
       expect(loggerService.logAction).not.toHaveBeenCalled();
     });
+
+    it('writes logAction twice with the same args when the same visitor enters twice', async () => {
+      roomModel.findOne.mockResolvedValue(roomFromAttributes({ created_by: 7 }));
+
+      await service.assertLiveRoomAccess(ROOM_UID, { sub: 5, vpbx_user_uid: VPBX });
+      await service.assertLiveRoomAccess(ROOM_UID, { sub: 5, vpbx_user_uid: VPBX });
+
+      expect(loggerService.logAction).toHaveBeenCalledTimes(2);
+      expect(loggerService.logAction.mock.calls[0]).toEqual(loggerService.logAction.mock.calls[1]);
+    });
   });
 
   describe('live-room wiring (D-03 / D-17)', () => {
@@ -401,6 +433,8 @@ describe('ConferenceRoomsService CRUD (16-02)', () => {
       expect(body.indexOf('assertLiveRoomAccess')).toBeLessThan(body.indexOf('startWith'));
       expect(body).toContain('startWith');
       expect(body).toMatch(/heartbeat/);
+      expect(body).toMatch(/takeUntil/);
+      expect(body).toMatch(/finalize/);
     });
 
     it('addToConference takes the room name from ensureRoomForCall, not uniqueid', () => {

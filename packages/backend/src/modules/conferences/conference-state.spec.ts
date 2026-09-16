@@ -31,6 +31,44 @@ describe('ConferenceStateService roles and snapshot order', () => {
     jest.useRealTimers();
   });
 
+  it('accepts lowercase AMI headers from asterisk-manager', () => {
+    state.handleJoin({
+      conference: CONFERENCE,
+      channel: 'Local/s@krsk-conf-77-00000001;2',
+      calleridnum: '16001',
+    } as never);
+    expect(state.getSnapshot(ROOM_UID).participants).toHaveLength(1);
+    expect(state.getSnapshot(ROOM_UID).participants[0].callerIdNum).toBe('16001');
+    state.handleLeave({
+      conference: CONFERENCE,
+      channel: 'Local/s@krsk-conf-77-00000001;2',
+    } as never);
+    expect(state.getSnapshot(ROOM_UID).participants).toHaveLength(0);
+  });
+
+  it('hydrates the room from DB when AMI join arrives before any list/CRUD', async () => {
+    const findOne = jest.fn().mockResolvedValue({
+      uid: ROOM_UID,
+      number: '6007',
+      user_uid: 42,
+    });
+    const moduleRef = {
+      get: jest.fn().mockReturnValue({ findOne }),
+    };
+    const cold = new ConferenceStateService(moduleRef as never);
+    await cold.handleJoin(
+      joinEvt({
+        Channel: 'Local/s@krsk-conf-77-00000001;2',
+        CallerIDNum: '16001',
+      }),
+    );
+    expect(findOne).toHaveBeenCalledWith({
+      where: { number: '6007', user_uid: 42 },
+    });
+    expect(cold.getSnapshot(ROOM_UID).participants).toHaveLength(1);
+    expect(cold.getSnapshot(ROOM_UID).conference).toBe(CONFERENCE);
+  });
+
   it('gives a known caller the role from room settings, not from event flags', () => {
     state.setRoomRights(ROOM_UID, { ownerRef: '601', moderatorRefs: ['602'] });
     state.handleJoin(
@@ -101,6 +139,30 @@ describe('ConferenceStateService roles and snapshot order', () => {
       'PJSIP/601-00000001',
       'PJSIP/602-00000002',
     ]);
+  });
+});
+
+describe('ConferenceStateService parallel joins (D-34)', () => {
+  it('records N participants with unique channels after concurrent handleJoin calls', async () => {
+    const state = new ConferenceStateService();
+    state.registerRoom({ uid: ROOM_UID, number: '6007', user_uid: 42 });
+    const N = 6;
+
+    await Promise.all(
+      Array.from({ length: N }, (_, i) =>
+        state.handleJoin(
+          joinEvt({
+            Channel: `PJSIP/60${i}-0000000${i}`,
+            CallerIDNum: `60${i}`,
+          }),
+        ),
+      ),
+    );
+
+    const snapshot = state.getSnapshot(ROOM_UID);
+    expect(snapshot.participants).toHaveLength(N);
+    const uniqueChannels = new Set(snapshot.participants.map((p) => p.channel));
+    expect(uniqueChannels.size).toBe(N);
   });
 });
 

@@ -70,6 +70,17 @@ describe('conference spine (16-01)', () => {
         normalizeTarget('conference', { source: 'fixed', value: 'conf6007_42' }, 42),
       ).toBe('conf6007_42');
     });
+
+    it('formats INT max uid as a decimal suffix without scientific notation', () => {
+      const name = normalizeTarget(
+        'conference',
+        { source: 'fixed', value: '16896' },
+        2147483647,
+      );
+      expect(name).toBe('conf16896_2147483647');
+      expect(name).not.toMatch(/e\+/i);
+      expect(name.split('_').pop()).toBe('2147483647');
+    });
   });
 
   describe('TargetKind exhaustiveness', () => {
@@ -437,6 +448,45 @@ describe('conference spine (16-01)', () => {
       const payload = typeof first.data === 'string' ? JSON.parse(first.data) : first.data;
       const participants = payload.participants ?? payload.data?.participants ?? payload;
       expect(Array.isArray(participants) ? participants : payload.participants).toHaveLength(1);
+    });
+
+    it('drops the room observer count to zero once the request emits close (D-35)', async () => {
+      roomModel.findOne.mockResolvedValue(roomRow());
+      await roomsService.create({ number: ROOM_NUMBER, name: 'Sales conf' } as any, VPBX);
+
+      class FakeReq {
+        user = { vpbx_user_uid: VPBX, sub: CREATOR_SUB };
+        private listeners = new Map<string, Set<Function>>();
+        on(event: string, cb: Function) {
+          if (!this.listeners.has(event)) this.listeners.set(event, new Set());
+          this.listeners.get(event)!.add(cb);
+        }
+        off(event: string, cb: Function) {
+          this.listeners.get(event)?.delete(cb);
+        }
+        emit(event: string) {
+          for (const cb of this.listeners.get(event) ?? []) cb();
+        }
+      }
+
+      const controller = new ConferenceSseController(roomsService, stateService);
+      const req = new FakeReq();
+      const stream = controller.events(req as any, ROOM_UID);
+
+      const received: unknown[] = [];
+      const sub = stream.subscribe((event) => received.push(event));
+
+      // Let assertLiveRoomAccess's promise (from()) and switchMap resolve.
+      await new Promise((resolve) => setImmediate(resolve));
+      await new Promise((resolve) => setImmediate(resolve));
+
+      expect(received.length).toBeGreaterThan(0);
+      expect(stateService.streamObserverCount(ROOM_UID)).toBe(1);
+
+      req.emit('close');
+
+      expect(stateService.streamObserverCount(ROOM_UID)).toBe(0);
+      sub.unsubscribe();
     });
   });
 
