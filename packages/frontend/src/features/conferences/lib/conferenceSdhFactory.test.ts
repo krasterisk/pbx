@@ -88,6 +88,16 @@ describe('conferenceSdhFactory (R-SDH)', () => {
     }).not.toThrow();
   });
 
+  it('adds the first remote video track on an empty stream without throwing', () => {
+    const factory = conferenceSdhFactory(async () => new MediaStream());
+    const sdh = factory(fakeSdhSession as never, {}) as SdhLike;
+    const first = fakeVideoTrack('v0');
+
+    expect(() => sdh.setRemoteTrack(first)).not.toThrow();
+    expect(first.readyState).toBe('live');
+    expect(sdh._remoteMediaStream.getVideoTracks().map((track) => track.id)).toEqual(['v0']);
+  });
+
   it('adds a second video track by id without stopping the first', () => {
     const factory = conferenceSdhFactory(async () => new MediaStream());
     const sdh = factory(fakeSdhSession as never, {}) as SdhLike;
