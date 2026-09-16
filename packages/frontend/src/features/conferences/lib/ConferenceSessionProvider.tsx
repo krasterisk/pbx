@@ -8,6 +8,10 @@ import {
 } from 'react';
 import { enterSession, leaveSession } from '@/features/conferences/model/slice/conferenceSessionSlice';
 import { useConferenceRoom, type UseConferenceRoomResult } from '@/features/conferences/lib/useConferenceRoom';
+import {
+  restoreLiveSoftphone,
+  unregisterLiveSoftphone,
+} from '@/features/callcenter/lib/softphoneParkBridge';
 import { loadActiveShift } from '@/features/callcenter/lib/shiftSession';
 import { useGetWebrtcConfigQuery } from '@/shared/api/endpoints/callCenterApi';
 import { useGetEndpointCredentialsQuery } from '@/shared/api/endpoints/endpointApi';
@@ -60,6 +64,8 @@ export function ConferenceSessionProvider({ children }: { children: ReactNode })
     iceServers: rtc?.iceServers,
     displayName: media?.name,
     liveSoftphoneAor: shift?.sipId,
+    unregisterSoftphone: unregisterLiveSoftphone,
+    restoreSoftphone: restoreLiveSoftphone,
     onTelemetry: (body) => setWeakLink(
       body.qualityLimitationReason === 'cpu' || body.qualityLimitationReason === 'bandwidth',
     ),

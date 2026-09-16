@@ -20,6 +20,7 @@ import {
 import { useCallCenterSSE } from '@/features/callcenter/lib/useCallCenterSSE';
 import { useCallCenterNotifications } from '@/features/callcenter/lib/useCallCenterNotifications';
 import { useWebRTCPhone } from '@/features/callcenter/lib/useWebRTCPhone';
+import { bindSoftphonePark, unbindSoftphonePark } from '@/features/callcenter/lib/softphoneParkBridge';
 import { useSipPhoneAmi } from '@/features/callcenter/lib/useSipPhoneAmi';
 import { PauseReasonModal } from '@/features/callcenter/ui/PauseReasonModal/PauseReasonModal';
 import { ClientCard } from '@/features/callcenter/ui/ClientCard/ClientCard';
@@ -215,6 +216,11 @@ export function CallCenterAgentPage() {
     sinkId,
     micDeviceId,
   });
+
+  useEffect(() => {
+    bindSoftphonePark(phone.disconnect, () => phone.ensureConnected(true));
+    return () => unbindSoftphonePark();
+  }, [phone.disconnect, phone.ensureConnected]);
 
   // Active call from Call Center SSE (queue AMI) - computed early so useSipPhoneAmi can bind.
   // Prefer agent.currentCall (set on AgentCalled / AgentConnect); fall back to a
