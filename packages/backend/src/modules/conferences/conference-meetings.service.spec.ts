@@ -1,6 +1,11 @@
+import { NotFoundException } from '@nestjs/common';
+import { MODULE_METADATA } from '@nestjs/common/constants';
+import { ConferenceMeetingsController } from './conference-meetings.controller';
 import { ConferenceMeetingsService } from './conference-meetings.service';
 import { ConferenceRecordingService } from './conference-recording.service';
+import { ConferenceRoomsController } from './conference-rooms.controller';
 import { ConferenceStateService } from './conference-state.service';
+import { ConferencesModule } from './conferences.module';
 
 const VPBX = 42;
 const ROOM_UID = 77;
@@ -32,6 +37,13 @@ function memoryMeetings() {
         }) ?? null
       );
     }),
+    findAll: jest.fn(async ({ where }: { where?: Record<string, unknown> } = {}) => {
+      const matched = rows.filter((row) => {
+        if (where?.room_uid != null && row.room_uid !== where.room_uid) return false;
+        return true;
+      });
+      return [...matched].sort((a, b) => Number(b.uid) - Number(a.uid));
+    }),
   };
 }
 
@@ -52,6 +64,7 @@ function memoryParticipants() {
     findAll: jest.fn(async ({ where }: { where: Record<string, unknown> }) => {
       return rows.filter((row) => {
         if (where.meeting_uid != null && row.meeting_uid !== where.meeting_uid) return false;
+        if (where.uniqueid != null && row.uniqueid !== where.uniqueid) return false;
         return true;
       });
     }),
@@ -176,5 +189,89 @@ describe('applyLeave last-leave stop (16.2-02 D-31/D-33)', () => {
     });
     expect(ami.action).toHaveBeenCalledTimes(1);
     expect(meetingModel.rows[0].ended_at).toBe(endedAt);
+  });
+});
+
+describe('ConferenceMeetingsService list and CDR-join (16.2-02 D-33)', () => {
+  let meetingModel: ReturnType<typeof memoryMeetings>;
+  let participantModel: ReturnType<typeof memoryParticipants>;
+  let rooms: { findOne: jest.Mock };
+  let cdr: { findByUniqueid: jest.Mock };
+  let service: ConferenceMeetingsService;
+
+  beforeEach(() => {
+    meetingModel = memoryMeetings();
+    participantModel = memoryParticipants();
+    rooms = {
+      findOne: jest.fn(async (uid: number, vpbx: number) => {
+        if (uid !== ROOM_UID || vpbx !== VPBX) {
+          throw new NotFoundException('Conference room not found');
+        }
+        return { uid: ROOM_UID, number: '6007', user_uid: VPBX };
+      }),
+    };
+    cdr = { findByUniqueid: jest.fn().mockResolvedValue({ uniqueid: '1693731234.12' }) };
+    service = new ConferenceMeetingsService(
+      meetingModel as never,
+      participantModel as never,
+      rooms as never,
+      undefined,
+      cdr as never,
+    );
+  });
+
+  it('lists tenant meetings without channel and with left_at after leave', async () => {
+    await service.beginMeeting(ROOM_UID, VPBX, {
+      Conference: CONFERENCE,
+      Channel: 'PJSIP/601-00000001',
+      CallerIDNum: '601',
+      Uniqueid: '1693731234.12',
+    });
+    await service.markParticipantLeft(ROOM_UID, {
+      uniqueid: '1693731234.12',
+      channel: 'PJSIP/601-00000001',
+    });
+    await service.endMeeting(ROOM_UID);
+    const listed = await service.listByRoom(ROOM_UID, VPBX);
+    expect(listed).toHaveLength(1);
+    expect(listed[0].participants[0].left_at).toBeInstanceOf(Date);
+    expect(listed[0].participants[0]).not.toHaveProperty('channel');
+    expect(JSON.stringify(listed)).not.toContain('PJSIP/');
+  });
+
+  it('throws NotFoundException when listing meetings for a foreign tenant', async () => {
+    await expect(service.listByRoom(ROOM_UID, 99)).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('recordings-by-uniqueid skips ids where findByUniqueid throws', async () => {
+    await service.beginMeeting(ROOM_UID, VPBX, {
+      Conference: CONFERENCE,
+      Channel: 'PJSIP/601-00000001',
+      CallerIDNum: '601',
+      Uniqueid: 'visible-1',
+    });
+    meetingModel.rows[0].has_recording = true;
+    meetingModel.rows[0].recording_file_rel = '42/conferences/77/1.wav';
+    cdr.findByUniqueid.mockImplementation(async (_vpbx: number, id: string) => {
+      if (id === 'hidden-9') throw new NotFoundException('CDR record not found');
+      return { uniqueid: id };
+    });
+    const found = await service.findRecordingsByUniqueids(VPBX, ['visible-1', 'hidden-9'], 5);
+    expect(found.map((row) => row.uniqueid)).toEqual(['visible-1']);
+    expect(found[0]).toMatchObject({
+      uniqueid: 'visible-1',
+      meetingUid: 1,
+      roomUid: ROOM_UID,
+      playPath: '/conferences/77/meetings/1/play',
+    });
+    expect(cdr.findByUniqueid).toHaveBeenCalledWith(VPBX, 'visible-1', 5);
+  });
+
+  it('registers ConferenceMeetingsController before ConferenceRoomsController', () => {
+    const controllers = Reflect.getMetadata(MODULE_METADATA.CONTROLLERS, ConferencesModule) ?? [];
+    expect(controllers.indexOf(ConferenceMeetingsController)).toBeGreaterThanOrEqual(0);
+    expect(controllers.indexOf(ConferenceMeetingsController)).toBeLessThan(
+      controllers.indexOf(ConferenceRoomsController),
+    );
   });
 });

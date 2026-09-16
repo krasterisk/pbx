@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { ForbiddenException } from '@nestjs/common';
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { PassThrough } from 'stream';
 import { ConferenceRecordingService } from './conference-recording.service';
 import { ConferenceStateService } from './conference-state.service';
@@ -126,6 +126,43 @@ describe('ConferenceRecordingService.streamMeeting (16.2-01 D-30)', () => {
 
   afterEach(() => {
     fs.rmSync(base, { recursive: true, force: true });
+  });
+
+  it('does not stream the file when findByUniqueid throws for a participant uniqueid', async () => {
+    const cdr = {
+      findByUniqueid: jest.fn().mockRejectedValue(new NotFoundException('CDR record not found')),
+    };
+    const meetings = {
+      getByRoom: jest.fn().mockResolvedValue({
+        uid: MEETING_UID,
+        room_uid: ROOM_UID,
+        recording_file_rel: '42/conferences/77/15.wav',
+      }),
+      listParticipantUniqueids: jest.fn().mockResolvedValue(['1693731234.12']),
+    };
+    const rooms = { findOne: jest.fn().mockResolvedValue(room()) };
+    const state = new ConferenceStateService();
+    const blocked = new ConferenceRecordingService(
+      { action: jest.fn() } as never,
+      { getServerConfigRaw: jest.fn().mockResolvedValue({ records_base_path: base }) } as never,
+      state,
+      rooms as never,
+      meetings as never,
+      undefined,
+      undefined,
+      cdr as never,
+    );
+    const res = Object.assign(new PassThrough(), {
+      setHeader: jest.fn(),
+      status: jest.fn().mockReturnThis(),
+      headersSent: false,
+      end: jest.fn(),
+    });
+    await expect(
+      blocked.streamMeeting(ROOM_UID, MEETING_UID, VPBX, { headers: {}, query: {} } as never, res as never, 5),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(res.status).not.toHaveBeenCalled();
+    expect(cdr.findByUniqueid).toHaveBeenCalledWith(VPBX, '1693731234.12', 5);
   });
 
   it('Range bytes=0-1 returns 206 with Content-Type audio/wav', async () => {
