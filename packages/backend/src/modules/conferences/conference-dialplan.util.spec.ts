@@ -1,4 +1,5 @@
 import {
+  CONFERENCE_RECORDING_ANNOUNCEMENT_PROMPT,
   conferenceMaskContextName,
   conferenceRoomContextName,
   generateConferenceDialplan,
@@ -217,6 +218,46 @@ describe('generateConferenceDialplan effective_max_participants (16.1-04 D-18)',
       generateConferenceDialplan(room, VPBX, []).lines,
     );
   });
+});
+
+describe('generateConferenceDialplan recording announcement (D-32)', () => {
+  const announcementLine = `same => n,Set(CONFBRIDGE(user,announcement)=beep)`;
+  const leftoverAutoRecord = /record_conference/;
+
+  it('exports CONFERENCE_RECORDING_ANNOUNCEMENT_PROMPT as beep', () => {
+    expect(CONFERENCE_RECORDING_ANNOUNCEMENT_PROMPT).toBe('beep');
+  });
+
+  it('emits announcement=beep before ConfBridge when notify_recording is true', () => {
+    const category = generateConferenceDialplan({ ...ROOM, notify_recording: true }, VPBX);
+    const joined = category.lines.join('\n');
+    expect(joined).toContain(announcementLine);
+    const announceIdx = category.lines.indexOf(announcementLine);
+    const confIdx = category.lines.findIndex((line) => line.includes('ConfBridge('));
+    expect(announceIdx).toBeGreaterThanOrEqual(0);
+    expect(confIdx).toBeGreaterThan(announceIdx);
+  });
+
+  it('omits announcement when notify_recording is false', () => {
+    const category = generateConferenceDialplan({ ...ROOM, notify_recording: false }, VPBX);
+    expect(category.lines.join('\n')).not.toMatch(/CONFBRIDGE\(user,announcement\)/);
+  });
+
+  it('omits announcement when notify_recording is 0', () => {
+    const category = generateConferenceDialplan({ ...ROOM, notify_recording: 0 }, VPBX);
+    expect(category.lines.join('\n')).not.toMatch(/CONFBRIDGE\(user,announcement\)/);
+  });
+
+  it.each(['off', 'auto', 'button', 'both'] as const)(
+    'does not emit native ConfBridge auto-record assignment when record_mode is %s',
+    (record_mode) => {
+      const category = generateConferenceDialplan(
+        { ...ROOM, record_mode, notify_recording: true },
+        VPBX,
+      );
+      expect(category.lines.join('\n')).not.toMatch(leftoverAutoRecord);
+    },
+  );
 });
 
 
