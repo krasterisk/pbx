@@ -205,6 +205,27 @@ describe('ConferenceRecordingService.streamMeeting (16.2-01 D-30)', () => {
     expect(res.status).not.toHaveBeenCalled();
   });
 
+  it('does not stream a stored rel that is not the locked conference path', async () => {
+    const dest = path.join(base, '99', 'conferences', '1');
+    fs.mkdirSync(dest, { recursive: true });
+    fs.writeFileSync(path.join(dest, '1.wav'), Buffer.alloc(32, 9));
+    meetings.getByRoom.mockResolvedValue({
+      uid: MEETING_UID,
+      room_uid: ROOM_UID,
+      recording_file_rel: '99/conferences/1/1.wav',
+    });
+    const res = Object.assign(new PassThrough(), {
+      setHeader: jest.fn(),
+      status: jest.fn().mockReturnThis(),
+      headersSent: false,
+      end: jest.fn(),
+    });
+    await expect(
+      service.streamMeeting(ROOM_UID, MEETING_UID, VPBX, { headers: {}, query: {} } as never, res as never, 5),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(res.status).not.toHaveBeenCalled();
+  });
+
   it('Range bytes=0-1 returns 206 with Content-Type audio/wav', async () => {
     const headers: Record<string, string | number> = {};
     const res = Object.assign(new PassThrough(), {

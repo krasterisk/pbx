@@ -185,7 +185,12 @@ export class ConferenceRecordingService {
     }
     const cfg = await this.systemSettings.getServerConfigRaw();
     const base = cfg.records_base_path || '/usr/records';
-    const filePath = safeConferenceRecordingPath(base, meeting.recording_file_rel ?? '');
+    const expected = conferenceRecordingRel(vpbx, roomUid, meetingUid);
+    const stored = String(meeting.recording_file_rel ?? '');
+    if (stored !== expected) {
+      throw new NotFoundException('Conference recording not found');
+    }
+    const filePath = safeConferenceRecordingPath(base, expected);
     if (!filePath) {
       throw new NotFoundException('Conference recording not found');
     }
