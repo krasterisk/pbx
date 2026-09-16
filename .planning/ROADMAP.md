@@ -1171,7 +1171,7 @@ Plans:
 
 ## Phase 16.2: Телеконференции — запись встреч и отчётность
 
-**Status:** Not planned
+**Status:** Planned
 
 **Goal:** Записывать конференции тем же механизмом, что и разговоры, и отдавать записи в двух местах — историей встреч комнаты в модуле и фактом звонка в CDR.
 
@@ -1182,9 +1182,28 @@ Plans:
 3. **Уведомление о записи** (D-32) — настройка комнаты: индикатор в вебе и голосовое объявление для телефонных участников
 4. **Две поверхности прослушивания** (D-33) — история встреч комнаты с плеером и списком участников в модуле, факт звонка и запись в CDR-отчёте, по образцу голосовой почты Phase 13
 
-**Scope (out):** AI-саммари и расшифровка записи — вне фазы по ROADMAP, кандидат в отдельную фазу.
+**Scope (out):** AI-саммари и расшифровка записи — вне фазы по ROADMAP, кандидат в отдельную фазу. Live-кнопка записи, вкладка Record формы комнаты и гостевой шелл — Phase 16.3. Видео/ёмкость/гостевые токены — Phase 16.1.
 
 **Requirements:** D-30, D-31, D-32, D-33.
+
+**Plans:** 3 plans
+
+Plans:
+- [ ] 16.2-01-PLAN.md — Спина: путь D-30, встреча → AMI StartRecord → WAV play, ALTER uniqueid
+- [ ] 16.2-02-PLAN.md — Кнопка модератора, announcement, last-leave, list/CDR-join API
+- [ ] 16.2-03-PLAN.md — CDR-бейдж + модалка WAV и фрагмент History tab
+
+**Wave 1**
+
+- [ ] `16.2-01-PLAN.md` — Wave 1, checkpoint пути + tracer + schema
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] `16.2-02-PLAN.md` — Wave 2: D-31 button/stop, D-32 announcement, D-33 persist/list
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] `16.2-03-PLAN.md` — Wave 3: CDR surface + History tab fragment
 
 **Depends on:** Phase 16 (домен комнаты и история встреч). Параллельна Phase 16.1.
 
