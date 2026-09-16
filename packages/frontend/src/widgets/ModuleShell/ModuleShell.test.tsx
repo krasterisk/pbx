@@ -70,6 +70,24 @@ vi.mock('@/shared/hooks/useAppStore', () => ({
   useAppDispatch: () => vi.fn(),
 }));
 
+vi.mock('@/features/conferences/lib/ConferenceSessionProvider', () => ({
+  ConferenceSessionProvider: ({ children }: { children: React.ReactNode }) => children,
+  useConferenceSessionHost: () => ({
+    startMedia: vi.fn(),
+    hangup: vi.fn(),
+    sipId: null,
+    weakLink: false,
+    room: {
+      status: 'idle',
+      error: null,
+      remoteTracks: {},
+      videoFailedMids: [],
+      leave: vi.fn(),
+      retryVideo: vi.fn(),
+    },
+  }),
+}));
+
 vi.mock('@/features/conferences/lib/useConferenceSse', () => ({
   useConferenceSse: () => 'open',
 }));

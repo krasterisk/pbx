@@ -3,20 +3,21 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
-import { enterSession, leaveSession } from '@/features/conferences/model/slice/conferenceSessionSlice';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const dispatch = vi.fn();
-const leave = vi.fn(async () => undefined);
-let roomStatus: 'idle' | 'connecting' | 'registered' | 'in-call' | 'error' = 'idle';
-let roomError: 'noWebrtcCompanion' | null = null;
-let conferenceRoomArgs: Record<string, unknown> = {};
+const startMedia = vi.fn();
+const hangup = vi.fn(async () => undefined);
+let hostStatus: 'idle' | 'connecting' | 'registered' | 'in-call' | 'error' = 'idle';
+let hostError: 'noWebrtcCompanion' | null = null;
+let roomCreatedBy = 9;
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (_key: string, fallback?: string) => (typeof fallback === 'string' ? fallback : _key),
   }),
+  initReactI18next: { type: '3rdParty', init: () => undefined },
 }));
 
 vi.mock('react-router-dom', () => ({
@@ -24,7 +25,7 @@ vi.mock('react-router-dom', () => ({
 }));
 
 vi.mock('@/shared/hooks/useAppStore', () => ({
-  useAppDispatch: () => dispatch,
+  useAppDispatch: () => vi.fn(),
   useAppSelector: (sel: (s: unknown) => unknown) => sel({ auth: { user: { uniqueid: 3 } } }),
 }));
 
@@ -32,33 +33,25 @@ vi.mock('@/entities/User', () => ({
   selectCurrentUser: (s: { auth: { user: { uniqueid: number } } }) => s.auth.user,
 }));
 
-vi.mock('@/features/conferences/model/slice/conferenceSessionSlice', async () => {
-  const actual = await vi.importActual<typeof import('@/features/conferences/model/slice/conferenceSessionSlice')>(
-    '@/features/conferences/model/slice/conferenceSessionSlice',
-  );
-  return {
-    ...actual,
-    enterSession: vi.fn((payload: unknown) => ({ type: 'conferenceSession/enterSession', payload })),
-    leaveSession: vi.fn(() => ({ type: 'conferenceSession/leaveSession' })),
-  };
-});
-
 vi.mock('@/features/conferences/lib/useConferenceSse', () => ({
   useConferenceSse: vi.fn(),
 }));
 
-vi.mock('@/features/conferences/lib/useConferenceRoom', () => ({
-  useConferenceRoom: (opts: Record<string, unknown>) => {
-    conferenceRoomArgs = opts;
-    return {
-      status: roomStatus,
-      error: roomError,
+vi.mock('@/features/conferences/lib/ConferenceSessionProvider', () => ({
+  useConferenceSessionHost: () => ({
+    startMedia,
+    hangup,
+    sipId: 'ew101_1',
+    weakLink: false,
+    room: {
+      status: hostStatus,
+      error: hostError,
       remoteTracks: {},
-      videoFailedMids: [],
-      leave,
+      videoFailedMids: ['mid-1'],
+      leave: vi.fn(),
       retryVideo: vi.fn(),
-    };
-  },
+    },
+  }),
 }));
 
 vi.mock('@/shared/api/endpoints/conferenceRoomApi', () => ({
@@ -67,7 +60,7 @@ vi.mock('@/shared/api/endpoints/conferenceRoomApi', () => ({
       uid: 7,
       number: '8001',
       name: 'Standup',
-      created_by: 9,
+      created_by: roomCreatedBy,
       record_mode: 'button',
       invite_external_scope: 'moderator',
       participants: [],
@@ -89,38 +82,31 @@ vi.mock('@/shared/api/endpoints/conferenceMeetingsApi', () => ({
   useStopConferenceRecordingMutation: () => [vi.fn(), { isPending: false }],
 }));
 
-vi.mock('@/shared/api/endpoints/callCenterApi', () => ({
-  useGetWebrtcConfigQuery: () => ({ data: { wssUrl: 'wss://pbx.example/ws', iceServers: [] } }),
-}));
-
-vi.mock('@/shared/api/endpoints/endpointApi', () => ({
-  useGetEndpointCredentialsQuery: () => ({
-    data: { sipId: 'ew101_1', username: 'ew101_1', password: 'secret', domain: 'pbx.example' },
-  }),
-}));
-
-vi.mock('@/features/callcenter/lib/shiftSession', () => ({
-  loadActiveShift: () => ({ sipId: 'ew101_1', endpointId: 'e101_1', mode: 'webrtc', interface: 'PJSIP/ew101_1', queues: [] }),
-}));
-
 vi.mock('@/shared/hooks/useIsMobile', () => ({
   useIsMobile: () => false,
 }));
 
+import { useConferenceSse } from '@/features/conferences/lib/useConferenceSse';
 import { ConferenceRoomPage } from './ConferenceRoomPage';
 
-describe('ConferenceRoomPage (16.3-05 D-26)', () => {
+describe('ConferenceRoomPage (16.3-09 G-16.3-1)', () => {
   beforeEach(() => {
-    dispatch.mockClear();
-    leave.mockClear();
-    roomStatus = 'idle';
-    roomError = null;
-    conferenceRoomArgs = {};
+    startMedia.mockClear();
+    hangup.mockClear();
+    hostStatus = 'idle';
+    hostError = null;
+    roomCreatedBy = 9;
   });
 
-  it('keeps the orchestrator at 70 lines or fewer', () => {
+  it('keeps the orchestrator at 70 lines or fewer and does not own useConferenceRoom', () => {
     const source = readFileSync(resolve(here, './ConferenceRoomPage.tsx'), 'utf8');
     expect(source.split(/\r?\n/).length).toBeLessThanOrEqual(70);
+    expect(source).toMatch(/useConferenceSessionHost/);
+    expect(source).not.toMatch(/useConferenceRoom\s*\(/);
+    expect(source).toMatch(/videoFailedMids/);
+    expect(source).toMatch(/useConferenceSse\(\{\s*mode:\s*'staff'/);
+    expect(source).not.toMatch(/dispatch\(leaveSession\(\)\)/);
+    expect(source).not.toMatch(/roomHook\.leave/);
   });
 
   it('renders the three LiveRoom zones', () => {
@@ -131,28 +117,44 @@ describe('ConferenceRoomPage (16.3-05 D-26)', () => {
     expect(screen.getByTestId('room-control-bar')).toBeInTheDocument();
     expect(screen.getByText('8001')).toBeInTheDocument();
     expect(screen.queryByText(/tenant/i)).not.toBeInTheDocument();
+    expect(useConferenceSse).toHaveBeenCalledWith({ mode: 'staff', roomUid: 7 });
   });
 
-  it('dispatches enterSession after the conference UA is Established', () => {
-    roomStatus = 'in-call';
-    render(<ConferenceRoomPage />);
-    expect(enterSession).toHaveBeenCalled();
-    expect(dispatch).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'conferenceSession/enterSession' }),
-    );
+  it('calls startMedia on Join and hangup on Leave/End', async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(<ConferenceRoomPage />);
+    await user.click(screen.getByRole('button', { name: 'Войти в конференцию' }));
+    expect(startMedia).toHaveBeenCalledWith(expect.objectContaining({
+      roomUid: 7,
+      roomNumber: '8001',
+      name: 'Standup',
+      role: 'participant',
+      sipId: 'ew101_1',
+    }));
+
+    await user.click(screen.getByRole('button', { name: 'Выйти из конференции' }));
+    expect(hangup).toHaveBeenCalled();
+
+    hangup.mockClear();
+    roomCreatedBy = 3;
+    rerender(<ConferenceRoomPage />);
+    await user.click(screen.getByRole('button', { name: 'Завершить конференцию' }));
+    expect(hangup).toHaveBeenCalled();
   });
 
   it('does not start the UA when there is no WebRTC companion', () => {
-    roomError = 'noWebrtcCompanion';
-    roomStatus = 'error';
+    hostError = 'noWebrtcCompanion';
+    hostStatus = 'error';
     render(<ConferenceRoomPage />);
-    expect(conferenceRoomArgs.sipId == null || conferenceRoomArgs.sipPassword == null).toBe(true);
     expect(screen.getByText(/нет WebRTC-абонента/)).toBeInTheDocument();
+    expect(startMedia).not.toHaveBeenCalled();
   });
 
-  it('leaves the session on unmount', () => {
+  it('does not hang up when the room page unmounts', () => {
+    const source = readFileSync(resolve(here, './ConferenceRoomPage.tsx'), 'utf8');
+    expect(source).not.toMatch(/useEffect\(\(\) => \(\) => \{[^;]*leaveSession/);
     const { unmount } = render(<ConferenceRoomPage />);
     unmount();
-    expect(leaveSession).toHaveBeenCalled();
+    expect(hangup).not.toHaveBeenCalled();
   });
 });
