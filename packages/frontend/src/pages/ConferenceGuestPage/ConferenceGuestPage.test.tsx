@@ -10,6 +10,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 
 const leave = vi.fn(async () => undefined);
 const guestLeave = vi.fn(() => ({ unwrap: vi.fn() }));
+const guestPostTelemetry = vi.fn();
 const joinUnwrap = vi.fn(async () => ({
   sipId: 'gst1',
   password: 'join-secret',
@@ -97,6 +98,7 @@ vi.mock('@/shared/api/endpoints/conferenceRoomApi', () => ({
   },
   useGuestJoinMutation: () => [guestJoin, { isLoading: false, error: undefined }],
   useGuestLeaveMutation: () => [guestLeave],
+  useGuestPostTelemetryMutation: () => [guestPostTelemetry],
   useSetConferenceMeVideoMutation: () => [vi.fn(), { isLoading: false }],
   useMuteConferenceParticipantMutation: () => [vi.fn(), { isLoading: false }],
   useUnmuteConferenceParticipantMutation: () => [vi.fn(), { isLoading: false }],
@@ -133,6 +135,7 @@ describe('ConferenceGuestPage (16.3-07 D-28)', () => {
     guestJoin.mockClear();
     joinUnwrap.mockClear();
     guestLeave.mockClear();
+    guestPostTelemetry.mockClear();
     roomStatus = 'idle';
     conferenceRoomArgs = {};
     webrtcToken = undefined;
@@ -211,6 +214,39 @@ describe('ConferenceGuestPage (16.3-07 D-28)', () => {
     expect(screen.getByTestId('conference-video-grid')).toBeInTheDocument();
     expect(screen.getAllByText('Алиса').length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText('В комнате пока никого нет')).not.toBeInTheDocument();
+  });
+
+  it('posts guest telemetry from onTelemetry with the three allow-listed keys', async () => {
+    roomStatus = 'in-call';
+    const source = readFileSync(resolve(here, './ConferenceGuestPage.tsx'), 'utf8');
+    expect(source).toMatch(/useGuestPostTelemetryMutation/);
+    expect(source).toMatch(/onTelemetry/);
+    render(<ConferenceGuestPage />);
+    await joinAsGuest();
+    const onTelemetry = conferenceRoomArgs.onTelemetry as (body: {
+      qualityLimitationReason?: string;
+      packetsLost?: number;
+      totalFreezesDuration?: number;
+    }) => void;
+    expect(typeof onTelemetry).toBe('function');
+    onTelemetry({
+      qualityLimitationReason: 'bandwidth',
+      packetsLost: 4,
+      totalFreezesDuration: 0,
+    });
+    expect(guestPostTelemetry).toHaveBeenCalledWith({
+      token: 'guest-token-1',
+      body: {
+        qualityLimitationReason: 'bandwidth',
+        packetsLost: 4,
+        totalFreezesDuration: 0,
+      },
+    });
+    expect(Object.keys(guestPostTelemetry.mock.calls[0][0].body).sort()).toEqual([
+      'packetsLost',
+      'qualityLimitationReason',
+      'totalFreezesDuration',
+    ]);
   });
 
   it('shows guest.left after the participant leaves', async () => {

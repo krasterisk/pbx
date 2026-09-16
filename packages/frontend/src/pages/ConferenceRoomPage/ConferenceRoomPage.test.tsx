@@ -102,6 +102,7 @@ describe('ConferenceRoomPage (16.3-09 G-16.3-1)', () => {
     expect(source).toMatch(/useConferenceSessionHost/);
     expect(source).not.toMatch(/useConferenceRoom\s*\(/);
     expect(source).toMatch(/videoFailedMids/);
+    expect(source).toMatch(/weakLink=\{host\.weakLink\}/);
     expect(source).toMatch(/useConferenceSse\(\{\s*mode:\s*'staff'/);
     expect(source).not.toMatch(/dispatch\(leaveSession\(\)\)/);
     expect(source).not.toMatch(/roomHook\.leave/);

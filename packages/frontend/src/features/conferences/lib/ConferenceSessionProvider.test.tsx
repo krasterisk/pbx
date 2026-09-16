@@ -7,6 +7,7 @@ import { enterSession, leaveSession } from '@/features/conferences/model/slice/c
 
 const dispatch = vi.fn();
 const leave = vi.fn(async () => undefined);
+const postTelemetry = vi.fn();
 let conferenceRoomCalls = 0;
 let conferenceRoomArgs: Record<string, unknown> = {};
 
@@ -41,6 +42,10 @@ vi.mock('@/features/conferences/lib/useConferenceRoom', () => ({
   },
 }));
 
+vi.mock('@/shared/api/endpoints/conferenceRoomApi', () => ({
+  usePostConferenceTelemetryMutation: () => [postTelemetry],
+}));
+
 vi.mock('@/shared/api/endpoints/callCenterApi', () => ({
   useGetWebrtcConfigQuery: () => ({ data: { wssUrl: 'wss://pbx.example/ws', iceServers: [] } }),
 }));
@@ -71,6 +76,7 @@ function Probe() {
   const host = useConferenceSessionHost();
   return (
     <div>
+      <span data-testid="weak-link">{String(host.weakLink)}</span>
       <button
         type="button"
         onClick={() => host.startMedia({
@@ -102,6 +108,7 @@ describe('ConferenceSessionProvider (16.3-09 G-16.3-1)', () => {
   beforeEach(() => {
     dispatch.mockClear();
     leave.mockClear();
+    postTelemetry.mockClear();
     conferenceRoomCalls = 0;
     conferenceRoomArgs = {};
     vi.mocked(enterSession).mockClear();
@@ -185,5 +192,40 @@ describe('ConferenceSessionProvider (16.3-09 G-16.3-1)', () => {
     expect(screen.getByTestId('child-gone')).toBeInTheDocument();
     expect(leave).not.toHaveBeenCalled();
     expect(leaveSession).not.toHaveBeenCalled();
+  });
+
+  it('posts staff telemetry and flips weakLink on cpu|bandwidth', async () => {
+    const user = userEvent.setup();
+    render(
+      <ConferenceSessionProvider>
+        <Probe />
+      </ConferenceSessionProvider>,
+    );
+    await user.click(screen.getByRole('button', { name: 'start' }));
+    const onTelemetry = conferenceRoomArgs.onTelemetry as (body: {
+      qualityLimitationReason?: string;
+      packetsLost?: number;
+      totalFreezesDuration?: number;
+    }) => void;
+    expect(typeof onTelemetry).toBe('function');
+    onTelemetry({
+      qualityLimitationReason: 'cpu',
+      packetsLost: 2,
+      totalFreezesDuration: 1,
+    });
+    expect(postTelemetry).toHaveBeenCalledWith({
+      uid: 7,
+      body: {
+        qualityLimitationReason: 'cpu',
+        packetsLost: 2,
+        totalFreezesDuration: 1,
+      },
+    });
+    expect(Object.keys(postTelemetry.mock.calls[0][0].body).sort()).toEqual([
+      'packetsLost',
+      'qualityLimitationReason',
+      'totalFreezesDuration',
+    ]);
+    expect(screen.getByTestId('weak-link')).toHaveTextContent('true');
   });
 });
