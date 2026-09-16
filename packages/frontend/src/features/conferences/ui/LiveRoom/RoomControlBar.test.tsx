@@ -175,7 +175,7 @@ describe('RoomControlBar (16.3-05 D-29 / D-31)', () => {
 
     await user.click(screen.getByRole('button', { name: 'Пригласить внешний номер' }));
     const sheet = await screen.findByRole('dialog');
-    expect(within(sheet).getByText('Пригласить внешний номер')).toBeInTheDocument();
+    expect(within(sheet).getByRole('heading', { name: 'Пригласить внешний номер' })).toBeInTheDocument();
 
     const input = within(sheet).getByRole('textbox');
     await user.type(input, '79001234567');
