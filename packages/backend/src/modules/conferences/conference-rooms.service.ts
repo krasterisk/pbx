@@ -464,14 +464,19 @@ export class ConferenceRoomsService {
   private async loadModeratorRows(roomUid: number): Promise<
     Array<{ endpoint_ref: string; role: 'owner' | 'moderator' }>
   > {
-    if (!this.moderatorModel) return [];
-    const rows = await this.moderatorModel.findAll({
-      where: { room_uid: roomUid },
-    });
-    return rows.map((row) => ({
-      endpoint_ref: row.endpoint_ref,
-      role: row.role,
-    }));
+    if (!this.moderatorModel?.findAll) return [];
+    try {
+      const rows = await this.moderatorModel.findAll({
+        where: { room_uid: roomUid },
+      });
+      return rows.map((row) => ({
+        endpoint_ref: row.endpoint_ref,
+        role: row.role,
+      }));
+    } catch (e: any) {
+      if (String(e?.message || e).includes('not initialized')) return [];
+      throw e;
+    }
   }
 
   private toPermanentRights(
@@ -501,6 +506,19 @@ export class ConferenceRoomsService {
       rooms.map((room) => ({ uid: room.uid, number: String(room.number) })),
       vpbx,
     );
+  }
+
+  async reapplyDialplan(room: ConferenceRoom, effectiveMax?: number): Promise<void> {
+    const vpbx = Number(room.user_uid);
+    const base =
+      typeof (room as { toJSON?: () => Record<string, unknown> }).toJSON === 'function'
+        ? (room as { toJSON: () => Record<string, unknown> }).toJSON()
+        : { ...room };
+    const payload =
+      effectiveMax === undefined
+        ? (room as ConferenceRoom)
+        : ({ ...base, effective_max_participants: effectiveMax } as ConferenceRoom);
+    await this.applyRoom(payload, vpbx);
   }
 
   private async applyRoom(room: ConferenceRoom, vpbx: number): Promise<void> {

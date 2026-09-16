@@ -72,6 +72,7 @@ export interface ConferenceDialplanRoom {
   musiconhold?: string | null;
   announce_join_leave?: boolean | number | null;
   tariff_max_participants?: number | null;
+  effective_max_participants?: number | null;
   record_mode?: string | null;
 }
 
@@ -90,7 +91,7 @@ function filledText(value: string | null | undefined): string {
  */
 function emitFilledSettings(room: ConferenceDialplanRoom): string[] {
   const lines: string[] = [];
-  const maxMembers = room.tariff_max_participants;
+  const maxMembers = room.effective_max_participants ?? room.tariff_max_participants;
   if (typeof maxMembers === 'number' && Number.isFinite(maxMembers) && maxMembers > 0) {
     lines.push(`same => n,Set(CONFBRIDGE(bridge,max_members)=${Math.trunc(maxMembers)})`);
   }
