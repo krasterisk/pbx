@@ -2,6 +2,12 @@ import { Injectable, Logger, Optional } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
 import { Observable, Subject } from 'rxjs';
 import {
+  conferenceEntryPolicy,
+  type ConferenceEntryPolicy,
+  type ConferenceEntryPolicyRoom,
+} from './conference-entry-policy.util';
+import {
+  CONFBRIDGE_ROLE_FLAGS,
   resolveRoleForCaller,
   roleFromConfbridgeFlags,
   type ConferenceRole,
@@ -27,6 +33,7 @@ export interface ConferenceRoomSnapshot {
   roomUid: number;
   conference: string | null;
   participants: ConferenceParticipantState[];
+  waitingForModerator: boolean;
 }
 
 export interface ConferenceEvent {
@@ -50,6 +57,7 @@ interface RoomCacheEntry {
   number: string;
   vpbx: number;
   conference: string;
+  entryPolicy: ConferenceEntryPolicy;
 }
 
 @Injectable()
@@ -66,13 +74,16 @@ export class ConferenceStateService {
   private readonly roomRights = new Map<number, ConferenceRoomRights>();
   private readonly liveGrants = new Map<number, Map<string, ConferenceRole>>();
 
-  registerRoom(room: { uid: number; number: string; user_uid: number }): void {
+  registerRoom(
+    room: { uid: number; number: string; user_uid: number } & ConferenceEntryPolicyRoom,
+  ): void {
     const conference = `conf${room.number}_${room.user_uid}`;
     const entry: RoomCacheEntry = {
       roomUid: room.uid,
       number: room.number,
       vpbx: room.user_uid,
       conference,
+      entryPolicy: conferenceEntryPolicy(room),
     };
     this.conferenceByName.set(conference, entry);
     this.conferenceByRoom.set(room.uid, entry);
@@ -138,6 +149,7 @@ export class ConferenceStateService {
       roomUid,
       conference: this.conferenceByRoom.get(roomUid)?.conference ?? null,
       participants,
+      waitingForModerator: this.computeWaitingForModerator(roomUid, participants),
     };
   }
 
@@ -219,6 +231,15 @@ export class ConferenceStateService {
       return this.roleFromSettings(roomUid, callerRef);
     }
     return this.getGrantedRole(roomUid, channel) ?? roleFromConfbridgeFlags(evt);
+  }
+
+  private computeWaitingForModerator(
+    roomUid: number,
+    participants: ConferenceParticipantState[],
+  ): boolean {
+    const policy = this.conferenceByRoom.get(roomUid)?.entryPolicy;
+    if (!policy?.requiresWaitMarked) return false;
+    return !participants.some((item) => CONFBRIDGE_ROLE_FLAGS[item.role].marked);
   }
 
   private roleFromSettings(roomUid: number, callerRef: string): ConferenceParticipantRole {
