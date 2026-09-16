@@ -1677,6 +1677,12 @@ export const ru = {
       empty: 'Запись конференции недоступна',
       download: 'Скачать',
     },
+    history: {
+      empty: 'Нет встреч',
+      ongoing: '-',
+      participants: 'Участники',
+      recorded: 'Есть запись',
+    },
   },
   callGroups: {
     title: 'Группы вызовов',

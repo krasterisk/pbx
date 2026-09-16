@@ -1,0 +1,101 @@
+/* ─────────────────────────────────────────────────────
+   ConferenceHistoryTab — room meeting history fragment
+   Design tokens: var(--color-*) from globals.css @theme
+   ───────────────────────────────────────────────────── */
+
+.root {
+  width: 100%;
+  min-width: 0;
+}
+
+.empty {
+  color: var(--color-muted-foreground);
+}
+
+.row {
+  width: 100%;
+  min-width: 0;
+  padding: 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-card);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+.toggle {
+  width: 100%;
+  min-width: 0;
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  outline: none;
+
+  &:focus-visible {
+    box-shadow: inset 0 0 0 2px var(--color-primary);
+  }
+}
+
+.meta {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.date {
+  color: var(--color-foreground);
+  font-weight: 600;
+}
+
+.duration,
+.count {
+  color: var(--color-muted-foreground);
+}
+
+.recorded {
+  padding: 0.125rem 0.5rem;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--color-success) 12%, transparent);
+  color: var(--color-success);
+  border: 1px solid color-mix(in srgb, var(--color-success) 25%, transparent);
+}
+
+.chevron,
+.chevronOpen {
+  flex-shrink: 0;
+  color: var(--color-muted-foreground);
+  transition: transform 0.15s ease;
+}
+
+.chevronOpen {
+  transform: rotate(180deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chevron,
+  .chevronOpen {
+    transition: none;
+  }
+}
+
+.details {
+  width: 100%;
+  min-width: 0;
+  padding-top: 0.25rem;
+}
+
+.participant {
+  flex-wrap: wrap;
+}
+
+.role {
+  color: var(--color-muted-foreground);
+}
+
+.player {
+  width: 100%;
+  min-width: 0;
+}
+
+@media (max-width: 640px) {
+  .toggle {
+    flex-wrap: wrap;
+  }
+}

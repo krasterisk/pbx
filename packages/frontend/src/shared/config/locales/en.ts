@@ -1421,6 +1421,12 @@ export const en = {
       empty: 'Conference recording is not available',
       download: 'Download',
     },
+    history: {
+      empty: 'No meetings',
+      ongoing: '-',
+      participants: 'Participants',
+      recorded: 'Recorded',
+    },
   },
   callGroups: {
     title: 'Call Groups',
