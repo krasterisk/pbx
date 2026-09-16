@@ -1,4 +1,5 @@
-import { HttpException, HttpStatus } from '@nestjs/common';
+import { HttpException, HttpStatus, NotFoundException } from '@nestjs/common';
+import { UniqueConstraintError } from 'sequelize';
 import { ConferenceGuestService } from './conference-guest.service';
 
 const VPBX = 42;
@@ -35,7 +36,7 @@ describe('ConferenceGuestService (16.1-01)', () => {
     createEphemeralGuestEndpoint: jest.Mock;
     destroyEphemeralGuestEndpoint: jest.Mock;
   };
-  let tokenModel: { findByPk: jest.Mock };
+  let tokenModel: { findByPk: jest.Mock; create: jest.Mock; findAll: jest.Mock };
   let service: ConferenceGuestService;
   const prevUplink = process.env.CONFERENCE_UPLINK_KBPS;
 
@@ -51,7 +52,7 @@ describe('ConferenceGuestService (16.1-01)', () => {
       createEphemeralGuestEndpoint: jest.fn().mockResolvedValue(undefined),
       destroyEphemeralGuestEndpoint: jest.fn().mockResolvedValue(undefined),
     };
-    tokenModel = { findByPk: jest.fn() };
+    tokenModel = { findByPk: jest.fn(), create: jest.fn(), findAll: jest.fn() };
     service = new ConferenceGuestService(
       roomsService as any,
       stateService as any,
@@ -162,5 +163,94 @@ describe('ConferenceGuestService (16.1-01)', () => {
       requiresPin: false,
     });
     expect(JSON.stringify(meta)).not.toMatch(/conf6007_|krsk-conf-/);
+  });
+
+  describe('staff token CRUD (16.1-02 D-12)', () => {
+    beforeEach(() => {
+      tokenModel.create.mockImplementation(async (data: Record<string, unknown>) => ({
+        ...data,
+        uid: 11,
+      }));
+    });
+
+    it('creates a shared_link with 64-hex token, null invite_name, and expires_at from ttlSec', async () => {
+      const before = Date.now();
+      const row = await service.createToken(ROOM_UID, VPBX, {
+        kind: 'shared_link',
+        ttlSec: 3600,
+      });
+      const after = Date.now();
+
+      expect(roomsService.findOne).toHaveBeenCalledWith(ROOM_UID, VPBX);
+      expect(row.kind).toBe('shared_link');
+      expect(row.invite_name).toBeNull();
+      expect(row.token).toMatch(/^[0-9a-f]{64}$/);
+      expect(row.token).toHaveLength(64);
+      expect(row.expires_at).toBeInstanceOf(Date);
+      expect(row.expires_at.getTime()).toBeGreaterThanOrEqual(before + 3600_000 - 50);
+      expect(row.expires_at.getTime()).toBeLessThanOrEqual(after + 3600_000 + 50);
+      expect(tokenModel.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          room_uid: ROOM_UID,
+          kind: 'shared_link',
+          invite_name: null,
+          token: row.token,
+        }),
+      );
+    });
+
+    it('creates a shared_link with null expires_at when ttlSec is omitted', async () => {
+      const row = await service.createToken(ROOM_UID, VPBX, { kind: 'shared_link' });
+      expect(row.expires_at).toBeNull();
+    });
+
+    it('rejects named_invite with an empty inviteName as 400', async () => {
+      try {
+        await service.createToken(ROOM_UID, VPBX, {
+          kind: 'named_invite',
+          inviteName: '',
+        });
+        throw new Error('expected 400 for empty inviteName');
+      } catch (err) {
+        expect(err).toBeInstanceOf(HttpException);
+        expect((err as HttpException).getStatus()).toBe(HttpStatus.BAD_REQUEST);
+      }
+      expect(tokenModel.create).not.toHaveBeenCalled();
+    });
+
+    it('creates a named_invite with invite_name Иванов', async () => {
+      const row = await service.createToken(ROOM_UID, VPBX, {
+        kind: 'named_invite',
+        inviteName: 'Иванов',
+      });
+      expect(row.kind).toBe('named_invite');
+      expect(row.invite_name).toBe('Иванов');
+    });
+
+    it('listTokens of another tenant room is NotFoundException', async () => {
+      roomsService.findOne.mockRejectedValue(new NotFoundException());
+      await expect(service.listTokens(ROOM_UID, 99)).rejects.toBeInstanceOf(NotFoundException);
+      expect(tokenModel.findAll).not.toHaveBeenCalled();
+    });
+
+    it('listTokens orders by created_at ASC, uid ASC', async () => {
+      tokenModel.findAll.mockResolvedValue([]);
+      await service.listTokens(ROOM_UID, VPBX);
+      expect(roomsService.findOne).toHaveBeenCalledWith(ROOM_UID, VPBX);
+      expect(tokenModel.findAll).toHaveBeenCalledWith({
+        where: { room_uid: ROOM_UID },
+        order: [
+          ['created_at', 'ASC'],
+          ['uid', 'ASC'],
+        ],
+      });
+    });
+
+    it('does not swallow UniqueConstraintError when a second insert reuses a token', async () => {
+      tokenModel.create.mockRejectedValueOnce(new UniqueConstraintError({}));
+      await expect(
+        service.createToken(ROOM_UID, VPBX, { kind: 'shared_link' }),
+      ).rejects.toBeInstanceOf(UniqueConstraintError);
+    });
   });
 });

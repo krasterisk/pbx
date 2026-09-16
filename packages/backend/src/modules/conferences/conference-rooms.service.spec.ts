@@ -733,6 +733,67 @@ describe('ConferenceRoomsService CRUD (16-02)', () => {
       expect(dialplanApplyService.applyCategories).toHaveBeenCalledTimes(1);
     });
   });
+
+  describe('guest token staff routes (16.1-02 D-12)', () => {
+    it('proxies createGuestToken and listGuestTokens to ConferenceGuestService', async () => {
+      const guestService = {
+        createToken: jest.fn().mockResolvedValue({ uid: 1, token: 'a'.repeat(64) }),
+        listTokens: jest.fn().mockResolvedValue([]),
+      };
+      const proxied = new ConferenceRoomsService(
+        roomModel as any,
+        sequelize as any,
+        dialplanApplyService as unknown as DialplanApplyService,
+        stateService,
+        undefined,
+        undefined,
+        undefined,
+        guestService as any,
+      );
+      const dto = { kind: 'shared_link' as const };
+      await proxied.createGuestToken(ROOM_UID, dto, VPBX);
+      await proxied.listGuestTokens(ROOM_UID, VPBX);
+      expect(guestService.createToken).toHaveBeenCalledWith(ROOM_UID, VPBX, dto);
+      expect(guestService.listTokens).toHaveBeenCalledWith(ROOM_UID, VPBX);
+    });
+
+    it('registers POST and GET :uid/guest-tokens on ConferenceRoomsController under JwtAuthGuard', () => {
+      const src = fs.readFileSync(
+        path.resolve(__dirname, 'conference-rooms.controller.ts'),
+        'utf8',
+      );
+      expect(src).toMatch(/@UseGuards\(JwtAuthGuard\)/);
+      expect(src).toMatch(/@Post\(':uid\/guest-tokens'\)/);
+      expect(src).toMatch(/@Get\(':uid\/guest-tokens'\)/);
+      expect(src).toMatch(/req\.user\.vpbx_user_uid/);
+      expect(src).not.toMatch(/audience/);
+    });
+
+    it('CreateConferenceGuestTokenDto requires inviteName for named_invite and ttlSec >= 60', async () => {
+      const { CreateConferenceGuestTokenDto } = require('./dto/conference-guest-token.dto');
+      const emptyName = plainToInstance(CreateConferenceGuestTokenDto, {
+        kind: 'named_invite',
+        inviteName: '',
+      });
+      const emptyErrors = await validate(emptyName);
+      expect(emptyErrors.some((e) => e.property === 'inviteName')).toBe(true);
+
+      const okInvite = plainToInstance(CreateConferenceGuestTokenDto, {
+        kind: 'named_invite',
+        inviteName: 'Иванов',
+      });
+      expect(await validate(okInvite)).toHaveLength(0);
+
+      const shared = plainToInstance(CreateConferenceGuestTokenDto, { kind: 'shared_link' });
+      expect(await validate(shared)).toHaveLength(0);
+
+      const shortTtl = plainToInstance(CreateConferenceGuestTokenDto, {
+        kind: 'shared_link',
+        ttlSec: 30,
+      });
+      expect((await validate(shortTtl)).some((e) => e.property === 'ttlSec')).toBe(true);
+    });
+  });
 });
 
 
