@@ -1,4 +1,10 @@
-import { ForbiddenException, Injectable, NotFoundException, Optional } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+  Optional,
+} from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
 import type { Request, Response } from 'express';
@@ -50,9 +56,18 @@ export class ConferenceRecordingService {
       if (!this.stateService.getRoomIdentity(roomUid)) {
         throw new NotFoundException('Conference room is not live');
       }
-      current = (
-        await this.meetingsService.beginMeeting(roomUid, user.vpbx_user_uid, {})
-      ).meeting;
+      const live = this.stateService.getSnapshot(roomUid).participants;
+      if (live.length === 0) {
+        throw new ConflictException('Conference room has no live meeting');
+      }
+      for (const participant of live) {
+        current = (
+          await this.meetingsService.beginMeeting(roomUid, user.vpbx_user_uid, {
+            Channel: participant.channel,
+            CallerIDNum: participant.callerIdNum,
+          })
+        ).meeting;
+      }
     }
     await this.startForMeeting(room, current, user);
     await this.loggerService?.logAction(

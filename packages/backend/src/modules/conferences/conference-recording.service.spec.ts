@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { PassThrough } from 'stream';
 import { ConferenceRecordingService } from './conference-recording.service';
 import { ConferenceStateService } from './conference-state.service';
@@ -333,5 +333,29 @@ describe('ConferenceRecordingService start/stop by moderator (16.2-02 D-31)', ()
     await service.stopByModerator(ROOM_UID, user);
     await service.stopByModerator(ROOM_UID, user);
     expect(ami.action).not.toHaveBeenCalled();
+  });
+
+  it('rejects start with 409 when the room is live but has no open meeting or members', async () => {
+    meetings.currentMeeting.mockResolvedValue(null);
+    await expect(service.startByModerator(ROOM_UID, user)).rejects.toBeInstanceOf(ConflictException);
+    expect(meetings.beginMeeting).not.toHaveBeenCalled();
+    expect(ami.action).not.toHaveBeenCalled();
+  });
+
+  it('snapshots live members instead of beginMeeting with an empty AMI event', async () => {
+    meetings.currentMeeting.mockResolvedValue(null);
+    meetings.beginMeeting.mockResolvedValue({ meeting: meeting() });
+    state.handleJoin({
+      Conference: 'conf6007_42',
+      Channel: 'PJSIP/601-00000001',
+      CallerIDNum: '601',
+      Uniqueid: '1693731234.12',
+    });
+    await service.startByModerator(ROOM_UID, user);
+    expect(meetings.beginMeeting).toHaveBeenCalledWith(ROOM_UID, VPBX, {
+      Channel: 'PJSIP/601-00000001',
+      CallerIDNum: '601',
+    });
+    expect(meetings.beginMeeting.mock.calls[0][2]).not.toEqual({});
   });
 });
