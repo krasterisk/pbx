@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 status: executing
-stopped_at: Completed 16-06-PLAN.md
-last_updated: "2026-09-16T02:35:00.000Z"
-state_head: 224cb0b
+stopped_at: Completed 16-07-PLAN.md
+last_updated: "2026-09-16T02:46:00.000Z"
+state_head: fc56a98
 progress:
   total_phases: 19
   completed_phases: 5
   total_plans: 173
-  completed_plans: 172
+  completed_plans: 173
 milestone_name: milestone
   current_phase: 16
   current_phase_name: modul-telekonferentsiy-confbridge-webrtc
@@ -19,7 +19,7 @@ milestone_name: milestone
 
 ## Current position
 
-Phase 16 (modul-telekonferentsiy-confbridge-webrtc) — EXECUTING (2026-09-16). 16-01…16-06 complete (3/3 tasks each). Next: `/gsd-execute-phase 16` continues with 16-07. Remaining core plan `16-07` (wave 6). Sub-phases 16.1 / 16.2 / 16.3 remain unplanned.
+Phase 16 (modul-telekonferentsiy-confbridge-webrtc) — CORE PLANS COMPLETE (2026-09-16). 16-01…16-07 complete (3/3 tasks each). Next: `/gsd-verify-work 16`. Sub-phases 16.1 / 16.2 / 16.3 remain unplanned.
 
 Phase 14 (visual-route-builder-and-automation) — COMPLETE (2026-09-04). 11/11 plans (incl. gap 14-11); verify 27/27; G-14-2 resolved.
 
@@ -67,6 +67,8 @@ Phase 1 — MOH: pending verify.
 
 ## Decisions
 
+- [Phase 16]: 16-07 shipped — one outbound mapper for staff and guests; participant DTO locked to six keys; video is self-only via resolveCallerRef; stale sweeper walks getActiveRoomUids with a strict 120s threshold.
+- [Phase 16]: Staff and guests share toConferenceParticipantDto / toConferenceRoomStateDto; there is no guest-vs-staff argument. Video identity never comes from the request body. Sweeper makes zero AMI calls when no rooms are live or AMI is down.
 - [Phase 16]: 16-06 shipped — conferenceEntryPolicy is the only translator from entry_strictness to PIN/wait/end user-profile lines; wait_marked/end_marked never apply to owner/moderator; waitingForModerator is a room snapshot flag.
 - [Phase 16]: Wait requirement is token_name_pin_moderator OR the wait_marked column; PIN line emits only when the level requires a non-empty sanitized PIN; CONFERENCE_PIN_REQUIRED rejects a promised PIN that is missing.
 - [Phase 16]: 16-05 shipped — three ConfBridge roles on one admin/marked table; permanent owner/moderators via PUT /conferences/:uid/moderators; one-shot grants live only in ConferenceStateService memory and clear when the room empties.
@@ -411,7 +413,7 @@ Phase 1 — MOH: pending verify.
 - [Phase 15]: Classification keys are module directories; adapter domain is an override when it differs (pbx, skills, route_templates, dialplan_dry_run)
 - [Phase 15]: Shared skills are declared on the covered entry so stub SKILL.md files are not required
 - [Phase 15]: callback-requests, cloud-admin and route-references are excluded with written reasons
-- [Phase 16]: waitingForModerator is a room snapshot flag derived from cached entry policy and privileged roles; participant keys stay D-37.
+- [Phase 16]: waitingForModerator is a room snapshot flag derived from cached entry policy and privileged roles; outbound participant DTO keys are the six D-37 fields (ref, displayName, role, speaking, muted, video).
 
 ## Roadmap Evolution
 
@@ -449,7 +451,7 @@ Phase 1 — MOH: pending verify.
 
 ## Next GSD command
 
-**Phase 16 plan 16-06 complete** (2026-09-16). Next: `/gsd-execute-phase 16` (continues at 16-07).
+**Phase 16 plan 16-07 complete** (2026-09-16). Phase 16 core plans are done. Next: `/gsd-verify-work 16`.
 
 Also open: `/gsd-secure-phase 15`; Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 verify; Phase 8 / 08-11 Android smoke.
 
@@ -605,11 +607,12 @@ Also open: `/gsd-secure-phase 15`; Phase 11 harness verify; Phase 10 `/gsd-verif
 | Phase 16 P04 | 20 | 3 tasks | 15 files |
 | Phase 16 P05 | 12 | 3 tasks | 17 files |
 | Phase 16 P06 | 12 | 3 tasks | 10 files |
+| Phase 16-modul-telekonferentsiy-confbridge-webrtc P07 | 15 | 3 tasks | 9 files |
 
 ## Session
 
-**Last session:** 2026-09-16T02:29:46.848Z
-**Stopped at:** Completed 16-06-PLAN.md
+**Last session:** 2026-09-16T02:44:39.978Z
+**Stopped at:** Completed 16-07-PLAN.md
 **Resume file:** None
 **Also ready:** .planning/phases/15-universal-pbx-ai-agent/15-CONTEXT.md
 
