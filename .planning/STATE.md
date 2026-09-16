@@ -447,6 +447,7 @@ Phase 1 — MOH: pending verify.
 - [Phase 16.1]: Guest join requires a non-empty trimmed displayName unless token.display_name is already set; otherwise 400 CONFERENCE_DISPLAY_NAME_REQUIRED before createEphemeralGuestEndpoint
 - [Phase 16.1]: Staff rename writes only ConferenceStateService.setDisplayName; endpoint/user models are never updated
 - [Phase 16.1]: Telemetry ingest strips unknown keys and invalid qualityLimitationReason/packetsLost/totalFreezesDuration inside the service; controllers do not use class-validator IsIn/IsNumber
+
 ## Roadmap Evolution
 
 - **Phase 16 context gathered (2026-09-15).** 41 решение (D-01…D-41) в `16-CONTEXT.md`. **Три решения сознательно не зафиксированы и вынесены в обязательный ресёрч:** R-ENGINE (ConfBridge + AMI против собственного ARI-бриджа — от него зависят D-02, D-10, D-34, D-38), R-VIDEO (нативный `video_mode=sfu` против внешнего SFU; гибрид «веб + абоненты Asterisk с видео»), R-CAPACITY (метрики нагрузки и вес участника). Проверено на discuss и изменило объём фазы: **у ConfBridge нет realtime-бэкенда**, поэтому настройки комнаты едут динамическим профилем `CONFBRIDGE()` через генерацию тенантного диалплана, а не записью `confbridge.conf` (D-02) — ловушки ROADMAP №1 (`module reload app_confbridge.so`) и №2 (операционный `mkdir`) сняты, ловушка №5 (миграция) снята по D-09, потому что маршрутов с `confbridge` в проде нет. Найден переиспользуемый актив, меняющий развилку: живой ARI-клиент `modules/ari/` уже умеет `createBridge` / `addChannelToBridge` / `snoopChannel` / `externalMedia`. Ad hoc конференция колл-центра (`addToConference`) поглощается модулем (D-03). Видео обязательно в v1 вплоть до внешнего SFU, раскладка — сетка, веб в приоритете (D-22…D-25). Next: `/gsd-spike` по R-ENGINE / R-VIDEO / R-CAPACITY, затем `/gsd-ui-phase 16`.
@@ -653,8 +654,8 @@ Also open: `/gsd-secure-phase 15`; Phase 11 harness verify; Phase 10 `/gsd-verif
 
 ## Session
 
-**Last session:** 2026-09-16T09:22:00.000Z
-**Stopped at:** Phase 16.2 verified (human_needed). Next: `/gsd-verify-work 16.2`
+**Last session:** 2026-09-16T10:40:00.000Z
+**Stopped at:** Phase 16.1 complete (execute-phase confirmed). Next: `/gsd-secure-phase 16.1`. Phase 16.2 already executed — `/gsd-verify-work 16.2`
 **Resume file:** None
 **Also ready:** .planning/phases/15-universal-pbx-ai-agent/15-CONTEXT.md
 
