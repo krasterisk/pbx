@@ -105,14 +105,20 @@ export interface IQueueActionParams {
 }
 
 export interface IToTrunkParams {
-  /** `single` — one trunk; `carousel` — ordered list with failover strategy */
+  /**
+   * Dual-read legacy: derived from `trunks.length` when omitted
+   * (`single` = 1 trunk, `carousel` = 2+). Canonical data is `trunks`.
+   */
   trunkMode?: 'single' | 'carousel';
+  /** @deprecated dual-read — lifted into `trunks[0]` */
   trunk?: string;
-  /** Carousel traversal order when `trunkMode` is `carousel` */
+  /** Traversal order when `trunks.length >= 2` */
   mode?: 'random_then_failover' | 'sequential';
+  /** Canonical trunk list (one or more). */
   trunks?: ITrunkCarouselItem[];
-  /** CallerID mode in single trunk mode: static number */
+  /** @deprecated dual-read — use `callerId.mode` */
   cid_mode?: 'static';
+  /** @deprecated dual-read — use `callerId` / `trunks[0].callerId` */
   callerid?: string;
   dest?: ValueSource;
   timeout?: number | string;
@@ -254,14 +260,11 @@ export interface IWebhookParams {
 }
 
 /**
- * ConfBridge params as the generator reads them today (`room` / `options`).
- * Profiles, PIN, admin-marked, recording, DTMF menu, and tenant-scoped room
- * names are a separate phase (D-41). Room stays without a tenant suffix for
- * this phase (accepted risk T-12-03-05).
+ * ConfBridge params: the room is chosen from tenant conference rooms.
+ * The bridge-profile name lives in the conferences module, not in step params.
  */
 export interface IConfBridgeParams {
   room?: ValueSource;
-  options?: string;
 }
 
 export interface ICmdParams {

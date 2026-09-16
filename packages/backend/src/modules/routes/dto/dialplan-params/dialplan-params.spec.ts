@@ -417,7 +417,7 @@ describe('D-39 / D-41 validateActionParams paths', () => {
     expect(dtoBlock).not.toMatch(/\boptions\b/);
 
     const typeSrc = fs.readFileSync(
-      path.resolve(__dirname, '../../../../../../../shared/src/types/dialplan-params.types.ts'),
+      path.resolve(__dirname, '../../../../../../shared/src/types/dialplan-params.types.ts'),
       'utf8',
     );
     const typeBlock = typeSrc.slice(

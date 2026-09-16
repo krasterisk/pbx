@@ -145,20 +145,14 @@ export class DialTargetRewriteDto {
 }
 
 /**
- * ConfBridge params as the generator reads them today (`room` / `options`).
- * Not in this phase (D-41): profiles, PIN, admin-marked, recording, DTMF menu,
- * tenant-scoped room names. Room stays without a tenant suffix (T-12-03-05).
+ * ConfBridge params: the room is chosen from tenant conference rooms.
+ * The bridge-profile name lives in the conferences module, not in step params.
  */
 export class ConfBridgeParamsDto {
   @IsDefined()
   @ValidateNested()
   @Type(() => ValueSourceDto)
   room: ValueSourceDto;
-
-  @IsOptional()
-  @IsString()
-  @Matches(SAFE_DIAL)
-  options?: string;
 }
 
 export class ToExtenParamsDto {
@@ -319,8 +313,8 @@ class OriginalCallerKeySourceDto {
 }
 
 class TrunkCallerIdDto {
-  @IsIn(['static', 'directory'])
-  mode: 'static' | 'directory';
+  @IsIn(['static', 'directory', 'pool'])
+  mode: 'static' | 'directory' | 'pool';
 
   @IsOptional()
   @IsString()
@@ -345,6 +339,16 @@ class TrunkCallerIdDto {
   @ValidateIf((o) => o.mode === 'directory')
   @IsIn(['keep_original'])
   onMissing?: 'keep_original';
+
+  @ValidateIf((o) => o.mode === 'pool')
+  @IsArray()
+  @IsString({ each: true })
+  @Matches(SAFE_DIAL, { each: true })
+  numbers?: string[];
+
+  @ValidateIf((o) => o.mode === 'pool')
+  @IsIn(['random', 'round_robin'])
+  pick?: 'random' | 'round_robin';
 }
 
 class TrunkCarouselItemDto {

@@ -1153,36 +1153,37 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       AsteriskDialplanUtils.dialplanApiKey = prevKey;
     });
 
-    it('confbridge with filled room emits ConfBridge(room)', () => {
+    it('confbridge with a numeric room hops into krsk-conf-{uid}', () => {
       const dp = AsteriskDialplanUtils.actionToDialplan(
-        { type: 'confbridge', params: { room: 'room1' }, condition: {} },
+        { type: 'confbridge', params: { room: '77' }, condition: {} },
         vpbx,
       );
-      expect(dp).toBe('ConfBridge(room1)');
+      expect(dp).toContain('krsk-conf-77,s,1');
+      expect(dp).not.toContain('ConfBridge(');
     });
 
-    it('confbridge with empty params substitutes ${EXTEN} (D-21 baseline)', () => {
+    it('confbridge with empty params hops into the tenant mask-index', () => {
       const dp = AsteriskDialplanUtils.actionToDialplan(
         { type: 'confbridge', params: {}, condition: {} },
         vpbx,
       );
-      expect(dp).toBe('ConfBridge(${EXTEN})');
+      expect(dp).toContain('krsk-conf-mask-42,${EXTEN},1');
     });
 
-    it('confbridge room original_caller emits ${KRSK_ORIG_CALLER_NUM}', () => {
+    it('confbridge room original_caller hops into the tenant mask-index', () => {
       const dp = AsteriskDialplanUtils.actionToDialplan(
         { type: 'confbridge', params: { room: { source: 'original_caller' } }, condition: {} },
         vpbx,
       );
-      expect(dp).toBe('ConfBridge(${KRSK_ORIG_CALLER_NUM})');
+      expect(dp).toContain('krsk-conf-mask-42,${KRSK_ORIG_CALLER_NUM},1');
     });
 
-    it('confbridge room current_caller emits ${CALLERID(num)}', () => {
+    it('confbridge room current_caller hops into the tenant mask-index', () => {
       const dp = AsteriskDialplanUtils.actionToDialplan(
         { type: 'confbridge', params: { room: { source: 'current_caller' } }, condition: {} },
         vpbx,
       );
-      expect(dp).toBe('ConfBridge(${CALLERID(num)})');
+      expect(dp).toContain('krsk-conf-mask-42,${CALLERID(num)},1');
     });
 
     it('cmd with isAdmin=true emits the raw command (D-42 baseline)', () => {

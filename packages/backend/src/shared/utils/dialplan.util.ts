@@ -20,8 +20,16 @@ import { emitHopGuard, emitHopIncrement, emitHopPrologue } from './dialplan-hops
 import { emitPlayback } from './dialplan-playback.util';
 import { buildCurlCall } from './dialplan-curl.util';
 import { emitHttpRequest } from './dialplan-http.util';
-import { buildTrunkCarousel } from './dialplan-trunk-carousel.util';
+import {
+  buildTrunkCarousel,
+  emitPoolCallerIdApps,
+  mapTrunkCarouselItems,
+} from './dialplan-trunk-carousel.util';
 import { resolveAriAppName } from '../../modules/ari/ari-app-name';
+import {
+  conferenceMaskContextName,
+  conferenceRoomContextName,
+} from '../../modules/conferences/conference-dialplan.util';
 import { emitQueueCallbackDialplan, wrapQueueWithCallbackHooks } from '../../modules/queues/queue-dialplan.util';
 import type { ICallbackPolicy } from '@krasterisk/shared';
 
@@ -207,26 +215,14 @@ export class AsteriskDialplanUtils {
         );
         const dialOpts = this.buildDialOptions(params.options || 'tT', wh);
 
-        if (params.trunkMode === 'carousel') {
-          const trunks = Array.isArray(params.trunks) ? params.trunks : [];
+        const trunksRaw = Array.isArray(params.trunks) ? params.trunks : [];
+        const useTrunksList =
+          trunksRaw.length > 0
+          || params.trunkMode === 'carousel';
+
+        if (useTrunksList) {
           const carousel = buildTrunkCarousel(
-            trunks.map((item: {
-              trunkId?: string;
-              callerId?: { mode?: string; value?: string; directoryUid?: number; valueFieldUid?: number };
-              timeout?: number | string;
-            }) => ({
-              trunkId: String(item.trunkId ?? ''),
-              callerId: item.callerId?.mode === 'directory'
-                ? {
-                    mode: 'directory' as const,
-                    directoryUid: Number(item.callerId.directoryUid),
-                    valueFieldUid: Number(item.callerId.valueFieldUid),
-                    keySource: { source: 'original_caller' as const },
-                    onMissing: 'keep_original' as const,
-                  }
-                : { mode: 'static' as const, value: item.callerId?.value },
-              timeout: item.timeout,
-            })),
+            mapTrunkCarouselItems(trunksRaw),
             {
               mode: params.mode,
               timeout: params.timeout,
@@ -265,6 +261,15 @@ export class AsteriskDialplanUtils {
               `ExecIf($["\${${compiledCid.statusVar}}" = "FOUND" & "\${${valueVar}}" != ""]?Set(CALLERID(num)=\${${valueVar}}))`,
             );
           }
+        } else if (callerId?.mode === 'pool') {
+          dialLines.push('Set(CALLERID(num)=${KRSK_ORIG_CALLER_NUM})');
+          dialLines.push(
+            ...emitPoolCallerIdApps(
+              Array.isArray(callerId.numbers) ? callerId.numbers.map(String) : [],
+              callerId.pick === 'round_robin' ? 'round_robin' : 'random',
+              `krs/cid/${vpbxUserUid}/${this.sanitizeDialplanInput(params.trunk) || 'trunk'}`,
+            ),
+          );
         } else {
           const cid = this.sanitizeDialplanInput(
             callerId?.mode === 'static' ? callerId.value : params.callerid,
@@ -480,13 +485,30 @@ export class AsteriskDialplanUtils {
         }, this.curlCtx(vpbxUserUid));
         break;
       case 'confbridge': {
-        // Room stays without a tenant suffix (accepted risk T-12-03-05 / T-12-13-03).
         const roomSrc = resolveValueSource(params, 'room');
         const destLookup = compileDirectorySrc(roomSrc, lookupToken(action.id ?? action.uid, 'CB'), vpbxUserUid);
-        const room = sourceExprFromValueSource(roomSrc, destLookup.valueVar) || '${EXTEN}';
-        const roomOpts = this.sanitizeDialplanInput(params.options);
-        const app = roomOpts ? `ConfBridge(${room},${roomOpts})` : `ConfBridge(${room})`;
-        dp = [...destLookup.lines, gateSkip(destLookup.skip, destLookup.canExecuteExpr, app)].join('\nsame => n,');
+        if (roomSrc.source === 'fixed') {
+          const uid = String(roomSrc.value ?? '').replace(/\D/g, '');
+          dp = uid
+            ? emitHopPrologue(`${conferenceRoomContextName(Number(uid))},s,1`, { routeId: `conf_${uid}` })
+            : 'NoOp(Missing conference room)';
+          break;
+        }
+        const expr = sourceExprFromValueSource(roomSrc, destLookup.valueVar);
+        if (!expr) {
+          dp = [...destLookup.lines, 'NoOp(Missing conference room)'].join('\nsame => n,');
+          break;
+        }
+        const hop = emitHopPrologue(
+          `${conferenceMaskContextName(vpbxUserUid)},${expr},1`,
+          { routeId: `conf_mask_${vpbxUserUid}` },
+        );
+        const hopLines = hop.split('\nsame => n,');
+        dp = [
+          ...destLookup.lines,
+          gateSkip(destLookup.skip, destLookup.canExecuteExpr, hopLines[0]),
+          ...hopLines.slice(1),
+        ].join('\nsame => n,');
         break;
       }
       case 'cmd':
