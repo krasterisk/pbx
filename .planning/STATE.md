@@ -23,7 +23,7 @@ Phase 16 (modul-telekonferentsiy-confbridge-webrtc) — CORE PLANS COMPLETE (202
 
 Phase 16.1 (telekonferentsii-video-emkost-komnaty-gostevoy-vhod-i-prigla) — COMPLETE (2026-09-16). 16.1-01…16.1-06; verify passed 16/16. Next: обязательный `/gsd-secure-phase 16.1`. Advisory: `/gsd-code-review 16.1 --fix` (4 critical in 16.1-REVIEW.md). Then `/gsd-execute-phase 16.2`.
 
-Phase 16.2 (telekonferentsii-zapis-vstrech-i-otchetnost) — PLANNED (2026-09-16). 4 plans in 4 waves. Status: Ready to execute. Next: `/gsd-execute-phase 16.2`. Sub-phase 16.3 remains unplanned.
+Phase 16.2 (telekonferentsii-zapis-vstrech-i-otchetnost) — EXECUTING (2026-09-16). 16.2-01 complete (3/3 tasks: path lock + tracer spine + uniqueid ALTER). Next: `/gsd-execute-phase 16.2` (plan 16.2-02). Sub-phase 16.3 remains unplanned.
 
 Phase 14 (visual-route-builder-and-automation) — COMPLETE (2026-09-04). 11/11 plans (incl. gap 14-11); verify 27/27; G-14-2 resolved.
 
@@ -72,6 +72,9 @@ Phase 1 — MOH: pending verify.
 
 ## Decisions
 
+- [Phase 16.2]: 16.2-01 shipped — first auto join persists a meeting and calls one ConfbridgeStartRecord with server `recordFile`; JWT play streams WAV with Range; participant columns `uniqueid`/`caller_id_num` added.
+- [Phase 16.2]: startForMeeting does not read record_mode; auto-join calls it only for auto|both.
+- [Phase 16.2]: ModuleRef string tokens ConferenceMeetingsService / ConferenceRecordingService (ami.service pattern) to avoid a State↔Meetings constructor cycle.
 - [Phase 16.2]: proceed-locked-path — relative recording path `{vpbx_user_uid}/conferences/{room_uid}/{meeting_uid}.wav` under `records_base_path` (prod default `/usr/records`). Human approved 2026-09-16. ConfBridge writes WAV; play does not append conversation-recording `.mp3`.
 - [Phase 16.1]: 16.1-05 shipped — internal PJSIP/e|ew Originate into krsk-conf-{uid}; external Local/{digits}@from-internal{vpbx} gated by invite_external_scope (A2).
 - [Phase 16.1]: 16.1-04 shipped — GET :uid/capacity is { maxParticipants } only; max_members follows effectiveMax; cron reapplies on N change; join 409 uses capacityForRoom.
@@ -477,7 +480,7 @@ Phase 1 — MOH: pending verify.
 
 ## Next GSD command
 
-**Phase 16.1 plan 16.1-06 complete** (2026-09-16). Next: `/gsd-verify-work 16.1`. Phase 16 core still awaits `/gsd-verify-work 16`.
+**Phase 16.2 plan 16.2-01 complete** (2026-09-16). Next: `/gsd-execute-phase 16.2` (plan 16.2-02). Phase 16.1 still awaits `/gsd-secure-phase 16.1`. Phase 16 core still awaits `/gsd-verify-work 16`.
 
 Also open: `/gsd-secure-phase 15`; Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 verify; Phase 8 / 08-11 Android smoke.
 
@@ -640,11 +643,12 @@ Also open: `/gsd-secure-phase 15`; Phase 11 harness verify; Phase 10 `/gsd-verif
 | Phase 16.1 P04 | 10min | 3 tasks | 11 files |
 | Phase 16.1 P05 | 5min | 2 tasks | 5 files |
 | Phase 16.1 P06 | 13 | 2 tasks | 16 files |
+| Phase 16.2 P01 | 8min | 3 tasks | 14 files |
 
 ## Session
 
-**Last session:** 2026-09-16T08:25:00.000Z
-**Stopped at:** Phase 16.1 complete (verify passed). Next: `/gsd-secure-phase 16.1`, then `/gsd-execute-phase 16.2`
+**Last session:** 2026-09-16T08:38:35.828Z
+**Stopped at:** Completed 16.2-01-PLAN.md
 **Resume file:** None
 **Also ready:** .planning/phases/15-universal-pbx-ai-agent/15-CONTEXT.md
 

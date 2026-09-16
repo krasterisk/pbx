@@ -1203,7 +1203,7 @@ Plans:
 
 ## Phase 16.2: Телеконференции — запись встреч и отчётность
 
-**Status:** Planned
+**Status:** In Progress
 
 **Goal:** Записывать конференции тем же механизмом, что и разговоры, и отдавать записи в двух местах — историей встреч комнаты в модуле и фактом звонка в CDR.
 
@@ -1218,18 +1218,18 @@ Plans:
 
 **Requirements:** D-30, D-31, D-32, D-33.
 
-**Plans:** 4 plans
+**Plans:** 1/4 plans executed
 
 Plans:
 
-- [ ] 16.2-01-PLAN.md — Спина: путь D-30, встреча → AMI StartRecord → WAV play, ALTER uniqueid
+- [x] 16.2-01-PLAN.md — Спина: путь D-30, встреча → AMI StartRecord → WAV play, ALTER uniqueid
 - [ ] 16.2-02-PLAN.md — Кнопка модератора, leftover диалплана, announcement, last-leave, list/CDR-join API
 - [ ] 16.2-03-PLAN.md — CDR-бейдж + модалка WAV
 - [ ] 16.2-04-PLAN.md — Фрагмент History tab
 
 **Wave 1**
 
-- [ ] `16.2-01-PLAN.md` — Wave 1, checkpoint пути + tracer + schema
+- [x] `16.2-01-PLAN.md` — Wave 1, checkpoint пути + tracer + schema
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
