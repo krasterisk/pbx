@@ -1,4 +1,4 @@
-import { EndpointsService } from './endpoints.service';
+import { EndpointsService, NAT_ENDPOINT_DEFAULTS, WEBRTC_ENDPOINT_DEFAULTS } from './endpoints.service';
 
 function makeService() {
   const created: Record<string, unknown>[] = [];
@@ -8,6 +8,7 @@ function makeService() {
       return row;
     }),
     destroy: jest.fn().mockResolvedValue(1),
+    findByPk: jest.fn().mockResolvedValue(null),
   };
   const authModel = {
     create: jest.fn().mockResolvedValue({}),
@@ -81,5 +82,64 @@ describe('EndpointsService ephemeral guest API (16.1-01)', () => {
     expect(aorModel.destroy).toHaveBeenCalledWith({ where: { id: 'gstdeadbeef' } });
     expect(remove).not.toHaveBeenCalled();
     remove.mockRestore();
+  });
+});
+
+describe('EndpointsService WebRTC profile and companion allow (16.1-03)', () => {
+  it('WEBRTC_ENDPOINT_DEFAULTS carries max_video_streams 16', () => {
+    expect(WEBRTC_ENDPOINT_DEFAULTS.max_video_streams).toBe(16);
+  });
+
+  it('NAT_ENDPOINT_DEFAULTS has no webrtc or max_video_streams fields', () => {
+    expect(NAT_ENDPOINT_DEFAULTS).not.toHaveProperty('webrtc');
+    expect(NAT_ENDPOINT_DEFAULTS).not.toHaveProperty('max_video_streams');
+    expect(NAT_ENDPOINT_DEFAULTS.ice_support).toBe('yes');
+  });
+
+  it('createCompanionTriple without primary.allow writes opus,ulaw,vp8 and 16 streams', async () => {
+    const { service, created } = makeService();
+
+    await (service as any).createCompanionTriple(
+      1,
+      '100',
+      { context: 'from-internal1', callerid: '"100" <100>' },
+      {},
+    );
+
+    const row = created.find((r) => r.id === 'ew100_1');
+    expect(row).toBeDefined();
+    expect(row!.allow).toBe('opus,ulaw,vp8');
+    expect(row!.max_video_streams).toBe(16);
+  });
+
+  it('createCompanionTriple keeps an explicit primary.allow', async () => {
+    const { service, created } = makeService();
+
+    await (service as any).createCompanionTriple(
+      1,
+      '100',
+      { context: 'from-internal1', callerid: '"100" <100>', allow: 'ulaw,alaw' },
+      {},
+    );
+
+    const row = created.find((r) => r.id === 'ew100_1');
+    expect(row).toBeDefined();
+    expect(row!.allow).toBe('ulaw,alaw');
+  });
+
+  it('createCompanionTriple returns existing ew id without a second INSERT', async () => {
+    const { service, endpointModel, created } = makeService();
+    endpointModel.findByPk.mockResolvedValue({ id: 'ew100_1' });
+
+    const id = await (service as any).createCompanionTriple(
+      1,
+      '100',
+      { context: 'from-internal1', callerid: '"100" <100>' },
+      {},
+    );
+
+    expect(id).toBe('ew100_1');
+    expect(endpointModel.create).not.toHaveBeenCalled();
+    expect(created).toHaveLength(0);
   });
 });
