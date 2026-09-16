@@ -17,6 +17,7 @@ const unmuteParticipant = vi.fn();
 const setMeVideo = vi.fn();
 const kickParticipant = vi.fn();
 const dispatchMock = vi.fn();
+const hangup = vi.fn(async () => undefined);
 let sseStatus: 'loading' | 'open' | 'disconnected' = 'open';
 let sessionState: ConferenceSessionState = idleSession();
 let roomQuery: {
@@ -92,6 +93,23 @@ vi.mock('@/shared/hooks/useAppStore', () => ({
   useAppDispatch: () => dispatchMock,
 }));
 
+vi.mock('@/features/conferences/lib/ConferenceSessionProvider', () => ({
+  useConferenceSessionHost: () => ({
+    startMedia: vi.fn(),
+    hangup,
+    sipId: 'ew101',
+    weakLink: false,
+    room: {
+      status: 'in-call',
+      error: null,
+      remoteTracks: {},
+      videoFailedMids: [],
+      leave: vi.fn(),
+      retryVideo: vi.fn(),
+    },
+  }),
+}));
+
 vi.mock('@/features/conferences/lib/useConferenceSse', () => ({
   useConferenceSse: () => sseStatus,
 }));
@@ -121,6 +139,7 @@ function renderPanel(path = '/conferences') {
 describe('ConferenceMiniPanel (16.3-06 D-26 / D-29)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    hangup.mockClear();
     useIsMobileMock.mockReturnValue(false);
     sseStatus = 'open';
     sessionState = activeSession();
@@ -222,7 +241,15 @@ describe('ConferenceMiniPanel (16.3-06 D-26 / D-29)', () => {
 
     await user.click(screen.getByRole('button', { name: 'Выйти из конференции' }));
     expect(kickParticipant).toHaveBeenCalledWith({ roomUid: 9, ref: 'ew101' });
-    expect(dispatchMock).toHaveBeenCalled();
+    expect(hangup).toHaveBeenCalled();
+  });
+
+  it('opens the room without hanging up', async () => {
+    const user = userEvent.setup();
+    renderPanel('/conferences');
+    await user.click(screen.getByTestId('conference-mini-trigger'));
+    await user.click(screen.getByRole('button', { name: 'Открыть комнату' }));
+    expect(hangup).not.toHaveBeenCalled();
   });
 
   it('copies softphone chrome geometry and places the phone bar at 60px + 72px + safe-area', () => {
