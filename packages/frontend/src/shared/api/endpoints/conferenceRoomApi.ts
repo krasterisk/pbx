@@ -45,6 +45,7 @@ export interface ConferenceRoom {
   tariff_max_participants: number | null;
   musiconhold: string | null;
   announce_join_leave: boolean;
+  created_by?: number | null;
   participants?: ConferenceParticipant[];
   waitingForModerator?: boolean;
   recording?: boolean;
