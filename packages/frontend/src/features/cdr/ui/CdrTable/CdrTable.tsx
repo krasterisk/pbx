@@ -11,10 +11,13 @@ import {
   Button,
 } from '@/shared/ui';
 import { CDR_DISPOSITION_LABELS, type ICdrCall } from '@/shared/api/endpoints/cdrApi';
-import { PhoneForwarded, Voicemail } from 'lucide-react';
+import { PhoneForwarded, Users, Voicemail } from 'lucide-react';
 import cls from './CdrTable.module.scss';
 
-export type CdrTableRow = ICdrCall & { hasVoicemail?: boolean };
+export type CdrTableRow = ICdrCall & {
+  hasVoicemail?: boolean;
+  hasConferenceRecording?: boolean;
+};
 
 interface CdrTableProps {
   data: CdrTableRow[];
@@ -25,6 +28,7 @@ interface CdrTableProps {
   onPageChange: (page: number) => void;
   onLegsClick?: (call: ICdrCall) => void;
   onVoicemailClick?: (uniqueid: string) => void;
+  onConferenceClick?: (uniqueid: string) => void;
 }
 
 function formatDuration(sec: number) {
@@ -42,6 +46,7 @@ export const CdrTable = memo(({
   onPageChange,
   onLegsClick,
   onVoicemailClick,
+  onConferenceClick,
 }: CdrTableProps) => {
   const { t } = useTranslation();
 
@@ -116,6 +121,22 @@ export const CdrTable = memo(({
               <Voicemail className={cls.voicemailIcon} />
             </Button>
           ) : null}
+          {row.original.hasConferenceRecording ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className={`h-7 w-7 ${cls.voicemailBtn}`}
+              title={t('conferences.cdr.detailsTitle', 'Запись конференции')}
+              aria-label={t('conferences.cdr.detailsTitle', 'Запись конференции')}
+              onClick={(e) => {
+                e.stopPropagation();
+                onConferenceClick?.(row.original.uniqueid);
+              }}
+            >
+              <Users size={14} />
+            </Button>
+          ) : null}
         </div>
       ),
     },
@@ -136,7 +157,7 @@ export const CdrTable = memo(({
           </Button>
         ) : null,
     },
-  ], [t, onLegsClick, onVoicemailClick]);
+  ], [t, onLegsClick, onVoicemailClick, onConferenceClick]);
 
   if (isLoading && !data.length) {
     return (

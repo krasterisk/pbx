@@ -18,6 +18,7 @@ import {
   useLazyExportCdrQuery,
 } from '@/shared/api/endpoints/cdrApi';
 import { useGetVoicemailMessagesQuery } from '@/shared/api/endpoints/voicemailApi';
+import { useGetConferenceRecordingsByUniqueidQuery } from '@/shared/api/endpoints/conferenceMeetingsApi';
 import {
   CdrFilter,
   CdrStats,
@@ -26,6 +27,7 @@ import {
   CdrDrilldownModal,
   CdrCharts,
   VoicemailDetailsModal,
+  ConferenceRecordingModal,
   type CdrUiFilters,
 } from '@/features/cdr';
 import {
@@ -45,6 +47,7 @@ const CdrReportPage = memo(() => {
   const [activeTab, setActiveTab] = useState<CdrReportTab>('journal');
   const [legsLinkedid, setLegsLinkedid] = useState<string | null>(null);
   const [detailsUniqueid, setDetailsUniqueid] = useState<string | null>(null);
+  const [conferenceUniqueid, setConferenceUniqueid] = useState<string | null>(null);
   const [drilldown, setDrilldown] = useState<{ title: string; patch: Partial<CdrUiFilters> } | null>(null);
 
   const page = parseInt(searchParams.get('page') || '1', 10);
@@ -75,12 +78,28 @@ const CdrReportPage = memo(() => {
     () => new Set((voicemailMessages ?? []).map((msg) => msg.uniqueid)),
     [voicemailMessages],
   );
+  const journalUniqueids = useMemo(
+    () =>
+      currentTab === 'journal'
+        ? (listData?.rows ?? []).map((row) => row.uniqueid).filter(Boolean)
+        : [],
+    [currentTab, listData?.rows],
+  );
+  const { data: conferenceRecordings } = useGetConferenceRecordingsByUniqueidQuery(
+    journalUniqueids,
+    { skip: journalUniqueids.length === 0 },
+  );
+  const conferenceIds = useMemo(
+    () => new Set((conferenceRecordings ?? []).map((item) => item.uniqueid)),
+    [conferenceRecordings],
+  );
   const journalRows = useMemo(
     () => (listData?.rows ?? []).map((row) => ({
       ...row,
       hasVoicemail: voicemailIds.has(row.uniqueid),
+      hasConferenceRecording: conferenceIds.has(row.uniqueid),
     })),
-    [listData?.rows, voicemailIds],
+    [listData?.rows, voicemailIds, conferenceIds],
   );
 
   const handleFilterChange = useCallback((patch: Partial<CdrUiFilters>) => {
@@ -213,6 +232,7 @@ const CdrReportPage = memo(() => {
                 onPageChange={(p) => handlePageChange(p + 1)}
                 onLegsClick={(call: ICdrCall) => setLegsLinkedid(call.linkedid)}
                 onVoicemailClick={(uniqueid) => setDetailsUniqueid(uniqueid)}
+                onConferenceClick={(uniqueid) => setConferenceUniqueid(uniqueid)}
               />
             </div>
           ) : currentTab === 'analytics' ? (
@@ -286,6 +306,12 @@ const CdrReportPage = memo(() => {
         uniqueid={detailsUniqueid}
         isOpen={detailsUniqueid !== null}
         onClose={() => setDetailsUniqueid(null)}
+      />
+
+      <ConferenceRecordingModal
+        uniqueid={conferenceUniqueid}
+        isOpen={conferenceUniqueid !== null}
+        onClose={() => setConferenceUniqueid(null)}
       />
 
       <CdrDrilldownModal
