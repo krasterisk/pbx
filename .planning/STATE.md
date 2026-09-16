@@ -21,7 +21,7 @@ milestone_name: milestone
 
 Phase 16 (modul-telekonferentsiy-confbridge-webrtc) — CORE PLANS COMPLETE (2026-09-16). 16-01…16-07 complete (3/3 tasks each). Next: `/gsd-verify-work 16`.
 
-Phase 16.1 (telekonferentsii-video-emkost-komnaty-gostevoy-vhod-i-prigla) — PLANNED (2026-09-16). 6 plans in 5 waves. Status: Ready to execute. Next: `/gsd-execute-phase 16.1`.
+Phase 16.1 (telekonferentsii-video-emkost-komnaty-gostevoy-vhod-i-prigla) — EXECUTING (2026-09-16). 16.1-01 complete (3/3 tasks). Next: `/gsd-execute-phase 16.1` (plan 02). Do not mark the phase complete.
 
 Phase 16.2 (telekonferentsii-zapis-vstrech-i-otchetnost) — PLANNED (2026-09-16). 4 plans in 4 waves. Status: Ready to execute. Next: `/gsd-execute-phase 16.2`. Sub-phase 16.3 remains unplanned.
 
@@ -71,6 +71,8 @@ Phase 1 — MOH: pending verify.
 
 ## Decisions
 
+- [Phase 16.1]: 16.1-01 shipped — guest join spine (guard + ephemeral gst in krsk-conf-{uid} or 409 CONFERENCE_ROOM_FULL) and token columns display_name/sip_id. maxParticipantsForBudget(0) returns 0 (D-18 boundary).
+- [Phase 16.1]: proceed-locked-schema — ALTER `conference_guest_tokens` adds `display_name VARCHAR(64) NULL` and `sip_id VARCHAR(64) NULL` (RESEARCH A4). Human approved 2026-09-16. One token row = one live ephemeral endpoint; parallel join replaces sip_id.
 - [Phase 16]: 16-07 shipped — one outbound mapper for staff and guests; participant DTO locked to six keys; video is self-only via resolveCallerRef; stale sweeper walks getActiveRoomUids with a strict 120s threshold.
 - [Phase 16]: Staff and guests share toConferenceParticipantDto / toConferenceRoomStateDto; there is no guest-vs-staff argument. Video identity never comes from the request body. Sweeper makes zero AMI calls when no rooms are live or AMI is down.
 - [Phase 16]: 16-06 shipped — conferenceEntryPolicy is the only translator from entry_strictness to PIN/wait/end user-profile lines; wait_marked/end_marked never apply to owner/moderator; waitingForModerator is a room snapshot flag.
@@ -455,7 +457,7 @@ Phase 1 — MOH: pending verify.
 
 ## Next GSD command
 
-**Phase 16 plan 16-07 complete** (2026-09-16). Phase 16 core plans are done. Next: `/gsd-verify-work 16`.
+**Phase 16.1 plan 16.1-01 complete** (2026-09-16). Next: `/gsd-execute-phase 16.1` for plan 02. Phase 16 core still awaits `/gsd-verify-work 16`.
 
 Also open: `/gsd-secure-phase 15`; Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 verify; Phase 8 / 08-11 Android smoke.
 
@@ -612,12 +614,13 @@ Also open: `/gsd-secure-phase 15`; Phase 11 harness verify; Phase 10 `/gsd-verif
 | Phase 16 P05 | 12 | 3 tasks | 17 files |
 | Phase 16 P06 | 12 | 3 tasks | 10 files |
 | Phase 16-modul-telekonferentsiy-confbridge-webrtc P07 | 15 | 3 tasks | 9 files |
+| Phase 16.1 P01 | 10min | 3 tasks | 16 files |
 
 ## Session
 
-**Last session:** 2026-09-16T05:58:40.591Z
-**Stopped at:** Phase 16.1 UI-SPEC approved
-**Resume file:** C:\Users\Professional\WebstormProjects\krasterisk_v4\.planning\phases\16.1-telekonferentsii-video-emkost-komnaty-gostevoy-vhod-i-prigla\16.1-UI-SPEC.md
+**Last session:** 2026-09-16T07:04:44.660Z
+**Stopped at:** Completed 16.1-01-PLAN.md
+**Resume file:** None
 **Also ready:** .planning/phases/15-universal-pbx-ai-agent/15-CONTEXT.md
 
 ## Accumulated Context
