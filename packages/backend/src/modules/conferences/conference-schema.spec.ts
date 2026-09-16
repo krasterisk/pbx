@@ -2,7 +2,7 @@ import 'reflect-metadata';
 import * as fs from 'fs';
 import * as path from 'path';
 import { Sequelize } from 'sequelize-typescript';
-import { CONFERENCE_SCHEMA_STATEMENTS } from './setup-conferences-schema';
+import { CONFERENCE_SCHEMA_STATEMENTS, setupConferencesSchema } from './setup-conferences-schema';
 import { ConferenceRoom } from './models/conference-room.model';
 import { ConferenceRoomModerator } from './models/conference-room-moderator.model';
 import { ConferenceGuestToken } from './models/conference-guest-token.model';
@@ -160,6 +160,54 @@ describe('conference schema (16-01 Task 3)', () => {
       expect(sipId.allowNull).toBe(true);
       expect(String(displayName.type)).toMatch(/VARCHAR\(64\)|STRING\(64\)/i);
       expect(String(sipId.type)).toMatch(/VARCHAR\(64\)|STRING\(64\)/i);
+    });
+  });
+
+  describe('meeting participant uniqueid (16.2-01 Task 3)', () => {
+    it('CREATE TABLE conference_meeting_participants includes caller_id_num and uniqueid VARCHAR(64) NULL', () => {
+      const sql = statementForTable('conference_meeting_participants');
+      expect(sql).toMatch(/`caller_id_num`\s+VARCHAR\(64\)\s+NULL/i);
+      expect(sql).toMatch(/`uniqueid`\s+VARCHAR\(64\)\s+NULL/i);
+    });
+
+    it('declares ConferenceMeetingParticipant.caller_id_num and uniqueid as nullable STRING(64)', () => {
+      const attrs = ConferenceMeetingParticipant.getAttributes();
+      expect(attrs).toHaveProperty('caller_id_num');
+      expect(attrs).toHaveProperty('uniqueid');
+      const caller = attrs.caller_id_num as {
+        allowNull?: boolean;
+        type?: { toString: () => string };
+      };
+      const uniqueid = attrs.uniqueid as {
+        allowNull?: boolean;
+        type?: { toString: () => string };
+      };
+      expect(caller.allowNull).toBe(true);
+      expect(uniqueid.allowNull).toBe(true);
+      expect(String(caller.type)).toMatch(/VARCHAR\(64\)|STRING\(64\)/i);
+      expect(String(uniqueid.type)).toMatch(/VARCHAR\(64\)|STRING\(64\)/i);
+    });
+
+    it('setupConferencesSchema alters both columns and swallows a repeat Duplicate column', async () => {
+      const alters: string[] = [];
+      let repeats = 0;
+      const sequelize = {
+        query: jest.fn(async (sql: string) => {
+          if (/^ALTER TABLE/i.test(sql.trim())) {
+            alters.push(sql);
+            if (repeats > 0 && /caller_id_num|uniqueid/.test(sql)) {
+              throw new Error("Duplicate column name 'caller_id_num'");
+            }
+          }
+        }),
+      };
+      await setupConferencesSchema(sequelize);
+      expect(alters.some((sql) => /conference_meeting_participants/.test(sql) && /caller_id_num/.test(sql))).toBe(
+        true,
+      );
+      expect(alters.some((sql) => /conference_meeting_participants/.test(sql) && /uniqueid/.test(sql))).toBe(true);
+      repeats += 1;
+      await expect(setupConferencesSchema(sequelize)).resolves.toBeUndefined();
     });
   });
 
