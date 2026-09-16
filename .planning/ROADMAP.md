@@ -1147,13 +1147,13 @@ Plans:
 
 **Goal:** Довести комнату из Phase 16 до полноценной видеовстречи с внешними участниками: сетка видео на нативном SFU, честная ёмкость комнаты как бюджет полосы, гостевой вход по ссылке без учётной записи портала и приглашение внутренних и внешних абонентов из комнаты.
 
-**Plans:** 2/6 plans executed
+**Plans:** 3/6 plans executed
 
 Plans:
 
 - [x] 16.1-01-PLAN.md — Спина: токен → ephemeral PJSIP → admit/refuse + ALTER display_name/sip_id
 - [x] 16.1-02-PLAN.md — D-12: два kind, revoke=Kick+destroy, PIN, гостевой SSE
-- [ ] 16.1-03-PLAN.md — D-23/D-24: max_video_streams + VP8, backfill ew*, guest webrtc-config
+- [x] 16.1-03-PLAN.md — D-23/D-24: max_video_streams + VP8, backfill ew*, guest webrtc-config
 - [ ] 16.1-04-PLAN.md — D-18…D-21: GET capacity одно поле, max_members из бюджета, cron, join→capacityForRoom
 - [ ] 16.1-05-PLAN.md — D-38/D-39: AMI Originate + invite_external_scope
 - [ ] 16.1-06-PLAN.md — D-40 overlay имён + R-TELEMETRY ingest
@@ -1165,7 +1165,7 @@ Plans:
 **Wave 2** *(blocked on Wave 1 completion)*
 
 - [x] `16.1-02-PLAN.md` — Wave 2: D-12 tokens/revoke/SSE
-- [ ] `16.1-03-PLAN.md` — Wave 2: D-23/D-24 provisioning (parallel с 02)
+- [x] `16.1-03-PLAN.md` — Wave 2: D-23/D-24 provisioning (parallel с 02)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
