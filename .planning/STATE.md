@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 status: executing
-stopped_at: Completed 16-01-PLAN.md
-last_updated: "2026-09-16T01:21:59.949Z"
+stopped_at: Completed 16-02-PLAN.md
+last_updated: "2026-09-16T01:33:32.679Z"
 state_head: c224f638d467ce9d6305be7ca9c5eccd7473d7d2
 progress:
   total_phases: 19
   completed_phases: 5
   total_plans: 173
-  completed_plans: 167
+  completed_plans: 168
 milestone_name: milestone
   current_phase: 16
   current_phase_name: modul-telekonferentsiy-confbridge-webrtc
@@ -19,7 +19,7 @@ milestone_name: milestone
 
 ## Current position
 
-Phase 16 (modul-telekonferentsiy-confbridge-webrtc) — EXECUTING (2026-09-16). 16-01 complete (3/3 tasks). Next: `/gsd-execute-phase 16` continues with 16-02. Remaining core plans `16-02`…`16-07` (waves 2–6). Sub-phases 16.1 / 16.2 / 16.3 remain unplanned.
+Phase 16 (modul-telekonferentsiy-confbridge-webrtc) — EXECUTING (2026-09-16). 16-01 and 16-02 complete (3/3 tasks each). Next: `/gsd-execute-phase 16` continues with 16-03. Remaining core plans `16-03`…`16-07` (waves 3–6). Sub-phases 16.1 / 16.2 / 16.3 remain unplanned.
 
 Phase 14 (visual-route-builder-and-automation) — COMPLETE (2026-09-04). 11/11 plans (incl. gap 14-11); verify 27/27; G-14-2 resolved.
 
@@ -67,6 +67,7 @@ Phase 1 — MOH: pending verify.
 
 ## Decisions
 
+- [Phase 16]: 16-02 shipped — addToConference redirects into `krsk-conf-{uid}` exten `s`; live-room "someone else's meeting" is `created_by !== JWT sub`; `created_by = NULL` is not audited.
 - [Phase 16]: proceed-locked — lock D-01 (ConfBridge+AMI), D-06 (conf{number}_{uid} + krsk-conf-{room_uid}), D-02 (Set(CONFBRIDGE(...)) + static krsk_conf_sfu). User replied `approved` at 16-01 Task 2; do not amend naming, delivery, or engine.
 - [Phase 16]: Decision-coverage gate override at plan close (2026-09-15). Gate reported 23/41 CONTEXT decisions covered and listed 18 as uncovered: D-10, D-12, D-18…D-21, D-23, D-24, D-26, D-27, D-29…D-33, D-38…D-40. These are not dropped — they are the exact partition assigned to Phase 16.1 (видео, ёмкость, гостевой вход, приглашения), 16.2 (запись) and 16.3 (фронтенд живой комнаты, гостевая поверхность). Phase 16 core covers D-01…D-09, D-11, D-13…D-17, D-22, D-25, D-34…D-37 plus R-PROFILE and R-STALE. Verify-phase should re-surface this override only if a later `/gsd-plan-phase 16.1|16.2|16.3` fails to claim its slice.
 - [Phase 16]: Эфемерная комната колл-центра получает `created_by` от оператора, который вызвал `addToConference`: `userId` (`req.user.sub`) протягивается через `ensureRoomForCall` в `create`. «Чужая встреча» для аудита D-17 покрывает и ad hoc конференцию. `created_by = NULL` остаётся только защитным утверждением на синтетической комнате без создателя, а не штатным путём `addToConference`. Решение принято после точечной проверки коммита `284db53`.
@@ -435,7 +436,7 @@ Phase 1 — MOH: pending verify.
 
 ## Next GSD command
 
-**Phase 16 plan 16-01 complete** (2026-09-16). Next: `/gsd-execute-phase 16` (continues at 16-02).
+**Phase 16 plan 16-02 complete** (2026-09-16). Next: `/gsd-execute-phase 16` (continues at 16-03).
 
 Also open: `/gsd-secure-phase 15`; Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 verify; Phase 8 / 08-11 Android smoke.
 
@@ -586,11 +587,12 @@ Also open: `/gsd-secure-phase 15`; Phase 11 harness verify; Phase 10 `/gsd-verif
 | Phase 15 P24 | 16min | 3 tasks | 10 files |
 | Phase 15-universal-pbx-ai-agent P23 | 18min | 3 tasks | 4 files |
 | Phase 16-modul-telekonferentsiy-confbridge-webrtc P01 | 12min | 3 tasks | 22 files |
+| Phase 16 P02 | 9 | 3 tasks | 12 files |
 
 ## Session
 
-**Last session:** 2026-09-16T01:21:55.468Z
-**Stopped at:** Completed 16-01-PLAN.md
+**Last session:** 2026-09-16T01:33:32.679Z
+**Stopped at:** Completed 16-02-PLAN.md
 **Resume file:** None
 **Also ready:** .planning/phases/15-universal-pbx-ai-agent/15-CONTEXT.md
 

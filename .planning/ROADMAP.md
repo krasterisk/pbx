@@ -1082,12 +1082,12 @@ Plans:
 
 **Requirements:** D-01, D-02, D-03, D-04, D-05, D-06, D-07, D-08, D-09, D-11, D-13, D-14, D-15, D-16, D-17, D-22, D-25, D-34, D-35, D-36, D-37 (+ R-PROFILE, R-STALE из ресёрча). Полные формулировки — `16-CONTEXT.md`.
 
-**Plans:** 1/7 plans executed
+**Plans:** 2/7 plans executed
 
 Plans:
 
 - [x] 16-01-PLAN.md
-- [ ] 16-02-PLAN.md
+- [x] 16-02-PLAN.md
 - [ ] 16-03-PLAN.md
 - [ ] 16-04-PLAN.md
 - [ ] 16-05-PLAN.md
@@ -1100,7 +1100,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] `16-02-PLAN.md` — Wave 2: полный тенантный CRUD комнат с переприменением и удалением категорий, эфемерные комнаты, поглощение `CallCenterService.addToConference`
+- [x] `16-02-PLAN.md` — Wave 2: полный тенантный CRUD комнат с переприменением и удалением категорий, эфемерные комнаты, поглощение `CallCenterService.addToConference`
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
