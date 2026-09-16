@@ -19,7 +19,9 @@ milestone_name: milestone
 
 ## Current position
 
-Phase 16 (modul-telekonferentsiy-confbridge-webrtc) — CORE PLANS COMPLETE (2026-09-16). 16-01…16-07 complete (3/3 tasks each). Next: `/gsd-verify-work 16`. Sub-phases 16.1 / 16.2 / 16.3 remain unplanned.
+Phase 16 (modul-telekonferentsiy-confbridge-webrtc) — CORE PLANS COMPLETE (2026-09-16). 16-01…16-07 complete (3/3 tasks each). Next: `/gsd-verify-work 16`.
+
+Phase 16.2 (telekonferentsii-zapis-vstrech-i-otchetnost) — PLANNED (2026-09-16). 4 plans in 4 waves. Status: Ready to execute. Next: `/gsd-execute-phase 16.2`. Sub-phases 16.1 / 16.3 remain unplanned.
 
 Phase 14 (visual-route-builder-and-automation) — COMPLETE (2026-09-04). 11/11 plans (incl. gap 14-11); verify 27/27; G-14-2 resolved.
 
@@ -611,9 +613,9 @@ Also open: `/gsd-secure-phase 15`; Phase 11 harness verify; Phase 10 `/gsd-verif
 
 ## Session
 
-**Last session:** 2026-09-16T02:44:39.978Z
-**Stopped at:** Completed 16-07-PLAN.md
-**Resume file:** None
+**Last session:** 2026-09-16T05:58:40.591Z
+**Stopped at:** Phase 16.1 UI-SPEC approved
+**Resume file:** C:\Users\Professional\WebstormProjects\krasterisk_v4\.planning\phases\16.1-telekonferentsii-video-emkost-komnaty-gostevoy-vhod-i-prigla\16.1-UI-SPEC.md
 **Also ready:** .planning/phases/15-universal-pbx-ai-agent/15-CONTEXT.md
 
 ## Accumulated Context

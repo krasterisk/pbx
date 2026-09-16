@@ -1210,6 +1210,10 @@ Plans:
 
 - [ ] `16.2-04-PLAN.md` — Wave 4: History tab fragment
 
+**Cross-cutting constraints:**
+- `startForMeeting` не фильтрует `record_mode`; политику держат auto-join (`auto|both`) и `startByModerator` (`button|both`)
+- Play WAV через `records_base_path` + access-scope, без `.mp3` и без записи пути в `CDR(record)`
+
 **Depends on:** Phase 16 (домен комнаты и история встреч). Параллельна Phase 16.1.
 
 **GSD workflow:** `/gsd-plan-phase 16.2` → `/gsd-execute-phase 16.2` → `/gsd-verify-work 16.2`
