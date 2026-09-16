@@ -11,6 +11,50 @@ export function conferenceRoomContextName(roomUid: number): string {
   return `krsk-conf-${roomUid}`;
 }
 
+export function conferenceMaskContextName(vpbx: number): string {
+  return `krsk-conf-mask-${vpbx}`;
+}
+
+const MASK_INDEX_NUMBER = /^\d{1,32}$/;
+const MASK_NOT_FOUND_EXTEN = 'not-found';
+
+function maskIndexNumber(raw: string): string | null {
+  const number = AsteriskDialplanUtils.sanitizeDialplanInput(raw);
+  return MASK_INDEX_NUMBER.test(number) ? number : null;
+}
+
+/**
+ * Tenant mask-index: resolve a dialed room number to krsk-conf-{uid}.
+ * Numbers stay strings (007 stays 007). Invalid numbers are skipped silently.
+ */
+export function generateConferenceMaskIndex(
+  rooms: Array<{ uid: number; number: string }>,
+  vpbx: number,
+): GeneratedDialplanCategory {
+  const name = conferenceMaskContextName(vpbx);
+  const entries = rooms
+    .map((room) => {
+      const number = maskIndexNumber(room.number);
+      return number ? { uid: room.uid, number } : null;
+    })
+    .filter((entry): entry is { uid: number; number: string } => entry !== null)
+    .sort((a, b) => a.uid - b.uid);
+
+  const lines: string[] = [];
+  for (const room of entries) {
+    const ctx = conferenceRoomContextName(room.uid);
+    lines.push(
+      `exten => ${room.number},1,GotoIf($["\${DIALPLAN_EXISTS(${ctx},s,1)}" = "1"]?${ctx},s,1:${MASK_NOT_FOUND_EXTEN},1)`,
+    );
+  }
+  lines.push(`exten => _X.,1,Goto(${MASK_NOT_FOUND_EXTEN},1)`);
+  lines.push(`exten => i,1,Goto(${MASK_NOT_FOUND_EXTEN},1)`);
+  lines.push(`exten => ${MASK_NOT_FOUND_EXTEN},1,NoOp(Conference room not found)`);
+  lines.push('same => n,Playback(invalid)');
+  lines.push('same => n,Hangup()');
+  return { name, lines };
+}
+
 export interface ConferenceDialplanRoom {
   uid: number;
   number: string;

@@ -11,7 +11,11 @@ import { UniqueConstraintError } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { DialplanApplyService } from '../ami/dialplan-apply.service';
 import { LoggerService } from '../logger/logger.service';
-import { conferenceRoomContextName, generateConferenceDialplan } from './conference-dialplan.util';
+import {
+  conferenceRoomContextName,
+  generateConferenceDialplan,
+  generateConferenceMaskIndex,
+} from './conference-dialplan.util';
 import { ConferenceStateService } from './conference-state.service';
 import { CreateConferenceRoomDto } from './dto/create-conference-room.dto';
 import { UpdateConferenceRoomDto } from './dto/update-conference-room.dto';
@@ -231,6 +235,18 @@ export class ConferenceRoomsService {
       );
     }
 
+    try {
+      await this.dialplanApplyService.applyCategories(
+        this.roomFile(vpbx),
+        [await this.buildMaskIndex(vpbx)],
+        { reload: true },
+      );
+    } catch (e: any) {
+      this.logger.error(
+        `Mask-index apply failed after removing conference room ${uid} (${this.roomFile(vpbx)}); DB deleted — retry/re-save may be needed: ${e?.message || e}`,
+      );
+    }
+
     return { success: true };
   }
 
@@ -265,11 +281,21 @@ export class ConferenceRoomsService {
     return room.toJSON ? room.toJSON() : room;
   }
 
+  private async buildMaskIndex(vpbx: number) {
+    const rooms = (await this.roomModel.findAll({
+      where: { user_uid: vpbx },
+      attributes: ['uid', 'number'],
+    })) ?? [];
+    return generateConferenceMaskIndex(
+      rooms.map((room) => ({ uid: room.uid, number: String(room.number) })),
+      vpbx,
+    );
+  }
+
   private async applyRoom(room: ConferenceRoom, vpbx: number): Promise<void> {
-    const category = generateConferenceDialplan(room, vpbx);
     await this.dialplanApplyService.applyCategories(
       this.roomFile(vpbx),
-      [category],
+      [generateConferenceDialplan(room, vpbx), await this.buildMaskIndex(vpbx)],
       { reload: true },
     );
   }

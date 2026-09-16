@@ -233,7 +233,7 @@ describe('conference spine (16-01)', () => {
         rollback: jest.fn().mockResolvedValue(undefined),
       };
       roomModel = {
-        findAll: jest.fn(),
+        findAll: jest.fn().mockResolvedValue([]),
         findOne: jest.fn(),
         create: jest.fn(),
       };
@@ -302,7 +302,7 @@ describe('conference spine (16-01)', () => {
       expect(dialplanApplyService.applyCategories).toHaveBeenCalledTimes(1);
       expect(dialplanApplyService.applyCategories).toHaveBeenCalledWith(
         'krasterisk/conferences/conf_42.conf',
-        [expect.objectContaining({ name: 'krsk-conf-77' })],
+        expect.arrayContaining([expect.objectContaining({ name: 'krsk-conf-77' })]),
         { reload: true },
       );
       expect(ok.uid).toBe(ROOM_UID);
@@ -357,7 +357,7 @@ describe('conference spine (16-01)', () => {
 
     beforeEach(() => {
       roomModel = {
-        findAll: jest.fn(),
+        findAll: jest.fn().mockResolvedValue([]),
         findOne: jest.fn(),
         create: jest.fn().mockResolvedValue(roomRow()),
       };
