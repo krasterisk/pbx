@@ -149,11 +149,12 @@ describe('ConferencesAiAdapter', () => {
     });
   });
 
-  describe('coverage still excluded until Task 3', () => {
-    it('keeps conferences excluded so completeness stays green', () => {
-      expect(MODULE_COVERAGE.conferences).toEqual(
-        expect.objectContaining({ kind: 'excluded' }),
-      );
+  describe('coverage after Task 3 flip', () => {
+    it('marks conferences covered/configure with adapter and skill', () => {
+      expect(MODULE_COVERAGE.conferences).toEqual({
+        kind: 'covered',
+        capability: 'configure',
+      });
     });
   });
 });

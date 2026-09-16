@@ -63,11 +63,7 @@ export const MODULE_COVERAGE: Record<string, ModuleCoverageEntry> = {
     reason:
       'Platform SuperAdmin hub, marketplace and tenant provisioning — not a tenant PBX domain the agent serves (immutable).',
   },
-  conferences: {
-    kind: 'excluded',
-    reason:
-      'AI adapter and module skill ship with the live-room frontend in Phase 16.3 (D-41); until then the module does not promise agent tools.',
-  },
+  conferences: { kind: 'covered', capability: 'configure' },
   config: {
     kind: 'infrastructure',
     reason: 'Nest ConfigModule wrapper, not a PBX product surface.',
@@ -127,7 +123,7 @@ export const MODULE_COVERAGE: Record<string, ModuleCoverageEntry> = {
   'system-settings': { kind: 'covered', sharedSkill: 'settings', capability: 'immutable' },
   telegram: { kind: 'covered', sharedSkill: 'messaging', capability: 'configure' },
   'tenant-settings': { kind: 'covered', sharedSkill: 'settings', capability: 'configure' },
-  'time-groups': { kind: 'covered', capability: 'read' },
+  'time-groups': { kind: 'covered', capability: 'configure' },
   trunks: { kind: 'covered', capability: 'configure' },
   'tts-engines': { kind: 'covered', sharedSkill: 'speech-engines', capability: 'configure' },
   users: { kind: 'covered', capability: 'immutable' },

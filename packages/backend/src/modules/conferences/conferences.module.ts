@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
+import { AiPlatformModule } from '../ai-platform/ai-platform.module';
 import { AmiModule } from '../ami/ami.module';
 import { EndpointsModule } from '../endpoints/endpoints.module';
 import { LoggerModule } from '../logger/logger.module';
@@ -23,6 +24,7 @@ import { ConferenceModerationController } from './conference-moderation.controll
 import { ConferenceModerationService } from './conference-moderation.service';
 import { ConferenceParticipantController } from './conference-participant.controller';
 import { ConferenceRoomsController } from './conference-rooms.controller';
+import { ConferencesAiAdapter } from './conferences-ai.adapter';
 import { ConferenceRoomsService } from './conference-rooms.service';
 import { ConferenceSseController } from './conference-sse.controller';
 import { ConferenceStaleChannelSweeperService } from './conference-stale-channel-sweeper.service';
@@ -46,6 +48,7 @@ import { ConferenceRoom } from './models/conference-room.model';
       PsEndpoint,
     ]),
     AmiModule,
+    AiPlatformModule,
     LoggerModule,
     EndpointsModule,
     SystemSettingsModule,
@@ -63,6 +66,7 @@ import { ConferenceRoom } from './models/conference-room.model';
   ],
   providers: [
     ConferenceRoomsService,
+    ConferencesAiAdapter,
     ConferenceMeetingsService,
     {
       provide: 'ConferenceMeetingsService',
