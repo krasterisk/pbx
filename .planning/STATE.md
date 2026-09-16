@@ -23,7 +23,7 @@ Phase 16 (modul-telekonferentsiy-confbridge-webrtc) — CORE PLANS COMPLETE (202
 
 Phase 16.1 (telekonferentsii-video-emkost-komnaty-gostevoy-vhod-i-prigla) — COMPLETE (2026-09-16). 16.1-01…16.1-06; verify passed 16/16. Next: обязательный `/gsd-secure-phase 16.1`. Advisory: `/gsd-code-review 16.1 --fix` (4 critical in 16.1-REVIEW.md). Then `/gsd-execute-phase 16.2`.
 
-Phase 16.2 (telekonferentsii-zapis-vstrech-i-otchetnost) — EXECUTING (2026-09-16). 16.2-01, 16.2-02 and 16.2-03 complete (3/3 tasks each: spine + moderator start/stop + CDR badge/modal). Next: `/gsd-execute-phase 16.2` (plan 16.2-04 History tab). Sub-phase 16.3 remains unplanned.
+Phase 16.2 (telekonferentsii-zapis-vstrech-i-otchetnost) — PLANS COMPLETE (2026-09-16). 16.2-01…16.2-04 complete (spine + moderator start/stop + CDR badge/modal + History tab fragment). Next: `/gsd-verify-work 16.2`. Sub-phase 16.3 remains unplanned.
 
 Phase 14 (visual-route-builder-and-automation) — COMPLETE (2026-09-04). 11/11 plans (incl. gap 14-11); verify 27/27; G-14-2 resolved.
 
@@ -72,6 +72,7 @@ Phase 1 — MOH: pending verify.
 
 ## Decisions
 
+- [Phase 16.2]: 16.2-04 shipped — ConferenceHistoryTab fragment with JWT player and conferences.history copy; not mounted in room form.
 - [Phase 16.2]: 16.2-03 shipped — JWT conference play URL in CDR modal; ConferenceMeetings RTK tag; journal uniqueid join; no third CDR tab.
 - [Phase 16.2]: 16.2-02 shipped — stock beep announcement; leftover record_conference removed; startByModerator is the only button|both gate; last-leave writes left_at/ended_at once; MeetingsController before RoomsController so recordings-by-uniqueid is not :uid.
 - [Phase 16.2]: 16.2-01 shipped — first auto join persists a meeting and calls one ConfbridgeStartRecord with server `recordFile`; JWT play streams WAV with Range; participant columns `uniqueid`/`caller_id_num` added.
@@ -445,7 +446,6 @@ Phase 1 — MOH: pending verify.
 - [Phase 16.1]: Guest join requires a non-empty trimmed displayName unless token.display_name is already set; otherwise 400 CONFERENCE_DISPLAY_NAME_REQUIRED before createEphemeralGuestEndpoint
 - [Phase 16.1]: Staff rename writes only ConferenceStateService.setDisplayName; endpoint/user models are never updated
 - [Phase 16.1]: Telemetry ingest strips unknown keys and invalid qualityLimitationReason/packetsLost/totalFreezesDuration inside the service; controllers do not use class-validator IsIn/IsNumber
-
 ## Roadmap Evolution
 
 - **Phase 16 context gathered (2026-09-15).** 41 решение (D-01…D-41) в `16-CONTEXT.md`. **Три решения сознательно не зафиксированы и вынесены в обязательный ресёрч:** R-ENGINE (ConfBridge + AMI против собственного ARI-бриджа — от него зависят D-02, D-10, D-34, D-38), R-VIDEO (нативный `video_mode=sfu` против внешнего SFU; гибрид «веб + абоненты Asterisk с видео»), R-CAPACITY (метрики нагрузки и вес участника). Проверено на discuss и изменило объём фазы: **у ConfBridge нет realtime-бэкенда**, поэтому настройки комнаты едут динамическим профилем `CONFBRIDGE()` через генерацию тенантного диалплана, а не записью `confbridge.conf` (D-02) — ловушки ROADMAP №1 (`module reload app_confbridge.so`) и №2 (операционный `mkdir`) сняты, ловушка №5 (миграция) снята по D-09, потому что маршрутов с `confbridge` в проде нет. Найден переиспользуемый актив, меняющий развилку: живой ARI-клиент `modules/ari/` уже умеет `createBridge` / `addChannelToBridge` / `snoopChannel` / `externalMedia`. Ad hoc конференция колл-центра (`addToConference`) поглощается модулем (D-03). Видео обязательно в v1 вплоть до внешнего SFU, раскладка — сетка, веб в приоритете (D-22…D-25). Next: `/gsd-spike` по R-ENGINE / R-VIDEO / R-CAPACITY, затем `/gsd-ui-phase 16`.
@@ -482,7 +482,7 @@ Phase 1 — MOH: pending verify.
 
 ## Next GSD command
 
-**Phase 16.2 plan 16.2-03 complete** (2026-09-16). Next: `/gsd-execute-phase 16.2` (plan 16.2-04). Phase 16.1 still awaits `/gsd-secure-phase 16.1`. Phase 16 core still awaits `/gsd-verify-work 16`.
+**Phase 16.2 plan 16.2-04 complete** (2026-09-16). Next: `/gsd-verify-work 16.2`. Phase 16.1 still awaits `/gsd-secure-phase 16.1`. Phase 16 core still awaits `/gsd-verify-work 16`.
 
 Also open: `/gsd-secure-phase 15`; Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 verify; Phase 8 / 08-11 Android smoke.
 
@@ -648,11 +648,12 @@ Also open: `/gsd-secure-phase 15`; Phase 11 harness verify; Phase 10 `/gsd-verif
 | Phase 16.2 P01 | 8min | 3 tasks | 14 files |
 | Phase 16.2 P02 | 9 | 3 tasks | 16 files |
 | Phase 16.2 P03 | 11 | 3 tasks | 14 files |
+| Phase 16.2-telekonferentsii-zapis-vstrech-i-otchetnost P04 | 6 | 2 tasks | 6 files |
 
 ## Session
 
-**Last session:** 2026-09-16T09:06:16.852Z
-**Stopped at:** Completed 16.2-03-PLAN.md
+**Last session:** 2026-09-16T09:14:58.651Z
+**Stopped at:** Completed 16.2-04-PLAN.md
 **Resume file:** None
 **Also ready:** .planning/phases/15-universal-pbx-ai-agent/15-CONTEXT.md
 
