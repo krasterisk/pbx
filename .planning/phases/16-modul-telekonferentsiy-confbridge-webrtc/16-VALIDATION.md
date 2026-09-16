@@ -3,16 +3,18 @@ phase: "16"
 slug: "modul-telekonferentsiy-confbridge-webrtc"
 # status lifecycle: draft (seeded by plan-phase) → validated (set by validate-phase §6)
 # audit-milestone §5.5 distinguishes NOT-VALIDATED (draft) from PARTIAL (validated + nyquist_compliant: false) (#2117)
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: validated
+nyquist_compliant: true
+wave_0_complete: true
 created: "2026-09-15"
+validated: "2026-09-16"
 ---
 
 # Phase 16 — Validation Strategy
 
-> Per-phase validation contract for feedback sampling during execution.
-> Seeded from `16-RESEARCH.md` § Validation Architecture.
+> Per-phase validation contract. Seeded from `16-RESEARCH.md`, audited by `/gsd-validate-phase 16`.
+> Phase 16 core covers D-01…D-09, D-11, D-13…D-17, D-22, D-25, D-34…D-37, R-PROFILE, R-STALE.
+> D-10, D-12, D-18…D-21, D-23, D-24, D-26, D-27, D-29…D-33, D-38…D-41 (guest UI / video grid / recording) belong to 16.1 / 16.2 / 16.3.
 
 ---
 
@@ -25,37 +27,44 @@ created: "2026-09-15"
 | **Config file** | `jest` key in `packages/backend/package.json` (`rootDir: src`, `testRegex: .*\.spec\.ts$`); `packages/frontend/vitest.config.ts` |
 | **Quick run command** | `npm run test -w @krasterisk/backend -- --testPathPattern="conferences" --no-coverage` |
 | **Full suite command** | `npm run test:backend && npm run test:frontend` |
-| **Estimated runtime** | ~30s quick · ~5–8 min full |
+| **Estimated runtime** | ~7s quick · ~5–8 min full |
 
 ---
 
 ## Sampling Rate
 
-- **After every task commit:** Run the task's narrow `--testPathPattern` command (see Per-Task Verification Map)
-- **After every plan wave:** Run `npm run test:backend && npm run test:frontend` — must include `ai-adapter-completeness.spec.ts`
-- **Before `/gsd-verify-work`:** Full suite green + `npm run lint` + one manual pass on live `ipbx.krasterisk.ru`
+- **After every task commit:** Run the task's narrow `--testPathPattern` command
+- **After every plan wave:** `npm run test:backend && npm run test:frontend`
+- **Before `/gsd-verify-work`:** Full suite + `npm run lint` + live `ipbx.krasterisk.ru` (UAT 11/11 done)
 - **Max feedback latency:** 30 seconds
 
 ---
 
 ## Per-Task Verification Map
 
-*Populated by `/gsd-validate-phase 16` once PLAN.md files exist. Requirement → command mapping inherited from `16-RESEARCH.md` § Validation Architecture:*
-
-| Requirement | Behavior | Test Type | Automated Command | File Exists |
-|-------------|----------|-----------|-------------------|-------------|
-| D-06 / D-07 | `normalizeTarget('conference', …)` produces `conf{number}_{uid}` and keeps the passthrough guard | unit | `npm run test -w @krasterisk/backend -- --testPathPattern="dialplan-target" --no-coverage` | ❌ W0 |
-| D-02 / D-05 | `confbridge` case + mask-index emit correct dialplan lines | unit | `npm run test -w @krasterisk/backend -- --testPathPattern="dialplan.util" --no-coverage` | ❌ W0 |
-| Static profile bootstrap | Idempotent — no duplicate writes on restart | unit | `npm run test -w @krasterisk/backend -- --testPathPattern="confbridge-static-profile" --no-coverage` | ❌ W0 |
-| Data model | Sequelize models read/write, FK cascade fires | integration (MySQL, no Asterisk) | `npm run test -w @krasterisk/backend -- --testPathPattern="conference-rooms.service" --no-coverage` | ❌ W0 |
-| D-11 / D-12 | Guard enforces TTL/revoke, never sets `sub`/`level` on `req.user` | unit | `npm run test -w @krasterisk/backend -- --testPathPattern="conference-guest-token.guard" --no-coverage` | ❌ W0 |
-| D-10 | Ephemeral endpoint created with room-scoped `context`, removed on leave | integration (AMI mocked) | `npm run test -w @krasterisk/backend -- --testPathPattern="conference-guest" --no-coverage` | ❌ W0 |
-| D-34 / D-37 | AMI event → EventEmitter2 → participant state map | unit | `npm run test -w @krasterisk/backend -- --testPathPattern="conference-state" --no-coverage` | ❌ W0 |
-| D-19 / D-20 | `maxParticipantsForBudget`, `min(tariff, capacity)` | unit (pure function) | `npm run test -w @krasterisk/backend -- --testPathPattern="conference-capacity" --no-coverage` | ❌ W0 |
-| Stale-channel sweeper | Detects stale channel by threshold and calls `ConfbridgeKick` | unit (AMI mock + fake timers) | `npm run test -w @krasterisk/backend -- --testPathPattern="conference-stale-channel" --no-coverage` | ❌ W0 |
-| D-41 | `MODULE_COVERAGE['conferences']` present, adapter registered, skill parses | unit | `npm run test -w @krasterisk/backend -- --testPathPattern="ai-adapter-completeness" --no-coverage` | ✅ exists |
-| Grid / custom SDH | Custom `SessionDescriptionHandler` retains N remote tracks in a Map | unit (RTCPeerConnection mock) | `npm run test -w @krasterisk/frontend -- src/features/conferences/lib` | ❌ W0 |
-| UI-SPEC components | `VideoSurface`, `ConferencesTable`, room form | component (Vitest + RTL) | `npm run test -w @krasterisk/frontend -- src/features/conferences` | ❌ W0 |
+| Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
+|---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
+| 16-01-01 | 01 | 1 | D-01 D-02 D-06 D-22 D-25 D-34 D-35 R-PROFILE | T-16-01-01…04 | sanitize + tenant filter + no `allow=` on bridge | unit | `npm run test -w @krasterisk/backend -- --testPathPattern="conference-spine\|confbridge-static-profile" --no-coverage` | ✅ | ✅ green |
+| 16-01-02 | 01 | 1 | D-06 | T-16-01-01 | `normalizeTarget('conference')` + INT max `2147483647` | unit | `npm run test -w @krasterisk/backend -- --testPathPattern="conference-spine\|dialplan-target" --no-coverage` | ✅ | ✅ green |
+| 16-01-03 | 01 | 1 | schema | — | 5 tables / models, `created_by` | unit | `npm run test -w @krasterisk/backend -- --testPathPattern="conference-schema" --no-coverage` | ✅ | ✅ green |
+| 16-02-01 | 02 | 2 | D-03 D-17 | T-16-02-01 T-16-02-02 | tenant CRUD + two `logAction` on repeat enter | unit | `npm run test -w @krasterisk/backend -- --testPathPattern="conference-rooms.service" --no-coverage` | ✅ | ✅ green |
+| 16-02-02 | 02 | 2 | D-03 D-04 | T-16-02-03 T-16-02-04 | digits-only uniqueid; `collectIfEmpty` | unit | `npm run test -w @krasterisk/backend -- --testPathPattern="conference-ephemeral" --no-coverage` | ✅ | ✅ green |
+| 16-02-03 | 02 | 2 | D-03 D-17 | T-16-02-05 | `addToConference` uses ephemeral context; ownership guards | unit | `npm run test -w @krasterisk/backend -- --testPathPattern="callcenter" --no-coverage` | ✅ | ✅ green |
+| 16-03-01 | 03 | 3 | D-05 D-07 D-08 | T-16-03-01 T-16-03-02 | mask-index sanitize; two creates keep both numbers | unit | `npm run test -w @krasterisk/backend -- --testPathPattern="conference-dialplan\|conference-rooms.service" --no-coverage` | ✅ | ✅ green |
+| 16-03-02 | 03 | 3 | D-05 D-08 | T-16-03-01 T-16-03-03 | hop to `krsk-conf-{uid}` / mask; `emitHopPrologue` | unit | `npm run test -w @krasterisk/backend -- --testPathPattern="dialplan.util\|dialplan-params" --no-coverage` | ✅ | ✅ green |
+| 16-03-03 | 03 | 3 | D-09 | T-16-03-04 | legacy report dry-run; `MODULE_COVERAGE.conferences` | unit | `npm run test -w @krasterisk/backend -- --testPathPattern="legacy-confbridge-steps\|ai-adapter-completeness" --no-coverage` | ✅ | ✅ green |
+| 16-04-01 | 04 | 4 | D-08 | T-16-04-01 T-16-04-03 | catalog uid decimal string; label number+name | component | `npm run test -w @krasterisk/frontend -- src/features/dialplan-apps/model/useSchemaRefs.test.tsx` | ✅ | ✅ green |
+| 16-04-02 | 04 | 4 | D-08 | T-16-04-02 | `confbridge` schema catalog, no profile field | component | `npm run test -w @krasterisk/frontend -- src/features/dialplan-apps` | ✅ | ✅ green |
+| 16-04-03 | 04 | 4 | D-08 | T-16-04-01 | ValueSourceField catalog-agnostic | component | `npm run test -w @krasterisk/frontend -- src/features/dialplan-apps/ui/ValueSourceField` | ✅ | ✅ green |
+| 16-05-01 | 05 | 4 | D-14 | T-16-05-02 T-16-05-03 | role table + conditional admin lines | unit | `npm run test -w @krasterisk/backend -- --testPathPattern="conference-roles\|conference-dialplan\|conference-state" --no-coverage` | ✅ | ✅ green |
+| 16-05-02 | 05 | 4 | D-16 | T-16-05-03 | permanent rights persist + sanitize | unit | `npm run test -w @krasterisk/backend -- --testPathPattern="conference-rooms.service" --no-coverage` | ✅ | ✅ green |
+| 16-05-03 | 05 | 4 | D-15 D-16 | T-16-05-01 T-16-05-04 T-16-05-05 | `resolveCallerRef`; AMI channel from snapshot | unit | `npm run test -w @krasterisk/backend -- --testPathPattern="conference-moderation\|conference-state" --no-coverage` | ✅ | ✅ green |
+| 16-06-01 | 06 | 5 | D-11 D-13 | T-16-06-01 T-16-06-03 | entry policy + wait_marked only for participant | unit | `npm run test -w @krasterisk/backend -- --testPathPattern="conference-entry-policy\|conference-dialplan" --no-coverage` | ✅ | ✅ green |
+| 16-06-02 | 06 | 5 | D-11 | T-16-06-01 T-16-06-02 | PIN required + sanitized | unit | `npm run test -w @krasterisk/backend -- --testPathPattern="conference-rooms.service" --no-coverage` | ✅ | ✅ green |
+| 16-06-03 | 06 | 5 | D-13 | T-16-06-05 | `waitingForModerator` on snapshot | unit | `npm run test -w @krasterisk/backend -- --testPathPattern="conference-state" --no-coverage` | ✅ | ✅ green |
+| 16-07-01 | 07 | 6 | D-36 | T-16-07-01 | mapper 6 keys, no channel / conf name | unit | `npm run test -w @krasterisk/backend -- --testPathPattern="conference-participant" --no-coverage` | ✅ | ✅ green |
+| 16-07-02 | 07 | 6 | D-37 | T-16-07-02 | `me/video` uses `resolveCallerRef` | unit | `npm run test -w @krasterisk/backend -- --testPathPattern="conference-state\|conference-spine" --no-coverage` | ✅ | ✅ green |
+| 16-07-03 | 07 | 6 | R-STALE | T-16-07-03 | sweeper threshold + kick | unit | `npm run test -w @krasterisk/backend -- --testPathPattern="conference-stale-channel" --no-coverage` | ✅ | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -63,11 +72,7 @@ created: "2026-09-15"
 
 ## Wave 0 Requirements
 
-- [ ] `packages/backend/src/shared/utils/dialplan-target.util.spec.ts` — add a describe block for `normalizeTarget('conference', …)`
-- [ ] `packages/backend/src/shared/utils/dialplan.util.spec.ts` — add `case 'confbridge'` cases (fixed + route_pattern)
-- [ ] `setup-conferences-schema.ts` + first `db:setup:conferences` run against the test database
-- [ ] AMI fixtures/mocks for `AmiService.action('ConfbridgeList' | 'ConfbridgeKick' | 'Originate', …)` — copy the existing AMI mock pattern from other `*.spec.ts`
-- [ ] Manual checklist runbook for `ipbx.krasterisk.ru` (see Manual-Only Verifications)
+Existing infrastructure covers all Phase 16 core requirements. Guest token / capacity / video grid / recording stubs stay in 16.1–16.3.
 
 ---
 
@@ -75,22 +80,45 @@ created: "2026-09-15"
 
 | Behavior | Requirement | Why Manual | Test Instructions |
 |----------|-------------|------------|-------------------|
-| Full flow: call → room → video grid | D-22, D-24 | Needs a live Asterisk with real PJSIP registrations and a browser | Spike 002's draft client is the manual test bench; join 3 web participants, confirm one tile per peer |
-| Static profile applied, `video_mode=sfu` active | D-02 amendment | `module reload app_confbridge.so` effect is only observable on a live server | `confbridge show profile bridge <name>` after bootstrap |
-| Hybrid web + hardware SIP phone in one room | D-23 | Requires physical/soft SIP endpoint outside the browser | Join a non-WebRTC peer, confirm it receives one video stream per peer |
-| Guest link end-to-end, with and without PIN | D-11, D-12 | Cross-origin browser flow with real SIP credentials | Open the shared link and a named invitation in a clean browser profile |
-| Recording start/stop and Range playback | D-30, D-31, D-33 | Needs real media files on `records_base_path` | Start via moderator button, stop, play back with seeking |
-| "Joined but no video" re-negotiation (~1 in 12 joins) | Research finding | Statistical — not deterministically reproducible in CI | Repeat joins on the live bench, confirm the detector re-negotiates |
+| Live profile `krsk_conf_sfu` | D-02 / R-PROFILE | `module reload app_confbridge.so` only on live Asterisk | UAT 1 — CLI `confbridge show profile bridge krsk_conf_sfu` |
+| Live call + SSE both paths | D-22 D-34 D-35 | Real ConfBridge + AMI | UAT 2 — Local originate + SSE |
+| DIALPLAN_EXISTS mask | D-05 D-08 | Asterisk build-dependent | UAT 3 |
+| Grant vs DTMF menu | D-15 D-16 | Engine reads user profile at join | UAT 4 |
+| Cold-cache hydrate | D-34 | Needs backend restart | UAT 5 |
+| Hybrid web + SIP phone | D-23 | Physical/soft SIP — Phase 16.1 | Join non-WebRTC peer on live bench |
+| Guest link + PIN | D-11 D-12 | Phase 16.1 | Clean browser profile |
+| Recording / Range | D-30 D-31 D-33 | Phase 16.2 | Moderator start/stop + seek |
+| Video grid SDH | D-24 D-38 | Phase 16.3 | Spike 002 client, 3 peers |
+
+UAT 6–11 (D-06 precision, D-25 order, D-34 parallel, D-35 close, D-17 order, D-08 two creates) now have matching Jest coverage; live scripts remain a backstop, not the only proof.
 
 ---
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 30s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references for Phase 16 core
+- [x] No watch-mode flags
+- [x] Feedback latency < 30s
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** approved 2026-09-16
+
+---
+
+## Validation Audit 2026-09-16
+
+| Metric | Count |
+|--------|-------|
+| Gaps found | 5 |
+| Resolved | 5 |
+| Escalated | 0 |
+
+| Gap | Requirement | File | Status |
+|-----|-------------|------|--------|
+| 1 | D-25 codec order | `confbridge-static-profile.service.spec.ts` | green |
+| 2 | D-34 parallel join | `conference-state.spec.ts` | green |
+| 3 | D-17 two admin enters | `conference-rooms.service.spec.ts` | green |
+| 4 | D-08 two creates mask-index | `conference-rooms.service.spec.ts` | green |
+| 5 | D-35 SSE unsubscribe | `conference-spine.spec.ts` | green |
