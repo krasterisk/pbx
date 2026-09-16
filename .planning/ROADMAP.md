@@ -1082,27 +1082,41 @@ Plans:
 
 **Requirements:** D-01, D-02, D-03, D-04, D-05, D-06, D-07, D-08, D-09, D-11, D-13, D-14, D-15, D-16, D-17, D-22, D-25, D-34, D-35, D-36, D-37 (+ R-PROFILE, R-STALE из ресёрча). Полные формулировки — `16-CONTEXT.md`.
 
-**Plans:** 7 plans
+**Plans:** 1/7 plans executed
 
 Plans:
 
+- [x] 16-01-PLAN.md
+- [ ] 16-02-PLAN.md
+- [ ] 16-03-PLAN.md
+- [ ] 16-04-PLAN.md
+- [ ] 16-05-PLAN.md
+- [ ] 16-06-PLAN.md
+- [ ] 16-07-PLAN.md
+
 **Wave 1**
-- [ ] `16-01-PLAN.md` — Wave 1, tracer: схема и модель комнаты, генератор тенантного контекста, rooms service/controller, платформенный статический bridge-профиль, `Confbridge*`-слушатели, сервис состояния и SSE
+
+- [x] `16-01-PLAN.md` — Wave 1, tracer: схема и модель комнаты, генератор тенантного контекста, rooms service/controller, платформенный статический bridge-профиль, `Confbridge*`-слушатели, сервис состояния и SSE
 
 **Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] `16-02-PLAN.md` — Wave 2: полный тенантный CRUD комнат с переприменением и удалением категорий, эфемерные комнаты, поглощение `CallCenterService.addToConference`
 
 **Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] `16-03-PLAN.md` — Wave 3: тенантный mask-index без сетевых обращений из диалплана, шаг маршрута переходом в комнату, отчёт по унаследованным шагам
 
 **Wave 4** *(blocked on Wave 3 completion)*
+
 - [ ] `16-04-PLAN.md` — Wave 4: селектор комнаты в редакторе шага маршрута (RTK-каталог, схема шага, копирайтинг, UI-state тесты)
 - [ ] `16-05-PLAN.md` — Wave 4: три роли через персональные user-профили, постоянные модераторы, живые модераторские действия и разовая выдача
 
 **Wave 5** *(blocked on Wave 4 completion)*
+
 - [ ] `16-06-PLAN.md` — Wave 5: три уровня строгости входа, согласованность PIN, поведение до прихода модератора
 
 **Wave 6** *(blocked on Wave 5 completion)*
+
 - [ ] `16-07-PLAN.md` — Wave 6: единый DTO-маппер состояния для своих и гостей, признак видео от клиента, подметальщик зависших каналов
 
 **Depends on:** Phase 12 (типизированный контракт `DialplanAppsEditor` и генератор `actionToDialplan` — точка, куда встраивается выбор комнаты), Phase 10 (WebRTC-стек софтфона и `GET /callcenter/webrtc/config`), Phase 15 (конвенция «новый модуль = AI-адаптер + скил», completeness-тест)
