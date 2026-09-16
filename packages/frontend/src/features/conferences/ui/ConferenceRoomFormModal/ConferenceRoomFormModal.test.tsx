@@ -141,18 +141,20 @@ describe('ConferenceRoomFormModal', () => {
     expect(history).toHaveAttribute('data-room-uid', '7');
   });
 
-  it('clears number and name in copy mode and keeps other fields', () => {
+  it('clears number and name in copy mode and keeps other fields', async () => {
     setMode('copy', 7);
     vi.mocked(useGetConferenceRoomQuery).mockReturnValue({
       data: sampleRoom,
       isFetching: false,
     } as ReturnType<typeof useGetConferenceRoomQuery>);
+    const user = userEvent.setup();
     render(<ConferenceRoomFormModal />);
 
     const number = screen.getByLabelText('Номер комнаты') as HTMLInputElement;
     const name = screen.getByLabelText('Название') as HTMLInputElement;
     expect(number.value).toBe('');
     expect(name.value).toBe('');
+    await user.click(screen.getByRole('tab', { name: 'Доступ' }));
     expect((screen.getByLabelText('PIN комнаты') as HTMLInputElement).value).toBe('1234');
   });
 

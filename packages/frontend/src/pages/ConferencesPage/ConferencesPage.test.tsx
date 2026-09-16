@@ -28,7 +28,7 @@ vi.mock('@/features/conferences/ui/ConferencesTable', () => ({
   ConferencesTable: () => <div data-testid="conferences-table-stub">conferences</div>,
 }));
 
-vi.mock('@/features/conferences/ui/ConferenceRoomFormModal/ConferenceRoomFormModal', () => ({
+vi.mock('@/features/conferences/ui/ConferenceRoomFormModal', () => ({
   ConferenceRoomFormModal: () => null,
 }));
 

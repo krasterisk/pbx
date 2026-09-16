@@ -6,6 +6,7 @@ import { Flex, HStack, VStack } from '@/shared/ui/Stack';
 import { useAppDispatch } from '@/shared/hooks/useAppStore';
 import { conferencesPageActions } from '@/features/conferences/model/slice/conferencesPageSlice';
 import { ConferencesTable } from '@/features/conferences/ui/ConferencesTable';
+import { ConferenceRoomFormModal } from '@/features/conferences/ui/ConferenceRoomFormModal';
 import cls from '@/features/conferences/ui/ConferencesTable/ConferencesTable.module.scss';
 
 export const ConferencesPage = memo(() => {
@@ -40,6 +41,8 @@ export const ConferencesPage = memo(() => {
       <Flex direction="column" align="stretch" max>
         <ConferencesTable />
       </Flex>
+
+      <ConferenceRoomFormModal />
     </VStack>
   );
 });

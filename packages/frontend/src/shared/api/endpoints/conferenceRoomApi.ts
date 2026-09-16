@@ -105,6 +105,11 @@ export interface ConferenceGuestLink {
   expires_at: string | null;
 }
 
+export interface ConferenceRoomModerator {
+  endpointRef: string;
+  role: 'owner' | 'moderator';
+}
+
 function encodeGuestToken(token: string): string {
   return encodeURIComponent(token);
 }
@@ -191,6 +196,21 @@ const conferenceRoomApi = rtkApi.injectEndpoints({
     }),
     getConferenceCapacity: build.query<{ maxParticipants: number }, number>({
       query: (uid) => `/conferences/${uid}/capacity`,
+    }),
+    getConferenceModerators: build.query<ConferenceRoomModerator[], number>({
+      query: (uid) => `/conferences/${uid}/moderators`,
+      providesTags: (_r, _e, uid) => [{ type: 'ConferenceRooms', id: `mods-${uid}` }],
+    }),
+    setConferenceModerators: build.mutation<
+      ConferenceRoomModerator[],
+      { uid: number; moderators: ConferenceRoomModerator[] }
+    >({
+      query: ({ uid, moderators }) => ({
+        url: `/conferences/${uid}/moderators`,
+        method: 'PUT',
+        body: { moderators },
+      }),
+      invalidatesTags: (_r, _e, { uid }) => [{ type: 'ConferenceRooms', id: `mods-${uid}` }],
     }),
     muteConferenceParticipant: build.mutation<void, { roomUid: number; ref: string }>({
       query: ({ roomUid, ref }) => ({
@@ -365,6 +385,8 @@ export const {
   useUpdateConferenceRoomMutation,
   useDeleteConferenceRoomMutation,
   useGetConferenceCapacityQuery,
+  useGetConferenceModeratorsQuery,
+  useSetConferenceModeratorsMutation,
   useMuteConferenceParticipantMutation,
   useUnmuteConferenceParticipantMutation,
   useKickConferenceParticipantMutation,
