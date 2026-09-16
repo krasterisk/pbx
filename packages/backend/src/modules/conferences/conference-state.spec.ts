@@ -1,3 +1,5 @@
+import { NotFoundException } from '@nestjs/common';
+import { ConferenceParticipantController } from './conference-participant.controller';
 import { ConferenceStateService } from './conference-state.service';
 
 const ROOM_UID = 77;
@@ -178,7 +180,132 @@ describe('ConferenceStateService waiting for moderator (16-06)', () => {
       'muted',
       'role',
       'talking',
+      'video',
     ]);
+  });
+});
+
+describe('ConferenceStateService video flag (16-07)', () => {
+  let state: ConferenceStateService;
+
+  beforeEach(() => {
+    state = new ConferenceStateService();
+    state.registerRoom({ uid: ROOM_UID, number: '6007', user_uid: 42 });
+  });
+
+  it('joins a new participant with video off', () => {
+    state.handleJoin(joinEvt({ Channel: 'PJSIP/601-00000001', CallerIDNum: '601' }));
+    expect(state.getSnapshot(ROOM_UID).participants[0].video).toBe(false);
+  });
+
+  it('setVideoState flips the flag and emits one room event', () => {
+    state.handleJoin(joinEvt({ Channel: 'PJSIP/601-00000001', CallerIDNum: '601' }));
+    const events: unknown[] = [];
+    const sub = state.getEventStream(ROOM_UID).subscribe((event) => events.push(event));
+    state.setVideoState(ROOM_UID, '601', true);
+    expect(state.getSnapshot(ROOM_UID).participants[0].video).toBe(true);
+    expect(events).toHaveLength(1);
+    sub.unsubscribe();
+  });
+
+  it('setVideoState on an unknown ref emits nothing and creates no participant', () => {
+    state.handleJoin(joinEvt({ Channel: 'PJSIP/601-00000001', CallerIDNum: '601' }));
+    const events: unknown[] = [];
+    const sub = state.getEventStream(ROOM_UID).subscribe((event) => events.push(event));
+    state.setVideoState(ROOM_UID, 'нет такого', true);
+    expect(events).toHaveLength(0);
+    expect(state.getSnapshot(ROOM_UID).participants).toHaveLength(1);
+    expect(state.getSnapshot(ROOM_UID).participants[0].video).toBe(false);
+    sub.unsubscribe();
+  });
+
+  it('repeated setVideoState with the same value emits no extra event', () => {
+    state.handleJoin(joinEvt({ Channel: 'PJSIP/601-00000001', CallerIDNum: '601' }));
+    state.setVideoState(ROOM_UID, '601', true);
+    const events: unknown[] = [];
+    const sub = state.getEventStream(ROOM_UID).subscribe((event) => events.push(event));
+    state.setVideoState(ROOM_UID, '601', true);
+    expect(events).toHaveLength(0);
+    sub.unsubscribe();
+  });
+});
+
+describe('ConferenceParticipantController self video (16-07)', () => {
+  const caller = { sub: 5, vpbx_user_uid: 42 };
+
+  function controllerWith(
+    rooms: {
+      assertLiveRoomAccess: jest.Mock;
+      resolveCallerRef: jest.Mock;
+    },
+    state: ConferenceStateService,
+  ) {
+    return new ConferenceParticipantController(rooms as any, state);
+  }
+
+  it('changes video only for the caller from resolveCallerRef', async () => {
+    const state = new ConferenceStateService();
+    state.registerRoom({ uid: ROOM_UID, number: '6007', user_uid: 42 });
+    state.handleJoin(joinEvt({ Channel: 'PJSIP/601-00000001', CallerIDNum: '601' }));
+    state.handleJoin(joinEvt({ Channel: 'PJSIP/602-00000002', CallerIDNum: '602' }));
+    const rooms = {
+      assertLiveRoomAccess: jest.fn().mockResolvedValue({ uid: ROOM_UID }),
+      resolveCallerRef: jest.fn().mockResolvedValue('601'),
+    };
+    const controller = controllerWith(rooms, state);
+    await controller.setMyVideo(ROOM_UID, { enabled: true, ref: '602' } as any, {
+      user: caller,
+    } as any);
+    const participants = state.getSnapshot(ROOM_UID).participants;
+    expect(participants.find((item) => item.callerIdNum === '601')?.video).toBe(true);
+    expect(participants.find((item) => item.callerIdNum === '602')?.video).toBe(false);
+    expect(rooms.resolveCallerRef).toHaveBeenCalledWith(caller);
+  });
+
+  it('rejects a foreign tenant room without changing flags', async () => {
+    const state = new ConferenceStateService();
+    state.registerRoom({ uid: ROOM_UID, number: '6007', user_uid: 42 });
+    state.handleJoin(joinEvt({ Channel: 'PJSIP/601-00000001', CallerIDNum: '601' }));
+    const rooms = {
+      assertLiveRoomAccess: jest.fn().mockRejectedValue(new NotFoundException()),
+      resolveCallerRef: jest.fn().mockResolvedValue('601'),
+    };
+    const controller = controllerWith(rooms, state);
+    await expect(
+      controller.setMyVideo(ROOM_UID, { enabled: true }, { user: caller } as any),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(state.getSnapshot(ROOM_UID).participants[0].video).toBe(false);
+    expect(rooms.resolveCallerRef).not.toHaveBeenCalled();
+  });
+
+  it('rejects a caller who is not in the live room', async () => {
+    const state = new ConferenceStateService();
+    state.registerRoom({ uid: ROOM_UID, number: '6007', user_uid: 42 });
+    state.handleJoin(joinEvt({ Channel: 'PJSIP/602-00000002', CallerIDNum: '602' }));
+    const rooms = {
+      assertLiveRoomAccess: jest.fn().mockResolvedValue({ uid: ROOM_UID }),
+      resolveCallerRef: jest.fn().mockResolvedValue('601'),
+    };
+    const controller = controllerWith(rooms, state);
+    await expect(
+      controller.setMyVideo(ROOM_UID, { enabled: true }, { user: caller } as any),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(state.getSnapshot(ROOM_UID).participants[0].video).toBe(false);
+  });
+
+  it('rejects a caller whose number did not resolve', async () => {
+    const state = new ConferenceStateService();
+    state.registerRoom({ uid: ROOM_UID, number: '6007', user_uid: 42 });
+    state.handleJoin(joinEvt({ Channel: 'PJSIP/601-00000001', CallerIDNum: '601' }));
+    const rooms = {
+      assertLiveRoomAccess: jest.fn().mockResolvedValue({ uid: ROOM_UID }),
+      resolveCallerRef: jest.fn().mockResolvedValue(null),
+    };
+    const controller = controllerWith(rooms, state);
+    await expect(
+      controller.setMyVideo(ROOM_UID, { enabled: true }, { user: caller } as any),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(state.getSnapshot(ROOM_UID).participants[0].video).toBe(false);
   });
 });
 
