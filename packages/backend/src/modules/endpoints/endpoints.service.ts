@@ -48,8 +48,12 @@ const NAT_PROFILES: Record<string, Partial<PsEndpoint>> = {
     media_encryption: 'dtls',
     rtcp_mux: 'yes',
     bundle: 'yes',
+    max_video_streams: 16,
   },
 };
+
+export const WEBRTC_ENDPOINT_DEFAULTS = NAT_PROFILES.webrtc;
+export const NAT_ENDPOINT_DEFAULTS = NAT_PROFILES.nat;
 
 export interface BulkJob {
   id: string;
@@ -243,7 +247,7 @@ export class EndpointsService {
         context: primary.context,
         callerid: primary.callerid,
         disallow: 'all',
-        allow: primary.allow || 'ulaw,alaw,g722,opus',
+        allow: primary.allow || CONFERENCE_PLATFORM_CODECS.join(','),
         transport: 'transport-wss',
         dtmf_mode: 'auto',
         language: primary.language || 'ru',
