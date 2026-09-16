@@ -1,0 +1,12 @@
+.root {
+  width: 100%;
+  min-height: 0;
+  flex: 1;
+}
+
+.empty {
+  flex: 1;
+  min-height: 0;
+  padding: 24px;
+  text-align: center;
+}

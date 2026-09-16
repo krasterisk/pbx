@@ -1,0 +1,10 @@
+.grid {
+  --conf-tile-min-width: 160px;
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(var(--conf-tile-min-width, 160px), 1fr));
+  gap: 8px;
+  width: 100%;
+  min-height: 0;
+  flex: 1;
+  align-content: start;
+}

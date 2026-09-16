@@ -1,0 +1,36 @@
+.tile {
+  min-width: 0;
+  background: var(--color-card);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  outline: 2px solid transparent;
+  outline-offset: 0;
+}
+
+.singleTile {
+  max-width: 640px;
+  justify-self: center;
+}
+
+.speaking {
+  outline-color: var(--color-success);
+}
+
+.frame {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: var(--color-muted);
+  overflow: hidden;
+}
+
+.fallback {
+  padding: 8px;
+}
+
+.caption {
+  padding: 4px 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-foreground);
+}

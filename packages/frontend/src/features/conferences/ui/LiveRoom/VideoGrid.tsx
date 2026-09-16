@@ -1,0 +1,31 @@
+import { Flex } from '@/shared/ui/Stack';
+import { ParticipantTile } from './ParticipantTile';
+import type { LiveRoomParticipant } from './LiveRoom';
+import cls from './VideoGrid.module.scss';
+
+export interface VideoGridProps {
+  participants: LiveRoomParticipant[];
+  remoteTracks: Record<string, MediaStreamTrack>;
+}
+
+export function VideoGrid({ participants, remoteTracks }: VideoGridProps) {
+  const mids = Object.keys(remoteTracks);
+  const single = participants.length === 1;
+
+  return (
+    <Flex role="list" className={cls.grid} align="stretch">
+      {participants.map((participant, index) => {
+        const mid = mids[index] ?? participant.ref;
+        return (
+          <ParticipantTile
+            key={mid}
+            mid={mid}
+            participant={participant}
+            track={remoteTracks[mid]}
+            single={single}
+          />
+        );
+      })}
+    </Flex>
+  );
+}

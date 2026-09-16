@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import { Web } from 'sip.js';
 import { LiveRoom, type LiveRoomParticipant } from './LiveRoom';
 import { conferenceSdhFactory } from '../../lib/conferenceSdhFactory';
 
@@ -9,6 +8,40 @@ vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (_key: string, fallback?: string) => fallback || _key,
   }),
+}));
+
+vi.mock('sip.js', () => ({
+  Web: {
+    defaultSessionDescriptionHandlerFactory: () => () => {
+      const tracks: MediaStreamTrack[] = [];
+      const stream = {
+        getTrackById(id: string) {
+          return tracks.find((item) => item.id === id);
+        },
+        getVideoTracks() {
+          return tracks.filter((item) => item.kind === 'video');
+        },
+        addTrack(track: MediaStreamTrack) {
+          tracks.push(track);
+        },
+        removeTrack(track: MediaStreamTrack) {
+          const index = tracks.indexOf(track);
+          if (index >= 0) tracks.splice(index, 1);
+        },
+      };
+      return {
+        _remoteMediaStream: stream,
+        setRemoteTrack(track: MediaStreamTrack) {
+          if (stream.getTrackById(track.id)) return;
+          stream.getVideoTracks().forEach((existing) => {
+            existing.stop();
+            stream.removeTrack(existing);
+          });
+          stream.addTrack(track);
+        },
+      };
+    },
+  },
 }));
 
 function fakeVideoTrack(id: string): MediaStreamTrack {
@@ -45,34 +78,9 @@ function participant(
 
 describe('LiveRoom (16.3-01 R-SDH)', () => {
   it('renders two mid tiles and keeps the first remote video track live', () => {
-    const tracks: MediaStreamTrack[] = [];
-    vi.spyOn(Web, 'defaultSessionDescriptionHandlerFactory').mockImplementation(
-      () =>
-        () =>
-          ({
-            _remoteMediaStream: {
-              getTrackById: (id: string) => tracks.find((item) => item.id === id),
-              getVideoTracks: () => tracks.filter((item) => item.kind === 'video'),
-              addTrack(track: MediaStreamTrack) {
-                tracks.push(track);
-              },
-              removeTrack(track: MediaStreamTrack) {
-                const index = tracks.indexOf(track);
-                if (index >= 0) tracks.splice(index, 1);
-              },
-            },
-            setRemoteTrack(track: MediaStreamTrack) {
-              tracks.forEach((existing) => {
-                if (existing.kind === 'video') existing.stop();
-              });
-              tracks.push(track);
-            },
-          }) as never,
-    );
-
     const factory = conferenceSdhFactory(async () => new MediaStream());
     const sdh = factory(
-      { userAgent: { getLogger: () => ({ debug() {} }) } },
+      { userAgent: { getLogger: () => ({ debug() {} }) } } as never,
       {},
     ) as { setRemoteTrack: (track: MediaStreamTrack) => void };
     const first = fakeVideoTrack('mid-0');
@@ -95,7 +103,6 @@ describe('LiveRoom (16.3-01 R-SDH)', () => {
     expect(first.readyState).toBe('live');
     expect(tiles[0]).toHaveTextContent('Alice');
     expect(tiles[1]).toHaveTextContent('Bob');
-    vi.restoreAllMocks();
   });
 
   it('keeps mid order when the second tile is speaking', () => {
