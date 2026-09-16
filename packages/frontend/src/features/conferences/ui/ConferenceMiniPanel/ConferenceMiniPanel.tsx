@@ -5,11 +5,9 @@ import { toast } from 'react-toastify';
 import { LogOut, Mic, MicOff, Video, VideoOff } from 'lucide-react';
 import { Button, Text } from '@/shared/ui';
 import { useIsMobile } from '@/shared/hooks/useIsMobile';
-import { useAppDispatch, useAppSelector } from '@/shared/hooks/useAppStore';
-import {
-  leaveSession,
-  selectConferenceSession,
-} from '@/features/conferences/model/slice/conferenceSessionSlice';
+import { useAppSelector } from '@/shared/hooks/useAppStore';
+import { selectConferenceSession } from '@/features/conferences/model/slice/conferenceSessionSlice';
+import { useConferenceSessionHost } from '@/features/conferences/lib/ConferenceSessionProvider';
 import { useConferenceSse } from '@/features/conferences/lib/useConferenceSse';
 import {
   useGetConferenceRoomQuery,
@@ -47,8 +45,8 @@ export function ConferenceMiniPanel() {
   const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
-  const dispatch = useAppDispatch();
   const session = useAppSelector(selectConferenceSession);
+  const host = useConferenceSessionHost();
   const isMobile = useIsMobile(768);
   const [open, setOpen] = useState(false);
   const [muted, setMuted] = useState(false);
@@ -130,7 +128,7 @@ export function ConferenceMiniPanel() {
   const handleLeave = () => {
     if (!sipId) return;
     void kickSelf({ roomUid: session.roomUid, ref: sipId });
-    dispatch(leaveSession());
+    void host.hangup();
   };
 
   const timer = (
