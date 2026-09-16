@@ -8,3 +8,9 @@
   flex: 1;
   align-content: start;
 }
+
+@media (max-width: 640px) {
+  .grid {
+    --conf-tile-min-width: 120px;
+  }
+}

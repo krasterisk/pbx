@@ -14,6 +14,23 @@
 
 .speaking {
   outline-color: var(--color-success);
+  animation: speakingPulse 1.6s ease-in-out infinite;
+}
+
+@keyframes speakingPulse {
+  0%,
+  100% {
+    outline-color: var(--color-success);
+  }
+  50% {
+    outline-color: color-mix(in srgb, var(--color-success) 45%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .speaking {
+    animation: none;
+  }
 }
 
 .frame {
