@@ -167,6 +167,11 @@ const CATALOG_DEFAULTS: Record<
     sectionKey: 'routes.chain.catalog.notificationsSection',
     sectionFallback: 'Интеграции уведомлений',
   },
+  conferenceRooms: {
+    href: '/conferences',
+    sectionKey: 'routes.chain.catalog.conferencesSection',
+    sectionFallback: 'Конференции',
+  },
 };
 
 function FieldShell({

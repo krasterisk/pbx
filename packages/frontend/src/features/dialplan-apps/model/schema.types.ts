@@ -28,7 +28,8 @@ export type OptionsSource =
   | 'contexts'
   | 'endpoints'
   | 'numberLists'
-  | 'notifications';
+  | 'notifications'
+  | 'conferenceRooms';
 
 /** How ValueSourceField renders source pickers. */
 export type ValueSourceMode = 'queue' | 'scalar' | 'dial';
