@@ -9,6 +9,7 @@ import { ConferenceEphemeralService } from './conference-ephemeral.service';
 import { ConferenceGuestController } from './conference-guest.controller';
 import { ConferenceGuestService } from './conference-guest.service';
 import { ConferenceGuestTokenGuard } from './conference-guest-token.guard';
+import { ConferenceGuestWebrtcController } from './conference-guest-webrtc.controller';
 import { ConferenceModerationController } from './conference-moderation.controller';
 import { ConferenceModerationService } from './conference-moderation.service';
 import { ConferenceParticipantController } from './conference-participant.controller';
@@ -38,6 +39,7 @@ import { ConferenceRoom } from './models/conference-room.model';
     EndpointsModule,
   ],
   controllers: [
+    ConferenceGuestWebrtcController,
     ConferenceGuestController,
     ConferenceRoomsController,
     ConferenceModerationController,

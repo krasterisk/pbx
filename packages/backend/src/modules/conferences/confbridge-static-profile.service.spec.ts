@@ -33,6 +33,7 @@ describe('ConfbridgeStaticProfileService', () => {
     service = new ConfbridgeStaticProfileService(
       amiService as unknown as AmiService,
       dialplanApplyService as unknown as DialplanApplyService,
+      { backfillWebrtcVideo: jest.fn().mockResolvedValue(undefined) } as any,
     );
   });
 

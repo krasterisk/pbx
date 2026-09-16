@@ -160,6 +160,35 @@ export class EndpointsService {
   }
 
   /**
+   * One-shot / idempotent lift of existing WebRTC companions (ew*) to 16 video streams + VP8.
+   * Primary e* rows are outside the LIKE 'ew%' selection (D-23).
+   */
+  async backfillWebrtcVideo(): Promise<void> {
+    const rows = await this.endpointModel.findAll({
+      where: { id: { [Op.like]: 'ew%' } },
+    });
+
+    for (const row of rows) {
+      const patch: { max_video_streams?: number; allow?: string } = {};
+      if (row.max_video_streams == null || row.max_video_streams < 16) {
+        patch.max_video_streams = 16;
+      }
+      const currentAllow = String(row.allow ?? '');
+      const tokens = currentAllow
+        .split(',')
+        .map((part) => part.trim().toLowerCase())
+        .filter(Boolean);
+      if (!tokens.includes('vp8')) {
+        const trimmed = currentAllow.trim();
+        patch.allow = trimmed ? `${trimmed},vp8` : 'vp8';
+      }
+      if (Object.keys(patch).length > 0) {
+        await row.update(patch);
+      }
+    }
+  }
+
+  /**
    * Create a subscriber, generating a SIP password when missing or weak.
    * Returns the created row without the secret so agent transcripts cannot leak it.
    */
