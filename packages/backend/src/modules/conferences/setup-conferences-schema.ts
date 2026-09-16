@@ -45,6 +45,8 @@ export const CONFERENCE_SCHEMA_STATEMENTS: string[] = [
     \`token\` VARCHAR(64) NOT NULL,
     \`kind\` ENUM('shared_link','named_invite') NOT NULL,
     \`invite_name\` VARCHAR(255) NULL,
+    \`display_name\` VARCHAR(64) NULL,
+    \`sip_id\` VARCHAR(64) NULL,
     \`expires_at\` DATETIME NULL,
     \`revoked_at\` DATETIME NULL,
     \`last_used_at\` DATETIME NULL,
@@ -120,6 +122,16 @@ export async function setupConferencesSchema(sequelize: {
     exec,
     'conference_room_moderators.role',
     `ALTER TABLE \`conference_room_moderators\` ADD COLUMN \`role\` ENUM('owner','moderator') NOT NULL DEFAULT 'moderator'`,
+  );
+  await alterIdempotent(
+    exec,
+    'conference_guest_tokens.display_name',
+    `ALTER TABLE \`conference_guest_tokens\` ADD COLUMN \`display_name\` VARCHAR(64) NULL`,
+  );
+  await alterIdempotent(
+    exec,
+    'conference_guest_tokens.sip_id',
+    `ALTER TABLE \`conference_guest_tokens\` ADD COLUMN \`sip_id\` VARCHAR(64) NULL`,
   );
 }
 
