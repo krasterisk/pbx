@@ -21,7 +21,7 @@ milestone_name: milestone
 
 Phase 16 (modul-telekonferentsiy-confbridge-webrtc) — CORE PLANS COMPLETE (2026-09-16). 16-01…16-07 complete (3/3 tasks each). Next: `/gsd-verify-work 16`.
 
-Phase 16.1 (telekonferentsii-video-emkost-komnaty-gostevoy-vhod-i-prigla) — EXECUTING (2026-09-16). 16.1-01…16.1-04 complete. Next: `/gsd-execute-phase 16.1` (plan 05). Do not mark the phase complete.
+Phase 16.1 (telekonferentsii-video-emkost-komnaty-gostevoy-vhod-i-prigla) — EXECUTING (2026-09-16). 16.1-01…16.1-05 complete. Next: `/gsd-execute-phase 16.1` (plan 06). Do not mark the phase complete.
 
 Phase 16.2 (telekonferentsii-zapis-vstrech-i-otchetnost) — PLANNED (2026-09-16). 4 plans in 4 waves. Status: Ready to execute. Next: `/gsd-execute-phase 16.2`. Sub-phase 16.3 remains unplanned.
 
@@ -71,6 +71,7 @@ Phase 1 — MOH: pending verify.
 
 ## Decisions
 
+- [Phase 16.1]: 16.1-05 shipped — internal PJSIP/e|ew Originate into krsk-conf-{uid}; external Local/{digits}@from-internal{vpbx} gated by invite_external_scope (A2).
 - [Phase 16.1]: 16.1-04 shipped — GET :uid/capacity is { maxParticipants } only; max_members follows effectiveMax; cron reapplies on N change; join 409 uses capacityForRoom.
 - [Phase 16.1]: 16.1-03 shipped — NAT_PROFILES.webrtc.max_video_streams 16, companion fallback opus,ulaw,vp8, ew* backfill on boot, GET /conferences/guest/:token/webrtc-config.
 - [Phase 16.1]: 16.1-02 shipped — staff JWT guest-token CRUD (shared_link + named_invite), revoke=stamp+ConfbridgeKick+destroy, leave, PIN on join, guest SSE via toConferenceRoomStateDto.
@@ -433,6 +434,7 @@ Phase 1 — MOH: pending verify.
 - [Phase 16.1]: max_members prefers room.effective_max_participants over tariff; create/update stay tariff-only until cron
 - [Phase 16.1]: tick @Cron */30s with running-guard and lastApplied; AMI/apply errors are per-room and do not block HTTP capacity
 - [Phase 16.1]: join uses capacityForRoom once; owner/moderator optional user.role bypasses n+1 > N (ConfBridge admin)
+- [Phase 16.1]: 16.1-05 shipped — internal PJSIP/e|ew Originate into krsk-conf-{uid}; external Local/{digits}@from-internal{vpbx} gated by invite_external_scope (A2).
 
 ## Roadmap Evolution
 
@@ -470,7 +472,7 @@ Phase 1 — MOH: pending verify.
 
 ## Next GSD command
 
-**Phase 16.1 plan 16.1-04 complete** (2026-09-16). Next: `/gsd-execute-phase 16.1` for plan 05. Phase 16 core still awaits `/gsd-verify-work 16`.
+**Phase 16.1 plan 16.1-05 complete** (2026-09-16). Next: `/gsd-execute-phase 16.1` for plan 06. Phase 16 core still awaits `/gsd-verify-work 16`.
 
 Also open: `/gsd-secure-phase 15`; Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 verify; Phase 8 / 08-11 Android smoke.
 
@@ -631,11 +633,12 @@ Also open: `/gsd-secure-phase 15`; Phase 11 harness verify; Phase 10 `/gsd-verif
 | Phase 16.1 P02 | 10min | 3 tasks | 9 files |
 | Phase 16.1 P03 | 6min | 2 tasks | 7 files |
 | Phase 16.1 P04 | 10min | 3 tasks | 11 files |
+| Phase 16.1 P05 | 5min | 2 tasks | 5 files |
 
 ## Session
 
-**Last session:** 2026-09-16T07:39:19.154Z
-**Stopped at:** Completed 16.1-04-PLAN.md
+**Last session:** 2026-09-16T07:49:17.808Z
+**Stopped at:** Completed 16.1-05-PLAN.md
 **Resume file:** None
 **Also ready:** .planning/phases/15-universal-pbx-ai-agent/15-CONTEXT.md
 
