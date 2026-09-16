@@ -11,6 +11,10 @@ describe('ConferencesAiAdapter', () => {
     findOne: jest.Mock;
     update: jest.Mock;
   };
+  let moderationService: {
+    muteParticipant: jest.Mock;
+    kickParticipant: jest.Mock;
+  };
   let registry: { register: jest.Mock };
   let adapter: ConferencesAiAdapter;
 
@@ -22,8 +26,16 @@ describe('ConferencesAiAdapter', () => {
       findOne: jest.fn(),
       update: jest.fn(),
     };
+    moderationService = {
+      muteParticipant: jest.fn().mockResolvedValue(undefined),
+      kickParticipant: jest.fn().mockResolvedValue(undefined),
+    };
     registry = { register: jest.fn() };
-    adapter = new ConferencesAiAdapter(roomsService as any, registry as any);
+    adapter = new ConferencesAiAdapter(
+      roomsService as any,
+      moderationService as any,
+      registry as any,
+    );
   });
 
   describe('tool declarations', () => {
@@ -96,6 +108,47 @@ describe('ConferencesAiAdapter', () => {
     });
   });
 
+  describe('live-ops mute/kick', () => {
+    it('marks cf_force_mute_participant and cf_force_kick_participant as destructive', () => {
+      const names = adapter.getTools().map((tool) => tool.name);
+      expect(names).toEqual(
+        expect.arrayContaining([
+          'cf_force_mute_participant',
+          'cf_force_kick_participant',
+        ]),
+      );
+      expect(new Set(names).size).toBe(names.length);
+      expect(getTool('cf_force_mute_participant').destructive).toBe(true);
+      expect(getTool('cf_force_kick_participant').destructive).toBe(true);
+      expect(getTool('cf_force_mute_participant').proposes).toBeFalsy();
+      expect(getTool('cf_force_kick_participant').proposes).toBeFalsy();
+    });
+
+    it('uses DTO ref, not a channel name, and dispatches mute with tenant uid', async () => {
+      const mute = getTool('cf_force_mute_participant');
+      expect(Object.keys(mute.inputSchema ?? {})).toEqual(
+        expect.arrayContaining(['room_uid', 'ref']),
+      );
+      expect(Object.keys(mute.inputSchema ?? {})).not.toContain('channel');
+
+      await mute.handler({ room_uid: 7, ref: '101' }, 42);
+
+      expect(moderationService.muteParticipant).toHaveBeenCalledWith(7, '101', {
+        sub: 0,
+        vpbx_user_uid: 42,
+      });
+    });
+
+    it('dispatches kick through ConferenceModerationService with handler uid', async () => {
+      await getTool('cf_force_kick_participant').handler({ room_uid: 7, ref: '101' }, 99);
+
+      expect(moderationService.kickParticipant).toHaveBeenCalledWith(7, '101', {
+        sub: 0,
+        vpbx_user_uid: 99,
+      });
+    });
+  });
+
   describe('coverage still excluded until Task 3', () => {
     it('keeps conferences excluded so completeness stays green', () => {
       expect(MODULE_COVERAGE.conferences).toEqual(
@@ -104,3 +157,4 @@ describe('ConferencesAiAdapter', () => {
     });
   });
 });
+
