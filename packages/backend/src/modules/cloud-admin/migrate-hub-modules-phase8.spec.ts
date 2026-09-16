@@ -42,12 +42,29 @@ describe('Hub modules Phase 8 seed', () => {
     expect(byCode.ai.kind).toBe('market');
   });
 
-  it('maps queues→apps and service-requests→callcenter (D-15/D-19)', () => {
+  it('maps queues→apps and keeps custom robot tables off the Call Center menu', () => {
     const appsPages = HUB_MODULE_PAGES_SEED.filter((p) => p.hub_code === 'apps');
     const ccPages = HUB_MODULE_PAGES_SEED.filter((p) => p.hub_code === 'callcenter');
     expect(appsPages.some((p) => p.page_code === 'queues')).toBe(true);
-    expect(ccPages.some((p) => p.page_code === 'service_requests')).toBe(true);
-    expect(ccPages.some((p) => p.page_code === 'komandor_claims')).toBe(true);
+    expect(ccPages.some((p) => p.page_code === 'cc_agent')).toBe(true);
+    expect(ccPages.some((p) => p.page_code === 'service_requests')).toBe(false);
+    expect(ccPages.some((p) => p.page_code === 'komandor_claims')).toBe(false);
+  });
+
+  it('places conferences in apps at sort_order 65 and not in market', () => {
+    const conferences = HUB_MODULE_PAGES_SEED.filter((p) => p.page_code === 'conferences');
+    expect(conferences).toHaveLength(1);
+    expect(conferences[0]).toEqual(
+      expect.objectContaining({
+        hub_code: 'apps',
+        page_code: 'conferences',
+        path: '/conferences',
+        sort_order: 65,
+      }),
+    );
+    expect(
+      HUB_MODULE_PAGES_SEED.some((p) => p.page_code === 'conferences' && p.hub_code === 'market'),
+    ).toBe(false);
   });
 
   it('membership rows reference only seeded hub codes', () => {

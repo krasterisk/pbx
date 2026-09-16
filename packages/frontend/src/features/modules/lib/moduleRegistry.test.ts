@@ -41,22 +41,31 @@ describe('moduleRegistry (NAV-01)', () => {
     expect(corePaths.indexOf('/route-templates')).toBe(corePaths.indexOf('/routes') + 1);
 
     const apps = getBaselineModule('apps');
-    expect(apps?.pages.map((p) => p.path)).toEqual(
-      expect.arrayContaining(['/ivrs', '/queues', '/moh', '/call-groups', '/integrations']),
+    const appsPaths = apps?.pages.map((p) => p.path) ?? [];
+    expect(appsPaths).toEqual(
+      expect.arrayContaining(['/ivrs', '/queues', '/moh', '/call-groups', '/conferences', '/integrations']),
+    );
+    expect(appsPaths.indexOf('/conferences')).toBe(appsPaths.indexOf('/call-groups') + 1);
+    expect(apps?.pages.find((p) => p.id === 'conferences')).toEqual(
+      expect.objectContaining({
+        id: 'conferences',
+        path: '/conferences',
+        labelKey: 'nav.conferences',
+      }),
     );
 
     const callcenter = getBaselineModule('callcenter');
     expect(callcenter?.kind).toBe('market');
     expect(callcenter?.pages.map((p) => p.path)).toEqual(
       expect.arrayContaining([
-        '/service-requests',
-        '/komandor-claims',
         '/callcenter/agent',
         '/callcenter/supervisor',
         '/callcenter/reports',
         '/callcenter/settings',
       ]),
     );
+    expect(callcenter?.pages.some((p) => p.path === '/service-requests')).toBe(false);
+    expect(callcenter?.pages.some((p) => p.path === '/komandor-claims')).toBe(false);
     // Wallboard TV stays outside ModuleShell
     expect(callcenter?.pages.some((p) => p.path === '/callcenter/wallboard')).toBe(false);
   });
