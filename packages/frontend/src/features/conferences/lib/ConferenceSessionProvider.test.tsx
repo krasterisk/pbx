@@ -61,6 +61,10 @@ vi.mock('@/features/callcenter/lib/shiftSession', () => ({
   }),
 }));
 
+import {
+  unregisterLiveSoftphone,
+  restoreLiveSoftphone,
+} from '@/features/callcenter/lib/softphoneParkBridge';
 import { ConferenceSessionProvider, useConferenceSessionHost } from './ConferenceSessionProvider';
 
 function Probe() {
@@ -123,6 +127,8 @@ describe('ConferenceSessionProvider (16.3-09 G-16.3-1)', () => {
     );
     expect(conferenceRoomArgs.sipId == null || conferenceRoomArgs.sipPassword == null).toBe(true);
     expect(conferenceRoomArgs.liveSoftphoneAor).toBe('ew101_1');
+    expect(conferenceRoomArgs.unregisterSoftphone).toBe(unregisterLiveSoftphone);
+    expect(conferenceRoomArgs.restoreSoftphone).toBe(restoreLiveSoftphone);
 
     await user.click(screen.getByRole('button', { name: 'start' }));
     expect(enterSession).toHaveBeenCalledWith(expect.objectContaining({

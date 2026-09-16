@@ -1,10 +1,22 @@
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
+import {
+  unregisterLiveSoftphone,
+  restoreLiveSoftphone,
+} from '@/features/callcenter/lib/softphoneParkBridge';
 
+const here = dirname(fileURLToPath(import.meta.url));
 const useIsMobileMock = vi.fn((_bp?: number) => false);
+const { phoneDisconnect, phoneEnsureConnected } = vi.hoisted(() => ({
+  phoneDisconnect: vi.fn(),
+  phoneEnsureConnected: vi.fn(),
+}));
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -32,8 +44,8 @@ vi.mock('@/features/callcenter/lib/useWebRTCPhone', () => ({
     isHeld: false,
     callInfo: null,
     connect: vi.fn(),
-    disconnect: vi.fn(),
-    ensureConnected: vi.fn(),
+    disconnect: phoneDisconnect,
+    ensureConnected: phoneEnsureConnected,
     acceptCall: vi.fn(),
     rejectCall: vi.fn(),
     hangup: vi.fn(),
@@ -222,6 +234,8 @@ const store = configureStore({
 describe('CallCenterAgentPage hybrid orchestrator (D-04/D-07)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    phoneDisconnect.mockClear();
+    phoneEnsureConnected.mockClear();
     useIsMobileMock.mockReturnValue(false);
   });
 
@@ -237,6 +251,26 @@ describe('CallCenterAgentPage hybrid orchestrator (D-04/D-07)', () => {
     expect(screen.getByTestId('queues-tab-stub')).toBeInTheDocument();
     expect(screen.getByTestId('waiting-tab-stub')).toBeInTheDocument();
     expect(useIsMobileMock).toHaveBeenCalledWith(768);
+  });
+
+  it('binds softphone park to disconnect and ensureConnected(true)', async () => {
+    const source = readFileSync(resolve(here, './CallCenterAgentPage.tsx'), 'utf8');
+    expect(source).toMatch(/bindSoftphonePark/);
+    expect(source).toMatch(/unbindSoftphonePark/);
+    expect(source).toMatch(/phone\.disconnect/);
+    expect(source).toMatch(/ensureConnected\(true\)/);
+
+    render(
+      <Provider store={store}>
+        <CallCenterAgentPage />
+      </Provider>,
+    );
+    phoneDisconnect.mockClear();
+    phoneEnsureConnected.mockClear();
+    await unregisterLiveSoftphone();
+    expect(phoneDisconnect).toHaveBeenCalled();
+    await restoreLiveSoftphone();
+    expect(phoneEnsureConnected).toHaveBeenCalledWith(true);
   });
 
   it('renders the shared Tabs component on phone with Waiting selected by default (D-07)', () => {
