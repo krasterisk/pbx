@@ -3,9 +3,12 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { HttpException, HttpStatus, NotFoundException } from '@nestjs/common';
 import { UniqueConstraintError } from 'sequelize';
+import { Sequelize } from 'sequelize-typescript';
 import { DialplanApplyService } from '../ami/dialplan-apply.service';
 import { ConferenceRoomsService } from './conference-rooms.service';
 import { ConferenceStateService } from './conference-state.service';
+import { ConferenceRoom } from './models/conference-room.model';
+import { CONFERENCE_SCHEMA_STATEMENTS } from './setup-conferences-schema';
 
 const VPBX = 42;
 const ROOM_UID = 77;
@@ -220,6 +223,141 @@ describe('ConferenceRoomsService CRUD (16-02)', () => {
       expect(transaction.commit).toHaveBeenCalled();
       expect(transaction.rollback).not.toHaveBeenCalled();
       expect(result).toEqual({ success: true });
+    });
+  });
+
+  describe('assertLiveRoomAccess (D-17)', () => {
+    let modelSequelize: Sequelize;
+    let loggerService: { logAction: jest.Mock };
+
+    beforeAll(() => {
+      modelSequelize = new Sequelize({
+        dialect: 'mysql',
+        host: '127.0.0.1',
+        username: 'x',
+        password: 'x',
+        database: 'x',
+        logging: false,
+        models: [ConferenceRoom],
+      });
+    });
+
+    afterAll(async () => {
+      await modelSequelize.close();
+    });
+
+    function roomFromAttributes(overrides: Record<string, unknown> = {}) {
+      const attrs = ConferenceRoom.getAttributes();
+      expect(Object.keys(attrs)).toContain('created_by');
+      const roomsSql = CONFERENCE_SCHEMA_STATEMENTS.find((sql) =>
+        sql.includes('`conference_rooms`'),
+      );
+      expect(roomsSql).toBeDefined();
+      expect(roomsSql).toContain('`created_by`');
+
+      const defaults: Record<string, unknown> = {
+        uid: ROOM_UID,
+        user_uid: VPBX,
+        number: ROOM_NUMBER,
+        name: 'Sales conf',
+        kind: 'permanent',
+        created_by: null,
+      };
+      const data: Record<string, unknown> = {};
+      for (const key of Object.keys(attrs)) {
+        data[key] = key in overrides ? overrides[key] : (defaults[key] ?? null);
+      }
+      return {
+        ...data,
+        toJSON: () => ({ ...data }),
+      };
+    }
+
+    beforeEach(() => {
+      loggerService = { logAction: jest.fn().mockResolvedValue(undefined) };
+      service = new ConferenceRoomsService(
+        roomModel as any,
+        sequelize as any,
+        dialplanApplyService as unknown as DialplanApplyService,
+        stateService,
+        loggerService as any,
+      );
+    });
+
+    it('writes logAction once when created_by is another portal user', async () => {
+      roomModel.findOne.mockResolvedValue(roomFromAttributes({ created_by: 7 }));
+
+      await service.assertLiveRoomAccess(ROOM_UID, { sub: 5, vpbx_user_uid: VPBX });
+
+      expect(loggerService.logAction).toHaveBeenCalledTimes(1);
+      const args = loggerService.logAction.mock.calls[0];
+      expect(args).toEqual(expect.arrayContaining([5, ROOM_UID]));
+      expect(args[0]).toBe(5);
+      expect(args).toContain(ROOM_UID);
+    });
+
+    it('does not write audit when created_by equals the visitor sub', async () => {
+      roomModel.findOne.mockResolvedValue(roomFromAttributes({ created_by: 7 }));
+
+      await service.assertLiveRoomAccess(ROOM_UID, { sub: 7, vpbx_user_uid: VPBX });
+
+      expect(loggerService.logAction).not.toHaveBeenCalled();
+    });
+
+    it('audits another admin entering an operator ephemeral room, not the operator', async () => {
+      roomModel.findOne.mockResolvedValue(
+        roomFromAttributes({ kind: 'ephemeral', created_by: 7 }),
+      );
+
+      await service.assertLiveRoomAccess(ROOM_UID, { sub: 5, vpbx_user_uid: VPBX });
+      expect(loggerService.logAction).toHaveBeenCalledTimes(1);
+
+      loggerService.logAction.mockClear();
+      await service.assertLiveRoomAccess(ROOM_UID, { sub: 7, vpbx_user_uid: VPBX });
+      expect(loggerService.logAction).not.toHaveBeenCalled();
+    });
+
+    it('does not write audit when created_by is null', async () => {
+      roomModel.findOne.mockResolvedValue(roomFromAttributes({ created_by: null }));
+
+      await service.assertLiveRoomAccess(ROOM_UID, { sub: 5, vpbx_user_uid: VPBX });
+
+      expect(loggerService.logAction).not.toHaveBeenCalled();
+    });
+
+    it('throws NotFoundException for a foreign tenant and never audits', async () => {
+      roomModel.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.assertLiveRoomAccess(ROOM_UID, { sub: 5, vpbx_user_uid: 99 }),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(loggerService.logAction).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('live-room wiring (D-03 / D-17)', () => {
+    it('SSE endpoint calls assertLiveRoomAccess before forming the stream', () => {
+      const src = fs.readFileSync(
+        path.resolve(__dirname, 'conference-sse.controller.ts'),
+        'utf8',
+      );
+      expect(src).toContain('assertLiveRoomAccess');
+      expect(src.indexOf('assertLiveRoomAccess')).toBeLessThan(src.indexOf('startWith'));
+      expect(src).toContain('startWith');
+      expect(src).toMatch(/heartbeat/);
+    });
+
+    it('addToConference takes the room name from ensureRoomForCall, not uniqueid', () => {
+      const src = fs.readFileSync(
+        path.resolve(__dirname, '../callcenter/callcenter.service.ts'),
+        'utf8',
+      );
+      const start = src.indexOf('async addToConference');
+      const end = src.indexOf('async resetZombieCall');
+      const method = src.slice(start, end);
+      expect(method).toMatch(/ensureRoomForCall\(\s*uniqueid\s*,\s*userUid\s*,\s*userId\s*\)/);
+      expect(method).not.toMatch(/uniqueid\.replace/);
+      expect(method).toMatch(/addToConference\(\s*uniqueid:\s*string,\s*target:\s*string,\s*userUid:\s*number,\s*userId:\s*number\s*\)/);
     });
   });
 });

@@ -162,6 +162,13 @@ describe('CallCenterService', () => {
     getPresence: jest.fn().mockReturnValue(undefined),
     handleDeviceStateChange: jest.fn(),
   };
+  const conferenceEphemeral: any = {
+    ensureRoomForCall: jest.fn().mockResolvedValue({
+      roomUid: 88,
+      contextName: 'krsk-conf-88',
+      asteriskName: 'confU1_7',
+    }),
+  };
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -216,6 +223,7 @@ describe('CallCenterService', () => {
       operatorSettingsModel,
       accessListService,
       shiftRestore,
+      conferenceEphemeral,
     );
   });
 
@@ -1309,7 +1317,7 @@ describe('CallCenterService', () => {
       await expect(service.addToConference('U1', '201', 7, 42)).rejects.toBeInstanceOf(BadRequestException);
     });
 
-    it('redirects both bridged legs into the same ConfBridge room and originates the target', async () => {
+    it('redirects both bridged legs into the ephemeral room context from ensureRoomForCall', async () => {
       await service.agentLogin('PJSIP/101', ['sales'], 7, 42);
       state.setCall('U1', {
         userUid: 7, queue: 'sales', status: 'TALKING',
@@ -1318,22 +1326,27 @@ describe('CallCenterService', () => {
 
       const res = await service.addToConference('U1', 'PJSIP/201', 7, 42);
 
-      expect(res).toEqual({ success: true, room: 'U1', target: '201' });
+      expect(conferenceEphemeral.ensureRoomForCall).toHaveBeenCalledWith('U1', 7, 42);
+      expect(conferenceEphemeral.ensureRoomForCall.mock.calls[0][2]).toBe(42);
+      expect(res).toEqual({ success: true, room: 'krsk-conf-88', target: '201' });
       expect(ami.action).toHaveBeenCalledWith(
         expect.objectContaining({
           action: 'Redirect',
           channel: 'PJSIP/trunk-1',
           extrachannel: 'PJSIP/101-1',
-          exten: 'ConfBridge(U1)',
-          context: 'from-internal7',
-          extracontext: 'from-internal7',
+          context: 'krsk-conf-88',
+          exten: 's',
+          priority: '1',
+          extracontext: 'krsk-conf-88',
+          extraexten: 's',
+          extrapriority: '1',
         }),
       );
       expect(ami.originate).toHaveBeenCalledWith(
         'PJSIP/201',
         expect.stringContaining('Conference'),
-        'from-internal7',
-        'ConfBridge(U1)',
+        'krsk-conf-88',
+        's',
       );
       expect(state.getCall('U1')?.status).toBe('TALKING');
     });
