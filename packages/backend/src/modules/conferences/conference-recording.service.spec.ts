@@ -1,0 +1,148 @@
+import * as fs from 'fs';
+import * as os from 'os';
+import * as path from 'path';
+import { PassThrough } from 'stream';
+import { ConferenceRecordingService } from './conference-recording.service';
+import { ConferenceStateService } from './conference-state.service';
+
+const VPBX = 42;
+const ROOM_UID = 77;
+const MEETING_UID = 15;
+
+function room(overrides: Record<string, unknown> = {}) {
+  return {
+    uid: ROOM_UID,
+    number: '6007',
+    user_uid: VPBX,
+    record_mode: 'button',
+    ...overrides,
+  };
+}
+
+function meeting(overrides: Record<string, unknown> = {}) {
+  const row = {
+    uid: MEETING_UID,
+    room_uid: ROOM_UID,
+    has_recording: false,
+    recording_file_rel: null as string | null,
+    update: jest.fn(async (patch: Record<string, unknown>) => Object.assign(row, patch)),
+    ...overrides,
+  };
+  return row;
+}
+
+describe('ConferenceRecordingService.startForMeeting (16.2-01 D-31)', () => {
+  let base: string;
+  let ami: { action: jest.Mock };
+  let settings: { getServerConfigRaw: jest.Mock };
+  let state: ConferenceStateService;
+  let rooms: { findOne: jest.Mock };
+  let meetings: { currentMeeting: jest.Mock };
+  let service: ConferenceRecordingService;
+
+  beforeEach(() => {
+    base = fs.mkdtempSync(path.join(os.tmpdir(), 'conf-rec-svc-'));
+    ami = { action: jest.fn().mockResolvedValue({ response: 'Success' }) };
+    settings = {
+      getServerConfigRaw: jest.fn().mockResolvedValue({ records_base_path: base }),
+    };
+    state = new ConferenceStateService();
+    state.registerRoom({ uid: ROOM_UID, number: '6007', user_uid: VPBX });
+    rooms = { findOne: jest.fn() };
+    meetings = { currentMeeting: jest.fn() };
+    service = new ConferenceRecordingService(
+      ami as never,
+      settings as never,
+      state,
+      rooms as never,
+      meetings as never,
+    );
+  });
+
+  afterEach(() => {
+    fs.rmSync(base, { recursive: true, force: true });
+  });
+
+  it('does not read record_mode and still starts AMI for a button room', async () => {
+    const row = meeting();
+    await service.startForMeeting(room({ record_mode: 'button' }) as never, row as never, {
+      vpbx_user_uid: VPBX,
+    });
+    expect(ami.action).toHaveBeenCalledTimes(1);
+    expect(ami.action.mock.calls[0][0]).toEqual({
+      action: 'ConfbridgeStartRecord',
+      conference: 'conf6007_42',
+      recordFile: path.join(base, '42/conferences/77/15.wav'),
+    });
+    expect(Object.keys(ami.action.mock.calls[0][0])).not.toContain('RecordFile');
+    expect(row.recording_file_rel).toBe('42/conferences/77/15.wav');
+    expect(row.has_recording).toBe(true);
+    expect(fs.existsSync(path.join(base, '42', 'conferences', '77'))).toBe(true);
+    expect(state.getSnapshot(ROOM_UID).recording).toBe(true);
+  });
+
+  it('returns without a second AMI when snapshot.recording is already true', async () => {
+    state.setRecording(ROOM_UID, true);
+    await service.startForMeeting(room() as never, meeting() as never, { vpbx_user_uid: VPBX });
+    expect(ami.action).not.toHaveBeenCalled();
+  });
+
+  it('treats an already-recording AMI error as success and sets the flag', async () => {
+    ami.action.mockRejectedValue(new Error('Conference already recording'));
+    await service.startForMeeting(room() as never, meeting() as never, { vpbx_user_uid: VPBX });
+    expect(state.getSnapshot(ROOM_UID).recording).toBe(true);
+  });
+});
+
+describe('ConferenceRecordingService.streamMeeting (16.2-01 D-30)', () => {
+  let base: string;
+  let service: ConferenceRecordingService;
+
+  beforeEach(() => {
+    base = fs.mkdtempSync(path.join(os.tmpdir(), 'conf-rec-play-'));
+    const dest = path.join(base, '42', 'conferences', '77');
+    fs.mkdirSync(dest, { recursive: true });
+    fs.writeFileSync(path.join(dest, '15.wav'), Buffer.alloc(32, 7));
+    const rooms = {
+      findOne: jest.fn().mockResolvedValue(room()),
+    };
+    const meetings = {
+      getByRoom: jest.fn().mockResolvedValue({
+        uid: MEETING_UID,
+        room_uid: ROOM_UID,
+        recording_file_rel: '42/conferences/77/15.wav',
+      }),
+    };
+    const state = new ConferenceStateService();
+    service = new ConferenceRecordingService(
+      { action: jest.fn() } as never,
+      { getServerConfigRaw: jest.fn().mockResolvedValue({ records_base_path: base }) } as never,
+      state,
+      rooms as never,
+      meetings as never,
+    );
+  });
+
+  afterEach(() => {
+    fs.rmSync(base, { recursive: true, force: true });
+  });
+
+  it('Range bytes=0-1 returns 206 with Content-Type audio/wav', async () => {
+    const headers: Record<string, string | number> = {};
+    const res = Object.assign(new PassThrough(), {
+      setHeader: jest.fn((k: string, v: string | number) => {
+        headers[k] = v;
+      }),
+      status: jest.fn().mockReturnThis(),
+      headersSent: false,
+      end: jest.fn(),
+    });
+    const req = { headers: { range: 'bytes=0-1' }, query: {} };
+
+    await service.streamMeeting(ROOM_UID, MEETING_UID, VPBX, req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(206);
+    expect(headers['Content-Type']).toBe('audio/wav');
+    expect(headers['Accept-Ranges']).toBe('bytes');
+  });
+});

@@ -357,6 +357,86 @@ describe('ConferenceParticipantController self display name (16.1-06 D-40)', () 
   });
 });
 
+describe('ConferenceStateService recording flag (16.2-01)', () => {
+  let state: ConferenceStateService;
+
+  beforeEach(() => {
+    state = new ConferenceStateService();
+    state.registerRoom({ uid: ROOM_UID, number: '6007', user_uid: 42 });
+  });
+
+  it('snapshot.recording defaults to false', () => {
+    expect(state.getSnapshot(ROOM_UID).recording).toBe(false);
+  });
+
+  it('setRecording flips the flag and emits one room event', () => {
+    const events: unknown[] = [];
+    const sub = state.getEventStream(ROOM_UID).subscribe((event) => events.push(event));
+    state.setRecording(ROOM_UID, true);
+    expect(state.getSnapshot(ROOM_UID).recording).toBe(true);
+    expect(events).toHaveLength(1);
+    sub.unsubscribe();
+  });
+
+  it('first auto join persist calls beginMeeting then startForMeeting via ModuleRef', async () => {
+    const meetings = {
+      beginMeeting: jest.fn().mockResolvedValue({
+        meeting: { uid: 15 },
+        room: { uid: ROOM_UID, number: '6007', user_uid: 42, record_mode: 'auto' },
+        isFirstJoin: true,
+      }),
+    };
+    const recording = { startForMeeting: jest.fn().mockResolvedValue(undefined) };
+    const moduleRef = {
+      get: jest.fn((token: { name?: string }) => {
+        const name = typeof token === 'function' ? token.name : token?.name;
+        if (name === 'ConferenceMeetingsService') return meetings;
+        if (name === 'ConferenceRecordingService') return recording;
+        return undefined;
+      }),
+    };
+    const wired = new ConferenceStateService(moduleRef as never);
+    wired.registerRoom({ uid: ROOM_UID, number: '6007', user_uid: 42 });
+    await wired.handleJoin(joinEvt({ Channel: 'PJSIP/601-00000001', CallerIDNum: '601' }));
+    expect(meetings.beginMeeting).toHaveBeenCalledTimes(1);
+    expect(recording.startForMeeting).toHaveBeenCalledTimes(1);
+  });
+
+  it('button and off first joins persist the meeting but do not auto-start', async () => {
+    const meetings = {
+      beginMeeting: jest.fn().mockResolvedValue({
+        meeting: { uid: 15 },
+        room: { uid: ROOM_UID, number: '6007', user_uid: 42, record_mode: 'button' },
+        isFirstJoin: true,
+      }),
+    };
+    const recording = { startForMeeting: jest.fn().mockResolvedValue(undefined) };
+    const moduleRef = {
+      get: jest.fn((token: { name?: string }) => {
+        const name = typeof token === 'function' ? token.name : token?.name;
+        if (name === 'ConferenceMeetingsService') return meetings;
+        if (name === 'ConferenceRecordingService') return recording;
+        return undefined;
+      }),
+    };
+    const wired = new ConferenceStateService(moduleRef as never);
+    wired.registerRoom({ uid: ROOM_UID, number: '6007', user_uid: 42 });
+    await wired.handleJoin(joinEvt({ Channel: 'PJSIP/601-00000001', CallerIDNum: '601' }));
+    expect(meetings.beginMeeting).toHaveBeenCalledTimes(1);
+    expect(recording.startForMeeting).not.toHaveBeenCalled();
+
+    meetings.beginMeeting.mockResolvedValue({
+      meeting: { uid: 16 },
+      room: { uid: ROOM_UID, number: '6007', user_uid: 42, record_mode: 'off' },
+      isFirstJoin: true,
+    });
+    const off = new ConferenceStateService(moduleRef as never);
+    off.registerRoom({ uid: ROOM_UID, number: '6007', user_uid: 42 });
+    await off.handleJoin(joinEvt({ Channel: 'PJSIP/777-00000001', CallerIDNum: '777' }));
+    expect(recording.startForMeeting).not.toHaveBeenCalled();
+  });
+});
+
 describe('ConferenceParticipantController self video (16-07)', () => {
   const caller = { sub: 5, vpbx_user_uid: 42 };
 
