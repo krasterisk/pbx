@@ -1,6 +1,11 @@
 import { AsteriskDialplanUtils } from '../../shared/utils/dialplan.util';
 import { normalizeTarget } from '../../shared/utils/dialplan-target.util';
 import type { GeneratedDialplanCategory } from '../call-groups/call-group-dialplan.util';
+import {
+  conferenceEntryPolicy,
+  type ConferenceEntryPolicy,
+  type ConferenceEntryStrictness,
+} from './conference-entry-policy.util';
 import { CONFBRIDGE_ROLE_FLAGS, type ConferenceRole } from './conference-roles.util';
 
 export const CONFBRIDGE_BRIDGE_PROFILE = 'krsk_conf_sfu';
@@ -60,6 +65,7 @@ export interface ConferenceDialplanRoom {
   uid: number;
   number: string;
   name?: string | null;
+  entry_strictness?: ConferenceEntryStrictness | null;
   pin?: string | null;
   wait_marked?: boolean | number | null;
   end_marked?: boolean | number | null;
@@ -94,15 +100,10 @@ function emitFilledSettings(room: ConferenceDialplanRoom): string[] {
       lines.push(`same => n,Set(CONFBRIDGE(bridge,record_conference)=${mode === 'auto' || mode === 'both' ? 'yes' : mode})`);
     }
   }
-  const pin = filledText(room.pin ?? undefined);
+  const policy = conferenceEntryPolicy(room);
+  const pin = policy.requiresPin ? filledText(policy.pin) : '';
   if (pin) {
     lines.push(`same => n,Set(CONFBRIDGE(user,pin)=${pin})`);
-  }
-  if (isFilledFlag(room.wait_marked)) {
-    lines.push('same => n,Set(CONFBRIDGE(user,wait_marked)=yes)');
-  }
-  if (isFilledFlag(room.end_marked)) {
-    lines.push('same => n,Set(CONFBRIDGE(user,end_marked)=yes)');
   }
   const moh = filledText(room.musiconhold ?? undefined);
   if (moh) {
@@ -144,6 +145,21 @@ function emitPermanentRights(rights: ConferencePermanentRight[]): string[] {
   return lines;
 }
 
+function emitParticipantMarkedPolicy(policy: ConferenceEntryPolicy): string[] {
+  const lines: string[] = [];
+  if (policy.requiresWaitMarked) {
+    lines.push(
+      'same => n,ExecIf($["${CONF_ROLE}" = "participant"]?Set(CONFBRIDGE(user,wait_marked)=yes))',
+    );
+  }
+  if (policy.requiresEndMarked) {
+    lines.push(
+      'same => n,ExecIf($["${CONF_ROLE}" = "participant"]?Set(CONFBRIDGE(user,end_marked)=yes))',
+    );
+  }
+  return lines;
+}
+
 export function generateConferenceDialplan(
   room: ConferenceDialplanRoom,
   vpbx: number,
@@ -152,13 +168,22 @@ export function generateConferenceDialplan(
   const name = conferenceRoomContextName(room.uid);
   const conference = normalizeTarget('conference', { source: 'fixed', value: room.number }, vpbx);
   const label = filledText(room.name) || conference;
+  const policy = conferenceEntryPolicy(room);
+  const rightsLines = emitPermanentRights(permanentRights);
+  const markedLines = emitParticipantMarkedPolicy(policy);
+  const roleStarter =
+    markedLines.length > 0 && rightsLines.length === 0
+      ? ['same => n,Set(CONF_ROLE=participant)']
+      : [];
   const lines: string[] = [
     `[${name}]`,
     `exten => s,1,NoOp(Conference room ${conference} ${label})`,
     'same => n,Answer()',
     `same => n,Set(CONFBRIDGE(bridge,template)=${CONFBRIDGE_BRIDGE_PROFILE})`,
     ...emitFilledSettings(room),
-    ...emitPermanentRights(permanentRights),
+    ...roleStarter,
+    ...rightsLines,
+    ...markedLines,
     `same => n,ConfBridge(${conference},${CONFBRIDGE_BRIDGE_PROFILE})`,
     'same => n,Hangup()',
   ];
