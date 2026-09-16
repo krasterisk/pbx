@@ -1,3 +1,4 @@
+import { Op } from 'sequelize';
 import { EndpointsService, NAT_ENDPOINT_DEFAULTS, WEBRTC_ENDPOINT_DEFAULTS } from './endpoints.service';
 
 function makeService() {
@@ -9,6 +10,7 @@ function makeService() {
     }),
     destroy: jest.fn().mockResolvedValue(1),
     findByPk: jest.fn().mockResolvedValue(null),
+    findAll: jest.fn().mockResolvedValue([]),
   };
   const authModel = {
     create: jest.fn().mockResolvedValue({}),
@@ -141,5 +143,62 @@ describe('EndpointsService WebRTC profile and companion allow (16.1-03)', () => 
     expect(id).toBe('ew100_1');
     expect(endpointModel.create).not.toHaveBeenCalled();
     expect(created).toHaveLength(0);
+  });
+});
+
+describe('EndpointsService.backfillWebrtcVideo (16.1-03)', () => {
+  it('raises ew* max_video_streams to 16 and appends vp8', async () => {
+    const companion = {
+      id: 'ew100_1',
+      max_video_streams: 1,
+      allow: 'ulaw,opus',
+      update: jest.fn().mockImplementation(async (patch: Record<string, unknown>) => {
+        Object.assign(companion, patch);
+      }),
+    };
+    const { service, endpointModel } = makeService();
+    endpointModel.findAll.mockResolvedValue([companion]);
+
+    await service.backfillWebrtcVideo();
+
+    expect(endpointModel.findAll).toHaveBeenCalledWith({
+      where: { id: { [Op.like]: 'ew%' } },
+    });
+    expect(companion.update).toHaveBeenCalled();
+    expect(companion.max_video_streams).toBe(16);
+    expect(String(companion.allow).toLowerCase()).toContain('vp8');
+  });
+
+  it('does not change primary e* rows', async () => {
+    const primary = {
+      id: 'e100_1',
+      max_video_streams: 1,
+      allow: 'ulaw,alaw',
+      update: jest.fn(),
+    };
+    const { service, endpointModel } = makeService();
+    endpointModel.findAll.mockResolvedValue([]);
+
+    await service.backfillWebrtcVideo();
+
+    expect(endpointModel.findAll).toHaveBeenCalledWith({
+      where: { id: { [Op.like]: 'ew%' } },
+    });
+    expect(primary.update).not.toHaveBeenCalled();
+  });
+
+  it('is idempotent when vp8 and 16 are already set', async () => {
+    const companion = {
+      id: 'ew100_1',
+      max_video_streams: 16,
+      allow: 'opus,ulaw,vp8',
+      update: jest.fn(),
+    };
+    const { service, endpointModel } = makeService();
+    endpointModel.findAll.mockResolvedValue([companion]);
+
+    await service.backfillWebrtcVideo();
+
+    expect(companion.update).not.toHaveBeenCalled();
   });
 });
