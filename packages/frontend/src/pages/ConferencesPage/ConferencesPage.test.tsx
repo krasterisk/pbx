@@ -24,7 +24,7 @@ vi.mock('@/features/conferences/model/slice/conferencesPageSlice', () => ({
   },
 }));
 
-vi.mock('@/features/conferences/ui/ConferencesTable/ConferencesTable', () => ({
+vi.mock('@/features/conferences/ui/ConferencesTable', () => ({
   ConferencesTable: () => <div data-testid="conferences-table-stub">conferences</div>,
 }));
 
