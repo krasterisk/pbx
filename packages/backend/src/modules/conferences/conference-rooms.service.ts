@@ -28,13 +28,18 @@ import {
 import { ConferenceRoom } from './models/conference-room.model';
 import { ConferenceRoomModerator } from './models/conference-room-moderator.model';
 import type { ConferencePermanentRight } from './conference-dialplan.util';
+import {
+  conferenceEntryPolicy,
+  type ConferenceEntryPolicyRoom,
+} from './conference-entry-policy.util';
 
 export type ConferenceRoomErrorCode =
   | 'CONFERENCE_ROOM_NOT_FOUND'
   | 'CONFERENCE_NUMBER_TAKEN'
   | 'CONFERENCE_NUMBER_INVALID'
   | 'CONFERENCE_OWNER_DUPLICATE'
-  | 'CONFERENCE_MODERATOR_DUPLICATE';
+  | 'CONFERENCE_MODERATOR_DUPLICATE'
+  | 'CONFERENCE_PIN_REQUIRED';
 
 export function conferenceRoomHttpError(
   status: HttpStatus,
@@ -107,6 +112,12 @@ export class ConferenceRoomsService {
     };
     delete data.user_uid;
     delete data.created_by;
+    this.assertEntryPolicyConsistent({
+      entry_strictness: dto.entry_strictness,
+      pin: dto.pin,
+      wait_marked: dto.wait_marked,
+      end_marked: dto.end_marked,
+    });
 
     const transaction = await this.sequelize.transaction();
     let committed = false;
@@ -170,6 +181,12 @@ export class ConferenceRoomsService {
     };
     delete data.user_uid;
     delete data.vpbx_user_uid;
+    this.assertEntryPolicyConsistent({
+      entry_strictness: dto.entry_strictness ?? room.entry_strictness,
+      pin: dto.pin !== undefined ? dto.pin : room.pin,
+      wait_marked: dto.wait_marked ?? room.wait_marked,
+      end_marked: dto.end_marked ?? room.end_marked,
+    });
     const updateData: Record<string, unknown> = { ...data };
     Object.keys(updateData).forEach((k) => {
       if (updateData[k] === undefined) delete updateData[k];
@@ -365,6 +382,15 @@ export class ConferenceRoomsService {
     }
 
     return this.getRoomModerators(roomUid, vpbx);
+  }
+
+  private assertEntryPolicyConsistent(nextRoomState: ConferenceEntryPolicyRoom): void {
+    if (!conferenceEntryPolicy(nextRoomState).pinRequiredButMissing) return;
+    throw conferenceRoomHttpError(
+      HttpStatus.BAD_REQUEST,
+      'CONFERENCE_PIN_REQUIRED',
+      'Conference PIN is required for this entry strictness',
+    );
   }
 
   private async requireTenantRoom(roomUid: number, vpbx: number): Promise<ConferenceRoom> {

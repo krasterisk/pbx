@@ -9,7 +9,10 @@ import {
   Max,
   Min,
 } from 'class-validator';
-import { CONFERENCE_ROOM_NUMBER_PATTERN } from './create-conference-room.dto';
+import {
+  CONFERENCE_PIN_PATTERN,
+  CONFERENCE_ROOM_NUMBER_PATTERN,
+} from './create-conference-room.dto';
 
 export class UpdateConferenceRoomDto {
   @IsOptional()
@@ -32,7 +35,7 @@ export class UpdateConferenceRoomDto {
 
   @IsOptional()
   @IsString()
-  @Length(1, 32)
+  @Matches(CONFERENCE_PIN_PATTERN)
   pin?: string | null;
 
   @IsOptional()

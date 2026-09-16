@@ -11,6 +11,7 @@ import {
 } from 'class-validator';
 
 export const CONFERENCE_ROOM_NUMBER_PATTERN = /^\d{1,32}$/;
+export const CONFERENCE_PIN_PATTERN = /^\d{4,32}$/;
 
 export class CreateConferenceRoomDto {
   @IsString()
@@ -31,7 +32,7 @@ export class CreateConferenceRoomDto {
 
   @IsOptional()
   @IsString()
-  @Length(1, 32)
+  @Matches(CONFERENCE_PIN_PATTERN)
   pin?: string | null;
 
   @IsOptional()
