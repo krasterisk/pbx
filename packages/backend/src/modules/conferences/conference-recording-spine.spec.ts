@@ -102,21 +102,13 @@ describe('conference recording spine (16.2-01)', () => {
       participantModel as never,
       rooms as never,
     );
-    recording = new ConferenceRecordingService(
-      ami as never,
-      { getServerConfigRaw: jest.fn().mockResolvedValue({ records_base_path: base }) } as never,
-      state,
-      rooms as never,
-      meetings,
-    );
-    const moduleRef = {
-      get: jest.fn((token: { name?: string }) => {
-        const name = typeof token === 'function' ? token.name : token?.name;
-        if (name === 'ConferenceMeetingsService') return meetings;
-        if (name === 'ConferenceRecordingService') return recording;
-        return undefined;
-      }),
+    const resolveToken = (token: { name?: string } | string) => {
+      const name = typeof token === 'function' ? token.name : String(token);
+      if (name === 'ConferenceMeetingsService') return meetings;
+      if (name === 'ConferenceRecordingService') return recording;
+      return undefined;
     };
+    const moduleRef = { get: jest.fn(resolveToken) };
     state = new ConferenceStateService(moduleRef as never);
     state.registerRoom({ uid: ROOM_UID, number: ROOM_NUMBER, user_uid: VPBX });
     recording = new ConferenceRecordingService(
@@ -126,12 +118,7 @@ describe('conference recording spine (16.2-01)', () => {
       rooms as never,
       meetings,
     );
-    moduleRef.get.mockImplementation((token: { name?: string }) => {
-      const name = typeof token === 'function' ? token.name : token?.name;
-      if (name === 'ConferenceMeetingsService') return meetings;
-      if (name === 'ConferenceRecordingService') return recording;
-      return undefined;
-    });
+    moduleRef.get.mockImplementation(resolveToken);
     controller = new ConferenceRecordingController(rooms as never, recording);
   }
 

@@ -388,8 +388,8 @@ describe('ConferenceStateService recording flag (16.2-01)', () => {
     };
     const recording = { startForMeeting: jest.fn().mockResolvedValue(undefined) };
     const moduleRef = {
-      get: jest.fn((token: { name?: string }) => {
-        const name = typeof token === 'function' ? token.name : token?.name;
+      get: jest.fn((token: { name?: string } | string) => {
+        const name = typeof token === 'function' ? token.name : String(token);
         if (name === 'ConferenceMeetingsService') return meetings;
         if (name === 'ConferenceRecordingService') return recording;
         return undefined;
@@ -412,8 +412,8 @@ describe('ConferenceStateService recording flag (16.2-01)', () => {
     };
     const recording = { startForMeeting: jest.fn().mockResolvedValue(undefined) };
     const moduleRef = {
-      get: jest.fn((token: { name?: string }) => {
-        const name = typeof token === 'function' ? token.name : token?.name;
+      get: jest.fn((token: { name?: string } | string) => {
+        const name = typeof token === 'function' ? token.name : String(token);
         if (name === 'ConferenceMeetingsService') return meetings;
         if (name === 'ConferenceRecordingService') return recording;
         return undefined;

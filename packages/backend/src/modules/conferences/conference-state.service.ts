@@ -39,6 +39,7 @@ export interface ConferenceRoomSnapshot {
   conference: string | null;
   participants: ConferenceParticipantState[];
   waitingForModerator: boolean;
+  recording: boolean;
 }
 
 export interface ConferenceEvent {
@@ -93,6 +94,7 @@ export class ConferenceStateService {
   private readonly roomRights = new Map<number, ConferenceRoomRights>();
   private readonly liveGrants = new Map<number, Map<string, ConferenceRole>>();
   private readonly rememberedNames = new Map<number, Map<string, string>>();
+  private readonly recordingByRoom = new Map<number, boolean>();
   private readonly hydrating = new Map<string, Promise<RoomCacheEntry | null>>();
 
   registerRoom(
@@ -171,7 +173,13 @@ export class ConferenceStateService {
       conference: this.conferenceByRoom.get(roomUid)?.conference ?? null,
       participants,
       waitingForModerator: this.computeWaitingForModerator(roomUid, participants),
+      recording: this.recordingByRoom.get(roomUid) ?? false,
     };
+  }
+
+  setRecording(roomUid: number, value: boolean): void {
+    this.recordingByRoom.set(roomUid, value);
+    this.emit(roomUid, 'recording');
   }
 
   getEventStream(roomUid: number): Observable<ConferenceEvent> {
@@ -224,11 +232,10 @@ export class ConferenceStateService {
     if (!channel) return;
     const resolved = this.resolveRoom(evt);
     if (resolved) {
-      this.applyJoin(resolved, evt, channel);
-      return;
+      return this.applyJoin(resolved, evt, channel);
     }
     return this.hydrateRoom(evt).then((entry) => {
-      if (entry) this.applyJoin(entry, evt, channel);
+      if (entry) return this.applyJoin(entry, evt, channel);
     });
   }
 
@@ -249,7 +256,7 @@ export class ConferenceStateService {
     resolved: RoomCacheEntry,
     evt: ConferenceAmiEvent,
     channel: string,
-  ): void {
+  ): void | Promise<void> {
     const members = this.membersFor(resolved.roomUid);
     const callerIdNum = amiString(evt, 'CallerIDNum');
     const remembered = this.rememberedNames.get(resolved.roomUid)?.get(callerIdNum);
@@ -265,6 +272,43 @@ export class ConferenceStateService {
     });
     this.touch(channel);
     this.emit(resolved.roomUid, 'participantJoin');
+    return this.persistJoin(resolved, evt);
+  }
+
+  private async persistJoin(resolved: RoomCacheEntry, evt: ConferenceAmiEvent): Promise<void> {
+    if (!this.moduleRef) return;
+    try {
+      const meetings = this.moduleRef.get<{
+        beginMeeting: (
+          roomUid: number,
+          vpbx: number,
+          event: ConferenceAmiEvent,
+        ) => Promise<{
+          meeting: unknown;
+          room: { record_mode?: string };
+          isFirstJoin: boolean;
+        }>;
+      }>('ConferenceMeetingsService', { strict: false });
+      if (!meetings?.beginMeeting) return;
+      const result = await meetings.beginMeeting(resolved.roomUid, resolved.vpbx, evt);
+      const mode = result?.room?.record_mode;
+      if (!result?.isFirstJoin || (mode !== 'auto' && mode !== 'both')) return;
+      const recording = this.moduleRef.get<{
+        startForMeeting: (
+          room: unknown,
+          meeting: unknown,
+          userLike: { vpbx_user_uid: number },
+        ) => Promise<void>;
+      }>('ConferenceRecordingService', { strict: false });
+      if (!recording?.startForMeeting) return;
+      await recording.startForMeeting(result.room, result.meeting, {
+        vpbx_user_uid: resolved.vpbx,
+      });
+    } catch (e: any) {
+      this.logger.error(
+        `Meeting persist failed for room ${resolved.roomUid}: ${e?.message || e}`,
+      );
+    }
   }
 
   private applyLeave(resolved: RoomCacheEntry, channel: string): void {
@@ -277,6 +321,7 @@ export class ConferenceStateService {
       this.rooms.delete(resolved.roomUid);
       this.liveGrants.delete(resolved.roomUid);
       this.rememberedNames.delete(resolved.roomUid);
+      this.recordingByRoom.delete(resolved.roomUid);
     }
     this.emit(resolved.roomUid, 'participantLeave');
     if (emptied) this.scheduleCollectIfEmpty(resolved.roomUid);

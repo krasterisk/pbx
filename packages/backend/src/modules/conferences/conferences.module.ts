@@ -5,8 +5,12 @@ import { EndpointsModule } from '../endpoints/endpoints.module';
 import { LoggerModule } from '../logger/logger.module';
 import { PsEndpoint } from '../endpoints/ps-endpoint.model';
 import { User } from '../users/user.model';
+import { SystemSettingsModule } from '../system-settings/system-settings.module';
 import { ConferenceCapacityService } from './conference-capacity.service';
 import { ConferenceInviteService } from './conference-invite.service';
+import { ConferenceMeetingsService } from './conference-meetings.service';
+import { ConferenceRecordingController } from './conference-recording.controller';
+import { ConferenceRecordingService } from './conference-recording.service';
 import { ConfbridgeStaticProfileService } from './confbridge-static-profile.service';
 import { ConferenceEphemeralService } from './conference-ephemeral.service';
 import { ConferenceGuestController } from './conference-guest.controller';
@@ -42,6 +46,7 @@ import { ConferenceRoom } from './models/conference-room.model';
     AmiModule,
     LoggerModule,
     EndpointsModule,
+    SystemSettingsModule,
   ],
   controllers: [
     ConferenceGuestWebrtcController,
@@ -50,9 +55,20 @@ import { ConferenceRoom } from './models/conference-room.model';
     ConferenceModerationController,
     ConferenceParticipantController,
     ConferenceSseController,
+    ConferenceRecordingController,
   ],
   providers: [
     ConferenceRoomsService,
+    ConferenceMeetingsService,
+    {
+      provide: 'ConferenceMeetingsService',
+      useExisting: ConferenceMeetingsService,
+    },
+    ConferenceRecordingService,
+    {
+      provide: 'ConferenceRecordingService',
+      useExisting: ConferenceRecordingService,
+    },
     ConferenceCapacityService,
     ConferenceInviteService,
     ConferenceGuestService,
@@ -77,6 +93,8 @@ import { ConferenceRoom } from './models/conference-room.model';
     ConferenceCapacityService,
     ConferenceStateService,
     ConferenceEphemeralService,
+    ConferenceMeetingsService,
+    ConferenceRecordingService,
   ],
 })
 export class ConferencesModule {}
