@@ -11,6 +11,7 @@ import { ContextsService } from '../contexts/contexts.service';
 import { CreateEndpointDto, BulkCreateEndpointDto } from './dto/create-endpoint.dto';
 import { LoggerService } from '../logger/logger.service';
 import { REDIS_CLIENT } from '../redis/redis.module';
+import { CONFERENCE_PLATFORM_CODECS } from '../conferences/conference-dialplan.util';
 import {
   buildSipId,
   buildWebrtcSipId,
@@ -110,6 +111,48 @@ export class EndpointsService {
    */
   generateSipPassword(length = 16): string {
     return this.generatePassword(length);
+  }
+
+  async createEphemeralGuestEndpoint(params: {
+    sipId: string;
+    password: string;
+    context: string;
+    vpbx: number;
+    maxVideoStreams: number;
+  }): Promise<void> {
+    await this.authModel.create({
+      id: params.sipId,
+      auth_type: 'userpass',
+      username: params.sipId,
+      password: params.password,
+    });
+    await this.aorModel.create({
+      id: params.sipId,
+      max_contacts: 1,
+      qualify_frequency: 60,
+      remove_existing: 'yes',
+    });
+    await this.endpointModel.create({
+      id: params.sipId,
+      tenantid: String(params.vpbx),
+      auth: params.sipId,
+      aors: params.sipId,
+      context: params.context,
+      callerid: null,
+      disallow: 'all',
+      allow: CONFERENCE_PLATFORM_CODECS.join(','),
+      transport: 'transport-wss',
+      dtmf_mode: 'auto',
+      ...(NAT_PROFILES.webrtc as any),
+      max_video_streams: params.maxVideoStreams,
+    });
+  }
+
+  async destroyEphemeralGuestEndpoint(sipId: string, vpbx: number): Promise<void> {
+    await this.contactModel.destroy({ where: { endpoint: sipId } });
+    await this.endpointModel.destroy({ where: { id: sipId, tenantid: String(vpbx) } });
+    await this.authModel.destroy({ where: { id: sipId } });
+    await this.aorModel.destroy({ where: { id: sipId } });
   }
 
   /**

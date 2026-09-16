@@ -35,6 +35,12 @@ export class ConferenceGuestToken extends Model {
   @Column({ type: DataType.DATE, allowNull: true })
   declare last_used_at: Date | null;
 
+  @Column({ type: DataType.STRING(64), allowNull: true })
+  declare display_name: string | null;
+
+  @Column({ type: DataType.STRING(64), allowNull: true })
+  declare sip_id: string | null;
+
   @Column({ type: DataType.DATE, allowNull: false, defaultValue: DataType.NOW })
   declare created_at: Date;
 }

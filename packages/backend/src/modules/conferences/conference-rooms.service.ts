@@ -5,6 +5,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { UniqueConstraintError } from 'sequelize';
@@ -39,7 +40,15 @@ export type ConferenceRoomErrorCode =
   | 'CONFERENCE_NUMBER_INVALID'
   | 'CONFERENCE_OWNER_DUPLICATE'
   | 'CONFERENCE_MODERATOR_DUPLICATE'
-  | 'CONFERENCE_PIN_REQUIRED';
+  | 'CONFERENCE_PIN_REQUIRED'
+  | 'CONFERENCE_ROOM_FULL'
+  | 'CONFERENCE_GUEST_TOKEN_REVOKED'
+  | 'CONFERENCE_GUEST_TOKEN_EXPIRED'
+  | 'CONFERENCE_GUEST_TOKEN_INVALID'
+  | 'CONFERENCE_PIN_WRONG'
+  | 'CONFERENCE_DISPLAY_NAME_REQUIRED'
+  | 'CONFERENCE_INVITE_EXTERNAL_FORBIDDEN'
+  | 'CONFERENCE_INVITE_FAILED';
 
 export function conferenceRoomHttpError(
   status: HttpStatus,
@@ -49,6 +58,7 @@ export function conferenceRoomHttpError(
 ): HttpException {
   const body = { code, message, params };
   if (status === HttpStatus.CONFLICT) return new ConflictException(body);
+  if (status === HttpStatus.UNAUTHORIZED) return new UnauthorizedException(body);
   if (status === HttpStatus.BAD_REQUEST) return new HttpException(body, status);
   if (status === HttpStatus.NOT_FOUND) return new NotFoundException(body);
   return new HttpException(body, status);
