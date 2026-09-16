@@ -2,6 +2,8 @@ import 'reflect-metadata';
 import * as fs from 'fs';
 import * as path from 'path';
 import { HttpException, HttpStatus, NotFoundException } from '@nestjs/common';
+import { plainToInstance } from 'class-transformer';
+import { validate } from 'class-validator';
 import { UniqueConstraintError } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { DialplanApplyService } from '../ami/dialplan-apply.service';
@@ -417,4 +419,172 @@ describe('ConferenceRoomsService CRUD (16-02)', () => {
       );
     });
   });
+
+  describe('permanent room moderators (16-05)', () => {
+    let moderatorModel: {
+      findAll: jest.Mock;
+      destroy: jest.Mock;
+      bulkCreate: jest.Mock;
+    };
+
+    function buildService() {
+      return new ConferenceRoomsService(
+        roomModel as any,
+        sequelize as any,
+        dialplanApplyService as unknown as DialplanApplyService,
+        stateService,
+        { logAction: jest.fn() } as any,
+        moderatorModel as any,
+      );
+    }
+
+    beforeEach(() => {
+      moderatorModel = {
+        findAll: jest.fn().mockResolvedValue([]),
+        destroy: jest.fn().mockResolvedValue(0),
+        bulkCreate: jest.fn().mockImplementation(async (rows: unknown[]) => rows),
+      };
+      service = buildService();
+    });
+
+    it('replaces rights and applies dialplan once', async () => {
+      const room = roomRow();
+      roomModel.findOne.mockResolvedValue(room);
+      roomModel.findAll.mockResolvedValue([room]);
+      moderatorModel.findAll.mockResolvedValue([{ endpoint_ref: '601', role: 'owner' }]);
+
+      await service.setRoomModerators(
+        ROOM_UID,
+        { moderators: [{ endpointRef: '601', role: 'owner' }] },
+        VPBX,
+      );
+
+      expect(moderatorModel.destroy).toHaveBeenCalledTimes(1);
+      expect(moderatorModel.bulkCreate).toHaveBeenCalledTimes(1);
+      expect(dialplanApplyService.applyCategories).toHaveBeenCalledTimes(1);
+    });
+
+    it('throws NotFoundException for a foreign tenant and writes nothing', async () => {
+      roomModel.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.setRoomModerators(
+          ROOM_UID,
+          { moderators: [{ endpointRef: '601', role: 'owner' }] },
+          99,
+        ),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(moderatorModel.destroy).not.toHaveBeenCalled();
+      expect(moderatorModel.bulkCreate).not.toHaveBeenCalled();
+      expect(dialplanApplyService.applyCategories).not.toHaveBeenCalled();
+    });
+
+    it('rejects two owner rows with CONFERENCE_OWNER_DUPLICATE', async () => {
+      const room = roomRow();
+      roomModel.findOne.mockResolvedValue(room);
+
+      try {
+        await service.setRoomModerators(
+          ROOM_UID,
+          {
+            moderators: [
+              { endpointRef: '601', role: 'owner' },
+              { endpointRef: '602', role: 'owner' },
+            ],
+          },
+          VPBX,
+        );
+        throw new Error('expected CONFERENCE_OWNER_DUPLICATE');
+      } catch (err) {
+        expect(err).toBeInstanceOf(HttpException);
+        expect([400, 409]).toContain((err as HttpException).getStatus());
+        expect((err as HttpException).getResponse()).toMatchObject({
+          code: 'CONFERENCE_OWNER_DUPLICATE',
+        });
+      }
+      expect(moderatorModel.destroy).not.toHaveBeenCalled();
+      expect(dialplanApplyService.applyCategories).not.toHaveBeenCalled();
+    });
+
+    it('rejects a repeated endpointRef with CONFERENCE_MODERATOR_DUPLICATE', async () => {
+      const room = roomRow();
+      roomModel.findOne.mockResolvedValue(room);
+
+      try {
+        await service.setRoomModerators(
+          ROOM_UID,
+          {
+            moderators: [
+              { endpointRef: '601', role: 'owner' },
+              { endpointRef: '601', role: 'moderator' },
+            ],
+          },
+          VPBX,
+        );
+        throw new Error('expected CONFERENCE_MODERATOR_DUPLICATE');
+      } catch (err) {
+        expect(err).toBeInstanceOf(HttpException);
+        expect((err as HttpException).getResponse()).toMatchObject({
+          code: 'CONFERENCE_MODERATOR_DUPLICATE',
+        });
+      }
+    });
+
+    it('accepts an empty list and leaves zero child rows', async () => {
+      const room = roomRow();
+      roomModel.findOne.mockResolvedValue(room);
+      roomModel.findAll.mockResolvedValue([room]);
+
+      await service.setRoomModerators(ROOM_UID, { moderators: [] }, VPBX);
+
+      expect(moderatorModel.destroy).toHaveBeenCalledTimes(1);
+      expect(moderatorModel.bulkCreate).not.toHaveBeenCalled();
+      expect(dialplanApplyService.applyCategories).toHaveBeenCalledTimes(1);
+    });
+
+    it('returns stored endpointRef and role from getRoomModerators', async () => {
+      const room = roomRow();
+      roomModel.findOne.mockResolvedValue(room);
+      moderatorModel.findAll.mockResolvedValue([
+        { endpoint_ref: '601', role: 'owner', toJSON: () => ({ endpoint_ref: '601', role: 'owner' }) },
+      ]);
+
+      const result = await service.getRoomModerators(ROOM_UID, VPBX);
+
+      expect(result).toEqual([{ endpointRef: '601', role: 'owner' }]);
+    });
+
+    it('rejects ConferenceModeratorDto endpointRef with non-digits', async () => {
+      const { ConferenceModeratorDto } = require('./dto/conference-moderator.dto');
+      const dto = plainToInstance(ConferenceModeratorDto, {
+        endpointRef: '60a',
+        role: 'moderator',
+      });
+      const errors = await validate(dto);
+      expect(errors.some((error) => error.property === 'endpointRef')).toBe(true);
+    });
+
+    it('passes rights from the database into generateConferenceDialplan', async () => {
+      const room = roomRow();
+      roomModel.findOne.mockResolvedValue(room);
+      roomModel.findAll.mockResolvedValue([room]);
+      moderatorModel.findAll.mockResolvedValue([{ endpoint_ref: '601', role: 'owner' }]);
+
+      await service.setRoomModerators(
+        ROOM_UID,
+        { moderators: [{ endpointRef: '601', role: 'owner' }] },
+        VPBX,
+      );
+
+      const [, categories] = dialplanApplyService.applyCategories.mock.calls[0];
+      const roomCategory = categories.find((c: { name: string }) => c.name === 'krsk-conf-77');
+      expect(roomCategory).toBeDefined();
+      const callerLines = roomCategory.lines.filter((line: string) =>
+        line.includes('${CALLERID(num)}'),
+      );
+      expect(callerLines).toHaveLength(1);
+      expect(callerLines[0]).toContain('601');
+    });
+  });
 });
+
