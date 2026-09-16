@@ -36,7 +36,7 @@ describe('ConferenceGuestService (16.1-01)', () => {
     createEphemeralGuestEndpoint: jest.Mock;
     destroyEphemeralGuestEndpoint: jest.Mock;
   };
-  let tokenModel: { findByPk: jest.Mock; create: jest.Mock; findAll: jest.Mock };
+  let tokenModel: { findByPk: jest.Mock; create: jest.Mock; findAll: jest.Mock; findOne: jest.Mock };
   let service: ConferenceGuestService;
   const prevUplink = process.env.CONFERENCE_UPLINK_KBPS;
 
@@ -52,7 +52,7 @@ describe('ConferenceGuestService (16.1-01)', () => {
       createEphemeralGuestEndpoint: jest.fn().mockResolvedValue(undefined),
       destroyEphemeralGuestEndpoint: jest.fn().mockResolvedValue(undefined),
     };
-    tokenModel = { findByPk: jest.fn(), create: jest.fn(), findAll: jest.fn() };
+    tokenModel = { findByPk: jest.fn(), create: jest.fn(), findAll: jest.fn(), findOne: jest.fn() };
     service = new ConferenceGuestService(
       roomsService as any,
       stateService as any,
@@ -251,6 +251,134 @@ describe('ConferenceGuestService (16.1-01)', () => {
       await expect(
         service.createToken(ROOM_UID, VPBX, { kind: 'shared_link' }),
       ).rejects.toBeInstanceOf(UniqueConstraintError);
+    });
+  });
+
+  describe('revoke and leave (16.1-02 D-12)', () => {
+    let amiService: { action: jest.Mock };
+    let state: {
+      getSnapshot: jest.Mock;
+      getActiveRoomUids: jest.Mock;
+      findLiveParticipant: jest.Mock;
+    };
+
+    beforeEach(() => {
+      amiService = { action: jest.fn().mockResolvedValue({}) };
+      state = {
+        getSnapshot: jest.fn().mockReturnValue({ participants: [] }),
+        getActiveRoomUids: jest.fn().mockReturnValue([]),
+        findLiveParticipant: jest.fn(),
+      };
+      roomsService.findOne.mockResolvedValue(roomJson({ number: '6007' }));
+      service = new ConferenceGuestService(
+        roomsService as any,
+        state as any,
+        endpointsService as any,
+        tokenModel as any,
+        amiService as any,
+      );
+    });
+
+    function tokenRow(overrides: Record<string, unknown> = {}) {
+      const row: Record<string, unknown> = {
+        uid: 2,
+        room_uid: ROOM_UID,
+        sip_id: 'gstaaaaaaaa',
+        revoked_at: null,
+        ...overrides,
+      };
+      row.update = jest.fn().mockImplementation(async (payload: Record<string, unknown>) => {
+        Object.assign(row, payload);
+        return row;
+      });
+      return row;
+    }
+
+    it('revokes a live sip_id with exactly one ConfbridgeKick and one destroy', async () => {
+      const row = tokenRow();
+      tokenModel.findOne.mockResolvedValue(row);
+      state.findLiveParticipant.mockReturnValue({
+        channel: 'PJSIP/gstaaaaaaaa-00000001',
+        callerIdNum: 'gstaaaaaaaa',
+      });
+
+      await service.revoke(ROOM_UID, 2, VPBX);
+
+      expect(amiService.action).toHaveBeenCalledTimes(1);
+      expect(amiService.action).toHaveBeenCalledWith({
+        action: 'ConfbridgeKick',
+        conference: 'conf6007_42',
+        channel: 'PJSIP/gstaaaaaaaa-00000001',
+      });
+      expect(endpointsService.destroyEphemeralGuestEndpoint).toHaveBeenCalledTimes(1);
+      expect(endpointsService.destroyEphemeralGuestEndpoint).toHaveBeenCalledWith(
+        'gstaaaaaaaa',
+        VPBX,
+      );
+      expect(row.revoked_at).toBeInstanceOf(Date);
+      expect(row.sip_id).toBeNull();
+      const stampOrder = (row.update as jest.Mock).mock.invocationCallOrder[0];
+      const kickOrder = amiService.action.mock.invocationCallOrder[0];
+      const destroyOrder = endpointsService.destroyEphemeralGuestEndpoint.mock.invocationCallOrder[0];
+      expect(stampOrder).toBeLessThan(kickOrder);
+      expect(kickOrder).toBeLessThan(destroyOrder);
+    });
+
+    it('revokes without AMI when sip_id is absent', async () => {
+      const row = tokenRow({ sip_id: null });
+      tokenModel.findOne.mockResolvedValue(row);
+
+      await service.revoke(ROOM_UID, 2, VPBX);
+
+      expect(row.revoked_at).toBeInstanceOf(Date);
+      expect(amiService.action).not.toHaveBeenCalled();
+      expect(endpointsService.destroyEphemeralGuestEndpoint).not.toHaveBeenCalled();
+    });
+
+    it('does not stamp revoked_at on a neighboring token of the same room', async () => {
+      const neighbor = tokenRow({ uid: 1, sip_id: null, kind: 'shared_link' });
+      const named = tokenRow({ uid: 2, sip_id: null, kind: 'named_invite' });
+      tokenModel.findOne.mockResolvedValue(named);
+
+      await service.revoke(ROOM_UID, 2, VPBX);
+
+      expect(named.revoked_at).toBeInstanceOf(Date);
+      expect(neighbor.revoked_at).toBeNull();
+      expect(neighbor.update).not.toHaveBeenCalled();
+      expect(tokenModel.findOne).toHaveBeenCalledWith({
+        where: { uid: 2, room_uid: ROOM_UID },
+      });
+    });
+
+    it('leave clears sip_id and does not set revoked_at', async () => {
+      const row = tokenRow({ uid: 9 });
+      tokenModel.findByPk.mockResolvedValue(row);
+
+      await service.leave(guestUser());
+
+      expect(endpointsService.destroyEphemeralGuestEndpoint).toHaveBeenCalledWith(
+        'gstaaaaaaaa',
+        VPBX,
+      );
+      expect(row.sip_id).toBeNull();
+      expect(row.revoked_at).toBeNull();
+      expect(row.update).toHaveBeenCalledWith({ sip_id: null });
+      expect(row.update).not.toHaveBeenCalledWith(
+        expect.objectContaining({ revoked_at: expect.anything() }),
+      );
+    });
+
+    it('exposes POST :token/leave on ConferenceGuestController without JwtAuthGuard', () => {
+      const fs = require('fs') as typeof import('fs');
+      const path = require('path') as typeof import('path');
+      const src = fs.readFileSync(
+        path.resolve(__dirname, 'conference-guest.controller.ts'),
+        'utf8',
+      );
+      expect(src).toMatch(/@Post\(':token\/leave'\)/);
+      expect(src).toMatch(/@UseGuards\(ConferenceGuestTokenGuard\)/);
+      expect(src).not.toMatch(/JwtAuthGuard/);
+      expect(src).not.toMatch(/EndpointsService\.remove/);
     });
   });
 });

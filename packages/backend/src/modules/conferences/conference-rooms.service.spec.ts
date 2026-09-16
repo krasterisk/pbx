@@ -739,6 +739,7 @@ describe('ConferenceRoomsService CRUD (16-02)', () => {
       const guestService = {
         createToken: jest.fn().mockResolvedValue({ uid: 1, token: 'a'.repeat(64) }),
         listTokens: jest.fn().mockResolvedValue([]),
+        revoke: jest.fn().mockResolvedValue({ success: true }),
       };
       const proxied = new ConferenceRoomsService(
         roomModel as any,
@@ -753,8 +754,10 @@ describe('ConferenceRoomsService CRUD (16-02)', () => {
       const dto = { kind: 'shared_link' as const };
       await proxied.createGuestToken(ROOM_UID, dto, VPBX);
       await proxied.listGuestTokens(ROOM_UID, VPBX);
+      await proxied.revokeGuestToken(ROOM_UID, 2, VPBX);
       expect(guestService.createToken).toHaveBeenCalledWith(ROOM_UID, VPBX, dto);
       expect(guestService.listTokens).toHaveBeenCalledWith(ROOM_UID, VPBX);
+      expect(guestService.revoke).toHaveBeenCalledWith(ROOM_UID, 2, VPBX);
     });
 
     it('registers POST and GET :uid/guest-tokens on ConferenceRoomsController under JwtAuthGuard', () => {
@@ -765,6 +768,7 @@ describe('ConferenceRoomsService CRUD (16-02)', () => {
       expect(src).toMatch(/@UseGuards\(JwtAuthGuard\)/);
       expect(src).toMatch(/@Post\(':uid\/guest-tokens'\)/);
       expect(src).toMatch(/@Get\(':uid\/guest-tokens'\)/);
+      expect(src).toMatch(/@Delete\(':uid\/guest-tokens\/:tokenUid'\)/);
       expect(src).toMatch(/req\.user\.vpbx_user_uid/);
       expect(src).not.toMatch(/audience/);
     });
