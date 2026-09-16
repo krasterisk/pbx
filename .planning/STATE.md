@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 status: executing
-stopped_at: Completed 16-05-PLAN.md
-last_updated: "2026-09-16T02:22:00.000Z"
-state_head: bc3c53c
+stopped_at: Completed 16-06-PLAN.md
+last_updated: "2026-09-16T02:35:00.000Z"
+state_head: 224cb0b
 progress:
   total_phases: 19
   completed_phases: 5
   total_plans: 173
-  completed_plans: 171
+  completed_plans: 172
 milestone_name: milestone
   current_phase: 16
   current_phase_name: modul-telekonferentsiy-confbridge-webrtc
@@ -19,7 +19,7 @@ milestone_name: milestone
 
 ## Current position
 
-Phase 16 (modul-telekonferentsiy-confbridge-webrtc) — EXECUTING (2026-09-16). 16-01…16-05 complete (3/3 tasks each). Next: `/gsd-execute-phase 16` continues with 16-06. Remaining core plans `16-06`…`16-07` (waves 5–6). Sub-phases 16.1 / 16.2 / 16.3 remain unplanned.
+Phase 16 (modul-telekonferentsiy-confbridge-webrtc) — EXECUTING (2026-09-16). 16-01…16-06 complete (3/3 tasks each). Next: `/gsd-execute-phase 16` continues with 16-07. Remaining core plan `16-07` (wave 6). Sub-phases 16.1 / 16.2 / 16.3 remain unplanned.
 
 Phase 14 (visual-route-builder-and-automation) — COMPLETE (2026-09-04). 11/11 plans (incl. gap 14-11); verify 27/27; G-14-2 resolved.
 
@@ -67,6 +67,8 @@ Phase 1 — MOH: pending verify.
 
 ## Decisions
 
+- [Phase 16]: 16-06 shipped — conferenceEntryPolicy is the only translator from entry_strictness to PIN/wait/end user-profile lines; wait_marked/end_marked never apply to owner/moderator; waitingForModerator is a room snapshot flag.
+- [Phase 16]: Wait requirement is token_name_pin_moderator OR the wait_marked column; PIN line emits only when the level requires a non-empty sanitized PIN; CONFERENCE_PIN_REQUIRED rejects a promised PIN that is missing.
 - [Phase 16]: 16-05 shipped — three ConfBridge roles on one admin/marked table; permanent owner/moderators via PUT /conferences/:uid/moderators; one-shot grants live only in ConferenceStateService memory and clear when the room empties.
 - [Phase 16]: Owner and moderator share admin+marked; owner vs moderator is server knowledge, not a ConfBridge flag.
 - [Phase 16]: generateConferenceDialplan without a rights argument stays byte-identical to an empty list.
@@ -409,6 +411,8 @@ Phase 1 — MOH: pending verify.
 - [Phase 15]: Classification keys are module directories; adapter domain is an override when it differs (pbx, skills, route_templates, dialplan_dry_run)
 - [Phase 15]: Shared skills are declared on the covered entry so stub SKILL.md files are not required
 - [Phase 15]: callback-requests, cloud-admin and route-references are excluded with written reasons
+- [Phase 16]: waitingForModerator is a room snapshot flag derived from cached entry policy and privileged roles; participant keys stay D-37.
+
 ## Roadmap Evolution
 
 - **Phase 16 context gathered (2026-09-15).** 41 решение (D-01…D-41) в `16-CONTEXT.md`. **Три решения сознательно не зафиксированы и вынесены в обязательный ресёрч:** R-ENGINE (ConfBridge + AMI против собственного ARI-бриджа — от него зависят D-02, D-10, D-34, D-38), R-VIDEO (нативный `video_mode=sfu` против внешнего SFU; гибрид «веб + абоненты Asterisk с видео»), R-CAPACITY (метрики нагрузки и вес участника). Проверено на discuss и изменило объём фазы: **у ConfBridge нет realtime-бэкенда**, поэтому настройки комнаты едут динамическим профилем `CONFBRIDGE()` через генерацию тенантного диалплана, а не записью `confbridge.conf` (D-02) — ловушки ROADMAP №1 (`module reload app_confbridge.so`) и №2 (операционный `mkdir`) сняты, ловушка №5 (миграция) снята по D-09, потому что маршрутов с `confbridge` в проде нет. Найден переиспользуемый актив, меняющий развилку: живой ARI-клиент `modules/ari/` уже умеет `createBridge` / `addChannelToBridge` / `snoopChannel` / `externalMedia`. Ad hoc конференция колл-центра (`addToConference`) поглощается модулем (D-03). Видео обязательно в v1 вплоть до внешнего SFU, раскладка — сетка, веб в приоритете (D-22…D-25). Next: `/gsd-spike` по R-ENGINE / R-VIDEO / R-CAPACITY, затем `/gsd-ui-phase 16`.
@@ -445,7 +449,7 @@ Phase 1 — MOH: pending verify.
 
 ## Next GSD command
 
-**Phase 16 plan 16-05 complete** (2026-09-16). Next: `/gsd-execute-phase 16` (continues at 16-06).
+**Phase 16 plan 16-06 complete** (2026-09-16). Next: `/gsd-execute-phase 16` (continues at 16-07).
 
 Also open: `/gsd-secure-phase 15`; Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 verify; Phase 8 / 08-11 Android smoke.
 
@@ -600,11 +604,12 @@ Also open: `/gsd-secure-phase 15`; Phase 11 harness verify; Phase 10 `/gsd-verif
 | Phase 16-modul-telekonferentsiy-confbridge-webrtc P03 | 9 | 3 tasks | 15 files |
 | Phase 16 P04 | 20 | 3 tasks | 15 files |
 | Phase 16 P05 | 12 | 3 tasks | 17 files |
+| Phase 16 P06 | 12 | 3 tasks | 10 files |
 
 ## Session
 
-**Last session:** 2026-09-16T02:21:22.288Z
-**Stopped at:** Completed 16-05-PLAN.md
+**Last session:** 2026-09-16T02:29:46.848Z
+**Stopped at:** Completed 16-06-PLAN.md
 **Resume file:** None
 **Also ready:** .planning/phases/15-universal-pbx-ai-agent/15-CONTEXT.md
 
