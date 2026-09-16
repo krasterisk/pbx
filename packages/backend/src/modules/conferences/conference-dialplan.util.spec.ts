@@ -126,3 +126,65 @@ describe('generateConferenceDialplan permanent rights', () => {
   });
 });
 
+describe('generateConferenceDialplan entry policy', () => {
+  const pinLine = (line: string) => line.includes('user,pin');
+  const waitLine = (line: string) => line.includes('wait_marked');
+  const endLine = (line: string) => line.includes('end_marked');
+  const roleLine = (line: string) => line.includes('Set(CONF_ROLE=');
+
+  it('emits exactly one user,pin line for token_name_pin with PIN 1234', () => {
+    const category = generateConferenceDialplan(
+      { ...ROOM, entry_strictness: 'token_name_pin', pin: '1234' },
+      VPBX,
+    );
+    expect(category.lines.filter(pinLine)).toHaveLength(1);
+  });
+
+  it('emits no user,pin line for token_name_pin with an empty PIN', () => {
+    const category = generateConferenceDialplan(
+      { ...ROOM, entry_strictness: 'token_name_pin', pin: '' },
+      VPBX,
+    );
+    expect(category.lines.filter(pinLine)).toHaveLength(0);
+  });
+
+  it('emits wait_marked only after the role line for token_name_pin_moderator', () => {
+    const category = generateConferenceDialplan(
+      { ...ROOM, entry_strictness: 'token_name_pin_moderator', pin: '1234' },
+      VPBX,
+      ROOM_RIGHTS,
+    );
+    const waitLines = category.lines.filter(waitLine);
+    expect(waitLines).toHaveLength(1);
+    const roleIdx = category.lines.findIndex(roleLine);
+    const waitIdx = category.lines.findIndex(waitLine);
+    expect(roleIdx).toBeGreaterThanOrEqual(0);
+    expect(waitIdx).toBeGreaterThan(roleIdx);
+    expect(waitLines[0]).toContain('CONF_ROLE');
+    expect(waitLines[0]).toContain('participant');
+  });
+
+  it('emits no wait_marked, end_marked or user,pin at token_name without extras', () => {
+    const category = generateConferenceDialplan(
+      { ...ROOM, entry_strictness: 'token_name' },
+      VPBX,
+    );
+    expect(category.lines.some(waitLine)).toBe(false);
+    expect(category.lines.some(endLine)).toBe(false);
+    expect(category.lines.some(pinLine)).toBe(false);
+  });
+
+  it('emits exactly one end_marked line for a room with end_marked: 1', () => {
+    const category = generateConferenceDialplan(
+      { ...ROOM, entry_strictness: 'token_name', end_marked: 1 },
+      VPBX,
+      ROOM_RIGHTS,
+    );
+    const endLines = category.lines.filter(endLine);
+    expect(endLines).toHaveLength(1);
+    expect(endLines[0]).toContain('CONF_ROLE');
+    expect(endLines[0]).toContain('participant');
+  });
+});
+
+
