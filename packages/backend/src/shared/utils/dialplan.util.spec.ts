@@ -611,6 +611,61 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       expect(dp).toContain('Dial(PJSIP/${TC_TRUNK_ID}/${EXTEN},${TC_TIMEOUT},tT)');
     });
 
+    it('totrunk trunks list with pool CID uses AstDB without requiring trunkMode', () => {
+      const dp = AsteriskDialplanUtils.actionToDialplan(
+        {
+          type: 'totrunk',
+          params: {
+            trunks: [{
+              trunkId: 'out1',
+              callerId: {
+                mode: 'pool',
+                numbers: ['79001112233', '79004445566'],
+                pick: 'random',
+              },
+              timeout: 60,
+            }],
+            dest: { source: 'route_pattern' },
+            options: 'tT',
+          },
+          condition: {},
+        },
+        vpbx,
+      );
+      expect(dp).toContain('Set(CID_POOL=79001112233|79004445566)');
+      expect(dp).toContain('DB(${CID_DBKEY}/last)');
+      expect(dp).toContain('RAND(1,2)');
+      expect(dp).toContain('Dial(PJSIP/out1/${EXTEN},60,tT)');
+      expect(dp).not.toContain('Set(TC_LIST=');
+    });
+
+    it('totrunk mixed static and pool trunks compile pool branch', () => {
+      const dp = AsteriskDialplanUtils.actionToDialplan(
+        {
+          type: 'totrunk',
+          params: {
+            mode: 'sequential',
+            trunks: [
+              { trunkId: 'a', callerId: { mode: 'static', value: '7900' }, timeout: 20 },
+              {
+                trunkId: 'b',
+                callerId: { mode: 'pool', numbers: ['7901', '7902'], pick: 'round_robin' },
+                timeout: 30,
+              },
+            ],
+            dest: { source: 'route_pattern' },
+            options: 'tT',
+          },
+          condition: {},
+        },
+        vpbx,
+      );
+      expect(dp).toContain('Set(TC_CIDMODE=static|pool)');
+      expect(dp).toContain('GotoIf($["${TC_CM}" = "pool"]?tc_pool)');
+      expect(dp).toContain('tc_pool_rr');
+      expect(dp).toContain('Set(DB(${CID_DBKEY}/i)=${CID_I})');
+    });
+
     it('totrunk empty dest falls back to literal ${EXTEN}', () => {
       const dp = AsteriskDialplanUtils.actionToDialplan(
         {
@@ -2129,5 +2184,88 @@ describe('D-47 / D-49 http_request and collect_input generator', () => {
     expect(chain).toMatch(/Read\(/);
     expect(chain).toContain('${PIN}');
     expect(chain).toContain('1234');
+  });
+});
+
+describe('confbridge route step (16-03)', () => {
+  const vpbx = 42;
+
+  it('jumps into the selected room context and never emits ConfBridge(', () => {
+    const dp = AsteriskDialplanUtils.actionToDialplan(
+      { type: 'confbridge', params: { room: { source: 'fixed', value: '77' } }, condition: {} },
+      vpbx,
+    );
+    expect(dp).toContain('krsk-conf-77,s,1');
+    expect(dp).not.toContain('ConfBridge(');
+  });
+
+  it('jumps into the tenant mask-index for a route_pattern room', () => {
+    const dp = AsteriskDialplanUtils.actionToDialplan(
+      { type: 'confbridge', params: { room: { source: 'route_pattern' } }, condition: {} },
+      vpbx,
+    );
+    expect(dp).toContain('krsk-conf-mask-42,${EXTEN},1');
+  });
+
+  it('jumps into the tenant mask-index for a variable room', () => {
+    const dp = AsteriskDialplanUtils.actionToDialplan(
+      {
+        type: 'confbridge',
+        params: { room: { source: 'variable', name: 'ROOMNUM' } },
+        condition: {},
+      },
+      vpbx,
+    );
+    expect(dp).toContain('krsk-conf-mask-42,${ROOMNUM},1');
+  });
+
+  it('looks up a directory room before jumping into the mask-index', () => {
+    AsteriskDialplanUtils.backendBaseUrl = 'http://backend.test/api';
+    AsteriskDialplanUtils.dialplanApiKey = 'wave0-key';
+    const dp = AsteriskDialplanUtils.actionToDialplan(
+      {
+        id: 9,
+        type: 'confbridge',
+        params: {
+          room: {
+            source: 'directory',
+            directoryUid: 3,
+            keySource: { source: 'original_caller' },
+            valueFieldUid: 17,
+            onMissing: 'skip',
+          },
+        },
+        condition: {},
+      },
+      vpbx,
+    );
+    const lookupIdx = dp.indexOf('directory-lookup');
+    const jumpIdx = dp.indexOf('krsk-conf-mask-42');
+    expect(lookupIdx).toBeGreaterThan(-1);
+    expect(jumpIdx).toBeGreaterThan(lookupIdx);
+  });
+
+  it('emits NoOp without a jump when the fixed room uid is empty', () => {
+    const dp = AsteriskDialplanUtils.actionToDialplan(
+      { type: 'confbridge', params: { room: { source: 'fixed', value: '' } }, condition: {} },
+      vpbx,
+    );
+    expect(dp).toContain('NoOp(');
+    expect(dp).not.toContain('Goto(');
+  });
+
+  it('drops leftover options so they never reach the generated lines', () => {
+    const dp = AsteriskDialplanUtils.actionToDialplan(
+      {
+        type: 'confbridge',
+        params: {
+          room: { source: 'fixed', value: '77' },
+          options: 'krsk_conf_sfu',
+        },
+        condition: {},
+      },
+      vpbx,
+    );
+    expect(dp).not.toContain('krsk_conf_sfu');
   });
 });

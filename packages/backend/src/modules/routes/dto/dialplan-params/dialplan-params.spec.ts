@@ -1,3 +1,5 @@
+import * as fs from 'fs';
+import * as path from 'path';
 import {
   assertNeverAction,
   DIALPLAN_ACTION_META,
@@ -392,6 +394,39 @@ describe('D-39 / D-41 validateActionParams paths', () => {
     expect(errors.length).toBeGreaterThan(0);
     expect(errors.some((e) => e.path === 'room' || e.path.startsWith('room'))).toBe(true);
   });
+
+  it('accepts confbridge with leftover options and ignores the key', () => {
+    const errors = validateActionParams([{
+      id: 'c1',
+      type: 'confbridge',
+      params: { room: { source: 'fixed', value: '77' }, options: 'krsk_conf_sfu' },
+    }]);
+    expect(errors).toEqual([]);
+  });
+
+  it('declares only room on ConfBridgeParamsDto and IConfBridgeParams', () => {
+    const dtoSrc = fs.readFileSync(
+      path.resolve(__dirname, 'address.params.dto.ts'),
+      'utf8',
+    );
+    const dtoBlock = dtoSrc.slice(
+      dtoSrc.indexOf('export class ConfBridgeParamsDto'),
+      dtoSrc.indexOf('export class ToExtenParamsDto'),
+    );
+    expect(dtoBlock).toMatch(/\broom\b/);
+    expect(dtoBlock).not.toMatch(/\boptions\b/);
+
+    const typeSrc = fs.readFileSync(
+      path.resolve(__dirname, '../../../../../../../shared/src/types/dialplan-params.types.ts'),
+      'utf8',
+    );
+    const typeBlock = typeSrc.slice(
+      typeSrc.indexOf('export interface IConfBridgeParams'),
+      typeSrc.indexOf('export interface ICmdParams'),
+    );
+    expect(typeBlock).toMatch(/\broom\??:/);
+    expect(typeBlock).not.toMatch(/\boptions\b/);
+  });
 });
 
 describe('D-26 numberManipulation DTO', () => {
@@ -513,6 +548,26 @@ describe('D-26 numberManipulation DTO', () => {
             callerId: { mode: 'static', value: '79001112233' },
           },
         ],
+        dest: { source: 'route_pattern' },
+      },
+    }]);
+    expect(ok).toEqual([]);
+  });
+
+  it('accepts pool callerId with numbers and pick', () => {
+    const ok = validateActionParams([{
+      id: 't5',
+      type: 'totrunk',
+      params: {
+        trunks: [{
+          trunkId: 't_alpha_100',
+          timeout: 60,
+          callerId: {
+            mode: 'pool',
+            numbers: ['79001112233', '79004445566'],
+            pick: 'round_robin',
+          },
+        }],
         dest: { source: 'route_pattern' },
       },
     }]);
