@@ -72,6 +72,7 @@ Phase 1 — MOH: pending verify.
 
 ## Decisions
 
+- [Phase 16.2]: proceed-locked-path — relative recording path `{vpbx_user_uid}/conferences/{room_uid}/{meeting_uid}.wav` under `records_base_path` (prod default `/usr/records`). Human approved 2026-09-16. ConfBridge writes WAV; play does not append conversation-recording `.mp3`.
 - [Phase 16.1]: 16.1-05 shipped — internal PJSIP/e|ew Originate into krsk-conf-{uid}; external Local/{digits}@from-internal{vpbx} gated by invite_external_scope (A2).
 - [Phase 16.1]: 16.1-04 shipped — GET :uid/capacity is { maxParticipants } only; max_members follows effectiveMax; cron reapplies on N change; join 409 uses capacityForRoom.
 - [Phase 16.1]: 16.1-03 shipped — NAT_PROFILES.webrtc.max_video_streams 16, companion fallback opus,ulaw,vp8, ew* backfill on boot, GET /conferences/guest/:token/webrtc-config.
