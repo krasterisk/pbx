@@ -1147,11 +1147,12 @@ Plans:
 
 **Goal:** Довести комнату из Phase 16 до полноценной видеовстречи с внешними участниками: сетка видео на нативном SFU, честная ёмкость комнаты как бюджет полосы, гостевой вход по ссылке без учётной записи портала и приглашение внутренних и внешних абонентов из комнаты.
 
-**Plans:** 6 plans
+**Plans:** 2/6 plans executed
 
 Plans:
-- [ ] 16.1-01-PLAN.md — Спина: токен → ephemeral PJSIP → admit/refuse + ALTER display_name/sip_id
-- [ ] 16.1-02-PLAN.md — D-12: два kind, revoke=Kick+destroy, PIN, гостевой SSE
+
+- [x] 16.1-01-PLAN.md — Спина: токен → ephemeral PJSIP → admit/refuse + ALTER display_name/sip_id
+- [x] 16.1-02-PLAN.md — D-12: два kind, revoke=Kick+destroy, PIN, гостевой SSE
 - [ ] 16.1-03-PLAN.md — D-23/D-24: max_video_streams + VP8, backfill ew*, guest webrtc-config
 - [ ] 16.1-04-PLAN.md — D-18…D-21: GET capacity одно поле, max_members из бюджета, cron, join→capacityForRoom
 - [ ] 16.1-05-PLAN.md — D-38/D-39: AMI Originate + invite_external_scope
@@ -1159,11 +1160,11 @@ Plans:
 
 **Wave 1**
 
-- [ ] `16.1-01-PLAN.md` — Wave 1, checkpoint схемы + tracer + DDL
+- [x] `16.1-01-PLAN.md` — Wave 1, checkpoint схемы + tracer + DDL
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] `16.1-02-PLAN.md` — Wave 2: D-12 tokens/revoke/SSE
+- [x] `16.1-02-PLAN.md` — Wave 2: D-12 tokens/revoke/SSE
 - [ ] `16.1-03-PLAN.md` — Wave 2: D-23/D-24 provisioning (parallel с 02)
 
 **Wave 3** *(blocked on Wave 2 completion)*
@@ -1220,6 +1221,7 @@ Plans:
 **Plans:** 4 plans
 
 Plans:
+
 - [ ] 16.2-01-PLAN.md — Спина: путь D-30, встреча → AMI StartRecord → WAV play, ALTER uniqueid
 - [ ] 16.2-02-PLAN.md — Кнопка модератора, leftover диалплана, announcement, last-leave, list/CDR-join API
 - [ ] 16.2-03-PLAN.md — CDR-бейдж + модалка WAV
@@ -1242,6 +1244,7 @@ Plans:
 - [ ] `16.2-04-PLAN.md` — Wave 4: History tab fragment
 
 **Cross-cutting constraints:**
+
 - `startForMeeting` не фильтрует `record_mode`; политику держат auto-join (`auto|both`) и `startByModerator` (`button|both`)
 - Play WAV через `records_base_path` + access-scope, без `.mp3` и без записи пути в `CDR(record)`
 

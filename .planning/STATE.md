@@ -21,7 +21,7 @@ milestone_name: milestone
 
 Phase 16 (modul-telekonferentsiy-confbridge-webrtc) — CORE PLANS COMPLETE (2026-09-16). 16-01…16-07 complete (3/3 tasks each). Next: `/gsd-verify-work 16`.
 
-Phase 16.1 (telekonferentsii-video-emkost-komnaty-gostevoy-vhod-i-prigla) — EXECUTING (2026-09-16). 16.1-01 complete (3/3 tasks). Next: `/gsd-execute-phase 16.1` (plan 02). Do not mark the phase complete.
+Phase 16.1 (telekonferentsii-video-emkost-komnaty-gostevoy-vhod-i-prigla) — EXECUTING (2026-09-16). 16.1-01 and 16.1-02 complete (3/3 tasks each). Next: `/gsd-execute-phase 16.1` (plan 03). Do not mark the phase complete.
 
 Phase 16.2 (telekonferentsii-zapis-vstrech-i-otchetnost) — PLANNED (2026-09-16). 4 plans in 4 waves. Status: Ready to execute. Next: `/gsd-execute-phase 16.2`. Sub-phase 16.3 remains unplanned.
 
@@ -71,6 +71,7 @@ Phase 1 — MOH: pending verify.
 
 ## Decisions
 
+- [Phase 16.1]: 16.1-02 shipped — staff JWT guest-token CRUD (shared_link + named_invite), revoke=stamp+ConfbridgeKick+destroy, leave, PIN on join, guest SSE via toConferenceRoomStateDto.
 - [Phase 16.1]: 16.1-01 shipped — guest join spine (guard + ephemeral gst in krsk-conf-{uid} or 409 CONFERENCE_ROOM_FULL) and token columns display_name/sip_id. maxParticipantsForBudget(0) returns 0 (D-18 boundary).
 - [Phase 16.1]: proceed-locked-schema — ALTER `conference_guest_tokens` adds `display_name VARCHAR(64) NULL` and `sip_id VARCHAR(64) NULL` (RESEARCH A4). Human approved 2026-09-16. One token row = one live ephemeral endpoint; parallel join replaces sip_id.
 - [Phase 16]: 16-07 shipped — one outbound mapper for staff and guests; participant DTO locked to six keys; video is self-only via resolveCallerRef; stale sweeper walks getActiveRoomUids with a strict 120s threshold.
@@ -420,6 +421,9 @@ Phase 1 — MOH: pending verify.
 - [Phase 15]: Shared skills are declared on the covered entry so stub SKILL.md files are not required
 - [Phase 15]: callback-requests, cloud-admin and route-references are excluded with written reasons
 - [Phase 16]: waitingForModerator is a room snapshot flag derived from cached entry policy and privileged roles; outbound participant DTO keys are the six D-37 fields (ref, displayName, role, speaking, muted, video).
+- [Phase 16.1]: forwardRef Rooms↔Guest so staff token routes stay on Jwt ConferenceRoomsController
+- [Phase 16.1]: Kick/destroy errors are logged; revoked_at still sticks so HTTP 401 REVOKED even if AMI fails
+- [Phase 16.1]: CONFERENCE_DISPLAY_NAME_REQUIRED deferred to 16.1-06 (Task 3 behavior was PIN+SSE only)
 
 ## Roadmap Evolution
 
@@ -457,7 +461,7 @@ Phase 1 — MOH: pending verify.
 
 ## Next GSD command
 
-**Phase 16.1 plan 16.1-01 complete** (2026-09-16). Next: `/gsd-execute-phase 16.1` for plan 02. Phase 16 core still awaits `/gsd-verify-work 16`.
+**Phase 16.1 plan 16.1-02 complete** (2026-09-16). Next: `/gsd-execute-phase 16.1` for plan 03. Phase 16 core still awaits `/gsd-verify-work 16`.
 
 Also open: `/gsd-secure-phase 15`; Phase 11 harness verify; Phase 10 `/gsd-verify-work 10`; Phase 9 verify; Phase 8 / 08-11 Android smoke.
 
@@ -615,11 +619,12 @@ Also open: `/gsd-secure-phase 15`; Phase 11 harness verify; Phase 10 `/gsd-verif
 | Phase 16 P06 | 12 | 3 tasks | 10 files |
 | Phase 16-modul-telekonferentsiy-confbridge-webrtc P07 | 15 | 3 tasks | 9 files |
 | Phase 16.1 P01 | 10min | 3 tasks | 16 files |
+| Phase 16.1 P02 | 10min | 3 tasks | 9 files |
 
 ## Session
 
-**Last session:** 2026-09-16T07:04:44.660Z
-**Stopped at:** Completed 16.1-01-PLAN.md
+**Last session:** 2026-09-16T07:17:27.165Z
+**Stopped at:** Completed 16.1-02-PLAN.md
 **Resume file:** None
 **Also ready:** .planning/phases/15-universal-pbx-ai-agent/15-CONTEXT.md
 
