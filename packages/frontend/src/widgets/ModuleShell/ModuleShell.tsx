@@ -24,6 +24,7 @@ import {
   findModuleByPath,
   getModuleEntryPath,
 } from '@/features/modules/lib/moduleRegistry';
+import { ConferenceMiniPanel } from '@/features/conferences/ui/ConferenceMiniPanel';
 import { ModuleBreadcrumbs } from './ModuleBreadcrumbs';
 import { ModuleShellSidebar } from './ModuleShellSidebar';
 import { OfflineBanner } from './OfflineBanner';
@@ -38,7 +39,7 @@ interface ModuleShellProps {
 /**
  * In-module shell - A+C hybrid:
  * full-width topbar (logo inert, Module▾ → Page▾ menus) → sidebar | content.
- * Sidebar footer «Модули» → Hub. Mobile: sidebar auto-collapsed.
+ * Sidebar footer «Модули» → Hub. Phone: sidebar hidden; nav is the bottom bar.
  */
 export const ModuleShell = memo(function ModuleShell({ children }: ModuleShellProps) {
   const { t, i18n } = useTranslation();
@@ -73,14 +74,15 @@ export const ModuleShell = memo(function ModuleShell({ children }: ModuleShellPr
     ? active.find((m) => m.code === currentModule.code)
     : undefined;
 
-  const showSidebar =
+  const inModuleNav =
     !!currentModule && !isHub && currentModule.code !== 'overview';
+  const showSidebar = inModuleNav && !isMobile;
 
-  const navPages = showSidebar
+  const navPages = inModuleNav && currentModule
     ? filterPagesByLevel(currentModule.pages, level)
     : [];
 
-  const currentPage = showSidebar
+  const currentPage = inModuleNav
     ? navPages.find(
         (p) =>
           location.pathname === p.path ||
@@ -201,7 +203,8 @@ export const ModuleShell = memo(function ModuleShell({ children }: ModuleShellPr
     <div
       className={cls.shellRoot}
       data-testid="module-shell"
-      data-sidebar-collapsed={isMobile || collapsed ? 'true' : 'false'}
+      data-sidebar-collapsed={!isMobile && collapsed ? 'true' : 'false'}
+      data-phone-sidebar={isMobile ? 'hidden' : undefined}
     >
       <OfflineBanner />
 
@@ -215,7 +218,15 @@ export const ModuleShell = memo(function ModuleShell({ children }: ModuleShellPr
           </Text>
         </div>
 
-        {isHub ? (
+        {isMobile ? (
+          <Text as="span" className={cls.phoneTitle} data-testid="phone-topbar-title">
+            {isHub
+              ? t('hub.title')
+              : currentPage
+                ? t(currentPage.labelKey)
+                : moduleTitle}
+          </Text>
+        ) : isHub ? (
           <ModuleBreadcrumbs hubLabel={t('hub.title')} />
         ) : (
           <ModuleBreadcrumbs
@@ -227,6 +238,8 @@ export const ModuleShell = memo(function ModuleShell({ children }: ModuleShellPr
         )}
 
         <div className={cls.spacer} />
+
+        <ConferenceMiniPanel />
 
         <Tooltip content={agentShortcutHint}>
           <Button
@@ -246,17 +259,19 @@ export const ModuleShell = memo(function ModuleShell({ children }: ModuleShellPr
           </Button>
         </Tooltip>
 
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          id="shell-cmdk-trigger"
-          onClick={() => setPaletteOpen(true)}
-          aria-label={t('commandPalette.placeholder')}
-        >
-          <Search size={16} aria-hidden />
-          <span className={cls.cmdHint}>⌘K</span>
-        </Button>
+        {!isMobile && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            id="shell-cmdk-trigger"
+            onClick={() => setPaletteOpen(true)}
+            aria-label={t('commandPalette.placeholder')}
+          >
+            <Search size={16} aria-hidden />
+            <span className={cls.cmdHint}>⌘K</span>
+          </Button>
+        )}
 
         <Button
           id="shell-lang-toggle"
@@ -291,7 +306,7 @@ export const ModuleShell = memo(function ModuleShell({ children }: ModuleShellPr
           <ModuleShellSidebar
             moduleTitle={moduleTitle}
             pages={navPages}
-            collapsed={isMobile ? true : collapsed}
+            collapsed={collapsed}
             onCollapsedChange={handleCollapsedChange}
           />
         )}

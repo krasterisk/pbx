@@ -3,8 +3,32 @@ import { render, screen, fireEvent, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { Phone } from 'lucide-react';
 import type { HubModuleRow } from '@/features/modules/types';
+import type { ConferenceSessionState } from '@/features/conferences/model/slice/conferenceSessionSlice';
 
 const useIsMobileMock = vi.fn((_bp?: number) => false);
+const conferenceSessionRef: { current: ConferenceSessionState | null } = { current: null };
+
+function idleConferenceSession(): ConferenceSessionState {
+  return {
+    roomUid: null,
+    number: null,
+    name: null,
+    role: null,
+    startedAt: null,
+    sipId: null,
+  };
+}
+
+function activeConferenceSession(): ConferenceSessionState {
+  return {
+    roomUid: 9,
+    number: '6001',
+    name: 'Standup',
+    role: 'participant',
+    startedAt: '2026-09-16T12:00:00.000Z',
+    sipId: 'ew101',
+  };
+}
 
 vi.mock('@/shared/hooks/useIsMobile', () => ({
   useIsMobile: (bp?: number) => useIsMobileMock(bp),
@@ -29,6 +53,7 @@ vi.mock('@/shared/hooks/useAppStore', () => ({
         availableModels: [];
         panelMode: 'dock' | 'workspace';
       };
+      conferenceSession: ConferenceSessionState;
     }) => unknown,
   ) =>
     sel({
@@ -40,8 +65,26 @@ vi.mock('@/shared/hooks/useAppStore', () => ({
         availableModels: [],
         panelMode: 'dock',
       },
+      conferenceSession: conferenceSessionRef.current ?? idleConferenceSession(),
     }),
   useAppDispatch: () => vi.fn(),
+}));
+
+vi.mock('@/features/conferences/lib/useConferenceSse', () => ({
+  useConferenceSse: () => 'open',
+}));
+
+vi.mock('@/shared/api/endpoints/conferenceRoomApi', () => ({
+  useGetConferenceRoomQuery: () => ({
+    data: { participants: [{ ref: 'ew101' }] },
+    isFetching: false,
+    isError: false,
+    isSuccess: true,
+  }),
+  useMuteConferenceParticipantMutation: () => [vi.fn(), {}],
+  useUnmuteConferenceParticipantMutation: () => [vi.fn(), {}],
+  useSetConferenceMeVideoMutation: () => [vi.fn(), {}],
+  useKickConferenceParticipantMutation: () => [vi.fn(), {}],
 }));
 
 vi.mock('@/features/ai-chat/model/useAgentTurn', () => ({
@@ -121,6 +164,7 @@ describe('ModuleShell (A+C hybrid)', () => {
   beforeEach(() => {
     Element.prototype.scrollIntoView = vi.fn();
     useIsMobileMock.mockReturnValue(false);
+    conferenceSessionRef.current = null;
     vi.mocked(useHubModules).mockReturnValue({
       active: [coreRow, appsRow],
       marketplace: [],
@@ -209,7 +253,7 @@ describe('ModuleShell (A+C hybrid)', () => {
     expect(screen.getByTestId('module-breadcrumbs')).toHaveTextContent('hub.title');
   });
 
-  it('auto-collapses sidebar on phone', () => {
+  it('hides sidebar on phone so the bottom bar owns navigation', () => {
     useIsMobileMock.mockReturnValue(true);
     render(
       <MemoryRouter initialEntries={['/endpoints']}>
@@ -218,11 +262,12 @@ describe('ModuleShell (A+C hybrid)', () => {
         </ModuleShell>
       </MemoryRouter>,
     );
-    expect(screen.getByTestId('module-shell-sidebar')).toHaveAttribute(
-      'data-collapsed',
-      'true',
-    );
+    expect(screen.getByTestId('module-shell')).toHaveAttribute('data-phone-sidebar', 'hidden');
+    expect(screen.queryByTestId('module-shell-sidebar')).toBeNull();
     expect(screen.queryByTestId('sidebar-collapse')).toBeNull();
+    expect(screen.queryByTestId('module-breadcrumbs')).toBeNull();
+    expect(screen.getByTestId('phone-topbar-title')).toHaveTextContent('endpoints.title');
+    expect(document.getElementById('shell-cmdk-trigger')).toBeNull();
   });
 
   it('toggles collapse on desktop', () => {
@@ -247,6 +292,41 @@ describe('ModuleShell (A+C hybrid)', () => {
     );
     fireEvent.keyDown(window, { key: 'k', ctrlKey: true });
     expect(screen.getByTestId('command-palette')).toBeInTheDocument();
+  });
+
+  it('shows the conference mini-panel trigger only with a mocked session and hides it on the room route', () => {
+    conferenceSessionRef.current = activeConferenceSession();
+    const { unmount } = render(
+      <MemoryRouter initialEntries={['/endpoints']}>
+        <ModuleShell />
+      </MemoryRouter>,
+    );
+    const miniChrome = screen.getByTestId('conference-mini-chrome');
+    const miniTrigger = screen.getByTestId('conference-mini-trigger');
+    const agentTrigger = document.getElementById('shell-agent-trigger');
+    expect(miniTrigger).toBeInTheDocument();
+    expect(agentTrigger).toBeTruthy();
+    expect(miniChrome.nextElementSibling?.contains(agentTrigger) || miniChrome.nextElementSibling === agentTrigger).toBe(
+      true,
+    );
+    unmount();
+
+    render(
+      <MemoryRouter initialEntries={['/conferences/9/room']}>
+        <ModuleShell />
+      </MemoryRouter>,
+    );
+    expect(screen.queryByTestId('conference-mini-trigger')).toBeNull();
+  });
+
+  it('does not render the conference mini-panel trigger without a conference session', () => {
+    render(
+      <MemoryRouter initialEntries={['/endpoints']}>
+        <ModuleShell />
+      </MemoryRouter>,
+    );
+    expect(screen.queryByTestId('conference-mini-trigger')).toBeNull();
+    expect(document.getElementById('shell-agent-trigger')).toBeTruthy();
   });
 
   it('places the agent trigger immediately before the command-palette trigger', () => {
