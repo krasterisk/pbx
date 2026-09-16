@@ -208,6 +208,7 @@ describe('ConferenceGuestPage (16.3-07 D-28)', () => {
     expect(source).not.toMatch(/participants=\{\[\]\}/);
     expect(source).toMatch(/participants=\{meta\?\.participants/);
     expect(source).toMatch(/videoFailedMids=\{room\.videoFailedMids\}/);
+    expect(source).toMatch(/onRetryVideo=\{room\.retryVideo\}/);
     render(<ConferenceGuestPage />);
     await joinAsGuest();
     expect(await screen.findByTestId('live-room-header')).toBeInTheDocument();

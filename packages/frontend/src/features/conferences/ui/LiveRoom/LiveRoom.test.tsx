@@ -172,6 +172,38 @@ describe('LiveRoom (16.3-01 R-SDH)', () => {
     expect(tiles[1]).toHaveAttribute('aria-current', 'true');
   });
 
+  it('forces videoFailed fallback on a flagged mid while the sibling tile stays mounted', async () => {
+    const user = userEvent.setup();
+    const first = fakeVideoTrack('mid-0');
+    const second = fakeVideoTrack('mid-1');
+    const onRetryVideo = vi.fn();
+    render(
+      <LiveRoom
+        participants={[
+          participant({ ref: 'a', displayName: 'Alice', video: true }),
+          participant({ ref: 'b', displayName: 'Bob', video: true }),
+        ]}
+        remoteTracks={{ '0': first, '1': second }}
+        videoFailedMids={['0']}
+        onRetryVideo={onRetryVideo}
+      />,
+    );
+
+    const tiles = within(screen.getByTestId('conference-video-grid')).getAllByRole('listitem');
+    expect(tiles).toHaveLength(2);
+    expect(tiles[0]).toHaveAttribute('data-mid', '0');
+    expect(within(tiles[0]).getByText('Видео не подключилось')).toBeInTheDocument();
+    expect(tiles[0].querySelector('video')).toBeNull();
+    expect(tiles[1]).toHaveAttribute('data-mid', '1');
+    expect(tiles[1].querySelector('video')).toBeTruthy();
+    expect(within(tiles[1]).queryByText('Видео не подключилось')).not.toBeInTheDocument();
+    expect(first.readyState).toBe('live');
+    expect(second.readyState).toBe('live');
+
+    await user.click(within(tiles[0]).getByRole('button', { name: 'Повторить подключение видео' }));
+    expect(onRetryVideo).toHaveBeenCalledTimes(1);
+  });
+
   it('shows empty-room fallback copy when there are no participants', () => {
     render(<LiveRoom participants={[]} remoteTracks={{}} />);
     expect(screen.getByText('В комнате пока никого нет')).toBeInTheDocument();

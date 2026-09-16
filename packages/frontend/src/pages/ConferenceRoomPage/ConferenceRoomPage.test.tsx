@@ -101,7 +101,8 @@ describe('ConferenceRoomPage (16.3-09 G-16.3-1)', () => {
     expect(source.split(/\r?\n/).length).toBeLessThanOrEqual(70);
     expect(source).toMatch(/useConferenceSessionHost/);
     expect(source).not.toMatch(/useConferenceRoom\s*\(/);
-    expect(source).toMatch(/videoFailedMids/);
+    expect(source).toMatch(/videoFailedMids=\{host\.room\.videoFailedMids\}/);
+    expect(source).toMatch(/onRetryVideo=\{host\.room\.retryVideo\}/);
     expect(source).toMatch(/weakLink=\{host\.weakLink\}/);
     expect(source).toMatch(/useConferenceSse\(\{\s*mode:\s*'staff'/);
     expect(source).not.toMatch(/dispatch\(leaveSession\(\)\)/);
