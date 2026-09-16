@@ -63,6 +63,11 @@ export const MODULE_COVERAGE: Record<string, ModuleCoverageEntry> = {
     reason:
       'Platform SuperAdmin hub, marketplace and tenant provisioning — not a tenant PBX domain the agent serves (immutable).',
   },
+  conferences: {
+    kind: 'excluded',
+    reason:
+      'AI adapter and module skill ship with the live-room frontend in Phase 16.3 (D-41); until then the module does not promise agent tools.',
+  },
   config: {
     kind: 'infrastructure',
     reason: 'Nest ConfigModule wrapper, not a PBX product surface.',

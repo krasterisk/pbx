@@ -25,6 +25,7 @@
     "db:migrate:list": "node migrations/run-migrations.js --list",
     "db:migrate:rollback": "node migrations/run-migrations.js --rollback",
     "db:setup:directories": "ts-node -r tsconfig-paths/register src/modules/directories/setup-directories-schema.ts",
+    "db:report:legacy-confbridge": "ts-node -r tsconfig-paths/register src/modules/conferences/report-legacy-confbridge-steps.ts",
     "db:setup:conferences": "ts-node -r tsconfig-paths/register src/modules/conferences/setup-conferences-schema.ts",
     "db:setup:agent-threads": "ts-node -r tsconfig-paths/register src/modules/ai-chat/migrate-agent-threads.ts",
     "db:setup:agent-brief": "ts-node -r tsconfig-paths/register src/modules/ai-chat/migrate-agent-brief.ts",
