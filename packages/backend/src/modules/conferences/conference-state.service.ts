@@ -244,11 +244,10 @@ export class ConferenceStateService {
     if (!channel) return;
     const resolved = this.resolveRoom(evt);
     if (resolved) {
-      this.applyLeave(resolved, channel);
-      return;
+      return this.applyLeave(resolved, channel, evt);
     }
     return this.hydrateRoom(evt).then((entry) => {
-      if (entry) this.applyLeave(entry, channel);
+      if (entry) return this.applyLeave(entry, channel, evt);
     });
   }
 
@@ -311,7 +310,11 @@ export class ConferenceStateService {
     }
   }
 
-  private applyLeave(resolved: RoomCacheEntry, channel: string): void {
+  private applyLeave(
+    resolved: RoomCacheEntry,
+    channel: string,
+    evt?: ConferenceAmiEvent,
+  ): void | Promise<void> {
     const members = this.rooms.get(resolved.roomUid);
     if (!members?.has(channel)) return;
     members.delete(channel);
@@ -321,10 +324,46 @@ export class ConferenceStateService {
       this.rooms.delete(resolved.roomUid);
       this.liveGrants.delete(resolved.roomUid);
       this.rememberedNames.delete(resolved.roomUid);
-      this.recordingByRoom.delete(resolved.roomUid);
     }
     this.emit(resolved.roomUid, 'participantLeave');
     if (emptied) this.scheduleCollectIfEmpty(resolved.roomUid);
+    return this.persistLeave(resolved, channel, evt, emptied);
+  }
+
+  private async persistLeave(
+    resolved: RoomCacheEntry,
+    channel: string,
+    evt: ConferenceAmiEvent | undefined,
+    emptied: boolean,
+  ): Promise<void> {
+    if (!this.moduleRef) return;
+    try {
+      const meetings = this.moduleRef.get<{
+        markParticipantLeft?: (
+          roomUid: number,
+          keys: { uniqueid?: string; channel?: string },
+        ) => Promise<void>;
+        endMeeting?: (roomUid: number) => Promise<unknown>;
+      }>('ConferenceMeetingsService', { strict: false });
+      const uniqueid = evt ? amiString(evt, 'Uniqueid', 'uniqueid') : '';
+      if (meetings?.markParticipantLeft) {
+        await meetings.markParticipantLeft(resolved.roomUid, { uniqueid, channel });
+      }
+      if (!emptied) return;
+      if (meetings?.endMeeting) {
+        await meetings.endMeeting(resolved.roomUid);
+      }
+      const recording = this.moduleRef.get<{
+        stopForRoom?: (roomUid: number, userLike?: { vpbx_user_uid: number }) => Promise<void>;
+      }>('ConferenceRecordingService', { strict: false });
+      if (recording?.stopForRoom) {
+        await recording.stopForRoom(resolved.roomUid, { vpbx_user_uid: resolved.vpbx });
+      }
+    } catch (e: any) {
+      this.logger.error(
+        `Meeting leave persist failed for room ${resolved.roomUid}: ${e?.message || e}`,
+      );
+    }
   }
 
   private hydrateRoom(evt: ConferenceAmiEvent): Promise<RoomCacheEntry | null> {

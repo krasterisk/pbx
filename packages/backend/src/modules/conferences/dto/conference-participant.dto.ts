@@ -19,6 +19,7 @@ export interface ConferenceParticipantDto {
 export interface ConferenceRoomStateDto {
   participants: ConferenceParticipantDto[];
   waitingForModerator: boolean;
+  recording: boolean;
 }
 
 export type ConferenceParticipantDtoSource = ConferenceParticipantState & {
@@ -55,5 +56,6 @@ export function toConferenceRoomStateDto(
   return {
     participants: (room.participants ?? []).map((item) => toConferenceParticipantDto(item)),
     waitingForModerator: Boolean(room.waitingForModerator),
+    recording: Boolean(room.recording),
   };
 }

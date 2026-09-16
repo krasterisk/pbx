@@ -72,6 +72,7 @@ export class ConferenceMeetingsService {
       }
       const callerIdNum = amiString(evt, 'CallerIDNum');
       const channel = amiString(evt, 'Channel');
+      const uniqueid = amiString(evt, 'Uniqueid', 'uniqueid') || null;
       const live = this.stateService?.findLiveParticipant(roomUid, callerIdNum || channel);
       const role: ConferenceMeetingParticipantRole = live?.role ?? 'participant';
       await this.participants.create({
@@ -81,8 +82,45 @@ export class ConferenceMeetingsService {
         is_guest: false,
         joined_at: new Date(),
         left_at: null,
+        uniqueid,
+        caller_id_num: callerIdNum || null,
       });
       return { meeting, room, isFirstJoin };
+    });
+  }
+
+  async markParticipantLeft(
+    roomUid: number,
+    keys: { uniqueid?: string | null; channel?: string | null },
+  ): Promise<void> {
+    const meeting = await this.currentMeeting(roomUid);
+    if (!meeting) return;
+    const rows = await this.participants.findAll({
+      where: { meeting_uid: meeting.uid },
+    });
+    const uniqueid = keys.uniqueid?.trim() || '';
+    const channel = keys.channel?.trim() || '';
+    for (const row of rows) {
+      if (row.left_at) continue;
+      const rowUnique = String((row as { uniqueid?: string | null }).uniqueid ?? '').trim();
+      const rowChannel = String((row as { channel?: string | null }).channel ?? '').trim();
+      if ((uniqueid && rowUnique === uniqueid) || (channel && rowChannel === channel)) {
+        await row.update({ left_at: new Date() });
+      }
+    }
+  }
+
+  async endMeeting(roomUid: number): Promise<ConferenceMeeting | null> {
+    const open = await this.currentMeeting(roomUid);
+    if (open) {
+      if (!open.ended_at) {
+        await open.update({ ended_at: new Date() });
+      }
+      return open;
+    }
+    return this.meetings.findOne({
+      where: { room_uid: roomUid },
+      order: [['uid', 'DESC']],
     });
   }
 

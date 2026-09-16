@@ -65,7 +65,7 @@ export class ConferenceModerationService {
     this.stateService.revokeRole(roomUid, participantRef);
   }
 
-  private async assertCanModerate(
+  async assertCanModerate(
     roomUid: number,
     user: ModerationUser,
     required: 'moderator' | 'owner',

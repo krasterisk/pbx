@@ -1,11 +1,13 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
 import type { Request, Response } from 'express';
 import { AmiService } from '../ami/ami.service';
+import { LoggerService } from '../logger/logger.service';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
 import { normalizeTarget } from '../../shared/utils/dialplan-target.util';
 import { ConferenceMeetingsService } from './conference-meetings.service';
+import { ConferenceModerationService } from './conference-moderation.service';
 import {
   conferenceRecordingRel,
   safeConferenceRecordingPath,
@@ -13,6 +15,8 @@ import {
 import { ConferenceRoomsService } from './conference-rooms.service';
 import { ConferenceStateService } from './conference-state.service';
 import { ConferenceMeeting } from './models/conference-meeting.model';
+
+type RecordingUser = { sub: number; vpbx_user_uid: number };
 
 @Injectable()
 export class ConferenceRecordingService {
@@ -22,7 +26,78 @@ export class ConferenceRecordingService {
     private readonly stateService: ConferenceStateService,
     private readonly roomsService: ConferenceRoomsService,
     private readonly meetingsService: ConferenceMeetingsService,
+    @Optional() private readonly loggerService?: LoggerService,
+    @Optional() private readonly moderationService?: ConferenceModerationService,
   ) {}
+
+  async startByModerator(
+    roomUid: number,
+    user: RecordingUser,
+    _body?: unknown,
+  ): Promise<void> {
+    await this.moderationService?.assertCanModerate(roomUid, user, 'moderator');
+    const room = await this.roomsService.findOne(roomUid, user.vpbx_user_uid);
+    const mode = (room as { record_mode?: string }).record_mode;
+    if (mode !== 'button' && mode !== 'both') {
+      throw new ForbiddenException('Recording button is not available for this room');
+    }
+    if (this.stateService.getSnapshot(roomUid).recording) return;
+
+    let current = await this.meetingsService.currentMeeting(roomUid);
+    if (!current) {
+      if (!this.stateService.getRoomIdentity(roomUid)) {
+        throw new NotFoundException('Conference room is not live');
+      }
+      current = (
+        await this.meetingsService.beginMeeting(roomUid, user.vpbx_user_uid, {})
+      ).meeting;
+    }
+    await this.startForMeeting(room, current, user);
+    await this.loggerService?.logAction(
+      user.sub,
+      'conference_record_start',
+      'conference_room',
+      roomUid,
+      user.vpbx_user_uid,
+      '',
+    );
+  }
+
+  async stopByModerator(roomUid: number, user: RecordingUser): Promise<void> {
+    await this.moderationService?.assertCanModerate(roomUid, user, 'moderator');
+    await this.stopForRoom(roomUid, user);
+    await this.loggerService?.logAction(
+      user.sub,
+      'conference_record_stop',
+      'conference_room',
+      roomUid,
+      user.vpbx_user_uid,
+      '',
+    );
+  }
+
+  async stopForRoom(
+    roomUid: number,
+    userLike?: { vpbx_user_uid: number },
+  ): Promise<void> {
+    if (!this.stateService.getSnapshot(roomUid).recording) return;
+    const identity = this.stateService.getRoomIdentity(roomUid);
+    const vpbx = userLike?.vpbx_user_uid ?? identity?.vpbx;
+    const number = identity?.number;
+    if (!number || vpbx == null) {
+      throw new NotFoundException('Conference room is not live');
+    }
+    const conference = normalizeTarget(
+      'conference',
+      { source: 'fixed', value: String(number) },
+      vpbx,
+    );
+    await this.amiService.action({
+      action: 'ConfbridgeStopRecord',
+      conference,
+    });
+    this.stateService.setRecording(roomUid, false);
+  }
 
   async startForMeeting(
     room: { uid: number; number: string | number },

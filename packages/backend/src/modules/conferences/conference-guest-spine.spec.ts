@@ -157,7 +157,7 @@ describe('conference guest spine (16.1-01)', () => {
     const first = await firstValueFrom(controller.events(req));
     expect(first.type).toBe('fullSnapshot');
     const data = JSON.parse(first.data as string);
-    expect(Object.keys(data).sort()).toEqual(['participants', 'waitingForModerator']);
+    expect(Object.keys(data).sort()).toEqual(['participants', 'recording', 'waitingForModerator']);
     expect(data).not.toHaveProperty('conference');
     expect(JSON.stringify(data)).not.toMatch(/conf6007_42/);
   });
