@@ -1,8 +1,13 @@
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { LiveRoom, type LiveRoomParticipant } from './LiveRoom';
 import { conferenceSdhFactory } from '../../lib/conferenceSdhFactory';
+
+const here = dirname(fileURLToPath(import.meta.url));
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -147,5 +152,19 @@ describe('LiveRoom (16.3-01 R-SDH)', () => {
 
     const tile = screen.getByRole('listitem');
     expect(tile.className).toMatch(/singleTile/);
+  });
+
+  it('sets --conf-tile-min-width to 160px default and 120px at 640px', () => {
+    const scss = readFileSync(resolve(here, 'VideoGrid.module.scss'), 'utf8');
+    expect(scss).toMatch(/--conf-tile-min-width:\s*160px/);
+    expect(scss).toMatch(/max-width:\s*640px/);
+    expect(scss).toMatch(/--conf-tile-min-width:\s*120px/);
+  });
+
+  it('pulses the speaking outline and disables motion when reduced', () => {
+    const scss = readFileSync(resolve(here, 'ParticipantTile.module.scss'), 'utf8');
+    expect(scss).toMatch(/@keyframes/);
+    expect(scss).toMatch(/prefers-reduced-motion:\s*reduce/);
+    expect(scss).toMatch(/animation:\s*none/);
   });
 });
