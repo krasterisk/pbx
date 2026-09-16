@@ -1082,7 +1082,7 @@ Plans:
 
 **Requirements:** D-01, D-02, D-03, D-04, D-05, D-06, D-07, D-08, D-09, D-11, D-13, D-14, D-15, D-16, D-17, D-22, D-25, D-34, D-35, D-36, D-37 (+ R-PROFILE, R-STALE из ресёрча). Полные формулировки — `16-CONTEXT.md`.
 
-**Plans:** 4/7 plans executed
+**Plans:** 5/7 plans executed
 
 Plans:
 
@@ -1090,7 +1090,7 @@ Plans:
 - [x] 16-02-PLAN.md
 - [x] 16-03-PLAN.md
 - [x] 16-04-PLAN.md
-- [ ] 16-05-PLAN.md
+- [x] 16-05-PLAN.md
 - [ ] 16-06-PLAN.md
 - [ ] 16-07-PLAN.md
 
@@ -1109,7 +1109,7 @@ Plans:
 **Wave 4** *(blocked on Wave 3 completion)*
 
 - [x] `16-04-PLAN.md` — Wave 4: селектор комнаты в редакторе шага маршрута (RTK-каталог, схема шага, копирайтинг, UI-state тесты)
-- [ ] `16-05-PLAN.md` — Wave 4: три роли через персональные user-профили, постоянные модераторы, живые модераторские действия и разовая выдача
+- [x] `16-05-PLAN.md` — Wave 4: три роли через персональные user-профили, постоянные модераторы, живые модераторские действия и разовая выдача
 
 **Wave 5** *(blocked on Wave 4 completion)*
 
