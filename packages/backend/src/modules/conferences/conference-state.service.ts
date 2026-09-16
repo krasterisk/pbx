@@ -164,6 +164,27 @@ export class ConferenceStateService {
       .map(([roomUid]) => roomUid);
   }
 
+  getLiveChannelPairs(
+    roomUid: number,
+  ): Array<{ participantRef: string; channel: string }> {
+    return this.getSnapshot(roomUid).participants.map((item) => ({
+      participantRef: item.callerIdNum || item.channel,
+      channel: item.channel,
+    }));
+  }
+
+  getRoomIdentity(roomUid: number): { number: string; vpbx: number } | null {
+    const cached = this.conferenceByRoom.get(roomUid);
+    if (!cached) return null;
+    return { number: cached.number, vpbx: cached.vpbx };
+  }
+
+  isStale(channel: string, thresholdMs: number): boolean {
+    const last = this.lastSignalAt.get(channel);
+    if (last == null) return false;
+    return Date.now() - last > thresholdMs;
+  }
+
   handleJoin(evt: ConferenceAmiEvent): void {
     const resolved = this.resolveRoom(evt);
     const channel = String(evt.Channel ?? '');
