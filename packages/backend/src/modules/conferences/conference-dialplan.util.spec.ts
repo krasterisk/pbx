@@ -91,3 +91,38 @@ describe('generateConferenceMaskIndex', () => {
     expect(category.lines.join('\n')).toMatch(/Hangup\(\)/);
   });
 });
+
+const ROOM = { uid: 77, number: '6007' };
+const ROOM_RIGHTS = [
+  { endpointRef: '601', role: 'owner' as const },
+  { endpointRef: '602', role: 'moderator' as const },
+];
+
+describe('generateConferenceDialplan permanent rights', () => {
+  it('emits one CALLERID(num) elevation line per permanent-rights row', () => {
+    const category = generateConferenceDialplan(ROOM, VPBX, ROOM_RIGHTS);
+    const callerLines = category.lines.filter((line) => line.includes('${CALLERID(num)}'));
+    expect(callerLines).toHaveLength(2);
+  });
+
+  it('emits no CALLERID(num) lines when the rights list is empty', () => {
+    const category = generateConferenceDialplan(ROOM, VPBX, []);
+    expect(category.lines.filter((line) => line.includes('${CALLERID(num)}'))).toHaveLength(0);
+  });
+
+  it('matches the empty-list output when called without a rights argument', () => {
+    expect(generateConferenceDialplan(ROOM, VPBX).lines).toEqual(
+      generateConferenceDialplan(ROOM, VPBX, []).lines,
+    );
+  });
+
+  it('never binds the bridge profile to a caller identity', () => {
+    const category = generateConferenceDialplan(ROOM, VPBX, ROOM_RIGHTS);
+    for (const line of category.lines) {
+      expect(line.includes('CONFBRIDGE(bridge') && line.includes('${CALLERID(num)}')).toBe(
+        false,
+      );
+    }
+  });
+});
+
