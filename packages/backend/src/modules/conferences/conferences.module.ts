@@ -4,6 +4,7 @@ import { AmiModule } from '../ami/ami.module';
 import { EndpointsModule } from '../endpoints/endpoints.module';
 import { LoggerModule } from '../logger/logger.module';
 import { User } from '../users/user.model';
+import { ConferenceCapacityService } from './conference-capacity.service';
 import { ConfbridgeStaticProfileService } from './confbridge-static-profile.service';
 import { ConferenceEphemeralService } from './conference-ephemeral.service';
 import { ConferenceGuestController } from './conference-guest.controller';
@@ -48,6 +49,7 @@ import { ConferenceRoom } from './models/conference-room.model';
   ],
   providers: [
     ConferenceRoomsService,
+    ConferenceCapacityService,
     ConferenceGuestService,
     ConferenceGuestTokenGuard,
     ConferenceModerationService,
@@ -64,6 +66,11 @@ import { ConferenceRoom } from './models/conference-room.model';
     ConfbridgeStaticProfileService,
     ConferenceStaleChannelSweeperService,
   ],
-  exports: [ConferenceRoomsService, ConferenceStateService, ConferenceEphemeralService],
+  exports: [
+    ConferenceRoomsService,
+    ConferenceCapacityService,
+    ConferenceStateService,
+    ConferenceEphemeralService,
+  ],
 })
 export class ConferencesModule {}

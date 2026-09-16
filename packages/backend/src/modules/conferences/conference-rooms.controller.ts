@@ -11,7 +11,9 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { Request } from 'express';
+import { SkipThrottle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { ConferenceCapacityService } from './conference-capacity.service';
 import { ConferenceRoomsService } from './conference-rooms.service';
 import { CreateConferenceGuestTokenDto } from './dto/conference-guest-token.dto';
 import { CreateConferenceRoomDto } from './dto/create-conference-room.dto';
@@ -21,7 +23,10 @@ import { UpdateConferenceRoomDto } from './dto/update-conference-room.dto';
 @UseGuards(JwtAuthGuard)
 @Controller('conferences')
 export class ConferenceRoomsController {
-  constructor(private readonly conferenceRoomsService: ConferenceRoomsService) {}
+  constructor(
+    private readonly conferenceRoomsService: ConferenceRoomsService,
+    private readonly capacityService: ConferenceCapacityService,
+  ) {}
 
   @Get()
   findAll(@Req() req: Request & { user: any }) {
@@ -52,6 +57,16 @@ export class ConferenceRoomsController {
     @Req() req: Request & { user: any },
   ) {
     return this.conferenceRoomsService.revokeGuestToken(uid, tokenUid, req.user.vpbx_user_uid);
+  }
+
+  @SkipThrottle({ default: true, global: true })
+  @Get(':uid/capacity')
+  async getCapacity(
+    @Param('uid', ParseIntPipe) uid: number,
+    @Req() req: Request & { user: any },
+  ) {
+    const room = await this.conferenceRoomsService.findOne(uid, req.user.vpbx_user_uid);
+    return { maxParticipants: this.capacityService.capacityForRoom(room) };
   }
 
   @Get(':uid/moderators')
