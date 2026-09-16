@@ -46,6 +46,7 @@ export interface LiveRoomProps {
   inviteExternalScope?: ConferenceInviteScope;
   isMuted?: boolean;
   isCameraOff?: boolean;
+  videoFailedMids?: string[];
   onJoin?: () => void;
   onLeave?: () => void;
   onEnd?: () => void;

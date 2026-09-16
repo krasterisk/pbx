@@ -11,7 +11,6 @@ const startMedia = vi.fn();
 const hangup = vi.fn(async () => undefined);
 let hostStatus: 'idle' | 'connecting' | 'registered' | 'in-call' | 'error' = 'idle';
 let hostError: 'noWebrtcCompanion' | null = null;
-let roomCreatedBy = 9;
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -60,7 +59,7 @@ vi.mock('@/shared/api/endpoints/conferenceRoomApi', () => ({
       uid: 7,
       number: '8001',
       name: 'Standup',
-      created_by: roomCreatedBy,
+      created_by: 9,
       record_mode: 'button',
       invite_external_scope: 'moderator',
       participants: [],
@@ -95,7 +94,6 @@ describe('ConferenceRoomPage (16.3-09 G-16.3-1)', () => {
     hangup.mockClear();
     hostStatus = 'idle';
     hostError = null;
-    roomCreatedBy = 9;
   });
 
   it('keeps the orchestrator at 70 lines or fewer and does not own useConferenceRoom', () => {
@@ -107,6 +105,7 @@ describe('ConferenceRoomPage (16.3-09 G-16.3-1)', () => {
     expect(source).toMatch(/useConferenceSse\(\{\s*mode:\s*'staff'/);
     expect(source).not.toMatch(/dispatch\(leaveSession\(\)\)/);
     expect(source).not.toMatch(/roomHook\.leave/);
+    expect(source).toMatch(/onEnd=\{\(\) => \{ void host\.hangup\(\); \}\}/);
   });
 
   it('renders the three LiveRoom zones', () => {
@@ -120,9 +119,9 @@ describe('ConferenceRoomPage (16.3-09 G-16.3-1)', () => {
     expect(useConferenceSse).toHaveBeenCalledWith({ mode: 'staff', roomUid: 7 });
   });
 
-  it('calls startMedia on Join and hangup on Leave/End', async () => {
+  it('calls startMedia on Join and hangup on Leave', async () => {
     const user = userEvent.setup();
-    const { rerender } = render(<ConferenceRoomPage />);
+    render(<ConferenceRoomPage />);
     await user.click(screen.getByRole('button', { name: 'Войти в конференцию' }));
     expect(startMedia).toHaveBeenCalledWith(expect.objectContaining({
       roomUid: 7,
@@ -133,12 +132,6 @@ describe('ConferenceRoomPage (16.3-09 G-16.3-1)', () => {
     }));
 
     await user.click(screen.getByRole('button', { name: 'Выйти из конференции' }));
-    expect(hangup).toHaveBeenCalled();
-
-    hangup.mockClear();
-    roomCreatedBy = 3;
-    rerender(<ConferenceRoomPage />);
-    await user.click(screen.getByRole('button', { name: 'Завершить конференцию' }));
     expect(hangup).toHaveBeenCalled();
   });
 

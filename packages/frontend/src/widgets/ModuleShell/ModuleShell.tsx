@@ -24,6 +24,7 @@ import {
   findModuleByPath,
   getModuleEntryPath,
 } from '@/features/modules/lib/moduleRegistry';
+import { ConferenceSessionProvider } from '@/features/conferences/lib/ConferenceSessionProvider';
 import { ConferenceMiniPanel } from '@/features/conferences/ui/ConferenceMiniPanel';
 import { ModuleBreadcrumbs } from './ModuleBreadcrumbs';
 import { ModuleShellSidebar } from './ModuleShellSidebar';
@@ -200,6 +201,7 @@ export const ModuleShell = memo(function ModuleShell({ children }: ModuleShellPr
   };
 
   return (
+    <ConferenceSessionProvider>
     <div
       className={cls.shellRoot}
       data-testid="module-shell"
@@ -326,5 +328,6 @@ export const ModuleShell = memo(function ModuleShell({ children }: ModuleShellPr
         onClose={closeAgent}
       />
     </div>
+    </ConferenceSessionProvider>
   );
 });
