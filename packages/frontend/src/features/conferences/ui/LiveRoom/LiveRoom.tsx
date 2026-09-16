@@ -52,6 +52,7 @@ export interface LiveRoomProps {
   onEnd?: () => void;
   onMicToggle?: () => void;
   onCamToggle?: () => void;
+  onRetryVideo?: () => void;
 }
 
 const PARTICIPANTS_PANEL_ID = 'conference-participants';
@@ -90,11 +91,13 @@ export function LiveRoom({
   inviteExternalScope,
   isMuted: mutedProp,
   isCameraOff: camProp,
+  videoFailedMids = [],
   onJoin,
   onLeave,
   onEnd,
   onMicToggle,
   onCamToggle,
+  onRetryVideo,
 }: LiveRoomProps) {
   const { t } = useTranslation();
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -198,7 +201,12 @@ export function LiveRoom({
               </Text>
             </VStack>
           ) : (
-            <VideoGrid participants={participants} remoteTracks={remoteTracks} />
+            <VideoGrid
+              participants={participants}
+              remoteTracks={remoteTracks}
+              videoFailedMids={videoFailedMids}
+              onRetry={onRetryVideo}
+            />
           )}
           {reconnecting ? (
             <div className={cls.banner} data-banner="reconnecting" aria-live="polite">

@@ -35,7 +35,7 @@ export const ConferenceRoomPage = memo(() => {
         reconnecting={host.room.status === 'connecting'}
         disconnected={host.room.status === 'error' && host.room.error !== 'noWebrtcCompanion'}
         adminJoinNotice={Boolean(room && user && room.created_by != null && room.created_by !== user.uniqueid)}
-        videoFailedMids={host.room.videoFailedMids}
+        videoFailedMids={host.room.videoFailedMids} onRetryVideo={host.room.retryVideo}
         onJoin={() => host.startMedia({ roomUid, roomNumber: room?.number ?? '', name: room?.name, role, sipId: host.sipId })}
         onLeave={() => { void host.hangup(); }}
         onEnd={() => { void host.hangup(); }}

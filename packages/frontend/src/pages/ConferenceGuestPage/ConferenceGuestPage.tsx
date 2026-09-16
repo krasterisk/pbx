@@ -47,6 +47,7 @@ export const ConferenceGuestPage = memo(() => {
           <LiveRoom
             roomUid={creds.roomUid} roomName={meta?.name ?? ''} participants={meta?.participants ?? []}
             remoteTracks={room.remoteTracks} videoFailedMids={room.videoFailedMids}
+            onRetryVideo={room.retryVideo}
             selfRole="participant" status={room.status} error={room.error} onLeave={hangup}
           />
         ) : (

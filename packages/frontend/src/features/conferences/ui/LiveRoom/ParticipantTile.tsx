@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { Avatar } from '@/shared/ui/Avatar';
+import { Button } from '@/shared/ui';
 import { Text } from '@/shared/ui/Text/Text';
 import { Flex, VStack } from '@/shared/ui/Stack';
 import { VideoSurface } from '@/shared/ui/VideoSurface';
@@ -12,11 +13,21 @@ export interface ParticipantTileProps {
   participant: LiveRoomParticipant;
   track?: MediaStreamTrack;
   single?: boolean;
+  videoFailed?: boolean;
+  onRetry?: () => void;
 }
 
-export function ParticipantTile({ mid, participant, track, single }: ParticipantTileProps) {
+export function ParticipantTile({
+  mid,
+  participant,
+  track,
+  single,
+  videoFailed = false,
+  onRetry,
+}: ParticipantTileProps) {
   const { t } = useTranslation();
-  const showVideo = Boolean(participant.video && track);
+  const retryLabel = t('conferences.live.videoRetry', 'Повторить подключение видео');
+  const showVideo = Boolean(participant.video && track) && !videoFailed;
 
   return (
     <Flex
@@ -36,9 +47,18 @@ export function ParticipantTile({ mid, participant, track, single }: Participant
             <Text variant="small">
               {t('conferences.live.videoFailed', 'Видео не подключилось')}
             </Text>
-            <Text variant="xs">
-              {t('conferences.live.videoRetry', 'Повторить подключение видео')}
-            </Text>
+            {onRetry ? (
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={onRetry}
+                style={{ minWidth: 44, minHeight: 44 }}
+              >
+                {retryLabel}
+              </Button>
+            ) : (
+              <Text variant="xs">{retryLabel}</Text>
+            )}
           </VStack>
         )}
       </Flex>

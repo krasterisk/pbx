@@ -6,9 +6,16 @@ import cls from './VideoGrid.module.scss';
 export interface VideoGridProps {
   participants: LiveRoomParticipant[];
   remoteTracks: Record<string, MediaStreamTrack>;
+  videoFailedMids?: string[];
+  onRetry?: () => void;
 }
 
-export function VideoGrid({ participants, remoteTracks }: VideoGridProps) {
+export function VideoGrid({
+  participants,
+  remoteTracks,
+  videoFailedMids = [],
+  onRetry,
+}: VideoGridProps) {
   const mids = Object.keys(remoteTracks);
   const single = participants.length === 1;
 
@@ -23,6 +30,8 @@ export function VideoGrid({ participants, remoteTracks }: VideoGridProps) {
             participant={participant}
             track={remoteTracks[mid]}
             single={single}
+            videoFailed={videoFailedMids.includes(mid)}
+            onRetry={onRetry}
           />
         );
       })}
