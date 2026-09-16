@@ -4,9 +4,27 @@
   flex: 1;
 }
 
+.body {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+}
+
+.stage {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
 .empty {
   flex: 1;
   min-height: 0;
   padding: 24px;
   text-align: center;
+}
+
+.railToggle {
+  min-width: 44px;
+  min-height: 44px;
 }
