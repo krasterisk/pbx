@@ -1143,11 +1143,11 @@ Plans:
 
 ## Phase 16.1: Телеконференции — видео, ёмкость комнаты, гостевой вход и приглашения (backend)
 
-**Status:** In Progress (2026-09-16) — 5/6 plans executed (16.1-01…16.1-05)
+**Status:** In Progress (2026-09-16) — 6/6 plans executed (16.1-01…16.1-06); verify pending
 
 **Goal:** Довести комнату из Phase 16 до полноценной видеовстречи с внешними участниками: сетка видео на нативном SFU, честная ёмкость комнаты как бюджет полосы, гостевой вход по ссылке без учётной записи портала и приглашение внутренних и внешних абонентов из комнаты.
 
-**Plans:** 5/6 plans executed
+**Plans:** 6/6 plans executed
 
 Plans:
 
@@ -1156,7 +1156,7 @@ Plans:
 - [x] 16.1-03-PLAN.md — D-23/D-24: max_video_streams + VP8, backfill ew*, guest webrtc-config
 - [x] 16.1-04-PLAN.md — D-18…D-21: GET capacity одно поле, max_members из бюджета, cron, join→capacityForRoom
 - [x] 16.1-05-PLAN.md — D-38/D-39: AMI Originate + invite_external_scope
-- [ ] 16.1-06-PLAN.md — D-40 overlay имён + R-TELEMETRY ingest
+- [x] 16.1-06-PLAN.md — D-40 overlay имён + R-TELEMETRY ingest
 
 **Wave 1**
 
@@ -1177,7 +1177,7 @@ Plans:
 
 **Wave 5** *(blocked on Wave 4 completion)*
 
-- [ ] `16.1-06-PLAN.md` — Wave 5: display names + telemetry
+- [x] `16.1-06-PLAN.md` — Wave 5: display names + telemetry
 
 **Scope (in):**
 
