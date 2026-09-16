@@ -101,6 +101,75 @@ describe('ConferenceCapacityService (16.1-04 D-18/D-20)', () => {
   });
 });
 
+describe('ConferenceCapacityService.tick (16.1-04 D-19)', () => {
+  let state: ConferenceStateService;
+  let rooms: { findOne: jest.Mock; reapplyDialplan: jest.Mock };
+  let service: ConferenceCapacityService;
+  const prevUplink = process.env.CONFERENCE_UPLINK_KBPS;
+
+  beforeEach(() => {
+    process.env.CONFERENCE_UPLINK_KBPS = '105600';
+    state = new ConferenceStateService();
+    rooms = {
+      findOne: jest.fn(),
+      reapplyDialplan: jest.fn().mockResolvedValue(undefined),
+    };
+    service = new ConferenceCapacityService(state, rooms as any);
+    rooms.findOne.mockImplementation(async (uid: number) => ({
+      uid,
+      user_uid: 42,
+      tariff_max_participants: uid === ROOM_A.uid ? 4 : 8,
+    }));
+  });
+
+  afterEach(() => {
+    if (prevUplink === undefined) delete process.env.CONFERENCE_UPLINK_KBPS;
+    else process.env.CONFERENCE_UPLINK_KBPS = prevUplink;
+  });
+
+  it('reapplies only the room whose N changed', async () => {
+    fillRoom(state, ROOM_A, 1);
+    fillRoom(state, ROOM_B, 1);
+    await service.tick();
+    expect(rooms.reapplyDialplan).toHaveBeenCalledTimes(2);
+    rooms.reapplyDialplan.mockClear();
+
+    rooms.findOne.mockImplementation(async (uid: number) => ({
+      uid,
+      user_uid: 42,
+      tariff_max_participants: uid === ROOM_A.uid ? 3 : 8,
+    }));
+    await service.tick();
+    expect(rooms.reapplyDialplan).toHaveBeenCalledTimes(1);
+    expect(rooms.reapplyDialplan.mock.calls[0][0].uid).toBe(ROOM_A.uid);
+    expect(rooms.reapplyDialplan.mock.calls[0][1]).toBe(3);
+  });
+
+  it('does not reapply when N is unchanged', async () => {
+    fillRoom(state, ROOM_A, 1);
+    await service.tick();
+    rooms.reapplyDialplan.mockClear();
+    await service.tick();
+    expect(rooms.reapplyDialplan).not.toHaveBeenCalled();
+  });
+
+  it('skips an overlapping tick without a second runOnce', async () => {
+    fillRoom(state, ROOM_A, 1);
+    let release!: (value?: unknown) => void;
+    rooms.reapplyDialplan.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          release = resolve;
+        }),
+    );
+    const first = service.tick();
+    await service.tick();
+    expect(rooms.reapplyDialplan).toHaveBeenCalledTimes(1);
+    release();
+    await first;
+  });
+});
+
 describe('GET /conferences/:uid/capacity (16.1-04 D-20)', () => {
   it('is a GET :uid/capacity method on ConferenceRoomsController', () => {
     expect(Reflect.getMetadata(PATH_METADATA, ConferenceRoomsController.prototype.getCapacity)).toBe(

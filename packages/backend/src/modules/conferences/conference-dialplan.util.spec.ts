@@ -187,4 +187,36 @@ describe('generateConferenceDialplan entry policy', () => {
   });
 });
 
+describe('generateConferenceDialplan effective_max_participants (16.1-04 D-18)', () => {
+  const maxMembersLine = (line: string) => line.includes('Set(CONFBRIDGE(bridge,max_members)=');
+
+  it('lets effective_max_participants 7 override tariff 12', () => {
+    const category = generateConferenceDialplan(
+      { ...ROOM, tariff_max_participants: 12, effective_max_participants: 7 },
+      VPBX,
+    );
+    const lines = category.lines.filter(maxMembersLine);
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toContain('=7');
+    expect(lines[0]).not.toContain('=12');
+  });
+
+  it('keeps tariff 12 when effective_max_participants is absent', () => {
+    const category = generateConferenceDialplan(
+      { ...ROOM, tariff_max_participants: 12 },
+      VPBX,
+    );
+    const lines = category.lines.filter(maxMembersLine);
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toBe('same => n,Set(CONFBRIDGE(bridge,max_members)=12)');
+  });
+
+  it('still matches the empty-list output when called without a rights argument', () => {
+    const room = { ...ROOM, tariff_max_participants: 12, effective_max_participants: 7 };
+    expect(generateConferenceDialplan(room, VPBX).lines).toEqual(
+      generateConferenceDialplan(room, VPBX, []).lines,
+    );
+  });
+});
+
 

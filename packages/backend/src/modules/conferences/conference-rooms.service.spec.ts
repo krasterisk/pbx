@@ -800,4 +800,56 @@ describe('ConferenceRoomsService CRUD (16-02)', () => {
   });
 });
 
+describe('ConferenceRoomsService.reapplyDialplan (16.1-04 D-18)', () => {
+  let roomModel: { findAll: jest.Mock; findOne: jest.Mock; create: jest.Mock };
+  let sequelize: { transaction: jest.Mock };
+  let dialplanApplyService: jest.Mocked<
+    Pick<DialplanApplyService, 'applyCategories' | 'deleteCategories'>
+  >;
+  let stateService: ConferenceStateService;
+  let service: ConferenceRoomsService;
+
+  beforeEach(() => {
+    roomModel = {
+      findAll: jest.fn().mockResolvedValue([]),
+      findOne: jest.fn(),
+      create: jest.fn(),
+    };
+    sequelize = {
+      transaction: jest.fn().mockResolvedValue({
+        commit: jest.fn().mockResolvedValue(undefined),
+        rollback: jest.fn().mockResolvedValue(undefined),
+      }),
+    };
+    dialplanApplyService = {
+      applyCategories: jest.fn().mockResolvedValue({ success: true, linesApplied: 4 }),
+      deleteCategories: jest.fn().mockResolvedValue({ success: true }),
+    };
+    stateService = new ConferenceStateService();
+    service = new ConferenceRoomsService(
+      roomModel as any,
+      sequelize as any,
+      dialplanApplyService as unknown as DialplanApplyService,
+      stateService,
+    );
+  });
+
+  it('writes max_members from effectiveMax and not from tariff', async () => {
+    const room = roomRow({ tariff_max_participants: 12 });
+    roomModel.findAll.mockResolvedValue([room]);
+
+    await service.reapplyDialplan(room as any, 7);
+
+    expect(dialplanApplyService.applyCategories).toHaveBeenCalledTimes(1);
+    const [, categories] = dialplanApplyService.applyCategories.mock.calls[0];
+    const roomCategory = categories.find((c: { name: string }) => c.name === 'krsk-conf-77');
+    const maxLines = roomCategory.lines.filter((line: string) =>
+      line.includes('Set(CONFBRIDGE(bridge,max_members)='),
+    );
+    expect(maxLines).toHaveLength(1);
+    expect(maxLines[0]).toContain('=7');
+    expect(maxLines[0]).not.toContain('=12');
+  });
+});
+
 
