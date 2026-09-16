@@ -5,9 +5,11 @@ import { EndpointsModule } from '../endpoints/endpoints.module';
 import { LoggerModule } from '../logger/logger.module';
 import { PsEndpoint } from '../endpoints/ps-endpoint.model';
 import { User } from '../users/user.model';
+import { ReportsCdrModule } from '../reports/cdr/reports-cdr.module';
 import { SystemSettingsModule } from '../system-settings/system-settings.module';
 import { ConferenceCapacityService } from './conference-capacity.service';
 import { ConferenceInviteService } from './conference-invite.service';
+import { ConferenceMeetingsController } from './conference-meetings.controller';
 import { ConferenceMeetingsService } from './conference-meetings.service';
 import { ConferenceRecordingController } from './conference-recording.controller';
 import { ConferenceRecordingService } from './conference-recording.service';
@@ -47,10 +49,12 @@ import { ConferenceRoom } from './models/conference-room.model';
     LoggerModule,
     EndpointsModule,
     SystemSettingsModule,
+    ReportsCdrModule,
   ],
   controllers: [
     ConferenceGuestWebrtcController,
     ConferenceGuestController,
+    ConferenceMeetingsController,
     ConferenceRoomsController,
     ConferenceModerationController,
     ConferenceParticipantController,

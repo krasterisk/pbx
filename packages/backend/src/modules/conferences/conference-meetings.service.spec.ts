@@ -220,6 +220,23 @@ describe('ConferenceMeetingsService list and CDR-join (16.2-02 D-33)', () => {
     );
   });
 
+  it('persists AMI uniqueid 1693731234.12 and null when Uniqueid is missing', async () => {
+    await service.beginMeeting(ROOM_UID, VPBX, {
+      Conference: CONFERENCE,
+      Channel: 'PJSIP/601-00000001',
+      CallerIDNum: '601',
+      Uniqueid: '1693731234.12',
+    });
+    expect(participantModel.rows[0].uniqueid).toBe('1693731234.12');
+    expect(participantModel.rows[0].caller_id_num).toBe('601');
+    await service.beginMeeting(ROOM_UID, VPBX, {
+      Conference: CONFERENCE,
+      Channel: 'PJSIP/602-00000002',
+      CallerIDNum: '602',
+    });
+    expect(participantModel.rows[1].uniqueid).toBeNull();
+  });
+
   it('lists tenant meetings without channel and with left_at after leave', async () => {
     await service.beginMeeting(ROOM_UID, VPBX, {
       Conference: CONFERENCE,

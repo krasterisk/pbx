@@ -4,6 +4,7 @@ import * as path from 'path';
 import type { Request, Response } from 'express';
 import { AmiService } from '../ami/ami.service';
 import { LoggerService } from '../logger/logger.service';
+import { CdrService } from '../reports/cdr/cdr.service';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
 import { normalizeTarget } from '../../shared/utils/dialplan-target.util';
 import { ConferenceMeetingsService } from './conference-meetings.service';
@@ -28,6 +29,7 @@ export class ConferenceRecordingService {
     private readonly meetingsService: ConferenceMeetingsService,
     @Optional() private readonly loggerService?: LoggerService,
     @Optional() private readonly moderationService?: ConferenceModerationService,
+    @Optional() private readonly cdrService?: CdrService,
   ) {}
 
   async startByModerator(
@@ -145,9 +147,28 @@ export class ConferenceRecordingService {
     vpbx: number,
     req: Request,
     res: Response,
+    viewerUserId?: number,
   ): Promise<void> {
     await this.roomsService.findOne(roomUid, vpbx);
     const meeting = await this.meetingsService.getByRoom(roomUid, meetingUid);
+    if (viewerUserId && this.cdrService && this.meetingsService.listParticipantUniqueids) {
+      const uniqueids = await this.meetingsService.listParticipantUniqueids(meeting.uid);
+      if (uniqueids.length > 0) {
+        let visible = false;
+        for (const uniqueid of uniqueids) {
+          try {
+            await this.cdrService.findByUniqueid(vpbx, uniqueid, viewerUserId);
+            visible = true;
+            break;
+          } catch {
+            // Same voicemail requireVisibleRow: hidden uniqueid is not a leak.
+          }
+        }
+        if (!visible) {
+          throw new NotFoundException('Conference recording not found');
+        }
+      }
+    }
     const cfg = await this.systemSettings.getServerConfigRaw();
     const base = cfg.records_base_path || '/usr/records';
     const filePath = safeConferenceRecordingPath(base, meeting.recording_file_rel ?? '');

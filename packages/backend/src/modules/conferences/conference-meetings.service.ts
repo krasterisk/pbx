@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
+import { CdrService } from '../reports/cdr/cdr.service';
 import { ConferenceRoomsService } from './conference-rooms.service';
 import { ConferenceStateService, type ConferenceAmiEvent } from './conference-state.service';
 import { ConferenceMeeting } from './models/conference-meeting.model';
@@ -30,6 +31,7 @@ export class ConferenceMeetingsService {
     private readonly participants: typeof ConferenceMeetingParticipant,
     private readonly roomsService: ConferenceRoomsService,
     @Optional() private readonly stateService?: ConferenceStateService,
+    @Optional() private readonly cdrService?: CdrService,
   ) {}
 
   async currentMeeting(roomUid: number): Promise<ConferenceMeeting | null> {
@@ -108,6 +110,89 @@ export class ConferenceMeetingsService {
         await row.update({ left_at: new Date() });
       }
     }
+  }
+
+  async listParticipantUniqueids(meetingUid: number): Promise<string[]> {
+    const parts = await this.participants.findAll({
+      where: { meeting_uid: meetingUid },
+    });
+    return parts
+      .map((row) => String(row.uniqueid ?? '').trim())
+      .filter(Boolean);
+  }
+
+  async listByRoom(roomUid: number, vpbx: number) {
+    await this.roomsService.findOne(roomUid, vpbx);
+    const meetings = await this.meetings.findAll({
+      where: { room_uid: roomUid },
+      order: [['uid', 'DESC']],
+    });
+    const result = [];
+    for (const meeting of meetings) {
+      const parts = await this.participants.findAll({
+        where: { meeting_uid: meeting.uid },
+      });
+      result.push({
+        uid: meeting.uid,
+        room_uid: meeting.room_uid,
+        started_at: meeting.started_at,
+        ended_at: meeting.ended_at,
+        has_recording: meeting.has_recording,
+        recording_file_rel: meeting.recording_file_rel,
+        participants: parts.map((row) => ({
+          display_name: row.display_name,
+          role: row.role,
+          joined_at: row.joined_at,
+          left_at: row.left_at,
+          caller_id_num: row.caller_id_num,
+        })),
+      });
+    }
+    return result;
+  }
+
+  async findRecordingsByUniqueids(
+    vpbx: number,
+    uniqueids: string[],
+    viewerUserId: number,
+  ): Promise<
+    Array<{ uniqueid: string; meetingUid: number; roomUid: number; playPath: string }>
+  > {
+    const found: Array<{
+      uniqueid: string;
+      meetingUid: number;
+      roomUid: number;
+      playPath: string;
+    }> = [];
+    for (const raw of uniqueids) {
+      const id = String(raw ?? '').trim();
+      if (!id) continue;
+      if (this.cdrService) {
+        try {
+          await this.cdrService.findByUniqueid(vpbx, id, viewerUserId);
+        } catch {
+          continue;
+        }
+      }
+      const parts = await this.participants.findAll({ where: { uniqueid: id } });
+      for (const part of parts) {
+        const meeting = await this.meetings.findOne({ where: { uid: part.meeting_uid } });
+        if (!meeting || (!meeting.has_recording && !meeting.recording_file_rel)) continue;
+        try {
+          await this.roomsService.findOne(meeting.room_uid, vpbx);
+        } catch {
+          continue;
+        }
+        found.push({
+          uniqueid: id,
+          meetingUid: meeting.uid,
+          roomUid: meeting.room_uid,
+          playPath: `/conferences/${meeting.room_uid}/meetings/${meeting.uid}/play`,
+        });
+        break;
+      }
+    }
+    return found;
   }
 
   async endMeeting(roomUid: number): Promise<ConferenceMeeting | null> {

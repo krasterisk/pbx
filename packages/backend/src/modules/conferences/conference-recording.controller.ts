@@ -35,7 +35,7 @@ export class ConferenceRecordingController {
   async play(
     @Param('uid', ParseIntPipe) uid: number,
     @Param('meetingUid', ParseIntPipe) meetingUid: number,
-    @Req() req: Request & { user: { vpbx_user_uid: number } },
+    @Req() req: Request & { user: { vpbx_user_uid: number; sub: number } },
     @Res() res: Response,
   ) {
     await this.roomsService.findOne(uid, req.user.vpbx_user_uid);
@@ -45,6 +45,7 @@ export class ConferenceRecordingController {
       req.user.vpbx_user_uid,
       req,
       res,
+      req.user.sub,
     );
   }
 }

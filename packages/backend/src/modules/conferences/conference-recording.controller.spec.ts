@@ -30,6 +30,6 @@ describe('ConferenceRecordingController (16.2-01)', () => {
     await controller.play(77, 15, req as never, res as never);
     expect(rooms.findOne).toHaveBeenCalledWith(77, 42);
     expect(rooms.findOne).not.toHaveBeenCalledWith(77, 999);
-    expect(recording.streamMeeting).toHaveBeenCalledWith(77, 15, 42, req, res);
+    expect(recording.streamMeeting).toHaveBeenCalledWith(77, 15, 42, req, res, 7);
   });
 });
