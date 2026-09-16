@@ -23,7 +23,7 @@ Phase 16 (modul-telekonferentsiy-confbridge-webrtc) — CORE PLANS COMPLETE (202
 
 Phase 16.1 (telekonferentsii-video-emkost-komnaty-gostevoy-vhod-i-prigla) — COMPLETE (2026-09-16). 16.1-01…16.1-06; verify passed 16/16. Next: обязательный `/gsd-secure-phase 16.1`. Advisory: `/gsd-code-review 16.1 --fix` (4 critical in 16.1-REVIEW.md). Then `/gsd-execute-phase 16.2`.
 
-Phase 16.2 (telekonferentsii-zapis-vstrech-i-otchetnost) — PLANS COMPLETE (2026-09-16). 16.2-01…16.2-04 complete (spine + moderator start/stop + CDR badge/modal + History tab fragment). Next: `/gsd-verify-work 16.2`. Sub-phase 16.3 remains unplanned.
+Phase 16.2 (telekonferentsii-zapis-vstrech-i-otchetnost) — EXECUTED (2026-09-16). 16.2-01…16.2-04; verify 15/15, status `human_needed`. Next: `/gsd-verify-work 16.2`. Do not mark complete until UAT. Advisory: `/gsd-code-review 16.2 --fix`. Then `/gsd-secure-phase 16.2`.
 
 Phase 14 (visual-route-builder-and-automation) — COMPLETE (2026-09-04). 11/11 plans (incl. gap 14-11); verify 27/27; G-14-2 resolved.
 
@@ -69,6 +69,7 @@ Phase 1 — MOH: pending verify.
 
 - [Phase 08 / 08-11 Task 3]: Human Android device/emulator smoke (FCM registration + softphone foreground audio). Requires `google-services.json` (see `08-USER-SETUP.md`).
 - [Phase 16.1]: Code review `issues_found` — join after revoke without lock, Kick skipped without snapshot channel, `max_members` omitted at capacity 0 (Asterisk = unlimited), invite callerid interpolates unsanitized room name. See `16.1-REVIEW.md`.
+- [Phase 16.2]: Code review `issues_found` — play skips CDR visibility when uniqueids are empty; last-leave rows CASCADE-deleted by ephemeral collectIfEmpty. See `16.2-REVIEW.md`.
 
 ## Decisions
 
@@ -652,8 +653,8 @@ Also open: `/gsd-secure-phase 15`; Phase 11 harness verify; Phase 10 `/gsd-verif
 
 ## Session
 
-**Last session:** 2026-09-16T09:14:58.651Z
-**Stopped at:** Completed 16.2-04-PLAN.md
+**Last session:** 2026-09-16T09:22:00.000Z
+**Stopped at:** Phase 16.2 verified (human_needed). Next: `/gsd-verify-work 16.2`
 **Resume file:** None
 **Also ready:** .planning/phases/15-universal-pbx-ai-agent/15-CONTEXT.md
 
