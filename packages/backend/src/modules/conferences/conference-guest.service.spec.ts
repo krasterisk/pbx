@@ -47,6 +47,7 @@ describe('ConferenceGuestService (16.1-01)', () => {
     stateService = {
       getSnapshot: jest.fn().mockReturnValue({ participants: [] }),
       getActiveRoomUids: jest.fn().mockReturnValue([]),
+      rememberDisplayName: jest.fn(),
     };
     endpointsService = {
       generateSipPassword: jest.fn().mockReturnValue('sip-secret'),
@@ -78,7 +79,7 @@ describe('ConferenceGuestService (16.1-01)', () => {
     };
     tokenModel.findByPk.mockResolvedValue(token);
 
-    const result = await service.join(guestUser(), {});
+    const result = await service.join(guestUser(), { displayName: 'Гость' });
 
     expect(endpointsService.createEphemeralGuestEndpoint).toHaveBeenCalledTimes(1);
     const args = endpointsService.createEphemeralGuestEndpoint.mock.calls[0][0];
@@ -146,7 +147,7 @@ describe('ConferenceGuestService (16.1-01)', () => {
     };
     tokenModel.findByPk.mockResolvedValue(token);
 
-    await service.join(guestUser(), {});
+    await service.join(guestUser(), { displayName: 'Гость' });
 
     expect(endpointsService.destroyEphemeralGuestEndpoint).toHaveBeenCalledWith(
       'gstaaaaaaaa',
@@ -271,6 +272,8 @@ describe('ConferenceGuestService (16.1-01)', () => {
         getSnapshot: jest.fn().mockReturnValue({ participants: [] }),
         getActiveRoomUids: jest.fn().mockReturnValue([]),
         findLiveParticipant: jest.fn(),
+        rememberDisplayName: jest.fn(),
+        setDisplayName: jest.fn(),
       };
       roomsService.findOne.mockResolvedValue(roomJson({ number: '6007' }));
       service = new ConferenceGuestService(
@@ -482,6 +485,7 @@ describe('ConferenceGuestService.join capacityForRoom (16.1-04 D-21)', () => {
     stateService = {
       getSnapshot: jest.fn().mockReturnValue({ participants: [] }),
       getActiveRoomUids: jest.fn(),
+      rememberDisplayName: jest.fn(),
     };
     endpointsService = {
       generateSipPassword: jest.fn().mockReturnValue('sip-secret'),
@@ -500,7 +504,7 @@ describe('ConferenceGuestService.join capacityForRoom (16.1-04 D-21)', () => {
   });
 
   it('calls capacityForRoom once before createEphemeralGuestEndpoint', async () => {
-    await service.join(guestUser(), {});
+    await service.join(guestUser(), { displayName: 'Гость' });
     expect(capacity.capacityForRoom).toHaveBeenCalledTimes(1);
     expect(capacity.capacityForRoom).toHaveBeenCalledWith(expect.objectContaining({ uid: ROOM_UID }));
     expect(stateService.getActiveRoomUids).not.toHaveBeenCalled();
@@ -534,7 +538,7 @@ describe('ConferenceGuestService.join capacityForRoom (16.1-04 D-21)', () => {
     stateService.getSnapshot.mockReturnValue({
       participants: [{ channel: 'PJSIP/a' }],
     });
-    await service.join(guestUser(), {});
+    await service.join(guestUser(), { displayName: 'Гость' });
     expect(endpointsService.createEphemeralGuestEndpoint).toHaveBeenCalledTimes(1);
     expect(endpointsService.createEphemeralGuestEndpoint.mock.calls[0][0].maxVideoStreams).toBe(2);
   });
@@ -546,7 +550,7 @@ describe('ConferenceGuestService.join capacityForRoom (16.1-04 D-21)', () => {
       stateService.getSnapshot.mockReturnValue({
         participants: [{ channel: 'PJSIP/a' }, { channel: 'PJSIP/b' }],
       });
-      await service.join({ ...guestUser(), role }, {});
+      await service.join({ ...guestUser(), role }, { displayName: 'Гость' });
       expect(endpointsService.createEphemeralGuestEndpoint).toHaveBeenCalledTimes(1);
     },
   );

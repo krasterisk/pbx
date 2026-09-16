@@ -43,6 +43,7 @@ describe('conference guest spine (16.1-01)', () => {
     stateService = {
       getSnapshot: jest.fn(),
       getActiveRoomUids: jest.fn().mockReturnValue([ROOM_UID]),
+      rememberDisplayName: jest.fn(),
     };
     endpointsService = {
       generateSipPassword: jest.fn().mockReturnValue('sip-secret'),
@@ -72,7 +73,7 @@ describe('conference guest spine (16.1-01)', () => {
       update: jest.fn().mockResolvedValue(undefined),
     });
 
-    await service.join(guestUser(), {});
+    await service.join(guestUser(), { displayName: 'Гость' });
 
     expect(endpointsService.createEphemeralGuestEndpoint).toHaveBeenCalledTimes(1);
     const args = endpointsService.createEphemeralGuestEndpoint.mock.calls[0][0];

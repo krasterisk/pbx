@@ -13,6 +13,7 @@ import { Request } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ConferenceRoomsService } from './conference-rooms.service';
 import { ConferenceStateService } from './conference-state.service';
+import { ConferenceDisplayNameDto } from './dto/conference-display-name.dto';
 
 class SetMyVideoDto {
   @IsBoolean()
@@ -43,5 +44,23 @@ export class ConferenceParticipantController {
       throw new NotFoundException();
     }
     this.stateService.setVideoState(roomUid, callerRef, Boolean(dto?.enabled));
+  }
+
+  @Post(':room_uid/me/display-name')
+  async setMyDisplayName(
+    @Param('room_uid', ParseIntPipe) roomUid: number,
+    @Body() dto: ConferenceDisplayNameDto,
+    @Req() req: Request & { user: any },
+  ) {
+    await this.roomsService.assertLiveRoomAccess(roomUid, req.user);
+    const callerRef = await this.roomsService.resolveCallerRef(req.user);
+    if (!callerRef) {
+      throw new NotFoundException();
+    }
+    const self = this.stateService.findLiveParticipant(roomUid, callerRef);
+    if (!self) {
+      throw new NotFoundException();
+    }
+    this.stateService.setDisplayName(roomUid, callerRef, dto.displayName);
   }
 }

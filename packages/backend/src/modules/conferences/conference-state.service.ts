@@ -1,6 +1,8 @@
 import { Injectable, Logger, Optional } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
+import { getModelToken } from '@nestjs/sequelize';
 import { Observable, Subject } from 'rxjs';
+import { ConferenceRoom } from './models/conference-room.model';
 import {
   conferenceEntryPolicy,
   type ConferenceEntryPolicy,
@@ -12,6 +14,7 @@ import {
   roleFromConfbridgeFlags,
   type ConferenceRole,
 } from './conference-roles.util';
+import { truncateDisplayName } from './dto/conference-participant.dto';
 
 export type ConferenceParticipantRole = ConferenceRole;
 
@@ -23,6 +26,7 @@ export interface ConferenceParticipantState {
   muted: boolean;
   video: boolean;
   joinedAt: number;
+  displayName?: string;
 }
 
 export interface ConferenceRoomRights {
@@ -53,6 +57,19 @@ export interface ConferenceAmiEvent {
   [key: string]: unknown;
 }
 
+/** asterisk-manager lowercases AMI headers — accept both casings. */
+function amiString(evt: ConferenceAmiEvent, ...names: string[]): string {
+  const lower = new Map<string, unknown>();
+  for (const [key, value] of Object.entries(evt ?? {})) {
+    lower.set(key.toLowerCase(), value);
+  }
+  for (const name of names) {
+    const value = lower.get(name.toLowerCase());
+    if (value != null && String(value).trim() !== '') return String(value);
+  }
+  return '';
+}
+
 interface RoomCacheEntry {
   roomUid: number;
   number: string;
@@ -69,11 +86,14 @@ export class ConferenceStateService {
 
   private readonly rooms = new Map<number, Map<string, ConferenceParticipantState>>();
   private readonly streams = new Map<number, Subject<ConferenceEvent>>();
+  private readonly streamObservers = new Map<number, number>();
   private readonly lastSignalAt = new Map<string, number>();
   private readonly conferenceByName = new Map<string, RoomCacheEntry>();
   private readonly conferenceByRoom = new Map<number, RoomCacheEntry>();
   private readonly roomRights = new Map<number, ConferenceRoomRights>();
   private readonly liveGrants = new Map<number, Map<string, ConferenceRole>>();
+  private readonly rememberedNames = new Map<number, Map<string, string>>();
+  private readonly hydrating = new Map<string, Promise<RoomCacheEntry | null>>();
 
   registerRoom(
     room: { uid: number; number: string; user_uid: number } & ConferenceEntryPolicyRoom,
@@ -155,7 +175,21 @@ export class ConferenceStateService {
   }
 
   getEventStream(roomUid: number): Observable<ConferenceEvent> {
-    return this.subjectFor(roomUid).asObservable();
+    const subject = this.subjectFor(roomUid);
+    return new Observable((subscriber) => {
+      this.streamObservers.set(roomUid, (this.streamObservers.get(roomUid) ?? 0) + 1);
+      const sub = subject.subscribe(subscriber);
+      return () => {
+        sub.unsubscribe();
+        const next = (this.streamObservers.get(roomUid) ?? 1) - 1;
+        if (next <= 0) this.streamObservers.delete(roomUid);
+        else this.streamObservers.set(roomUid, next);
+      };
+    });
+  }
+
+  streamObserverCount(roomUid: number): number {
+    return this.streamObservers.get(roomUid) ?? 0;
   }
 
   getActiveRoomUids(): number[] {
@@ -185,30 +219,55 @@ export class ConferenceStateService {
     return Date.now() - last > thresholdMs;
   }
 
-  handleJoin(evt: ConferenceAmiEvent): void {
+  handleJoin(evt: ConferenceAmiEvent): void | Promise<void> {
+    const channel = amiString(evt, 'Channel');
+    if (!channel) return;
     const resolved = this.resolveRoom(evt);
-    const channel = String(evt.Channel ?? '');
-    if (!resolved || !channel) return;
+    if (resolved) {
+      this.applyJoin(resolved, evt, channel);
+      return;
+    }
+    return this.hydrateRoom(evt).then((entry) => {
+      if (entry) this.applyJoin(entry, evt, channel);
+    });
+  }
 
+  handleLeave(evt: ConferenceAmiEvent): void | Promise<void> {
+    const channel = amiString(evt, 'Channel');
+    if (!channel) return;
+    const resolved = this.resolveRoom(evt);
+    if (resolved) {
+      this.applyLeave(resolved, channel);
+      return;
+    }
+    return this.hydrateRoom(evt).then((entry) => {
+      if (entry) this.applyLeave(entry, channel);
+    });
+  }
+
+  private applyJoin(
+    resolved: RoomCacheEntry,
+    evt: ConferenceAmiEvent,
+    channel: string,
+  ): void {
     const members = this.membersFor(resolved.roomUid);
+    const callerIdNum = amiString(evt, 'CallerIDNum');
+    const remembered = this.rememberedNames.get(resolved.roomUid)?.get(callerIdNum);
     members.set(channel, {
       channel,
-      callerIdNum: String(evt.CallerIDNum ?? ''),
+      callerIdNum,
       role: this.resolveJoinRole(resolved.roomUid, evt),
       talking: false,
       muted: false,
       video: false,
       joinedAt: Date.now(),
+      ...(remembered ? { displayName: remembered } : {}),
     });
     this.touch(channel);
     this.emit(resolved.roomUid, 'participantJoin');
   }
 
-  handleLeave(evt: ConferenceAmiEvent): void {
-    const resolved = this.resolveRoom(evt);
-    const channel = String(evt.Channel ?? '');
-    if (!resolved || !channel) return;
-
+  private applyLeave(resolved: RoomCacheEntry, channel: string): void {
     const members = this.rooms.get(resolved.roomUid);
     if (!members?.has(channel)) return;
     members.delete(channel);
@@ -217,15 +276,52 @@ export class ConferenceStateService {
     if (emptied) {
       this.rooms.delete(resolved.roomUid);
       this.liveGrants.delete(resolved.roomUid);
+      this.rememberedNames.delete(resolved.roomUid);
     }
     this.emit(resolved.roomUid, 'participantLeave');
     if (emptied) this.scheduleCollectIfEmpty(resolved.roomUid);
   }
 
+  private hydrateRoom(evt: ConferenceAmiEvent): Promise<RoomCacheEntry | null> {
+    const conference = amiString(evt, 'Conference').trim();
+    if (!conference) return Promise.resolve(null);
+    const cached = this.conferenceByName.get(conference);
+    if (cached) return Promise.resolve(cached);
+    const pending = this.hydrating.get(conference);
+    if (pending) return pending;
+    const task = this.loadRoomFromDb(conference).finally(() => {
+      this.hydrating.delete(conference);
+    });
+    this.hydrating.set(conference, task);
+    return task;
+  }
+
+  private async loadRoomFromDb(conference: string): Promise<RoomCacheEntry | null> {
+    const parsed = this.parseConferenceName(conference);
+    if (!parsed || !this.moduleRef) return null;
+    let model: { findOne: (opts: object) => Promise<ConferenceRoom | null> };
+    try {
+      model = this.moduleRef.get(getModelToken(ConferenceRoom), { strict: false });
+    } catch {
+      return null;
+    }
+    if (!model?.findOne) return null;
+    const room = await model.findOne({
+      where: { number: parsed.number, user_uid: parsed.vpbx },
+    });
+    if (!room) return null;
+    this.registerRoom(room);
+    return (
+      this.conferenceByName.get(`conf${room.number}_${room.user_uid}`) ??
+      this.conferenceByName.get(conference) ??
+      null
+    );
+  }
+
   handleTalking(evt: ConferenceAmiEvent): void {
     const participant = this.findParticipant(evt);
     if (!participant) return;
-    const talking = String(evt.TalkingStatus ?? '').toLowerCase();
+    const talking = amiString(evt, 'TalkingStatus').toLowerCase();
     participant.state.talking = talking === 'on' || talking === 'yes' || talking === 'true';
     this.touch(participant.state.channel);
     this.emit(participant.roomUid, 'participantTalking');
@@ -255,13 +351,37 @@ export class ConferenceStateService {
     this.emit(roomUid, 'participantVideo');
   }
 
+  rememberDisplayName(roomUid: number, sipId: string, name: string): void {
+    const ref = String(sipId ?? '').trim();
+    if (!ref) return;
+    let names = this.rememberedNames.get(roomUid);
+    if (!names) {
+      names = new Map();
+      this.rememberedNames.set(roomUid, names);
+    }
+    names.set(ref, truncateDisplayName(String(name ?? '')));
+  }
+
+  setDisplayName(roomUid: number, participantRef: string, name: string): void {
+    const participant = this.findLiveParticipant(roomUid, participantRef);
+    if (!participant) return;
+    participant.displayName = truncateDisplayName(String(name ?? ''));
+    this.emit(roomUid, 'participantDisplayName');
+  }
+
   private resolveJoinRole(roomUid: number, evt: ConferenceAmiEvent): ConferenceParticipantRole {
-    const callerRef = String(evt.CallerIDNum ?? '').trim();
-    const channel = String(evt.Channel ?? '');
+    const callerRef = amiString(evt, 'CallerIDNum').trim();
+    const channel = amiString(evt, 'Channel');
     if (callerRef) {
       return this.roleFromSettings(roomUid, callerRef);
     }
-    return this.getGrantedRole(roomUid, channel) ?? roleFromConfbridgeFlags(evt);
+    return (
+      this.getGrantedRole(roomUid, channel) ??
+      roleFromConfbridgeFlags({
+        Admin: amiString(evt, 'Admin'),
+        MarkedUser: amiString(evt, 'MarkedUser'),
+      })
+    );
   }
 
   private computeWaitingForModerator(
@@ -291,7 +411,7 @@ export class ConferenceStateService {
   }
 
   private resolveRoom(evt: ConferenceAmiEvent): RoomCacheEntry | null {
-    const conference = String(evt.Conference ?? '').trim();
+    const conference = amiString(evt, 'Conference').trim();
     if (!conference) return null;
     const cached = this.conferenceByName.get(conference);
     if (cached) return cached;
@@ -326,7 +446,7 @@ export class ConferenceStateService {
     evt: ConferenceAmiEvent,
   ): { roomUid: number; state: ConferenceParticipantState } | null {
     const resolved = this.resolveRoom(evt);
-    const channel = String(evt.Channel ?? '');
+    const channel = amiString(evt, 'Channel');
     if (!resolved || !channel) return null;
     const state = this.rooms.get(resolved.roomUid)?.get(channel);
     if (!state) return null;

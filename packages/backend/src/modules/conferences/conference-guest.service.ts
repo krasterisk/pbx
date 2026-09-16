@@ -11,8 +11,10 @@ import type { ConferenceGuestUser } from './conference-guest-token.guard';
 import { conferenceRoomHttpError } from './conference-rooms.service';
 import { ConferenceRoomsService } from './conference-rooms.service';
 import { ConferenceStateService } from './conference-state.service';
+import type { ConferenceDisplayNameDto } from './dto/conference-display-name.dto';
 import type { ConferenceGuestJoinDto } from './dto/conference-guest-join.dto';
 import type { CreateConferenceGuestTokenDto } from './dto/conference-guest-token.dto';
+import { truncateDisplayName } from './dto/conference-participant.dto';
 import { ConferenceGuestToken } from './models/conference-guest-token.model';
 
 @Injectable()
@@ -111,6 +113,17 @@ export class ConferenceGuestService {
       );
     }
 
+    const requested = String(dto.displayName ?? '').trim();
+    const saved = String(token.display_name ?? '').trim();
+    if (!requested && !saved) {
+      throw conferenceRoomHttpError(
+        HttpStatus.BAD_REQUEST,
+        'CONFERENCE_DISPLAY_NAME_REQUIRED',
+        'Display name is required',
+      );
+    }
+    const displayName = truncateDisplayName(requested || saved);
+
     const password = this.endpointsService.generateSipPassword();
     const sipId = `gst${crypto.randomBytes(4).toString('hex')}`;
     if (token.sip_id) {
@@ -124,11 +137,11 @@ export class ConferenceGuestService {
       maxVideoStreams: max,
     });
 
-    const displayName = String(dto.displayName ?? '').trim();
     await token.update({
       sip_id: sipId,
-      ...(displayName ? { display_name: displayName } : {}),
+      display_name: displayName,
     });
+    this.stateService.rememberDisplayName(room.uid, sipId, displayName);
 
     return {
       sipId,
@@ -201,5 +214,29 @@ export class ConferenceGuestService {
       );
     }
     await token.update({ sip_id: null });
+  }
+
+  async setDisplayName(user: ConferenceGuestUser, dto: ConferenceDisplayNameDto) {
+    const token = await this.tokenModel.findByPk(user.guestTokenUid);
+    if (!token) {
+      throw conferenceRoomHttpError(
+        HttpStatus.UNAUTHORIZED,
+        'CONFERENCE_GUEST_TOKEN_INVALID',
+        'Guest token invalid',
+      );
+    }
+    const displayName = truncateDisplayName(String(dto.displayName ?? '').trim());
+    if (!displayName) {
+      throw conferenceRoomHttpError(
+        HttpStatus.BAD_REQUEST,
+        'CONFERENCE_DISPLAY_NAME_REQUIRED',
+        'Display name is required',
+      );
+    }
+    await token.update({ display_name: displayName });
+    if (token.sip_id) {
+      this.stateService.rememberDisplayName(user.roomUid, token.sip_id, displayName);
+      this.stateService.setDisplayName(user.roomUid, token.sip_id, displayName);
+    }
   }
 }

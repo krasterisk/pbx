@@ -26,7 +26,7 @@ export type ConferenceParticipantDtoSource = ConferenceParticipantState & {
   video?: boolean;
 };
 
-function truncateDisplayName(value: string): string {
+export function truncateDisplayName(value: string): string {
   return [...value].slice(0, DISPLAY_NAME_MAX_LENGTH).join('');
 }
 
@@ -34,8 +34,11 @@ export function toConferenceParticipantDto(
   state: ConferenceParticipantDtoSource,
 ): ConferenceParticipantDto {
   const callerIdNum = String(state.callerIdNum ?? '').trim();
+  const overlay = String(state.displayName ?? '').trim();
   const givenName = String(state.callerIdName ?? '').trim();
-  const displayName = truncateDisplayName(givenName || callerIdNum || ANONYMOUS_DISPLAY_NAME);
+  const displayName = truncateDisplayName(
+    overlay || givenName || callerIdNum || ANONYMOUS_DISPLAY_NAME,
+  );
   return {
     ref: callerIdNum || ANONYMOUS_DISPLAY_NAME.toLowerCase(),
     displayName,

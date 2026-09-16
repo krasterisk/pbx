@@ -26,6 +26,7 @@ import {
   type ConferenceGuestUser,
 } from './conference-guest-token.guard';
 import { ConferenceStateService } from './conference-state.service';
+import { ConferenceDisplayNameDto } from './dto/conference-display-name.dto';
 import { ConferenceGuestJoinDto } from './dto/conference-guest-join.dto';
 import { toConferenceRoomStateDto } from './dto/conference-participant.dto';
 
@@ -59,6 +60,15 @@ export class ConferenceGuestController {
   @Post(':token/leave')
   leave(@Req() req: Request & { user: ConferenceGuestUser }) {
     return this.guestService.leave(req.user);
+  }
+
+  @UseGuards(ConferenceGuestTokenGuard)
+  @Post(':token/me/display-name')
+  setDisplayName(
+    @Req() req: Request & { user: ConferenceGuestUser },
+    @Body() dto: ConferenceDisplayNameDto,
+  ) {
+    return this.guestService.setDisplayName(req.user, dto);
   }
 
   @UseGuards(ConferenceGuestTokenGuard)
