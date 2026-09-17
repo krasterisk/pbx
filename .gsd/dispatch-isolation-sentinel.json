@@ -1,1 +1,1 @@
-{"isolation":"none","harness_flag":null,"phase":"15","plan":"15-06","written_at":1788510024541}
+{"isolation":"harness-worktree","harness_flag":"--worktree","phase":"16.3","plan":null,"written_at":1789560548585}
