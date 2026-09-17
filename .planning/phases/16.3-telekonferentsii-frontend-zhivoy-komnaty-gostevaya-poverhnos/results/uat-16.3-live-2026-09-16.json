@@ -3,7 +3,7 @@
   "host": "ipbx.krasterisk.ru",
   "local": { "frontend": 3010, "backend": 5010 },
   "room": { "uid": 15, "number": "163652348", "conference": "conf163652348_0", "context": "krsk-conf-15" },
-  "guestToken": "5ee471574f659d5c94a0fd9f70af3221e921bdbc48e9b6554ae40ba596dc1d1a",
+  "guestToken": "REDACTED",
   "metrics": {
     "headerPx": 56,
     "railPx": 320,

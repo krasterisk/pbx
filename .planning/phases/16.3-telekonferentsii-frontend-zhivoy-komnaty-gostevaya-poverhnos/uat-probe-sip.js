@@ -37,9 +37,13 @@ const {
     token,
     body: { record_mode: 'button' },
   });
+  const guestToken = process.env.UAT_GUEST_TOKEN;
+  if (!guestToken) {
+    throw new Error('UAT_GUEST_TOKEN is required');
+  }
   const guest = await requestJson(
     'GET',
-    '/api/conferences/guest/5ee471574f659d5c94a0fd9f70af3221e921bdbc48e9b6554ae40ba596dc1d1a',
+    `/api/conferences/guest/${guestToken}`,
   );
   const eps = await requestJson('GET', '/api/endpoints', { token });
   console.log(
