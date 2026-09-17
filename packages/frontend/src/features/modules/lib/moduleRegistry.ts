@@ -29,6 +29,9 @@ import {
   Package,
   Plug,
   Video,
+  PhoneOutgoing,
+  Database,
+  Gauge,
 } from 'lucide-react';
 import { UserLevel } from '@krasterisk/shared';
 import type { HubModuleRow, LicenseStatus, ModuleDef, ModulePageDef } from '../types';
@@ -188,6 +191,39 @@ export const BASELINE_MODULES: ModuleDef[] = [
         labelKey: 'nav.ccSettings',
         icon: Settings,
         minLevels: ADMIN_PLUS,
+      },
+    ],
+  },
+  {
+    code: 'autodial',
+    kind: 'market',
+    navVariant: 'sidebar',
+    labelKey: 'nav.autodial',
+    pages: [
+      {
+        id: 'autodial-campaigns',
+        path: '/autodial',
+        labelKey: 'autodial.nav.campaigns',
+        icon: PhoneOutgoing,
+      },
+      {
+        id: 'autodial-bases',
+        path: '/autodial/bases',
+        labelKey: 'autodial.nav.bases',
+        icon: Database,
+      },
+      {
+        id: 'autodial-monitor',
+        path: '/autodial/monitor',
+        labelKey: 'autodial.nav.monitor',
+        icon: Gauge,
+      },
+      {
+        id: 'autodial-reports',
+        path: '/autodial/reports',
+        labelKey: 'autodial.nav.reports',
+        icon: BarChart3,
+        minLevels: CC_SUPERVISOR_LEVELS,
       },
     ],
   },

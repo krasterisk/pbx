@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 
@@ -42,6 +42,11 @@ describe('ConferencePreJoinCard (16.3-07 D-28/D-29)', () => {
         enumerateDevices: vi.fn().mockResolvedValue([
           { deviceId: 'cam1', label: 'Cam 1', kind: 'videoinput', groupId: '' },
         ]),
+        getUserMedia: vi.fn().mockResolvedValue({
+          getTracks: () => [],
+          getVideoTracks: () => [],
+          getAudioTracks: () => [],
+        }),
         addEventListener: vi.fn(),
         removeEventListener: vi.fn(),
       },
@@ -131,6 +136,14 @@ describe('ConferencePreJoinCard (16.3-07 D-28/D-29)', () => {
   it('shows Avatar + live.camOff when the preview has no camera track', () => {
     render(<ConferencePreJoinCard onJoin={vi.fn()} />);
     expect(screen.getByText('Камера выключена')).toBeInTheDocument();
+  });
+
+  it('requests camera and microphone on mount so device labels become visible', async () => {
+    render(<ConferencePreJoinCard onJoin={vi.fn()} />);
+    await waitFor(() => {
+      expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalled();
+    });
+    expect(await screen.findByRole('option', { name: 'Cam 1' })).toBeInTheDocument();
   });
 
   it('does not fire a second join while the first submit is pending', async () => {

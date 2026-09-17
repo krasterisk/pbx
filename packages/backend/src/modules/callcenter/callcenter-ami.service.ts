@@ -27,6 +27,11 @@ import {
 } from '../endpoints/endpoint-ids.util';
 import { canPanelOverrideAsteriskPause } from './status-origin';
 import type { AgentStatusOrigin } from './status-origin';
+import {
+  mergeRelatedQueueMembership,
+  planQueueMembership,
+  relatedQueueInterfaces,
+} from './queue-membership.util';
 
 @Injectable()
 export class CallCenterAmiService implements OnModuleInit {
@@ -213,20 +218,20 @@ export class CallCenterAmiService implements OnModuleInit {
         waiting: parseInt(qp.calls, 10) || 0,
         talking: 0,
         agents: { total: 0, available: 0, paused: 0, busy: 0 },
-        // Never seed from Asterisk lifetime Completed/Abandoned — those grow across
-        // days/reloads and confuse operators vs status-bar shift KPIs (D-31/D-32).
-        // Use in-memory since-midnight metrics (restoreToday / live AMI).
+        // Never seed from Asterisk lifetime Completed/Abandoned/Holdtime —
+        // those grow across days/reloads (D-31/D-32). qp.servicelevel is a
+        // threshold in seconds, not an SLA %. Day KPIs come only from metrics.
         ...(() => {
           const metrics = this.metricsService.getQueueMetrics(tenant.userUid, qName);
           return {
-            sla: metrics.sla || parseFloat(qp.servicelevel) || 0,
+            sla: metrics.sla,
             calls: {
               answered: metrics.answered,
               abandoned: metrics.abandoned,
               total: metrics.offered,
             },
-            avgWait: metrics.asa || parseInt(qp.holdtime, 10) || 0,
-            avgTalk: metrics.aht || parseInt(qp.talktime, 10) || 0,
+            avgWait: metrics.asa,
+            avgTalk: metrics.aht,
           };
         })(),
       });
@@ -1272,17 +1277,19 @@ export class CallCenterAmiService implements OnModuleInit {
    */
   handleMemberAdded(evt: any): void {
     const queueName = evt.queue;
-    const iface = evt.interface || evt.membername;
-    if (!queueName || !iface) return;
+    const rawIface = evt.interface || evt.membername;
+    if (!queueName || !rawIface) return;
 
     const userUid = this.resolveQueueTenant(queueName);
     if (userUid == null) return;
 
-    const agent = this.stateService.getAgent(userUid, iface);
-    const queues = agent?.queues || [];
+    const resolved = this.resolveMemberAgent(userUid, rawIface);
+    const iface = resolved?.interface || rawIface;
+    const agent = resolved || this.stateService.getAgent(userUid, iface);
+    const queues = [...(agent?.queues || [])];
     if (!queues.includes(queueName)) queues.push(queueName);
 
-    this.stateService.setAgent(userUid, iface, {
+    this.stateService.setAgent(agent?.userUid ?? userUid, iface, {
       queues,
       name: this.pickAgentDisplayName(iface, evt.membername, agent?.name),
       status: agent?.status || 'READY',
@@ -1304,7 +1311,8 @@ export class CallCenterAmiService implements OnModuleInit {
     const userUid = this.resolveQueueTenant(queueName);
     if (userUid == null) return;
 
-    const agent = this.resolveMemberAgent(userUid, iface);
+    // Exact interface only — twin QueueRemove must not empty the live agent's list.
+    const agent = this.stateService.getAgent(userUid, iface);
     if (!agent) {
       this.recalcQueueStats(userUid, queueName);
       return;
@@ -2031,7 +2039,30 @@ export class CallCenterAmiService implements OnModuleInit {
       });
     }
 
+    this.foldAmiMembershipOntoLiveAgents(queuesByKey);
     return { queues: queuesByKey, paused: pausedByKey };
+  }
+
+  /** Push AMI membership (including leftover twins) onto logged-in agents. */
+  private foldAmiMembershipOntoLiveAgents(queuesByKey: Map<string, Set<string>>): void {
+    const byIface = new Map<string, Set<string>>();
+    for (const [key, queues] of queuesByKey) {
+      const sep = key.indexOf(':');
+      if (sep < 0) continue;
+      byIface.set(key.slice(sep + 1), queues);
+    }
+    for (const agent of this.stateService.getAllAgentsGlobal()) {
+      if (!(agent.userId > 0) || !/^(PJSIP|SIP)\//i.test(agent.interface || '')) continue;
+      const merged = mergeRelatedQueueMembership(
+        byIface,
+        relatedQueueInterfaces(agent.interface),
+      );
+      if (!merged.length) continue;
+      this.stateService.setAgent(agent.userUid, agent.interface, {
+        queues: merged,
+        queuesDetached: false,
+      });
+    }
   }
 
   private agentHasTwinLive(
@@ -2179,9 +2210,11 @@ export class CallCenterAmiService implements OnModuleInit {
     );
 
     if (!missing.length && !pauseMismatch) {
-      if (agent?.queuesDetached || (agent && agent.queues?.join() !== desired.join())) {
+      const amiNow = [...this.liveQueuesForAgent(userUid, agentIface, liveByAgent)];
+      const planned = planQueueMembership(amiNow, desired);
+      if (agent?.queuesDetached || (agent && agent.queues?.join() !== planned.display.join())) {
         this.stateService.setAgent(userUid, agentIface, {
-          queues: desired,
+          queues: planned.display,
           queuesDetached: false,
           userId: agent?.userId || userId,
         });
@@ -2245,15 +2278,20 @@ export class CallCenterAmiService implements OnModuleInit {
           ? (agent?.pauseReason || session.pause_reason || 'Pause')
           : '',
         statusOrigin: 'ami',
-        queues: desired,
+        queues: planQueueMembership(
+          [...this.liveQueuesForAgent(userUid, agentIface, liveByAgent)],
+          desired,
+        ).display,
         queuesDetached: false,
         userId: agent?.userId || userId,
       });
       return;
     }
 
+    const amiAfter = [...this.liveQueuesForAgent(userUid, agentIface, liveByAgent)];
+    const planned = planQueueMembership(amiAfter, desired);
     this.stateService.setAgent(userUid, agentIface, {
-      queues: desired,
+      queues: planned.display,
       queuesDetached: false,
       userId: agent?.userId || userId,
     });
@@ -2261,7 +2299,7 @@ export class CallCenterAmiService implements OnModuleInit {
     // Reflect newly added members in the live map so a follow-up pass is a no-op.
     const key = `${userUid}:${agentIface}`;
     const set = liveByAgent.get(key) ?? new Set<string>();
-    for (const q of desired) set.add(q);
+    for (const q of planned.display) set.add(q);
     liveByAgent.set(key, set);
   }
 
@@ -2328,23 +2366,21 @@ export class CallCenterAmiService implements OnModuleInit {
     }
     if (queueTenantMap.size === 0) return;
 
-    const ami = (this.amiService as any).ami;
-    if (!ami) return;
-
-    const members: any[] = [];
-    const onQueueMember = (evt: any) => members.push(evt);
-    ami.on('queuemember', onQueueMember);
+    let members: any[] = [];
+    let complete = false;
     try {
-      await this.amiService.queueStatus();
-      await new Promise(resolve => setTimeout(resolve, 1200));
+      const collected = await this.amiService.collectQueueMembers();
+      members = collected.members;
+      complete = collected.complete;
     } catch (err: any) {
       this.logger.warn(`resync QueueStatus failed: ${err.message}`);
       return;
-    } finally {
-      ami.removeListener('queuemember', onQueueMember);
     }
 
     const membership = this.applyQueueMembers(members, queueTenantMap);
+    if (complete) {
+      this.foldAmiMembershipOntoLiveAgents(membership.queues);
+    }
     this.removePhantomAgentsMissingFromAsterisk(membership.queues);
     await this.autoRejoinOpenShiftsMissingFromAsterisk(membership.queues, membership.paused);
 

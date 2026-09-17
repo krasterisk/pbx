@@ -4,7 +4,13 @@ import { AmiService } from '../ami/ami.service';
 import { normalizeTarget } from '../../shared/utils/dialplan-target.util';
 import { ConferenceStateService } from './conference-state.service';
 
+/** Kept for callers/tests; sweeper no longer kicks solely on silence (CR-02). */
 export const STALE_CHANNEL_THRESHOLD_MS = 120_000;
+
+function channelFromListEvent(evt: Record<string, unknown>): string {
+  const raw = evt.channel ?? evt.Channel;
+  return typeof raw === 'string' ? raw.trim() : '';
+}
 
 @Injectable()
 export class ConferenceStaleChannelSweeperService {
@@ -43,19 +49,36 @@ export class ConferenceStaleChannelSweeperService {
         identity.vpbx,
       );
       const channels = this.stateService.getLiveChannelPairs(roomUid);
+      if (channels.length === 0) continue;
+
+      let live: Set<string>;
+      try {
+        const listed = await this.amiService.confbridgeList(conference);
+        live = new Set(
+          (listed.events ?? [])
+            .map((evt) => channelFromListEvent(evt as Record<string, unknown>))
+            .filter(Boolean),
+        );
+      } catch (err: any) {
+        this.logger.warn(
+          `ConfbridgeList failed room=${roomUid} conference=${conference}: ${err?.message || err}`,
+        );
+        continue;
+      }
+
       for (const item of channels) {
-        if (!this.stateService.isStale(item.channel, STALE_CHANNEL_THRESHOLD_MS)) {
+        if (live.has(item.channel)) {
+          this.stateService.refreshSignal(item.channel);
           continue;
         }
         try {
-          await this.amiService.action({
-            action: 'ConfbridgeKick',
-            conference,
-            channel: item.channel,
+          await this.stateService.handleLeave({
+            Conference: conference,
+            Channel: item.channel,
           });
         } catch (err: any) {
           this.logger.warn(
-            `stale kick failed room=${roomUid} channel=${item.channel}: ${err?.message || err}`,
+            `reconcile leave failed room=${roomUid} channel=${item.channel}: ${err?.message || err}`,
           );
         }
       }

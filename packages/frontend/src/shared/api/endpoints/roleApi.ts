@@ -11,6 +11,7 @@ export interface IRole {
 }
 
 const roleApi = rtkApi.injectEndpoints({
+  overrideExisting: import.meta.hot != null,
   endpoints: (builder) => ({
     getRoles: builder.query<IRole[], void>({
       query: () => '/roles',

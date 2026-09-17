@@ -1,9 +1,24 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import * as Dialog from '@radix-ui/react-dialog';
-import { X, RefreshCw } from 'lucide-react';
-import { Button, Input, InfoTooltip } from '@/shared/ui';
+import { RefreshCw } from 'lucide-react';
+import {
+  Button,
+  Input,
+  InfoTooltip,
+  Checkbox,
+  Label,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+} from '@/shared/ui';
 import { VStack, HStack, Flex } from '@/shared/ui/Stack';
+import cls from './EndpointFormModal.module.scss';
 import { useAppSelector, useAppDispatch } from '@/shared/hooks/useAppStore';
 import {
   selectEndpointIsModalOpen,
@@ -26,7 +41,17 @@ import {
   detectNatProfile,
 } from '../../config/natProfiles';
 import { AdvancedSettingsBuilder } from '../AdvancedSettingsBuilder';
-import { Checkbox, Label } from '@/shared/ui';
+
+const ENDPOINT_TABS = [
+  { id: 'basic', labelKey: 'endpoints.tabBasic', fallback: 'Основные' },
+  { id: 'network', labelKey: 'endpoints.tabNetwork', fallback: 'Сеть' },
+  { id: 'security', labelKey: 'endpoints.tabSecurity', fallback: 'Безопасность' },
+  { id: 'calls', labelKey: 'endpoints.tabCalls', fallback: 'Вызовы' },
+  { id: 'provision', labelKey: 'endpoints.tabProvision', fallback: 'Автопровижинг' },
+  { id: 'advanced', labelKey: 'endpoints.tabAdvanced', fallback: 'Расширенные' },
+] as const;
+
+type EndpointTab = (typeof ENDPOINT_TABS)[number]['id'];
 
 const CODEC_OPTIONS = [
   'ulaw', 'alaw', 'g722', 'g729', 'gsm', 'opus', 'h264', 'vp8',
@@ -64,7 +89,7 @@ export const EndpointFormModal = () => {
   const { data: contexts = [] } = useGetContextsQuery();
   const { data: templates = [] } = useGetProvisionTemplatesQuery();
 
-  const [activeTab, setActiveTab] = useState<'basic' | 'network' | 'security' | 'calls' | 'provision' | 'advanced'>('basic');
+  const [activeTab, setActiveTab] = useState<EndpointTab>('basic');
 
   // Form state
   const [extension, setExtension] = useState('');
@@ -227,53 +252,34 @@ export const EndpointFormModal = () => {
   const isLoading = isCreating || isUpdating;
 
   return (
-    <Dialog.Root open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-      <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50" />
-        <Dialog.Content className="fixed top-[5%] left-1/2 -translate-x-1/2 w-full max-w-xl bg-card text-card-foreground border border-border rounded-2xl p-6 z-50 shadow-2xl max-h-[90vh] overflow-y-auto flex flex-col">
-          <HStack justify="between" align="center" className="mb-4 shrink-0">
-            <Dialog.Title className="text-xl font-bold">
-              {mode === 'create' ? t('endpoints.addEndpoint') : t('endpoints.editEndpoint')}
-            </Dialog.Title>
-            <Dialog.Close asChild>
-              <button className="text-muted-foreground hover:text-foreground transition-colors">
-                <X className="w-5 h-5" />
-              </button>
-            </Dialog.Close>
-          </HStack>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
+      <DialogContent size="large" data-testid="endpoint-form-modal">
+        <DialogHeader className="mb-4 shrink-0 pr-8">
+          <DialogTitle className="text-xl font-bold">
+            {mode === 'create' ? t('endpoints.addEndpoint') : t('endpoints.editEndpoint')}
+          </DialogTitle>
+        </DialogHeader>
 
-          {/* Tabs */}
-          <VStack className="border-b border-border/50 mb-6 shrink-0" max>
-            <HStack gap="8" className="-mb-[1px] flex overflow-x-auto flex-nowrap [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-              {[
-                { id: 'basic', label: t('endpoints.tabBasic', 'Основные') },
-                { id: 'network', label: t('endpoints.tabNetwork', 'Сеть') },
-                { id: 'security', label: t('endpoints.tabSecurity', 'Безопасность') },
-                { id: 'calls', label: t('endpoints.tabCalls', 'Вызовы') },
-                { id: 'provision', label: t('endpoints.tabProvision', 'Автопровижинг') },
-                { id: 'advanced', label: t('endpoints.tabAdvanced', 'Расширенные') },
-              ].map(tab => (
-                <Button
-                  key={tab.id}
-                  variant="ghost"
-                  onClick={() => setActiveTab(tab.id as any)}
-                  className={`relative py-3 px-1 rounded-none text-sm font-medium transition-colors whitespace-nowrap shrink-0 outline-none ${
-                    activeTab === tab.id
-                      ? 'text-primary bg-transparent hover:bg-transparent hover:text-primary'
-                      : 'text-muted-foreground bg-transparent hover:text-foreground hover:bg-transparent'
-                  }`}
-                >
-                  {tab.label}
-                  {activeTab === tab.id && (
-                    <VStack className="absolute left-0 right-0 bottom-0 h-[2px] bg-primary rounded-t-[1px]">{''}</VStack>
-                  )}
-                </Button>
-              ))}
-            </HStack>
-          </VStack>
+        <Tabs
+          value={activeTab}
+          onValueChange={(value) => setActiveTab(value as EndpointTab)}
+          className={cls.tabs}
+        >
+          <TabsList aria-label={mode === 'create' ? t('endpoints.addEndpoint') : t('endpoints.editEndpoint')}>
+            {ENDPOINT_TABS.map((tab) => (
+              <TabsTrigger key={tab.id} value={tab.id} data-testid={`endpoint-tab-${tab.id}`}>
+                {t(tab.labelKey, tab.fallback)}
+              </TabsTrigger>
+            ))}
+          </TabsList>
 
-          <div className="flex-1 overflow-y-auto pr-1">
-            {activeTab === 'basic' && (
+          <div
+            className={cls.formBody}
+            data-testid="endpoint-form-body"
+            data-viewport="360,768,1440"
+            data-overflow="y"
+          >
+            <TabsContent value="basic">
               <VStack gap="16">
                 <VStack gap="4">
                   <HStack gap="4" align="center">
@@ -368,9 +374,9 @@ export const EndpointFormModal = () => {
                   </VStack>
                 </VStack>
               </VStack>
-            )}
+            </TabsContent>
 
-            {activeTab === 'network' && (
+            <TabsContent value="network">
               <VStack gap="16">
 
                 <VStack gap="4">
@@ -450,9 +456,9 @@ export const EndpointFormModal = () => {
                   </Flex>
                 </VStack>
               </VStack>
-            )}
+            </TabsContent>
 
-            {activeTab === 'security' && (
+            <TabsContent value="security">
               <VStack gap="16">
                 <div className="bg-primary/10 border border-primary/20 rounded-xl p-4 mb-2">
                   <h4 className="text-sm font-semibold text-primary mb-1">{t('endpoints.ipFilterTitle')}</h4>
@@ -484,9 +490,9 @@ export const EndpointFormModal = () => {
                   <p className="text-[10px] text-muted-foreground">{t('endpoints.permitNetworksHint')}</p>
                 </VStack>
               </VStack>
-            )}
+            </TabsContent>
 
-            {activeTab === 'calls' && (
+            <TabsContent value="calls">
               <VStack gap="16">
                 <VStack gap="4">
                   <HStack gap="4" align="center">
@@ -511,9 +517,9 @@ export const EndpointFormModal = () => {
                   />
                 </VStack>
               </VStack>
-            )}
+            </TabsContent>
 
-            {activeTab === 'provision' && (
+            <TabsContent value="provision">
               <VStack gap="16">
                 <label className="flex items-center gap-3 p-3 border border-border rounded-lg bg-background/50 cursor-pointer">
                   <input
@@ -578,27 +584,32 @@ export const EndpointFormModal = () => {
                   </>
                 )}
               </VStack>
-            )}
+            </TabsContent>
 
-            {activeTab === 'advanced' && (
+            <TabsContent value="advanced">
               <AdvancedSettingsBuilder
                 value={advancedState}
                 onChange={setAdvancedState}
               />
-            )}
+            </TabsContent>
           </div>
+        </Tabs>
 
-          {/* Actions */}
-          <HStack gap="8" justify="end" className="mt-8 pt-4 border-t border-border shrink-0">
+        <DialogFooter className={cls.footer} data-testid="endpoint-form-footer">
+          <HStack gap="8" justify="end" max className={cls.footerActions}>
             <Button variant="outline" onClick={handleClose} disabled={isLoading}>
               {t('common.cancel')}
             </Button>
-            <Button onClick={handleSubmit} disabled={isLoading || (!extension && mode === 'create') || !context || (provisionEnabled && !macAddress)}>
+            <Button
+              data-testid="endpoint-save"
+              onClick={handleSubmit}
+              disabled={isLoading || (!extension && mode === 'create') || !context || (provisionEnabled && !macAddress)}
+            >
               {isLoading ? t('common.loading') : t('common.save')}
             </Button>
           </HStack>
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };

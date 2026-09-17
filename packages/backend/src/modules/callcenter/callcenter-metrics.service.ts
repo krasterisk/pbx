@@ -2,15 +2,23 @@
  * Call Center Metrics Engine — in-memory accumulators + §4.6 formulas.
  *
  * Real-time metrics read ONLY from memory (never DB in hot path).
- * restoreToday() rebuilds "today" accumulators from cc_queue_calls on startup (D-06).
+ * restoreToday() rebuilds period accumulators from cc_queue_calls on startup
+ * and at each reporting-day boundary (calendar midnight or business EOD).
  */
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Op } from 'sequelize';
 import { CcQueueCall } from './models/queue-call.model';
 import { CcMissedCall } from './models/missed-call.model';
+import { CcSettings } from './models/cc-settings.model';
 import { Queue } from '../queues/queue.model';
 import type { AgentStatus } from './callcenter-state.service';
+import type { ShiftPolicy } from './models/shift-policy.types';
+import {
+  startOfCalendarDay,
+  startOfReportingDay,
+} from './kpi-reporting-window.util';
+import { sanitizeShiftPolicy } from './callcenter-settings.service';
 
 /** Industry-standard 80/20 default; tenant-level cc_settings override in 07-05. */
 export const DEFAULT_SLA_THRESHOLD_SEC = 20;
@@ -41,7 +49,7 @@ export interface KpiCounters {
 export interface KpiAccumulator {
   /** Reset on agentLogin — current-shift counters. */
   sinceLogin: KpiCounters;
-  /** Restored from cc_queue_calls on startup — calendar-day counters. */
+  /** Restored from cc_queue_calls — reporting-day counters (calendar or business EOD). */
   sinceMidnight: KpiCounters;
 }
 
@@ -66,7 +74,7 @@ interface AgentStatusTrack {
 }
 
 @Injectable()
-export class CallCenterMetricsService implements OnModuleInit {
+export class CallCenterMetricsService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(CallCenterMetricsService.name);
 
   private readonly queueAccumulators = new Map<string, QueueAccumulator>();
@@ -81,16 +89,35 @@ export class CallCenterMetricsService implements OnModuleInit {
    */
   private readonly kpiAccumulators = new Map<string, KpiAccumulator>();
 
+  /** Per-tenant reporting-window start used for the last restore (rollover detection). */
+  private readonly periodStartByTenant = new Map<number, number>();
+  private rolloverTimer: ReturnType<typeof setInterval> | null = null;
+
   constructor(
     @InjectModel(CcQueueCall) private readonly queueCallModel: typeof CcQueueCall,
     @InjectModel(CcMissedCall) private readonly missedCallModel: typeof CcMissedCall,
     @InjectModel(Queue) private readonly queueModel: typeof Queue,
+    @InjectModel(CcSettings) private readonly settingsModel: typeof CcSettings,
   ) {}
 
   onModuleInit(): void {
     setTimeout(() => {
       void this.restoreToday();
     }, 500);
+    // Detect calendar / business-day boundary without waiting for Nest restart.
+    this.rolloverTimer = setInterval(() => {
+      void this.ensureReportingWindows();
+    }, 60_000);
+    if (typeof this.rolloverTimer === 'object' && 'unref' in this.rolloverTimer) {
+      this.rolloverTimer.unref?.();
+    }
+  }
+
+  onModuleDestroy(): void {
+    if (this.rolloverTimer) {
+      clearInterval(this.rolloverTimer);
+      this.rolloverTimer = null;
+    }
   }
 
   // ─── Formula methods (CALLCENTER_MODULE_PLAN §4.6) ───────────────────────
@@ -345,22 +372,50 @@ export class CallCenterMetricsService implements OnModuleInit {
 
   async restoreToday(): Promise<void> {
     try {
-      const startOfToday = new Date();
-      startOfToday.setHours(0, 0, 0, 0);
+      const now = new Date();
+      const policyByUid = await this.loadShiftPolicies();
+      const tenantStarts = new Map<number, Date>();
+      const resolveStart = (userUid: number): Date => {
+        let start = tenantStarts.get(userUid);
+        if (!start) {
+          start = startOfReportingDay(policyByUid.get(userUid) ?? null, now);
+          tenantStarts.set(userUid, start);
+        }
+        return start;
+      };
+
+      // Earliest possible start among known tenants (fallback: calendar midnight).
+      let queryStart = startOfCalendarDay(now);
+      if (policyByUid.size > 0) {
+        for (const uid of policyByUid.keys()) {
+          const s = resolveStart(uid);
+          if (s.getTime() < queryStart.getTime()) queryStart = s;
+        }
+      } else {
+        // No settings rows yet — also catch overnight business-day tails (up to 36h).
+        queryStart = new Date(now.getTime() - 36 * 60 * 60 * 1000);
+      }
 
       const rows = await this.queueCallModel.findAll({
-        where: { created_at: { [Op.gte]: startOfToday } },
+        where: { created_at: { [Op.gte]: queryStart } },
       });
 
       this.queueAccumulators.clear();
       this.agentAccumulators.clear();
       this.agentStatusTracks.clear();
       this.kpiAccumulators.clear();
+      this.periodStartByTenant.clear();
 
       const thresholdPromises = new Map<string, Promise<number>>();
+      let appliedRows = 0;
 
       for (const row of rows) {
         const userUid = row.user_uid;
+        const periodStart = resolveStart(userUid);
+        const createdAt = row.created_at ? new Date(row.created_at).getTime() : 0;
+        if (createdAt && createdAt < periodStart.getTime()) continue;
+        appliedRows++;
+
         const queueName = row.queue_name;
         const cacheKey = this.queueKey(userUid, queueName);
 
@@ -408,24 +463,94 @@ export class CallCenterMetricsService implements OnModuleInit {
       // Personal missed-call worklist rows (direct:<interface>) — day KPI after restart.
       const personalMissed = await this.missedCallModel.findAll({
         where: {
-          created_at: { [Op.gte]: startOfToday },
+          created_at: { [Op.gte]: queryStart },
           personal: true,
         },
       });
+      let appliedMissed = 0;
       for (const row of personalMissed) {
+        const periodStart = resolveStart(row.user_uid);
+        const createdAt = row.created_at ? new Date(row.created_at).getTime() : 0;
+        if (createdAt && createdAt < periodStart.getTime()) continue;
         const q = row.queue_name || '';
         if (!q.startsWith('direct:')) continue;
         const agentInterface = q.slice('direct:'.length);
         if (!agentInterface) continue;
+        appliedMissed++;
         this.restoreKpi(row.user_uid, agentInterface, 'missed');
       }
 
+      for (const [uid, start] of tenantStarts) {
+        this.periodStartByTenant.set(uid, start.getTime());
+      }
+      // Tenants with no history still need a marker so rollover can detect midnight.
+      for (const uid of policyByUid.keys()) {
+        if (!this.periodStartByTenant.has(uid)) {
+          this.periodStartByTenant.set(uid, resolveStart(uid).getTime());
+        }
+      }
+
       this.logger.log(
-        `Metrics restoreToday: ${rows.length} cc_queue_calls + ${personalMissed.length} personal missed`,
+        `Metrics restoreToday: ${appliedRows}/${rows.length} cc_queue_calls + ${appliedMissed} personal missed`,
       );
     } catch (err: any) {
       this.logger.error(`Metrics restoreToday failed: ${err.message}`);
     }
+  }
+
+  /** If any tenant crossed its reporting boundary, rebuild period accumulators. */
+  async ensureReportingWindows(now: Date = new Date()): Promise<boolean> {
+    try {
+      const policyByUid = await this.loadShiftPolicies();
+      const uids = new Set<number>([
+        ...policyByUid.keys(),
+        ...this.periodStartByTenant.keys(),
+      ]);
+      // Also watch tenants that have live accumulators but no settings row yet.
+      for (const key of this.queueAccumulators.keys()) {
+        const uid = Number(key.split(':')[0]);
+        if (Number.isFinite(uid)) uids.add(uid);
+      }
+
+      let needsRestore = false;
+      for (const uid of uids) {
+        const expected = startOfReportingDay(policyByUid.get(uid) ?? null, now).getTime();
+        const current = this.periodStartByTenant.get(uid);
+        if (current === undefined || current !== expected) {
+          needsRestore = true;
+          break;
+        }
+      }
+      if (!needsRestore) return false;
+      this.logger.log('Reporting-day boundary crossed — restoring period metrics');
+      await this.restoreToday();
+      return true;
+    } catch (err: any) {
+      this.logger.warn(`ensureReportingWindows failed: ${err.message}`);
+      return false;
+    }
+  }
+
+  private async loadShiftPolicies(): Promise<Map<number, ShiftPolicy>> {
+    const map = new Map<number, ShiftPolicy>();
+    try {
+      const rows = await this.settingsModel.findAll({
+        attributes: ['user_uid', 'shift_policy'],
+      });
+      for (const row of rows) {
+        const uid = Number(row.user_uid);
+        if (!Number.isFinite(uid)) continue;
+        map.set(
+          uid,
+          sanitizeShiftPolicy(
+            (row.shift_policy as unknown as Record<string, unknown> | null) ?? null,
+          ),
+        );
+      }
+    } catch (err: any) {
+      this.logger.warn(`loadShiftPolicies failed: ${err.message}`);
+    }
+    return map;
   }
 
   // ─── Private helpers ─────────────────────────────────────────────────────

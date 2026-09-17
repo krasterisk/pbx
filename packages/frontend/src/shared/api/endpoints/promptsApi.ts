@@ -2,6 +2,7 @@ import { rtkApi } from '../rtkApi';
 import type { IIvrPhraseTtsSettings, IPrompt, IPromptTtsMeta } from '@krasterisk/shared';
 
 const promptsApi = rtkApi.injectEndpoints({
+  overrideExisting: import.meta.hot != null,
   endpoints: (builder) => ({
     getPrompts: builder.query<IPrompt[], void>({
       query: () => '/prompts',

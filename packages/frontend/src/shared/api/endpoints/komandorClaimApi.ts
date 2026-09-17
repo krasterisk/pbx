@@ -26,6 +26,7 @@ export type KomandorClaimWrite = Partial<IKomandorClaim> & {
 };
 
 const komandorClaimApi = rtkApi.injectEndpoints({
+  overrideExisting: import.meta.hot != null,
   endpoints: (build) => ({
     getKomandorClaims: build.query<IKomandorClaimListResponse, KomandorClaimQueryParams | void>({
       query: (params) => ({ url: '/komandor-claims', params: params || {} }),

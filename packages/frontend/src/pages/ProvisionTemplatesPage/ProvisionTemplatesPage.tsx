@@ -1,11 +1,8 @@
-/**
- * Page: ProvisionTemplatesPage - thin orchestrator
- */
+import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { motion } from 'motion/react';
 import { FileCode, Plus } from 'lucide-react';
-import { Button } from '@/shared/ui';
-import { VStack, HStack } from '@/shared/ui/Stack';
+import { Button, Text } from '@/shared/ui';
+import { Flex, HStack, VStack } from '@/shared/ui/Stack';
 import { useAppDispatch } from '@/shared/hooks/useAppStore';
 import {
   provisionTemplatesActions,
@@ -14,47 +11,42 @@ import {
 } from '@/features/provisionTemplates';
 import cls from './ProvisionTemplatesPage.module.scss';
 
-export const ProvisionTemplatesPage = () => {
+export const ProvisionTemplatesPage = memo(() => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
 
   return (
     <VStack gap="24" max className={cls.page} data-testid="provision-templates-page-responsive">
-      {/* Header */}
-      <HStack justify="between" align="center" className="flex-col sm:flex-row gap-4 min-w-0" max>
-        <HStack gap="12" align="center" className="min-w-0">
-          <FileCode className="w-7 h-7 text-primary shrink-0" />
-          <h1 className="text-2xl font-bold">{t('provisionTemplates.title', 'Шаблоны автонастройки')}</h1>
+      <Flex justify="between" align="center" className={cls.header} max>
+        <HStack gap="12" align="center">
+          <Flex align="center" justify="center" className={cls.iconBadge}>
+            <FileCode size={24} />
+          </Flex>
+          <VStack gap="4" className={cls.titleBlock}>
+            <Text variant="h1" as="h1" className={cls.title}>
+              {t('provisionTemplates.title', 'Шаблоны автонастройки')}
+            </Text>
+            <Text variant="muted">
+              {t('provisionTemplates.subtitle', 'XML/CFG шаблоны автонастройки SIP-телефонов')}
+            </Text>
+          </VStack>
         </HStack>
-        <HStack gap="8" className="w-full sm:w-auto">
-          <Button
-            className={cls.createBtn}
-            onClick={() => dispatch(provisionTemplatesActions.openCreateModal())}
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            {t('provisionTemplates.add', 'Добавить шаблон')}
-          </Button>
-        </HStack>
-      </HStack>
-
-      {/* Table - D-29 page-level overflow hybrid */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        style={{ width: '100%', minWidth: 0 }}
-      >
-        <div
-          className={`${cls.tableScroll} overflow-x-auto`}
-          data-testid="hybrid-table"
-          data-hybrid="overflow-x-auto"
+        <Button
+          className={cls.createBtn}
+          onClick={() => dispatch(provisionTemplatesActions.openCreateModal())}
         >
-          <ProvisionTemplatesTable />
-        </div>
-      </motion.div>
+          <Plus size={16} className={cls.createBtnIcon} />
+          <Text as="span">{t('provisionTemplates.add', 'Добавить шаблон')}</Text>
+        </Button>
+      </Flex>
 
-      {/* Modals */}
+      <Flex direction="column" align="stretch" max className={cls.tableWrap}>
+        <ProvisionTemplatesTable />
+      </Flex>
+
       <ProvisionTemplateFormModal />
     </VStack>
   );
-};
+});
+
+ProvisionTemplatesPage.displayName = 'ProvisionTemplatesPage';

@@ -60,7 +60,7 @@ export function ConferenceGuestShell({
           <Languages size={20} />
         </Button>
       </HStack>
-      <Flex className={cls.body} justify="center" align="center" max>
+      <Flex className={cls.body} direction="column" align="stretch" max>
         {children}
       </Flex>
     </VStack>

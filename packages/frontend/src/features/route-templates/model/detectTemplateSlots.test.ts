@@ -68,4 +68,38 @@ describe('detectTemplateSlots', () => {
     expect(queue?.label).toBe('700');
     expect(queue?.value).toBe('q700_0');
   });
+
+  it('detects directory CID on trunks rows but ignores pool CID', () => {
+    const found = detectTemplateSlots([
+      action({
+        id: 't',
+        type: 'totrunk',
+        params: {
+          trunks: [
+            {
+              trunkId: 't_alpha_100',
+              callerId: {
+                mode: 'directory',
+                directoryUid: 7,
+                valueFieldUid: 18,
+                keySource: { source: 'original_caller' },
+                onMissing: 'keep_original',
+              },
+            },
+            {
+              trunkId: 't_beta_100',
+              callerId: { mode: 'pool', numbers: ['7900'], pick: 'random' },
+            },
+          ],
+        },
+      }),
+    ]);
+    const directories = found.filter((item) => item.kind === 'directory');
+    expect(directories).toHaveLength(1);
+    expect(directories[0].value).toBe('7');
+    expect(found.filter((item) => item.kind === 'trunk').map((item) => item.value)).toEqual([
+      't_alpha_100',
+      't_beta_100',
+    ]);
+  });
 });

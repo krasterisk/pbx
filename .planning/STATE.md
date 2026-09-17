@@ -23,6 +23,8 @@ Phase 16 (modul-telekonferentsiy-confbridge-webrtc) — CORE PLANS COMPLETE (202
 
 Phase 16.1 (telekonferentsii-video-emkost-komnaty-gostevoy-vhod-i-prigla) — COMPLETE (2026-09-16). 16.1-01…16.1-06; verify passed 16/16. Next: обязательный `/gsd-secure-phase 16.1`. Advisory: `/gsd-code-review 16.1 --fix` (4 critical in 16.1-REVIEW.md). Then `/gsd-execute-phase 16.2`.
 
+Phase 16.3 (telekonferentsii-frontend-zhivoy-komnaty-gostevaya-poverhnos) — UAT COMPLETE (2026-09-16). Execute 01–10; secure 23/23; verify 16/17 then live UAT 7/8 pass, Test 2 blocked (no staff WebRTC/mic). Create-room loop fixed during UAT. Next: optional `/gsd-code-review 16.3` / `/gsd-ui-review 16.3`.
+
 Phase 16.2 (telekonferentsii-zapis-vstrech-i-otchetnost) — EXECUTED (2026-09-16). 16.2-01…16.2-04; verify 15/15, status `human_needed`. Next: `/gsd-verify-work 16.2`. Do not mark complete until UAT. Advisory: `/gsd-code-review 16.2 --fix`. Then `/gsd-secure-phase 16.2`.
 
 Phase 14 (visual-route-builder-and-automation) — COMPLETE (2026-09-04). 11/11 plans (incl. gap 14-11); verify 27/27; G-14-2 resolved.
@@ -663,6 +665,8 @@ Also open: `/gsd-secure-phase 15`; Phase 11 harness verify; Phase 10 `/gsd-verif
 
 ### Roadmap Evolution
 
+- Phase 17 added: Модуль Автообзвон (кампании, клиентские базы, диалер, монитор, отчётность)
+- Phase 17.1–17.5 inserted: bases/import → campaigns/dialplan → ARI engine → monitor/reports → AI/Predictive
 - Phase 16.1 inserted after Phase 16: Phase 16 split: видео, ёмкость, гостевой вход и приглашения (backend)
 - Phase 16.2 inserted after Phase 16: Phase 16 split: запись встреч и отчётность
 - Phase 16.3 inserted after Phase 16: Phase 16 split: фронтенд живой комнаты, гостевая поверхность и AI-адаптер

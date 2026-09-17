@@ -192,15 +192,17 @@ export class PbxWorkflowRunnerService {
           };
           const check = await tool.mutation.revalidate(args, mutationCtx);
           if (!check.ok) throw new Error(check.reason);
-          await tool.mutation.apply(check.args, mutationCtx);
+          const applied = await tool.mutation.apply(check.args, mutationCtx);
           if (tool.mutation.reload.kind === 'dialplan-context') {
             const contextUid = tool.mutation.reload.contextUid(check.args);
             await this.routeApply.applyContext(contextUid, ctx.vpbxUserUid, {
               userUid: ctx.userUid,
             } as any);
           }
+          const extra = applied && typeof applied === 'object' ? applied : {};
           const result = {
             ...(typeof check.args === 'object' && check.args ? (check.args as object) : {}),
+            ...extra,
             applied: true,
           };
           results.set(step.step_key, result as Record<string, unknown>);

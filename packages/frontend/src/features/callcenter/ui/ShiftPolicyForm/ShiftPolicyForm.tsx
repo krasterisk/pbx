@@ -94,7 +94,7 @@ export function ShiftPolicyForm() {
       <Text variant="muted" className={styles.hint}>
         {t(
           'callcenter.settings.shifts.hint',
-          'When open shifts may be closed automatically and whether the directory number is freed.',
+          'When open shifts may be closed automatically and whether the operator extension is freed on any shift end.',
         )}
       </Text>
 
@@ -186,7 +186,7 @@ export function ShiftPolicyForm() {
             disabled={!canEdit}
             onCheckedChange={(v) => patch({ free_exten_on_close: v })}
           />
-          {t('callcenter.settings.shifts.freeExten', 'Free directory extension on shift end')}
+          {t('callcenter.settings.shifts.freeExten', 'Free the operator extension on shift end')}
         </Label>
       </div>
 

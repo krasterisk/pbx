@@ -1,1 +1,1 @@
-export { ContextsPage as default } from './ContextsPage';
+export { ContextsPage, ContextsPage as default } from './ContextsPage';

@@ -1,0 +1,1 @@
+export { IvrsTable } from './IvrsTable';

@@ -36,6 +36,7 @@ export interface IDryRunResult {
 }
 
 export const dryRunApi = rtkApi.injectEndpoints({
+  overrideExisting: import.meta.hot != null,
   endpoints: (builder) => ({
     postDryRun: builder.mutation<IDryRunResult, IDryRunRequest>({
       query: (body) => ({ url: '/dialplan/dry-run', method: 'POST', body }),

@@ -95,7 +95,7 @@ export const ModuleShell = memo(function ModuleShell({ children }: ModuleShellPr
     if (!currentModule || currentModule.code === 'overview') {
       return t('nav.dashboard');
     }
-    return hubRow?.catalogName || t(hubRow?.labelKey ?? currentModule.labelKey);
+    return t(hubRow?.labelKey ?? currentModule.labelKey);
   }, [currentModule, hubRow, t]);
 
   const licensedModules = useMemo(
@@ -107,7 +107,7 @@ export const ModuleShell = memo(function ModuleShell({ children }: ModuleShellPr
     () =>
       licensedModules.map((m) => ({
         id: m.code,
-        label: m.catalogName || t(m.labelKey),
+        label: t(m.labelKey),
         onSelect: () => navigate(getModuleEntryPath(m, level)),
       })),
     [licensedModules, level, navigate, t],
@@ -126,7 +126,7 @@ export const ModuleShell = memo(function ModuleShell({ children }: ModuleShellPr
   const paletteItems = useMemo(() => {
     const licensed = licensedModules.map((m) => ({
       code: m.code,
-      label: m.catalogName || t(m.labelKey),
+      label: t(m.labelKey),
       entryPath: getModuleEntryPath(m, level),
     }));
 

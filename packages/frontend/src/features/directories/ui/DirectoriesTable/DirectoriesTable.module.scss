@@ -1,65 +1,136 @@
+/* ─────────────────────────────────────────────────────
+   DirectoriesTable — список справочников
+   Design tokens: var(--color-*) from globals.css @theme
+   ───────────────────────────────────────────────────── */
+
 .card {
   width: 100%;
   min-width: 0;
-  overflow: hidden;
+}
+
+.cardContent {
+  padding: 0;
+  min-width: 0;
+  width: 100%;
+}
+
+.toolbar {
+  flex-wrap: nowrap;
+  gap: 1rem;
+  min-height: 2.25rem;
+
+  @media (max-width: 640px) {
+    flex-wrap: wrap;
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+.toolbarIcon {
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.count {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--color-foreground);
+}
+
+.toolbarActions {
+  min-width: 0;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
+
+  @media (max-width: 640px) {
+    width: 100%;
+  }
+}
+
+.bulkBtnHidden {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.searchWrap {
+  position: relative;
+  min-width: 0;
+  width: 16rem;
+
+  @media (max-width: 640px) {
+    width: 100%;
+  }
+}
+
+.searchIcon {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-muted-foreground);
+  pointer-events: none;
+}
+
+.searchInput {
+  height: 2.25rem;
+  padding-left: 2.5rem;
+}
+
+.tableScroll {
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .table {
   width: 100%;
 }
 
-.headRow {
-  background: color-mix(in srgb, var(--color-muted) 25%, transparent);
+.loading {
+  height: 12rem;
+  width: 100%;
 }
 
-.headCell {
-  white-space: nowrap;
-  font-size: 0.7rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--color-muted-foreground);
+.spinner {
+  color: var(--color-primary);
+  flex-shrink: 0;
+  animation: spin 0.8s linear infinite;
 }
 
-.bodyRow {
-  cursor: pointer;
-  border-bottom: 1px solid var(--color-border);
-
-  &:hover {
-    background: color-mix(in srgb, var(--color-muted) 35%, transparent);
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
   }
 }
 
 .name {
-  font-weight: 500;
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
   color: var(--color-foreground);
 }
 
-.actionsCell {
-  text-align: right;
-  width: 7rem;
-}
-
-.emptyState {
-  padding: 3rem 1.5rem;
-}
-
-.emptyIcon {
-  width: 2.5rem;
-  height: 2.5rem;
+.muted {
+  margin: 0;
+  font-size: 0.875rem;
   color: var(--color-muted-foreground);
-  opacity: 0.45;
 }
 
-.emptyTitle {
-  font-weight: 500;
-}
-
-.loading {
-  padding: 1.25rem;
-}
-
-.skeletonRow {
-  height: 2rem;
+.mobileList {
   width: 100%;
+}
+
+.mobileCard {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-muted) 10%, transparent);
+}
+
+.mobileEmpty {
+  width: 100%;
+  padding: 2rem 0;
+  text-align: center;
 }

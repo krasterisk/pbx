@@ -28,7 +28,7 @@ export const ModuleHubRow = memo(function ModuleHubRow({
 }: ModuleHubRowProps) {
   const { t } = useTranslation();
   const Icon = row.pages[0]?.icon;
-  const name = row.catalogName || t(row.labelKey);
+  const name = t(row.labelKey);
   const entryPath = getModuleEntryPath(row, level);
   const isDisabled = row.licenseStatus === 'disabled';
   const secondary =

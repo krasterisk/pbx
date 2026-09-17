@@ -4,19 +4,17 @@
  * Composes feature-level components for inbound/outbound routing management.
  * No business logic - only layout and dispatch.
  */
-import { useCallback, useMemo } from 'react';
+import { memo, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { motion } from 'motion/react';
-import { Plus, Network } from 'lucide-react';
+import { Network, Plus } from 'lucide-react';
 import { Button, Text, MultiSelect, type MultiSelectOption } from '@/shared/ui';
-import { VStack, HStack } from '@/shared/ui/Stack';
+import { Flex, HStack, VStack } from '@/shared/ui/Stack';
 import { useGetContextsQuery } from '@/shared/api/endpoints/contextApi';
 import { useAppSelector, useAppDispatch } from '@/shared/hooks/useAppStore';
-import { routesActions } from '@/features/routes';
-import { RoutesTable } from '@/features/routes/ui/RoutesTable/RoutesTable';
-import { RouteFormModal } from '@/features/routes/ui/RouteFormModal/RouteFormModal';
+import { routesActions, RoutesTable, RouteFormModal } from '@/features/routes';
+import cls from './RoutesPage.module.scss';
 
-export const RoutesPage = () => {
+export const RoutesPage = memo(() => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const selectedContextUids = useAppSelector((s) => s.routes.selectedContextUids);
@@ -37,39 +35,46 @@ export const RoutesPage = () => {
   }, [dispatch]);
 
   return (
-    <VStack gap="24" max>
-      {/* Header */}
-      <HStack justify="between" align="center" className="flex-col sm:flex-row gap-4" max>
+    <VStack gap="24" max className={cls.page} data-testid="routes-page-responsive">
+      <Flex justify="between" align="center" className={cls.header} max>
         <HStack gap="12" align="center">
-          <Network className="w-7 h-7 text-primary" />
-          <Text as="h1" className="text-2xl font-bold">{t('routes.title', 'Маршрутизация')}</Text>
+          <Flex align="center" justify="center" className={cls.iconBadge}>
+            <Network size={24} />
+          </Flex>
+          <VStack gap="4" className={cls.titleBlock}>
+            <Text variant="h1" as="h1" className={cls.title}>
+              {t('routes.title')}
+            </Text>
+            <Text variant="muted">
+              {t('routes.subtitle')}
+            </Text>
+          </VStack>
         </HStack>
-        <HStack gap="8" align="center" className="w-full sm:w-auto flex-col sm:flex-row min-w-0">
+        <HStack gap="8" align="center" className={cls.actions}>
           <MultiSelect
             value={selectedContextUids.map(String)}
             onChange={handleContextFilterChange}
             options={contextOptions}
-            placeholder={t('routes.allContexts', 'Все контексты')}
-            className="w-full sm:min-w-[220px] sm:w-auto min-w-0"
+            placeholder={t('routes.allContexts')}
+            className={cls.contextFilter}
           />
-          <Button onClick={() => dispatch(routesActions.openCreateModal())} className="w-full sm:w-auto">
-            <Plus className="w-4 h-4 mr-2" />
-            {t('routes.addRoute', 'Новый маршрут')}
+          <Button
+            className={cls.createBtn}
+            onClick={() => dispatch(routesActions.openCreateModal())}
+          >
+            <Plus size={16} className={cls.createBtnIcon} />
+            <Text as="span">{t('routes.addRoute')}</Text>
           </Button>
         </HStack>
-      </HStack>
+      </Flex>
 
-      {/* Table */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-      >
+      <Flex direction="column" align="stretch" max className={cls.tableWrap}>
         <RoutesTable />
-      </motion.div>
+      </Flex>
 
-      {/* Modals - reads state from Redux */}
       <RouteFormModal />
     </VStack>
   );
-};
+});
+
+RoutesPage.displayName = 'RoutesPage';

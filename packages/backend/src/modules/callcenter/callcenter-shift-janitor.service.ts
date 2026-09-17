@@ -75,7 +75,6 @@ export class CallCenterShiftJanitorService {
             agentInterface?: string;
             sessionId?: number;
             reason: ShiftCloseReason;
-            freeExten?: boolean;
           }) => Promise<unknown>;
         };
         await cc.endShift({
@@ -84,7 +83,6 @@ export class CallCenterShiftJanitorService {
           agentInterface: session.agent_interface,
           sessionId: session.uid,
           reason,
-          freeExten: policy.free_exten_on_close,
         });
         closed += 1;
       } catch (err: any) {

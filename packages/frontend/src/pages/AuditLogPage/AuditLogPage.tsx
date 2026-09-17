@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { ClipboardList } from 'lucide-react';
 import { Pagination, Text } from '@/shared/ui';
-import { VStack, Flex } from '@/shared/ui/Stack';
+import { Flex, HStack, VStack } from '@/shared/ui/Stack';
 import {
   AuditLogStats,
   AuditLogFilter,
@@ -28,11 +28,11 @@ const AuditLogPage = memo(() => {
   const filters: ActionLogFilters = {
     page,
     limit: PAGE_SIZE,
-    action:      (searchParams.get('action') || '') as any,
-    entity_type: (searchParams.get('entity_type') || '') as any,
-    status:      (searchParams.get('status') || '') as any,
-    dateFrom:    searchParams.get('dateFrom') || '',
-    dateTo:      searchParams.get('dateTo') || '',
+    action: (searchParams.get('action') || '') as ActionLogFilters['action'],
+    entity_type: (searchParams.get('entity_type') || '') as ActionLogFilters['entity_type'],
+    status: (searchParams.get('status') || '') as ActionLogFilters['status'],
+    dateFrom: searchParams.get('dateFrom') || '',
+    dateTo: searchParams.get('dateTo') || '',
   };
   const whPage = Number(searchParams.get('whPage') || '1');
 
@@ -52,33 +52,30 @@ const AuditLogPage = memo(() => {
     setSearchParams(next);
   }, [searchParams, setSearchParams]);
 
-  const totalPages   = logs     ? Math.ceil(logs.total     / PAGE_SIZE) : 0;
+  const totalPages = logs ? Math.ceil(logs.total / PAGE_SIZE) : 0;
   const whTotalPages = failures ? Math.ceil(failures.total / PAGE_SIZE) : 0;
   const failureCount = failures?.total ?? 0;
 
   return (
     <VStack gap="24" max className={cls.page} data-testid="audit-log-page-responsive">
-      {/* ── Page header ─────────────────────────────────── */}
-      <Flex align="center" gap="12" className="min-w-0">
-        <Flex align="center" justify="center" className={cls.iconWrap}>
-          <ClipboardList className={cls.pageIcon} />
-        </Flex>
-        <VStack gap="2" className="min-w-0">
-          <Text variant="h1" className={cls.pageTitle}>{t('auditLog.pageTitle')}</Text>
-          <Text variant="muted">{t('auditLog.pageSubtitle')}</Text>
-        </VStack>
+      <Flex align="center" className={cls.header} max>
+        <HStack gap="12" align="center">
+          <Flex align="center" justify="center" className={cls.iconBadge}>
+            <ClipboardList size={24} />
+          </Flex>
+          <VStack gap="4" className={cls.titleBlock}>
+            <Text variant="h1" as="h1" className={cls.title}>{t('auditLog.pageTitle')}</Text>
+            <Text variant="muted">{t('auditLog.pageSubtitle')}</Text>
+          </VStack>
+        </HStack>
       </Flex>
 
-      {/* ── KPI cards ───────────────────────────────────── */}
-      <div className={cls.statsScroll}>
+      <Flex direction="column" align="stretch" max className={cls.statsScroll}>
         <AuditLogStats stats={stats} isLoading={statsLoading} />
-      </div>
+      </Flex>
 
-      {/* ── Main card ───────────────────────────────────── */}
-      <div className={cls.card}>
-
-        {/* Tabs row */}
-        <div className={cls.tabsRow}>
+      <Flex direction="column" align="stretch" max className={cls.card}>
+        <Flex className={cls.tabsRow} align="stretch">
           {(['system', 'webhooks'] as Tab[]).map((key) => (
             <button
               key={key}
@@ -88,22 +85,22 @@ const AuditLogPage = memo(() => {
             >
               {key === 'system' ? t('auditLog.tabSystem') : t('auditLog.tabWebhooks')}
               {key === 'webhooks' && failureCount > 0 && (
-                <span className={cls.failureBadge}>{failureCount}</span>
+                <Text as="span" className={cls.failureBadge}>{failureCount}</Text>
               )}
             </button>
           ))}
-        </div>
+        </Flex>
 
-        {/* Filter bar */}
         {tab === 'system' && (
-          <div className={cls.filterBar}>
+          <Flex direction="column" align="stretch" className={cls.filterBar} max>
             <AuditLogFilter filters={filters} onChange={handleFilterChange} />
-          </div>
+          </Flex>
         )}
 
-        {/* Table - D-29 page-level overflow hybrid */}
-        <div
-          className={`${cls.tableWrap} overflow-x-auto`}
+        <Flex
+          direction="column"
+          align="stretch"
+          className={cls.tableWrap}
           data-testid="hybrid-table"
           data-hybrid="overflow-x-auto"
         >
@@ -117,20 +114,19 @@ const AuditLogPage = memo(() => {
               total={failureCount}
             />
           )}
-        </div>
+        </Flex>
 
-        {/* Pagination */}
         {tab === 'system' && totalPages > 1 && (
-          <div className={cls.pagination}>
+          <Flex justify="center" className={cls.pagination} max>
             <Pagination
               currentPage={page}
               totalPages={totalPages}
               onPageChange={(p) => handleFilterChange({ page: p })}
             />
-          </div>
+          </Flex>
         )}
         {tab === 'webhooks' && whTotalPages > 1 && (
-          <div className={cls.pagination}>
+          <Flex justify="center" className={cls.pagination} max>
             <Pagination
               currentPage={whPage}
               totalPages={whTotalPages}
@@ -140,9 +136,9 @@ const AuditLogPage = memo(() => {
                 setSearchParams(next);
               }}
             />
-          </div>
+          </Flex>
         )}
-      </div>
+      </Flex>
     </VStack>
   );
 });

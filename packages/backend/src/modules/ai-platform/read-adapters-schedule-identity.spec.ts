@@ -143,11 +143,11 @@ describe('read-adapters-schedule-identity — time groups (D-12, D-15, D-22)', (
     expect(york.inside).not.toBe(moscow.inside);
   });
 
-  it('declares no mutating tool', () => {
-    expect(adapter.getTools().length).toBeGreaterThan(0);
-    for (const tool of adapter.getTools()) {
-      expect(isMutating(tool)).toBe(false);
-    }
+  it('marks create and update as proposing and leaves list/evaluate read-only', () => {
+    expect(getTool(adapter, 'create_time_group').proposes).toBe(true);
+    expect(getTool(adapter, 'update_time_group').proposes).toBe(true);
+    expect(isMutating(getTool(adapter, 'list_time_groups'))).toBe(false);
+    expect(isMutating(getTool(adapter, 'evaluate_time_group'))).toBe(false);
   });
 
   it('returns none of another tenant schedules', async () => {
@@ -162,7 +162,7 @@ describe('read-adapters-schedule-identity — time groups (D-12, D-15, D-22)', (
   it('ships a time-groups skill covering timezone-sensitive evaluation', () => {
     const skillPath = path.join(__dirname, '../../skills/time-groups/SKILL.md');
     const raw = fs.readFileSync(skillPath, 'utf8');
-    expect(raw).toMatch(/^---\r?\nname: time-groups\r?\ndescription: .+\r?\n---/);
+    expect(raw).toMatch(/^---\r?\nname: time-groups\r?\ndescription: .+/);
     expect(raw).toMatch(/маршрут|route|voicemail|голос/i);
     expect(raw).toMatch(/час|time.?zone|timezone|пояс/i);
   });

@@ -4,7 +4,7 @@ description: Сквозной рецепт первичной настройки
 domains: ["pbx-setup"]
 intents: ["pbx_setup", "greenfield_pbx", "inbound_did_setup"]
 aliases: ["настрой атс", "pbx setup", "первичная настройка", "greenfield"]
-related: ["contexts", "trunks", "endpoints", "call-groups", "ivrs", "routes", "diagnostics"]
+related: ["contexts", "trunks", "endpoints", "call-groups", "ivrs", "routes", "time-groups", "diagnostics"]
 risk: high
 ---
 
@@ -20,8 +20,9 @@ risk: high
 4. **Абоненты.** `list_endpoints` только с фильтром названных номеров. `create_endpoints_bulk` сам оставит лишь отсутствующие; уже существующие в план не попадают.
 5. **Группа.** Одна call-group на таймаут/очередь ожидания. Свободный `exten` 6xxx подставь сам — не спрашивай.
 6. **IVR.** Перед цепочкой цифр — `list_dialplan_apps(host=ivr)`. `create_ivr`: цифры — типы из этого каталога (`destination` = первый шаг; после группы на `t` при необходимости `totrunk` / `hangup`). Greeting из brief.
-7. **Входящий DID route.** Exact-DID inbound route с typed `toivr` на созданное меню. Pattern = точный DID, не catch-all `_X.` выше emergency.
-8. **Проверка.** Route/dialplan dry-run → compiled dialplan / lab verification если доступно.
+7. **Календарь (если названы часы).** `list_time_groups` → `create_time_group` при отсутствии. На рабочем действии маршрута — `condition.time_group_uid`.
+8. **Входящий DID route.** Exact-DID inbound route с typed `toivr` на созданное меню. Pattern = точный DID, не catch-all `_X.` выше emergency.
+9. **Проверка.** Route/dialplan dry-run → compiled dialplan / lab verification если доступно.
 
 ## Частичная конфигурация
 

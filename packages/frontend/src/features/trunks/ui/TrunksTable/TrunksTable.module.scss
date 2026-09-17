@@ -1,0 +1,221 @@
+/* ─────────────────────────────────────────────────────
+   TrunksTable — список транков
+   Design tokens: var(--color-*) from globals.css @theme
+   ───────────────────────────────────────────────────── */
+
+.card {
+  width: 100%;
+  min-width: 0;
+}
+
+.cardContent {
+  padding: 0;
+  min-width: 0;
+  width: 100%;
+}
+
+.toolbar {
+  flex-wrap: nowrap;
+  gap: 1rem;
+  min-height: 2.25rem;
+
+  @media (max-width: 640px) {
+    flex-wrap: wrap;
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+.toolbarIcon {
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.count {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--color-foreground);
+}
+
+.registeredBadge {
+  font-size: 0.75rem;
+  line-height: 1;
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+  color: var(--color-success);
+  background: color-mix(in srgb, var(--color-success) 12%, transparent);
+}
+
+.toolbarActions {
+  min-width: 0;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
+
+  @media (max-width: 640px) {
+    width: 100%;
+  }
+}
+
+.bulkBtnHidden {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.searchWrap {
+  position: relative;
+  min-width: 0;
+  width: 16rem;
+
+  @media (max-width: 640px) {
+    width: 100%;
+  }
+}
+
+.searchIcon {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-muted-foreground);
+  pointer-events: none;
+}
+
+.searchInput {
+  height: 2.25rem;
+  padding-left: 2.5rem;
+}
+
+.tableScroll {
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table {
+  width: 100%;
+}
+
+.loading {
+  height: 12rem;
+  width: 100%;
+}
+
+.spinner {
+  color: var(--color-primary);
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.name {
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.mono {
+  font-size: 0.875rem;
+  font-family: ui-monospace, 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+.mutedMono {
+  composes: mono;
+  color: var(--color-muted-foreground);
+}
+
+.contextChip {
+  font-size: 0.75rem;
+  font-family: ui-monospace, 'JetBrains Mono', 'Fira Code', monospace;
+  padding: 0.125rem 0.5rem;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--color-muted) 80%, transparent);
+  color: var(--color-muted-foreground);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.125rem 0.625rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.badgeAuth {
+  composes: badge;
+  color: var(--color-info);
+  background: color-mix(in srgb, var(--color-info) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-info) 25%, transparent);
+}
+
+.badgeIp {
+  composes: badge;
+  color: var(--color-warning);
+  background: color-mix(in srgb, var(--color-warning) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-warning) 25%, transparent);
+}
+
+.statusDot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  flex-shrink: 0;
+}
+
+.statusDotRegistered {
+  composes: statusDot;
+  background: var(--color-success);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--color-success) 50%, transparent);
+}
+
+.statusDotRejected {
+  composes: statusDot;
+  background: var(--color-destructive);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--color-destructive) 50%, transparent);
+}
+
+.statusDotUnknown {
+  composes: statusDot;
+  background: var(--color-muted-foreground);
+}
+
+.statusLabel {
+  font-size: 0.75rem;
+}
+
+.statusRegistered {
+  composes: statusLabel;
+  color: var(--color-success);
+}
+
+.statusRejected {
+  composes: statusLabel;
+  color: var(--color-destructive);
+}
+
+.statusUnknown {
+  composes: statusLabel;
+  color: var(--color-muted-foreground);
+}
+
+.mobileList {
+  width: 100%;
+}
+
+.mobileCard {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-muted) 10%, transparent);
+}
+
+.mobileEmpty {
+  width: 100%;
+  padding: 2rem 0;
+  text-align: center;
+}

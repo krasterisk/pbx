@@ -31,6 +31,10 @@ import { PromptsPage } from '@/pages/PromptsPage';
 import { MohPage } from '@/pages/MohPage';
 import { ConferencesPage } from '@/pages/ConferencesPage';
 import { ConferenceRoomPage } from '@/pages/ConferenceRoomPage';
+import { AutodialCampaignsPage } from '@/pages/AutodialCampaignsPage';
+import { AutodialBasesPage } from '@/pages/AutodialBasesPage';
+import { AutodialMonitorPage } from '@/pages/AutodialMonitorPage';
+import { AutodialReportsPage } from '@/pages/AutodialReportsPage';
 import { TtsEnginesPage } from '@/pages/TtsEnginesPage';
 import { SttEnginesPage } from '@/pages/SttEnginesPage';
 import { VoiceRobotsPage } from '@/pages/VoiceRobotsPage';
@@ -131,6 +135,10 @@ export const router = createBrowserRouter([
       { path: 'call-groups', element: <CallGroupsPage /> },
       { path: 'conferences', element: <ConferencesPage /> },
       { path: 'conferences/:uid/room', element: <ConferenceRoomPage /> },
+      { path: 'autodial', element: <AutodialCampaignsPage /> },
+      { path: 'autodial/bases', element: <AutodialBasesPage /> },
+      { path: 'autodial/monitor', element: <AutodialMonitorPage /> },
+      { path: 'autodial/reports', element: <AutodialReportsPage /> },
       { path: 'roles', element: <RolesPage /> },
       { path: 'numbers', element: <NumbersPage /> },
       { path: 'provision-templates', element: <ProvisionTemplatesPage /> },

@@ -1,76 +1,66 @@
 import type { FieldSchema } from '../schema.types';
-import type { TrunkCallerIdSource } from '@krasterisk/shared';
-import {
-  TrunkCarouselTrunksField,
-  TrunkSingleCidField,
-} from '../../ui/TrunkCarouselTrunksField/TrunkCarouselTrunksField';
+import type { ITrunkCarouselItem, TrunkCallerIdSource } from '@krasterisk/shared';
+import { TrunkCarouselTrunksField } from '../../ui/TrunkCarouselTrunksField/TrunkCarouselTrunksField';
 import { renderDialModifyDest } from '../../ui/DialModifyField/DialModifyField';
 
 type TFn = (key: string, fallback?: string) => string;
 
+const DEFAULT_TRUNK_TIMEOUT = 60;
+
+/** Lift legacy single-trunk params into a one-item `trunks` list for the editor. */
+export function normalizeToTrunkParams(
+  params: Record<string, unknown>,
+): Record<string, unknown> {
+  const trunks = Array.isArray(params.trunks) ? (params.trunks as ITrunkCarouselItem[]) : [];
+  if (trunks.length > 0) {
+    return {
+      ...params,
+      trunks,
+      mode: params.mode === 'sequential' ? 'sequential' : 'random_then_failover',
+    };
+  }
+
+  const trunkRaw = String(params.trunk ?? '').trim();
+  if (!trunkRaw && !params.callerId && !params.callerid) {
+    return {
+      ...params,
+      trunks: [{
+        trunkId: '',
+        callerId: { mode: 'static', value: '' },
+        timeout: Number(params.timeout) || DEFAULT_TRUNK_TIMEOUT,
+      }],
+      mode: params.mode === 'sequential' ? 'sequential' : 'random_then_failover',
+    };
+  }
+
+  // Legacy single: trunk may be name or PJSIP/id — keep as trunkId for dual-read compile.
+  const legacyCaller = params.callerId as TrunkCallerIdSource | undefined;
+  let callerId: TrunkCallerIdSource;
+  if (legacyCaller?.mode === 'directory') {
+    callerId = legacyCaller;
+  } else if (legacyCaller?.mode === 'pool') {
+    callerId = legacyCaller;
+  } else {
+    const value =
+      legacyCaller?.mode === 'static'
+        ? (legacyCaller.value ?? '')
+        : String(params.callerid ?? '');
+    callerId = { mode: 'static', value };
+  }
+
+  return {
+    ...params,
+    trunks: [{
+      trunkId: trunkRaw,
+      callerId,
+      timeout: Number(params.timeout) || DEFAULT_TRUNK_TIMEOUT,
+    }],
+    mode: params.mode === 'sequential' ? 'sequential' : 'random_then_failover',
+  };
+}
+
 export function buildToTrunkSchema(t: TFn): FieldSchema[] {
   return [
-    {
-      key: 'trunkMode',
-      kind: 'mode',
-      group: 'primary',
-      labelKey: 'routes.chain.totrunk.trunkMode',
-      label: t('routes.chain.totrunk.trunkMode', 'Режим набора'),
-      options: [
-        {
-          value: 'single',
-          labelKey: 'routes.chain.totrunk.modeSingle',
-          label: t('routes.chain.totrunk.modeSingle', 'Один транк'),
-        },
-        {
-          value: 'carousel',
-          labelKey: 'routes.chain.totrunk.modeCarousel',
-          label: t('routes.chain.totrunk.modeCarousel', 'Карусель транков'),
-        },
-      ],
-    },
-    {
-      key: 'trunk',
-      kind: 'select',
-      required: true,
-      group: 'primary',
-      labelKey: 'routes.chain.fields.trunk',
-      label: t('routes.chain.fields.trunk', 'Транк'),
-      optionsSource: 'trunks',
-      visibleWhen: { key: 'trunkMode', equals: ['single', ''] },
-    },
-    {
-      key: 'callerId',
-      kind: 'custom',
-      group: 'primary',
-      hideLabel: true,
-      labelKey: 'routes.apps.trunkCarousel.cidMode',
-      label: t('routes.apps.trunkCarousel.cidMode', 'Источник CID'),
-      render: ({ params, onChange, readOnly }) => (
-        <TrunkSingleCidField params={params} onChange={onChange} readOnly={readOnly} />
-      ),
-      visibleWhen: { key: 'trunkMode', equals: ['single', ''] },
-    },
-    {
-      key: 'mode',
-      kind: 'mode',
-      group: 'primary',
-      labelKey: 'routes.chain.trunkCarousel.mode',
-      label: t('routes.chain.trunkCarousel.mode', 'Порядок обхода'),
-      options: [
-        {
-          value: 'random_then_failover',
-          labelKey: 'routes.chain.trunkCarousel.modeRandom',
-          label: t('routes.chain.trunkCarousel.modeRandom', 'Случайный, затем по списку'),
-        },
-        {
-          value: 'sequential',
-          labelKey: 'routes.chain.trunkCarousel.modeSequential',
-          label: t('routes.chain.trunkCarousel.modeSequential', 'По порядку'),
-        },
-      ],
-      visibleWhen: { key: 'trunkMode', equals: 'carousel' },
-    },
     {
       key: 'trunks',
       kind: 'custom',
@@ -82,7 +72,6 @@ export function buildToTrunkSchema(t: TFn): FieldSchema[] {
       render: ({ params, onChange, readOnly }) => (
         <TrunkCarouselTrunksField params={params} onChange={onChange} readOnly={readOnly} />
       ),
-      visibleWhen: { key: 'trunkMode', equals: 'carousel' },
     },
     {
       key: 'dest',
@@ -118,28 +107,53 @@ export function buildToTrunkSchema(t: TFn): FieldSchema[] {
   ];
 }
 
+function summarizeCid(callerId: TrunkCallerIdSource | undefined, t: TFn): string | null {
+  if (!callerId) return null;
+  if (callerId.mode === 'directory') {
+    return t('routes.apps.trunkCarousel.cidDirectory', 'справочник');
+  }
+  if (callerId.mode === 'pool') {
+    const count = Array.isArray(callerId.numbers) ? callerId.numbers.length : 0;
+    return t('routes.apps.trunkCarousel.cidPoolSummary', 'пул {{count}}')
+      .replace('{{count}}', String(count));
+  }
+  if (callerId.mode === 'static' && callerId.value) {
+    return String(callerId.value);
+  }
+  return null;
+}
+
 export function summarizeToTrunk(params: Record<string, unknown>, t: TFn): string {
-  if (params.trunkMode === 'carousel') {
-    const count = Array.isArray(params.trunks) ? params.trunks.length : 0;
+  const trunks = Array.isArray(params.trunks) ? (params.trunks as ITrunkCarouselItem[]) : [];
+  const filled = trunks.filter((row) => String(row?.trunkId ?? '').trim());
+
+  if (filled.length >= 2) {
     const mode =
       params.mode === 'sequential'
         ? t('routes.chain.trunkCarousel.modeSequential', 'По порядку')
         : t('routes.chain.trunkCarousel.modeRandom', 'Случайный, затем по списку');
-    return count
-      ? t('routes.chain.totrunk.summaryCarousel', '{{mode}}: {{count}} транк(ов)')
-          .replace('{{mode}}', mode)
-          .replace('{{count}}', String(count))
-      : t('routes.chain.totrunk.summaryCarouselEmpty', 'Карусель транков: список пуст');
+    return t('routes.chain.totrunk.summaryCarousel', '{{mode}}: {{count}} транк(ов)')
+      .replace('{{mode}}', mode)
+      .replace('{{count}}', String(filled.length));
   }
-  const trunk = String(params.trunk ?? '').trim() || '…';
-  const base = t('routes.chain.totrunk.summary', 'Транк {{trunk}}').replace('{{trunk}}', trunk);
-  const callerId = params.callerId as TrunkCallerIdSource | undefined;
-  if (callerId?.mode === 'directory') {
-    return `${base} (CID: ${t('routes.apps.trunkCarousel.cidDirectory', 'справочник')})`;
+
+  if (filled.length === 1) {
+    const row = filled[0];
+    const trunk = String(row.trunkId).trim() || '…';
+    const base = t('routes.chain.totrunk.summary', 'Транк {{trunk}}').replace('{{trunk}}', trunk);
+    const cid = summarizeCid(row.callerId, t);
+    return cid ? `${base} (CID: ${cid})` : base;
   }
-  const staticCid = callerId?.mode === 'static' ? callerId.value : params.callerid;
-  if (staticCid) {
-    return `${base} (CID: ${String(staticCid)})`;
+
+  // Legacy single dual-read
+  const trunk = String(params.trunk ?? '').trim();
+  if (trunk) {
+    const base = t('routes.chain.totrunk.summary', 'Транк {{trunk}}').replace('{{trunk}}', trunk);
+    const callerId = params.callerId as TrunkCallerIdSource | undefined;
+    const cid = summarizeCid(callerId, t)
+      ?? (params.callerid ? String(params.callerid) : null);
+    return cid ? `${base} (CID: ${cid})` : base;
   }
-  return base;
+
+  return t('routes.chain.totrunk.summaryCarouselEmpty', 'Карусель транков: список пуст');
 }

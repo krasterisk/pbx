@@ -28,7 +28,6 @@ vi.mock('@/features/system-settings/ui/WebhookSecurityCard', () => ({
   WebhookSecurityCard: () => <div data-testid="webhook-card-stub">webhook</div>,
 }));
 
-
 vi.mock('@/features/system-settings/ui/FfmpegStatusCard', () => ({
   FfmpegStatusCard: () => <div data-testid="ffmpeg-card-stub">ffmpeg</div>,
 }));

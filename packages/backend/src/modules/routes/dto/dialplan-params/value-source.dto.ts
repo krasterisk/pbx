@@ -15,6 +15,7 @@ export const CALL_VALUE_SOURCES = [
   'fixed',
   'route_pattern',
   'variable',
+  'autodial_field',
   'original_caller',
   'current_caller',
 ] as const;
@@ -31,7 +32,7 @@ function isCallValueSource(value: unknown): boolean {
   if (src.source === 'fixed') {
     return typeof src.value === 'string' && src.value.trim().length > 0;
   }
-  if (src.source === 'variable') {
+  if (src.source === 'variable' || src.source === 'autodial_field') {
     return typeof src.name === 'string' && src.name.trim().length > 0;
   }
   return true;
@@ -57,7 +58,7 @@ export class IsValueSourceConstraint implements ValidatorConstraintInterface {
     if (src.source === 'fixed') {
       return typeof src.value === 'string' && src.value.trim().length > 0;
     }
-    if (src.source === 'variable') {
+    if (src.source === 'variable' || src.source === 'autodial_field') {
       return typeof src.name === 'string' && src.name.trim().length > 0;
     }
     if (src.source === 'directory') {
@@ -67,7 +68,7 @@ export class IsValueSourceConstraint implements ValidatorConstraintInterface {
   }
 
   defaultMessage(): string {
-    return 'target.source must be fixed, route_pattern, variable, original_caller, current_caller, or directory; directory requires directoryUid, keySource, valueFieldUid, and onMissing';
+    return 'target.source must be fixed, route_pattern, variable, autodial_field, original_caller, current_caller, or directory; directory requires directoryUid, keySource, valueFieldUid, and onMissing';
   }
 }
 
@@ -103,7 +104,7 @@ export class CallValueSourceDto {
   @MinLength(1)
   value?: string;
 
-  @ValidateIf((o) => o.source === 'variable')
+  @ValidateIf((o) => o.source === 'variable' || o.source === 'autodial_field')
   @IsString()
   @MinLength(1)
   name?: string;
@@ -118,7 +119,7 @@ export class ValueSourceDto {
   @MinLength(1)
   value?: string;
 
-  @ValidateIf((o) => o.source === 'variable')
+  @ValidateIf((o) => o.source === 'variable' || o.source === 'autodial_field')
   @IsString()
   @MinLength(1)
   name?: string;

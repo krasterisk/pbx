@@ -63,7 +63,7 @@ export class PbxAgentLlmClient {
 
         const headers = this.buildHeaders(provider);
         const model = this.resolveOptionalModel(provider);
-        const resolvedChoice = this.resolveToolChoice(toolChoice, nativeTools, tools.length > 0);
+        const resolvedChoice = this.resolveToolChoice(toolChoice, nativeTools, tools.length > 0, provider);
             const configuredMax = Number(provider.defaults?.max_tokens ?? DEFAULT_MAX_TOKENS);
             const maxTokens = usesMaxCompletionTokens(model)
                 ? Math.max(configuredMax, DEFAULT_REASONING_MAX_TOKENS)
@@ -338,10 +338,11 @@ export class PbxAgentLlmClient {
         const caps = provider.capabilities ?? [];
         if (caps.includes('tools') || caps.includes('function_calling')) return true;
         const vendor = String(provider.vendor ?? '').toLowerCase();
-        if (vendor === 'aipbx' || vendor === 'openai') return true;
+        if (vendor === 'aipbx' || vendor === 'openai' || vendor === 'deepseek') return true;
         try {
             const host = new URL(provider.endpoint).hostname.toLowerCase();
             if (host === 'api.openai.com' || host.endsWith('.openai.com')) return true;
+            if (host === 'api.deepseek.com' || host.endsWith('.deepseek.com')) return true;
         } catch {
             /* ignore bad endpoint */
         }
@@ -352,10 +353,24 @@ export class PbxAgentLlmClient {
         choice: AgentChatParams['toolChoice'] | undefined,
         nativeTools: boolean,
         hasTools: boolean,
+        provider: AgentChatParams['provider'],
     ): 'auto' | 'required' | 'none' | undefined {
         if (!nativeTools || !hasTools) return undefined;
+        // DeepSeek thinking (default on flash) rejects any tool_choice: 400 invalid_request_error.
+        if (this.omitsToolChoice(provider)) return undefined;
         if (choice === 'required' || choice === 'none' || choice === 'auto') return choice;
         return 'auto';
+    }
+
+    private omitsToolChoice(provider: AgentChatParams['provider']): boolean {
+        const vendor = String(provider.vendor ?? '').toLowerCase();
+        if (vendor === 'deepseek') return true;
+        try {
+            const host = new URL(provider.endpoint).hostname.toLowerCase();
+            return host === 'api.deepseek.com' || host.endsWith('.deepseek.com');
+        } catch {
+            return false;
+        }
     }
 
     private toOpenAiTools(tools: AgentChatParams['tools']) {

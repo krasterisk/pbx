@@ -21,7 +21,7 @@
   justify-content: center;
   gap: 2px;
   min-height: 44px;
-  min-width: 44px;
+  min-width: 0;
   padding: 4px 2px;
   border: none;
   background: transparent;
@@ -40,8 +40,46 @@
   }
 }
 
+.picker {
+  color: var(--color-foreground);
+}
+
 .active {
   color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+}
+
+.slotGhost {
+  flex: 1;
+  min-width: 0;
+}
+
+.hasMenu {
+  padding-top: 6px;
+}
+
+.iconWrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.menuHint {
+  position: absolute;
+  top: -7px;
+  right: -9px;
+  width: 12px;
+  height: 12px;
+  padding: 1px;
+  border-radius: 999px;
+  background: var(--color-primary);
+  color: var(--color-primary-foreground, #fff);
+  transition: transform 0.15s ease;
+}
+
+.menuHintOpen {
+  transform: rotate(180deg);
 }
 
 .icon {
@@ -61,19 +99,41 @@
 }
 
 .sheetContent {
-  inset: auto 0 0 0 !important;
-  top: auto !important;
-  right: 0 !important;
-  left: 0 !important;
-  bottom: 0 !important;
-  height: auto !important;
-  max-height: 70vh;
-  width: 100% !important;
-  max-width: 100% !important;
-  border-left: none !important;
-  border-top: 1px solid var(--color-border);
-  border-radius: 16px 16px 0 0;
   padding: 20px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+}
+
+.sheetHeader {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  padding-right: 28px;
+}
+
+.backBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-muted-foreground);
+  cursor: pointer;
+  flex-shrink: 0;
+
+  &:hover {
+    color: var(--color-foreground);
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+  }
 }
 
 .sheetList {
@@ -124,4 +184,31 @@
 
 .sheetRowMuted {
   opacity: 0.6;
+}
+
+.sheetRowActive {
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+  color: var(--color-primary);
+}
+
+.sheetSection {
+  margin: 8px 4px 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-muted-foreground);
+}
+
+.sheetRowText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 2px;
+}
+
+.sheetRowMeta {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-muted-foreground);
 }

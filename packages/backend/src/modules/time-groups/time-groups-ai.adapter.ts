@@ -1,22 +1,77 @@
 import { Injectable, Logger, Optional, OnModuleInit } from '@nestjs/common';
+import { z } from 'zod';
 import type { ITimeGroupInterval } from '@krasterisk/shared';
 import { TimeGroupsService } from './time-groups.service';
 import { TenantSettingsService } from '../tenant-settings/tenant-settings.service';
 import { AiAdapterRegistryService } from '../ai-platform/ai-adapter-registry.service';
 import {
+  AgentDiffProposal,
   AiStateProvider,
   AiToolDefinition,
   DomainAiAdapter,
 } from '../ai-platform/ai-adapter.types';
+import {
+  defineMutationTool,
+  type AiMutationContext,
+  type AiToolRefusal,
+} from '../ai-platform/ai-mutation.contract';
 
 const WEEKDAYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
 const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'] as const;
 const DEFAULT_TIMEZONE = 'Europe/Moscow';
+const SCHEMA_VERSION = 'time-groups-1';
+const TIME_HM = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+const intervalInput = z.strictObject({
+  time_start: z.string().regex(TIME_HM).describe('Начало, HH:MM'),
+  time_end: z.string().regex(TIME_HM).describe('Конец, HH:MM'),
+  days_of_week: z.string().min(1).optional().describe('mon-fri | mon,wed,fri | *'),
+  days_of_month: z.string().min(1).optional().describe('1-15 | 12 | *'),
+  months: z.string().min(1).optional().describe('jan-jun | jan | *'),
+});
+
+const intervalArgs = z.strictObject({
+  time_start: z.string().regex(TIME_HM),
+  time_end: z.string().regex(TIME_HM),
+  days_of_week: z.string().min(1),
+  days_of_month: z.string().min(1),
+  months: z.string().min(1),
+});
+
+const createInput = z.strictObject({
+  name: z.string().min(1).describe('Название календаря'),
+  comment: z.string().optional().describe('Комментарий'),
+  intervals: z.array(intervalInput).min(1).describe('Интервалы ExecIfTime'),
+});
+
+const createArgs = z.strictObject({
+  name: z.string().min(1),
+  comment: z.string().optional(),
+  intervals: z.array(intervalArgs).min(1),
+});
+
+const updateInput = z.strictObject({
+  uid: z.number().int().positive().describe('UID календаря из list_time_groups'),
+  name: z.string().min(1).optional(),
+  comment: z.string().optional(),
+  intervals: z.array(intervalInput).min(1).optional(),
+});
+
+const updateArgs = z.strictObject({
+  uid: z.number().int().positive(),
+  name: z.string().min(1),
+  comment: z.string().optional(),
+  intervals: z.array(intervalArgs).min(1),
+});
+
+type CreateInput = z.infer<typeof createInput>;
+type CreateArgs = z.infer<typeof createArgs>;
+type UpdateInput = z.infer<typeof updateInput>;
+type UpdateArgs = z.infer<typeof updateArgs>;
 
 /**
- * TimeGroupsAiAdapter — read-only schedule tools (D-15).
- * Evaluation reuses the same interval fields the routing path emits to ExecIfTime,
- * applied in the tenant's configured zone rather than the server's.
+ * TimeGroupsAiAdapter — schedule read tools plus proposal-gated create/update.
+ * Intervals are the same ExecIfTime fields the routing path already emits.
  */
 @Injectable()
 export class TimeGroupsAiAdapter implements DomainAiAdapter, OnModuleInit {
@@ -35,7 +90,12 @@ export class TimeGroupsAiAdapter implements DomainAiAdapter, OnModuleInit {
   }
 
   getTools(): AiToolDefinition[] {
-    return [this.toolListTimeGroups(), this.toolEvaluateTimeGroup()];
+    return [
+      this.toolListTimeGroups(),
+      this.toolEvaluateTimeGroup(),
+      this.toolCreateTimeGroup(),
+      this.toolUpdateTimeGroup(),
+    ];
   }
 
   getStateProvider(): AiStateProvider {
@@ -44,9 +104,11 @@ export class TimeGroupsAiAdapter implements DomainAiAdapter, OnModuleInit {
 
   getKnowledgeBlock(): string {
     return `## Расписания (time groups)
-- Расписание задаёт интервалы, в которых действие маршрута выполняется. Вне интервала действие пропускается.
-- Интервалы те же, что уходят в ExecIfTime: время, дни недели, дни месяца, месяцы.
-- Оценка всегда в часовом поясе тенанта. Не складывай интервалы в уме и не бери пояс сервера.`;
+- Календарь — именованный набор интервалов. Создай его через create_time_group, если подходящего нет в list_time_groups.
+- Интервал: time_start/time_end (HH:MM), days_of_week (mon-fri | mon,sat | *), days_of_month и months (* если не названы).
+- На действии маршрута календарь вешается как condition.time_group_uid (число или steps.<id>.result.uid после create). Это не отдельный tool.
+- schedule в actions[] — другой шаг: у него params.intervals[], он не создаёт календарь.
+- Оценка «сейчас внутри» — evaluate_time_group в поясе тенанта, не в уме и не в поясе сервера.`;
   }
 
   private async buildSummary(vpbxUserUid: number): Promise<string> {
@@ -98,6 +160,194 @@ export class TimeGroupsAiAdapter implements DomainAiAdapter, OnModuleInit {
         const at = args.at ? new Date(String(args.at)) : new Date();
         return evaluateSchedule(found.intervals ?? [], at, timeZone);
       },
+    };
+  }
+
+  private toolCreateTimeGroup(): AiToolDefinition {
+    return defineMutationTool<CreateInput, CreateArgs>({
+      name: 'create_time_group',
+      description:
+        'Предлагает создать календарь (time group) с интервалами. На маршрут вешается через condition.time_group_uid.',
+      entityType: 'time_group',
+      schemaVersion: SCHEMA_VERSION,
+      input: createInput,
+      args: createArgs,
+      reload: { kind: 'none' },
+      propose: async (input, ctx) => {
+        const intervals = this.normalizeIntervals(input.intervals);
+        const refused = this.refuseBadIntervals(intervals) ?? (await this.refuseDuplicateName(input.name, ctx));
+        if (refused) return refused;
+        const applyArgs: CreateArgs = {
+          name: input.name.trim(),
+          intervals,
+        };
+        if (input.comment != null) applyArgs.comment = input.comment;
+        return this.proposal(
+          'create_time_group',
+          applyArgs.name,
+          applyArgs,
+          null,
+          applyArgs,
+          this.createSummary(applyArgs),
+        );
+      },
+      revalidate: async (args, ctx) => {
+        const refused = this.refuseBadIntervals(args.intervals) ?? (await this.refuseDuplicateName(args.name, ctx));
+        if (refused) return { ok: false, reason: String(refused.message) };
+        return { ok: true, args };
+      },
+      apply: async (args, ctx) => {
+        const created = await this.timeGroupsService.create(
+          {
+            name: args.name,
+            comment: args.comment ?? '',
+            intervals: args.intervals,
+          },
+          ctx.vpbxUserUid,
+        );
+        return { uid: created.uid, name: created.name };
+      },
+    });
+  }
+
+  private toolUpdateTimeGroup(): AiToolDefinition {
+    return defineMutationTool<UpdateInput, UpdateArgs>({
+      name: 'update_time_group',
+      description: 'Предлагает изменить имя, комментарий или интервалы существующего календаря тенанта.',
+      entityType: 'time_group',
+      schemaVersion: SCHEMA_VERSION,
+      input: updateInput,
+      args: updateArgs,
+      reload: { kind: 'none' },
+      propose: async (input, ctx) => {
+        const current = await this.timeGroupsService.findOne(input.uid, ctx.vpbxUserUid);
+        if (input.name == null && input.comment == null && input.intervals == null) {
+          return { refused: true, message: 'Нужно хотя бы одно поле: name, comment или intervals' };
+        }
+        const intervals = input.intervals
+          ? this.normalizeIntervals(input.intervals)
+          : this.normalizeIntervals(current.intervals ?? []);
+        const refused = this.refuseBadIntervals(intervals)
+          ?? (input.name ? await this.refuseDuplicateName(input.name, ctx, input.uid) : null);
+        if (refused) return refused;
+        const applyArgs: UpdateArgs = {
+          uid: input.uid,
+          name: (input.name ?? current.name).trim(),
+          intervals,
+        };
+        const comment = input.comment ?? current.comment;
+        if (comment != null) applyArgs.comment = comment;
+        return this.proposal(
+          'update_time_group',
+          applyArgs.name,
+          applyArgs,
+          {
+            name: current.name,
+            comment: current.comment ?? '',
+            intervals: current.intervals ?? [],
+          },
+          applyArgs,
+          this.updateSummary(current.name, applyArgs),
+        );
+      },
+      revalidate: async (args, ctx) => {
+        try {
+          await this.timeGroupsService.findOne(args.uid, ctx.vpbxUserUid);
+        } catch {
+          return { ok: false, reason: `Календарь ${args.uid} не найден у тенанта` };
+        }
+        const refused = this.refuseBadIntervals(args.intervals)
+          ?? (await this.refuseDuplicateName(args.name, ctx, args.uid));
+        if (refused) return { ok: false, reason: String(refused.message) };
+        return { ok: true, args };
+      },
+      apply: async (args, ctx) => {
+        const updated = await this.timeGroupsService.update(
+          args.uid,
+          {
+            name: args.name,
+            comment: args.comment ?? '',
+            intervals: args.intervals,
+          },
+          ctx.vpbxUserUid,
+        );
+        return { uid: updated.uid, name: updated.name };
+      },
+    });
+  }
+
+  private normalizeIntervals(rows: Array<Partial<ITimeGroupInterval>>): ITimeGroupInterval[] {
+    return rows.map((row) => ({
+      time_start: String(row.time_start ?? '').trim(),
+      time_end: String(row.time_end ?? '').trim(),
+      days_of_week: (row.days_of_week ?? '*').trim().toLowerCase() || '*',
+      days_of_month: (row.days_of_month ?? '*').trim() || '*',
+      months: (row.months ?? '*').trim().toLowerCase() || '*',
+    }));
+  }
+
+  private refuseBadIntervals(intervals: ITimeGroupInterval[]): AiToolRefusal | null {
+    if (!intervals.length) {
+      return { refused: true, message: 'Нужен хотя бы один интервал календаря' };
+    }
+    for (const interval of intervals) {
+      if (!TIME_HM.test(interval.time_start) || !TIME_HM.test(interval.time_end)) {
+        return { refused: true, message: `Неверное время ${interval.time_start}–${interval.time_end}` };
+      }
+      if (!isTokenSpec(interval.days_of_week, WEEKDAYS)) {
+        return { refused: true, message: `Неверные дни недели: ${interval.days_of_week}` };
+      }
+      if (!isDomSpec(interval.days_of_month)) {
+        return { refused: true, message: `Неверные дни месяца: ${interval.days_of_month}` };
+      }
+      if (!isTokenSpec(interval.months, MONTHS)) {
+        return { refused: true, message: `Неверные месяцы: ${interval.months}` };
+      }
+    }
+    return null;
+  }
+
+  private async refuseDuplicateName(
+    name: string,
+    ctx: AiMutationContext,
+    exceptUid?: number,
+  ): Promise<AiToolRefusal | null> {
+    const wanted = name.trim().toLowerCase();
+    const rows = await this.timeGroupsService.findAll(ctx.vpbxUserUid);
+    const clash = rows.find(
+      (row) => row.name.trim().toLowerCase() === wanted && row.uid !== exceptUid,
+    );
+    if (!clash) return null;
+    return { refused: true, message: `Календарь «${clash.name}» уже есть у тенанта` };
+  }
+
+  private createSummary(args: CreateArgs): string[] {
+    return [`Создать календарь «${args.name}»`, ...args.intervals.map((interval) => formatReadableInterval(interval))];
+  }
+
+  private updateSummary(previousName: string, args: UpdateArgs): string[] {
+    const title = args.name !== previousName
+      ? `Изменить календарь «${previousName}» → «${args.name}»`
+      : `Изменить календарь «${args.name}»`;
+    return [title, ...args.intervals.map((interval) => formatReadableInterval(interval))];
+  }
+
+  private proposal(
+    tool: string,
+    label: string,
+    args: Record<string, unknown>,
+    before: Record<string, unknown> | null,
+    after: Record<string, unknown> | null,
+    summary: string[],
+  ): AgentDiffProposal {
+    return {
+      entityType: 'time_group',
+      entityLabel: label,
+      summary,
+      before,
+      after,
+      applyPayload: { tool, args },
+      includesDialplanReload: false,
     };
   }
 
@@ -235,4 +485,31 @@ function parseHm(hhmm: string | undefined): number {
   if (!hhmm) return 0;
   const [hours, minutes] = hhmm.split(':').map(Number);
   return (Number.isFinite(hours) ? hours : 0) * 60 + (Number.isFinite(minutes) ? minutes : 0);
+}
+
+function isTokenSpec(spec: string, universe: readonly string[]): boolean {
+  if (!spec || spec === '*') return true;
+  return spec.split(',').every((part) => {
+    const trimmed = part.trim().toLowerCase();
+    if (!trimmed) return false;
+    if (trimmed.includes('-')) {
+      const [from, to] = trimmed.split('-');
+      return universe.includes(from) && universe.includes(to);
+    }
+    return universe.includes(trimmed);
+  });
+}
+
+function isDomSpec(spec: string): boolean {
+  if (!spec || spec === '*') return true;
+  return spec.split(',').every((part) => {
+    const trimmed = part.trim();
+    if (!trimmed) return false;
+    if (trimmed.includes('-')) {
+      const [from, to] = trimmed.split('-').map(Number);
+      return Number.isInteger(from) && Number.isInteger(to) && from >= 1 && to <= 31 && from <= to;
+    }
+    const day = Number(trimmed);
+    return Number.isInteger(day) && day >= 1 && day <= 31;
+  });
 }

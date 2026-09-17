@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { RefreshCw, X, AlertCircle } from 'lucide-react';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-  Skeleton, Button, Text,
+  Skeleton, Button, Text, TableRowActions, TableRowAction,
 } from '@/shared/ui';
 import { Flex, VStack, HStack } from '@/shared/ui/Stack';
 import {
@@ -37,10 +37,10 @@ function shortUrl(url: string) {
 }
 
 const EVENT_COLORS: Record<string, string> = {
-  on_hangup:  cls.badgeHangup,
-  on_answer:  cls.badgeAnswer,
+  on_hangup: cls.badgeHangup,
+  on_answer: cls.badgeAnswer,
   before_dial: cls.badgeDial,
-  custom:     cls.badgeCustom,
+  custom: cls.badgeCustom,
 };
 
 const SKELETON_ROWS = [1, 2, 3, 4];
@@ -59,7 +59,7 @@ export const WebhookFailuresTable = memo(({ data, isLoading, total }: WebhookFai
 
   if (isLoading) {
     return (
-      <div className={cls.wrap}>
+      <Flex direction="column" align="stretch" className={cls.wrap} max>
         <Table>
           <TableHeader>
             <TableRow>
@@ -74,21 +74,24 @@ export const WebhookFailuresTable = memo(({ data, isLoading, total }: WebhookFai
           <TableBody>
             {SKELETON_ROWS.map((i) => (
               <TableRow key={i}>
-                {[140, 80, 180, 200, 40, 80].map((w, j) => (
-                  <TableCell key={j}><Skeleton className={`h-4 w-[${w}px]`} /></TableCell>
-                ))}
+                <TableCell><Skeleton className={cls.skelDate} /></TableCell>
+                <TableCell><Skeleton className={cls.skelEvent} /></TableCell>
+                <TableCell><Skeleton className={cls.skelUrl} /></TableCell>
+                <TableCell><Skeleton className={cls.skelError} /></TableCell>
+                <TableCell><Skeleton className={cls.skelAttempts} /></TableCell>
+                <TableCell><Skeleton className={cls.skelActions} /></TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
-      </div>
+      </Flex>
     );
   }
 
   if (!data.length) {
     return (
       <VStack gap="8" align="center" className={cls.empty}>
-        <AlertCircle className={cls.emptyIcon} />
+        <AlertCircle size={32} className={cls.emptyIcon} />
         <Text variant="muted">{t('auditLog.whEmpty')}</Text>
       </VStack>
     );
@@ -108,28 +111,28 @@ export const WebhookFailuresTable = memo(({ data, isLoading, total }: WebhookFai
           </Button>
         </HStack>
       )}
-      <div className={cls.wrap}>
+      <Flex direction="column" align="stretch" className={cls.wrap} max>
         <Table>
           <TableHeader>
-            <TableRow className="hover:bg-transparent">
-              <TableHead className="whitespace-nowrap">{t('auditLog.whColDate')}</TableHead>
+            <TableRow>
+              <TableHead className={cls.nowrap}>{t('auditLog.whColDate')}</TableHead>
               <TableHead>{t('auditLog.whColEvent')}</TableHead>
               <TableHead>{t('auditLog.whColUrl')}</TableHead>
               <TableHead className={cls.errorCol}>{t('auditLog.whColError')}</TableHead>
-              <TableHead className="text-center">{t('auditLog.whColAttempts')}</TableHead>
-              <TableHead className="text-right">{t('auditLog.whColActions')}</TableHead>
+              <TableHead className={cls.center}>{t('auditLog.whColAttempts')}</TableHead>
+              <TableHead className={cls.right}>{t('auditLog.whColActions')}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {data.map((row) => (
               <TableRow key={row.id} className={row.retried_at ? cls.rowRetried : ''}>
-                <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
-                  {formatDate(row.failed_at)}
+                <TableCell className={cls.dateCell}>
+                  <Text as="span">{formatDate(row.failed_at)}</Text>
                 </TableCell>
                 <TableCell>
-                  <span className={`${cls.badge} ${EVENT_COLORS[row.event] ?? cls.badgeCustom}`}>
+                  <Text as="span" className={`${cls.badge} ${EVENT_COLORS[row.event] ?? cls.badgeCustom}`}>
                     {row.event}
-                  </span>
+                  </Text>
                 </TableCell>
                 <TableCell title={row.url} className={cls.urlCell}>
                   <Text variant="small" className={cls.url}>{shortUrl(row.url)}</Text>
@@ -137,32 +140,33 @@ export const WebhookFailuresTable = memo(({ data, isLoading, total }: WebhookFai
                 <TableCell className={cls.errorCol}>
                   <Text variant="muted" className={cls.error}>{row.error || '-'}</Text>
                 </TableCell>
-                <TableCell className="text-center font-mono text-sm">{row.attempts}</TableCell>
+                <TableCell className={cls.attemptsCell}>
+                  <Text as="span">{row.attempts}</Text>
+                </TableCell>
                 <TableCell>
-                  <Flex gap="4" justify="end">
-                    <Button
-                      size="sm"
-                      variant="outline"
+                  <TableRowActions>
+                    <TableRowAction
+                      title={t('auditLog.whRetry')}
+                      aria-label={t('auditLog.whRetry')}
                       disabled={retrying === row.id}
-                      onClick={() => handleRetry(row.id)}
+                      onClick={() => void handleRetry(row.id)}
                     >
-                      <RefreshCw className={`${cls.btnIcon} ${retrying === row.id ? cls.spin : ''}`} />
-                      {t('auditLog.whRetry')}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
+                      <RefreshCw />
+                    </TableRowAction>
+                    <TableRowAction
+                      title={t('auditLog.whResolve')}
+                      aria-label={t('auditLog.whResolve')}
                       onClick={() => resolve(row.id)}
                     >
-                      <X className={cls.btnIcon} />
-                    </Button>
-                  </Flex>
+                      <X />
+                    </TableRowAction>
+                  </TableRowActions>
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
-      </div>
+      </Flex>
     </VStack>
   );
 });

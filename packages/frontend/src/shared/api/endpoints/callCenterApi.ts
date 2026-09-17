@@ -4,7 +4,8 @@ import type { IPauseReason, ICcSnapshot, IAgentDetail } from '@/features/callcen
 import type { ICardTemplate, ICardData } from '@/features/callcenter/model/types/callCard';
 import { updateAgent } from '@/features/callcenter/model/slice/callCenterSlice';
 import { toast } from 'react-toastify';
-import i18n from '@/shared/config/i18n';
+// Bare singleton on purpose — see the note in conferenceRoomApi.
+import i18n from 'i18next';
 
 export interface IClientLookupContact {
   directory_uid: number;
@@ -382,6 +383,7 @@ export interface ISupervisorAccessScope {
 }
 
 const callCenterApi = rtkApi.injectEndpoints({
+  overrideExisting: import.meta.hot != null,
   endpoints: (build) => ({
     // ─── State ────────────────────────────────────────────
     getCcState: build.query<ICcSnapshot, void>({
@@ -830,10 +832,22 @@ const callCenterApi = rtkApi.injectEndpoints({
     supervisorForceUnpause: build.mutation<{ success: boolean }, { agentInterface: string }>({
       query: (body) => ({ url: '/callcenter/supervisor/force-unpause', method: 'POST', body }),
     }),
-    supervisorQueueAdd: build.mutation<{ success: boolean }, { agentInterface: string; queue: string; penalty?: number }>({
+    supervisorReconcileQueues: build.mutation<
+      { success: boolean; interface?: string; queues?: string[] },
+      { agentInterface?: string }
+    >({
+      query: (body) => ({ url: '/callcenter/supervisor/reconcile-queues', method: 'POST', body }),
+    }),
+    supervisorQueueAdd: build.mutation<
+      { success: boolean; queues?: string[] },
+      { agentInterface: string; queue: string; penalty?: number }
+    >({
       query: (body) => ({ url: '/callcenter/supervisor/queue-add', method: 'POST', body }),
     }),
-    supervisorQueueRemove: build.mutation<{ success: boolean }, { agentInterface: string; queue: string }>({
+    supervisorQueueRemove: build.mutation<
+      { success: boolean; queues?: string[] },
+      { agentInterface: string; queue: string }
+    >({
       query: (body) => ({ url: '/callcenter/supervisor/queue-remove', method: 'POST', body }),
     }),
     supervisorQueuePenalty: build.mutation<{ success: boolean }, { agentInterface: string; queue: string; penalty: number }>({
@@ -1134,6 +1148,7 @@ export const {
   useSupervisorSpyMutation,
   useSupervisorForcePauseMutation,
   useSupervisorForceUnpauseMutation,
+  useSupervisorReconcileQueuesMutation,
   useSupervisorQueueAddMutation,
   useSupervisorQueueRemoveMutation,
   useSupervisorQueuePenaltyMutation,

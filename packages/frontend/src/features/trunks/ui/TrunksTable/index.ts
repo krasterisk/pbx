@@ -1,0 +1,1 @@
+export { TrunksTable } from './TrunksTable';

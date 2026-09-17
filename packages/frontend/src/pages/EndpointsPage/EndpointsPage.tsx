@@ -4,11 +4,11 @@
  * Composes feature-level components for PJSIP subscriber management.
  * No business logic - only layout and dispatch.
  */
+import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { motion } from 'motion/react';
 import { Phone, Plus, Layers } from 'lucide-react';
 import { Button, Text } from '@/shared/ui';
-import { VStack, HStack } from '@/shared/ui/Stack';
+import { Flex, HStack, VStack } from '@/shared/ui/Stack';
 import { useAppDispatch } from '@/shared/hooks/useAppStore';
 import {
   endpointsPageActions,
@@ -17,51 +17,63 @@ import {
   BulkCreateModal,
   SipCredentialsModal,
 } from '@/features/endpoints';
+import cls from './EndpointsPage.module.scss';
 
-export const EndpointsPage = () => {
+export const EndpointsPage = memo(() => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
 
   return (
-    <VStack gap="24" max className="min-w-0 max-w-full">
-      {/* Header */}
-      <HStack justify="between" align="center" className="flex-col sm:flex-row gap-4 min-w-0" max>
+    <VStack gap="24" max className={cls.page} data-testid="endpoints-page-responsive">
+      <Flex justify="between" align="center" className={cls.header} max>
         <HStack gap="12" align="center">
-          <Phone className="w-7 h-7 text-primary shrink-0" />
-          <Text as="h1" className="text-2xl font-bold">{t('endpoints.title')}</Text>
+          <Flex align="center" justify="center" className={cls.iconBadge}>
+            <Phone size={24} />
+          </Flex>
+          <VStack gap="4" className={cls.titleBlock}>
+            <Text variant="h1" as="h1" className={cls.title}>
+              {t('endpoints.title', 'Абоненты')}
+            </Text>
+            <Text variant="muted">
+              {t('endpoints.subtitle', 'Внутренние номера и устройства')}
+            </Text>
+          </VStack>
         </HStack>
-        <HStack gap="8" className="w-full sm:w-auto flex-col sm:flex-row">
+        <HStack gap="8" className={cls.actions}>
           <Button
             variant="outline"
+            className={cls.rangeBtn}
             onClick={() => dispatch(endpointsPageActions.openBulkModal())}
-            className="w-full sm:w-auto"
           >
-            <Layers className="w-4 h-4 mr-2" />
-            {t('endpoints.addRange')}
+            <Layers size={16} className={cls.createBtnIcon} />
+            <Text as="span">{t('endpoints.addRange', 'Создать диапазон')}</Text>
           </Button>
           <Button
+            className={cls.createBtn}
             onClick={() => dispatch(endpointsPageActions.openCreateModal())}
-            className="w-full sm:w-auto"
           >
-            <Plus className="w-4 h-4 mr-2" />
-            {t('endpoints.addEndpoint')}
+            <Plus size={16} className={cls.createBtnIcon} />
+            <Text as="span">{t('endpoints.addEndpoint', 'Добавить абонента')}</Text>
           </Button>
         </HStack>
-      </HStack>
+      </Flex>
 
-      {/* Table */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
+      <Flex
+        direction="column"
+        align="stretch"
+        max
+        className={cls.tableWrap}
+        data-testid="hybrid-table"
+        data-hybrid="overflow-x-auto"
       >
         <EndpointsTable />
-      </motion.div>
+      </Flex>
 
-      {/* Modals - reads state from Redux */}
       <EndpointFormModal />
       <BulkCreateModal />
       <SipCredentialsModal />
     </VStack>
   );
-};
+});
+
+EndpointsPage.displayName = 'EndpointsPage';

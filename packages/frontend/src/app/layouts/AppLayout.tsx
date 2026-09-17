@@ -9,7 +9,8 @@ import { classNames } from '@/shared/lib/classNames/classNames';
 import cls from './AppLayout.module.scss';
 
 /**
- * Tenant shell: ModuleShell A+C hybrid (full-height sidebar + breadcrumbs) + phone bottom bar.
+ * Tenant shell: ModuleShell A+C hybrid (desktop sidebar + breadcrumbs).
+ * Phone: sidebar and crumbs hidden; recents bottom bar is the only module/page nav.
  * Wallboard stays outside this layout.
  */
 export const AppLayout = () => {

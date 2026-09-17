@@ -2,25 +2,25 @@ import { memo, useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { Activity } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, Flex, VStack, Text, Pagination } from '@/shared/ui';
-import { 
-  useGetVoiceRobotCdrsQuery, 
+import { Card, CardContent, CardHeader, Text, Pagination } from '@/shared/ui';
+import { Flex, HStack, VStack } from '@/shared/ui/Stack';
+import {
+  useGetVoiceRobotCdrsQuery,
   useGetVoiceRobotCdrStatsQuery,
   useLazyExportVoiceRobotCdrQuery,
-  IVoiceRobotCdr
+  IVoiceRobotCdr,
 } from '@/shared/api/endpoints/voiceRobotCdrApi';
-import { 
-  VoiceRobotCdrFilter, 
-  VoiceRobotCdrTable, 
-  VoiceRobotCdrStats, 
-  VoiceRobotCdrDetailModal 
+import {
+  VoiceRobotCdrFilter,
+  VoiceRobotCdrTable,
+  VoiceRobotCdrStats,
+  VoiceRobotCdrDetailModal,
 } from '@/features/voiceRobotCdr';
 import cls from './VoiceRobotCdrPage.module.scss';
 
 const PAGE_SIZE = 50;
 const CSV_DELIMITER = ';';
 
-/** Export all matching voice robot CDR records as CSV (semicolon for Excel RU) */
 function exportCdrToCsv(data: IVoiceRobotCdr[], t: (key: string, defaultValue?: string) => string) {
   const esc = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
   const headers = [
@@ -29,7 +29,7 @@ function exportCdrToCsv(data: IVoiceRobotCdr[], t: (key: string, defaultValue?: 
     t('voiceRobots.cdr.table.caller'),
     'CallerID Name',
     t('voiceRobots.cdr.table.disposition'),
-    t('voiceRobots.cdr.table.tag', 'Тег'),
+    t('voiceRobots.cdr.table.tag'),
     t('voiceRobots.cdr.table.duration'),
     t('voiceRobots.cdr.table.steps'),
     'Transfer',
@@ -50,9 +50,8 @@ function exportCdrToCsv(data: IVoiceRobotCdr[], t: (key: string, defaultValue?: 
   );
 
   const csvContent = [headers, ...rows].join('\n');
-  const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+  const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
-
   const a = document.createElement('a');
   a.href = url;
   a.download = `krasterisk_cdr_export_${new Date().toISOString().slice(0, 10)}.csv`;
@@ -66,17 +65,14 @@ function exportCdrToCsv(data: IVoiceRobotCdr[], t: (key: string, defaultValue?: 
 const VoiceRobotCdrPage = memo(() => {
   const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
-  
   const [selectedCdrId, setSelectedCdrId] = useState<number | null>(null);
 
-  // Parse filters from URL
   const page = parseInt(searchParams.get('page') || '1', 10);
   const search = searchParams.get('search') || undefined;
   const disposition = searchParams.get('disposition') || undefined;
   const dateFrom = searchParams.get('dateFrom') || undefined;
   const dateTo = searchParams.get('dateTo') || undefined;
   const tag = searchParams.get('tag') || undefined;
-
   const filters = { search, disposition, dateFrom, dateTo, tag };
 
   const queryParams = {
@@ -91,16 +87,11 @@ const VoiceRobotCdrPage = memo(() => {
 
   const handleFilterChange = useCallback((newFilters: Partial<typeof filters>) => {
     const newParams = new URLSearchParams(searchParams);
-    newParams.set('page', '1'); // Reset page on filter change
-    
+    newParams.set('page', '1');
     Object.entries(newFilters).forEach(([key, value]) => {
-      if (value) {
-        newParams.set(key, value);
-      } else {
-        newParams.delete(key);
-      }
+      if (value) newParams.set(key, value);
+      else newParams.delete(key);
     });
-    
     setSearchParams(newParams);
   }, [searchParams, setSearchParams]);
 
@@ -114,7 +105,7 @@ const VoiceRobotCdrPage = memo(() => {
     try {
       const result = await triggerExport(filters).unwrap();
       if (result?.rows) {
-        exportCdrToCsv(result.rows, t as any);
+        exportCdrToCsv(result.rows, t);
       }
     } catch (e) {
       console.error('CSV export failed:', e);
@@ -124,48 +115,45 @@ const VoiceRobotCdrPage = memo(() => {
   const totalPages = cdrData ? Math.ceil(cdrData.count / PAGE_SIZE) : 0;
 
   return (
-    <VStack gap="24" max className={`${cls.page} flex-1`} data-testid="voice-robot-cdr-page-responsive">
-      <Flex justify="between" align="center" className="px-2 min-w-0">
-        <Flex align="center" gap="12" className="min-w-0">
-          <Flex align="center" justify="center" className="p-2.5 bg-indigo-500/10 rounded-xl shrink-0">
-            <Activity className="w-6 h-6 text-indigo-500" />
+    <VStack gap="24" max className={cls.page} data-testid="voice-robot-cdr-page-responsive">
+      <Flex justify="between" align="center" className={cls.header} max>
+        <HStack gap="12" align="center">
+          <Flex align="center" justify="center" className={cls.iconBadge}>
+            <Activity size={24} />
           </Flex>
-          <VStack className="min-w-0">
-             <Text variant="h1" className={`${cls.pageTitle} bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent`}>
+          <VStack gap="4" className={cls.titleBlock}>
+            <Text variant="h1" as="h1" className={cls.title}>
               {t('voiceRobots.cdr.title')}
             </Text>
-            <Text variant="muted" className="mt-1">
-              {t('voiceRobots.cdr.subtitle')}
-            </Text>
+            <Text variant="muted">{t('voiceRobots.cdr.subtitle')}</Text>
           </VStack>
-        </Flex>
+        </HStack>
       </Flex>
 
-      {/* KPI Stats */}
-      <div className={cls.statsScroll}>
+      <Flex direction="column" align="stretch" max className={cls.statsScroll}>
         <VoiceRobotCdrStats stats={statsData} isLoading={isLoadingStats} />
-      </div>
+      </Flex>
 
-      <Card className={`${cls.card} border-muted/50 shadow-sm backdrop-blur-xl bg-background/50 flex flex-col min-h-[500px]`}>
-        <CardHeader className="border-b border-border/50 bg-muted/20 pb-4">
-          <Flex justify="between" align="start" className="mb-3">
-            <CardTitle className="text-base font-medium">
-              {t('voiceRobots.cdr.title')}
-              {cdrData && <span className="ml-2 text-sm text-muted-foreground font-normal">({cdrData.count})</span>}
-            </CardTitle>
-          </Flex>
-          <div className={cls.filterBar}>
+      <Card className={cls.card}>
+        <CardHeader className={cls.cardHeader}>
+          <Text className={cls.cardTitle}>
+            {t('voiceRobots.cdr.title')}
+            {cdrData ? ` (${cdrData.count})` : ''}
+          </Text>
+          <Flex direction="column" align="stretch" className={cls.filterBar} max>
             <VoiceRobotCdrFilter
               filters={filters}
               onChange={handleFilterChange}
               onExportCsv={handleExportCsv}
               isExporting={isExporting}
             />
-          </div>
+          </Flex>
         </CardHeader>
-        <CardContent className="p-0 flex-1 relative min-w-0">
-          <div
-            className={`${cls.tableScroll} overflow-x-auto`}
+        <CardContent className={cls.cardContent}>
+          <Flex
+            direction="column"
+            align="stretch"
+            className={cls.tableScroll}
             data-testid="hybrid-table"
             data-hybrid="overflow-x-auto"
           >
@@ -174,23 +162,23 @@ const VoiceRobotCdrPage = memo(() => {
               isLoading={isLoadingCdr || isFetching}
               onRowClick={(cdr) => setSelectedCdrId(cdr.uid)}
             />
-          </div>
+          </Flex>
         </CardContent>
         {totalPages > 1 && (
-          <div className="p-4 border-t border-border/50 bg-muted/10 flex justify-center">
+          <Flex justify="center" className={cls.pagination} max>
             <Pagination
               currentPage={page}
               totalPages={totalPages}
               onPageChange={handlePageChange}
             />
-          </div>
+          </Flex>
         )}
       </Card>
 
-      <VoiceRobotCdrDetailModal 
-        cdrId={selectedCdrId} 
-        isOpen={selectedCdrId !== null} 
-        onClose={() => setSelectedCdrId(null)} 
+      <VoiceRobotCdrDetailModal
+        cdrId={selectedCdrId}
+        isOpen={selectedCdrId !== null}
+        onClose={() => setSelectedCdrId(null)}
       />
     </VStack>
   );

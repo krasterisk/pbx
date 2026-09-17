@@ -44,6 +44,7 @@ export interface IDirectoryLookupTestResult {
 export type { IDirectoryCsvError, IDirectoryCsvImportResult } from '@krasterisk/shared';
 
 export const directoryApi = rtkApi.injectEndpoints({
+  overrideExisting: import.meta.hot != null,
   endpoints: (builder) => ({
     getDirectories: builder.query<IDirectory[], void>({
       query: () => '/directories',

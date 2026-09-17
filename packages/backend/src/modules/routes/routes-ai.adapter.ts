@@ -112,6 +112,7 @@ export class RoutesAiAdapter implements DomainAiAdapter, OnModuleInit {
     return `## Маршруты
 - Маршрут = шаблон в контексте + типизированная цепочка действий, не сырое имя приложения Asterisk.
 - Пункты IVR — тот же редактор. Перед цепочкой вызови list_dialplan_apps (host=ivr|route): там типы, зачем шаг и что уже есть у тенанта. Не выдумывай приложения Asterisk.
+- Календарь рабочих часов — create_time_group, на действии condition.time_group_uid. schedule в actions — только inline intervals[], не tool плана.
 - Сначала list_routes / describe_route_chain / list_contexts, затем proposal. Применение диалплана — шаг подтверждения, не отдельный инструмент.`;
   }
 

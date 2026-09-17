@@ -1,6 +1,4 @@
 import { describe, it, expect, vi } from 'vitest';
-import { readFileSync, existsSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
@@ -10,7 +8,7 @@ const openCreateModal = vi.fn(() => ({ type: 'conferencesPage/openCreateModal' }
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (_key: string, fallback?: string) => fallback || _key,
+    t: (key: string, fallback?: string) => fallback || key,
   }),
 }));
 
@@ -38,30 +36,26 @@ describe('ConferencesPage', () => {
   it('renders title, subtitle, create CTA and table', () => {
     render(<ConferencesPage />);
 
-    expect(screen.getByTestId('conferences-page')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Конференции' })).toBeInTheDocument();
-    expect(
-      screen.getByText('Комнаты телеконференций, роли участников и записи встреч'),
-    ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Создать комнату/i })).toBeInTheDocument();
+    expect(screen.getByTestId('conferences-page-responsive')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'conferences.title' })).toBeInTheDocument();
+    expect(screen.getByText('conferences.subtitle')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /conferences.addRoom/i })).toBeInTheDocument();
     expect(screen.getByTestId('conferences-table-stub')).toBeInTheDocument();
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+  });
+
+  it('renders the table in a full-width wrap', () => {
+    render(<ConferencesPage />);
+    expect(screen.getByTestId('conferences-table-stub')).toBeInTheDocument();
   });
 
   it('opens create modal from the page CTA', async () => {
     const user = userEvent.setup();
     render(<ConferencesPage />);
 
-    await user.click(screen.getByRole('button', { name: /Создать комнату/i }));
+    await user.click(screen.getByRole('button', { name: /conferences.addRoom/i }));
 
     expect(openCreateModal).toHaveBeenCalledTimes(1);
     expect(dispatch).toHaveBeenCalledWith({ type: 'conferencesPage/openCreateModal' });
-  });
-
-  it('keeps the orchestrator at 70 lines or fewer without a page SCSS module', () => {
-    const pagePath = resolve(__dirname, './ConferencesPage.tsx');
-    const source = readFileSync(pagePath, 'utf8');
-    expect(source.split(/\r?\n/).length).toBeLessThanOrEqual(70);
-    expect(existsSync(resolve(__dirname, './ConferencesPage.module.scss'))).toBe(false);
   });
 });

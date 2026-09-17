@@ -54,7 +54,7 @@ export function useSchemaRefs(sources?: readonly OptionsSource[]): SchemaRefs {
       },
       callGroups: {
         items: (callGroups.data ?? []).map((group) => ({
-          value: String(group.uid),
+          value: group.exten || String(group.uid),
           label: group.exten ? `${group.exten} - ${group.name}` : group.name,
         })),
         isLoading: callGroups.isLoading,

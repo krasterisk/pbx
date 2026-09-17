@@ -33,7 +33,7 @@ describe('VoiceRobotCdrPage hybrid overflow (D-29 / D-27 wave E)', () => {
     expect(screen.getByTestId('voice-robot-cdr-page-responsive')).toBeInTheDocument();
     const hybrid = screen.getByTestId('hybrid-table');
     expect(hybrid).toHaveAttribute('data-hybrid', 'overflow-x-auto');
-    expect(hybrid.className).toMatch(/overflow-x-auto/);
+    expect(screen.getByRole('heading', { name: 'voiceRobots.cdr.title' })).toBeInTheDocument();
     expect(screen.getByTestId('vr-cdr-table-stub')).toBeInTheDocument();
   });
 });

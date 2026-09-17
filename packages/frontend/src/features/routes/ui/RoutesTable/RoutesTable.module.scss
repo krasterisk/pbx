@@ -1,42 +1,190 @@
-.priority {
-  color: var(--color-muted-foreground);
+/* ─────────────────────────────────────────────────────
+   RoutesTable — список маршрутов
+   Design tokens: var(--color-*) from globals.css @theme
+   ───────────────────────────────────────────────────── */
+
+.card {
+  width: 100%;
+  min-width: 0;
+}
+
+.cardContent {
+  padding: 0;
+  min-width: 0;
+  width: 100%;
+}
+
+.toolbar {
+  flex-wrap: nowrap;
+  gap: 1rem;
+  min-height: 2.25rem;
+
+  @media (max-width: 640px) {
+    flex-wrap: wrap;
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+.toolbarIcon {
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.count {
+  font-size: 1.125rem;
   font-weight: 600;
-  font-size: 0.75rem;
+  color: var(--color-foreground);
 }
 
-.badgeActive {
-  color: var(--color-success);
-  font-size: 1rem;
+.toolbarActions {
+  min-width: 0;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
+
+  @media (max-width: 640px) {
+    width: 100%;
+  }
 }
 
-.badgeInactive {
+.bulkBtnHidden {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.searchWrap {
+  position: relative;
+  min-width: 0;
+  width: 16rem;
+
+  @media (max-width: 640px) {
+    width: 100%;
+  }
+}
+
+.searchIcon {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
   color: var(--color-muted-foreground);
-  font-size: 1rem;
+  pointer-events: none;
+}
+
+.searchInput {
+  height: 2.25rem;
+  padding-left: 2.5rem;
+}
+
+.tableScroll {
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table {
+  width: 100%;
+}
+
+.loading {
+  height: 12rem;
+  width: 100%;
+}
+
+.spinner {
+  color: var(--color-primary);
+  flex-shrink: 0;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.cell {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.25;
+}
+
+.name {
+  composes: cell;
+  font-weight: 600;
+  color: var(--color-foreground);
+}
+
+.priority {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.25;
+  font-weight: 600;
+  color: var(--color-muted-foreground);
+}
+
+.contextName {
+  composes: cell;
+  font-weight: 500;
+  color: var(--color-foreground);
+}
+
+.actionsCount {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.25;
+  color: var(--color-muted-foreground);
+}
+
+.statusDot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  flex-shrink: 0;
+}
+
+.statusDotActive {
+  composes: statusDot;
+  background: var(--color-success);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--color-success) 50%, transparent);
+}
+
+.statusDotInactive {
+  composes: statusDot;
+  background: var(--color-muted-foreground);
 }
 
 .extChips {
-  display: flex;
   flex-wrap: wrap;
-  gap: 4px;
 }
 
 .extChip {
-  padding: 2px 8px;
+  margin: 0;
+  padding: 0.125rem 0.5rem;
   border-radius: var(--radius-sm);
   font-size: 0.75rem;
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  line-height: 1.25;
+  font-family: ui-monospace, 'JetBrains Mono', 'Fira Code', monospace;
   background: color-mix(in srgb, var(--color-primary) 15%, transparent);
   color: var(--color-primary);
   border: 1px solid color-mix(in srgb, var(--color-primary) 20%, transparent);
 }
 
-.count {
-  color: var(--color-muted-foreground);
-  font-size: 0.8125rem;
+.mobileList {
+  width: 100%;
 }
 
-.contextName {
-  font-size: 0.8125rem;
-  font-weight: 500;
-  color: var(--color-foreground);
+.mobileCard {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-muted) 10%, transparent);
+}
+
+.mobileEmpty {
+  width: 100%;
+  padding: 2rem 0;
+  text-align: center;
 }

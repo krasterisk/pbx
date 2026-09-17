@@ -10,6 +10,7 @@ export interface IContextInclude {
 }
 
 const contextIncludeApi = rtkApi.injectEndpoints({
+  overrideExisting: import.meta.hot != null,
   endpoints: (builder) => ({
     getContextIncludes: builder.query<IContextInclude[], number>({
       query: (contextUid) => `/context-includes?contextUid=${contextUid}`,

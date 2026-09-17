@@ -1,12 +1,12 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { createColumnHelper } from '@tanstack/react-table';
-import { Trash2, Edit2 } from 'lucide-react';
-import { Button } from '@/shared/ui';
-import { HStack } from '@/shared/ui/Stack';
+import { Pencil, Trash2 } from 'lucide-react';
+import { TableRowActions, TableRowAction, Text } from '@/shared/ui';
 import { useAppDispatch } from '@/shared/hooks/useAppStore';
 import { contextsActions } from '../../model/slice/contextsSlice';
 import { useDeleteContextMutation, IContext } from '@/shared/api/api';
+import cls from './ContextsTable.module.scss';
 
 const columnHelper = createColumnHelper<IContext>();
 
@@ -15,56 +15,51 @@ export const useContextsTableColumns = () => {
   const dispatch = useAppDispatch();
   const [deleteContext] = useDeleteContextMutation();
 
-  const handleDelete = (uid: number) => {
-    if (window.confirm(t('common.confirmDelete', 'Вы уверены, что хотите удалить?'))) {
-      deleteContext(uid);
-    }
-  };
-
   return useMemo(
     () => [
       columnHelper.accessor('uid', {
         header: 'ID',
-        cell: (info) => <span className="text-muted-foreground">{info.getValue()}</span>,
+        cell: (info) => <Text className={cls.uid}>{info.getValue()}</Text>,
       }),
       columnHelper.accessor('name', {
         header: t('contexts.name', 'Имя'),
-        cell: (info) => <span className="font-medium text-foreground">{info.getValue()}</span>,
+        cell: (info) => <Text className={cls.name}>{info.getValue()}</Text>,
       }),
       columnHelper.accessor('comment', {
         header: t('contexts.description', 'Описание'),
-        cell: (info) => info.getValue() || <span className="text-muted-foreground">-</span>,
+        cell: (info) => <Text variant="muted">{info.getValue() || '-'}</Text>,
       }),
       columnHelper.display({
         id: 'actions',
-        header: '',
+        header: () => t('common.actions'),
         cell: (info) => {
           const row = info.row.original;
           return (
-            <HStack gap="8" justify="end">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 hover:bg-white/10"
+            <TableRowActions>
+              <TableRowAction
+                title={t('common.edit')}
+                aria-label={t('common.edit')}
                 onClick={() => dispatch(contextsActions.openEditModal(row))}
-                title={t('common.edit', 'Редактировать')}
               >
-                <Edit2 className="w-4 h-4 text-primary" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 hover:bg-destructive/10"
-                onClick={() => handleDelete(row.uid)}
-                title={t('common.delete', 'Удалить')}
+                <Pencil />
+              </TableRowAction>
+              <TableRowAction
+                danger
+                title={t('common.delete')}
+                aria-label={t('common.delete')}
+                onClick={() => {
+                  if (window.confirm(t('common.confirmDelete', 'Вы уверены, что хотите удалить?'))) {
+                    deleteContext(row.uid);
+                  }
+                }}
               >
-                <Trash2 className="w-4 h-4 text-destructive" />
-              </Button>
-            </HStack>
+                <Trash2 />
+              </TableRowAction>
+            </TableRowActions>
           );
         },
       }),
     ],
-    [t, dispatch, deleteContext]
+    [t, dispatch, deleteContext],
   );
 };

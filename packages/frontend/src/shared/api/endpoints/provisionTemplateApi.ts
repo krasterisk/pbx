@@ -9,6 +9,7 @@ export interface IProvisionTemplate {
 }
 
 const provisionTemplateApi = rtkApi.injectEndpoints({
+  overrideExisting: import.meta.hot != null,
   endpoints: (builder) => ({
     getProvisionTemplates: builder.query<IProvisionTemplate[], void>({
       query: () => '/provision-templates',

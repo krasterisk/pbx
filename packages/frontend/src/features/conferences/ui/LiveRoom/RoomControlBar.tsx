@@ -46,6 +46,8 @@ export interface RoomControlBarProps {
   onParticipantsToggle?: () => void;
   participantsOpen?: boolean;
   participantsPanelId?: string;
+  /** When true, hide the Participants toggle (already in header / railToggle). */
+  hideParticipantsToggle?: boolean;
 }
 
 const ICON_SIZE = 20;
@@ -73,10 +75,11 @@ export function RoomControlBar({
   onParticipantsToggle,
   participantsOpen = false,
   participantsPanelId = 'conference-participants',
+  hideParticipantsToggle = false,
 }: RoomControlBarProps) {
   const { t } = useTranslation();
-  const hideCaptions = useIsMobile(768);
-  const showParticipantsToggle = useIsMobile(1024);
+  const iconOnly = useIsMobile(768);
+  const showParticipantsToggle = useIsMobile(1024) && !hideParticipantsToggle;
   const isHost = role === 'owner' || role === 'moderator';
 
   const [startRecording, startState] = useStartConferenceRecordingMutation();
@@ -109,7 +112,7 @@ export function RoomControlBar({
       key={key}
       type="button"
       variant={opts?.variant ?? 'outline'}
-      size="icon"
+      size={iconOnly ? 'icon' : 'sm'}
       className={`${styles.controlBtn}${opts?.className ? ` ${opts.className}` : ''}`}
       style={HIT}
       onClick={onClick}
@@ -121,7 +124,7 @@ export function RoomControlBar({
       data-pending={opts?.pending || undefined}
     >
       {icon}
-      {!hideCaptions ? <span className={styles.controlLabel}>{label}</span> : null}
+      {!iconOnly ? <span className={styles.controlLabel}>{label}</span> : null}
     </Button>
   );
 
@@ -138,89 +141,97 @@ export function RoomControlBar({
     <div
       className={styles.bar}
       role="group"
-      aria-label={t('conferences.live.participants', 'Участники')}
+      aria-label={t('conferences.live.controls', 'Управление конференцией')}
       data-testid="room-control-bar"
     >
-      {renderButton(
-        'mic',
-        isMuted ? <MicOff size={ICON_SIZE} className={styles.icon} /> : <Mic size={ICON_SIZE} className={styles.icon} />,
-        isMuted
-          ? t('conferences.live.micUnmute', 'Включить микрофон')
-          : t('conferences.live.micMute', 'Выключить микрофон'),
-        onMicToggle,
-      )}
-      {renderButton(
-        'cam',
-        isCameraOff
-          ? <VideoOff size={ICON_SIZE} className={styles.icon} />
-          : <Video size={ICON_SIZE} className={styles.icon} />,
-        isCameraOff
-          ? t('conferences.live.camOn', 'Включить камеру')
-          : t('conferences.live.camDisable', 'Выключить камеру'),
-        onCamToggle,
-      )}
-      {showInviteMember
-        ? renderButton(
-          'inviteMember',
-          <UserPlus size={ICON_SIZE} className={styles.icon} />,
-          t('conferences.live.inviteMember', 'Пригласить абонента'),
-          () => setInviteMode('member'),
-        )
-        : null}
-      {showInviteExternal
-        ? renderButton(
-          'inviteExternal',
-          <PhoneOutgoing size={ICON_SIZE} className={styles.icon} />,
-          t('conferences.live.inviteExternal', 'Пригласить внешний номер'),
-          () => setInviteMode('external'),
-        )
-        : null}
-      {showRecord
-        ? renderButton(
-          'record',
-          recordPending
-            ? <Loader2 size={ICON_SIZE} className={styles.icon} data-pending />
-            : <Disc size={ICON_SIZE} className={styles.icon} />,
-          isRecording
-            ? t('conferences.live.recordStop', 'Остановить запись')
-            : t('conferences.live.recordStart', 'Начать запись'),
-          handleRecord,
-          {
-            variant: isRecording ? 'destructive' : 'outline',
-            disabled: recordPending,
-            pending: recordPending,
-          },
-        )
-        : null}
-      {showParticipantsToggle
-        ? renderButton(
-          'participants',
-          <Users size={ICON_SIZE} className={styles.icon} />,
-          t('conferences.live.participants', 'Участники'),
-          () => onParticipantsToggle?.(),
-          {
-            variant: 'ghost',
-            expanded: participantsOpen,
-            controls: participantsPanelId,
-          },
-        )
-        : null}
-      {renderButton(
-        'leave',
-        <LogOut size={ICON_SIZE} className={styles.icon} />,
-        t('conferences.live.leave', 'Выйти из конференции'),
-        onLeave,
-        { variant: 'outline', className: styles.leaveBtn },
-      )}
-      {showEnd
-        ? renderButton(
-          'end',
-          <PhoneOff size={ICON_SIZE} className={styles.icon} />,
-          t('conferences.live.end', 'Завершить конференцию'),
-          () => setEndOpen(true),
-          { variant: 'destructive' },
-        )
-        : null}
+      <div className={styles.zone}>
+        {renderButton(
+          'mic',
+          isMuted ? <MicOff size={ICON_SIZE} className={styles.icon} /> : <Mic size={ICON_SIZE} className={styles.icon} />,
+          isMuted
+            ? t('conferences.live.micUnmute', 'Включить микрофон')
+            : t('conferences.live.micMute', 'Выключить микрофон'),
+          onMicToggle,
+        )}
+        {renderButton(
+          'cam',
+          isCameraOff
+            ? <VideoOff size={ICON_SIZE} className={styles.icon} />
+            : <Video size={ICON_SIZE} className={styles.icon} />,
+          isCameraOff
+            ? t('conferences.live.camOn', 'Включить камеру')
+            : t('conferences.live.camDisable', 'Выключить камеру'),
+          onCamToggle,
+        )}
+      </div>
+
+      <div className={styles.zoneCenter}>
+        {showInviteMember
+          ? renderButton(
+            'inviteMember',
+            <UserPlus size={ICON_SIZE} className={styles.icon} />,
+            t('conferences.live.inviteMember', 'Пригласить абонента'),
+            () => setInviteMode('member'),
+          )
+          : null}
+        {showInviteExternal
+          ? renderButton(
+            'inviteExternal',
+            <PhoneOutgoing size={ICON_SIZE} className={styles.icon} />,
+            t('conferences.live.inviteExternal', 'Пригласить внешний номер'),
+            () => setInviteMode('external'),
+          )
+          : null}
+        {showRecord
+          ? renderButton(
+            'record',
+            recordPending
+              ? <Loader2 size={ICON_SIZE} className={styles.icon} data-pending />
+              : <Disc size={ICON_SIZE} className={styles.icon} />,
+            isRecording
+              ? t('conferences.live.recordStop', 'Остановить запись')
+              : t('conferences.live.recordStart', 'Начать запись'),
+            handleRecord,
+            {
+              variant: isRecording ? 'destructive' : 'outline',
+              disabled: recordPending,
+              pending: recordPending,
+            },
+          )
+          : null}
+        {showParticipantsToggle
+          ? renderButton(
+            'participants',
+            <Users size={ICON_SIZE} className={styles.icon} />,
+            t('conferences.live.participants', 'Участники'),
+            () => onParticipantsToggle?.(),
+            {
+              variant: 'ghost',
+              expanded: participantsOpen,
+              controls: participantsPanelId,
+            },
+          )
+          : null}
+      </div>
+
+      <div className={styles.zoneEnd}>
+        {renderButton(
+          'leave',
+          <LogOut size={ICON_SIZE} className={styles.icon} />,
+          t('conferences.live.leave', 'Выйти из конференции'),
+          onLeave,
+          { variant: 'outline', className: styles.leaveBtn },
+        )}
+        {showEnd
+          ? renderButton(
+            'end',
+            <PhoneOff size={ICON_SIZE} className={styles.icon} />,
+            t('conferences.live.end', 'Завершить конференцию'),
+            () => setEndOpen(true),
+            { variant: 'destructive' },
+          )
+          : null}
+      </div>
 
       <InviteSheet
         open={inviteMode !== null}

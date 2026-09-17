@@ -104,8 +104,10 @@ vi.mock('@/features/conferences/lib/ConferenceSessionProvider', () => ({
       error: null,
       remoteTracks: {},
       videoFailedMids: [],
+      localStream: null,
       leave: vi.fn(),
       retryVideo: vi.fn(),
+      reconnect: vi.fn(),
     },
   }),
 }));

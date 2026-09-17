@@ -1,60 +1,72 @@
 /* ─────────────────────────────────────────────────────
-   AiProvidersPage — AI providers section header
+   AiProvidersPage — заголовок и список AI-провайдеров
    Design tokens: var(--color-*) from globals.css @theme
    ───────────────────────────────────────────────────── */
 
 .page {
+  flex: 1;
   min-width: 0;
   max-width: 100%;
 }
 
 .header {
+  padding: 0 0.5rem;
   flex-wrap: wrap;
   gap: 1rem;
+
+  @media (max-width: 640px) {
+    flex-direction: column;
+    align-items: stretch;
+  }
 }
 
-.heading {
-  min-width: 0;
-}
-
-.pageIcon {
-  width: 1.75rem;
-  height: 1.75rem;
+.iconBadge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.625rem;
+  border-radius: var(--radius-xl);
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
   color: var(--color-primary);
   flex-shrink: 0;
 }
 
-.pageTitle {
-  font-size: 1.5rem;
-  font-weight: 700;
-  margin: 0;
-
-  @media (max-width: 640px) {
-    font-size: 1.25rem;
-  }
+.titleBlock {
+  min-width: 0;
 }
 
-.pageSubtitle {
-  color: var(--color-muted-foreground);
+.title {
+  background: linear-gradient(
+    135deg,
+    var(--color-foreground),
+    color-mix(in srgb, var(--color-foreground) 70%, transparent)
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 .createBtn {
-  flex-shrink: 0;
+  box-shadow: 0 10px 15px color-mix(in srgb, var(--color-primary) 20%, transparent);
 
   @media (max-width: 640px) {
     width: 100%;
   }
 }
 
-.btnIcon {
-  width: 1rem;
-  height: 1rem;
+.createBtnIcon {
   margin-right: 0.5rem;
 }
 
-.tableScroll {
-  overflow-x: auto;
-  min-width: 0;
+.tableWrap {
   width: 100%;
+  min-width: 0;
+  align-self: stretch;
+  overflow-x: auto;
   -webkit-overflow-scrolling: touch;
+
+  > * {
+    width: 100%;
+    min-width: 0;
+  }
 }

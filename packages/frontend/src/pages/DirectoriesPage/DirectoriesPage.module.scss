@@ -1,3 +1,8 @@
+/* ─────────────────────────────────────────────────────
+   DirectoriesPage — заголовок и список справочников
+   Design tokens: var(--color-*) from globals.css @theme
+   ───────────────────────────────────────────────────── */
+
 .page {
   flex: 1;
   min-width: 0;
@@ -53,32 +58,15 @@
   margin-right: 0.5rem;
 }
 
-.card {
-  border: 1px solid color-mix(in srgb, var(--color-border) 50%, transparent);
-  border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--color-background) 50%, transparent);
-}
-
-.cardHeader {
-  padding-bottom: 1rem;
-  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 50%, transparent);
-  background: color-mix(in srgb, var(--color-muted) 20%, transparent);
-}
-
-.cardTitle {
-  font-size: 1rem;
-  font-weight: 500;
-  color: var(--color-foreground);
-}
-
-.cardContent {
-  padding: 0;
-  min-width: 0;
-}
-
-.tableScroll {
-  overflow-x: auto;
-  min-width: 0;
+.tableWrap {
   width: 100%;
+  min-width: 0;
+  align-self: stretch;
+  overflow-x: auto;
   -webkit-overflow-scrolling: touch;
+
+  > * {
+    width: 100%;
+    min-width: 0;
+  }
 }

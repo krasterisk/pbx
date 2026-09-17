@@ -32,9 +32,11 @@ import {
   useSetConferenceModeratorsMutation,
   useUpdateConferenceRoomMutation,
   type ConferenceEntryStrictness,
+  type ConferenceGuestLink,
   type ConferenceInviteScope,
   type ConferenceRecordMode,
   type ConferenceRoomKind,
+  type ConferenceRoomModerator,
   type ConferenceRoomWrite,
 } from '@/shared/api/endpoints/conferenceRoomApi';
 import { useGetEndpointsQuery } from '@/shared/api/endpoints/endpointApi';
@@ -71,6 +73,9 @@ const DEFAULT_WRITE: Required<Pick<
   announce_join_leave: false,
 };
 
+const EMPTY_LINKS: ConferenceGuestLink[] = [];
+const EMPTY_MODERATORS: ConferenceRoomModerator[] = [];
+
 export const ConferenceRoomFormModal = memo(() => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
@@ -86,12 +91,14 @@ export const ConferenceRoomFormModal = memo(() => {
   const { data: capacity } = useGetConferenceCapacityQuery(selectedUid!, {
     skip: !needsRoom,
   });
-  const { data: links = [] } = useGetConferenceGuestTokensQuery(selectedUid!, {
+  const { data: linksData } = useGetConferenceGuestTokensQuery(selectedUid!, {
     skip: !isEdit || selectedUid == null,
   });
-  const { data: moderators = [] } = useGetConferenceModeratorsQuery(selectedUid!, {
+  const { data: moderatorsData } = useGetConferenceModeratorsQuery(selectedUid!, {
     skip: !needsRoom,
   });
+  const links = linksData ?? EMPTY_LINKS;
+  const moderators = moderatorsData ?? EMPTY_MODERATORS;
   const { data: endpoints = [] } = useGetEndpointsQuery(undefined, { skip: !isOpen });
   const { data: mohClasses = [] } = useGetMohClassesQuery(undefined, { skip: !isOpen });
   const [createRoom, { isLoading: isCreating }] = useCreateConferenceRoomMutation();
@@ -168,7 +175,7 @@ export const ConferenceRoomFormModal = memo(() => {
       setAnnounceJoinLeave(DEFAULT_WRITE.announce_join_leave);
       setModeratorRefs([]);
     }
-  }, [isOpen, mode, needsRoom, room, moderators]);
+  }, [isOpen, mode, needsRoom, room, moderatorsData]);
 
   const close = () => dispatch(conferencesPageActions.closeModal());
 

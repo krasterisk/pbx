@@ -7,6 +7,7 @@ export const HUB_MARKET_DISPLAY_PRICES: Record<string, number> = {
   callcenter: 1500,
   analytics: 3000,
   ai: 2500,
+  autodial: 3500,
 };
 
 export function resolveHubDisplayPrice(moduleCode: string, fallback = 0): number {

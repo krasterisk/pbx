@@ -1,46 +1,48 @@
-/**
- * Page: UsersPage - thin orchestrator (System module).
- */
+import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { motion } from 'motion/react';
 import { Users, Plus } from 'lucide-react';
 import { Button, Text } from '@/shared/ui';
-import { VStack, HStack } from '@/shared/ui/Stack';
+import { Flex, HStack, VStack } from '@/shared/ui/Stack';
 import { useAppDispatch } from '@/shared/hooks/useAppStore';
 import { usersPageActions, UsersTable, UserFormModal } from '@/features/users';
+import cls from './UsersPage.module.scss';
 
-export const UsersPage = () => {
+export const UsersPage = memo(() => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
 
   return (
-    <VStack gap="24" max>
-      <HStack justify="between" align="center" className="flex-col sm:flex-row gap-4" max>
-        <VStack gap="4">
-          <HStack gap="12" align="center">
-            <Users className="w-7 h-7 text-primary" />
-            <h1 className="text-2xl font-bold">{t('nav.users')}</h1>
-          </HStack>
-          <Text variant="muted" className="text-sm max-w-xl">
-            {t('users.pageHint')}
-          </Text>
-        </VStack>
-        <Button onClick={() => dispatch(usersPageActions.openCreateModal())}>
-          <Plus className="w-4 h-4 mr-2" />
-          {t('users.add')}
+    <VStack gap="24" max className={cls.page} data-testid="users-page-responsive">
+      <Flex justify="between" align="center" className={cls.header} max>
+        <HStack gap="12" align="center">
+          <Flex align="center" justify="center" className={cls.iconBadge}>
+            <Users size={24} />
+          </Flex>
+          <VStack gap="4" className={cls.titleBlock}>
+            <Text variant="h1" as="h1" className={cls.title}>
+              {t('users.title', 'Пользователи')}
+            </Text>
+            <Text variant="muted">
+              {t('users.subtitle', 'Пользователи модуля Система: роли, профили и списки доступа.')}
+            </Text>
+          </VStack>
+        </HStack>
+        <Button
+          className={cls.createBtn}
+          onClick={() => dispatch(usersPageActions.openCreateModal())}
+        >
+          <Plus size={16} className={cls.createBtnIcon} />
+          <Text as="span">{t('users.add')}</Text>
         </Button>
-      </HStack>
+      </Flex>
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        className="w-full min-w-0"
-      >
+      <Flex direction="column" align="stretch" max className={cls.tableWrap}>
         <UsersTable />
-      </motion.div>
+      </Flex>
 
       <UserFormModal />
     </VStack>
   );
-};
+});
+
+UsersPage.displayName = 'UsersPage';

@@ -130,9 +130,9 @@ const COPY: Record<ActionType, DialplanAppCopy> = {
   },
   schedule: {
     title: 'Расписание',
-    summary: 'Проверяет time group и не обрывает цепочку. Дальше обычно goto.',
+    summary: 'Проверяет интервалы inline и не обрывает цепочку. Календарь тенанта — create_time_group + condition.time_group_uid.',
     when: 'День/ночь, рабочие часы.',
-    need: ['time_group'],
+    need: ['intervals'],
   },
   http_request: {
     title: 'HTTP-запрос',

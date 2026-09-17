@@ -180,4 +180,5 @@ export interface ICcKpiSample {
   sla: number;
   avgWait: number;
   abandoned: number;
+  answered?: number;
 }

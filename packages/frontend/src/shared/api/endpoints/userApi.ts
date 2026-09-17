@@ -2,6 +2,7 @@ import type { IUser, ICreateUser, IUpdateUser } from '@krasterisk/shared';
 import { rtkApi } from '../rtkApi';
 
 const userApi = rtkApi.injectEndpoints({
+  overrideExisting: import.meta.hot != null,
   endpoints: (builder) => ({
     getUsers: builder.query<IUser[], void>({
       query: () => '/users',

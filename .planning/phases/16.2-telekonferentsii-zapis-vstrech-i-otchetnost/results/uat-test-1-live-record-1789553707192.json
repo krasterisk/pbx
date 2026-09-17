@@ -1,0 +1,57 @@
+{
+  "started": "2026-09-16T10:13:25.968Z",
+  "host": "ipbx.krasterisk.ru",
+  "conference": "conf16897_348",
+  "roomCtx": "krsk-conf-8",
+  "vpbx": 348,
+  "roomUid": 8,
+  "meetingUid": 900162002,
+  "recordFile": "/usr/records/348/conferences/8/900162002.wav",
+  "rel": "348/conferences/8/900162002.wav",
+  "startRecord": {
+    "response": "Success",
+    "message": "Conference Recording Started.",
+    "output": null
+  },
+  "stopRecord": {
+    "response": "Error",
+    "message": "No active conferences."
+  },
+  "file": {
+    "stat": "375084 regular file /usr/records/348/conferences/8/900162002.wav",
+    "hex": "5249464624b9050057415645",
+    "finalStat": "375084 regular file",
+    "wavCountInDir": 1
+  },
+  "header": "5249464624b9050057415645",
+  "ok": true,
+  "amiEvents": [
+    {
+      "event": "ConfbridgeStart",
+      "conference": "conf16897_348"
+    },
+    {
+      "event": "ConfbridgeRecord",
+      "conference": "conf16897_348"
+    },
+    {
+      "event": "ConfbridgeJoin",
+      "conference": "conf16897_348",
+      "channel": "Local/s@krsk-conf-8-00000024;2"
+    },
+    {
+      "event": "ConfbridgeLeave",
+      "conference": "conf16897_348",
+      "channel": "Local/s@krsk-conf-8-00000024;2"
+    },
+    {
+      "event": "ConfbridgeEnd",
+      "conference": "conf16897_348"
+    },
+    {
+      "event": "ConfbridgeStopRecord",
+      "conference": "conf16897_348"
+    }
+  ],
+  "finished": "2026-09-16T10:15:07.192Z"
+}

@@ -1,0 +1,25 @@
+{
+  "phase": "16.3",
+  "host": "ipbx.krasterisk.ru",
+  "local": { "frontend": 3010, "backend": 5010 },
+  "room": { "uid": 15, "number": "163652348", "conference": "conf163652348_0", "context": "krsk-conf-15" },
+  "guestToken": "5ee471574f659d5c94a0fd9f70af3221e921bdbc48e9b6554ae40ba596dc1d1a",
+  "metrics": {
+    "headerPx": 56,
+    "railPx": 320,
+    "controlHitPx": 44,
+    "tiles12": { "count": 12, "minW": 181, "overflow": 0 },
+    "tiles36": { "count": 36, "minW": 181, "maxBottom": 925, "overflow": 0 },
+    "tiles36at360": { "count": 36, "minW": 120, "minmax": "120px", "overflow": 0 }
+  },
+  "tests": {
+    "1": "pass",
+    "2": "blocked",
+    "3": "pass",
+    "4": "pass",
+    "5": "pass",
+    "6": "pass",
+    "7": "pass",
+    "8": "pass"
+  }
+}

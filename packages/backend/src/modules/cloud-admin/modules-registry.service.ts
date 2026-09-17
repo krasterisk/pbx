@@ -5,6 +5,7 @@ import { InjectModel } from '@nestjs/sequelize';
 import { ConfigService } from '@nestjs/config';
 import { ModuleRegistry } from './module-registry.model';
 import { TenantModule } from './tenant-module.model';
+import { Tenant } from './tenant.model';
 import { HubModule } from './models/hub-module.model';
 import { HubModulePage } from './models/hub-module-page.model';
 import { HUB_MODULES_SEED } from './hub-modules.seed';
@@ -41,6 +42,7 @@ const MODULES_SEED: Partial<ModuleRegistry>[] = [
   { code: 'tts_engines',       name: 'Синтез речи (TTS)',         category: 'integrations', is_core: false, is_paid: true,  price_monthly: 500 },
   { code: 'stt_engines',       name: 'Распознавание речи (STT)', category: 'integrations', is_core: false, is_paid: true,  price_monthly: 500 },
   { code: 'cc_ai_voice',       name: 'КЦ AI Voice (аналитика/транскрипция)', category: 'analytics', is_core: false, is_paid: true, price_monthly: 3000, is_published: true },
+  { code: 'autodial',          name: 'Автообзвон',                 category: 'calls',        is_core: false, is_paid: true,  price_monthly: 3500, is_published: true },
   // ── Cloud only ───────────────────────────────────────────────────────────
   { code: 'cloud_admin',       name: 'Облачная панель управления',category: 'admin',        is_core: false, is_paid: true,  price_monthly: 0, requires_cloud: true },
   { code: 'billing',           name: 'Биллинг и документы',       category: 'admin',        is_core: false, is_paid: false, price_monthly: 0, requires_cloud: true },
@@ -76,6 +78,7 @@ export class ModulesRegistryService implements OnApplicationBootstrap {
   constructor(
     @InjectModel(ModuleRegistry) private readonly registryModel: typeof ModuleRegistry,
     @InjectModel(TenantModule)   private readonly tenantModuleModel: typeof TenantModule,
+    @InjectModel(Tenant)         private readonly tenantModel: typeof Tenant,
     private readonly configService: ConfigService,
     @InjectModel(HubModule) private readonly hubModuleModel: typeof HubModule,
     @InjectModel(HubModulePage) private readonly hubPageModel: typeof HubModulePage,
@@ -101,12 +104,15 @@ export class ModulesRegistryService implements OnApplicationBootstrap {
     const mode = this.configService.get<string>('DEPLOYMENT_MODE', 'BOX').toUpperCase();
     if (mode !== 'CLOUD') return true;
 
-    const record = await this.tenantModuleModel.findOne({
-      where: { module_code: moduleCode },
-      include: [{ model: ModuleRegistry, where: { code: moduleCode } }],
+    // Resolve the tenant first: querying tenant_modules by module_code alone
+    // would let any tenant ride on another tenant's entitlement.
+    const tenant = await this.tenantModel.findOne({
+      where: { vpbx_user_uid: vpbxUserUid },
+      attributes: ['id'],
     });
+    if (!tenant) return false;
 
-    return record?.status === 'active' || record?.status === 'trial';
+    return this.tenantHasModuleById(tenant.id, moduleCode);
   }
 
   /**

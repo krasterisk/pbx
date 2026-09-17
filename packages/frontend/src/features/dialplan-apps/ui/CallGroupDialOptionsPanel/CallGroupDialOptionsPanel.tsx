@@ -11,23 +11,33 @@ import styles from './CallGroupDialOptionsPanel.module.scss';
 const DIAL_FLAGS = ['t', 'T', 'h', 'H'] as const;
 
 export interface CallGroupDialOptionsPanelProps {
-  groupUid: string;
+  /** Public group number (`exten`) or legacy uid from a fixed togroup target. */
+  groupRef: string;
 }
 
-export function CallGroupDialOptionsPanel({ groupUid }: CallGroupDialOptionsPanelProps) {
+function findCallGroup<T extends { uid: number; name: string; exten?: string | null }>(
+  groups: T[],
+  groupRef: string,
+): T | undefined {
+  const key = groupRef.trim();
+  if (!key) return undefined;
+  return groups.find((item) => item.exten === key)
+    ?? groups.find((item) => String(item.uid) === key);
+}
+
+export function CallGroupDialOptionsPanel({ groupRef }: CallGroupDialOptionsPanelProps) {
   const { t } = useTranslation();
   const groupsQuery = useGetCallGroupsQuery();
-  const uid = Number(groupUid);
 
-  const group = useMemo(() => {
-    if (!Number.isInteger(uid) || uid <= 0) return undefined;
-    return (groupsQuery.data ?? []).find((item) => item.uid === uid);
-  }, [groupsQuery.data, uid]);
+  const group = useMemo(
+    () => findCallGroup(groupsQuery.data ?? [], groupRef),
+    [groupsQuery.data, groupRef],
+  );
 
   const dialOptions = group?.dialOptions?.trim() || 'tT';
   const flags = inferOptionFlags(dialOptions, DIAL_FLAGS);
 
-  if (!groupUid.trim()) {
+  if (!groupRef.trim()) {
     return (
       <Text variant="muted">
         {t('routes.chain.togroup.optionsPickGroup', 'Сначала выберите группу вызова — здесь появятся её опции Dial.')}

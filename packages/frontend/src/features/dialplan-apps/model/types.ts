@@ -1,7 +1,7 @@
 import { type ActionType, type ActionCategory } from '@krasterisk/shared';
 import type { FieldSchema } from './schema.types';
 
-export type DialplanHost = 'route' | 'directory_policy' | 'ivr';
+export type DialplanHost = 'route' | 'directory_policy' | 'ivr' | 'autodial';
 
 export interface IDialplanAppConfig {
   type: ActionType;

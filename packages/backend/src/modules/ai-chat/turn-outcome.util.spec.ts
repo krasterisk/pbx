@@ -1,4 +1,4 @@
-import { classifyTurnClose, forcedTurnStatus, looksLikeMultiEntitySetup } from './turn-outcome.util';
+import { classifyTurnClose, forcedTurnStatus, looksLikeMultiEntitySetup, looksLikeRouteSetup } from './turn-outcome.util';
 
 describe('looksLikeMultiEntitySetup', () => {
   it('treats the horns-hooves IVR brief as one batched plan', () => {
@@ -12,6 +12,13 @@ describe('looksLikeMultiEntitySetup', () => {
   it('leaves a single-entity create on the ordinary card path', () => {
     expect(looksLikeMultiEntitySetup('создай абонента 104')).toBe(false);
     expect(looksLikeMultiEntitySetup('создай IVR Продажи')).toBe(false);
+  });
+
+  it('does not treat a route-to-existing-IVR brief as a new menu batch', () => {
+    const route = 'Создай маршрут входящий для номера 2236263, который уходит в это IVR с 08 до 17 по будням';
+    expect(looksLikeRouteSetup(route)).toBe(true);
+    expect(looksLikeMultiEntitySetup(route)).toBe(false);
+    expect(looksLikeRouteSetup('Голосовое меню же уже создано, нужен только маршрут и календарь')).toBe(true);
   });
 });
 

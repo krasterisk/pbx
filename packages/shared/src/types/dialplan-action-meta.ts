@@ -1,7 +1,7 @@
 import type { ActionType } from './route.types';
 
 export type DialplanTerminal = 'always' | 'conditional' | 'never';
-export type DialplanHost = 'route' | 'directory_policy' | 'ivr';
+export type DialplanHost = 'route' | 'directory_policy' | 'ivr' | 'autodial';
 export type DialplanFamily = 'address' | 'media' | 'control' | 'integration';
 
 export interface IDialplanActionMeta {
@@ -10,7 +10,7 @@ export interface IDialplanActionMeta {
   family: DialplanFamily;
 }
 
-const ALL_HOSTS: ReadonlyArray<DialplanHost> = ['route', 'directory_policy', 'ivr'];
+const ALL_HOSTS: ReadonlyArray<DialplanHost> = ['route', 'directory_policy', 'ivr', 'autodial'];
 const ROUTE_ONLY: ReadonlyArray<DialplanHost> = ['route'];
 
 /**

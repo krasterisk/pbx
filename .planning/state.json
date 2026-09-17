@@ -6,7 +6,7 @@
   "next": {
     "command": "/gsd-debug",
     "label": "Debug the blocker",
-    "reason": "Blocked · 1 blocker(s) — resolve before continuing"
+    "reason": "Blocked · 3 blocker(s) — resolve before continuing"
   },
-  "updated_at": "2026-09-15T04:03:15.092Z"
+  "updated_at": "2026-09-17T07:11:28.804Z"
 }

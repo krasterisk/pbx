@@ -1,0 +1,99 @@
+/* ReportsView — сводка, графики и детальный срез по попыткам */
+
+.card {
+  width: 100%;
+  min-width: 0;
+}
+
+.cardWide {
+  width: 100%;
+  min-width: 0;
+  grid-column: 1 / -1;
+}
+
+.tabs {
+  width: 100%;
+  min-width: 0;
+}
+
+.content {
+  padding: 0 0 1rem;
+  min-width: 0;
+}
+
+.filters {
+  gap: 1rem;
+}
+
+.campaignPicker {
+  width: 18rem;
+  min-width: 0;
+
+  @media (max-width: 640px) {
+    width: 100%;
+  }
+}
+
+.chartGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  width: 100%;
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.chartBox {
+  width: 100%;
+  min-width: 0;
+  padding: 0.5rem 0.75rem 1rem;
+}
+
+.title {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--color-foreground);
+}
+
+.tableScroll {
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+  margin: 0;
+}
+
+.loading {
+  width: 100%;
+  padding: 3rem 0;
+}
+
+.spinner {
+  color: var(--color-primary);
+  flex-shrink: 0;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}
+
+.empty {
+  width: 100%;
+  padding: 2.5rem 1rem;
+}

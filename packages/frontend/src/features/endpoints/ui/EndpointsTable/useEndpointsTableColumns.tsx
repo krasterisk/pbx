@@ -2,17 +2,18 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { createColumnHelper } from '@tanstack/react-table';
 import { Pencil, Trash2, Key } from 'lucide-react';
-import { HStack } from '@/shared/ui/Stack';
-import { TableRowActions, TableRowAction } from '@/shared/ui';
+import { Flex, HStack, VStack } from '@/shared/ui/Stack';
+import { TableRowActions, TableRowAction, Text } from '@/shared/ui';
 import { useAppDispatch } from '@/shared/hooks/useAppStore';
 import { endpointsPageActions } from '../../model/slice/endpointsPageSlice';
 import { useDeleteEndpointMutation } from '@/shared/api/endpoints/endpointApi';
 import type { IEndpointListItem } from '@/shared/api/endpoints/endpointApi';
+import cls from './EndpointsTable.module.scss';
 
 const columnHelper = createColumnHelper<IEndpointListItem>();
 
 export const useEndpointsTableColumns = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const dispatch = useAppDispatch();
   const [deleteEndpoint] = useDeleteEndpointMutation();
 
@@ -30,34 +31,29 @@ export const useEndpointsTableColumns = () => {
           }
           return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
         },
-        cell: (info) => (
-          <span className="font-mono font-semibold text-primary">{info.getValue()}</span>
-        ),
+        cell: (info) => <Text as="span" className={cls.extension}>{info.getValue()}</Text>,
       }),
 
       columnHelper.accessor('callerid', {
         header: () => t('endpoints.callerid'),
         cell: (info) => {
           const raw = info.getValue() || '';
-          // Parse "Name" <100> → "Name"
           const match = raw.match(/^"(.+?)"/);
-          return match ? match[1] : raw;
+          return <Text as="span" className={cls.cell}>{match ? match[1] : raw || '-'}</Text>;
         },
       }),
 
       columnHelper.accessor('department', {
-        header: () => t('endpoints.department', 'Отдел'),
-        cell: (info) => (
-          <span className="text-sm">{info.getValue() || '-'}</span>
-        ),
+        header: () => t('endpoints.department'),
+        cell: (info) => <Text as="span" className={cls.cell}>{info.getValue() || '-'}</Text>,
       }),
 
       columnHelper.accessor('context', {
         header: () => t('endpoints.context'),
         cell: (info) => (
-          <span className="text-xs font-mono bg-white/5 px-2 py-0.5 rounded">
+          <Text as="span" className={cls.contextChip}>
             {info.getValue()}
-          </span>
+          </Text>
         ),
       }),
 
@@ -68,37 +64,34 @@ export const useEndpointsTableColumns = () => {
           const lastReg = info.row.original.lastRegistered;
           const webrtc = info.row.original.webrtc;
           const webrtcEnabled = !!info.row.original.webrtc_enabled;
+          const webrtcOnline = webrtc?.status === 'online';
+          const locale = i18n.language?.startsWith('en') ? 'en-GB' : 'ru-RU';
           return (
             <HStack gap="4" align="center" wrap="wrap">
-              <span
-                className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.5)]' : 'bg-zinc-600'}`}
-              />
-              <span className={`text-xs ${isOnline ? 'text-emerald-400' : 'text-zinc-500'}`}>
+              <Flex className={isOnline ? cls.statusDotOnline : cls.statusDotOffline}>{''}</Flex>
+              <Text as="span" className={isOnline ? cls.statusOnline : cls.statusOffline}>
                 {isOnline ? t('endpoints.statusOnline') : t('endpoints.statusOffline')}
-              </span>
+              </Text>
               {webrtcEnabled && (
                 <HStack
                   gap="4"
                   align="center"
-                  className={`text-[10px] px-1.5 py-0.5 rounded border ${
-                    webrtc?.status === 'online'
-                      ? 'border-sky-500/40 text-sky-400 bg-sky-500/10'
-                      : 'border-border text-muted-foreground'
-                  }`}
-                  title={webrtc?.id || 'WebRTC'}
+                  className={webrtcOnline ? cls.webrtcBadgeOnline : cls.webrtcBadge}
+                  title={webrtc?.id || t('endpoints.credWebrtc')}
                 >
-                  <span
-                    className={`w-1.5 h-1.5 rounded-full ${
-                      webrtc?.status === 'online' ? 'bg-sky-400' : 'bg-zinc-500'
-                    }`}
-                  />
-                  WebRTC
+                  <Flex className={webrtcOnline ? cls.webrtcDotOnline : cls.webrtcDot}>{''}</Flex>
+                  <Text as="span" className={cls.webrtcLabel}>{t('endpoints.credWebrtc')}</Text>
                 </HStack>
               )}
               {lastReg && (
-                <span className="text-[10px] text-zinc-500 hidden sm:inline">
-                  {new Date(lastReg * 1000).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
-                </span>
+                <Text as="span" className={cls.lastReg}>
+                  {new Date(lastReg * 1000).toLocaleString(locale, {
+                    day: '2-digit',
+                    month: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </Text>
               )}
             </HStack>
           );
@@ -106,18 +99,16 @@ export const useEndpointsTableColumns = () => {
       }),
 
       columnHelper.accessor('userAgent', {
-        header: () => t('endpoints.network', 'Сеть / Устройство'),
+        header: () => t('endpoints.network'),
         cell: (info) => (
-          <div className="flex flex-col">
+          <VStack gap="2">
             {info.row.original.clientIp ? (
-              <span className="text-xs font-mono text-primary mb-1">
-                {info.row.original.clientIp}
-              </span>
+              <Text as="span" className={cls.mono}>{info.row.original.clientIp}</Text>
             ) : null}
-            <span className="text-xs text-muted-foreground truncate max-w-[160px]" title={info.getValue() || ''}>
+            <Text as="span" className={cls.device} title={info.getValue() || ''}>
               {info.getValue() || '-'}
-            </span>
-          </div>
+            </Text>
+          </VStack>
         ),
       }),
 
@@ -159,6 +150,6 @@ export const useEndpointsTableColumns = () => {
         },
       }),
     ],
-    [t, dispatch, deleteEndpoint],
+    [t, i18n.language, dispatch, deleteEndpoint],
   );
 };

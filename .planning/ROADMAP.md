@@ -1252,25 +1252,103 @@ Plans:
 
 **GSD workflow:** `/gsd-plan-phase 16.2` → `/gsd-execute-phase 16.2` → `/gsd-verify-work 16.2`
 
+## Phase 17: Модуль Автообзвон: кампании, клиентские базы, диалер, монитор, отчётность
+
+**Status:** Planning / executing (split into 17.1–17.5)
+**Goal:** Коммерческий глобальный модуль «Автообзвон»: клиентские базы с настраиваемой схемой и импортом, кампании с Progressive/Power/Agentless пейсингом на ARI, сценарии через DialplanAppsEditor (host `autodial`), онлайн-монитор, KPI и отчётность.
+**Requirements:** см. `17-CONTEXT.md` (D-01…D-20)
+**Depends on:** Phase 9 (CallCenter state/queues), Phase 12 (DialplanAppsEditor), Phase 15 (AI adapter gate)
+**Plans:** shared artifacts in parent dir; work in 17.1–17.5
+
+**GSD workflow:** `/gsd-discuss-phase 17` (done) → `/gsd-plan-phase 17.1` → execute per subphase → `/gsd-secure-phase` → `/gsd-verify-work`
+
 ---
+
+## Phase 17.1: Автообзвон — клиентские базы и импорт (INSERTED)
+
+**Status:** Executing
+**Goal:** `ac_bases` / fields / contacts / phones / import profiles & runs; CSV+XLSX import with reusable mapping profiles; frontend `/autodial/bases`.
+**Depends on:** Phase 17
+**Plans:** implementation inline (scaffold + CRUD + import)
+
+---
+
+## Phase 17.2: Автообзвон — кампании, диалплан-сценарий, расписание (INSERTED)
+
+**Status:** Pending
+**Goal:** `ac_campaigns` / schedules / DNC / tasks; DialplanHost `autodial`; `krsk-ac-*` dialplan; scheduler; restart-by-disposition.
+**Depends on:** Phase 17.1
+**Plans:** TBD
+
+---
+
+## Phase 17.3: Автообзвон — движок набора ARI и пейсинг (INSERTED)
+
+**Status:** Pending
+**Goal:** ARI originate/dial/continueInDialplan; pacer with capacity providers; dispositions/retries; SSE; AMD; marketplace registration.
+**Depends on:** Phase 17.2
+**Plans:** TBD
+
+---
+
+## Phase 17.4: Автообзвон — монитор, KPI и отчётность (INSERTED)
+
+**Status:** Pending
+**Goal:** Live monitor SSE; KPI metrics; nightly rollup; reports with charts + CSV/XLSX export.
+**Depends on:** Phase 17.3
+**Plans:** TBD
+
+---
+
+## Phase 17.5: Автообзвон — AI-адаптер, Predictive, лимит транка (INSERTED)
+
+**Status:** Pending
+**Goal:** `autodial-ai.adapter.ts` + SKILL.md + coverage; predictive pacing; trunk channel limit as first-class setting.
+**Depends on:** Phase 17.4
+**Plans:** TBD
+
 
 ## Phase 16.3: Телеконференции — фронтенд живой комнаты, гостевая поверхность и AI-адаптер
 
-**Status:** Planned
-**Plans:** 8 plans
+**Status:** Complete (UAT 2026-09-16, 7/8 pass, Test 2 blocked)
+**Plans:** 10 plans (01–08 + gap 09–10, all complete)
 
 Plans:
+**Wave 1**
 
-- [ ] 16.3-01-PLAN.md — Tracer R-SDH: VideoSurface + factory + LiveRoom на двух треках
-- [ ] 16.3-02-PLAN.md — useConferenceRoom, session slice, RTK extend, R-RENEG
-- [ ] 16.3-03-PLAN.md — AI-адаптер + SKILL.md + covered/configure (D-41)
-- [ ] 16.3-04-PLAN.md — Hub apps 65 + полный словарь ru/en (D-27)
-- [ ] 16.3-05-PLAN.md — Полная staff LiveRoom + ConferenceRoomPage (D-26/D-29)
-- [ ] 16.3-06-PLAN.md — Мини-панель add-alongside (D-26/D-29)
-- [ ] 16.3-07-PLAN.md — Гостевой шелл /conf/:token (D-28/D-29)
-- [ ] 16.3-08-PLAN.md — Список, форма, stub ConferenceRoomPage (D-27)
+- [x] 16.3-01-PLAN.md — Tracer R-SDH: VideoSurface + factory + LiveRoom на двух треках
 
-**Waves:** W1 {16.3-01} · W2 {16.3-02, 16.3-03} · W3 {16.3-04} · W4 {16.3-08} · W5 {16.3-05} · W6 {16.3-06, 16.3-07}
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [x] 16.3-02-PLAN.md — useConferenceRoom, session slice, RTK extend, R-RENEG
+- [x] 16.3-03-PLAN.md — AI-адаптер + SKILL.md + covered/configure (D-41)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [x] 16.3-04-PLAN.md — Hub apps 65 + полный словарь ru/en (D-27)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [x] 16.3-08-PLAN.md — Список, форма, stub ConferenceRoomPage (D-27)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+
+- [x] 16.3-05-PLAN.md — Полная staff LiveRoom + ConferenceRoomPage (D-26/D-29)
+
+**Wave 6** *(blocked on Wave 5 completion)*
+
+- [x] 16.3-06-PLAN.md — Мини-панель add-alongside (D-26/D-29)
+- [x] 16.3-07-PLAN.md — Гостевой шелл /conf/:token (D-28/D-29)
+
+**Wave 7** *(gap closure — blocked on Wave 6)*
+
+- [x] 16.3-09-PLAN.md — Session+UA above room + softphone park (G-16.3-1, G-16.3-2)
+
+**Wave 8** *(gap closure — blocked on Wave 7)*
+
+- [x] 16.3-10-PLAN.md — Guest participants + telemetry POST + videoFailedMids (G-16.3-3…5)
+
+**Waves:** W1 {16.3-01} · W2 {16.3-02, 16.3-03} · W3 {16.3-04} · W4 {16.3-08} · W5 {16.3-05} · W6 {16.3-06, 16.3-07} · W7 {16.3-09} · W8 {16.3-10}
 
 **Goal:** Собрать поверхность модуля: живую комнату с сеткой видео и ролевым управлением, минимальный гостевой шелл, полноценную комнату на телефоне, место модуля в Module Hub и обязательный AI-адаптер со скилом.
 
@@ -1292,4 +1370,4 @@ Plans:
 
 **Depends on:** Phase 16, 16.1, 16.2 (REST- и SSE-контракты всех трёх).
 
-**GSD workflow:** `/gsd-plan-phase 16.3` ✅ → `/gsd-execute-phase 16.3` → `/gsd-secure-phase 16.3` (гостевая поверхность) → `/gsd-verify-work 16.3`
+**GSD workflow:** `/gsd-plan-phase 16.3` ✅ → `/gsd-execute-phase 16.3` ✅ → `/gsd-secure-phase 16.3` ✅ → `/gsd-verify-work 16.3` ✅ → UAT ✅

@@ -25,6 +25,7 @@ import {
   forcedTurnStatus,
   incompleteReminder,
   looksLikeMultiEntitySetup,
+  looksLikeRouteSetup,
   looksLikePlanningNarration,
   looksTruncated,
 } from './turn-outcome.util';
@@ -47,7 +48,8 @@ export const PROMPT_TOTAL_BUDGET_CHARS = 48_000;
 
 export const CONTINUE_AFTER_APPLY_PROMPT =
   'Карточка уже применена. Не создавай те же абонентов, группу или меню снова. ' +
-  'Коротко скажи, что готово. list_* — только если нужно проверить факт.';
+  'Одним-двумя предложениями скажи, что готово: публичные имена и номера. ' +
+  'Не называй инструменты. Не предлагай «проверить через» что-либо. Таймаут называй таймаутом, не «цифра t».';
 
 export interface AgentTurnContext {
   tenantUid: number;
@@ -322,7 +324,7 @@ export class PbxAgentLoopService {
           providerTimeoutRetries += 1;
           messages.push({
             role: 'system',
-            content: this.proposePlanNowReminder(ctx.locale),
+            content: this.proposePlanNowReminder(ctx.locale, message),
           });
           forceToolChoice = true;
           continue;
@@ -401,7 +403,7 @@ export class PbxAgentLoopService {
               });
               answeredToolCallIds.add(normalizedCall.id);
               if (proposePlanAttempts < 2) {
-                messages.push({ role: 'system', content: this.proposePlanNowReminder(ctx.locale) });
+                messages.push({ role: 'system', content: this.proposePlanNowReminder(ctx.locale, message) });
                 forceToolChoice = true;
               }
               continue;
@@ -538,7 +540,11 @@ export class PbxAgentLoopService {
               },
             };
           } else if (normalizedCall.name === 'propose_plan' && isToolErrorContent(resultText)) {
-            if (proposePlanAttempts < 2) forceToolChoice = true;
+            if (proposePlanAttempts < 2) {
+              const hint = this.proposePlanCompileHint(resultText, message);
+              if (hint) messages.push({ role: 'system', content: hint });
+              forceToolChoice = true;
+            }
           }
           messages.push({
             role: 'tool',
@@ -558,7 +564,7 @@ export class PbxAgentLoopService {
           });
           return;
         }
-        if (!hadProposal && checklistReads >= 2) {
+        if (!hadProposal && checklistReads >= 2 && !looksLikeRouteSetup(message)) {
           const compiled = yield* this.tryServerIvrPlan({
             message,
             threadUid,
@@ -583,7 +589,7 @@ export class PbxAgentLoopService {
         if (!hadProposal && checklistReads >= 2 && proposePlanAttempts < 2) {
           messages.push({
             role: 'system',
-            content: this.proposePlanNowReminder(ctx.locale),
+            content: this.proposePlanNowReminder(ctx.locale, message),
           });
           forceToolChoice = true;
         }
@@ -1011,8 +1017,19 @@ export class PbxAgentLoopService {
     );
   }
 
-  private proposePlanNowReminder(locale?: string): string {
+  private proposePlanNowReminder(locale?: string, message = ''): string {
     const ru = (locale ?? 'ru').toLowerCase().startsWith('ru');
+    if (looksLikeRouteSetup(message)) {
+      return ru
+        ? 'Это маршрут, не новое меню. propose_plan: если календаря нет — шаг create_time_group '
+          + '(name + intervals[]), затем create_route. '
+          + 'create_route: {context_uid из list_contexts (sip-in), extensions:[DID], actions:['
+          + '{type:"toivr",params:{ivr_uid:<uid из list_ivrs>},condition:{time_group_uid:"steps.tg.result.uid"}}]}. '
+          + 'Календарь на действии — condition.time_group_uid, не отдельный tool schedule. '
+          + 'Не вызывай create_ivr и create_call_group. Не вызывай list_* снова.'
+        : 'This is a route, not a new menu. If the calendar is missing, add create_time_group, then create_route. '
+          + 'Hang the calendar as condition.time_group_uid. Do not call create_ivr.';
+    }
     return ru
       ? 'Факты уже собраны. Сразу вызови propose_plan одним объектом {title, steps[]}. '
         + 'Корень — не name/exten/members. Шаги: create_call_group (если группы ещё нет) и create_ivr с text/menu_items. '
@@ -1020,6 +1037,23 @@ export class PbxAgentLoopService {
       : 'Facts are already collected. Call propose_plan as {title, steps[]}. '
         + 'Do not put name/exten/members at the root. Steps: create_call_group if missing, then create_ivr with text/menu_items. '
         + 'Do not call list_* again.';
+  }
+
+  private proposePlanCompileHint(resultText: string, message: string): string | null {
+    if (/WORKFLOW_UNKNOWN_TOOL:schedule/i.test(resultText)) {
+      return 'schedule — не tool плана. Календарь создаёт create_time_group; на маршруте он вешается как condition.time_group_uid. '
+        + 'Пример: {"title":"DID","steps":['
+        + '{"id":"tg","tool":"create_time_group","args":{"name":"Рабочие","intervals":[{"time_start":"08:00","time_end":"17:00","days_of_week":"mon-fri"}]}},'
+        + '{"id":"r","tool":"create_route","dependsOn":["tg"],"args":{"context_uid":2,"extensions":["2236263"],'
+        + '"actions":[{"type":"toivr","params":{"ivr_uid":22},"condition":{"time_group_uid":"steps.tg.result.uid"}}]}}]}.';
+    }
+    if (/missing required parameter ivr_uid/i.test(resultText)) {
+      return 'Шаг toivr требует params.ivr_uid (число из list_ivrs). Не создавай create_ivr, если меню уже есть.';
+    }
+    if (looksLikeRouteSetup(message) && /ARGS_INVALID|invalid_arguments/i.test(resultText)) {
+      return this.proposePlanNowReminder('ru', message);
+    }
+    return null;
   }
 
   private pendingProposalForModel(

@@ -43,6 +43,7 @@ export interface RedisStatus {
 // ------- RTK API -------
 
 export const systemSettingsApi = rtkApi.injectEndpoints({
+  overrideExisting: import.meta.hot != null,
   endpoints: (build) => ({
     // Dialplan subroutines
     applySubroutines: build.mutation<ApplySubroutinesResult, void>({

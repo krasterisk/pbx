@@ -1,0 +1,494 @@
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
+import { InjectModel } from '@nestjs/sequelize';
+import { Op, QueryTypes } from 'sequelize';
+import type { Sequelize } from 'sequelize-typescript';
+import { InjectConnection } from '@nestjs/sequelize';
+import {
+  AUTODIAL_TERMINAL_DISPOSITIONS,
+  type AutodialCampaignStatus,
+  type AutodialDisposition,
+  type IAutodialCampaign,
+  type IAutodialSchedule,
+  type IRouteAction,
+} from '@krasterisk/shared';
+import { AcCampaign } from './models/ac-campaign.model';
+import { AcSchedule } from './models/ac-schedule.model';
+import { AcTask } from './models/ac-task.model';
+import { AcContactPhone } from './models/ac-contact-phone.model';
+import { AcDnc } from './models/ac-dnc.model';
+import { AutodialBasesService } from './autodial-bases.service';
+import { AutodialDialplanService } from './autodial-dialplan.service';
+import {
+  CreateAutodialCampaignDto,
+  StartAutodialCampaignDto,
+  UpdateAutodialCampaignDto,
+} from './dto/autodial-campaign.dto';
+import {
+  defaultAutodialAmd,
+  defaultAutodialCidPolicy,
+  defaultAutodialTrunkPool,
+  normalizeAutodialPacing,
+  normalizeAutodialRetry,
+} from './autodial-campaign.defaults';
+
+/** Statuses from which the pacer may pick tasks. */
+export const AUTODIAL_ACTIVE_STATUSES: AutodialCampaignStatus[] = ['running'];
+
+const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+@Injectable()
+export class AutodialCampaignsService {
+  private readonly logger = new Logger(AutodialCampaignsService.name);
+
+  constructor(
+    @InjectModel(AcCampaign) private readonly campaignModel: typeof AcCampaign,
+    @InjectModel(AcSchedule) private readonly scheduleModel: typeof AcSchedule,
+    @InjectModel(AcTask) private readonly taskModel: typeof AcTask,
+    @InjectModel(AcContactPhone) private readonly phoneModel: typeof AcContactPhone,
+    @InjectModel(AcDnc) private readonly dncModel: typeof AcDnc,
+    @InjectConnection() private readonly sequelize: Sequelize,
+    private readonly basesService: AutodialBasesService,
+    private readonly dialplanService: AutodialDialplanService,
+  ) {}
+
+  async findAll(userUid: number): Promise<IAutodialCampaign[]> {
+    const rows = await this.campaignModel.findAll({
+      where: { user_uid: userUid },
+      order: [['uid', 'DESC']],
+    });
+    const counters = await this.taskCounters(
+      userUid,
+      rows.map((r) => r.uid),
+    );
+    const schedules = await this.schedulesFor(rows.map((r) => r.uid));
+    return rows.map((r) =>
+      this.toDto(r, schedules.get(r.uid) ?? [], counters.get(r.uid)),
+    );
+  }
+
+  async findOne(userUid: number, uid: number): Promise<IAutodialCampaign> {
+    const row = await this.getOrThrow(userUid, uid);
+    const counters = await this.taskCounters(userUid, [uid]);
+    const schedules = await this.schedulesFor([uid]);
+    return this.toDto(row, schedules.get(uid) ?? [], counters.get(uid));
+  }
+
+  async create(userUid: number, dto: CreateAutodialCampaignDto): Promise<IAutodialCampaign> {
+    await this.basesService.findOne(userUid, dto.base_uid);
+    this.assertScenario(dto.dial_mode ?? 'progressive', dto.queue_names, dto.scenario_actions);
+
+    const row = await this.campaignModel.create({
+      user_uid: userUid,
+      name: dto.name.trim(),
+      status: 'draft',
+      dial_mode: dto.dial_mode ?? 'progressive',
+      base_uid: dto.base_uid,
+      pacing: normalizeAutodialPacing(dto.pacing),
+      retry: normalizeAutodialRetry(dto.retry),
+      trunk_pool: dto.trunk_pool ?? defaultAutodialTrunkPool(),
+      cid_policy: dto.cid_policy ?? defaultAutodialCidPolicy(),
+      queue_names: dto.queue_names ?? [],
+      scenario_actions: (dto.scenario_actions ?? []) as IRouteAction[],
+      amd: dto.amd ?? defaultAutodialAmd(),
+      success_min_sec: dto.success_min_sec ?? 15,
+      dial_timeout_sec: dto.dial_timeout_sec ?? 45,
+      revision: 1,
+    });
+
+    if (dto.schedules?.length) {
+      await this.replaceSchedules(userUid, row.uid, dto.schedules);
+    }
+    await this.dialplanService.applyCampaign(row);
+    return this.findOne(userUid, row.uid);
+  }
+
+  async update(
+    userUid: number,
+    uid: number,
+    dto: UpdateAutodialCampaignDto,
+  ): Promise<IAutodialCampaign> {
+    const row = await this.getOrThrow(userUid, uid);
+    if (dto.base_uid != null && dto.base_uid !== row.base_uid) {
+      await this.basesService.findOne(userUid, dto.base_uid);
+      if (row.status === 'running') {
+        throw new BadRequestException({
+          code: 'AC_CAMPAIGN_RUNNING',
+          message: 'Cannot switch base while the campaign is running',
+        });
+      }
+    }
+    this.assertScenario(
+      dto.dial_mode ?? row.dial_mode,
+      dto.queue_names ?? row.queue_names,
+      dto.scenario_actions ?? row.scenario_actions,
+    );
+
+    const patch: Partial<AcCampaign> = { revision: row.revision + 1 };
+    if (dto.name != null) patch.name = dto.name.trim();
+    if (dto.dial_mode != null) patch.dial_mode = dto.dial_mode;
+    if (dto.base_uid != null) patch.base_uid = dto.base_uid;
+    if (dto.pacing != null) patch.pacing = normalizeAutodialPacing(dto.pacing);
+    if (dto.retry != null) patch.retry = normalizeAutodialRetry(dto.retry);
+    if (dto.trunk_pool != null) patch.trunk_pool = dto.trunk_pool;
+    if (dto.cid_policy != null) patch.cid_policy = dto.cid_policy;
+    if (dto.queue_names != null) patch.queue_names = dto.queue_names;
+    if (dto.scenario_actions != null) {
+      patch.scenario_actions = dto.scenario_actions as IRouteAction[];
+    }
+    if (dto.amd != null) patch.amd = dto.amd;
+    if (dto.success_min_sec != null) patch.success_min_sec = dto.success_min_sec;
+    if (dto.dial_timeout_sec != null) patch.dial_timeout_sec = dto.dial_timeout_sec;
+
+    await row.update(patch);
+    if (dto.schedules) {
+      await this.replaceSchedules(userUid, uid, dto.schedules);
+    }
+    await this.dialplanService.applyCampaign(row);
+    return this.findOne(userUid, uid);
+  }
+
+  async remove(userUid: number, uid: number): Promise<void> {
+    const row = await this.getOrThrow(userUid, uid);
+    if (row.status === 'running') {
+      throw new BadRequestException({
+        code: 'AC_CAMPAIGN_RUNNING',
+        message: 'Stop the campaign before deleting it',
+      });
+    }
+    await this.dialplanService.removeCampaign(row);
+    await this.taskModel.destroy({ where: { campaign_uid: uid, user_uid: userUid } });
+    await this.scheduleModel.destroy({ where: { campaign_uid: uid } });
+    await row.destroy();
+  }
+
+  // ── lifecycle ─────────────────────────────────────────────────────
+
+  /**
+   * Generate tasks and switch to running. `include_dispositions` re-selects
+   * contacts whose previous attempts ended in the given dispositions (D-19);
+   * omitting it dials every contact that has no task yet.
+   */
+  async start(
+    userUid: number,
+    uid: number,
+    dto: StartAutodialCampaignDto = {},
+  ): Promise<{ campaign: IAutodialCampaign; tasks_created: number }> {
+    const row = await this.getOrThrow(userUid, uid);
+    if (!row.trunk_pool?.length) {
+      throw new BadRequestException({
+        code: 'AC_NO_TRUNK',
+        message: 'Configure at least one trunk before starting',
+      });
+    }
+    // Re-apply so a dialplan lost to a failed apply or an Asterisk reinstall
+    // is present before the first channel lands in the context.
+    await this.dialplanService.applyCampaign(row);
+
+    const created = await this.generateTasks(userUid, row, dto);
+    await row.update({ status: 'running' });
+    this.logger.log(`Campaign ${uid} started, ${created} task(s) queued`);
+    return { campaign: await this.findOne(userUid, uid), tasks_created: created };
+  }
+
+  async pause(userUid: number, uid: number): Promise<IAutodialCampaign> {
+    const row = await this.getOrThrow(userUid, uid);
+    await row.update({ status: 'paused' });
+    return this.findOne(userUid, uid);
+  }
+
+  async resume(userUid: number, uid: number): Promise<IAutodialCampaign> {
+    const row = await this.getOrThrow(userUid, uid);
+    if (row.status !== 'paused' && row.status !== 'scheduled') {
+      throw new BadRequestException({
+        code: 'AC_NOT_PAUSED',
+        message: 'Only a paused or scheduled campaign can be resumed',
+      });
+    }
+    await row.update({ status: 'running' });
+    return this.findOne(userUid, uid);
+  }
+
+  /** Stop dialing and release pending tasks so a later start re-selects them. */
+  async stop(userUid: number, uid: number): Promise<IAutodialCampaign> {
+    const row = await this.getOrThrow(userUid, uid);
+    await row.update({ status: 'stopped' });
+    await this.taskModel.update(
+      { leased_by: null, leased_at: null, status: 'pending' },
+      {
+        where: {
+          campaign_uid: uid,
+          user_uid: userUid,
+          status: { [Op.in]: ['leased', 'dialing'] },
+        },
+      },
+    );
+    return this.findOne(userUid, uid);
+  }
+
+  /**
+   * One row per (campaign, contact, phone). Numbers already on a DNC list, and
+   * contacts already carrying a task, are skipped. Runs as a single INSERT..SELECT
+   * so a million-row base does not travel through Node.
+   */
+  private async generateTasks(
+    userUid: number,
+    campaign: AcCampaign,
+    dto: StartAutodialCampaignDto,
+  ): Promise<number> {
+    const dispositions = dto.include_dispositions ?? [];
+    if (dispositions.length) {
+      // Re-arm existing tasks whose last outcome matches the selection.
+      await this.taskModel.update(
+        {
+          status: 'pending',
+          attempt_count: 0,
+          next_attempt_at: null,
+          leased_by: null,
+          leased_at: null,
+        },
+        {
+          where: {
+            campaign_uid: campaign.uid,
+            user_uid: userUid,
+            last_disposition: { [Op.in]: dispositions as AutodialDisposition[] },
+          },
+        },
+      );
+    }
+
+    const [inserted] = await this.sequelize.query(
+      `INSERT INTO ac_tasks
+         (vpbx_user_uid, campaign_uid, contact_uid, phone_uid, status,
+          attempt_count, next_attempt_at, last_disposition, priority, created_at, updated_at)
+       SELECT :userUid, :campaignUid, p.contact_uid, p.uid, 'pending',
+              0, NULL, 'new', 0, NOW(), NOW()
+         FROM ac_contact_phones p
+        WHERE p.base_uid = :baseUid
+          AND p.normalized <> ''
+          AND NOT EXISTS (
+                SELECT 1 FROM ac_tasks t
+                 WHERE t.campaign_uid = :campaignUid
+                   AND t.phone_uid = p.uid)
+          AND NOT EXISTS (
+                SELECT 1 FROM ac_dnc d
+                 WHERE d.vpbx_user_uid = :userUid
+                   AND d.normalized_phone = p.normalized
+                   AND (d.expires_at IS NULL OR d.expires_at > NOW())
+                   AND (d.scope = 'global'
+                        OR (d.scope = 'campaign' AND d.scope_uid = :campaignUid)
+                        OR (d.scope = 'base' AND d.scope_uid = :baseUid)))`,
+      {
+        replacements: {
+          userUid,
+          campaignUid: campaign.uid,
+          baseUid: campaign.base_uid,
+        },
+        type: QueryTypes.INSERT,
+      },
+    );
+    return typeof inserted === 'number' ? inserted : 0;
+  }
+
+  // ── schedules ─────────────────────────────────────────────────────
+
+  private async replaceSchedules(
+    userUid: number,
+    campaignUid: number,
+    drafts: Array<{
+      kind: IAutodialSchedule['kind'];
+      weekday?: number | null;
+      time_from: string;
+      time_to: string;
+      timezone?: string;
+      date_from?: string | null;
+      date_to?: string | null;
+      enabled?: boolean;
+    }>,
+  ): Promise<void> {
+    for (const draft of drafts) {
+      if (!TIME_RE.test(draft.time_from) || !TIME_RE.test(draft.time_to)) {
+        throw new BadRequestException({
+          code: 'AC_SCHEDULE_TIME',
+          message: 'time_from/time_to must be HH:MM',
+        });
+      }
+      if (draft.time_from >= draft.time_to) {
+        throw new BadRequestException({
+          code: 'AC_SCHEDULE_RANGE',
+          message: 'time_from must be earlier than time_to',
+        });
+      }
+      if (draft.kind === 'weekly' && (draft.weekday == null || draft.weekday < 0 || draft.weekday > 6)) {
+        throw new BadRequestException({
+          code: 'AC_SCHEDULE_WEEKDAY',
+          message: 'weekly schedule requires weekday 0..6',
+        });
+      }
+    }
+
+    await this.scheduleModel.destroy({ where: { campaign_uid: campaignUid } });
+    if (!drafts.length) return;
+    await this.scheduleModel.bulkCreate(
+      drafts.map((d) => ({
+        campaign_uid: campaignUid,
+        kind: d.kind,
+        weekday: d.kind === 'weekly' ? (d.weekday ?? null) : null,
+        time_from: d.time_from,
+        time_to: d.time_to,
+        timezone: d.timezone?.trim() || 'Europe/Moscow',
+        date_from: d.date_from ?? null,
+        date_to: d.date_to ?? null,
+        enabled: d.enabled ?? true,
+      })) as never[],
+    );
+  }
+
+  private async schedulesFor(
+    campaignUids: number[],
+  ): Promise<Map<number, IAutodialSchedule[]>> {
+    const out = new Map<number, IAutodialSchedule[]>();
+    if (!campaignUids.length) return out;
+    const rows = await this.scheduleModel.findAll({
+      where: { campaign_uid: { [Op.in]: campaignUids } },
+      order: [
+        ['weekday', 'ASC'],
+        ['time_from', 'ASC'],
+      ],
+    });
+    for (const r of rows) {
+      const list = out.get(r.campaign_uid) ?? [];
+      list.push({
+        uid: r.uid,
+        campaign_uid: r.campaign_uid,
+        kind: r.kind,
+        weekday: r.weekday,
+        time_from: r.time_from,
+        time_to: r.time_to,
+        timezone: r.timezone,
+        date_from: r.date_from,
+        date_to: r.date_to,
+        enabled: r.enabled,
+      });
+      out.set(r.campaign_uid, list);
+    }
+    return out;
+  }
+
+  // ── helpers ───────────────────────────────────────────────────────
+
+  async getOrThrow(userUid: number, uid: number): Promise<AcCampaign> {
+    const row = await this.campaignModel.findOne({ where: { uid, user_uid: userUid } });
+    if (!row) {
+      throw new NotFoundException({ code: 'AC_CAMPAIGN_NOT_FOUND', message: 'Campaign not found' });
+    }
+    return row;
+  }
+
+  private async taskCounters(
+    userUid: number,
+    campaignUids: number[],
+  ): Promise<Map<number, { total: number; pending: number; done: number }>> {
+    const out = new Map<number, { total: number; pending: number; done: number }>();
+    if (!campaignUids.length) return out;
+    const rows = (await this.taskModel.findAll({
+      attributes: [
+        'campaign_uid',
+        'status',
+        [this.sequelize.fn('COUNT', this.sequelize.col('uid')), 'cnt'],
+      ],
+      where: { user_uid: userUid, campaign_uid: { [Op.in]: campaignUids } },
+      group: ['campaign_uid', 'status'],
+      raw: true,
+    })) as unknown as Array<{ campaign_uid: number; status: string; cnt: number }>;
+
+    for (const r of rows) {
+      const acc = out.get(r.campaign_uid) ?? { total: 0, pending: 0, done: 0 };
+      const cnt = Number(r.cnt) || 0;
+      acc.total += cnt;
+      if (r.status === 'completed' || r.status === 'cancelled') acc.done += cnt;
+      else acc.pending += cnt;
+      out.set(r.campaign_uid, acc);
+    }
+    return out;
+  }
+
+  /**
+   * Agentless campaigns must not end on a queue and operator-backed modes must
+   * reach one, otherwise the pacer would reserve agents nobody hands calls to.
+   */
+  private assertScenario(
+    dialMode: string,
+    queueNames: string[] | undefined,
+    actions: unknown[] | undefined,
+  ): void {
+    const list = (Array.isArray(actions) ? actions : []) as IRouteAction[];
+    const hasQueue = list.some((a) => a?.type === 'toqueue');
+    if (dialMode === 'agentless') {
+      if (hasQueue) {
+        throw new BadRequestException({
+          code: 'AC_AGENTLESS_QUEUE',
+          message: 'Agentless campaign scenario must not contain a toqueue step',
+        });
+      }
+      return;
+    }
+    if (list.length && !hasQueue) {
+      throw new BadRequestException({
+        code: 'AC_NO_QUEUE_STEP',
+        message: `${dialMode} campaign scenario must end with a toqueue step`,
+      });
+    }
+    if (hasQueue && !queueNames?.length) {
+      const inlineQueue = list.some(
+        (a) => a?.type === 'toqueue' && !!(a.params as Record<string, unknown>)?.queue,
+      );
+      if (!inlineQueue) {
+        throw new BadRequestException({
+          code: 'AC_NO_QUEUE',
+          message: 'Select at least one queue for the campaign',
+        });
+      }
+    }
+  }
+
+  private toDto(
+    row: AcCampaign,
+    schedules: IAutodialSchedule[],
+    counters?: { total: number; pending: number; done: number },
+  ): IAutodialCampaign & { schedules: IAutodialSchedule[] } {
+    return {
+      uid: row.uid,
+      user_uid: row.user_uid,
+      name: row.name,
+      status: row.status,
+      dial_mode: row.dial_mode,
+      base_uid: row.base_uid,
+      pacing: row.pacing,
+      retry: row.retry,
+      trunk_pool: row.trunk_pool,
+      cid_policy: row.cid_policy,
+      queue_names: row.queue_names ?? [],
+      scenario_actions: row.scenario_actions ?? [],
+      amd: row.amd,
+      success_min_sec: row.success_min_sec,
+      dial_timeout_sec: row.dial_timeout_sec,
+      revision: row.revision,
+      tasks_total: counters?.total ?? 0,
+      tasks_pending: counters?.pending ?? 0,
+      tasks_done: counters?.done ?? 0,
+      schedules,
+      created_at: row.created_at?.toISOString(),
+      updated_at: row.updated_at?.toISOString(),
+    };
+  }
+}
+
+/** Exported for the pacer: dispositions that never get re-dialed automatically. */
+export function isTerminalDisposition(d: AutodialDisposition): boolean {
+  return AUTODIAL_TERMINAL_DISPOSITIONS.includes(d);
+}

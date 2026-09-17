@@ -75,6 +75,7 @@ export function callValueSourceExpr(source: CallValueSource): string {
     case 'route_pattern':
       return '${EXTEN}';
     case 'variable':
+    case 'autodial_field':
       return `\${${sanitizeVariableName(source.name)}}`;
     case 'original_caller':
       return '${KRSK_ORIG_CALLER_NUM}';

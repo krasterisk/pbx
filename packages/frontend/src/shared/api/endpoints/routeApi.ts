@@ -29,6 +29,7 @@ export interface IUpdateRoute {
 }
 
 const routeApi = rtkApi.injectEndpoints({
+  overrideExisting: import.meta.hot != null,
   endpoints: (builder) => ({
     getAllRoutes: builder.query<IRoute[], void>({
       query: () => '/routes',

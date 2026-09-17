@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type PointerEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'react-toastify';
 import {
   DndContext,
   PointerSensor,
@@ -9,7 +10,6 @@ import {
   useSensors,
   useDraggable,
   useDroppable,
-  closestCenter,
   type DragEndEvent,
   type DragStartEvent,
 } from '@dnd-kit/core';
@@ -22,9 +22,9 @@ import {
   DialogTitle,
   DialogFooter,
   Button,
-  Text,
 } from '@/shared/ui';
 import {
+  useSupervisorReconcileQueuesMutation,
   useSupervisorQueueAddMutation,
   useSupervisorQueueRemoveMutation,
   useSupervisorQueuePenaltyMutation,
@@ -32,12 +32,27 @@ import {
 import { useGetQueuesQuery } from '@/shared/api/endpoints/queueApi';
 import { selectCcQueues, selectCcAgents } from '@/features/callcenter/model/selectors/callCenterSelectors';
 import { updateAgent } from '@/features/callcenter/model/slice/callCenterSlice';
-import { queueDisplayName, queueNumberFromName, agentLabelWithExt } from '@/features/callcenter/lib/displayLabels';
+import { queueNumberFromName, agentLabelWithExt } from '@/features/callcenter/lib/displayLabels';
+import {
+  DROP_AVAILABLE,
+  DROP_IN,
+  dialogSafeCollision,
+  isAlreadyQueueMemberError,
+  queueConfirmLabel,
+  resolveQueueDragAction,
+} from '@/features/callcenter/lib/queueManagement';
 import type { IAgent } from '@/features/callcenter/model/types/callCenterSchema';
 import styles from './QueueManagementModal.module.scss';
 
-const DROP_IN = 'drop-in-queue';
-const DROP_AVAILABLE = 'drop-available';
+function stopCardDrag(e: PointerEvent<HTMLElement>) {
+  e.stopPropagation();
+}
+
+function mutationErrorMessage(err: unknown, fallback: string): string {
+  const data = err as { data?: { message?: unknown }; message?: unknown };
+  const message = data?.data?.message ?? data?.message;
+  return typeof message === 'string' && message.trim() ? message : fallback;
+}
 
 export interface QueueManagementModalProps {
   agent: IAgent | null;
@@ -67,11 +82,7 @@ function isQueueAllowed(queueName: string, exten: string | undefined, allowed: S
 }
 
 function queueLabel(q: QueueRow, catalog: QueueRow[]): string {
-  return queueDisplayName(q.name, catalog.map((x) => ({
-    name: x.name,
-    displayName: x.displayName,
-    exten: x.exten,
-  })));
+  return queueConfirmLabel(q.name, catalog);
 }
 
 interface QueueCardProps {
@@ -138,14 +149,34 @@ function QueueCard({
           />
         </div>
       )}
-      <div className={styles.cardActions}>
+      <div className={styles.cardActions} onPointerDown={stopCardDrag}>
         {mode === 'available' ? (
-          <Button type="button" variant="outline" size="sm" onClick={onAdd} title={addLabel}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onPointerDown={stopCardDrag}
+            onClick={(e) => {
+              e.stopPropagation();
+              onAdd?.();
+            }}
+            title={addLabel}
+          >
             <Plus className="w-3.5 h-3.5" />
             <span className={styles.actionText}>{addLabel}</span>
           </Button>
         ) : (
-          <Button type="button" variant="outline" size="sm" onClick={onRemove} title={removeLabel}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onPointerDown={stopCardDrag}
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemove?.();
+            }}
+            title={removeLabel}
+          >
             <Minus className="w-3.5 h-3.5" />
             <span className={styles.actionText}>{removeLabel}</span>
           </Button>
@@ -166,7 +197,11 @@ interface DropColumnProps {
 function DropColumn({ id, title, children, empty, hasItems }: DropColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id });
   return (
-    <div ref={setNodeRef} className={`${styles.column} ${isOver ? styles.columnOver : ''}`}>
+    <div
+      ref={setNodeRef}
+      data-drop-id={id}
+      className={`${styles.column} ${isOver ? styles.columnOver : ''}`}
+    >
       <div className={styles.columnTitle}>{title}</div>
       <div className={styles.list}>
         {hasItems ? children : <div className={styles.empty}>{empty}</div>}
@@ -236,17 +271,21 @@ export function QueueManagementModal({
   // Parent often holds a stale snapshot from open time.
   const agent = useMemo(() => {
     if (!agentProp) return null;
-    const live = liveAgents.find((a) => a.interface === agentProp.interface);
+    const live = liveAgents.find((a) => a.interface === agentProp.interface)
+      || (agentProp.userId > 0
+        ? liveAgents.find((a) => a.userId === agentProp.userId && !/^user:/i.test(a.interface))
+        : undefined);
     return live ?? agentProp;
   }, [agentProp, liveAgents]);
   // Catalog from DB — same source as ShiftLoginModal (not only live AMI snapshot).
   const { data: dbQueues = [] } = useGetQueuesQuery(undefined, { skip: !open });
+  const [reconcileQueues] = useSupervisorReconcileQueuesMutation();
   const [supervisorQueueAdd] = useSupervisorQueueAddMutation();
   const [supervisorQueueRemove] = useSupervisorQueueRemoveMutation();
   const [supervisorQueuePenalty] = useSupervisorQueuePenaltyMutation();
 
+  const [membershipReady, setMembershipReady] = useState(false);
   const [penalties, setPenalties] = useState<Record<string, number>>({});
-  const [removeTarget, setRemoveTarget] = useState<string | null>(null);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [grabOffset, setGrabOffset] = useState({ x: 0, y: 0 });
   const [pointerPos, setPointerPos] = useState({ x: 0, y: 0 });
@@ -311,9 +350,35 @@ export function QueueManagementModal({
       next[q] = penalties[q] ?? 0;
     }
     setPenalties(next);
-    setRemoveTarget(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, agent?.interface]);
+
+  useEffect(() => {
+    if (!open || !agentProp) {
+      setMembershipReady(false);
+      return;
+    }
+    let cancelled = false;
+    setMembershipReady(false);
+    void (async () => {
+      try {
+        const res = await reconcileQueues({ agentInterface: agentProp.interface }).unwrap();
+        if (cancelled) return;
+        if (res.queues) {
+          dispatch(updateAgent({
+            interface: res.interface || agentProp.interface,
+            queues: res.queues,
+            queuesDetached: false,
+          }));
+        }
+      } catch {
+        /* keep last known lists */
+      } finally {
+        if (!cancelled) setMembershipReady(true);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [open, agentProp, dispatch, reconcileQueues]);
 
   const inQueue = useMemo(() => {
     if (!agent) return [];
@@ -329,34 +394,64 @@ export function QueueManagementModal({
 
   const handleAdd = useCallback(async (queue: string) => {
     if (!agent) return;
-    const penalty = penalties[queue] ?? 0;
-    await supervisorQueueAdd({
-      agentInterface: agent.interface,
-      queue,
-      penalty,
-    }).unwrap();
-    // Optimistic / SSE may be on another tenant than the supervisor JWT.
-    const queues = agent.queues.includes(queue) ? agent.queues : [...agent.queues, queue];
+    const previous = agent.queues ?? [];
+    if (previous.includes(queue)) return;
+    const queues = [...previous, queue];
     dispatch(updateAgent({
       interface: agent.interface,
       queues,
       queuesDetached: false,
     }));
-  }, [agent, dispatch, penalties, supervisorQueueAdd]);
+    try {
+      const res = await supervisorQueueAdd({
+        agentInterface: agent.interface,
+        queue,
+        penalty: penalties[queue] ?? 0,
+      }).unwrap();
+      if (res.queues) {
+        dispatch(updateAgent({
+          interface: agent.interface,
+          queues: res.queues,
+          queuesDetached: false,
+        }));
+      }
+    } catch (err: unknown) {
+      if (isAlreadyQueueMemberError(err)) return;
+      dispatch(updateAgent({ interface: agent.interface, queues: previous }));
+      toast.error(mutationErrorMessage(
+        err,
+        t('callcenter.supervisor.queueMgmt.addFailed', 'Failed to add to queue'),
+      ));
+    }
+  }, [agent, dispatch, penalties, supervisorQueueAdd, t]);
 
-  const handleRemoveConfirm = useCallback(async () => {
-    if (!agent || !removeTarget) return;
-    const queue = removeTarget;
-    await supervisorQueueRemove({
-      agentInterface: agent.interface,
-      queue,
-    }).unwrap();
+  const handleRemove = useCallback(async (queue: string) => {
+    if (!agent) return;
+    const previous = agent.queues ?? [];
+    if (!previous.includes(queue)) return;
     dispatch(updateAgent({
       interface: agent.interface,
-      queues: agent.queues.filter((q) => q !== queue),
+      queues: previous.filter((q) => q !== queue),
     }));
-    setRemoveTarget(null);
-  }, [agent, dispatch, removeTarget, supervisorQueueRemove]);
+    try {
+      const res = await supervisorQueueRemove({
+        agentInterface: agent.interface,
+        queue,
+      }).unwrap();
+      if (res.queues) {
+        dispatch(updateAgent({
+          interface: agent.interface,
+          queues: res.queues,
+        }));
+      }
+    } catch (err: unknown) {
+      dispatch(updateAgent({ interface: agent.interface, queues: previous }));
+      toast.error(mutationErrorMessage(
+        err,
+        t('callcenter.supervisor.queueMgmt.removeFailed', 'Failed to remove from queue'),
+      ));
+    }
+  }, [agent, dispatch, supervisorQueueRemove, t]);
 
   const handlePenaltyCommit = useCallback(async (queue: string, penalty: number) => {
     if (!agent) return;
@@ -394,19 +489,23 @@ export function QueueManagementModal({
 
   const handleDragEnd = useCallback(async (e: DragEndEvent) => {
     clearDrag();
-    if (!agent || !e.over) return;
+    if (!agent) return;
     const queue = String(e.active.id);
     const fromMode = (e.active.data.current as { mode?: 'in' | 'available' } | undefined)?.mode;
-    const overId = String(e.over.id);
-
-    if (fromMode === 'available' && (overId === DROP_IN || inQueue.some((q) => q.name === overId))) {
+    const action = resolveQueueDragAction(
+      fromMode,
+      e.over ? String(e.over.id) : null,
+      inQueue.map((q) => q.name),
+      available.map((q) => q.name),
+    );
+    if (action === 'add') {
       await handleAdd(queue);
       return;
     }
-    if (fromMode === 'in' && (overId === DROP_AVAILABLE || available.some((q) => q.name === overId))) {
-      setRemoveTarget(queue);
+    if (action === 'remove') {
+      await handleRemove(queue);
     }
-  }, [agent, available, clearDrag, handleAdd, inQueue]);
+  }, [agent, available, clearDrag, handleAdd, handleRemove, inQueue]);
 
   const activeQueue = useMemo(
     () => catalog.find((q) => q.name === activeDragId) ?? null,
@@ -414,8 +513,7 @@ export function QueueManagementModal({
   );
 
   return (
-    <>
-      <Dialog open={open && !!agent} onOpenChange={(v) => { if (!v) onClose(); }}>
+    <Dialog open={open && !!agent} onOpenChange={(v) => { if (!v) onClose(); }}>
         <DialogContent size="large" className={styles.dialog}>
           <DialogHeader className={styles.dialogHeader}>
             <DialogTitle>
@@ -426,9 +524,14 @@ export function QueueManagementModal({
           </DialogHeader>
 
           <div className={styles.body}>
+            {!membershipReady ? (
+              <div className={styles.empty}>
+                {t('callcenter.supervisor.queueMgmt.loading', 'Loading queue membership…')}
+              </div>
+            ) : (
             <DndContext
               sensors={sensors}
-              collisionDetection={closestCenter}
+              collisionDetection={dialogSafeCollision}
               onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
               onDragCancel={clearDrag}
@@ -449,7 +552,7 @@ export function QueueManagementModal({
                       penalty={penalties[q.name] ?? 0}
                       onPenaltyChange={(v) => setPenalties((prev) => ({ ...prev, [q.name]: v }))}
                       onPenaltyCommit={(v) => handlePenaltyCommit(q.name, v)}
-                      onRemove={() => setRemoveTarget(q.name)}
+                      onRemove={() => handleRemove(q.name)}
                       addLabel={t('callcenter.supervisor.queueMgmt.add', 'Add')}
                       removeLabel={t('callcenter.supervisor.queueMgmt.remove', 'Remove')}
                       penaltyLabel={t('callcenter.supervisor.queueMgmt.penalty', 'Penalty')}
@@ -478,6 +581,7 @@ export function QueueManagementModal({
                 </DropColumn>
               </div>
             </DndContext>
+            )}
           </div>
 
           {activeQueue ? (
@@ -490,36 +594,10 @@ export function QueueManagementModal({
 
           <DialogFooter className={styles.dialogFooter}>
             <Button variant="outline" onClick={onClose}>
-              {t('callcenter.supervisor.cancel', 'Cancel')}
+              {t('callcenter.supervisor.queueMgmt.close', 'Close')}
             </Button>
           </DialogFooter>
         </DialogContent>
-      </Dialog>
-
-      <Dialog open={!!removeTarget} onOpenChange={(v) => { if (!v) setRemoveTarget(null); }}>
-        <DialogContent size="default">
-          <DialogHeader>
-            <DialogTitle>
-              {t('callcenter.supervisor.queueMgmt.confirmRemoveTitle', 'Remove from queue?')}
-            </DialogTitle>
-          </DialogHeader>
-          <Text>
-            {t(
-              'callcenter.supervisor.queueMgmt.confirmRemoveBody',
-              'Remove {{name}} from queue {{queue}}?',
-              { name: agent ? agentLabelWithExt(agent) : '', queue: removeTarget ?? '' },
-            )}
-          </Text>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setRemoveTarget(null)}>
-              {t('callcenter.supervisor.cancel', 'Cancel')}
-            </Button>
-            <Button variant="destructive" onClick={handleRemoveConfirm}>
-              {t('callcenter.supervisor.queueMgmt.remove', 'Remove')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
+    </Dialog>
   );
 }

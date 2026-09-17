@@ -10,6 +10,7 @@ export function voicemailPlayUrl(
 }
 
 export const voicemailApi = rtkApi.injectEndpoints({
+  overrideExisting: import.meta.hot != null,
   endpoints: (builder) => ({
     getVoicemailMessages: builder.query<IVoicemailMessage[], void>({
       query: () => '/voicemail',

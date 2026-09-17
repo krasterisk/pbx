@@ -74,6 +74,13 @@ export function detectTemplateSlots(actions: IRouteAction[]): SlotCandidate[] {
     }
 
     if (action.type === 'togroup') {
+      const target = params.target as { source?: string; value?: string; directoryUid?: number } | undefined;
+      if (target?.source === 'fixed') {
+        pushCandidate(out, action, 'group', ['target', 'value'], target.value);
+      }
+      if (target?.source === 'directory' && target.directoryUid) {
+        pushCandidate(out, action, 'directory', ['target', 'directoryUid'], target.directoryUid);
+      }
       pushCandidate(out, action, 'group', ['group'], params.group);
     }
 
@@ -86,10 +93,24 @@ export function detectTemplateSlots(actions: IRouteAction[]): SlotCandidate[] {
       const trunks = params.trunks;
       if (Array.isArray(trunks)) {
         trunks.forEach((row, index) => {
-          const trunk = (row as { trunk?: string; name?: string })?.trunk
-            ?? (row as { name?: string })?.name
-            ?? row;
-          pushCandidate(out, action, 'trunk', ['trunks', index, 'trunk'], trunk);
+          const item = row as {
+            trunkId?: string;
+            trunk?: string;
+            name?: string;
+            callerId?: { mode?: string; directoryUid?: number };
+          };
+          const trunk = item?.trunkId ?? item?.trunk ?? item?.name ?? row;
+          pushCandidate(out, action, 'trunk', ['trunks', index, 'trunkId'], trunk);
+          // pool CID is not a directory slot
+          if (item?.callerId?.mode === 'directory' && item.callerId.directoryUid) {
+            pushCandidate(
+              out,
+              action,
+              'directory',
+              ['trunks', index, 'callerId', 'directoryUid'],
+              item.callerId.directoryUid,
+            );
+          }
         });
       }
       const callerId = params.callerId as { mode?: string; directoryUid?: number } | undefined;

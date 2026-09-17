@@ -42,6 +42,7 @@ const CALL_VALUE_SOURCES = [
   'fixed',
   'route_pattern',
   'variable',
+  'autodial_field',
   'original_caller',
   'current_caller',
 ] as const;
@@ -135,14 +136,14 @@ export class IsCallValueSourceConstraint implements ValidatorConstraintInterface
     if (src.source === 'fixed') {
       return typeof src.value === 'string' && src.value.trim().length > 0 && src.name === undefined;
     }
-    if (src.source === 'variable') {
+    if (src.source === 'variable' || src.source === 'autodial_field') {
       return typeof src.name === 'string' && src.name.trim().length > 0 && src.value === undefined;
     }
     return src.value === undefined && src.name === undefined;
   }
 
   defaultMessage(): string {
-    return 'key_source must be fixed (non-empty value), route_pattern, variable (non-empty name), original_caller, or current_caller';
+    return 'key_source must be fixed (non-empty value), route_pattern, variable (non-empty name), autodial_field, original_caller, or current_caller';
   }
 }
 
@@ -155,7 +156,7 @@ export class CallValueSourceDto {
   @MinLength(1)
   value?: string;
 
-  @ValidateIf((o) => o.source === 'variable')
+  @ValidateIf((o) => o.source === 'variable' || o.source === 'autodial_field')
   @IsString()
   @MinLength(1)
   name?: string;

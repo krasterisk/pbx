@@ -21,7 +21,7 @@ export const ModuleHubMarketplaceCard = memo(function ModuleHubMarketplaceCard({
 }: ModuleHubMarketplaceCardProps) {
   const { t } = useTranslation();
   const Icon = row.pages[0]?.icon;
-  const name = row.catalogName || t(row.labelKey);
+  const name = t(row.labelKey);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const priceRub = resolveHubDisplayPrice(row.code);
 

@@ -1,9 +1,45 @@
+/* ─────────────────────────────────────────────────────
+   CdrReportPage — журнал звонков
+   Design tokens: var(--color-*) from globals.css @theme
+   ───────────────────────────────────────────────────── */
+
 .page {
+  flex: 1;
   min-width: 0;
   max-width: 100%;
 }
 
-.pageTitle {
+.header {
+  padding: 0 0.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.iconBadge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.625rem;
+  border-radius: var(--radius-xl);
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.titleBlock {
+  min-width: 0;
+}
+
+.title {
+  background: linear-gradient(
+    135deg,
+    var(--color-foreground),
+    color-mix(in srgb, var(--color-foreground) 70%, transparent)
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+
   @media (max-width: 640px) {
     font-size: 1.25rem;
   }
@@ -19,6 +55,35 @@
 .card {
   min-width: 0;
   max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 500px;
+}
+
+.cardHeader {
+  padding-bottom: 1rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 50%, transparent);
+  background: color-mix(in srgb, var(--color-muted) 20%, transparent);
+}
+
+.cardContent {
+  padding: 0;
+  flex: 1;
+  min-width: 0;
+}
+
+.tabsRow {
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.tabs {
+  flex-wrap: wrap;
+}
+
+.tabIcon {
+  margin-right: 0.5rem;
 }
 
 .filterBar {
@@ -26,14 +91,6 @@
   min-width: 0;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
-
-  @media (max-width: 640px) {
-    :global {
-      .flex {
-        flex-wrap: wrap;
-      }
-    }
-  }
 }
 
 .tableScroll {
@@ -41,6 +98,15 @@
   min-width: 0;
   -webkit-overflow-scrolling: touch;
   width: 100%;
+}
+
+.analytics {
+  padding: 1rem;
+  min-width: 0;
+}
+
+.vmEmpty {
+  padding: 1rem;
 }
 
 .vmTable {

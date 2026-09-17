@@ -1,0 +1,37 @@
+.tabs {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  width: 100%;
+}
+
+.formBody {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  padding-right: 0.25rem;
+}
+
+.footer {
+  flex-shrink: 0;
+  margin-top: 0;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.footerActions {
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+@media (max-width: 639px) {
+  .footerActions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

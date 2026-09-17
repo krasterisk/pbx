@@ -111,12 +111,20 @@ krasterisk_v4/
   4. Не полагаться только на `invalidatesTags` + refetch: это даёт заметную задержку бегунка до ответа сети.
   - Формы с локальным `useState` + явной кнопкой «Сохранить» уже «optimistic» на уровне UI — правило про RTK-patch к ним не применяется, пока toggle не биндится напрямую к query cache.
   - Эталон: `updateMyNotifications` / `updateMyUiCustomization` в `shared/api/endpoints/callCenterApi.ts`.
-- **Table row actions (MUST):** Колонка действий в `DataTable` / списках (edit / copy / delete) **обязана** использовать `TableRowActions` + `TableRowAction` из `@/shared/ui`.
-  - Нельзя: нативный `<button>` / Tailwind `hover:bg-white/5` / `hover:bg-accent` на иконках — фон кнопки сливается с hover строки, иконка «пропадает».
+- **Table row actions (MUST):** Колонка действий в `DataTable` / списках (edit / copy / delete) **обязана** использовать `TableRowActions` + `TableRowAction` из `@/shared/ui`. Тот же паттерн — на мобильных карточках строки (hybrid mobile-card).
+  - Нельзя: нативный `<button>` / `Button variant="ghost" size="icon"` + Tailwind `hover:bg-white/5` / `hover:bg-accent` / `className="h-8 w-8"` на иконках — фон кнопки сливается с hover строки, иконка «пропадает».
   - Визуал: muted иконка → на hover только смена цвета (`foreground` / `destructive` для `danger`), **без** заливки фона.
+  - Порядок, если есть копирование: **Edit → Copy → Delete**. Copy только `dispatch(openCopyModal)`, без прямого API.
   - Обязательны `title` и `aria-label`.
-  - Эталоны: `features/users/ui/UsersTable/useUsersTableColumns.tsx`, `features/routes/ui/RoutesTable/RoutesTable.tsx`.
+  - Lucide внутри `TableRowAction`: только `<Pencil />` / `<Copy />` / `<Trash2 />` **без** `className`, `size`, `text-primary`, `text-destructive`. Размер задаёт `TableRowActions.module.scss` (`svg { width: 1rem; height: 1rem }`). Цвет по умолчанию - muted; destructive **только** на hover у `danger`.
+  - **Запрещённые иконки edit:** `Edit2`, `FileEdit`, `SquarePen` - только `Pencil`.
+  - **Запрещённый цвет «сразу»:** `className="w-4 h-4 text-primary"` / `text-destructive` на иконке - иконка кричит до hover и расходится с каноном.
+  - **Запрещённый hover-фон:** `hover:bg-white/10` / `hover:bg-white/5` / `hover:bg-destructive/10` / `hover:bg-accent` на кнопке действия.
+  - Copy **не обязателен**: кнопка есть только если в slice есть `openCopyModal` (эталон без Copy - `ContextsTable`). Иначе только Edit + Delete.
+  - Не дублировать `.actionBtn` в feature SCSS.
+  - Эталоны: `features/contexts/ui/ContextsTable/useContextsTableColumns.tsx`, `features/trunks/ui/TrunksTable/useTrunksTableColumns.tsx`, `features/users/ui/UsersTable/useUsersTableColumns.tsx`, `features/routes/ui/RoutesTable/RoutesTable.tsx`.
   - Компонент: `shared/ui/TableRowActions`.
+  - Полный канон страницы + таблицы: см. «Паттерн страницы списка и таблицы» ниже.
 - **Focus ring inset (MUST):** обводка фокуса у полей ввода **обязана** рисоваться **внутри** рамки (`ring-inset`). Контейнеры модалок (`DialogContent size="large"` → `overflow: hidden`) и тело со скроллом (`.scrollBody` / `.formBody` → `overflow-y: auto`) **обрезают** внешний ring / `box-shadow` - слева/сверху «пропадает» половина выделения.
   - Tailwind: `focus:outline-none focus:ring-2 focus:ring-inset focus:ring-ring focus:border-transparent` (для обёрток вроде `TagInput` - `focus-within:…`).
   - Запрещено: `focus:ring-1` / `focus-within:ring-1` без `ring-inset`, внешний `box-shadow: 0 0 0 2px` на контроле внутри скролла.
@@ -124,11 +132,14 @@ krasterisk_v4/
 
 ```tsx
 import { TableRowActions, TableRowAction } from '@/shared/ui';
-import { Pencil, Trash2 } from 'lucide-react';
+import { Pencil, Copy, Trash2 } from 'lucide-react';
 
 <TableRowActions>
   <TableRowAction title={t('common.edit')} aria-label={t('common.edit')} onClick={onEdit}>
     <Pencil />
+  </TableRowAction>
+  <TableRowAction title={t('common.copy')} aria-label={t('common.copy')} onClick={onCopy}>
+    <Copy />
   </TableRowAction>
   <TableRowAction danger title={t('common.delete')} aria-label={t('common.delete')} onClick={onDelete}>
     <Trash2 />
@@ -281,7 +292,7 @@ import { Pencil, Trash2 } from 'lucide-react';
 ---
 
 - **Локализация:** Все текстовые строки должны выводиться через хук `useTranslation()`. **Важно:** нельзя просто добавлять i18n ключи в JSX — разработчик обязан убедиться в наличии словарей (namespaces). Если словаря или ключей нет в `shared/config/locales/` (как `ru.ts`, так и `en.ts`), их необходимо создать и добавить переводы для **всех поддерживаемых языков**. Хардкод текста в вызовах `t()` как фоллбэк разрешен только временно, окончательный маппинг в словарях — обязателен.
-- **Иконки:** Использование эмодзи-иконок (🎲, ☎, 📊 и т.д.) в UI **строго запрещено**. Для иконографии использовать только SVG-иконки из `lucide-react` или собственные SVG-ассеты, размещённые в `shared/assets/`. Это обеспечивает консистентность, масштабируемость и одинаковый вид на всех платформах.
+- **Иконки:** Использование эмодзи-иконок (🎲, ☎, 📊 и т.д.) в UI **строго запрещено**. Для иконографии использовать только SVG-иконки из `lucide-react` или собственные SVG-ассеты, размещённые в `shared/assets/`. Это обеспечивает консистентность, масштабируемость и одинаковый вид на всех платформах. В `features/` / `pages/` размер и цвет — проп `size` + SCSS (не Tailwind `w-4 h-4 text-primary`). В `TableRowAction` иконка без `className` (см. «Паттерн страницы списка и таблицы»).
 - **Типографика (тире):** Использование длинного тире `—` (em dash, U+2014) в UI-текстах, placeholder-ах, option-ах и fallback-строках `t()` **строго запрещено**. Вместо него используется обычный дефис-минус `-` или запятая. Примеры: `'Выберите действие'` вместо `'— Выберите действие —'`; `'16 - Normal Clearing'` вместо `'16 — Normal Clearing'`. В JSDoc-комментариях допускается.
 - **Адаптивность (Responsive Design):** Все компоненты **обязаны** корректно отображаться на экранах от 360px (мобильный) до 2560px (десктоп). Адаптивность не опция, а архитектурное требование, проверяемое на этапе ревью.
 
@@ -430,6 +441,84 @@ import { Pencil, Trash2 } from 'lucide-react';
 
 **❌ Запрещено:** растягивать модалку выше viewport без внутреннего скролла; прятать Cancel/Save/Close за краем экрана; скроллить весь `DialogContent` целиком (крестик и футер уезжают).
 
+##### 1.1. Статичная высота оболочки (MUST)
+
+Оболочка `DialogContent` **не меняет высоту** из-за смены контента. Меняется только скролл внутри `formBody` / `scrollBody`. Иначе при смене вкладки, loading → форма, ошибке валидации, раскрытии секции или «добавить строку» окно прыгает, футер едет, пользователь теряет фокус.
+
+Это тот же принцип, что reserved-слот bulk-кнопки в тулбаре таблицы: место в оболочке зарезервировано заранее.
+
+| Тип модалки | Высота оболочки |
+|-------------|-----------------|
+| **Крупная / с табами / переменный контент** (кампания, импорт, схема полей, IVR, endpoint) | Обязательно `DialogContent size="large"` - это `h-[85vh]`, на мобиле `h-[90dvh]`, `overflow: hidden`, `min-h-0`. Ширину можно сузить своим SCSS (`max-width: min(…, calc(100vw - 1rem))`), **высоту не переопределять**. |
+| **Компактная форма** со **стабильным** набором полей (эталон `UserFormModal`) | Hug-контент + `max-height: min(90vh, 90dvh)`. Если появятся табы, список «добавить строку», wizard-шаги разной длины или loading другой высоты - перейти на `size="large"`. |
+
+```tsx
+<DialogContent size="large" className={cls.dialog}>
+  <DialogHeader className={cls.header}>{/* shrink-0 */}</DialogHeader>
+  <Tabs className={cls.tabs}>
+    <TabsList />
+    <div className={cls.formBody}>{/* единственный скролл */}</div>
+  </Tabs>
+  <DialogFooter className={cls.footer}>{/* shrink-0, всегда виден */}</DialogFooter>
+</DialogContent>
+```
+
+```scss
+.dialog {
+  /* только ширина; высоту задаёт size="large" */
+  max-width: min(58rem, calc(100vw - 1rem));
+  width: 100%;
+  gap: 0;
+}
+
+.header,
+.footer {
+  flex-shrink: 0;
+}
+
+.tabs {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  width: 100%;
+}
+
+.formBody /* или .scrollBody / .body */ {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+}
+
+.footer {
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-border);
+}
+```
+
+**Запрещено:**
+
+- `max-height` только у тела, пока оболочка `height: auto` (короткая вкладка сжимает окно, длинная растягивает до порога - классический «скачок»).
+- Разный вертикальный размер loading и формы: спиннер **обязан** занимать тот же flex-слот, что и `formBody` (`flex: 1; min-height: 0`), не `padding: 3rem` на hug-блоке.
+- `min-height` в px больше мобильного viewport (`min-h-[600px]`). Pin - только `size="large"` (`85vh` / `90dvh`).
+- Анимация `height` / `min-height` у `DialogContent`.
+- Переопределять `height` / `min-height` фичевым SCSS так, что ломается мобильный `90dvh`.
+
+**Адаптив модалки (MUST, в дополнение к общим брейкпоинтам):**
+
+1. Оболочка `large` уже даёт `max-sm:h-[90dvh]` + `max-sm:max-w-[calc(100vw-1rem)]` + `max-sm:p-4`. Не добавлять `h-[100vh]` без `dvh` и не ставить ширину `calc(100vw - 2rem)` без `max-width: min(…)`.
+2. Ряд табов - горизонтальный скролл (`overflow-x: auto`), без переноса кнопок на две строки (это тоже прыжок высоты). Эталон: `shared/ui/Tabs`.
+3. Сетки полей (`1fr 1fr`, row из 4-6 колонок) на `max-width: 640px` - **одна** колонка (`1fr`), не оставлять `1fr 1fr` «на планшете» как финальный мобильный слой.
+4. Ряды «инпут + узкое поле + чекбокс + actions» (`HStack`) - `wrap="wrap"` и на 640px `flex-direction: column; align-items: stretch`; фиксированные `width: 8rem` получают `width: 100%`.
+5. Footer-кнопки на 640px - на всю ширину (`flex-direction: column; align-items: stretch`). `DialogFooter` уже `flex-col-reverse` на `max-sm`.
+6. Таблица внутри модалки - обёртка `overflow-x: auto` + `min-width: 0` (горизонтальный скролл только у таблицы, не у страницы и не у оболочки).
+
+Эталоны pin-высоты: `DialogContent size="large"` (`shared/ui/Dialog`), `features/endpoints/ui/EndpointFormModal`, `features/ivrs/ui/IvrFormModal`.  
+Эталон компактной hug-формы: `features/users/ui/UserFormModal`.
+
 ##### 2. Поля формы
 
 - Поле = `<VStack gap="8" max className={styles.field}>` → `Label` + контрол (`Input` / `Select` / `PasswordInput`).
@@ -558,6 +647,317 @@ import { Pencil, Trash2 } from 'lucide-react';
 
 - **Табы в модалках:** Если форма сложная (>150 строк или сложная логика), она декомпозируется на «умный» родитель-модалку и дочерние компоненты-вкладки (напр. `[Feature]GeneralTab.tsx`, `[Feature]PromptsTab.tsx`).
 - **Table row actions:** Колонка иконок действий в таблицах — только `TableRowActions` / `TableRowAction` (см. MUST выше в «Дизайн-система и Стандарты»). Не дублировать `.actionBtn` в feature SCSS.
+
+#### Паттерн страницы списка и таблицы (MUST)
+
+**Эталоны страницы:** `pages/ContextsPage/`, `features/trunks/ui/TrunksPage/`, `pages/DirectoriesPage/`, `pages/MohPage/`, `pages/IvrsPage/`.  
+**Эталоны таблицы:** `features/contexts/ui/ContextsTable/`, `features/trunks/ui/TrunksTable/`, `features/directories/ui/DirectoriesTable/`.
+
+Новые и рефакторимые CRUD-списки (заголовок + CTA + таблица + модалка) **обязаны** следовать этой композиции. Не копировать legacy `UsersPage` / `EndpointsPage` / `QueuesPage` (Tailwind + `h1` + `motion.div`).
+
+##### 1. Состав папки компонента
+
+Каждый UI-компонент (`[Name]Page`, `[Name]Table`, модалка):
+
+| Файл | Назначение |
+|------|------------|
+| `[Name].tsx` | разметка и логика |
+| `[Name].module.scss` | стили на `var(--color-*)` / `var(--radius-*)` / `color-mix()` |
+| `index.ts` | Public API (`export { Name } from './Name'`) |
+| `[Name].test.tsx` | интеграционный тест (обязателен для features / widgets) |
+
+Импорт снаружи — из папки (`@/features/trunks/ui/TrunksPage`), не из файла `.tsx`. Роутер и `pages/` тонкие оркестраторы: без бизнес-логики, без Tailwind.
+
+##### 2. Страница списка — оболочка
+
+```tsx
+<VStack gap="24" max className={cls.page} data-testid="…-page-responsive">
+  <Flex justify="between" align="center" className={cls.header} max>
+    <HStack gap="12" align="center">
+      <Flex align="center" justify="center" className={cls.iconBadge}>
+        <Cable size={24} />
+      </Flex>
+      <VStack gap="4" className={cls.titleBlock}>
+        <Text variant="h1" as="h1" className={cls.title}>{t('trunks.title')}</Text>
+        <Text variant="muted">{t('trunks.subtitle')}</Text>
+      </VStack>
+    </HStack>
+    <Button className={cls.createBtn} onClick={() => dispatch(actions.openCreateModal())}>
+      <Plus size={16} className={cls.createBtnIcon} />
+      <Text as="span">{t('trunks.addTrunk')}</Text>
+    </Button>
+  </Flex>
+
+  <Flex direction="column" align="stretch" max className={cls.tableWrap}>
+    <FeatureTable />
+  </Flex>
+
+  <FeatureFormModal />
+</VStack>
+```
+
+**Обязательно:**
+
+- Текст только через `<Text>` (не `h1` / `p` / `span`).
+- Lucide: проп `size={24}` / `size={16}`, не Tailwind `className="w-7 h-7 text-primary"`.
+- CTA: `Plus` + `Text as="span"`; на `max-width: 640px` кнопка `width: 100%` (`.createBtn`).
+- Шапка: `flex-wrap` + `@media (max-width: 640px) { flex-direction: column; align-items: stretch; }`.
+- Без `motion.div` и нативного `div` в `features/` / `pages/`. Анимация — в `shared/ui`, если понадобится обёртка.
+- Ключи i18n (`title`, `subtitle`, CTA) есть в `ru.ts` и `en.ts`. Fallback в `t()` не заменяет словари.
+
+**Шапка (SCSS):** indigo badge + градиентный title + тень CTA (как Moh / Directories / Trunks):
+
+```scss
+.page { flex: 1; min-width: 0; max-width: 100%; }
+
+.header {
+  padding: 0 0.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+  @media (max-width: 640px) { flex-direction: column; align-items: stretch; }
+}
+
+.iconBadge {
+  padding: 0.625rem;
+  border-radius: var(--radius-xl);
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.title {
+  background: linear-gradient(135deg, var(--color-foreground), color-mix(in srgb, var(--color-foreground) 70%, transparent));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.createBtn {
+  box-shadow: 0 10px 15px color-mix(in srgb, var(--color-primary) 20%, transparent);
+  @media (max-width: 640px) { width: 100%; }
+}
+
+.createBtnIcon { margin-right: 0.5rem; }
+```
+
+##### 3. Таблица на 100% ширины (MUST)
+
+`VStack` / `Flex` по умолчанию `align="center"` — ребёнок сжимается по контенту, карточка «плавает» слева. Это **запрещено** для списка.
+
+```tsx
+<Flex direction="column" align="stretch" max className={cls.tableWrap}>
+  <FeatureTable />
+</Flex>
+```
+
+```scss
+.tableWrap {
+  width: 100%;
+  min-width: 0;
+  align-self: stretch;
+
+  > * {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+.card,
+.table,
+.tableScroll {
+  width: 100%;
+  min-width: 0;
+}
+```
+
+`DataTable` / `Card` внутри таблицы тоже получают `className` на 100%. Не полагаться на Tailwind `w-full` в слое features.
+
+**Двойной Card запрещён:** если `[Name]Table` уже рендерит `Card` (тулбар + таблица), страница **не** оборачивает таблицу во второй `Card` / `CardHeader`. Glass-card на странице (эталон Moh / Directories) — только когда таблица сама карточку не рисует.
+
+##### 4. Канон `[Name]Table`
+
+- Стили ячеек, бейджей, статуса, поиска, тулбара, mobile-card — **только** в `[Name]Table.module.scss` (токены, не Tailwind `text-primary` / `bg-emerald-400` / `font-mono`).
+- Текст в ячейках — `<Text>` / `<Text as="span">`, не сырой `<span>`.
+- Поиск: иконка `Search` позиционируется в SCSS (`position: absolute` + `ring-inset` на `Input`), не `className="absolute left-3 …"`.
+- Тулбар: Stack + SCSS. На десктопе `flex-wrap: nowrap` + `min-height: 2.25rem` — выбор строк не меняет высоту шапки. Wrap и полная ширина поиска — только на `max-width: 640px`.
+- Массовое выделение и удаление — **обязательны** для CRUD-списков (см. §4.2). Кнопка bulk-delete **не монтируется по условию** — слот всегда в потоке, иначе таблица «скачет».
+- Loading: `Loader2` + `@keyframes spin` в модуле, не `animate-spin`.
+- Hybrid (D-29): desktop — `data-hybrid="overflow-x-auto"` + `.tableScroll { overflow-x: auto }`; phone — карточки `data-hybrid="mobile-card"`. Тест проверяет `data-testid` / `data-hybrid`, не Tailwind-класс `overflow-x-auto`.
+- Row-actions на desktop **и** на mobile-card — только `TableRowActions` (см. MUST выше и §4.1).
+- Колонки выносить в `use[Name]TableColumns.tsx`, общие классы импортировать из `[Name]Table.module.scss`.
+- Тест колонки действий проверяет `title` + `aria-label` у кнопок (эталон: `ContextsTable.test.tsx`).
+
+**Запрещено в таблице features:**
+
+- `motion.div`, нативные `div` / `span` / `button` (кроме исключения scroll-обёртки, если Stack ломает ширину).
+- Tailwind в JSX (`flex-col sm:flex-row`, `w-4 h-4`, `hover:bg-white/5`, `text-xs text-emerald-400`).
+- Кастомные icon-кнопки вместо `TableRowAction`.
+
+##### 4.1. Иконки таблицы (MUST)
+
+Один набор иконок на все CRUD-таблицы. Не изобретать локальный стиль «цветная иконка + заливка на hover».
+
+| Действие | Иконка | Компонент | Когда |
+|----------|--------|-----------|--------|
+| Edit | `Pencil` | `TableRowAction` | всегда |
+| Copy | `Copy` | `TableRowAction` | только если есть `openCopyModal` |
+| Delete | `Trash2` | `TableRowAction danger` | всегда |
+| Тулбар (сущность) | иконка модуля (`Network`, `Cable`, …) | `size={20}` + `.toolbarIcon` | счётчик строк |
+| Поиск | `Search` | `size={16}` + `.searchIcon` (absolute в SCSS) | поле фильтра |
+| Bulk delete / loading | `Trash2` / `Loader2` | `size={16}` / `size={24}` + `.spinner` | CTA тулбара |
+
+```tsx
+// ✅ канон (есть Copy)
+<TableRowActions>
+  <TableRowAction title={t('common.edit')} aria-label={t('common.edit')} onClick={onEdit}>
+    <Pencil />
+  </TableRowAction>
+  <TableRowAction title={t('common.copy')} aria-label={t('common.copy')} onClick={onCopy}>
+    <Copy />
+  </TableRowAction>
+  <TableRowAction danger title={t('common.delete')} aria-label={t('common.delete')} onClick={onDelete}>
+    <Trash2 />
+  </TableRowAction>
+</TableRowActions>
+
+// ✅ канон без Copy (Contexts и другие модули без modalMode: 'copy')
+<TableRowActions>
+  <TableRowAction title={t('common.edit')} aria-label={t('common.edit')} onClick={onEdit}>
+    <Pencil />
+  </TableRowAction>
+  <TableRowAction danger title={t('common.delete')} aria-label={t('common.delete')} onClick={onDelete}>
+    <Trash2 />
+  </TableRowAction>
+</TableRowActions>
+```
+
+```tsx
+// ❌ так было в Contexts / ProvisionTemplates - не копировать
+<Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-white/10">
+  <Edit2 className="w-4 h-4 text-primary" />
+</Button>
+<Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10">
+  <Trash2 className="w-4 h-4 text-destructive" />
+</Button>
+```
+
+Тулбар (цвет иконки - только SCSS, не Tailwind `text-primary`):
+
+```tsx
+<Network size={20} className={cls.toolbarIcon} />
+<Search size={16} className={cls.searchIcon} />
+```
+
+```scss
+.toolbarIcon {
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-muted-foreground);
+  pointer-events: none;
+}
+```
+
+##### 4.2. Массовое выделение и удаление (MUST)
+
+Каждый CRUD-список (`DataTable` в `[Name]Table`) **обязан** уметь выделить несколько строк и удалить их одной кнопкой в тулбаре.
+
+| Что | Как |
+|-----|-----|
+| Чекбоксы | `selectable` + контролируемые `rowSelection` / `onRowSelectionChange` у `DataTable` |
+| API | bulk-mutation модуля (`useBulkDelete…Mutation`) + confirm через `t('[module].confirmBulkDelete')` |
+| CTA | `Button variant="destructive"` + `Trash2` / `Loader2` + `t('[module].deleteSelected', { count })` |
+| Mobile | кнопку в тулбаре не показываем (`!isMobile`); удаление — row-action на карточке |
+| Отчёты | CDR / audit / wallboard — исключение: нет массового delete, если в домене нет деструктивного API |
+
+**Запрещено** монтировать кнопку только при `selectedCount > 0`. Появление кнопки меняет ширину тулбара, `flex-wrap` переносит поиск на вторую строку — карточка и таблица «скачут».
+
+Эталон: `features/ivrs/ui/IvrsTable` (`IvrsTable.tsx` + `.bulkBtnHidden`).
+
+```tsx
+// ✅ слот всегда в потоке; без выбора кнопка невидима, место занято
+{!isMobile && (
+  <Button
+    variant="destructive"
+    className={selectedCount === 0 ? cls.bulkBtnHidden : undefined}
+    disabled={isDeleting || selectedCount === 0}
+    aria-hidden={selectedCount === 0}
+    tabIndex={selectedCount === 0 ? -1 : undefined}
+    onClick={handleBulkDelete}
+  >
+    {isDeleting ? <Loader2 size={16} className={cls.spinner} /> : <Trash2 size={16} />}
+    {t('ivrs.deleteSelected', { count: selectedCount })}
+  </Button>
+)}
+```
+
+```scss
+.toolbar {
+  flex-wrap: nowrap;
+  min-height: 2.25rem;
+  @media (max-width: 640px) {
+    flex-wrap: wrap;
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+.toolbarActions {
+  flex-wrap: nowrap;
+  flex-shrink: 0;
+}
+
+.bulkBtnHidden {
+  visibility: hidden;
+  pointer-events: none;
+}
+```
+
+```tsx
+// ❌ так скачет таблица — не копировать
+{selectedCount > 0 && !isMobile && (
+  <Button variant="destructive" onClick={handleBulkDelete}>
+    <Trash2 size={16} />
+    {t('ivrs.deleteSelected', { count: selectedCount })}
+  </Button>
+)}
+```
+
+i18n (ru + en) в блоке модуля: `deleteSelected` (`Удалить ({{count}})`), `confirmBulkDelete`.
+
+##### 5. Lucide на страницах и в таблицах
+
+| Место | Как |
+|-------|-----|
+| Badge в шапке страницы | `<Icon size={24} />` внутри `.iconBadge` |
+| CTA «Создать» | `<Plus size={16} className={cls.createBtnIcon} />` |
+| Тулбар таблицы | `<Icon size={20} className={cls.toolbarIcon} />` |
+| Row-actions | `<Pencil />` / `<Copy />` / `<Trash2 />` без size/className |
+| Поиск / spinner | `size={16}` / `size={24}` + цвет/анимация в SCSS |
+| Edit в таблице | только `Pencil`, не `Edit2` / `FileEdit` |
+
+##### 6. Чек-лист рефакторинга списка
+
+- [ ] Нет Tailwind и нативных тегов в `features/` / `pages/`
+- [ ] Есть `[Name].module.scss` + `index.ts` + тест
+- [ ] Шапка: iconBadge + `Text` h1 + subtitle + CTA
+- [ ] Обёртка таблицы `align="stretch"` + `width: 100%` (карточка на всю ширину контента)
+- [ ] Нет второго `Card` вокруг таблицы, у которой свой `Card`
+- [ ] `TableRowActions` на desktop и mobile; иконки `Pencil` / `Copy` / `Trash2` без `w-4 h-4` и без `text-primary` / `text-destructive`
+- [ ] Нет `Edit2` / `FileEdit` и нет `hover:bg-white/10` на row-actions
+- [ ] Copy только при `openCopyModal` в slice
+- [ ] Тулбар: `size={20}` + `.toolbarIcon`; поиск: `Search` + `.searchIcon` в SCSS
+- [ ] CRUD-список: `selectable` + bulk-delete в тулбаре
+- [ ] Bulk-кнопка всегда в потоке (`visibility: hidden` при `selectedCount === 0`), не `{selectedCount > 0 && …}`; тулбар `nowrap` на десктопе
+- [ ] Бейджи / статус / поиск — токены в SCSS
+- [ ] Тест: `title` + `aria-label` у кнопок действий
+- [ ] Ключи i18n в `ru.ts` и `en.ts` (`deleteSelected`, `confirmBulkDelete`)
 
 #### Паттерн табов в модалках (обязательный)
 
@@ -731,14 +1131,16 @@ openCopyModal(state, action: PayloadAction<Item>) {
 
 #### 2. Таблица — кнопка Copy
 ```tsx
-// Кнопка копирования располагается между Edit и Delete:
-<Button variant="ghost" size="icon"
+// Кнопка копирования располагается между Edit и Delete (только TableRowAction):
+<TableRowAction
+  title={t('common.copy')}
+  aria-label={t('common.copy')}
   onClick={() => dispatch(actions.openCopyModal(item))}
-  title={t('common.copy')}>
-  <Copy className="w-4 h-4" />
-</Button>
+>
+  <Copy />
+</TableRowAction>
 ```
-**Важно:** кнопка Copy **не выполняет** API-запрос напрямую — она только открывает модалку через dispatch.
+**Важно:** кнопка Copy **не выполняет** API-запрос напрямую — она только открывает модалку через dispatch. Не использовать `Button variant="ghost" size="icon"` + `className="w-4 h-4"`.
 
 #### 3. Модалка — обработка mode
 ```tsx
@@ -1026,6 +1428,8 @@ FRONTEND_PORT=3010
 - Пагинация, сортировка и "живой" фильтр работают на стороне клиента в браузере (Client-side), обеспечивая микросекундную задержку при поиске абонента по Extension/Name в масштабах до 10 000 строк.
 - Для выгрузки данных `DataTable` экспонирует `useImperativeHandle(ref)`, позволяя внешнему родительскому компоненту (`EndpointsTable`) вызывать `tableRef.current?.exportCsv()`, а не навязывать жесткую верстку своих кнопок внутри таблицы.
 - Колонка row-actions (edit/copy/delete): **только** `TableRowActions` + `TableRowAction` из `@/shared/ui` (см. MUST «Table row actions» выше).
+- Карточка и таблица **обязаны** растягиваться на 100% ширины контента (`align="stretch"` + `.card` / `.table { width: 100% }`). Канон: «Паттерн страницы списка и таблицы».
+- Стили ячеек и тулбара — SCSS-модуль фичи, не Tailwind в JSX.
 
 ### 3. Индикация Bulk-операций
 Для отображения прогресса работы фоновых Bulk-Job бэкенда используется Long Polling. `EndpointsTable` вызывает сервис состояния `useGetBulkJobStatusQuery` через RTK-Query с флагом `pollingInterval: 1000`, и плавно отрисовывает ProgressBar поверх таблицы до тех пор, пока бэкенд не закончит обработку.
@@ -1041,7 +1445,7 @@ Phase 8 replaces the legacy single-Sidebar IA with a **Module Hub** entry and an
 | Surface | Route / widget | Role |
 |---------|----------------|------|
 | **Module Hub** | `/modules` → `widgets/ModuleHub` | Dense list of active + marketplace modules (sketch **002-E**); favorites; open / buy |
-| **ModuleShell** | wraps module pages | Full-height sidebar (desktop) + topbar breadcrumbs + ⌘K; phone: bottom bar + More sheet |
+| **ModuleShell** | wraps module pages | Full-height sidebar (desktop) + topbar breadcrumbs + ⌘K; phone: no crumbs, recents bottom bar (picker + current in center) |
 | **Platform console** | `/platform/*` outside `AppLayout` | SuperAdmin-only catalog / tenants / role→start (console-chrome, not tenant Hub) |
 | **Tenant modules** | `/system/modules` | Tenant enable/disable + role→start overrides |
 
@@ -1070,4 +1474,4 @@ Three-level stack `RouteFormModal` → `RoutePhonebooksTab` → step `Sheet` was
 
 ---
 
-*Last updated: 2026-08-31 (Phase 12 M8 overlay note)*
+*Last updated: 2026-09-17 (modal static shell height + mobile grids)*

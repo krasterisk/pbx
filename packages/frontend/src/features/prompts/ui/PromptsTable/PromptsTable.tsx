@@ -1,23 +1,40 @@
-import { useState, useRef, useCallback } from 'react';
+import { memo, useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
-import { ColumnDef } from '@tanstack/react-table';
-import { Volume2, Play, Square, Trash2, Loader2, Pencil } from 'lucide-react';
-import { Button, DataTable, Card, CardHeader, CardContent, HStack } from '@/shared/ui';
-import { IPrompt } from '@/entities/prompt';
-import { useGetPromptsQuery, useDeletePromptMutation, useBulkDeletePromptsMutation } from '@/shared/api/endpoints/promptsApi';
+import { Loader2, Pencil, Play, Search, Square, Trash2, Volume2 } from 'lucide-react';
+import {
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  DataTable,
+  Input,
+  TableRowAction,
+  TableRowActions,
+  Text,
+} from '@/shared/ui';
+import { Flex, HStack, VStack } from '@/shared/ui/Stack';
+import type { IPrompt } from '@/entities/prompt';
+import {
+  useBulkDeletePromptsMutation,
+  useDeletePromptMutation,
+  useGetPromptsQuery,
+} from '@/shared/api/endpoints/promptsApi';
+import { useAppDispatch, useAppSelector } from '@/shared/hooks/useAppStore';
+import { useIsMobile } from '@/shared/hooks/useIsMobile';
 import { PromptUploadModal } from '../PromptUploadModal/PromptUploadModal';
 import { PromptRecordModal } from '../PromptRecordModal/PromptRecordModal';
 import { PromptEditModal } from '../PromptEditModal/PromptEditModal';
 import { PromptSynthesizeModal } from '../PromptSynthesizeModal/PromptSynthesizeModal';
-import cls from './PromptsTable.module.scss';
-import { useAppDispatch, useAppSelector } from '@/shared/hooks/useAppStore';
 import { promptsActions } from '../../model/slice/promptsSlice';
 import { getPromptsIsModalOpen, getPromptsModalMode } from '../../model/selectors/promptsSelectors';
+import { usePromptsTableColumns } from './usePromptsTableColumns';
+import cls from './PromptsTable.module.scss';
 
-export function PromptsTable() {
+export const PromptsTable = memo(() => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
+  const isMobile = useIsMobile(768);
   const { data: prompts = [], isLoading } = useGetPromptsQuery();
   const [deletePrompt] = useDeletePromptMutation();
   const [bulkDelete, { isLoading: isDeleting }] = useBulkDeletePromptsMutation();
@@ -26,6 +43,7 @@ export function PromptsTable() {
   const modalMode = useAppSelector(getPromptsModalMode);
 
   const [playingId, setPlayingId] = useState<number | null>(null);
+  const [globalFilter, setGlobalFilter] = useState('');
   const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -49,142 +67,111 @@ export function PromptsTable() {
     audio.onerror = () => {
       setPlayingId(null);
       audioRef.current = null;
-      toast.error(t('promptsPage.playError', 'Не удалось воспроизвести запись'));
+      toast.error(t('promptsPage.playError'));
     };
     audioRef.current = audio;
     setPlayingId(prompt.uid);
     audio.play().catch(() => {
       setPlayingId(null);
       audioRef.current = null;
-      toast.error(t('promptsPage.playError', 'Не удалось воспроизвести запись'));
+      toast.error(t('promptsPage.playError'));
     });
   }, [playingId, t]);
 
   const handleDelete = useCallback(async (prompt: IPrompt) => {
-    if (!window.confirm(t('promptsPage.confirmDelete', { name: prompt.comment || prompt.filename }))) return;
+    if (!window.confirm(t('promptsPage.confirmDelete', { name: prompt.comment || prompt.filename }))) {
+      return;
+    }
     await deletePrompt(prompt.uid);
   }, [deletePrompt, t]);
 
-  const columns: ColumnDef<IPrompt>[] = [
-    {
-      id: 'rowNumber',
-      header: '№',
-      size: 56,
-      cell: ({ row }) => row.index + 1,
-    },
-    {
-      accessorKey: 'comment',
-      header: t('promptsPage.name', 'Название'),
-      cell: ({ row }) => row.original.comment || row.original.filename,
-    },
-    {
-      id: 'source_type',
-      header: t('promptsPage.type.column', 'Тип'),
-      size: 110,
-      cell: ({ row }) =>
-        row.original.source_type === 'tts'
-          ? t('promptsPage.type.tts', 'Синтез речи')
-          : t('promptsPage.type.file', 'Аудиофайл'),
-    },
-    {
-      accessorKey: 'description',
-      header: t('promptsPage.description', 'Комментарий'),
-      cell: ({ row }) => row.original.description?.trim() || '',
-    },
-    {
-      id: 'actions',
-      header: t('common.actions', 'Действия'),
-      size: 120,
-      cell: ({ row }) => {
-        const prompt = row.original;
-        const isPlaying = playingId === prompt.uid;
-        return (
-          <HStack gap="4" align="center">
-            <button
-              type="button"
-              className={`${cls.audioBtn} ${isPlaying ? cls.playing : ''}`}
-              onClick={() => handlePlay(prompt)}
-              title={t('promptsPage.play', 'Прослушать')}
-            >
-              {isPlaying ? <Square size={16} /> : <Play size={16} />}
-            </button>
-            <button
-              type="button"
-              className={cls.editBtn}
-              onClick={() => dispatch(promptsActions.openEditModal(prompt))}
-              title={t('common.edit', 'Редактировать')}
-            >
-              <Pencil size={16} />
-            </button>
-            <button
-              type="button"
-              className={cls.deleteBtn}
-              onClick={() => handleDelete(prompt)}
-              title={t('common.delete', 'Удалить')}
-            >
-              <Trash2 size={16} />
-            </button>
-          </HStack>
-        );
-      },
-    },
-  ];
-
+  const columns = usePromptsTableColumns({ playingId, onPlay: handlePlay, onDelete: handleDelete });
   const selectedCount = Object.keys(rowSelection).length;
 
-  const handleBulkDelete = async () => {
+  const filtered = useMemo(() => {
+    const q = globalFilter.trim().toLowerCase();
+    if (!q) return prompts;
+    return prompts.filter((prompt) => {
+      const name = (prompt.comment || prompt.filename || '').toLowerCase();
+      const description = (prompt.description || '').toLowerCase();
+      return name.includes(q) || description.includes(q);
+    });
+  }, [prompts, globalFilter]);
+
+  const handleBulkDelete = useCallback(async () => {
     const ids = Object.keys(rowSelection).map(Number);
     if (!ids.length) return;
-    
-    if (window.confirm(t('common.confirmDelete', 'Вы уверены, что хотите удалить?'))) {
-      await bulkDelete(ids).unwrap();
-      setRowSelection({});
-    }
+    if (!window.confirm(t('promptsPage.confirmBulkDelete'))) return;
+    await bulkDelete(ids).unwrap();
+    setRowSelection({});
+  }, [rowSelection, bulkDelete, t]);
+
+  const renderRowActions = (prompt: IPrompt) => {
+    const isPlaying = playingId === prompt.uid;
+    return (
+      <TableRowActions>
+        <TableRowAction
+          title={t('promptsPage.play')}
+          aria-label={t('promptsPage.play')}
+          onClick={() => handlePlay(prompt)}
+        >
+          {isPlaying ? <Square /> : <Play />}
+        </TableRowAction>
+        <TableRowAction
+          title={t('common.edit')}
+          aria-label={t('common.edit')}
+          onClick={() => dispatch(promptsActions.openEditModal(prompt))}
+        >
+          <Pencil />
+        </TableRowAction>
+        <TableRowAction
+          danger
+          title={t('common.delete')}
+          aria-label={t('common.delete')}
+          onClick={() => handleDelete(prompt)}
+        >
+          <Trash2 />
+        </TableRowAction>
+      </TableRowActions>
+    );
   };
 
-  return (
-    <Card>
-      <CardHeader>
-        <HStack justify="between" align="center" className="flex-col sm:flex-row gap-4" max>
-          <HStack gap="8" align="center">
-            <Volume2 className="w-5 h-5 text-primary" />
-            <span className="font-semibold text-lg">
-              {t('promptsPage.count', { count: prompts.length, defaultValue: `Записей: ${prompts.length}` })}
-            </span>
-          </HStack>
-          <HStack gap="12" align="center" className="w-full sm:w-auto">
-            {selectedCount > 0 && (
-              <Button
-                variant="destructive"
-                disabled={isDeleting}
-                onClick={handleBulkDelete}
-              >
-                {isDeleting ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                ) : (
-                  <Trash2 className="w-4 h-4 mr-2" />
-                )}
-                {t('common.deleteSelected', 'Удалить выбранные')} ({selectedCount})
-              </Button>
-            )}
-          </HStack>
-        </HStack>
-      </CardHeader>
-      
-      <CardContent className="p-0">
+  const toolbar = (
+    <Flex justify="between" align="center" className={cls.toolbar} max>
+      <HStack gap="8" align="center">
+        <Volume2 size={20} className={cls.toolbarIcon} />
+        <Text className={cls.count}>{t('promptsPage.count', { count: prompts.length })}</Text>
+      </HStack>
+      <HStack gap="8" align="center" className={cls.toolbarActions}>
+        {!isMobile && (
+          <Button
+            variant="destructive"
+            className={selectedCount === 0 ? cls.bulkBtnHidden : undefined}
+            disabled={isDeleting || selectedCount === 0}
+            aria-hidden={selectedCount === 0}
+            tabIndex={selectedCount === 0 ? -1 : undefined}
+            onClick={handleBulkDelete}
+          >
+            {isDeleting ? <Loader2 size={16} className={cls.spinner} /> : <Trash2 size={16} />}
+            {t('promptsPage.deleteSelected', { count: selectedCount })}
+          </Button>
+        )}
+        <Flex align="center" className={cls.searchWrap}>
+          <Search size={16} className={cls.searchIcon} />
+          <Input
+            id="prompts-search"
+            placeholder={t('common.search')}
+            value={globalFilter}
+            onChange={(e) => setGlobalFilter(e.target.value)}
+            className={cls.searchInput}
+          />
+        </Flex>
+      </HStack>
+    </Flex>
+  );
 
-      <DataTable
-        columns={columns}
-        data={prompts}
-        getRowId={(row: any) => String(row.uid)}
-        selectable={true}
-        rowSelection={rowSelection}
-        onRowSelectionChange={setRowSelection}
-        emptyText={t('common.noData')}
-        exportFilename="prompts_export"
-      />
-      </CardContent>
-
+  const modals = (
+    <>
       {isModalOpen && modalMode === 'upload' && (
         <PromptUploadModal isOpen onClose={() => dispatch(promptsActions.closeModal())} />
       )}
@@ -197,8 +184,95 @@ export function PromptsTable() {
       {isModalOpen && modalMode === 'synthesize' && (
         <PromptSynthesizeModal isOpen onClose={() => dispatch(promptsActions.closeModal())} />
       )}
+    </>
+  );
+
+  if (isLoading) {
+    return (
+      <Card className={cls.card}>
+        <CardHeader>{toolbar}</CardHeader>
+        <CardContent>
+          <Flex align="center" justify="center" className={cls.loading}>
+            <Loader2 size={24} className={cls.spinner} />
+          </Flex>
+        </CardContent>
+        {modals}
+      </Card>
+    );
+  }
+
+  if (isMobile) {
+    return (
+      <Card className={cls.card} data-testid="hybrid-table" data-hybrid="mobile-card">
+        <CardHeader>{toolbar}</CardHeader>
+        <CardContent>
+          <VStack gap="8" max className={cls.mobileList}>
+            {filtered.length === 0 ? (
+              <Text variant="muted" className={cls.mobileEmpty}>
+                {t('promptsPage.empty')}
+              </Text>
+            ) : (
+              filtered.map((prompt) => (
+                <Flex
+                  key={prompt.uid}
+                  direction="column"
+                  className={cls.mobileCard}
+                  data-testid="prompts-mobile-card"
+                >
+                  <HStack justify="between" align="start" max>
+                    <VStack gap="4">
+                      <Text as="span" className={cls.name}>
+                        {prompt.comment || prompt.filename}
+                      </Text>
+                      <Text as="span" className={cls.comment}>
+                        {prompt.source_type === 'tts'
+                          ? t('promptsPage.type.tts')
+                          : t('promptsPage.type.file')}
+                      </Text>
+                      {prompt.description?.trim() ? (
+                        <Text as="span" className={cls.comment}>{prompt.description}</Text>
+                      ) : null}
+                    </VStack>
+                    {renderRowActions(prompt)}
+                  </HStack>
+                </Flex>
+              ))
+            )}
+          </VStack>
+        </CardContent>
+        {modals}
+      </Card>
+    );
+  }
+
+  return (
+    <Card className={cls.card} data-testid="hybrid-table" data-hybrid="overflow-x-auto">
+      <CardHeader>{toolbar}</CardHeader>
+      <CardContent className={cls.cardContent}>
+        <Flex
+          direction="column"
+          align="stretch"
+          className={cls.tableScroll}
+          data-testid="prompts-table-scroll"
+        >
+          <DataTable
+            className={cls.table}
+            columns={columns}
+            data={prompts}
+            getRowId={(row) => String(row.uid)}
+            selectable
+            rowSelection={rowSelection}
+            onRowSelectionChange={setRowSelection}
+            globalFilter={globalFilter}
+            pageSize={50}
+            emptyText={t('promptsPage.empty')}
+            exportFilename="prompts_export"
+          />
+        </Flex>
+      </CardContent>
+      {modals}
     </Card>
   );
-}
+});
 
-
+PromptsTable.displayName = 'PromptsTable';

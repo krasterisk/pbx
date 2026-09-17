@@ -3,9 +3,15 @@
  * One loop entry, channel-var index, CUT() over materialized lists.
  * Attempt order for random_then_failover matches the 12-01 wrap-around baseline.
  * Directory CallerID is prefetched once per directory, keyed by original caller.
+ * Pool CallerID uses AstDB so consecutive calls avoid the same number.
  */
 
-import type { ITrunkCarouselItem, TrunkCallerIdSource } from '@krasterisk/shared';
+import type {
+  ITrunkCarouselItem,
+  TrunkCallerIdPoolPick,
+  TrunkCallerIdSource,
+} from '@krasterisk/shared';
+
 import {
   compileDirectoryLookup,
   type CompiledDirectoryLookup,
@@ -31,7 +37,7 @@ function sanitize(input?: string): string {
 }
 
 function sanitizeListField(input?: string): string {
-  return sanitize(input).replace(/\|/g, '');
+  return sanitize(input).replace(/[|;]/g, '');
 }
 
 function asEntry(item: ITrunkCarouselItem): ITrunkCarouselItem {
@@ -61,6 +67,76 @@ function isDirectoryCaller(
   callerId: TrunkCallerIdSource,
 ): callerId is Extract<TrunkCallerIdSource, { mode: 'directory' }> {
   return callerId?.mode === 'directory';
+}
+
+function isPoolCaller(
+  callerId: TrunkCallerIdSource,
+): callerId is Extract<TrunkCallerIdSource, { mode: 'pool' }> {
+  return callerId?.mode === 'pool';
+}
+
+function cidModeOf(callerId: TrunkCallerIdSource): 'static' | 'directory' | 'pool' {
+  if (isDirectoryCaller(callerId)) return 'directory';
+  if (isPoolCaller(callerId)) return 'pool';
+  return 'static';
+}
+
+function poolNumbers(callerId: TrunkCallerIdSource): string[] {
+  if (!isPoolCaller(callerId)) return [];
+  return (Array.isArray(callerId.numbers) ? callerId.numbers : [])
+    .map((n) => sanitizeListField(String(n ?? '')))
+    .filter(Boolean);
+}
+
+function poolPick(callerId: TrunkCallerIdSource): TrunkCallerIdPoolPick {
+  if (!isPoolCaller(callerId)) return 'random';
+  return callerId.pick === 'round_robin' ? 'round_robin' : 'random';
+}
+
+function poolDbFamily(vpbxUserUid: number, trunkId: string): string {
+  const safeTrunk = sanitizeListField(trunkId) || 'trunk';
+  const uid = Number.isFinite(vpbxUserUid) ? vpbxUserUid : 0;
+  return `krs/cid/${uid}/${safeTrunk}`;
+}
+
+/**
+ * AstDB-backed CID pool pick with anti-repeat across calls.
+ * Prefixed apps assume CALLERID was reset to original caller.
+ */
+export function emitPoolCallerIdApps(
+  numbers: string[],
+  pick: TrunkCallerIdPoolPick,
+  dbFamily: string,
+): string[] {
+  const pool = numbers.map(sanitizeListField).filter(Boolean);
+  if (!pool.length) return [];
+
+  const family = sanitize(dbFamily).replace(/\|/g, '') || 'krs/cid/0/trunk';
+  const n = pool.length;
+  const apps: string[] = [
+    `Set(CID_POOL=${pool.join('|')})`,
+    `Set(CID_N=${n})`,
+    `Set(CID_DBKEY=${family})`,
+  ];
+
+  if (pick === 'round_robin') {
+    apps.push(
+      'Set(CID_I=${DB(${CID_DBKEY}/i)})',
+      'ExecIf($["${CID_I}" = ""]?Set(CID_I=0))',
+      'Set(CID_I=$[${CID_I} + 1])',
+      'ExecIf($[${CID_I} > ${CID_N}]?Set(CID_I=1))',
+      'Set(DB(${CID_DBKEY}/i)=${CID_I})',
+      'Set(CALLERID(num)=${CUT(CID_POOL,|,${CID_I})})',
+    );
+  } else {
+    apps.push(
+      `Set(CID_PICK=\${RAND(1,${n})})`,
+      'ExecIf($["${CUT(CID_POOL,|,${CID_PICK})}" = "${DB(${CID_DBKEY}/last)}"]?Set(CID_PICK=$[${CID_PICK} % ${CID_N} + 1]))',
+      'Set(CALLERID(num)=${CUT(CID_POOL,|,${CID_PICK})})',
+    );
+  }
+  apps.push('Set(DB(${CID_DBKEY}/last)=${CALLERID(num)})');
+  return apps;
 }
 
 function compileDirectoryGroups(
@@ -111,9 +187,11 @@ function directorySlots(
 }
 
 function emitCallerIdApply(
-  callerId: TrunkCallerIdSource,
+  entry: ITrunkCarouselItem,
   groups: Map<number, CompiledDirectoryLookup>,
+  ctx: BuildTrunkCarouselCtx,
 ): string[] {
+  const callerId = entry.callerId;
   const apps = ['Set(CALLERID(num)=${KRSK_ORIG_CALLER_NUM})'];
   if (isDirectoryCaller(callerId)) {
     const { valueVar, statusVar } = directorySlots(callerId, groups);
@@ -122,6 +200,16 @@ function emitCallerIdApply(
         `ExecIf($["\${${statusVar}}" = "FOUND" & "\${${valueVar}}" != ""]?Set(CALLERID(num)=\${${valueVar}}))`,
       );
     }
+    return apps;
+  }
+  if (isPoolCaller(callerId)) {
+    apps.push(
+      ...emitPoolCallerIdApps(
+        poolNumbers(callerId),
+        poolPick(callerId),
+        poolDbFamily(ctx.vpbxUserUid ?? 0, entry.trunkId),
+      ),
+    );
     return apps;
   }
   const cid = sanitizeListField(callerId.mode === 'static' ? callerId.value : '');
@@ -140,7 +228,7 @@ function emitSingleTrunk(entry: ITrunkCarouselItem, ctx: BuildTrunkCarouselCtx):
   for (const compiled of groups.values()) {
     apps.push(...compiled.lines);
   }
-  apps.push(...emitCallerIdApply(entry.callerId, groups));
+  apps.push(...emitCallerIdApply({ ...entry, trunkId }, groups, ctx));
   apps.push(`Dial(PJSIP/${trunkId}/${dest},${timeout},${opts})`);
   apps.push('Return()');
   return joinDialplan(apps[0], apps.slice(1).map((app) => `n,${app}`));
@@ -170,15 +258,20 @@ export function buildTrunkCarousel(
   const opts = sanitize(ctx.options || 'tT');
   const n = entries.length;
   const groups = compileDirectoryGroups(entries, ctx);
+  const vpbx = ctx.vpbxUserUid ?? 0;
 
   const list = entries.map((e) => e.trunkId).join('|');
   const timeouts = entries.map((e) => String(resolveTimeout(e.timeout, fallbackTimeout))).join('|');
-  const cidModes = entries.map((e) => (isDirectoryCaller(e.callerId) ? 'directory' : 'static')).join('|');
+  const cidModes = entries.map((e) => cidModeOf(e.callerId)).join('|');
   const cids = entries.map((e) => (
-    isDirectoryCaller(e.callerId) ? '' : sanitizeListField(e.callerId.mode === 'static' ? e.callerId.value : '')
+    cidModeOf(e.callerId) === 'static'
+      ? sanitizeListField(e.callerId.mode === 'static' ? e.callerId.value : '')
+      : ''
   )).join('|');
   const cidVars = entries.map((e) => directorySlots(e.callerId, groups).valueVar).join('|');
   const cidStatus = entries.map((e) => directorySlots(e.callerId, groups).statusVar).join('|');
+  const pools = entries.map((e) => poolNumbers(e.callerId).join('|')).join(';');
+  const picks = entries.map((e) => poolPick(e.callerId)).join('|');
   const start = mode === 'sequential' ? 'Set(TC_I=1)' : `Set(TC_I=\${RAND(1,${n})})`;
 
   const rest: string[] = [];
@@ -193,6 +286,9 @@ export function buildTrunkCarousel(
     `n,Set(TC_CID=${cids})`,
     `n,Set(TC_CIDVAR=${cidVars})`,
     `n,Set(TC_CIDST=${cidStatus})`,
+    `n,Set(TC_POOLS=${pools})`,
+    `n,Set(TC_PICK=${picks})`,
+    `n,Set(TC_VPBX=${vpbx})`,
     `n,Set(TC_N=${n})`,
     `n,${start}`,
     'n,Set(TC_TRIED=0)',
@@ -201,12 +297,33 @@ export function buildTrunkCarousel(
     'n,Set(CALLERID(num)=${KRSK_ORIG_CALLER_NUM})',
     'n,Set(TC_CM=${CUT(TC_CIDMODE,|,${TC_I})})',
     'n,GotoIf($["${TC_CM}" = "directory"]?tc_dir)',
+    'n,GotoIf($["${TC_CM}" = "pool"]?tc_pool)',
     'n,Set(TC_CIDV=${CUT(TC_CID,|,${TC_I})})',
     'n,ExecIf($["${TC_CIDV}" != ""]?Set(CALLERID(num)=${TC_CIDV}))',
     'n,Goto(tc_dial)',
     'n(tc_dir),Set(TC_VV=${CUT(TC_CIDVAR,|,${TC_I})})',
     'n,Set(TC_ST=${CUT(TC_CIDST,|,${TC_I})})',
     'n,ExecIf($["${${TC_ST}}" = "FOUND" & "${${TC_VV}}" != ""]?Set(CALLERID(num)=${${TC_VV}}))',
+    'n,Goto(tc_dial)',
+    'n(tc_pool),Set(CID_POOL=${CUT(TC_POOLS,;,${TC_I})})',
+    'n,GotoIf($["${CID_POOL}" = ""]?tc_dial)',
+    'n,Set(CID_N=${FIELDQTY(CID_POOL,|)})',
+    'n,GotoIf($[${CID_N} < 1]?tc_dial)',
+    'n,Set(CID_DBKEY=krs/cid/${TC_VPBX}/${TC_TRUNK_ID})',
+    'n,Set(TC_PK=${CUT(TC_PICK,|,${TC_I})})',
+    'n,GotoIf($["${TC_PK}" = "round_robin"]?tc_pool_rr)',
+    'n,Set(CID_PICK=${RAND(1,${CID_N})})',
+    'n,ExecIf($["${CUT(CID_POOL,|,${CID_PICK})}" = "${DB(${CID_DBKEY}/last)}"]?Set(CID_PICK=$[${CID_PICK} % ${CID_N} + 1]))',
+    'n,Set(CALLERID(num)=${CUT(CID_POOL,|,${CID_PICK})})',
+    'n,Set(DB(${CID_DBKEY}/last)=${CALLERID(num)})',
+    'n,Goto(tc_dial)',
+    'n(tc_pool_rr),Set(CID_I=${DB(${CID_DBKEY}/i)})',
+    'n,ExecIf($["${CID_I}" = ""]?Set(CID_I=0))',
+    'n,Set(CID_I=$[${CID_I} + 1])',
+    'n,ExecIf($[${CID_I} > ${CID_N}]?Set(CID_I=1))',
+    'n,Set(DB(${CID_DBKEY}/i)=${CID_I})',
+    'n,Set(CALLERID(num)=${CUT(CID_POOL,|,${CID_I})})',
+    'n,Set(DB(${CID_DBKEY}/last)=${CALLERID(num)})',
     `n(tc_dial),Dial(PJSIP/\${TC_TRUNK_ID}/${dest},\${TC_TIMEOUT},${opts})`,
     'n,ExecIf($["${DIALSTATUS}" = "ANSWER"]?Return())',
     'n,Set(TC_I=$[${TC_I} + 1])',
@@ -217,4 +334,49 @@ export function buildTrunkCarousel(
   );
 
   return joinDialplan(`Set(TC_LIST=${list})`, rest);
+}
+
+/** Map raw action trunk rows (incl. pool) into ITrunkCarouselItem[]. */
+export function mapTrunkCarouselItems(
+  trunks: Array<{
+    trunkId?: string;
+    callerId?: {
+      mode?: string;
+      value?: string;
+      directoryUid?: number;
+      valueFieldUid?: number;
+      numbers?: string[];
+      pick?: string;
+    };
+    timeout?: number | string;
+  }>,
+): ITrunkCarouselItem[] {
+  return (Array.isArray(trunks) ? trunks : []).map((item) => {
+    const mode = item.callerId?.mode;
+    let callerId: TrunkCallerIdSource;
+    if (mode === 'directory') {
+      callerId = {
+        mode: 'directory',
+        directoryUid: Number(item.callerId?.directoryUid),
+        valueFieldUid: Number(item.callerId?.valueFieldUid),
+        keySource: { source: 'original_caller' },
+        onMissing: 'keep_original',
+      };
+    } else if (mode === 'pool') {
+      callerId = {
+        mode: 'pool',
+        numbers: Array.isArray(item.callerId?.numbers)
+          ? item.callerId.numbers.map((n) => String(n ?? ''))
+          : [],
+        pick: item.callerId?.pick === 'round_robin' ? 'round_robin' : 'random',
+      };
+    } else {
+      callerId = { mode: 'static', value: item.callerId?.value };
+    }
+    return {
+      trunkId: String(item.trunkId ?? ''),
+      callerId,
+      timeout: item.timeout as number | undefined,
+    };
+  });
 }

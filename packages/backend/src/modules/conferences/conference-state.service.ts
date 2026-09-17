@@ -228,6 +228,12 @@ export class ConferenceStateService {
     return Date.now() - last > thresholdMs;
   }
 
+  /** Refresh last-seen for a channel still present in ConfbridgeList (CR-02). */
+  refreshSignal(channel: string): void {
+    if (!channel) return;
+    this.touch(channel);
+  }
+
   handleJoin(evt: ConferenceAmiEvent): void | Promise<void> {
     const channel = amiString(evt, 'Channel');
     if (!channel) return;

@@ -84,7 +84,7 @@ describe('RoomControlBar (16.3-05 D-29 / D-31)', () => {
 
     const source = readFileSync(resolve(here, 'RoomControlBar.tsx'), 'utf8');
     expect(source).not.toMatch(/className=["']w-4 h-4["']/);
-    expect(source).toMatch(/size=["']icon["']/);
+    expect(source).toMatch(/size=\{iconOnly \? 'icon' : 'sm'\}/);
   });
 
   it('hides captions at 360px and keeps every control at least 44px with wrap', () => {

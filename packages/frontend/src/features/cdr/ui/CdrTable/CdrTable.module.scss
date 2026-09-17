@@ -1,9 +1,39 @@
+.table {
+  width: 100%;
+}
+
+.loading {
+  padding: 1rem;
+  width: 100%;
+}
+
+.skeletonRow {
+  height: 2.5rem;
+  width: 100%;
+}
+
+.cell {
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.nowrap {
+  composes: cell;
+  white-space: nowrap;
+}
+
+.muted {
+  composes: cell;
+  color: var(--color-muted-foreground);
+}
+
 .recordingCell {
   display: flex;
   align-items: center;
   gap: 0.25rem;
 }
 
+.iconBtn,
 .voicemailBtn {
   color: var(--color-info);
 }

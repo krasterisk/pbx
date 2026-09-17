@@ -1,40 +1,35 @@
-import { memo, useState, useMemo } from 'react';
+import { memo, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { ColumnDef } from '@tanstack/react-table';
-import { Building2, Search, Loader2, Plus, MoreHorizontal, Pause, Play, Pencil, ExternalLink } from 'lucide-react';
+import { Building2, Loader2, Plus, Search } from 'lucide-react';
 import {
   Card, CardHeader, CardContent,
   Input, Button, DataTable, Text,
-  DropdownMenu, DropdownMenuContent,
-  DropdownMenuItem, DropdownMenuTrigger,
 } from '@/shared/ui';
-import { HStack, VStack, Flex } from '@/shared/ui/Stack';
-import {
-  useGetTenantsQuery,
-  useGetTenantStatsQuery,
-  useSuspendTenantMutation,
-  useActivateTenantMutation,
-} from '@/shared/api/endpoints/cloudAdminApi';
+import { Flex, HStack, VStack } from '@/shared/ui/Stack';
+import { useGetTenantsQuery, useGetTenantStatsQuery } from '@/shared/api/endpoints/cloudAdminApi';
 import { useAppDispatch } from '@/shared/hooks/useAppStore';
+import { useIsMobile } from '@/shared/hooks/useIsMobile';
 import type { ITenant } from '@/entities/tenant';
 import { tenantsPageActions } from '../../model/slice/tenantsPageSlice';
 import { TenantStatusBadge } from '../TenantStatusBadge';
 import { TenantDrawer } from '../TenantDrawer/TenantDrawer';
+import { useTenantsTableColumns } from './useTenantsTableColumns';
 import cls from './TenantsTable.module.scss';
 
 export const TenantsTable = memo(() => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
+  const isMobile = useIsMobile(768);
 
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Debounce search
   const handleSearchChange = (value: string) => {
     setSearch(value);
-    clearTimeout((handleSearchChange as any)._timer);
-    (handleSearchChange as any)._timer = setTimeout(() => setDebouncedSearch(value), 350);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => setDebouncedSearch(value), 350);
   };
 
   const { data, isLoading } = useGetTenantsQuery({
@@ -43,173 +38,123 @@ export const TenantsTable = memo(() => {
     offset: 0,
   });
   const { data: stats } = useGetTenantStatsQuery();
-  const [suspend] = useSuspendTenantMutation();
-  const [activate] = useActivateTenantMutation();
+  const columns = useTenantsTableColumns();
 
   const allTenants = data?.rows ?? [];
-  const tenants = useMemo(() =>
-    statusFilter ? allTenants.filter((t) => t.status === statusFilter) : allTenants,
-  [allTenants, statusFilter]);
+  const tenants = useMemo(
+    () => (statusFilter ? allTenants.filter((item) => item.status === statusFilter) : allTenants),
+    [allTenants, statusFilter],
+  );
 
-  const columns: ColumnDef<ITenant>[] = useMemo(() => [
-    {
-      accessorKey: 'name',
-      header: t('cloudAdmin.tenants.name', 'Название'),
-      cell: ({ row }) => (
-        <VStack gap="2">
-          <Text variant="h4">{row.original.name}</Text>
-          {row.original.slug && (
-            <Text variant="xs">{row.original.slug}</Text>
-          )}
-        </VStack>
-      ),
-    },
-    {
-      accessorKey: 'email',
-      header: t('cloudAdmin.tenants.email', 'Email'),
-      cell: ({ getValue }) => (
-        <Text variant="muted">{String(getValue() ?? '-')}</Text>
-      ),
-    },
-    {
-      accessorKey: 'status',
-      header: t('cloudAdmin.tenants.status', 'Статус'),
-      cell: ({ getValue }) => (
-        <TenantStatusBadge status={getValue() as any} />
-      ),
-    },
-    {
-      accessorKey: 'max_extensions',
-      header: t('cloudAdmin.tenants.limits', 'Лимиты'),
-      cell: ({ row }) => (
-        <Text variant="muted">
-          {`${row.original.max_extensions} номеров / ${row.original.max_trunks} транков`}
+  const toolbar = (
+    <Flex justify="between" align="center" className={cls.toolbar} max>
+      <HStack gap="8" align="center">
+        <Building2 size={20} className={cls.toolbarIcon} />
+        <Text className={cls.count}>
+          {t('cloudAdmin.tenants.title')} ({data?.count ?? 0})
         </Text>
-      ),
-    },
-    {
-      accessorKey: 'created_at',
-      header: t('common.createdAt', 'Создан'),
-      cell: ({ getValue }) => (
-        <Text variant="muted">
-          {new Date(String(getValue())).toLocaleDateString('ru-RU')}
-        </Text>
-      ),
-    },
-    {
-      id: 'actions',
-      header: '',
-      cell: ({ row }) => {
-        const tenant = row.original;
-        return (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <MoreHorizontal className="w-4 h-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => dispatch(tenantsPageActions.openTenantDrawer(tenant))}>
-                <ExternalLink className="w-4 h-4 mr-2" />
-                {t('common.details', 'Детали')}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => dispatch(tenantsPageActions.openEditModal(tenant))}
-              >
-                <Pencil className="w-4 h-4 mr-2" />
-                {t('common.edit', 'Редактировать')}
-              </DropdownMenuItem>
-              {tenant.status !== 'suspended' ? (
-                <DropdownMenuItem onClick={() => suspend(tenant.id)}>
-                  <Pause className="w-4 h-4 mr-2" />
-                  {t('cloudAdmin.tenants.suspend', 'Заблокировать')}
-                </DropdownMenuItem>
-              ) : (
-                <DropdownMenuItem onClick={() => activate(tenant.id)}>
-                  <Play className="w-4 h-4 mr-2" />
-                  {t('cloudAdmin.tenants.activate', 'Активировать')}
-                </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        );
-      },
-    },
-  ], [t, dispatch, suspend, activate]);
+      </HStack>
+      <HStack gap="8" align="center" className={cls.toolbarActions}>
+        <Flex align="center" className={cls.searchWrap}>
+          <Search size={16} className={cls.searchIcon} />
+          <Input
+            id="tenants-search"
+            placeholder={t('common.search')}
+            value={search}
+            onChange={(e) => handleSearchChange(e.target.value)}
+            className={cls.searchInput}
+          />
+        </Flex>
+        <Button
+          id="tenants-create-btn"
+          onClick={() => dispatch(tenantsPageActions.openCreateModal())}
+        >
+          <Plus size={16} className={cls.createBtnIcon} />
+          <Text as="span">{t('cloudAdmin.tenants.create')}</Text>
+        </Button>
+      </HStack>
+    </Flex>
+  );
 
   return (
-    <VStack gap="16" className={cls.wrapper}>
-      {/* TenantDrawer */}
+    <VStack gap="16" max className={cls.wrapper}>
       <TenantDrawer />
-      {/* Stats */}
       {stats && (
-        <div className={cls.statsGrid}>
+        <Flex className={cls.statsGrid} max>
           {([
-            { key: null,         label: t('cloudAdmin.stats.all', 'Все кабинеты'), value: stats.total, mod: '' },
-            { key: 'active',     label: t('cloudAdmin.stats.active', 'Активных'),      value: stats.active,    mod: cls.statActive },
-            { key: 'trial',      label: t('cloudAdmin.stats.trial', 'На пробном'),     value: stats.trial,     mod: cls.statTrial },
-            { key: 'suspended',  label: t('cloudAdmin.stats.suspended', 'Заблокированных'), value: stats.suspended, mod: cls.statSuspended },
+            { key: null, label: t('cloudAdmin.stats.all'), value: stats.total, mod: '' },
+            { key: 'active', label: t('cloudAdmin.stats.active'), value: stats.active, mod: cls.statActive },
+            { key: 'trial', label: t('cloudAdmin.stats.trial'), value: stats.trial, mod: cls.statTrial },
+            { key: 'suspended', label: t('cloudAdmin.stats.suspended'), value: stats.suspended, mod: cls.statSuspended },
           ] as const).map(({ key, label, value, mod }) => (
             <button
               key={String(key)}
+              type="button"
               className={`${cls.statCard} ${mod} ${statusFilter === key ? cls.statCardActive : ''}`}
               onClick={() => setStatusFilter(statusFilter === key ? null : key)}
             >
-              <div className={cls.statValue}>{value}</div>
-              <div className={cls.statLabel}>{label}</div>
+              <Text as="span" className={cls.statValue}>{value}</Text>
+              <Text as="span" className={cls.statLabel}>{label}</Text>
             </button>
           ))}
-        </div>
+        </Flex>
       )}
 
-      {/* Table */}
-      <Card>
-        <CardHeader>
-          <HStack justify="between" align="center" className="flex-col sm:flex-row gap-4" max>
-            <HStack gap="8" align="center">
-              <Building2 className="w-5 h-5 text-primary" />
-              <Text variant="h4">
-                {t('cloudAdmin.tenants.title', 'Кабинеты')} ({data?.count ?? 0})
-              </Text>
-            </HStack>
-            <HStack gap="12" align="center" className="w-full sm:w-auto">
-              <div className={cls.searchWrapper}>
-                <Search className={`${cls.searchIcon} w-4 h-4`} />
-                <Input
-                  id="tenants-search"
-                  placeholder={t('common.search', 'Поиск...')}
-                  value={search}
-                  onChange={(e) => handleSearchChange(e.target.value)}
-                  className="pl-10 h-9"
-                />
-              </div>
-              <Button
-                id="tenants-create-btn"
-                onClick={() => dispatch(tenantsPageActions.openCreateModal())}
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                {t('cloudAdmin.tenants.create', 'Новый кабинет')}
-              </Button>
-            </HStack>
-          </HStack>
-        </CardHeader>
-        <CardContent className="p-0">
-          {isLoading ? (
-            <Flex align="center" justify="center" className="h-48">
-              <Loader2 className="w-6 h-6 animate-spin text-primary" />
+      {isLoading ? (
+        <Card className={cls.card}>
+          <CardHeader>{toolbar}</CardHeader>
+          <CardContent>
+            <Flex align="center" justify="center" className={cls.loading}>
+              <Loader2 size={24} className={cls.spinner} />
             </Flex>
-          ) : (
-            <DataTable
-              data={tenants}
-              columns={columns}
-              getRowId={(row) => String(row.id)}
-              pageSize={50}
-              emptyText={t('common.noData', 'Нет данных')}
-              exportFilename="tenants_export"
-            />
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      ) : isMobile ? (
+        <Card className={cls.card} data-testid="hybrid-table" data-hybrid="mobile-card">
+          <CardHeader>{toolbar}</CardHeader>
+          <CardContent>
+            <VStack gap="8" max>
+              {tenants.map((tenant: ITenant) => (
+                <Flex
+                  key={tenant.id}
+                  direction="column"
+                  className={cls.mobileCard}
+                  data-testid="tenants-mobile-card"
+                >
+                  <HStack justify="between" align="start" max>
+                    <VStack gap="4">
+                      <Text as="span" className={cls.name}>{tenant.name}</Text>
+                      <TenantStatusBadge status={tenant.status} />
+                    </VStack>
+                  </HStack>
+                </Flex>
+              ))}
+            </VStack>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className={cls.card} data-testid="hybrid-table" data-hybrid="overflow-x-auto">
+          <CardHeader>{toolbar}</CardHeader>
+          <CardContent className={cls.cardContent}>
+            <Flex
+              direction="column"
+              align="stretch"
+              className={cls.tableScroll}
+              data-testid="tenants-table-scroll"
+            >
+              <DataTable
+                className={cls.table}
+                data={tenants}
+                columns={columns}
+                getRowId={(row) => String(row.id)}
+                pageSize={50}
+                emptyText={t('common.noData')}
+                exportFilename="tenants_export"
+              />
+            </Flex>
+          </CardContent>
+        </Card>
+      )}
     </VStack>
   );
 });

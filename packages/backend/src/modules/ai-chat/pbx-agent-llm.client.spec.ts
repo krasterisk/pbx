@@ -899,6 +899,56 @@ describe('PbxAgentLlmClient', () => {
         ]);
     });
 
+    it('sends native OpenAI tools to api.deepseek.com even without a tools capability', async () => {
+        fetchMock.mockResolvedValueOnce(streamResponse([
+            ssePayload({ content: 'ok' }),
+            'data: [DONE]\n\n',
+        ]));
+
+        await client.chat({
+            provider: provider({
+                vendor: 'deepseek',
+                endpoint: 'https://api.deepseek.com/chat/completions',
+                capabilities: ['llm'],
+            }),
+            messages: [{ role: 'user', content: 'hi' }],
+            tools: [{ name: 'list_routes', description: 'routes', inputSchema: {} }],
+            stream: true,
+        });
+
+        const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+        expect(body.tools).toEqual([
+            expect.objectContaining({
+                type: 'function',
+                function: expect.objectContaining({ name: 'list_routes' }),
+            }),
+        ]);
+        expect(body.tool_choice).toBeUndefined();
+    });
+
+    it('omits tool_choice for DeepSeek thinking even when the loop asks for required', async () => {
+        fetchMock.mockResolvedValueOnce(streamResponse([
+            ssePayload({ content: 'ok' }),
+            'data: [DONE]\n\n',
+        ]));
+
+        await client.chat({
+            provider: provider({
+                vendor: 'deepseek',
+                endpoint: 'https://api.deepseek.com',
+                capabilities: ['llm'],
+            }),
+            messages: [{ role: 'user', content: 'hi' }],
+            tools: [{ name: 'propose_plan', description: 'plan', inputSchema: {} }],
+            toolChoice: 'required',
+            stream: true,
+        });
+
+        const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+        expect(body.tools).toHaveLength(1);
+        expect(body.tool_choice).toBeUndefined();
+    });
+
     it('reports provider_timeout when the stream is aborted by the deadline, not the user', async () => {
         fetchMock.mockRejectedValueOnce(Object.assign(new Error('The operation was aborted'), { name: 'AbortError' }));
 

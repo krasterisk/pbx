@@ -1,1 +1,1 @@
-export { NotificationIntegrationsPage } from './ui/NotificationIntegrationsPage/NotificationIntegrationsPage';
+export { NotificationIntegrationsPage } from './ui/NotificationIntegrationsPage';

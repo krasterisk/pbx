@@ -1,0 +1,179 @@
+/* ─────────────────────────────────────────────────────
+   ServiceRequestsTable — список заявок клиентов
+   Design tokens: var(--color-*) from globals.css @theme
+   ───────────────────────────────────────────────────── */
+
+.card {
+  width: 100%;
+  min-width: 0;
+}
+
+.cardContent {
+  padding: 0;
+  min-width: 0;
+  width: 100%;
+}
+
+.toolbar {
+  flex-wrap: nowrap;
+  gap: 1rem;
+  min-height: 2.25rem;
+
+  @media (max-width: 640px) {
+    flex-wrap: wrap;
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+.toolbarIcon {
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.count {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--color-foreground);
+}
+
+.toolbarActions {
+  min-width: 0;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
+
+  @media (max-width: 640px) {
+    width: 100%;
+  }
+}
+
+.bulkBtnHidden {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.createBtnIcon {
+  margin-right: 0.5rem;
+}
+
+.tableScroll {
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table {
+  width: 100%;
+}
+
+.spinner {
+  color: var(--color-primary);
+  flex-shrink: 0;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.cell {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.25;
+}
+
+.number {
+  composes: cell;
+  font-weight: 600;
+  color: var(--color-primary);
+  white-space: nowrap;
+}
+
+.nowrap {
+  composes: cell;
+  white-space: nowrap;
+}
+
+.rowNew {
+  background: color-mix(in srgb, var(--color-info) 5%, transparent);
+}
+
+.rowProgress {
+  background: color-mix(in srgb, var(--color-warning) 5%, transparent);
+}
+
+.rowCompleted {
+  background: color-mix(in srgb, var(--color-success) 5%, transparent);
+}
+
+.rowPostponed {
+  background: color-mix(in srgb, var(--color-warning) 8%, transparent);
+}
+
+.rowImpossible {
+  background: color-mix(in srgb, var(--color-destructive) 5%, transparent);
+}
+
+.mobileList {
+  width: 100%;
+}
+
+.mobileCard {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent);
+  border-left-width: 4px;
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-muted) 10%, transparent);
+}
+
+.cardNew {
+  border-left-color: var(--color-info);
+}
+
+.cardProgress {
+  border-left-color: var(--color-warning);
+}
+
+.cardCompleted {
+  border-left-color: var(--color-success);
+}
+
+.cardPostponed {
+  border-left-color: var(--color-warning);
+}
+
+.cardImpossible {
+  border-left-color: var(--color-destructive);
+}
+
+.mobileField {
+  display: grid;
+  grid-template-columns: minmax(7.5rem, auto) 1fr;
+  gap: 0.75rem;
+  align-items: start;
+}
+
+.mobileLabel {
+  font-size: 0.75rem;
+  color: var(--color-muted-foreground);
+  flex-shrink: 0;
+}
+
+.mobileValue {
+  min-width: 0;
+}
+
+.mobileEmpty {
+  width: 100%;
+  padding: 2rem 0;
+  text-align: center;
+}
+
+.skeletonRow {
+  height: 5rem;
+  width: 100%;
+}

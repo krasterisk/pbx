@@ -1,0 +1,9 @@
+{
+  "ok": true,
+  "roomUid": 10,
+  "openedAt": 1789534070041,
+  "firstClose": "Conference SSE closed: room 10 heartbeat stopped observers=0",
+  "eventTypes": [
+    "fullSnapshot"
+  ]
+}

@@ -219,7 +219,7 @@ export function sourceExprFromValueSource(src: ValueSource, directoryValueVar?: 
   if (src.source === 'fixed') {
     return sanitizeDialValue(src.value);
   }
-  if (src.source === 'variable') {
+  if (src.source === 'variable' || src.source === 'autodial_field') {
     const name = sanitizeDialValue(src.name);
     return name ? `\${${name}}` : '';
   }

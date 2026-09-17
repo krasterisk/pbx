@@ -11,6 +11,11 @@ describe('scrubToolIdsFromPublicText', () => {
     expect(scrubToolIdsFromPublicText('IVR «Рога и копыта», абоненты 101-103, контекст sip-out.'))
       .toBe('IVR «Рога и копыта», абоненты 101-103, контекст sip-out.');
   });
+
+  it('does not leave a dangling «через» after dropping a tool id', () => {
+    expect(scrubToolIdsFromPublicText('Можно проверить через list_ivrs, если нужно.'))
+      .toBe('Можно проверить, если нужно.');
+  });
 });
 
 describe('looksLikeUserConfirm', () => {

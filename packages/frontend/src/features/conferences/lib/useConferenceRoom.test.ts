@@ -225,7 +225,8 @@ describe('useConferenceRoom (16.3-02 R-RENEG)', () => {
       reconnectionAttempts: number;
       transportOptions: { keepAliveInterval: number };
     };
-    expect(options.sessionDescriptionHandlerFactory).toBe(conferenceSdhFactory);
+    expect(typeof options.sessionDescriptionHandlerFactory).toBe('function');
+    expect(options.sessionDescriptionHandlerFactory).not.toBe(conferenceSdhFactory);
     expect(options.sessionDescriptionHandlerFactoryOptions.peerConnectionConfiguration.bundlePolicy).toBe(
       'max-bundle',
     );
@@ -235,6 +236,12 @@ describe('useConferenceRoom (16.3-02 R-RENEG)', () => {
     expect(options.reconnectionAttempts).toBe(10);
     expect(options.transportOptions.keepAliveInterval).toBe(20);
     expect(JSON.stringify(options)).not.toMatch(/VIDEO_SLOTS/);
+    const sdh = (options.sessionDescriptionHandlerFactory as (session: unknown, opts: unknown) => unknown)(
+      { userAgent: { getLogger: () => ({ debug() {}, error() {}, warn() {}, log() {} }) } },
+      {},
+    );
+    expect(sdh).toEqual(expect.any(Object));
+    expect(typeof sdh).not.toBe('function');
   });
 
   it('waits for RegistererState.Registered via stateChange before INVITE', async () => {
@@ -249,6 +256,80 @@ describe('useConferenceRoom (16.3-02 R-RENEG)', () => {
     expect(inviterCtor).toHaveBeenCalled();
     const target = inviterCtor.mock.calls[0][1] as { uri: string };
     expect(target.uri).toContain('6001');
+  });
+
+  it('invites guest exten s when inviteExten is set and roomNumber is empty', async () => {
+    renderHook(() =>
+      useConferenceRoom({
+        ...COMPANION,
+        roomNumber: '',
+        inviteExten: 's',
+      }),
+    );
+    await flush();
+    await act(async () => {
+      lastRegisterer.emit('Registered');
+      await Promise.resolve();
+    });
+    const target = inviterCtor.mock.calls[0][1] as { uri: string };
+    expect(target.uri).toContain('sip:s@');
+    expect(target.uri).not.toContain('sip:@');
+  });
+
+  it('does not INVITE when both roomNumber and inviteExten are empty', async () => {
+    renderHook(() =>
+      useConferenceRoom({
+        ...COMPANION,
+        roomNumber: '',
+      }),
+    );
+    await flush();
+    await act(async () => {
+      lastRegisterer.emit('Registered');
+      await Promise.resolve();
+    });
+    expect(inviterCtor).not.toHaveBeenCalled();
+  });
+
+  it('does not flag videoFailed when local camera is live and SFU has no remote frames', async () => {
+    const local = fakeTrack('cam');
+    const localStream = {
+      getTracks: () => [local],
+      getVideoTracks: () => [local],
+      getAudioTracks: () => [],
+    } as unknown as MediaStream;
+    const { result } = renderHook(() =>
+      useConferenceRoom({
+        ...COMPANION,
+        localStream,
+      }),
+    );
+    await establishRoom(result, [{ mid: '1', track: fakeTrack('remote-empty') }]);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(4000);
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(4000);
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(4000);
+    });
+    expect(result.current.videoFailedMids).toEqual([]);
+    expect(lastSession.invite).not.toHaveBeenCalled();
+  });
+
+  it('auto re-INVITEs after remote Terminated', async () => {
+    const { result } = renderHook(() => useConferenceRoom(COMPANION));
+    await establishRoom(result);
+    inviterCtor.mockClear();
+    await act(async () => {
+      lastSession.emit('Terminated');
+      await Promise.resolve();
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1500);
+    });
+    expect(inviterCtor).toHaveBeenCalledTimes(1);
   });
 
   it('does not renegotiate before the 4000ms watchdog', async () => {

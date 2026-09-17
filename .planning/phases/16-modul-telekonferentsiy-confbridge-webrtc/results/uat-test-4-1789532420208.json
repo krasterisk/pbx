@@ -1,0 +1,17 @@
+{
+  "ok": true,
+  "roomUid": 5,
+  "conference": "conf16894_0",
+  "owner": "111",
+  "guest": "119",
+  "beforeGrantStatus": 403,
+  "afterGrantMuteStatus": 201,
+  "adminAfterGrant": false,
+  "listAfterGrant": [
+    "Channel                        Flags  User Profile     Bridge Profile   Menu             CallerID",
+    "============================== ====== ================ ================ ================ ================",
+    "Local/s@krsk-conf-5-00000013;2        default_user     krsk_conf_sfu    default_menu     119",
+    "Local/s@krsk-conf-5-00000014;2        default_user     krsk_conf_sfu    default_menu     16003"
+  ],
+  "mutedOnBridge": true
+}

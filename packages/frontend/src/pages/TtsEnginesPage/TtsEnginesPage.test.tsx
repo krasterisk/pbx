@@ -1,44 +1,50 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
+
+const dispatch = vi.fn();
+const openCreateModal = vi.fn(() => ({ type: 'ttsEngines/openCreateModal' }));
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (_key: string, fallback?: string) => fallback || _key,
+    t: (key: string, fallback?: string) => fallback || key,
   }),
 }));
 
-vi.mock('motion/react', () => ({
-  motion: {
-    div: ({ children, ...props }: { children?: React.ReactNode }) => (
-      <div {...props}>{children}</div>
-    ),
-  },
-}));
-
 vi.mock('@/shared/hooks/useAppStore', () => ({
-  useAppDispatch: () => vi.fn(),
+  useAppDispatch: () => dispatch,
 }));
 
 vi.mock('@/features/tts-engines/model/slice/ttsEnginesSlice', () => ({
   ttsEnginesActions: {
-    openCreateModal: () => ({ type: 'ttsEngines/openCreateModal' }),
+    openCreateModal: () => openCreateModal(),
   },
 }));
 
-vi.mock('@/features/tts-engines/ui/TtsEnginesTable/TtsEnginesTable', () => ({
+vi.mock('@/features/tts-engines/ui/TtsEnginesTable', () => ({
   TtsEnginesTable: () => <div data-testid="tts-engines-table-stub">tts</div>,
 }));
 
 import { TtsEnginesPage } from './TtsEnginesPage';
 
-describe('TtsEnginesPage hybrid overflow (D-29 / D-27 wave D)', () => {
-  it('exposes hybrid-table overflow marker at page level', () => {
+describe('TtsEnginesPage', () => {
+  it('renders title, subtitle, create CTA and table', () => {
     render(<TtsEnginesPage />);
+
     expect(screen.getByTestId('tts-engines-page-responsive')).toBeInTheDocument();
-    const hybrid = screen.getByTestId('hybrid-table');
-    expect(hybrid).toHaveAttribute('data-hybrid', 'overflow-x-auto');
-    expect(hybrid.className).toMatch(/overflow-x-auto/);
+    expect(screen.getByRole('heading', { name: 'ttsEngines.title' })).toBeInTheDocument();
+    expect(screen.getByText('ttsEngines.subtitle')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /ttsEngines.add/i })).toBeInTheDocument();
     expect(screen.getByTestId('tts-engines-table-stub')).toBeInTheDocument();
+  });
+
+  it('opens create modal from the page CTA', async () => {
+    const user = userEvent.setup();
+    render(<TtsEnginesPage />);
+
+    await user.click(screen.getByRole('button', { name: /ttsEngines.add/i }));
+    expect(openCreateModal).toHaveBeenCalledTimes(1);
+    expect(dispatch).toHaveBeenCalledWith({ type: 'ttsEngines/openCreateModal' });
   });
 });

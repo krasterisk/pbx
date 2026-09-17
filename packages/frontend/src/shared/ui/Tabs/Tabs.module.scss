@@ -6,9 +6,11 @@
 }
 
 .tabsWrap {
+  position: relative;
   margin-bottom: 1.5rem;
   border-bottom: 1px solid var(--color-border);
   flex-shrink: 0;
+  min-width: 0;
 }
 
 .tabsRow {
@@ -16,10 +18,75 @@
   gap: 0.5rem;
   margin-bottom: -1px;
   overflow-x: auto;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x;
+  -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
 
   &::-webkit-scrollbar {
     display: none;
+  }
+}
+
+.scrollBtn {
+  display: none;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 1;
+  width: 2rem;
+  padding: 0;
+  border: none;
+  color: var(--color-muted-foreground);
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    color: var(--color-foreground);
+  }
+
+  &[hidden] {
+    display: none;
+  }
+}
+
+.scrollBtnLeft {
+  left: 0;
+  background: linear-gradient(
+    to right,
+    var(--color-background) 55%,
+    transparent
+  );
+}
+
+.scrollBtnRight {
+  right: 0;
+  background: linear-gradient(
+    to left,
+    var(--color-background) 55%,
+    transparent
+  );
+}
+
+.scrollIcon {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+}
+
+.hasOverflow .tabsRow {
+  scroll-padding-inline: 2rem;
+}
+
+/* Desktop: arrow affordance when tabs overflow. Mobile keeps swipe-only. */
+@media (min-width: 640px) {
+  .hasOverflow .scrollBtn:not([hidden]) {
+    display: inline-flex;
+  }
+
+  .hasOverflow .tabsRow {
+    padding-inline: 2rem;
   }
 }
 
@@ -61,6 +128,8 @@
 }
 
 .panel {
+  min-width: 0;
+
   &:focus-visible {
     outline: 2px solid var(--color-ring);
     outline-offset: 2px;

@@ -24,8 +24,6 @@
 }
 
 .emptyIcon {
-  width: 32px;
-  height: 32px;
   color: color-mix(in srgb, var(--color-destructive) 50%, transparent);
 }
 
@@ -99,19 +97,25 @@
   color: var(--color-muted-foreground);
 }
 
-/* ── Action buttons ──────────────────────────────── */
+.nowrap { white-space: nowrap; }
+.center { text-align: center; }
+.right { text-align: right; }
 
-.btnIcon {
-  width: 13px;
-  height: 13px;
-  margin-right: 4px;
+.dateCell {
+  white-space: nowrap;
+  font-size: 0.875rem;
+  color: var(--color-muted-foreground);
 }
 
-.spin {
-  animation: spin 1s linear infinite;
+.attemptsCell {
+  text-align: center;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.875rem;
 }
 
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to   { transform: rotate(360deg); }
-}
+.skelDate { height: 1rem; width: 8.75rem; }
+.skelEvent { height: 1rem; width: 5rem; }
+.skelUrl { height: 1rem; width: 11rem; }
+.skelError { height: 1rem; width: 12.5rem; }
+.skelAttempts { height: 1rem; width: 2.5rem; }
+.skelActions { height: 1rem; width: 5rem; }

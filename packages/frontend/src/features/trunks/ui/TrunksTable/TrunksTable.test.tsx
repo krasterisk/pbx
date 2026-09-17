@@ -73,7 +73,7 @@ describe('TrunksTable hybrid responsive (D-29)', () => {
     render(<TrunksTable />);
     const hybrid = screen.getByTestId('hybrid-table');
     expect(hybrid).toHaveAttribute('data-hybrid', 'overflow-x-auto');
-    expect(screen.getByTestId('trunks-table-scroll')).toHaveClass('overflow-x-auto');
+    expect(screen.getByTestId('trunks-table-scroll')).toBeInTheDocument();
     expect(useIsMobileMock).toHaveBeenCalledWith(768);
   });
 

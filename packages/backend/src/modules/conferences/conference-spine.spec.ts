@@ -456,12 +456,12 @@ describe('conference spine (16-01)', () => {
 
       class FakeReq {
         user = { vpbx_user_uid: VPBX, sub: CREATOR_SUB };
-        private listeners = new Map<string, Set<Function>>();
-        on(event: string, cb: Function) {
+        private listeners = new Map<string, Set<() => void>>();
+        on(event: string, cb: () => void) {
           if (!this.listeners.has(event)) this.listeners.set(event, new Set());
           this.listeners.get(event)!.add(cb);
         }
-        off(event: string, cb: Function) {
+        off(event: string, cb: () => void) {
           this.listeners.get(event)?.delete(cb);
         }
         emit(event: string) {

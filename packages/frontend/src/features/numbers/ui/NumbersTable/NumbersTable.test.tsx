@@ -7,16 +7,23 @@ import { NumbersTable } from './NumbersTable';
 import { numbersPageReducer } from '../../model/slice/numbersPageSlice';
 import * as apiHooks from '@/shared/api/api';
 
+const useIsMobileMock = vi.fn((_bp?: number) => false);
+
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string) => key,
+    t: (key: string, opts?: { count?: number }) =>
+      opts?.count != null ? `${key}:${opts.count}` : key,
   }),
+}));
+
+vi.mock('@/shared/hooks/useIsMobile', () => ({
+  useIsMobile: (bp?: number) => useIsMobileMock(bp),
 }));
 
 vi.mock('@/shared/api/api', async (importOriginal) => {
   const actual = await importOriginal();
   return {
-    ...(actual as any),
+    ...(actual as object),
     useGetNumbersQuery: vi.fn(),
     useDeleteNumberMutation: vi.fn(),
     useBulkDeleteNumbersMutation: vi.fn(),
@@ -46,9 +53,24 @@ describe('NumbersTable UI integration', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    (apiHooks.useGetNumbersQuery as any).mockReturnValue({ data: mockNumbers, isLoading: false });
-    (apiHooks.useDeleteNumberMutation as any).mockReturnValue([vi.fn()]);
-    (apiHooks.useBulkDeleteNumbersMutation as any).mockReturnValue([vi.fn(), { isLoading: false }]);
+    useIsMobileMock.mockReturnValue(false);
+    (apiHooks.useGetNumbersQuery as ReturnType<typeof vi.fn>).mockReturnValue({
+      data: mockNumbers,
+      isLoading: false,
+    });
+    (apiHooks.useDeleteNumberMutation as ReturnType<typeof vi.fn>).mockReturnValue([vi.fn()]);
+    (apiHooks.useBulkDeleteNumbersMutation as ReturnType<typeof vi.fn>).mockReturnValue([
+      vi.fn(),
+      { isLoading: false },
+    ]);
+  });
+
+  it('renders overflow-x-auto hybrid marker on desktop', () => {
+    renderWithStore(<NumbersTable />);
+    const hybrid = screen.getByTestId('hybrid-table');
+    expect(hybrid).toHaveAttribute('data-hybrid', 'overflow-x-auto');
+    expect(screen.getByTestId('numbers-table-scroll')).toBeInTheDocument();
+    expect(useIsMobileMock).toHaveBeenCalledWith(768);
   });
 
   it('renders table rows', () => {
@@ -61,15 +83,26 @@ describe('NumbersTable UI integration', () => {
 
   it('dispatches openEditModal on edit button click', () => {
     renderWithStore(<NumbersTable />);
-    
+
     const editBtns = screen.getAllByTitle('common.edit');
     fireEvent.click(editBtns[0]);
-    
+
     expect(mockDispatch).toHaveBeenCalledWith(
       expect.objectContaining({
         type: 'numbersPage/openEditModal',
         payload: mockNumbers[0],
-      })
+      }),
     );
+  });
+
+  it('renders mobile-card hybrid marker when useIsMobile is true', () => {
+    useIsMobileMock.mockReturnValue(true);
+    renderWithStore(<NumbersTable />);
+    const hybrid = screen.getByTestId('hybrid-table');
+    expect(hybrid).toHaveAttribute('data-hybrid', 'mobile-card');
+    expect(screen.getAllByTestId('numbers-mobile-card')).toHaveLength(2);
+    expect(screen.getByText('List 1')).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'common.edit' }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('button', { name: 'common.delete' }).length).toBeGreaterThan(0);
   });
 });

@@ -38,6 +38,20 @@
   aspect-ratio: 16 / 9;
   background: var(--color-muted);
   overflow: hidden;
+  position: relative;
+}
+
+.overlay {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.stateIcon {
+  color: var(--color-foreground);
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 55%));
 }
 
 .fallback {
@@ -50,4 +64,6 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--color-foreground);
+  font-size: 12px;
+  font-weight: 600;
 }

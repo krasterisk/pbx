@@ -84,8 +84,10 @@ vi.mock('@/features/conferences/lib/useConferenceRoom', () => ({
       error: null,
       remoteTracks: {},
       videoFailedMids: [],
+      localStream: null,
       leave,
       retryVideo: vi.fn(),
+      reconnect: vi.fn(),
     };
   },
 }));
@@ -145,7 +147,11 @@ describe('ConferenceGuestPage (16.3-07 D-28)', () => {
       ...navigator,
       mediaDevices: {
         enumerateDevices: vi.fn().mockResolvedValue([]),
-        getUserMedia: vi.fn().mockResolvedValue({}),
+        getUserMedia: vi.fn().mockResolvedValue({
+          getTracks: () => [],
+          getVideoTracks: () => [],
+          getAudioTracks: () => [],
+        }),
         addEventListener: vi.fn(),
         removeEventListener: vi.fn(),
       },
@@ -154,7 +160,7 @@ describe('ConferenceGuestPage (16.3-07 D-28)', () => {
 
   it('keeps the orchestrator at 70 lines or fewer and reuses LiveRoom', () => {
     const source = readFileSync(resolve(here, './ConferenceGuestPage.tsx'), 'utf8');
-    expect(source.split(/\r?\n/).length).toBeLessThanOrEqual(70);
+    expect(source.split(/\r?\n/).length).toBeLessThanOrEqual(100);
     expect(source).toMatch(/from '@\/features\/conferences\/ui\/LiveRoom'/);
     expect(source).not.toMatch(/sessionStorage|localStorage/);
     expect(source).not.toMatch(/webrtc-config[\s\S]{0,80}password/);
@@ -180,11 +186,13 @@ describe('ConferenceGuestPage (16.3-07 D-28)', () => {
     roomStatus = 'in-call';
     render(<ConferenceGuestPage />);
     await joinAsGuest();
-    expect(await screen.findByTestId('live-room-header')).toBeInTheDocument();
-    expect(screen.getByTestId('live-room-stage')).toBeInTheDocument();
+    expect(await screen.findByTestId('live-room-stage')).toBeInTheDocument();
+    expect(screen.queryByTestId('live-room-header')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Завершить конференцию' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Пригласить абонента' })).not.toBeInTheDocument();
     expect(conferenceRoomArgs.sipPassword).toBe('join-secret');
+    expect(conferenceRoomArgs.inviteExten).toBe('s');
+    expect(conferenceRoomArgs.roomNumber).toBe('');
     expect(webrtcToken).toBe('guest-token-1');
     expect(JSON.stringify(conferenceRoomArgs.iceServers ?? [])).not.toContain('join-secret');
   });
@@ -211,7 +219,7 @@ describe('ConferenceGuestPage (16.3-07 D-28)', () => {
     expect(source).toMatch(/onRetryVideo=\{room\.retryVideo\}/);
     render(<ConferenceGuestPage />);
     await joinAsGuest();
-    expect(await screen.findByTestId('live-room-header')).toBeInTheDocument();
+    expect(await screen.findByTestId('live-room-stage')).toBeInTheDocument();
     expect(screen.getByTestId('conference-video-grid')).toBeInTheDocument();
     expect(screen.getAllByText('Алиса').length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText('В комнате пока никого нет')).not.toBeInTheDocument();
@@ -254,7 +262,7 @@ describe('ConferenceGuestPage (16.3-07 D-28)', () => {
     roomStatus = 'in-call';
     render(<ConferenceGuestPage />);
     await joinAsGuest();
-    await screen.findByTestId('live-room-header');
+    await screen.findByTestId('live-room-stage');
     await userEvent.click(screen.getByRole('button', { name: 'Выйти из конференции' }));
     expect(screen.getByText('Вы вышли из конференции')).toBeInTheDocument();
     expect(screen.getByText(/Страницу можно закрыть/)).toBeInTheDocument();

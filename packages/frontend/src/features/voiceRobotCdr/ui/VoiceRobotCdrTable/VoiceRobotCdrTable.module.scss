@@ -1,0 +1,93 @@
+/* ─────────────────────────────────────────────────────
+   VoiceRobotCdrTable — журнал сессий голосовых роботов
+   Design tokens: var(--color-*) from globals.css @theme
+   ───────────────────────────────────────────────────── */
+
+.wrap {
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.empty {
+  padding: 3rem 0;
+  width: 100%;
+}
+
+.bodyRow {
+  transition: background-color 0.15s ease;
+
+  &:hover {
+    background: color-mix(in srgb, var(--color-muted) 20%, transparent);
+  }
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+.name {
+  font-weight: 500;
+  color: var(--color-foreground);
+}
+
+.cell {
+  font-size: 0.875rem;
+}
+
+.mutedSmall {
+  font-size: 0.75rem;
+  color: var(--color-muted-foreground);
+}
+
+.mutedIcon {
+  color: var(--color-muted-foreground);
+  flex-shrink: 0;
+}
+
+.primaryIcon {
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.dangerIcon {
+  color: var(--color-destructive);
+  flex-shrink: 0;
+}
+
+.transfer {
+  font-size: 0.875rem;
+  color: var(--color-muted-foreground);
+  flex-shrink: 0;
+}
+
+.resultCell {
+  min-width: 0;
+}
+
+.actionsHead {
+  width: 5.5rem;
+}
+
+.iconBtn {
+  width: 1.75rem;
+  height: 1.75rem;
+}
+
+.dash {
+  display: inline-flex;
+  width: 1.75rem;
+  height: 1.75rem;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-muted-foreground);
+}
+
+.skelDate { height: 1rem; width: 8rem; }
+.skelRobot { height: 1rem; width: 6rem; }
+.skelCaller { height: 1rem; width: 8rem; }
+.skelBadge { height: 1.5rem; width: 6rem; border-radius: 9999px; }
+.skelTag { height: 1.25rem; width: 7rem; border-radius: 9999px; }
+.skelDur { height: 1rem; width: 4rem; }
+.skelResult { height: 1rem; width: 6rem; }
+.skelActions { height: 1.75rem; width: 4rem; }

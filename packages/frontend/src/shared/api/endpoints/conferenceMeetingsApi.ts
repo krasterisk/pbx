@@ -35,6 +35,7 @@ export function conferenceMeetingPlayUrl(
 }
 
 export const conferenceMeetingsApi = rtkApi.injectEndpoints({
+  overrideExisting: import.meta.hot != null,
   endpoints: (builder) => ({
     getConferenceMeetings: builder.query<ConferenceMeeting[], number>({
       query: (roomUid) => `/conferences/${roomUid}/meetings`,

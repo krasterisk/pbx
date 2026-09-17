@@ -39,6 +39,19 @@ describe('AgentIntentClassifierService', () => {
     expect(filtered).not.toContain('create_trunk');
   });
 
+  it('selects time-groups for a calendar request and keeps create_time_group', () => {
+    const result = classifier.classify({
+      message: 'Нужен календарь: будни 08-17, суббота 09-15',
+    });
+    expect(result.skillNames).toEqual(expect.arrayContaining(['time-groups']));
+    const filtered = classifier.filterToolNames(
+      ['list_time_groups', 'create_time_group', 'create_trunk', 'list_skills'],
+      { ...result, confidence: 0.9 },
+    );
+    expect(filtered).toEqual(expect.arrayContaining(['list_time_groups', 'create_time_group', 'list_skills']));
+    expect(filtered).not.toContain('create_trunk');
+  });
+
   it('keeps list_dialplan_apps on an IVR turn', () => {
     const classification = classifier.classify({
       message: 'Создай IVR Продажи с таймаутом в группу 101-103',

@@ -2,6 +2,7 @@ import { rtkApi } from '../rtkApi';
 import { ITtsEngine } from '@/entities/engines';
 
 const ttsEnginesApi = rtkApi.injectEndpoints({
+  overrideExisting: import.meta.hot != null,
   endpoints: (builder) => ({
     getTtsEngines: builder.query<ITtsEngine[], void>({
       query: () => '/tts-engines',

@@ -21,6 +21,7 @@ export interface ICallbackRequest {
 export type CallbackListStatus = 'active' | 'completed';
 
 export const callbackRequestsApi = rtkApi.injectEndpoints({
+  overrideExisting: import.meta.hot != null,
   endpoints: (build) => ({
     getCallbackRequests: build.query<ICallbackRequest[], CallbackListStatus | void>({
       query: (status) => ({

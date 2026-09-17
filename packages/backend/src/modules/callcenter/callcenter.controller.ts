@@ -353,6 +353,15 @@ export class CallCenterController {
     return this.ccService.supervisorForceUnpause(dto.agentInterface, req.user.vpbx_user_uid);
   }
 
+  @Post('supervisor/reconcile-queues')
+  supervisorReconcileQueues(
+    @Body() dto: { agentInterface?: string },
+    @Req() req: Request & { user: any },
+  ) {
+    assertSupervisor(req.user);
+    return this.ccService.supervisorReconcileQueues(req.user.vpbx_user_uid, dto?.agentInterface);
+  }
+
   @Post('supervisor/queue-add')
   supervisorQueueAdd(@Body() dto: SupervisorQueueActionDto, @Req() req: Request & { user: any }) {
     assertSupervisor(req.user);

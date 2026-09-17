@@ -8,6 +8,7 @@ export interface IContext {
 }
 
 const contextApi = rtkApi.injectEndpoints({
+  overrideExisting: import.meta.hot != null,
   endpoints: (builder) => ({
     getContexts: builder.query<IContext[], void>({
       query: () => '/contexts',

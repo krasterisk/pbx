@@ -107,7 +107,7 @@ export function normalizeTarget(
       ? AsteriskDialplanUtils.sanitizeDialplanInput(src.value)
       : src.source === 'route_pattern'
         ? '${EXTEN}'
-        : src.source === 'variable'
+        : src.source === 'variable' || src.source === 'autodial_field'
           ? `\${${AsteriskDialplanUtils.sanitizeDialplanInput(src.name)}}`
           : src.source === 'original_caller'
             ? '${KRSK_ORIG_CALLER_NUM}'

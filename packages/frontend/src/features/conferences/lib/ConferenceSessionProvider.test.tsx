@@ -36,8 +36,10 @@ vi.mock('@/features/conferences/lib/useConferenceRoom', () => ({
       error: null,
       remoteTracks: {},
       videoFailedMids: [],
+      localStream: null,
       leave,
       retryVideo: vi.fn(),
+      reconnect: vi.fn(),
     };
   },
 }));

@@ -28,8 +28,17 @@ interface LoadedSkill extends SkillCatalogEntry {
   body: string;
 }
 
-export function resolveSkillsRootCandidates(moduleDir: string = __dirname): string[] {
-  return [path.resolve(moduleDir, '../../skills'), path.resolve(process.cwd(), 'src/skills')];
+export function resolveSkillsRootCandidates(
+  moduleDir: string = __dirname,
+  nodeEnv: string | undefined = process.env.NODE_ENV,
+): string[] {
+  const compiled = path.resolve(moduleDir, '../../skills');
+  const fromSrc = path.resolve(process.cwd(), 'src/skills');
+  // Watch-mode must not depend on nest copying SKILL.md into dist (Windows EBUSY kills --watch).
+  if (nodeEnv === 'development') {
+    return [fromSrc, compiled];
+  }
+  return [compiled, fromSrc];
 }
 
 function pickScalar(head: string, key: string): string {

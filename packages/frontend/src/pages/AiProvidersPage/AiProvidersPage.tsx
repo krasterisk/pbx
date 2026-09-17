@@ -1,56 +1,53 @@
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plug, Plus } from 'lucide-react';
 import { Button, Text } from '@/shared/ui';
-import { HStack, VStack } from '@/shared/ui/Stack';
+import { Flex, HStack, VStack } from '@/shared/ui/Stack';
 import { AiProviderModal, AiProvidersTable } from '@/features/ai-providers';
 import type { IAiProvider } from '@/shared/api/endpoints/aiAgentsApi';
-import styles from './AiProvidersPage.module.scss';
+import cls from './AiProvidersPage.module.scss';
 
-export function AiProvidersPage() {
+export const AiProvidersPage = memo(() => {
   const { t } = useTranslation();
   const [editing, setEditing] = useState<IAiProvider | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
 
   return (
-    <VStack gap="24" max className={styles.page} data-testid="ai-providers-page-responsive">
-      <HStack justify="between" align="center" className={styles.header} max>
-        <VStack gap="4" className={styles.heading}>
-          <HStack gap="12" align="center">
-            <Plug className={styles.pageIcon} />
-            <Text variant="h1" className={styles.pageTitle}>
+    <VStack gap="24" max className={cls.page} data-testid="ai-providers-page-responsive">
+      <Flex justify="between" align="center" className={cls.header} max>
+        <HStack gap="12" align="center">
+          <Flex align="center" justify="center" className={cls.iconBadge}>
+            <Plug size={24} />
+          </Flex>
+          <VStack gap="4" className={cls.titleBlock}>
+            <Text variant="h1" as="h1" className={cls.title}>
               {t('aiProviders.title')}
             </Text>
-          </HStack>
-          <Text variant="small" className={styles.pageSubtitle}>
-            {t('aiProviders.subtitle')}
-          </Text>
-        </VStack>
+            <Text variant="muted">
+              {t('aiProviders.subtitle')}
+            </Text>
+          </VStack>
+        </HStack>
         <Button
-          className={styles.createBtn}
+          className={cls.createBtn}
           onClick={() => {
             setEditing(null);
             setModalOpen(true);
           }}
         >
-          <Plus className={styles.btnIcon} />
-          {t('aiProviders.newProvider')}
+          <Plus size={16} className={cls.createBtnIcon} />
+          <Text as="span">{t('aiProviders.newProvider')}</Text>
         </Button>
-      </HStack>
+      </Flex>
 
-      <VStack
-        className={styles.tableScroll}
-        data-testid="hybrid-table"
-        data-hybrid="overflow-x-auto"
-        max
-      >
+      <Flex direction="column" align="stretch" max className={cls.tableWrap}>
         <AiProvidersTable
           onEdit={(provider) => {
             setEditing(provider);
             setModalOpen(true);
           }}
         />
-      </VStack>
+      </Flex>
 
       {modalOpen && (
         <AiProviderModal
@@ -60,4 +57,6 @@ export function AiProvidersPage() {
       )}
     </VStack>
   );
-}
+});
+
+AiProvidersPage.displayName = 'AiProvidersPage';

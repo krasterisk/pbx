@@ -168,6 +168,46 @@ export class AriHttpClientService implements OnModuleInit {
     return response.data;
   }
 
+  /**
+   * Create an unstarted channel with a caller-supplied id so events can be
+   * correlated without a race. Variables must go in the body — ARI rejects
+   * them as query params.
+   */
+  async originateChannel(params: {
+    endpoint: string;
+    app: string;
+    appArgs?: string;
+    channelId: string;
+    callerId?: string;
+    timeout?: number;
+    variables?: Record<string, string>;
+  }): Promise<Channel> {
+    const query: Record<string, string | number> = {
+      endpoint: params.endpoint,
+      app: params.app,
+      appArgs: params.appArgs || '',
+      channelId: params.channelId,
+    };
+    if (params.callerId) query.callerId = params.callerId;
+    if (params.timeout != null) query.timeout = params.timeout;
+
+    const response = await this.client.post(
+      '/channels/create',
+      params.variables && Object.keys(params.variables).length
+        ? { variables: params.variables }
+        : undefined,
+      { params: query },
+    );
+    return response.data;
+  }
+
+  /** Start dialing a channel previously created by originateChannel. */
+  async dialChannel(channelId: string, timeout?: number): Promise<void> {
+    const params: Record<string, number> = {};
+    if (timeout != null) params.timeout = timeout;
+    await this.client.post(`/channels/${channelId}/dial`, undefined, { params });
+  }
+
   async continueChannel(channelId: string): Promise<void> {
     await this.client.post(`/channels/${channelId}/continue`);
   }

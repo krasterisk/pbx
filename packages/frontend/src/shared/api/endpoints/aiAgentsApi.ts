@@ -88,6 +88,7 @@ export interface ICreateAiProvider {
 // ─── API ──────────────────────────────────────────────────
 
 const aiAgentsApi = rtkApi.injectEndpoints({
+  overrideExisting: import.meta.hot != null,
   endpoints: (build) => ({
     // Agents
     getAiAgents: build.query<IAiAgent[], void>({

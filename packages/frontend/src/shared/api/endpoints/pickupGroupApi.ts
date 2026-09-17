@@ -7,6 +7,7 @@ export interface IPickupGroup {
 }
 
 const pickupGroupApi = rtkApi.injectEndpoints({
+  overrideExisting: import.meta.hot != null,
   endpoints: (builder) => ({
     getPickupGroups: builder.query<IPickupGroup[], void>({
       query: () => '/pickup-groups',

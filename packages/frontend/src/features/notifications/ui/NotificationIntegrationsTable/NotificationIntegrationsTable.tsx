@@ -1,119 +1,207 @@
-import { useCallback, useState } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ColumnDef } from '@tanstack/react-table';
-import { Pencil, Trash2, Copy } from 'lucide-react';
-import type { INotificationIntegration } from '@krasterisk/shared';
-import { DataTable, HStack, Button } from '@/shared/ui';
-import { useAppDispatch } from '@/shared/hooks/useAppStore';
+import { Bell, Search, Loader2, Trash2, Pencil, Copy } from 'lucide-react';
+import {
+  Card,
+  CardHeader,
+  CardContent,
+  Input,
+  Button,
+  DataTable,
+  Text,
+  TableRowActions,
+  TableRowAction,
+} from '@/shared/ui';
+import { Flex, HStack, VStack } from '@/shared/ui/Stack';
 import {
   useGetNotificationsQuery,
   useDeleteNotificationMutation,
 } from '@/shared/api/endpoints/notificationApi';
+import { useAppDispatch } from '@/shared/hooks/useAppStore';
+import { useIsMobile } from '@/shared/hooks/useIsMobile';
 import { notificationsPageActions } from '../../model/slice/notificationsPageSlice';
+import {
+  formatNotificationChannel,
+  useNotificationIntegrationsTableColumns,
+} from './useNotificationIntegrationsTableColumns';
+import cls from './NotificationIntegrationsTable.module.scss';
 
-export const NotificationIntegrationsTable = () => {
+export const NotificationIntegrationsTable = memo(() => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
-  const { data: integrations = [] } = useGetNotificationsQuery();
+  const isMobile = useIsMobile(768);
+  const { data: integrations = [], isLoading } = useGetNotificationsQuery();
   const [deleteIntegration] = useDeleteNotificationMutation();
+
+  const [globalFilter, setGlobalFilter] = useState('');
   const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
+  const [isDeleting, setIsDeleting] = useState(false);
 
-  const handleEdit = useCallback(
-    (uid: number) => {
-      dispatch(notificationsPageActions.openEditModal(uid));
-    },
-    [dispatch],
+  const columns = useNotificationIntegrationsTableColumns();
+  const selectedCount = Object.keys(rowSelection).length;
+
+  const filtered = useMemo(() => {
+    const q = globalFilter.trim().toLowerCase();
+    if (!q) return integrations;
+    return integrations.filter((row) => {
+      const name = (row.name || '').toLowerCase();
+      const channel = (row.channel || '').toLowerCase();
+      return name.includes(q) || channel.includes(q);
+    });
+  }, [integrations, globalFilter]);
+
+  const handleBulkDelete = useCallback(async () => {
+    const ids = Object.keys(rowSelection).map(Number);
+    if (!ids.length) return;
+    if (!window.confirm(t('notifications.confirmBulkDelete'))) return;
+    setIsDeleting(true);
+    try {
+      await Promise.all(ids.map((id) => deleteIntegration(id).unwrap()));
+      setRowSelection({});
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [rowSelection, deleteIntegration, t]);
+
+  const toolbar = (
+    <Flex justify="between" align="center" className={cls.toolbar} max>
+      <HStack gap="8" align="center">
+        <Bell size={20} className={cls.toolbarIcon} />
+        <Text className={cls.count}>
+          {t('notifications.count', { count: integrations.length })}
+        </Text>
+      </HStack>
+      <HStack gap="8" align="center" className={cls.toolbarActions}>
+        {!isMobile && (
+          <Button
+            variant="destructive"
+            className={selectedCount === 0 ? cls.bulkBtnHidden : undefined}
+            disabled={isDeleting || selectedCount === 0}
+            aria-hidden={selectedCount === 0}
+            tabIndex={selectedCount === 0 ? -1 : undefined}
+            onClick={handleBulkDelete}
+          >
+            {isDeleting ? <Loader2 size={16} className={cls.spinner} /> : <Trash2 size={16} />}
+            {t('notifications.deleteSelected', { count: selectedCount })}
+          </Button>
+        )}
+        <Flex align="center" className={cls.searchWrap}>
+          <Search size={16} className={cls.searchIcon} />
+          <Input
+            id="notifications-search"
+            placeholder={t('common.search')}
+            value={globalFilter}
+            onChange={(e) => setGlobalFilter(e.target.value)}
+            className={cls.searchInput}
+          />
+        </Flex>
+      </HStack>
+    </Flex>
   );
 
-  const handleCopy = useCallback(
-    (uid: number) => {
-      dispatch(notificationsPageActions.openCopyModal(uid));
-    },
-    [dispatch],
-  );
+  if (isLoading) {
+    return (
+      <Card className={cls.card}>
+        <CardHeader>{toolbar}</CardHeader>
+        <CardContent>
+          <Flex align="center" justify="center" className={cls.loading}>
+            <Loader2 size={24} className={cls.spinner} />
+          </Flex>
+        </CardContent>
+      </Card>
+    );
+  }
 
-  const handleDelete = useCallback(
-    async (integration: INotificationIntegration) => {
-      if (
-        !window.confirm(
-          t('notifications.confirmDelete', {
-            name: integration.name,
-            defaultValue: `Delete integration "${integration.name}"?`,
-          }),
-        )
-      ) {
-        return;
-      }
-      await deleteIntegration(integration.uid);
-    },
-    [deleteIntegration, t],
-  );
-
-  const columns: ColumnDef<INotificationIntegration>[] = [
-    {
-      accessorKey: 'name',
-      header: t('notifications.name', 'Name'),
-      size: 220,
-      cell: ({ row }) => (
-        <span className="text-sm font-medium text-foreground">{row.original.name}</span>
-      ),
-    },
-    {
-      accessorKey: 'channel',
-      header: t('notifications.channel', 'Channel'),
-      size: 160,
-      cell: ({ row }) => (
-        <span className="text-sm">
-          {t(`notifications.channels.${row.original.channel}`, row.original.channel)}
-        </span>
-      ),
-    },
-    {
-      id: 'actions',
-      header: '',
-      size: 80,
-      cell: ({ row }) => (
-        <HStack gap="4" align="center">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => handleEdit(row.original.uid)}
-            title={t('common.edit')}
-          >
-            <Pencil className="w-4 h-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => handleCopy(row.original.uid)}
-            title={t('common.copy')}
-          >
-            <Copy className="w-4 h-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => handleDelete(row.original)}
-            title={t('common.delete')}
-            className="hover:text-destructive"
-          >
-            <Trash2 className="w-4 h-4" />
-          </Button>
-        </HStack>
-      ),
-    },
-  ];
+  if (isMobile) {
+    return (
+      <Card className={cls.card} data-testid="hybrid-table" data-hybrid="mobile-card">
+        <CardHeader>{toolbar}</CardHeader>
+        <CardContent>
+          <VStack gap="8" max className={cls.mobileList}>
+            {filtered.length === 0 ? (
+              <Text variant="muted" className={cls.mobileEmpty}>
+                {t('notifications.noIntegrations')}
+              </Text>
+            ) : (
+              filtered.map((integration) => (
+                <Flex
+                  key={integration.uid}
+                  direction="column"
+                  className={cls.mobileCard}
+                  data-testid="notifications-mobile-card"
+                >
+                  <HStack justify="between" align="start" max>
+                    <VStack gap="4">
+                      <Text as="span" className={cls.name}>{integration.name}</Text>
+                      <Text as="span" className={cls.muted}>
+                        {formatNotificationChannel(integration.channel, t)}
+                      </Text>
+                    </VStack>
+                    <TableRowActions>
+                      <TableRowAction
+                        title={t('common.edit')}
+                        aria-label={t('common.edit')}
+                        onClick={() => dispatch(notificationsPageActions.openEditModal(integration.uid))}
+                      >
+                        <Pencil />
+                      </TableRowAction>
+                      <TableRowAction
+                        title={t('common.copy')}
+                        aria-label={t('common.copy')}
+                        onClick={() => dispatch(notificationsPageActions.openCopyModal(integration.uid))}
+                      >
+                        <Copy />
+                      </TableRowAction>
+                      <TableRowAction
+                        danger
+                        title={t('common.delete')}
+                        aria-label={t('common.delete')}
+                        onClick={() => {
+                          if (window.confirm(t('notifications.confirmDelete', { name: integration.name }))) {
+                            deleteIntegration(integration.uid);
+                          }
+                        }}
+                      >
+                        <Trash2 />
+                      </TableRowAction>
+                    </TableRowActions>
+                  </HStack>
+                </Flex>
+              ))
+            )}
+          </VStack>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
-    <DataTable
-      columns={columns}
-      data={integrations}
-      getRowId={(row) => String(row.uid)}
-      selectable={false}
-      rowSelection={rowSelection}
-      onRowSelectionChange={setRowSelection}
-      emptyText={t('notifications.noIntegrations', 'No integrations')}
-      exportFilename="notification_integrations_export"
-    />
+    <Card className={cls.card} data-testid="hybrid-table" data-hybrid="overflow-x-auto">
+      <CardHeader>{toolbar}</CardHeader>
+      <CardContent className={cls.cardContent}>
+        <Flex
+          direction="column"
+          align="stretch"
+          className={cls.tableScroll}
+          data-testid="notifications-table-scroll"
+        >
+          <DataTable
+            className={cls.table}
+            data={integrations}
+            columns={columns}
+            getRowId={(row) => String(row.uid)}
+            selectable
+            rowSelection={rowSelection}
+            onRowSelectionChange={setRowSelection}
+            globalFilter={globalFilter}
+            pageSize={50}
+            emptyText={t('notifications.noIntegrations')}
+            exportFilename="notification_integrations_export"
+          />
+        </Flex>
+      </CardContent>
+    </Card>
   );
-};
+});
+
+NotificationIntegrationsTable.displayName = 'NotificationIntegrationsTable';

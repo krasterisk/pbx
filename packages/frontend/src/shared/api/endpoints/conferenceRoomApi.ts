@@ -1,6 +1,9 @@
 import { toast } from 'react-toastify';
 
-import i18n from '@/shared/config/i18n';
+// The bare singleton, not `shared/config/i18n`: importing the config module runs
+// `init()` as a side effect, which drags the whole locale bundle into any module
+// graph that reaches an endpoint file.
+import i18n from 'i18next';
 
 import { rtkApi } from '../rtkApi';
 
@@ -49,6 +52,7 @@ export interface ConferenceRoom {
   participants?: ConferenceParticipant[];
   waitingForModerator?: boolean;
   recording?: boolean;
+  startedAt?: string | null;
 }
 
 export interface ConferenceRoomWrite {
@@ -74,6 +78,7 @@ export interface ConferenceGuestMeta {
   participants?: ConferenceParticipant[];
   waitingForModerator?: boolean;
   recording?: boolean;
+  startedAt?: string | null;
 }
 
 export interface ConferenceGuestJoinResult {
@@ -163,6 +168,7 @@ function allowListedTelemetry(body: ConferenceTelemetryBody): ConferenceTelemetr
 }
 
 const conferenceRoomApi = rtkApi.injectEndpoints({
+  overrideExisting: import.meta.hot != null,
   endpoints: (build) => ({
     getConferenceRooms: build.query<ConferenceRoomCatalogItem[], void>({
       query: () => '/conferences',

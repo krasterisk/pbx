@@ -31,6 +31,7 @@ const DOMAIN_TOOL_PREFIX: Record<string, string[]> = {
   'call-groups': ['list_call_groups', 'create_call_group', 'update_call_group', 'delete_call_group'],
   queues: ['list_queues', 'create_queue', 'update_queue', 'delete_queue'],
   routes: ['list_routes', 'describe_route_chain', 'list_dialplan_apps', 'create_route', 'delete_route', 'update_route'],
+  'time-groups': ['list_time_groups', 'evaluate_time_group', 'create_time_group', 'update_time_group'],
   trunks: ['list_trunks', 'create_trunk', 'delete_trunk', 'update_trunk'],
   contexts: ['list_contexts', 'create_context', 'update_context', 'delete_context'],
   directories: ['list_directories', 'create_directory', 'delete_directory', 'remove_directory_records'],
@@ -215,6 +216,9 @@ export class AgentIntentClassifierService {
     if (goal.includes('call_group') || goal.includes('group')) return 'call-groups';
     if (goal.includes('queue')) return 'queues';
     if (goal.includes('pbx_setup')) return 'pbx-setup';
+    if (goal.includes('time_group') || goal.includes('schedule') || goal.includes('calendar')) {
+      return 'time-groups';
+    }
     return null;
   }
 

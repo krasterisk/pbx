@@ -15,7 +15,9 @@ import {
   useSupervisorForcePauseMutation,
   useSupervisorForceUnpauseMutation,
   useSupervisorForceLogoutMutation,
+  useGetPauseReasonsQuery,
 } from '@/shared/api/endpoints/callCenterApi';
+import { PauseReasonModal } from '@/features/callcenter/ui/PauseReasonModal/PauseReasonModal';
 import type { IAgent } from '@/features/callcenter/model/types/callCenterSchema';
 import styles from './BulkActionsBar.module.scss';
 
@@ -47,6 +49,8 @@ export function BulkActionsBar({ selectedAgents, onClear, onStartShift }: BulkAc
   const reduceMotion = useReducedMotion();
   const [busy, setBusy] = useState<'pause' | 'unpause' | 'logout' | null>(null);
   const [confirmLogout, setConfirmLogout] = useState(false);
+  const [pauseOpen, setPauseOpen] = useState(false);
+  const { data: pauseReasons = [] } = useGetPauseReasonsQuery();
 
   const [supervisorForcePause] = useSupervisorForcePauseMutation();
   const [supervisorForceUnpause] = useSupervisorForceUnpauseMutation();
@@ -90,12 +94,16 @@ export function BulkActionsBar({ selectedAgents, onClear, onStartShift }: BulkAc
     }
   }, [onClear]);
 
-  const handlePause = useCallback(() => {
+  const handlePauseSelect = useCallback((reason: string) => {
+    setPauseOpen(false);
     const targets = selectedAgents.filter(
       (a) => hasLiveAgentInterface(a.interface) && a.status === 'READY',
     );
     return runBulk('pause', targets, (agentInterface) =>
-      supervisorForcePause({ agentInterface }).unwrap(),
+      supervisorForcePause({
+        agentInterface,
+        reason: reason.trim() || undefined,
+      }).unwrap(),
     );
   }, [runBulk, selectedAgents, supervisorForcePause]);
 
@@ -146,7 +154,7 @@ export function BulkActionsBar({ selectedAgents, onClear, onStartShift }: BulkAc
               size="sm"
               variant="outline"
               disabled={busy != null}
-              onClick={handlePause}
+              onClick={() => setPauseOpen(true)}
             >
               {busy === 'pause' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Pause className="w-3.5 h-3.5" />}
               {t('callcenter.supervisor.bulk.pause', 'Pause')}
@@ -204,6 +212,15 @@ export function BulkActionsBar({ selectedAgents, onClear, onStartShift }: BulkAc
           </Button>
         </div>
       </motion.div>
+
+      {pauseOpen && (
+        <PauseReasonModal
+          reasons={pauseReasons}
+          quickPauseValue=""
+          onClose={() => setPauseOpen(false)}
+          onSelect={handlePauseSelect}
+        />
+      )}
 
       <Dialog open={confirmLogout} onOpenChange={(v) => { if (!v) setConfirmLogout(false); }}>
         <DialogContent size="default">

@@ -1,0 +1,121 @@
+/* BaseFormModal — pin height via Dialog size="large" (85vh / 90dvh) */
+
+.dialog {
+  max-width: min(62rem, calc(100vw - 1rem));
+  width: 100%;
+  gap: 0;
+}
+
+.header {
+  flex-shrink: 0;
+  padding-right: 1.5rem;
+}
+
+.body {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  padding-right: 0.25rem;
+}
+
+.footer {
+  flex-shrink: 0;
+  margin-top: 0;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.footerActions {
+  width: 100%;
+
+  @media (max-width: 640px) {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  width: 100%;
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-foreground);
+}
+
+.hint {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--color-muted-foreground);
+}
+
+.error {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--color-destructive);
+}
+
+.fieldRow {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-muted) 8%, transparent);
+}
+
+.fieldGrid {
+  display: grid;
+  grid-template-columns:
+    minmax(0, 1fr) minmax(0, 1.2fr) minmax(0, 0.9fr)
+    minmax(0, 1fr) auto auto;
+  gap: 0.75rem;
+  align-items: end;
+  width: 100%;
+
+  @media (max-width: 1024px) {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.flags {
+  padding-bottom: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.enumRow {
+  margin-top: 0.75rem;
+}
+
+.spinner {
+  color: var(--color-primary);
+  flex-shrink: 0;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}

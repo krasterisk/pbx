@@ -47,7 +47,12 @@ describe('ConfbridgeStaticProfileService', () => {
       [
         expect.objectContaining({
           name: 'krsk_conf_sfu',
-          lines: ['type=bridge', 'video_mode=sfu', 'enable_events=yes'],
+          lines: [
+            'type=bridge',
+            'video_mode=sfu',
+            'enable_events=yes',
+            'record_file_timestamp=no',
+          ],
         }),
       ],
       { reload: false },
@@ -81,6 +86,7 @@ describe('ConfbridgeStaticProfileService', () => {
       'Line-000000-000000': 'type=bridge',
       'Line-000000-000001': 'video_mode=sfu',
       'Line-000000-000002': 'enable_events=yes',
+      'Line-000000-000003': 'record_file_timestamp=no',
     });
     amiService.command.mockResolvedValue(LOADED_PROFILE);
 
@@ -95,6 +101,23 @@ describe('ConfbridgeStaticProfileService', () => {
       response: 'Success',
       'Category-000000': 'krsk_conf_sfu',
       'Line-000000-000002': 'allow=opus,ulaw,vp8',
+    });
+    amiService.command.mockResolvedValue(LOADED_PROFILE);
+
+    await service.onApplicationBootstrap();
+
+    expect(dialplanApplyService.applyCategories).toHaveBeenCalledTimes(1);
+    expectBridgeProfileWithoutAllow();
+    expect(amiService.command).toHaveBeenCalledWith('module reload app_confbridge.so');
+  });
+
+  it('rewrites when krsk_conf_sfu is loaded but record_file_timestamp=no is missing', async () => {
+    amiService.action.mockResolvedValue({
+      response: 'Success',
+      'Category-000000': 'krsk_conf_sfu',
+      'Line-000000-000000': 'type=bridge',
+      'Line-000000-000001': 'video_mode=sfu',
+      'Line-000000-000002': 'enable_events=yes',
     });
     amiService.command.mockResolvedValue(LOADED_PROFILE);
 

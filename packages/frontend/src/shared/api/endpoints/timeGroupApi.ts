@@ -2,6 +2,7 @@ import { rtkApi } from '../rtkApi';
 import type { ITimeGroup } from '@krasterisk/shared';
 
 const timeGroupApi = rtkApi.injectEndpoints({
+  overrideExisting: import.meta.hot != null,
   endpoints: (builder) => ({
     getTimeGroups: builder.query<ITimeGroup[], void>({
       query: () => '/time-groups',

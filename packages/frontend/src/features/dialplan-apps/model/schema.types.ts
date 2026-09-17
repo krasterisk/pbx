@@ -31,8 +31,8 @@ export type OptionsSource =
   | 'notifications'
   | 'conferenceRooms';
 
-/** How ValueSourceField renders source pickers. */
-export type ValueSourceMode = 'queue' | 'scalar' | 'dial';
+/** How ValueSourceField renders source pickers. `queue` is an alias of `catalog`. */
+export type ValueSourceMode = 'catalog' | 'queue' | 'scalar' | 'dial';
 
 export interface FieldOption {
   value: string;
@@ -86,7 +86,7 @@ export interface FieldSchema {
    * Default heuristic: required → primary, else params (or all primary when nothing is required).
    */
   group?: 'primary' | 'params';
-  /** ValueSource UI mode: queue catalog vs scalar (fixed number / variable / directory). */
+  /** ValueSource UI mode: catalog + mask vs scalar vs dial. */
   valueSourceMode?: ValueSourceMode;
   hintKey?: string;
   hint?: string;

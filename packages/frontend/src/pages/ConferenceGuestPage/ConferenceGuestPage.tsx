@@ -1,4 +1,4 @@
-import { memo, useState } from 'react';
+import { memo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Text } from '@/shared/ui';
@@ -25,16 +25,27 @@ export const ConferenceGuestPage = memo(() => {
   const [creds, setCreds] = useState<ConferenceGuestJoinResult | null>(null);
   const [left, setLeft] = useState(false);
   const [displayName, setDisplayName] = useState('');
+  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  const hadSession = useRef(false);
   const ready = Boolean(creds?.sipId && creds.password && creds.sipDomain && rtc?.wssUrl);
   const room = useConferenceRoom({
-    roomUid: creds?.roomUid ?? 0, roomNumber: '', displayName,
+    roomUid: creds?.roomUid ?? 0, roomNumber: '', inviteExten: 's', displayName,
     sipId: ready ? creds?.sipId : null, sipPassword: ready ? creds?.password : null,
     sipDomain: ready ? creds?.sipDomain : null, wssUrl: rtc?.wssUrl, iceServers: rtc?.iceServers,
+    localStream,
     onTelemetry: (body) => { if (token) void guestPostTelemetry({ token, body }); },
   });
+  if (room.status === 'in-call' || room.error === 'sessionDropped') hadSession.current = true;
   useConferenceSse({ mode: 'guest', roomUid: creds?.roomUid ?? 0, token });
   const lobby = Boolean(creds) && meta?.entry_strictness === 'token_name_pin_moderator' && room.status !== 'in-call';
-  const hangup = () => { setLeft(true); setCreds(null); void room.leave(); if (token) void guestLeave(token); };
+  const hangup = () => {
+    setLeft(true);
+    setCreds(null);
+    localStream?.getTracks().forEach((track) => track.stop());
+    setLocalStream(null);
+    void room.leave();
+    if (token) void guestLeave(token);
+  };
   return (
     <ConferenceGuestShell roomName={meta?.name ?? ''}>
       <VStack className={cls.page} data-testid="conference-guest-page" max>
@@ -45,15 +56,21 @@ export const ConferenceGuestPage = memo(() => {
           </>
         ) : creds && !lobby ? (
           <LiveRoom
-            roomUid={creds.roomUid} roomName={meta?.name ?? ''} participants={meta?.participants ?? []}
-            remoteTracks={room.remoteTracks} videoFailedMids={room.videoFailedMids}
-            onRetryVideo={room.retryVideo}
-            selfRole="participant" status={room.status} error={room.error} onLeave={hangup}
+            roomUid={creds.roomUid} hideHeader participants={meta?.participants ?? []}
+            startedAt={meta?.startedAt} remoteTracks={room.remoteTracks}
+            localStream={room.localStream ?? localStream} selfName={displayName}
+            videoFailedMids={room.videoFailedMids} onRetryVideo={room.retryVideo}
+            selfRole="participant" status={room.status} error={room.error}
+            reconnecting={room.status === 'connecting' && hadSession.current}
+            disconnected={room.error === 'sessionDropped'} onReconnect={room.reconnect}
+            onLeave={hangup}
           />
         ) : (
           <ConferencePreJoinCard
             requiresPin={meta?.requiresPin} joining={joinState.isLoading} waitingForModerator={lobby}
             error={metaError ?? joinState.error}
+            previewStream={localStream}
+            onPreviewStream={setLocalStream}
             onJoin={({ displayName: name, pin }) => {
               setDisplayName(name);
               void guestJoin({ token, displayName: name, pin }).unwrap().then(setCreds);

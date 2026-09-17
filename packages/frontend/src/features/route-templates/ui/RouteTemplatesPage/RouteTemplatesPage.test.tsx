@@ -49,10 +49,12 @@ vi.mock('@/shared/hooks/useIsMobile', () => ({
 describe('RouteTemplatesPage', () => {
   it('renders the heading, create CTA and source badges', () => {
     render(<RouteTemplatesPage />);
+    expect(screen.getByTestId('route-templates-page-responsive')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /Шаблоны маршрутов/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Создать шаблон/i })).toBeInTheDocument();
     expect(screen.getByText('Встроенный')).toBeInTheDocument();
     expect(screen.getByText('Мой')).toBeInTheDocument();
+    expect(screen.getByTestId('hybrid-table')).toHaveAttribute('data-hybrid', 'overflow-x-auto');
   });
 
   it('exposes TableRowActions with title and aria-label; built-in edit/delete are disabled', () => {

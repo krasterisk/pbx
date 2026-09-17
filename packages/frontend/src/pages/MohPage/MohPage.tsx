@@ -1,17 +1,10 @@
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Music, Plus } from 'lucide-react';
-import {
-  Button,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  Text,
-} from '@/shared/ui';
-import { VStack, HStack, Flex } from '@/shared/ui/Stack';
+import { Button, Text } from '@/shared/ui';
+import { Flex, HStack, VStack } from '@/shared/ui/Stack';
 import { useAppDispatch } from '@/shared/hooks/useAppStore';
-import { MohTable, mohActions } from '@/features/moh';
+import { MohTable, MohFormModal, mohActions } from '@/features/moh';
 import cls from './MohPage.module.scss';
 
 export const MohPage = memo(() => {
@@ -25,13 +18,11 @@ export const MohPage = memo(() => {
           <Flex align="center" justify="center" className={cls.iconBadge}>
             <Music size={24} />
           </Flex>
-          <VStack gap="4" className="min-w-0">
+          <VStack gap="4" className={cls.titleBlock}>
             <Text variant="h1" as="h1" className={cls.title}>
-              {t('moh.title', 'Музыка на удержании')}
+              {t('moh.title')}
             </Text>
-            <Text variant="muted">
-              {t('moh.subtitle', 'Управление классами Music On Hold')}
-            </Text>
+            <Text variant="muted">{t('moh.subtitle')}</Text>
           </VStack>
         </HStack>
         <Button
@@ -39,26 +30,15 @@ export const MohPage = memo(() => {
           onClick={() => dispatch(mohActions.openCreateModal())}
         >
           <Plus size={16} className={cls.createBtnIcon} />
-          <Text as="span">{t('moh.add', 'Создать класс')}</Text>
+          <Text as="span">{t('moh.add')}</Text>
         </Button>
       </Flex>
 
-      <Card className={cls.card}>
-        <CardHeader className={cls.cardHeader}>
-          <CardTitle className={cls.cardTitle}>
-            {t('moh.listTitle', 'Список классов MOH')}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className={cls.cardContent}>
-          <div
-            className={`${cls.tableScroll} overflow-x-auto`}
-            data-testid="hybrid-table"
-            data-hybrid="overflow-x-auto"
-          >
-            <MohTable />
-          </div>
-        </CardContent>
-      </Card>
+      <Flex direction="column" align="stretch" max className={cls.tableWrap}>
+        <MohTable />
+      </Flex>
+
+      <MohFormModal />
     </VStack>
   );
 });

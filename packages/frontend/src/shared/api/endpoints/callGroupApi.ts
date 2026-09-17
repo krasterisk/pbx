@@ -47,6 +47,7 @@ export interface IUpdateCallGroup {
 }
 
 const callGroupApi = rtkApi.injectEndpoints({
+  overrideExisting: import.meta.hot != null,
   endpoints: (build) => ({
     getCallGroups: build.query<ICallGroup[], void>({
       query: () => '/call-groups',

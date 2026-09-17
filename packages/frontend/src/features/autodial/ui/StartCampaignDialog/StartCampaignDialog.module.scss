@@ -1,0 +1,13 @@
+/* StartCampaignDialog — выбор прежних диспозиций для повторного обзвона */
+
+.list {
+  max-height: 22rem;
+  overflow-y: auto;
+  padding: 0.25rem 0;
+}
+
+.error {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--color-destructive);
+}

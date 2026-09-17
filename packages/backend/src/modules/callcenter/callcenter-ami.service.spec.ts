@@ -33,6 +33,7 @@ describe('CallCenterAmiService', () => {
   const fakeAmi: any = {
     isConnected: () => false,
     queueStatus: jest.fn(),
+    collectQueueMembers: jest.fn().mockResolvedValue({ members: [], complete: true }),
     getActiveChannels: jest.fn().mockResolvedValue({ events: [] }),
   };
   const queueModel: any = {

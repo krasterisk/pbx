@@ -3,6 +3,7 @@ import { IDialplanAppConfig } from './types';
 import { buildPlaybackSchema, summarizePlayback } from './schemas/playback';
 import { buildText2SpeechSchema, summarizeText2Speech } from './schemas/text2speech';
 import { buildConfBridgeSchema, summarizeConfBridge } from './schemas/confBridge';
+import { buildToGroupSchema, summarizeToGroup } from './schemas/toGroup';
 import { buildLabelSchema, summarizeLabel } from './schemas/label';
 import { buildGotoSchema, summarizeGoto } from './schemas/goto';
 import { buildScheduleSchema, summarizeSchedule } from './schemas/schedule';
@@ -34,10 +35,8 @@ const registryDraft: Record<ActionType, Omit<IDialplanAppConfig, 'schema' | 'sum
     labelKey: 'routes.action.totrunk',
     category: 'telephony',
     defaultParams: {
-      trunkMode: 'single',
-      trunk: '',
       mode: 'random_then_failover',
-      trunks: [],
+      trunks: [{ trunkId: '', callerId: { mode: 'static', value: '' }, timeout: 60 }],
       dest: { source: 'route_pattern' },
       timeout: 60,
       options: 'tT',
@@ -203,30 +202,18 @@ const registryDraft: Record<ActionType, Omit<IDialplanAppConfig, 'schema' | 'sum
     type: 'togroup',
     labelKey: 'routes.action.togroup',
     category: 'telephony',
-    defaultParams: { group: '' },
+    defaultParams: { target: { source: 'fixed', value: '' } },
     optionFlags: [],
     primarySection: {
       titleKey: 'routes.chain.section.group',
       title: 'Группа вызова',
+      tooltipKey: 'routes.chain.togroup.targetHint',
+      tooltip:
+        '**Группа из списка** — набор и опции Dial берутся из выбранной группы\n**B-номер маршрута** — номер, который набрал абонент, подбирает группу с таким номером\n**Из справочника** — по номеру звонящего и полю записи\n**Из переменной** — номер канала без ${}',
       hideFieldLabels: true,
     },
-    schema: [
-      {
-        key: 'group',
-        kind: 'select',
-        required: true,
-        group: 'primary',
-        labelKey: 'routes.chain.fields.group',
-        label: 'Группа вызова',
-        optionsSource: 'callGroups',
-      },
-    ],
-    summarize: (params, t) => {
-      const group = String(params.group ?? '').trim();
-      return group
-        ? t('routes.chain.togroup.summary', 'Группа #{{uid}}').replace('{{uid}}', group)
-        : t('routes.chain.togroup.summaryEmpty', 'Группа: не выбрана');
-    },
+    schema: buildToGroupSchema((key, fallback) => fallback ?? key),
+    summarize: summarizeToGroup,
   },
   tolist: {
     type: 'tolist',

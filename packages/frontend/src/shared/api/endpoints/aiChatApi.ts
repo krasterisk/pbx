@@ -121,6 +121,7 @@ export interface IAiChatThreadDetail extends IAiChatThread {
 }
 
 const aiChatApi = rtkApi.injectEndpoints({
+    overrideExisting: import.meta.hot != null,
     endpoints: (builder) => ({
         getAiChatModels: builder.query<AiModel[], void>({
             query: () => '/ai-chat/models',

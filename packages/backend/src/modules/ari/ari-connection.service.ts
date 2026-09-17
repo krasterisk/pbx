@@ -19,6 +19,7 @@ export class AriConnectionService implements OnApplicationBootstrap, OnApplicati
   private ws: WebSocket | null = null;
   private reconnectTimeout: NodeJS.Timeout | null = null;
   private isShuttingDown = false;
+  private connected = false;
 
   // Heartbeat
   private pingInterval: NodeJS.Timeout | null = null;
@@ -44,6 +45,15 @@ export class AriConnectionService implements OnApplicationBootstrap, OnApplicati
     this.disconnect();
   }
 
+  /**
+   * Whether the event WebSocket is up. Consumers that originate calls (autodial)
+   * must stop when this is false — without events they cannot tell a ringing
+   * channel from an answered one.
+   */
+  isConnected(): boolean {
+    return this.connected && this.ws?.readyState === WebSocket.OPEN;
+  }
+
   private connect() {
     if (this.isShuttingDown) return;
 
@@ -62,8 +72,10 @@ export class AriConnectionService implements OnApplicationBootstrap, OnApplicati
 
     this.ws!.on('open', () => {
       this.logger.log('✨ Connected to Asterisk ARI WebSocket');
+      this.connected = true;
       this.clearReconnectTimeout();
       this.startHeartbeat();
+      this.eventEmitter.emit('ari.connection', { connected: true });
     });
 
     this.ws!.on('pong', () => {
@@ -84,6 +96,8 @@ export class AriConnectionService implements OnApplicationBootstrap, OnApplicati
 
     this.ws!.on('close', () => {
       this.logger.warn('ARI WebSocket disconnected');
+      this.connected = false;
+      this.eventEmitter.emit('ari.connection', { connected: false });
       this.stopHeartbeat();
 
       if (this.ws) {
@@ -100,6 +114,7 @@ export class AriConnectionService implements OnApplicationBootstrap, OnApplicati
   }
 
   private disconnect() {
+    this.connected = false;
     this.stopHeartbeat();
     this.clearReconnectTimeout();
 

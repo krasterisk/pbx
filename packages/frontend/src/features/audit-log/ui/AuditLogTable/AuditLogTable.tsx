@@ -28,7 +28,7 @@ export const AuditLogTable = memo(({ data, isLoading }: AuditLogTableProps) => {
 
   if (isLoading) {
     return (
-      <div className={cls.wrap}>
+      <Flex direction="column" align="stretch" className={cls.wrap} max>
         <Table>
           <TableHeader>
             <TableRow>
@@ -42,16 +42,16 @@ export const AuditLogTable = memo(({ data, isLoading }: AuditLogTableProps) => {
           <TableBody>
             {SKELETON_ROWS.map((i) => (
               <TableRow key={i}>
-                <TableCell><Skeleton className="h-4 w-36" /></TableCell>
-                <TableCell><Skeleton className="h-4 w-12" /></TableCell>
-                <TableCell><Skeleton className="h-5 w-20 rounded-full" /></TableCell>
-                <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                <TableCell><Skeleton className="h-4 w-40" /></TableCell>
+                <TableCell><Skeleton className={cls.skelDate} /></TableCell>
+                <TableCell><Skeleton className={cls.skelUser} /></TableCell>
+                <TableCell><Skeleton className={cls.skelBadge} /></TableCell>
+                <TableCell><Skeleton className={cls.skelEntity} /></TableCell>
+                <TableCell><Skeleton className={cls.skelDetails} /></TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
-      </div>
+      </Flex>
     );
   }
 
@@ -64,11 +64,11 @@ export const AuditLogTable = memo(({ data, isLoading }: AuditLogTableProps) => {
   }
 
   return (
-    <div className={cls.wrap}>
+    <Flex direction="column" align="stretch" className={cls.wrap} max>
       <Table>
         <TableHeader>
-          <TableRow className="hover:bg-transparent">
-            <TableHead className="whitespace-nowrap">{t('auditLog.colDate')}</TableHead>
+          <TableRow>
+            <TableHead className={cls.nowrap}>{t('auditLog.colDate')}</TableHead>
             <TableHead>{t('auditLog.colUser')}</TableHead>
             <TableHead>{t('auditLog.colAction')}</TableHead>
             <TableHead>{t('auditLog.colEntity')}</TableHead>
@@ -78,10 +78,12 @@ export const AuditLogTable = memo(({ data, isLoading }: AuditLogTableProps) => {
         <TableBody>
           {data.map((row) => (
             <TableRow key={row.id} className={row.status === 'error' ? cls.rowError : ''}>
-              <TableCell className="whitespace-nowrap text-muted-foreground text-sm">
-                {formatDate(row.created_at)}
+              <TableCell className={cls.dateCell}>
+                <Text as="span">{formatDate(row.created_at)}</Text>
               </TableCell>
-              <TableCell className="font-mono text-sm">{row.user_id}</TableCell>
+              <TableCell className={cls.monoCell}>
+                <Text as="span">{row.user_id}</Text>
+              </TableCell>
               <TableCell>
                 <AuditActionBadge action={row.action} status={row.status} />
               </TableCell>
@@ -98,7 +100,7 @@ export const AuditLogTable = memo(({ data, isLoading }: AuditLogTableProps) => {
           ))}
         </TableBody>
       </Table>
-    </div>
+    </Flex>
   );
 });
 

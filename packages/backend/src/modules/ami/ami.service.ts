@@ -597,6 +597,64 @@ export class AmiService implements OnModuleInit, OnModuleDestroy {
     return this.action({ action: 'SIPpeerstatus', peer });
   }
 
+  /**
+   * List ConfBridge members for one conference (CR-02 reconcile).
+   * ConfbridgeList is an event-list action: ack, then ConfbridgeList rows,
+   * then ConfbridgeListComplete — same rawevent shape as CoreShowChannels.
+   */
+  async confbridgeList(conference: string): Promise<{ events: any[] }> {
+    return new Promise((resolve, reject) => {
+      if (!this.connected) {
+        reject(new Error('AMI not connected'));
+        return;
+      }
+
+      const events: any[] = [];
+      const actionId = String(Date.now()) + String(Math.random()).slice(2, 6);
+      let settled = false;
+
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        this.ami.removeListener('rawevent', handler);
+        resolve({ events });
+      };
+
+      const handler = (evt: any) => {
+        if (evt.actionid !== actionId) return;
+        if (evt.event === 'ConfbridgeList') {
+          events.push(evt);
+        }
+        if (evt.event === 'ConfbridgeListComplete') {
+          finish();
+        }
+      };
+
+      this.ami.on('rawevent', handler);
+
+      const timer = setTimeout(finish, 5000);
+
+      this.ami.action(
+        { action: 'ConfbridgeList', conference, actionid: actionId },
+        (err: any, _res: any) => {
+          if (!err) return;
+          // asterisk-manager may surface Success as err
+          if (err.response === 'Success') return;
+          clearTimeout(timer);
+          settled = true;
+          this.ami.removeListener('rawevent', handler);
+          const msg = String(err.message || err.response || '').toLowerCase();
+          if (err.response === 'Error' || msg.includes('not found') || msg.includes('no such')) {
+            resolve({ events: [] });
+            return;
+          }
+          reject(err);
+        },
+      );
+    });
+  }
+
   // --- Call Control (D-28: park/retrieve, ConfBridge, device presence) ---
 
   /** Park a channel into the (optional) named parking lot. */
@@ -758,6 +816,59 @@ export class AmiService implements OnModuleInit, OnModuleDestroy {
     const params: any = { action: 'QueueStatus' };
     if (queue) params.queue = queue;
     return this.action(params);
+  }
+
+  /**
+   * Collect QueueMember rows until QueueStatusComplete (no fixed sleep).
+   * `complete` is false only when the action timed out — callers must not
+   * treat an empty list as "agent is in no queues" in that case.
+   */
+  async collectQueueMembers(queue?: string): Promise<{ members: any[]; complete: boolean }> {
+    return new Promise((resolve, reject) => {
+      if (!this.connected) {
+        reject(new Error('AMI not connected'));
+        return;
+      }
+
+      const members: any[] = [];
+      const actionId = String(Date.now()) + String(Math.random()).slice(2, 6);
+      let settled = false;
+      let complete = false;
+
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        this.ami.removeListener('rawevent', handler);
+        resolve({ members, complete });
+      };
+
+      const handler = (evt: any) => {
+        const eventName = String(evt.event || '').toLowerCase();
+        if (evt.actionid && evt.actionid !== actionId) return;
+        if (eventName === 'queuemember') {
+          members.push(evt);
+        }
+        if (eventName === 'queuestatuscomplete') {
+          complete = true;
+          finish();
+        }
+      };
+
+      this.ami.on('rawevent', handler);
+      const timer = setTimeout(finish, 5000);
+
+      const params: Record<string, string> = { action: 'QueueStatus', actionid: actionId };
+      if (queue) params.queue = queue;
+      this.ami.action(params, (err: any) => {
+        if (err && err.response !== 'Success') {
+          clearTimeout(timer);
+          settled = true;
+          this.ami.removeListener('rawevent', handler);
+          reject(err);
+        }
+      });
+    });
   }
 
   async dbPut(family: string, key: string, val: string): Promise<any> {

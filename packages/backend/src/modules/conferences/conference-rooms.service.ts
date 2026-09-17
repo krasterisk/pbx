@@ -21,6 +21,7 @@ import {
   conferenceRoomContextName,
   generateConferenceDialplan,
   generateConferenceMaskIndex,
+  type ConferenceDialplanRoom,
 } from './conference-dialplan.util';
 import { ConferenceStateService } from './conference-state.service';
 import { CreateConferenceRoomDto } from './dto/create-conference-room.dto';
@@ -31,6 +32,7 @@ import {
   ConferenceModeratorDto,
   SetConferenceModeratorsDto,
 } from './dto/conference-moderator.dto';
+import { toConferenceRoomStateDto } from './dto/conference-participant.dto';
 import { ConferenceRoom } from './models/conference-room.model';
 import { ConferenceRoomModerator } from './models/conference-room-moderator.model';
 import type { ConferencePermanentRight } from './conference-dialplan.util';
@@ -128,7 +130,19 @@ export class ConferenceRoomsService {
       );
     }
     this.stateService.registerRoom(room);
-    return room.toJSON();
+    const snapshot = this.stateService.getSnapshot(uid);
+    const live = toConferenceRoomStateDto(snapshot);
+    const startedAt =
+      snapshot.participants.length > 0
+        ? new Date(
+            Math.min(...snapshot.participants.map((p) => p.joinedAt)),
+          ).toISOString()
+        : null;
+    return {
+      ...room.toJSON(),
+      ...live,
+      startedAt,
+    };
   }
 
   async create(
@@ -514,14 +528,14 @@ export class ConferenceRoomsService {
       typeof (room as { toJSON?: () => Record<string, unknown> }).toJSON === 'function'
         ? (room as { toJSON: () => Record<string, unknown> }).toJSON()
         : { ...room };
-    const payload =
+    const payload: ConferenceDialplanRoom =
       effectiveMax === undefined
-        ? (room as ConferenceRoom)
-        : ({ ...base, effective_max_participants: effectiveMax } as ConferenceRoom);
+        ? room
+        : { ...(base as ConferenceDialplanRoom), effective_max_participants: effectiveMax };
     await this.applyRoom(payload, vpbx);
   }
 
-  private async applyRoom(room: ConferenceRoom, vpbx: number): Promise<void> {
+  private async applyRoom(room: ConferenceDialplanRoom, vpbx: number): Promise<void> {
     const rights = this.toPermanentRights(await this.loadModeratorRows(room.uid));
     this.syncRoomRights(room.uid, rights);
     await this.dialplanApplyService.applyCategories(

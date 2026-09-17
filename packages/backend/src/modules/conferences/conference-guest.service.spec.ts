@@ -36,7 +36,13 @@ describe('ConferenceGuestService (16.1-01)', () => {
     createEphemeralGuestEndpoint: jest.Mock;
     destroyEphemeralGuestEndpoint: jest.Mock;
   };
-  let tokenModel: { findByPk: jest.Mock; create: jest.Mock; findAll: jest.Mock; findOne: jest.Mock };
+  let tokenModel: {
+    findByPk: jest.Mock;
+    create: jest.Mock;
+    findAll: jest.Mock;
+    findOne: jest.Mock;
+    sequelize?: { transaction: jest.Mock };
+  };
   let capacity: { capacityForRoom: jest.Mock };
   let service: ConferenceGuestService;
   const prevUplink = process.env.CONFERENCE_UPLINK_KBPS;
@@ -99,6 +105,79 @@ describe('ConferenceGuestService (16.1-01)', () => {
     });
     expect(result).not.toHaveProperty('conference');
     expect(JSON.stringify(result)).not.toMatch(/conf6007|normalizeTarget/);
+  });
+
+  it('refuses join when the token was revoked after the guard', async () => {
+    tokenModel.findByPk.mockResolvedValue({
+      uid: 9,
+      sip_id: null,
+      revoked_at: new Date(),
+      expires_at: null,
+      update: jest.fn(),
+    });
+
+    try {
+      await service.join(guestUser(), { displayName: 'Гость' });
+      throw new Error('expected CONFERENCE_GUEST_TOKEN_REVOKED');
+    } catch (err) {
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.UNAUTHORIZED);
+      expect((err as HttpException).getResponse()).toMatchObject({
+        code: 'CONFERENCE_GUEST_TOKEN_REVOKED',
+      });
+    }
+    expect(endpointsService.createEphemeralGuestEndpoint).not.toHaveBeenCalled();
+  });
+
+  it('refuses join when the token expired after the guard', async () => {
+    tokenModel.findByPk.mockResolvedValue({
+      uid: 9,
+      sip_id: null,
+      revoked_at: null,
+      expires_at: new Date(Date.now() - 1000),
+      update: jest.fn(),
+    });
+
+    try {
+      await service.join(guestUser(), { displayName: 'Гость' });
+      throw new Error('expected CONFERENCE_GUEST_TOKEN_EXPIRED');
+    } catch (err) {
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.UNAUTHORIZED);
+      expect((err as HttpException).getResponse()).toMatchObject({
+        code: 'CONFERENCE_GUEST_TOKEN_EXPIRED',
+      });
+    }
+    expect(endpointsService.createEphemeralGuestEndpoint).not.toHaveBeenCalled();
+  });
+
+  it('locks the token row before create when sequelize is present', async () => {
+    const transaction = { id: 'tx-1' };
+    tokenModel.sequelize = {
+      transaction: jest.fn(async (fn: (t: unknown) => Promise<unknown>) => fn(transaction)),
+    };
+    const token = {
+      uid: 9,
+      sip_id: null,
+      revoked_at: null,
+      expires_at: null,
+      display_name: null,
+      update: jest.fn().mockResolvedValue(undefined),
+    };
+    tokenModel.findByPk.mockResolvedValue(token);
+
+    await service.join(guestUser(), { displayName: 'Гость' });
+
+    expect(tokenModel.sequelize.transaction).toHaveBeenCalledTimes(1);
+    expect(tokenModel.findByPk).toHaveBeenCalledWith(9, {
+      transaction,
+      lock: expect.anything(),
+    });
+    expect(token.update).toHaveBeenCalledWith(
+      expect.objectContaining({ display_name: 'Гость' }),
+      { transaction },
+    );
+    expect(endpointsService.createEphemeralGuestEndpoint).toHaveBeenCalledTimes(1);
   });
 
   it('writes optional displayName onto the token', async () => {
@@ -259,7 +338,7 @@ describe('ConferenceGuestService (16.1-01)', () => {
   });
 
   describe('revoke and leave (16.1-02 D-12)', () => {
-    let amiService: { action: jest.Mock };
+    let amiService: { action: jest.Mock; getActiveChannels: jest.Mock; hangup: jest.Mock };
     let state: {
       getSnapshot: jest.Mock;
       getActiveRoomUids: jest.Mock;
@@ -267,7 +346,11 @@ describe('ConferenceGuestService (16.1-01)', () => {
     };
 
     beforeEach(() => {
-      amiService = { action: jest.fn().mockResolvedValue({}) };
+      amiService = {
+        action: jest.fn().mockResolvedValue({}),
+        getActiveChannels: jest.fn().mockResolvedValue({ events: [] }),
+        hangup: jest.fn().mockResolvedValue({}),
+      };
       state = {
         getSnapshot: jest.fn().mockReturnValue({ participants: [] }),
         getActiveRoomUids: jest.fn().mockReturnValue([]),
@@ -330,6 +413,44 @@ describe('ConferenceGuestService (16.1-01)', () => {
       const destroyOrder = endpointsService.destroyEphemeralGuestEndpoint.mock.invocationCallOrder[0];
       expect(stampOrder).toBeLessThan(kickOrder);
       expect(kickOrder).toBeLessThan(destroyOrder);
+    });
+
+    it('looks up CoreShowChannels and kicks when snapshot has no channel', async () => {
+      const row = tokenRow();
+      tokenModel.findOne.mockResolvedValue(row);
+      state.findLiveParticipant.mockReturnValue(undefined);
+      amiService.getActiveChannels.mockResolvedValue({
+        events: [{ channel: 'PJSIP/gstaaaaaaaa-00000001' }],
+      });
+
+      await service.revoke(ROOM_UID, 2, VPBX);
+
+      expect(amiService.getActiveChannels).toHaveBeenCalledTimes(1);
+      expect(amiService.action).toHaveBeenCalledTimes(1);
+      expect(amiService.action).toHaveBeenCalledWith({
+        action: 'ConfbridgeKick',
+        conference: 'conf6007_42',
+        channel: 'PJSIP/gstaaaaaaaa-00000001',
+      });
+      const kickOrder = amiService.action.mock.invocationCallOrder[0];
+      const destroyOrder = endpointsService.destroyEphemeralGuestEndpoint.mock.invocationCallOrder[0];
+      expect(kickOrder).toBeLessThan(destroyOrder);
+    });
+
+    it('still destroys when snapshot and CoreShowChannels are empty', async () => {
+      const row = tokenRow();
+      tokenModel.findOne.mockResolvedValue(row);
+      state.findLiveParticipant.mockReturnValue(undefined);
+
+      await service.revoke(ROOM_UID, 2, VPBX);
+
+      expect(amiService.getActiveChannels).toHaveBeenCalledTimes(1);
+      expect(amiService.action).not.toHaveBeenCalled();
+      expect(endpointsService.destroyEphemeralGuestEndpoint).toHaveBeenCalledWith(
+        'gstaaaaaaaa',
+        VPBX,
+      );
+      expect(row.sip_id).toBeNull();
     });
 
     it('revokes without AMI when sip_id is absent', async () => {

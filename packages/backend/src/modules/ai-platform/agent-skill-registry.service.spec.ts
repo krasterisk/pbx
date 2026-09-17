@@ -187,13 +187,19 @@ describe('AgentSkillRegistryService', () => {
 });
 
 describe('resolveSkillsRootCandidates', () => {
-  it('derives the primary candidate from the compiled module directory', () => {
-    const moduleDir = path.join(path.sep, 'compiled', 'modules', 'ai-platform');
-    const candidates = resolveSkillsRootCandidates(moduleDir);
-    const cwdFallback = path.resolve(process.cwd(), 'src/skills');
+  const moduleDir = path.join(path.sep, 'compiled', 'modules', 'ai-platform');
+  const compiled = path.resolve(moduleDir, '../../skills');
+  const fromSrc = path.resolve(process.cwd(), 'src/skills');
 
-    expect(candidates[0]).toBe(path.resolve(moduleDir, '../../skills'));
-    expect(candidates).toContain(cwdFallback);
-    expect(candidates[0]).not.toBe(cwdFallback);
+  it('prefers bundled dist/skills outside development', () => {
+    const candidates = resolveSkillsRootCandidates(moduleDir, 'production');
+    expect(candidates[0]).toBe(compiled);
+    expect(candidates).toContain(fromSrc);
+  });
+
+  it('prefers src/skills in development so watch does not need a live dist copy', () => {
+    const candidates = resolveSkillsRootCandidates(moduleDir, 'development');
+    expect(candidates[0]).toBe(fromSrc);
+    expect(candidates).toContain(compiled);
   });
 });

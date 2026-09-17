@@ -30,3 +30,24 @@
   overflow: hidden;
   font-size: 0.8125rem;
 }
+
+.nowrap {
+  white-space: nowrap;
+}
+
+.dateCell {
+  white-space: nowrap;
+  color: var(--color-muted-foreground);
+  font-size: 0.875rem;
+}
+
+.monoCell {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.875rem;
+}
+
+.skelDate { height: 1rem; width: 9rem; }
+.skelUser { height: 1rem; width: 3rem; }
+.skelBadge { height: 1.25rem; width: 5rem; border-radius: 9999px; }
+.skelEntity { height: 1rem; width: 6rem; }
+.skelDetails { height: 1rem; width: 10rem; }

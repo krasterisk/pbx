@@ -1,0 +1,14 @@
+{
+  "ok": true,
+  "roomUid": 6,
+  "conference": "conf16895_348",
+  "createPort": 5010,
+  "observePort": 5099,
+  "firstPopulatedType": "participantJoin",
+  "participants": 1,
+  "eventTypes": [
+    "fullSnapshot",
+    "participantJoin",
+    "participantLeave"
+  ]
+}

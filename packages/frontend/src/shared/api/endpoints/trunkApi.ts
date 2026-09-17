@@ -14,6 +14,8 @@ export interface ITrunkListItem {
   contactUser: string;
   matchIp: string;
   qualifyFrequency: number;
+  /** Concurrent PJSIP channels; 0 / omitted = unlimited */
+  maxChannels?: number;
   registrationExpiration: number | null;
   registrationStatus: string | null;
   serverUri: string;
@@ -47,6 +49,7 @@ export interface ICreateTrunk {
   matchIp?: string;
   qualifyFrequency?: number;
   registrationExpiration?: number;
+  maxChannels?: number;
   advanced?: Record<string, any>;
 }
 
@@ -64,10 +67,12 @@ export interface IUpdateTrunk {
   matchIp?: string;
   qualifyFrequency?: number;
   registrationExpiration?: number;
+  maxChannels?: number;
   advanced?: Record<string, any>;
 }
 
 const trunkApi = rtkApi.injectEndpoints({
+  overrideExisting: import.meta.hot != null,
   endpoints: (builder) => ({
     getTrunks: builder.query<ITrunkListItem[], void>({
       query: () => '/trunks',

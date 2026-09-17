@@ -18,6 +18,7 @@ export type CallValueSource =
   | { source: 'fixed'; value: string }
   | { source: 'route_pattern' }
   | { source: 'variable'; name: string }
+  | { source: 'autodial_field'; name: string }
   | { source: 'original_caller' }
   | { source: 'current_caller' };
 
@@ -41,6 +42,8 @@ export interface IDirectoryLookupParams {
   onMissing: 'keep' | 'empty';
 }
 
+export type TrunkCallerIdPoolPick = 'random' | 'round_robin';
+
 export type TrunkCallerIdSource =
   | { mode: 'static'; value?: string }
   | {
@@ -49,6 +52,11 @@ export type TrunkCallerIdSource =
       valueFieldUid: number;
       keySource: { source: 'original_caller' };
       onMissing: 'keep_original';
+    }
+  | {
+      mode: 'pool';
+      numbers: string[];
+      pick: TrunkCallerIdPoolPick;
     };
 
 export interface ITrunkCarouselItem {

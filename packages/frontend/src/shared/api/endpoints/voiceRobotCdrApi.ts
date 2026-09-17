@@ -85,6 +85,7 @@ interface CdrQueryParams {
 // ─── API Endpoints ───────────────────────────────────────
 
 const voiceRobotCdrApi = rtkApi.injectEndpoints({
+  overrideExisting: import.meta.hot != null,
   endpoints: (build) => ({
     /** GET /voice-robots/cdr - список с пагинацией и фильтрами */
     getVoiceRobotCdrs: build.query<IVoiceRobotCdrListResponse, CdrQueryParams | void>({

@@ -7,15 +7,16 @@ import { useSchemaRefs } from './useSchemaRefs';
 import * as directoryApi from '@/shared/api/endpoints/directoryApi';
 import * as trunkApi from '@/shared/api/endpoints/trunkApi';
 
-const { useGetConferenceRoomsQuery } = vi.hoisted(() => ({
+const { useGetConferenceRoomsQuery, useGetCallGroupsQuery } = vi.hoisted(() => ({
   useGetConferenceRoomsQuery: vi.fn(() => ({ data: [], isLoading: false })),
+  useGetCallGroupsQuery: vi.fn(() => ({ data: [], isLoading: false })),
 }));
 
 vi.mock('@/shared/api/endpoints/promptsApi', () => ({
   useGetPromptsQuery: () => ({ data: [], isLoading: false }),
 }));
 vi.mock('@/shared/api/endpoints/callGroupApi', () => ({
-  useGetCallGroupsQuery: () => ({ data: [], isLoading: false }),
+  useGetCallGroupsQuery,
 }));
 vi.mock('@/shared/api/endpoints/trunkApi', () => ({
   useGetTrunksQuery: vi.fn(() => ({ data: [], isLoading: false })),
@@ -177,6 +178,30 @@ describe('useSchemaRefs', () => {
       undefined,
       expect.objectContaining({ skip: true }),
     );
+  });
+
+  it('maps callGroups by public number so mask routing matches the catalog value', () => {
+    useGetCallGroupsQuery.mockReturnValue({
+      data: [{ uid: 5, exten: '600', name: 'Sales' }],
+      isLoading: false,
+    });
+
+    function GroupsProbe() {
+      const refs = useSchemaRefs(['callGroups']);
+      const item = refs.callGroups?.items[0];
+      return (
+        <span data-testid="groups">
+          {JSON.stringify({ value: item?.value, label: item?.label, href: refs.callGroups?.sectionHref })}
+        </span>
+      );
+    }
+
+    render(<GroupsProbe />);
+    expect(JSON.parse(screen.getByTestId('groups').textContent ?? '{}')).toEqual({
+      value: '600',
+      label: '600 - Sales',
+      href: '/call-groups',
+    });
   });
 
   it('registers conferenceRooms in CATALOG_DEFAULTS with /conferences', () => {

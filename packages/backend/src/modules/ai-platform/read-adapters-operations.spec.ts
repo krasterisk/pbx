@@ -546,7 +546,7 @@ describe('read-adapters-operations — per-tool and registry-enumerated isolatio
         expect(blobA).not.toEqual(blobB);
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
-        throw new Error(`${tool.name}: ${message}`);
+        throw new Error(`${tool.name}: ${message}`, { cause: err });
       }
     }
   });

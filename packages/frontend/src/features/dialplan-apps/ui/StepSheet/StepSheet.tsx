@@ -16,6 +16,7 @@ import { dialplanAppsRegistry } from '../../model/registry';
 import { clientStepFieldErrors, resolveClientFieldError } from '../../model/clientStepFieldErrors';
 import { splitSchemaFields } from '../../model/splitSchemaFields';
 import { CallGroupDialOptionsPanel } from '../CallGroupDialOptionsPanel/CallGroupDialOptionsPanel';
+import { toGroupFixedKey } from '../../model/schemas/toGroup';
 import { ActionTypeSelect } from '../ActionTypeSelect';
 import { isValueSourceComplete } from '../ValueSourceField/ValueSourceField';
 import { SchemaFields } from '../SchemaFields/SchemaFields';
@@ -24,6 +25,7 @@ import { ConditionEditor } from '../ConditionEditor/ConditionEditor';
 import { AppCollapsibleSection } from '../AppCollapsibleSection/AppCollapsibleSection';
 import { useSchemaRefs } from '../../model/useSchemaRefs';
 import { normalizePlaybackParams } from '../../model/schemas/playback';
+import { normalizeToTrunkParams } from '../../model/schemas/totrunk';
 import type { FieldSchema, OptionsSource } from '../../model/schema.types';
 import styles from './StepSheet.module.scss';
 
@@ -51,6 +53,7 @@ export interface StepSheetProps {
   conditionsSlot?: ReactNode;
   /** Route extensions for live dial-number preview. */
   previewPatterns?: string[];
+  autodialFields?: Array<{ value: string; label: string }>;
 }
 
 export function isQueueTargetComplete(action: IRouteAction | null | undefined): boolean {
@@ -81,6 +84,7 @@ export function StepSheet({
   optionsSlot,
   conditionsSlot,
   previewPatterns,
+  autodialFields,
 }: StepSheetProps) {
   const { t } = useTranslation();
   const isMobile = useIsMobile(768);
@@ -116,7 +120,7 @@ export function StepSheet({
   const resolvedOptionsSlot =
     optionsSlot
     ?? (action?.type === 'togroup' ? (
-      <CallGroupDialOptionsPanel groupUid={String(action.params?.group ?? '')} />
+      <CallGroupDialOptionsPanel groupRef={toGroupFixedKey(action.params as Record<string, unknown>)} />
     ) : null);
   const appLabel = config
     ? t(config.labelKey, action?.type ?? '')
@@ -209,14 +213,19 @@ export function StepSheet({
   const renderSchema = (fields: FieldSchema[]) => (
     <SchemaFields
       schema={fields}
-      params={action?.type === 'playback'
-        ? normalizePlaybackParams(action?.params ?? {})
-        : action?.params ?? {}}
+      params={
+        action?.type === 'playback'
+          ? normalizePlaybackParams(action?.params ?? {})
+          : action?.type === 'totrunk'
+            ? normalizeToTrunkParams(action?.params ?? {})
+            : action?.params ?? {}
+      }
       tenantUid={tenantUid}
       previewPatterns={previewPatterns}
       showErrors={showErrors}
       fieldErrors={mergedFieldErrors}
       refs={schemaRefs}
+      autodialFields={autodialFields}
       onChange={onChange}
     />
   );

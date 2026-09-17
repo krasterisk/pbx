@@ -1,0 +1,23 @@
+{
+  "ok": true,
+  "roomUid": 3,
+  "conference": "conf16893_348",
+  "existingPlanSnippet": [
+    "[ Context 'krsk-conf-mask-348' created by 'pbx_config' ]",
+    "  '16893' =>        1. GotoIf($[\"${DIALPLAN_EXISTS(krsk-conf-3,s,1)}\" = \"1\"]?krsk-conf-3,s,1:not-found,1) [conf_348.conf:14]",
+    "  '_X.' =>          1. Goto(not-found,1)                          [conf_348.conf:15]",
+    "",
+    "-= 2 extensions (2 priorities) in 1 context. =-"
+  ],
+  "missingPlanSnippet": [
+    "[ Context 'krsk-conf-mask-348' created by 'pbx_config' ]",
+    "  '_X.' =>          1. Goto(not-found,1)                          [conf_348.conf:15]",
+    "",
+    "-= 1 extension (1 priority) in 1 context. =-"
+  ],
+  "notFoundHasPlayback": true,
+  "miss": {
+    "playback": true,
+    "hangup": false
+  }
+}

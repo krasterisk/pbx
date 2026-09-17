@@ -81,6 +81,13 @@ describe('ConferencesTable', () => {
     expect(screen.getByText('8001')).toBeInTheDocument();
     expect(screen.getByText('Sales standup')).toBeInTheDocument();
     expect(screen.queryByText(/conf8001_7/)).toBeNull();
+    const edit = screen.getByRole('button', { name: 'common.edit' });
+    const copy = screen.getByRole('button', { name: 'common.copy' });
+    const del = screen.getByRole('button', { name: 'common.delete' });
+    expect(edit).toHaveAttribute('title', 'common.edit');
+    expect(edit).toHaveAttribute('aria-label', 'common.edit');
+    expect(copy).toHaveAttribute('title', 'common.copy');
+    expect(del).toHaveAttribute('title', 'common.delete');
   });
 
   it('renders mobile-card hybrid marker when useIsMobile is true', () => {
@@ -92,6 +99,8 @@ describe('ConferencesTable', () => {
     expect(screen.getByRole('button', { name: 'common.edit' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'common.copy' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'common.delete' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'common.edit' })).toHaveAttribute('title', 'common.edit');
+    expect(screen.getByRole('button', { name: 'common.delete' })).toHaveAttribute('title', 'common.delete');
   });
 
   it('shows empty copy and create CTA when there are no rooms', () => {
@@ -102,10 +111,10 @@ describe('ConferencesTable', () => {
     expect(screen.getByRole('button', { name: 'conferences.addRoom' })).toBeInTheDocument();
   });
 
-  it('shows skeleton rows while loading', () => {
+  it('shows a spinner while loading', () => {
     mockQuery({ isLoading: true, data: undefined });
     const { container } = render(<ConferencesTable />);
-    expect(container.querySelectorAll('[class*="skeleton"], [data-slot="skeleton"]').length).toBeGreaterThan(0);
+    expect(container.querySelector('svg')).toBeTruthy();
     expect(container.innerHTML).not.toContain('animate-spin');
   });
 

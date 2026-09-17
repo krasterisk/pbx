@@ -74,6 +74,7 @@ export function extractConflictMessage(error: unknown): string | null {
 }
 
 export const routeReferencesApi = rtkApi.injectEndpoints({
+  overrideExisting: import.meta.hot != null,
   endpoints: (builder) => ({
     getUsage: builder.query<RouteUsageResponse, GetUsageArgs>({
       query: ({ kind, uid }) => `/route-references/${kind}/${encodeURIComponent(String(uid))}`,

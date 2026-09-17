@@ -29,6 +29,7 @@ export interface ICcDistrict {
 }
 
 const serviceRequestApi = rtkApi.injectEndpoints({
+  overrideExisting: import.meta.hot != null,
   endpoints: (build) => ({
     /** GET /service-requests - список с фильтрами и пагинацией */
     getServiceRequests: build.query<IServiceRequestListResponse, ServiceRequestQueryParams | void>({

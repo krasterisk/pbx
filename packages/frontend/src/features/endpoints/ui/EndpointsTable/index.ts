@@ -1,0 +1,1 @@
+export { EndpointsTable } from './EndpointsTable';

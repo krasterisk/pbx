@@ -4,31 +4,45 @@
    ───────────────────────────────────────────────────── */
 
 .page {
+  flex: 1;
   min-width: 0;
   max-width: 100%;
 }
 
-.pageTitle {
+.header {
+  padding: 0 0.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.titleBlock {
+  min-width: 0;
+}
+
+.title {
+  background: linear-gradient(
+    135deg,
+    var(--color-foreground),
+    color-mix(in srgb, var(--color-foreground) 70%, transparent)
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+
   @media (max-width: 640px) {
     font-size: 1.25rem;
   }
 }
 
-.iconWrap {
-  width: 44px;
-  height: 44px;
-  min-width: 44px;
-  border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+.iconBadge {
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-.pageIcon {
-  width: 22px;
-  height: 22px;
+  padding: 0.625rem;
+  border-radius: var(--radius-xl);
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
   color: var(--color-primary);
+  flex-shrink: 0;
 }
 
 .statsScroll {

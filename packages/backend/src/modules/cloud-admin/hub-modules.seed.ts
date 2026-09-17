@@ -37,6 +37,8 @@ export const HUB_MODULES_SEED: HubModuleSeed[] = [
   { code: 'callcenter', name: 'Call Center', kind: 'market', sort_order: 40, requires_cloud: false },
   { code: 'analytics', name: 'Analytics', kind: 'market', sort_order: 50, requires_cloud: false },
   { code: 'ai', name: 'AI', kind: 'market', sort_order: 60, requires_cloud: false },
+  // Same code as MODULES_SEED so no LEGACY_HUB_LICENSE_CODES entry is needed.
+  { code: 'autodial', name: 'Autodial', kind: 'market', sort_order: 70, requires_cloud: false },
 ];
 
 /** page_code aligns with MODULES_SEED / ModuleAccessGuard where possible. */
@@ -78,6 +80,12 @@ export const HUB_MODULE_PAGES_SEED: HubModulePageSeed[] = [
   { hub_code: 'callcenter', page_code: 'cc_supervisor', path: '/callcenter/supervisor', sort_order: 30 },
   { hub_code: 'callcenter', page_code: 'cc_reports', path: '/callcenter/reports', sort_order: 40 },
   { hub_code: 'callcenter', page_code: 'cc_settings', path: '/callcenter/settings', sort_order: 50 },
+
+  // Autodial (market)
+  { hub_code: 'autodial', page_code: 'autodial_campaigns', path: '/autodial', sort_order: 10 },
+  { hub_code: 'autodial', page_code: 'autodial_bases', path: '/autodial/bases', sort_order: 20 },
+  { hub_code: 'autodial', page_code: 'autodial_monitor', path: '/autodial/monitor', sort_order: 30 },
+  { hub_code: 'autodial', page_code: 'autodial_reports', path: '/autodial/reports', sort_order: 40 },
 
   // Analytics (market)
   { hub_code: 'analytics', page_code: 'reports', path: '/reports', sort_order: 10 },

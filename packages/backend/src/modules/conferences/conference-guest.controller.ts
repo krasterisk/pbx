@@ -101,7 +101,11 @@ export class ConferenceGuestController {
       })),
     );
     const closed$ = new Observable<void>((subscriber) => {
-      const target = req as unknown as { on?: Function; off?: Function; removeListener?: Function };
+      const target = req as unknown as {
+        on?: (event: 'close', listener: () => void) => void;
+        off?: (event: 'close', listener: () => void) => void;
+        removeListener?: (event: 'close', listener: () => void) => void;
+      };
       if (typeof target.on !== 'function') return undefined;
       const onClose = () => {
         subscriber.next();

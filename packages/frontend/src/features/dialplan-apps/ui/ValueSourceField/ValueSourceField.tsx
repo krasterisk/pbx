@@ -9,7 +9,12 @@ import type { OptionsSource, SchemaCatalogRef, ValueSourceMode } from '../../mod
 import type { DirectoryValueSource } from '@krasterisk/shared';
 import { normalizeBareExtension, stripTenantQueueName } from '../../model/normalizeTenantDisplayValue';
 import { DirectoryLookupField, type DirectoryCatalogItem } from '../DirectoryLookupField';
+import { catalogSourceLabels, isCatalogValueSource } from './catalogSourceLabels';
 import styles from './ValueSourceField.module.scss';
+
+function isCatalogMode(mode: ValueSourceMode): boolean {
+  return mode === 'catalog' || mode === 'queue';
+}
 
 export { normalizeBareExtension } from '../../model/normalizeTenantDisplayValue';
 
@@ -23,7 +28,7 @@ export interface ValueSourceFieldProps {
   /** Hide the visible label row; aria-label on controls still uses `label`. */
   hideLabel?: boolean;
   optionsSource?: OptionsSource;
-  /** `queue` = catalog + route_pattern; `scalar` = number / variable / directory. */
+  /** `catalog`/`queue` = entity list + mask; `scalar` = number / variable / directory. */
   mode?: ValueSourceMode;
   readOnly?: boolean;
   /** Highlight incomplete required fields after a failed close/save attempt */
@@ -32,11 +37,14 @@ export interface ValueSourceFieldProps {
   directories?: DirectoryCatalogItem[];
   /** Catalog from useSchemaRefs for queue-mode sources (queues, conference rooms). */
   catalog?: SchemaCatalogRef;
+  /** Contact-list fields for autodial host (channel vars already set on the call). */
+  autodialFields?: Array<{ value: string; label: string }>;
 }
 
 const SRC_ROUTE = '__src:route_pattern';
 const SRC_FIXED = '__src:fixed';
 const SRC_VARIABLE = '__src:variable';
+const SRC_AUTODIAL = '__src:autodial_field';
 const SRC_DIRECTORY = '__src:directory';
 
 /** Dual-read legacy number/string into ValueSource for editors. */
@@ -63,7 +71,9 @@ export function isValueSourceComplete(value: ValueSource | undefined): boolean {
   if (!value) return false;
   if (value.source === 'fixed') return value.value.trim().length > 0;
   if (value.source === 'route_pattern') return true;
-  if (value.source === 'variable') return value.name.trim().length > 0;
+  if (value.source === 'variable' || value.source === 'autodial_field') {
+    return value.name.trim().length > 0;
+  }
   if (value.source === 'original_caller' || value.source === 'current_caller') return true;
   if (value.source === 'directory') {
     return (
@@ -104,6 +114,7 @@ function selectValue(src: ValueSource, mode: ValueSourceMode): string {
     if (kind === 'route_pattern') return SRC_ROUTE;
     if (kind === 'fixed') return SRC_FIXED;
     if (kind === 'variable') return SRC_VARIABLE;
+    if (kind === 'autodial_field') return SRC_AUTODIAL;
     if (kind === 'directory') return SRC_DIRECTORY;
     return SRC_ROUTE;
   }
@@ -111,12 +122,14 @@ function selectValue(src: ValueSource, mode: ValueSourceMode): string {
     if (!src || (src.source === 'fixed' && !src.value.trim())) return '';
     if (kind === 'fixed') return SRC_FIXED;
     if (kind === 'variable') return SRC_VARIABLE;
+    if (kind === 'autodial_field') return SRC_AUTODIAL;
     if (kind === 'directory') return SRC_DIRECTORY;
     return '';
   }
   if (kind === 'fixed') return src.source === 'fixed' ? src.value : '';
   if (kind === 'route_pattern') return SRC_ROUTE;
   if (kind === 'variable') return SRC_VARIABLE;
+  if (kind === 'autodial_field') return SRC_AUTODIAL;
   return SRC_DIRECTORY;
 }
 
@@ -133,10 +146,11 @@ export function ValueSourceField({
   showErrors = false,
   directories = [],
   catalog: catalogProp,
+  autodialFields = [],
 }: ValueSourceFieldProps) {
   const { t } = useTranslation();
   const mode: ValueSourceMode =
-    modeProp ?? (optionsSource === 'queues' ? 'queue' : 'scalar');
+    modeProp ?? (isCatalogValueSource(optionsSource) ? 'catalog' : 'scalar');
   const coerced = coerceValueSource(value);
   const src = asValueSource(coerced);
   const queuesQuery = useGetQueuesQuery(undefined, { skip: optionsSource !== 'queues' });
@@ -156,21 +170,22 @@ export function ValueSourceField({
   });
   const catalogItems = catalogProp?.items ?? (optionsSource === 'queues' ? queueItems : []);
   const catalogLoading = catalogProp?.isLoading ?? (optionsSource === 'queues' && queuesQuery.isLoading);
-  const catalogHref = catalogProp?.sectionHref ?? (optionsSource === 'queues' ? '/queues' : '/conferences');
-  const isConferenceCatalog = optionsSource === 'conferenceRooms';
+  const chrome = catalogSourceLabels(t, optionsSource);
+  const catalogHref = catalogProp?.sectionHref ?? chrome.sectionHref;
+  const catalogMode = isCatalogMode(mode);
   const fixedSelectValue =
-    mode === 'queue' && src.source === 'fixed'
+    catalogMode && src.source === 'fixed'
       ? (optionsSource === 'queues' ? stripTenantQueueName(src.value) : src.value)
       : '';
   const queueSelectValue =
-    mode === 'queue' && src.source === 'fixed' ? fixedSelectValue : selectValue(src, mode);
+    catalogMode && src.source === 'fixed' ? fixedSelectValue : selectValue(src, mode);
   const queueInCatalog =
-    mode !== 'queue' ||
+    !catalogMode ||
     src.source !== 'fixed' ||
     !queueSelectValue ||
     catalogItems.some((item) => item.value === queueSelectValue);
-  const isLoading = mode === 'queue' && catalogLoading;
-  const isEmpty = mode === 'queue' && !isLoading && catalogItems.length === 0;
+  const isLoading = catalogMode && catalogLoading;
+  const isEmpty = catalogMode && !isLoading && catalogItems.length === 0;
   const complete = isValueSourceComplete(src);
   const markError = Boolean(required && showErrors && !complete && !isLoading);
   const queueEmptyError = markError && src.source === 'fixed' && !src.value.trim();
@@ -178,21 +193,16 @@ export function ValueSourceField({
   const loadingLabel = t('routes.chain.catalog.loading', 'Загружаем список');
   const emptyLabel = t('routes.chain.catalog.empty', 'Ничего не создано');
   const sectionName = t(
-    catalogProp?.sectionKey
-      ?? (isConferenceCatalog ? 'routes.chain.catalog.conferencesSection' : 'routes.chain.catalog.queuesSection'),
-    catalogProp?.sectionFallback ?? (isConferenceCatalog ? 'Конференции' : 'Очереди'),
+    catalogProp?.sectionKey ?? chrome.sectionKey,
+    catalogProp?.sectionFallback ?? chrome.sectionFallback,
   );
   const placeholder = isLoading
     ? loadingLabel
     : isEmpty
       ? emptyLabel
-      : isConferenceCatalog
-        ? t('conferences.selectRoom', 'Выберите комнату')
-        : t('routes.apps.queue.selectQueue', 'Выберите очередь');
-  const dynamicGroup = t('routes.chain.source.groupDynamic', 'Динамичная очередь');
-  const staticGroup = isConferenceCatalog
-    ? sectionName
-    : t('routes.chain.source.groupStatic', 'Статичная очередь');
+      : chrome.placeholderSelect;
+  const dynamicGroup = chrome.dynamicGroup;
+  const staticGroup = optionsSource === 'queues' ? chrome.staticGroup : sectionName;
   const isScalar = mode === 'scalar';
   const isDial = mode === 'dial';
   const isEndpointPicker = optionsSource === 'endpoints' && isDial;
@@ -223,6 +233,11 @@ export function ValueSourceField({
     if (raw === SRC_ROUTE) onChange({ source: 'route_pattern' });
     else if (raw === SRC_VARIABLE) {
       onChange({ source: 'variable', name: src.source === 'variable' ? src.name : '' });
+    } else if (raw === SRC_AUTODIAL) {
+      onChange({
+        source: 'autodial_field',
+        name: src.source === 'autodial_field' ? src.name : autodialFields[0]?.value ?? '',
+      });
     } else if (raw === SRC_DIRECTORY) {
       onChange(directorySource ?? emptyDirectorySource());
     } else if (raw === '') {
@@ -248,6 +263,13 @@ export function ValueSourceField({
       onChange({ source: 'variable', name: src.source === 'variable' ? src.name : '' });
       return;
     }
+    if (raw === SRC_AUTODIAL) {
+      onChange({
+        source: 'autodial_field',
+        name: src.source === 'autodial_field' ? src.name : autodialFields[0]?.value ?? '',
+      });
+      return;
+    }
     if (raw === SRC_DIRECTORY) {
       onChange(directorySource ?? emptyDirectorySource());
     }
@@ -267,6 +289,13 @@ export function ValueSourceField({
     }
     if (raw === SRC_VARIABLE) {
       onChange({ source: 'variable', name: src.source === 'variable' ? src.name : '' });
+      return;
+    }
+    if (raw === SRC_AUTODIAL) {
+      onChange({
+        source: 'autodial_field',
+        name: src.source === 'autodial_field' ? src.name : autodialFields[0]?.value ?? '',
+      });
       return;
     }
     onChange(directorySource ?? emptyDirectorySource());
@@ -314,11 +343,16 @@ export function ValueSourceField({
           <option value={SRC_VARIABLE}>
             {t('routes.chain.source.variable', 'Из переменной')}
           </option>
+          {autodialFields.length > 0 ? (
+            <option value={SRC_AUTODIAL}>
+              {t('routes.chain.source.autodialField', 'Поле клиентской базы')}
+            </option>
+          ) : null}
           <option value={SRC_DIRECTORY}>
             {t('routes.chain.source.phonebook', 'Из справочника')}
           </option>
         </Select>
-      ) : mode === 'queue' ? (
+      ) : catalogMode ? (
         <VStack gap="8" max>
           <Select
             disabled={readOnly || isLoading || isEmpty}
@@ -340,15 +374,17 @@ export function ValueSourceField({
               <option value={SRC_VARIABLE}>
                 {t('routes.chain.source.variable', 'Из переменной')}
               </option>
+              {autodialFields.length > 0 ? (
+                <option value={SRC_AUTODIAL}>
+                  {t('routes.chain.source.autodialField', 'Поле клиентской базы')}
+                </option>
+              ) : null}
             </optgroup>
             {catalogItems.length > 0 || !queueInCatalog ? (
               <optgroup label={staticGroup}>
                 {!queueInCatalog ? (
                   <option value={queueSelectValue}>
-                    {(isConferenceCatalog
-                      ? t('conferences.orphanRoom', '{{room}} (нет в списке)')
-                      : t('routes.chain.source.queueOrphan', '{{queue}} (нет в списке)')
-                    ).replace(isConferenceCatalog ? '{{room}}' : '{{queue}}', queueSelectValue)}
+                    {chrome.orphan(queueSelectValue)}
                   </option>
                 ) : null}
                 {catalogItems.map((item) => (
@@ -361,7 +397,7 @@ export function ValueSourceField({
           </Select>
           {queueEmptyError ? (
             <Text id="queue-source-error" variant="muted" className={styles.fieldError}>
-              {t('routes.chain.source.required', 'Укажите очередь')}
+              {chrome.required}
             </Text>
           ) : null}
           {isEmpty ? (
@@ -390,6 +426,11 @@ export function ValueSourceField({
           <option value={SRC_VARIABLE}>
             {t('routes.chain.source.variable', 'Из переменной')}
           </option>
+          {autodialFields.length > 0 ? (
+            <option value={SRC_AUTODIAL}>
+              {t('routes.chain.source.autodialField', 'Поле клиентской базы')}
+            </option>
+          ) : null}
           <option value={SRC_DIRECTORY}>
             {t('routes.chain.source.phonebook', 'Из справочника')}
           </option>
@@ -517,6 +558,22 @@ export function ValueSourceField({
             </Text>
           ) : null}
         </VStack>
+      ) : null}
+
+      {src.source === 'autodial_field' ? (
+        <Select
+          disabled={readOnly || autodialFields.length === 0}
+          value={src.name}
+          aria-label={t('routes.chain.source.autodialField', 'Поле клиентской базы')}
+          onChange={(e) => onChange({ source: 'autodial_field', name: e.target.value })}
+        >
+          <option value="">{t('autodial.scenario.pickField', 'Выберите поле')}</option>
+          {autodialFields.map((field) => (
+            <option key={field.value} value={field.value}>
+              {field.label}
+            </option>
+          ))}
+        </Select>
       ) : null}
 
       {directorySource ? (

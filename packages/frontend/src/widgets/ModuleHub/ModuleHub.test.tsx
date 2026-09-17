@@ -81,6 +81,24 @@ describe('ModuleHub (002-E)', () => {
     expect(container.innerHTML).not.toMatch(/bento|orbit|dock/i);
   });
 
+  it('shows the i18n label, not the server catalog name', () => {
+    vi.mocked(useHubModules).mockReturnValue({
+      active: [{ ...activeRow, catalogName: 'Автообзвон', labelKey: 'nav.autodial' }],
+      marketplace: [],
+      isLoading: false,
+      favoriteCodes: [],
+      toggleFavorite: vi.fn(),
+      isFavorite: () => false,
+    });
+    render(
+      <MemoryRouter>
+        <ModuleHub />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText('nav.autodial')).toBeInTheDocument();
+    expect(screen.queryByText('Автообзвон')).toBeNull();
+  });
+
   it('Marketplace section only lists locked modules', () => {
     render(
       <MemoryRouter>

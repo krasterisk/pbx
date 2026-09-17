@@ -1,13 +1,16 @@
 import { memo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Network, Search, Loader2, Trash2 } from 'lucide-react';
-import { Card, CardHeader, CardContent, Input, Button, DataTable } from '@/shared/ui';
-import { HStack, Flex } from '@/shared/ui/Stack';
+import { Card, CardHeader, CardContent, Input, Button, DataTable, Text } from '@/shared/ui';
+import { Flex, HStack } from '@/shared/ui/Stack';
 import { useGetContextsQuery, useBulkDeleteContextsMutation } from '@/shared/api/api';
+import { useIsMobile } from '@/shared/hooks/useIsMobile';
 import { useContextsTableColumns } from './useContextsTableColumns';
+import cls from './ContextsTable.module.scss';
 
 export const ContextsTable = memo(() => {
   const { t } = useTranslation();
+  const isMobile = useIsMobile(768);
   const { data: contexts = [], isLoading } = useGetContextsQuery();
   const [bulkDelete, { isLoading: isDeleting }] = useBulkDeleteContextsMutation();
 
@@ -21,58 +24,69 @@ export const ContextsTable = memo(() => {
   const handleBulkDelete = async () => {
     const ids = Object.keys(rowSelection).map(Number);
     if (!ids.length) return;
-    
+
     if (window.confirm(t('common.confirmDelete', 'Вы уверены, что хотите удалить?'))) {
       await bulkDelete(ids).unwrap();
       setRowSelection({});
     }
   };
 
-  return (
-    <Card>
-      <CardHeader>
-        <HStack justify="between" align="center" className="flex-col sm:flex-row gap-4" max>
-          <HStack gap="8" align="center">
-            <Network className="w-5 h-5 text-primary" />
-            <span className="font-semibold text-lg">
-              {t('contexts.count', { count: contexts.length, defaultValue: `Всего: ${contexts.length}` })}
-            </span>
-          </HStack>
-          <HStack gap="12" align="center" className="w-full sm:w-auto">
-            {selectedCount > 0 && (
-              <Button
-                variant="destructive"
-                disabled={isDeleting}
-                onClick={handleBulkDelete}
-              >
-                {isDeleting ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                ) : (
-                  <Trash2 className="w-4 h-4 mr-2" />
-                )}
-                {t('common.deleteSelected', 'Удалить выбранные')} ({selectedCount})
-              </Button>
-            )}
-            <div className="relative w-full sm:w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                id="contexts-search"
-                placeholder={t('common.search', 'Поиск...')}
-                value={globalFilter}
-                onChange={(e) => setGlobalFilter(e.target.value)}
-                className="pl-10 h-9"
-              />
-            </div>
-          </HStack>
-        </HStack>
-      </CardHeader>
-      <CardContent className="p-0">
-        {isLoading ? (
-          <Flex align="center" justify="center" className="h-48">
-            <Loader2 className="w-6 h-6 animate-spin text-primary" />
+  const toolbar = (
+    <Flex justify="between" align="center" className={cls.toolbar} max>
+      <HStack gap="8" align="center">
+        <Network size={20} className={cls.toolbarIcon} />
+        <Text className={cls.count}>
+          {t('contexts.count', { count: contexts.length, defaultValue: `Всего: ${contexts.length}` })}
+        </Text>
+      </HStack>
+      <HStack gap="12" align="center" className={cls.toolbarActions}>
+        {!isMobile && (
+          <Button
+            variant="destructive"
+            className={selectedCount === 0 ? cls.bulkBtnHidden : undefined}
+            disabled={isDeleting || selectedCount === 0}
+            aria-hidden={selectedCount === 0}
+            tabIndex={selectedCount === 0 ? -1 : undefined}
+            onClick={handleBulkDelete}
+          >
+            {isDeleting ? <Loader2 size={16} className={cls.spinner} /> : <Trash2 size={16} />}
+            {t('common.deleteSelected', { count: selectedCount })}
+          </Button>
+        )}
+        <Flex align="center" className={cls.searchWrap}>
+          <Search size={16} className={cls.searchIcon} />
+          <Input
+            id="contexts-search"
+            placeholder={t('common.search', 'Поиск...')}
+            value={globalFilter}
+            onChange={(e) => setGlobalFilter(e.target.value)}
+            className={cls.searchInput}
+          />
+        </Flex>
+      </HStack>
+    </Flex>
+  );
+
+  if (isLoading) {
+    return (
+      <Card className={cls.card}>
+        <CardHeader>{toolbar}</CardHeader>
+        <CardContent>
+          <Flex align="center" justify="center" className={cls.loading}>
+            <Loader2 size={24} className={cls.spinner} />
           </Flex>
-        ) : (
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className={cls.card} data-testid="contexts-table">
+      <CardHeader>{toolbar}</CardHeader>
+      <CardContent className={cls.cardContent}>
+        <Flex direction="column" align="stretch" className={cls.tableScroll}>
           <DataTable
+            className={cls.table}
             data={contexts}
             columns={columns}
             getRowId={(row) => String(row.uid)}
@@ -84,11 +98,10 @@ export const ContextsTable = memo(() => {
             emptyText={t('common.noData')}
             exportFilename="contexts_export"
           />
-        )}
+        </Flex>
       </CardContent>
     </Card>
   );
 });
 
 ContextsTable.displayName = 'ContextsTable';
-

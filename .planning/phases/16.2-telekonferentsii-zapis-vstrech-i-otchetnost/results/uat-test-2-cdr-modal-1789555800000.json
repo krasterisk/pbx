@@ -1,0 +1,38 @@
+{
+  "ok": true,
+  "test": 2,
+  "started": "2026-09-16T10:43:00Z",
+  "finished": "2026-09-16T10:48:30Z",
+  "host": "localhost:3010",
+  "backend": "127.0.0.1:5010",
+  "roomUid": 14,
+  "meetingUid": 1,
+  "uniqueid": "uat162play.1789555415164",
+  "journal": {
+    "search": "16921",
+    "row": "16.09.2026 16001 → 16921 answered 0:12",
+    "buttons": ["Play recording", "Conference recording"]
+  },
+  "modal": {
+    "title": "Conference recording",
+    "constructedSrcPath": "/conferences/14/meetings/1/play?token=",
+    "notCdrMp3": true,
+    "downloadPath": "/conferences/14/meetings/1/play?download=1&token="
+  },
+  "play": {
+    "sameOrigin": {
+      "url": "http://localhost:3010/api/conferences/14/meetings/1/play?token=REDACTED",
+      "range": "bytes 0-1/375084",
+      "status": 206,
+      "type": "audio/wav",
+      "header": "RI",
+      "durationSec": 23.44,
+      "played": true
+    },
+    "absoluteLanHost": {
+      "urlHost": "192.168.2.37:5010",
+      "fetch": "Failed to fetch in agent browser",
+      "note": "VITE_API_URL absolute LAN; MCP browser could not load that host. Path contract still /conferences/:room/meetings/:meeting/play"
+    }
+  }
+}

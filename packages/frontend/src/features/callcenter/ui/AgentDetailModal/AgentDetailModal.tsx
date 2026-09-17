@@ -249,7 +249,7 @@ export function AgentDetailModal({ agent, open, onClose }: AgentDetailModalProps
               data-status={status}
             >
               {agentStatusLabel(status, translate)}
-              {detail?.stats.pauseReason
+              {detail?.stats.pauseReason && formatPauseReason(detail.stats.pauseReason, translate)
                 ? ` (${formatPauseReason(detail.stats.pauseReason, translate)})`
                 : ''}
             </span>

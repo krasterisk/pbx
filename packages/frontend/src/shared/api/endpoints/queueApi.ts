@@ -2,6 +2,7 @@ import { rtkApi } from '../rtkApi';
 import { IQueue, IQueueFull } from '@/features/queues/model/types/queuesSchema';
 
 const queueApi = rtkApi.injectEndpoints({
+  overrideExisting: import.meta.hot != null,
   endpoints: (build) => ({
     getQueues: build.query<IQueue[], void>({
       query: () => '/queues',

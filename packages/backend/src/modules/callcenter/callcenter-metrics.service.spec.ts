@@ -10,15 +10,18 @@ describe('CallCenterMetricsService', () => {
   let queueCallModel: { findAll: jest.Mock };
   let missedCallModel: { findAll: jest.Mock };
   let queueModel: { findOne: jest.Mock };
+  let settingsModel: { findAll: jest.Mock };
 
   beforeEach(() => {
     queueCallModel = { findAll: jest.fn().mockResolvedValue([]) };
     missedCallModel = { findAll: jest.fn().mockResolvedValue([]) };
     queueModel = { findOne: jest.fn().mockResolvedValue(null) };
+    settingsModel = { findAll: jest.fn().mockResolvedValue([]) };
     service = new CallCenterMetricsService(
       queueCallModel as any,
       missedCallModel as any,
       queueModel as any,
+      settingsModel as any,
     );
   });
 
@@ -191,6 +194,68 @@ describe('CallCenterMetricsService', () => {
       expect(tenant2.offered).toBe(1);
       expect(tenant2.answered).toBe(1);
       expect(tenant2.sla).toBe(100);
+    });
+
+    it('filters rows by business-day EOD boundary per tenant', async () => {
+      settingsModel.findAll.mockResolvedValue([
+        {
+          user_uid: 1,
+          shift_policy: { close_at_eod: true, eod_time: '08:00' },
+        },
+      ]);
+      queueModel.findOne.mockResolvedValue({ servicelevel: 20 });
+
+      const now = new Date();
+      // Force "after 08:00 today" by mocking Date if needed — use relative stamps.
+      const afterBoundary = new Date();
+      afterBoundary.setHours(10, 0, 0, 0);
+      if (now.getHours() < 8) {
+        // Test runs before 08:00: business day started yesterday 08:00
+        afterBoundary.setDate(afterBoundary.getDate() - 1);
+        afterBoundary.setHours(10, 0, 0, 0);
+      }
+      const beforeBoundary = new Date(afterBoundary);
+      beforeBoundary.setDate(beforeBoundary.getDate() - 1);
+      beforeBoundary.setHours(7, 0, 0, 0);
+
+      queueCallModel.findAll.mockResolvedValue([
+        {
+          user_uid: 1,
+          queue_name: 'q_a',
+          disposition: 'answered',
+          wait_time: 5,
+          talk_time: 30,
+          wrapup_time: 0,
+          agent_interface: 'PJSIP/op1',
+          created_at: beforeBoundary,
+        },
+        {
+          user_uid: 1,
+          queue_name: 'q_a',
+          disposition: 'answered',
+          wait_time: 5,
+          talk_time: 40,
+          wrapup_time: 0,
+          agent_interface: 'PJSIP/op1',
+          created_at: afterBoundary,
+        },
+      ]);
+
+      await service.restoreToday();
+      const m = service.getQueueMetrics(1, 'q_a');
+      expect(m.offered).toBe(1);
+      expect(m.answered).toBe(1);
+    });
+
+    it('ensureReportingWindows restores when period start changes', async () => {
+      settingsModel.findAll.mockResolvedValue([]);
+      await service.restoreToday();
+      service['periodStartByTenant'].set(0, Date.now() - 86_400_000);
+      const spy = jest.spyOn(service, 'restoreToday');
+      const changed = await service.ensureReportingWindows(new Date());
+      expect(changed).toBe(true);
+      expect(spy).toHaveBeenCalled();
+      spy.mockRestore();
     });
   });
 

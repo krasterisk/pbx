@@ -2,6 +2,7 @@ import { rtkApi } from '../rtkApi';
 import { IVoiceRobot, IVoiceRobotKeywordGroup, IVoiceRobotKeyword, IVoiceRobotLog } from '@/entities/voiceRobot';
 
 export const voiceRobotsApi = rtkApi.injectEndpoints({
+  overrideExisting: import.meta.hot != null,
   endpoints: (build) => ({
     getVoiceRobots: build.query<IVoiceRobot[], void>({
       query: () => '/voice-robots',

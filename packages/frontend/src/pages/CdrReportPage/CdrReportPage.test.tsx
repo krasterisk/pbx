@@ -96,7 +96,7 @@ describe('CdrReportPage hybrid overflow (D-29 / D-27 wave E)', () => {
     expect(screen.getByTestId('cdr-report-page-responsive')).toBeInTheDocument();
     const hybrid = screen.getByTestId('hybrid-table');
     expect(hybrid).toHaveAttribute('data-hybrid', 'overflow-x-auto');
-    expect(hybrid.className).toMatch(/overflow-x-auto/);
+    expect(screen.getByRole('heading', { name: 'cdr.title' })).toBeInTheDocument();
     expect(screen.getByTestId('cdr-table-stub')).toBeInTheDocument();
   });
 });

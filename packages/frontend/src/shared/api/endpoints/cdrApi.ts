@@ -74,6 +74,7 @@ export interface CdrQueryParams {
 }
 
 const cdrApi = rtkApi.injectEndpoints({
+  overrideExisting: import.meta.hot != null,
   endpoints: (build) => ({
     getCdrList: build.query<ICdrListResponse, CdrQueryParams | void>({
       query: (params) => ({ url: '/reports/cdr', params: params || {} }),

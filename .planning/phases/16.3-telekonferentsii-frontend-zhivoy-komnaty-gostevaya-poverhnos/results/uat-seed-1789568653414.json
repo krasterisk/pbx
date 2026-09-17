@@ -1,0 +1,40 @@
+{
+  "started": "2026-09-16T14:24:13.414Z",
+  "loginStatus": 401,
+  "loginOk": false,
+  "roomsStatus": 200,
+  "roomCount": 1,
+  "room": {
+    "uid": 15,
+    "number": "163652348",
+    "name": "UAT 16.3 163652348"
+  },
+  "guestStatus": 400,
+  "guestToken": {
+    "message": [
+      "property label should not exist",
+      "kind must be one of the following values: shared_link, named_invite"
+    ],
+    "error": "Bad Request",
+    "statusCode": 400
+  },
+  "hub": {
+    "hub": 404,
+    "hubAlt": 404,
+    "hubMine": 404
+  },
+  "hubBodies": {
+    "hub": "{\"message\":\"Cannot GET /api/hub-modules\",\"error\":\"Not Found\",\"statusCode\":404}",
+    "hubAlt": "{\"message\":\"Cannot GET /api/modules/hub\",\"error\":\"Not Found\",\"statusCode\":404}",
+    "hubMine": "{\"message\":\"Cannot GET /api/my-modules\",\"error\":\"Not Found\",\"statusCode\":404}"
+  },
+  "ai": {
+    "tools": 404,
+    "adapters": 404,
+    "toolNames": {
+      "message": "Cannot GET /api/ai-chat/tools",
+      "error": "Not Found",
+      "statusCode": 404
+    }
+  }
+}

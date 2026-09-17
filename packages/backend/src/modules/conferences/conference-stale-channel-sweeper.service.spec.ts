@@ -18,9 +18,9 @@ function joinEvt(channel: string, callerIdNum: string) {
   };
 }
 
-describe('ConferenceStaleChannelSweeperService (16-07)', () => {
+describe('ConferenceStaleChannelSweeperService (16-07 / CR-02)', () => {
   let state: ConferenceStateService;
-  let ami: { action: jest.Mock; isConnected: jest.Mock };
+  let ami: { confbridgeList: jest.Mock; isConnected: jest.Mock; action: jest.Mock };
   let sweeper: ConferenceStaleChannelSweeperService;
 
   beforeEach(() => {
@@ -29,8 +29,9 @@ describe('ConferenceStaleChannelSweeperService (16-07)', () => {
     state = new ConferenceStateService();
     state.registerRoom({ uid: ROOM_UID, number: '6007', user_uid: 42 });
     ami = {
-      action: jest.fn().mockResolvedValue({ response: 'Success' }),
+      confbridgeList: jest.fn().mockResolvedValue({ events: [] }),
       isConnected: jest.fn().mockReturnValue(true),
+      action: jest.fn().mockResolvedValue({ response: 'Success' }),
     };
     sweeper = new ConferenceStaleChannelSweeperService(state, ami as any);
   });
@@ -49,6 +50,7 @@ describe('ConferenceStaleChannelSweeperService (16-07)', () => {
 
   it('makes no AMI calls when there are no active rooms', async () => {
     await sweeper.tick();
+    expect(ami.confbridgeList).not.toHaveBeenCalled();
     expect(ami.action).not.toHaveBeenCalled();
   });
 
@@ -57,41 +59,48 @@ describe('ConferenceStaleChannelSweeperService (16-07)', () => {
     jest.setSystemTime(NOW + STALE_CHANNEL_THRESHOLD_MS + 1000);
     ami.isConnected.mockReturnValue(false);
     await sweeper.tick();
-    expect(ami.action).not.toHaveBeenCalled();
+    expect(ami.confbridgeList).not.toHaveBeenCalled();
   });
 
-  it('kicks a channel whose last signal is 121 seconds old', async () => {
+  it('does not kick a quiet channel still present in ConfbridgeList after 121s', async () => {
     join('PJSIP/601-00000001', '601');
     jest.setSystemTime(NOW + 121_000);
+    ami.confbridgeList.mockResolvedValue({
+      events: [{ event: 'ConfbridgeList', channel: 'PJSIP/601-00000001' }],
+    });
     await sweeper.tick();
-    expect(ami.action).toHaveBeenCalledTimes(1);
-    expect(ami.action.mock.calls[0][0]).toEqual(
-      expect.objectContaining({ action: expect.any(String) }),
-    );
-    expect(Object.prototype.hasOwnProperty.call(ami.action.mock.calls[0][0], 'action')).toBe(
-      true,
-    );
+    expect(ami.confbridgeList).toHaveBeenCalledWith(CONFERENCE);
+    expect(ami.action).not.toHaveBeenCalled();
+    expect(state.getSnapshot(ROOM_UID).participants).toHaveLength(1);
+    expect(state.isStale('PJSIP/601-00000001', STALE_CHANNEL_THRESHOLD_MS)).toBe(false);
   });
 
-  it('does not kick a channel whose last signal is 119 seconds old', async () => {
+  it('removes a leftover channel missing from ConfbridgeList without ConfbridgeKick', async () => {
     join('PJSIP/601-00000001', '601');
-    jest.setSystemTime(NOW + 119_000);
+    jest.setSystemTime(NOW + 121_000);
+    ami.confbridgeList.mockResolvedValue({ events: [] });
     await sweeper.tick();
     expect(ami.action).not.toHaveBeenCalled();
+    expect(state.getSnapshot(ROOM_UID).participants).toHaveLength(0);
   });
 
-  it('does not kick a channel whose last signal is exactly 120 seconds old', async () => {
+  it('refreshes live members and drops only the missing one', async () => {
     join('PJSIP/601-00000001', '601');
-    jest.setSystemTime(NOW + 120_000);
+    join('PJSIP/602-00000002', '602');
+    jest.setSystemTime(NOW + 121_000);
+    ami.confbridgeList.mockResolvedValue({
+      events: [{ event: 'ConfbridgeList', Channel: 'PJSIP/601-00000001' }],
+    });
     await sweeper.tick();
-    expect(ami.action).not.toHaveBeenCalled();
+    const refs = state.getSnapshot(ROOM_UID).participants.map((p) => p.channel);
+    expect(refs).toEqual(['PJSIP/601-00000001']);
+    expect(state.isStale('PJSIP/601-00000001', STALE_CHANNEL_THRESHOLD_MS)).toBe(false);
   });
 
   it('skips an overlapping tick without extra AMI work', async () => {
     join('PJSIP/601-00000001', '601');
-    jest.setSystemTime(NOW + 121_000);
     let release!: (value?: unknown) => void;
-    ami.action.mockImplementation(
+    ami.confbridgeList.mockImplementation(
       () =>
         new Promise((resolve) => {
           release = resolve;
@@ -99,19 +108,28 @@ describe('ConferenceStaleChannelSweeperService (16-07)', () => {
     );
     const first = sweeper.tick();
     await sweeper.tick();
-    expect(ami.action).toHaveBeenCalledTimes(1);
-    release();
+    expect(ami.confbridgeList).toHaveBeenCalledTimes(1);
+    release({ events: [{ channel: 'PJSIP/601-00000001' }] });
     await first;
   });
 
-  it('continues the walk when AMI fails on the first stale channel', async () => {
+  it('continues the walk when ConfbridgeList fails on the first room', async () => {
+    state.registerRoom({ uid: 78, number: '6008', user_uid: 42 });
+    state.handleJoin({
+      Conference: 'conf6008_42',
+      Channel: 'PJSIP/603-00000003',
+      CallerIDNum: '603',
+      Admin: 'No',
+      MarkedUser: 'No',
+    });
     join('PJSIP/601-00000001', '601');
-    join('PJSIP/602-00000002', '602');
-    jest.setSystemTime(NOW + 121_000);
-    ami.action
-      .mockRejectedValueOnce(new Error('AMI kick failed'))
-      .mockResolvedValueOnce({ response: 'Success' });
+    ami.confbridgeList
+      .mockRejectedValueOnce(new Error('AMI list failed'))
+      .mockResolvedValueOnce({
+        events: [{ channel: 'PJSIP/603-00000003' }],
+      });
     await sweeper.tick();
-    expect(ami.action).toHaveBeenCalledTimes(2);
+    expect(ami.confbridgeList).toHaveBeenCalledTimes(2);
+    expect(state.getSnapshot(78).participants).toHaveLength(1);
   });
 });

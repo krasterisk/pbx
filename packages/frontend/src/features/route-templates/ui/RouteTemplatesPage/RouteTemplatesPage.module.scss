@@ -1,3 +1,8 @@
+/* ─────────────────────────────────────────────────────
+   RouteTemplatesPage — заголовок и список шаблонов
+   Design tokens: var(--color-*) from globals.css @theme
+   ───────────────────────────────────────────────────── */
+
 .page {
   flex: 1;
   min-width: 0;
@@ -5,6 +10,7 @@
 }
 
 .header {
+  padding: 0 0.5rem;
   flex-wrap: wrap;
   gap: 1rem;
 
@@ -15,6 +21,9 @@
 }
 
 .iconBadge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: 0.625rem;
   border-radius: var(--radius-xl);
   background: color-mix(in srgb, var(--color-primary) 10%, transparent);
@@ -22,23 +31,143 @@
   flex-shrink: 0;
 }
 
-.title {
+.titleBlock {
   min-width: 0;
 }
 
+.title {
+  background: linear-gradient(
+    135deg,
+    var(--color-foreground),
+    color-mix(in srgb, var(--color-foreground) 70%, transparent)
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
 .createBtn {
+  box-shadow: 0 10px 15px color-mix(in srgb, var(--color-primary) 20%, transparent);
+
   @media (max-width: 640px) {
     width: 100%;
   }
 }
 
+.createBtnIcon {
+  margin-right: 0.5rem;
+}
+
+.tableWrap {
+  width: 100%;
+  min-width: 0;
+  align-self: stretch;
+
+  > * {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
 .card {
-  border: 1px solid color-mix(in srgb, var(--color-border) 50%, transparent);
+  width: 100%;
+  min-width: 0;
 }
 
 .cardContent {
   padding: 0;
   min-width: 0;
+  width: 100%;
+}
+
+.toolbar {
+  flex-wrap: nowrap;
+  gap: 1rem;
+  min-height: 2.25rem;
+
+  @media (max-width: 640px) {
+    flex-wrap: wrap;
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+.toolbarIcon {
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.count {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--color-foreground);
+}
+
+.toolbarActions {
+  min-width: 0;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
+
+  @media (max-width: 640px) {
+    width: 100%;
+  }
+}
+
+.bulkBtnHidden {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.searchWrap {
+  position: relative;
+  min-width: 0;
+  width: 16rem;
+
+  @media (max-width: 640px) {
+    width: 100%;
+  }
+}
+
+.searchIcon {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-muted-foreground);
+  pointer-events: none;
+}
+
+.searchInput {
+  height: 2.25rem;
+  padding-left: 2.5rem;
+}
+
+.tableScroll {
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table {
+  width: 100%;
+}
+
+.loading {
+  height: 12rem;
+  width: 100%;
+}
+
+.spinner {
+  color: var(--color-primary);
+  flex-shrink: 0;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .clip {
@@ -50,4 +179,8 @@
 
 .mobileCard {
   width: 100%;
+  padding: 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-muted) 10%, transparent);
 }

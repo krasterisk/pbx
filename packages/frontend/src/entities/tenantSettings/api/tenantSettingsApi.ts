@@ -14,6 +14,7 @@ function withDefaults(raw: Partial<TenantSettings> | null | undefined): TenantSe
  * callCenterApi.getTenantSettings (`/callcenter/settings/tenant`) on the shared rtkApi.
  */
 export const tenantSettingsApi = rtkApi.injectEndpoints({
+  overrideExisting: import.meta.hot != null,
   endpoints: (build) => ({
     getVpbxTenantSettings: build.query<TenantSettings, void>({
       query: () => '/tenant-settings',

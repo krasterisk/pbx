@@ -1,72 +1,65 @@
+import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { motion } from 'motion/react';
-import { Volume2, Upload, Phone, FileAudio } from 'lucide-react';
-import { Button } from '@/shared/ui';
-import { VStack, HStack } from '@/shared/ui/Stack';
+import { FileAudio, Phone, Upload, Volume2 } from 'lucide-react';
+import { Button, Text } from '@/shared/ui';
+import { Flex, HStack, VStack } from '@/shared/ui/Stack';
 import { useAppDispatch } from '@/shared/hooks/useAppStore';
 import { promptsActions } from '@/features/prompts/model/slice/promptsSlice';
-import { PromptsTable } from '@/features/prompts/ui/PromptsTable/PromptsTable';
+import { PromptsTable } from '@/features/prompts/ui/PromptsTable';
 import cls from './PromptsPage.module.scss';
 
-export function PromptsPage() {
+export const PromptsPage = memo(() => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
 
   return (
     <VStack gap="24" max className={cls.page} data-testid="prompts-page-responsive">
-      {/* Header */}
-      <HStack justify="between" align="center" className="flex-col sm:flex-row gap-4 min-w-0" max>
-        <VStack gap="4" className="min-w-0">
-          <HStack gap="12" align="center">
-            <FileAudio className="w-7 h-7 text-primary shrink-0" />
-            <h1 className="text-2xl font-bold">{t('promptsPage.title', 'Записи')}</h1>
-          </HStack>
-          <p className="text-muted-foreground text-sm">
-            {t('promptsPage.subtitle', 'Управление звуковыми файлами и записями')}
-          </p>
-        </VStack>
-        <HStack gap="8" className={cls.headerActions}>
+      <Flex justify="between" align="center" className={cls.header} max>
+        <HStack gap="12" align="center">
+          <Flex align="center" justify="center" className={cls.iconBadge}>
+            <FileAudio size={24} />
+          </Flex>
+          <VStack gap="4" className={cls.titleBlock}>
+            <Text variant="h1" as="h1" className={cls.title}>
+              {t('promptsPage.title')}
+            </Text>
+            <Text variant="muted">
+              {t('promptsPage.subtitle')}
+            </Text>
+          </VStack>
+        </HStack>
+        <HStack gap="8" className={cls.actions}>
           <Button
-            className={cls.actionBtn}
+            className={cls.createBtn}
             onClick={() => dispatch(promptsActions.openUploadModal())}
           >
-            <Upload className="w-4 h-4 mr-2" />
-            {t('promptsPage.addBtn', 'Загрузить файл')}
+            <Upload size={16} className={cls.createBtnIcon} />
+            <Text as="span">{t('promptsPage.addBtn')}</Text>
           </Button>
           <Button
             variant="outline"
-            className={cls.actionBtn}
+            className={cls.rangeBtn}
             onClick={() => dispatch(promptsActions.openRecordModal())}
           >
-            <Phone className="w-4 h-4 mr-2" />
-            {t('promptsPage.recordBtn', 'Записать по телефону')}
+            <Phone size={16} className={cls.createBtnIcon} />
+            <Text as="span">{t('promptsPage.recordBtn')}</Text>
           </Button>
           <Button
             variant="outline"
-            className={cls.actionBtn}
+            className={cls.rangeBtn}
             onClick={() => dispatch(promptsActions.openSynthesizeModal())}
           >
-            <Volume2 className="w-4 h-4 mr-2" />
-            {t('promptsPage.synthesizeBtn', 'Синтезировать речь')}
+            <Volume2 size={16} className={cls.createBtnIcon} />
+            <Text as="span">{t('promptsPage.synthesizeBtn')}</Text>
           </Button>
         </HStack>
-      </HStack>
+      </Flex>
 
-      {/* Table - D-29 page-level overflow hybrid */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        style={{ width: '100%', minWidth: 0 }}
-      >
-        <div
-          className={`${cls.tableScroll} overflow-x-auto`}
-          data-testid="hybrid-table"
-          data-hybrid="overflow-x-auto"
-        >
-          <PromptsTable />
-        </div>
-      </motion.div>
+      <Flex direction="column" align="stretch" max className={cls.tableWrap}>
+        <PromptsTable />
+      </Flex>
     </VStack>
   );
-}
+});
+
+PromptsPage.displayName = 'PromptsPage';

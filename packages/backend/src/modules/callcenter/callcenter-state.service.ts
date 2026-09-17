@@ -78,7 +78,7 @@ export interface QueueState {
   waiting: number;
   talking: number;
   agents: { total: number; available: number; paused: number; busy: number };
-  sla: number;              // % for today
+  sla: number;              // % for reporting day (0 when no offered calls)
   calls: { answered: number; abandoned: number; total: number };
   avgWait: number;          // seconds
   avgTalk: number;          // seconds
@@ -432,7 +432,8 @@ export class CallCenterStateService implements OnModuleInit {
       waiting: 0,
       talking: 0,
       agents: { total: 0, available: 0, paused: 0, busy: 0 },
-      sla: 100,
+      // 0 = no offered calls yet (not "perfect 100%"). Strip excludes empty queues from SLA rollup.
+      sla: 0,
       calls: { answered: 0, abandoned: 0, total: 0 },
       avgWait: 0,
       avgTalk: 0,

@@ -20,6 +20,7 @@ import { QueuesAiAdapter } from '../queues/queues-ai.adapter';
 import { CallGroupsAiAdapter } from '../call-groups/call-groups-ai.adapter';
 import { RoutesAiAdapter } from '../routes/routes-ai.adapter';
 import { MohAiAdapter } from '../moh/moh-ai.adapter';
+import { TimeGroupsAiAdapter } from '../time-groups/time-groups-ai.adapter';
 
 const TENANT_A = 100;
 const TENANT_B = 200;
@@ -81,6 +82,14 @@ const MUTATION_FIXTURES: Record<string, Record<string, unknown>> = {
   update_call_group_members: { uid: 5, members: [{ member_type: 'internal', value: '201' }] },
   delete_call_group: { uid: 5 },
   assign_moh_class: { target_type: 'queue', target: 'q200_100', class_name: 'moh_100_jazz' },
+  create_time_group: {
+    name: 'Рабочие',
+    intervals: [{ time_start: '08:00', time_end: '17:00', days_of_week: 'mon-fri' }],
+  },
+  update_time_group: {
+    uid: 12,
+    intervals: [{ time_start: '09:00', time_end: '18:00', days_of_week: 'mon-fri' }],
+  },
 };
 
 /** Domain-service methods that write. Used to prove propose writes nothing and apply writes once. */
@@ -189,7 +198,23 @@ function tenantFixtures() {
       entries: [{ position: 1, entry: '/usr/moh/a.wav' }],
     },
   ];
-  return { contexts, endpoints, queues, groups, ivrs, routes, directories, trunks, mohClasses };
+  const timeGroups = [
+    {
+      uid: 12,
+      name: 'office-hours',
+      comment: 'Weekdays',
+      intervals: [
+        {
+          time_start: '09:00',
+          time_end: '18:00',
+          days_of_week: 'mon-fri',
+          days_of_month: '*',
+          months: '*',
+        },
+      ],
+    },
+  ];
+  return { contexts, endpoints, queues, groups, ivrs, routes, directories, trunks, mohClasses, timeGroups };
 }
 
 type Harness = ReturnType<typeof bootHarness>;
@@ -262,6 +287,19 @@ function bootHarness() {
     }),
     create: jest.fn(async () => ({ uid: 50 })),
     update: jest.fn(async () => ({ uid: 5 })),
+    remove: jest.fn(async () => undefined),
+    checkExtenConflict: jest.fn(async () => null),
+    suggestFreeExten: jest.fn(async () => '6001'),
+  };
+  const timeGroupsService = {
+    findAll: jest.fn(async (uid: number) => forTenant(data.timeGroups, uid)),
+    findOne: jest.fn(async (id: number, tenant: number) => {
+      const found = forTenant(data.timeGroups, tenant).find((row) => row.uid === id);
+      if (!found) throw new Error('Time group not found');
+      return found;
+    }),
+    create: jest.fn(async () => ({ uid: 77, name: 'Рабочие' })),
+    update: jest.fn(async () => ({ uid: 12, name: 'office-hours' })),
     remove: jest.fn(async () => undefined),
   };
   const routesService = {
@@ -336,6 +374,7 @@ function bootHarness() {
     queuesService as any,
     routesService as any,
   ).onModuleInit();
+  new TimeGroupsAiAdapter(timeGroupsService as any, registry).onModuleInit();
 
   const rows: ProposalRow[] = [];
   const proposalModel = {
@@ -397,6 +436,7 @@ function bootHarness() {
     contextsService,
     mohService,
     routeReferencesService,
+    timeGroupsService,
   };
 
   return { registry, mcp, diff, rows, proposalModel, routeApplyService, auditModel, loggerService, services, data };

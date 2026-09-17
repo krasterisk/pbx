@@ -2,6 +2,7 @@ import { rtkApi } from '../rtkApi';
 import { ISttEngine } from '@/entities/engines';
 
 const sttEnginesApi = rtkApi.injectEndpoints({
+  overrideExisting: import.meta.hot != null,
   endpoints: (builder) => ({
     getSttEngines: builder.query<ISttEngine[], void>({
       query: () => '/stt-engines',

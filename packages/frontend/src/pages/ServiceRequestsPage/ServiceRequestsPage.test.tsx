@@ -4,7 +4,7 @@ import '@testing-library/jest-dom';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (_key: string, fallback?: string) => fallback || _key,
+    t: (key: string, fallback?: string) => fallback || key,
   }),
 }));
 
@@ -20,13 +20,15 @@ vi.mock('@/features/serviceRequests', () => ({
 
 import { ServiceRequestsPage } from './ServiceRequestsPage';
 
-describe('ServiceRequestsPage hybrid overflow (D-29 / D-27 wave E)', () => {
-  it('exposes hybrid-table overflow marker at page level', () => {
+describe('ServiceRequestsPage', () => {
+  it('renders title, subtitle, stats, filter and table', () => {
     render(<ServiceRequestsPage />);
+
     expect(screen.getByTestId('service-requests-page-responsive')).toBeInTheDocument();
-    const hybrid = screen.getByTestId('hybrid-table');
-    expect(hybrid).toHaveAttribute('data-hybrid', 'overflow-x-auto');
-    expect(hybrid.className).toMatch(/overflow-x-auto/);
+    expect(screen.getByRole('heading', { name: 'serviceRequests.title' })).toBeInTheDocument();
+    expect(screen.getByText('serviceRequests.subtitle')).toBeInTheDocument();
+    expect(screen.getByTestId('service-requests-stats-stub')).toBeInTheDocument();
+    expect(screen.getByTestId('service-requests-filter-stub')).toBeInTheDocument();
     expect(screen.getByTestId('service-requests-table-stub')).toBeInTheDocument();
   });
 });

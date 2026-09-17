@@ -10,6 +10,7 @@ export interface INumberList {
 }
 
 const numberApi = rtkApi.injectEndpoints({
+  overrideExisting: import.meta.hot != null,
   endpoints: (builder) => ({
     getNumbers: builder.query<INumberList[], void>({
       query: () => '/numbers',

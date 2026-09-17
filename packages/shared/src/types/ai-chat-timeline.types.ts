@@ -57,6 +57,7 @@ export const AGENT_TIMELINE_KINDS = ['user', 'assistant', 'step', 'proposal'] as
 export function scrubToolIdsFromPublicText(text: string): string {
   return String(text ?? '')
     .replace(/\b[a-z][a-z0-9]*(?:_[a-z0-9]+)+\b/g, '')
+    .replace(/\s+(?:через|via)\s*(?=[,.;:!?]|\s*(?:если|if)\b)/gi, '')
     .replace(/[ \t]{2,}/g, ' ')
     .replace(/[ \t]+([,.!?:;])/g, '$1')
     .replace(/\n{3,}/g, '\n\n')

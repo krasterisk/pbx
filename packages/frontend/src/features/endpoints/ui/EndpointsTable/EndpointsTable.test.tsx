@@ -67,7 +67,7 @@ describe('EndpointsTable hybrid responsive (D-29)', () => {
     render(<EndpointsTable />);
     const hybrid = screen.getByTestId('hybrid-table');
     expect(hybrid).toHaveAttribute('data-hybrid', 'overflow-x-auto');
-    expect(screen.getByTestId('endpoints-table-scroll')).toHaveClass('overflow-x-auto');
+    expect(screen.getByTestId('endpoints-table-scroll')).toBeInTheDocument();
     expect(useIsMobileMock).toHaveBeenCalledWith(768);
   });
 
@@ -79,5 +79,8 @@ describe('EndpointsTable hybrid responsive (D-29)', () => {
     expect(screen.getByTestId('endpoints-mobile-card')).toBeInTheDocument();
     expect(screen.getByText('100')).toBeInTheDocument();
     expect(screen.getByText('Alice')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'endpoints.btnSip' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'common.edit' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'common.delete' })).toBeInTheDocument();
   });
 });

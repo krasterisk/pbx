@@ -1,56 +1,50 @@
+import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { motion } from 'motion/react';
-import { Plus, Bell } from 'lucide-react';
-import { Button, Card, CardContent } from '@/shared/ui';
-import { HStack, VStack } from '@/shared/ui/Stack';
+import { Bell, Plus } from 'lucide-react';
+import { Button, Text } from '@/shared/ui';
+import { Flex, HStack, VStack } from '@/shared/ui/Stack';
 import { useAppDispatch } from '@/shared/hooks/useAppStore';
 import { notificationsPageActions } from '../../model/slice/notificationsPageSlice';
-import { NotificationIntegrationsTable } from '../NotificationIntegrationsTable/NotificationIntegrationsTable';
+import { NotificationIntegrationsTable } from '../NotificationIntegrationsTable';
 import { NotificationIntegrationFormModal } from '../NotificationIntegrationFormModal/NotificationIntegrationFormModal';
 import cls from './NotificationIntegrationsPage.module.scss';
 
-export const NotificationIntegrationsPage = () => {
+export const NotificationIntegrationsPage = memo(() => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-      style={{ width: '100%', minWidth: 0 }}
-    >
-      <VStack gap="16" max className={cls.page} data-testid="notifications-page-responsive">
-        <HStack justify="between" align="center" className="flex-col sm:flex-row gap-4 min-w-0" max>
-          <HStack gap="8" align="center" className="min-w-0">
-            <Bell className="w-6 h-6 text-primary shrink-0" />
-            <h1 className="text-2xl font-bold">
-              {t('notifications.title', 'Notification Integrations')}
-            </h1>
-          </HStack>
-          <Button
-            onClick={() => dispatch(notificationsPageActions.openCreateModal())}
-            className={`gap-2 ${cls.createBtn}`}
-          >
-            <Plus className="w-4 h-4" />
-            {t('notifications.create', 'Create Integration')}
-          </Button>
+    <VStack gap="24" max className={cls.page} data-testid="notifications-page-responsive">
+      <Flex justify="between" align="center" className={cls.header} max>
+        <HStack gap="12" align="center">
+          <Flex align="center" justify="center" className={cls.iconBadge}>
+            <Bell size={24} />
+          </Flex>
+          <VStack gap="4" className={cls.titleBlock}>
+            <Text variant="h1" as="h1" className={cls.title}>
+              {t('notifications.title', 'Интеграции уведомлений')}
+            </Text>
+            <Text variant="muted">
+              {t('notifications.subtitle', 'Каналы доставки уведомлений из маршрутов')}
+            </Text>
+          </VStack>
         </HStack>
+        <Button
+          className={cls.createBtn}
+          onClick={() => dispatch(notificationsPageActions.openCreateModal())}
+        >
+          <Plus size={16} className={cls.createBtnIcon} />
+          <Text as="span">{t('notifications.create', 'Создать интеграцию')}</Text>
+        </Button>
+      </Flex>
 
-        <Card className="min-w-0">
-          <CardContent className={cls.cardContent}>
-            <div
-              className={`${cls.tableScroll} overflow-x-auto`}
-              data-testid="hybrid-table"
-              data-hybrid="overflow-x-auto"
-            >
-              <NotificationIntegrationsTable />
-            </div>
-          </CardContent>
-        </Card>
+      <Flex direction="column" align="stretch" max className={cls.tableWrap}>
+        <NotificationIntegrationsTable />
+      </Flex>
 
-        <NotificationIntegrationFormModal />
-      </VStack>
-    </motion.div>
+      <NotificationIntegrationFormModal />
+    </VStack>
   );
-};
+});
+
+NotificationIntegrationsPage.displayName = 'NotificationIntegrationsPage';

@@ -1,7 +1,17 @@
 import { memo, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Search, Loader2, Cable, Trash2, Pencil, Copy } from 'lucide-react';
-import { Card, CardHeader, CardContent, Input, Button, DataTable, Text } from '@/shared/ui';
+import {
+  Card,
+  CardHeader,
+  CardContent,
+  Input,
+  Button,
+  DataTable,
+  Text,
+  TableRowActions,
+  TableRowAction,
+} from '@/shared/ui';
 import { HStack, Flex, VStack } from '@/shared/ui/Stack';
 import {
   useGetTrunksQuery,
@@ -13,6 +23,7 @@ import { useAppDispatch } from '@/shared/hooks/useAppStore';
 import { useIsMobile } from '@/shared/hooks/useIsMobile';
 import { trunksPageActions } from '../../model/slice/trunksPageSlice';
 import { useTrunksTableColumns } from './useTrunksTableColumns';
+import cls from './TrunksTable.module.scss';
 
 export const TrunksTable = memo(() => {
   const { t } = useTranslation();
@@ -56,138 +67,136 @@ export const TrunksTable = memo(() => {
   };
 
   const toolbar = (
-    <HStack justify="between" align="center" className="flex-col sm:flex-row gap-4" max>
+    <Flex justify="between" align="center" className={cls.toolbar} max>
       <HStack gap="8" align="center">
-        <Cable className="w-5 h-5 text-primary" />
-        <span className="font-semibold text-lg">
-          {t('trunks.count', { count: trunks.length })}
-        </span>
+        <Cable size={20} className={cls.toolbarIcon} />
+        <Text className={cls.count}>{t('trunks.count', { count: trunks.length })}</Text>
         {trunks.length > 0 && (
-          <span className="text-xs text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-full">
+          <Text as="span" className={cls.registeredBadge}>
             {registeredCount} {t('trunks.statusRegistered', 'Registered').toLowerCase()}
-          </span>
+          </Text>
         )}
       </HStack>
-      <HStack gap="12" align="center" className="w-full sm:w-auto min-w-0">
-        {selectedCount > 0 && !isMobile && (
+      <HStack gap="12" align="center" className={cls.toolbarActions}>
+        {!isMobile && (
           <Button
             variant="destructive"
-            disabled={isDeleting}
+            className={selectedCount === 0 ? cls.bulkBtnHidden : undefined}
+            disabled={isDeleting || selectedCount === 0}
+            aria-hidden={selectedCount === 0}
+            tabIndex={selectedCount === 0 ? -1 : undefined}
             onClick={handleBulkDelete}
           >
-            {isDeleting ? (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            ) : (
-              <Trash2 className="w-4 h-4 mr-2" />
-            )}
-            {t('common.deleteSelected', 'Удалить выбранные')} ({selectedCount})
+            {isDeleting ? <Loader2 size={16} className={cls.spinner} /> : <Trash2 size={16} />}
+            {t('common.deleteSelected', { count: selectedCount })}
           </Button>
         )}
-        <div className="relative w-full sm:w-64 min-w-0">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Flex align="center" className={cls.searchWrap}>
+          <Search size={16} className={cls.searchIcon} />
           <Input
             id="trunks-search"
             placeholder={t('common.search')}
             value={globalFilter}
             onChange={(e) => setGlobalFilter(e.target.value)}
-            className="pl-10 h-9"
+            className={cls.searchInput}
           />
-        </div>
+        </Flex>
       </HStack>
-    </HStack>
+    </Flex>
   );
 
   if (isLoading) {
     return (
-      <Card>
+      <Card className={cls.card}>
         <CardHeader>{toolbar}</CardHeader>
         <CardContent>
-          <Flex align="center" justify="center" className="h-48">
-            <Loader2 className="w-6 h-6 animate-spin text-primary" />
+          <Flex align="center" justify="center" className={cls.loading}>
+            <Loader2 size={24} className={cls.spinner} />
           </Flex>
         </CardContent>
       </Card>
     );
   }
 
-  // D-29 hybrid: critical columns as cards on phone
   if (isMobile) {
     return (
-      <Card data-testid="hybrid-table" data-hybrid="mobile-card">
+      <Card className={cls.card} data-testid="hybrid-table" data-hybrid="mobile-card">
         <CardHeader>{toolbar}</CardHeader>
         <CardContent>
-          <VStack gap="8" max>
+          <VStack gap="8" max className={cls.mobileList}>
             {filtered.length === 0 ? (
-              <Text variant="muted" className="py-8 text-center w-full">
+              <Text variant="muted" className={cls.mobileEmpty}>
                 {t('common.noData')}
               </Text>
             ) : (
               filtered.map((trunk) => {
-                const isRegistered = trunk.registrationStatus === 'Registered';
-                const isRejected = trunk.registrationStatus === 'Rejected';
+                const isAuth = trunk.trunkType === 'auth';
                 return (
-                  <div
+                  <Flex
                     key={trunk.id}
-                    className="rounded-lg border border-border/60 bg-muted/10 p-3 mobile-card"
+                    direction="column"
+                    className={cls.mobileCard}
                     data-testid="trunks-mobile-card"
                   >
                     <HStack justify="between" align="start" max>
-                      <VStack gap="4" className="min-w-0">
+                      <VStack gap="4">
                         <HStack gap="8" align="center">
-                          <Text className="font-semibold text-primary truncate">{trunk.name}</Text>
-                          {trunk.trunkType === 'auth' ? (
+                          <Text className={cls.name}>{trunk.name}</Text>
+                          {isAuth ? (
                             <>
-                              <span
-                                className={`w-2 h-2 rounded-full shrink-0 ${
-                                  isRegistered
-                                    ? 'bg-emerald-400'
-                                    : isRejected
-                                      ? 'bg-red-400'
-                                      : 'bg-zinc-600'
-                                }`}
-                              />
-                              <Text variant="muted" className="text-xs shrink-0">
+                              <Flex className={
+                                trunk.registrationStatus === 'Registered'
+                                  ? cls.statusDotRegistered
+                                  : trunk.registrationStatus === 'Rejected'
+                                    ? cls.statusDotRejected
+                                    : cls.statusDotUnknown
+                              }
+                              >
+                                {''}
+                              </Flex>
+                              <Text variant="muted" className={cls.statusUnknown}>
                                 {trunk.registrationStatus || 'unknown'}
                               </Text>
                             </>
                           ) : (
-                            <Text variant="muted" className="text-xs shrink-0">IP</Text>
+                            <Text variant="muted" className={cls.statusUnknown}>IP</Text>
                           )}
                         </HStack>
-                        <Text className="text-sm font-mono truncate">{trunk.host || '-'}</Text>
+                        <Text className={cls.mono}>{trunk.host || '-'}</Text>
                         {trunk.context ? (
-                          <Text variant="muted" className="text-xs font-mono">{trunk.context}</Text>
+                          <Text as="span" className={cls.contextChip}>{trunk.context}</Text>
                         ) : null}
                       </VStack>
-                      <HStack gap="4" className="shrink-0">
-                        <button
-                          className="p-1.5 rounded-md hover:bg-white/5 text-muted-foreground"
+                      <TableRowActions>
+                        <TableRowAction
                           title={t('common.edit')}
+                          aria-label={t('common.edit')}
                           onClick={() => dispatch(trunksPageActions.openEditModal(trunk))}
                         >
-                          <Pencil className="w-4 h-4" />
-                        </button>
-                        <button
-                          className="p-1.5 rounded-md hover:bg-white/5 text-muted-foreground"
-                          title={t('trunks.copy', 'Копировать')}
+                          <Pencil />
+                        </TableRowAction>
+                        <TableRowAction
+                          title={t('common.copy', 'Копировать')}
+                          aria-label={t('common.copy', 'Копировать')}
                           onClick={() => dispatch(trunksPageActions.openCopyModal(trunk))}
                         >
-                          <Copy className="w-4 h-4" />
-                        </button>
-                        <button
-                          className="p-1.5 rounded-md hover:bg-red-500/10 text-muted-foreground hover:text-red-400"
+                          <Copy />
+                        </TableRowAction>
+                        <TableRowAction
+                          danger
                           title={t('common.delete')}
+                          aria-label={t('common.delete')}
                           onClick={() => {
                             if (window.confirm(t('trunks.confirmDelete', { name: trunk.name }))) {
                               deleteTrunk(trunk.id);
                             }
                           }}
                         >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </HStack>
+                          <Trash2 />
+                        </TableRowAction>
+                      </TableRowActions>
                     </HStack>
-                  </div>
+                  </Flex>
                 );
               })
             )}
@@ -198,11 +207,17 @@ export const TrunksTable = memo(() => {
   }
 
   return (
-    <Card data-testid="hybrid-table" data-hybrid="overflow-x-auto">
+    <Card className={cls.card} data-testid="hybrid-table" data-hybrid="overflow-x-auto">
       <CardHeader>{toolbar}</CardHeader>
-      <CardContent className="p-0">
-        <div className="overflow-x-auto min-w-0" data-testid="trunks-table-scroll">
+      <CardContent className={cls.cardContent}>
+        <Flex
+          direction="column"
+          align="stretch"
+          className={cls.tableScroll}
+          data-testid="trunks-table-scroll"
+        >
           <DataTable
+            className={cls.table}
             data={trunks as ITrunkListItem[]}
             columns={columns}
             getRowId={(row) => row.id}
@@ -214,7 +229,7 @@ export const TrunksTable = memo(() => {
             emptyText={t('common.noData')}
             exportFilename="trunks_export"
           />
-        </div>
+        </Flex>
       </CardContent>
     </Card>
   );

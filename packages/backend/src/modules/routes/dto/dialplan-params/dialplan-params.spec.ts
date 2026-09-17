@@ -101,10 +101,11 @@ describe('D-08 DialplanAction union + D-24 meta', () => {
     expect(metaKeys).toHaveLength(24);
   });
 
-  it('registers directory_lookup metadata for route, directory_policy, and ivr', () => {
+  it('registers directory_lookup metadata for every host that can enrich a call', () => {
     expect(DIALPLAN_ACTION_META.directory_lookup).toEqual({
       terminal: 'never',
-      allowedIn: ['route', 'directory_policy', 'ivr'],
+      // Autodial scenarios look contacts up the same way a route does.
+      allowedIn: ['route', 'directory_policy', 'ivr', 'autodial'],
       family: 'integration',
     });
   });

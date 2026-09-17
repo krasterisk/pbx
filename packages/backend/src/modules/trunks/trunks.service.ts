@@ -36,6 +36,8 @@ export interface CreateTrunkDto {
   matchIp?: string;
   qualifyFrequency?: number;
   registrationExpiration?: number;
+  /** Concurrent PJSIP channels; 0 / omitted = unlimited (device_state_busy_at). */
+  maxChannels?: number;
   advanced?: Record<string, any>;
 }
 
@@ -53,6 +55,8 @@ export interface UpdateTrunkDto {
   matchIp?: string;
   qualifyFrequency?: number;
   registrationExpiration?: number;
+  /** Concurrent PJSIP channels; 0 / omitted = unlimited (device_state_busy_at). */
+  maxChannels?: number;
   advanced?: Record<string, any>;
 }
 
@@ -70,6 +74,13 @@ export class TrunksService {
     private amiService: AmiService,
     private loggerService: LoggerService,
   ) {}
+
+  /** 0 / empty = unlimited. Asterisk treats device_state_busy_at 0 as unused. */
+  private normalizeMaxChannels(value?: number | null): number | null {
+    const n = Number(value);
+    if (!Number.isFinite(n) || n <= 0) return null;
+    return Math.round(n);
+  }
 
   /** Build a unique trunk ID: t_{name}_{tenantId} */
   private buildTrunkId(name: string, vpbxUserUid: number): string {
@@ -166,6 +177,7 @@ export class TrunksService {
         contactUser: reg?.contact_user || '',
         matchIp: (ipMap.get(ep.id) ?? []).join(', '),
         qualifyFrequency: aorMap.get(ep.id)?.qualify_frequency ?? DEFAULT_QUALIFY_FREQUENCY,
+        maxChannels: Number(ep.device_state_busy_at) > 0 ? Number(ep.device_state_busy_at) : 0,
         registrationExpiration: reg?.expiration ?? null,
         registrationStatus: trunkType === 'auth' ? (liveStatus || 'unknown') : null,
         serverUri: reg?.server_uri || '',
@@ -284,6 +296,7 @@ export class TrunksService {
           webrtc: 'no',
           dtmf_mode: 'auto',
           language: 'ru',
+          device_state_busy_at: this.normalizeMaxChannels(dto.maxChannels),
           ...(dto.advanced || {}),
         },
         { transaction: t },
@@ -352,6 +365,7 @@ export class TrunksService {
           direct_media: 'no',
           dtmf_mode: 'auto',
           language: 'ru',
+          device_state_busy_at: this.normalizeMaxChannels(dto.maxChannels),
           ...(dto.advanced || {}),
         },
         { transaction: t },
@@ -413,6 +427,9 @@ export class TrunksService {
       if (dto.codecs) endpointUpdate.allow = dto.codecs;
       if (dto.fromUser !== undefined) endpointUpdate.from_user = dto.fromUser;
       if (dto.fromDomain !== undefined) endpointUpdate.from_domain = dto.fromDomain;
+      if (dto.maxChannels !== undefined) {
+        endpointUpdate.device_state_busy_at = this.normalizeMaxChannels(dto.maxChannels);
+      }
       if (dto.advanced) Object.assign(endpointUpdate, dto.advanced);
       if (isAuth) {
         endpointUpdate.outbound_auth = trunkId;

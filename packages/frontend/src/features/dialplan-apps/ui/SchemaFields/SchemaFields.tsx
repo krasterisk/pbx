@@ -38,6 +38,7 @@ export interface SchemaFieldsProps {
   tenantUid?: number;
   /** Route extensions for live dial-number preview (route_pattern dest). */
   previewPatterns?: string[];
+  autodialFields?: Array<{ value: string; label: string }>;
 }
 
 function assertNever(x: never): never {
@@ -318,10 +319,14 @@ function renderControl(
     tenantUid: number;
     showErrors: boolean;
     previewPatterns?: string[];
+    autodialFields?: Array<{ value: string; label: string }>;
   },
 ): ReactNode {
   const { id, label, hint, readOnly, invalid, errorId, refs, tenantUid, showErrors } = extras;
-  const raw = params[field.key];
+  const raw =
+    field.kind === 'value-source' && field.key === 'target'
+      ? (params.target ?? params.group ?? params.queue)
+      : params[field.key];
   const kind: FieldKind = field.kind;
 
   switch (kind) {
@@ -480,7 +485,10 @@ function renderControl(
       return (
         <ValueSourceField
           value={raw as ValueSource | number | string | undefined}
-          onChange={(next) => onChange({ [field.key]: next })}
+          onChange={(next) => onChange({
+            [field.key]: next,
+            ...(field.key === 'target' ? { group: undefined } : {}),
+          })}
           tenantUid={tenantUid}
           label={label}
           hint={hint}
@@ -495,6 +503,7 @@ function renderControl(
             uid: Number(item.value),
             name: item.label,
           }))}
+          autodialFields={extras.autodialFields}
         />
       );
     case 'custom':
@@ -524,6 +533,7 @@ export function SchemaFields({
   showErrors = false,
   tenantUid = 0,
   previewPatterns,
+  autodialFields,
 }: SchemaFieldsProps) {
   const { t } = useTranslation();
 
@@ -549,6 +559,7 @@ export function SchemaFields({
         tenantUid,
         showErrors,
         previewPatterns,
+        autodialFields,
       });
     }
 

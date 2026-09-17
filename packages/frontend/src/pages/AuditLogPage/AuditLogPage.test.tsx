@@ -30,7 +30,7 @@ describe('AuditLogPage hybrid overflow (D-29 / D-27 wave D)', () => {
     expect(screen.getByTestId('audit-log-page-responsive')).toBeInTheDocument();
     const hybrid = screen.getByTestId('hybrid-table');
     expect(hybrid).toHaveAttribute('data-hybrid', 'overflow-x-auto');
-    expect(hybrid.className).toMatch(/overflow-x-auto/);
+    expect(screen.getByRole('heading', { name: 'auditLog.pageTitle' })).toBeInTheDocument();
     expect(screen.getByTestId('audit-table-stub')).toBeInTheDocument();
   });
 });

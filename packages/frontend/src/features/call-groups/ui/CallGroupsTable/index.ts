@@ -1,0 +1,1 @@
+export { CallGroupsTable } from './CallGroupsTable';

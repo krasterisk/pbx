@@ -8,7 +8,12 @@ import {
 } from './conference-dialplan.util';
 
 /** ConfBridge `type=bridge` rejects unknown keys — `allow` is not a bridge option. */
-const BRIDGE_PROFILE_LINES = ['type=bridge', 'video_mode=sfu', 'enable_events=yes'] as const;
+const BRIDGE_PROFILE_LINES = [
+  'type=bridge',
+  'video_mode=sfu',
+  'enable_events=yes',
+  'record_file_timestamp=no',
+] as const;
 
 @Injectable()
 export class ConfbridgeStaticProfileService implements OnApplicationBootstrap {
@@ -32,8 +37,9 @@ export class ConfbridgeStaticProfileService implements OnApplicationBootstrap {
       const loaded = await this.isProfileLoaded();
       const staleAllow = this.configHasInvalidAllow(config, CONFBRIDGE_BRIDGE_PROFILE);
       const missingEvents = loaded && !this.configHasEnableEvents(config, CONFBRIDGE_BRIDGE_PROFILE);
+      const timestampOn = loaded && !this.configHasRecordFileTimestampOff(config, CONFBRIDGE_BRIDGE_PROFILE);
 
-      if (loaded && !staleAllow && !missingEvents) {
+      if (loaded && !staleAllow && !missingEvents && !timestampOn) {
         this.logger.log(`Static ConfBridge profile ${CONFBRIDGE_BRIDGE_PROFILE} already present`);
         return;
       }
@@ -123,6 +129,11 @@ export class ConfbridgeStaticProfileService implements OnApplicationBootstrap {
   private configHasEnableEvents(response: unknown, category: string): boolean {
     if (!this.hasProfile(response, category)) return false;
     return /enable_events\s*=\s*yes/.test(JSON.stringify(response).toLowerCase());
+  }
+
+  private configHasRecordFileTimestampOff(response: unknown, category: string): boolean {
+    if (!this.hasProfile(response, category)) return false;
+    return /record_file_timestamp\s*=\s*no/.test(JSON.stringify(response).toLowerCase());
   }
 
   private hasProfile(response: unknown, category: string): boolean {

@@ -1,0 +1,31 @@
+{
+  "started": "2026-09-16T04:08:35.200Z",
+  "host": "ipbx.krasterisk.ru",
+  "roomNumber": "16891",
+  "paths": {
+    "fixed": {
+      "firstPopulatedType": "participantJoin",
+      "conferenceSeen": "conf16891_58",
+      "eventTypes": [
+        "fullSnapshot",
+        "participantJoin",
+        "participantLeave"
+      ],
+      "joinedParticipants": 1,
+      "cleared": 0,
+      "listSnippet": "Conference Bridge Name           Users  Marked Locked Muted\n================================ ====== ====== ====== =====\nconf16891_58                          1      0 No     No"
+    },
+    "mask": {
+      "firstPopulatedType": "participantJoin",
+      "eventTypes": [
+        "fullSnapshot",
+        "participantJoin",
+        "participantLeave"
+      ],
+      "joinedParticipants": 1,
+      "cleared": 0
+    }
+  },
+  "ok": true,
+  "finished": "2026-09-16T04:08:52.546Z"
+}

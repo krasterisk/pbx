@@ -1,6 +1,6 @@
-import { memo, useCallback, useState } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Copy, Pencil, Trash2, Video } from 'lucide-react';
+import { Copy, Loader2, Pencil, Search, Trash2, Video } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -14,7 +14,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  Skeleton,
+  Input,
   TableRowAction,
   TableRowActions,
   Text,
@@ -44,17 +44,69 @@ export const ConferencesTable = memo(() => {
   const rooms = (data ?? []) as ConferenceListRow[];
   const [deleteRoom] = useDeleteConferenceRoomMutation();
   const [pendingDelete, setPendingDelete] = useState<ConferenceListRow | null>(null);
+  const [globalFilter, setGlobalFilter] = useState('');
+  const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
+  const [isDeleting, setIsDeleting] = useState(false);
+  const selectedCount = Object.keys(rowSelection).length;
 
   const onDelete = useCallback((row: ConferenceListRow) => {
     setPendingDelete(row);
   }, []);
   const columns = useConferencesTableColumns(onDelete);
 
+  const filtered = useMemo(() => {
+    const q = globalFilter.trim().toLowerCase();
+    if (!q) return rooms;
+    return rooms.filter((room) => {
+      const name = (room.name || '').toLowerCase();
+      const number = String(room.number ?? '').toLowerCase();
+      return name.includes(q) || number.includes(q);
+    });
+  }, [rooms, globalFilter]);
+
+  const handleBulkDelete = useCallback(async () => {
+    const ids = Object.keys(rowSelection).map(Number);
+    if (!ids.length) return;
+    if (!window.confirm(t('conferences.confirmBulkDelete'))) return;
+    setIsDeleting(true);
+    try {
+      await Promise.all(ids.map((id) => deleteRoom(id).unwrap()));
+      setRowSelection({});
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [rowSelection, deleteRoom, t]);
+
   const toolbar = (
     <Flex justify="between" align="center" className={cls.toolbar} max>
       <HStack gap="8" align="center">
         <Video size={20} className={cls.toolbarIcon} />
         <Text className={cls.count}>{t('conferences.count', { count: rooms.length })}</Text>
+      </HStack>
+      <HStack gap="8" align="center" className={cls.toolbarActions}>
+        {!isMobile && (
+          <Button
+            variant="destructive"
+            className={selectedCount === 0 ? cls.bulkBtnHidden : undefined}
+            disabled={isDeleting || selectedCount === 0}
+            aria-hidden={selectedCount === 0}
+            tabIndex={selectedCount === 0 ? -1 : undefined}
+            onClick={() => void handleBulkDelete()}
+          >
+            {isDeleting ? <Loader2 size={16} className={cls.spinner} /> : <Trash2 size={16} />}
+            {t('conferences.deleteSelected', { count: selectedCount })}
+          </Button>
+        )}
+        <Flex align="center" className={cls.searchWrap}>
+          <Search size={16} className={cls.searchIcon} />
+          <Input
+            id="conferences-search"
+            placeholder={t('common.search')}
+            value={globalFilter}
+            onChange={(e) => setGlobalFilter(e.target.value)}
+            className={cls.searchInput}
+          />
+        </Flex>
       </HStack>
     </Flex>
   );
@@ -92,11 +144,9 @@ export const ConferencesTable = memo(() => {
       <Card className={cls.card}>
         <CardHeader>{toolbar}</CardHeader>
         <CardContent>
-          <VStack gap="8" className={cls.loading}>
-            {[1, 2, 3, 4, 5].map((i) => (
-              <Skeleton key={i} className={cls.skeletonRow} />
-            ))}
-          </VStack>
+          <Flex align="center" justify="center" className={cls.loading}>
+            <Loader2 size={24} className={cls.spinner} />
+          </Flex>
         </CardContent>
       </Card>
     );
@@ -140,7 +190,11 @@ export const ConferencesTable = memo(() => {
           <CardHeader>{toolbar}</CardHeader>
           <CardContent>
             <VStack gap="8" max className={cls.mobileList}>
-              {rooms.map((room) => (
+              {filtered.length === 0 ? (
+                <Text variant="muted" className={cls.mobileEmpty}>
+                  {t('conferences.noRooms')}
+                </Text>
+              ) : filtered.map((room) => (
                 <Flex
                   key={room.uid}
                   direction="column"
@@ -217,6 +271,10 @@ export const ConferencesTable = memo(() => {
               data={rooms}
               columns={columns}
               getRowId={(row) => String(row.uid)}
+              selectable
+              rowSelection={rowSelection}
+              onRowSelectionChange={setRowSelection}
+              globalFilter={globalFilter}
               pageSize={50}
               emptyText={t('conferences.noRooms')}
               exportFilename="conferences_export"

@@ -124,6 +124,13 @@ describe('LiveRoom (16.3-01 R-SDH)', () => {
     setRole.mockReturnValue({ unwrap: () => Promise.resolve() });
   });
 
+  it('always queries both viewport breakpoints so hook order stays stable', () => {
+    useIsMobileMock.mockClear();
+    render(<LiveRoom participants={[]} remoteTracks={{}} />);
+    expect(useIsMobileMock).toHaveBeenCalledWith(1024);
+    expect(useIsMobileMock).toHaveBeenCalledWith(768);
+  });
+
   it('renders two mid tiles and keeps the first remote video track live', () => {
     const factory = conferenceSdhFactory(async () => new MediaStream());
     const sdh = factory(
@@ -202,6 +209,25 @@ describe('LiveRoom (16.3-01 R-SDH)', () => {
 
     await user.click(within(tiles[0]).getByRole('button', { name: 'Повторить подключение видео' }));
     expect(onRetryVideo).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders the local camera on the solo tile instead of a video-failed fallback', () => {
+    const local = fakeVideoTrack('cam');
+    const localStream = {
+      getVideoTracks: () => [local],
+    } as unknown as MediaStream;
+    render(
+      <LiveRoom
+        participants={[participant({ ref: 'gst1', displayName: 'Гость тест' })]}
+        remoteTracks={{}}
+        localStream={localStream}
+        selfName="Гость тест"
+      />,
+    );
+    const tile = within(screen.getByTestId('conference-video-grid')).getByRole('listitem');
+    expect(tile).toHaveAttribute('data-mid', 'local');
+    expect(tile.querySelector('video')).toBeTruthy();
+    expect(within(tile).queryByText('Видео не подключилось')).not.toBeInTheDocument();
   });
 
   it('shows empty-room fallback copy when there are no participants', () => {
@@ -391,8 +417,8 @@ describe('LiveRoom participant rail (16.3-05 D-26 / D-37)', () => {
     expect(header).toHaveTextContent('Standup');
     expect(header).toHaveTextContent('8001');
     expect(header).toHaveTextContent('Идёт запись');
-    expect(screen.getByRole('button', { name: 'Войти в конференцию' })).toBeInTheDocument();
-    expect(screen.getByTestId('live-room-stage').querySelector('[data-banner="reconnecting"]')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Войти в конференцию' })).not.toBeInTheDocument();
+    expect(screen.getByTestId('live-room-stage').querySelector('[data-banner="disconnected"]')).toBeTruthy();
     expect(screen.getByTestId('live-room-stage').querySelector('[data-banner="weakLink"]')).toBeTruthy();
     const disconnected = screen.getByTestId('live-room-stage').querySelector('[data-banner="disconnected"]');
     expect(disconnected).toHaveAttribute('aria-live', 'assertive');
@@ -400,6 +426,28 @@ describe('LiveRoom participant rail (16.3-05 D-26 / D-37)', () => {
     const audio = document.querySelector('audio');
     expect(audio).toHaveAttribute('aria-hidden', 'true');
     expect(screen.getByTestId('conference-video-grid')).toBeInTheDocument();
+  });
+
+  it('shows connecting overlay while status is connecting', () => {
+    render(
+      <LiveRoom
+        roomUid={7}
+        roomName="Standup"
+        status="connecting"
+        participants={[]}
+        remoteTracks={{}}
+        localStream={
+          {
+            getVideoTracks: () => [fakeVideoTrack('cam')],
+            getTracks: () => [fakeVideoTrack('cam')],
+          } as unknown as MediaStream
+        }
+        selfName="Гость"
+      />,
+    );
+    expect(screen.getByTestId('live-room-stage').querySelector('[data-banner="connecting"]')).toBeTruthy();
+    expect(screen.getByText('Подключаемся…')).toBeInTheDocument();
+    expect(screen.queryByText('В комнате пока никого нет')).not.toBeInTheDocument();
   });
 
   it('blocks UA start copy and does not render join when noWebrtcCompanion', () => {

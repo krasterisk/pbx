@@ -1,125 +1,215 @@
-import { useState, useCallback } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ColumnDef } from '@tanstack/react-table';
-import { Pencil, Trash2, Loader2, Mic } from 'lucide-react';
-import { Button, DataTable, Card, CardHeader, CardContent, HStack, Text } from '@/shared/ui';
-import { ISttEngine } from '@/entities/engines';
-import { useGetSttEnginesQuery, useDeleteSttEngineMutation, useBulkDeleteSttEnginesMutation } from '@/shared/api/endpoints/sttEnginesApi';
-import { SttEngineFormModal } from '../SttEngineFormModal/SttEngineFormModal';
+import { Loader2, Mic, Pencil, Search, Trash2 } from 'lucide-react';
+import {
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  DataTable,
+  Input,
+  TableRowAction,
+  TableRowActions,
+  Text,
+} from '@/shared/ui';
+import { Flex, HStack, VStack } from '@/shared/ui/Stack';
+import {
+  useBulkDeleteSttEnginesMutation,
+  useDeleteSttEngineMutation,
+  useGetSttEnginesQuery,
+} from '@/shared/api/endpoints/sttEnginesApi';
 import { useAppDispatch, useAppSelector } from '@/shared/hooks/useAppStore';
+import { useIsMobile } from '@/shared/hooks/useIsMobile';
+import type { ISttEngine } from '@/entities/engines';
+import { SttEngineFormModal } from '../SttEngineFormModal/SttEngineFormModal';
 import { sttEnginesActions } from '../../model/slice/sttEnginesSlice';
 import { getSttEnginesIsModalOpen, getSttEnginesSelectedEngine } from '../../model/selectors/sttEnginesSelectors';
+import { useSttEnginesTableColumns } from './useSttEnginesTableColumns';
+import cls from './SttEnginesTable.module.scss';
 
-export function SttEnginesTable() {
+export const SttEnginesTable = memo(() => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
+  const isMobile = useIsMobile(768);
   const { data: engines = [], isLoading } = useGetSttEnginesQuery();
   const [deleteEngine] = useDeleteSttEngineMutation();
   const [bulkDelete, { isLoading: isDeleting }] = useBulkDeleteSttEnginesMutation();
-
   const isModalOpen = useAppSelector(getSttEnginesIsModalOpen);
   const editEngine = useAppSelector(getSttEnginesSelectedEngine);
-
+  const [globalFilter, setGlobalFilter] = useState('');
   const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
-
-  const handleEdit = (engine: ISttEngine) => { dispatch(sttEnginesActions.openEditModal(engine)); };
-  
-  const handleDelete = useCallback(async (engine: ISttEngine) => {
-    if (!window.confirm(t('sttEngines.confirmDelete', { name: engine.name }))) return;
-    await deleteEngine(engine.uid);
-  }, [deleteEngine, t]);
-
-  const typeLabels: Record<string, string> = {
-    google: t('sttEngines.typeGoogle', 'Google Speech-to-Text'),
-    yandex: t('sttEngines.typeYandex', 'Yandex SpeechKit'),
-    custom: t('sttEngines.typeCustom', 'Custom API'),
-  };
-
-  const columns: ColumnDef<ISttEngine>[] = [
-    { accessorKey: 'uid', header: t('common.id', '№'), size: 60 },
-    { accessorKey: 'name', header: t('sttEngines.name', 'Название') },
-    {
-      accessorKey: 'type', header: t('sttEngines.type', 'Тип'), size: 180,
-      cell: ({ row }) => typeLabels[row.original.type] || row.original.type,
-    },
-    {
-      id: 'actions', header: t('common.actions', 'Действия'), size: 100,
-      cell: ({ row }) => (
-        <HStack gap="4" align="center">
-          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground"
-            onClick={() => handleEdit(row.original)} title={t('common.edit', 'Редактировать')}>
-            <Pencil className="w-4 h-4" />
-          </Button>
-          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-            onClick={() => handleDelete(row.original)} title={t('common.delete', 'Удалить')}>
-            <Trash2 className="w-4 h-4" />
-          </Button>
-        </HStack>
-      ),
-    },
-  ];
-
+  const columns = useSttEnginesTableColumns();
   const selectedCount = Object.keys(rowSelection).length;
 
-  const handleBulkDelete = async () => {
-    const ids = Object.keys(rowSelection).map(Number);
-    if (!ids.length) return;
-    
-    if (window.confirm(t('common.confirmDelete', 'Вы уверены, что хотите удалить?'))) {
-      await bulkDelete(ids).unwrap();
-      setRowSelection({});
-    }
+  const typeLabels: Record<string, string> = {
+    google: t('sttEngines.typeGoogle'),
+    yandex: t('sttEngines.typeYandex'),
+    custom: t('sttEngines.typeCustom'),
   };
 
-  return (
-    <Card>
-      <CardHeader>
-        <HStack justify="between" align="center" className="flex-col sm:flex-row gap-4" max>
-          <HStack gap="8" align="center">
-            <Mic className="w-5 h-5 text-primary" />
-            <Text variant="large" className="font-semibold">
-              {t('sttEngines.count', { count: engines.length, defaultValue: `Всего: ${engines.length}` })}
-            </Text>
-          </HStack>
-          <HStack gap="12" align="center" className="w-full sm:w-auto">
-            {selectedCount > 0 && (
-              <Button
-                variant="destructive"
-                disabled={isDeleting}
-                onClick={handleBulkDelete}
-              >
-                {isDeleting ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                ) : (
-                  <Trash2 className="w-4 h-4 mr-2" />
-                )}
-                {t('common.deleteSelected', 'Удалить выбранные')} ({selectedCount})
-              </Button>
+  const filtered = useMemo(() => {
+    const q = globalFilter.trim().toLowerCase();
+    if (!q) return engines;
+    return engines.filter((engine) => {
+      const name = (engine.name || '').toLowerCase();
+      const type = (typeLabels[engine.type] || engine.type || '').toLowerCase();
+      return name.includes(q) || type.includes(q);
+    });
+  }, [engines, globalFilter, typeLabels.google, typeLabels.yandex, typeLabels.custom]);
+
+  const handleBulkDelete = useCallback(async () => {
+    const ids = Object.keys(rowSelection).map(Number);
+    if (!ids.length) return;
+    if (!window.confirm(t('sttEngines.confirmBulkDelete'))) return;
+    await bulkDelete(ids).unwrap();
+    setRowSelection({});
+  }, [rowSelection, bulkDelete, t]);
+
+  const renderRowActions = (engine: ISttEngine) => (
+    <TableRowActions>
+      <TableRowAction
+        title={t('common.edit')}
+        aria-label={t('common.edit')}
+        onClick={() => dispatch(sttEnginesActions.openEditModal(engine))}
+      >
+        <Pencil />
+      </TableRowAction>
+      <TableRowAction
+        danger
+        title={t('common.delete')}
+        aria-label={t('common.delete')}
+        onClick={() => {
+          if (window.confirm(t('sttEngines.confirmDelete', { name: engine.name }))) {
+            deleteEngine(engine.uid);
+          }
+        }}
+      >
+        <Trash2 />
+      </TableRowAction>
+    </TableRowActions>
+  );
+
+  const toolbar = (
+    <Flex justify="between" align="center" className={cls.toolbar} max>
+      <HStack gap="8" align="center">
+        <Mic size={20} className={cls.toolbarIcon} />
+        <Text className={cls.count}>{t('sttEngines.count', { count: engines.length })}</Text>
+      </HStack>
+      <HStack gap="8" align="center" className={cls.toolbarActions}>
+        {!isMobile && (
+          <Button
+            variant="destructive"
+            className={selectedCount === 0 ? cls.bulkBtnHidden : undefined}
+            disabled={isDeleting || selectedCount === 0}
+            aria-hidden={selectedCount === 0}
+            tabIndex={selectedCount === 0 ? -1 : undefined}
+            onClick={handleBulkDelete}
+          >
+            {isDeleting ? <Loader2 size={16} className={cls.spinner} /> : <Trash2 size={16} />}
+            {t('sttEngines.deleteSelected', { count: selectedCount })}
+          </Button>
+        )}
+        <Flex align="center" className={cls.searchWrap}>
+          <Search size={16} className={cls.searchIcon} />
+          <Input
+            id="stt-engines-search"
+            placeholder={t('common.search')}
+            value={globalFilter}
+            onChange={(e) => setGlobalFilter(e.target.value)}
+            className={cls.searchInput}
+          />
+        </Flex>
+      </HStack>
+    </Flex>
+  );
+
+  const modal = isModalOpen ? (
+    <SttEngineFormModal
+      isOpen={isModalOpen}
+      onClose={() => dispatch(sttEnginesActions.closeModal())}
+      engine={editEngine}
+    />
+  ) : null;
+
+  if (isLoading) {
+    return (
+      <Card className={cls.card}>
+        <CardHeader>{toolbar}</CardHeader>
+        <CardContent>
+          <Flex align="center" justify="center" className={cls.loading}>
+            <Loader2 size={24} className={cls.spinner} />
+          </Flex>
+        </CardContent>
+        {modal}
+      </Card>
+    );
+  }
+
+  if (isMobile) {
+    return (
+      <Card className={cls.card} data-testid="hybrid-table" data-hybrid="mobile-card">
+        <CardHeader>{toolbar}</CardHeader>
+        <CardContent>
+          <VStack gap="8" max className={cls.mobileList}>
+            {filtered.length === 0 ? (
+              <Text variant="muted" className={cls.mobileEmpty}>
+                {t('sttEngines.empty')}
+              </Text>
+            ) : (
+              filtered.map((engine) => (
+                <Flex
+                  key={engine.uid}
+                  direction="column"
+                  className={cls.mobileCard}
+                  data-testid="stt-engines-mobile-card"
+                >
+                  <HStack justify="between" align="start" max>
+                    <VStack gap="4">
+                      <Text as="span" className={cls.name}>{engine.name}</Text>
+                      <Text as="span" className={cls.cell}>
+                        {typeLabels[engine.type] || engine.type}
+                      </Text>
+                    </VStack>
+                    {renderRowActions(engine)}
+                  </HStack>
+                </Flex>
+              ))
             )}
-          </HStack>
-        </HStack>
-      </CardHeader>
-      
-      <CardContent className="p-0">
-        <DataTable 
-          columns={columns} 
-          data={engines}
-          getRowId={(row: any) => String(row.uid)}
-          selectable={true}
-          rowSelection={rowSelection}
-          onRowSelectionChange={setRowSelection}
-          emptyText={t('common.noData')}
-          exportFilename="stt_engines_export"
-        />
+          </VStack>
+        </CardContent>
+        {modal}
+      </Card>
+    );
+  }
+
+  return (
+    <Card className={cls.card} data-testid="hybrid-table" data-hybrid="overflow-x-auto">
+      <CardHeader>{toolbar}</CardHeader>
+      <CardContent className={cls.cardContent}>
+        <Flex
+          direction="column"
+          align="stretch"
+          className={cls.tableScroll}
+          data-testid="stt-engines-table-scroll"
+        >
+          <DataTable
+            className={cls.table}
+            columns={columns}
+            data={engines}
+            getRowId={(row) => String(row.uid)}
+            selectable
+            rowSelection={rowSelection}
+            onRowSelectionChange={setRowSelection}
+            globalFilter={globalFilter}
+            pageSize={50}
+            emptyText={t('sttEngines.empty')}
+            exportFilename="stt_engines_export"
+          />
+        </Flex>
       </CardContent>
-      
-      {isModalOpen && (
-        <SttEngineFormModal
-          isOpen={isModalOpen}
-          onClose={() => dispatch(sttEnginesActions.closeModal())}
-          engine={editEngine}
-        />
-      )}
+      {modal}
     </Card>
   );
-}
+});
+
+SttEnginesTable.displayName = 'SttEnginesTable';

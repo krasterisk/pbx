@@ -6,6 +6,7 @@ import * as queueApi from '@/shared/api/endpoints/queueApi';
 import type { SchemaCatalogRef } from '../../model/schema.types';
 
 vi.mock('react-i18next', () => ({
+  initReactI18next: { type: '3rdParty', init: () => undefined },
   useTranslation: () => ({
     t: (key: string, fallback?: string | Record<string, unknown>) =>
       typeof fallback === 'string' ? fallback : key,
@@ -67,6 +68,12 @@ describe('ValueSourceField conference room catalog (16-04)', () => {
     renderRoomField();
     expect(screen.getByRole('option', { name: '6007 - Планёрка' })).toHaveValue('77');
     expect(screen.getByRole('option', { name: '6008 - Совещание' })).toHaveValue('81');
+    const select = screen.getByRole('combobox', { name: 'Комната' });
+    const groups = [...select.querySelectorAll('optgroup')].map((g) => g.label);
+    expect(groups).toContain('По номеру');
+    expect(groups).toContain('Конференции');
+    expect(groups).not.toContain('Динамичная очередь');
+    expect(groups).not.toContain('Статичная очередь');
   });
 
   it('emits fixed uid when a catalog room is selected', () => {
@@ -118,7 +125,7 @@ function catalogOptions(select: HTMLElement): HTMLOptionElement[] {
 }
 
 function dynamicOptions(select: HTMLElement): HTMLOptionElement[] {
-  const group = [...select.querySelectorAll('optgroup')].find((g) => g.label === 'Динамичная очередь');
+  const group = [...select.querySelectorAll('optgroup')].find((g) => g.label === 'По номеру');
   return [...(group?.querySelectorAll('option') ?? [])];
 }
 
@@ -231,4 +238,63 @@ describe('ValueSourceField conference room UI states (16-04)', () => {
     expect(option.textContent).toContain(longName);
   });
 });
+
+const GROUPS: SchemaCatalogRef = {
+  items: [
+    { value: '600', label: '600 - Sales' },
+    { value: '601', label: '601 - Support' },
+  ],
+  isLoading: false,
+  sectionHref: '/call-groups',
+  sectionKey: 'routes.chain.catalog.callGroupsSection',
+  sectionFallback: 'Группы вызова',
+};
+
+describe('ValueSourceField autodial contact-list field', () => {
+  it('offers autodial_field and emits the selected var_name', () => {
+    const onChange = vi.fn();
+    render(
+      <ValueSourceField
+        value={{ source: 'fixed', value: '' }}
+        onChange={onChange}
+        tenantUid={1}
+        label="Номер"
+        mode="dial"
+        autodialFields={[
+          { value: 'AC_NAME', label: 'Имя' },
+          { value: 'AC_DEBT', label: 'Долг' },
+        ]}
+      />,
+    );
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Номер' }), {
+      target: { value: '__src:autodial_field' },
+    });
+    expect(onChange).toHaveBeenCalledWith({ source: 'autodial_field', name: 'AC_NAME' });
+  });
+});
+
+describe('ValueSourceField call group catalog', () => {
+  it('uses the shared catalog picker without queue group labels', () => {
+    render(
+      <ValueSourceField
+        value={{ source: 'fixed', value: '' }}
+        onChange={vi.fn()}
+        tenantUid={1}
+        label="Группа вызова"
+        optionsSource="callGroups"
+        mode="catalog"
+        catalog={GROUPS}
+      />,
+    );
+    const select = screen.getByRole('combobox', { name: 'Группа вызова' });
+    const groups = [...select.querySelectorAll('optgroup')].map((g) => g.label);
+    expect(groups).toContain('По номеру');
+    expect(groups).toContain('Группы вызова');
+    expect(groups).not.toContain('Динамичная очередь');
+    expect(groups).not.toContain('Статичная очередь');
+    expect(screen.getByRole('option', { name: '600 - Sales' })).toHaveValue('600');
+  });
+});
+
 

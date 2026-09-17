@@ -1,0 +1,72 @@
+/* ─────────────────────────────────────────────────────
+   ConferencesPage — заголовок и список комнат
+   Design tokens: var(--color-*) from globals.css @theme
+   ───────────────────────────────────────────────────── */
+
+.page {
+  flex: 1;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.header {
+  padding: 0 0.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+
+  @media (max-width: 640px) {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+.iconBadge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.625rem;
+  border-radius: var(--radius-xl);
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.titleBlock {
+  min-width: 0;
+}
+
+.title {
+  background: linear-gradient(
+    135deg,
+    var(--color-foreground),
+    color-mix(in srgb, var(--color-foreground) 70%, transparent)
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.createBtn {
+  box-shadow: 0 10px 15px color-mix(in srgb, var(--color-primary) 20%, transparent);
+
+  @media (max-width: 640px) {
+    width: 100%;
+  }
+}
+
+.createBtnIcon {
+  margin-right: 0.5rem;
+}
+
+.tableWrap {
+  width: 100%;
+  min-width: 0;
+  align-self: stretch;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+
+  > * {
+    width: 100%;
+    min-width: 0;
+  }
+}

@@ -93,6 +93,7 @@ export function formatPauseReason(
   t: TranslateFn,
 ): string {
   if (!reason) return '';
+  if (reason === 'Forced by supervisor') return '';
 
   if (reason === 'outbound_work') {
     return t('callcenter.status.outboundWork', 'Outbound work');
@@ -244,9 +245,12 @@ export function coworkerActivityLabel(
     return { text: `${verb} · ${context}`, tone };
   }
 
-  if (status === 'PAUSED' && agent.pauseReason) {
+  if (status === 'PAUSED') {
+    const reason = formatPauseReason(agent.pauseReason, t);
     return {
-      text: `${agentStatusLabel(status, t)} (${formatPauseReason(agent.pauseReason, t)})`,
+      text: reason
+        ? `${agentStatusLabel(status, t)} (${reason})`
+        : agentStatusLabel(status, t),
       tone: 'warning',
     };
   }

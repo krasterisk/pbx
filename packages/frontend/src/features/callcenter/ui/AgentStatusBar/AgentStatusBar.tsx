@@ -237,7 +237,7 @@ export function AgentStatusBar({
             <Text className={styles.pillLabel}>
               {agent ? agentStatusLabel(agent.status, tLabel) : t('callcenter.status.offline', 'Offline')}
             </Text>
-            {agent?.pauseReason && agent.status !== 'OUTBOUND_WORK' && (
+            {agent?.pauseReason && agent.status !== 'OUTBOUND_WORK' && formatPauseReason(agent.pauseReason, t) && (
               <Text variant="muted" className={styles.pauseReason}>
                 ({formatPauseReason(agent.pauseReason, t)})
               </Text>

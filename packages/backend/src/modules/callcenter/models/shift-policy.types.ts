@@ -13,7 +13,7 @@ export interface ShiftPolicy {
   idle_timeout_min: number;
   /** When true, idle close only if device is not registered. */
   idle_requires_unregistered: boolean;
-  /** Clear users.exten when shift ends. */
+  /** Clear users.exten on any shift end (operator, supervisor, or auto-close). */
   free_exten_on_close: boolean;
 }
 

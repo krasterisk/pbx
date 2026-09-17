@@ -69,6 +69,9 @@ export class ConferenceRecordingService {
         ).meeting;
       }
     }
+    if (!current) {
+      throw new ConflictException('Conference room has no live meeting');
+    }
     await this.startForMeeting(room, current, user);
     await this.loggerService?.logAction(
       user.sub,

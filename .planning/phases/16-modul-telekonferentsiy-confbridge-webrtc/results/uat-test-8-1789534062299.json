@@ -1,0 +1,24 @@
+{
+  "ok": true,
+  "roomUid": 9,
+  "conference": "conf16897_348",
+  "n": 3,
+  "refs": [
+    "16081",
+    "16083",
+    "16082"
+  ],
+  "eventTypes": [
+    "fullSnapshot",
+    "participantJoin",
+    "participantJoin",
+    "participantJoin"
+  ],
+  "confbridgeList": [
+    "Channel                        Flags  User Profile     Bridge Profile   Menu             CallerID",
+    "============================== ====== ================ ================ ================ ================",
+    "Local/s@krsk-conf-9-0000001d;2        default_user     krsk_conf_sfu    default_menu     16082",
+    "Local/s@krsk-conf-9-0000001e;2        default_user     krsk_conf_sfu    default_menu     16083",
+    "Local/s@krsk-conf-9-0000001c;2        default_user     krsk_conf_sfu    default_menu     16081"
+  ]
+}

@@ -1,8 +1,8 @@
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BookMarked, Plus } from 'lucide-react';
-import { Button, Card, CardContent, CardHeader, CardTitle, Text } from '@/shared/ui';
-import { VStack, HStack, Flex } from '@/shared/ui/Stack';
+import { Button, Text } from '@/shared/ui';
+import { Flex, HStack, VStack } from '@/shared/ui/Stack';
 import { useAppDispatch, useAppSelector } from '@/shared/hooks/useAppStore';
 import { DirectoriesTable, DirectoryFormModal, directoriesActions } from '@/features/directories';
 import { getDirectoriesModalOpen } from '@/features/directories/model/selectors/directoriesSelectors';
@@ -22,11 +22,9 @@ export const DirectoriesPage = memo(() => {
           </Flex>
           <VStack gap="4" className={cls.titleBlock}>
             <Text variant="h1" as="h1" className={cls.title}>
-              {t('directories.title', 'Directories')}
+              {t('directories.title')}
             </Text>
-            <Text variant="muted">
-              {t('directories.subtitle', 'Schema-based lookup tables for routes and dialplan actions.')}
-            </Text>
+            <Text variant="muted">{t('directories.subtitle')}</Text>
           </VStack>
         </HStack>
         <Button
@@ -34,22 +32,13 @@ export const DirectoriesPage = memo(() => {
           onClick={() => dispatch(directoriesActions.openCreateModal())}
         >
           <Plus size={16} className={cls.createBtnIcon} />
-          <Text as="span">{t('directories.add', 'Add directory')}</Text>
+          <Text as="span">{t('directories.add')}</Text>
         </Button>
       </Flex>
 
-      <Card className={cls.card}>
-        <CardHeader className={cls.cardHeader}>
-          <CardTitle className={cls.cardTitle}>
-            {t('directories.listTitle', 'Directories')}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className={cls.cardContent}>
-          <Flex className={cls.tableScroll} data-testid="hybrid-table" data-hybrid="overflow-x-auto">
-            <DirectoriesTable />
-          </Flex>
-        </CardContent>
-      </Card>
+      <Flex direction="column" align="stretch" max className={cls.tableWrap}>
+        <DirectoriesTable />
+      </Flex>
 
       {modalOpen && <DirectoryFormModal />}
     </VStack>

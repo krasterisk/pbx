@@ -146,6 +146,11 @@ describe('displayLabels', () => {
     it('passes through catalog pause reasons', () => {
       expect(formatPauseReason('Lunch', identityT)).toBe('Lunch');
     });
+
+    it('hides the legacy supervisor default label', () => {
+      expect(formatPauseReason('Forced by supervisor', identityT)).toBe('');
+      expect(formatPauseReason('', identityT)).toBe('');
+    });
   });
 
   describe('coworkerActivityLabel', () => {
@@ -205,6 +210,24 @@ describe('displayLabels', () => {
       expect(talking.text).toContain('Talking');
       expect(talking.text).toContain('Personal');
       expect(talking.text).toContain('201');
+    });
+
+    it('shows a catalog pause reason and hides an empty / forced supervisor label', () => {
+      const withReason = coworkerActivityLabel(
+        { status: 'PAUSED', pauseReason: 'Обед' },
+        undefined,
+        [],
+        identityT,
+      );
+      expect(withReason.text).toContain('Обед');
+      const unlabeled = coworkerActivityLabel(
+        { status: 'PAUSED', pauseReason: 'Forced by supervisor' },
+        undefined,
+        [],
+        identityT,
+      );
+      expect(unlabeled.text).not.toContain('Forced');
+      expect(unlabeled.text).not.toContain('(');
     });
 
     it('does not treat bare DIALING without dialTarget as outbound when peerNumber is set', () => {

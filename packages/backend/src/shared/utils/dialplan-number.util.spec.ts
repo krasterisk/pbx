@@ -52,6 +52,8 @@ describe('sourceExprFromValueSource', () => {
     }, 'KRSK_DL_A3_F17')).toBe('${KRSK_DL_A3_F17}');
     expect(sourceExprFromValueSource({ source: 'original_caller' })).toBe('${KRSK_ORIG_CALLER_NUM}');
     expect(sourceExprFromValueSource({ source: 'current_caller' })).toBe('${CALLERID(num)}');
+    expect(sourceExprFromValueSource({ source: 'autodial_field', name: 'AC_DEBT' })).toBe('${AC_DEBT}');
+    expect(sourceExprFromValueSource({ source: 'variable', name: 'OUTNUM' })).toBe('${OUTNUM}');
   });
 });
 

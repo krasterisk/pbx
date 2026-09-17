@@ -6,12 +6,10 @@ import {
   Card,
   CardContent,
   CardHeader,
-  CardTitle,
-  Flex,
-  VStack,
   Text,
   Button,
 } from '@/shared/ui';
+import { Flex, HStack, VStack } from '@/shared/ui/Stack';
 import {
   useGetCdrListQuery,
   useGetCdrStatsQuery,
@@ -150,33 +148,33 @@ const CdrReportPage = memo(() => {
   }, [handleFilterChange]);
 
   return (
-    <VStack gap="24" max className={`${cls.page} flex-1`} data-testid="cdr-report-page-responsive">
-      <Flex justify="between" align="center" className="px-2 min-w-0">
-        <Flex align="center" gap="12" className="min-w-0">
-          <Flex align="center" justify="center" className="p-2.5 bg-indigo-500/10 rounded-xl shrink-0">
-            <PhoneCall className="w-6 h-6 text-indigo-500" />
+    <VStack gap="24" max className={cls.page} data-testid="cdr-report-page-responsive">
+      <Flex justify="between" align="center" className={cls.header} max>
+        <HStack gap="12" align="center">
+          <Flex align="center" justify="center" className={cls.iconBadge}>
+            <PhoneCall size={24} />
           </Flex>
-          <VStack className="min-w-0">
-            <Text variant="h1" className={cls.pageTitle}>{t('cdr.title', 'Журнал звонков (CDR)')}</Text>
-            <Text variant="muted">{t('cdr.subtitle', 'Детализация звонков АТС')}</Text>
+          <VStack gap="4" className={cls.titleBlock}>
+            <Text variant="h1" as="h1" className={cls.title}>{t('cdr.title')}</Text>
+            <Text variant="muted">{t('cdr.subtitle')}</Text>
           </VStack>
-        </Flex>
+        </HStack>
       </Flex>
 
-      <div className={cls.statsScroll}>
+      <Flex direction="column" align="stretch" max className={cls.statsScroll}>
         <CdrStats stats={statsData} isLoading={statsLoading} />
-      </div>
+      </Flex>
 
-      <Card className={`${cls.card} border-muted/50 shadow-sm backdrop-blur-xl bg-background/50 flex flex-col min-h-[500px]`}>
-        <CardHeader className="border-b border-border/50 bg-muted/20 pb-4">
-          <Flex justify="between" align="center" className="mb-4 flex-wrap gap-2">
-            <Flex gap="8" className="flex-wrap">
+      <Card className={cls.card}>
+        <CardHeader className={cls.cardHeader}>
+          <Flex justify="between" align="center" className={cls.tabsRow} max>
+            <HStack gap="8" align="center" className={cls.tabs}>
               <Button
                 variant={currentTab === 'journal' ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => selectTab('journal')}
               >
-                <List className="w-4 h-4 mr-2" />
+                <List size={16} className={cls.tabIcon} />
                 {t('cdr.tabs.journal', 'Журнал')}
               </Button>
               <Button
@@ -184,7 +182,7 @@ const CdrReportPage = memo(() => {
                 size="sm"
                 onClick={() => selectTab('analytics')}
               >
-                <BarChart3 className="w-4 h-4 mr-2" />
+                <BarChart3 size={16} className={cls.tabIcon} />
                 {t('cdr.tabs.analytics', 'Аналитика')}
               </Button>
               <Button
@@ -192,34 +190,32 @@ const CdrReportPage = memo(() => {
                 size="sm"
                 onClick={() => selectTab('voicemail')}
               >
-                <Voicemail className="w-4 h-4 mr-2" />
+                <Voicemail size={16} className={cls.tabIcon} />
                 {t('cdr.tabs.voicemail', 'Голосовые сообщения')}
               </Button>
-            </Flex>
+            </HStack>
             {listData && currentTab === 'journal' && (
-              <Text variant="muted" className="text-sm">
-                ({listData.count})
-              </Text>
+              <Text variant="muted">({listData.count})</Text>
             )}
             {currentTab === 'voicemail' && (
-              <Text variant="muted" className="text-sm">
-                ({voicemailMessages?.length ?? 0})
-              </Text>
+              <Text variant="muted">({voicemailMessages?.length ?? 0})</Text>
             )}
           </Flex>
-          <div className={cls.filterBar}>
+          <Flex direction="column" align="stretch" className={cls.filterBar} max>
             <CdrFilter
               filters={filters}
               onChange={handleFilterChange}
               onExportCsv={handleExportCsv}
               isExporting={isExporting}
             />
-          </div>
+          </Flex>
         </CardHeader>
-        <CardContent className="p-0 flex-1 min-w-0">
+        <CardContent className={cls.cardContent}>
           {currentTab === 'journal' ? (
-            <div
-              className={`${cls.tableScroll} overflow-x-auto`}
+            <Flex
+              direction="column"
+              align="stretch"
+              className={cls.tableScroll}
               data-testid="hybrid-table"
               data-hybrid="overflow-x-auto"
             >
@@ -234,17 +230,17 @@ const CdrReportPage = memo(() => {
                 onVoicemailClick={(uniqueid) => setDetailsUniqueid(uniqueid)}
                 onConferenceClick={(uniqueid) => setConferenceUniqueid(uniqueid)}
               />
-            </div>
+            </Flex>
           ) : currentTab === 'analytics' ? (
-            <VStack className="p-4 min-w-0">
+            <VStack className={cls.analytics} max>
               <CdrCharts filters={filters} onDrilldown={handleDrilldown} />
             </VStack>
           ) : (
-            <div className={`${cls.tableScroll} overflow-x-auto`}>
+            <Flex direction="column" align="stretch" className={cls.tableScroll} max>
               {voicemailLoading ? (
-                <Text variant="muted" className="p-4">{t('common.loading', 'Загрузка...')}</Text>
+                <Text variant="muted" className={cls.vmEmpty}>{t('common.loading', 'Загрузка...')}</Text>
               ) : (voicemailMessages ?? []).length === 0 ? (
-                <Text variant="muted" className="p-4">{t('cdr.voicemail.empty', 'Нет голосовых сообщений')}</Text>
+                <Text variant="muted" className={cls.vmEmpty}>{t('cdr.voicemail.empty', 'Нет голосовых сообщений')}</Text>
               ) : (
                 <table className={cls.vmTable}>
                   <thead>
@@ -278,12 +274,12 @@ const CdrReportPage = memo(() => {
                             type="button"
                             variant="ghost"
                             size="icon"
-                            className={`h-7 w-7 ${cls.vmDetailsBtn}`}
+                            className={cls.vmDetailsBtn}
                             title={t('cdr.voicemail.detailsTitle', 'Детали сообщения')}
                             aria-label={t('cdr.voicemail.detailsTitle', 'Детали сообщения')}
                             onClick={() => setDetailsUniqueid(msg.uniqueid)}
                           >
-                            <Voicemail className="w-3.5 h-3.5" />
+                            <Voicemail size={14} />
                           </Button>
                         </td>
                       </tr>
@@ -291,7 +287,7 @@ const CdrReportPage = memo(() => {
                   </tbody>
                 </table>
               )}
-            </div>
+            </Flex>
           )}
         </CardContent>
       </Card>

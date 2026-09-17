@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Users } from 'lucide-react';
-import { Badge, Button, Text } from '@/shared/ui';
+import { Badge, Button, Loader, Text } from '@/shared/ui';
 import { Flex, HStack, VStack } from '@/shared/ui/Stack';
 import { useIsMobile } from '@/shared/hooks/useIsMobile';
 import { useSetConferenceMeVideoMutation } from '@/shared/api/endpoints/conferenceRoomApi';
@@ -47,15 +47,21 @@ export interface LiveRoomProps {
   isMuted?: boolean;
   isCameraOff?: boolean;
   videoFailedMids?: string[];
+  localStream?: MediaStream | null;
+  selfName?: string;
+  /** Hide the in-room header (guest shell already shows the name). */
+  hideHeader?: boolean;
   onJoin?: () => void;
   onLeave?: () => void;
   onEnd?: () => void;
   onMicToggle?: () => void;
   onCamToggle?: () => void;
   onRetryVideo?: () => void;
+  onReconnect?: () => void;
 }
 
 const PARTICIPANTS_PANEL_ID = 'conference-participants';
+const LOCAL_REF = 'local';
 
 function formatElapsed(startedAt?: string | null): string {
   if (!startedAt) return '00:00';
@@ -66,6 +72,42 @@ function formatElapsed(startedAt?: string | null): string {
   const mm = String(m).padStart(2, '0');
   const ss = String(s).padStart(2, '0');
   return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
+}
+
+function mergeOptimisticSelf(
+  participants: LiveRoomParticipant[],
+  selfName?: string,
+  localStream?: MediaStream | null,
+): LiveRoomParticipant[] {
+  const localVideo = Boolean(
+    localStream?.getVideoTracks().some((track) => track.readyState === 'live'),
+  );
+  if (!selfName && !localVideo) return participants;
+
+  const name = selfName?.trim() || '';
+  const hasSelf = participants.some(
+    (row) => row.ref === LOCAL_REF || (name && row.displayName === name),
+  );
+  if (hasSelf) {
+    return participants.map((row) => {
+      if (row.ref === LOCAL_REF || (name && row.displayName === name)) {
+        return { ...row, video: row.video || localVideo };
+      }
+      return row;
+    });
+  }
+
+  return [
+    {
+      ref: LOCAL_REF,
+      displayName: name || 'Вы',
+      role: 'participant',
+      speaking: false,
+      muted: false,
+      video: localVideo,
+    },
+    ...participants,
+  ];
 }
 
 export function LiveRoom({
@@ -92,17 +134,22 @@ export function LiveRoom({
   isMuted: mutedProp,
   isCameraOff: camProp,
   videoFailedMids = [],
+  localStream,
+  selfName,
+  hideHeader = false,
   onJoin,
   onLeave,
   onEnd,
   onMicToggle,
   onCamToggle,
   onRetryVideo,
+  onReconnect,
 }: LiveRoomProps) {
   const { t } = useTranslation();
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const sheetMode = useIsMobile(1024);
-  const tabletUsers = useIsMobile(1024) && !useIsMobile(768);
+  const phoneMode = useIsMobile(768);
+  const tabletUsers = sheetMode && !phoneMode;
   const [participantsOpen, setParticipantsOpen] = useState(false);
   const [muted, setMuted] = useState(Boolean(mutedProp));
   const [cameraOff, setCameraOff] = useState(Boolean(camProp));
@@ -124,13 +171,22 @@ export function LiveRoom({
     return () => window.clearInterval(id);
   }, [startedAt]);
 
-  const empty = participants.length === 0;
+  const stageParticipants = useMemo(
+    () => mergeOptimisticSelf(participants, selfName, localStream),
+    [participants, selfName, localStream],
+  );
+
+  const isConnecting = status === 'connecting' || status === 'registered';
+  const sessionDropped = error === 'sessionDropped' || disconnected;
+  const empty = stageParticipants.length === 0 && !isConnecting;
   const showRail = typeof roomUid === 'number';
   const participantsLabel = t('conferences.live.participants', 'Участники');
   const noCompanion = error === 'noWebrtcCompanion';
-  const showJoin = Boolean(onJoin) && status !== 'in-call' && !noCompanion;
-  const showHeader = Boolean(roomName || roomNumber || recording || startedAt);
+  const showJoin = Boolean(onJoin) && status !== 'in-call' && !noCompanion && !isConnecting && !sessionDropped;
+  const showHeader = !hideHeader && Boolean(roomName || roomNumber || recording || startedAt);
   const timerLabel = formatElapsed(startedAt);
+  /** Avoid duplicate Users: phone has railToggle; tablet has header toggle when header is shown. */
+  const hideBarParticipants = phoneMode || (tabletUsers && showHeader);
 
   const handleMic = () => {
     setMuted((v) => !v);
@@ -165,8 +221,8 @@ export function LiveRoom({
             ) : null}
             <Text>
               {t('conferences.live.participantsCount', {
-                count: participants.length,
-                defaultValue: `Участников: ${participants.length}`,
+                count: stageParticipants.length,
+                defaultValue: `Участников: ${stageParticipants.length}`,
               })}
             </Text>
           </HStack>
@@ -202,52 +258,72 @@ export function LiveRoom({
             </VStack>
           ) : (
             <VideoGrid
-              participants={participants}
+              participants={stageParticipants}
               remoteTracks={remoteTracks}
+              localStream={localStream}
+              selfName={selfName}
               videoFailedMids={videoFailedMids}
               onRetry={onRetryVideo}
             />
           )}
-          {reconnecting ? (
-            <div className={cls.banner} data-banner="reconnecting" aria-live="polite">
-              <Text>{t('conferences.live.reconnecting', 'Переподключаемся')}</Text>
-            </div>
-          ) : null}
-          {weakLink ? (
-            <div className={cls.banner} data-banner="weakLink" aria-live="polite">
-              <Text>{t('conferences.live.weakLink', 'Слабое соединение, качество видео снижено')}</Text>
-            </div>
-          ) : null}
-          {disconnected ? (
-            <div className={cls.banner} data-banner="disconnected" aria-live="assertive">
-              <Text>{t('conferences.live.disconnected', 'Связь с комнатой прервана')}</Text>
-            </div>
-          ) : null}
-          {waitingForModerator ? (
-            <div className={cls.banner} data-banner="waitingHost" aria-live="polite">
-              <Text>{t('conferences.live.waitingHost', 'Ждём организатора')}</Text>
-            </div>
-          ) : null}
-          {adminJoinNotice ? (
-            <div className={cls.banner} data-banner="adminJoinNotice" aria-live="polite">
-              <Text>
-                {t(
-                  'conferences.live.adminJoinNotice',
-                  'Вход администратора в эту встречу записывается в журнал событий.',
-                )}
-              </Text>
-            </div>
-          ) : null}
-          {noCompanion ? (
-            <div className={cls.banner} data-banner="noWebrtcCompanion" aria-live="polite">
-              <Text>
-                {t(
-                  'conferences.live.noWebrtcCompanion',
-                  'У вашей учётной записи нет WebRTC-абонента. Обратитесь к администратору, чтобы войти в конференцию из браузера.',
-                )}
-              </Text>
-            </div>
-          ) : null}
+
+          <VStack className={cls.bannerStack} gap="8" align="stretch">
+            {isConnecting && !sessionDropped ? (
+              <div className={cls.banner} data-banner="connecting" aria-live="polite">
+                <HStack gap="8" align="center">
+                  <Loader size={16} />
+                  <Text>
+                    {reconnecting
+                      ? t('conferences.live.reconnecting', 'Переподключаемся')
+                      : t('conferences.live.connecting', 'Подключаемся…')}
+                  </Text>
+                </HStack>
+              </div>
+            ) : null}
+            {weakLink ? (
+              <div className={cls.banner} data-banner="weakLink" aria-live="polite">
+                <Text>{t('conferences.live.weakLink', 'Слабое соединение, качество видео снижено')}</Text>
+              </div>
+            ) : null}
+            {sessionDropped ? (
+              <div className={cls.banner} data-banner="disconnected" aria-live="assertive">
+                <HStack gap="8" align="center" justify="between" max>
+                  <Text>{t('conferences.live.disconnected', 'Связь с комнатой прервана')}</Text>
+                  {onReconnect ? (
+                    <Button type="button" size="sm" onClick={onReconnect} style={{ pointerEvents: 'auto' }}>
+                      {t('conferences.live.reconnect', 'Подключиться снова')}
+                    </Button>
+                  ) : null}
+                </HStack>
+              </div>
+            ) : null}
+            {waitingForModerator ? (
+              <div className={cls.banner} data-banner="waitingHost" aria-live="polite">
+                <Text>{t('conferences.live.waitingHost', 'Ждём организатора')}</Text>
+              </div>
+            ) : null}
+            {adminJoinNotice ? (
+              <div className={cls.banner} data-banner="adminJoinNotice" aria-live="polite">
+                <Text>
+                  {t(
+                    'conferences.live.adminJoinNotice',
+                    'Вход администратора в эту встречу записывается в журнал событий.',
+                  )}
+                </Text>
+              </div>
+            ) : null}
+            {noCompanion ? (
+              <div className={cls.banner} data-banner="noWebrtcCompanion" aria-live="polite">
+                <Text>
+                  {t(
+                    'conferences.live.noWebrtcCompanion',
+                    'У вашей учётной записи нет WebRTC-абонента. Обратитесь к администратору, чтобы войти в конференцию из браузера.',
+                  )}
+                </Text>
+              </div>
+            ) : null}
+          </VStack>
+
           {showJoin ? (
             <div className={cls.joinWrap}>
               <Button type="button" onClick={onJoin}>
@@ -259,7 +335,7 @@ export function LiveRoom({
         {showRail && !sheetMode ? (
           <ParticipantList
             roomUid={roomUid}
-            participants={participants}
+            participants={stageParticipants}
             selfRole={selfRole}
             loading={participantsLoading}
             variant="column"
@@ -268,7 +344,7 @@ export function LiveRoom({
         ) : null}
       </Flex>
 
-      {showRail && sheetMode && !tabletUsers ? (
+      {showRail && phoneMode ? (
         <Button
           type="button"
           variant="ghost"
@@ -301,6 +377,7 @@ export function LiveRoom({
           onParticipantsToggle={() => setParticipantsOpen((open) => !open)}
           participantsOpen={participantsOpen}
           participantsPanelId={PARTICIPANTS_PANEL_ID}
+          hideParticipantsToggle={hideBarParticipants}
         />
       ) : null}
       {toolbar}
@@ -308,7 +385,7 @@ export function LiveRoom({
       {showRail && sheetMode ? (
         <ParticipantList
           roomUid={roomUid}
-          participants={participants}
+          participants={stageParticipants}
           selfRole={selfRole}
           loading={participantsLoading}
           variant="sheet"

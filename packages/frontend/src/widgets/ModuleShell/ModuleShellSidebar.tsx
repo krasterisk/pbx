@@ -28,7 +28,7 @@ export const ModuleShellSidebar = memo(function ModuleShellSidebar({
   const navigate = useNavigate();
   const isMobile = useIsMobile(768);
 
-  const effectiveCollapsed = isMobile || collapsed;
+  const effectiveCollapsed = collapsed;
 
   return (
     <aside

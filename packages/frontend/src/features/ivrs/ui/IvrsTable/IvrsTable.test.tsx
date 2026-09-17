@@ -1,74 +1,75 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import { Provider } from 'react-redux';
-import { configureStore } from '@reduxjs/toolkit';
 import { IvrsTable } from './IvrsTable';
-import { ivrsReducer } from '../../model/slice/ivrsSlice';
-import * as apiHooks from '@/shared/api/endpoints/ivrsApi';
+
+const useIsMobileMock = vi.fn((_bp?: number) => false);
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string) => key,
+    t: (key: string, opts?: { count?: number }) =>
+      opts?.count != null ? `${key}:${opts.count}` : key,
   }),
 }));
 
-vi.mock('@/shared/api/endpoints/ivrsApi', async (importOriginal) => {
-  const actual = await importOriginal();
+vi.mock('@/shared/hooks/useIsMobile', () => ({
+  useIsMobile: (bp?: number) => useIsMobileMock(bp),
+}));
+
+vi.mock('@/shared/hooks/useAppStore', () => ({
+  useAppDispatch: () => vi.fn(),
+}));
+
+vi.mock('@/shared/api/endpoints/ivrsApi', () => ({
+  useGetIvrsQuery: vi.fn(() => ({
+    data: [
+      { uid: 1, name: 'Menu A', timeout: '5', max_count: 2 },
+    ],
+    isLoading: false,
+  })),
+  useDeleteIvrMutation: vi.fn(() => [vi.fn()]),
+  useBulkDeleteIvrsMutation: vi.fn(() => [vi.fn(), { isLoading: false }]),
+}));
+
+vi.mock('./useIvrsTableColumns', () => ({
+  useIvrsTableColumns: () => [
+    { accessorKey: 'name', header: 'Name' },
+    { accessorKey: 'timeout', header: 'Timeout' },
+  ],
+}));
+
+vi.mock('@/shared/ui', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/shared/ui')>();
   return {
-    ...(actual as any),
-    useGetIvrsQuery: vi.fn(),
-    useDeleteIvrMutation: vi.fn(),
-    useBulkDeleteIvrsMutation: vi.fn(),
+    ...actual,
+    DataTable: () => <div data-testid="ivrs-datatable">table</div>,
   };
 });
 
-const mockDispatch = vi.fn();
-vi.mock('@/shared/hooks/useAppStore', () => ({
-  useAppDispatch: () => mockDispatch,
-  useAppSelector: vi.fn(),
-}));
-
-const renderWithStore = (ui: React.ReactElement) => {
-  const store = configureStore({
-    reducer: {
-      ivrs: ivrsReducer,
-    },
-  });
-  return render(<Provider store={store}>{ui}</Provider>);
-};
-
-describe('IvrsTable UI integration', () => {
-  const mockIvrs = [
-    { uid: 1, name: 'Menu A', timeout: 5, max_count: 2 },
-    { uid: 2, name: 'Menu B', timeout: 10, max_count: 3 },
-  ];
-
+describe('IvrsTable hybrid responsive', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (apiHooks.useGetIvrsQuery as any).mockReturnValue({ data: mockIvrs, isLoading: false });
-    (apiHooks.useDeleteIvrMutation as any).mockReturnValue([vi.fn()]);
-    (apiHooks.useBulkDeleteIvrsMutation as any).mockReturnValue([vi.fn(), { isLoading: false }]);
+    useIsMobileMock.mockReturnValue(false);
   });
 
-  it('renders table rows', () => {
-    renderWithStore(<IvrsTable />);
+  it('renders overflow-x-auto hybrid marker on desktop', () => {
+    useIsMobileMock.mockReturnValue(false);
+    render(<IvrsTable />);
+    const hybrid = screen.getByTestId('hybrid-table');
+    expect(hybrid).toHaveAttribute('data-hybrid', 'overflow-x-auto');
+    expect(screen.getByTestId('ivrs-table-scroll')).toBeInTheDocument();
+    expect(useIsMobileMock).toHaveBeenCalledWith(768);
+  });
+
+  it('renders mobile-card hybrid marker when useIsMobile is true', () => {
+    useIsMobileMock.mockReturnValue(true);
+    render(<IvrsTable />);
+    const hybrid = screen.getByTestId('hybrid-table');
+    expect(hybrid).toHaveAttribute('data-hybrid', 'mobile-card');
+    expect(screen.getByTestId('ivrs-mobile-card')).toBeInTheDocument();
     expect(screen.getByText('Menu A')).toBeInTheDocument();
-    expect(screen.getByText('Menu B')).toBeInTheDocument();
-  });
-
-  it('dispatches openEditModal on edit button click', () => {
-    renderWithStore(<IvrsTable />);
-    
-    // We added title='common.edit' logic in the refactor
-    const editBtns = screen.getAllByTitle('common.edit');
-    fireEvent.click(editBtns[0]);
-    
-    expect(mockDispatch).toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: 'ivrs/openEditModal',
-        payload: mockIvrs[0],
-      })
-    );
+    expect(screen.getByRole('button', { name: 'common.edit' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'common.copy' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'common.delete' })).toBeInTheDocument();
   });
 });

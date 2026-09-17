@@ -128,7 +128,7 @@ describe('conferenceRoomApi (16.3-02)', () => {
   it('guestWebrtcConfig query URL and transform never read a SIP password', () => {
     const src = readFileSync(join(ENDPOINT_DIR, 'conferenceRoomApi.ts'), 'utf8');
     const webrtcBlock = src.slice(src.indexOf('guestWebrtcConfig'));
-    const next = webrtcBlock.search(/\n    [a-zA-Z]+:/);
+    const next = webrtcBlock.search(/\n {4}[a-zA-Z]+:/);
     const block = next >= 0 ? webrtcBlock.slice(0, next) : webrtcBlock.slice(0, 800);
     expect(block).toMatch(/\/conferences\/guest\/.+\/webrtc-config/);
     expect(block).not.toMatch(/password/i);

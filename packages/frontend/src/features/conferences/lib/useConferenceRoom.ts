@@ -14,10 +14,12 @@ import { conferenceSdhFactory } from './conferenceSdhFactory';
 const WATCHDOG_MS = 4000;
 const MAX_RENEGOTIATIONS = 2;
 const TELEMETRY_MS = 5000;
+const MAX_SESSION_RETRIES = 3;
+const SESSION_RETRY_BASE_MS = 1500;
 
 const MEDIA_CONSTRAINTS = { audio: true, video: true } as const;
 
-export type ConferenceRoomError = 'noWebrtcCompanion';
+export type ConferenceRoomError = 'noWebrtcCompanion' | 'sessionDropped';
 
 export interface UseConferenceRoomOptions {
   roomUid: number;
@@ -32,6 +34,13 @@ export interface UseConferenceRoomOptions {
   unregisterSoftphone?: () => void | Promise<void>;
   restoreSoftphone?: () => void | Promise<void>;
   onTelemetry?: (body: ConferenceTelemetryBody) => void;
+  /** Already-opened preview stream; sip.js must reuse it so a second getUserMedia does not steal the camera. */
+  localStream?: MediaStream | null;
+  /**
+   * SIP user in the INVITE Request-URI. Guest PJSIP lives in `krsk-conf-{uid}`
+   * (only `exten => s`). Staff companions dial the public room number.
+   */
+  inviteExten?: string | null;
 }
 
 export interface UseConferenceRoomResult {
@@ -39,8 +48,11 @@ export interface UseConferenceRoomResult {
   error: ConferenceRoomError | null;
   remoteTracks: Record<string, MediaStreamTrack>;
   videoFailedMids: string[];
+  localStream: MediaStream | null;
   leave: () => Promise<void>;
   retryVideo: () => void;
+  /** Manual re-INVITE after sessionDropped (keeps creds / UA). */
+  reconnect: () => void;
 }
 
 type ConferenceSession = {
@@ -104,6 +116,8 @@ export function useConferenceRoom(options: UseConferenceRoomOptions): UseConfere
   );
   const [remoteTracks, setRemoteTracks] = useState<Record<string, MediaStreamTrack>>({});
   const [videoFailedMids, setVideoFailedMids] = useState<string[]>([]);
+  const [localStream, setLocalStream] = useState<MediaStream | null>(options.localStream ?? null);
+  const localStreamRef = useRef<MediaStream | null>(options.localStream ?? null);
 
   const uaRef = useRef<UserAgent | null>(null);
   const registererRef = useRef<Registerer | null>(null);
@@ -111,8 +125,11 @@ export function useConferenceRoom(options: UseConferenceRoomOptions): UseConfere
   const tracksRef = useRef(remoteTracks);
   tracksRef.current = remoteTracks;
   const renegAttemptsRef = useRef(0);
+  const sessionRetryRef = useRef(0);
+  const leavingRef = useRef(false);
   const watchdogRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const telemetryRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const parkedSoftphoneRef = useRef(false);
   const pcBoundRef = useRef<RTCPeerConnection | null>(null);
 
@@ -127,6 +144,13 @@ export function useConferenceRoom(options: UseConferenceRoomOptions): UseConfere
     if (telemetryRef.current) {
       clearInterval(telemetryRef.current);
       telemetryRef.current = null;
+    }
+  }, []);
+
+  const clearRetryTimer = useCallback(() => {
+    if (retryTimerRef.current) {
+      clearTimeout(retryTimerRef.current);
+      retryTimerRef.current = null;
     }
   }, []);
 
@@ -164,6 +188,10 @@ export function useConferenceRoom(options: UseConferenceRoomOptions): UseConfere
         .map(([mid]) => mid);
       const hasWidth = videoMids.some((mid) => probeVideoWidth(tracks[mid]) > 0);
       if (hasWidth) return;
+      const localLive = (optionsRef.current.localStream ?? localStreamRef.current)
+        ?.getVideoTracks()
+        .some((track) => track.readyState === 'live');
+      if (localLive) return;
 
       if (renegAttemptsRef.current < MAX_RENEGOTIATIONS) {
         renegAttemptsRef.current += 1;
@@ -182,9 +210,70 @@ export function useConferenceRoom(options: UseConferenceRoomOptions): UseConfere
     }, WATCHDOG_MS);
   }, [clearWatchdog]);
 
+  const startInvite = useCallback(async (ua: UserAgent): Promise<void> => {
+    const opts = optionsRef.current;
+    const destUser = (opts.inviteExten ?? opts.roomNumber).trim();
+    if (!destUser || !opts.sipDomain) return;
+    const target = UserAgent.makeURI(`sip:${destUser}@${opts.sipDomain}`);
+    if (!target) return;
+
+    const inviter = new Inviter(ua, target, {
+      sessionDescriptionHandlerOptions: {
+        constraints: MEDIA_CONSTRAINTS,
+      },
+    }) as unknown as ConferenceSession;
+    sessionRef.current = inviter;
+    bindPeerConnection(inviter);
+
+    inviter.stateChange.addListener((state) => {
+      if (state === SessionState.Established) {
+        sessionRetryRef.current = 0;
+        setError(null);
+        setStatus('in-call');
+        bindPeerConnection(inviter);
+        startTelemetry(inviter);
+        scheduleWatchdog(inviter);
+        return;
+      }
+      if (state !== SessionState.Terminated) return;
+      if (leavingRef.current) return;
+      if (sessionRef.current !== inviter) return;
+
+      clearWatchdog();
+      clearTelemetry();
+      sessionRef.current = null;
+      pcBoundRef.current = null;
+      setRemoteTracks({});
+
+      if (sessionRetryRef.current < MAX_SESSION_RETRIES) {
+        const attempt = sessionRetryRef.current;
+        sessionRetryRef.current += 1;
+        setStatus('connecting');
+        setError(null);
+        const delay = SESSION_RETRY_BASE_MS * 2 ** attempt;
+        clearRetryTimer();
+        retryTimerRef.current = setTimeout(() => {
+          const liveUa = uaRef.current;
+          if (!liveUa || leavingRef.current) return;
+          void startInvite(liveUa).catch(() => undefined);
+        }, delay);
+        return;
+      }
+
+      setError('sessionDropped');
+      setStatus('error');
+    });
+
+    await inviter.invite({
+      sessionDescriptionHandlerOptions: { constraints: MEDIA_CONSTRAINTS },
+    }).catch(() => undefined);
+  }, [bindPeerConnection, clearRetryTimer, clearTelemetry, clearWatchdog, scheduleWatchdog, startTelemetry]);
+
   const teardown = useCallback(async () => {
+    leavingRef.current = true;
     clearWatchdog();
     clearTelemetry();
+    clearRetryTimer();
     const session = sessionRef.current;
     sessionRef.current = null;
     if (session && session.state === SessionState.Established) {
@@ -208,7 +297,7 @@ export function useConferenceRoom(options: UseConferenceRoomOptions): UseConfere
     setRemoteTracks({});
     setVideoFailedMids([]);
     setStatus((prev) => (prev === 'error' ? prev : 'idle'));
-  }, [clearTelemetry, clearWatchdog]);
+  }, [clearRetryTimer, clearTelemetry, clearWatchdog]);
 
   const leave = useCallback(async () => {
     await teardown();
@@ -223,6 +312,16 @@ export function useConferenceRoom(options: UseConferenceRoomOptions): UseConfere
     }
   }, [scheduleWatchdog]);
 
+  const reconnect = useCallback(() => {
+    const ua = uaRef.current;
+    if (!ua || leavingRef.current) return;
+    sessionRetryRef.current = 0;
+    clearRetryTimer();
+    setError(null);
+    setStatus('connecting');
+    void startInvite(ua).catch(() => undefined);
+  }, [clearRetryTimer, startInvite]);
+
   useEffect(() => {
     const opts = optionsRef.current;
     if (!hasCompanion(opts)) {
@@ -232,11 +331,14 @@ export function useConferenceRoom(options: UseConferenceRoomOptions): UseConfere
     }
 
     let cancelled = false;
+    leavingRef.current = false;
     setError(null);
     setStatus('connecting');
     renegAttemptsRef.current = 0;
+    sessionRetryRef.current = 0;
 
     const onPageHide = () => {
+      leavingRef.current = true;
       void sessionRef.current?.bye().catch(() => undefined);
     };
     window.addEventListener('pagehide', onPageHide);
@@ -257,7 +359,15 @@ export function useConferenceRoom(options: UseConferenceRoomOptions): UseConfere
 
       const ua = new UserAgent({
         uri,
-        sessionDescriptionHandlerFactory: conferenceSdhFactory,
+        sessionDescriptionHandlerFactory: conferenceSdhFactory(async (constraints) => {
+          const live = optionsRef.current.localStream ?? localStreamRef.current;
+          const stream = live?.getTracks().some((track) => track.readyState === 'live')
+            ? live
+            : await navigator.mediaDevices.getUserMedia(constraints ?? MEDIA_CONSTRAINTS);
+          localStreamRef.current = stream;
+          setLocalStream(stream);
+          return stream;
+        }),
         reconnectionAttempts: 10,
         reconnectionDelay: 4,
         transportOptions: {
@@ -295,26 +405,7 @@ export function useConferenceRoom(options: UseConferenceRoomOptions): UseConfere
       });
       if (cancelled) return;
 
-      const target = UserAgent.makeURI(`sip:${opts.roomNumber}@${opts.sipDomain}`);
-      if (!target) return;
-      const inviter = new Inviter(ua, target, {
-        sessionDescriptionHandlerOptions: {
-          constraints: MEDIA_CONSTRAINTS,
-        },
-      }) as unknown as ConferenceSession;
-      sessionRef.current = inviter;
-      bindPeerConnection(inviter);
-      inviter.stateChange.addListener((state) => {
-        if (state === SessionState.Established) {
-          setStatus('in-call');
-          bindPeerConnection(inviter);
-          startTelemetry(inviter);
-          scheduleWatchdog(inviter);
-        }
-      });
-      await inviter.invite({
-        sessionDescriptionHandlerOptions: { constraints: MEDIA_CONSTRAINTS },
-      }).catch(() => undefined);
+      await startInvite(ua);
     })();
 
     return () => {
@@ -323,15 +414,14 @@ export function useConferenceRoom(options: UseConferenceRoomOptions): UseConfere
       void teardown();
     };
   }, [
-    bindPeerConnection,
     options.roomNumber,
+    options.inviteExten,
     options.roomUid,
     options.sipDomain,
     options.sipId,
     options.sipPassword,
     options.wssUrl,
-    scheduleWatchdog,
-    startTelemetry,
+    startInvite,
     teardown,
   ]);
 
@@ -340,7 +430,9 @@ export function useConferenceRoom(options: UseConferenceRoomOptions): UseConfere
     error,
     remoteTracks,
     videoFailedMids,
+    localStream,
     leave,
     retryVideo,
+    reconnect,
   };
 }

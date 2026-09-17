@@ -1,124 +1,208 @@
-import { useCallback, useState } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ColumnDef } from '@tanstack/react-table';
-import { Pencil, Trash2, Copy } from 'lucide-react';
-import { DataTable, HStack, Button } from '@/shared/ui';
-import { useAppDispatch } from '@/shared/hooks/useAppStore';
+import { UsersRound, Search, Loader2, Trash2, Pencil, Copy } from 'lucide-react';
+import {
+  Card,
+  CardHeader,
+  CardContent,
+  Input,
+  Button,
+  DataTable,
+  Text,
+  TableRowActions,
+  TableRowAction,
+} from '@/shared/ui';
+import { Flex, HStack, VStack } from '@/shared/ui/Stack';
 import {
   useGetCallGroupsQuery,
   useDeleteCallGroupMutation,
 } from '@/shared/api/endpoints/callGroupApi';
-import type { ICallGroup } from '@krasterisk/shared';
+import { useAppDispatch } from '@/shared/hooks/useAppStore';
+import { useIsMobile } from '@/shared/hooks/useIsMobile';
 import { callGroupsPageActions } from '../../model/slice/callGroupsPageSlice';
+import { formatCallGroupStrategy, useCallGroupsTableColumns } from './useCallGroupsTableColumns';
+import cls from './CallGroupsTable.module.scss';
 
-const STRATEGY_KEYS = ['ringall', 'hunt', 'memoryhunt', 'random'] as const;
-
-export const CallGroupsTable = () => {
+export const CallGroupsTable = memo(() => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
-  const { data: callGroups = [] } = useGetCallGroupsQuery();
+  const isMobile = useIsMobile(768);
+  const { data: callGroups = [], isLoading } = useGetCallGroupsQuery();
   const [deleteCallGroup] = useDeleteCallGroupMutation();
+
+  const [globalFilter, setGlobalFilter] = useState('');
   const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
+  const [isDeleting, setIsDeleting] = useState(false);
 
-  const handleEdit = useCallback((uid: number) => {
-    dispatch(callGroupsPageActions.openEditModal(uid));
-  }, [dispatch]);
+  const columns = useCallGroupsTableColumns();
+  const selectedCount = Object.keys(rowSelection).length;
 
-  const handleDelete = useCallback(async (group: ICallGroup) => {
-    if (!window.confirm(t('callGroups.confirmDelete', { name: group.name, defaultValue: `Удалить группу "${group.name}"?` }))) {
-      return;
+  const filtered = useMemo(() => {
+    const q = globalFilter.trim().toLowerCase();
+    if (!q) return callGroups;
+    return callGroups.filter((row) => {
+      const name = (row.name || '').toLowerCase();
+      const strategy = (row.strategy || '').toLowerCase();
+      const exten = (row.exten || '').toLowerCase();
+      return name.includes(q) || strategy.includes(q) || exten.includes(q);
+    });
+  }, [callGroups, globalFilter]);
+
+  const handleBulkDelete = useCallback(async () => {
+    const ids = Object.keys(rowSelection).map(Number);
+    if (!ids.length) return;
+    if (!window.confirm(t('callGroups.confirmBulkDelete'))) return;
+    setIsDeleting(true);
+    try {
+      await Promise.all(ids.map((id) => deleteCallGroup(id).unwrap()));
+      setRowSelection({});
+    } finally {
+      setIsDeleting(false);
     }
-    await deleteCallGroup(group.uid);
-  }, [deleteCallGroup, t]);
+  }, [rowSelection, deleteCallGroup, t]);
 
-  const handleCopy = useCallback((uid: number) => {
-    dispatch(callGroupsPageActions.openCopyModal(uid));
-  }, [dispatch]);
+  const toolbar = (
+    <Flex justify="between" align="center" className={cls.toolbar} max>
+      <HStack gap="8" align="center">
+        <UsersRound size={20} className={cls.toolbarIcon} />
+        <Text className={cls.count}>{t('callGroups.count', { count: callGroups.length })}</Text>
+      </HStack>
+      <HStack gap="8" align="center" className={cls.toolbarActions}>
+        {!isMobile && (
+          <Button
+            variant="destructive"
+            className={selectedCount === 0 ? cls.bulkBtnHidden : undefined}
+            disabled={isDeleting || selectedCount === 0}
+            aria-hidden={selectedCount === 0}
+            tabIndex={selectedCount === 0 ? -1 : undefined}
+            onClick={handleBulkDelete}
+          >
+            {isDeleting ? <Loader2 size={16} className={cls.spinner} /> : <Trash2 size={16} />}
+            {t('callGroups.deleteSelected', { count: selectedCount })}
+          </Button>
+        )}
+        <Flex align="center" className={cls.searchWrap}>
+          <Search size={16} className={cls.searchIcon} />
+          <Input
+            id="call-groups-search"
+            placeholder={t('common.search')}
+            value={globalFilter}
+            onChange={(e) => setGlobalFilter(e.target.value)}
+            className={cls.searchInput}
+          />
+        </Flex>
+      </HStack>
+    </Flex>
+  );
 
-  const columns: ColumnDef<ICallGroup>[] = [
-    {
-      accessorKey: 'name',
-      header: t('callGroups.name', 'Название'),
-      size: 200,
-      cell: ({ row }) => (
-        <span className="text-sm font-medium text-foreground">{row.original.name}</span>
-      ),
-    },
-    {
-      accessorKey: 'strategy',
-      header: t('callGroups.strategy', 'Стратегия'),
-      size: 150,
-      cell: ({ row }) => {
-        const strategy = row.original.strategy;
-        const label = STRATEGY_KEYS.includes(strategy as typeof STRATEGY_KEYS[number])
-          ? t(`callGroups.strategy.${strategy}`)
-          : strategy;
-        return <span className="text-sm">{label || '-'}</span>;
-      },
-    },
-    {
-      id: 'memberCount',
-      accessorFn: (row) => row.members?.length ?? 0,
-      header: t('callGroups.members', 'Участники'),
-      size: 100,
-      cell: ({ row }) => {
-        const count = row.original.members?.length ?? 0;
-        return (
-          <span className={`inline-flex items-center justify-center min-w-[1.5rem] px-1.5 py-0.5 rounded-full text-xs font-medium ${
-            count > 0 ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
-          }`}
-          >
-            {count}
-          </span>
-        );
-      },
-    },
-    {
-      id: 'actions',
-      header: '',
-      size: 80,
-      cell: ({ row }) => (
-        <HStack gap="4" align="center">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => handleEdit(row.original.uid)}
-            title={t('common.edit')}
-          >
-            <Pencil className="w-4 h-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => handleCopy(row.original.uid)}
-            title={t('common.copy')}
-          >
-            <Copy className="w-4 h-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => handleDelete(row.original)}
-            title={t('common.delete')}
-            className="hover:text-destructive"
-          >
-            <Trash2 className="w-4 h-4" />
-          </Button>
-        </HStack>
-      ),
-    },
-  ];
+  if (isLoading) {
+    return (
+      <Card className={cls.card}>
+        <CardHeader>{toolbar}</CardHeader>
+        <CardContent>
+          <Flex align="center" justify="center" className={cls.loading}>
+            <Loader2 size={24} className={cls.spinner} />
+          </Flex>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (isMobile) {
+    return (
+      <Card className={cls.card} data-testid="hybrid-table" data-hybrid="mobile-card">
+        <CardHeader>{toolbar}</CardHeader>
+        <CardContent>
+          <VStack gap="8" max className={cls.mobileList}>
+            {filtered.length === 0 ? (
+              <Text variant="muted" className={cls.mobileEmpty}>
+                {t('callGroups.noGroups')}
+              </Text>
+            ) : (
+              filtered.map((group) => {
+                const memberCount = group.members?.length ?? 0;
+                return (
+                  <Flex
+                    key={group.uid}
+                    direction="column"
+                    className={cls.mobileCard}
+                    data-testid="call-groups-mobile-card"
+                  >
+                    <HStack justify="between" align="start" max>
+                      <VStack gap="4">
+                        <Text as="span" className={cls.name}>{group.name}</Text>
+                        <Text as="span" className={cls.muted}>
+                          {formatCallGroupStrategy(group.strategy, t)}
+                          {' · '}
+                          {memberCount} {t('callGroups.members')}
+                        </Text>
+                      </VStack>
+                      <TableRowActions>
+                        <TableRowAction
+                          title={t('common.edit')}
+                          aria-label={t('common.edit')}
+                          onClick={() => dispatch(callGroupsPageActions.openEditModal(group.uid))}
+                        >
+                          <Pencil />
+                        </TableRowAction>
+                        <TableRowAction
+                          title={t('common.copy')}
+                          aria-label={t('common.copy')}
+                          onClick={() => dispatch(callGroupsPageActions.openCopyModal(group.uid))}
+                        >
+                          <Copy />
+                        </TableRowAction>
+                        <TableRowAction
+                          danger
+                          title={t('common.delete')}
+                          aria-label={t('common.delete')}
+                          onClick={() => {
+                            if (window.confirm(t('callGroups.confirmDelete', { name: group.name }))) {
+                              deleteCallGroup(group.uid);
+                            }
+                          }}
+                        >
+                          <Trash2 />
+                        </TableRowAction>
+                      </TableRowActions>
+                    </HStack>
+                  </Flex>
+                );
+              })
+            )}
+          </VStack>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
-    <DataTable
-      columns={columns}
-      data={callGroups}
-      getRowId={(row) => String(row.uid)}
-      selectable={false}
-      rowSelection={rowSelection}
-      onRowSelectionChange={setRowSelection}
-      emptyText={t('callGroups.noGroups', 'Нет групп вызовов')}
-      exportFilename="call_groups_export"
-    />
+    <Card className={cls.card} data-testid="hybrid-table" data-hybrid="overflow-x-auto">
+      <CardHeader>{toolbar}</CardHeader>
+      <CardContent className={cls.cardContent}>
+        <Flex
+          direction="column"
+          align="stretch"
+          className={cls.tableScroll}
+          data-testid="call-groups-table-scroll"
+        >
+          <DataTable
+            className={cls.table}
+            data={callGroups}
+            columns={columns}
+            getRowId={(row) => String(row.uid)}
+            selectable
+            rowSelection={rowSelection}
+            onRowSelectionChange={setRowSelection}
+            globalFilter={globalFilter}
+            pageSize={50}
+            emptyText={t('callGroups.noGroups')}
+            exportFilename="call_groups_export"
+          />
+        </Flex>
+      </CardContent>
+    </Card>
   );
-};
+});
+
+CallGroupsTable.displayName = 'CallGroupsTable';

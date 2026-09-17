@@ -38,6 +38,12 @@ interface Props {
     startedAt: number; // epoch ms
     maxDurationMin?: number;
   } | null;
+  /**
+   * Value sent for the unlabeled quick-pause tile.
+   * `undefined` keeps the operator default ("Quick Pause").
+   * `''` means no reason label.
+   */
+  quickPauseValue?: string;
 }
 
 const fmt = (sec: number) => {
@@ -46,7 +52,7 @@ const fmt = (sec: number) => {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 };
 
-export function PauseReasonModal({ reasons, onSelect, onClose, activeReason }: Props) {
+export function PauseReasonModal({ reasons, onSelect, onClose, activeReason, quickPauseValue }: Props) {
   const { t } = useTranslation();
   const [now, setNow] = useState(Date.now());
 
@@ -114,7 +120,10 @@ export function PauseReasonModal({ reasons, onSelect, onClose, activeReason }: P
         <div className={styles.grid}>
           <button
             className={styles.tile}
-            onClick={() => onSelect(t('callcenter.pause.quickPause'), 0)}
+            onClick={() => onSelect(
+              quickPauseValue !== undefined ? quickPauseValue : t('callcenter.pause.quickPause'),
+              0,
+            )}
             style={{ '--tile-color': '#888' } as React.CSSProperties}
           >
             <Pause className={styles.tileIcon} />

@@ -81,6 +81,8 @@ export interface DialplanAppsEditorProps {
   showTemplateActions?: boolean;
   /** Template slot labels for display — do not mutate stored markers. */
   slots?: ITemplateSlot[];
+  /** Contact-list fields offered as ValueSource when host is autodial. */
+  autodialFields?: Array<{ value: string; label: string }>;
 }
 
 export function restrictToVerticalAxisLocal({
@@ -181,6 +183,7 @@ export const DialplanAppsEditor = memo(function DialplanAppsEditor({
   previewPatterns,
   showTemplateActions = false,
   slots = [],
+  autodialFields,
 }: DialplanAppsEditorProps) {
   const { t, i18n } = useTranslation();
   const currentUser = useAppSelector(selectCurrentUser);
@@ -592,6 +595,7 @@ export const DialplanAppsEditor = memo(function DialplanAppsEditor({
           tenantUid={tenantUid}
           stepIndex={selectedIndex}
           previewPatterns={previewPatterns}
+          autodialFields={autodialFields}
           onOpenChange={(next) => {
             if (!next) setSelectedStepId(null);
           }}

@@ -114,6 +114,28 @@ describe('ConferenceRoomFormModal', () => {
     } as ReturnType<typeof useGetConferenceModeratorsQuery>);
   });
 
+  it('opens create with skipped room queries (undefined data) without looping', () => {
+    vi.mocked(useGetConferenceRoomQuery).mockReturnValue({
+      data: undefined,
+      isFetching: false,
+    } as ReturnType<typeof useGetConferenceRoomQuery>);
+    vi.mocked(useGetConferenceCapacityQuery).mockReturnValue({
+      data: undefined,
+      isFetching: false,
+    } as ReturnType<typeof useGetConferenceCapacityQuery>);
+    vi.mocked(useGetConferenceGuestTokensQuery).mockReturnValue({
+      data: undefined,
+      isFetching: false,
+    } as ReturnType<typeof useGetConferenceGuestTokensQuery>);
+    vi.mocked(useGetConferenceModeratorsQuery).mockReturnValue({
+      data: undefined,
+      isFetching: false,
+    } as ReturnType<typeof useGetConferenceModeratorsQuery>);
+    expect(() => render(<ConferenceRoomFormModal />)).not.toThrow();
+    expect(screen.getByRole('tab', { name: 'Основные' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Номер комнаты')).toHaveValue('');
+  });
+
   it('shows four tabs in create and no History or Links', () => {
     render(<ConferenceRoomFormModal />);
     expect(screen.getByRole('tab', { name: 'Основные' })).toBeInTheDocument();

@@ -18,6 +18,7 @@ export interface IUpdateNotificationIntegration {
 }
 
 const notificationApi = rtkApi.injectEndpoints({
+  overrideExisting: import.meta.hot != null,
   endpoints: (build) => ({
     getNotifications: build.query<INotificationIntegration[], void>({
       query: () => '/notifications',

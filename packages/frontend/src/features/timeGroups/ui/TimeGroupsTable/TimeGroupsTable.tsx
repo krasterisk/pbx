@@ -1,224 +1,208 @@
-import { memo, useCallback } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Trash2, Pencil, Copy, Calendar } from 'lucide-react';
-import { Button, Text, Card, Checkbox } from '@/shared/ui';
+import { Calendar, Search, Loader2, Trash2, Pencil, Copy } from 'lucide-react';
 import {
-  Table, TableHeader, TableBody, TableRow, TableHead, TableCell,
-} from '@/shared/ui/Table/Table';
-import { HStack, VStack } from '@/shared/ui/Stack';
-import { useAppDispatch, useAppSelector } from '@/shared/hooks/useAppStore';
+  Card,
+  CardHeader,
+  CardContent,
+  Input,
+  Button,
+  DataTable,
+  Text,
+  TableRowActions,
+  TableRowAction,
+} from '@/shared/ui';
+import { Flex, HStack, VStack } from '@/shared/ui/Stack';
 import {
   useGetTimeGroupsQuery,
   useDeleteTimeGroupMutation,
   useBulkDeleteTimeGroupsMutation,
 } from '@/shared/api/endpoints/timeGroupApi';
+import { useAppDispatch } from '@/shared/hooks/useAppStore';
+import { useIsMobile } from '@/shared/hooks/useIsMobile';
 import { timeGroupsActions } from '../../model/slice/timeGroupsSlice';
-import {
-  getTimeGroupsSelectedIds,
-} from '../../model/selectors/timeGroupsSelectors';
-import type { ITimeGroup, ITimeGroupInterval } from '@krasterisk/shared';
+import { useTimeGroupsTableColumns, formatTimeGroupInterval } from './useTimeGroupsTableColumns';
 import cls from './TimeGroupsTable.module.scss';
-
-const WEEKDAY_LABELS: Record<string, string> = {
-  mon: 'Пн', tue: 'Вт', wed: 'Ср', thu: 'Чт',
-  fri: 'Пт', sat: 'Сб', sun: 'Вс',
-};
-
-const MONTH_LABELS: Record<string, string> = {
-  jan: 'Янв', feb: 'Фев', mar: 'Мар', apr: 'Апр',
-  may: 'Май', jun: 'Июн', jul: 'Июл', aug: 'Авг',
-  sep: 'Сен', oct: 'Окт', nov: 'Ноя', dec: 'Дек',
-};
-
-function formatInterval(interval: ITimeGroupInterval): string {
-  const parts: string[] = [];
-
-  if (interval.time_start && interval.time_end) {
-    parts.push(`${interval.time_start}–${interval.time_end}`);
-  }
-
-  if (interval.days_of_week && interval.days_of_week !== '*') {
-    const dows = interval.days_of_week.split(/[-,]/);
-    const labels = dows.map(d => WEEKDAY_LABELS[d.trim()] || d.trim()).join(
-      interval.days_of_week.includes('-') ? '–' : ', '
-    );
-    parts.push(labels);
-  }
-
-  if (interval.days_of_month && interval.days_of_month !== '*') {
-    parts.push(`${interval.days_of_month} ч.м.`);
-  }
-
-  if (interval.months && interval.months !== '*') {
-    const mons = interval.months.split(/[-,]/);
-    const labels = mons.map(m => MONTH_LABELS[m.trim()] || m.trim()).join(
-      interval.months.includes('-') ? '–' : ', '
-    );
-    parts.push(labels);
-  }
-
-  return parts.join(' · ') || 'Всегда';
-}
 
 export const TimeGroupsTable = memo(() => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
-  const { data: timeGroups, isLoading } = useGetTimeGroupsQuery();
+  const isMobile = useIsMobile(768);
+  const { data: timeGroups = [], isLoading } = useGetTimeGroupsQuery();
   const [deleteTimeGroup] = useDeleteTimeGroupMutation();
-  const [bulkDelete] = useBulkDeleteTimeGroupsMutation();
-  const selectedIds = useAppSelector(getTimeGroupsSelectedIds);
+  const [bulkDelete, { isLoading: isDeleting }] = useBulkDeleteTimeGroupsMutation();
 
-  const handleEdit = useCallback((tg: ITimeGroup) => {
-    dispatch(timeGroupsActions.openEditModal(tg));
-  }, [dispatch]);
+  const [globalFilter, setGlobalFilter] = useState('');
+  const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
 
-  const handleCopy = useCallback((tg: ITimeGroup) => {
-    dispatch(timeGroupsActions.openCopyModal(tg));
-  }, [dispatch]);
+  const columns = useTimeGroupsTableColumns();
+  const selectedCount = Object.keys(rowSelection).length;
 
-  const handleDelete = useCallback(async (uid: number) => {
-    if (window.confirm(t('timeGroups.confirmDelete', 'Удалить временную группу?'))) {
-      await deleteTimeGroup(uid);
-    }
-  }, [deleteTimeGroup, t]);
+  const filtered = useMemo(() => {
+    const q = globalFilter.trim().toLowerCase();
+    if (!q) return timeGroups;
+    return timeGroups.filter((tg) => {
+      const name = (tg.name || '').toLowerCase();
+      const comment = (tg.comment || '').toLowerCase();
+      return name.includes(q) || comment.includes(q);
+    });
+  }, [timeGroups, globalFilter]);
 
   const handleBulkDelete = useCallback(async () => {
-    if (selectedIds.length && window.confirm(t('timeGroups.confirmBulkDelete', 'Удалить выбранные?'))) {
-      await bulkDelete(selectedIds);
-      dispatch(timeGroupsActions.clearSelection());
-    }
-  }, [selectedIds, bulkDelete, dispatch, t]);
+    const ids = Object.keys(rowSelection).map(Number);
+    if (!ids.length) return;
+    if (!window.confirm(t('timeGroups.confirmBulkDelete'))) return;
+    await bulkDelete(ids).unwrap();
+    setRowSelection({});
+  }, [rowSelection, bulkDelete, t]);
 
-  const toggleSelect = useCallback((uid: number) => {
-    const next = selectedIds.includes(uid)
-      ? selectedIds.filter((id: number) => id !== uid)
-      : [...selectedIds, uid];
-    dispatch(timeGroupsActions.setSelectedIds(next));
-  }, [selectedIds, dispatch]);
+  const toolbar = (
+    <Flex justify="between" align="center" className={cls.toolbar} max>
+      <HStack gap="8" align="center">
+        <Calendar size={20} className={cls.toolbarIcon} />
+        <Text className={cls.count}>{t('timeGroups.count', { count: timeGroups.length })}</Text>
+      </HStack>
+      <HStack gap="8" align="center" className={cls.toolbarActions}>
+        {!isMobile && (
+          <Button
+            variant="destructive"
+            className={selectedCount === 0 ? cls.bulkBtnHidden : undefined}
+            disabled={isDeleting || selectedCount === 0}
+            aria-hidden={selectedCount === 0}
+            tabIndex={selectedCount === 0 ? -1 : undefined}
+            onClick={handleBulkDelete}
+          >
+            {isDeleting ? <Loader2 size={16} className={cls.spinner} /> : <Trash2 size={16} />}
+            {t('timeGroups.deleteSelected', { count: selectedCount })}
+          </Button>
+        )}
+        <Flex align="center" className={cls.searchWrap}>
+          <Search size={16} className={cls.searchIcon} />
+          <Input
+            id="timegroups-search"
+            placeholder={t('common.search')}
+            value={globalFilter}
+            onChange={(e) => setGlobalFilter(e.target.value)}
+            className={cls.searchInput}
+          />
+        </Flex>
+      </HStack>
+    </Flex>
+  );
 
   if (isLoading) {
     return (
-      <Card className="p-8">
-        <Text variant="muted">{t('common.loading', 'Загрузка...')}</Text>
+      <Card className={cls.card}>
+        <CardHeader>{toolbar}</CardHeader>
+        <CardContent>
+          <Flex align="center" justify="center" className={cls.loading}>
+            <Loader2 size={24} className={cls.spinner} />
+          </Flex>
+        </CardContent>
       </Card>
     );
   }
 
-  if (!timeGroups?.length) {
+  if (isMobile) {
     return (
-      <Card className="p-8">
-        <VStack gap="8" align="center" className={cls.emptyState}>
-          <Calendar className={cls.emptyIcon} />
-          <Text variant="muted">{t('timeGroups.empty', 'Нет временных групп')}</Text>
-        </VStack>
+      <Card className={cls.card} data-testid="hybrid-table" data-hybrid="mobile-card">
+        <CardHeader>{toolbar}</CardHeader>
+        <CardContent>
+          <VStack gap="8" max className={cls.mobileList}>
+            {filtered.length === 0 ? (
+              <Text variant="muted" className={cls.mobileEmpty}>
+                {t('timeGroups.empty')}
+              </Text>
+            ) : (
+              filtered.map((tg) => (
+                <Flex
+                  key={tg.uid}
+                  direction="column"
+                  className={cls.mobileCard}
+                  data-testid="timegroups-mobile-card"
+                >
+                  <HStack justify="between" align="start" max>
+                    <VStack gap="4">
+                      <Text as="span" className={cls.name}>{tg.name}</Text>
+                      {tg.comment ? (
+                        <Text as="span" className={cls.comment}>{tg.comment}</Text>
+                      ) : null}
+                      {(tg.intervals || []).length === 0 ? (
+                        <Text as="span" className={cls.noIntervals}>
+                          {t('timeGroups.noIntervals')}
+                        </Text>
+                      ) : (
+                        (tg.intervals || []).map((interval, i) => (
+                          <Text as="span" key={i} className={cls.intervalChip}>
+                            {formatTimeGroupInterval(interval, t)}
+                          </Text>
+                        ))
+                      )}
+                    </VStack>
+                    <TableRowActions>
+                      <TableRowAction
+                        title={t('common.edit')}
+                        aria-label={t('common.edit')}
+                        onClick={() => dispatch(timeGroupsActions.openEditModal(tg))}
+                      >
+                        <Pencil />
+                      </TableRowAction>
+                      <TableRowAction
+                        title={t('common.copy')}
+                        aria-label={t('common.copy')}
+                        onClick={() => dispatch(timeGroupsActions.openCopyModal(tg))}
+                      >
+                        <Copy />
+                      </TableRowAction>
+                      <TableRowAction
+                        danger
+                        title={t('common.delete')}
+                        aria-label={t('common.delete')}
+                        onClick={() => {
+                          if (window.confirm(t('timeGroups.confirmDelete'))) {
+                            deleteTimeGroup(tg.uid);
+                          }
+                        }}
+                      >
+                        <Trash2 />
+                      </TableRowAction>
+                    </TableRowActions>
+                  </HStack>
+                </Flex>
+              ))
+            )}
+          </VStack>
+        </CardContent>
       </Card>
     );
   }
 
   return (
-    <>
-      {selectedIds.length > 0 && (
-        <HStack gap="8" align="center" className={cls.bulkActions}>
-          <Text variant="muted">
-            {t('common.selected', 'Выбрано')}: {selectedIds.length}
-          </Text>
-          <Button variant="destructive" size="sm" onClick={handleBulkDelete}>
-            <Trash2 className={cls.actionIcon} />
-            {t('common.deleteSelected', 'Удалить выбранные')}
-          </Button>
-        </HStack>
-      )}
-
-      <Card>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className={cls.checkboxCell}>
-                <Checkbox
-                  checked={selectedIds.length === timeGroups.length && timeGroups.length > 0}
-                  onChange={() => {
-                    if (selectedIds.length === timeGroups.length) {
-                      dispatch(timeGroupsActions.clearSelection());
-                    } else {
-                      dispatch(timeGroupsActions.setSelectedIds(timeGroups.map(tg => tg.uid)));
-                    }
-                  }}
-                />
-              </TableHead>
-              <TableHead>{t('timeGroups.name', 'Название')}</TableHead>
-              <TableHead>{t('timeGroups.comment', 'Описание')}</TableHead>
-              <TableHead>{t('timeGroups.intervals', 'Интервалы')}</TableHead>
-              <TableHead className={cls.actionsCell}>{t('common.actions', 'Действия')}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {timeGroups.map((tg) => (
-              <TableRow
-                key={tg.uid}
-                onClick={() => handleEdit(tg)}
-                style={{ cursor: 'pointer' }}
-              >
-                <TableCell onClick={(e) => e.stopPropagation()}>
-                  <Checkbox
-                    checked={selectedIds.includes(tg.uid)}
-                    onChange={() => toggleSelect(tg.uid)}
-                  />
-                </TableCell>
-                <TableCell>
-                  <Text className="font-medium">{tg.name}</Text>
-                </TableCell>
-                <TableCell>
-                  <Text variant="muted">{tg.comment || '-'}</Text>
-                </TableCell>
-                <TableCell>
-                  <VStack gap="2">
-                    {(tg.intervals || []).map((interval, i) => (
-                      <Text key={i} variant="muted" className={cls.intervalChip}>
-                        {formatInterval(interval)}
-                      </Text>
-                    ))}
-                    {(!tg.intervals || tg.intervals.length === 0) && (
-                      <Text variant="muted" className={cls.noIntervals}>
-                        {t('timeGroups.noIntervals', 'Нет интервалов')}
-                      </Text>
-                    )}
-                  </VStack>
-                </TableCell>
-                <TableCell className={cls.actionsCell} onClick={(e) => e.stopPropagation()}>
-                  <HStack gap="4" justify="end">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleEdit(tg)}
-                      title={t('common.edit', 'Редактировать')}
-                    >
-                      <Pencil className={cls.actionIcon} />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleCopy(tg)}
-                      title={t('common.copy', 'Копировать')}
-                    >
-                      <Copy className={cls.actionIcon} />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDelete(tg.uid)}
-                      title={t('common.delete', 'Удалить')}
-                      className={cls.actionBtnDelete}
-                    >
-                      <Trash2 className={cls.actionIcon} />
-                    </Button>
-                  </HStack>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </Card>
-    </>
+    <Card className={cls.card} data-testid="hybrid-table" data-hybrid="overflow-x-auto">
+      <CardHeader>{toolbar}</CardHeader>
+      <CardContent className={cls.cardContent}>
+        <Flex
+          direction="column"
+          align="stretch"
+          className={cls.tableScroll}
+          data-testid="timegroups-table-scroll"
+        >
+          <DataTable
+            className={cls.table}
+            data={timeGroups}
+            columns={columns}
+            getRowId={(row) => String(row.uid)}
+            selectable
+            rowSelection={rowSelection}
+            onRowSelectionChange={setRowSelection}
+            globalFilter={globalFilter}
+            pageSize={50}
+            emptyText={t('timeGroups.empty')}
+            exportFilename="timegroups_export"
+          />
+        </Flex>
+      </CardContent>
+    </Card>
   );
 });
 

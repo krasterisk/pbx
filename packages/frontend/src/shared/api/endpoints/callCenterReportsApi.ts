@@ -163,6 +163,7 @@ export type ReportSchedulePayload = Omit<
 >;
 
 const callCenterReportsApi = rtkApi.injectEndpoints({
+  overrideExisting: import.meta.hot != null,
   endpoints: (build) => ({
     getReport: build.query<ReportResult, { reportId: CcReportId } & ReportQueryParams>({
       query: ({ reportId, ...params }) => ({

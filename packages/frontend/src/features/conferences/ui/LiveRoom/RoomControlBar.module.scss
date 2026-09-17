@@ -1,19 +1,39 @@
 .bar {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
   flex-wrap: wrap;
+  width: 100%;
+  padding: 8px 16px;
+  padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+  flex-shrink: 0;
+}
+
+.zone,
+.zoneCenter,
+.zoneEnd {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.zoneCenter {
+  flex: 1;
+  justify-content: center;
+  min-width: 0;
+}
+
+.zoneEnd {
+  margin-left: auto;
 }
 
 .controlBtn {
   min-width: 44px;
   min-height: 44px;
   position: relative;
-
-  &:focus-visible {
-    outline: none;
-    box-shadow: inset 0 0 0 2px var(--color-ring);
-  }
+  flex-shrink: 0;
 }
 
 .controlLabel {
@@ -28,4 +48,23 @@
 .icon {
   display: block;
   flex-shrink: 0;
+}
+
+@media (max-width: 767px) {
+  .bar {
+    position: sticky;
+    bottom: 0;
+    z-index: 3;
+    background: color-mix(in srgb, var(--color-background) 92%, transparent);
+    backdrop-filter: blur(8px);
+    justify-content: center;
+  }
+
+  .zoneCenter {
+    flex: 0 1 auto;
+  }
+
+  .zoneEnd {
+    margin-left: 0;
+  }
 }

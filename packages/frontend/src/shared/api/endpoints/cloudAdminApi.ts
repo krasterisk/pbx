@@ -52,6 +52,7 @@ export interface IPlatformHubModule {
 }
 
 const cloudAdminApi = rtkApi.injectEndpoints({
+  overrideExisting: import.meta.hot != null,
   endpoints: (builder) => ({
     // ─── Tenants ───────────────────────────────────────────────────────────
     getTenants: builder.query<{ rows: ITenant[]; count: number }, {

@@ -29,6 +29,7 @@ import { aiChatReducer } from '@/features/ai-chat/model/slice/aiChatSlice';
 import callCenterReducer from '@/features/callcenter/model/slice/callCenterSlice';
 import conferenceSessionReducer from '@/features/conferences/model/slice/conferenceSessionSlice';
 import { conferencesPageReducer } from '@/features/conferences/model/slice/conferencesPageSlice';
+import { autodialPageReducer } from '@/features/autodial/model/slice/autodialPageSlice';
 import '@/shared/api/endpoints/cdrApi';
 
 export const store = configureStore({
@@ -58,6 +59,7 @@ export const store = configureStore({
     callCenter: callCenterReducer,
     conferenceSession: conferenceSessionReducer,
     conferencesPage: conferencesPageReducer,
+    autodialPage: autodialPageReducer,
     [rtkApi.reducerPath]: rtkApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>

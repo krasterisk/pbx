@@ -81,6 +81,7 @@ describe('TrunkCarouselTrunksField', () => {
         callerId: { mode: 'static', value: '' },
         timeout: 60,
       }],
+      trunkMode: 'single',
     });
   });
 
@@ -158,6 +159,7 @@ describe('TrunkCarouselTrunksField', () => {
         },
         timeout: 45,
       }],
+      trunkMode: 'single',
     });
   });
 
@@ -184,5 +186,108 @@ describe('TrunkCarouselTrunksField', () => {
     expect(screen.getByText('Ключ поиска: исходный CallerID')).toBeInTheDocument();
     expect(screen.getByText('Если данных нет: сохранить исходный CallerID')).toBeInTheDocument();
     expect(screen.queryByText(/—/)).not.toBeInTheDocument();
+  });
+
+  it('has no Single/Carousel mode radios and hides traversal order for one trunk', () => {
+    render(
+      <TrunkCarouselTrunksField
+        params={{
+          trunks: [{ trunkId: 't_alpha_100', callerId: { mode: 'static', value: '' }, timeout: 60 }],
+        }}
+        onChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByText('Один транк')).not.toBeInTheDocument();
+    expect(screen.queryByText('Карусель транков')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Порядок обхода')).not.toBeInTheDocument();
+  });
+
+  it('shows traversal order only when there are two or more trunks', () => {
+    render(
+      <TrunkCarouselTrunksField
+        params={{
+          trunks: [
+            { trunkId: 't_alpha_100', callerId: { mode: 'static', value: '' }, timeout: 60 },
+            { trunkId: 't_beta_100', callerId: { mode: 'static', value: '' }, timeout: 60 },
+          ],
+          mode: 'sequential',
+        }}
+        onChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByLabelText('Порядок обхода')).toHaveValue('sequential');
+  });
+
+  it('offers pool CID with TagInput and pick order', () => {
+    const onChange = vi.fn();
+    render(
+      <CarouselHarness
+        initial={[{
+          trunkId: 't_alpha_100',
+          callerId: { mode: 'static', value: '' },
+          timeout: 60,
+        }]}
+        onChange={onChange}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText('Источник CID'), { target: { value: 'pool' } });
+    expect(onChange).toHaveBeenLastCalledWith({
+      trunks: [{
+        trunkId: 't_alpha_100',
+        callerId: { mode: 'pool', numbers: [], pick: 'random' },
+        timeout: 60,
+      }],
+      trunkMode: 'single',
+    });
+
+    expect(screen.getByLabelText('Порядок CID')).toHaveValue('random');
+    expect(screen.getByPlaceholderText('Добавить номер')).toBeInTheDocument();
+
+    const poolInput = screen.getByPlaceholderText('Добавить номер');
+    fireEvent.change(poolInput, { target: { value: '79001112233' } });
+    fireEvent.blur(poolInput);
+
+    expect(onChange).toHaveBeenLastCalledWith({
+      trunks: [{
+        trunkId: 't_alpha_100',
+        callerId: { mode: 'pool', numbers: ['79001112233'], pick: 'random' },
+        timeout: 60,
+      }],
+      trunkMode: 'single',
+    });
+
+    fireEvent.change(screen.getByLabelText('Порядок CID'), { target: { value: 'round_robin' } });
+    expect(onChange).toHaveBeenLastCalledWith({
+      trunks: [{
+        trunkId: 't_alpha_100',
+        callerId: { mode: 'pool', numbers: ['79001112233'], pick: 'round_robin' },
+        timeout: 60,
+      }],
+      trunkMode: 'single',
+    });
+  });
+
+  it('sets trunkMode carousel when a second trunk is added', () => {
+    const onChange = vi.fn();
+    render(
+      <TrunkCarouselTrunksField
+        params={{
+          trunks: [{ trunkId: 't_alpha_100', callerId: { mode: 'static', value: '' }, timeout: 60 }],
+        }}
+        onChange={onChange}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Добавить транк/i }));
+    expect(onChange).toHaveBeenCalledWith({
+      trunks: [
+        { trunkId: 't_alpha_100', callerId: { mode: 'static', value: '' }, timeout: 60 },
+        { trunkId: '', callerId: { mode: 'static', value: '' }, timeout: 60 },
+      ],
+      trunkMode: 'carousel',
+    });
   });
 });

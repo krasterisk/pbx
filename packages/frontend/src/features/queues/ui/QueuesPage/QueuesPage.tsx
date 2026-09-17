@@ -1,49 +1,50 @@
+import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { motion } from 'motion/react';
-import { Plus, ListOrdered } from 'lucide-react';
-import { Button, Card, CardHeader, CardContent } from '@/shared/ui';
-import { HStack, VStack } from '@/shared/ui/Stack';
+import { ListOrdered, Plus } from 'lucide-react';
+import { Button, Text } from '@/shared/ui';
+import { Flex, HStack, VStack } from '@/shared/ui/Stack';
 import { useAppDispatch } from '@/shared/hooks/useAppStore';
 import { queuesPageActions } from '../../model/slice/queuesPageSlice';
-import { QueuesTable } from '../QueuesTable/QueuesTable';
+import { QueuesTable } from '../QueuesTable';
 import { QueueFormModal } from '../QueueFormModal/QueueFormModal';
+import cls from './QueuesPage.module.scss';
 
-export const QueuesPage = () => {
+export const QueuesPage = memo(() => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-    >
-      <VStack gap="16" max className="min-w-0 max-w-full">
-        {/* Toolbar */}
-        <HStack justify="between" align="center" className="flex-col sm:flex-row gap-4 min-w-0" max>
-          <HStack gap="8" align="center">
-            <ListOrdered className="w-6 h-6 text-primary shrink-0" />
-            <h1 className="text-2xl font-bold">{t('queues.title', 'Очереди')}</h1>
-          </HStack>
-          <Button
-            onClick={() => dispatch(queuesPageActions.openCreateModal())}
-            className="gap-2 w-full sm:w-auto"
-          >
-            <Plus className="w-4 h-4" />
-            {t('queues.addQueue', 'Создать очередь')}
-          </Button>
+    <VStack gap="24" max className={cls.page} data-testid="queues-page-responsive">
+      <Flex justify="between" align="center" className={cls.header} max>
+        <HStack gap="12" align="center">
+          <Flex align="center" justify="center" className={cls.iconBadge}>
+            <ListOrdered size={24} />
+          </Flex>
+          <VStack gap="4" className={cls.titleBlock}>
+            <Text variant="h1" as="h1" className={cls.title}>
+              {t('queues.title', 'Очереди')}
+            </Text>
+            <Text variant="muted">
+              {t('queues.subtitle', 'Очереди вызовов и стратегии распределения')}
+            </Text>
+          </VStack>
         </HStack>
+        <Button
+          className={cls.createBtn}
+          onClick={() => dispatch(queuesPageActions.openCreateModal())}
+        >
+          <Plus size={16} className={cls.createBtnIcon} />
+          <Text as="span">{t('queues.addQueue', 'Создать очередь')}</Text>
+        </Button>
+      </Flex>
 
-        {/* Table */}
-        <Card className="min-w-0 overflow-hidden">
-          <CardContent className="p-0">
-            <QueuesTable />
-          </CardContent>
-        </Card>
+      <Flex direction="column" align="stretch" max className={cls.tableWrap}>
+        <QueuesTable />
+      </Flex>
 
-        {/* Modal */}
-        <QueueFormModal />
-      </VStack>
-    </motion.div>
+      <QueueFormModal />
+    </VStack>
   );
-};
+});
+
+QueuesPage.displayName = 'QueuesPage';

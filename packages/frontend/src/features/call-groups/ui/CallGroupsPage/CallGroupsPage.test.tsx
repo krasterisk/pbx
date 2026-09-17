@@ -1,6 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
+
+const dispatch = vi.fn();
+const openCreateModal = vi.fn(() => ({ type: 'callGroupsPage/openCreateModal' }));
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -8,25 +12,17 @@ vi.mock('react-i18next', () => ({
   }),
 }));
 
-vi.mock('motion/react', () => ({
-  motion: {
-    div: ({ children, ...props }: { children?: React.ReactNode }) => (
-      <div {...props}>{children}</div>
-    ),
-  },
-}));
-
 vi.mock('@/shared/hooks/useAppStore', () => ({
-  useAppDispatch: () => vi.fn(),
+  useAppDispatch: () => dispatch,
 }));
 
 vi.mock('../../model/slice/callGroupsPageSlice', () => ({
   callGroupsPageActions: {
-    openCreateModal: () => ({ type: 'callGroups/openCreateModal' }),
+    openCreateModal: () => openCreateModal(),
   },
 }));
 
-vi.mock('../CallGroupsTable/CallGroupsTable', () => ({
+vi.mock('../CallGroupsTable', () => ({
   CallGroupsTable: () => <div data-testid="call-groups-table-stub">call-groups</div>,
 }));
 
@@ -36,13 +32,31 @@ vi.mock('../CallGroupFormModal/CallGroupFormModal', () => ({
 
 import { CallGroupsPage } from './CallGroupsPage';
 
-describe('CallGroupsPage hybrid overflow (D-29 / D-27 wave C)', () => {
-  it('exposes hybrid-table overflow marker at page level', () => {
+describe('CallGroupsPage', () => {
+  it('renders title, subtitle, create CTA and table', () => {
     render(<CallGroupsPage />);
+
     expect(screen.getByTestId('call-groups-page-responsive')).toBeInTheDocument();
-    const hybrid = screen.getByTestId('hybrid-table');
-    expect(hybrid).toHaveAttribute('data-hybrid', 'overflow-x-auto');
-    expect(hybrid.className).toMatch(/overflow-x-auto/);
+    expect(screen.getByRole('heading', { name: 'Группы вызовов' })).toBeInTheDocument();
+    expect(
+      screen.getByText('Группы одновременного и последовательного дозвона'),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Создать группу/i })).toBeInTheDocument();
     expect(screen.getByTestId('call-groups-table-stub')).toBeInTheDocument();
+  });
+
+  it('renders the table in a full-width wrap', () => {
+    render(<CallGroupsPage />);
+    expect(screen.getByTestId('call-groups-table-stub')).toBeInTheDocument();
+  });
+
+  it('opens create modal from the page CTA', async () => {
+    const user = userEvent.setup();
+    render(<CallGroupsPage />);
+
+    await user.click(screen.getByRole('button', { name: /Создать группу/i }));
+
+    expect(openCreateModal).toHaveBeenCalledTimes(1);
+    expect(dispatch).toHaveBeenCalledWith({ type: 'callGroupsPage/openCreateModal' });
   });
 });

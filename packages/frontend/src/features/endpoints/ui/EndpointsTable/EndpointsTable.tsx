@@ -3,7 +3,17 @@ import { useTranslation } from 'react-i18next';
 import { type RowSelectionState } from '@tanstack/react-table';
 import { Phone, Search, Loader2, Trash2, Download, Pencil, Key } from 'lucide-react';
 import { type DataTableRef } from '@/shared/ui/DataTable/DataTable';
-import { Card, CardHeader, CardContent, Input, Button, DataTable, Text, TableRowActions, TableRowAction } from '@/shared/ui';
+import {
+  Card,
+  CardHeader,
+  CardContent,
+  Input,
+  Button,
+  DataTable,
+  Text,
+  TableRowActions,
+  TableRowAction,
+} from '@/shared/ui';
 import { HStack, Flex, VStack } from '@/shared/ui/Stack';
 import {
   useGetEndpointsQuery,
@@ -17,6 +27,7 @@ import { useAppDispatch } from '@/shared/hooks/useAppStore';
 import { useIsMobile } from '@/shared/hooks/useIsMobile';
 import { endpointsPageActions } from '../../model/slice/endpointsPageSlice';
 import { useEndpointsTableColumns } from './useEndpointsTableColumns';
+import cls from './EndpointsTable.module.scss';
 
 function parseCallerName(raw: string): string {
   const match = (raw || '').match(/^"(.+?)"/);
@@ -72,7 +83,6 @@ export const EndpointsTable = memo(() => {
     }
   }, [rowSelection, endpoints, bulkDelete, t]);
 
-  // Background bulk create progress
   const { data: activeJobData } = useGetActiveBulkJobQuery(undefined, { pollingInterval: 3000 });
   const activeJobId = activeJobData?.jobId || null;
   const { data: jobStatus } = useGetBulkJobStatusQuery(activeJobId || '', {
@@ -83,120 +93,124 @@ export const EndpointsTable = memo(() => {
 
   const onlineCount = endpoints.filter((e) => e.status === 'online').length;
 
+  const jobProgress = isJobActive && jobStatus ? (
+    <HStack gap="12" align="center" className={cls.jobBar} max>
+      <Loader2 size={16} className={cls.spinner} />
+      <Flex className={cls.jobTrack}>
+        <Flex
+          className={cls.jobFill}
+          style={{ width: `${Math.max(3, Math.round((jobStatus.processed / jobStatus.total) * 100))}%` }}
+        >
+          {''}
+        </Flex>
+      </Flex>
+      <Text variant="muted" className={cls.jobLabel}>
+        {t('endpoints.bulkProgress', {
+          processed: jobStatus.processed,
+          total: jobStatus.total,
+        })}
+      </Text>
+    </HStack>
+  ) : null;
+
   const toolbar = (
-    <HStack justify="between" align="center" className="flex-col sm:flex-row gap-4" max>
+    <Flex justify="between" align="center" className={cls.toolbar} max>
       <HStack gap="8" align="center">
-        <Phone className="w-5 h-5 text-primary" />
-        <span className="font-semibold text-lg">
-          {t('endpoints.count', { count: endpoints.length })}
-        </span>
+        <Phone size={20} className={cls.toolbarIcon} />
+        <Text className={cls.count}>{t('endpoints.count', { count: endpoints.length })}</Text>
         {endpoints.length > 0 && (
-          <span className="text-xs text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-full">
+          <Text as="span" className={cls.onlineBadge}>
             {onlineCount} {t('endpoints.statusOnline').toLowerCase()}
-          </span>
+          </Text>
         )}
       </HStack>
-      <HStack gap="8" align="center" className="w-full sm:w-auto">
-        {selectedCount > 0 && !isMobile && (
+      <HStack gap="8" align="center" className={cls.toolbarActions}>
+        {!isMobile && (
           <Button
-            variant="outline"
-            size="sm"
-            className="h-9 gap-2 text-destructive hover:text-destructive border-destructive/30 bg-destructive/10 hover:bg-destructive/20"
+            variant="destructive"
+            className={selectedCount === 0 ? cls.bulkBtnHidden : undefined}
+            disabled={isDeleting || selectedCount === 0}
+            aria-hidden={selectedCount === 0}
+            tabIndex={selectedCount === 0 ? -1 : undefined}
             onClick={handleBulkDelete}
-            disabled={isDeleting}
           >
-            <Trash2 className="w-4 h-4" />
-            {isDeleting ? '...' : t('endpoints.deleteSelected', { count: selectedCount })}
+            {isDeleting ? <Loader2 size={16} className={cls.spinner} /> : <Trash2 size={16} />}
+            {isDeleting
+              ? t('common.loading')
+              : t('endpoints.deleteSelected', { count: selectedCount })}
           </Button>
         )}
-        <div className="relative w-full sm:w-64 min-w-0">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Flex align="center" className={cls.searchWrap}>
+          <Search size={16} className={cls.searchIcon} />
           <Input
             id="endpoints-search"
             placeholder={t('common.search')}
             value={globalFilter}
             onChange={(e) => setGlobalFilter(e.target.value)}
-            className="pl-10 h-9"
+            className={cls.searchInput}
           />
-        </div>
+        </Flex>
         {!isMobile && (
           <Button
             variant="outline"
-            size="sm"
             onClick={() => tableRef.current?.exportCsv()}
-            className="h-9 gap-2 text-xs font-medium border-dashed border-2 hover:border-primary/50 text-muted-foreground hover:text-primary transition-colors"
           >
-            <Download className="w-4 h-4" />
-            CSV
+            <Download size={16} />
+            {t('endpoints.exportCsv')}
           </Button>
         )}
       </HStack>
-    </HStack>
+    </Flex>
   );
 
   if (isLoading) {
     return (
-      <Card>
+      <Card className={cls.card}>
         <CardHeader>{toolbar}</CardHeader>
         <CardContent>
-          <Flex align="center" justify="center" className="h-48">
-            <Loader2 className="w-6 h-6 animate-spin text-primary" />
+          <Flex align="center" justify="center" className={cls.loading}>
+            <Loader2 size={24} className={cls.spinner} />
           </Flex>
         </CardContent>
       </Card>
     );
   }
 
-  // D-29 hybrid: critical columns as cards on phone
   if (isMobile) {
     return (
-      <Card data-testid="hybrid-table" data-hybrid="mobile-card">
-        <CardHeader>{toolbar}</CardHeader>
+      <Card className={cls.card} data-testid="hybrid-table" data-hybrid="mobile-card">
+        <CardHeader>
+          {toolbar}
+          {jobProgress}
+        </CardHeader>
         <CardContent>
-          {isJobActive && jobStatus && (
-            <div className="mb-3 w-full">
-              <div className="flex items-center gap-3">
-                <Loader2 className="w-4 h-4 animate-spin text-primary flex-shrink-0" />
-                <div className="flex-1 bg-accent rounded-full h-3 overflow-hidden relative border border-border">
-                  <div
-                    className="bg-primary h-full transition-all duration-500 ease-out"
-                    style={{ width: `${Math.max(3, Math.round((jobStatus.processed / jobStatus.total) * 100))}%` }}
-                  />
-                </div>
-                <span className="text-xs text-muted-foreground whitespace-nowrap">
-                  {jobStatus.processed}/{jobStatus.total}
-                </span>
-              </div>
-            </div>
-          )}
-          <VStack gap="8" max>
+          <VStack gap="8" max className={cls.mobileList}>
             {filtered.length === 0 ? (
-              <Text variant="muted" className="py-8 text-center w-full">
+              <Text variant="muted" className={cls.mobileEmpty}>
                 {t('common.noData')}
               </Text>
             ) : (
               filtered.map((ep) => {
                 const isOnline = ep.status === 'online';
                 return (
-                  <div
+                  <Flex
                     key={ep.id}
-                    className="rounded-lg border border-border/60 bg-muted/10 p-3 mobile-card"
+                    direction="column"
+                    className={cls.mobileCard}
                     data-testid="endpoints-mobile-card"
                   >
                     <HStack justify="between" align="start" max>
                       <VStack gap="4">
                         <HStack gap="8" align="center">
-                          <Text className="font-mono font-semibold text-primary">{ep.extension}</Text>
-                          <span
-                            className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-400' : 'bg-zinc-600'}`}
-                          />
-                          <Text variant="muted" className="text-xs">
+                          <Text as="span" className={cls.extension}>{ep.extension}</Text>
+                          <Flex className={isOnline ? cls.statusDotOnline : cls.statusDotOffline}>{''}</Flex>
+                          <Text as="span" className={isOnline ? cls.statusOnline : cls.statusOffline}>
                             {isOnline ? t('endpoints.statusOnline') : t('endpoints.statusOffline')}
                           </Text>
                         </HStack>
-                        <Text className="text-sm">{parseCallerName(ep.callerid)}</Text>
+                        <Text as="span" className={cls.cell}>{parseCallerName(ep.callerid)}</Text>
                         {ep.department ? (
-                          <Text variant="muted" className="text-xs">{ep.department}</Text>
+                          <Text as="span" className={cls.cellMuted}>{ep.department}</Text>
                         ) : null}
                       </VStack>
                       <TableRowActions>
@@ -228,7 +242,7 @@ export const EndpointsTable = memo(() => {
                         </TableRowAction>
                       </TableRowActions>
                     </HStack>
-                  </div>
+                  </Flex>
                 );
               })
             )}
@@ -239,30 +253,21 @@ export const EndpointsTable = memo(() => {
   }
 
   return (
-    <Card data-testid="hybrid-table" data-hybrid="overflow-x-auto">
+    <Card className={cls.card} data-testid="hybrid-table" data-hybrid="overflow-x-auto">
       <CardHeader>
         {toolbar}
-        {isJobActive && jobStatus && (
-          <div className="mt-3 w-full">
-            <div className="flex items-center gap-3">
-              <Loader2 className="w-4 h-4 animate-spin text-primary flex-shrink-0" />
-              <div className="flex-1 bg-accent rounded-full h-3 overflow-hidden relative border border-border">
-                <div
-                  className="bg-primary h-full transition-all duration-500 ease-out"
-                  style={{ width: `${Math.max(3, Math.round((jobStatus.processed / jobStatus.total) * 100))}%` }}
-                />
-              </div>
-              <span className="text-xs text-muted-foreground whitespace-nowrap">
-                {jobStatus.processed}/{jobStatus.total}
-              </span>
-            </div>
-          </div>
-        )}
+        {jobProgress}
       </CardHeader>
-      <CardContent className="p-0">
-        <div className="overflow-x-auto min-w-0" data-testid="endpoints-table-scroll">
+      <CardContent className={cls.cardContent}>
+        <Flex
+          direction="column"
+          align="stretch"
+          className={cls.tableScroll}
+          data-testid="endpoints-table-scroll"
+        >
           <DataTable
             ref={tableRef}
+            className={cls.table}
             data={endpoints as IEndpointListItem[]}
             columns={columns}
             getRowId={(row) => row.id}
@@ -274,7 +279,7 @@ export const EndpointsTable = memo(() => {
             emptyText={t('common.noData')}
             exportFilename="krasterisk_endpoints_export"
           />
-        </div>
+        </Flex>
       </CardContent>
     </Card>
   );

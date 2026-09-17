@@ -1,0 +1,1 @@
+export { NotificationIntegrationsTable } from './NotificationIntegrationsTable';

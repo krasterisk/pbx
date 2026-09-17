@@ -87,6 +87,7 @@ export const TrunkFormModal = () => {
   const [matchIp, setMatchIp] = useState('');
   const [qualifyFrequency, setQualifyFrequency] = useState('');
   const [registrationExpiration, setRegistrationExpiration] = useState('');
+  const [maxChannels, setMaxChannels] = useState('');
   const [advancedState, setAdvancedState] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -112,10 +113,14 @@ export const TrunkFormModal = () => {
       setRegistrationExpiration(
         selected.registrationExpiration != null ? String(selected.registrationExpiration) : '600',
       );
+      setMaxChannels(
+        selected.maxChannels && selected.maxChannels > 0 ? String(selected.maxChannels) : '',
+      );
 
       const initAdv: Record<string, string> = {};
       ADVANCED_PJSIP_FIELDS.forEach((key) => {
         if (key === 'from_domain' || key === 'from_user' || key === 'contact_user') return;
+        if (key === 'device_state_busy_at') return;
         const val = (selected as any)?.endpoint?.[key] ?? (selected as any)?.[key];
         if (val !== undefined && val !== null && val !== '') {
           initAdv[key] = String(val);
@@ -138,6 +143,7 @@ export const TrunkFormModal = () => {
       setMatchIp('');
       setQualifyFrequency('120');
       setRegistrationExpiration('600');
+      setMaxChannels('');
       setAdvancedState({});
     }
   }, [mode, selected, isOpen]);
@@ -168,6 +174,7 @@ export const TrunkFormModal = () => {
           qualifyFrequency: parseOptionalInt(qualifyFrequency),
           registrationExpiration:
             trunkType === 'auth' ? parseOptionalInt(registrationExpiration) : undefined,
+          maxChannels: parseOptionalInt(maxChannels) ?? 0,
           advanced: Object.keys(advancedState).length > 0 ? advancedState : undefined,
         }).unwrap();
       } else if (selected) {
@@ -188,6 +195,7 @@ export const TrunkFormModal = () => {
             qualifyFrequency: parseOptionalInt(qualifyFrequency),
             registrationExpiration:
               trunkType === 'auth' ? parseOptionalInt(registrationExpiration) : undefined,
+            maxChannels: parseOptionalInt(maxChannels) ?? 0,
             advanced: Object.keys(advancedState).length > 0 ? advancedState : undefined,
           },
         }).unwrap();
@@ -361,6 +369,29 @@ export const TrunkFormModal = () => {
                       </option>
                     ))}
                   </select>
+                </VStack>
+
+                <VStack gap="4">
+                  <HStack gap="4" align="center">
+                    <label htmlFor="trunk-max-channels" className="text-sm font-medium text-muted-foreground">
+                      {t('trunks.maxChannels', 'Лимит каналов')}
+                    </label>
+                    <InfoTooltip
+                      text={t(
+                        'trunks.maxChannelsDesc',
+                        'Сколько одновременных вызовов Asterisk и автообзвон держат на этом транке. Пусто или 0 — без ограничения.',
+                      )}
+                    />
+                  </HStack>
+                  <Input
+                    id="trunk-max-channels"
+                    type="number"
+                    min={0}
+                    value={maxChannels}
+                    onChange={(e) => setMaxChannels(e.target.value.replace(/\D/g, ''))}
+                    placeholder={t('trunks.maxChannelsPlaceholder', 'без ограничения')}
+                    className="font-mono w-40"
+                  />
                 </VStack>
               </VStack>
             )}

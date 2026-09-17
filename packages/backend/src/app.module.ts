@@ -43,8 +43,25 @@ import { CallbackRequest } from './modules/callback-requests/callback-request.mo
 import { CallGroupsModule } from './modules/call-groups/call-groups.module';
 import { CallGroup } from './modules/call-groups/call-group.model';
 import { CallGroupMember } from './modules/call-groups/call-group-member.model';
+import { AutodialModule } from './modules/autodial/autodial.module';
+import { AcBase } from './modules/autodial/models/ac-base.model';
+import { AcBaseField } from './modules/autodial/models/ac-base-field.model';
+import { AcContact } from './modules/autodial/models/ac-contact.model';
+import { AcContactPhone } from './modules/autodial/models/ac-contact-phone.model';
+import { AcImportProfile } from './modules/autodial/models/ac-import-profile.model';
+import { AcImportRun } from './modules/autodial/models/ac-import-run.model';
+import { AcCampaign } from './modules/autodial/models/ac-campaign.model';
+import { AcSchedule } from './modules/autodial/models/ac-schedule.model';
+import { AcDnc } from './modules/autodial/models/ac-dnc.model';
+import { AcTask } from './modules/autodial/models/ac-task.model';
+import { AcAttempt } from './modules/autodial/models/ac-attempt.model';
+import { AcDailyCampaignStats } from './modules/autodial/models/ac-daily-campaign-stats.model';
 import { ConferencesModule } from './modules/conferences/conferences.module';
 import { ConferenceRoom } from './modules/conferences/models/conference-room.model';
+import { ConferenceRoomModerator } from './modules/conferences/models/conference-room-moderator.model';
+import { ConferenceGuestToken } from './modules/conferences/models/conference-guest-token.model';
+import { ConferenceMeeting } from './modules/conferences/models/conference-meeting.model';
+import { ConferenceMeetingParticipant } from './modules/conferences/models/conference-meeting-participant.model';
 import { SmsModule } from './modules/sms/sms.module';
 import { CloudAdminModule } from './modules/cloud-admin/cloud-admin.module';
 import { AiChatModule } from './modules/ai-chat/ai-chat.module';
@@ -186,6 +203,14 @@ import * as path from 'path';
         NotificationIntegration,
         CallGroup, CallGroupMember,
         ConferenceRoom,
+        ConferenceRoomModerator,
+        ConferenceGuestToken,
+        ConferenceMeeting,
+        ConferenceMeetingParticipant,
+        // Autodial
+        AcBase, AcBaseField, AcContact, AcContactPhone,
+        AcImportProfile, AcImportRun,
+        AcCampaign, AcSchedule, AcDnc, AcTask, AcAttempt, AcDailyCampaignStats,
         // Cloud-admin
         Tenant, ModuleRegistry, TenantModule, CloudSetting,
         HubModule, HubModulePage,
@@ -244,6 +269,7 @@ import * as path from 'path';
     CallbackRequestsModule,
     CallGroupsModule,
     ConferencesModule,
+    AutodialModule,
     LoggerModule,
     MailerModule,
     NotificationsModule,

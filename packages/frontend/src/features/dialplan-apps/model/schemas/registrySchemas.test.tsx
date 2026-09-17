@@ -111,7 +111,7 @@ describe('New action types UI (D-44 / D-45 / D-47 / D-49)', () => {
     expect(rows[1]).not.toHaveAttribute('data-unreachable', 'true');
   });
 
-  it('summarize(totrunk) returns proper summary for single and carousel modes with CID', () => {
+  it('summarize(totrunk) returns proper summary for list and legacy single with CID', () => {
     const config = dialplanAppsRegistry.totrunk;
     expect(config.summarize({ trunk: 'PJSIP/trunk1' }, t)).toBe('Транк PJSIP/trunk1');
     expect(config.summarize({ trunk: 'PJSIP/trunk1', callerid: '79001234567' }, t)).toBe('Транк PJSIP/trunk1 (CID: 79001234567)');
@@ -119,7 +119,21 @@ describe('New action types UI (D-44 / D-45 / D-47 / D-49)', () => {
       trunk: 'PJSIP/trunk1',
       callerId: { mode: 'directory', directoryUid: 7, valueFieldUid: 18, keySource: { source: 'original_caller' }, onMissing: 'keep_original' },
     }, t)).toBe('Транк PJSIP/trunk1 (CID: справочник)');
-    expect(config.summarize({ trunkMode: 'carousel', trunks: [{ trunkId: 't_alpha_100' }] }, t)).toContain('1 транк(ов)');
+    expect(config.summarize({ trunks: [{ trunkId: 't_alpha_100', callerId: { mode: 'static', value: '' } }] }, t))
+      .toBe('Транк t_alpha_100');
+    expect(config.summarize({
+      trunks: [{
+        trunkId: 't_alpha_100',
+        callerId: { mode: 'pool', numbers: ['7900', '7901'], pick: 'random' },
+      }],
+    }, t)).toBe('Транк t_alpha_100 (CID: пул 2)');
+    expect(config.summarize({
+      mode: 'sequential',
+      trunks: [
+        { trunkId: 't_alpha_100', callerId: { mode: 'static', value: '' } },
+        { trunkId: 't_beta_100', callerId: { mode: 'static', value: '' } },
+      ],
+    }, t)).toContain('2 транк(ов)');
   });
 
   it.each(['label', 'goto', 'schedule', 'http_request', 'collect_input', 'hangup', 'webhook', 'cmd'] as const)(
@@ -135,7 +149,8 @@ describe('New action types UI (D-44 / D-45 / D-47 / D-49)', () => {
     const config = dialplanAppsRegistry.directory_lookup;
     expect(config).toBeDefined();
     expect(config.category).toBe('system');
-    expect(config.allowedIn).toEqual(['route', 'directory_policy', 'ivr']);
+    // Autodial scenarios enrich the call from a directory the same way a route does.
+    expect(config.allowedIn).toEqual(['route', 'directory_policy', 'ivr', 'autodial']);
     expect(config.schema.some((field) => field.key === 'directoryUid' && field.optionsSource === 'dialplanDirectories')).toBe(true);
     expect(config.schema.some((field) => field.key === 'outputs' && field.kind === 'custom')).toBe(true);
     expect(config.schema.some((field) => field.key === 'onMissing')).toBe(true);

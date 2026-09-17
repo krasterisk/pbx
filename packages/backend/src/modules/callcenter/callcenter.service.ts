@@ -31,6 +31,7 @@ import { TransferDto } from './dto/callcenter.dto';
 import { CreateContactDto, SendDtmfDto, UpdateContactDto } from './dto/callcenter-contacts.dto';
 import { CallCenterSettingsService } from './callcenter-settings.service';
 import { CallCenterAccessListService } from './callcenter-access-list.service';
+import { amiFailureMessage, isAlreadyQueueMemberError } from './ami-error.util';
 import { CallCenterShiftRestoreService } from './callcenter-shift-restore.service';
 import { ConferenceEphemeralService } from '../conferences/conference-ephemeral.service';
 import { User } from '../users/user.model';
@@ -43,7 +44,7 @@ import { PsEndpoint } from '../endpoints/ps-endpoint.model';
 import { CallGroup } from '../call-groups/call-group.model';
 import { CallGroupMember } from '../call-groups/call-group-member.model';
 import { DEFAULT_OPERATOR_SETTINGS } from './callcenter-settings.service';
-import type { ShiftCloseReason, SoftphoneMode } from './models/shift-policy.types';
+import { DEFAULT_SHIFT_POLICY, type ShiftCloseReason, type SoftphoneMode } from './models/shift-policy.types';
 
 @Injectable()
 export class CallCenterService {
@@ -194,9 +195,8 @@ export class CallCenterService {
     agentInterface?: string | null;
     sessionId?: number | null;
     reason: ShiftCloseReason;
-    freeExten?: boolean;
   }): Promise<{ success: true }> {
-    const { userId, reason, freeExten = true } = opts;
+    const { userId, reason } = opts;
     let userUid = opts.userUid;
     let agentInterface = opts.agentInterface || null;
     let sessionId = opts.sessionId ?? null;
@@ -282,7 +282,7 @@ export class CallCenterService {
       this.stateService.removeAgent(userUid, agentInterface);
     }
 
-    if (freeExten) {
+    if (await this.shouldFreeExtenOnClose(stateUid)) {
       await this.clearUserExtension(userId, agentInterface);
     }
 
@@ -290,6 +290,15 @@ export class CallCenterService {
       `Shift ended for user ${userId} (${agentInterface}): reason=${reason}`,
     );
     return { success: true };
+  }
+
+  private async shouldFreeExtenOnClose(userUid: number): Promise<boolean> {
+    try {
+      const settings = await this.settingsService.getTenantSettings(userUid);
+      return settings?.shift_policy?.free_exten_on_close !== false;
+    } catch {
+      return DEFAULT_SHIFT_POLICY.free_exten_on_close;
+    }
   }
 
   /** Persist shift extension for CDR / directory; exclusive within the tenant. */
@@ -1298,25 +1307,23 @@ export class CallCenterService {
     const agent = this.stateService.getAgent(userUid, agentInterface);
     if (!agent) throw new NotFoundException('Agent not found');
 
+    const pauseReason = (reason ?? '').trim();
+
     for (const q of agent.queues) {
       try {
-        await this.amiService.queuePause(q, agentInterface, true, reason || 'Forced by supervisor');
+        await this.amiService.queuePause(q, agentInterface, true, pauseReason || undefined);
       } catch { /* ignore */ }
     }
 
     this.stateService.setAgent(userUid, agentInterface, {
       status: 'PAUSED',
-      pauseReason: reason || 'Forced by supervisor',
+      pauseReason,
       statusOrigin: 'manual',
     });
 
     const paused = this.stateService.getAgent(userUid, agentInterface);
     if (paused) {
-      await this.ccAmiService.beginTimedStatus(
-        paused,
-        'PAUSE',
-        reason || 'Forced by supervisor',
-      );
+      await this.ccAmiService.beginTimedStatus(paused, 'PAUSE', pauseReason);
     }
 
     return { success: true };
@@ -1359,25 +1366,79 @@ export class CallCenterService {
       throw new ForbiddenException('Queue is outside supervisor access list');
     }
 
+    const agent = this.resolveLiveQueueAgent(userUid, agentInterface);
+    const iface = agent?.interface && /^(PJSIP|SIP)\//i.test(agent.interface)
+      ? agent.interface
+      : agentInterface;
+    if (!iface || /^user:/i.test(iface) || !/^(PJSIP|SIP)\//i.test(iface)) {
+      throw new BadRequestException('A SIP interface is required to add to a queue');
+    }
+
     try {
-      await this.amiService.queueAdd(queue, agentInterface, penalty);
-    } catch (err: any) {
-      throw new BadRequestException(`Failed to add to queue: ${err.message}`);
+      await this.amiService.queueAdd(queue, iface, penalty);
+    } catch (err: unknown) {
+      if (!isAlreadyQueueMemberError(err)) {
+        throw new BadRequestException(`Failed to add to queue: ${amiFailureMessage(err)}`);
+      }
     }
 
-    const agent = this.stateService.getAgent(userUid, agentInterface)
-      || this.stateService.getAllAgentsGlobal().find((a) => a.interface === agentInterface);
-    if (agent) {
-      const queues = agent.queues.includes(queue) ? agent.queues : [...agent.queues, queue];
-      this.stateService.setAgent(agent.userUid, agent.interface, {
-        queues,
-        queuesDetached: false,
-      });
+    const live = agent
+      || this.stateService.getAgent(userUid, iface)
+      || this.stateService.getAllAgentsGlobal().find((a) => a.interface === iface);
+    const targetUid = live?.userUid ?? userUid;
+    const targetIface = live?.interface || iface;
+    const previous = live?.queues ?? [];
+    const queues = previous.includes(queue) ? previous : [...previous, queue];
+    this.stateService.setAgent(targetUid, targetIface, {
+      queues,
+      queuesDetached: false,
+    });
+    if ((live?.userId ?? 0) > 0) {
+      try {
+        const session = await this.sessionModel.findOne({
+          where: { user_id: live!.userId, logout_time: null },
+          order: [['login_time', 'DESC']],
+        });
+        if (session) {
+          const snap = (session.getDataValue('queues_snapshot') as string[] | null) || [];
+          const base = snap.length ? snap : previous;
+          const next = base.includes(queue) ? base : [...base, queue];
+          await session.update({ queues_snapshot: next });
+        }
+      } catch { /* ignore */ }
     }
 
-    // State will be updated by AMI QueueMemberAdded event
-    this.logger.log(`Supervisor added ${agentInterface} to queue ${queue}`);
-    return { success: true };
+    this.logger.log(`Supervisor added ${targetIface} to queue ${queue}`);
+    const after = this.stateService.getAgent(targetUid, targetIface);
+    return { success: true, queues: after?.queues ?? queues };
+  }
+
+  /** Refresh RAM membership from Asterisk QueueMember (source of truth). */
+  async supervisorReconcileQueues(userUid: number, agentInterface?: string) {
+    await this.ccAmiService.resyncMembershipFromAsterisk();
+    if (!agentInterface) return { success: true as const };
+    const agent = this.resolveLiveQueueAgent(userUid, agentInterface);
+    return {
+      success: true as const,
+      interface: agent?.interface || agentInterface,
+      queues: agent?.queues ?? [],
+    };
+  }
+
+  /** Live SIP/WebRTC agent for a supervisor queue action (twin or user: stub). */
+  private resolveLiveQueueAgent(userUid: number, agentInterface: string) {
+    const direct = this.stateService.getAgent(userUid, agentInterface);
+    if (direct && /^(PJSIP|SIP)\//i.test(direct.interface)) return direct;
+
+    const related = new Set(CallCenterService.relatedQueueInterfaces(agentInterface));
+    const userMatch = agentInterface.match(/^user:(\d+)$/i);
+    const userId = userMatch ? Number(userMatch[1]) : 0;
+
+    return this.stateService.getAllAgentsGlobal().find((a) => {
+      if (!a.interface || !/^(PJSIP|SIP)\//i.test(a.interface)) return false;
+      if (a.interface === agentInterface || related.has(a.interface)) return true;
+      return userId > 0 && a.userId === userId;
+    }) ?? direct ?? null;
   }
 
   async supervisorStartShift(
@@ -1407,6 +1468,7 @@ export class CallCenterService {
 
   async supervisorQueueRemove(agentInterface: string, queue: string, userUid: number) {
     const ifaces = CallCenterService.relatedQueueInterfaces(agentInterface);
+    await this.purgeRealtimeQueueMember(queue, ifaces);
     let removedSomewhere = false;
     const errors: string[] = [];
 
@@ -1415,7 +1477,7 @@ export class CallCenterService {
         await this.amiService.queueRemove(queue, iface);
         removedSomewhere = true;
       } catch (err: any) {
-        const msg = String(err?.message || err);
+        const msg = amiFailureMessage(err);
         // Asterisk: member already gone (UI still had it / twin / Nest restart).
         if (/not there/i.test(msg) || /not a member/i.test(msg)) {
           removedSomewhere = true;
@@ -1454,7 +1516,31 @@ export class CallCenterService {
     }
 
     this.logger.log(`Supervisor removed ${agentInterface} from queue ${queue}`);
-    return { success: true };
+    const after = agent
+      ? this.stateService.getAgent(agent.userUid, agent.interface)
+      : null;
+    return { success: true, queues: after?.queues ?? [] };
+  }
+
+  /**
+   * Realtime queue members (Queues UI / queue_members_table) survive AMI QueueRemove.
+   * Supervisor minus must delete the row or Asterisk puts the agent back.
+   */
+  private async purgeRealtimeQueueMember(queue: string, ifaces: string[]): Promise<void> {
+    const sequelize = this.queueModel?.sequelize;
+    if (!sequelize || !queue || !ifaces.length) return;
+    try {
+      const [result] = await sequelize.query(
+        'DELETE FROM queue_members_table WHERE queue_name = :queue AND interface IN (:ifaces)',
+        { replacements: { queue, ifaces } },
+      );
+      const affected = Number((result as { affectedRows?: number } | undefined)?.affectedRows || 0);
+      if (affected > 0) {
+        this.logger.log(`Purged ${affected} realtime member(s) of ${queue}`);
+      }
+    } catch (err: unknown) {
+      this.logger.warn(`Realtime queue-member purge failed for ${queue}: ${amiFailureMessage(err)}`);
+    }
   }
 
   async supervisorQueuePenalty(agentInterface: string, queue: string, penalty: number, userUid: number) {

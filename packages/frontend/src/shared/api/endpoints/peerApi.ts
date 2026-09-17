@@ -2,6 +2,7 @@ import { rtkApi } from '../rtkApi';
 import type { IPeer } from '@krasterisk/shared';
 
 const peerApi = rtkApi.injectEndpoints({
+  overrideExisting: import.meta.hot != null,
   endpoints: (builder) => ({
     getPeers: builder.query<IPeer[], void>({
       query: () => '/peers',

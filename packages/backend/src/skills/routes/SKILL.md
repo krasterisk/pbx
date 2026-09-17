@@ -4,7 +4,7 @@ description: Типизированная цепочка маршрута, пр�
 domains: ["routes"]
 intents: ["configure_route", "inbound_did"]
 aliases: ["маршрут", "route", "did"]
-related: ["contexts", "ivrs", "trunks"]
+related: ["contexts", "ivrs", "trunks", "time-groups"]
 risk: high
 ---
 # Маршруты

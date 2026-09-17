@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2 } from 'lucide-react';
 import {
@@ -38,6 +38,7 @@ export interface ConferencePreJoinCardProps {
   previewStream?: MediaStream | null;
   error?: unknown;
   onJoin: (payload: { displayName: string; pin?: string }) => void;
+  onPreviewStream?: (stream: MediaStream | null) => void;
   onLeave?: () => void;
 }
 
@@ -69,6 +70,7 @@ export function ConferencePreJoinCard({
   previewStream = null,
   error,
   onJoin,
+  onPreviewStream,
   onLeave,
 }: ConferencePreJoinCardProps) {
   const { t } = useTranslation();
@@ -80,6 +82,10 @@ export function ConferencePreJoinCard({
   const [localNameError, setLocalNameError] = useState(false);
   const [localMediaDenied, setLocalMediaDenied] = useState(false);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [ownedStream, setOwnedStream] = useState<MediaStream | null>(null);
+  const handedOffRef = useRef(false);
+  const ownedStreamRef = useRef<MediaStream | null>(null);
+  const livePreview = previewStream ?? ownedStream;
 
   const { code } = readJoinError(error);
   const showPin = requiresPin || code === 'CONFERENCE_PIN_REQUIRED' || code === 'CONFERENCE_PIN_WRONG';
@@ -90,17 +96,73 @@ export function ConferencePreJoinCard({
   const busy = joining || previewLoading || waitingForModerator;
   const joinLabel = t('conferences.guest.join', 'Присоединиться к конференции');
 
+  const mediaConstraints = (): MediaStreamConstraints => ({
+    audio:
+      audioDevices.selectedMic === 'default'
+        ? true
+        : { deviceId: { exact: audioDevices.selectedMic } },
+    video: selectedCam === 'default' ? true : { deviceId: { exact: selectedCam } },
+  });
+
+  const refreshCameras = async () => {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    setCameras(devices.filter((d) => d.kind === 'videoinput' && d.deviceId));
+    await audioDevices.refresh();
+  };
+
+  const replaceOwnedStream = (next: MediaStream | null) => {
+    const prev = ownedStreamRef.current;
+    if (prev && prev !== next && !handedOffRef.current) {
+      prev.getTracks().forEach((track) => track.stop());
+    }
+    ownedStreamRef.current = next;
+    setOwnedStream(next);
+    onPreviewStream?.(next);
+  };
+
   useEffect(() => {
     let cancelled = false;
-    const enumerate = navigator.mediaDevices?.enumerateDevices;
-    if (!enumerate) return undefined;
-    void enumerate.call(navigator.mediaDevices).then((devices) => {
-      if (!cancelled) setCameras(devices.filter((d) => d.kind === 'videoinput'));
-    }).catch(() => undefined);
+    if (!navigator.mediaDevices?.getUserMedia) return undefined;
+    setPreviewLoading(true);
+    void (async () => {
+      try {
+        let stream: MediaStream;
+        try {
+          stream = await navigator.mediaDevices.getUserMedia(mediaConstraints());
+        } catch {
+          stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        }
+        if (cancelled) {
+          stream.getTracks().forEach((track) => track.stop());
+          return;
+        }
+        replaceOwnedStream(stream);
+        setLocalMediaDenied(false);
+        await refreshCameras();
+      } catch (err) {
+        if (!cancelled && err instanceof DOMException && err.name === 'NotAllowedError') {
+          setLocalMediaDenied(true);
+        }
+      } finally {
+        if (!cancelled) setPreviewLoading(false);
+      }
+    })();
+    const onDeviceChange = () => {
+      void refreshCameras();
+    };
+    navigator.mediaDevices.addEventListener?.('devicechange', onDeviceChange);
     return () => {
       cancelled = true;
+      navigator.mediaDevices.removeEventListener?.('devicechange', onDeviceChange);
+      if (!handedOffRef.current) {
+        ownedStreamRef.current?.getTracks().forEach((track) => track.stop());
+        ownedStreamRef.current = null;
+        onPreviewStream?.(null);
+      }
     };
-  }, []);
+    // Restart only when the user picks another device — not on every audioDevices identity change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- selected device ids are the restart keys
+  }, [audioDevices.selectedMic, selectedCam]);
 
   const handleJoin = async () => {
     if (busy) return;
@@ -112,19 +174,16 @@ export function ConferencePreJoinCard({
     setLocalNameError(false);
     setPreviewLoading(true);
     try {
-      if (!previewStream && navigator.mediaDevices?.getUserMedia) {
+      if (!livePreview && navigator.mediaDevices?.getUserMedia) {
         try {
-          await navigator.mediaDevices.getUserMedia({
-            audio: audioDevices.selectedMic === 'default'
-              ? true
-              : { deviceId: { exact: audioDevices.selectedMic } },
-            video: selectedCam === 'default' ? true : { deviceId: { exact: selectedCam } },
-          });
+          const stream = await navigator.mediaDevices.getUserMedia(mediaConstraints());
+          replaceOwnedStream(stream);
         } catch {
           setLocalMediaDenied(true);
           return;
         }
       }
+      handedOffRef.current = true;
       onJoin({ displayName: name, pin: showPin && pin ? pin : undefined });
     } finally {
       setPreviewLoading(false);
@@ -181,8 +240,8 @@ export function ConferencePreJoinCard({
       <VStack gap="16" max>
         <Text variant="h4">{t('conferences.guest.title', 'Вход в конференцию')}</Text>
         <Flex className={cls.preview} align="center" justify="center">
-          {previewStream ? (
-            <VideoSurface stream={previewStream} muted mirrored className={cls.previewVideo} />
+          {livePreview?.getVideoTracks?.().some((track) => track.readyState === 'live') ? (
+            <VideoSurface stream={livePreview} muted mirrored className={cls.previewVideo} />
           ) : (
             <VStack align="center" gap="8">
               <Avatar name={displayName || '?'} />

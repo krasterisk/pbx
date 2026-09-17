@@ -108,6 +108,7 @@ export interface IBulkJobStatus {
 }
 
 const endpointApi = rtkApi.injectEndpoints({
+  overrideExisting: import.meta.hot != null,
   endpoints: (builder) => ({
     getEndpoints: builder.query<IEndpointListItem[], void>({
       query: () => '/endpoints',

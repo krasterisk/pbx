@@ -163,7 +163,7 @@ describe('CallCenterStateService', () => {
       const q = service.getQueue(7, 'sales');
       expect(q?.waiting).toBe(5);
       expect(q?.strategy).toBe('ringall');
-      expect(q?.sla).toBe(100);
+      expect(q?.sla).toBe(0);
       expect(q?.agents).toEqual({ total: 0, available: 0, paused: 0, busy: 0 });
     });
   });

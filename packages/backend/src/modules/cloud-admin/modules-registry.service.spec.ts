@@ -28,6 +28,7 @@ describe('ModulesRegistryService licenseStatus (08-02)', () => {
     service = new ModulesRegistryService(
       {} as any,
       { findAll: tenantFindAll, findOne: jest.fn(), upsert: jest.fn(), update: jest.fn(), bulkCreate: jest.fn() } as any,
+      { findOne: jest.fn() } as any,
       { get: configGet } as unknown as ConfigService,
       { findAll: hubFindAll, findOne: jest.fn(), create: jest.fn(), upsert: jest.fn() } as any,
       { findAll: jest.fn(), destroy: jest.fn(), bulkCreate: jest.fn() } as any,

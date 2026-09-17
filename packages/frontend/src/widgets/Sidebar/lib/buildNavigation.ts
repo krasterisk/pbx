@@ -21,8 +21,6 @@ import {
   AudioLines,
   Bot,
   Activity,
-  ClipboardList,
-  Store,
   ClipboardCheck,
   Calendar,
   LayoutTemplate,
@@ -46,18 +44,6 @@ function buildCallCenterBlock(t: TFunction, level: UserLevel | undefined): Sideb
   if (hasCcAccess) {
     entries.push({ type: 'divider', label: t('nav.callcenter') });
   }
-
-  entries.push({
-    name: t('nav.serviceRequests', 'Заявки клиентов'),
-    path: '/service-requests',
-    icon: ClipboardList,
-  });
-
-  entries.push({
-    name: t('nav.komandorClaims', 'Рекламации Командор'),
-    path: '/komandor-claims',
-    icon: Store,
-  });
 
   if (level === UserLevel.OPERATOR || level === UserLevel.SUPERVISOR || level === UserLevel.ADMIN) {
     entries.push({

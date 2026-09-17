@@ -51,6 +51,7 @@ export const MODULE_COVERAGE: Record<string, ModuleCoverageEntry> = {
     kind: 'infrastructure',
     reason: 'JWT and RBAC entry; tenant identity is the users domain.',
   },
+  autodial: { kind: 'covered', capability: 'configure' },
   'call-groups': { kind: 'covered', capability: 'configure' },
   'callback-requests': {
     kind: 'excluded',

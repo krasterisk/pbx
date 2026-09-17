@@ -1,25 +1,29 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, memo } from 'react';
 import { useSelector } from 'react-redux';
 import { useTranslation } from 'react-i18next';
 import type { ColumnDef, RowSelectionState } from '@tanstack/react-table';
 import {
-  Monitor, Users, Phone, PhoneIncoming, TrendingDown,
+  Monitor, Users, Phone, PhoneIncoming,
   Eye, MessageSquare, Megaphone, Pause, Play,
-  Clock, BarChart3, Headphones, LayoutGrid, Table2,
+  BarChart3, LayoutGrid, Table2,
   PhoneForwarded, PhoneOff, Info, ListPlus, History, PhoneOutgoing,
-  ChevronDown, ChevronUp, UserPlus, X, LogIn, Trash2,
+  ChevronDown, ChevronUp, UserPlus, X, LogIn, Trash2, MoreHorizontal,
 } from 'lucide-react';
 import {
-  VStack, Flex, Text, Button, SegmentedControl, Sparkline,
+  VStack, Flex, Text, Button, SegmentedControl,
   DataTable, Avatar, Dialog, DialogContent, DialogHeader, DialogTitle,
-  DialogFooter, Checkbox, Label, TableRowActions, TableRowAction,
+  DialogFooter, Checkbox, Label,
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuSeparator,
 } from '@/shared/ui';
 import { useAppSelector } from '@/shared/hooks/useAppStore';
 import { useCallCenterSSE } from '@/features/callcenter/lib/useCallCenterSSE';
-import { useKpiSamples } from '@/features/callcenter/lib/useKpiSamples';
+import { subscribeStatusClock } from '@/features/callcenter/lib/statusClock';
+import { SupervisorKpiStrip } from './SupervisorKpiStrip';
 import { ChatPanelHost } from '@/features/callcenter/ui/ChatPanel/ChatPanel';
 import { AgentDetailModal } from '@/features/callcenter/ui/AgentDetailModal/AgentDetailModal';
 import { QueueManagementModal } from '@/features/callcenter/ui/QueueManagementModal/QueueManagementModal';
+import { PauseReasonModal } from '@/features/callcenter/ui/PauseReasonModal/PauseReasonModal';
 import { BulkActionsBar } from '@/features/callcenter/ui/BulkActionsBar/BulkActionsBar';
 import { CallHistoryPanel } from '@/features/callcenter/ui/CallHistoryPanel';
 import {
@@ -32,6 +36,7 @@ import {
   useSupervisorSpyMutation,
   useSupervisorForcePauseMutation,
   useSupervisorForceUnpauseMutation,
+  useSupervisorReconcileQueuesMutation,
   useSupervisorQueueAddMutation,
   useSupervisorForceLogoutMutation,
   useSupervisorRedirectCallMutation,
@@ -40,6 +45,8 @@ import {
   useGetSupervisorWatchedAgentsQuery,
   useSetSupervisorWatchedAgentsMutation,
   useSupervisorStartShiftMutation,
+  useGetPauseReasonsQuery,
+  useGetTenantSettingsQuery,
 } from '@/shared/api/endpoints/callCenterApi';
 import { ShiftLoginModal } from '@/features/callcenter/ui/ShiftLoginModal/ShiftLoginModal';
 import {
@@ -56,6 +63,10 @@ import {
   queueDisplayName,
   queueNumberFromName,
 } from '@/features/callcenter/lib/displayLabels';
+import {
+  resolveSupervisorKpiPeriodMeta,
+  rollupSupervisorKpis,
+} from '@/features/callcenter/lib/supervisorKpiRollup';
 import { interfaceToExtension } from '@/features/endpoints/lib/endpointIds';
 import { buildUserAvatarUrl } from '@/shared/lib/userAvatarUrl';
 import type { IAgent, ICall, IQueueStats } from '@/features/callcenter/model/types/callCenterSchema';
@@ -113,6 +124,25 @@ function hasLiveAgentInterface(iface: string): boolean {
   return Boolean(iface) && !iface.startsWith('user:');
 }
 
+/** Ticks locally so the agents table / cards are not remounted every second. */
+const AgentStatusElapsed = memo(function AgentStatusElapsed({
+  status,
+  statusSince,
+}: Pick<IAgent, 'status' | 'statusSince'>) {
+  const [now, setNow] = useState(() => Date.now());
+  const ticking = status !== 'OFFLINE' && Boolean(statusSince);
+
+  useEffect(() => {
+    if (!ticking) return;
+    return subscribeStatusClock(() => setNow(Date.now()));
+  }, [ticking]);
+
+  if (status === 'OFFLINE' || !statusSince) return '-';
+  const sinceMs = Date.parse(statusSince);
+  if (!Number.isFinite(sinceMs)) return '-';
+  return formatStatusElapsed(Math.max(0, Math.floor((now - sinceMs) / 1000)));
+});
+
 function operatorWatchLabel(name: string, exten: string, noExten: string): string {
   const n = name.trim();
   const ext = exten.trim();
@@ -139,18 +169,14 @@ export function CallCenterSupervisorPage() {
   const [callsCollapsed, setCallsCollapsed] = useState(readCallsCollapsed);
   const [queueFilter, setQueueFilter] = useState<string[]>(readQueueFilter);
   const [showActiveOnly, setShowActiveOnly] = useState(false);
-  const [nowTick, setNowTick] = useState(() => Date.now());
   const [watchlistOpen, setWatchlistOpen] = useState(false);
   const [draftUserIds, setDraftUserIds] = useState<number[]>([]);
   const [shiftAgent, setShiftAgent] = useState<IAgent | null>(null);
+  const [removeAgent, setRemoveAgent] = useState<IAgent | null>(null);
+  const [pauseAgent, setPauseAgent] = useState<IAgent | null>(null);
   const [callbackView, setCallbackView] = useState<'active' | 'completed'>('active');
 
   useCallCenterSSE(true);
-
-  useEffect(() => {
-    const id = setInterval(() => setNowTick(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, []);
 
   const agents = useSelector(selectCcAgents);
   const queues = useSelector(selectCcQueues);
@@ -175,7 +201,13 @@ export function CallCenterSupervisorPage() {
   const [supervisorSpy] = useSupervisorSpyMutation();
   const [supervisorForcePause] = useSupervisorForcePauseMutation();
   const [supervisorForceUnpause] = useSupervisorForceUnpauseMutation();
+  const { data: pauseReasons = [] } = useGetPauseReasonsQuery();
+  const { data: tenantSettings } = useGetTenantSettingsQuery();
   const [supervisorQueueAdd] = useSupervisorQueueAddMutation();
+  const [reconcileQueues] = useSupervisorReconcileQueuesMutation();
+  useEffect(() => {
+    void reconcileQueues({});
+  }, [reconcileQueues]);
   const [supervisorForceLogout] = useSupervisorForceLogoutMutation();
   const [supervisorRedirectCall] = useSupervisorRedirectCallMutation();
   const [supervisorHangupCall] = useSupervisorHangupCallMutation();
@@ -282,31 +314,26 @@ export function CallCenterSupervisorPage() {
     return list;
   }, [calls, queueFilterSet, watchedUserIds, watchedAgents]);
 
-  const kpis = useMemo(() => {
-    const qs = filteredQueues;
-    const totalWaiting = qs.reduce((s, q) => s + q.waiting, 0);
-    const totalTalking = qs.reduce((s, q) => s + q.talking, 0);
-    const freeAgents = filteredAgents.filter((a) => a.status === 'READY').length;
-    const totalAbandoned = qs.reduce((s, q) => s + q.calls.abandoned, 0);
-    const avgSla = qs.length > 0
-      ? Math.round(qs.reduce((s, q) => s + q.sla, 0) / qs.length)
-      : 100;
-    const avgWait = qs.length > 0
-      ? Math.round(qs.reduce((s, q) => s + q.avgWait, 0) / qs.length)
-      : 0;
+  const kpiRollup = useMemo(
+    () => rollupSupervisorKpis(filteredAgents, filteredQueues),
+    [filteredAgents, filteredQueues],
+  );
 
+  const kpiPeriodMeta = useMemo(
+    () => resolveSupervisorKpiPeriodMeta(tenantSettings?.shift_policy),
+    [tenantSettings?.shift_policy],
+  );
+
+  const kpiThresholds = useMemo(() => {
+    const alerts = tenantSettings?.alert_thresholds ?? {};
     return {
-      waiting: totalWaiting,
-      talking: totalTalking,
-      freeAgents,
-      sla: avgSla,
-      avgWait,
-      abandoned: totalAbandoned,
-      totalAgents: filteredAgents.length,
+      freeAgentsMin: Number(alerts.agents_available_min) || 2,
+      slaCriticalPct: Number(alerts.sla_critical_pct) || 80,
+      waitingDanger: 5,
+      waitingWarning: 2,
+      abandonedDanger: 5,
     };
-  }, [filteredAgents, filteredQueues]);
-
-  const samples = useKpiSamples(kpis);
+  }, [tenantSettings?.alert_thresholds]);
 
   const readyAgents = useMemo(
     () => filteredAgents.filter((a) => a.status === 'READY'),
@@ -335,11 +362,6 @@ export function CallCenterSupervisorPage() {
     return map;
   }, [calls]);
 
-  const formatTime = (seconds: number): string => {
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-  };
 
   const agentStatusDot = (status: string): string => {
     const map: Record<string, string> = {
@@ -386,14 +408,6 @@ export function CallCenterSupervisorPage() {
     if (status === 'HOLD') return styles.badgeHold;
     return '';
   };
-
-  const agentStatusElapsed = useCallback((agent: IAgent): string => {
-    if (agent.status === 'OFFLINE' || !agent.statusSince) return '-';
-    const sinceMs = Date.parse(agent.statusSince);
-    if (!Number.isFinite(sinceMs)) return '-';
-    const elapsed = Math.max(0, Math.floor((nowTick - sinceMs) / 1000));
-    return formatStatusElapsed(elapsed);
-  }, [nowTick]);
 
   const agentActivity = useCallback((agent: IAgent) => {
     const call = callByAgent.get(agentExten(agent))
@@ -493,6 +507,21 @@ export function CallCenterSupervisorPage() {
     await setWatchedAgents({ userIds: next });
   }, [setWatchedAgents, watched]);
 
+  const handleConfirmRemove = useCallback(async () => {
+    if (!removeAgent) return;
+    await removeFromWatchlist(removeAgent);
+    setRemoveAgent(null);
+  }, [removeAgent, removeFromWatchlist]);
+
+  const handleSupervisorPauseSelect = useCallback((reason: string) => {
+    if (!pauseAgent) return;
+    void supervisorForcePause({
+      agentInterface: pauseAgent.interface,
+      reason: reason.trim() || undefined,
+    });
+    setPauseAgent(null);
+  }, [pauseAgent, supervisorForcePause]);
+
   const handleSupervisorStartShift = useCallback(async (result: ShiftLoginResult) => {
     if (!shiftAgent?.userId) return;
     await supervisorStartShift({
@@ -505,7 +534,6 @@ export function CallCenterSupervisorPage() {
 
   const renderAgentActions = useCallback((agent: IAgent) => {
     const live = hasLiveAgentInterface(agent.interface);
-    // Inverted pair: start XOR end shift
     const showStartShift =
       agent.userId > 0
       && (!live || agent.status === 'OFFLINE');
@@ -514,91 +542,29 @@ export function CallCenterSupervisorPage() {
       && !showStartShift
       && live
       && agent.status !== 'OFFLINE';
-    // Inverted pair: pause XOR unpause
     const showPause = live && agent.status === 'READY';
     const showUnpause = live && agent.status === 'PAUSED';
+    const showSpy = live && (agent.status === 'IN_CALL' || agent.status === 'RINGING');
+    const stopRow = (e: { stopPropagation: () => void }) => e.stopPropagation();
 
     return (
-    <div className={styles.agentActions}>
+    <div className={styles.agentActions} onClick={stopRow} onKeyDown={stopRow}>
       {showStartShift && (
         <button
           type="button"
           className={styles.agentActionBtn}
-          onClick={(e) => { e.stopPropagation(); setShiftAgent(agent); }}
+          onClick={() => setShiftAgent(agent)}
           title={t('callcenter.supervisor.startShift', 'Start shift')}
         >
           <LogIn className="w-3 h-3 inline mr-0.5" />
           {t('callcenter.supervisor.startShift', 'Start shift')}
         </button>
       )}
-      <button
-        type="button"
-        className={styles.agentActionBtn}
-        onClick={(e) => { e.stopPropagation(); openAgentDetail(agent); }}
-        title={t('callcenter.supervisor.agentDetail.title', 'Agent details')}
-      >
-        <Info className="w-3 h-3 inline mr-0.5" />
-      </button>
-      {live && (
-        <button
-          type="button"
-          className={styles.agentActionBtn}
-          onClick={(e) => { e.stopPropagation(); openQueueMgmt(agent); }}
-          title={t('callcenter.supervisor.queueMgmt.queues', 'Queues')}
-        >
-          <ListPlus className="w-3 h-3 inline mr-0.5" />
-          {t('callcenter.supervisor.queueMgmt.queues', 'Queues')}
-        </button>
-      )}
-      {live && (agent.status === 'IN_CALL' || agent.status === 'RINGING') && (
-        <>
-          <button
-            type="button"
-            className={`${styles.agentActionBtn} ${styles.agentActionSpy}`}
-            onClick={(e) => { e.stopPropagation(); supervisorSpy({ agentInterface: agent.interface, mode: 'spy' }); }}
-          >
-            <Eye className="w-3 h-3 inline mr-0.5" /> {t('callcenter.supervisor.spy', 'Spy')}
-          </button>
-          <button
-            type="button"
-            className={`${styles.agentActionBtn} ${styles.agentActionSpy}`}
-            onClick={(e) => { e.stopPropagation(); supervisorSpy({ agentInterface: agent.interface, mode: 'whisper' }); }}
-          >
-            <MessageSquare className="w-3 h-3 inline mr-0.5" /> {t('callcenter.supervisor.whisper', 'Whisper')}
-          </button>
-          <button
-            type="button"
-            className={`${styles.agentActionBtn} ${styles.agentActionSpy}`}
-            onClick={(e) => { e.stopPropagation(); supervisorSpy({ agentInterface: agent.interface, mode: 'barge' }); }}
-          >
-            <Megaphone className="w-3 h-3 inline mr-0.5" /> {t('callcenter.supervisor.barge', 'Barge')}
-          </button>
-        </>
-      )}
-      {showPause && (
-        <button
-          type="button"
-          className={`${styles.agentActionBtn} ${styles.agentActionPause}`}
-          onClick={(e) => { e.stopPropagation(); supervisorForcePause({ agentInterface: agent.interface }); }}
-        >
-          <Pause className="w-3 h-3 inline mr-0.5" /> {t('callcenter.supervisor.pause', 'Pause')}
-        </button>
-      )}
-      {showUnpause && (
-        <button
-          type="button"
-          className={styles.agentActionBtn}
-          onClick={(e) => { e.stopPropagation(); supervisorForceUnpause({ agentInterface: agent.interface }); }}
-        >
-          <Play className="w-3 h-3 inline mr-0.5" /> {t('callcenter.supervisor.unpause', 'Resume')}
-        </button>
-      )}
       {showEndShift && (
         <button
           type="button"
           className={`${styles.agentActionBtn} ${styles.agentActionDanger}`}
-          onClick={(e) => {
-            e.stopPropagation();
+          onClick={() => {
             void supervisorForceLogout({ agentInterface: agent.interface });
           }}
           title={t('callcenter.supervisor.bulk.endShift', 'End shift')}
@@ -606,12 +572,84 @@ export function CallCenterSupervisorPage() {
           {t('callcenter.supervisor.bulk.endShift', 'End shift')}
         </button>
       )}
+      {showPause && (
+        <button
+          type="button"
+          className={`${styles.agentActionBtn} ${styles.agentActionPause}`}
+          onClick={() => setPauseAgent(agent)}
+          title={t('callcenter.supervisor.pause', 'Pause')}
+        >
+          <Pause className="w-3 h-3 inline mr-0.5" />
+          {t('callcenter.supervisor.pause', 'Pause')}
+        </button>
+      )}
+      {showUnpause && (
+        <button
+          type="button"
+          className={styles.agentActionBtn}
+          onClick={() => {
+            void supervisorForceUnpause({ agentInterface: agent.interface });
+          }}
+          title={t('callcenter.supervisor.unpause', 'Resume')}
+        >
+          <Play className="w-3 h-3 inline mr-0.5" />
+          {t('callcenter.supervisor.unpause', 'Resume')}
+        </button>
+      )}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            className={styles.agentActionMore}
+            title={t('callcenter.supervisor.moreActions', 'Actions')}
+            aria-label={t('callcenter.supervisor.moreActions', 'Actions')}
+          >
+            <MoreHorizontal className="w-4 h-4" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" onClick={stopRow}>
+          <DropdownMenuItem onClick={() => openAgentDetail(agent)}>
+            <Info />
+            {t('callcenter.supervisor.agentDetail.title', 'Agent details')}
+          </DropdownMenuItem>
+          {live && (
+            <DropdownMenuItem onClick={() => openQueueMgmt(agent)}>
+              <ListPlus />
+              {t('callcenter.supervisor.queueMgmt.queues', 'Queues')}
+            </DropdownMenuItem>
+          )}
+          {showSpy && (
+            <>
+              <DropdownMenuItem onClick={() => supervisorSpy({ agentInterface: agent.interface, mode: 'spy' })}>
+                <Eye />
+                {t('callcenter.supervisor.spy', 'Spy')}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => supervisorSpy({ agentInterface: agent.interface, mode: 'whisper' })}>
+                <MessageSquare />
+                {t('callcenter.supervisor.whisper', 'Whisper')}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => supervisorSpy({ agentInterface: agent.interface, mode: 'barge' })}>
+                <Megaphone />
+                {t('callcenter.supervisor.barge', 'Barge')}
+              </DropdownMenuItem>
+            </>
+          )}
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            className="text-destructive focus:text-destructive"
+            onClick={() => setRemoveAgent(agent)}
+          >
+            <Trash2 />
+            {t('callcenter.supervisor.removeAgent', 'Remove')}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
     );
   }, [
     openAgentDetail, openQueueMgmt,
-    supervisorSpy, supervisorForcePause, supervisorForceUnpause,
-    supervisorQueueAdd, supervisorForceLogout, t,
+    supervisorSpy, supervisorForceUnpause,
+    supervisorForceLogout, t,
   ]);
 
   const agentColumns = useMemo<ColumnDef<IAgent>[]>(() => [
@@ -639,7 +677,10 @@ export function CallCenterSupervisorPage() {
           className={styles.statusTimer}
           title={t('callcenter.supervisor.statusDuration', 'Time in current status')}
         >
-          {agentStatusElapsed(row.original)}
+          <AgentStatusElapsed
+            status={row.original.status}
+            statusSince={row.original.statusSince}
+          />
         </span>
       ),
     },
@@ -684,23 +725,7 @@ export function CallCenterSupervisorPage() {
       header: t('callcenter.supervisor.actions_lbl', 'Actions'),
       cell: ({ row }) => renderAgentActions(row.original),
     },
-    {
-      id: 'remove',
-      header: '',
-      cell: ({ row }) => (
-        <TableRowActions>
-          <TableRowAction
-            danger
-            title={t('callcenter.supervisor.removeAgent', 'Remove')}
-            aria-label={t('callcenter.supervisor.removeAgent', 'Remove')}
-            onClick={() => removeFromWatchlist(row.original)}
-          >
-            <Trash2 />
-          </TableRowAction>
-        </TableRowActions>
-      ),
-    },
-  ], [t, renderAgentActions, removeFromWatchlist, agentActivity, agentStatusElapsed, agentAvatarSrc, queues, agentStatusDotFor]);
+  ], [t, renderAgentActions, agentActivity, agentAvatarSrc, queues, agentStatusDotFor]);
 
   const callbackColumns = useMemo<ColumnDef<ICallbackRequest>[]>(() => [
     {
@@ -759,79 +784,21 @@ export function CallCenterSupervisorPage() {
     { id: 'callbacks', label: t('callcenter.supervisor.tabCallbacks', 'Callbacks'), icon: PhoneOutgoing },
   ];
 
-  const kpiCards = [
-    {
-      key: 'waiting',
-      label: t('callcenter.supervisor.waiting', 'Waiting'),
-      value: kpis.waiting,
-      icon: PhoneIncoming,
-      danger: kpis.waiting > 5,
-      warning: kpis.waiting > 2,
-      spark: samples.map((s) => s.waiting),
-    },
-    {
-      key: 'talking',
-      label: t('callcenter.supervisor.inCall', 'In Call'),
-      value: kpis.talking,
-      icon: Phone,
-      spark: samples.map((s) => s.talking),
-    },
-    {
-      key: 'free',
-      label: t('callcenter.supervisor.freeAgents', 'Free'),
-      value: kpis.freeAgents,
-      icon: Users,
-      danger: kpis.freeAgents < 2,
-      success: kpis.freeAgents >= 2,
-      spark: samples.map((s) => s.freeAgents),
-    },
-    {
-      key: 'sla',
-      label: 'SLA %',
-      value: `${kpis.sla}%`,
-      danger: kpis.sla < 80,
-      success: kpis.sla >= 80,
-      spark: samples.map((s) => s.sla),
-    },
-    {
-      key: 'avgWait',
-      label: t('callcenter.supervisor.avgWait', 'Avg Wait'),
-      value: formatTime(kpis.avgWait),
-      icon: Clock,
-      spark: samples.map((s) => s.avgWait),
-    },
-    {
-      key: 'abandoned',
-      label: t('callcenter.supervisor.abandoned', 'Lost'),
-      value: kpis.abandoned,
-      icon: TrendingDown,
-      danger: kpis.abandoned > 5,
-      spark: samples.map((s) => s.abandoned),
-    },
-    {
-      key: 'totalAgents',
-      label: t('callcenter.supervisor.totalAgents', 'Agents'),
-      value: kpis.totalAgents,
-      icon: Headphones,
-      spark: samples.map((s) => s.freeAgents),
-    },
-  ];
-
   const callsSummary = (
     <div className={styles.callsSummary}>
-      <div className={`${styles.callsStat} ${kpis.waiting > 5 ? styles.callsStatDanger : ''}`}>
+      <div className={`${styles.callsStat} ${kpiRollup.live.waiting > 5 ? styles.callsStatDanger : ''}`}>
         <PhoneIncoming className="w-3.5 h-3.5" />
-        <span className={styles.callsStatValue}>{kpis.waiting}</span>
+        <span className={styles.callsStatValue}>{kpiRollup.live.waiting}</span>
         <span>{t('callcenter.supervisor.waiting', 'Waiting')}</span>
       </div>
       <div className={styles.callsStat}>
         <Phone className="w-3.5 h-3.5" />
-        <span className={styles.callsStatValue}>{kpis.talking}</span>
+        <span className={styles.callsStatValue}>{kpiRollup.live.talking}</span>
         <span>{t('callcenter.supervisor.inCall', 'In Call')}</span>
       </div>
       <div className={styles.callsStat}>
         <Users className="w-3.5 h-3.5" />
-        <span className={styles.callsStatValue}>{kpis.freeAgents}</span>
+        <span className={styles.callsStatValue}>{kpiRollup.live.freeAgents}</span>
         <span>{t('callcenter.supervisor.freeAgents', 'Free')}</span>
       </div>
     </div>
@@ -865,29 +832,11 @@ export function CallCenterSupervisorPage() {
         </Flex>
       </Flex>
 
-      <div className={styles.kpiStrip}>
-        {kpiCards.map((card) => {
-          const Icon = card.icon;
-          const cardClass = [
-            styles.kpiCard,
-            card.danger ? styles.kpiDanger : '',
-            card.warning ? styles.kpiWarning : '',
-            card.success ? styles.kpiSuccess : '',
-          ].filter(Boolean).join(' ');
-          return (
-            <div key={card.key} className={cardClass}>
-              <Text className={styles.kpiLabel}>
-                {Icon && <Icon className="w-3 h-3 inline mr-1" />}
-                {card.label}
-              </Text>
-              <Flex align="center" justify="between" gap="8">
-                <Text className={styles.kpiValue}>{card.value}</Text>
-                <Sparkline data={card.spark} />
-              </Flex>
-            </div>
-          );
-        })}
-      </div>
+      <SupervisorKpiStrip
+        rollup={kpiRollup}
+        periodMeta={kpiPeriodMeta}
+        thresholds={kpiThresholds}
+      />
 
       {filterableQueues.length > 0 && (
         <Flex align="center" gap="8" wrap="wrap" className={styles.queueFilterRow}>
@@ -998,7 +947,7 @@ export function CallCenterSupervisorPage() {
                       className={styles.agentCardClose}
                       title={t('callcenter.supervisor.removeAgent', 'Remove')}
                       aria-label={t('callcenter.supervisor.removeAgent', 'Remove')}
-                      onClick={(e) => { e.stopPropagation(); removeFromWatchlist(agent); }}
+                      onClick={(e) => { e.stopPropagation(); setRemoveAgent(agent); }}
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
@@ -1020,7 +969,10 @@ export function CallCenterSupervisorPage() {
                         title={t('callcenter.supervisor.statusDuration', 'Time in current status')}
                       >
                         {' · '}
-                        {agentStatusElapsed(agent)}
+                        <AgentStatusElapsed
+                          status={agent.status}
+                          statusSince={agent.statusSince}
+                        />
                       </span>
                     </span>
                     <Text className={styles.agentMeta}>
@@ -1289,6 +1241,15 @@ export function CallCenterSupervisorPage() {
         allowedQueues={accessScope?.queues ?? null}
       />
 
+      {pauseAgent && (
+        <PauseReasonModal
+          reasons={pauseReasons}
+          quickPauseValue=""
+          onClose={() => setPauseAgent(null)}
+          onSelect={handleSupervisorPauseSelect}
+        />
+      )}
+
       {agentView === 'table' && selectedAgents.length > 0 && (
         <BulkActionsBar
           selectedAgents={selectedAgents}
@@ -1296,6 +1257,31 @@ export function CallCenterSupervisorPage() {
           onStartShift={(agent) => setShiftAgent(agent)}
         />
       )}
+
+      <Dialog open={removeAgent != null} onOpenChange={(v) => { if (!v) setRemoveAgent(null); }}>
+        <DialogContent size="default">
+          <DialogHeader>
+            <DialogTitle>
+              {t('callcenter.supervisor.confirmRemoveTitle', 'Remove operator?')}
+            </DialogTitle>
+          </DialogHeader>
+          <Text>
+            {t(
+              'callcenter.supervisor.confirmRemoveBody',
+              'Remove {{name}} from the supervised list?',
+              { name: removeAgent ? agentLabelWithExt(removeAgent) : '' },
+            )}
+          </Text>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRemoveAgent(null)}>
+              {t('callcenter.supervisor.cancel', 'Cancel')}
+            </Button>
+            <Button variant="destructive" onClick={() => void handleConfirmRemove()}>
+              {t('callcenter.supervisor.removeAgent', 'Remove')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={hangupCall != null} onOpenChange={(v) => { if (!v) setHangupCall(null); }}>
         <DialogContent size="default">

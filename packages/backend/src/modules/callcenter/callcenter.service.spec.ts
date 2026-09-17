@@ -20,6 +20,7 @@ describe('CallCenterService', () => {
     isConnected: jest.fn(() => true),
     queueAdd: jest.fn().mockResolvedValue(undefined),
     queueRemove: jest.fn().mockResolvedValue(undefined),
+    collectQueueMembers: jest.fn().mockResolvedValue({ members: [], complete: true }),
     queuePause: jest.fn().mockResolvedValue(undefined),
     hangup: jest.fn().mockResolvedValue(undefined),
     playDtmf: jest.fn().mockResolvedValue({ response: 'Success' }),
@@ -40,6 +41,7 @@ describe('CallCenterService', () => {
     cancelWrapupTimer: jest.fn(),
     extendWrapupTimer: jest.fn(),
     clearNonQueueDialAttempt: jest.fn(),
+    resyncMembershipFromAsterisk: jest.fn().mockResolvedValue(undefined),
   };
   const metricsService: any = {
     resetKpiSinceLogin: jest.fn(),
@@ -62,6 +64,9 @@ describe('CallCenterService', () => {
       wrapup_autosave_draft: true,
       auto_answer: true,
       auto_answer_zip_tone: true,
+    }),
+    getTenantSettings: jest.fn().mockResolvedValue({
+      shift_policy: { free_exten_on_close: true },
     }),
   };
   const permissionsService: any = {
@@ -117,6 +122,7 @@ describe('CallCenterService', () => {
   const queueModel: any = {
     findAll: jest.fn().mockResolvedValue([]),
     findOne: jest.fn().mockResolvedValue(null),
+    sequelize: { query: jest.fn().mockResolvedValue([undefined]) },
   };
   const endpointModel: any = {
     findAll: jest.fn().mockResolvedValue([]),
@@ -184,6 +190,9 @@ describe('CallCenterService', () => {
       wrapup_autosave_draft: true,
       auto_answer: true,
       auto_answer_zip_tone: true,
+    });
+    settingsService.getTenantSettings.mockResolvedValue({
+      shift_policy: { free_exten_on_close: true },
     });
     endpointModel.findByPk.mockResolvedValue({
       getDataValue: (k: string) => (k === 'context' ? 'from-internal7' : undefined),
@@ -365,6 +374,43 @@ describe('CallCenterService', () => {
       await service.agentLogout(7, 42);
 
       expect(userModel.update).toHaveBeenCalledWith(
+        { exten: '' },
+        { where: { uniqueid: 42, exten: '201' } },
+      );
+    });
+
+    it('keeps users.exten when free_exten_on_close is off (operator, supervisor, auto)', async () => {
+      settingsService.getTenantSettings.mockResolvedValue({
+        shift_policy: { free_exten_on_close: false },
+      });
+      await service.agentLogin('PJSIP/e201_0', ['sales'], 7, 42);
+      userModel.update.mockClear();
+
+      await service.agentLogout(7, 42);
+
+      expect(userModel.update).not.toHaveBeenCalledWith(
+        { exten: '' },
+        { where: { uniqueid: 42, exten: '201' } },
+      );
+
+      await service.agentLogin('PJSIP/e201_0', ['sales'], 7, 42);
+      userModel.update.mockClear();
+      await service.endShift({
+        userUid: 7,
+        userId: 42,
+        agentInterface: 'PJSIP/e201_0',
+        sessionId: 99,
+        reason: 'SYSTEM_EOD',
+      });
+      expect(userModel.update).not.toHaveBeenCalledWith(
+        { exten: '' },
+        { where: { uniqueid: 42, exten: '201' } },
+      );
+
+      await service.agentLogin('PJSIP/e201_0', ['sales'], 7, 42);
+      userModel.update.mockClear();
+      await service.supervisorForceLogout('PJSIP/e201_0', 7);
+      expect(userModel.update).not.toHaveBeenCalledWith(
         { exten: '' },
         { where: { uniqueid: 42, exten: '201' } },
       );
@@ -2202,6 +2248,125 @@ describe('CallCenterService', () => {
         service.supervisorQueueAdd('PJSIP/e201_0', 'q999_0', 0, 7, 1),
       ).rejects.toBeInstanceOf(ForbiddenException);
       expect(ami.queueAdd).not.toHaveBeenCalled();
+    });
+
+    it('adds via AMI and updates live agent queues', async () => {
+      state.setAgent(7, 'PJSIP/e201_0', {
+        name: 'Оператор 1',
+        status: 'READY',
+        userId: 42,
+        queues: ['q700_0'],
+      });
+
+      const res = await service.supervisorQueueAdd('PJSIP/e201_0', 'q701_0', 0, 7, 1);
+      expect(res).toEqual({ success: true, queues: ['q700_0', 'q701_0'] });
+      expect(ami.queueAdd).toHaveBeenCalledWith('q701_0', 'PJSIP/e201_0', 0);
+      expect(state.getAgent(7, 'PJSIP/e201_0')?.queues).toEqual(['q700_0', 'q701_0']);
+    });
+
+    it('uses the live WebRTC twin when the request carries the primary SIP id', async () => {
+      state.setAgent(7, 'PJSIP/ew201_0', {
+        name: 'Оператор 1',
+        status: 'READY',
+        userId: 42,
+        queues: ['q700_0'],
+      });
+
+      await service.supervisorQueueAdd('PJSIP/e201_0', 'q701_0', 0, 7, 1);
+      expect(ami.queueAdd).toHaveBeenCalledWith('q701_0', 'PJSIP/ew201_0', 0);
+      expect(state.getAgent(7, 'PJSIP/ew201_0')?.queues).toEqual(['q700_0', 'q701_0']);
+    });
+
+    it('treats already-a-member as success and still records the queue', async () => {
+      state.setAgent(7, 'PJSIP/e201_0', {
+        name: 'Оператор 1',
+        status: 'READY',
+        userId: 42,
+        queues: ['q700_0'],
+      });
+      ami.queueAdd.mockRejectedValueOnce(new Error('Already there'));
+
+      const res = await service.supervisorQueueAdd('PJSIP/e201_0', 'q701_0', 0, 7, 1);
+      expect(res).toEqual({ success: true, queues: ['q700_0', 'q701_0'] });
+      expect(state.getAgent(7, 'PJSIP/e201_0')?.queues).toEqual(['q700_0', 'q701_0']);
+    });
+
+    it('syncs an empty RAM list when AMI reports Already there as a raw response object', async () => {
+      state.setAgent(0, 'PJSIP/e201_0', {
+        name: 'Оператор 1',
+        status: 'READY',
+        userId: 42,
+        queues: [],
+      });
+      ami.queueAdd.mockRejectedValueOnce({
+        response: 'Error',
+        message: 'Unable to add interface: Already there',
+      });
+
+      const res = await service.supervisorQueueAdd('PJSIP/e201_0', 'q701_0', 0, 0, 1);
+      expect(res).toEqual({ success: true, queues: ['q701_0'] });
+      expect(state.getAgent(0, 'PJSIP/e201_0')?.queues).toEqual(['q701_0']);
+    });
+
+    it('rejects a watchlist stub without a live SIP interface', async () => {
+      await expect(
+        service.supervisorQueueAdd('user:42', 'q700_0', 0, 7, 1),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(ami.queueAdd).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('supervisorForcePause', () => {
+    it('stores a catalog reason and does not invent a supervisor label', async () => {
+      state.setAgent(0, 'PJSIP/e201_0', {
+        name: 'Оператор 1',
+        status: 'READY',
+        userId: 42,
+        queues: ['q700_0'],
+      });
+
+      await service.supervisorForcePause('PJSIP/e201_0', 'Обед', 0);
+      expect(ami.queuePause).toHaveBeenCalledWith('q700_0', 'PJSIP/e201_0', true, 'Обед');
+      expect(state.getAgent(0, 'PJSIP/e201_0')?.pauseReason).toBe('Обед');
+    });
+
+    it('leaves pauseReason empty when the supervisor picks no reason', async () => {
+      state.setAgent(0, 'PJSIP/e201_0', {
+        name: 'Оператор 1',
+        status: 'READY',
+        userId: 42,
+        queues: ['q700_0'],
+      });
+
+      await service.supervisorForcePause('PJSIP/e201_0', undefined, 0);
+      expect(ami.queuePause).toHaveBeenCalledWith('q700_0', 'PJSIP/e201_0', true, undefined);
+      expect(state.getAgent(0, 'PJSIP/e201_0')?.pauseReason ?? '').toBe('');
+      expect(state.getAgent(0, 'PJSIP/e201_0')?.pauseReason).not.toBe('Forced by supervisor');
+    });
+  });
+
+  describe('supervisorQueueRemove', () => {
+    it('deletes realtime queue_members_table rows then QueueRemove', async () => {
+      state.setAgent(0, 'PJSIP/e201_0', {
+        name: 'Оператор 1',
+        status: 'READY',
+        userId: 42,
+        queues: ['q700_0', 'q701_0'],
+      });
+
+      const res = await service.supervisorQueueRemove('PJSIP/e201_0', 'q701_0', 0);
+      expect(res.success).toBe(true);
+      expect(res.queues).toEqual(['q700_0']);
+      expect(queueModel.sequelize.query).toHaveBeenCalledWith(
+        expect.stringContaining('DELETE FROM queue_members_table'),
+        expect.objectContaining({
+          replacements: expect.objectContaining({
+            queue: 'q701_0',
+            ifaces: expect.arrayContaining(['PJSIP/e201_0', 'PJSIP/ew201_0']),
+          }),
+        }),
+      );
+      expect(ami.queueRemove).toHaveBeenCalled();
     });
   });
 });

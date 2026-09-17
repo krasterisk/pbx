@@ -1,0 +1,1 @@
+export { ProvisionTemplatesTable } from './ProvisionTemplatesTable';

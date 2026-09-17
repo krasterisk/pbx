@@ -28,6 +28,7 @@ export interface IApplyRouteTemplateDto {
 }
 
 export const routeTemplateApi = rtkApi.injectEndpoints({
+  overrideExisting: import.meta.hot != null,
   endpoints: (builder) => ({
     getRouteTemplates: builder.query<IRouteTemplate[], void>({
       query: () => '/route-templates',

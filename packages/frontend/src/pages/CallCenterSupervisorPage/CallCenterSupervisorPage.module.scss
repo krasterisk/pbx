@@ -15,6 +15,35 @@
 }
 
 /* 2. KPI Strip */
+.kpiGroups {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.kpiGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.kpiGroupHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.kpiGroupTitle {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-muted-foreground);
+}
+
 .kpiStrip {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -262,7 +291,8 @@
   display: flex;
   gap: 4px;
   margin-top: 4px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  align-items: center;
 }
 
 .agentActionBtn {
@@ -300,6 +330,27 @@
   &:hover {
     border-color: color-mix(in srgb, var(--color-destructive) 40%, transparent);
     color: var(--color-destructive);
+  }
+}
+
+.agentActionMore {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-muted-foreground);
+  transition: all 0.15s ease;
+
+  &:hover,
+  &[data-state='open'] {
+    background: color-mix(in srgb, var(--color-muted) 50%, transparent);
+    color: var(--color-foreground);
   }
 }
 

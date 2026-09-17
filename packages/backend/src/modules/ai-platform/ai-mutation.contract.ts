@@ -69,7 +69,7 @@ export interface AiMutationContract<TInput = any, TArgs = any> {
   reload: MutationReloadPolicy;
   propose(input: TInput, ctx: AiMutationContext): Promise<AgentDiffProposal | AiToolRefusal | AiToolSkip>;
   revalidate(args: TArgs, ctx: AiMutationContext): Promise<MutationRevalidation<TArgs>>;
-  apply(args: TArgs, ctx: AiMutationContext): Promise<void>;
+  apply(args: TArgs, ctx: AiMutationContext): Promise<void | Record<string, unknown>>;
 }
 
 export interface MutationToolSpec<TInput, TArgs> extends AiMutationContract<TInput, TArgs> {

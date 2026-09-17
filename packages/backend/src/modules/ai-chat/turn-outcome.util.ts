@@ -31,10 +31,17 @@ const IVR_KIND = /ivr|голосовое меню|\bменю\b/i;
 const ENDPOINT_KIND = /абонент|endpoint|внутренн/i;
 const GROUP_KIND = /групп|timeout|таймаут|ничего не нажал|не нажал|оставайтесь на линии|остаться на линии|звонят все|ringall/i;
 
+/** Incoming DID / schedule — not a new IVR brief, even if the text mentions «это IVR». */
+export function looksLikeRouteSetup(message: string): boolean {
+  return /маршрут|входящ(?:ий|ие|его)|календар|расписан|did\b/i.test(message)
+    && !/(?:создай|сделай|новое)\s+(?:ivr|голосовое меню)/i.test(message);
+}
+
 /** Two or more PBX entity kinds in one brief → one workflow card, not a series of create_*. */
 export function looksLikeMultiEntitySetup(message: string): boolean {
   const value = message.trim();
   if (!value) return false;
+  if (looksLikeRouteSetup(value)) return false;
   let kinds = 0;
   if (IVR_KIND.test(value)) kinds += 1;
   if (ENDPOINT_KIND.test(value) || (/\b\d{2,4}\b/.test(value) && (IVR_KIND.test(value) || GROUP_KIND.test(value)))) {

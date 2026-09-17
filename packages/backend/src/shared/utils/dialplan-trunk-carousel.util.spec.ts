@@ -82,7 +82,8 @@ function extractTrunkTimeoutPairs(dp: string): Array<[string, string]> {
 
 function extractLogicalSequence(dp: string): string[] {
   const names = extractTrunkList(dp);
-  if (/RAND\(/.test(dp)) return [`RAND:${names.join('|')}`];
+  // Trunk start index only — ignore RAND inside optional CID-pool branches.
+  if (/Set\(TC_I=\$\{RAND\(/.test(dp)) return [`RAND:${names.join('|')}`];
   return names;
 }
 
@@ -239,5 +240,63 @@ describe('buildTrunkCarousel directory CallerID', () => {
     expect(dp).toContain(
       'ExecIf($["${${TC_ST}}" = "FOUND" & "${${TC_VV}}" != ""]?Set(CALLERID(num)=${${TC_VV}}))',
     );
+  });
+});
+
+describe('buildTrunkCarousel pool CallerID', () => {
+  function poolItem(
+    trunkId: string,
+    numbers: string[],
+    pick: 'random' | 'round_robin' = 'random',
+    timeout?: number,
+  ): ITrunkCarouselItem {
+    return {
+      trunkId,
+      timeout,
+      callerId: { mode: 'pool', numbers, pick },
+    };
+  }
+
+  it('one trunk with pool uses AstDB last/index without TC_ cycle', () => {
+    const dp = buildTrunkCarousel(
+      [poolItem('solo', ['7900', '7901'], 'random')],
+      { ...DIR_CTX, mode: 'random_then_failover' },
+    );
+    expect(dp).toContain('PJSIP/solo');
+    expect(dp).toContain('Set(CID_POOL=7900|7901)');
+    expect(dp).toContain('DB(${CID_DBKEY}/last)');
+    expect(dp).toContain('RAND(1,2)');
+    expect(dp).toContain('krs/cid/42/solo');
+    expect(dp).not.toContain('Set(TC_LIST=');
+    expect(dp).not.toMatch(/GotoIf\(\$\["\$\{TC_TRIED\}"/);
+  });
+
+  it('round_robin increments AstDB index and writes last', () => {
+    const dp = buildTrunkCarousel(
+      [poolItem('rr', ['7900', '7901', '7902'], 'round_robin')],
+      DIR_CTX,
+    );
+    expect(dp).toContain('Set(CID_I=${DB(${CID_DBKEY}/i)})');
+    expect(dp).toContain('Set(CID_I=$[${CID_I} + 1])');
+    expect(dp).toContain('Set(DB(${CID_DBKEY}/i)=${CID_I})');
+    expect(dp).toContain('Set(DB(${CID_DBKEY}/last)=${CALLERID(num)})');
+  });
+
+  it('two trunks with mixed static/pool emit TC_POOLS and tc_pool branch', () => {
+    const dp = buildTrunkCarousel(
+      [
+        staticItem('a', 20, '7900111'),
+        poolItem('b', ['7900', '7901'], 'round_robin', 30),
+      ],
+      DIR_CTX,
+    );
+    expect(dp).toContain('Set(TC_LIST=a|b)');
+    expect(dp).toContain('Set(TC_CIDMODE=static|pool)');
+    expect(dp).toContain('Set(TC_POOLS=;7900|7901)');
+    expect(dp).toContain('Set(TC_PICK=random|round_robin)');
+    expect(dp).toContain('GotoIf($["${TC_CM}" = "pool"]?tc_pool)');
+    expect(dp).toContain('n(tc_pool),Set(CID_POOL=${CUT(TC_POOLS,;,${TC_I})})');
+    expect(dp).toContain('n(tc_pool_rr),Set(CID_I=${DB(${CID_DBKEY}/i)})');
+    expect(dp).toContain('Set(DB(${CID_DBKEY}/last)=${CALLERID(num)})');
   });
 });

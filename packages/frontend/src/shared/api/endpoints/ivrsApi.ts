@@ -12,6 +12,7 @@ export interface ICreateIvr extends Omit<IIvr, 'uid' | 'created_at' | 'updated_a
 export interface IUpdateIvr extends Partial<ICreateIvr> {}
 
 const ivrsApi = rtkApi.injectEndpoints({
+  overrideExisting: import.meta.hot != null,
   endpoints: (builder) => ({
     getIvrs: builder.query<IIvr[], void>({
       query: () => '/ivrs',

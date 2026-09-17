@@ -1,0 +1,1 @@
+export { VoiceRobotCdrTable } from './VoiceRobotCdrTable';

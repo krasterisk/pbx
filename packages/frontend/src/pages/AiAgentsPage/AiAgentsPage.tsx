@@ -1,23 +1,25 @@
-import { useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Bot, Plus, Wrench, Pencil, Trash2, ToggleLeft, ToggleRight } from 'lucide-react';
-import { Button, Text } from '@/shared/ui';
-import { VStack, HStack } from '@/shared/ui/Stack';
+import { Bot, Pencil, Plus, ToggleLeft, ToggleRight, Trash2, Wrench } from 'lucide-react';
+import { Button, TableRowAction, TableRowActions, Text } from '@/shared/ui';
+import { Flex, HStack, VStack } from '@/shared/ui/Stack';
+import { useIsMobile } from '@/shared/hooks/useIsMobile';
 import {
+  useDeleteAiAgentMutation,
   useGetAiAgentsQuery,
   useGetAiProvidersQuery,
   useGetAiToolsetsQuery,
-  useDeleteAiAgentMutation,
   useUpdateAiAgentMutation,
   type IAiAgent,
 } from '@/shared/api/endpoints/aiAgentsApi';
 import { AiAgentModal } from '@/features/ai-agents/ui/AiAgentModal/AiAgentModal';
-import styles from './AiAgentsPage.module.scss';
+import cls from './AiAgentsPage.module.scss';
 
 type Tab = 'agents' | 'toolsets';
 
-export function AiAgentsPage() {
+export const AiAgentsPage = memo(() => {
   const { t } = useTranslation();
+  const isMobile = useIsMobile(768);
   const [tab, setTab] = useState<Tab>('agents');
 
   const { data: agents = [] } = useGetAiAgentsQuery();
@@ -32,145 +34,214 @@ export function AiAgentsPage() {
 
   const providerName = (id: number | null) => {
     if (!id) return '-';
-    const p = providers.find(x => x.uid === id);
-    return p ? `${p.name} (${p.vendor})` : `#${id}`;
+    const provider = providers.find((item) => item.uid === id);
+    return provider ? `${provider.name} (${provider.vendor})` : `#${id}`;
   };
   const toolsetName = (id: number | null) =>
-    !id ? '-' : (toolsets.find(t => t.uid === id)?.name || `#${id}`);
+    !id ? '-' : (toolsets.find((item) => item.uid === id)?.name || `#${id}`);
+
+  const renderRowActions = (agent: IAiAgent) => (
+    <TableRowActions>
+      <TableRowAction
+        title={t('common.edit')}
+        aria-label={t('common.edit')}
+        onClick={() => {
+          setEditingAgent(agent);
+          setAgentModalOpen(true);
+        }}
+      >
+        <Pencil />
+      </TableRowAction>
+      <TableRowAction
+        danger
+        title={t('common.delete')}
+        aria-label={t('common.delete')}
+        onClick={() => {
+          if (window.confirm(t('aiAgents.confirmDelete', { name: agent.name }))) {
+            deleteAgent(agent.uid);
+          }
+        }}
+      >
+        <Trash2 />
+      </TableRowAction>
+    </TableRowActions>
+  );
+
+  const agentCards = useMemo(() => agents, [agents]);
 
   return (
-    <VStack gap="24" max className={styles.page} data-testid="ai-agents-page-responsive">
-      <HStack justify="between" align="center" className="flex-col sm:flex-row gap-4 min-w-0" max>
-        <VStack gap="4" className="min-w-0">
-          <HStack gap="12" align="center">
-            <Bot className="w-7 h-7 text-primary shrink-0" />
-            <h1 className="text-2xl font-bold">
-              {t('aiAgents.title', 'AI Agents')}
-            </h1>
-          </HStack>
-          <p className="text-muted-foreground text-sm">
-            {t('aiAgents.subtitle', 'Voice AI agents for inbound calls')}
-          </p>
-        </VStack>
-
-        <HStack gap="8" className="w-full sm:w-auto">
-          {tab === 'agents' && (
-            <Button className={styles.createBtn} onClick={() => { setEditingAgent(null); setAgentModalOpen(true); }}>
-              <Plus className="w-4 h-4 mr-2" />
-              {t('aiAgents.newAgent', 'New AI Agent')}
-            </Button>
-          )}
+    <VStack gap="24" max className={cls.page} data-testid="ai-agents-page-responsive">
+      <Flex justify="between" align="center" className={cls.header} max>
+        <HStack gap="12" align="center">
+          <Flex align="center" justify="center" className={cls.iconBadge}>
+            <Bot size={24} />
+          </Flex>
+          <VStack gap="4" className={cls.titleBlock}>
+            <Text variant="h1" as="h1" className={cls.title}>
+              {t('aiAgents.title')}
+            </Text>
+            <Text variant="muted">
+              {t('aiAgents.subtitle')}
+            </Text>
+          </VStack>
         </HStack>
-      </HStack>
+        {tab === 'agents' && (
+          <Button
+            className={cls.createBtn}
+            onClick={() => {
+              setEditingAgent(null);
+              setAgentModalOpen(true);
+            }}
+          >
+            <Plus size={16} className={cls.createBtnIcon} />
+            <Text as="span">{t('aiAgents.newAgent')}</Text>
+          </Button>
+        )}
+      </Flex>
 
-      <div className={styles.tabs}>
-        <button
+      <HStack gap="4" className={cls.tabs} role="tablist">
+        <Button
           type="button"
-          className={`${styles.tab} ${tab === 'agents' ? styles.tabActive : ''}`}
+          variant="ghost"
+          role="tab"
+          aria-selected={tab === 'agents'}
+          className={`${cls.tab} ${tab === 'agents' ? cls.tabActive : ''}`}
           onClick={() => setTab('agents')}
         >
-          <Bot className="w-4 h-4 mr-1.5 inline" />
-          {t('aiAgents.tabAgents', 'Agents')}
-          <span className={styles.tabBadge}>{agents.length}</span>
-        </button>
-        <button
+          <Bot size={16} className={cls.tabIcon} />
+          <Text as="span">{t('aiAgents.tabAgents')}</Text>
+          <Text as="span" className={cls.tabBadge}>{agents.length}</Text>
+        </Button>
+        <Button
           type="button"
-          className={`${styles.tab} ${tab === 'toolsets' ? styles.tabActive : ''}`}
+          variant="ghost"
+          role="tab"
+          aria-selected={tab === 'toolsets'}
+          className={`${cls.tab} ${tab === 'toolsets' ? cls.tabActive : ''}`}
           onClick={() => setTab('toolsets')}
         >
-          <Wrench className="w-4 h-4 mr-1.5 inline" />
-          {t('aiAgents.tabToolsets', 'Toolsets')}
-          <span className={styles.tabBadge}>{toolsets.length}</span>
-        </button>
-      </div>
+          <Wrench size={16} className={cls.tabIcon} />
+          <Text as="span">{t('aiAgents.tabToolsets')}</Text>
+          <Text as="span" className={cls.tabBadge}>{toolsets.length}</Text>
+        </Button>
+      </HStack>
 
       {tab === 'agents' && (
-        <div
-          className={`${styles.tableWrap} overflow-x-auto`}
-          data-testid="hybrid-table"
-          data-hybrid="overflow-x-auto"
-        >
-          {agents.length === 0 ? (
-            <EmptyState
-              icon={<Bot className="w-12 h-12 opacity-50" />}
-              title={t('aiAgents.empty.agents', 'No AI agents yet')}
-              hint={t('aiAgents.empty.agentsHint', 'Create one to handle calls automatically.')}
-            />
-          ) : (
-            <table className={styles.table}>
+        agents.length === 0 ? (
+          <EmptyState
+            icon={<Bot size={48} />}
+            title={t('aiAgents.empty.agents')}
+            hint={t('aiAgents.empty.agentsHint')}
+          />
+        ) : isMobile ? (
+          <VStack
+            gap="8"
+            max
+            className={cls.mobileList}
+            data-testid="hybrid-table"
+            data-hybrid="mobile-card"
+          >
+            {agentCards.map((agent) => (
+              <Flex
+                key={agent.uid}
+                direction="column"
+                className={cls.mobileCard}
+                data-testid="ai-agents-mobile-card"
+              >
+                <HStack justify="between" align="start" max>
+                  <VStack gap="4">
+                    <Text as="span" className={cls.bold}>{agent.name}</Text>
+                    <Text as="span" className={cls.uniqueId}>{agent.unique_id}</Text>
+                    <Text
+                      as="span"
+                      className={`${cls.chip} ${agent.mode === 'realtime' ? cls.chipRealtime : cls.chipCascade}`}
+                    >
+                      {agent.mode}
+                    </Text>
+                    <Text as="span" className={cls.cell}>{providerName(agent.model_profile_id)}</Text>
+                  </VStack>
+                  {renderRowActions(agent)}
+                </HStack>
+              </Flex>
+            ))}
+          </VStack>
+        ) : (
+          <Flex
+            direction="column"
+            align="stretch"
+            max
+            className={cls.tableWrap}
+            data-testid="hybrid-table"
+            data-hybrid="overflow-x-auto"
+          >
+            <table className={cls.table}>
               <thead>
                 <tr>
-                  <th>{t('aiAgents.col.name', 'Name')}</th>
-                  <th>{t('aiAgents.col.uniqueId', 'Unique ID')}</th>
-                  <th>{t('aiAgents.col.mode', 'Mode')}</th>
-                  <th>{t('aiAgents.col.model', 'Model')}</th>
-                  <th>{t('aiAgents.col.toolset', 'Toolset')}</th>
-                  <th>{t('aiAgents.col.enabled', 'Enabled')}</th>
-                  <th />
+                  <th>{t('aiAgents.col.name')}</th>
+                  <th>{t('aiAgents.col.uniqueId')}</th>
+                  <th>{t('aiAgents.col.mode')}</th>
+                  <th>{t('aiAgents.col.model')}</th>
+                  <th>{t('aiAgents.col.toolset')}</th>
+                  <th>{t('aiAgents.col.enabled')}</th>
+                  <th>{t('common.actions')}</th>
                 </tr>
               </thead>
               <tbody>
-                {agents.map(a => (
-                  <tr key={a.uid}>
+                {agents.map((agent) => (
+                  <tr key={agent.uid}>
                     <td>
-                      <Text className={styles.bold}>{a.name}</Text>
-                      {a.greeting && (
-                        <Text variant="muted" className="text-xs truncate max-w-[260px]">
-                          {a.greeting}
-                        </Text>
-                      )}
+                      <VStack gap="4">
+                        <Text className={cls.bold}>{agent.name}</Text>
+                        {agent.greeting ? (
+                          <Text variant="muted" className={cls.greeting}>{agent.greeting}</Text>
+                        ) : null}
+                      </VStack>
                     </td>
-                    <td><code>{a.unique_id}</code></td>
                     <td>
-                      <span className={`${styles.chip} ${a.mode === 'realtime' ? styles.chipRealtime : styles.chipCascade}`}>
-                        {a.mode}
-                      </span>
+                      <Text as="span" className={cls.uniqueId}>{agent.unique_id}</Text>
                     </td>
-                    <td>{providerName(a.model_profile_id)}</td>
-                    <td>{toolsetName(a.toolset_id)}</td>
                     <td>
-                      <button
-                        type="button"
-                        className={styles.toggleBtn}
-                        onClick={() => updateAgent({ id: a.uid, data: { enabled: !a.enabled } })}
-                        title={t('aiAgents.toggleHint', 'Toggle enabled')}
+                      <Text
+                        as="span"
+                        className={`${cls.chip} ${agent.mode === 'realtime' ? cls.chipRealtime : cls.chipCascade}`}
                       >
-                        {a.enabled
-                          ? <ToggleRight className="w-5 h-5 text-success" />
-                          : <ToggleLeft className="w-5 h-5 text-muted-foreground" />}
-                      </button>
+                        {agent.mode}
+                      </Text>
                     </td>
                     <td>
-                      <HStack gap="4">
-                        <Button variant="outline" size="sm" onClick={() => { setEditingAgent(a); setAgentModalOpen(true); }}>
-                          <Pencil className="w-3.5 h-3.5" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            if (window.confirm(t('aiAgents.confirmDelete', 'Delete agent "{{name}}"?', { name: a.name }))) {
-                              deleteAgent(a.uid);
-                            }
-                          }}
-                        >
-                          <Trash2 className="w-3.5 h-3.5 text-destructive" />
-                        </Button>
-                      </HStack>
+                      <Text as="span" className={cls.cell}>{providerName(agent.model_profile_id)}</Text>
                     </td>
+                    <td>
+                      <Text as="span" className={cls.cell}>{toolsetName(agent.toolset_id)}</Text>
+                    </td>
+                    <td>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className={cls.toggleBtn}
+                        onClick={() => updateAgent({ id: agent.uid, data: { enabled: !agent.enabled } })}
+                        title={t('aiAgents.toggleHint')}
+                        aria-label={t('aiAgents.toggleHint')}
+                      >
+                        {agent.enabled
+                          ? <ToggleRight size={20} className={cls.toggleOn} />
+                          : <ToggleLeft size={20} className={cls.toggleOff} />}
+                      </Button>
+                    </td>
+                    <td>{renderRowActions(agent)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          )}
-        </div>
+          </Flex>
+        )
       )}
 
       {tab === 'toolsets' && (
         <EmptyState
-          icon={<Wrench className="w-12 h-12 opacity-50" />}
-          title={t('aiAgents.empty.toolsets', 'No toolsets yet')}
-          hint={t('aiAgents.empty.toolsetsHint', 'Toolset editor lands in AI-3 (Tool Calling). The CRUD API is already available.')}
+          icon={<Wrench size={48} />}
+          title={t('aiAgents.empty.toolsets')}
+          hint={t('aiAgents.empty.toolsetsHint')}
         />
       )}
 
@@ -184,14 +255,18 @@ export function AiAgentsPage() {
       )}
     </VStack>
   );
-}
+});
+
+AiAgentsPage.displayName = 'AiAgentsPage';
 
 function EmptyState({ icon, title, hint }: { icon: React.ReactNode; title: string; hint: string }) {
   return (
-    <div className={styles.empty}>
-      {icon}
-      <Text className={styles.emptyTitle}>{title}</Text>
+    <VStack align="center" gap="8" className={cls.empty}>
+      <Flex align="center" justify="center" className={cls.emptyIcon}>
+        {icon}
+      </Flex>
+      <Text className={cls.emptyTitle}>{title}</Text>
       <Text variant="muted">{hint}</Text>
-    </div>
+    </VStack>
   );
 }

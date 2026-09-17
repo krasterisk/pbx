@@ -1,236 +1,196 @@
 import { memo, useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Music, Search, Loader2, Pencil, Trash2 } from 'lucide-react';
 import {
-  useReactTable,
-  getCoreRowModel,
-  getSortedRowModel,
-  getFilteredRowModel,
-  flexRender,
-  createColumnHelper,
-  type SortingState,
-} from '@tanstack/react-table';
-import { Pencil, Trash2, Music } from 'lucide-react';
-import {
+  Card,
+  CardHeader,
+  CardContent,
+  Input,
   Button,
-  Skeleton,
+  DataTable,
   Text,
-  Table,
-  TableHeader,
-  TableBody,
-  TableRow,
-  TableHead,
-  TableCell,
+  TableRowActions,
+  TableRowAction,
 } from '@/shared/ui';
-import { HStack, VStack } from '@/shared/ui/Stack';
-import { useAppDispatch } from '@/shared/hooks/useAppStore';
+import { Flex, HStack, VStack } from '@/shared/ui/Stack';
 import { useGetMohClassesQuery, useDeleteMohClassMutation } from '@/shared/api/endpoints/mohApi';
+import { useAppDispatch } from '@/shared/hooks/useAppStore';
+import { useIsMobile } from '@/shared/hooks/useIsMobile';
 import { mohActions } from '../../model/slice/mohSlice';
-import { MohFormModal } from '../MohFormModal/MohFormModal';
-import type { IMohClass } from '@/entities/moh';
+import { useMohTableColumns } from './useMohTableColumns';
 import cls from './MohTable.module.scss';
-
-const columnHelper = createColumnHelper<IMohClass>();
-const SKELETON_ROWS = [1, 2, 3, 4, 5];
 
 export const MohTable = memo(() => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
+  const isMobile = useIsMobile(768);
   const { data: mohClasses = [], isLoading } = useGetMohClassesQuery();
   const [deleteMoh] = useDeleteMohClassMutation();
-  const [sorting, setSorting] = useState<SortingState>([]);
+
   const [globalFilter, setGlobalFilter] = useState('');
+  const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
+  const [isDeleting, setIsDeleting] = useState(false);
+  const columns = useMohTableColumns();
+  const selectedCount = Object.keys(rowSelection).length;
 
-  const handleDelete = useCallback(
-    (moh: IMohClass) => {
-      const confirmed = window.confirm(
-        t('moh.confirmDelete', 'Удалить класс «{{name}}»?').replace('{{name}}', moh.displayName),
-      );
-      if (confirmed) {
-        deleteMoh(moh.name);
-      }
-    },
-    [t, deleteMoh],
-  );
+  const filtered = useMemo(() => {
+    const q = globalFilter.trim().toLowerCase();
+    if (!q) return mohClasses;
+    return mohClasses.filter((moh) => {
+      const name = (moh.displayName || '').toLowerCase();
+      const sort = (moh.sort || '').toLowerCase();
+      return name.includes(q) || sort.includes(q);
+    });
+  }, [mohClasses, globalFilter]);
 
-  const columns = useMemo(() => [
-    columnHelper.display({
-      id: 'index',
-      header: '№',
-      size: 50,
-      cell: (info) => (
-        <Text variant="small">{info.row.index + 1}</Text>
-      ),
-    }),
-    columnHelper.accessor('displayName', {
-      header: t('moh.table.name', 'Название'),
-      cell: (info) => (
-        <HStack gap="8" align="center">
-          <Music size={16} className={cls.musicIcon} />
-          <Text className={cls.className}>{info.getValue()}</Text>
-        </HStack>
-      ),
-    }),
-    columnHelper.accessor((row) => row.entries?.length || 0, {
-      id: 'tracks',
-      header: t('moh.table.tracks', 'Треков'),
-      size: 100,
-      cell: (info) => (
-        <Text as="span" variant="small" className={cls.tracksBadge}>
-          {info.getValue()}
-        </Text>
-      ),
-    }),
-    columnHelper.accessor('sort', {
-      header: t('moh.table.sort', 'Сортировка'),
-      size: 140,
-      cell: (info) => {
-        const val = info.getValue();
-        const sortClass = val === 'random' ? cls.sort_random : val === 'alpha' ? cls.sort_alpha : '';
-        return (
-          <Text as="span" variant="small" className={`${cls.sortBadge} ${sortClass}`}>
-            {val === 'random'
-              ? t('moh.sort.random', 'Случайно')
-              : val === 'alpha'
-                ? t('moh.sort.alpha', 'По порядку')
-                : val}
-          </Text>
-        );
-      },
-    }),
-    columnHelper.display({
-      id: 'actions',
-      header: t('common.actions', 'Действия'),
-      size: 100,
-      cell: (info) => (
-        <HStack gap="4">
+  const handleBulkDelete = useCallback(async () => {
+    const names = Object.keys(rowSelection);
+    if (!names.length) return;
+    if (!window.confirm(t('moh.confirmBulkDelete'))) return;
+    setIsDeleting(true);
+    try {
+      await Promise.all(names.map((name) => deleteMoh(name).unwrap()));
+      setRowSelection({});
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [rowSelection, deleteMoh, t]);
+
+  const toolbar = (
+    <Flex justify="between" align="center" className={cls.toolbar} max>
+      <HStack gap="8" align="center">
+        <Music size={20} className={cls.toolbarIcon} />
+        <Text className={cls.count}>{t('moh.count', { count: mohClasses.length })}</Text>
+      </HStack>
+      <HStack gap="8" align="center" className={cls.toolbarActions}>
+        {!isMobile && (
           <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => dispatch(mohActions.openEditModal(info.row.original))}
-            title={t('common.edit', 'Редактировать')}
+            variant="destructive"
+            className={selectedCount === 0 ? cls.bulkBtnHidden : undefined}
+            disabled={isDeleting || selectedCount === 0}
+            aria-hidden={selectedCount === 0}
+            tabIndex={selectedCount === 0 ? -1 : undefined}
+            onClick={handleBulkDelete}
           >
-            <Pencil className={cls.actionIcon} />
+            {isDeleting ? <Loader2 size={16} className={cls.spinner} /> : <Trash2 size={16} />}
+            {t('moh.deleteSelected', { count: selectedCount })}
           </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className={cls.actionBtnDelete}
-            onClick={() => handleDelete(info.row.original)}
-            title={t('common.delete', 'Удалить')}
-          >
-            <Trash2 className={cls.actionIcon} />
-          </Button>
-        </HStack>
-      ),
-    }),
-  ], [t, dispatch, handleDelete]);
-
-  const table = useReactTable({
-    data: mohClasses,
-    columns,
-    state: { sorting, globalFilter },
-    onSortingChange: setSorting,
-    onGlobalFilterChange: setGlobalFilter,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-  });
-
-  const renderHeader = () => (
-    <TableHeader>
-      {table.getHeaderGroups().map((headerGroup) => (
-        <TableRow key={headerGroup.id} className={cls.tableHeadRow}>
-          {headerGroup.headers.map((header) => (
-            <TableHead
-              key={header.id}
-              style={{ width: header.getSize() }}
-              className={cls.headCell}
-              onClick={header.column.getToggleSortingHandler()}
-            >
-              {header.isPlaceholder
-                ? null
-                : flexRender(header.column.columnDef.header, header.getContext())}
-            </TableHead>
-          ))}
-        </TableRow>
-      ))}
-    </TableHeader>
+        )}
+        <Flex align="center" className={cls.searchWrap}>
+          <Search size={16} className={cls.searchIcon} />
+          <Input
+            id="moh-search"
+            placeholder={t('common.search')}
+            value={globalFilter}
+            onChange={(e) => setGlobalFilter(e.target.value)}
+            className={cls.searchInput}
+          />
+        </Flex>
+      </HStack>
+    </Flex>
   );
 
   if (isLoading) {
     return (
-      <>
-        <div className={cls.tableWrap}>
-          <Table className={cls.table}>
-            <TableHeader>
-              <TableRow className={cls.tableHeadRow}>
-                <TableHead className={cls.headCell}>№</TableHead>
-                <TableHead className={cls.headCell}>{t('moh.table.name', 'Название')}</TableHead>
-                <TableHead className={cls.headCell}>{t('moh.table.tracks', 'Треков')}</TableHead>
-                <TableHead className={cls.headCell}>{t('moh.table.sort', 'Сортировка')}</TableHead>
-                <TableHead className={cls.headCell}>{t('common.actions', 'Действия')}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {SKELETON_ROWS.map((i) => (
-                <TableRow key={i} className={cls.bodyRow}>
-                  <TableCell><Skeleton className={cls.skeletonSm} /></TableCell>
-                  <TableCell><Skeleton className={cls.skeletonMd} /></TableCell>
-                  <TableCell><Skeleton className={cls.skeletonBadge} /></TableCell>
-                  <TableCell><Skeleton className={cls.skeletonChip} /></TableCell>
-                  <TableCell><Skeleton className={cls.skeletonActions} /></TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-        <MohFormModal />
-      </>
+      <Card className={cls.card}>
+        <CardHeader>{toolbar}</CardHeader>
+        <CardContent>
+          <Flex align="center" justify="center" className={cls.loading}>
+            <Loader2 size={24} className={cls.spinner} />
+          </Flex>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (isMobile) {
+    return (
+      <Card className={cls.card} data-testid="hybrid-table" data-hybrid="mobile-card">
+        <CardHeader>{toolbar}</CardHeader>
+        <CardContent>
+          <VStack gap="8" max className={cls.mobileList}>
+            {filtered.length === 0 ? (
+              <Text variant="muted" className={cls.mobileEmpty}>
+                {t('moh.empty.title')}
+              </Text>
+            ) : (
+              filtered.map((moh) => (
+                <Flex
+                  key={moh.name}
+                  direction="column"
+                  className={cls.mobileCard}
+                  data-testid="moh-mobile-card"
+                >
+                  <HStack justify="between" align="start" max>
+                    <VStack gap="4">
+                      <HStack gap="8" align="center">
+                        <Music size={16} className={cls.musicIcon} />
+                        <Text as="span" className={cls.name}>{moh.displayName}</Text>
+                      </HStack>
+                      <Text as="span" className={cls.tracksBadge}>
+                        {moh.entries?.length || 0}
+                      </Text>
+                    </VStack>
+                    <TableRowActions>
+                      <TableRowAction
+                        title={t('common.edit')}
+                        aria-label={t('common.edit')}
+                        onClick={() => dispatch(mohActions.openEditModal(moh))}
+                      >
+                        <Pencil />
+                      </TableRowAction>
+                      <TableRowAction
+                        danger
+                        title={t('common.delete')}
+                        aria-label={t('common.delete')}
+                        onClick={() => {
+                          const confirmed = window.confirm(
+                            t('moh.confirmDelete').replace('{{name}}', moh.displayName),
+                          );
+                          if (confirmed) {
+                            deleteMoh(moh.name);
+                          }
+                        }}
+                      >
+                        <Trash2 />
+                      </TableRowAction>
+                    </TableRowActions>
+                  </HStack>
+                </Flex>
+              ))
+            )}
+          </VStack>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
-    <>
-      <div className={cls.tableWrap}>
-        <Table className={cls.table}>
-          {renderHeader()}
-          <TableBody>
-            {table.getRowModel().rows.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={columns.length} className={cls.emptyCell}>
-                  <VStack align="center" gap="8">
-                    <Music size={36} className={cls.emptyIcon} />
-                    <Text className={cls.emptyTitle}>
-                      {t('moh.empty.title', 'Нет классов Music On Hold')}
-                    </Text>
-                    <Text variant="muted" className={cls.emptyHint}>
-                      {t(
-                        'moh.empty.hint',
-                        'Нажмите «Создать класс», чтобы добавить первый плейлист',
-                      )}
-                    </Text>
-                  </VStack>
-                </TableCell>
-              </TableRow>
-            ) : (
-              table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id} className={cls.bodyRow}>
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
-
-      <MohFormModal />
-    </>
+    <Card className={cls.card} data-testid="hybrid-table" data-hybrid="overflow-x-auto">
+      <CardHeader>{toolbar}</CardHeader>
+      <CardContent className={cls.cardContent}>
+        <Flex
+          direction="column"
+          align="stretch"
+          className={cls.tableScroll}
+          data-testid="moh-table-scroll"
+        >
+          <DataTable
+            className={cls.table}
+            data={mohClasses}
+            columns={columns}
+            getRowId={(row) => row.name}
+            selectable
+            rowSelection={rowSelection}
+            onRowSelectionChange={setRowSelection}
+            globalFilter={globalFilter}
+            pageSize={50}
+            emptyText={t('moh.empty.title')}
+            exportFilename="moh_export"
+          />
+        </Flex>
+      </CardContent>
+    </Card>
   );
 });
 

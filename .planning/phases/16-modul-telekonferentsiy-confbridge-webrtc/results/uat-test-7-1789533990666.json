@@ -1,0 +1,10 @@
+{
+  "ok": true,
+  "codecs": [
+    "opus",
+    "ulaw",
+    "vp8"
+  ],
+  "profileHasAllow": false,
+  "note": "D-25 order lives on CONFERENCE_PLATFORM_CODECS; allow= is invalid on type=bridge (G-16-1)"
+}

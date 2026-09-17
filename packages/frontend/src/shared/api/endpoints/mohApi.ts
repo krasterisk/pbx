@@ -2,6 +2,7 @@ import { rtkApi } from '../rtkApi';
 import { IMohClass, IMohCreate, IMohUpdate } from '@/entities/moh';
 
 const mohApi = rtkApi.injectEndpoints({
+  overrideExisting: import.meta.hot != null,
   endpoints: (builder) => ({
     getMohClasses: builder.query<IMohClass[], void>({
       query: () => '/moh',

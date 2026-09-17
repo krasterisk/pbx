@@ -1,30 +1,33 @@
-import { useMemo, useState } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { type ColumnDef } from '@tanstack/react-table';
-import { Hash, Pencil, Trash2, Loader2, Search } from 'lucide-react';
+import { Hash, Search, Loader2, Trash2, Pencil } from 'lucide-react';
 import {
   Card,
   CardHeader,
   CardContent,
   Input,
-  DataTable,
   Button,
+  DataTable,
   Text,
   TableRowActions,
   TableRowAction,
 } from '@/shared/ui';
-import { HStack, Flex, VStack } from '@/shared/ui/Stack';
-import { useGetNumbersQuery, useDeleteNumberMutation, useBulkDeleteNumbersMutation } from '@/shared/api/api';
+import { Flex, HStack, VStack } from '@/shared/ui/Stack';
+import {
+  useGetNumbersQuery,
+  useDeleteNumberMutation,
+  useBulkDeleteNumbersMutation,
+} from '@/shared/api/api';
 import { useAppDispatch } from '@/shared/hooks/useAppStore';
 import { useIsMobile } from '@/shared/hooks/useIsMobile';
 import { numbersPageActions } from '../../model/slice/numbersPageSlice';
-import styles from './NumbersTable.module.scss';
+import { useNumbersTableColumns } from './useNumbersTableColumns';
+import cls from './NumbersTable.module.scss';
 
-export const NumbersTable = () => {
+export const NumbersTable = memo(() => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const isMobile = useIsMobile(768);
-
   const { data: numbers = [], isLoading } = useGetNumbersQuery();
   const [deleteNumber] = useDeleteNumberMutation();
   const [bulkDelete, { isLoading: isDeleting }] = useBulkDeleteNumbersMutation();
@@ -32,137 +35,97 @@ export const NumbersTable = () => {
   const [globalFilter, setGlobalFilter] = useState('');
   const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
 
+  const columns = useNumbersTableColumns();
+  const selectedCount = Object.keys(rowSelection).length;
+
   const filtered = useMemo(() => {
     const q = globalFilter.trim().toLowerCase();
     if (!q) return numbers;
     return numbers.filter((n) => {
       const name = (n.name || '').toLowerCase();
-      const comment = ((n as { comment?: string }).comment || n.description || '').toLowerCase();
+      const comment = (n.comment || n.description || '').toLowerCase();
       return name.includes(q) || comment.includes(q);
     });
   }, [numbers, globalFilter]);
 
-  const columns = useMemo<ColumnDef<any>[]>(() => [
-    {
-      accessorKey: 'name',
-      header: t('numbers.name'),
-      cell: (info) => (
-        <Text className={styles.nameCell}>{info.getValue() as string}</Text>
-      ),
-    },
-    {
-      accessorKey: 'comment',
-      header: t('numbers.comment'),
-      cell: (info) => (info.getValue() as string) || '-',
-    },
-    {
-      id: 'actions',
-      header: t('common.actions'),
-      cell: (info) => {
-        const row = info.row.original;
-        return (
-          <TableRowActions>
-            <TableRowAction
-              title={t('common.edit')}
-              aria-label={t('common.edit')}
-              onClick={() => dispatch(numbersPageActions.openEditModal(row))}
-            >
-              <Pencil />
-            </TableRowAction>
-            <TableRowAction
-              danger
-              title={t('common.delete')}
-              aria-label={t('common.delete')}
-              onClick={() => {
-                if (window.confirm(t('common.confirmDelete', `Delete ${row.name}?`))) {
-                  void deleteNumber(row.id);
-                }
-              }}
-            >
-              <Trash2 />
-            </TableRowAction>
-          </TableRowActions>
-        );
-      },
-    },
-  ], [t, deleteNumber, dispatch]);
-
-  const selectedCount = Object.keys(rowSelection).length;
-
-  const handleBulkDelete = async () => {
+  const handleBulkDelete = useCallback(async () => {
     const ids = Object.keys(rowSelection).map(Number);
     if (!ids.length) return;
-
-    if (window.confirm(t('common.confirmDelete', 'Are you sure you want to delete?'))) {
-      await bulkDelete(ids).unwrap();
-      setRowSelection({});
-    }
-  };
+    if (!window.confirm(t('numbers.confirmBulkDelete'))) return;
+    await bulkDelete(ids).unwrap();
+    setRowSelection({});
+  }, [rowSelection, bulkDelete, t]);
 
   const toolbar = (
-    <HStack justify="between" align="center" className={styles.toolbar} max>
+    <Flex justify="between" align="center" className={cls.toolbar} max>
       <HStack gap="8" align="center">
-        <Hash className={styles.toolbarIcon} />
-        <Text className={styles.toolbarTitle}>
-          {numbers.length} {t('nav.numbers')}
-        </Text>
+        <Hash size={20} className={cls.toolbarIcon} />
+        <Text className={cls.count}>{t('numbers.count', { count: numbers.length })}</Text>
       </HStack>
-      <HStack gap="12" align="center" className={styles.toolbarActions}>
-        {selectedCount > 0 && !isMobile && (
-          <Button variant="destructive" disabled={isDeleting} onClick={() => void handleBulkDelete()}>
-            {isDeleting ? (
-              <Loader2 className={styles.iconSpin} />
-            ) : (
-              <Trash2 className={styles.actionIcon} />
-            )}
-            {t('common.deleteSelected')} ({selectedCount})
+      <HStack gap="8" align="center" className={cls.toolbarActions}>
+        {!isMobile && (
+          <Button
+            variant="destructive"
+            className={selectedCount === 0 ? cls.bulkBtnHidden : undefined}
+            disabled={isDeleting || selectedCount === 0}
+            aria-hidden={selectedCount === 0}
+            tabIndex={selectedCount === 0 ? -1 : undefined}
+            onClick={handleBulkDelete}
+          >
+            {isDeleting ? <Loader2 size={16} className={cls.spinner} /> : <Trash2 size={16} />}
+            {t('numbers.deleteSelected', { count: selectedCount })}
           </Button>
         )}
-        <VStack className={styles.searchWrap}>
-          <Search className={styles.searchIcon} />
+        <Flex align="center" className={cls.searchWrap}>
+          <Search size={16} className={cls.searchIcon} />
           <Input
+            id="numbers-search"
             placeholder={t('common.search')}
             value={globalFilter}
             onChange={(e) => setGlobalFilter(e.target.value)}
-            className={styles.searchInput}
+            className={cls.searchInput}
           />
-        </VStack>
+        </Flex>
       </HStack>
-    </HStack>
+    </Flex>
   );
 
   if (isLoading) {
     return (
-      <Card>
+      <Card className={cls.card}>
         <CardHeader>{toolbar}</CardHeader>
         <CardContent>
-          <Flex align="center" justify="center" className={styles.loading}>
-            <Loader2 className={styles.loadingIcon} />
+          <Flex align="center" justify="center" className={cls.loading}>
+            <Loader2 size={24} className={cls.spinner} />
           </Flex>
         </CardContent>
       </Card>
     );
   }
 
-  // D-29 hybrid: critical columns as cards on phone
   if (isMobile) {
     return (
-      <Card data-testid="numbers-mobile-cards">
+      <Card className={cls.card} data-testid="hybrid-table" data-hybrid="mobile-card">
         <CardHeader>{toolbar}</CardHeader>
         <CardContent>
-          <VStack gap="8" max>
+          <VStack gap="8" max className={cls.mobileList}>
             {filtered.length === 0 ? (
-              <Text variant="muted" className={styles.emptyState}>
-                {t('common.noData')}
+              <Text variant="muted" className={cls.mobileEmpty}>
+                {t('numbers.empty')}
               </Text>
             ) : (
               filtered.map((row) => (
-                <VStack key={row.id} gap="0" max className={styles.mobileCard}>
+                <Flex
+                  key={row.id}
+                  direction="column"
+                  className={cls.mobileCard}
+                  data-testid="numbers-mobile-card"
+                >
                   <HStack justify="between" align="start" max>
                     <VStack gap="4">
-                      <Text className={styles.nameCell}>{row.name}</Text>
-                      <Text variant="muted" className={styles.mobileComment}>
-                        {(row as { comment?: string }).comment || row.description || '-'}
+                      <Text as="span" className={cls.name}>{row.name}</Text>
+                      <Text as="span" className={cls.comment}>
+                        {row.comment || row.description || '-'}
                       </Text>
                     </VStack>
                     <TableRowActions>
@@ -178,7 +141,7 @@ export const NumbersTable = () => {
                         title={t('common.delete')}
                         aria-label={t('common.delete')}
                         onClick={() => {
-                          if (window.confirm(t('common.confirmDelete'))) {
+                          if (window.confirm(t('numbers.confirmDelete', { name: row.name }))) {
                             void deleteNumber(row.id);
                           }
                         }}
@@ -187,7 +150,7 @@ export const NumbersTable = () => {
                       </TableRowAction>
                     </TableRowActions>
                   </HStack>
-                </VStack>
+                </Flex>
               ))
             )}
           </VStack>
@@ -197,24 +160,32 @@ export const NumbersTable = () => {
   }
 
   return (
-    <Card>
+    <Card className={cls.card} data-testid="hybrid-table" data-hybrid="overflow-x-auto">
       <CardHeader>{toolbar}</CardHeader>
-      <CardContent className={styles.tableContent}>
-        <VStack className={styles.tableScroll} data-testid="numbers-table-scroll" max>
+      <CardContent className={cls.cardContent}>
+        <Flex
+          direction="column"
+          align="stretch"
+          className={cls.tableScroll}
+          data-testid="numbers-table-scroll"
+        >
           <DataTable
+            className={cls.table}
             data={numbers}
             columns={columns}
             getRowId={(row) => String(row.id)}
-            globalFilter={globalFilter}
-            selectable={true}
+            selectable
             rowSelection={rowSelection}
             onRowSelectionChange={setRowSelection}
+            globalFilter={globalFilter}
             pageSize={50}
-            emptyText={t('common.noData')}
+            emptyText={t('numbers.empty')}
             exportFilename="numbers_export"
           />
-        </VStack>
+        </Flex>
       </CardContent>
     </Card>
   );
-};
+});
+
+NumbersTable.displayName = 'NumbersTable';

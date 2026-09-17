@@ -1,0 +1,1 @@
+export { VoiceRobotsTable } from './VoiceRobotsTable';
