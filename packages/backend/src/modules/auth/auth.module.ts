@@ -13,10 +13,15 @@ import { UserSession } from './user-session.model';
 import { UsersModule } from '../users/users.module';
 import { LoggerModule } from '../logger/logger.module';
 import { MailerModule } from '../mailer/mailer.module';
+import { requireJwtSecret } from './jwt-secret';
+import { TenantRegistrationService } from './tenant-registration.service';
+import { User } from '../users/user.model';
+import { Tenant } from '../cloud-admin/tenant.model';
+import { Context } from '../contexts/context.model';
 
 @Module({
   imports: [
-    SequelizeModule.forFeature([UserSession]),
+    SequelizeModule.forFeature([UserSession, User, Tenant, Context]),
     UsersModule,
     LoggerModule,
     MailerModule,
@@ -32,7 +37,7 @@ import { MailerModule } from '../mailer/mailer.module';
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: (config: ConfigService) => ({
-        secret: config.get<string>('JWT_SECRET', 'krasterisk-v4-secret'),
+        secret: requireJwtSecret(config),
         signOptions: {
           expiresIn: config.get('JWT_EXPIRES_IN', '2h') as any,
           issuer: 'krasterisk-v4',
@@ -43,7 +48,7 @@ import { MailerModule } from '../mailer/mailer.module';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, JwtAuthGuard, RolesGuard, SuperAdminGuard],
+  providers: [AuthService, TenantRegistrationService, JwtStrategy, JwtAuthGuard, RolesGuard, SuperAdminGuard],
   exports: [AuthService, JwtAuthGuard, RolesGuard, SuperAdminGuard],
 })
 export class AuthModule {}

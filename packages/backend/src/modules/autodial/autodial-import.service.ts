@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   Logger,
   NotFoundException,
@@ -21,6 +22,7 @@ import { AcImportProfile } from './models/ac-import-profile.model';
 import { AcImportRun } from './models/ac-import-run.model';
 import { AutodialBasesService } from './autodial-bases.service';
 import { normalizeAutodialPhone } from './autodial-phone.util';
+import { prepareAutodialContact } from './autodial-contact.util';
 
 export interface ImportPreviewResult {
   headers: string[];
@@ -115,15 +117,15 @@ export class AutodialImportService {
     if (!n) throw new NotFoundException({ code: 'AC_PROFILE_NOT_FOUND', message: 'Profile not found' });
   }
 
-  async previewCsv(buffer: Buffer): Promise<ImportPreviewResult> {
+  async previewCsv(buffer: Buffer, options: { delimiter?: string; has_header?: boolean } = {}): Promise<ImportPreviewResult> {
     const text = this.decodeText(buffer);
-    const delimiter = this.detectDelimiter(text);
+    const delimiter = options.delimiter || this.detectDelimiter(text);
     const rows = this.parseCsv(text, delimiter);
     if (!rows.length) {
       throw new BadRequestException({ code: 'AC_CSV_EMPTY', message: 'Empty CSV' });
     }
-    const headers = rows[0];
-    const data = rows.slice(1);
+    const headers = options.has_header === false ? rows[0].map((_, i) => String(i)) : rows[0];
+    const data = options.has_header === false ? rows : rows.slice(1);
     return {
       headers,
       sample_rows: data.slice(0, 5),
@@ -132,7 +134,7 @@ export class AutodialImportService {
     };
   }
 
-  async previewXlsx(buffer: Buffer): Promise<ImportPreviewResult> {
+  async previewXlsx(buffer: Buffer, options: { has_header?: boolean } = {}): Promise<ImportPreviewResult> {
     const wb = new ExcelJS.Workbook();
     // exceljs typings accept Buffer via any
     await wb.xlsx.load(buffer as unknown as ExcelJS.Buffer);
@@ -148,10 +150,10 @@ export class AutodialImportService {
     });
     if (!rows.length) throw new BadRequestException({ code: 'AC_XLSX_EMPTY', message: 'Empty sheet' });
     return {
-      headers: rows[0],
-      sample_rows: rows.slice(1, 6),
+      headers: options.has_header === false ? rows[0].map((_, i) => String(i)) : rows[0],
+      sample_rows: (options.has_header === false ? rows : rows.slice(1)).slice(0, 5),
       delimiter: '',
-      total_rows: Math.max(0, rows.length - 1),
+      total_rows: Math.max(0, rows.length - (options.has_header === false ? 0 : 1)),
     };
   }
 
@@ -168,6 +170,7 @@ export class AutodialImportService {
       has_header?: boolean;
       dedup_policy?: AutodialDedupPolicy;
       replace?: boolean;
+      expected_revision?: number;
     },
   ): Promise<ImportExecuteResult> {
     const base = await this.assertBase(userUid, baseUid);
@@ -183,10 +186,10 @@ export class AutodialImportService {
         where: { uid: opts.profileUid, base_uid: baseUid, user_uid: userUid },
       });
       if (!profile) throw new NotFoundException({ code: 'AC_PROFILE_NOT_FOUND', message: 'Profile not found' });
-      columnMap = profile.column_map;
-      delimiter = profile.delimiter;
-      hasHeader = profile.has_header;
-      dedup = profile.dedup_policy;
+      columnMap = opts.column_map ?? profile.column_map;
+      delimiter = opts.delimiter ?? profile.delimiter;
+      hasHeader = opts.has_header ?? profile.has_header;
+      dedup = opts.dedup_policy ?? profile.dedup_policy;
       profileUid = profile.uid;
     }
     if (!columnMap?.length) {
@@ -195,8 +198,7 @@ export class AutodialImportService {
 
     let table: string[][];
     if (opts.source === 'xlsx') {
-      const preview = await this.previewXlsx(opts.buffer);
-      table = [preview.headers, ...(await this.readAllXlsx(opts.buffer))];
+      table = await this.readAllXlsx(opts.buffer);
     } else {
       const text = this.decodeText(opts.buffer);
       table = this.parseCsv(text, delimiter);
@@ -223,14 +225,9 @@ export class AutodialImportService {
       const cells = dataRows[i];
       try {
         const mapped = this.mapRow(headers, cells, columnMap, fields, base.phone_normalization);
-        if (dedup === 'phone') {
-          for (const p of mapped.phones) {
-            if (seenPhones.has(p.normalized)) {
-              errors.push({ row: rowNum, code: 'duplicate_phone', message: p.normalized });
-              continue;
-            }
-            seenPhones.add(p.normalized);
-          }
+        if (dedup === 'phone' && mapped.phones.some((p) => seenPhones.has(p.normalized))) {
+          errors.push({ row: rowNum, code: 'duplicate_phone', message: 'duplicate_phone' });
+          continue;
         }
         if (dedup === 'external_id' && mapped.external_id) {
           if (seenExternal.has(mapped.external_id)) {
@@ -243,20 +240,34 @@ export class AutodialImportService {
           errors.push({ row: rowNum, code: 'no_phone', message: 'No phone mapped' });
           continue;
         }
+        mapped.phones.forEach((phone) => seenPhones.add(phone.normalized));
         prepared.push(mapped);
       } catch (e) {
         errors.push({
           row: rowNum,
           code: 'row_invalid',
-          message: (e as Error).message,
+          message: (e as { response?: { code?: string } }).response?.code ?? 'row_invalid',
         });
       }
     }
 
+    if (!prepared.length) {
+      throw new BadRequestException({ code: 'AC_IMPORT_NO_VALID_ROWS', message: 'No valid rows. Existing contacts were not changed.', errors });
+    }
+    if (opts.replace && errors.length) {
+      throw new BadRequestException({ code: 'AC_IMPORT_REPLACE_ERRORS', message: 'Fix all invalid or duplicate rows before replacing contacts.', errors });
+    }
     const result = await this.sequelize.transaction(async (transaction) => {
+      const lockedBase = await this.basesService.lockBase(userUid, baseUid, transaction);
+      if (lockedBase.revision !== base.revision
+        || (opts.expected_revision !== undefined && lockedBase.revision !== opts.expected_revision)
+        || (opts.replace && opts.expected_revision === undefined)) {
+        throw new ConflictException({ code: 'AC_REVISION_CONFLICT', message: 'Preview the current base before importing.' });
+      }
       let skipped = 0;
       if (opts.replace) {
-        skipped = await this.contactModel.destroy({
+        await this.basesService.assertBaseReplaceable(userUid, baseUid, transaction);
+        await this.contactModel.destroy({
           where: { base_uid: baseUid, user_uid: userUid },
           transaction,
         });
@@ -268,6 +279,15 @@ export class AutodialImportService {
         });
         const existSet = new Set(existing.map((p) => p.normalized));
         const filtered = prepared.filter((p) => !p.phones.some((ph) => existSet.has(ph.normalized)));
+        skipped += prepared.length - filtered.length;
+        prepared.length = 0;
+        prepared.push(...filtered);
+      } else if (dedup === 'external_id') {
+        const existing = await this.contactModel.findAll({
+          where: { base_uid: baseUid, user_uid: userUid }, attributes: ['external_id'], transaction,
+        });
+        const ids = new Set(existing.map((contact) => contact.external_id).filter(Boolean));
+        const filtered = prepared.filter((contact) => !contact.external_id || !ids.has(contact.external_id));
         skipped += prepared.length - filtered.length;
         prepared.length = 0;
         prepared.push(...filtered);
@@ -294,7 +314,7 @@ export class AutodialImportService {
         );
       }
 
-      await base.update({ revision: (base.revision ?? 0) + 1 }, { transaction });
+      await lockedBase.increment('revision', { transaction });
 
       const run = await this.runModel.create(
         {
@@ -355,10 +375,19 @@ export class AutodialImportService {
     let comment = '';
 
     for (const m of columnMap) {
-      const raw = byHeader.get(m.column) ?? byIndex.get(m.column) ?? '';
-      const transformed = this.applyTransform(raw, m.transform);
+      if (m.column_index === undefined && headers.filter((header) => header === m.column).length > 1) {
+        throw new BadRequestException({ code: 'AC_AMBIGUOUS_COLUMN', message: 'Select an explicit column index.' });
+      }
+      if (m.column_index !== undefined && (!Number.isInteger(m.column_index) || m.column_index < 0 || m.column_index >= headers.length)) {
+        throw new BadRequestException({ code: 'AC_INVALID_COLUMN', message: 'Invalid column index.' });
+      }
+      const raw = m.column_index !== undefined ? cells[m.column_index] ?? '' : byHeader.get(m.column) ?? byIndex.get(m.column) ?? '';
+      const transformed = this.applyTransform(raw, m.transform, phoneNorm);
       if (m.field_key === '__phone') {
         const normalized = normalizeAutodialPhone(transformed, phoneNorm);
+        if (raw.trim() && !normalized) {
+          throw new BadRequestException({ code: 'AC_INVALID_PHONE', message: 'Invalid mapped phone.' });
+        }
         if (normalized) {
           phones.push({
             raw: transformed,
@@ -375,8 +404,12 @@ export class AutodialImportService {
         continue;
       }
       if (m.field_key === '__tz_offset') {
+        if (!transformed.trim()) continue;
         const n = Number(transformed);
-        if (!Number.isNaN(n)) tz = n;
+        if (!Number.isInteger(n) || n < -720 || n > 840) {
+          throw new BadRequestException({ code: 'AC_INVALID_TIMEZONE_OFFSET', message: 'Invalid phone timezone offset.' });
+        }
+        tz = n;
         continue;
       }
       if (m.field_key === '__comment') {
@@ -384,9 +417,12 @@ export class AutodialImportService {
         continue;
       }
       const field = fieldByKey.get(m.field_key);
-      if (!field) continue;
+      if (!field) throw new BadRequestException({ code: 'AC_UNKNOWN_FIELD', message: 'Unknown field.' });
       if (field.is_phone || field.type === 'phone') {
         const normalized = normalizeAutodialPhone(transformed, phoneNorm);
+        if (raw.trim() && !normalized) {
+          throw new BadRequestException({ code: 'AC_INVALID_PHONE', message: 'Invalid mapped phone.' });
+        }
         if (normalized) {
           phones.push({
             raw: transformed,
@@ -397,23 +433,24 @@ export class AutodialImportService {
           });
         }
       }
-      values[String(field.uid)] = transformed;
+      values[field.key] = transformed;
     }
 
     for (const p of phones) p.tz_offset_min = tz;
-    return { external_id, values, phones, comment };
+    return { ...prepareAutodialContact(fields, { external_id, values, phones }, phoneNorm), comment };
   }
 
   private applyTransform(
     value: string,
     transform?: IAutodialColumnMap['transform'],
+    phoneNorm: AcBase['phone_normalization'] = 'ru_8_to_7',
   ): string {
     const v = value?.trim() ?? '';
     switch (transform) {
       case 'trim':
         return v;
       case 'phone_normalize':
-        return normalizeAutodialPhone(v);
+        return normalizeAutodialPhone(v, phoneNorm);
       case 'date_iso': {
         const d = new Date(v);
         return Number.isNaN(d.getTime()) ? v : d.toISOString().slice(0, 10);
@@ -443,6 +480,9 @@ export class AutodialImportService {
   }
 
   private parseCsv(text: string, delimiter: string): string[][] {
+    if (![',', ';', '\t', '|'].includes(delimiter)) {
+      throw new BadRequestException({ code: 'AC_INVALID_DELIMITER', message: 'Unsupported delimiter.' });
+    }
     const src = text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
     const rows: string[][] = [];
     let cells: string[] = [];
@@ -482,6 +522,7 @@ export class AutodialImportService {
       if (ch === '\r') continue;
       cell += ch;
     }
+    if (inQuotes) throw new BadRequestException({ code: 'AC_INVALID_CSV', message: 'Unclosed CSV quote.' });
     if (cell.length || cells.length) {
       cells.push(cell);
       rows.push(cells);
@@ -493,9 +534,9 @@ export class AutodialImportService {
     const wb = new ExcelJS.Workbook();
     await wb.xlsx.load(buffer as unknown as ExcelJS.Buffer);
     const sheet = wb.worksheets[0];
+    if (!sheet) throw new BadRequestException({ code: 'AC_XLSX_EMPTY', message: 'Empty workbook.' });
     const rows: string[][] = [];
-    sheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
-      if (rowNumber === 1) return;
+    sheet.eachRow({ includeEmpty: false }, (row) => {
       const cells: string[] = [];
       row.eachCell({ includeEmpty: true }, (cell, col) => {
         cells[col - 1] = cell.text?.trim() ?? '';

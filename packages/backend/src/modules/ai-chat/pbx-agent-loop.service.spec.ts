@@ -456,7 +456,7 @@ describe('PbxAgentLoopService', () => {
       TENANT,
       expect.any(Object),
     );
-    expect(llm.chat.mock.calls.length).toBeGreaterThanOrEqual(3);
+    expect(llm.chat).toHaveBeenCalledTimes(3);
     expect(events.some((event) => event.name === 'item' && (event.data as { kind?: string }).kind === 'proposal')).toBe(true);
   });
 
@@ -668,7 +668,7 @@ describe('PbxAgentLoopService', () => {
     const events = await collect(service.runTurn('Сделай IVR - Продажи', { uid: THREAD }, turnContext()));
     const second = llm.chat.mock.calls[1][0] as { messages: Array<{ role: string; content: string }> };
 
-    expect(llm.chat).toHaveBeenCalledTimes(3);
+    expect(llm.chat).toHaveBeenCalledTimes(5);
     expect(mcpTools.callTool).toHaveBeenCalledWith(
       'create_endpoints_bulk',
       expect.objectContaining({ extensionsPattern: '101-103' }),
@@ -677,12 +677,12 @@ describe('PbxAgentLoopService', () => {
     );
     expect(second.messages.some((row) => row.role === 'system' && /инструмент|tool/i.test(row.content))).toBe(true);
     expect(events.map((event) => event.name)).toEqual([
-      'thread', 'item', 'item', 'item', 'item', 'done',
+      'thread', 'item', 'item', 'item', 'done',
     ]);
     const kinds = events
       .filter((event) => event.name === 'item')
       .map((event) => (event.data as { kind: string }).kind);
-    expect(kinds).toEqual(['user', 'step', 'step', 'assistant']);
+    expect(kinds).toEqual(['user', 'step', 'step']);
   });
 
   it('stops on the group card instead of narrating the next create_ivr', async () => {
@@ -739,7 +739,7 @@ describe('PbxAgentLoopService', () => {
       .map((call) => call[3])
       .find((row) => /Что сделать|What to do/i.test(String(row.content ?? '')));
 
-    expect(llm.chat).toHaveBeenCalledTimes(3);
+    expect(llm.chat).toHaveBeenCalledTimes(4);
     expect(mcpTools.callTool).not.toHaveBeenCalled();
     expect(events[events.length - 1]).toEqual({ name: 'done', data: { closeKind: 'complete' } });
     expect(events.filter((event) => event.name === 'item' && (event.data as { kind?: string }).kind === 'assistant')).toHaveLength(0);
@@ -767,7 +767,7 @@ describe('PbxAgentLoopService', () => {
     expect(mcpTools.callTool).toHaveBeenCalledWith('create_ivr', expect.anything(), TENANT, expect.anything());
     const second = llm.chat.mock.calls[1][0] as { messages: Array<{ role: string; content: string }> };
     expect(second.messages.some((row) => row.role === 'assistant' && /menu_items/.test(row.content))).toBe(false);
-    expect(second.messages.some((row) => row.role === 'system' && /create_ivr/i.test(row.content))).toBe(true);
+    expect(second.messages.some((row) => row.role === 'system' && /read_skill|create_ivr/i.test(row.content))).toBe(true);
   });
 
   it('does not nudge a clarifying question — the turn waits for the user', async () => {
@@ -1143,7 +1143,7 @@ describe('PbxAgentLoopService', () => {
     expect(mcpTools.callTool).toHaveBeenCalledWith('propose_plan', expect.anything(), TENANT, expect.any(Object));
   });
 
-  it('strips tool identifiers from a public confirm ask', async () => {
+  it('does not present a fabricated confirmation card without a tool result', async () => {
     const { service } = createHarness([
       {
         text: 'Отлично! create_endpoints_bulk подготовил черновик. Подтвердите карточку абонентов.',
@@ -1156,8 +1156,7 @@ describe('PbxAgentLoopService', () => {
       .map((event) => event.data as { kind?: string; text?: string })
       .find((item) => item.kind === 'assistant');
 
-    expect(assistant?.text).toMatch(/черновик/);
-    expect(assistant?.text).not.toMatch(/create_endpoints_bulk/);
+    expect(assistant?.text ?? '').not.toMatch(/черновик|create_endpoints_bulk/);
   });
 
   it('does not show schema reasoning as a public reply', async () => {
@@ -1670,5 +1669,19 @@ describe('PbxAgentLoopService', () => {
         events.map((e) => e.name).filter((n) => ['text', 'progress', 'tool_call', 'tool_result', 'proposal'].includes(n)),
       ).toEqual([]);
     });
+  });
+});
+
+describe('explicit read-only support request', () => {
+  it('hides mutation tools and blocks a hallucinated mutation before dispatch', async () => {
+    const { service, llm, mcpTools } = createHarness([{ text: '', toolCalls: [{ id: 'x', name: 'create_endpoint', arguments: { extension: '101' } }] }], { tools: [
+      { name: 'get_endpoint_registration', description: 'read', inputSchema: {} },
+      { name: 'create_endpoint', description: 'write', inputSchema: {} },
+      { name: 'propose_plan', description: 'plan', inputSchema: {} },
+    ] });
+    const events = await collect(service.runTurn('Проверь номер 101, настройки не меняй', { uid: THREAD }, turnContext()));
+    expect(mcpTools.callTool).not.toHaveBeenCalled();
+    expect((llm.chat.mock.calls[0] as any)[0].tools.map((tool: any) => tool.name)).toEqual(['get_endpoint_registration']);
+    expect(events.at(-1)).toMatchObject({ name: 'error', data: { code: 'read_only_request' } });
   });
 });

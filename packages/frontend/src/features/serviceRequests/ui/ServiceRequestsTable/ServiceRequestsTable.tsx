@@ -75,7 +75,7 @@ function buildQueryParams(
 
 function exportServiceRequestsToCsv(
   rows: IServiceRequest[],
-  t: (key: string, defaultValue?: string) => string,
+  t: (...args: [key: string] | [key: string, fallback: string]) => string,
 ) {
   const esc = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
   const statusLabel = (val: string) => {

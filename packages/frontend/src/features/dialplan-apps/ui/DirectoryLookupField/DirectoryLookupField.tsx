@@ -99,7 +99,9 @@ export function CallValueSourceField({
       onChange({ source: 'variable', name: value?.source === 'variable' ? value.name : '' });
       return;
     }
-    onChange({ source: raw as Exclude<CallValueSource['source'], 'fixed' | 'variable'> });
+    if (raw === 'original_caller' || raw === 'current_caller' || raw === 'route_pattern') {
+      onChange({ source: raw });
+    }
   };
 
   return (

@@ -19,6 +19,13 @@ export class LoginDto {
 }
 
 export class RegisterDto {
+  @ApiPropertyOptional({ description: 'Название новой организации' })
+  @IsOptional()
+  @IsString()
+  @MinLength(2)
+  @MaxLength(255)
+  companyName?: string;
+
   @ApiProperty({ example: 'admin@company.ru', description: 'Логин (email)' })
   @IsNotEmpty()
   @IsString()

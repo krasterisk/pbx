@@ -50,6 +50,7 @@ export class AutodialPacerService implements OnApplicationShutdown {
   private trunkLimits = new Map<string, number>();
   /** Live PJSIP occupancy from CoreShowChannels; falls back to autodial state. */
   private liveTrunkChannels = new Map<string, number>();
+  private trunkPictureFresh = false;
 
   constructor(
     @InjectModel(AcCampaign) private readonly campaignModel: typeof AcCampaign,
@@ -135,6 +136,7 @@ export class AutodialPacerService implements OnApplicationShutdown {
       availableAgents: this.availableAgents(campaign),
       freeTrunkChannels: this.freeTrunkChannels(campaign),
       tenantActiveChannels: this.state.tenantActiveChannels(campaign.user_uid),
+      tenantReservedChannels: this.state.tenantReservedChannels(campaign.user_uid),
       degraded,
       overDial,
     });
@@ -211,14 +213,14 @@ export class AutodialPacerService implements OnApplicationShutdown {
     return leased;
   }
 
-  /** Tasks stuck in leased/dialing past the TTL go back into the pool. */
+  /** Only unstarted leases expire. Dialing tasks may have live channels. */
   private async sweepStaleLeases(): Promise<void> {
     const cutoff = new Date(Date.now() - LEASE_TTL_MS);
     const [affected] = await this.taskModel.update(
       { status: 'pending', leased_by: null, leased_at: null },
       {
         where: {
-          status: { [Op.in]: ['leased', 'dialing'] },
+          status: 'leased',
           leased_at: { [Op.lt]: cutoff },
         },
       },
@@ -274,9 +276,9 @@ export class AutodialPacerService implements OnApplicationShutdown {
       );
       if (limit <= 0) continue;
       anyLimit = true;
+      if (!this.trunkPictureFresh) return 0;
       const live = this.liveTrunkChannels.get(trunk.trunk_id);
-      const used =
-        live ?? this.state.trunkActiveChannels(campaign.user_uid, trunk.trunk_id);
+      const used = Math.max(live ?? 0, this.state.trunkActiveChannels(campaign.user_uid, trunk.trunk_id));
       free += Math.max(0, limit - used);
     }
     return anyLimit ? free : null;
@@ -297,6 +299,7 @@ export class AutodialPacerService implements OnApplicationShutdown {
     if (!ids.size) {
       this.trunkLimits.clear();
       this.liveTrunkChannels.clear();
+      this.trunkPictureFresh = false;
       return;
     }
 
@@ -314,7 +317,9 @@ export class AutodialPacerService implements OnApplicationShutdown {
         (events ?? []) as Array<{ event?: string; channel?: string; Channel?: string }>,
         [...ids],
       );
+      this.trunkPictureFresh = true;
     } catch (e) {
+      this.trunkPictureFresh = false;
       this.logger.warn(`CoreShowChannels occupancy failed: ${(e as Error).message}`);
     }
   }

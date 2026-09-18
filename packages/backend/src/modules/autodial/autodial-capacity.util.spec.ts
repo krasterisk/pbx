@@ -65,7 +65,7 @@ describe('computeAutodialCapacity', () => {
     expect(result.slots).toBe(6);
   });
 
-  it('counts reserved agents as taken before applying the ratio', () => {
+  it('counts each reservation once after applying the agent ratio', () => {
     const result = computeAutodialCapacity(
       inputs({
         dialMode: 'power',
@@ -77,8 +77,31 @@ describe('computeAutodialCapacity', () => {
         reserved: 1,
       }),
     );
-    // (3 - 1) * 2 = 4 allowed, 1 already in flight
+    expect(result.slots).toBe(5);
+  });
+
+  it('does not subtract campaign calls twice from tenant remaining capacity', () => {
+    const result = computeAutodialCapacity(inputs({
+      pacing: { providers: [{ type: 'tenant_cap', max_channels: 10 }] },
+      activeChannels: 4, tenantActiveChannels: 4,
+    }));
+    expect(result).toEqual({ slots: 6, capacity: 10, limitedBy: 'tenant_cap' });
+  });
+
+  it('counts reservations from other campaigns against the tenant cap', () => {
+    const result = computeAutodialCapacity(inputs({
+      pacing: { providers: [{ type: 'tenant_cap', max_channels: 10 }] },
+      tenantActiveChannels: 4, tenantReservedChannels: 3,
+    }));
     expect(result.slots).toBe(3);
+  });
+
+  it('does not subtract active calls again from already free trunk channels', () => {
+    const result = computeAutodialCapacity(inputs({
+      pacing: { providers: [{ type: 'trunk_channels' }] },
+      activeChannels: 4, freeTrunkChannels: 6,
+    }));
+    expect(result).toEqual({ slots: 6, capacity: 10, limitedBy: 'trunk_channels' });
   });
 
   it('multiplies free agents by the controller factor in predictive mode', () => {

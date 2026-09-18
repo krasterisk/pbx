@@ -20,7 +20,7 @@ const MODE_KEYS = {
   menu: 'routes.chain.playback.modeMenu',
 } as const;
 
-type TFn = (key: string, fallback?: string) => string;
+type TFn = (...args: [key: string] | [key: string, fallback: string]) => string;
 
 function asOptions(value: unknown): IMediaOptions {
   return parseMediaOptionsObject(value);

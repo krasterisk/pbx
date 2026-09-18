@@ -4,7 +4,7 @@ import { useGetTtsEnginesQuery } from '@/shared/api/endpoints/ttsEnginesApi';
 import { TtsSettingsFields } from '@/entities/engines/ui/TtsSettingsFields/TtsSettingsFields';
 import type { FieldSchema } from '../schema.types';
 
-type TFn = (key: string, fallback?: string) => string;
+type TFn = (...args: [key: string] | [key: string, fallback: string]) => string;
 
 function TtsSettingsBlock({
   engineUid,

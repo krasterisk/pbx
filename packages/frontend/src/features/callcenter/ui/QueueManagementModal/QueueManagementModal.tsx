@@ -230,7 +230,7 @@ function CursorDragGhost({
   }, [initialPos.x, initialPos.y]);
 
   useEffect(() => {
-    const onMove = (e: PointerEvent) => {
+    const onMove = (e: globalThis.PointerEvent) => {
       setPos({ x: e.clientX, y: e.clientY });
     };
     window.addEventListener('pointermove', onMove, { passive: true });

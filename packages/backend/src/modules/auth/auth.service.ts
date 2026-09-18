@@ -14,6 +14,7 @@ import { MailerService } from '../mailer/mailer.service';
 import { UserSession } from './user-session.model';
 import { User, UserLevel } from '../users/user.model';
 import type { AuthTokenResponse, AuthUserPayload } from './dto/auth-response.dto';
+import { TenantRegistrationService } from './tenant-registration.service';
 
 /** Number of bcrypt salt rounds — 12 is the industry standard (2024) */
 const BCRYPT_ROUNDS = 12;
@@ -42,6 +43,7 @@ export class AuthService {
     private readonly loggerService: LoggerService,
     private readonly mailerService: MailerService,
     @InjectModel(UserSession) private readonly sessionModel: typeof UserSession,
+    private readonly registration: TenantRegistrationService,
   ) {}
 
   // ─── Token helpers ──────────────────────────────────────────────────────────
@@ -131,6 +133,9 @@ export class AuthService {
       throw new UnauthorizedException('Неверный логин или пароль');
     }
 
+    if (!user.isActivated && user.activationCode) throw new ForbiddenException('Подтвердите адрес электронной почты');
+    await this.upgradeLegacyPasswordIfNeeded(user.uniqueid, user.vpbx_user_uid, password, user.passwd);
+
     const payload = this.buildPayload(user);
     const tokens = this.generateTokens(payload);
     await this.persistSession(user.uniqueid, tokens.refreshToken, ipAddress, userAgent);
@@ -179,7 +184,7 @@ export class AuthService {
   }
 
   /** POST /auth/register — only available in BOX/OPENSOURCE mode */
-  async register(login: string, password: string, name: string, email?: string): Promise<{ success: boolean; message: string }> {
+  async register(login: string, password: string, name: string, email?: string, companyName?: string): Promise<{ success: boolean; message: string; requiresActivation: boolean }> {
     const deploymentMode = this.configService.get<string>('DEPLOYMENT_MODE', 'BOX').toUpperCase();
     if (deploymentMode === 'CLOUD') {
       throw new ForbiddenException('Self-registration is disabled. Contact your administrator.');
@@ -194,22 +199,8 @@ export class AuthService {
     const activationCode = this.generateActivationCode();
     const activationExpires = Date.now() + 15 * 60 * 1000; // 15 min
 
-    const user = await this.usersService.create({
-      login,
-      passwd: hashedPassword,
-      name,
-      email: email ?? '',
-      level: UserLevel.ADMIN,
-      vpbx_user_uid: 0,
-    });
-
-    // Make user the root of their own tenant
-    await this.usersService.update(user.uniqueid, 0, {
-      vpbx_user_uid: user.uniqueid,
-      activationCode,
-      activationExpires,
-      isActivated: !email, // auto-activate if no email confirmation required
-    } as any);
+    const user = await this.registration.create({ login, passwd: hashedPassword, name, email,
+      companyName, activationCode, activationExpires });
 
     if (email) {
       try {
@@ -223,6 +214,7 @@ export class AuthService {
 
     return {
       success: true,
+      requiresActivation: !!email,
       message: email
         ? 'Регистрация успешна. Проверьте почту для активации аккаунта.'
         : 'Регистрация успешна.',

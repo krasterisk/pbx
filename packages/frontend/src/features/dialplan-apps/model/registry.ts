@@ -45,7 +45,7 @@ const registryDraft: Record<ActionType, Omit<IDialplanAppConfig, 'schema' | 'sum
       titleKey: 'routes.chain.section.params',
       title: 'Параметры',
     },
-    schema: buildToTrunkSchema((key, fallback) => fallback ?? key),
+    schema: buildToTrunkSchema((key: string, fallback?: string) => fallback ?? key),
     summarize: summarizeToTrunk,
   },
   toexten: {
@@ -212,7 +212,7 @@ const registryDraft: Record<ActionType, Omit<IDialplanAppConfig, 'schema' | 'sum
         '**Группа из списка** — набор и опции Dial берутся из выбранной группы\n**B-номер маршрута** — номер, который набрал абонент, подбирает группу с таким номером\n**Из справочника** — по номеру звонящего и полю записи\n**Из переменной** — номер канала без ${}',
       hideFieldLabels: true,
     },
-    schema: buildToGroupSchema((key, fallback) => fallback ?? key),
+    schema: buildToGroupSchema((key: string, fallback?: string) => fallback ?? key),
     summarize: summarizeToGroup,
   },
   tolist: {
@@ -220,7 +220,7 @@ const registryDraft: Record<ActionType, Omit<IDialplanAppConfig, 'schema' | 'sum
     labelKey: 'routes.action.tolist',
     category: 'telephony',
     defaultParams: { numbers: '', timeout: 30 },
-    schema: buildToListSchema((key, fallback) => fallback ?? key),
+    schema: buildToListSchema((key: string, fallback?: string) => fallback ?? key),
     summarize: summarizeToList,
     optionFlags: [],
   },
@@ -229,7 +229,7 @@ const registryDraft: Record<ActionType, Omit<IDialplanAppConfig, 'schema' | 'sum
     labelKey: 'routes.action.toivr',
     category: 'telephony',
     defaultParams: { ivr_uid: '' },
-    schema: buildToIvrSchema((key, fallback) => fallback ?? key),
+    schema: buildToIvrSchema((key: string, fallback?: string) => fallback ?? key),
     summarize: summarizeToIvr,
   },
   toroute: {
@@ -278,7 +278,7 @@ const registryDraft: Record<ActionType, Omit<IDialplanAppConfig, 'schema' | 'sum
     labelKey: 'routes.action.playback',
     category: 'media',
     defaultParams: { mode: 'plain', files: '', options: {} },
-    schema: buildPlaybackSchema((key, fallback) => fallback ?? key),
+    schema: buildPlaybackSchema((key: string, fallback?: string) => fallback ?? key),
     summarize: summarizePlayback,
     optionFlags: [],
   },
@@ -287,7 +287,7 @@ const registryDraft: Record<ActionType, Omit<IDialplanAppConfig, 'schema' | 'sum
     labelKey: 'routes.action.voicerobot',
     category: 'media',
     defaultParams: { robot_uid: '' },
-    schema: buildVoiceRobotSchema((key, fallback) => fallback ?? key),
+    schema: buildVoiceRobotSchema((key: string, fallback?: string) => fallback ?? key),
     summarize: summarizeVoiceRobot,
   },
   text2speech: {
@@ -295,7 +295,7 @@ const registryDraft: Record<ActionType, Omit<IDialplanAppConfig, 'schema' | 'sum
     labelKey: 'routes.action.text2speech',
     category: 'media',
     defaultParams: { text: '', engine: '', settings: {} },
-    schema: buildText2SpeechSchema((key, fallback) => fallback ?? key),
+    schema: buildText2SpeechSchema((key: string, fallback?: string) => fallback ?? key),
     summarize: summarizeText2Speech,
   },
   confbridge: {
@@ -303,7 +303,7 @@ const registryDraft: Record<ActionType, Omit<IDialplanAppConfig, 'schema' | 'sum
     labelKey: 'routes.action.confbridge',
     category: 'media',
     defaultParams: { room: { source: 'fixed', value: '' } },
-    schema: buildConfBridgeSchema((key, fallback) => fallback ?? key),
+    schema: buildConfBridgeSchema((key: string, fallback?: string) => fallback ?? key),
     summarize: summarizeConfBridge,
     optionFlags: [],
   },
@@ -314,7 +314,7 @@ const registryDraft: Record<ActionType, Omit<IDialplanAppConfig, 'schema' | 'sum
     labelKey: 'routes.action.callerid',
     category: 'system',
     defaultParams: { mode: 'static', callerid: '' },
-    schema: buildCallerIdSchema((key, fallback) => fallback ?? key),
+    schema: buildCallerIdSchema((key: string, fallback?: string) => fallback ?? key),
     summarize: summarizeCallerId,
   },
   notify: {
@@ -322,7 +322,7 @@ const registryDraft: Record<ActionType, Omit<IDialplanAppConfig, 'schema' | 'sum
     labelKey: 'routes.action.notify',
     category: 'notification',
     defaultParams: { integration_uid: '', body: '', target: '', subject: '' },
-    schema: buildNotifySchema((key, fallback) => fallback ?? key),
+    schema: buildNotifySchema((key: string, fallback?: string) => fallback ?? key),
     summarize: summarizeNotify,
   },
   voicemail: {
@@ -338,7 +338,7 @@ const registryDraft: Record<ActionType, Omit<IDialplanAppConfig, 'schema' | 'sum
       stt_engine_uid: '',
       llm_provider_uid: '',
     },
-    schema: buildVoicemailSchema((key, fallback) => fallback ?? key),
+    schema: buildVoicemailSchema((key: string, fallback?: string) => fallback ?? key),
     summarize: summarizeVoicemail,
   },
   webhook: {
@@ -347,7 +347,7 @@ const registryDraft: Record<ActionType, Omit<IDialplanAppConfig, 'schema' | 'sum
     category: 'system',
     defaultParams: { url: '' },
     offerOnCreate: false,
-    schema: buildWebhookSchema((key, fallback) => fallback ?? key),
+    schema: buildWebhookSchema((key: string, fallback?: string) => fallback ?? key),
     summarize: summarizeWebhook,
   },
   cmd: {
@@ -355,7 +355,7 @@ const registryDraft: Record<ActionType, Omit<IDialplanAppConfig, 'schema' | 'sum
     labelKey: 'routes.action.cmd',
     category: 'system',
     defaultParams: { command: '' },
-    schema: buildCmdSchema((key, fallback) => fallback ?? key),
+    schema: buildCmdSchema((key: string, fallback?: string) => fallback ?? key),
     summarize: summarizeCmd,
   },
   label: {
@@ -363,7 +363,7 @@ const registryDraft: Record<ActionType, Omit<IDialplanAppConfig, 'schema' | 'sum
     labelKey: 'routes.action.label',
     category: 'system',
     defaultParams: { label_name: '' },
-    schema: buildLabelSchema((key, fallback) => fallback ?? key),
+    schema: buildLabelSchema((key: string, fallback?: string) => fallback ?? key),
     summarize: summarizeLabel,
   },
   goto: {
@@ -371,7 +371,7 @@ const registryDraft: Record<ActionType, Omit<IDialplanAppConfig, 'schema' | 'sum
     labelKey: 'routes.action.goto',
     category: 'system',
     defaultParams: { label_name: '' },
-    schema: buildGotoSchema((key, fallback) => fallback ?? key),
+    schema: buildGotoSchema((key: string, fallback?: string) => fallback ?? key),
     summarize: summarizeGoto,
   },
   schedule: {
@@ -379,7 +379,7 @@ const registryDraft: Record<ActionType, Omit<IDialplanAppConfig, 'schema' | 'sum
     labelKey: 'routes.action.schedule',
     category: 'system',
     defaultParams: { intervals: [] },
-    schema: buildScheduleSchema((key, fallback) => fallback ?? key),
+    schema: buildScheduleSchema((key: string, fallback?: string) => fallback ?? key),
     summarize: summarizeSchedule,
   },
   http_request: {
@@ -387,7 +387,7 @@ const registryDraft: Record<ActionType, Omit<IDialplanAppConfig, 'schema' | 'sum
     labelKey: 'routes.action.http_request',
     category: 'system',
     defaultParams: { url: '', method: 'GET', timeout: 5 },
-    schema: buildHttpRequestSchema((key, fallback) => fallback ?? key),
+    schema: buildHttpRequestSchema((key: string, fallback?: string) => fallback ?? key),
     summarize: summarizeHttpRequest,
   },
   collect_input: {
@@ -395,7 +395,7 @@ const registryDraft: Record<ActionType, Omit<IDialplanAppConfig, 'schema' | 'sum
     labelKey: 'routes.action.collect_input',
     category: 'system',
     defaultParams: { variableName: '', digitsCount: 1, timeout: 5, mode: 'digits', promptFile: '' },
-    schema: buildCollectInputSchema((key, fallback) => fallback ?? key),
+    schema: buildCollectInputSchema((key: string, fallback?: string) => fallback ?? key),
     summarize: summarizeCollectInput,
   },
   hangup: {
@@ -403,7 +403,7 @@ const registryDraft: Record<ActionType, Omit<IDialplanAppConfig, 'schema' | 'sum
     labelKey: 'routes.action.hangup',
     category: 'telephony',
     defaultParams: { signal: 'hangup', timeout: 10, causecode: '' },
-    schema: buildHangupSchema((key, fallback) => fallback ?? key),
+    schema: buildHangupSchema((key: string, fallback?: string) => fallback ?? key),
     summarize: summarizeHangup,
   },
   directory_lookup: {
@@ -423,7 +423,7 @@ const registryDraft: Record<ActionType, Omit<IDialplanAppConfig, 'schema' | 'sum
       tooltip:
         'Находит запись по выбранному ключу и записывает выбранные поля в переменные канала',
     },
-    schema: buildDirectoryLookupSchema((key, fallback) => fallback ?? key),
+    schema: buildDirectoryLookupSchema((key: string, fallback?: string) => fallback ?? key),
     summarize: summarizeDirectoryLookup,
     optionFlags: [],
   },
@@ -444,7 +444,7 @@ const registryDraft: Record<ActionType, Omit<IDialplanAppConfig, 'schema' | 'sum
       tooltip:
         'Режим заказа, кнопка и порядок набора - общие для тенанта, они в настройках колл-центра, на вкладке "Обратный звонок"',
     },
-    schema: buildCallbackSchema((key, fallback) => fallback ?? key),
+    schema: buildCallbackSchema((key: string, fallback?: string) => fallback ?? key),
     summarize: summarizeCallback,
     optionFlags: [],
   },

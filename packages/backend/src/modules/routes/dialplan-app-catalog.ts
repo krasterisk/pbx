@@ -48,7 +48,7 @@ const COPY: Record<ActionType, DialplanAppCopy> = {
     title: 'Обзвон списка',
     summary: 'Набирает номера из справочника/списка по порядку или одновременно.',
     when: 'Обзвон из directory, не фиксированная группа.',
-    need: ['list'],
+    need: ['numbers'],
   },
   toivr: {
     title: 'Голосовое меню',
@@ -66,7 +66,7 @@ const COPY: Record<ActionType, DialplanAppCopy> = {
     title: 'Проиграть файл',
     summary: 'Воспроизводит аудиофайл, затем идёт следующий шаг, если файл не оборвал канал.',
     when: 'Объявление, гудок перед набором.',
-    need: ['filename'],
+    need: ['file'],
   },
   notify: {
     title: 'Уведомление',
@@ -84,7 +84,7 @@ const COPY: Record<ActionType, DialplanAppCopy> = {
     title: 'Голосовая почта',
     summary: 'Кладёт вызов в ящик абонента, если предыдущий набор не взяли.',
     when: 'После toexten/togroup, когда нужна почта, а не городской и не очередь.',
-    need: ['mailbox'],
+    need: ['target'],
   },
   text2speech: {
     title: 'Произнести текст',
@@ -96,7 +96,7 @@ const COPY: Record<ActionType, DialplanAppCopy> = {
     title: 'Голосовой робот',
     summary: 'Передаёт канал голосовому роботу тенанта.',
     when: 'Сценарий бота вместо живого меню.',
-    need: ['robot'],
+    need: ['robot_uid'],
   },
   webhook: {
     title: 'Webhook',
@@ -108,19 +108,19 @@ const COPY: Record<ActionType, DialplanAppCopy> = {
     title: 'Конференция',
     summary: 'Сажает абонента в конференц-мост.',
     when: 'Совещание, не группа вызова.',
-    need: ['bridge'],
+    need: ['room'],
   },
   cmd: {
     title: 'Команда Asterisk',
     summary: 'Сырое приложение только в маршруте, не в пункте IVR. Не используй, если есть typed-шаг.',
     when: 'Исключение, которого нет в редакторе. Host: route.',
-    need: ['application'],
+    need: ['command'],
   },
   label: {
     title: 'Метка',
     summary: 'Именная точка, на которую ссылается goto. Сама ничего не набирает.',
     when: 'Развилка, повтор, обход по условию.',
-    need: ['name'],
+    need: ['label_name'],
   },
   goto: {
     title: 'Переход к метке',
@@ -144,7 +144,7 @@ const COPY: Record<ActionType, DialplanAppCopy> = {
     title: 'Сбор DTMF',
     summary: 'Пишет набранные цифры в переменную и продолжает цепочку.',
     when: 'Ввод добавочного, PIN, кода.',
-    need: ['variable'],
+    need: ['variableName'],
   },
   hangup: {
     title: 'Завершить вызов',
@@ -156,7 +156,7 @@ const COPY: Record<ActionType, DialplanAppCopy> = {
     title: 'Поиск в справочнике',
     summary: 'Ищет запись и кладёт поля в переменные, не набирает сам.',
     when: 'Перед totrunk/toexten по найденному номеру.',
-    need: ['directory'],
+    need: ['directoryUid'],
   },
   callback: {
     title: 'Обратный звонок',

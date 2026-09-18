@@ -2,7 +2,7 @@ import type { AuthMode, WebhookHeader } from '@/shared/ui/WebhookAuthConfig/Webh
 import { WebhookAuthConfig } from '@/shared/ui/WebhookAuthConfig/WebhookAuthConfig';
 import type { FieldSchema } from '../schema.types';
 
-type TFn = (key: string, fallback?: string) => string;
+type TFn = (...args: [key: string] | [key: string, fallback: string]) => string;
 
 const PRIVATE_V4 = /^(10\.|127\.|169\.254\.|192\.168\.|172\.(1[6-9]|2\d|3[0-1])\.)/;
 const ALLOWED_HEADER_KEYS = new Set(['Accept', 'Content-Type', 'Authorization', 'X-Request-Id']);

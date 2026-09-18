@@ -90,7 +90,7 @@ describe('conferenceSdhFactory (R-SDH)', () => {
 
   it('adds the first remote video track on an empty stream without throwing', () => {
     const factory = conferenceSdhFactory(async () => new MediaStream());
-    const sdh = factory(fakeSdhSession as never, {}) as SdhLike;
+    const sdh = factory(fakeSdhSession as never, {}) as unknown as SdhLike;
     const first = fakeVideoTrack('v0');
 
     expect(() => sdh.setRemoteTrack(first)).not.toThrow();
@@ -100,7 +100,7 @@ describe('conferenceSdhFactory (R-SDH)', () => {
 
   it('adds a second video track by id without stopping the first', () => {
     const factory = conferenceSdhFactory(async () => new MediaStream());
-    const sdh = factory(fakeSdhSession as never, {}) as SdhLike;
+    const sdh = factory(fakeSdhSession as never, {}) as unknown as SdhLike;
     const first = fakeVideoTrack('v1');
     const second = fakeVideoTrack('v2');
 

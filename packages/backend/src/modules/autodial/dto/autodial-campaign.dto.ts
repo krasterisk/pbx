@@ -10,8 +10,8 @@ import {
   MaxLength,
   Min,
   ValidateNested,
-} from 'class-validator';
-import { Type } from 'class-transformer';
+} from "class-validator";
+import { Type } from "class-transformer";
 import {
   AUTODIAL_DIAL_MODES,
   AUTODIAL_DISPOSITIONS,
@@ -19,11 +19,11 @@ import {
   type AutodialDialMode,
   type AutodialDisposition,
   type AutodialScheduleKind,
-} from '@krasterisk/shared';
+} from "@krasterisk/shared";
 
 export class AutodialPacingProviderDto {
-  @IsIn(['static', 'queue_agents', 'trunk_channels', 'tenant_cap'])
-  type!: 'static' | 'queue_agents' | 'trunk_channels' | 'tenant_cap';
+  @IsIn(["static", "queue_agents", "trunk_channels", "tenant_cap"])
+  type!: "static" | "queue_agents" | "trunk_channels" | "tenant_cap";
 
   @IsOptional()
   @IsInt()
@@ -111,8 +111,8 @@ export class AutodialTrunkPoolItemDto {
 }
 
 export class AutodialCidPolicyDto {
-  @IsIn(['static', 'rotate', 'per_trunk'])
-  mode!: 'static' | 'rotate' | 'per_trunk';
+  @IsIn(["static", "rotate", "per_trunk"])
+  mode!: "static" | "rotate" | "per_trunk";
 
   @IsOptional()
   @IsString()
@@ -129,8 +129,8 @@ export class AutodialAmdDto {
   @IsBoolean()
   enabled!: boolean;
 
-  @IsIn(['hangup', 'continue', 'voicemail'])
-  on_machine!: 'hangup' | 'continue' | 'voicemail';
+  @IsIn(["hangup", "continue", "voicemail"])
+  on_machine!: "hangup" | "continue" | "voicemail";
 }
 
 export class AutodialScheduleDraftDto {
@@ -237,6 +237,10 @@ export class CreateAutodialCampaignDto {
 }
 
 export class UpdateAutodialCampaignDto {
+  @IsInt()
+  @Min(1)
+  expected_revision!: number;
+
   @IsOptional()
   @IsString()
   @MaxLength(255)
@@ -315,8 +319,8 @@ export class StartAutodialCampaignDto {
 }
 
 export class CreateAutodialDncDto {
-  @IsIn(['global', 'campaign', 'base'])
-  scope!: 'global' | 'campaign' | 'base';
+  @IsIn(["global", "campaign", "base"])
+  scope!: "global" | "campaign" | "base";
 
   @IsOptional()
   @IsInt()

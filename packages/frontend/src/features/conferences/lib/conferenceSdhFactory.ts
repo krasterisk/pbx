@@ -1,4 +1,4 @@
-import { Web } from 'sip.js';
+import { Web, type Session } from 'sip.js';
 
 type RemoteStreamHost = {
   _remoteMediaStream: MediaStream;
@@ -13,13 +13,14 @@ export function conferenceSdhFactory(
   mediaStreamFactory?: Web.MediaStreamFactory,
 ): ReturnType<typeof Web.defaultSessionDescriptionHandlerFactory> {
   const inner = Web.defaultSessionDescriptionHandlerFactory(mediaStreamFactory);
-  return (session, options) => {
-    const sdh = inner(session, options) as RemoteStreamHost;
-    sdh.setRemoteTrack = function setRemoteTrack(this: RemoteStreamHost, track: MediaStreamTrack) {
+  return (session: Session, options?: Web.SessionDescriptionHandlerFactoryOptions) => {
+    const sdh = inner(session, options);
+    const remoteHost = sdh as unknown as RemoteStreamHost;
+    remoteHost.setRemoteTrack = function setRemoteTrack(this: RemoteStreamHost, track: MediaStreamTrack) {
       if (!this._remoteMediaStream.getTrackById(track.id)) {
         this._remoteMediaStream.addTrack(track);
       }
     };
-    return sdh as ReturnType<typeof inner>;
+    return sdh;
   };
 }

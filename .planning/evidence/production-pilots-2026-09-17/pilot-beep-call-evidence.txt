@@ -1,0 +1,25 @@
+[Sep 17 18:30:01] VERBOSE[245612] dial.c: Local/799@ctx-358-00000062;1 answered
+[Sep 17 18:30:01] VERBOSE[245612] file.c: <Local/799@ctx-358-00000062;1> Playing 'beep.gsm' (language 'ru')
+[Sep 17 18:30:01] WARNING[245613][C-000000ee] app_playback.c: Playback failed on Local/799@ctx-358-00000062;2 for /usr/records/358/sounds/beep
+[Sep 17 18:30:01] VERBOSE[245613][C-000000ee] pbx.c: Executing [799@ctx-358:13] Hangup("Local/799@ctx-358-00000062;2", "") in new stack
+[Sep 17 18:30:01] VERBOSE[245613][C-000000ee] pbx.c: Spawn extension (ctx-358, 799, 13) exited non-zero on 'Local/799@ctx-358-00000062;2'
+[Sep 17 18:30:01] WARNING[45113] cdr_adaptive_odbc.c: cdr_adaptive_odbc: Insert failed on 'krasterisk:cdr'.  CDR failed: INSERT INTO cdr (calldate, clid, dst, dcontext, channel, lastapp, duration, start, answer, end, billsec, disposition, amaflags, uniqueid, linkedid, sequence, vpbx_user_uid) VALUES ('2026-09-17 18:30:01', '"" <>', '799', 'ctx-358', 'Local/799@ctx-358-00000062;2', 'Hangup', 0, '2026-09-17 18:30:01', '2026-09-17 18:30:01', '2026-09-17 18:30:01', 0, 'ANSWERED', 3, '1789659001.2922', '1789659001.2921', '2545', 358)
+[Sep 17 18:30:01] WARNING[45113] cdr_adaptive_odbc.c: cdr_adaptive_odbc: Insert failed on 'krasterisk:cdr'.  CDR failed: INSERT INTO cdr (calldate, clid, dst, dcontext, channel, lastapp, lastdata, duration, start, answer, end, billsec, disposition, amaflags, uniqueid, linkedid, sequence) VALUES ('2026-09-17 18:30:01', '"" <>', '799', 'ctx-358', 'Local/799@ctx-358-00000062;1', 'Playback', 'beep', 0, '2026-09-17 18:30:01', '2026-09-17 18:30:01', '2026-09-17 18:30:01', 0, 'ANSWERED', 3, '1789659001.2921', '1789659001.2921', '2544')
+[Sep 17 18:36:49] VERBOSE[245711][C-000000ef] pbx.c: Executing [799@ctx-358:1] NoOp("Local/799@ctx-358-00000063;2", "Route: Test route 799") in new stack
+[Sep 17 18:36:49] VERBOSE[245711][C-000000ef] pbx.c: Executing [799@ctx-358:2] Set("Local/799@ctx-358-00000063;2", "CDR(vpbx_user_uid)=358") in new stack
+[Sep 17 18:36:49] VERBOSE[245711][C-000000ef] pbx.c: Executing [799@ctx-358:3] Set("Local/799@ctx-358-00000063;2", "__HH_ROUTE_UID=22") in new stack
+[Sep 17 18:36:49] VERBOSE[245711][C-000000ef] pbx.c: Executing [799@ctx-358:4] ExecIf("Local/799@ctx-358-00000063;2", "1?Set(__ORIGUNIQUEID=1789659409.2926)") in new stack
+[Sep 17 18:36:49] VERBOSE[245711][C-000000ef] pbx.c: Executing [799@ctx-358:5] ExecIf("Local/799@ctx-358-00000063;2", "1?Set(__ORIGEXTEN=799)") in new stack
+[Sep 17 18:36:49] VERBOSE[245711][C-000000ef] pbx.c: Executing [799@ctx-358:6] ExecIf("Local/799@ctx-358-00000063;2", "1?Set(__ORIGCLIDNUM=)") in new stack
+[Sep 17 18:36:49] VERBOSE[245711][C-000000ef] pbx.c: Executing [799@ctx-358:7] ExecIf("Local/799@ctx-358-00000063;2", "1?Set(__KRSK_ORIG_CALLER_NUM=)") in new stack
+[Sep 17 18:36:49] VERBOSE[245711][C-000000ef] pbx.c: Executing [799@ctx-358:8] ExecIf("Local/799@ctx-358-00000063;2", "1?Set(__KRSK_ORIG_CALLER_CAPTURED=1)") in new stack
+[Sep 17 18:36:49] VERBOSE[245711][C-000000ef] pbx.c: Executing [799@ctx-358:9] Set("Local/799@ctx-358-00000063;2", "__CLIDNUM=") in new stack
+[Sep 17 18:36:49] VERBOSE[245711][C-000000ef] pbx.c: Executing [799@ctx-358:10] Set("Local/799@ctx-358-00000063;2", "CDR(usrc)=") in new stack
+[Sep 17 18:36:49] VERBOSE[245711][C-000000ef] pbx.c: Executing [799@ctx-358:11] Set("Local/799@ctx-358-00000063;2", "__STARTTIME=1789659409") in new stack
+[Sep 17 18:36:49] VERBOSE[245711][C-000000ef] pbx.c: Executing [799@ctx-358:12] Playback("Local/799@ctx-358-00000063;2", "beep") in new stack
+[Sep 17 18:36:49] VERBOSE[245710] dial.c: Local/799@ctx-358-00000063;1 answered
+[Sep 17 18:36:49] VERBOSE[245711][C-000000ef] file.c: <Local/799@ctx-358-00000063;2> Playing 'beep.gsm' (language 'ru')
+[Sep 17 18:36:49] VERBOSE[245710] file.c: <Local/799@ctx-358-00000063;1> Playing 'beep.gsm' (language 'ru')
+[Sep 17 18:36:50] VERBOSE[245711][C-000000ef] pbx.c: Spawn extension (ctx-358, 799, 12) exited non-zero on 'Local/799@ctx-358-00000063;2'
+[Sep 17 18:36:50] WARNING[45113] cdr_adaptive_odbc.c: cdr_adaptive_odbc: Insert failed on 'krasterisk:cdr'.  CDR failed: INSERT INTO cdr (calldate, clid, dst, dcontext, channel, lastapp, lastdata, duration, start, answer, end, billsec, disposition, amaflags, uniqueid, linkedid, sequence) VALUES ('2026-09-17 18:36:49', '"" <>', '799', 'ctx-358', 'Local/799@ctx-358-00000063;1', 'Playback', 'beep', 0, '2026-09-17 18:36:49', '2026-09-17 18:36:49', '2026-09-17 18:36:50', 0, 'ANSWERED', 3, '1789659409.2925', '1789659409.2925', '2546')
+[Sep 17 18:36:50] WARNING[45113] cdr_adaptive_odbc.c: cdr_adaptive_odbc: Insert failed on 'krasterisk:cdr'.  CDR failed: INSERT INTO cdr (calldate, clid, dst, dcontext, channel, lastapp, lastdata, duration, start, answer, end, billsec, disposition, amaflags, uniqueid, linkedid, sequence, vpbx_user_uid) VALUES ('2026-09-17 18:36:49', '"" <>', '799', 'ctx-358', 'Local/799@ctx-358-00000063;2', 'Playback', 'beep', 0, '2026-09-17 18:36:49', '2026-09-17 18:36:49', '2026-09-17 18:36:50', 0, 'ANSWERED', 3, '1789659409.2926', '1789659409.2925', '2547', 358)

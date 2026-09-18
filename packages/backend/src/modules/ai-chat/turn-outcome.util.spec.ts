@@ -52,7 +52,7 @@ describe('classifyTurnClose', () => {
   });
 
   it('treats a card confirm ask as wait_confirm', () => {
-    expect(classifyTurnClose('Подтвердите карточку абонентов. Осталось: группа и меню.')).toBe('wait_confirm');
+    expect(classifyTurnClose('Подтвердите карточку абонентов. Осталось: группа и меню.', { hadProposal: true })).toBe('wait_confirm');
   });
 
   it('treats a factual answer as complete', () => {
@@ -101,3 +101,5 @@ describe('forcedTurnStatus', () => {
     expect(text).toMatch(/Повторите запрос|уточните/i);
   });
 });
+
+describe("confirmation evidence", () => { it("does not accept a text-only promise as an existing card", () => { expect(classifyTurnClose("После подтверждения сделаю изменения. Нужно ваше разрешение на создание.")).toBe("incomplete"); }); });

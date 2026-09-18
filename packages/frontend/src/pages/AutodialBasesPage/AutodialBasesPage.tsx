@@ -58,7 +58,7 @@ export const AutodialBasesPage = memo(() => {
               </CardContent>
             </Card>
           ) : (
-            <ContactsGrid baseUid={activeBaseUid} />
+            <ContactsGrid key={activeBaseUid} baseUid={activeBaseUid} />
           )}
         </VStack>
       </HStack>

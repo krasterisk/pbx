@@ -22,6 +22,8 @@ ecosystem.config.js
 
 # DB migrations (env-specific, managed separately)
 **/migrations/
+!packages/backend/database/migrations/
+!packages/backend/database/migrations/*.sql
 
 # Phase-12 (and later) tenant-data backups — contain all-tenant JSON, delete after confirm
 .backup/

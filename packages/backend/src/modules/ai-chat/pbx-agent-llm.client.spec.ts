@@ -64,6 +64,22 @@ describe('PbxAgentLlmClient', () => {
         jest.restoreAllMocks();
     });
 
+    it('preserves repeated braces and quotes in fragmented workflow arguments', async () => {
+        const args = { title: 'Test route', steps: [{ id: 'route', tool: 'create_route',
+            args: { context_uid: 7, pattern: '9876591', actions: [
+                { type: 'playback', params: { file: 'beep' } }, { type: 'hangup', params: {} },
+            ] } }] };
+        const chunks = [...JSON.stringify(args)].map((fragment, index) => ssePayload({
+            tool_calls: [{ index: 0, ...(index === 0 ? { id: 'call_plan' } : {}),
+                function: { ...(index === 0 ? { name: 'propose_plan' } : {}), arguments: fragment } }],
+        }));
+        fetchMock.mockResolvedValueOnce(streamResponse([...chunks, 'data: [DONE]\n\n']));
+        const result = await client.chat({ provider: provider(), messages: [{ role: 'user', content: 'route' }],
+            tools: [{ name: 'propose_plan', description: 'Plan', inputSchema: {} }], stream: true });
+        expect(result.error).toBeUndefined();
+        expect(result.toolCalls[0]?.arguments).toEqual(args);
+    });
+
     it('posts to the resolved completions URL with a decrypted bearer key', async () => {
         fetchMock.mockResolvedValueOnce(streamResponse([
             ssePayload({ content: 'ok' }),

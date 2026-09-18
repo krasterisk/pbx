@@ -13,6 +13,8 @@ export interface AutodialCapacityInputs {
   freeTrunkChannels: number | null;
   /** Tenant-wide live autodial channels across all campaigns */
   tenantActiveChannels: number;
+  /** Tenant-wide reservations, including other campaigns */
+  tenantReservedChannels?: number;
   /** True while CallCenterStateService or ARI is not trustworthy yet */
   degraded?: boolean;
   /** Predictive mode: over-dial multiplier from the abandon-rate controller */
@@ -24,13 +26,14 @@ export interface AutodialCapacityResult {
   slots: number;
   /** Provider that produced the binding limit, for the monitor UI */
   limitedBy: string;
-  /** Total concurrent channels the config allows */
+  /** Effective concurrent ceiling for this campaign at this instant */
   capacity: number;
 }
 
 /**
- * Take the minimum across every enabled provider, then subtract what is already
- * in flight. A campaign whose queue-agent data is not warm yet gets zero slots
+ * Each provider contributes NEW available slots. Static limits count active
+ * channels; trunk availability and tenant remaining capacity already account
+ * for them. A campaign whose queue-agent data is not warm yet gets zero slots
  * rather than a blind guess — dialing without knowing agent state is exactly
  * how abandon rate explodes.
  */
@@ -43,16 +46,23 @@ export function computeAutodialCapacity(
   for (const provider of providers) {
     switch (provider.type) {
       case 'static':
-        limits.push({ name: 'static', value: Math.max(0, provider.max_channels) });
+        limits.push({
+          name: 'static',
+          value: Math.max(0, provider.max_channels - input.activeChannels - input.reserved),
+        });
         break;
       case 'queue_agents': {
         if (input.degraded) {
           return { slots: 0, limitedBy: 'queue_agents_warmup', capacity: 0 };
         }
         const ratio = agentRatio(input, provider.ratio);
-        // Agents already committed to in-flight calls must not be counted twice.
-        const free = Math.max(0, input.availableAgents - input.reserved);
-        limits.push({ name: 'queue_agents', value: Math.floor(free * ratio) });
+        // Live calls may still need an agent; until connection is tracked,
+        // reserve one slot for each as a conservative upper bound.
+        limits.push({
+          name: 'queue_agents',
+          value: Math.max(0, Math.floor(input.availableAgents * ratio)
+            - input.activeChannels - input.reserved),
+        });
         break;
       }
       case 'trunk_channels':
@@ -63,7 +73,8 @@ export function computeAutodialCapacity(
       case 'tenant_cap':
         limits.push({
           name: 'tenant_cap',
-          value: Math.max(0, provider.max_channels - input.tenantActiveChannels),
+          value: Math.max(0, provider.max_channels - input.tenantActiveChannels
+            - (input.tenantReservedChannels ?? input.reserved)),
         });
         break;
     }
@@ -74,10 +85,12 @@ export function computeAutodialCapacity(
   }
 
   const binding = limits.reduce((min, cur) => (cur.value < min.value ? cur : min));
-  const inFlight = input.activeChannels + input.reserved;
-  const slots = Math.max(0, binding.value - inFlight);
-
-  return { slots, limitedBy: binding.name, capacity: binding.value };
+  const slots = binding.value;
+  return {
+    slots,
+    limitedBy: binding.name,
+    capacity: input.activeChannels + input.reserved + slots,
+  };
 }
 
 /**

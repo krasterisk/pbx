@@ -5,6 +5,10 @@ import { emitPlayback } from './dialplan-playback.util';
 const CTX = { vpbxUserUid: 42 };
 
 describe('emitPlayback (D-51 / D-52 / D-53)', () => {
+  it('plays the reserved system beep while ordinary files stay tenant-scoped', () => {
+    expect(emitPlayback({ files: 'beep', mode: 'plain' }, CTX)).toBe('Playback(beep)');
+    expect(emitPlayback({ files: 'welcome', mode: 'plain' }, CTX)).toContain('/usr/records/42/sounds/welcome');
+  });
   it('plain mode emits Playback( and never BackGround(', () => {
     const out = emitPlayback({ files: 'welcome', mode: 'plain' }, CTX);
     expect(out).toContain('Playback(');

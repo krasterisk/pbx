@@ -36,12 +36,12 @@ vi.mock('react-toastify', () => ({
 }));
 
 vi.mock('@/shared/api/endpoints/conferenceMeetingsApi', () => ({
-  useStartConferenceRecordingMutation: () => [startRecording, { isPending: recordingPending }],
-  useStopConferenceRecordingMutation: () => [stopRecording, { isPending: recordingPending }],
+  useStartConferenceRecordingMutation: () => [startRecording, { isLoading: recordingPending }],
+  useStopConferenceRecordingMutation: () => [stopRecording, { isLoading: recordingPending }],
 }));
 
 vi.mock('@/shared/api/endpoints/conferenceRoomApi', () => ({
-  useInviteConferenceMutation: () => [inviteConference, { isPending: false }],
+  useInviteConferenceMutation: () => [inviteConference, { isLoading: false }],
 }));
 
 function renderBar(
@@ -120,7 +120,7 @@ describe('RoomControlBar (16.3-05 D-29 / D-31)', () => {
 
     const source = readFileSync(resolve(here, 'RoomControlBar.tsx'), 'utf8');
     expect(source).not.toMatch(/updateQueryData/);
-    expect(source).toMatch(/isPending/);
+    expect(source).toMatch(/isLoading/);
   });
 
   it('shows inviteMember for owner/moderator and inviteExternal only when scope allows', () => {

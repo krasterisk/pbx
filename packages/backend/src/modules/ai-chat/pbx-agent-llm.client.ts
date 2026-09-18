@@ -810,9 +810,10 @@ function mergeToolArgumentChunks(current: string, delta: string): string {
     if (!delta) return current;
     if (!current) return delta;
 
-    // Growing snapshot: provider re-sends the full prefix each time.
-    if (delta.startsWith(current)) return delta;
-    if (current.startsWith(delta)) return current;
+    // A repeated JSON token (especially a nested opening brace) is still a delta.
+    // Only a strictly growing multi-character prefix can represent a snapshot;
+    // dropping shorter prefixes corrupts ordinary OpenAI argument streams.
+    if (current.length > 1 && delta.length > current.length && delta.startsWith(current)) return delta;
 
     const currentObj = tryParseJsonObject(current);
     const deltaObj = tryParseJsonObject(delta);

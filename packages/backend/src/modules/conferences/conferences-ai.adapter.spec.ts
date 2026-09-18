@@ -10,6 +10,7 @@ describe('ConferencesAiAdapter', () => {
     findAll: jest.Mock;
     findOne: jest.Mock;
     update: jest.Mock;
+    create: jest.Mock;
   };
   let moderationService: {
     muteParticipant: jest.Mock;
@@ -25,6 +26,7 @@ describe('ConferencesAiAdapter', () => {
       findAll: jest.fn().mockResolvedValue([]),
       findOne: jest.fn(),
       update: jest.fn(),
+      create: jest.fn().mockResolvedValue({ uid: 9, name: 'Daily', number: '750' }),
     };
     moderationService = {
       muteParticipant: jest.fn().mockResolvedValue(undefined),
@@ -39,6 +41,17 @@ describe('ConferencesAiAdapter', () => {
   });
 
   describe('tool declarations', () => {
+    it('creates only after confirmation using the authenticated tenant and actor', async () => {
+      const tool = getTool('create_conference_room');
+      const proposal = await tool.handler({ name: 'Daily', number: '750' }, 42);
+      expect(roomsService.create).not.toHaveBeenCalled();
+      expect(proposal.applyPayload.args.record_mode).toBe('off');
+      const ctx = { vpbxUserUid: 42, userUid: 7, role: 1, isAdmin: true };
+      await tool.mutation!.apply(proposal.applyPayload.args, ctx);
+      expect(roomsService.create).toHaveBeenCalledWith(expect.objectContaining({ number: '750', record_mode: 'off' }), 42, 7);
+      roomsService.findAll.mockResolvedValue([{ number: '750' }]);
+      expect(await tool.mutation!.revalidate(proposal.applyPayload.args, ctx)).toMatchObject({ ok: false });
+    });
     it('exposes domain conferences and list + update tools', () => {
       expect(adapter.domain).toBe('conferences');
       expect(adapter.getTools().map((tool) => tool.name)).toEqual(

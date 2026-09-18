@@ -115,7 +115,7 @@ export function CallCenterSettingsPage() {
             data-testid={`cc-settings-tab-${tabId}`}
             onClick={() => setActiveTab(tabId)}
           >
-            {t(`callcenter.settings.tabs.${tabId}`, tabId === 'callback' ? 'Callback' : undefined)}
+            {t(`callcenter.settings.tabs.${tabId}`, { defaultValue: tabId === 'callback' ? 'Callback' : tabId })}
           </button>
         ))}
       </div>

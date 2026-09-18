@@ -362,17 +362,17 @@ describe('PbxAgentDiffService', () => {
       expect(rows[0].status).toBe('applied');
     });
 
-    it('clears a stuck claim after revalidate denial so retry is not not_pending', async () => {
+    it('does not reclaim an ambiguous historical claim', async () => {
       const view = await service.createProposal(directoryCreateProposal(), ctxA);
       // Simulate the Sequelize no-op bug: claim left in DB while status stayed pending.
       rows[0].applied_at = new Date();
       rows[0].error = 'Номера уже заняты у тенанта: 103';
 
       const result = await service.apply(view.proposalId, ctxA);
-      expect(result.ok).toBe(true);
-      expect(result.proposal?.status).toBe('applied');
+      expect(result.ok).toBe(false);
+      expect(result.reason).toBe('in_progress_or_reconciliation_required');
       expect(rows[0].applied_at).toBeInstanceOf(Date);
-      expect(directoriesService.create).toHaveBeenCalled();
+      expect(directoriesService.create).not.toHaveBeenCalled();
     });
 
     it('releases applied_at via Model.update when revalidate denies', async () => {
@@ -405,10 +405,6 @@ describe('PbxAgentDiffService', () => {
       );
 
       const view = await denying.createProposal(directoryCreateProposal(), ctxA);
-      // Force instance applied_at to null while DB claim is set — releaseClaim must still clear DB.
-      rows[0].applied_at = new Date();
-      const claimedAt = rows[0].applied_at;
-      expect(claimedAt).toBeTruthy();
 
       const result = await denying.apply(view.proposalId, ctxA);
       expect(result.ok).toBe(false);
@@ -565,6 +561,47 @@ describe('PbxAgentDiffService', () => {
   });
 
   describe('directory apply', () => {
+    it('does not steal a claim while the first write is still running', async () => {
+      let finish!: () => void;
+      let entered!: () => void;
+      const started = new Promise<void>((resolve) => { entered = resolve; });
+      directoriesService.create.mockImplementation(async () => {
+        entered();
+        await new Promise<void>((resolve) => { finish = resolve; });
+      });
+      const view = await service.createProposal(directoryCreateProposal(), ctxA);
+      const first = service.apply(view.proposalId, ctxA);
+      await started;
+      expect((await service.apply(view.proposalId, ctxA)).ok).toBe(false);
+      expect((await service.reject(view.proposalId, ctxA)).ok).toBe(false);
+      expect(directoriesService.create).toHaveBeenCalledTimes(1);
+      finish();
+      expect((await first).ok).toBe(true);
+      expect((await service.apply(view.proposalId, ctxA)).ok).toBe(true);
+      expect(directoriesService.create).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not retry a write whose result is unknown', async () => {
+      directoriesService.create.mockRejectedValue(new Error('connection lost after commit'));
+      const view = await service.createProposal(directoryCreateProposal(), ctxA);
+      expect((await service.apply(view.proposalId, ctxA)).reason).toBe('write_failed');
+      expect((await service.apply(view.proposalId, ctxA)).ok).toBe(false);
+      expect(directoriesService.create).toHaveBeenCalledTimes(1);
+    });
+
+    it('retries only reload after a durable write checkpoint, even in a new service instance', async () => {
+      routeApplyService.applyContext.mockRejectedValueOnce(new Error('AMI unavailable'));
+      const view = await service.createProposal(routeCreateProposal(), ctxA);
+      expect((await service.apply(view.proposalId, ctxA)).reason).toBe('switch_failed');
+      expect((await service.reject(view.proposalId, ctxA)).ok).toBe(false);
+      // No process-local state is needed for recovery.
+      const restarted = new PbxAgentDiffService(proposalModel as any, routeApplyService as any,
+        loggerService as any, auditModel as any, (service as any).registry);
+      expect((await restarted.apply(view.proposalId, ctxA)).ok).toBe(true);
+      expect(routesService.create).toHaveBeenCalledTimes(1);
+      expect(routeApplyService.applyContext).toHaveBeenCalledTimes(2);
+    });
+
     it('inserts exactly one directory row for the calling tenant', async () => {
       const view = await service.createProposal(directoryCreateProposal(), ctxA);
       const result = await service.apply(view.proposalId, ctxA);

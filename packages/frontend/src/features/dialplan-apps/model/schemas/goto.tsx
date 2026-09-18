@@ -2,7 +2,7 @@ import type { FieldSchema } from '../schema.types';
 import { LabelSelect } from '../../ui/LabelSelect/LabelSelect';
 import { GotoConditionField } from '../../ui/GotoConditionField/GotoConditionField';
 
-type TFn = (key: string, fallback?: string) => string;
+type TFn = (...args: [key: string] | [key: string, fallback: string]) => string;
 
 export function buildGotoSchema(t: TFn): FieldSchema[] {
   return [

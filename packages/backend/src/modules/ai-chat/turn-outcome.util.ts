@@ -23,7 +23,7 @@ const SCHEMA_CONFESSION =
   /должен быть строк|expected string|параметр \S+ должен|в описании (?:update_|create_|propose_)|string or number/i;
 
 const WAIT_CONFIRM =
-  /подтверд(ите|ить|ение)? (карточк|создан)|подтвердите карточк|нажмите «?подтверд|карточка (на экране|готова)|ask the user to confirm/i;
+  /подтверд(ите|ить|ение)? (карточк|создан)|подтвердите|нажмите «?подтверд|карточка (на экране|готова)|после подтверждения|нужно ваше разрешение|ask the user to confirm/i;
 
 const QUESTION_START = /^\s*(уточн|какой |какая |какие |куда |что именно|какой номер)/i;
 
@@ -101,6 +101,7 @@ export function classifyTurnClose(text: string, opts: {
   const value = text.trim();
   if (!value) return 'incomplete';
   if (opts.truncated || looksTruncated(value)) return 'incomplete';
+  if (!opts.hadProposal && WAIT_CONFIRM.test(value)) return 'incomplete';
 
   if (isClosingQuestion(value)) return 'question';
   if (WAIT_CONFIRM.test(value) || (opts.hadProposal && /подтверд/i.test(value))) return 'wait_confirm';
@@ -114,7 +115,7 @@ export function incompleteReminder(locale?: string, skillNames: string[] = []): 
   const prefersIvr = skillNames.includes('ivrs');
   const tools = prefersIvr
     ? 'list_endpoints → list_call_groups → list_tts_engines → create_ivr'
-    : 'create_ivr / list_call_groups / list_endpoints';
+    : 'read_skill и инструменты выбранного домена';
   return ru
     ? `Не описывай шаги и не продолжай оборванный текст. Пустой ответ без tool call запрещён. Сразу вызови инструмент (${tools}). Вопрос — только если факта нет ни в одной реплике треда. Уже названный текст, цифры и номера не переспрашивай. Либо попроси подтвердить карточку.`
     : `Do not narrate steps or continue a truncated draft. An empty reply without a tool call is forbidden. Call a tool now (${tools}). Ask only a fact missing from every user message in this thread. Do not re-ask a named greeting, digits or members. Or ask the user to confirm the card.`;

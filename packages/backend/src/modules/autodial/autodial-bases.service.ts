@@ -7,17 +7,21 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize-typescript';
-import { Op } from 'sequelize';
+import { Op, Transaction } from 'sequelize';
 import type {
-  AutodialFieldType,
   IAutodialBase,
   IAutodialContact,
+  IAutodialContactsPage,
 } from '@krasterisk/shared';
 import { AcBase } from './models/ac-base.model';
 import { AcBaseField } from './models/ac-base-field.model';
 import { AcContact } from './models/ac-contact.model';
 import { AcContactPhone } from './models/ac-contact-phone.model';
-import { fieldKeyToVarName, normalizeAutodialPhone } from './autodial-phone.util';
+import { AcCampaign } from './models/ac-campaign.model';
+import { AcImportProfile } from './models/ac-import-profile.model';
+import { AcTask } from './models/ac-task.model';
+import { fieldKeyToVarName } from './autodial-phone.util';
+import { prepareAutodialContact } from './autodial-contact.util';
 import type {
   CreateAutodialBaseDto,
   CreateAutodialContactDto,
@@ -35,6 +39,9 @@ export class AutodialBasesService {
     @InjectModel(AcContact) private readonly contactModel: typeof AcContact,
     @InjectModel(AcContactPhone) private readonly phoneModel: typeof AcContactPhone,
     private readonly sequelize: Sequelize,
+    @InjectModel(AcTask) private readonly taskModel: typeof AcTask,
+    @InjectModel(AcCampaign) private readonly campaignModel: typeof AcCampaign,
+    @InjectModel(AcImportProfile) private readonly profileModel: typeof AcImportProfile,
   ) {}
 
   async findAll(userUid: number): Promise<IAutodialBase[]> {
@@ -95,9 +102,16 @@ export class AutodialBasesService {
   }
 
   async update(userUid: number, uid: number, dto: UpdateAutodialBaseDto): Promise<IAutodialBase> {
-    const base = await this.loadBase(userUid, uid);
     if (dto.fields) this.assertFields(dto.fields);
     return this.sequelize.transaction(async (transaction) => {
+      const base = await this.lockBase(userUid, uid, transaction);
+      if (dto.revision !== undefined && dto.revision !== base.revision) {
+        throw new ConflictException({ code: 'AC_REVISION_CONFLICT', message: 'Base changed. Reload before saving.' });
+      }
+      if (dto.phone_normalization && dto.phone_normalization !== base.phone_normalization
+        && await this.contactModel.count({ where: { base_uid: uid }, transaction })) {
+        throw new ConflictException({ code: 'AC_BASE_IN_USE', message: 'Phone normalization requires an explicit data migration.' });
+      }
       await base.update(
         {
           ...(dto.name != null ? { name: dto.name.trim() } : {}),
@@ -126,18 +140,21 @@ export class AutodialBasesService {
   }
 
   async remove(userUid: number, uid: number): Promise<void> {
-    const base = await this.loadBase(userUid, uid);
-    await base.destroy();
+    await this.sequelize.transaction(async (transaction) => {
+      const base = await this.lockBase(userUid, uid, transaction);
+      await this.assertBaseReplaceable(userUid, uid, transaction);
+      await base.destroy({ transaction });
+    });
   }
 
   async listContacts(
     userUid: number,
     baseUid: number,
     opts: { page?: number; pageSize?: number; q?: string } = {},
-  ): Promise<{ items: IAutodialContact[]; total: number }> {
+  ): Promise<IAutodialContactsPage> {
     await this.loadBase(userUid, baseUid);
-    const page = Math.max(1, opts.page ?? 1);
-    const pageSize = Math.min(200, Math.max(1, opts.pageSize ?? 50));
+    const page = Number.isSafeInteger(opts.page) ? Math.max(1, opts.page!) : 1;
+    const pageSize = Number.isSafeInteger(opts.pageSize) ? Math.min(200, Math.max(1, opts.pageSize!)) : 50;
     const where: Record<string, unknown> = { base_uid: baseUid, user_uid: userUid };
     if (opts.q?.trim()) {
       where[Op.or as unknown as string] = [
@@ -148,6 +165,7 @@ export class AutodialBasesService {
     const { rows, count } = await this.contactModel.findAndCountAll({
       where,
       include: [{ model: AcContactPhone, as: 'phones' }],
+      distinct: true,
       order: [['uid', 'DESC']],
       limit: pageSize,
       offset: (page - 1) * pageSize,
@@ -156,7 +174,19 @@ export class AutodialBasesService {
     return {
       items: rows.map((r) => this.toContactDto(r, fields)),
       total: count,
+      page,
+      page_size: pageSize,
     };
+  }
+
+  async findContact(userUid: number, baseUid: number, contactUid: number): Promise<IAutodialContact> {
+    const base = await this.loadBase(userUid, baseUid);
+    const contact = await this.contactModel.findOne({
+      where: { uid: contactUid, base_uid: baseUid, user_uid: userUid },
+      include: [{ model: AcContactPhone, as: 'phones' }],
+    });
+    if (!contact) throw new NotFoundException({ code: 'AC_CONTACT_NOT_FOUND', message: 'Contact not found' });
+    return this.toContactDto(contact, base.fields ?? []);
   }
 
   async createContact(
@@ -164,10 +194,13 @@ export class AutodialBasesService {
     baseUid: number,
     dto: CreateAutodialContactDto,
   ): Promise<IAutodialContact> {
-    const base = await this.loadBase(userUid, baseUid);
-    const fields = base.fields ?? [];
     return this.sequelize.transaction(async (transaction) => {
-      const prepared = this.prepareContact(fields, dto, base.phone_normalization);
+      const base = await this.lockBase(userUid, baseUid, transaction);
+      const fields = base.fields ?? [];
+      if (dto.phones?.some((phone) => phone.uid !== undefined)) {
+        throw new BadRequestException({ code: 'AC_PHONE_UID', message: 'New phones must not supply UID' });
+      }
+      const prepared = prepareAutodialContact(fields, dto, base.phone_normalization);
       const contact = await this.contactModel.create(
         {
           base_uid: baseUid,
@@ -179,6 +212,7 @@ export class AutodialBasesService {
         { transaction },
       );
       await this.writePhones(contact.uid, baseUid, prepared.phones, transaction);
+      await base.increment('revision', { transaction });
       const full = await this.contactModel.findByPk(contact.uid, {
         include: [{ model: AcContactPhone, as: 'phones' }],
         transaction,
@@ -193,26 +227,27 @@ export class AutodialBasesService {
     contactUid: number,
     dto: UpdateAutodialContactDto,
   ): Promise<IAutodialContact> {
-    const base = await this.loadBase(userUid, baseUid);
-    const fields = base.fields ?? [];
-    const contact = await this.contactModel.findOne({
-      where: { uid: contactUid, base_uid: baseUid, user_uid: userUid },
-      include: [{ model: AcContactPhone, as: 'phones' }],
-    });
-    if (!contact) throw new NotFoundException({ code: 'AC_CONTACT_NOT_FOUND', message: 'Contact not found' });
-
     return this.sequelize.transaction(async (transaction) => {
+      const base = await this.lockBase(userUid, baseUid, transaction);
+      const fields = base.fields ?? [];
+      const contact = await this.contactModel.findOne({
+        where: { uid: contactUid, base_uid: baseUid, user_uid: userUid },
+        include: [{ model: AcContactPhone, as: 'phones' }],
+        transaction,
+      });
+      if (!contact) throw new NotFoundException({ code: 'AC_CONTACT_NOT_FOUND', message: 'Contact not found' });
       const merged = {
         external_id: dto.external_id !== undefined ? dto.external_id : contact.external_id,
         values: dto.values ?? this.valuesByKey(contact.values, fields),
         phones: dto.phones ?? (contact.phones ?? []).map((p) => ({
+          uid: p.uid,
           raw: p.raw,
           is_primary: p.is_primary,
           tz_offset_min: p.tz_offset_min,
         })),
         comment: dto.comment ?? contact.comment,
       };
-      const prepared = this.prepareContact(fields, merged as CreateAutodialContactDto, base.phone_normalization);
+      const prepared = prepareAutodialContact(fields, merged, base.phone_normalization);
       await contact.update(
         {
           external_id: prepared.external_id,
@@ -221,8 +256,8 @@ export class AutodialBasesService {
         },
         { transaction },
       );
-      await this.phoneModel.destroy({ where: { contact_uid: contactUid }, transaction });
-      await this.writePhones(contactUid, baseUid, prepared.phones, transaction);
+      await this.syncPhones(userUid, baseUid, contactUid, contact.phones ?? [], prepared.phones, transaction);
+      await base.increment('revision', { transaction });
       const full = await this.contactModel.findByPk(contactUid, {
         include: [{ model: AcContactPhone, as: 'phones' }],
         transaction,
@@ -232,11 +267,39 @@ export class AutodialBasesService {
   }
 
   async deleteContact(userUid: number, baseUid: number, contactUid: number): Promise<void> {
-    await this.loadBase(userUid, baseUid);
-    const n = await this.contactModel.destroy({
-      where: { uid: contactUid, base_uid: baseUid, user_uid: userUid },
+    await this.sequelize.transaction(async (transaction) => {
+      const base = await this.lockBase(userUid, baseUid, transaction);
+      if (await this.taskModel.count({ where: { user_uid: userUid, contact_uid: contactUid }, transaction })) {
+        throw new ConflictException({ code: 'AC_CONTACT_IN_USE', message: 'Contact has campaign tasks or call history.' });
+      }
+      const n = await this.contactModel.destroy({
+        where: { uid: contactUid, base_uid: baseUid, user_uid: userUid }, transaction,
+      });
+      if (!n) throw new NotFoundException({ code: 'AC_CONTACT_NOT_FOUND', message: 'Contact not found' });
+      await base.increment('revision', { transaction });
     });
-    if (!n) throw new NotFoundException({ code: 'AC_CONTACT_NOT_FOUND', message: 'Contact not found' });
+  }
+
+  /** All base/contact/import writers serialize through this row lock. */
+  async lockBase(userUid: number, baseUid: number, transaction: Transaction): Promise<AcBase> {
+    const base = await this.baseModel.findOne({
+      where: { uid: baseUid, user_uid: userUid }, transaction, lock: transaction.LOCK.UPDATE,
+    });
+    if (!base) throw new NotFoundException({ code: 'AC_BASE_NOT_FOUND', message: 'Base not found' });
+    base.fields = await this.fieldModel.findAll({ where: { base_uid: baseUid }, transaction });
+    return base;
+  }
+
+  async assertBaseReplaceable(userUid: number, baseUid: number, transaction: Transaction): Promise<void> {
+    if (await this.campaignModel.count({ where: { user_uid: userUid, base_uid: baseUid }, transaction })) {
+      throw new ConflictException({ code: 'AC_BASE_IN_USE', message: 'A campaign references this base.' });
+    }
+    // A campaign may have switched bases in an older version. Preserve its history too.
+    const [rows] = await this.sequelize.query(
+      'SELECT t.uid FROM ac_tasks t JOIN ac_contacts c ON c.uid = t.contact_uid WHERE c.base_uid = :baseUid LIMIT 1',
+      { replacements: { baseUid }, transaction },
+    );
+    if (rows.length) throw new ConflictException({ code: 'AC_BASE_IN_USE', message: 'Base has campaign tasks or call history.' });
   }
 
   // ── helpers ───────────────────────────────────────────────────────
@@ -275,95 +338,100 @@ export class AutodialBasesService {
   private async replaceFields(
     baseUid: number,
     fields: CreateAutodialBaseDto['fields'],
-    transaction: import('sequelize').Transaction,
+    transaction: Transaction,
   ): Promise<void> {
-    await this.fieldModel.destroy({ where: { base_uid: baseUid }, transaction });
-    await this.fieldModel.bulkCreate(
-      fields.map((f, i) => ({
-        base_uid: baseUid,
-        key: f.key,
-        label: f.label,
-        type: f.type as AutodialFieldType,
-        required: f.required ?? false,
-        position: f.position ?? i,
-        is_phone: f.is_phone ?? f.type === 'phone',
-        var_name: f.var_name?.trim() || fieldKeyToVarName(f.key),
-        enum_values: f.enum_values ?? null,
-      })),
-      { transaction },
-    );
-  }
-
-  private prepareContact(
-    fields: AcBaseField[],
-    dto: CreateAutodialContactDto,
-    phoneNorm: AcBase['phone_normalization'],
-  ): {
-    external_id: string | null;
-    values: Record<string, string | number | boolean>;
-    phones: Array<{ raw: string; normalized: string; is_primary: boolean; tz_offset_min: number; position: number }>;
-  } {
-    if (!dto.phones?.length) {
-      throw new BadRequestException({ code: 'AC_PHONES_REQUIRED', message: 'At least one phone required' });
-    }
-    const byKey = new Map(fields.map((f) => [f.key, f]));
-    const values: Record<string, string | number | boolean> = {};
-    for (const [key, raw] of Object.entries(dto.values ?? {})) {
-      const field = byKey.get(key);
-      if (!field) {
-        throw new BadRequestException({ code: 'AC_UNKNOWN_FIELD', message: `Unknown field ${key}` });
+    const existing = await this.fieldModel.findAll({ where: { base_uid: baseUid }, transaction });
+    const byUid = new Map(existing.map((field) => [field.uid, field]));
+    const byKey = new Map(existing.map((field) => [field.key, field]));
+    const retained = new Set<number>();
+    const planned = fields.map((field, position) => {
+      const previous = field.uid !== undefined ? byUid.get(field.uid) : byKey.get(field.key);
+      if (field.uid !== undefined && !previous) {
+        throw new BadRequestException({ code: 'AC_FIELD_UID', message: 'Field does not belong to this base.' });
       }
-      values[String(field.uid)] = this.coerceValue(field, raw);
-    }
-    for (const field of fields) {
-      if (field.required && values[String(field.uid)] === undefined) {
-        throw new BadRequestException({
-          code: 'AC_REQUIRED_FIELD',
-          message: `Missing required field ${field.key}`,
-        });
+      if (previous && retained.has(previous.uid)) {
+        throw new BadRequestException({ code: 'AC_FIELD_DUP', message: 'Duplicate field UID.' });
       }
-    }
-    const phones = dto.phones.map((p, i) => {
-      const normalized = normalizeAutodialPhone(p.raw, phoneNorm);
-      if (!normalized) {
-        throw new BadRequestException({ code: 'AC_INVALID_PHONE', message: `Invalid phone: ${p.raw}` });
+      if (previous) retained.add(previous.uid);
+      const keyOwner = byKey.get(field.key);
+      if (keyOwner && keyOwner.uid !== previous?.uid) {
+        throw new ConflictException({ code: 'AC_FIELD_KEY_IN_USE', message: 'A different field owns this key.' });
       }
       return {
-        raw: p.raw.trim(),
-        normalized,
-        is_primary: p.is_primary ?? i === 0,
-        tz_offset_min: p.tz_offset_min ?? 180,
-        position: i,
+        previous,
+        data: {
+          base_uid: baseUid, key: field.key, label: field.label, type: field.type,
+          required: field.required ?? false, position: field.position ?? position,
+          is_phone: field.is_phone === true || field.type === 'phone',
+          var_name: field.var_name?.trim() || fieldKeyToVarName(field.key),
+          enum_values: field.type === 'enum' ? field.enum_values ?? [] : null,
+        },
       };
     });
-    if (!phones.some((p) => p.is_primary)) phones[0].is_primary = true;
-    return {
-      external_id: dto.external_id?.trim() || null,
-      values,
-      phones,
-    };
+    const removed = existing.filter((field) => !retained.has(field.uid));
+    const incompatible = removed.length > 0 || planned.some(({ previous, data }) => previous && (
+      previous.type !== data.type || previous.is_phone !== data.is_phone
+      || JSON.stringify(previous.enum_values ?? []) !== JSON.stringify(data.enum_values ?? [])
+      || (!previous.required && data.required)
+    )) || planned.some(({ previous, data }) => !previous && data.required && !data.is_phone);
+    if (incompatible && await this.contactModel.count({ where: { base_uid: baseUid }, transaction })) {
+      throw new ConflictException({ code: 'AC_SCHEMA_IN_USE', message: 'Changing a populated schema requires an explicit migration.' });
+    }
+    const changesReferences = removed.length > 0 || planned.some(({ previous, data }) => previous && (
+      previous.key !== data.key || previous.var_name !== data.var_name || previous.type !== data.type
+    ));
+    if (changesReferences && (
+      await this.campaignModel.count({ where: { base_uid: baseUid }, transaction })
+      || await this.profileModel.count({ where: { base_uid: baseUid }, transaction })
+    )) {
+      throw new ConflictException({ code: 'AC_FIELD_IN_USE', message: 'Campaigns or import profiles reference this schema.' });
+    }
+    if (removed.length) {
+      await this.fieldModel.destroy({ where: { base_uid: baseUid, uid: removed.map((field) => field.uid) }, transaction });
+    }
+    for (const { previous, data } of planned) {
+      if (previous) await previous.update(data, { transaction });
+      else await this.fieldModel.create(data, { transaction });
+    }
   }
 
-  private coerceValue(
-    field: AcBaseField,
-    raw: string | number | boolean,
-  ): string | number | boolean {
-    switch (field.type) {
-      case 'boolean':
-        if (typeof raw === 'boolean') return raw;
-        if (raw === '1' || raw === 'true' || raw === 'yes') return true;
-        if (raw === '0' || raw === 'false' || raw === 'no') return false;
-        throw new BadRequestException({ code: 'AC_INVALID_BOOL', message: `Invalid boolean for ${field.key}` });
-      case 'number':
-      case 'money': {
-        const n = typeof raw === 'number' ? raw : Number(String(raw).replace(',', '.'));
-        if (Number.isNaN(n)) {
-          throw new BadRequestException({ code: 'AC_INVALID_NUMBER', message: `Invalid number for ${field.key}` });
-        }
-        return n;
+  private async syncPhones(
+    userUid: number,
+    baseUid: number,
+    contactUid: number,
+    existing: AcContactPhone[],
+    phones: ReturnType<typeof prepareAutodialContact>['phones'],
+    transaction: Transaction,
+  ): Promise<void> {
+    const remaining = new Map(existing.map((phone) => [phone.uid, phone]));
+    const planned = phones.map((phone) => {
+      // Legacy clients have no UID: match by normalized identity, never position.
+      const previous = phone.uid !== undefined
+        ? remaining.get(phone.uid)
+        : [...remaining.values()].find((candidate) => candidate.normalized === phone.normalized);
+      if (phone.uid !== undefined && !previous) {
+        throw new BadRequestException({ code: 'AC_PHONE_UID', message: 'Unknown or repeated phone UID.' });
       }
-      default:
-        return String(raw);
+      if (previous) remaining.delete(previous.uid);
+      return { previous, phone };
+    });
+    const changed = [
+      ...remaining.keys(),
+      ...planned.filter(({ previous, phone }) => previous && previous.normalized !== phone.normalized)
+        .map(({ previous }) => previous!.uid),
+    ];
+    if (changed.length && await this.taskModel.count({
+      where: { user_uid: userUid, phone_uid: changed }, transaction,
+    })) {
+      throw new ConflictException({ code: 'AC_PHONE_IN_USE', message: 'A number with campaign tasks cannot be removed or replaced.' });
+    }
+    if (remaining.size) {
+      await this.phoneModel.destroy({ where: { contact_uid: contactUid, uid: [...remaining.keys()] }, transaction });
+    }
+    for (const { previous, phone } of planned) {
+      const { uid: _uid, ...data } = phone;
+      if (previous) await previous.update(data, { transaction });
+      else await this.phoneModel.create({ ...data, contact_uid: contactUid, base_uid: baseUid }, { transaction });
     }
   }
 

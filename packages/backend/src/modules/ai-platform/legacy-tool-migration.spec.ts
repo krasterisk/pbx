@@ -342,20 +342,20 @@ describe('legacy-tool-migration (D-22, D-27)', () => {
   });
 
   describe('contexts domain skill (D-12)', () => {
-    it('ships two-field frontmatter the skill registry can parse', () => {
+    it('ships descriptive frontmatter the skill registry can parse', () => {
       const skillPath = path.join(__dirname, '../../skills/contexts/SKILL.md');
       const raw = fs.readFileSync(skillPath, 'utf8');
-      expect(raw).toMatch(/^---\r?\nname: contexts\r?\ndescription: .+\r?\n---/);
+      expect(raw).toMatch(/^---\r?\nname: contexts\r?\ndescription: .+\r?\n(?:[^\r\n]+\r?\n)*---/);
       expect(raw).toMatch(/маршрут|route/i);
       expect(raw).toMatch(/тенант|tenant/i);
     });
   });
 
   describe('reports domain skill (D-12)', () => {
-    it('ships two-field frontmatter covering dispositions and the search cap', () => {
+    it('ships descriptive frontmatter covering dispositions and the search cap', () => {
       const skillPath = path.join(__dirname, '../../skills/reports/SKILL.md');
       const raw = fs.readFileSync(skillPath, 'utf8');
-      expect(raw).toMatch(/^---\r?\nname: reports\r?\ndescription: .+\r?\n---/);
+      expect(raw).toMatch(/^---\r?\nname: reports\r?\ndescription: .+\r?\n(?:[^\r\n]+\r?\n)*---/);
       expect(raw).toMatch(/disposition/i);
       expect(raw).toMatch(/50|лимит|cap/i);
     });
@@ -457,7 +457,7 @@ async function minimalArgs(
   uid: number,
 ): Promise<Record<string, any>> {
   const args: Record<string, any> = {};
-  const schema = tool.inputSchema ?? {};
+  const schema = tool.inputSchema?.properties ?? tool.inputSchema ?? {};
   let listedUid: number | undefined;
 
   if (schema.uid) {
@@ -467,7 +467,9 @@ async function minimalArgs(
 
   for (const [key, def] of Object.entries(schema)) {
     const type = (def as { type?: string })?.type;
-    if (key === 'uid') {
+    if (key === 'extensions') {
+      args[key] = uid === TENANT_A ? ['201'] : ['500'];
+    } else if (key === 'uid') {
       args[key] = listedUid;
     } else if (key === 'name') {
       args[key] = uid === TENANT_A ? 'dir-a-new' : 'dir-b-new';
@@ -501,19 +503,7 @@ function createMcp(
   cdrService: object,
 ): McpToolsService {
   return new McpToolsService(
-    { findAll: jest.fn().mockResolvedValue([]), create: jest.fn(), remove: jest.fn(), bulkCreate: jest.fn() } as any,
-    { findAll: jest.fn().mockResolvedValue([]), create: jest.fn().mockResolvedValue({}), remove: jest.fn() } as any,
-    { findAll: jest.fn().mockResolvedValue([]), create: jest.fn(), update: jest.fn(), remove: jest.fn() } as any,
-    { findAll: jest.fn().mockResolvedValue([]), create: jest.fn(), update: jest.fn(), remove: jest.fn() } as any,
-    { create: jest.fn(), remove: jest.fn(), generateContextDialplan: jest.fn() } as any,
-    { getIncludeNames: jest.fn() } as any,
-    contextsService as any,
-    { applyCategories: jest.fn() } as any,
-    {} as any,
-    { findOne: jest.fn() } as any,
-    cdrService as any,
     registry,
-    { getSettings: jest.fn().mockResolvedValue({ confirmDestructive: false }) } as any,
     { logAction: jest.fn().mockResolvedValue(undefined) } as any,
     {
       createProposal: jest.fn(async (proposal: any) => ({

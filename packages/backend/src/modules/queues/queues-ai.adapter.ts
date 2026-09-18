@@ -32,7 +32,7 @@ const createInput = z.strictObject({
   name: z.string().min(1).describe('Отображаемое имя'),
   exten: z.string().min(1).describe('Номер очереди, 2–8 цифр'),
   strategy: z.enum(STRATEGIES).optional().describe(STRATEGIES.join(', ')),
-  timeout: z.number().int().positive().optional(),
+  timeout: z.number().int().positive().optional().describe('Секунды звонка одному оператору; не общее ожидание'),
   overflow: z.string().optional().describe('Контекст overflow / Queue.context'),
   context: z.string().optional(),
   members: z.array(memberSchema).optional().describe('[{interface, membername, penalty}]'),
@@ -42,7 +42,7 @@ const createArgs = z.strictObject({
   exten: z.string().min(1),
   display_name: z.string().min(1),
   strategy: z.enum(STRATEGIES).default('ringall'),
-  timeout: z.number().int().positive().optional(),
+  timeout: z.number().int().positive().optional().describe('Секунды звонка одному оператору; не общее ожидание'),
   context: z.string().optional(),
   members: z.array(memberSchema).optional(),
 });
@@ -51,7 +51,7 @@ const updateInput = z.strictObject({
   name: z.string().optional().describe('Отображаемое имя или номер очереди'),
   exten: z.string().optional().describe('Номер очереди, 2–8 цифр'),
   strategy: z.enum(STRATEGIES).optional(),
-  timeout: z.number().int().positive().optional(),
+  timeout: z.number().int().positive().optional().describe('Секунды звонка одному оператору; не общее ожидание'),
   overflow: z.string().optional().describe('Новый overflow-контекст'),
   context: z.string().optional(),
   members: z.array(memberSchema).optional(),
@@ -60,7 +60,7 @@ const updateInput = z.strictObject({
 const updateArgs = z.strictObject({
   name: z.string().min(1),
   strategy: z.enum(STRATEGIES).optional(),
-  timeout: z.number().int().positive().optional(),
+  timeout: z.number().int().positive().optional().describe('Секунды звонка одному оператору; не общее ожидание'),
   context: z.string().optional(),
   members: z.array(memberSchema).optional(),
 });
@@ -129,7 +129,7 @@ export class QueuesAiAdapter implements DomainAiAdapter, OnModuleInit {
 
   getKnowledgeBlock(): string {
     return `## Очереди
-- Стратегии: ${STRATEGIES.join(', ')}. timeout — сколько звонящий ждёт агента; overflow (context) — куда он уходит, если очередь не взяла. Overflow очереди не заменяет цепочку пункта IVR после группы (totrunk / hangup).
+- Стратегии: ${STRATEGIES.join(', ')}. timeout — длительность дозвона одному агенту, не общее ожидание в очереди; overflow (context) — контекст DTMF-выхода. Общее ожидание и действие после него задаются в маршруте. Overflow очереди не заменяет цепочку пункта IVR после группы (totrunk / hangup).
 - Членство — interface абонента тенанта. Перед выводом о проблеме очереди читай live-состояние (get_pbx_state), не только конфиг.`;
   }
 

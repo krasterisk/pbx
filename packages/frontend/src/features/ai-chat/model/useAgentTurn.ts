@@ -1,3 +1,4 @@
+import type { RootState } from '@/app/store/store';
 import { useCallback, useEffect, useRef } from 'react';
 import { useStore } from 'react-redux';
 import { collapseDuplicateAgentSteps, type AgentTimelineItem } from '@krasterisk/shared';
@@ -157,7 +158,7 @@ export function streamAgentTurn(params: {
 
 export function useAgentTurn(options: UseAgentTurnOptions): UseAgentTurnApi {
     const dispatch = useAppDispatch();
-    const store = useStore();
+    const store = useStore<RootState>();
     const isStreaming = useAppSelector(selectAiChatIsStreaming);
     const outcome = useAppSelector((state) => (state.aiChat.turnOutcome ?? 'idle') as AgentTurnOutcome);
     const abortRef = useRef<AbortController | null>(null);

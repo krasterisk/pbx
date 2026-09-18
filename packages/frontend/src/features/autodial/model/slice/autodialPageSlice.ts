@@ -8,6 +8,7 @@ export interface AutodialPageSchema {
   selectedCampaignUid: number | null;
   isBaseModalOpen: boolean;
   baseModalMode: AutodialModalMode;
+  selectedBaseUid: number | null;
   /** Base whose schema/contacts are shown on /autodial/bases. */
   activeBaseUid: number | null;
   isImportOpen: boolean;
@@ -21,6 +22,7 @@ const initialState: AutodialPageSchema = {
   selectedCampaignUid: null,
   isBaseModalOpen: false,
   baseModalMode: 'create',
+  selectedBaseUid: null,
   activeBaseUid: null,
   isImportOpen: false,
   isContactModalOpen: false,
@@ -54,20 +56,23 @@ export const autodialPageSlice = createSlice({
     openCreateBase(state) {
       state.isBaseModalOpen = true;
       state.baseModalMode = 'create';
+      state.selectedBaseUid = null;
     },
     openEditBase(state, action: PayloadAction<number>) {
       state.isBaseModalOpen = true;
       state.baseModalMode = 'edit';
-      state.activeBaseUid = action.payload;
+      state.selectedBaseUid = action.payload;
     },
     closeBaseModal(state) {
       state.isBaseModalOpen = false;
+      state.selectedBaseUid = null;
     },
 
     selectBase(state, action: PayloadAction<number | null>) {
       state.activeBaseUid = action.payload;
       state.isContactModalOpen = false;
       state.selectedContactUid = null;
+      state.isImportOpen = false;
     },
 
     openImport(state) {
@@ -105,6 +110,7 @@ export const selectAutodialSelectedCampaignUid = (s: WithAutodial) =>
 export const selectAutodialBaseModalOpen = (s: WithAutodial) => s.autodialPage.isBaseModalOpen;
 export const selectAutodialBaseModalMode = (s: WithAutodial) => s.autodialPage.baseModalMode;
 export const selectAutodialActiveBaseUid = (s: WithAutodial) => s.autodialPage.activeBaseUid;
+export const selectAutodialSelectedBaseUid = (s: WithAutodial) => s.autodialPage.selectedBaseUid;
 export const selectAutodialImportOpen = (s: WithAutodial) => s.autodialPage.isImportOpen;
 export const selectAutodialContactModalOpen = (s: WithAutodial) =>
   s.autodialPage.isContactModalOpen;

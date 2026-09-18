@@ -40,7 +40,7 @@ export function buildAutoColumnMap(
   const map: IAutodialColumnMap[] = [];
   let phoneMapped = false;
 
-  for (const header of headers) {
+  for (const [column_index, header] of headers.entries()) {
     const normalized = normalizeHeader(header);
     const exact = byKey.get(normalized) ?? byLabel.get(normalized);
 
@@ -50,6 +50,7 @@ export function buildAutoColumnMap(
       if (isPhone) phoneMapped = true;
       map.push({
         column: header,
+        column_index,
         field_key: isPhone ? '__phone' : exact.key,
         transform: isPhone ? 'phone_normalize' : 'trim',
       });
@@ -58,12 +59,12 @@ export function buildAutoColumnMap(
 
     if (!phoneMapped && PHONE_HEADER_HINTS.some((hint) => normalized.includes(hint))) {
       phoneMapped = true;
-      map.push({ column: header, field_key: '__phone', transform: 'phone_normalize' });
+      map.push({ column: header, column_index, field_key: '__phone', transform: 'phone_normalize' });
       continue;
     }
 
     if (EXTERNAL_ID_HINTS.some((hint) => normalized === hint)) {
-      map.push({ column: header, field_key: '__external_id', transform: 'trim' });
+      map.push({ column: header, column_index, field_key: '__external_id', transform: 'trim' });
     }
   }
 

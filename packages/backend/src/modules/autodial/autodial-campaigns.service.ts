@@ -1,13 +1,15 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   Logger,
   NotFoundException,
-} from '@nestjs/common';
-import { InjectModel } from '@nestjs/sequelize';
-import { Op, QueryTypes } from 'sequelize';
-import type { Sequelize } from 'sequelize-typescript';
-import { InjectConnection } from '@nestjs/sequelize';
+  ServiceUnavailableException,
+} from "@nestjs/common";
+import { InjectModel } from "@nestjs/sequelize";
+import { Op, QueryTypes, type Transaction } from "sequelize";
+import type { Sequelize } from "sequelize-typescript";
+import { InjectConnection } from "@nestjs/sequelize";
 import {
   AUTODIAL_TERMINAL_DISPOSITIONS,
   type AutodialCampaignStatus,
@@ -15,31 +17,40 @@ import {
   type IAutodialCampaign,
   type IAutodialSchedule,
   type IRouteAction,
-} from '@krasterisk/shared';
-import { AcCampaign } from './models/ac-campaign.model';
-import { AcSchedule } from './models/ac-schedule.model';
-import { AcTask } from './models/ac-task.model';
-import { AcContactPhone } from './models/ac-contact-phone.model';
-import { AcDnc } from './models/ac-dnc.model';
-import { AutodialBasesService } from './autodial-bases.service';
-import { AutodialDialplanService } from './autodial-dialplan.service';
+} from "@krasterisk/shared";
+import { AcCampaign } from "./models/ac-campaign.model";
+import { AcSchedule } from "./models/ac-schedule.model";
+import { AcTask } from "./models/ac-task.model";
+import { AcContactPhone } from "./models/ac-contact-phone.model";
+import { AcDnc } from "./models/ac-dnc.model";
+import { AutodialBasesService } from "./autodial-bases.service";
+import { AutodialDialplanService } from "./autodial-dialplan.service";
 import {
   CreateAutodialCampaignDto,
   StartAutodialCampaignDto,
   UpdateAutodialCampaignDto,
-} from './dto/autodial-campaign.dto';
+} from "./dto/autodial-campaign.dto";
 import {
   defaultAutodialAmd,
   defaultAutodialCidPolicy,
   defaultAutodialTrunkPool,
   normalizeAutodialPacing,
   normalizeAutodialRetry,
-} from './autodial-campaign.defaults';
+} from "./autodial-campaign.defaults";
 
 /** Statuses from which the pacer may pick tasks. */
-export const AUTODIAL_ACTIVE_STATUSES: AutodialCampaignStatus[] = ['running'];
+export const AUTODIAL_ACTIVE_STATUSES: AutodialCampaignStatus[] = ["running"];
 
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+function isSupportedTimeZone(timeZone: string): boolean {
+  try {
+    Intl.DateTimeFormat("en-US", { timeZone });
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 @Injectable()
 export class AutodialCampaignsService {
@@ -49,7 +60,8 @@ export class AutodialCampaignsService {
     @InjectModel(AcCampaign) private readonly campaignModel: typeof AcCampaign,
     @InjectModel(AcSchedule) private readonly scheduleModel: typeof AcSchedule,
     @InjectModel(AcTask) private readonly taskModel: typeof AcTask,
-    @InjectModel(AcContactPhone) private readonly phoneModel: typeof AcContactPhone,
+    @InjectModel(AcContactPhone)
+    private readonly phoneModel: typeof AcContactPhone,
     @InjectModel(AcDnc) private readonly dncModel: typeof AcDnc,
     @InjectConnection() private readonly sequelize: Sequelize,
     private readonly basesService: AutodialBasesService,
@@ -59,7 +71,7 @@ export class AutodialCampaignsService {
   async findAll(userUid: number): Promise<IAutodialCampaign[]> {
     const rows = await this.campaignModel.findAll({
       where: { user_uid: userUid },
-      order: [['uid', 'DESC']],
+      order: [["uid", "DESC"]],
     });
     const counters = await this.taskCounters(
       userUid,
@@ -78,31 +90,48 @@ export class AutodialCampaignsService {
     return this.toDto(row, schedules.get(uid) ?? [], counters.get(uid));
   }
 
-  async create(userUid: number, dto: CreateAutodialCampaignDto): Promise<IAutodialCampaign> {
+  async create(
+    userUid: number,
+    dto: CreateAutodialCampaignDto,
+  ): Promise<IAutodialCampaign> {
     await this.basesService.findOne(userUid, dto.base_uid);
-    this.assertScenario(dto.dial_mode ?? 'progressive', dto.queue_names, dto.scenario_actions);
+    this.assertScenario(
+      dto.dial_mode ?? "progressive",
+      dto.queue_names,
+      dto.scenario_actions,
+    );
 
-    const row = await this.campaignModel.create({
-      user_uid: userUid,
-      name: dto.name.trim(),
-      status: 'draft',
-      dial_mode: dto.dial_mode ?? 'progressive',
-      base_uid: dto.base_uid,
-      pacing: normalizeAutodialPacing(dto.pacing),
-      retry: normalizeAutodialRetry(dto.retry),
-      trunk_pool: dto.trunk_pool ?? defaultAutodialTrunkPool(),
-      cid_policy: dto.cid_policy ?? defaultAutodialCidPolicy(),
-      queue_names: dto.queue_names ?? [],
-      scenario_actions: (dto.scenario_actions ?? []) as IRouteAction[],
-      amd: dto.amd ?? defaultAutodialAmd(),
-      success_min_sec: dto.success_min_sec ?? 15,
-      dial_timeout_sec: dto.dial_timeout_sec ?? 45,
-      revision: 1,
+    const row = await this.sequelize.transaction(async (transaction) => {
+      const created = await this.campaignModel.create(
+        {
+          user_uid: userUid,
+          name: dto.name.trim(),
+          status: "draft",
+          dial_mode: dto.dial_mode ?? "progressive",
+          base_uid: dto.base_uid,
+          pacing: normalizeAutodialPacing(dto.pacing),
+          retry: normalizeAutodialRetry(dto.retry),
+          trunk_pool: dto.trunk_pool ?? defaultAutodialTrunkPool(),
+          cid_policy: dto.cid_policy ?? defaultAutodialCidPolicy(),
+          queue_names: dto.queue_names ?? [],
+          scenario_actions: (dto.scenario_actions ?? []) as IRouteAction[],
+          amd: dto.amd ?? defaultAutodialAmd(),
+          success_min_sec: dto.success_min_sec ?? 15,
+          dial_timeout_sec: dto.dial_timeout_sec ?? 45,
+          revision: 1,
+        },
+        { transaction },
+      );
+      if (dto.schedules !== undefined) {
+        await this.replaceSchedules(
+          userUid,
+          created.uid,
+          dto.schedules,
+          transaction,
+        );
+      }
+      return created;
     });
-
-    if (dto.schedules?.length) {
-      await this.replaceSchedules(userUid, row.uid, dto.schedules);
-    }
     await this.dialplanService.applyCampaign(row);
     return this.findOne(userUid, row.uid);
   }
@@ -112,56 +141,70 @@ export class AutodialCampaignsService {
     uid: number,
     dto: UpdateAutodialCampaignDto,
   ): Promise<IAutodialCampaign> {
-    const row = await this.getOrThrow(userUid, uid);
-    if (dto.base_uid != null && dto.base_uid !== row.base_uid) {
-      await this.basesService.findOne(userUid, dto.base_uid);
-      if (row.status === 'running') {
-        throw new BadRequestException({
-          code: 'AC_CAMPAIGN_RUNNING',
-          message: 'Cannot switch base while the campaign is running',
+    const row = await this.sequelize.transaction(async (transaction) => {
+      const locked = await this.getOrThrow(userUid, uid, transaction);
+      if (dto.expected_revision !== locked.revision) {
+        throw new ConflictException({
+          code: "AC_CAMPAIGN_REVISION_CONFLICT",
+          message: "Campaign changed. Reload before saving.",
         });
       }
-    }
-    this.assertScenario(
-      dto.dial_mode ?? row.dial_mode,
-      dto.queue_names ?? row.queue_names,
-      dto.scenario_actions ?? row.scenario_actions,
-    );
+      if (dto.base_uid != null && dto.base_uid !== locked.base_uid) {
+        await this.basesService.findOne(userUid, dto.base_uid);
+        if (locked.status === "running") {
+          throw new BadRequestException({
+            code: "AC_CAMPAIGN_RUNNING",
+            message: "Cannot switch base while the campaign is running",
+          });
+        }
+      }
+      this.assertScenario(
+        dto.dial_mode ?? locked.dial_mode,
+        dto.queue_names ?? locked.queue_names,
+        dto.scenario_actions ?? locked.scenario_actions,
+      );
 
-    const patch: Partial<AcCampaign> = { revision: row.revision + 1 };
-    if (dto.name != null) patch.name = dto.name.trim();
-    if (dto.dial_mode != null) patch.dial_mode = dto.dial_mode;
-    if (dto.base_uid != null) patch.base_uid = dto.base_uid;
-    if (dto.pacing != null) patch.pacing = normalizeAutodialPacing(dto.pacing);
-    if (dto.retry != null) patch.retry = normalizeAutodialRetry(dto.retry);
-    if (dto.trunk_pool != null) patch.trunk_pool = dto.trunk_pool;
-    if (dto.cid_policy != null) patch.cid_policy = dto.cid_policy;
-    if (dto.queue_names != null) patch.queue_names = dto.queue_names;
-    if (dto.scenario_actions != null) {
-      patch.scenario_actions = dto.scenario_actions as IRouteAction[];
-    }
-    if (dto.amd != null) patch.amd = dto.amd;
-    if (dto.success_min_sec != null) patch.success_min_sec = dto.success_min_sec;
-    if (dto.dial_timeout_sec != null) patch.dial_timeout_sec = dto.dial_timeout_sec;
+      const patch: Partial<AcCampaign> = { revision: locked.revision + 1 };
+      if (dto.name != null) patch.name = dto.name.trim();
+      if (dto.dial_mode != null) patch.dial_mode = dto.dial_mode;
+      if (dto.base_uid != null) patch.base_uid = dto.base_uid;
+      if (dto.pacing != null)
+        patch.pacing = normalizeAutodialPacing(dto.pacing);
+      if (dto.retry != null) patch.retry = normalizeAutodialRetry(dto.retry);
+      if (dto.trunk_pool != null) patch.trunk_pool = dto.trunk_pool;
+      if (dto.cid_policy != null) patch.cid_policy = dto.cid_policy;
+      if (dto.queue_names != null) patch.queue_names = dto.queue_names;
+      if (dto.scenario_actions != null) {
+        patch.scenario_actions = dto.scenario_actions as IRouteAction[];
+      }
+      if (dto.amd != null) patch.amd = dto.amd;
+      if (dto.success_min_sec != null)
+        patch.success_min_sec = dto.success_min_sec;
+      if (dto.dial_timeout_sec != null)
+        patch.dial_timeout_sec = dto.dial_timeout_sec;
 
-    await row.update(patch);
-    if (dto.schedules) {
-      await this.replaceSchedules(userUid, uid, dto.schedules);
-    }
+      await locked.update(patch, { transaction });
+      if (dto.schedules !== undefined) {
+        await this.replaceSchedules(userUid, uid, dto.schedules, transaction);
+      }
+      return locked;
+    });
     await this.dialplanService.applyCampaign(row);
     return this.findOne(userUid, uid);
   }
 
   async remove(userUid: number, uid: number): Promise<void> {
     const row = await this.getOrThrow(userUid, uid);
-    if (row.status === 'running') {
+    if (row.status === "running") {
       throw new BadRequestException({
-        code: 'AC_CAMPAIGN_RUNNING',
-        message: 'Stop the campaign before deleting it',
+        code: "AC_CAMPAIGN_RUNNING",
+        message: "Stop the campaign before deleting it",
       });
     }
     await this.dialplanService.removeCampaign(row);
-    await this.taskModel.destroy({ where: { campaign_uid: uid, user_uid: userUid } });
+    await this.taskModel.destroy({
+      where: { campaign_uid: uid, user_uid: userUid },
+    });
     await this.scheduleModel.destroy({ where: { campaign_uid: uid } });
     await row.destroy();
   }
@@ -181,49 +224,67 @@ export class AutodialCampaignsService {
     const row = await this.getOrThrow(userUid, uid);
     if (!row.trunk_pool?.length) {
       throw new BadRequestException({
-        code: 'AC_NO_TRUNK',
-        message: 'Configure at least one trunk before starting',
+        code: "AC_NO_TRUNK",
+        message: "Configure at least one trunk before starting",
       });
     }
+    await this.dialplanService.assertAmdReady(row);
     // Re-apply so a dialplan lost to a failed apply or an Asterisk reinstall
     // is present before the first channel lands in the context.
-    await this.dialplanService.applyCampaign(row);
+    if (!(await this.dialplanService.applyCampaign(row))) {
+      throw new ServiceUnavailableException({
+        code: "AC_DIALPLAN_APPLY_FAILED",
+        message:
+          "Campaign dialplan could not be applied. No calls were started.",
+      });
+    }
 
     const created = await this.generateTasks(userUid, row, dto);
-    await row.update({ status: 'running' });
+    await row.update({ status: "running" });
     this.logger.log(`Campaign ${uid} started, ${created} task(s) queued`);
-    return { campaign: await this.findOne(userUid, uid), tasks_created: created };
+    return {
+      campaign: await this.findOne(userUid, uid),
+      tasks_created: created,
+    };
   }
 
   async pause(userUid: number, uid: number): Promise<IAutodialCampaign> {
     const row = await this.getOrThrow(userUid, uid);
-    await row.update({ status: 'paused' });
+    await row.update({ status: "paused" });
     return this.findOne(userUid, uid);
   }
 
   async resume(userUid: number, uid: number): Promise<IAutodialCampaign> {
     const row = await this.getOrThrow(userUid, uid);
-    if (row.status !== 'paused' && row.status !== 'scheduled') {
+    if (row.status !== "paused" && row.status !== "scheduled") {
       throw new BadRequestException({
-        code: 'AC_NOT_PAUSED',
-        message: 'Only a paused or scheduled campaign can be resumed',
+        code: "AC_NOT_PAUSED",
+        message: "Only a paused or scheduled campaign can be resumed",
       });
     }
-    await row.update({ status: 'running' });
+    await this.dialplanService.assertAmdReady(row);
+    if (!(await this.dialplanService.applyCampaign(row))) {
+      throw new ServiceUnavailableException({
+        code: "AC_DIALPLAN_APPLY_FAILED",
+        message:
+          "Campaign dialplan could not be applied. No calls were started.",
+      });
+    }
+    await row.update({ status: "running" });
     return this.findOne(userUid, uid);
   }
 
-  /** Stop dialing and release pending tasks so a later start re-selects them. */
+  /** Stop new leasing while in-flight calls complete normally. */
   async stop(userUid: number, uid: number): Promise<IAutodialCampaign> {
     const row = await this.getOrThrow(userUid, uid);
-    await row.update({ status: 'stopped' });
+    await row.update({ status: "stopped" });
     await this.taskModel.update(
-      { leased_by: null, leased_at: null, status: 'pending' },
+      { leased_by: null, leased_at: null, status: "pending" },
       {
         where: {
           campaign_uid: uid,
           user_uid: userUid,
-          status: { [Op.in]: ['leased', 'dialing'] },
+          status: "leased",
         },
       },
     );
@@ -245,7 +306,7 @@ export class AutodialCampaignsService {
       // Re-arm existing tasks whose last outcome matches the selection.
       await this.taskModel.update(
         {
-          status: 'pending',
+          status: "pending",
           attempt_count: 0,
           next_attempt_at: null,
           leased_by: null,
@@ -255,7 +316,9 @@ export class AutodialCampaignsService {
           where: {
             campaign_uid: campaign.uid,
             user_uid: userUid,
-            last_disposition: { [Op.in]: dispositions as AutodialDisposition[] },
+            last_disposition: {
+              [Op.in]: dispositions as AutodialDisposition[],
+            },
           },
         },
       );
@@ -291,7 +354,7 @@ export class AutodialCampaignsService {
         type: QueryTypes.INSERT,
       },
     );
-    return typeof inserted === 'number' ? inserted : 0;
+    return typeof inserted === "number" ? inserted : 0;
   }
 
   // ── schedules ─────────────────────────────────────────────────────
@@ -300,7 +363,7 @@ export class AutodialCampaignsService {
     userUid: number,
     campaignUid: number,
     drafts: Array<{
-      kind: IAutodialSchedule['kind'];
+      kind: IAutodialSchedule["kind"];
       weekday?: number | null;
       time_from: string;
       time_to: string;
@@ -309,42 +372,57 @@ export class AutodialCampaignsService {
       date_to?: string | null;
       enabled?: boolean;
     }>,
+    transaction?: Transaction,
   ): Promise<void> {
     for (const draft of drafts) {
       if (!TIME_RE.test(draft.time_from) || !TIME_RE.test(draft.time_to)) {
         throw new BadRequestException({
-          code: 'AC_SCHEDULE_TIME',
-          message: 'time_from/time_to must be HH:MM',
+          code: "AC_SCHEDULE_TIME",
+          message: "time_from/time_to must be HH:MM",
         });
       }
       if (draft.time_from >= draft.time_to) {
         throw new BadRequestException({
-          code: 'AC_SCHEDULE_RANGE',
-          message: 'time_from must be earlier than time_to',
+          code: "AC_SCHEDULE_RANGE",
+          message: "time_from must be earlier than time_to",
         });
       }
-      if (draft.kind === 'weekly' && (draft.weekday == null || draft.weekday < 0 || draft.weekday > 6)) {
+      if (
+        draft.kind === "weekly" &&
+        (draft.weekday == null || draft.weekday < 0 || draft.weekday > 6)
+      ) {
         throw new BadRequestException({
-          code: 'AC_SCHEDULE_WEEKDAY',
-          message: 'weekly schedule requires weekday 0..6',
+          code: "AC_SCHEDULE_WEEKDAY",
+          message: "weekly schedule requires weekday 0..6",
+        });
+      }
+      const timezone = draft.timezone?.trim();
+      if (!timezone || !isSupportedTimeZone(timezone)) {
+        throw new BadRequestException({
+          code: "AC_SCHEDULE_TIMEZONE",
+          message: "timezone must be a supported IANA time zone",
         });
       }
     }
 
-    await this.scheduleModel.destroy({ where: { campaign_uid: campaignUid } });
+    await this.scheduleModel.destroy({
+      where: { campaign_uid: campaignUid },
+      transaction,
+    });
     if (!drafts.length) return;
     await this.scheduleModel.bulkCreate(
       drafts.map((d) => ({
         campaign_uid: campaignUid,
         kind: d.kind,
-        weekday: d.kind === 'weekly' ? (d.weekday ?? null) : null,
+        weekday: d.kind === "weekly" ? (d.weekday ?? null) : null,
         time_from: d.time_from,
         time_to: d.time_to,
-        timezone: d.timezone?.trim() || 'Europe/Moscow',
+        timezone: d.timezone!.trim(),
         date_from: d.date_from ?? null,
         date_to: d.date_to ?? null,
         enabled: d.enabled ?? true,
       })) as never[],
+      { transaction },
     );
   }
 
@@ -356,8 +434,8 @@ export class AutodialCampaignsService {
     const rows = await this.scheduleModel.findAll({
       where: { campaign_uid: { [Op.in]: campaignUids } },
       order: [
-        ['weekday', 'ASC'],
-        ['time_from', 'ASC'],
+        ["weekday", "ASC"],
+        ["time_from", "ASC"],
       ],
     });
     for (const r of rows) {
@@ -381,10 +459,20 @@ export class AutodialCampaignsService {
 
   // ── helpers ───────────────────────────────────────────────────────
 
-  async getOrThrow(userUid: number, uid: number): Promise<AcCampaign> {
-    const row = await this.campaignModel.findOne({ where: { uid, user_uid: userUid } });
+  async getOrThrow(
+    userUid: number,
+    uid: number,
+    transaction?: Transaction,
+  ): Promise<AcCampaign> {
+    const row = await this.campaignModel.findOne({
+      where: { uid, user_uid: userUid },
+      ...(transaction ? { transaction, lock: transaction.LOCK.UPDATE } : {}),
+    });
     if (!row) {
-      throw new NotFoundException({ code: 'AC_CAMPAIGN_NOT_FOUND', message: 'Campaign not found' });
+      throw new NotFoundException({
+        code: "AC_CAMPAIGN_NOT_FOUND",
+        message: "Campaign not found",
+      });
     }
     return row;
   }
@@ -393,24 +481,31 @@ export class AutodialCampaignsService {
     userUid: number,
     campaignUids: number[],
   ): Promise<Map<number, { total: number; pending: number; done: number }>> {
-    const out = new Map<number, { total: number; pending: number; done: number }>();
+    const out = new Map<
+      number,
+      { total: number; pending: number; done: number }
+    >();
     if (!campaignUids.length) return out;
     const rows = (await this.taskModel.findAll({
       attributes: [
-        'campaign_uid',
-        'status',
-        [this.sequelize.fn('COUNT', this.sequelize.col('uid')), 'cnt'],
+        "campaign_uid",
+        "status",
+        [this.sequelize.fn("COUNT", this.sequelize.col("uid")), "cnt"],
       ],
       where: { user_uid: userUid, campaign_uid: { [Op.in]: campaignUids } },
-      group: ['campaign_uid', 'status'],
+      group: ["campaign_uid", "status"],
       raw: true,
-    })) as unknown as Array<{ campaign_uid: number; status: string; cnt: number }>;
+    })) as unknown as Array<{
+      campaign_uid: number;
+      status: string;
+      cnt: number;
+    }>;
 
     for (const r of rows) {
       const acc = out.get(r.campaign_uid) ?? { total: 0, pending: 0, done: 0 };
       const cnt = Number(r.cnt) || 0;
       acc.total += cnt;
-      if (r.status === 'completed' || r.status === 'cancelled') acc.done += cnt;
+      if (r.status === "completed" || r.status === "cancelled") acc.done += cnt;
       else acc.pending += cnt;
       out.set(r.campaign_uid, acc);
     }
@@ -427,30 +522,33 @@ export class AutodialCampaignsService {
     actions: unknown[] | undefined,
   ): void {
     const list = (Array.isArray(actions) ? actions : []) as IRouteAction[];
-    const hasQueue = list.some((a) => a?.type === 'toqueue');
-    if (dialMode === 'agentless') {
+    const hasQueue = list.some((a) => a?.type === "toqueue");
+    if (dialMode === "agentless") {
       if (hasQueue) {
         throw new BadRequestException({
-          code: 'AC_AGENTLESS_QUEUE',
-          message: 'Agentless campaign scenario must not contain a toqueue step',
+          code: "AC_AGENTLESS_QUEUE",
+          message:
+            "Agentless campaign scenario must not contain a toqueue step",
         });
       }
       return;
     }
     if (list.length && !hasQueue) {
       throw new BadRequestException({
-        code: 'AC_NO_QUEUE_STEP',
+        code: "AC_NO_QUEUE_STEP",
         message: `${dialMode} campaign scenario must end with a toqueue step`,
       });
     }
     if (hasQueue && !queueNames?.length) {
       const inlineQueue = list.some(
-        (a) => a?.type === 'toqueue' && !!(a.params as Record<string, unknown>)?.queue,
+        (a) =>
+          a?.type === "toqueue" &&
+          !!(a.params as Record<string, unknown>)?.queue,
       );
       if (!inlineQueue) {
         throw new BadRequestException({
-          code: 'AC_NO_QUEUE',
-          message: 'Select at least one queue for the campaign',
+          code: "AC_NO_QUEUE",
+          message: "Select at least one queue for the campaign",
         });
       }
     }

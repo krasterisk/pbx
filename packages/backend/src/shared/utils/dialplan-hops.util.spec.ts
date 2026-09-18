@@ -28,16 +28,14 @@ describe('dialplan hops (D-25)', () => {
     const guard = emitHopGuard('Congestion()');
     const prologue = emitHopPrologue('ivr_7,start,1');
     expect(increment).toContain(`Set(${HOPS_VAR}=`);
-    expect(guard).toContain(HOPS_VAR);
+    expect(guard).toContain('${KRSK_HOPS}');
     expect(prologue).toContain(increment);
     expect(prologue).toContain('GotoIf');
   });
 
-  it('missing incoming hops is treated as 0 via arithmetic default, not empty-string compare', () => {
+  it('initializes missing incoming hops explicitly before arithmetic', () => {
     const increment = emitHopIncrement();
-    expect(increment).toContain(`$[\${${HOPS_VAR}} + 1]`);
-    expect(increment).not.toContain(`= ""`);
-    expect(emitHopGuard('Congestion()')).not.toContain(`= ""`);
+    expect(increment).toBe('Set(__KRSK_HOPS=$[${IF($["${KRSK_HOPS}" = ""]?0:${KRSK_HOPS})} + 1])');
     expect(resolveHopDecision(undefined)).toBe('goto');
     expect(resolveHopDecision(0)).toBe('goto');
   });

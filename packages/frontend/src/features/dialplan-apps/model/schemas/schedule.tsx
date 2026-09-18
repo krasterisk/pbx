@@ -14,7 +14,7 @@ const EMPTY_INTERVAL: ITimeGroupInterval = {
   months: '*',
 };
 
-type TFn = (key: string, fallback?: string) => string;
+type TFn = (...args: [key: string] | [key: string, fallback: string]) => string;
 
 export function summarizeSchedule(params: Record<string, unknown>, t: TFn): string {
   const intervals = Array.isArray(params.intervals) ? params.intervals : [];

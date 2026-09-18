@@ -1,5 +1,13 @@
 ﻿# Roadmap
 
+**Production track 2026-09-17:** [глобальный план и live evidence](PRODUCTION-READINESS-2026-09-17.md), [матрица AI/MCP по 49 модулям](AI-CAPABILITY-AUDIT-2026-09-17.md). Production readiness — pending: 10/50/150 endpoints созданы, полные бизнес-сценарии и все модули ещё не подтверждены.
+
+**Сверка 2026-09-17:** [исправления ревью и результаты живых проверок](REVIEW-REMEDIATION-2026-09-17.md). Статусы implementation, unit verification и live UAT учитываются отдельно.
+
+**Новая инициатива 2026-09-18 (planned):** [AI-роботы и речевая аналитика](initiatives/ai-products/README.md), [поэтапный план AI-00…11](initiatives/ai-products/ROADMAP.md). Два независимых коммерческих продукта, встроенная и внешняя PBX-интеграция. Глобальные номера фаз назначаются при запуске workstream; текущий production/autodial track продолжается.
+
+Общий foundation инициативы включает выбор PostgreSQL/MySQL для приложения и Asterisk: [контракт двух СУБД](initiatives/ai-products/DATABASE-PORTABILITY.md), [первый план DB-01](initiatives/ai-products/DB-01-PLAN.md). SaaS, self-hosted и OpenSource core входят в целевые profiles; это planned scope, не готовая поддержка PostgreSQL.
+
 **Canonical refs (все фазы):** см. `.planning/CANONICAL_REFS.md`  
 Обязательно: `packages/frontend/.idea/ARCHITECTURE.md`, `packages/backend/.idea/ARCHITECTURE.md`
 
@@ -478,7 +486,7 @@ Plans:
 - `packages/frontend/src/features/callcenter/` — softphone, SSE, selectors, UI panels
 - `packages/backend/src/modules/callcenter/` — AMI actions (transfer, chanspy, hangup, pickup), state, metrics
 
-**Status:** Gap closure complete (09-16, 09-17) — re-UAT / `/gsd-verify-work 9`  
+**Status:** Implemented and verified — 17/17 summaries; 09-UAT complete, 09-VERIFICATION passed 16/16. Separate deferred live-call checks remain in WINDOWS.
 **Depends on:** Phase 7 (CC core + WebRTC softphone); Phase 8 agent sticky softphone / mobile shell — желательно после стабилизации layout
 
 **Goal:** Переработать АРМ оператора (`CallCenterAgentPage`): основными становятся вкладки **Коллеги / Очереди / Текущие (ожидающие) звонки**; софтфон — компактный виджет + окно входящего вызова и кнопки управления в верхней статус-панели; статус «Готов» → «Ожидание звонка»; KPI принял/пропустил в статус-строке (все звонки, не только queue); per-queue answered/missed; transfer / ChanSpy / hangup по ролям; pickup из waiting; полный набор call-control по практикам профессиональных колл-центров.
@@ -551,7 +559,7 @@ Plans:
 - `packages/frontend/src/pages/CallCenterAgentPage/CallCenterAgentPage.tsx` — orchestrator (single SIP session owner)
 - `packages/backend/src/modules/callcenter/` — operator history, transfer directory, BLF presence, click-to-call, WebRTC config
 
-**Status:** Not planned — brief ready  
+**Status:** Implemented — 9/9 summaries; 10-UAT complete. The old Not planned status was stale.
 **Brief:** `.planning/phases/10-full-softphone/10-BRIEF.md`  
 **Depends on:** Phase 9 agent panel (chrome, KPI, TransferDirectory, history API); existing `useWebRTCPhone` + PJSIP WSS; BLF / transfer directory backend
 
@@ -623,7 +631,7 @@ Plans:
 - Existing seed: `e2e/` (Playwright operator happy-path) + `.github/workflows/e2e.yml`
 - Public surfaces only: HTTP `/api/*`, SSE `/api/callcenter/events`, Socket.IO AMI gateway, UI routes — **no** imports from `packages/*/src`
 
-**Status:** Context gathered (2026-08-04) — ready for `/gsd-plan-phase 11`  
+**Status:** Implemented, live gates open — 8/8 summaries; verification passed; UAT has 1 pass and 8 skipped live scenarios. First green remote CI run and e2e retirement remain open.
 **Depends on:** — (независима от product-фаз; может идти параллельно с Phase 10 verify)
 
 **Goal:** Построить отдельный каталог `/harness` вокруг production-приложения: Runner, Environment, Scenarios, Assertions, Metrics, Reporter, Observability. Harness работает как внешний пользователь (HTTP/UI/SSE/AMI), не меняет бизнес-логику, минимально трогает `packages/*`.
@@ -952,7 +960,7 @@ Plans:
 
 ## Phase 15: Универсальный AI-агент по АТС
 
-**Status:** In Progress (2026-09-04) — 9/24 plans executed (15-01…15-08, 15-12); next 15-09 → after all plans, обязательный `/gsd-secure-phase 15`
+**Status:** Implemented, stabilization in progress (2026-09-17) — 24/24 summaries; historical verify passed 23/23, UAT complete and SECURITY verified. Review P1 remediation and new live regression evidence tracked in REVIEW-REMEDIATION-2026-09-17.md.
 
 **Goal:** Свой агентный цикл в Nest вместо внешнего проксирования: агент, который видит всю АТС, отвечает человеческим языком на любые связанные с ней вопросы и правит настройки во всех модулях через подтверждаемые диффы — с тенантной изоляцией, доказанной тестами.
 
@@ -1035,7 +1043,7 @@ Plans:
 
 ## Phase 16: Модуль телеконференций — ядро (домен комнат, тенантный диалплан, роли, события)
 
-**Status:** Executed (2026-09-16) — 7/7 plans; ready for `/gsd-verify-work 16`
+**Status:** Implemented — 7/7 summaries; subsequent UAT complete 11/11 and SECURITY verified. Earlier VERIFICATION human_needed (14/20) is historical; reconcile its remaining decision coverage separately.
 
 > **Фаза разбита на четыре части** по рекомендации планировщика: при полной точности 41 решение, 47 файлов, 88 краёв и 82 UI-соображения требуют ~19 планов, что не помещается в один планировочный проход. Разбиение — точная партиция: каждое из D-01…D-41 принадлежит ровно одной части, ни одно требование не отброшено.
 >
@@ -1143,7 +1151,7 @@ Plans:
 
 ## Phase 16.1: Телеконференции — видео, ёмкость комнаты, гостевой вход и приглашения (backend)
 
-**Status:** Complete (2026-09-16) — 6/6 plans; verify `passed` 16/16; security pending (`/gsd-secure-phase 16.1`)
+**Status:** Implemented and verified — 6/6 summaries; verification passed 16/16; SECURITY verified 21/21. Old security-pending and critical-review reminders require the latest fixes to be considered.
 
 **Goal:** Довести комнату из Phase 16 до полноценной видеовстречи с внешними участниками: сетка видео на нативном SFU, честная ёмкость комнаты как бюджет полосы, гостевой вход по ссылке без учётной записи портала и приглашение внутренних и внешних абонентов из комнаты.
 
@@ -1203,7 +1211,7 @@ Plans:
 
 ## Phase 16.2: Телеконференции — запись встреч и отчётность
 
-**Status:** Executed — verify pending
+**Status:** Implemented — 4/4 summaries; UAT complete 3/3 with live recording evidence; SECURITY verified 10/10. Earlier VERIFICATION human_needed remains a historical report.
 
 **Goal:** Записывать конференции тем же механизмом, что и разговоры, и отдавать записи в двух местах — историей встреч комнаты в модуле и фактом звонка в CDR.
 
@@ -1254,7 +1262,7 @@ Plans:
 
 ## Phase 17: Модуль Автообзвон: кампании, клиентские базы, диалер, монитор, отчётность
 
-**Status:** Planning / executing (split into 17.1–17.5)
+**Status:** Implementation exists across 17.1–17.5; requirement reconciliation and live verification pending (2026-09-17).
 **Goal:** Коммерческий глобальный модуль «Автообзвон»: клиентские базы с настраиваемой схемой и импортом, кампании с Progressive/Power/Agentless пейсингом на ARI, сценарии через DialplanAppsEditor (host `autodial`), онлайн-монитор, KPI и отчётность.
 **Requirements:** см. `17-CONTEXT.md` (D-01…D-20)
 **Depends on:** Phase 9 (CallCenter state/queues), Phase 12 (DialplanAppsEditor), Phase 15 (AI adapter gate)
@@ -1266,7 +1274,7 @@ Plans:
 
 ## Phase 17.1: Автообзвон — клиентские базы и импорт (INSERTED)
 
-**Status:** Executing
+**Status:** Code present; plan/summary reconciliation and live acceptance pending (2026-09-17)
 **Goal:** `ac_bases` / fields / contacts / phones / import profiles & runs; CSV+XLSX import with reusable mapping profiles; frontend `/autodial/bases`.
 **Depends on:** Phase 17
 **Plans:** implementation inline (scaffold + CRUD + import)
@@ -1275,7 +1283,7 @@ Plans:
 
 ## Phase 17.2: Автообзвон — кампании, диалплан-сценарий, расписание (INSERTED)
 
-**Status:** Pending
+**Status:** Code present; plan/summary reconciliation and live acceptance pending (2026-09-17)
 **Goal:** `ac_campaigns` / schedules / DNC / tasks; DialplanHost `autodial`; `krsk-ac-*` dialplan; scheduler; restart-by-disposition.
 **Depends on:** Phase 17.1
 **Plans:** TBD
@@ -1284,7 +1292,7 @@ Plans:
 
 ## Phase 17.3: Автообзвон — движок набора ARI и пейсинг (INSERTED)
 
-**Status:** Pending
+**Status:** Code present; plan/summary reconciliation and live acceptance pending (2026-09-17)
 **Goal:** ARI originate/dial/continueInDialplan; pacer with capacity providers; dispositions/retries; SSE; AMD; marketplace registration.
 **Depends on:** Phase 17.2
 **Plans:** TBD
@@ -1293,7 +1301,7 @@ Plans:
 
 ## Phase 17.4: Автообзвон — монитор, KPI и отчётность (INSERTED)
 
-**Status:** Pending
+**Status:** Code present; plan/summary reconciliation and live acceptance pending (2026-09-17)
 **Goal:** Live monitor SSE; KPI metrics; nightly rollup; reports with charts + CSV/XLSX export.
 **Depends on:** Phase 17.3
 **Plans:** TBD
@@ -1302,7 +1310,7 @@ Plans:
 
 ## Phase 17.5: Автообзвон — AI-адаптер, Predictive, лимит транка (INSERTED)
 
-**Status:** Pending
+**Status:** Code present; plan/summary reconciliation and live acceptance pending (2026-09-17)
 **Goal:** `autodial-ai.adapter.ts` + SKILL.md + coverage; predictive pacing; trunk channel limit as first-class setting.
 **Depends on:** Phase 17.4
 **Plans:** TBD
@@ -1310,7 +1318,7 @@ Plans:
 
 ## Phase 16.3: Телеконференции — фронтенд живой комнаты, гостевая поверхность и AI-адаптер
 
-**Status:** Complete (UAT 2026-09-16, 7/8 pass, Test 2 blocked)
+**Status:** Implemented; live media gate open — 10/10 summaries; UAT 7/8 pass, staff WebRTC/microphone test blocked; SECURITY verified 23/23. Do not treat this as fully live-validated.
 **Plans:** 10 plans (01–08 + gap 09–10, all complete)
 
 Plans:
@@ -1371,3 +1379,15 @@ Plans:
 **Depends on:** Phase 16, 16.1, 16.2 (REST- и SSE-контракты всех трёх).
 
 **GSD workflow:** `/gsd-plan-phase 16.3` ✅ → `/gsd-execute-phase 16.3` ✅ → `/gsd-secure-phase 16.3` ✅ → `/gsd-verify-work 16.3` ✅ → UAT ✅
+
+
+## Production readiness track (после review 2026-09-17)
+
+**Status:** executing — partial live verification.
+
+1. P0 tenant namespaces, provisioning/outbox, авторизация, quotas, reconciliation; исправить подтверждённые live-сбои CDR/legacy trigger и отсутствующий deployed context группы IVR.
+2. P1 AI capability CRUD matrix, typed recipes, small-model eval и понятные failure states.
+3. P1 tenant-scoped Asterisk logs, support skills, call timeline и безопасные repair proposals.
+4. P2 onboarding, deployment status UI, observability, backup/restore и capacity tests.
+
+Порядок зависимостей, критерии приёмки и источники: [PRODUCTION-READINESS-2026-09-17.md](PRODUCTION-READINESS-2026-09-17.md). Старые phase-complete статусы не закрывают новые release gates.

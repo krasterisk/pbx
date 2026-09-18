@@ -210,7 +210,7 @@ describe('MohAiAdapter', () => {
     it('covers class meaning, play mode, referrers and no-upload', () => {
       const skillPath = path.join(__dirname, '../../skills/moh/SKILL.md');
       const raw = fs.readFileSync(skillPath, 'utf8');
-      expect(raw).toMatch(/^---\r?\nname: moh\r?\ndescription: .+\r?\n---/);
+      expect(raw).toMatch(/^---\r?\nname: moh\r?\ndescription: .+\r?\n(?:[^\r\n]+\r?\n)*---/);
       expect(raw).toMatch(/класс|class/i);
       expect(raw).toMatch(/режим|mode|random|playlist/i);
       expect(raw).toMatch(/очеред|queue|маршрут|route/i);

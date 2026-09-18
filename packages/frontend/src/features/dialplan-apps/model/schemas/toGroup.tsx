@@ -1,7 +1,7 @@
 import type { ValueSource } from '@krasterisk/shared';
 import type { FieldSchema } from '../schema.types';
 
-type TFn = (key: string, fallback?: string) => string;
+type TFn = (...args: [key: string] | [key: string, fallback: string]) => string;
 
 /**
  * Call-group step: same catalog + mask/directory/variable picker as queue and conference.
@@ -50,7 +50,7 @@ export function buildToGroupSchema(t: TFn): FieldSchema[] {
 
 export function summarizeToGroup(
   params: Record<string, any>,
-  t: (key: string, fallback?: any) => string,
+  t: (...args: [key: string] | [key: string, fallback: string]) => string,
   refs?: Record<string, unknown>,
 ): string {
   const raw = readToGroupTarget(params);

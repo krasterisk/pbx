@@ -78,7 +78,7 @@ function makeStore() {
 
 function wrapperFor(store: ReturnType<typeof makeStore>) {
   return function Wrapper({ children }: { children: React.ReactNode }) {
-    return React.createElement(Provider, { store }, children);
+    return React.createElement(Provider, { store, children });
   };
 }
 
@@ -366,7 +366,7 @@ describe('useAgentTurn', () => {
       result.current.send('Как очереди?');
     });
 
-    const body = JSON.parse(String((fetch as ReturnType<typeof vi.fn>).mock.calls[0][1].body ?? '{}'));
+    const body = JSON.parse(String((fetch as unknown as ReturnType<typeof vi.fn>).mock.calls[0][1].body ?? '{}'));
     expect(body).toEqual({ message: 'Как очереди?', threadUid: 7 });
   });
 
@@ -411,7 +411,7 @@ describe('useAgentTurn', () => {
       result.current.send('second');
     });
 
-    const bodies = (fetch as ReturnType<typeof vi.fn>).mock.calls.map((call) =>
+    const bodies = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls.map((call) =>
       JSON.parse(String(call[1].body ?? '{}')),
     );
     expect(bodies[0].threadUid).toBeUndefined();
@@ -431,7 +431,7 @@ describe('useAgentTurn', () => {
       expect.stringContaining('/ai-chat/threads/7/continue'),
       expect.objectContaining({ method: 'POST' }),
     );
-    expect(JSON.parse(String((fetch as ReturnType<typeof vi.fn>).mock.calls[0][1].body ?? '{}'))).toEqual({});
+    expect(JSON.parse(String((fetch as unknown as ReturnType<typeof vi.fn>).mock.calls[0][1].body ?? '{}'))).toEqual({});
   });
 
   it('never puts a locale string into the model prompt', () => {

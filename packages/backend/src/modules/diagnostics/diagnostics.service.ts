@@ -145,9 +145,6 @@ function belongsToTenant(
 ): boolean {
   if (row.context && contextNames.has(row.context)) return true;
   if (row.endpoint && endpointIds.has(row.endpoint)) return true;
-  for (const id of endpointIds) {
-    if (id && row.channel.includes(id)) return true;
-  }
   return false;
 }
 
@@ -174,6 +171,24 @@ export class DiagnosticsService {
     private readonly endpoints: EndpointsService,
     private readonly cdr: CdrService,
   ) {}
+
+  async readEndpointRegistration(vpbxUserUid: number, extension: string) {
+    if (!/^\d{2,8}$/.test(extension)) throw new Error('extension must contain 2–8 digits');
+    const id = `e${extension}_${vpbxUserUid}`;
+    const owned = (await this.endpoints.findAll(vpbxUserUid)).find(ep => ep.id === id);
+    if (!owned) return { extension, exists: false, evidence: 'tenant endpoint inventory' };
+    // PJSIPShowEndpoint also returns AuthDetail; never pass its raw events to a model.
+    const result = await this.ami.pjsipShowEndpoint(id);
+    const events = result.events.filter(event =>
+      ['endpointdetail', 'contactstatusdetail', 'contactlist'].includes(String(event.event || '').toLowerCase()));
+    return { extension, exists: true, observedAt: new Date().toISOString(),
+      evidence: 'AMI PJSIPShowEndpoint',
+      interpretation: 'DeviceState describes reachability, not proof of registration success or failure. Empty recent call events do not prove a registration problem. Determine the cause from registration/contact evidence and device logs.',
+      states: events.slice(0, 10).map(event => ({
+        event: String(event.event || ''), deviceState: String(event.devicestate || ''),
+        contactStatus: String(event.status || ''), roundtripUsec: String(event.roundtripusec || ''),
+      })), truncated: events.length > 10 };
+  }
 
   async readLiveChannels(vpbxUserUid: number): Promise<LiveChannelsResult> {
     const command = resolveDiagnosticCommand('live_channels');
@@ -230,6 +245,8 @@ export class DiagnosticsService {
   }
 
   private async tenantContextNames(vpbxUserUid: number): Promise<Set<string>> {
-    return new Set((await this.contexts.findAll(vpbxUserUid)).map((ctx) => ctx.name));
+    const suffix = String(vpbxUserUid);
+    return new Set((await this.contexts.findAll(vpbxUserUid)).map((ctx) =>
+      ctx.name.endsWith(suffix) ? ctx.name : `${ctx.name}${suffix}`));
   }
 }

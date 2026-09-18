@@ -21,7 +21,7 @@ export interface DiffConfirmCardProps {
 
 function formatDigitLabel(
     digit: string,
-    t: (key: string, fallback?: string) => string,
+    t: (...args: [key: string] | [key: string, fallback: string]) => string,
 ): string {
     if (digit === 't') return t('aiChat.card.dest.timeout', 'таймаут');
     if (digit === 'i') return t('aiChat.card.dest.invalid', 'ошибка ввода');
@@ -30,7 +30,7 @@ function formatDigitLabel(
 
 function formatDestKind(
     kind: string,
-    t: (key: string, fallback?: string) => string,
+    t: (...args: [key: string] | [key: string, fallback: string]) => string,
 ): string {
     const key = `aiChat.card.dest.${kind}`;
     const translated = t(key, kind);
@@ -39,7 +39,7 @@ function formatDestKind(
 
 function formatAfterLines(
     after: Record<string, unknown> | null | undefined,
-    t: (key: string, fallback?: string) => string,
+    t: (...args: [key: string] | [key: string, fallback: string]) => string,
 ): string[] {
     if (!after) return [];
     const lines: string[] = [];

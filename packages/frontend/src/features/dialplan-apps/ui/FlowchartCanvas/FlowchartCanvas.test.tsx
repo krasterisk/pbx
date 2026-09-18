@@ -93,7 +93,7 @@ describe('FlowchartCanvas', () => {
     const action = makeAction('hangup');
     const summary = dialplanAppsRegistry.hangup.summarize(
       action.params,
-      (key, fallback) => (typeof fallback === 'string' ? fallback : key),
+      (key: string, fallback?: string) => (typeof fallback === 'string' ? fallback : key),
     );
 
     render(<FlowchartCanvas actions={[action]} />);

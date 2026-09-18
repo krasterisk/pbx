@@ -3,7 +3,7 @@ import type { FieldSchema } from '../schema.types';
 import { CallValueSourceField } from '../../ui/DirectoryLookupField';
 import { DirectoryLookupOutputsField } from '../../ui/DirectoryLookupOutputsField';
 
-type TFn = (key: string, fallback?: string) => string;
+type TFn = (...args: [key: string] | [key: string, fallback: string]) => string;
 
 const TARGET_VARIABLE_RE = /^[A-Z][A-Z0-9_]{1,63}$/;
 const RESERVED_TARGET_VARIABLES = new Set(['CALLERID', 'CALLERID(num)', 'EXTEN', 'UNIQUEID']);

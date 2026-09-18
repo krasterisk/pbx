@@ -145,7 +145,7 @@ export const SupervisorKpiStrip = memo(function SupervisorKpiStrip({
     },
   ];
 
-  const renderCards = (cards: typeof liveCards) => (
+  const renderCards = (cards: Array<{ key: string; label: string; value: string | number; icon?: typeof Phone; spark: number[]; danger?: boolean; warning?: boolean; success?: boolean }>) => (
     <div className={styles.kpiStrip}>
       {cards.map((card) => {
         const Icon = card.icon;

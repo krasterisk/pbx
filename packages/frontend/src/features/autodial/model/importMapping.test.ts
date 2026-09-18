@@ -26,8 +26,8 @@ describe('buildAutoColumnMap', () => {
   it('matches a header against the field key, case-insensitively', () => {
     const map = buildAutoColumnMap(['Name', 'DEBT'], fields);
     expect(map).toEqual([
-      { column: 'Name', field_key: 'name', transform: 'trim' },
-      { column: 'DEBT', field_key: 'debt', transform: 'trim' },
+      { column: 'Name', column_index: 0, field_key: 'name', transform: 'trim' },
+      { column: 'DEBT', column_index: 1, field_key: 'debt', transform: 'trim' },
     ]);
   });
 
@@ -40,6 +40,7 @@ describe('buildAutoColumnMap', () => {
     const map = buildAutoColumnMap(['Телефон'], fields);
     expect(map[0]).toEqual({
       column: 'Телефон',
+      column_index: 0,
       field_key: '__phone',
       transform: 'phone_normalize',
     });

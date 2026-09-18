@@ -2,7 +2,7 @@ import { Input, Select, Switch } from '@/shared/ui';
 import { useGetNotificationsQuery } from '@/shared/api/endpoints/notificationApi';
 import type { FieldSchema, SchemaFieldRenderCtx } from '../schema.types';
 
-type TFn = (key: string, fallback?: string) => string;
+type TFn = (...args: [key: string] | [key: string, fallback: string]) => string;
 
 const RECORD_FLAGS = ['q', 'o', 'x', 'y', 'n', 's', 'u'] as const;
 

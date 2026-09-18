@@ -84,7 +84,7 @@ export function RoomControlBar({
 
   const [startRecording, startState] = useStartConferenceRecordingMutation();
   const [stopRecording, stopState] = useStopConferenceRecordingMutation();
-  const recordPending = Boolean(startState.isPending || stopState.isPending);
+  const recordPending = Boolean(startState.isLoading || stopState.isLoading);
 
   const [inviteMode, setInviteMode] = useState<InviteSheetMode | null>(null);
   const [endOpen, setEndOpen] = useState(false);

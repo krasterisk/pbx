@@ -1,7 +1,7 @@
 import { TagInput } from '@/shared/ui';
 import type { FieldSchema } from '../schema.types';
 
-type TFn = (key: string, fallback?: string) => string;
+type TFn = (...args: [key: string] | [key: string, fallback: string]) => string;
 
 function parseNumbers(raw: unknown): string[] {
   if (Array.isArray(raw)) return raw.map(String).filter(Boolean);

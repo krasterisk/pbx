@@ -1,4 +1,4 @@
-import { memo, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2, Pencil, Plus, Search, Trash2, Upload } from 'lucide-react';
 import type { IAutodialBaseField, IAutodialContact } from '@krasterisk/shared';
@@ -29,6 +29,7 @@ import {
 import { useAppDispatch } from '@/shared/hooks/useAppStore';
 import { autodialPageActions } from '../../model/slice/autodialPageSlice';
 import cls from './ContactsGrid.module.scss';
+import { autodialErrorKey } from '../../lib/mutationError';
 
 const PAGE_SIZE = 25;
 
@@ -54,19 +55,33 @@ export const ContactsGrid = memo(({ baseUid }: ContactsGridProps) => {
   const dispatch = useAppDispatch();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
+  const [query, setQuery] = useState('');
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  useEffect(() => {
+    const timer = setTimeout(() => { setQuery(search.trim()); setPage(1); }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
   const { data: base } = useGetAutodialBaseQuery(baseUid);
-  const { data, isLoading, isFetching } = useGetAutodialContactsQuery({
+  const { currentData: data, isLoading, isFetching, isError, refetch } = useGetAutodialContactsQuery({
     baseUid,
     page,
     pageSize: PAGE_SIZE,
-    q: search.trim() || undefined,
+    q: query || undefined,
   });
-  const [deleteContact] = useDeleteAutodialContactMutation();
+  const [deleteContact, { isLoading: isDeleting }] = useDeleteAutodialContactMutation();
 
   const fields = (base?.fields ?? []).slice().sort((a, b) => a.position - b.position);
-  const contacts = data?.rows ?? [];
+  const contacts = data?.items ?? [];
   const total = data?.total ?? 0;
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  useEffect(() => {
+    if (data && page > pageCount) setPage(pageCount);
+  }, [data, page, pageCount]);
+  const remove = async (contactUid: number) => {
+    setDeleteError(null);
+    try { await deleteContact({ baseUid, contactUid }).unwrap(); }
+    catch (error) { setDeleteError(t(autodialErrorKey(error, 'autodial.common.deleteFailed'))); }
+  };
 
   return (
     <Card className={cls.card}>
@@ -86,7 +101,6 @@ export const ContactsGrid = memo(({ baseUid }: ContactsGridProps) => {
                 value={search}
                 onChange={(e) => {
                   setSearch(e.target.value);
-                  setPage(1);
                 }}
                 className={cls.searchInput}
               />
@@ -104,7 +118,13 @@ export const ContactsGrid = memo(({ baseUid }: ContactsGridProps) => {
       </CardHeader>
 
       <CardContent className={cls.content}>
-        {isLoading ? (
+        {deleteError && <Text role="alert">{deleteError}</Text>}
+        {isError ? (
+          <VStack gap="8">
+            <Text role="alert">{t('autodial.common.loadFailed')}</Text>
+            <Button onClick={() => void refetch()}>{t('autodial.common.retry')}</Button>
+          </VStack>
+        ) : isLoading || (isFetching && !data) ? (
           <Flex justify="center" className={cls.loading}>
             <Loader2 size={24} className={cls.spinner} />
           </Flex>
@@ -184,7 +204,7 @@ export const ContactsGrid = memo(({ baseUid }: ContactsGridProps) => {
                             aria-label={t('common.delete')}
                             onClick={() => {
                               if (!window.confirm(t('autodial.contacts.confirmDelete'))) return;
-                              void deleteContact({ baseUid, contactUid: contact.uid });
+                              if (!isDeleting) void remove(contact.uid);
                             }}
                           >
                             <Trash2 />

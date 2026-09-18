@@ -33,6 +33,9 @@ function resolveFilenames(params: IPlaybackParams): string[] {
 }
 
 function soundPath(uid: number, file: string): string {
+  // A single reserved, non-sensitive Asterisk system sound. Other names remain
+  // confined to the tenant directory; do not accept arbitrary absolute paths.
+  if (file === 'beep') return 'beep';
   return `/usr/records/${uid}/sounds/${file}`;
 }
 

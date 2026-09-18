@@ -51,7 +51,7 @@ function registerProcessDiagnostics(): void {
     process.on(signal, () => diag(`received ${signal}`));
   }
 
-  process.on('uncaughtException', (err) => {
+  process.on('uncaughtExceptionMonitor', (err) => {
     diag('uncaughtException', err.message);
     console.error(err.stack);
   });
@@ -62,6 +62,7 @@ function registerProcessDiagnostics(): void {
     if (reason instanceof Error && reason.stack) {
       console.error(reason.stack);
     }
+    throw reason instanceof Error ? reason : new Error(detail);
   });
 
   process.on('exit', (code) => {

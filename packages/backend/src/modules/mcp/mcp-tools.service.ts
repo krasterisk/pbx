@@ -332,7 +332,9 @@ export class McpToolsService implements OnApplicationBootstrap {
             description: tool.description,
             jsonSchema: tool.mutation
                 ? jsonSchemaOf(tool.mutation.input)
-                : { type: 'object', properties: tool.inputSchema },
+                : tool.inputSchema?.type === 'object' && tool.inputSchema?.properties
+                    ? tool.inputSchema
+                    : { type: 'object', properties: tool.inputSchema },
             entityType: tool.entityType,
             destructive: !!tool.destructive,
             proposes: !!tool.proposes,

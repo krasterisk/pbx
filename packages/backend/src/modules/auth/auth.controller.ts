@@ -42,7 +42,7 @@ export class AuthController {
   @ApiConflictResponse({ description: 'Пользователь с таким логином уже существует' })
   @ApiForbiddenResponse({ description: 'Регистрация отключена (CLOUD mode)' })
   async register(@Body() dto: RegisterDto): Promise<MessageResponse> {
-    return this.authService.register(dto.login, dto.password, dto.name, dto.email);
+    return this.authService.register(dto.login, dto.password, dto.name, dto.email, dto.companyName);
   }
 
   // ─── Activation ──────────────────────────────────────────────────────────────

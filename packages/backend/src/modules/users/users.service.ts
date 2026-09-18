@@ -8,6 +8,7 @@ import { InjectModel } from '@nestjs/sequelize';
 import { User, UserLevel } from './user.model';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
 import * as crypto from 'crypto';
+import * as bcrypt from 'bcrypt';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import {
@@ -30,7 +31,7 @@ export class UsersService {
 
   async findById(id: number, vpbxUserUid?: number): Promise<User | null> {
     const whereClause: any = { uniqueid: id };
-    if (vpbxUserUid) {
+    if (vpbxUserUid !== undefined) {
       whereClause.vpbx_user_uid = vpbxUserUid;
     }
     return this.userModel.findOne({
@@ -65,7 +66,7 @@ export class UsersService {
     if (data.passwd) {
       finalPasswd = data.passwd;
     } else if (data.password) {
-      finalPasswd = crypto.createHash('md5').update(data.password).digest('hex');
+      finalPasswd = await bcrypt.hash(data.password, 12);
     } else {
       finalPasswd = '';
     }
@@ -109,7 +110,7 @@ export class UsersService {
       const isBcrypt = newPassword.startsWith('$2b$') || newPassword.startsWith('$2a$');
       updateData.passwd = isBcrypt
         ? newPassword
-        : crypto.createHash('md5').update(newPassword).digest('hex');
+        : await bcrypt.hash(newPassword, 12);
       delete updateData.password;
     } else {
       delete updateData.passwd;

@@ -433,7 +433,7 @@ describe('read-adapters-operations — shared skill (D-12, D-16)', () => {
   it('ships one operations skill covering all four domains, preview and the read-only boundary', () => {
     const skillPath = path.join(__dirname, '../../skills/operations/SKILL.md');
     const raw = fs.readFileSync(skillPath, 'utf8');
-    expect(raw).toMatch(/^---\r?\nname: operations\r?\ndescription: .+\r?\n---/);
+    expect(raw).toMatch(/^---\r?\nname: operations\r?\ndescription: .+\r?\n(?:[^\r\n]+\r?\n)*---/);
     for (const domain of SHARED_OPERATIONS_SKILL_DOMAINS) {
       expect(raw).toContain(domain);
     }

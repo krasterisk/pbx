@@ -146,7 +146,7 @@ describe('DiffConfirmCard', () => {
                             requiresSecureInput: false,
                         },
                     ],
-                } as IAgentProposalView)}
+                } as unknown as IAgentProposalView)}
             />,
         );
         expect(screen.getByText('Готовлю голосовое меню: Рога и копыта')).toBeInTheDocument();

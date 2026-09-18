@@ -1,6 +1,6 @@
 {
   "name": "@krasterisk/backend",
-  "version": "4.4.2",
+  "version": "4.4.3",
   "description": "Krasterisk v4 Backend",
   "private": true,
   "scripts": {
@@ -21,9 +21,9 @@
     "test:ai": "jest --testPathPattern=\"modules/(ai-agents|ai-platform|ai-chat|mcp)\" --no-coverage",
     "test:ai:watch": "jest --testPathPattern=\"modules/(ai-agents|ai-platform|ai-chat|mcp)\" --watch --no-coverage",
     "test:pbx-agent-eval": "jest --testPathPattern=\"pbx-agent-eval\" --no-coverage",
-    "db:migrate": "node migrations/run-migrations.js",
-    "db:migrate:list": "node migrations/run-migrations.js --list",
-    "db:migrate:rollback": "node migrations/run-migrations.js --rollback",
+    "db:migrate": "node database/run-migrations.cjs",
+    "db:migrate:list": "node database/run-migrations.cjs --list",
+    "db:migrate:rollback": "node database/run-migrations.cjs --rollback",
     "db:setup:directories": "ts-node -r tsconfig-paths/register src/modules/directories/setup-directories-schema.ts",
     "db:report:legacy-confbridge": "ts-node -r tsconfig-paths/register src/modules/conferences/report-legacy-confbridge-steps.ts",
     "db:setup:conferences": "ts-node -r tsconfig-paths/register src/modules/conferences/setup-conferences-schema.ts",
@@ -31,7 +31,8 @@
     "db:setup:agent-threads": "ts-node -r tsconfig-paths/register src/modules/ai-chat/migrate-agent-threads.ts",
     "db:setup:agent-brief": "ts-node -r tsconfig-paths/register src/modules/ai-chat/migrate-agent-brief.ts",
     "db:setup:agent-workflows": "ts-node -r tsconfig-paths/register src/modules/ai-chat/migrate-agent-workflows.ts",
-    "db:setup:agent-timeline": "ts-node -r tsconfig-paths/register src/modules/ai-chat/migrate-agent-timeline.ts"
+    "db:setup:agent-timeline": "ts-node -r tsconfig-paths/register src/modules/ai-chat/migrate-agent-timeline.ts",
+    "db:seed:ci": "node database/seed-ci.cjs"
   },
   "dependencies": {
     "@grpc/grpc-js": "^1.14.3",
@@ -132,6 +133,7 @@
       "**/*.(t|j)s"
     ],
     "coverageDirectory": "../coverage",
-    "testEnvironment": "node"
+    "testEnvironment": "node",
+    "maxWorkers": 2
   }
 }

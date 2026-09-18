@@ -157,6 +157,14 @@ export class AutodialStateService {
     return this.runtimes.get(campaignUid)?.reserved ?? 0;
   }
 
+  tenantReservedChannels(userUid: number): number {
+    let count = 0;
+    for (const runtime of this.runtimes.values()) {
+      if (runtime.userUid === userUid) count += runtime.reserved;
+    }
+    return count;
+  }
+
   // ── runtime / stats ───────────────────────────────────────────────
 
   ensureRuntime(userUid: number, campaignUid: number): AutodialCampaignRuntime {

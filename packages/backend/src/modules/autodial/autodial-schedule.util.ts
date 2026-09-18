@@ -76,13 +76,13 @@ export function scheduleAllows(schedule: IAutodialSchedule, now: Date): boolean 
 }
 
 /**
- * A campaign without schedules dials around the clock; with schedules, any one
- * enabled row that matches opens the window.
+ * A campaign without schedules dials around the clock. Once it has at least
+ * one schedule row, an enabled row must match before a new attempt can start.
+ * This deliberately fails closed when an operator disables every row.
  */
 export function campaignWindowOpen(schedules: IAutodialSchedule[], now: Date): boolean {
-  const enabled = schedules.filter((s) => s.enabled);
-  if (!enabled.length) return true;
-  return enabled.some((s) => scheduleAllows(s, now));
+  if (schedules.length === 0) return true;
+  return schedules.some((schedule) => scheduleAllows(schedule, now));
 }
 
 /**

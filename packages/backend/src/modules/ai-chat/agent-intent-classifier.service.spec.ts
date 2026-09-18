@@ -6,6 +6,28 @@ describe('AgentIntentClassifierService', () => {
   const registry = new AiAdapterRegistryService();
   const skills = new AgentSkillRegistryService(registry);
   const classifier = new AgentIntentClassifierService(skills);
+  it('keeps route intent despite references to existing contexts, IVRs and subscribers', () => {
+    const result = classifier.classify({ message: 'В контексте ctx-356 создай внутренний маршрут номера 700 в существующее IVR. Само меню и абонентов повторно не создавай.' });
+    expect(result.skillNames[0]).toBe('routes');
+    expect(classifier.filterToolNames(['create_route', 'list_ivrs'], result)).toContain('create_route');
+  });
+
+  it('selects registration evidence rather than a setup recipe for support', () => {
+    const result = classifier.classify({ message: 'У абонента 101 нет регистрации, звонок не проходит. Проверь регистрацию. Настройки не меняй.' });
+    expect(result.skillNames).toContain('registration-support');
+    expect(classifier.filterToolNames(['get_endpoint_registration', 'get_recent_call_events'], result))
+      .toContain('get_endpoint_registration');
+  });
+
+  it('keeps domain tools whose names do not contain the domain plural', () => {
+    for (const [domain, names] of Object.entries({ conferences: ['create_conference_room', 'list_conference_rooms'],
+      callcenter: ['cc_get_agents', 'cc_get_queue_snapshot'], users: ['list_portal_users', 'describe_portal_user'] })) {
+      const filtered = classifier.filterToolNames([...names, 'create_trunk'], {
+        domains: [domain], confidence: 1, intents: [], skillNames: [], source: 'deterministic',
+      });
+      expect(filtered).toEqual(names);
+    }
+  });
 
   it('selects ivrs, endpoints and call-groups for a clear IVR + subscribers + group request', () => {
     const result = classifier.classify({

@@ -3,7 +3,7 @@ import type { ITrunkCarouselItem, TrunkCallerIdSource } from '@krasterisk/shared
 import { TrunkCarouselTrunksField } from '../../ui/TrunkCarouselTrunksField/TrunkCarouselTrunksField';
 import { renderDialModifyDest } from '../../ui/DialModifyField/DialModifyField';
 
-type TFn = (key: string, fallback?: string) => string;
+type TFn = (...args: [key: string] | [key: string, fallback: string]) => string;
 
 const DEFAULT_TRUNK_TIMEOUT = 60;
 

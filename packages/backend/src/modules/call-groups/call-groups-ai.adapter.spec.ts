@@ -431,8 +431,8 @@ describe('CallGroupsAiAdapter', () => {
       expect(callGroupsService.remove).not.toHaveBeenCalled();
     });
 
-    it('ignores a forged tenant key in tool arguments', async () => {
-      await getTool('update_call_group_members').handler(
+    it('rejects a forged tenant key in tool arguments', async () => {
+      await expect(getTool('update_call_group_members').handler(
         {
           uid: 11,
           members: [
@@ -443,11 +443,7 @@ describe('CallGroupsAiAdapter', () => {
           tenantId: TENANT_B,
         },
         TENANT_A,
-      );
-      expect(callGroupsService.findOne).toHaveBeenCalledWith(11, TENANT_A);
-      expect(callGroupsService.findOne).not.toHaveBeenCalledWith(11, TENANT_B);
-      expect(endpointsService.findAll).toHaveBeenCalledWith(TENANT_A);
-      expect(endpointsService.findAll).not.toHaveBeenCalledWith(TENANT_B);
+      )).rejects.toThrow('TENANT_ARG_FORBIDDEN');
     });
   });
 
@@ -483,19 +479,7 @@ describe('CallGroupsAiAdapter', () => {
 
 function createMcp(registry: AiAdapterRegistryService): McpToolsService {
   return new McpToolsService(
-    { findAll: jest.fn().mockResolvedValue([]), create: jest.fn(), remove: jest.fn(), bulkCreate: jest.fn() } as any,
-    { findAll: jest.fn().mockResolvedValue([]), create: jest.fn(), remove: jest.fn() } as any,
-    { findAll: jest.fn().mockResolvedValue([]), create: jest.fn(), update: jest.fn(), remove: jest.fn() } as any,
-    { findAll: jest.fn().mockResolvedValue([]) } as any,
-    { create: jest.fn(), remove: jest.fn(), generateContextDialplan: jest.fn() } as any,
-    { getIncludeNames: jest.fn() } as any,
-    { findAll: jest.fn().mockResolvedValue([]) } as any,
-    { applyCategories: jest.fn() } as any,
-    {} as any,
-    { findOne: jest.fn() } as any,
-    { getStats: jest.fn(), findCalls: jest.fn() } as any,
     registry,
-    { getSettings: jest.fn().mockResolvedValue({ confirmDestructive: false }) } as any,
     { logAction: jest.fn().mockResolvedValue(undefined) } as any,
     { createProposal: jest.fn(async (proposal: any) => ({ ...proposal, status: 'pending' })) } as any,
   );

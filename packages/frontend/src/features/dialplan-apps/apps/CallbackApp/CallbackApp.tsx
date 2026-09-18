@@ -1,7 +1,7 @@
 import { Input, Text } from '@/shared/ui';
 import type { FieldSchema, SchemaFieldRenderCtx } from '../../model/schema.types';
 
-type TFn = (key: string, fallback?: string) => string;
+type TFn = (...args: [key: string] | [key: string, fallback: string]) => string;
 
 const HH_MM = /^([01]\d|2[0-3]):[0-5]\d$/;
 

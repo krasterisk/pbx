@@ -4,7 +4,7 @@ export function isRawToolId(value: string): boolean {
 }
 
 export function resolveAgentToolLabel(
-    t: (key: string, fallback?: string) => string,
+    t: (...args: [key: string] | [key: string, fallback: string]) => string,
     item: { labelKey: string; labelFallback: string },
 ): string {
     const translated = t(item.labelKey, item.labelFallback);
@@ -15,7 +15,7 @@ export function resolveAgentToolLabel(
 }
 
 export function resolveWorkflowStepLabel(
-    t: (key: string, fallback?: string) => string,
+    t: (...args: [key: string] | [key: string, fallback: string]) => string,
     step: { tool: string; entityLabel?: string | null },
 ): string {
     const kind = resolveAgentToolLabel(t, {
@@ -33,7 +33,7 @@ export function resolveWorkflowStepLabel(
 }
 
 export function resolveCardStatusLabel(
-    t: (key: string, fallback?: string) => string,
+    t: (...args: [key: string] | [key: string, fallback: string]) => string,
     status: string,
 ): string {
     const key = `aiChat.card.badge.${status}`;

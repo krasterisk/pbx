@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { randomUUID } from 'crypto';
 import { Op } from 'sequelize';
@@ -111,7 +111,12 @@ export class PbxWorkflowRunnerService {
     if (!row || row.status !== 'pending') {
       throw new NotFoundException('Workflow not pending');
     }
-    await row.update({ status: 'rejected', updated_at: new Date() });
+    const [changed] = await this.workflowModel.update(
+      { status: 'rejected', updated_at: new Date() },
+      { where: { uid: row.uid, status: 'pending' } },
+    );
+    if (!changed) throw new Error('WORKFLOW_BUSY');
+    await row.reload();
     const steps = await this.stepModel.findAll({
       where: { workflow_uid: row.uid },
       order: [['step_index', 'ASC']],
@@ -120,8 +125,8 @@ export class PbxWorkflowRunnerService {
   }
 
   /**
-   * Staged apply under an in-process lock. Stops on the first failure and leaves
-   * remaining steps pending. Does not promise atomicity across DB/AMI/external.
+   * Database claim spans workers. A durable write checkpoint allows reload-only
+   * retries. An ambiguous write keeps the claim for operator reconciliation.
    */
   async apply(workflowId: string, ctx: ProposalContext): Promise<WorkflowPlanView> {
     if (this.locks.has(workflowId)) {
@@ -135,15 +140,20 @@ export class PbxWorkflowRunnerService {
         return this.getOwned(workflowId, ctx);
       }
       if (new Date(row.expires_at).getTime() <= Date.now()) {
-        await row.update({ status: 'expired', updated_at: new Date() });
+        await this.workflowModel.update({ status: 'expired', updated_at: new Date() }, {
+          where: { uid: row.uid, status: { [Op.in]: ['pending', 'failed'] } },
+        });
         return this.getOwned(workflowId, ctx);
       }
       if (ctx.role === UserLevel.READONLY) {
-        await row.update({ status: 'denied', updated_at: new Date() });
-        return this.getOwned(workflowId, ctx);
+        throw new ForbiddenException('Read-only users cannot apply workflows');
       }
 
-      await row.update({ status: 'applying', error: null, updated_at: new Date() });
+      const [claimed] = await this.workflowModel.update(
+        { status: 'applying', error: null, updated_at: new Date() },
+        { where: { uid: row.uid, status: { [Op.in]: ['pending', 'failed'] }, applied_at: null } },
+      );
+      if (!claimed) return this.getOwned(workflowId, ctx);
       const steps = await this.stepModel.findAll({
         where: { workflow_uid: row.uid },
         order: [['step_index', 'ASC']],
@@ -176,7 +186,20 @@ export class PbxWorkflowRunnerService {
         }
 
         await step.update({ status: 'applying', attempts: step.attempts + 1, updated_at: new Date() });
+        let writeStarted = false;
+        let writeCompleted = false;
         try {
+          const checkpoint = step.result_json?.__execution as
+            { writeCompleted?: boolean; contextUid?: number } | undefined;
+          if (checkpoint?.writeCompleted) {
+            writeCompleted = true;
+            if (checkpoint.contextUid !== undefined) {
+              await this.routeApply.applyContext(checkpoint.contextUid, ctx.vpbxUserUid, ctx.role === UserLevel.ADMIN);
+            }
+            results.set(step.step_key, step.result_json!);
+            await step.update({ status: 'applied', error: null, updated_at: new Date() });
+            continue;
+          }
           const resolvedArgs = this.resolveSymbolicArgs(step.canonical_args, results);
           const tool = this.registry.getMutationTool(step.tool);
           if (!tool) throw new Error(`unknown tool ${step.tool}`);
@@ -192,19 +215,22 @@ export class PbxWorkflowRunnerService {
           };
           const check = await tool.mutation.revalidate(args, mutationCtx);
           if (!check.ok) throw new Error(check.reason);
+          const contextUid = tool.mutation.reload.kind === 'dialplan-context'
+            ? tool.mutation.reload.contextUid(check.args) : undefined;
+          writeStarted = true;
           const applied = await tool.mutation.apply(check.args, mutationCtx);
-          if (tool.mutation.reload.kind === 'dialplan-context') {
-            const contextUid = tool.mutation.reload.contextUid(check.args);
-            await this.routeApply.applyContext(contextUid, ctx.vpbxUserUid, {
-              userUid: ctx.userUid,
-            } as any);
-          }
           const extra = applied && typeof applied === 'object' ? applied : {};
           const result = {
             ...(typeof check.args === 'object' && check.args ? (check.args as object) : {}),
             ...extra,
             applied: true,
+            __execution: { writeCompleted: true, ...(contextUid === undefined ? {} : { contextUid }) },
           };
+          await step.update({ result_json: result, updated_at: new Date() });
+          writeCompleted = true;
+          if (contextUid !== undefined) {
+            await this.routeApply.applyContext(contextUid, ctx.vpbxUserUid, ctx.role === UserLevel.ADMIN);
+          }
           results.set(step.step_key, result as Record<string, unknown>);
           await step.update({
             status: 'applied',
@@ -214,10 +240,12 @@ export class PbxWorkflowRunnerService {
           });
         } catch (err: any) {
           const message = err?.message ?? String(err);
-          await step.update({ status: 'failed', error: message, updated_at: new Date() });
+          const status = writeStarted && !writeCompleted ? 'applying' : 'failed';
+          const error = status === 'applying' ? `WRITE_OUTCOME_UNKNOWN: ${message}` : message;
+          await step.update({ status, error, updated_at: new Date() });
           await row.update({
-            status: 'failed',
-            error: `step ${step.step_key}: ${message}`,
+            status,
+            error: `step ${step.step_key}: ${error}`,
             updated_at: new Date(),
           });
           this.logger.warn(`workflow ${workflowId} stopped at ${step.step_key}: ${message}`);

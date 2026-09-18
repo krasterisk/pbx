@@ -1,9 +1,10 @@
-import { memo } from 'react';
-import { useTranslation } from 'react-i18next';
-import { Plus, Trash2 } from 'lucide-react';
-import { AUTODIAL_SCHEDULE_KINDS } from '@krasterisk/shared';
+import { memo } from "react";
+import { useTranslation } from "react-i18next";
+import { Plus, Trash2 } from "lucide-react";
+import { AUTODIAL_SCHEDULE_KINDS } from "@krasterisk/shared";
 import {
   Button,
+  InfoTooltip,
   Input,
   Label,
   Select,
@@ -11,25 +12,26 @@ import {
   TableRowAction,
   TableRowActions,
   Text,
-} from '@/shared/ui';
-import { HStack, VStack } from '@/shared/ui/Stack';
+} from "@/shared/ui";
+import { HStack, VStack } from "@/shared/ui/Stack";
 import type {
   AutodialCampaignDraft,
   AutodialScheduleDraft,
-} from '../../model/campaignDraft';
-import cls from './CampaignTabs.module.scss';
+} from "../../model/campaignDraft";
+import cls from "./CampaignTabs.module.scss";
+import { TimeZoneSelect } from "../TimeZoneSelect";
 
 const WEEKDAYS = [0, 1, 2, 3, 4, 5, 6];
 
 function blankSchedule(): AutodialScheduleDraft {
   return {
-    kind: 'weekly',
+    kind: "weekly",
     weekday: 1,
-    time_from: '09:00',
-    time_to: '18:00',
+    time_from: "09:00",
+    time_to: "18:00",
     // Browser zone is the operator's own; subscriber-local hours are a separate
     // check driven by ac_contact_phones.tz_offset_min.
-    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
     date_from: null,
     date_to: null,
     enabled: true,
@@ -44,13 +46,19 @@ interface Props {
 export const CampaignScheduleTab = memo(({ draft, onChange }: Props) => {
   const { t } = useTranslation();
 
-  const setSchedules = (schedules: AutodialScheduleDraft[]) => onChange({ ...draft, schedules });
+  const setSchedules = (schedules: AutodialScheduleDraft[]) =>
+    onChange({ ...draft, schedules });
   const updateSchedule = (index: number, next: AutodialScheduleDraft) =>
     setSchedules(draft.schedules.map((s, i) => (i === index ? next : s)));
+  const allSchedulesDisabled =
+    draft.schedules.length > 0 && draft.schedules.every((schedule) => !schedule.enabled);
 
   return (
     <VStack gap="16" max>
-      <Text className={cls.hint}>{t('autodial.schedule.intro')}</Text>
+      <HStack gap="4" align="center">
+        <Text className={cls.sectionTitle}>{t("autodial.schedule.title")}</Text>
+        <InfoTooltip text={t("autodial.schedule.intro")} />
+      </HStack>
 
       <VStack gap="8" max>
         {draft.schedules.map((schedule, index) => (
@@ -58,7 +66,7 @@ export const CampaignScheduleTab = memo(({ draft, onChange }: Props) => {
             <div className={cls.scheduleGrid}>
               <VStack gap="4" className={cls.field}>
                 <Label htmlFor={`autodial-sched-kind-${index}`}>
-                  {t('autodial.schedule.kind')}
+                  {t("autodial.schedule.kind")}
                 </Label>
                 <Select
                   id={`autodial-sched-kind-${index}`}
@@ -66,7 +74,7 @@ export const CampaignScheduleTab = memo(({ draft, onChange }: Props) => {
                   onChange={(e) =>
                     updateSchedule(index, {
                       ...schedule,
-                      kind: e.target.value as AutodialScheduleDraft['kind'],
+                      kind: e.target.value as AutodialScheduleDraft["kind"],
                     })
                   }
                 >
@@ -78,16 +86,19 @@ export const CampaignScheduleTab = memo(({ draft, onChange }: Props) => {
                 </Select>
               </VStack>
 
-              {schedule.kind === 'weekly' ? (
+              {schedule.kind === "weekly" ? (
                 <VStack gap="4" className={cls.field}>
                   <Label htmlFor={`autodial-sched-weekday-${index}`}>
-                    {t('autodial.schedule.weekday')}
+                    {t("autodial.schedule.weekday")}
                   </Label>
                   <Select
                     id={`autodial-sched-weekday-${index}`}
                     value={schedule.weekday ?? 1}
                     onChange={(e) =>
-                      updateSchedule(index, { ...schedule, weekday: Number(e.target.value) })
+                      updateSchedule(index, {
+                        ...schedule,
+                        weekday: Number(e.target.value),
+                      })
                     }
                   >
                     {WEEKDAYS.map((day) => (
@@ -100,14 +111,17 @@ export const CampaignScheduleTab = memo(({ draft, onChange }: Props) => {
               ) : (
                 <VStack gap="4" className={cls.field}>
                   <Label htmlFor={`autodial-sched-from-${index}`}>
-                    {t('autodial.schedule.dateFrom')}
+                    {t("autodial.schedule.dateFrom")}
                   </Label>
                   <Input
                     id={`autodial-sched-from-${index}`}
                     type="date"
-                    value={schedule.date_from ?? ''}
+                    value={schedule.date_from ?? ""}
                     onChange={(e) =>
-                      updateSchedule(index, { ...schedule, date_from: e.target.value || null })
+                      updateSchedule(index, {
+                        ...schedule,
+                        date_from: e.target.value || null,
+                      })
                     }
                   />
                 </VStack>
@@ -115,51 +129,72 @@ export const CampaignScheduleTab = memo(({ draft, onChange }: Props) => {
 
               <VStack gap="4" className={cls.field}>
                 <Label htmlFor={`autodial-sched-timefrom-${index}`}>
-                  {t('autodial.schedule.timeFrom')}
+                  {t("autodial.schedule.timeFrom")}
                 </Label>
                 <Input
                   id={`autodial-sched-timefrom-${index}`}
                   type="time"
                   value={schedule.time_from}
-                  onChange={(e) => updateSchedule(index, { ...schedule, time_from: e.target.value })}
+                  onChange={(e) =>
+                    updateSchedule(index, {
+                      ...schedule,
+                      time_from: e.target.value,
+                    })
+                  }
                 />
               </VStack>
 
               <VStack gap="4" className={cls.field}>
                 <Label htmlFor={`autodial-sched-timeto-${index}`}>
-                  {t('autodial.schedule.timeTo')}
+                  {t("autodial.schedule.timeTo")}
                 </Label>
                 <Input
                   id={`autodial-sched-timeto-${index}`}
                   type="time"
                   value={schedule.time_to}
-                  onChange={(e) => updateSchedule(index, { ...schedule, time_to: e.target.value })}
+                  onChange={(e) =>
+                    updateSchedule(index, {
+                      ...schedule,
+                      time_to: e.target.value,
+                    })
+                  }
                 />
               </VStack>
 
               <VStack gap="4" className={cls.field}>
-                <Label htmlFor={`autodial-sched-tz-${index}`}>
-                  {t('autodial.schedule.timezone')}
-                </Label>
-                <Input
+                <HStack gap="4" align="center">
+                  <Label htmlFor={`autodial-sched-tz-${index}`}>
+                    {t("autodial.schedule.timezone")}
+                  </Label>
+                  <InfoTooltip text={t("autodial.schedule.timezoneHint")} />
+                </HStack>
+                <TimeZoneSelect
                   id={`autodial-sched-tz-${index}`}
                   value={schedule.timezone}
-                  onChange={(e) => updateSchedule(index, { ...schedule, timezone: e.target.value })}
+                  onChange={(timezone) =>
+                    updateSchedule(index, { ...schedule, timezone })
+                  }
                 />
               </VStack>
 
               <HStack gap="8" align="center">
                 <Switch
                   checked={schedule.enabled}
-                  onCheckedChange={(enabled) => updateSchedule(index, { ...schedule, enabled })}
-                  aria-label={t('autodial.schedule.enabled')}
+                  onCheckedChange={(enabled) =>
+                    updateSchedule(index, { ...schedule, enabled })
+                  }
+                  aria-label={t("autodial.schedule.enabled")}
                 />
                 <TableRowActions>
                   <TableRowAction
                     danger
-                    title={t('common.delete')}
-                    aria-label={t('common.delete')}
-                    onClick={() => setSchedules(draft.schedules.filter((_, i) => i !== index))}
+                    title={t("common.delete")}
+                    aria-label={t("common.delete")}
+                    onClick={() =>
+                      setSchedules(
+                        draft.schedules.filter((_, i) => i !== index),
+                      )
+                    }
                   >
                     <Trash2 />
                   </TableRowAction>
@@ -167,17 +202,20 @@ export const CampaignScheduleTab = memo(({ draft, onChange }: Props) => {
               </HStack>
             </div>
 
-            {schedule.kind === 'date_range' && (
+            {schedule.kind === "date_range" && (
               <VStack gap="4" className={cls.field}>
                 <Label htmlFor={`autodial-sched-dateto-${index}`}>
-                  {t('autodial.schedule.dateTo')}
+                  {t("autodial.schedule.dateTo")}
                 </Label>
                 <Input
                   id={`autodial-sched-dateto-${index}`}
                   type="date"
-                  value={schedule.date_to ?? ''}
+                  value={schedule.date_to ?? ""}
                   onChange={(e) =>
-                    updateSchedule(index, { ...schedule, date_to: e.target.value || null })
+                    updateSchedule(index, {
+                      ...schedule,
+                      date_to: e.target.value || null,
+                    })
                   }
                 />
               </VStack>
@@ -186,18 +224,24 @@ export const CampaignScheduleTab = memo(({ draft, onChange }: Props) => {
         ))}
 
         {draft.schedules.length === 0 && (
-          <Text className={cls.hint}>{t('autodial.schedule.empty')}</Text>
+          <Text className={cls.hint}>{t("autodial.schedule.empty")}</Text>
+        )}
+        {allSchedulesDisabled && (
+          <Text className={cls.warning}>{t("autodial.schedule.allDisabled")}</Text>
         )}
       </VStack>
 
       <HStack gap="8">
-        <Button variant="outline" onClick={() => setSchedules([...draft.schedules, blankSchedule()])}>
+        <Button
+          variant="outline"
+          onClick={() => setSchedules([...draft.schedules, blankSchedule()])}
+        >
           <Plus size={16} />
-          {t('autodial.schedule.add')}
+          {t("autodial.schedule.add")}
         </Button>
       </HStack>
     </VStack>
   );
 });
 
-CampaignScheduleTab.displayName = 'CampaignScheduleTab';
+CampaignScheduleTab.displayName = "CampaignScheduleTab";

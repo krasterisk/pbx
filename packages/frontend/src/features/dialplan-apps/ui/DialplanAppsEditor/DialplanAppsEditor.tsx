@@ -94,7 +94,7 @@ export function restrictToVerticalAxisLocal({
 }
 
 export function buildDndAnnouncements(
-  t: (key: string, fallback?: any) => string,
+  t: (...args: [key: string] | [key: string, fallback: string]) => string,
   lang: string,
   getIndex?: (id: string | number) => number,
 ): Announcements {

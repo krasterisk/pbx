@@ -78,7 +78,7 @@ export function outcomeTone(kind: WalkOutcome['kind'] | undefined): 'success' | 
 
 export function outcomeCopy(
   result: IDryRunResult,
-  t: (key: string, fallback?: string) => string,
+  t: (...args: [key: string] | [key: string, fallback: string]) => string,
 ): { title: string; body?: string } {
   const kind = result.outcome.kind;
   if (kind === 'callback_requested') {
@@ -511,7 +511,7 @@ function SourceControl({
   source: DryRunSourceControl;
   value: string;
   onChange: (value: string) => void;
-  t: (key: string, fallback?: string) => string;
+  t: (...args: [key: string] | [key: string, fallback: string]) => string;
 }) {
   if (source.kind === 'schedule') {
     return (
@@ -589,7 +589,7 @@ function ReaskControl({
   value: string;
   onChange: (value: string) => void;
   inputRef: RefObject<HTMLSelectElement | HTMLInputElement | null>;
-  t: (key: string, fallback?: string) => string;
+  t: (...args: [key: string] | [key: string, fallback: string]) => string;
 }) {
   const source: DryRunSourceControl = { kind: reask.source as DryRunSourceControl['kind'] };
   if (source.kind === 'variable' || source.kind === 'http_result') {
@@ -636,7 +636,7 @@ function ReaskControl({
   );
 }
 
-function sourceLabel(source: DryRunSourceControl, t: (key: string, fallback?: string) => string): string {
+function sourceLabel(source: DryRunSourceControl, t: (...args: [key: string] | [key: string, fallback: string]) => string): string {
   if (source.kind === 'dialstatus') return t('routes.chain.conditions.statusLabel', 'Результат предыдущего шага');
   if (source.kind === 'queuestatus') return t('routes.chain.conditions.queue.group', 'Очередь');
   if (source.kind === 'record_status') return t('routes.chain.conditions.record.group', 'Запись сообщения');
@@ -650,7 +650,7 @@ function sourceLabel(source: DryRunSourceControl, t: (key: string, fallback?: st
 
 function presetOptions(
   source: DryRunSourceControl,
-  t: (key: string, fallback?: string) => string,
+  t: (...args: [key: string] | [key: string, fallback: string]) => string,
 ): { value: string; label: string }[] {
   if (source.kind === 'dialstatus') {
     return DIALSTATUS_VALUES.filter((value) =>
@@ -694,7 +694,7 @@ function ResultTrail({
   entityName?: string;
   callerNumber: string;
   scenario: Record<string, string>;
-  t: (key: string, fallback?: string) => string;
+  t: (...args: [key: string] | [key: string, fallback: string]) => string;
 }) {
   const multi = result.segments.length > 1 || result.breadcrumbs.length > 1;
   const hopExceeded = result.outcome.kind === 'congestion';

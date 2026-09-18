@@ -29,7 +29,7 @@ import {
 } from '@/shared/api/endpoints/autodialApi';
 import {
   autodialPageActions,
-  selectAutodialActiveBaseUid,
+  selectAutodialSelectedBaseUid,
   selectAutodialBaseModalMode,
   selectAutodialBaseModalOpen,
 } from '../../model/slice/autodialPageSlice';
@@ -46,16 +46,17 @@ import {
   type AutodialFieldDraft,
 } from '../../model/baseDraft';
 import cls from './BaseFormModal.module.scss';
+import { autodialErrorKey } from '../../lib/mutationError';
 
 export const BaseFormModal = memo(() => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const isOpen = useAppSelector(selectAutodialBaseModalOpen);
   const mode = useAppSelector(selectAutodialBaseModalMode);
-  const activeUid = useAppSelector(selectAutodialActiveBaseUid);
+  const activeUid = useAppSelector(selectAutodialSelectedBaseUid);
   const editUid = mode === 'edit' ? activeUid : null;
 
-  const { data: base, isFetching } = useGetAutodialBaseQuery(editUid as number, {
+  const { currentData: base, isFetching, isError, refetch } = useGetAutodialBaseQuery(editUid as number, {
     skip: !isOpen || editUid === null,
   });
   const [createBase, { isLoading: isCreating }] = useCreateAutodialBaseMutation();
@@ -64,17 +65,22 @@ export const BaseFormModal = memo(() => {
   const [draft, setDraft] = useState<AutodialBaseDraft>(emptyBaseDraft);
   const [showErrors, setShowErrors] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
+  const [hydratedKey, setHydratedKey] = useState<string | null>(null);
+  const sessionKey = String(editUid ?? 'new');
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) { setHydratedKey(null); return; }
+    if (hydratedKey === sessionKey || (editUid !== null && !base)) return;
     setShowErrors(false);
     setApiError(null);
     setDraft(editUid !== null && base ? baseToDraft(base) : emptyBaseDraft());
-  }, [isOpen, editUid, base]);
+    setHydratedKey(sessionKey);
+  }, [isOpen, editUid, base, sessionKey, hydratedKey]);
 
   const errors = useMemo(() => validateBaseDraft(draft), [draft]);
   const visibleErrors = showErrors ? errors : {};
   const isSaving = isCreating || isUpdating;
+  const isReady = hydratedKey === sessionKey && !isError;
 
   const close = () => dispatch(autodialPageActions.closeBaseModal());
 
@@ -91,6 +97,7 @@ export const BaseFormModal = memo(() => {
   };
 
   const onSave = async () => {
+    if (!isReady || isSaving) return;
     if (hasBaseErrors(errors)) {
       setShowErrors(true);
       return;
@@ -99,19 +106,19 @@ export const BaseFormModal = memo(() => {
     const payload = baseDraftToPayload(draft);
     try {
       if (editUid !== null) {
-        await updateBase({ uid: editUid, data: payload as never }).unwrap();
+        await updateBase({ uid: editUid, data: payload }).unwrap();
       } else {
-        const created = await createBase(payload as never).unwrap();
+        const created = await createBase(payload).unwrap();
         dispatch(autodialPageActions.selectBase(created.uid));
       }
       close();
-    } catch {
-      setApiError(t('autodial.bases.saveFailed'));
+    } catch (error) {
+      setApiError(t(autodialErrorKey(error, 'autodial.bases.saveFailed')));
     }
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && close()}>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && !isSaving && close()}>
       <DialogContent size="large" className={cls.dialog} data-testid="autodial-base-form-modal">
         <DialogHeader className={cls.header}>
           <DialogTitle>
@@ -119,7 +126,12 @@ export const BaseFormModal = memo(() => {
           </DialogTitle>
         </DialogHeader>
 
-        {isFetching && editUid !== null ? (
+        {isError ? (
+          <VStack gap="8" className={cls.body}>
+            <Text role="alert">{t('autodial.common.loadFailed')}</Text>
+            <Button onClick={() => void refetch()}>{t('autodial.common.retry')}</Button>
+          </VStack>
+        ) : !isReady || (isFetching && editUid !== null && !base) ? (
           <HStack justify="center" align="center" className={cls.body}>
             <Loader2 size={24} className={cls.spinner} />
           </HStack>
@@ -379,10 +391,10 @@ export const BaseFormModal = memo(() => {
           <VStack gap="8" max align="end">
             {apiError && <Text className={cls.error}>{apiError}</Text>}
             <HStack gap="8" justify="end" max wrap="wrap" className={cls.footerActions}>
-              <Button variant="outline" onClick={close}>
+              <Button variant="outline" disabled={isSaving} onClick={close}>
                 {t('common.cancel')}
               </Button>
-              <Button disabled={isSaving} onClick={() => void onSave()}>
+              <Button disabled={isSaving || !isReady} onClick={() => void onSave()}>
                 {isSaving ? <Loader2 size={16} className={cls.spinner} /> : null}
                 {t('common.save')}
               </Button>

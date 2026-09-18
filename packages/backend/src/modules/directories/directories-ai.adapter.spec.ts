@@ -216,7 +216,7 @@ describe('DirectoriesAiAdapter', () => {
     it('ships a playbook with list tools, checklist, pending card and when to ask', () => {
       const skillPath = path.join(__dirname, '../../skills/directories/SKILL.md');
       const raw = fs.readFileSync(skillPath, 'utf8');
-      expect(raw).toMatch(/^---\r?\nname: directories\r?\ndescription: .+\r?\n---/);
+      expect(raw).toMatch(/^---\r?\nname: directories\r?\ndescription: .+\r?\n(?:[^\r\n]+\r?\n)*---/);
       expect(raw).toMatch(/list_directories/);
       expect(raw).toMatch(/чеклист|рецепт/i);
       expect(raw).toMatch(/карточка|подтверд/i);

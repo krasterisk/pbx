@@ -19,6 +19,7 @@ import {
   type AutodialCampaignWithSchedules,
 } from '@/shared/api/endpoints/autodialApi';
 import { autodialDispositionLabel } from '../../lib/labels';
+import { autodialErrorKey } from '../../lib/mutationError';
 import cls from './StartCampaignDialog.module.scss';
 
 /**
@@ -72,10 +73,10 @@ export const StartCampaignDialog = memo(({ campaign, onClose }: StartCampaignDia
         include_dispositions: selected.length ? selected : undefined,
       }).unwrap();
       onClose();
-    } catch {
+    } catch (error) {
       // A campaign without a trunk is rejected server-side (AC_NO_TRUNK);
       // keep the dialog open so the choice is not lost.
-      setError(t('autodial.start.failed'));
+      setError(t(autodialErrorKey(error, 'autodial.start.failed')));
     }
   };
 

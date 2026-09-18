@@ -72,7 +72,7 @@ export function ConferenceMiniPanel() {
     );
   }, [sseStatus, session, t]);
 
-  if (!session) return null;
+  if (!session || session.roomUid == null) return null;
   if (ROOM_PATH.test(location.pathname)) return null;
 
   const loading = sseStatus === 'loading';
@@ -111,23 +111,23 @@ export function ConferenceMiniPanel() {
     if (!canAct || !sipId) return;
     if (muted) {
       setMuted(false);
-      void unmuteSelf({ roomUid: session.roomUid, ref: sipId });
+      void unmuteSelf({ roomUid, ref: sipId });
       return;
     }
     setMuted(true);
-    void muteSelf({ roomUid: session.roomUid, ref: sipId });
+    void muteSelf({ roomUid, ref: sipId });
   };
 
   const handleCam = () => {
     if (!canAct) return;
     const next = !cameraOff;
     setCameraOff(next);
-    void setMeVideo({ roomUid: session.roomUid, enabled: !next });
+    void setMeVideo({ roomUid, enabled: !next });
   };
 
   const handleLeave = () => {
     if (!sipId) return;
-    void kickSelf({ roomUid: session.roomUid, ref: sipId });
+    void kickSelf({ roomUid, ref: sipId });
     void host.hangup();
   };
 

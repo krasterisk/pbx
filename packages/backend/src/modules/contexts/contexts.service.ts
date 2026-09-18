@@ -32,7 +32,8 @@ export class ContextsService {
 
   async create(data: Partial<Context>, vpbxUserUid: number): Promise<Context> {
     const ctx = await this.contextModel.create({
-      ...data,
+      name: data.name,
+      comment: data.comment ?? '',
       user_uid: vpbxUserUid,
     } as any);
     return ctx;
@@ -40,8 +41,10 @@ export class ContextsService {
 
   async update(uid: number, data: Partial<Context>, vpbxUserUid: number): Promise<Context> {
     const context = await this.findOne(uid, vpbxUserUid);
-    const oldName = context.name;
-    await context.update(data);
+    await context.update({
+      ...(data.name === undefined ? {} : { name: data.name }),
+      ...(data.comment === undefined ? {} : { comment: data.comment }),
+    });
     return context;
   }
 

@@ -21,7 +21,7 @@ import cls from './VoiceRobotCdrPage.module.scss';
 const PAGE_SIZE = 50;
 const CSV_DELIMITER = ';';
 
-function exportCdrToCsv(data: IVoiceRobotCdr[], t: (key: string, defaultValue?: string) => string) {
+function exportCdrToCsv(data: IVoiceRobotCdr[], t: (...args: [key: string] | [key: string, fallback: string]) => string) {
   const esc = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
   const headers = [
     t('voiceRobots.cdr.table.date'),

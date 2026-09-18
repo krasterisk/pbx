@@ -195,7 +195,7 @@ export const AssistantPanel = ({ open, mode, onModeChange, onClose }: AssistantP
         const panel = panelRef.current;
         if (!panel) return;
 
-        const onKeyDown = (event: KeyboardEvent) => {
+        const onKeyDown = (event: globalThis.KeyboardEvent) => {
             if (event.key !== 'Escape') return;
             event.preventDefault();
             if (isDock && plansOpen) {

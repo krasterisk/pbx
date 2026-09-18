@@ -19,7 +19,7 @@ import { McpToolsService } from './mcp-tools.service';
 @Injectable()
 export class McpSessionService implements OnModuleDestroy {
     private readonly logger = new Logger(McpSessionService.name);
-    private readonly sessions = new Map<string, number>();
+    private readonly sessions = new Map<string, { tenant: number; userUid: number }>();
 
     constructor(private readonly toolsService: McpToolsService) {}
 
@@ -28,14 +28,21 @@ export class McpSessionService implements OnModuleDestroy {
         this.logger.debug(`MCP ${method} for tenant ${vpbxUserUid}`);
 
         const incomingSessionId = this.readSessionId(req);
+        const actor = (req as Request & { user?: { sub?: number; level?: number } }).user;
+        const userUid = Number(actor?.sub ?? 0);
+        const role = Number(actor?.level ?? 5);
         if (incomingSessionId) {
             const owner = this.sessions.get(incomingSessionId);
-            if (owner !== undefined && owner !== vpbxUserUid) {
-                throw new UnauthorizedException('MCP session belongs to another tenant');
+            if (!owner || owner.tenant !== vpbxUserUid || owner.userUid !== userUid) {
+                throw new UnauthorizedException('MCP session is unknown or belongs to another identity');
             }
         }
 
-        if (method === 'DELETE' || method === 'GET') {
+        if (method === 'GET') {
+            res.status(405).end(); // Server-initiated SSE is not supported; GET must not delete a session.
+            return;
+        }
+        if (method === 'DELETE') {
             if (incomingSessionId) {
                 this.sessions.delete(incomingSessionId);
             }
@@ -51,14 +58,14 @@ export class McpSessionService implements OnModuleDestroy {
 
         if (body.method === 'initialize') {
             const sessionId = incomingSessionId || randomUUID();
-            this.sessions.set(sessionId, vpbxUserUid);
+            this.sessions.set(sessionId, { tenant: vpbxUserUid, userUid });
             res.setHeader('Mcp-Session-Id', sessionId);
         }
 
         res.setHeader('Content-Type', 'application/json');
 
         try {
-            const result = await this.dispatch(body.method, body.params ?? {}, body.id ?? null, vpbxUserUid);
+            const result = await this.dispatch(body.method, body.params ?? {}, body.id ?? null, vpbxUserUid, { userUid, role, threadUid: 0 });
             res.json(result);
         } catch (err: any) {
             this.logger.error(`MCP dispatch error (tenant ${vpbxUserUid}): ${err.message}`);
@@ -76,7 +83,7 @@ export class McpSessionService implements OnModuleDestroy {
         return typeof value === 'string' ? value.trim() : '';
     }
 
-    private async dispatch(method: string, params: any, id: any, uid: number): Promise<object> {
+    private async dispatch(method: string, params: any, id: any, uid: number, actor: { userUid: number; role: number; threadUid: number }): Promise<object> {
         // initialize — возвращаем capabilities без state
         if (method === 'initialize') {
             return {
@@ -105,9 +112,9 @@ export class McpSessionService implements OnModuleDestroy {
         if (method === 'tools/call') {
             const toolName: string = params.name;
             const args: Record<string, any> = params.arguments ?? {};
-            this.logger.log(`tools/call: ${toolName} for tenant ${uid}, args: ${JSON.stringify(args)}`);
+            this.logger.log(`tools/call: ${toolName} for tenant ${uid}, user ${actor.userUid}`);
 
-            const content = await this.toolsService.callTool(toolName, args, uid);
+            const content = await this.toolsService.callTool(toolName, args, uid, actor);
             return { jsonrpc: '2.0', id, result: { content } };
         }
 
@@ -117,8 +124,10 @@ export class McpSessionService implements OnModuleDestroy {
         };
     }
 
-    getActiveSessions() {
-        return Array.from(this.sessions.entries()).map(([id, tenant]) => ({ id, tenant }));
+    getActiveSessions(tenant?: number, userUid?: number) {
+        return Array.from(this.sessions.entries())
+            .filter(([, owner]) => owner.tenant === tenant && owner.userUid === userUid)
+            .map(([id, owner]) => ({ id, tenant: owner.tenant }));
     }
 
     onModuleDestroy() {

@@ -53,7 +53,7 @@ function interpolate(template: string, vars: Record<string, string | number>): s
 
 const SPECIAL_DIGIT_ORDER: Record<string, number> = { t: 1, i: 2, max: 3 };
 
-export function ivrDigitLabel(digit: string, t: (key: string, fallback?: string) => string): string {
+export function ivrDigitLabel(digit: string, t: (...args: [key: string] | [key: string, fallback: string]) => string): string {
   if (digit === 't') return t('routes.flowchart.edge.timeout', 'Не нажали кнопку');
   if (digit === 'i') return t('routes.flowchart.edge.invalid', 'Нажали неверную кнопку');
   if (digit === 'max') return t('routes.flowchart.edge.max', 'Исчерпаны проходы по меню');
@@ -102,7 +102,7 @@ function FlowchartNode({
 }: {
   action: IRouteAction;
   index: number;
-  t: (key: string, fallback?: string) => string;
+  t: (...args: [key: string] | [key: string, fallback: string]) => string;
   highlight?: FlowchartHighlight | null;
   entityName?: string;
 }) {
@@ -211,7 +211,7 @@ function RouteCanvasBody({
   actions: IRouteAction[];
   title?: string;
   patterns?: string[];
-  t: (key: string, fallback?: string) => string;
+  t: (...args: [key: string] | [key: string, fallback: string]) => string;
   highlight?: FlowchartHighlight | null;
 }) {
   const mask = (patterns ?? []).filter(Boolean).join(', ');
@@ -276,7 +276,7 @@ function RouteActionRow({
   next?: IRouteAction;
   nestedElse: boolean;
   isLast: boolean;
-  t: (key: string, fallback?: string) => string;
+  t: (...args: [key: string] | [key: string, fallback: string]) => string;
   highlight?: FlowchartHighlight | null;
   entityName?: string;
 }) {
@@ -365,7 +365,7 @@ function IvrCanvasBody({
   ivrTimeoutResponse?: string | null;
   ivrTimeoutDigit?: string | null;
   ivrMaxCount?: number;
-  t: (key: string, fallback?: string) => string;
+  t: (...args: [key: string] | [key: string, fallback: string]) => string;
   highlight?: FlowchartHighlight | null;
 }) {
   const sorted = sortIvrMenuItems(menuItems);
@@ -449,7 +449,7 @@ export const FlowchartCanvas = memo(function FlowchartCanvas({
   highlight,
 }: FlowchartCanvasProps) {
   const { t } = useTranslation();
-  const figureRef = useRef<HTMLFigureElement>(null);
+  const figureRef = useRef<HTMLElement>(null);
   const isIvr = host === 'ivr';
   const count = isIvr
     ? menuItems.reduce((sum, item) => sum + (item.actions?.length ?? 0), 0)

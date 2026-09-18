@@ -1,0 +1,26 @@
+[
+  {
+    "Field": "usrc",
+    "Type": "varchar(80)",
+    "Null": "NO",
+    "Key": "MUL",
+    "Default": null,
+    "Extra": ""
+  },
+  {
+    "Field": "uniqueid",
+    "Type": "varchar(80)",
+    "Null": "NO",
+    "Key": "",
+    "Default": null,
+    "Extra": ""
+  },
+  {
+    "Field": "linkedid",
+    "Type": "varchar(80)",
+    "Null": "NO",
+    "Key": "",
+    "Default": null,
+    "Extra": ""
+  }
+]

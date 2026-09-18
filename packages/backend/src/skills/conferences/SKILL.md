@@ -3,7 +3,7 @@ name: conferences
 description: Комнаты телеконференций: список и настройка через diff; mute/kick — live dispatch.
 domains: ["conferences"]
 intents: ["configure_conference", "live_moderation"]
-aliases: ["конференция", "телеконференция", "confbridge"]
+aliases: ["конференц", "конференция", "телеконференция", "confbridge"]
 related: ["callcenter"]
 risk: high
 ---
@@ -20,5 +20,6 @@ risk: high
 ## Рецепт
 
 1. **Что прочитать.** `list_conference_rooms`.
-2. **Править комнату.** `update_conference_room` по uid тенанта. Чужой uid отвергается.
-3. **Заглушить или исключить.** `cf_force_mute_participant` / `cf_force_kick_participant` с `room_uid` и `ref`. Те же гарды, что REST-модерация.
+2. **Создать комнату.** `create_conference_room`: имя и свободный короткий номер; запись выключена по умолчанию.
+3. **Править комнату.** `update_conference_room` по uid тенанта. Чужой uid отвергается.
+4. **Заглушить или исключить.** `cf_force_mute_participant` / `cf_force_kick_participant` с `room_uid` и `ref`. Те же гарды, что REST-модерация.

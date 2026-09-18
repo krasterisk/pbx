@@ -129,10 +129,10 @@ describe('TrunksAiAdapter', () => {
   });
 
   describe('trunk domain skill', () => {
-    it('ships two-field frontmatter covering registration versus peering and live-call impact', () => {
+    it('ships descriptive frontmatter covering registration versus peering and live-call impact', () => {
       const skillPath = path.join(__dirname, '../../skills/trunks/SKILL.md');
       const raw = fs.readFileSync(skillPath, 'utf8');
-      expect(raw).toMatch(/^---\r?\nname: trunks\r?\ndescription: .+\r?\n---/);
+      expect(raw).toMatch(/^---\r?\nname: trunks\r?\ndescription: .+\r?\n(?:[^\r\n]+\r?\n)*---/);
       expect(raw).toMatch(/регистрац|registration|auth/i);
       expect(raw).toMatch(/пир|peer|ip/i);
       expect(raw).toMatch(/живые|live|звонк/i);

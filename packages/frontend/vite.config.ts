@@ -45,6 +45,9 @@ export default defineConfig({
     },
   },
   test: {
+    // Separate processes avoid worker-thread hangs observed on the Windows live-test host.
+    pool: process.platform === 'win32' ? 'forks' : 'threads',
+    maxWorkers: 2,
     globals: true,
     environment: 'jsdom',
     setupFiles: './src/shared/config/tests/setupTests.ts',

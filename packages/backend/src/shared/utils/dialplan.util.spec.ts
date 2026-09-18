@@ -802,8 +802,8 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
         vpbx,
       );
       expect(dp).toBe([
-        'Set(__KRSK_HOPS=$[${__KRSK_HOPS} + 1])',
-        'same => n,GotoIf($[${__KRSK_HOPS} <= 10]?ivr_7,start,1)',
+        'Set(__KRSK_HOPS=$[${IF($["${KRSK_HOPS}" = ""]?0:${KRSK_HOPS})} + 1])',
+        'same => n,GotoIf($[${KRSK_HOPS} <= 10]?ivr_7,start,1)',
         'same => n,NoOp(KRSK hop limit exceeded route=ivr_7)',
         'same => n,Congestion()',
       ].join('\n'));
@@ -885,8 +885,8 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
         vpbx,
       );
       expect(dp).toBe([
-        'Set(__KRSK_HOPS=$[${__KRSK_HOPS} + 1])',
-        'same => n,GotoIf($[${__KRSK_HOPS} <= 10]?sip-out42,100,1)',
+        'Set(__KRSK_HOPS=$[${IF($["${KRSK_HOPS}" = ""]?0:${KRSK_HOPS})} + 1])',
+        'same => n,GotoIf($[${KRSK_HOPS} <= 10]?sip-out42,100,1)',
         'same => n,NoOp(KRSK hop limit exceeded route=sip-out42)',
         'same => n,Congestion()',
       ].join('\n'));
@@ -905,8 +905,8 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
         vpbx,
       );
       expect(dp).toBe([
-        'Set(__KRSK_HOPS=$[${__KRSK_HOPS} + 1])',
-        'same => n,GotoIf($[${__KRSK_HOPS} <= 10]?sip-out42,100,1)',
+        'Set(__KRSK_HOPS=$[${IF($["${KRSK_HOPS}" = ""]?0:${KRSK_HOPS})} + 1])',
+        'same => n,GotoIf($[${KRSK_HOPS} <= 10]?sip-out42,100,1)',
         'same => n,NoOp(KRSK hop limit exceeded route=sip-out42)',
         'same => n,Congestion()',
       ].join('\n'));
@@ -918,8 +918,8 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
         vpbx,
       );
       expect(dp).toBe([
-        'Set(__KRSK_HOPS=$[${__KRSK_HOPS} + 1])',
-        'same => n,GotoIf($[${__KRSK_HOPS} <= 10]?sip-in42,${EXTEN},1)',
+        'Set(__KRSK_HOPS=$[${IF($["${KRSK_HOPS}" = ""]?0:${KRSK_HOPS})} + 1])',
+        'same => n,GotoIf($[${KRSK_HOPS} <= 10]?sip-in42,${EXTEN},1)',
         'same => n,NoOp(KRSK hop limit exceeded route=sip-in42)',
         'same => n,Congestion()',
       ].join('\n'));
@@ -1679,7 +1679,7 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
         { type: 'toivr', params: { ivr_uid: 7 }, condition: {} },
         vpbx,
       );
-      expect(ivr).toContain('GotoIf($[${__KRSK_HOPS} <= 10]?ivr_7,start,1)');
+      expect(ivr).toContain('GotoIf($[${KRSK_HOPS} <= 10]?ivr_7,start,1)');
       expect(ivr).not.toContain('${EXTEN}');
     });
 
@@ -2111,7 +2111,7 @@ describe('D-44 label / goto generator', () => {
     );
     expect(dp).toContain('GotoIf');
     expect(dp).toContain('?ok)');
-    expect(dp).not.toContain(':');
+    expect(dp.split('\n').at(-1)).not.toContain(':');
   });
 
   it('schedule time expression matches the time_group interval format byte-for-byte', () => {

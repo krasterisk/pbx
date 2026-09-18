@@ -36,7 +36,7 @@ export function isCallbackUrgent(row: ICallbackRequest, now = Date.now()): boole
   return false;
 }
 
-function fmtAgo(iso: string, t: (key: string, fallback?: string) => string): string {
+function fmtAgo(iso: string, t: (...args: [key: string] | [key: string, fallback: string]) => string): string {
   const ms = Date.now() - new Date(iso).getTime();
   const m = Math.floor(ms / 60_000);
   if (m < 1) return t('callcenter.missed.justNow', 'just now');

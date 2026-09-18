@@ -32,7 +32,7 @@ function inviteErrorStatus(err: unknown): number | undefined {
 export function InviteSheet({ open, mode, roomUid, onOpenChange }: InviteSheetProps) {
   const { t } = useTranslation();
   const [target, setTarget] = useState('');
-  const [invite, { isPending }] = useInviteConferenceMutation();
+  const [invite, { isLoading: isPending }] = useInviteConferenceMutation();
 
   const title = mode === 'external'
     ? t('conferences.live.inviteExternal', 'Пригласить внешний номер')

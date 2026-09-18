@@ -99,38 +99,38 @@ describe('ConferenceRoomFormModal', () => {
     vi.mocked(useGetConferenceRoomQuery).mockReturnValue({
       data: undefined,
       isFetching: false,
-    } as ReturnType<typeof useGetConferenceRoomQuery>);
+    } as unknown as ReturnType<typeof useGetConferenceRoomQuery>);
     vi.mocked(useGetConferenceCapacityQuery).mockReturnValue({
       data: { maxParticipants: 0 },
       isFetching: false,
-    } as ReturnType<typeof useGetConferenceCapacityQuery>);
+    } as unknown as ReturnType<typeof useGetConferenceCapacityQuery>);
     vi.mocked(useGetConferenceGuestTokensQuery).mockReturnValue({
       data: [],
       isFetching: false,
-    } as ReturnType<typeof useGetConferenceGuestTokensQuery>);
+    } as unknown as ReturnType<typeof useGetConferenceGuestTokensQuery>);
     vi.mocked(useGetConferenceModeratorsQuery).mockReturnValue({
       data: [],
       isFetching: false,
-    } as ReturnType<typeof useGetConferenceModeratorsQuery>);
+    } as unknown as ReturnType<typeof useGetConferenceModeratorsQuery>);
   });
 
   it('opens create with skipped room queries (undefined data) without looping', () => {
     vi.mocked(useGetConferenceRoomQuery).mockReturnValue({
       data: undefined,
       isFetching: false,
-    } as ReturnType<typeof useGetConferenceRoomQuery>);
+    } as unknown as ReturnType<typeof useGetConferenceRoomQuery>);
     vi.mocked(useGetConferenceCapacityQuery).mockReturnValue({
       data: undefined,
       isFetching: false,
-    } as ReturnType<typeof useGetConferenceCapacityQuery>);
+    } as unknown as ReturnType<typeof useGetConferenceCapacityQuery>);
     vi.mocked(useGetConferenceGuestTokensQuery).mockReturnValue({
       data: undefined,
       isFetching: false,
-    } as ReturnType<typeof useGetConferenceGuestTokensQuery>);
+    } as unknown as ReturnType<typeof useGetConferenceGuestTokensQuery>);
     vi.mocked(useGetConferenceModeratorsQuery).mockReturnValue({
       data: undefined,
       isFetching: false,
-    } as ReturnType<typeof useGetConferenceModeratorsQuery>);
+    } as unknown as ReturnType<typeof useGetConferenceModeratorsQuery>);
     expect(() => render(<ConferenceRoomFormModal />)).not.toThrow();
     expect(screen.getByRole('tab', { name: 'Основные' })).toBeInTheDocument();
     expect(screen.getByLabelText('Номер комнаты')).toHaveValue('');
@@ -152,7 +152,7 @@ describe('ConferenceRoomFormModal', () => {
     vi.mocked(useGetConferenceRoomQuery).mockReturnValue({
       data: sampleRoom,
       isFetching: false,
-    } as ReturnType<typeof useGetConferenceRoomQuery>);
+    } as unknown as ReturnType<typeof useGetConferenceRoomQuery>);
     const user = userEvent.setup();
     render(<ConferenceRoomFormModal />);
 
@@ -168,7 +168,7 @@ describe('ConferenceRoomFormModal', () => {
     vi.mocked(useGetConferenceRoomQuery).mockReturnValue({
       data: sampleRoom,
       isFetching: false,
-    } as ReturnType<typeof useGetConferenceRoomQuery>);
+    } as unknown as ReturnType<typeof useGetConferenceRoomQuery>);
     const user = userEvent.setup();
     render(<ConferenceRoomFormModal />);
 
@@ -191,7 +191,7 @@ describe('ConferenceRoomFormModal', () => {
     vi.mocked(useGetConferenceRoomQuery).mockReturnValue({
       data: sampleRoom,
       isFetching: false,
-    } as ReturnType<typeof useGetConferenceRoomQuery>);
+    } as unknown as ReturnType<typeof useGetConferenceRoomQuery>);
     vi.mocked(useGetConferenceGuestTokensQuery).mockReturnValue({
       data: [
         {
@@ -204,7 +204,7 @@ describe('ConferenceRoomFormModal', () => {
         },
       ],
       isFetching: false,
-    } as ReturnType<typeof useGetConferenceGuestTokensQuery>);
+    } as unknown as ReturnType<typeof useGetConferenceGuestTokensQuery>);
     const user = userEvent.setup();
     render(<ConferenceRoomFormModal />);
 
@@ -219,7 +219,7 @@ describe('ConferenceRoomFormModal', () => {
     vi.mocked(useGetConferenceRoomQuery).mockReturnValue({
       data: sampleRoom,
       isFetching: false,
-    } as ReturnType<typeof useGetConferenceRoomQuery>);
+    } as unknown as ReturnType<typeof useGetConferenceRoomQuery>);
     const user = userEvent.setup();
     render(<ConferenceRoomFormModal />);
     await user.click(screen.getByRole('tab', { name: 'Ссылки' }));

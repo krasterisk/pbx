@@ -44,6 +44,7 @@ const PLAN_CHECKLIST_TOOLS = new Set([
   'list_ivrs',
   'list_dialplan_apps',
 ]);
+const READ_TOOL_NAME = /^(?:get_|list_|read_|find_|describe_|evaluate_|cc_get_|dialplan_dry_run$)/;
 export const PROMPT_TOTAL_BUDGET_CHARS = 48_000;
 
 export const CONTINUE_AFTER_APPLY_PROMPT =
@@ -103,6 +104,7 @@ export class PbxAgentLoopService {
   ): AsyncGenerator<AgentStreamEvent> {
     const threadUid = conversation.uid;
     const { tenantUid, authorUid, role } = ctx;
+    const readOnlyRequest = /не меняй|не изменяй|ничего не менять|только диагностик|без изменений|read.only/i.test(message);
     const maxSteps = this.readInt('CC_AI_MAX_AGENT_STEPS', DEFAULT_MAX_AGENT_STEPS);
     const argRetries = this.readInt('CC_AI_TOOL_ARG_RETRIES', DEFAULT_TOOL_ARG_RETRIES);
     const argFailures = new Map<string, number>();
@@ -163,11 +165,12 @@ export class PbxAgentLoopService {
         classification,
       ),
     );
-    const registered = this.registerTools(allTools.filter((tool) => allowedNames.has(tool.name)));
+    const registered = this.registerTools(allTools.filter((tool) => allowedNames.has(tool.name)
+      && (!readOnlyRequest || READ_TOOL_NAME.test(tool.name))));
     const tools = registered.map((tool) => tool.spec);
     let steps = 0;
     let incompleteContinues = 0;
-    let forceToolChoice = false;
+    let forceToolChoice = /(?:создай|создать|настрой|проверь|диагност|create |configure |diagnose )/i.test(message);
     let calledToolThisTurn = false;
     let checklistReads = 0;
     let proposePlanAttempts = 0;
@@ -375,6 +378,12 @@ export class PbxAgentLoopService {
           const stepId = `s${threadUid}_${steps}_${callIndex}`;
           yield { name: 'item', data: this.stepItem(call.name, stepId, false) };
           const normalizedCall = this.normalizeToolCallArgs(call);
+          if (readOnlyRequest && !READ_TOOL_NAME.test(normalizedCall.name)) {
+            await this.closeUnansweredToolCalls({ toolCalls, answeredToolCallIds, messages,
+              threadUid, tenantUid, authorUid, providerModel, reason: 'read_only_request' });
+            yield { name: 'error', data: { code: 'read_only_request', message: 'Запрошена диагностика без изменений. Изменение не выполнено.' } };
+            return;
+          }
 
           if (normalizedCall.name === 'propose_plan') {
             proposePlanAttempts += 1;
@@ -564,7 +573,7 @@ export class PbxAgentLoopService {
           });
           return;
         }
-        if (!hadProposal && checklistReads >= 2 && !looksLikeRouteSetup(message)) {
+        if (!readOnlyRequest && !hadProposal && checklistReads >= 2 && !looksLikeRouteSetup(message)) {
           const compiled = yield* this.tryServerIvrPlan({
             message,
             threadUid,
@@ -586,7 +595,7 @@ export class PbxAgentLoopService {
           yield { name: 'done', data: { closeKind: 'complete' } };
           return;
         }
-        if (!hadProposal && checklistReads >= 2 && proposePlanAttempts < 2) {
+        if (!readOnlyRequest && !hadProposal && checklistReads >= 2 && proposePlanAttempts < 2) {
           messages.push({
             role: 'system',
             content: this.proposePlanNowReminder(ctx.locale, message),
@@ -612,7 +621,7 @@ export class PbxAgentLoopService {
           });
         }
         const emptyNoTools = !text.trim();
-        if (emptyNoTools && tools.length) {
+        if ((emptyNoTools || /подтверд|confirm/i.test(text)) && tools.length) {
           forceToolChoice = true;
         }
         const maxIncomplete = forceToolChoice ? 3 : 2;
@@ -1019,7 +1028,15 @@ export class PbxAgentLoopService {
 
   private proposePlanNowReminder(locale?: string, message = ''): string {
     const ru = (locale ?? 'ru').toLowerCase().startsWith('ru');
-    if (looksLikeRouteSetup(message)) {
+    if (looksLikeRouteSetup(message) && !/календар|расписан|будн|выходн|schedule|calendar/i.test(message)) {
+      return ru
+        ? 'Создай запрошенный маршрут через create_route: context_uid из list_contexts, extensions — номера из запроса, actions — действия из list_dialplan_apps. '
+          + 'Для входа в существующее IVR используй toivr с params.ivr_uid из list_ivrs. Номер маршрута не является SIP-абонентом или цифрой IVR. '
+          + 'Не создавай абонента, меню или календарь вместо маршрута и не меняй существующее меню.'
+        : 'Create the requested route with create_route (context_uid, extensions, actions). A route number is not a SIP endpoint or an IVR digit. '
+          + 'For an existing IVR use toivr with params.ivr_uid. Do not create endpoints, menus or calendars instead.';
+    }
+    if (looksLikeRouteSetup(message) && /календар|расписан|будн|выходн|schedule|calendar/i.test(message)) {
       return ru
         ? 'Это маршрут, не новое меню. propose_plan: если календаря нет — шаг create_time_group '
           + '(name + intervals[]), затем create_route. '
@@ -1032,10 +1049,12 @@ export class PbxAgentLoopService {
     }
     return ru
       ? 'Факты уже собраны. Сразу вызови propose_plan одним объектом {title, steps[]}. '
-        + 'Корень — не name/exten/members. Шаги: create_call_group (если группы ещё нет) и create_ivr с text/menu_items. '
+        + 'Корень — не name/exten/members. Каждый шаг — объект {id,tool,args,dependsOn:[]}. '
+        + 'Выбери инструменты только для запрошенных сущностей и скопируй структуру args из их JSON-схем. '
         + 'Не вызывай list_* снова.'
       : 'Facts are already collected. Call propose_plan as {title, steps[]}. '
-        + 'Do not put name/exten/members at the root. Steps: create_call_group if missing, then create_ivr with text/menu_items. '
+        + 'Do not put name/exten/members at the root. Each step is {id,tool,args,dependsOn:[]}. '
+        + 'Choose tools only for requested entities and use their exact argument schemas. '
         + 'Do not call list_* again.';
   }
 

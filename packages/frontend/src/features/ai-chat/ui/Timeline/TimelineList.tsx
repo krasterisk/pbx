@@ -92,24 +92,26 @@ export const TimelineList = ({
                         return <AssistantBubble key={item.id} item={item} />;
                     case 'step':
                         return <StepRow key={item.id} item={item} />;
-                    case 'proposal':
+                    case 'proposal': {
+                        const card = cards[item.id];
                         if (liveConfirm?.sourceId === item.id) return null;
                         return (
                             <ProposalItem
                                 key={item.id}
                                 item={item}
-                                card={cards[item.id]}
+                                card={card}
                                 readOnly={readOnly}
                                 focused={
                                     Boolean(
                                         focusWorkflowId
-                                        && cards[item.id]?.card === 'workflow'
-                                        && cards[item.id].workflow.workflowId === focusWorkflowId,
+                                        && card?.card === 'workflow'
+                                        && card.workflow.workflowId === focusWorkflowId,
                                     )
                                 }
                                 onCardSettled={onCardSettled}
                             />
                         );
+                    }
                 }
             })}
             {liveConfirm && (

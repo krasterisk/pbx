@@ -18,7 +18,7 @@ jobs:
         image: mysql:8.0
         env:
           MYSQL_ROOT_PASSWORD: krasterisk
-          MYSQL_DATABASE: krasterisk
+          MYSQL_DATABASE: krasterisk_ci
         ports: ['3306:3306']
         options: >-
           --health-cmd="mysqladmin ping -h localhost -p$MYSQL_ROOT_PASSWORD"
@@ -31,7 +31,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
       - name: Install workspace deps
@@ -40,14 +40,33 @@ jobs:
       - name: Build shared + backend
         run: npm run build
 
+      - name: Run database migrations
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_USER: root
+          DB_PASSWORD: krasterisk
+          DB_NAME: krasterisk_ci
+        run: npm run db:migrate
+
+      - name: Seed isolated CI admin
+        env:
+          CI: 'true'
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_USER: root
+          DB_PASSWORD: krasterisk
+          DB_NAME: krasterisk_ci
+        run: npm run db:seed:ci -w @krasterisk/backend
+
       - name: Start backend
         env:
           DB_HOST: 127.0.0.1
           DB_PORT: 3306
           DB_USER: root
-          DB_PASS: krasterisk
-          DB_NAME: krasterisk
-          JWT_SECRET: ci-test-secret
+          DB_PASSWORD: krasterisk
+          DB_NAME: krasterisk_ci
+          JWT_SECRET: ci-test-secret-for-isolated-harness-only-32chars
           CC_AI_KEY_SECRET: ci-test-ai-secret
         run: |
           npm run dev:backend &

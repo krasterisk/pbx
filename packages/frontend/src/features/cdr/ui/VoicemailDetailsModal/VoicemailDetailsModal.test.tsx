@@ -69,7 +69,7 @@ function renderModal(data: IVoicemailMessage | undefined, isFetching = false) {
     data,
     isFetching,
     isLoading: isFetching && !data,
-  } as ReturnType<typeof useGetVoicemailByUniqueidQuery>);
+  } as unknown as ReturnType<typeof useGetVoicemailByUniqueidQuery>);
   return render(
     <VoicemailDetailsModal uniqueid="1693731234.12" isOpen onClose={vi.fn()} />,
   );

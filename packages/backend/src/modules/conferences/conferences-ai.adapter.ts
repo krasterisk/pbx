@@ -17,6 +17,13 @@ import {
 
 const SCHEMA_VERSION = 'conferences-1';
 
+const createInput = z.strictObject({
+  name: z.string().trim().min(1).max(255),
+  number: z.string().regex(/^\d{2,8}$/).describe('Свободный короткий номер, например 700'),
+  record_mode: z.enum(['off', 'auto']).default('off'),
+});
+type CreateInput = z.infer<typeof createInput>;
+
 const updateInput = z.strictObject({
   uid: z.number().int().positive().describe('UID комнаты из list_conference_rooms'),
   name: z.string().min(1).optional().describe('Название комнаты'),
@@ -67,6 +74,7 @@ export class ConferencesAiAdapter implements DomainAiAdapter, OnModuleInit {
   getTools(): AiToolDefinition[] {
     return [
       this.toolListConferenceRooms(),
+      this.toolCreateConferenceRoom(),
       this.toolUpdateConferenceRoom(),
       this.toolForceMuteParticipant(),
       this.toolForceKickParticipant(),
@@ -81,6 +89,7 @@ export class ConferencesAiAdapter implements DomainAiAdapter, OnModuleInit {
     return `## Телеконференции
 - Комната = uid + короткий number + имя. Список — list_conference_rooms (без SIP/канала).
 - Настройки комнаты правятся через update_conference_room (proposal / diff, не live write).
+- Новая внутренняя комната — create_conference_room. Название и свободный короткий номер; запись выключена по умолчанию.
 - Заглушить или исключить участника — live-ops cf_force_mute_participant / cf_force_kick_participant.`;
   }
 
@@ -112,6 +121,37 @@ export class ConferencesAiAdapter implements DomainAiAdapter, OnModuleInit {
         };
       },
     };
+  }
+
+  private toolCreateConferenceRoom(): AiToolDefinition {
+    return defineMutationTool<CreateInput, CreateInput>({
+      name: 'create_conference_room',
+      description: 'Подготовить создание внутренней комнаты конференций. Требует подтверждения. Без гостевых ссылок и PIN; запись по умолчанию выключена.',
+      entityType: 'conference_room',
+      schemaVersion: SCHEMA_VERSION,
+      input: createInput,
+      args: createInput,
+      reload: { kind: 'none' },
+      propose: async (input, ctx) => {
+        const rooms = await this.roomsService.findAll(ctx.vpbxUserUid);
+        if (rooms.some((room) => room.number === input.number)) {
+          return { refused: true, message: `Комната ${input.number} уже существует` };
+        }
+        return this.proposal('create_conference_room', input.name, input, null, input,
+          [`Создать конференцию «${input.name}», номер ${input.number}`, `Запись: ${input.record_mode}`]);
+      },
+      revalidate: async (args, ctx) => {
+        const rooms = await this.roomsService.findAll(ctx.vpbxUserUid);
+        return rooms.some((room) => room.number === args.number)
+          ? { ok: false, reason: `Комната ${args.number} уже существует` }
+          : { ok: true, args };
+      },
+      apply: async (args, ctx) => {
+        const room = await this.roomsService.create({ ...args, kind: 'permanent',
+          invite_external_scope: 'owner', notify_recording: true }, ctx.vpbxUserUid, ctx.userUid);
+        return { uid: room.uid, name: room.name, number: room.number };
+      },
+    });
   }
 
   private toolUpdateConferenceRoom(): AiToolDefinition {

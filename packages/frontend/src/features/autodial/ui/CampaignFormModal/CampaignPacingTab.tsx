@@ -1,9 +1,12 @@
-import { memo } from 'react';
-import { useTranslation } from 'react-i18next';
-import { Plus, Trash2 } from 'lucide-react';
-import type { IAutodialPacingConfig, IAutodialPredictiveConfig } from '@krasterisk/shared';
+import { memo } from "react";
+import { useTranslation } from "react-i18next";
+import { Plus, Trash2 } from "lucide-react";
+import type {
+  IAutodialPacingConfig,
+  IAutodialPredictiveConfig,
+} from "@krasterisk/shared";
 import {
-  Button,
+  InfoTooltip,
   Input,
   Label,
   MultiSelect,
@@ -11,20 +14,23 @@ import {
   TableRowAction,
   TableRowActions,
   Text,
-} from '@/shared/ui';
-import { HStack, VStack } from '@/shared/ui/Stack';
-import { useGetQueuesQuery } from '@/shared/api/endpoints/queueApi';
-import type { AutodialCampaignDraft, CampaignDraftErrors } from '../../model/campaignDraft';
-import cls from './CampaignTabs.module.scss';
+} from "@/shared/ui";
+import { HStack, VStack } from "@/shared/ui/Stack";
+import { useGetQueuesQuery } from "@/shared/api/endpoints/queueApi";
+import type {
+  AutodialCampaignDraft,
+  CampaignDraftErrors,
+} from "../../model/campaignDraft";
+import cls from "./CampaignTabs.module.scss";
 
-type Provider = IAutodialPacingConfig['providers'][number];
-type ProviderType = Provider['type'];
+type Provider = IAutodialPacingConfig["providers"][number];
+type ProviderType = Provider["type"];
 
 const PROVIDER_TYPES: ProviderType[] = [
-  'static',
-  'queue_agents',
-  'trunk_channels',
-  'tenant_cap',
+  "static",
+  "queue_agents",
+  "trunk_channels",
+  "tenant_cap",
 ];
 
 const DEFAULT_PREDICTIVE: IAutodialPredictiveConfig = {
@@ -35,14 +41,14 @@ const DEFAULT_PREDICTIVE: IAutodialPredictiveConfig = {
 
 function blankProvider(type: ProviderType): Provider {
   switch (type) {
-    case 'queue_agents':
-      return { type: 'queue_agents', queue_names: [] };
-    case 'trunk_channels':
-      return { type: 'trunk_channels' };
-    case 'tenant_cap':
-      return { type: 'tenant_cap', max_channels: 30 };
+    case "queue_agents":
+      return { type: "queue_agents", queue_names: [] };
+    case "trunk_channels":
+      return { type: "trunk_channels" };
+    case "tenant_cap":
+      return { type: "tenant_cap", max_channels: 30 };
     default:
-      return { type: 'static', max_channels: 2 };
+      return { type: "static", max_channels: 2 };
   }
 }
 
@@ -71,18 +77,28 @@ export const CampaignPacingTab = memo(({ draft, onChange, errors }: Props) => {
     });
 
   const updateProvider = (index: number, next: Provider) =>
-    setProviders(draft.pacing.providers.map((p, i) => (i === index ? next : p)));
+    setProviders(
+      draft.pacing.providers.map((p, i) => (i === index ? next : p)),
+    );
 
   const usedTypes = new Set(draft.pacing.providers.map((p) => p.type));
   const addableTypes = PROVIDER_TYPES.filter((type) => !usedTypes.has(type));
 
   return (
     <VStack gap="16" max>
-      <Text className={cls.hint}>{t('autodial.pacing.intro')}</Text>
+      <HStack gap="4" align="center">
+        <Text className={cls.sectionTitle}>{t("autodial.pacing.title")}</Text>
+        <InfoTooltip text={t("autodial.pacing.intro")} />
+      </HStack>
 
-      {draft.dial_mode === 'power' && (
+      {draft.dial_mode === "power" && (
         <VStack gap="4" className={cls.field}>
-          <Label htmlFor="autodial-power-ratio">{t('autodial.pacing.powerRatio')}</Label>
+          <HStack gap="4" align="center">
+            <Label htmlFor="autodial-power-ratio">
+              {t("autodial.pacing.powerRatio")}
+            </Label>
+            <InfoTooltip text={t("autodial.pacing.powerRatioHint")} />
+          </HStack>
           <Input
             id="autodial-power-ratio"
             type="number"
@@ -93,22 +109,30 @@ export const CampaignPacingTab = memo(({ draft, onChange, errors }: Props) => {
             onChange={(e) =>
               onChange({
                 ...draft,
-                pacing: { ...draft.pacing, power_ratio: Number(e.target.value) || 1 },
+                pacing: {
+                  ...draft.pacing,
+                  power_ratio: Number(e.target.value) || 1,
+                },
               })
             }
           />
-          <Text className={cls.hint}>{t('autodial.pacing.powerRatioHint')}</Text>
         </VStack>
       )}
 
-      {draft.dial_mode === 'predictive' && (
+      {draft.dial_mode === "predictive" && (
         <VStack gap="8" max>
-          <Text className={cls.sectionTitle}>{t('autodial.pacing.predictive.title')}</Text>
-          <Text className={cls.hint}>{t('autodial.pacing.predictive.intro')}</Text>
+          <HStack gap="4" align="center">
+            <Text className={cls.sectionTitle}>
+              {t("autodial.pacing.predictive.title")}
+            </Text>
+            <InfoTooltip
+              text={`${t("autodial.pacing.predictive.intro")}\n${t("autodial.pacing.predictive.hint")}`}
+            />
+          </HStack>
           <HStack gap="12" align="end" wrap="wrap">
             <VStack gap="4" className={cls.field}>
               <Label htmlFor="autodial-predictive-target">
-                {t('autodial.pacing.predictive.targetAbandon')}
+                {t("autodial.pacing.predictive.targetAbandon")}
               </Label>
               <Input
                 id="autodial-predictive-target"
@@ -120,13 +144,15 @@ export const CampaignPacingTab = memo(({ draft, onChange, errors }: Props) => {
                 aria-invalid={Boolean(errors.predictive) || undefined}
                 value={predictive.target_abandon_pct}
                 onChange={(e) =>
-                  setPredictive({ target_abandon_pct: Number(e.target.value) || 0 })
+                  setPredictive({
+                    target_abandon_pct: Number(e.target.value) || 0,
+                  })
                 }
               />
             </VStack>
             <VStack gap="4" className={cls.field}>
               <Label htmlFor="autodial-predictive-max">
-                {t('autodial.pacing.predictive.maxOverDial')}
+                {t("autodial.pacing.predictive.maxOverDial")}
               </Label>
               <Input
                 id="autodial-predictive-max"
@@ -137,12 +163,14 @@ export const CampaignPacingTab = memo(({ draft, onChange, errors }: Props) => {
                 className={cls.narrowInput}
                 aria-invalid={Boolean(errors.predictive) || undefined}
                 value={predictive.max_over_dial}
-                onChange={(e) => setPredictive({ max_over_dial: Number(e.target.value) || 1 })}
+                onChange={(e) =>
+                  setPredictive({ max_over_dial: Number(e.target.value) || 1 })
+                }
               />
             </VStack>
             <VStack gap="4" className={cls.field}>
               <Label htmlFor="autodial-predictive-samples">
-                {t('autodial.pacing.predictive.minSamples')}
+                {t("autodial.pacing.predictive.minSamples")}
               </Label>
               <Input
                 id="autodial-predictive-samples"
@@ -150,34 +178,48 @@ export const CampaignPacingTab = memo(({ draft, onChange, errors }: Props) => {
                 min={1}
                 className={cls.narrowInput}
                 value={predictive.min_samples}
-                onChange={(e) => setPredictive({ min_samples: Number(e.target.value) || 1 })}
+                onChange={(e) =>
+                  setPredictive({ min_samples: Number(e.target.value) || 1 })
+                }
               />
             </VStack>
           </HStack>
-          {errors.predictive === 'queueAgentsRequired' && (
-            <Text className={cls.error}>{t('autodial.pacing.predictive.needsQueueAgents')}</Text>
+          {errors.predictive === "queueAgentsRequired" && (
+            <Text className={cls.error}>
+              {t("autodial.pacing.predictive.needsQueueAgents")}
+            </Text>
           )}
-          {errors.predictive === 'range' && (
-            <Text className={cls.error}>{t('autodial.pacing.predictive.rangeError')}</Text>
+          {errors.predictive === "range" && (
+            <Text className={cls.error}>
+              {t("autodial.pacing.predictive.rangeError")}
+            </Text>
           )}
-          <Text className={cls.hint}>{t('autodial.pacing.predictive.hint')}</Text>
         </VStack>
       )}
 
       <VStack gap="8" max>
         {draft.pacing.providers.map((provider, index) => (
-          <HStack key={provider.type} gap="12" align="end" max className={cls.row}>
+          <HStack
+            key={provider.type}
+            gap="12"
+            align="end"
+            max
+            wrap="wrap"
+            className={cls.row}
+          >
             <VStack gap="4" className={cls.field}>
-              <Label>{t(`autodial.pacing.provider.${provider.type}`)}</Label>
-              <Text className={cls.hint}>
-                {t(`autodial.pacing.providerHint.${provider.type}`)}
-              </Text>
+              <HStack gap="4" align="center">
+                <Label>{t(`autodial.pacing.provider.${provider.type}`)}</Label>
+                <InfoTooltip
+                  text={t(`autodial.pacing.providerHint.${provider.type}`)}
+                />
+              </HStack>
             </VStack>
 
-            {(provider.type === 'static' || provider.type === 'tenant_cap') && (
+            {(provider.type === "static" || provider.type === "tenant_cap") && (
               <VStack gap="4" className={cls.field}>
                 <Label htmlFor={`autodial-pacing-max-${provider.type}`}>
-                  {t('autodial.pacing.maxChannels')}
+                  {t("autodial.pacing.maxChannels")}
                 </Label>
                 <Input
                   id={`autodial-pacing-max-${provider.type}`}
@@ -195,17 +237,19 @@ export const CampaignPacingTab = memo(({ draft, onChange, errors }: Props) => {
               </VStack>
             )}
 
-            {provider.type === 'queue_agents' && (
+            {provider.type === "queue_agents" && (
               <VStack gap="4" className={cls.field}>
-                <Label>{t('autodial.pacing.queues')}</Label>
+                <Label>{t("autodial.pacing.queues")}</Label>
                 <MultiSelect
                   options={(queues ?? []).map((queue) => ({
                     value: queue.name,
                     label: queue.name,
                   }))}
                   value={provider.queue_names}
-                  onChange={(queue_names) => updateProvider(index, { ...provider, queue_names })}
-                  placeholder={t('autodial.form.queuesPlaceholder')}
+                  onChange={(queue_names) =>
+                    updateProvider(index, { ...provider, queue_names })
+                  }
+                  placeholder={t("autodial.form.queuesPlaceholder")}
                 />
               </VStack>
             )}
@@ -213,10 +257,12 @@ export const CampaignPacingTab = memo(({ draft, onChange, errors }: Props) => {
             <TableRowActions>
               <TableRowAction
                 danger
-                title={t('common.delete')}
-                aria-label={t('common.delete')}
+                title={t("common.delete")}
+                aria-label={t("common.delete")}
                 onClick={() =>
-                  setProviders(draft.pacing.providers.filter((_, i) => i !== index))
+                  setProviders(
+                    draft.pacing.providers.filter((_, i) => i !== index),
+                  )
                 }
               >
                 <Trash2 />
@@ -226,7 +272,7 @@ export const CampaignPacingTab = memo(({ draft, onChange, errors }: Props) => {
         ))}
 
         {errors.pacing && (
-          <Text className={cls.error}>{t('autodial.pacing.atLeastOne')}</Text>
+          <Text className={cls.error}>{t("autodial.pacing.atLeastOne")}</Text>
         )}
       </VStack>
 
@@ -244,7 +290,7 @@ export const CampaignPacingTab = memo(({ draft, onChange, errors }: Props) => {
             }}
             className={cls.narrowInput}
           >
-            <option value="">{t('autodial.pacing.addProvider')}</option>
+            <option value="">{t("autodial.pacing.addProvider")}</option>
             {addableTypes.map((type) => (
               <option key={type} value={type}>
                 {t(`autodial.pacing.provider.${type}`)}
@@ -256,27 +302,34 @@ export const CampaignPacingTab = memo(({ draft, onChange, errors }: Props) => {
       )}
 
       <VStack gap="8" max>
-        <Text className={cls.sectionTitle}>{t('autodial.amd.title')}</Text>
+        <HStack gap="4" align="center">
+          <Text className={cls.sectionTitle}>{t("autodial.amd.title")}</Text>
+          <InfoTooltip text={t("autodial.amd.hint")} />
+        </HStack>
         <HStack gap="12" align="end" wrap="wrap">
           <VStack gap="4" className={cls.field}>
-            <Label htmlFor="autodial-amd-enabled">{t('autodial.amd.enabled')}</Label>
+            <Label htmlFor="autodial-amd-enabled">
+              {t("autodial.amd.enabled")}
+            </Label>
             <Select
               id="autodial-amd-enabled"
-              value={draft.amd.enabled ? 'on' : 'off'}
+              value={draft.amd.enabled ? "on" : "off"}
               onChange={(e) =>
                 onChange({
                   ...draft,
-                  amd: { ...draft.amd, enabled: e.target.value === 'on' },
+                  amd: { ...draft.amd, enabled: e.target.value === "on" },
                 })
               }
               className={cls.narrowInput}
             >
-              <option value="off">{t('common.disabled')}</option>
-              <option value="on">{t('common.enabled')}</option>
+              <option value="off">{t("common.disabled")}</option>
+              <option value="on">{t("common.enabled")}</option>
             </Select>
           </VStack>
           <VStack gap="4" className={cls.field}>
-            <Label htmlFor="autodial-amd-action">{t('autodial.amd.onMachine')}</Label>
+            <Label htmlFor="autodial-amd-action">
+              {t("autodial.amd.onMachine")}
+            </Label>
             <Select
               id="autodial-amd-action"
               value={draft.amd.on_machine}
@@ -286,22 +339,24 @@ export const CampaignPacingTab = memo(({ draft, onChange, errors }: Props) => {
                   ...draft,
                   amd: {
                     ...draft.amd,
-                    on_machine: e.target.value as AutodialCampaignDraft['amd']['on_machine'],
+                    on_machine: e.target
+                      .value as AutodialCampaignDraft["amd"]["on_machine"],
                   },
                 })
               }
               className={cls.narrowInput}
             >
-              <option value="hangup">{t('autodial.amd.hangup')}</option>
-              <option value="continue">{t('autodial.amd.continue')}</option>
-              <option value="voicemail">{t('autodial.amd.voicemail')}</option>
+              <option value="hangup">{t("autodial.amd.hangup")}</option>
+              <option value="continue">{t("autodial.amd.continue")}</option>
+              <option value="voicemail" disabled>
+                {t("autodial.amd.voicemailUnavailable")}
+              </option>
             </Select>
           </VStack>
         </HStack>
-        <Text className={cls.hint}>{t('autodial.amd.hint')}</Text>
       </VStack>
     </VStack>
   );
 });
 
-CampaignPacingTab.displayName = 'CampaignPacingTab';
+CampaignPacingTab.displayName = "CampaignPacingTab";

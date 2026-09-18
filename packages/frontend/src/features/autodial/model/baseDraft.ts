@@ -4,6 +4,7 @@ import type {
   AutodialPhoneNormalization,
   IAutodialBase,
   IAutodialBaseField,
+  CreateAutodialBaseInput,
 } from '@krasterisk/shared';
 
 export type AutodialFieldDraft = Pick<
@@ -12,6 +13,7 @@ export type AutodialFieldDraft = Pick<
 > & { uid?: number; enum_values?: string[] | null };
 
 export interface AutodialBaseDraft {
+  revision?: number;
   name: string;
   description: string;
   dedup_policy: AutodialDedupPolicy;
@@ -67,6 +69,7 @@ export function emptyBaseDraft(): AutodialBaseDraft {
 
 export function baseToDraft(base: IAutodialBase): AutodialBaseDraft {
   return {
+    revision: base.revision,
     name: base.name,
     description: base.description ?? '',
     dedup_policy: base.dedup_policy,
@@ -131,8 +134,9 @@ export function hasBaseErrors(errors: BaseDraftErrors): boolean {
   return Object.keys(errors).length > 0;
 }
 
-export function baseDraftToPayload(draft: AutodialBaseDraft): Record<string, unknown> {
+export function baseDraftToPayload(draft: AutodialBaseDraft): CreateAutodialBaseInput & { revision?: number } {
   return {
+    ...(draft.revision !== undefined ? { revision: draft.revision } : {}),
     name: draft.name.trim(),
     description: draft.description.trim(),
     dedup_policy: draft.dedup_policy,

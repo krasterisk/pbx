@@ -1,0 +1,10 @@
+[Sep 17 16:31:35] WARNING[45113] res_odbc.c: SQL Execute returned an error: HY000: [MySQL][ODBC 8.4(a) Driver][mysqld-8.0.46-0ubuntu0.24.04.4]Column 'usrc' cannot be null
+[Sep 17 16:31:35] WARNING[45113] res_odbc.c: SQL Execute error -1!
+[Sep 17 18:30:01] WARNING[45113] res_odbc.c: SQL Execute returned an error: HY000: [MySQL][ODBC 8.4(a) Driver][mysqld-8.0.46-0ubuntu0.24.04.4]Column 'usrc' cannot be null
+[Sep 17 18:30:01] WARNING[45113] res_odbc.c: SQL Execute error -1!
+[Sep 17 18:30:01] WARNING[45113] res_odbc.c: SQL Execute returned an error: HY000: [MySQL][ODBC 8.4(a) Driver][mysqld-8.0.46-0ubuntu0.24.04.4]Column 'usrc' cannot be null
+[Sep 17 18:30:01] WARNING[45113] res_odbc.c: SQL Execute error -1!
+[Sep 17 18:36:50] WARNING[45113] res_odbc.c: SQL Execute returned an error: HY000: [MySQL][ODBC 8.4(a) Driver][mysqld-8.0.46-0ubuntu0.24.04.4]Column 'usrc' cannot be null
+[Sep 17 18:36:50] WARNING[45113] res_odbc.c: SQL Execute error -1!
+[Sep 17 18:36:50] WARNING[45113] res_odbc.c: SQL Execute returned an error: HY000: [MySQL][ODBC 8.4(a) Driver][mysqld-8.0.46-0ubuntu0.24.04.4]Column 'usrc' cannot be null
+[Sep 17 18:36:50] WARNING[45113] res_odbc.c: SQL Execute error -1!

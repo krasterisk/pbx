@@ -52,7 +52,7 @@ export class McpController {
     @UseGuards(JwtAuthGuard)
     @Get('sessions')
     getSessions(@Req() req: Request & { user: any }) {
-        const sessions = this.sessionService.getActiveSessions();
+        const sessions = this.sessionService.getActiveSessions(req.user.vpbx_user_uid, req.user.sub);
         return { count: sessions.length, sessions };
     }
 }

@@ -10,7 +10,6 @@ import {
   parseMutationArgs,
   stripTenantAliasesDeep,
   type AiMutationContext,
-  type AiMutationContract,
 } from '../ai-platform/ai-mutation.contract';
 import { AgentProposal } from './models/agent-proposal.model';
 import {
@@ -42,6 +41,8 @@ interface StoredPayload {
   tool?: string;
   args?: Record<string, unknown>;
   schemaVersion?: string;
+  // Server-owned checkpoint. Never accepted from a proposal or exposed in its view.
+  execution?: { writeCompleted: true; reloadContextUid: number | null };
 }
 
 /**
@@ -79,7 +80,10 @@ export class PbxAgentDiffService {
       summary: dto.summary,
       before_json: dto.before ?? null,
       after_json: dto.after ?? null,
-      apply_payload: dto.applyPayload,
+      apply_payload: {
+        tool: dto.applyPayload.tool, args: dto.applyPayload.args,
+        schemaVersion: dto.applyPayload.schemaVersion,
+      },
       includes_dialplan_reload: dto.includesDialplanReload,
       status: 'pending',
       error: null,
@@ -158,14 +162,17 @@ export class PbxAgentDiffService {
       await this.writeApplyAudit(ctx, this.toolNameOf(owned), owned.apply_payload, result, 'error', startedAt);
       return result;
     }
-    const row = owned;
-    const payload = (row.apply_payload ?? {}) as StoredPayload;
+    let row = owned;
+    let payload = (row.apply_payload ?? {}) as StoredPayload;
     if (new Date(row.expires_at).getTime() <= Date.now()) {
       return this.refuse(row, ctx, 'expired', startedAt, 'error');
     }
 
     if (!this.canMutate(ctx)) {
-      await row.update({ status: 'denied' });
+      await this.proposalModel.update({ status: 'denied' }, {
+        where: { proposal_id: proposalId, vpbx_user_uid: ctx.vpbxUserUid,
+          user_uid: ctx.userUid, status: 'pending', applied_at: null },
+      });
       const result = { ok: false, reason: 'denied', proposal: toProposalView(row) };
       await this.writeApplyAudit(ctx, this.toolNameOf(row), payload, result, 'denied', startedAt);
       return result;
@@ -206,12 +213,9 @@ export class PbxAgentDiffService {
       }
     }
 
-    // Single-winner claim. A second confirmation of the same card finds the row
-    // already claimed — if the winner finished, treat as idempotent success.
-    // If a prior attempt left a stuck claim (pending + applied_at), release and retry once.
-    let claimed = 0;
-    for (let attempt = 0; attempt < 2; attempt += 1) {
-      const [count] = await this.proposalModel.update(
+    // Never steal a claim: a timeout cannot prove that a domain write did not run.
+    // A crashed/ambiguous write requires reconciliation by an operator.
+    const [claimed] = await this.proposalModel.update(
         { applied_at: new Date() },
         {
           where: {
@@ -223,21 +227,12 @@ export class PbxAgentDiffService {
           },
         },
       );
-      claimed = count;
-      if (claimed) break;
-
+    if (!claimed) {
       const again = await this.findOwned(proposalId, ctx);
       if (again?.status === 'applied') {
         return { ok: true, proposal: toProposalView(again) };
       }
-      if (again?.status === 'pending' && again.applied_at && attempt === 0) {
-        this.logger.warn(
-          `releasing stuck claim proposal=${proposalId} priorError=${again.error ?? '(none)'}`,
-        );
-        await this.releaseClaim(again);
-        continue;
-      }
-      const reason = again?.error?.trim() || 'not_pending';
+      const reason = again?.applied_at ? 'in_progress_or_reconciliation_required' : 'not_pending';
       const result = {
         ok: false,
         reason,
@@ -247,10 +242,13 @@ export class PbxAgentDiffService {
       await this.writeApplyAudit(ctx, this.toolNameOf(row), payload, result, 'error', startedAt);
       return result;
     }
-    if (!claimed) {
-      const result = { ok: false, reason: 'not_pending' };
-      await this.writeApplyAudit(ctx, this.toolNameOf(row), payload, result, 'error', startedAt);
-      return result;
+
+    // Re-read after claiming: an earlier owner may have saved its checkpoint and
+    // released the reload lock after our initial read.
+    row = (await this.findOwned(proposalId, ctx))!;
+    payload = row.apply_payload as StoredPayload;
+    if (payload.execution?.writeCompleted) {
+      return this.finishReload(row, payload.execution.reloadContextUid, ctx, startedAt);
     }
 
     const mutationCtx = this.mutationContext(ctx);
@@ -268,36 +266,66 @@ export class PbxAgentDiffService {
     }
 
     this.logger.log(`apply ${payload.tool} tenant=${ctx.vpbxUserUid}`);
+    // Resolve the reload target before performing any writes.
+    let reloadContextUid: number | null;
+    try {
+      reloadContextUid = mutation.reload.kind === 'dialplan-context'
+        ? mutation.reload.contextUid(revalidated) : null;
+    } catch (err: any) {
+      await this.releaseClaim(row);
+      return this.refuse(row, ctx, err?.message ?? String(err), startedAt, 'error');
+    }
     try {
       await mutation.apply(revalidated, mutationCtx);
     } catch (err: any) {
-      await this.releaseClaim(row);
+      // apply may have committed before throwing. Keep the claim until reconciled.
       await row.update({ error: err?.message ?? String(err) });
       const result = { ok: false, reason: 'write_failed', error: err?.message ?? String(err) };
       await this.writeApplyAudit(ctx, this.toolNameOf(row), payload, result, 'error', startedAt);
       return result;
     }
 
-    const reloadFailure = await this.reloadDialplan(mutation, revalidated, ctx);
+    await row.update({ apply_payload: {
+      ...payload, execution: { writeCompleted: true, reloadContextUid },
+    } });
+    return this.finishReload(row, reloadContextUid, ctx, startedAt);
+  }
+
+  private async finishReload(
+    row: AgentProposal, contextUid: number | null, ctx: ProposalContext, startedAt: number,
+  ): Promise<ProposalActionResult> {
+    const reloadFailure = await this.reloadDialplan(contextUid, ctx);
     if (reloadFailure) {
       await row.update({ error: reloadFailure });
+      // A durable checkpoint now makes a retry safe: only reload can run again.
+      await this.releaseClaim(row);
       const result = { ok: false, reason: 'switch_failed', error: reloadFailure };
-      await this.writeApplyAudit(ctx, this.toolNameOf(row), payload, result, 'error', startedAt);
+      await this.writeApplyAudit(ctx, this.toolNameOf(row), row.apply_payload, result, 'error', startedAt);
       return result;
     }
 
     await row.update({ status: 'applied', applied_at: new Date(), error: null });
     const result = { ok: true, proposal: toProposalView(row) };
-    await this.writeApplyAudit(ctx, this.toolNameOf(row), payload, result, 'ok', startedAt);
+    await this.writeApplyAudit(ctx, this.toolNameOf(row), row.apply_payload, result, 'ok', startedAt);
     return result;
   }
 
   async reject(proposalId: string, ctx: ProposalContext): Promise<ProposalActionResult> {
-    const row = await this.findOwnedPending(proposalId, ctx);
-    if (!row) {
+    let row = await this.findOwnedPending(proposalId, ctx);
+    if (!row || (row.apply_payload as StoredPayload).execution?.writeCompleted) {
       return { ok: false, reason: 'not_pending' };
     }
-    await row.update({ status: 'rejected' });
+    const [rejected] = await this.proposalModel.update({ applied_at: new Date() }, {
+      where: { proposal_id: proposalId, vpbx_user_uid: ctx.vpbxUserUid,
+        user_uid: ctx.userUid, status: 'pending', applied_at: null },
+    });
+    if (!rejected) return { ok: false, reason: 'in_progress_or_reconciliation_required' };
+    row = (await this.findOwned(proposalId, ctx))!;
+    if ((row.apply_payload as StoredPayload).execution?.writeCompleted) {
+      await this.releaseClaim(row);
+      return { ok: false, reason: 'reload_required', proposal: toProposalView(row) };
+    }
+    await row.update({ status: 'rejected', applied_at: null });
     return { ok: true, proposal: toProposalView(row) };
   }
 
@@ -306,13 +334,11 @@ export class PbxAgentDiffService {
    * never from a flag the model could have supplied.
    */
   private async reloadDialplan(
-    mutation: AiMutationContract,
-    args: unknown,
+    contextUid: number | null,
     ctx: ProposalContext,
   ): Promise<string | null> {
-    if (mutation.reload.kind !== 'dialplan-context') return null;
+    if (contextUid === null) return null;
     try {
-      const contextUid = mutation.reload.contextUid(args);
       await this.routeApplyService.applyContext(
         contextUid,
         ctx.vpbxUserUid,

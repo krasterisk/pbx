@@ -62,7 +62,7 @@ function renderTab(data: ConferenceMeeting[] | undefined, roomUid = 77) {
     data,
     isFetching: false,
     isLoading: false,
-  } as ReturnType<typeof useGetConferenceMeetingsQuery>);
+  } as unknown as ReturnType<typeof useGetConferenceMeetingsQuery>);
   return render(<ConferenceHistoryTab roomUid={roomUid} />);
 }
 

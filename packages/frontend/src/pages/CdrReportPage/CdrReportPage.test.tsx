@@ -165,7 +165,7 @@ describe('CdrReportPage voicemail tab (D-58)', () => {
         created_at: '2026-09-03T10:00:00Z',
       }],
       isLoading: false,
-    } as ReturnType<typeof useGetVoicemailMessagesQuery>);
+    } as unknown as ReturnType<typeof useGetVoicemailMessagesQuery>);
     setCurrentSearch('voicemail=1');
     render(<CdrReportPage />);
 
@@ -202,7 +202,7 @@ describe('CdrReportPage voicemail tab (D-58)', () => {
         created_at: '2026-09-03T10:00:00Z',
       }],
       isLoading: false,
-    } as ReturnType<typeof useGetVoicemailMessagesQuery>);
+    } as unknown as ReturnType<typeof useGetVoicemailMessagesQuery>);
     setCurrentSearch('voicemail=1');
     render(<CdrReportPage />);
 
@@ -226,7 +226,7 @@ describe('CdrReportPage conference journal join (16.2-03 D-33)', () => {
       },
       isLoading: false,
       isFetching: false,
-    } as ReturnType<typeof useGetCdrListQuery>);
+    } as unknown as ReturnType<typeof useGetCdrListQuery>);
     vi.mocked(useGetConferenceRecordingsByUniqueidQuery).mockReturnValue({
       data: [{
         uniqueid: '1693731234.12',
@@ -235,7 +235,7 @@ describe('CdrReportPage conference journal join (16.2-03 D-33)', () => {
         playPath: '/conferences/77/meetings/15/play',
       }],
       isLoading: false,
-    } as ReturnType<typeof useGetConferenceRecordingsByUniqueidQuery>);
+    } as unknown as ReturnType<typeof useGetConferenceRecordingsByUniqueidQuery>);
   });
 
   it('marks the journal row and opens ConferenceRecordingModal without a fourth tab', () => {

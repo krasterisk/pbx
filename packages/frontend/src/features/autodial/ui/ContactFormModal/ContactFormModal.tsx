@@ -22,7 +22,7 @@ import { useAppDispatch, useAppSelector } from '@/shared/hooks/useAppStore';
 import {
   useCreateAutodialContactMutation,
   useGetAutodialBaseQuery,
-  useGetAutodialContactsQuery,
+  useGetAutodialContactQuery,
   useUpdateAutodialContactMutation,
 } from '@/shared/api/endpoints/autodialApi';
 import {
@@ -31,8 +31,10 @@ import {
   selectAutodialSelectedContactUid,
 } from '../../model/slice/autodialPageSlice';
 import cls from './ContactFormModal.module.scss';
+import { autodialErrorKey } from '../../lib/mutationError';
 
 interface PhoneDraft {
+  uid?: number;
   raw: string;
   is_primary: boolean;
   tz_offset_min: number;
@@ -50,10 +52,9 @@ export const ContactFormModal = memo(({ baseUid }: ContactFormModalProps) => {
   const isOpen = useAppSelector(selectAutodialContactModalOpen);
   const contactUid = useAppSelector(selectAutodialSelectedContactUid);
 
-  const { data: base } = useGetAutodialBaseQuery(baseUid, { skip: !isOpen });
-  // Editing reuses the already-cached page rather than a per-contact request.
-  const { data: contactsPage } = useGetAutodialContactsQuery(
-    { baseUid },
+  const { currentData: base, isError: baseError, refetch: refetchBase } = useGetAutodialBaseQuery(baseUid, { skip: !isOpen });
+  const { currentData: existing, isError: contactError, refetch: refetchContact } = useGetAutodialContactQuery(
+    { baseUid, contactUid: contactUid ?? 0 },
     { skip: !isOpen || contactUid === null },
   );
   const [createContact, { isLoading: isCreating }] = useCreateAutodialContactMutation();
@@ -64,15 +65,21 @@ export const ContactFormModal = memo(({ baseUid }: ContactFormModalProps) => {
   const [externalId, setExternalId] = useState('');
   const [comment, setComment] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [hydratedKey, setHydratedKey] = useState<string | null>(null);
+  const sessionKey = `${baseUid}:${contactUid ?? 'new'}`;
+  const isSaving = isCreating || isUpdating;
+  const loadError = baseError || (contactUid !== null && contactError);
+  const isReady = Boolean(base) && hydratedKey === sessionKey && !loadError;
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) { setHydratedKey(null); return; }
+    if (hydratedKey === sessionKey || !base || (contactUid !== null && !existing)) return;
     setError(null);
-    const existing = contactsPage?.rows.find((row) => row.uid === contactUid);
     if (contactUid !== null && existing) {
       setValues(existing.values ?? {});
       setPhones(
         (existing.phones ?? []).map((p) => ({
+          uid: p.uid,
           raw: p.raw || p.normalized,
           is_primary: p.is_primary,
           tz_offset_min: p.tz_offset_min,
@@ -81,17 +88,18 @@ export const ContactFormModal = memo(({ baseUid }: ContactFormModalProps) => {
       setExternalId(existing.external_id ?? '');
       setComment(existing.comment ?? '');
     } else {
-      setValues({});
+      setValues(Object.fromEntries(base.fields.filter((field) => field.type === 'boolean').map((field) => [field.key, false])));
       setPhones([{ raw: '', is_primary: true, tz_offset_min: 0 }]);
       setExternalId('');
       setComment('');
     }
-  }, [isOpen, contactUid, contactsPage]);
+    setHydratedKey(sessionKey);
+  }, [isOpen, contactUid, existing, base, sessionKey, hydratedKey]);
 
   const fields = (base?.fields ?? [])
     .slice()
     .sort((a, b) => a.position - b.position)
-    .filter((field) => !field.is_phone);
+    .filter((field) => !field.is_phone && field.type !== 'phone');
 
   const close = () => dispatch(autodialPageActions.closeContactModal());
 
@@ -102,6 +110,7 @@ export const ContactFormModal = memo(({ baseUid }: ContactFormModalProps) => {
     setPhones(phones.map((p, i) => ({ ...p, is_primary: i === index })));
 
   const onSave = async () => {
+    if (!isReady || isSaving) return;
     const cleanPhones = phones
       .filter((p) => p.raw.trim())
       .map((p) => ({ ...p, raw: p.raw.trim() }));
@@ -113,7 +122,7 @@ export const ContactFormModal = memo(({ baseUid }: ContactFormModalProps) => {
 
     const missing = (base?.fields ?? []).find(
       (field: IAutodialBaseField) =>
-        field.required && !field.is_phone && !String(values[field.key] ?? '').trim(),
+        field.required && !field.is_phone && field.type !== 'phone' && !String(values[field.key] ?? '').trim(),
     );
     if (missing) {
       setError(t('autodial.contacts.fieldRequired', { field: missing.label || missing.key }));
@@ -123,23 +132,23 @@ export const ContactFormModal = memo(({ baseUid }: ContactFormModalProps) => {
     const data = {
       values,
       phones: cleanPhones,
-      external_id: externalId.trim() || undefined,
-      comment: comment.trim() || undefined,
+      external_id: externalId.trim() || null,
+      comment: comment.trim(),
     };
     try {
       if (contactUid !== null) {
-        await updateContact({ baseUid, contactUid, data: data as never }).unwrap();
+        await updateContact({ baseUid, contactUid, data }).unwrap();
       } else {
-        await createContact({ baseUid, data: data as never }).unwrap();
+        await createContact({ baseUid, data }).unwrap();
       }
       close();
-    } catch {
-      setError(t('autodial.contacts.saveFailed'));
+    } catch (error) {
+      setError(t(autodialErrorKey(error, 'autodial.contacts.saveFailed')));
     }
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && close()}>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && !isSaving && close()}>
       <DialogContent size="large" className={cls.dialog} data-testid="autodial-contact-form-modal">
         <DialogHeader className={cls.header}>
           <DialogTitle>
@@ -157,7 +166,15 @@ export const ContactFormModal = memo(({ baseUid }: ContactFormModalProps) => {
           data-viewport="360,768,1440"
           data-overflow="y"
         >
-          <VStack gap="8" max>
+          {loadError ? (
+            <VStack gap="8" max>
+              <Text role="alert">{t('autodial.common.loadFailed')}</Text>
+              <Button onClick={() => { void refetchBase(); if (contactUid !== null) void refetchContact(); }}>
+                {t('autodial.common.retry')}
+              </Button>
+            </VStack>
+          ) : !isReady ? <Loader2 aria-label={t('common.loading')} /> : null}
+          <VStack gap="8" max inert={!isReady || isSaving}>
             <Text className={cls.sectionTitle}>{t('autodial.contacts.phones')}</Text>
             {phones.map((phone, index) => (
               <HStack key={index} gap="8" align="end" max wrap="wrap" className={cls.phoneRow}>
@@ -223,7 +240,7 @@ export const ContactFormModal = memo(({ baseUid }: ContactFormModalProps) => {
             <Text className={cls.hint}>{t('autodial.contacts.tzHint')}</Text>
           </VStack>
 
-          <VStack gap="8" max>
+          <VStack gap="8" max inert={!isReady || isSaving}>
             <Text className={cls.sectionTitle}>{t('autodial.contacts.fieldsSection')}</Text>
             <div className={cls.grid}>
               {fields.map((field) => (
@@ -276,7 +293,7 @@ export const ContactFormModal = memo(({ baseUid }: ContactFormModalProps) => {
                           ...values,
                           [field.key]:
                             field.type === 'number' || field.type === 'money'
-                              ? Number(e.target.value)
+                              ? (e.target.value === '' ? '' : Number(e.target.value))
                               : e.target.value,
                         })
                       }
@@ -312,10 +329,10 @@ export const ContactFormModal = memo(({ baseUid }: ContactFormModalProps) => {
           <VStack gap="8" max align="end">
             {error && <Text className={cls.error}>{error}</Text>}
             <HStack gap="8" justify="end" max wrap="wrap" className={cls.footerActions}>
-              <Button variant="outline" onClick={close}>
+              <Button variant="outline" disabled={isSaving} onClick={close}>
                 {t('common.cancel')}
               </Button>
-              <Button disabled={isCreating || isUpdating} onClick={() => void onSave()}>
+              <Button disabled={isSaving || !isReady} onClick={() => void onSave()}>
                 {isCreating || isUpdating ? <Loader2 size={16} className={cls.spinner} /> : null}
                 {t('common.save')}
               </Button>

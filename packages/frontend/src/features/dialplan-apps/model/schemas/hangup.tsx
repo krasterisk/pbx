@@ -1,6 +1,6 @@
 import type { FieldSchema } from '../schema.types';
 
-type TFn = (key: string, fallback?: string) => string;
+type TFn = (...args: [key: string] | [key: string, fallback: string]) => string;
 
 export function buildHangupSchema(t: TFn): FieldSchema[] {
   return [

@@ -18,7 +18,7 @@ export interface HarnessMysqlEnv extends HarnessMysqlConnection {
   DB_HOST: string;
   DB_PORT: string;
   DB_USER: string;
-  DB_PASS: string;
+  DB_PASSWORD: string;
   DB_NAME: string;
 }
 
@@ -34,7 +34,7 @@ function toEnv(conn: HarnessMysqlConnection): HarnessMysqlEnv {
     DB_HOST: conn.host,
     DB_PORT: String(conn.port),
     DB_USER: conn.user,
-    DB_PASS: conn.password,
+    DB_PASSWORD: conn.password,
     DB_NAME: conn.database,
   };
 }
@@ -44,7 +44,7 @@ export function useExternalMysql(): HarnessMysqlEnv {
   const host = process.env.DB_HOST ?? '127.0.0.1';
   const port = Number(process.env.DB_PORT ?? '3306');
   const user = process.env.DB_USER ?? 'root';
-  const password = process.env.DB_PASS ?? ROOT_PASSWORD;
+  const password = process.env.DB_PASSWORD ?? ROOT_PASSWORD;
   const database = process.env.DB_NAME ?? DATABASE;
 
   return toEnv({ host, port, user, password, database });

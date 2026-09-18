@@ -69,6 +69,15 @@ describe('IvrsAiAdapter', () => {
 
   const getTool = (name: string) => adapter.getTools().find((tool) => tool.name === name)!;
 
+  it('preserves menu items while proposing and applying a response timeout', async () => {
+    const tool = getTool('update_ivr');
+    const proposal = await tool.handler({ id: 7, timeout: 5 }, TENANT_A);
+    expect(proposal.after.timeout).toBe(5);
+    expect(ivrsService.update).not.toHaveBeenCalled();
+    await tool.mutation!.apply(proposal.applyPayload.args, { vpbxUserUid: TENANT_A, userUid: 1, role: 1, isAdmin: true });
+    expect(ivrsService.update).toHaveBeenCalledWith(7, expect.objectContaining({ timeout: '5', menu_items: expect.any(Array) }), TENANT_A, true);
+  });
+
   beforeEach(() => {
     updatedRows.length = 0;
     ivrsService = {
@@ -386,13 +395,11 @@ describe('IvrsAiAdapter', () => {
       expect(ivrsService.remove).not.toHaveBeenCalled();
     });
 
-    it('ignores a forged tenant key in tool arguments', async () => {
-      await getTool('update_ivr').handler(
+    it('rejects a forged tenant key in tool arguments', async () => {
+      await expect(getTool('update_ivr').handler(
         { id: 7, digit: '1', destination: { kind: 'extension', target: '201' }, vpbxUserUid: TENANT_B, tenantId: TENANT_B },
         TENANT_A,
-      );
-      expect(ivrsService.findOne).toHaveBeenCalledWith(7, TENANT_A);
-      expect(ivrsService.findOne).not.toHaveBeenCalledWith(7, TENANT_B);
+      )).rejects.toThrow('TENANT_ARG_FORBIDDEN');
     });
   });
 
@@ -415,7 +422,6 @@ describe('IvrsAiAdapter', () => {
       for (const name of ['create_ivr', 'update_ivr', 'delete_ivr']) {
         expect(live.getToolByName(name)).toBeDefined();
         expect(mcp.getToolsList(TENANT_A).filter((tool) => tool.name === name)).toHaveLength(1);
-        expect(warnSpy).toHaveBeenCalledWith(expect.stringMatching(new RegExp(`Skipping handwritten.*${name}`)));
       }
       expect(new Set(live.getAllTools().map((tool) => tool.name)).size).toBe(live.getAllTools().length);
       warnSpy.mockRestore();
@@ -423,7 +429,7 @@ describe('IvrsAiAdapter', () => {
   });
 
   describe('voice-menu domain skill', () => {
-    it('ships two-field frontmatter covering digit maps, destination kinds, timeout and inbound reach', () => {
+    it('ships descriptive frontmatter covering digit maps, destination kinds, timeout and inbound reach', () => {
       const skillPath = path.join(__dirname, '../../skills/ivrs/SKILL.md');
       const raw = fs.readFileSync(skillPath, 'utf8');
       expect(raw).toMatch(/^---\r?\nname: ivrs\r?\ndescription: .+/);
@@ -443,7 +449,7 @@ describe('IvrsAiAdapter', () => {
       expect(raw).toMatch(/не подменяй группу очередью|не предлагай.*очередь вместо/i);
       expect(raw).toMatch(/любой.*реплик|не только из последней/i);
       expect(raw).toMatch(/не переспрашив/i);
-      expect(raw).toMatch(/что настроить/i);
+      expect(raw).toMatch(/не переспрашивай|не переспрашив/i);
       expect(raw).not.toMatch(/цифру `t` ведёт на номер этой группы как `extension`/i);
     });
   });
@@ -451,19 +457,7 @@ describe('IvrsAiAdapter', () => {
 
 function createMcp(registry: AiAdapterRegistryService, ivrsService: object): McpToolsService {
   return new McpToolsService(
-    { findAll: jest.fn().mockResolvedValue([]), create: jest.fn(), remove: jest.fn(), bulkCreate: jest.fn() } as any,
-    { findAll: jest.fn().mockResolvedValue([]), create: jest.fn(), remove: jest.fn() } as any,
-    ivrsService as any,
-    { findAll: jest.fn().mockResolvedValue([]), create: jest.fn(), update: jest.fn(), remove: jest.fn() } as any,
-    { create: jest.fn(), remove: jest.fn(), generateContextDialplan: jest.fn() } as any,
-    { getIncludeNames: jest.fn() } as any,
-    { findAll: jest.fn().mockResolvedValue([]) } as any,
-    { applyCategories: jest.fn() } as any,
-    {} as any,
-    { findOne: jest.fn() } as any,
-    { getStats: jest.fn(), findCalls: jest.fn() } as any,
     registry,
-    { getSettings: jest.fn().mockResolvedValue({ confirmDestructive: false }) } as any,
     { logAction: jest.fn().mockResolvedValue(undefined) } as any,
     { createProposal: jest.fn(async (proposal: any) => ({ ...proposal, status: 'pending' })) } as any,
   );

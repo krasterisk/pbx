@@ -63,7 +63,7 @@ describe('ConferenceRecordingModal (16.2-03 D-33 / D-30)', () => {
       ],
       isFetching: false,
       isLoading: false,
-    } as ReturnType<typeof useGetConferenceRecordingsByUniqueidQuery>);
+    } as unknown as ReturnType<typeof useGetConferenceRecordingsByUniqueidQuery>);
   });
 
   it('plays the JWT conference WAV URL and never the CDR MP3 path', () => {

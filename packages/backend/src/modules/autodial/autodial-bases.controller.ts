@@ -19,6 +19,7 @@ import { ModuleAccessGuard } from '../cloud-admin/module-access.guard';
 import { RequiresModule } from '../cloud-admin/requires-module.decorator';
 import { AutodialBasesService } from './autodial-bases.service';
 import { AutodialImportService } from './autodial-import.service';
+import { AutodialImportUploadDto } from './dto/autodial-import.dto';
 import {
   CreateAutodialBaseDto,
   CreateAutodialContactDto,
@@ -27,19 +28,6 @@ import {
 } from './dto/autodial-base.dto';
 
 type AuthedRequest = Request & { user: { vpbx_user_uid: number; sub?: number } };
-
-/** Uploads arrive as base64 so the module needs no multipart dependency. */
-interface ImportUploadBody {
-  filename?: string;
-  source?: 'csv' | 'xlsx';
-  content_base64: string;
-  profile_uid?: number;
-  column_map?: IAutodialColumnMap[];
-  delimiter?: string;
-  has_header?: boolean;
-  dedup_policy?: AutodialDedupPolicy;
-  replace?: boolean;
-}
 
 const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
 
@@ -108,6 +96,15 @@ export class AutodialBasesController {
     return this.basesService.createContact(req.user.vpbx_user_uid, baseUid, body);
   }
 
+  @Get(':base_uid/contacts/:contact_uid')
+  findContact(
+    @Req() req: AuthedRequest,
+    @Param('base_uid', ParseIntPipe) baseUid: number,
+    @Param('contact_uid', ParseIntPipe) contactUid: number,
+  ) {
+    return this.basesService.findContact(req.user.vpbx_user_uid, baseUid, contactUid);
+  }
+
   @Put(':base_uid/contacts/:contact_uid')
   updateContact(
     @Req() req: AuthedRequest,
@@ -169,20 +166,21 @@ export class AutodialBasesController {
   async importPreview(
     @Req() req: AuthedRequest,
     @Param('base_uid', ParseIntPipe) baseUid: number,
-    @Body() body: ImportUploadBody,
+    @Body() body: AutodialImportUploadDto,
   ) {
-    await this.basesService.findOne(req.user.vpbx_user_uid, baseUid);
+    const base = await this.basesService.findOne(req.user.vpbx_user_uid, baseUid);
     const buffer = this.decodeUpload(body.content_base64);
-    return body.source === 'xlsx'
-      ? this.importService.previewXlsx(buffer)
-      : this.importService.previewCsv(buffer);
+    const preview = body.source === 'xlsx'
+      ? await this.importService.previewXlsx(buffer, body)
+      : await this.importService.previewCsv(buffer, body);
+    return { ...preview, base_revision: base.revision };
   }
 
   @Post(':base_uid/import')
   importFile(
     @Req() req: AuthedRequest,
     @Param('base_uid', ParseIntPipe) baseUid: number,
-    @Body() body: ImportUploadBody,
+    @Body() body: AutodialImportUploadDto,
   ) {
     const buffer = this.decodeUpload(body.content_base64);
     return this.importService.importFile(req.user.vpbx_user_uid, baseUid, {
@@ -195,6 +193,7 @@ export class AutodialBasesController {
       has_header: body.has_header,
       dedup_policy: body.dedup_policy,
       replace: body.replace,
+      expected_revision: body.expected_revision,
     });
   }
 

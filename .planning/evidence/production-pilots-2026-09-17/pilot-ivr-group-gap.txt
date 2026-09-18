@@ -1,0 +1,14 @@
+[Sep 17 18:54:17] VERBOSE[246250][C-000000f2] pbx.c: Executing [start@ivr_23:2] Answer("Local/700@ctx-356-00000066;2", "") in new stack
+[Sep 17 18:54:17] VERBOSE[246250][C-000000f2] pbx.c: Executing [start@ivr_23:3] Set("Local/700@ctx-356-00000066;2", "CDR(vpbx_user_uid)=356") in new stack
+[Sep 17 18:54:17] VERBOSE[246250][C-000000f2] pbx.c: Executing [start@ivr_23:4] Set("Local/700@ctx-356-00000066;2", "TIMEOUT(digit)=5") in new stack
+[Sep 17 18:54:17] VERBOSE[246250][C-000000f2] func_timeout.c: Digit timeout set to 5.000
+[Sep 17 18:54:17] VERBOSE[246250][C-000000f2] pbx.c: Executing [start@ivr_23:5] Set("Local/700@ctx-356-00000066;2", "TIMEOUT(response)=5") in new stack
+[Sep 17 18:54:17] VERBOSE[246250][C-000000f2] func_timeout.c: Response timeout set to 5.000
+[Sep 17 18:54:17] VERBOSE[246250][C-000000f2] pbx.c: Executing [start@ivr_23:6] WaitExten("Local/700@ctx-356-00000066;2", "5") in new stack
+[Sep 17 18:54:22] VERBOSE[246250][C-000000f2] pbx_builtins.c: Timeout on Local/700@ctx-356-00000066;2, going to 't'
+[Sep 17 18:54:22] VERBOSE[246250][C-000000f2] pbx.c: Executing [t@ivr_23:1] NoOp("Local/700@ctx-356-00000066;2", "IVR choice: t") in new stack
+[Sep 17 18:54:22] VERBOSE[246250][C-000000f2] pbx.c: Executing [t@ivr_23:2] Gosub("Local/700@ctx-356-00000066;2", "group_16_356,start,1") in new stack
+[Sep 17 18:54:22] ERROR[246250][C-000000f2] app_stack.c: Gosub attempted to reach non-existent destination 'group_16_356,start,1' from 'ivr_23,t,2'
+[Sep 17 18:54:22] VERBOSE[246250][C-000000f2] pbx.c: Spawn extension (ivr_23, t, 2) exited non-zero on 'Local/700@ctx-356-00000066;2'
+There is no existence of 'group_16_356' context
+Command 'dialplan show group_16_356' failed.

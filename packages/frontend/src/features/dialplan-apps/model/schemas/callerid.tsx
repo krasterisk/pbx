@@ -3,7 +3,7 @@ import type { CallValueSource, DirectoryValueSource } from '@krasterisk/shared';
 import type { FieldSchema } from '../schema.types';
 import { SchemaDirectoryLookupField } from '../../ui/DirectoryLookupField/DirectoryLookupField';
 
-type TFn = (key: string, fallback?: string) => string;
+type TFn = (...args: [key: string] | [key: string, fallback: string]) => string;
 
 function asDirectoryValue(params: Record<string, unknown>): DirectoryValueSource | undefined {
   const directoryUid = Number(params.directoryUid);

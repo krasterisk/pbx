@@ -295,7 +295,7 @@ describe('AiChatController', () => {
 
     await controller.continueThread(7, req, res as any);
     expect(loop.runTurn).toHaveBeenCalledWith(
-      expect.stringContaining('Карточка применена'),
+      expect.stringMatching(/Карточка (уже )?применена/),
       { uid: 7 },
       expect.objectContaining({ tenantUid: 42, authorUid: 7 }),
     );

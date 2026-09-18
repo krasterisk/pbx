@@ -47,6 +47,7 @@ import {
   autodialStatusTone,
 } from '../../lib/labels';
 import { StartCampaignDialog } from '../StartCampaignDialog/StartCampaignDialog';
+import { autodialErrorKey } from '../../lib/mutationError';
 import cls from './CampaignsTable.module.scss';
 
 export const CampaignsTable = memo(() => {
@@ -61,6 +62,7 @@ export const CampaignsTable = memo(() => {
   const [query, setQuery] = useState('');
   const [pendingDelete, setPendingDelete] = useState<AutodialCampaignWithSchedules | null>(null);
   const [pendingStart, setPendingStart] = useState<AutodialCampaignWithSchedules | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const campaigns = data ?? [];
   const baseNames = useMemo(
@@ -80,9 +82,12 @@ export const CampaignsTable = memo(() => {
 
   const onAction = useCallback(
     (uid: number, action: 'pause' | 'resume' | 'stop') => {
-      void setState({ uid, action });
+      setActionError(null);
+      void setState({ uid, action }).unwrap().catch((error: unknown) => {
+        setActionError(t(autodialErrorKey(error, 'autodial.campaigns.stateFailed')));
+      });
     },
-    [setState],
+    [setState, t],
   );
 
   const toolbar = (
@@ -141,6 +146,7 @@ export const CampaignsTable = memo(() => {
       <Card className={cls.card}>
         <CardHeader>{toolbar}</CardHeader>
         <CardContent className={cls.cardContent}>
+          {actionError && <Text role="alert">{actionError}</Text>}
           {filtered.length === 0 ? (
             <VStack gap="12" align="center" className={cls.empty}>
               <Text>{t('autodial.campaigns.empty')}</Text>
@@ -267,7 +273,7 @@ export const CampaignsTable = memo(() => {
                         aria-valuemax={100}
                         aria-label={t('autodial.campaigns.progress')}
                       >
-                        <Flex className={cls.progressFill} style={{ width: `${progress}%` }} />
+                        <Flex className={cls.progressFill} style={{ width: `${progress}%` }}>{null}</Flex>
                       </Flex>
                       <HStack gap="16" wrap="wrap" className={cls.metrics}>
                         <Text as="span" className={cls.metric}>

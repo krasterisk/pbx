@@ -26,17 +26,30 @@
   color: var(--color-destructive);
 }
 
+.warning {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--color-warning);
+}
+
 .row {
   width: 100%;
   padding: 0.75rem;
   border: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent);
   border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--color-muted) 8%, transparent);
+
+  @media (max-width: 640px) {
+    align-items: stretch;
+  }
 }
 
 .rowGrid {
   display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 2fr) minmax(0, 1fr) minmax(
+      0,
+      1fr
+    ) auto;
   gap: 0.75rem;
   align-items: end;
   width: 100%;
@@ -52,7 +65,10 @@
 
 .scheduleGrid {
   display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.4fr) auto;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr) minmax(
+      0,
+      1fr
+    ) minmax(0, 1.4fr) auto;
   gap: 0.75rem;
   align-items: end;
   width: 100%;
@@ -68,6 +84,11 @@
 
 .narrowInput {
   max-width: 10rem;
+
+  @media (max-width: 640px) {
+    max-width: none;
+    width: 100%;
+  }
 }
 
 .sectionTitle {

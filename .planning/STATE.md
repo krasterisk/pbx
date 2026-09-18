@@ -1,39 +1,41 @@
 ---
 gsd_state_version: 1.0
 milestone: v1.0
-status: executing
-stopped_at: Completed 16-07-PLAN.md
-last_updated: "2026-09-16T02:46:00.000Z"
-state_head: fc56a98
-progress:
-  total_phases: 19
-  completed_phases: 5
-  total_plans: 173
-  completed_plans: 173
 milestone_name: milestone
-  current_phase: 16
-  current_phase_name: modul-telekonferentsiy-confbridge-webrtc
+status: executing
+stopped_at: Production readiness audit with three live tenant pilots
+last_updated: "2026-09-17"
+state_head: f166cebd
+current_phase: 15
+current_phase_name: universal-pbx-ai-agent
+progress:
+  total_phase_directories: 25
+  phases_with_plan_summaries: 18
+  total_plans: 193
+  completed_plans: 193
 ---
 
 # State
 
 ## Current position
 
-Phase 16 (modul-telekonferentsiy-confbridge-webrtc) — CORE PLANS COMPLETE (2026-09-16). 16-01…16-07 complete (3/3 tasks each). Next: `/gsd-verify-work 16`.
+Новый scope: три компании 10/50/150, безопасный AI/MCP, поддержка и tenant onboarding. См. [PRODUCTION-READINESS-2026-09-17.md](PRODUCTION-READINESS-2026-09-17.md) и [AI-CAPABILITY-AUDIT-2026-09-17.md](AI-CAPABILITY-AUDIT-2026-09-17.md). 210 абонентов созданы; полный набор модулей/нагрузка/медиа пока не приняты.
 
-Phase 16.1 (telekonferentsii-video-emkost-komnaty-gostevoy-vhod-i-prigla) — COMPLETE (2026-09-16). 16.1-01…16.1-06; verify passed 16/16. Next: обязательный `/gsd-secure-phase 16.1`. Advisory: `/gsd-code-review 16.1 --fix` (4 critical in 16.1-REVIEW.md). Then `/gsd-execute-phase 16.2`.
+Финальные живые блокеры: CDR insert failure и tenant-unscoped legacy trigger; отсутствующий deployed context группы IVR; малая модель не завершает маршруты к очереди/конференции. Hop counter исправлен, Local→IVR→timeout и Local→beep подтверждены, но сквозная приёмка PARTIAL. Последняя проверка backend: 2804 tests; frontend: 1370 tests; lint/build PASS. Следующий этап — P0 deployment/CDR, затем повторный end-to-end с SIP-клиентами.
 
-Phase 16.3 (telekonferentsii-frontend-zhivoy-komnaty-gostevaya-poverhnos) — UAT COMPLETE (2026-09-16). Execute 01–10; secure 23/23; verify 16/17 then live UAT 7/8 pass, Test 2 blocked (no staff WebRTC/mic). Create-room loop fixed during UAT. Next: optional `/gsd-code-review 16.3` / `/gsd-ui-review 16.3`.
+2026-09-17: stabilize review findings (AI confirmation concurrency/reload recovery, JWT configuration, reproducible CI schema, complete unit gates). See [REVIEW-REMEDIATION-2026-09-17.md](REVIEW-REMEDIATION-2026-09-17.md). Counts above are files on disk, not a claim that 193 live scenarios passed.
 
-Phase 16.2 (telekonferentsii-zapis-vstrech-i-otchetnost) — EXECUTED (2026-09-16). 16.2-01…16.2-04; verify 15/15, status `human_needed`. Next: `/gsd-verify-work 16.2`. Do not mark complete until UAT. Advisory: `/gsd-code-review 16.2 --fix`. Then `/gsd-secure-phase 16.2`.
+- Phase 15: 24/24 summaries, VERIFICATION passed 23/23, UAT complete, SECURITY verified; the new review P1 findings require separate remediation evidence.
+- Phase 16: 7/7 summaries; UAT 11/11 pass after earlier verification, security verified. Earlier decision-coverage gaps are not silently erased.
+- Phase 16.1: 6/6 summaries; verification passed 16/16, security verified 21/21.
+- Phase 16.2: 4/4 summaries; UAT 3/3 pass, security verified 10/10, live recording evidence exists.
+- Phase 16.3: 10/10 summaries; UAT 7/8 pass, staff WebRTC/microphone scenario still blocked. Security verified 23/23.
+- Phase 11: 8/8 summaries; 8 skipped live gates remain, despite UAT header complete.
+- Phases 9 and 10: implementation and UAT artifacts exist; roadmap Not planned/pending reminders were stale.
+- Phases 17/17.1–17.5: code exists, but no PLAN/SUMMARY artifacts in these directories; execution/acceptance coverage must be reconciled before completion is claimed.
+- Phase 12/13 deferred voice/notify checks remain deferred unless linked live evidence explicitly closes them.
 
-Phase 14 (visual-route-builder-and-automation) — COMPLETE (2026-09-04). 11/11 plans (incl. gap 14-11); verify 27/27; G-14-2 resolved.
-
-Phase 15 (universal-pbx-ai-agent) — EXECUTING (2026-09-04). 15-01…15-24 complete. 15-23: D-17 completeness suite over every `src/modules` directory plus D-16 convention in ARCHITECTURE and `developer-convention`. 15-24: platform-admin usage API and card (conversation-row spend, honest missing pricing, proposal funnel, silent-write detector); tenants do not choose or see the model. Next: обязательный `/gsd-secure-phase 15`.
-
-Phase 13 (custom-voicemail-instead-of-voicemail) — COMPLETE (2026-09-03). 13/13 plans, verify passed 19/19, security SECURED. Live greeting→Record→notify deferred.
-12-17 closed 2026-08-31: M1/M6/M7/M8/M9 approved; M4/M5/M12 deferred (live voice later). Call-group ALTERs already on prod.
-Migrations applied (2026-07-24): `cc_contacts` table + `cc_settings.journal_depth`. Live Asterisk A1/A3 checkpoint still deferred in WINDOWS.md.
+## Historical phase notes
 
 Also Phase 9 (complete, verify/UAT open):
 Plan 09-01 (schema/model foundation, wave 1): 3/3 tasks committed + migration applied to live DB.

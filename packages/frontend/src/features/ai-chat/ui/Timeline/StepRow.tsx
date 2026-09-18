@@ -17,7 +17,7 @@ export const StepRow = ({ item }: StepRowProps) => {
     const statusKey = item.done ? 'aiChat.timeline.stepDone' : 'aiChat.timeline.stepPending';
     const label = resolveAgentToolLabel(t, item);
     const detail = item.detailKey
-        ? t(item.detailKey, item.detailFallback)
+        ? t(item.detailKey, item.detailFallback ?? item.detailKey)
         : item.detailFallback;
     const hasDetail = Boolean(detail);
 

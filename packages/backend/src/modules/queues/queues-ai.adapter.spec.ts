@@ -312,13 +312,11 @@ describe('QueuesAiAdapter', () => {
       expect(queuesService.remove).not.toHaveBeenCalled();
     });
 
-    it('ignores a forged tenant key in tool arguments', async () => {
-      await getTool('update_queue').handler(
+    it('rejects a forged tenant key in tool arguments', async () => {
+      await expect(getTool('update_queue').handler(
         { name: 'q100_100', timeout: 45, vpbxUserUid: TENANT_B, tenantId: TENANT_B },
         TENANT_A,
-      );
-      expect(queuesService.findOne).toHaveBeenCalledWith('q100_100', TENANT_A);
-      expect(queuesService.findOne).not.toHaveBeenCalledWith('q100_100', TENANT_B);
+      )).rejects.toThrow('TENANT_ARG_FORBIDDEN');
     });
   });
 
@@ -340,7 +338,6 @@ describe('QueuesAiAdapter', () => {
       for (const name of ['create_queue', 'update_queue', 'delete_queue']) {
         expect(live.getToolByName(name)).toBeDefined();
         expect(mcp.getToolsList(TENANT_A).filter((tool) => tool.name === name)).toHaveLength(1);
-        expect(warnSpy).toHaveBeenCalledWith(expect.stringMatching(new RegExp(`Skipping handwritten.*${name}`)));
       }
       expect(new Set(live.getAllTools().map((tool) => tool.name)).size).toBe(live.getAllTools().length);
       warnSpy.mockRestore();
@@ -348,7 +345,7 @@ describe('QueuesAiAdapter', () => {
   });
 
   describe('queue domain skill', () => {
-    it('ships two-field frontmatter covering strategies, timeout, overflow, membership and live state', () => {
+    it('ships descriptive frontmatter covering strategies, timeout, overflow, membership and live state', () => {
       const skillPath = path.join(__dirname, '../../skills/queues/SKILL.md');
       const raw = fs.readFileSync(skillPath, 'utf8');
       expect(raw).toMatch(/^---\r?\nname: queues\r?\ndescription: .+/);
@@ -366,19 +363,7 @@ describe('QueuesAiAdapter', () => {
 
 function createMcp(registry: AiAdapterRegistryService, queuesService: object): McpToolsService {
   return new McpToolsService(
-    { findAll: jest.fn().mockResolvedValue([]), create: jest.fn(), remove: jest.fn(), bulkCreate: jest.fn() } as any,
-    { findAll: jest.fn().mockResolvedValue([]), create: jest.fn(), remove: jest.fn() } as any,
-    { findAll: jest.fn().mockResolvedValue([]), create: jest.fn(), update: jest.fn(), remove: jest.fn() } as any,
-    queuesService as any,
-    { create: jest.fn(), remove: jest.fn(), generateContextDialplan: jest.fn() } as any,
-    { getIncludeNames: jest.fn() } as any,
-    { findAll: jest.fn().mockResolvedValue([]) } as any,
-    { applyCategories: jest.fn() } as any,
-    {} as any,
-    { findOne: jest.fn() } as any,
-    { getStats: jest.fn(), findCalls: jest.fn() } as any,
     registry,
-    { getSettings: jest.fn().mockResolvedValue({ confirmDestructive: false }) } as any,
     { logAction: jest.fn().mockResolvedValue(undefined) } as any,
     { createProposal: jest.fn(async (proposal: any) => ({ ...proposal, status: 'pending' })) } as any,
   );

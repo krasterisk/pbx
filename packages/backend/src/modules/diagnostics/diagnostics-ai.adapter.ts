@@ -27,7 +27,13 @@ export class DiagnosticsAiAdapter implements DomainAiAdapter, OnModuleInit {
   }
 
   getTools(): AiToolDefinition[] {
-    return [this.toolLiveChannels(), this.toolRecentEvents(), this.toolCompiledDialplan()];
+    return [this.toolLiveChannels(), this.toolRecentEvents(), this.toolCompiledDialplan(), {
+      name: 'get_endpoint_registration',
+      description: 'Проверить регистрацию своего SIP-абонента в Asterisk по внутреннему номеру. Только состояния; без паролей и raw AuthDetail.',
+      inputSchema: { extension: { type: 'string', description: 'Внутренний номер, 2–8 цифр' } },
+      entityType: 'diagnostic_registration',
+      handler: async (args, uid) => this.diagnostics.readEndpointRegistration(uid, String(args.extension ?? '')),
+    }];
   }
 
   getStateProvider(): AiStateProvider {

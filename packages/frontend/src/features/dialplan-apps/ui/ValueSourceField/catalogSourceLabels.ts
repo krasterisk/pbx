@@ -1,6 +1,6 @@
 import type { OptionsSource } from '../../model/schema.types';
 
-type TFn = (key: string, fallback?: string) => string;
+type TFn = (...args: [key: string] | [key: string, fallback: string]) => string;
 
 export interface CatalogSourceLabels {
   dynamicGroup: string;

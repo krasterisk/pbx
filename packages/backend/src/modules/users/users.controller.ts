@@ -112,10 +112,11 @@ export class UsersController {
 
   @Post()
   async create(@Body() data: any, @Req() req: any) {
-    data.vpbx_user_uid = req.user.vpbx_user_uid;
-    const user = await this.usersService.create(data);
+    this.assertAdmin(req.user);
+    const safe = this.editableUserFields(data, true);
+    const user = await this.usersService.create({ ...safe, vpbx_user_uid: req.user.vpbx_user_uid } as any);
     await this.loggerService.logAction(req.user.sub, 'create', 'user', user.uniqueid, req.user.vpbx_user_uid);
-    return user;
+    return this.usersService.findById(user.uniqueid, req.user.vpbx_user_uid);
   }
 
   @Put(':id')
@@ -125,28 +126,39 @@ export class UsersController {
     if (!isAdmin && req.user.sub !== id) {
       throw new ForbiddenException('Cannot update another user');
     }
-    // Non-admins cannot change role/level/numbers via profile
-    if (!isAdmin) {
-      delete data.level;
-      delete data.role;
-      delete data.numbers_id;
-      delete data.permit_extens;
-    }
-    const user = await this.usersService.update(id, req.user.vpbx_user_uid, data);
+    const user = await this.usersService.update(id, req.user.vpbx_user_uid, this.editableUserFields(data, isAdmin));
     await this.loggerService.logAction(req.user.sub, 'update', 'user', id, req.user.vpbx_user_uid);
     return user;
   }
 
   @Delete(':id')
   async delete(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+    this.assertAdmin(req.user);
     await this.usersService.delete(id, req.user.vpbx_user_uid);
     await this.loggerService.logAction(req.user.sub, 'delete', 'user', id, req.user.vpbx_user_uid);
   }
 
   @Post('bulk/delete')
   async bulkDelete(@Body() body: { ids: number[] }, @Req() req: any) {
+    this.assertAdmin(req.user);
     const result = await this.usersService.bulkRemove(body.ids, req.user.vpbx_user_uid);
     await this.loggerService.logAction(req.user.sub, 'bulk_delete', 'user', null, req.user.vpbx_user_uid, `Bulk deleted ${result.deleted} users`);
     return result;
+  }
+
+  private assertAdmin(user: { level: number }): void {
+    if (user.level !== 0 && user.level !== 1) throw new ForbiddenException('Administrator required');
+  }
+
+  private editableUserFields(data: Record<string, any>, admin: boolean): Record<string, any> {
+    if (admin && data.level !== undefined && ![1, 2, 3, 5].includes(Number(data.level))) {
+      throw new ForbiddenException('Platform administrator cannot be assigned through tenant user management');
+    }
+    const keys = admin
+      ? ['login', 'name', 'email', 'level', 'role', 'exten', 'numbers_id', 'permit_extens', 'listbook_edit', 'oper_chanspy', 'outbound_posttime', 'suspension_time', 'inactive_time']
+      : ['name', 'email'];
+    const safe = Object.fromEntries(keys.filter(key => data[key] !== undefined).map(key => [key, data[key]]));
+    if (data.password || data.passwd) safe.password = data.password || data.passwd;
+    return safe;
   }
 }

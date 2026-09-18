@@ -142,7 +142,7 @@ function fakeTrack(id: string, kind: 'audio' | 'video' = 'video'): MediaStreamTr
     label: id,
     enabled: true,
     muted: false,
-    stop() {
+    stop(this: { readyState: string }) {
       this.readyState = 'ended';
     },
     addEventListener() {},

@@ -1,0 +1,30 @@
+[Sep 17 18:50:22] VERBOSE[246124][C-000000f1] pbx.c: Executing [700@ctx-356:14] NoOp("Local/700@ctx-356-00000065;2", "KRSK hop limit exceeded route=ivr_23") in new stack
+[Sep 17 18:50:22] VERBOSE[246124][C-000000f1] pbx.c: Executing [700@ctx-356:15] Congestion("Local/700@ctx-356-00000065;2", "") in new stack
+[Sep 17 18:50:22] VERBOSE[246123] dial.c: Local/700@ctx-356-00000065;1 is circuit-busy
+[Sep 17 18:50:22] VERBOSE[246124][C-000000f1] pbx.c: Spawn extension (ctx-356, 700, 15) exited non-zero on 'Local/700@ctx-356-00000065;2'
+[Sep 17 18:54:17] VERBOSE[246250][C-000000f2] pbx.c: Executing [700@ctx-356:1] NoOp("Local/700@ctx-356-00000066;2", "Route: 700 -> Главного меню") in new stack
+[Sep 17 18:54:17] VERBOSE[246250][C-000000f2] pbx.c: Executing [700@ctx-356:2] Set("Local/700@ctx-356-00000066;2", "CDR(vpbx_user_uid)=356") in new stack
+[Sep 17 18:54:17] VERBOSE[246250][C-000000f2] pbx.c: Executing [700@ctx-356:3] Set("Local/700@ctx-356-00000066;2", "__HH_ROUTE_UID=21") in new stack
+[Sep 17 18:54:17] VERBOSE[246250][C-000000f2] pbx.c: Executing [700@ctx-356:4] ExecIf("Local/700@ctx-356-00000066;2", "1?Set(__ORIGUNIQUEID=1789660457.2934)") in new stack
+[Sep 17 18:54:17] VERBOSE[246250][C-000000f2] pbx.c: Executing [700@ctx-356:5] ExecIf("Local/700@ctx-356-00000066;2", "1?Set(__ORIGEXTEN=700)") in new stack
+[Sep 17 18:54:17] VERBOSE[246250][C-000000f2] pbx.c: Executing [700@ctx-356:6] ExecIf("Local/700@ctx-356-00000066;2", "1?Set(__ORIGCLIDNUM=)") in new stack
+[Sep 17 18:54:17] VERBOSE[246250][C-000000f2] pbx.c: Executing [700@ctx-356:7] ExecIf("Local/700@ctx-356-00000066;2", "1?Set(__KRSK_ORIG_CALLER_NUM=)") in new stack
+[Sep 17 18:54:17] VERBOSE[246250][C-000000f2] pbx.c: Executing [700@ctx-356:8] ExecIf("Local/700@ctx-356-00000066;2", "1?Set(__KRSK_ORIG_CALLER_CAPTURED=1)") in new stack
+[Sep 17 18:54:17] VERBOSE[246250][C-000000f2] pbx.c: Executing [700@ctx-356:9] Set("Local/700@ctx-356-00000066;2", "__CLIDNUM=") in new stack
+[Sep 17 18:54:17] VERBOSE[246250][C-000000f2] pbx.c: Executing [700@ctx-356:10] Set("Local/700@ctx-356-00000066;2", "CDR(usrc)=") in new stack
+[Sep 17 18:54:17] VERBOSE[246250][C-000000f2] pbx.c: Executing [700@ctx-356:11] Set("Local/700@ctx-356-00000066;2", "__STARTTIME=1789660457") in new stack
+[Sep 17 18:54:17] VERBOSE[246250][C-000000f2] pbx.c: Executing [700@ctx-356:12] Set("Local/700@ctx-356-00000066;2", "__KRSK_HOPS=1") in new stack
+[Sep 17 18:54:17] VERBOSE[246250][C-000000f2] pbx.c: Executing [700@ctx-356:13] GotoIf("Local/700@ctx-356-00000066;2", "1?ivr_23,start,1") in new stack
+[Sep 17 18:54:17] VERBOSE[246250][C-000000f2] pbx.c: Executing [start@ivr_23:1] NoOp("Local/700@ctx-356-00000066;2", "IVR: Главное меню") in new stack
+[Sep 17 18:54:17] VERBOSE[246250][C-000000f2] pbx.c: Executing [start@ivr_23:2] Answer("Local/700@ctx-356-00000066;2", "") in new stack
+[Sep 17 18:54:17] VERBOSE[246249] dial.c: Local/700@ctx-356-00000066;1 answered
+[Sep 17 18:54:17] VERBOSE[246250][C-000000f2] pbx.c: Executing [start@ivr_23:3] Set("Local/700@ctx-356-00000066;2", "CDR(vpbx_user_uid)=356") in new stack
+[Sep 17 18:54:17] VERBOSE[246250][C-000000f2] pbx.c: Executing [start@ivr_23:4] Set("Local/700@ctx-356-00000066;2", "TIMEOUT(digit)=5") in new stack
+[Sep 17 18:54:17] VERBOSE[246250][C-000000f2] pbx.c: Executing [start@ivr_23:5] Set("Local/700@ctx-356-00000066;2", "TIMEOUT(response)=5") in new stack
+[Sep 17 18:54:17] VERBOSE[246250][C-000000f2] pbx.c: Executing [start@ivr_23:6] WaitExten("Local/700@ctx-356-00000066;2", "5") in new stack
+[Sep 17 18:54:22] VERBOSE[246250][C-000000f2] pbx_builtins.c: Timeout on Local/700@ctx-356-00000066;2, going to 't'
+[Sep 17 18:54:22] VERBOSE[246250][C-000000f2] pbx.c: Executing [t@ivr_23:1] NoOp("Local/700@ctx-356-00000066;2", "IVR choice: t") in new stack
+[Sep 17 18:54:22] VERBOSE[246250][C-000000f2] pbx.c: Executing [t@ivr_23:2] Gosub("Local/700@ctx-356-00000066;2", "group_16_356,start,1") in new stack
+[Sep 17 18:54:22] VERBOSE[246250][C-000000f2] pbx.c: Spawn extension (ivr_23, t, 2) exited non-zero on 'Local/700@ctx-356-00000066;2'
+[Sep 17 18:54:22] WARNING[45113] cdr_adaptive_odbc.c: cdr_adaptive_odbc: Insert failed on 'krasterisk:cdr'.  CDR failed: INSERT INTO cdr (calldate, clid, dst, dcontext, channel, lastapp, lastdata, duration, start, answer, end, billsec, disposition, amaflags, uniqueid, linkedid, sequence, vpbx_user_uid) VALUES ('2026-09-17 18:54:17', '"" <>', 't', 'ivr_23', 'Local/700@ctx-356-00000066;2', 'Gosub', 'group_16_356,start,1', 5, '2026-09-17 18:54:17', '2026-09-17 18:54:17', '2026-09-17 18:54:22', 5, 'ANSWERED', 3, '1789660457.2934', '1789660457.2933', '2553', 356)
+[Sep 17 18:54:22] WARNING[45113] cdr_adaptive_odbc.c: cdr_adaptive_odbc: Insert failed on 'krasterisk:cdr'.  CDR failed: INSERT INTO cdr (calldate, clid, dst, dcontext, channel, lastapp, lastdata, duration, start, answer, end, billsec, disposition, amaflags, uniqueid, linkedid, sequence) VALUES ('2026-09-17 18:54:17', '"" <>', '700', 'ctx-356', 'Local/700@ctx-356-00000066;1', 'Wait', '8', 5, '2026-09-17 18:54:17', '2026-09-17 18:54:17', '2026-09-17 18:54:22', 5, 'ANSWERED', 3, '1789660457.2933', '1789660457.2933', '2552')

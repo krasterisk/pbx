@@ -236,7 +236,7 @@ describe('read-adapters-speech — voice robots (D-12, D-15)', () => {
   it('ships a voice-robots skill covering reachability, engine dependencies and describe-first diagnosis', () => {
     const skillPath = path.join(__dirname, '../../skills/voice-robots/SKILL.md');
     const raw = fs.readFileSync(skillPath, 'utf8');
-    expect(raw).toMatch(/^---\r?\nname: voice-robots\r?\ndescription: .+\r?\n---/);
+    expect(raw).toMatch(/^---\r?\nname: voice-robots\r?\ndescription: .+\r?\n(?:[^\r\n]+\r?\n)*---/);
     expect(raw).toMatch(/маршрут|route|вход|entry/i);
     expect(raw).toMatch(/tts|stt|движ/i);
     expect(raw).toMatch(/describe_voice_robot/);
@@ -503,7 +503,7 @@ describe('read-adapters-speech — speech-engines skill and D-22 (D-12)', () => 
   it('ships one shared skill that parses and covers both engine domains', () => {
     const skillPath = path.join(__dirname, '../../skills/speech-engines/SKILL.md');
     const raw = fs.readFileSync(skillPath, 'utf8');
-    expect(raw).toMatch(/^---\r?\nname: speech-engines\r?\ndescription: .+\r?\n---/);
+    expect(raw).toMatch(/^---\r?\nname: speech-engines\r?\ndescription: .+\r?\n(?:[^\r\n]+\r?\n)*---/);
     expect(raw).toMatch(/tts-engines/);
     expect(raw).toMatch(/stt-engines/);
     expect(raw).toMatch(/shared-skill|общий файл|один скил/i);

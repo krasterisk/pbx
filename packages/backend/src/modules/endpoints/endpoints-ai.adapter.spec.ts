@@ -128,10 +128,10 @@ describe('EndpointsAiAdapter', () => {
     });
 
     it('never places a generated credential in the proposal summary or the tool result', async () => {
-      const result = await getTool('create_endpoint').handler(
-        { extension: '210', name: 'Desk', password: GENERATED_SECRET },
-        TENANT_A,
-      );
+      await expect(getTool('create_endpoint').handler(
+        { extension: '210', name: 'Desk', password: GENERATED_SECRET }, TENANT_A,
+      )).rejects.toThrow('ARGS_INVALID');
+      const result = await getTool('create_endpoint').handler({ extension: '210', name: 'Desk' }, TENANT_A);
 
       assertNoCredentialLeak(result);
       expect(result.summary.join(' ')).toMatch(/абонент|экран|subscriber|screen/i);
@@ -315,10 +315,10 @@ describe('EndpointsAiAdapter', () => {
   });
 
   describe('subscriber domain skill', () => {
-    it('ships two-field frontmatter covering extensions, contexts and fields the agent must ask about', () => {
+    it('ships descriptive frontmatter covering extensions, contexts and fields the agent must ask about', () => {
       const skillPath = path.join(__dirname, '../../skills/endpoints/SKILL.md');
       const raw = fs.readFileSync(skillPath, 'utf8');
-      expect(raw).toMatch(/^---\r?\nname: endpoints\r?\ndescription: .+\r?\n---/);
+      expect(raw).toMatch(/^---\r?\nname: endpoints\r?\ndescription: .+\r?\n(?:[^\r\n]+\r?\n)*---/);
       expect(raw).toMatch(/extension|внутренн/i);
       expect(raw).toMatch(/context|контекст/i);
       expect(raw).toMatch(/спроси|ask|не угад/i);

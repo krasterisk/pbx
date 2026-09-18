@@ -26,6 +26,10 @@ const ALWAYS_AVAILABLE_TOOLS = new Set([
 ]);
 
 const DOMAIN_TOOL_PREFIX: Record<string, string[]> = {
+  callcenter: ['cc_get_queue_snapshot', 'cc_get_agents', 'cc_get_today_kpi', 'cc_force_pause_agent', 'cc_force_unpause_agent'],
+  users: ['list_portal_users', 'describe_portal_user'],
+  'route_templates': ['list_templates', 'apply_template', 'build_from_description'],
+  conferences: ['list_conference_rooms', 'create_conference_room', 'update_conference_room', 'cf_force_mute_participant', 'cf_force_kick_participant'],
   ivrs: ['list_ivrs', 'create_ivr', 'update_ivr', 'delete_ivr', 'list_tts_engines', 'list_dialplan_apps'],
   endpoints: ['list_endpoints', 'create_endpoint', 'create_endpoints_bulk', 'delete_endpoint', 'update_endpoint'],
   'call-groups': ['list_call_groups', 'create_call_group', 'update_call_group', 'delete_call_group'],
@@ -36,7 +40,9 @@ const DOMAIN_TOOL_PREFIX: Record<string, string[]> = {
   contexts: ['list_contexts', 'create_context', 'update_context', 'delete_context'],
   directories: ['list_directories', 'create_directory', 'delete_directory', 'remove_directory_records'],
   moh: ['list_moh_classes', 'assign_moh_class', 'create_moh_class'],
-  diagnostics: ['get_pbx_state', 'get_cdr_summary', 'find_cdr_calls'],
+  diagnostics: ['get_pbx_state', 'get_cdr_summary', 'find_cdr_calls', 'get_endpoint_registration',
+    'get_live_channels', 'get_recent_call_events', 'get_compiled_dialplan', 'describe_number',
+    'evaluate_time_group', 'list_endpoints', 'list_routes', 'list_trunks'],
 };
 
 /**
@@ -60,6 +66,16 @@ export class AgentIntentClassifierService {
     const bump = (name: string, weight: number) => {
       scores.set(name, (scores.get(name) ?? 0) + weight);
     };
+
+    // Preserve the requested business action before incidental mentions of
+    // existing numbers, contexts and subscribers consume the four-skill budget.
+    if (/маршрут|\broute\b/i.test(message)) bump('routes', 12);
+    if (/очеред|\bqueue\b/i.test(message)) bump('queues', 12);
+    if (/конференц|\bconference\b/i.test(message)) bump('conferences', 12);
+    if (/нет регистрац|не регистр|не работает номер|не могу позвонить|звонок не проходит/i.test(message)) {
+      bump('diagnostics', 12);
+      bump(/регистрац|регистр/i.test(message) ? 'registration-support' : 'call-support', 12);
+    }
 
     for (const skill of catalog) {
       const haystacks = [skill.name, ...skill.aliases, ...skill.intents, ...skill.domains];

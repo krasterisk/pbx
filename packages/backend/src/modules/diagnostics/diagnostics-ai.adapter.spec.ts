@@ -16,6 +16,7 @@ function isMutating(tool: { name: string; proposes?: boolean; destructive?: bool
 describe('DiagnosticsAiAdapter (D-12, D-13)', () => {
   let diagnostics: {
     readLiveChannels: jest.Mock;
+    readEndpointRegistration: jest.Mock;
     readRecentEvents: jest.Mock;
     readCompiledDialplan: jest.Mock;
   };
@@ -24,6 +25,7 @@ describe('DiagnosticsAiAdapter (D-12, D-13)', () => {
 
   beforeEach(() => {
     diagnostics = {
+      readEndpointRegistration: jest.fn().mockResolvedValue({exists: false}),
       readLiveChannels: jest.fn().mockResolvedValue({ channels: [], truncated: false, cap: 25, matched: 0 }),
       readRecentEvents: jest.fn().mockResolvedValue({ events: [], truncated: false, cap: 20, matched: 0, windowMs: 900000 }),
       readCompiledDialplan: jest.fn().mockResolvedValue({
@@ -37,9 +39,9 @@ describe('DiagnosticsAiAdapter (D-12, D-13)', () => {
     adapter = new DiagnosticsAiAdapter(diagnostics as any, registry as any);
   });
 
-  it('declares exactly three read tools and no mutating tool', () => {
+  it('declares exactly four read tools and no mutating tool', () => {
     const names = adapter.getTools().map((t) => t.name).sort();
-    expect(names).toEqual(['get_compiled_dialplan', 'get_live_channels', 'get_recent_call_events']);
+    expect(names).toEqual(['get_compiled_dialplan', 'get_endpoint_registration', 'get_live_channels', 'get_recent_call_events']);
     expect(adapter.getTools().some(isMutating)).toBe(false);
     for (const tool of adapter.getTools()) {
       expect(tool.proposes).toBeFalsy();

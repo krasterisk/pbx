@@ -8,8 +8,8 @@ import * as directoryApi from '@/shared/api/endpoints/directoryApi';
 import * as trunkApi from '@/shared/api/endpoints/trunkApi';
 
 const { useGetConferenceRoomsQuery, useGetCallGroupsQuery } = vi.hoisted(() => ({
-  useGetConferenceRoomsQuery: vi.fn(() => ({ data: [], isLoading: false })),
-  useGetCallGroupsQuery: vi.fn(() => ({ data: [], isLoading: false })),
+  useGetConferenceRoomsQuery: vi.fn(() => ({ data: [] as Array<{ uid: number; number?: string; exten?: string; name: string }>,  isLoading: false })),
+  useGetCallGroupsQuery: vi.fn(() => ({ data: [] as Array<{ uid: number; number?: string; exten?: string; name: string }>,  isLoading: false })),
 }));
 
 vi.mock('@/shared/api/endpoints/promptsApi', () => ({
@@ -19,7 +19,7 @@ vi.mock('@/shared/api/endpoints/callGroupApi', () => ({
   useGetCallGroupsQuery,
 }));
 vi.mock('@/shared/api/endpoints/trunkApi', () => ({
-  useGetTrunksQuery: vi.fn(() => ({ data: [], isLoading: false })),
+  useGetTrunksQuery: vi.fn(() => ({ data: [] as Array<{ uid: number; number?: string; exten?: string; name: string }>,  isLoading: false })),
 }));
 vi.mock('@/shared/api/endpoints/queueApi', () => ({
   useGetQueuesQuery: () => ({ data: [], isLoading: false }),
@@ -65,7 +65,7 @@ function Probe() {
 describe('useSchemaRefs', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (directoryApi.useGetDirectoriesQuery as ReturnType<typeof vi.fn>).mockReturnValue({
+    (directoryApi.useGetDirectoriesQuery as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
       data: [
         { uid: 7, name: 'Customers' },
         { uid: 8, name: 'VIP' },
@@ -82,7 +82,7 @@ describe('useSchemaRefs', () => {
   });
 
   it('maps trunks by name and trunkIds by ITrunkListItem.id', () => {
-    (trunkApi.useGetTrunksQuery as ReturnType<typeof vi.fn>).mockReturnValue({
+    (trunkApi.useGetTrunksQuery as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
       data: [
         { id: 't_alpha_100', name: 'Alpha' },
         { id: 't_beta_100', name: 'Beta' },

@@ -133,11 +133,12 @@ describe('conferenceRoomApi (16.3-02)', () => {
     expect(block).toMatch(/\/conferences\/guest\/.+\/webrtc-config/);
     expect(block).not.toMatch(/password/i);
 
-    const picked = pickGuestWebrtcConfig({
+    const untrustedConfig = {
       wssUrl: 'wss://pbx.example/ws',
       iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
       password: 'sip-secret',
-    });
+    };
+    const picked = pickGuestWebrtcConfig(untrustedConfig);
     expect(picked).toEqual({
       wssUrl: 'wss://pbx.example/ws',
       iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],

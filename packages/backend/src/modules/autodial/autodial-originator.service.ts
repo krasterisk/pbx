@@ -12,6 +12,7 @@ import { AutodialStateService } from './autodial-state.service';
 import { buildAutodialChannelId, parseAutodialChannelId } from './autodial-phone.util';
 import { autodialCampaignContextName } from './autodial-dialplan.util';
 import { selectAutodialTrunk } from './autodial-trunk.util';
+import { autodialContactVariables } from './autodial-contact-variables.util';
 import {
   dispositionFromAnsweredCall,
   dispositionFromHangupCause,
@@ -225,12 +226,7 @@ export class AutodialOriginatorService {
     ]);
     if (!contact) return vars;
 
-    for (const field of fields) {
-      const raw = (contact.values ?? {})[String(field.uid)];
-      if (raw == null) continue;
-      // Newlines and commas would break the dialplan line the value lands in.
-      vars[`__${field.var_name}`] = String(raw).replace(/[\r\n,]/g, ' ').slice(0, 255);
-    }
+    Object.assign(vars, autodialContactVariables(fields, contact.values ?? {}, number));
     return vars;
   }
 

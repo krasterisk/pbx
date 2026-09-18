@@ -1,6 +1,6 @@
 import type { FieldSchema } from '../schema.types';
 
-type TFn = (key: string, fallback?: string) => string;
+type TFn = (...args: [key: string] | [key: string, fallback: string]) => string;
 
 /**
  * ConfBridge on the D-08 schema surface.
@@ -31,7 +31,7 @@ export function buildConfBridgeSchema(t: TFn): FieldSchema[] {
 
 export function summarizeConfBridge(
   params: Record<string, any>,
-  t: (key: string, fallback?: any) => string,
+  t: (...args: [key: string] | [key: string, fallback: string]) => string,
   refs?: Record<string, unknown>,
 ): string {
   const room = params?.room;

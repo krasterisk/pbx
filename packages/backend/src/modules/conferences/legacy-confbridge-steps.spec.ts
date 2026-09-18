@@ -58,12 +58,10 @@ describe('legacy confbridge steps (16-03)', () => {
     expect(result.params).toEqual(params);
   });
 
-  it('registers conferences as excluded with a Phase 16.3 reason', () => {
+  it('registers conferences as covered by the configuration adapter', () => {
     const entry = MODULE_COVERAGE.conferences;
     expect(entry).toBeDefined();
-    expect(entry.kind).toBe('excluded');
-    expect(entry.kind === 'excluded' && entry.reason.trim().length).toBeGreaterThan(0);
-    expect(entry.kind === 'excluded' && entry.reason).toMatch(/16\.3|D-41/);
+    expect(entry).toEqual({ kind: 'covered', capability: 'configure' });
   });
 
   it('registers db:report:legacy-confbridge next to the directories setup script', () => {

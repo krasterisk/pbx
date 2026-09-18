@@ -1,0 +1,205 @@
+ M .github/workflows/e2e.yml
+ M .github/workflows/harness-asterisk.yml
+ M .github/workflows/harness.yml
+ M .gitignore
+ M .planning/ROADMAP.md
+ M .planning/STATE.md
+ M harness/assertions/sql.ts
+ M harness/environment/testcontainers/mysql.ts
+ M packages/backend/package.json
+ M packages/backend/src/main.ts
+ M packages/backend/src/modules/ai-chat/agent-intent-classifier.service.spec.ts
+ M packages/backend/src/modules/ai-chat/agent-intent-classifier.service.ts
+ M packages/backend/src/modules/ai-chat/ai-chat.controller.spec.ts
+ M packages/backend/src/modules/ai-chat/pbx-agent-diff.service.spec.ts
+ M packages/backend/src/modules/ai-chat/pbx-agent-diff.service.ts
+ M packages/backend/src/modules/ai-chat/pbx-agent-llm.client.spec.ts
+ M packages/backend/src/modules/ai-chat/pbx-agent-llm.client.ts
+ M packages/backend/src/modules/ai-chat/pbx-agent-loop.service.spec.ts
+ M packages/backend/src/modules/ai-chat/pbx-agent-loop.service.ts
+ M packages/backend/src/modules/ai-chat/pbx-workflow-runner.service.ts
+ M packages/backend/src/modules/ai-chat/plan-ai.adapter.ts
+ M packages/backend/src/modules/ai-chat/turn-outcome.util.spec.ts
+ M packages/backend/src/modules/ai-chat/turn-outcome.util.ts
+ M packages/backend/src/modules/ai-platform/ai-adapter-registry.service.spec.ts
+ M packages/backend/src/modules/ai-platform/legacy-tool-migration.spec.ts
+ M packages/backend/src/modules/ai-platform/read-adapters-operations.spec.ts
+ M packages/backend/src/modules/ai-platform/read-adapters-schedule-identity.spec.ts
+ M packages/backend/src/modules/ai-platform/read-adapters-speech.spec.ts
+ M packages/backend/src/modules/auth/auth.controller.ts
+ M packages/backend/src/modules/auth/auth.module.ts
+ M packages/backend/src/modules/auth/auth.service.ts
+ M packages/backend/src/modules/auth/dto/auth.dto.ts
+ M packages/backend/src/modules/auth/jwt.strategy.ts
+ M packages/backend/src/modules/autodial/autodial-bases.controller.ts
+ M packages/backend/src/modules/autodial/autodial-bases.service.ts
+ M packages/backend/src/modules/autodial/autodial-import.service.ts
+ M packages/backend/src/modules/autodial/autodial-originator.service.ts
+ M packages/backend/src/modules/autodial/dto/autodial-base.dto.ts
+ M packages/backend/src/modules/autodial/models/ac-import-run.model.ts
+ M packages/backend/src/modules/call-groups/call-groups-ai.adapter.spec.ts
+ M packages/backend/src/modules/conferences/conference-guest.service.spec.ts
+ M packages/backend/src/modules/conferences/conferences-ai.adapter.spec.ts
+ M packages/backend/src/modules/conferences/conferences-ai.adapter.ts
+ M packages/backend/src/modules/conferences/legacy-confbridge-steps.spec.ts
+ M packages/backend/src/modules/contexts/contexts.service.ts
+ M packages/backend/src/modules/diagnostics/diagnostics-ai.adapter.spec.ts
+ M packages/backend/src/modules/diagnostics/diagnostics-ai.adapter.ts
+ M packages/backend/src/modules/diagnostics/diagnostics.service.ts
+ M packages/backend/src/modules/directories/directories-ai.adapter.spec.ts
+ M packages/backend/src/modules/directories/directory-reference.util.spec.ts
+ M packages/backend/src/modules/endpoints/endpoints-ai.adapter.spec.ts
+ M packages/backend/src/modules/ivrs/ivrs-ai.adapter.spec.ts
+ M packages/backend/src/modules/ivrs/ivrs-ai.adapter.ts
+ M packages/backend/src/modules/mcp/mcp-session.service.ts
+ M packages/backend/src/modules/mcp/mcp-tools.service.spec.ts
+ M packages/backend/src/modules/mcp/mcp-tools.service.ts
+ M packages/backend/src/modules/mcp/mcp.controller.ts
+ M packages/backend/src/modules/moh/moh-ai.adapter.spec.ts
+ M packages/backend/src/modules/queues/queues-ai.adapter.spec.ts
+ M packages/backend/src/modules/queues/queues-ai.adapter.ts
+ M packages/backend/src/modules/routes/dialplan-app-catalog.ts
+ M packages/backend/src/modules/routes/routes-ai.adapter.ts
+ M packages/backend/src/modules/trunks/trunks-ai.adapter.spec.ts
+ M packages/backend/src/modules/users/users.controller.ts
+ M packages/backend/src/modules/users/users.service.ts
+ M packages/backend/src/modules/voice-robots/voice-robots.service.spec.ts
+ M packages/backend/src/shared/utils/dialplan-hops.util.spec.ts
+ M packages/backend/src/shared/utils/dialplan-hops.util.ts
+ M packages/backend/src/shared/utils/dialplan-playback.util.spec.ts
+ M packages/backend/src/shared/utils/dialplan-playback.util.ts
+ M packages/backend/src/shared/utils/dialplan.util.spec.ts
+ M packages/backend/src/skills/conferences/SKILL.md
+ M packages/backend/src/skills/queues/SKILL.md
+ M packages/frontend/package.json
+ M packages/frontend/src/features/ai-chat/model/agentToolLabels.ts
+ M packages/frontend/src/features/ai-chat/model/useAgentTurn.test.ts
+ M packages/frontend/src/features/ai-chat/model/useAgentTurn.ts
+ M packages/frontend/src/features/ai-chat/ui/DiffConfirmCard/DiffConfirmCard.test.tsx
+ M packages/frontend/src/features/ai-chat/ui/DiffConfirmCard/DiffConfirmCard.tsx
+ M packages/frontend/src/features/ai-chat/ui/Timeline/StepRow.tsx
+ M packages/frontend/src/features/ai-chat/ui/Timeline/TimelineList.tsx
+ M packages/frontend/src/features/autodial/model/baseDraft.ts
+ M packages/frontend/src/features/autodial/model/importMapping.test.ts
+ M packages/frontend/src/features/autodial/model/importMapping.ts
+ M packages/frontend/src/features/autodial/model/slice/autodialPageSlice.ts
+ M packages/frontend/src/features/autodial/ui/BaseFormModal/BaseFormModal.tsx
+ M packages/frontend/src/features/autodial/ui/BasesList/BasesList.tsx
+ M packages/frontend/src/features/autodial/ui/CampaignsTable/CampaignsTable.tsx
+ M packages/frontend/src/features/autodial/ui/ContactFormModal/ContactFormModal.tsx
+ M packages/frontend/src/features/autodial/ui/ContactsGrid/ContactsGrid.tsx
+ M packages/frontend/src/features/autodial/ui/ImportWizard/ImportWizard.tsx
+ M packages/frontend/src/features/call-groups/ui/CallGroupFormModal/CallGroupFormModal.test.tsx
+ M packages/frontend/src/features/callcenter/ui/CallbackRequestsList/CallbackRequestsList.tsx
+ M packages/frontend/src/features/callcenter/ui/QueueManagementModal/QueueManagementModal.tsx
+ M packages/frontend/src/features/cdr/ui/ConferenceRecordingModal/ConferenceRecordingModal.test.tsx
+ M packages/frontend/src/features/cdr/ui/VoicemailDetailsModal/VoicemailDetailsModal.test.tsx
+ M packages/frontend/src/features/conferences/lib/ConferenceSessionProvider.test.tsx
+ M packages/frontend/src/features/conferences/lib/conferenceSdhFactory.test.ts
+ M packages/frontend/src/features/conferences/lib/conferenceSdhFactory.ts
+ M packages/frontend/src/features/conferences/lib/useConferenceRoom.test.ts
+ M packages/frontend/src/features/conferences/ui/ConferenceHistoryTab/ConferenceHistoryTab.test.tsx
+ M packages/frontend/src/features/conferences/ui/ConferenceMiniPanel/ConferenceMiniPanel.tsx
+ M packages/frontend/src/features/conferences/ui/ConferenceRoomFormModal/ConferenceRoomFormModal.test.tsx
+ M packages/frontend/src/features/conferences/ui/ConferencesTable/ConferencesTable.test.tsx
+ M packages/frontend/src/features/conferences/ui/LiveRoom/InviteSheet.tsx
+ M packages/frontend/src/features/conferences/ui/LiveRoom/LiveRoom.test.tsx
+ M packages/frontend/src/features/conferences/ui/LiveRoom/RoomControlBar.test.tsx
+ M packages/frontend/src/features/conferences/ui/LiveRoom/RoomControlBar.tsx
+ M packages/frontend/src/features/dialplan-apps/apps/CallbackApp/CallbackApp.tsx
+ M packages/frontend/src/features/dialplan-apps/model/registry.ts
+ M packages/frontend/src/features/dialplan-apps/model/schemas/callerid.tsx
+ M packages/frontend/src/features/dialplan-apps/model/schemas/cmd.tsx
+ M packages/frontend/src/features/dialplan-apps/model/schemas/collectInput.tsx
+ M packages/frontend/src/features/dialplan-apps/model/schemas/confBridge.tsx
+ M packages/frontend/src/features/dialplan-apps/model/schemas/directoryLookup.tsx
+ M packages/frontend/src/features/dialplan-apps/model/schemas/goto.tsx
+ M packages/frontend/src/features/dialplan-apps/model/schemas/hangup.tsx
+ M packages/frontend/src/features/dialplan-apps/model/schemas/httpRequest.tsx
+ M packages/frontend/src/features/dialplan-apps/model/schemas/label.tsx
+ M packages/frontend/src/features/dialplan-apps/model/schemas/notify.tsx
+ M packages/frontend/src/features/dialplan-apps/model/schemas/playback.tsx
+ M packages/frontend/src/features/dialplan-apps/model/schemas/schedule.tsx
+ M packages/frontend/src/features/dialplan-apps/model/schemas/text2speech.tsx
+ M packages/frontend/src/features/dialplan-apps/model/schemas/toGroup.tsx
+ M packages/frontend/src/features/dialplan-apps/model/schemas/toivr.tsx
+ M packages/frontend/src/features/dialplan-apps/model/schemas/tolist.tsx
+ M packages/frontend/src/features/dialplan-apps/model/schemas/totrunk.tsx
+ M packages/frontend/src/features/dialplan-apps/model/schemas/voicemail.tsx
+ M packages/frontend/src/features/dialplan-apps/model/schemas/voicerobot.tsx
+ M packages/frontend/src/features/dialplan-apps/model/schemas/webhook.tsx
+ M packages/frontend/src/features/dialplan-apps/model/types.ts
+ M packages/frontend/src/features/dialplan-apps/model/useSchemaRefs.test.tsx
+ M packages/frontend/src/features/dialplan-apps/ui/DialplanAppsEditor/DialplanAppsEditor.tsx
+ M packages/frontend/src/features/dialplan-apps/ui/DirectoryLookupField/DirectoryLookupField.test.tsx
+ M packages/frontend/src/features/dialplan-apps/ui/DirectoryLookupField/DirectoryLookupField.tsx
+ M packages/frontend/src/features/dialplan-apps/ui/DirectoryLookupOutputsField/DirectoryLookupOutputsField.test.tsx
+ M packages/frontend/src/features/dialplan-apps/ui/DryRunForm/DryRunForm.tsx
+ M packages/frontend/src/features/dialplan-apps/ui/FlowchartCanvas/FlowchartCanvas.test.tsx
+ M packages/frontend/src/features/dialplan-apps/ui/FlowchartCanvas/FlowchartCanvas.tsx
+ M packages/frontend/src/features/dialplan-apps/ui/StepSheet/StepSheet.test.tsx
+ M packages/frontend/src/features/dialplan-apps/ui/ValueSourceField/ValueSourceField.test.tsx
+ M packages/frontend/src/features/dialplan-apps/ui/ValueSourceField/catalogSourceLabels.ts
+ M packages/frontend/src/features/directories/ui/DirectoryCsvPanel/DirectoryCsvPanel.test.tsx
+ M packages/frontend/src/features/directories/ui/DirectoryFormModal/DirectoryFormModal.responsive.test.tsx
+ M packages/frontend/src/features/directories/ui/DirectoryFormModal/DirectoryFormModal.test.tsx
+ M packages/frontend/src/features/directories/ui/DirectoryLookupTest/DirectoryLookupTest.test.tsx
+ M packages/frontend/src/features/notifications/ui/NotificationIntegrationFormModal/NotificationIntegrationFormModal.test.tsx
+ M packages/frontend/src/features/numbers/ui/NumberFormModal/NumberFormModal.test.tsx
+ M packages/frontend/src/features/numbers/ui/NumbersTable/NumbersTable.test.tsx
+ M packages/frontend/src/features/prompts/ui/PromptsTable/PromptsTable.test.tsx
+ M packages/frontend/src/features/roles/ui/RolesTable/RolesTable.test.tsx
+ M packages/frontend/src/features/serviceRequests/ui/ServiceRequestsTable/ServiceRequestsTable.tsx
+ M packages/frontend/src/features/stt-engines/ui/SttEnginesTable/SttEnginesTable.test.tsx
+ M packages/frontend/src/features/trunks/ui/TrunksTable/useTrunksTableColumns.tsx
+ M packages/frontend/src/features/tts-engines/ui/TtsEnginesTable/TtsEnginesTable.test.tsx
+ M packages/frontend/src/pages/AutodialBasesPage/AutodialBasesPage.tsx
+ M packages/frontend/src/pages/CallCenterSettingsPage/CallCenterSettingsPage.tsx
+ M packages/frontend/src/pages/CallCenterSupervisorPage/SupervisorKpiStrip.tsx
+ M packages/frontend/src/pages/CdrReportPage/CdrReportPage.test.tsx
+ M packages/frontend/src/pages/LoginPage/LoginPage.tsx
+ M packages/frontend/src/pages/RegisterPage/RegisterPage.tsx
+ M packages/frontend/src/pages/VoiceRobotCdrPage/VoiceRobotCdrPage.tsx
+ M packages/frontend/src/shared/api/endpoints/autodialApi.ts
+ M packages/frontend/src/shared/api/endpoints/conferenceRoomApi.test.ts
+ M packages/frontend/src/shared/config/locales/en.ts
+ M packages/frontend/src/shared/config/locales/ru.ts
+ M packages/frontend/src/widgets/AssistantPanel/AssistantPanel.tsx
+ M packages/frontend/vite.config.js
+ M packages/frontend/vite.config.ts
+ M packages/shared/src/types/autodial.types.ts
+?? .github/workflows/quality.yml
+?? .planning/AI-CAPABILITY-AUDIT-2026-09-17.md
+?? .planning/AUTODIAL-REFACTOR-ANALYSIS-2026-09-18.md
+?? .planning/AUTODIAL-REFACTOR-IMPLEMENTATION-2026-09-18.md
+?? .planning/AUTODIAL-REFACTOR-PLAN-2026-09-18.md
+?? .planning/PRODUCTION-READINESS-2026-09-17.md
+?? .planning/REVIEW-REMEDIATION-2026-09-17.md
+?? .planning/evidence/
+?? harness/scenarios/manual/
+?? packages/backend/database/
+?? packages/backend/src/modules/ai-chat/pbx-workflow-apply.spec.ts
+?? packages/backend/src/modules/auth/jwt-secret.spec.ts
+?? packages/backend/src/modules/auth/jwt-secret.ts
+?? packages/backend/src/modules/auth/tenant-registration.service.spec.ts
+?? packages/backend/src/modules/auth/tenant-registration.service.ts
+?? packages/backend/src/modules/autodial/autodial-bases.controller.spec.ts
+?? packages/backend/src/modules/autodial/autodial-bases.service.spec.ts
+?? packages/backend/src/modules/autodial/autodial-contact-variables.util.spec.ts
+?? packages/backend/src/modules/autodial/autodial-contact-variables.util.ts
+?? packages/backend/src/modules/autodial/autodial-contact.util.spec.ts
+?? packages/backend/src/modules/autodial/autodial-contact.util.ts
+?? packages/backend/src/modules/autodial/autodial-data.integration.spec.ts
+?? packages/backend/src/modules/autodial/autodial-import-preview.spec.ts
+?? packages/backend/src/modules/autodial/dto/autodial-import.dto.ts
+?? packages/backend/src/modules/diagnostics/endpoint-registration.spec.ts
+?? packages/backend/src/modules/mcp/mcp-session.service.spec.ts
+?? packages/backend/src/modules/users/users-security.spec.ts
+?? packages/backend/src/skills/call-support/
+?? packages/backend/src/skills/registration-support/
+?? packages/frontend/src/features/autodial/lib/mutationError.ts
+?? packages/frontend/src/features/autodial/model/slice/autodialPageSlice.test.ts
+?? packages/frontend/src/features/autodial/ui/ContactFormModal/ContactFormModal.test.tsx
+?? packages/frontend/src/features/autodial/ui/ImportWizard/ImportWizard.test.tsx
+?? packages/frontend/src/pages/RegisterPage/RegisterPage.test.tsx
+?? packages/frontend/src/widgets/AuthFrame/

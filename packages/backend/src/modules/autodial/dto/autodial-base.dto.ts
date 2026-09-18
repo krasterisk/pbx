@@ -4,6 +4,7 @@ import {
   IsIn,
   IsInt,
   IsOptional,
+  IsObject,
   IsString,
   Matches,
   MaxLength,
@@ -88,6 +89,11 @@ export class CreateAutodialBaseDto {
 
 export class UpdateAutodialBaseDto {
   @IsOptional()
+  @IsInt()
+  @Min(0)
+  revision?: number;
+
+  @IsOptional()
   @IsString()
   @MaxLength(255)
   name?: string;
@@ -113,6 +119,11 @@ export class UpdateAutodialBaseDto {
 }
 
 export class AutodialPhoneDraftDto {
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  uid?: number;
+
   @IsString()
   @MaxLength(64)
   raw!: string;
@@ -130,9 +141,10 @@ export class CreateAutodialContactDto {
   @IsOptional()
   @IsString()
   @MaxLength(128)
-  external_id?: string;
+  external_id?: string | null;
 
   /** Field values keyed by field.key */
+  @IsObject()
   values!: Record<string, string | number | boolean>;
 
   @IsArray()
@@ -153,6 +165,7 @@ export class UpdateAutodialContactDto {
   external_id?: string | null;
 
   @IsOptional()
+  @IsObject()
   values?: Record<string, string | number | boolean>;
 
   @IsOptional()

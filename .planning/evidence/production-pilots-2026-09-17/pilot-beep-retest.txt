@@ -1,0 +1,10 @@
+                    2. Set(CDR(vpbx_user_uid)=358)                [extensions_ctx-358.conf:323]
+                    12. Playback(beep)                            [extensions_ctx-358.conf:333]
+                    13. Hangup()                                  [extensions_ctx-358.conf:334]
+Logger queue limit: 1000
+
+Channel                             Type     Formatter  Status    Configuration
+-------                             ----     ---------  ------    -------------
+/var/log/asterisk/full              File     default    Enabled    - DEBUG NOTICE WARNING ERROR VERBOSE 
+                                    Console  default    Enabled    - NOTICE WARNING ERROR VERBOSE 
+

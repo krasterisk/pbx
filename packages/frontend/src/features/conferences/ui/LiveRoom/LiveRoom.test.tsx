@@ -136,7 +136,7 @@ describe('LiveRoom (16.3-01 R-SDH)', () => {
     const sdh = factory(
       { userAgent: { getLogger: () => ({ debug() {} }) } } as never,
       {},
-    ) as { setRemoteTrack: (track: MediaStreamTrack) => void };
+    ) as unknown as { setRemoteTrack: (track: MediaStreamTrack) => void };
     const first = fakeVideoTrack('mid-0');
     const second = fakeVideoTrack('mid-1');
     sdh.setRemoteTrack(first);

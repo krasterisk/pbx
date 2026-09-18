@@ -75,13 +75,13 @@ describe('AiAdapterRegistryService', () => {
     expect(service.getDomains().sort()).toEqual(['alpha', 'beta']);
   });
 
-  it('register overwrites a previous registration for the same domain', () => {
+  it('rejects duplicate domains without replacing existing tools', () => {
     const first: DomainAiAdapter = { domain: 'dup', getTools: () => [makeTool('first_tool')] };
     const second: DomainAiAdapter = { domain: 'dup', getTools: () => [makeTool('second_tool')] };
 
     service.register(first);
-    service.register(second);
+    expect(() => service.register(second)).toThrow('already registered');
 
-    expect(service.getAllTools().map((t) => t.name)).toEqual(['second_tool']);
+    expect(service.getAllTools().map((t) => t.name)).toEqual(['first_tool']);
   });
 });

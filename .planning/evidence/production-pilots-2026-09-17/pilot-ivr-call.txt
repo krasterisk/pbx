@@ -1,0 +1,5 @@
+                    2. Dial(PJSIP/e101_356&PJSIP/ew101_356,30,tThH) [ivr_356.conf:190]
+                    2. Dial(PJSIP/e102_356&PJSIP/ew102_356,30,tThH) [ivr_356.conf:192]
+                    4. Set(TIMEOUT(digit)=5)                      [ivr_356.conf:186]
+                    5. Set(TIMEOUT(response)=5)                   [ivr_356.conf:187]
+                    6. WaitExten(5)                               [ivr_356.conf:188]

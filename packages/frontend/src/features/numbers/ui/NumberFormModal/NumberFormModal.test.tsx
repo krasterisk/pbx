@@ -6,8 +6,8 @@ import '@testing-library/jest-dom';
 import type { RootState } from '@/app/store/store';
 
 const mockDispatch = vi.fn();
-const mockCreate = vi.fn(() => ({ unwrap: () => Promise.resolve({ id: 1 }) }));
-const mockUpdate = vi.fn(() => ({ unwrap: () => Promise.resolve({ id: 1 }) }));
+const mockCreate = vi.fn((_args: unknown) => ({ unwrap: () => Promise.resolve({ id: 1 }) }));
+const mockUpdate = vi.fn((_args: unknown) => ({ unwrap: () => Promise.resolve({ id: 1 }) }));
 
 const baseState: Partial<RootState> = {
   numbersPage: {

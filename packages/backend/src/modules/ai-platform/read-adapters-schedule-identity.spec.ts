@@ -307,7 +307,7 @@ describe('read-adapters-schedule-identity — numbers (D-12, D-15, D-22)', () =>
   it('ships a numbers skill covering format, status and resolved destination', () => {
     const skillPath = path.join(__dirname, '../../skills/numbers/SKILL.md');
     const raw = fs.readFileSync(skillPath, 'utf8');
-    expect(raw).toMatch(/^---\r?\nname: numbers\r?\ndescription: .+\r?\n---/);
+    expect(raw).toMatch(/^---\r?\nname: numbers\r?\ndescription: .+\r?\n(?:[^\r\n]+\r?\n)*---/);
     expect(raw).toMatch(/маршрут|route/i);
     expect(raw).toMatch(/unrouted|не маршрут|не назнач/i);
     expect(raw).toMatch(/describe_number|назначени/i);
@@ -443,7 +443,7 @@ describe('read-adapters-schedule-identity — portal users (D-15, D-22)', () => 
   it('ships a users skill covering roles and the read-only access boundary', () => {
     const skillPath = path.join(__dirname, '../../skills/users/SKILL.md');
     const raw = fs.readFileSync(skillPath, 'utf8');
-    expect(raw).toMatch(/^---\r?\nname: users\r?\ndescription: .+\r?\n---/);
+    expect(raw).toMatch(/^---\r?\nname: users\r?\ndescription: .+\r?\n(?:[^\r\n]+\r?\n)*---/);
     expect(raw).toMatch(/ADMIN|OPERATOR|READONLY/i);
     expect(raw).toMatch(/не меня|never change|только чтен|read-only/i);
   });

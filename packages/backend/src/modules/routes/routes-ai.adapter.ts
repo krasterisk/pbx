@@ -151,6 +151,7 @@ export class RoutesAiAdapter implements DomainAiAdapter, OnModuleInit {
       description:
         'Каталог приложений редактора маршрутов/IVR: тип, зачем, обязательные поля, сколько раз уже есть у тенанта. Не сырые приложения Asterisk.',
       inputSchema: {
+        types: { type: 'array', items: { type: 'string' }, description: 'Необязательно: до 3 типов из краткого каталога для подробного описания, например ["confbridge"].' },
         host: {
           type: 'string',
           enum: ['route', 'ivr', 'directory_policy'],
@@ -165,7 +166,8 @@ export class RoutesAiAdapter implements DomainAiAdapter, OnModuleInit {
       handler: async (args, uid) => {
         const host = parseDialplanHost(args.host);
         const includeUsage = args.include_usage !== false;
-        const apps = listDialplanAppCatalog(host);
+        const selectedTypes = Array.isArray(args.types) ? args.types.map(String).slice(0, 3) : [];
+        const apps = listDialplanAppCatalog(host).filter(app => !selectedTypes.length || selectedTypes.includes(app.type));
         const [routes, ivrs] = includeUsage
           ? await Promise.all([
               this.routesService.findAll(uid).catch(() => []),
@@ -176,7 +178,7 @@ export class RoutesAiAdapter implements DomainAiAdapter, OnModuleInit {
         return {
           host: host ?? 'all',
           apps: apps.map((app) => ({
-            ...app,
+            ...(selectedTypes.length ? app : { type: app.type, title: app.title, need: app.need }),
             ...(includeUsage ? { usedIn: usage[app.type] ?? { routes: 0, ivrs: 0 } } : {}),
           })),
         };

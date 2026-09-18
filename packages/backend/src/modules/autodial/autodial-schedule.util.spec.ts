@@ -103,10 +103,10 @@ describe('campaignWindowOpen', () => {
     expect(campaignWindowOpen(rows, new Date('2026-09-17T12:00:00Z'))).toBe(false);
   });
 
-  it('ignores disabled rows when deciding whether a calendar exists at all', () => {
+  it('stays closed when every configured window is disabled', () => {
     expect(
       campaignWindowOpen([schedule({ enabled: false })], new Date('2026-09-17T03:00:00Z')),
-    ).toBe(true);
+    ).toBe(false);
   });
 });
 

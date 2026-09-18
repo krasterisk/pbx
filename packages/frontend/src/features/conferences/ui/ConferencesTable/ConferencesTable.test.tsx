@@ -59,7 +59,7 @@ function mockQuery(partial: Record<string, unknown>) {
     isError: false,
     refetch,
     ...partial,
-  } as ReturnType<typeof useGetConferenceRoomsQuery>);
+  } as unknown as ReturnType<typeof useGetConferenceRoomsQuery>);
 }
 
 describe('ConferencesTable', () => {

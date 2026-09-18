@@ -1,5 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { DialplanApplyService } from '../ami/dialplan-apply.service';
+import { AmiService } from '../ami/ami.service';
 import { AcCampaign } from './models/ac-campaign.model';
 import {
   autodialCampaignContextName,
@@ -19,10 +20,37 @@ import {
 export class AutodialDialplanService {
   private readonly logger = new Logger(AutodialDialplanService.name);
 
-  constructor(private readonly dialplanApply: DialplanApplyService) {}
+  constructor(
+    private readonly dialplanApply: DialplanApplyService,
+    private readonly ami: AmiService,
+  ) {}
+
+  /** Check PBX capability before a campaign can start using AMD. */
+  async assertAmdReady(campaign: AcCampaign): Promise<void> {
+    if (!campaign.amd?.enabled) return;
+    if (campaign.amd.on_machine === 'voicemail') {
+      throw new BadRequestException({
+        code: 'AC_AMD_MESSAGE_NOT_CONFIGURED',
+        message: 'A message recording must be configured before voicemail mode can be used.',
+      });
+    }
+    let response: unknown;
+    try {
+      response = await this.ami.command('module show like app_amd');
+    } catch {
+      throw new ServiceUnavailableException({ code: 'AC_AMD_UNAVAILABLE', message: 'AMD capability could not be verified.' });
+    }
+    const value = response as { output?: string | string[]; content?: string } | null;
+    const output = Array.isArray(value?.output)
+      ? value.output.join('\n')
+      : String(value?.output ?? value?.content ?? (typeof response === 'string' ? response : ''));
+    if (!/^app_amd\.so\s+.*\bRunning\b/im.test(output)) {
+      throw new ServiceUnavailableException({ code: 'AC_AMD_UNAVAILABLE', message: 'Asterisk AMD application is not loaded.' });
+    }
+  }
 
   /** Regenerate one campaign context plus the shared finalize handler. */
-  async applyCampaign(campaign: AcCampaign): Promise<void> {
+  async applyCampaign(campaign: AcCampaign): Promise<boolean> {
     const vpbx = campaign.user_uid;
     const category = withMachineTail(
       generateAutodialCampaignDialplan(
@@ -45,11 +73,13 @@ export class AutodialDialplanService {
         { reload: true },
       );
       this.logger.log(`Applied autodial dialplan for campaign ${campaign.uid} (tenant ${vpbx})`);
+      return true;
     } catch (e) {
       // Same contract as routes/conferences: DB is saved, dialplan may lag.
       this.logger.error(
         `Autodial dialplan apply failed for campaign ${campaign.uid}: ${(e as Error).message}. DB saved — re-save to retry.`,
       );
+      return false;
     }
   }
 

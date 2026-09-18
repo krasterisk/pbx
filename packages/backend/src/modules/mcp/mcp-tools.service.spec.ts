@@ -74,6 +74,15 @@ describe('McpToolsService', () => {
     service.registerAll();
   };
 
+  it('preserves full JSON schemas of non-mutation tools without double wrapping', () => {
+    const inputSchema = { type: 'object', properties: { title: { type: 'string' }, steps: {
+      type: 'array', items: { type: 'object', properties: { id: { type: 'string' } } },
+    } }, required: ['title', 'steps'], additionalProperties: false };
+    aiAdapterRegistry.getAllTools.mockReturnValue([{ name: 'propose_plan', inputSchema, handler: jest.fn() }]);
+    service.registerAll();
+    expect(service.getToolsList(42)[0].inputSchema).toEqual(inputSchema);
+  });
+
   describe('cross-tenant closure regression (D-23)', () => {
     it('calls trunksService.create with the uid passed at call time, for two different tenants in a row', async () => {
       adoptTrunkAdapters();

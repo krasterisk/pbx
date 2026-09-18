@@ -1,6 +1,6 @@
 import type { FieldSchema } from '../schema.types';
 
-type TFn = (key: string, fallback?: string) => string;
+type TFn = (...args: [key: string] | [key: string, fallback: string]) => string;
 
 /** Matches backend LabelParamsDto @Matches(SAFE_DIAL). */
 export const SAFE_LABEL_NAME = /^[^(),?\[\]{}$\\";\n\r]*$/;

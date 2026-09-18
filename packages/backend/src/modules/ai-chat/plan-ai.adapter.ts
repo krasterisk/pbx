@@ -31,12 +31,19 @@ export class PlanAiAdapter implements DomainAiAdapter, OnModuleInit {
       description:
         'Собрать несколько мутаций в один план (одна карточка). Две и более сущности в одном запросе — этот инструмент, не серия create_*.',
       inputSchema: {
+        type: 'object',
+        required: ['title', 'steps'],
+        additionalProperties: false,
+        properties: {
         title: { type: 'string', description: 'Заголовок плана для карточки' },
         steps: {
           type: 'array',
+          minItems: 1,
+          maxItems: 30,
           description: 'Шаги плана в порядке выполнения',
           items: {
             type: 'object',
+            additionalProperties: false,
             properties: {
               id: { type: 'string', description: 'Ключ шага, уникальный внутри плана' },
               tool: { type: 'string', description: 'Имя мутирующего инструмента' },
@@ -46,6 +53,7 @@ export class PlanAiAdapter implements DomainAiAdapter, OnModuleInit {
             },
             required: ['id', 'tool', 'args'],
           },
+        },
         },
       },
       entityType: 'workflow',
@@ -67,6 +75,12 @@ export class PlanAiAdapter implements DomainAiAdapter, OnModuleInit {
           const code = err instanceof Error ? err.message : String(err);
           if (code === 'WORKFLOW_EMPTY') {
             return { refused: true, message: 'План пуст: укажите хотя бы один шаг.' };
+          }
+          if (/ARGS_INVALID|WORKFLOW_BAD_STEP/.test(code)) {
+            const schemas = [...new Set(steps.map((step) => step.tool))]
+              .slice(0, 6).map((name) => ({ tool: name, argsSchema: this.registry.getToolByName(name)?.inputSchema }));
+            throw new Error(`${code}. Each steps item must be an object {id,tool,args,dependsOn:[]}. `
+              + `Use the exact tool argument schemas, preserve the user's numbers: ${JSON.stringify(schemas)}`, { cause: err });
           }
           throw err;
         }

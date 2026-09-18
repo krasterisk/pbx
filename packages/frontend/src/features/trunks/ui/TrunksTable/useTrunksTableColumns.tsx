@@ -81,8 +81,8 @@ export const useTrunksTableColumns = () => {
 
           return (
             <Flex align="center" gap="4">
-              <Flex className={statusDotClass(status, trunkType)}>{''}</Flex>
-              <Text className={statusClass(status, trunkType)}>{status || 'unknown'}</Text>
+              <Flex className={statusDotClass(status ?? undefined, trunkType)}>{''}</Flex>
+              <Text className={statusClass(status ?? undefined, trunkType)}>{status || 'unknown'}</Text>
             </Flex>
           );
         },

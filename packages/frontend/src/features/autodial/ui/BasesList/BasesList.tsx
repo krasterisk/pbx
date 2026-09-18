@@ -1,4 +1,4 @@
-import { memo, useEffect } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Database, Loader2, Pencil, Trash2 } from 'lucide-react';
 import {
@@ -23,20 +23,34 @@ import {
   selectAutodialActiveBaseUid,
 } from '../../model/slice/autodialPageSlice';
 import cls from './BasesList.module.scss';
+import { autodialErrorKey } from '../../lib/mutationError';
 
 export const BasesList = memo(() => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const activeUid = useAppSelector(selectAutodialActiveBaseUid);
-  const { data: bases, isLoading } = useGetAutodialBasesQuery();
-  const [deleteBase] = useDeleteAutodialBaseMutation();
+  const { data: bases, isLoading, isError, refetch } = useGetAutodialBasesQuery();
+  const [deleteBase, { isLoading: isDeleting }] = useDeleteAutodialBaseMutation();
+  const [error, setError] = useState<string | null>(null);
 
   // Land on the first base so the page is never an empty right-hand pane.
   useEffect(() => {
-    if (activeUid === null && bases?.length) {
-      dispatch(autodialPageActions.selectBase(bases[0].uid));
+    if (bases && !bases.some((base) => base.uid === activeUid) && !isDeleting) {
+      const next = bases[0]?.uid ?? null;
+      if (next !== activeUid) dispatch(autodialPageActions.selectBase(next));
     }
-  }, [activeUid, bases, dispatch]);
+  }, [activeUid, bases, dispatch, isDeleting]);
+  const remove = async (uid: number) => {
+    if (isDeleting) return;
+    setError(null);
+    try {
+      await deleteBase(uid).unwrap();
+      // Selection reconciles against the refreshed list, never the stale cache.
+      await refetch();
+    } catch (error) {
+      setError(t(autodialErrorKey(error, 'autodial.common.deleteFailed')));
+    }
+  };
 
   return (
     <Card className={cls.card}>
@@ -47,7 +61,13 @@ export const BasesList = memo(() => {
         </HStack>
       </CardHeader>
       <CardContent className={cls.content}>
-        {isLoading ? (
+        {error && <Text role="alert">{error}</Text>}
+        {isError ? (
+          <VStack gap="8">
+            <Text role="alert">{t('autodial.common.loadFailed')}</Text>
+            <Button onClick={() => void refetch()}>{t('autodial.common.retry')}</Button>
+          </VStack>
+        ) : isLoading ? (
           <Flex justify="center" className={cls.loading}>
             <Loader2 size={20} className={cls.spinner} />
           </Flex>
@@ -103,10 +123,7 @@ export const BasesList = memo(() => {
                       if (!window.confirm(t('autodial.bases.confirmDelete', { name: base.name }))) {
                         return;
                       }
-                      void deleteBase(base.uid);
-                      if (base.uid === activeUid) {
-                        dispatch(autodialPageActions.selectBase(null));
-                      }
+                      void remove(base.uid);
                     }}
                   >
                     <Trash2 />

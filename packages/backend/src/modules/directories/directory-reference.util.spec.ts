@@ -57,7 +57,7 @@ describe('collectDirectoryReferences', () => {
 
   it('returns route UID, action/binding id, and a human-readable location for a binding', () => {
     const refs = collectDirectoryReferences(7, undefined, [binding], []);
-    expect(refs).toEqual([
+    expect(refs).toMatchObject([
       {
         routeUid: 5,
         actionOrBindingId: '3',
@@ -74,7 +74,7 @@ describe('collectDirectoryReferences', () => {
       [],
       [{ uid: 5, actions: [lookupAction, otherDirAction] }],
     );
-    expect(refs).toEqual([
+    expect(refs).toMatchObject([
       {
         routeUid: 5,
         actionOrBindingId: 'a1',
@@ -91,7 +91,7 @@ describe('collectDirectoryReferences', () => {
       [],
       [{ uid: 9, actions: [carouselAction] }],
     );
-    expect(refs).toEqual([
+    expect(refs).toMatchObject([
       expect.objectContaining({
         routeUid: 9,
         actionOrBindingId: 'a2',

@@ -1,13 +1,13 @@
-import { memo } from 'react';
-import { useTranslation } from 'react-i18next';
-import { Input, Label, Text } from '@/shared/ui';
-import { VStack } from '@/shared/ui/Stack';
+import { memo } from "react";
+import { useTranslation } from "react-i18next";
+import { InfoTooltip, Input, Label, Text } from "@/shared/ui";
+import { HStack, VStack } from "@/shared/ui/Stack";
 import {
   RETRY_INTERVAL_DISPOSITIONS,
   type AutodialCampaignDraft,
-} from '../../model/campaignDraft';
-import { autodialDispositionLabel } from '../../lib/labels';
-import cls from './CampaignTabs.module.scss';
+} from "../../model/campaignDraft";
+import { autodialDispositionLabel } from "../../lib/labels";
+import cls from "./CampaignTabs.module.scss";
 
 interface Props {
   draft: AutodialCampaignDraft;
@@ -17,42 +17,58 @@ interface Props {
 export const CampaignRetryTab = memo(({ draft, onChange }: Props) => {
   const { t } = useTranslation();
 
-  const patchRetry = (part: Partial<AutodialCampaignDraft['retry']>) =>
+  const patchRetry = (part: Partial<AutodialCampaignDraft["retry"]>) =>
     onChange({ ...draft, retry: { ...draft.retry, ...part } });
 
   return (
     <VStack gap="16" max>
       <div className={cls.grid}>
         <VStack gap="4" className={cls.field}>
-          <Label htmlFor="autodial-retry-max">{t('autodial.retry.maxAttempts')}</Label>
+          <HStack gap="4" align="center">
+            <Label htmlFor="autodial-retry-max">
+              {t("autodial.retry.maxAttempts")}
+            </Label>
+            <InfoTooltip text={t("autodial.retry.maxAttemptsHint")} />
+          </HStack>
           <Input
             id="autodial-retry-max"
             type="number"
             min={1}
             className={cls.narrowInput}
             value={draft.retry.max_attempts}
-            onChange={(e) => patchRetry({ max_attempts: Number(e.target.value) || 1 })}
+            onChange={(e) =>
+              patchRetry({ max_attempts: Number(e.target.value) || 1 })
+            }
           />
-          <Text className={cls.hint}>{t('autodial.retry.maxAttemptsHint')}</Text>
         </VStack>
 
         <VStack gap="4" className={cls.field}>
-          <Label htmlFor="autodial-retry-default">{t('autodial.retry.defaultInterval')}</Label>
+          <HStack gap="4" align="center">
+            <Label htmlFor="autodial-retry-default">
+              {t("autodial.retry.defaultInterval")}
+            </Label>
+            <InfoTooltip text={t("autodial.retry.defaultIntervalHint")} />
+          </HStack>
           <Input
             id="autodial-retry-default"
             type="number"
             min={0}
             className={cls.narrowInput}
             value={draft.retry.default_interval_sec}
-            onChange={(e) => patchRetry({ default_interval_sec: Number(e.target.value) || 0 })}
+            onChange={(e) =>
+              patchRetry({ default_interval_sec: Number(e.target.value) || 0 })
+            }
           />
-          <Text className={cls.hint}>{t('autodial.retry.defaultIntervalHint')}</Text>
         </VStack>
       </div>
 
       <VStack gap="8" max>
-        <Text className={cls.sectionTitle}>{t('autodial.retry.perDisposition')}</Text>
-        <Text className={cls.hint}>{t('autodial.retry.perDispositionHint')}</Text>
+        <HStack gap="4" align="center">
+          <Text className={cls.sectionTitle}>
+            {t("autodial.retry.perDisposition")}
+          </Text>
+          <InfoTooltip text={t("autodial.retry.perDispositionHint")} />
+        </HStack>
         <div className={cls.grid}>
           {RETRY_INTERVAL_DISPOSITIONS.map((disposition) => (
             <VStack gap="4" key={disposition} className={cls.field}>
@@ -65,12 +81,15 @@ export const CampaignRetryTab = memo(({ draft, onChange }: Props) => {
                 min={0}
                 className={cls.narrowInput}
                 placeholder={String(draft.retry.default_interval_sec)}
-                value={draft.retry.intervals_sec[disposition] ?? ''}
+                value={draft.retry.intervals_sec[disposition] ?? ""}
                 onChange={(e) =>
                   patchRetry({
                     intervals_sec: {
                       ...draft.retry.intervals_sec,
-                      [disposition]: e.target.value === '' ? undefined : Number(e.target.value),
+                      [disposition]:
+                        e.target.value === ""
+                          ? undefined
+                          : Number(e.target.value),
                     },
                   })
                 }
@@ -83,4 +102,4 @@ export const CampaignRetryTab = memo(({ draft, onChange }: Props) => {
   );
 });
 
-CampaignRetryTab.displayName = 'CampaignRetryTab';
+CampaignRetryTab.displayName = "CampaignRetryTab";

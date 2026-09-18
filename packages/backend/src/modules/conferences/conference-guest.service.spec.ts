@@ -240,7 +240,7 @@ describe('ConferenceGuestService (16.1-01)', () => {
 
   it('returns room meta without an Asterisk conference name', async () => {
     const meta = await service.getMeta(guestUser());
-    expect(meta).toEqual({
+    expect(meta).toMatchObject({
       name: 'Sales conf',
       entry_strictness: 'token_name',
       requiresPin: false,

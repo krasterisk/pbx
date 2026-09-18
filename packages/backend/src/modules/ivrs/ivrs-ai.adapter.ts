@@ -70,6 +70,7 @@ const promptArgs = z.strictObject({
 });
 
 const createInput = z.strictObject({
+  timeout: z.number().int().min(1).max(120).optional().describe('Сколько секунд ждать нажатия после приветствия'),
   name: z.string().min(1).describe('Имя меню'),
   prompts: z.array(promptInput).optional().describe('Приветствие [{kind: tts, text, engine_uid}]'),
   text: z.string().optional().describe('Текст TTS-приветствия, если prompts не переданы'),
@@ -83,12 +84,14 @@ const createInput = z.strictObject({
 });
 
 const createArgs = z.strictObject({
+  timeout: z.number().int().min(1).max(120).optional(),
   name: z.string().min(1),
   menu_items: z.array(menuItemArgs),
   prompts: z.array(promptArgs).optional(),
 });
 
 const updateInput = z.strictObject({
+  timeout: z.number().int().min(1).max(120).optional().describe('Сколько секунд ждать нажатия после приветствия'),
   id: z.number().int().positive().describe('UID меню из list_ivrs / get_pbx_state'),
   name: z.string().optional(),
   description: z.string().optional(),
@@ -104,6 +107,7 @@ const updateInput = z.strictObject({
 });
 
 const updateArgs = z.strictObject({
+  timeout: z.number().int().min(1).max(120).optional(),
   id: z.number().int().positive(),
   menu_items: z.array(menuItemArgs),
   name: z.string().optional(),
@@ -211,6 +215,7 @@ export class IvrsAiAdapter implements DomainAiAdapter, OnModuleInit {
           menu_items: menuItems as CreateArgs['menu_items'],
         };
         if (prompts.length) applyArgs.prompts = toApplyPrompts(prompts);
+        if (input.timeout !== undefined) applyArgs.timeout = input.timeout;
 
         const summary = summarizeCreateIvr(
           applyArgs.name,
@@ -229,13 +234,17 @@ export class IvrsAiAdapter implements DomainAiAdapter, OnModuleInit {
             digits: publicDigitMapOf(menuItems, catalog),
             greeting: prompts[0]?.text ?? null,
             voice: prompts[0]?.engineName ?? null,
+            timeout: applyArgs.timeout ?? 10,
           },
           summary,
         );
       },
       revalidate: (args, ctx) => this.revalidateMenu(args, args.menu_items, ctx, 'create_ivr'),
       apply: async (args, ctx) => {
-        await this.ivrsService.create(args as never, ctx.vpbxUserUid, ctx.isAdmin);
+        const created = await this.ivrsService.create({ ...args,
+          ...(args.timeout === undefined ? {} : { timeout: String(args.timeout) }),
+        } as never, ctx.vpbxUserUid, ctx.isAdmin);
+        return created ? { uid: created.uid, name: created.name } : undefined;
       },
     });
   }
@@ -266,6 +275,7 @@ export class IvrsAiAdapter implements DomainAiAdapter, OnModuleInit {
         const nextItems = normalized.items;
 
         const applyArgs: UpdateArgs = { id, menu_items: nextItems as UpdateArgs['menu_items'] };
+        if (input.timeout !== undefined) applyArgs.timeout = input.timeout;
         if (input.name) applyArgs.name = input.name;
         const prompts = await this.resolvePrompts(input as Record<string, unknown>, uid);
         if (prompts.length) applyArgs.prompts = toApplyPrompts(prompts);
@@ -283,8 +293,8 @@ export class IvrsAiAdapter implements DomainAiAdapter, OnModuleInit {
           'update_ivr',
           String(current.name || id),
           applyArgs as unknown as Record<string, unknown>,
-          digit ? { digit, target: oldDest?.target ?? null, kind: oldDest?.kind ?? null } : { digits: digitMapOf(currentItems) },
-          digit ? { digit, target: newDest?.target ?? null, kind: newDest?.kind ?? null } : { digits: digitMapOf(nextItems) },
+          { ...(digit ? { digit, target: oldDest?.target ?? null, kind: oldDest?.kind ?? null } : { digits: digitMapOf(currentItems) }), timeout: current.timeout ?? 10 },
+          { ...(digit ? { digit, target: newDest?.target ?? null, kind: newDest?.kind ?? null } : { digits: digitMapOf(nextItems) }), timeout: input.timeout ?? current.timeout ?? 10 },
           summary,
         );
       },
@@ -295,7 +305,9 @@ export class IvrsAiAdapter implements DomainAiAdapter, OnModuleInit {
       },
       apply: async (args, ctx) => {
         const { id, ...rest } = args;
-        await this.ivrsService.update(id, rest as never, ctx.vpbxUserUid, ctx.isAdmin);
+        await this.ivrsService.update(id, { ...rest,
+          ...(rest.timeout === undefined ? {} : { timeout: String(rest.timeout) }),
+        } as never, ctx.vpbxUserUid, ctx.isAdmin);
       },
     });
   }

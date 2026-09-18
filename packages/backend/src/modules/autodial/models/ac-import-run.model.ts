@@ -5,7 +5,9 @@ import { AcBase } from './ac-base.model';
 
 @Table({
   tableName: 'ac_import_runs',
-  timestamps: false,
+  timestamps: true,
+  createdAt: 'created_at',
+  updatedAt: false,
   freezeTableName: true,
 })
 export class AcImportRun extends Model {

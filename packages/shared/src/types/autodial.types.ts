@@ -2,25 +2,34 @@
  * Autodial (Автообзвон) shared types — Phase 17.
  */
 
-import type { IRouteAction } from './route.types';
+import type { IRouteAction } from "./route.types";
 
 // ── Field / contact schema ──────────────────────────────────────────
 
 export const AUTODIAL_FIELD_TYPES = [
-  'string',
-  'phone',
-  'number',
-  'boolean',
-  'date',
-  'money',
-  'enum',
+  "string",
+  "phone",
+  "number",
+  "boolean",
+  "date",
+  "money",
+  "enum",
 ] as const;
 export type AutodialFieldType = (typeof AUTODIAL_FIELD_TYPES)[number];
 
-export const AUTODIAL_PHONE_NORMALIZATIONS = ['none', 'digits', 'ru_8_to_7'] as const;
-export type AutodialPhoneNormalization = (typeof AUTODIAL_PHONE_NORMALIZATIONS)[number];
+export const AUTODIAL_PHONE_NORMALIZATIONS = [
+  "none",
+  "digits",
+  "ru_8_to_7",
+] as const;
+export type AutodialPhoneNormalization =
+  (typeof AUTODIAL_PHONE_NORMALIZATIONS)[number];
 
-export const AUTODIAL_DEDUP_POLICIES = ['phone', 'external_id', 'none'] as const;
+export const AUTODIAL_DEDUP_POLICIES = [
+  "phone",
+  "external_id",
+  "none",
+] as const;
 export type AutodialDedupPolicy = (typeof AUTODIAL_DEDUP_POLICIES)[number];
 
 export interface IAutodialBaseField {
@@ -57,6 +66,53 @@ export interface IAutodialContact {
   updated_at?: string;
 }
 
+/** HTTP contracts: write payloads never accept tenant IDs or read-only counters. */
+export interface IAutodialContactsPage {
+  items: IAutodialContact[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+export type AutodialFieldInput = Pick<
+  IAutodialBaseField,
+  "key" | "label" | "type"
+> &
+  Partial<
+    Pick<
+      IAutodialBaseField,
+      "uid" | "required" | "position" | "is_phone" | "var_name" | "enum_values"
+    >
+  >;
+
+export interface CreateAutodialBaseInput {
+  name: string;
+  description?: string;
+  dedup_policy?: AutodialDedupPolicy;
+  phone_normalization?: AutodialPhoneNormalization;
+  fields: AutodialFieldInput[];
+}
+
+export type UpdateAutodialBaseInput = Partial<CreateAutodialBaseInput> & {
+  revision?: number;
+};
+
+export interface AutodialPhoneInput {
+  uid?: number;
+  raw: string;
+  is_primary?: boolean;
+  tz_offset_min?: number;
+}
+
+export interface CreateAutodialContactInput {
+  external_id?: string | null;
+  values: Record<string, string | number | boolean>;
+  phones: AutodialPhoneInput[];
+  comment?: string;
+}
+
+export type UpdateAutodialContactInput = Partial<CreateAutodialContactInput>;
+
 export interface IAutodialBase {
   uid: number;
   user_uid: number;
@@ -73,15 +129,28 @@ export interface IAutodialBase {
 
 // ── Import profiles ─────────────────────────────────────────────────
 
-export const AUTODIAL_IMPORT_SOURCES = ['csv', 'xlsx'] as const;
+export const AUTODIAL_IMPORT_SOURCES = ["csv", "xlsx"] as const;
 export type AutodialImportSource = (typeof AUTODIAL_IMPORT_SOURCES)[number];
 
 export interface IAutodialColumnMap {
+  /** Explicit index disambiguates duplicate and numeric column headers. */
+  column_index?: number;
   /** Source column header or 0-based index as string */
   column: string;
   /** Target field.key; special: `__phone`, `__external_id`, `__tz_offset` */
   field_key: string;
-  transform?: 'trim' | 'phone_normalize' | 'date_iso' | 'money_cents' | 'none';
+  transform?: "trim" | "phone_normalize" | "date_iso" | "money_cents" | "none";
+}
+
+export interface UpsertAutodialImportProfileInput {
+  uid?: number;
+  name: string;
+  source?: AutodialImportSource;
+  delimiter?: string;
+  encoding?: string;
+  has_header?: boolean;
+  column_map: IAutodialColumnMap[];
+  dedup_policy?: AutodialDedupPolicy;
 }
 
 export interface IAutodialImportProfile {
@@ -113,18 +182,24 @@ export interface IAutodialImportRun {
 
 // ── Campaign / dial modes ───────────────────────────────────────────
 
-export const AUTODIAL_DIAL_MODES = ['progressive', 'power', 'agentless', 'predictive'] as const;
+export const AUTODIAL_DIAL_MODES = [
+  "progressive",
+  "power",
+  "agentless",
+  "predictive",
+] as const;
 export type AutodialDialMode = (typeof AUTODIAL_DIAL_MODES)[number];
 
 export const AUTODIAL_CAMPAIGN_STATUSES = [
-  'draft',
-  'scheduled',
-  'running',
-  'paused',
-  'stopped',
-  'completed',
+  "draft",
+  "scheduled",
+  "running",
+  "paused",
+  "stopped",
+  "completed",
 ] as const;
-export type AutodialCampaignStatus = (typeof AUTODIAL_CAMPAIGN_STATUSES)[number];
+export type AutodialCampaignStatus =
+  (typeof AUTODIAL_CAMPAIGN_STATUSES)[number];
 
 export interface IAutodialPredictiveConfig {
   /** Share of answered calls that may end without an agent, in percent */
@@ -137,10 +212,10 @@ export interface IAutodialPredictiveConfig {
 
 export interface IAutodialPacingConfig {
   providers: Array<
-    | { type: 'static'; max_channels: number }
-    | { type: 'queue_agents'; queue_names: string[]; ratio?: number }
-    | { type: 'trunk_channels' }
-    | { type: 'tenant_cap'; max_channels: number }
+    | { type: "static"; max_channels: number }
+    | { type: "queue_agents"; queue_names: string[]; ratio?: number }
+    | { type: "trunk_channels" }
+    | { type: "tenant_cap"; max_channels: number }
   >;
   /** Power mode ratio (N:1); Progressive ignores (always 1) */
   power_ratio?: number;
@@ -164,7 +239,7 @@ export interface IAutodialTrunkPoolItem {
 }
 
 export interface IAutodialCidPolicy {
-  mode: 'static' | 'rotate' | 'per_trunk';
+  mode: "static" | "rotate" | "per_trunk";
   value?: string;
   pool?: string[];
 }
@@ -172,7 +247,7 @@ export interface IAutodialCidPolicy {
 export interface IAutodialAmdConfig {
   enabled: boolean;
   /** Hang up / disposition when machine detected */
-  on_machine: 'hangup' | 'continue' | 'voicemail';
+  on_machine: "hangup" | "continue" | "voicemail";
 }
 
 export interface IAutodialCampaign {
@@ -203,41 +278,41 @@ export interface IAutodialCampaign {
 // ── Tasks / attempts / dispositions ─────────────────────────────────
 
 export const AUTODIAL_DISPOSITIONS = [
-  'new',
-  'dialing',
-  'success',
-  'answered_short',
-  'no_answer',
-  'busy',
-  'congestion',
-  'failed',
-  'amd_machine',
-  'voicemail',
-  'invalid_number',
-  'dnc',
-  'max_attempts',
-  'callback_scheduled',
-  'cancelled',
-  'excluded',
+  "new",
+  "dialing",
+  "success",
+  "answered_short",
+  "no_answer",
+  "busy",
+  "congestion",
+  "failed",
+  "amd_machine",
+  "voicemail",
+  "invalid_number",
+  "dnc",
+  "max_attempts",
+  "callback_scheduled",
+  "cancelled",
+  "excluded",
 ] as const;
 export type AutodialDisposition = (typeof AUTODIAL_DISPOSITIONS)[number];
 
 /** Dispositions considered "done" (no more dials unless re-selected) */
 export const AUTODIAL_TERMINAL_DISPOSITIONS: AutodialDisposition[] = [
-  'success',
-  'max_attempts',
-  'dnc',
-  'invalid_number',
-  'cancelled',
-  'excluded',
+  "success",
+  "max_attempts",
+  "dnc",
+  "invalid_number",
+  "cancelled",
+  "excluded",
 ];
 
 export const AUTODIAL_TASK_STATUSES = [
-  'pending',
-  'leased',
-  'dialing',
-  'completed',
-  'cancelled',
+  "pending",
+  "leased",
+  "dialing",
+  "completed",
+  "cancelled",
 ] as const;
 export type AutodialTaskStatus = (typeof AUTODIAL_TASK_STATUSES)[number];
 
@@ -280,7 +355,11 @@ export interface IAutodialAttempt {
 
 // ── Schedule / DNC ──────────────────────────────────────────────────
 
-export const AUTODIAL_SCHEDULE_KINDS = ['weekly', 'date_range', 'one_off'] as const;
+export const AUTODIAL_SCHEDULE_KINDS = [
+  "weekly",
+  "date_range",
+  "one_off",
+] as const;
 export type AutodialScheduleKind = (typeof AUTODIAL_SCHEDULE_KINDS)[number];
 
 export interface IAutodialSchedule {
@@ -296,7 +375,42 @@ export interface IAutodialSchedule {
   enabled: boolean;
 }
 
-export const AUTODIAL_DNC_SCOPES = ['global', 'campaign', 'base'] as const;
+/** Write contract for a campaign schedule. It intentionally has no DB ids. */
+export interface AutodialScheduleInput {
+  kind: AutodialScheduleKind;
+  weekday?: number | null;
+  time_from: string;
+  time_to: string;
+  timezone: string;
+  date_from?: string | null;
+  date_to?: string | null;
+  enabled?: boolean;
+}
+
+/** Campaign write contracts never contain tenant IDs or derived counters. */
+export interface CreateAutodialCampaignInput {
+  name: string;
+  dial_mode: AutodialDialMode;
+  base_uid: number;
+  pacing: IAutodialPacingConfig;
+  retry: IAutodialRetryConfig;
+  trunk_pool: IAutodialTrunkPoolItem[];
+  cid_policy: IAutodialCidPolicy;
+  queue_names: string[];
+  scenario_actions: IRouteAction[];
+  amd: IAutodialAmdConfig;
+  success_min_sec: number;
+  dial_timeout_sec: number;
+  schedules: AutodialScheduleInput[];
+}
+
+/** Every update is conditional on the revision read with the edit session. */
+export type UpdateAutodialCampaignInput =
+  Partial<CreateAutodialCampaignInput> & {
+    expected_revision: number;
+  };
+
+export const AUTODIAL_DNC_SCOPES = ["global", "campaign", "base"] as const;
 export type AutodialDncScope = (typeof AUTODIAL_DNC_SCOPES)[number];
 
 export interface IAutodialDncEntry {
