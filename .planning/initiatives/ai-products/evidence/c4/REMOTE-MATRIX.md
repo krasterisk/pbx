@@ -4,27 +4,24 @@ Executed 2026-09-19 on `root@ipbx.krasterisk.ru` with `krasterisk_ipbx_agent`. L
 
 ## Narrow fixture
 
-Transferred a **140 803-byte** tarball (`krasterisk-c4-narrow.tgz`) into a new `/tmp/krasterisk-c4.mRZbXv`. Contents: harness CJS, SQL/CJS migrations, compiled `dist-analytics` / `dist-robot`. No TypeScript sources, `.env`, credentials, `node_modules`, `dist-community`, or frontend. Manifest: [MANIFEST.txt](MANIFEST.txt).
+Transferred a **143 617-byte** tarball (`krasterisk-c4-narrow.tgz`) into a new `/tmp/krasterisk-c4b.OI1NDT`. Contents: harness CJS (including `entitle-cloud-product.cjs`), SQL/CJS migrations, compiled `dist-analytics` / `dist-robot`. No TypeScript sources, `.env`, credentials, `node_modules`, `dist-community`, or frontend.
 
-Runtime packages were installed on the server (`npm install --omit=dev`, `npm install-scripts approve bcrypt ssh2`). After the first boot attempt, `helmet`, `@nestjs/swagger` and `swagger-ui-express` were added — they are required by the compiled entrypoints and were missing from the stub `package.json`.
+Runtime packages were installed on the server (`npm install --omit=dev`, `npm install-scripts approve bcrypt ssh2`). Fixture `package.json` already included `helmet`, `@nestjs/swagger` and `swagger-ui-express`.
 
 ## Results
 
 | Check | Result | Log |
 |---|---|---|
-| MySQL 8.4.11 contracts | 14/14 pass | [logs/mysql-contracts.log](logs/mysql-contracts.log) |
-| PostgreSQL 17.11 contracts | 14/14 pass | [logs/postgres-contracts.log](logs/postgres-contracts.log) |
-| analytics HTTP boot MySQL | health 200; tenant A/B integrations 200; unentitled create 403; platform admin login 403; PBX/public-robot/dialplan routes 404 | [logs/analytics-boot-mysql.log](logs/analytics-boot-mysql.log) |
-| analytics HTTP boot PostgreSQL | same probes | [logs/analytics-boot-postgres.log](logs/analytics-boot-postgres.log) |
-| robot HTTP boot MySQL | same probes, `robot-api` | [logs/robot-boot-mysql.log](logs/robot-boot-mysql.log) |
-| robot HTTP boot PostgreSQL | same probes, `robot-api` | [logs/robot-boot-postgres.log](logs/robot-boot-postgres.log) |
+| analytics HTTP boot MySQL | health 200; unentitled create 403; **CLOUD entitled create 201 secret-once**; tenant B 403; platform admin 403; PBX routes 404 | [analytics-boot-mysql.log](analytics-boot-mysql.log) |
+| analytics HTTP boot PostgreSQL | same probes | [analytics-boot-postgres.log](analytics-boot-postgres.log) |
+| robot HTTP boot MySQL | same probes, `robot-api` | [robot-boot-mysql.log](robot-boot-mysql.log) |
+| robot HTTP boot PostgreSQL | same probes, `robot-api` | [robot-boot-postgres.log](robot-boot-postgres.log) |
+| KEEP_ALIVE analytics MySQL | used for browser login via SSH tunnel `5011→36951` | keep-alive.log (gitignored; contains a disposable password) |
 
 Node v22.23.2, Sequelize 6.37.8, PostgreSQL 17.11, MySQL 8.4.11. Disposable Testcontainers only.
 
-The tenant matrix on standalone profiles is **deny-closed**: JWT tenants A and B can list their empty principals; neither can mint a key without entitlement; platform admin (`vpbx_user_uid=0`) cannot log in as a product tenant (403). This is not a CLOUD grant/allow live path.
+CLOUD entitle writes `tenant_modules` (status `active`) and `ai_product_activation` (`enabled`) for `ci-tenant-a` after the deny cell. Idempotent create replay returns `token: null`.
 
 ## Cleanup
 
-`/tmp/krasterisk-c4.mRZbXv` was removed after copying logs. Leftover Ryuk containers from the run were removed. `docker ps` afterward showed only the pre-existing `xray-ui`. Local packer temp files were deleted.
-
-This does **not** close AI-01: no browser login against the live disposable API, no v3 public-robot client E2E on full-PBX, no CLOUD entitled-allow cell.
+Process `327507` was signaled; leftover Testcontainers were removed. `/tmp/krasterisk-c4b.OI1NDT` was deleted. `docker ps` afterward showed only the pre-existing `xray-ui`.

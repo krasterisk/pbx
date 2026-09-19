@@ -32,6 +32,10 @@ const integration_credential_models_1 = require("../modules/integration-credenti
 const product_activation_model_1 = require("../modules/product-access/product-activation.model");
 const local_license_document_model_1 = require("../modules/product-access/local-license-document.model");
 const local_license_binding_model_1 = require("../modules/product-access/local-license-binding.model");
+const ai_provider_revision_model_1 = require("../modules/ai-connectivity/ai-provider-revision.model");
+const ai_job_models_1 = require("../modules/ai-jobs/ai-job.models");
+const media_asset_models_1 = require("../modules/media-assets/media-asset.models");
+const usage_models_1 = require("../modules/ai-usage/usage.models");
 /** Explicit profile descriptor; no runtime import(pathFromEnv) or PBX module. */
 let StandaloneAiCoreModule = StandaloneAiCoreModule_1 = class StandaloneAiCoreModule {
     static forProfile(profile) {
@@ -53,6 +57,9 @@ let StandaloneAiCoreModule = StandaloneAiCoreModule_1 = class StandaloneAiCoreMo
                                 integration_credential_models_1.IntegrationPrincipal, integration_credential_models_1.IntegrationCredential, integration_credential_models_1.IntegrationGrant,
                                 integration_credential_models_1.IntegrationAudit, integration_credential_models_1.IntegrationCommand, integration_credential_models_1.IntegrationAuthLimit,
                                 product_activation_model_1.ProductActivation, local_license_document_model_1.LocalLicenseDocument, local_license_binding_model_1.LocalLicenseBinding,
+                                ai_provider_revision_model_1.AiProviderRevision, media_asset_models_1.AiMediaAsset, media_asset_models_1.AiUpload, ai_job_models_1.AiIdempotency, ai_job_models_1.AiJob,
+                                ai_job_models_1.AiJobStage, ai_job_models_1.AiProviderOperation, ai_job_models_1.AiOutbox, ai_job_models_1.AiJobEvent,
+                                usage_models_1.AiQuotaCounter, usage_models_1.AiPriceRevision, usage_models_1.AiUsageReservation, usage_models_1.AiUsageEvent, usage_models_1.AiUsageLedger,
                             ],
                             synchronize: false,
                             autoLoadModels: false,

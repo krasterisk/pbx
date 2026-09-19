@@ -89,11 +89,12 @@ for (const dialect of selected.length ? [...new Set(selected)] : ['mysql', 'post
       const first = await runMigrations({ config, migrations, profile: standaloneProfile });
       assert.equal(first.profile, standaloneProfile);
       assert.equal(first.pending.length, 0);
-      assert.equal((await checkSchemaReadiness(input)).schemaVersion, '0007-tenant-login-uniqueness.sql');
+      assert.equal((await checkSchemaReadiness(input)).schemaVersion, '0009-ai-usage.sql');
       await withConnection(config, async db => {
         const tables = await db.tables();
         for (const required of ['users', 'tenants', 'user_sessions', 'cc_ai_providers',
-          'ai_product_activation', 'ai_integration_principals', JOURNAL, STATE]) {
+          'ai_product_activation', 'ai_integration_principals', 'ai_jobs',
+          'ai_quota_counters', 'ai_usage_ledger', JOURNAL, STATE]) {
           assert.ok(tables.includes(required), `${required} missing from minimal profile`);
         }
         for (const excluded of ['contexts', 'cdr', 'queue_log', 'ps_endpoints', 'ac_campaigns']) {
@@ -354,7 +355,7 @@ for (const dialect of selected.length ? [...new Set(selected)] : ['mysql', 'post
         const tables = await withConnection(config, db => db.tables());
         for (const table of ['users', 'cdr', 'ps_endpoints']) assert.ok(tables.includes(table), `Missing ${table}`);
         await withConnection(config, db => db.query("INSERT INTO tenant_settings (vpbx_user_uid, `key`, value) VALUES (7, 'locale', 'ru-RU')"));
-        assert.deepEqual((await runMigrations({ config, migrations: baseline })).newlyApplied, ['0002-cdr-query-indexes.sql', '0003-callcenter-report-keys.sql', '0004-ai-product-access.sql', '0005-ai-integration-credentials.sql', '0006-ai-integration-auth-limits.sql', '0007-tenant-login-uniqueness.sql']);
+        assert.deepEqual((await runMigrations({ config, migrations: baseline })).newlyApplied, ['0002-cdr-query-indexes.sql', '0003-callcenter-report-keys.sql', '0004-ai-product-access.sql', '0005-ai-integration-credentials.sql', '0006-ai-integration-auth-limits.sql', '0007-tenant-login-uniqueness.sql', '0008-ai-jobs-assets.sql', '0009-ai-usage.sql']);
         const indexes = await withConnection(config, db => db.query("SELECT index_name AS name FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = 'cdr' AND index_name LIKE 'idx_cdr_tenant_%' GROUP BY index_name"));
         assert.equal(indexes.length, 2);
         assert.deepEqual((await runMigrations({ config, migrations: baseline })).newlyApplied, []);
@@ -372,14 +373,14 @@ for (const dialect of selected.length ? [...new Set(selected)] : ['mysql', 'post
         assert.equal(baseline[0].sql, fs.readFileSync(file, 'utf8'));
         assert.equal((await runMigrations({ config, migrations: baseline.slice(0, 1) })).schemaVersion, '0001-current-schema.sql');
         await withConnection(config, db => db.query("INSERT INTO cdr (uniqueid, linkedid, calldate, vpbx_user_uid) VALUES ('pg-upgrade-fixture', 'pg-upgrade-fixture', '2026-09-18 10:00:00', 7)"));
-        assert.deepEqual((await runMigrations({ config, migrations: baseline })).newlyApplied, ['0002-cdr-query-indexes.sql', '0003-callcenter-report-keys.sql', '0004-ai-product-access.sql', '0005-ai-integration-credentials.sql', '0006-ai-integration-auth-limits.sql', '0007-tenant-login-uniqueness.sql']);
+        assert.deepEqual((await runMigrations({ config, migrations: baseline })).newlyApplied, ['0002-cdr-query-indexes.sql', '0003-callcenter-report-keys.sql', '0004-ai-product-access.sql', '0005-ai-integration-credentials.sql', '0006-ai-integration-auth-limits.sql', '0007-tenant-login-uniqueness.sql', '0008-ai-jobs-assets.sql', '0009-ai-usage.sql']);
         const indexes = await withConnection(config, db => db.query("SELECT indexname AS name FROM pg_indexes WHERE schemaname='public' AND tablename='cdr' AND indexname LIKE 'idx_cdr_tenant_%'"));
         assert.equal(indexes.length, 2);
         assert.equal((await withConnection(config, db => db.query("SELECT COUNT(*)::int AS count FROM cdr WHERE uniqueid='pg-upgrade-fixture'")))[0].count, 1);
         const tables = await withConnection(config, db => db.tables());
-        assert.equal(tables.length, 123); // 112 baseline + 3 A2 + 6 B2 tables + migration journal/state.
+        assert.equal(tables.length, 137); // 112 baseline + 3 A2 + 6 B2 + 9 D1 + 5 D4 + journal/state.
         const columns = await withConnection(config, db => db.query("SELECT COUNT(*)::int AS count FROM information_schema.columns WHERE table_schema='public'"));
-        assert.equal(columns[0].count, 1523); // 1447 baseline + 23 A2 + 45 B2 + 8 metadata columns (profile).
+        assert.equal(columns[0].count, 1651); // 1447 baseline + 23 A2 + 45 B2 + 128 D1 + 8 metadata columns (profile).
         const shape = await withConnection(config, db => db.query(`SELECT table_name, column_name, data_type, udt_name, is_nullable, numeric_precision, numeric_scale
           FROM information_schema.columns WHERE table_schema='public' AND
           (table_name, column_name) IN (('cc_ai_cdr','cost_total'),('webhook_failures','id'),('voice_robot_cdr','uid'),
@@ -399,7 +400,7 @@ for (const dialect of selected.length ? [...new Set(selected)] : ['mysql', 'post
           (SELECT COUNT(*)::int FROM pg_type WHERE typnamespace='public'::regnamespace AND typtype='e') AS enums,
           (SELECT COUNT(*)::int FROM pg_constraint WHERE connamespace='public'::regnamespace AND contype='f') AS foreign_keys,
           (SELECT COUNT(*)::int FROM pg_indexes WHERE schemaname='public' AND indexname LIKE '%_fk') AS foreign_key_indexes`));
-        assert.deepEqual(counts[0], { enums: 40, foreign_keys: 17, foreign_key_indexes: 9 });
+        assert.deepEqual(counts[0], { enums: 40, foreign_keys: 25, foreign_key_indexes: 9 });
         assert.deepEqual((await runMigrations({ config, migrations: baseline })).newlyApplied, []);
         t.diagnostic(`PostgreSQL baseline checksum: ${baseline[0].checksum}; tables: ${tables.length}`);
       });
@@ -414,15 +415,15 @@ for (const dialect of selected.length ? [...new Set(selected)] : ['mysql', 'post
       await assert.rejects(runMigrations({ config, migrations: baseline }), /Duplicate cc_daily_queue_stats business keys/);
       const status = await runMigrations({ config, migrations: baseline, mode: 'status' });
       assert.equal(status.dirty, null);
-      assert.deepEqual(status.pending, ['0003-callcenter-report-keys.sql', '0004-ai-product-access.sql', '0005-ai-integration-credentials.sql', '0006-ai-integration-auth-limits.sql', '0007-tenant-login-uniqueness.sql']);
+      assert.deepEqual(status.pending, ['0003-callcenter-report-keys.sql', '0004-ai-product-access.sql', '0005-ai-integration-credentials.sql', '0006-ai-integration-auth-limits.sql', '0007-tenant-login-uniqueness.sql', '0008-ai-jobs-assets.sql', '0009-ai-usage.sql']);
       await withConnection(config, db => db.query("DELETE FROM cc_daily_queue_stats WHERE queue_name = 'db02-duplicate' AND vpbx_user_uid = 2"));
-      assert.deepEqual((await runMigrations({ config, migrations: baseline })).newlyApplied, ['0003-callcenter-report-keys.sql', '0004-ai-product-access.sql', '0005-ai-integration-credentials.sql', '0006-ai-integration-auth-limits.sql', '0007-tenant-login-uniqueness.sql']);
+      assert.deepEqual((await runMigrations({ config, migrations: baseline })).newlyApplied, ['0003-callcenter-report-keys.sql', '0004-ai-product-access.sql', '0005-ai-integration-credentials.sql', '0006-ai-integration-auth-limits.sql', '0007-tenant-login-uniqueness.sql', '0008-ai-jobs-assets.sql', '0009-ai-usage.sql']);
     });
 
     await t.test('login uniqueness preflight refuses legacy duplicates without dirtying history', async () => {
       const config = await fresh();
       const baseline = loadMigrations(dialect);
-      await runMigrations({ config, migrations: baseline.slice(0, -1) });
+      await runMigrations({ config, migrations: baseline.slice(0, baseline.findIndex(item => item.id === '0007-tenant-login-uniqueness.sql')) });
       const stamp = postgres ? '"createdAt", "updatedAt"' : '`createdAt`, `updatedAt`';
       await withConnection(config, async db => {
         for (const login of ['B4-Legacy', 'b4-legacy']) {
@@ -433,10 +434,166 @@ for (const dialect of selected.length ? [...new Set(selected)] : ['mysql', 'post
       await assert.rejects(runMigrations({ config, migrations: baseline }), /Duplicate users login keys/);
       const status = await runMigrations({ config, migrations: baseline, mode: 'status' });
       assert.equal(status.dirty, null);
-      assert.deepEqual(status.pending, ['0007-tenant-login-uniqueness.sql']);
+      assert.deepEqual(status.pending, ['0007-tenant-login-uniqueness.sql', '0008-ai-jobs-assets.sql', '0009-ai-usage.sql']);
       await withConnection(config, db => db.query("DELETE FROM users WHERE name='fixture' AND LOWER(login)='b4-legacy'"));
       assert.deepEqual((await runMigrations({ config, migrations: baseline })).newlyApplied,
-        ['0007-tenant-login-uniqueness.sql']);
+        ['0007-tenant-login-uniqueness.sql', '0008-ai-jobs-assets.sql', '0009-ai-usage.sql']);
+    });
+
+    await t.test('D1 job/asset constraints reject illegal state, tenant FK mismatch, and unique collisions', async () => {
+      const config = await fresh();
+      await runMigrations({ config, migrations: loadMigrations(dialect) });
+      const now = 'CURRENT_TIMESTAMP';
+      const keyDigest = postgres ? `decode('${'11'.repeat(32)}','hex')` : `X'${'11'.repeat(32)}'`;
+      const hash = `'${'ab'.repeat(32)}'`;
+      await withConnection(config, async db => {
+        await db.query(`INSERT INTO ai_provider_revisions
+          (id, vpbx_user_uid, provider_uid, revision, configuration, capability_digest, credential_ref, key_version, created_at)
+          VALUES ('rev-1', 1, 'prov-1', 1, '{}', ${hash}, 'cred-ref', 1, ${now})`);
+        await assert.rejects(db.query(`INSERT INTO ai_provider_revisions
+          (id, vpbx_user_uid, provider_uid, revision, configuration, capability_digest, credential_ref, key_version, created_at)
+          VALUES ('rev-2', 1, 'prov-1', 1, '{}', ${hash}, 'cred-ref', 1, ${now})`));
+        await db.query(`INSERT INTO ai_media_assets
+          (id, vpbx_user_uid, source_kind, storage_key, state, bytes, media_metadata, version, created_at, updated_at)
+          VALUES ('asset-1', 1, 'upload', 'tenant/1/asset-1', 'allocated', 0, '{}', 1, ${now}, ${now})`);
+        await assert.rejects(db.query(`INSERT INTO ai_media_assets
+          (id, vpbx_user_uid, source_kind, storage_key, state, bytes, media_metadata, version, created_at, updated_at)
+          VALUES ('asset-2', 2, 'upload', 'tenant/1/asset-1', 'allocated', 0, '{}', 1, ${now}, ${now})`));
+        await db.query(`INSERT INTO ai_idempotency
+          (vpbx_user_uid, stable_principal_id, operation_namespace, key_digest, request_hash, state, safe_response, expires_at, created_at, updated_at)
+          VALUES (1, 'prin-1', 'jobs.create', ${keyDigest}, ${hash}, 'started', '{}', ${now}, ${now}, ${now})`);
+        await db.query(`INSERT INTO ai_jobs
+          (id, vpbx_user_uid, product, kind, resource_kind, resource_id, state, priority, admitted_at, version, created_at, updated_at)
+          VALUES ('job-1', 1, 'speech_analytics', 'analyze', 'asset', 'asset-1', 'queued', 0, ${now}, 1, ${now}, ${now})`);
+        await assert.rejects(db.query(`INSERT INTO ai_jobs
+          (id, vpbx_user_uid, product, kind, resource_kind, resource_id, state, priority, admitted_at, version, created_at, updated_at)
+          VALUES ('job-bad', 1, 'speech_analytics', 'analyze', 'asset', 'asset-1', 'bogus', 0, ${now}, 1, ${now}, ${now})`));
+        await assert.rejects(db.query(`INSERT INTO ai_job_stages
+          (id, vpbx_user_uid, job_id, stage_key, state, attempt_count, fence, version, created_at, updated_at)
+          VALUES ('stage-bad', 2, 'job-1', 'probe', 'pending', 0, 0, 1, ${now}, ${now})`));
+        await db.query(`INSERT INTO ai_job_stages
+          (id, vpbx_user_uid, job_id, stage_key, state, attempt_count, fence, version, created_at, updated_at)
+          VALUES ('stage-1', 1, 'job-1', 'probe', 'pending', 0, 0, 1, ${now}, ${now})`);
+        await db.query(`INSERT INTO ai_outbox
+          (id, vpbx_user_uid, aggregate_kind, aggregate_id, aggregate_version, event_type, schema_version, payload, available_at, fence, attempts, version, created_at)
+          VALUES ('out-1', 1, 'job', 'job-1', 1, 'admitted', 1, '{}', ${now}, 0, 0, 1, ${now})`);
+        await assert.rejects(db.query(`INSERT INTO ai_outbox
+          (id, vpbx_user_uid, aggregate_kind, aggregate_id, aggregate_version, event_type, schema_version, payload, available_at, fence, attempts, version, created_at)
+          VALUES ('out-2', 1, 'job', 'job-1', 1, 'admitted', 1, '{}', ${now}, 0, 0, 1, ${now})`));
+        await db.query(`INSERT INTO ai_jobs
+          (id, vpbx_user_uid, product, kind, resource_kind, resource_id, state, priority, admitted_at, version, created_at, updated_at)
+          VALUES ('job-cas', 1, 'speech_analytics', 'analyze', 'asset', 'asset-1', 'queued', 0, ${now}, 1, ${now}, ${now})`);
+        const casSql = postgres
+          ? "UPDATE ai_jobs SET version = 2, state = 'running' WHERE id='job-cas' AND version = 1 RETURNING id"
+          : "UPDATE ai_jobs SET version = 2, state = 'running' WHERE id='job-cas' AND version = 1";
+        const casWon = result => (Array.isArray(result) ? result.length : Number(result.affectedRows)) === 1;
+        const casRace = await Promise.all([
+          withConnection(config, session => session.query(casSql)),
+          withConnection(config, session => session.query(casSql)),
+        ]);
+        assert.equal(casRace.filter(casWon).length, 1);
+        const uniqueRace = await Promise.allSettled([3, 4].map(tenant => withConnection(config, session => session.query(`INSERT INTO ai_media_assets
+          (id, vpbx_user_uid, source_kind, storage_key, state, bytes, media_metadata, version, created_at, updated_at)
+          VALUES ('asset-race-${tenant}', ${tenant}, 'upload', 'tenant/race-key', 'allocated', 0, '{}', 1, ${now}, ${now})`))));
+        assert.deepEqual(uniqueRace.map(result => result.status).sort(), ['fulfilled', 'rejected']);
+        if (postgres) {
+          const indexes = await db.query("SELECT indexname AS name FROM pg_indexes WHERE schemaname='public' AND tablename IN ('ai_jobs','ai_media_assets','ai_outbox','ai_idempotency')");
+          const names = indexes.map(row => row.name);
+          for (const name of ['idx_ai_job_tenant_state_created', 'idx_ai_media_asset_state_retention', 'idx_ai_outbox_pending', 'idx_ai_idempotency_expires', 'uq_ai_media_asset_storage_key', 'uq_ai_outbox_event']) {
+            assert.ok(names.includes(name), `missing ${name}`);
+          }
+          const [collation] = await db.query("SELECT datcollate AS db_collate FROM pg_database WHERE datname = current_database()");
+          assert.ok(collation.db_collate);
+        } else {
+          const [table] = await db.query("SELECT TABLE_COLLATION AS table_collation FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'ai_jobs'");
+          assert.match(String(table.table_collation), /utf8mb4/);
+          const indexes = await db.query("SELECT INDEX_NAME AS name, COLUMN_NAME AS col, SUB_PART AS prefix FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME IN ('ai_jobs','ai_media_assets','ai_outbox','ai_idempotency')");
+          const names = [...new Set(indexes.map(row => row.name))];
+          for (const name of ['idx_ai_job_tenant_state_created', 'idx_ai_media_asset_state_retention', 'idx_ai_outbox_pending', 'idx_ai_idempotency_expires', 'uq_ai_media_asset_storage_key', 'uq_ai_outbox_event']) {
+            assert.ok(names.includes(name), `missing ${name}`);
+          }
+          assert.equal(indexes.filter(row => row.name === 'uq_ai_media_asset_storage_key' && Number(row.prefix || 0) > 0).length, 0);
+        }
+      });
+    });
+
+    await t.test('D2 admission transaction, lease CAS, outbox claim, and idempotency race', async () => {
+      const config = await fresh();
+      await runMigrations({ config, migrations: loadMigrations(dialect) });
+      const now = 'CURRENT_TIMESTAMP';
+      const keyA = postgres ? `decode('${'22'.repeat(32)}','hex')` : `X'${'22'.repeat(32)}'`;
+      const keyB = postgres ? `decode('${'33'.repeat(32)}','hex')` : `X'${'33'.repeat(32)}'`;
+      const hash = `'${'cd'.repeat(32)}'`;
+      const casWon = result => (Array.isArray(result) ? result.length : Number(result.affectedRows)) === 1;
+      await withConnection(config, async db => {
+        await db.query('BEGIN');
+        await db.query(`INSERT INTO ai_idempotency
+          (vpbx_user_uid, stable_principal_id, operation_namespace, key_digest, request_hash, state, safe_response, expires_at, created_at, updated_at)
+          VALUES (7, 'prin-d2', 'jobs.create:asset', ${keyA}, ${hash}, 'started', '{}', ${now}, ${now}, ${now})`);
+        await db.query(`INSERT INTO ai_jobs
+          (id, vpbx_user_uid, product, kind, resource_kind, resource_id, state, priority, admitted_at, version, created_at, updated_at)
+          VALUES ('d2-job-rollback', 7, 'speech_analytics', 'analyze', 'asset', 'asset-d2', 'queued', 0, ${now}, 1, ${now}, ${now})`);
+        await db.query('ROLLBACK');
+        assert.equal((await db.query("SELECT id FROM ai_jobs WHERE id='d2-job-rollback'")).length, 0);
+
+        await db.query('BEGIN');
+        await db.query(`INSERT INTO ai_idempotency
+          (vpbx_user_uid, stable_principal_id, operation_namespace, key_digest, request_hash, state, resource_id, response_status, safe_response, expires_at, created_at, updated_at)
+          VALUES (7, 'prin-d2', 'jobs.create:asset', ${keyA}, ${hash}, 'completed', 'd2-job-commit', 202, '{"jobId":"d2-job-commit"}', ${now}, ${now}, ${now})`);
+        await db.query(`INSERT INTO ai_jobs
+          (id, vpbx_user_uid, product, kind, resource_kind, resource_id, state, priority, admitted_at, version,
+           idempotency_principal_id, idempotency_namespace, idempotency_key_digest, created_at, updated_at)
+          VALUES ('d2-job-commit', 7, 'speech_analytics', 'analyze', 'asset', 'asset-d2', 'queued', 0, ${now}, 1,
+            'prin-d2', 'jobs.create:asset', ${keyA}, ${now}, ${now})`);
+        await db.query(`INSERT INTO ai_job_stages
+          (id, vpbx_user_uid, job_id, stage_key, state, attempt_count, fence, version, created_at, updated_at)
+          VALUES ('d2-stage-1', 7, 'd2-job-commit', 'run', 'pending', 0, 0, 1, ${now}, ${now})`);
+        await db.query(`INSERT INTO ai_outbox
+          (id, vpbx_user_uid, aggregate_kind, aggregate_id, aggregate_version, event_type, schema_version, payload, available_at, fence, attempts, version, created_at)
+          VALUES ('d2-out-1', 7, 'job', 'd2-job-commit', 1, 'job.admitted', 1, '{"schemaVersion":1,"tenantUid":7}', ${now}, 0, 0, 1, ${now})`);
+        await db.query('COMMIT');
+        assert.equal((await db.query("SELECT id FROM ai_jobs WHERE id='d2-job-commit'")).length, 1);
+        assert.equal((await db.query("SELECT id FROM ai_outbox WHERE id='d2-out-1' AND delivered_at IS NULL")).length, 1);
+      });
+
+      const claimSql = postgres
+        ? "UPDATE ai_job_stages SET state='leased', version=version+1, fence=fence+1, lease_owner='worker-alpha', updated_at=CURRENT_TIMESTAMP WHERE id='d2-stage-1' AND version=1 RETURNING id"
+        : "UPDATE ai_job_stages SET state='leased', version=version+1, fence=fence+1, lease_owner='worker-alpha', updated_at=CURRENT_TIMESTAMP WHERE id='d2-stage-1' AND version=1";
+      const claimRace = await Promise.all([
+        withConnection(config, session => session.query(claimSql)),
+        withConnection(config, session => session.query(claimSql)),
+      ]);
+      assert.equal(claimRace.filter(casWon).length, 1);
+
+      const outboxSql = postgres
+        ? "UPDATE ai_outbox SET lease_owner='dispatcher-1', fence=fence+1, version=version+1, attempts=attempts+1 WHERE id='d2-out-1' AND delivered_at IS NULL AND version=1 RETURNING id"
+        : "UPDATE ai_outbox SET lease_owner='dispatcher-1', fence=fence+1, version=version+1, attempts=attempts+1 WHERE id='d2-out-1' AND delivered_at IS NULL AND version=1";
+      const outboxRace = await Promise.all([
+        withConnection(config, session => session.query(outboxSql)),
+        withConnection(config, session => session.query(outboxSql)),
+      ]);
+      assert.equal(outboxRace.filter(casWon).length, 1);
+
+      await withConnection(config, async db => {
+        const staleSql = postgres
+          ? "UPDATE ai_job_stages SET state='succeeded' WHERE id='d2-stage-1' AND fence=99 RETURNING id"
+          : "UPDATE ai_job_stages SET state='succeeded' WHERE id='d2-stage-1' AND fence=99";
+        assert.equal(casWon(await db.query(staleSql)), false);
+        await db.query("UPDATE ai_job_stages SET state='executing' WHERE id='d2-stage-1' AND fence=1");
+        const goodSql = postgres
+          ? "UPDATE ai_job_stages SET state='succeeded', lease_owner=NULL WHERE id='d2-stage-1' AND fence=1 RETURNING id"
+          : "UPDATE ai_job_stages SET state='succeeded', lease_owner=NULL WHERE id='d2-stage-1' AND fence=1";
+        assert.equal(casWon(await db.query(goodSql)), true);
+        await db.query("UPDATE ai_outbox SET delivered_at=CURRENT_TIMESTAMP, lease_owner=NULL WHERE id='d2-out-1'");
+        const replaySql = postgres
+          ? "UPDATE ai_outbox SET delivered_at=CURRENT_TIMESTAMP WHERE id='d2-out-1' AND delivered_at IS NULL RETURNING id"
+          : "UPDATE ai_outbox SET delivered_at=CURRENT_TIMESTAMP WHERE id='d2-out-1' AND delivered_at IS NULL";
+        assert.equal(casWon(await db.query(replaySql)), false);
+        const uniqueRace = await Promise.allSettled([1, 2].map(() => withConnection(config, session => session.query(`INSERT INTO ai_idempotency
+          (vpbx_user_uid, stable_principal_id, operation_namespace, key_digest, request_hash, state, safe_response, expires_at, created_at, updated_at)
+          VALUES (7, 'prin-d2', 'jobs.create:asset', ${keyB}, ${hash}, 'started', '{}', ${now}, ${now}, ${now})`))));
+        assert.deepEqual(uniqueRace.map(result => result.status).sort(), ['fulfilled', 'rejected']);
+      });
     });
   });
 }

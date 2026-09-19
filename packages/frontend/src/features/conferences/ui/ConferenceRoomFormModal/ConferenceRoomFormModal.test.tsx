@@ -231,7 +231,7 @@ describe('ConferenceRoomFormModal', () => {
   it('does not rename conferences.history.empty', () => {
     const ru = readFileSync(resolve(__dirname, '../../../../shared/config/locales/ru.ts'), 'utf8');
     const en = readFileSync(resolve(__dirname, '../../../../shared/config/locales/en.ts'), 'utf8');
-    expect(ru).toContain("empty: 'Нет встреч'");
-    expect(en).toContain("empty: 'No meetings'");
+    expect(ru).toContain('empty: "Нет встреч"');
+    expect(en).toContain('empty: "No meetings"');
   });
 });

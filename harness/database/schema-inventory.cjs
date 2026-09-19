@@ -92,32 +92,44 @@ function baselineInventory() {
   return { sha256: crypto.createHash('sha256').update(bytes).digest('hex'), tables };
 }
 
-function appModels() {
-  const app = source(appPath);
+function exportedModelNames(file, exportName) {
+  const ast = source(file);
+  const statement = ast.statements.find(node => ts.isVariableStatement(node)
+    && node.declarationList.declarations.some(decl => ts.isIdentifier(decl.name) && decl.name.text === exportName));
+  if (!statement || !ts.isVariableStatement(statement)) throw new Error(`Missing ${exportName} in ${path.relative(backend, file)}`);
+  let initializer = statement.declarationList.declarations[0].initializer;
+  while (initializer && (ts.isAsExpression(initializer) || ts.isParenthesizedExpression(initializer)
+    || ts.isTypeAssertionExpression(initializer) || ts.isSatisfiesExpression(initializer))) {
+    initializer = initializer.expression;
+  }
+  if (!initializer || !ts.isArrayLiteralExpression(initializer)) throw new Error(`${exportName} is not an array`);
   const imports = new Map();
-  let names;
-  const visit = node => {
-    if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier) && node.moduleSpecifier.text.startsWith('.')) {
-      for (const spec of node.importClause?.namedBindings?.elements || []) {
-        imports.set(spec.name.text, path.resolve(path.dirname(appPath), node.moduleSpecifier.text) + '.ts');
-      }
+  for (const node of ast.statements) {
+    if (!ts.isImportDeclaration(node) || !ts.isStringLiteral(node.moduleSpecifier)) continue;
+    const bindings = node.importClause?.namedBindings;
+    if (!bindings || !ts.isNamedImports(bindings)) continue;
+    for (const spec of bindings.elements) {
+      imports.set(spec.name.text, path.resolve(path.dirname(file), node.moduleSpecifier.text) + '.ts');
     }
-    if (ts.isPropertyAssignment(node) && node.name.getText(app) === 'models' && ts.isArrayLiteralExpression(node.initializer)) {
-      if (names) throw new Error('Multiple AppModule models arrays');
-      names = node.initializer.elements.map(e => {
-        if (!ts.isIdentifier(e)) throw new Error(`Dynamic AppModule model: ${e.getText(app)}`);
-        return e.text;
-      });
-    }
-    ts.forEachChild(node, visit);
-  };
-  visit(app);
-  if (!names?.length || new Set(names).size !== names.length) throw new Error('Missing or duplicate AppModule models');
-  return names.map(name => {
-    const file = imports.get(name);
-    if (!file || !fs.existsSync(file)) throw new Error(`Cannot resolve model ${name}`);
-    return { name, file };
+  }
+  return initializer.elements.map(element => {
+    if (!ts.isIdentifier(element)) throw new Error(`Dynamic ${exportName} model: ${element.getText(ast)}`);
+    const modelFile = imports.get(element.text);
+    if (!modelFile || !fs.existsSync(modelFile)) throw new Error(`Cannot resolve model ${element.text}`);
+    return { name: element.text, file: modelFile };
   });
+}
+
+function appModels() {
+  const groups = [
+    exportedModelNames(path.join(backend, 'src/compositions/pbx-core.composition.ts'), 'PBX_CORE_MODELS'),
+    exportedModelNames(path.join(backend, 'src/compositions/commercial-ai.composition.ts'), 'COMMERCIAL_AI_MODELS'),
+  ];
+  const names = groups.flat();
+  if (!names.length || new Set(names.map(item => item.name)).size !== names.length) {
+    throw new Error('Missing or duplicate AppModule models');
+  }
+  return names;
 }
 
 function modelInventory() {
@@ -191,6 +203,10 @@ function inventory() {
     'ai_product_activation', 'ai_local_license_documents', 'ai_local_license_bindings',
     'ai_integration_principals', 'ai_integration_credentials', 'ai_integration_grants',
     'ai_integration_audit', 'ai_integration_commands', 'ai_integration_auth_limits',
+    'ai_provider_revisions', 'ai_media_assets', 'ai_uploads', 'ai_idempotency',
+    'ai_jobs', 'ai_job_stages', 'ai_provider_operations', 'ai_outbox', 'ai_job_events',
+    'ai_quota_counters', 'ai_usage_reservations', 'ai_usage_events', 'ai_price_revisions',
+    'ai_usage_ledger',
   ];
   const additiveModels = Object.fromEntries(additiveNames.map(name => [name, allModels[name]]));
   if (additiveNames.some(name => !allModels[name])) throw new Error('Missing additive AI product model');

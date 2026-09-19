@@ -32,6 +32,8 @@ export * from './types/voicemail.types';
 export * from './types/ivr-phrase.types';
 export * from './types/prompt.types';
 export * from './types/ai-chat-timeline.types';
+export * from './types/ai-jobs.types';
+export * from './types/ai-media.types';
 export {
   normalizeIvrPrompts,
   assertIvrPromptsForSave,

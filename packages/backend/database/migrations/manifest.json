@@ -10,7 +10,9 @@
         { "id": "0004-ai-product-access.sql", "artifact": "0004-ai-product-access.sql" },
         { "id": "0005-ai-integration-credentials.sql", "artifact": "0005-ai-integration-credentials.sql" },
         { "id": "0006-ai-integration-auth-limits.sql", "artifact": "0006-ai-integration-auth-limits.sql" },
-        { "id": "0007-tenant-login-uniqueness.sql", "artifact": "0007-tenant-login-uniqueness.sql" }
+        { "id": "0007-tenant-login-uniqueness.sql", "artifact": "0007-tenant-login-uniqueness.sql" },
+        { "id": "0008-ai-jobs-assets.sql", "artifact": "0008-ai-jobs-assets.sql" },
+        { "id": "0009-ai-usage.sql", "artifact": "0009-ai-usage.sql" }
       ],
       "profiles": {
         "analytics-api": [
@@ -18,14 +20,18 @@
           { "id": "0004-ai-product-access.sql", "artifact": "0004-ai-product-access.sql" },
           { "id": "0005-ai-integration-credentials.sql", "artifact": "0005-ai-integration-credentials.sql" },
           { "id": "0006-ai-integration-auth-limits.sql", "artifact": "0006-ai-integration-auth-limits.sql" },
-          { "id": "0007-tenant-login-uniqueness.sql", "artifact": "0007-tenant-login-uniqueness.sql" }
+          { "id": "0007-tenant-login-uniqueness.sql", "artifact": "0007-tenant-login-uniqueness.sql" },
+          { "id": "0008-ai-jobs-assets.sql", "artifact": "0008-ai-jobs-assets.sql" },
+          { "id": "0009-ai-usage.sql", "artifact": "0009-ai-usage.sql" }
         ],
         "robot-api": [
           { "id": "0001-ai-standalone-base.sql", "artifact": "0001-ai-standalone-base.sql" },
           { "id": "0004-ai-product-access.sql", "artifact": "0004-ai-product-access.sql" },
           { "id": "0005-ai-integration-credentials.sql", "artifact": "0005-ai-integration-credentials.sql" },
           { "id": "0006-ai-integration-auth-limits.sql", "artifact": "0006-ai-integration-auth-limits.sql" },
-          { "id": "0007-tenant-login-uniqueness.sql", "artifact": "0007-tenant-login-uniqueness.sql" }
+          { "id": "0007-tenant-login-uniqueness.sql", "artifact": "0007-tenant-login-uniqueness.sql" },
+          { "id": "0008-ai-jobs-assets.sql", "artifact": "0008-ai-jobs-assets.sql" },
+          { "id": "0009-ai-usage.sql", "artifact": "0009-ai-usage.sql" }
         ]
       }
     },
@@ -38,7 +44,9 @@
         { "id": "0004-ai-product-access.sql", "artifact": "postgres/0004-ai-product-access.sql" },
         { "id": "0005-ai-integration-credentials.sql", "artifact": "postgres/0005-ai-integration-credentials.sql" },
         { "id": "0006-ai-integration-auth-limits.sql", "artifact": "postgres/0006-ai-integration-auth-limits.sql" },
-        { "id": "0007-tenant-login-uniqueness.sql", "artifact": "postgres/0007-tenant-login-uniqueness.sql" }
+        { "id": "0007-tenant-login-uniqueness.sql", "artifact": "postgres/0007-tenant-login-uniqueness.sql" },
+        { "id": "0008-ai-jobs-assets.sql", "artifact": "postgres/0008-ai-jobs-assets.sql" },
+        { "id": "0009-ai-usage.sql", "artifact": "postgres/0009-ai-usage.sql" }
       ],
       "profiles": {
         "analytics-api": [
@@ -46,14 +54,18 @@
           { "id": "0004-ai-product-access.sql", "artifact": "postgres/0004-ai-product-access.sql" },
           { "id": "0005-ai-integration-credentials.sql", "artifact": "postgres/0005-ai-integration-credentials.sql" },
           { "id": "0006-ai-integration-auth-limits.sql", "artifact": "postgres/0006-ai-integration-auth-limits.sql" },
-          { "id": "0007-tenant-login-uniqueness.sql", "artifact": "postgres/0007-tenant-login-uniqueness.sql" }
+          { "id": "0007-tenant-login-uniqueness.sql", "artifact": "postgres/0007-tenant-login-uniqueness.sql" },
+          { "id": "0008-ai-jobs-assets.sql", "artifact": "postgres/0008-ai-jobs-assets.sql" },
+          { "id": "0009-ai-usage.sql", "artifact": "postgres/0009-ai-usage.sql" }
         ],
         "robot-api": [
           { "id": "0001-ai-standalone-base.sql", "artifact": "postgres/0001-ai-standalone-base.sql" },
           { "id": "0004-ai-product-access.sql", "artifact": "postgres/0004-ai-product-access.sql" },
           { "id": "0005-ai-integration-credentials.sql", "artifact": "postgres/0005-ai-integration-credentials.sql" },
           { "id": "0006-ai-integration-auth-limits.sql", "artifact": "postgres/0006-ai-integration-auth-limits.sql" },
-          { "id": "0007-tenant-login-uniqueness.sql", "artifact": "postgres/0007-tenant-login-uniqueness.sql" }
+          { "id": "0007-tenant-login-uniqueness.sql", "artifact": "postgres/0007-tenant-login-uniqueness.sql" },
+          { "id": "0008-ai-jobs-assets.sql", "artifact": "postgres/0008-ai-jobs-assets.sql" },
+          { "id": "0009-ai-usage.sql", "artifact": "postgres/0009-ai-usage.sql" }
         ]
       }
     }

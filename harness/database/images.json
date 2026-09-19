@@ -1,4 +1,6 @@
 {
   "mysql": "mysql:8.4.11",
-  "postgres": "postgres:17.11-bookworm"
+  "postgres": "postgres:17.11-bookworm",
+  "redis": "redis:7.4-alpine",
+  "minio": "quay.io/minio/minio:RELEASE.2024-12-18T13-15-44Z"
 }

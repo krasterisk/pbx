@@ -48,9 +48,11 @@ export default defineConfig({
     },
   },
   test: {
-    // Separate processes avoid worker-thread hangs observed on the Windows live-test host.
+    // Windows: one fork avoids the previous vitest hang at RUN with zero files.
     pool: process.platform === 'win32' ? 'forks' : 'threads',
-    maxWorkers: 2,
+    maxWorkers: process.platform === 'win32' ? 1 : 2,
+    fileParallelism: process.platform !== 'win32',
+    isolate: true,
     globals: true,
     environment: 'jsdom',
     setupFiles: './src/shared/config/tests/setupTests.ts',

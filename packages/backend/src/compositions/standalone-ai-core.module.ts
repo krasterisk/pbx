@@ -25,6 +25,14 @@ import {
 import { ProductActivation } from '../modules/product-access/product-activation.model';
 import { LocalLicenseDocument } from '../modules/product-access/local-license-document.model';
 import { LocalLicenseBinding } from '../modules/product-access/local-license-binding.model';
+import { AiProviderRevision } from '../modules/ai-connectivity/ai-provider-revision.model';
+import {
+  AiJob, AiJobEvent, AiJobStage, AiIdempotency, AiOutbox, AiProviderOperation,
+} from '../modules/ai-jobs/ai-job.models';
+import { AiMediaAsset, AiUpload } from '../modules/media-assets/media-asset.models';
+import {
+  AiPriceRevision, AiQuotaCounter, AiUsageEvent, AiUsageLedger, AiUsageReservation,
+} from '../modules/ai-usage/usage.models';
 
 export type StandaloneAiProfile = 'analytics-api' | 'robot-api';
 
@@ -50,6 +58,9 @@ export class StandaloneAiCoreModule {
                 IntegrationPrincipal, IntegrationCredential, IntegrationGrant,
                 IntegrationAudit, IntegrationCommand, IntegrationAuthLimit,
                 ProductActivation, LocalLicenseDocument, LocalLicenseBinding,
+                AiProviderRevision, AiMediaAsset, AiUpload, AiIdempotency, AiJob,
+                AiJobStage, AiProviderOperation, AiOutbox, AiJobEvent,
+                AiQuotaCounter, AiPriceRevision, AiUsageReservation, AiUsageEvent, AiUsageLedger,
               ],
               synchronize: false,
               autoLoadModels: false,

@@ -55,6 +55,14 @@ export const MODULE_COVERAGE: Record<string, ModuleCoverageEntry> = {
     kind: 'infrastructure',
     reason: 'Shared tenant provider credentials and endpoint policy; not a tenant-agent tool surface.',
   },
+  'ai-jobs': {
+    kind: 'infrastructure',
+    reason: 'Durable job, outbox and idempotency store for AI products; agent tools belong to product domains.',
+  },
+  'ai-usage': {
+    kind: 'infrastructure',
+    reason: 'Usage and quota contracts; D4 owns ledger tables. Not a tenant agent catalog.',
+  },
   'tenant-identity': {
     kind: 'infrastructure',
     reason: 'Tenant owner and organization identity transaction; no tenant-agent tools or PBX operations.',
@@ -107,6 +115,10 @@ export const MODULE_COVERAGE: Record<string, ModuleCoverageEntry> = {
   mcp: {
     kind: 'infrastructure',
     reason: 'External JSON-RPC transport; tools come from adapters, not this module.',
+  },
+  'media-assets': {
+    kind: 'infrastructure',
+    reason: 'Media asset and upload state store; playback and probe APIs are not a tenant catalog.',
   },
   moh: { kind: 'covered', capability: 'configure' },
   notifications: { kind: 'covered', sharedSkill: 'operations', capability: 'configure' },

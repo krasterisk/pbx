@@ -145,6 +145,17 @@ and PostgreSQL indexes `LOWER(login)`. A preflight checks legacy duplicates befo
 marking migration dirty; operators must reconcile collisions against a backup.
 The migration never chooses or deletes a user automatically.
 
+`0008-ai-jobs-assets.sql` adds durable AI job, media, outbox and idempotency
+tables for both full-pbx and standalone analytics/robot profiles. IDs are UUID
+strings, tenant identity is `vpbx_user_uid`, and child rows use composite tenant
+foreign keys. Provider revisions are insert-only via
+`(tenant, provider_uid, revision)` uniqueness.
+
+`0009-ai-usage.sql` adds quota counters, usage reservations, usage events,
+immutable price revisions and an append-only usage ledger. This is a measurement
+journal for shadow/`local_byok` settlement; it does not change the existing
+billing wallet. `cloud_wallet` processing stays disabled until AI-10.
+
 The wide Asterisk `ps_endpoints` table stores non-indexed 40-character options
 as `TEXT`, allowing InnoDB DYNAMIC to move values off-page under utf8mb4.
 Using VARCHAR for all those columns exceeds the 8126-byte inline row limit.

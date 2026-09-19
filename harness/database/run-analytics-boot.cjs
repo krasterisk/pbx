@@ -10,6 +10,7 @@ const { resolveDatabaseConfig } = require('../../packages/backend/src/database/d
 const { runMigrations, loadMigrations } = require('../../packages/backend/database/migration-runner.cjs');
 const { connectAdapter } = require('../../packages/backend/database/migration-adapter.cjs');
 const { seed } = require('../../packages/backend/database/seed-ci.cjs');
+const { entitleCloudProduct } = require('./entitle-cloud-product.cjs');
 const images = require('./images.json');
 
 const dialect = process.argv[2];
@@ -71,7 +72,8 @@ async function main() {
     child = spawn(process.execPath, [path.join(backend, `dist-${product}/${product}.main.js`)], {
       cwd: backend,
       env: { ...process.env, ...environment, BACKEND_PORT: String(port),
-        JWT_SECRET: 'disposable-analytics-boot-jwt-secret-00000001', NODE_ENV: 'test' },
+        JWT_SECRET: 'disposable-analytics-boot-jwt-secret-00000001', NODE_ENV: 'test',
+        DEPLOYMENT_MODE: 'CLOUD' },
       stdio: ['ignore', 'pipe', 'pipe'],
     });
     child.stdout.on('data', chunk => { output = (output + chunk.toString()).slice(-20000); });
@@ -139,6 +141,44 @@ async function main() {
       }),
     });
     assert.equal(createDenied.status, 403, 'unentitled tenant must not mint an integration key');
+    const productCode = product === 'analytics' ? 'speech_analytics' : 'ai_voice_robots';
+    await entitleCloudProduct(config, { slug: 'ci-tenant-a', product: productCode });
+    const operationId = crypto.randomUUID();
+    const createAllowed = await fetch(`${base}/v1/integrations`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${accessToken}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ label: 'C4 CLOUD allow', product: productCode, operationId }),
+    });
+    assert.equal(createAllowed.status, 201, 'CLOUD entitled tenant must mint an integration key');
+    const receipt = await createAllowed.json();
+    assert.equal(typeof receipt.token, 'string');
+    assert.ok(receipt.token.length > 8, 'secret is shown once');
+    assert.equal(receipt.replay, false);
+    const replay = await fetch(`${base}/v1/integrations`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${accessToken}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ label: 'C4 CLOUD allow', product: productCode, operationId }),
+    });
+    assert.equal(replay.status, 201, 'idempotent create replay stays 201');
+    const replayBody = await replay.json();
+    assert.equal(replayBody.token, null, 'secret is not shown again');
+    assert.equal(replayBody.replay, true);
+    const entitledCapabilities = await fetch(`${base}/v1/identity/capabilities`, {
+      headers: { authorization: `Bearer ${accessToken}` },
+    });
+    assert.equal(entitledCapabilities.status, 200);
+    const entitledBody = await entitledCapabilities.json();
+    assert.equal(entitledBody.entitlement.allowed, true);
+    assert.equal(entitledBody.entitlement.source, 'cloud_entitlement');
+    assert.equal(entitledBody.usable, false, 'runtime remains not-installed');
+    const createDeniedB = await fetch(`${base}/v1/integrations`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${tokenB}`, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        label: 'C4 probe B', product: productCode, operationId: crypto.randomUUID(),
+      }),
+    });
+    assert.equal(createDeniedB.status, 403, 'tenant B without a CLOUD grant must stay denied');
     const adminLogin = await fetch(`${base}/auth/login`, {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ login: 'admin', password: fixturePassword }),
@@ -154,7 +194,16 @@ async function main() {
     }
     assert.doesNotMatch(output, /AMI connection|ARI websocket|asterisk manager|ami\.connect/i,
       'standalone boot must not open PBX sockets');
-    console.log(`${dialect} ${product} API boot: health 200; login 200/401; identity/capabilities 200/401; tenant A/B integration list 200; unentitled create 403; platform admin login ${adminLogin.status}; unauthenticated integration 401; PBX routes 404`);
+    console.log(`${dialect} ${product} API boot: health 200; login 200/401; identity/capabilities 200/401; tenant A/B integration list 200; unentitled create 403; CLOUD entitled create 201 secret-once; platform admin login ${adminLogin.status}; unauthenticated integration 401; PBX routes 404`);
+    if (process.env.C4_KEEP_ALIVE === '1') {
+      console.log(`C4_LIVE_READY port=${port} login=ci-tenant-a password=${fixturePassword} profile=${profile}`);
+      await new Promise(resolve => {
+        const stop = () => resolve();
+        process.on('SIGTERM', stop);
+        process.on('SIGINT', stop);
+        child.once('exit', stop);
+      });
+    }
   } finally {
     if (child && child.exitCode === null) {
       child.kill('SIGTERM');
