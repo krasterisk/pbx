@@ -43,6 +43,16 @@ describe('DialplanNotifyController', () => {
     expect(dispatcher.dispatch).not.toHaveBeenCalled();
   });
 
+  it('throws UnauthorizedException when DIALPLAN_API_KEY is missing', async () => {
+    configService.get.mockReturnValue('');
+    controller = new DialplanNotifyController(
+      dispatcher as any,
+      configService as any,
+    );
+    await expect(controller.notify('', body)).rejects.toThrow(UnauthorizedException);
+    expect(dispatcher.dispatch).not.toHaveBeenCalled();
+  });
+
   it('returns before dispatch completes (fire-and-forget, not awaited)', async () => {
     let resolved = false;
     dispatcher.dispatch.mockReturnValue(

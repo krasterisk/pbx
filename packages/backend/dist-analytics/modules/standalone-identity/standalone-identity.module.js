@@ -15,6 +15,9 @@ const throttler_1 = require("@nestjs/throttler");
 const user_model_1 = require("../users/user.model");
 const jwt_secret_1 = require("../auth/jwt-secret");
 const integration_credentials_module_1 = require("../integration-credentials/integration-credentials.module");
+const product_access_core_module_1 = require("../product-access/product-access-core.module");
+const standalone_capabilities_controller_1 = require("./standalone-capabilities.controller");
+const standalone_capabilities_service_1 = require("./standalone-capabilities.service");
 const standalone_login_controller_1 = require("./standalone-login.controller");
 const standalone_login_service_1 = require("./standalone-login.service");
 let StandaloneIdentityModule = class StandaloneIdentityModule {
@@ -23,7 +26,7 @@ exports.StandaloneIdentityModule = StandaloneIdentityModule;
 exports.StandaloneIdentityModule = StandaloneIdentityModule = __decorate([
     (0, common_1.Module)({
         imports: [
-            sequelize_1.SequelizeModule.forFeature([user_model_1.User]), integration_credentials_module_1.IntegrationCredentialsModule,
+            sequelize_1.SequelizeModule.forFeature([user_model_1.User]), integration_credentials_module_1.IntegrationCredentialsModule, product_access_core_module_1.ProductAccessCoreModule,
             throttler_1.ThrottlerModule.forRoot([{ ttl: 60_000, limit: 20 }]),
             jwt_1.JwtModule.registerAsync({
                 imports: [config_1.ConfigModule], inject: [config_1.ConfigService],
@@ -33,8 +36,8 @@ exports.StandaloneIdentityModule = StandaloneIdentityModule = __decorate([
                 }),
             }),
         ],
-        controllers: [standalone_login_controller_1.StandaloneLoginController],
-        providers: [standalone_login_service_1.StandaloneLoginService],
+        controllers: [standalone_login_controller_1.StandaloneLoginController, standalone_capabilities_controller_1.StandaloneCapabilitiesController],
+        providers: [standalone_login_service_1.StandaloneLoginService, standalone_capabilities_service_1.StandaloneCapabilitiesService],
     })
 ], StandaloneIdentityModule);
 //# sourceMappingURL=standalone-identity.module.js.map

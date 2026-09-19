@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.build.json",
+  "compilerOptions": {
+    "outDir": "./dist-community",
+    "incremental": false
+  },
+  "include": ["src/community.main.ts"],
+  "exclude": ["node_modules", "dist", "dist-analytics", "dist-robot", "dist-community", "test", "**/*spec.ts"]
+}

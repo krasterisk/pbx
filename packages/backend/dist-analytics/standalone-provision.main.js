@@ -50,8 +50,8 @@ async function main() {
     if (!login || !name || !companyName || process.stdin.isTTY) {
         throw new Error('Set admin login/name/company and pipe the password to stdin');
     }
-    const password = (0, node_fs_1.readFileSync)(0, 'utf8').trimEnd();
-    if (password.length < 12 || password.length > 128) {
+    const password = (0, node_fs_1.readFileSync)(0, 'utf8').replace(/\r?\n$/, '');
+    if (password.length < 12 || password.length > 128 || /[\r\n\0]/.test(password)) {
         throw new Error('Admin password must be 12–128 characters');
     }
     const passwordHash = await bcrypt.hash(password, 12);

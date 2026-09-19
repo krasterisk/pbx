@@ -6,7 +6,7 @@ import {
   CreateNotificationIntegrationDto,
   UpdateNotificationIntegrationDto,
 } from './dto/notification-integration.dto';
-import { encryptSecret, decryptSecret } from '../ai-agents/util/secret-cipher.util';
+import { encryptSecret, decryptSecret } from '../ai-connectivity/secret-cipher.util';
 
 @Injectable()
 export class NotificationsService {

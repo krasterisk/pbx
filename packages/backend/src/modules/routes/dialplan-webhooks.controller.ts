@@ -1,5 +1,6 @@
-import { Controller, Post, Body, Query, Get, HttpCode, Logger, UnauthorizedException, Headers } from '@nestjs/common';
+import { Controller, Post, Body, HttpCode, Logger, UnauthorizedException, Headers } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { timingSafeApiKeyEqual } from '../dialplan-bridge/dialplan-api-key';
 import { DialplanWebhooksService } from './dialplan-webhooks.service';
 
 /**
@@ -120,7 +121,7 @@ export class DialplanWebhooksController {
   // Private helpers
   // ---------------------------------------------------------------------------
   private validateKey(provided?: string): void {
-    if (this.apiKey && provided !== this.apiKey) {
+    if (!timingSafeApiKeyEqual(this.apiKey, provided)) {
       this.logger.warn('Unauthorized internal dialplan request');
       throw new UnauthorizedException('Invalid API key');
     }

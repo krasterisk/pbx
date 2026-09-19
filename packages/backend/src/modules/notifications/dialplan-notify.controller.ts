@@ -8,6 +8,7 @@ import {
   Headers,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { timingSafeApiKeyEqual } from '../dialplan-bridge/dialplan-api-key';
 import { NotificationDispatcherService } from './notification-dispatcher.service';
 import { NotifyDialplanDto } from './dto/notify-dialplan.dto';
 
@@ -36,7 +37,7 @@ export class DialplanNotifyController {
     @Body() body: NotifyDialplanDto & { api_key?: string },
   ) {
     const providedKey = headerKey || body.api_key;
-    if (this.apiKey && providedKey !== this.apiKey) {
+    if (!timingSafeApiKeyEqual(this.apiKey, providedKey)) {
       this.logger.warn('Unauthorized dialplan notify attempt');
       throw new UnauthorizedException('Invalid API key');
     }

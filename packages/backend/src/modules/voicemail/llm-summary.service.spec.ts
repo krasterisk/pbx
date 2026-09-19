@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { CcAiProvider } from '../ai-agents/models/ai-provider.model';
+import type { CcAiProvider } from '../ai-connectivity/ai-provider.model';
 import { LlmSummaryService, resolveChatCompletionsUrl, chatTokenLimitParams } from './llm-summary.service';
 
 jest.mock('axios');

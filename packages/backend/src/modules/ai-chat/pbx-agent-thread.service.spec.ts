@@ -418,8 +418,8 @@ describe('AgentProposal model shape (D-18 prep)', () => {
 
 describe('CcAiAuditLog conversation reference (D-08)', () => {
   it('exposes a nullable thread_uid distinct from call_uniqueid', () => {
-    const { CcAiAuditLog } = require('../ai-agents/models/ai-audit-log.model');
-    const src = require('fs').readFileSync(require.resolve('../ai-agents/models/ai-audit-log.model'), 'utf8');
+    const { CcAiAuditLog } = require('./models/ai-audit-log.model');
+    const src = require('fs').readFileSync(require.resolve('./models/ai-audit-log.model'), 'utf8');
     expect(src).toMatch(/declare thread_uid:/);
     expect(src).toMatch(/call_uniqueid/);
     expect(CcAiAuditLog).toBeDefined();

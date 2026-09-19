@@ -7,6 +7,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { timingSafeApiKeyEqual } from '../dialplan-bridge/dialplan-api-key';
 import { IvrsService } from './ivrs.service';
 import { IvrTtsService } from './ivr-tts.service';
 import { IvrTtsCacheService } from './ivr-tts-cache.service';
@@ -40,7 +41,7 @@ export class IvrsInternalController {
     @Query('uniqueid') uniqueid: string,
     @Query('api_key') queryApiKey: string,
   ): Promise<string> {
-    if (this.apiKey && queryApiKey !== this.apiKey) {
+    if (!timingSafeApiKeyEqual(this.apiKey, queryApiKey)) {
       this.logger.warn('Unauthorized IVR TTS play-phrase attempt');
       throw new UnauthorizedException('Invalid API key');
     }

@@ -37,7 +37,7 @@ exports.IntegrationCredentialsModule = IntegrationCredentialsModule = __decorate
             { provide: product_resource_authorization_1.PRODUCT_RESOURCE_RESOLVERS, useValue: [] },
         ],
         controllers: [integration_credentials_controller_1.IntegrationCredentialsController],
-        exports: [tenant_context_resolver_1.TenantContextResolver, tenant_context_guard_1.TenantContextGuard,
+        exports: [tenant_context_resolver_1.TenantContextResolver, tenant_context_guard_1.TenantContextGuard, integration_key_rate_limiter_1.IntegrationKeyRateLimiter,
             product_resource_authorization_1.ProductResourceAuthorization, integration_credentials_service_1.IntegrationCredentialsService],
     })
 ], IntegrationCredentialsModule);

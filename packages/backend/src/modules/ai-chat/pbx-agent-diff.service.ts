@@ -4,7 +4,7 @@ import { randomUUID } from 'crypto';
 import { UserLevel } from '../users/user.model';
 import { RouteApplyService } from '../routes/route-apply.service';
 import { LoggerService } from '../logger/logger.service';
-import { CcAiAuditLog } from '../ai-agents/models/ai-audit-log.model';
+import { CcAiAuditLog } from './models/ai-audit-log.model';
 import { AiAdapterRegistryService } from '../ai-platform/ai-adapter-registry.service';
 import {
   parseMutationArgs,

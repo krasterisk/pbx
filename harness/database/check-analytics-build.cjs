@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const product = process.argv[2] || 'analytics';
-assert.ok(['analytics', 'robot'].includes(product));
+assert.ok(['analytics', 'robot', 'community'].includes(product));
 const root = path.resolve(__dirname, `../../packages/backend/dist-${product}`);
 function collect(directory) {
   return fs.readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
@@ -13,12 +13,21 @@ function collect(directory) {
   });
 }
 const files = collect(root);
-for (const required of [
-  `${product}.main.js`, `compositions/${product}-app.module.js`,
-  'database/schema-readiness.cjs', 'database/database-config.cjs',
-  'modules/ai-connectivity/ai-connectivity.module.js',
-  'modules/integration-credentials/integration-credentials.module.js',
-]) assert.ok(files.includes(required), `Missing analytics build artifact ${required}`);
-const forbidden = /(?:^|\/)(?:ami|ari|autodial|voice-robots|routes|contexts|reports|queues|ai-agents|cloud-admin\/cloud-admin\.module)(?:\/|\.|$)/;
-for (const file of files) assert.doesNotMatch(file, forbidden, `PBX runtime leaked into analytics build: ${file}`);
-console.log(`${product} composition: ${files.length} artifacts, no PBX runtime modules`);
+const required = product === 'community'
+  ? [
+    'community.main.js', 'compositions/community-pbx.module.js',
+    'compositions/pbx-core.composition.js', 'database/schema-readiness.cjs',
+    'database/database-config.cjs', 'modules/ai-connectivity/ai-connectivity.module.js',
+  ]
+  : [
+    `${product}.main.js`, `compositions/${product}-app.module.js`,
+    'database/schema-readiness.cjs', 'database/database-config.cjs',
+    'modules/ai-connectivity/ai-connectivity.module.js',
+    'modules/integration-credentials/integration-credentials.module.js',
+  ];
+for (const file of required) assert.ok(files.includes(file), `Missing ${product} build artifact ${file}`);
+const forbidden = product === 'community'
+  ? /(?:^|\/)(?:ai-agents|commercial-ai\.composition|app\.module)(?:\/|\.|$)/
+  : /(?:^|\/)(?:ami|ari|autodial|voice-robots|routes|contexts|reports|queues|ai-agents|cloud-admin\/cloud-admin\.module)(?:\/|\.|$)/;
+for (const file of files) assert.doesNotMatch(file, forbidden, `Forbidden runtime leaked into ${product} build: ${file}`);
+console.log(`${product} composition: ${files.length} artifacts, boundary held`);

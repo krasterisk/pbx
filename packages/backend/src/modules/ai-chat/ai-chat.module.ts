@@ -13,7 +13,7 @@ import { AgentProposal } from './models/agent-proposal.model';
 import { AgentWorkflow, AgentWorkflowStep } from './models/agent-workflow.model';
 import { AgentProposalsModule } from './agent-proposals.module';
 import { CcAiProvider } from '../ai-connectivity/ai-provider.model';
-import { CcAiAuditLog } from '../ai-agents/models/ai-audit-log.model';
+import { CcAiAuditLog } from './models/ai-audit-log.model';
 import { PbxAgentThreadService } from './pbx-agent-thread.service';
 import { AgentUsageService } from './agent-usage.service';
 import { AgentUsageController } from './agent-usage.controller';

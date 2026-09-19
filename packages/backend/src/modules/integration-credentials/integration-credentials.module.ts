@@ -30,7 +30,7 @@ import {
     { provide: PRODUCT_RESOURCE_RESOLVERS, useValue: [] },
   ],
   controllers: [IntegrationCredentialsController],
-  exports: [TenantContextResolver, TenantContextGuard,
+  exports: [TenantContextResolver, TenantContextGuard, IntegrationKeyRateLimiter,
     ProductResourceAuthorization, IntegrationCredentialsService],
 })
 export class IntegrationCredentialsModule {}

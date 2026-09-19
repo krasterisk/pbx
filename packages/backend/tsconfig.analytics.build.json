@@ -5,5 +5,5 @@
     "incremental": false
   },
   "include": ["src/analytics.main.ts", "src/standalone-provision.main.ts"],
-  "exclude": ["node_modules", "dist", "dist-analytics", "test", "**/*spec.ts"]
+  "exclude": ["node_modules", "dist", "dist-analytics", "dist-robot", "dist-community", "test", "**/*spec.ts"]
 }

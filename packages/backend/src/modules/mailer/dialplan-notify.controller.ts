@@ -1,5 +1,6 @@
 import { Controller, Post, Body, HttpCode, Logger, UnauthorizedException, Headers } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { timingSafeApiKeyEqual } from '../dialplan-bridge/dialplan-api-key';
 import { MailerService, SendNotificationDto } from './mailer.service';
 
 /**
@@ -33,7 +34,7 @@ export class DialplanNotifyController {
   ) {
     // Validate internal API key (from header or POST body)
     const providedKey = headerKey || body.api_key;
-    if (this.apiKey && providedKey !== this.apiKey) {
+    if (!timingSafeApiKeyEqual(this.apiKey, providedKey)) {
       this.logger.warn(`Unauthorized dialplan sendmail attempt`);
       throw new UnauthorizedException('Invalid API key');
     }

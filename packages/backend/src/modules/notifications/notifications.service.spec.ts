@@ -1,8 +1,8 @@
 import { NotificationsService } from './notifications.service';
 import { NotFoundException } from '@nestjs/common';
-import * as secretCipher from '../ai-agents/util/secret-cipher.util';
+import * as secretCipher from '../ai-connectivity/secret-cipher.util';
 
-jest.mock('../ai-agents/util/secret-cipher.util', () => ({
+jest.mock('../ai-connectivity/secret-cipher.util', () => ({
   encryptSecret: jest.fn((plain: string) => `enc:${plain}`),
   decryptSecret: jest.fn((blob: string) => blob.replace(/^enc:/, '')),
 }));

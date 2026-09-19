@@ -31,7 +31,7 @@ async function main() {
   const postgres = dialect === 'postgres';
   const password = crypto.randomBytes(24).toString('hex');
   const dbPort = postgres ? 5432 : 3306;
-  const dbName = `krasterisk_ci_${product}_boot`;
+  const dbName = `krasterisk_ci_${product}`;
   const profile = product === 'analytics' ? 'analytics-api' : 'robot-api';
   const container = await new GenericContainer(images[dialect])
     .withEnvironment(postgres
@@ -74,8 +74,8 @@ async function main() {
         JWT_SECRET: 'disposable-analytics-boot-jwt-secret-00000001', NODE_ENV: 'test' },
       stdio: ['ignore', 'pipe', 'pipe'],
     });
-    child.stdout.on('data', chunk => { output = (output + chunk.toString()).slice(-8000); });
-    child.stderr.on('data', chunk => { output = (output + chunk.toString()).slice(-8000); });
+    child.stdout.on('data', chunk => { output = (output + chunk.toString()).slice(-20000); });
+    child.stderr.on('data', chunk => { output = (output + chunk.toString()).slice(-20000); });
     const base = `http://127.0.0.1:${port}/api`;
     const deadline = Date.now() + 30000;
     let health;
@@ -102,17 +102,32 @@ async function main() {
     assert.equal(acceptedLogin.status, 200, 'seeded tenant must be able to log in');
     const { accessToken } = await acceptedLogin.json();
     assert.ok(accessToken, 'login must issue an access token');
+    const identity = await fetch(`${base}/v1/identity/self`, {
+      headers: { authorization: `Bearer ${accessToken}` },
+    });
+    assert.equal(identity.status, 200, 'tenant JWT must read standalone identity');
+    const capabilities = await fetch(`${base}/v1/identity/capabilities`, {
+      headers: { authorization: `Bearer ${accessToken}` },
+    });
+    assert.equal(capabilities.status, 200, 'tenant JWT must read standalone capabilities');
+    assert.equal(capabilities.headers.get('cache-control'), 'no-store');
+    const body = await capabilities.json();
+    assert.equal(body.profile, profile);
+    assert.equal(body.productRuntime, 'not-installed');
+    assert.equal(body.usable, false);
+    assert.equal(body.entitlement.product, product === 'analytics' ? 'speech_analytics' : 'ai_voice_robots');
     const authorizedList = await fetch(`${base}/v1/integrations`, {
       headers: { authorization: `Bearer ${accessToken}` },
     });
     assert.equal(authorizedList.status, 200, 'tenant JWT must access its scoped integrations');
     const status = async route => (await fetch(`${base}/${route}`)).status;
+    assert.equal(await status('v1/identity/capabilities'), 401);
     assert.equal(await status('v1/integrations/self/capabilities'), 401);
     for (const absent of ['routes', 'ai-agents', 'public/voice-robots',
       'internal/dialplan/notify', 'internal/dialplan/route']) {
       assert.equal(await status(absent), 404, `${absent} must be absent from analytics composition`);
     }
-    console.log(`${dialect} ${product} API boot: health 200; login 200/401; tenant integration list 200; unauthenticated integration 401; PBX routes 404`);
+    console.log(`${dialect} ${product} API boot: health 200; login 200/401; identity/capabilities 200/401; tenant integration list 200; unauthenticated integration 401; PBX routes 404`);
   } finally {
     if (child && child.exitCode === null) {
       child.kill('SIGTERM');
