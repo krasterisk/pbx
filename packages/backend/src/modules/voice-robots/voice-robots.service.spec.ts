@@ -43,6 +43,23 @@ function buildVoiceRobotsService(
   );
 }
 
+describe('VoiceRobotsService.handleStasisStart', () => {
+  it('leaves autodial ARI channels for the autodial originator', async () => {
+    const voiceRobotModel = { findAll: jest.fn(), findByPk: jest.fn() };
+    const groupModel = { findAll: jest.fn() };
+    const keywordModel = { findAll: jest.fn() };
+    const service = buildVoiceRobotsService(voiceRobotModel, groupModel, keywordModel);
+
+    await service.handleStasisStart({
+      application: 'krasterisk_voicerobots',
+      channel: { id: 'ac-12-34-56', name: 'PJSIP/test' },
+      args: [],
+    });
+
+    expect(voiceRobotModel.findByPk).not.toHaveBeenCalled();
+  });
+});
+
 /**
  * Wave 0 characterization of the three actionToDialplan call sites in
  * generateAllVoiceRobotContexts. Nest is not started — models are mocked.

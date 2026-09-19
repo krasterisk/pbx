@@ -12,7 +12,8 @@ export const REQUIRED_MODULE_KEY = 'required_module';
  *
  * Combined with ModuleAccessGuard, this returns 403 if the tenant
  * doesn't have the module active in tenant_modules.
- * In BOX/OPENSOURCE mode the guard always passes.
+ * Legacy codes retain BOX/OPENSOURCE behavior; new AI product codes use
+ * the same fail-closed policy in every deployment mode.
  */
 export const RequiresModule = (moduleCode: string) =>
   SetMetadata(REQUIRED_MODULE_KEY, moduleCode);

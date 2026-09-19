@@ -36,7 +36,9 @@
 |---|---|---|
 | npm run lint | Exit 0; 100 backend и 84 frontend warnings, ошибок нет | [lint](evidence/hybrid-lint.log) |
 | npm run test:backend | Exit 0; 245 suites passed, 1 skipped; 2857 tests passed, 9 skipped. Есть warning о принудительном завершении worker из-за возможного teardown leak | [backend](evidence/hybrid-test-backend.log) |
-| npm run test:frontend | Первый запуск: esbuild Access is denied до тестов. Тот же command повторён с разрешённым расширением среды; результат pending | [первый запуск](evidence/hybrid-test-frontend.log), [повтор](evidence/hybrid-test-frontend-retry.log) |
+| npm run test:frontend | Первый запуск: esbuild Access is denied до тестов. Повтор той же команды с разрешённым расширением среды: exit 1; 245 files passed, 1 failed; 1388 tests passed, 1 failed; 837.37 s | [первый запуск](evidence/hybrid-test-frontend.log), [повтор](evidence/hybrid-test-frontend-retry.log) |
+
+Единственный failed test: `packages/frontend/src/features/conferences/ui/ConferenceRoomFormModal/ConferenceRoomFormModal.test.tsx`, `does not rename conferences.history.empty`, assertion строки RU locale `empty: 'Нет встреч'` (строка 234 на момент чтения). Файл теста уже находится в текущем рабочем diff; ни он, ни locale/application code этой задачей не изменялись. Это незелёный baseline текущей копии, а не закрытый дефект: следующая implementation-задача должна отделить его от собственных регрессий. Внеплановое исправление конференций здесь не выполнялось.
 
 ## Практические ограничения
 

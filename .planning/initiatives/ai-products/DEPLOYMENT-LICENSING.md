@@ -86,7 +86,7 @@ Admission всегда проверяет лицензию и resource/concurren
 | DEP-02 | SaaS: два tenant, отдельные SKU, no cross-tenant resources | AI-01/04/07/10/11 |
 | DEP-03 | Self-hosted analytics-only: чистая установка, signup, API upload, результат без PBX schema/AMI/ARI | AI-01/02/04/10A/11A |
 | DEP-04 | Self-hosted robots-only: SIP edge, versioned robot, record/playback без analytics entitlement | AI-03/07/08/10R/11R |
-| DEP-05 | Подписанная лицензия: invalid/expired/wrong-install/renewal/key rotation; offline выбранный профиль | AI-01 contract, AI-10 implementation, AI-11 test |
+| DEP-05 | Подписанная лицензия: invalid/expired/wrong-install/renewal/key rotation; offline выбранный профиль | AI-01-A/A2 verifier и import foundation; AI-10 выдача/коммерческая lifecycle и packaging, AI-11 release test |
 | DEP-06 | Local/BYOK режим не передаёт audio/PII/telemetry нашему облаку без настройки | Provider spikes AI-00, AI-04/07/09/11 |
 | DEP-07 | Backup→restore→upgrade→rollback с jobs/assets/keys/ledger | AI-02 storage contracts, AI-10 packaging, AI-11 drills |
 | DEP-08 | SaaS/self-hosted одинаковая schema/event/API semantics и поддерживаемая version-skew policy | Все контракты, CI matrix AI-11 |

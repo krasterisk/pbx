@@ -1,0 +1,26 @@
+.shell { min-height: 100vh; background: var(--color-background); color: var(--color-foreground); }
+.topbar { min-height: 56px; padding: 0 24px; border-bottom: 1px solid var(--color-border); background: var(--color-card); }
+.brand { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; background: var(--color-primary); color: white; font-weight: 700; }
+.brandName { font-weight: 650; }
+.separator, .edition, .sidebarFoot, .navTitle, .description { color: var(--color-muted-foreground); }
+.productName { font-size: 14px; }
+.edition { font-size: 12px; }
+.body { flex: 1; min-height: 0; }
+.sidebar { width: 240px; flex-shrink: 0; padding: 20px 12px; border-right: 1px solid var(--color-border); background: var(--color-sidebar); }
+.navTitle { padding: 0 12px; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
+.activeNav { padding: 10px 12px; border-radius: 8px; color: var(--color-primary-hover); background: var(--color-sidebar-accent); }
+.sidebarFoot { padding: 12px; font-size: 12px; overflow-wrap: anywhere; }
+.content { width: min(100%, 820px); margin: 0 auto; padding: 64px 36px; }
+.eyebrow { color: var(--color-primary-hover); font-size: 13px; font-weight: 650; text-transform: uppercase; letter-spacing: .08em; }
+.description { max-width: 600px; }
+.panel { padding: 24px; border: 1px solid var(--color-border); border-radius: 16px; background: var(--glass-bg-primary); }
+.statusRow { padding: 12px 0; border-bottom: 1px solid var(--color-border); }
+.good { color: var(--color-success); }
+.needsAttention { color: var(--color-warning); text-align: right; }
+.refresh { align-self: flex-start; }
+.notice { padding: 16px 20px; border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-card); color: var(--color-muted-foreground); }
+@media (max-width: 720px) {
+  .topbar { padding: 0 16px; }
+  .brandName, .separator, .edition, .sidebar { display: none; }
+  .content { padding: 36px 20px; }
+}

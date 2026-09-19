@@ -53,10 +53,10 @@ export interface AgentToolSpec {
 export interface AgentChatParams {
     provider: {
         uid?: number;
+        tenantUid?: number;
         name?: string;
         endpoint: string;
         auth_type?: 'bearer' | 'api_key_header' | 'none' | 'custom';
-        encrypted_api_key?: string;
         capabilities?: string[];
         defaults?: Record<string, unknown> | null;
         vendor?: string;

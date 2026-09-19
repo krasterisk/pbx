@@ -1,0 +1,11 @@
+# AI-01-A / A1 — product access implementation
+
+Date: 2026-09-18. Mode: `codex-direct`. Source: [AI-01-A-ACCESS-PLAN](AI-01-A-ACCESS-PLAN.md), task A1, SHA-256 `C46E8834643A706635CF97FCBE69930E11D45CF97739F6930CF6258E5D1984E1`.
+
+The two commercial AI product codes now pass through one fail-closed policy for generic/by-ID access and protected HTTP endpoints. The policy reads the server-bound tenant, evaluates tenant status/trial deadline and the explicit entitlement's own expiry using one clock, allows only the documented `cc_ai_voice` compatibility grant for speech analytics, and lets an explicit deny override that legacy grant. Scripted `voice_robot` and existing module guard behavior remain separate. Superadmin cannot bypass product processing admission. BOX remains closed pending a signed local license; OpenSource reports package missing.
+
+The A1 activation adapter intentionally returns disabled for both products. An existing entitlement can be reported in `GET /marketplace/ai-products/status`, but cannot start processing. Protected `GET /marketplace/ai-products/{voice-robots|speech-analytics}/access` routes exercise the same policy. A2 will add persisted activation and local-license binding. No AI runtime, provider call, billing debit, PBX action, migration or frontend change was made.
+
+Catalog bootstrap inserts new product entries unpublished and preserves operator publication on subsequent boots. An explicit superadmin `POST /cloud-admin/ai-products/unpublish-unreleased-drafts` corrects draft entries previously created by older seed behavior; it is never called at startup. New AI offers are release-gated, so direct purchase cannot convert a zero price or manually published draft into an entitlement. Tenant Hub enable/disable returns `409 product_configuration_pending` for the two codes instead of minting grants. Existing legacy purchase and free/core behavior is unchanged.
+
+The active working tree already contained earlier partial AI product entries/resolver and unrelated autodial/DB/frontend changes. This slice kept those changes intact. See [verification](AI-01-A1-VERIFICATION.md). A1 is the authorization/catalog foundation, not completion of AI-01 or either product.

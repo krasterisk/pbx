@@ -8,7 +8,7 @@ export enum UserLevel {
   READONLY = 5,
 }
 
-@Table({ tableName: 'users' })
+@Table({ tableName: 'users', timestamps: true })
 export class User extends Model {
   @PrimaryKey
   @AutoIncrement
@@ -73,4 +73,3 @@ export class User extends Model {
   @Column({ type: DataType.STRING, allowNull: true })
   declare avatar: string | null;
 }
-

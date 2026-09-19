@@ -16,6 +16,12 @@ describe('autodial campaign start/stop safety', () => {
       assertAmdReady: jest.fn().mockResolvedValue(undefined),
       applyCampaign: jest.fn().mockResolvedValue(applied),
     } as unknown as AutodialDialplanService;
+    service['endpointModel'] = {
+      findAll: jest.fn().mockResolvedValue([{ id: 'trunk-1' }]),
+    } as unknown as AutodialCampaignsService['endpointModel'];
+    service['queueModel'] = {
+      findAll: jest.fn().mockResolvedValue([]),
+    } as unknown as AutodialCampaignsService['queueModel'];
     return service;
   };
 
@@ -51,6 +57,25 @@ describe('autodial campaign start/stop safety', () => {
       { leased_by: null, leased_at: null, status: 'pending' },
       { where: { campaign_uid: 11, user_uid: 7, status: 'leased' } },
     );
+  });
+
+  it('refuses to delete a stopped campaign while a call is still active', async () => {
+    const row = { ...campaign(), status: 'stopped' };
+    const service = serviceWith(row, true);
+    const removeCampaign = jest.fn();
+    service['taskModel'] = {
+      count: jest.fn().mockResolvedValue(1),
+      destroy: jest.fn(),
+    } as unknown as AutodialCampaignsService['taskModel'];
+    service['dialplanService'] = {
+      removeCampaign,
+    } as unknown as AutodialDialplanService;
+
+    await expect(service.remove(7, 11)).rejects.toMatchObject({
+      response: { code: 'AC_CAMPAIGN_ACTIVE_CALLS' },
+    });
+    expect(removeCampaign).not.toHaveBeenCalled();
+    expect(service['taskModel'].destroy).not.toHaveBeenCalled();
   });
 });
 

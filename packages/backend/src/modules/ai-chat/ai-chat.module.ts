@@ -12,7 +12,7 @@ import { AgentThreadMessage } from './models/agent-thread-message.model';
 import { AgentProposal } from './models/agent-proposal.model';
 import { AgentWorkflow, AgentWorkflowStep } from './models/agent-workflow.model';
 import { AgentProposalsModule } from './agent-proposals.module';
-import { CcAiProvider } from '../ai-agents/models/ai-provider.model';
+import { CcAiProvider } from '../ai-connectivity/ai-provider.model';
 import { CcAiAuditLog } from '../ai-agents/models/ai-audit-log.model';
 import { PbxAgentThreadService } from './pbx-agent-thread.service';
 import { AgentUsageService } from './agent-usage.service';
@@ -28,7 +28,7 @@ import { RoutesModule } from '../routes/routes.module';
 import { AmiModule } from '../ami/ami.module';
 import { Context } from '../contexts/context.model';
 import { LoggerModule } from '../logger/logger.module';
-import { AiAgentsModule } from '../ai-agents/ai-agents.module';
+import { AiConnectivityModule } from '../ai-connectivity/ai-connectivity.module';
 import { PbxAgentLlmClient } from './pbx-agent-llm.client';
 import { PbxStateAiAdapter } from './pbx-state-ai.adapter';
 import { PbxAgentLoopService } from './pbx-agent-loop.service';
@@ -70,7 +70,7 @@ import { NumberList } from '../numbers/number-list.model';
         RoutesModule,
         AmiModule,
         LoggerModule,
-        AiAgentsModule,
+        AiConnectivityModule,
         AiPlatformModule,
         AgentProposalsModule,
         forwardRef(() => McpModule),

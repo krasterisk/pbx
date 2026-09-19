@@ -1,0 +1,8 @@
+Test server: root@ipbx.krasterisk.ru (DB-01 disposable containers only)
+Docker server: 29.7.2
+Node: v22.23.2
+MySQL: mysql:8.4.11
+mysql@sha256:85b9bf2e29cf836ecb8c2a15a935d4ba0c606631dff1dd79531a11983c638f2a
+PostgreSQL: postgres:17.11-bookworm
+postgres@sha256:051f7b7b3abdd564d5d1bd1e8c4b9c1b6e77087d1dd22020ede611c096a272e0
+Post-run org.testcontainers=true container count: 0

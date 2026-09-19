@@ -242,7 +242,10 @@ export const CampaignFormModal = memo(() => {
                 />
               </TabsContent>
               <TabsContent value="dnc">
-                <CampaignDncTab campaignUid={mode === "edit" ? uid : null} />
+                <CampaignDncTab
+                  campaignUid={mode === "edit" ? uid : null}
+                  baseUid={draft.base_uid}
+                />
               </TabsContent>
             </div>
           </Tabs>

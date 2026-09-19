@@ -12,7 +12,9 @@ import { DeviceToken } from './models/device-token.model';
 import { User } from '../users/user.model';
 import { TenantsService } from './tenants.service';
 import { TenantsController } from './tenants.controller';
-import { TenantModulesController, MarketplaceController } from './tenant-modules.controller';
+import {
+  TenantModulesController, MarketplaceController, AiProductCatalogMaintenanceController,
+} from './tenant-modules.controller';
 import { MarketplacePurchaseController } from './marketplace.controller';
 import { DeviceTokenController } from './device-token.controller';
 import { HubModulesController } from './hub-modules.controller';
@@ -32,6 +34,8 @@ import { BillingModule } from './billing/billing.module';
 import { CloudSetting } from './cloud-setting.model';
 import { CloudSettingsService } from './cloud-settings.service';
 import { CloudSettingsController } from './cloud-settings.controller';
+import { ProductAccessModule } from '../product-access/product-access.module';
+import { TenantIdentityModule } from '../tenant-identity/tenant-identity.module';
 
 @Module({
   imports: [
@@ -54,6 +58,8 @@ import { CloudSettingsController } from './cloud-settings.controller';
       inject: [ConfigService],
     }),
     BillingModule,
+    ProductAccessModule,
+    TenantIdentityModule,
   ],
   providers: [
     TenantsService,
@@ -67,6 +73,7 @@ import { CloudSettingsController } from './cloud-settings.controller';
   controllers: [
     TenantsController,
     TenantModulesController,
+    AiProductCatalogMaintenanceController,
     MarketplaceController,
     MarketplacePurchaseController,
     DeviceTokenController,

@@ -5,12 +5,15 @@ import { CcAiAgent } from './models/ai-agent.model';
 import { CcAiProvider } from './models/ai-provider.model';
 import { CcAiToolset } from './models/ai-toolset.model';
 import { CreateAiAgentDto, UpdateAiAgentDto } from './dto/ai-agent.dto';
+import {
+  assessAgentReadiness, type AgentConfigurationReadiness,
+  type AgentProviderLinks, type SafeProvider,
+} from './ai-agent-readiness';
 
 /**
  * AI Agents CRUD. Validates provider/toolset references against the
- * tenant's own rows + global templates (`user_uid = 0`), enforces unique
- * `unique_id` per tenant, and rejects cascade-mode agents that miss
- * STT/TTS profiles.
+ * tenant's own rows, enforces unique `unique_id` per tenant, and validates
+ * the resultant mode/provider roles before each write.
  */
 @Injectable()
 export class AiAgentsService {
@@ -36,9 +39,8 @@ export class AiAgentsService {
   }
 
   async create(dto: CreateAiAgentDto, userUid: number) {
-    await this.validateLinkedEntities(dto, userUid);
     await this.assertUniqueId(dto.unique_id, userUid, null);
-    this.assertModeConsistency(dto);
+    await this.assertReady(dto, userUid);
 
     return this.agentModel.create({
       name: dto.name,
@@ -60,12 +62,13 @@ export class AiAgentsService {
 
   async update(id: number, dto: UpdateAiAgentDto, userUid: number) {
     const row = await this.findOne(id, userUid);
-    await this.validateLinkedEntities(dto, userUid);
     if (dto.unique_id && dto.unique_id !== row.unique_id) {
       await this.assertUniqueId(dto.unique_id, userUid, id);
     }
-    const merged = { ...row.get(), ...dto } as any;
-    this.assertModeConsistency(merged);
+    const merged = { ...row.get(), ...dto } as AgentProviderLinks;
+    // An invalid historical draft can always be switched OFF or repaired while
+    // disabled. Re-enabling checks every resultant link again.
+    if (merged.enabled !== false) await this.assertReady(merged, userUid);
     await row.update(dto);
     return row;
   }
@@ -74,6 +77,11 @@ export class AiAgentsService {
     const row = await this.findOne(id, userUid);
     await row.destroy();
     return { success: true };
+  }
+
+  async checkReadiness(id: number, userUid: number): Promise<AgentConfigurationReadiness> {
+    const row = await this.findOne(id, userUid);
+    return this.assessConfiguration(row.get() as AgentProviderLinks, userUid);
   }
 
   // ─── Validation helpers ─────────────────────────────────
@@ -88,41 +96,34 @@ export class AiAgentsService {
     if (dup) throw new BadRequestException(`unique_id "${unique_id}" is already used`);
   }
 
-  private assertModeConsistency(a: {
-    mode?: 'realtime' | 'cascade';
-    model_profile_id?: number | null;
-    stt_profile_id?: number | null;
-    tts_profile_id?: number | null;
-  }) {
-    if (a.mode === 'cascade') {
-      if (!a.stt_profile_id) throw new BadRequestException('cascade mode requires STT profile');
-      if (!a.tts_profile_id) throw new BadRequestException('cascade mode requires TTS profile');
-    }
-    if (!a.model_profile_id) {
-      throw new BadRequestException('LLM/model profile is required');
+  private async assertReady(agent: AgentProviderLinks, userUid: number): Promise<void> {
+    const readiness = await this.assessConfiguration(agent, userUid);
+    if (!readiness.ready) {
+      throw new BadRequestException({ code: 'agent_configuration_not_ready', issues: readiness.issues });
     }
   }
 
-  private async validateLinkedEntities(
-    dto: { model_profile_id?: number; stt_profile_id?: number; tts_profile_id?: number; toolset_id?: number },
-    userUid: number,
-  ) {
-    const providerIds = [dto.model_profile_id, dto.stt_profile_id, dto.tts_profile_id].filter(
-      (v): v is number => typeof v === 'number' && v > 0,
+  private async assessConfiguration(
+    agent: AgentProviderLinks, userUid: number,
+  ): Promise<AgentConfigurationReadiness> {
+    const roles = agent.mode === 'cascade'
+      ? [agent.model_profile_id, agent.stt_profile_id, agent.tts_profile_id]
+      : [agent.model_profile_id];
+    const ids = [...new Set(roles.filter((uid): uid is number =>
+      Number.isSafeInteger(uid) && Number(uid) > 0))];
+    const [providers, toolset] = await Promise.all([
+      ids.length ? this.providerModel.findAll({
+        where: { uid: { [Op.in]: ids }, user_uid: userUid },
+        attributes: ['uid', 'user_uid', 'enabled', 'capabilities'],
+      }) : Promise.resolve([]),
+      agent.toolset_id ? this.toolsetModel.findOne({
+        where: { uid: agent.toolset_id, user_uid: userUid }, attributes: ['uid'],
+      }) : Promise.resolve(null),
+    ]);
+    return assessAgentReadiness(
+      agent, userUid,
+      new Map<number, SafeProvider>(providers.map((provider) => [provider.uid, provider])),
+      new Set(toolset ? [toolset.uid] : []),
     );
-    if (providerIds.length > 0) {
-      const found = await this.providerModel.findAll({
-        where: { uid: { [Op.in]: providerIds }, user_uid: { [Op.in]: [0, userUid] } },
-      });
-      if (found.length !== new Set(providerIds).size) {
-        throw new BadRequestException('Linked provider not accessible for this tenant');
-      }
-    }
-    if (dto.toolset_id) {
-      const ts = await this.toolsetModel.findOne({
-        where: { uid: dto.toolset_id, user_uid: userUid },
-      });
-      if (!ts) throw new BadRequestException('Linked toolset not accessible for this tenant');
-    }
   }
 }

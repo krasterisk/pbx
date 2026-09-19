@@ -12,6 +12,8 @@
     "build": "tsc -b && vite build",
     "build:standalone": "vite build --config vite.standalone.config.ts",
     "build:standalone:check": "tsc -b && vite build --config vite.standalone.config.ts",
+    "build:analytics": "tsc -b && vite build --config vite.analytics.config.ts --configLoader runner",
+    "build:robot": "tsc -b && vite build --config vite.robot.config.ts --configLoader runner",
     "preview": "vite preview",
     "lint": "eslint \"src/**/*.{ts,tsx}\"",
     "test": "vitest run --config vite.config.ts",

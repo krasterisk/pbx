@@ -1,0 +1,1 @@
+{"calls":4,"selected":"db02-c-a1","legs":3,"hour":[{"hour":10,"calls":1,"answered":1,"missed":0},{"hour":11,"calls":1,"answered":0,"missed":1}],"day":[{"day":"2026-09-18","calls":2,"totalBillsec":22,"avgBillsec":4,"answered":1,"missed":1,"asr":50}],"heatmap":[{"dow":6,"hour":10,"calls":1},{"dow":6,"hour":11,"calls":1}],"dispositions":{"ANSWERED":1,"BUSY":1,"NO ANSWER":2}}

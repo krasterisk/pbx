@@ -7,8 +7,10 @@ import { CallCenterModule } from '../callcenter/callcenter.module';
 import { CloudAdminModule } from '../cloud-admin/cloud-admin.module';
 import { LoggerModule } from '../logger/logger.module';
 import { ReportsCdrModule } from '../reports/cdr/reports-cdr.module';
+import { DirectoriesModule } from '../directories/directories.module';
 import { Cdr } from '../reports/cdr/cdr.model';
 import { PsEndpoint } from '../endpoints/ps-endpoint.model';
+import { Queue } from '../queues/queue.model';
 import { AcAttempt } from './models/ac-attempt.model';
 import { AcBaseField } from './models/ac-base-field.model';
 import { AcBase } from './models/ac-base.model';
@@ -64,6 +66,7 @@ import { AutodialStateService } from './autodial-state.service';
       AcAttempt,
       AcDailyCampaignStats,
       PsEndpoint,
+      Queue,
       Cdr,
     ]),
     AmiModule,
@@ -73,6 +76,7 @@ import { AutodialStateService } from './autodial-state.service';
     AiPlatformModule,
     LoggerModule,
     ReportsCdrModule,
+    DirectoriesModule,
   ],
   controllers: [
     AutodialBasesController,

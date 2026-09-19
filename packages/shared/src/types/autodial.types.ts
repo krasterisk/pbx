@@ -232,11 +232,39 @@ export interface IAutodialRetryConfig {
 
 export interface IAutodialTrunkPoolItem {
   trunk_id: string;
+  /**
+   * Per-trunk Caller ID source. When present it takes precedence over the
+   * legacy campaign-wide `cid_policy`; `caller_id` remains the fallback for a
+   * directory lookup and for campaigns saved before this contract existed.
+   */
+  caller_id_source?: AutodialCallerIdSource;
   caller_id?: string;
   weight?: number;
   /** Concurrent channel limit for this trunk; 0/absent = unlimited */
   max_channels?: number;
 }
+
+export type AutodialCallerIdPoolPick = "random" | "round_robin";
+
+/**
+ * Unlike a dialplan trunk carousel, outbound lookup is keyed by a selected
+ * contact field. An outbound call has no meaningful incoming/original caller.
+ */
+export type AutodialCallerIdSource =
+  | { mode: "static"; value?: string }
+  | {
+      mode: "pool";
+      numbers: string[];
+      pick: AutodialCallerIdPoolPick;
+    }
+  | {
+      mode: "directory";
+      directory_uid: number;
+      value_field_uid: number;
+      key: { source: "autodial_field"; field_key: string };
+      /** Use the legacy/per-trunk value or PBX default when lookup misses. */
+      on_missing: "fallback";
+    };
 
 export interface IAutodialCidPolicy {
   mode: "static" | "rotate" | "per_trunk";

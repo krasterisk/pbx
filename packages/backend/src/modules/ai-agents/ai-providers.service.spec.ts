@@ -1,6 +1,6 @@
 import { AiProvidersService } from './ai-providers.service';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
-import { decryptSecret } from './util/secret-cipher.util';
+import { decryptSecret, encryptSecret } from './util/secret-cipher.util';
 
 /**
  * Tenant-owned provider registry — encryption, tenant scoping, and
@@ -190,18 +190,31 @@ describe('AiProvidersService', () => {
       await expect(service.findDefaultLlm(7)).resolves.toEqual(tenantLlm);
     });
 
-    it('caches the resolved row per tenant for sixty seconds', async () => {
-      jest.useFakeTimers();
+    it('rechecks current provider state on every operation rather than caching revoked rows', async () => {
       model.findAll.mockResolvedValue([tenantLlm]);
 
       await service.findDefaultLlm(7);
       await service.findDefaultLlm(7);
-      expect(model.findAll).toHaveBeenCalledTimes(1);
-
-      jest.advanceTimersByTime(60_000);
-      await service.findDefaultLlm(7);
       expect(model.findAll).toHaveBeenCalledTimes(2);
-      jest.useRealTimers();
     });
+  });
+
+  it('captures a nonsecret revision and rechecks tenant/capability before resolving a key', async () => {
+    const row = { uid: 11, user_uid: 0, enabled: true, kind: 'online', vendor: 'openai',
+      endpoint: 'https://api.openai.com/v1/chat/completions', auth_type: 'bearer',
+      capabilities: ['llm'], encrypted_api_key: encryptSecret('sk-private') };
+    model.findOne.mockResolvedValue(row);
+    const revision = await service.revisionForOperation(0, 11, 'llm');
+    expect(revision).toMatchObject({ tenantUid: 0, providerUid: 11,
+      credentialRef: { tenantUid: 0, providerUid: 11, capability: 'llm' } });
+    expect(JSON.stringify(revision)).not.toMatch(/sk-private|encrypted_api_key|v2:/);
+    await expect(service.resolveCredential(revision.credentialRef)).resolves.toBe('sk-private');
+    expect(model.findOne).toHaveBeenCalledWith({
+      where: { uid: 11, user_uid: 0, enabled: true },
+    });
+    row.enabled = false;
+    model.findOne.mockResolvedValueOnce(null);
+    await expect(service.resolveCredential(revision.credentialRef)).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.revisionForOperation(7, 11, 'llm')).rejects.toBeInstanceOf(NotFoundException);
   });
 });

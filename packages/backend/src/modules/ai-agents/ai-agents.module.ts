@@ -1,4 +1,4 @@
-import { Module, OnModuleInit, Logger } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { CcAiAgent } from './models/ai-agent.model';
 import { CcAiProvider } from './models/ai-provider.model';
@@ -8,9 +8,10 @@ import { CcAiBilling } from './models/ai-billing.model';
 import { CcAiInvoice } from './models/ai-invoice.model';
 import { CcAiAuditLog } from './models/ai-audit-log.model';
 import { AiAgentsService } from './ai-agents.service';
-import { AiProvidersService } from './ai-providers.service';
 import { AiToolsetsService } from './ai-toolsets.service';
+import { AiAgentInventoryService } from './ai-agent-inventory.service';
 import { AiAgentsController } from './ai-agents.controller';
+import { AiConnectivityModule } from '../ai-connectivity/ai-connectivity.module';
 
 /**
  * Bootstraps the AI Agents module:
@@ -22,23 +23,14 @@ import { AiAgentsController } from './ai-agents.controller';
  */
 @Module({
   imports: [
+    AiConnectivityModule,
     SequelizeModule.forFeature([
       CcAiAgent, CcAiProvider, CcAiToolset,
       CcAiCdr, CcAiBilling, CcAiInvoice, CcAiAuditLog,
     ]),
   ],
-  providers: [AiAgentsService, AiProvidersService, AiToolsetsService],
+  providers: [AiAgentsService, AiToolsetsService, AiAgentInventoryService],
   controllers: [AiAgentsController],
-  exports: [AiAgentsService, AiProvidersService, AiToolsetsService],
+  exports: [AiAgentsService, AiConnectivityModule, AiToolsetsService, AiAgentInventoryService],
 })
-export class AiAgentsModule implements OnModuleInit {
-  private readonly logger = new Logger(AiAgentsModule.name);
-
-  async onModuleInit() {
-    if (!process.env.CC_AI_KEY_SECRET) {
-      this.logger.warn(
-        '⚠️  CC_AI_KEY_SECRET is not set — AI provider keys are encrypted with a development fallback key. Set CC_AI_KEY_SECRET in your .env for production.',
-      );
-    }
-  }
-}
+export class AiAgentsModule {}

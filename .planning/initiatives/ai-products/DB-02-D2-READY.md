@@ -1,0 +1,7 @@
+# DB-02-D2 — read-only preparation, no ownership transfer yet
+
+Autodial-refactor task `01a0b26e-9443-7a70-bbff-5dde159349f0` still owns `packages/backend/src/modules/autodial/**` under its own EXECUTION. DB-02 has not edited those files. After written handoff and a fresh baseline/diff check, assign exact files from the current version of the module, not this stale snapshot.
+
+Observed MySQL-specific points (read-only inventory): `autodial-reports.service.ts` summary has `SUM(boolean)` and `TIMESTAMPDIFF`, with NULL answers/end times and integer/decimal driver result differences; `autodial-rollup.service.ts` deletes a day then inserts aggregate rows using `SUM(boolean)` and interprets `QueryTypes.INSERT` tuple as count; `autodial-campaigns.service.ts` inserts tasks with `INSERT ... SELECT` and interprets first INSERT tuple element as inserted count. The currently active refactor may change these paths. `autodial-bases.service.ts` has additional raw DML; review its transaction and count semantics after handoff.
+
+Acceptance fixture should include two tenants, repeated contact/task, all dispositions, NULL `answered_at`/`ended_at`, day boundary, same campaign across days, DNC exclusions, duplicate/restart, and two competing claimers on both engines. Assert row state and business action count, not only driver return shape. Preserve existing active campaign semantics and tenant ownership. Do not use the production PBX/DB; remote disposable databases only.

@@ -1,4 +1,10 @@
-import { DEFAULT_ARI_APP_NAME, resolveAriAppName } from './ari-app-name';
+import {
+  DEFAULT_ARI_APP_NAME,
+  DEFAULT_AUTODIAL_ARI_APP_NAME,
+  resolveAriAppName,
+  resolveAriApplicationNames,
+  resolveAutodialAriAppName,
+} from './ari-app-name';
 
 describe('resolveAriAppName', () => {
   const prev = process.env.ARI_APP_NAME;
@@ -24,5 +30,24 @@ describe('resolveAriAppName', () => {
 
   it('falls back when value is empty after sanitize', () => {
     expect(resolveAriAppName('   ')).toBe(DEFAULT_ARI_APP_NAME);
+  });
+
+  it('uses a dedicated autodial default', () => {
+    delete process.env.ARI_AUTODIAL_APP_NAME;
+    expect(resolveAutodialAriAppName()).toBe(DEFAULT_AUTODIAL_ARI_APP_NAME);
+  });
+
+  it('resolves distinct application names for one event connection', () => {
+    expect(resolveAriApplicationNames({
+      scriptedVoiceRobots: 'scripted',
+      autodial: 'autodial',
+    })).toEqual({ scriptedVoiceRobots: 'scripted', autodial: 'autodial' });
+  });
+
+  it('rejects an accidental shared application name', () => {
+    expect(() => resolveAriApplicationNames({
+      scriptedVoiceRobots: 'shared',
+      autodial: 'shared',
+    })).toThrow('must differ');
   });
 });

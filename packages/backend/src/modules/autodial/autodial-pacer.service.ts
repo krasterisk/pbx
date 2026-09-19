@@ -126,6 +126,16 @@ export class AutodialPacerService implements OnApplicationShutdown {
       return;
     }
 
+    const initialAvailableTrunks = this.availableTrunkIds(campaign);
+    if (initialAvailableTrunks != null && !initialAvailableTrunks.size) {
+      this.state.setPacing(campaign.user_uid, campaign.uid, {
+        capacity: 0,
+        limitedBy: 'trunk_channels',
+        status: campaign.status,
+      });
+      return;
+    }
+
     const pacing = effectivePacing(campaign.dial_mode, campaign.pacing);
     const overDial = this.overDialFor(campaign, degraded);
     const result = computeAutodialCapacity({
@@ -158,7 +168,12 @@ export class AutodialPacerService implements OnApplicationShutdown {
       // for it, so it is always released once originate() returns.
       this.state.reserve(campaign.user_uid, campaign.uid, 1);
       try {
-        await this.originator.originate(task, campaign);
+        await this.originator.originate(
+          task,
+          campaign,
+          this.availableTrunkIds(campaign) ?? undefined,
+          this.leaseId,
+        );
       } catch (e) {
         this.logger.error(`Originate threw for task ${task.uid}: ${(e as Error).message}`);
       } finally {
@@ -253,11 +268,15 @@ export class AutodialPacerService implements OnApplicationShutdown {
         for (const n of provider.queue_names ?? []) names.add(n);
       }
     }
-    let total = 0;
-    for (const name of names) {
-      total += this.ccState.getQueue(campaign.user_uid, name)?.agents.available ?? 0;
+    if (!names.size) return 0;
+    // Queue aggregates count the same READY operator once per membership. A
+    // campaign can use several queues, but one operator can take only one call.
+    const unique = new Set<string>();
+    for (const agent of this.ccState.getAllAgents(campaign.user_uid)) {
+      if (agent.status !== 'READY' || !agent.queues.some((name) => names.has(name))) continue;
+      unique.add(agent.userId > 0 ? `user:${agent.userId}` : `interface:${agent.interface}`);
     }
-    return total;
+    return unique.size;
   }
 
   /**
@@ -269,12 +288,26 @@ export class AutodialPacerService implements OnApplicationShutdown {
   private freeTrunkChannels(campaign: AcCampaign): number | null {
     let free = 0;
     let anyLimit = false;
-    for (const trunk of campaign.trunk_pool ?? []) {
+    const seen = new Set<string>();
+    const trunks = (campaign.trunk_pool ?? []).filter((trunk) => {
+      if (!trunk.trunk_id || seen.has(trunk.trunk_id)) return false;
+      seen.add(trunk.trunk_id);
+      return true;
+    });
+    for (const trunk of trunks) {
       const limit = resolveTrunkChannelLimit(
         trunk.max_channels,
         this.trunkLimits.get(trunk.trunk_id),
       );
-      if (limit <= 0) continue;
+      // An unlimited trunk keeps the aggregate provider unbounded. Selection is
+      // still filtered per trunk below, so a saturated finite peer is not used.
+      if (limit <= 0) return null;
+    }
+    for (const trunk of trunks) {
+      const limit = resolveTrunkChannelLimit(
+        trunk.max_channels,
+        this.trunkLimits.get(trunk.trunk_id),
+      );
       anyLimit = true;
       if (!this.trunkPictureFresh) return 0;
       const live = this.liveTrunkChannels.get(trunk.trunk_id);
@@ -282,6 +315,41 @@ export class AutodialPacerService implements OnApplicationShutdown {
       free += Math.max(0, limit - used);
     }
     return anyLimit ? free : null;
+  }
+
+  /**
+   * Finite trunks are eligible only when their live snapshot is fresh and has
+   * room. Unlimited trunks remain usable during a degraded finite snapshot;
+   * they have no occupancy limit to fail closed against.
+   */
+  private availableTrunkIds(campaign: AcCampaign): Set<string> | null {
+    const available = new Set<string>();
+    let hasFiniteLimit = false;
+    const seen = new Set<string>();
+
+    for (const trunk of campaign.trunk_pool ?? []) {
+      if (!trunk.trunk_id || seen.has(trunk.trunk_id)) continue;
+      seen.add(trunk.trunk_id);
+      const limit = resolveTrunkChannelLimit(
+        trunk.max_channels,
+        this.trunkLimits.get(trunk.trunk_id),
+      );
+      if (limit <= 0) {
+        available.add(trunk.trunk_id);
+        continue;
+      }
+
+      hasFiniteLimit = true;
+      if (!this.trunkPictureFresh) continue;
+      const live = this.liveTrunkChannels.get(trunk.trunk_id);
+      const used = Math.max(
+        live ?? 0,
+        this.state.trunkActiveChannels(campaign.user_uid, trunk.trunk_id),
+      );
+      if (used < limit) available.add(trunk.trunk_id);
+    }
+
+    return hasFiniteLimit ? available : null;
   }
 
   /**
@@ -329,7 +397,9 @@ export class AutodialPacerService implements OnApplicationShutdown {
   ): Promise<Map<number, IAutodialSchedule[]>> {
     const out = new Map<number, IAutodialSchedule[]>();
     const rows = await this.scheduleModel.findAll({
-      where: { campaign_uid: { [Op.in]: campaignUids }, enabled: true },
+      // Disabled rows are needed by campaignWindowOpen(): no rows means
+      // unrestricted calling, while configured-but-all-disabled means closed.
+      where: { campaign_uid: { [Op.in]: campaignUids } },
     });
     for (const r of rows) {
       const list = out.get(r.campaign_uid) ?? [];

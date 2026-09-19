@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.build.json",
+  "compilerOptions": {
+    "outDir": "./dist-analytics",
+    "incremental": false
+  },
+  "include": ["src/analytics.main.ts", "src/standalone-provision.main.ts"],
+  "exclude": ["node_modules", "dist", "dist-analytics", "test", "**/*spec.ts"]
+}

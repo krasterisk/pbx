@@ -1,7 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios, { AxiosInstance, AxiosError } from 'axios';
-import { resolveAriAppName } from './ari-app-name';
+import { resolveAriApplicationNames } from './ari-app-name';
 
 /**
  * Compact error thrown by ARI HTTP requests.
@@ -69,6 +69,7 @@ export class AriHttpClientService implements OnModuleInit {
   private client: AxiosInstance;
   private baseURL: string;
   private appName: string;
+  private autodialAppName: string;
 
   constructor(private readonly configService: ConfigService) {}
 
@@ -80,7 +81,12 @@ export class AriHttpClientService implements OnModuleInit {
     const password = this.configService.get<string>('ARI_PASSWORD', '');
     
     this.baseURL = `${protocol}://${host}:${port}/ari`;
-    this.appName = resolveAriAppName(this.configService.get<string>('ARI_APP_NAME'));
+    const appNames = resolveAriApplicationNames({
+      scriptedVoiceRobots: this.configService.get<string>('ARI_APP_NAME'),
+      autodial: this.configService.get<string>('ARI_AUTODIAL_APP_NAME'),
+    });
+    this.appName = appNames.scriptedVoiceRobots;
+    this.autodialAppName = appNames.autodial;
 
     this.client = axios.create({
       baseURL: this.baseURL,
@@ -106,7 +112,9 @@ export class AriHttpClientService implements OnModuleInit {
       },
     );
 
-    this.logger.log(`Initialized ARI HTTP Client (baseURL: ${this.baseURL}, app: ${this.appName})`);
+    this.logger.log(
+      `Initialized ARI HTTP Client (baseURL: ${this.baseURL}, apps: ${this.getEventAppNames().join(',')})`,
+    );
   }
 
   // ==================== Connection Test ====================
@@ -169,9 +177,10 @@ export class AriHttpClientService implements OnModuleInit {
   }
 
   /**
-   * Create an unstarted channel with a caller-supplied id so events can be
-   * correlated without a race. Variables must go in the body — ARI rejects
-   * them as query params.
+   * Originate with a caller-supplied id so events can be correlated before
+   * the request. Caller ID must be an originate parameter: setting only the
+   * CALLERID(num) channel variable after /channels/create leaves the SIP
+   * identity anonymous on the tested Asterisk/PJSIP path.
    */
   async originateChannel(params: {
     endpoint: string;
@@ -188,11 +197,11 @@ export class AriHttpClientService implements OnModuleInit {
       appArgs: params.appArgs || '',
       channelId: params.channelId,
     };
-    if (params.callerId) query.callerId = params.callerId;
     if (params.timeout != null) query.timeout = params.timeout;
+    if (params.callerId) query.callerId = params.callerId;
 
     const response = await this.client.post(
-      '/channels/create',
+      '/channels',
       params.variables && Object.keys(params.variables).length
         ? { variables: params.variables }
         : undefined,
@@ -201,7 +210,7 @@ export class AriHttpClientService implements OnModuleInit {
     return response.data;
   }
 
-  /** Start dialing a channel previously created by originateChannel. */
+  /** Start dialing a channel previously created with /channels/create. */
   async dialChannel(channelId: string, timeout?: number): Promise<void> {
     const params: Record<string, number> = {};
     if (timeout != null) params.timeout = timeout;
@@ -306,5 +315,15 @@ export class AriHttpClientService implements OnModuleInit {
 
   getAppName(): string {
     return this.appName;
+  }
+
+  /** Explicit name for autodial originates; do not use the scripted app. */
+  getAutodialAppName(): string {
+    return this.autodialAppName;
+  }
+
+  /** The single inbound WebSocket subscribes to each currently active owner. */
+  getEventAppNames(): readonly string[] {
+    return [this.appName, this.autodialAppName];
   }
 }

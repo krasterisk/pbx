@@ -1,0 +1,50 @@
+.field {
+  min-width: 0;
+}
+
+.hint,
+.error,
+.warning {
+  margin: 0;
+  font-size: 0.75rem;
+}
+
+.hint {
+  color: var(--color-muted-foreground);
+}
+
+.error {
+  color: var(--color-destructive);
+}
+
+.warning {
+  color: var(--color-warning);
+}
+
+.row {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-muted) 8%, transparent);
+
+  @media (max-width: 640px) {
+    align-items: stretch;
+  }
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-foreground);
+}
+
+.narrowInput {
+  max-width: 10rem;
+
+  @media (max-width: 640px) {
+    max-width: none;
+    width: 100%;
+  }
+}

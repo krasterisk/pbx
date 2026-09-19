@@ -210,7 +210,12 @@ export class AuthService {
       }
     }
 
-    await this.loggerService.logAction(user.uniqueid, 'register', 'auth', user.uniqueid, user.uniqueid, 'New tenant registered');
+    try {
+      await this.loggerService.logAction(user.uniqueid, 'register', 'auth',
+        user.uniqueid, user.uniqueid, 'New tenant registered');
+    } catch {
+      this.logger.warn(`Registration audit transport failed for user #${user.uniqueid}`);
+    }
 
     return {
       success: true,

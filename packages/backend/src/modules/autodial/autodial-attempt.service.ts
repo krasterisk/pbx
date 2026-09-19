@@ -77,27 +77,112 @@ export class AutodialAttemptService {
       this.logger.warn(`finalize: attempt ${input.attemptUid} not found`);
       return;
     }
-    if (attempt.disposition !== 'dialing') return;
-
     const now = new Date();
-    await attempt.update({
+    const disposition: AutodialDisposition =
+      attempt.amd_result === 'MACHINE' ? 'amd_machine' : input.disposition;
+    const patch: Partial<AcAttempt> = {
       ended_at: now,
-      answered_at: input.answeredAt ?? attempt.answered_at,
-      disposition: input.disposition,
-      hangup_cause: input.hangupCause ?? null,
-      billsec: input.billsec ?? 0,
+      disposition,
       duration: input.duration ?? Math.round((now.getTime() - attempt.started_at.getTime()) / 1000),
-      amd_result: input.amdResult ?? null,
-      queue_name: input.queueName ?? null,
-      agent_interface: input.agentInterface ?? null,
-      talk_sec: input.talkSec ?? input.billsec ?? 0,
-      uniqueid: input.uniqueid ?? null,
-      linkedid: input.linkedid ?? null,
-      scenario_result: input.scenarioResult ?? null,
-    });
+    };
+    if (input.answeredAt !== undefined) patch.answered_at = input.answeredAt;
+    if (input.hangupCause !== undefined) patch.hangup_cause = input.hangupCause;
+    if (input.billsec !== undefined) patch.billsec = input.billsec;
+    if (input.amdResult !== undefined) patch.amd_result = input.amdResult;
+    if (input.queueName !== undefined) patch.queue_name = input.queueName;
+    if (input.agentInterface !== undefined) patch.agent_interface = input.agentInterface;
+    if (input.talkSec !== undefined) patch.talk_sec = input.talkSec;
+    if (input.uniqueid !== undefined) patch.uniqueid = input.uniqueid;
+    if (input.linkedid !== undefined) patch.linkedid = input.linkedid;
+    if (input.scenarioResult !== undefined) patch.scenario_result = input.scenarioResult;
 
-    this.recordPredictiveOutcome(attempt, input);
-    await this.advanceTask(attempt.task_uid, input.disposition, input.hangupCause ?? null);
+    // ARI destroy and the dialplan hangup handler can race. Only the request
+    // that atomically moves `dialing` to a terminal disposition advances task.
+    const [updated] = await this.attemptModel.update(patch, {
+      where: { uid: attempt.uid, disposition: 'dialing' },
+    });
+    if (!updated) return;
+
+    this.recordPredictiveOutcome(attempt, { ...input, disposition });
+    await this.advanceTask(attempt.task_uid, disposition, input.hangupCause ?? null);
+  }
+
+  /**
+   * Mark a confirmed AMD machine result while the channel is still alive. The
+   * machine dialplan tail invokes this before Hangup so the ARI finalizer can
+   * atomically retain the correct terminal disposition.
+   */
+  async markAmdMachine(attemptUid: number): Promise<void> {
+    await this.attemptModel.update(
+      { amd_result: 'MACHINE' },
+      { where: { uid: attemptUid, disposition: 'dialing' } },
+    );
+  }
+
+  /** Persist answer evidence so a replacement worker can classify Destroy. */
+  async markAnswered(channelId: string, answeredAt: Date): Promise<void> {
+    await this.attemptModel.update(
+      { answered_at: answeredAt },
+      { where: { channel_id: channelId, disposition: 'dialing', answered_at: null } },
+    );
+  }
+
+  async findOpenByChannelId(channelId: string): Promise<AcAttempt | null> {
+    return this.attemptModel.findOne({
+      where: { channel_id: channelId, disposition: 'dialing' },
+    });
+  }
+
+  /**
+   * Atomically fence a leased task before ARI receives an originate request.
+   * A competing worker can only proceed when it still owns `leased_by`; the
+   * attempt and the `dialing` state are committed together, so a crash cannot
+   * leave either a live attempt without a task transition or vice versa.
+   */
+  async claimAndOpenAttempt(params: {
+    userUid: number;
+    taskUid: number;
+    campaignUid: number;
+    attemptNo: number;
+    channelId: string;
+    trunkId: string;
+    callerId: string | null;
+    leaseId: string;
+  }): Promise<AcAttempt | null> {
+    const sequelize = this.taskModel.sequelize;
+    if (!sequelize) throw new Error('Autodial task model is not connected to Sequelize');
+
+    return sequelize.transaction(async (transaction) => {
+      const [claimed] = await this.taskModel.update(
+        {
+          status: 'dialing',
+          attempt_count: params.attemptNo,
+          last_disposition: 'dialing',
+        },
+        {
+          where: {
+            uid: params.taskUid,
+            user_uid: params.userUid,
+            status: 'leased',
+            leased_by: params.leaseId,
+          },
+          transaction,
+        },
+      );
+      if (!claimed) return null;
+
+      return this.attemptModel.create({
+        user_uid: params.userUid,
+        task_uid: params.taskUid,
+        campaign_uid: params.campaignUid,
+        attempt_no: params.attemptNo,
+        started_at: new Date(),
+        disposition: 'dialing',
+        channel_id: params.channelId,
+        trunk_id: params.trunkId,
+        caller_id: params.callerId,
+      }, { transaction });
+    });
   }
 
   /**

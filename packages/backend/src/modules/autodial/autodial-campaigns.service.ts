@@ -12,8 +12,10 @@ import type { Sequelize } from "sequelize-typescript";
 import { InjectConnection } from "@nestjs/sequelize";
 import {
   AUTODIAL_TERMINAL_DISPOSITIONS,
+  type AutodialCallerIdSource,
   type AutodialCampaignStatus,
   type AutodialDisposition,
+  type IAutodialTrunkPoolItem,
   type IAutodialCampaign,
   type IAutodialSchedule,
   type IRouteAction,
@@ -23,7 +25,10 @@ import { AcSchedule } from "./models/ac-schedule.model";
 import { AcTask } from "./models/ac-task.model";
 import { AcContactPhone } from "./models/ac-contact-phone.model";
 import { AcDnc } from "./models/ac-dnc.model";
+import { PsEndpoint } from "../endpoints/ps-endpoint.model";
+import { Queue } from "../queues/queue.model";
 import { AutodialBasesService } from "./autodial-bases.service";
+import { DirectoriesService } from "../directories/directories.service";
 import { AutodialDialplanService } from "./autodial-dialplan.service";
 import {
   CreateAutodialCampaignDto,
@@ -42,6 +47,16 @@ import {
 export const AUTODIAL_ACTIVE_STATUSES: AutodialCampaignStatus[] = ["running"];
 
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+const AUTODIAL_SUPPORTED_ACTIONS = new Set([
+  "playback",
+  "toqueue",
+  "toexten",
+  "voicerobot",
+  "collect_input",
+  "label",
+  "goto",
+  "hangup",
+]);
 
 function isSupportedTimeZone(timeZone: string): boolean {
   try {
@@ -63,8 +78,11 @@ export class AutodialCampaignsService {
     @InjectModel(AcContactPhone)
     private readonly phoneModel: typeof AcContactPhone,
     @InjectModel(AcDnc) private readonly dncModel: typeof AcDnc,
+    @InjectModel(PsEndpoint) private readonly endpointModel: typeof PsEndpoint,
+    @InjectModel(Queue) private readonly queueModel: typeof Queue,
     @InjectConnection() private readonly sequelize: Sequelize,
     private readonly basesService: AutodialBasesService,
+    private readonly directoriesService: DirectoriesService,
     private readonly dialplanService: AutodialDialplanService,
   ) {}
 
@@ -94,12 +112,16 @@ export class AutodialCampaignsService {
     userUid: number,
     dto: CreateAutodialCampaignDto,
   ): Promise<IAutodialCampaign> {
-    await this.basesService.findOne(userUid, dto.base_uid);
+    const trunkPool = toAutodialTrunkPool(dto.trunk_pool ?? []);
+    const base = await this.basesService.findOne(userUid, dto.base_uid);
+    await this.assertTrunkPoolConfig(userUid, base.fields ?? [], trunkPool);
     this.assertScenario(
       dto.dial_mode ?? "progressive",
       dto.queue_names,
       dto.scenario_actions,
     );
+    await this.assertQueueReferences(userUid, dto.queue_names, dto.scenario_actions);
+    await this.assertExtensionReferences(userUid, dto.scenario_actions);
 
     const row = await this.sequelize.transaction(async (transaction) => {
       const created = await this.campaignModel.create(
@@ -111,7 +133,7 @@ export class AutodialCampaignsService {
           base_uid: dto.base_uid,
           pacing: normalizeAutodialPacing(dto.pacing),
           retry: normalizeAutodialRetry(dto.retry),
-          trunk_pool: dto.trunk_pool ?? defaultAutodialTrunkPool(),
+          trunk_pool: dto.trunk_pool == null ? defaultAutodialTrunkPool() : trunkPool,
           cid_policy: dto.cid_policy ?? defaultAutodialCidPolicy(),
           queue_names: dto.queue_names ?? [],
           scenario_actions: (dto.scenario_actions ?? []) as IRouteAction[],
@@ -141,6 +163,7 @@ export class AutodialCampaignsService {
     uid: number,
     dto: UpdateAutodialCampaignDto,
   ): Promise<IAutodialCampaign> {
+    const trunkPool = dto.trunk_pool == null ? undefined : toAutodialTrunkPool(dto.trunk_pool);
     const row = await this.sequelize.transaction(async (transaction) => {
       const locked = await this.getOrThrow(userUid, uid, transaction);
       if (dto.expected_revision !== locked.revision) {
@@ -163,6 +186,16 @@ export class AutodialCampaignsService {
         dto.queue_names ?? locked.queue_names,
         dto.scenario_actions ?? locked.scenario_actions,
       );
+      await this.assertQueueReferences(
+        userUid,
+        dto.queue_names ?? locked.queue_names,
+        dto.scenario_actions ?? locked.scenario_actions,
+      );
+      await this.assertExtensionReferences(userUid, dto.scenario_actions ?? locked.scenario_actions);
+      if (trunkPool != null) {
+        const base = await this.basesService.findOne(userUid, dto.base_uid ?? locked.base_uid);
+        await this.assertTrunkPoolConfig(userUid, base.fields ?? [], trunkPool);
+      }
 
       const patch: Partial<AcCampaign> = { revision: locked.revision + 1 };
       if (dto.name != null) patch.name = dto.name.trim();
@@ -171,7 +204,7 @@ export class AutodialCampaignsService {
       if (dto.pacing != null)
         patch.pacing = normalizeAutodialPacing(dto.pacing);
       if (dto.retry != null) patch.retry = normalizeAutodialRetry(dto.retry);
-      if (dto.trunk_pool != null) patch.trunk_pool = dto.trunk_pool;
+      if (trunkPool != null) patch.trunk_pool = trunkPool;
       if (dto.cid_policy != null) patch.cid_policy = dto.cid_policy;
       if (dto.queue_names != null) patch.queue_names = dto.queue_names;
       if (dto.scenario_actions != null) {
@@ -201,6 +234,19 @@ export class AutodialCampaignsService {
         message: "Stop the campaign before deleting it",
       });
     }
+    const activeTasks = await this.taskModel.count({
+      where: {
+        campaign_uid: uid,
+        user_uid: userUid,
+        status: { [Op.in]: ["leased", "dialing"] },
+      },
+    });
+    if (activeTasks) {
+      throw new BadRequestException({
+        code: "AC_CAMPAIGN_ACTIVE_CALLS",
+        message: "Wait for active campaign calls to finish before deleting it",
+      });
+    }
     await this.dialplanService.removeCampaign(row);
     await this.taskModel.destroy({
       where: { campaign_uid: uid, user_uid: userUid },
@@ -228,6 +274,10 @@ export class AutodialCampaignsService {
         message: "Configure at least one trunk before starting",
       });
     }
+    this.assertScenario(row.dial_mode, row.queue_names, row.scenario_actions);
+    await this.assertQueueReferences(userUid, row.queue_names, row.scenario_actions);
+    await this.assertExtensionReferences(userUid, row.scenario_actions);
+    await this.assertStoredTrunkPoolConfig(userUid, row.base_uid, row.trunk_pool);
     await this.dialplanService.assertAmdReady(row);
     // Re-apply so a dialplan lost to a failed apply or an Asterisk reinstall
     // is present before the first channel lands in the context.
@@ -262,6 +312,10 @@ export class AutodialCampaignsService {
         message: "Only a paused or scheduled campaign can be resumed",
       });
     }
+    this.assertScenario(row.dial_mode, row.queue_names, row.scenario_actions);
+    await this.assertQueueReferences(userUid, row.queue_names, row.scenario_actions);
+    await this.assertExtensionReferences(userUid, row.scenario_actions);
+    await this.assertStoredTrunkPoolConfig(userUid, row.base_uid, row.trunk_pool);
     await this.dialplanService.assertAmdReady(row);
     if (!(await this.dialplanService.applyCampaign(row))) {
       throw new ServiceUnavailableException({
@@ -522,7 +576,9 @@ export class AutodialCampaignsService {
     actions: unknown[] | undefined,
   ): void {
     const list = (Array.isArray(actions) ? actions : []) as IRouteAction[];
-    const hasQueue = list.some((a) => a?.type === "toqueue");
+    this.assertScenarioCapabilities(list);
+    const enabled = list.filter((action) => action && (action as { enabled?: boolean }).enabled !== false);
+    const hasQueue = enabled.some((a) => a.type === "toqueue");
     if (dialMode === "agentless") {
       if (hasQueue) {
         throw new BadRequestException({
@@ -533,23 +589,213 @@ export class AutodialCampaignsService {
       }
       return;
     }
-    if (list.length && !hasQueue) {
+    if (enabled.length && !hasQueue) {
       throw new BadRequestException({
         code: "AC_NO_QUEUE_STEP",
         message: `${dialMode} campaign scenario must end with a toqueue step`,
       });
     }
     if (hasQueue && !queueNames?.length) {
-      const inlineQueue = list.some(
-        (a) =>
-          a?.type === "toqueue" &&
-          !!(a.params as Record<string, unknown>)?.queue,
+      const inlineQueue = enabled.some(
+        (action) => {
+          if (action?.type !== "toqueue") return false;
+          const params = action.params as Record<string, unknown>;
+          const target = params?.target as { source?: unknown; value?: unknown } | undefined;
+          return Boolean(
+            params?.queue
+            || (target?.source === "fixed" && String(target.value ?? "").trim()),
+          );
+        },
       );
       if (!inlineQueue) {
         throw new BadRequestException({
           code: "AC_NO_QUEUE",
           message: "Select at least one queue for the campaign",
         });
+      }
+    }
+  }
+
+  /**
+   * Validate cross-module references where DTO decorators cannot see tenant
+   * ownership or the selected campaign base. Empty pools remain valid drafts;
+   * lifecycle methods reject them separately with AC_NO_TRUNK.
+   */
+  private async assertTrunkPoolConfig(
+    userUid: number,
+    baseFields: Array<{ uid: number; key: string }>,
+    pool: IAutodialTrunkPoolItem[],
+  ): Promise<void> {
+    const ids = [...new Set(pool.map((item) => item?.trunk_id?.trim()).filter(Boolean))] as string[];
+    if (ids.length !== pool.length) {
+      throw new BadRequestException({
+        code: "AC_TRUNK_INVALID",
+        message: "Each campaign trunk needs a unique id",
+      });
+    }
+    if (ids.length) {
+      const owned = await this.endpointModel.findAll({
+        attributes: ["id"],
+        where: { id: { [Op.in]: ids }, tenantid: String(userUid) },
+      });
+      if (owned.length !== ids.length) {
+        throw new BadRequestException({
+          code: "AC_TRUNK_NOT_FOUND",
+          message: "Campaign trunk is unavailable for this organization",
+        });
+      }
+    }
+    for (const item of pool) {
+      const source = item.caller_id_source as AutodialCallerIdSource | undefined;
+      if (!source) continue;
+      if (source.mode === "static") continue;
+
+      if (source.mode === "pool") {
+        const numbers = Array.isArray(source.numbers)
+          ? source.numbers.map((value) => value.trim()).filter(Boolean)
+          : [];
+        if (
+          !numbers.length
+          || new Set(numbers).size !== numbers.length
+          || !["random", "round_robin"].includes(source.pick)
+        ) {
+          throw new BadRequestException({
+            code: "AC_CALLER_ID_SOURCE_INVALID",
+            message: "Caller ID pool needs unique numbers and a pick mode",
+          });
+        }
+        continue;
+      }
+
+      const key = source.key;
+      if (
+        !Number.isInteger(source.directory_uid) ||
+        !Number.isInteger(source.value_field_uid) ||
+        key?.source !== "autodial_field" ||
+        !key.field_key?.trim() ||
+        source.on_missing !== "fallback"
+      ) {
+        throw new BadRequestException({
+          code: "AC_CALLER_ID_SOURCE_INVALID",
+          message: "Directory Caller ID needs a directory, value field and contact key",
+        });
+      }
+
+      if (!baseFields.some((field) => field.key === key.field_key)) {
+        throw new BadRequestException({
+          code: "AC_CALLER_ID_DIRECTORY_INVALID",
+          message: "Caller ID directory key is not a field of this campaign base",
+        });
+      }
+
+      const directory = await this.directoriesService.findOne(source.directory_uid, userUid);
+      const valueField = directory.fields?.find((field) => field.uid === source.value_field_uid);
+      if (!valueField || !["phone", "string"].includes(valueField.type)) {
+        throw new BadRequestException({
+          code: "AC_CALLER_ID_DIRECTORY_INVALID",
+          message: "Caller ID value field must be a phone or text field of the directory",
+        });
+      }
+    }
+  }
+
+  private async assertStoredTrunkPoolConfig(
+    userUid: number,
+    baseUid: number,
+    pool: IAutodialTrunkPoolItem[],
+  ): Promise<void> {
+    if (!hasDirectoryCallerIdSource(pool)) {
+      return this.assertTrunkPoolConfig(userUid, [], pool);
+    }
+    const base = await this.basesService.findOne(userUid, baseUid);
+    return this.assertTrunkPoolConfig(userUid, base.fields ?? [], pool);
+  }
+
+  private async assertQueueReferences(
+    userUid: number,
+    queueNames: string[] | undefined,
+    actions: unknown[] | undefined,
+  ): Promise<void> {
+    const names = new Set((queueNames ?? []).map((name) => name.trim()).filter(Boolean));
+    for (const action of (actions ?? []) as IRouteAction[]) {
+      if (action?.type !== "toqueue" || (action as { enabled?: boolean }).enabled === false) continue;
+      const params = (action.params ?? {}) as Record<string, unknown>;
+      const target = params.target as { source?: unknown; value?: unknown } | undefined;
+      const name = String(params.queue ?? params.queue_name
+        ?? (target?.source === "fixed" ? target.value : "") ?? "").trim();
+      if (name) names.add(name);
+    }
+    if (!names.size) return;
+    const owned = await this.queueModel.findAll({
+      attributes: ["name"],
+      where: { name: { [Op.in]: [...names] }, user_uid: userUid },
+    });
+    if (owned.length !== names.size) {
+      throw new BadRequestException({
+        code: "AC_QUEUE_NOT_FOUND",
+        message: "Campaign queue is unavailable for this organization",
+      });
+    }
+  }
+
+  private async assertExtensionReferences(
+    userUid: number,
+    actions: unknown[] | undefined,
+  ): Promise<void> {
+    const ids = new Set<string>();
+    for (const action of (actions ?? []) as IRouteAction[]) {
+      if (action?.type !== "toexten" || (action as { enabled?: boolean }).enabled === false) continue;
+      const params = (action.params ?? {}) as Record<string, unknown>;
+      const target = params.target as { source?: unknown; value?: unknown } | undefined;
+      const id = String(params.exten ?? params.extension
+        ?? (target?.source === "fixed" ? target.value : "") ?? "").trim();
+      if (id) ids.add(id);
+    }
+    if (!ids.size) return;
+    const owned = await this.endpointModel.findAll({
+      attributes: ["id"],
+      where: { id: { [Op.in]: [...ids] }, tenantid: String(userUid) },
+    });
+    if (owned.length !== ids.size) {
+      throw new BadRequestException({
+        code: "AC_EXTENSION_NOT_FOUND",
+        message: "Campaign extension is unavailable for this organization",
+      });
+    }
+  }
+
+  /**
+   * The shared editor exposes more applications and ValueSource variants than
+   * the outbound campaign compiler can safely render. Reject unsupported
+   * enabled steps before save/start; legacy campaigns remain readable.
+   */
+  private assertScenarioCapabilities(actions: IRouteAction[]): void {
+    for (const action of actions) {
+      if (!action || (action as { enabled?: boolean }).enabled === false) continue;
+      if (!AUTODIAL_SUPPORTED_ACTIONS.has(action.type)) {
+        throw new BadRequestException({
+          code: "AC_SCENARIO_UNSUPPORTED_ACTION",
+          message: `Autodial does not support scenario step ${action.type}`,
+        });
+      }
+      if (hasScenarioCondition(action.condition)) {
+        throw new BadRequestException({
+          code: "AC_SCENARIO_CONDITION_UNSUPPORTED",
+          message: "Autodial does not support conditional scenario steps yet",
+        });
+      }
+      if (action.type === "toqueue" || action.type === "toexten") {
+        const target = (action.params as Record<string, unknown>)?.target;
+        if (
+          target != null
+          && (typeof target !== "object"
+            || (target as { source?: unknown }).source !== "fixed")
+        ) {
+          throw new BadRequestException({
+            code: "AC_SCENARIO_TARGET_UNSUPPORTED",
+            message: "Autodial supports only a fixed target for this scenario step",
+          });
+        }
       }
     }
   }
@@ -589,4 +835,35 @@ export class AutodialCampaignsService {
 /** Exported for the pacer: dispositions that never get re-dialed automatically. */
 export function isTerminalDisposition(d: AutodialDisposition): boolean {
   return AUTODIAL_TERMINAL_DISPOSITIONS.includes(d);
+}
+
+function hasScenarioCondition(condition: unknown): boolean {
+  if (!condition || typeof condition !== "object") return false;
+  return Object.values(condition as Record<string, unknown>).some((value) => {
+    if (Array.isArray(value)) return value.length > 0;
+    return value != null && value !== "";
+  });
+}
+
+/**
+ * DTOs intentionally permit a union-shaped source while class-validator checks
+ * its individual fields. Convert the transport shape once after those checks
+ * instead of leaking DTO-only optional properties into persisted JSON.
+ */
+function toAutodialTrunkPool(input: unknown[]): IAutodialTrunkPoolItem[] {
+  return input.map((raw) => {
+    const item = raw as Record<string, unknown>;
+    const source = item.caller_id_source as AutodialCallerIdSource | undefined;
+    return {
+      trunk_id: String(item.trunk_id ?? ""),
+      ...(typeof item.caller_id === "string" ? { caller_id: item.caller_id } : {}),
+      ...(typeof item.weight === "number" ? { weight: item.weight } : {}),
+      ...(typeof item.max_channels === "number" ? { max_channels: item.max_channels } : {}),
+      ...(source ? { caller_id_source: source } : {}),
+    };
+  });
+}
+
+function hasDirectoryCallerIdSource(pool: IAutodialTrunkPoolItem[]): boolean {
+  return pool.some((item) => item.caller_id_source?.mode === "directory");
 }

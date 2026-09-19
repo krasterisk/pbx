@@ -1,11 +1,11 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/sequelize';
 import { QueryTypes, Sequelize } from 'sequelize';
 import { QueueLogEntry, QueueLogReader } from './queue-log-reader.interface';
 import { parseQueueLogTimestamp } from './file-queue-log-reader';
 
 /**
- * Realtime-table reader for Asterisk `queue_log` in the same MySQL DB.
+ * Realtime-table reader for Asterisk `queue_log` in the selected application DB.
  *
  * Confirmed schema (07-04 Task 1 on target DB):
  *   time, callid, queuename, agent, event, data, data1..data5, userfield
@@ -15,25 +15,15 @@ import { parseQueueLogTimestamp } from './file-queue-log-reader';
 @Injectable()
 export class RealtimeQueueLogReader implements QueueLogReader {
   readonly source = 'realtime' as const;
-  private readonly logger = new Logger(RealtimeQueueLogReader.name);
-
   constructor(@InjectConnection() private readonly sequelize: Sequelize) {}
 
   async isAvailable(): Promise<boolean> {
-    try {
-      const rows = await this.sequelize.query<{ name: string }>(
-        "SHOW TABLES LIKE 'queue_log'",
-        { type: QueryTypes.SELECT },
-      );
-      return Array.isArray(rows) && rows.length > 0;
-    } catch (err) {
-      this.logger.warn(`queue_log table check failed: ${(err as Error).message}`);
-      return false;
-    }
+    // Sequelize's dialect-aware catalog query checks the current schema. A DB
+    // outage or privilege error must propagate, not trigger an auto file fallback.
+    return this.sequelize.getQueryInterface().tableExists('queue_log');
   }
 
   async readEntries(since: Date, until: Date): Promise<QueueLogEntry[]> {
-    try {
       const rows = await this.sequelize.query<{
         time: string;
         callid: string;
@@ -50,7 +40,7 @@ export class RealtimeQueueLogReader implements QueueLogReader {
         `SELECT time, callid, queuename, agent, event, data, data1, data2, data3, data4, data5
          FROM queue_log
          WHERE time BETWEEN :since AND :until
-         ORDER BY time ASC`,
+         ORDER BY time ASC, callid ASC, event ASC, agent ASC`,
         {
           type: QueryTypes.SELECT,
           replacements: {
@@ -78,10 +68,6 @@ export class RealtimeQueueLogReader implements QueueLogReader {
         });
       }
       return entries;
-    } catch (err) {
-      this.logger.warn(`queue_log realtime read failed: ${(err as Error).message}`);
-      return [];
-    }
   }
 }
 

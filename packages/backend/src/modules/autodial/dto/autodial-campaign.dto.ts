@@ -3,6 +3,7 @@ import {
   IsBoolean,
   IsIn,
   IsInt,
+  IsObject,
   IsNumber,
   IsOptional,
   IsString,
@@ -88,6 +89,60 @@ export class AutodialRetryDto {
   default_interval_sec!: number;
 }
 
+export class AutodialCallerIdDirectoryKeyDto {
+  @IsIn(["autodial_field"])
+  source!: "autodial_field";
+
+  @IsString()
+  @MaxLength(64)
+  field_key!: string;
+}
+
+/**
+ * Semantic requirements depend on `mode` and are completed in the campaign
+ * service, where ownership of the base and directory can also be verified.
+ */
+export class AutodialCallerIdSourceDto {
+  @IsIn(["static", "pool", "directory"])
+  mode!: "static" | "pool" | "directory";
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  value?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  numbers?: string[];
+
+  @IsOptional()
+  @IsIn(["random", "round_robin"])
+  pick?: "random" | "round_robin";
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  directory_uid?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  value_field_uid?: number;
+
+  @IsOptional()
+  @IsObject()
+  @ValidateNested()
+  @Type(() => AutodialCallerIdDirectoryKeyDto)
+  key?: AutodialCallerIdDirectoryKeyDto;
+
+  @IsOptional()
+  @IsIn(["fallback"])
+  on_missing?: "fallback";
+}
+
+// Must be declared after AutodialCallerIdSourceDto: decorator metadata is
+// evaluated at module initialization, before a later class declaration exists.
 export class AutodialTrunkPoolItemDto {
   @IsString()
   @MaxLength(128)
@@ -97,6 +152,12 @@ export class AutodialTrunkPoolItemDto {
   @IsString()
   @MaxLength(64)
   caller_id?: string;
+
+  @IsOptional()
+  @IsObject()
+  @ValidateNested()
+  @Type(() => AutodialCallerIdSourceDto)
+  caller_id_source?: AutodialCallerIdSourceDto;
 
   @IsOptional()
   @IsInt()

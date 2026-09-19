@@ -29,7 +29,7 @@ import { AiChatSettingsService } from './ai-chat-settings.service';
 import { LoggerService } from '../logger/logger.service';
 import { CONTINUE_AFTER_APPLY_PROMPT, PbxAgentLoopService } from './pbx-agent-loop.service';
 import { PbxAgentThreadService } from './pbx-agent-thread.service';
-import { AiProvidersService } from '../ai-agents/ai-providers.service';
+import { AiProvidersService } from '../ai-connectivity/ai-providers.service';
 import { AgentProposal } from './models/agent-proposal.model';
 import { toProposalView, type AgentProposalView } from './dto/agent-diff.dto';
 import { AgentThread } from './models/agent-thread.model';

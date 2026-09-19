@@ -7,7 +7,8 @@
     "deleteOutDir": true,
     "assets": [
       { "include": "**/*.proto", "watchAssets": true },
-      { "include": "skills/**/*.md", "watchAssets": false }
+      { "include": "skills/**/*.md", "watchAssets": false },
+      { "include": "database/*.cjs", "watchAssets": true }
     ],
     "watchAssets": false
   }

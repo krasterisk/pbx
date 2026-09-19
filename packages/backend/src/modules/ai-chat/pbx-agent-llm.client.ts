@@ -1,7 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
-import { decryptSecret } from '../ai-agents/util/secret-cipher.util';
-import { chatReasoningParams, chatSamplingParams, chatTokenLimitParams, resolveChatCompletionsUrl, usesMaxCompletionTokens } from '../voicemail/llm-summary.service';
+import { AiProvidersService } from '../ai-connectivity/ai-providers.service';
+import { resolveChatCompletionsUrl } from '../ai-connectivity/chat-endpoint.util';
+import { chatReasoningParams, chatSamplingParams, chatTokenLimitParams, usesMaxCompletionTokens } from '../voicemail/llm-summary.service';
 import { normalizeOpenAiToolCalls, repairOpenAiChatMessages } from './openai-tool-messages.util';
 import type {
     AgentChatParams,
@@ -27,6 +28,8 @@ interface AccumulatedToolCall {
 @Injectable()
 export class PbxAgentLlmClient {
     private readonly logger = new Logger(PbxAgentLlmClient.name);
+
+    constructor(private readonly providers: AiProvidersService) {}
 
     async chat(params: AgentChatParams): Promise<AgentCompletion> {
         const { provider, messages, tools = [], signal, stream = true, onToken, toolChoice } = params;
@@ -61,7 +64,13 @@ export class PbxAgentLlmClient {
             this.logger.warn('Provider does not advertise tool calling — degraded fallback: tools serialized into the system message');
         }
 
-        const headers = this.buildHeaders(provider);
+        let headers: Record<string, string>;
+        try {
+            headers = await this.buildHeaders(provider);
+        } catch {
+            return this.fail({ code: 'provider_auth_unavailable',
+                message: 'Provider credential unavailable or no longer permitted' });
+        }
         const model = this.resolveOptionalModel(provider);
         const resolvedChoice = this.resolveToolChoice(toolChoice, nativeTools, tools.length > 0, provider);
             const configuredMax = Number(provider.defaults?.max_tokens ?? DEFAULT_MAX_TOKENS);
@@ -190,10 +199,15 @@ export class PbxAgentLlmClient {
         });
     }
 
-    private buildHeaders(provider: AgentChatParams['provider']): Record<string, string> {
+    private async buildHeaders(provider: AgentChatParams['provider']): Promise<Record<string, string>> {
         const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-        const key = decryptSecret(provider.encrypted_api_key ?? '');
         const auth = provider.auth_type ?? 'bearer';
+        if (!Number.isSafeInteger(provider.uid) || !Number.isSafeInteger(provider.tenantUid)) {
+            throw new Error('Missing provider identity');
+        }
+        const key = await this.providers.resolveCredential({ tenantUid: provider.tenantUid!,
+            providerUid: provider.uid!, capability: 'llm' });
+        if (auth === 'none') return headers;
         if (auth === 'bearer' && key) headers.Authorization = `Bearer ${key}`;
         else if (auth === 'api_key_header' && key) headers['X-API-Key'] = key;
         return headers;

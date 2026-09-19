@@ -62,7 +62,9 @@ export function emptyCampaignDraft(): AutodialCampaignDraft {
       intervals_sec: { no_answer: 1800, busy: 600, congestion: 300 },
     },
     trunk_pool: [],
-    cid_policy: { mode: "static", value: "" },
+    // New campaigns keep Caller ID next to its trunk. `cid_policy` survives
+    // only as a read-compatible contract for campaigns saved before that UI.
+    cid_policy: { mode: "per_trunk" },
     queue_names: [],
     scenario_actions: [],
     amd: { enabled: false, on_machine: "hangup" },

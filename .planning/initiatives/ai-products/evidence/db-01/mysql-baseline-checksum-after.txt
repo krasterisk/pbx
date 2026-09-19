@@ -1,0 +1,5 @@
+
+Algorithm : SHA256
+Hash      : 8C18E47D94DA3C3AECA3807EB44DBD0280433C1DEDF96BEF36470203D699543D
+Path      : C:\Users\Professional\WebstormProjects\krasterisk_v4\packages\backend\database\migrations\0001-current-schema.sql
+

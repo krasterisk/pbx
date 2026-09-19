@@ -32,6 +32,7 @@ describe('ModulesRegistryService licenseStatus (08-02)', () => {
       { get: configGet } as unknown as ConfigService,
       { findAll: hubFindAll, findOne: jest.fn(), create: jest.fn(), upsert: jest.fn() } as any,
       { findAll: jest.fn(), destroy: jest.fn(), bulkCreate: jest.fn() } as any,
+      {} as any,
     );
   });
 
@@ -85,5 +86,134 @@ describe('ModulesRegistryService licenseStatus (08-02)', () => {
     const catalog = await service.getHubCatalogForTenant(1);
     expect(catalog[0]).toHaveProperty('licenseStatus');
     expect(Object.keys(catalog[0])).not.toContain('clientLicenseStatus');
+  });
+});
+
+describe('ModulesRegistryService AI product access (AI-01)', () => {
+  function buildAccessService(mode: string, decision = { allowed: false, reason: 'product_disabled' }) {
+    const decide = jest.fn().mockResolvedValue(decision);
+    return new ModulesRegistryService(
+      {} as any,
+      {} as any,
+      { findOne: jest.fn().mockResolvedValue({ id: 9, status: 'active' }) } as any,
+      { get: jest.fn().mockReturnValue(mode) } as unknown as ConfigService,
+      {} as any,
+      {} as any,
+      { decide } as any,
+    );
+  }
+
+  it('delegates access to the persisted product access service', async () => {
+    const service = buildAccessService('CLOUD', { allowed: false, reason: 'product_disabled' });
+    await expect(service.resolveAiProductAccess(42, 'speech_analytics')).resolves.toMatchObject({
+      reason: 'product_disabled', allowed: false,
+    });
+    await expect(service.tenantHasAiProduct(42, 'ai_voice_robots')).resolves.toBe(false);
+  });
+
+  it('does not use the generic BOX allow for a rejected license', async () => {
+    const service = buildAccessService('BOX');
+    await expect(service.tenantHasAiProduct(42, 'speech_analytics')).resolves.toBe(false);
+  });
+
+  it('reports commercial packages missing in OpenSource mode', async () => {
+    const service = buildAccessService('OPENSOURCE', { allowed: false, reason: 'package_missing' });
+    await expect(service.resolveAiProductAccess(42, 'ai_voice_robots')).resolves.toMatchObject({
+      allowed: false, reason: 'package_missing',
+    });
+  });
+
+  it('passes the server-resolved tenant and code to product access', async () => {
+    const decide = jest.fn().mockResolvedValue({ allowed: false });
+    const service = new ModulesRegistryService(
+      {} as any, {} as any, {} as any,
+      { get: jest.fn().mockReturnValue('CLOUD') } as unknown as ConfigService,
+      {} as any, {} as any, { decide } as any,
+    );
+    await service.resolveAiProductAccess(42, 'speech_analytics');
+    expect(decide).toHaveBeenCalledWith(42, 'speech_analytics');
+  });
+
+  it('routes generic checks for new products through the fail-closed policy', async () => {
+    const service = buildAccessService('BOX');
+    await expect(service.tenantHasModule(42, 'ai_voice_robots')).resolves.toBe(false);
+    await expect(service.tenantHasModule(42, 'voice_robot')).resolves.toBe(true);
+  });
+
+  it('rejects unknown product codes instead of consulting a legacy fallback', async () => {
+    const service = buildAccessService('CLOUD');
+    await expect(service.resolveAiProductAccess(42, 'unknown' as any)).rejects.toMatchObject({
+      response: expect.objectContaining({ code: 'UNKNOWN_AI_PRODUCT' }),
+    });
+  });
+});
+
+describe('ModulesRegistryService A1 catalog and offers', () => {
+  it('inserts AI drafts unpublished and leaves operator publication unchanged on reseed', async () => {
+    const rows = new Map<string, any>();
+    const registry = {
+      findOrCreate: jest.fn(async ({ where, defaults }: any) => {
+        const existing = rows.get(where.code);
+        if (existing) return [existing, false];
+        const row = { ...defaults, update: jest.fn(async (patch) => Object.assign(row, patch)) };
+        rows.set(where.code, row);
+        return [row, true];
+      }),
+    };
+    const service = new ModulesRegistryService(
+      registry as any, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any,
+    );
+    await service.onApplicationBootstrap();
+    expect(rows.get('ai_voice_robots').is_published).toBe(false);
+    expect(rows.get('speech_analytics').is_published).toBe(false);
+    rows.get('voice_robot').is_published = false;
+    rows.get('ai_voice_robots').is_published = true;
+    await service.onApplicationBootstrap();
+    expect(rows.get('voice_robot').is_published).toBe(false);
+    expect(rows.get('ai_voice_robots').is_published).toBe(true);
+  });
+
+  it('rejects direct purchases of unpublished or unreleased AI offers', async () => {
+    const registry = { findOne: jest.fn().mockResolvedValue({
+      code: 'ai_voice_robots', name: 'AI robots', is_core: false,
+      is_paid: true, is_published: false, price_monthly: 0,
+    }) };
+    const service = new ModulesRegistryService(
+      registry as any, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any,
+    );
+    await expect(service.resolvePurchaseOffer('ai_voice_robots')).rejects.toMatchObject({
+      response: expect.objectContaining({ code: 'OFFER_NOT_RELEASED' }),
+    });
+    registry.findOne.mockResolvedValue({
+      code: 'ai_voice_robots', name: 'AI robots', is_core: false,
+      is_paid: true, is_published: true, price_monthly: 0,
+    });
+    await expect(service.resolvePurchaseOffer('ai_voice_robots')).rejects.toMatchObject({
+      response: expect.objectContaining({ code: 'OFFER_NOT_RELEASED' }),
+    });
+  });
+
+  it('never creates an AI grant from a tenant Hub toggle', async () => {
+    const upsert = jest.fn();
+    const service = new ModulesRegistryService(
+      {} as any, { upsert } as any, {} as any, {} as any, {} as any, {} as any, {} as any,
+    );
+    await expect(service.setTenantHubModuleStatus(9, 'speech_analytics', 'active'))
+      .rejects.toMatchObject({
+        response: expect.objectContaining({ code: 'product_configuration_pending' }),
+      });
+    expect(upsert).not.toHaveBeenCalled();
+  });
+
+  it('makes draft-publication correction an explicit, narrowly scoped maintenance call', async () => {
+    const update = jest.fn().mockResolvedValue([2]);
+    const service = new ModulesRegistryService(
+      { update } as any, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any,
+    );
+    await expect(service.unpublishUnreleasedAiDrafts()).resolves.toBe(2);
+    expect(update).toHaveBeenCalledWith(
+      { is_published: false },
+      { where: { code: ['ai_voice_robots', 'speech_analytics'] } },
+    );
   });
 });

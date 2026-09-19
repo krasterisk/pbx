@@ -46,10 +46,7 @@
 
 .rowGrid {
   display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(0, 2fr) minmax(0, 1fr) minmax(
-      0,
-      1fr
-    ) auto;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) auto;
   gap: 0.75rem;
   align-items: end;
   width: 100%;
@@ -61,6 +58,42 @@
   @media (max-width: 640px) {
     grid-template-columns: 1fr;
   }
+}
+
+.cidEditor {
+  display: grid;
+  grid-template-columns: minmax(10rem, 0.8fr) minmax(0, 2fr);
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent);
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.cidModeField,
+.cidValueField {
+  min-width: 0;
+}
+
+.cidDirectoryGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  min-width: 0;
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.cidDirectoryHint {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--color-muted-foreground);
 }
 
 .scheduleGrid {

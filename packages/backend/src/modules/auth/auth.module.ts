@@ -18,10 +18,12 @@ import { TenantRegistrationService } from './tenant-registration.service';
 import { User } from '../users/user.model';
 import { Tenant } from '../cloud-admin/tenant.model';
 import { Context } from '../contexts/context.model';
+import { TenantIdentityModule } from '../tenant-identity/tenant-identity.module';
 
 @Module({
   imports: [
     SequelizeModule.forFeature([UserSession, User, Tenant, Context]),
+    TenantIdentityModule,
     UsersModule,
     LoggerModule,
     MailerModule,

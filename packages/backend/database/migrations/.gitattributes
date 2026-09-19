@@ -1,0 +1,2 @@
+# Migration checksums describe bytes; Windows checkout must not rewrite newlines.
+*.sql -text

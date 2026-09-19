@@ -1,0 +1,61 @@
+{
+  "version": 2,
+  "dialects": {
+    "mysql": {
+      "baselineImplemented": true,
+      "migrations": [
+        { "id": "0001-current-schema.sql", "artifact": "0001-current-schema.sql" },
+        { "id": "0002-cdr-query-indexes.sql", "artifact": "0002-cdr-query-indexes.sql" },
+        { "id": "0003-callcenter-report-keys.sql", "artifact": "0003-callcenter-report-keys.sql" },
+        { "id": "0004-ai-product-access.sql", "artifact": "0004-ai-product-access.sql" },
+        { "id": "0005-ai-integration-credentials.sql", "artifact": "0005-ai-integration-credentials.sql" },
+        { "id": "0006-ai-integration-auth-limits.sql", "artifact": "0006-ai-integration-auth-limits.sql" },
+        { "id": "0007-tenant-login-uniqueness.sql", "artifact": "0007-tenant-login-uniqueness.sql" }
+      ],
+      "profiles": {
+        "analytics-api": [
+          { "id": "0001-ai-standalone-base.sql", "artifact": "0001-ai-standalone-base.sql" },
+          { "id": "0004-ai-product-access.sql", "artifact": "0004-ai-product-access.sql" },
+          { "id": "0005-ai-integration-credentials.sql", "artifact": "0005-ai-integration-credentials.sql" },
+          { "id": "0006-ai-integration-auth-limits.sql", "artifact": "0006-ai-integration-auth-limits.sql" },
+          { "id": "0007-tenant-login-uniqueness.sql", "artifact": "0007-tenant-login-uniqueness.sql" }
+        ],
+        "robot-api": [
+          { "id": "0001-ai-standalone-base.sql", "artifact": "0001-ai-standalone-base.sql" },
+          { "id": "0004-ai-product-access.sql", "artifact": "0004-ai-product-access.sql" },
+          { "id": "0005-ai-integration-credentials.sql", "artifact": "0005-ai-integration-credentials.sql" },
+          { "id": "0006-ai-integration-auth-limits.sql", "artifact": "0006-ai-integration-auth-limits.sql" },
+          { "id": "0007-tenant-login-uniqueness.sql", "artifact": "0007-tenant-login-uniqueness.sql" }
+        ]
+      }
+    },
+    "postgres": {
+      "baselineImplemented": true,
+      "migrations": [
+        { "id": "0001-current-schema.sql", "artifact": "postgres/0001-current-schema.sql" },
+        { "id": "0002-cdr-query-indexes.sql", "artifact": "postgres/0002-cdr-query-indexes.sql" },
+        { "id": "0003-callcenter-report-keys.sql", "artifact": "postgres/0003-callcenter-report-keys.sql" },
+        { "id": "0004-ai-product-access.sql", "artifact": "postgres/0004-ai-product-access.sql" },
+        { "id": "0005-ai-integration-credentials.sql", "artifact": "postgres/0005-ai-integration-credentials.sql" },
+        { "id": "0006-ai-integration-auth-limits.sql", "artifact": "postgres/0006-ai-integration-auth-limits.sql" },
+        { "id": "0007-tenant-login-uniqueness.sql", "artifact": "postgres/0007-tenant-login-uniqueness.sql" }
+      ],
+      "profiles": {
+        "analytics-api": [
+          { "id": "0001-ai-standalone-base.sql", "artifact": "postgres/0001-ai-standalone-base.sql" },
+          { "id": "0004-ai-product-access.sql", "artifact": "postgres/0004-ai-product-access.sql" },
+          { "id": "0005-ai-integration-credentials.sql", "artifact": "postgres/0005-ai-integration-credentials.sql" },
+          { "id": "0006-ai-integration-auth-limits.sql", "artifact": "postgres/0006-ai-integration-auth-limits.sql" },
+          { "id": "0007-tenant-login-uniqueness.sql", "artifact": "postgres/0007-tenant-login-uniqueness.sql" }
+        ],
+        "robot-api": [
+          { "id": "0001-ai-standalone-base.sql", "artifact": "postgres/0001-ai-standalone-base.sql" },
+          { "id": "0004-ai-product-access.sql", "artifact": "postgres/0004-ai-product-access.sql" },
+          { "id": "0005-ai-integration-credentials.sql", "artifact": "postgres/0005-ai-integration-credentials.sql" },
+          { "id": "0006-ai-integration-auth-limits.sql", "artifact": "postgres/0006-ai-integration-auth-limits.sql" },
+          { "id": "0007-tenant-login-uniqueness.sql", "artifact": "postgres/0007-tenant-login-uniqueness.sql" }
+        ]
+      }
+    }
+  }
+}

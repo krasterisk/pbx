@@ -11,6 +11,7 @@ import * as crypto from 'crypto';
 import * as bcrypt from 'bcrypt';
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import { col, fn, where } from 'sequelize';
 import {
   sanitizeAvatarFilename,
   avatarContentType,
@@ -26,7 +27,10 @@ export class UsersService {
   ) {}
 
   async findByLogin(login: string): Promise<User | null> {
-    return this.userModel.findOne({ where: { login } });
+    // MySQL's deployed collation resolves ASCII case-insensitively. Use the
+    // same login/duplicate-account rule on PostgreSQL instead of depending on
+    // each database's default collation.
+    return this.userModel.findOne({ where: where(fn('LOWER', col('login')), login.toLowerCase()) });
   }
 
   async findById(id: number, vpbxUserUid?: number): Promise<User | null> {

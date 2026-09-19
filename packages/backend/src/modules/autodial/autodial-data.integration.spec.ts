@@ -6,12 +6,14 @@ import { Sequelize } from 'sequelize-typescript';
 import { AUTODIAL_SCHEMA_STATEMENTS } from './setup-autodial-schema';
 import { AutodialBasesService } from './autodial-bases.service';
 import { AutodialImportService } from './autodial-import.service';
+import { AutodialAttemptService } from './autodial-attempt.service';
 import { AcBase } from './models/ac-base.model';
 import { AcBaseField } from './models/ac-base-field.model';
 import { AcContact } from './models/ac-contact.model';
 import { AcContactPhone } from './models/ac-contact-phone.model';
 import { AcCampaign } from './models/ac-campaign.model';
 import { AcTask } from './models/ac-task.model';
+import { AcAttempt } from './models/ac-attempt.model';
 import { AcImportProfile } from './models/ac-import-profile.model';
 import { AcImportRun } from './models/ac-import-run.model';
 
@@ -41,7 +43,7 @@ databaseTests('Autodial data transactions (isolated MySQL schema)', () => {
       dialect: 'mysql', host: credentials.host, port: credentials.port,
       username: credentials.user, password: credentials.password, database: schema,
       logging: false,
-      models: [AcBase, AcBaseField, AcContact, AcContactPhone, AcCampaign, AcTask, AcImportProfile, AcImportRun],
+      models: [AcBase, AcBaseField, AcContact, AcContactPhone, AcCampaign, AcTask, AcAttempt, AcImportProfile, AcImportRun],
     });
     for (const statement of AUTODIAL_SCHEMA_STATEMENTS) await db.query(statement);
     bases = new AutodialBasesService(AcBase, AcBaseField, AcContact, AcContactPhone, db, AcTask, AcCampaign, AcImportProfile);
@@ -83,6 +85,45 @@ databaseTests('Autodial data transactions (isolated MySQL schema)', () => {
     expect(result.values).toEqual({ name: 'Alice' });
     expect(result.phones[0].uid).toBe(contact.phones[0].uid);
     expect((await bases.findOne(71, base.uid)).fields.map((field) => field.uid).sort()).toEqual(base.fields.map((field) => field.uid).sort());
+  });
+  it('deletes an unused base together with fields, contacts and phones', async () => {
+    const base = await createBase();
+    const contact = await createContact(base.uid);
+
+    await bases.remove(71, base.uid);
+
+    expect(await AcBase.count({ where: { uid: base.uid } })).toBe(0);
+    expect(await AcBaseField.count({ where: { base_uid: base.uid } })).toBe(0);
+    expect(await AcContact.count({ where: { uid: contact.uid } })).toBe(0);
+    expect(await AcContactPhone.count({ where: { base_uid: base.uid } })).toBe(0);
+  });
+  it('persists answer correlation for a replacement worker', async () => {
+    const base = await createBase();
+    const contact = await createContact(base.uid);
+    const campaign = await AcCampaign.create({
+      user_uid: 71, base_uid: base.uid, name: 'Recovery fixture', pacing: {}, retry: {}, trunk_pool: [],
+      cid_policy: {}, queue_names: [], scenario_actions: [], amd: {},
+    });
+    const task = await AcTask.create({
+      user_uid: 71, campaign_uid: campaign.uid,
+      contact_uid: contact.uid, phone_uid: contact.phones[0].uid,
+    });
+    const attempts = new AutodialAttemptService(
+      AcAttempt, AcTask, AcCampaign, { recordAnsweredOutcome: jest.fn() } as never,
+    );
+    const channelId = `ac-${campaign.uid}-${task.uid}-1`;
+    const opened = await attempts.openAttempt({
+      userUid: 71, taskUid: task.uid, campaignUid: campaign.uid,
+      attemptNo: 1, channelId, trunkId: 'fixture', callerId: '74951112233',
+    });
+    const answeredAt = new Date('2026-09-18T10:00:20Z');
+
+    await attempts.markAnswered(channelId, answeredAt);
+    await attempts.markAnswered(channelId, new Date('2026-09-18T10:01:00Z'));
+
+    const recovered = await attempts.findOpenByChannelId(channelId);
+    expect(recovered?.uid).toBe(opened.uid);
+    expect(recovered?.answered_at?.getTime()).toBe(answeredAt.getTime());
   });
   it('counts contacts, loads a contact outside page 1 and isolates tenants', async () => {
     const base = await createBase();

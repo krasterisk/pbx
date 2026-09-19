@@ -143,6 +143,21 @@ export class AutodialBasesService {
     await this.sequelize.transaction(async (transaction) => {
       const base = await this.lockBase(userUid, uid, transaction);
       await this.assertBaseReplaceable(userUid, uid, transaction);
+      // The versioned schema deliberately uses NO ACTION foreign keys. Remove
+      // dependent rows explicitly so deleting an unused base works on both
+      // MySQL and PostgreSQL without relying on implicit cascades.
+      await this.phoneModel.destroy({ where: { base_uid: uid }, transaction });
+      await this.contactModel.destroy({ where: { base_uid: uid, user_uid: userUid }, transaction });
+      await this.fieldModel.destroy({ where: { base_uid: uid }, transaction });
+      await this.profileModel.destroy({ where: { base_uid: uid, user_uid: userUid }, transaction });
+      await this.sequelize.query(
+        'DELETE FROM ac_import_runs WHERE base_uid = :baseUid AND vpbx_user_uid = :userUid',
+        { replacements: { baseUid: uid, userUid }, transaction },
+      );
+      await this.sequelize.query(
+        "DELETE FROM ac_dnc WHERE scope = 'base' AND scope_uid = :baseUid AND vpbx_user_uid = :userUid",
+        { replacements: { baseUid: uid, userUid }, transaction },
+      );
       await base.destroy({ transaction });
     });
   }

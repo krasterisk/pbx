@@ -1,46 +1,22 @@
-const fs = require('node:fs');
-const path = require('node:path');
-const crypto = require('node:crypto');
-const mysql = require('mysql2/promise');
+'use strict';
+const { resolveDatabaseConfig } = require('../src/database/database-config.cjs');
+const { loadMigrations, runMigrations } = require('./migration-runner.cjs');
 
-async function main() {
-  const dir = path.join(__dirname, 'migrations');
-  const files = fs.readdirSync(dir).filter(f => /^\d+.*\.sql$/.test(f)).sort();
-  if (process.argv.includes('--list')) {
-    files.forEach(f => console.log(f));
-    return;
-  }
-  if (process.argv.includes('--rollback')) throw new Error('Automatic rollback is not supported; use a reviewed forward migration or restore a backup.');
-  for (const name of ['DB_HOST', 'DB_USER', 'DB_PASSWORD', 'DB_NAME']) {
-    if (process.env[name] === undefined) throw new Error(`${name} must be explicitly configured`);
-  }
-  const db = await mysql.createConnection({ host: process.env.DB_HOST,
-    socketPath: process.env.DB_SOCKET || undefined,
-    port: Number(process.env.DB_PORT || 3306), user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD, database: process.env.DB_NAME, multipleStatements: true });
-  try {
-    const [[lock]] = await db.query("SELECT GET_LOCK(CONCAT(DATABASE(), ':migrations'), 30) AS acquired");
-    if (lock.acquired !== 1) throw new Error('Migration lock unavailable');
-    const [tables] = await db.query('SHOW TABLES');
-    const names = tables.map(t => Object.values(t)[0]);
-    if (names.length && !names.includes('krasterisk_schema_migrations')) {
-      throw new Error('Existing unversioned schema: baseline requires an empty database. Review and reconcile the existing schema before adopting migration history.');
-    }
-    await db.query('CREATE TABLE IF NOT EXISTS krasterisk_schema_migrations (name VARCHAR(255) PRIMARY KEY, checksum CHAR(64) NOT NULL, applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)');
-    for (const file of files) {
-      const sql = fs.readFileSync(path.join(dir, file), 'utf8');
-      const checksum = crypto.createHash('sha256').update(sql).digest('hex');
-      const [rows] = await db.query('SELECT checksum FROM krasterisk_schema_migrations WHERE name = ?', [file]);
-      if (rows.length) {
-        if (rows[0].checksum !== checksum) throw new Error(`Applied migration changed: ${file}`);
-        continue;
-      }
-      await db.query(sql);
-      await db.query('INSERT INTO krasterisk_schema_migrations (name, checksum) VALUES (?, ?)', [file, checksum]);
-      console.log(`Applied ${file}`);
-    }
-  } finally {
-    await db.end(); // also releases the connection-owned migration lock
-  }
+async function main(args = process.argv.slice(2), input = process.env) {
+  if (args.includes('--rollback')) throw new Error('Automatic rollback is not supported; use a reviewed forward migration or restore a backup.');
+  if (args.length > 1 || args.some(arg => !['--list', '--status'].includes(arg))) throw new Error('Usage: run-migrations.cjs [--list|--status]');
+  const list = args.includes('--list');
+  const config = resolveDatabaseConfig(input, { requireExplicitConnection: !list });
+  const profile = input.DB_SCHEMA_PROFILE || 'full-pbx';
+  const migrations = loadMigrations(config.dialect, profile); // Profile guard precedes connection creation.
+  if (list) return { engine: config.dialect, profile, migrations: migrations.map(({ id, artifact, checksum }) => ({ id, artifact, checksum })) };
+  return runMigrations({ config, migrations, profile, mode: args.includes('--status') ? 'status' : 'apply' });
 }
-main().catch(error => { console.error(error.message); process.exitCode = 1; });
+
+if (require.main === module) {
+  main().then(result => {
+    console.log(JSON.stringify(result, null, 2));
+    if (result.dirty) process.exitCode = 1;
+  }).catch(error => { console.error(error.message); process.exitCode = 1; });
+}
+module.exports = { main };

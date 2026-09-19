@@ -18,20 +18,26 @@ import {
   useDeleteAutodialDncMutation,
   useGetAutodialDncQuery,
 } from "@/shared/api/endpoints/autodialApi";
-import cls from "../CampaignFormModal/CampaignTabs.module.scss";
+import { autodialErrorKey } from "../../lib/mutationError";
+import cls from "./DncPanel.module.scss";
 
 interface Props {
   /** Campaign or base uid that scoped rows belong to. Omit for global-only. */
   scopeUid?: number | null;
   /** Extra scope besides global (campaign | base). */
   scopedAs?: Exclude<AutodialDncScope, "global">;
+  /** Read-only inherited scope shown alongside the local scope. */
+  inheritedScope?: {
+    scope: Exclude<AutodialDncScope, "global">;
+    uid: number | null;
+  };
 }
 
 /**
  * Shared stop-list editor: global rows plus optional campaign/base rows.
  * Hours of day stay on the schedule tab — this is only the number list.
  */
-export const DncPanel = memo(({ scopeUid, scopedAs }: Props) => {
+export const DncPanel = memo(({ scopeUid, scopedAs, inheritedScope }: Props) => {
   const { t } = useTranslation();
   const { data: entries, isFetching } = useGetAutodialDncQuery();
   const [createDnc, { isLoading: isCreating }] = useCreateAutodialDncMutation();
@@ -39,16 +45,24 @@ export const DncPanel = memo(({ scopeUid, scopedAs }: Props) => {
 
   const [phone, setPhone] = useState("");
   const [reason, setReason] = useState("");
-  const [scope, setScope] = useState<AutodialDncScope>("global");
+  const [scope, setScope] = useState<AutodialDncScope>(scopedAs ?? "global");
   const [error, setError] = useState<string | null>(null);
+  const [globalConfirmPending, setGlobalConfirmPending] = useState(false);
+  const [globalDeleteUid, setGlobalDeleteUid] = useState<number | null>(null);
 
   const visible = useMemo(() => {
     return (entries ?? []).filter((row) => {
       if (row.scope === "global") return true;
       if (!scopedAs || scopeUid == null) return false;
-      return row.scope === scopedAs && row.scope_uid === scopeUid;
+      if (row.scope === scopedAs && row.scope_uid === scopeUid) return true;
+      return Boolean(
+        inheritedScope
+          && inheritedScope.uid != null
+          && row.scope === inheritedScope.scope
+          && row.scope_uid === inheritedScope.uid,
+      );
     });
-  }, [entries, scopedAs, scopeUid]);
+  }, [entries, inheritedScope, scopedAs, scopeUid]);
 
   const onAdd = async () => {
     setError(null);
@@ -64,6 +78,10 @@ export const DncPanel = memo(({ scopeUid, scopedAs }: Props) => {
       );
       return;
     }
+    if (scope === "global" && scopedAs && !globalConfirmPending) {
+      setGlobalConfirmPending(true);
+      return;
+    }
     try {
       await createDnc({
         scope,
@@ -74,9 +92,36 @@ export const DncPanel = memo(({ scopeUid, scopedAs }: Props) => {
       }).unwrap();
       setPhone("");
       setReason("");
-    } catch {
-      setError(t("autodial.dnc.addFailed"));
+      setGlobalConfirmPending(false);
+    } catch (createError) {
+      setError(t(autodialErrorKey(createError, "autodial.dnc.addFailed")));
     }
+  };
+
+  const deleteEntry = async (uid: number) => {
+    setError(null);
+    try {
+      await deleteDnc(uid).unwrap();
+      setGlobalDeleteUid(null);
+    } catch (deleteError) {
+      setError(t(autodialErrorKey(deleteError, "autodial.common.deleteFailed")));
+    }
+  };
+
+  const canDelete = (row: NonNullable<typeof entries>[number]): boolean => {
+    if (!scopedAs) return row.scope === "global";
+    if (row.scope === scopedAs && row.scope_uid === scopeUid) return true;
+    // The contact-list page is the explicit management boundary for shared
+    // records. Campaign form may only manage its campaign-local entries.
+    return scopedAs === "base" && row.scope === "global";
+  };
+
+  const onDelete = async (row: NonNullable<typeof entries>[number]) => {
+    if (row.scope === "global" && globalDeleteUid !== row.uid) {
+      setGlobalDeleteUid(row.uid);
+      return;
+    }
+    await deleteEntry(row.uid);
   };
 
   return (
@@ -85,6 +130,7 @@ export const DncPanel = memo(({ scopeUid, scopedAs }: Props) => {
         <Text className={cls.sectionTitle}>{t("autodial.dnc.title")}</Text>
         <InfoTooltip text={t("autodial.dnc.intro")} />
       </HStack>
+      <Text className={cls.hint}>{t("autodial.dnc.immediateSave")}</Text>
 
       <HStack gap="8" align="end" wrap="wrap">
         <VStack gap="4" className={cls.field}>
@@ -117,7 +163,10 @@ export const DncPanel = memo(({ scopeUid, scopedAs }: Props) => {
             <Select
               id="autodial-dnc-scope"
               value={scope}
-              onChange={(e) => setScope(e.target.value as AutodialDncScope)}
+              onChange={(e) => {
+                setScope(e.target.value as AutodialDncScope);
+                setGlobalConfirmPending(false);
+              }}
               className={cls.narrowInput}
             >
               <option value="global">{t("autodial.dnc.scopeGlobal")}</option>
@@ -134,6 +183,31 @@ export const DncPanel = memo(({ scopeUid, scopedAs }: Props) => {
           {t("autodial.dnc.add")}
         </Button>
       </HStack>
+      {scope === "global" && scopedAs && (
+        <Text className={cls.warning}>{t("autodial.dnc.globalWarning")}</Text>
+      )}
+      {globalConfirmPending && (
+        <HStack gap="8" align="center" wrap="wrap">
+          <Text className={cls.warning}>{t("autodial.dnc.globalConfirm")}</Text>
+          <Button disabled={isCreating} onClick={() => void onAdd()}>
+            {t("autodial.dnc.globalConfirmAction")}
+          </Button>
+          <Button variant="outline" onClick={() => setGlobalConfirmPending(false)}>
+            {t("common.cancel")}
+          </Button>
+        </HStack>
+      )}
+      {globalDeleteUid != null && (
+        <HStack gap="8" align="center" wrap="wrap">
+          <Text className={cls.warning}>{t("autodial.dnc.globalDeleteConfirm")}</Text>
+          <Button disabled={isCreating} onClick={() => void deleteEntry(globalDeleteUid)}>
+            {t("autodial.dnc.globalDeleteConfirmAction")}
+          </Button>
+          <Button variant="outline" onClick={() => setGlobalDeleteUid(null)}>
+            {t("common.cancel")}
+          </Button>
+        </HStack>
+      )}
       {error && <Text className={cls.error}>{error}</Text>}
 
       <VStack gap="8" max>
@@ -153,16 +227,20 @@ export const DncPanel = memo(({ scopeUid, scopedAs }: Props) => {
                 {row.reason ? ` · ${row.reason}` : ""}
               </Text>
             </VStack>
-            <TableRowActions>
-              <TableRowAction
-                danger
-                title={t("common.delete")}
-                aria-label={t("common.delete")}
-                onClick={() => void deleteDnc(row.uid)}
-              >
-                <Trash2 />
-              </TableRowAction>
-            </TableRowActions>
+            {canDelete(row) ? (
+              <TableRowActions>
+                <TableRowAction
+                  danger
+                  title={t("common.delete")}
+                  aria-label={t("common.delete")}
+                  onClick={() => void onDelete(row)}
+                >
+                  <Trash2 />
+                </TableRowAction>
+              </TableRowActions>
+            ) : (
+              <Text className={cls.hint}>{t("autodial.dnc.inheritedReadOnly")}</Text>
+            )}
           </HStack>
         ))}
       </VStack>

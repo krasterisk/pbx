@@ -8,6 +8,8 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { SuperAdminGuard } from '../auth/superadmin.guard';
 import { ModulesRegistryService } from './modules-registry.service';
 import { UserLevel } from '../users/user.model';
+import { ModuleAccessGuard } from './module-access.guard';
+import { RequiresModule } from './requires-module.decorator';
 
 @ApiTags('Cloud Admin — Modules')
 @ApiBearerAuth()
@@ -44,6 +46,20 @@ export class TenantModulesController {
   }
 }
 
+/** Explicit admin maintenance; never run during normal catalog bootstrap. */
+@ApiTags('Cloud Admin — Modules')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard, SuperAdminGuard)
+@Controller('cloud-admin/ai-products')
+export class AiProductCatalogMaintenanceController {
+  constructor(private readonly modulesService: ModulesRegistryService) {}
+
+  @Post('unpublish-unreleased-drafts')
+  async unpublishUnreleasedDrafts() {
+    return { changed: await this.modulesService.unpublishUnreleasedAiDrafts() };
+  }
+}
+
 /**
  * Marketplace controller — visible to Tenant Admins
  */
@@ -59,6 +75,31 @@ export class MarketplaceController {
   @ApiOperation({ summary: 'Каталог всех доступных модулей' })
   findAll() {
     return this.modulesService.findAll();
+  }
+
+  /** Current server-side projection; grants are visible, but A1 activation is off. */
+  @Get('ai-products/status')
+  async getAiProductsStatus(@Req() req: any) {
+    const uid = req.user?.vpbx_user_uid;
+    if (uid === null || uid === undefined) throw new ForbiddenException('Tenant binding required');
+    return Promise.all([
+      this.modulesService.resolveAiProductAccess(uid, 'ai_voice_robots'),
+      this.modulesService.resolveAiProductAccess(uid, 'speech_analytics'),
+    ]);
+  }
+
+  @Get('ai-products/voice-robots/access')
+  @UseGuards(ModuleAccessGuard)
+  @RequiresModule('ai_voice_robots')
+  checkAiVoiceRobotsAccess() {
+    return { allowed: true };
+  }
+
+  @Get('ai-products/speech-analytics/access')
+  @UseGuards(ModuleAccessGuard)
+  @RequiresModule('speech_analytics')
+  checkSpeechAnalyticsAccess() {
+    return { allowed: true };
   }
 
   /**

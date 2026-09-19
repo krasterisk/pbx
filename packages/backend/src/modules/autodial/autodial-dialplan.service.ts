@@ -64,6 +64,7 @@ export class AutodialDialplanService {
         vpbx,
       ),
       campaign.amd,
+      vpbx,
     );
 
     try {

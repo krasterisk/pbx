@@ -1,5 +1,4 @@
 import axios from 'axios';
-import { encryptSecret } from '../ai-agents/util/secret-cipher.util';
 import type { CcAiProvider } from '../ai-agents/models/ai-provider.model';
 import { LlmSummaryService, resolveChatCompletionsUrl, chatTokenLimitParams } from './llm-summary.service';
 
@@ -17,7 +16,7 @@ function provider(overrides: Partial<CcAiProvider> = {}): CcAiProvider {
     vendor: 'openai',
     endpoint: 'https://api.openai.com/v1/chat/completions',
     auth_type: 'bearer',
-    encrypted_api_key: encryptSecret(PLAIN_KEY),
+    encrypted_api_key: 'stored-ciphertext',
     capabilities: ['llm'],
     defaults: { model: 'gpt-4o-mini', temperature: 0.2 },
     enabled: true,
@@ -93,7 +92,9 @@ describe('chatTokenLimitParams', () => {
 });
 
 describe('LlmSummaryService', () => {
-  const service = new LlmSummaryService();
+  const service = new LlmSummaryService({
+    resolveCredential: jest.fn().mockResolvedValue(PLAIN_KEY),
+  } as any);
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -109,7 +110,7 @@ describe('LlmSummaryService', () => {
     expect(mockedAxios.post).toHaveBeenCalledTimes(1);
     const [, , config] = mockedAxios.post.mock.calls[0];
     expect(config?.headers?.Authorization).toBe(`Bearer ${PLAIN_KEY}`);
-    expect(config?.headers?.Authorization).not.toContain(encryptSecret(PLAIN_KEY));
+    expect(config?.headers?.Authorization).not.toContain('stored-ciphertext');
   });
 
   it('sends api_key_header via X-API-Key after decryptSecret', async () => {

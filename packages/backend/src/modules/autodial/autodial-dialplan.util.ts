@@ -1,6 +1,7 @@
 import type { IAutodialAmdConfig, IRouteAction } from '@krasterisk/shared';
 import type { DialplanCategory } from '../ami/dialplan-apply.service';
 import { buildCurlCall } from '../../shared/utils/dialplan-curl.util';
+import { emitPlayback } from '../../shared/utils/dialplan-playback.util';
 
 /** Chars that would break out of a dialplan application argument. */
 const DIALPLAN_UNSAFE = /[(),?[\]{}$\\";\n\r]/g;
@@ -56,7 +57,7 @@ export function generateAutodialCampaignDialplan(
     lines.push(...emitAmdBranch(campaign.amd));
   }
 
-  lines.push(...emitScenario(campaign.scenario_actions, campaign.queue_names));
+  lines.push(...emitScenario(campaign.scenario_actions, campaign.queue_names, vpbxUserUid));
   lines.push('same => n,Hangup()');
 
   return { name, lines };
@@ -80,12 +81,27 @@ function emitAmdBranch(amd: IAutodialAmdConfig): string[] {
 }
 
 /** Trailing label the AMD branch jumps to; appended after the scenario body. */
-function emitMachineTail(amd: IAutodialAmdConfig | undefined): string[] {
+function emitMachineTail(
+  amd: IAutodialAmdConfig | undefined,
+  vpbxUserUid?: number,
+): string[] {
   if (!amd?.enabled || amd.on_machine === 'continue') return [];
-  return [
+  const lines = [
     'same => n(ac_machine),NoOp(Autodial: answering machine detected)',
-    'same => n,Hangup()',
   ];
+  // CURL is synchronous in the dialplan. Record this terminal classification
+  // before Hangup can emit ARI ChannelDestroyed; otherwise ARI would only see
+  // a generic answered call and could advance the task with the wrong result.
+  if (vpbxUserUid != null) {
+    const curl = buildCurlCall(
+      'attempt-machine',
+      { attempt: '${KRSK_AC_ATTEMPT}' },
+      { endpoint: 'internal/autodial/attempt-machine', vpbxUserUid },
+    );
+    lines.push(`same => n,${curl}`);
+  }
+  lines.push('same => n,Hangup()');
+  return lines;
 }
 
 /**
@@ -93,7 +109,7 @@ function emitMachineTail(amd: IAutodialAmdConfig | undefined): string[] {
  * outbound dialer are emitted; anything else becomes a NoOp so an unknown step
  * can never silently drop the call.
  */
-function emitScenario(actions: IRouteAction[], queueNames: string[]): string[] {
+function emitScenario(actions: IRouteAction[], queueNames: string[], vpbxUserUid: number): string[] {
   const lines: string[] = [];
   const list = Array.isArray(actions) ? actions : [];
 
@@ -103,8 +119,19 @@ function emitScenario(actions: IRouteAction[], queueNames: string[]): string[] {
 
     switch (action.type) {
       case 'playback': {
-        const file = sanitizeAutodialArg(params.file ?? params.prompt ?? '');
-        lines.push(file ? `same => n,Playback(${file})` : 'same => n,NoOp(Autodial: empty playback)');
+        const files = params.files ?? params.file ?? params.prompt ?? '';
+        const hasFile = Array.isArray(files)
+          ? files.some((file) => String(file ?? '').trim())
+          : Boolean(String(files).trim());
+        if (!hasFile) {
+          lines.push('same => n,NoOp(Autodial: empty playback)');
+          break;
+        }
+        const playback = emitPlayback(
+          { ...params, files } as Parameters<typeof emitPlayback>[0],
+          { vpbxUserUid },
+        );
+        lines.push(...playback.split('\nsame => n,').map((app) => `same => n,${app}`));
         break;
       }
       case 'text2speech': {
@@ -117,7 +144,15 @@ function emitScenario(actions: IRouteAction[], queueNames: string[]): string[] {
         break;
       }
       case 'toqueue': {
-        const queue = sanitizeAutodialArg(params.queue ?? params.queue_name ?? queueNames[0] ?? '');
+        const target = params.target as { source?: unknown; value?: unknown } | undefined;
+        const fixedTarget = target?.source === 'fixed' ? target.value : undefined;
+        const queue = sanitizeAutodialArg(
+          params.queue
+            ?? params.queue_name
+            ?? fixedTarget
+            ?? queueNames[0]
+            ?? '',
+        );
         const timeout = Number(params.timeout ?? 0);
         if (queue) {
           lines.push(`same => n,Set(__KRSK_AC_QUEUE=${queue})`);
@@ -132,7 +167,14 @@ function emitScenario(actions: IRouteAction[], queueNames: string[]): string[] {
         break;
       }
       case 'toexten': {
-        const exten = sanitizeAutodialArg(params.exten ?? params.extension ?? '');
+        const target = params.target as { source?: unknown; value?: unknown } | undefined;
+        const fixedTarget = target?.source === 'fixed' ? target.value : undefined;
+        const exten = sanitizeAutodialArg(
+          params.exten
+            ?? params.extension
+            ?? fixedTarget
+            ?? '',
+        );
         lines.push(exten ? `same => n,Dial(PJSIP/${exten},60,tT)` : 'same => n,NoOp(Autodial: no exten)');
         break;
       }
@@ -180,8 +222,9 @@ function emitScenario(actions: IRouteAction[], queueNames: string[]): string[] {
 export function withMachineTail(
   category: DialplanCategory,
   amd: IAutodialAmdConfig | undefined,
+  vpbxUserUid?: number,
 ): DialplanCategory {
-  const tail = emitMachineTail(amd);
+  const tail = emitMachineTail(amd, vpbxUserUid);
   if (!tail.length) return category;
   return { name: category.name, lines: [...category.lines, ...tail] };
 }

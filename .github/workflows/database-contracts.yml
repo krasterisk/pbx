@@ -1,0 +1,59 @@
+name: Database contracts
+
+on:
+  pull_request:
+    paths:
+      - 'packages/backend/**'
+      - 'harness/database/**'
+      - 'package*.json'
+      - '.github/workflows/database-contracts.yml'
+  push:
+    branches: [main, develop]
+    paths:
+      - 'packages/backend/**'
+      - 'harness/database/**'
+      - 'package*.json'
+      - '.github/workflows/database-contracts.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contracts:
+    name: Schema/core/query parity (${{ matrix.dialect }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        dialect: [mysql, postgres]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run build -w @krasterisk/shared
+      - run: npm run test:db:unit
+      - run: npm run test:db:schema
+      - run: npm run build -w @krasterisk/backend
+      - name: Real database contracts (new containers only)
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run test:db:contracts -- ${{ matrix.dialect }} 2>&1 | tee database-contracts.log
+      - name: AppModule core/CDR/CC/robot golden (fresh DB)
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run test:db:runtime -- ${{ matrix.dialect }} 2>&1 | tee database-runtime.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: database-contracts-${{ matrix.dialect }}
+          path: |
+            database-contracts.log
+            database-runtime.log
+          if-no-files-found: warn

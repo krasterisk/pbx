@@ -106,3 +106,52 @@ HTTP-тесты используют настоящий локальный HTTP 
 - `git diff --check` по затронутым путям: passed; выводит только предупреждения Git о CRLF, а не whitespace errors.
 
 Не запускались миграции, deploy, reload dialplan, конфигурационные записи на PBX и реальные вызовы. Следующими остаются R2b/R2c (DNC last-mile, fencing/recovery, корреляция ARI), затем версия trunk/CID policy и реальный AMD voicemail workflow с безопасным PBX acceptance.
+
+## Продолжение: runtime, per-trunk Caller ID и границы DNC (2026-09-18)
+
+### Реализовано
+
+- Перед originate повторно проверяются DNC и нормализованные legacy-варианты номера. В ARI зарегистрирована correlation до create; `StasisStart` не считается ответом, а handoff выполняется только на `Up` и не дублируется.
+- Выбор транка получает exact eligible set от pacer. Ограниченный trunk с устаревшим occupancy snapshot не выбирается; unlimited trunk остаётся допустимым.
+- У каждого trunk теперь свой источник Caller ID: статический номер, pool `round_robin`/детерминированное распределение либо lookup справочника по явному полю контакта. Directory, field и base key валидируются tenant-scoped на save/start; при miss/failure используется явно заданный fallback, затем PBX default. Старые campaign-wide `cid_policy` остаются readable и не переписываются простым открытием формы.
+- Первоначально Caller ID передавался через `CALLERID(num)` в `/channels/create`; live SIP loopback показал, что это оставляет `From: Anonymous`. Исправленный путь использует `/channels` originate с query-параметром `callerId` и сохраняет остальные channel variables в JSON body. Этот параметр поддерживается `/channels`, но не `/channels/create`.
+- Для AMD `hangup` machine branch синхронно отмечает attempt перед `Hangup`; финализатор сохраняет `amd_machine` даже если ARI получает обычный answered outcome. AMD start gate требует загруженный `app_amd`. "Оставить сообщение" всё ещё корректно заблокировано: нет согласованного media source и playback branch.
+- В кампании глобальные и базовые DNC видны как inherited read-only. Удалять можно только campaign-local запись; добавление/удаление global записи требует отдельного подтверждения в явной области управления.
+- В UI per-trunk CID заменил общий редактор policy: адаптивная grid-вёрстка, IANA timezone selector, InfoTooltip для терминов и отсутствие U+2014 в пользовательских строках auto-dial scope. Сценарий остаётся источником направления в очередь; `queue_names` служит пулом доступной operator capacity и legacy fallback для bare `toqueue`.
+
+### Явные изменения поведения
+
+1. Наличие disabled schedule rows теперь закрывает новые вызовы, если включённых окон нет. Пустой список расписаний по-прежнему означает отсутствие ограничения.
+2. Сохранение/старт отклоняет неподдержанный scenario action, condition или dynamic target вместо генерации silent NoOp.
+3. При AMD machine + `hangup` задача получает `amd_machine`; ранее гонка могла записать обычный answered result.
+4. Кампания больше не даёт удалить inherited DNC широкой области. Общая запись меняется только через подтверждённое действие.
+
+### Проверки этого среза
+
+- Targeted backend с MySQL: 21 suites / 186 tests passed; isolated schema removed by teardown.
+- Targeted frontend: 14 files / 82 tests passed. Добавлены проверки per-trunk caller ID, inherited DNC boundary и AMD machine finalization.
+- `npm run lint`: exit 0, warnings only.
+- `npm run test:backend`: 249 suites / 2881 tests passed, 9 opt-in DB tests skipped.
+- `npm run test:frontend`: 247 files / 1391 tests passed; один внешний failure `ConferenceRoomFormModal.test.tsx` ожидает устаревшие одинарные кавычки в locale source и не касается auto-dial.
+- Production backend/frontend typecheck, shared build, scoped ESLint и `git diff --check`: passed.
+
+### Не закрыто без отдельной авторизации
+
+Реальный PBX/SIP acceptance не выполнялся. Test PBX доступна только как read-only preflight и не имеет `app_amd`; я не загружал модуль, не изменял dialplan, не делал reload и не инициировал вызовы. Нужны безопасные internal endpoints и отдельное разрешение на PBX write/reload. До этого не могут быть закрыты SIP CallerID capture, ARI event permutations, AMD quality/media voicemail, browser geometry, durable multi-worker fencing/restart recovery и load measurements.
+
+## Продолжение: live gates и безопасность ссылок (2026-09-18)
+
+Исторический раздел выше описывает ограничения на момент того среза. Позже пользователь разрешил работу на тестовой PBX, подтвердил любые тестовые номера и сообщил об установке `app_amd.so`. Актуальные результаты находятся в [external gates](AUTODIAL-REFACTOR-EXTERNAL-GATES-2026-09-18.md) и [acceptance matrix](AUTODIAL-REFACTOR-ACCEPTANCE-MATRIX-2026-09-18.md).
+
+- Isolated SIP loopback выявил, что `CALLERID(num)` в ARI `/channels/create` не передавался в SIP `From`. Переход на `/channels` originate с query `callerId` подтвердил два разных номера в `From`, PAI, RPID и входящем `CallerIDNum`.
+- Отдельная versioned DB fixture провела campaign → task → ARI failure → terminal attempt. Это не является успешной проверкой campaign → SIP → answer. Fixture DB и созданный ею dialplan удалены, на PBX 0 активных каналов.
+- `AutodialBasesService.remove` теперь удаляет дочерние данные внутри транзакции до базы. Иначе versioned schema с FK `NO ACTION` давала HTTP 500 даже при удалении неиспользуемой базы. Это подтверждено DB integration test и повторным HTTP cleanup.
+- READY-оператор, входящий в две очереди кампании, считается один раз при расчёте ёмкости. Tenant ownership проверяется для транков, очередей и фиксированных PJSIP extension targets перед сохранением и запуском.
+- Выключенный шаг `toqueue` больше не считается исполняемым при проверке сценария. Это снимает ложный запрет agentless/черновика, не включая выключенный маршрут.
+- Playback в autodial теперь использует общий renderer, который ограничивает медиа каталогом `/usr/records/<tenant>/sounds` (кроме зарезервированного `beep`). **Изменение поведения:** старые autodial-сценарии, указывавшие произвольное глобальное имя Asterisk sound, могут потребовать загрузить этот файл в каталог организации. Это защищает от межорганизационного доступа и выравнивает playback с общим редактором маршрутов; перед rollout нужен аудит сохранённых playback paths.
+- Read-only DB preflight теперь показывает агрегатные active/open/orphan counts, до 20 UID задач с потерянным phone reference и UID расписаний с неверной зоной, не выводя контакты или секреты. Исходная тестовая БД после cleanup: кампаний, активных задач, открытых/orphan attempts и найденных invalid zones нет.
+- Подтверждённый `Up` теперь сохраняет `answered_at` в ещё открытой попытке. После потери локальной Map в результате restart событие `ChannelDestroyed` ищет её по долговечному `channel_id` и финализирует с сохранённым временем ответа. Это узкое восстановление финального события, не полноценный multi-worker handoff/lease fencing. Новые targeted tests покрывают обе стороны.
+- Удаление остановленной кампании теперь блокируется, пока остаются leased/dialing задачи, чтобы живой вызов не потерял сценарий и родительскую запись. Новые ошибки чужого/недоступного транка, очереди, внутреннего номера и активного вызова локализованы на ru/en; неизвестные server messages по-прежнему не показываются пользователю.
+- Диалог удаления кампании больше не закрывается до ответа API. При ошибке он остаётся открыт и показывает локализованную причину; после успеха закрывается. Текст подтверждения исправлен: существующий hard delete удаляет задачи, но не записи `ac_attempts`, поэтому прежнее обещание удалить историю было неверным. Два UI-теста проверяют обе ветки.
+
+Проверки после этих изменений: полный backend suite 250 passed suites / 2892 passed tests, 11 skipped; targeted attempt/originator suite: 2 suites / 10 tests passed; DB integration: 11 tests passed с удалением отдельной тестовой схемы. Targeted campaign config: 11 tests; dialplan util: 22 tests. Профильный frontend suite: 17 files / 87 tests passed. `npm run lint` без errors; scoped ESLint для нового кода и backend build прошли, `dist/database/database-config.cjs` присутствует. Полный frontend suite снова воспроизвёл unrelated conference locale failure и завис, поэтому не объявлен зелёным. Не закрыты успешный SIP campaign gate, durable fencing/restart, AMD voicemail, load и политика хранения истории после удаления кампании.

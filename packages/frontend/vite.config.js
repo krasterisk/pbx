@@ -4,13 +4,15 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import path from 'path';
 import { resolve } from 'path';
+import { fileURLToPath } from 'url';
+const configDirectory = path.dirname(fileURLToPath(import.meta.url));
 export default defineConfig({
     plugins: [react(), tailwindcss()],
     resolve: {
         alias: {
-            '@': path.resolve(__dirname, './src'),
+            '@': path.resolve(configDirectory, './src'),
             // Backend uses shared/dist (CJS); Vite must use TS source for named ESM exports
-            '@krasterisk/shared': path.resolve(__dirname, '../shared/src'),
+            '@krasterisk/shared': path.resolve(configDirectory, '../shared/src'),
         },
     },
     define: {
@@ -25,7 +27,7 @@ export default defineConfig({
     build: {
         rollupOptions: {
             input: {
-                main: resolve(__dirname, 'index.html'),
+                main: resolve(configDirectory, 'index.html'),
             },
         },
     },

@@ -3,7 +3,8 @@ import { RouteReferencesService } from '../route-references/route-references.ser
 import { InjectModel } from '@nestjs/sequelize';
 import { ConfigService } from '@nestjs/config';
 import { OnEvent } from '@nestjs/event-emitter';
-import { Op, literal, fn, col } from 'sequelize';
+import { Op, literal, fn, col, where as sqlWhere, QueryTypes } from 'sequelize';
+import { lastVoiceRobotTagSql, literalLikePattern } from './voice-robot-cdr-query';
 import { VoiceRobot } from './voice-robot.model';
 import { VoiceRobotKeywordGroup } from './keyword-group.model';
 import { VoiceRobotKeyword } from './keyword.model';
@@ -266,7 +267,7 @@ export class VoiceRobotsService implements OnApplicationShutdown, OnModuleInit {
 
     if (options?.robotId) where.robot_id = options.robotId;
     if (options?.disposition) where.disposition = options.disposition;
-    if (options?.callerId) where.caller_id = { [Op.like]: `%${options.callerId}%` };
+    if (options?.callerId) where.caller_id = { [Op.like]: literalLikePattern(options.callerId) };
 
     // Date range filter
     if (options?.dateFrom || options?.dateTo) {
@@ -275,19 +276,18 @@ export class VoiceRobotsService implements OnApplicationShutdown, OnModuleInit {
       if (options?.dateTo) where.started_at[Op.lte] = new Date(options.dateTo);
     }
 
-    // Tag filter — match only the LAST tag (consistent with UI display)
+    const lastTag = lastVoiceRobotTagSql(this.cdrModel.sequelize!.getDialect());
+    // Tag filter — match only the LAST string tag (consistent with UI display).
     if (options?.tag) {
-      const escaped = options.tag.replace(/'/g, "''").replace(/\\/g, '\\\\');
       where[Op.and] = [
         ...(where[Op.and] || []),
-        literal(`JSON_UNQUOTE(JSON_EXTRACT(\`tags\`, CONCAT('$[', JSON_LENGTH(\`tags\`) - 1, ']'))) = '${escaped}'`),
+        sqlWhere(literal(lastTag), { [Op.eq]: options.tag }),
       ];
     }
 
     // Full-text search across multiple fields (search in last tag only)
     if (options?.search) {
-      const searchTerm = `%${options.search}%`;
-      const escapedSearch = this.cdrModel.sequelize!.escape(searchTerm);
+      const searchTerm = literalLikePattern(options.search);
       where[Op.or] = [
         { caller_id: { [Op.like]: searchTerm } },
         { caller_name: { [Op.like]: searchTerm } },
@@ -295,13 +295,13 @@ export class VoiceRobotsService implements OnApplicationShutdown, OnModuleInit {
         { robot_name: { [Op.like]: searchTerm } },
         { transcript: { [Op.like]: searchTerm } },
         { transfer_target: { [Op.like]: searchTerm } },
-        literal(`JSON_UNQUOTE(JSON_EXTRACT(\`tags\`, CONCAT('$[', JSON_LENGTH(\`tags\`) - 1, ']'))) LIKE ${escapedSearch}`),
+        sqlWhere(literal(lastTag), { [Op.like]: searchTerm }),
       ];
     }
 
     return this.cdrModel.findAndCountAll({
       where,
-      order: [['started_at', 'DESC']],
+      order: [['started_at', 'DESC'], ['uid', 'DESC']],
       limit: options?.limit || 50,
       offset: options?.offset || 0,
     });
@@ -309,15 +309,13 @@ export class VoiceRobotsService implements OnApplicationShutdown, OnModuleInit {
 
   /** Get distinct LAST tags from all CDR records for a tenant (for filter dropdown) */
   async getDistinctTags(userUid: number): Promise<string[]> {
-    // Extract the LAST element of each tags JSON array (consistent with UI display)
-    const [results]: any = await this.cdrModel.sequelize!.query(
-      `SELECT DISTINCT JSON_UNQUOTE(JSON_EXTRACT(tags, CONCAT('$[', JSON_LENGTH(tags) - 1, ']'))) AS tag_value
-       FROM voice_robot_cdr
-       WHERE user_uid = ? AND tags IS NOT NULL AND JSON_LENGTH(tags) > 0
-       ORDER BY tag_value`,
-      { replacements: [userUid] },
+    const lastTag = lastVoiceRobotTagSql(this.cdrModel.sequelize!.getDialect());
+    const results = await this.cdrModel.sequelize!.query<{ tag_value: string }>(
+      `SELECT DISTINCT ${lastTag} AS tag_value FROM voice_robot_cdr
+       WHERE user_uid = :userUid AND ${lastTag} IS NOT NULL AND ${lastTag} <> ''`,
+      { replacements: { userUid }, type: QueryTypes.SELECT },
     );
-    return results.map((r: any) => r.tag_value).filter(Boolean);
+    return results.map(row => row.tag_value).sort();
   }
 
   /** Get single CDR record */
@@ -505,6 +503,12 @@ export class VoiceRobotsService implements OnApplicationShutdown, OnModuleInit {
   async handleStasisStart(event: any) {
     // Only handle events for our app
     if (event.application !== this.ariClient.getAppName()) return;
+
+    // Autodial deliberately uses the same ARI application so its originator
+    // can receive answer-state events. It does not carry a robot UID: treating
+    // it as a malformed voice-robot session would hang up an answered campaign
+    // call before AutodialOriginatorService can continue it into its scenario.
+    if (event.channel?.id?.startsWith('ac-')) return;
 
     // Ignore second-leg channels (UnicastRTP/Snoop)
     if (event.channel?.name?.startsWith('UnicastRTP/')) return;

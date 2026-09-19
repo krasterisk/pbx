@@ -15,6 +15,7 @@ import { MailerService } from '../mailer/mailer.service';
 import { LoggerService } from '../logger/logger.service';
 import { ModulesRegistryService } from './modules-registry.service';
 import { BillingBalanceService } from './billing/billing-balance.service';
+import { TenantIdentityService } from '../tenant-identity/tenant-identity.service';
 
 const BCRYPT_ROUNDS = 12;
 
@@ -65,6 +66,7 @@ export class TenantsService {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly sequelize: Sequelize,
+    private readonly identities: TenantIdentityService,
   ) {}
 
   // ─── Список тенантов (только SuperAdmin) ───────────────────────────────────
@@ -103,6 +105,27 @@ export class TenantsService {
   }
 
   // ─── Провизионирование нового кабинета ─────────────────────────────────────
+
+  /** Explicit platform-admin onboarding action; never creates PBX resources. */
+  async provisionAnalyticsIdentity(
+    input: { name: string; email: string; password: string; adminName?: string; trialDays?: number },
+    createdBy: number,
+  ): Promise<{ tenant: { id: number; uid: string; name: string; status: TenantStatus };
+    adminUser: { id: number; login: string; email: string } }> {
+    const passwordHash = await bcrypt.hash(input.password, BCRYPT_ROUNDS);
+    const { user, tenant } = await this.identities.create({
+      login: input.email, name: input.adminName || input.name,
+      companyName: input.name, email: input.email, passwordHash,
+      createdBy, trialDays: input.trialDays, activateImmediately: true,
+      // Platform-created identity is active; no public self-signup is exposed.
+    }, 'analytics');
+    try {
+      await this.loggerService.logAction(createdBy, 'create', 'tenant',
+        tenant.id, createdBy, `Создан аналитический кабинет "${input.name}"`);
+    } catch { /* Postcommit audit transport failure cannot duplicate identity. */ }
+    return { tenant: { id: tenant.id, uid: tenant.uid, name: tenant.name, status: tenant.status },
+      adminUser: { id: user.uniqueid, login: user.login, email: user.email } };
+  }
 
   async provision(dto: CreateTenantDto, createdBy: number): Promise<{ tenant: Tenant; adminUser: User }> {
     // Проверяем уникальность slug

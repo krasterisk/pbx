@@ -1,0 +1,17 @@
+# A2 license wire contract v1
+
+Status: implementation contract, 2026-09-18. Scope: offline BOX license only. Commercial enable still requires independent security review and signed business terms. The payload never carries a verification algorithm or public-key URL.
+
+## Bytes and signature
+
+HTTP import accepts `{ "payload": "<base64url>", "signature": "<base64url>" }` with optional boolean `replace` and unpadded canonical base64url. Payload bytes are UTF-8 without BOM, up to 16 KiB, containing a single canonical JSON object. Canonical JSON is `JSON.stringify` semantics with all object keys sorted by JavaScript UTF-16 lexicographic order recursively, no whitespace, arrays in their declared order. The schema restricts every key to ASCII and rejects unknown keys, so cross-language issuers must emit the same key order and UTF-8 bytes. The verifier decodes and requires exact byte-for-byte equality after canonical re-encoding; duplicate JSON keys, alternative escaping and whitespace are refused. Ed25519 signs/verifies these **exact payload bytes** with Node `crypto.sign/verify(null, bytes, key, signature)`. Signature is 64 bytes. SHA-256 digest identifies the signed payload; it is not the signature input.
+
+Payload fields: `version=1`, lowercase UUID `licenseId`, trusted exact `issuer`, trusted `keyId`, exact `installationId`, integer `tenantUid` including 0, `revision>=1`, UTC millisecond `notBefore`/`expiresAt` (`YYYY-MM-DDTHH:mm:ss.sssZ`), `graceSeconds=0`, and sorted distinct `products` (only `ai_voice_robots`/`speech_analytics`) with ASCII snake-case nonnegative integer `limits`. Unknown fields or unsupported product codes fail. `notBefore <= now < expiresAt`; no grace. `expiresAt > notBefore` is mandatory.
+
+Trusted installation config is `AI_LICENSE_INSTALLATION_ID`, `AI_LICENSE_ISSUER`, and `AI_LICENSE_PUBLIC_KEYS_JSON` mapping key IDs to PEM-encoded Ed25519 public keys. The document cannot select a different algorithm, issuer, installation or remote key source. The signing private key is absent from the repo, server installation and database. Test signing keys are generated in memory and discarded. Key rotation changes trusted installation config; removed keys make their documents invalid on the next admission check.
+
+Import binds one verified document to its exact tenant and products in a DB transaction; it does not enable activation. A lower revision of the same license ID is rejected; same ID+revision with different digest is conflict; replacing a different license ID requires an explicit `replace=true` admin request. Validity and signature are rechecked on each admission, and `max_observed_at` records the greatest observed local validation time in the database to detect a local clock rollback. Restoring an older complete DB snapshot can defeat this local record, so that guarantee is not claimed. Expired licenses stop new jobs/sessions; cleanup/export permissions are separate.
+
+`AI_LICENSE_PUBLIC_KEYS_JSON` and issuer/installation IDs must be configured before BOX import or admission. No startup demo grant, cloud lookup, wallet balance lookup, algorithm fallback or unsigned override is permitted. A fixed public-key/signature vector and canonical payload digest live in verifier tests; no signing private key is committed.
+
+Implementation uses Node's [Ed25519 verification contract](https://nodejs.org/api/crypto.html) and Sequelize's [managed transaction/lock contract](https://sequelize.org/docs/v6/other-topics/transactions/).

@@ -8,7 +8,7 @@ import {
   type AgentTurnCloseKind,
 } from '@krasterisk/shared';
 import { wrapUntrustedData } from '../../shared/utils/prompt-injection.util';
-import { AiProvidersService } from '../ai-agents/ai-providers.service';
+import { AiProvidersService } from '../ai-connectivity/ai-providers.service';
 import { McpToolsService } from '../mcp/mcp-tools.service';
 import { PbxAgentLlmClient } from './pbx-agent-llm.client';
 import { PbxContextBuilderService } from './pbx-context-builder.service';
@@ -290,10 +290,10 @@ export class PbxAgentLoopService {
       const completion = await this.llm.chat({
         provider: {
           uid: provider.uid,
+          tenantUid: provider.user_uid,
           name: provider.name,
           endpoint: provider.endpoint,
           auth_type: provider.auth_type,
-          encrypted_api_key: provider.encrypted_api_key,
           capabilities: provider.capabilities,
           defaults: provider.defaults as Record<string, unknown> | null,
           vendor: provider.vendor,

@@ -1,0 +1,80 @@
+TAP version 13
+# Subtest: mysql: real database contracts (mysql:8.4.11)
+    # Subtest: canonical schema readiness and disposable core seed
+    ok 1 - canonical schema readiness and disposable core seed
+      ---
+      duration_ms: 14366.27925
+      type: 'test'
+      ...
+    # Subtest: status is read-only; first apply and replay preserve journal
+    ok 2 - status is read-only; first apply and replay preserve journal
+      ---
+      duration_ms: 316.337832
+      type: 'test'
+      ...
+    # Subtest: Sequelize uses the same config and persists tenant/Unicode/JSON
+    ok 3 - Sequelize uses the same config and persists tenant/Unicode/JSON
+      ---
+      duration_ms: 556.68465
+      type: 'test'
+      ...
+    # Subtest: changed checksum, wrong engine and unversioned schemas fail closed
+    ok 4 - changed checksum, wrong engine and unversioned schemas fail closed
+      ---
+      duration_ms: 754.892528
+      type: 'test'
+      ...
+    # Subtest: concurrent runners serialize; second run is a no-op
+    ok 5 - concurrent runners serialize; second run is a no-op
+      ---
+      duration_ms: 1327.411028
+      type: 'test'
+      ...
+    # Subtest: lock timeout is bounded; disconnect releases connection-owned lock
+    ok 6 - lock timeout is bounded; disconnect releases connection-owned lock
+      ---
+      duration_ms: 302.647718
+      type: 'test'
+      ...
+    # Subtest: mid-migration error leaves dirty marker, no success journal and blocks restart
+    ok 7 - mid-migration error leaves dirty marker, no success journal and blocks restart
+      ---
+      duration_ms: 478.983367
+      type: 'test'
+      ...
+    # Subtest: legacy successful journal is adopted without rewriting applied rows
+    ok 8 - legacy successful journal is adopted without rewriting applied rows
+      ---
+      duration_ms: 507.791545
+      type: 'test'
+      ...
+    # Subtest: unchanged current MySQL application baseline installs and replays
+    ok 9 - unchanged current MySQL application baseline installs and replays
+      ---
+      duration_ms: 17638.923733
+      type: 'test'
+      ...
+    # Subtest: rollup unique-key preflight refuses legacy duplicates without dirtying history
+    ok 10 - rollup unique-key preflight refuses legacy duplicates without dirtying history
+      ---
+      duration_ms: 15339.611776
+      type: 'test'
+      ...
+    1..10
+ok 1 - mysql: real database contracts (mysql:8.4.11)
+  ---
+  duration_ms: 88590.919007
+  type: 'test'
+  ...
+# Fresh database ready after 23 connection attempt(s)
+# {"profile":"mysql:8.4.11","server":"8.4.11","node":"v22.23.2","sequelize":"6.37.8","driver":"3.20.0","pgHstore":"2.3.4"}
+# MySQL baseline checksum: 8c18e47d94da3c3aeca3807eb44dbd0280433c1dedf96bef36470203d699543d; tables: 114
+1..1
+# tests 11
+# suites 0
+# pass 11
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 88609.765249

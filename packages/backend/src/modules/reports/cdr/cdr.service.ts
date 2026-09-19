@@ -23,6 +23,7 @@ import {
   type CdrAccessScope,
 } from './cdr-access-scope';
 import { normalizeAccessToken } from '../../callcenter/callcenter-access-list.util';
+import { validCdrDateSql } from '../../../database/cdr-query-compat';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -248,24 +249,35 @@ export class CdrService {
   private summarySelect(): string {
     return `
       c.linkedid AS linkedid,
-      SUBSTRING_INDEX(GROUP_CONCAT(c.uniqueid ORDER BY c.calldate SEPARATOR '||'), '||', 1) AS uniqueid,
+      MAX(CASE WHEN c.rn_first = 1 THEN c.uniqueid END) AS uniqueid,
       MIN(c.calldate) AS calldate,
-      SUBSTRING_INDEX(GROUP_CONCAT(c.clid ORDER BY c.calldate SEPARATOR '||'), '||', 1) AS clid,
-      SUBSTRING_INDEX(GROUP_CONCAT(c.src ORDER BY c.calldate SEPARATOR '||'), '||', 1) AS src,
-      SUBSTRING_INDEX(GROUP_CONCAT(c.usrc ORDER BY c.calldate SEPARATOR '||'), '||', 1) AS usrc,
-      SUBSTRING_INDEX(GROUP_CONCAT(c.channel ORDER BY c.calldate SEPARATOR '||'), '||', 1) AS channel,
-      SUBSTRING_INDEX(GROUP_CONCAT(c.dst ORDER BY c.calldate DESC SEPARATOR '||'), '||', 1) AS dst,
+      MAX(CASE WHEN c.rn_first = 1 THEN c.clid END) AS clid,
+      MAX(CASE WHEN c.rn_first = 1 THEN c.src END) AS src,
+      MAX(CASE WHEN c.rn_first = 1 THEN c.usrc END) AS usrc,
+      MAX(CASE WHEN c.rn_first = 1 THEN c.channel END) AS channel,
+      MAX(CASE WHEN c.rn_last = 1 THEN c.dst END) AS dst,
       MAX(c.dialednum) AS dialednum,
-      SUBSTRING_INDEX(GROUP_CONCAT(c.disposition ORDER BY c.calldate DESC SEPARATOR '||'), '||', 1) AS disposition,
-      SUBSTRING_INDEX(GROUP_CONCAT(c.dstchannel ORDER BY c.calldate DESC SEPARATOR '||'), '||', 1) AS dstchannel,
+      MAX(CASE WHEN c.rn_last = 1 THEN c.disposition END) AS disposition,
+      MAX(CASE WHEN c.rn_last = 1 THEN c.dstchannel END) AS dstchannel,
       SUM(c.duration) AS duration,
       MAX(c.billsec) AS billsec,
       MAX(c.record) AS record,
       MAX(c.transid) AS transid,
-      SUBSTRING_INDEX(GROUP_CONCAT(c.dcontext ORDER BY c.calldate SEPARATOR '||'), '||', 1) AS dcontext,
+      MAX(CASE WHEN c.rn_first = 1 THEN c.dcontext END) AS dcontext,
       COUNT(*) AS leg_count,
       MAX(CASE WHEN c.disposition = 'ANSWERED' AND c.dstchannel <> '' THEN 1 ELSE 0 END) AS answered_flag
     `;
+  }
+
+  private rankedSource(where: string): string {
+    // `calldate` is legacy VARCHAR. ISO-formatted values sort chronologically;
+    // NULL is always last and uniqueid resolves equal timestamps on both DBs.
+    return `WITH ranked AS (
+      SELECT c.*,
+        ROW_NUMBER() OVER (PARTITION BY c.linkedid ORDER BY CASE WHEN c.calldate IS NULL THEN 1 ELSE 0 END, c.calldate, c.uniqueid) AS rn_first,
+        ROW_NUMBER() OVER (PARTITION BY c.linkedid ORDER BY CASE WHEN c.calldate IS NULL THEN 1 ELSE 0 END, c.calldate DESC, c.uniqueid DESC) AS rn_last
+      FROM cdr c WHERE ${where}
+    )`;
   }
 
   private bucketHaving(filters: CdrFilters): { having: string; replacements: Record<string, unknown> } {
@@ -275,12 +287,12 @@ export class CdrService {
     const v = filters.bucketValue;
     switch (filters.bucket) {
       case 'hour':
-        return { having: 'HOUR(MIN(c.calldate)) = :bucketVal', replacements: { bucketVal: parseInt(v, 10) } };
+        return { having: 'SUBSTRING(MIN(c.calldate), 12, 2) = :bucketVal', replacements: { bucketVal: String(parseInt(v, 10)).padStart(2, '0') } };
       case 'day':
-        return { having: 'DATE(MIN(c.calldate)) = :bucketVal', replacements: { bucketVal: v } };
+        return { having: 'SUBSTRING(MIN(c.calldate), 1, 10) = :bucketVal', replacements: { bucketVal: v } };
       case 'disposition':
         return {
-          having: `SUBSTRING_INDEX(GROUP_CONCAT(c.disposition ORDER BY c.calldate DESC SEPARATOR '||'), '||', 1) = :bucketVal`,
+          having: 'MAX(CASE WHEN c.rn_last = 1 THEN c.disposition END) = :bucketVal',
           replacements: { bucketVal: v },
         };
       default:
@@ -325,7 +337,7 @@ export class CdrService {
       FROM cdr c
       WHERE ${tenant.sql}
         AND (c.uniqueid = :uniqueid OR c.linkedid = :uniqueid)
-      ORDER BY STR_TO_DATE(c.calldate, '%Y-%m-%d %H:%i:%s') DESC
+      ORDER BY CASE WHEN c.calldate IS NULL THEN 1 ELSE 0 END, c.calldate DESC, c.uniqueid DESC
       LIMIT 1
     `;
     const [row] = await this.sequelize.query(sql, {
@@ -581,10 +593,10 @@ export class CdrService {
     const havingClause = having ? `HAVING ${having}` : '';
 
     const countSql = `
+      ${this.rankedSource(where)}
       SELECT COUNT(*) AS cnt FROM (
         SELECT c.linkedid
-        FROM cdr c
-        WHERE ${where}
+        FROM ranked c
         GROUP BY c.linkedid
         ${havingClause}
       ) AS grouped
@@ -597,12 +609,12 @@ export class CdrService {
     const count = Number((countRows[0] as any)?.cnt) || 0;
 
     const listSql = `
+      ${this.rankedSource(where)}
       SELECT ${this.summarySelect()}
-      FROM cdr c
-      WHERE ${where}
+      FROM ranked c
       GROUP BY c.linkedid
       ${havingClause}
-      ORDER BY STR_TO_DATE(MIN(c.calldate), '%Y-%m-%d %H:%i:%s') DESC
+      ORDER BY CASE WHEN MIN(c.calldate) IS NULL THEN 1 ELSE 0 END, MIN(c.calldate) DESC, c.linkedid DESC
       LIMIT :limit OFFSET :offset
     `;
 
@@ -625,7 +637,7 @@ export class CdrService {
       WHERE ${tenant.sql}
         AND c.lastapp <> 'Transferred Call'
         AND (c.linkedid = :linkedid OR c.uniqueid = :linkedid OR c.transid = :linkedid)
-      ORDER BY STR_TO_DATE(c.calldate, '%Y-%m-%d %H:%i:%s') ASC
+      ORDER BY CASE WHEN c.calldate IS NULL THEN 1 ELSE 0 END, c.calldate ASC, c.uniqueid ASC
     `;
     const rows = await this.sequelize.query(sql, {
       replacements: { ...tenant.replacements, linkedid },
@@ -650,11 +662,11 @@ export class CdrService {
     const { where, replacements } = await this.applyFilters(vpbxUserUid, filters, viewerUserId);
     const sql = `
       SELECT
-        COUNT(DISTINCT c.linkedid) AS totalCalls,
-        SUM(CASE WHEN c.disposition = 'ANSWERED' AND c.dstchannel <> '' THEN 1 ELSE 0 END) AS answeredLegs,
-        COUNT(*) AS totalLegs,
-        AVG(c.billsec) AS avgBillsec,
-        AVG(CASE WHEN c.disposition = 'ANSWERED' AND c.billsec > 0 THEN c.duration - c.billsec ELSE NULL END) AS avgPdd
+        COUNT(DISTINCT c.linkedid) AS total_calls,
+        SUM(CASE WHEN c.disposition = 'ANSWERED' AND c.dstchannel <> '' THEN 1 ELSE 0 END) AS answered_legs,
+        COUNT(*) AS total_legs,
+        AVG(c.billsec) AS avg_billsec,
+        AVG(CASE WHEN c.disposition = 'ANSWERED' AND c.billsec > 0 THEN c.duration - c.billsec ELSE NULL END) AS avg_pdd
       FROM cdr c
       WHERE ${where}
     `;
@@ -663,18 +675,18 @@ export class CdrService {
       type: QueryTypes.SELECT,
     }) as any[];
 
-    const totalCalls = Number(row?.totalCalls) || 0;
-    const answeredLegs = Number(row?.answeredLegs) || 0;
-    const totalLegs = Number(row?.totalLegs) || 0;
+    const totalCalls = Number(row?.total_calls) || 0;
+    const answeredLegs = Number(row?.answered_legs) || 0;
+    const totalLegs = Number(row?.total_legs) || 0;
 
     const dispSql = `
+      ${this.rankedSource(where)}
       SELECT disposition, COUNT(DISTINCT linkedid) AS cnt
       FROM (
         SELECT c.linkedid,
-          SUBSTRING_INDEX(GROUP_CONCAT(c.disposition ORDER BY c.calldate DESC SEPARATOR '||'), '||', 1) AS disposition
-        FROM cdr c
-        WHERE ${where}
-        GROUP BY c.linkedid
+          c.disposition
+        FROM ranked c
+        WHERE c.rn_last = 1
       ) t
       GROUP BY disposition
     `;
@@ -691,8 +703,8 @@ export class CdrService {
     return {
       totalCalls,
       asr: totalLegs > 0 ? Math.round((answeredLegs / totalLegs) * 100) : 0,
-      avgBillsec: Math.round(Number(row?.avgBillsec) || 0),
-      avgPdd: Math.round(Number(row?.avgPdd) || 0),
+      avgBillsec: Math.round(Number(row?.avg_billsec) || 0),
+      avgPdd: Math.round(Number(row?.avg_pdd) || 0),
       byDisposition,
     };
   }
@@ -704,50 +716,47 @@ export class CdrService {
         SUM(ans) AS answered,
         COUNT(*) - SUM(ans) AS missed
       FROM (
-        SELECT c.linkedid, HOUR(MIN(c.calldate)) AS hr,
+        SELECT c.linkedid, SUBSTRING(MIN(c.calldate), 12, 2) AS hr,
           MAX(CASE WHEN c.disposition='ANSWERED' AND c.dstchannel<>'' THEN 1 ELSE 0 END) AS ans
         FROM cdr c
-        WHERE ${where}
-        GROUP BY c.linkedid, HOUR(c.calldate)
+        WHERE ${where} AND ${validCdrDateSql(this.sequelize.getDialect())}
+        GROUP BY c.linkedid, SUBSTRING(c.calldate, 12, 2)
       ) t
       GROUP BY hr
       ORDER BY hr
     `, { replacements, type: QueryTypes.SELECT });
-    return rows;
+    return (rows as any[]).map(row => ({
+      hour: Number(row.hour), calls: Number(row.calls),
+      answered: Number(row.answered), missed: Number(row.missed),
+    }));
   }
 
   async getByDay(vpbxUserUid: number, filters: CdrFilters, viewerUserId?: number) {
     const { where, replacements } = await this.applyFilters(vpbxUserUid, filters, viewerUserId);
-    const sql = `
-      SELECT DATE(MIN(c.calldate)) AS day,
-        COUNT(DISTINCT c.linkedid) AS calls,
-        SUM(c.billsec) AS totalBillsec,
-        AVG(c.billsec) AS avgBillsec,
-        MAX(CASE WHEN c.disposition='ANSWERED' AND c.dstchannel<>'' THEN 1 ELSE 0 END) AS ans_flag
-      FROM cdr c
-      WHERE ${where}
-      GROUP BY c.linkedid, DATE(c.calldate)
-    `;
     const rows = await this.sequelize.query(`
       SELECT day, COUNT(*) AS calls,
-        SUM(totalBillsec) AS totalBillsec,
-        ROUND(AVG(avgBillsec)) AS avgBillsec,
+        SUM(total_billsec) AS total_billsec,
+        ROUND(AVG(avg_billsec)) AS avg_billsec,
         SUM(ans_flag) AS answered,
         COUNT(*) - SUM(ans_flag) AS missed,
-        ROUND(SUM(ans_flag) / COUNT(*) * 100) AS asr
+        ROUND(100.0 * SUM(ans_flag) / COUNT(*)) AS asr
       FROM (
-        SELECT DATE(MIN(c.calldate)) AS day, c.linkedid,
-          MAX(c.billsec) AS totalBillsec,
-          AVG(c.billsec) AS avgBillsec,
+        SELECT SUBSTRING(MIN(c.calldate), 1, 10) AS day, c.linkedid,
+          MAX(c.billsec) AS total_billsec,
+          AVG(c.billsec) AS avg_billsec,
           MAX(CASE WHEN c.disposition='ANSWERED' AND c.dstchannel<>'' THEN 1 ELSE 0 END) AS ans_flag
         FROM cdr c
-        WHERE ${where}
-        GROUP BY c.linkedid, DATE(c.calldate)
+        WHERE ${where} AND ${validCdrDateSql(this.sequelize.getDialect())}
+        GROUP BY c.linkedid, SUBSTRING(c.calldate, 1, 10)
       ) t
       GROUP BY day
       ORDER BY day
     `, { replacements, type: QueryTypes.SELECT });
-    return rows;
+    return (rows as any[]).map(row => ({
+      day: row.day, calls: Number(row.calls), totalBillsec: Number(row.total_billsec),
+      avgBillsec: Number(row.avg_billsec), answered: Number(row.answered),
+      missed: Number(row.missed), asr: Number(row.asr),
+    }));
   }
 
   async getByExtension(vpbxUserUid: number, filters: CdrFilters, viewerUserId?: number) {
@@ -774,7 +783,7 @@ export class CdrService {
         SELECT
           CASE
             WHEN CHAR_LENGTH(c.usrc) <= 4 THEN c.usrc
-            WHEN c.usrc LIKE CONCAT('e%', :extLikeSuffix) THEN SUBSTRING(c.usrc, 2, LOCATE('_', c.usrc) - 2)
+            WHEN c.usrc LIKE CONCAT('e%', :extLikeSuffix) THEN SUBSTRING(c.usrc, 2, POSITION('_' IN c.usrc) - 2)
             ELSE NULL
           END AS ext,
           CASE WHEN c.dialednum <> '' AND c.dialednum IS NOT NULL THEN 1 ELSE 0 END AS inbound,
@@ -808,7 +817,7 @@ export class CdrService {
     const rows = await this.sequelize.query(`
       SELECT COALESCE(dialednum, 'unknown') AS trunk,
         COUNT(DISTINCT linkedid) AS calls,
-        SUM(billsec) AS totalBillsec
+        SUM(billsec) AS total_billsec
       FROM (
         SELECT c.linkedid, MAX(c.dialednum) AS dialednum, MAX(c.billsec) AS billsec
         FROM cdr c
@@ -819,7 +828,9 @@ export class CdrService {
       ORDER BY calls DESC
       LIMIT 20
     `, { replacements, type: QueryTypes.SELECT });
-    return rows;
+    return (rows as any[]).map(row => ({
+      trunk: row.trunk, calls: Number(row.calls), totalBillsec: Number(row.total_billsec),
+    }));
   }
 
   async getByDisposition(vpbxUserUid: number, filters: CdrFilters, viewerUserId?: number) {
@@ -833,16 +844,19 @@ export class CdrService {
   async getHeatmap(vpbxUserUid: number, filters: CdrFilters, viewerUserId?: number) {
     const { where, replacements } = await this.applyFilters(vpbxUserUid, filters, viewerUserId);
     const rows = await this.sequelize.query(`
-      SELECT DAYOFWEEK(MIN(c.calldate)) AS dow, HOUR(MIN(c.calldate)) AS hour,
-        COUNT(DISTINCT c.linkedid) AS calls
+      SELECT SUBSTRING(MIN(c.calldate), 1, 10) AS day,
+        SUBSTRING(MIN(c.calldate), 12, 2) AS hour,
+        1 AS calls
       FROM cdr c
-      WHERE ${where}
-      GROUP BY c.linkedid, DAYOFWEEK(c.calldate), HOUR(c.calldate)
+      WHERE ${where} AND ${validCdrDateSql(this.sequelize.getDialect())}
+      GROUP BY c.linkedid, SUBSTRING(c.calldate, 1, 10), SUBSTRING(c.calldate, 12, 2)
     `, { replacements, type: QueryTypes.SELECT }) as any[];
 
     const matrix: Record<string, number> = {};
     for (const r of rows) {
-      const key = `${r.dow}-${r.hour}`;
+      const day = new Date(`${r.day}T00:00:00Z`);
+      if (Number.isNaN(day.getTime()) || day.toISOString().slice(0, 10) !== r.day) continue;
+      const key = `${day.getUTCDay() + 1}-${Number(r.hour)}`;
       matrix[key] = (matrix[key] || 0) + Number(r.calls);
     }
     const result: { dow: number; hour: number; calls: number }[] = [];
@@ -861,7 +875,7 @@ export class CdrService {
       FROM cdr c
       WHERE ${tenant.sql}
         AND (c.uniqueid = :uniqueid OR c.linkedid = :uniqueid)
-      ORDER BY STR_TO_DATE(c.calldate, '%Y-%m-%d %H:%i:%s') DESC
+      ORDER BY CASE WHEN c.calldate IS NULL THEN 1 ELSE 0 END, c.calldate DESC, c.uniqueid DESC
       LIMIT 1
     `;
     const [row] = await this.sequelize.query(sql, {

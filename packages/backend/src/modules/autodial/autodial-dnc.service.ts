@@ -7,6 +7,8 @@ import { InjectModel } from '@nestjs/sequelize';
 import { Op } from 'sequelize';
 import type { AutodialDncScope, IAutodialDncEntry } from '@krasterisk/shared';
 import { AcDnc } from './models/ac-dnc.model';
+import { AcBase } from './models/ac-base.model';
+import { AcCampaign } from './models/ac-campaign.model';
 import { normalizeAutodialPhone } from './autodial-phone.util';
 import type { CreateAutodialDncDto } from './dto/autodial-campaign.dto';
 
@@ -17,7 +19,11 @@ export interface AutodialDncCheckScope {
 
 @Injectable()
 export class AutodialDncService {
-  constructor(@InjectModel(AcDnc) private readonly dncModel: typeof AcDnc) {}
+  constructor(
+    @InjectModel(AcDnc) private readonly dncModel: typeof AcDnc,
+    @InjectModel(AcBase) private readonly baseModel: typeof AcBase,
+    @InjectModel(AcCampaign) private readonly campaignModel: typeof AcCampaign,
+  ) {}
 
   async findAll(userUid: number): Promise<IAutodialDncEntry[]> {
     const rows = await this.dncModel.findAll({
@@ -28,8 +34,8 @@ export class AutodialDncService {
   }
 
   async create(userUid: number, dto: CreateAutodialDncDto): Promise<IAutodialDncEntry> {
-    this.assertScope(dto.scope, dto.scope_uid);
-    const normalized = normalizeAutodialPhone(dto.normalized_phone, 'digits');
+    await this.assertScope(userUid, dto.scope, dto.scope_uid);
+    const normalized = normalizeAutodialPhone(dto.normalized_phone);
     if (!normalized) {
       throw new BadRequestException({ code: 'AC_DNC_INVALID_PHONE', message: 'Invalid phone' });
     }
@@ -57,7 +63,7 @@ export class AutodialDncService {
     phone: string,
     scope: AutodialDncCheckScope = {},
   ): Promise<boolean> {
-    const normalized = normalizeAutodialPhone(phone, 'digits');
+    const normalized = normalizeAutodialPhone(phone);
     if (!normalized) return false;
     const now = new Date();
     const orScopes: Array<Record<string, unknown>> = [{ scope: 'global', scope_uid: null }];
@@ -70,7 +76,7 @@ export class AutodialDncService {
     const hit = await this.dncModel.findOne({
       where: {
         user_uid: userUid,
-        normalized_phone: normalized,
+        normalized_phone: { [Op.in]: dncPhoneVariants(phone, normalized) },
         [Op.and]: [
           { [Op.or]: orScopes },
           { [Op.or]: [{ expires_at: null }, { expires_at: { [Op.gt]: now } }] },
@@ -80,12 +86,32 @@ export class AutodialDncService {
     return !!hit;
   }
 
-  private assertScope(scope: AutodialDncScope, scopeUid?: number | null): void {
+  private async assertScope(
+    userUid: number,
+    scope: AutodialDncScope,
+    scopeUid?: number | null,
+  ): Promise<void> {
     if (scope === 'global' && scopeUid != null) {
       throw new BadRequestException({ code: 'AC_DNC_SCOPE', message: 'global scope must not have scope_uid' });
     }
     if (scope !== 'global' && (scopeUid == null || scopeUid <= 0)) {
       throw new BadRequestException({ code: 'AC_DNC_SCOPE', message: 'scope_uid required for campaign/base scope' });
+    }
+    if (scope === 'global') return;
+
+    const query = {
+      where: { uid: scopeUid, user_uid: userUid },
+      attributes: ['uid'] as Array<'uid'>,
+    };
+    const row =
+      scope === 'base'
+        ? await this.baseModel.findOne(query)
+        : await this.campaignModel.findOne(query);
+    if (!row) {
+      throw new NotFoundException({
+        code: 'AC_DNC_SCOPE_NOT_FOUND',
+        message: 'DNC scope not found',
+      });
     }
   }
 
@@ -101,4 +127,18 @@ export class AutodialDncService {
       expires_at: row.expires_at?.toISOString() ?? null,
     };
   }
+}
+
+/**
+ * New DNC entries use the same canonical form as dialable contact phones. The
+ * digit-only variant keeps existing rows created by earlier versions effective
+ * until a deliberate data migration is performed.
+ */
+function dncPhoneVariants(phone: string, normalized: string): string[] {
+  const digits = normalizeAutodialPhone(phone, 'digits');
+  const variants = new Set([normalized, digits]);
+  if (/^7\d{10}$/.test(normalized)) {
+    variants.add(`8${normalized.slice(1)}`);
+  }
+  return [...variants].filter(Boolean);
 }

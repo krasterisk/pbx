@@ -5267,6 +5267,21 @@ export const en = {
         "AMD is unavailable on the PBX. Dialing did not start. Contact the PBX administrator.",
       AC_AMD_MESSAGE_NOT_CONFIGURED:
         "The leave-message action has no recording or playback scenario yet. Choose another AMD action to start this campaign.",
+      AC_SCENARIO_UNSUPPORTED_ACTION:
+        "The scenario contains an action that autodial cannot run yet. Choose a supported action.",
+      AC_SCENARIO_CONDITION_UNSUPPORTED:
+        "Conditional scenario steps are not supported by autodial yet. Remove the condition or use another scenario.",
+      AC_SCENARIO_TARGET_UNSUPPORTED:
+        "This autodial step currently supports only a fixed destination. Select one from the list.",
+      AC_TRUNK_INVALID: "Select a trunk in every added row.",
+      AC_TRUNK_NOT_FOUND: "This trunk is unavailable to the organization. Check the campaign settings.",
+      AC_QUEUE_NOT_FOUND: "This queue is unavailable to the organization. Check the agent pool and scenario.",
+      AC_EXTENSION_NOT_FOUND: "This extension is unavailable to the organization. Check the scenario.",
+      AC_CAMPAIGN_ACTIVE_CALLS: "Wait for active calls to finish before deleting the campaign.",
+      AC_CALLER_ID_SOURCE_INVALID:
+        "Check the Caller ID source: a list needs unique numbers and an order, and a directory needs all fields.",
+      AC_CALLER_ID_DIRECTORY_INVALID:
+        "The selected directory or field no longer fits this contact list. Select them again.",
       AC_BASE_IN_USE:
         "A campaign or call history references this base. Replacement and deletion are unavailable.",
       AC_SCHEMA_IN_USE:
@@ -5375,7 +5390,8 @@ export const en = {
       dialsToday: "Dials",
       confirmDelete: 'Delete campaign "{{name}}"?',
       confirmDeleteBody:
-        "Dial tasks and attempt history for this campaign are removed. The contact list is left untouched.",
+        "The campaign and its dial tasks are removed. Contacts and past call records are retained.",
+      deleteFailed: "Could not delete the campaign. Please try again.",
     },
 
     start: {
@@ -5407,7 +5423,7 @@ export const en = {
       basePlaceholder: "Select a list",
       dialMode: "Dial mode",
       dialModeHint: {
-        progressive: "One call per free agent — the fewest abandoned calls.",
+        progressive: "One call per free agent: the fewest abandoned calls.",
         power: "N calls per agent: faster, but the abandon rate grows.",
         agentless: "No agents needed: a robot or IVR runs the scenario.",
         predictive:
@@ -5470,7 +5486,8 @@ export const en = {
       continue: "Continue scenario",
       voicemail: "Leave a message",
       voicemailUnavailable: "Leave a message (not available yet)",
-      hint: "This uses the built-in Krasterisk answering-machine detector\nIt may delay the conversation and misidentify a person\nThe system verifies that this capability is available on the PBX before starting.",
+      hint:
+        "This uses the Asterisk app_amd application: a classic silence-and-speech detector, not ML or ASR. It returns MACHINE, HUMAN, NOTSURE or HANGUP. Detection can delay a conversation and misidentify a person. The system checks that app_amd is loaded on the PBX before start. Leave a message is unavailable in this installation because it needs configured media and a separate playback branch.",
     },
 
     retry: {
@@ -5492,6 +5509,29 @@ export const en = {
       trunk: "Trunk",
       selectTrunk: "Select a trunk",
       callerId: "CallerID",
+      callerIdSource: "Caller ID source",
+      callerIdSourceHint:
+        "This setting belongs to this trunk only. A directory is queried by the selected contact field.",
+      callerIdStatic: "Single number",
+      callerIdPool: "Number list",
+      callerIdDirectory: "From directory",
+      callerIdPoolNumbers: "Caller ID numbers",
+      callerIdPoolAdd: "Add number",
+      callerIdPoolPick: "Selection order",
+      callerIdPoolRoundRobin: "Round robin",
+      callerIdPoolRandom: "Even distribution",
+      callerIdDirectoryLabel: "Directory",
+      callerIdDirectoryKey: "Contact lookup field",
+      callerIdDirectoryValue: "Caller ID value field",
+      callerIdDirectoryHint:
+        "When the record or number is missing, the fallback Caller ID is used. If it is empty, the PBX trunk setting applies.",
+      callerIdFallback: "Fallback Caller ID",
+      callerIdFallbackPlaceholder: "Number from the PBX trunk settings",
+      selectDirectory: "Select a directory",
+      selectContactField: "Select a contact field",
+      selectDirectoryField: "Select a directory field",
+      legacyCallerIdWarning:
+        "This campaign still uses the previous shared Caller ID policy. It remains active until a trunk gets its own source.",
       weight: "Weight",
       maxChannels: "Concurrent call limit",
       maxChannelsHint:
@@ -5567,6 +5607,12 @@ export const en = {
       title: "Do not call list",
       intro:
         "A number on the stop list is not added to new tasks and is not dialed\nShared entries apply to every campaign in your organization\nLocal entries apply only to the selected list or campaign.",
+      immediateSave: "Stop-list changes are saved immediately and are not reverted by Cancel in the campaign form.",
+      globalWarning: "A shared entry applies to every campaign in your organization.",
+      globalConfirm: "Confirm adding this shared stop-list entry.",
+      globalConfirmAction: "Add for organization",
+      globalDeleteConfirm: "Confirm deleting this shared entry for the whole organization.",
+      globalDeleteConfirmAction: "Delete for organization",
       phone: "Number",
       reason: "Reason",
       scope: "Scope",
@@ -5575,6 +5621,7 @@ export const en = {
       scopeGlobal: "Global",
       scopeCampaign: "This campaign",
       scopeBase: "This list",
+      inheritedReadOnly: "Inherited, change it in its source scope",
       add: "Add",
       empty: "The stop list is empty",
       phoneRequired: "Enter a number",
@@ -5640,7 +5687,7 @@ export const en = {
       schemaError: {
         empty: "Add at least one field",
         noPhone:
-          "At least one phone field is required — otherwise there is nobody to dial",
+          "At least one phone field is required; otherwise there is nobody to dial",
       },
       addField: "Add field",
     },
@@ -5660,7 +5707,7 @@ export const en = {
       noPhone: "No number",
       tzOffset: "TZ offset, min",
       tzHint:
-        "Subscriber timezone offset from UTC in minutes — allowed dialing hours are checked against it.",
+        "Subscriber timezone offset from UTC in minutes. Allowed dialing hours are checked against it.",
       fieldsSection: "List fields",
       externalId: "External ID",
       comment: "Comment",
@@ -5702,7 +5749,7 @@ export const en = {
       },
       run: "Import",
       phoneColumnRequired:
-        "Map a phone column — without it there is nobody to dial",
+        "Map a phone column; without it there is nobody to dial",
       importFailed: "Import failed",
       imported_one: "{{count}} imported",
       imported_other: "{{count}} imported",

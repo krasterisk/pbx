@@ -74,6 +74,27 @@ describe('generateAutodialCampaignDialplan', () => {
     expect(lines).toContain('same => n,Queue(sales,t)');
   });
 
+  it('uses the modern fixed queue target before the legacy campaign fallback', () => {
+    const { lines } = generateAutodialCampaignDialplan(
+      campaign({
+        scenario_actions: [
+          action('toqueue', { target: { source: 'fixed', value: 'priority' } }),
+        ],
+      }),
+      42,
+    );
+    expect(lines).toContain('same => n,Queue(priority,t)');
+  });
+
+  it('scopes playback media to the campaign tenant using the shared renderer', () => {
+    const { lines } = generateAutodialCampaignDialplan(
+      campaign({ scenario_actions: [action('playback', { file: 'welcome', mode: 'plain' })] }),
+      42,
+    );
+    expect(lines).toContain('same => n,Playback(/usr/records/42/sounds/welcome)');
+    expect(lines).not.toContain('same => n,Playback(welcome)');
+  });
+
   it('falls back to the campaign queue when the step names none', () => {
     const { lines } = generateAutodialCampaignDialplan(
       campaign({ scenario_actions: [action('toqueue')] }),
@@ -123,10 +144,13 @@ describe('withMachineTail', () => {
     const category = withMachineTail(
       generateAutodialCampaignDialplan(campaign({ amd }), 42),
       amd,
+      42,
     );
     expect(category.lines).toContain(
       'same => n(ac_machine),NoOp(Autodial: answering machine detected)',
     );
+    expect(category.lines.join('\n')).toContain('internal/autodial/attempt-machine');
+    expect(category.lines.join('\n')).toContain('attempt=${URIENCODE(${KRSK_AC_ATTEMPT})}');
   });
 
   it('adds nothing when AMD continues on machine', () => {

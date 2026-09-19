@@ -1,6 +1,5 @@
 import { Logger } from '@nestjs/common';
 import axios from 'axios';
-import { encryptSecret } from '../ai-agents/util/secret-cipher.util';
 import { PbxAgentLlmClient } from './pbx-agent-llm.client';
 import type { AgentChatParams } from './pbx-agent.types';
 
@@ -12,10 +11,10 @@ const PLAIN_KEY = 'sk-agent-secret';
 function provider(overrides: AgentChatParams['provider'] = {} as AgentChatParams['provider']): AgentChatParams['provider'] {
     return {
         uid: 1,
+        tenantUid: 0,
         name: 'Cascade',
         endpoint: 'https://api.openai.com',
         auth_type: 'bearer',
-        encrypted_api_key: encryptSecret(PLAIN_KEY),
         capabilities: ['llm', 'tools'],
         defaults: { model: 'gpt-4o-mini', temperature: 0.2 },
         vendor: 'openai',
@@ -54,7 +53,9 @@ describe('PbxAgentLlmClient', () => {
     let fetchMock: jest.Mock;
 
     beforeEach(() => {
-        client = new PbxAgentLlmClient();
+        client = new PbxAgentLlmClient({
+            resolveCredential: jest.fn().mockResolvedValue(PLAIN_KEY),
+        } as any);
         fetchMock = jest.fn();
         global.fetch = fetchMock as unknown as typeof fetch;
         mockedAxios.post.mockReset();
@@ -492,7 +493,7 @@ describe('PbxAgentLlmClient', () => {
         expect(fetchMock.mock.calls[0][1].headers.Authorization).toBeUndefined();
 
         await client.chat({
-            provider: provider({ auth_type: 'none', encrypted_api_key: encryptSecret(PLAIN_KEY) }),
+            provider: provider({ auth_type: 'none' }),
             messages: [{ role: 'user', content: 'hi' }],
             stream: true,
         });
@@ -1086,6 +1087,20 @@ describe('PbxAgentLlmClient', () => {
         expect(fetchMock).not.toHaveBeenCalled();
         expect(mockedAxios.post).not.toHaveBeenCalled();
         expect(result.error?.code).toBe('aborted');
+    });
+
+    it('rechecks authorization for a keyless provider and stops after revocation', async () => {
+        client = new PbxAgentLlmClient({
+            resolveCredential: jest.fn().mockRejectedValue(new Error('provider_not_found')),
+        } as any);
+        const result = await client.chat({
+            provider: provider({ auth_type: 'none' }),
+            messages: [{ role: 'user', content: 'hi' }],
+            stream: true,
+        });
+        expect(result.error?.code).toBe('provider_auth_unavailable');
+        expect(fetchMock).not.toHaveBeenCalled();
+        expect(mockedAxios.post).not.toHaveBeenCalled();
     });
 
     it('uses axios with a non-throwing status validator for a non-streaming completion', async () => {

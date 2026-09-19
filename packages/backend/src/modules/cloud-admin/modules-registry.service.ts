@@ -1,5 +1,5 @@
 import {
-  Injectable, Logger, OnApplicationBootstrap, BadRequestException, NotFoundException,
+  Injectable, Logger, OnApplicationBootstrap, BadRequestException, NotFoundException, ConflictException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { ConfigService } from '@nestjs/config';
@@ -9,6 +9,16 @@ import { Tenant } from './tenant.model';
 import { HubModule } from './models/hub-module.model';
 import { HubModulePage } from './models/hub-module-page.model';
 import { HUB_MODULES_SEED } from './hub-modules.seed';
+import {
+  AI_PRODUCT_MODULE_CODES, isAiProductCode,
+  type AiProductModuleCode, type ProductAccessDecision,
+} from './product-access-policy';
+import { ProductAccessService } from '../product-access/product-access.service';
+
+export { AI_PRODUCT_MODULE_CODES, type AiProductModuleCode } from './product-access-policy';
+
+/** No AI checkout is released until runtime, tariff and activation are approved. */
+const RELEASED_AI_PRODUCT_OFFERS: ReadonlySet<AiProductModuleCode> = new Set();
 
 export interface PurchaseOffer {
   code: string;
@@ -42,6 +52,10 @@ const MODULES_SEED: Partial<ModuleRegistry>[] = [
   { code: 'tts_engines',       name: 'Синтез речи (TTS)',         category: 'integrations', is_core: false, is_paid: true,  price_monthly: 500 },
   { code: 'stt_engines',       name: 'Распознавание речи (STT)', category: 'integrations', is_core: false, is_paid: true,  price_monthly: 500 },
   { code: 'cc_ai_voice',       name: 'КЦ AI Voice (аналитика/транскрипция)', category: 'analytics', is_core: false, is_paid: true, price_monthly: 3000, is_published: true },
+  // Product catalog entries stay unpublished until the corresponding runtime,
+  // local-license adapter and checkout policy are implemented in AI-01.
+  { code: 'ai_voice_robots',   name: 'AI-роботы',                 category: 'calls',        is_core: false, is_paid: true, price_monthly: 0, is_published: false },
+  { code: 'speech_analytics',  name: 'Речевая аналитика',         category: 'analytics',    is_core: false, is_paid: true, price_monthly: 0, is_published: false },
   { code: 'autodial',          name: 'Автообзвон',                 category: 'calls',        is_core: false, is_paid: true,  price_monthly: 3500, is_published: true },
   // ── Cloud only ───────────────────────────────────────────────────────────
   { code: 'cloud_admin',       name: 'Облачная панель управления',category: 'admin',        is_core: false, is_paid: true,  price_monthly: 0, requires_cloud: true },
@@ -82,14 +96,38 @@ export class ModulesRegistryService implements OnApplicationBootstrap {
     private readonly configService: ConfigService,
     @InjectModel(HubModule) private readonly hubModuleModel: typeof HubModule,
     @InjectModel(HubModulePage) private readonly hubPageModel: typeof HubModulePage,
+    private readonly productAccess: ProductAccessService,
   ) {}
 
   /** On startup — upsert module catalog from code definition */
   async onApplicationBootstrap(): Promise<void> {
     for (const mod of MODULES_SEED) {
-      await this.registryModel.upsert(mod as any, { fields: ['name', 'description', 'price_monthly', 'is_paid', 'requires_cloud', 'is_core', 'category', 'version'] });
+      // Publication is operator-managed after first insert. Explicitly supply
+      // the new-product default; the DB model defaults to published for legacy.
+      const [row, created] = await this.registryModel.findOrCreate({
+        where: { code: mod.code! },
+        defaults: { ...mod, is_published: mod.is_published ?? true } as any,
+      });
+      if (!created) {
+        await row.update({
+          name: mod.name, description: mod.description,
+          price_monthly: mod.price_monthly, is_paid: mod.is_paid,
+          requires_cloud: mod.requires_cloud, is_core: mod.is_core,
+          category: mod.category, version: mod.version,
+        });
+      }
     }
     this.logger.log(`Module catalog synced (${MODULES_SEED.length} modules)`);
+  }
+
+  /** Explicit one-time correction for draft entries created by older seed code. */
+  async unpublishUnreleasedAiDrafts(): Promise<number> {
+    const [changed] = await this.registryModel.update(
+      { is_published: false },
+      { where: { code: [...AI_PRODUCT_MODULE_CODES] } },
+    );
+    this.logger.warn(`AI product draft publication reconciled: ${changed} row(s)`);
+    return changed;
   }
 
   // ─── Access checks ─────────────────────────────────────────────────────────
@@ -101,6 +139,9 @@ export class ModulesRegistryService implements OnApplicationBootstrap {
    * In CLOUD mode — checks tenant_modules table.
    */
   async tenantHasModule(vpbxUserUid: number, moduleCode: string): Promise<boolean> {
+    if (isAiProductCode(moduleCode)) {
+      return (await this.resolveAiProductAccess(vpbxUserUid, moduleCode)).allowed;
+    }
     const mode = this.configService.get<string>('DEPLOYMENT_MODE', 'BOX').toUpperCase();
     if (mode !== 'CLOUD') return true;
 
@@ -116,9 +157,35 @@ export class ModulesRegistryService implements OnApplicationBootstrap {
   }
 
   /**
+   * Product access for the new AI products. Unlike generic legacy modules,
+   * this never applies the BOX/OPENSOURCE unconditional allow.
+   */
+  async tenantHasAiProduct(
+    vpbxUserUid: number,
+    moduleCode: AiProductModuleCode,
+  ): Promise<boolean> {
+    return (await this.resolveAiProductAccess(vpbxUserUid, moduleCode)).allowed;
+  }
+
+  async resolveAiProductAccess(
+    vpbxUserUid: number,
+    moduleCode: AiProductModuleCode,
+  ): Promise<ProductAccessDecision> {
+    if (!isAiProductCode(moduleCode)) {
+      throw new BadRequestException({ code: 'UNKNOWN_AI_PRODUCT' });
+    }
+    return this.productAccess.decide(vpbxUserUid, moduleCode);
+  }
+
+  /**
    * Check access by tenant_id (preferred, more direct).
    */
   async tenantHasModuleById(tenantId: number, moduleCode: string): Promise<boolean> {
+    if (isAiProductCode(moduleCode)) {
+      const tenant = await this.tenantModel.findByPk(tenantId, { attributes: ['vpbx_user_uid'] });
+      return tenant != null
+        && (await this.resolveAiProductAccess(tenant.vpbx_user_uid, moduleCode)).allowed;
+    }
     const mode = this.configService.get<string>('DEPLOYMENT_MODE', 'BOX').toUpperCase();
     if (mode !== 'CLOUD') return true;
 
@@ -289,6 +356,9 @@ export class ModulesRegistryService implements OnApplicationBootstrap {
     hubCode: string,
     status: 'active' | 'inactive',
   ): Promise<TenantModule> {
+    if (isAiProductCode(hubCode)) {
+      throw new ConflictException({ code: 'product_configuration_pending' });
+    }
     const hub = await this.hubModuleModel.findOne({ where: { code: hubCode } });
     if (!hub) {
       // Allow enabling known seed codes before migration
@@ -324,6 +394,7 @@ export class ModulesRegistryService implements OnApplicationBootstrap {
 
   /** Activate a module for a tenant (idempotent) */
   async activateModule(tenantId: number, moduleCode: string): Promise<TenantModule> {
+    // This admin-only method grants entitlement, never product activation.
     const [record] = await this.tenantModuleModel.upsert({
       tenant_id: tenantId,
       module_code: moduleCode,
@@ -338,8 +409,21 @@ export class ModulesRegistryService implements OnApplicationBootstrap {
    * Hub market codes fall back to the first paid legacy license code price.
    */
   async resolvePurchaseOffer(moduleCode: string): Promise<PurchaseOffer> {
+    if (isAiProductCode(moduleCode) && !RELEASED_AI_PRODUCT_OFFERS.has(moduleCode)) {
+      throw new BadRequestException({
+        code: 'OFFER_NOT_RELEASED',
+        message: `Module is not available for purchase: ${moduleCode}`,
+      });
+    }
     const registry = await this.registryModel.findOne({ where: { code: moduleCode } });
     if (registry) {
+      if (!registry.is_published || (isAiProductCode(moduleCode)
+        && (!registry.is_paid || Number(registry.price_monthly) <= 0))) {
+        throw new BadRequestException({
+          code: 'OFFER_NOT_RELEASED',
+          message: `Module is not available for purchase: ${moduleCode}`,
+        });
+      }
       if (registry.is_core) {
         throw new BadRequestException({
           code: 'NOT_PURCHASABLE',

@@ -1,5 +1,9 @@
 # Speech Analytics — контракт продукта для Krasterisk v4
 
+Детальные AI-05/06 контракты метрик/reporting/native policy — [ADVANCED-PRODUCT-CONTRACTS](ADVANCED-PRODUCT-CONTRACTS.md). Он уточняет public metric statuses, reanalysis scope и content/export permissions ранних proposed примеров.
+
+Уточнение proposed контрактов 2026-09-18-r2: исполняемый внешний MVP — [AI-04-PLAN](AI-04-PLAN.md), scopes/state/visibility/dedupe — [PRODUCT-SLICES-CONTRACTS](PRODUCT-SLICES-CONTRACTS.md). При расхождении с ранними примерами ниже действуют эти уточнения: `analytics:*` из AI-01-B, business key с project, upload complete отдельно от run; URL pull/reanalysis не входят в AI-04 v1.
+
 Дата: 2026-09-18. Статус: **PROPOSED — спецификация для планирования, реализация не выполнена**. Аудит исходного продукта: [AIPBX-ANALYTICS-AUDIT.md](./AIPBX-ANALYTICS-AUDIT.md). Общие платформенные контракты, биллинг и запись/маршрутизация принадлежат архитектуре инициативы; этот документ определяет продукт аналитики.
 
 ## 1. Назначение и границы

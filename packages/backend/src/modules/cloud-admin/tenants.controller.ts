@@ -6,6 +6,7 @@ import { ApiBearerAuth, ApiTags, ApiQuery } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { SuperAdminGuard } from '../auth/superadmin.guard';
 import { TenantsService, CreateTenantDto, UpdateTenantDto } from './tenants.service';
+import { CreateAnalyticsTenantBody } from './create-analytics-tenant.dto';
 
 @ApiTags('Cloud Admin - Tenants')
 @ApiBearerAuth()
@@ -47,6 +48,11 @@ export class TenantsController {
   }
 
   // ─── POST /cloud-admin/tenants — провизионирование ───────────────────────
+  @Post('analytics')
+  createAnalytics(@Body() dto: CreateAnalyticsTenantBody, @Req() req: any) {
+    return this.tenantsService.provisionAnalyticsIdentity(dto, req.user.sub);
+  }
+
   @Post()
   create(@Body() dto: CreateTenantDto, @Req() req: any) {
     return this.tenantsService.provision(dto, req.user.sub);

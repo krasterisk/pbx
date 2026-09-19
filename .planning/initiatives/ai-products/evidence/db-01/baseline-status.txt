@@ -1,0 +1,10 @@
+ M .planning/EXECUTION-REGISTRY.md
+ M .planning/initiatives/ai-products/EXECUTION.md
+ M .planning/workflows/HYBRID-VERIFICATION.md
+ M packages/backend/src/modules/autodial/autodial-dnc.service.ts
+ M packages/backend/src/modules/autodial/autodial-originator.service.ts
+ M packages/backend/src/modules/autodial/autodial-pacer-safety.spec.ts
+ M packages/backend/src/modules/autodial/autodial-pacer.service.ts
+?? .planning/AUTODIAL-REFACTOR-EXECUTION-2026-09-18.md
+?? .planning/initiatives/ai-products/evidence/db-01/
+?? packages/backend/src/modules/autodial/autodial-originator.service.spec.ts

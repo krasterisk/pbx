@@ -72,6 +72,7 @@ describe('CallCenterRollupService', () => {
         max_wait_sec: 40,
         total_talk_sec: 100,
       }),
+      { conflictFields: ['vpbx_user_uid', 'stat_date', 'queue_name'] },
     );
     expect(agentUpsert).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -81,6 +82,7 @@ describe('CallCenterRollupService', () => {
         total_talk_sec: 100,
         total_wrapup_sec: 25,
       }),
+      { conflictFields: ['vpbx_user_uid', 'stat_date', 'agent_interface'] },
     );
   });
 

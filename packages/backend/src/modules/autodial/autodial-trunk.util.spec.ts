@@ -37,6 +37,17 @@ describe('selectAutodialTrunk', () => {
     expect(seen).toEqual(['a', 'a', 'a', 'b']);
   });
 
+  it('never selects a trunk that pacing marked unavailable', () => {
+    const target = selectAutodialTrunk(
+      [{ trunk_id: 'saturated' }, { trunk_id: 'free' }],
+      { mode: 'per_trunk' },
+      '7900',
+      0,
+      new Set(['free']),
+    );
+    expect(target?.trunkId).toBe('free');
+  });
+
   it('takes the caller id from the trunk in per_trunk mode', () => {
     const target = selectAutodialTrunk(
       [{ trunk_id: 'mtt', caller_id: '74951112233' }],
@@ -62,6 +73,45 @@ describe('selectAutodialTrunk', () => {
     const policy = { mode: 'rotate' as const, pool: ['7495111', '7495222'] };
     expect(selectAutodialTrunk(pool, policy, '7900', 0)?.callerId).toBe('7495111');
     expect(selectAutodialTrunk(pool, policy, '7900', 1)?.callerId).toBe('7495222');
+  });
+
+  it('uses a Caller ID list assigned to this trunk before the legacy campaign policy', () => {
+    const trunk = {
+      trunk_id: 'mtt',
+      caller_id: '74950000000',
+      caller_id_source: {
+        mode: 'pool' as const,
+        numbers: ['7495111', '7495222'],
+        pick: 'round_robin' as const,
+      },
+    };
+
+    expect(selectAutodialTrunk([trunk], { mode: 'static', value: '79990000000' }, '7900', 0)?.callerId)
+      .toBe('7495111');
+    expect(selectAutodialTrunk([trunk], { mode: 'static', value: '79990000000' }, '7900', 1)?.callerId)
+      .toBe('7495222');
+  });
+
+  it('keeps a directory source for the originator while retaining its fallback Caller ID', () => {
+    const target = selectAutodialTrunk(
+      [{
+        trunk_id: 'mtt',
+        caller_id: '74950000000',
+        caller_id_source: {
+          mode: 'directory',
+          directory_uid: 5,
+          value_field_uid: 17,
+          key: { source: 'autodial_field', field_key: 'region' },
+          on_missing: 'fallback',
+        },
+      }],
+      { mode: 'per_trunk' },
+      '7900',
+      0,
+    );
+
+    expect(target?.callerId).toBe('74950000000');
+    expect(target?.callerIdSource).toEqual(expect.objectContaining({ mode: 'directory' }));
   });
 
   it('falls back to the policy value when the rotate pool is empty', () => {

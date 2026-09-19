@@ -51,6 +51,18 @@ export const MODULE_COVERAGE: Record<string, ModuleCoverageEntry> = {
     kind: 'infrastructure',
     reason: 'JWT and RBAC entry; tenant identity is the users domain.',
   },
+  'ai-connectivity': {
+    kind: 'infrastructure',
+    reason: 'Shared tenant provider credentials and endpoint policy; not a tenant-agent tool surface.',
+  },
+  'tenant-identity': {
+    kind: 'infrastructure',
+    reason: 'Tenant owner and organization identity transaction; no tenant-agent tools or PBX operations.',
+  },
+  'standalone-identity': {
+    kind: 'infrastructure',
+    reason: 'Standalone AI access-token login and tenant admission; not a PBX agent tool surface.',
+  },
   autodial: { kind: 'covered', capability: 'configure' },
   'call-groups': { kind: 'covered', capability: 'configure' },
   'callback-requests': {
@@ -100,6 +112,14 @@ export const MODULE_COVERAGE: Record<string, ModuleCoverageEntry> = {
   notifications: { kind: 'covered', sharedSkill: 'operations', capability: 'configure' },
   numbers: { kind: 'covered', capability: 'read' },
   plan: { kind: 'covered', domain: 'plan', sharedSkill: 'pbx-setup', capability: 'configure' },
+  'product-access': {
+    kind: 'infrastructure',
+    reason: 'Signed installation license verification and tenant product activation; no PBX agent tool surface.',
+  },
+  'integration-credentials': {
+    kind: 'infrastructure',
+    reason: 'Header-only tenant identity and resource authorization boundary; no PBX agent tool surface.',
+  },
   prompts: { kind: 'covered', sharedSkill: 'operations', capability: 'configure' },
   queues: { kind: 'covered', capability: 'configure' },
   redis: {

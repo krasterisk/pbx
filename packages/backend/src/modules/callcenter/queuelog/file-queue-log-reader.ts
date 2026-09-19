@@ -7,7 +7,7 @@ import { QueueLogEntry, QueueLogReader } from './queue-log-reader.interface';
  * File-tail reader for `/var/log/asterisk/queue_log` (pipe-separated lines).
  *
  * Path is taken ONLY from env CC_QUEUE_LOG_PATH (threat T-07-04-01) —
- * never from request input. Missing/unreadable file → warn + [].
+ * never from request input. Missing/unreadable file is an error when selected.
  */
 @Injectable()
 export class FileQueueLogReader implements QueueLogReader {
@@ -29,8 +29,9 @@ export class FileQueueLogReader implements QueueLogReader {
     try {
       await fs.promises.access(this.filePath, fs.constants.R_OK);
       return true;
-    } catch {
-      return false;
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') return false;
+      throw err;
     }
   }
 
@@ -54,7 +55,7 @@ export class FileQueueLogReader implements QueueLogReader {
       this.logger.warn(
         `queue_log file unavailable (${this.filePath}): ${(err as Error).message}`,
       );
-      return [];
+      throw err;
     }
   }
 

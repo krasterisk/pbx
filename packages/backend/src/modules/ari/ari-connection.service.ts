@@ -62,9 +62,9 @@ export class AriConnectionService implements OnApplicationBootstrap, OnApplicati
     const port = this.configService.get<number>('ARI_PORT', 8088);
     const username = this.configService.get<string>('ARI_USER', 'krasterisk');
     const password = this.configService.get<string>('ARI_PASSWORD', '');
-    const appName = this.ariClient.getAppName();
+    const appNames = this.ariClient.getEventAppNames();
 
-    const wsUrl = `${protocol}://${host}:${port}/ari/events?api_key=${username}:${password}&app=${appName}`;
+    const wsUrl = `${protocol}://${host}:${port}/ari/events?api_key=${username}:${password}&app=${appNames.join(',')}`;
 
     this.logger.log(`Connecting to ARI WebSocket: ${wsUrl.replace(password, '***')}`);
 

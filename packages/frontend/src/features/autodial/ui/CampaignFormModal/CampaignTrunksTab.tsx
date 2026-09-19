@@ -1,19 +1,26 @@
 import { memo } from "react";
 import { useTranslation } from "react-i18next";
 import { Plus, Trash2 } from "lucide-react";
-import type { IAutodialTrunkPoolItem } from "@krasterisk/shared";
+import type {
+  AutodialCallerIdPoolPick,
+  AutodialCallerIdSource,
+  IAutodialTrunkPoolItem,
+} from "@krasterisk/shared";
 import {
   Button,
   InfoTooltip,
   Input,
   Label,
   Select,
+  TagInput,
   TableRowAction,
   TableRowActions,
   Text,
 } from "@/shared/ui";
 import { HStack, VStack } from "@/shared/ui/Stack";
 import { useGetTrunksQuery } from "@/shared/api/endpoints/trunkApi";
+import { useGetDirectoriesQuery, useGetDirectoryQuery } from "@/shared/api/endpoints/directoryApi";
+import { useGetAutodialBaseQuery } from "@/shared/api/endpoints/autodialApi";
 import type {
   AutodialCampaignDraft,
   CampaignDraftErrors,
@@ -24,6 +31,206 @@ interface Props {
   draft: AutodialCampaignDraft;
   onChange: (next: AutodialCampaignDraft) => void;
   errors: CampaignDraftErrors;
+}
+
+function callerIdSourceOf(item: IAutodialTrunkPoolItem): AutodialCallerIdSource {
+  return item.caller_id_source ?? { mode: "static", value: item.caller_id ?? "" };
+}
+
+function cleanPoolNumber(value: string): string {
+  return value.replace(/[|;]/g, "").trim();
+}
+
+function TrunkCallerIdEditor({
+  item,
+  index,
+  baseUid,
+  onChange,
+}: {
+  item: IAutodialTrunkPoolItem;
+  index: number;
+  baseUid: number | null;
+  onChange: (next: IAutodialTrunkPoolItem) => void;
+}) {
+  const { t } = useTranslation();
+  const source = callerIdSourceOf(item);
+  const { data: directories, isLoading: isDirectoriesLoading } = useGetDirectoriesQuery(undefined, {
+    skip: source.mode !== "directory",
+  });
+  const { data: base } = useGetAutodialBaseQuery(baseUid as number, { skip: !baseUid });
+  const directoryUid = source.mode === "directory" ? source.directory_uid : 0;
+  const { data: directory, isLoading: isDirectoryLoading } = useGetDirectoryQuery(directoryUid, {
+    skip: !directoryUid,
+  });
+  const mode = source.mode;
+  const setSource = (caller_id_source: AutodialCallerIdSource) =>
+    onChange({ ...item, caller_id_source });
+  const updateFallback = (caller_id: string) => onChange({ ...item, caller_id });
+
+  return (
+    <div className={cls.cidEditor}>
+      <VStack gap="4" className={cls.cidModeField}>
+        <HStack gap="4" align="center">
+          <Label htmlFor={`autodial-cid-mode-${index}`}>
+            {t("autodial.trunks.callerIdSource")}
+          </Label>
+          <InfoTooltip text={t("autodial.trunks.callerIdSourceHint")} />
+        </HStack>
+        <Select
+          id={`autodial-cid-mode-${index}`}
+          value={mode}
+          onChange={(event) => {
+            switch (event.target.value) {
+              case "pool":
+                setSource({ mode: "pool", numbers: [], pick: "round_robin" });
+                return;
+              case "directory":
+                setSource({
+                  mode: "directory",
+                  directory_uid: 0,
+                  value_field_uid: 0,
+                  key: { source: "autodial_field", field_key: "" },
+                  on_missing: "fallback",
+                });
+                return;
+              default:
+                setSource({ mode: "static", value: source.mode === "static" ? source.value : "" });
+            }
+          }}
+        >
+          <option value="static">{t("autodial.trunks.callerIdStatic")}</option>
+          <option value="pool">{t("autodial.trunks.callerIdPool")}</option>
+          <option value="directory">{t("autodial.trunks.callerIdDirectory")}</option>
+        </Select>
+      </VStack>
+
+      {source.mode === "static" && (
+        <VStack gap="4" className={cls.cidValueField}>
+          <Label htmlFor={`autodial-trunk-cid-${index}`}>
+            {t("autodial.trunks.callerId")}
+          </Label>
+          <Input
+            id={`autodial-trunk-cid-${index}`}
+            value={source.value ?? ""}
+            placeholder="74950000000"
+            onChange={(event) => setSource({ mode: "static", value: event.target.value })}
+          />
+        </VStack>
+      )}
+
+      {source.mode === "pool" && (
+        <VStack gap="4" className={cls.cidValueField}>
+          <Label>{t("autodial.trunks.callerIdPoolNumbers")}</Label>
+          <TagInput
+            value={source.numbers}
+            onChange={(numbers) =>
+              setSource({
+                mode: "pool",
+                numbers: numbers.map(cleanPoolNumber).filter(Boolean),
+                pick: source.pick,
+              })
+            }
+            placeholder={t("autodial.trunks.callerIdPoolAdd")}
+            aria-label={t("autodial.trunks.callerIdPoolNumbers")}
+          />
+          <VStack gap="4">
+            <Label htmlFor={`autodial-cid-pick-${index}`}>
+              {t("autodial.trunks.callerIdPoolPick")}
+            </Label>
+            <Select
+              id={`autodial-cid-pick-${index}`}
+              value={source.pick}
+              onChange={(event) =>
+                setSource({
+                  mode: "pool",
+                  numbers: source.numbers,
+                  pick: event.target.value as AutodialCallerIdPoolPick,
+                })
+              }
+            >
+              <option value="round_robin">{t("autodial.trunks.callerIdPoolRoundRobin")}</option>
+              <option value="random">{t("autodial.trunks.callerIdPoolRandom")}</option>
+            </Select>
+          </VStack>
+        </VStack>
+      )}
+
+      {source.mode === "directory" && (
+        <div className={cls.cidDirectoryGrid}>
+          <VStack gap="4" className={cls.field}>
+            <Label htmlFor={`autodial-cid-directory-${index}`}>
+              {t("autodial.trunks.callerIdDirectoryLabel")}
+            </Label>
+            <Select
+              id={`autodial-cid-directory-${index}`}
+              value={source.directory_uid ? String(source.directory_uid) : ""}
+              disabled={isDirectoriesLoading}
+              onChange={(event) =>
+                setSource({
+                  ...source,
+                  directory_uid: Number(event.target.value) || 0,
+                  value_field_uid: 0,
+                })
+              }
+            >
+              <option value="">{t("autodial.trunks.selectDirectory")}</option>
+              {(directories ?? []).map((directory) => (
+                <option key={directory.uid} value={directory.uid}>
+                  {directory.name}
+                </option>
+              ))}
+            </Select>
+          </VStack>
+          <VStack gap="4" className={cls.field}>
+            <Label htmlFor={`autodial-cid-key-${index}`}>
+              {t("autodial.trunks.callerIdDirectoryKey")}
+            </Label>
+            <Select
+              id={`autodial-cid-key-${index}`}
+              value={source.key.field_key}
+              disabled={!baseUid}
+              onChange={(event) => setSource({ ...source, key: { source: "autodial_field", field_key: event.target.value } })}
+            >
+              <option value="">{t("autodial.trunks.selectContactField")}</option>
+              {(base?.fields ?? []).map((field) => (
+                <option key={field.uid} value={field.key}>{field.label || field.key}</option>
+              ))}
+            </Select>
+          </VStack>
+          <VStack gap="4" className={cls.field}>
+            <Label htmlFor={`autodial-cid-directory-field-${index}`}>
+              {t("autodial.trunks.callerIdDirectoryValue")}
+            </Label>
+            <Select
+              id={`autodial-cid-directory-field-${index}`}
+              value={source.value_field_uid ? String(source.value_field_uid) : ""}
+              disabled={!source.directory_uid || isDirectoryLoading}
+              onChange={(event) => setSource({ ...source, value_field_uid: Number(event.target.value) || 0 })}
+            >
+              <option value="">{t("autodial.trunks.selectDirectoryField")}</option>
+              {(directory?.fields ?? [])
+                .filter((field) => field.type === "phone" || field.type === "string")
+                .map((field) => (
+                  <option key={field.uid} value={field.uid}>{field.label || field.key}</option>
+                ))}
+            </Select>
+          </VStack>
+          <VStack gap="4" className={cls.field}>
+            <Label htmlFor={`autodial-cid-fallback-${index}`}>
+              {t("autodial.trunks.callerIdFallback")}
+            </Label>
+            <Input
+              id={`autodial-cid-fallback-${index}`}
+              value={item.caller_id ?? ""}
+              placeholder={t("autodial.trunks.callerIdFallbackPlaceholder")}
+              onChange={(event) => updateFallback(event.target.value)}
+            />
+          </VStack>
+          <Text className={cls.cidDirectoryHint}>{t("autodial.trunks.callerIdDirectoryHint")}</Text>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export const CampaignTrunksTab = memo(({ draft, onChange, errors }: Props) => {
@@ -43,7 +250,7 @@ export const CampaignTrunksTab = memo(({ draft, onChange, errors }: Props) => {
       ...draft.trunk_pool,
       {
         trunk_id: firstFree?.id ?? "",
-        caller_id: "",
+        caller_id_source: { mode: "static", value: "" },
         weight: 1,
         max_channels: 0,
       },
@@ -79,19 +286,6 @@ export const CampaignTrunksTab = memo(({ draft, onChange, errors }: Props) => {
                     </option>
                   ))}
                 </Select>
-              </VStack>
-
-              <VStack gap="4" className={cls.field}>
-                <Label htmlFor={`autodial-trunk-cid-${index}`}>
-                  {t("autodial.trunks.callerId")}
-                </Label>
-                <Input
-                  id={`autodial-trunk-cid-${index}`}
-                  value={item.caller_id ?? ""}
-                  onChange={(e) =>
-                    updateItem(index, { ...item, caller_id: e.target.value })
-                  }
-                />
               </VStack>
 
               <VStack gap="4" className={cls.field}>
@@ -150,6 +344,12 @@ export const CampaignTrunksTab = memo(({ draft, onChange, errors }: Props) => {
                 </TableRowAction>
               </TableRowActions>
             </div>
+            <TrunkCallerIdEditor
+              item={item}
+              index={index}
+              baseUid={draft.base_uid}
+              onChange={(next) => updateItem(index, next)}
+            />
           </div>
         ))}
       </VStack>
@@ -165,79 +365,9 @@ export const CampaignTrunksTab = memo(({ draft, onChange, errors }: Props) => {
         </Button>
       </HStack>
 
-      <VStack gap="8" max>
-        <HStack gap="4" align="center">
-          <Text className={cls.sectionTitle}>{t("autodial.cid.title")}</Text>
-          <InfoTooltip text={t(`autodial.cid.hint.${draft.cid_policy.mode}`)} />
-        </HStack>
-        <HStack gap="12" align="end" wrap="wrap">
-          <VStack gap="4" className={cls.field}>
-            <Label htmlFor="autodial-cid-mode">{t("autodial.cid.mode")}</Label>
-            <Select
-              id="autodial-cid-mode"
-              value={draft.cid_policy.mode}
-              onChange={(e) =>
-                onChange({
-                  ...draft,
-                  cid_policy: {
-                    ...draft.cid_policy,
-                    mode: e.target
-                      .value as AutodialCampaignDraft["cid_policy"]["mode"],
-                  },
-                })
-              }
-              className={cls.narrowInput}
-            >
-              <option value="static">{t("autodial.cid.static")}</option>
-              <option value="rotate">{t("autodial.cid.rotate")}</option>
-              <option value="per_trunk">{t("autodial.cid.perTrunk")}</option>
-            </Select>
-          </VStack>
-
-          {draft.cid_policy.mode === "static" && (
-            <VStack gap="4" className={cls.field}>
-              <Label htmlFor="autodial-cid-value">
-                {t("autodial.cid.value")}
-              </Label>
-              <Input
-                id="autodial-cid-value"
-                value={draft.cid_policy.value ?? ""}
-                onChange={(e) =>
-                  onChange({
-                    ...draft,
-                    cid_policy: { ...draft.cid_policy, value: e.target.value },
-                  })
-                }
-              />
-            </VStack>
-          )}
-
-          {draft.cid_policy.mode === "rotate" && (
-            <VStack gap="4" className={cls.field}>
-              <Label htmlFor="autodial-cid-pool">
-                {t("autodial.cid.pool")}
-              </Label>
-              <Input
-                id="autodial-cid-pool"
-                value={(draft.cid_policy.pool ?? []).join(", ")}
-                placeholder="74950000001, 74950000002"
-                onChange={(e) =>
-                  onChange({
-                    ...draft,
-                    cid_policy: {
-                      ...draft.cid_policy,
-                      pool: e.target.value
-                        .split(",")
-                        .map((v) => v.trim())
-                        .filter(Boolean),
-                    },
-                  })
-                }
-              />
-            </VStack>
-          )}
-        </HStack>
-      </VStack>
+      {draft.cid_policy.mode !== "per_trunk" && draft.trunk_pool.some((item) => !item.caller_id_source) && (
+        <Text className={cls.warning}>{t("autodial.trunks.legacyCallerIdWarning")}</Text>
+      )}
     </VStack>
   );
 });

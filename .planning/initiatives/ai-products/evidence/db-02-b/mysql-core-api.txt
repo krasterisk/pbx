@@ -1,0 +1,1 @@
+{"login":3,"caseFoldedLogin":true,"refresh":true,"tenantCrud":true,"tenantIsolation":true,"registry":true,"entitlements":true,"providerCrud":true,"sellerSettings":true}

@@ -737,8 +737,10 @@ export class CallCenterReportsService {
   }
 
   parseAndClampPeriod(dateFrom: string, dateTo: string): { from: Date; to: Date } {
-    const from = new Date(dateFrom);
-    let to = new Date(dateTo);
+    // A date-only report interval includes its entire last calendar day.
+    // The stored timestamps and Sequelize connection use the DB UTC contract.
+    const from = new Date(/^\d{4}-\d{2}-\d{2}$/.test(dateFrom) ? `${dateFrom}T00:00:00.000Z` : dateFrom);
+    let to = new Date(/^\d{4}-\d{2}-\d{2}$/.test(dateTo) ? `${dateTo}T23:59:59.999Z` : dateTo);
     if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) {
       throw new BadRequestException('dateFrom and dateTo must be valid ISO dates');
     }

@@ -150,7 +150,7 @@ export class CallCenterRollupService {
         avg_hold_sec: q.answered_hold_n ? Math.round(q.sum_hold / q.answered_hold_n) : 0,
         max_wait_sec: q.max_wait,
         total_talk_sec: q.sum_talk,
-      });
+      }, { conflictFields: ['vpbx_user_uid', 'stat_date', 'queue_name'] });
     }
 
     for (const a of agentMap.values()) {
@@ -165,7 +165,7 @@ export class CallCenterRollupService {
         total_hold_sec: a.total_hold_sec,
         total_wrapup_sec: a.total_wrapup_sec,
         avg_handle_sec: a.calls_handled ? Math.round(handleSec / a.calls_handled) : 0,
-      });
+      }, { conflictFields: ['vpbx_user_uid', 'stat_date', 'agent_interface'] });
     }
 
     this.logger.log(

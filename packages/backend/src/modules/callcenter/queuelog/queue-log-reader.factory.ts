@@ -8,7 +8,8 @@ import { RealtimeQueueLogReader } from './realtime-queue-log-reader';
  *
  * CC_QUEUE_LOG_BACKEND: file | realtime | auto
  * Default `realtime` — confirmed by 07-04 Task 1 (queue_log table present on target MySQL).
- * `auto` prefers realtime when available, else file.
+ * `auto` prefers realtime when available, else a readable file. Discovery
+ * failures propagate; only an actually missing table selects the file.
  */
 export const queueLogReaderProvider: Provider = {
   provide: QUEUE_LOG_READER,
@@ -19,9 +20,10 @@ export const queueLogReaderProvider: Provider = {
     const backend = (process.env.CC_QUEUE_LOG_BACKEND || 'realtime').toLowerCase();
     if (backend === 'file') return fileReader;
     if (backend === 'realtime') return realtimeReader;
-    // auto
+    if (backend !== 'auto') throw new Error(`Invalid CC_QUEUE_LOG_BACKEND: ${backend}`);
     if (await realtimeReader.isAvailable()) return realtimeReader;
-    return fileReader;
+    if (await fileReader.isAvailable()) return fileReader;
+    throw new Error('queue_log source unavailable: no realtime table or readable file');
   },
   inject: [FileQueueLogReader, RealtimeQueueLogReader],
 };

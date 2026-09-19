@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.build.json",
+  "compilerOptions": {
+    "outDir": "./dist-robot",
+    "incremental": false
+  },
+  "include": ["src/robot.main.ts", "src/standalone-provision.main.ts"],
+  "exclude": ["node_modules", "dist", "dist-analytics", "dist-robot", "test", "**/*spec.ts"]
+}

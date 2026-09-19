@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
-import { AiAgentsModule } from '../ai-agents/ai-agents.module';
+import { AiConnectivityModule } from '../ai-connectivity/ai-connectivity.module';
 import { AiPlatformModule } from '../ai-platform/ai-platform.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { ReportsCdrModule } from '../reports/cdr/reports-cdr.module';
@@ -26,7 +26,7 @@ import { VoicemailService } from './voicemail.service';
     ReportsCdrModule,
     SttEnginesModule,
     VoiceRobotsModule,
-    AiAgentsModule,
+    AiConnectivityModule,
     AiPlatformModule,
   ],
   controllers: [VoicemailDialplanController, VoicemailLinkController, VoicemailController],

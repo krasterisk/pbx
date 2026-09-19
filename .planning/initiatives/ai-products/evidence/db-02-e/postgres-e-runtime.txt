@@ -1,0 +1,13 @@
+postgres: migrations ready
+postgres: core seed ready
+postgres: CDR fixture ready
+postgres: AppModule listening
+postgres: core HTTP pass
+postgres: CDR HTTP pass
+[32m[Nest] 287613  - [39m09/18/2026, 2:24:37 PM [32m    LOG[39m [38;5;3m[CallCenterQueueLogReconcilerService] [39m[32m[reconciler] source=realtime inserted=3 scanned=3[39m
+[32m[Nest] 287613  - [39m09/18/2026, 2:24:37 PM [32m    LOG[39m [38;5;3m[CallCenterQueueLogReconcilerService] [39m[32m[reconciler] source=realtime inserted=0 scanned=3[39m
+[32m[Nest] 287613  - [39m09/18/2026, 2:24:37 PM [32m    LOG[39m [38;5;3m[CallCenterRollupService] [39m[32m[rollup] recomputeDay 2026-09-18 tenant=2 queues=1 agents=1 raw=2[39m
+[32m[Nest] 287613  - [39m09/18/2026, 2:24:37 PM [32m    LOG[39m [38;5;3m[CallCenterRollupService] [39m[32m[rollup] recomputeDay 2026-09-18 tenant=2 queues=1 agents=1 raw=2[39m
+postgres: call-center golden pass
+postgres: scripted-robot golden pass
+{"dialect":"postgres","schemaVersion":"0003-callcenter-report-keys.sql","core":{"login":3,"caseFoldedLogin":true,"refresh":true,"tenantCrud":true,"tenantIsolation":true,"registry":true,"entitlements":true,"providerCrud":true,"sellerSettings":true},"cdr":{"calls":4,"selected":"db02-c-a1","legs":3,"hour":[{"hour":10,"calls":1,"answered":1,"missed":0},{"hour":11,"calls":1,"answered":0,"missed":1}],"day":[{"day":"2026-09-18","calls":2,"totalBillsec":22,"avgBillsec":4,"answered":1,"missed":1,"asr":50}],"heatmap":[{"dow":6,"hour":10,"calls":1},{"dow":6,"hour":11,"calls":1}],"dispositions":{"ANSWERED":1,"BUSY":1,"NO ANSWER":2}},"callcenter":{"dialect":"postgres","inserted":3,"replayInserted":0,"raw":[{"queue":"db02q_2","total":2,"answered":1,"abandoned":1}],"rollup":[{"queue":"db02q_2","total":2}]},"voiceRobots":{"dialect":"postgres","gold":["db02-d3-7","db02-d3-3"],"literalPercent":["db02-d3-4"],"distinct":["Gold","null","quote'_%\\","Привет"]}}

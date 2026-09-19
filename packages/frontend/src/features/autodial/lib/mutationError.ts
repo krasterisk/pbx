@@ -24,6 +24,16 @@ export function autodialErrorKey(error: unknown, fallback: string): string {
     "AC_DIALPLAN_APPLY_FAILED",
     "AC_AMD_UNAVAILABLE",
     "AC_AMD_MESSAGE_NOT_CONFIGURED",
+    "AC_SCENARIO_UNSUPPORTED_ACTION",
+    "AC_SCENARIO_CONDITION_UNSUPPORTED",
+    "AC_SCENARIO_TARGET_UNSUPPORTED",
+    "AC_TRUNK_INVALID",
+    "AC_TRUNK_NOT_FOUND",
+    "AC_QUEUE_NOT_FOUND",
+    "AC_EXTENSION_NOT_FOUND",
+    "AC_CAMPAIGN_ACTIVE_CALLS",
+    "AC_CALLER_ID_SOURCE_INVALID",
+    "AC_CALLER_ID_DIRECTORY_INVALID",
   ];
   return typeof code === "string" && supported.includes(code)
     ? `autodial.errors.${code}`

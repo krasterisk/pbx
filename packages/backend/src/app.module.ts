@@ -1,5 +1,7 @@
 import { Logger, Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { resolveDatabaseConfig } from './database/database-config.cjs';
+import { checkSchemaReadiness } from './database/schema-readiness.cjs';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
@@ -70,8 +72,13 @@ import { McpModule } from './modules/mcp/mcp.module';
 import { HealthModule } from './modules/health/health.module';
 import { CallCenterModule } from './modules/callcenter/callcenter.module';
 import { AiAgentsModule } from './modules/ai-agents/ai-agents.module';
+import { IntegrationCredentialsModule } from './modules/integration-credentials/integration-credentials.module';
+import {
+  IntegrationPrincipal, IntegrationCredential, IntegrationGrant,
+  IntegrationAudit, IntegrationCommand, IntegrationAuthLimit,
+} from './modules/integration-credentials/integration-credential.models';
 import { CcAiAgent } from './modules/ai-agents/models/ai-agent.model';
-import { CcAiProvider } from './modules/ai-agents/models/ai-provider.model';
+import { CcAiProvider } from './modules/ai-connectivity/ai-provider.model';
 import { CcAiToolset } from './modules/ai-agents/models/ai-toolset.model';
 import { CcAiCdr } from './modules/ai-agents/models/ai-cdr.model';
 import { CcAiBilling } from './modules/ai-agents/models/ai-billing.model';
@@ -162,68 +169,81 @@ import { VoicemailAccessToken } from './modules/voicemail/voicemail-access-token
 import { CcSubject } from './modules/service-requests/cc-subject.model';
 import { CcDistrict } from './modules/service-requests/cc-district.model';
 import * as path from 'path';
+import { ProductActivation } from './modules/product-access/product-activation.model';
+import { LocalLicenseDocument } from './modules/product-access/local-license-document.model';
+import { LocalLicenseBinding } from './modules/product-access/local-license-binding.model';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: path.resolve(__dirname, '../../../.env'),
+      // Disposable core integration tests must never load a developer/PBX .env.
+      ignoreEnvFile: process.env.CI === 'true' && process.env.DB_CORE_TEST_PROFILE === 'true',
     }),
-    SequelizeModule.forRoot({
-      dialect: (process.env.DB_DIALECT as any) || 'mysql',
-      host: process.env.DB_HOST || 'localhost',
-      port: Number(process.env.DB_PORT) || 3306,
-      username: process.env.DB_USER || 'krasterisk',
-      password: process.env.DB_PASSWORD || '',
-      database: process.env.DB_NAME || 'krasterisk',
-      models: [
-        User, Role, NumberList, ActionLog, UserSession, Context,
-        PsEndpoint, PsAuth, PsAor, PsContact,
-        PickupGroup, ProvisionTemplate,
-        PsRegistration, PsEndpointIdIp,
-        Route, ContextInclude, WebhookFailure, Ivr, Prompt, TtsEngine, SttEngine,
-        MohClass, MohEntry,
-        SystemSetting, TenantSetting, Cdr, VoiceRobot, VoiceRobotKeywordGroup, VoiceRobotKeyword, VoiceRobotLog, VoiceRobotCdr, VoiceRobotDataList,
-        Queue, QueueMember,
-        ServiceRequest, CcSubject, CcDistrict,
-        KomandorClaim, KomandorStore, KomandorDict,
-        CcPauseReason, CcAgentSession, CcAgentEvent, CcAgentQueue, CcMissedCall, CcContact, CcQueueCall,
-        CcDailyQueueStats, CcDailyAgentStats, CcOperatorSettings, CcSettings,
-        CcDisplayToken, CcAlertConfig,
-        CcChatMessage, CcChatChannel,
-        CcCardTemplate, CcCardField, CcCardData,
-        CcReportSchedule,
-        CcAiAgent, CcAiProvider, CcAiToolset, CcAiCdr, CcAiBilling, CcAiInvoice, CcAiAuditLog,
-        AgentThread, AgentThreadMessage, AgentProposal, AgentWorkflow, AgentWorkflowStep, AiChatSettings,
-        TimeGroup,
-        Directory, DirectoryField, DirectoryRecord, RouteDirectoryBinding,
-        RouteTemplate,
-        VoicemailMessage, VoicemailAccessToken,
-        CallbackRequest,
-        NotificationIntegration,
-        CallGroup, CallGroupMember,
-        ConferenceRoom,
-        ConferenceRoomModerator,
-        ConferenceGuestToken,
-        ConferenceMeeting,
-        ConferenceMeetingParticipant,
-        // Autodial
-        AcBase, AcBaseField, AcContact, AcContactPhone,
-        AcImportProfile, AcImportRun,
-        AcCampaign, AcSchedule, AcDnc, AcTask, AcAttempt, AcDailyCampaignStats,
-        // Cloud-admin
-        Tenant, ModuleRegistry, TenantModule, CloudSetting,
-        HubModule, HubModulePage,
-        RoleStartDefault, TenantRoleStart,
-        DeviceToken,
-        BillingBalance, BillingTransaction,
-      ],
-      autoLoadModels: false,
-      synchronize: false, // IMPORTANT: never auto-sync with existing DB
-      logging: false,
-      define: {
-        timestamps: false, // existing tables have no timestamps
-        freezeTableName: true,
+    SequelizeModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: async () => {
+        // Complete migration history check before Sequelize connects and before
+        // module bootstrap hooks can mutate application tables.
+        await checkSchemaReadiness();
+        return {
+        ...resolveDatabaseConfig(process.env),
+        models: [
+          User, Role, NumberList, ActionLog, UserSession, Context,
+          PsEndpoint, PsAuth, PsAor, PsContact,
+          PickupGroup, ProvisionTemplate,
+          PsRegistration, PsEndpointIdIp,
+          Route, ContextInclude, WebhookFailure, Ivr, Prompt, TtsEngine, SttEngine,
+          MohClass, MohEntry,
+          SystemSetting, TenantSetting, Cdr, VoiceRobot, VoiceRobotKeywordGroup, VoiceRobotKeyword, VoiceRobotLog, VoiceRobotCdr, VoiceRobotDataList,
+          Queue, QueueMember,
+          ServiceRequest, CcSubject, CcDistrict,
+          KomandorClaim, KomandorStore, KomandorDict,
+          CcPauseReason, CcAgentSession, CcAgentEvent, CcAgentQueue, CcMissedCall, CcContact, CcQueueCall,
+          CcDailyQueueStats, CcDailyAgentStats, CcOperatorSettings, CcSettings,
+          CcDisplayToken, CcAlertConfig,
+          CcChatMessage, CcChatChannel,
+          CcCardTemplate, CcCardField, CcCardData,
+          CcReportSchedule,
+          CcAiAgent, CcAiProvider, CcAiToolset, CcAiCdr, CcAiBilling, CcAiInvoice, CcAiAuditLog,
+          AgentThread, AgentThreadMessage, AgentProposal, AgentWorkflow, AgentWorkflowStep, AiChatSettings,
+          TimeGroup,
+          Directory, DirectoryField, DirectoryRecord, RouteDirectoryBinding,
+          RouteTemplate,
+          VoicemailMessage, VoicemailAccessToken,
+          CallbackRequest,
+          NotificationIntegration,
+          CallGroup, CallGroupMember,
+          ConferenceRoom,
+          ConferenceRoomModerator,
+          ConferenceGuestToken,
+          ConferenceMeeting,
+          ConferenceMeetingParticipant,
+          // Autodial
+          AcBase, AcBaseField, AcContact, AcContactPhone,
+          AcImportProfile, AcImportRun,
+          AcCampaign, AcSchedule, AcDnc, AcTask, AcAttempt, AcDailyCampaignStats,
+          // Cloud-admin
+          Tenant, ModuleRegistry, TenantModule, CloudSetting,
+          HubModule, HubModulePage,
+          RoleStartDefault, TenantRoleStart,
+          DeviceToken,
+          BillingBalance, BillingTransaction,
+          ProductActivation, LocalLicenseDocument, LocalLicenseBinding,
+          IntegrationPrincipal, IntegrationCredential, IntegrationGrant,
+          IntegrationAudit, IntegrationCommand,
+          IntegrationAuthLimit,
+        ],
+        autoLoadModels: false,
+        synchronize: false, // IMPORTANT: never auto-sync with existing DB
+        logging: false,
+        define: {
+          timestamps: false, // existing tables have no timestamps
+          freezeTableName: true,
+        },
+        };
       },
     }),
     EventEmitterModule.forRoot({
@@ -281,6 +301,7 @@ import * as path from 'path';
     McpModule,
     CallCenterModule,
     AiAgentsModule,
+    IntegrationCredentialsModule,
   ],
   providers: [
     // Global rate limiting guard
@@ -292,6 +313,7 @@ export class AppModule {
     assertProviderKeySecret();
   }
 }
+
 
 export const PROVIDER_KEY_SECRET_VAR = 'CC_AI_KEY_SECRET';
 

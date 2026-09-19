@@ -1,32 +1,34 @@
 import { TenantRegistrationService } from './tenant-registration.service';
 
 describe('TenantRegistrationService', () => {
-  const input = { login: 'pilot', name: 'Owner', companyName: 'Pilot company', passwd: 'hashed', activationCode: '123456', activationExpires: 1000 };
-  function fixture() {
-    const transaction = { LOCK: { UPDATE: 'UPDATE' } };
-    const user = { uniqueid: 71, update: jest.fn().mockResolvedValue(undefined) };
-    const users = { findOne: jest.fn().mockResolvedValue(null), create: jest.fn().mockResolvedValue(user) };
-    const tenants = { create: jest.fn().mockResolvedValue({}) };
+  const input = { login: 'pilot', name: 'Owner', companyName: 'Pilot company', passwd: 'hashed',
+    activationCode: '123456', activationExpires: 1000 };
+
+  it('selects PBX profile in code and provisions both private contexts in the identity transaction', async () => {
+    const transaction = {};
+    const user = { uniqueid: 71 };
     const contexts = { bulkCreate: jest.fn().mockResolvedValue([]) };
-    const sequelize = { transaction: jest.fn(fn => fn(transaction)) };
-    return { service: new TenantRegistrationService(sequelize as any, users as any, tenants as any, contexts as any), users, tenants, contexts, user, transaction };
-  }
-  it('creates the owner, tenant and two private contexts in one transaction', async () => {
-    const f = fixture(); await f.service.create(input);
-    expect(f.user.update).toHaveBeenCalledWith({ vpbx_user_uid: 71 }, { transaction: f.transaction });
-    expect(f.tenants.create).toHaveBeenCalledWith(expect.objectContaining({ name: 'Pilot company', owner_user_id: 71, vpbx_user_uid: 71, max_extensions: 10 }), { transaction: f.transaction });
-    expect(f.contexts.bulkCreate).toHaveBeenCalledWith([
+    const identities = { create: jest.fn(async (_input, profile, provision) => {
+      expect(profile).toBe('pbx');
+      await provision(transaction, user);
+      return { user, tenant: {} };
+    }) };
+    const service = new TenantRegistrationService(identities as any, contexts as any);
+    expect(await service.create(input)).toBe(user);
+    expect(identities.create).toHaveBeenCalledWith(expect.objectContaining({
+      login: 'pilot', passwordHash: 'hashed', companyName: 'Pilot company',
+    }), 'pbx', expect.any(Function));
+    expect(contexts.bulkCreate).toHaveBeenCalledWith([
       expect.objectContaining({ name: 'ctx-71', user_uid: 71 }),
       expect.objectContaining({ name: 'ctx-71-ext', user_uid: 71 }),
-    ], { transaction: f.transaction });
+    ], { transaction });
   });
-  it('rejects duplicate identities before provisioning', async () => {
-    const f = fixture(); f.users.findOne.mockResolvedValue({} as never);
-    await expect(f.service.create(input)).rejects.toThrow('уже существует');
-    expect(f.users.create).not.toHaveBeenCalled();
-  });
-  it('propagates context provisioning failure to roll back the transaction', async () => {
-    const f = fixture(); f.contexts.bulkCreate.mockRejectedValue(new Error('DDL unavailable'));
-    await expect(f.service.create(input)).rejects.toThrow('DDL unavailable');
+
+  it('propagates PBX provisioning failure so the identity transaction can roll back', async () => {
+    const contexts = { bulkCreate: jest.fn().mockRejectedValue(new Error('DDL unavailable')) };
+    const identities = { create: jest.fn(async (_input, _profile, provision) =>
+      provision({}, { uniqueid: 71 })) };
+    const service = new TenantRegistrationService(identities as any, contexts as any);
+    await expect(service.create(input)).rejects.toThrow('DDL unavailable');
   });
 });

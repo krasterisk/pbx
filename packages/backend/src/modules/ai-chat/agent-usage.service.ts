@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
 import { InjectModel } from '@nestjs/sequelize';
 import { Op } from 'sequelize';
-import { CcAiProvider } from '../ai-agents/models/ai-provider.model';
+import { CcAiProvider } from '../ai-connectivity/ai-provider.model';
 import { CcAiAuditLog } from '../ai-agents/models/ai-audit-log.model';
 import { AgentThread } from './models/agent-thread.model';
 import { AgentProposal } from './models/agent-proposal.model';

@@ -1,15 +1,17 @@
 import {
   Controller, Get, Post, Put, Delete,
-  Body, Param, Req, UseGuards, ParseIntPipe, ForbiddenException,
+  Body, Param, Query, Req, UseGuards, ParseIntPipe, ForbiddenException, BadRequestException,
 } from '@nestjs/common';
 import { Request } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AiAgentsService } from './ai-agents.service';
 import { AiProvidersService } from './ai-providers.service';
 import { AiToolsetsService } from './ai-toolsets.service';
+import { AiAgentInventoryService } from './ai-agent-inventory.service';
 import { CreateAiAgentDto, UpdateAiAgentDto } from './dto/ai-agent.dto';
 import { CreateAiProviderDto, UpdateAiProviderDto } from './dto/ai-provider.dto';
 import { CreateAiToolsetDto, UpdateAiToolsetDto } from './dto/ai-toolset.dto';
+import { publicProvider } from '../ai-connectivity/provider-public';
 
 const ADMIN_LEVELS = new Set([0, 1]); // SUPERADMIN, ADMIN
 
@@ -26,6 +28,7 @@ export class AiAgentsController {
     private readonly agents: AiAgentsService,
     private readonly providers: AiProvidersService,
     private readonly toolsets: AiToolsetsService,
+    private readonly inventory: AiAgentInventoryService,
   ) {}
 
   // ─── Agents ─────────────────────────────────────────────
@@ -36,10 +39,48 @@ export class AiAgentsController {
     return this.agents.findAll(req.user.vpbx_user_uid);
   }
 
+  @Get('inventory')
+  listInventory(
+    @Query('limit') limit: string | undefined,
+    @Query('afterUid') afterUid: string | undefined,
+    @Req() req: Request & { user: any },
+  ) {
+    assertAdmin(req.user);
+    if ((limit !== undefined && !/^[1-9]\d*$/.test(limit))
+      || (afterUid !== undefined && !/^(0|[1-9]\d*)$/.test(afterUid))) {
+      throw new BadRequestException({ code: 'agent_inventory_page_invalid' });
+    }
+    return this.inventory.listPageForTenant(
+      req.user.vpbx_user_uid,
+      limit === undefined ? 100 : Number(limit),
+      afterUid === undefined ? 0 : Number(afterUid),
+    );
+  }
+
+  @Get('inventory/report')
+  migrationReport(
+    @Query('maxRows') maxRows: string | undefined,
+    @Req() req: Request & { user: any },
+  ) {
+    assertAdmin(req.user);
+    if (maxRows !== undefined && !/^[1-9]\d*$/.test(maxRows)) {
+      throw new BadRequestException({ code: 'agent_inventory_report_limit_invalid' });
+    }
+    return this.inventory.reportLegacyForTenant(
+      req.user.vpbx_user_uid, maxRows === undefined ? 1000 : Number(maxRows),
+    );
+  }
+
   @Get(':id')
   get(@Param('id', ParseIntPipe) id: number, @Req() req: Request & { user: any }) {
     assertAdmin(req.user);
     return this.agents.findOne(id, req.user.vpbx_user_uid);
+  }
+
+  @Get(':id/readiness')
+  readiness(@Param('id', ParseIntPipe) id: number, @Req() req: Request & { user: any }) {
+    assertAdmin(req.user);
+    return this.agents.checkReadiness(id, req.user.vpbx_user_uid);
   }
 
   @Post()
@@ -67,25 +108,25 @@ export class AiAgentsController {
   // ─── Providers (sub-route) ──────────────────────────────
 
   @Get('providers/list')
-  listProviders(@Req() req: Request & { user: any }) {
+  async listProviders(@Req() req: Request & { user: any }) {
     assertAdmin(req.user);
-    return this.providers.findAll(req.user.vpbx_user_uid);
+    return (await this.providers.findAll(req.user.vpbx_user_uid)).map(publicProvider);
   }
 
   @Post('providers')
-  createProvider(@Body() dto: CreateAiProviderDto, @Req() req: Request & { user: any }) {
+  async createProvider(@Body() dto: CreateAiProviderDto, @Req() req: Request & { user: any }) {
     assertAdmin(req.user);
-    return this.providers.create(dto, req.user.vpbx_user_uid);
+    return publicProvider(await this.providers.create(dto, req.user.vpbx_user_uid));
   }
 
   @Put('providers/:id')
-  updateProvider(
+  async updateProvider(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateAiProviderDto,
     @Req() req: Request & { user: any },
   ) {
     assertAdmin(req.user);
-    return this.providers.update(id, dto, req.user.vpbx_user_uid);
+    return publicProvider(await this.providers.update(id, dto, req.user.vpbx_user_uid));
   }
 
   @Delete('providers/:id')

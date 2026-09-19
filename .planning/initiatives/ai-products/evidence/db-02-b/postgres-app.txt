@@ -1,0 +1,1010 @@
+[Nest] 37024  - 18.09.2026, 17:30:19     LOG [NestFactory] Starting Nest application...
+[Nest] 37024  - 18.09.2026, 17:30:19     LOG [InstanceLoader] SequelizeModule dependencies initialized +87ms
+[Nest] 37024  - 18.09.2026, 17:30:19     LOG [AgentSkillRegistryService] Loaded 27 skill(s): autodial, call-groups, call-support, callcenter, conferences, contexts, developer-convention, diagnostics, directories, endpoints, ivrs, messaging, moh, numbers, operations, pbx-setup, queues, registration-support, reports, routes, settings, speech-engines, time-groups, trunks, users, voice-robots, voicemail
+[Nest] 37024  - 18.09.2026, 17:30:19     LOG [InstanceLoader] ConfigHostModule dependencies initialized +2ms
+[Nest] 37024  - 18.09.2026, 17:30:19     LOG [InstanceLoader] ThrottlerModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:19     LOG [InstanceLoader] HttpModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:19     LOG [InstanceLoader] HttpModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:19     LOG [InstanceLoader] HttpModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:19     LOG [InstanceLoader] HttpModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:19     LOG [InstanceLoader] DiscoveryModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:19     LOG [InstanceLoader] HealthModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:19    WARN [RedisModule] REDIS_HOST not set — Redis disabled. Features requiring Redis will use fallbacks.
+[Nest] 37024  - 18.09.2026, 17:30:19     LOG [InstanceLoader] AiPlatformModule dependencies initialized +36ms
+[Nest] 37024  - 18.09.2026, 17:30:19    WARN [TelegramService] TELEGRAM_BOT_TOKEN is not set. Telegram features will be disabled.
+[Nest] 37024  - 18.09.2026, 17:30:19     LOG [AccountingProviderFactory] Accounting provider: None (disabled)
+[Nest] 37024  - 18.09.2026, 17:30:19     LOG [InstanceLoader] ConfigModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:19     LOG [InstanceLoader] ConfigModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:19     LOG [InstanceLoader] EventEmitterModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:19     LOG [InstanceLoader] ScheduleModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:19     LOG [InstanceLoader] RedisModule dependencies initialized +1ms
+[Nest] 37024  - 18.09.2026, 17:30:19     LOG [InstanceLoader] AmiModule dependencies initialized +1ms
+[Nest] 37024  - 18.09.2026, 17:30:19     LOG [InstanceLoader] TelegramModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:19     LOG [InstanceLoader] SmsModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:19     LOG [InstanceLoader] ThrottlerModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:19     LOG [InstanceLoader] JwtModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:19     LOG [InstanceLoader] JwtModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:19     LOG [InstanceLoader] AriModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:19     LOG [InstanceLoader] MailerModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:19     LOG [InstanceLoader] AppModule dependencies initialized +0ms
+(sequelize) Warning: PostgresSQL does not support 'INTEGER' with LENGTH, UNSIGNED or ZEROFILL. Plain 'INTEGER' will be used instead. 
+>> Check: http://www.postgresql.org/docs/9.4/static/datatype.html
+(sequelize) Warning: PostgresSQL does not support 'TINYINT' with LENGTH, UNSIGNED or ZEROFILL. Plain 'TINYINT' will be used instead. 
+>> Check: http://www.postgresql.org/docs/9.4/static/datatype.html
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] SequelizeCoreModule dependencies initialized +1070ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] SequelizeModule dependencies initialized +3ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] SequelizeModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] SequelizeModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] SequelizeModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] SequelizeModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] SequelizeModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] SequelizeModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] SequelizeModule dependencies initialized +1ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] SequelizeModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] SequelizeModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] SequelizeModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] SequelizeModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] SequelizeModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] SequelizeModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] SequelizeModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] SequelizeModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] SequelizeModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] SequelizeModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] SequelizeModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] SequelizeModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] SequelizeModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] SequelizeModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] SequelizeModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] SequelizeModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] SequelizeModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] SequelizeModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] SequelizeModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] SequelizeModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] SequelizeModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] SequelizeModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] SequelizeModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] SequelizeModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] SequelizeModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] SequelizeModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] SequelizeModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] SequelizeModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] SequelizeModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] SequelizeModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] SequelizeModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] DiagnosticsModule dependencies initialized +16ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] DialplanBridgeModule dependencies initialized +27ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] RouteReferencesModule dependencies initialized +2ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] AiAgentsModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] LoggerModule dependencies initialized +1ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] ContextsModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] RouteTemplatesModule dependencies initialized +3ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] TimeGroupsModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] RolesModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] BillingModule dependencies initialized +1ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] DirectoriesModule dependencies initialized +1ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] PromptsModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] TtsEnginesModule dependencies initialized +1ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] SttEnginesModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] TenantSettingsModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] AuthModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] SystemSettingsModule dependencies initialized +1ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] TrunksModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] MohModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] QueuesModule dependencies initialized +1ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] KomandorClaimsModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] ServiceRequestsModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] EndpointsModule dependencies initialized +1ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] CallbackRequestsModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] AgentProposalsModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] UsersModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] ReportsCdrModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] NumbersModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] NotificationsModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] CallGroupsModule dependencies initialized +1ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] DialplanDryRunModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] CloudAdminModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] VoiceRobotsModule dependencies initialized +2ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] AutodialModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] ConferencesModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] VoicemailModule dependencies initialized +1ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] IvrsModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] CallCenterModule dependencies initialized +1ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] RoutesModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] McpModule dependencies initialized +0ms
+[Nest] 37024  - 18.09.2026, 17:30:20     LOG [InstanceLoader] AiChatModule dependencies initialized +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] HealthController {/api/health}: +251ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/health, GET} route +3ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] AuthController {/api/auth}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/auth/login, POST} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/auth/register, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/auth/activation, POST} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/auth/refresh, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/auth/logout, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] UsersController {/api/users}: +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/users, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/users/:id/avatar, GET} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/users/:id/avatar, POST} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/users/:id/avatar, DELETE} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/users/:id, GET} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/users, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/users/:id, PUT} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/users/:id, DELETE} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/users/bulk/delete, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] LoggerController {/api/audit-log}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/audit-log, GET} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/audit-log/stats, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] SystemSettingsController {/api/system-settings}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/system-settings, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/system-settings/redis-status, GET} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/system-settings/server-config, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/system-settings/server-config, PUT} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/system-settings/ffmpeg-status, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/system-settings/apply-subroutines, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/system-settings/webhook-failures, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/system-settings/webhook-failures/:id/retry, POST} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/system-settings/webhook-failures/:id, DELETE} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/system-settings/webhook-failures/resolve-all, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] RoutesController {/api/routes}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/routes, GET} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/routes/preview/:contextUid, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/routes/apply/:contextUid, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/routes/:id, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/routes, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/routes/:id/duplicate, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/routes/reorder, PUT} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/routes/:id, PUT} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/routes/:id, DELETE} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/routes/bulk/delete, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] ContextIncludesController {/api/context-includes}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/context-includes, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/context-includes, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/context-includes/:id, DELETE} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] DialplanWebhooksController {/api/internal/dialplan}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/internal/dialplan/custom-webhook, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/internal/dialplan/before-dial, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/internal/dialplan/on-answer, POST} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/internal/dialplan/on-hangup, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] TimeGroupsController {/api/time-groups}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/time-groups, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/time-groups/:id, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/time-groups, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/time-groups/:id, PUT} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/time-groups/:id, DELETE} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/time-groups/bulk/delete, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] TenantSettingsController {/api/tenant-settings}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/tenant-settings, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/tenant-settings, PUT} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] ContextsController {/api/contexts}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/contexts, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/contexts/:id, GET} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/contexts, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/contexts/:id, PUT} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/contexts/:id, DELETE} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/contexts/bulk/delete, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] EndpointsController {/api/endpoints}: +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/endpoints, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/endpoints, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/endpoints/bulk, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/endpoints/bulk/active, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/endpoints/bulk/status/:jobId, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/endpoints/bulk/delete, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/endpoints/:sipId, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/endpoints/:sipId/credentials, GET} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/endpoints/:sipId, PUT} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/endpoints/:sipId, DELETE} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] PickupGroupsController {/api/pickup-groups}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/pickup-groups, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/pickup-groups, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/pickup-groups/:id, DELETE} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] ProvisionTemplatesController {/api/provision-templates}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/provision-templates, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/provision-templates, POST} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/provision-templates/:id, PUT} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/provision-templates/:id, DELETE} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/provision-templates/bulk/delete, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] ProvisionController {/api/provision}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/provision/:filename, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] QueuesController {/api/queues}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/queues, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/queues/:name, GET} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/queues, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/queues/:name, PUT} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/queues/:name, DELETE} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] RouteReferencesController {/api/route-references}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/route-references/:kind/:uid, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] IvrsController {/api/ivrs}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/ivrs, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/ivrs/:id/usage, GET} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/ivrs/:id, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/ivrs, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/ivrs/:id, PUT} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/ivrs/:id, DELETE} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/ivrs/bulk/delete, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/ivrs/tts-preview, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] IvrsInternalController {/api/internal/ivr}: +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/internal/ivr/play-phrase, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] TtsEnginesController {/api/tts-engines}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/tts-engines, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/tts-engines/:id, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/tts-engines, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/tts-engines/:id, PUT} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/tts-engines/:id, DELETE} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/tts-engines/bulk/delete, POST} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] TtsEnginesPublicController {/api/public/tts-engines}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/public/tts-engines, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/public/tts-engines/:id, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/public/tts-engines, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/public/tts-engines/:id, PUT} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/public/tts-engines/:id, DELETE} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/public/tts-engines/bulk/delete, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] CallGroupsController {/api/call-groups}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/call-groups, GET} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/call-groups/:uid, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/call-groups, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/call-groups/:uid, PUT} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/call-groups/:uid, DELETE} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] DirectoriesController {/api/directories}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/directories, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/directories, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/directories/:id/import-csv, POST} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/directories/:id/export-csv, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/directories/:id/lookup-test, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/directories/:id, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/directories/:id, PUT} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/directories/:id, DELETE} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] DirectoryLookupController {/api/internal/dialplan}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/internal/dialplan/directory-lookup, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] TrunksController {/api/trunks}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/trunks, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/trunks/:trunkId, GET} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/trunks, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/trunks/:trunkId, PUT} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/trunks/:trunkId, DELETE} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/trunks/bulk/delete, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] DialplanNotifyController {/api/internal/dialplan}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/internal/dialplan/sendmail, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] RolesController {/api/roles}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/roles, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/roles/:id, GET} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/roles, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/roles/:id, PUT} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/roles/:id, DELETE} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/roles/bulk/delete, POST} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] NumbersController {/api/numbers}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/numbers, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/numbers/:id, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/numbers, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/numbers/:id, PUT} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/numbers/:id, DELETE} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/numbers/bulk/delete, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] CdrController {/api/reports/cdr}: +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/reports/cdr, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/reports/cdr/stats, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/reports/cdr/charts/by-hour, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/reports/cdr/charts/by-day, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/reports/cdr/charts/by-extension, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/reports/cdr/charts/by-trunk, GET} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/reports/cdr/charts/by-disposition, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/reports/cdr/charts/heatmap, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/reports/cdr/export, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/reports/cdr/by-uniqueid/:uniqueid, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/reports/cdr/recording/:uniqueid, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/reports/cdr/recording/:uniqueid/play, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/reports/cdr/:linkedid/legs, GET} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] CdrPublicController {/api/public/reports/cdr}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/public/reports/cdr/recording/:uniqueid, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/public/reports/cdr/recording/:uniqueid/play, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] TenantsController {/api/cloud-admin/tenants}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/cloud-admin/tenants, GET} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/cloud-admin/tenants/stats, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/cloud-admin/tenants/:id, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/cloud-admin/tenants, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/cloud-admin/tenants/:id, PUT} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/cloud-admin/tenants/:id/suspend, PATCH} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/cloud-admin/tenants/:id/activate, PATCH} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/cloud-admin/tenants/:id/impersonate, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] TenantModulesController {/api/cloud-admin/tenants/:tenantId/modules}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/cloud-admin/tenants/:tenantId/modules, GET} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/cloud-admin/tenants/:tenantId/modules/:moduleCode, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/cloud-admin/tenants/:tenantId/modules/:moduleCode, DELETE} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] MarketplaceController {/api/marketplace}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/marketplace, GET} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/marketplace/my-modules, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/marketplace/hub-catalog, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/marketplace/hub-modules/:code/enable, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/marketplace/hub-modules/:code/disable, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] MarketplacePurchaseController {/api/marketplace}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/marketplace/purchase, POST} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] DeviceTokenController {/api/marketplace}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/marketplace/device-token, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] HubModulesController {/api/cloud-admin/hub-modules}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/cloud-admin/hub-modules, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/cloud-admin/hub-modules, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/cloud-admin/hub-modules/reorder, PATCH} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/cloud-admin/hub-modules/:code/pages, PUT} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/cloud-admin/hub-modules/:code, PUT} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/cloud-admin/hub-modules/:code, DELETE} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] PlatformRoleStartController {/api/cloud-admin/role-start}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/cloud-admin/role-start, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/cloud-admin/role-start, PUT} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] MarketplaceRoleStartController {/api/marketplace}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/marketplace/role-start, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/marketplace/role-start/overrides, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/marketplace/role-start, PUT} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] CloudSettingsController {/api/cloud-admin/settings}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/cloud-admin/settings/seller, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/cloud-admin/settings/seller, PATCH} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] BillingAdminController {/api/cloud-admin/billing/tenants/:id}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/cloud-admin/billing/tenants/:id/balance, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/cloud-admin/billing/tenants/:id/transactions, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/cloud-admin/billing/tenants/:id/deposit, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/cloud-admin/billing/tenants/:id/charge, POST} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] BillingTenantController {/api/billing}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/billing/balance, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/billing/transactions, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] BankWebhookController {/api/billing/bank-webhook}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/billing/bank-webhook, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] PromptsController {/api/prompts}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/prompts, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/prompts/:id, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/prompts/upload, POST} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/prompts/record, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/prompts/tts-preview, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/prompts/synthesize, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/prompts/:id/stream, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/prompts/:id, PUT} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/prompts/:id, DELETE} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/prompts/bulk/delete, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] SttEnginesController {/api/stt-engines}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/stt-engines, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/stt-engines/:id, GET} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/stt-engines, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/stt-engines/:id, PUT} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/stt-engines/:id, DELETE} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/stt-engines/bulk/delete, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] SttEnginesPublicController {/api/public/stt-engines}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/public/stt-engines, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/public/stt-engines/:id, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/public/stt-engines, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/public/stt-engines/:id, PUT} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/public/stt-engines/:id, DELETE} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/public/stt-engines/bulk/delete, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] MohController {/api/moh}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/moh, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/moh/:name, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/moh, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/moh/:name, PUT} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/moh/:name, DELETE} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] VoiceRobotsController {/api/voice-robots}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/voice-robots, GET} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/voice-robots/cdr, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/voice-robots/cdr/stats, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/voice-robots/cdr/tags, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/voice-robots/cdr/export, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/voice-robots/cdr/:id, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/voice-robots/cdr/:id/detail, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/voice-robots/:uid, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/voice-robots, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/voice-robots/:uid, PUT} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/voice-robots/:uid, DELETE} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/voice-robots/:id/keyword-groups, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/voice-robots/:id/keyword-groups, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/voice-robots/keyword-groups/:id, PUT} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/voice-robots/keyword-groups/:id, DELETE} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/voice-robots/keyword-groups/:id/keywords, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/voice-robots/keyword-groups/:id/keywords, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/voice-robots/keywords/:uid, PUT} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/voice-robots/keywords/:uid, DELETE} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/voice-robots/:id/logs, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/voice-robots/:id/data-lists, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/voice-robots/:id/data-lists, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/voice-robots/data-lists/:id, PUT} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/voice-robots/data-lists/:id, DELETE} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/voice-robots/data-lists/:id/test-search, POST} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/voice-robots/:id/test-match, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] VoiceRobotsPublicController {/api/public/voice-robots}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/public/voice-robots, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/public/voice-robots/cdr, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/public/voice-robots/cdr/stats, GET} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/public/voice-robots/cdr/tags, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/public/voice-robots/cdr/export, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/public/voice-robots/cdr/:id, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/public/voice-robots/cdr/:id/detail, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/public/voice-robots/:uid, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/public/voice-robots, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/public/voice-robots/:uid, PUT} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/public/voice-robots/:uid, DELETE} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/public/voice-robots/:id/keyword-groups, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/public/voice-robots/:id/keyword-groups, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/public/voice-robots/keyword-groups/:id, PUT} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/public/voice-robots/keyword-groups/:id, DELETE} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/public/voice-robots/keyword-groups/:id/keywords, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/public/voice-robots/keyword-groups/:id/keywords, POST} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/public/voice-robots/keywords/:uid, PUT} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/public/voice-robots/keywords/:uid, DELETE} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/public/voice-robots/:id/logs, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/public/voice-robots/:id/data-lists, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/public/voice-robots/:id/data-lists, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/public/voice-robots/data-lists/:id, PUT} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/public/voice-robots/data-lists/:id, DELETE} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/public/voice-robots/data-lists/:id/test-search, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/public/voice-robots/:id/test-match, POST} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] ServiceRequestsController {/api/service-requests}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/service-requests/dictionaries/subjects, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/service-requests/dictionaries/districts, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/service-requests, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/service-requests/stats, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/service-requests/:id, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/service-requests, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/service-requests/:id, PUT} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/service-requests/:id, DELETE} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] ServiceRequestsPublicController {/api/public/service-requests}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/public/service-requests/dictionaries/subjects, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/public/service-requests/dictionaries/districts, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/public/service-requests, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/public/service-requests/stats, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/public/service-requests/:id, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/public/service-requests, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/public/service-requests/:id, PUT} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/public/service-requests/:id, DELETE} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] KomandorClaimsController {/api/komandor-claims}: +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/komandor-claims/dictionaries/stores, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/komandor-claims/dictionaries/dict, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/komandor-claims, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/komandor-claims/stats, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/komandor-claims/:id, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/komandor-claims, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/komandor-claims/:id, PUT} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/komandor-claims/:id, DELETE} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] KomandorClaimsPublicController {/api/public/komandor-claims}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/public/komandor-claims/dictionaries/stores, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/public/komandor-claims/dictionaries/dict, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/public/komandor-claims, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/public/komandor-claims/stats, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/public/komandor-claims/:id, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/public/komandor-claims, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/public/komandor-claims/:id, PUT} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/public/komandor-claims/:id, DELETE} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] DialplanDryRunController {/api/dialplan}: +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/dialplan/dry-run, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] RouteTemplatesController {/api/route-templates}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/route-templates, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/route-templates, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/route-templates/:id/apply, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/route-templates/:id, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/route-templates/:id, PUT} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/route-templates/:id, DELETE} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] VoicemailDialplanController {/api/internal/dialplan}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/internal/dialplan/voicemail, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] VoicemailLinkController {/api/voicemail}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/voicemail/play, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] VoicemailController {/api/voicemail}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/voicemail, GET} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/voicemail/:uniqueid/play, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/voicemail/:uniqueid/retry-stt, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/voicemail/:uniqueid, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] NotificationsController {/api/notifications}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/notifications, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/notifications/:uid, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/notifications, POST} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/notifications/:uid, PUT} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/notifications/:uid, DELETE} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] DialplanNotifyController {/api/internal/dialplan}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/internal/dialplan/notify, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] AiAgentsController {/api/ai-agents}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/ai-agents, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/ai-agents/:id, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/ai-agents, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/ai-agents/:id, PUT} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/ai-agents/:id, DELETE} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/ai-agents/providers/list, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/ai-agents/providers, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/ai-agents/providers/:id, PUT} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/ai-agents/providers/:id, DELETE} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/ai-agents/toolsets/list, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/ai-agents/toolsets, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/ai-agents/toolsets/:id, PUT} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/ai-agents/toolsets/:id, DELETE} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] CallbackDialplanController {/api/internal/callback-requests}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/internal/callback-requests/enqueue, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] CallbackRequestsController {/api/callback-requests}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callback-requests, GET} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callback-requests/:id/claim, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callback-requests/:id/cancel, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] CallCenterController {/api/callcenter}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/metrics/queues, GET} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/agent/login, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/agent/me, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/agent/kpi, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/agent/queues-kpi, GET} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/agent/logout, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/agent/rejoin-queues, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/agent/pause, POST} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/agent/unpause, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/agent/outbound-work, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/agent/outbound-work/leave, POST} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/agent/hangup, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/agent/hold, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/agent/unhold, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/agent/transfer, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/agent/wrapup-done, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/agent/wrapup-extend, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/agent/pick-call, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/agent/peer-spy, POST} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/agent/park, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/agent/retrieve-parked, POST} route +3ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/agent/parked-calls, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/agent/conference-add, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/agent/zombie-reset, POST} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/agent/warm-transfer-queue, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/agent/click-to-call, POST} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/agent/dtmf, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/agent/registration-state, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/missed-calls, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/missed-calls/:id/called-back, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/agent/missed/grouped, GET} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/agent/missed/claim, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/agent/missed/callback, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/agent/history, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/agent/directory, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/contacts, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/contacts, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/contacts/:id, PUT} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/contacts/:id, DELETE} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/client-lookup, GET} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/supervisor/spy, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/supervisor/force-pause, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/supervisor/force-unpause, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/supervisor/reconcile-queues, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/supervisor/queue-add, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/supervisor/queue-remove, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/supervisor/queue-penalty, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/supervisor/force-logout, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/supervisor/redirect-call, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/supervisor/hangup-call, POST} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/supervisor/agent-detail, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/supervisor/access-scope, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/supervisor/watched-agents, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/supervisor/watched-agents, PUT} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/supervisor/start-shift, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/supervisor/history, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/pause-reasons, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/pause-reasons, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/pause-reasons/:id, PUT} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/pause-reasons/:id, DELETE} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] CallCenterSseController {/api/callcenter}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/events, GET} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/state, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] CallCenterSettingsController {/api/callcenter/settings}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/settings/operator, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/settings/operator, PUT} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/settings/operator/ui, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/settings/operator/ui, PUT} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/settings/operator/permissions, GET} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/settings/operator/permissions, PUT} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/settings/operator/notifications, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/settings/operator/notifications, PUT} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/settings/operator/:operatorId, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/settings/operator/:operatorId, PUT} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/settings/operator/:operatorId/ui, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/settings/operator/:operatorId/ui, PUT} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/settings/operator/:operatorId/permissions, GET} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/settings/operator/:operatorId/permissions, PUT} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/settings/operator/:operatorId/notifications, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/settings/operator/:operatorId/notifications, PUT} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/settings/permissions/matrix, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/settings/tenant, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/settings/tenant, PUT} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/settings/tenant/permissions-defaults, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/settings/tenant/permissions-defaults, PUT} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/settings/tenant/ui-defaults, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/settings/tenant/ui-defaults, PUT} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/settings/tenant/notification-defaults, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/settings/tenant/notification-defaults, PUT} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] CallCenterCardsController {/api/callcenter}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/card-templates, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/card-templates/:id, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/card-templates, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/card-templates/:id, PUT} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/card-templates/:id, DELETE} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/cards, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/cards/by-call/:uniqueid, GET} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/cards/:id, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/cards, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/cards/:id, PUT} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] CallCenterChatController {/api/callcenter/chat}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/chat/channels, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/chat/contacts, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/chat/messages, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/chat/messages, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/chat/channels, POST} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] CallCenterWallboardController {/api/callcenter/wallboard}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/wallboard/events, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/wallboard/tokens, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/wallboard/tokens, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/wallboard/tokens/:uid, DELETE} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/wallboard/alert-config, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/wallboard/alert-config, PUT} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] CallCenterReportsController {/api/callcenter/reports}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/reports/:reportId, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/reports/:reportId/export, GET} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] CallCenterReportSchedulesController {/api/callcenter/report-schedules}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/report-schedules, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/report-schedules/:uid, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/report-schedules, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/report-schedules/:uid, PUT} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/report-schedules/:uid, DELETE} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/report-schedules/:uid/run-now, POST} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] CallCenterWebrtcController {/api/callcenter/webrtc}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/callcenter/webrtc/config, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] ConferenceGuestWebrtcController {/api/conferences/guest}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/conferences/guest/:token/webrtc-config, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] ConferenceGuestController {/api/conferences/guest}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/conferences/guest/:token, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/conferences/guest/:token/join, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/conferences/guest/:token/leave, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/conferences/guest/:token/me/display-name, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/conferences/guest/:token/telemetry, POST} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/conferences/guest/:token/events, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] ConferenceMeetingsController {/api/conferences}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/conferences/recordings-by-uniqueid, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/conferences/:uid/meetings, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] ConferenceRoomsController {/api/conferences}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/conferences, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/conferences/:uid/guest-tokens, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/conferences/:uid/guest-tokens, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/conferences/:uid/guest-tokens/:tokenUid, DELETE} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/conferences/:uid/invite, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/conferences/:uid/telemetry, POST} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/conferences/:uid/capacity, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/conferences/:uid/moderators, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/conferences/:uid/moderators, PUT} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/conferences/:uid, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/conferences, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/conferences/:uid, PUT} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/conferences/:uid, DELETE} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] ConferenceModerationController {/api/conferences}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/conferences/:room_uid/participants/:ref/mute, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/conferences/:room_uid/participants/:ref/unmute, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/conferences/:room_uid/participants/:ref/kick, POST} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/conferences/:room_uid/participants/:ref/role, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/conferences/:room_uid/participants/:ref/role, DELETE} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] ConferenceParticipantController {/api/conferences}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/conferences/:room_uid/me/video, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/conferences/:room_uid/me/display-name, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] ConferenceSseController {/api/conferences}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/conferences/:room_uid/events, GET} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] ConferenceRecordingController {/api/conferences}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/conferences/:uid/recording/start, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/conferences/:uid/recording/stop, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/conferences/:uid/meetings/:meetingUid/play, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] AutodialBasesController {/api/autodial/bases}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/autodial/bases, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/autodial/bases, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/autodial/bases/:base_uid, GET} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/autodial/bases/:base_uid, PUT} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/autodial/bases/:base_uid, DELETE} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/autodial/bases/:base_uid/contacts, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/autodial/bases/:base_uid/contacts, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/autodial/bases/:base_uid/contacts/:contact_uid, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/autodial/bases/:base_uid/contacts/:contact_uid, PUT} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/autodial/bases/:base_uid/contacts/:contact_uid, DELETE} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/autodial/bases/:base_uid/import-profiles, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/autodial/bases/:base_uid/import-profiles, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/autodial/bases/:base_uid/import-profiles/:profile_uid, DELETE} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/autodial/bases/:base_uid/import-preview, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/autodial/bases/:base_uid/import, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] AutodialCampaignsController {/api/autodial}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/autodial/campaigns, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/autodial/campaigns, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/autodial/campaigns/:uid, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/autodial/campaigns/:uid, PUT} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/autodial/campaigns/:uid, DELETE} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/autodial/campaigns/:uid/start, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/autodial/campaigns/:uid/pause, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/autodial/campaigns/:uid/resume, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/autodial/campaigns/:uid/stop, POST} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/autodial/dnc, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/autodial/dnc, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/autodial/dnc/:uid, DELETE} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] AutodialReportsController {/api/autodial}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/autodial/monitor, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/autodial/reports/summary, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/autodial/reports/daily, GET} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/autodial/reports/detail, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/autodial/reports/export, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] AutodialSseController {/api/autodial}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/autodial/events, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] AutodialInternalController {/api/internal/autodial}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/internal/autodial/attempt-result, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/internal/autodial/attempt-machine, POST} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] DialplanBridgeController {/api/internal/dialplan}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/internal/dialplan/setclid, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/internal/dialplan/webhook, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/internal/dialplan/http-request, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/internal/dialplan/sendmailpeer, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/internal/dialplan/telegram, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/internal/dialplan/tts, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] AiChatController {/api/ai-chat}: +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/ai-chat/threads, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/ai-chat/threads, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/ai-chat/threads/shared, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/ai-chat/threads/:uid, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/ai-chat/threads/:uid/continue, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/ai-chat/threads/:uid, DELETE} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/ai-chat/default-provider, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/ai-chat/default-provider, PUT} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/ai-chat/settings, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/ai-chat/settings, PUT} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/ai-chat/state, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/ai-chat/models, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/ai-chat/message, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] AgentUsageController {/api/ai-chat/usage}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/ai-chat/usage, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/ai-chat/usage/funnel, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/ai-chat/usage/errors, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/ai-chat/usage/default-model, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/ai-chat/usage/default-model, PUT} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] PlatformAiThreadsController {/api/cloud-admin/ai-chat}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/cloud-admin/ai-chat/tenants/:tenantUid/threads, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/cloud-admin/ai-chat/tenants/:tenantUid/threads/:uid, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] AgentProposalsController {/api/ai-chat/proposals}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/ai-chat/proposals/pending, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/ai-chat/proposals/:proposalId/apply, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/ai-chat/proposals/:proposalId/reject, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] AgentWorkflowsController {/api/ai-chat/workflows}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/ai-chat/workflows/pending, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/ai-chat/workflows/:workflowId, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/ai-chat/workflows/:workflowId/apply, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/ai-chat/workflows/:workflowId/reject, POST} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesResolver] McpController {/api/mcp}: +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/mcp, ALL} route +1ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouterExplorer] Mapped {/api/mcp/sessions, GET} route +0ms
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [AiAdapterRegistryService] Registered AI adapter for domain "skills" (2 tools)
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [AgentSkillRegistryService] AgentSkillRegistryService registered
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [AiAdapterRegistryService] Registered AI adapter for domain "telegram" (2 tools)
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [TelegramAiAdapter] TelegramAiAdapter registered
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [AiAdapterRegistryService] Registered AI adapter for domain "endpoints" (4 tools)
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [EndpointsAiAdapter] EndpointsAiAdapter registered
+[Nest] 37024  - 18.09.2026, 17:30:21    WARN [AmiService] AMI_SECRET not configured, skipping AMI connection
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [AiAdapterRegistryService] Registered AI adapter for domain "tenant-settings" (2 tools)
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [TenantSettingsAiAdapter] TenantSettingsAiAdapter registered
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [AiAdapterRegistryService] Registered AI adapter for domain "tts-engines" (1 tools)
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [TtsEnginesAiAdapter] TtsEnginesAiAdapter registered
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [AiAdapterRegistryService] Registered AI adapter for domain "call-groups" (4 tools)
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [CallGroupsAiAdapter] CallGroupsAiAdapter registered
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [AiAdapterRegistryService] Registered AI adapter for domain "time-groups" (4 tools)
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [TimeGroupsAiAdapter] TimeGroupsAiAdapter registered
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [AiAdapterRegistryService] Registered AI adapter for domain "contexts" (4 tools)
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [ContextsAiAdapter] ContextsAiAdapter registered
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [AiAdapterRegistryService] Registered AI adapter for domain "queues" (4 tools)
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [QueuesAiAdapter] QueuesAiAdapter registered
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [AiAdapterRegistryService] Registered AI adapter for domain "ivrs" (4 tools)
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [IvrsAiAdapter] IvrsAiAdapter registered
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [AiAdapterRegistryService] Registered AI adapter for domain "directories" (7 tools)
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [DirectoriesAiAdapter] DirectoriesAiAdapter registered
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [AiAdapterRegistryService] Registered AI adapter for domain "trunks" (3 tools)
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [TrunksAiAdapter] TrunksAiAdapter registered
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [AiAdapterRegistryService] Registered AI adapter for domain "routes" (5 tools)
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RoutesAiAdapter] RoutesAiAdapter registered
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [AiAdapterRegistryService] Registered AI adapter for domain "system-settings" (1 tools)
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [SystemSettingsAiAdapter] SystemSettingsAiAdapter registered
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [AiAdapterRegistryService] Registered AI adapter for domain "users" (2 tools)
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [UsersAiAdapter] UsersAiAdapter registered
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [AiAdapterRegistryService] Registered AI adapter for domain "reports" (2 tools)
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [ReportsAiAdapter] ReportsAiAdapter registered
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [AriHttpClientService] Initialized ARI HTTP Client (baseURL: http://127.0.0.1:1/ari, app: krasterisk_voicerobots)
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [TtsCacheService] TTS cache initialized: 107 files, 7.0 MB
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [AiAdapterRegistryService] Registered AI adapter for domain "voice-robots" (2 tools)
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [VoiceRobotsAiAdapter] VoiceRobotsAiAdapter registered
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [AiAdapterRegistryService] Registered AI adapter for domain "conferences" (5 tools)
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [ConferencesAiAdapter] ConferencesAiAdapter registered
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [AiAdapterRegistryService] Registered AI adapter for domain "sms" (2 tools)
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [SmsAiAdapter] SmsAiAdapter registered
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [AiAdapterRegistryService] Registered AI adapter for domain "notifications" (1 tools)
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [NotificationsAiAdapter] NotificationsAiAdapter registered
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [CallCenterStateService] CallCenter State Store initialized
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [AiAdapterRegistryService] Registered AI adapter for domain "callcenter" (5 tools)
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [CallCenterAiAdapter] CallCenterAiAdapter registered
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [AiAdapterRegistryService] Registered AI adapter for domain "numbers" (2 tools)
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [NumbersAiAdapter] NumbersAiAdapter registered
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [AiAdapterRegistryService] Registered AI adapter for domain "diagnostics" (4 tools)
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [DiagnosticsAiAdapter] DiagnosticsAiAdapter registered
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [AiAdapterRegistryService] Registered AI adapter for domain "prompts" (1 tools)
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [PromptsAiAdapter] PromptsAiAdapter registered
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [AiAdapterRegistryService] Registered AI adapter for domain "stt-engines" (1 tools)
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [SttEnginesAiAdapter] SttEnginesAiAdapter registered
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [AiAdapterRegistryService] Registered AI adapter for domain "moh" (3 tools)
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [MohAiAdapter] MohAiAdapter registered
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [AiAdapterRegistryService] Registered AI adapter for domain "service-requests" (1 tools)
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [ServiceRequestsAiAdapter] ServiceRequestsAiAdapter registered
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [AiAdapterRegistryService] Registered AI adapter for domain "komandor-claims" (1 tools)
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [KomandorClaimsAiAdapter] KomandorClaimsAiAdapter registered
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [AiAdapterRegistryService] Registered AI adapter for domain "dialplan_dry_run" (1 tools)
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [DialplanDryRunAiAdapter] DialplanDryRunAiAdapter registered
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [AiAdapterRegistryService] Registered AI adapter for domain "route_templates" (3 tools)
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [RouteTemplatesAiAdapter] RouteTemplatesAiAdapter registered
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [AiAdapterRegistryService] Registered AI adapter for domain "voicemail" (2 tools)
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [VoicemailAiAdapter] VoicemailAiAdapter registered
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [AiAdapterRegistryService] Registered AI adapter for domain "autodial" (5 tools)
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [AutodialAiAdapter] AutodialAiAdapter registered
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [AiAdapterRegistryService] Registered AI adapter for domain "pbx" (1 tools)
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [PbxStateAiAdapter] PbxStateAiAdapter registered
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [AiAdapterRegistryService] Registered AI adapter for domain "plan" (1 tools)
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [SemanticRouterService] Loading embedding model: nomic-ai/nomic-embed-text-v1.5...
+[Nest] 37024  - 18.09.2026, 17:30:21     LOG [SileroVadProvider] Silero VAD factory initialized (model: C:\Users\Professional\WebstormProjects\krasterisk_v4\packages\backend\models\silero_vad.onnx, threshold: 0.5)
+[Nest] 37024  - 18.09.2026, 17:30:22     LOG [SemanticRouterService] Semantic Router initialized (model: nomic-ai/nomic-embed-text-v1.5, dim: 256)
+[Nest] 37024  - 18.09.2026, 17:30:24     LOG [CallCenterMetricsService] Metrics restoreToday: 0/0 cc_queue_calls + 0 personal missed
+[Nest] 37024  - 18.09.2026, 17:30:24   DEBUG [CallCenterAmiService] AMI not connected yet, skipping initial state load
+[Nest] 37024  - 18.09.2026, 17:30:24     LOG [CallCenterAmiService] ? CallCenter AMI listener initialized
+[Nest] 37024  - 18.09.2026, 17:30:26     LOG [ModulesRegistryService] Module catalog synced (23 modules)
+[Nest] 37024  - 18.09.2026, 17:30:26     LOG [AriConnectionService] Connecting to ARI WebSocket: ***ws://127.0.0.1:1/ari/events?api_key=krasterisk:&app=krasterisk_voicerobots
+[Nest] 37024  - 18.09.2026, 17:30:26   ERROR [ConfbridgeStaticProfileService] GetConfig confbridge.conf failed — treating as missing profile: AMI not connected
+[Nest] 37024  - 18.09.2026, 17:30:26   ERROR [DialplanApplyService] CreateConfig failed for confbridge.conf: AMI not connected
+[Nest] 37024  - 18.09.2026, 17:30:26   ERROR [ConfbridgeStaticProfileService] Failed to provision krsk_conf_sfu: AMI not connected
+[Nest] 37024  - 18.09.2026, 17:30:26   ERROR [AriConnectionService] ARI WebSocket error: connect ECONNREFUSED 127.0.0.1:1
+[Nest] 37024  - 18.09.2026, 17:30:26    WARN [AriConnectionService] ARI WebSocket disconnected
+[Nest] 37024  - 18.09.2026, 17:30:26    WARN [AutodialPacerService] ARI disconnected — autodial pacing suspended
+[Nest] 37024  - 18.09.2026, 17:30:26     LOG [AriConnectionService] Scheduling ARI WebSocket reconnect in 5 seconds...
+[Nest] 37024  - 18.09.2026, 17:30:26     LOG [McpToolsService] Registered 92 MCP tools
+[Nest] 37024  - 18.09.2026, 17:30:26     LOG [McpToolsService] AI adapter domains: autodial, call-groups, callcenter, conferences, contexts, diagnostics, dialplan_dry_run, directories, endpoints, ivrs, komandor-claims, moh, notifications, numbers, pbx, plan, prompts, queues, reports, route_templates, routes, service-requests, skills, sms, stt-engines, system-settings, telegram, tenant-settings, time-groups, trunks, tts-engines, users, voice-robots, voicemail
+[Nest] 37024  - 18.09.2026, 17:30:26     LOG [NestApplication] Nest application successfully started +1ms
+🚀 Krasterisk v4 Backend running on port 55001 (pid=37024)
+📚 Swagger: http://localhost:55001/api/docs
+[Nest] 37024  - 18.09.2026, 17:30:26   ERROR [DialplanApplyService] CreateConfig failed for krasterisk/subroutines/subroutines.conf: AMI not connected
+[Nest] 37024  - 18.09.2026, 17:30:29     LOG [CallCenterShiftRestoreService] Shift restore: hydrated 0/0 open session(s)
+[Nest] 37024  - 18.09.2026, 17:30:31     LOG [AriConnectionService] Connecting to ARI WebSocket: ***ws://127.0.0.1:1/ari/events?api_key=krasterisk:&app=krasterisk_voicerobots
+[Nest] 37024  - 18.09.2026, 17:30:31   ERROR [AriConnectionService] ARI WebSocket error: connect ECONNREFUSED 127.0.0.1:1
+[Nest] 37024  - 18.09.2026, 17:30:31    WARN [AriConnectionService] ARI WebSocket disconnected
+[Nest] 37024  - 18.09.2026, 17:30:31    WARN [AutodialPacerService] ARI disconnected — autodial pacing suspended
+[Nest] 37024  - 18.09.2026, 17:30:31     LOG [AriConnectionService] Scheduling ARI WebSocket reconnect in 5 seconds...
+[Nest] 37024  - 18.09.2026, 17:30:36     LOG [AriConnectionService] Connecting to ARI WebSocket: ***ws://127.0.0.1:1/ari/events?api_key=krasterisk:&app=krasterisk_voicerobots
+[Nest] 37024  - 18.09.2026, 17:30:36   ERROR [AriConnectionService] ARI WebSocket error: connect ECONNREFUSED 127.0.0.1:1
+[Nest] 37024  - 18.09.2026, 17:30:36    WARN [AriConnectionService] ARI WebSocket disconnected
+[Nest] 37024  - 18.09.2026, 17:30:36    WARN [AutodialPacerService] ARI disconnected — autodial pacing suspended
+[Nest] 37024  - 18.09.2026, 17:30:36     LOG [AriConnectionService] Scheduling ARI WebSocket reconnect in 5 seconds...
+[Nest] 37024  - 18.09.2026, 17:30:41     LOG [AriConnectionService] Connecting to ARI WebSocket: ***ws://127.0.0.1:1/ari/events?api_key=krasterisk:&app=krasterisk_voicerobots
+[Nest] 37024  - 18.09.2026, 17:30:41   ERROR [AriConnectionService] ARI WebSocket error: connect ECONNREFUSED 127.0.0.1:1
+[Nest] 37024  - 18.09.2026, 17:30:41    WARN [AriConnectionService] ARI WebSocket disconnected
+[Nest] 37024  - 18.09.2026, 17:30:41    WARN [AutodialPacerService] ARI disconnected — autodial pacing suspended
+[Nest] 37024  - 18.09.2026, 17:30:41     LOG [AriConnectionService] Scheduling ARI WebSocket reconnect in 5 seconds...
+[Nest] 37024  - 18.09.2026, 17:30:46     LOG [AriConnectionService] Connecting to ARI WebSocket: ***ws://127.0.0.1:1/ari/events?api_key=krasterisk:&app=krasterisk_voicerobots
+[Nest] 37024  - 18.09.2026, 17:30:46   ERROR [AriConnectionService] ARI WebSocket error: connect ECONNREFUSED 127.0.0.1:1
+[Nest] 37024  - 18.09.2026, 17:30:46    WARN [AriConnectionService] ARI WebSocket disconnected
+[Nest] 37024  - 18.09.2026, 17:30:46    WARN [AutodialPacerService] ARI disconnected — autodial pacing suspended
+[Nest] 37024  - 18.09.2026, 17:30:46     LOG [AriConnectionService] Scheduling ARI WebSocket reconnect in 5 seconds...
+[Nest] 37024  - 18.09.2026, 17:30:51     LOG [AriConnectionService] Connecting to ARI WebSocket: ***ws://127.0.0.1:1/ari/events?api_key=krasterisk:&app=krasterisk_voicerobots
+[Nest] 37024  - 18.09.2026, 17:30:51    WARN [AriConnectionService] ARI WebSocket disconnected
+[Nest] 37024  - 18.09.2026, 17:30:51   ERROR [AriConnectionService] ARI WebSocket error: connect ECONNREFUSED 127.0.0.1:1
+[Nest] 37024  - 18.09.2026, 17:30:51    WARN [AutodialPacerService] ARI disconnected — autodial pacing suspended
+[Nest] 37024  - 18.09.2026, 17:30:51     LOG [AriConnectionService] Scheduling ARI WebSocket reconnect in 5 seconds...
+[Nest] 37024  - 18.09.2026, 17:30:56     LOG [AriConnectionService] Connecting to ARI WebSocket: ***ws://127.0.0.1:1/ari/events?api_key=krasterisk:&app=krasterisk_voicerobots
+[Nest] 37024  - 18.09.2026, 17:30:56   ERROR [AriConnectionService] ARI WebSocket error: connect ECONNREFUSED 127.0.0.1:1
+[Nest] 37024  - 18.09.2026, 17:30:56    WARN [AriConnectionService] ARI WebSocket disconnected
+[Nest] 37024  - 18.09.2026, 17:30:56    WARN [AutodialPacerService] ARI disconnected — autodial pacing suspended
+[Nest] 37024  - 18.09.2026, 17:30:56     LOG [AriConnectionService] Scheduling ARI WebSocket reconnect in 5 seconds...
+[Nest] 37024  - 18.09.2026, 17:31:01     LOG [AriConnectionService] Connecting to ARI WebSocket: ***ws://127.0.0.1:1/ari/events?api_key=krasterisk:&app=krasterisk_voicerobots
+[Nest] 37024  - 18.09.2026, 17:31:01   ERROR [AriConnectionService] ARI WebSocket error: connect ECONNREFUSED 127.0.0.1:1
+[Nest] 37024  - 18.09.2026, 17:31:01    WARN [AriConnectionService] ARI WebSocket disconnected
+[Nest] 37024  - 18.09.2026, 17:31:01    WARN [AutodialPacerService] ARI disconnected — autodial pacing suspended
+[Nest] 37024  - 18.09.2026, 17:31:01     LOG [AriConnectionService] Scheduling ARI WebSocket reconnect in 5 seconds...
+[Nest] 37024  - 18.09.2026, 17:31:06     LOG [AriConnectionService] Connecting to ARI WebSocket: ***ws://127.0.0.1:1/ari/events?api_key=krasterisk:&app=krasterisk_voicerobots
+[Nest] 37024  - 18.09.2026, 17:31:06   ERROR [AriConnectionService] ARI WebSocket error: connect ECONNREFUSED 127.0.0.1:1
+[Nest] 37024  - 18.09.2026, 17:31:06    WARN [AriConnectionService] ARI WebSocket disconnected
+[Nest] 37024  - 18.09.2026, 17:31:06    WARN [AutodialPacerService] ARI disconnected — autodial pacing suspended
+[Nest] 37024  - 18.09.2026, 17:31:06     LOG [AriConnectionService] Scheduling ARI WebSocket reconnect in 5 seconds...
+[Nest] 37024  - 18.09.2026, 17:31:11     LOG [AriConnectionService] Connecting to ARI WebSocket: ***ws://127.0.0.1:1/ari/events?api_key=krasterisk:&app=krasterisk_voicerobots
+[Nest] 37024  - 18.09.2026, 17:31:11   ERROR [AriConnectionService] ARI WebSocket error: connect ECONNREFUSED 127.0.0.1:1
+[Nest] 37024  - 18.09.2026, 17:31:11    WARN [AriConnectionService] ARI WebSocket disconnected
+[Nest] 37024  - 18.09.2026, 17:31:11    WARN [AutodialPacerService] ARI disconnected — autodial pacing suspended
+[Nest] 37024  - 18.09.2026, 17:31:11     LOG [AriConnectionService] Scheduling ARI WebSocket reconnect in 5 seconds...
+[Nest] 37024  - 18.09.2026, 17:31:16     LOG [AriConnectionService] Connecting to ARI WebSocket: ***ws://127.0.0.1:1/ari/events?api_key=krasterisk:&app=krasterisk_voicerobots
+[Nest] 37024  - 18.09.2026, 17:31:16   ERROR [AriConnectionService] ARI WebSocket error: connect ECONNREFUSED 127.0.0.1:1
+[Nest] 37024  - 18.09.2026, 17:31:16    WARN [AriConnectionService] ARI WebSocket disconnected
+[Nest] 37024  - 18.09.2026, 17:31:16    WARN [AutodialPacerService] ARI disconnected — autodial pacing suspended
+[Nest] 37024  - 18.09.2026, 17:31:16     LOG [AriConnectionService] Scheduling ARI WebSocket reconnect in 5 seconds...
+[Nest] 37024  - 18.09.2026, 17:31:21     LOG [AriConnectionService] Connecting to ARI WebSocket: ***ws://127.0.0.1:1/ari/events?api_key=krasterisk:&app=krasterisk_voicerobots
+[Nest] 37024  - 18.09.2026, 17:31:21   ERROR [AriConnectionService] ARI WebSocket error: connect ECONNREFUSED 127.0.0.1:1
+[Nest] 37024  - 18.09.2026, 17:31:21    WARN [AriConnectionService] ARI WebSocket disconnected
+[Nest] 37024  - 18.09.2026, 17:31:21    WARN [AutodialPacerService] ARI disconnected — autodial pacing suspended
+[Nest] 37024  - 18.09.2026, 17:31:21     LOG [AriConnectionService] Scheduling ARI WebSocket reconnect in 5 seconds...
+[Nest] 37024  - 18.09.2026, 17:31:26     LOG [AriConnectionService] Connecting to ARI WebSocket: ***ws://127.0.0.1:1/ari/events?api_key=krasterisk:&app=krasterisk_voicerobots
+[Nest] 37024  - 18.09.2026, 17:31:26   ERROR [AriConnectionService] ARI WebSocket error: connect ECONNREFUSED 127.0.0.1:1
+[Nest] 37024  - 18.09.2026, 17:31:26    WARN [AriConnectionService] ARI WebSocket disconnected
+[Nest] 37024  - 18.09.2026, 17:31:26    WARN [AutodialPacerService] ARI disconnected — autodial pacing suspended
+[Nest] 37024  - 18.09.2026, 17:31:26     LOG [AriConnectionService] Scheduling ARI WebSocket reconnect in 5 seconds...
+[Nest] 37024  - 18.09.2026, 17:31:31     LOG [AriConnectionService] Connecting to ARI WebSocket: ***ws://127.0.0.1:1/ari/events?api_key=krasterisk:&app=krasterisk_voicerobots
+[Nest] 37024  - 18.09.2026, 17:31:31   ERROR [AriConnectionService] ARI WebSocket error: connect ECONNREFUSED 127.0.0.1:1
+[Nest] 37024  - 18.09.2026, 17:31:31    WARN [AriConnectionService] ARI WebSocket disconnected
+[Nest] 37024  - 18.09.2026, 17:31:31    WARN [AutodialPacerService] ARI disconnected — autodial pacing suspended
+[Nest] 37024  - 18.09.2026, 17:31:31     LOG [AriConnectionService] Scheduling ARI WebSocket reconnect in 5 seconds...
+[Nest] 37024  - 18.09.2026, 17:31:36     LOG [AriConnectionService] Connecting to ARI WebSocket: ***ws://127.0.0.1:1/ari/events?api_key=krasterisk:&app=krasterisk_voicerobots
+[Nest] 37024  - 18.09.2026, 17:31:36   ERROR [AriConnectionService] ARI WebSocket error: connect ECONNREFUSED 127.0.0.1:1
+[Nest] 37024  - 18.09.2026, 17:31:36    WARN [AriConnectionService] ARI WebSocket disconnected
+[Nest] 37024  - 18.09.2026, 17:31:36    WARN [AutodialPacerService] ARI disconnected — autodial pacing suspended
+[Nest] 37024  - 18.09.2026, 17:31:36     LOG [AriConnectionService] Scheduling ARI WebSocket reconnect in 5 seconds...
+[Nest] 37024  - 18.09.2026, 17:31:41     LOG [AriConnectionService] Connecting to ARI WebSocket: ***ws://127.0.0.1:1/ari/events?api_key=krasterisk:&app=krasterisk_voicerobots
+[Nest] 37024  - 18.09.2026, 17:31:41   ERROR [AriConnectionService] ARI WebSocket error: connect ECONNREFUSED 127.0.0.1:1
+[Nest] 37024  - 18.09.2026, 17:31:41    WARN [AriConnectionService] ARI WebSocket disconnected
+[Nest] 37024  - 18.09.2026, 17:31:41    WARN [AutodialPacerService] ARI disconnected — autodial pacing suspended
+[Nest] 37024  - 18.09.2026, 17:31:41     LOG [AriConnectionService] Scheduling ARI WebSocket reconnect in 5 seconds...
+[Nest] 37024  - 18.09.2026, 17:31:46     LOG [AriConnectionService] Connecting to ARI WebSocket: ***ws://127.0.0.1:1/ari/events?api_key=krasterisk:&app=krasterisk_voicerobots
+[Nest] 37024  - 18.09.2026, 17:31:46   ERROR [AriConnectionService] ARI WebSocket error: connect ECONNREFUSED 127.0.0.1:1
+[Nest] 37024  - 18.09.2026, 17:31:46    WARN [AriConnectionService] ARI WebSocket disconnected
+[Nest] 37024  - 18.09.2026, 17:31:46    WARN [AutodialPacerService] ARI disconnected — autodial pacing suspended
+[Nest] 37024  - 18.09.2026, 17:31:46     LOG [AriConnectionService] Scheduling ARI WebSocket reconnect in 5 seconds...
+[Nest] 37024  - 18.09.2026, 17:31:51     LOG [AriConnectionService] Connecting to ARI WebSocket: ***ws://127.0.0.1:1/ari/events?api_key=krasterisk:&app=krasterisk_voicerobots
+[Nest] 37024  - 18.09.2026, 17:31:51   ERROR [AriConnectionService] ARI WebSocket error: connect ECONNREFUSED 127.0.0.1:1
+[Nest] 37024  - 18.09.2026, 17:31:51    WARN [AriConnectionService] ARI WebSocket disconnected
+[Nest] 37024  - 18.09.2026, 17:31:51    WARN [AutodialPacerService] ARI disconnected — autodial pacing suspended
+[Nest] 37024  - 18.09.2026, 17:31:51     LOG [AriConnectionService] Scheduling ARI WebSocket reconnect in 5 seconds...
+[Nest] 37024  - 18.09.2026, 17:31:56     LOG [AriConnectionService] Connecting to ARI WebSocket: ***ws://127.0.0.1:1/ari/events?api_key=krasterisk:&app=krasterisk_voicerobots
+[Nest] 37024  - 18.09.2026, 17:31:56   ERROR [AriConnectionService] ARI WebSocket error: connect ECONNREFUSED 127.0.0.1:1
+[Nest] 37024  - 18.09.2026, 17:31:56    WARN [AriConnectionService] ARI WebSocket disconnected
+[Nest] 37024  - 18.09.2026, 17:31:56    WARN [AutodialPacerService] ARI disconnected — autodial pacing suspended
+[Nest] 37024  - 18.09.2026, 17:31:56     LOG [AriConnectionService] Scheduling ARI WebSocket reconnect in 5 seconds...
+[Nest] 37024  - 18.09.2026, 17:32:01     LOG [AriConnectionService] Connecting to ARI WebSocket: ***ws://127.0.0.1:1/ari/events?api_key=krasterisk:&app=krasterisk_voicerobots
+[Nest] 37024  - 18.09.2026, 17:32:01   ERROR [AriConnectionService] ARI WebSocket error: connect ECONNREFUSED 127.0.0.1:1
+[Nest] 37024  - 18.09.2026, 17:32:01    WARN [AriConnectionService] ARI WebSocket disconnected
+[Nest] 37024  - 18.09.2026, 17:32:01    WARN [AutodialPacerService] ARI disconnected — autodial pacing suspended
+[Nest] 37024  - 18.09.2026, 17:32:01     LOG [AriConnectionService] Scheduling ARI WebSocket reconnect in 5 seconds...
+[Nest] 37024  - 18.09.2026, 17:32:06     LOG [AriConnectionService] Connecting to ARI WebSocket: ***ws://127.0.0.1:1/ari/events?api_key=krasterisk:&app=krasterisk_voicerobots
+[Nest] 37024  - 18.09.2026, 17:32:06   ERROR [AriConnectionService] ARI WebSocket error: connect ECONNREFUSED 127.0.0.1:1
+[Nest] 37024  - 18.09.2026, 17:32:06    WARN [AriConnectionService] ARI WebSocket disconnected
+[Nest] 37024  - 18.09.2026, 17:32:06    WARN [AutodialPacerService] ARI disconnected — autodial pacing suspended
+[Nest] 37024  - 18.09.2026, 17:32:06     LOG [AriConnectionService] Scheduling ARI WebSocket reconnect in 5 seconds...
+[Nest] 37024  - 18.09.2026, 17:32:11     LOG [AriConnectionService] Connecting to ARI WebSocket: ***ws://127.0.0.1:1/ari/events?api_key=krasterisk:&app=krasterisk_voicerobots
+[Nest] 37024  - 18.09.2026, 17:32:11   ERROR [AriConnectionService] ARI WebSocket error: connect ECONNREFUSED 127.0.0.1:1
+[Nest] 37024  - 18.09.2026, 17:32:11    WARN [AriConnectionService] ARI WebSocket disconnected
+[Nest] 37024  - 18.09.2026, 17:32:11    WARN [AutodialPacerService] ARI disconnected — autodial pacing suspended
+[Nest] 37024  - 18.09.2026, 17:32:11     LOG [AriConnectionService] Scheduling ARI WebSocket reconnect in 5 seconds...
+[Nest] 37024  - 18.09.2026, 17:32:16     LOG [AriConnectionService] Connecting to ARI WebSocket: ***ws://127.0.0.1:1/ari/events?api_key=krasterisk:&app=krasterisk_voicerobots
+[Nest] 37024  - 18.09.2026, 17:32:16   ERROR [AriConnectionService] ARI WebSocket error: connect ECONNREFUSED 127.0.0.1:1
+[Nest] 37024  - 18.09.2026, 17:32:16    WARN [AriConnectionService] ARI WebSocket disconnected
+[Nest] 37024  - 18.09.2026, 17:32:16    WARN [AutodialPacerService] ARI disconnected — autodial pacing suspended
+[Nest] 37024  - 18.09.2026, 17:32:16     LOG [AriConnectionService] Scheduling ARI WebSocket reconnect in 5 seconds...
+[Nest] 37024  - 18.09.2026, 17:32:21     LOG [AriConnectionService] Connecting to ARI WebSocket: ***ws://127.0.0.1:1/ari/events?api_key=krasterisk:&app=krasterisk_voicerobots
+[Nest] 37024  - 18.09.2026, 17:32:21   ERROR [AriConnectionService] ARI WebSocket error: connect ECONNREFUSED 127.0.0.1:1
+[Nest] 37024  - 18.09.2026, 17:32:21    WARN [AriConnectionService] ARI WebSocket disconnected
+[Nest] 37024  - 18.09.2026, 17:32:21    WARN [AutodialPacerService] ARI disconnected — autodial pacing suspended
+[Nest] 37024  - 18.09.2026, 17:32:21     LOG [AriConnectionService] Scheduling ARI WebSocket reconnect in 5 seconds...
+[Nest] 37024  - 18.09.2026, 17:32:26     LOG [AriConnectionService] Connecting to ARI WebSocket: ***ws://127.0.0.1:1/ari/events?api_key=krasterisk:&app=krasterisk_voicerobots
+[Nest] 37024  - 18.09.2026, 17:32:26   ERROR [AriConnectionService] ARI WebSocket error: connect ECONNREFUSED 127.0.0.1:1
+[Nest] 37024  - 18.09.2026, 17:32:26    WARN [AriConnectionService] ARI WebSocket disconnected
+[Nest] 37024  - 18.09.2026, 17:32:26    WARN [AutodialPacerService] ARI disconnected — autodial pacing suspended
+[Nest] 37024  - 18.09.2026, 17:32:26     LOG [AriConnectionService] Scheduling ARI WebSocket reconnect in 5 seconds...
+[Nest] 37024  - 18.09.2026, 17:32:31     LOG [AriConnectionService] Connecting to ARI WebSocket: ***ws://127.0.0.1:1/ari/events?api_key=krasterisk:&app=krasterisk_voicerobots
+[Nest] 37024  - 18.09.2026, 17:32:31    WARN [AriConnectionService] ARI WebSocket disconnected
+[Nest] 37024  - 18.09.2026, 17:32:31   ERROR [AriConnectionService] ARI WebSocket error: connect ECONNREFUSED 127.0.0.1:1
+[Nest] 37024  - 18.09.2026, 17:32:31    WARN [AutodialPacerService] ARI disconnected — autodial pacing suspended
+[Nest] 37024  - 18.09.2026, 17:32:31     LOG [AriConnectionService] Scheduling ARI WebSocket reconnect in 5 seconds...
+[Nest] 37024  - 18.09.2026, 17:32:36     LOG [AriConnectionService] Connecting to ARI WebSocket: ***ws://127.0.0.1:1/ari/events?api_key=krasterisk:&app=krasterisk_voicerobots
+[Nest] 37024  - 18.09.2026, 17:32:36   ERROR [AriConnectionService] ARI WebSocket error: connect ECONNREFUSED 127.0.0.1:1
+[Nest] 37024  - 18.09.2026, 17:32:36    WARN [AriConnectionService] ARI WebSocket disconnected
+[Nest] 37024  - 18.09.2026, 17:32:36    WARN [AutodialPacerService] ARI disconnected — autodial pacing suspended
+[Nest] 37024  - 18.09.2026, 17:32:36     LOG [AriConnectionService] Scheduling ARI WebSocket reconnect in 5 seconds...
+[Nest] 37024  - 18.09.2026, 17:32:41     LOG [AriConnectionService] Connecting to ARI WebSocket: ***ws://127.0.0.1:1/ari/events?api_key=krasterisk:&app=krasterisk_voicerobots
+[Nest] 37024  - 18.09.2026, 17:32:41   ERROR [AriConnectionService] ARI WebSocket error: connect ECONNREFUSED 127.0.0.1:1
+[Nest] 37024  - 18.09.2026, 17:32:41    WARN [AriConnectionService] ARI WebSocket disconnected
+[Nest] 37024  - 18.09.2026, 17:32:41    WARN [AutodialPacerService] ARI disconnected — autodial pacing suspended
+[Nest] 37024  - 18.09.2026, 17:32:41     LOG [AriConnectionService] Scheduling ARI WebSocket reconnect in 5 seconds...
+[Nest] 37024  - 18.09.2026, 17:32:46     LOG [AriConnectionService] Connecting to ARI WebSocket: ***ws://127.0.0.1:1/ari/events?api_key=krasterisk:&app=krasterisk_voicerobots
+[Nest] 37024  - 18.09.2026, 17:32:46   ERROR [AriConnectionService] ARI WebSocket error: connect ECONNREFUSED 127.0.0.1:1
+[Nest] 37024  - 18.09.2026, 17:32:46    WARN [AriConnectionService] ARI WebSocket disconnected
+[Nest] 37024  - 18.09.2026, 17:32:46    WARN [AutodialPacerService] ARI disconnected — autodial pacing suspended
+[Nest] 37024  - 18.09.2026, 17:32:46     LOG [AriConnectionService] Scheduling ARI WebSocket reconnect in 5 seconds...
+[Nest] 37024  - 18.09.2026, 17:32:51     LOG [AriConnectionService] Connecting to ARI WebSocket: ***ws://127.0.0.1:1/ari/events?api_key=krasterisk:&app=krasterisk_voicerobots
+[Nest] 37024  - 18.09.2026, 17:32:51   ERROR [AriConnectionService] ARI WebSocket error: connect ECONNREFUSED 127.0.0.1:1
+[Nest] 37024  - 18.09.2026, 17:32:51    WARN [AriConnectionService] ARI WebSocket disconnected
+[Nest] 37024  - 18.09.2026, 17:32:51    WARN [AutodialPacerService] ARI disconnected — autodial pacing suspended
+[Nest] 37024  - 18.09.2026, 17:32:51     LOG [AriConnectionService] Scheduling ARI WebSocket reconnect in 5 seconds...
+[Nest] 37024  - 18.09.2026, 17:32:56     LOG [AriConnectionService] Connecting to ARI WebSocket: ***ws://127.0.0.1:1/ari/events?api_key=krasterisk:&app=krasterisk_voicerobots
+[Nest] 37024  - 18.09.2026, 17:32:56   ERROR [AriConnectionService] ARI WebSocket error: connect ECONNREFUSED 127.0.0.1:1
+[Nest] 37024  - 18.09.2026, 17:32:56    WARN [AriConnectionService] ARI WebSocket disconnected
+[Nest] 37024  - 18.09.2026, 17:32:56    WARN [AutodialPacerService] ARI disconnected — autodial pacing suspended
+[Nest] 37024  - 18.09.2026, 17:32:56     LOG [AriConnectionService] Scheduling ARI WebSocket reconnect in 5 seconds...
+[Nest] 37024  - 18.09.2026, 17:33:01     LOG [AriConnectionService] Connecting to ARI WebSocket: ***ws://127.0.0.1:1/ari/events?api_key=krasterisk:&app=krasterisk_voicerobots
+[Nest] 37024  - 18.09.2026, 17:33:01   ERROR [AriConnectionService] ARI WebSocket error: connect ECONNREFUSED 127.0.0.1:1
+[Nest] 37024  - 18.09.2026, 17:33:01    WARN [AriConnectionService] ARI WebSocket disconnected
+[Nest] 37024  - 18.09.2026, 17:33:01    WARN [AutodialPacerService] ARI disconnected — autodial pacing suspended
+[Nest] 37024  - 18.09.2026, 17:33:01     LOG [AriConnectionService] Scheduling ARI WebSocket reconnect in 5 seconds...

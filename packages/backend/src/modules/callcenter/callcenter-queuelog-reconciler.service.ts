@@ -50,26 +50,29 @@ export class CallCenterQueueLogReconcilerService {
       const byCall = new Map<string, QueueLogEntry[]>();
       for (const e of entries) {
         if (!e.callId || e.callId === 'NONE') continue;
-        const list = byCall.get(e.callId) || [];
+        // Asterisk IDs can recur across tenants; never merge their event streams.
+        const key = `${resolveQueueTenant(e.queueName) ?? 'unknown'}:${e.callId}`;
+        const list = byCall.get(key) || [];
         list.push(e);
-        byCall.set(e.callId, list);
+        byCall.set(key, list);
       }
 
       const toInsert: Partial<CcQueueCall>[] = [];
       const touchedDays = new Set<string>(); // `${dateOnly}|${userUid}`
 
-      for (const [callId, callEntries] of byCall) {
-        const existing = await this.queueCallModel.findOne({
-          where: { call_uniqueid: callId },
-        });
-        if (existing) continue;
-
+      for (const callEntries of byCall.values()) {
+        const callId = callEntries[0].callId;
         const row = buildHistoryRow(callEntries);
         if (!row?.queue_name) continue;
 
         const userUid = resolveQueueTenant(row.queue_name);
         // T-07-04-03: skip unresolved tenant — never write user_uid=0
         if (userUid == null || userUid === 0) continue;
+
+        const existing = await this.queueCallModel.findOne({
+          where: { call_uniqueid: callId, user_uid: userUid },
+        });
+        if (existing) continue;
 
         row.user_uid = userUid;
         toInsert.push(row);

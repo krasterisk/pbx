@@ -137,6 +137,23 @@ describe('CallCenterQueueLogReconcilerService', () => {
     expect(bulkCreate).not.toHaveBeenCalled();
   });
 
+  it('keeps identical Asterisk call IDs separate across tenants', async () => {
+    readEntries.mockResolvedValue([
+      ...makeEntries('U-shared', 'sales_7'),
+      ...makeEntries('U-shared', 'sales_8'),
+    ]);
+    findOne.mockImplementation(async ({ where }) =>
+      where.user_uid === 7 ? { uid: 1 } : null,
+    );
+    const n = await service.reconcileRange(yesterday, new Date(yesterday.getTime() + 1));
+    expect(n).toBe(1);
+    expect(findOne).toHaveBeenCalledWith({ where: { call_uniqueid: 'U-shared', user_uid: 7 } });
+    expect(findOne).toHaveBeenCalledWith({ where: { call_uniqueid: 'U-shared', user_uid: 8 } });
+    expect(bulkCreate.mock.calls[0][0]).toEqual([
+      expect.objectContaining({ call_uniqueid: 'U-shared', user_uid: 8, queue_name: 'sales_8' }),
+    ]);
+  });
+
   it('skips entries with unresolvable tenant (no user_uid=0)', async () => {
     readEntries.mockResolvedValue(makeEntries('U-orphan', 'orphan-queue'));
     const n = await service.reconcileRange(yesterday, new Date(yesterday.getTime() + 1));

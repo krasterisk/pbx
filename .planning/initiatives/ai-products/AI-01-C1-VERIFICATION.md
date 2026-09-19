@@ -1,0 +1,8 @@
+# AI-01-C1 verification — 2026-09-19
+
+- Neutral Nest module composition passed with a mocked Sequelize model and no robot controllers/PBX listeners. Provider tenant A/B/0, enabled/capability checks, no cache after disable, public response redaction, legacy ciphertext, rotation keyring, missing production key and tampered envelope are covered by unit tests.
+- AI-chat, voicemail, notifications and provider CRUD regression tests passed. A revoked `auth_type=none` provider is stopped before any network call. No live provider was contacted.
+- Full backend: 273 suites / 2990 tests passed; 1 suite / 11 tests skipped. [Log](evidence/c1/backend-final.log). Schema inventory 7/7 passed [log](evidence/c1/schema-final.log). Final build and lint logs: [build](evidence/c1/build-final.log), [lint](evidence/c1/lint-final.log). Lint reports existing warnings, no errors.
+- No C1 schema migration or frontend code. The earlier required frontend run remains 249 files / 1395 passing tests with one pre-existing conference locale assertion failure; [log](evidence/b2/frontend-test-escalated.log).
+
+Limits: module composition is an isolated Nest test, not a clean standalone process with a minimal schema. C2/C4 own real analytics-profile boot and installation-secret readiness. Provider revision is an in-memory contract; persistence and queued-job semantics remain AI-02/D1. Existing arbitrary endpoint values may carry credentials in query/userinfo; management responses redact those URL parts, but operators should move those credentials into `apiKey` before editing. No production database or local Docker was used.

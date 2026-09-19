@@ -44,6 +44,13 @@ describe('CallCenterReportsService', () => {
     );
   });
 
+  it('includes the full last day for date-only report bounds', () => {
+    expect(service.parseAndClampPeriod('2026-09-17', '2026-09-18')).toEqual({
+      from: new Date('2026-09-17T00:00:00.000Z'),
+      to: new Date('2026-09-18T23:59:59.999Z'),
+    });
+  });
+
   describe('getQueueSummary (raw + SLA)', () => {
     it('aggregates raw calls with per-queue SLA threshold', async () => {
       queueModel.findOne.mockResolvedValue({ servicelevel: 20 });

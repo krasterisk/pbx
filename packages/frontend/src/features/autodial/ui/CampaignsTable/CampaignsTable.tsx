@@ -55,7 +55,7 @@ export const CampaignsTable = memo(() => {
   const dispatch = useAppDispatch();
   const { data, isLoading, isError, refetch } = useGetAutodialCampaignsQuery();
   const { data: bases } = useGetAutodialBasesQuery();
-  const [deleteCampaign] = useDeleteAutodialCampaignMutation();
+  const [deleteCampaign, { isLoading: isDeleting }] = useDeleteAutodialCampaignMutation();
   const [setState, { isLoading: isSwitching }] = useSetAutodialCampaignStateMutation();
   const live = useAutodialSse();
 
@@ -64,7 +64,7 @@ export const CampaignsTable = memo(() => {
   const [pendingStart, setPendingStart] = useState<AutodialCampaignWithSchedules | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  const campaigns = data ?? [];
+  const campaigns = useMemo(() => data ?? [], [data]);
   const baseNames = useMemo(
     () => new Map((bases ?? []).map((b: IAutodialBase) => [b.uid, b.name])),
     [bases],
@@ -257,7 +257,10 @@ export const CampaignsTable = memo(() => {
                           danger
                           title={t('common.delete')}
                           aria-label={t('common.delete')}
-                          onClick={() => setPendingDelete(campaign)}
+                          onClick={() => {
+                            setActionError(null);
+                            setPendingDelete(campaign);
+                          }}
                         >
                           <Trash2 />
                         </TableRowAction>
@@ -319,7 +322,7 @@ export const CampaignsTable = memo(() => {
 
       <Dialog
         open={Boolean(pendingDelete)}
-        onOpenChange={(open) => !open && setPendingDelete(null)}
+        onOpenChange={(open) => !open && !isDeleting && setPendingDelete(null)}
       >
         <DialogContent>
           <DialogHeader>
@@ -330,15 +333,23 @@ export const CampaignsTable = memo(() => {
               {t('autodial.campaigns.confirmDeleteBody')}
             </DialogDescription>
           </DialogHeader>
+          {actionError && <Text role="alert">{actionError}</Text>}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setPendingDelete(null)}>
+            <Button variant="outline" disabled={isDeleting} onClick={() => setPendingDelete(null)}>
               {t('common.cancel')}
             </Button>
             <Button
               variant="destructive"
-              onClick={() => {
-                if (pendingDelete) void deleteCampaign(pendingDelete.uid);
-                setPendingDelete(null);
+              disabled={isDeleting}
+              onClick={async () => {
+                if (!pendingDelete) return;
+                setActionError(null);
+                try {
+                  await deleteCampaign(pendingDelete.uid).unwrap();
+                  setPendingDelete(null);
+                } catch (error) {
+                  setActionError(t(autodialErrorKey(error, 'autodial.campaigns.deleteFailed')));
+                }
               }}
             >
               {t('common.delete')}

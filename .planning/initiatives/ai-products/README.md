@@ -1,6 +1,6 @@
 # AI-роботы и речевая аналитика для Krasterisk v4
 
-Дата: **18 сентября 2026**. Результат этапа: аудит двух проектов, продуктовые контракты, архитектура и поэтапный план. **Новые production-функции этим этапом не реализованы.** Следующая часть — [DB-01: foundation двух СУБД](DB-01-PLAN.md) параллельно [AI-00: проверкам критичных контрактов](AI-00-PLAN.md), затем платформа и вертикальные срезы.
+Дата: **18 сентября 2026**. Подготовлены архитектура, roadmap и детальные планы ближайших [AI-01/02 срезов](IMPLEMENTATION-SEQUENCE.md). DB-01 и несколько DB-02 срезов проверены; полная DB-02 ещё имеет открытые gates. AI-00/01 реализованы частично: исследования, ARI naming slice, начальный access resolver и inventory. **Новые AI production-функции пока не готовы.** Первое следующее implementation assignment — [A1: серверный доступ](AI-01-A-ACCESS-PLAN.md); актуальное назначение — в [EXECUTION](EXECUTION.md).
 
 ## Рекомендация
 
@@ -14,7 +14,7 @@
 
 Для разработки: **Codex + существующая GSD-система документов**. Astra high — ближайший foundation/архитектура/review; Sol high — основной исполнитель последующих ограниченных задач. Обоснование и официальные источники: [DELIVERY-WORKFLOW](DELIVERY-WORKFLOW.md). Один координатор, небольшой исполняемый план следующей фазы, независимые workers/review, реальные тесты и live/eval evidence. Смена orchestration framework сейчас не даёт доказанного выигрыша.
 
-**Готовность:** roadmap составлен на уровне всех фаз. Детальные стартовые планы AI-00 и DB-01 готовы к исполнению; планы остальных фаз детализируются перед своей реализацией. Это достаточная база для начала работы, но не полный набор execution plans и не готовность к production.
+**Готовность:** roadmap охватывает все фазы. Детализированы DB-01/02 и AI-00…09 — 60 AI-задач с ownership, зависимостями и приёмкой. Измеряемые provider/SIP/MCP/KB gates выделены явно; исполнять после upstream checks. Task-level commercial/release AI-10/11 и DB-03/04 operational plans ещё впереди. Это не production readiness и не завершённая реализация продуктов.
 
 **Перед началом или продолжением:** прочитать [HYBRID-WORKFLOW](../../HYBRID-WORKFLOW.md) и [EXECUTION](EXECUTION.md). Режим — codex-direct, один координатор на фазу; GSD-workflow включается через явный handoff. EXECUTION хранит актуальное назначение, а ROADMAP — последовательность результатов.
 
@@ -55,6 +55,20 @@ Tenant default + route override `inherit/off/on` + project selection. Начал
 
 | Документ | Содержание |
 |---|---|
+| [IMPLEMENTATION-SEQUENCE](IMPLEMENTATION-SEQUENCE.md) | Актуальная оценка готовности, порядок A1…D6, общий SQL/API/verification contract |
+| [DETAILED-DESIGN-REVIEW](DETAILED-DESIGN-REVIEW.md) | Self-review новых планов, устранённые пробелы и границы проверок |
+| [AI-01-PLAN](AI-01-PLAN.md) | Индекс A: доступ/лицензии, B: API-ключи/identity, C: состав установки/UI |
+| [AI-02-PLAN](AI-02-PLAN.md) | Подробные schema/state machines, outbox/recovery, storage, usage и fault matrix |
+| [AI-03-PLAN](AI-03-PLAN.md) | Capture/spool/finalization, совместимость CDR playback и robot-only запись |
+| [AI-04-PLAN](AI-04-PLAN.md) | Projects/API, STT и фиксированные метрики, evidence UI, callbacks и eval |
+| [AI-07-PLAN](AI-07-PLAN.md) | Versions/cascade, ARI/media ownership, interruption, маршрут/AutoDial и голосовой тест |
+| [PRODUCT-SLICES-CONTRACTS](PRODUCT-SLICES-CONTRACTS.md) | Границы трёх продуктовых планов и согласованные дополнения к foundation |
+| [AI-05-PLAN](AI-05-PLAN.md) | Метрики, applicability/scoring, preview/reanalysis, человеческие corrections |
+| [AI-06-PLAN](AI-06-PLAN.md) | Standalone dashboard/отчёты и отдельная интеграция native маршрутов |
+| [AI-08-PLAN](AI-08-PLAN.md) | Realtime, tenant SIP connections, внешний call API, lifecycle/live profiles |
+| [AI-09-PLAN](AI-09-PLAN.md) | Tools/MCP permissions, knowledge ingestion/retrieval/releases и adversarial eval |
+| [ADVANCED-PRODUCT-CONTRACTS](ADVANCED-PRODUCT-CONTRACTS.md) | Интерфейсы новых срезов, decision gates и граница дальнейшего планирования |
+| [AI-00-CLOSURE-PLAN](AI-00-CLOSURE-PLAN.md) | Незакрытые ARI ownership, запись/fixtures и prerequisites |
 | [ROADMAP](ROADMAP.md) | 12 этапов, зависимости, отдельные коммерческие выпуски, задачи, файлы, acceptance и rollback |
 | [ARCHITECTURE](ARCHITECTURE.md) | Доменные границы, standalone, runtime, providers/tools/KB, tenancy, jobs/storage, биллинг и ADR |
 | [ROBOTS-SPEC](ROBOTS-SPEC.md) | VR-01…12: версии, prompt, realtime/cascade, SIP/API, tools/MCP/KB, UX, КЦ/автообзвон, eval |
@@ -68,6 +82,10 @@ Tenant default + route override `inherit/off/on` + project selection. Начал
 | [DATABASE-PORTABILITY](DATABASE-PORTABILITY.md) | PostgreSQL/MySQL для всей платформы, Asterisk/ODBC, migration/query parity, DB-01…04 и DBR-01…08 |
 | [AI-00-PLAN](AI-00-PLAN.md) | Конкретный план следующего этапа |
 | [DB-01-PLAN](DB-01-PLAN.md) | Первый implementation slice: config, drivers, migration adapters и dual-DB harness |
+| [DB-01-SUMMARY](DB-01-SUMMARY.md) / [VERIFICATION](DB-01-VERIFICATION.md) / [REVIEW](DB-01-REVIEW.md) | Реализованный foundation, реальные DB-контракты и независимое ревью |
+| [DB-02-A-SUMMARY](DB-02-A-SUMMARY.md) / [VERIFICATION](DB-02-A-VERIFICATION.md) / [REVIEW](DB-02-A-REVIEW.md) | PostgreSQL clean baseline и schema inventory; границы до полного PG runtime |
+| [SQL-PORTABILITY-INVENTORY](SQL-PORTABILITY-INVENTORY.md) | Известные runtime/legacy SQL несовместимости, owners и parity fixtures |
+| [DB-02-PLAN](DB-02-PLAN.md) | Schema/upgrade, core startup/auth, CDR/КЦ/autodial/scripted-robots parity |
 | [PLAN-REVIEW](PLAN-REVIEW.md) | Независимые замечания и их disposition |
 | [VALIDATION](VALIDATION.md) | Проверки рабочей копии и ограничения результатов |
 
