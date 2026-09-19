@@ -27,6 +27,24 @@ export interface SaRunCard {
   transcript: { id: string; content_digest: string } | null;
 }
 
+export interface SaMetricDefinition {
+  id: string;
+  metric_key: string;
+}
+
+export interface SaMetricRubric {
+  key: string;
+  displayName: string;
+  type: 'boolean' | 'number' | 'enum' | 'string';
+  instructions: string;
+  polarity: 'positive' | 'negative' | 'informational';
+  weight: number;
+  required: boolean;
+  min?: number;
+  max?: number;
+  enumValues?: string[];
+}
+
 const speechAnalyticsApi = rtkApi.injectEndpoints({
   overrideExisting: import.meta.hot != null,
   endpoints: (builder) => ({
@@ -68,6 +86,37 @@ const speechAnalyticsApi = rtkApi.injectEndpoints({
     getSaRun: builder.query<SaRunCard, string>({
       query: (id) => `/speech-analytics/analysis-runs/${id}`,
     }),
+    getSaMetrics: builder.query<SaMetricDefinition[], string>({
+      query: (id) => `/speech-analytics/projects/${id}/metrics`,
+      providesTags: (_r, _e, id) => [{ type: 'SpeechAnalytics', id: `MET-${id}` }],
+    }),
+    publishSaMetric: builder.mutation<unknown, { id: string; operationKey: string; rubric: SaMetricRubric }>({
+      query: ({ id, operationKey, rubric }) => ({
+        url: `/speech-analytics/projects/${id}/metrics`, method: 'POST', body: { operationKey, rubric },
+      }),
+      invalidatesTags: (_r, _e, arg) => [{ type: 'SpeechAnalytics', id: `MET-${arg.id}` }],
+    }),
+    reanalyzeSaRun: builder.mutation<unknown, { id: string; projectVersionId: string; reason: string }>({
+      query: ({ id, projectVersionId, reason }) => ({
+        url: `/speech-analytics/analysis-runs/${id}/reanalyses`,
+        method: 'POST',
+        body: { projectVersionId, reason },
+        headers: { 'Idempotency-Key': crypto.randomUUID() },
+      }),
+    }),
+    reviewSaRun: builder.mutation<unknown, {
+      id: string; metricRevisionId: string; value: string; status: 'accepted' | 'rejected' | 'cancelled';
+      reason: string; commandKey: string; expectedRevision: number;
+    }>({
+      query: ({ id, ...body }) => ({
+        url: `/speech-analytics/analysis-runs/${id}/reviews`, method: 'POST', body,
+      }),
+    }),
+    correctSaTranscript: builder.mutation<unknown, { id: string; text: string; reason: string }>({
+      query: ({ id, text, reason }) => ({
+        url: `/speech-analytics/transcripts/${id}/corrections`, method: 'POST', body: { text, reason },
+      }),
+    }),
   }),
 });
 
@@ -78,4 +127,9 @@ export const {
   useSetSaProjectIntakeMutation,
   useGetSaRecordingsQuery,
   useGetSaRunQuery,
+  useGetSaMetricsQuery,
+  usePublishSaMetricMutation,
+  useReanalyzeSaRunMutation,
+  useReviewSaRunMutation,
+  useCorrectSaTranscriptMutation,
 } = speechAnalyticsApi;

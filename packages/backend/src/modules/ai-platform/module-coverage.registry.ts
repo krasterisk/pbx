@@ -63,6 +63,10 @@ export const MODULE_COVERAGE: Record<string, ModuleCoverageEntry> = {
     kind: 'infrastructure',
     reason: 'Usage and quota contracts; D4 owns ledger tables. Not a tenant agent catalog.',
   },
+  'ai-voice': {
+    kind: 'infrastructure',
+    reason: 'Cascade AI voice runtime, tickets and deployments; not a tenant PBX agent catalog.',
+  },
   'integration-delivery': {
     kind: 'infrastructure',
     reason: 'Outbound webhook delivery for product events; not a tenant PBX catalog.',

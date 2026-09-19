@@ -17,7 +17,7 @@ test('production PG selects the reviewed baseline offline and rejects arbitrary 
   const input = { DB_DIALECT: 'postgres', DB_HOST: 'must-not-resolve.invalid', DB_USER: 'nobody', DB_PASSWORD: 'secret', DB_NAME: 'none' };
   const result = await main(['--list'], input);
   assert.equal(result.engine, 'postgres');
-  assert.deepEqual(result.migrations.map(migration => migration.id), ['0001-current-schema.sql', '0002-cdr-query-indexes.sql', '0003-callcenter-report-keys.sql', '0004-ai-product-access.sql', '0005-ai-integration-credentials.sql', '0006-ai-integration-auth-limits.sql', '0007-tenant-login-uniqueness.sql', '0008-ai-jobs-assets.sql', '0009-ai-usage.sql', '0010-ai-capture.sql', '0011-speech-analytics.sql', '0012-ai-webhooks.sql']);
+  assert.deepEqual(result.migrations.map(migration => migration.id), ['0001-current-schema.sql', '0002-cdr-query-indexes.sql', '0003-callcenter-report-keys.sql', '0004-ai-product-access.sql', '0005-ai-integration-credentials.sql', '0006-ai-integration-auth-limits.sql', '0007-tenant-login-uniqueness.sql', '0008-ai-jobs-assets.sql', '0009-ai-usage.sql', '0010-ai-capture.sql', '0011-speech-analytics.sql', '0012-ai-webhooks.sql', '0013-ai-voice.sql', '0014-sa-metrics.sql']);
   assert.equal(result.migrations[0].artifact, 'postgres/0001-current-schema.sql');
   assert.equal(result.migrations[0].checksum, 'a7d418f512e6534c8d94bcf90fef4be28263634a5eb1c5774a787baa89d1720f');
   await assert.rejects(main(['--fixtures'], input), /Usage/);

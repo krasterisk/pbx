@@ -80,7 +80,11 @@ export function AiAgentModal({ agent, providers, toolsets, onClose }: Props) {
     setSubmitting(true);
     try {
       if (isEdit && agent) {
-        await updateAgent({ id: agent.uid, data: payload }).unwrap();
+        await updateAgent({
+          id: agent.uid,
+          data: payload,
+          expectedRevision: agent.draft_revision ?? 1,
+        }).unwrap();
       } else {
         await createAgent(payload).unwrap();
       }
@@ -186,6 +190,11 @@ export function AiAgentModal({ agent, providers, toolsets, onClose }: Props) {
                     ? t('aiAgents.field.modeRealtimeHint', 'Single bidirectional connection - lowest latency. Pick a provider that supports the realtime capability.')
                     : t('aiAgents.field.modeCascadeHint', 'STT and TTS are wired separately - pick all three profiles below.')}
                 </Text>
+                {mode === 'realtime' ? (
+                  <Text variant="muted" className="text-xs mt-1">
+                    {t('aiRobots.realtimeUnavailable', 'Realtime publish is unavailable until SIP/WebRTC media (AI-08).')}
+                  </Text>
+                ) : null}
               </div>
 
               <div className={styles.row}>

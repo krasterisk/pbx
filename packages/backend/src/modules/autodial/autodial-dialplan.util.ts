@@ -187,6 +187,15 @@ function emitScenario(actions: IRouteAction[], queueNames: string[], vpbxUserUid
         );
         break;
       }
+      case 'ai_voice_robot': {
+        const deploymentId = sanitizeAutodialArg(params.deployment_id ?? params.deploymentId ?? '');
+        lines.push(
+          deploymentId
+            ? `same => n,Stasis(krasterisk_ai_voice,${deploymentId},\${KRSK_AC_ATTEMPT})`
+            : 'same => n,NoOp(Autodial: no AI voice deployment)',
+        );
+        break;
+      }
       case 'collect_input': {
         const digits = Number(params.digits ?? 1);
         const timeout = Number(params.timeout ?? 5);

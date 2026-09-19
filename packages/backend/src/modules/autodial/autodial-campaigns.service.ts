@@ -52,6 +52,7 @@ const AUTODIAL_SUPPORTED_ACTIONS = new Set([
   "toqueue",
   "toexten",
   "voicerobot",
+  "ai_voice_robot",
   "collect_input",
   "label",
   "goto",

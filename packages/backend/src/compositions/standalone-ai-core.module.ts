@@ -41,6 +41,15 @@ import {
   SaTranscript, SaTranscriptSegment,
 } from '../modules/speech-analytics/speech-analytics.models';
 import { AiWebhookAttempt, AiWebhookDelivery, AiWebhookEndpoint } from '../modules/integration-delivery/webhook.models';
+import {
+  AiCallControlOperation, AiRobotDeployment, AiRobotDraft, AiRobotVersion,
+  AiVoiceEvent, AiVoiceSession, AiVoiceTicket, AiVoiceTurn,
+} from '../modules/ai-voice/ai-voice.models';
+import {
+  SaHumanReview, SaMetricDefinition, SaMetricRevision, SaMetricValue,
+  SaProjectVersionMetric, SaTranscriptCorrection,
+} from '../modules/speech-analytics/metrics/metric.models';
+import { CcAiAgent } from '../modules/ai-agents/models/ai-agent.model';
 
 export type StandaloneAiProfile = 'analytics-api' | 'robot-api';
 
@@ -73,6 +82,10 @@ export class StandaloneAiCoreModule {
                 SaProject, SaProjectVersion, SaProjectMember, SaRecording, SaAnalysisRun,
                 SaTranscript, SaTranscriptSegment, SaResult,
                 AiWebhookEndpoint, AiWebhookDelivery, AiWebhookAttempt,
+                CcAiAgent, AiRobotDraft, AiRobotVersion, AiRobotDeployment,
+                AiVoiceSession, AiVoiceTurn, AiVoiceEvent, AiCallControlOperation, AiVoiceTicket,
+                SaMetricDefinition, SaMetricRevision, SaProjectVersionMetric, SaMetricValue,
+                SaHumanReview, SaTranscriptCorrection,
               ],
               synchronize: false,
               autoLoadModels: false,

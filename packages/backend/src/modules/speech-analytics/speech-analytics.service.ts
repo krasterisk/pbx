@@ -345,7 +345,8 @@ export class SpeechAnalyticsService {
       maxDurationMs: 30 * 60 * 1000,
       channels: [1, 2],
       rubric: ['greeting_present', 'next_step_agreed', 'topic'],
-      reanalysis: false,
+      reanalysis: true,
+      humanReview: true,
     };
   }
 

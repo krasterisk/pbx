@@ -6,12 +6,12 @@
 |---|---|
 | Updated | 2026-09-19 |
 | Mode | `codex-direct` |
-| Coordination status | `idle` — AI-03 CAP1–CAP5 and AI-04 AN1–AN6 closed; next PLAN not assigned |
+| Coordination status | `active` — AI-07 VR1–VR6 and AI-05 MET1–MET5 closed for contracts; next is not assigned |
 | Active implementation coordinator | Codex task `01a0b2cf-f755-74d0-8a7d-7e65ee34fc65`, `/root` |
-| Active PLAN / revision | none (last closed: [AI-03-PLAN](AI-03-PLAN.md) SHA-256 `B0FADF33A409EB507B896E2622EB9D4245C7CBCC1FA2073AE70D4842BF5BA534`; [AI-04-PLAN](AI-04-PLAN.md) SHA-256 `5FF4CC1BA401713E83C30D5D2D5E1AEB15A38A0F1C2010EF069943F70533DD2A`) |
-| Active workers / owned paths | none |
-| Next action | Wait for a new assignment. Candidates: AI-05 editor / AI-06 dashboards / AI-07 voice runtime after coordinator assigns. Do not start them without a new row below. Do not charge the live wallet. Do not retune the existing PBX. |
-| Implementation state | AI-02 closed @ `315be4a5`. AI-03/AI-04 closed with live MySQL/PG SQL matrix. Product commercial runtime still `not-installed`. |
+| Active PLAN / revision | Closed: [AI-07-PLAN](AI-07-PLAN.md) SHA-256 `0F9520F243CDB3AEA33FE2E4A16FD0BDDC6A1A11CE6F3466500C2DB6F3D9F78E`; [AI-05-PLAN](AI-05-PLAN.md) SHA-256 `FFF05E6EE0300ADFA64EEDBEC98897BF2D066879AC057B7F104392E147E11240` |
+| Active workers / owned paths | `/root` — assignment closed. Do not start AI-06/08/09/10 without a new row |
+| Next action | Wait for the next assigned PLAN. Do not charge the live wallet. Do not retune the existing PBX. Native MixMonitor/ARI live calls remain unclaimed. |
+| Implementation state | AI-07/AI-05 closed for SQL/unit/Hub contracts @ dirty tree on `9e77574b`. Product commercial runtime still `not-installed`. |
 
 ## Следующее исполнение
 
@@ -51,6 +51,7 @@
 
 | Assignment | Executor identity | PLAN / task IDs / revision | Owned paths | Status / evidence |
 |---|---|---|---|---|
+| AI-07-voice / AI-05-metrics | `/root`, текущая задача | AI-07 VR1–6 then AI-05 MET1–5 | `ai-voice/**`, bounded `ai-agents` If-Match, additive 0013/0014, bounded `ari` classifier + `ai_voice_robot` action, frontend aiRobots + speechAnalytics metrics. Shared schema `/root`. No live wallet, no production PBX rewrite, no AI-08 | **closed**: [AI-07-SUMMARY](AI-07-SUMMARY.md), [AI-07-VERIFICATION](AI-07-VERIFICATION.md), [AI-05-SUMMARY](AI-05-SUMMARY.md), [AI-05-VERIFICATION](AI-05-VERIFICATION.md), [REMOTE-MATRIX](evidence/vr-met/REMOTE-MATRIX.md). MySQL VR/MET 2/2; PG VR/MET 2/2; backend 299/3088; frontend targeted 8/27 (full vitest hung at RUN). Native ARI/10-session live and MET5 30-call holdout not executed. Product runtime `not-installed` |
 | AI-03-capture / AI-04-analytics | `/root`, текущая задача | AI-03 CAP1–5 + AI-04 AN1–6 | `recording-capture/**`, `speech-analytics/**`, `integration-delivery/**`, additive 0010–0012, bounded recording util, frontend speechAnalytics. Shared schema `/root`. No live wallet, no production PBX rewrite, no AI-05/07 | **closed**: [AI-03-SUMMARY](AI-03-SUMMARY.md), [AI-03-VERIFICATION](AI-03-VERIFICATION.md), [AI-04-SUMMARY](AI-04-SUMMARY.md), [AI-04-VERIFICATION](AI-04-VERIFICATION.md), [REMOTE-MATRIX](evidence/cap-an/REMOTE-MATRIX.md). MySQL CAP 2/2 + AN 3/3; PG CAP 2/2 + AN 3/3; backend 297/3075; frontend 254/1405; lint 0 errors. Native Asterisk on live PBX not executed. Product runtime `not-installed` |
 | AI-02-D6-fault-close | `/root`, текущая задача | AI-02, D6, SHA-256 `84BCDFF527CDA7F0205635F157D6ACA460147092467E9EAE51EE6F8AF89B4907` | harness/fixtures, AI-02 SUMMARY/VERIFICATION/runbook; D4–D5 evidence. No live wallet charge, no AI-04 public analysis HTTP, no autodial | **closed**: [SUMMARY](AI-02-D6-SUMMARY.md), [VERIFICATION](AI-02-D6-VERIFICATION.md), [REMOTE-MATRIX](evidence/d6/REMOTE-MATRIX.md), [AI-02-SUMMARY](AI-02-SUMMARY.md). MySQL/PG 5/5; MySQL+Redis+MinIO and PG+Redis+MinIO 7/7; backend 294/3061 |
 | AI-02-D5-process-roles | `/root`, текущая задача | AI-02, D5, SHA-256 `84BCDFF527CDA7F0205635F157D6ACA460147092467E9EAE51EE6F8AF89B4907` | `process-roles/**`, `ai-api.main.ts`, `ai-worker.main.ts`, `media-worker.main.ts`, deploy env example, scripts. No AI-04 public analysis HTTP, no autodial | **closed**: [SUMMARY](AI-02-D5-SUMMARY.md), [VERIFICATION](AI-02-D5-VERIFICATION.md), [REMOTE-MATRIX](evidence/d5/REMOTE-MATRIX.md) |

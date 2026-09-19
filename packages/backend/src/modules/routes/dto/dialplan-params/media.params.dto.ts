@@ -17,6 +17,7 @@ import {
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 import type {
+  IAiVoiceRobotParams,
   IIvrPhraseTtsSettings,
   IMediaOptions,
   IMediaParams,
@@ -274,6 +275,15 @@ export class VoiceRobotParamsDto implements IVoiceRobotParams {
   @IsInt()
   @Min(1)
   robot_uid?: number;
+}
+
+export class AiVoiceRobotParamsDto implements IAiVoiceRobotParams {
+  @IsOptional()
+  @Transform(({ value }) => (value === '' || value == null ? undefined : value))
+  @IsString()
+  @MaxLength(36)
+  @Matches(/^[0-9a-fA-F-]{1,36}$/)
+  deployment_id?: string;
 }
 
 export class RecordParamsDto implements IRecordParams {

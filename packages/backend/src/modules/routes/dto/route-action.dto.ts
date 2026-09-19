@@ -25,7 +25,7 @@ export const ActionTypesList = [
   'totrunk', 'toexten', 'toqueue', 'togroup', 'tolist',
   'toivr', 'toroute', 'playback',
   'notify', 'callerid',
-  'voicemail', 'text2speech', 'voicerobot',
+  'voicemail', 'text2speech', 'voicerobot', 'ai_voice_robot',
   'webhook', 'confbridge', 'cmd',
   'label', 'goto', 'schedule',
   'http_request', 'collect_input',

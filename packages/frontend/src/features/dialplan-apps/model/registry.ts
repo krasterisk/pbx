@@ -16,6 +16,7 @@ import { buildVoicemailSchema, summarizeVoicemail } from './schemas/voicemail';
 import { buildToListSchema, summarizeToList } from './schemas/tolist';
 import { buildToIvrSchema, summarizeToIvr } from './schemas/toivr';
 import { buildVoiceRobotSchema, summarizeVoiceRobot } from './schemas/voicerobot';
+import { buildAiVoiceRobotSchema, summarizeAiVoiceRobot } from './schemas/aiVoiceRobot';
 import { buildToTrunkSchema, summarizeToTrunk } from './schemas/totrunk';
 import { buildWebhookSchema, summarizeWebhook } from './schemas/webhook';
 import { buildCmdSchema, summarizeCmd } from './schemas/cmd';
@@ -289,6 +290,14 @@ const registryDraft: Record<ActionType, Omit<IDialplanAppConfig, 'schema' | 'sum
     defaultParams: { robot_uid: '' },
     schema: buildVoiceRobotSchema((key: string, fallback?: string) => fallback ?? key),
     summarize: summarizeVoiceRobot,
+  },
+  ai_voice_robot: {
+    type: 'ai_voice_robot',
+    labelKey: 'routes.action.ai_voice_robot',
+    category: 'media',
+    defaultParams: { deployment_id: '' },
+    schema: buildAiVoiceRobotSchema((key: string, fallback?: string) => fallback ?? key),
+    summarize: summarizeAiVoiceRobot,
   },
   text2speech: {
     type: 'text2speech',

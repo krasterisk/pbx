@@ -21,7 +21,7 @@ const ACTION_TYPES = [
   'totrunk', 'toexten', 'toqueue', 'togroup', 'tolist',
   'toivr', 'toroute', 'playback',
   'notify', 'callerid',
-  'voicemail', 'text2speech', 'voicerobot',
+  'voicemail', 'text2speech', 'voicerobot', 'ai_voice_robot',
   'webhook', 'confbridge', 'cmd',
   'label', 'goto', 'schedule',
   'http_request', 'collect_input',
@@ -41,7 +41,7 @@ const CHARACTERIZED_TYPES: readonly ActionType[] = [
   'totrunk', 'toexten', 'toqueue', 'togroup', 'tolist',
   'toivr', 'toroute', 'playback',
   'notify', 'callerid',
-  'voicemail', 'text2speech', 'voicerobot',
+  'voicemail', 'text2speech', 'voicerobot', 'ai_voice_robot',
   'webhook', 'confbridge', 'cmd',
   'label', 'goto', 'schedule',
   'http_request', 'collect_input',
@@ -832,6 +832,14 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       }
     });
 
+    it('ai_voice_robot emits the dedicated ARI application with a deployment id', () => {
+      const dp = AsteriskDialplanUtils.actionToDialplan(
+        { type: 'ai_voice_robot', params: { deployment_id: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeee0099' }, condition: {} },
+        vpbx,
+      );
+      expect(dp).toBe('Stasis(krasterisk_ai_voice,aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeee0099)');
+    });
+
     it('voicerobot Stasis app name follows ARI_APP_NAME', () => {
       const prev = process.env.ARI_APP_NAME;
       process.env.ARI_APP_NAME = 'krasterisk_robot_dev';
@@ -1571,6 +1579,7 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       voicemail: { exten: '101' },
       text2speech: { text: 'hi' },
       voicerobot: { robot_uid: 1 },
+      ai_voice_robot: { deployment_id: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeee0099' },
       webhook: { url: 'http://x' },
       confbridge: { room: '100' },
       cmd: { command: 'NoOp(ok)' },

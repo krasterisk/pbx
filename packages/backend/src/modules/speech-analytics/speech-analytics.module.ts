@@ -10,7 +10,12 @@ import {
   SaAnalysisRun, SaProject, SaProjectMember, SaProjectVersion, SaRecording, SaResult,
   SaTranscript, SaTranscriptSegment,
 } from './speech-analytics.models';
+import {
+  SaHumanReview, SaMetricDefinition, SaMetricRevision, SaMetricValue,
+  SaProjectVersionMetric, SaTranscriptCorrection,
+} from './metrics/metric.models';
 import { SpeechAnalyticsService } from './speech-analytics.service';
+import { SaMetricsService } from './metrics/metrics.service';
 import { SaProjectResolver } from './sa-project.resolver';
 import { SpeechAnalyticsJwtController } from './speech-analytics-jwt.controller';
 import { SpeechAnalyticsPublicController } from './speech-analytics-public.controller';
@@ -24,10 +29,12 @@ import { SpeechAnalyticsPublicController } from './speech-analytics-public.contr
     SequelizeModule.forFeature([
       SaProject, SaProjectVersion, SaProjectMember, SaRecording, SaAnalysisRun,
       SaTranscript, SaTranscriptSegment, SaResult, AiMediaAsset, AiUpload, IntegrationGrant,
+      SaMetricDefinition, SaMetricRevision, SaProjectVersionMetric, SaMetricValue,
+      SaHumanReview, SaTranscriptCorrection,
     ]),
   ],
-  providers: [SpeechAnalyticsService, SaProjectResolver],
+  providers: [SpeechAnalyticsService, SaMetricsService, SaProjectResolver],
   controllers: [SpeechAnalyticsJwtController, SpeechAnalyticsPublicController],
-  exports: [SpeechAnalyticsService, SequelizeModule],
+  exports: [SpeechAnalyticsService, SaMetricsService, SequelizeModule],
 })
 export class SpeechAnalyticsModule {}

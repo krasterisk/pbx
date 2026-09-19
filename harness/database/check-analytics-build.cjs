@@ -29,19 +29,21 @@ const required = product === 'community'
         'modules/speech-analytics/speech-analytics.module.js',
         'modules/integration-delivery/integration-delivery.module.js',
       ]
-      : ['modules/recording-capture/recording-capture.module.js']),
+      : ['modules/recording-capture/recording-capture.module.js', 'modules/ai-voice/ai-voice.module.js']),
   ];
 for (const file of required) assert.ok(files.includes(file), `Missing ${product} build artifact ${file}`);
 if (product === 'analytics') {
   assert.ok(!files.includes('modules/recording-capture/recording-capture.module.js'),
     'analytics must not ship recording-capture HTTP');
+  assert.ok(!files.includes('modules/ai-voice/ai-voice.module.js'),
+    'analytics must not ship ai-voice HTTP');
 }
 if (product === 'robot') {
   assert.ok(!files.includes('modules/speech-analytics/speech-analytics.module.js'),
     'robot must not ship speech-analytics HTTP');
 }
 const forbidden = product === 'community'
-  ? /(?:^|\/)(?:ai-agents|commercial-ai\.composition|app\.module)(?:\/|\.|$)/
-  : /(?:^|\/)(?:ami|ari|autodial|voice-robots|routes|contexts|reports|queues|ai-agents|cloud-admin\/cloud-admin\.module)(?:\/|\.|$)/;
+  ? /(?:^|\/)(?:ai-agents\/ai-agents\.module|commercial-ai\.composition|app\.module)(?:\/|\.|$)/
+  : /(?:^|\/)(?:ami|ari|autodial|voice-robots|routes|contexts|reports|queues|ai-agents\/ai-agents\.module|cloud-admin\/cloud-admin\.module)(?:\/|\.|$)/;
 for (const file of files) assert.doesNotMatch(file, forbidden, `Forbidden runtime leaked into ${product} build: ${file}`);
 console.log(`${product} composition: ${files.length} artifacts, boundary held`);

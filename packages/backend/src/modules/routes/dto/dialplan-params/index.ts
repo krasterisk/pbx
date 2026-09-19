@@ -29,6 +29,7 @@ import {
   PlaybackParamsDto,
   Text2SpeechParamsDto,
   VoiceRobotParamsDto,
+  AiVoiceRobotParamsDto,
 } from './media.params.dto';
 import { DirectoryLookupParamsDto } from './directory-lookup.params.dto';
 
@@ -53,6 +54,7 @@ export const ACTION_PARAM_DTO: Record<ActionType, ParamsDtoClass | null> = {
   voicemail: VoicemailParamsDto,
   text2speech: Text2SpeechParamsDto,
   voicerobot: VoiceRobotParamsDto,
+  ai_voice_robot: AiVoiceRobotParamsDto,
   webhook: WebhookParamsDto,
   confbridge: ConfBridgeParamsDto,
   cmd: CmdParamsDto,

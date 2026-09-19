@@ -59,7 +59,7 @@ export const AiAgentsPage = memo(() => {
         aria-label={t('common.delete')}
         onClick={() => {
           if (window.confirm(t('aiAgents.confirmDelete', { name: agent.name }))) {
-            deleteAgent(agent.uid);
+            deleteAgent({ id: agent.uid, expectedRevision: agent.draft_revision ?? 1 });
           }
         }}
       >
@@ -223,7 +223,11 @@ export const AiAgentsPage = memo(() => {
                         type="button"
                         variant="ghost"
                         className={cls.toggleBtn}
-                        onClick={() => updateAgent({ id: agent.uid, data: { enabled: !agent.enabled } })}
+                        onClick={() => updateAgent({
+                          id: agent.uid,
+                          data: { enabled: !agent.enabled },
+                          expectedRevision: agent.draft_revision ?? 1,
+                        })}
                         title={t('aiAgents.toggleHint')}
                         aria-label={t('aiAgents.toggleHint')}
                       >

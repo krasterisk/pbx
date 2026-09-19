@@ -1,6 +1,6 @@
 import {
   Controller, Get, Post, Put, Delete,
-  Body, Param, Query, Req, UseGuards, ParseIntPipe, ForbiddenException, BadRequestException,
+  Body, Param, Query, Req, Headers, UseGuards, ParseIntPipe, ForbiddenException, BadRequestException,
 } from '@nestjs/common';
 import { Request } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -12,6 +12,7 @@ import { CreateAiAgentDto, UpdateAiAgentDto } from './dto/ai-agent.dto';
 import { CreateAiProviderDto, UpdateAiProviderDto } from './dto/ai-provider.dto';
 import { CreateAiToolsetDto, UpdateAiToolsetDto } from './dto/ai-toolset.dto';
 import { publicProvider } from '../ai-connectivity/provider-public';
+import { parseExpectedRevision } from './ai-agents.service';
 
 const ADMIN_LEVELS = new Set([0, 1]); // SUPERADMIN, ADMIN
 
@@ -93,16 +94,21 @@ export class AiAgentsController {
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateAiAgentDto,
+    @Headers('if-match') match: string,
     @Req() req: Request & { user: any },
   ) {
     assertAdmin(req.user);
-    return this.agents.update(id, dto, req.user.vpbx_user_uid);
+    return this.agents.update(id, dto, req.user.vpbx_user_uid, parseExpectedRevision(match));
   }
 
   @Delete(':id')
-  remove(@Param('id', ParseIntPipe) id: number, @Req() req: Request & { user: any }) {
+  remove(
+    @Param('id', ParseIntPipe) id: number,
+    @Headers('if-match') match: string,
+    @Req() req: Request & { user: any },
+  ) {
     assertAdmin(req.user);
-    return this.agents.remove(id, req.user.vpbx_user_uid);
+    return this.agents.remove(id, req.user.vpbx_user_uid, parseExpectedRevision(match));
   }
 
   // ─── Providers (sub-route) ──────────────────────────────

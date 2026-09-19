@@ -23,6 +23,7 @@ import type {
   IToRouteParams,
   IToTrunkParams,
   IVoiceRobotParams,
+  IAiVoiceRobotParams,
   IVoicemailParams,
   IWebhookParams,
   ICallbackParams,
@@ -32,7 +33,7 @@ export type ActionType =
   | 'totrunk' | 'toexten' | 'toqueue' | 'togroup' | 'tolist'
   | 'toivr' | 'toroute' | 'playback'
   | 'notify' | 'callerid'
-  | 'voicemail' | 'text2speech' | 'voicerobot'
+  | 'voicemail' | 'text2speech' | 'voicerobot' | 'ai_voice_robot'
   | 'webhook' | 'confbridge' | 'cmd'
   | 'label' | 'goto' | 'schedule'
   | 'http_request' | 'collect_input'
@@ -103,6 +104,7 @@ export type DialplanAction = BaseRouteAction & (
   | { type: 'voicemail'; params: IVoicemailParams }
   | { type: 'text2speech'; params: IText2SpeechParams }
   | { type: 'voicerobot'; params: IVoiceRobotParams }
+  | { type: 'ai_voice_robot'; params: IAiVoiceRobotParams }
   | { type: 'webhook'; params: IWebhookParams }
   | { type: 'confbridge'; params: IConfBridgeParams }
   | { type: 'cmd'; params: ICmdParams }

@@ -49,6 +49,8 @@ function describeAction(action: DialplanAction): string {
       return action.params.text ?? '';
     case 'voicerobot':
       return String(action.params.robot_uid ?? '');
+    case 'ai_voice_robot':
+      return action.params.deployment_id ?? '';
     case 'webhook':
       return action.params.url ?? '';
     case 'confbridge':
@@ -76,11 +78,12 @@ function describeAction(action: DialplanAction): string {
 }
 
 describe('D-08 DialplanAction union + D-24 meta', () => {
-  it('has 24 ActionTypesList values including callback', () => {
-    expect(ActionTypesList).toHaveLength(24);
+  it('has 25 ActionTypesList values including ai_voice_robot', () => {
+    expect(ActionTypesList).toHaveLength(25);
     expect(ActionTypesList).toContain('voicemail');
     expect(ActionTypesList).toContain('directory_lookup');
     expect(ActionTypesList).toContain('callback');
+    expect(ActionTypesList).toContain('ai_voice_robot');
     expect(ActionTypesList).not.toContain('trunk_carousel');
     expect(ActionTypesList).not.toContain('tofax');
     expect(ActionTypesList).not.toContain('playprompt');
@@ -98,7 +101,7 @@ describe('D-08 DialplanAction union + D-24 meta', () => {
     const metaKeys = Object.keys(DIALPLAN_ACTION_META).sort();
     const listKeys = [...ActionTypesList].sort();
     expect(metaKeys).toEqual(listKeys);
-    expect(metaKeys).toHaveLength(24);
+    expect(metaKeys).toHaveLength(25);
   });
 
   it('registers directory_lookup metadata for every host that can enrich a call', () => {
@@ -186,6 +189,7 @@ const VALID_PARAMS: Record<ActionType, Record<string, unknown>> = {
   },
   text2speech: { text: 'hello', engine: 3, settings: { voice: 'alena', speed: '1.0' } },
   voicerobot: { robot_uid: 5 },
+  ai_voice_robot: { deployment_id: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeee0099' },
   webhook: { url: 'https://example.com/hook' },
   confbridge: { room: { source: 'fixed', value: '100' } },
   cmd: { command: 'NoOp(ok)' },
@@ -227,6 +231,7 @@ const INVALID_PARAMS: Record<ActionType, Record<string, unknown>> = {
   voicemail: { max_duration: 0 },
   text2speech: { engine: 'nope' },
   voicerobot: { robot_uid: 'x' },
+  ai_voice_robot: { deployment_id: 1 },
   webhook: { url: 1 },
   confbridge: {},
   cmd: { command: 1 },

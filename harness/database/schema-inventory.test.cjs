@@ -14,19 +14,25 @@ test('baseline and AppModule model table/column names stay in sync', () => {
   // DB-02-B: User timestamps=true makes Sequelize populate existing NOT NULL columns.
   assert.equal(result.sources.modelMetadataSha256, '1aa7a2ac56ad8b01414fafc19b25dfa96ff138d4da000724070da775a705a797');
   assert.equal(result.counts.models, result.counts.baselineTables);
-  assert.equal(result.counts.additiveModels, 38);
+  assert.equal(result.counts.additiveModels, 52);
   assert.deepEqual(Object.keys(result.additiveModels).sort(), [
+    'ai_call_control_operations',
     'ai_capture_intents', 'ai_capture_node_bindings', 'ai_capture_receipts', 'ai_capture_segments',
     'ai_idempotency', 'ai_integration_audit', 'ai_integration_auth_limits', 'ai_integration_commands',
     'ai_integration_credentials', 'ai_integration_grants', 'ai_integration_principals',
     'ai_job_events', 'ai_job_stages', 'ai_jobs', 'ai_local_license_bindings',
     'ai_local_license_documents', 'ai_media_assets', 'ai_outbox', 'ai_price_revisions',
     'ai_product_activation',
-    'ai_provider_operations', 'ai_provider_revisions', 'ai_quota_counters', 'ai_uploads',
+    'ai_provider_operations', 'ai_provider_revisions', 'ai_quota_counters',
+    'ai_robot_deployments', 'ai_robot_drafts', 'ai_robot_versions',
+    'ai_uploads',
     'ai_usage_events', 'ai_usage_ledger', 'ai_usage_reservations',
+    'ai_voice_events', 'ai_voice_sessions', 'ai_voice_tickets', 'ai_voice_turns',
     'ai_webhook_attempts', 'ai_webhook_deliveries', 'ai_webhook_endpoints',
-    'sa_analysis_runs', 'sa_project_members', 'sa_project_versions', 'sa_projects',
-    'sa_recordings', 'sa_results', 'sa_transcript_segments', 'sa_transcripts',
+    'sa_analysis_runs', 'sa_human_reviews', 'sa_metric_definitions', 'sa_metric_revisions',
+    'sa_metric_values', 'sa_project_members', 'sa_project_version_metrics', 'sa_project_versions',
+    'sa_projects', 'sa_recordings', 'sa_results', 'sa_transcript_corrections',
+    'sa_transcript_segments', 'sa_transcripts',
   ]);
   assert.equal(result.counts.modelColumns, result.counts.baselineColumns);
   assert.deepEqual(result.differences, {
@@ -58,9 +64,18 @@ test('A2/B2/D1/D4/CAP/AN additive models have dual-engine migration ownership', 
     'sa_analysis_runs', 'sa_transcripts', 'sa_transcript_segments', 'sa_results',
   ];
   const an4 = ['ai_webhook_endpoints', 'ai_webhook_deliveries', 'ai_webhook_attempts'];
+  const vr1 = [
+    'ai_robot_drafts', 'ai_robot_versions', 'ai_robot_deployments',
+    'ai_voice_sessions', 'ai_voice_turns', 'ai_voice_events',
+    'ai_call_control_operations', 'ai_voice_tickets',
+  ];
+  const met1 = [
+    'sa_metric_definitions', 'sa_metric_revisions', 'sa_project_version_metrics',
+    'sa_metric_values', 'sa_human_reviews', 'sa_transcript_corrections',
+  ];
   for (const dialect of ['', 'postgres/']) {
     for (const [artifact, owned] of [
-      ['0004-ai-product-access.sql', tables.filter(table => !table.startsWith('ai_integration_') && !d1.includes(table) && !d4.includes(table) && !cap.includes(table) && !an1.includes(table) && !an4.includes(table))],
+      ['0004-ai-product-access.sql', tables.filter(table => !table.startsWith('ai_integration_') && !d1.includes(table) && !d4.includes(table) && !cap.includes(table) && !an1.includes(table) && !an4.includes(table) && !vr1.includes(table) && !met1.includes(table))],
       ['0005-ai-integration-credentials.sql', tables.filter(table => table.startsWith('ai_integration_') && table !== 'ai_integration_auth_limits')],
       ['0006-ai-integration-auth-limits.sql', ['ai_integration_auth_limits']],
       ['0008-ai-jobs-assets.sql', d1],
@@ -68,6 +83,8 @@ test('A2/B2/D1/D4/CAP/AN additive models have dual-engine migration ownership', 
       ['0010-ai-capture.sql', cap],
       ['0011-speech-analytics.sql', an1],
       ['0012-ai-webhooks.sql', an4],
+      ['0013-ai-voice.sql', vr1],
+      ['0014-sa-metrics.sql', met1],
     ]) {
       const sql = fs.readFileSync(path.resolve(__dirname,
         `../../packages/backend/database/migrations/${dialect}${artifact}`), 'utf8');

@@ -15,7 +15,9 @@
         { "id": "0009-ai-usage.sql", "artifact": "0009-ai-usage.sql" },
         { "id": "0010-ai-capture.sql", "artifact": "0010-ai-capture.sql" },
         { "id": "0011-speech-analytics.sql", "artifact": "0011-speech-analytics.sql" },
-        { "id": "0012-ai-webhooks.sql", "artifact": "0012-ai-webhooks.sql" }
+        { "id": "0012-ai-webhooks.sql", "artifact": "0012-ai-webhooks.sql" },
+        { "id": "0013-ai-voice.sql", "artifact": "0013-ai-voice.sql" },
+        { "id": "0014-sa-metrics.sql", "artifact": "0014-sa-metrics.sql" }
       ],
       "profiles": {
         "analytics-api": [
@@ -28,7 +30,9 @@
           { "id": "0009-ai-usage.sql", "artifact": "0009-ai-usage.sql" },
           { "id": "0010-ai-capture.sql", "artifact": "0010-ai-capture.sql" },
           { "id": "0011-speech-analytics.sql", "artifact": "0011-speech-analytics.sql" },
-          { "id": "0012-ai-webhooks.sql", "artifact": "0012-ai-webhooks.sql" }
+          { "id": "0012-ai-webhooks.sql", "artifact": "0012-ai-webhooks.sql" },
+          { "id": "0013-ai-voice.sql", "artifact": "0013-ai-voice.sql" },
+          { "id": "0014-sa-metrics.sql", "artifact": "0014-sa-metrics.sql" }
         ],
         "robot-api": [
           { "id": "0001-ai-standalone-base.sql", "artifact": "0001-ai-standalone-base.sql" },
@@ -40,7 +44,9 @@
           { "id": "0009-ai-usage.sql", "artifact": "0009-ai-usage.sql" },
           { "id": "0010-ai-capture.sql", "artifact": "0010-ai-capture.sql" },
           { "id": "0011-speech-analytics.sql", "artifact": "0011-speech-analytics.sql" },
-          { "id": "0012-ai-webhooks.sql", "artifact": "0012-ai-webhooks.sql" }
+          { "id": "0012-ai-webhooks.sql", "artifact": "0012-ai-webhooks.sql" },
+          { "id": "0013-ai-voice.sql", "artifact": "0013-ai-voice.sql" },
+          { "id": "0014-sa-metrics.sql", "artifact": "0014-sa-metrics.sql" }
         ]
       }
     },
@@ -58,7 +64,9 @@
         { "id": "0009-ai-usage.sql", "artifact": "postgres/0009-ai-usage.sql" },
         { "id": "0010-ai-capture.sql", "artifact": "postgres/0010-ai-capture.sql" },
         { "id": "0011-speech-analytics.sql", "artifact": "postgres/0011-speech-analytics.sql" },
-        { "id": "0012-ai-webhooks.sql", "artifact": "postgres/0012-ai-webhooks.sql" }
+        { "id": "0012-ai-webhooks.sql", "artifact": "postgres/0012-ai-webhooks.sql" },
+        { "id": "0013-ai-voice.sql", "artifact": "postgres/0013-ai-voice.sql" },
+        { "id": "0014-sa-metrics.sql", "artifact": "postgres/0014-sa-metrics.sql" }
       ],
       "profiles": {
         "analytics-api": [
@@ -71,7 +79,9 @@
           { "id": "0009-ai-usage.sql", "artifact": "postgres/0009-ai-usage.sql" },
           { "id": "0010-ai-capture.sql", "artifact": "postgres/0010-ai-capture.sql" },
           { "id": "0011-speech-analytics.sql", "artifact": "postgres/0011-speech-analytics.sql" },
-          { "id": "0012-ai-webhooks.sql", "artifact": "postgres/0012-ai-webhooks.sql" }
+          { "id": "0012-ai-webhooks.sql", "artifact": "postgres/0012-ai-webhooks.sql" },
+          { "id": "0013-ai-voice.sql", "artifact": "postgres/0013-ai-voice.sql" },
+          { "id": "0014-sa-metrics.sql", "artifact": "postgres/0014-sa-metrics.sql" }
         ],
         "robot-api": [
           { "id": "0001-ai-standalone-base.sql", "artifact": "postgres/0001-ai-standalone-base.sql" },
@@ -83,7 +93,9 @@
           { "id": "0009-ai-usage.sql", "artifact": "postgres/0009-ai-usage.sql" },
           { "id": "0010-ai-capture.sql", "artifact": "postgres/0010-ai-capture.sql" },
           { "id": "0011-speech-analytics.sql", "artifact": "postgres/0011-speech-analytics.sql" },
-          { "id": "0012-ai-webhooks.sql", "artifact": "postgres/0012-ai-webhooks.sql" }
+          { "id": "0012-ai-webhooks.sql", "artifact": "postgres/0012-ai-webhooks.sql" },
+          { "id": "0013-ai-voice.sql", "artifact": "postgres/0013-ai-voice.sql" },
+          { "id": "0014-sa-metrics.sql", "artifact": "postgres/0014-sa-metrics.sql" }
         ]
       }
     }

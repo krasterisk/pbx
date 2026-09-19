@@ -159,6 +159,9 @@ billing wallet. `cloud_wallet` processing stays disabled until AI-10.
 `0010-ai-capture.sql` adds capture node bindings, intents, segments and receipts.
 `0011-speech-analytics.sql` adds project, recording, run, transcript and result
 tables. `0012-ai-webhooks.sql` adds signed callback endpoints and delivery history.
+`0013-ai-voice.sql` adds robot drafts/versions/deployments and cascade session tables.
+`0014-sa-metrics.sql` adds metric definitions, revisions, scored values and human reviews.
+It also drops `uq_sa_run_initial` so a recording can have an original run plus reanalysis children.
 
 The wide Asterisk `ps_endpoints` table stores non-indexed 40-character options
 as `TEXT`, allowing InnoDB DYNAMIC to move values off-page under utf8mb4.

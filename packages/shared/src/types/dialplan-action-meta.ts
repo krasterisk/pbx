@@ -32,6 +32,7 @@ export const DIALPLAN_ACTION_META: Record<ActionType, IDialplanActionMeta> = {
   voicemail: { terminal: 'conditional', allowedIn: ALL_HOSTS, family: 'address' },
   text2speech: { terminal: 'never', allowedIn: ALL_HOSTS, family: 'media' },
   voicerobot: { terminal: 'conditional', allowedIn: ALL_HOSTS, family: 'media' },
+  ai_voice_robot: { terminal: 'conditional', allowedIn: ALL_HOSTS, family: 'media' },
   webhook: { terminal: 'never', allowedIn: ALL_HOSTS, family: 'control' },
   confbridge: { terminal: 'conditional', allowedIn: ALL_HOSTS, family: 'address' },
   cmd: { terminal: 'never', allowedIn: ROUTE_ONLY, family: 'control' },

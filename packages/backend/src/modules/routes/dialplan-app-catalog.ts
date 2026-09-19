@@ -98,6 +98,12 @@ const COPY: Record<ActionType, DialplanAppCopy> = {
     when: 'Сценарий бота вместо живого меню.',
     need: ['robot_uid'],
   },
+  ai_voice_robot: {
+    title: 'AI-робот',
+    summary: 'Передаёт канал в опубликованное cascade-развёртывание AI-робота. Не сценарий voicerobot.',
+    when: 'Маршрут или autodial на versioned AI deployment, не scripted robot_uid.',
+    need: ['deployment_id'],
+  },
   webhook: {
     title: 'Webhook',
     summary: 'HTTP-вызов наружу, маршрут не обрывается.',

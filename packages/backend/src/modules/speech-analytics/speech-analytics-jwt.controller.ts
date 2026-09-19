@@ -3,14 +3,19 @@ import {
 } from '@nestjs/common';
 import { TenantContextGuard, type TenantContextRequest } from '../integration-credentials/tenant-context.guard';
 import { SpeechAnalyticsService, assertUuid } from './speech-analytics.service';
+import { SaMetricsService } from './metrics/metrics.service';
 import type { SaProjectConfigV1 } from '@krasterisk/shared';
+import type { MetricRubric } from './metrics/metric-engine';
 
 type Authed = TenantContextRequest & { tenantContext: NonNullable<TenantContextRequest['tenantContext']> };
 
 @UseGuards(TenantContextGuard)
 @Controller('speech-analytics')
 export class SpeechAnalyticsJwtController {
-  constructor(private readonly analytics: SpeechAnalyticsService) {}
+  constructor(
+    private readonly analytics: SpeechAnalyticsService,
+    private readonly metrics: SaMetricsService,
+  ) {}
 
   @Get('projects')
   list(@Req() request: Authed) {
@@ -105,5 +110,44 @@ export class SpeechAnalyticsJwtController {
   cancel(@Req() request: Authed, @Param('id') id: string) {
     assertUuid(id);
     return this.analytics.cancelRun(request.tenantContext, id);
+  }
+
+  @Get('projects/:id/metrics')
+  metricsList(@Req() request: Authed, @Param('id') id: string) {
+    assertUuid(id);
+    return this.metrics.list(request.tenantContext, id);
+  }
+
+  @Post('projects/:id/metrics')
+  publishMetric(@Req() request: Authed, @Param('id') id: string, @Body() body: {
+    operationKey: string; rubric: MetricRubric;
+  }) {
+    assertUuid(id);
+    return this.metrics.publish(request.tenantContext, id, body.operationKey, body.rubric);
+  }
+
+  @Post('analysis-runs/:id/reanalyses')
+  reanalyze(@Req() request: Authed, @Headers('idempotency-key') idempotencyKey: string, @Param('id') id: string,
+    @Body() body: { projectVersionId: string; reason: string }) {
+    assertUuid(id);
+    assertUuid(body.projectVersionId);
+    return this.metrics.reanalyze(request.tenantContext, id, {
+      projectVersionId: body.projectVersionId, reason: body.reason, idempotencyKey,
+    });
+  }
+
+  @Post('analysis-runs/:id/reviews')
+  review(@Req() request: Authed, @Param('id') id: string, @Body() body: {
+    metricRevisionId: string; value: string; status: 'accepted' | 'rejected' | 'cancelled';
+    reason: string; commandKey: string; expectedRevision: number;
+  }) {
+    assertUuid(id);
+    return this.metrics.review(request.tenantContext, id, body);
+  }
+
+  @Post('transcripts/:id/corrections')
+  correct(@Req() request: Authed, @Param('id') id: string, @Body() body: { text: string; reason: string }) {
+    assertUuid(id);
+    return this.metrics.correctTranscript(request.tenantContext, id, body);
   }
 }

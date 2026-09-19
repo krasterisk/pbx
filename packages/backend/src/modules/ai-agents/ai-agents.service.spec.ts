@@ -14,6 +14,7 @@ describe('AiAgentsService', () => {
   let agentModel: any;
   let providerModel: any;
   let toolsetModel: any;
+  let draftModel: any;
   let service: AiAgentsService;
 
   beforeEach(() => {
@@ -28,7 +29,16 @@ describe('AiAgentsService', () => {
     toolsetModel = {
       findOne: jest.fn(),
     };
-    service = new AiAgentsService(agentModel, providerModel, toolsetModel);
+    draftModel = {
+      findOne: jest.fn().mockResolvedValue({
+        tenant_uid: 7, agent_uid: 5, robot_uuid: 'robot-uuid', draft_revision: 1,
+        runtime_policy: '{}', save: jest.fn().mockResolvedValue(undefined),
+      }),
+      create: jest.fn().mockImplementation((row: any) => Promise.resolve({
+        ...row, draft_revision: 1, robot_uuid: 'robot-uuid', save: jest.fn(),
+      })),
+    };
+    service = new AiAgentsService(agentModel, providerModel, toolsetModel, draftModel);
   });
 
   // ─── unique_id validation ───────────────────────────────
@@ -175,7 +185,7 @@ describe('AiAgentsService', () => {
   describe('update', () => {
     it('rejects when the agent does not belong to the tenant', async () => {
       agentModel.findOne.mockResolvedValueOnce(null);
-      await expect(service.update(5, { name: 'x' } as any, 7))
+      await expect(service.update(5, { name: 'x' } as any, 7, 1))
         .rejects.toBeInstanceOf(NotFoundException);
     });
 
@@ -191,7 +201,7 @@ describe('AiAgentsService', () => {
       });
       providerModel.findAll.mockResolvedValue([profile(10)]);
 
-      await service.update(5, { name: 'New name' } as any, 7);
+      await service.update(5, { name: 'New name' } as any, 7, 1);
 
       expect(update).toHaveBeenCalledWith({ name: 'New name' });
     });
@@ -203,7 +213,7 @@ describe('AiAgentsService', () => {
         get() { return { uid: 5, unique_id: 'sales', mode: 'realtime', enabled: true, model_profile_id: 10 }; },
       });
       providerModel.findAll.mockResolvedValue([profile(10, 7, ['realtime'], false)]);
-      await expect(service.update(5, { name: 'Still running?' } as any, 7))
+      await expect(service.update(5, { name: 'Still running?' } as any, 7, 1))
         .rejects.toMatchObject({ response: expect.objectContaining({
           issues: [{ code: 'disabled_provider', role: 'model', referenceUid: 10 }],
         }) });
@@ -230,14 +240,14 @@ describe('AiAgentsService', () => {
       agentModel.findOne.mockResolvedValue({
         ...legacy, update, get() { return legacy; },
       });
-      await service.update(5, { enabled: false } as any, 7);
+      await service.update(5, { enabled: false } as any, 7, 1);
       expect(update).toHaveBeenCalledWith({ enabled: false });
-      await expect(service.update(5, { enabled: true } as any, 7))
+      await expect(service.update(5, { enabled: true } as any, 7, 2))
         .rejects.toMatchObject({ response: expect.objectContaining({
           issues: [{ code: 'missing_provider', role: 'model', referenceUid: 999 }],
         }) });
       providerModel.findAll.mockResolvedValue([profile(10)]);
-      await service.update(5, { model_profile_id: 10, enabled: true } as any, 7);
+      await service.update(5, { model_profile_id: 10, enabled: true } as any, 7, 2);
       expect(update).toHaveBeenCalledWith({ model_profile_id: 10, enabled: true });
     });
 
@@ -248,7 +258,7 @@ describe('AiAgentsService', () => {
         get() { return { uid: 5, unique_id: 'sales', mode: 'realtime', enabled: true, model_profile_id: 10 }; },
       });
       providerModel.findAll.mockResolvedValue([profile(10, 7, ['realtime'])]);
-      await expect(service.update(5, { mode: 'cascade' } as any, 7))
+      await expect(service.update(5, { mode: 'cascade' } as any, 7, 1))
         .rejects.toMatchObject({ response: expect.objectContaining({
           issues: expect.arrayContaining([
             { code: 'provider_capability_mismatch', role: 'model', referenceUid: 10 },
@@ -257,6 +267,15 @@ describe('AiAgentsService', () => {
           ]),
         }) });
       expect(update).not.toHaveBeenCalled();
+    });
+
+    it('returns 428 when If-Match revision is missing', async () => {
+      agentModel.findOne.mockResolvedValueOnce({
+        uid: 5, unique_id: 'sales', update: jest.fn(),
+        get() { return { uid: 5, unique_id: 'sales', mode: 'realtime', model_profile_id: 10 }; },
+      });
+      await expect(service.update(5, { name: 'x' } as any, 7))
+        .rejects.toMatchObject({ status: 428 });
     });
   });
 });

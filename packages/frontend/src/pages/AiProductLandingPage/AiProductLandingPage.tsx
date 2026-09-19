@@ -15,11 +15,18 @@ import {
 import { resolveAiProductLandingState } from './resolveAiProductLandingState';
 import cls from './AiProductLandingPage.module.scss';
 
-const PRODUCTS: Record<AiProductCode, { icon: typeof Bot; connections: string; projects?: string }> = {
+const PRODUCTS: Record<AiProductCode, {
+  icon: typeof Bot; connections: string; projects?: string; studio?: string; sessions?: string;
+}> = {
   speech_analytics: {
     icon: BarChart3, connections: '/speech-analytics/connections', projects: '/speech-analytics/projects',
   },
-  ai_voice_robots: { icon: Bot, connections: '/ai-robots/connections' },
+  ai_voice_robots: {
+    icon: Bot,
+    connections: '/ai-robots/connections',
+    studio: '/ai-robots/studio',
+    sessions: '/ai-robots/sessions',
+  },
 };
 
 function activationErrorCode(error: unknown): string {
@@ -112,6 +119,20 @@ export const AiProductLandingPage = memo(({ product }: { product: AiProductCode 
                       <Button asChild variant="outline">
                         <Link to={PRODUCTS[product].projects}>
                           {t('aiProducts.openProjects')}
+                        </Link>
+                      </Button>
+                    ) : null}
+                    {PRODUCTS[product].studio ? (
+                      <Button asChild variant="outline">
+                        <Link to={PRODUCTS[product].studio}>
+                          {t('aiProducts.openStudio')}
+                        </Link>
+                      </Button>
+                    ) : null}
+                    {PRODUCTS[product].sessions ? (
+                      <Button asChild variant="outline">
+                        <Link to={PRODUCTS[product].sessions}>
+                          {t('aiProducts.openSessions')}
                         </Link>
                       </Button>
                     ) : null}

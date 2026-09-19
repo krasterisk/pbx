@@ -196,6 +196,9 @@ describe('hub merge + favorites (NAV-02)', () => {
     ]);
     expect(getBaselineModule('ai_voice_robots')?.pages.map((p) => p.path)).toEqual([
       '/ai-robots',
+      '/ai-robots/studio',
+      '/ai-robots/sessions',
+      '/ai-robots/preview',
       '/ai-robots/connections',
     ]);
     expect(getBaselineModule('ai')?.pages.some((p) => p.path === '/ai-robots')).toBe(false);

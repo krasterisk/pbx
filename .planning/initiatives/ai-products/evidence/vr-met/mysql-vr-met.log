@@ -1,0 +1,29 @@
+TAP version 13
+# Subtest: mysql: VR1/MET1 uniqueness and CHECKs (mysql:8.4.11)
+    # Subtest: voice version uniqueness and sip cannot be ready
+    ok 1 - voice version uniqueness and sip cannot be ready
+      ---
+      duration_ms: 181.54888
+      type: 'test'
+      ...
+    # Subtest: metric uniqueness, weight check and reanalysis child run
+    ok 2 - metric uniqueness, weight check and reanalysis child run
+      ---
+      duration_ms: 264.825661
+      type: 'test'
+      ...
+    1..2
+ok 1 - mysql: VR1/MET1 uniqueness and CHECKs (mysql:8.4.11)
+  ---
+  duration_ms: 47071.471437
+  type: 'test'
+  ...
+1..1
+# tests 3
+# suites 0
+# pass 3
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 47080.674301

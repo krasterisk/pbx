@@ -103,5 +103,8 @@ export const HUB_MODULE_PAGES_SEED: HubModulePageSeed[] = [
   { hub_code: 'speech_analytics', page_code: 'speech_analytics_projects', path: '/speech-analytics/projects', sort_order: 15 },
   { hub_code: 'speech_analytics', page_code: 'speech_analytics_connections', path: '/speech-analytics/connections', sort_order: 20 },
   { hub_code: 'ai_voice_robots', page_code: 'ai_voice_robots_landing', path: '/ai-robots', sort_order: 10 },
+  { hub_code: 'ai_voice_robots', page_code: 'ai_voice_robots_studio', path: '/ai-robots/studio', sort_order: 12 },
+  { hub_code: 'ai_voice_robots', page_code: 'ai_voice_robots_sessions', path: '/ai-robots/sessions', sort_order: 14 },
+  { hub_code: 'ai_voice_robots', page_code: 'ai_voice_robots_preview', path: '/ai-robots/preview', sort_order: 16 },
   { hub_code: 'ai_voice_robots', page_code: 'ai_voice_robots_connections', path: '/ai-robots/connections', sort_order: 20 },
 ];

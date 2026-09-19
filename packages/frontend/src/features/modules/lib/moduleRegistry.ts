@@ -284,6 +284,24 @@ export const BASELINE_MODULES: ModuleDef[] = [
     pages: [
       { id: 'ai-robots-landing', path: '/ai-robots', labelKey: 'nav.aiRobotsProduct', icon: Bot },
       {
+        id: 'ai-robots-studio',
+        path: '/ai-robots/studio',
+        labelKey: 'nav.aiRobotsStudio',
+        icon: Sparkles,
+      },
+      {
+        id: 'ai-robots-sessions',
+        path: '/ai-robots/sessions',
+        labelKey: 'nav.aiRobotsSessions',
+        icon: List,
+      },
+      {
+        id: 'ai-robots-preview',
+        path: '/ai-robots/preview',
+        labelKey: 'nav.aiRobotsPreview',
+        icon: Mic,
+      },
+      {
         id: 'ai-robots-connections',
         path: '/ai-robots/connections',
         labelKey: 'nav.aiConnections',

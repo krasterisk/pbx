@@ -247,6 +247,10 @@ export interface IVoiceRobotParams {
   robot_uid?: number;
 }
 
+export interface IAiVoiceRobotParams {
+  deployment_id?: string;
+}
+
 export interface IRecordParams {
   silence_timeout?: number | string;
   max_timer?: number | string;

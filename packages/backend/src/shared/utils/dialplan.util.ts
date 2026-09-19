@@ -26,6 +26,7 @@ import {
   mapTrunkCarouselItems,
 } from './dialplan-trunk-carousel.util';
 import { resolveAriAppName } from '../../modules/ari/ari-app-name';
+import { resolveAiVoiceAriAppName } from '../../modules/ari/ari-event-classifier';
 import {
   conferenceMaskContextName,
   conferenceRoomContextName,
@@ -399,6 +400,13 @@ export class AsteriskDialplanUtils {
         dp = robotUid
           ? `Stasis(${resolveAriAppName()},${robotUid})`
           : `NoOp(Missing Robot UID)`;
+        break;
+      }
+      case 'ai_voice_robot': {
+        const deploymentId = this.sanitizeDialplanInput(String(params.deployment_id || ''));
+        dp = deploymentId
+          ? `Stasis(${resolveAiVoiceAriAppName()},${deploymentId})`
+          : `NoOp(Missing AI Voice deployment)`;
         break;
       }
       case 'tolist': {

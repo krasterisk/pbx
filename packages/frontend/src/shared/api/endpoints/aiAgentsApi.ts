@@ -54,6 +54,8 @@ export interface IAiAgent {
   enabled: boolean;
   user_uid: number;
   created_at?: string;
+  draft_revision?: number;
+  robot_uuid?: string;
 }
 
 export interface ICreateAiAgent {
@@ -99,12 +101,18 @@ const aiAgentsApi = rtkApi.injectEndpoints({
       query: (body) => ({ url: '/ai-agents', method: 'POST', body }),
       invalidatesTags: ['AiAgents'],
     }),
-    updateAiAgent: build.mutation<IAiAgent, { id: number; data: Partial<ICreateAiAgent> }>({
-      query: ({ id, data }) => ({ url: `/ai-agents/${id}`, method: 'PUT', body: data }),
+    updateAiAgent: build.mutation<IAiAgent, { id: number; data: Partial<ICreateAiAgent>; expectedRevision: number }>({
+      query: ({ id, data, expectedRevision }) => ({
+        url: `/ai-agents/${id}`, method: 'PUT', body: data,
+        headers: { 'If-Match': String(expectedRevision) },
+      }),
       invalidatesTags: ['AiAgents'],
     }),
-    deleteAiAgent: build.mutation<{ success: boolean }, number>({
-      query: (id) => ({ url: `/ai-agents/${id}`, method: 'DELETE' }),
+    deleteAiAgent: build.mutation<{ success: boolean }, { id: number; expectedRevision: number }>({
+      query: ({ id, expectedRevision }) => ({
+        url: `/ai-agents/${id}`, method: 'DELETE',
+        headers: { 'If-Match': String(expectedRevision) },
+      }),
       invalidatesTags: ['AiAgents'],
     }),
 

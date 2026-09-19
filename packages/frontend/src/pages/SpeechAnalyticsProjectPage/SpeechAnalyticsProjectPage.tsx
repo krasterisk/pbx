@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle, Text } from '@/shared/ui';
 import { VStack } from '@/shared/ui/Stack';
 import { useGetSaRecordingsQuery } from '@/features/speechAnalytics/api/speechAnalyticsApi';
+import { MetricEditor } from '@/features/speechAnalytics/ui/MetricEditor';
 
 export const SpeechAnalyticsProjectPage = memo(() => {
   const { t } = useTranslation();
@@ -12,6 +13,7 @@ export const SpeechAnalyticsProjectPage = memo(() => {
   return (
     <VStack gap="16" max data-testid="speech-analytics-project">
       <Text variant="h1" as="h1">{t('speechAnalytics.recordings')}</Text>
+      {id ? <MetricEditor projectId={id} /> : null}
       {recordings.length === 0 ? (
         <Text variant="muted">{t('speechAnalytics.emptyRecordings')}</Text>
       ) : recordings.map((row) => (

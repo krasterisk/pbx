@@ -62,6 +62,9 @@ import { AiConnectionsPage } from '@/pages/AiConnectionsPage';
 import { SpeechAnalyticsProjectsPage } from '@/pages/SpeechAnalyticsProjectsPage/SpeechAnalyticsProjectsPage';
 import { SpeechAnalyticsProjectPage } from '@/pages/SpeechAnalyticsProjectPage/SpeechAnalyticsProjectPage';
 import { SpeechAnalyticsRecordingPage } from '@/pages/SpeechAnalyticsRecordingPage/SpeechAnalyticsRecordingPage';
+import { AiRobotsStudioPage } from '@/pages/AiRobotsStudioPage/AiRobotsStudioPage';
+import { AiRobotsSessionsPage } from '@/pages/AiRobotsSessionsPage/AiRobotsSessionsPage';
+import { AiRobotsPreviewPage } from '@/pages/AiRobotsPreviewPage/AiRobotsPreviewPage';
 import { RequireRole } from '@/app/router/RequireRole';
 import { UserLevel } from '@/entities/User';
 
@@ -189,6 +192,9 @@ export const router = createBrowserRouter([
       { path: 'speech-analytics/recordings/:id', element: <SpeechAnalyticsRecordingPage /> },
       { path: 'ai-robots', element: <AiProductLandingPage product="ai_voice_robots" /> },
       { path: 'ai-robots/connections', element: <AiConnectionsPage product="ai_voice_robots" /> },
+      { path: 'ai-robots/studio', element: <AiRobotsStudioPage /> },
+      { path: 'ai-robots/sessions', element: <AiRobotsSessionsPage /> },
+      { path: 'ai-robots/preview', element: <AiRobotsPreviewPage /> },
       { path: 'service-requests', element: <ServiceRequestsPage /> },
       { path: 'komandor-claims', element: <KomandorClaimsPage /> },
       { path: 'reports', element: <PlaceholderPage title="Reports" /> },

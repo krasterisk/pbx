@@ -7,6 +7,7 @@ import { CcAiCdr } from './models/ai-cdr.model';
 import { CcAiBilling } from './models/ai-billing.model';
 import { CcAiInvoice } from './models/ai-invoice.model';
 import { CcAiAuditLog } from './models/ai-audit-log.model';
+import { AiRobotDraft } from '../ai-voice/ai-voice.models';
 import { AiAgentsService } from './ai-agents.service';
 import { AiToolsetsService } from './ai-toolsets.service';
 import { AiAgentInventoryService } from './ai-agent-inventory.service';
@@ -26,7 +27,7 @@ import { AiConnectivityModule } from '../ai-connectivity/ai-connectivity.module'
     AiConnectivityModule,
     SequelizeModule.forFeature([
       CcAiAgent, CcAiProvider, CcAiToolset,
-      CcAiCdr, CcAiBilling, CcAiInvoice, CcAiAuditLog,
+      CcAiCdr, CcAiBilling, CcAiInvoice, CcAiAuditLog, AiRobotDraft,
     ]),
   ],
   providers: [AiAgentsService, AiToolsetsService, AiAgentInventoryService],
