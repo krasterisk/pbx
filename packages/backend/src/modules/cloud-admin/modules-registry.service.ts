@@ -209,6 +209,13 @@ export class ModulesRegistryService implements OnApplicationBootstrap {
     const mode = deploymentMode.toUpperCase();
     const statusByCode = new Map(tenantRows.map((r) => [r.module_code, r.status]));
 
+    if (isAiProductCode(hub.code)) {
+      const st = statusByCode.get(hub.code);
+      if (st === 'active' || st === 'trial') return 'active';
+      if (st === 'inactive' || st === 'expired') return 'disabled';
+      return 'locked';
+    }
+
     if (mode !== 'CLOUD') {
       // BOX: base always active; market requires_cloud → locked (cloud-only); else active
       if (hub.kind === 'base') return 'active';

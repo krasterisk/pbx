@@ -216,4 +216,25 @@ describe('ModulesRegistryService A1 catalog and offers', () => {
       { where: { code: ['ai_voice_robots', 'speech_analytics'] } },
     );
   });
+
+  it('does not treat independent AI products as BOX-unlocked market modules', () => {
+    const service = new ModulesRegistryService(
+      {} as any, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any,
+    );
+    expect(service.computeLicenseStatus(
+      { code: 'speech_analytics', kind: 'market', requires_cloud: false },
+      [],
+      'BOX',
+    )).toBe('locked');
+    expect(service.computeLicenseStatus(
+      { code: 'ai_voice_robots', kind: 'market', requires_cloud: false },
+      [{ module_code: 'ai_voice_robots', status: 'active' } as any],
+      'BOX',
+    )).toBe('active');
+    expect(service.computeLicenseStatus(
+      { code: 'ai', kind: 'market', requires_cloud: false },
+      [],
+      'BOX',
+    )).toBe('active');
+  });
 });

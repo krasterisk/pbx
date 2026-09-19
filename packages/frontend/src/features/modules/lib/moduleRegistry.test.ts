@@ -181,5 +181,22 @@ describe('hub merge + favorites (NAV-02)', () => {
     expect(findModuleByPath('/endpoints')?.code).toBe('core');
     expect(findModuleByPath('/callcenter/agent')?.code).toBe('callcenter');
     expect(findModuleByPath('/')?.code).toBe('overview');
+    expect(findModuleByPath('/speech-analytics')?.code).toBe('speech_analytics');
+    expect(findModuleByPath('/ai-robots')?.code).toBe('ai_voice_robots');
+    expect(findModuleByPath('/voice-robots')?.code).toBe('apps');
+  });
+
+  it('keeps speech analytics and AI robots as independent Hub products', () => {
+    const codes = BASELINE_MODULES.map((m) => m.code);
+    expect(codes).toEqual(expect.arrayContaining(['speech_analytics', 'ai_voice_robots', 'ai']));
+    expect(getBaselineModule('speech_analytics')?.pages.map((p) => p.path)).toEqual([
+      '/speech-analytics',
+      '/speech-analytics/connections',
+    ]);
+    expect(getBaselineModule('ai_voice_robots')?.pages.map((p) => p.path)).toEqual([
+      '/ai-robots',
+      '/ai-robots/connections',
+    ]);
+    expect(getBaselineModule('ai')?.pages.some((p) => p.path === '/ai-robots')).toBe(false);
   });
 });

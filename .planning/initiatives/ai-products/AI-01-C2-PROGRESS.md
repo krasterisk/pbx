@@ -22,9 +22,9 @@
 
 1. ~~Remote MySQL/PG contracts + analytics/robot HTTP boot текущей ревизии.~~ Сделано 2026-09-19: [REMOTE-MATRIX](evidence/c2/REMOTE-MATRIX.md).
 2. Browser login на живом API не проверялся: targeted UI tests покрывают form/capabilities, но не live DOM против реальной БД. Frontend full suite по-прежнему имеет известный `ConferenceRoomFormModal` locale assertion и ранее зависала; полный прогон не засчитан.
-3. Full-PBX internal dialplan/IVR optional-key handlers now fail-closed via `timingSafeApiKeyEqual`. `VoiceRobotsPublicController` unauthenticated fixed-tenant CRUD остаётся — v3 client нельзя молча отключить. [Inventory](AI-01-C2-LEGACY-EXPOSURE.md).
-4. Analytics processing, agent runtime/SIP edge, project/metric UI, landing/credentials и Marketplace интеграция относятся к следующим назначенным задачам C3, AI-02/04/07; skeleton их не заменяет.
+3. Full-PBX internal dialplan/IVR optional-key handlers now fail-closed via `timingSafeApiKeyEqual`. `VoiceRobotsPublicController` URLs kept; `VoiceRobotsPublicKeyGuard` requires `VOICE_ROBOTS_PUBLIC_API_KEY` or `DIALPLAN_API_KEY`. Live v3 client compatibility not proven. [Inventory](AI-01-C2-LEGACY-EXPOSURE.md).
+4. Analytics processing, agent runtime/SIP edge, project/metric UI относятся к AI-02/04/07; skeleton их не заменяет. Hub landing/credentials — C3, не закрывает C2.
 
 ## Следующее действие
 
-v3 public voice-robots compatibility rollout (не молча удалять URL) либо C4. Browser login vs live DB не проверялся. Не объявлять C2 complete.
+C4 acceptance и browser login vs live DB. Public robot URLs сохранены и fail-closed; live v3 client E2E ещё нет. Не объявлять C2 complete.

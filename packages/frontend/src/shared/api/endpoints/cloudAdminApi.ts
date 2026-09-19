@@ -51,7 +51,7 @@ export interface IPlatformHubModule {
   pages?: IPlatformHubPage[];
 }
 
-const cloudAdminApi = rtkApi.injectEndpoints({
+export const cloudAdminApi = rtkApi.injectEndpoints({
   overrideExisting: import.meta.hot != null,
   endpoints: (builder) => ({
     // ─── Tenants ───────────────────────────────────────────────────────────
@@ -168,6 +168,15 @@ const cloudAdminApi = rtkApi.injectEndpoints({
     getHubCatalog: builder.query<IHubCatalogItem[], void>({
       query: () => '/marketplace/hub-catalog',
       providesTags: [{ type: 'Tenants', id: 'HUB-CATALOG' }],
+    }),
+
+    getAiProductsStatus: builder.query<Array<{
+      product: 'speech_analytics' | 'ai_voice_robots';
+      allowed: boolean;
+      reason: string | null;
+    }>, void>({
+      query: () => '/marketplace/ai-products/status',
+      providesTags: [{ type: 'Tenants', id: 'AI-PRODUCT-STATUS' }],
     }),
 
     /** Alias for Hub Active section - same payload as getHubCatalog. */
@@ -383,6 +392,7 @@ export const {
   useGetModuleCatalogQuery,
   useGetMyModulesQuery,
   useGetHubCatalogQuery,
+  useGetAiProductsStatusQuery,
   useGetMyHubModulesQuery,
   useEnableHubModuleMutation,
   useDisableHubModuleMutation,

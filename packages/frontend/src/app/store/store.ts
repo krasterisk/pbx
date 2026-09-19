@@ -3,6 +3,8 @@ import { rtkApi } from '@/shared/api/rtkApi';
 import {
   authReducer,
   hydrateAuthFromStorage,
+  logout,
+  authLogout,
 } from '@/features/auth/model/authSlice';
 import { isNativePlatform } from '@/shared/lib/capacitor/isNative';
 import { usersPageReducer } from '@/features/users/model/slice/usersPageSlice';
@@ -63,7 +65,13 @@ export const store = configureStore({
     [rtkApi.reducerPath]: rtkApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
-    getDefaultMiddleware().concat(rtkApi.middleware),
+    getDefaultMiddleware().concat(rtkApi.middleware).concat((api) => (next) => (action) => {
+      const result = next(action);
+      if (logout.match(action) || authLogout.fulfilled.match(action)) {
+        api.dispatch(rtkApi.util.resetApiState());
+      }
+      return result;
+    }),
 });
 
 export type RootState = ReturnType<typeof store.getState>;

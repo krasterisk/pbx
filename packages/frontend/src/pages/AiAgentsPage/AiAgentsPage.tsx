@@ -1,4 +1,5 @@
 import { memo, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Bot, Pencil, Plus, ToggleLeft, ToggleRight, Trash2, Wrench } from 'lucide-react';
 import { Button, TableRowAction, TableRowActions, Text } from '@/shared/ui';
@@ -82,6 +83,9 @@ export const AiAgentsPage = memo(() => {
             </Text>
             <Text variant="muted">
               {t('aiAgents.subtitle')}
+            </Text>
+            <Text as={Link} to="/ai-robots" variant="muted">
+              {t('nav.aiRobotsProduct')}
             </Text>
           </VStack>
         </HStack>

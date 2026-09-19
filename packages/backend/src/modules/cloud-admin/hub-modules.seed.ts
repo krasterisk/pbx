@@ -39,6 +39,8 @@ export const HUB_MODULES_SEED: HubModuleSeed[] = [
   { code: 'ai', name: 'AI', kind: 'market', sort_order: 60, requires_cloud: false },
   // Same code as MODULES_SEED so no LEGACY_HUB_LICENSE_CODES entry is needed.
   { code: 'autodial', name: 'Autodial', kind: 'market', sort_order: 70, requires_cloud: false },
+  { code: 'speech_analytics', name: 'Speech analytics', kind: 'market', sort_order: 80, requires_cloud: false },
+  { code: 'ai_voice_robots', name: 'AI robots', kind: 'market', sort_order: 90, requires_cloud: false },
 ];
 
 /** page_code aligns with MODULES_SEED / ModuleAccessGuard where possible. */
@@ -95,4 +97,10 @@ export const HUB_MODULE_PAGES_SEED: HubModulePageSeed[] = [
   // AI (market)
   { hub_code: 'ai', page_code: 'ai_providers', path: '/ai-providers', sort_order: 10 },
   { hub_code: 'ai', page_code: 'ai_agents', path: '/ai-agents', sort_order: 20 },
+
+  // Independent AI products (landing + connections; scenario robots stay under apps)
+  { hub_code: 'speech_analytics', page_code: 'speech_analytics_landing', path: '/speech-analytics', sort_order: 10 },
+  { hub_code: 'speech_analytics', page_code: 'speech_analytics_connections', path: '/speech-analytics/connections', sort_order: 20 },
+  { hub_code: 'ai_voice_robots', page_code: 'ai_voice_robots_landing', path: '/ai-robots', sort_order: 10 },
+  { hub_code: 'ai_voice_robots', page_code: 'ai_voice_robots_connections', path: '/ai-robots/connections', sort_order: 20 },
 ];

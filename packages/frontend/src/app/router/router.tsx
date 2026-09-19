@@ -57,6 +57,8 @@ import { ConferenceGuestPage } from '@/pages/ConferenceGuestPage';
 import { CallCenterReportsPage } from '@/pages/CallCenterReportsPage';
 import { AiAgentsPage } from '@/pages/AiAgentsPage';
 import { AiProvidersPage } from '@/pages/AiProvidersPage';
+import { AiProductLandingPage } from '@/pages/AiProductLandingPage';
+import { AiConnectionsPage } from '@/pages/AiConnectionsPage';
 import { RequireRole } from '@/app/router/RequireRole';
 import { UserLevel } from '@/entities/User';
 
@@ -177,6 +179,10 @@ export const router = createBrowserRouter([
       },
       { path: 'ai-providers', element: <AiProvidersPage /> },
       { path: 'ai-agents', element: <AiAgentsPage /> },
+      { path: 'speech-analytics', element: <AiProductLandingPage product="speech_analytics" /> },
+      { path: 'speech-analytics/connections', element: <AiConnectionsPage product="speech_analytics" /> },
+      { path: 'ai-robots', element: <AiProductLandingPage product="ai_voice_robots" /> },
+      { path: 'ai-robots/connections', element: <AiConnectionsPage product="ai_voice_robots" /> },
       { path: 'service-requests', element: <ServiceRequestsPage /> },
       { path: 'komandor-claims', element: <KomandorClaimsPage /> },
       { path: 'reports', element: <PlaceholderPage title="Reports" /> },

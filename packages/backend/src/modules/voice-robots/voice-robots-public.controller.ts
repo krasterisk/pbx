@@ -1,17 +1,16 @@
 import {
   Controller, Get, Post, Put, Delete,
-  Body, Param, Query, ParseIntPipe, HttpCode,
+  Body, Param, Query, ParseIntPipe, HttpCode, UseGuards,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { VoiceRobotsService } from './voice-robots.service';
+import { VoiceRobotsPublicKeyGuard } from './voice-robots-public-key.guard';
 
 /**
- * Public (no-auth) Voice Robots controller for standalone v3 integration.
- * Uses a fixed tenant ID from env: DEFAULT_VPBX_USER_UID.
- *
- * All endpoints mirror the JWT-protected VoiceRobotsController,
- * but without @UseGuards(JwtAuthGuard) and with a fixed user_uid.
+ * v3 public Voice Robots URLs. Tenant is still DEFAULT_VPBX_USER_UID;
+ * access requires VOICE_ROBOTS_PUBLIC_API_KEY or DIALPLAN_API_KEY.
  */
+@UseGuards(VoiceRobotsPublicKeyGuard)
 @Controller('public/voice-robots')
 export class VoiceRobotsPublicController {
   private readonly userUid: number;

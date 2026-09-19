@@ -24,6 +24,8 @@ describe('Hub modules Phase 8 seed', () => {
         'callcenter',
         'analytics',
         'ai',
+        'speech_analytics',
+        'ai_voice_robots',
       ]),
     );
   });

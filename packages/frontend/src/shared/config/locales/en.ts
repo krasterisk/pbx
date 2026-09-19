@@ -105,6 +105,9 @@ export const en = {
     ai: "AI",
     aiProviders: "Providers",
     aiAgents: "AI Agents",
+    aiRobotsProduct: "AI robots",
+    speechAnalytics: "Speech analytics",
+    aiConnections: "Connections",
     users: "Users",
     roles: "Access profiles",
     numbers: "Access Lists",
@@ -5093,6 +5096,92 @@ export const en = {
       capsRequired: "Pick at least one capability",
       defaultsJson: "Defaults: invalid JSON",
       pricingJson: "Pricing: invalid JSON",
+    },
+  },
+
+  aiProducts: {
+    activation: "Product enabled",
+    openConnections: "Connections",
+    speech_analytics: {
+      title: "Speech analytics",
+      subtitle: "License, activation and recording readiness. Project editing ships separately.",
+    },
+    ai_voice_robots: {
+      title: "AI robots",
+      subtitle: "License, activation and voice-product readiness. Scenario robots stay under Apps.",
+    },
+    states: {
+      pending: {
+        title: "Checking access",
+        body: "The server has not confirmed the license yet. Protected content stays hidden.",
+      },
+      locked: {
+        title: "Product unavailable",
+        body: "There is no valid license or entitlement for this product. Purchase is not started from this page.",
+      },
+      expired: {
+        title: "License expired",
+        body: "The previous entitlement has ended. Connections and processing stay closed until it is renewed.",
+      },
+      notInstalled: {
+        title: "Package not installed",
+        body: "This product is not part of the installed package. Installing it is separate from Hub activation.",
+      },
+      disabled: {
+        title: "Product disabled",
+        body: "The license exists, but the product is turned off for this cabinet. Enable the switch when ready.",
+      },
+      unavailable: {
+        title: "Temporarily unavailable",
+        body: "Resource or runtime checks failed. Retry later instead of issuing a new key.",
+      },
+      notConfigured: {
+        title: "Enabled, not configured",
+        body: "The product is active, but providers are not configured yet. Connections do not replace runtime readiness.",
+      },
+      ready: {
+        title: "Ready",
+        body: "License and activation are in place. Configure connections and providers next.",
+      },
+    },
+    errors: {
+      product_activation_invalid: "Invalid activation request",
+      product_activation_failed: "Could not change activation",
+      tenant_admin_required: "Cabinet administrator rights are required",
+      tenant_not_found: "Cabinet not found",
+      not_entitled: "This product is not entitled",
+      entitlement_expired: "Entitlement has expired",
+      product_disabled: "The product is disabled by policy",
+      package_missing: "The product package is not installed",
+      license_invalid: "The local license is invalid",
+      license_expired: "The local license has expired",
+      runtime_unavailable: "Runtime is temporarily unavailable",
+    },
+    connections: {
+      title: "Connections",
+      subtitle: {
+        speech_analytics: "Integration keys for speech analytics. The secret is shown once.",
+        ai_voice_robots: "Integration keys for AI robots. The secret is shown once.",
+      },
+      loading: "Loading connections…",
+      error: "Could not load connections",
+      forbidden: "You cannot manage connections for this product",
+      unavailable: "The credential service is temporarily unavailable",
+      empty: {
+        speech_analytics: "No keys yet. An analytics project is required first — this screen does not grant access to other tenants' resources.",
+        ai_voice_robots: "No keys yet. A robot deployment is required first — this screen does not grant access to other tenants' resources.",
+      },
+      labelPlaceholder: "Key label",
+      create: "Create key",
+      rotate: "Rotate key",
+      revoke: "Revoke",
+      confirmRotate: "The current key will stop working. Continue?",
+      confirmRevoke: "Revoke this key? The integration will lose access immediately.",
+      secretTitle: "Secret shown once",
+      secretWarning: "Copy or download the key now. It cannot be shown again.",
+      secretLost: "The response had no secret. Create a new generation instead of repeating the same operation.",
+      copy: "Copy",
+      download: "Download",
     },
   },
 

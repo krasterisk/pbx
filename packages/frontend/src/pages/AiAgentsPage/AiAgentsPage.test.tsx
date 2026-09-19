@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import '@testing-library/jest-dom';
 
 const useIsMobileMock = vi.fn((_bp?: number) => false);
@@ -45,7 +46,7 @@ describe('AiAgentsPage', () => {
   });
 
   it('renders title, subtitle and create CTA', () => {
-    render(<AiAgentsPage />);
+    render(<MemoryRouter><AiAgentsPage /></MemoryRouter>);
     expect(screen.getByTestId('ai-agents-page-responsive')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'aiAgents.title' })).toBeInTheDocument();
     expect(screen.getByText('aiAgents.subtitle')).toBeInTheDocument();
@@ -53,13 +54,13 @@ describe('AiAgentsPage', () => {
   });
 
   it('exposes hybrid-table overflow marker on desktop', () => {
-    render(<AiAgentsPage />);
+    render(<MemoryRouter><AiAgentsPage /></MemoryRouter>);
     const hybrid = screen.getByTestId('hybrid-table');
     expect(hybrid).toHaveAttribute('data-hybrid', 'overflow-x-auto');
   });
 
   it('uses TableRowActions with title and aria-label', () => {
-    render(<AiAgentsPage />);
+    render(<MemoryRouter><AiAgentsPage /></MemoryRouter>);
     const edit = screen.getByRole('button', { name: 'common.edit' });
     const del = screen.getByRole('button', { name: 'common.delete' });
     expect(edit).toHaveAttribute('title');
@@ -70,7 +71,7 @@ describe('AiAgentsPage', () => {
 
   it('renders mobile-card hybrid marker when useIsMobile is true', () => {
     useIsMobileMock.mockReturnValue(true);
-    render(<AiAgentsPage />);
+    render(<MemoryRouter><AiAgentsPage /></MemoryRouter>);
     const hybrid = screen.getByTestId('hybrid-table');
     expect(hybrid).toHaveAttribute('data-hybrid', 'mobile-card');
     expect(screen.getByTestId('ai-agents-mobile-card')).toBeInTheDocument();

@@ -253,6 +253,38 @@ export const BASELINE_MODULES: ModuleDef[] = [
       { id: 'ai-agents', path: '/ai-agents', labelKey: 'nav.aiAgents', icon: Sparkles },
     ],
   },
+  {
+    code: 'speech_analytics',
+    kind: 'market',
+    navVariant: 'sidebar',
+    labelKey: 'nav.speechAnalytics',
+    pages: [
+      { id: 'speech-analytics-landing', path: '/speech-analytics', labelKey: 'nav.speechAnalytics', icon: BarChart3 },
+      {
+        id: 'speech-analytics-connections',
+        path: '/speech-analytics/connections',
+        labelKey: 'nav.aiConnections',
+        icon: Plug,
+        minLevels: ADMIN_PLUS,
+      },
+    ],
+  },
+  {
+    code: 'ai_voice_robots',
+    kind: 'market',
+    navVariant: 'sidebar',
+    labelKey: 'nav.aiRobotsProduct',
+    pages: [
+      { id: 'ai-robots-landing', path: '/ai-robots', labelKey: 'nav.aiRobotsProduct', icon: Bot },
+      {
+        id: 'ai-robots-connections',
+        path: '/ai-robots/connections',
+        labelKey: 'nav.aiConnections',
+        icon: Plug,
+        minLevels: ADMIN_PLUS,
+      },
+    ],
+  },
 ];
 
 export function getBaselineModule(code: string): ModuleDef | undefined {
