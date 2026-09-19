@@ -18,6 +18,29 @@ export function buildMixMonitorFlags(opts: RouteRecordingOptions): string {
   return flags;
 }
 
+const UUID_FILE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+export function durableCaptureFileBase(recordingUid: string): string {
+  if (!UUID_FILE.test(recordingUid)) {
+    throw new Error('durable capture filename must be a server UUID');
+  }
+  return recordingUid;
+}
+
+export function buildStopMixMonitor(recorderId: string): string {
+  return `StopMixMonitor(${recorderId})`;
+}
+
+export function mixMonitorWithRecorderId(
+  file: string, flags: string, recorderId: string, postprocess?: string,
+): string {
+  return `MixMonitor(${file},${flags},${postprocess ?? ''},${recorderId})`;
+}
+
+export function shouldRunLegacyFfmpegHangup(durableCapture: boolean): boolean {
+  return !durableCapture;
+}
+
 export function getRecordingSourceExtension(stereo: boolean): 'wav' | 'raw' {
   return stereo ? 'raw' : 'wav';
 }

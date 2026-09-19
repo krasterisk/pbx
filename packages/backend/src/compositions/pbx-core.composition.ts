@@ -174,6 +174,14 @@ import { AiMediaAsset, AiUpload } from '../modules/media-assets/media-asset.mode
 import {
   AiPriceRevision, AiQuotaCounter, AiUsageEvent, AiUsageLedger, AiUsageReservation,
 } from '../modules/ai-usage/usage.models';
+import {
+  AiCaptureIntent, AiCaptureNodeBinding, AiCaptureReceipt, AiCaptureSegment,
+} from '../modules/recording-capture/capture.models';
+import {
+  SaAnalysisRun, SaProject, SaProjectMember, SaProjectVersion, SaRecording, SaResult,
+  SaTranscript, SaTranscriptSegment,
+} from '../modules/speech-analytics/speech-analytics.models';
+import { AiWebhookAttempt, AiWebhookDelivery, AiWebhookEndpoint } from '../modules/integration-delivery/webhook.models';
 
 /** Existing open PBX nest modules. Commercial robot/analytics product modules are not listed. */
 export const PBX_CORE_NEST_MODULES = [
@@ -216,6 +224,10 @@ export const PBX_CORE_MODELS = [
   AiProviderRevision, AiMediaAsset, AiUpload, AiIdempotency, AiJob, AiJobStage,
   AiProviderOperation, AiOutbox, AiJobEvent,
   AiQuotaCounter, AiPriceRevision, AiUsageReservation, AiUsageEvent, AiUsageLedger,
+  AiCaptureNodeBinding, AiCaptureIntent, AiCaptureSegment, AiCaptureReceipt,
+  SaProject, SaProjectVersion, SaProjectMember, SaRecording, SaAnalysisRun,
+  SaTranscript, SaTranscriptSegment, SaResult,
+  AiWebhookEndpoint, AiWebhookDelivery, AiWebhookAttempt,
 ] as const;
 
 export const PBX_THROTTLER_PROVIDER = { provide: APP_GUARD, useClass: ThrottlerGuard };

@@ -1,4 +1,4 @@
-import { ProductResourceAuthorization } from './product-resource.authorization';
+import { ProductResourceAuthorization, ProductResourceResolverRegistry } from './product-resource.authorization';
 
 const context = Object.freeze({
   tenantUid: 42, principalId: 'user:7', principalKind: 'user' as const,
@@ -12,7 +12,7 @@ const reference = {
 
 describe('ProductResourceAuthorization', () => {
   it('fails closed without a compiled resolver and for mismatched product/resource pair', async () => {
-    const auth = new ProductResourceAuthorization([]);
+    const auth = new ProductResourceAuthorization([], new ProductResourceResolverRegistry());
     await expect(auth.authorize(context, reference)).rejects.toMatchObject({ status: 404 });
     await expect(auth.authorize(context, { ...reference, resourceKind: 'deployment' }))
       .rejects.toMatchObject({ status: 404 });
@@ -23,7 +23,7 @@ describe('ProductResourceAuthorization', () => {
       product: 'speech_analytics' as const, resourceKind: 'project' as const,
       findForTenant: jest.fn().mockResolvedValue(null), canAct: jest.fn(),
     };
-    const auth = new ProductResourceAuthorization([resolver]);
+    const auth = new ProductResourceAuthorization([resolver], new ProductResourceResolverRegistry());
     await expect(auth.authorize(context, reference)).rejects.toMatchObject({ status: 404 });
     expect(resolver.findForTenant).toHaveBeenCalledWith(42, reference.resourceId);
     expect(resolver.canAct).not.toHaveBeenCalled();

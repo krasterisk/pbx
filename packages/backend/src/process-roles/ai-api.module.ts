@@ -3,6 +3,9 @@ import { StandaloneAiCoreModule } from '../compositions/standalone-ai-core.modul
 import { AiJobsModule } from '../modules/ai-jobs/ai-jobs.module';
 import { AiUsageModule } from '../modules/ai-usage/ai-usage.module';
 import { MediaAssetsModule } from '../modules/media-assets/media-assets.module';
+import { SpeechAnalyticsModule } from '../modules/speech-analytics/speech-analytics.module';
+import { IntegrationDeliveryModule } from '../modules/integration-delivery/integration-delivery.module';
+import { RecordingCaptureModule } from '../modules/recording-capture/recording-capture.module';
 import { evaluateAiReadiness } from './ai-readiness';
 
 /** HTTP AI API. Must not import ARI/AMI or billing cron. */
@@ -35,6 +38,9 @@ class AiApiHealthController {
     AiJobsModule,
     AiUsageModule,
     MediaAssetsModule,
+    ...((process.env.DB_SCHEMA_PROFILE || 'analytics-api') === 'robot-api'
+      ? [RecordingCaptureModule]
+      : [SpeechAnalyticsModule, IntegrationDeliveryModule]),
   ],
   controllers: [AiApiHealthController],
 })

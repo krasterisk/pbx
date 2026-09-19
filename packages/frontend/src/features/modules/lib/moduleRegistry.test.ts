@@ -191,6 +191,7 @@ describe('hub merge + favorites (NAV-02)', () => {
     expect(codes).toEqual(expect.arrayContaining(['speech_analytics', 'ai_voice_robots', 'ai']));
     expect(getBaselineModule('speech_analytics')?.pages.map((p) => p.path)).toEqual([
       '/speech-analytics',
+      '/speech-analytics/projects',
       '/speech-analytics/connections',
     ]);
     expect(getBaselineModule('ai_voice_robots')?.pages.map((p) => p.path)).toEqual([

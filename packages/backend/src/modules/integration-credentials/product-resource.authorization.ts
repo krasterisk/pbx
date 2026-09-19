@@ -13,11 +13,29 @@ export interface ProductResourceResolver {
   canAct(context: TenantContext, action: string, resource: unknown): Promise<boolean>;
 }
 
+/** Runtime registry so product modules can register resolvers without a circular import. */
+@Injectable()
+export class ProductResourceResolverRegistry {
+  private readonly items: ProductResourceResolver[] = [];
+
+  register(resolver: ProductResourceResolver): void {
+    if (!this.items.some((item) => item.product === resolver.product
+      && item.resourceKind === resolver.resourceKind)) {
+      this.items.push(resolver);
+    }
+  }
+
+  all(): readonly ProductResourceResolver[] {
+    return this.items;
+  }
+}
+
 /** Default registry is empty until project/deployment modules provide resolvers. */
 @Injectable()
 export class ProductResourceAuthorization {
   constructor(
     @Inject(PRODUCT_RESOURCE_RESOLVERS) private readonly resolvers: readonly ProductResourceResolver[],
+    private readonly registry: ProductResourceResolverRegistry,
   ) {}
 
   async authorize(context: TenantContext, reference: ProductResourceReference): Promise<void> {
@@ -27,7 +45,7 @@ export class ProductResourceAuthorization {
       || !/^[a-z][a-z0-9:_-]{0,63}$/.test(reference.action)) {
       throw new NotFoundException({ code: 'resource_not_found' });
     }
-    const resolver = this.resolvers.find((item) => item.product === reference.product
+    const resolver = [...this.resolvers, ...this.registry.all()].find((item) => item.product === reference.product
       && item.resourceKind === reference.resourceKind);
     if (!resolver) throw new NotFoundException({ code: 'resource_not_found' });
     const resource = await resolver.findForTenant(context.tenantUid, reference.resourceId);

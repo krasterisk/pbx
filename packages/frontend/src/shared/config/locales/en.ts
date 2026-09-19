@@ -107,6 +107,7 @@ export const en = {
     aiAgents: "AI Agents",
     aiRobotsProduct: "AI robots",
     speechAnalytics: "Speech analytics",
+    speechAnalyticsProjects: "Analytics projects",
     aiConnections: "Connections",
     users: "Users",
     roles: "Access profiles",
@@ -5102,6 +5103,7 @@ export const en = {
   aiProducts: {
     activation: "Product enabled",
     openConnections: "Connections",
+    openProjects: "Projects",
     speech_analytics: {
       title: "Speech analytics",
       subtitle: "License, activation and recording readiness. Project editing ships separately.",
@@ -5183,6 +5185,23 @@ export const en = {
       copy: "Copy",
       download: "Download",
     },
+  },
+
+  speechAnalytics: {
+    projects: "Projects",
+    projectName: "Project name",
+    create: "Create",
+    publish: "Publish",
+    intake: "Intake",
+    open: "Open",
+    loading: "Loading…",
+    recordings: "Recordings",
+    emptyRecordings: "No recordings yet. Upload a WAV through the API or project form.",
+    result: "Analysis result",
+    forbidden: "No access to this recording",
+    unscorable: "No speech — metrics are not scored",
+    unknown: "unknown",
+    saveFailed: "Could not save",
   },
 
   // Cloud admin settings (D-20, D-25)

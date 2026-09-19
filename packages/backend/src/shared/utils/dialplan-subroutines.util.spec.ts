@@ -10,6 +10,12 @@ describe('DialplanSubroutinesUtil', () => {
     expect((clickToCall.match(/Hangup\(\)/g) ?? []).length).toBe(1);
   });
 
+  it('skips ffmpeg hangup conversion when durable capture is set and stops one recorder', () => {
+    const content = DialplanSubroutinesUtil.generate('http://127.0.0.1:5010/api');
+    expect(content).toContain('StopMixMonitor(${RECORDER_ID})');
+    expect(content).toContain('DURABLE_CAPTURE');
+  });
+
   it('parseCategories drops a duplicated click-to-call extension', () => {
     const content = [
       '[krsk-click-to-call]',

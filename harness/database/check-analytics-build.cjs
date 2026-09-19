@@ -24,8 +24,22 @@ const required = product === 'community'
     'database/schema-readiness.cjs', 'database/database-config.cjs',
     'modules/ai-connectivity/ai-connectivity.module.js',
     'modules/integration-credentials/integration-credentials.module.js',
+    ...(product === 'analytics'
+      ? [
+        'modules/speech-analytics/speech-analytics.module.js',
+        'modules/integration-delivery/integration-delivery.module.js',
+      ]
+      : ['modules/recording-capture/recording-capture.module.js']),
   ];
 for (const file of required) assert.ok(files.includes(file), `Missing ${product} build artifact ${file}`);
+if (product === 'analytics') {
+  assert.ok(!files.includes('modules/recording-capture/recording-capture.module.js'),
+    'analytics must not ship recording-capture HTTP');
+}
+if (product === 'robot') {
+  assert.ok(!files.includes('modules/speech-analytics/speech-analytics.module.js'),
+    'robot must not ship speech-analytics HTTP');
+}
 const forbidden = product === 'community'
   ? /(?:^|\/)(?:ai-agents|commercial-ai\.composition|app\.module)(?:\/|\.|$)/
   : /(?:^|\/)(?:ami|ari|autodial|voice-robots|routes|contexts|reports|queues|ai-agents|cloud-admin\/cloud-admin\.module)(?:\/|\.|$)/;

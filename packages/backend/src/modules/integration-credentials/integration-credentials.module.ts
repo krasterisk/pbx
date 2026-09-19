@@ -15,7 +15,7 @@ import { IntegrationCredentialsService } from './integration-credentials.service
 import { IntegrationKeyRateLimiter } from './integration-key-rate-limiter';
 import { IntegrationCredentialsController } from './integration-credentials.controller';
 import {
-  PRODUCT_RESOURCE_RESOLVERS, ProductResourceAuthorization,
+  PRODUCT_RESOURCE_RESOLVERS, ProductResourceAuthorization, ProductResourceResolverRegistry,
 } from './product-resource.authorization';
 
 @Module({
@@ -25,12 +25,12 @@ import {
   ])],
   providers: [
     TenantContextResolver, TenantContextGuard, ProductResourceAuthorization,
-    IntegrationCredentialsService,
+    ProductResourceResolverRegistry, IntegrationCredentialsService,
     IntegrationKeyRateLimiter,
     { provide: PRODUCT_RESOURCE_RESOLVERS, useValue: [] },
   ],
   controllers: [IntegrationCredentialsController],
   exports: [TenantContextResolver, TenantContextGuard, IntegrationKeyRateLimiter,
-    ProductResourceAuthorization, IntegrationCredentialsService],
+    ProductResourceAuthorization, ProductResourceResolverRegistry, IntegrationCredentialsService],
 })
 export class IntegrationCredentialsModule {}

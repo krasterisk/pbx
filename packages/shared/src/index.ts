@@ -34,6 +34,8 @@ export * from './types/prompt.types';
 export * from './types/ai-chat-timeline.types';
 export * from './types/ai-jobs.types';
 export * from './types/ai-media.types';
+export * from './types/ai-capture.types';
+export * from './types/speech-analytics.types';
 export {
   normalizeIvrPrompts,
   assertIvrPromptsForSave,

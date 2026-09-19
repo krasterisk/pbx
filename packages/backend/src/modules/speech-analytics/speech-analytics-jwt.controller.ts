@@ -1,0 +1,109 @@
+import {
+  Body, Controller, Get, Headers, HttpCode, Param, Post, Put, Query, Req, UseGuards,
+} from '@nestjs/common';
+import { TenantContextGuard, type TenantContextRequest } from '../integration-credentials/tenant-context.guard';
+import { SpeechAnalyticsService, assertUuid } from './speech-analytics.service';
+import type { SaProjectConfigV1 } from '@krasterisk/shared';
+
+type Authed = TenantContextRequest & { tenantContext: NonNullable<TenantContextRequest['tenantContext']> };
+
+@UseGuards(TenantContextGuard)
+@Controller('speech-analytics')
+export class SpeechAnalyticsJwtController {
+  constructor(private readonly analytics: SpeechAnalyticsService) {}
+
+  @Get('projects')
+  list(@Req() request: Authed) {
+    return this.analytics.listProjects(request.tenantContext);
+  }
+
+  @Post('projects')
+  @HttpCode(201)
+  create(@Req() request: Authed, @Body() body: { name: string }) {
+    return this.analytics.createProject(request.tenantContext, body.name);
+  }
+
+  @Put('projects/:id/draft')
+  draft(@Req() request: Authed, @Param('id') id: string, @Headers('if-match') match: string,
+    @Body() body: SaProjectConfigV1) {
+    assertUuid(id);
+    return this.analytics.updateDraft(request.tenantContext, id, Number(match), body);
+  }
+
+  @Put('projects/:id/intake')
+  intake(@Req() request: Authed, @Param('id') id: string, @Body() body: { enabled: boolean }) {
+    assertUuid(id);
+    return this.analytics.setIntake(request.tenantContext, id, body.enabled === true);
+  }
+
+  @Post('projects/:id/publish')
+  publish(@Req() request: Authed, @Param('id') id: string, @Body() body: { operationKey: string }) {
+    assertUuid(id);
+    return this.analytics.publish(request.tenantContext, id, body.operationKey);
+  }
+
+  @Get('recordings')
+  recordings(@Req() request: Authed, @Query('projectId') projectId: string, @Query('cursor') cursor?: string) {
+    assertUuid(projectId);
+    return this.analytics.listRecordings(request.tenantContext, projectId, cursor);
+  }
+
+  @Get('capabilities')
+  capabilities() {
+    return this.analytics.capabilities();
+  }
+
+  @Post('uploads')
+  @HttpCode(201)
+  upload(@Req() request: Authed, @Body() body: { projectId: string; expectedBytes?: number }) {
+    assertUuid(body.projectId);
+    return this.analytics.allocateUpload(request.tenantContext, body.projectId, body.expectedBytes);
+  }
+
+  @Put('uploads/:id/content')
+  content(@Req() request: Authed, @Param('id') id: string, @Body() body: { bytesBase64: string }) {
+    assertUuid(id);
+    return this.analytics.putUploadContent(request.tenantContext, id, Buffer.from(body.bytesBase64, 'base64'));
+  }
+
+  @Post('uploads/:id/complete')
+  complete(@Req() request: Authed, @Param('id') id: string, @Body() body: { checksum?: string }) {
+    assertUuid(id);
+    return this.analytics.completeUpload(request.tenantContext, id, body.checksum);
+  }
+
+  @Post('analysis-runs')
+  @HttpCode(202)
+  run(@Req() request: Authed, @Headers('idempotency-key') idempotencyKey: string, @Body() body: {
+    projectId: string; assetId: string; externalCallId?: string; sourcePart?: string;
+    metadata?: Record<string, unknown>;
+  }) {
+    assertUuid(body.projectId);
+    assertUuid(body.assetId);
+    return this.analytics.createRun(request.tenantContext, { ...body, idempotencyKey });
+  }
+
+  @Get('analysis-runs/:id')
+  getRun(@Req() request: Authed, @Param('id') id: string) {
+    assertUuid(id);
+    return this.analytics.getRun(request.tenantContext, id, 'analytics:read');
+  }
+
+  @Get('analysis-runs/:id/result')
+  result(@Req() request: Authed, @Param('id') id: string) {
+    assertUuid(id);
+    return this.analytics.getRun(request.tenantContext, id, 'analytics:read');
+  }
+
+  @Get('analysis-runs/:id/transcript')
+  transcript(@Req() request: Authed, @Param('id') id: string) {
+    assertUuid(id);
+    return this.analytics.getRun(request.tenantContext, id, 'analytics:transcript');
+  }
+
+  @Post('analysis-runs/:id/cancel')
+  cancel(@Req() request: Authed, @Param('id') id: string) {
+    assertUuid(id);
+    return this.analytics.cancelRun(request.tenantContext, id);
+  }
+}

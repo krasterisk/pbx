@@ -207,6 +207,10 @@ function inventory() {
     'ai_jobs', 'ai_job_stages', 'ai_provider_operations', 'ai_outbox', 'ai_job_events',
     'ai_quota_counters', 'ai_usage_reservations', 'ai_usage_events', 'ai_price_revisions',
     'ai_usage_ledger',
+    'ai_capture_node_bindings', 'ai_capture_intents', 'ai_capture_segments', 'ai_capture_receipts',
+    'sa_projects', 'sa_project_versions', 'sa_project_members', 'sa_recordings',
+    'sa_analysis_runs', 'sa_transcripts', 'sa_transcript_segments', 'sa_results',
+    'ai_webhook_endpoints', 'ai_webhook_deliveries', 'ai_webhook_attempts',
   ];
   const additiveModels = Object.fromEntries(additiveNames.map(name => [name, allModels[name]]));
   if (additiveNames.some(name => !allModels[name])) throw new Error('Missing additive AI product model');

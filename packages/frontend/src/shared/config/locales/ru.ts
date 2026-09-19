@@ -107,6 +107,7 @@ export const ru = {
     aiAgents: "AI-агенты",
     aiRobotsProduct: "AI-роботы",
     speechAnalytics: "Речевая аналитика",
+    speechAnalyticsProjects: "Проекты аналитики",
     aiConnections: "Подключения",
     users: "Пользователи",
     roles: "Профили доступа",
@@ -5189,6 +5190,7 @@ export const ru = {
   aiProducts: {
     activation: "Продукт включён",
     openConnections: "Подключения",
+    openProjects: "Проекты",
     speech_analytics: {
       title: "Речевая аналитика",
       subtitle: "Лицензия, активация и готовность к обработке записей. Редактор проектов появится отдельно.",
@@ -5270,6 +5272,23 @@ export const ru = {
       copy: "Копировать",
       download: "Скачать",
     },
+  },
+
+  speechAnalytics: {
+    projects: "Проекты",
+    projectName: "Название проекта",
+    create: "Создать",
+    publish: "Опубликовать",
+    intake: "Приём записей",
+    open: "Открыть",
+    loading: "Загрузка…",
+    recordings: "Записи",
+    emptyRecordings: "Записей пока нет. Загрузите WAV через API или форму проекта.",
+    result: "Результат анализа",
+    forbidden: "Нет доступа к этой записи",
+    unscorable: "Речи нет — метрики не оцениваются",
+    unknown: "неизвестно",
+    saveFailed: "Не удалось сохранить",
   },
 
   // Cloud admin settings (D-20, D-25)

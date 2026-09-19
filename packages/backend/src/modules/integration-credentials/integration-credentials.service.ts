@@ -333,8 +333,6 @@ export class IntegrationCredentialsService {
         const key = `${input.resourceKind}:${input.resourceId}:${input.scope}`;
         if (seen.has(key)) throw new BadRequestException({ code: 'integration_grant_duplicate' });
         seen.add(key);
-        // No project/deployment resolver is installed before AI-04/07; this
-        // call therefore denies every nonempty grant in current composition.
         await this.resources.authorize(context, {
           product: principal.product as AiProductModuleCode, action: 'grant',
           resourceKind: input.resourceKind, resourceId: input.resourceId,

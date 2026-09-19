@@ -547,6 +547,22 @@ describe('RoutesService', () => {
       expect(dp).toContain('MixMonitor(/usr/records/100/calls/${path}/${fname}.raw,D,${monopt})');
       expect(dp).not.toMatch(/MixMonitor\([^)]*,b/);
     });
+
+    it('uses a UUID filename and MixMonitor recorder id when durable capture is on', () => {
+      const previous = process.env.DURABLE_CAPTURE;
+      process.env.DURABLE_CAPTURE = '1';
+      try {
+        const route = baseRoute({ options: { record: true } });
+        const dp = service.generateRouteDialplan(route, 100, false);
+        expect(dp).toContain('Set(__DURABLE_CAPTURE=1)');
+        expect(dp).toContain('MixMonitor(/usr/records/100/calls/${path}/${fname}.wav,b,,${RECORDER_ID})');
+        expect(dp).not.toContain('safeclid');
+        expect(dp).not.toContain('${monopt}');
+      } finally {
+        if (previous === undefined) delete process.env.DURABLE_CAPTURE;
+        else process.env.DURABLE_CAPTURE = previous;
+      }
+    });
   });
 
   describe('characterization (Wave 0) — time-group wrap and buildContextName', () => {

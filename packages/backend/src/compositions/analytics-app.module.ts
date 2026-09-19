@@ -1,10 +1,16 @@
 import { Controller, Get, Module } from '@nestjs/common';
 import { StandaloneAiCoreModule } from './standalone-ai-core.module';
+import { AiJobsModule } from '../modules/ai-jobs/ai-jobs.module';
+import { AiUsageModule } from '../modules/ai-usage/ai-usage.module';
+import { MediaAssetsModule } from '../modules/media-assets/media-assets.module';
+import { SpeechAnalyticsModule } from '../modules/speech-analytics/speech-analytics.module';
+import { IntegrationDeliveryModule } from '../modules/integration-delivery/integration-delivery.module';
 
-/** Static analytics entrypoint. Product analytics runtime is added in AI-04. */
+/** Static analytics entrypoint. Technical pilot runtime, not a commercial launch. */
 export const ANALYTICS_API_COMPONENTS = Object.freeze([
   'tenant-identity', 'ai-connectivity', 'product-access-core',
-  'integration-credentials',
+  'integration-credentials', 'ai-jobs', 'media-assets', 'ai-usage',
+  'speech-analytics', 'integration-delivery',
 ]);
 
 @Controller('health')
@@ -14,7 +20,14 @@ class AnalyticsHealthController {
 }
 
 @Module({
-  imports: [StandaloneAiCoreModule.forProfile('analytics-api')],
+  imports: [
+    StandaloneAiCoreModule.forProfile('analytics-api'),
+    AiJobsModule,
+    AiUsageModule,
+    MediaAssetsModule,
+    SpeechAnalyticsModule,
+    IntegrationDeliveryModule,
+  ],
   controllers: [AnalyticsHealthController],
 })
 export class AnalyticsAppModule {}

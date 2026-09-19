@@ -12,6 +12,7 @@ import {
   buildMixMonitorFlags,
   buildFfmpegPostprocess,
   getRecordingSourceExtension,
+  mixMonitorWithRecorderId,
 } from './route-recording.util';
 import { shouldUseStoredRawDialplan } from './route-dialplan-source.util';
 import { throwIfInvalidActionPayload } from '../../shared/pipes/action-params-validation.util';
@@ -390,27 +391,38 @@ export class RoutesService {
           record_all: opts.record_all === true,
           record_stereo: recordStereo,
         });
+        const durableCapture = process.env.DURABLE_CAPTURE === '1';
         lines.push('same => n,Set(__path=${STRFTIME(${EPOCH},,%Y%m%d)})');
-        // Sanitize CALLERID(num): keep only digits and + (path-safe filename fragment)
-        lines.push('same => n,Set(__safeclid=${FILTER(0-9+,${CALLERID(num)})})');
-        lines.push('same => n,Set(__fname=${STRFTIME(${EPOCH},,%Y%m%d%H%M%S)}-${safeclid}-${EXTEN})');
         const rpath = `${vpbxUserUid}/calls`;
-        const recBase = `/usr/records/${rpath}/\${path}/\${fname}`;
-        if (recordStereo) {
-          lines.push('same => n,Set(__REC_STEREO=1)');
-        }
-        // ffmpeg conversion + source cleanup as MixMonitor postprocess (runs after hangup in background)
-        // Note: if on_hangup webhook is set, hangup_handler (set below) will handle conversion
-        // and ensure MP3 is ready before notifying the backend. Otherwise use postprocess directly.
-        if (!wh.on_hangup?.url) {
-          lines.push(`same => n,Set(__monopt=${buildFfmpegPostprocess(recBase, recordStereo)})`);
+        if (durableCapture) {
+          lines.push('same => n,Set(__DURABLE_CAPTURE=1)');
+          lines.push('same => n,Set(__fname=${SHELL(cat /proc/sys/kernel/random/uuid | tr -d \\\\n)})');
+          lines.push('same => n,Set(__RECORDER_ID=${fname})');
+          const recBase = `/usr/records/${rpath}/\${path}/\${fname}`;
+          if (recordStereo) lines.push('same => n,Set(__REC_STEREO=1)');
           lines.push(`same => n,Set(CDR(record)=${rpath}/\${path}/\${fname})`);
-          lines.push(`same => n,MixMonitor(${recBase}.${recExt},${monFlag},\${monopt})`);
+          lines.push(`same => n,${mixMonitorWithRecorderId(`${recBase}.${recExt}`, monFlag, '${RECORDER_ID}')}`);
         } else {
-          // on_hangup is configured: MixMonitor WITHOUT postprocess — hangup_handler takes over
-          // This guarantees MP3 is ready before the on_hangup webhook fires
-          lines.push(`same => n,Set(CDR(record)=${rpath}/\${path}/\${fname})`);
-          lines.push(`same => n,MixMonitor(${recBase}.${recExt},${monFlag})`);
+          // Sanitize CALLERID(num): keep only digits and + (path-safe filename fragment)
+          lines.push('same => n,Set(__safeclid=${FILTER(0-9+,${CALLERID(num)})})');
+          lines.push('same => n,Set(__fname=${STRFTIME(${EPOCH},,%Y%m%d%H%M%S)}-${safeclid}-${EXTEN})');
+          const recBase = `/usr/records/${rpath}/\${path}/\${fname}`;
+          if (recordStereo) {
+            lines.push('same => n,Set(__REC_STEREO=1)');
+          }
+          // ffmpeg conversion + source cleanup as MixMonitor postprocess (runs after hangup in background)
+          // Note: if on_hangup webhook is set, hangup_handler (set below) will handle conversion
+          // and ensure MP3 is ready before notifying the backend. Otherwise use postprocess directly.
+          if (!wh.on_hangup?.url) {
+            lines.push(`same => n,Set(__monopt=${buildFfmpegPostprocess(recBase, recordStereo)})`);
+            lines.push(`same => n,Set(CDR(record)=${rpath}/\${path}/\${fname})`);
+            lines.push(`same => n,MixMonitor(${recBase}.${recExt},${monFlag},\${monopt})`);
+          } else {
+            // on_hangup is configured: MixMonitor WITHOUT postprocess — hangup_handler takes over
+            // This guarantees MP3 is ready before the on_hangup webhook fires
+            lines.push(`same => n,Set(CDR(record)=${rpath}/\${path}/\${fname})`);
+            lines.push(`same => n,MixMonitor(${recBase}.${recExt},${monFlag})`);
+          }
         }
       }
 

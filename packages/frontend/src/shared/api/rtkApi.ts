@@ -98,6 +98,6 @@ export const rtkApi = createApi({
   tagTypes: ['Endpoints', 'Contexts', 'Peers', 'Trunks', 'Queues', 'Routes', 'Users', 'Roles', 'Numbers', 'CDR', 'PickupGroups', 'ProvisionTemplates', 'Ivrs', 'Prompts', 'TtsEngines', 'SttEngines', 'Moh', 'VoiceRobots', 'VoiceRobotsGroups', 'VoiceRobotsKeywords', 'VoiceRobotsLogs', 'VoiceRobotsCdr', 'VoiceRobotsDataLists', 'ServiceRequests', 'KomandorClaims', 'TimeGroups', 'ServerConfig', 'AuditLog', 'WebhookFailure', 'Tenants', 'CallCenter', 'PauseReasons', 'MissedCalls', 'CcOperatorSettings', 'CcSettings', 'CcChat', 'AiAgents', 'AiProviders', 'AiToolsets', 'AiChatSettings', 'AiChatThreads', 'AiIntegrations', 'CallGroups', 'Notifications', 'CardTemplates', 'Cards', 'CcDisplayTokens', 'CcAlertConfig', 'ReportSchedules', 'AgentKpi', 'CcPermissions', 'ParkedCalls', 'Directory', 'DialplanDirectories', 'CallHistory', 'CcNotifications', 'CcContacts', 'CcSupervisorWatchlist', 'TenantSettings', 'Voicemail', 'RouteTemplates', 'CallbackRequests', 'ConferenceRooms', 'ConferenceMeetings', 'ConferenceParticipants',
     'ConferenceLinks',
     'AutodialBases', 'AutodialContacts', 'AutodialImportProfiles',
-    'AutodialCampaigns', 'AutodialDnc', 'AutodialReports'],
+    'AutodialCampaigns', 'AutodialDnc', 'AutodialReports', 'SpeechAnalytics'],
   endpoints: () => ({}),
 });

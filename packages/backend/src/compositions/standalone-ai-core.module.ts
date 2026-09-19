@@ -33,6 +33,14 @@ import { AiMediaAsset, AiUpload } from '../modules/media-assets/media-asset.mode
 import {
   AiPriceRevision, AiQuotaCounter, AiUsageEvent, AiUsageLedger, AiUsageReservation,
 } from '../modules/ai-usage/usage.models';
+import {
+  AiCaptureIntent, AiCaptureNodeBinding, AiCaptureReceipt, AiCaptureSegment,
+} from '../modules/recording-capture/capture.models';
+import {
+  SaAnalysisRun, SaProject, SaProjectMember, SaProjectVersion, SaRecording, SaResult,
+  SaTranscript, SaTranscriptSegment,
+} from '../modules/speech-analytics/speech-analytics.models';
+import { AiWebhookAttempt, AiWebhookDelivery, AiWebhookEndpoint } from '../modules/integration-delivery/webhook.models';
 
 export type StandaloneAiProfile = 'analytics-api' | 'robot-api';
 
@@ -61,6 +69,10 @@ export class StandaloneAiCoreModule {
                 AiProviderRevision, AiMediaAsset, AiUpload, AiIdempotency, AiJob,
                 AiJobStage, AiProviderOperation, AiOutbox, AiJobEvent,
                 AiQuotaCounter, AiPriceRevision, AiUsageReservation, AiUsageEvent, AiUsageLedger,
+                AiCaptureNodeBinding, AiCaptureIntent, AiCaptureSegment, AiCaptureReceipt,
+                SaProject, SaProjectVersion, SaProjectMember, SaRecording, SaAnalysisRun,
+                SaTranscript, SaTranscriptSegment, SaResult,
+                AiWebhookEndpoint, AiWebhookDelivery, AiWebhookAttempt,
               ],
               synchronize: false,
               autoLoadModels: false,

@@ -89,12 +89,13 @@ for (const dialect of selected.length ? [...new Set(selected)] : ['mysql', 'post
       const first = await runMigrations({ config, migrations, profile: standaloneProfile });
       assert.equal(first.profile, standaloneProfile);
       assert.equal(first.pending.length, 0);
-      assert.equal((await checkSchemaReadiness(input)).schemaVersion, '0009-ai-usage.sql');
+      assert.equal((await checkSchemaReadiness(input)).schemaVersion, '0012-ai-webhooks.sql');
       await withConnection(config, async db => {
         const tables = await db.tables();
         for (const required of ['users', 'tenants', 'user_sessions', 'cc_ai_providers',
           'ai_product_activation', 'ai_integration_principals', 'ai_jobs',
-          'ai_quota_counters', 'ai_usage_ledger', JOURNAL, STATE]) {
+          'ai_quota_counters', 'ai_usage_ledger', 'ai_capture_intents', 'sa_projects',
+          'ai_webhook_endpoints', JOURNAL, STATE]) {
           assert.ok(tables.includes(required), `${required} missing from minimal profile`);
         }
         for (const excluded of ['contexts', 'cdr', 'queue_log', 'ps_endpoints', 'ac_campaigns']) {
@@ -355,7 +356,7 @@ for (const dialect of selected.length ? [...new Set(selected)] : ['mysql', 'post
         const tables = await withConnection(config, db => db.tables());
         for (const table of ['users', 'cdr', 'ps_endpoints']) assert.ok(tables.includes(table), `Missing ${table}`);
         await withConnection(config, db => db.query("INSERT INTO tenant_settings (vpbx_user_uid, `key`, value) VALUES (7, 'locale', 'ru-RU')"));
-        assert.deepEqual((await runMigrations({ config, migrations: baseline })).newlyApplied, ['0002-cdr-query-indexes.sql', '0003-callcenter-report-keys.sql', '0004-ai-product-access.sql', '0005-ai-integration-credentials.sql', '0006-ai-integration-auth-limits.sql', '0007-tenant-login-uniqueness.sql', '0008-ai-jobs-assets.sql', '0009-ai-usage.sql']);
+        assert.deepEqual((await runMigrations({ config, migrations: baseline })).newlyApplied, ['0002-cdr-query-indexes.sql', '0003-callcenter-report-keys.sql', '0004-ai-product-access.sql', '0005-ai-integration-credentials.sql', '0006-ai-integration-auth-limits.sql', '0007-tenant-login-uniqueness.sql', '0008-ai-jobs-assets.sql', '0009-ai-usage.sql', '0010-ai-capture.sql', '0011-speech-analytics.sql', '0012-ai-webhooks.sql']);
         const indexes = await withConnection(config, db => db.query("SELECT index_name AS name FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = 'cdr' AND index_name LIKE 'idx_cdr_tenant_%' GROUP BY index_name"));
         assert.equal(indexes.length, 2);
         assert.deepEqual((await runMigrations({ config, migrations: baseline })).newlyApplied, []);
@@ -373,12 +374,12 @@ for (const dialect of selected.length ? [...new Set(selected)] : ['mysql', 'post
         assert.equal(baseline[0].sql, fs.readFileSync(file, 'utf8'));
         assert.equal((await runMigrations({ config, migrations: baseline.slice(0, 1) })).schemaVersion, '0001-current-schema.sql');
         await withConnection(config, db => db.query("INSERT INTO cdr (uniqueid, linkedid, calldate, vpbx_user_uid) VALUES ('pg-upgrade-fixture', 'pg-upgrade-fixture', '2026-09-18 10:00:00', 7)"));
-        assert.deepEqual((await runMigrations({ config, migrations: baseline })).newlyApplied, ['0002-cdr-query-indexes.sql', '0003-callcenter-report-keys.sql', '0004-ai-product-access.sql', '0005-ai-integration-credentials.sql', '0006-ai-integration-auth-limits.sql', '0007-tenant-login-uniqueness.sql', '0008-ai-jobs-assets.sql', '0009-ai-usage.sql']);
+        assert.deepEqual((await runMigrations({ config, migrations: baseline })).newlyApplied, ['0002-cdr-query-indexes.sql', '0003-callcenter-report-keys.sql', '0004-ai-product-access.sql', '0005-ai-integration-credentials.sql', '0006-ai-integration-auth-limits.sql', '0007-tenant-login-uniqueness.sql', '0008-ai-jobs-assets.sql', '0009-ai-usage.sql', '0010-ai-capture.sql', '0011-speech-analytics.sql', '0012-ai-webhooks.sql']);
         const indexes = await withConnection(config, db => db.query("SELECT indexname AS name FROM pg_indexes WHERE schemaname='public' AND tablename='cdr' AND indexname LIKE 'idx_cdr_tenant_%'"));
         assert.equal(indexes.length, 2);
         assert.equal((await withConnection(config, db => db.query("SELECT COUNT(*)::int AS count FROM cdr WHERE uniqueid='pg-upgrade-fixture'")))[0].count, 1);
         const tables = await withConnection(config, db => db.tables());
-        assert.equal(tables.length, 137); // 112 baseline + 3 A2 + 6 B2 + 9 D1 + 5 D4 + journal/state.
+        assert.equal(tables.length, 152); // 112 baseline + 3 A2 + 6 B2 + 9 D1 + 5 D4 + 4 CAP + 8 AN1 + 3 AN4 + journal/state.
         const columns = await withConnection(config, db => db.query("SELECT COUNT(*)::int AS count FROM information_schema.columns WHERE table_schema='public'"));
         assert.equal(columns[0].count, 1651); // 1447 baseline + 23 A2 + 45 B2 + 128 D1 + 8 metadata columns (profile).
         const shape = await withConnection(config, db => db.query(`SELECT table_name, column_name, data_type, udt_name, is_nullable, numeric_precision, numeric_scale
@@ -415,9 +416,9 @@ for (const dialect of selected.length ? [...new Set(selected)] : ['mysql', 'post
       await assert.rejects(runMigrations({ config, migrations: baseline }), /Duplicate cc_daily_queue_stats business keys/);
       const status = await runMigrations({ config, migrations: baseline, mode: 'status' });
       assert.equal(status.dirty, null);
-      assert.deepEqual(status.pending, ['0003-callcenter-report-keys.sql', '0004-ai-product-access.sql', '0005-ai-integration-credentials.sql', '0006-ai-integration-auth-limits.sql', '0007-tenant-login-uniqueness.sql', '0008-ai-jobs-assets.sql', '0009-ai-usage.sql']);
+      assert.deepEqual(status.pending, ['0003-callcenter-report-keys.sql', '0004-ai-product-access.sql', '0005-ai-integration-credentials.sql', '0006-ai-integration-auth-limits.sql', '0007-tenant-login-uniqueness.sql', '0008-ai-jobs-assets.sql', '0009-ai-usage.sql', '0010-ai-capture.sql', '0011-speech-analytics.sql', '0012-ai-webhooks.sql']);
       await withConnection(config, db => db.query("DELETE FROM cc_daily_queue_stats WHERE queue_name = 'db02-duplicate' AND vpbx_user_uid = 2"));
-      assert.deepEqual((await runMigrations({ config, migrations: baseline })).newlyApplied, ['0003-callcenter-report-keys.sql', '0004-ai-product-access.sql', '0005-ai-integration-credentials.sql', '0006-ai-integration-auth-limits.sql', '0007-tenant-login-uniqueness.sql', '0008-ai-jobs-assets.sql', '0009-ai-usage.sql']);
+      assert.deepEqual((await runMigrations({ config, migrations: baseline })).newlyApplied, ['0003-callcenter-report-keys.sql', '0004-ai-product-access.sql', '0005-ai-integration-credentials.sql', '0006-ai-integration-auth-limits.sql', '0007-tenant-login-uniqueness.sql', '0008-ai-jobs-assets.sql', '0009-ai-usage.sql', '0010-ai-capture.sql', '0011-speech-analytics.sql', '0012-ai-webhooks.sql']);
     });
 
     await t.test('login uniqueness preflight refuses legacy duplicates without dirtying history', async () => {
@@ -434,10 +435,10 @@ for (const dialect of selected.length ? [...new Set(selected)] : ['mysql', 'post
       await assert.rejects(runMigrations({ config, migrations: baseline }), /Duplicate users login keys/);
       const status = await runMigrations({ config, migrations: baseline, mode: 'status' });
       assert.equal(status.dirty, null);
-      assert.deepEqual(status.pending, ['0007-tenant-login-uniqueness.sql', '0008-ai-jobs-assets.sql', '0009-ai-usage.sql']);
+      assert.deepEqual(status.pending, ['0007-tenant-login-uniqueness.sql', '0008-ai-jobs-assets.sql', '0009-ai-usage.sql', '0010-ai-capture.sql', '0011-speech-analytics.sql', '0012-ai-webhooks.sql']);
       await withConnection(config, db => db.query("DELETE FROM users WHERE name='fixture' AND LOWER(login)='b4-legacy'"));
       assert.deepEqual((await runMigrations({ config, migrations: baseline })).newlyApplied,
-        ['0007-tenant-login-uniqueness.sql', '0008-ai-jobs-assets.sql', '0009-ai-usage.sql']);
+        ['0007-tenant-login-uniqueness.sql', '0008-ai-jobs-assets.sql', '0009-ai-usage.sql', '0010-ai-capture.sql', '0011-speech-analytics.sql', '0012-ai-webhooks.sql']);
     });
 
     await t.test('D1 job/asset constraints reject illegal state, tenant FK mismatch, and unique collisions', async () => {

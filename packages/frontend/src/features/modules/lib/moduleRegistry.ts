@@ -32,6 +32,7 @@ import {
   PhoneOutgoing,
   Database,
   Gauge,
+  FolderKanban,
 } from 'lucide-react';
 import { UserLevel } from '@krasterisk/shared';
 import type { HubModuleRow, LicenseStatus, ModuleDef, ModulePageDef } from '../types';
@@ -260,6 +261,12 @@ export const BASELINE_MODULES: ModuleDef[] = [
     labelKey: 'nav.speechAnalytics',
     pages: [
       { id: 'speech-analytics-landing', path: '/speech-analytics', labelKey: 'nav.speechAnalytics', icon: BarChart3 },
+      {
+        id: 'speech-analytics-projects',
+        path: '/speech-analytics/projects',
+        labelKey: 'nav.speechAnalyticsProjects',
+        icon: FolderKanban,
+      },
       {
         id: 'speech-analytics-connections',
         path: '/speech-analytics/connections',

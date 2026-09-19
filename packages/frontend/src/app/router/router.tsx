@@ -59,6 +59,9 @@ import { AiAgentsPage } from '@/pages/AiAgentsPage';
 import { AiProvidersPage } from '@/pages/AiProvidersPage';
 import { AiProductLandingPage } from '@/pages/AiProductLandingPage';
 import { AiConnectionsPage } from '@/pages/AiConnectionsPage';
+import { SpeechAnalyticsProjectsPage } from '@/pages/SpeechAnalyticsProjectsPage/SpeechAnalyticsProjectsPage';
+import { SpeechAnalyticsProjectPage } from '@/pages/SpeechAnalyticsProjectPage/SpeechAnalyticsProjectPage';
+import { SpeechAnalyticsRecordingPage } from '@/pages/SpeechAnalyticsRecordingPage/SpeechAnalyticsRecordingPage';
 import { RequireRole } from '@/app/router/RequireRole';
 import { UserLevel } from '@/entities/User';
 
@@ -181,6 +184,9 @@ export const router = createBrowserRouter([
       { path: 'ai-agents', element: <AiAgentsPage /> },
       { path: 'speech-analytics', element: <AiProductLandingPage product="speech_analytics" /> },
       { path: 'speech-analytics/connections', element: <AiConnectionsPage product="speech_analytics" /> },
+      { path: 'speech-analytics/projects', element: <SpeechAnalyticsProjectsPage /> },
+      { path: 'speech-analytics/projects/:id', element: <SpeechAnalyticsProjectPage /> },
+      { path: 'speech-analytics/recordings/:id', element: <SpeechAnalyticsRecordingPage /> },
       { path: 'ai-robots', element: <AiProductLandingPage product="ai_voice_robots" /> },
       { path: 'ai-robots/connections', element: <AiConnectionsPage product="ai_voice_robots" /> },
       { path: 'service-requests', element: <ServiceRequestsPage /> },

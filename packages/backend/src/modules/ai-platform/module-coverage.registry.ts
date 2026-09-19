@@ -63,6 +63,10 @@ export const MODULE_COVERAGE: Record<string, ModuleCoverageEntry> = {
     kind: 'infrastructure',
     reason: 'Usage and quota contracts; D4 owns ledger tables. Not a tenant agent catalog.',
   },
+  'integration-delivery': {
+    kind: 'infrastructure',
+    reason: 'Outbound webhook delivery for product events; not a tenant PBX catalog.',
+  },
   'tenant-identity': {
     kind: 'infrastructure',
     reason: 'Tenant owner and organization identity transaction; no tenant-agent tools or PBX operations.',
@@ -138,6 +142,10 @@ export const MODULE_COVERAGE: Record<string, ModuleCoverageEntry> = {
     kind: 'infrastructure',
     reason: 'Cache and pub/sub infrastructure, not a tenant entity.',
   },
+  'recording-capture': {
+    kind: 'infrastructure',
+    reason: 'Durable recording capture intents and node spool; not a tenant agent catalog.',
+  },
   reports: { kind: 'covered', capability: 'read' },
   roles: {
     kind: 'infrastructure',
@@ -152,6 +160,10 @@ export const MODULE_COVERAGE: Record<string, ModuleCoverageEntry> = {
   routes: { kind: 'covered', capability: 'configure' },
   'service-requests': { kind: 'covered', sharedSkill: 'operations', capability: 'operation' },
   sms: { kind: 'covered', sharedSkill: 'messaging', capability: 'configure' },
+  'speech-analytics': {
+    kind: 'infrastructure',
+    reason: 'External speech-analytics product HTTP; agent tools stay out of this tenant-agent catalog.',
+  },
   'stt-engines': { kind: 'covered', sharedSkill: 'speech-engines', capability: 'configure' },
   'system-settings': { kind: 'covered', sharedSkill: 'settings', capability: 'immutable' },
   telegram: { kind: 'covered', sharedSkill: 'messaging', capability: 'configure' },

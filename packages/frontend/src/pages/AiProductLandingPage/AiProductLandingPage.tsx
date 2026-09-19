@@ -15,8 +15,10 @@ import {
 import { resolveAiProductLandingState } from './resolveAiProductLandingState';
 import cls from './AiProductLandingPage.module.scss';
 
-const PRODUCTS: Record<AiProductCode, { icon: typeof Bot; connections: string }> = {
-  speech_analytics: { icon: BarChart3, connections: '/speech-analytics/connections' },
+const PRODUCTS: Record<AiProductCode, { icon: typeof Bot; connections: string; projects?: string }> = {
+  speech_analytics: {
+    icon: BarChart3, connections: '/speech-analytics/connections', projects: '/speech-analytics/projects',
+  },
   ai_voice_robots: { icon: Bot, connections: '/ai-robots/connections' },
 };
 
@@ -99,12 +101,21 @@ export const AiProductLandingPage = memo(({ product }: { product: AiProductCode 
               <VStack gap="12">
                 <Text variant="muted">{t(`aiProducts.states.${stateKey}.body`)}</Text>
                 {showConnections && (
-                  <Button asChild>
-                    <Link to={PRODUCTS[product].connections}>
-                      <Plug size={16} />
-                      {t('aiProducts.openConnections')}
-                    </Link>
-                  </Button>
+                  <HStack gap="12">
+                    <Button asChild>
+                      <Link to={PRODUCTS[product].connections}>
+                        <Plug size={16} />
+                        {t('aiProducts.openConnections')}
+                      </Link>
+                    </Button>
+                    {PRODUCTS[product].projects ? (
+                      <Button asChild variant="outline">
+                        <Link to={PRODUCTS[product].projects}>
+                          {t('aiProducts.openProjects')}
+                        </Link>
+                      </Button>
+                    ) : null}
+                  </HStack>
                 )}
               </VStack>
             </CardContent>

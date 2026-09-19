@@ -2,6 +2,10 @@ import {
   buildMixMonitorFlags,
   buildFfmpegPostprocess,
   getRecordingSourceExtension,
+  buildStopMixMonitor,
+  mixMonitorWithRecorderId,
+  shouldRunLegacyFfmpegHangup,
+  durableCaptureFileBase,
 } from './route-recording.util';
 
 describe('route-recording.util', () => {
@@ -44,6 +48,19 @@ describe('route-recording.util', () => {
       expect(cmd).toContain('-f s16le');
       expect(cmd).toContain('-ac 2');
       expect(cmd).toContain('-b:a 64k');
+    });
+  });
+
+  describe('durable capture helpers', () => {
+    it('names files by UUID and stops one recorder', () => {
+      expect(durableCaptureFileBase('aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeee0001'))
+        .toBe('aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeee0001');
+      expect(() => durableCaptureFileBase('20260919-7900')).toThrow(/UUID/);
+      expect(buildStopMixMonitor('rec-1')).toBe('StopMixMonitor(rec-1)');
+      expect(mixMonitorWithRecorderId('/tmp/a.wav', 'b', 'rec-1'))
+        .toBe('MixMonitor(/tmp/a.wav,b,,rec-1)');
+      expect(shouldRunLegacyFfmpegHangup(true)).toBe(false);
+      expect(shouldRunLegacyFfmpegHangup(false)).toBe(true);
     });
   });
 });
