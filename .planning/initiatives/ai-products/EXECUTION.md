@@ -6,15 +6,15 @@
 |---|---|
 | Updated | 2026-09-19 |
 | Mode | `codex-direct` |
-| Coordination status | `active` — AI-01-C / C2 compile-time compositions and schema profiles |
+| Coordination status | `active` — AI-01-C / C4 acceptance (partial); C2/C3 code in tree |
 | Active implementation coordinator | Codex task `01a0b2cf-f755-74d0-8a7d-7e65ee34fc65`, `/root` |
 | Active PLAN / revision | [AI-01-C-COMPOSITION-UI-PLAN](AI-01-C-COMPOSITION-UI-PLAN.md), C2, SHA-256 `5A572628DC01B7B716E285773BAA46BD5ED3FA0276D7F9B64329F922E83C00F4` |
 | Active workers / owned paths | `/root` — единственный writer C2: backend composition/bootstrap, neutral core module imports, database runner/manifest/profile readiness and new standalone SQL, isolated frontend entrypoints/config, C2 harness/docs/evidence. Shared schema/config owner `/root`; immutable 0001 full baselines не менять. Autodial и unrelated production modules не менять без отдельного назначения |
 | Planning/handoff task | `01a0b2cf-f755-74d0-8a7d-7e65ee34fc65` |
 | Master roadmap | [ROADMAP](ROADMAP.md) |
-| Next action | C4 acceptance (OSS tree, dual-DB analytics/robot, SaaS/tenant matrix, project checks). C3 Hub landing/connections реализованы; live v3 public-robot client и browser login vs live DB не доказаны. Internal dialplan и public robots fail-closed. Remote MySQL/PG + identity boot — [REMOTE-MATRIX](evidence/c2/REMOTE-MATRIX.md) |
+| Next action | Browser login vs live disposable API; live v3 public-robot client on full-PBX; CLOUD entitled-allow cell. C2 public robots fail-closed (URLs kept). C3 Hub landings implemented. C4 OSS + dual-DB boot matrix — [REMOTE-MATRIX](evidence/c4/REMOTE-MATRIX.md). AI-01 not closed. |
 | DB-02 boundary | Последнее указание пользователя разрешает единое исполнение, включая autodial. Прежнее исключение D2 историческое и больше не запрещает работу; это не закрывает D2/D1/E без evidence. В текущем planning-only назначении их код не меняется |
-| Implementation state | C1 verified; C2 partial (public robots fail-closed, URLs kept, remote boot passed); C3 Hub landing/connections implemented, live UI/C4 not closed. AI product runtime не установлен, AI-01 не закрыта |
+| Implementation state | C1 verified; C2 partial; C3 Hub/UI implemented (live UI not closed); C4 [verification](AI-01-C4-VERIFICATION.md) partial. AI product runtime не установлен, AI-01 не закрыта |
 
 ## Следующее исполнение
 

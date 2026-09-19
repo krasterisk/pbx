@@ -120,6 +120,31 @@ async function main() {
       headers: { authorization: `Bearer ${accessToken}` },
     });
     assert.equal(authorizedList.status, 200, 'tenant JWT must access its scoped integrations');
+    const tenantBLogin = await fetch(`${base}/auth/login`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ login: 'ci-tenant-b', password: fixturePassword }),
+    });
+    assert.equal(tenantBLogin.status, 200, 'seeded tenant B must be able to log in');
+    const { accessToken: tokenB } = await tenantBLogin.json();
+    const listB = await fetch(`${base}/v1/integrations`, {
+      headers: { authorization: `Bearer ${tokenB}` },
+    });
+    assert.equal(listB.status, 200, 'tenant B JWT must access its own integrations');
+    const createDenied = await fetch(`${base}/v1/integrations`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${accessToken}`, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        label: 'C4 probe', product: product === 'analytics' ? 'speech_analytics' : 'ai_voice_robots',
+        operationId: crypto.randomUUID(),
+      }),
+    });
+    assert.equal(createDenied.status, 403, 'unentitled tenant must not mint an integration key');
+    const adminLogin = await fetch(`${base}/auth/login`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ login: 'admin', password: fixturePassword }),
+    });
+    assert.ok([401, 403].includes(adminLogin.status),
+      `platform admin is not a standalone product tenant, got ${adminLogin.status}`);
     const status = async route => (await fetch(`${base}/${route}`)).status;
     assert.equal(await status('v1/identity/capabilities'), 401);
     assert.equal(await status('v1/integrations/self/capabilities'), 401);
@@ -127,7 +152,9 @@ async function main() {
       'internal/dialplan/notify', 'internal/dialplan/route']) {
       assert.equal(await status(absent), 404, `${absent} must be absent from analytics composition`);
     }
-    console.log(`${dialect} ${product} API boot: health 200; login 200/401; identity/capabilities 200/401; tenant integration list 200; unauthenticated integration 401; PBX routes 404`);
+    assert.doesNotMatch(output, /AMI connection|ARI websocket|asterisk manager|ami\.connect/i,
+      'standalone boot must not open PBX sockets');
+    console.log(`${dialect} ${product} API boot: health 200; login 200/401; identity/capabilities 200/401; tenant A/B integration list 200; unentitled create 403; platform admin login ${adminLogin.status}; unauthenticated integration 401; PBX routes 404`);
   } finally {
     if (child && child.exitCode === null) {
       child.kill('SIGTERM');
