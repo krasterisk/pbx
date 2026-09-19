@@ -7,6 +7,8 @@ import { SpeechAnalyticsModule } from '../modules/speech-analytics/speech-analyt
 import { IntegrationDeliveryModule } from '../modules/integration-delivery/integration-delivery.module';
 import { RecordingCaptureModule } from '../modules/recording-capture/recording-capture.module';
 import { AiVoiceModule } from '../modules/ai-voice/ai-voice.module';
+import { AiToolConnectivityModule } from '../modules/ai-tool-connectivity/ai-tool-connectivity.module';
+import { KnowledgeModule } from '../modules/knowledge/knowledge.module';
 import { evaluateAiReadiness } from './ai-readiness';
 
 /** HTTP AI API. Must not import ARI/AMI or billing cron. */
@@ -40,7 +42,7 @@ class AiApiHealthController {
     AiUsageModule,
     MediaAssetsModule,
     ...((process.env.DB_SCHEMA_PROFILE || 'analytics-api') === 'robot-api'
-      ? [RecordingCaptureModule, AiVoiceModule]
+      ? [RecordingCaptureModule, AiVoiceModule, AiToolConnectivityModule, KnowledgeModule]
       : [SpeechAnalyticsModule, IntegrationDeliveryModule]),
   ],
   controllers: [AiApiHealthController],

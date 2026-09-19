@@ -150,7 +150,8 @@ export function overallScore(rows: Array<{ weight: number; status: MetricStatus;
 const AST_FIELDS = new Set(['duration_ms', 'channels', 'direction', 'quality']);
 
 export type ApplicabilityNode =
-  | { op: 'all' | 'any'; nodes: ApplicabilityNode[] }
+  | { op: 'all'; nodes: ApplicabilityNode[] }
+  | { op: 'any'; nodes: ApplicabilityNode[] }
   | { op: 'not'; node: ApplicabilityNode }
   | { op: 'eq' | 'gt' | 'lt'; field: string; value: string | number };
 

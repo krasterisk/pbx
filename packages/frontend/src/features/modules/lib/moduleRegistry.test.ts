@@ -192,6 +192,8 @@ describe('hub merge + favorites (NAV-02)', () => {
     expect(getBaselineModule('speech_analytics')?.pages.map((p) => p.path)).toEqual([
       '/speech-analytics',
       '/speech-analytics/projects',
+      '/speech-analytics/dashboard',
+      '/speech-analytics/reports',
       '/speech-analytics/connections',
     ]);
     expect(getBaselineModule('ai_voice_robots')?.pages.map((p) => p.path)).toEqual([
@@ -199,6 +201,9 @@ describe('hub merge + favorites (NAV-02)', () => {
       '/ai-robots/studio',
       '/ai-robots/sessions',
       '/ai-robots/preview',
+      '/ai-robots/sip',
+      '/ai-robots/tools',
+      '/ai-robots/knowledge',
       '/ai-robots/connections',
     ]);
     expect(getBaselineModule('ai')?.pages.some((p) => p.path === '/ai-robots')).toBe(false);

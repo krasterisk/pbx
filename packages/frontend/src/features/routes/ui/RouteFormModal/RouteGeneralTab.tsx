@@ -21,6 +21,10 @@ export interface RouteGeneralTabProps {
   setRecordAll: (v: boolean) => void;
   recordStereo: boolean;
   setRecordStereo: (v: boolean) => void;
+  analyticsMode: 'inherit' | 'off' | 'on';
+  setAnalyticsMode: (v: 'inherit' | 'off' | 'on') => void;
+  analyticsProjectId: string;
+  setAnalyticsProjectId: (v: string) => void;
   /** Context selector (create/copy mode) */
   contextUid: number | null;
   setContextUid: (v: number) => void;
@@ -45,6 +49,7 @@ export const RouteGeneralTab = memo((props: RouteGeneralTabProps) => {
     name, setName, extensions, setExtensions, active, setActive,
     routeType, setRouteType, record, setRecord, recordAll, setRecordAll,
     recordStereo, setRecordStereo,
+    analyticsMode, setAnalyticsMode, analyticsProjectId, setAnalyticsProjectId,
     contextUid, setContextUid, isCreateMode, contexts,
   } = props;
 
@@ -158,6 +163,30 @@ export const RouteGeneralTab = memo((props: RouteGeneralTabProps) => {
               onChange={(e) => setRecordStereo(e.target.checked)}
             />
           </HStack>
+        )}
+      </VStack>
+
+      <VStack gap="4">
+        <Label htmlFor="route-analytics-mode">{t('routes.analyticsMode', 'Speech analytics')}</Label>
+        <Select
+          id="route-analytics-mode"
+          value={analyticsMode}
+          onChange={(e) => setAnalyticsMode(e.target.value as 'inherit' | 'off' | 'on')}
+        >
+          <option value="inherit">{t('routes.analyticsInherit', 'Company default')}</option>
+          <option value="off">{t('routes.analyticsOff', 'Do not analyze this route')}</option>
+          <option value="on">{t('routes.analyticsOn', 'Analyze with project')}</option>
+        </Select>
+        {analyticsMode === 'on' && (
+          <Input
+            id="route-analytics-project"
+            value={analyticsProjectId}
+            onChange={(e) => setAnalyticsProjectId(e.target.value)}
+            placeholder={t('routes.analyticsProject', 'Analytics project ID')}
+          />
+        )}
+        {analyticsMode === 'on' && !record && (
+          <Label>{t('routes.analyticsEnableRecording', 'Recording must stay enabled for analysis')}</Label>
         )}
       </VStack>
     </VStack>

@@ -67,6 +67,14 @@ export const MODULE_COVERAGE: Record<string, ModuleCoverageEntry> = {
     kind: 'infrastructure',
     reason: 'Cascade AI voice runtime, tickets and deployments; not a tenant PBX agent catalog.',
   },
+  'ai-tool-connectivity': {
+    kind: 'infrastructure',
+    reason: 'Business tool connections and MCP gateway contracts; not a tenant PBX agent catalog.',
+  },
+  knowledge: {
+    kind: 'infrastructure',
+    reason: 'Knowledge-base ingestion and retrieval contracts for voice robots; not a PBX catalog.',
+  },
   'integration-delivery': {
     kind: 'infrastructure',
     reason: 'Outbound webhook delivery for product events; not a tenant PBX catalog.',

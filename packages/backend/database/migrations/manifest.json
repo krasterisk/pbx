@@ -4,98 +4,422 @@
     "mysql": {
       "baselineImplemented": true,
       "migrations": [
-        { "id": "0001-current-schema.sql", "artifact": "0001-current-schema.sql" },
-        { "id": "0002-cdr-query-indexes.sql", "artifact": "0002-cdr-query-indexes.sql" },
-        { "id": "0003-callcenter-report-keys.sql", "artifact": "0003-callcenter-report-keys.sql" },
-        { "id": "0004-ai-product-access.sql", "artifact": "0004-ai-product-access.sql" },
-        { "id": "0005-ai-integration-credentials.sql", "artifact": "0005-ai-integration-credentials.sql" },
-        { "id": "0006-ai-integration-auth-limits.sql", "artifact": "0006-ai-integration-auth-limits.sql" },
-        { "id": "0007-tenant-login-uniqueness.sql", "artifact": "0007-tenant-login-uniqueness.sql" },
-        { "id": "0008-ai-jobs-assets.sql", "artifact": "0008-ai-jobs-assets.sql" },
-        { "id": "0009-ai-usage.sql", "artifact": "0009-ai-usage.sql" },
-        { "id": "0010-ai-capture.sql", "artifact": "0010-ai-capture.sql" },
-        { "id": "0011-speech-analytics.sql", "artifact": "0011-speech-analytics.sql" },
-        { "id": "0012-ai-webhooks.sql", "artifact": "0012-ai-webhooks.sql" },
-        { "id": "0013-ai-voice.sql", "artifact": "0013-ai-voice.sql" },
-        { "id": "0014-sa-metrics.sql", "artifact": "0014-sa-metrics.sql" }
+        {
+          "id": "0001-current-schema.sql",
+          "artifact": "0001-current-schema.sql"
+        },
+        {
+          "id": "0002-cdr-query-indexes.sql",
+          "artifact": "0002-cdr-query-indexes.sql"
+        },
+        {
+          "id": "0003-callcenter-report-keys.sql",
+          "artifact": "0003-callcenter-report-keys.sql"
+        },
+        {
+          "id": "0004-ai-product-access.sql",
+          "artifact": "0004-ai-product-access.sql"
+        },
+        {
+          "id": "0005-ai-integration-credentials.sql",
+          "artifact": "0005-ai-integration-credentials.sql"
+        },
+        {
+          "id": "0006-ai-integration-auth-limits.sql",
+          "artifact": "0006-ai-integration-auth-limits.sql"
+        },
+        {
+          "id": "0007-tenant-login-uniqueness.sql",
+          "artifact": "0007-tenant-login-uniqueness.sql"
+        },
+        {
+          "id": "0008-ai-jobs-assets.sql",
+          "artifact": "0008-ai-jobs-assets.sql"
+        },
+        {
+          "id": "0009-ai-usage.sql",
+          "artifact": "0009-ai-usage.sql"
+        },
+        {
+          "id": "0010-ai-capture.sql",
+          "artifact": "0010-ai-capture.sql"
+        },
+        {
+          "id": "0011-speech-analytics.sql",
+          "artifact": "0011-speech-analytics.sql"
+        },
+        {
+          "id": "0012-ai-webhooks.sql",
+          "artifact": "0012-ai-webhooks.sql"
+        },
+        {
+          "id": "0013-ai-voice.sql",
+          "artifact": "0013-ai-voice.sql"
+        },
+        {
+          "id": "0014-sa-metrics.sql",
+          "artifact": "0014-sa-metrics.sql"
+        },
+        {
+          "id": "0015-sa-reporting.sql",
+          "artifact": "0015-sa-reporting.sql"
+        },
+        {
+          "id": "0016-sa-native-int.sql",
+          "artifact": "0016-sa-native-int.sql"
+        },
+        {
+          "id": "0017-ai-realtime.sql",
+          "artifact": "0017-ai-realtime.sql"
+        },
+        {
+          "id": "0018-ai-tools.sql",
+          "artifact": "0018-ai-tools.sql"
+        }
       ],
       "profiles": {
         "analytics-api": [
-          { "id": "0001-ai-standalone-base.sql", "artifact": "0001-ai-standalone-base.sql" },
-          { "id": "0004-ai-product-access.sql", "artifact": "0004-ai-product-access.sql" },
-          { "id": "0005-ai-integration-credentials.sql", "artifact": "0005-ai-integration-credentials.sql" },
-          { "id": "0006-ai-integration-auth-limits.sql", "artifact": "0006-ai-integration-auth-limits.sql" },
-          { "id": "0007-tenant-login-uniqueness.sql", "artifact": "0007-tenant-login-uniqueness.sql" },
-          { "id": "0008-ai-jobs-assets.sql", "artifact": "0008-ai-jobs-assets.sql" },
-          { "id": "0009-ai-usage.sql", "artifact": "0009-ai-usage.sql" },
-          { "id": "0010-ai-capture.sql", "artifact": "0010-ai-capture.sql" },
-          { "id": "0011-speech-analytics.sql", "artifact": "0011-speech-analytics.sql" },
-          { "id": "0012-ai-webhooks.sql", "artifact": "0012-ai-webhooks.sql" },
-          { "id": "0013-ai-voice.sql", "artifact": "0013-ai-voice.sql" },
-          { "id": "0014-sa-metrics.sql", "artifact": "0014-sa-metrics.sql" }
+          {
+            "id": "0001-ai-standalone-base.sql",
+            "artifact": "0001-ai-standalone-base.sql"
+          },
+          {
+            "id": "0004-ai-product-access.sql",
+            "artifact": "0004-ai-product-access.sql"
+          },
+          {
+            "id": "0005-ai-integration-credentials.sql",
+            "artifact": "0005-ai-integration-credentials.sql"
+          },
+          {
+            "id": "0006-ai-integration-auth-limits.sql",
+            "artifact": "0006-ai-integration-auth-limits.sql"
+          },
+          {
+            "id": "0007-tenant-login-uniqueness.sql",
+            "artifact": "0007-tenant-login-uniqueness.sql"
+          },
+          {
+            "id": "0008-ai-jobs-assets.sql",
+            "artifact": "0008-ai-jobs-assets.sql"
+          },
+          {
+            "id": "0009-ai-usage.sql",
+            "artifact": "0009-ai-usage.sql"
+          },
+          {
+            "id": "0010-ai-capture.sql",
+            "artifact": "0010-ai-capture.sql"
+          },
+          {
+            "id": "0011-speech-analytics.sql",
+            "artifact": "0011-speech-analytics.sql"
+          },
+          {
+            "id": "0012-ai-webhooks.sql",
+            "artifact": "0012-ai-webhooks.sql"
+          },
+          {
+            "id": "0013-ai-voice.sql",
+            "artifact": "0013-ai-voice.sql"
+          },
+          {
+            "id": "0014-sa-metrics.sql",
+            "artifact": "0014-sa-metrics.sql"
+          },
+          {
+            "id": "0015-sa-reporting.sql",
+            "artifact": "0015-sa-reporting.sql"
+          },
+          {
+            "id": "0016-sa-native-int.sql",
+            "artifact": "0016-sa-native-int.sql"
+          },
+          {
+            "id": "0017-ai-realtime.sql",
+            "artifact": "0017-ai-realtime.sql"
+          },
+          {
+            "id": "0018-ai-tools.sql",
+            "artifact": "0018-ai-tools.sql"
+          }
         ],
         "robot-api": [
-          { "id": "0001-ai-standalone-base.sql", "artifact": "0001-ai-standalone-base.sql" },
-          { "id": "0004-ai-product-access.sql", "artifact": "0004-ai-product-access.sql" },
-          { "id": "0005-ai-integration-credentials.sql", "artifact": "0005-ai-integration-credentials.sql" },
-          { "id": "0006-ai-integration-auth-limits.sql", "artifact": "0006-ai-integration-auth-limits.sql" },
-          { "id": "0007-tenant-login-uniqueness.sql", "artifact": "0007-tenant-login-uniqueness.sql" },
-          { "id": "0008-ai-jobs-assets.sql", "artifact": "0008-ai-jobs-assets.sql" },
-          { "id": "0009-ai-usage.sql", "artifact": "0009-ai-usage.sql" },
-          { "id": "0010-ai-capture.sql", "artifact": "0010-ai-capture.sql" },
-          { "id": "0011-speech-analytics.sql", "artifact": "0011-speech-analytics.sql" },
-          { "id": "0012-ai-webhooks.sql", "artifact": "0012-ai-webhooks.sql" },
-          { "id": "0013-ai-voice.sql", "artifact": "0013-ai-voice.sql" },
-          { "id": "0014-sa-metrics.sql", "artifact": "0014-sa-metrics.sql" }
+          {
+            "id": "0001-ai-standalone-base.sql",
+            "artifact": "0001-ai-standalone-base.sql"
+          },
+          {
+            "id": "0004-ai-product-access.sql",
+            "artifact": "0004-ai-product-access.sql"
+          },
+          {
+            "id": "0005-ai-integration-credentials.sql",
+            "artifact": "0005-ai-integration-credentials.sql"
+          },
+          {
+            "id": "0006-ai-integration-auth-limits.sql",
+            "artifact": "0006-ai-integration-auth-limits.sql"
+          },
+          {
+            "id": "0007-tenant-login-uniqueness.sql",
+            "artifact": "0007-tenant-login-uniqueness.sql"
+          },
+          {
+            "id": "0008-ai-jobs-assets.sql",
+            "artifact": "0008-ai-jobs-assets.sql"
+          },
+          {
+            "id": "0009-ai-usage.sql",
+            "artifact": "0009-ai-usage.sql"
+          },
+          {
+            "id": "0010-ai-capture.sql",
+            "artifact": "0010-ai-capture.sql"
+          },
+          {
+            "id": "0011-speech-analytics.sql",
+            "artifact": "0011-speech-analytics.sql"
+          },
+          {
+            "id": "0012-ai-webhooks.sql",
+            "artifact": "0012-ai-webhooks.sql"
+          },
+          {
+            "id": "0013-ai-voice.sql",
+            "artifact": "0013-ai-voice.sql"
+          },
+          {
+            "id": "0014-sa-metrics.sql",
+            "artifact": "0014-sa-metrics.sql"
+          },
+          {
+            "id": "0015-sa-reporting.sql",
+            "artifact": "0015-sa-reporting.sql"
+          },
+          {
+            "id": "0016-sa-native-int.sql",
+            "artifact": "0016-sa-native-int.sql"
+          },
+          {
+            "id": "0017-ai-realtime.sql",
+            "artifact": "0017-ai-realtime.sql"
+          },
+          {
+            "id": "0018-ai-tools.sql",
+            "artifact": "0018-ai-tools.sql"
+          }
         ]
       }
     },
     "postgres": {
       "baselineImplemented": true,
       "migrations": [
-        { "id": "0001-current-schema.sql", "artifact": "postgres/0001-current-schema.sql" },
-        { "id": "0002-cdr-query-indexes.sql", "artifact": "postgres/0002-cdr-query-indexes.sql" },
-        { "id": "0003-callcenter-report-keys.sql", "artifact": "postgres/0003-callcenter-report-keys.sql" },
-        { "id": "0004-ai-product-access.sql", "artifact": "postgres/0004-ai-product-access.sql" },
-        { "id": "0005-ai-integration-credentials.sql", "artifact": "postgres/0005-ai-integration-credentials.sql" },
-        { "id": "0006-ai-integration-auth-limits.sql", "artifact": "postgres/0006-ai-integration-auth-limits.sql" },
-        { "id": "0007-tenant-login-uniqueness.sql", "artifact": "postgres/0007-tenant-login-uniqueness.sql" },
-        { "id": "0008-ai-jobs-assets.sql", "artifact": "postgres/0008-ai-jobs-assets.sql" },
-        { "id": "0009-ai-usage.sql", "artifact": "postgres/0009-ai-usage.sql" },
-        { "id": "0010-ai-capture.sql", "artifact": "postgres/0010-ai-capture.sql" },
-        { "id": "0011-speech-analytics.sql", "artifact": "postgres/0011-speech-analytics.sql" },
-        { "id": "0012-ai-webhooks.sql", "artifact": "postgres/0012-ai-webhooks.sql" },
-        { "id": "0013-ai-voice.sql", "artifact": "postgres/0013-ai-voice.sql" },
-        { "id": "0014-sa-metrics.sql", "artifact": "postgres/0014-sa-metrics.sql" }
+        {
+          "id": "0001-current-schema.sql",
+          "artifact": "postgres/0001-current-schema.sql"
+        },
+        {
+          "id": "0002-cdr-query-indexes.sql",
+          "artifact": "postgres/0002-cdr-query-indexes.sql"
+        },
+        {
+          "id": "0003-callcenter-report-keys.sql",
+          "artifact": "postgres/0003-callcenter-report-keys.sql"
+        },
+        {
+          "id": "0004-ai-product-access.sql",
+          "artifact": "postgres/0004-ai-product-access.sql"
+        },
+        {
+          "id": "0005-ai-integration-credentials.sql",
+          "artifact": "postgres/0005-ai-integration-credentials.sql"
+        },
+        {
+          "id": "0006-ai-integration-auth-limits.sql",
+          "artifact": "postgres/0006-ai-integration-auth-limits.sql"
+        },
+        {
+          "id": "0007-tenant-login-uniqueness.sql",
+          "artifact": "postgres/0007-tenant-login-uniqueness.sql"
+        },
+        {
+          "id": "0008-ai-jobs-assets.sql",
+          "artifact": "postgres/0008-ai-jobs-assets.sql"
+        },
+        {
+          "id": "0009-ai-usage.sql",
+          "artifact": "postgres/0009-ai-usage.sql"
+        },
+        {
+          "id": "0010-ai-capture.sql",
+          "artifact": "postgres/0010-ai-capture.sql"
+        },
+        {
+          "id": "0011-speech-analytics.sql",
+          "artifact": "postgres/0011-speech-analytics.sql"
+        },
+        {
+          "id": "0012-ai-webhooks.sql",
+          "artifact": "postgres/0012-ai-webhooks.sql"
+        },
+        {
+          "id": "0013-ai-voice.sql",
+          "artifact": "postgres/0013-ai-voice.sql"
+        },
+        {
+          "id": "0014-sa-metrics.sql",
+          "artifact": "postgres/0014-sa-metrics.sql"
+        },
+        {
+          "id": "0015-sa-reporting.sql",
+          "artifact": "postgres/0015-sa-reporting.sql"
+        },
+        {
+          "id": "0016-sa-native-int.sql",
+          "artifact": "postgres/0016-sa-native-int.sql"
+        },
+        {
+          "id": "0017-ai-realtime.sql",
+          "artifact": "postgres/0017-ai-realtime.sql"
+        },
+        {
+          "id": "0018-ai-tools.sql",
+          "artifact": "postgres/0018-ai-tools.sql"
+        }
       ],
       "profiles": {
         "analytics-api": [
-          { "id": "0001-ai-standalone-base.sql", "artifact": "postgres/0001-ai-standalone-base.sql" },
-          { "id": "0004-ai-product-access.sql", "artifact": "postgres/0004-ai-product-access.sql" },
-          { "id": "0005-ai-integration-credentials.sql", "artifact": "postgres/0005-ai-integration-credentials.sql" },
-          { "id": "0006-ai-integration-auth-limits.sql", "artifact": "postgres/0006-ai-integration-auth-limits.sql" },
-          { "id": "0007-tenant-login-uniqueness.sql", "artifact": "postgres/0007-tenant-login-uniqueness.sql" },
-          { "id": "0008-ai-jobs-assets.sql", "artifact": "postgres/0008-ai-jobs-assets.sql" },
-          { "id": "0009-ai-usage.sql", "artifact": "postgres/0009-ai-usage.sql" },
-          { "id": "0010-ai-capture.sql", "artifact": "postgres/0010-ai-capture.sql" },
-          { "id": "0011-speech-analytics.sql", "artifact": "postgres/0011-speech-analytics.sql" },
-          { "id": "0012-ai-webhooks.sql", "artifact": "postgres/0012-ai-webhooks.sql" },
-          { "id": "0013-ai-voice.sql", "artifact": "postgres/0013-ai-voice.sql" },
-          { "id": "0014-sa-metrics.sql", "artifact": "postgres/0014-sa-metrics.sql" }
+          {
+            "id": "0001-ai-standalone-base.sql",
+            "artifact": "postgres/0001-ai-standalone-base.sql"
+          },
+          {
+            "id": "0004-ai-product-access.sql",
+            "artifact": "postgres/0004-ai-product-access.sql"
+          },
+          {
+            "id": "0005-ai-integration-credentials.sql",
+            "artifact": "postgres/0005-ai-integration-credentials.sql"
+          },
+          {
+            "id": "0006-ai-integration-auth-limits.sql",
+            "artifact": "postgres/0006-ai-integration-auth-limits.sql"
+          },
+          {
+            "id": "0007-tenant-login-uniqueness.sql",
+            "artifact": "postgres/0007-tenant-login-uniqueness.sql"
+          },
+          {
+            "id": "0008-ai-jobs-assets.sql",
+            "artifact": "postgres/0008-ai-jobs-assets.sql"
+          },
+          {
+            "id": "0009-ai-usage.sql",
+            "artifact": "postgres/0009-ai-usage.sql"
+          },
+          {
+            "id": "0010-ai-capture.sql",
+            "artifact": "postgres/0010-ai-capture.sql"
+          },
+          {
+            "id": "0011-speech-analytics.sql",
+            "artifact": "postgres/0011-speech-analytics.sql"
+          },
+          {
+            "id": "0012-ai-webhooks.sql",
+            "artifact": "postgres/0012-ai-webhooks.sql"
+          },
+          {
+            "id": "0013-ai-voice.sql",
+            "artifact": "postgres/0013-ai-voice.sql"
+          },
+          {
+            "id": "0014-sa-metrics.sql",
+            "artifact": "postgres/0014-sa-metrics.sql"
+          },
+          {
+            "id": "0015-sa-reporting.sql",
+            "artifact": "postgres/0015-sa-reporting.sql"
+          },
+          {
+            "id": "0016-sa-native-int.sql",
+            "artifact": "postgres/0016-sa-native-int.sql"
+          },
+          {
+            "id": "0017-ai-realtime.sql",
+            "artifact": "postgres/0017-ai-realtime.sql"
+          },
+          {
+            "id": "0018-ai-tools.sql",
+            "artifact": "postgres/0018-ai-tools.sql"
+          }
         ],
         "robot-api": [
-          { "id": "0001-ai-standalone-base.sql", "artifact": "postgres/0001-ai-standalone-base.sql" },
-          { "id": "0004-ai-product-access.sql", "artifact": "postgres/0004-ai-product-access.sql" },
-          { "id": "0005-ai-integration-credentials.sql", "artifact": "postgres/0005-ai-integration-credentials.sql" },
-          { "id": "0006-ai-integration-auth-limits.sql", "artifact": "postgres/0006-ai-integration-auth-limits.sql" },
-          { "id": "0007-tenant-login-uniqueness.sql", "artifact": "postgres/0007-tenant-login-uniqueness.sql" },
-          { "id": "0008-ai-jobs-assets.sql", "artifact": "postgres/0008-ai-jobs-assets.sql" },
-          { "id": "0009-ai-usage.sql", "artifact": "postgres/0009-ai-usage.sql" },
-          { "id": "0010-ai-capture.sql", "artifact": "postgres/0010-ai-capture.sql" },
-          { "id": "0011-speech-analytics.sql", "artifact": "postgres/0011-speech-analytics.sql" },
-          { "id": "0012-ai-webhooks.sql", "artifact": "postgres/0012-ai-webhooks.sql" },
-          { "id": "0013-ai-voice.sql", "artifact": "postgres/0013-ai-voice.sql" },
-          { "id": "0014-sa-metrics.sql", "artifact": "postgres/0014-sa-metrics.sql" }
+          {
+            "id": "0001-ai-standalone-base.sql",
+            "artifact": "postgres/0001-ai-standalone-base.sql"
+          },
+          {
+            "id": "0004-ai-product-access.sql",
+            "artifact": "postgres/0004-ai-product-access.sql"
+          },
+          {
+            "id": "0005-ai-integration-credentials.sql",
+            "artifact": "postgres/0005-ai-integration-credentials.sql"
+          },
+          {
+            "id": "0006-ai-integration-auth-limits.sql",
+            "artifact": "postgres/0006-ai-integration-auth-limits.sql"
+          },
+          {
+            "id": "0007-tenant-login-uniqueness.sql",
+            "artifact": "postgres/0007-tenant-login-uniqueness.sql"
+          },
+          {
+            "id": "0008-ai-jobs-assets.sql",
+            "artifact": "postgres/0008-ai-jobs-assets.sql"
+          },
+          {
+            "id": "0009-ai-usage.sql",
+            "artifact": "postgres/0009-ai-usage.sql"
+          },
+          {
+            "id": "0010-ai-capture.sql",
+            "artifact": "postgres/0010-ai-capture.sql"
+          },
+          {
+            "id": "0011-speech-analytics.sql",
+            "artifact": "postgres/0011-speech-analytics.sql"
+          },
+          {
+            "id": "0012-ai-webhooks.sql",
+            "artifact": "postgres/0012-ai-webhooks.sql"
+          },
+          {
+            "id": "0013-ai-voice.sql",
+            "artifact": "postgres/0013-ai-voice.sql"
+          },
+          {
+            "id": "0014-sa-metrics.sql",
+            "artifact": "postgres/0014-sa-metrics.sql"
+          },
+          {
+            "id": "0015-sa-reporting.sql",
+            "artifact": "postgres/0015-sa-reporting.sql"
+          },
+          {
+            "id": "0016-sa-native-int.sql",
+            "artifact": "postgres/0016-sa-native-int.sql"
+          },
+          {
+            "id": "0017-ai-realtime.sql",
+            "artifact": "postgres/0017-ai-realtime.sql"
+          },
+          {
+            "id": "0018-ai-tools.sql",
+            "artifact": "postgres/0018-ai-tools.sql"
+          }
         ]
       }
     }

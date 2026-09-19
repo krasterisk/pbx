@@ -272,6 +272,8 @@ export class AiVoiceService {
       mode: 'cascade',
       realtime: false,
       externalSip: false,
+      toolsCatalog: true,
+      knowledge: true,
       ariApp: process.env.ARI_AI_VOICE_APP_NAME || 'krasterisk_ai_voice',
       tools: ['end_call', 'transfer', 'get_session_context'],
       previewMic: 'opt-in',

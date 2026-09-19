@@ -14,8 +14,13 @@ import {
   SaHumanReview, SaMetricDefinition, SaMetricRevision, SaMetricValue,
   SaProjectVersionMetric, SaTranscriptCorrection,
 } from './metrics/metric.models';
+import {
+  SaBudgetPolicy, SaBulkReanalysisBatch, SaBulkReanalysisItem, SaRecordingRelation,
+  SaReportDefinition, SaReportRun, SaReportSchedule, SaReportSnapshotItem, SaTenantCapturePolicy,
+} from './reporting/reporting.models';
 import { SpeechAnalyticsService } from './speech-analytics.service';
 import { SaMetricsService } from './metrics/metrics.service';
+import { SaReportingService } from './reporting/reporting.service';
 import { SaProjectResolver } from './sa-project.resolver';
 import { SpeechAnalyticsJwtController } from './speech-analytics-jwt.controller';
 import { SpeechAnalyticsPublicController } from './speech-analytics-public.controller';
@@ -31,10 +36,13 @@ import { SpeechAnalyticsPublicController } from './speech-analytics-public.contr
       SaTranscript, SaTranscriptSegment, SaResult, AiMediaAsset, AiUpload, IntegrationGrant,
       SaMetricDefinition, SaMetricRevision, SaProjectVersionMetric, SaMetricValue,
       SaHumanReview, SaTranscriptCorrection,
+      SaReportDefinition, SaReportRun, SaReportSnapshotItem, SaReportSchedule,
+      SaBudgetPolicy, SaBulkReanalysisBatch, SaBulkReanalysisItem,
+      SaTenantCapturePolicy, SaRecordingRelation,
     ]),
   ],
-  providers: [SpeechAnalyticsService, SaMetricsService, SaProjectResolver],
+  providers: [SpeechAnalyticsService, SaMetricsService, SaReportingService, SaProjectResolver],
   controllers: [SpeechAnalyticsJwtController, SpeechAnalyticsPublicController],
-  exports: [SpeechAnalyticsService, SaMetricsService, SequelizeModule],
+  exports: [SpeechAnalyticsService, SaMetricsService, SaReportingService, SequelizeModule],
 })
 export class SpeechAnalyticsModule {}

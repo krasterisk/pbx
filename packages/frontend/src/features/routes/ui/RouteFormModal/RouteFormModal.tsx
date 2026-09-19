@@ -84,6 +84,8 @@ export const RouteFormModal = memo(() => {
   const [record, setRecord] = useState(false);
   const [recordAll, setRecordAll] = useState(false);
   const [recordStereo, setRecordStereo] = useState(false);
+  const [analyticsMode, setAnalyticsMode] = useState<'inherit' | 'off' | 'on'>('inherit');
+  const [analyticsProjectId, setAnalyticsProjectId] = useState('');
   const [bindings, setBindings] = useState<IRouteDirectoryBinding[]>([]);
   const [preCommand, setPreCommand] = useState('');
   const [routeType, setRouteType] = useState(0);
@@ -107,6 +109,8 @@ export const RouteFormModal = memo(() => {
       setRecord(recMode !== 'off');
       setRecordAll(recMode === 'all');
       setRecordStereo(!!opts.record_stereo);
+      setAnalyticsMode(opts.analytics?.mode ?? 'inherit');
+      setAnalyticsProjectId(opts.analytics?.projectId ?? '');
       setBindings(
         [...(selectedRoute.bindings || [])].sort((a, b) => a.position - b.position),
       );
@@ -163,6 +167,8 @@ export const RouteFormModal = memo(() => {
     setRecord(false);
     setRecordAll(false);
     setRecordStereo(false);
+    setAnalyticsMode('inherit');
+    setAnalyticsProjectId('');
     setBindings([]);
     setPreCommand('');
     setRouteType(0);
@@ -190,6 +196,9 @@ export const RouteFormModal = memo(() => {
       // Only persist record_all when recording is actually enabled - prevents record_all:true/record:false ghost state
       record_all: record && recordAll ? true : undefined,
       record_stereo: record && recordStereo ? true : undefined,
+      analytics: analyticsMode === 'inherit' && !analyticsProjectId
+        ? undefined
+        : { mode: analyticsMode, projectId: analyticsMode === 'on' ? analyticsProjectId || undefined : undefined },
       pre_command: preCommand || undefined,
       route_type: routeType || undefined,
       dialplan_source: showRawDialplan && editorMode === 'raw' ? 'raw' : 'actions',
@@ -310,6 +319,8 @@ export const RouteFormModal = memo(() => {
               record={record} setRecord={setRecord}
               recordAll={recordAll} setRecordAll={setRecordAll}
               recordStereo={recordStereo} setRecordStereo={setRecordStereo}
+              analyticsMode={analyticsMode} setAnalyticsMode={setAnalyticsMode}
+              analyticsProjectId={analyticsProjectId} setAnalyticsProjectId={setAnalyticsProjectId}
               contextUid={contextUid} setContextUid={setContextUid}
               isCreateMode={isCreateMode} contexts={contexts}
             />

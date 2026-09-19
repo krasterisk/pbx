@@ -3,13 +3,17 @@ import {
 } from '@nestjs/common';
 import { TenantContextGuard, type TenantContextRequest } from '../integration-credentials/tenant-context.guard';
 import { AiVoiceService, assertUuid } from './ai-voice.service';
+import { AiSipService } from './sip.service';
 
 type Authed = TenantContextRequest & { tenantContext: NonNullable<TenantContextRequest['tenantContext']> };
 
 @UseGuards(TenantContextGuard)
 @Controller('ai-voice')
 export class AiVoiceJwtController {
-  constructor(private readonly voice: AiVoiceService) {}
+  constructor(
+    private readonly voice: AiVoiceService,
+    private readonly sip: AiSipService,
+  ) {}
 
   @Get('capabilities')
   capabilities() {
@@ -74,5 +78,37 @@ export class AiVoiceJwtController {
   timeline(@Req() request: Authed, @Param('id') id: string) {
     assertUuid(id);
     return this.voice.sessionTimeline(request.tenantContext, id);
+  }
+
+  @Get('sip-connections')
+  sipConnections(@Req() request: Authed) {
+    return this.sip.listConnections(request.tenantContext);
+  }
+
+  @Post('sip-connections')
+  createSip(@Req() request: Authed, @Body() body: { name: string; transport: 'udp' | 'tcp' | 'tls' }) {
+    return this.sip.createConnection(request.tenantContext, body);
+  }
+
+  @Post('sip-connections/:id/secret')
+  sipSecret(@Req() request: Authed, @Param('id') id: string) {
+    assertUuid(id);
+    return this.sip.showSecretOnce(request.tenantContext, id);
+  }
+
+  @Post('invocations')
+  @HttpCode(202)
+  invoke(@Req() request: Authed, @Headers('idempotency-key') _key: string, @Body() body: {
+    deploymentId: string; externalCallId: string; destinationRef: string; payload?: unknown;
+  }) {
+    assertUuid(body.deploymentId);
+    return this.sip.invoke(request.tenantContext, {
+      ...body, payload: body.payload ?? body,
+    });
+  }
+
+  @Post('drain')
+  drain() {
+    return this.sip.drain();
   }
 }

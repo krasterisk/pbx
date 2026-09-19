@@ -347,6 +347,8 @@ export class SpeechAnalyticsService {
       rubric: ['greeting_present', 'next_step_agreed', 'topic'],
       reanalysis: true,
       humanReview: true,
+      reporting: true,
+      nativeCaptureApply: false,
     };
   }
 

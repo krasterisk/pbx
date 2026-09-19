@@ -29,7 +29,12 @@ const required = product === 'community'
         'modules/speech-analytics/speech-analytics.module.js',
         'modules/integration-delivery/integration-delivery.module.js',
       ]
-      : ['modules/recording-capture/recording-capture.module.js', 'modules/ai-voice/ai-voice.module.js']),
+      : [
+        'modules/recording-capture/recording-capture.module.js',
+        'modules/ai-voice/ai-voice.module.js',
+        'modules/ai-tool-connectivity/ai-tool-connectivity.module.js',
+        'modules/knowledge/knowledge.module.js',
+      ]),
   ];
 for (const file of required) assert.ok(files.includes(file), `Missing ${product} build artifact ${file}`);
 if (product === 'analytics') {
@@ -37,6 +42,10 @@ if (product === 'analytics') {
     'analytics must not ship recording-capture HTTP');
   assert.ok(!files.includes('modules/ai-voice/ai-voice.module.js'),
     'analytics must not ship ai-voice HTTP');
+  assert.ok(!files.includes('modules/ai-tool-connectivity/ai-tool-connectivity.module.js'),
+    'analytics must not ship tool HTTP');
+  assert.ok(!files.includes('modules/knowledge/knowledge.module.js'),
+    'analytics must not ship knowledge HTTP');
 }
 if (product === 'robot') {
   assert.ok(!files.includes('modules/speech-analytics/speech-analytics.module.js'),

@@ -101,10 +101,15 @@ export const HUB_MODULE_PAGES_SEED: HubModulePageSeed[] = [
   // Independent AI products (landing + connections; scenario robots stay under apps)
   { hub_code: 'speech_analytics', page_code: 'speech_analytics_landing', path: '/speech-analytics', sort_order: 10 },
   { hub_code: 'speech_analytics', page_code: 'speech_analytics_projects', path: '/speech-analytics/projects', sort_order: 15 },
+  { hub_code: 'speech_analytics', page_code: 'speech_analytics_dashboard', path: '/speech-analytics/dashboard', sort_order: 16 },
+  { hub_code: 'speech_analytics', page_code: 'speech_analytics_reports', path: '/speech-analytics/reports', sort_order: 17 },
   { hub_code: 'speech_analytics', page_code: 'speech_analytics_connections', path: '/speech-analytics/connections', sort_order: 20 },
   { hub_code: 'ai_voice_robots', page_code: 'ai_voice_robots_landing', path: '/ai-robots', sort_order: 10 },
   { hub_code: 'ai_voice_robots', page_code: 'ai_voice_robots_studio', path: '/ai-robots/studio', sort_order: 12 },
   { hub_code: 'ai_voice_robots', page_code: 'ai_voice_robots_sessions', path: '/ai-robots/sessions', sort_order: 14 },
   { hub_code: 'ai_voice_robots', page_code: 'ai_voice_robots_preview', path: '/ai-robots/preview', sort_order: 16 },
+  { hub_code: 'ai_voice_robots', page_code: 'ai_voice_robots_sip', path: '/ai-robots/sip', sort_order: 17 },
+  { hub_code: 'ai_voice_robots', page_code: 'ai_voice_robots_tools', path: '/ai-robots/tools', sort_order: 18 },
+  { hub_code: 'ai_voice_robots', page_code: 'ai_voice_robots_knowledge', path: '/ai-robots/knowledge', sort_order: 19 },
   { hub_code: 'ai_voice_robots', page_code: 'ai_voice_robots_connections', path: '/ai-robots/connections', sort_order: 20 },
 ];

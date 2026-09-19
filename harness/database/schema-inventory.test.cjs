@@ -14,8 +14,9 @@ test('baseline and AppModule model table/column names stay in sync', () => {
   // DB-02-B: User timestamps=true makes Sequelize populate existing NOT NULL columns.
   assert.equal(result.sources.modelMetadataSha256, '1aa7a2ac56ad8b01414fafc19b25dfa96ff138d4da000724070da775a705a797');
   assert.equal(result.counts.models, result.counts.baselineTables);
-  assert.equal(result.counts.additiveModels, 52);
+  assert.equal(result.counts.additiveModels, 76);
   assert.deepEqual(Object.keys(result.additiveModels).sort(), [
+    'ai_business_connections',
     'ai_call_control_operations',
     'ai_capture_intents', 'ai_capture_node_bindings', 'ai_capture_receipts', 'ai_capture_segments',
     'ai_idempotency', 'ai_integration_audit', 'ai_integration_auth_limits', 'ai_integration_commands',
@@ -24,14 +25,21 @@ test('baseline and AppModule model table/column names stay in sync', () => {
     'ai_local_license_documents', 'ai_media_assets', 'ai_outbox', 'ai_price_revisions',
     'ai_product_activation',
     'ai_provider_operations', 'ai_provider_revisions', 'ai_quota_counters',
-    'ai_robot_deployments', 'ai_robot_drafts', 'ai_robot_versions',
+    'ai_robot_deployments', 'ai_robot_drafts', 'ai_robot_tool_bindings', 'ai_robot_versions',
+    'ai_sip_config_revisions', 'ai_sip_connections', 'ai_sip_did_bindings',
+    'ai_tool_revisions',
     'ai_uploads',
     'ai_usage_events', 'ai_usage_ledger', 'ai_usage_reservations',
-    'ai_voice_events', 'ai_voice_sessions', 'ai_voice_tickets', 'ai_voice_turns',
+    'ai_voice_events', 'ai_voice_invocations', 'ai_voice_sessions', 'ai_voice_tickets', 'ai_voice_turns',
     'ai_webhook_attempts', 'ai_webhook_deliveries', 'ai_webhook_endpoints',
-    'sa_analysis_runs', 'sa_human_reviews', 'sa_metric_definitions', 'sa_metric_revisions',
+    'kb_access_bindings', 'kb_bases', 'kb_chunks', 'kb_document_revisions', 'kb_documents',
+    'kb_embedding_revisions', 'kb_release_members', 'kb_releases',
+    'sa_analysis_runs', 'sa_budget_policies', 'sa_bulk_reanalysis_batches', 'sa_bulk_reanalysis_items',
+    'sa_human_reviews', 'sa_metric_definitions', 'sa_metric_revisions',
     'sa_metric_values', 'sa_project_members', 'sa_project_version_metrics', 'sa_project_versions',
-    'sa_projects', 'sa_recordings', 'sa_results', 'sa_transcript_corrections',
+    'sa_projects', 'sa_recording_relations', 'sa_recordings', 'sa_report_definitions',
+    'sa_report_runs', 'sa_report_schedules', 'sa_report_snapshot_items', 'sa_results',
+    'sa_tenant_capture_policies', 'sa_transcript_corrections',
     'sa_transcript_segments', 'sa_transcripts',
   ]);
   assert.equal(result.counts.modelColumns, result.counts.baselineColumns);
@@ -73,9 +81,22 @@ test('A2/B2/D1/D4/CAP/AN additive models have dual-engine migration ownership', 
     'sa_metric_definitions', 'sa_metric_revisions', 'sa_project_version_metrics',
     'sa_metric_values', 'sa_human_reviews', 'sa_transcript_corrections',
   ];
+  const rep = [
+    'sa_report_definitions', 'sa_report_runs', 'sa_report_snapshot_items', 'sa_report_schedules',
+    'sa_budget_policies', 'sa_bulk_reanalysis_batches', 'sa_bulk_reanalysis_items',
+  ];
+  const nativeInt = ['sa_tenant_capture_policies', 'sa_recording_relations'];
+  const rt = [
+    'ai_sip_connections', 'ai_sip_config_revisions', 'ai_sip_did_bindings', 'ai_voice_invocations',
+  ];
+  const tools = [
+    'ai_business_connections', 'ai_tool_revisions', 'ai_robot_tool_bindings',
+    'kb_bases', 'kb_documents', 'kb_document_revisions', 'kb_chunks', 'kb_embedding_revisions',
+    'kb_releases', 'kb_release_members', 'kb_access_bindings',
+  ];
   for (const dialect of ['', 'postgres/']) {
     for (const [artifact, owned] of [
-      ['0004-ai-product-access.sql', tables.filter(table => !table.startsWith('ai_integration_') && !d1.includes(table) && !d4.includes(table) && !cap.includes(table) && !an1.includes(table) && !an4.includes(table) && !vr1.includes(table) && !met1.includes(table))],
+      ['0004-ai-product-access.sql', tables.filter(table => !table.startsWith('ai_integration_') && !d1.includes(table) && !d4.includes(table) && !cap.includes(table) && !an1.includes(table) && !an4.includes(table) && !vr1.includes(table) && !met1.includes(table) && !rep.includes(table) && !nativeInt.includes(table) && !rt.includes(table) && !tools.includes(table))],
       ['0005-ai-integration-credentials.sql', tables.filter(table => table.startsWith('ai_integration_') && table !== 'ai_integration_auth_limits')],
       ['0006-ai-integration-auth-limits.sql', ['ai_integration_auth_limits']],
       ['0008-ai-jobs-assets.sql', d1],
@@ -85,6 +106,10 @@ test('A2/B2/D1/D4/CAP/AN additive models have dual-engine migration ownership', 
       ['0012-ai-webhooks.sql', an4],
       ['0013-ai-voice.sql', vr1],
       ['0014-sa-metrics.sql', met1],
+      ['0015-sa-reporting.sql', rep],
+      ['0016-sa-native-int.sql', nativeInt],
+      ['0017-ai-realtime.sql', rt],
+      ['0018-ai-tools.sql', tools],
     ]) {
       const sql = fs.readFileSync(path.resolve(__dirname,
         `../../packages/backend/database/migrations/${dialect}${artifact}`), 'utf8');

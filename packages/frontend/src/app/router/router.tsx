@@ -62,9 +62,14 @@ import { AiConnectionsPage } from '@/pages/AiConnectionsPage';
 import { SpeechAnalyticsProjectsPage } from '@/pages/SpeechAnalyticsProjectsPage/SpeechAnalyticsProjectsPage';
 import { SpeechAnalyticsProjectPage } from '@/pages/SpeechAnalyticsProjectPage/SpeechAnalyticsProjectPage';
 import { SpeechAnalyticsRecordingPage } from '@/pages/SpeechAnalyticsRecordingPage/SpeechAnalyticsRecordingPage';
+import { SpeechAnalyticsDashboardPage } from '@/pages/SpeechAnalyticsDashboardPage/SpeechAnalyticsDashboardPage';
+import { SpeechAnalyticsReportsPage } from '@/pages/SpeechAnalyticsReportsPage/SpeechAnalyticsReportsPage';
 import { AiRobotsStudioPage } from '@/pages/AiRobotsStudioPage/AiRobotsStudioPage';
 import { AiRobotsSessionsPage } from '@/pages/AiRobotsSessionsPage/AiRobotsSessionsPage';
 import { AiRobotsPreviewPage } from '@/pages/AiRobotsPreviewPage/AiRobotsPreviewPage';
+import { AiRobotsSipPage } from '@/pages/AiRobotsSipPage/AiRobotsSipPage';
+import { AiRobotsToolsPage } from '@/pages/AiRobotsToolsPage/AiRobotsToolsPage';
+import { AiRobotsKnowledgePage } from '@/pages/AiRobotsKnowledgePage/AiRobotsKnowledgePage';
 import { RequireRole } from '@/app/router/RequireRole';
 import { UserLevel } from '@/entities/User';
 
@@ -190,11 +195,16 @@ export const router = createBrowserRouter([
       { path: 'speech-analytics/projects', element: <SpeechAnalyticsProjectsPage /> },
       { path: 'speech-analytics/projects/:id', element: <SpeechAnalyticsProjectPage /> },
       { path: 'speech-analytics/recordings/:id', element: <SpeechAnalyticsRecordingPage /> },
+      { path: 'speech-analytics/dashboard', element: <SpeechAnalyticsDashboardPage /> },
+      { path: 'speech-analytics/reports', element: <SpeechAnalyticsReportsPage /> },
       { path: 'ai-robots', element: <AiProductLandingPage product="ai_voice_robots" /> },
       { path: 'ai-robots/connections', element: <AiConnectionsPage product="ai_voice_robots" /> },
       { path: 'ai-robots/studio', element: <AiRobotsStudioPage /> },
       { path: 'ai-robots/sessions', element: <AiRobotsSessionsPage /> },
       { path: 'ai-robots/preview', element: <AiRobotsPreviewPage /> },
+      { path: 'ai-robots/sip', element: <AiRobotsSipPage /> },
+      { path: 'ai-robots/tools', element: <AiRobotsToolsPage /> },
+      { path: 'ai-robots/knowledge', element: <AiRobotsKnowledgePage /> },
       { path: 'service-requests', element: <ServiceRequestsPage /> },
       { path: 'komandor-claims', element: <KomandorClaimsPage /> },
       { path: 'reports', element: <PlaceholderPage title="Reports" /> },

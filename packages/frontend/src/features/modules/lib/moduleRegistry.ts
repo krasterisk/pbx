@@ -33,6 +33,8 @@ import {
   Database,
   Gauge,
   FolderKanban,
+  FileSpreadsheet,
+  Wrench,
 } from 'lucide-react';
 import { UserLevel } from '@krasterisk/shared';
 import type { HubModuleRow, LicenseStatus, ModuleDef, ModulePageDef } from '../types';
@@ -268,6 +270,18 @@ export const BASELINE_MODULES: ModuleDef[] = [
         icon: FolderKanban,
       },
       {
+        id: 'speech-analytics-dashboard',
+        path: '/speech-analytics/dashboard',
+        labelKey: 'nav.speechAnalyticsDashboard',
+        icon: LayoutDashboard,
+      },
+      {
+        id: 'speech-analytics-reports',
+        path: '/speech-analytics/reports',
+        labelKey: 'nav.speechAnalyticsReports',
+        icon: FileSpreadsheet,
+      },
+      {
         id: 'speech-analytics-connections',
         path: '/speech-analytics/connections',
         labelKey: 'nav.aiConnections',
@@ -300,6 +314,24 @@ export const BASELINE_MODULES: ModuleDef[] = [
         path: '/ai-robots/preview',
         labelKey: 'nav.aiRobotsPreview',
         icon: Mic,
+      },
+      {
+        id: 'ai-robots-sip',
+        path: '/ai-robots/sip',
+        labelKey: 'nav.aiRobotsSip',
+        icon: Phone,
+      },
+      {
+        id: 'ai-robots-tools',
+        path: '/ai-robots/tools',
+        labelKey: 'nav.aiRobotsTools',
+        icon: Wrench,
+      },
+      {
+        id: 'ai-robots-knowledge',
+        path: '/ai-robots/knowledge',
+        labelKey: 'nav.aiRobotsKnowledge',
+        icon: BookOpen,
       },
       {
         id: 'ai-robots-connections',

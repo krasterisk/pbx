@@ -162,6 +162,10 @@ tables. `0012-ai-webhooks.sql` adds signed callback endpoints and delivery histo
 `0013-ai-voice.sql` adds robot drafts/versions/deployments and cascade session tables.
 `0014-sa-metrics.sql` adds metric definitions, revisions, scored values and human reviews.
 It also drops `uq_sa_run_initial` so a recording can have an original run plus reanalysis children.
+`0015-sa-reporting.sql` adds report definitions, runs, snapshots, schedules, budgets and bulk reanalysis.
+`0016-sa-native-int.sql` adds tenant capture policy and recording relations; live Asterisk apply stays gated.
+`0017-ai-realtime.sql` adds SIP connection/DID/invocation contracts without applying live PJSIP.
+`0018-ai-tools.sql` adds business tool revisions and knowledge-base tables.
 
 The wide Asterisk `ps_endpoints` table stores non-indexed 40-character options
 as `TEXT`, allowing InnoDB DYNAMIC to move values off-page under utf8mb4.

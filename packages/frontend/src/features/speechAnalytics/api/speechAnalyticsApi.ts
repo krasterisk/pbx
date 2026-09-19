@@ -90,6 +90,34 @@ const speechAnalyticsApi = rtkApi.injectEndpoints({
       query: (id) => `/speech-analytics/projects/${id}/metrics`,
       providesTags: (_r, _e, id) => [{ type: 'SpeechAnalytics', id: `MET-${id}` }],
     }),
+    getSaDashboard: builder.query<{ scored: number; ranking: string; filterDigest: string }, { projectId: string }>({
+      query: ({ projectId }) => ({
+        url: '/speech-analytics/dashboard',
+        method: 'POST',
+        body: {
+          projectIds: [projectId],
+          from: new Date(Date.now() - 30 * 86400000).toISOString(),
+          to: new Date().toISOString(),
+          timezone: 'Europe/Moscow',
+          runSelector: 'latest_completed',
+          view: 'ai',
+        },
+      }),
+    }),
+    getSaCapturePolicy: builder.query<{ pause_new: boolean; default_enabled: boolean; revision: number }, void>({
+      query: () => '/speech-analytics/capture-policy',
+      providesTags: [{ type: 'SpeechAnalytics', id: 'POLICY' }],
+    }),
+    setSaCapturePolicy: builder.mutation<unknown, { pauseNew: boolean }>({
+      query: (body) => ({ url: '/speech-analytics/capture-policy', method: 'PUT', body }),
+      async onQueryStarted({ pauseNew }, { dispatch, queryFulfilled }) {
+        const patch = dispatch(speechAnalyticsApi.util.updateQueryData('getSaCapturePolicy', undefined, (draft) => {
+          draft.pause_new = pauseNew;
+        }));
+        try { await queryFulfilled; } catch { patch.undo(); }
+      },
+      invalidatesTags: [{ type: 'SpeechAnalytics', id: 'POLICY' }],
+    }),
     publishSaMetric: builder.mutation<unknown, { id: string; operationKey: string; rubric: SaMetricRubric }>({
       query: ({ id, operationKey, rubric }) => ({
         url: `/speech-analytics/projects/${id}/metrics`, method: 'POST', body: { operationKey, rubric },
@@ -129,6 +157,9 @@ export const {
   useGetSaRunQuery,
   useGetSaMetricsQuery,
   usePublishSaMetricMutation,
+  useGetSaDashboardQuery,
+  useGetSaCapturePolicyQuery,
+  useSetSaCapturePolicyMutation,
   useReanalyzeSaRunMutation,
   useReviewSaRunMutation,
   useCorrectSaTranscriptMutation,

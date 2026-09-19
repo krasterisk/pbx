@@ -7,7 +7,9 @@ import {
   AiCallControlOperation, AiRobotDeployment, AiRobotDraft, AiRobotVersion,
   AiVoiceEvent, AiVoiceSession, AiVoiceTicket, AiVoiceTurn,
 } from './ai-voice.models';
+import { AiSipConfigRevision, AiSipConnection, AiSipDidBinding, AiVoiceInvocation } from './sip.models';
 import { AiVoiceService } from './ai-voice.service';
+import { AiSipService } from './sip.service';
 import { AiVoiceDeploymentResolver } from './ai-voice.resolver';
 import { AiVoiceJwtController } from './ai-voice-jwt.controller';
 
@@ -18,10 +20,11 @@ import { AiVoiceJwtController } from './ai-voice-jwt.controller';
     SequelizeModule.forFeature([
       CcAiAgent, AiRobotDraft, AiRobotVersion, AiRobotDeployment,
       AiVoiceSession, AiVoiceTurn, AiVoiceEvent, AiCallControlOperation, AiVoiceTicket,
+      AiSipConnection, AiSipConfigRevision, AiSipDidBinding, AiVoiceInvocation,
     ]),
   ],
-  providers: [AiVoiceService, AiVoiceDeploymentResolver],
+  providers: [AiVoiceService, AiSipService, AiVoiceDeploymentResolver],
   controllers: [AiVoiceJwtController],
-  exports: [AiVoiceService, SequelizeModule],
+  exports: [AiVoiceService, AiSipService, SequelizeModule],
 })
 export class AiVoiceModule {}

@@ -49,6 +49,16 @@ import {
   SaHumanReview, SaMetricDefinition, SaMetricRevision, SaMetricValue,
   SaProjectVersionMetric, SaTranscriptCorrection,
 } from '../modules/speech-analytics/metrics/metric.models';
+import {
+  SaBudgetPolicy, SaBulkReanalysisBatch, SaBulkReanalysisItem, SaRecordingRelation,
+  SaReportDefinition, SaReportRun, SaReportSchedule, SaReportSnapshotItem, SaTenantCapturePolicy,
+} from '../modules/speech-analytics/reporting/reporting.models';
+import { AiSipConfigRevision, AiSipConnection, AiSipDidBinding, AiVoiceInvocation } from '../modules/ai-voice/sip.models';
+import { AiBusinessConnection, AiRobotToolBinding, AiToolRevision } from '../modules/ai-tool-connectivity/tool.models';
+import {
+  KbAccessBinding, KbBase, KbChunk, KbDocument, KbDocumentRevision, KbEmbeddingRevision,
+  KbRelease, KbReleaseMember,
+} from '../modules/knowledge/knowledge.models';
 import { CcAiAgent } from '../modules/ai-agents/models/ai-agent.model';
 
 export type StandaloneAiProfile = 'analytics-api' | 'robot-api';
@@ -86,6 +96,13 @@ export class StandaloneAiCoreModule {
                 AiVoiceSession, AiVoiceTurn, AiVoiceEvent, AiCallControlOperation, AiVoiceTicket,
                 SaMetricDefinition, SaMetricRevision, SaProjectVersionMetric, SaMetricValue,
                 SaHumanReview, SaTranscriptCorrection,
+                SaReportDefinition, SaReportRun, SaReportSnapshotItem, SaReportSchedule,
+                SaBudgetPolicy, SaBulkReanalysisBatch, SaBulkReanalysisItem,
+                SaTenantCapturePolicy, SaRecordingRelation,
+                AiSipConnection, AiSipConfigRevision, AiSipDidBinding, AiVoiceInvocation,
+                AiBusinessConnection, AiToolRevision, AiRobotToolBinding,
+                KbBase, KbDocument, KbDocumentRevision, KbChunk, KbEmbeddingRevision,
+                KbRelease, KbReleaseMember, KbAccessBinding,
               ],
               synchronize: false,
               autoLoadModels: false,

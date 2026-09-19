@@ -49,6 +49,36 @@ export function defaultSaProjectConfig(): SaProjectConfigV1 {
   };
 }
 
+export type AnalyticsFilterSpec = {
+  projectIds: string[];
+  projectVersions?: string[];
+  from: string;
+  to: string;
+  timezone: string;
+  runSelector: 'latest_completed' | 'explicit';
+  view: 'ai' | 'reviewed';
+  direction?: string;
+  statuses?: string[];
+};
+
+export type RouteAnalyticsOptions = {
+  mode: 'inherit' | 'off' | 'on';
+  projectId?: string;
+};
+
+export function defaultAnalyticsFilter(projectId: string): AnalyticsFilterSpec {
+  const to = new Date();
+  const from = new Date(to.getTime() - 30 * 86400000);
+  return {
+    projectIds: [projectId],
+    from: from.toISOString(),
+    to: to.toISOString(),
+    timezone: 'Europe/Moscow',
+    runSelector: 'latest_completed',
+    view: 'ai',
+  };
+}
+
 export function recordingBusinessKey(input: {
   tenantUid: number;
   principalId: string;

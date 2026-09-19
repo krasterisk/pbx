@@ -87,6 +87,14 @@ const aiVoiceApi = rtkApi.injectEndpoints({
     getAiVoiceTimeline: builder.query<AiVoiceTimeline, string>({
       query: (id) => `/ai-voice/sessions/${id}`,
     }),
+    getAiSipConnections: builder.query<Array<{ id: string; name: string; status: string }>, void>({
+      query: () => '/ai-voice/sip-connections',
+      providesTags: [{ type: 'AiVoice', id: 'SIP' }],
+    }),
+    createAiSipConnection: builder.mutation<{ id: string }, { name: string; transport: 'udp' | 'tcp' | 'tls' }>({
+      query: (body) => ({ url: '/ai-voice/sip-connections', method: 'POST', body }),
+      invalidatesTags: [{ type: 'AiVoice', id: 'SIP' }],
+    }),
   }),
 });
 
@@ -99,4 +107,6 @@ export const {
   useIssueAiVoiceBrowserTicketMutation,
   useGetAiVoiceSessionsQuery,
   useGetAiVoiceTimelineQuery,
+  useGetAiSipConnectionsQuery,
+  useCreateAiSipConnectionMutation,
 } = aiVoiceApi;

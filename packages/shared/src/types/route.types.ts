@@ -140,6 +140,8 @@ export interface IRouteOptions {
   route_type?: number; // outbound type (1-5)
   /** Table chain vs Dialplan tab. Missing + non-empty actions → generate from actions. */
   dialplan_source?: 'actions' | 'raw';
+  /** INT1: inherit company default unless explicitly off/on. Missing = inherit. */
+  analytics?: { mode: 'inherit' | 'off' | 'on'; projectId?: string };
 }
 
 export interface IRouteWebhooks {

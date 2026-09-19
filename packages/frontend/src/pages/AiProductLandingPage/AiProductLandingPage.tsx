@@ -16,10 +16,11 @@ import { resolveAiProductLandingState } from './resolveAiProductLandingState';
 import cls from './AiProductLandingPage.module.scss';
 
 const PRODUCTS: Record<AiProductCode, {
-  icon: typeof Bot; connections: string; projects?: string; studio?: string; sessions?: string;
+  icon: typeof Bot; connections: string; projects?: string; studio?: string; sessions?: string; dashboard?: string;
 }> = {
   speech_analytics: {
     icon: BarChart3, connections: '/speech-analytics/connections', projects: '/speech-analytics/projects',
+    dashboard: '/speech-analytics/dashboard',
   },
   ai_voice_robots: {
     icon: Bot,
@@ -119,6 +120,13 @@ export const AiProductLandingPage = memo(({ product }: { product: AiProductCode 
                       <Button asChild variant="outline">
                         <Link to={PRODUCTS[product].projects}>
                           {t('aiProducts.openProjects')}
+                        </Link>
+                      </Button>
+                    ) : null}
+                    {PRODUCTS[product].dashboard ? (
+                      <Button asChild variant="outline">
+                        <Link to={PRODUCTS[product].dashboard}>
+                          {t('speechAnalytics.dashboard')}
                         </Link>
                       </Button>
                     ) : null}

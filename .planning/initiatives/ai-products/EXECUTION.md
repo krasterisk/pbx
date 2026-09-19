@@ -4,14 +4,14 @@
 
 | Поле | Значение |
 |---|---|
-| Updated | 2026-09-19 |
+| Updated | 2026-09-20 |
 | Mode | `codex-direct` |
-| Coordination status | `active` — AI-07 VR1–VR6 and AI-05 MET1–MET5 closed for contracts; next is not assigned |
+| Coordination status | `idle` — remaining planned slices AI-06/08/09 closed as contracts; AI-10 has no PLAN |
 | Active implementation coordinator | Codex task `01a0b2cf-f755-74d0-8a7d-7e65ee34fc65`, `/root` |
-| Active PLAN / revision | Closed: [AI-07-PLAN](AI-07-PLAN.md) SHA-256 `0F9520F243CDB3AEA33FE2E4A16FD0BDDC6A1A11CE6F3466500C2DB6F3D9F78E`; [AI-05-PLAN](AI-05-PLAN.md) SHA-256 `FFF05E6EE0300ADFA64EEDBEC98897BF2D066879AC057B7F104392E147E11240` |
-| Active workers / owned paths | `/root` — assignment closed. Do not start AI-06/08/09/10 without a new row |
-| Next action | Wait for the next assigned PLAN. Do not charge the live wallet. Do not retune the existing PBX. Native MixMonitor/ARI live calls remain unclaimed. |
-| Implementation state | AI-07/AI-05 closed for SQL/unit/Hub contracts @ dirty tree on `9e77574b`. Product commercial runtime still `not-installed`. |
+| Active PLAN / revision | none |
+| Active workers / owned paths | none |
+| Next action | No remaining assigned PLAN. Do not start AI-10. Do not claim INT2–3 live Asterisk, RT5 live SIP, or TOOL6 live MCP. |
+| Implementation state | AI-07/AI-05 `ff40a34d`. AI-06/08/09 contracts + remote SQL FAIL=0. Product commercial runtime still `not-installed`. |
 
 ## Следующее исполнение
 
@@ -51,6 +51,7 @@
 
 | Assignment | Executor identity | PLAN / task IDs / revision | Owned paths | Status / evidence |
 |---|---|---|---|---|
+| AI-06 / AI-08 / AI-09 remaining | `/root`, текущая задача | AI-06 REP1–4 + INT1 then AI-08 RT1–4 then AI-09 TOOL1–5 | `speech-analytics/reporting/**`, INT1 policy/RouteForm, `ai-voice` SIP/realtime contracts, `ai-tool-connectivity/**`, `knowledge/**`, additive 0015–0018, Hub dashboards/SIP/tools/KB. Shared schema `/root`. No live wallet, no production PBX rewrite, no AI-10 | **closed**: [AI-06-SUMMARY](AI-06-SUMMARY.md), [AI-06-VERIFICATION](AI-06-VERIFICATION.md), [AI-08-SUMMARY](AI-08-SUMMARY.md), [AI-08-VERIFICATION](AI-08-VERIFICATION.md), [AI-09-SUMMARY](AI-09-SUMMARY.md), [AI-09-VERIFICATION](AI-09-VERIFICATION.md), [REMOTE-MATRIX](evidence/rep-rt-tool/REMOTE-MATRIX.md). MySQL **4/4** + PG **4/4**; frontend targeted 7/22; analytics composition 188, robot 162. INT2–3 / RT5 / TOOL6 live gates not executed. Product runtime `not-installed` |
 | AI-07-voice / AI-05-metrics | `/root`, текущая задача | AI-07 VR1–6 then AI-05 MET1–5 | `ai-voice/**`, bounded `ai-agents` If-Match, additive 0013/0014, bounded `ari` classifier + `ai_voice_robot` action, frontend aiRobots + speechAnalytics metrics. Shared schema `/root`. No live wallet, no production PBX rewrite, no AI-08 | **closed**: [AI-07-SUMMARY](AI-07-SUMMARY.md), [AI-07-VERIFICATION](AI-07-VERIFICATION.md), [AI-05-SUMMARY](AI-05-SUMMARY.md), [AI-05-VERIFICATION](AI-05-VERIFICATION.md), [REMOTE-MATRIX](evidence/vr-met/REMOTE-MATRIX.md). MySQL VR/MET 2/2; PG VR/MET 2/2; backend 299/3088; frontend targeted 8/27 (full vitest hung at RUN). Native ARI/10-session live and MET5 30-call holdout not executed. Product runtime `not-installed` |
 | AI-03-capture / AI-04-analytics | `/root`, текущая задача | AI-03 CAP1–5 + AI-04 AN1–6 | `recording-capture/**`, `speech-analytics/**`, `integration-delivery/**`, additive 0010–0012, bounded recording util, frontend speechAnalytics. Shared schema `/root`. No live wallet, no production PBX rewrite, no AI-05/07 | **closed**: [AI-03-SUMMARY](AI-03-SUMMARY.md), [AI-03-VERIFICATION](AI-03-VERIFICATION.md), [AI-04-SUMMARY](AI-04-SUMMARY.md), [AI-04-VERIFICATION](AI-04-VERIFICATION.md), [REMOTE-MATRIX](evidence/cap-an/REMOTE-MATRIX.md). MySQL CAP 2/2 + AN 3/3; PG CAP 2/2 + AN 3/3; backend 297/3075; frontend 254/1405; lint 0 errors. Native Asterisk on live PBX not executed. Product runtime `not-installed` |
 | AI-02-D6-fault-close | `/root`, текущая задача | AI-02, D6, SHA-256 `84BCDFF527CDA7F0205635F157D6ACA460147092467E9EAE51EE6F8AF89B4907` | harness/fixtures, AI-02 SUMMARY/VERIFICATION/runbook; D4–D5 evidence. No live wallet charge, no AI-04 public analysis HTTP, no autodial | **closed**: [SUMMARY](AI-02-D6-SUMMARY.md), [VERIFICATION](AI-02-D6-VERIFICATION.md), [REMOTE-MATRIX](evidence/d6/REMOTE-MATRIX.md), [AI-02-SUMMARY](AI-02-SUMMARY.md). MySQL/PG 5/5; MySQL+Redis+MinIO and PG+Redis+MinIO 7/7; backend 294/3061 |
