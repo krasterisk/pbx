@@ -1,0 +1,181 @@
+{
+  "revision": "2026-09-20-r1",
+  "phase": "AI-11",
+  "task": "11M",
+  "kind": "RELEASE-matrix",
+  "productSlaClaimed": false,
+  "commercialReadinessDeclared": false,
+  "engines": [
+    "mysql",
+    "postgres"
+  ],
+  "profiles": [
+    {
+      "id": "DEP-01",
+      "name": "community-core",
+      "evidence": null,
+      "note": "community composition gate (source boundary)",
+      "evidencePresent": null,
+      "evidencePath": null,
+      "engines": [
+        "mysql",
+        "postgres"
+      ]
+    },
+    {
+      "id": "DEP-02",
+      "name": "saas-two-tenant",
+      "evidence": "11a",
+      "note": "pilot A/B isolation LIVE-UAT",
+      "evidencePresent": true,
+      "evidencePath": "/tmp/krasterisk-11m.ZJ3qrX/.planning/initiatives/ai-products/evidence/11a/REMOTE-MATRIX.md",
+      "engines": [
+        "mysql",
+        "postgres"
+      ]
+    },
+    {
+      "id": "DEP-03",
+      "name": "analytics-only",
+      "evidence": "11a",
+      "note": "analytics-api LIVE-UAT",
+      "evidencePresent": true,
+      "evidencePath": "/tmp/krasterisk-11m.ZJ3qrX/.planning/initiatives/ai-products/evidence/11a/REMOTE-MATRIX.md",
+      "engines": [
+        "mysql",
+        "postgres"
+      ]
+    },
+    {
+      "id": "DEP-04",
+      "name": "robots-only",
+      "evidence": "11r",
+      "note": "robot-api LIVE-UAT",
+      "evidencePresent": true,
+      "evidencePath": "/tmp/krasterisk-11m.ZJ3qrX/.planning/initiatives/ai-products/evidence/11r/REMOTE-MATRIX.md",
+      "engines": [
+        "mysql",
+        "postgres"
+      ]
+    },
+    {
+      "id": "DEP-05",
+      "name": "offline-license",
+      "evidence": "11o",
+      "note": "key sidecar / missing-key fail-closed",
+      "evidencePresent": true,
+      "evidencePath": "/tmp/krasterisk-11m.ZJ3qrX/.planning/initiatives/ai-products/evidence/11o/REMOTE-MATRIX.md",
+      "engines": [
+        "mysql",
+        "postgres"
+      ]
+    },
+    {
+      "id": "DEP-06",
+      "name": "no-undeclared-egress",
+      "evidence": null,
+      "note": "policy: CI shadow; no live providers in matrix",
+      "evidencePresent": null,
+      "evidencePath": null,
+      "engines": [
+        "mysql",
+        "postgres"
+      ]
+    },
+    {
+      "id": "DEP-07",
+      "name": "ops-drills",
+      "evidence": "11o",
+      "note": "backup→restore→upgrade→drain→admit",
+      "evidencePresent": true,
+      "evidencePath": "/tmp/krasterisk-11m.ZJ3qrX/.planning/initiatives/ai-products/evidence/11o/REMOTE-MATRIX.md",
+      "engines": [
+        "mysql",
+        "postgres"
+      ]
+    },
+    {
+      "id": "DEP-08",
+      "name": "version-skew-policy",
+      "evidence": null,
+      "note": "documented: N-1→current only; no cross-engine",
+      "evidencePresent": null,
+      "evidencePath": null,
+      "engines": [
+        "mysql",
+        "postgres"
+      ]
+    },
+    {
+      "id": "DBR-06",
+      "name": "ledger-concurrency",
+      "evidence": "11f",
+      "note": "idempotent replay zero second debit (shadow)",
+      "evidencePresent": true,
+      "evidencePath": "/tmp/krasterisk-11m.ZJ3qrX/.planning/initiatives/ai-products/evidence/11f/REMOTE-MATRIX.md",
+      "engines": [
+        "mysql",
+        "postgres"
+      ]
+    },
+    {
+      "id": "DBR-07",
+      "name": "cross-engine-refuse",
+      "evidence": "11o",
+      "note": "dialect switch refused",
+      "evidencePresent": true,
+      "evidencePath": "/tmp/krasterisk-11m.ZJ3qrX/.planning/initiatives/ai-products/evidence/11o/REMOTE-MATRIX.md",
+      "engines": [
+        "mysql",
+        "postgres"
+      ]
+    },
+    {
+      "id": "DBR-08",
+      "name": "outbox-concurrency",
+      "evidence": "11f",
+      "note": "duplicate delivery CAS / redis rehydrate",
+      "evidencePresent": true,
+      "evidencePath": "/tmp/krasterisk-11m.ZJ3qrX/.planning/initiatives/ai-products/evidence/11f/REMOTE-MATRIX.md",
+      "engines": [
+        "mysql",
+        "postgres"
+      ]
+    }
+  ],
+  "installs": [
+    {
+      "dialect": "mysql",
+      "profile": "analytics-api",
+      "schemaVersion": "0020-ai-sku-catalog.sql",
+      "ok": true
+    },
+    {
+      "dialect": "mysql",
+      "profile": "robot-api",
+      "schemaVersion": "0020-ai-sku-catalog.sql",
+      "ok": true
+    }
+  ],
+  "pendingGates": [
+    "met5_30_call_holdout_not_claimed",
+    "local_ai_stt_hardware_not_claimed",
+    "host_unixodbc_asterisk_module_load_not_claimed",
+    "tls_srtp_nat_not_closed",
+    "live_mcp_true_not_closed",
+    "product_runtime_still_not_installed",
+    "commercial_readiness_not_declared"
+  ],
+  "versionSkewPolicy": {
+    "supported": "N-1 → current via I3/11O; empty→current via I1",
+    "refused": "automatic --rollback; cross-engine restore (DBR-07)",
+    "engines": "MySQL 8.4.11 and PostgreSQL 17.11 only for this matrix"
+  },
+  "constraints": {
+    "noLiveTenantDebit": true,
+    "noAutodial": true,
+    "noXrayUi": true,
+    "productRuntime": "not-installed",
+    "noSilentMockPass": true
+  }
+}

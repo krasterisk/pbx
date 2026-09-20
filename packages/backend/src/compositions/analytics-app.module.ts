@@ -5,6 +5,7 @@ import { AiUsageModule } from '../modules/ai-usage/ai-usage.module';
 import { MediaAssetsModule } from '../modules/media-assets/media-assets.module';
 import { SpeechAnalyticsModule } from '../modules/speech-analytics/speech-analytics.module';
 import { IntegrationDeliveryModule } from '../modules/integration-delivery/integration-delivery.module';
+import { healthProductRuntime } from '../modules/product-access/product-runtime';
 
 /** Static analytics entrypoint. Technical pilot runtime, not a commercial launch. */
 export const ANALYTICS_API_COMPONENTS = Object.freeze([
@@ -17,7 +18,7 @@ export const ANALYTICS_API_COMPONENTS = Object.freeze([
 class AnalyticsHealthController {
   @Get()
   health() {
-    return { status: 'ok', profile: 'analytics-api', productRuntime: 'not-installed', usable: false };
+    return healthProductRuntime('analytics-api');
   }
 }
 

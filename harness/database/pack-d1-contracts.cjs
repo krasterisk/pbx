@@ -29,6 +29,7 @@ function addDir(rel, filter) {
 addDir('harness/database', name => /\.(cjs|json|sh)$/.test(name));
 addDir('packages/backend/database', name => /\.(cjs|sql|json)$/.test(name) && name !== 'live-proposal-check.cjs');
 addDir('packages/backend/src/database', name => name.endsWith('.cjs'));
+addDir('packages/backend/src/modules/asterisk-odbc', name => /\.(cjs|example|json)$/.test(name) || name.endsWith('.conf.example'));
 
 fs.writeFileSync(path.join(stage, 'package.json'), JSON.stringify({
   name: 'krasterisk-d1-contracts',

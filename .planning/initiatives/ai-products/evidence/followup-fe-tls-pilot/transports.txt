@@ -1,0 +1,11 @@
+
+Transport:  <TransportId........>  <Type>  <cos>  <tos>  <BindAddress....................>
+==========================================================================================
+
+Transport:  transport-ai-lab          udp      0      0  127.0.0.1:15060
+Transport:  transport-ai-lab-tls      tls      0      0  127.0.0.1:15061
+Transport:  transport-udp             udp      0      0  0.0.0.0:5060
+Transport:  transport-wss             wss      0      0  0.0.0.0:46782
+
+Objects found: 4
+

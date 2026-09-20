@@ -30,7 +30,11 @@ export class AiSipService {
   }
 
   async listConnections(context: TenantContext) {
-    return this.connections.findAll({ where: { tenant_uid: context.tenantUid } });
+    const rows = await this.connections.findAll({ where: { tenant_uid: context.tenantUid } });
+    return rows.map((row) => {
+      const profile = evaluateSipProfile({ transport: row.transport as 'udp' | 'tcp' | 'tls' });
+      return { ...row.toJSON(), status: profile.status, reason: profile.reason, ready: profile.ready };
+    });
   }
 
   async createConnection(context: TenantContext, body: { name: string; transport: 'udp' | 'tcp' | 'tls' }) {
@@ -39,11 +43,12 @@ export class AiSipService {
       if (!access.allowed) throw new DomainError('entitlement', 403);
       const profile = evaluateSipProfile({ transport: body.transport });
       const row = await this.connections.create({
-        id: newSipId(), tenant_uid: context.tenantUid, name: body.name, status: profile.status,
+        id: newSipId(), tenant_uid: context.tenantUid, name: body.name,
+        status: profile.status === 'disabled' ? 'failed' : profile.status,
         transport: body.transport, auth_kind: 'digest', draft_revision: 1, secret_once_shown: false,
         created_at: new Date(), updated_at: new Date(),
       });
-      return { ...row.toJSON(), reason: profile.reason, ready: profile.ready };
+      return { ...row.toJSON(), status: profile.status, reason: profile.reason, ready: profile.ready };
     } catch (error) { this.mapError(error); }
   }
 

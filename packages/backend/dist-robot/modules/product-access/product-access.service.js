@@ -27,6 +27,7 @@ const product_activation_model_1 = require("./product-activation.model");
 const local_license_document_model_1 = require("./local-license-document.model");
 const local_license_binding_model_1 = require("./local-license-binding.model");
 const license_verifier_1 = require("./license-verifier");
+const usage_models_1 = require("../ai-usage/usage.models");
 let ProductAccessService = class ProductAccessService {
     tenants;
     tenantModules;
@@ -34,15 +35,19 @@ let ProductAccessService = class ProductAccessService {
     documents;
     bindings;
     actionLogs;
+    entitlements;
+    snapshots;
     config;
     sequelize;
-    constructor(tenants, tenantModules, activations, documents, bindings, actionLogs, config, sequelize) {
+    constructor(tenants, tenantModules, activations, documents, bindings, actionLogs, entitlements, snapshots, config, sequelize) {
         this.tenants = tenants;
         this.tenantModules = tenantModules;
         this.activations = activations;
         this.documents = documents;
         this.bindings = bindings;
         this.actionLogs = actionLogs;
+        this.entitlements = entitlements;
+        this.snapshots = snapshots;
         this.config = config;
         this.sequelize = sequelize;
     }
@@ -83,22 +88,46 @@ let ProductAccessService = class ProductAccessService {
             where: { user_uid: userUid, product }, transaction,
         }) : null;
         const enabled = activationOverride ?? !!activation?.enabled;
+        const sku = tenant ? await this.entitlements.findOne({
+            where: { tenant_uid: userUid, product }, transaction,
+        }) : null;
         const grants = mode === 'CLOUD' && tenant
-            ? await this.tenantModules.findAll({
-                where: { tenant_id: tenant.id,
-                    module_code: product === 'speech_analytics'
-                        ? [product, 'cc_ai_voice'] : [product] },
-                attributes: ['module_code', 'status', 'expires_at'], transaction,
-            }) : [];
+            ? sku
+                ? [{
+                        module_code: sku.product,
+                        status: sku.status,
+                        expires_at: sku.trial_ends_at,
+                    }]
+                : await this.tenantModules.findAll({
+                    where: { tenant_id: tenant.id,
+                        module_code: product === 'speech_analytics'
+                            ? [product, 'cc_ai_voice'] : [product] },
+                    attributes: ['module_code', 'status', 'expires_at'], transaction,
+                }) : [];
         let local = { grant: null, reason: 'license_invalid' };
         if (mode === 'BOX' && tenant) {
             local = await this.readBoxGrant(userUid, product, now, transaction);
         }
-        return (0, product_access_policy_1.resolveProductAccess)({
+        const decision = (0, product_access_policy_1.resolveProductAccess)({
             product, deploymentMode: mode, tenant, grants,
             activationEnabled: enabled, packageInstalled: mode !== 'OPENSOURCE', now,
             localLicense: local.grant, localLicenseReason: local.reason,
         });
+        if (sku) {
+            const snapshot = await this.snapshots.findOne({
+                where: { digest: sku.policy_digest }, transaction,
+            });
+            if (snapshot) {
+                decision.limits = {
+                    concurrent_jobs: Number(snapshot.concurrent_jobs),
+                    concurrent_sessions: Number(snapshot.concurrent_sessions),
+                    storage_bytes: Number(snapshot.storage_bytes),
+                    audio_ms: Number(snapshot.audio_ms),
+                    provider_tokens: Number(snapshot.provider_tokens),
+                };
+            }
+        }
+        return decision;
     }
     async readBoxGrant(userUid, product, now, transaction) {
         if (!transaction) {
@@ -283,7 +312,9 @@ exports.ProductAccessService = ProductAccessService = __decorate([
     __param(3, (0, sequelize_1.InjectModel)(local_license_document_model_1.LocalLicenseDocument)),
     __param(4, (0, sequelize_1.InjectModel)(local_license_binding_model_1.LocalLicenseBinding)),
     __param(5, (0, sequelize_1.InjectModel)(action_log_model_1.ActionLog)),
-    __metadata("design:paramtypes", [Object, Object, Object, Object, Object, Object, config_1.ConfigService,
+    __param(6, (0, sequelize_1.InjectModel)(usage_models_1.AiSkuEntitlement)),
+    __param(7, (0, sequelize_1.InjectModel)(usage_models_1.AiTrialPolicySnapshot)),
+    __metadata("design:paramtypes", [Object, Object, Object, Object, Object, Object, Object, Object, config_1.ConfigService,
         sequelize_typescript_1.Sequelize])
 ], ProductAccessService);
 //# sourceMappingURL=product-access.service.js.map

@@ -1,0 +1,1 @@
+{"transport":"tls","port":15061,"optionsCode":"401","registerCode":"401","inviteCode":"401","inviteOk":true,"authRejectOk":true,"hangupOk":true,"natCertified":false,"srtpMediaCertified":false,"note":"loopback TLS signalling only"}

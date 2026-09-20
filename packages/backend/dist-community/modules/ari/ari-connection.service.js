@@ -1,0 +1,299 @@
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+var AriConnectionService_1;
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.AriConnectionService = void 0;
+const common_1 = require("@nestjs/common");
+const config_1 = require("@nestjs/config");
+const ws_1 = __importDefault(require("ws"));
+const ari_http_client_service_1 = require("./ari-http-client.service");
+const event_emitter_1 = require("@nestjs/event-emitter");
+/**
+ * Manages the WebSocket connection to Asterisk ARI.
+ *
+ * Features (ported from aiPBX ari-connection.ts):
+ * - Automatic reconnect on disconnect
+ * - WebSocket heartbeat (ping/pong every 30s with 10s timeout)
+ * - External channel → parent channel ID mapping for UNICASTRTP_* vars
+ * - Typed event broadcasting via NestJS EventEmitter2
+ */
+let AriConnectionService = class AriConnectionService {
+    static { AriConnectionService_1 = this; }
+    configService;
+    ariClient;
+    eventEmitter;
+    logger = new common_1.Logger(AriConnectionService_1.name);
+    ws = null;
+    reconnectTimeout = null;
+    isShuttingDown = false;
+    connected = false;
+    // Heartbeat
+    pingInterval = null;
+    pongTimeout = null;
+    static PING_INTERVAL_MS = 30_000;
+    static PONG_TIMEOUT_MS = 10_000;
+    /** Maps ExternalMedia channel IDs → primary (parent) channel IDs */
+    externalToParentChannel = new Map();
+    constructor(configService, ariClient, eventEmitter) {
+        this.configService = configService;
+        this.ariClient = ariClient;
+        this.eventEmitter = eventEmitter;
+    }
+    onApplicationBootstrap() {
+        this.connect();
+    }
+    onApplicationShutdown() {
+        this.isShuttingDown = true;
+        this.disconnect();
+    }
+    /**
+     * Whether the event WebSocket is up. Consumers that originate calls (autodial)
+     * must stop when this is false — without events they cannot tell a ringing
+     * channel from an answered one.
+     */
+    isConnected() {
+        return this.connected && this.ws?.readyState === ws_1.default.OPEN;
+    }
+    connect() {
+        if (this.isShuttingDown)
+            return;
+        const protocol = this.configService.get('ARI_PROTOCOL', 'http') === 'https' ? 'wss' : 'ws';
+        const host = this.configService.get('ARI_HOST', 'localhost');
+        const port = this.configService.get('ARI_PORT', 8088);
+        const username = this.configService.get('ARI_USER', 'krasterisk');
+        const password = this.configService.get('ARI_PASSWORD', '');
+        const appNames = this.ariClient.getEventAppNames();
+        const wsUrl = `${protocol}://${host}:${port}/ari/events?api_key=${username}:${password}&app=${appNames.join(',')}`;
+        this.logger.log(`Connecting to ARI WebSocket: ${wsUrl.replace(password, '***')}`);
+        this.ws = new ws_1.default(wsUrl);
+        this.ws.on('open', () => {
+            this.logger.log('✨ Connected to Asterisk ARI WebSocket');
+            this.connected = true;
+            this.clearReconnectTimeout();
+            this.startHeartbeat();
+            this.eventEmitter.emit('ari.connection', { connected: true });
+        });
+        this.ws.on('pong', () => {
+            if (this.pongTimeout) {
+                clearTimeout(this.pongTimeout);
+                this.pongTimeout = null;
+            }
+        });
+        this.ws.on('message', (data) => {
+            try {
+                const event = JSON.parse(data.toString());
+                this.handleEvent(event);
+            }
+            catch (e) {
+                this.logger.error(`Error parsing ARI event: ${e.message}`);
+            }
+        });
+        this.ws.on('close', () => {
+            this.logger.warn('ARI WebSocket disconnected');
+            this.connected = false;
+            this.eventEmitter.emit('ari.connection', { connected: false });
+            this.stopHeartbeat();
+            if (this.ws) {
+                this.ws.removeAllListeners();
+            }
+            this.scheduleReconnect();
+        });
+        this.ws.on('error', (error) => {
+            this.logger.error(`ARI WebSocket error: ${error.message}`);
+            this.ws?.close();
+        });
+    }
+    disconnect() {
+        this.connected = false;
+        this.stopHeartbeat();
+        this.clearReconnectTimeout();
+        if (this.ws) {
+            const ws = this.ws;
+            this.ws = null; // Prevents reconnect in 'close' handler
+            ws.removeAllListeners();
+            ws.close();
+        }
+    }
+    // ─── Heartbeat ─────────────────────────────────────────
+    startHeartbeat() {
+        this.stopHeartbeat();
+        this.pingInterval = setInterval(() => {
+            if (!this.ws || this.ws.readyState !== ws_1.default.OPEN) {
+                this.stopHeartbeat();
+                return;
+            }
+            this.pongTimeout = setTimeout(() => {
+                this.logger.warn(`No pong received within ${AriConnectionService_1.PONG_TIMEOUT_MS / 1000}s — terminating dead WebSocket`);
+                this.ws?.terminate();
+            }, AriConnectionService_1.PONG_TIMEOUT_MS);
+            this.ws.ping();
+        }, AriConnectionService_1.PING_INTERVAL_MS);
+    }
+    stopHeartbeat() {
+        if (this.pingInterval) {
+            clearInterval(this.pingInterval);
+            this.pingInterval = null;
+        }
+        if (this.pongTimeout) {
+            clearTimeout(this.pongTimeout);
+            this.pongTimeout = null;
+        }
+    }
+    // ─── Reconnect ─────────────────────────────────────────
+    scheduleReconnect() {
+        if (this.isShuttingDown || this.reconnectTimeout)
+            return;
+        this.logger.log('Scheduling ARI WebSocket reconnect in 5 seconds...');
+        this.reconnectTimeout = setTimeout(() => {
+            this.reconnectTimeout = null;
+            this.connect();
+        }, 5000);
+    }
+    clearReconnectTimeout() {
+        if (this.reconnectTimeout) {
+            clearTimeout(this.reconnectTimeout);
+            this.reconnectTimeout = null;
+        }
+    }
+    // ─── Event Handling ────────────────────────────────────
+    /** Events that are always relevant and should be processed/logged regardless of channel */
+    static STASIS_EVENTS = new Set([
+        'StasisStart',
+        'StasisEnd',
+    ]);
+    /** Events to always ignore — noisy on production PBX with many SIP peers */
+    static IGNORED_EVENTS = new Set([
+        'PeerStatusChange',
+        'DeviceStateChanged',
+        'ContactStatusChange',
+    ]);
+    /**
+     * Channel IDs currently participating in a Stasis (voice robot) session.
+     * Only events for these channels (or events without a channel) are logged.
+     */
+    stasisChannels = new Set();
+    handleEvent(event) {
+        try {
+            // Skip always-noisy events
+            if (AriConnectionService_1.IGNORED_EVENTS.has(event.type)) {
+                return;
+            }
+            switch (event.type) {
+                case 'StasisStart':
+                    this.handleStasisStart(event);
+                    if (event.channel?.id) {
+                        this.stasisChannels.add(event.channel.id);
+                    }
+                    break;
+                case 'StasisEnd':
+                    // Clean up external channel mapping
+                    this.cleanupExternalMapping(event.channel?.id);
+                    if (event.channel?.id) {
+                        this.stasisChannels.delete(event.channel.id);
+                    }
+                    break;
+                case 'ChannelVarset':
+                    this.handleChannelVarset(event);
+                    break;
+            }
+            // Broadcast all events to the NestJS EventEmitter system
+            this.eventEmitter.emit(`ari.${event.type}`, event);
+            // Only log events for channels involved in active Stasis sessions
+            // Skip logging for ChannelVarset (already logged in handleChannelVarset if relevant)
+            if (event.type !== 'ChannelVarset') {
+                const channelId = event.channel?.id;
+                const isStasisEvent = AriConnectionService_1.STASIS_EVENTS.has(event.type);
+                const isTrackedChannel = channelId && this.stasisChannels.has(channelId);
+                if (isStasisEvent || isTrackedChannel) {
+                    this.logger.debug(`[ARI Event] ${event.type} on channel ${channelId}`);
+                }
+                // Non-Stasis channels → silent (no log)
+            }
+        }
+        catch (err) {
+            this.logger.error(`Error handling ARI event ${event.type}: ${err.message}`);
+        }
+    }
+    /**
+     * Handle StasisStart: detect ExternalMedia (UnicastRTP) second legs
+     * and map them to their parent channel for ChannelVarset routing.
+     */
+    handleStasisStart(event) {
+        const channelId = event.channel?.id;
+        if (!channelId)
+            return;
+        // Detect UnicastRTP second leg (ExternalMedia channel entering Stasis)
+        if (event.channel?.name?.startsWith('UnicastRTP/')) {
+            // The 'data' field from externalMedia() is passed as args[0]
+            const parentChannelId = event.args?.[0];
+            if (parentChannelId) {
+                this.externalToParentChannel.set(channelId, parentChannelId);
+                this.logger.log(`Linked ExternalMedia ${channelId} → primary ${parentChannelId}`);
+            }
+            return; // Don't propagate UnicastRTP StasisStart to voice-robots
+        }
+        // Ignore Snoop channels
+        if (event.channel?.name?.startsWith('Snoop/')) {
+            return;
+        }
+    }
+    /**
+     * Handle ChannelVarset for UNICASTRTP_LOCAL_ADDRESS / UNICASTRTP_LOCAL_PORT.
+     * These are set asynchronously by Asterisk after externalMedia() call.
+     * We route them to the parent channel's session.
+     */
+    handleChannelVarset(event) {
+        const channelId = event.channel?.id;
+        const variable = event.variable;
+        const value = event.value;
+        if (variable !== 'UNICASTRTP_LOCAL_ADDRESS' && variable !== 'UNICASTRTP_LOCAL_PORT') {
+            return;
+        }
+        this.logger.debug(`ChannelVarset: ${channelId} ${variable}=${value}`);
+        // Find parent channel for this external channel
+        const parentId = this.externalToParentChannel.get(channelId);
+        if (parentId) {
+            // Emit a specialized event with the parent channel ID
+            this.eventEmitter.emit('ari.ExternalMediaRtpReady', {
+                parentChannelId: parentId,
+                externalChannelId: channelId,
+                variable,
+                value,
+            });
+        }
+    }
+    cleanupExternalMapping(channelId) {
+        if (!channelId)
+            return;
+        this.externalToParentChannel.delete(channelId);
+        // Also check if it's a parent channel — clean all externals pointing to it
+        for (const [extId, parentId] of this.externalToParentChannel) {
+            if (parentId === channelId) {
+                this.externalToParentChannel.delete(extId);
+            }
+        }
+    }
+    /** Check if ARI WebSocket is connected */
+    isOnline() {
+        return !!this.ws && this.ws.readyState === ws_1.default.OPEN;
+    }
+};
+exports.AriConnectionService = AriConnectionService;
+exports.AriConnectionService = AriConnectionService = AriConnectionService_1 = __decorate([
+    (0, common_1.Injectable)(),
+    __metadata("design:paramtypes", [config_1.ConfigService,
+        ari_http_client_service_1.AriHttpClientService,
+        event_emitter_1.EventEmitter2])
+], AriConnectionService);
+//# sourceMappingURL=ari-connection.service.js.map

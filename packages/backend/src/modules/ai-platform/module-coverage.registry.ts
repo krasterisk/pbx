@@ -47,6 +47,10 @@ export const MODULE_COVERAGE: Record<string, ModuleCoverageEntry> = {
     kind: 'infrastructure',
     reason: 'Asterisk ARI session transport; the tenant domain is voice-robots.',
   },
+  'asterisk-odbc': {
+    kind: 'infrastructure',
+    reason: 'Portable Asterisk CDR/queue_log/CEL ODBC writer and installer contracts; not a tenant-agent catalog.',
+  },
   auth: {
     kind: 'infrastructure',
     reason: 'JWT and RBAC entry; tenant identity is the users domain.',
@@ -114,6 +118,10 @@ export const MODULE_COVERAGE: Record<string, ModuleCoverageEntry> = {
   'dialplan-dry-run': { kind: 'covered', domain: 'dialplan_dry_run', sharedSkill: 'routes', capability: 'operation' },
   directories: { kind: 'covered', capability: 'configure' },
   endpoints: { kind: 'covered', capability: 'configure' },
+  embeddings: {
+    kind: 'infrastructure',
+    reason: 'Shared embedding helpers reused by voice-robots/knowledge; not a standalone tenant PBX catalog.',
+  },
   health: {
     kind: 'infrastructure',
     reason: 'Process health probes with no tenant data.',

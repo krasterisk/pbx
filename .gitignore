@@ -11,6 +11,8 @@ build/
 coverage/
 # Deploy scripts (may contain passwords / env-specific data)
 **/scripts/
+!packages/frontend/scripts/
+!packages/frontend/scripts/**
 
 # Yandex Cloud proto files (cloned from github.com/yandex-cloud/cloudapi)
 **/proto/cloudapi/
@@ -30,4 +32,6 @@ ecosystem.config.js
 # Local scratch (GSD / agent dumps)
 .tmp/
 **/.tmp-*.js
+asterisk-odbc.credentials.json
+**/asterisk-odbc.credentials.json
 

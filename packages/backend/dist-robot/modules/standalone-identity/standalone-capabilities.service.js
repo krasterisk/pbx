@@ -12,11 +12,12 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.StandaloneCapabilitiesService = void 0;
 const common_1 = require("@nestjs/common");
 const product_access_service_1 = require("../product-access/product-access.service");
+const product_runtime_1 = require("../product-access/product-runtime");
 const PROFILE_PRODUCT = {
     'analytics-api': 'speech_analytics',
     'robot-api': 'ai_voice_robots',
 };
-/** Tenant identity plus product policy for a standalone composition. Runtime is not implied. */
+/** Tenant identity plus computed productRuntime. Default env stays not-installed. */
 let StandaloneCapabilitiesService = class StandaloneCapabilitiesService {
     products;
     constructor(products) {
@@ -28,14 +29,20 @@ let StandaloneCapabilitiesService = class StandaloneCapabilitiesService {
             throw new common_1.ServiceUnavailableException({ code: 'profile_mismatch' });
         }
         const product = PROFILE_PRODUCT[profile];
+        (0, product_runtime_1.offlineHeartbeatPolicy)();
         const entitlement = await this.products.decide(context.tenantUid, product, now);
+        const flags = (0, product_runtime_1.readProcessInstallFlags)();
+        const { entitled, expired } = (0, product_runtime_1.entitledFromDecision)(entitlement);
+        const runtime = (0, product_runtime_1.resolveProductRuntime)({
+            profile, ...flags, entitled, expired, allowed: entitlement.allowed,
+        });
         return {
             tenantUid: context.tenantUid,
             principalKind: context.principalKind,
             principalId: context.principalId,
             profile,
-            productRuntime: 'not-installed',
-            usable: false,
+            productRuntime: runtime.productRuntime,
+            usable: runtime.usable,
             entitlement: {
                 product: entitlement.product,
                 allowed: entitlement.allowed,

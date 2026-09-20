@@ -1,9 +1,10 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { User } from '../users/user.model';
 import { Tenant } from '../cloud-admin/tenant.model';
+import { requireJwtSecret } from '../auth/jwt-secret';
 import { ProductAccessCoreModule } from '../product-access/product-access-core.module';
 import {
   IntegrationPrincipal, IntegrationCredential, IntegrationGrant,
@@ -19,7 +20,13 @@ import {
 } from './product-resource.authorization';
 
 @Module({
-  imports: [ConfigModule, JwtModule.register({}), ProductAccessCoreModule, SequelizeModule.forFeature([
+  imports: [ConfigModule, JwtModule.registerAsync({
+    imports: [ConfigModule], inject: [ConfigService],
+    useFactory: (config: ConfigService) => ({
+      secret: requireJwtSecret(config),
+      signOptions: { expiresIn: '2h', issuer: 'krasterisk-v4', audience: 'krasterisk-v4-client' },
+    }),
+  }), ProductAccessCoreModule, SequelizeModule.forFeature([
     User, Tenant, IntegrationPrincipal, IntegrationCredential,
     IntegrationGrant, IntegrationAudit, IntegrationCommand, IntegrationAuthLimit,
   ])],
@@ -31,6 +38,7 @@ import {
   ],
   controllers: [IntegrationCredentialsController],
   exports: [TenantContextResolver, TenantContextGuard, IntegrationKeyRateLimiter,
-    ProductResourceAuthorization, ProductResourceResolverRegistry, IntegrationCredentialsService],
+    ProductResourceAuthorization, ProductResourceResolverRegistry, IntegrationCredentialsService,
+    JwtModule],
 })
 export class IntegrationCredentialsModule {}

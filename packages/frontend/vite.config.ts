@@ -48,8 +48,22 @@ export default defineConfig({
     },
   },
   test: {
-    // Windows: one fork avoids the previous vitest hang at RUN with zero files.
-    pool: process.platform === 'win32' ? 'forks' : 'threads',
+    // Constrain discovery to src — default globs hang at RUN on Windows while
+    // walking Capacitor android/ios + workspace trees (zero files executed).
+    include: ['src/**/*.test.ts', 'src/**/*.test.tsx', 'src/**/*.spec.ts', 'src/**/*.spec.tsx'],
+    exclude: [
+      '**/node_modules/**',
+      '**/dist/**',
+      '**/dist-*/**',
+      '**/android/**',
+      '**/ios/**',
+      '**/.idea/**',
+      '**/.vite/**',
+      '**/.vite-temp/**',
+    ],
+    // Prefer threads on Windows: forks pool hangs at RUN before executing any file
+    // when discovery is used (even with src-only include). Explicit file args still work with forks.
+    pool: 'threads',
     maxWorkers: process.platform === 'win32' ? 1 : 2,
     fileParallelism: process.platform !== 'win32',
     isolate: true,

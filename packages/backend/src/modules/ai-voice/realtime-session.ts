@@ -54,7 +54,7 @@ export function assertSipReady(input: { kind: string; appliedRevision: boolean }
   }
 }
 
-export const SUPPORTED_SIP_TRANSPORTS = ['udp', 'tcp'] as const;
+export const SUPPORTED_SIP_TRANSPORTS = ['udp', 'tcp', 'tls'] as const;
 
 export function evaluateSipProfile(input: {
   transport: string;

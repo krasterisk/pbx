@@ -215,6 +215,8 @@ flowchart TD
 
 ## AI-11. Приёмка, нагрузка, пилот и эксплуатация
 
+Task-level design: [AI-11-PLAN](AI-11-PLAN.md) (11L / 11F / 11O / 11A / 11R / 11M), revision 2026-09-20-r1. Implementation только через [EXECUTION](EXECUTION.md).
+
 **A/R зависят:** соответствующий срез 10; критичные tenant/media/billing gates обязательны для каждого.
 
 1. Нагрузочный профиль по 00: media отдельно от batch workers, queue fairness, max file/duration, storage pressure, 1→5→20 concurrent calls как начальная лестница измерений, не обещанный лимит продукта.

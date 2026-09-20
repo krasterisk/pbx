@@ -1,0 +1,86 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.computeAutodialCapacity = computeAutodialCapacity;
+exports.effectivePacing = effectivePacing;
+/**
+ * Each provider contributes NEW available slots. Static limits count active
+ * channels; trunk availability and tenant remaining capacity already account
+ * for them. A campaign whose queue-agent data is not warm yet gets zero slots
+ * rather than a blind guess — dialing without knowing agent state is exactly
+ * how abandon rate explodes.
+ */
+function computeAutodialCapacity(input) {
+    const providers = input.pacing?.providers ?? [];
+    const limits = [];
+    for (const provider of providers) {
+        switch (provider.type) {
+            case 'static':
+                limits.push({
+                    name: 'static',
+                    value: Math.max(0, provider.max_channels - input.activeChannels - input.reserved),
+                });
+                break;
+            case 'queue_agents': {
+                if (input.degraded) {
+                    return { slots: 0, limitedBy: 'queue_agents_warmup', capacity: 0 };
+                }
+                const ratio = agentRatio(input, provider.ratio);
+                // Live calls may still need an agent; until connection is tracked,
+                // reserve one slot for each as a conservative upper bound.
+                limits.push({
+                    name: 'queue_agents',
+                    value: Math.max(0, Math.floor(input.availableAgents * ratio)
+                        - input.activeChannels - input.reserved),
+                });
+                break;
+            }
+            case 'trunk_channels':
+                if (input.freeTrunkChannels != null) {
+                    limits.push({ name: 'trunk_channels', value: Math.max(0, input.freeTrunkChannels) });
+                }
+                break;
+            case 'tenant_cap':
+                limits.push({
+                    name: 'tenant_cap',
+                    value: Math.max(0, provider.max_channels - input.tenantActiveChannels
+                        - (input.tenantReservedChannels ?? input.reserved)),
+                });
+                break;
+        }
+    }
+    if (!limits.length) {
+        return { slots: 0, limitedBy: 'no_providers', capacity: 0 };
+    }
+    const binding = limits.reduce((min, cur) => (cur.value < min.value ? cur : min));
+    const slots = binding.value;
+    return {
+        slots,
+        limitedBy: binding.name,
+        capacity: input.activeChannels + input.reserved + slots,
+    };
+}
+/**
+ * Calls allowed per free agent. Power takes the operator's fixed ratio;
+ * predictive takes whatever the abandon-rate controller currently permits, so
+ * the multiplier moves between ticks instead of being configured once.
+ */
+function agentRatio(input, providerRatio) {
+    if (input.dialMode === 'power') {
+        return Math.max(1, providerRatio ?? input.pacing.power_ratio ?? 1);
+    }
+    if (input.dialMode === 'predictive') {
+        return Math.max(1, input.overDial ?? 1);
+    }
+    return 1;
+}
+/** Agentless campaigns never wait for operators, so the provider is dropped. */
+function effectivePacing(dialMode, pacing) {
+    if (dialMode !== 'agentless')
+        return pacing;
+    const providers = (pacing.providers ?? []).filter((p) => p.type !== 'queue_agents');
+    return {
+        ...pacing,
+        providers: providers.length ? providers : [{ type: 'static', max_channels: 1 }],
+    };
+}
+//# sourceMappingURL=autodial-capacity.util.js.map

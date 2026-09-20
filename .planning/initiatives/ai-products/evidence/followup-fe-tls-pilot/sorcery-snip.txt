@@ -1,0 +1,6 @@
+11:endpoint = config,pjsip.conf,criteria=type=endpoint
+12:endpoint = realtime,ps_endpoints
+13:auth = config,pjsip.conf,criteria=type=auth
+14:auth = realtime,ps_auths
+15:aor = config,pjsip.conf,criteria=type=aor
+16:aor = realtime,ps_aors

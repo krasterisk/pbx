@@ -1,0 +1,40 @@
+{
+  "revision": "2026-09-20-r1",
+  "phase": "AI-11",
+  "task": "11R",
+  "kind": "LIVE-UAT-robots",
+  "productSlaClaimed": false,
+  "env": {
+    "dialect": "postgres",
+    "schemaProfile": "robot-api",
+    "productRuntime": "not-installed",
+    "cloudWallet": "off",
+    "node": "v22.23.2"
+  },
+  "sip": {
+    "udpDraft": true,
+    "tlsDisabled": true,
+    "tlsReason": "sip_profile_unsupported"
+  },
+  "drain": {
+    "admissionsStopped": true,
+    "postDrainAdmitCode": "admissions_stopped",
+    "liveSip": true
+  },
+  "nativePbx": {
+    "reason": "native_pbx_gated",
+    "hostModuleLoadClaimed": false
+  },
+  "remainingGates": [
+    "host_unixodbc_module_load_not_claimed",
+    "tls_srtp_nat_not_closed",
+    "live_mcp_true_not_closed"
+  ],
+  "constraints": {
+    "noLiveTenantDebit": true,
+    "noAutodial": true,
+    "noXrayUi": true,
+    "noLiveAdaptiveDsnOverwrite": true,
+    "noAnalyticsEntitlement": true
+  }
+}

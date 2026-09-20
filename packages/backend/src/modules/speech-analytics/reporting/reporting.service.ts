@@ -6,7 +6,7 @@ import { ProductResourceAuthorization } from '../../integration-credentials/prod
 import type { TenantContext } from '../../integration-credentials/tenant-context';
 import type { AnalyticsFilterSpec } from '@krasterisk/shared';
 import { DomainError } from '../project-engine';
-import { SaProject } from '../speech-analytics.models';
+import { SaProject, SaRecording } from '../speech-analytics.models';
 import {
   assertBulkSize, assertSnapshotSize, dashboardRow, filterDigest, newId, neutralizeCsvCell,
   parseCursor, reserveBudget, scheduleSlot, signCursor, validateFilterSpec,
@@ -25,6 +25,7 @@ export class SaReportingService {
     private readonly products: ProductAccessService,
     private readonly resources: ProductResourceAuthorization,
     @InjectModel(SaProject) private readonly projects: typeof SaProject,
+    @InjectModel(SaRecording) private readonly recordings: typeof SaRecording,
     @InjectModel(SaReportDefinition) private readonly definitions: typeof SaReportDefinition,
     @InjectModel(SaReportRun) private readonly runs: typeof SaReportRun,
     @InjectModel(SaReportSnapshotItem) private readonly snapshots: typeof SaReportSnapshotItem,
@@ -243,9 +244,13 @@ export class SaReportingService {
 
   async listRelations(context: TenantContext, recordingId: string) {
     try {
+      const recording = await this.recordings.findOne({
+        where: { tenant_uid: context.tenantUid, id: recordingId },
+      });
+      if (!recording) throw new NotFoundException({ code: 'resource_not_found' });
       await this.resources.authorize(context, {
         product: 'speech_analytics', action: 'analytics:read',
-        resourceKind: 'recording', resourceId: recordingId,
+        resourceKind: 'project', resourceId: recording.project_id,
       });
       const rows = await this.relations.findAll({
         where: { tenant_uid: context.tenantUid, recording_id: recordingId },

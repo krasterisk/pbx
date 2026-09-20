@@ -1,5 +1,5 @@
 import {
-  entitledFromDecision, offlineHeartbeatPolicy, readProcessInstallFlags,
+  entitledFromDecision, healthProductRuntime, offlineHeartbeatPolicy, readProcessInstallFlags,
   resolveProductRuntime,
 } from './product-runtime';
 
@@ -52,5 +52,23 @@ describe('COM3 product runtime flag', () => {
       .toEqual({ entitled: true, expired: true });
     expect(entitledFromDecision({ allowed: false, reason: 'not_entitled' }))
       .toEqual({ entitled: false, expired: false });
+  });
+
+  it('health stays not-installed unless conscious pilot flags are set', () => {
+    expect(healthProductRuntime('analytics-api', {})).toEqual({
+      status: 'ok', profile: 'analytics-api', productRuntime: 'not-installed', usable: false, pilot: false,
+    });
+    expect(healthProductRuntime('robot-api', {
+      AI_PRODUCT_RUNTIME_PILOT: '1',
+      AI_SCHEMA_READY: '1',
+      AI_WORKERS_CONFIGURED: '1',
+    })).toEqual({
+      status: 'ok', profile: 'robot-api', productRuntime: 'installed', usable: true, pilot: true,
+    });
+    expect(healthProductRuntime('analytics-api', {
+      AI_PRODUCT_RUNTIME_PILOT: '1',
+      AI_SCHEMA_READY: '0',
+      AI_WORKERS_CONFIGURED: '1',
+    }).productRuntime).toBe('entitled-not-installed');
   });
 });

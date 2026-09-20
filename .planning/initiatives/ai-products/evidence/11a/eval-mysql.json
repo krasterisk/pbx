@@ -1,0 +1,48 @@
+{
+  "revision": "2026-09-20-r1",
+  "phase": "AI-11",
+  "task": "11A",
+  "kind": "LIVE-UAT-analytics",
+  "productSlaClaimed": false,
+  "env": {
+    "dialect": "mysql",
+    "schemaProfile": "analytics-api",
+    "productRuntime": "not-installed",
+    "cloudWallet": "off",
+    "node": "v22.23.2"
+  },
+  "models": {
+    "stt": "fake/fixture (local-AI gate open)",
+    "analysis": "fixture pipeline"
+  },
+  "versions": {
+    "schema": "0020-ai-sku-catalog.sql",
+    "pack": null
+  },
+  "pilots": [
+    {
+      "tenant": "ci-tenant-a",
+      "projectId": "0b913c12-99b4-4d9b-925d-2b37e6090ced",
+      "runId": "165e60a1-d4e9-4daf-9038-4be466d13f7d"
+    },
+    {
+      "tenant": "ci-tenant-b",
+      "projectId": "051d7458-f723-4ac4-8ccb-1546d483570f",
+      "runId": "96d4b544-1154-4685-89d6-dd7bcbc3cd8c"
+    }
+  ],
+  "isolation": {
+    "bCannotReadA": true,
+    "aCannotReadB": true
+  },
+  "remainingGates": [
+    "local_ai_stt_not_claimed",
+    "met5_30_call_holdout_not_claimed"
+  ],
+  "constraints": {
+    "noLiveTenantDebit": true,
+    "noAutodial": true,
+    "noXrayUi": true,
+    "noI4AmiAri": true
+  }
+}

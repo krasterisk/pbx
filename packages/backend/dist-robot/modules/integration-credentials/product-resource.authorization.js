@@ -12,14 +12,33 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ProductResourceAuthorization = exports.PRODUCT_RESOURCE_RESOLVERS = void 0;
+exports.ProductResourceAuthorization = exports.ProductResourceResolverRegistry = exports.PRODUCT_RESOURCE_RESOLVERS = void 0;
 const common_1 = require("@nestjs/common");
 exports.PRODUCT_RESOURCE_RESOLVERS = Symbol('PRODUCT_RESOURCE_RESOLVERS');
+/** Runtime registry so product modules can register resolvers without a circular import. */
+let ProductResourceResolverRegistry = class ProductResourceResolverRegistry {
+    items = [];
+    register(resolver) {
+        if (!this.items.some((item) => item.product === resolver.product
+            && item.resourceKind === resolver.resourceKind)) {
+            this.items.push(resolver);
+        }
+    }
+    all() {
+        return this.items;
+    }
+};
+exports.ProductResourceResolverRegistry = ProductResourceResolverRegistry;
+exports.ProductResourceResolverRegistry = ProductResourceResolverRegistry = __decorate([
+    (0, common_1.Injectable)()
+], ProductResourceResolverRegistry);
 /** Default registry is empty until project/deployment modules provide resolvers. */
 let ProductResourceAuthorization = class ProductResourceAuthorization {
     resolvers;
-    constructor(resolvers) {
+    registry;
+    constructor(resolvers, registry) {
         this.resolvers = resolvers;
+        this.registry = registry;
     }
     async authorize(context, reference) {
         const validPair = (reference.product === 'speech_analytics' && reference.resourceKind === 'project')
@@ -28,7 +47,7 @@ let ProductResourceAuthorization = class ProductResourceAuthorization {
             || !/^[a-z][a-z0-9:_-]{0,63}$/.test(reference.action)) {
             throw new common_1.NotFoundException({ code: 'resource_not_found' });
         }
-        const resolver = this.resolvers.find((item) => item.product === reference.product
+        const resolver = [...this.resolvers, ...this.registry.all()].find((item) => item.product === reference.product
             && item.resourceKind === reference.resourceKind);
         if (!resolver)
             throw new common_1.NotFoundException({ code: 'resource_not_found' });
@@ -44,6 +63,6 @@ exports.ProductResourceAuthorization = ProductResourceAuthorization;
 exports.ProductResourceAuthorization = ProductResourceAuthorization = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, common_1.Inject)(exports.PRODUCT_RESOURCE_RESOLVERS)),
-    __metadata("design:paramtypes", [Array])
+    __metadata("design:paramtypes", [Array, ProductResourceResolverRegistry])
 ], ProductResourceAuthorization);
 //# sourceMappingURL=product-resource.authorization.js.map

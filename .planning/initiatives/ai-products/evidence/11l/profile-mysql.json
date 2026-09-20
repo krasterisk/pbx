@@ -1,0 +1,61 @@
+{
+  "revision": "2026-09-20-r1",
+  "phase": "AI-11",
+  "task": "11L",
+  "productSlaClaimed": false,
+  "ladder": [
+    1,
+    5,
+    20
+  ],
+  "measurements": [
+    {
+      "concurrency": 1,
+      "admitted": 1,
+      "errors": 0,
+      "fairnessRejected": 0,
+      "durationMs": 1.3256189999956405,
+      "p50Ms": 1.2777730000016163,
+      "p95Ms": 1.2777730000016163,
+      "queued": 1
+    },
+    {
+      "concurrency": 5,
+      "admitted": 5,
+      "errors": 0,
+      "fairnessRejected": 0,
+      "durationMs": 1.097801999996591,
+      "p50Ms": 0.1389389999967534,
+      "p95Ms": 0.17026800000166986,
+      "queued": 6
+    },
+    {
+      "concurrency": 20,
+      "admitted": 20,
+      "errors": 0,
+      "fairnessRejected": 0,
+      "durationMs": 3.249422000000777,
+      "p50Ms": 0.08801399999356363,
+      "p95Ms": 0.33241999999881955,
+      "queued": 26
+    }
+  ],
+  "mediaVsBatch": {
+    "batchQueued": 4,
+    "batchBlocked": true,
+    "mediaAdmitted": true,
+    "note": "Separate fairness stores: batch exhaustion must not starve media admits"
+  },
+  "quota": {
+    "rejected": true,
+    "code": "fairness_exhausted",
+    "queued": 2
+  },
+  "constraints": {
+    "noLiveTenantDebit": true,
+    "noAutodial": true,
+    "noXrayUi": true,
+    "productRuntime": "not-installed",
+    "cloudWallet": "off"
+  }
+}

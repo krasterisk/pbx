@@ -1,0 +1,622 @@
+npm notice run krasterisk-v4@4.5.7 npx
+npm notice run vitest run --config vite.config.ts --reporter=dot src/app/layouts/PlatformLayout.test.tsx src/compositions/StandaloneAiApp.test.tsx src/entities/conference/roleLabel.test.ts src/entities/tenantSettings/api/tenantSettingsApi.test.ts src/entities/User/model/consts/userConsts.test.ts src/features/ai-chat/model/agentToolLabels.test.ts src/features/ai-chat/model/assistantPanelLayout.test.ts src/features/ai-chat/model/useAgentTurn.test.ts src/features/ai-chat/ui/DiffConfirmCard/DiffConfirmCard.test.tsx src/features/ai-chat/ui/PlanRail/PlanRail.test.tsx src/features/ai-chat/ui/ThreadList/ThreadList.test.tsx src/features/ai-chat/ui/Timeline/TimelineList.test.tsx src/features/ai-providers/ui/AiProviderModal/AiProviderModal.test.tsx src/features/ai-providers/ui/AiProvidersTable/AiProvidersTable.test.tsx src/features/auth/lib/tokenStorage.test.ts src/features/auth/model/authSlice.test.ts src/features/autodial/lib/autodialLiveState.test.ts src/features/autodial/lib/labels.test.ts src/features/autodial/lib/mutationError.test.ts src/features/autodial/lib/timezones.test.ts src/features/autodial/model/slice/autodialPageSlice.test.ts src/features/autodial/model/baseDraft.test.ts src/features/autodial/model/campaignDraft.test.ts src/features/autodial/model/importMapping.test.ts src/features/autodial/model/reportRange.test.ts src/features/autodial/ui/CampaignFormModal/CampaignFormModal.responsive.test.tsx src/features/autodial/ui/CampaignFormModal/CampaignFormModal.test.tsx src/features/autodial/ui/CampaignFormModal/CampaignTrunksTab.test.tsx src/features/autodial/ui/CampaignsTable/CampaignsTable.test.tsx src/features/autodial/ui/ContactFormModal/ContactFormModal.test.tsx src/features/autodial/ui/DncPanel/DncPanel.test.tsx src/features/autodial/ui/ImportWizard/ImportWizard.test.tsx src/features/autodial/ui/StartCampaignDialog/StartCampaignDialog.test.tsx src/features/call-groups/lib/resolveCallGroupApiError.test.ts src/features/call-groups/ui/CallGroupFormModal/CallGroupFormModal.test.tsx src/features/call-groups/ui/CallGroupFormModal/CallGroupMembersEditor.test.tsx src/features/call-groups/ui/CallGroupFormModal/CallGroupRingOptions.test.tsx src/features/call-groups/ui/CallGroupsPage/CallGroupsPage.test.tsx src/features/call-groups/ui/CallGroupsTable/CallGroupsTable.test.tsx src/features/callcenter/lib/agentPanelPrefs.test.ts src/features/callcenter/lib/dialFailure.test.ts src/features/callcenter/lib/displayLabels.test.ts src/features/callcenter/lib/kpiDisplay.test.ts src/features/callcenter/lib/queueManagement.test.ts src/features/callcenter/lib/shiftLoginQueues.test.ts src/features/callcenter/lib/shiftSession.test.ts src/features/callcenter/lib/softphoneParkBridge.test.ts src/features/callcenter/lib/supervisorKpiRollup.test.ts src/features/callcenter/lib/useCallCenterNotifications.test.ts src/features/callcenter/lib/useCallCenterSSE.test.ts src/features/callcenter/lib/useKpiSamples.test.ts src/features/callcenter/lib/useSipPhoneAmi.test.ts src/features/callcenter/model/selectors/callCenterSelectors.test.ts src/features/callcenter/model/slice/callCenterSlice.test.ts src/features/callcenter/ui/CallbackRequestsIndicator/CallbackRequestsIndicator.test.tsx src/features/callcenter/ui/CallbackSettingsForm/CallbackSettingsForm.test.tsx src/features/callcenter/ui/CallHistoryPanel/CallHistoryPanel.test.tsx src/features/callcenter/ui/PermissionsMatrix/PermissionsMatrix.test.tsx src/features/callcenter/ui/ShiftPolicyForm/ShiftPolicyForm.test.tsx src/features/callcenter/ui/SoftphoneWidget/SoftphoneContacts.test.tsx src/features/callcenter/ui/SoftphoneWidget/SoftphoneJournal.test.tsx src/features/callcenter/ui/SoftphoneWidget/SoftphoneWidget.test.tsx src/features/callcenter/ui/TransferDirectory/TransferDirectory.test.ts src/features/cdr/ui/CdrFilter/CdrFilter.test.tsx src/features/cdr/ui/CdrTable/CdrTable.test.tsx src/features/cdr/ui/ConferenceRecordingModal/ConferenceRecordingModal.test.tsx src/features/cdr/ui/VoicemailDetailsModal/VoicemailDetailsModal.test.tsx src/features/cloud-admin/ui/AiChatSettingsCard/AiChatSettingsCard.test.tsx src/features/cloud-admin/ui/TenantsTable/TenantsTable.test.tsx src/features/conferences/lib/conferenceSdhFactory.test.ts src/features/conferences/lib/ConferenceSessionProvider.test.tsx src/features/conferences/lib/useConferenceRoom.test.ts src/features/conferences/lib/useConferenceSse.test.ts src/features/conferences/model/slice/conferenceSessionSlice.test.ts src/features/conferences/ui/ConferenceHistoryTab/ConferenceHistoryTab.test.tsx src/features/conferences/ui/ConferenceMiniPanel/ConferenceMiniPanel.test.tsx src/features/conferences/ui/ConferencePreJoinCard/ConferencePreJoinCard.test.tsx src/features/conferences/ui/ConferenceRoomFormModal/ConferenceRoomFormModal.test.tsx src/features/conferences/ui/ConferencesTable/ConferencesTable.test.tsx src/features/conferences/ui/LiveRoom/LiveRoom.test.tsx
+stderr | src/features/callcenter/ui/SoftphoneWidget/SoftphoneContacts.test.tsx > SoftphoneContacts > Book CTA dials via click-to-call only
+An update to SoftphoneContacts inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/features/ai-chat/ui/ThreadList/ThreadList.test.tsx > ThreadList > removes the conversation after the confirm action
+An update to ThreadList inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/features/callcenter/ui/SoftphoneWidget/SoftphoneJournal.test.tsx > SoftphoneJournal > dials via clickToCall on callback
+An update to SoftphoneJournal inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/features/conferences/ui/ConferencePreJoinCard/ConferencePreJoinCard.test.tsx > ConferencePreJoinCard (16.3-07 D-28/D-29) > renders a 480px card with guest.join CTA and device selects
+An update to ConferencePreJoinCard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to ConferencePreJoinCard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/features/conferences/ui/ConferencePreJoinCard/ConferencePreJoinCard.test.tsx > ConferencePreJoinCard (16.3-07 D-28/D-29) > renders a 480px card with guest.join CTA and device selects
+An update to ConferencePreJoinCard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/features/conferences/ui/ConferencePreJoinCard/ConferencePreJoinCard.test.tsx > ConferencePreJoinCard (16.3-07 D-28/D-29) > renders a 480px card with guest.join CTA and device selects
+An update to ConferencePreJoinCard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/features/conferences/ui/ConferencePreJoinCard/ConferencePreJoinCard.test.tsx > ConferencePreJoinCard (16.3-07 D-28/D-29) > hides the PIN field unless room policy requires it
+An update to ConferencePreJoinCard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to ConferencePreJoinCard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/features/conferences/ui/ConferencePreJoinCard/ConferencePreJoinCard.test.tsx > ConferencePreJoinCard (16.3-07 D-28/D-29) > hides the PIN field unless room policy requires it
+An update to ConferencePreJoinCard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/features/conferences/ui/ConferencePreJoinCard/ConferencePreJoinCard.test.tsx > ConferencePreJoinCard (16.3-07 D-28/D-29) > hides the PIN field unless room policy requires it
+An update to ConferencePreJoinCard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/features/conferences/ui/ConferencePreJoinCard/ConferencePreJoinCard.test.tsx > ConferencePreJoinCard (16.3-07 D-28/D-29) > shows the PIN field when the join error code is CONFERENCE_PIN_REQUIRED
+An update to ConferencePreJoinCard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to ConferencePreJoinCard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/features/conferences/ui/ConferencePreJoinCard/ConferencePreJoinCard.test.tsx > ConferencePreJoinCard (16.3-07 D-28/D-29) > shows the PIN field when the join error code is CONFERENCE_PIN_REQUIRED
+An update to ConferencePreJoinCard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/features/conferences/ui/ConferencePreJoinCard/ConferencePreJoinCard.test.tsx > ConferencePreJoinCard (16.3-07 D-28/D-29) > shows the PIN field when the join error code is CONFERENCE_PIN_REQUIRED
+An update to ConferencePreJoinCard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/features/conferences/ui/ConferencePreJoinCard/ConferencePreJoinCard.test.tsx > ConferencePreJoinCard (16.3-07 D-28/D-29) > marks the PIN field invalid with aria-describedby on CONFERENCE_PIN_WRONG
+An update to ConferencePreJoinCard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to ConferencePreJoinCard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/features/conferences/ui/ConferencePreJoinCard/ConferencePreJoinCard.test.tsx > ConferencePreJoinCard (16.3-07 D-28/D-29) > marks the PIN field invalid with aria-describedby on CONFERENCE_PIN_WRONG
+An update to ConferencePreJoinCard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/features/conferences/ui/ConferencePreJoinCard/ConferencePreJoinCard.test.tsx > ConferencePreJoinCard (16.3-07 D-28/D-29) > marks the PIN field invalid with aria-describedby on CONFERENCE_PIN_WRONG
+An update to ConferencePreJoinCard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/features/conferences/ui/ConferencePreJoinCard/ConferencePreJoinCard.test.tsx > ConferencePreJoinCard (16.3-07 D-28/D-29) > shows live.full without an enter-without-video control on CONFERENCE_ROOM_FULL
+An update to ConferencePreJoinCard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to ConferencePreJoinCard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/features/conferences/ui/ConferencePreJoinCard/ConferencePreJoinCard.test.tsx > ConferencePreJoinCard (16.3-07 D-28/D-29) > shows live.full without an enter-without-video control on CONFERENCE_ROOM_FULL
+An update to ConferencePreJoinCard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/features/conferences/ui/ConferencePreJoinCard/ConferencePreJoinCard.test.tsx > ConferencePreJoinCard (16.3-07 D-28/D-29) > shows live.full without an enter-without-video control on CONFERENCE_ROOM_FULL
+An update to ConferencePreJoinCard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/features/conferences/ui/ConferencePreJoinCard/ConferencePreJoinCard.test.tsx > ConferencePreJoinCard (16.3-07 D-28/D-29) > renders one guest.linkInvalid screen for 401 CONFERENCE_GUEST_TOKEN_REVOKED
+An update to ConferencePreJoinCard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to ConferencePreJoinCard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/features/conferences/ui/ConferencePreJoinCard/ConferencePreJoinCard.test.tsx > ConferencePreJoinCard (16.3-07 D-28/D-29) > renders one guest.linkInvalid screen for 401 CONFERENCE_GUEST_TOKEN_REVOKED
+An update to ConferencePreJoinCard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/features/conferences/ui/ConferencePreJoinCard/ConferencePreJoinCard.test.tsx > ConferencePreJoinCard (16.3-07 D-28/D-29) > renders one guest.linkInvalid screen for 401 CONFERENCE_GUEST_TOKEN_REVOKED
+An update to ConferencePreJoinCard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/features/conferences/ui/ConferencePreJoinCard/ConferencePreJoinCard.test.tsx > ConferencePreJoinCard (16.3-07 D-28/D-29) > renders one guest.linkInvalid screen for 401 CONFERENCE_GUEST_TOKEN_EXPIRED
+An update to ConferencePreJoinCard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to ConferencePreJoinCard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/features/conferences/ui/ConferencePreJoinCard/ConferencePreJoinCard.test.tsx > ConferencePreJoinCard (16.3-07 D-28/D-29) > renders one guest.linkInvalid screen for 401 CONFERENCE_GUEST_TOKEN_EXPIRED
+An update to ConferencePreJoinCard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/features/conferences/ui/ConferencePreJoinCard/ConferencePreJoinCard.test.tsx > ConferencePreJoinCard (16.3-07 D-28/D-29) > renders one guest.linkInvalid screen for 401 CONFERENCE_GUEST_TOKEN_EXPIRED
+An update to ConferencePreJoinCard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/features/conferences/ui/ConferencePreJoinCard/ConferencePreJoinCard.test.tsx > ConferencePreJoinCard (16.3-07 D-28/D-29) > renders one guest.linkInvalid screen for 401 CONFERENCE_GUEST_TOKEN_INVALID
+An update to ConferencePreJoinCard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to ConferencePreJoinCard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/features/conferences/ui/ConferencePreJoinCard/ConferencePreJoinCard.test.tsx > ConferencePreJoinCard (16.3-07 D-28/D-29) > renders one guest.linkInvalid screen for 401 CONFERENCE_GUEST_TOKEN_INVALID
+An update to ConferencePreJoinCard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/features/conferences/ui/ConferencePreJoinCard/ConferencePreJoinCard.test.tsx > ConferencePreJoinCard (16.3-07 D-28/D-29) > renders one guest.linkInvalid screen for 401 CONFERENCE_GUEST_TOKEN_INVALID
+An update to ConferencePreJoinCard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/features/conferences/ui/ConferencePreJoinCard/ConferencePreJoinCard.test.tsx > ConferencePreJoinCard (16.3-07 D-28/D-29) > shows live.mediaDenied when the camera/mic permission is denied
+An update to ConferencePreJoinCard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to ConferencePreJoinCard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/features/conferences/ui/ConferencePreJoinCard/ConferencePreJoinCard.test.tsx > ConferencePreJoinCard (16.3-07 D-28/D-29) > shows live.mediaDenied when the camera/mic permission is denied
+An update to ConferencePreJoinCard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/features/conferences/ui/ConferencePreJoinCard/ConferencePreJoinCard.test.tsx > ConferencePreJoinCard (16.3-07 D-28/D-29) > shows live.mediaDenied when the camera/mic permission is denied
+An update to ConferencePreJoinCard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/features/conferences/ui/ConferencePreJoinCard/ConferencePreJoinCard.test.tsx > ConferencePreJoinCard (16.3-07 D-28/D-29) > shows Avatar + live.camOff when the preview has no camera track
+An update to ConferencePreJoinCard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to ConferencePreJoinCard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/features/conferences/ui/ConferencePreJoinCard/ConferencePreJoinCard.test.tsx > ConferencePreJoinCard (16.3-07 D-28/D-29) > shows Avatar + live.camOff when the preview has no camera track
+An update to ConferencePreJoinCard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/features/conferences/ui/ConferencePreJoinCard/ConferencePreJoinCard.test.tsx > ConferencePreJoinCard (16.3-07 D-28/D-29) > shows Avatar + live.camOff when the preview has no camera track
+An update to ConferencePreJoinCard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/features/conferences/ui/ConferencePreJoinCard/ConferencePreJoinCard.test.tsx > ConferencePreJoinCard (16.3-07 D-28/D-29) > shows lobby copy with a disabled CTA while waiting for the moderator
+An update to ConferencePreJoinCard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to ConferencePreJoinCard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/features/conferences/ui/ConferencePreJoinCard/ConferencePreJoinCard.test.tsx > ConferencePreJoinCard (16.3-07 D-28/D-29) > shows lobby copy with a disabled CTA while waiting for the moderator
+An update to ConferencePreJoinCard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/features/conferences/ui/ConferencePreJoinCard/ConferencePreJoinCard.test.tsx > ConferencePreJoinCard (16.3-07 D-28/D-29) > shows lobby copy with a disabled CTA while waiting for the moderator
+An update to ConferencePreJoinCard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/features/ai-chat/ui/DiffConfirmCard/DiffConfirmCard.test.tsx > DiffConfirmCard > sends only the proposal identifier on confirm and moves the card to applied
+An update to DiffConfirmCard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to DiffConfirmCard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/features/ai-chat/ui/DiffConfirmCard/DiffConfirmCard.test.tsx > DiffConfirmCard > keeps applied state when parent re-sends a stale pending snapshot
+An update to DiffConfirmCard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to DiffConfirmCard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/features/ai-chat/ui/DiffConfirmCard/DiffConfirmCard.test.tsx > DiffConfirmCard > moves the card to rejected without sending an apply
+An update to DiffConfirmCard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to DiffConfirmCard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/features/ai-chat/ui/DiffConfirmCard/DiffConfirmCard.test.tsx > DiffConfirmCard > keeps a failed apply pending with the error and a retry
+An update to DiffConfirmCard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+

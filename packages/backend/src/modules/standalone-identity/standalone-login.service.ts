@@ -26,16 +26,22 @@ export class StandaloneLoginService {
     const user = normalized ? await this.users.findOne({
       where: where(fn('LOWER', col('login')), normalized),
     }) : null;
-    const hash = user?.passwd?.startsWith('$2') ? user.passwd : DUMMY_HASH;
-    const valid = await bcrypt.compare(password, hash);
+    const stored = user?.passwd == null ? '' : String(user.passwd);
+    const hash = stored.startsWith('$2') ? stored : DUMMY_HASH;
+    let valid = false;
+    try {
+      valid = await bcrypt.compare(password, hash);
+    } catch {
+      valid = false;
+    }
     if (!user || !valid) throw new UnauthorizedException({ code: 'credential_invalid' });
 
     // Reuse the same current-state tenant validation as integration endpoints.
     const claims: Omit<VerifiedUserClaims, 'iat'> = {
-      sub: user.uniqueid,
-      level: user.level,
-      role: user.role ?? 0,
-      vpbx_user_uid: user.vpbx_user_uid,
+      sub: Number(user.uniqueid),
+      level: Number(user.level),
+      role: Number(user.role ?? 0),
+      vpbx_user_uid: Number(user.vpbx_user_uid),
     };
     const accessToken = this.jwt.sign(claims);
     const verified = this.jwt.decode(accessToken) as VerifiedUserClaims;

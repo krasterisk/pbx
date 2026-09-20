@@ -16,7 +16,7 @@
     "build:robot": "tsc -b && vite build --config vite.robot.config.ts --configLoader runner",
     "preview": "vite preview",
     "lint": "eslint \"src/**/*.{ts,tsx}\"",
-    "test": "vitest run --config vite.config.ts",
+    "test": "node ./scripts/vitest-run-src.cjs",
     "test:watch": "vitest",
     "test:cov": "vitest run --coverage",
     "test:cc": "vitest run src/features/callcenter",

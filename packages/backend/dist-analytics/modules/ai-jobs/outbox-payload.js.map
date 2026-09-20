@@ -1,0 +1,1 @@
+{"version":3,"file":"outbox-payload.js","sourceRoot":"","sources":["../../../src/modules/ai-jobs/outbox-payload.ts"],"names":[],"mappings":";;AAEA,gDAOC;AATD,+CAA6D;AAE7D,SAAgB,kBAAkB,CAAC,SAAiB,EAAE,KAAa;IACjE,OAAO,IAAA,gCAAuB,EAAC;QAC7B,SAAS;QACT,aAAa,EAAE,KAAK;QACpB,WAAW,EAAE,KAAK;QAClB,SAAS,EAAE,cAAc;KAC1B,CAAC,CAAC;AACL,CAAC"}

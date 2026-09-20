@@ -316,8 +316,6 @@ let IntegrationCredentialsService = class IntegrationCredentialsService {
                 if (seen.has(key))
                     throw new common_1.BadRequestException({ code: 'integration_grant_duplicate' });
                 seen.add(key);
-                // No project/deployment resolver is installed before AI-04/07; this
-                // call therefore denies every nonempty grant in current composition.
                 await this.resources.authorize(context, {
                     product: principal.product, action: 'grant',
                     resourceKind: input.resourceKind, resourceId: input.resourceId,

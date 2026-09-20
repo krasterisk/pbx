@@ -36,6 +36,16 @@ const ai_provider_revision_model_1 = require("../modules/ai-connectivity/ai-prov
 const ai_job_models_1 = require("../modules/ai-jobs/ai-job.models");
 const media_asset_models_1 = require("../modules/media-assets/media-asset.models");
 const usage_models_1 = require("../modules/ai-usage/usage.models");
+const capture_models_1 = require("../modules/recording-capture/capture.models");
+const speech_analytics_models_1 = require("../modules/speech-analytics/speech-analytics.models");
+const webhook_models_1 = require("../modules/integration-delivery/webhook.models");
+const ai_voice_models_1 = require("../modules/ai-voice/ai-voice.models");
+const metric_models_1 = require("../modules/speech-analytics/metrics/metric.models");
+const reporting_models_1 = require("../modules/speech-analytics/reporting/reporting.models");
+const sip_models_1 = require("../modules/ai-voice/sip.models");
+const tool_models_1 = require("../modules/ai-tool-connectivity/tool.models");
+const knowledge_models_1 = require("../modules/knowledge/knowledge.models");
+const ai_agent_model_1 = require("../modules/ai-agents/models/ai-agent.model");
 /** Explicit profile descriptor; no runtime import(pathFromEnv) or PBX module. */
 let StandaloneAiCoreModule = StandaloneAiCoreModule_1 = class StandaloneAiCoreModule {
     static forProfile(profile) {
@@ -60,6 +70,22 @@ let StandaloneAiCoreModule = StandaloneAiCoreModule_1 = class StandaloneAiCoreMo
                                 ai_provider_revision_model_1.AiProviderRevision, media_asset_models_1.AiMediaAsset, media_asset_models_1.AiUpload, ai_job_models_1.AiIdempotency, ai_job_models_1.AiJob,
                                 ai_job_models_1.AiJobStage, ai_job_models_1.AiProviderOperation, ai_job_models_1.AiOutbox, ai_job_models_1.AiJobEvent,
                                 usage_models_1.AiQuotaCounter, usage_models_1.AiPriceRevision, usage_models_1.AiUsageReservation, usage_models_1.AiUsageEvent, usage_models_1.AiUsageLedger,
+                                usage_models_1.AiTrialPolicySnapshot, usage_models_1.AiSkuRevision, usage_models_1.AiSkuOffer, usage_models_1.AiSkuEntitlement,
+                                capture_models_1.AiCaptureNodeBinding, capture_models_1.AiCaptureIntent, capture_models_1.AiCaptureSegment, capture_models_1.AiCaptureReceipt,
+                                speech_analytics_models_1.SaProject, speech_analytics_models_1.SaProjectVersion, speech_analytics_models_1.SaProjectMember, speech_analytics_models_1.SaRecording, speech_analytics_models_1.SaAnalysisRun,
+                                speech_analytics_models_1.SaTranscript, speech_analytics_models_1.SaTranscriptSegment, speech_analytics_models_1.SaResult,
+                                webhook_models_1.AiWebhookEndpoint, webhook_models_1.AiWebhookDelivery, webhook_models_1.AiWebhookAttempt,
+                                ai_agent_model_1.CcAiAgent, ai_voice_models_1.AiRobotDraft, ai_voice_models_1.AiRobotVersion, ai_voice_models_1.AiRobotDeployment,
+                                ai_voice_models_1.AiVoiceSession, ai_voice_models_1.AiVoiceTurn, ai_voice_models_1.AiVoiceEvent, ai_voice_models_1.AiCallControlOperation, ai_voice_models_1.AiVoiceTicket,
+                                metric_models_1.SaMetricDefinition, metric_models_1.SaMetricRevision, metric_models_1.SaProjectVersionMetric, metric_models_1.SaMetricValue,
+                                metric_models_1.SaHumanReview, metric_models_1.SaTranscriptCorrection,
+                                reporting_models_1.SaReportDefinition, reporting_models_1.SaReportRun, reporting_models_1.SaReportSnapshotItem, reporting_models_1.SaReportSchedule,
+                                reporting_models_1.SaBudgetPolicy, reporting_models_1.SaBulkReanalysisBatch, reporting_models_1.SaBulkReanalysisItem,
+                                reporting_models_1.SaTenantCapturePolicy, reporting_models_1.SaRecordingRelation,
+                                sip_models_1.AiSipConnection, sip_models_1.AiSipConfigRevision, sip_models_1.AiSipDidBinding, sip_models_1.AiVoiceInvocation,
+                                tool_models_1.AiBusinessConnection, tool_models_1.AiToolRevision, tool_models_1.AiRobotToolBinding,
+                                knowledge_models_1.KbBase, knowledge_models_1.KbDocument, knowledge_models_1.KbDocumentRevision, knowledge_models_1.KbChunk, knowledge_models_1.KbEmbeddingRevision,
+                                knowledge_models_1.KbRelease, knowledge_models_1.KbReleaseMember, knowledge_models_1.KbAccessBinding,
                             ],
                             synchronize: false,
                             autoLoadModels: false,

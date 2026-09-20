@@ -13,6 +13,7 @@ const jwt_1 = require("@nestjs/jwt");
 const sequelize_1 = require("@nestjs/sequelize");
 const user_model_1 = require("../users/user.model");
 const tenant_model_1 = require("../cloud-admin/tenant.model");
+const jwt_secret_1 = require("../auth/jwt-secret");
 const product_access_core_module_1 = require("../product-access/product-access-core.module");
 const integration_credential_models_1 = require("./integration-credential.models");
 const tenant_context_resolver_1 = require("./tenant-context.resolver");
@@ -26,19 +27,26 @@ let IntegrationCredentialsModule = class IntegrationCredentialsModule {
 exports.IntegrationCredentialsModule = IntegrationCredentialsModule;
 exports.IntegrationCredentialsModule = IntegrationCredentialsModule = __decorate([
     (0, common_1.Module)({
-        imports: [config_1.ConfigModule, jwt_1.JwtModule.register({}), product_access_core_module_1.ProductAccessCoreModule, sequelize_1.SequelizeModule.forFeature([
+        imports: [config_1.ConfigModule, jwt_1.JwtModule.registerAsync({
+                imports: [config_1.ConfigModule], inject: [config_1.ConfigService],
+                useFactory: (config) => ({
+                    secret: (0, jwt_secret_1.requireJwtSecret)(config),
+                    signOptions: { expiresIn: '2h', issuer: 'krasterisk-v4', audience: 'krasterisk-v4-client' },
+                }),
+            }), product_access_core_module_1.ProductAccessCoreModule, sequelize_1.SequelizeModule.forFeature([
                 user_model_1.User, tenant_model_1.Tenant, integration_credential_models_1.IntegrationPrincipal, integration_credential_models_1.IntegrationCredential,
                 integration_credential_models_1.IntegrationGrant, integration_credential_models_1.IntegrationAudit, integration_credential_models_1.IntegrationCommand, integration_credential_models_1.IntegrationAuthLimit,
             ])],
         providers: [
             tenant_context_resolver_1.TenantContextResolver, tenant_context_guard_1.TenantContextGuard, product_resource_authorization_1.ProductResourceAuthorization,
-            integration_credentials_service_1.IntegrationCredentialsService,
+            product_resource_authorization_1.ProductResourceResolverRegistry, integration_credentials_service_1.IntegrationCredentialsService,
             integration_key_rate_limiter_1.IntegrationKeyRateLimiter,
             { provide: product_resource_authorization_1.PRODUCT_RESOURCE_RESOLVERS, useValue: [] },
         ],
         controllers: [integration_credentials_controller_1.IntegrationCredentialsController],
         exports: [tenant_context_resolver_1.TenantContextResolver, tenant_context_guard_1.TenantContextGuard, integration_key_rate_limiter_1.IntegrationKeyRateLimiter,
-            product_resource_authorization_1.ProductResourceAuthorization, integration_credentials_service_1.IntegrationCredentialsService],
+            product_resource_authorization_1.ProductResourceAuthorization, product_resource_authorization_1.ProductResourceResolverRegistry, integration_credentials_service_1.IntegrationCredentialsService,
+            jwt_1.JwtModule],
     })
 ], IntegrationCredentialsModule);
 //# sourceMappingURL=integration-credentials.module.js.map

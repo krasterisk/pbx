@@ -1,0 +1,157 @@
+{
+  "revision": "2026-09-20-r1",
+  "phase": "AI-11",
+  "task": "11F",
+  "productSlaClaimed": false,
+  "namedFaults": [
+    "api_crash_before_commit",
+    "api_crash_after_commit",
+    "worker_restart_ordinal",
+    "redis_enqueue_failure",
+    "duplicate_outbox_delivery",
+    "stale_fence_commit",
+    "cas_claim_collision",
+    "forged_queue_tenant",
+    "provider_rate_limit",
+    "long_tool_timeout_unknown",
+    "clock_timezone_lease",
+    "storage_unavailable",
+    "idempotent_replay_zero_debit",
+    "db_deadlock_retry_stub"
+  ],
+  "pure": [
+    {
+      "name": "api_crash_before_commit",
+      "pass": true,
+      "detail": {
+        "jobs": 0
+      }
+    },
+    {
+      "name": "api_crash_after_commit",
+      "pass": true,
+      "detail": {
+        "jobs": 1
+      }
+    },
+    {
+      "name": "worker_restart_ordinal",
+      "pass": true,
+      "detail": {
+        "same": 1,
+        "next": 2
+      }
+    },
+    {
+      "name": "redis_enqueue_failure",
+      "pass": true,
+      "detail": {
+        "jobKept": true,
+        "code": "redis_down_after_admit"
+      }
+    },
+    {
+      "name": "duplicate_outbox_delivery",
+      "pass": true,
+      "detail": {
+        "first": "apply",
+        "second": "skip",
+        "enqueues": 2
+      }
+    },
+    {
+      "name": "stale_fence_commit",
+      "pass": true,
+      "detail": {
+        "stale": true
+      }
+    },
+    {
+      "name": "cas_claim_collision",
+      "pass": true,
+      "detail": {
+        "owner": "worker-one"
+      }
+    },
+    {
+      "name": "forged_queue_tenant",
+      "pass": true,
+      "detail": {
+        "tenantUid": 2
+      }
+    },
+    {
+      "name": "provider_rate_limit",
+      "pass": true,
+      "detail": {
+        "kind": "transient",
+        "delay0": 1000,
+        "delay3": null
+      }
+    },
+    {
+      "name": "long_tool_timeout_unknown",
+      "pass": true,
+      "detail": {
+        "state": "unknown"
+      }
+    },
+    {
+      "name": "clock_timezone_lease",
+      "pass": true,
+      "detail": {
+        "offsetLabel": "Asia/Bangkok",
+        "leaseUntil": "2026-09-20T12:00:30.000Z"
+      }
+    },
+    {
+      "name": "storage_unavailable",
+      "pass": true,
+      "detail": {
+        "failClosed": true
+      }
+    },
+    {
+      "name": "idempotent_replay_zero_debit",
+      "pass": true,
+      "detail": {
+        "debitCalls": 1,
+        "jobs": 1,
+        "shadow": true
+      }
+    },
+    {
+      "name": "db_deadlock_retry_stub",
+      "pass": true,
+      "detail": {
+        "attempts": 2
+      }
+    }
+  ],
+  "live": [
+    {
+      "name": "live_redis_unreachable_job_kept",
+      "pass": true
+    },
+    {
+      "name": "live_kill_after_enqueue_mark_once",
+      "pass": true
+    },
+    {
+      "name": "live_duplicate_delivery_cas",
+      "pass": true
+    },
+    {
+      "name": "live_redis_restart_rehydrate",
+      "pass": true
+    }
+  ],
+  "constraints": {
+    "noLiveTenantDebit": true,
+    "noAutodial": true,
+    "noXrayUi": true,
+    "productRuntime": "not-installed",
+    "cloudWallet": "off",
+    "shadowDebitOnly": true
+  }
+}

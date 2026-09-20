@@ -65,3 +65,35 @@ export function offlineHeartbeatPolicy(env: NodeJS.Dict<string> = process.env): 
   }
   return { required: false, outbound: false };
 }
+
+/**
+ * Unauthenticated /health productRuntime.
+ * Default stays not-installed. Conscious pilot flip requires AI_PRODUCT_RUNTIME_PILOT=1
+ * plus schema+workers flags. Does not enable cloud_wallet or commercial readiness claims.
+ */
+export function healthProductRuntime(
+  profile: 'analytics-api' | 'robot-api',
+  env: NodeJS.Dict<string> = process.env,
+): { status: 'ok'; profile: string; productRuntime: ProductRuntime; usable: boolean; pilot: boolean } {
+  const flags = readProcessInstallFlags(env);
+  const pilot = env.AI_PRODUCT_RUNTIME_PILOT === '1';
+  if (!pilot) {
+    return {
+      status: 'ok', profile, productRuntime: 'not-installed', usable: false, pilot: false,
+    };
+  }
+  const runtime = resolveProductRuntime({
+    profile,
+    ...flags,
+    entitled: true,
+    expired: false,
+    allowed: true,
+  });
+  return {
+    status: 'ok',
+    profile,
+    productRuntime: runtime.productRuntime,
+    usable: runtime.usable,
+    pilot: true,
+  };
+}

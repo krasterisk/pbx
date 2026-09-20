@@ -1,12 +1,15 @@
 import {
   Body, Controller, Get, Headers, HttpCode, Param, Post, Put, Query, Req, UseGuards,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { TenantContextGuard, type TenantContextRequest } from '../integration-credentials/tenant-context.guard';
 import { AiVoiceService, assertUuid } from './ai-voice.service';
 import { AiSipService } from './sip.service';
 
 type Authed = TenantContextRequest & { tenantContext: NonNullable<TenantContextRequest['tenantContext']> };
 
+@ApiTags('AI Voice')
+@ApiBearerAuth()
 @UseGuards(TenantContextGuard)
 @Controller(['ai-voice', 'v1/ai-voice'])
 export class AiVoiceJwtController {

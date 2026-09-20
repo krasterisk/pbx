@@ -1,0 +1,26 @@
+
+      Aor:  <Aor..............................................>  <MaxContact>
+    Contact:  <Aor/ContactUri............................> <Hash....> <Status> <RTT(ms)..>
+==========================================================================================
+
+      Aor:  ai-lab-tls                                           1
+
+
+ ParameterName        : ParameterValue
+ =====================================
+ authenticate_qualify : false
+ contact              : 
+ default_expiration   : 3600
+ mailboxes            : 
+ max_contacts         : 1
+ maximum_expiration   : 7200
+ minimum_expiration   : 60
+ outbound_proxy       : 
+ qualify_2xx_only     : false
+ qualify_frequency    : 0
+ qualify_timeout      : 3.000000
+ remove_existing      : true
+ remove_unavailable   : false
+ support_path         : false
+ voicemail_extension  : 
+

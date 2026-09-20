@@ -39,8 +39,9 @@ DB-01 и ряд DB-02 срезов имеют отдельные verification. D
 | [AI-09](AI-09-PLAN.md), TOOL1–TOOL6 | Business tools/MCP и KB | AI-07; reviewed MCP profile/retrieval benchmark; без зависимости от08 |
 | [AI-10](AI-10-PLAN.md), COM1–COM4 / 10A / 10R | Price/SKU, billable switch, license+runtime flag, packaging; analytics/robots onboarding | AI-02 + DB-04 core; 10A после 06A; 10R после 08+09; I4 только native/full-pbx |
 | [DB-04](DB-04-PLAN.md), I1–I4 | Clean install matrix, backup/restore, upgrade, PBX ODBC installer | После DB-02; I4 после DB-03; analytics-only не ждёт I4 |
+| [AI-11](AI-11-PLAN.md), 11L / 11F / 11O / 11A / 11R / 11M | Load, fault, ops drills, analytics/robots UAT-pilot, DEP/DBR matrix | После evidence AI-10 + DB-04; 11A после 10A; 11R после 10R; native Asterisk — подсрез 11R |
 
-AI-01-PLAN служит индексом A/B/C, старые Waves не являются конкурирующими заданиями. AI-01…10 и DB-04 детализированы: 60 AI-задач (01…09) + 6 COM/10A/10R + 4 DB-04. Согласование границ — [PRODUCT-SLICES-CONTRACTS](PRODUCT-SLICES-CONTRACTS.md) и [ADVANCED-PRODUCT-CONTRACTS](ADVANCED-PRODUCT-CONTRACTS.md). Перед исполнением сверить upstream implementation; план не evidence выполненных зависимостей. AI-11 release/pilot ещё требует task-level plan.
+AI-01-PLAN служит индексом A/B/C, старые Waves не являются конкурирующими заданиями. AI-01…11 и DB-04 детализированы: 60 AI-задач (01…09) + 6 COM/10A/10R + 4 DB-04 + 6 AI-11. Согласование границ — [PRODUCT-SLICES-CONTRACTS](PRODUCT-SLICES-CONTRACTS.md) и [ADVANCED-PRODUCT-CONTRACTS](ADVANCED-PRODUCT-CONTRACTS.md). Перед исполнением сверить upstream implementation; план не evidence выполненных зависимостей. Task-level AI-11 записан 2026-09-20-r1; implementation только через EXECUTION.
 
 ## Последовательность и точки остановки
 
@@ -49,7 +50,7 @@ AI-01-PLAN служит индексом A/B/C, старые Waves не явля
 3. **C1 → C2 → C3 → C4**: сборка и UI. UI shell показывает readiness; не создаёт впечатления работающих звонков/аналитики. C4 закрывает AI-01 только вместе с требуемыми AI-00/DB evidence.
 4. **D1 → D2 → D3 → D4 → D5 → D6**: последовательно один schema/API writer. D3 media и D4 metering логически независимы после D2, но это не назначение параллельных агентов.
 5. После D6 — сверка AI-03/04/07 с реальными contract fixtures; назначить CAP1 и/или AN1 по gates, затем VR1 и runtime по его prerequisites. Аналитика продолжает MET→REP→INT, роботы RT/TOOL согласно готовым планам. Общие writers назначаются последовательно; релизы продуктов не ждут друг друга.
-6. Commercial/release: COM1–COM3 параллельно DB-04 I1–I3; затем 10A / 10R; I4 для native PBX. AI-11A/R — отдельный task-level plan после evidence AI-10.
+6. Commercial/release: COM1–COM3 параллельно DB-04 I1–I3; затем 10A / 10R; I4 для native PBX. [AI-11](AI-11-PLAN.md) task-level записан: 11L∥11F → 11O → 11A/11R → 11M; назначать по одному срезу после evidence AI-10.
 
 G1–G3 и незакрытые DB-02 gates выполняются отдельными assignments, не теряются в A/B/C. Код контракта без runtime-зависимости можно делать до live Asterisk; readiness фазы и выпуск от этого не становятся зелёными. Native PBX приёмка дополнительно ждёт DB-03; standalone analytics не ждёт Asterisk.
 

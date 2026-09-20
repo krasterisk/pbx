@@ -1,0 +1,101 @@
+{
+  "revision": "2026-09-20-r1",
+  "phase": "AI-11",
+  "task": "11O",
+  "productSlaClaimed": false,
+  "namedEvidence": "AI-11-11O (wraps I2/I3; not a re-claim of I2/I3 alone)",
+  "steps": [
+    "backup",
+    "restore",
+    "upgrade",
+    "schema_readiness",
+    "worker_drain",
+    "admit_traffic"
+  ],
+  "probes": [
+    "schema_version_current",
+    "ledger_sums_match",
+    "job_asset_ids_present",
+    "license_bindings_present",
+    "encryption_key_sidecar",
+    "missing_key_fail_closed",
+    "dialect_switch_refused",
+    "rollback_refused",
+    "drain_before_admit",
+    "key_rotation_rehearsal"
+  ],
+  "results": [
+    {
+      "name": "rollback_refused",
+      "pass": true
+    },
+    {
+      "name": "dialect_switch_refused",
+      "pass": true
+    },
+    {
+      "name": "drain_before_admit",
+      "pass": true
+    },
+    {
+      "name": "key_rotation_rehearsal",
+      "pass": true,
+      "detail": {
+        "previousKeyFingerprint": "a08a9701",
+        "nextKeyFingerprint": "3b7d1bba",
+        "steps": [
+          "Generate new customer-held CC_AI_KEY_SECRET sidecar",
+          "Re-encrypt provider envelopes offline with new key",
+          "Place new encryption.key beside restore pack",
+          "Verify decrypt with new key; old key no longer opens envelopes"
+        ],
+        "liveProductionRotated": false
+      }
+    },
+    {
+      "name": "backup",
+      "pass": true,
+      "detail": {
+        "schemaVersion": "0020-ai-sku-catalog.sql"
+      }
+    },
+    {
+      "name": "restore",
+      "pass": true,
+      "detail": {
+        "ledgerSum": "8"
+      }
+    },
+    {
+      "name": "missing_key_fail_closed",
+      "pass": true
+    },
+    {
+      "name": "upgrade",
+      "pass": true,
+      "detail": {
+        "schemaVersion": "0020-ai-sku-catalog.sql"
+      }
+    },
+    {
+      "name": "schema_readiness",
+      "pass": true
+    },
+    {
+      "name": "worker_drain",
+      "pass": true
+    },
+    {
+      "name": "admit_traffic",
+      "pass": true
+    }
+  ],
+  "constraints": {
+    "noLiveTenantDebit": true,
+    "noAutodial": true,
+    "noXrayUi": true,
+    "noAutomaticRollback": true,
+    "productRuntime": "not-installed",
+    "cloudWallet": "off"
+  }
+}

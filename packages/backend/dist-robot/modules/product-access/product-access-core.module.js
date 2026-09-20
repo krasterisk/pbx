@@ -17,6 +17,7 @@ const product_activation_model_1 = require("./product-activation.model");
 const local_license_document_model_1 = require("./local-license-document.model");
 const local_license_binding_model_1 = require("./local-license-binding.model");
 const product_access_service_1 = require("./product-access.service");
+const usage_models_1 = require("../ai-usage/usage.models");
 /** Policy repository without management HTTP controllers or cloud-admin tasks. */
 let ProductAccessCoreModule = class ProductAccessCoreModule {
 };
@@ -26,6 +27,7 @@ exports.ProductAccessCoreModule = ProductAccessCoreModule = __decorate([
         imports: [config_1.ConfigModule, sequelize_1.SequelizeModule.forFeature([
                 tenant_model_1.Tenant, tenant_module_model_1.TenantModule, action_log_model_1.ActionLog,
                 product_activation_model_1.ProductActivation, local_license_document_model_1.LocalLicenseDocument, local_license_binding_model_1.LocalLicenseBinding,
+                usage_models_1.AiSkuEntitlement, usage_models_1.AiTrialPolicySnapshot,
             ])],
         providers: [product_access_service_1.ProductAccessService],
         exports: [product_access_service_1.ProductAccessService],

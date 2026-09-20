@@ -25,5 +25,7 @@ describe('RT1 VoiceModelSession', () => {
     }).certified).toBe(true);
     expect(evaluateSipProfile({ transport: 'udp' }).status).toBe('draft');
     expect(evaluateSipProfile({ transport: 'tls' }).reason).toBe('sip_profile_unsupported');
+    expect(evaluateSipProfile({ transport: 'tls', certified: true }).status).toBe('draft');
+    expect(evaluateSipProfile({ transport: 'tls', srtp: true, certified: true }).status).toBe('draft');
   });
 });

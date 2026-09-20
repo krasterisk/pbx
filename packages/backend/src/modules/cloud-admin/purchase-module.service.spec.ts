@@ -90,6 +90,8 @@ describe('PurchaseModuleService', () => {
       42,
       expect.stringContaining('voice_robot'),
       'voice_robot',
+      'charge',
+      'purchase:1:voice_robot',
     );
     expect(modules.activateModule).toHaveBeenCalledWith(1, 'voice_robot');
     expect(order).toEqual(['charge', 'activateModule']);

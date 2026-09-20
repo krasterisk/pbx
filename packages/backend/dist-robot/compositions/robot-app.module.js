@@ -12,13 +12,19 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.RobotAppModule = exports.ROBOT_API_COMPONENTS = void 0;
 const common_1 = require("@nestjs/common");
 const standalone_ai_core_module_1 = require("./standalone-ai-core.module");
-/** Robot API skeleton; telephony edge and agent runtime arrive in AI-02/AI-07. */
+const recording_capture_module_1 = require("../modules/recording-capture/recording-capture.module");
+const ai_voice_module_1 = require("../modules/ai-voice/ai-voice.module");
+const ai_tool_connectivity_module_1 = require("../modules/ai-tool-connectivity/ai-tool-connectivity.module");
+const knowledge_module_1 = require("../modules/knowledge/knowledge.module");
+/** Robot API skeleton; telephony edge and agent runtime arrive in AI-07. */
 exports.ROBOT_API_COMPONENTS = Object.freeze([
     'tenant-identity', 'ai-connectivity', 'product-access-core',
-    'integration-credentials',
+    'integration-credentials', 'recording-capture', 'ai-voice', 'ai-tool-connectivity', 'knowledge',
 ]);
 let RobotHealthController = class RobotHealthController {
-    health() { return { status: 'ok', profile: 'robot-api', productRuntime: 'not-installed' }; }
+    health() {
+        return { status: 'ok', profile: 'robot-api', productRuntime: 'not-installed', usable: false };
+    }
 };
 __decorate([
     (0, common_1.Get)(),
@@ -34,7 +40,13 @@ let RobotAppModule = class RobotAppModule {
 exports.RobotAppModule = RobotAppModule;
 exports.RobotAppModule = RobotAppModule = __decorate([
     (0, common_1.Module)({
-        imports: [standalone_ai_core_module_1.StandaloneAiCoreModule.forProfile('robot-api')],
+        imports: [
+            standalone_ai_core_module_1.StandaloneAiCoreModule.forProfile('robot-api'),
+            recording_capture_module_1.RecordingCaptureModule,
+            ai_voice_module_1.AiVoiceModule,
+            ai_tool_connectivity_module_1.AiToolConnectivityModule,
+            knowledge_module_1.KnowledgeModule,
+        ],
         controllers: [RobotHealthController],
     })
 ], RobotAppModule);
