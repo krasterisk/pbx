@@ -84,9 +84,9 @@ export const AiAgentsPage = memo(() => {
             <Text variant="muted">
               {t('aiAgents.subtitle')}
             </Text>
-            <Text as={Link} to="/ai-robots" variant="muted">
-              {t('nav.aiRobotsProduct')}
-            </Text>
+            <Link to="/ai-robots">
+              <Text variant="muted">{t('nav.aiRobotsProduct')}</Text>
+            </Link>
           </VStack>
         </HStack>
         {tab === 'agents' && (

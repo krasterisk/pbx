@@ -82,7 +82,11 @@ describe('directoryApi contracts', () => {
   });
 
   async function lastCall(): Promise<{ url: string; method: string; body: unknown }> {
-    const [input, init] = fetchMock.mock.calls[fetchMock.mock.calls.length - 1] as [
+    const calls = fetchMock.mock.calls;
+    if (!calls.length) {
+      throw new Error('fetch was not called');
+    }
+    const [input, init] = calls[calls.length - 1] as [
       RequestInfo | URL,
       RequestInit | undefined,
     ];

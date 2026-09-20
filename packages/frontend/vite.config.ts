@@ -48,6 +48,10 @@ export default defineConfig({
     },
   },
   test: {
+    // Absolute base so Node/undici fetch (CI) accepts RTK relative paths.
+    env: {
+      VITE_API_URL: 'http://127.0.0.1/api',
+    },
     // Constrain discovery to src — default globs hang at RUN on Windows while
     // walking Capacitor android/ios + workspace trees (zero files executed).
     include: ['src/**/*.test.ts', 'src/**/*.test.tsx', 'src/**/*.spec.ts', 'src/**/*.spec.tsx'],

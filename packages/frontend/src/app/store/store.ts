@@ -1,4 +1,4 @@
-import { configureStore } from '@reduxjs/toolkit';
+import { configureStore, type Middleware } from '@reduxjs/toolkit';
 import { rtkApi } from '@/shared/api/rtkApi';
 import {
   authReducer,
@@ -34,6 +34,14 @@ import { conferencesPageReducer } from '@/features/conferences/model/slice/confe
 import { autodialPageReducer } from '@/features/autodial/model/slice/autodialPageSlice';
 import '@/shared/api/endpoints/cdrApi';
 
+const resetApiOnLogout: Middleware = (api) => (next) => (action) => {
+  const result = next(action);
+  if (logout.match(action) || authLogout.fulfilled.match(action)) {
+    api.dispatch(rtkApi.util.resetApiState());
+  }
+  return result;
+};
+
 export const store = configureStore({
   reducer: {
     auth: authReducer,
@@ -65,13 +73,7 @@ export const store = configureStore({
     [rtkApi.reducerPath]: rtkApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
-    getDefaultMiddleware().concat(rtkApi.middleware).concat((api) => (next) => (action) => {
-      const result = next(action);
-      if (logout.match(action) || authLogout.fulfilled.match(action)) {
-        api.dispatch(rtkApi.util.resetApiState());
-      }
-      return result;
-    }),
+    getDefaultMiddleware().concat(rtkApi.middleware).concat(resetApiOnLogout),
 });
 
 export type RootState = ReturnType<typeof store.getState>;

@@ -295,8 +295,11 @@ describe('useAgentTurn', () => {
     ]);
     vi.stubGlobal(
       'fetch',
-      vi.fn(async (url: string, init?: { method?: string }) => {
-        if (init?.method === 'POST') {
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const method = (
+          input instanceof Request ? input.method : init?.method ?? 'GET'
+        ).toUpperCase();
+        if (method === 'POST') {
           let index = 0;
           return {
             ok: true,
@@ -333,10 +336,8 @@ describe('useAgentTurn', () => {
       },
       middleware: (getDefault) => getDefault({ serializableCheck: false }).concat(rtkApi.middleware),
     });
-    store.dispatch(aiChatApi.endpoints.getAiChatThread.initiate(7));
-    await waitFor(() => {
-      expect(selectTimeline(store, 7).map((row) => row.id)).toEqual(['m1', 'p1']);
-    });
+    await store.dispatch(aiChatApi.endpoints.getAiChatThread.initiate(7)).unwrap();
+    expect(selectTimeline(store, 7).map((row) => row.id)).toEqual(['m1', 'p1']);
 
     const { result } = renderHook(() => useAgentTurn({ threadUid: 7 }), { wrapper: wrapperFor(store) });
 

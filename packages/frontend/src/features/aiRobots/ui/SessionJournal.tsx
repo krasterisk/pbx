@@ -6,7 +6,7 @@ import { useGetAiVoiceSessionsQuery, useGetAiVoiceTimelineQuery } from '../api/a
 
 export const SessionJournal = memo(() => {
   const { t } = useTranslation();
-  const { data: sessions = [] } = useGetAiVoiceSessionsQuery();
+  const { data: sessions = [] } = useGetAiVoiceSessionsQuery(undefined);
   const [selected, setSelected] = useState('');
   const { data: timeline } = useGetAiVoiceTimelineQuery(selected, { skip: !selected });
 
