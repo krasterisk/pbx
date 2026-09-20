@@ -1,0 +1,42 @@
+TAP version 13
+# Subtest: mysql: I1 clean install matrix (mysql:8.4.11)
+    # Subtest: full-pbx empty install reaches 0020-ai-sku-catalog.sql, seeds 0/A/B, refuses overwrite and wrong profile
+    ok 1 - full-pbx empty install reaches 0020-ai-sku-catalog.sql, seeds 0/A/B, refuses overwrite and wrong profile
+      ---
+      duration_ms: 32579.101409
+      type: 'test'
+      ...
+    # Subtest: analytics-api empty install reaches 0020-ai-sku-catalog.sql, seeds 0/A/B, refuses overwrite and wrong profile
+    ok 2 - analytics-api empty install reaches 0020-ai-sku-catalog.sql, seeds 0/A/B, refuses overwrite and wrong profile
+      ---
+      duration_ms: 19710.965401
+      type: 'test'
+      ...
+    # Subtest: robot-api empty install reaches 0020-ai-sku-catalog.sql, seeds 0/A/B, refuses overwrite and wrong profile
+    ok 3 - robot-api empty install reaches 0020-ai-sku-catalog.sql, seeds 0/A/B, refuses overwrite and wrong profile
+      ---
+      duration_ms: 37187.533951
+      type: 'test'
+      ...
+    # Subtest: dirty journal refuses apply
+    ok 4 - dirty journal refuses apply
+      ---
+      duration_ms: 41191.63517
+      type: 'test'
+      ...
+    1..4
+ok 1 - mysql: I1 clean install matrix (mysql:8.4.11)
+  ---
+  duration_ms: 178808.15565
+  type: 'test'
+  ...
+# {"image":"mysql:8.4.11","server":"8.4.11"}
+1..1
+# tests 5
+# suites 0
+# pass 5
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 178815.801286

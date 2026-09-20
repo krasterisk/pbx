@@ -20,6 +20,7 @@ import { LocalLicenseBinding } from './local-license-binding.model';
 import {
   verifySignedLicense, type LicenseTrust, type SignedLicenseEnvelope,
 } from './license-verifier';
+import { AiSkuEntitlement, AiTrialPolicySnapshot } from '../ai-usage/usage.models';
 
 type BoxGrant = {
   grant: { expiresAt: string; limits: Record<string, number> } | null;
@@ -35,6 +36,8 @@ export class ProductAccessService {
     @InjectModel(LocalLicenseDocument) private readonly documents: typeof LocalLicenseDocument,
     @InjectModel(LocalLicenseBinding) private readonly bindings: typeof LocalLicenseBinding,
     @InjectModel(ActionLog) private readonly actionLogs: typeof ActionLog,
+    @InjectModel(AiSkuEntitlement) private readonly entitlements: typeof AiSkuEntitlement,
+    @InjectModel(AiTrialPolicySnapshot) private readonly snapshots: typeof AiTrialPolicySnapshot,
     private readonly config: ConfigService,
     private readonly sequelize: Sequelize,
   ) {}
@@ -77,8 +80,17 @@ export class ProductAccessService {
       where: { user_uid: userUid, product }, transaction,
     }) : null;
     const enabled = activationOverride ?? !!activation?.enabled;
+    const sku = tenant ? await this.entitlements.findOne({
+      where: { tenant_uid: userUid, product }, transaction,
+    }) : null;
     const grants = mode === 'CLOUD' && tenant
-      ? await this.tenantModules.findAll({
+      ? sku
+        ? [{
+          module_code: sku.product,
+          status: sku.status as 'trial' | 'active' | 'expired',
+          expires_at: sku.trial_ends_at,
+        }]
+        : await this.tenantModules.findAll({
         where: { tenant_id: tenant.id,
           module_code: product === 'speech_analytics'
             ? [product, 'cc_ai_voice'] : [product] },
@@ -88,11 +100,26 @@ export class ProductAccessService {
     if (mode === 'BOX' && tenant) {
       local = await this.readBoxGrant(userUid, product, now, transaction);
     }
-    return resolveProductAccess({
+    const decision = resolveProductAccess({
       product, deploymentMode: mode, tenant, grants,
       activationEnabled: enabled, packageInstalled: mode !== 'OPENSOURCE', now,
       localLicense: local.grant, localLicenseReason: local.reason,
     });
+    if (sku) {
+      const snapshot = await this.snapshots.findOne({
+        where: { digest: sku.policy_digest }, transaction,
+      });
+      if (snapshot) {
+        decision.limits = {
+          concurrent_jobs: Number(snapshot.concurrent_jobs),
+          concurrent_sessions: Number(snapshot.concurrent_sessions),
+          storage_bytes: Number(snapshot.storage_bytes),
+          audio_ms: Number(snapshot.audio_ms),
+          provider_tokens: Number(snapshot.provider_tokens),
+        };
+      }
+    }
+    return decision;
   }
 
   private async readBoxGrant(

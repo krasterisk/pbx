@@ -14,7 +14,7 @@
 
 Для разработки: **Codex + существующая GSD-система документов**. Astra high — ближайший foundation/архитектура/review; Sol high — основной исполнитель последующих ограниченных задач. Обоснование и официальные источники: [DELIVERY-WORKFLOW](DELIVERY-WORKFLOW.md). Один координатор, небольшой исполняемый план следующей фазы, независимые workers/review, реальные тесты и live/eval evidence. Смена orchestration framework сейчас не даёт доказанного выигрыша.
 
-**Готовность:** roadmap охватывает все фазы. Детализированы DB-01/02 и AI-00…09 — 60 AI-задач с ownership, зависимостями и приёмкой. Измеряемые provider/SIP/MCP/KB gates выделены явно; исполнять после upstream checks. Task-level commercial/release AI-10/11 и DB-03/04 operational plans ещё впереди. Это не production readiness и не завершённая реализация продуктов.
+**Готовность:** roadmap охватывает все фазы. Детализированы DB-01/02, AI-00…10 и DB-04 — 60 AI-задач (01…09) плюс COM1–4/10A/10R и I1–I4. Измеряемые provider/SIP/MCP/KB gates выделены явно; исполнять после upstream checks. Task-level AI-11 release/pilot ещё впереди. Это не production readiness и не завершённая реализация продуктов.
 
 **Перед началом или продолжением:** прочитать [HYBRID-WORKFLOW](../../HYBRID-WORKFLOW.md) и [EXECUTION](EXECUTION.md). Режим — codex-direct, один координатор на фазу; GSD-workflow включается через явный handoff. EXECUTION хранит актуальное назначение, а ROADMAP — последовательность результатов.
 

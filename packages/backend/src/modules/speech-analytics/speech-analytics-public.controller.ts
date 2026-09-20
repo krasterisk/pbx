@@ -2,11 +2,14 @@ import {
   Body, Controller, Get, Headers, HttpCode, Param, Post, Put, Query, Req, UseGuards,
 } from '@nestjs/common';
 import { ForbiddenException } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { TenantContextGuard, type TenantContextRequest } from '../integration-credentials/tenant-context.guard';
 import { SpeechAnalyticsService, assertUuid } from './speech-analytics.service';
 
 type Authed = TenantContextRequest & { tenantContext: NonNullable<TenantContextRequest['tenantContext']> };
 
+@ApiTags('Speech Analytics Public')
+@ApiBearerAuth()
 @UseGuards(TenantContextGuard)
 @Controller('v1/speech-analytics')
 export class SpeechAnalyticsPublicController {
@@ -20,6 +23,7 @@ export class SpeechAnalyticsPublicController {
   }
 
   @Get('capabilities')
+  @ApiOperation({ summary: 'Public analysis capability envelope' })
   capabilities() {
     return this.analytics.capabilities();
   }

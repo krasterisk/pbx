@@ -36,8 +36,8 @@
 | R3-MCP | Discovery/call permissions TOOL1/2 | Pinned SDK/protocol allowlist, supported auth profile, hostile-server suite; не вся latest spec автоматически |
 | R3-KB | Portable SQL metadata, derivative index | TOOL3 benchmark lexical/exact/optional vector, corpus/hardware/capacity/ACL/delete, reviewed ADR перед implementation |
 | R3-QUALITY | Typed schema/provenance/dataset separation | Rubric/human calibration и holdout thresholds до live run; synthetic pass не точность AI |
-| R3-BUSINESS | Shadow ledger/local BYOK | Price book/trial/grace/refunds/invoice requirements до AI-10 live switch |
-| R3-DEPLOY | SaaS/self-hosted/OpenSource, две DB | DB-04 backup/restore/key custody/install/upgrade и hardware profiles до release |
+| R3-BUSINESS | Shadow ledger/local BYOK | [AI-10](AI-10-PLAN.md) COM1–COM2: price book/trial/SKU и billable switch; grace/refunds/invoice до live switch |
+| R3-DEPLOY | SaaS/self-hosted/OpenSource, две DB | [DB-04](DB-04-PLAN.md) I1–I3 + [AI-10](AI-10-PLAN.md) COM3–COM4: install/restore/upgrade, license lifecycle, packaging |
 
 Gates не мешают заранее зафиксировать схемы/ошибки/границы. Если измерение меняет интерфейс, coordinator обновляет контракт и потребителей до code changes. Исполнитель не выбирает новый стек сам и не объявляет непроверенный profile ready.
 
@@ -49,4 +49,4 @@ Gates не мешают заранее зафиксировать схемы/о�
 
 Итоговая проверка r3: Node — 21 документ, 204 относительные ссылки, 60 уникальных task headings, 9 SHA-256 в EXECUTION; exit0/errors=[]. `git diff --check -- .planning/initiatives/ai-products` — без whitespace errors, только Git LF/CRLF notices. Новые untracked планы включены в Node проверку. Runtime suites для документационного изменения не запускались; прежние PASS не присваивались новой реализации.
 
-Остаются task-level AI-10A/R (commercial lifecycle), AI-11A/R (release/pilot), DB-03/04 operational plans при их назначении. Их release gates уже заданы ROADMAP; точные финансовые migrations/operator commands следует привязать к реализованной схеме и измеренным deployment profiles. Feature-level horizon AI-01…09 теперь покрыт планами; следующий полезный code шаг — A1.
+Task-level [AI-10](AI-10-PLAN.md) (COM1–4, 10A, 10R) и [DB-04](DB-04-PLAN.md) (I1–I4) записаны 2026-09-20-r1; это design, не implementation evidence. Остаётся AI-11A/R (release/pilot). Release gates уже заданы ROADMAP; точные финансовые migrations/operator commands привязывать к реализованной схеме и измеренным deployment profiles при назначении. Feature-level horizon AI-01…10 и DB-04 покрыт планами; implementation только через EXECUTION assignment.

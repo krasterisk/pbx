@@ -1,2 +1,2 @@
 export { CheckoutSheet } from './CheckoutSheet';
-export type { CheckoutSheetProps, CheckoutStep } from './CheckoutSheet';
+export type { CheckoutSheetProps, CheckoutStep, CheckoutKind } from './CheckoutSheet';

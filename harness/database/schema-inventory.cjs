@@ -207,6 +207,7 @@ function inventory() {
     'ai_jobs', 'ai_job_stages', 'ai_provider_operations', 'ai_outbox', 'ai_job_events',
     'ai_quota_counters', 'ai_usage_reservations', 'ai_usage_events', 'ai_price_revisions',
     'ai_usage_ledger',
+    'ai_trial_policy_snapshots', 'ai_sku_revisions', 'ai_sku_offers', 'ai_sku_entitlements',
     'ai_capture_node_bindings', 'ai_capture_intents', 'ai_capture_segments', 'ai_capture_receipts',
     'sa_projects', 'sa_project_versions', 'sa_project_members', 'sa_recordings',
     'sa_analysis_runs', 'sa_transcripts', 'sa_transcript_segments', 'sa_results',

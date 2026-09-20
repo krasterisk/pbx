@@ -64,7 +64,7 @@ for (const dialect of selected.length ? [...new Set(selected)] : ['mysql', 'post
       }
     }
     const applied = await runMigrations({ config, migrations: loadMigrations(dialect) });
-    assert.equal(applied.schemaVersion, '0019-asterisk-odbc.sql');
+    assert.equal(applied.schemaVersion, '0020-ai-sku-catalog.sql');
     const exec = async (sql, params) => {
       try {
         await adapter.query(interpolate(sql, params, dialect));

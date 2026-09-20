@@ -33,6 +33,8 @@
     "test:db:unit": "node --test packages/backend/database/test/*.test.cjs",
     "test:db:schema": "node --test harness/database/schema-inventory.test.cjs",
     "test:db:contracts": "node harness/database/run-contracts.cjs",
+    "test:db:i1": "node --test harness/database/clean-install.test.cjs",
+    "test:db:i1:install": "node harness/database/run-i1-install.cjs",
     "test:db:runtime": "node harness/database/run-runtime-golden.cjs",
     "db:migrate:rollback": "npm run db:migrate:rollback -w @krasterisk/backend --"
   },

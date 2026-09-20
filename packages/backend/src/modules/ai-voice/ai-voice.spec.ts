@@ -1,6 +1,6 @@
 import {
   admitSession, assertExpectedRevision, bumpDraft, consumeTicket, createDeployment,
-  emptyVoiceStores, enableDeployment, ensureDraft, issueTicket, publishVersion,
+  drainOnExpiry, emptyVoiceStores, enableDeployment, ensureDraft, issueTicket, publishVersion,
   type AgentSnapshot,
 } from './voice-engine';
 import { acceptFinalStt, bargeIn, beginSpeaking, ignoreLateCallback, initialCascade, serialPlayback } from './turn-coordinator';
@@ -128,6 +128,28 @@ describe('VR4 tools', () => {
     expect(admitSession({
       stores, sessions, deploymentId: deployment.id, ingressKind: 'native', ingressKey: 'ch-1',
     }).id).toBe(firstSession.id);
+  });
+});
+
+describe('10R drain-on-expiry', () => {
+  it('keeps in-flight sessions and refuses new admissions after drain', () => {
+    const stores = emptyVoiceStores();
+    const published = publishVersion({
+      stores, agent: agent(), userId: 7, operationKey: 'drain', llmRevisionId: 'llm',
+    });
+    const deployment = createDeployment({
+      stores, tenantUid: 8, agentUid: 9, kind: 'internal', versionId: published.id,
+    });
+    enableDeployment(stores, deployment.id, true);
+    const sessions = new Map();
+    const live = admitSession({
+      stores, sessions, deploymentId: deployment.id, ingressKind: 'native', ingressKey: 'live',
+    });
+    expect(drainOnExpiry(stores, 8, true)).toMatchObject({ admissionsStopped: true });
+    expect(() => admitSession({
+      stores, sessions, deploymentId: deployment.id, ingressKind: 'native', ingressKey: 'new',
+    })).toThrow(/admissions_stopped/);
+    expect(sessions.get(live.id)?.ingressKey).toBe('live');
   });
 });
 

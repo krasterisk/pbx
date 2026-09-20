@@ -8,7 +8,9 @@ import { ProductResourceAuthorization } from '../integration-credentials/product
 import type { TenantContext } from '../integration-credentials/tenant-context';
 import { DomainError } from './voice-engine';
 import { AiRobotDeployment } from './ai-voice.models';
-import { assertSipReady, hashInvocation, invocationReplay, newSipId } from './realtime-session';
+import {
+  assertSipReady, evaluateSipProfile, hashInvocation, invocationReplay, newSipId,
+} from './realtime-session';
 import { AiSipConnection, AiVoiceInvocation } from './sip.models';
 
 @Injectable()
@@ -35,11 +37,13 @@ export class AiSipService {
     try {
       const access = await this.products.decide(context.tenantUid, 'ai_voice_robots');
       if (!access.allowed) throw new DomainError('entitlement', 403);
-      return this.connections.create({
-        id: newSipId(), tenant_uid: context.tenantUid, name: body.name, status: 'draft',
+      const profile = evaluateSipProfile({ transport: body.transport });
+      const row = await this.connections.create({
+        id: newSipId(), tenant_uid: context.tenantUid, name: body.name, status: profile.status,
         transport: body.transport, auth_kind: 'digest', draft_revision: 1, secret_once_shown: false,
         created_at: new Date(), updated_at: new Date(),
       });
+      return { ...row.toJSON(), reason: profile.reason, ready: profile.ready };
     } catch (error) { this.mapError(error); }
   }
 

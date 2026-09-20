@@ -213,7 +213,13 @@ export function admitSession(input: {
     row.ingressKind === input.ingressKind && row.ingressKey === input.ingressKey);
   if (existing) return { id: existing.id, replay: true };
   const deployment = input.stores.deployments.get(input.deploymentId);
-  if (!deployment || deployment.status !== 'ready' || !deployment.activeVersionId) {
+  if (!deployment || !deployment.activeVersionId) {
+    throw new DomainError('deployment_not_ready', 409);
+  }
+  if (deployment.status === 'draining' || deployment.status === 'stopped') {
+    throw new DomainError('admissions_stopped', 409);
+  }
+  if (deployment.status !== 'ready') {
     throw new DomainError('deployment_not_ready', 409);
   }
   const id = randomUUID();
@@ -222,4 +228,22 @@ export function admitSession(input: {
     deploymentId: deployment.id, versionId: deployment.activeVersionId,
   });
   return { id, replay: false };
+}
+
+export function drainOnExpiry(
+  stores: VoiceStores,
+  tenantUid: number,
+  expired: boolean,
+): { admissionsStopped: boolean; drained: string[] } {
+  const drained: string[] = [];
+  if (!expired) return { admissionsStopped: false, drained };
+  for (const row of stores.deployments.values()) {
+    if (row.tenantUid !== tenantUid) continue;
+    if (row.status === 'ready') {
+      row.status = 'draining';
+      row.revision += 1;
+      drained.push(row.id);
+    }
+  }
+  return { admissionsStopped: true, drained };
 }

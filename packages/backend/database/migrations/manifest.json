@@ -79,6 +79,10 @@
         {
           "id": "0019-asterisk-odbc.sql",
           "artifact": "0019-asterisk-odbc.sql"
+        },
+        {
+          "id": "0020-ai-sku-catalog.sql",
+          "artifact": "0020-ai-sku-catalog.sql"
         }
       ],
       "profiles": {
@@ -146,6 +150,10 @@
           {
             "id": "0018-ai-tools.sql",
             "artifact": "0018-ai-tools.sql"
+          },
+          {
+            "id": "0020-ai-sku-catalog.sql",
+            "artifact": "0020-ai-sku-catalog.sql"
           }
         ],
         "robot-api": [
@@ -212,6 +220,10 @@
           {
             "id": "0018-ai-tools.sql",
             "artifact": "0018-ai-tools.sql"
+          },
+          {
+            "id": "0020-ai-sku-catalog.sql",
+            "artifact": "0020-ai-sku-catalog.sql"
           }
         ]
       }
@@ -294,6 +306,10 @@
         {
           "id": "0019-asterisk-odbc.sql",
           "artifact": "postgres/0019-asterisk-odbc.sql"
+        },
+        {
+          "id": "0020-ai-sku-catalog.sql",
+          "artifact": "postgres/0020-ai-sku-catalog.sql"
         }
       ],
       "profiles": {
@@ -361,6 +377,10 @@
           {
             "id": "0018-ai-tools.sql",
             "artifact": "postgres/0018-ai-tools.sql"
+          },
+          {
+            "id": "0020-ai-sku-catalog.sql",
+            "artifact": "postgres/0020-ai-sku-catalog.sql"
           }
         ],
         "robot-api": [
@@ -427,6 +447,10 @@
           {
             "id": "0018-ai-tools.sql",
             "artifact": "postgres/0018-ai-tools.sql"
+          },
+          {
+            "id": "0020-ai-sku-catalog.sql",
+            "artifact": "postgres/0020-ai-sku-catalog.sql"
           }
         ]
       }

@@ -54,6 +54,30 @@ export function assertSipReady(input: { kind: string; appliedRevision: boolean }
   }
 }
 
+export const SUPPORTED_SIP_TRANSPORTS = ['udp', 'tcp'] as const;
+
+export function evaluateSipProfile(input: {
+  transport: string;
+  srtp?: boolean;
+  certified?: boolean;
+  nativePbx?: boolean;
+  i4Evidence?: boolean;
+}): { status: 'draft' | 'disabled'; reason: string | null; ready: false } {
+  if (input.nativePbx && !input.i4Evidence) {
+    return { status: 'disabled', reason: 'native_pbx_gated', ready: false };
+  }
+  if (input.srtp && !input.certified) {
+    return { status: 'disabled', reason: 'sip_profile_unsupported', ready: false };
+  }
+  if (input.transport === 'tls' && !input.certified) {
+    return { status: 'disabled', reason: 'sip_profile_unsupported', ready: false };
+  }
+  if (!(SUPPORTED_SIP_TRANSPORTS as readonly string[]).includes(input.transport)) {
+    return { status: 'disabled', reason: 'sip_profile_unsupported', ready: false };
+  }
+  return { status: 'draft', reason: null, ready: false };
+}
+
 export function invocationReplay(existingHash: string | null, requestHash: string): 'create' | 'replay' {
   if (!existingHash) return 'create';
   if (existingHash !== requestHash) throw new DomainError('invocation_conflict', 409);

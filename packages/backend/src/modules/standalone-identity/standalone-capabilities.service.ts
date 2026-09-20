@@ -1,5 +1,8 @@
 import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { ProductAccessService } from '../product-access/product-access.service';
+import {
+  entitledFromDecision, offlineHeartbeatPolicy, readProcessInstallFlags, resolveProductRuntime,
+} from '../product-access/product-runtime';
 import type { TenantContext } from '../integration-credentials/tenant-context';
 
 const PROFILE_PRODUCT = {
@@ -7,7 +10,7 @@ const PROFILE_PRODUCT = {
   'robot-api': 'ai_voice_robots',
 } as const;
 
-/** Tenant identity plus product policy for a standalone composition. Runtime is not implied. */
+/** Tenant identity plus computed productRuntime. Default env stays not-installed. */
 @Injectable()
 export class StandaloneCapabilitiesService {
   constructor(private readonly products: ProductAccessService) {}
@@ -18,14 +21,20 @@ export class StandaloneCapabilitiesService {
       throw new ServiceUnavailableException({ code: 'profile_mismatch' });
     }
     const product = PROFILE_PRODUCT[profile];
+    offlineHeartbeatPolicy();
     const entitlement = await this.products.decide(context.tenantUid, product, now);
+    const flags = readProcessInstallFlags();
+    const { entitled, expired } = entitledFromDecision(entitlement);
+    const runtime = resolveProductRuntime({
+      profile, ...flags, entitled, expired, allowed: entitlement.allowed,
+    });
     return {
       tenantUid: context.tenantUid,
       principalKind: context.principalKind,
       principalId: context.principalId,
       profile,
-      productRuntime: 'not-installed' as const,
-      usable: false,
+      productRuntime: runtime.productRuntime,
+      usable: runtime.usable,
       entitlement: {
         product: entitlement.product,
         allowed: entitlement.allowed,

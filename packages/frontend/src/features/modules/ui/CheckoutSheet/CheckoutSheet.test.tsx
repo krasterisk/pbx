@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { CheckoutSheet } from './CheckoutSheet';
 
 const purchaseModule = vi.fn();
+const purchaseAiSku = vi.fn();
 const unwrap = vi.fn();
 
 vi.mock('react-i18next', () => ({
@@ -30,17 +31,25 @@ vi.mock('@/shared/api/endpoints/cloudAdminApi', () => ({
     },
     { isLoading: false },
   ],
+  usePurchaseAiSkuMutation: () => [
+    (...args: unknown[]) => {
+      purchaseAiSku(...args);
+      return { unwrap };
+    },
+    { isLoading: false },
+  ],
 }));
 
-function renderSheet(open = true) {
+function renderSheet(open = true, extra: { checkoutKind?: 'hub-module' | 'ai-sku'; moduleCode?: string } = {}) {
   return render(
     <MemoryRouter>
       <CheckoutSheet
         open={open}
         onOpenChange={vi.fn()}
-        moduleCode="ai"
+        moduleCode={extra.moduleCode ?? 'ai'}
         moduleName="AI"
         priceRub={2500}
+        checkoutKind={extra.checkoutKind}
       />
     </MemoryRouter>,
   );
@@ -81,5 +90,15 @@ describe('CheckoutSheet (005-B)', () => {
       expect(screen.getByTestId('checkout-error')).toBeInTheDocument();
     });
     expect(screen.getByTestId('checkout-deposit-hint')).toBeInTheDocument();
+  });
+
+  it('purchases a published AI SKU instead of the Hub module offer', async () => {
+    renderSheet(true, { checkoutKind: 'ai-sku', moduleCode: 'speech_analytics' });
+    fireEvent.click(screen.getByTestId('checkout-continue'));
+    fireEvent.click(screen.getByTestId('checkout-confirm'));
+    await waitFor(() => {
+      expect(purchaseAiSku).toHaveBeenCalledWith({ skuCode: 'speech_analytics' });
+    });
+    expect(purchaseModule).not.toHaveBeenCalled();
   });
 });

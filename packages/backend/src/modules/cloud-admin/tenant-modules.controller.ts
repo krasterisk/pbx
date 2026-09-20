@@ -134,14 +134,14 @@ export class MarketplaceController {
   @ApiOperation({ summary: 'Enable Hub module for current tenant' })
   async enableHubModule(@Req() req: any, @Param('code') code: string) {
     const tenantId = this.requireTenantAdmin(req);
-    return this.modulesService.setTenantHubModuleStatus(tenantId, code, 'active');
+    return this.modulesService.setTenantHubModuleStatus(tenantId, code, 'active', req.user.sub);
   }
 
   @Post('hub-modules/:code/disable')
   @ApiOperation({ summary: 'Disable Hub module for current tenant' })
   async disableHubModule(@Req() req: any, @Param('code') code: string) {
     const tenantId = this.requireTenantAdmin(req);
-    return this.modulesService.setTenantHubModuleStatus(tenantId, code, 'inactive');
+    return this.modulesService.setTenantHubModuleStatus(tenantId, code, 'inactive', req.user.sub);
   }
 
   private requireTenantAdmin(req: any): number {

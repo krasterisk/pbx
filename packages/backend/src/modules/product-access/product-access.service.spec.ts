@@ -30,6 +30,8 @@ function fixture(mode: 'BOX' | 'CLOUD' | 'OPENSOURCE' = 'BOX') {
     destroy: jest.fn().mockResolvedValue(0), bulkCreate: jest.fn().mockResolvedValue([]),
   };
   const actionLogs = { create: jest.fn().mockResolvedValue({}) };
+  const entitlements = { findOne: jest.fn().mockResolvedValue(null) };
+  const snapshots = { findOne: jest.fn().mockResolvedValue(null) };
   const config = { get: jest.fn((name: string, fallback?: string) => ({
     DEPLOYMENT_MODE: mode, AI_LICENSE_ISSUER: 'test-issuer',
     AI_LICENSE_INSTALLATION_ID: 'installation-1',
@@ -39,9 +41,10 @@ function fixture(mode: 'BOX' | 'CLOUD' | 'OPENSOURCE' = 'BOX') {
   const sequelize = { transaction: jest.fn(async (callback) => callback(transaction)) };
   const service = new ProductAccessService(
     tenants as any, tenantModules as any, activations as any, documents as any,
-    bindings as any, actionLogs as any, config as any, sequelize as any,
+    bindings as any, actionLogs as any, entitlements as any, snapshots as any,
+    config as any, sequelize as any,
   );
-  return { service, signed, tenantModules, activations, documents, bindings, actionLogs, sequelize };
+  return { service, signed, tenantModules, activations, documents, bindings, actionLogs, entitlements, snapshots, sequelize, config };
 }
 
 describe('ProductAccessService', () => {
@@ -144,5 +147,59 @@ describe('ProductAccessService', () => {
     expect(f.activations.create).not.toHaveBeenCalled();
     expect(await f.service.setActivation(0, 'speech_analytics', false, 77, now))
       .toEqual({ product: 'speech_analytics', enabled: false, revision: 0 });
+  });
+
+  it('denies processing when a SKU grant exists but activation is still off', async () => {
+    const f = fixture('CLOUD');
+    f.entitlements.findOne.mockResolvedValue({
+      product: 'speech_analytics', status: 'trial',
+      trial_ends_at: new Date('2026-10-01T00:00:00.000Z'),
+      policy_digest: 'dd'.repeat(32),
+    });
+    f.snapshots.findOne.mockResolvedValue({
+      concurrent_jobs: '2', concurrent_sessions: '1', storage_bytes: '100',
+      audio_ms: '10', provider_tokens: '5',
+    });
+    expect(await f.service.decide(0, 'speech_analytics', now)).toMatchObject({
+      allowed: false, reason: 'product_disabled',
+      limits: { concurrent_jobs: 2, audio_ms: 10 },
+    });
+  });
+
+  it('renews by replacing bindings and accepts a rotated signing key', async () => {
+    const f = fixture();
+    const first = await f.service.importLicense(0, f.signed(), 77, false, now);
+    expect(first.unchanged).toBe(false);
+    f.documents.findOne.mockResolvedValue({
+      uid: 'doc-1', user_uid: 0, license_id: first.licenseId, revision: 1,
+      digest_sha256: first.digest, max_observed_at: now,
+    });
+    f.bindings.findAll.mockResolvedValue([{
+      user_uid: 0, product: 'speech_analytics', document_uid: 'doc-1', revision: 1,
+    }]);
+    const renewed = await f.service.importLicense(0, f.signed({ revision: 2 }), 77, true, now);
+    expect(renewed.revision).toBe(2);
+    expect(renewed.unchanged).toBe(false);
+    expect(f.bindings.destroy).toHaveBeenCalled();
+
+    const rotated = fixture();
+    const keys = generateKeyPairSync('ed25519');
+    const pem = keys.publicKey.export({ type: 'spki', format: 'pem' }).toString();
+    rotated.config.get.mockImplementation((name: string, fallback?: string) => ({
+      DEPLOYMENT_MODE: 'BOX', AI_LICENSE_ISSUER: 'test-issuer',
+      AI_LICENSE_INSTALLATION_ID: 'installation-1',
+      AI_LICENSE_PUBLIC_KEYS_JSON: JSON.stringify({ 'key-1': pem, 'key-2': pem }),
+    })[name] ?? fallback);
+    const bytes = Buffer.from(canonicalJson({
+      version: 1, licenseId: '00000000-0000-4000-8000-000000000001',
+      issuer: 'test-issuer', keyId: 'key-2', installationId: 'installation-1',
+      tenantUid: 0, revision: 1,
+      notBefore: '2026-01-01T00:00:00.000Z', expiresAt: '2030-01-01T00:00:00.000Z',
+      graceSeconds: 0, products: [{ code: 'speech_analytics', limits: { jobs_per_month: 100 } }],
+    }));
+    await expect(rotated.service.importLicense(0, {
+      payload: bytes.toString('base64url'),
+      signature: sign(null, bytes, keys.privateKey).toString('base64url'),
+    }, 77, false, now)).resolves.toMatchObject({ revision: 1, unchanged: false });
   });
 });

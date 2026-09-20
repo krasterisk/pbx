@@ -7,6 +7,13 @@ export const D4_USAGE_TABLES = [
   'ai_usage_ledger',
 ] as const;
 
+export const COM1_SKU_TABLES = [
+  'ai_trial_policy_snapshots',
+  'ai_sku_revisions',
+  'ai_sku_offers',
+  'ai_sku_entitlements',
+] as const;
+
 export const D1_JOB_ASSET_TABLES = [
   'ai_provider_revisions',
   'ai_media_assets',

@@ -15,10 +15,23 @@ describe('StandaloneCapabilitiesService', () => {
   const service = new StandaloneCapabilitiesService(products as any);
   const previousProfile = process.env.DB_SCHEMA_PROFILE;
 
+  const previousSchema = process.env.AI_SCHEMA_READY;
+  const previousWorkers = process.env.AI_WORKERS_CONFIGURED;
+  const previousHeartbeat = process.env.AI_LICENSE_HEARTBEAT;
+  const previousLicenseProfile = process.env.AI_LICENSE_PROFILE;
+
   afterEach(() => {
     jest.clearAllMocks();
     if (previousProfile === undefined) delete process.env.DB_SCHEMA_PROFILE;
     else process.env.DB_SCHEMA_PROFILE = previousProfile;
+    if (previousSchema === undefined) delete process.env.AI_SCHEMA_READY;
+    else process.env.AI_SCHEMA_READY = previousSchema;
+    if (previousWorkers === undefined) delete process.env.AI_WORKERS_CONFIGURED;
+    else process.env.AI_WORKERS_CONFIGURED = previousWorkers;
+    if (previousHeartbeat === undefined) delete process.env.AI_LICENSE_HEARTBEAT;
+    else process.env.AI_LICENSE_HEARTBEAT = previousHeartbeat;
+    if (previousLicenseProfile === undefined) delete process.env.AI_LICENSE_PROFILE;
+    else process.env.AI_LICENSE_PROFILE = previousLicenseProfile;
   });
 
   it('returns this composition product policy without claiming a runtime', async () => {
@@ -45,5 +58,18 @@ describe('StandaloneCapabilitiesService', () => {
     delete process.env.DB_SCHEMA_PROFILE;
     await expect(service.forContext(context)).rejects.toBeInstanceOf(ServiceUnavailableException);
     expect(products.decide).not.toHaveBeenCalled();
+  });
+
+  it('reports entitled-not-installed until schema and workers are ready', async () => {
+    process.env.DB_SCHEMA_PROFILE = 'analytics-api';
+    products.decide.mockResolvedValue({ ...entitlement, allowed: true, reason: null });
+    await expect(service.forContext(context)).resolves.toMatchObject({
+      productRuntime: 'entitled-not-installed', usable: false,
+    });
+    process.env.AI_SCHEMA_READY = '1';
+    process.env.AI_WORKERS_CONFIGURED = '1';
+    await expect(service.forContext(context)).resolves.toMatchObject({
+      productRuntime: 'installed', usable: true,
+    });
   });
 });

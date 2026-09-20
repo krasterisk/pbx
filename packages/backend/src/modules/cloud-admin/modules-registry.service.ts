@@ -1,5 +1,5 @@
 import {
-  Injectable, Logger, OnApplicationBootstrap, BadRequestException, NotFoundException, ConflictException,
+  Injectable, Logger, OnApplicationBootstrap, BadRequestException, NotFoundException, ForbiddenException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { ConfigService } from '@nestjs/config';
@@ -259,6 +259,22 @@ export class ModulesRegistryService implements OnApplicationBootstrap {
     const tenantRows = tenantId
       ? await this.tenantModuleModel.findAll({ where: { tenant_id: tenantId } })
       : [];
+    const tenant = tenantId
+      ? await this.tenantModel.findByPk(tenantId, { attributes: ['vpbx_user_uid'] })
+      : null;
+    const aiStatus = new Map<string, LicenseStatus>();
+    if (tenant && Number.isSafeInteger(tenant.vpbx_user_uid) && tenant.vpbx_user_uid >= 0) {
+      for (const code of AI_PRODUCT_MODULE_CODES) {
+        try {
+          const decision = await this.productAccess.decide(tenant.vpbx_user_uid, code);
+          aiStatus.set(code, decision.allowed
+            ? 'active'
+            : decision.reason === 'product_disabled' ? 'disabled' : 'locked');
+        } catch {
+          aiStatus.set(code, 'locked');
+        }
+      }
+    }
 
     return hubList.map((hub) => {
       const pages = ((hub as any).pages ?? []) as HubModulePage[];
@@ -268,7 +284,9 @@ export class ModulesRegistryService implements OnApplicationBootstrap {
         kind: hub.kind,
         sort_order: hub.sort_order,
         requires_cloud: !!hub.requires_cloud,
-        licenseStatus: this.computeLicenseStatus(
+        licenseStatus: isAiProductCode(hub.code)
+          ? (aiStatus.get(hub.code) ?? 'locked')
+          : this.computeLicenseStatus(
           { code: hub.code, kind: hub.kind, requires_cloud: !!hub.requires_cloud },
           tenantRows,
           mode,
@@ -362,9 +380,16 @@ export class ModulesRegistryService implements OnApplicationBootstrap {
     tenantId: number,
     hubCode: string,
     status: 'active' | 'inactive',
-  ): Promise<TenantModule> {
+    actorUserId = 0,
+  ): Promise<TenantModule | { product: string; enabled: boolean; revision: number }> {
     if (isAiProductCode(hubCode)) {
-      throw new ConflictException({ code: 'product_configuration_pending' });
+      const tenant = await this.tenantModel.findByPk(tenantId, { attributes: ['vpbx_user_uid'] });
+      if (!tenant || !Number.isSafeInteger(tenant.vpbx_user_uid) || tenant.vpbx_user_uid < 0) {
+        throw new ForbiddenException({ code: 'tenant_not_found' });
+      }
+      return this.productAccess.setActivation(
+        tenant.vpbx_user_uid, hubCode, status === 'active', actorUserId,
+      );
     }
     const hub = await this.hubModuleModel.findOne({ where: { code: hubCode } });
     if (!hub) {

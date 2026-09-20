@@ -51,6 +51,17 @@ export interface IPlatformHubModule {
   pages?: IPlatformHubPage[];
 }
 
+export interface IAiSkuOffer {
+  skuCode: string;
+  product: 'speech_analytics' | 'ai_voice_robots';
+  status: 'published';
+  revision: number;
+  priceMonthlyMinor: number;
+  currency: string | null;
+  trialDays: number;
+  moneyPolicy: 'shadow' | 'local_byok' | 'cloud_wallet';
+}
+
 export const cloudAdminApi = rtkApi.injectEndpoints({
   overrideExisting: import.meta.hot != null,
   endpoints: (builder) => ({
@@ -177,6 +188,27 @@ export const cloudAdminApi = rtkApi.injectEndpoints({
     }>, void>({
       query: () => '/marketplace/ai-products/status',
       providesTags: [{ type: 'Tenants', id: 'AI-PRODUCT-STATUS' }],
+    }),
+
+    getAiSkuCatalog: builder.query<IAiSkuOffer[], void>({
+      query: () => '/marketplace/ai-products/skus',
+      providesTags: [{ type: 'Tenants', id: 'AI-SKU-CATALOG' }],
+    }),
+
+    purchaseAiSku: builder.mutation<
+      { skuCode: string; product: string; amountRub: number; entitled: boolean; enabled: boolean },
+      { skuCode: string }
+    >({
+      query: ({ skuCode }) => ({
+        url: `/marketplace/ai-products/skus/${skuCode}/purchase`,
+        method: 'POST',
+      }),
+      invalidatesTags: [
+        { type: 'Tenants', id: 'HUB-CATALOG' },
+        { type: 'Tenants', id: 'MY-MODULES' },
+        { type: 'Tenants', id: 'AI-PRODUCT-STATUS' },
+        { type: 'Tenants', id: 'AI-SKU-CATALOG' },
+      ],
     }),
 
     /** Alias for Hub Active section - same payload as getHubCatalog. */
@@ -393,6 +425,8 @@ export const {
   useGetMyModulesQuery,
   useGetHubCatalogQuery,
   useGetAiProductsStatusQuery,
+  useGetAiSkuCatalogQuery,
+  usePurchaseAiSkuMutation,
   useGetMyHubModulesQuery,
   useEnableHubModuleMutation,
   useDisableHubModuleMutation,

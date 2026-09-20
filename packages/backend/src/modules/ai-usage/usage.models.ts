@@ -78,3 +78,54 @@ export class AiUsageLedger extends Model {
   @Column(DataType.STRING(36)) declare price_revision_id: string | null;
   @AllowNull(false) @Column(DataType.DATE) declare created_at: Date;
 }
+
+@Table({ tableName: 'ai_trial_policy_snapshots', timestamps: false })
+export class AiTrialPolicySnapshot extends Model {
+  @PrimaryKey @AllowNull(false) @Column(DataType.STRING(36)) declare id: string;
+  @AllowNull(false) @Column(DataType.CHAR(64)) declare digest: string;
+  @AllowNull(false) @Column(DataType.BIGINT) declare concurrent_jobs: string;
+  @AllowNull(false) @Column(DataType.BIGINT) declare concurrent_sessions: string;
+  @AllowNull(false) @Column(DataType.BIGINT) declare storage_bytes: string;
+  @AllowNull(false) @Column(DataType.BIGINT) declare audio_ms: string;
+  @AllowNull(false) @Column(DataType.BIGINT) declare provider_tokens: string;
+  @AllowNull(false) @Column(DataType.TEXT) declare payload_json: string;
+  @AllowNull(false) @Column(DataType.DATE) declare created_at: Date;
+}
+
+@Table({ tableName: 'ai_sku_revisions', timestamps: false })
+export class AiSkuRevision extends Model {
+  @PrimaryKey @AllowNull(false) @Column(DataType.STRING(36)) declare id: string;
+  @AllowNull(false) @Column(DataType.INTEGER) declare owner_tenant_uid: number;
+  @AllowNull(false) @Column(DataType.STRING(64)) declare sku_code: string;
+  @AllowNull(false) @Column(DataType.INTEGER) declare revision: number;
+  @AllowNull(false) @Column(DataType.STRING(64)) declare product: string;
+  @AllowNull(false) @Column(DataType.STRING(32)) declare money_policy: string;
+  @AllowNull(false) @Column(DataType.BIGINT) declare price_monthly_minor: string;
+  @Column(DataType.STRING(8)) declare currency: string | null;
+  @AllowNull(false) @Column(DataType.INTEGER) declare trial_days: number;
+  @AllowNull(false) @Column(DataType.STRING(36)) declare policy_snapshot_id: string;
+  @Column(DataType.STRING(36)) declare usage_price_revision_id: string | null;
+  @AllowNull(false) @Column(DataType.CHAR(64)) declare config_digest: string;
+  @AllowNull(false) @Column(DataType.DATE) declare created_at: Date;
+}
+
+@Table({ tableName: 'ai_sku_offers', timestamps: false })
+export class AiSkuOffer extends Model {
+  @PrimaryKey @AllowNull(false) @Column(DataType.INTEGER) declare owner_tenant_uid: number;
+  @PrimaryKey @AllowNull(false) @Column(DataType.STRING(64)) declare sku_code: string;
+  @AllowNull(false) @Column(DataType.STRING(64)) declare product: string;
+  @AllowNull(false) @Column(DataType.STRING(16)) declare status: string;
+  @AllowNull(false) @Column(DataType.STRING(36)) declare current_revision_id: string;
+  @AllowNull(false) @Column(DataType.DATE) declare updated_at: Date;
+}
+
+@Table({ tableName: 'ai_sku_entitlements', timestamps: false })
+export class AiSkuEntitlement extends Model {
+  @PrimaryKey @AllowNull(false) @Column({ type: DataType.INTEGER, field: 'vpbx_user_uid' }) declare tenant_uid: number;
+  @PrimaryKey @AllowNull(false) @Column(DataType.STRING(64)) declare product: string;
+  @AllowNull(false) @Column(DataType.STRING(36)) declare sku_revision_id: string;
+  @AllowNull(false) @Column(DataType.STRING(16)) declare status: string;
+  @Column(DataType.DATE) declare trial_ends_at: Date | null;
+  @AllowNull(false) @Column(DataType.CHAR(64)) declare policy_digest: string;
+  @AllowNull(false) @Column(DataType.DATE) declare purchased_at: Date;
+}

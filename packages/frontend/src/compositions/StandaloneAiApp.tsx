@@ -32,13 +32,48 @@ const copy = {
   },
 } as const;
 
+const onboarding = {
+  'analytics-api': [
+    'Проект',
+    'Ключ интеграции',
+    'Загрузка образца',
+    'Результат анализа',
+  ],
+  'robot-api': [
+    'Провайдер',
+    'Промпт',
+    'Тестовый звонок',
+    'SIP-профиль',
+    'Публикация',
+  ],
+} as const;
+
 function entitlementText(capabilities: Capabilities | null): string {
   if (!capabilities) return 'Нет данных';
+  if (capabilities.productRuntime === 'expired'
+    || capabilities.entitlement.reason === 'license_expired'
+    || capabilities.entitlement.reason === 'entitlement_expired') {
+    return 'Срок лицензии истёк';
+  }
   if (capabilities.entitlement.allowed && capabilities.usable) return 'Доступен';
+  if (capabilities.productRuntime === 'entitled-not-installed') {
+    return 'Лицензия есть, установка не завершена';
+  }
+  if (capabilities.productRuntime === 'installed' && !capabilities.usable) {
+    return 'Установлен, продукт выключен';
+  }
   if (capabilities.entitlement.reason === 'license_invalid') return 'Нет лицензии';
   if (capabilities.entitlement.reason === 'package_missing') return 'Пакет не установлен';
   if (capabilities.productRuntime === 'not-installed') return 'Runtime не установлен';
   return capabilities.entitlement.reason ?? 'Недоступен';
+}
+
+function runtimeLabel(runtime: string): string {
+  if (runtime === 'installed') return 'Установлен';
+  if (runtime === 'entitled-not-installed') return 'Лицензия есть, runtime не установлен';
+  if (runtime === 'expired') return 'Срок лицензии истёк';
+  if (runtime === 'community-core') return 'Community';
+  return 'Не установлен';
 }
 
 export function StandaloneAiApp({ product }: { product: Product }) {
@@ -118,8 +153,7 @@ export function StandaloneAiApp({ product }: { product: Product }) {
   const statusText = connection === 'checking' ? 'Проверка подключения…'
     : connection === 'online' ? 'API подключён'
       : connection === 'wrong-profile' ? 'Подключён API другого продукта' : 'API недоступен';
-  const runtimeText = connection !== 'online' ? 'Нет данных'
-    : runtime === 'not-installed' ? 'Не установлен' : 'Подключён';
+  const runtimeText = connection !== 'online' ? 'Нет данных' : runtimeLabel(runtime);
 
   return (
     <VStack className={cls.shell} align="stretch">
@@ -152,7 +186,7 @@ export function StandaloneAiApp({ product }: { product: Product }) {
               <Text>API</Text><Text role="status" className={connection === 'online' ? cls.good : cls.needsAttention}>{statusText}</Text>
             </HStack>
             <HStack className={cls.statusRow} justify="between" gap="8">
-              <Text>{configuration.readiness}</Text><Text className={runtimeText === 'Подключён' ? cls.good : cls.needsAttention}>{runtimeText}</Text>
+              <Text>{configuration.readiness}</Text><Text className={runtimeText === 'Установлен' ? cls.good : cls.needsAttention}>{runtimeText}</Text>
             </HStack>
             <HStack className={cls.statusRow} justify="between" gap="8">
               <Text>Доступ</Text>
@@ -176,6 +210,14 @@ export function StandaloneAiApp({ product }: { product: Product }) {
               <Text className={cls.noticeInline}>
                 Токен хранится только в этой вкладке и не записывается в localStorage.
               </Text>
+              <VStack align="stretch" gap="8">
+                <Text variant="h2">Первый запуск</Text>
+                <ol className={cls.onboarding}>
+                  {onboarding[product].map((step) => (
+                    <li key={step}>{step}</li>
+                  ))}
+                </ol>
+              </VStack>
             </VStack>
           ) : (
             <form className={cls.panel} onSubmit={(event) => void signIn(event)}>

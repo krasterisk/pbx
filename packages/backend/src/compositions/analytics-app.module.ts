@@ -16,7 +16,9 @@ export const ANALYTICS_API_COMPONENTS = Object.freeze([
 @Controller('health')
 class AnalyticsHealthController {
   @Get()
-  health() { return { status: 'ok', profile: 'analytics-api', productRuntime: 'not-installed' }; }
+  health() {
+    return { status: 'ok', profile: 'analytics-api', productRuntime: 'not-installed', usable: false };
+  }
 }
 
 @Module({

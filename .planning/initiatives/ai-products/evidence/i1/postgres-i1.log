@@ -1,0 +1,42 @@
+TAP version 13
+# Subtest: postgres: I1 clean install matrix (postgres:17.11-bookworm)
+    # Subtest: full-pbx empty install reaches 0020-ai-sku-catalog.sql, seeds 0/A/B, refuses overwrite and wrong profile
+    ok 1 - full-pbx empty install reaches 0020-ai-sku-catalog.sql, seeds 0/A/B, refuses overwrite and wrong profile
+      ---
+      duration_ms: 1470.967786
+      type: 'test'
+      ...
+    # Subtest: analytics-api empty install reaches 0020-ai-sku-catalog.sql, seeds 0/A/B, refuses overwrite and wrong profile
+    ok 2 - analytics-api empty install reaches 0020-ai-sku-catalog.sql, seeds 0/A/B, refuses overwrite and wrong profile
+      ---
+      duration_ms: 1046.534806
+      type: 'test'
+      ...
+    # Subtest: robot-api empty install reaches 0020-ai-sku-catalog.sql, seeds 0/A/B, refuses overwrite and wrong profile
+    ok 3 - robot-api empty install reaches 0020-ai-sku-catalog.sql, seeds 0/A/B, refuses overwrite and wrong profile
+      ---
+      duration_ms: 1070.245454
+      type: 'test'
+      ...
+    # Subtest: dirty journal refuses apply
+    ok 4 - dirty journal refuses apply
+      ---
+      duration_ms: 1250.6794
+      type: 'test'
+      ...
+    1..4
+ok 1 - postgres: I1 clean install matrix (postgres:17.11-bookworm)
+  ---
+  duration_ms: 21736.000055
+  type: 'test'
+  ...
+# {"image":"postgres:17.11-bookworm","server":"PostgreSQL 17.11 (Debian 17.11-1.pgdg12+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 12.2.0-14+deb12u1) 12.2.0, 64-bit"}
+1..1
+# tests 5
+# suites 0
+# pass 5
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 21743.429089

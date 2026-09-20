@@ -26,7 +26,7 @@ function addDir(rel, filter) {
   }
 }
 
-addDir('harness/database', name => /\.(cjs|json)$/.test(name));
+addDir('harness/database', name => /\.(cjs|json|sh)$/.test(name));
 addDir('packages/backend/database', name => /\.(cjs|sql|json)$/.test(name) && name !== 'live-proposal-check.cjs');
 addDir('packages/backend/src/database', name => name.endsWith('.cjs'));
 

@@ -19,10 +19,11 @@ import {
 } from '@/shared/ui';
 import { VStack } from '@/shared/ui/Stack';
 import { useIsMobile } from '@/shared/hooks/useIsMobile';
-import { usePurchaseModuleMutation } from '@/shared/api/endpoints/cloudAdminApi';
+import { usePurchaseModuleMutation, usePurchaseAiSkuMutation } from '@/shared/api/endpoints/cloudAdminApi';
 import cls from './CheckoutSheet.module.scss';
 
 export type CheckoutStep = 'plan' | 'confirm' | 'success';
+export type CheckoutKind = 'hub-module' | 'ai-sku';
 
 export interface CheckoutSheetProps {
   open: boolean;
@@ -30,6 +31,7 @@ export interface CheckoutSheetProps {
   moduleCode: string;
   moduleName: string;
   priceRub: number;
+  checkoutKind?: CheckoutKind;
 }
 
 function isInsufficientBalanceError(err: unknown): boolean {
@@ -49,13 +51,17 @@ export function CheckoutSheet({
   moduleCode,
   moduleName,
   priceRub,
+  checkoutKind = 'hub-module',
 }: CheckoutSheetProps) {
   const { t } = useTranslation();
   const isMobile = useIsMobile();
   const [step, setStep] = useState<CheckoutStep>('plan');
   const [error, setError] = useState<string | null>(null);
   const [insufficient, setInsufficient] = useState(false);
-  const [purchaseModule, { isLoading }] = usePurchaseModuleMutation();
+  const [purchaseModule, moduleState] = usePurchaseModuleMutation();
+  const [purchaseAiSku, skuState] = usePurchaseAiSkuMutation();
+  const isLoading = moduleState.isLoading || skuState.isLoading;
+  const isSku = checkoutKind === 'ai-sku';
 
   useEffect(() => {
     if (open) {
@@ -69,14 +75,21 @@ export function CheckoutSheet({
     setError(null);
     setInsufficient(false);
     try {
-      await purchaseModule({ moduleCode }).unwrap();
+      if (isSku) {
+        await purchaseAiSku({ skuCode: moduleCode }).unwrap();
+      } else {
+        await purchaseModule({ moduleCode }).unwrap();
+      }
       setStep('success');
     } catch (err) {
       if (isInsufficientBalanceError(err)) {
         setInsufficient(true);
         setError(t('marketplace.insufficientBalance'));
       } else {
-        setError(t('marketplace.checkoutError'));
+        const code = (err as { data?: { code?: string } })?.data?.code;
+        setError(code === 'OFFER_NOT_RELEASED'
+          ? t('marketplace.skuUnpublished')
+          : t('marketplace.checkoutError'));
       }
     }
   };
@@ -98,14 +111,16 @@ export function CheckoutSheet({
         <VStack gap="8" max data-testid="checkout-step-plan">
           <Text as="h3">{moduleName}</Text>
           <Text className={cls.price}>{priceLabel}</Text>
-          <Text variant="muted">{t('marketplace.checkoutPlanHint')}</Text>
+          <Text variant="muted">
+            {t(isSku ? 'marketplace.checkoutPlanHintSku' : 'marketplace.checkoutPlanHint')}
+          </Text>
         </VStack>
       )}
 
       {step === 'confirm' && (
         <VStack gap="8" max data-testid="checkout-step-confirm">
           <Text>
-            {t('marketplace.checkoutConfirmBody', {
+            {t(isSku ? 'marketplace.checkoutConfirmBodySku' : 'marketplace.checkoutConfirmBody', {
               name: moduleName,
               amount: priceRub,
             })}
@@ -126,7 +141,7 @@ export function CheckoutSheet({
 
       {step === 'success' && (
         <VStack gap="8" max data-testid="checkout-step-success">
-          <Text>{t('marketplace.checkoutSuccess', { name: moduleName })}</Text>
+          <Text>{t(isSku ? 'marketplace.checkoutSuccessSku' : 'marketplace.checkoutSuccess', { name: moduleName })}</Text>
         </VStack>
       )}
     </VStack>

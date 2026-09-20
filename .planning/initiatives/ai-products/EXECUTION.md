@@ -6,14 +6,23 @@
 |---|---|
 | Updated | 2026-09-20 |
 | Mode | `codex-direct` |
-| Coordination status | `idle` — generated-route MixMonitor, DB-03 writer, live charge closed |
+| Coordination status | `active` — DB-04 I1 implemented; I2–I4 gated |
 | Active implementation coordinator | `/root` |
-| Active PLAN / revision | none |
-| Active workers / owned paths | none |
-| Next action | Wait for a new user assignment. No commit/push |
-| Implementation state | Uncommitted AI work continues. ipbx is test Asterisk. Product runtime `not-installed`. |
+| Active PLAN / revision | [DB-04-PLAN](DB-04-PLAN.md) I1, SHA-256 `83F520D6B208EE6177C0ADD77D380DBA1CC01A28BA2B5EECCDAA9345305FF085` |
+| Active workers / owned paths | `harness/database/clean-install.cjs`, `run-i1-install.cjs`, install docs/evidence. Wrap `run-migrations` / `seed-ci` / standalone-provision. No I2 restore, no I3 upgrade packs, no I4 ODBC apply, no autodial/`xray-ui`, no production DB |
+| Next action | DB-04 I2 backup/restore only if separately assigned. I3 upgrade and I4 ODBC remain gated |
+| Implementation state | Product runtime computed, default env `not-installed`. No live charge of real tenants. `cloud_wallet` usage off unless both flags |
 
 ## Следующее исполнение
+
+### Ревизии продуктового проектирования r1 (AI-10 / DB-04)
+
+| PLAN | SHA-256 |
+|---|---|
+| [AI-10](AI-10-PLAN.md) | `7D50CE43333E27871882DE59DD7BF09DE899F65B8837FE82B89F23B5DDA3AE4A` |
+| [DB-04](DB-04-PLAN.md) | `83F520D6B208EE6177C0ADD77D380DBA1CC01A28BA2B5EECCDAA9345305FF085` |
+
+Design only: COM1–COM4 / 10A / 10R и I1–I4. Не active implementation; не flip `productRuntime`; не live charges.
 
 ### Ревизии продуктового проектирования r3
 
@@ -51,6 +60,14 @@
 
 | Assignment | Executor identity | PLAN / task IDs / revision | Owned paths | Status / evidence |
 |---|---|---|---|---|
+| DB-04-I1-install | `/root`, текущая задача | DB-04 I1, SHA-256 `83F520D6B208EE6177C0ADD77D380DBA1CC01A28BA2B5EECCDAA9345305FF085` | clean-install harness wrapping run-migrations/seed-ci; profile matrix; dirty/wrong-profile refuse; community composition check; docs. No I2/I3/I4, no autodial/`xray-ui`, no production DB | **closed**: [SUMMARY](DB-04-I1-SUMMARY.md), [VERIFICATION](DB-04-I1-VERIFICATION.md), [INSTALL](DB-04-I1-INSTALL.md), [evidence/i1](evidence/i1/REMOTE-MATRIX.md). MySQL **5/5** + PG **5/5**. I2–I4 not this slice |
+| AI-10-10A-analytics | `/root`, текущая задача | AI-10 10A, SHA-256 `7D50CE43333E27871882DE59DD7BF09DE899F65B8837FE82B89F23B5DDA3AE4A` | analytics onboarding engine/tests, retention/export/offboarding receipts, public analysis curl docs, bounded standalone UX. No I1, no PBX/AMI/ARI, no live tenant debit | **implemented locally**: [SUMMARY](AI-10-10A-SUMMARY.md), [VERIFICATION](AI-10-10A-VERIFICATION.md), [PUBLIC-ANALYSIS](AI-10-10A-PUBLIC-ANALYSIS.md). Live disposable API / installer smoke gated |
+| AI-10-10R-robots | `/root`, текущая задача | AI-10 10R, SHA-256 `7D50CE43333E27871882DE59DD7BF09DE899F65B8837FE82B89F23B5DDA3AE4A` | robots onboarding, SIP publish gates, drain-on-expiry, `/api/v1/ai-voice` docs. No I1, no I4 native CDR claim, no autodial/`xray-ui` | **implemented locally**: [SUMMARY](AI-10-10R-SUMMARY.md), [VERIFICATION](AI-10-10R-VERIFICATION.md), [AI-VOICE](AI-10-10R-AI-VOICE.md). I1 smoke and I4 native PBX gated |
+| AI-10-COM4-packaging | `/root`, текущая задача | AI-10 COM4, SHA-256 `7D50CE43333E27871882DE59DD7BF09DE899F65B8837FE82B89F23B5DDA3AE4A` | preflight script/docs; community vs commercial boundary already in composition tests. No I1 installer, no MIT rewrite, no autodial/`xray-ui` | **implemented locally**: [SUMMARY](AI-10-COM4-SUMMARY.md), [PREFLIGHT](AI-10-COM4-PREFLIGHT.md), [VERIFICATION](AI-10-COM4-VERIFICATION.md). Preflight 2/2. I1–I3 not this slice |
+| AI-10-COM3-runtime | `/root`, текущая задача | AI-10 COM3, SHA-256 `7D50CE43333E27871882DE59DD7BF09DE899F65B8837FE82B89F23B5DDA3AE4A` | `product-runtime.ts`; standalone capabilities; analytics/robot health; bounded StandaloneAiApp states; license renewal/key rotation tests. No I1, no autodial/`xray-ui` | **implemented locally**: [SUMMARY](AI-10-COM3-SUMMARY.md), [VERIFICATION](AI-10-COM3-VERIFICATION.md). Default env remains `not-installed`. No mandatory offline heartbeat |
+| AI-10-COM2-billable | `/root`, текущая задача | AI-10 COM2, SHA-256 `7D50CE43333E27871882DE59DD7BF09DE899F65B8837FE82B89F23B5DDA3AE4A` | `shadow-settlement.ts`, emulated-wallet adapter, bounded billing tests. No 0021, no I1, no autodial/`xray-ui`, no live tenant debit | **implemented locally**: [SUMMARY](AI-10-COM2-SUMMARY.md), [VERIFICATION](AI-10-COM2-VERIFICATION.md). `com2-billable` 9/9. Flags default off |
+| AI-10-COM1-sku | `/root`, текущая задача | AI-10 COM1, SHA-256 `7D50CE43333E27871882DE59DD7BF09DE899F65B8837FE82B89F23B5DDA3AE4A` | `packages/backend/src/modules/ai-usage/**` SKU/trial/price; `product-access/**` catalog/purchase/admission; bounded `cloud-admin` marketplace wiring; Hub offers UI/API; additive `0020`; locales/tests. No I1 installer, no autodial/`xray-ui` | **closed**: [SUMMARY](AI-10-COM1-SUMMARY.md), [VERIFICATION](AI-10-COM1-VERIFICATION.md), [contracts-0020](evidence/contracts-0020/REMOTE-MATRIX.md). MySQL **16/16** + PG **16/16**. `RELEASED_AI_PRODUCT_OFFERS` empty |
+| AI-10 / DB-04 detailed design | `/root`, текущая задача | AI-10 COM1–4/10A/10R + DB-04 I1–I4, revision 2026-09-20-r1 | Только `.planning/initiatives/ai-products/*` PLAN + index docs; no code/SQL/runtime | **complete (design only)**: [AI-10-PLAN](AI-10-PLAN.md) `7D50CE43…`, [DB-04-PLAN](DB-04-PLAN.md) `83F520D6…`; indexes IMPLEMENTATION-SEQUENCE/README/ADVANCED-PRODUCT-CONTRACTS/EXECUTION. No productRuntime flip, no live charge |
 | MixMonitor generated routes / DB-03 writer / live charge | `/root`, текущая задача | DURABLE_CAPTURE apply; queue_log/CEL writer 0019; BillingBalanceService.charge + external_id | routes recording + hangup; asterisk-odbc; billing charge. No xray-ui | **closed**: [mix-db03-charge](evidence/mix-db03-charge/REMOTE-MATRIX.md). Generated MixMonitor UUID wav 95084 bytes + CDR UniqueIDs; MySQL/PG writer+charge **4/4**; contracts **16/16** through 0019 (PG 192 tables). `nativeCaptureApply` env-gated. Existing ODBC DSN not replaced. `xray-ui` untouched |
 | RT5 paid-SIP emulator / TOOL vector reuse / wallet emulator | `/root`, текущая задача | Local PSTN emulator; nomic embeddings from voice-robots via `modules/embeddings`; emulated wallet. No live charge, no paid numbers | `ai-voice/pstn-emulator.ts`, `modules/embeddings/**`, bounded `semantic-router.service.ts`, `knowledge-engine.ts`, `ai-usage/emulated-wallet.ts` | **closed**: [emulators](evidence/emulators/REMOTE-MATRIX.md). Jest 7 suites / 29 tests. No PSTN, no `BillingBalanceService.charge` |
 | AI-06 INT2–3 / AI-08 RT5 / AI-09 TOOL6 live | `/root`, текущая задача | INT2–3 then RT5 then TOOL6 | capture admission + relations + backfill; test Asterisk MixMonitor/CDR/SIP/ARI on `ipbx.krasterisk.ru`; fake MCP + KB eval. No wallet, no AI-10, no `xray-ui` | **closed**: [REMOTE-MATRIX](evidence/int-rt-tool6/REMOTE-MATRIX.md). MixMonitor 5 wav + CDR UniqueIDs; SIP UDP 5060 OPTIONS 200 / REGISTER 403; ARI 401; MCP recall@5 **1.00** lexical. `nativeCaptureApply` still false. Drain `{liveSip:false}` / `liveMcp:false`. No wallet, no AI-10, `xray-ui` untouched |

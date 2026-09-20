@@ -5,6 +5,7 @@ import { VStack, HStack } from '@/shared/ui/Stack';
 import {
   useDisableHubModuleMutation,
   useEnableHubModuleMutation,
+  useGetAiSkuCatalogQuery,
   useGetHubCatalogQuery,
   type IHubCatalogItem,
 } from '@/shared/api/endpoints/cloudAdminApi';
@@ -12,6 +13,7 @@ import { useAppSelector } from '@/shared/hooks/useAppStore';
 import { UserLevel } from '@krasterisk/shared';
 import { CheckoutSheet } from '@/features/modules/ui/CheckoutSheet';
 import { resolveHubDisplayPrice } from '@/features/modules/lib/hubMarketPrices';
+import { isAiProductCode } from '@/features/modules/lib/aiProductCodes';
 import cls from './TenantModulesPanel.module.scss';
 
 /**
@@ -27,12 +29,14 @@ export function TenantModulesPanel() {
   const { data: catalog, isLoading } = useGetHubCatalogQuery(undefined, {
     skip: !user,
   });
+  const { data: skus } = useGetAiSkuCatalogQuery(undefined, { skip: !user });
   const [enableModule, { isLoading: enabling }] = useEnableHubModuleMutation();
   const [disableModule, { isLoading: disabling }] = useDisableHubModuleMutation();
   const [checkout, setCheckout] = useState<{
     code: string;
     name: string;
     priceRub: number;
+    checkoutKind: 'hub-module' | 'ai-sku';
   } | null>(null);
 
   const handleToggle = async (item: IHubCatalogItem, nextOn: boolean) => {
@@ -52,10 +56,15 @@ export function TenantModulesPanel() {
   };
 
   const handleBuy = (item: IHubCatalogItem) => {
+    const sku = isAiProductCode(item.code)
+      ? (skus ?? []).find((row) => row.skuCode === item.code || row.product === item.code)
+      : undefined;
+    if (isAiProductCode(item.code) && !sku) return;
     setCheckout({
-      code: item.code,
+      code: sku?.skuCode ?? item.code,
       name: item.name,
-      priceRub: resolveHubDisplayPrice(item.code),
+      priceRub: sku ? Math.round(sku.priceMonthlyMinor / 100) : resolveHubDisplayPrice(item.code),
+      checkoutKind: isAiProductCode(item.code) ? 'ai-sku' : 'hub-module',
     });
   };
 
@@ -82,6 +91,8 @@ export function TenantModulesPanel() {
             const isLocked = item.licenseStatus === 'locked';
             const isDisabled = item.licenseStatus === 'disabled';
             const isActive = item.licenseStatus === 'active';
+            const unpublishedAi = isAiProductCode(item.code)
+              && !(skus ?? []).some((row) => row.skuCode === item.code || row.product === item.code);
             const pagesLabel = (item.pages ?? [])
               .map((p) => p.page_code)
               .join(', ');
@@ -113,9 +124,12 @@ export function TenantModulesPanel() {
                       type="button"
                       size="sm"
                       onClick={() => handleBuy(item)}
+                      disabled={unpublishedAi}
                       id={`tenant-buy-${item.code}`}
                     >
-                      {t('marketplace.buy', 'Buy')}
+                      {unpublishedAi
+                        ? t('marketplace.skuUnpublished', 'Not published')
+                        : t('marketplace.buy', 'Buy')}
                     </Button>
                   ) : (
                     <Switch
@@ -144,6 +158,7 @@ export function TenantModulesPanel() {
         moduleCode={checkout?.code ?? ''}
         moduleName={checkout?.name ?? ''}
         priceRub={checkout?.priceRub ?? 0}
+        checkoutKind={checkout?.checkoutKind ?? 'hub-module'}
       />
     </VStack>
   );

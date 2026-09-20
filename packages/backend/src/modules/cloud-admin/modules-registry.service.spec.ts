@@ -28,11 +28,11 @@ describe('ModulesRegistryService licenseStatus (08-02)', () => {
     service = new ModulesRegistryService(
       {} as any,
       { findAll: tenantFindAll, findOne: jest.fn(), upsert: jest.fn(), update: jest.fn(), bulkCreate: jest.fn() } as any,
-      { findOne: jest.fn() } as any,
+      { findOne: jest.fn(), findByPk: jest.fn().mockResolvedValue(null) } as any,
       { get: configGet } as unknown as ConfigService,
       { findAll: hubFindAll, findOne: jest.fn(), create: jest.fn(), upsert: jest.fn() } as any,
       { findAll: jest.fn(), destroy: jest.fn(), bulkCreate: jest.fn() } as any,
-      {} as any,
+      { decide: jest.fn() } as any,
     );
   });
 
@@ -86,6 +86,31 @@ describe('ModulesRegistryService licenseStatus (08-02)', () => {
     const catalog = await service.getHubCatalogForTenant(1);
     expect(catalog[0]).toHaveProperty('licenseStatus');
     expect(Object.keys(catalog[0])).not.toContain('clientLicenseStatus');
+  });
+
+  it('maps AI SKU entitlement without activation to disabled, not Buy-locked', async () => {
+    const decide = jest.fn(async (_uid: number, product: string) => (
+      product === 'speech_analytics'
+        ? { allowed: false, reason: 'product_disabled' }
+        : { allowed: false, reason: 'not_entitled' }
+    ));
+    service = new ModulesRegistryService(
+      {} as any,
+      { findAll: tenantFindAll, findOne: jest.fn(), upsert: jest.fn(), update: jest.fn(), bulkCreate: jest.fn() } as any,
+      { findOne: jest.fn(), findByPk: jest.fn().mockResolvedValue({ vpbx_user_uid: 8 }) } as any,
+      { get: configGet } as unknown as ConfigService,
+      { findAll: hubFindAll, findOne: jest.fn(), create: jest.fn(), upsert: jest.fn() } as any,
+      { findAll: jest.fn(), destroy: jest.fn(), bulkCreate: jest.fn() } as any,
+      { decide } as any,
+    );
+    hubFindAll.mockResolvedValue([
+      mockHub({ code: 'speech_analytics', kind: 'market' }),
+      mockHub({ code: 'ai_voice_robots', kind: 'market' }),
+    ]);
+    tenantFindAll.mockResolvedValue([]);
+    const catalog = await service.getHubCatalogForTenant(10);
+    expect(catalog.find((m) => m.code === 'speech_analytics')?.licenseStatus).toBe('disabled');
+    expect(catalog.find((m) => m.code === 'ai_voice_robots')?.licenseStatus).toBe('locked');
   });
 });
 
@@ -195,14 +220,21 @@ describe('ModulesRegistryService A1 catalog and offers', () => {
 
   it('never creates an AI grant from a tenant Hub toggle', async () => {
     const upsert = jest.fn();
-    const service = new ModulesRegistryService(
-      {} as any, { upsert } as any, {} as any, {} as any, {} as any, {} as any, {} as any,
+    const setActivation = jest.fn().mockRejectedValue(
+      Object.assign(new Error('not_entitled'), { response: { code: 'not_entitled' } }),
     );
-    await expect(service.setTenantHubModuleStatus(9, 'speech_analytics', 'active'))
+    const service = new ModulesRegistryService(
+      {} as any, { upsert } as any,
+      { findByPk: jest.fn().mockResolvedValue({ vpbx_user_uid: 8 }) } as any,
+      {} as any, {} as any, {} as any,
+      { setActivation } as any,
+    );
+    await expect(service.setTenantHubModuleStatus(9, 'speech_analytics', 'active', 1))
       .rejects.toMatchObject({
-        response: expect.objectContaining({ code: 'product_configuration_pending' }),
+        response: expect.objectContaining({ code: 'not_entitled' }),
       });
     expect(upsert).not.toHaveBeenCalled();
+    expect(setActivation).toHaveBeenCalledWith(8, 'speech_analytics', true, 1);
   });
 
   it('makes draft-publication correction an explicit, narrowly scoped maintenance call', async () => {
@@ -236,5 +268,21 @@ describe('ModulesRegistryService A1 catalog and offers', () => {
       [],
       'BOX',
     )).toBe('active');
+  });
+
+  it('routes Hub enable for AI products through activation, not tenant_modules upsert', async () => {
+    const setActivation = jest.fn().mockResolvedValue({ product: 'speech_analytics', enabled: true, revision: 1 });
+    const upsert = jest.fn();
+    const service = new ModulesRegistryService(
+      {} as any,
+      { upsert } as any,
+      { findByPk: jest.fn().mockResolvedValue({ vpbx_user_uid: 8 }) } as any,
+      {} as any, {} as any, {} as any,
+      { setActivation } as any,
+    );
+    await expect(service.setTenantHubModuleStatus(10, 'speech_analytics', 'active', 77))
+      .resolves.toMatchObject({ product: 'speech_analytics', enabled: true });
+    expect(setActivation).toHaveBeenCalledWith(8, 'speech_analytics', true, 77);
+    expect(upsert).not.toHaveBeenCalled();
   });
 });

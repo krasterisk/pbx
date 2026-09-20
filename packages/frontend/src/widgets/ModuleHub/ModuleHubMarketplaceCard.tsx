@@ -1,4 +1,4 @@
-import { memo, useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'motion/react';
 import { Badge, Button, Text } from '@/shared/ui';
@@ -6,6 +6,8 @@ import { HStack, VStack, Flex } from '@/shared/ui/Stack';
 import type { HubModuleRow } from '@/features/modules/types';
 import { CheckoutSheet } from '@/features/modules/ui/CheckoutSheet';
 import { resolveHubDisplayPrice } from '@/features/modules/lib/hubMarketPrices';
+import { isAiProductCode } from '@/features/modules/lib/aiProductCodes';
+import { useGetAiSkuCatalogQuery } from '@/shared/api/endpoints/cloudAdminApi';
 import cls from './ModuleHub.module.scss';
 
 interface ModuleHubMarketplaceCardProps {
@@ -23,7 +25,16 @@ export const ModuleHubMarketplaceCard = memo(function ModuleHubMarketplaceCard({
   const Icon = row.pages[0]?.icon;
   const name = t(row.labelKey);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
-  const priceRub = resolveHubDisplayPrice(row.code);
+  const isAi = isAiProductCode(row.code);
+  const { data: skus } = useGetAiSkuCatalogQuery(undefined, { skip: !isAi });
+  const publishedSku = useMemo(
+    () => (skus ?? []).find((sku) => sku.skuCode === row.code || sku.product === row.code),
+    [skus, row.code],
+  );
+  const priceRub = isAi
+    ? Math.round((publishedSku?.priceMonthlyMinor ?? 0) / 100)
+    : resolveHubDisplayPrice(row.code);
+  const canBuy = !isAi || !!publishedSku;
 
   const motionProps = reduceMotion
     ? {}
@@ -57,9 +68,10 @@ export const ModuleHubMarketplaceCard = memo(function ModuleHubMarketplaceCard({
             type="button"
             size="sm"
             onClick={() => setCheckoutOpen(true)}
+            disabled={!canBuy}
             id={`hub-buy-${row.code}`}
           >
-            {t('marketplace.buy')}
+            {canBuy ? t('marketplace.buy') : t('marketplace.skuUnpublished')}
           </Button>
         </HStack>
       </motion.div>
@@ -67,9 +79,10 @@ export const ModuleHubMarketplaceCard = memo(function ModuleHubMarketplaceCard({
       <CheckoutSheet
         open={checkoutOpen}
         onOpenChange={setCheckoutOpen}
-        moduleCode={row.code}
+        moduleCode={publishedSku?.skuCode ?? row.code}
         moduleName={name}
         priceRub={priceRub}
+        checkoutKind={isAi ? 'ai-sku' : 'hub-module'}
       />
     </>
   );

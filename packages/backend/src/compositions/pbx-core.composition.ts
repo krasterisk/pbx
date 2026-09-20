@@ -172,7 +172,8 @@ import {
 } from '../modules/ai-jobs/ai-job.models';
 import { AiMediaAsset, AiUpload } from '../modules/media-assets/media-asset.models';
 import {
-  AiPriceRevision, AiQuotaCounter, AiUsageEvent, AiUsageLedger, AiUsageReservation,
+  AiPriceRevision, AiQuotaCounter, AiSkuEntitlement, AiSkuOffer, AiSkuRevision,
+  AiTrialPolicySnapshot, AiUsageEvent, AiUsageLedger, AiUsageReservation,
 } from '../modules/ai-usage/usage.models';
 import {
   AiCaptureIntent, AiCaptureNodeBinding, AiCaptureReceipt, AiCaptureSegment,
@@ -242,6 +243,7 @@ export const PBX_CORE_MODELS = [
   AiProviderRevision, AiMediaAsset, AiUpload, AiIdempotency, AiJob, AiJobStage,
   AiProviderOperation, AiOutbox, AiJobEvent,
   AiQuotaCounter, AiPriceRevision, AiUsageReservation, AiUsageEvent, AiUsageLedger,
+  AiTrialPolicySnapshot, AiSkuRevision, AiSkuOffer, AiSkuEntitlement,
   AiCaptureNodeBinding, AiCaptureIntent, AiCaptureSegment, AiCaptureReceipt,
   SaProject, SaProjectVersion, SaProjectMember, SaRecording, SaAnalysisRun,
   SaTranscript, SaTranscriptSegment, SaResult,

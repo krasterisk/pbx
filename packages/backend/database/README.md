@@ -167,6 +167,7 @@ It also drops `uq_sa_run_initial` so a recording can have an original run plus r
 `0017-ai-realtime.sql` adds SIP connection/DID/invocation contracts without applying live PJSIP.
 `0018-ai-tools.sql` adds business tool revisions and knowledge-base tables.
 `0019-asterisk-odbc.sql` adds full-PBX `queue_log` and `cel` writer tables. It does not recreate `cdr` and is not part of standalone analytics/robot profiles.
+`0020-ai-sku-catalog.sql` adds tenant-owned SKU revisions, trial policy snapshots and entitlements. Publication is separate from app enable. It is shared by full-pbx and standalone AI profiles and applies after the PBX-only 0019 artifact so journal IDs stay sorted.
 
 The wide Asterisk `ps_endpoints` table stores non-indexed 40-character options
 as `TEXT`, allowing InnoDB DYNAMIC to move values off-page under utf8mb4.
@@ -270,6 +271,14 @@ a failing acceptance gate, never a passing skip. See
 [harness/database](../../../harness/database/README.md) for image pins, optional
 isolated local PostgreSQL smoke, and limits. The narrow CI matrix does not claim
 full-app PostgreSQL E2E coverage. Actual results live in DB-01-VERIFICATION.
+
+**DB-04 I1 clean install:** `node harness/database/clean-install.cjs --plan|--status|--apply [--seed-ci]`
+wraps `db:migrate` and disposable `db:seed:ci`. Profile matrix evidence:
+`node harness/database/run-i1-install.cjs [mysql|postgres]` on disposable
+Testcontainers (MySQL 8.4.11 / PostgreSQL 17.11). Community composition does not
+import `speech-analytics` / `ai-voice` modules. Automatic `--rollback` remains
+forbidden. Backup/restore is I2; N-1 upgrade is I3; PBX ODBC installer is I4.
+
 
 ## Authorized live development PBX check
 

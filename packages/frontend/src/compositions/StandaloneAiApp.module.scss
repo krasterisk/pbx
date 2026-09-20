@@ -20,6 +20,8 @@
 .refresh { align-self: flex-start; }
 .field { display: flex; flex-direction: column; gap: 8px; }
 .noticeInline { color: var(--color-muted-foreground); font-size: 13px; }
+.onboarding { margin: 0; padding-left: 18px; color: var(--color-foreground); }
+.onboarding li { padding: 4px 0; }
 .notice { padding: 16px 20px; border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-card); color: var(--color-muted-foreground); }
 @media (max-width: 720px) {
   .topbar { padding: 0 16px; }

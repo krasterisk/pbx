@@ -14,7 +14,9 @@ export const ROBOT_API_COMPONENTS = Object.freeze([
 @Controller('health')
 class RobotHealthController {
   @Get()
-  health() { return { status: 'ok', profile: 'robot-api', productRuntime: 'not-installed' }; }
+  health() {
+    return { status: 'ok', profile: 'robot-api', productRuntime: 'not-installed', usable: false };
+  }
 }
 
 @Module({

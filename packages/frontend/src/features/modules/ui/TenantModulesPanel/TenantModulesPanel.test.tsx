@@ -54,9 +54,11 @@ vi.mock('@/shared/api/endpoints/cloudAdminApi', () => ({
     ],
     isLoading: false,
   }),
+  useGetAiSkuCatalogQuery: () => ({ data: [] }),
   useEnableHubModuleMutation: () => [enableModule, { isLoading: false }],
   useDisableHubModuleMutation: () => [disableModule, { isLoading: false }],
   usePurchaseModuleMutation: () => [vi.fn(), { isLoading: false }],
+  usePurchaseAiSkuMutation: () => [vi.fn(), { isLoading: false }],
 }));
 
 function renderPanel(level: UserLevel = UserLevel.ADMIN) {

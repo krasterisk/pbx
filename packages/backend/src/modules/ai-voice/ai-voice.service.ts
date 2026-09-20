@@ -212,7 +212,13 @@ export class AiVoiceService {
       const deployment = await this.deployments.findOne({
         where: { id: input.deploymentId, tenant_uid: context.tenantUid },
       });
-      if (!deployment || deployment.status !== 'ready' || !deployment.active_version_id) {
+      if (!deployment || !deployment.active_version_id) {
+        throw new DomainError('deployment_not_ready', 409);
+      }
+      if (deployment.status === 'draining' || deployment.status === 'stopped') {
+        throw new DomainError('admissions_stopped', 409);
+      }
+      if (deployment.status !== 'ready') {
         throw new DomainError('deployment_not_ready', 409);
       }
       try {
@@ -265,6 +271,23 @@ export class AiVoiceService {
     seen: Map<string, { action: string; state: 'requested' | 'confirmed' | 'failed' }>;
   }) {
     return executeVoiceTool(input);
+  }
+
+  async drainTenant(context: TenantContext) {
+    const rows = await this.deployments.findAll({
+      where: { tenant_uid: context.tenantUid, status: 'ready' },
+    });
+    for (const row of rows) {
+      row.status = 'draining';
+      row.revision += 1;
+      row.updated_at = new Date();
+      await row.save();
+    }
+    return {
+      admissionsStopped: true as const,
+      liveSip: false as const,
+      drained: rows.map((row) => row.id),
+    };
   }
 
   capabilities() {

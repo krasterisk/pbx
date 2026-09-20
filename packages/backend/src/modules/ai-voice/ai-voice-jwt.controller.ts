@@ -8,7 +8,7 @@ import { AiSipService } from './sip.service';
 type Authed = TenantContextRequest & { tenantContext: NonNullable<TenantContextRequest['tenantContext']> };
 
 @UseGuards(TenantContextGuard)
-@Controller('ai-voice')
+@Controller(['ai-voice', 'v1/ai-voice'])
 export class AiVoiceJwtController {
   constructor(
     private readonly voice: AiVoiceService,
@@ -108,7 +108,7 @@ export class AiVoiceJwtController {
   }
 
   @Post('drain')
-  drain() {
-    return this.sip.drain();
+  drain(@Req() request: Authed) {
+    return this.voice.drainTenant(request.tenantContext);
   }
 }

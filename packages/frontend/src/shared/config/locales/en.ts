@@ -5392,6 +5392,12 @@ export const en = {
     depositLink: "Open modules",
     checkoutError:
       "Purchase could not be completed. Check the details and try again",
+    skuUnpublished: "Not published",
+    checkoutPlanHintSku:
+      "Review the SKU and price. Purchase entitles the product; enable it separately.",
+    checkoutConfirmBodySku:
+      "Charge {{amount}} ₽/mo and entitle «{{name}}»? Enable remains a separate step.",
+    checkoutSuccessSku: "«{{name}}» is entitled. Enable it when you are ready.",
     removeFromBaseConfirm:
       "Remove module from base composition: this affects all tenants without an override. Continue?",
   },

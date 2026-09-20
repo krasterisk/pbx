@@ -8,12 +8,16 @@ import { ProductActivation } from './product-activation.model';
 import { LocalLicenseDocument } from './local-license-document.model';
 import { LocalLicenseBinding } from './local-license-binding.model';
 import { ProductAccessService } from './product-access.service';
+import {
+  AiSkuEntitlement, AiTrialPolicySnapshot,
+} from '../ai-usage/usage.models';
 
 /** Policy repository without management HTTP controllers or cloud-admin tasks. */
 @Module({
   imports: [ConfigModule, SequelizeModule.forFeature([
     Tenant, TenantModule, ActionLog,
     ProductActivation, LocalLicenseDocument, LocalLicenseBinding,
+    AiSkuEntitlement, AiTrialPolicySnapshot,
   ])],
   providers: [ProductAccessService],
   exports: [ProductAccessService],
