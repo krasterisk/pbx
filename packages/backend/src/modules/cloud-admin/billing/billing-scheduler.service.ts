@@ -95,6 +95,7 @@ export class BillingSchedulerService {
     if (totalKopecks === 0) return;
 
     const amountRub = totalKopecks / 100;
+    const period = new Date().toISOString().slice(0, 7);
     await this.balanceService.charge(
       tenant.id,
       amountRub,
@@ -102,6 +103,7 @@ export class BillingSchedulerService {
       `Ежемесячная подписка: ${descriptions.join(', ')}`,
       undefined,
       'charge',
+      `subscription:${tenant.id}:${period}`,
     );
 
     this.logger.log(`[Scheduler] Charged tenant #${tenant.id} (${tenant.name}): ${amountRub} RUB`);

@@ -1,0 +1,20 @@
+
+Call Detail Record (CDR) settings
+----------------------------------
+  Logging:                    Enabled
+  Mode:                       Simple
+  Log calls by default:       Yes
+  Log unanswered calls:       No
+  Log congestion:             No
+
+  Ignore bridging changes:    No
+
+  Ignore dial state changes:  No
+
+  Cancel disposition enabled: No
+
+* Registered Backends
+  -------------------
+    Adaptive ODBC
+    cdr-custom
+

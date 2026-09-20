@@ -1,0 +1,17 @@
+[ Context 'krasterisk-ai-generated' created by 'pbx_config' ]
+  's' =>            1. NoOp(Krasterisk generated-route MixMonitor lab) [extensions.conf:55]
+                    2. Answer()                                   [extensions.conf:56]
+                    3. Set(CDR(vpbx_user_uid)=8)                  [extensions.conf:57]
+                    4. Set(__path=${STRFTIME(${EPOCH},,%Y%m%d)})  [extensions.conf:58]
+                    5. System(mkdir -p /usr/records/8/calls/${path}) [extensions.conf:59]
+                    6. Set(__DURABLE_CAPTURE=1)                   [extensions.conf:60]
+                    7. Set(__fname=${SHELL(cat /proc/sys/kernel/random/uuid | tr -d \\n)}) [extensions.conf:61]
+                    8. Set(__RECORDER_ID=${fname})                [extensions.conf:62]
+                    9. Set(CDR(record)=8/calls/${path}/${fname})  [extensions.conf:63]
+                    10. MixMonitor(/usr/records/8/calls/${path}/${fname}.wav,,,${RECORDER_ID}) [extensions.conf:64]
+                    11. Set(CHANNEL(hangup_handler_push)=krasterisk-ai-generated-hangup,s,1) [extensions.conf:65]
+                    12. Playback(demo-thanks)                     [extensions.conf:66]
+                    13. Wait(2)                                   [extensions.conf:67]
+                    14. Hangup()                                  [extensions.conf:68]
+
+-= 1 extension (14 priorities) in 1 context. =-

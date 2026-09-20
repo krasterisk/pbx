@@ -32,6 +32,22 @@ export function createFakeVoiceModelSession(log: FakeVoiceCalls): VoiceModelSess
   };
 }
 
+export type SipLabProfile = {
+  transport: 'udp' | 'tcp' | 'tls';
+  srtp: boolean;
+  certified: boolean;
+};
+
+export function certifySipProfile(input: {
+  transport: 'udp' | 'tcp' | 'tls';
+  inviteOk: boolean;
+  authRejectOk: boolean;
+  hangupOk: boolean;
+}): SipLabProfile {
+  const certified = input.inviteOk && input.authRejectOk && input.hangupOk;
+  return { transport: input.transport, srtp: input.transport === 'tls', certified };
+}
+
 export function assertSipReady(input: { kind: string; appliedRevision: boolean }): void {
   if (input.kind === 'external_sip' && !input.appliedRevision) {
     throw new DomainError('sip_not_certified', 409);

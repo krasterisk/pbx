@@ -6,12 +6,12 @@
 |---|---|
 | Updated | 2026-09-20 |
 | Mode | `codex-direct` |
-| Coordination status | `idle` — planned contract slices closed; remaining live PBX/SIP/MCP/AI-10 gates stay open |
-| Active implementation coordinator | Codex task `01a0b2cf-f755-74d0-8a7d-7e65ee34fc65`, `/root` |
+| Coordination status | `idle` — generated-route MixMonitor, DB-03 writer, live charge closed |
+| Active implementation coordinator | `/root` |
 | Active PLAN / revision | none |
 | Active workers / owned paths | none |
-| Next action | No remaining assigned PLAN. Do not start AI-10. Do not claim INT2–3 live Asterisk, RT5 live SIP, or TOOL6 live MCP. |
-| Implementation state | Source `e00e8f8a` plus this verification commit. Product commercial runtime still `not-installed`. |
+| Next action | Wait for a new user assignment. No commit/push |
+| Implementation state | Uncommitted AI work continues. ipbx is test Asterisk. Product runtime `not-installed`. |
 
 ## Следующее исполнение
 
@@ -51,6 +51,9 @@
 
 | Assignment | Executor identity | PLAN / task IDs / revision | Owned paths | Status / evidence |
 |---|---|---|---|---|
+| MixMonitor generated routes / DB-03 writer / live charge | `/root`, текущая задача | DURABLE_CAPTURE apply; queue_log/CEL writer 0019; BillingBalanceService.charge + external_id | routes recording + hangup; asterisk-odbc; billing charge. No xray-ui | **closed**: [mix-db03-charge](evidence/mix-db03-charge/REMOTE-MATRIX.md). Generated MixMonitor UUID wav 95084 bytes + CDR UniqueIDs; MySQL/PG writer+charge **4/4**; contracts **16/16** through 0019 (PG 192 tables). `nativeCaptureApply` env-gated. Existing ODBC DSN not replaced. `xray-ui` untouched |
+| RT5 paid-SIP emulator / TOOL vector reuse / wallet emulator | `/root`, текущая задача | Local PSTN emulator; nomic embeddings from voice-robots via `modules/embeddings`; emulated wallet. No live charge, no paid numbers | `ai-voice/pstn-emulator.ts`, `modules/embeddings/**`, bounded `semantic-router.service.ts`, `knowledge-engine.ts`, `ai-usage/emulated-wallet.ts` | **closed**: [emulators](evidence/emulators/REMOTE-MATRIX.md). Jest 7 suites / 29 tests. No PSTN, no `BillingBalanceService.charge` |
+| AI-06 INT2–3 / AI-08 RT5 / AI-09 TOOL6 live | `/root`, текущая задача | INT2–3 then RT5 then TOOL6 | capture admission + relations + backfill; test Asterisk MixMonitor/CDR/SIP/ARI on `ipbx.krasterisk.ru`; fake MCP + KB eval. No wallet, no AI-10, no `xray-ui` | **closed**: [REMOTE-MATRIX](evidence/int-rt-tool6/REMOTE-MATRIX.md). MixMonitor 5 wav + CDR UniqueIDs; SIP UDP 5060 OPTIONS 200 / REGISTER 403; ARI 401; MCP recall@5 **1.00** lexical. `nativeCaptureApply` still false. Drain `{liveSip:false}` / `liveMcp:false`. No wallet, no AI-10, `xray-ui` untouched |
 | AI-06/08/09 verification close-out | `/root`, текущая задача | Evidence + dual-DB `run-contracts` for 0015–0018; no new feature code | EXECUTION/VERIFICATION/evidence. Dist not committed. No live Asterisk/SIP/MCP/wallet | **closed**: lint 0 errors; backend 303/3097; schema 7/7; DB unit 50/50; frontend targeted 7/22; community 1298; uniqueness MySQL/PG 4/4; dual-DB contracts MySQL/PG **16/16** ([contracts-0018](evidence/contracts-0018/REMOTE-MATRIX.md)). INT2–3 / RT5 / TOOL6 / AI-10 not closed. Product runtime `not-installed` |
 | AI-06 / AI-08 / AI-09 remaining | `/root`, текущая задача | AI-06 REP1–4 + INT1 then AI-08 RT1–4 then AI-09 TOOL1–5 | `speech-analytics/reporting/**`, INT1 policy/RouteForm, `ai-voice` SIP/realtime contracts, `ai-tool-connectivity/**`, `knowledge/**`, additive 0015–0018, Hub dashboards/SIP/tools/KB. Shared schema `/root`. No live wallet, no production PBX rewrite, no AI-10 | **closed**: [AI-06-SUMMARY](AI-06-SUMMARY.md), [AI-06-VERIFICATION](AI-06-VERIFICATION.md), [AI-08-SUMMARY](AI-08-SUMMARY.md), [AI-08-VERIFICATION](AI-08-VERIFICATION.md), [AI-09-SUMMARY](AI-09-SUMMARY.md), [AI-09-VERIFICATION](AI-09-VERIFICATION.md), [REMOTE-MATRIX](evidence/rep-rt-tool/REMOTE-MATRIX.md). Commit `e00e8f8a`. MySQL **4/4** + PG **4/4**; frontend targeted 7/22; analytics composition 188, robot 162. INT2–3 / RT5 / TOOL6 live gates not executed. Product runtime `not-installed` |
 | AI-07-voice / AI-05-metrics | `/root`, текущая задача | AI-07 VR1–6 then AI-05 MET1–5 | `ai-voice/**`, bounded `ai-agents` If-Match, additive 0013/0014, bounded `ari` classifier + `ai_voice_robot` action, frontend aiRobots + speechAnalytics metrics. Shared schema `/root`. No live wallet, no production PBX rewrite, no AI-08 | **closed**: [AI-07-SUMMARY](AI-07-SUMMARY.md), [AI-07-VERIFICATION](AI-07-VERIFICATION.md), [AI-05-SUMMARY](AI-05-SUMMARY.md), [AI-05-VERIFICATION](AI-05-VERIFICATION.md), [REMOTE-MATRIX](evidence/vr-met/REMOTE-MATRIX.md). MySQL VR/MET 2/2; PG VR/MET 2/2; backend 299/3088; frontend targeted 8/27 (full vitest hung at RUN). Native ARI/10-session live and MET5 30-call holdout not executed. Product runtime `not-installed` |

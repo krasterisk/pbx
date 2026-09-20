@@ -8,12 +8,7 @@ import { Directory } from '../directories/directory.model';
 import { DirectoryField } from '../directories/directory-field.model';
 import { TimeGroupsService } from '../time-groups/time-groups.service';
 import { AsteriskDialplanUtils, formatTimeGroupInterval, prefixSamePriority, renderActionChain } from '../../shared/utils/dialplan.util';
-import {
-  buildMixMonitorFlags,
-  buildFfmpegPostprocess,
-  getRecordingSourceExtension,
-  mixMonitorWithRecorderId,
-} from './route-recording.util';
+import { recordingDialplanLines } from './route-recording.util';
 import { shouldUseStoredRawDialplan } from './route-dialplan-source.util';
 import { throwIfInvalidActionPayload } from '../../shared/pipes/action-params-validation.util';
 
@@ -378,59 +373,16 @@ export class RoutesService {
         lines.push(`same => n,${opts.pre_command}`);
       }
 
-      // --- Call recording (ffmpeg instead of lame) ---
-      // ffmpeg: faster startup, better quality control, maintained project, supports more formats
-      // Mono: -codec:a libmp3lame -b:a 32k -ar 8000 -ac 1 — telephony quality WAV → MP3
-      // Stereo: MixMonitor `D` writes interleaved RX/TX to .raw; ffmpeg converts to stereo MP3
-      // nice -n 10: low-priority background process, does not affect Asterisk real-time performance
-      // MixMonitor postprocess (&) is fire-and-forget — conversion happens AFTER channel hangs up
+      const durableCapture = process.env.DURABLE_CAPTURE === '1';
       if (opts.record) {
-        const recordStereo = opts.record_stereo === true;
-        const recExt = getRecordingSourceExtension(recordStereo);
-        const monFlag = buildMixMonitorFlags({
-          record_all: opts.record_all === true,
-          record_stereo: recordStereo,
-        });
-        const durableCapture = process.env.DURABLE_CAPTURE === '1';
-        lines.push('same => n,Set(__path=${STRFTIME(${EPOCH},,%Y%m%d)})');
-        const rpath = `${vpbxUserUid}/calls`;
-        if (durableCapture) {
-          lines.push('same => n,Set(__DURABLE_CAPTURE=1)');
-          lines.push('same => n,Set(__fname=${SHELL(cat /proc/sys/kernel/random/uuid | tr -d \\\\n)})');
-          lines.push('same => n,Set(__RECORDER_ID=${fname})');
-          const recBase = `/usr/records/${rpath}/\${path}/\${fname}`;
-          if (recordStereo) lines.push('same => n,Set(__REC_STEREO=1)');
-          lines.push(`same => n,Set(CDR(record)=${rpath}/\${path}/\${fname})`);
-          lines.push(`same => n,${mixMonitorWithRecorderId(`${recBase}.${recExt}`, monFlag, '${RECORDER_ID}')}`);
-        } else {
-          // Sanitize CALLERID(num): keep only digits and + (path-safe filename fragment)
-          lines.push('same => n,Set(__safeclid=${FILTER(0-9+,${CALLERID(num)})})');
-          lines.push('same => n,Set(__fname=${STRFTIME(${EPOCH},,%Y%m%d%H%M%S)}-${safeclid}-${EXTEN})');
-          const recBase = `/usr/records/${rpath}/\${path}/\${fname}`;
-          if (recordStereo) {
-            lines.push('same => n,Set(__REC_STEREO=1)');
-          }
-          // ffmpeg conversion + source cleanup as MixMonitor postprocess (runs after hangup in background)
-          // Note: if on_hangup webhook is set, hangup_handler (set below) will handle conversion
-          // and ensure MP3 is ready before notifying the backend. Otherwise use postprocess directly.
-          if (!wh.on_hangup?.url) {
-            lines.push(`same => n,Set(__monopt=${buildFfmpegPostprocess(recBase, recordStereo)})`);
-            lines.push(`same => n,Set(CDR(record)=${rpath}/\${path}/\${fname})`);
-            lines.push(`same => n,MixMonitor(${recBase}.${recExt},${monFlag},\${monopt})`);
-          } else {
-            // on_hangup is configured: MixMonitor WITHOUT postprocess — hangup_handler takes over
-            // This guarantees MP3 is ready before the on_hangup webhook fires
-            lines.push(`same => n,Set(CDR(record)=${rpath}/\${path}/\${fname})`);
-            lines.push(`same => n,MixMonitor(${recBase}.${recExt},${monFlag})`);
-          }
-        }
-      }
-
-      // --- Hangup handler registration ---
-      // Registered when: on_hangup webhook needs notification, OR recording needs guaranteed MP3 conversion
-      // hangup_handler_push executes [krsk-hangup-handler] on channel teardown (even on Hangup())
-      // Covers: ffmpeg conversion + on_hangup webhook CURL (only if WH_OH=1)
-      if (wh.on_hangup?.url || (opts.record && wh.on_hangup?.url)) {
+        lines.push(...recordingDialplanLines({
+          vpbxUserUid,
+          durable: durableCapture,
+          recordStereo: opts.record_stereo === true,
+          recordAll: opts.record_all === true,
+          hangupWebhook: Boolean(wh.on_hangup?.url),
+        }));
+      } else if (wh.on_hangup?.url) {
         lines.push('same => n,Set(CHANNEL(hangup_handler_push)=krsk-hangup-handler,s,1)');
       }
 

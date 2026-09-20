@@ -118,6 +118,16 @@ test('A2/B2/D1/D4/CAP/AN additive models have dual-engine migration ownership', 
   }
 });
 
+test('DB-03 asterisk ODBC tables are full-pbx additive SQL and do not recreate cdr', () => {
+  for (const dialect of ['', 'postgres/']) {
+    const sql = fs.readFileSync(path.resolve(__dirname,
+      `../../packages/backend/database/migrations/${dialect}0019-asterisk-odbc.sql`), 'utf8');
+    assert.match(sql, /CREATE TABLE queue_log \(/);
+    assert.match(sql, /CREATE TABLE cel \(/);
+    assert.doesNotMatch(sql, /CREATE TABLE cdr\b/);
+  }
+});
+
 for (const [filename, before, after] of [
   ['ai-agent.model.ts', "defaultValue: 'realtime'", "defaultValue: 'cascade'"],
   ['cloud-setting.model.ts', 'unique: true', 'unique: false'],

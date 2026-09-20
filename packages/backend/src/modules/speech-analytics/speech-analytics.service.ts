@@ -348,7 +348,7 @@ export class SpeechAnalyticsService {
       reanalysis: true,
       humanReview: true,
       reporting: true,
-      nativeCaptureApply: false,
+      nativeCaptureApply: process.env.DURABLE_CAPTURE === '1',
     };
   }
 

@@ -1,67 +1,40 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import {
+  cosineSimilarity,
+  getSharedNomicEmbedder,
+  NOMIC_EMBED_DIM,
+  NOMIC_MODEL,
+  type TextEmbedder,
+} from '../../embeddings/nomic-embed';
 
 /**
  * Semantic Router Service — NLU via Vector Embeddings.
  *
- * Uses @huggingface/transformers with the Nomic Embed Text v1.5 model
- * to compute sentence embeddings and match caller utterances against
- * keyword phrases via cosine similarity.
- *
- * Architecture:
- * - Model: nomic-ai/nomic-embed-text-v1.5 (ONNX, quantized INT8, ~150MB)
- * - Matryoshka Representation Learning: truncate 768-dim → 128-dim
- * - CPU-only inference (~10-20ms per embedding)
- * - Embedding cache: keyword phrases are pre-computed and cached in RAM
- *
- * The service is used by KeywordMatcherService as a "long utterance"
- * fallback when Levenshtein-based word matching is insufficient.
- *
- * @see https://huggingface.co/nomic-ai/nomic-embed-text-v1.5
+ * Shares the nomic-ai/nomic-embed-text-v1.5 ONNX embedder with knowledge retrieval
+ * (`modules/embeddings/nomic-embed.ts`) so the robot keyword matcher and KB index
+ * use one model, one dimension (256, Matryoshka), and one process-wide load.
  */
 @Injectable()
 export class SemanticRouterService implements OnModuleInit {
   private readonly logger = new Logger(SemanticRouterService.name);
-
-  private pipeline: any = null;
+  private embedder: TextEmbedder | null = null;
   private initialized = false;
-
-  /** Embedding dimension (Matryoshka truncation — 256 dims balances quality vs memory) */
-  private static readonly EMBED_DIM = 256;
-
-  /** Model name */
-  private static readonly MODEL = 'nomic-ai/nomic-embed-text-v1.5';
-
-  /** Cache: keyword phrase text → normalized embedding vector */
   private readonly embeddingCache = new Map<string, Float32Array>();
 
   onModuleInit(): void {
-    // Load model in background — don't block NestJS bootstrap.
-    // @huggingface/transformers downloads ~150MB on first run which would
-    // hang the entire application startup if awaited here.
     setTimeout(() => this.loadModel(), 0);
   }
 
   private async loadModel(): Promise<void> {
     try {
-      // Dynamic import — @huggingface/transformers is ESM-only
-      const { pipeline: createPipeline } = await import('@huggingface/transformers');
-
-      this.logger.log(`Loading embedding model: ${SemanticRouterService.MODEL}...`);
-
-      this.pipeline = await createPipeline(
-        'feature-extraction',
-        SemanticRouterService.MODEL,
-        {
-          // Use quantized ONNX model for CPU
-          dtype: 'q8', // INT8 quantization
-          device: 'cpu',
-        },
-      );
-
-      this.initialized = true;
-      this.logger.log(
-        `Semantic Router initialized (model: ${SemanticRouterService.MODEL}, dim: ${SemanticRouterService.EMBED_DIM})`,
-      );
+      this.logger.log(`Loading embedding model: ${NOMIC_MODEL}...`);
+      this.embedder = await getSharedNomicEmbedder();
+      this.initialized = Boolean(this.embedder);
+      if (this.embedder) {
+        this.logger.log(`Semantic Router initialized (model: ${NOMIC_MODEL}, dim: ${NOMIC_EMBED_DIM})`);
+      } else {
+        this.logger.warn('Semantic Router not initialized — falling back to Levenshtein only');
+      }
     } catch (err: any) {
       this.logger.warn(
         `Semantic Router not initialized — falling back to Levenshtein only: ${err.message}`,
@@ -69,45 +42,15 @@ export class SemanticRouterService implements OnModuleInit {
     }
   }
 
-  /**
-   * Whether the semantic router is available.
-   * If false, KeywordMatcherService should skip semantic matching.
-   */
   get isAvailable(): boolean {
     return this.initialized;
   }
 
-  /**
-   * Compute embedding for a text string.
-   * Returns a normalized Float32Array of dimension EMBED_DIM.
-   *
-   * Uses "search_query:" prefix for queries and "search_document:" for docs,
-   * following Nomic's recommended usage.
-   */
   async embed(text: string, isQuery: boolean = true): Promise<Float32Array> {
-    if (!this.pipeline) {
+    if (!this.embedder) {
       throw new Error('SemanticRouterService not initialized');
     }
-
-    // Nomic v1.5 uses task-specific prefixes
-    const prefixedText = isQuery
-      ? `search_query: ${text}`
-      : `search_document: ${text}`;
-
-    const output = await this.pipeline(prefixedText, {
-      pooling: 'mean',
-      normalize: true,
-    });
-
-    // Get raw Float32 data and truncate to EMBED_DIM (Matryoshka)
-    const fullEmbed: Float32Array = output.data instanceof Float32Array
-      ? output.data
-      : new Float32Array(output.data);
-
-    const truncated = fullEmbed.slice(0, SemanticRouterService.EMBED_DIM);
-
-    // Re-normalize after truncation
-    return this.normalizeVector(truncated);
+    return this.embedder.embed(text, isQuery);
   }
 
   /**
@@ -166,7 +109,7 @@ export class SemanticRouterService implements OnModuleInit {
       const cached = this.embeddingCache.get(key);
       if (!cached) continue;
 
-      const similarity = this.cosineSimilarity(queryEmbed, cached);
+      const similarity = cosineSimilarity(queryEmbed, cached);
 
       if (similarity > bestSimilarity) {
         bestSimilarity = similarity;
@@ -206,7 +149,7 @@ export class SemanticRouterService implements OnModuleInit {
       const cached = this.embeddingCache.get(key);
       if (!cached) continue;
 
-      const similarity = this.cosineSimilarity(queryEmbed, cached);
+      const similarity = cosineSimilarity(queryEmbed, cached);
       if (similarity >= threshold) {
         this.logger.debug(`Negative match: "${text}" ≈ "${phrase}" (${similarity.toFixed(3)})`);
         return true;
@@ -230,39 +173,5 @@ export class SemanticRouterService implements OnModuleInit {
     for (const phrase of phrases) {
       this.embeddingCache.delete(phrase.toLowerCase().trim());
     }
-  }
-
-  // ─── Math utilities ─────────────────────────────────────
-
-  /**
-   * Cosine similarity between two vectors.
-   * Assumes inputs are already normalized (dot product = cosine similarity).
-   */
-  private cosineSimilarity(a: Float32Array, b: Float32Array): number {
-    const len = Math.min(a.length, b.length);
-    let dot = 0;
-    for (let i = 0; i < len; i++) {
-      dot += a[i] * b[i];
-    }
-    return dot;
-  }
-
-  /**
-   * L2-normalize a vector in-place.
-   */
-  private normalizeVector(vec: Float32Array): Float32Array {
-    let norm = 0;
-    for (let i = 0; i < vec.length; i++) {
-      norm += vec[i] * vec[i];
-    }
-    norm = Math.sqrt(norm);
-
-    if (norm > 0) {
-      for (let i = 0; i < vec.length; i++) {
-        vec[i] /= norm;
-      }
-    }
-
-    return vec;
   }
 }

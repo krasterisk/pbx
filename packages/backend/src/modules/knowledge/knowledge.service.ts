@@ -3,7 +3,7 @@ import { InjectModel } from '@nestjs/sequelize';
 import { ProductAccessService } from '../product-access/product-access.service';
 import type { TenantContext } from '../integration-credentials/tenant-context';
 import {
-  assertKnowledgeSource, chunkText, DomainError, lexicalRetrieve, manifestDigest,
+  assertKnowledgeSource, chunkText, DomainError, lexicalRetrieve, manifestDigest, vectorRetrieve,
 } from './knowledge-engine';
 import {
   KbAccessBinding, KbBase,
@@ -46,6 +46,14 @@ export class KnowledgeService {
 
   search(query: string, chunks: Array<{ id: string; text: string; allowed: boolean }>) {
     return lexicalRetrieve(query, chunks);
+  }
+
+  async searchVector(
+    query: string,
+    chunks: Array<{ id: string; text: string; allowed: boolean; vector: Float32Array }>,
+    embedder: { embed(text: string, isQuery?: boolean): Promise<Float32Array> },
+  ) {
+    return vectorRetrieve(query, chunks, embedder);
   }
 
   releaseDigest(memberIds: string[]) {

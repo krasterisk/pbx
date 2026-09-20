@@ -1,0 +1,9 @@
+; Installer fills ASTERISK_ODBC_* from the selected engine. Do not copy live DSN secrets.
+[asterisk]
+enabled => yes
+dsn => krasterisk
+username => ASTERISK_ODBC_USER
+password => ASTERISK_ODBC_PASSWORD
+pre-connect => yes
+sanitysql => select 1
+max_connections => 5

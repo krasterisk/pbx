@@ -3,9 +3,10 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize-typescript';
-import { Transaction } from 'sequelize';
+import { Transaction, UniqueConstraintError } from 'sequelize';
 import { BillingBalance } from './models/billing-balance.model';
 import { BillingTransaction, TransactionType } from './models/billing-transaction.model';
+import { decideCharge } from './idempotent-charge';
 
 export interface BalanceResponse {
   tenant_id: number;
@@ -182,48 +183,90 @@ export class BillingBalanceService {
     description?: string,
     moduleCode?: string,
     type: TransactionType = 'charge',
-  ): Promise<{ balance: BalanceResponse; transaction: TransactionResponse }> {
+    operationKey?: string,
+  ): Promise<{ replay?: boolean; balance: BalanceResponse; transaction: TransactionResponse }> {
     if (amountRub <= 0) {
       throw new BadRequestException('Сумма списания должна быть больше нуля');
     }
     const amountKopecks = Math.round(amountRub * 100);
 
-    return await this.sequelize.transaction(async (t) => {
-      const balance = await this.balanceModel.findOne({
-        where: { tenant_id: tenantId },
-        lock: t.LOCK.UPDATE,
-        transaction: t,
-      });
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        return await this.sequelize.transaction(async (t) => {
+          if (operationKey) {
+            const existing = await this.txModel.findOne({
+              where: { external_id: operationKey },
+              transaction: t,
+              lock: t.LOCK.UPDATE,
+            });
+            if (existing) {
+              const current = await this.balanceModel.findOne({
+                where: { tenant_id: tenantId },
+                transaction: t,
+                lock: t.LOCK.UPDATE,
+              });
+              if (!current) throw new NotFoundException(`Баланс для тенанта #${tenantId} не найден`);
+              return {
+                replay: true,
+                balance: this.toResponse(current),
+                transaction: this.txToResponse(existing),
+              };
+            }
+          }
 
-      if (!balance) {
-        throw new NotFoundException(`Баланс для тенанта #${tenantId} не найден`);
+          const balance = await this.balanceModel.findOne({
+            where: { tenant_id: tenantId },
+            lock: t.LOCK.UPDATE,
+            transaction: t,
+          });
+
+          if (!balance) {
+            throw new NotFoundException(`Баланс для тенанта #${tenantId} не найден`);
+          }
+
+          const balanceBefore = Number(balance.balance_kopecks);
+          const decided = decideCharge({
+            existing: false,
+            balanceKopecks: balanceBefore,
+            creditLimitKopecks: Number(balance.credit_limit_kopecks),
+            amountKopecks,
+          });
+          if (decided.kind !== 'debit') {
+            throw new BadRequestException('Некорректное решение списания');
+          }
+
+          await balance.update({
+            balance_kopecks: decided.balanceAfter,
+            is_blocked:      decided.blocked,
+            blocked_at:      decided.blocked ? new Date() : balance.blocked_at,
+          }, { transaction: t });
+
+          const tx = await this.txModel.create({
+            tenant_id:      tenantId,
+            type,
+            amount_kopecks: amountKopecks,
+            balance_before: balanceBefore,
+            balance_after:  decided.balanceAfter,
+            description,
+            module_code:    moduleCode ?? null,
+            performed_by:   performedBy,
+            external_id:    operationKey ?? null,
+          } as any, { transaction: t });
+
+          return {
+            replay: false,
+            balance: this.toResponse(balance),
+            transaction: this.txToResponse(tx),
+          };
+        });
+      } catch (error) {
+        if (attempt === 0 && operationKey && error instanceof UniqueConstraintError) {
+          continue;
+        }
+        throw error;
       }
+    }
 
-      const balanceBefore = Number(balance.balance_kopecks);
-      const balanceAfter  = balanceBefore - amountKopecks;
-      const isBlocked     = balanceAfter < 0 && Number(balance.credit_limit_kopecks) === 0;
-
-      await balance.update({
-        balance_kopecks: balanceAfter,
-        is_blocked:      isBlocked,
-        blocked_at:      isBlocked ? new Date() : balance.blocked_at,
-      }, { transaction: t });
-
-      const tx = await this.txModel.create({
-        tenant_id:      tenantId,
-        type,
-        amount_kopecks: amountKopecks,
-        balance_before: balanceBefore,
-        balance_after:  balanceAfter,
-        description,
-        module_code:    moduleCode ?? null,
-        performed_by:   performedBy,
-      } as any, { transaction: t });
-
-      return {
-        balance: this.toResponse(balance),
-        transaction: this.txToResponse(tx),
-      };
-    });
+    throw new BadRequestException('Не удалось идемпотентно списать баланс');
   }
 }

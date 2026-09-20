@@ -196,4 +196,15 @@ export class SpeechAnalyticsJwtController {
     assertUuid(body.projectId);
     return this.reporting.startBulk(request.tenantContext, body.projectId, body.recordingIds);
   }
+
+  @Get('recordings/:id/relations')
+  relations(@Req() request: Authed, @Param('id') id: string) {
+    assertUuid(id);
+    return this.reporting.listRelations(request.tenantContext, id);
+  }
+
+  @Post('backfill-preview')
+  backfill(@Req() request: Authed, @Body() body: { path?: string }) {
+    return this.reporting.previewBackfill(request.tenantContext, body.path);
+  }
 }

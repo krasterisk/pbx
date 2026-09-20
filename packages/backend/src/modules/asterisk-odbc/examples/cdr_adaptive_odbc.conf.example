@@ -1,0 +1,21 @@
+; cdr_adaptive_odbc maps Asterisk CDR fields onto the existing `cdr` table.
+; Do not recreate `cdr`. Do not copy a live DSN into this file.
+[adaptive_connection]
+connection=asterisk
+table=cdr
+alias start => calldate
+alias src => src
+alias dst => dst
+alias dcontext => dcontext
+alias channel => channel
+alias dstchannel => dstchannel
+alias lastapp => lastapp
+alias lastdata => lastdata
+alias duration => duration
+alias billsec => billsec
+alias disposition => disposition
+alias uniqueid => uniqueid
+alias linkedid => linkedid
+alias userfield => userfield
+alias accountcode => transid
+alias recordingfile => record

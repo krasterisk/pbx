@@ -1,0 +1,4 @@
+; Optional CEL backend. Leave unloaded when CEL is not required.
+[cel]
+connection=asterisk
+table=cel

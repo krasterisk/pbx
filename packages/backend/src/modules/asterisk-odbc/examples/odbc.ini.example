@@ -1,0 +1,18 @@
+; unixODBC DSN templates. Pick one engine; never commit a filled password.
+[krasterisk]
+Driver = PostgreSQL Unicode
+Servername = DB_HOST
+Port = 5432
+Database = DB_NAME
+Username = ASTERISK_ODBC_USER
+Password = ASTERISK_ODBC_PASSWORD
+SSLMode = require
+
+; [krasterisk]
+; Driver = MySQL ODBC 8.4 Unicode Driver
+; Server = DB_HOST
+; Port = 3306
+; Database = DB_NAME
+; User = ASTERISK_ODBC_USER
+; Password = ASTERISK_ODBC_PASSWORD
+; Charset = utf8mb4

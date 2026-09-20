@@ -75,6 +75,10 @@
         {
           "id": "0018-ai-tools.sql",
           "artifact": "0018-ai-tools.sql"
+        },
+        {
+          "id": "0019-asterisk-odbc.sql",
+          "artifact": "0019-asterisk-odbc.sql"
         }
       ],
       "profiles": {
@@ -286,6 +290,10 @@
         {
           "id": "0018-ai-tools.sql",
           "artifact": "postgres/0018-ai-tools.sql"
+        },
+        {
+          "id": "0019-asterisk-odbc.sql",
+          "artifact": "postgres/0019-asterisk-odbc.sql"
         }
       ],
       "profiles": {

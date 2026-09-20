@@ -1,0 +1,6 @@
+total 388
+-rw-r--r-- 1 root root 95084 Sep 20 05:49 inbound-1789872557.84.wav
+-rw-r--r-- 1 root root 95084 Sep 20 05:49 inbound-1789872565.98.wav
+-rw-r--r-- 1 root root    44 Sep 20 05:49 ivr-1789872561.88.wav
+-rw-r--r-- 1 root root 95084 Sep 20 05:49 outbound-1789872559.86.wav
+-rw-r--r-- 1 root root 95084 Sep 20 05:49 robot-1789872563.90.wav

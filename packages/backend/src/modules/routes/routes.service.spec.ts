@@ -556,6 +556,7 @@ describe('RoutesService', () => {
         const dp = service.generateRouteDialplan(route, 100, false);
         expect(dp).toContain('Set(__DURABLE_CAPTURE=1)');
         expect(dp).toContain('MixMonitor(/usr/records/100/calls/${path}/${fname}.wav,b,,${RECORDER_ID})');
+        expect(dp).toContain('hangup_handler_push)=krsk-hangup-handler');
         expect(dp).not.toContain('safeclid');
         expect(dp).not.toContain('${monopt}');
       } finally {

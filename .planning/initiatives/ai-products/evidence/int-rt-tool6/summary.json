@@ -1,0 +1,11 @@
+{
+  "int3_wav": 5,
+  "int3_ok": true,
+  "int2_duplicate": true,
+  "int2_pause_skip": true,
+  "rt5_sip_5060": true,
+  "rt5_sip_15060": false,
+  "rt5_ari": true,
+  "tool6_recall": 1,
+  "tool6_ok": true
+}

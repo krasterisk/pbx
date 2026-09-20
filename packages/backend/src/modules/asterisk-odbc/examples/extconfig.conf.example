@@ -1,0 +1,2 @@
+; ARA / queue_log family. Application credentials stay separate from this Asterisk writer DSN.
+queue_log => odbc,asterisk,queue_log

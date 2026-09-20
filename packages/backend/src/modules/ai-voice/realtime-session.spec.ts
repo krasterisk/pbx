@@ -1,4 +1,4 @@
-import { createFakeVoiceModelSession, invocationReplay } from './realtime-session';
+import { certifySipProfile, createFakeVoiceModelSession, invocationReplay } from './realtime-session';
 
 describe('RT1 VoiceModelSession', () => {
   it('records audio only after start and refuses a second originate hash mismatch', () => {
@@ -12,5 +12,14 @@ describe('RT1 VoiceModelSession', () => {
       expect(invocationReplay('abc', 'abc')).toBe('replay');
       expect(() => invocationReplay('abc', 'def')).toThrow(/invocation_conflict/);
     });
+  });
+
+  it('certifies a SIP lab profile only after invite, auth reject and hangup succeed', () => {
+    expect(certifySipProfile({
+      transport: 'udp', inviteOk: true, authRejectOk: false, hangupOk: true,
+    }).certified).toBe(false);
+    expect(certifySipProfile({
+      transport: 'udp', inviteOk: true, authRejectOk: true, hangupOk: true,
+    }).certified).toBe(true);
   });
 });

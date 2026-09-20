@@ -6,6 +6,8 @@ import {
   mixMonitorWithRecorderId,
   shouldRunLegacyFfmpegHangup,
   durableCaptureFileBase,
+  generatedDurableLabDialplan,
+  recordingDialplanLines,
 } from './route-recording.util';
 
 describe('route-recording.util', () => {
@@ -61,6 +63,19 @@ describe('route-recording.util', () => {
         .toBe('MixMonitor(/tmp/a.wav,b,,rec-1)');
       expect(shouldRunLegacyFfmpegHangup(true)).toBe(false);
       expect(shouldRunLegacyFfmpegHangup(false)).toBe(true);
+    });
+
+    it('emits generated-route MixMonitor with hangup_handler and no ffmpeg postprocess', () => {
+      const lab = generatedDurableLabDialplan(8);
+      expect(lab).toContain('[krasterisk-ai-generated]');
+      expect(lab).toContain('Set(__DURABLE_CAPTURE=1)');
+      expect(lab).toContain('MixMonitor(/usr/records/8/calls/${path}/${fname}.wav,,,${RECORDER_ID})');
+      expect(lab).toContain('hangup_handler_push)=krasterisk-ai-generated-hangup');
+      expect(lab).toContain('StopMixMonitor(${RECORDER_ID})');
+      expect(lab).not.toContain('ffmpeg');
+      expect(recordingDialplanLines({
+        vpbxUserUid: 8, durable: true, recordStereo: false, recordAll: true, hangupWebhook: false,
+      }).some(line => line.includes('hangup_handler_push)=krsk-hangup-handler'))).toBe(true);
     });
   });
 });

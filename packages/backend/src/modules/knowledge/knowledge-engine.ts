@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { cosineSimilarity } from '../embeddings/nomic-embed';
 
 export class DomainError extends Error {
   constructor(readonly code: string, readonly status: number, message?: string) {
@@ -37,6 +38,31 @@ export function lexicalRetrieve(query: string, chunks: Array<{ id: string; text:
   return chunks.filter(chunk => chunk.allowed && terms.some(term => chunk.text.toLowerCase().includes(term)))
     .slice(0, 5)
     .map(chunk => ({ id: chunk.id, excerpt: chunk.text.slice(0, 240), engine: 'lexical_fallback' as const }));
+}
+
+export async function vectorRetrieve(
+  query: string,
+  chunks: Array<{ id: string; text: string; allowed: boolean; vector: Float32Array }>,
+  embedder: { profile?: string; embed(text: string, isQuery?: boolean): Promise<Float32Array> },
+  k = 5,
+  minScore = 0.12,
+) {
+  const queryVec = await embedder.embed(query, true);
+  const engine = embedder.profile ?? 'portable_vector';
+  const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
+  const hashed = engine.startsWith('hashed_bow');
+  return chunks
+    .filter(chunk => chunk.allowed)
+    .filter(chunk => !hashed || terms.some(term => chunk.text.toLowerCase().includes(term)))
+    .map(chunk => ({
+      id: chunk.id,
+      excerpt: chunk.text.slice(0, 240),
+      engine,
+      score: cosineSimilarity(queryVec, chunk.vector),
+    }))
+    .filter(row => row.score >= minScore)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, k);
 }
 
 export function manifestDigest(memberIds: string[]): string {

@@ -12,6 +12,8 @@ import {
   parseCursor, reserveBudget, scheduleSlot, signCursor, validateFilterSpec,
 } from './reporting-engine';
 import { normalizeRouteMode, resolveCapturePolicy, type AnalyticsRouteMode } from './capture-policy';
+import { previewLegacyBackfill } from './backfill-preview';
+import { readInternalRelation } from './recording-relations';
 import {
   SaBudgetPolicy, SaBulkReanalysisBatch, SaBulkReanalysisItem, SaRecordingRelation,
   SaReportDefinition, SaReportRun, SaReportSchedule, SaReportSnapshotItem, SaTenantCapturePolicy,
@@ -240,7 +242,46 @@ export class SaReportingService {
   }
 
   async listRelations(context: TenantContext, recordingId: string) {
-    return this.relations.findAll({ where: { tenant_uid: context.tenantUid, recording_id: recordingId } });
+    try {
+      await this.resources.authorize(context, {
+        product: 'speech_analytics', action: 'analytics:read',
+        resourceKind: 'recording', resourceId: recordingId,
+      });
+      const rows = await this.relations.findAll({
+        where: { tenant_uid: context.tenantUid, recording_id: recordingId },
+      });
+      return rows.map(row => {
+        const kind = (['cdr', 'callcenter', 'autodial', 'external'].includes(row.source_kind)
+          ? row.source_kind : 'external') as 'cdr' | 'callcenter' | 'autodial' | 'external';
+        return {
+          id: row.id,
+          recordingId: row.recording_id,
+          sourceKind: kind,
+          sourceId: row.source_id,
+          linkedid: row.linkedid,
+          nodeId: row.node_id,
+          ...readInternalRelation({
+            sourceKind: kind,
+            callPermission: true,
+            analyticsPermission: true,
+            transcriptPermission: false,
+            audioPermission: false,
+            snippet: null,
+          }),
+        };
+      });
+    } catch (error) { this.mapError(error); }
+  }
+
+  previewBackfill(_context: TenantContext, requestedPath?: string) {
+    try {
+      return previewLegacyBackfill({
+        enabled: false,
+        tenantInstalled: true,
+        requestedPath: requestedPath ?? null,
+        files: [],
+      });
+    } catch (error) { this.mapError(error); }
   }
 
   async listSchedules(context: TenantContext) {

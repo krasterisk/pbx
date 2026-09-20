@@ -69,6 +69,8 @@ export class PurchaseModuleService {
         actorUserId,
         `Purchase module ${offer.code}`,
         offer.code,
+        'charge',
+        `purchase:${tenantId}:${offer.code}`,
       );
     }
 

@@ -166,6 +166,7 @@ It also drops `uq_sa_run_initial` so a recording can have an original run plus r
 `0016-sa-native-int.sql` adds tenant capture policy and recording relations; live Asterisk apply stays gated.
 `0017-ai-realtime.sql` adds SIP connection/DID/invocation contracts without applying live PJSIP.
 `0018-ai-tools.sql` adds business tool revisions and knowledge-base tables.
+`0019-asterisk-odbc.sql` adds full-PBX `queue_log` and `cel` writer tables. It does not recreate `cdr` and is not part of standalone analytics/robot profiles.
 
 The wide Asterisk `ps_endpoints` table stores non-indexed 40-character options
 as `TEXT`, allowing InnoDB DYNAMIC to move values off-page under utf8mb4.

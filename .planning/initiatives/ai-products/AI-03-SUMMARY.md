@@ -1,6 +1,6 @@
 # AI-03 SUMMARY — capture intents and durable recording handoff
 
-Phase: AI-03 CAP1–CAP5. Product commercial runtime remains `not-installed`. Native Asterisk rollout stays flag-gated (`DURABLE_CAPTURE` default OFF). Production PBX was not reconfigured.
+Phase: AI-03 CAP1–CAP5. Product commercial runtime remains `not-installed`. Native Asterisk rollout stays flag-gated (`DURABLE_CAPTURE` default OFF). Test ipbx received an isolated generated-route MixMonitor context; customer `custom/routes` were not rewritten.
 
 ## Delivered
 
@@ -12,5 +12,6 @@ Phase: AI-03 CAP1–CAP5. Product commercial runtime remains `not-installed`. Na
 
 ## Not claimed
 
-- Live MixMonitor on the existing ipbx PBX (forbidden). Disposable Asterisk namespace remains a follow-up when DB-03 evidence is assigned.
+- Replacing the existing Adaptive ODBC DSN or charging real tenants.
+- Rewriting all generated customer routes on disk (`DURABLE_CAPTURE` still required for `generateRouteDialplan`).
 - Commercial launch / paid capture.
