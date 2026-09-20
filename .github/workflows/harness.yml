@@ -14,6 +14,8 @@ jobs:
     name: Harness (API + Playwright Chromium)
     runs-on: ubuntu-22.04
     timeout-minutes: 25
+    env:
+      CI_SEED_PASSWORD: disposable-ci-seed-password
 
     services:
       mysql:
@@ -89,7 +91,7 @@ jobs:
           PLAYWRIGHT_BASE_URL: http://localhost:3010
           HARNESS_API_URL: http://localhost:5010
           PW_USER: admin
-          PW_PASS: admin
+          PW_PASS: ${{ env.CI_SEED_PASSWORD }}
           JWT_SECRET: ci-test-secret-for-isolated-harness-only-32chars
           CC_AI_KEY_SECRET: ci-test-ai-secret
           # HARNESS_LIVE_LLM stays unset — CI uses the OpenAI stub, not a paid/local model

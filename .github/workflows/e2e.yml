@@ -12,6 +12,8 @@ jobs:
     name: Playwright (Chromium)
     runs-on: ubuntu-22.04
     timeout-minutes: 25
+    env:
+      CI_SEED_PASSWORD: disposable-ci-seed-password
 
     services:
       mysql:
@@ -88,7 +90,7 @@ jobs:
         env:
           PLAYWRIGHT_BASE_URL: http://localhost:3010
           PW_USER: admin
-          PW_PASS: admin
+          PW_PASS: ${{ env.CI_SEED_PASSWORD }}
         run: npm test
 
       - name: Upload report

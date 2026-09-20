@@ -10,6 +10,8 @@ jobs:
     name: Harness Asterisk (lab)
     runs-on: ubuntu-22.04
     timeout-minutes: 30
+    env:
+      CI_SEED_PASSWORD: disposable-ci-seed-password
 
     services:
       mysql:
@@ -99,7 +101,7 @@ jobs:
           JWT_SECRET: ci-test-secret-for-isolated-harness-only-32chars
           CC_AI_KEY_SECRET: ci-test-ai-secret
           PW_USER: admin
-          PW_PASS: admin
+          PW_PASS: ${{ env.CI_SEED_PASSWORD }}
           AMI_HOST: ${{ secrets.AMI_HOST }}
           AMI_PORT: ${{ secrets.AMI_PORT }}
           AMI_LOGIN: ${{ secrets.AMI_LOGIN }}
