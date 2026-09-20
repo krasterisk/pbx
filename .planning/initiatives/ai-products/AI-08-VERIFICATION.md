@@ -10,4 +10,4 @@ PLAN SHA-256 `A5C85F43B71812ECB26E70611524A7F4711280AFDDBB5DA12A6C3AB050635155`.
 | RT4 | Hub `/ai-robots/sip`; capabilities `realtime: false`, `externalSip: false` | `external_sip` cannot ready without certified revision |
 | RT5 | Not executed | Live SIP/NAT/provider matrix **not** claimed |
 
-Local units: `realtime-session`. Live SQL DID + invocation: [REMOTE-MATRIX](evidence/rep-rt-tool/REMOTE-MATRIX.md). Product runtime `not-installed`.
+Local units: `realtime-session`. Live SQL DID + invocation: [REMOTE-MATRIX](evidence/rep-rt-tool/REMOTE-MATRIX.md). Dual-DB contracts: [contracts-0018](evidence/contracts-0018/REMOTE-MATRIX.md) MySQL **16/16** + PG **16/16**. Product runtime `not-installed`.

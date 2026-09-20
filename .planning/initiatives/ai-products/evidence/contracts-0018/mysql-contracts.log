@@ -1,0 +1,110 @@
+TAP version 13
+# Subtest: mysql: real database contracts (mysql:8.4.11)
+    # Subtest: analytics-api installs neutral tables only and binds schema identity
+    ok 1 - analytics-api installs neutral tables only and binds schema identity
+      ---
+      duration_ms: 18696.610785
+      type: 'test'
+      ...
+    # Subtest: robot-api installs neutral tables only and binds schema identity
+    ok 2 - robot-api installs neutral tables only and binds schema identity
+      ---
+      duration_ms: 23105.952988
+      type: 'test'
+      ...
+    # Subtest: canonical schema readiness and disposable core seed
+    ok 3 - canonical schema readiness and disposable core seed
+      ---
+      duration_ms: 45257.386406
+      type: 'test'
+      ...
+    # Subtest: status is read-only; first apply and replay preserve journal
+    ok 4 - status is read-only; first apply and replay preserve journal
+      ---
+      duration_ms: 959.131983
+      type: 'test'
+      ...
+    # Subtest: Sequelize uses the same config and persists tenant/Unicode/JSON
+    ok 5 - Sequelize uses the same config and persists tenant/Unicode/JSON
+      ---
+      duration_ms: 833.012099
+      type: 'test'
+      ...
+    # Subtest: changed checksum, wrong engine and unversioned schemas fail closed
+    ok 6 - changed checksum, wrong engine and unversioned schemas fail closed
+      ---
+      duration_ms: 841.367588
+      type: 'test'
+      ...
+    # Subtest: concurrent runners serialize; second run is a no-op
+    ok 7 - concurrent runners serialize; second run is a no-op
+      ---
+      duration_ms: 1894.07762
+      type: 'test'
+      ...
+    # Subtest: lock timeout is bounded; disconnect releases connection-owned lock
+    ok 8 - lock timeout is bounded; disconnect releases connection-owned lock
+      ---
+      duration_ms: 665.774488
+      type: 'test'
+      ...
+    # Subtest: mid-migration error leaves dirty marker, no success journal and blocks restart
+    ok 9 - mid-migration error leaves dirty marker, no success journal and blocks restart
+      ---
+      duration_ms: 781.136254
+      type: 'test'
+      ...
+    # Subtest: legacy successful journal is adopted without rewriting applied rows
+    ok 10 - legacy successful journal is adopted without rewriting applied rows
+      ---
+      duration_ms: 808.698834
+      type: 'test'
+      ...
+    # Subtest: unchanged current MySQL application baseline installs and replays
+    ok 11 - unchanged current MySQL application baseline installs and replays
+      ---
+      duration_ms: 43071.754351
+      type: 'test'
+      ...
+    # Subtest: rollup unique-key preflight refuses legacy duplicates without dirtying history
+    ok 12 - rollup unique-key preflight refuses legacy duplicates without dirtying history
+      ---
+      duration_ms: 55632.867892
+      type: 'test'
+      ...
+    # Subtest: login uniqueness preflight refuses legacy duplicates without dirtying history
+    ok 13 - login uniqueness preflight refuses legacy duplicates without dirtying history
+      ---
+      duration_ms: 67703.452759
+      type: 'test'
+      ...
+    # Subtest: D1 job/asset constraints reject illegal state, tenant FK mismatch, and unique collisions
+    ok 14 - D1 job/asset constraints reject illegal state, tenant FK mismatch, and unique collisions
+      ---
+      duration_ms: 67012.030764
+      type: 'test'
+      ...
+    # Subtest: D2 admission transaction, lease CAS, outbox claim, and idempotency race
+    ok 15 - D2 admission transaction, lease CAS, outbox claim, and idempotency race
+      ---
+      duration_ms: 69880.775392
+      type: 'test'
+      ...
+    1..15
+ok 1 - mysql: real database contracts (mysql:8.4.11)
+  ---
+  duration_ms: 436915.544155
+  type: 'test'
+  ...
+# Fresh database ready after 21 connection attempt(s)
+# {"profile":"mysql:8.4.11","server":"8.4.11","node":"v22.23.2","sequelize":"6.37.8","driver":"3.24.4","pgHstore":"2.3.4"}
+# MySQL baseline checksum: 8c18e47d94da3c3aeca3807eb44dbd0280433c1dedf96bef36470203d699543d; tables: 114
+1..1
+# tests 16
+# suites 0
+# pass 16
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 436923.353268

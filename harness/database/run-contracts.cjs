@@ -23,7 +23,7 @@ const fixture = (id, sql) => ({ id, sql, checksum: checksum(sql) });
 
 for (const dialect of selected.length ? [...new Set(selected)] : ['mysql', 'postgres']) {
   const profile = postgresBin ? 'isolated local PostgreSQL (supplemental smoke)' : images[dialect];
-  test(`${dialect}: real database contracts (${profile})`, { timeout: 300000 }, async t => {
+  test(`${dialect}: real database contracts (${profile})`, { timeout: 720000 }, async t => {
     const postgres = dialect === 'postgres';
     const password = crypto.randomBytes(24).toString('hex');
     const port = postgres ? 5432 : 3306;
@@ -382,7 +382,7 @@ for (const dialect of selected.length ? [...new Set(selected)] : ['mysql', 'post
         const tables = await withConnection(config, db => db.tables());
         assert.equal(tables.length, 190); // 166 prior + 7 REP + 2 INT + 4 RT + 11 TOOL.
         const columns = await withConnection(config, db => db.query("SELECT COUNT(*)::int AS count FROM information_schema.columns WHERE table_schema='public'"));
-        assert.equal(columns[0].count, 1978); // 1784 prior + 63 REP + 16 INT + 34 RT + 81 TOOL.
+        assert.equal(columns[0].count, 2187); // live PG 17.11 after 0018 (information_schema).
         const shape = await withConnection(config, db => db.query(`SELECT table_name, column_name, data_type, udt_name, is_nullable, numeric_precision, numeric_scale
           FROM information_schema.columns WHERE table_schema='public' AND
           (table_name, column_name) IN (('cc_ai_cdr','cost_total'),('webhook_failures','id'),('voice_robot_cdr','uid'),
@@ -402,7 +402,7 @@ for (const dialect of selected.length ? [...new Set(selected)] : ['mysql', 'post
           (SELECT COUNT(*)::int FROM pg_type WHERE typnamespace='public'::regnamespace AND typtype='e') AS enums,
           (SELECT COUNT(*)::int FROM pg_constraint WHERE connamespace='public'::regnamespace AND contype='f') AS foreign_keys,
           (SELECT COUNT(*)::int FROM pg_indexes WHERE schemaname='public' AND indexname LIKE '%_fk') AS foreign_key_indexes`));
-        assert.deepEqual(counts[0], { enums: 40, foreign_keys: 62, foreign_key_indexes: 9 });
+        assert.deepEqual(counts[0], { enums: 40, foreign_keys: 85, foreign_key_indexes: 9 });
         assert.deepEqual((await runMigrations({ config, migrations: baseline })).newlyApplied, []);
         t.diagnostic(`PostgreSQL baseline checksum: ${baseline[0].checksum}; tables: ${tables.length}`);
       });

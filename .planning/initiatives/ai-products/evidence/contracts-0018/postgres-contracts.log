@@ -1,0 +1,110 @@
+TAP version 13
+# Subtest: postgres: real database contracts (postgres:17.11-bookworm)
+    # Subtest: analytics-api installs neutral tables only and binds schema identity
+    ok 1 - analytics-api installs neutral tables only and binds schema identity
+      ---
+      duration_ms: 814.629863
+      type: 'test'
+      ...
+    # Subtest: robot-api installs neutral tables only and binds schema identity
+    ok 2 - robot-api installs neutral tables only and binds schema identity
+      ---
+      duration_ms: 1019.053286
+      type: 'test'
+      ...
+    # Subtest: canonical schema readiness and disposable core seed
+    ok 3 - canonical schema readiness and disposable core seed
+      ---
+      duration_ms: 1551.893967
+      type: 'test'
+      ...
+    # Subtest: status is read-only; first apply and replay preserve journal
+    ok 4 - status is read-only; first apply and replay preserve journal
+      ---
+      duration_ms: 608.153367
+      type: 'test'
+      ...
+    # Subtest: Sequelize uses the same config and persists tenant/Unicode/JSON
+    ok 5 - Sequelize uses the same config and persists tenant/Unicode/JSON
+      ---
+      duration_ms: 331.692734
+      type: 'test'
+      ...
+    # Subtest: changed checksum, wrong engine and unversioned schemas fail closed
+    ok 6 - changed checksum, wrong engine and unversioned schemas fail closed
+      ---
+      duration_ms: 459.352515
+      type: 'test'
+      ...
+    # Subtest: concurrent runners serialize; second run is a no-op
+    ok 7 - concurrent runners serialize; second run is a no-op
+      ---
+      duration_ms: 645.529498
+      type: 'test'
+      ...
+    # Subtest: lock timeout is bounded; disconnect releases connection-owned lock
+    ok 8 - lock timeout is bounded; disconnect releases connection-owned lock
+      ---
+      duration_ms: 387.595281
+      type: 'test'
+      ...
+    # Subtest: mid-migration error leaves dirty marker, no success journal and blocks restart
+    ok 9 - mid-migration error leaves dirty marker, no success journal and blocks restart
+      ---
+      duration_ms: 263.733804
+      type: 'test'
+      ...
+    # Subtest: legacy successful journal is adopted without rewriting applied rows
+    ok 10 - legacy successful journal is adopted without rewriting applied rows
+      ---
+      duration_ms: 466.422403
+      type: 'test'
+      ...
+    # Subtest: canonical PostgreSQL application baseline installs through migration runner and replays
+    ok 11 - canonical PostgreSQL application baseline installs through migration runner and replays
+      ---
+      duration_ms: 1163.761721
+      type: 'test'
+      ...
+    # Subtest: rollup unique-key preflight refuses legacy duplicates without dirtying history
+    ok 12 - rollup unique-key preflight refuses legacy duplicates without dirtying history
+      ---
+      duration_ms: 1270.834835
+      type: 'test'
+      ...
+    # Subtest: login uniqueness preflight refuses legacy duplicates without dirtying history
+    ok 13 - login uniqueness preflight refuses legacy duplicates without dirtying history
+      ---
+      duration_ms: 1183.548444
+      type: 'test'
+      ...
+    # Subtest: D1 job/asset constraints reject illegal state, tenant FK mismatch, and unique collisions
+    ok 14 - D1 job/asset constraints reject illegal state, tenant FK mismatch, and unique collisions
+      ---
+      duration_ms: 1427.177091
+      type: 'test'
+      ...
+    # Subtest: D2 admission transaction, lease CAS, outbox claim, and idempotency race
+    ok 15 - D2 admission transaction, lease CAS, outbox claim, and idempotency race
+      ---
+      duration_ms: 1176.752995
+      type: 'test'
+      ...
+    1..15
+ok 1 - postgres: real database contracts (postgres:17.11-bookworm)
+  ---
+  duration_ms: 43875.538504
+  type: 'test'
+  ...
+# Fresh database ready after 1 connection attempt(s)
+# {"profile":"postgres:17.11-bookworm","server":"PostgreSQL 17.11 (Debian 17.11-1.pgdg12+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 12.2.0-14+deb12u1) 12.2.0, 64-bit","node":"v22.23.2","sequelize":"6.37.8","driver":"8.23.0","pgHstore":"2.3.4"}
+# PostgreSQL baseline checksum: a7d418f512e6534c8d94bcf90fef4be28263634a5eb1c5774a787baa89d1720f; tables: 190
+1..1
+# tests 16
+# suites 0
+# pass 16
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 43883.556194
