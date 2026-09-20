@@ -162,7 +162,8 @@ describe('directoryApi contracts', () => {
     const call = await lastCall();
     expect(call.method).toBe('GET');
     expect(call.url).toMatch(/\/directories\/7\/export-csv$/);
-    expect(result).toBeInstanceOf(Blob);
+    expect(result.size).toBeGreaterThan(0);
+    expect(result.type).toMatch(/text\/csv/);
   });
 
   it('imports CSV at POST /directories/:id/import-csv', async () => {
